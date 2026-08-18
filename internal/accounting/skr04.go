@@ -1,402 +1,260 @@
 package accounting
 
-import "github.com/buchfink/buchfink/internal/models"
+import (
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
 
-// DefaultSKR04Accounts returns a curated, production-grade list of SKR04 accounts
-// suitable for small businesses and self-employed professionals with clear explanations.
-func DefaultSKR04Accounts() []models.Account {
-	return []models.Account{
-		// -------------------------------------------------------------
-		// KLASSE 0: ANLAGEVERMÖGEN (Assets - Non-current)
-		// -------------------------------------------------------------
-		{
-			Number:      "0520",
-			Name:        "EDV-Software / Lizenzen",
-			Type:        "asset",
-			Category:    "Immaterielle Vermögensgegenstände",
-			TaxRate:     0.0,
-			Description: "Gekaufte Softwarelizenzen, Domains, geistiges Eigentum.",
-			IsActive:    true,
-		},
-		{
-			Number:      "0650",
-			Name:        "Büroeinrichtung",
-			Type:        "asset",
-			Category:    "Sachanlagen",
-			TaxRate:     0.0,
-			Description: "Schreibtische, Bürostühle, Lampen und sonstige Einrichtung.",
-			IsActive:    true,
-		},
-		{
-			Number:      "0670",
-			Name:        "Geringwertige Wirtschaftsgüter (GWG)",
-			Type:        "asset",
-			Category:    "Sachanlagen",
-			TaxRate:     0.0,
-			Description: "Gegenstände zwischen 250 € und 800 € netto (Sofortabschreibung).",
-			IsActive:    true,
-		},
-		{
-			Number:      "0675",
-			Name:        "GWG Sammelposten (Pool)",
-			Type:        "asset",
-			Category:    "Sachanlagen",
-			TaxRate:     0.0,
-			Description: "Sammelposten für Wirtschaftsgüter zwischen 250 € und 1.000 €.",
-			IsActive:    true,
-		},
-		{
-			Number:      "0680",
-			Name:        "Computer, Laptops & Server",
-			Type:        "asset",
-			Category:    "Sachanlagen",
-			TaxRate:     0.0,
-			Description: "Computerhardware, Notebooks, Peripheriegeräte.",
-			IsActive:    true,
-		},
-		{
-			Number:      "0800",
-			Name:        "Beteiligungen an verbundenen Unternehmen",
-			Type:        "asset",
-			Category:    "Finanzanlagen",
-			TaxRate:     0.0,
-			Description: "Unternehmensanteile, Beteiligungen, Aktien.",
-			IsActive:    true,
-		},
+	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/models"
+)
 
-		// -------------------------------------------------------------
-		// KLASSE 1: UMLAUFVERMÖGEN (Assets - Current)
-		// -------------------------------------------------------------
-		{
-			Number:      "1200",
-			Name:        "Forderungen aus Lieferungen und Leistungen",
-			Type:        "asset",
-			Category:    "Forderungen",
-			TaxRate:     0.0,
-			Description: "Sammelkonto für unbezahlte Ausgangsrechnungen an Kunden.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1400",
-			Name:        "Abziehbare Vorsteuer 19%",
-			Type:        "asset",
-			Category:    "Steuerforderungen",
-			TaxRate:     0.19,
-			Description: "Vorsteuer aus Eingangsrechnungen mit 19% MwSt.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1401",
-			Name:        "Abziehbare Vorsteuer 7%",
-			Type:        "asset",
-			Category:    "Steuerforderungen",
-			TaxRate:     0.07,
-			Description: "Vorsteuer aus Eingangsrechnungen mit 7% MwSt. (Bücher, Lebensmittel).",
-			IsActive:    true,
-		},
-		{
-			Number:      "1600",
-			Name:        "Kasse / Bargeld",
-			Type:        "asset",
-			Category:    "Liquide Mittel",
-			TaxRate:     0.0,
-			Description: "Bargeldbestand im Unternehmen.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1800",
-			Name:        "Bankkonto (Geschäftskonto)",
-			Type:        "asset",
-			Category:    "Liquide Mittel",
-			TaxRate:     0.0,
-			Description: "Haupt-Geschäftskonto bei Ihrer Hausbank.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1810",
-			Name:        "Bankkonto 2 / Sparkonto",
-			Type:        "asset",
-			Category:    "Liquide Mittel",
-			TaxRate:     0.0,
-			Description: "Zweites Bankkonto, Tagesgeld oder Unterkonto.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1820",
-			Name:        "Zahlungsdienstleister (Stripe / PayPal)",
-			Type:        "asset",
-			Category:    "Liquide Mittel",
-			TaxRate:     0.0,
-			Description: "Guthaben auf Stripe-, PayPal- oder Online-Payment-Accounts.",
-			IsActive:    true,
-		},
-		{
-			Number:      "1900",
-			Name:        "Aktive Rechnungsabgrenzung (ARAP)",
-			Type:        "asset",
-			Category:    "Rechnungsabgrenzung",
-			TaxRate:     0.0,
-			Description: "Ausgaben im alten Jahr, die wirtschaftlich das neue Jahr betreffen.",
-			IsActive:    true,
-		},
+//go:embed skr04_2026.json
+var skr04JSONData []byte
 
-		// -------------------------------------------------------------
-		// KLASSE 2: EIGENKAPITAL & RÜCKSTELLUNGEN (Equity & Liabilities)
-		// -------------------------------------------------------------
-		{
-			Number:      "2000",
-			Name:        "Gezeichnetes Kapital / Stammkapital",
-			Type:        "liability",
-			Category:    "Eigenkapital",
-			TaxRate:     0.0,
-			Description: "Stammkapital der GmbH/UG oder Grundkapital.",
-			IsActive:    true,
-		},
-		{
-			Number:      "2100",
-			Name:        "Privatkonto (Einlagen / Entnahmen)",
-			Type:        "liability",
-			Category:    "Eigenkapital",
-			TaxRate:     0.0,
-			Description: "Private Einlagen und Entnahmen bei Einzelunternehmen / Personengesellschaften.",
-			IsActive:    true,
-		},
-		{
-			Number:      "2868",
-			Name:        "Saldenvorträge Sachkonten (Vortragskonto)",
-			Type:        "liability",
-			Category:    "Eröffnungskonten",
-			TaxRate:     0.0,
-			Description: "Hilfskonto für Eröffnungsbilanzbuchungen zu Jahresbeginn.",
-			IsActive:    true,
-		},
-		{
-			Number:      "2900",
-			Name:        "Gewinnvortrag vor Verwendung",
-			Type:        "liability",
-			Category:    "Eigenkapital",
-			TaxRate:     0.0,
-			Description: "Jahresüberschuss vergangener Geschäftsjahre.",
-			IsActive:    true,
-		},
+var (
+	catalogOnce  sync.Once
+	cachedCatalog *SKR04Catalog
+	catalogErr   error
+)
 
-		// -------------------------------------------------------------
-		// KLASSE 3: VERBINDLICHKEITEN (Liabilities - Current)
-		// -------------------------------------------------------------
-		{
-			Number:      "3300",
-			Name:        "Verbindlichkeiten aus Lieferungen und Leistungen",
-			Type:        "liability",
-			Category:    "Verbindlichkeiten",
-			TaxRate:     0.0,
-			Description: "Sammelkonto für offene Eingangsrechnungen von Lieferanten.",
-			IsActive:    true,
-		},
-		{
-			Number:      "3806",
-			Name:        "Umsatzsteuer 19%",
-			Type:        "liability",
-			Category:    "Steuerverbindlichkeiten",
-			TaxRate:     0.19,
-			Description: "Umsatzsteuer aus eigenen Verkäufen mit 19% MwSt.",
-			IsActive:    true,
-		},
-		{
-			Number:      "3801",
-			Name:        "Umsatzsteuer 7%",
-			Type:        "liability",
-			Category:    "Steuerverbindlichkeiten",
-			TaxRate:     0.07,
-			Description: "Umsatzsteuer aus Verkäufen mit ermäßigtem Steuersatz 7%.",
-			IsActive:    true,
-		},
-		{
-			Number:      "3820",
-			Name:        "Umsatzsteuer-Vorauszahlungen (Finanzamt)",
-			Type:        "liability",
-			Category:    "Steuerverbindlichkeiten",
-			TaxRate:     0.0,
-			Description: "An das Finanzamt gezahlte oder erstattete USt-Vorauszahlungen.",
-			IsActive:    true,
-		},
+// SKR04Metadata contains document info according to official DATEV SKR04 (BilRUG 2026).
+type SKR04Metadata struct {
+	Title         string `json:"title"`
+	Subtitle      string `json:"subtitle"`
+	ValidityFrom  string `json:"validity_from"`
+	Version       string `json:"version"`
+	ArticleNumber string `json:"article_number"`
+	SourceFile    string `json:"source_file"`
+	Description   string `json:"description"`
+	GeneratedAt   string `json:"generated_at"`
+}
 
-		// -------------------------------------------------------------
-		// KLASSE 4: BETRIEBLICHE ERTRÄGE (Revenue)
-		// -------------------------------------------------------------
-		{
-			Number:      "4400",
-			Name:        "Erlöse 19% USt",
-			Type:        "revenue",
-			Category:    "Umsatzerlöse",
-			TaxRate:     0.19,
-			Description: "Reguläre Umsätze und Dienstleistungen mit 19% deutscher Umsatzsteuer.",
-			IsActive:    true,
-		},
-		{
-			Number:      "4300",
-			Name:        "Erlöse 7% USt",
-			Type:        "revenue",
-			Category:    "Umsatzerlöse",
-			TaxRate:     0.07,
-			Description: "Ermäßigte Umsätze mit 7% Mehrwertsteuer.",
-			IsActive:    true,
-		},
-		{
-			Number:      "4120",
-			Name:        "Steuerfreie Umsätze (§ 4 Nr. 8 ff. UStG)",
-			Type:        "revenue",
-			Category:    "Umsatzerlöse",
-			TaxRate:     0.0,
-			Description: "Steuerfreie Umsätze ohne Vorsteuerabzugsberechtigung.",
-			IsActive:    true,
-		},
-		{
-			Number:      "4125",
-			Name:        "Steuerfreie innergemeinschaftliche Lieferungen (EU)",
-			Type:        "revenue",
-			Category:    "Umsatzerlöse",
-			TaxRate:     0.0,
-			Description: "B2B-Verkäufe an Kunden im EU-Ausland mit gültiger USt-IdNr.",
-			IsActive:    true,
-		},
-		{
-			Number:      "4130",
-			Name:        "Steuerfreie Ausfuhren (Drittland / Non-EU)",
-			Type:        "revenue",
-			Category:    "Umsatzerlöse",
-			TaxRate:     0.0,
-			Description: "Exporte in Länder außerhalb der EU (z.B. Schweiz, USA).",
-			IsActive:    true,
-		},
-		{
-			Number:      "4830",
-			Name:        "Sonstige betriebliche Erträge",
-			Type:        "revenue",
-			Category:    "Nebenerlöse",
-			TaxRate:     0.0,
-			Description: "Nebeneinnahmen, Rückerstattungen, Schadensersatzzahlungen.",
-			IsActive:    true,
-		},
+// SKR04Legend holds explanation texts for functions, VAT keys, and footnotes.
+type SKR04Legend struct {
+	Hauptfunktionen    map[string]string `json:"hauptfunktionen"`
+	Zusatzfunktionen   map[string]string `json:"zusatzfunktionen"`
+	Abschlusszweck     map[string]string `json:"abschlusszweck"`
+	Programmverbindung map[string]string `json:"programmverbindung"`
+	Footnotes          map[string]string `json:"footnotes"`
+}
 
-		// -------------------------------------------------------------
-		// KLASSE 6: BETRIEBLICHE AUFWENDUNGEN (Expenses)
-		// -------------------------------------------------------------
-		{
-			Number:      "6300",
-			Name:        "Löhne und Gehälter",
-			Type:        "expense",
-			Category:    "Personalaufwand",
-			TaxRate:     0.0,
-			Description: "Bruttogehälter der Angestellten.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6400",
-			Name:        "Fremdleistungen / Subunternehmer",
-			Type:        "expense",
-			Category:    "Fremdleistungen",
-			TaxRate:     0.19,
-			Description: "Eingekaufte Dienstleistungen von Freelancern und Subunternehmern.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6500",
-			Name:        "Miete & Nebenkosten (Büro / Geschäftsräume)",
-			Type:        "expense",
-			Category:    "Raumkosten",
-			TaxRate:     0.0,
-			Description: "Gezahlte Büromiete, Coworking-Gebühren, Nebenkosten.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6800",
-			Name:        "Porto, Telefon, Internet, SaaS",
-			Type:        "expense",
-			Category:    "Kommunikation & IT",
-			TaxRate:     0.19,
-			Description: "Internetanschluss, Handyverträge, Cloud-Software, Hosting.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6815",
-			Name:        "Bürobedarf",
-			Type:        "expense",
-			Category:    "Betriebsbedarf",
-			TaxRate:     0.19,
-			Description: "Papier, Stifte, Kaffeebedarf fürs Büro, Kleinstmaterial.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6825",
-			Name:        "Rechts- und Steuerberatung, Buchführung",
-			Type:        "expense",
-			Category:    "Beratung",
-			TaxRate:     0.19,
-			Description: "Steuerberaterkosten, Anwaltshonorare, Notargebühren.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6830",
-			Name:        "Buchführungskosten & Software",
-			Type:        "expense",
-			Category:    "Verwaltung",
-			TaxRate:     0.19,
-			Description: "Softwarelizenzen für Buchhaltung und Verwaltung.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6850",
-			Name:        "Werbung & Marketing",
-			Type:        "expense",
-			Category:    "Marketing",
-			TaxRate:     0.19,
-			Description: "Google Ads, Meta Ads, Messen, Flyer, Webdesign.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6855",
-			Name:        "Reisekosten (Fahrt, Hotel, Spesen)",
-			Type:        "expense",
-			Category:    "Reisekosten",
-			TaxRate:     0.19,
-			Description: "Bahn- und Flugtickets, Übernachtungskosten, Verpflegungspauschalen.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6860",
-			Name:        "Bewirtungskosten 70% (geschäftlich)",
-			Type:        "expense",
-			Category:    "Repräsentation",
-			TaxRate:     0.19,
-			Description: "Geschäftsessen mit Kunden (70% abziehbarer Anteil).",
-			IsActive:    true,
-		},
-		{
-			Number:      "6865",
-			Name:        "Nicht abziehbare Bewirtungskosten (30%)",
-			Type:        "expense",
-			Category:    "Repräsentation",
-			TaxRate:     0.0,
-			Description: "30% Eigenanteil bei geschäftlichen Bewirtungen.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6870",
-			Name:        "Nebenkosten des Geldverkehrs / Bankgebühren",
-			Type:        "expense",
-			Category:    "Finanzkosten",
-			TaxRate:     0.0,
-			Description: "Kontoführungsgebühren, Stripe/PayPal-Transaktionsgebühren.",
-			IsActive:    true,
-		},
-		{
-			Number:      "6900",
-			Name:        "Abschreibungen auf Sachanlagen (AfA)",
-			Type:        "expense",
-			Category:    "Abschreibungen",
-			TaxRate:     0.0,
-			Description: "Reguläre jährliche Abschreibung für Computer, Möbel etc.",
-			IsActive:    true,
-		},
+// SKR04Statistics holds account and position metrics.
+type SKR04Statistics struct {
+	TotalAccounts          int            `json:"total_accounts"`
+	ActiveAccounts         int            `json:"active_accounts"`
+	ReservedAccounts       int            `json:"reserved_accounts"`
+	RangeAccounts          int            `json:"range_accounts"`
+	TotalPositions         int            `json:"total_positions"`
+	AccountsByType         map[string]int `json:"accounts_by_type"`
+	AccountsByKontenklasse map[string]int `json:"accounts_by_kontenklasse"`
+	PositionsBySide        map[string]int `json:"positions_by_side"`
+}
+
+// SKR04Kontenklasse represents a class 0-9.
+type SKR04Kontenklasse struct {
+	Number int    `json:"number"`
+	Name   string `json:"name"`
+}
+
+// SKR04Bilanzierung contains HGB § 266 / § 275 balance and P&L classification.
+type SKR04Bilanzierung struct {
+	StatementType string `json:"statement_type"`
+	BalanceSide   string `json:"balance_side"`
+	HGBCode       string `json:"hgb_code"`
+	Posten        string `json:"posten"`
+	AccountType   string `json:"account_type"`
+	PositionID    string `json:"position_id"`
+}
+
+// SKR04SteuerFunktion contains DATEV automatic tax calculation and program integration tags.
+type SKR04SteuerFunktion struct {
+	Hauptfunktion            *string  `json:"hauptfunktion"`
+	HauptfunktionDescription *string  `json:"hauptfunktion_description"`
+	Zusatzfunktion           *string  `json:"zusatzfunktion"`
+	ZusatzfunktionDescription *string `json:"zusatzfunktion_description"`
+	Abschlusszweck           *string  `json:"abschlusszweck"`
+	Programmverbindung       []string `json:"programmverbindung"`
+}
+
+// SKR04AccountEntry represents an individual account or account range in the official JSON.
+type SKR04AccountEntry struct {
+	Number         string              `json:"number"`
+	Name           string              `json:"name"`
+	Category       string              `json:"category"`
+	Subcategory    string              `json:"subcategory"`
+	Kontenklasse   SKR04Kontenklasse   `json:"kontenklasse"`
+	PositionID     string              `json:"position_id"`
+	IsRange        bool                `json:"is_range"`
+	RangeStart     string              `json:"range_start"`
+	RangeEnd       string              `json:"range_end"`
+	IsReserved     bool                `json:"is_reserved"`
+	Page           int                 `json:"page"`
+	Bilanzierung   SKR04Bilanzierung   `json:"bilanzierung"`
+	SteuerFunktion SKR04SteuerFunktion `json:"steuer_funktion"`
+	Footnotes      []int               `json:"footnotes"`
+	Description    string              `json:"description,omitempty"`
+}
+
+// SKR04Position represents an HGB position node (e.g. Anlagevermögen -> Sachanlagen).
+type SKR04Position struct {
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	StatementType  string            `json:"statement_type"`
+	BalanceSide    string            `json:"balance_side"`
+	HGBCode        string            `json:"hgb_code"`
+	Group          string            `json:"group"`
+	MainGroup      string            `json:"main_group"`
+	AccountType    string            `json:"account_type"`
+	Kontenklasse   SKR04Kontenklasse `json:"kontenklasse"`
+	AccountNumbers []string          `json:"account_numbers"`
+	AccountsCount  int               `json:"accounts_count"`
+}
+
+// SKR04Catalog represents the entire dataset of SKR04 (2026).
+type SKR04Catalog struct {
+	Metadata   SKR04Metadata          `json:"metadata"`
+	Legend     SKR04Legend            `json:"legend"`
+	Statistics SKR04Statistics        `json:"statistics"`
+	Positions  []SKR04Position        `json:"positions"`
+	Accounts   []SKR04AccountEntry    `json:"accounts"`
+	Hierarchy  map[string]interface{} `json:"hierarchy"`
+}
+
+// GetSKR04Catalog loads and caches the complete SKR04 2026 catalog from the embedded JSON.
+func GetSKR04Catalog() (*SKR04Catalog, error) {
+	catalogOnce.Do(func() {
+		var cat SKR04Catalog
+		if err := json.Unmarshal(skr04JSONData, &cat); err != nil {
+			catalogErr = fmt.Errorf("failed to parse embedded skr04_2026.json: %w", err)
+			return
+		}
+		cachedCatalog = &cat
+	})
+	return cachedCatalog, catalogErr
+}
+
+// DefaultSKR04Accounts returns all structured accounts from the official SKR04 2026 JSON.
+func DefaultSKR04Accounts() []domain.Account {
+	cat, err := GetSKR04Catalog()
+	if err != nil || cat == nil {
+		return nil
 	}
+
+	result := make([]domain.Account, 0, len(cat.Accounts))
+	for _, entry := range cat.Accounts {
+		var hf, hfDesc, zf, zfDesc, az string
+		if entry.SteuerFunktion.Hauptfunktion != nil {
+			hf = *entry.SteuerFunktion.Hauptfunktion
+		}
+		if entry.SteuerFunktion.HauptfunktionDescription != nil {
+			hfDesc = *entry.SteuerFunktion.HauptfunktionDescription
+		}
+		if entry.SteuerFunktion.Zusatzfunktion != nil {
+			zf = *entry.SteuerFunktion.Zusatzfunktion
+		}
+		if entry.SteuerFunktion.ZusatzfunktionDescription != nil {
+			zfDesc = *entry.SteuerFunktion.ZusatzfunktionDescription
+		}
+		if entry.SteuerFunktion.Abschlusszweck != nil {
+			az = *entry.SteuerFunktion.Abschlusszweck
+		}
+
+		// Calculate tax rate from name/key
+		taxRate := 0.0
+		if strings.Contains(entry.Name, "19 %") || strings.Contains(entry.Name, "19%") {
+			taxRate = 0.19
+		} else if strings.Contains(entry.Name, "7 %") || strings.Contains(entry.Name, "7%") {
+			taxRate = 0.07
+		} else if strings.Contains(entry.Name, "16 %") || strings.Contains(entry.Name, "16%") {
+			taxRate = 0.16
+		}
+
+		desc := entry.Description
+		if desc == "" {
+			var parts []string
+			if entry.Bilanzierung.Posten != "" && entry.Bilanzierung.Posten != entry.Name {
+				parts = append(parts, "Posten: "+entry.Bilanzierung.Posten)
+			}
+			if hfDesc != "" {
+				parts = append(parts, hfDesc)
+			}
+			if zfDesc != "" {
+				parts = append(parts, zfDesc)
+			}
+			desc = strings.Join(parts, " • ")
+		}
+
+		accType := domain.AccountType(entry.Bilanzierung.AccountType)
+		if accType == "" {
+			accType = domain.AccountTypeAsset
+		}
+
+		result = append(result, domain.Account{
+			Number:             entry.Number,
+			Name:               entry.Name,
+			Type:               accType,
+			Category:           entry.Category,
+			Subcategory:        entry.Subcategory,
+			Kontenklasse:       entry.Kontenklasse.Number,
+			KontenklasseName:   entry.Kontenklasse.Name,
+			PositionID:         entry.PositionID,
+			Posten:             entry.Bilanzierung.Posten,
+			BalanceSide:        entry.Bilanzierung.BalanceSide,
+			HGBCode:            entry.Bilanzierung.HGBCode,
+			StatementType:      entry.Bilanzierung.StatementType,
+			TaxRate:            taxRate,
+			Hauptfunktion:      hf,
+			HauptfunktionDesc:  hfDesc,
+			Zusatzfunktion:     zf,
+			ZusatzfunktionDesc: zfDesc,
+			Abschlusszweck:     az,
+			IsRange:            entry.IsRange,
+			RangeStart:         entry.RangeStart,
+			RangeEnd:           entry.RangeEnd,
+			IsReserved:         entry.IsReserved,
+			Description:        desc,
+			IsActive:           !entry.IsReserved,
+		})
+	}
+
+	return result
+}
+
+// DefaultSKR04LegacyAccounts returns legacy models.Account entries for backward compatibility.
+func DefaultSKR04LegacyAccounts() []models.Account {
+	domainAccounts := DefaultSKR04Accounts()
+	result := make([]models.Account, len(domainAccounts))
+	for i, a := range domainAccounts {
+		result[i] = models.Account{
+			ID:                 int64(a.ID),
+			Number:             a.Number,
+			Name:               a.Name,
+			Type:               string(a.Type),
+			Category:           a.Category,
+			Subcategory:        a.Subcategory,
+			Kontenklasse:       a.Kontenklasse,
+			KontenklasseName:   a.KontenklasseName,
+			PositionID:         a.PositionID,
+			Posten:             a.Posten,
+			BalanceSide:        a.BalanceSide,
+			HGBCode:            a.HGBCode,
+			StatementType:      a.StatementType,
+			TaxRate:            a.TaxRate,
+			Hauptfunktion:      a.Hauptfunktion,
+			HauptfunktionDesc:  a.HauptfunktionDesc,
+			Zusatzfunktion:     a.Zusatzfunktion,
+			ZusatzfunktionDesc: a.ZusatzfunktionDesc,
+			Abschlusszweck:     a.Abschlusszweck,
+			IsRange:            a.IsRange,
+			RangeStart:         a.RangeStart,
+			RangeEnd:           a.RangeEnd,
+			IsReserved:         a.IsReserved,
+			Description:        a.Description,
+			IsActive:           a.IsActive,
+		}
+	}
+	return result
 }

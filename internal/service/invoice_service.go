@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
@@ -32,10 +33,23 @@ func NewInvoiceService(
 }
 
 func (s *InvoiceService) GetInvoices(ctx context.Context) ([]domain.Invoice, error) {
-	return s.invoiceRepo.FindAll(ctx)
+	return s.invoiceRepo.FindAll(ctx, 0)
 }
 
 func (s *InvoiceService) CreateInvoice(ctx context.Context, inv *domain.Invoice) error {
+	if inv.Date == "" {
+		inv.Date = time.Now().Format("2006-01-02")
+	}
+	if inv.FiscalYear == 0 {
+		startMonth := 1
+		if s.settingsRepo != nil {
+			if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && cfg.FiscalYearStartMonth > 0 {
+				startMonth = cfg.FiscalYearStartMonth
+			}
+		}
+		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, startMonth)
+	}
+
 	// Calculate totals if not provided
 	var net, tax float64
 	for _, it := range inv.Items {
@@ -59,13 +73,15 @@ func (s *InvoiceService) CreateInvoice(ctx context.Context, inv *domain.Invoice)
 		return err
 	}
 
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionCreate,
-		"INVOICE",
-		fmt.Sprintf("%d", inv.ID),
-		fmt.Sprintf("Rechnung %s über %.2f %s erstellt", inv.InvoiceNumber, inv.GrossAmount, inv.Currency),
-	)
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(
+			ctx,
+			domain.AuditActionCreate,
+			"INVOICE",
+			fmt.Sprintf("%d", inv.ID),
+			fmt.Sprintf("Rechnung %s über %.2f %s erstellt (GJ %d)", inv.InvoiceNumber, inv.GrossAmount, inv.Currency, inv.FiscalYear),
+		)
+	}
 
 	return nil
 }
@@ -86,8 +102,8 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 	if contact == nil {
 		contact = &domain.Contact{
 			Name:    inv.ContactName,
-			Address: "Musterkundenweg 1, 10115 Berlin",
-			VatID:   "DE987654321",
+			Address: "",
+			VatID:   "",
 		}
 	}
 
@@ -115,14 +131,17 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 	}
 
 	legacySeller := &models.CompanySettings{
-		CompanyName: sellerSettings.CompanyName,
-		TaxNumber:   sellerSettings.TaxNumber,
-		VatID:       sellerSettings.VatID,
-		IBAN:        sellerSettings.IBAN,
-		BIC:         sellerSettings.BIC,
-		BankName:    sellerSettings.BankName,
-		Street:      sellerSettings.Street,
-		ZipCity:     sellerSettings.ZipCity,
+		CompanyName:     sellerSettings.CompanyName,
+		TaxNumber:       sellerSettings.TaxNumber,
+		VatID:           sellerSettings.VatID,
+		IBAN:            sellerSettings.IBAN,
+		BIC:             sellerSettings.BIC,
+		BankName:        sellerSettings.BankName,
+		Street:          sellerSettings.Street,
+		ZipCity:         sellerSettings.ZipCity,
+		IsSmallBusiness: sellerSettings.IsSmallBusiness,
+		VatPeriod:       sellerSettings.VatPeriod,
+		TaxationType:    sellerSettings.TaxationType,
 	}
 
 	legacyBuyer := &models.Contact{

@@ -1,4 +1,15 @@
+export interface TenantConfig {
+  id: string;
+  name: string;
+  dataDir: string;
+  certPath: string;
+  hasPassword: boolean;
+  createdAt: string;
+}
+
 export interface AppConfig {
+  tenants: TenantConfig[];
+  activeTenantId: string;
   dataDir: string;
   certPath: string;
   hasPassword: boolean;
@@ -10,16 +21,133 @@ export interface Account {
   id: number;
   number: string;
   name: string;
-  type: 'asset' | 'liability' | 'revenue' | 'expense';
+  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'statistical';
   category: string;
+  subcategory?: string;
+  kontenklasse?: number;
+  kontenklasseName?: string;
+  positionId?: string;
+  posten?: string;
+  balanceSide?: 'Aktiva' | 'Passiva' | 'GuV' | 'Statistisch' | string;
+  hgbCode?: string;
+  statementType?: 'Bilanz' | 'GuV' | 'Statistisch' | string;
   taxRate: number;
+  hauptfunktion?: string;
+  hauptfunktionDesc?: string;
+  zusatzfunktion?: string;
+  zusatzfunktionDesc?: string;
+  abschlusszweck?: string;
+  isRange?: boolean;
+  rangeStart?: string;
+  rangeEnd?: string;
+  isReserved?: boolean;
   description: string;
   isActive: boolean;
+  debitSum?: number;
+  creditSum?: number;
   balance: number;
+  bookingsCount?: number;
+}
+
+export interface AccountLedgerBooking {
+  booking: BookingEntry;
+  counterAccount: string;
+  counterName: string;
+  direction: 'SOLL' | 'HABEN' | 'SOLL/HABEN' | string;
+  debitAmount: number;
+  creditAmount: number;
+  runningBalance: number;
+}
+
+export interface AccountLedger {
+  account: Account;
+  fiscalYear: number;
+  openingBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+  closingBalance: number;
+  bookingsCount: number;
+  entries: AccountLedgerBooking[];
+}
+
+export interface SuSaClassSummary {
+  kontenklasse: number;
+  kontenklasseName: string;
+  totalDebit: number;
+  totalCredit: number;
+  totalSaldoDebit: number;
+  totalSaldoCredit: number;
+  accountsCount: number;
+  accounts: Account[];
+}
+
+export interface SuSaOverview {
+  fiscalYear: number;
+  totalDebit: number;
+  totalCredit: number;
+  totalSaldoDebit: number;
+  totalSaldoCredit: number;
+  isBalanced: boolean;
+  difference: number;
+  classes: SuSaClassSummary[];
+}
+
+export interface SKR04Position {
+  id: string;
+  name: string;
+  statement_type: string;
+  balance_side: string;
+  hgb_code: string;
+  group: string;
+  main_group: string;
+  account_type: string;
+  kontenklasse: { number: number; name: string };
+  account_numbers: string[];
+  accounts_count: number;
+}
+
+export interface SKR04Metadata {
+  title: string;
+  subtitle: string;
+  validity_from: string;
+  version: string;
+  article_number: string;
+  source_file: string;
+  description: string;
+  generated_at: string;
+}
+
+export interface SKR04Legend {
+  hauptfunktionen: Record<string, string>;
+  zusatzfunktionen: Record<string, string>;
+  abschlusszweck: Record<string, string>;
+  programmverbindung: Record<string, string>;
+  footnotes: Record<string, string>;
+}
+
+export interface SKR04Statistics {
+  total_accounts: number;
+  active_accounts: number;
+  reserved_accounts: number;
+  range_accounts: number;
+  total_positions: number;
+  accounts_by_type: Record<string, number>;
+  accounts_by_kontenklasse: Record<string, number>;
+  positions_by_side: Record<string, number>;
+}
+
+export interface SKR04Catalog {
+  metadata: SKR04Metadata;
+  legend: SKR04Legend;
+  statistics: SKR04Statistics;
+  positions: SKR04Position[];
+  accounts: any[];
+  hierarchy: Record<string, any>;
 }
 
 export interface BookingEntry {
   id: number;
+  fiscalYear: number;
   bookingNumber: string;
   date: string;
   valueDate: string;
@@ -46,6 +174,7 @@ export interface BookingEntry {
 
 export interface BankTransaction {
   id: number;
+  fiscalYear?: number;
   accountIban: string;
   bookingDate: string;
   valueDate: string;
@@ -91,6 +220,7 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id: number;
+  fiscalYear?: number;
   invoiceNumber: string;
   date: string;
   dueDate: string;
@@ -136,6 +266,7 @@ export interface CompanySettings {
   companyName: string;
   legalForm: string;
   fiscalYear: number;
+  fiscalYearStartMonth?: number;
   taxNumber: string;
   vatId: string;
   taxOffice: string;
@@ -147,6 +278,9 @@ export interface CompanySettings {
   country: string;
   currency: string;
   skr: string;
+  isSmallBusiness?: boolean;
+  vatPeriod?: 'month' | 'quarter' | 'year' | 'exempt';
+  taxationType?: 'IST' | 'SOLL';
 }
 
 export interface AuditLogEntry {

@@ -41,7 +41,7 @@ func VerifyChain(entries []models.BookingEntry) models.IntegrityCheckResult {
 			IsValid:          true,
 			TotalEntries:     0,
 			CheckedEntries:   0,
-			Message:          "Keine Buchungen vorhanden. Die Kette ist intakt (Genesis-Zustand).",
+			Message:          "Keine Buchungen vorhanden. Die Buchhaltung ist bereit.",
 			LastVerifiedHash: GenesisHash,
 			CheckedAt:        time.Now().Format("02.01.2006 15:04:05"),
 		}
@@ -59,7 +59,7 @@ func VerifyChain(entries []models.BookingEntry) models.IntegrityCheckResult {
 				CheckedEntries: i,
 				FirstBrokenID:  &brokenID,
 				Message: fmt.Sprintf(
-					"Integritätsfehler bei Buchung %s (ID %d): PreviousHash stimmt nicht mit dem Vorgänger überein.",
+					"Unstimmigkeit bei Buchung %s (ID %d): Vorgänger-Referenz weicht ab.",
 					entry.BookingNumber, entry.ID,
 				),
 				LastVerifiedHash: currentExpectedPrev,
@@ -77,7 +77,7 @@ func VerifyChain(entries []models.BookingEntry) models.IntegrityCheckResult {
 				CheckedEntries: i,
 				FirstBrokenID:  &brokenID,
 				Message: fmt.Sprintf(
-					"Integritätsfehler bei Buchung %s (ID %d): Daten wurden nachträglich manipuliert. Hash stimmt nicht überein.",
+					"Unstimmigkeit bei Buchung %s (ID %d): Daten wurden nach der Buchung verändert.",
 					entry.BookingNumber, entry.ID,
 				),
 				LastVerifiedHash: currentExpectedPrev,
@@ -92,7 +92,7 @@ func VerifyChain(entries []models.BookingEntry) models.IntegrityCheckResult {
 		IsValid:          true,
 		TotalEntries:     len(entries),
 		CheckedEntries:   len(entries),
-		Message:          fmt.Sprintf("Alle %d Buchungen sind kryptografisch intakt und GoBD-konform verkettet.", len(entries)),
+		Message:          fmt.Sprintf("Alle %d Buchungen sind vollständig und unverändert.", len(entries)),
 		LastVerifiedHash: currentExpectedPrev,
 		CheckedAt:        time.Now().Format("02.01.2006 15:04:05"),
 	}

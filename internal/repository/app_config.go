@@ -36,6 +36,8 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		home, _ := os.UserHomeDir()
 		currentYear := time.Now().Year()
 		return &domain.AppConfig{
+			Tenants:        []domain.TenantConfig{},
+			ActiveTenantID: "",
 			DataDir:        filepath.Join(home, ".buchfink", "data"),
 			CertPath:       filepath.Join(home, ".buchfink", "certs", "buchfink-cert.pem"),
 			HasPassword:    false,
@@ -52,6 +54,23 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		return nil, fmt.Errorf("could not unmarshal config file: %w", err)
 	}
 
+	// Auto-migrate legacy single-tenant configuration to Tenants list
+	if cfg.IsConfigured && len(cfg.Tenants) == 0 {
+		tenantID := "default"
+		cfg.Tenants = []domain.TenantConfig{
+			{
+				ID:          tenantID,
+				Name:        "Hauptmandant",
+				DataDir:     cfg.DataDir,
+				CertPath:    cfg.CertPath,
+				HasPassword: cfg.HasPassword,
+				CreatedAt:   time.Now().Format(time.RFC3339),
+			},
+		}
+		cfg.ActiveTenantID = tenantID
+		_ = r.Save(&cfg)
+	}
+
 	return &cfg, nil
 }
 
@@ -59,6 +78,18 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 	dir := filepath.Dir(r.configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("could not create config directory: %w", err)
+	}
+
+	// Sync active tenant fields with top-level fields for convenience
+	if cfg.ActiveTenantID != "" {
+		for _, t := range cfg.Tenants {
+			if t.ID == cfg.ActiveTenantID {
+				cfg.DataDir = t.DataDir
+				cfg.CertPath = t.CertPath
+				cfg.HasPassword = t.HasPassword
+				break
+			}
+		}
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -83,7 +114,7 @@ func DiscoverAvailableFiscalYears(dataDir string) []int {
 				continue
 			}
 			name := e.Name()
-			if strings.HasPrefix(name, "buchfink_") && strings.HasSuffix(name, ".sqlite") {
+			if strings.HasPrefix(name, "buchfink_") && strings.HasSuffix(name, ".sqlite") && name != "buchfink.sqlite" {
 				// e.g. "buchfink_2026.sqlite"
 				part := strings.TrimPrefix(name, "buchfink_")
 				part = strings.TrimSuffix(part, ".sqlite")

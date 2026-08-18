@@ -32,9 +32,10 @@ type InvoiceItem struct {
 // Invoice represents an outgoing invoice capable of ZUGFeRD 2.2 / Factur-X EN 16931 export.
 type Invoice struct {
 	ID            uint          `gorm:"primaryKey" json:"id"`
-	InvoiceNumber string        `gorm:"size:50;uniqueIndex;not null" json:"invoiceNumber"` // Separate numbering series
-	Date          string        `gorm:"size:10;not null;index" json:"date"`                // YYYY-MM-DD
-	DueDate       string        `gorm:"size:10;not null" json:"dueDate"`                   // YYYY-MM-DD
+	FiscalYear    int           `gorm:"index;not null" json:"fiscalYear"`
+	InvoiceNumber string        `gorm:"size:50;not null;index" json:"invoiceNumber"` // Separate numbering series
+	Date          string        `gorm:"size:10;not null;index" json:"date"`          // YYYY-MM-DD
+	DueDate       string        `gorm:"size:10;not null" json:"dueDate"`             // YYYY-MM-DD
 	ContactID     uint          `gorm:"index;not null" json:"contactId"`
 	ContactName   string        `gorm:"size:255;not null" json:"contactName"`
 	Items         []InvoiceItem `gorm:"foreignKey:InvoiceID;constraint:OnDelete:CASCADE" json:"items"`
@@ -55,12 +56,12 @@ type Invoice struct {
 
 // InvoiceRepository defines persistence operations for invoices.
 type InvoiceRepository interface {
-	FindAll(ctx context.Context) ([]Invoice, error)
+	FindAll(ctx context.Context, fiscalYear int) ([]Invoice, error)
 	FindByID(ctx context.Context, id uint) (*Invoice, error)
 	FindByNumber(ctx context.Context, number string) (*Invoice, error)
 	Save(ctx context.Context, invoice *Invoice) error
 	UpdateStatus(ctx context.Context, id uint, status InvoiceStatus) error
-	Count(ctx context.Context) (int64, error)
+	Count(ctx context.Context, fiscalYear int) (int64, error)
 }
 
 // InvoiceRenderer defines the contract for rendering invoices into PDF or Typst format.

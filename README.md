@@ -5,12 +5,12 @@
 <h1 align="center">Buchfink</h1>
 
 <p align="center">
-  <strong>Moderne Open-Source-Buchhaltungssoftware für kleine Unternehmen</strong><br />
-  Native Desktop-App &bull; SKR04 &bull; GoBD-konform ab v1 &bull; E-Bilanz (XBRL) &bull; Local-First
+  <strong>Moderne Open-Source-Buchhaltungssoftware für bilanzierende Unternehmen</strong><br />
+  Native Desktop-App &bull; Doppelte Buchführung &bull; SKR04 &bull; Bilanz & GuV &bull; GoBD-konform ab v1 &bull; E-Bilanz (XBRL) &bull; Local-First
 </p>
 
 <p align="center">
-  <a href="#ziel">Ziel</a> &bull;
+  <a href="#ziel--anwendungsbereich">Ziel & Anwendungsbereich</a> &bull;
   <a href="#kernfunktionen">Kernfunktionen</a> &bull;
   <a href="#speicherung--integrität">Speicherung & Integrität</a> &bull;
   <a href="#tech-stack">Tech-Stack</a> &bull;
@@ -21,9 +21,24 @@
 
 ---
 
-## Ziel
+## Ziel & Anwendungsbereich
 
-**Buchfink** ist eine native Desktop-Buchhaltungssoftware für die doppelte Buchführung nach dem deutschen Kontenrahmen **SKR04**. Sie richtet sich an kleine Unternehmen, Selbstständige und Agenturen, die eine schlanke, GoBD-konforme Lösung ohne Cloud-Zwang oder Abo-Modell suchen.
+**Buchfink** ist eine native Desktop-Buchhaltungssoftware für die **doppelte kaufmännische Buchführung und Bilanzierung** nach dem deutschen Kontenrahmen **SKR04**. Sie richtet sich an bilanzierende Unternehmen, die eine schlanke, GoBD-konforme Lösung ohne Cloud-Zwang oder Abo-Modell suchen.
+
+### 🎯 Zielgruppe & Voraussetzungen
+Buchfink ist speziell für Unternehmen konzipiert, die zur **doppelten Buchführung und Bilanzierung** (Erstellung von Bilanz, Gewinn- und Verlustrechnung sowie E-Bilanz) verpflichtet sind oder freiwillig bilanzieren:
+- **Kapitalgesellschaften:** z. B. UG (haftungsbeschränkt), GmbH, AG
+- **Personenhandelsgesellschaften:** z. B. GmbH & Co. KG, KG, OHG
+- **Bilanzierende Einzelunternehmen & Kaufleute (e.K.)**
+
+### ⚠️ Wichtiger Hinweis: Nicht geeignet für EÜR (Einnahmen-Überschuss-Rechnung)
+Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunternehmer geeignet**, die lediglich eine einfache **Einnahmen-Überschuss-Rechnung (EÜR nach § 4 Abs. 3 EStG)** durchführen.
+- Buchfink unterstützt **keine EÜR**.
+- Die Software basiert vollständig auf dem geschlossenen System der doppelten Buchführung mit Soll und Haben, Bestandskonten (Aktiva/Passiva), Erfolgskonten (Aufwand/Ertrag), Bilanzierung und der amtlichen E-Bilanz-Taxonomie.
+
+---
+
+### Grundprinzipien
 
 - **Local-First:** Alle Daten verbleiben auf dem eigenen Rechner in standardisierten SQLite-Dateien.
 - **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage und integriertes Audit-Log.
@@ -173,11 +188,12 @@ buchfink/
 
 | Thema | Entscheidung in Buchfink |
 |---|---|
-| **Buchungsansatz** | Buchung folgt Bankumsatz: Transaktionen werden Belegen zugeordnet und generieren automatisch Soll/Haben-Sätze. |
-| **Kontenrahmen** | SKR04 als Standard für v1. |
+| **Anwendungsbereich & Zielgruppe** | **Ausschließlich bilanzierende Unternehmen** (z. B. UG, GmbH, AG, bilanzierende Kaufleute). **Nicht geeignet** für kleine Selbstständige, Freiberufler oder Kleinunternehmer mit einfacher Einnahmen-Überschuss-Rechnung (EÜR). |
+| **Buchungsansatz** | Doppelte Buchführung (Soll & Haben) nach dem Prinzip „Buchung folgt Bankumsatz“: Transaktionen werden Belegen zugeordnet und generieren automatisch Soll/Haben-Sätze. |
+| **Kontenrahmen** | SKR04 als Standard für v1 (Abschlussgliederungsprinzip für Bilanz & GuV). |
 | **GoBD** | Vollständige GoBD-Konformität von Tag 1 (Unveränderbarkeit, Hash-Chains, Storno-Prinzip). |
-| **E-Bilanz / ERiC** | Eigene Erzeugung gültiger XBRL-Dateien im Tool. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); Einreichung erfolgt über Mein ELSTER oder Bridges (z. B. eBilanz+). |
-| **Out-of-Scope (v1)** | Lohnbuchhaltung, Lagerverwaltung/Inventur, mehrsprachige UI (v1 fokussiert auf Deutsch/DACH). |
+| **E-Bilanz / ERiC** | Eigene Erzeugung gültiger XBRL-Dateien im Tool inkl. Kontennachweis nach amtlicher Taxonomie. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); Einreichung erfolgt über Mein ELSTER oder Bridges (z. B. eBilanz+). |
+| **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Lohnbuchhaltung, Lagerverwaltung/Inventur, mehrsprachige UI (v1 fokussiert auf Deutsch/DACH). |
 
 ---
 

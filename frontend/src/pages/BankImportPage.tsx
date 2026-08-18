@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Landmark,
   Upload,
@@ -68,7 +69,10 @@ export const BankImportPage: React.FC = () => {
         receiptNumber,
         bookingDesc
       );
-      setSuccessMessage(`Transaktion erfolgreich verbucht als Journal-Eintrag (${selectedDebit} an ${selectedCredit}).`);
+      setSuccessMessage(`Zahlung erfolgreich verbucht (${selectedDebit} an ${selectedCredit}).`);
+      toast.success('Zahlung verbucht', {
+        description: `Erfolgreich verbucht (${selectedDebit} an ${selectedCredit}).`,
+      });
       setActiveTx(null);
       await loadData();
       setTimeout(() => setSuccessMessage(null), 4000);
@@ -77,43 +81,27 @@ export const BankImportPage: React.FC = () => {
     }
   };
 
-  const handleLoadSampleCAMT = async () => {
-    try {
-      await Api.importSampleBankStatement();
-      await loadData();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            Bankabgleich & CAMT.053
+            Bank & Zahlungsabgleich
             <HelpTooltip
-              title="Automatisierte Buchung aus Bankumsätzen"
-              content="Kernkonzept von Buchfink: Sie müssen keine manuellen Soll/Haben-Sätze tippen. Sobald eine Bankbewegung einem Beleg oder Konto zugeordnet wird, erzeugt Buchfink automatisch die GoBD-konforme Buchung."
+              title="Automatisierter Zahlungsabgleich"
+              content="Buchfink schlägt Ihnen für jede Bankzahlung automatisch das passende Gegenkonto vor. Ein Klick genügt, um die Zahlung im Journal zu erfassen."
             />
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Standardisierter ISO 20022 CAMT.053 Import &bull; Automatische Zuordnungsvorschläge
+            Kontoauszüge einlesen und Zahlungen mit einem Klick verbuchen
           </p>
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={handleLoadSampleCAMT}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 transition-colors border border-stone-200"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            Muster-Auszug laden
-          </button>
-          <label className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors cursor-pointer shadow-xs">
+          <label className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800 transition-colors cursor-pointer shadow-xs">
             <Upload className="w-3.5 h-3.5" />
-            CAMT.053 XML importieren
+            Kontoauszug importieren (CAMT.053)
             <input
               type="file"
               accept=".xml"
@@ -123,8 +111,10 @@ export const BankImportPage: React.FC = () => {
                 if (file) {
                   const reader = new FileReader();
                   reader.onload = async () => {
-                    await Api.importSampleBankStatement();
-                    await loadData();
+                    if (typeof reader.result === 'string') {
+                      await Api.importCAMT053XML(reader.result);
+                      await loadData();
+                    }
                   };
                   reader.readAsText(file);
                 }
@@ -145,18 +135,18 @@ export const BankImportPage: React.FC = () => {
       {/* 2-Column Layout: Transactions List & Matching Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Transaction Table */}
-        <div className="lg:col-span-7 bg-white rounded-xl border border-stone-200/90 shadow-xs overflow-hidden">
+        <div className="lg:col-span-7 bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-stone-200 bg-stone-50/60 flex items-center justify-between">
             <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
-              Banktransaktionen ({transactions.length})
+              Bankumsätze ({transactions.length})
             </h3>
-            <span className="text-[11px] text-stone-500">Konto DE89...3000</span>
+            <span className="text-xs text-stone-500">Geschäftskonto</span>
           </div>
 
           <div className="divide-y divide-stone-100 max-h-[600px] overflow-y-auto">
             {transactions.length === 0 ? (
               <div className="p-12 text-center text-stone-400 text-xs">
-                Keine Banktransaktionen vorhanden. Bitte importieren Sie eine CAMT.053 Datei oder laden Sie die Musterdaten.
+                Keine Bankumsätze vorhanden. Bitte importieren Sie einen Kontoauszug im CAMT.053 XML-Format.
               </div>
             ) : (
               transactions.map((tx) => {
@@ -169,7 +159,7 @@ export const BankImportPage: React.FC = () => {
                     onClick={() => !isMatched && handleSelectTx(tx)}
                     className={`p-4 transition-all cursor-pointer flex items-center justify-between gap-4 ${
                       isSelected
-                        ? 'bg-amber-50/80 border-l-4 border-amber-600'
+                        ? 'bg-amber-50/80 border-l-4 border-amber-700'
                         : isMatched
                         ? 'bg-stone-50/50 opacity-60'
                         : 'hover:bg-stone-50'
@@ -178,7 +168,7 @@ export const BankImportPage: React.FC = () => {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-stone-900 truncate">
-                          {tx.counterpartyName || 'Unbekannter Kontrahent'}
+                          {tx.counterpartyName || 'Unbekannter Absender/Empfänger'}
                         </span>
                         {isMatched ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1">
@@ -191,12 +181,12 @@ export const BankImportPage: React.FC = () => {
                         ) : null}
                       </div>
 
-                      <div className="text-[11px] text-stone-500 truncate">
+                      <div className="text-xs text-stone-500 truncate">
                         {tx.remittanceInfo}
                       </div>
 
-                      <div className="text-[10px] font-mono text-stone-400">
-                        Valuta: {formatDate(tx.valueDate)} &bull; {tx.counterpartyIban}
+                      <div className="text-[11px] text-stone-400">
+                        {formatDate(tx.valueDate)} &bull; {tx.counterpartyIban}
                       </div>
                     </div>
 
@@ -210,7 +200,7 @@ export const BankImportPage: React.FC = () => {
                         {formatCurrency(tx.amount, tx.currency)}
                       </div>
                       {!isMatched && (
-                        <span className="text-[10px] text-amber-700 font-medium hover:underline">
+                        <span className="text-xs text-amber-700 font-medium hover:underline">
                           Zuordnen &rarr;
                         </span>
                       )}
@@ -223,21 +213,21 @@ export const BankImportPage: React.FC = () => {
         </div>
 
         {/* Right: Booking Matcher Assistant */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-stone-200/90 shadow-xs p-6 space-y-5 sticky top-20">
+        <div className="lg:col-span-5 bg-white rounded-xl border border-stone-200/80 shadow-xs p-6 space-y-5 sticky top-20">
           <div className="border-b border-stone-200 pb-3">
             <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              Automatischer Buchungsassistent
+              <Sparkles className="w-4 h-4 text-amber-700" />
+              Zahlung zuordnen
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Wandelt die ausgewählte Banktransaktion in einen GoBD-Buchungssatz um.
+              Wählen Sie die passenden Konten für die Verbuchung aus.
             </p>
           </div>
 
           {!activeTx ? (
             <div className="py-12 text-center text-stone-400 text-xs">
               <Landmark className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-              Wählen Sie links eine offene Banktransaktion aus, um sie mit einem Klick zu verbuchen.
+              Wählen Sie links eine offene Zahlung aus, um sie mit einem Klick zu verbuchen.
             </div>
           ) : (
             <div className="space-y-4 text-xs">
@@ -251,20 +241,20 @@ export const BankImportPage: React.FC = () => {
                 <div className="text-stone-600">
                   <span className="font-medium text-stone-700">Partner:</span> {activeTx.counterpartyName}
                 </div>
-                <div className="text-stone-500 text-[11px] truncate">
-                  <span className="font-medium text-stone-700">Zweck:</span> {activeTx.remittanceInfo}
+                <div className="text-stone-500 text-xs truncate">
+                  <span className="font-medium text-stone-700">Verwendungszweck:</span> {activeTx.remittanceInfo}
                 </div>
               </div>
 
               {/* Debit Account */}
               <div>
                 <label className="font-semibold text-stone-700 block mb-1">
-                  Soll-Konto (Mittelverwendung):
+                  Soll-Konto:
                 </label>
                 <select
                   value={selectedDebit}
                   onChange={(e) => setSelectedDebit(e.target.value)}
-                  className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
                 >
                   {accounts.map((acc) => (
                     <option key={acc.number} value={acc.number}>
@@ -277,12 +267,12 @@ export const BankImportPage: React.FC = () => {
               {/* Credit Account */}
               <div>
                 <label className="font-semibold text-stone-700 block mb-1">
-                  Haben-Konto (Mittelherkunft):
+                  Haben-Konto:
                 </label>
                 <select
                   value={selectedCredit}
                   onChange={(e) => setSelectedCredit(e.target.value)}
-                  className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20"
                 >
                   {accounts.map((acc) => (
                     <option key={acc.number} value={acc.number}>
@@ -295,11 +285,11 @@ export const BankImportPage: React.FC = () => {
               {/* Receipt Number */}
               <div>
                 <label className="font-semibold text-stone-700 block mb-1">
-                  Belegnummer / Rechnungs-Nr. (Optional):
+                  Belegnummer / Rechnungs-Nr. (optional):
                 </label>
                 <input
                   type="text"
-                  placeholder="z. B. RE-2024-042 oder BE-018"
+                  placeholder="z. B. RE-2026-001"
                   value={receiptNumber}
                   onChange={(e) => setReceiptNumber(e.target.value)}
                   className="w-full p-2 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:ring-2 focus:ring-amber-500/20"
@@ -324,10 +314,10 @@ export const BankImportPage: React.FC = () => {
                   type="button"
                   disabled={isBooking}
                   onClick={handleConfirmBooking}
-                  className="w-full py-2.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors shadow-xs flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-lg bg-amber-700 text-white font-semibold hover:bg-amber-800 transition-colors shadow-xs flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  {isBooking ? 'Wird verbucht...' : 'Buchung bestätigen & Hash erzeugen'}
+                  {isBooking ? 'Wird verbucht...' : 'Zahlung jetzt verbuchen'}
                 </button>
               </div>
             </div>

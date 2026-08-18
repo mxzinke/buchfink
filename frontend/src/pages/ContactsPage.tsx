@@ -24,24 +24,24 @@ export const ContactsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            Kunden & Lieferanten (Stammdaten / OPOS)
+            Kunden & Lieferanten
             <HelpTooltip
-              title="Debitoren & Kreditoren"
-              content="Kunden (Debitoren) und Lieferanten (Kreditoren) für den automatischen Zahlungsabgleich und die Offene-Posten-Buchhaltung."
+              title="Kontakte & Zahlungsübersicht"
+              content="Verwalten Sie Ihre Kunden und Lieferanten, um Rechnungen schnell zuzuordnen und offene Rechnungsbeträge nachzuvollziehen."
             />
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Zahlungsziele, IBAN-Zuordnung & offene Posten
+            Kontaktdaten und offene Beträge im Überblick
           </p>
         </div>
 
         <button
           onClick={() => alert('Kontakt anlegen')}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors shadow-xs"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800 transition-colors shadow-xs"
         >
           <Plus className="w-3.5 h-3.5" />
           Neuer Kontakt
@@ -61,7 +61,7 @@ export const ContactsPage: React.FC = () => {
           contacts.map((c) => (
             <div
               key={c.id}
-              className="bg-white p-5 rounded-xl border border-stone-200/90 shadow-xs space-y-4 hover:border-amber-500/40 transition-colors"
+              className="bg-white p-5 rounded-xl border border-stone-200/80 shadow-xs space-y-4 hover:border-amber-500/40 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -76,7 +76,7 @@ export const ContactsPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-stone-900">{c.name}</h3>
-                    <div className="text-[11px] font-mono text-stone-500">{c.number}</div>
+                    <div className="text-xs font-mono text-stone-500">{c.number}</div>
                   </div>
                 </div>
 
@@ -99,7 +99,7 @@ export const ContactsPage: React.FC = () => {
                   </div>
                 )}
                 {c.iban && (
-                  <div className="flex items-center gap-2 truncate font-mono text-[11px]">
+                  <div className="flex items-center gap-2 truncate font-mono text-xs">
                     <CreditCard className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                     <span>{c.iban}</span>
                   </div>
@@ -107,7 +107,7 @@ export const ContactsPage: React.FC = () => {
               </div>
 
               <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
-                <span className="text-stone-500">Offener Betrag (OPOS):</span>
+                <span className="text-stone-500">Offener Betrag:</span>
                 <span className="font-mono font-bold text-stone-900">
                   {formatCurrency(c.openAmount)}
                 </span>

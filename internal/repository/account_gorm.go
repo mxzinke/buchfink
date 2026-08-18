@@ -24,11 +24,21 @@ func (r *accountRepositoryGorm) FindAll(ctx context.Context) ([]domain.Account, 
 
 func (r *accountRepositoryGorm) FindByNumber(ctx context.Context, number string) (*domain.Account, error) {
 	var account domain.Account
+	// Try exact match first
 	err := r.db.WithContext(ctx).Where("number = ?", number).First(&account).Error
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return &account, nil
 	}
-	return &account, nil
+	// If exact match not found and number looks like a 4-digit code, check range accounts
+	if len(number) == 4 {
+		rangeErr := r.db.WithContext(ctx).
+			Where("is_range = ? AND range_start <= ? AND range_end >= ?", true, number, number).
+			First(&account).Error
+		if rangeErr == nil {
+			return &account, nil
+		}
+	}
+	return nil, err
 }
 
 func (r *accountRepositoryGorm) Create(ctx context.Context, account *domain.Account) error {

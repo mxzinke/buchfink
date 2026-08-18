@@ -16,9 +16,13 @@ func NewBankRepository(db *gorm.DB) domain.BankRepository {
 	return &bankRepositoryGorm{db: db}
 }
 
-func (r *bankRepositoryGorm) FindAll(ctx context.Context) ([]domain.BankTransaction, error) {
+func (r *bankRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.BankTransaction, error) {
 	var txs []domain.BankTransaction
-	err := r.db.WithContext(ctx).Order("booking_date desc, id desc").Find(&txs).Error
+	q := r.db.WithContext(ctx).Order("booking_date desc, id desc")
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year = ?", fiscalYear)
+	}
+	err := q.Find(&txs).Error
 	return txs, err
 }
 
@@ -66,8 +70,12 @@ func (r *bankRepositoryGorm) MarkMatched(ctx context.Context, id uint, bookingID
 		}).Error
 }
 
-func (r *bankRepositoryGorm) Count(ctx context.Context) (int64, error) {
+func (r *bankRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.BankTransaction{}).Count(&count).Error
+	q := r.db.WithContext(ctx).Model(&domain.BankTransaction{})
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year = ?", fiscalYear)
+	}
+	err := q.Count(&count).Error
 	return count, err
 }

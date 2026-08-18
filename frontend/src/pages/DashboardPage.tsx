@@ -7,9 +7,8 @@ import {
   ArrowDownRight,
   FileText,
   Landmark,
-  Sparkles,
 } from 'lucide-react';
-import { FinancialSummary, BookingEntry } from '../types';
+import { FinancialSummary, BookingEntry, CompanySettings } from '../types';
 import { Api } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
@@ -21,6 +20,7 @@ interface DashboardPageProps {
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [recentBookings, setRecentBookings] = useState<BookingEntry[]>([]);
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,22 +30,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sum, bookings] = await Promise.all([
+      const [sum, bookings, cfg] = await Promise.all([
         Api.getFinancialSummary(),
         Api.getBookings(),
+        Api.getCompanySettings(),
       ]);
       setSummary(sum);
       setRecentBookings(bookings.slice(-8).reverse());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSeedSampleData = async () => {
-    setLoading(true);
-    try {
-      await Api.importSampleBankStatement();
-      onNavigate('bank');
+      setSettings(cfg);
     } finally {
       setLoading(false);
     }
@@ -66,24 +58,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
-            Buchhaltungsübersicht
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+              Buchhaltungsübersicht
+            </h2>
+            {settings?.isSmallBusiness && (
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                § 19 UStG (Kleinunternehmer)
+              </span>
+            )}
+            {settings?.taxationType && (
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-stone-100 text-stone-600 border border-stone-200">
+                {settings.taxationType}-Versteuerung
+              </span>
+            )}
+          </div>
           <p className="text-xs text-stone-500 mt-1">
-            GoBD-konform &bull; 100% Local-First
+            Lokal gespeichert &bull; Rechtssicher nach deutschem Standard
           </p>
         </div>
         <div className="flex gap-2.5">
           <button
             onClick={() => onNavigate('bank')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-stone-900 text-stone-100 text-xs font-semibold hover:bg-stone-800 transition-colors shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-stone-700 text-stone-100 text-xs font-semibold hover:bg-stone-800 transition-colors shadow-xs"
           >
-            <Landmark className="w-3.5 h-3.5 text-amber-400" />
+            <Landmark className="w-3.5 h-3.5 text-amber-300" />
             Bankumsätze abgleichen
           </button>
           <button
             onClick={() => onNavigate('invoices')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800 transition-colors shadow-xs"
           >
             <FileText className="w-3.5 h-3.5" />
             Neue Rechnung
@@ -94,13 +98,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Bank */}
-        <div className="bg-white p-5 rounded-xl border border-stone-200/90 shadow-xs">
+        <div className="bg-white p-5 rounded-xl border border-stone-200/80 shadow-xs">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-medium uppercase tracking-wider flex items-center">
               Bankguthaben
               <HelpTooltip
-                title="Liquide Mittel (Konto 1800)"
-                content="Aktueller Gesamtsaldo der Geschäftskonten nach Verbuchung."
+                title="Bankguthaben"
+                content="Aktueller Gesamtsaldo auf Ihrem Geschäftskonto."
               />
             </span>
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
@@ -110,17 +114,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div className="text-xl font-bold text-stone-900">
             {formatCurrency(summary.bankBalance)}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">Konto 1800 (Bank)</div>
+          <div className="text-xs text-stone-500 mt-1">Geschäftskonto (1800)</div>
         </div>
 
         {/* Revenue */}
-        <div className="bg-white p-5 rounded-xl border border-stone-200/90 shadow-xs">
+        <div className="bg-white p-5 rounded-xl border border-stone-200/80 shadow-xs">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-medium uppercase tracking-wider flex items-center">
-              Umsatzerlöse
+              Einnahmen
               <HelpTooltip
-                title="Erlöskonten (Klasse 4)"
-                content="Summe aller Erträge im laufenden Geschäftsjahr (z. B. Konto 4400 Erlöse 19% USt)."
+                title="Einnahmen"
+                content="Summe aller Erlöse im laufenden Geschäftsjahr vor Steuern."
               />
             </span>
             <div className="p-1.5 rounded-lg bg-amber-50 text-amber-700">
@@ -130,17 +134,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div className="text-xl font-bold text-stone-900">
             {formatCurrency(summary.totalRevenue)}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">Erträge (GuV)</div>
+          <div className="text-xs text-stone-500 mt-1">Gesamterlöse</div>
         </div>
 
         {/* Expenses */}
-        <div className="bg-white p-5 rounded-xl border border-stone-200/90 shadow-xs">
+        <div className="bg-white p-5 rounded-xl border border-stone-200/80 shadow-xs">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-medium uppercase tracking-wider flex items-center">
-              Gesamtaufwand
+              Ausgaben
               <HelpTooltip
-                title="Aufwandskonten (Klasse 6)"
-                content="Betriebsausgaben wie Miete, Software, Fremdleistungen etc."
+                title="Ausgaben"
+                content="Summe aller laufenden Betriebsausgaben wie Miete, Software und Dienstleistungen."
               />
             </span>
             <div className="p-1.5 rounded-lg bg-rose-50 text-rose-700">
@@ -150,17 +154,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div className="text-xl font-bold text-stone-900">
             {formatCurrency(summary.totalExpenses)}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">Ausgaben (GuV)</div>
+          <div className="text-xs text-stone-500 mt-1">Betriebsausgaben</div>
         </div>
 
         {/* Net Income */}
-        <div className="bg-white p-5 rounded-xl border border-stone-200/90 shadow-xs">
+        <div className="bg-white p-5 rounded-xl border border-stone-200/80 shadow-xs">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-medium uppercase tracking-wider flex items-center">
-              Vorl. Ergebnis
+              Ergebnis
               <HelpTooltip
-                title="Vorläufiger Gewinn/Verlust"
-                content="Differenz aus Umsatzerlösen und Betriebsausgaben vor Steuern."
+                title="Vorläufiges Ergebnis"
+                content="Gewinn bzw. Verlust vor Steuern (Einnahmen minus Ausgaben)."
               />
             </span>
             <div
@@ -182,45 +186,45 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           >
             {formatCurrency(summary.netIncome)}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">GuV-Saldo</div>
+          <div className="text-xs text-stone-500 mt-1">Einnahmen minus Ausgaben</div>
         </div>
       </div>
 
       {/* Empty State vs Recent Bookings */}
       {!hasData ? (
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-12 text-center space-y-4 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200/60">
+        <div className="bg-white rounded-2xl border border-stone-200/80 p-12 text-center space-y-4 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto border border-amber-200/60">
             <Landmark className="w-6 h-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-stone-900">Noch keine Buchungen im Journal</h3>
+            <h3 className="text-base font-bold text-stone-900">Noch keine Buchungen erfasst</h3>
             <p className="text-xs text-stone-500 max-w-md mx-auto">
-              Starten Sie mit dem Import eines CAMT.053 Kontoauszugs oder laden Sie den Muster-Auszug, um den automatisierten Buchungsabgleich zu testen.
+              Starten Sie mit dem Import eines Kontoauszugs oder erfassen Sie Buchungen direkt im Journal.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
-              onClick={handleSeedSampleData}
-              className="px-4 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors shadow-xs flex items-center gap-1.5"
+              onClick={() => onNavigate('bank')}
+              className="px-4 py-2 rounded-lg bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800 transition-colors shadow-xs flex items-center gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5" /> Muster-Kontoauszug laden
+              <Landmark className="w-3.5 h-3.5" /> Kontoauszug importieren
             </button>
             <button
-              onClick={() => onNavigate('bank')}
+              onClick={() => onNavigate('journal')}
               className="px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 transition-colors border border-stone-200"
             >
-              CAMT.053 XML importieren
+              Zum Journal
             </button>
           </div>
         </div>
       ) : (
         /* Recent Bookings Table */
-        <div className="bg-white rounded-xl border border-stone-200/90 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-stone-200/80 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-stone-900">Letzte Journal-Buchungen</h3>
+              <h3 className="text-sm font-bold text-stone-900">Letzte Buchungen</h3>
               <p className="text-xs text-stone-500">
-                Lückenlose GoBD-Verkettung
+                Laufend erfasst und dokumentiert
               </p>
             </div>
             <button
@@ -235,29 +239,58 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <table className="w-full text-left text-xs">
               <thead className="bg-stone-50/80 border-b border-stone-200 text-stone-500 font-medium">
                 <tr>
-                  <th className="py-2.5 px-4">Journal-Nr.</th>
+                  <th className="py-2.5 px-4">Nr.</th>
                   <th className="py-2.5 px-4">Datum</th>
                   <th className="py-2.5 px-4">Buchungstext</th>
-                  <th className="py-2.5 px-4">Soll &rarr; Haben</th>
+                  <th className="py-2.5 px-4">Konten (Soll &rarr; Haben)</th>
                   <th className="py-2.5 px-4 text-right">Betrag</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {recentBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="py-3 px-4 font-mono font-medium text-amber-800">
-                      {b.bookingNumber}
-                    </td>
-                    <td className="py-3 px-4 text-stone-600 font-mono">{formatDate(b.date)}</td>
-                    <td className="py-3 px-4 text-stone-900 font-medium">{b.description}</td>
-                    <td className="py-3 px-4 font-mono text-stone-700">
-                      {b.debitAccount} &rarr; {b.creditAccount}
-                    </td>
-                    <td className="py-3 px-4 text-right font-bold font-mono text-stone-900">
-                      {formatCurrency(b.amount, b.currency)}
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const stornoedIds = new Set(
+                    recentBookings
+                      .filter((b) => b.stornoForId != null)
+                      .map((b) => b.stornoForId)
+                  );
+
+                  return recentBookings.map((b) => {
+                    const isStornoed = b.id && stornoedIds.has(b.id);
+                    const isStornoEntry = Boolean(b.isStorno || b.stornoForId != null);
+
+                    return (
+                      <tr
+                        key={b.id}
+                        className={`transition-colors ${
+                          isStornoed
+                            ? 'bg-rose-50/20 line-through text-stone-400 hover:bg-rose-50/30'
+                            : isStornoEntry
+                            ? 'bg-amber-50/15 text-stone-600 hover:bg-amber-50/25'
+                            : 'hover:bg-stone-50/50'
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-mono font-medium text-amber-800">
+                          {b.bookingNumber}
+                        </td>
+                        <td className="py-3 px-4 text-stone-600">{formatDate(b.date)}</td>
+                        <td className="py-3 px-4 text-stone-900 font-medium">
+                          {b.description}
+                          {isStornoed && (
+                            <span className="ml-2 inline-flex items-center text-[10px] text-rose-600 font-sans font-normal">
+                              (Storniert)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-stone-700">
+                          {b.debitAccount} &rarr; {b.creditAccount}
+                        </td>
+                        <td className="py-3 px-4 text-right font-semibold font-mono text-stone-900">
+                          {formatCurrency(b.amount, b.currency)}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

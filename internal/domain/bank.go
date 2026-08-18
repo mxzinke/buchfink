@@ -18,6 +18,7 @@ const (
 // BankTransaction represents a single transaction line from CAMT.053 or open-banking feeds.
 type BankTransaction struct {
 	ID                uint        `gorm:"primaryKey" json:"id"`
+	FiscalYear        int         `gorm:"index" json:"fiscalYear"`
 	AccountIBAN       string      `gorm:"size:34;not null;index" json:"accountIban"`
 	BookingDate       string      `gorm:"size:10;not null;index" json:"bookingDate"`
 	ValueDate         string      `gorm:"size:10;not null" json:"valueDate"`
@@ -41,11 +42,11 @@ type BankTransaction struct {
 
 // BankRepository defines persistence operations for bank transactions.
 type BankRepository interface {
-	FindAll(ctx context.Context) ([]BankTransaction, error)
+	FindAll(ctx context.Context, fiscalYear int) ([]BankTransaction, error)
 	FindByID(ctx context.Context, id uint) (*BankTransaction, error)
 	CreateBatch(ctx context.Context, transactions []BankTransaction) (int, error)
 	MarkMatched(ctx context.Context, id uint, bookingID uint) error
-	Count(ctx context.Context) (int64, error)
+	Count(ctx context.Context, fiscalYear int) (int64, error)
 }
 
 // BankParser defines the contract for bank statement file parsers.

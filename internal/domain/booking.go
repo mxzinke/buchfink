@@ -11,7 +11,8 @@ const GenesisHash = "00000000000000000000000000000000000000000000000000000000000
 // BookingEntry represents a double-entry journal line with cryptographic hash chain.
 type BookingEntry struct {
 	ID                uint      `gorm:"primaryKey" json:"id"`
-	BookingNumber     string    `gorm:"size:50;uniqueIndex;not null" json:"bookingNumber"` // e.g. "B-2024-0001"
+	FiscalYear        int       `gorm:"index;not null" json:"fiscalYear"`                  // e.g. 2026
+	BookingNumber     string    `gorm:"size:50;not null;index" json:"bookingNumber"`       // e.g. "B-2024-0001"
 	Date              string    `gorm:"size:10;not null;index" json:"date"`                // YYYY-MM-DD
 	ValueDate         string    `gorm:"size:10;not null" json:"valueDate"`                 // YYYY-MM-DD
 	Description       string    `gorm:"size:500;not null" json:"description"`              // Buchungstext
@@ -31,7 +32,7 @@ type BookingEntry struct {
 	PreviousHash      string    `gorm:"size:64;not null" json:"previousHash"` // Hash chain anchor
 	EntryHash         string    `gorm:"size:64;not null" json:"entryHash"`    // Entry SHA256
 	IsStorno          bool      `gorm:"default:false;index" json:"isStorno"`  // GoBD correction flag
-	StornoForID       *uint     `json:"stornoForId,omitempty"`
+	StornoForID       *uint     `gorm:"index" json:"stornoForId,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 
@@ -60,14 +61,15 @@ type CashflowDataPoint struct {
 
 // BookingRepository defines database operations for journal entries.
 type BookingRepository interface {
-	FindAll(ctx context.Context) ([]BookingEntry, error)
+	FindAll(ctx context.Context, fiscalYear int) ([]BookingEntry, error)
+	FindByAccount(ctx context.Context, accountNumber string, fiscalYear int) ([]BookingEntry, error)
 	FindByID(ctx context.Context, id uint) (*BookingEntry, error)
-	GetLastEntry(ctx context.Context) (*BookingEntry, error)
+	FindByStornoForID(ctx context.Context, stornoForID uint) (*BookingEntry, error)
+	GetLastEntry(ctx context.Context, fiscalYear int) (*BookingEntry, error)
 	Create(ctx context.Context, entry *BookingEntry) error
-	CalculateAccountSums(ctx context.Context, accountNumber string) (debitSum float64, creditSum float64, err error)
-	CalculateTypeSums(ctx context.Context, accType AccountType) (total float64, err error)
-	GetMonthlyCashflow(ctx context.Context) ([]CashflowDataPoint, error)
-	Count(ctx context.Context) (int64, error)
-	// TODO: Add pagination support for large booking journals
-	// TODO: Add date-range filters for fiscal year periods (Monats-/Quartalsfilter)
+	CalculateAccountSums(ctx context.Context, accountNumber string, fiscalYear int) (debitSum float64, creditSum float64, err error)
+	CalculateTypeSums(ctx context.Context, accType AccountType, fiscalYear int) (total float64, err error)
+	GetMonthlyCashflow(ctx context.Context, fiscalYear int) ([]CashflowDataPoint, error)
+	Count(ctx context.Context, fiscalYear int) (int64, error)
+	GetAvailableFiscalYears(ctx context.Context) ([]int, error)
 }

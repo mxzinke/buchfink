@@ -6,7 +6,7 @@ interface GermanFlagProps {
 
 export const GermanFlag: React.FC<GermanFlagProps> = ({ className = 'w-4 h-3' }) => {
   return (
-    <span title="Entwickelt für deutsches Steuerrecht & GoBD" className="inline-flex items-center">
+    <span title="Entwickelt für deutsche Standards" className="inline-flex items-center">
       <svg
         viewBox="0 0 5 3"
         className={`rounded-xs overflow-hidden shadow-xs shrink-0 inline-block align-middle ${className}`}

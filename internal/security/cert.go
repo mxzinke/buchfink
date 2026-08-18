@@ -15,6 +15,14 @@ import (
 
 // GenerateCertificate creates a self-signed GoBD signing certificate and private key.
 func GenerateCertificate(certDir, companyName, password string) (certPath, keyPath string, err error) {
+	// Resolve to an absolute path so the persisted cert/key locations do not
+	// depend on the process working directory (e.g. relative paths in dev mode).
+	absCertDir, err := filepath.Abs(certDir)
+	if err != nil {
+		return "", "", fmt.Errorf("could not resolve certificate dir: %w", err)
+	}
+	certDir = absCertDir
+
 	if err := os.MkdirAll(certDir, 0700); err != nil {
 		return "", "", fmt.Errorf("could not create certificate dir: %w", err)
 	}

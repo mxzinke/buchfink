@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster, toast } from 'sonner';
 import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
@@ -10,15 +11,18 @@ import { BankImportPage } from './pages/BankImportPage';
 import { InvoicesPage } from './pages/InvoicesPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { IntegrityCheckResult, CompanySettings, AppConfig } from './types';
+import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig } from './types';
 import { Api } from './services/api';
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [tenants, setTenants] = useState<TenantConfig[]>([]);
+  const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(null);
   const [currentTab, setCurrentTab] = useState<TabType>('welcome');
   const [currentYear, setCurrentYear] = useState<number>(currentCalendarYear);
   const [availableYears, setAvailableYears] = useState<number[]>([currentCalendarYear]);
@@ -26,6 +30,8 @@ export function App() {
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [isAddingTenant, setIsAddingTenant] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     bootstrapApp();
@@ -34,8 +40,14 @@ export function App() {
   const bootstrapApp = async () => {
     setLoadingConfig(true);
     try {
-      const cfg = await Api.getAppConfig();
+      const [cfg, tenantList, currentActive] = await Promise.all([
+        Api.getAppConfig(),
+        Api.getTenants(),
+        Api.getActiveTenant(),
+      ]);
       setAppConfig(cfg);
+      setTenants(tenantList);
+      setActiveTenant(currentActive);
 
       if (cfg.isConfigured) {
         await loadActiveFiscalYearData();
@@ -49,17 +61,45 @@ export function App() {
 
   const loadActiveFiscalYearData = async () => {
     try {
-      const [year, years, settings] = await Promise.all([
+      const [year, years, settings, currentActive] = await Promise.all([
         Api.getFiscalYear(),
         Api.getAvailableFiscalYears(),
         Api.getCompanySettings(),
+        Api.getActiveTenant(),
       ]);
       setCurrentYear(year);
       setAvailableYears(years.length > 0 ? years : [year]);
       setCompanySettings(settings);
+      if (currentActive) {
+        setActiveTenant(currentActive);
+      }
       await refreshIntegrity();
     } catch (e) {
       console.error('Error loading fiscal year data:', e);
+    }
+  };
+
+  const refreshTenants = async () => {
+    try {
+      const [tenantList, currentActive] = await Promise.all([
+        Api.getTenants(),
+        Api.getActiveTenant(),
+      ]);
+      setTenants(tenantList);
+      setActiveTenant(currentActive);
+    } catch (e) {
+      console.error('Error refreshing tenants:', e);
+    }
+  };
+
+  const handleSwitchTenant = async (tenantId: string) => {
+    try {
+      await Api.switchTenant(tenantId);
+      await refreshTenants();
+      await loadActiveFiscalYearData();
+      toast.success('Mandant gewechselt');
+    } catch (e: any) {
+      toast.error(e?.message || 'Fehler beim Wechseln des Mandanten');
     }
   };
 
@@ -81,12 +121,8 @@ export function App() {
     await loadActiveFiscalYearData();
   };
 
-  const handleCreateYear = async (year: number) => {
-    await Api.createFiscalYear(year);
-    await handleYearChange(year);
-  };
-
   const handleSetupCompleted = async () => {
+    setIsAddingTenant(false);
     await bootstrapApp();
     setCurrentTab('dashboard');
   };
@@ -94,15 +130,21 @@ export function App() {
   // Loading Screen while reading initial config
   if (loadingConfig) {
     return (
-      <div className="h-screen flex items-center justify-center bg-stone-950 text-stone-400 text-xs font-mono">
+      <div className="h-screen flex items-center justify-center bg-[#24211E] text-stone-300 text-xs font-sans">
         Buchfink wird gestartet...
       </div>
     );
   }
 
   // If not configured yet, show the full-screen Setup Assistant
-  if (!appConfig?.isConfigured) {
-    return <SetupAssistantScreen onSetupCompleted={handleSetupCompleted} />;
+  if (!appConfig?.isConfigured || isAddingTenant) {
+    return (
+      <SetupAssistantScreen
+        onSetupCompleted={handleSetupCompleted}
+        onCancel={() => setIsAddingTenant(false)}
+        isAdditionalTenant={Boolean(appConfig?.isConfigured)}
+      />
+    );
   }
 
   const renderContent = () => {
@@ -111,6 +153,11 @@ export function App() {
         return (
           <StartupScreen
             settings={companySettings}
+            tenants={tenants}
+            activeTenant={activeTenant}
+            onSwitchTenant={handleSwitchTenant}
+            onRefreshTenants={refreshTenants}
+            onAddTenant={() => setIsAddingTenant(true)}
             onStartDashboard={() => setCurrentTab('dashboard')}
             onNavigate={setCurrentTab}
           />
@@ -129,6 +176,8 @@ export function App() {
         return <ContactsPage />;
       case 'reports':
         return <ReportsPage />;
+      case 'deadlines':
+        return <DeadlinesPage />;
       case 'ebilanz':
         return <EBilanzPage />;
       case 'audit':
@@ -141,15 +190,28 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#FAF9F6] text-stone-900 overflow-hidden font-sans">
-      {/* Grouped Sidebar Navigation with bottom GoBD badge */}
+    <div className="flex h-screen bg-[#FAF8F5] text-stone-800 overflow-hidden font-sans">
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          className: 'font-sans text-xs',
+        }}
+      />
+      {/* Grouped Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={(tab) => {
+          setCurrentTab(tab);
+          setIsMobileSidebarOpen(false);
+        }}
         settings={companySettings}
         integrity={integrity}
         onRefreshIntegrity={refreshIntegrity}
         isCheckingIntegrity={isCheckingIntegrity}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -159,11 +221,15 @@ export function App() {
             currentYear={currentYear}
             availableYears={availableYears}
             onYearChange={handleYearChange}
-            onCreateYear={handleCreateYear}
+            tenants={tenants}
+            activeTenant={activeTenant}
+            onSwitchTenant={handleSwitchTenant}
+            onOpenNewTenantModal={() => setIsAddingTenant(true)}
+            onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           />
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentTab === 'welcome' ? 'bg-stone-950' : 'bg-[#FAF9F6]'}`}>
+        <main className={`flex-1 overflow-y-auto ${currentTab === 'welcome' ? 'bg-stone-900' : 'bg-[#FAF8F5]'}`}>
           {renderContent()}
         </main>
       </div>

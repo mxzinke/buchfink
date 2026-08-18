@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/security"
@@ -72,24 +72,53 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		currentYear: currentYear,
 	}
 
-	// If configured, initialize DB for the active fiscal year
+	// If configured, initialize DB for active tenant
 	if cfg.IsConfigured {
-		if err := b.initYearDatabase(currentYear); err != nil {
-			return nil, fmt.Errorf("failed to init database for year %d: %w", currentYear, err)
+		var activeTenant *domain.TenantConfig
+		if cfg.ActiveTenantID != "" {
+			for _, t := range cfg.Tenants {
+				if t.ID == cfg.ActiveTenantID {
+					activeTenant = &t
+					break
+				}
+			}
+		}
+		if activeTenant == nil && len(cfg.Tenants) > 0 {
+			activeTenant = &cfg.Tenants[0]
+		}
+		if activeTenant == nil && cfg.DataDir != "" {
+			activeTenant = &domain.TenantConfig{
+				ID:          "default",
+				Name:        "Hauptmandant",
+				DataDir:     cfg.DataDir,
+				CertPath:    cfg.CertPath,
+				HasPassword: cfg.HasPassword,
+				CreatedAt:   time.Now().Format(time.RFC3339),
+			}
+		}
+
+		if activeTenant != nil {
+			if err := b.initTenant(activeTenant); err != nil {
+				return nil, fmt.Errorf("failed to init tenant database: %w", err)
+			}
 		}
 	}
 
 	return b, nil
 }
 
-func (b *BuchfinkBridge) initYearDatabase(year int) error {
-	db, err := repository.InitDB(b.dataDir, year)
+func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
+	if t == nil {
+		return fmt.Errorf("no tenant specified")
+	}
+
+	db, err := repository.InitTenantDB(t.DataDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize tenant database at %s: %w", t.DataDir, err)
 	}
 
 	b.db = db
-	b.currentYear = year
+	b.dataDir = t.DataDir
 
 	// Wire Repositories
 	b.accountRepo = repository.NewAccountRepository(db)
@@ -100,8 +129,22 @@ func (b *BuchfinkBridge) initYearDatabase(year int) error {
 	b.auditRepo = repository.NewAuditRepository(db)
 	b.settingsRepo = repository.NewSettingsRepository(db)
 
+	// Determine active fiscal year from settings or fallback
+	fiscalYear := b.currentYear
+	if fiscalYear == 0 {
+		fiscalYear = time.Now().Year()
+	}
+	if s, err := b.settingsRepo.GetCompanySettings(context.Background()); err == nil && s != nil {
+		if s.FiscalYear > 0 {
+			fiscalYear = s.FiscalYear
+		} else {
+			fiscalYear = domain.GetFiscalYearForDate(time.Now().Format("2006-01-02"), s.FiscalYearStartMonth)
+		}
+	}
+	b.currentYear = fiscalYear
+
 	// Wire Services
-	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.bookingRepo, b.auditRepo, year)
+	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.bookingRepo, b.settingsRepo, b.auditRepo, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.accountingSvc, b.auditRepo)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.auditRepo)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.auditRepo)
@@ -110,11 +153,205 @@ func (b *BuchfinkBridge) initYearDatabase(year int) error {
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
 
-	// Update last fiscal year in app config
-	b.appConfig.LastFiscalYear = year
+	b.appConfig.ActiveTenantID = t.ID
+	b.appConfig.DataDir = t.DataDir
+	b.appConfig.CertPath = t.CertPath
+	b.appConfig.HasPassword = t.HasPassword
+	b.appConfig.LastFiscalYear = fiscalYear
 	_ = b.appCfgRepo.Save(&b.appConfig)
 
 	return nil
+}
+
+// -------------------------------------------------------------
+// MULTI-TENANT MANAGEMENT (MANDANTENVERWALTUNG)
+// -------------------------------------------------------------
+
+func (b *BuchfinkBridge) GetTenants() []domain.TenantConfig {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.appConfig.Tenants
+}
+
+func (b *BuchfinkBridge) GetActiveTenant() (*domain.TenantConfig, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.appConfig.ActiveTenantID != "" {
+		for _, t := range b.appConfig.Tenants {
+			if t.ID == b.appConfig.ActiveTenantID {
+				return &t, nil
+			}
+		}
+	}
+	if len(b.appConfig.Tenants) > 0 {
+		return &b.appConfig.Tenants[0], nil
+	}
+	return nil, nil
+}
+
+func (b *BuchfinkBridge) SwitchTenant(tenantID string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, t := range b.appConfig.Tenants {
+		if t.ID == tenantID {
+			return b.initTenant(&t)
+		}
+	}
+	return fmt.Errorf("tenant ID %s not found", tenantID)
+}
+
+func (b *BuchfinkBridge) CreateTenant(
+	name string,
+	dataDir string,
+	certDir string,
+	password string,
+	settings domain.CompanySettings,
+) (*domain.TenantConfig, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if name == "" {
+		if settings.CompanyName != "" {
+			name = settings.CompanyName
+		} else {
+			name = "Neuer Mandant"
+		}
+	}
+
+	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+
+	homeDir, _ := os.UserHomeDir()
+	if dataDir == "" {
+		dataDir = filepath.Join(homeDir, ".buchfink", "tenants", tenantID, "data")
+	}
+	if certDir == "" {
+		certDir = filepath.Join(homeDir, ".buchfink", "tenants", tenantID, "keys")
+	}
+
+	// Persist absolute paths so tenant locations are stable regardless of the
+	// process working directory (relative paths would break e.g. in dev mode).
+	if abs, err := filepath.Abs(dataDir); err == nil {
+		dataDir = abs
+	}
+
+	certPath, _, err := security.GenerateCertificate(certDir, name, password)
+	if err != nil {
+		return nil, fmt.Errorf("certificate generation failed: %w", err)
+	}
+
+	fiscalYear := settings.FiscalYear
+	if fiscalYear == 0 {
+		fiscalYear = time.Now().Year()
+	}
+
+	t := domain.TenantConfig{
+		ID:          tenantID,
+		Name:        name,
+		DataDir:     dataDir,
+		CertPath:    certPath,
+		HasPassword: password != "",
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
+
+	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
+	b.appConfig.ActiveTenantID = tenantID
+	b.appConfig.IsConfigured = true
+	b.appConfig.LastFiscalYear = fiscalYear
+
+	if err := b.initTenant(&t); err != nil {
+		return nil, fmt.Errorf("failed to init tenant DB: %w", err)
+	}
+
+	// Update company profile in new database
+	if settings.CompanyName == "" {
+		settings.CompanyName = name
+	}
+	settings.FiscalYear = fiscalYear
+	if err := b.settingsSvc.UpdateCompanySettings(context.Background(), &settings); err != nil {
+		return nil, fmt.Errorf("failed to save initial company settings: %w", err)
+	}
+
+	_ = b.appCfgRepo.Save(&b.appConfig)
+	return &t, nil
+}
+
+func (b *BuchfinkBridge) ImportTenant(dbFilePath string, certPath string, password string) (*domain.TenantConfig, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if _, err := os.Stat(dbFilePath); err != nil {
+		return nil, fmt.Errorf("database file not found: %s", dbFilePath)
+	}
+
+	dataDir := filepath.Dir(dbFilePath)
+	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+	name := filepath.Base(dataDir)
+	if name == "data" || name == "." || name == "" {
+		name = fmt.Sprintf("Mandant (%s)", filepath.Base(dbFilePath))
+	}
+
+	if certPath == "" {
+		homeDir, _ := os.UserHomeDir()
+		certPath = filepath.Join(homeDir, ".buchfink", "certs", "buchfink-cert.pem")
+	}
+
+	t := domain.TenantConfig{
+		ID:          tenantID,
+		Name:        name,
+		DataDir:     dataDir,
+		CertPath:    certPath,
+		HasPassword: password != "",
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
+
+	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
+	b.appConfig.ActiveTenantID = tenantID
+	b.appConfig.IsConfigured = true
+
+	if err := b.initTenant(&t); err != nil {
+		return nil, err
+	}
+
+	// Try reading company name from settings
+	if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
+		t.Name = s.CompanyName
+		for i := range b.appConfig.Tenants {
+			if b.appConfig.Tenants[i].ID == tenantID {
+				b.appConfig.Tenants[i].Name = s.CompanyName
+				break
+			}
+		}
+		_ = b.appCfgRepo.Save(&b.appConfig)
+	}
+
+	return &t, nil
+}
+
+func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	var newTenants []domain.TenantConfig
+	for _, t := range b.appConfig.Tenants {
+		if t.ID != tenantID {
+			newTenants = append(newTenants, t)
+		}
+	}
+	b.appConfig.Tenants = newTenants
+
+	if b.appConfig.ActiveTenantID == tenantID {
+		if len(newTenants) > 0 {
+			b.appConfig.ActiveTenantID = newTenants[0].ID
+			_ = b.initTenant(&newTenants[0])
+		} else {
+			b.appConfig.ActiveTenantID = ""
+			b.appConfig.IsConfigured = false
+			b.db = nil
+		}
+	}
+
+	return b.appCfgRepo.Save(&b.appConfig)
 }
 
 // -------------------------------------------------------------
@@ -134,84 +371,18 @@ func (b *BuchfinkBridge) SetupApplication(
 	password string,
 	settings domain.CompanySettings,
 ) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if dataDir == "" {
-		homeDir, _ := os.UserHomeDir()
-		dataDir = filepath.Join(homeDir, ".buchfink", "data")
+	name := settings.CompanyName
+	if name == "" {
+		name = "Hauptmandant"
 	}
-
-	if certDir == "" {
-		homeDir, _ := os.UserHomeDir()
-		certDir = filepath.Join(homeDir, ".buchfink", "keys")
-	}
-
-	certPath, _, err := security.GenerateCertificate(certDir, settings.CompanyName, password)
-	if err != nil {
-		return fmt.Errorf("certificate generation failed: %w", err)
-	}
-
-	fiscalYear := settings.FiscalYear
-	if fiscalYear == 0 {
-		fiscalYear = time.Now().Year()
-	}
-
-	b.dataDir = dataDir
-	b.appConfig = domain.AppConfig{
-		DataDir:        dataDir,
-		CertPath:       certPath,
-		HasPassword:    password != "",
-		IsConfigured:   true,
-		LastFiscalYear: fiscalYear,
-	}
-
-	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
-		return fmt.Errorf("failed to save app configuration: %w", err)
-	}
-
-	if err := b.initYearDatabase(fiscalYear); err != nil {
-		return fmt.Errorf("failed to init database: %w", err)
-	}
-
-	// Update company profile in new database
-	if err := b.settingsSvc.UpdateCompanySettings(context.Background(), &settings); err != nil {
-		return fmt.Errorf("failed to save initial company settings: %w", err)
-	}
-
-	return nil
+	_, err := b.CreateTenant(name, dataDir, certDir, password, settings)
+	return err
 }
 
 // LoadExistingDatabase loads an existing SQLite database file from disk.
 func (b *BuchfinkBridge) LoadExistingDatabase(dbFilePath string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if _, err := os.Stat(dbFilePath); err != nil {
-		return fmt.Errorf("file not found: %s", dbFilePath)
-	}
-
-	dataDir := filepath.Dir(dbFilePath)
-	b.dataDir = dataDir
-
-	// Guess fiscal year from filename e.g. buchfink_2026.sqlite
-	baseName := filepath.Base(dbFilePath)
-	year := time.Now().Year()
-	if strings.HasPrefix(baseName, "buchfink_") && strings.HasSuffix(baseName, ".sqlite") {
-		part := strings.TrimPrefix(baseName, "buchfink_")
-		part = strings.TrimSuffix(part, ".sqlite")
-		var parsedYear int
-		if _, err := fmt.Sscanf(part, "%d", &parsedYear); err == nil && parsedYear >= 2000 {
-			year = parsedYear
-		}
-	}
-
-	b.appConfig.DataDir = dataDir
-	b.appConfig.IsConfigured = true
-	b.appConfig.LastFiscalYear = year
-	_ = b.appCfgRepo.Save(&b.appConfig)
-
-	return b.initYearDatabase(year)
+	_, err := b.ImportTenant(dbFilePath, "", "")
+	return err
 }
 
 // SelectDirectoryDialog opens a native OS folder picker.
@@ -234,7 +405,7 @@ func (b *BuchfinkBridge) SelectDirectoryDialog(title string) (string, error) {
 // SelectDatabaseFileDialog opens a native OS file picker for SQLite database files.
 func (b *BuchfinkBridge) SelectDatabaseFileDialog(title string) (string, error) {
 	if title == "" {
-		title = "Buchfink SQLite-Datenbankdatei auswählen"
+		title = "Buchfink Buchhaltungsdatei auswählen"
 	}
 	app := application.Get()
 	if app == nil || app.Dialog == nil {
@@ -243,25 +414,35 @@ func (b *BuchfinkBridge) SelectDatabaseFileDialog(title string) (string, error) 
 	return app.Dialog.OpenFile().
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
-		AddFilter("SQLite Datenbanken (*.sqlite, *.db)", "*.sqlite;*.db").
+		AddFilter("Buchfink Buchhaltungsdateien (*.sqlite, *.db)", "*.sqlite;*.db").
 		SetTitle(title).
 		PromptForSingleSelection()
 }
 
 // -------------------------------------------------------------
-// DYNAMIC FISCAL YEARS
+// DYNAMIC FISCAL YEARS & FILTERING
 // -------------------------------------------------------------
 
 func (b *BuchfinkBridge) GetAvailableFiscalYears() []int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	return repository.DiscoverAvailableFiscalYears(b.dataDir)
+	if b.accountingSvc == nil {
+		return repository.DiscoverAvailableFiscalYears(b.dataDir)
+	}
+	return b.accountingSvc.GetAvailableFiscalYears(context.Background())
 }
 
 func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.initYearDatabase(year)
+
+	b.currentYear = year
+	if b.accountingSvc != nil {
+		b.accountingSvc.SetFiscalYear(year)
+	}
+	b.appConfig.LastFiscalYear = year
+	_ = b.appCfgRepo.Save(&b.appConfig)
+	return nil
 }
 
 func (b *BuchfinkBridge) GetFiscalYear() int {
@@ -274,10 +455,13 @@ func (b *BuchfinkBridge) SetFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if year == b.currentYear && b.db != nil {
-		return nil
+	b.currentYear = year
+	if b.accountingSvc != nil {
+		b.accountingSvc.SetFiscalYear(year)
 	}
-	return b.initYearDatabase(year)
+	b.appConfig.LastFiscalYear = year
+	_ = b.appCfgRepo.Save(&b.appConfig)
+	return nil
 }
 
 // -------------------------------------------------------------
@@ -288,7 +472,7 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.settingsSvc == nil {
-		return &domain.CompanySettings{FiscalYear: time.Now().Year(), Currency: "EUR", SKR: "SKR04"}, nil
+		return &domain.CompanySettings{FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04", TaxationType: "SOLL"}, nil
 	}
 	return b.settingsSvc.GetCompanySettings(context.Background())
 }
@@ -298,6 +482,16 @@ func (b *BuchfinkBridge) UpdateCompanySettings(settings domain.CompanySettings) 
 	defer b.mu.Unlock()
 	if b.settingsSvc == nil {
 		return nil
+	}
+	// Also sync tenant name if active
+	if settings.CompanyName != "" && b.appConfig.ActiveTenantID != "" {
+		for i := range b.appConfig.Tenants {
+			if b.appConfig.Tenants[i].ID == b.appConfig.ActiveTenantID {
+				b.appConfig.Tenants[i].Name = settings.CompanyName
+				_ = b.appCfgRepo.Save(&b.appConfig)
+				break
+			}
+		}
 	}
 	return b.settingsSvc.UpdateCompanySettings(context.Background(), &settings)
 }
@@ -315,6 +509,51 @@ func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	return b.accountingSvc.GetAccounts(context.Background())
 }
 
+func (b *BuchfinkBridge) GetAccountByNumber(number string) (*domain.Account, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return nil, fmt.Errorf("accounting service not initialized")
+	}
+	return b.accountingSvc.GetAccountByNumber(context.Background(), number)
+}
+
+func (b *BuchfinkBridge) GetAccountBookings(accountNumber string) ([]domain.BookingEntry, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return nil, nil
+	}
+	return b.accountingSvc.GetAccountBookings(context.Background(), accountNumber)
+}
+
+func (b *BuchfinkBridge) GetAccountLedger(accountNumber string) (*domain.AccountLedger, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return nil, fmt.Errorf("accounting service not initialized")
+	}
+	return b.accountingSvc.GetAccountLedger(context.Background(), accountNumber)
+}
+
+func (b *BuchfinkBridge) GetSuSaOverview() (*domain.SuSaOverview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return nil, fmt.Errorf("accounting service not initialized")
+	}
+	return b.accountingSvc.GetSuSaOverview(context.Background())
+}
+
+func (b *BuchfinkBridge) GetSKR04Catalog() (*accounting.SKR04Catalog, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return accounting.GetSKR04Catalog()
+	}
+	return b.accountingSvc.GetSKR04Catalog(context.Background())
+}
+
 func (b *BuchfinkBridge) GetBookings() ([]domain.BookingEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -322,6 +561,15 @@ func (b *BuchfinkBridge) GetBookings() ([]domain.BookingEntry, error) {
 		return nil, nil
 	}
 	return b.accountingSvc.GetBookings(context.Background())
+}
+
+func (b *BuchfinkBridge) GetAllBookings() ([]domain.BookingEntry, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.accountingSvc == nil {
+		return nil, nil
+	}
+	return b.accountingSvc.GetAllBookings(context.Background())
 }
 
 func (b *BuchfinkBridge) CreateBooking(entry domain.BookingEntry) (*domain.BookingEntry, error) {
@@ -371,66 +619,6 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 		return nil, nil
 	}
 	return b.bankSvc.GetTransactions(context.Background())
-}
-
-func (b *BuchfinkBridge) ImportSampleBankStatement() (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.bankSvc == nil {
-		return 0, fmt.Errorf("bank service not initialized")
-	}
-	year := b.currentYear
-	sampleXML := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
-  <BkToCstmrStmt>
-    <Stmt>
-      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
-      <Ntry>
-        <Amt Ccy="EUR">2856.00</Amt>
-        <CdtDbtInd>CRDT</CdtDbtInd>
-        <BookgDt><Dt>%d-04-15</Dt></BookgDt>
-        <ValDt><Dt>%d-04-15</Dt></ValDt>
-        <NtryDtls><TxDtls>
-          <Refs><EndToEndId>E2E-%d0415-001</EndToEndId></Refs>
-          <RltdPties>
-            <Dbtr><Nm>Acme Corp GmbH</Nm></Dbtr>
-            <DbtrAcct><Id><IBAN>DE12500105170648489890</IBAN></Id></DbtrAcct>
-          </RltdPties>
-          <RmtInf><Ustrd>Rechnung RE-%d-042 Webentwicklung</Ustrd></RmtInf>
-        </TxDtls></NtryDtls>
-      </Ntry>
-      <Ntry>
-        <Amt Ccy="EUR">89.25</Amt>
-        <CdtDbtInd>DBIT</CdtDbtInd>
-        <BookgDt><Dt>%d-04-12</Dt></BookgDt>
-        <ValDt><Dt>%d-04-12</Dt></ValDt>
-        <NtryDtls><TxDtls>
-          <Refs><EndToEndId>E2E-%d0412-002</EndToEndId></Refs>
-          <RltdPties>
-            <Cdtr><Nm>Hetzner Online GmbH</Nm></Cdtr>
-            <CdtrAcct><Id><IBAN>DE45700202700015762901</IBAN></Id></CdtrAcct>
-          </RltdPties>
-          <RmtInf><Ustrd>Server Hosting Invoice %d-4412</Ustrd></RmtInf>
-        </TxDtls></NtryDtls>
-      </Ntry>
-      <Ntry>
-        <Amt Ccy="EUR">650.00</Amt>
-        <CdtDbtInd>DBIT</CdtDbtInd>
-        <BookgDt><Dt>%d-04-10</Dt></BookgDt>
-        <ValDt><Dt>%d-04-10</Dt></ValDt>
-        <NtryDtls><TxDtls>
-          <Refs><EndToEndId>E2E-%d0410-003</EndToEndId></Refs>
-          <RltdPties>
-            <Cdtr><Nm>Immobilienverwaltung Schmidt</Nm></Cdtr>
-            <CdtrAcct><Id><IBAN>DE33200411550123456789</IBAN></Id></CdtrAcct>
-          </RltdPties>
-          <RmtInf><Ustrd>Büromiete April %d</Ustrd></RmtInf>
-        </TxDtls></NtryDtls>
-      </Ntry>
-    </Stmt>
-  </BkToCstmrStmt>
-</Document>`, year, year, year, year, year, year, year, year, year, year, year, year)
-	return b.bankSvc.ImportCAMT053(context.Background(), strings.NewReader(sampleXML))
 }
 
 func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string) (int, error) {
@@ -530,3 +718,4 @@ func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 	}
 	return b.auditSvc.GetLogs(context.Background(), 200)
 }
+

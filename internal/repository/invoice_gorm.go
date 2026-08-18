@@ -16,9 +16,13 @@ func NewInvoiceRepository(db *gorm.DB) domain.InvoiceRepository {
 	return &invoiceRepositoryGorm{db: db}
 }
 
-func (r *invoiceRepositoryGorm) FindAll(ctx context.Context) ([]domain.Invoice, error) {
+func (r *invoiceRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.Invoice, error) {
 	var invoices []domain.Invoice
-	err := r.db.WithContext(ctx).Preload("Items").Order("date desc, id desc").Find(&invoices).Error
+	q := r.db.WithContext(ctx).Preload("Items").Order("date desc, id desc")
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year = ?", fiscalYear)
+	}
+	err := q.Find(&invoices).Error
 	return invoices, err
 }
 
@@ -48,8 +52,12 @@ func (r *invoiceRepositoryGorm) UpdateStatus(ctx context.Context, id uint, statu
 	return r.db.WithContext(ctx).Model(&domain.Invoice{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *invoiceRepositoryGorm) Count(ctx context.Context) (int64, error) {
+func (r *invoiceRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.Invoice{}).Count(&count).Error
+	q := r.db.WithContext(ctx).Model(&domain.Invoice{})
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year = ?", fiscalYear)
+	}
+	err := q.Count(&count).Error
 	return count, err
 }

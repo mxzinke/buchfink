@@ -55,7 +55,42 @@
   }
 
   body {
-    @apply bg-[#FAF9F6] text-stone-900 antialiased selection:bg-amber-200 selection:text-amber-950 min-h-screen overflow-hidden;
+    @apply bg-[#FAF8F5] text-stone-800 antialiased selection:bg-amber-200 selection:text-amber-950 min-h-screen overflow-hidden;
+  }
+
+  /* Universal WebKit & Cross-Browser Select Styling */
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2378716c' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.15rem 1.15rem;
+    padding-right: 2.5rem !important;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+
+  select:focus {
+    outline: none;
+  }
+
+  select option {
+    background-color: #FAF8F5;
+    color: #1c1917;
+    padding: 4px 8px;
+  }
+
+  /* Dark themed selects */
+  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"]) {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23d6d3d1' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    color-scheme: dark;
+  }
+
+  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"]) option {
+    background-color: #24211E;
+    color: #f5f5f4;
   }
 }
 

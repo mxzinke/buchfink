@@ -123,6 +123,34 @@ func GenerateZUGFeRDXML(inv *models.Invoice, seller *models.CompanySettings, buy
 
 // GenerateTypstTemplate generates Typst markup source code for the invoice.
 func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, buyer *models.Contact) string {
+	totalsBlock := fmt.Sprintf(`
+#align(right)[
+  #block(width: 60%%)[
+    #grid(
+      columns: (1fr, auto),
+      row-gutter: 0.3cm,
+      [Nettobetrag:], [%.2f €],
+      [zzgl. USt:], [%.2f €],
+      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[%.2f €]*]
+    )
+  ]
+]`, inv.NetAmount, inv.TaxAmount, inv.GrossAmount)
+
+	if seller.IsSmallBusiness {
+		totalsBlock = fmt.Sprintf(`
+#align(right)[
+  #block(width: 60%%)[
+    #grid(
+      columns: (1fr, auto),
+      row-gutter: 0.3cm,
+      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[%.2f €]*]
+    )
+  ]
+]
+#v(0.2cm)
+#text(size: 8.5pt, fill: rgb("#78716c"), style: "italic")[Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).]`, inv.GrossAmount)
+	}
+
 	return fmt.Sprintf(`#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
 #set text(font: "Manrope", size: 10pt, fill: rgb("#1c1917"))
 
@@ -154,21 +182,11 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
   stroke: (x, y) => if y == 0 { (bottom: 1.5pt + rgb("#d97706")) } else { (bottom: 0.5pt + rgb("#e7e5e4")) },
   table.header([*Pos*], [*Bezeichnung*], [*Menge*], [*Einzelpreis*], [*Gesamt*]),
   // Items will be rendered here
-  [1], [Software-Entwicklungsleistungen], [1.0], [%.2f €], [%.2f €]
+  [1], [Dienstleistung / Lieferung], [1.0], [%.2f €], [%.2f €]
 )
 
 #v(0.5cm)
-#align(right)[
-  #block(width: 60%%)[
-    #grid(
-      columns: (1fr, auto),
-      row-gutter: 0.3cm,
-      [Nettobetrag:], [%.2f €],
-      [zzgl. 19%% USt:], [%.2f €],
-      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[%.2f €]*]
-    )
-  ]
-]
+%s
 
 #v(2cm)
 #line(length: 100%%, stroke: 0.5pt + rgb("#e7e5e4"))
@@ -181,7 +199,7 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
 		buyer.Name, buyer.Address, buyer.VatID,
 		inv.InvoiceNumber, inv.Date, inv.DueDate,
 		inv.NetAmount, inv.NetAmount,
-		inv.NetAmount, inv.TaxAmount, inv.GrossAmount,
+		totalsBlock,
 		seller.BankName, seller.IBAN, seller.BIC,
 		seller.TaxNumber, seller.VatID,
 	)

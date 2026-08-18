@@ -1,178 +1,293 @@
 import React from 'react';
+import { toast } from 'sonner';
 import {
   ArrowRight,
-  ShieldCheck,
   Landmark,
   FileText,
   BookOpen,
-  Scale,
-  FolderOpen,
+  ListOrdered,
+  Building2,
+  Plus,
+  Trash2,
+  Check,
 } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { CompanySettings, TenantConfig } from '../types';
+import { Api } from '../services/api';
 import { GermanFlag } from './GermanFlag';
 
 interface StartupScreenProps {
   settings: CompanySettings | null;
+  tenants: TenantConfig[];
+  activeTenant: TenantConfig | null;
+  onSwitchTenant: (tenantId: string) => Promise<void>;
+  onRefreshTenants: () => Promise<void>;
+  onAddTenant: () => void;
   onStartDashboard: () => void;
   onNavigate: (tab: any) => void;
 }
 
 export const StartupScreen: React.FC<StartupScreenProps> = ({
   settings,
+  tenants,
+  activeTenant,
+  onSwitchTenant,
+  onRefreshTenants,
+  onAddTenant,
   onStartDashboard,
   onNavigate,
 }) => {
+  const currentCalendarYear = new Date().getFullYear();
+
+  const handleDeleteTenant = async (e: React.MouseEvent, tenantId: string, name: string) => {
+    e.stopPropagation();
+    if (tenants.length <= 1) {
+      toast.error('Löschen nicht möglich', {
+        description: 'Mindestens ein Mandant muss erhalten bleiben.',
+      });
+      return;
+    }
+    if (!confirm(`Möchten Sie den Mandanten "${name}" wirklich aus der Liste entfernen? (Ihre Buchhaltungsdaten auf der Festplatte bleiben unberührt).`)) {
+      return;
+    }
+    try {
+      await Api.deleteTenant(tenantId);
+      toast.success('Mandant entfernt', {
+        description: `Mandant "${name}" wurde aus der Liste entfernt.`,
+      });
+      await onRefreshTenants();
+    } catch (e: any) {
+      toast.error('Fehler beim Entfernen des Mandanten');
+    }
+  };
+
+  const activeCompanyName = settings?.companyName || activeTenant?.name || 'Hauptmandant';
+  const activeYear = settings?.fiscalYear || currentCalendarYear;
+
   return (
     <div className="relative min-h-full flex flex-col justify-between overflow-y-auto bg-stone-900 text-stone-100">
-      {/* Background image with warm darkening overlay */}
+      {/* Background with warm atmospheric view */}
       <div
-        className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-luminosity pointer-events-none scale-105 filter blur-xs"
+        className="absolute inset-0 bg-cover bg-center opacity-85 pointer-events-none scale-100 transition-all duration-700"
         style={{ backgroundImage: "url('/bg-startupscreen_unsplash-steven-kamenar.jpg')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/80 to-stone-950/70 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#1A1816]/90 via-[#1F1C1A]/60 to-[#1A1816]/40 pointer-events-none" />
 
       {/* Main Container */}
-      <div className="relative z-10 max-w-5xl mx-auto w-full px-8 py-12 flex-1 flex flex-col justify-center space-y-10">
-        {/* Header Branding */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
+      <div className="relative z-10 max-w-4xl mx-auto w-full px-6 py-12 flex-1 flex flex-col justify-center space-y-6">
+        {/* Clean Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
             <div className="relative">
               <img
                 src="/buchfink-logo.svg"
                 alt="Buchfink Logo"
-                className="w-16 h-16 drop-shadow-md rounded-2xl bg-white/10 p-1 border border-white/10 backdrop-blur-md"
+                className="w-13 h-13 drop-shadow-lg rounded-2xl bg-white/15 p-1.5 border border-white/20 backdrop-blur-md"
               />
-              <div className="absolute -bottom-1.5 -right-1.5">
-                <GermanFlag className="w-5 h-3.5 shadow-md border-2 border-stone-900 rounded-xs" />
+              <div className="absolute -bottom-1 -right-1">
+                <GermanFlag className="w-4 h-3 shadow-md border border-[#1A1816] rounded-xs" />
               </div>
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans">
-                  Buchfink
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-800 text-stone-300 border border-stone-700">
-                  GoBD-konform
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  100% Local-First
-                </span>
-              </div>
-              <p className="text-sm text-stone-300 mt-1 font-medium">
-                Moderne Buchhaltungssoftware für kleine Unternehmen & Selbstständige in Deutschland
+              <h1 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-sm font-sans">
+                Buchfink
+              </h1>
+              <p className="text-xs text-stone-300 font-medium">
+                Doppelte Buchführung &amp; Bilanzierung (SKR04)
               </p>
             </div>
           </div>
+
+          {/* Single clean button to add / import tenant via Setup Assistant */}
+          <button
+            onClick={onAddTenant}
+            className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-semibold text-xs transition-all flex items-center gap-1.5 shadow-lg shadow-amber-900/30"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Mandant hinzufügen</span>
+          </button>
         </div>
 
-        {/* Hero Card with Status and Primary CTA */}
-        <div className="bg-stone-800/80 backdrop-blur-xl border border-stone-700/80 rounded-2xl p-6 shadow-2xl space-y-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-700/60 pb-5">
-            <div>
-              <span className="text-[11px] font-bold tracking-wider text-amber-400 uppercase">
-                Aktiver Mandant &bull; Geschäftsjahr {settings?.fiscalYear || new Date().getFullYear()}
-              </span>
-              <h2 className="text-xl font-bold text-white mt-0.5">
-                {settings?.companyName || 'Musterfirma GmbH'}
+        {/* Unified Main Card */}
+        <div className="bg-[#24211E]/85 backdrop-blur-xl border border-white/15 rounded-2xl p-6 shadow-2xl space-y-6">
+          {/* Active Mandant Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                {activeCompanyName}
               </h2>
-              <div className="flex items-center gap-3 text-xs text-stone-400 mt-1 font-mono">
-                <span>St.-Nr.: {settings?.taxNumber || '12/345/67890'}</span>
+
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-300">
+                <span className="text-amber-300 font-medium">Geschäftsjahr {activeYear}</span>
                 <span>&bull;</span>
-                <span>IBAN: {settings?.iban || 'DE89...3000'}</span>
+                <span>{settings?.legalForm || 'GmbH'}</span>
+                <span>&bull;</span>
+                <span>{settings?.taxationType || 'SOLL'}-Besteuerung</span>
+                {settings?.taxNumber && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="font-mono text-stone-400">St.-Nr. {settings.taxNumber}</span>
+                  </>
+                )}
+                {settings?.iban && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="font-mono text-stone-400">IBAN: {settings.iban}</span>
+                  </>
+                )}
               </div>
             </div>
 
             <button
               onClick={onStartDashboard}
-              className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all shadow-lg shadow-amber-600/30 flex items-center gap-2 group shrink-0"
+              className="px-6 py-3 rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-900/40 flex items-center gap-2 group shrink-0"
             >
-              <span>Zur Buchhaltungsübersicht</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span>Zur Buchhaltung</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
 
-          {/* Quick Flow Launchers */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div
+          {/* Mandanten-Liste */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-stone-400 px-0.5">
+              <span className="font-semibold text-stone-300 text-xs flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                Mandanten ({tenants.length})
+              </span>
+              <span className="text-[11px] text-stone-400">Klick auf Zeile zum Mandantenwechsel</span>
+            </div>
+
+            <div className="bg-[#1D1B19]/80 rounded-xl border border-white/10 divide-y divide-white/5 overflow-hidden">
+              {tenants.map((t) => {
+                const isActive = t.id === activeTenant?.id;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => onSwitchTenant(t.id)}
+                    className={`px-3.5 py-2.5 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                      isActive ? 'bg-amber-500/10' : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Active Indicator Radio */}
+                      <div className="shrink-0 flex items-center justify-center">
+                        {isActive ? (
+                          <div className="w-2 h-2 rounded-full bg-amber-400 ring-4 ring-amber-400/20" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-stone-600" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold truncate ${isActive ? 'text-amber-200 font-bold' : 'text-stone-200'}`}>
+                            {t.name}
+                          </span>
+                          {isActive && (
+                            <span className="text-[10px] text-amber-400/90 font-medium">
+                              (aktiv)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-stone-400 font-mono truncate" title={t.dataDir}>
+                          {t.dataDir}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isActive ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSwitchTenant(t.id);
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-[11px] font-medium border border-stone-700 transition-colors"
+                        >
+                          Öffnen
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Ausgewählt
+                        </span>
+                      )}
+
+                      {tenants.length > 1 && (
+                        <button
+                          onClick={(e) => handleDeleteTenant(e, t.id, t.name)}
+                          className="p-1 text-stone-500 hover:text-rose-400 transition-colors rounded"
+                          title="Aus der Liste entfernen"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Launchers */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-white/10">
+            <button
               onClick={() => onNavigate('bank')}
-              className="p-4 rounded-xl bg-stone-900/80 border border-stone-700/60 hover:border-amber-500/50 hover:bg-stone-900 transition-all cursor-pointer group space-y-2"
+              className="p-2.5 rounded-xl bg-[#1D1B19]/60 hover:bg-[#1D1B19]/90 border border-white/5 hover:border-amber-400/40 text-left transition-all flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform">
-                <Landmark className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0">
+                <Landmark className="w-3.5 h-3.5" />
               </div>
-              <h3 className="font-bold text-sm text-white flex items-center justify-between">
-                <span>Bankumsätze abstimmen</span>
-                <ArrowRight className="w-3.5 h-3.5 text-stone-500 group-hover:text-amber-400 transition-colors" />
-              </h3>
-              <p className="text-xs text-stone-400 leading-snug">
-                CAMT.053 Kontoauszüge importieren und Buchungen automatisch mit einem Klick auslösen.
-              </p>
-            </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white group-hover:text-amber-300 truncate">
+                  Bankumsätze
+                </div>
+                <div className="text-[10px] text-stone-400 truncate">Kontoauszug abgleichen</div>
+              </div>
+            </button>
 
-            <div
+            <button
               onClick={() => onNavigate('invoices')}
-              className="p-4 rounded-xl bg-stone-900/80 border border-stone-700/60 hover:border-amber-500/50 hover:bg-stone-900 transition-all cursor-pointer group space-y-2"
+              className="p-2.5 rounded-xl bg-[#1D1B19]/60 hover:bg-[#1D1B19]/90 border border-white/5 hover:border-amber-400/40 text-left transition-all flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform">
-                <FileText className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0">
+                <FileText className="w-3.5 h-3.5" />
               </div>
-              <h3 className="font-bold text-sm text-white flex items-center justify-between">
-                <span>ZUGFeRD Rechnung</span>
-                <ArrowRight className="w-3.5 h-3.5 text-stone-500 group-hover:text-amber-400 transition-colors" />
-              </h3>
-              <p className="text-xs text-stone-400 leading-snug">
-                E-Rechnungskonforme PDF/A-3 Rechnungen mit integrierter EN 16931 XML erstellen.
-              </p>
-            </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white group-hover:text-amber-300 truncate">
+                  Rechnungen
+                </div>
+                <div className="text-[10px] text-stone-400 truncate">E-Rechnung &amp; PDF</div>
+              </div>
+            </button>
 
-            <div
+            <button
+              onClick={() => onNavigate('journal')}
+              className="p-2.5 rounded-xl bg-[#1D1B19]/60 hover:bg-[#1D1B19]/90 border border-white/5 hover:border-amber-400/40 text-left transition-all flex items-center gap-2.5 group"
+            >
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0">
+                <ListOrdered className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white group-hover:text-amber-300 truncate">
+                  Journal
+                </div>
+                <div className="text-[10px] text-stone-400 truncate">Buchungssätze erfassen</div>
+              </div>
+            </button>
+
+            <button
               onClick={() => onNavigate('accounts')}
-              className="p-4 rounded-xl bg-stone-900/80 border border-stone-700/60 hover:border-amber-500/50 hover:bg-stone-900 transition-all cursor-pointer group space-y-2"
+              className="p-2.5 rounded-xl bg-[#1D1B19]/60 hover:bg-[#1D1B19]/90 border border-white/5 hover:border-amber-400/40 text-left transition-all flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform">
-                <BookOpen className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0">
+                <BookOpen className="w-3.5 h-3.5" />
               </div>
-              <h3 className="font-bold text-sm text-white flex items-center justify-between">
-                <span>Kontenplan</span>
-                <ArrowRight className="w-3.5 h-3.5 text-stone-500 group-hover:text-amber-400 transition-colors" />
-              </h3>
-              <p className="text-xs text-stone-400 leading-snug">
-                Deutsche Standardkonten einsehen, Hilfserklärungen lesen und Salden prüfen.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Feature Highlights Footer */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-stone-400 border-t border-stone-800/80 pt-6">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-stone-200">GoBD-konforme Hash-Chain</p>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Jede Zeile kryptografisch verkettet. Keine nachträgliche Manipulation möglich.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <FolderOpen className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-stone-200">100% Local-First</p>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Eine SQLite-Datei pro Geschäftsjahr. Ihre sensiblen Finanzdaten bleiben bei Ihnen.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <Scale className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-stone-200">E-Bilanz & XBRL 6.7</p>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Direkter XBRL-Export mit Kontennachweis zur Einreichung in Mein ELSTER.
-              </p>
-            </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white group-hover:text-amber-300 truncate">
+                  Kontenübersicht
+                </div>
+                <div className="text-[10px] text-stone-400 truncate">SKR04 Saldenübersicht</div>
+              </div>
+            </button>
           </div>
         </div>
       </div>

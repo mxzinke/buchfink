@@ -40,6 +40,7 @@ func TestGORMRepositories(t *testing.T) {
 	// 2. Booking Repository
 	bookingRepo := repository.NewBookingRepository(db)
 	booking := &domain.BookingEntry{
+		FiscalYear:    2024,
 		BookingNumber: "B-2024-0001",
 		Date:          "2024-01-15",
 		ValueDate:     "2024-01-15",
@@ -55,14 +56,44 @@ func TestGORMRepositories(t *testing.T) {
 		t.Fatalf("failed to create booking: %v", err)
 	}
 
-	last, err := bookingRepo.GetLastEntry(ctx)
+	last, err := bookingRepo.GetLastEntry(ctx, 2024)
 	if err != nil || last == nil || last.BookingNumber != "B-2024-0001" {
 		t.Fatalf("expected last entry B-2024-0001, got %v", last)
 	}
 
-	debitSum, creditSum, err := bookingRepo.CalculateAccountSums(ctx, "1800")
+	debitSum, creditSum, err := bookingRepo.CalculateAccountSums(ctx, "1800", 2024)
 	if err != nil || debitSum != 1000.0 || creditSum != 0.0 {
 		t.Fatalf("expected debit 1000 and credit 0, got debit=%f, credit=%f", debitSum, creditSum)
+	}
+
+	// Test FindByStornoForID
+	stornoBooking := &domain.BookingEntry{
+		FiscalYear:    2024,
+		BookingNumber: "STORNO-B-2024-0001",
+		Date:          "2024-01-16",
+		ValueDate:     "2024-01-16",
+		Description:   "Storno zu B-2024-0001",
+		DebitAccount:  "4400",
+		CreditAccount: "1800",
+		Amount:        1000.0,
+		Currency:      "EUR",
+		PreviousHash:  booking.EntryHash,
+		EntryHash:     "mockhash456",
+		IsStorno:      true,
+		StornoForID:   &booking.ID,
+	}
+	if err := bookingRepo.Create(ctx, stornoBooking); err != nil {
+		t.Fatalf("failed to create storno booking: %v", err)
+	}
+
+	foundStorno, err := bookingRepo.FindByStornoForID(ctx, booking.ID)
+	if err != nil || foundStorno == nil || foundStorno.BookingNumber != "STORNO-B-2024-0001" {
+		t.Fatalf("expected storno booking STORNO-B-2024-0001, got %v (err: %v)", foundStorno, err)
+	}
+
+	notFoundStorno, err := bookingRepo.FindByStornoForID(ctx, 99999)
+	if err != nil || notFoundStorno != nil {
+		t.Fatalf("expected nil for non-existent storno, got %v (err: %v)", notFoundStorno, err)
 	}
 
 	// 3. Bank Repository
@@ -84,7 +115,7 @@ func TestGORMRepositories(t *testing.T) {
 		t.Fatalf("expected 1 inserted bank tx, got %d (err: %v)", inserted, err)
 	}
 
-	allTxs, err := bankRepo.FindAll(ctx)
+	allTxs, err := bankRepo.FindAll(ctx, 0)
 	if err != nil || len(allTxs) != 1 {
 		t.Fatalf("expected 1 tx in list, got %d", len(allTxs))
 	}
@@ -182,7 +213,7 @@ func TestSeedDefaults(t *testing.T) {
 
 	settingsRepo := repository.NewSettingsRepository(db)
 	settings, err := settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings.CompanyName == "" {
-		t.Fatalf("expected default company settings, got %v", settings)
+	if err != nil || settings.FiscalYear != 2024 || settings.SKR != "SKR04" {
+		t.Fatalf("expected default company settings (fiscal year 2024, SKR04), got %v", settings)
 	}
 }

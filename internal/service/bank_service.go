@@ -31,7 +31,7 @@ func NewBankService(
 
 // GetTransactions returns all imported bank transactions.
 func (s *BankService) GetTransactions(ctx context.Context) ([]domain.BankTransaction, error) {
-	return s.bankRepo.FindAll(ctx)
+	return s.bankRepo.FindAll(ctx, 0)
 }
 
 // ImportCAMT053 parses ISO 20022 CAMT.053 XML data and stores new transactions.
@@ -44,6 +44,7 @@ func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader) (int, erro
 	var domainTxs []domain.BankTransaction
 	for _, p := range parsedModels {
 		domainTxs = append(domainTxs, domain.BankTransaction{
+			FiscalYear:       domain.GetFiscalYearForDate(p.BookingDate, 1),
 			AccountIBAN:      p.AccountIBAN,
 			BookingDate:      p.BookingDate,
 			ValueDate:        p.ValueDate,
@@ -64,13 +65,15 @@ func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader) (int, erro
 		return 0, err
 	}
 
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionImport,
-		"BANK_TX",
-		fmt.Sprintf("%d", inserted),
-		fmt.Sprintf("%d Transaktionen aus CAMT.053 Bankauszug importiert", inserted),
-	)
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(
+			ctx,
+			domain.AuditActionImport,
+			"BANK_TX",
+			fmt.Sprintf("%d", inserted),
+			fmt.Sprintf("%d Transaktionen aus CAMT.053 Bankauszug importiert", inserted),
+		)
+	}
 
 	return inserted, nil
 }
@@ -96,6 +99,7 @@ func (s *BankService) MatchAndBook(
 	}
 
 	booking := &domain.BookingEntry{
+		FiscalYear:    tx.FiscalYear,
 		Date:          tx.BookingDate,
 		ValueDate:     tx.ValueDate,
 		Description:   desc,

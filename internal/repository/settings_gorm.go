@@ -44,8 +44,11 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	}
 
 	settings := &domain.CompanySettings{
-		Currency: "EUR",
-		SKR:      "SKR04",
+		FiscalYearStartMonth: 1,
+		Currency:             "EUR",
+		SKR:                  "SKR04",
+		VatPeriod:            "quarter",
+		TaxationType:         "SOLL",
 	}
 
 	for _, it := range items {
@@ -57,6 +60,11 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		case "fiscal_year":
 			y, _ := strconv.Atoi(it.Value)
 			settings.FiscalYear = y
+		case "fiscal_year_start_month":
+			m, _ := strconv.Atoi(it.Value)
+			if m >= 1 && m <= 12 {
+				settings.FiscalYearStartMonth = m
+			}
 		case "tax_number":
 			settings.TaxNumber = it.Value
 		case "vat_id":
@@ -75,26 +83,57 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.ZipCity = it.Value
 		case "country":
 			settings.Country = it.Value
+		case "is_small_business":
+			settings.IsSmallBusiness = (it.Value == "true" || it.Value == "1")
+		case "vat_period":
+			settings.VatPeriod = it.Value
+		case "taxation_type":
+			settings.TaxationType = it.Value
 		}
+	}
+
+	if settings.FiscalYearStartMonth <= 0 || settings.FiscalYearStartMonth > 12 {
+		settings.FiscalYearStartMonth = 1
 	}
 
 	return settings, nil
 }
 
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
+	vatPeriod := s.VatPeriod
+	if vatPeriod == "" {
+		if s.IsSmallBusiness {
+			vatPeriod = "exempt"
+		} else {
+			vatPeriod = "quarter"
+		}
+	}
+	taxationType := s.TaxationType
+	if taxationType == "" {
+		taxationType = "SOLL"
+	}
+	startMonth := s.FiscalYearStartMonth
+	if startMonth <= 0 || startMonth > 12 {
+		startMonth = 1
+	}
+
 	kv := map[string]string{
-		"company_name": s.CompanyName,
-		"legal_form":   s.LegalForm,
-		"fiscal_year":  fmt.Sprintf("%d", s.FiscalYear),
-		"tax_number":   s.TaxNumber,
-		"vat_id":       s.VatID,
-		"tax_office":   s.TaxOffice,
-		"iban":         s.IBAN,
-		"bic":          s.BIC,
-		"bank_name":    s.BankName,
-		"street":       s.Street,
-		"zip_city":     s.ZipCity,
-		"country":      s.Country,
+		"company_name":            s.CompanyName,
+		"legal_form":              s.LegalForm,
+		"fiscal_year":             fmt.Sprintf("%d", s.FiscalYear),
+		"fiscal_year_start_month": fmt.Sprintf("%d", startMonth),
+		"tax_number":              s.TaxNumber,
+		"vat_id":                  s.VatID,
+		"tax_office":              s.TaxOffice,
+		"iban":                    s.IBAN,
+		"bic":                     s.BIC,
+		"bank_name":               s.BankName,
+		"street":                  s.Street,
+		"zip_city":                s.ZipCity,
+		"country":                 s.Country,
+		"is_small_business":       fmt.Sprintf("%t", s.IsSmallBusiness),
+		"vat_period":              vatPeriod,
+		"taxation_type":           taxationType,
 	}
 
 	for k, v := range kv {

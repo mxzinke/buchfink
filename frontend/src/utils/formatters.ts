@@ -1,5 +1,5 @@
 /**
- * German locale formatters for GoBD and SKR04 compliance
+ * German locale formatters for number and date formatting
  */
 
 export function formatCurrency(amount: number, currency: string = 'EUR'): string {
