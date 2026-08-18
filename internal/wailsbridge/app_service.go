@@ -127,9 +127,10 @@ func (b *BuchfinkBridge) GetAppConfig() domain.AppConfig {
 	return b.appConfig
 }
 
-// SetupApplication handles initial setup: generates certificate, establishes data directory, and configures company.
+// SetupApplication handles initial setup: generates certificate in chosen folder, establishes data directory, and configures company.
 func (b *BuchfinkBridge) SetupApplication(
 	dataDir string,
+	certDir string,
 	password string,
 	settings domain.CompanySettings,
 ) error {
@@ -141,7 +142,11 @@ func (b *BuchfinkBridge) SetupApplication(
 		dataDir = filepath.Join(homeDir, ".buchfink", "data")
 	}
 
-	certDir := filepath.Join(filepath.Dir(dataDir), "certs")
+	if certDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		certDir = filepath.Join(homeDir, ".buchfink", "keys")
+	}
+
 	certPath, _, err := security.GenerateCertificate(certDir, settings.CompanyName, password)
 	if err != nil {
 		return fmt.Errorf("certificate generation failed: %w", err)

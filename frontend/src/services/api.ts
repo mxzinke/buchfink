@@ -78,12 +78,18 @@ export const Api = {
     }
   },
 
-  async setupApplication(dataDir: string, password: string, settings: CompanySettings): Promise<void> {
+  async setupApplication(
+    dataDir: string,
+    certDir: string,
+    password: string,
+    settings: CompanySettings
+  ): Promise<void> {
     try {
-      await Bridge.SetupApplication(dataDir, password, settings as any);
+      await Bridge.SetupApplication(dataDir, certDir, password, settings as any);
     } catch (e) {
       if (!isWailsRuntime()) {
         fallbackConfig.dataDir = dataDir || fallbackConfig.dataDir;
+        fallbackConfig.certPath = `${certDir || '~/.buchfink/keys'}/buchfink-cert.pem`;
         fallbackConfig.isConfigured = true;
         fallbackConfig.hasPassword = Boolean(password);
         fallbackSettings = { ...settings };

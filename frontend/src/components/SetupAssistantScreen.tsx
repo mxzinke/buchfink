@@ -8,6 +8,9 @@ import {
   Database,
   PlusCircle,
   FileSearch,
+  KeyRound,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { CompanySettings } from '../types';
 import { Api } from '../services/api';
@@ -21,10 +24,11 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 }) => {
   const currentYear = new Date().getFullYear(); // e.g. 2026
   const [setupChoice, setSetupChoice] = useState<'new' | 'existing' | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Form State
   const [dataDir, setDataDir] = useState('~/.buchfink/data');
+  const [certDir, setCertDir] = useState('~/.buchfink/keys');
   const [password, setPassword] = useState('');
   const [existingDbPath, setExistingDbPath] = useState('');
 
@@ -48,11 +52,22 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handlePickDirectory = async () => {
+  const handlePickDataDirectory = async () => {
     try {
       const selected = await Api.selectDirectoryDialog('Buchfink Datenordner auswählen');
       if (selected) {
         setDataDir(selected);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePickCertDirectory = async () => {
+    try {
+      const selected = await Api.selectDirectoryDialog('Speicherort für Sicherheitszertifikat auswählen');
+      if (selected) {
+        setCertDir(selected);
       }
     } catch (e) {
       console.error(e);
@@ -74,7 +89,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await Api.setupApplication(dataDir, password, companySettings);
+      await Api.setupApplication(dataDir, certDir, password, companySettings);
       onSetupCompleted();
     } catch (e: any) {
       setErrorMsg(e.message || 'Fehler bei der Ersteinrichtung.');
@@ -97,6 +112,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  const isSameDirectory = dataDir.trim() !== '' && certDir.trim() !== '' && dataDir.trim() === certDir.trim();
 
   return (
     <div className="relative min-h-screen flex flex-col justify-between bg-stone-950 text-stone-100 overflow-y-auto">
@@ -198,16 +215,17 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
               <div className="flex items-center justify-between border-b border-stone-800 pb-4">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                    Schritt {step} von 3
+                    Schritt {step} von 4
                   </span>
                   <h2 className="text-sm font-bold text-white mt-0.5">
-                    {step === 1 && 'Speicherort & Sicherheitszertifikat'}
-                    {step === 2 && 'Unternehmensdaten & Geschäftsjahr'}
-                    {step === 3 && 'Bankverbindung (SKR04 Konto 1800)'}
+                    {step === 1 && '1. Speicherort der Buchhaltungsdaten'}
+                    {step === 2 && '2. GoBD-Sicherheitszertifikat (Digitaler Schlüssel)'}
+                    {step === 3 && '3. Unternehmensdaten & Geschäftsjahr'}
+                    {step === 4 && '4. Bankverbindung (SKR04 Konto 1800)'}
                   </h2>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {[1, 2, 3].map((s) => (
+                  {[1, 2, 3, 4].map((s) => (
                     <div
                       key={s}
                       className={`h-2 rounded-full transition-all ${
@@ -218,12 +236,22 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 </div>
               </div>
 
-              {/* Step 1: Storage & Certificate */}
+              {/* Step 1: Storage Location for Data */}
               {step === 1 && (
                 <div className="space-y-4 text-xs">
+                  <div className="p-3.5 bg-stone-950/60 rounded-xl border border-stone-800 text-stone-400 flex items-start gap-2.5">
+                    <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold text-stone-200 block">Lokale SQLite-Speicherung</span>
+                      <p className="text-[11px] leading-relaxed">
+                        Buchfink speichert Ihre Buchungsdaten und Belege in einer separaten SQLite-Datei pro Geschäftsjahr auf Ihrer lokalen Festplatte.
+                      </p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
-                      Lokaler Datenordner (für SQLite-Dateien & Belege):
+                      Datenordner (für Datenbanken & Belege):
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
@@ -237,41 +265,87 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       </div>
                       <button
                         type="button"
-                        onClick={handlePickDirectory}
+                        onClick={handlePickDataDirectory}
                         className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
                       >
                         <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
                         Ordner auswählen...
                       </button>
                     </div>
-                    <p className="text-[11px] text-stone-500 mt-1">
-                      Alle Daten verbleiben vollständig auf Ihrem Rechner.
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Dedicated Certificate & Key Setup */}
+              {step === 2 && (
+                <div className="space-y-4 text-xs">
+                  <div className="p-4 bg-stone-950/80 rounded-xl border border-stone-800 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-400">
+                      <KeyRound className="w-4 h-4 text-amber-400" />
+                      Warum ein separates Sicherheitszertifikat?
+                    </div>
+                    <p className="text-[11px] text-stone-300 leading-relaxed">
+                      Buchfink schützt Ihre Buchungen mit einem digitalen Schlüssel (Zertifikat). Jede Buchung wird damit kryptografisch gestempelt (GoBD-Hash-Chain).
                     </p>
+                    <div className="text-[11px] text-amber-200/90 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed">
+                      <strong>Wichtiger Sicherheitshinweis:</strong> Wie bei einem Tresor sollten Sie den digitalen Schlüssel an einem anderen Ort aufbewahren als Ihre Buchhaltungsdaten (z. B. in einem geschützten Schlüsselordner, einem separaten USB-Stick oder Dokumenten-Tresor).
+                    </div>
                   </div>
 
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
-                      Zertifikats-Passwort (Optionaler Zugriffsschutz):
+                      Speicherort für den digitalen Schlüssel:
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <KeyRound className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={certDir}
+                          onChange={(e) => setCertDir(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl font-mono text-stone-200 focus:border-amber-500 focus:outline-hidden"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePickCertDirectory}
+                        className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                        Ordner auswählen...
+                      </button>
+                    </div>
+                  </div>
+
+                  {isSameDirectory && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-[11px] flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <span>
+                        Hinweis: Schlüssel und Buchhaltungsdaten liegen im selben Ordner ({dataDir}). Für optimale Sicherheit empfehlen wir getrennte Pfade.
+                      </span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="font-semibold text-stone-300 block mb-1">
+                      Zertifikats-Passwort (Optional für Zugriffsschutz):
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="password"
-                        placeholder="Optionales Kennwort für Private-Key Verschlüsselung..."
+                        placeholder="Optionales Kennwort zum Schutz des Schlüssels..."
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-500 focus:outline-hidden"
                       />
                     </div>
-                    <p className="text-[11px] text-stone-500 mt-1">
-                      Buchfink erzeugt automatisch ein lokales Ed25519 GoBD-Zertifikat zur Manipulationssicherung.
-                    </p>
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Company Info */}
-              {step === 2 && (
+              {/* Step 3: Company Info */}
+              {step === 3 && (
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
@@ -358,8 +432,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 </div>
               )}
 
-              {/* Step 3: Bank & SKR04 */}
-              {step === 3 && (
+              {/* Step 4: Bank & SKR04 */}
+              {step === 4 && (
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
@@ -413,10 +487,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   <ArrowLeft className="w-3.5 h-3.5" /> Zurück
                 </button>
 
-                {step < 3 ? (
+                {step < 4 ? (
                   <button
                     type="button"
-                    disabled={step === 2 && !companySettings.companyName.trim()}
+                    disabled={step === 3 && !companySettings.companyName.trim()}
                     onClick={() => setStep((s) => (s + 1) as any)}
                     className="px-5 py-2.5 text-xs font-semibold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white rounded-xl shadow-lg flex items-center gap-1.5"
                   >
