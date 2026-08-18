@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Buchfink
+Comment=Open-Source-Buchhaltung für kleine Unternehmen (SKR04, GoBD, E-Bilanz)
+Exec=/usr/local/bin/buchfink %u
+Terminal=false
+Type=Application
+Icon=buchfink
+Categories=Office;Finance;
+StartupWMClass=buchfink

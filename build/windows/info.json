@@ -1,0 +1,15 @@
+{
+  "fixed": {
+    "file_version": "0.1.0"
+  },
+  "info": {
+    "0000": {
+      "Comments": "Buchfink — Open-Source-Buchhaltung",
+      "CompanyName": "Buchfink Open Source",
+      "FileDescription": "Buchfink Desktop Application",
+      "LegalCopyright": "© 2025, Buchfink Contributors (MIT)",
+      "ProductName": "Buchfink",
+      "ProductVersion": "0.1.0"
+    }
+  }
+}
