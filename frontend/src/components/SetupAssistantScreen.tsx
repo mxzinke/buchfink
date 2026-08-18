@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { CompanySettings } from '../types';
 import { Api } from '../services/api';
+import { GermanFlag } from './GermanFlag';
 
 interface SetupAssistantScreenProps {
   onSetupCompleted: () => void;
@@ -128,17 +129,20 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       <div className="relative z-10 max-w-2xl mx-auto w-full px-6 py-12 flex-1 flex flex-col justify-center space-y-6">
         {/* Brand Header */}
         <div className="flex items-center gap-4">
-          <img
-            src="/buchfink-logo.svg"
-            alt="Buchfink"
-            className="w-14 h-14 rounded-2xl bg-white/10 p-1 border border-white/15 backdrop-blur-md drop-shadow-md"
-          />
+          <div className="relative">
+            <img
+              src="/buchfink-logo.svg"
+              alt="Buchfink"
+              className="w-14 h-14 rounded-2xl bg-white/10 p-1 border border-white/15 backdrop-blur-md drop-shadow-md"
+            />
+            <div className="absolute -bottom-1 -right-1">
+              <GermanFlag className="w-4 h-3 shadow-sm border border-stone-900 rounded-xs" />
+            </div>
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Buchfink</h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                SKR04
-              </span>
+              <span className="text-xs text-stone-400 font-mono">Buchhaltung &bull; GoBD</span>
             </div>
             <p className="text-xs text-stone-400 mt-0.5">
               Ersteinrichtung &bull; GoBD-Zertifikat &bull; Lokaler Speicherort
@@ -178,7 +182,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       Neue Buchhaltung anlegen
                     </h3>
                     <p className="text-xs text-stone-400 mt-1 leading-snug">
-                      Erstellt eine neue SQLite-Datenbank für {currentYear}, initialisiert den SKR04-Kontenrahmen und erzeugt Ihr GoBD-Sicherheitszertifikat.
+                      Erstellt eine neue SQLite-Datenbank für {currentYear}, initialisiert den Standard-Kontenrahmen und erzeugt Ihr GoBD-Sicherheitszertifikat.
                     </p>
                   </div>
                   <div className="text-xs font-semibold text-amber-400 flex items-center gap-1 pt-1">
@@ -221,7 +225,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     {step === 1 && '1. Speicherort der Buchhaltungsdaten'}
                     {step === 2 && '2. GoBD-Sicherheitszertifikat (Digitaler Schlüssel)'}
                     {step === 3 && '3. Unternehmensdaten & Geschäftsjahr'}
-                    {step === 4 && '4. Bankverbindung (SKR04 Konto 1800)'}
+                    {step === 4 && '4. Bankverbindung & Standardkonten'}
                   </h2>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -432,7 +436,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 </div>
               )}
 
-              {/* Step 4: Bank & SKR04 */}
+              {/* Step 4: Bank & Konten */}
               {step === 4 && (
                 <div className="space-y-4 text-xs">
                   <div>
@@ -449,7 +453,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       className="w-full p-2.5 bg-stone-950/80 border border-stone-700 rounded-xl text-stone-200 font-mono focus:border-amber-500 focus:outline-hidden"
                     />
                     <p className="text-[11px] text-stone-500 mt-1">
-                      Wird im SKR04 automatisch mit dem Haupt-Finanzkonto 1800 (Bank) verknüpft.
+                      Wird automatisch mit dem Haupt-Bankkonto (Konto 1800) verknüpft.
                     </p>
                   </div>
 
@@ -468,7 +472,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                   <div className="p-3.5 bg-stone-950/60 rounded-xl border border-stone-800 text-stone-400 space-y-1">
                     <span className="font-bold text-stone-200 block">
-                      Kontenrahmen: SKR04 (Vorinstalliert)
+                      Deutscher Standard-Kontenrahmen
                     </span>
                     <p className="text-[11px] leading-relaxed">
                       Inklusive Standardkonten für Einnahmen, Ausgaben, Vorsteuer und Bilanzierung.

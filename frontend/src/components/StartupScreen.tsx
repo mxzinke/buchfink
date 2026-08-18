@@ -9,6 +9,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { CompanySettings } from '../types';
+import { GermanFlag } from './GermanFlag';
 
 interface StartupScreenProps {
   settings: CompanySettings | null;
@@ -35,25 +36,30 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
         {/* Header Branding */}
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <img
-              src="/buchfink-logo.svg"
-              alt="Buchfink Logo"
-              className="w-16 h-16 drop-shadow-md rounded-2xl bg-white/10 p-1 border border-white/10 backdrop-blur-md"
-            />
+            <div className="relative">
+              <img
+                src="/buchfink-logo.svg"
+                alt="Buchfink Logo"
+                className="w-16 h-16 drop-shadow-md rounded-2xl bg-white/10 p-1 border border-white/10 backdrop-blur-md"
+              />
+              <div className="absolute -bottom-1.5 -right-1.5">
+                <GermanFlag className="w-5 h-3.5 shadow-md border-2 border-stone-900 rounded-xs" />
+              </div>
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans">
                   Buchfink
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  SKR04 &bull; GoBD
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-800 text-stone-300 border border-stone-700">
+                  GoBD-konform
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Local-First
+                  100% Local-First
                 </span>
               </div>
               <p className="text-sm text-stone-300 mt-1 font-medium">
-                Moderne Open-Source-Buchhaltung für kleine Unternehmen und Selbstständige
+                Moderne Buchhaltungssoftware für kleine Unternehmen & Selbstständige in Deutschland
               </p>
             </div>
           </div>
@@ -127,11 +133,11 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
                 <BookOpen className="w-4 h-4" />
               </div>
               <h3 className="font-bold text-sm text-white flex items-center justify-between">
-                <span>SKR04 Kontenplan</span>
+                <span>Kontenplan</span>
                 <ArrowRight className="w-3.5 h-3.5 text-stone-500 group-hover:text-amber-400 transition-colors" />
               </h3>
               <p className="text-xs text-stone-400 leading-snug">
-                Standardkontenrahmen einsehen, Hilfserklärungen lesen und Salden prüfen.
+                Deutsche Standardkonten einsehen, Hilfserklärungen lesen und Salden prüfen.
               </p>
             </div>
           </div>

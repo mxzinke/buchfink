@@ -70,7 +70,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             Buchhaltungsübersicht
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            SKR04 &bull; Automatische GoBD-Hash-Kette aktiv
+            GoBD-konform &bull; 100% Local-First
           </p>
         </div>
         <div className="flex gap-2.5">
@@ -110,7 +110,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div className="text-xl font-bold text-stone-900">
             {formatCurrency(summary.bankBalance)}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">Konto 1800 (SKR04)</div>
+          <div className="text-[11px] text-stone-500 mt-1">Konto 1800 (Bank)</div>
         </div>
 
         {/* Revenue */}

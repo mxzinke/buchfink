@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { CompanySettings, IntegrityCheckResult } from '../types';
+import { GermanFlag } from './GermanFlag';
 
 export type TabType =
   | 'welcome'
@@ -74,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Stammdaten',
       items: [
         { id: 'contacts', label: 'Kunden & Lieferanten', icon: <Users className="w-4 h-4" /> },
-        { id: 'accounts', label: 'SKR04 Kontenplan', icon: <BookOpen className="w-4 h-4" /> },
+        { id: 'accounts', label: 'Kontenplan', icon: <BookOpen className="w-4 h-4" /> },
       ],
     },
     {
@@ -102,11 +103,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectTab('welcome')}
             className="flex items-center gap-3 p-1.5 -mx-1.5 rounded-xl hover:bg-stone-800/60 transition-colors cursor-pointer group window-no-drag"
           >
-            <img
-              src="/buchfink-logo.svg"
-              alt="Buchfink"
-              className="w-8 h-8 rounded-lg bg-white/5 p-0.5 border border-white/10 group-hover:scale-105 transition-transform shrink-0"
-            />
+            <div className="relative shrink-0">
+              <img
+                src="/buchfink-logo.svg"
+                alt="Buchfink"
+                className="w-8 h-8 rounded-lg bg-white/5 p-0.5 border border-white/10 group-hover:scale-105 transition-transform"
+              />
+              <div className="absolute -bottom-1 -right-1">
+                <GermanFlag className="w-3.5 h-2.5 shadow-xs border border-stone-900" />
+              </div>
+            </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-stone-100 tracking-tight truncate">
@@ -114,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-stone-400 font-mono truncate">
-                SKR04 &bull; {settings?.fiscalYear || new Date().getFullYear()}
+                Geschäftsjahr {settings?.fiscalYear || new Date().getFullYear()}
               </p>
             </div>
           </div>

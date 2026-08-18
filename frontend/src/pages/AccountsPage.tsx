@@ -56,10 +56,10 @@ export const AccountsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            SKR04 Kontenplan
+            Kontenplan
             <HelpTooltip
-              title="Standardkontenrahmen SKR04"
-              content="Der SKR04 ist nach dem Abschlussgliederungsprinzip (Bilanz & GuV) aufgebaut. Klasse 0: Anlagevermögen, Klasse 1: Umlaufvermögen, Klasse 2: Eigenkapital, Klasse 3: Verbindlichkeiten, Klasse 4: Erträge, Klasse 6: Aufwendungen."
+              title="Deutscher Kontenrahmen (SKR04)"
+              content="Aufgebaut nach dem Abschlussgliederungsprinzip (Bilanz & GuV): Klasse 0: Anlagevermögen, Klasse 1: Umlaufvermögen, Klasse 2: Eigenkapital, Klasse 3: Verbindlichkeiten, Klasse 4: Erträge, Klasse 6: Aufwendungen."
             />
           </h2>
           <p className="text-xs text-stone-500 mt-1">
