@@ -10,7 +10,6 @@ export const InvoicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [zugferdXML, setZugferdXML] = useState<string | null>(null);
-  const [typstCode, setTypstCode] = useState<string | null>(null);
 
   // New Invoice Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -44,7 +43,7 @@ export const InvoicesPage: React.FC = () => {
     try {
       const list = await Api.getInvoices();
       setInvoices(list);
-      setInvNumber(`RE-2024-${String(list.length + 1).padStart(3, '0')}`);
+      setInvNumber(`RE-${new Date().getFullYear()}-${String(list.length + 1).padStart(3, '0')}`);
     } finally {
       setLoading(false);
     }
@@ -127,7 +126,6 @@ export const InvoicesPage: React.FC = () => {
     setPreviewInvoice(inv);
     const result = await Api.generateInvoiceZUGFeRD(inv);
     setZugferdXML(result.xml);
-    setTypstCode(result.typst);
   };
 
   return (
@@ -136,14 +134,14 @@ export const InvoicesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            Rechnungsstellung (ZUGFeRD & Typst)
+            Rechnungsstellung (ZUGFeRD / Factur-X)
             <HelpTooltip
-              title="ZUGFeRD 2.2 & Typst"
-              content="Rechnungen werden als PDF/A-3 mit eingebetteter EN 16931 XML-Datei erzeugt (ZUGFeRD/Factur-X). Das Druck- und PDF-Layout wird über die moderne Typst-Engine gerendert."
+              title="ZUGFeRD 2.2 / Factur-X"
+              content="Rechnungen werden als PDF/A-3 mit eingebetteter EN 16931 XML-Datei erzeugt (ZUGFeRD/Factur-X). Vollständig kompatibel mit den deutschen E-Rechnungspflichten ab 2025."
             />
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            E-Rechnungs-konform ab 2025 &bull; Getrennter Nummernkreis vom Journal
+            E-Rechnungs-konform &bull; PDF/A-3 mit eingebetteter EN 16931 XML
           </p>
         </div>
 
@@ -223,14 +221,14 @@ export const InvoicesPage: React.FC = () => {
                       <button
                         onClick={() => handleInspectZUGFeRD(inv)}
                         className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-stone-100 rounded-md transition-colors"
-                        title="ZUGFeRD XML / Typst Quellcode inspizieren"
+                        title="ZUGFeRD XML-Struktur ansehen"
                       >
                         <Code className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => alert(`PDF-Export für ${inv.invoiceNumber} heruntergeladen.`)}
                         className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-stone-100 rounded-md transition-colors"
-                        title="PDF/A-3 herunterladen"
+                        title="PDF/A-3 Rechnung herunterladen"
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
@@ -251,7 +249,7 @@ export const InvoicesPage: React.FC = () => {
               <div>
                 <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-amber-600" />
-                  Neue Ausgangsrechnung erstellen (ZUGFeRD & Typst)
+                  Neue Ausgangsrechnung erstellen (ZUGFeRD PDF/A-3)
                 </h3>
                 <p className="text-xs text-stone-500">
                   Generiert standardkonforme ZUGFeRD 2.2 / Factur-X XML-Metadaten
@@ -418,7 +416,7 @@ export const InvoicesPage: React.FC = () => {
         </div>
       )}
 
-      {/* ZUGFeRD / Typst Inspector Modal */}
+      {/* ZUGFeRD Inspector Modal */}
       {previewInvoice && zugferdXML && (
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 border border-stone-200 animate-in fade-in max-h-[85vh] flex flex-col">
@@ -426,7 +424,7 @@ export const InvoicesPage: React.FC = () => {
               <div>
                 <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
                   <Code className="w-4 h-4 text-amber-600" />
-                  ZUGFeRD XML & Typst Template: {previewInvoice.invoiceNumber}
+                  ZUGFeRD XML-Daten: {previewInvoice.invoiceNumber}
                 </h3>
                 <p className="text-xs text-stone-500">
                   Valides Factur-X / ZUGFeRD 2.2 EN 16931 Profil
@@ -443,12 +441,6 @@ export const InvoicesPage: React.FC = () => {
             <div className="my-4 flex-1 overflow-y-auto bg-stone-900 text-stone-200 p-4 rounded-xl font-mono text-[11px] leading-relaxed">
               <pre>{zugferdXML}</pre>
             </div>
-
-            {typstCode && (
-              <div className="text-[11px] text-stone-500 font-mono">
-                Typst Source: Generiert ({typstCode.length} Zeichen)
-              </div>
-            )}
 
             <div className="flex justify-end gap-2 mt-3">
               <button

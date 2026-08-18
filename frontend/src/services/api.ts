@@ -1,5 +1,6 @@
 import * as Bridge from '../../bindings/github.com/buchfink/buchfink/internal/wailsbridge/buchfinkbridge';
 import {
+  AppConfig,
   Account,
   BookingEntry,
   BankTransaction,
@@ -11,11 +12,18 @@ import {
   AuditLogEntry,
 } from '../types';
 
-// Fallback in-memory state only used when developing frontend standalone in a standard web browser without Wails runtime.
+let fallbackConfig: AppConfig = {
+  dataDir: '~/.buchfink/data',
+  certPath: '~/.buchfink/certs/buchfink-cert.pem',
+  hasPassword: false,
+  isConfigured: true,
+  lastFiscalYear: 2026,
+};
+
 let fallbackSettings: CompanySettings = {
   companyName: 'Musterfirma GmbH',
   legalForm: 'GmbH',
-  fiscalYear: 2024,
+  fiscalYear: 2026,
   taxNumber: '12/345/67890',
   vatId: 'DE123456789',
   taxOffice: 'Finanzamt Berlin',
@@ -35,13 +43,79 @@ let fallbackBankTxs: BankTransaction[] = [];
 let fallbackContacts: Contact[] = [];
 let fallbackInvoices: Invoice[] = [];
 let fallbackAuditLogs: AuditLogEntry[] = [];
+let fallbackYears: number[] = [2026];
 
-// Helper to check if running inside Wails desktop runtime
 function isWailsRuntime(): boolean {
   return typeof window !== 'undefined' && Boolean((window as any)._wails);
 }
 
 export const Api = {
+  async getAppConfig(): Promise<AppConfig> {
+    try {
+      const res = await Bridge.GetAppConfig();
+      if (res) return res as AppConfig;
+      return fallbackConfig;
+    } catch {
+      return fallbackConfig;
+    }
+  },
+
+  async setupApplication(dataDir: string, password: string, settings: CompanySettings): Promise<void> {
+    try {
+      await Bridge.SetupApplication(dataDir, password, settings as any);
+    } catch (e) {
+      if (!isWailsRuntime()) {
+        fallbackConfig.dataDir = dataDir || fallbackConfig.dataDir;
+        fallbackConfig.isConfigured = true;
+        fallbackConfig.hasPassword = Boolean(password);
+        fallbackSettings = { ...settings };
+        if (!fallbackYears.includes(settings.fiscalYear)) {
+          fallbackYears.push(settings.fiscalYear);
+          fallbackYears.sort();
+        }
+        return;
+      }
+      throw e;
+    }
+  },
+
+  async loadExistingDatabase(dbPath: string): Promise<void> {
+    try {
+      await Bridge.LoadExistingDatabase(dbPath);
+    } catch (e) {
+      if (!isWailsRuntime()) {
+        fallbackConfig.isConfigured = true;
+        return;
+      }
+      throw e;
+    }
+  },
+
+  async getAvailableFiscalYears(): Promise<number[]> {
+    try {
+      const res = await Bridge.GetAvailableFiscalYears();
+      if (res && res.length > 0) return res;
+      return fallbackYears;
+    } catch {
+      return fallbackYears;
+    }
+  },
+
+  async createFiscalYear(year: number): Promise<void> {
+    try {
+      await Bridge.CreateFiscalYear(year);
+    } catch (e) {
+      if (!isWailsRuntime()) {
+        if (!fallbackYears.includes(year)) {
+          fallbackYears.push(year);
+          fallbackYears.sort();
+        }
+        return;
+      }
+      throw e;
+    }
+  },
+
   async getFiscalYear(): Promise<number> {
     try {
       return await Bridge.GetFiscalYear();
@@ -105,7 +179,7 @@ export const Api = {
       if (!isWailsRuntime()) {
         const newEntry: BookingEntry = {
           id: fallbackBookings.length + 1,
-          bookingNumber: entry.bookingNumber || `B-2024-${String(fallbackBookings.length + 1).padStart(4, '0')}`,
+          bookingNumber: entry.bookingNumber || `B-${fallbackSettings.fiscalYear}-${String(fallbackBookings.length + 1).padStart(4, '0')}`,
           date: entry.date || new Date().toISOString().split('T')[0],
           valueDate: entry.valueDate || entry.date || new Date().toISOString().split('T')[0],
           description: entry.description || 'Buchung',
@@ -294,7 +368,7 @@ export const Api = {
     } catch {
       return {
         xml: `<!-- ZUGFeRD 2.2 Factur-X XML for ${inv.invoiceNumber} -->`,
-        typst: `// Typst Template for ${inv.invoiceNumber}`,
+        typst: `// Document template for ${inv.invoiceNumber}`,
       };
     }
   },

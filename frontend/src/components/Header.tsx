@@ -1,22 +1,30 @@
-import React from 'react';
-import { ShieldCheck, ShieldAlert, Calendar, RefreshCw } from 'lucide-react';
-import { IntegrityCheckResult } from '../types';
+import React, { useState } from 'react';
+import { Calendar, Plus } from 'lucide-react';
 
 interface HeaderProps {
   currentYear: number;
+  availableYears: number[];
   onYearChange: (year: number) => void;
-  integrity: IntegrityCheckResult | null;
-  onRefreshIntegrity: () => void;
-  isCheckingIntegrity: boolean;
+  onCreateYear: (year: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentYear,
+  availableYears,
   onYearChange,
-  integrity,
-  onRefreshIntegrity,
-  isCheckingIntegrity,
+  onCreateYear,
 }) => {
+  const [isAddingYear, setIsAddingYear] = useState(false);
+  const [newYearInput, setNewYearInput] = useState(currentYear + 1);
+
+  const handleAddYearSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newYearInput >= 2000 && newYearInput <= 2100) {
+      onCreateYear(newYearInput);
+      setIsAddingYear(false);
+    }
+  };
+
   return (
     <header className="h-14 border-b border-stone-200/90 bg-[#FAF9F6]/90 backdrop-blur-md px-6 flex items-center justify-between select-none sticky top-0 z-30 window-drag">
       {/* Left / Fiscal Year Selector */}
@@ -26,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
         </span>
         <div className="flex items-center gap-1 bg-stone-200/60 p-1 rounded-lg border border-stone-300/60 text-xs">
           <Calendar className="w-3.5 h-3.5 text-stone-500 ml-1 mr-0.5" />
-          {[2023, 2024, 2025].map((year) => (
+          {availableYears.map((year) => (
             <button
               key={year}
               onClick={() => onYearChange(year)}
@@ -39,35 +47,42 @@ export const Header: React.FC<HeaderProps> = ({
               {year}
             </button>
           ))}
-        </div>
-      </div>
 
-      {/* Right / GoBD Hash Chain Status Badge */}
-      <div className="flex items-center gap-2 window-no-drag">
-        <div
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-            integrity?.isValid
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
-          title={integrity?.message || 'GoBD Hash-Chain Integrität'}
-        >
-          {integrity?.isValid ? (
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+          {isAddingYear ? (
+            <form onSubmit={handleAddYearSubmit} className="flex items-center gap-1 ml-1">
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={newYearInput}
+                onChange={(e) => setNewYearInput(Number(e.target.value))}
+                className="w-16 px-1.5 py-0.5 bg-white border border-stone-300 rounded text-xs font-mono font-bold"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-2 py-0.5 bg-amber-600 text-white rounded font-bold text-xs"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddingYear(false)}
+                className="px-1.5 py-0.5 text-stone-500 hover:text-stone-800 text-xs"
+              >
+                ✕
+              </button>
+            </form>
           ) : (
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+            <button
+              onClick={() => setIsAddingYear(true)}
+              className="p-1 text-stone-500 hover:text-stone-900 hover:bg-stone-300/50 rounded-md transition-colors ml-0.5"
+              title="Weiteres Geschäftsjahr anlegen"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           )}
-          <span>{integrity?.isValid ? 'GoBD-Kette intakt' : 'Integritätswarnung'}</span>
         </div>
-
-        <button
-          onClick={onRefreshIntegrity}
-          disabled={isCheckingIntegrity}
-          className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-200/70 rounded-lg transition-colors"
-          title="Hash-Chain neu validieren"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isCheckingIntegrity ? 'animate-spin text-amber-600' : ''}`} />
-        </button>
       </div>
     </header>
   );

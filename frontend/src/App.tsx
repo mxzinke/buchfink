@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
-import { OnboardingModal } from './components/OnboardingModal';
+import { SetupAssistantScreen } from './components/SetupAssistantScreen';
 import { DashboardPage } from './pages/DashboardPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
@@ -13,32 +13,53 @@ import { ReportsPage } from './pages/ReportsPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { IntegrityCheckResult, CompanySettings } from './types';
+import { IntegrityCheckResult, CompanySettings, AppConfig } from './types';
 import { Api } from './services/api';
 
 export function App() {
+  const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [currentTab, setCurrentTab] = useState<TabType>('welcome');
-  const [currentYear, setCurrentYear] = useState<number>(2024);
+  const [currentYear, setCurrentYear] = useState<number>(currentCalendarYear);
+  const [availableYears, setAvailableYears] = useState<number[]>([currentCalendarYear]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
   useEffect(() => {
-    loadInitialData();
-  }, [currentYear]);
+    bootstrapApp();
+  }, []);
 
-  const loadInitialData = async () => {
+  const bootstrapApp = async () => {
+    setLoadingConfig(true);
     try {
-      const [year, settings] = await Promise.all([
+      const cfg = await Api.getAppConfig();
+      setAppConfig(cfg);
+
+      if (cfg.isConfigured) {
+        await loadActiveFiscalYearData();
+      }
+    } catch (e) {
+      console.error('Error bootstrapping Buchfink:', e);
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
+
+  const loadActiveFiscalYearData = async () => {
+    try {
+      const [year, years, settings] = await Promise.all([
         Api.getFiscalYear(),
+        Api.getAvailableFiscalYears(),
         Api.getCompanySettings(),
       ]);
       setCurrentYear(year);
+      setAvailableYears(years.length > 0 ? years : [year]);
       setCompanySettings(settings);
       await refreshIntegrity();
     } catch (e) {
-      console.error('Error loading initial data:', e);
+      console.error('Error loading fiscal year data:', e);
     }
   };
 
@@ -57,8 +78,32 @@ export function App() {
   const handleYearChange = async (year: number) => {
     setCurrentYear(year);
     await Api.setFiscalYear(year);
-    await loadInitialData();
+    await loadActiveFiscalYearData();
   };
+
+  const handleCreateYear = async (year: number) => {
+    await Api.createFiscalYear(year);
+    await handleYearChange(year);
+  };
+
+  const handleSetupCompleted = async () => {
+    await bootstrapApp();
+    setCurrentTab('dashboard');
+  };
+
+  // Loading Screen while reading initial config
+  if (loadingConfig) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-stone-950 text-stone-400 text-xs font-mono">
+        Buchfink wird gestartet...
+      </div>
+    );
+  }
+
+  // If not configured yet, show the full-screen Setup Assistant
+  if (!appConfig?.isConfigured) {
+    return <SetupAssistantScreen onSetupCompleted={handleSetupCompleted} />;
+  }
 
   const renderContent = () => {
     switch (currentTab) {
@@ -97,12 +142,14 @@ export function App() {
 
   return (
     <div className="flex h-screen bg-[#FAF9F6] text-stone-900 overflow-hidden font-sans">
-      {/* Grouped Sidebar Navigation */}
+      {/* Grouped Sidebar Navigation with bottom GoBD badge */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         settings={companySettings}
-        onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        integrity={integrity}
+        onRefreshIntegrity={refreshIntegrity}
+        isCheckingIntegrity={isCheckingIntegrity}
       />
 
       {/* Main Content Area */}
@@ -110,10 +157,9 @@ export function App() {
         {currentTab !== 'welcome' && (
           <Header
             currentYear={currentYear}
+            availableYears={availableYears}
             onYearChange={handleYearChange}
-            integrity={integrity}
-            onRefreshIntegrity={refreshIntegrity}
-            isCheckingIntegrity={isCheckingIntegrity}
+            onCreateYear={handleCreateYear}
           />
         )}
 
@@ -121,14 +167,6 @@ export function App() {
           {renderContent()}
         </main>
       </div>
-
-      {/* Onboarding Wizard Modal */}
-      <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        initialSettings={companySettings}
-        onCompleted={loadInitialData}
-      />
     </div>
   );
 }

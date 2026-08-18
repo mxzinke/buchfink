@@ -9,10 +9,11 @@ import {
   Scale,
   FileSpreadsheet,
   ShieldCheck,
+  ShieldAlert,
   Settings,
-  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { CompanySettings, IntegrityCheckResult } from '../types';
 
 export type TabType =
   | 'welcome'
@@ -31,7 +32,9 @@ interface SidebarProps {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;
   settings: CompanySettings | null;
-  onOpenOnboarding: () => void;
+  integrity: IntegrityCheckResult | null;
+  onRefreshIntegrity: () => void;
+  isCheckingIntegrity: boolean;
 }
 
 interface NavGroup {
@@ -48,7 +51,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
   settings,
-  onOpenOnboarding,
+  integrity,
+  onRefreshIntegrity,
+  isCheckingIntegrity,
 }) => {
   const groups: NavGroup[] = [
     {
@@ -109,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-stone-400 font-mono truncate">
-                SKR04 &bull; {settings?.fiscalYear || 2024}
+                SKR04 &bull; {settings?.fiscalYear || new Date().getFullYear()}
               </p>
             </div>
           </div>
@@ -159,18 +164,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Footer / Onboarding & Info */}
+      {/* Footer: Hidden GoBD Status & Storage Info */}
       <div className="p-3 border-t border-stone-800/80 bg-stone-950/40 text-[11px] space-y-2 window-no-drag">
-        <button
-          onClick={onOpenOnboarding}
-          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-[11px] font-medium transition-colors border border-stone-700/60"
+        {/* GoBD Integrity Status Bar */}
+        <div
+          className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-stone-900/90 border border-stone-800 text-[10px] font-mono"
+          title={integrity?.message || 'GoBD Hash-Chain Integritätsstatus'}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Setup-Assistent</span>
-        </button>
+          <div className="flex items-center gap-1.5 truncate">
+            {integrity?.isValid ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            ) : (
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            )}
+            <span className={integrity?.isValid ? 'text-stone-300' : 'text-rose-300'}>
+              {integrity?.isValid ? 'GoBD-Kette intakt' : 'Integritätswarnung'}
+            </span>
+          </div>
+          <button
+            onClick={onRefreshIntegrity}
+            disabled={isCheckingIntegrity}
+            className="text-stone-500 hover:text-stone-300 p-0.5 rounded transition-colors"
+            title="Integrität erneut prüfen"
+          >
+            <RefreshCw className={`w-3 h-3 ${isCheckingIntegrity ? 'animate-spin text-amber-400' : ''}`} />
+          </button>
+        </div>
 
         <div className="flex items-center justify-between text-[10px] text-stone-500 font-mono px-1">
-          <span>Pure SQLite</span>
+          <span>Pure SQLite &bull; Local</span>
           <span className="text-emerald-400 font-sans">● Bereit</span>
         </div>
       </div>

@@ -1,3 +1,11 @@
+export interface AppConfig {
+  dataDir: string;
+  certPath: string;
+  hasPassword: boolean;
+  isConfigured: boolean;
+  lastFiscalYear: number;
+}
+
 export interface Account {
   id: number;
   number: string;
