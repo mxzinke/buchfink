@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Database,
+  PlusCircle,
+  FileSearch,
 } from 'lucide-react';
 import { CompanySettings } from '../types';
 import { Api } from '../services/api';
@@ -17,8 +19,8 @@ interface SetupAssistantScreenProps {
 export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   onSetupCompleted,
 }) => {
-  const currentYear = new Date().getFullYear(); // 2026
-  const [mode, setMode] = useState<'wizard' | 'load_existing'>('wizard');
+  const currentYear = new Date().getFullYear(); // e.g. 2026
+  const [setupChoice, setSetupChoice] = useState<'new' | 'existing' | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
@@ -45,6 +47,28 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handlePickDirectory = async () => {
+    try {
+      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner auswählen');
+      if (selected) {
+        setDataDir(selected);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePickDatabaseFile = async () => {
+    try {
+      const selected = await Api.selectDatabaseFileDialog('Buchfink SQLite-Datenbank auswählen');
+      if (selected) {
+        setExistingDbPath(selected);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleFinishWizard = async () => {
     setIsSubmitting(true);
@@ -113,7 +137,62 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             </div>
           )}
 
-          {mode === 'wizard' ? (
+          {/* Initial Choice: New vs Existing */}
+          {setupChoice === null ? (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-white">Willkommen bei Buchfink</h2>
+                <p className="text-xs text-stone-400">
+                  Wählen Sie, wie Sie Ihre Buchhaltung starten möchten:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Option 1: New Setup */}
+                <div
+                  onClick={() => setSetupChoice('new')}
+                  className="p-5 rounded-2xl bg-stone-950/80 border-2 border-stone-800 hover:border-amber-500 hover:bg-stone-900/90 transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-105 transition-transform">
+                    <PlusCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition-colors">
+                      Neue Buchhaltung anlegen
+                    </h3>
+                    <p className="text-xs text-stone-400 mt-1 leading-snug">
+                      Erstellt eine neue SQLite-Datenbank für {currentYear}, initialisiert den SKR04-Kontenrahmen und erzeugt Ihr GoBD-Sicherheitszertifikat.
+                    </p>
+                  </div>
+                  <div className="text-xs font-semibold text-amber-400 flex items-center gap-1 pt-1">
+                    Jetzt einrichten &rarr;
+                  </div>
+                </div>
+
+                {/* Option 2: Load Existing Database */}
+                <div
+                  onClick={() => setSetupChoice('existing')}
+                  className="p-5 rounded-2xl bg-stone-950/80 border-2 border-stone-800 hover:border-amber-500 hover:bg-stone-900/90 transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-stone-800 text-stone-300 flex items-center justify-center border border-stone-700 group-hover:scale-105 transition-transform">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition-colors">
+                      Bestehende Datenbank öffnen
+                    </h3>
+                    <p className="text-xs text-stone-400 mt-1 leading-snug">
+                      Laden Sie eine bereits vorhandene Buchfink-Datenbankdatei (*.sqlite) oder ein Backup von einem lokalen Pfad.
+                    </p>
+                  </div>
+                  <div className="text-xs font-semibold text-stone-300 group-hover:text-amber-400 flex items-center gap-1 pt-1">
+                    Datei auswählen &rarr;
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : setupChoice === 'new' ? (
+            /* New Setup Wizard */
             <>
               {/* Step indicator */}
               <div className="flex items-center justify-between border-b border-stone-800 pb-4">
@@ -144,25 +223,35 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
-                      Lokaler Datenordner (SQLite DBs & Belegarchiv):
+                      Lokaler Datenordner (für SQLite-Dateien & Belege):
                     </label>
-                    <div className="relative">
-                      <FolderOpen className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={dataDir}
-                        onChange={(e) => setDataDir(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl font-mono text-stone-200 focus:border-amber-500 focus:outline-hidden"
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <FolderOpen className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={dataDir}
+                          onChange={(e) => setDataDir(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl font-mono text-stone-200 focus:border-amber-500 focus:outline-hidden"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePickDirectory}
+                        className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                        Ordner auswählen...
+                      </button>
                     </div>
                     <p className="text-[11px] text-stone-500 mt-1">
-                      Ihre Daten verbleiben zu 100% lokal auf diesem Computer.
+                      Alle Daten verbleiben vollständig auf Ihrem Rechner.
                     </p>
                   </div>
 
                   <div>
                     <label className="font-semibold text-stone-300 block mb-1">
-                      Zertifikats-Passwort (Optional für Zugriffsschutz):
+                      Zertifikats-Passwort (Optionaler Zugriffsschutz):
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -175,18 +264,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       />
                     </div>
                     <p className="text-[11px] text-stone-500 mt-1">
-                      Es wird automatisch ein GoBD-Signaturschlüssel zur Integritätssicherung erzeugt.
+                      Buchfink erzeugt automatisch ein lokales Ed25519 GoBD-Zertifikat zur Manipulationssicherung.
                     </p>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setMode('load_existing')}
-                      className="text-[11px] text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1"
-                    >
-                      <Database className="w-3.5 h-3.5" /> Bereits vorhandene Buchfink-Datenbankdatei (*.sqlite) laden
-                    </button>
                   </div>
                 </div>
               )}
@@ -230,7 +309,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                     <div>
                       <label className="font-semibold text-stone-300 block mb-1">
-                        Erstes Geschäftsjahr:
+                        Start-Geschäftsjahr:
                       </label>
                       <input
                         type="number"
@@ -326,17 +405,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
               {/* Actions */}
               <div className="flex items-center justify-between border-t border-stone-800 pt-4">
-                {step > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep((s) => (s - 1) as any)}
-                    className="px-4 py-2 text-xs font-semibold text-stone-400 hover:text-white rounded-lg flex items-center gap-1.5"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Zurück
-                  </button>
-                ) : (
-                  <div />
-                )}
+                <button
+                  type="button"
+                  onClick={() => (step > 1 ? setStep((s) => (s - 1) as any) : setSetupChoice(null))}
+                  className="px-4 py-2 text-xs font-semibold text-stone-400 hover:text-white rounded-lg flex items-center gap-1.5"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Zurück
+                </button>
 
                 {step < 3 ? (
                   <button
@@ -374,26 +449,36 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 <label className="font-semibold text-stone-300 block mb-1">
                   Pfad zur SQLite-Datei:
                 </label>
-                <div className="relative">
-                  <Database className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="/Pfad/zu/buchfink_2026.sqlite"
-                    value={existingDbPath}
-                    onChange={(e) => setExistingDbPath(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl text-stone-200 font-mono text-xs focus:border-amber-500 focus:outline-hidden"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Database className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="/Pfad/zu/buchfink_2026.sqlite"
+                      value={existingDbPath}
+                      onChange={(e) => setExistingDbPath(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-stone-950/80 border border-stone-700 rounded-xl text-stone-200 font-mono text-xs focus:border-amber-500 focus:outline-hidden"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePickDatabaseFile}
+                    className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
+                  >
+                    <FileSearch className="w-3.5 h-3.5 text-amber-400" />
+                    Datei auswählen...
+                  </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-stone-800 pt-4">
                 <button
                   type="button"
-                  onClick={() => setMode('wizard')}
+                  onClick={() => setSetupChoice(null)}
                   className="px-4 py-2 text-xs font-semibold text-stone-400 hover:text-white"
                 >
-                  Zurück zum Assistenten
+                  Zurück zur Auswahl
                 </button>
                 <button
                   type="submit"

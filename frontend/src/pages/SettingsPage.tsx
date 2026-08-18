@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Save, CheckCircle2, Building, DollarSign } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { Save, CheckCircle2, Building, DollarSign, FolderOpen, Shield } from 'lucide-react';
+import { CompanySettings, AppConfig } from '../types';
 import { Api } from '../services/api';
 import { HelpTooltip } from '../components/HelpTooltip';
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedMessage, setSavedMessage] = useState(false);
 
@@ -16,10 +17,25 @@ export const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const s = await Api.getCompanySettings();
+      const [s, cfg] = await Promise.all([
+        Api.getCompanySettings(),
+        Api.getAppConfig(),
+      ]);
       setSettings(s);
+      setAppConfig(cfg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePickDirectory = async () => {
+    try {
+      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner ändern');
+      if (selected && appConfig) {
+        setAppConfig({ ...appConfig, dataDir: selected });
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -61,6 +77,43 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Storage & Vault */}
+        <div className="bg-white p-6 rounded-xl border border-stone-200/90 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
+            <FolderOpen className="w-4 h-4 text-amber-600" />
+            Lokaler Speicherort & GoBD-Zertifikat
+          </h3>
+
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="font-semibold text-stone-700 block mb-1">Datenverzeichnis (SQLite & Belege):</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={appConfig?.dataDir || ''}
+                  readOnly
+                  className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg font-mono text-stone-700"
+                />
+                <button
+                  type="button"
+                  onClick={handlePickDirectory}
+                  className="px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold border border-stone-200 transition-colors shrink-0"
+                >
+                  Ordner wählen...
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-stone-700 block mb-1">GoBD Signaturzertifikat:</label>
+              <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 font-mono text-stone-600 flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="truncate">{appConfig?.certPath || 'Standard Ed25519 Zertifikat'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Company Identity */}
         <div className="bg-white p-6 rounded-xl border border-stone-200/90 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">

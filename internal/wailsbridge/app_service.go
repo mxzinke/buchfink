@@ -14,6 +14,7 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/security"
 	"github.com/buchfink/buchfink/internal/service"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
 )
 
@@ -206,6 +207,40 @@ func (b *BuchfinkBridge) LoadExistingDatabase(dbFilePath string) error {
 	_ = b.appCfgRepo.Save(&b.appConfig)
 
 	return b.initYearDatabase(year)
+}
+
+// SelectDirectoryDialog opens a native OS folder picker.
+func (b *BuchfinkBridge) SelectDirectoryDialog(title string) (string, error) {
+	if title == "" {
+		title = "Buchfink Datenordner auswählen"
+	}
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return "", nil
+	}
+	return app.Dialog.OpenFile().
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
+		CanCreateDirectories(true).
+		SetTitle(title).
+		PromptForSingleSelection()
+}
+
+// SelectDatabaseFileDialog opens a native OS file picker for SQLite database files.
+func (b *BuchfinkBridge) SelectDatabaseFileDialog(title string) (string, error) {
+	if title == "" {
+		title = "Buchfink SQLite-Datenbankdatei auswählen"
+	}
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return "", nil
+	}
+	return app.Dialog.OpenFile().
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		AddFilter("SQLite Datenbanken (*.sqlite, *.db)", "*.sqlite;*.db").
+		SetTitle(title).
+		PromptForSingleSelection()
 }
 
 // -------------------------------------------------------------

@@ -60,6 +60,24 @@ export const Api = {
     }
   },
 
+  async selectDirectoryDialog(title?: string): Promise<string> {
+    try {
+      const res = await Bridge.SelectDirectoryDialog(title || '');
+      return res || '';
+    } catch {
+      return '';
+    }
+  },
+
+  async selectDatabaseFileDialog(title?: string): Promise<string> {
+    try {
+      const res = await Bridge.SelectDatabaseFileDialog(title || '');
+      return res || '';
+    } catch {
+      return '';
+    }
+  },
+
   async setupApplication(dataDir: string, password: string, settings: CompanySettings): Promise<void> {
     try {
       await Bridge.SetupApplication(dataDir, password, settings as any);
