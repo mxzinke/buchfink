@@ -180,35 +180,6 @@ func (kf *Keyfile) Unlock(passphrase string) (*Vault, error) {
 	return newVault(dek)
 }
 
-// Rewrap produces a new Keyfile that wraps the same DEK under a new passphrase.
-// Existing encrypted data stays valid because the DEK is unchanged — only the
-// wrapping key changes.
-func (v *Vault) Rewrap(newPassphrase string) (*Keyfile, error) {
-	if newPassphrase == "" {
-		return nil, errors.New("passphrase must not be empty")
-	}
-	salt := make([]byte, saltSize)
-	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		return nil, fmt.Errorf("salt: %w", err)
-	}
-	kek := deriveKEK(newPassphrase, salt, defaultArgon2Params)
-	kekGCM, err := newGCM(kek)
-	if err != nil {
-		return nil, err
-	}
-	wrapped, err := seal(kekGCM, v.dek)
-	if err != nil {
-		return nil, fmt.Errorf("wrap dek: %w", err)
-	}
-	return &Keyfile{
-		Version:    1,
-		KDF:        "argon2id",
-		Params:     defaultArgon2Params,
-		Salt:       salt,
-		WrappedDEK: wrapped,
-	}, nil
-}
-
 func newVault(dek []byte) (*Vault, error) {
 	gcm, err := newGCM(dek)
 	if err != nil {

@@ -82,35 +82,6 @@ func TestNonceIsRandom(t *testing.T) {
 	}
 }
 
-func TestRewrapKeepsDEK(t *testing.T) {
-	_, vault, err := NewKeyfile("old-pass")
-	if err != nil {
-		t.Fatalf("NewKeyfile: %v", err)
-	}
-	ct, _ := vault.EncryptString("Buchungstext")
-
-	newKf, err := vault.Rewrap("new-pass")
-	if err != nil {
-		t.Fatalf("Rewrap: %v", err)
-	}
-	// Old passphrase must no longer unlock the rewrapped keyfile.
-	if _, err := newKf.Unlock("old-pass"); err != ErrWrongPassphrase {
-		t.Fatalf("old passphrase should fail, got %v", err)
-	}
-	// New passphrase unlocks and can still decrypt data sealed before rewrap.
-	v2, err := newKf.Unlock("new-pass")
-	if err != nil {
-		t.Fatalf("Unlock new-pass: %v", err)
-	}
-	pt, err := v2.DecryptString(ct)
-	if err != nil {
-		t.Fatalf("DecryptString after rewrap: %v", err)
-	}
-	if pt != "Buchungstext" {
-		t.Fatalf("data unreadable after rewrap: %q", pt)
-	}
-}
-
 func TestSaveLoadKeyfile(t *testing.T) {
 	dir := t.TempDir()
 	kf, vault, err := NewKeyfile("pw")

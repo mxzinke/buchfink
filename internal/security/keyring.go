@@ -104,21 +104,3 @@ func OpenTenantVault(dataDir, tenantID string) (*Vault, error) {
 	}
 	return kf.Unlock(secret)
 }
-
-// ChangeTenantPassphrase re-wraps the tenant's DEK under a fresh random secret
-// and updates the keychain and keyfile. Existing encrypted data stays readable
-// because the DEK is unchanged.
-func ChangeTenantPassphrase(dataDir, tenantID string, vault *Vault) error {
-	secret, err := generateSecret()
-	if err != nil {
-		return err
-	}
-	kf, err := vault.Rewrap(secret)
-	if err != nil {
-		return err
-	}
-	if err := SaveKeyfile(dataDir, kf); err != nil {
-		return err
-	}
-	return storeSecret(tenantID, secret)
-}

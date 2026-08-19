@@ -50,31 +50,3 @@ func TestOpenTenantVaultMissingSecret(t *testing.T) {
 		t.Fatalf("expected ErrNoKeyringSecret, got %v", err)
 	}
 }
-
-func TestChangeTenantPassphrase(t *testing.T) {
-	keyring.MockInit()
-	dir := t.TempDir()
-	const tenantID = "tenant_rot"
-
-	vault, err := CreateTenantVault(dir, tenantID)
-	if err != nil {
-		t.Fatalf("CreateTenantVault: %v", err)
-	}
-	ct, _ := vault.EncryptString("vor Rotation")
-
-	if err := ChangeTenantPassphrase(dir, tenantID, vault); err != nil {
-		t.Fatalf("ChangeTenantPassphrase: %v", err)
-	}
-	// After rotation the data is still readable via the transparent unlock path.
-	reopened, err := OpenTenantVault(dir, tenantID)
-	if err != nil {
-		t.Fatalf("OpenTenantVault after rotation: %v", err)
-	}
-	pt, err := reopened.DecryptString(ct)
-	if err != nil {
-		t.Fatalf("DecryptString after rotation: %v", err)
-	}
-	if pt != "vor Rotation" {
-		t.Fatalf("data unreadable after rotation: %q", pt)
-	}
-}
