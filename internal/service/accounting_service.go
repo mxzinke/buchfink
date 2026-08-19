@@ -15,11 +15,19 @@ import (
 
 // AccountingService handles core double-entry bookkeeping, Kontenübersicht, SuSa and GoBD hash chain generation.
 type AccountingService struct {
-	accountRepo  domain.AccountRepository
-	bookingRepo  domain.BookingRepository
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	fiscalYear   int
+	accountRepo       domain.AccountRepository
+	bookingRepo       domain.BookingRepository
+	settingsRepo      domain.SettingsRepository
+	auditRepo         domain.AuditRepository
+	festschreibungRepo domain.FestschreibungRepository // optional; enforces period commitments
+	fiscalYear        int
+}
+
+// SetFestschreibungRepo wires the period-commitment repository so CreateBooking
+// can reject bookings backdated into an already committed (festgeschrieben)
+// period. Optional — when nil, no commitment enforcement is applied.
+func (s *AccountingService) SetFestschreibungRepo(r domain.FestschreibungRepository) {
+	s.festschreibungRepo = r
 }
 
 func NewAccountingService(
@@ -359,6 +367,19 @@ func (s *AccountingService) CreateBooking(ctx context.Context, b *domain.Booking
 			}
 		}
 		b.FiscalYear = domain.GetFiscalYearForDate(b.Date, startMonth)
+	}
+
+	// Enforce Festschreibung: no new original booking may be backdated into an
+	// already committed period. Storno entries are dated at correction time and
+	// therefore never fall into a closed period, so they stay allowed.
+	if s.festschreibungRepo != nil && !b.IsStorno {
+		cutoff, err := s.festschreibungRepo.LatestCutoff(ctx, b.FiscalYear)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check period commitment: %w", err)
+		}
+		if cutoff != "" && b.Date <= cutoff {
+			return nil, fmt.Errorf("Zeitraum bis %s ist festgeschrieben – Buchungen mit Datum %s sind nicht mehr möglich. Bitte per Storno korrigieren", cutoff, b.Date)
+		}
 	}
 
 	last, err := s.bookingRepo.GetLastEntry(ctx, b.FiscalYear)

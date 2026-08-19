@@ -4,6 +4,7 @@ import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
+import { RecoveryScreen } from './components/RecoveryScreen';
 import { DashboardPage } from './pages/DashboardPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
@@ -30,6 +31,7 @@ export function App() {
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
   const [isAddingTenant, setIsAddingTenant] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -49,7 +51,12 @@ export function App() {
       setTenants(tenantList);
       setActiveTenant(currentActive);
 
-      if (cfg.isConfigured) {
+      // A configured tenant whose keychain secret is missing on this machine
+      // must be recovered before any encrypted data can be read.
+      const locked = cfg.isConfigured ? await Api.isLocked() : false;
+      setIsLocked(locked);
+
+      if (cfg.isConfigured && !locked) {
         await loadActiveFiscalYearData();
       }
     } catch (e) {
@@ -143,6 +150,20 @@ export function App() {
         onSetupCompleted={handleSetupCompleted}
         onCancel={() => setIsAddingTenant(false)}
         isAdditionalTenant={Boolean(appConfig?.isConfigured)}
+      />
+    );
+  }
+
+  // Configured but locked on this machine: require recovery before the app opens.
+  if (isLocked) {
+    return (
+      <RecoveryScreen
+        activeTenant={activeTenant}
+        onRecovered={async () => {
+          setIsLocked(false);
+          await bootstrapApp();
+          setCurrentTab('dashboard');
+        }}
       />
     );
   }

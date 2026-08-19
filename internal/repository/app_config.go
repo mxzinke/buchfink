@@ -39,8 +39,6 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 			Tenants:        []domain.TenantConfig{},
 			ActiveTenantID: "",
 			DataDir:        filepath.Join(home, ".buchfink", "data"),
-			CertPath:       filepath.Join(home, ".buchfink", "certs", "buchfink-cert.pem"),
-			HasPassword:    false,
 			IsConfigured:   false,
 			LastFiscalYear: currentYear,
 		}, nil
@@ -59,12 +57,10 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		tenantID := "default"
 		cfg.Tenants = []domain.TenantConfig{
 			{
-				ID:          tenantID,
-				Name:        "Hauptmandant",
-				DataDir:     cfg.DataDir,
-				CertPath:    cfg.CertPath,
-				HasPassword: cfg.HasPassword,
-				CreatedAt:   time.Now().Format(time.RFC3339),
+				ID:        tenantID,
+				Name:      "Hauptmandant",
+				DataDir:   cfg.DataDir,
+				CreatedAt: time.Now().Format(time.RFC3339),
 			},
 		}
 		cfg.ActiveTenantID = tenantID
@@ -85,8 +81,6 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 		for _, t := range cfg.Tenants {
 			if t.ID == cfg.ActiveTenantID {
 				cfg.DataDir = t.DataDir
-				cfg.CertPath = t.CertPath
-				cfg.HasPassword = t.HasPassword
 				break
 			}
 		}
@@ -97,7 +91,8 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 		return fmt.Errorf("could not marshal config: %w", err)
 	}
 
-	return os.WriteFile(r.configPath, data, 0644)
+	// 0600: the config lists tenant paths; keep it owner-only.
+	return os.WriteFile(r.configPath, data, 0600)
 }
 
 // DiscoverAvailableFiscalYears scans the data directory for existing SQLite files and ensures the current year is included.

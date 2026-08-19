@@ -7,9 +7,11 @@ import (
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/wailsbridge"
+	"github.com/zalando/go-keyring"
 )
 
 func TestBridge_MultiTenantManagement(t *testing.T) {
+	keyring.MockInit() // in-memory keychain: no real OS keychain access in tests
 	tempDir, err := os.MkdirTemp("", "buchfink_bridge_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -34,8 +36,7 @@ func TestBridge_MultiTenantManagement(t *testing.T) {
 
 	// 2. Create Tenant 1 (Alpha GmbH)
 	tenant1Dir := filepath.Join(tempDir, "alpha_data")
-	tenant1Cert := filepath.Join(tempDir, "alpha_certs")
-	t1, err := bridge.CreateTenant("Alpha GmbH", tenant1Dir, tenant1Cert, "", domain.CompanySettings{
+	t1, err := bridge.CreateTenant("Alpha GmbH", tenant1Dir, domain.CompanySettings{
 		CompanyName: "Alpha GmbH",
 		FiscalYear:  2026,
 	})
@@ -58,8 +59,7 @@ func TestBridge_MultiTenantManagement(t *testing.T) {
 
 	// 3. Create Tenant 2 (Beta UG)
 	tenant2Dir := filepath.Join(tempDir, "beta_data")
-	tenant2Cert := filepath.Join(tempDir, "beta_certs")
-	t2, err := bridge.CreateTenant("Beta UG", tenant2Dir, tenant2Cert, "", domain.CompanySettings{
+	t2, err := bridge.CreateTenant("Beta UG", tenant2Dir, domain.CompanySettings{
 		CompanyName: "Beta UG",
 		FiscalYear:  2026,
 	})

@@ -19,13 +19,13 @@ type Contact struct {
 	Type             ContactType `gorm:"size:20;not null;index" json:"type"`
 	Number           string      `gorm:"size:50;uniqueIndex;not null" json:"number"` // e.g. "K-10001" or "L-70001"
 	Name             string      `gorm:"size:255;not null;index" json:"name"`
-	Company          string      `gorm:"size:255" json:"company"`
-	Email            string      `gorm:"size:255" json:"email"`
-	Address          string      `gorm:"type:text" json:"address"`
-	TaxID            string      `gorm:"size:50" json:"taxId"` // Steuernummer
-	VatID            string      `gorm:"size:50" json:"vatId"` // USt-IdNr.
-	IBAN             string      `gorm:"size:34" json:"iban"`
-	BIC              string      `gorm:"size:11" json:"bic"`
+	Company          string      `gorm:"size:255;serializer:encrypted" json:"company"`
+	Email            string      `gorm:"size:255;serializer:encrypted" json:"email"`
+	Address          string      `gorm:"type:text;serializer:encrypted" json:"address"`
+	TaxID            string      `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
+	VatID            string      `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
+	IBAN             string      `gorm:"size:34;serializer:encrypted" json:"iban"`
+	BIC              string      `gorm:"size:11;serializer:encrypted" json:"bic"`
 	PaymentTermsDays int         `gorm:"default:14" json:"paymentTermsDays"` // Default payment terms
 	CreatedAt        time.Time   `json:"createdAt"`
 	UpdatedAt        time.Time   `json:"updatedAt"`

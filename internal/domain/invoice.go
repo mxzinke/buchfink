@@ -37,15 +37,15 @@ type Invoice struct {
 	Date          string        `gorm:"size:10;not null;index" json:"date"`          // YYYY-MM-DD
 	DueDate       string        `gorm:"size:10;not null" json:"dueDate"`             // YYYY-MM-DD
 	ContactID     uint          `gorm:"index;not null" json:"contactId"`
-	ContactName   string        `gorm:"size:255;not null" json:"contactName"`
+	ContactName   string        `gorm:"size:255;not null;serializer:encrypted" json:"contactName"`
 	Items         []InvoiceItem `gorm:"foreignKey:InvoiceID;constraint:OnDelete:CASCADE" json:"items"`
 	NetAmount     float64       `gorm:"not null" json:"netAmount"`
 	TaxAmount     float64       `gorm:"not null" json:"taxAmount"`
 	GrossAmount   float64       `gorm:"not null" json:"grossAmount"`
 	Currency      string        `gorm:"size:3;default:'EUR'" json:"currency"`
 	Status        InvoiceStatus `gorm:"size:20;default:'draft';index" json:"status"`
-	ZUGFeRDXML    string        `gorm:"type:text" json:"zugferdXml,omitempty"`
-	PDFPath       string        `gorm:"size:255" json:"pdfPath,omitempty"`
+	ZUGFeRDXML    string        `gorm:"type:text;serializer:encrypted" json:"zugferdXml,omitempty"`
+	PDFPath       string        `gorm:"size:255;serializer:encrypted" json:"pdfPath,omitempty"`
 	CreatedAt     time.Time     `json:"createdAt"`
 	UpdatedAt     time.Time     `json:"updatedAt"`
 

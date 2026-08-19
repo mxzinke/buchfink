@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, ShieldAlert, RefreshCw } from 'lucide-react';
-import { AuditLogEntry, IntegrityCheckResult } from '../types';
+import { ShieldCheck, ShieldAlert, RefreshCw, Lock, Loader2, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import { AuditLogEntry, IntegrityCheckResult, Festschreibung } from '../types';
 import { Api } from '../services/api';
 import { HelpTooltip } from '../components/HelpTooltip';
 
@@ -8,6 +9,8 @@ export const AuditPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [commitments, setCommitments] = useState<Festschreibung[]>([]);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -15,14 +18,35 @@ export const AuditPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [l, res] = await Promise.all([
+      const [l, res, fs] = await Promise.all([
         Api.getAuditLogs(),
         Api.verifyIntegrity(),
+        Api.getFestschreibungen(),
       ]);
       setLogs(l);
       setIntegrity(res);
+      setCommitments(fs);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleVerifyCommitment = async (id: number) => {
+    setVerifyingId(id);
+    try {
+      const res = await Api.verifyFestschreibung(id);
+      if (res) {
+        (res.isValid ? toast.success : toast.error)(
+          res.isValid ? 'Festschreibung gültig' : 'Festschreibung ungültig',
+          { description: res.message }
+        );
+      }
+    } catch (e: any) {
+      toast.error('Prüfung fehlgeschlagen', {
+        description: typeof e?.message === 'string' ? e.message : String(e),
+      });
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -104,6 +128,58 @@ export const AuditPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Festschreibungen (period commitments with silent trusted timestamp) */}
+      <div className="bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-stone-200 bg-stone-50/60 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-amber-700" />
+            <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
+              Festgeschriebene Zeiträume
+            </h3>
+            <HelpTooltip
+              title="Festschreibung"
+              content="Beim Festschreiben eines Zeitraums werden dessen Buchungen verbindlich abgeschlossen – spätere Änderungen sind nur noch per Storno möglich. Zusätzlich wird der Stand von einem unabhängigen Zeitstempeldienst (RFC 3161) beglaubigt. Festschreiben können Sie unter „Fristen & Termine“."
+            />
+          </div>
+          <span className="text-[11px] text-stone-400">Verwaltung unter „Fristen &amp; Termine“</span>
+        </div>
+
+        {commitments.length === 0 ? (
+          <div className="p-6 text-center text-xs text-stone-400">
+            Noch kein Zeitraum festgeschrieben. Schließen Sie z. B. nach der USt-Voranmeldung den
+            jeweiligen Zeitraum unter „Fristen &amp; Termine“ ab.
+          </div>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {commitments.map((fs) => (
+              <div key={fs.id} className="p-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-stone-800 flex items-center gap-2">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    {fs.periodLabel}
+                    <span className="text-stone-400 font-normal">· bis {fs.cutoffDate} · {fs.entryCount} Buchungen</span>
+                  </div>
+                  <div className="text-[11px] text-stone-500 mt-0.5 truncate flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {fs.timestampStatus === 'confirmed' && fs.tsaGenTime
+                      ? `Beglaubigt am ${new Date(fs.tsaGenTime).toLocaleString('de-DE')} · ${fs.tsaName}`
+                      : 'Zeitstempel ausstehend (wird automatisch nachgeholt)'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleVerifyCommitment(fs.id)}
+                  disabled={verifyingId === fs.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold border border-stone-200 transition-colors shrink-0 disabled:opacity-70"
+                >
+                  {verifyingId === fs.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                  Prüfen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Audit Log Table */}
       <div className="bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">

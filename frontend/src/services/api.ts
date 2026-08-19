@@ -17,6 +17,8 @@ import {
   IntegrityCheckResult,
   CompanySettings,
   AuditLogEntry,
+  Festschreibung,
+  FestschreibungVerification,
 } from '../types';
 
 let fallbackTenants: TenantConfig[] = [
@@ -24,8 +26,6 @@ let fallbackTenants: TenantConfig[] = [
     id: 'default',
     name: 'Hauptmandant',
     dataDir: '~/.buchfink/data',
-    certPath: '~/.buchfink/certs/buchfink-cert.pem',
-    hasPassword: false,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -34,8 +34,6 @@ let fallbackConfig: AppConfig = {
   tenants: fallbackTenants,
   activeTenantId: 'default',
   dataDir: '~/.buchfink/data',
-  certPath: '~/.buchfink/certs/buchfink-cert.pem',
-  hasPassword: false,
   isConfigured: true,
   lastFiscalYear: 2026,
 };
@@ -160,7 +158,6 @@ export const Api = {
         if (found) {
           fallbackConfig.activeTenantId = tenantId;
           fallbackConfig.dataDir = found.dataDir;
-          fallbackConfig.certPath = found.certPath;
           fallbackSettings.companyName = found.name;
         }
         return;
@@ -172,12 +169,10 @@ export const Api = {
   async createTenant(
     name: string,
     dataDir: string,
-    certDir: string,
-    password: string,
     settings: CompanySettings
   ): Promise<TenantConfig> {
     try {
-      const res = await Bridge.CreateTenant(name, dataDir, certDir, password, settings as any);
+      const res = await Bridge.CreateTenant(name, dataDir, settings as any);
       if (res) return res as TenantConfig;
       throw new Error('Failed to create tenant');
     } catch (e) {
@@ -186,8 +181,6 @@ export const Api = {
           id: `tenant_${Date.now()}`,
           name: name || settings.companyName || 'Neuer Mandant',
           dataDir: dataDir || `~/.buchfink/tenants/${Date.now()}/data`,
-          certPath: `${certDir || '~/.buchfink/keys'}/buchfink-cert.pem`,
-          hasPassword: Boolean(password),
           createdAt: new Date().toISOString(),
         };
         fallbackTenants.push(newTenant);
@@ -202,12 +195,10 @@ export const Api = {
   },
 
   async importTenant(
-    dbFilePath: string,
-    certPath?: string,
-    password?: string
+    dbFilePath: string
   ): Promise<TenantConfig> {
     try {
-      const res = await Bridge.ImportTenant(dbFilePath, certPath || '', password || '');
+      const res = await Bridge.ImportTenant(dbFilePath);
       if (res) return res as TenantConfig;
       throw new Error('Failed to import tenant');
     } catch (e) {
@@ -216,8 +207,6 @@ export const Api = {
           id: `tenant_${Date.now()}`,
           name: `Mandant (${dbFilePath.split('/').pop()})`,
           dataDir: dbFilePath,
-          certPath: certPath || '~/.buchfink/certs/buchfink-cert.pem',
-          hasPassword: Boolean(password),
           createdAt: new Date().toISOString(),
         };
         fallbackTenants.push(newTenant);
@@ -280,12 +269,10 @@ export const Api = {
 
   async setupApplication(
     dataDir: string,
-    certDir: string,
-    password: string,
     settings: CompanySettings
   ): Promise<void> {
     try {
-      await Bridge.SetupApplication(dataDir, certDir, password, settings as any);
+      await Bridge.SetupApplication(dataDir, settings as any);
     } catch (e) {
       if (!isWailsRuntime()) {
         const name = settings.companyName || 'Hauptmandant';
@@ -293,17 +280,13 @@ export const Api = {
           id: 'default',
           name: name,
           dataDir: dataDir || fallbackConfig.dataDir,
-          certPath: `${certDir || '~/.buchfink/keys'}/buchfink-cert.pem`,
-          hasPassword: Boolean(password),
           createdAt: new Date().toISOString(),
         };
         fallbackTenants = [tenant];
         fallbackConfig.tenants = fallbackTenants;
         fallbackConfig.activeTenantId = 'default';
         fallbackConfig.dataDir = tenant.dataDir;
-        fallbackConfig.certPath = tenant.certPath;
         fallbackConfig.isConfigured = true;
-        fallbackConfig.hasPassword = Boolean(password);
         fallbackSettings = { ...settings };
         if (!fallbackYears.includes(settings.fiscalYear)) {
           fallbackYears.push(settings.fiscalYear);
@@ -325,6 +308,49 @@ export const Api = {
       }
       throw e;
     }
+  },
+
+  // Writes an external recovery file (via a folder picker) and returns its path.
+  // Store it safely and separately from your data backup.
+  async exportRecoveryKey(): Promise<string> {
+    return await Bridge.ExportRecoveryKey();
+  },
+
+  // True when the active tenant is encrypted but cannot be unlocked on this
+  // machine (keychain missing) — the UI should show the recovery flow.
+  async isLocked(): Promise<boolean> {
+    try {
+      return await Bridge.IsLocked();
+    } catch {
+      return false;
+    }
+  },
+
+  // Opens a picker for a recovery file and unlocks the active tenant with it.
+  async selectRecoveryFile(): Promise<string> {
+    return await Bridge.SelectRecoveryFileDialog('Recovery-Schlüsseldatei auswählen');
+  },
+
+  async recoverFromFile(recoveryFilePath: string): Promise<void> {
+    await Bridge.RecoverActiveTenantFromFile(recoveryFilePath);
+  },
+
+  // --- Festschreibung (period commitment, with silent RFC-3161 timestamp) ---
+  async commitPeriod(periodType: string, periodLabel: string, cutoffDate: string): Promise<Festschreibung | null> {
+    return (await Bridge.CommitPeriod(periodType, periodLabel, cutoffDate)) as Festschreibung | null;
+  },
+
+  async getFestschreibungen(): Promise<Festschreibung[]> {
+    try {
+      const res = await Bridge.GetFestschreibungen();
+      return (res as Festschreibung[]) || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async verifyFestschreibung(id: number): Promise<FestschreibungVerification | null> {
+    return (await Bridge.VerifyFestschreibung(id)) as FestschreibungVerification | null;
   },
 
   async getAvailableFiscalYears(): Promise<number[]> {

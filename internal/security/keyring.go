@@ -62,6 +62,12 @@ func deleteSecret(tenantID string) error {
 	return nil
 }
 
+// DeleteTenantSecret removes a tenant's wrapping secret from the OS keychain
+// (e.g. when a tenant is removed from the app). Missing entries are not an error.
+func DeleteTenantSecret(tenantID string) error {
+	return deleteSecret(tenantID)
+}
+
 // CreateTenantVault provisions encryption for a new tenant: it generates a random
 // wrapping secret, stores it in the OS keychain, builds the envelope keyfile in
 // dataDir, and returns an unlocked Vault. Unlock is transparent afterwards.

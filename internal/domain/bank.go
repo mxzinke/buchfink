@@ -25,8 +25,8 @@ type BankTransaction struct {
 	Amount            float64     `gorm:"not null" json:"amount"` // Positive: Credit (inflow), Negative: Debit (outflow)
 	Currency          string      `gorm:"size:3;default:'EUR'" json:"currency"`
 	CounterpartyName  string      `gorm:"size:255;index" json:"counterpartyName"`
-	CounterpartyIBAN  string      `gorm:"size:34" json:"counterpartyIban"`
-	RemittanceInfo    string      `gorm:"type:text" json:"remittanceInfo"` // Verwendungszweck
+	CounterpartyIBAN  string      `gorm:"size:34;serializer:encrypted" json:"counterpartyIban"`
+	RemittanceInfo    string      `gorm:"type:text;serializer:encrypted" json:"remittanceInfo"` // Verwendungszweck (verschlüsselt)
 	EndToEndID        string      `gorm:"size:100;index" json:"endToEndId"`
 	MatchStatus       MatchStatus `gorm:"size:20;default:'unmatched';index" json:"matchStatus"`
 	MatchedBookingID  *uint       `gorm:"index" json:"matchedBookingId,omitempty"`

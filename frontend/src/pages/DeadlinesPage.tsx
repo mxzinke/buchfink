@@ -8,11 +8,21 @@ import {
   Building2,
   FileSpreadsheet,
   CalendarDays,
+  Lock,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { toast } from 'sonner';
+import { CompanySettings, Festschreibung } from '../types';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
+
+interface CommittablePeriod {
+  type: 'month' | 'quarter';
+  label: string;
+  cutoff: string; // YYYY-MM-DD, last day of the period
+}
 
 interface DeadlineItem {
   id: string;
@@ -28,6 +38,8 @@ export const DeadlinesPage: React.FC = () => {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [completedDeadlines, setCompletedDeadlines] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'overdue' | 'done'>('all');
+  const [festschreibungen, setFestschreibungen] = useState<Festschreibung[]>([]);
+  const [committingCutoff, setCommittingCutoff] = useState<string | null>(null);
 
   const currentYear = settings?.fiscalYear || new Date().getFullYear();
 
@@ -48,8 +60,58 @@ export const DeadlinesPage: React.FC = () => {
       } catch (e) {
         console.error(e);
       }
+      setFestschreibungen(await Api.getFestschreibungen());
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // The committable accounting periods of the fiscal year, derived from the VAT
+  // reporting cadence, limited to periods that have already ended.
+  const getCommittablePeriods = (): CommittablePeriod[] => {
+    const y = currentYear;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const lastDay = (year: number, month1: number) => new Date(year, month1, 0).getDate(); // month1 is 1-based
+    const periods: CommittablePeriod[] = [];
+
+    if ((settings?.vatPeriod || 'quarter') === 'month') {
+      for (let m = 1; m <= 12; m++) {
+        const cutoff = `${y}-${String(m).padStart(2, '0')}-${String(lastDay(y, m)).padStart(2, '0')}`;
+        periods.push({ type: 'month', label: `${monthNames[m - 1]} ${y}`, cutoff });
+      }
+    } else {
+      const quarters: [string, number][] = [['Q1', 3], ['Q2', 6], ['Q3', 9], ['Q4', 12]];
+      for (const [label, endMonth] of quarters) {
+        const cutoff = `${y}-${String(endMonth).padStart(2, '0')}-${String(lastDay(y, endMonth)).padStart(2, '0')}`;
+        periods.push({ type: 'quarter', label: `${label} ${y}`, cutoff });
+      }
+    }
+    return periods.filter((p) => p.cutoff <= todayIso);
+  };
+
+  const committedCutoffs = new Set(festschreibungen.map((f) => f.cutoffDate));
+  const latestCommittedCutoff = festschreibungen.reduce((max, f) => (f.cutoffDate > max ? f.cutoffDate : max), '');
+
+  const handleCommitPeriod = async (p: CommittablePeriod) => {
+    setCommittingCutoff(p.cutoff);
+    try {
+      const rec = await Api.commitPeriod(p.type, p.label, p.cutoff);
+      if (rec) {
+        toast.success(`${p.label} festgeschrieben`, {
+          description:
+            rec.timestampStatus === 'confirmed'
+              ? `Beglaubigt durch ${rec.tsaName}.`
+              : 'Gespeichert. Zeitstempel wird nachgeholt (aktuell offline).',
+        });
+        setFestschreibungen(await Api.getFestschreibungen());
+      }
+    } catch (e: any) {
+      toast.error('Festschreibung fehlgeschlagen', {
+        description: typeof e?.message === 'string' ? e.message : String(e),
+      });
+    } finally {
+      setCommittingCutoff(null);
     }
   };
 
@@ -558,6 +620,63 @@ export const DeadlinesPage: React.FC = () => {
           >
             Erledigt ({doneCount})
           </button>
+        </div>
+      </div>
+
+      {/* Festschreibung: commit accounting periods (couples to the VAT cadence) */}
+      <div className="bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-stone-100 flex items-center gap-2">
+          <Lock className="w-4 h-4 text-amber-700" />
+          <h3 className="text-sm font-bold text-stone-900">Zeiträume festschreiben</h3>
+          <HelpTooltip
+            title="Festschreibung"
+            content="Schließen Sie einen Zeitraum passend zur USt-Voranmeldung verbindlich ab. Danach sind keine rückdatierten Buchungen mehr möglich (Korrekturen nur per Storno). Der Stand wird zusätzlich von einem unabhängigen Zeitstempeldienst beglaubigt – im Hintergrund, es wird nur eine Prüfsumme übertragen."
+          />
+        </div>
+        <div className="p-4">
+          {getCommittablePeriods().length === 0 ? (
+            <p className="text-xs text-stone-400">
+              Noch kein abgeschlossener Zeitraum vorhanden. Perioden können festgeschrieben werden,
+              sobald sie beendet sind.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {getCommittablePeriods().map((p) => {
+                const isCommitted = committedCutoffs.has(p.cutoff);
+                const isBusy = committingCutoff === p.cutoff;
+                // Only the next uncommitted, in-order period is actionable.
+                const isNext = !isCommitted && p.cutoff > latestCommittedCutoff;
+                return (
+                  <div
+                    key={p.cutoff}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-lg border text-xs ${
+                      isCommitted ? 'bg-emerald-50/60 border-emerald-200' : 'bg-stone-50 border-stone-200'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-stone-800">{p.label}</div>
+                      <div className="text-[11px] text-stone-500">Stichtag {p.cutoff}</div>
+                    </div>
+                    {isCommitted ? (
+                      <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold shrink-0">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Festgeschrieben
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleCommitPeriod(p)}
+                        disabled={!isNext || isBusy}
+                        title={!isNext ? 'Bitte frühere Zeiträume zuerst festschreiben' : undefined}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-semibold transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                        Festschreiben
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

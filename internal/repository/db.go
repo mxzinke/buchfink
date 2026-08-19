@@ -178,6 +178,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.AuditLogEntry{},
 		&domain.SettingItem{},
 		&domain.ExchangeRate{},
+		&domain.Festschreibung{},
 	)
 }
 

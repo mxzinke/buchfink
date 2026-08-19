@@ -15,7 +15,7 @@ type BookingEntry struct {
 	BookingNumber     string    `gorm:"size:50;not null;index" json:"bookingNumber"`       // e.g. "B-2024-0001"
 	Date              string    `gorm:"size:10;not null;index" json:"date"`                // YYYY-MM-DD
 	ValueDate         string    `gorm:"size:10;not null" json:"valueDate"`                 // YYYY-MM-DD
-	Description       string    `gorm:"size:500;not null" json:"description"`              // Buchungstext
+	Description       string    `gorm:"size:500;not null;serializer:encrypted" json:"description"` // Buchungstext (verschlüsselt)
 	DebitAccount      string    `gorm:"size:10;not null;index" json:"debitAccount"`        // Soll-Konto (e.g. "1800")
 	DebitAccountName  string    `gorm:"-" json:"debitAccountName,omitempty"`
 	CreditAccount     string    `gorm:"size:10;not null;index" json:"creditAccount"`       // Haben-Konto (e.g. "4400")
@@ -27,7 +27,7 @@ type BookingEntry struct {
 	TaxAmount         float64   `gorm:"default:0.0" json:"taxAmount"`
 	ReceiptNumber     string    `gorm:"size:100;index" json:"receiptNumber"` // e.g. "RE-2024-042"
 	ReceiptHash       string    `gorm:"size:64" json:"receiptHash"`          // SHA256 of attached file
-	ReceiptPath       string    `gorm:"size:255" json:"receiptPath"`
+	ReceiptPath       string    `gorm:"size:255;serializer:encrypted" json:"receiptPath"`
 	BankTxID          *uint     `gorm:"index" json:"bankTxId,omitempty"`
 	PreviousHash      string    `gorm:"size:64;not null" json:"previousHash"` // Hash chain anchor
 	EntryHash         string    `gorm:"size:64;not null" json:"entryHash"`    // Entry SHA256

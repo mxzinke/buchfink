@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   FolderOpen,
-  Lock,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
@@ -11,8 +10,7 @@ import {
   KeyRound,
   AlertTriangle,
   Info,
-  Eye,
-  EyeOff,
+  Shield,
   ReceiptText,
   ShieldCheck,
   Scale,
@@ -38,11 +36,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
   // Form State
   const [dataDir, setDataDir] = useState('~/.buchfink/data');
-  const [certDir, setCertDir] = useState('~/.buchfink/keys');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [existingDbPath, setExistingDbPath] = useState('');
 
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
@@ -79,17 +72,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     }
   };
 
-  const handlePickCertDirectory = async () => {
-    try {
-      const selected = await Api.selectDirectoryDialog('Speicherort für Sicherheitsschlüssel auswählen');
-      if (selected) {
-        setCertDir(selected);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const handlePickDatabaseFile = async () => {
     try {
       const selected = await Api.selectDatabaseFileDialog('Buchfink Buchhaltungsdatei auswählen');
@@ -105,7 +87,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await Api.setupApplication(dataDir, certDir, password, companySettings);
+      // Encryption is provisioned transparently via the OS keychain; the user is
+      // guided to export a recovery key afterwards (Step 2 + Settings).
+      await Api.setupApplication(dataDir, companySettings);
       onSetupCompleted();
     } catch (e: any) {
       setErrorMsg(e.message || 'Fehler bei der Ersteinrichtung.');
@@ -128,14 +112,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const isSameDirectory = dataDir.trim() !== '' && certDir.trim() !== '' && dataDir.trim() === certDir.trim();
-
-  // Password validation
-  const hasPassword = password.trim().length > 0;
-  const isPasswordLongEnough = password.length >= 8;
-  const doPasswordsMatch = password === confirmPassword;
-  const isStep2Valid = !hasPassword || (isPasswordLongEnough && doPasswordsMatch);
 
   return (
     <div className="relative min-h-screen flex flex-col justify-between bg-stone-900 text-stone-100 overflow-y-auto">
@@ -266,7 +242,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   </span>
                   <h2 className="text-sm font-semibold text-white mt-0.5">
                     {step === 1 && '1. Speicherort festlegen'}
-                    {step === 2 && '2. Sicherheitsschlüssel'}
+                    {step === 2 && '2. Verschlüsselung'}
                     {step === 3 && '3. Unternehmensdaten & Geschäftsjahr'}
                     {step === 4 && '4. Bankverbindung & Konten'}
                   </h2>
@@ -323,129 +299,44 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 </div>
               )}
 
-              {/* Step 2: Dedicated Certificate & Key Setup */}
+              {/* Step 2: Encryption & Recovery Key */}
               {step === 2 && (
                 <div className="space-y-4 text-xs">
                   <div className="p-4 bg-[#1D1B19]/70 rounded-xl border border-white/10 space-y-2">
                     <div className="flex items-center gap-2 font-semibold text-amber-300">
-                      <KeyRound className="w-4 h-4 text-amber-300" />
-                      Warum ein separater Sicherheitsschlüssel?
+                      <Shield className="w-4 h-4 text-amber-300" />
+                      Ihre Daten werden verschlüsselt
                     </div>
                     <p className="text-xs text-stone-300 leading-relaxed">
-                      Buchfink schützt Ihre Buchungen mit einer digitalen Signatur. So wird sichergestellt, dass abgeschlossene Buchungen nicht unbemerkt verändert werden können.
+                      Sensible Inhalte (Buchungstexte, Verwendungszwecke, Kontaktdaten) werden mit AES-256
+                      verschlüsselt. Der Zugriffsschlüssel wird automatisch und sicher im Schlüsselbund Ihres
+                      Betriebssystems hinterlegt – Sie müssen sich kein Passwort merken. Original-Belege bleiben
+                      aus rechtlichen Gründen unverändert erhalten.
                     </p>
-                    <div className="text-xs text-amber-200 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed">
-                      <strong>Tipp für zusätzliche Sicherheit:</strong> Wie bei einem Tresorschlüssel können Sie den Sicherheitsschlüssel an einem separaten Ort aufbewahren (z. B. auf einem USB-Stick oder in einem Dokumentenordner).
-                    </div>
                   </div>
 
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">
-                      Speicherort für den Sicherheitsschlüssel:
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <KeyRound className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={certDir}
-                          onChange={(e) => setCertDir(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handlePickCertDirectory}
-                        className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
-                      >
-                        <FolderOpen className="w-3.5 h-3.5 text-amber-300" />
-                        Ordner auswählen...
-                      </button>
+                  <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30 space-y-2">
+                    <div className="flex items-center gap-2 font-semibold text-amber-200">
+                      <KeyRound className="w-4 h-4 text-amber-300" />
+                      Wichtig: Recovery-Schlüssel für den Notfall
                     </div>
-                  </div>
-
-                  {isSameDirectory && (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-100/90 leading-relaxed">
+                      Geht dieser Rechner verloren oder defekt, ist der Schlüsselbund weg. Ohne externe Sicherung
+                      sind die verschlüsselten Daten dann <strong>unwiederbringlich verloren</strong> – auch aus
+                      einem Backup.
+                    </p>
+                    <div className="flex items-start gap-2 text-xs text-amber-100/90 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed">
+                      <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
                       <span>
-                        Hinweis: Schlüssel und Buchhaltungsdaten liegen im selben Ordner ({dataDir}). Für erhöhte Sicherheit können Sie getrennte Pfade wählen.
+                        Exportieren Sie direkt nach der Einrichtung unter <strong>Einstellungen &rarr; Speicherort
+                        &amp; Sicherheitsschlüssel</strong> einen <strong>Recovery-Schlüssel</strong> und bewahren Sie
+                        ihn sicher und getrennt von Ihrem Datenbackup auf (z. B. USB-Stick, Tresor, Passwortmanager).
                       </span>
                     </div>
-                  )}
-
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">
-                      Passwort zum Schutz des Schlüssels (optional):
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Optionales Kennwort (mind. 8 Zeichen)..."
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-9 pr-10 py-2 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-200 p-1"
-                        title={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
                   </div>
-
-                  {hasPassword && (
-                    <div className="space-y-1.5">
-                      <label className="font-medium text-stone-200 block mb-1">
-                        Passwort wiederholen:
-                      </label>
-                      <div className="relative">
-                        <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="Passwort erneut eingeben..."
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className={`w-full pl-9 pr-10 py-2 bg-[#1D1B19]/80 border rounded-xl text-stone-200 focus:outline-hidden ${
-                            confirmPassword && !doPasswordsMatch
-                              ? 'border-rose-500/80 focus:border-rose-400'
-                              : 'border-stone-700 focus:border-amber-400'
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-200 p-1"
-                          title={showConfirmPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
-                        >
-                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-
-                      <div className="pt-0.5 text-[11px] space-y-0.5">
-                        {!isPasswordLongEnough && (
-                          <p className="text-amber-300 flex items-center gap-1">
-                            <span>&bull;</span> Mindestens 8 Zeichen erforderlich
-                          </p>
-                        )}
-                        {isPasswordLongEnough && !doPasswordsMatch && confirmPassword && (
-                          <p className="text-rose-400 flex items-center gap-1">
-                            <span>&bull;</span> Passwörter stimmen noch nicht überein
-                          </p>
-                        )}
-                        {isPasswordLongEnough && doPasswordsMatch && (
-                          <p className="text-emerald-400 flex items-center gap-1 font-medium">
-                            <span>✓</span> Sicheres Passwort bestätigt
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
+
 
               {/* Step 3: Company & Tax Info */}
               {step === 3 && (
@@ -679,7 +570,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   <button
                     type="button"
                     disabled={
-                      (step === 2 && !isStep2Valid) ||
                       (step === 3 && !companySettings.companyName.trim())
                     }
                     onClick={() => setStep((s) => (s + 1) as any)}

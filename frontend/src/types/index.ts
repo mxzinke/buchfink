@@ -2,8 +2,6 @@ export interface TenantConfig {
   id: string;
   name: string;
   dataDir: string;
-  certPath: string;
-  hasPassword: boolean;
   createdAt: string;
 }
 
@@ -11,8 +9,6 @@ export interface AppConfig {
   tenants: TenantConfig[];
   activeTenantId: string;
   dataDir: string;
-  certPath: string;
-  hasPassword: boolean;
   isConfigured: boolean;
   lastFiscalYear: number;
 }
@@ -290,4 +286,28 @@ export interface AuditLogEntry {
   entityType: string;
   entityId: string;
   details: string;
+}
+
+export interface Festschreibung {
+  id: number;
+  fiscalYear: number;
+  periodType: string;
+  periodLabel: string;
+  cutoffDate: string;
+  chainHead: string;
+  entryCount: number;
+  tsaName: string;
+  tsaGenTime?: string;
+  timestampStatus: string;
+  createdAt: string;
+}
+
+export interface FestschreibungVerification {
+  id: number;
+  hasTimestamp: boolean;
+  isValid: boolean;
+  coversCurrent: boolean;
+  genTime?: string;
+  tsaName: string;
+  message: string;
 }

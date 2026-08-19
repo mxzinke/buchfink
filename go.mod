@@ -3,6 +3,7 @@ module github.com/buchfink/buchfink
 go 1.25.0
 
 require (
+	github.com/digitorus/timestamp v0.0.0-20250524132541-c45532741eea
 	github.com/glebarez/sqlite v1.11.0
 	github.com/wailsapp/wails/v3 v3.0.0-beta.9
 	github.com/zalando/go-keyring v0.2.8
@@ -14,6 +15,7 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/digitorus/pkcs7 v0.0.0-20230713084857-e76b763bdc49 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

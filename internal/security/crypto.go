@@ -42,14 +42,25 @@ var defaultArgon2Params = argon2Params{
 	Threads: 4,
 }
 
-// Keyfile is the on-disk envelope: an Argon2id salt plus the DEK wrapped
-// (encrypted) under a key derived from the user's passphrase.
+// Keyfile is the on-disk envelope. It holds the DEK wrapped in one or more
+// independent key slots (LUKS-style): the primary slot is unlocked by the random
+// secret in the OS keychain; the optional recovery slot is unlocked by a random
+// recovery key the user exports and stores externally. Every slot wraps the SAME
+// DEK, so any one of them can unlock the data.
 type Keyfile struct {
-	Version    int          `json:"version"`
-	KDF        string       `json:"kdf"` // always "argon2id"
-	Params     argon2Params `json:"params"`
-	Salt       []byte       `json:"salt"`       // Argon2id salt
-	WrappedDEK []byte       `json:"wrappedDek"` // AES-GCM(nonce||ciphertext) of the DEK under the KEK
+	Version    int           `json:"version"`
+	KDF        string        `json:"kdf"` // always "argon2id" (primary/keychain slot)
+	Params     argon2Params  `json:"params"`
+	Salt       []byte        `json:"salt"`       // Argon2id salt (primary slot)
+	WrappedDEK []byte        `json:"wrappedDek"` // DEK wrapped under the keychain-derived KEK
+	Recovery   *recoverySlot `json:"recovery,omitempty"`
+}
+
+// recoverySlot wraps the DEK under a random 256-bit recovery key (no passphrase
+// KDF needed — the key is already high entropy). The recovery key itself lives
+// only in the exported recovery file, never on disk next to the data.
+type recoverySlot struct {
+	WrappedDEK []byte `json:"wrappedDek"` // AES-GCM(nonce||ciphertext) of the DEK under the recovery key
 }
 
 // Vault holds an unlocked data encryption key in memory and provides
@@ -63,6 +74,13 @@ type Vault struct {
 // ErrWrongPassphrase is returned when unwrapping the DEK fails authentication,
 // which almost always means the supplied passphrase was incorrect.
 var ErrWrongPassphrase = errors.New("wrong passphrase or corrupted keyfile")
+
+// ErrBadRecoveryKey is returned when a recovery file does not match the keyfile's
+// recovery slot (wrong file, tampered, or no recovery slot present).
+var ErrBadRecoveryKey = errors.New("recovery key does not match this keyfile")
+
+// recoveryKeySize is the length of a random recovery key (AES-256 directly).
+const recoveryKeySize = 32
 
 // deriveKEK computes the key-encryption key from a passphrase and salt.
 func deriveKEK(passphrase string, salt []byte, p argon2Params) []byte {
@@ -241,6 +259,66 @@ func (v *Vault) DecryptString(encoded string) (string, error) {
 // keyMatches is a constant-time comparison helper (used in tests / rotation checks).
 func (v *Vault) keyMatches(other []byte) bool {
 	return subtle.ConstantTimeCompare(v.dek, other) == 1
+}
+
+// rewrapKeychainSlot rebuilds the primary (keychain) slot so it unwraps under
+// the given random secret, deriving a fresh salt. Any recovery slot is left
+// untouched.
+func (v *Vault) rewrapKeychainSlot(kf *Keyfile, secret string) error {
+	salt := make([]byte, saltSize)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return fmt.Errorf("salt: %w", err)
+	}
+	kekGCM, err := newGCM(deriveKEK(secret, salt, defaultArgon2Params))
+	if err != nil {
+		return err
+	}
+	wrapped, err := seal(kekGCM, v.dek)
+	if err != nil {
+		return fmt.Errorf("wrap dek: %w", err)
+	}
+	kf.Version = 1
+	kf.KDF = "argon2id"
+	kf.Params = defaultArgon2Params
+	kf.Salt = salt
+	kf.WrappedDEK = wrapped
+	return nil
+}
+
+// addRecoverySlot generates a random recovery key, wraps the DEK under it, and
+// stores the wrap in kf.Recovery. The returned key is what the user exports.
+func (v *Vault) addRecoverySlot(kf *Keyfile) ([]byte, error) {
+	recoveryKey := make([]byte, recoveryKeySize)
+	if _, err := io.ReadFull(rand.Reader, recoveryKey); err != nil {
+		return nil, fmt.Errorf("recovery key: %w", err)
+	}
+	gcm, err := newGCM(recoveryKey)
+	if err != nil {
+		return nil, err
+	}
+	wrapped, err := seal(gcm, v.dek)
+	if err != nil {
+		return nil, fmt.Errorf("wrap dek: %w", err)
+	}
+	kf.Recovery = &recoverySlot{WrappedDEK: wrapped}
+	return recoveryKey, nil
+}
+
+// openRecoverySlot unwraps the DEK from the keyfile's recovery slot using a
+// recovery key, returning an unlocked Vault.
+func openRecoverySlot(kf *Keyfile, recoveryKey []byte) (*Vault, error) {
+	if kf.Recovery == nil {
+		return nil, ErrBadRecoveryKey
+	}
+	gcm, err := newGCM(recoveryKey)
+	if err != nil {
+		return nil, ErrBadRecoveryKey
+	}
+	dek, err := open(gcm, kf.Recovery.WrappedDEK)
+	if err != nil {
+		return nil, ErrBadRecoveryKey
+	}
+	return newVault(dek)
 }
 
 // SaveKeyfile writes the keyfile as JSON with 0600 permissions.

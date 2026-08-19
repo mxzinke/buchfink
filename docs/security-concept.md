@@ -50,19 +50,39 @@ Schlüsselableitung (Abschnitt 4) ersetzt.
 ## 4. Vertraulichkeit: Ein-Schlüssel-Modell (Envelope)
 
 ```
-Passphrase ──Argon2id(salt)──► KEK ──wrap──► DEK (256-bit, zufällig)
-                                              │
-                    ┌─────────────────────────┼─────────────────────────┐
-              verschlüsselt DB           verschlüsselt Belege      schützt damit
-              (SQLCipher)                (AES-256-GCM je Datei)    auch die Hashkette
+OS-Schlüsselbund (Zufallsgeheimnis) ─┐
+                                     ├─► KEK ─► DEK (256-bit)  ──► verschlüsselt
+Recovery-Schlüssel (Export-Datei) ───┘  (2 unabhängige Slots)      sensible DB-Felder
 ```
 
-- **Ein** Geheimnis (Passphrase), Eingabe beim App-Start (Unlock).
-- Auf der Platte nur ein kleines Keyfile: `salt` + `wrapped-DEK` – **kein** PEM/Cert.
-- **Passphrase-Wechsel** = nur DEK neu wrappen, keine Neuverschlüsselung der Daten.
-- Belege: AES-256-GCM pro Datei unter demselben DEK. `ReceiptHash`
-  (`internal/domain/booking.go:29`) bleibt Integritätsnachweis über den Klartext.
-- Config `~/.buchfink/config.json`: Modus auf `0600`, enthält keine Geheimnisse.
+- **Transparent**: ein zufälliges Wrapping-Geheimnis liegt im OS-Schlüsselbund
+  (macOS Keychain / Windows Credential Manager / Linux Secret Service), Dienst
+  `org.buchfink.app`, Konto = Tenant-ID. Kein Passwort zum Merken.
+- Auf der Platte nur ein kleines Keyfile (`buchfink.keyfile.json`, `0600`):
+  Slots mit dem gewrappten DEK – **kein** PEM/Cert.
+- **Recovery-Slot**: zweiter Slot, entsperrbar mit einem extern gesicherten
+  Recovery-Schlüssel (siehe Abschnitt 4a). Beide Slots wrappen denselben DEK.
+- **BELEGE WERDEN NICHT VERSCHLÜSSELT.** GoBD verlangt, dass Original-Belege
+  unverändert im Originalformat erhalten bleiben. Verschlüsselt wird nur der
+  `ReceiptPath` (Pfad-Metadatum in der DB); die Beleg-Datei selbst bleibt
+  unangetastet, `ReceiptHash` (`internal/domain/booking.go:29`) sichert sie.
+- Config `~/.buchfink/config.json`: Modus `0600`, enthält keine Geheimnisse.
+
+### 4a. Externe Sicherung: Recovery-Schlüsseldatei (LUKS-Key-Slot-Prinzip)
+
+Da das Wrapping-Geheimnis nur im OS-Schlüsselbund liegt, wäre bei Rechnerverlust
+sonst alles verloren. Deshalb ein zweiter, exportierbarer Key-Slot:
+
+- **Export** (`security.ExportTenantRecoveryFile`): erzeugt einen zufälligen
+  256-bit Recovery-Key, wrappt den DEK zusätzlich unter ihm (Recovery-Slot im
+  Keyfile) und schreibt den Recovery-Key in eine portable JSON-Datei
+  (`buchfink-recovery-<tenant>.json`), die extern gelagert wird (USB/Tresor).
+- **Restore** (`security.RecoverTenantFromFile`): auf neuem Rechner Datenordner
+  wiederherstellen + Recovery-Datei einlesen → DEK entsperrt → **frischer
+  Schlüsselbund-Eintrag** wird angelegt (danach wieder transparent).
+- **Sicherheitsmodell**: Entschlüsseln erfordert **beides** – Keyfile (im
+  Datenbackup) **und** Recovery-Datei. Getrennt gelagert ist keine Hälfte allein
+  verwertbar. UI kommuniziert dies im Setup (Schritt 2) und in den Einstellungen.
 
 ### Entscheidung: Feld-Verschlüsselung in reinem Go (kein CGo)
 
@@ -126,16 +146,37 @@ Aggregation umstellen.
 - Neue Spalten für Zeitstempel-Token nullable; Bestandsbuchungen ohne Token gelten
   als "vor Aktivierung" und werden gemeldet, nicht als Fehler gewertet.
 
-## 8. Phasenplan
+## 8. Phasenplan & Umsetzungsstand
 
-- **Phase 0 – Aufräumen (gering):** `cert.go`/Ed25519/Cert-Erzeugung + `CertPath`
-  entfernen, UI-Labels korrigieren.
-- **Phase 1 – Ein-Key at-rest (reines Go):** Argon2id + Envelope (DEK),
-  Feld-Verschlüsselung per GORM-Serializer (AES-256-GCM), Beleg-Verschlüsselung,
-  Passphrase-Unlock beim Start, "Passphrase ändern".
-- **Phase 2 – RFC-3161-Zeitstempel (mittel):** DigiCert als Default-TSA
-  (konfigurierbar, FreeTSA als Alternative), ausgelöst bei Abschluss/Export,
-  Token + Cert bei den Daten, Offline-Verifikation.
+- **Phase 0 – Aufräumen ✅ ERLEDIGT:** `cert.go`/Ed25519/Cert-Erzeugung + `CertPath`
+  entfernt, Bindings regeneriert, UI-Labels korrigiert.
+- **Phase 1 – Ein-Key at-rest ✅ ERLEDIGT:** Argon2id + Envelope (DEK,
+  `internal/security/crypto.go`), Feld-Verschlüsselung per GORM-Serializer
+  (`internal/repository/encryption.go`), transparenter OS-Schlüsselbund-Unlock
+  (`keyring.go`). Belege NICHT verschlüsselt (GoBD). Recovery-Schlüsseldatei
+  (`recovery.go`) + Recovery-Screen (`RecoveryScreen.tsx`).
+  - Offen (Follow-up): "Schlüssel/Passphrase ändern"-UI (Backend
+    `ChangeTenantPassphrase` existiert bereits).
+- **Phase 2 – RFC-3161-Zeitstempel ✅ ERLEDIGT:** `internal/timestamp/tsa.go`
+  (DigiCert Default, FreeTSA-fähig), Offline-Verifikation. Nur der SHA-256-Hash
+  wird gesendet, Token self-contained.
+- **Phase 3 – Festschreibung ✅ ERLEDIGT (fachlicher Anker):** Statt eines manuellen
+  „Zeitstempel"-Buttons ist der Zeitstempel jetzt ein **stiller Nebeneffekt der
+  GoBD-Festschreibung**:
+  - Modell `domain.Festschreibung` (Periode, Stichtag, Chain-Head, eingebetteter
+    Zeitstempel), Repo, Migration.
+  - **Enforcement** (`AccountingService.CreateBooking`): keine rückdatierten
+    Neubuchungen in einen festgeschriebenen Zeitraum (`b.Date <= LatestCutoff`);
+    Storno bleibt erlaubt (auf heute datiert). Test:
+    `festschreibung_enforcement_test.go`.
+  - **Stiller Zeitstempel**: bei `CommitPeriod` best-effort über DigiCert; offline →
+    Festschreibung steht trotzdem, Status `pending`, Nachholen beim Start
+    (`retryPendingTimestamps`).
+  - **UI**: Festschreiben unter „Fristen & Termine" (an den USt-Zeitraum gekoppelt,
+    monatlich/quartalsweise), Übersicht + Offline-Prüfung auf der Audit-Seite.
+  - Buchungen sind ohnehin append-only (kein Update/Delete), Festschreibung ergänzt
+    die Sperre gegen rückdatierte Neuanlage.
+  - Offen (Optional): konfigurierbare TSA-URL in den Einstellungen.
 
 ## 9. Getroffene Entscheidungen
 

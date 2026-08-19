@@ -46,6 +46,8 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const [isExportingRecovery, setIsExportingRecovery] = useState(false);
+
   const handlePickDirectory = async () => {
     try {
       const selected = await Api.selectDirectoryDialog('Buchfink Datenordner ändern');
@@ -54,6 +56,25 @@ export const SettingsPage: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleExportRecovery = async () => {
+    setIsExportingRecovery(true);
+    try {
+      const path = await Api.exportRecoveryKey();
+      if (path) {
+        toast.success('Recovery-Schlüssel gespeichert', {
+          description: `Bewahren Sie diese Datei sicher und getrennt von Ihrem Datenbackup auf:\n${path}`,
+        });
+      }
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : String(e);
+      if (!msg.includes('kein Zielordner')) {
+        toast.error('Export fehlgeschlagen', { description: msg });
+      }
+    } finally {
+      setIsExportingRecovery(false);
     }
   };
 
@@ -142,10 +163,49 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="font-semibold text-stone-700 block mb-1">Sicherheitsschlüssel (Signatur):</label>
-              <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-stone-600 flex items-center gap-2 text-xs font-mono">
+              <label className="font-semibold text-stone-700 block mb-1">Verschlüsselung sensibler Daten:</label>
+              <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-stone-600 flex items-center gap-2 text-xs">
                 <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="truncate">{appConfig?.certPath || 'Standard-Sicherheitsschlüssel'}</span>
+                <span className="truncate">Aktiv – Zugriffsschlüssel im Betriebssystem-Schlüsselbund hinterlegt</span>
+              </div>
+
+              {/* Where the key actually lives */}
+              <div className="mt-2 p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-xs text-stone-600 space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-stone-700">
+                  <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                  Fundort des Schlüssels im System-Schlüsselbund
+                </div>
+                <p className="leading-relaxed">
+                  {navigator.platform.startsWith('Mac')
+                    ? 'Öffnen Sie die App „Schlüsselbundverwaltung" und suchen Sie nach:'
+                    : navigator.platform.startsWith('Win')
+                    ? 'Öffnen Sie „Anmeldeinformationsverwaltung → Windows-Anmeldeinformationen" und suchen Sie nach:'
+                    : 'Im Secret Service (z. B. GNOME-Schlüsselbund) unter folgendem Dienst/Konto:'}
+                </p>
+                <div className="font-mono text-stone-700 bg-white border border-stone-200 rounded p-1.5">
+                  Dienst: <span className="font-semibold">org.buchfink.app</span>
+                  <br />
+                  Konto: <span className="font-semibold">{appConfig?.activeTenantId || '—'}</span>
+                </div>
+              </div>
+
+              {/* Recovery key backup */}
+              <div className="mt-2 p-3 bg-amber-50/70 rounded-lg border border-amber-200/70 text-xs text-amber-900 space-y-2">
+                <p className="leading-relaxed">
+                  <strong>Externe Sicherung (wichtig!):</strong> Geht dieser Rechner verloren, ist der Schlüsselbund weg –
+                  ohne Recovery-Schlüssel sind die verschlüsselten Daten dann <strong>unwiederbringlich</strong>.
+                  Exportieren Sie eine Recovery-Datei und bewahren Sie sie sicher und <strong>getrennt von Ihrem
+                  Datenbackup</strong> auf (z. B. USB-Stick, Tresor).
+                </p>
+                <button
+                  type="button"
+                  onClick={handleExportRecovery}
+                  disabled={isExportingRecovery}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors disabled:opacity-70"
+                >
+                  {isExportingRecovery ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shield className="w-3.5 h-3.5" />}
+                  Recovery-Schlüssel exportieren...
+                </button>
               </div>
             </div>
           </div>
