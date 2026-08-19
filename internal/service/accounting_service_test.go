@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -16,7 +17,11 @@ func setupTestServices(t *testing.T) (*service.AccountingService, *service.BankS
 		t.Fatalf("failed to init db: %v", err)
 	}
 
-	if err := repository.SeedDefaultsIfEmpty(ctx, db, 2024); err != nil {
+	// Use the current fiscal year so bookings (which default to today's date)
+	// land in the same year the services operate on — keeps the tests
+	// independent of the wall-clock year they happen to run in.
+	year := time.Now().Year()
+	if err := repository.SeedDefaultsIfEmpty(ctx, db, year); err != nil {
 		t.Fatalf("failed to seed defaults: %v", err)
 	}
 
@@ -28,7 +33,7 @@ func setupTestServices(t *testing.T) (*service.AccountingService, *service.BankS
 	auditRepo := repository.NewAuditRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 
-	accSvc := service.NewAccountingService(accRepo, bookingRepo, settingsRepo, auditRepo, 2024)
+	accSvc := service.NewAccountingService(accRepo, bookingRepo, settingsRepo, auditRepo, year)
 	bankSvc := service.NewBankService(bankRepo, accSvc, auditRepo)
 	invSvc := service.NewInvoiceService(invoiceRepo, contactRepo, settingsRepo, auditRepo)
 	ebilanzSvc := service.NewEBilanzService(accSvc, settingsRepo, auditRepo)
