@@ -73,6 +73,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.JournalEntry{},
 		&domain.JournalLine{},
 		&domain.NumberRange{},
+		&domain.PaymentAllocation{},
 		&domain.BankTransaction{},
 		&domain.Contact{},
 		&domain.Invoice{},

@@ -37,6 +37,7 @@ type BuchfinkBridge struct {
 	contactRepo        domain.ContactRepository
 	invoiceRepo        domain.InvoiceRepository
 	numberRepo         domain.NumberRangeRepository
+	allocationRepo     domain.PaymentAllocationRepository
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
@@ -44,6 +45,7 @@ type BuchfinkBridge struct {
 	// Services
 	journalSvc    *service.JournalService
 	postingSvc    *service.PostingService
+	paymentSvc    *service.PaymentService
 	accountingSvc *service.AccountingService
 	bankSvc       *service.BankService
 	invoiceSvc    *service.InvoiceService
@@ -165,6 +167,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.auditRepo = repository.NewAuditRepository(db)
 	b.settingsRepo = repository.NewSettingsRepository(db)
 	b.festschreibungRepo = repository.NewFestschreibungRepository(db)
+	b.allocationRepo = repository.NewPaymentAllocationRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -187,6 +190,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
+	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
@@ -575,13 +579,28 @@ func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.setFiscalYearLocked(year)
+	return nil
+}
+
+// setFiscalYearLocked switches the active year across every service that
+// filters by it. Caller must hold the lock.
+func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	b.currentYear = year
 	if b.accountingSvc != nil {
 		b.accountingSvc.SetFiscalYear(year)
 	}
+	if b.journalSvc != nil {
+		b.journalSvc.SetFiscalYear(year)
+	}
+	if b.paymentSvc != nil {
+		b.paymentSvc.SetFiscalYear(year)
+	}
+	if b.contactSvc != nil {
+		b.contactSvc.SetFiscalYear(year)
+	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
-	return nil
 }
 
 func (b *BuchfinkBridge) GetFiscalYear() int {
@@ -594,12 +613,7 @@ func (b *BuchfinkBridge) SetFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.currentYear = year
-	if b.accountingSvc != nil {
-		b.accountingSvc.SetFiscalYear(year)
-	}
-	b.appConfig.LastFiscalYear = year
-	_ = b.appCfgRepo.Save(&b.appConfig)
+	b.setFiscalYearLocked(year)
 	return nil
 }
 
@@ -923,4 +937,36 @@ func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 		return nil, nil
 	}
 	return b.auditSvc.GetLogs(context.Background(), 200)
+}
+
+// -------------------------------------------------------------
+// OFFENE POSTEN & ZAHLUNGSZUORDNUNG
+// -------------------------------------------------------------
+
+// GetOpenItems lists the unsettled receivables and payables. The amounts are
+// derived from the journal and the recorded allocations, never stored, so they
+// cannot drift apart from the bookings.
+func (b *BuchfinkBridge) GetOpenItems() ([]domain.OpenItem, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.paymentSvc == nil {
+		return nil, nil
+	}
+	return b.paymentSvc.OpenItems(context.Background())
+}
+
+// GetDifferenceKinds returns the payment difference kinds with their hints.
+func (b *BuchfinkBridge) GetDifferenceKinds() []domain.DifferenceKindInfo {
+	return domain.DifferenceKinds()
+}
+
+// SettlePayment books a payment against one or more open items, including
+// Skonto, bank fees and rounding differences.
+func (b *BuchfinkBridge) SettlePayment(req service.PaymentRequest) (*domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.paymentSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.paymentSvc.Settle(context.Background(), req)
 }
