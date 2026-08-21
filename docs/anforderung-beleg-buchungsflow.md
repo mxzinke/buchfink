@@ -411,6 +411,9 @@ deterministisch aus fachlicher Gruppe, Steuerfall, Steuersatz und Zahlungsweg.
 
 ## 11. Anlagenverwaltung
 
+> Überblick. Die Ausarbeitung steht in
+> [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md).
+
 ### 11.1 Die erste Frage ist nicht die AfA-Methode
 
 Bei jeder Anschaffung steht zuerst eine andere Entscheidung an:
@@ -457,6 +460,9 @@ eine Jahresendbuchung. Bei unterjähriger Anschaffung wird zeitanteilig monatsge
 gerechnet.
 
 ## 12. Anzahlungen
+
+> Überblick. Die Ausarbeitung steht in
+> [anforderung-anzahlungen.md](anforderung-anzahlungen.md).
 
 Bei Anzahlungen entsteht die Umsatzsteuer mit der Vereinnahmung – auch bei
 Sollversteuerung (§ 13 Abs. 1 Nr. 1 lit. a Satz 4 UStG). Das ist kein Detail, sondern
@@ -565,10 +571,14 @@ Eröffnungsbilanz als PDF erzeugt – wie die Ausgangsrechnungen über Typst.
 
 ### Offene Punkte
 
-- **Rechnungsabgrenzung:** Leistungszeitraum wird erfasst, die Abgrenzungsbuchung
-  (1900 / 3900) ist noch nicht automatisiert.
-- **Anzahlungen:** Konten und Regeln stehen, der Rechnungsverbund mit
-  Schlussrechnungsverrechnung ist noch nicht implementiert.
-- **Anlagenverwaltung:** Konzept steht, Implementierung offen.
-- **DATEV-Export:** die Voraussetzungen (Personenkonten, Generalumkehr-Kennzeichen)
-  sind geschaffen, das Exportformat selbst fehlt.
+Jeder hat ein eigenes Anforderungsdokument, damit er für sich angegangen werden kann:
+
+| Thema | Dokument | Was noch fehlt |
+|---|---|---|
+| **Rechnungsabgrenzung** | [anforderung-rechnungsabgrenzung.md](anforderung-rechnungsabgrenzung.md) | Der Leistungszeitraum wird erfasst, die Abgrenzungsbuchung auf 1900 / 3900 fehlt. Kleinster Punkt, hängt im Kern an einer Entscheidung. |
+| **Anzahlungen & Rechnungsverbund** | [anforderung-anzahlungen.md](anforderung-anzahlungen.md) | Die Steuer entsteht mit der Vereinnahmung, nicht mit der Rechnung. Die Schlussrechnung muss die Anzahlungen absetzen, sonst greift § 14c Abs. 1 UStG. |
+| **Anlagenverwaltung** | [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md) | Größter Block: GWG und Sammelposten, AfA-Methoden, Abgang, Anlagenspiegel. |
+| **DATEV-Export** | [anforderung-datev-export.md](anforderung-datev-export.md) | Keine buchhalterische Entscheidung offen, aber eine architektonische: das n-Zeilen-Modell trifft auf DATEVs Konto/Gegenkonto. |
+
+Die Abschnitte 11 (Anlagenverwaltung) und 12 (Anzahlungen) in diesem Dokument bleiben
+als Überblick stehen; die Ausarbeitung steht in den verlinkten Dokumenten.
