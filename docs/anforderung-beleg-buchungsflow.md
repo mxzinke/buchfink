@@ -214,19 +214,30 @@ Entscheidung, die der Nutzer treffen und verantworten muss.
 
 ## 8. Personenkonten und offene Posten
 
-Die Sammelkonten 1200 (Forderungen aus LuL) und 3300 (Verbindlichkeiten aus LuL)
-tragen die Bilanzzahlen, beantworten aber nicht „wer schuldet mir was". Jeder
-Geschäftspartner bekommt daher ein echtes Personenkonto aus den DATEV-Bereichen:
+**Es wird nie auf ein Sammelkonto gebucht.** Jeder Geschäftspartner bekommt ein echtes
+Personenkonto aus den DATEV-Bereichen, und der offene Posten entsteht dort:
 
 | Bereich | Bedeutung | Saldenvortrag |
 |---|---|---|
 | 10000–69999 | Debitoren (Kunden) | 9008 |
 | 70000–99999 | Kreditoren (Lieferanten) | 9009 |
 
-Offene Posten werden auf dem Personenkonto gebucht; für Bilanz und Summen- und
-Saldenliste verdichtet Buchfink sie auf 1200 bzw. 3300. Nummern werden nie
-wiederverwendet – eine alte Buchung muss zuordenbar bleiben. Echte Nummernkreise sind
-außerdem Voraussetzung für einen späteren DATEV-Export an den Steuerberater.
+1200 (Forderungen aus LuL) und 3300 (Verbindlichkeiten aus LuL) sind keine
+Buchungsziele, sondern **Bilanzpositionen**. Das ist keine Designentscheidung, sondern
+§ 266 HGB: die Bilanz zeigt eine Zeile „Forderungen aus Lieferungen und Leistungen",
+nicht vierhundert Kundenzeilen. Der Betrag dieser Zeile entsteht durch Verdichtung der
+Personenkonten.
+
+Der Buchungskern weist eine Zeile auf 1200 oder 3300 deshalb ab, so wie er auch
+Steuerkonten abweist. Wäre beides erlaubt, gäbe es zwei Wahrheiten für dieselbe Zahl:
+eine direkt gebuchte Forderung stünde in der Bilanz, aber in keiner OPOS-Liste, und die
+Differenz fiele erst auf, wenn jemand nachrechnet, warum das Kundenkonto nicht zur
+Bilanzposition passt.
+
+In der Kontenübersicht ist die Verdichtung sichtbar gemacht – 3300 trägt den Hinweis,
+aus wie vielen Personenkonten der Betrag stammt. Nummern werden nie wiederverwendet;
+eine alte Buchung muss zuordenbar bleiben. Echte Nummernkreise sind außerdem
+Voraussetzung für einen späteren DATEV-Export an den Steuerberater.
 
 ## 9. GoBD: Unveränderbarkeit
 
@@ -544,7 +555,7 @@ Eröffnungsbilanz als PDF erzeugt – wie die Ausgangsrechnungen über Typst.
 | **Buchungsmodell** | Kopf + n Zeilen mit harter Invariante Summe Soll = Summe Haben |
 | **Beträge** | ganzzahlige Cent, Rundung einmal je Steuersatzgruppe |
 | **Storno** | Generalumkehr, nicht Seitentausch |
-| **Personenkonten** | echte DATEV-Nummernkreise 10000–69999 / 70000–99999 |
+| **Personenkonten** | echte DATEV-Nummernkreise 10000–69999 / 70000–99999; 1200 und 3300 sind Bilanzpositionen und keine Buchungsziele |
 | **Reverse Charge** | in v1 enthalten, kein Randfall |
 | **Kontierung** | deterministisch, keine Lernfunktion, Regelwerk versioniert |
 | **Versteuerung** | nur Sollversteuerung; Istversteuerung wird abgewiesen |

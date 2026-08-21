@@ -95,6 +95,8 @@ export interface Account {
   creditSum: Cents;
   balance: Cents;
   bookingsCount: number;
+  /** Zahl der Personenkonten, aus denen diese Bilanzposition verdichtet ist. */
+  aggregatedAccounts?: number;
 }
 
 // -------------------------------------------------------------------------

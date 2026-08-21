@@ -52,6 +52,9 @@ type Account struct {
 	CreditSum     Cents `gorm:"-" json:"creditSum"`
 	Balance       Cents `gorm:"-" json:"balance"`
 	BookingsCount int   `gorm:"-" json:"bookingsCount"`
+	// AggregatedAccounts is the number of Personenkonten this balance is
+	// collected from; zero for ordinary Sachkonten.
+	AggregatedAccounts int `gorm:"-" json:"aggregatedAccounts,omitempty"`
 }
 
 // AccountRepository defines the database persistence contract for accounts.

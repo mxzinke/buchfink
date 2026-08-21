@@ -50,6 +50,28 @@ const (
 	AccountNebenkostenGeld   = "6855" // Nebenkosten des Geldverkehrs
 )
 
+// CollectiveAccounts are the balance sheet positions that Personenkonten roll
+// up into. They must not be booked to directly.
+//
+// The open item of a business partner belongs on that partner's Personenkonto,
+// never on 1200 or 3300. A booking straight onto the collective account would
+// land in the balance sheet but in no OPOS list — two sources of truth for the
+// same figure, and the difference only shows up when someone wonders why a
+// customer's account does not add up to the receivables position.
+func CollectiveAccounts() map[string]ContactType {
+	return map[string]ContactType{
+		AccountForderungenLuL:       ContactTypeCustomer,
+		AccountVerbindlichkeitenLuL: ContactTypeVendor,
+	}
+}
+
+// IsCollectiveAccount reports whether an account is a Sammelkonto for
+// Personenkonten.
+func IsCollectiveAccount(account string) bool {
+	_, ok := CollectiveAccounts()[account]
+	return ok
+}
+
 // LiquidAccounts lists the accounts treated as liquid funds for the cashflow
 // view: Kasse, the bank accounts 1800-1850 provided by SKR04, and Geldtransit.
 func LiquidAccounts() []string {

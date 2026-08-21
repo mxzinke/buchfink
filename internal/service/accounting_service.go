@@ -75,6 +75,7 @@ func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, 
 				t.Debit += booked.Debit
 				t.Credit += booked.Credit
 				t.Count += booked.Count
+				t.Aggregated += booked.Aggregated
 			}
 		}
 		applyTurnover(acc, t)
@@ -109,6 +110,9 @@ func (s *AccountingService) collectedTurnovers(ctx context.Context) (map[string]
 		existing.Debit += t.Debit
 		existing.Credit += t.Credit
 		existing.Count += t.Count
+		if target != number {
+			existing.Aggregated++
+		}
 		collected[target] = existing
 	}
 	return collected, nil
@@ -121,6 +125,7 @@ func applyTurnover(acc *domain.Account, t domain.AccountTurnover) {
 	acc.DebitSum = t.Debit
 	acc.CreditSum = t.Credit
 	acc.BookingsCount = t.Count
+	acc.AggregatedAccounts = t.Aggregated
 
 	switch acc.Type {
 	case domain.AccountTypeLiability, domain.AccountTypeEquity, domain.AccountTypeRevenue:

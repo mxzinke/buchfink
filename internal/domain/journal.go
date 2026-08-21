@@ -240,6 +240,10 @@ type AccountTurnover struct {
 	Debit  Cents `json:"debit"`
 	Credit Cents `json:"credit"`
 	Count  int   `json:"count"`
+	// Aggregated counts the Personenkonten folded into this account. It is set
+	// only on the Sammelkonten and lets the UI name where the figure comes from
+	// instead of showing a balance with no visible origin.
+	Aggregated int `json:"aggregated,omitempty"`
 }
 
 // EntryHashFunc links an entry to its predecessor in the hash chain.

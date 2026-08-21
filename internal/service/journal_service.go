@@ -281,6 +281,21 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 				i+1, l.Account,
 			)
 		}
+
+		// Offene Posten gehören auf das Personenkonto des Geschäftspartners.
+		// Eine Buchung direkt auf das Sammelkonto stünde zwar in der Bilanz,
+		// aber in keiner OPOS-Liste.
+		if kind, ok := domain.CollectiveAccounts()[l.Account]; ok {
+			partner := "Kunden"
+			if kind == domain.ContactTypeVendor {
+				partner = "Lieferanten"
+			}
+			return fmt.Errorf(
+				"Zeile %d: Konto %s ist das Sammelkonto für die Bilanz und wird nicht direkt bebucht. "+
+					"Buche den offenen Posten auf das Personenkonto des %s – die Bilanzposition verdichtet sich daraus",
+				i+1, l.Account, partner,
+			)
+		}
 	}
 
 	return nil

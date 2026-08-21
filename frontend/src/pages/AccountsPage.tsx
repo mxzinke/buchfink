@@ -352,6 +352,14 @@ const AccountTable: React.FC<{
                     Bereich
                   </span>
                 )}
+                {Boolean(account.aggregatedAccounts) && (
+                  <span
+                    className="text-[10px] text-stone-500 border border-stone-200 rounded px-1.5 py-0.5"
+                    title="Bilanzposition. Gebucht wird auf den Personenkonten der Geschäftspartner; hier stehen sie verdichtet."
+                  >
+                    aus {account.aggregatedAccounts} Personenkonten
+                  </span>
+                )}
               </div>
             </td>
             {showTurnover && (

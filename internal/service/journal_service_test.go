@@ -438,3 +438,56 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 		repository.NewAuditRepository(e.db),
 	)
 }
+
+// Offene Posten gehören auf das Personenkonto. Eine Buchung direkt auf 1200
+// oder 3300 stünde in der Bilanz, aber in keiner OPOS-Liste — zwei Wahrheiten
+// für dieselbe Zahl.
+func TestCollectiveAccountsAreNotPostable(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	for _, account := range []string{domain.AccountForderungenLuL, domain.AccountVerbindlichkeitenLuL} {
+		_, err := env.journal.Post(ctx, simpleEntry(account, "1800", 10000))
+		if err == nil {
+			t.Errorf("auf das Sammelkonto %s darf nicht direkt gebucht werden", account)
+			continue
+		}
+		if !strings.Contains(err.Error(), "Personenkonto") {
+			t.Errorf("die Fehlermeldung zu %s sollte auf das Personenkonto verweisen, lautet aber: %v", account, err)
+		}
+	}
+}
+
+// Die Bilanzposition entsteht durch Verdichtung der Personenkonten, und die
+// Oberfläche kann zeigen, aus wie vielen.
+func TestCollectiveAccountReportsItsSources(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	first := env.vendor(t, "Lieferant A", "DE", "")
+	second := env.vendor(t, "Lieferant B", "DE", "")
+	for _, vendor := range []*domain.Contact{first, second} {
+		if _, err := env.posting.PostIncomingReceipt(ctx,
+			receipt(vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+			t.Fatalf("Beleg für %s: %v", vendor.Name, err)
+		}
+	}
+
+	accounts, err := env.accounting.GetAccounts(ctx)
+	if err != nil {
+		t.Fatalf("Konten: %v", err)
+	}
+	for _, a := range accounts {
+		if a.Number != domain.AccountVerbindlichkeitenLuL {
+			continue
+		}
+		if a.Balance != 238000 {
+			t.Errorf("Verbindlichkeiten aus LuL = %s, erwartet 2.380,00", a.Balance)
+		}
+		if a.AggregatedAccounts != 2 {
+			t.Errorf("die Bilanzposition muss aus 2 Kreditorenkonten verdichtet sein, gemeldet werden %d", a.AggregatedAccounts)
+		}
+		return
+	}
+	t.Error("Konto 3300 wurde in der Kontenliste nicht gefunden")
+}
