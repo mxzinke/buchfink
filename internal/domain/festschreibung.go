@@ -13,11 +13,11 @@ import (
 type Festschreibung struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	FiscalYear  int    `gorm:"index;not null" json:"fiscalYear"`
-	PeriodType  string `gorm:"size:10;not null" json:"periodType"`        // "month" | "quarter" | "year"
-	PeriodLabel string `gorm:"size:40;not null" json:"periodLabel"`       // e.g. "Q1 2026", "März 2026"
-	CutoffDate  string `gorm:"size:10;not null;index" json:"cutoffDate"`  // YYYY-MM-DD, inclusive — bookings up to here are locked
-	ChainHead   string `gorm:"size:64;not null" json:"chainHead"`         // EntryHash of the last booking at commit time
-	EntryCount  int    `json:"entryCount"`                                // bookings covered at commit time
+	PeriodType  string `gorm:"size:10;not null" json:"periodType"`       // "month" | "quarter" | "year"
+	PeriodLabel string `gorm:"size:40;not null" json:"periodLabel"`      // e.g. "Q1 2026", "März 2026"
+	CutoffDate  string `gorm:"size:10;not null;index" json:"cutoffDate"` // YYYY-MM-DD, inclusive — bookings up to here are locked
+	ChainHead   string `gorm:"size:64;not null" json:"chainHead"`        // EntryHash of the last booking at commit time
+	EntryCount  int    `json:"entryCount"`                               // bookings covered at commit time
 
 	// Silent RFC-3161 trusted timestamp over ChainHead. Filled asynchronously;
 	// if the TSA is unreachable at commit time the Festschreibung still stands and

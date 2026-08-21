@@ -61,13 +61,10 @@ func (r *bankRepositoryGorm) CreateBatch(ctx context.Context, transactions []dom
 	return inserted, nil
 }
 
-func (r *bankRepositoryGorm) MarkMatched(ctx context.Context, id uint, bookingID uint) error {
+func (r *bankRepositoryGorm) SetMatchStatus(ctx context.Context, id uint, status domain.MatchStatus) error {
 	return r.db.WithContext(ctx).Model(&domain.BankTransaction{}).
 		Where("id = ?", id).
-		Updates(map[string]interface{}{
-			"match_status":       domain.MatchStatusMatched,
-			"matched_booking_id": bookingID,
-		}).Error
+		Update("match_status", status).Error
 }
 
 func (r *bankRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {

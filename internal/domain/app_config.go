@@ -24,4 +24,3 @@ type AppConfigRepository interface {
 	Load() (*AppConfig, error)
 	Save(cfg *AppConfig) error
 }
-

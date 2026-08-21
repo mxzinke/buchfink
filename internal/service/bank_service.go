@@ -4,122 +4,124 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 
 	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// BankService manages bank statement parsing and automated journal reconciliation.
+// BankService imports bank statements and books transactions that carry no
+// document of their own (fees, interest, transfers between own accounts).
+//
+// Payments that settle an open item do not run through here — they go through
+// the payment matching, which needs the open item and the difference handling.
 type BankService struct {
-	bankRepo      domain.BankRepository
-	accountingSvc *AccountingService
-	auditRepo     domain.AuditRepository
+	bankRepo   domain.BankRepository
+	journalSvc *JournalService
+	auditRepo  domain.AuditRepository
 }
 
+// NewBankService creates the bank import service.
 func NewBankService(
 	bankRepo domain.BankRepository,
-	accountingSvc *AccountingService,
+	journalSvc *JournalService,
 	auditRepo domain.AuditRepository,
 ) *BankService {
-	return &BankService{
-		bankRepo:      bankRepo,
-		accountingSvc: accountingSvc,
-		auditRepo:     auditRepo,
+	return &BankService{bankRepo: bankRepo, journalSvc: journalSvc, auditRepo: auditRepo}
+}
+
+// GetTransactions returns imported bank transactions of a fiscal year.
+func (s *BankService) GetTransactions(ctx context.Context, fiscalYear int) ([]domain.BankTransaction, error) {
+	return s.bankRepo.FindAll(ctx, fiscalYear)
+}
+
+// ImportCAMT053 parses an ISO 20022 CAMT.053 statement and stores its lines.
+func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAccount string) (int, error) {
+	if ledgerAccount == "" {
+		ledgerAccount = domain.AccountBank
 	}
-}
 
-// GetTransactions returns all imported bank transactions.
-func (s *BankService) GetTransactions(ctx context.Context) ([]domain.BankTransaction, error) {
-	return s.bankRepo.FindAll(ctx, 0)
-}
-
-// ImportCAMT053 parses ISO 20022 CAMT.053 XML data and stores new transactions.
-func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader) (int, error) {
-	parsedModels, err := bank.ParseCAMT053(r)
+	parsed, err := bank.ParseCAMT053(r)
 	if err != nil {
-		return 0, fmt.Errorf("CAMT.053 parse error: %w", err)
+		return 0, err
 	}
 
-	var domainTxs []domain.BankTransaction
-	for _, p := range parsedModels {
-		domainTxs = append(domainTxs, domain.BankTransaction{
-			FiscalYear:       domain.GetFiscalYearForDate(p.BookingDate, 1),
-			AccountIBAN:      p.AccountIBAN,
-			BookingDate:      p.BookingDate,
-			ValueDate:        p.ValueDate,
-			Amount:           p.Amount,
-			Currency:         p.Currency,
-			CounterpartyName: p.CounterpartyName,
-			CounterpartyIBAN: p.CounterpartyIBAN,
-			RemittanceInfo:   p.RemittanceInfo,
-			EndToEndID:       p.EndToEndID,
-			MatchStatus:      domain.MatchStatusUnmatched,
-			SuggestedAccount: p.SuggestedAccount,
-			SuggestedContact: p.SuggestedContact,
-		})
+	for i := range parsed {
+		parsed[i].FiscalYear = domain.GetFiscalYearForDate(parsed[i].BookingDate, 1)
+		parsed[i].LedgerAccount = ledgerAccount
 	}
 
-	inserted, err := s.bankRepo.CreateBatch(ctx, domainTxs)
+	inserted, err := s.bankRepo.CreateBatch(ctx, parsed)
 	if err != nil {
 		return 0, err
 	}
 
 	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(
-			ctx,
-			domain.AuditActionImport,
-			"BANK_TX",
-			fmt.Sprintf("%d", inserted),
-			fmt.Sprintf("%d Transaktionen aus CAMT.053 Bankauszug importiert", inserted),
-		)
+		_ = s.auditRepo.Log(ctx, domain.AuditActionImport, "BANK_TX", fmt.Sprintf("%d", inserted),
+			fmt.Sprintf("%d Umsätze aus CAMT.053 für Konto %s importiert", inserted, ledgerAccount))
 	}
-
 	return inserted, nil
 }
 
-// MatchAndBook confirms a bank transaction and triggers an automated double-entry journal booking.
-func (s *BankService) MatchAndBook(
-	ctx context.Context,
-	bankTxID uint,
-	debitAcc, creditAcc, receiptNr, desc string,
-) (*domain.BookingEntry, error) {
+// BookDirect books a bank transaction that has no document behind it against a
+// single counter account.
+//
+// The bank side is taken from the statement, so the direction cannot be entered
+// wrongly: money in is a debit on the liquid account, money out a credit.
+func (s *BankService) BookDirect(ctx context.Context, bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	tx, err := s.bankRepo.FindByID(ctx, bankTxID)
 	if err != nil {
-		return nil, fmt.Errorf("bank transaction ID %d not found: %w", bankTxID, err)
+		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
 	}
-
 	if tx.MatchStatus == domain.MatchStatusMatched {
-		return nil, fmt.Errorf("bank transaction ID %d is already matched", bankTxID)
+		return nil, fmt.Errorf("Bankumsatz %d ist bereits zugeordnet", bankTxID)
+	}
+	if counterAccount == "" {
+		return nil, fmt.Errorf("Gegenkonto fehlt")
+	}
+	if tx.Amount == 0 {
+		return nil, fmt.Errorf("Bankumsatz %d hat den Betrag null", bankTxID)
 	}
 
-	amt := math.Abs(tx.Amount)
-	if desc == "" {
-		desc = fmt.Sprintf("%s (%s)", tx.RemittanceInfo, tx.CounterpartyName)
+	if description == "" {
+		description = fmt.Sprintf("%s – %s", tx.CounterpartyName, tx.RemittanceInfo)
 	}
 
-	booking := &domain.BookingEntry{
-		FiscalYear:    tx.FiscalYear,
-		Date:          tx.BookingDate,
-		ValueDate:     tx.ValueDate,
-		Description:   desc,
-		DebitAccount:  debitAcc,
-		CreditAccount: creditAcc,
-		Amount:        amt,
-		Currency:      tx.Currency,
-		ExchangeRate:  1.0,
-		ReceiptNumber: receiptNr,
-		BankTxID:      &bankTxID,
+	amount := tx.Amount.Abs()
+	bankSide, counterSide := domain.SideDebit, domain.SideCredit
+	if tx.Amount < 0 {
+		bankSide, counterSide = domain.SideCredit, domain.SideDebit
 	}
 
-	created, err := s.accountingSvc.CreateBooking(ctx, booking)
+	entry := &domain.JournalEntry{
+		FiscalYear:      tx.FiscalYear,
+		BookingDate:     tx.BookingDate,
+		DocumentDate:    tx.BookingDate,
+		ServiceDateFrom: tx.BookingDate,
+		ServiceDateTo:   tx.BookingDate,
+		ValueDate:       tx.ValueDate,
+		Description:     description,
+		Source:          domain.EntrySourcePayment,
+		BankTxID:        &tx.ID,
+		Currency:        tx.Currency,
+		Lines: []domain.JournalLine{
+			{Position: 1, Side: bankSide, Account: tx.LedgerAccount, Amount: amount},
+			{Position: 2, Side: counterSide, Account: counterAccount, Amount: amount},
+		},
+	}
+
+	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create automated booking: %w", err)
+		return nil, err
 	}
 
-	if err := s.bankRepo.MarkMatched(ctx, bankTxID, created.ID); err != nil {
-		return nil, fmt.Errorf("failed to mark bank transaction as matched: %w", err)
+	if err := s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusMatched); err != nil {
+		return nil, fmt.Errorf("Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
 	}
 
 	return created, nil
+}
+
+// Ignore marks a bank transaction as deliberately not booked.
+func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
+	return s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusIgnored)
 }

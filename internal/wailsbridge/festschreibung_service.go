@@ -18,7 +18,7 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.festschreibungRepo == nil || b.bookingRepo == nil {
+	if b.festschreibungRepo == nil || b.journalRepo == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
 	if len(cutoffDate) != 10 {
@@ -33,10 +33,10 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 
 	// Anchor the current chain head of the fiscal year.
 	chainHead := domain.GenesisHash
-	if last, err := b.bookingRepo.GetLastEntry(ctx, b.currentYear); err == nil && last != nil {
+	if last, err := b.journalRepo.GetLastEntry(ctx, b.currentYear); err == nil && last != nil {
 		chainHead = last.EntryHash
 	}
-	count, _ := b.bookingRepo.Count(ctx, b.currentYear)
+	count, _ := b.journalRepo.Count(ctx, b.currentYear)
 
 	rec := &domain.Festschreibung{
 		FiscalYear:      b.currentYear,
@@ -95,7 +95,7 @@ func (b *BuchfinkBridge) VerifyFestschreibung(id uint) (*domain.FestschreibungVe
 	}
 	v := &domain.FestschreibungVerification{ID: id, TSAName: rec.TSAName}
 
-	if last, err := b.bookingRepo.GetLastEntry(ctx, rec.FiscalYear); err == nil {
+	if last, err := b.journalRepo.GetLastEntry(ctx, rec.FiscalYear); err == nil {
 		head := domain.GenesisHash
 		if last != nil {
 			head = last.EntryHash

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
@@ -31,9 +32,12 @@ func (r *contactRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	return &contact, nil
 }
 
-func (r *contactRepositoryGorm) FindByNumber(ctx context.Context, number string) (*domain.Contact, error) {
+func (r *contactRepositoryGorm) FindByLedgerAccount(ctx context.Context, account string) (*domain.Contact, error) {
 	var contact domain.Contact
-	err := r.db.WithContext(ctx).Where("number = ?", number).First(&contact).Error
+	err := r.db.WithContext(ctx).Where("ledger_account = ?", account).First(&contact).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package bank_test
 
 import (
+	"github.com/buchfink/buchfink/internal/domain"
 	"strings"
 	"testing"
 
@@ -45,13 +46,13 @@ func TestParseCAMT053(t *testing.T) {
 	}
 
 	tx := txs[0]
-	if tx.Amount != 1190.00 {
-		t.Fatalf("expected amount 1190.00, got %f", tx.Amount)
+	if tx.Amount != domain.Cents(119000) {
+		t.Fatalf("Betrag: erwartet 1.190,00 €, erhalten %s €", tx.Amount)
 	}
 	if tx.CounterpartyName != "Kunde Alpha" {
-		t.Fatalf("expected CounterpartyName 'Kunde Alpha', got '%s'", tx.CounterpartyName)
+		t.Fatalf("Gegenpartei: erwartet 'Kunde Alpha', erhalten %q", tx.CounterpartyName)
 	}
-	if tx.SuggestedAccount != "4400" {
-		t.Fatalf("expected suggested revenue account 4400, got %s", tx.SuggestedAccount)
+	if tx.MatchStatus != domain.MatchStatusUnmatched {
+		t.Fatalf("neu importierte Umsätze müssen unzugeordnet sein, sind aber %q", tx.MatchStatus)
 	}
 }

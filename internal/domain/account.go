@@ -35,23 +35,23 @@ type Account struct {
 	TaxRate            float64     `gorm:"default:0.0" json:"taxRate"`                 // e.g. 0.19 for 19% VAT
 	Hauptfunktion      string      `gorm:"size:20" json:"hauptfunktion"`               // "AM", "AV", "F", "R", "S"
 	HauptfunktionDesc  string      `gorm:"size:255" json:"hauptfunktionDesc"`
-	Zusatzfunktion     string      `gorm:"size:20" json:"zusatzfunktion"`              // "KU", "M", "V"
+	Zusatzfunktion     string      `gorm:"size:20" json:"zusatzfunktion"` // "KU", "M", "V"
 	ZusatzfunktionDesc string      `gorm:"size:255" json:"zusatzfunktionDesc"`
-	Abschlusszweck     string      `gorm:"size:20" json:"abschlusszweck"`              // "EÜR", "HB", "SB"
+	Abschlusszweck     string      `gorm:"size:20" json:"abschlusszweck"` // "EÜR", "HB", "SB"
 	IsRange            bool        `gorm:"default:false;index" json:"isRange"`
 	RangeStart         string      `gorm:"size:10;index" json:"rangeStart"`
 	RangeEnd           string      `gorm:"size:10;index" json:"rangeEnd"`
 	IsReserved         bool        `gorm:"default:false" json:"isReserved"`
-	Description        string      `gorm:"type:text" json:"description"`               // User or DATEV explanation
+	Description        string      `gorm:"type:text" json:"description"` // User or DATEV explanation
 	IsActive           bool        `gorm:"default:true" json:"isActive"`
 	CreatedAt          time.Time   `json:"createdAt"`
 	UpdatedAt          time.Time   `json:"updatedAt"`
 
 	// Dynamic calculated balances (not persisted directly in table)
-	DebitSum      float64 `gorm:"-" json:"debitSum"`
-	CreditSum     float64 `gorm:"-" json:"creditSum"`
-	Balance       float64 `gorm:"-" json:"balance"`
-	BookingsCount int     `gorm:"-" json:"bookingsCount"`
+	DebitSum      Cents `gorm:"-" json:"debitSum"`
+	CreditSum     Cents `gorm:"-" json:"creditSum"`
+	Balance       Cents `gorm:"-" json:"balance"`
+	BookingsCount int   `gorm:"-" json:"bookingsCount"`
 }
 
 // AccountRepository defines the database persistence contract for accounts.
@@ -64,37 +64,52 @@ type AccountRepository interface {
 	Count(ctx context.Context) (int64, error)
 }
 
-// AccountLedgerBooking represents an enriched booking entry for an account ledger (Kontoblatt).
-type AccountLedgerBooking struct {
-	Booking        BookingEntry `json:"booking"`
-	CounterAccount string       `json:"counterAccount"`
-	CounterName    string       `json:"counterName"`
-	Direction      string       `json:"direction"` // "SOLL" or "HABEN"
-	DebitAmount    float64      `json:"debitAmount"`
-	CreditAmount   float64      `json:"creditAmount"`
-	RunningBalance float64      `json:"runningBalance"`
+// CounterAccount is one account on the opposite side of a booking. A multi-line
+// entry has several, so the Kontoblatt shows a list rather than the single
+// "Gegenkonto" a two-account model would suggest.
+type CounterAccount struct {
+	Account string `json:"account"`
+	Name    string `json:"name"`
+	Amount  Cents  `json:"amount"`
 }
 
-// AccountLedger represents the Kontoblatt with all transactions and balances.
+// AccountLedgerRow is one line of the Kontoblatt.
+type AccountLedgerRow struct {
+	EntryID         uint             `json:"entryId"`
+	EntryNumber     string           `json:"entryNumber"`
+	BookingDate     string           `json:"bookingDate"`
+	DocumentDate    string           `json:"documentDate"`
+	DocumentNumber  string           `json:"documentNumber,omitempty"`
+	Description     string           `json:"description"`
+	Kind            EntryKind        `json:"kind"`
+	Side            Side             `json:"side"`
+	DebitAmount     Cents            `json:"debitAmount"`
+	CreditAmount    Cents            `json:"creditAmount"`
+	RunningBalance  Cents            `json:"runningBalance"`
+	CounterAccounts []CounterAccount `json:"counterAccounts"`
+	TaxKey          string           `json:"taxKey,omitempty"`
+}
+
+// AccountLedger is the Kontoblatt of a single account.
 type AccountLedger struct {
-	Account        Account                `json:"account"`
-	FiscalYear     int                    `json:"fiscalYear"`
-	OpeningBalance float64                `json:"openingBalance"`
-	TotalDebit     float64                `json:"totalDebit"`
-	TotalCredit    float64                `json:"totalCredit"`
-	ClosingBalance float64                `json:"closingBalance"`
-	BookingsCount  int                    `json:"bookingsCount"`
-	Entries        []AccountLedgerBooking `json:"entries"`
+	Account        Account            `json:"account"`
+	FiscalYear     int                `json:"fiscalYear"`
+	OpeningBalance Cents              `json:"openingBalance"`
+	TotalDebit     Cents              `json:"totalDebit"`
+	TotalCredit    Cents              `json:"totalCredit"`
+	ClosingBalance Cents              `json:"closingBalance"`
+	RowCount       int                `json:"rowCount"`
+	Rows           []AccountLedgerRow `json:"rows"`
 }
 
 // SuSaClassSummary represents the subtotal and accounts for a single Kontenklasse (0-9).
 type SuSaClassSummary struct {
 	Kontenklasse     int       `json:"kontenklasse"`
 	KontenklasseName string    `json:"kontenklasseName"`
-	TotalDebit       float64   `json:"totalDebit"`
-	TotalCredit      float64   `json:"totalCredit"`
-	TotalSaldoDebit  float64   `json:"totalSaldoDebit"`
-	TotalSaldoCredit float64   `json:"totalSaldoCredit"`
+	TotalDebit       Cents     `json:"totalDebit"`
+	TotalCredit      Cents     `json:"totalCredit"`
+	TotalSaldoDebit  Cents     `json:"totalSaldoDebit"`
+	TotalSaldoCredit Cents     `json:"totalSaldoCredit"`
 	AccountsCount    int       `json:"accountsCount"`
 	Accounts         []Account `json:"accounts"`
 }
@@ -102,11 +117,11 @@ type SuSaClassSummary struct {
 // SuSaOverview represents the Summen- und Saldenliste (Soll-Haben-Übersicht).
 type SuSaOverview struct {
 	FiscalYear       int                `json:"fiscalYear"`
-	TotalDebit       float64            `json:"totalDebit"`
-	TotalCredit      float64            `json:"totalCredit"`
-	TotalSaldoDebit  float64            `json:"totalSaldoDebit"`
-	TotalSaldoCredit float64            `json:"totalSaldoCredit"`
+	TotalDebit       Cents              `json:"totalDebit"`
+	TotalCredit      Cents              `json:"totalCredit"`
+	TotalSaldoDebit  Cents              `json:"totalSaldoDebit"`
+	TotalSaldoCredit Cents              `json:"totalSaldoCredit"`
 	IsBalanced       bool               `json:"isBalanced"`
-	Difference       float64            `json:"difference"`
+	Difference       Cents              `json:"difference"`
 	Classes          []SuSaClassSummary `json:"classes"`
 }

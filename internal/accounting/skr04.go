@@ -8,16 +8,15 @@ import (
 	"sync"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/models"
 )
 
 //go:embed skr04_2026.json
 var skr04JSONData []byte
 
 var (
-	catalogOnce  sync.Once
+	catalogOnce   sync.Once
 	cachedCatalog *SKR04Catalog
-	catalogErr   error
+	catalogErr    error
 )
 
 // SKR04Metadata contains document info according to official DATEV SKR04 (BilRUG 2026).
@@ -71,12 +70,12 @@ type SKR04Bilanzierung struct {
 
 // SKR04SteuerFunktion contains DATEV automatic tax calculation and program integration tags.
 type SKR04SteuerFunktion struct {
-	Hauptfunktion            *string  `json:"hauptfunktion"`
-	HauptfunktionDescription *string  `json:"hauptfunktion_description"`
-	Zusatzfunktion           *string  `json:"zusatzfunktion"`
-	ZusatzfunktionDescription *string `json:"zusatzfunktion_description"`
-	Abschlusszweck           *string  `json:"abschlusszweck"`
-	Programmverbindung       []string `json:"programmverbindung"`
+	Hauptfunktion             *string  `json:"hauptfunktion"`
+	HauptfunktionDescription  *string  `json:"hauptfunktion_description"`
+	Zusatzfunktion            *string  `json:"zusatzfunktion"`
+	ZusatzfunktionDescription *string  `json:"zusatzfunktion_description"`
+	Abschlusszweck            *string  `json:"abschlusszweck"`
+	Programmverbindung        []string `json:"programmverbindung"`
 }
 
 // SKR04AccountEntry represents an individual account or account range in the official JSON.
@@ -220,41 +219,5 @@ func DefaultSKR04Accounts() []domain.Account {
 		})
 	}
 
-	return result
-}
-
-// DefaultSKR04LegacyAccounts returns legacy models.Account entries for backward compatibility.
-func DefaultSKR04LegacyAccounts() []models.Account {
-	domainAccounts := DefaultSKR04Accounts()
-	result := make([]models.Account, len(domainAccounts))
-	for i, a := range domainAccounts {
-		result[i] = models.Account{
-			ID:                 int64(a.ID),
-			Number:             a.Number,
-			Name:               a.Name,
-			Type:               string(a.Type),
-			Category:           a.Category,
-			Subcategory:        a.Subcategory,
-			Kontenklasse:       a.Kontenklasse,
-			KontenklasseName:   a.KontenklasseName,
-			PositionID:         a.PositionID,
-			Posten:             a.Posten,
-			BalanceSide:        a.BalanceSide,
-			HGBCode:            a.HGBCode,
-			StatementType:      a.StatementType,
-			TaxRate:            a.TaxRate,
-			Hauptfunktion:      a.Hauptfunktion,
-			HauptfunktionDesc:  a.HauptfunktionDesc,
-			Zusatzfunktion:     a.Zusatzfunktion,
-			ZusatzfunktionDesc: a.ZusatzfunktionDesc,
-			Abschlusszweck:     a.Abschlusszweck,
-			IsRange:            a.IsRange,
-			RangeStart:         a.RangeStart,
-			RangeEnd:           a.RangeEnd,
-			IsReserved:         a.IsReserved,
-			Description:        a.Description,
-			IsActive:           a.IsActive,
-		}
-	}
 	return result
 }

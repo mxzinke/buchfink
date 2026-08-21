@@ -4,23 +4,88 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"strings"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/models"
+	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// GenerateZUGFeRDXML creates a valid Factur-X / ZUGFeRD 2.2 (EN 16931) XML invoice string.
-func GenerateZUGFeRDXML(inv *models.Invoice, seller *models.CompanySettings, buyer *models.Contact) (string, error) {
-	issueDate := time.Now().Format("20060102")
-	if inv.Date != "" {
-		if t, err := time.Parse("2006-01-02", inv.Date); err == nil {
-			issueDate = t.Format("20060102")
-		}
+// vatCategoryCode maps a Steuerfall to the EN 16931 / UNTDID 5305 category code
+// a ZUGFeRD invoice must carry. Sending "S" for an exempt intra-community supply
+// makes the document formally wrong even though the amounts add up.
+func vatCategoryCode(t domain.TaxTreatment) string {
+	switch t {
+	case domain.TaxTreatmentIntraCommunitySupply:
+		return "K" // Innergemeinschaftliche Lieferung
+	case domain.TaxTreatmentExport:
+		return "G" // Ausfuhr, steuerfrei
+	case domain.TaxTreatmentReverseChargeSupply:
+		return "AE" // Steuerschuldnerschaft des Leistungsempfängers
+	case domain.TaxTreatmentExempt:
+		return "E" // Steuerbefreit
+	case domain.TaxTreatmentNotTaxable:
+		return "O" // Nicht steuerbar
+	default:
+		return "S" // Regelbesteuerung
+	}
+}
+
+// exemptionReason returns the legal reference EN 16931 requires whenever the
+// category code is not "S".
+func exemptionReason(t domain.TaxTreatment) string {
+	switch t {
+	case domain.TaxTreatmentIntraCommunitySupply:
+		return "Steuerfreie innergemeinschaftliche Lieferung nach § 4 Nr. 1 Buchst. b i. V. m. § 6a UStG"
+	case domain.TaxTreatmentExport:
+		return "Steuerfreie Ausfuhrlieferung nach § 4 Nr. 1 Buchst. a i. V. m. § 6 UStG"
+	case domain.TaxTreatmentReverseChargeSupply:
+		return "Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG"
+	case domain.TaxTreatmentExempt:
+		return "Steuerfreier Umsatz nach § 4 UStG"
+	case domain.TaxTreatmentNotTaxable:
+		return "Nicht steuerbarer Umsatz"
+	default:
+		return ""
+	}
+}
+
+func compactDate(iso string) string {
+	if t, err := time.Parse("2006-01-02", iso); err == nil {
+		return t.Format("20060102")
+	}
+	return time.Now().Format("20060102")
+}
+
+func quantityString(milli int64) string {
+	neg := ""
+	if milli < 0 {
+		neg = "-"
+		milli = -milli
+	}
+	return fmt.Sprintf("%s%d.%03d", neg, milli/1000, milli%1000)
+}
+
+func ratePercent(r domain.TaxRate) string {
+	return fmt.Sprintf("%d.%02d", int(r)/100, int(r)%100)
+}
+
+// GenerateZUGFeRDXML creates a Factur-X / ZUGFeRD 2.2 (EN 16931) XML invoice.
+func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact) (string, error) {
+	if err := inv.Validate(); err != nil {
+		return "", err
 	}
 
-	var lineItemsBuf bytes.Buffer
-	for i, item := range inv.Items {
-		lineItemsBuf.WriteString(fmt.Sprintf(`
+	category := vatCategoryCode(inv.TaxTreatment)
+	reason := exemptionReason(inv.TaxTreatment)
+
+	var lines bytes.Buffer
+	for i := range inv.Items {
+		item := &inv.Items[i]
+		rate := item.TaxRate
+		if inv.TaxTreatment != domain.TaxTreatmentDomestic {
+			rate = domain.TaxRateNone
+		}
+		lines.WriteString(fmt.Sprintf(`
 		<ram:IncludedSupplyChainTradeLineItem>
 			<ram:AssociatedDocumentLineDocument>
 				<ram:LineID>%d</ram:LineID>
@@ -30,31 +95,53 @@ func GenerateZUGFeRDXML(inv *models.Invoice, seller *models.CompanySettings, buy
 			</ram:SpecifiedTradeProduct>
 			<ram:SpecifiedLineTradeAgreement>
 				<ram:NetPriceProductTradePrice>
-					<ram:ChargeAmount currencyID="%s">%.2f</ram:ChargeAmount>
+					<ram:ChargeAmount>%s</ram:ChargeAmount>
 				</ram:NetPriceProductTradePrice>
 			</ram:SpecifiedLineTradeAgreement>
 			<ram:SpecifiedLineTradeDelivery>
-				<ram:BilledQuantity unitCode="C62">%.2f</ram:BilledQuantity>
+				<ram:BilledQuantity unitCode="C62">%s</ram:BilledQuantity>
 			</ram:SpecifiedLineTradeDelivery>
 			<ram:SpecifiedLineTradeSettlement>
 				<ram:ApplicableTradeTax>
 					<ram:TypeCode>VAT</ram:TypeCode>
-					<ram:CategoryCode>S</ram:CategoryCode>
-					<ram:RateApplicablePercent>%.2f</ram:RateApplicablePercent>
+					<ram:CategoryCode>%s</ram:CategoryCode>
+					<ram:RateApplicablePercent>%s</ram:RateApplicablePercent>
 				</ram:ApplicableTradeTax>
 				<ram:SpecifiedTradeSettlementLineMonetarySummation>
-					<ram:LineTotalAmount currencyID="%s">%.2f</ram:LineTotalAmount>
+					<ram:LineTotalAmount>%s</ram:LineTotalAmount>
 				</ram:SpecifiedTradeSettlementLineMonetarySummation>
 			</ram:SpecifiedLineTradeSettlement>
 		</ram:IncludedSupplyChainTradeLineItem>`,
-			i+1,
+			item.Position,
 			html.EscapeString(item.Description),
-			inv.Currency,
-			item.UnitPrice,
-			item.Quantity,
-			item.TaxRate*100,
-			inv.Currency,
-			item.TotalNet,
+			item.UnitPrice.Decimal(),
+			quantityString(item.QuantityMilli),
+			category,
+			ratePercent(rate),
+			item.TotalNet().Decimal(),
+		))
+	}
+
+	// One ApplicableTradeTax block per rate group, as EN 16931 requires.
+	var taxBlocks bytes.Buffer
+	for _, g := range inv.TaxGroups() {
+		rate := g.Rate
+		if inv.TaxTreatment != domain.TaxTreatmentDomestic {
+			rate = domain.TaxRateNone
+		}
+		var reasonTag string
+		if reason != "" {
+			reasonTag = fmt.Sprintf("\n\t\t\t\t<ram:ExemptionReason>%s</ram:ExemptionReason>", html.EscapeString(reason))
+		}
+		taxBlocks.WriteString(fmt.Sprintf(`
+			<ram:ApplicableTradeTax>
+				<ram:CalculatedAmount>%s</ram:CalculatedAmount>
+				<ram:TypeCode>VAT</ram:TypeCode>%s
+				<ram:BasisAmount>%s</ram:BasisAmount>
+				<ram:CategoryCode>%s</ram:CategoryCode>
+				<ram:RateApplicablePercent>%s</ram:RateApplicablePercent>
+			</ram:ApplicableTradeTax>`,
+			g.Tax.Decimal(), reasonTag, g.Net.Decimal(), category, ratePercent(rate),
 		))
 	}
 
@@ -75,80 +162,120 @@ func GenerateZUGFeRDXML(inv *models.Invoice, seller *models.CompanySettings, buy
 			<udt:DateTimeString format="102">%s</udt:DateTimeString>
 		</ram:IssueDateTime>
 	</rsm:ExchangedDocument>
-	<rsm:SupplyChainTradeTransaction>
-		%s
+	<rsm:SupplyChainTradeTransaction>%s
 		<ram:ApplicableHeaderTradeAgreement>
 			<ram:SellerTradeParty>
 				<ram:Name>%s</ram:Name>
+				<ram:PostalTradeAddress>
+					<ram:LineOne>%s</ram:LineOne>
+					<ram:CityName>%s</ram:CityName>
+					<ram:CountryID>DE</ram:CountryID>
+				</ram:PostalTradeAddress>
 				<ram:SpecifiedTaxRegistration>
 					<ram:ID schemeID="VA">%s</ram:ID>
 				</ram:SpecifiedTaxRegistration>
 			</ram:SellerTradeParty>
 			<ram:BuyerTradeParty>
 				<ram:Name>%s</ram:Name>
+				<ram:PostalTradeAddress>
+					<ram:LineOne>%s</ram:LineOne>
+					<ram:CountryID>%s</ram:CountryID>
+				</ram:PostalTradeAddress>
 				<ram:SpecifiedTaxRegistration>
 					<ram:ID schemeID="VA">%s</ram:ID>
 				</ram:SpecifiedTaxRegistration>
 			</ram:BuyerTradeParty>
 		</ram:ApplicableHeaderTradeAgreement>
+		<ram:ApplicableHeaderTradeDelivery>
+			<ram:ActualDeliverySupplyChainEvent>
+				<ram:OccurrenceDateTime>
+					<udt:DateTimeString format="102">%s</udt:DateTimeString>
+				</ram:OccurrenceDateTime>
+			</ram:ActualDeliverySupplyChainEvent>
+		</ram:ApplicableHeaderTradeDelivery>
 		<ram:ApplicableHeaderTradeSettlement>
-			<ram:InvoiceCurrencyCode>%s</ram:InvoiceCurrencyCode>
+			<ram:InvoiceCurrencyCode>%s</ram:InvoiceCurrencyCode>%s
+			<ram:SpecifiedTradePaymentTerms>
+				<ram:DueDateDateTime>
+					<udt:DateTimeString format="102">%s</udt:DateTimeString>
+				</ram:DueDateDateTime>
+			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-				<ram:LineTotalAmount currencyID="%s">%.2f</ram:LineTotalAmount>
-				<ram:TaxBasisTotalAmount currencyID="%s">%.2f</ram:TaxBasisTotalAmount>
-				<ram:TaxTotalAmount currencyID="%s">%.2f</ram:TaxTotalAmount>
-				<ram:GrandTotalAmount currencyID="%s">%.2f</ram:GrandTotalAmount>
-				<ram:DuePayableAmount currencyID="%s">%.2f</ram:DuePayableAmount>
+				<ram:LineTotalAmount>%s</ram:LineTotalAmount>
+				<ram:TaxBasisTotalAmount>%s</ram:TaxBasisTotalAmount>
+				<ram:TaxTotalAmount currencyID="%s">%s</ram:TaxTotalAmount>
+				<ram:GrandTotalAmount>%s</ram:GrandTotalAmount>
+				<ram:DuePayableAmount>%s</ram:DuePayableAmount>
 			</ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 		</ram:ApplicableHeaderTradeSettlement>
 	</rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`,
 		html.EscapeString(inv.InvoiceNumber),
-		issueDate,
-		lineItemsBuf.String(),
+		compactDate(inv.Date),
+		lines.String(),
 		html.EscapeString(seller.CompanyName),
+		html.EscapeString(seller.Street),
+		html.EscapeString(seller.ZipCity),
 		html.EscapeString(seller.VatID),
 		html.EscapeString(buyer.Name),
+		html.EscapeString(strings.ReplaceAll(buyer.Address, "\n", ", ")),
+		html.EscapeString(countryOrDE(buyer.CountryCode)),
 		html.EscapeString(buyer.VatID),
+		compactDate(inv.ServiceDateTo),
 		inv.Currency,
-		inv.Currency, inv.NetAmount,
-		inv.Currency, inv.NetAmount,
-		inv.Currency, inv.TaxAmount,
-		inv.Currency, inv.GrossAmount,
-		inv.Currency, inv.GrossAmount,
+		taxBlocks.String(),
+		compactDate(inv.DueDate),
+		inv.NetAmount.Decimal(),
+		inv.NetAmount.Decimal(),
+		inv.Currency, inv.TaxAmount.Decimal(),
+		inv.GrossAmount.Decimal(),
+		inv.GrossAmount.Decimal(),
 	)
 
 	return xmlContent, nil
 }
 
-// GenerateTypstTemplate generates Typst markup source code for the invoice.
-func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, buyer *models.Contact) string {
-	totalsBlock := fmt.Sprintf(`
-#align(right)[
-  #block(width: 60%%)[
-    #grid(
-      columns: (1fr, auto),
-      row-gutter: 0.3cm,
-      [Nettobetrag:], [%.2f €],
-      [zzgl. USt:], [%.2f €],
-      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[%.2f €]*]
-    )
-  ]
-]`, inv.NetAmount, inv.TaxAmount, inv.GrossAmount)
+func countryOrDE(code string) string {
+	if code == "" {
+		return "DE"
+	}
+	return code
+}
 
-	if seller.IsSmallBusiness {
-		totalsBlock = fmt.Sprintf(`
-#align(right)[
-  #block(width: 60%%)[
-    #grid(
-      columns: (1fr, auto),
-      row-gutter: 0.3cm,
-      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[%.2f €]*]
-    )
-  ]
-]
-#v(0.2cm)
-#text(size: 8.5pt, fill: rgb("#78716c"), style: "italic")[Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).]`, inv.GrossAmount)
+// GenerateTypstTemplate renders the invoice as Typst markup.
+func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact) string {
+	var rows strings.Builder
+	for i := range inv.Items {
+		item := &inv.Items[i]
+		rows.WriteString(fmt.Sprintf("  [%d], [%s], [%s %s], [%s €], [%s €],\n",
+			item.Position,
+			typstEscape(item.Description),
+			strings.TrimSuffix(strings.TrimRight(quantityString(item.QuantityMilli), "0"), "."),
+			typstEscape(item.Unit),
+			item.UnitPrice.String(),
+			item.TotalNet().String(),
+		))
+	}
+
+	var totals strings.Builder
+	totals.WriteString("      [Nettobetrag:], [" + inv.NetAmount.String() + " €],\n")
+	if inv.TaxTreatment == domain.TaxTreatmentDomestic {
+		for _, g := range inv.TaxGroups() {
+			if g.Tax == 0 {
+				continue
+			}
+			totals.WriteString(fmt.Sprintf("      [zzgl. %s USt:], [%s €],\n", g.Rate.Label(), g.Tax.String()))
+		}
+	}
+	totals.WriteString(`      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[` + inv.GrossAmount.String() + ` €]*],` + "\n")
+
+	// Every non-standard Steuerfall needs its legal reference printed on the
+	// invoice; § 14 Abs. 4 Nr. 8 UStG requires the reason for an exemption.
+	var note string
+	if reason := exemptionReason(inv.TaxTreatment); reason != "" {
+		note = fmt.Sprintf(`
+#v(0.3cm)
+#text(size: 8.5pt, fill: rgb("#78716c"), style: "italic")[%s]`, typstEscape(reason))
 	}
 
 	return fmt.Sprintf(`#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
@@ -160,7 +287,6 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
     #text(size: 8pt, fill: rgb("#78716c"))[%s · %s · %s]\
     #v(0.5cm)
     *#text(size: 11pt)[%s]*\
-    %s\
     %s
   ],
   [
@@ -168,7 +294,8 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
       #text(size: 16pt, weight: "bold", fill: rgb("#d97706"))[RECHNUNG]\
       #v(0.2cm)
       #text(size: 10pt, weight: "bold")[Nr. %s]\
-      Datum: %s\
+      Rechnungsdatum: %s\
+      Leistungszeitraum: %s – %s\
       Fällig bis: %s
     ]
   ]
@@ -181,12 +308,17 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
   align: (center, left, right, right, right),
   stroke: (x, y) => if y == 0 { (bottom: 1.5pt + rgb("#d97706")) } else { (bottom: 0.5pt + rgb("#e7e5e4")) },
   table.header([*Pos*], [*Bezeichnung*], [*Menge*], [*Einzelpreis*], [*Gesamt*]),
-  // Items will be rendered here
-  [1], [Dienstleistung / Lieferung], [1.0], [%.2f €], [%.2f €]
-)
+%s)
 
 #v(0.5cm)
-%s
+#align(right)[
+  #block(width: 60%%)[
+    #grid(
+      columns: (1fr, auto),
+      row-gutter: 0.3cm,
+%s    )
+  ]
+]%s
 
 #v(2cm)
 #line(length: 100%%, stroke: 0.5pt + rgb("#e7e5e4"))
@@ -195,12 +327,24 @@ func GenerateTypstTemplate(inv *models.Invoice, seller *models.CompanySettings, 
   Steuernummer: %s · USt-IdNr.: %s
 ]
 `,
-		seller.CompanyName, seller.Street, seller.ZipCity,
-		buyer.Name, buyer.Address, buyer.VatID,
-		inv.InvoiceNumber, inv.Date, inv.DueDate,
-		inv.NetAmount, inv.NetAmount,
-		totalsBlock,
-		seller.BankName, seller.IBAN, seller.BIC,
-		seller.TaxNumber, seller.VatID,
+		typstEscape(seller.CompanyName), typstEscape(seller.Street), typstEscape(seller.ZipCity),
+		typstEscape(buyer.Name), typstEscape(buyer.Address),
+		typstEscape(inv.InvoiceNumber), inv.Date, inv.ServiceDateFrom, inv.ServiceDateTo, inv.DueDate,
+		rows.String(),
+		totals.String(),
+		note,
+		typstEscape(seller.BankName), typstEscape(seller.IBAN), typstEscape(seller.BIC),
+		typstEscape(seller.TaxNumber), typstEscape(seller.VatID),
 	)
+}
+
+// typstEscape neutralises the Typst markup characters so that a customer name
+// containing a bracket or a hash cannot break the document.
+func typstEscape(s string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\", "[", "\\[", "]", "\\]",
+		"#", "\\#", "$", "\\$", "*", "\\*", "_", "\\_", "@", "\\@",
+		"\n", " \\\n",
+	)
+	return replacer.Replace(s)
 }

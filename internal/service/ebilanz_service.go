@@ -6,7 +6,6 @@ import (
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
-	"github.com/buchfink/buchfink/internal/models"
 )
 
 // EBilanzService handles official XBRL taxonomy mapping and instance generation.
@@ -45,31 +44,7 @@ func (s *EBilanzService) ExportXBRL(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to load financial summary: %w", err)
 	}
 
-	legacySettings := &models.CompanySettings{
-		CompanyName: settings.CompanyName,
-		LegalForm:   settings.LegalForm,
-		FiscalYear:  settings.FiscalYear,
-		TaxNumber:   settings.TaxNumber,
-		VatID:       settings.VatID,
-	}
-
-	var legacyAccounts []models.Account
-	for _, a := range accounts {
-		legacyAccounts = append(legacyAccounts, models.Account{
-			Number:  a.Number,
-			Name:    a.Name,
-			Type:    string(a.Type),
-			Balance: a.Balance,
-		})
-	}
-
-	legacySummary := &models.FinancialSummary{
-		TotalRevenue:  summary.TotalRevenue,
-		TotalExpenses: summary.TotalExpenses,
-		NetIncome:     summary.NetIncome,
-	}
-
-	xbrl, err := ebilanz.GenerateEBilanzXBRL(legacySettings, legacyAccounts, legacySummary)
+	xbrl, err := ebilanz.GenerateEBilanzXBRL(settings, accounts, summary)
 	if err != nil {
 		return "", err
 	}

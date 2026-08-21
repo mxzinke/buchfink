@@ -7,157 +7,215 @@ import (
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
-	"github.com/buchfink/buchfink/internal/models"
 )
 
-// InvoiceService manages outgoing invoices, ZUGFeRD XML generation and Typst rendering.
+// InvoiceService manages outgoing invoices, their booking and the ZUGFeRD /
+// Typst rendering.
 type InvoiceService struct {
 	invoiceRepo  domain.InvoiceRepository
 	contactRepo  domain.ContactRepository
 	settingsRepo domain.SettingsRepository
+	numberRepo   domain.NumberRangeRepository
+	postingSvc   *PostingService
 	auditRepo    domain.AuditRepository
 }
 
+// NewInvoiceService creates the invoice service.
 func NewInvoiceService(
 	invoiceRepo domain.InvoiceRepository,
 	contactRepo domain.ContactRepository,
 	settingsRepo domain.SettingsRepository,
+	numberRepo domain.NumberRangeRepository,
+	postingSvc *PostingService,
 	auditRepo domain.AuditRepository,
 ) *InvoiceService {
 	return &InvoiceService{
 		invoiceRepo:  invoiceRepo,
 		contactRepo:  contactRepo,
 		settingsRepo: settingsRepo,
+		numberRepo:   numberRepo,
+		postingSvc:   postingSvc,
 		auditRepo:    auditRepo,
 	}
 }
 
-func (s *InvoiceService) GetInvoices(ctx context.Context) ([]domain.Invoice, error) {
-	return s.invoiceRepo.FindAll(ctx, 0)
+// GetInvoices returns the invoices of a fiscal year.
+func (s *InvoiceService) GetInvoices(ctx context.Context, fiscalYear int) ([]domain.Invoice, error) {
+	return s.invoiceRepo.FindAll(ctx, fiscalYear)
 }
 
-func (s *InvoiceService) CreateInvoice(ctx context.Context, inv *domain.Invoice) error {
+// Issue finalises an invoice: it assigns the consecutive invoice number, books
+// the receivable and stores the document.
+//
+// Issuing and booking are one step. § 14 Abs. 4 Nr. 4 UStG requires the number
+// to be unique and consecutive, and GoBD requires the transaction to be recorded
+// when it happens — so there is no state in which an invoice exists on paper but
+// not in the journal.
+func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
+	if inv.Status == domain.InvoiceStatusIssued || inv.JournalEntryID != nil {
+		return fmt.Errorf("Rechnung %s ist bereits ausgestellt und gebucht", inv.InvoiceNumber)
+	}
+
 	if inv.Date == "" {
 		inv.Date = time.Now().Format("2006-01-02")
 	}
+	if inv.ServiceDateFrom == "" {
+		inv.ServiceDateFrom = inv.Date
+	}
+	if inv.ServiceDateTo == "" {
+		inv.ServiceDateTo = inv.ServiceDateFrom
+	}
+	if inv.Currency == "" {
+		inv.Currency = "EUR"
+	}
+	if inv.TaxTreatment == "" {
+		inv.TaxTreatment = domain.TaxTreatmentDomestic
+	}
 	if inv.FiscalYear == 0 {
-		startMonth := 1
-		if s.settingsRepo != nil {
-			if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && cfg.FiscalYearStartMonth > 0 {
-				startMonth = cfg.FiscalYearStartMonth
-			}
-		}
-		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, startMonth)
+		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, s.fiscalYearStartMonth(ctx))
 	}
 
-	// Calculate totals if not provided
-	var net, tax float64
-	for _, it := range inv.Items {
-		net += it.TotalNet
-		tax += it.TotalNet * it.TaxRate
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
 	}
-	if inv.NetAmount == 0 {
-		inv.NetAmount = net
+	if contact.Type != domain.ContactTypeCustomer {
+		return fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
 	}
-	if inv.TaxAmount == 0 {
-		inv.TaxAmount = tax
+	inv.ContactName = contact.Name
+
+	if inv.DueDate == "" {
+		days := contact.PaymentTermsDays
+		if days <= 0 {
+			days = 14
+		}
+		if t, err := time.Parse("2006-01-02", inv.Date); err == nil {
+			inv.DueDate = t.AddDate(0, 0, days).Format("2006-01-02")
+		} else {
+			inv.DueDate = inv.Date
+		}
 	}
-	if inv.GrossAmount == 0 {
-		inv.GrossAmount = inv.NetAmount + inv.TaxAmount
+
+	for i := range inv.Items {
+		if inv.Items[i].Position == 0 {
+			inv.Items[i].Position = i + 1
+		}
 	}
-	if inv.Status == "" {
-		inv.Status = domain.InvoiceStatusIssued
+	inv.Recalculate()
+
+	if err := inv.Validate(); err != nil {
+		return err
 	}
+	if err := s.validateTaxTreatment(inv, contact); err != nil {
+		return err
+	}
+
+	if inv.InvoiceNumber == "" {
+		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
+		if err != nil {
+			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
+		}
+		inv.InvoiceNumber = domain.FormatInvoiceNumber(inv.FiscalYear, seq)
+	}
+
+	entry, err := s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
+	if err != nil {
+		return err
+	}
+	inv.JournalEntryID = &entry.ID
+	inv.Status = domain.InvoiceStatusIssued
 
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
 		return err
 	}
 
 	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(
-			ctx,
-			domain.AuditActionCreate,
-			"INVOICE",
-			fmt.Sprintf("%d", inv.ID),
-			fmt.Sprintf("Rechnung %s über %.2f %s erstellt (GJ %d)", inv.InvoiceNumber, inv.GrossAmount, inv.Currency, inv.FiscalYear),
-		)
+		_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
+			fmt.Sprintf("Rechnung %s über %s %s an %s ausgestellt und als %s gebucht",
+				inv.InvoiceNumber, inv.GrossAmount, inv.Currency, contact.Name, entry.EntryNumber))
 	}
-
 	return nil
 }
 
-// GenerateZUGFeRDAndTypst generates Factur-X / ZUGFeRD XML and Typst markup source code.
+// validateTaxTreatment blocks the combinations that would produce a formally
+// wrong invoice — the ones a supplier only finds out about during an audit.
+func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *domain.Contact) error {
+	switch inv.TaxTreatment {
+	case domain.TaxTreatmentIntraCommunitySupply:
+		if !contact.IsEUCounterparty() {
+			return fmt.Errorf("eine innergemeinschaftliche Lieferung setzt einen Empfänger in einem anderen EU-Land voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
+		}
+		if contact.VatID == "" {
+			return fmt.Errorf("für eine innergemeinschaftliche Lieferung braucht %s eine USt-IdNr. (§ 6a Abs. 1 Nr. 4 UStG)", contact.Name)
+		}
+	case domain.TaxTreatmentReverseChargeSupply:
+		if contact.VatID == "" {
+			return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
+		}
+	case domain.TaxTreatmentExport:
+		if contact.IsEUCounterparty() || contact.CountryCode == "DE" || contact.CountryCode == "" {
+			return fmt.Errorf("eine Ausfuhrlieferung setzt einen Empfänger außerhalb der EU voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
+		}
+	}
+	return nil
+}
+
+// Cancel reverses an issued invoice by Generalumkehr.
+func (s *InvoiceService) Cancel(ctx context.Context, invoiceID uint, reason string) error {
+	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
+	if err != nil {
+		return err
+	}
+	if inv.Status == domain.InvoiceStatusCancelled {
+		return fmt.Errorf("Rechnung %s ist bereits storniert", inv.InvoiceNumber)
+	}
+	if inv.JournalEntryID == nil {
+		return fmt.Errorf("Rechnung %s ist nicht gebucht und kann nicht storniert werden", inv.InvoiceNumber)
+	}
+
+	if _, err := s.postingSvc.journalSvc.Reverse(ctx, *inv.JournalEntryID, reason); err != nil {
+		return err
+	}
+	return s.invoiceRepo.UpdateStatus(ctx, invoiceID, domain.InvoiceStatusCancelled)
+}
+
+// GenerateZUGFeRDAndTypst produces the Factur-X / ZUGFeRD XML and the Typst
+// source of an invoice.
 func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID uint) (xml string, typst string, err error) {
 	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
-		return "", "", fmt.Errorf("invoice ID %d not found: %w", invoiceID, err)
+		return "", "", fmt.Errorf("Rechnung %d wurde nicht gefunden: %w", invoiceID, err)
 	}
 
-	sellerSettings, err := s.settingsRepo.GetCompanySettings(ctx)
+	seller, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
-		return "", "", fmt.Errorf("company settings not found: %w", err)
+		return "", "", fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 
-	contact, _ := s.contactRepo.FindByID(ctx, inv.ContactID)
-	if contact == nil {
-		contact = &domain.Contact{
-			Name:    inv.ContactName,
-			Address: "",
-			VatID:   "",
-		}
+	buyer, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil || buyer == nil {
+		buyer = &domain.Contact{Name: inv.ContactName, CountryCode: "DE"}
 	}
 
-	// Adapter for internal invoice package
-	legacyInv := &models.Invoice{
-		InvoiceNumber: inv.InvoiceNumber,
-		Date:          inv.Date,
-		DueDate:       inv.DueDate,
-		NetAmount:     inv.NetAmount,
-		TaxAmount:     inv.TaxAmount,
-		GrossAmount:   inv.GrossAmount,
-		Currency:      inv.Currency,
-	}
-	for _, it := range inv.Items {
-		legacyInv.Items = append(legacyInv.Items, models.InvoiceItem{
-			Position:    it.Position,
-			Description: it.Description,
-			Quantity:    it.Quantity,
-			Unit:        it.Unit,
-			UnitPrice:   it.UnitPrice,
-			TaxRate:     it.TaxRate,
-			TotalNet:    it.TotalNet,
-			TotalGross:  it.TotalGross,
-		})
-	}
-
-	legacySeller := &models.CompanySettings{
-		CompanyName:     sellerSettings.CompanyName,
-		TaxNumber:       sellerSettings.TaxNumber,
-		VatID:           sellerSettings.VatID,
-		IBAN:            sellerSettings.IBAN,
-		BIC:             sellerSettings.BIC,
-		BankName:        sellerSettings.BankName,
-		Street:          sellerSettings.Street,
-		ZipCity:         sellerSettings.ZipCity,
-		IsSmallBusiness: sellerSettings.IsSmallBusiness,
-		VatPeriod:       sellerSettings.VatPeriod,
-		TaxationType:    sellerSettings.TaxationType,
-	}
-
-	legacyBuyer := &models.Contact{
-		Name:    contact.Name,
-		Address: contact.Address,
-		VatID:   contact.VatID,
-	}
-
-	xml, err = invoice.GenerateZUGFeRDXML(legacyInv, legacySeller, legacyBuyer)
+	xml, err = invoice.GenerateZUGFeRDXML(inv, seller, buyer)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate ZUGFeRD XML: %w", err)
+		return "", "", fmt.Errorf("ZUGFeRD-XML konnte nicht erzeugt werden: %w", err)
 	}
 
-	typst = invoice.GenerateTypstTemplate(legacyInv, legacySeller, legacyBuyer)
+	typst = invoice.GenerateTypstTemplate(inv, seller, buyer)
 	// TODO: Compile Typst template to PDF using typst CLI or pure-Go typst compiler
 	// TODO: Embed Factur-X / ZUGFeRD XML into PDF/A-3 as attachment
 
 	return xml, typst, nil
+}
+
+func (s *InvoiceService) fiscalYearStartMonth(ctx context.Context) int {
+	if s.settingsRepo == nil {
+		return 1
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 {
+		return 1
+	}
+	return cfg.FiscalYearStartMonth
 }

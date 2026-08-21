@@ -17,27 +17,32 @@ const (
 
 // BankTransaction represents a single transaction line from CAMT.053 or open-banking feeds.
 type BankTransaction struct {
-	ID                uint        `gorm:"primaryKey" json:"id"`
-	FiscalYear        int         `gorm:"index" json:"fiscalYear"`
-	AccountIBAN       string      `gorm:"size:34;not null;index" json:"accountIban"`
-	BookingDate       string      `gorm:"size:10;not null;index" json:"bookingDate"`
-	ValueDate         string      `gorm:"size:10;not null" json:"valueDate"`
-	Amount            float64     `gorm:"not null" json:"amount"` // Positive: Credit (inflow), Negative: Debit (outflow)
-	Currency          string      `gorm:"size:3;default:'EUR'" json:"currency"`
-	CounterpartyName  string      `gorm:"size:255;index" json:"counterpartyName"`
-	CounterpartyIBAN  string      `gorm:"size:34;serializer:encrypted" json:"counterpartyIban"`
-	RemittanceInfo    string      `gorm:"type:text;serializer:encrypted" json:"remittanceInfo"` // Verwendungszweck (verschlüsselt)
-	EndToEndID        string      `gorm:"size:100;index" json:"endToEndId"`
-	MatchStatus       MatchStatus `gorm:"size:20;default:'unmatched';index" json:"matchStatus"`
-	MatchedBookingID  *uint       `gorm:"index" json:"matchedBookingId,omitempty"`
-	SuggestedAccount  string      `gorm:"size:10" json:"suggestedAccount,omitempty"`
-	SuggestedContact  string      `gorm:"size:255" json:"suggestedContact,omitempty"`
-	CreatedAt         time.Time   `json:"createdAt"`
-	UpdatedAt         time.Time   `json:"updatedAt"`
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	FiscalYear  int    `gorm:"index" json:"fiscalYear"`
+	AccountIBAN string `gorm:"size:34;not null;index" json:"accountIban"`
+	BookingDate string `gorm:"size:10;not null;index" json:"bookingDate"`
+	ValueDate   string `gorm:"size:10;not null" json:"valueDate"`
+	// Amount is positive for money coming in and negative for money going out.
+	Amount           Cents       `gorm:"not null" json:"amount"`
+	Currency         string      `gorm:"size:3;default:'EUR'" json:"currency"`
+	CounterpartyName string      `gorm:"size:255;index" json:"counterpartyName"`
+	CounterpartyIBAN string      `gorm:"size:34;serializer:encrypted" json:"counterpartyIban"`
+	RemittanceInfo   string      `gorm:"type:text;serializer:encrypted" json:"remittanceInfo"` // Verwendungszweck
+	EndToEndID       string      `gorm:"size:100;index" json:"endToEndId"`
+	MatchStatus      MatchStatus `gorm:"size:20;default:'unmatched';index" json:"matchStatus"`
+	// LedgerAccount is the own liquid account this statement belongs to, e.g.
+	// "1800". Hard-coding a single bank account stops working as soon as a
+	// company has a second one, a credit card or a payment provider.
+	LedgerAccount string    `gorm:"size:10;default:'1800'" json:"ledgerAccount"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+
+	// MatchedAmount is the part of the transaction already assigned to bookings,
+	// computed on read. A statement line can settle several open items.
+	MatchedAmount Cents `gorm:"-" json:"matchedAmount"`
 
 	// TODO: Add support for CAMT.052 (intraday) and CAMT.054 (credit/debit notifications)
 	// TODO: Add support for MT940 legacy format parser
-	// TODO: Add multi-bank account management
 }
 
 // BankRepository defines persistence operations for bank transactions.
@@ -45,7 +50,7 @@ type BankRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]BankTransaction, error)
 	FindByID(ctx context.Context, id uint) (*BankTransaction, error)
 	CreateBatch(ctx context.Context, transactions []BankTransaction) (int, error)
-	MarkMatched(ctx context.Context, id uint, bookingID uint) error
+	SetMatchStatus(ctx context.Context, id uint, status MatchStatus) error
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 }
 

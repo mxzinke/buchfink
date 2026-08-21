@@ -31,16 +31,19 @@ type BuchfinkBridge struct {
 	locked      bool            // true when the active tenant's keychain secret is missing (needs recovery)
 
 	// Repositories
-	accountRepo  domain.AccountRepository
-	bookingRepo  domain.BookingRepository
-	bankRepo     domain.BankRepository
-	contactRepo  domain.ContactRepository
-	invoiceRepo  domain.InvoiceRepository
+	accountRepo        domain.AccountRepository
+	journalRepo        domain.JournalRepository
+	bankRepo           domain.BankRepository
+	contactRepo        domain.ContactRepository
+	invoiceRepo        domain.InvoiceRepository
+	numberRepo         domain.NumberRangeRepository
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 
 	// Services
+	journalSvc    *service.JournalService
+	postingSvc    *service.PostingService
 	accountingSvc *service.AccountingService
 	bankSvc       *service.BankService
 	invoiceSvc    *service.InvoiceService
@@ -154,7 +157,8 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 
 	// Wire Repositories
 	b.accountRepo = repository.NewAccountRepository(db)
-	b.bookingRepo = repository.NewBookingRepository(db)
+	b.journalRepo = repository.NewJournalRepository(db)
+	b.numberRepo = repository.NewNumberRangeRepository(db)
 	b.bankRepo = repository.NewBankRepository(db)
 	b.contactRepo = repository.NewContactRepository(db)
 	b.invoiceRepo = repository.NewInvoiceRepository(db)
@@ -176,12 +180,15 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	}
 	b.currentYear = fiscalYear
 
-	// Wire Services
-	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.bookingRepo, b.settingsRepo, b.auditRepo, fiscalYear)
-	b.accountingSvc.SetFestschreibungRepo(b.festschreibungRepo)
-	b.bankSvc = service.NewBankService(b.bankRepo, b.accountingSvc, b.auditRepo)
-	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.auditRepo)
-	b.contactSvc = service.NewContactService(b.contactRepo, b.auditRepo)
+	// Wire Services. JournalService is the single write path; everything that
+	// produces a booking goes through it.
+	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, fiscalYear)
+	b.journalSvc.SetFestschreibungRepo(b.festschreibungRepo)
+	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
+	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
+	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
+	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
+	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
@@ -650,20 +657,11 @@ func (b *BuchfinkBridge) GetAccountByNumber(number string) (*domain.Account, err
 	return b.accountingSvc.GetAccountByNumber(context.Background(), number)
 }
 
-func (b *BuchfinkBridge) GetAccountBookings(accountNumber string) ([]domain.BookingEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return nil, nil
-	}
-	return b.accountingSvc.GetAccountBookings(context.Background(), accountNumber)
-}
-
 func (b *BuchfinkBridge) GetAccountLedger(accountNumber string) (*domain.AccountLedger, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("accounting service not initialized")
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.accountingSvc.GetAccountLedger(context.Background(), accountNumber)
 }
@@ -672,63 +670,109 @@ func (b *BuchfinkBridge) GetSuSaOverview() (*domain.SuSaOverview, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("accounting service not initialized")
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.accountingSvc.GetSuSaOverview(context.Background())
 }
 
 func (b *BuchfinkBridge) GetSKR04Catalog() (*accounting.SKR04Catalog, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return accounting.GetSKR04Catalog()
-	}
-	return b.accountingSvc.GetSKR04Catalog(context.Background())
+	return accounting.GetSKR04Catalog()
 }
 
-func (b *BuchfinkBridge) GetBookings() ([]domain.BookingEntry, error) {
+// GetPostingGroups returns the fachliche Gruppen the user picks from instead of
+// account numbers. "incoming" for Eingangsbelege, "outgoing" for Erlöse, empty
+// for both.
+func (b *BuchfinkBridge) GetPostingGroups(direction string) []accounting.PostingGroup {
+	return accounting.PostingGroups(domain.Direction(direction))
+}
+
+// GetTaxTreatments returns the Steuerfälle valid for a direction, with the hints
+// the UI shows next to them.
+func (b *BuchfinkBridge) GetTaxTreatments(direction string) []domain.TaxTreatmentInfo {
+	return domain.TaxTreatments(domain.Direction(direction))
+}
+
+// GetPaymentAccounts lists the accounts that can settle a document immediately.
+func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
 		return nil, nil
 	}
-	return b.accountingSvc.GetBookings(context.Background())
+	all, err := b.accountingSvc.GetAccounts(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	liquid := map[string]bool{}
+	for _, a := range domain.LiquidAccounts() {
+		liquid[a] = true
+	}
+	var result []domain.Account
+	for _, a := range all {
+		if liquid[a.Number] {
+			result = append(result, a)
+		}
+	}
+	return result, nil
 }
 
-func (b *BuchfinkBridge) GetAllBookings() ([]domain.BookingEntry, error) {
+func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
 		return nil, nil
 	}
-	return b.accountingSvc.GetAllBookings(context.Background())
+	return b.accountingSvc.GetEntries(context.Background())
 }
 
-func (b *BuchfinkBridge) CreateBooking(entry domain.BookingEntry) (*domain.BookingEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("accounting service not initialized")
+		return nil, nil
 	}
-	return b.accountingSvc.CreateBooking(context.Background(), &entry)
+	return b.accountingSvc.GetAllEntries(context.Background())
 }
 
-func (b *BuchfinkBridge) StornoBooking(bookingID uint, reason string) (*domain.BookingEntry, error) {
+// PostJournalEntry books a manually composed Buchungssatz. The journal enforces
+// the rules; the frontend only collects the input.
+func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("accounting service not initialized")
+	if b.journalSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
-	return b.accountingSvc.StornoBooking(context.Background(), bookingID, reason)
+	return b.journalSvc.Post(context.Background(), &entry)
+}
+
+// PostIncomingReceipt books an Eingangsbeleg from the fachliche Gruppe, the
+// Steuerfall and the payment state.
+func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.postingSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.postingSvc.PostIncomingReceipt(context.Background(), req)
+}
+
+// ReverseJournalEntry cancels a booking by Generalumkehr.
+func (b *BuchfinkBridge) ReverseJournalEntry(entryID uint, reason string) (*domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.journalSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.journalSvc.Reverse(context.Background(), entryID, reason)
 }
 
 func (b *BuchfinkBridge) VerifyIntegrity() (domain.IntegrityCheckResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
+	if b.journalSvc == nil {
 		return domain.IntegrityCheckResult{IsValid: true, Message: "Bereit"}, nil
 	}
-	return b.accountingSvc.VerifyIntegrity(context.Background())
+	return b.journalSvc.VerifyIntegrity(context.Background())
 }
 
 func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error) {
@@ -750,28 +794,38 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 	if b.bankSvc == nil {
 		return nil, nil
 	}
-	return b.bankSvc.GetTransactions(context.Background())
+	return b.bankSvc.GetTransactions(context.Background(), b.currentYear)
 }
 
-func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string) (int, error) {
+// ImportCAMT053XML imports a statement for one liquid account. The account is an
+// explicit parameter: a company usually has more than one.
+func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount string) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.bankSvc == nil {
-		return 0, fmt.Errorf("bank service not initialized")
+		return 0, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
-	return b.bankSvc.ImportCAMT053(context.Background(), bytes.NewBufferString(xmlContent))
+	return b.bankSvc.ImportCAMT053(context.Background(), bytes.NewBufferString(xmlContent), ledgerAccount)
 }
 
-func (b *BuchfinkBridge) MatchAndBookTransaction(
-	bankTxID uint,
-	debitAcc, creditAcc, receiptNr, desc string,
-) (*domain.BookingEntry, error) {
+// BookBankTransactionDirect books a statement line that has no document behind
+// it (fees, interest, transfers between own accounts).
+func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.bankSvc == nil {
-		return nil, fmt.Errorf("bank service not initialized")
+		return nil, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
-	return b.bankSvc.MatchAndBook(context.Background(), bankTxID, debitAcc, creditAcc, receiptNr, desc)
+	return b.bankSvc.BookDirect(context.Background(), bankTxID, counterAccount, description)
+}
+
+func (b *BuchfinkBridge) IgnoreBankTransaction(bankTxID uint) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.bankSvc == nil {
+		return fmt.Errorf("Bankimport ist noch nicht initialisiert")
+	}
+	return b.bankSvc.Ignore(context.Background(), bankTxID)
 }
 
 // -------------------------------------------------------------
@@ -791,12 +845,21 @@ func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.contactSvc == nil {
-		return nil, fmt.Errorf("contact service not initialized")
+		return nil, fmt.Errorf("Stammdaten sind noch nicht initialisiert")
 	}
 	if err := b.contactSvc.SaveContact(context.Background(), &c); err != nil {
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (b *BuchfinkBridge) DeleteContact(id uint) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.contactSvc == nil {
+		return fmt.Errorf("Stammdaten sind noch nicht initialisiert")
+	}
+	return b.contactSvc.DeleteContact(context.Background(), id)
 }
 
 func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
@@ -805,26 +868,37 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	if b.invoiceSvc == nil {
 		return nil, nil
 	}
-	return b.invoiceSvc.GetInvoices(context.Background())
+	return b.invoiceSvc.GetInvoices(context.Background(), b.currentYear)
 }
 
-func (b *BuchfinkBridge) CreateInvoice(inv domain.Invoice) (*domain.Invoice, error) {
+// IssueInvoice assigns the consecutive invoice number and books the receivable
+// in one step — an invoice never exists on paper without being in the journal.
+func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.invoiceSvc == nil {
-		return nil, fmt.Errorf("invoice service not initialized")
+		return nil, fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
-	if err := b.invoiceSvc.CreateInvoice(context.Background(), &inv); err != nil {
+	if err := b.invoiceSvc.Issue(context.Background(), &inv); err != nil {
 		return nil, err
 	}
 	return &inv, nil
+}
+
+func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.invoiceSvc == nil {
+		return fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
+	}
+	return b.invoiceSvc.Cancel(context.Background(), invoiceID, reason)
 }
 
 func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.invoiceSvc == nil {
-		return "", "", fmt.Errorf("invoice service not initialized")
+		return "", "", fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
 	return b.invoiceSvc.GenerateZUGFeRDAndTypst(context.Background(), invoiceID)
 }
@@ -850,4 +924,3 @@ func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 	}
 	return b.auditSvc.GetLogs(context.Background(), 200)
 }
-

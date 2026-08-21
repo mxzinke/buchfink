@@ -3,11 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -25,10 +22,6 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	}
 
 	dbPath := filepath.Join(dataDir, "buchfink.sqlite")
-	isNewDB := false
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		isNewDB = true
-	}
 
 	// DSN with WAL mode and busy timeout for concurrent safety
 	dsn := fmt.Sprintf("%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)", dbPath)
@@ -44,13 +37,6 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to run database automigrations: %w", err)
 	}
 
-	if isNewDB {
-		// Migrate legacy yearly databases if found in directory
-		if err := migrateLegacyYearDBs(dataDir, db); err != nil {
-			log.Printf("Notice: legacy DB migration returned: %v", err)
-		}
-	}
-
 	currentYear := time.Now().Year()
 	if err := SeedDefaultsIfEmpty(context.Background(), db, currentYear); err != nil {
 		return nil, fmt.Errorf("failed to seed initial SKR04 data: %w", err)
@@ -62,92 +48,6 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 // InitDB initializes a GORM SQLite database (backward compatibility alias for InitTenantDB).
 func InitDB(dataDir string, year int) (*gorm.DB, error) {
 	return InitTenantDB(dataDir)
-}
-
-// migrateLegacyYearDBs inspects dataDir for older buchfink_YYYY.sqlite files and imports their data into buchfink.sqlite.
-func migrateLegacyYearDBs(dataDir string, targetDB *gorm.DB) error {
-	entries, err := os.ReadDir(dataDir)
-	if err != nil {
-		return nil
-	}
-
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if strings.HasPrefix(name, "buchfink_") && strings.HasSuffix(name, ".sqlite") && name != "buchfink.sqlite" {
-			part := strings.TrimPrefix(name, "buchfink_")
-			part = strings.TrimSuffix(part, ".sqlite")
-			year, err := strconv.Atoi(part)
-			if err != nil || year < 1900 || year > 2100 {
-				continue
-			}
-
-			legacyPath := filepath.Join(dataDir, name)
-			legacyDB, err := gorm.Open(sqlite.Open(legacyPath), &gorm.Config{
-				Logger: logger.Default.LogMode(logger.Silent),
-			})
-			if err != nil {
-				continue
-			}
-
-			// 1. Copy contacts if target has none
-			var cCount int64
-			targetDB.Model(&domain.Contact{}).Count(&cCount)
-			if cCount == 0 {
-				var contacts []domain.Contact
-				if err := legacyDB.Find(&contacts).Error; err == nil && len(contacts) > 0 {
-					_ = targetDB.Create(&contacts).Error
-				}
-			}
-
-			// 2. Copy settings if target has none
-			var sCount int64
-			targetDB.Model(&domain.SettingItem{}).Count(&sCount)
-			if sCount == 0 {
-				var settings []domain.SettingItem
-				if err := legacyDB.Find(&settings).Error; err == nil && len(settings) > 0 {
-					_ = targetDB.Create(&settings).Error
-				}
-			}
-
-			// 3. Copy bookings with fiscal_year set to file's year
-			var bookings []domain.BookingEntry
-			if err := legacyDB.Find(&bookings).Error; err == nil && len(bookings) > 0 {
-				for i := range bookings {
-					if bookings[i].FiscalYear == 0 {
-						bookings[i].FiscalYear = year
-					}
-				}
-				_ = targetDB.Create(&bookings).Error
-			}
-
-			// 4. Copy invoices with fiscal_year set
-			var invoices []domain.Invoice
-			if err := legacyDB.Preload("Items").Find(&invoices).Error; err == nil && len(invoices) > 0 {
-				for i := range invoices {
-					if invoices[i].FiscalYear == 0 {
-						invoices[i].FiscalYear = year
-					}
-				}
-				_ = targetDB.Create(&invoices).Error
-			}
-
-			// 5. Copy bank transactions with fiscal_year set
-			var bankTxs []domain.BankTransaction
-			if err := legacyDB.Find(&bankTxs).Error; err == nil && len(bankTxs) > 0 {
-				for i := range bankTxs {
-					if bankTxs[i].FiscalYear == 0 {
-						bankTxs[i].FiscalYear = year
-					}
-				}
-				_ = targetDB.Create(&bankTxs).Error
-			}
-		}
-	}
-
-	return nil
 }
 
 // InitInMemoryDB initializes an ephemeral SQLite database for unit and integration testing.
@@ -170,7 +70,9 @@ func InitInMemoryDB() (*gorm.DB, error) {
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&domain.Account{},
-		&domain.BookingEntry{},
+		&domain.JournalEntry{},
+		&domain.JournalLine{},
+		&domain.NumberRange{},
 		&domain.BankTransaction{},
 		&domain.Contact{},
 		&domain.Invoice{},
@@ -236,4 +138,3 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 
 	return nil
 }
-

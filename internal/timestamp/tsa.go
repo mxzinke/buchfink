@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	_ "crypto/sha256" // register SHA-256 for crypto.SHA256.New()
 	"crypto/rand"
+	_ "crypto/sha256" // register SHA-256 for crypto.SHA256.New()
 	"encoding/hex"
 	"fmt"
 	"io"

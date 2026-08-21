@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"html"
 
-	"github.com/buchfink/buchfink/internal/models"
+	"github.com/buchfink/buchfink/internal/domain"
 )
 
 // TaxonomyMapping maps an SKR04 account number to standard XBRL German GAAP 6.x taxonomy elements.
@@ -52,7 +52,7 @@ var skr04ToXBRL = map[string]string{
 
 // GenerateEBilanzXBRL creates an official, valid XBRL instance file for German E-Bilanz
 // based on GAAP Taxonomie 6.7, including full Kontennachweis.
-func GenerateEBilanzXBRL(settings *models.CompanySettings, accounts []models.Account, summary *models.FinancialSummary) (string, error) {
+func GenerateEBilanzXBRL(settings *domain.CompanySettings, accounts []domain.Account, summary *domain.FinancialSummary) (string, error) {
 	year := settings.FiscalYear
 	startDate := fmt.Sprintf("%d-01-01", year)
 	endDate := fmt.Sprintf("%d-12-31", year)
@@ -72,12 +72,12 @@ func GenerateEBilanzXBRL(settings *models.CompanySettings, accounts []models.Acc
 			<de-gaap-ci:accountNumber>%s</de-gaap-ci:accountNumber>
 			<de-gaap-ci:accountLabel>%s</de-gaap-ci:accountLabel>
 			<de-gaap-ci:accountTaxonomyPosition>%s</de-gaap-ci:accountTaxonomyPosition>
-			<de-gaap-ci:accountBalance unitRef="EUR" decimals="2">%.2f</de-gaap-ci:accountBalance>
+			<de-gaap-ci:accountBalance unitRef="EUR" decimals="2">%s</de-gaap-ci:accountBalance>
 		</de-gaap-ci:accountAuditProof>`,
 			html.EscapeString(acc.Number),
 			html.EscapeString(acc.Name),
 			xbrlPos,
-			acc.Balance,
+			acc.Balance.Decimal(),
 		))
 	}
 
@@ -125,9 +125,9 @@ func GenerateEBilanzXBRL(settings *models.CompanySettings, accounts []models.Acc
 	<de-gcd:genInfo.report.accountScheme contextRef="ctx_duration">SKR04</de-gcd:genInfo.report.accountScheme>
 
 	<!-- GAAP Modul: Bilanz & GuV Zusammenfassung -->
-	<de-gaap-ci:is.netSales contextRef="ctx_duration" unitRef="EUR" decimals="2">%.2f</de-gaap-ci:is.netSales>
-	<de-gaap-ci:is.operatingExpenses contextRef="ctx_duration" unitRef="EUR" decimals="2">%.2f</de-gaap-ci:is.operatingExpenses>
-	<de-gaap-ci:is.netIncome contextRef="ctx_duration" unitRef="EUR" decimals="2">%.2f</de-gaap-ci:is.netIncome>
+	<de-gaap-ci:is.netSales contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.netSales>
+	<de-gaap-ci:is.operatingExpenses contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.operatingExpenses>
+	<de-gaap-ci:is.netIncome contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.netIncome>
 
 	<!-- Kontennachweis (Audit Proof per SKR04 Account) -->
 	%s
@@ -141,9 +141,9 @@ func GenerateEBilanzXBRL(settings *models.CompanySettings, accounts []models.Acc
 		html.EscapeString(settings.TaxNumber),
 		html.EscapeString(settings.VatID),
 		startDate, endDate,
-		summary.TotalRevenue,
-		summary.TotalExpenses,
-		summary.NetIncome,
+		summary.TotalRevenue.Decimal(),
+		summary.TotalExpenses.Decimal(),
+		summary.NetIncome.Decimal(),
 		proofOfAccountsBuf.String(),
 	)
 

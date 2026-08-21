@@ -67,4 +67,3 @@ type SettingsRepository interface {
 	GetCompanySettings(ctx context.Context) (*CompanySettings, error)
 	UpdateCompanySettings(ctx context.Context, settings *CompanySettings) error
 }
-
