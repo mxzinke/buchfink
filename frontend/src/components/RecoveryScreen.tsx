@@ -20,7 +20,7 @@ export const RecoveryScreen: React.FC<RecoveryScreenProps> = ({ activeTenant, on
   const handleRecover = async () => {
     setError(null);
     try {
-      const path = await Api.selectRecoveryFile();
+      const path = await Api.selectRecoveryFile('Recovery-Schlüsseldatei auswählen');
       if (!path) return; // user cancelled the picker
       setIsRecovering(true);
       await Api.recoverFromFile(path);

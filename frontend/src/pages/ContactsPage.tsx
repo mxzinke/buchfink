@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Building, User, Mail, CreditCard } from 'lucide-react';
 import { Contact } from '../types';
 import { Api } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import { formatCents } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
 
 export const ContactsPage: React.FC = () => {
@@ -76,7 +76,7 @@ export const ContactsPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-stone-900">{c.name}</h3>
-                    <div className="text-xs font-mono text-stone-500">{c.number}</div>
+                    <div className="text-xs font-mono text-stone-500">{c.ledgerAccount}</div>
                   </div>
                 </div>
 
@@ -109,7 +109,7 @@ export const ContactsPage: React.FC = () => {
               <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
                 <span className="text-stone-500">Offener Betrag:</span>
                 <span className="font-mono font-bold text-stone-900">
-                  {formatCurrency(c.openAmount)}
+                  {formatCents(c.openAmount)}
                 </span>
               </div>
             </div>

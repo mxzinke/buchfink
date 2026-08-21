@@ -5,16 +5,16 @@ import {
   ReceiptText,
   Info,
 } from 'lucide-react';
-import { Account, FinancialSummary, CompanySettings, BookingEntry } from '../types';
+import { Account, FinancialSummary, CompanySettings, VatSummary } from '../types';
 import { Api } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import { formatCents } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
 
 export const ReportsPage: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [bookings, setBookings] = useState<BookingEntry[]>([]);
+  const [vatByPeriod, setVatByPeriod] = useState<Record<string, VatSummary>>({});
   const [activeTab, setActiveTab] = useState<'guv' | 'bilanz' | 'ust'>('guv');
 
   // USt Period selection (adapted to client config)
@@ -27,16 +27,28 @@ export const ReportsPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [accs, sum, cfg, bks] = await Promise.all([
+      const [accs, sum, cfg] = await Promise.all([
         Api.getAccounts(),
         Api.getFinancialSummary(),
         Api.getCompanySettings(),
-        Api.getBookings(),
       ]);
       setAccounts(accs);
       setSummary(sum);
       setSettings(cfg);
-      setBookings(bks);
+
+      // Die Umsatzsteuerzahlen kommen aus dem Backend, wo an jeder Buchungszeile
+      // der Steuerschlüssel und die Bemessungsgrundlage hängen. Sie hier aus
+      // Kontonummern zu rekonstruieren wäre eine zweite, abweichende Wahrheit.
+      const year = cfg.fiscalYear || new Date().getFullYear();
+      const periods: Array<[string, string, string]> = [['year', '', '']];
+      for (let q = 1; q <= 4; q++) {
+        periods.push([`q${q}`, `${year}-${String(q * 3 - 2).padStart(2, '0')}-01`, endOfMonth(year, q * 3)]);
+      }
+      for (let m = 1; m <= 12; m++) {
+        periods.push([`m${m}`, `${year}-${String(m).padStart(2, '0')}-01`, endOfMonth(year, m)]);
+      }
+      const results = await Promise.all(periods.map(([, from, to]) => Api.getVatSummary(from, to)));
+      setVatByPeriod(Object.fromEntries(periods.map(([key], i) => [key, results[i]])));
 
       // Default selected period to current quarter / month
       const curMonth = new Date().getMonth() + 1;
@@ -73,104 +85,48 @@ export const ReportsPage: React.FC = () => {
   const totalAssets = assetAccounts.reduce((sum, a) => sum + a.balance, 0);
   const totalLiabilities = liabilityAccounts.reduce((sum, a) => sum + a.balance, 0);
 
-  // -------------------------------------------------------------
-  // Dynamic USt / VAT Calculations
-  // -------------------------------------------------------------
-  const calculateVatForBookings = (entryList: BookingEntry[]) => {
-    let rev19Net = 0;
-    let rev7Net = 0;
-    let revExemptNet = 0;
-    let tax19 = 0;
-    let tax7 = 0;
-    let inputTax = 0;
-
-    const stornoedIds = new Set(
-      entryList
-        .filter((b) => b.stornoForId != null)
-        .map((b) => b.stornoForId)
-    );
-
-    for (const b of entryList) {
-      if (b.isStorno || (b.id && stornoedIds.has(b.id))) continue;
-
-      // Revenue 19%
-      if (b.creditAccount === '4400' || b.taxCode === '19' || b.taxCode === 'VAT19') {
-        const net = b.amount;
-        rev19Net += net;
-        tax19 += b.taxAmount > 0 ? b.taxAmount : net * 0.19;
-      }
-      // Revenue 7%
-      else if (b.creditAccount === '4300' || b.taxCode === '7' || b.taxCode === 'VAT7') {
-        const net = b.amount;
-        rev7Net += net;
-        tax7 += b.taxAmount > 0 ? b.taxAmount : net * 0.07;
-      }
-      // Exempt revenue
-      else if (b.creditAccount === '4185' || b.creditAccount === '4100' || b.creditAccount === '4120') {
-        revExemptNet += b.amount;
-      }
-
-      // Input tax from expenses
-      if (b.debitAccount === '1406' || b.debitAccount === '1401') {
-        inputTax += b.amount;
-      } else if (b.debitAccount.startsWith('6') || b.debitAccount.startsWith('49')) {
-        if (b.taxAmount > 0) {
-          inputTax += b.taxAmount;
-        } else if (b.taxCode === '19') {
-          inputTax += (b.amount * 0.19) / 1.19;
-        }
-      }
-    }
-
-    const totalTax = tax19 + tax7;
-    const zahllast = totalTax - inputTax;
+  // Die Zahlen der Voranmeldung kommen fertig aus dem Backend; hier werden sie
+  // nur auf die Feldnamen der Ansicht gebracht.
+  const vatView = (key: string) => {
+    const v = vatByPeriod[key];
+    const groups = v?.taxableRevenue ?? [];
+    const find = (rate: number) => groups.find((g) => g.rate === rate);
+    const rev19 = find(1900);
+    const rev7 = find(700);
+    const exempt =
+      (v?.exemptRevenue ?? 0) +
+      (v?.intraCommunitySupply ?? 0) +
+      (v?.export ?? 0) +
+      (v?.reverseChargeSupply ?? 0);
 
     return {
-      rev19Net,
-      tax19,
-      rev7Net,
-      tax7,
-      revExemptNet,
-      totalRevenueNet: rev19Net + rev7Net + revExemptNet,
-      totalTax,
-      inputTax,
-      zahllast,
+      rev19Net: rev19?.net ?? 0,
+      tax19: rev19?.tax ?? 0,
+      rev7Net: rev7?.net ?? 0,
+      tax7: rev7?.tax ?? 0,
+      revExemptNet: exempt,
+      totalRevenueNet: (rev19?.net ?? 0) + (rev7?.net ?? 0) + exempt,
+      totalTax: v?.totalOwedTax ?? 0,
+      inputTax: v?.inputTax ?? 0,
+      zahllast: v?.payable ?? 0,
+      reverseChargeTax: v?.reverseChargeTax ?? 0,
+      intraCommunityTax: v?.intraCommunityAcquisitionTax ?? 0,
     };
   };
 
-  const getBookingsForPeriod = (quarter?: number, month?: number) => {
-    return bookings.filter((b) => {
-      if (!b.date) return false;
-      const d = new Date(b.date);
-      const m = d.getMonth() + 1;
-      if (month) return m === month;
-      if (quarter) {
-        const q = Math.floor((m - 1) / 3) + 1;
-        return q === quarter;
-      }
-      return true;
-    });
-  };
-
-  // Full Year VAT
-  const fullYearVat = calculateVatForBookings(bookings);
-
-  // Active selected period VAT based on client configuration
+  const fullYearVat = vatView('year');
   const activePeriodVat =
     vatPeriod === 'month'
-      ? calculateVatForBookings(getBookingsForPeriod(undefined, selectedMonth))
+      ? vatView(`m${selectedMonth}`)
       : vatPeriod === 'quarter'
-      ? calculateVatForBookings(getBookingsForPeriod(selectedQuarter, undefined))
+      ? vatView(`q${selectedQuarter}`)
       : fullYearVat;
 
-  const quartersData = [1, 2, 3, 4].map((q) => {
-    const qBookings = getBookingsForPeriod(q, undefined);
-    return {
-      quarter: q,
-      label: `Q${q} (${q === 1 ? 'Jan–Mär' : q === 2 ? 'Apr–Jun' : q === 3 ? 'Jul–Sep' : 'Okt–Dez'})`,
-      ...calculateVatForBookings(qBookings),
-    };
-  });
+  const quartersData = [1, 2, 3, 4].map((q) => ({
+    quarter: q,
+    label: `Q${q} (${q === 1 ? 'Jan–Mär' : q === 2 ? 'Apr–Jun' : q === 3 ? 'Jul–Sep' : 'Okt–Dez'})`,
+    ...vatView(`q${q}`),
+  }));
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -243,7 +199,7 @@ export const ReportsPage: React.FC = () => {
                 1. Einnahmen (Erlöse)
               </h3>
               <span className="font-mono font-bold text-sm text-stone-900">
-                {formatCurrency(summary?.totalRevenue || 0)}
+                {formatCents(summary?.totalRevenue || 0)}
               </span>
             </div>
 
@@ -258,7 +214,7 @@ export const ReportsPage: React.FC = () => {
                       <span className="text-stone-800">{acc.name}</span>
                     </div>
                     <span className="font-mono font-bold text-stone-900">
-                      {formatCurrency(acc.balance)}
+                      {formatCents(acc.balance)}
                     </span>
                   </div>
                 ))
@@ -274,7 +230,7 @@ export const ReportsPage: React.FC = () => {
                 2. Ausgaben (Aufwendungen)
               </h3>
               <span className="font-mono font-bold text-sm text-stone-900">
-                {formatCurrency(summary?.totalExpenses || 0)}
+                {formatCents(summary?.totalExpenses || 0)}
               </span>
             </div>
 
@@ -289,7 +245,7 @@ export const ReportsPage: React.FC = () => {
                       <span className="text-stone-800">{acc.name}</span>
                     </div>
                     <span className="font-mono font-bold text-stone-900">
-                      {formatCurrency(acc.balance)}
+                      {formatCents(acc.balance)}
                     </span>
                   </div>
                 ))
@@ -310,7 +266,7 @@ export const ReportsPage: React.FC = () => {
               </p>
             </div>
             <div className="text-2xl font-extrabold font-mono text-amber-900">
-              {formatCurrency(summary?.netIncome || 0)}
+              {formatCents(summary?.netIncome || 0)}
             </div>
           </div>
         </div>
@@ -326,7 +282,7 @@ export const ReportsPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-bold text-stone-900">Vermögen & Bank (Aktiva)</h3>
               <span className="font-mono font-bold text-sm text-stone-900">
-                {formatCurrency(totalAssets)}
+                {formatCents(totalAssets)}
               </span>
             </div>
 
@@ -338,7 +294,7 @@ export const ReportsPage: React.FC = () => {
                     <span className="text-stone-800">{acc.name}</span>
                   </div>
                   <span className="font-mono font-bold text-stone-900">
-                    {formatCurrency(acc.balance)}
+                    {formatCents(acc.balance)}
                   </span>
                 </div>
               ))}
@@ -350,7 +306,7 @@ export const ReportsPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-bold text-stone-900">Eigenkapital & Verbindlichkeiten (Passiva)</h3>
               <span className="font-mono font-bold text-sm text-stone-900">
-                {formatCurrency(totalLiabilities)}
+                {formatCents(totalLiabilities)}
               </span>
             </div>
 
@@ -362,7 +318,7 @@ export const ReportsPage: React.FC = () => {
                     <span className="text-stone-800">{acc.name}</span>
                   </div>
                   <span className="font-mono font-bold text-stone-900">
-                    {formatCurrency(acc.balance)}
+                    {formatCents(acc.balance)}
                   </span>
                 </div>
               ))}
@@ -403,7 +359,7 @@ export const ReportsPage: React.FC = () => {
                 <div className="p-4 bg-stone-50 rounded-xl border border-stone-200/80 space-y-1">
                   <span className="text-stone-500 font-medium">Gesamtumsatz Geschäftsjahr {currentYear}:</span>
                   <div className="text-xl font-bold font-mono text-stone-900">
-                    {formatCurrency(summary?.totalRevenue || 0)}
+                    {formatCents(summary?.totalRevenue || 0)}
                   </div>
                   <span className="text-[11px] text-stone-400">Erfasste steuerfreie Betriebseinnahmen</span>
                 </div>
@@ -425,7 +381,7 @@ export const ReportsPage: React.FC = () => {
                   Hinweis zur Jahressteuererklärung:
                 </div>
                 <p className="text-[11px] leading-relaxed">
-                  Im Rahmen der jährlichen Umsatzsteuererklärung tragen Sie Ihren Gesamtumsatz ({formatCurrency(summary?.totalRevenue || 0)}) in die Zeile für Kleinunternehmer (§ 19 Abs. 1 UStG) ein. Eine laufende USt-Zahllast entsteht nicht.
+                  Im Rahmen der jährlichen Umsatzsteuererklärung tragen Sie Ihren Gesamtumsatz ({formatCents(summary?.totalRevenue || 0)}) in die Zeile für Kleinunternehmer (§ 19 Abs. 1 UStG) ein. Eine laufende USt-Zahllast entsteht nicht.
                 </p>
               </div>
             </div>
@@ -452,27 +408,27 @@ export const ReportsPage: React.FC = () => {
                 <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
                   <span className="text-stone-500 font-medium">1. Gesamterlöse (Netto)</span>
                   <div className="text-xl font-bold font-mono text-stone-900">
-                    {formatCurrency(fullYearVat.totalRevenueNet)}
+                    {formatCents(fullYearVat.totalRevenueNet)}
                   </div>
                   <span className="text-[11px] text-stone-400">
-                    19%: {formatCurrency(fullYearVat.rev19Net)} &bull; 7%: {formatCurrency(fullYearVat.rev7Net)}
+                    19%: {formatCents(fullYearVat.rev19Net)} &bull; 7%: {formatCents(fullYearVat.rev7Net)}
                   </span>
                 </div>
 
                 <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
                   <span className="text-stone-500 font-medium">2. Entstandene USt</span>
                   <div className="text-xl font-bold font-mono text-amber-800">
-                    {formatCurrency(fullYearVat.totalTax)}
+                    {formatCents(fullYearVat.totalTax)}
                   </div>
                   <span className="text-[11px] text-stone-400">
-                    Abziehbare Vorsteuer: {formatCurrency(fullYearVat.inputTax)}
+                    Abziehbare Vorsteuer: {formatCents(fullYearVat.inputTax)}
                   </span>
                 </div>
 
                 <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-1">
                   <span className="text-amber-900 font-bold">3. Jahres-Umsatzsteuerzahllast</span>
                   <div className="text-xl font-extrabold font-mono text-amber-950">
-                    {formatCurrency(fullYearVat.zahllast)}
+                    {formatCents(fullYearVat.zahllast)}
                   </div>
                   <span className="text-[11px] text-amber-800/80">
                     Fällig zur USt-Jahreserklärung
@@ -532,7 +488,7 @@ export const ReportsPage: React.FC = () => {
                     Umsätze (Netto)
                   </span>
                   <div className="text-lg font-bold font-mono text-stone-900">
-                    {formatCurrency(activePeriodVat.totalRevenueNet)}
+                    {formatCents(activePeriodVat.totalRevenueNet)}
                   </div>
                   <span className="text-[11px] text-stone-400">Im gewählten Zeitraum</span>
                 </div>
@@ -542,7 +498,7 @@ export const ReportsPage: React.FC = () => {
                     Umsatzsteuer
                   </span>
                   <div className="text-lg font-bold font-mono text-amber-800">
-                    {formatCurrency(activePeriodVat.totalTax)}
+                    {formatCents(activePeriodVat.totalTax)}
                   </div>
                   <span className="text-[11px] text-stone-400">19% &bull; 7% auf Erlöse</span>
                 </div>
@@ -552,7 +508,7 @@ export const ReportsPage: React.FC = () => {
                     Abziehbare Vorsteuer
                   </span>
                   <div className="text-lg font-bold font-mono text-emerald-700">
-                    {formatCurrency(activePeriodVat.inputTax)}
+                    {formatCents(activePeriodVat.inputTax)}
                   </div>
                   <span className="text-[11px] text-stone-400">Aus Betriebsausgaben</span>
                 </div>
@@ -568,7 +524,7 @@ export const ReportsPage: React.FC = () => {
                     {activePeriodVat.zahllast >= 0 ? 'Verbleibende Zahllast' : 'Erstattungsanspruch'}
                   </span>
                   <div className="text-xl font-extrabold font-mono">
-                    {formatCurrency(Math.abs(activePeriodVat.zahllast))}
+                    {formatCents(Math.abs(activePeriodVat.zahllast))}
                   </div>
                   <span className="text-[11px] opacity-80">
                     {activePeriodVat.zahllast >= 0 ? 'An das Finanzamt zu zahlen' : 'Guthaben vom Finanzamt'}
@@ -597,10 +553,10 @@ export const ReportsPage: React.FC = () => {
                     </div>
                     <div className="text-right font-mono">
                       <span className="text-stone-600 mr-4">
-                        Bemessung: {formatCurrency(activePeriodVat.rev19Net)}
+                        Bemessung: {formatCents(activePeriodVat.rev19Net)}
                       </span>
                       <span className="font-bold text-stone-900">
-                        Steuer: {formatCurrency(activePeriodVat.tax19)}
+                        Steuer: {formatCents(activePeriodVat.tax19)}
                       </span>
                     </div>
                   </div>
@@ -614,10 +570,10 @@ export const ReportsPage: React.FC = () => {
                     </div>
                     <div className="text-right font-mono">
                       <span className="text-stone-600 mr-4">
-                        Bemessung: {formatCurrency(activePeriodVat.rev7Net)}
+                        Bemessung: {formatCents(activePeriodVat.rev7Net)}
                       </span>
                       <span className="font-bold text-stone-900">
-                        Steuer: {formatCurrency(activePeriodVat.tax7)}
+                        Steuer: {formatCents(activePeriodVat.tax7)}
                       </span>
                     </div>
                   </div>
@@ -630,7 +586,7 @@ export const ReportsPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-right font-mono font-bold text-emerald-700">
-                      - {formatCurrency(activePeriodVat.inputTax)}
+                      - {formatCents(activePeriodVat.inputTax)}
                     </div>
                   </div>
 
@@ -646,7 +602,7 @@ export const ReportsPage: React.FC = () => {
                         activePeriodVat.zahllast >= 0 ? 'text-amber-900' : 'text-emerald-700'
                       }`}
                     >
-                      {formatCurrency(activePeriodVat.zahllast)}
+                      {formatCents(activePeriodVat.zahllast)}
                     </div>
                   </div>
                 </div>
@@ -680,20 +636,20 @@ export const ReportsPage: React.FC = () => {
                               {q.label}
                             </td>
                             <td className="py-3 px-4 text-right text-stone-700">
-                              {formatCurrency(q.totalRevenueNet)}
+                              {formatCents(q.totalRevenueNet)}
                             </td>
                             <td className="py-3 px-4 text-right text-amber-800">
-                              {formatCurrency(q.totalTax)}
+                              {formatCents(q.totalTax)}
                             </td>
                             <td className="py-3 px-4 text-right text-emerald-700">
-                              {formatCurrency(q.inputTax)}
+                              {formatCents(q.inputTax)}
                             </td>
                             <td
                               className={`py-3 px-4 text-right font-bold ${
                                 q.zahllast >= 0 ? 'text-stone-900' : 'text-emerald-700'
                               }`}
                             >
-                              {formatCurrency(q.zahllast)}
+                              {formatCents(q.zahllast)}
                             </td>
                           </tr>
                         ))}
@@ -709,3 +665,9 @@ export const ReportsPage: React.FC = () => {
     </div>
   );
 };
+
+/** Letzter Tag eines Monats als ISO-Datum. */
+function endOfMonth(year: number, month: number): string {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+}

@@ -46,6 +46,7 @@ type BuchfinkBridge struct {
 	journalSvc    *service.JournalService
 	postingSvc    *service.PostingService
 	paymentSvc    *service.PaymentService
+	vatSvc        *service.VatService
 	accountingSvc *service.AccountingService
 	bankSvc       *service.BankService
 	invoiceSvc    *service.InvoiceService
@@ -191,6 +192,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
+	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
@@ -599,6 +601,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.contactSvc != nil {
 		b.contactSvc.SetFiscalYear(year)
 	}
+	if b.vatSvc != nil {
+		b.vatSvc.SetFiscalYear(year)
+	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
 }
@@ -969,4 +974,19 @@ func (b *BuchfinkBridge) SettlePayment(req service.PaymentRequest) (*domain.Jour
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.paymentSvc.Settle(context.Background(), req)
+}
+
+// GetVatSummary aggregates the VAT figures of a period from the journal's tax
+// lines. Empty bounds mean the whole fiscal year.
+//
+// This is an orientation figure, not an Umsatzsteuer-Voranmeldung — but it is
+// derived from the actual Steuerschlüssel and Bemessungsgrundlagen rather than
+// reconstructed from account numbers.
+func (b *BuchfinkBridge) GetVatSummary(from, to string) (*domain.VatSummary, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.vatSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.vatSvc.Summary(context.Background(), from, to)
 }

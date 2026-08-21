@@ -42,6 +42,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     companyName: '',
     legalForm: 'GmbH',
     fiscalYear: currentYear,
+    fiscalYearStartMonth: 1,
     taxNumber: '',
     vatId: '',
     taxOffice: '',

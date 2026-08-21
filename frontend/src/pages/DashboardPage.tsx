@@ -8,9 +8,9 @@ import {
   FileText,
   Landmark,
 } from 'lucide-react';
-import { FinancialSummary, BookingEntry, CompanySettings } from '../types';
+import { FinancialSummary, JournalEntry, CompanySettings } from '../types';
 import { Api } from '../services/api';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCents, formatDate } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
 
 interface DashboardPageProps {
@@ -19,7 +19,7 @@ interface DashboardPageProps {
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [recentBookings, setRecentBookings] = useState<BookingEntry[]>([]);
+  const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,11 +32,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     try {
       const [sum, bookings, cfg] = await Promise.all([
         Api.getFinancialSummary(),
-        Api.getBookings(),
+        Api.getJournalEntries(),
         Api.getCompanySettings(),
       ]);
       setSummary(sum);
-      setRecentBookings(bookings.slice(-8).reverse());
+      setRecentEntries(bookings.slice(-8).reverse());
       setSettings(cfg);
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     );
   }
 
-  const hasData = recentBookings.length > 0 || summary.totalRevenue > 0 || summary.totalExpenses > 0;
+  const hasData = recentEntries.length > 0 || summary.totalRevenue > 0 || summary.totalExpenses > 0;
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
@@ -112,7 +112,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="text-xl font-bold text-stone-900">
-            {formatCurrency(summary.bankBalance)}
+            {formatCents(summary.bankBalance)}
           </div>
           <div className="text-xs text-stone-500 mt-1">Geschäftskonto (1800)</div>
         </div>
@@ -132,7 +132,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="text-xl font-bold text-stone-900">
-            {formatCurrency(summary.totalRevenue)}
+            {formatCents(summary.totalRevenue)}
           </div>
           <div className="text-xs text-stone-500 mt-1">Gesamterlöse</div>
         </div>
@@ -152,7 +152,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="text-xl font-bold text-stone-900">
-            {formatCurrency(summary.totalExpenses)}
+            {formatCents(summary.totalExpenses)}
           </div>
           <div className="text-xs text-stone-500 mt-1">Betriebsausgaben</div>
         </div>
@@ -184,7 +184,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               summary.netIncome >= 0 ? 'text-amber-800' : 'text-rose-700'
             }`}
           >
-            {formatCurrency(summary.netIncome)}
+            {formatCents(summary.netIncome)}
           </div>
           <div className="text-xs text-stone-500 mt-1">Einnahmen minus Ausgaben</div>
         </div>
@@ -247,50 +247,40 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {(() => {
-                  const stornoedIds = new Set(
-                    recentBookings
-                      .filter((b) => b.stornoForId != null)
-                      .map((b) => b.stornoForId)
+                {recentEntries.map((entry) => {
+                  const gross = entry.lines
+                    .filter((l) => l.side === 'S')
+                    .reduce((sum, l) => sum + l.amount, 0);
+                  const isReversal = entry.kind === 'reversal';
+
+                  return (
+                    <tr
+                      key={entry.id}
+                      className={`transition-colors ${
+                        isReversal ? 'bg-rose-50/30 text-stone-600' : 'hover:bg-stone-50/50'
+                      }`}
+                    >
+                      <td className="py-3 px-4 font-mono font-medium text-amber-800">
+                        {entry.entryNumber}
+                      </td>
+                      <td className="py-3 px-4 text-stone-600">{formatDate(entry.bookingDate)}</td>
+                      <td className="py-3 px-4 text-stone-900 font-medium">
+                        {entry.description}
+                        {isReversal && (
+                          <span className="ml-2 text-[10px] text-rose-600 font-sans font-normal">
+                            (Generalumkehr)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-stone-700">
+                        {entry.lines.map((l) => l.account).join(' · ')}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold font-mono text-stone-900">
+                        {formatCents(gross, entry.currency)}
+                      </td>
+                    </tr>
                   );
-
-                  return recentBookings.map((b) => {
-                    const isStornoed = b.id && stornoedIds.has(b.id);
-                    const isStornoEntry = Boolean(b.isStorno || b.stornoForId != null);
-
-                    return (
-                      <tr
-                        key={b.id}
-                        className={`transition-colors ${
-                          isStornoed
-                            ? 'bg-rose-50/20 line-through text-stone-400 hover:bg-rose-50/30'
-                            : isStornoEntry
-                            ? 'bg-amber-50/15 text-stone-600 hover:bg-amber-50/25'
-                            : 'hover:bg-stone-50/50'
-                        }`}
-                      >
-                        <td className="py-3 px-4 font-mono font-medium text-amber-800">
-                          {b.bookingNumber}
-                        </td>
-                        <td className="py-3 px-4 text-stone-600">{formatDate(b.date)}</td>
-                        <td className="py-3 px-4 text-stone-900 font-medium">
-                          {b.description}
-                          {isStornoed && (
-                            <span className="ml-2 inline-flex items-center text-[10px] text-rose-600 font-sans font-normal">
-                              (Storniert)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-stone-700">
-                          {b.debitAccount} &rarr; {b.creditAccount}
-                        </td>
-                        <td className="py-3 px-4 text-right font-semibold font-mono text-stone-900">
-                          {formatCurrency(b.amount, b.currency)}
-                        </td>
-                      </tr>
-                    );
-                  });
-                })()}
+                })}
               </tbody>
             </table>
           </div>

@@ -44,3 +44,6 @@ belege/
 .DS_Store
 .idea/
 .vscode/
+
+# Wails-generierte Bindings (nicht mehr genutzt: siehe frontend/src/services/bridge.ts)
+frontend/bindings
