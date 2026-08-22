@@ -30,17 +30,25 @@ tasks:
 
   test:en16931:
     summary: Runs the EN-16931 checker against the official example invoices
-    # Die Beispiele gehören zum Validierungsartefakt der EU-Kommission und stehen
-    # unter EUPL-1.2, Buchfink unter MIT — deshalb liegen sie nicht im Repository,
-    # sondern werden bei Bedarf geholt. Ohne sie überspringt sich der Test still;
-    # dieser Task ist der Weg, ihn tatsächlich laufen zu lassen.
+    # Drei Sammlungen laufen hier: die Beispielrechnungen beider Syntaxen und die
+    # Regelsuite mit einer Datei je Geschäftsregel. Die Beispiele zeigen, dass
+    # die Prüfung nicht zu streng ist; erst die Regelsuite zeigt, dass sie
+    # überhaupt greift — ein gültiges Dokument löst keine Regel aus.
+    #
+    # Die Dateien gehören zum Validierungsartefakt der EU-Kommission und stehen
+    # unter EUPL-1.2, Buchfink unter MIT. Deshalb liegen sie nicht im
+    # Repository, sondern werden bei Bedarf geholt; ohne sie überspringen sich
+    # die Tests still.
     vars:
       EN16931_DIR: '{{.EN16931_DIR | default ".cache/eInvoicing-EN16931"}}'
       EN16931_REPO: "https://github.com/ConnectingEurope/eInvoicing-EN16931.git"
     cmds:
       - test -d {{.EN16931_DIR}} || git clone --depth 1 {{.EN16931_REPO}} {{.EN16931_DIR}}
-      - EN16931_CII_EXAMPLES={{.EN16931_DIR}}/cii/examples go test ./internal/invoice/ -v
-        -run 'TestOfficialExamplesProduceNoErrors|TestCoverageIsMeasured|TestClaimedRulesExistInTheStandard|TestEveryClaimedRuleIsActuallyChecked'
+      - EN16931_CII_EXAMPLES={{.EN16931_DIR}}/cii/examples
+        EN16931_UBL_EXAMPLES={{.EN16931_DIR}}/ubl/examples
+        EN16931_UNIT_TESTS={{.EN16931_DIR}}/test
+        go test ./internal/einvoice/ ./internal/invoice/ -v -count=1
+        -run 'Official|Corpus|Coverage|Claimed|ArtefactRuleSuite'
 
   vet:
     summary: Runs go vet over the same packages as the test suite

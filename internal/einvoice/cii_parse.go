@@ -298,6 +298,7 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 	inv.Totals.TaxTotal, inv.Totals.TaxTotalCurrency,
 		inv.Totals.TaxTotalInTaxCurr, inv.Totals.TaxTotalInTaxCurrCurrency =
 		ciiSplitTaxTotals(sum.TaxTotals, inv.Currency, inv.TaxCurrency)
+	inv.Totals.TaxTotalCount = countInCurrency(sum.TaxTotals, inv.Currency)
 }
 
 // ciiSplitTaxTotals separates BT-110 from BT-111.
@@ -462,4 +463,21 @@ func firstNonEmpty(values []string) string {
 		}
 	}
 	return ""
+}
+
+// countInCurrency counts how often a tax total is stated in one currency.
+//
+// A total without a currency identifier counts as the invoice currency, which
+// is how both syntaxes read it — and it is the case that matters, because two
+// unlabelled totals are exactly the ambiguity BR-CO-15 exists to catch.
+func countInCurrency(totals []ciiCurrencyAmount, currency string) int {
+	want := strings.ToUpper(trim(currency))
+	n := 0
+	for _, t := range totals {
+		stated := strings.ToUpper(trim(t.CurrencyID))
+		if stated == "" || stated == want {
+			n++
+		}
+	}
+	return n
 }

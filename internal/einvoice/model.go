@@ -108,6 +108,11 @@ type Note struct {
 type Period struct {
 	Start Date // BT-73 / BT-134
 	End   Date // BT-74 / BT-135
+	// DescriptionCode carries BT-8, the key that says which event the tax point
+	// is tied to. It sits inside the period group, and BR-CO-19 accepts a
+	// period that states nothing but this — a document may say "the tax point
+	// is the delivery date" without naming a range.
+	DescriptionCode string
 }
 
 // Present reports whether the period states either end of the range.
@@ -252,10 +257,15 @@ type Totals struct {
 	// anrichtet wie eine unbekannte Rechnungswährung.
 	TaxTotalCurrency          string
 	TaxTotalInTaxCurrCurrency string
-	GrandTotal                Amount // BT-112 Gesamtbetrag mit Umsatzsteuer
-	PrepaidAmount             Amount // BT-113 Bereits gezahlter Betrag
-	RoundingAmount            Amount // BT-114 Rundungsbetrag
-	DuePayableAmount          Amount // BT-115 Fälliger Betrag
+	// TaxTotalCount is how often the document stated a tax total in the invoice
+	// currency. More than once is a defect BR-CO-15 reports: two different
+	// totals for the same currency leave the recipient to choose, and whichever
+	// they choose is a guess.
+	TaxTotalCount    int
+	GrandTotal       Amount // BT-112 Gesamtbetrag mit Umsatzsteuer
+	PrepaidAmount    Amount // BT-113 Bereits gezahlter Betrag
+	RoundingAmount   Amount // BT-114 Rundungsbetrag
+	DuePayableAmount Amount // BT-115 Fälliger Betrag
 }
 
 // VATBreakdown is one group of the VAT breakdown (BG-23).

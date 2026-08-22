@@ -165,7 +165,10 @@ func (v *validator) checkDelivery() {
 // checkPeriods covers BR-29, BR-30, BR-CO-19 and BR-CO-20.
 func (v *validator) checkPeriods() {
 	if p := v.inv.Period; p != nil {
-		if !p.Start.Present() && !p.End.Present() {
+		// Ein Zeitraum, der allein den Schlüssel des Steuerzeitpunkts trägt,
+		// ist zulässig: der Aussteller sagt damit, woran die Steuer hängt, ohne
+		// einen Zeitraum zu behaupten.
+		if !p.Start.Present() && !p.End.Present() && strings.TrimSpace(p.DescriptionCode) == "" {
 			v.fail("BR-CO-19", "Der angegebene Rechnungszeitraum (BG-14) nennt weder Beginn (BT-73) noch Ende (BT-74)")
 		}
 		if p.Start.Present() && p.End.Present() && p.End.Before(p.Start) {
@@ -394,7 +397,7 @@ func (v *validator) checkTaxFollowsFromRate(rule, where string, group VATBreakdo
 	}
 	if !group.Rate.Present() {
 		// Ohne Satz muss der Steuerbetrag null sein.
-		if amount.Abs() >= vatRoundingTolerance {
+		if amount.Abs() >= roundsToZero {
 			v.report(rule, where, "Die Steuergruppe nennt keinen Satz, weist aber %s Steuer aus", amount)
 		}
 		return
@@ -403,7 +406,7 @@ func (v *validator) checkTaxFollowsFromRate(rule, where string, group VATBreakdo
 	if !ok {
 		return
 	}
-	if diff := (amount.Abs() - expected).Abs(); diff > vatRoundingTolerance {
+	if diff := (amount.Abs() - expected).Abs(); diff >= vatRoundingTolerance {
 		v.report(rule, where, "Aus %s zu %s %% folgt ein Steuerbetrag von %s, angegeben ist %s",
 			base, group.Rate, expected, amount)
 	}
@@ -411,7 +414,22 @@ func (v *validator) checkTaxFollowsFromRate(rule, where string, group VATBreakdo
 
 // vatRoundingTolerance is the one currency unit EN 16931 allows when checking a
 // tax amount against base times rate.
+//
+// It is not sloppiness: currencies without decimal places, and systems that
+// round per line rather than per group, land a cent beside the exact result
+// often enough that an exact comparison would report correct invoices as
+// broken.
+//
+// The comparison is strict — a difference of exactly one unit is a violation.
+// The two syntax bindings of the standard disagree here by a hair: for BR-CO-17
+// the CII binding compares inclusively while the UBL one and every per-category
+// rule in both syntaxes compare strictly. Buchfink takes the strict reading, so
+// that the same document is judged the same way whichever syntax it arrives in.
 const vatRoundingTolerance = Cents(100)
+
+// roundsToZero is the threshold for "this amount rounds to zero" — what the
+// standard requires of the tax amount when the rate itself rounds to zero.
+const roundsToZero = Cents(50)
 
 // checkTotals covers BR-12 to BR-15 and the arithmetic of the document:
 // BR-CO-10 to BR-CO-16 and the decimal limits of the totals.
@@ -475,6 +493,14 @@ func (v *validator) checkTotals() {
 		totals.TaxTotal.Present() && declared != taxSum {
 		v.fail("BR-CO-14", "Der Gesamtbetrag der Umsatzsteuer ist mit %s ausgewiesen, die Steuergruppen ergeben aber %s",
 			declared, taxSum)
+	}
+
+	// BR-CO-15 verlangt zuerst, dass es genau einen Steuergesamtbetrag in der
+	// Rechnungswährung gibt. Zwei verschiedene lassen den Empfänger wählen, und
+	// was er wählt, ist geraten.
+	if totals.TaxTotalCount > 1 {
+		v.fail("BR-CO-15", "Die Rechnung weist %d Steuergesamtbeträge in der Rechnungswährung aus; zulässig ist genau einer (BT-110)",
+			totals.TaxTotalCount)
 	}
 
 	// BR-CO-15: brutto = netto + der ausgewiesene Steuerbetrag.

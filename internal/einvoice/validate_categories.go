@@ -120,12 +120,19 @@ var categorySpecs = []categorySpec{
 		lineRate: rateAbsent, acRate: rateAbsent,
 		seller: sellerVATForbidden, buyer: buyerVATForbidden,
 		baseExact: true, tax: taxZero, reasonRequired: true},
+	// Bei IGIC und IPSI weichen die beiden Syntaxbindungen der Norm
+	// voneinander ab: CII verlangt für den Positionssatz "größer null" und
+	// führt die Steuerprüfung als `true()`, UBL lässt "null oder größer" zu und
+	// prüft die Steuer wie überall. Buchfink folgt UBL. Ein Nullsatz ist auf
+	// den Kanaren keine Erfindung — das IGIC kennt den tipo cero —, und eine
+	// Steuerprüfung wegzulassen, die die andere Bindung durchführt, hieße die
+	// Rechnung nach ihrer Schreibweise unterschiedlich streng zu behandeln.
 	{code: categoryIGIC, family: "AF",
-		lineRate: ratePositive, acRate: rateNonNegative,
-		seller: sellerVATOrTaxNumber, baseExact: true, tax: taxUnchecked, reasonForbidden: true},
+		lineRate: rateNonNegative, acRate: rateNonNegative,
+		seller: sellerVATOrTaxNumber, baseExact: true, tax: taxFromRate, reasonForbidden: true},
 	{code: categoryIPSI, family: "AG",
 		lineRate: rateNonNegative, acRate: rateNonNegative,
-		seller: sellerVATOrTaxNumber, baseExact: true, tax: taxUnchecked, reasonForbidden: true},
+		seller: sellerVATOrTaxNumber, baseExact: true, tax: taxFromRate, reasonForbidden: true},
 }
 
 func specForCategory(code string) (categorySpec, bool) {
@@ -390,10 +397,10 @@ func (v *validator) checkBreakdownTax(rule string, spec categorySpec, where stri
 	case taxFromRate:
 		v.checkTaxFollowsFromRate(rule, where, group)
 	case taxUnchecked:
-		// Die Norm führt BR-AF-09 und BR-AG-09 in ihrem eigenen Referenzprüfer
-		// als `true()`. Sie hier zu prüfen hieße, strenger zu sein als die
-		// Norm — und eine Rechnung abzuweisen, die jeder andere Prüfer
-		// durchlässt.
+		// Keine Kategorie nutzt das derzeit. Der Fall bleibt, weil die Norm
+		// selbst ihn kennt: die CII-Bindung führt BR-AF-09 und BR-AG-09 als
+		// `true()`, und käme das je zurück, wäre es hier abgebildet statt
+		// stillschweigend geprüft.
 	}
 }
 

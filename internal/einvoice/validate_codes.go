@@ -29,6 +29,10 @@ func (v *validator) checkCodeLists() {
 	v.inList("BR-CL-05", inv.TaxCurrency, iso4217, "Die Abrechnungswährung (BT-6)")
 	v.inList("BR-CL-06", inv.TaxPointDateCode, untdid2005, "Der Schlüssel des Steuerzeitpunkts (BT-8)")
 	v.inList("BR-CL-07", inv.ObjectIdentifier.Scheme, untdid1153, "Das Schema der Objektkennung (BT-18-1)")
+	for i, line := range inv.Lines {
+		v.inListAt("BR-CL-07", linePos(i), line.ObjectIdentifier.Scheme, untdid1153,
+			"Das Schema der Objektkennung der Position (BT-128-1)")
+	}
 
 	for _, note := range inv.Notes {
 		v.inList("BR-CL-08", note.SubjectCode, untdid4451, "Der Betreff-Code einer Bemerkung (BT-21)")
@@ -78,6 +82,13 @@ func (v *validator) checkCodeLists() {
 
 	for i, line := range inv.Lines {
 		where := linePos(i)
+		// Die Steuerkategorie der Position läuft in beiden Syntaxen unter
+		// BR-CL-18; die der Aufschlüsselung führt CII ebenfalls dort, UBL
+		// dagegen unter BR-CL-17. Geprüft wird dieselbe Liste, gemeldet wird
+		// unter der CII-Kennung — der Fund ist derselbe, nur sein Etikett
+		// könnte in einem UBL-Prüfbericht anders lauten.
+		v.inListAt("BR-CL-18", where, line.VAT.CategoryCode, untdid5305,
+			"Die Steuerkategorie der Position (BT-151)")
 		v.inListAt("BR-CL-23", where, line.UnitCode, recommendation20, "Die Mengeneinheit (BT-130)")
 		v.inListAt("BR-CL-23", where, line.Price.BaseUnit, recommendation20,
 			"Die Einheit der Preisbasismenge (BT-150)")
