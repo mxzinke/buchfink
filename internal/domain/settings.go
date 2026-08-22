@@ -29,7 +29,7 @@ type CompanySettings struct {
 	Country              string `json:"country"`
 	Currency             string `json:"currency"`
 	SKR                  string `json:"skr"`          // "SKR04"
-	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year", "exempt"
+	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
 	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
 }
 

@@ -88,7 +88,8 @@ type Invoice struct {
 	PaidAmount Cents `gorm:"-" json:"paidAmount"`
 
 	// TODO: Add support for cash discount terms (Skonto) on the invoice itself
-	// TODO: Add support for XRechnung XML (pure XML without PDF)
+	// TODO: XRechnung auch ausstellen (reines XML ohne PDF). Empfangen und
+	// gebucht werden kann sie bereits.
 }
 
 // TaxGroup is the net base and tax of one VAT rate on an invoice.
@@ -189,5 +190,7 @@ type InvoiceRenderer interface {
 // ZUGFeRDGenerator creates Factur-X / ZUGFeRD compliant XML.
 type ZUGFeRDGenerator interface {
 	GenerateXML(invoice *Invoice, seller *CompanySettings, buyer *Contact) (string, error)
-	// TODO: Add validation against official Schematron / EN 16931 rules
+	// Die EN-16931-Prüfung sitzt in internal/invoice/en16931.go und deckt eine
+	// belegte Teilmenge der Regeln ab. Vollständige Schematron-Äquivalenz bliebe
+	// offen — sie setzt einen XSLT-2.0-Prozessor voraus, den Go nicht hat.
 }
