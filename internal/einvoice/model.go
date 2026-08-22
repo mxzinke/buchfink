@@ -246,10 +246,16 @@ type Totals struct {
 	TaxBasisTotal     Amount // BT-109 Gesamtbetrag ohne Umsatzsteuer
 	TaxTotal          Amount // BT-110 Gesamtbetrag der Umsatzsteuer
 	TaxTotalInTaxCurr Amount // BT-111 dieselbe Steuer in der Abrechnungswährung
-	GrandTotal        Amount // BT-112 Gesamtbetrag mit Umsatzsteuer
-	PrepaidAmount     Amount // BT-113 Bereits gezahlter Betrag
-	RoundingAmount    Amount // BT-114 Rundungsbetrag
-	DuePayableAmount  Amount // BT-115 Fälliger Betrag
+	// Die Währungskennungen der beiden Steuersummen. Sie stehen als Attribut am
+	// Betrag und sind das Einzige, was BT-110 von BT-111 trennt — BR-CL-03
+	// prüft sie eigens, weil eine unbekannte Währung dort denselben Schaden
+	// anrichtet wie eine unbekannte Rechnungswährung.
+	TaxTotalCurrency          string
+	TaxTotalInTaxCurrCurrency string
+	GrandTotal                Amount // BT-112 Gesamtbetrag mit Umsatzsteuer
+	PrepaidAmount             Amount // BT-113 Bereits gezahlter Betrag
+	RoundingAmount            Amount // BT-114 Rundungsbetrag
+	DuePayableAmount          Amount // BT-115 Fälliger Betrag
 }
 
 // VATBreakdown is one group of the VAT breakdown (BG-23).

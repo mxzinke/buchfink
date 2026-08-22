@@ -295,7 +295,8 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 		RoundingAmount:   NewAmount(sum.RoundingAmount),
 		DuePayableAmount: NewAmount(sum.DuePayable),
 	}
-	inv.Totals.TaxTotal, inv.Totals.TaxTotalInTaxCurr =
+	inv.Totals.TaxTotal, inv.Totals.TaxTotalCurrency,
+		inv.Totals.TaxTotalInTaxCurr, inv.Totals.TaxTotalInTaxCurrCurrency =
 		ciiSplitTaxTotals(sum.TaxTotals, inv.Currency, inv.TaxCurrency)
 }
 
@@ -305,28 +306,35 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 // Reading whichever comes last picks the wrong one on a Danish invoice that
 // accounts its VAT in euro — the amount that then goes into the books is the
 // converted one.
-func ciiSplitTaxTotals(totals []ciiCurrencyAmount, invoiceCurrency, taxCurrency string) (inInvoiceCurrency, inTaxCurrency Amount) {
+func ciiSplitTaxTotals(totals []ciiCurrencyAmount, invoiceCurrency, taxCurrency string) (
+	inInvoiceCurrency Amount, invoiceCurrencyID string,
+	inTaxCurrency Amount, taxCurrencyID string,
+) {
 	if len(totals) == 0 {
-		return Amount{}, Amount{}
+		return Amount{}, "", Amount{}, ""
 	}
 	want := strings.ToUpper(trim(invoiceCurrency))
 	wantTax := strings.ToUpper(trim(taxCurrency))
 
 	for _, t := range totals {
-		switch strings.ToUpper(trim(t.CurrencyID)) {
-		case want:
-			inInvoiceCurrency = NewAmount(t.Value)
-		case wantTax:
-			if wantTax != "" {
-				inTaxCurrency = NewAmount(t.Value)
-			}
+		stated := strings.ToUpper(trim(t.CurrencyID))
+		switch {
+		case stated == want:
+			inInvoiceCurrency, invoiceCurrencyID = NewAmount(t.Value), trim(t.CurrencyID)
+		case wantTax != "" && stated == wantTax:
+			inTaxCurrency, taxCurrencyID = NewAmount(t.Value), trim(t.CurrencyID)
 		}
 	}
 	if !inInvoiceCurrency.Present() {
-		// Ohne Währungskennung ist der erste Wert der in Rechnungswährung.
+		// Ohne passende Währungskennung ist der erste Wert der in
+		// Rechnungswährung. Die Kennung wird trotzdem mitgeführt, damit
+		// BR-CL-03 sie prüfen kann.
 		inInvoiceCurrency = NewAmount(totals[0].Value)
+		if invoiceCurrencyID == "" {
+			invoiceCurrencyID = trim(totals[0].CurrencyID)
+		}
 	}
-	return inInvoiceCurrency, inTaxCurrency
+	return inInvoiceCurrency, invoiceCurrencyID, inTaxCurrency, taxCurrencyID
 }
 
 func ciiParseTradeTax(tax ciiTradeTax) VATBreakdown {
