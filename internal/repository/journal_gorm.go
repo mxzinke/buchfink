@@ -104,6 +104,23 @@ func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int
 	return &entry, nil
 }
 
+// FindByReceipt returns the original booking that references a Beleg. A
+// Generalumkehr points at the same Beleg but is not what sealed it, so it is
+// skipped.
+func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
+	var entry domain.JournalEntry
+	err := r.db.WithContext(ctx).Preload("Lines").
+		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
+		Order("id asc").First(&entry).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &entry, nil
+}
+
 // Append allocates the Buchungsnummer, links the hash chain and inserts the
 // entry with its lines in one transaction.
 func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.JournalEntry, hash domain.EntryHashFunc) error {

@@ -33,6 +33,20 @@ type PostingGroup struct {
 	TreatmentAccounts map[domain.TaxTreatment]string `json:"-"`
 
 	DefaultRate domain.TaxRate `json:"defaultRate"`
+	// DefaultTreatment is the Steuerfall the group proposes. It matters for the
+	// groups that carry no VAT: a rate of zero says "no rate applies", but not
+	// *why*, and the booking core insists on the reason. Empty means
+	// TaxTreatmentDomestic.
+	DefaultTreatment domain.TaxTreatment `json:"defaultTreatment,omitempty"`
+}
+
+// Treatment returns the Steuerfall the group proposes, defaulting to a domestic
+// taxable transaction.
+func (g PostingGroup) Treatment() domain.TaxTreatment {
+	if g.DefaultTreatment == "" {
+		return domain.TaxTreatmentDomestic
+	}
+	return g.DefaultTreatment
 }
 
 // ResolveAccount returns the SKR04 account for a Steuerfall and rate.
@@ -62,7 +76,10 @@ var postingGroups = []PostingGroup{
 			domain.TaxTreatmentIntraCommunitySupply: "4125", // § 4 Nr. 1b UStG
 			domain.TaxTreatmentExport:               "4120", // § 4 Nr. 1a UStG
 			domain.TaxTreatmentReverseChargeSupply:  "4337", // § 13b UStG
-			domain.TaxTreatmentExempt:               "4150",
+			// Nullsteuersatz nach § 12 Abs. 3 UStG. Eigenes Konto, weil der
+			// Umsatz steuerpflichtig ist und nicht zu den steuerfreien zählt.
+			domain.TaxTreatmentZeroRated: "4290",
+			domain.TaxTreatmentExempt:    "4150",
 		},
 	},
 	{
@@ -104,8 +121,9 @@ var postingGroups = []PostingGroup{
 
 	// --- Raum- und Fahrzeugkosten ----------------------------------------
 	{Key: "miete", Label: "Miete & Pacht", Category: "Raumkosten",
-		Hint:      "Miete für Büro, Lager oder andere unbewegliche Wirtschaftsgüter.",
-		Direction: domain.DirectionIncoming, Account: "6310", DefaultRate: domain.TaxRateNone},
+		Hint:      "Miete für Büro, Lager oder andere unbewegliche Wirtschaftsgüter. Nach § 4 Nr. 12 UStG steuerfrei, sofern der Vermieter nicht nach § 9 UStG zur Steuerpflicht optiert hat.",
+		Direction: domain.DirectionIncoming, Account: "6310",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 	{Key: "raumkosten", Label: "Nebenkosten & sonstige Raumkosten", Category: "Raumkosten",
 		Hint:      "Strom, Heizung, Reinigung.",
 		Direction: domain.DirectionIncoming, Account: "6345", DefaultRate: domain.TaxRateStandard},
@@ -132,16 +150,22 @@ var postingGroups = []PostingGroup{
 		Direction: domain.DirectionIncoming, Account: "6827", DefaultRate: domain.TaxRateStandard},
 	{Key: "versicherungen", Label: "Versicherungen", Category: "Verwaltung",
 		Hint:      "Versicherungsprämien sind nach § 4 Nr. 10 UStG steuerfrei – hier fällt keine Vorsteuer an.",
-		Direction: domain.DirectionIncoming, Account: "6400", DefaultRate: domain.TaxRateNone},
+		Direction: domain.DirectionIncoming, Account: "6400",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 	{Key: "beitraege", Label: "Beiträge & Gebühren", Category: "Verwaltung",
-		Direction: domain.DirectionIncoming, Account: "6420", DefaultRate: domain.TaxRateNone},
+		Hint:      "Kammer- und Verbandsbeiträge, behördliche Gebühren: meist nicht steuerbar.",
+		Direction: domain.DirectionIncoming, Account: "6420",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "geldverkehr", Label: "Nebenkosten des Geldverkehrs", Category: "Verwaltung",
-		Hint:      "Kontoführung, Überweisungsentgelte, Zahlungsdienstleister-Gebühren.",
-		Direction: domain.DirectionIncoming, Account: "6855", DefaultRate: domain.TaxRateNone},
+		Hint:      "Kontoführung, Überweisungsentgelte, Zahlungsdienstleister-Gebühren. Nach § 4 Nr. 8 UStG steuerfrei.",
+		Direction: domain.DirectionIncoming, Account: "6855",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 
 	// --- Personal und Vertrieb -------------------------------------------
 	{Key: "gehaelter", Label: "Gehälter", Category: "Personal",
-		Direction: domain.DirectionIncoming, Account: "6020", DefaultRate: domain.TaxRateNone},
+		Hint:      "Arbeitslohn ist kein Leistungsaustausch im Sinne des UStG.",
+		Direction: domain.DirectionIncoming, Account: "6020",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "fortbildung", Label: "Fortbildung", Category: "Personal",
 		Direction: domain.DirectionIncoming, Account: "6821", DefaultRate: domain.TaxRateStandard},
 	{Key: "reisekosten", Label: "Reisekosten", Category: "Personal",

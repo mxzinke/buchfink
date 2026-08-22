@@ -55,14 +55,19 @@ func assertLines(t *testing.T, entry *domain.JournalEntry, want []bookedLine) {
 	}
 }
 
-func receipt(vendorID uint, group string, net domain.Cents, rate domain.TaxRate, treatment domain.TaxTreatment) ReceiptRequest {
+// receipt files a Beleg away and returns the booking request that goes with it.
+// Every Eingangsbeleg runs through a Beleg, so the tests do too — that is the
+// path the application takes, sealing included.
+func (e *testEnv) receipt(t *testing.T, vendorID uint, group string, net domain.Cents, rate domain.TaxRate, treatment domain.TaxTreatment) ReceiptRequest {
+	t.Helper()
+	filed := e.fileIncoming(t, "beleg.pdf")
 	return ReceiptRequest{
 		ContactID:       vendorID,
+		ReceiptID:       filed.ID,
 		BookingDate:     "2026-03-10",
 		DocumentDate:    "2026-03-10",
 		ServiceDateFrom: "2026-03-01",
 		ServiceDateTo:   "2026-03-31",
-		DocumentNumber:  "ER-2026-0001",
 		Description:     "Testbeleg",
 		TaxTreatment:    treatment,
 		Positions:       []ReceiptPosition{{PostingGroup: group, Net: net, TaxRate: rate}},
@@ -79,7 +84,7 @@ func TestIncomingDomesticInvoiceOnAccount(t *testing.T) {
 	vendor := env.vendor(t, "Agentur GmbH", "DE", "")
 
 	entry, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic))
+		env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic))
 	if err != nil {
 		t.Fatalf("Beleg buchen: %v", err)
 	}
@@ -100,7 +105,7 @@ func TestIncomingReverseChargeProducesFourLines(t *testing.T) {
 	vendor := env.vendor(t, "Cloud Provider Ireland Ltd.", "IE", "IE6388047V")
 
 	entry, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge))
+		env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge))
 	if err != nil {
 		t.Fatalf("Beleg buchen: %v", err)
 	}
@@ -121,7 +126,7 @@ func TestIncomingIntraCommunityAcquisition(t *testing.T) {
 	vendor := env.vendor(t, "Hardware BV", "NL", "NL123456789B01")
 
 	entry, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "wareneingang", 200000, domain.TaxRateStandard, domain.TaxTreatmentIntraCommunityAcquisition))
+		env.receipt(t, vendor.ID, "wareneingang", 200000, domain.TaxRateStandard, domain.TaxTreatmentIntraCommunityAcquisition))
 	if err != nil {
 		t.Fatalf("Beleg buchen: %v", err)
 	}
@@ -141,7 +146,7 @@ func TestIncomingReceiptWithTwoTaxRates(t *testing.T) {
 	ctx := context.Background()
 	vendor := env.vendor(t, "Hotel Adler", "DE", "")
 
-	req := receipt(vendor.ID, "reisekosten", 0, 0, domain.TaxTreatmentDomestic)
+	req := env.receipt(t, vendor.ID, "reisekosten", 0, 0, domain.TaxTreatmentDomestic)
 	req.Positions = []ReceiptPosition{
 		{PostingGroup: "reisekosten", Net: 20000, TaxRate: domain.TaxRateReduced}, // Übernachtung 7 %
 		{PostingGroup: "reisekosten", Net: 5000, TaxRate: domain.TaxRateStandard}, // Frühstück 19 %
@@ -170,7 +175,7 @@ func TestImmediatePaymentUsesTheChosenMeansOfPayment(t *testing.T) {
 	vendor := env.vendor(t, "Schreibwaren Meier", "DE", "")
 
 	for _, account := range []string{domain.AccountKasse, domain.AccountBank} {
-		req := receipt(vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+		req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 		req.Settlement = SettlementPaid
 		req.PaymentAccount = account
 
@@ -186,7 +191,7 @@ func TestImmediatePaymentUsesTheChosenMeansOfPayment(t *testing.T) {
 	}
 
 	// Ohne Angabe des Zahlungsmittels darf nicht gebucht werden.
-	req := receipt(vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	req.Settlement = SettlementPaid
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
 		t.Error("bei sofortiger Zahlung muss das Zahlungsmittel verlangt werden")
@@ -313,7 +318,7 @@ func TestDirectionMustMatchPartnerType(t *testing.T) {
 
 	customer := env.customer(t, "Kunde", "DE", "")
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(customer.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err == nil {
+		env.receipt(t, customer.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err == nil {
 		t.Error("ein Kunde darf keinen Eingangsbeleg stellen")
 	}
 
@@ -335,7 +340,7 @@ func TestTaxIsRoundedOncePerRateGroup(t *testing.T) {
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
-	req := receipt(vendor.ID, "buerobedarf", 0, 0, domain.TaxTreatmentDomestic)
+	req := env.receipt(t, vendor.ID, "buerobedarf", 0, 0, domain.TaxTreatmentDomestic)
 	req.Positions = []ReceiptPosition{
 		{PostingGroup: "buerobedarf", Net: 333, TaxRate: domain.TaxRateStandard},
 		{PostingGroup: "buerobedarf", Net: 333, TaxRate: domain.TaxRateStandard},
@@ -415,11 +420,11 @@ func TestSuSaIsExactlyBalanced(t *testing.T) {
 	customer := env.customer(t, "Kunde", "DE", "")
 
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "buerobedarf", 3333, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+		env.receipt(t, vendor.ID, "buerobedarf", 3333, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
 		t.Fatalf("Eingangsbeleg: %v", err)
 	}
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(euVendor.ID, "software", 9999, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
+		env.receipt(t, euVendor.ID, "software", 9999, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
 		t.Fatalf("§ 13b-Beleg: %v", err)
 	}
 

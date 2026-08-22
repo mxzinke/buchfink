@@ -101,6 +101,11 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 				summary.Export += credit
 			case "4337":
 				summary.ReverseChargeSupply += credit
+			// Nullsteuersatz § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
+			// deshalb ein eigener Ausweis und nicht der Topf der steuerfreien
+			// Umsätze.
+			case "4290":
+				summary.ZeroRatedRevenue += credit
 			case "4150", "4110", "4160", "4165":
 				summary.ExemptRevenue += credit
 			}

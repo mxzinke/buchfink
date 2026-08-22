@@ -23,13 +23,14 @@ func (e *testEnv) payments(t *testing.T) *PaymentService {
 // openPayable books a supplier invoice on account and returns its open item.
 func (e *testEnv) openPayable(t *testing.T, vendorID uint, net domain.Cents, rate domain.TaxRate) *domain.JournalEntry {
 	t.Helper()
+	filed := e.fileIncoming(t, "lieferantenrechnung.pdf")
 	entry, err := e.posting.PostIncomingReceipt(context.Background(), ReceiptRequest{
 		ContactID:       vendorID,
+		ReceiptID:       filed.ID,
 		BookingDate:     "2026-03-01",
 		DocumentDate:    "2026-03-01",
 		ServiceDateFrom: "2026-03-01",
 		ServiceDateTo:   "2026-03-01",
-		DocumentNumber:  "ER-2026-0001",
 		Description:     "Lieferantenrechnung",
 		TaxTreatment:    domain.TaxTreatmentDomestic,
 		Positions:       []ReceiptPosition{{PostingGroup: "fremdleistungen", Net: net, TaxRate: rate}},

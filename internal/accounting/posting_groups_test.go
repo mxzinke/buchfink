@@ -24,19 +24,10 @@ func chartForTest(t *testing.T) *Chart {
 func TestPostingGroupAccountsExistInSKR04(t *testing.T) {
 	chart := chartForTest(t)
 
-	treatments := []domain.TaxTreatment{
-		domain.TaxTreatmentDomestic,
-		domain.TaxTreatmentReverseCharge,
-		domain.TaxTreatmentIntraCommunityAcquisition,
-		domain.TaxTreatmentIntraCommunitySupply,
-		domain.TaxTreatmentReverseChargeSupply,
-		domain.TaxTreatmentExport,
-		domain.TaxTreatmentExempt,
-		domain.TaxTreatmentNotTaxable,
-	}
-
+	// Derived, not hand-listed: a Steuerfall added later has to run through this
+	// guard without anybody remembering to extend it.
 	for _, group := range PostingGroups("") {
-		for _, treatment := range treatments {
+		for _, treatment := range domain.AllTaxTreatments() {
 			for _, rate := range domain.ValidTaxRates() {
 				account := group.ResolveAccount(treatment, rate)
 

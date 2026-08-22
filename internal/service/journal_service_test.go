@@ -54,7 +54,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
-	receipts := NewReceiptService(receiptRepo, store, auditRepo, 2026)
+	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	posting.SetReceiptService(receipts)
 
 	return &testEnv{
 		db: db, journal: journal, posting: posting, accounting: acc, contacts: contacts,
@@ -420,14 +421,15 @@ func TestPostingRuleVersionIsRecorded(t *testing.T) {
 	ctx := context.Background()
 
 	vendor := env.vendor(t, "Lieferant", "DE", "")
+	filed := env.fileIncoming(t, "buerobedarf.pdf")
 	entry, err := env.posting.PostIncomingReceipt(ctx, ReceiptRequest{
-		ContactID:      vendor.ID,
-		DocumentDate:   "2026-03-01",
-		BookingDate:    "2026-03-01",
-		DocumentNumber: "RE-4711",
-		TaxTreatment:   domain.TaxTreatmentDomestic,
-		Positions:      []ReceiptPosition{{PostingGroup: "buerobedarf", Net: 5000, TaxRate: domain.TaxRateStandard}},
-		Settlement:     SettlementOpen,
+		ContactID:    vendor.ID,
+		ReceiptID:    filed.ID,
+		DocumentDate: "2026-03-01",
+		BookingDate:  "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Positions:    []ReceiptPosition{{PostingGroup: "buerobedarf", Net: 5000, TaxRate: domain.TaxRateStandard}},
+		Settlement:   SettlementOpen,
 	})
 	if err != nil {
 		t.Fatalf("Beleg buchen: %v", err)
@@ -439,6 +441,11 @@ func TestPostingRuleVersionIsRecorded(t *testing.T) {
 
 // invoices wires the invoice service on demand; it needs the posting service,
 // which the base environment already holds.
+// postingGroup looks a fachliche Gruppe up from the catalog.
+func (e *testEnv) postingGroup(key string) (accounting.PostingGroup, error) {
+	return accounting.LookupPostingGroup(key)
+}
+
 func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 	t.Helper()
 	return NewInvoiceService(
@@ -480,7 +487,7 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 	second := env.vendor(t, "Lieferant B", "DE", "")
 	for _, vendor := range []*domain.Contact{first, second} {
 		if _, err := env.posting.PostIncomingReceipt(ctx,
-			receipt(vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+			env.receipt(t, vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
 			t.Fatalf("Beleg für %s: %v", vendor.Name, err)
 		}
 	}

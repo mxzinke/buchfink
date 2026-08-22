@@ -33,7 +33,7 @@ func TestVatSummaryFromJournal(t *testing.T) {
 
 	// Eingangsbeleg 1.000,00 netto, 19 % → 190,00 Vorsteuer.
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+		env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
 		t.Fatalf("Eingangsbeleg: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func TestVatSummaryCountsReverseChargeOnBothSides(t *testing.T) {
 	vendor := env.vendor(t, "SaaS Ireland Ltd.", "IE", "IE6388047V")
 
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
+		env.receipt(t, vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
 		t.Fatalf("§ 13b-Beleg: %v", err)
 	}
 
@@ -129,14 +129,14 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
-	first := receipt(vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	first := env.receipt(t, vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	first.BookingDate = "2026-01-15"
 	first.DocumentDate = "2026-01-15"
 	if _, err := env.posting.PostIncomingReceipt(ctx, first); err != nil {
 		t.Fatalf("Januar-Beleg: %v", err)
 	}
 
-	second := receipt(vendor.ID, "buerobedarf", 50000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	second := env.receipt(t, vendor.ID, "buerobedarf", 50000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	second.BookingDate = "2026-04-15"
 	second.DocumentDate = "2026-04-15"
 	if _, err := env.posting.PostIncomingReceipt(ctx, second); err != nil {

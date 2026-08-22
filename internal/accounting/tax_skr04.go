@@ -45,7 +45,12 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 	switch treatment {
 	case domain.TaxTreatmentDomestic:
 		if rate == domain.TaxRateNone {
-			return nil, nil
+			// TaxRateNone means "no rate applies", and a domestic taxable
+			// transaction always has one. Accepting it here would silently book
+			// three different cases — exempt, not taxable and the Nullsteuersatz
+			// of § 12 Abs. 3 UStG — as the same thing.
+			return nil, fmt.Errorf(
+				"ein steuerpflichtiger Inlandsumsatz hat 19 %% oder 7 %%. Fällt keine Steuer an, ist der Steuerfall zu nennen: steuerfrei, nicht steuerbar oder Nullsteuersatz nach § 12 Abs. 3 UStG")
 		}
 		amount := rate.Tax(net)
 		if dir == domain.DirectionIncoming {
@@ -101,14 +106,24 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 			{Account: ust, Side: domain.SideCredit, Amount: amount, Base: net, Key: fmt.Sprintf("IG%d_UST", int(rate)/100)},
 		}, nil
 
+	case domain.TaxTreatmentZeroRated:
+		// § 12 Abs. 3 UStG: "Die Steuer ermäßigt sich auf 0 Prozent". Es entsteht
+		// keine Steuerzeile, aber der Umsatz ist steuerpflichtig — der
+		// Vorsteuerabzug des Leistenden bleibt erhalten, und in der Auswertung
+		// gehört der Betrag zu den steuerpflichtigen Umsätzen, nicht zu den
+		// steuerfreien. Diesen Unterschied trägt der Steuerfall an der Buchung,
+		// auf der Ausgangsseite zusätzlich das eigene Erlöskonto 4290.
+		return nil, nil
+
 	case domain.TaxTreatmentIntraCommunitySupply,
 		domain.TaxTreatmentExport,
 		domain.TaxTreatmentReverseChargeSupply,
 		domain.TaxTreatmentExempt,
 		domain.TaxTreatmentNotTaxable:
 		// Steuerfrei, nicht steuerbar oder Steuerschuld beim Empfänger: die
-		// Buchung erzeugt keine Steuerzeile. Der Steuerfall bleibt trotzdem am
-		// Beleg gespeichert, weil er für die UStVA-Kennzahlen gebraucht wird.
+		// Buchung erzeugt keine Steuerzeile. Der Steuerfall bleibt trotzdem an
+		// der Buchung gespeichert, weil er für die UStVA-Kennzahlen gebraucht
+		// wird.
 		return nil, nil
 
 	default:
