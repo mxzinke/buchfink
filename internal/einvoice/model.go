@@ -37,17 +37,17 @@ type Invoice struct {
 	PaymentTermsNote string // BT-20 Zahlungsbedingungen
 
 	// References
-	BuyerReference           string       // BT-10 Käuferreferenz (Leitweg-ID)
-	ProjectReference         string       // BT-11 Projektnummer
-	ContractReference        string       // BT-12 Vertragsnummer
-	OrderReference           string       // BT-13 Bestellnummer
-	SalesOrderReference      string       // BT-14 Auftragsnummer
-	ReceivingAdviceReference string       // BT-15 Wareneingangsmeldung
-	DespatchAdviceReference  string       // BT-16 Lieferavis
-	TenderReference          string       // BT-17 Ausschreibungsnummer
-	ObjectIdentifier         Identifier   // BT-18 Objektkennung (+ BT-18-1 Schema)
-	AccountingCost           string       // BT-19 Buchungsreferenz des Erwerbers
-	PrecedingInvoices        []Invoicedoc // BG-3  Rechnungsbezug
+	BuyerReference           string             // BT-10 Käuferreferenz (Leitweg-ID)
+	ProjectReference         string             // BT-11 Projektnummer
+	ContractReference        string             // BT-12 Vertragsnummer
+	OrderReference           string             // BT-13 Bestellnummer
+	SalesOrderReference      string             // BT-14 Auftragsnummer
+	ReceivingAdviceReference string             // BT-15 Wareneingangsmeldung
+	DespatchAdviceReference  string             // BT-16 Lieferavis
+	TenderReference          string             // BT-17 Ausschreibungsnummer
+	ObjectIdentifier         Identifier         // BT-18 Objektkennung (+ BT-18-1 Schema)
+	AccountingCost           string             // BT-19 Buchungsreferenz des Erwerbers
+	PrecedingInvoices        []PrecedingInvoice // BG-3  Rechnungsbezug
 
 	Notes  []Note  // BG-1  Bemerkungen
 	Period *Period // BG-14 Rechnungszeitraum
@@ -92,8 +92,13 @@ const (
 	SyntaxUBL Syntax = "ubl"
 )
 
-// Invoicedoc is a reference to another invoice (BG-3).
-type Invoicedoc struct {
+// PrecedingInvoice references an earlier invoice (BG-3).
+//
+// It is what ties a Rechnungskorrektur to what it corrects, and a
+// Schlussrechnung to the Anzahlungsrechnungen it settles. Without it a
+// correction arrives as an unrelated second invoice and the recipient is left
+// to work out the connection.
+type PrecedingInvoice struct {
 	Number    string // BT-25 Nummer der vorausgegangenen Rechnung
 	IssueDate Date   // BT-26 Datum der vorausgegangenen Rechnung
 }

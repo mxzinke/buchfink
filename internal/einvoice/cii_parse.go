@@ -217,7 +217,7 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 	}
 
 	for _, ref := range s.InvoiceRef {
-		inv.PrecedingInvoices = append(inv.PrecedingInvoices, Invoicedoc{
+		inv.PrecedingInvoices = append(inv.PrecedingInvoices, PrecedingInvoice{
 			Number:    trim(ref.IssuerAssignedID),
 			IssueDate: ref.FormattedIssue.date(),
 		})

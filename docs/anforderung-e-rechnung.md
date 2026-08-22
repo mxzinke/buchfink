@@ -97,7 +97,9 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Mehrdateiliger Beleg mit Rollen (PDF + XML) | vorhanden (`internal/domain/receipt.go`), Beleg-Hash über die geordnete Dateiliste |
 | **Einlesen einer empfangenen E-Rechnung** | vorhanden: XML aus dem Hybrid-PDF (`pdfattach.go`), CII-Parser (`cii.go`), Buchungsvorschlag (`einvoice_service.go`) |
 | **Ablehnung der Profile MINIMUM und BASIC WL** | vorhanden |
-| **Validierung gegen EN 16931** | Teilprüfung in Go (`internal/invoice/en16931.go`), 170 von 223 Regeln, Regelliste und Version am Beleg |
+| **Validierung gegen EN 16931** | vollständig in Go (`internal/einvoice`), 223 von 223 Regeln, Regelliste und Version am Beleg |
+| **UBL lesen (Peppol, XRechnung-UBL)** | vorhanden (`internal/einvoice`), dieselbe Prüfung wie für CII |
+| **Rechnungstyp auswerten (BT-3)** | im Modul vorhanden; die Verbuchung von Gutschrift und Korrektur steht noch aus |
 | **XRechnung (reines XML ohne PDF)** | ablegbar und auslesbar; buchbar erst mit erzeugter Darstellung |
 | Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, über den Beleg-Hash |
 
@@ -231,70 +233,60 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
   der Referenzweg – der KoSIT-Validator mit Schematron über Saxon-XSLT – setzt
   eine Java-Laufzeit voraus, die eine lokale Go-Desktop-App nicht mitbringen soll.
 
-  Geprüft wird eine **belegte Teilmenge, und zwar eine gemessene**: 170 der 223
-  Geschäftsregeln, die das Validierungsartefakt der EU-Kommission für CII
-  definiert – rund drei Viertel. Die Zahl steht nicht in diesem Dokument, weil
-  sie jemand geschätzt hätte: `internal/invoice/en16931_rules.go` führt die
-  Regelkennungen der Norm als Inventar, und `TestCoverageIsMeasured` rechnet die
-  Abdeckung bei jedem Testlauf aus. Die Liste der geprüften Regeln ist über
-  `GetEInvoiceRules()` abrufbar und Teil jedes Ergebnisses.
+  Geprüft werden **alle 223 Geschäftsregeln**, die EN 16931 für das semantische
+  Modell und seine Codelisten definiert. Vier davon — BR-CO-05 bis BR-CO-08 —
+  verlangen, dass ein Grundschlüssel und ein freier Begründungstext dasselbe
+  bedeuten; das ist maschinell nicht entscheidbar, und der Referenzprüfer der
+  Norm führt sie selbst als `true()`. Buchfink hält es genauso und schreibt
+  dazu, warum.
 
-  Abgedeckt sind die Pflichtangaben (BR-01 bis BR-16), die Positionsregeln
-  (BR-21 bis BR-26), Nachlässe und Zuschläge (BR-31 bis BR-44), die
-  Steueraufschlüsselung (BR-45 bis BR-48), die Rechenregeln (BR-CO-04, -09 bis
-  -19, -26), die Nachkommastellen (BR-DEC, bis auf eine Regel vollständig), die
-  Codelisten für Währung, Land und Steuerkategorie (BR-CL-03, -04, -05, -14,
-  -18) und **alle neun Steuerkategorie-Familien vollständig** – BR-S, BR-Z,
-  BR-E, BR-AE, BR-IC, BR-G, BR-O, BR-AF, BR-AG mit je zehn Regeln, dazu
-  BR-IC-11/-12 und BR-O-11 bis -14.
+  **Der Aufbau folgt dem der Norm.** Deren Geschäftsregeln stehen nicht an einer
+  Syntax, sondern in einem abstrakten Regelsatz über dem semantischen Modell;
+  CII und UBL liefern nur die Bindungen. `internal/einvoice` ist genauso gebaut:
+  in der Mitte das Modell mit allen Geschäftsbegriffen, daneben zwei Leser und
+  ein Schreiber. Dieselbe Rechnung wird damit gleich beurteilt, egal in welcher
+  Schreibweise sie ankommt — nachgewiesen über alle offiziellen UBL-Beispiele,
+  die durch das Modell nach CII geschrieben dieselbe Beurteilung bekommen.
 
-  Ungeprüft bleiben Regeln zu Feldern, die Buchfink nicht liest: Zahlungsmittel,
-  Anlagen, Rechnungsbezüge, Kennungsschemata nach ISO 6523 und die zugehörigen
-  Codelisten. `EN16931UncheckedRules()` nennt sie einzeln, damit sich für eine
-  bestimmte Regel nachsehen lässt, ob sie geprüft wurde – statt es aus einer
-  Prozentzahl zu erraten.
+  **Wie belegt wird, dass die Prüfungen greifen.** Beispielrechnungen können das
+  nicht: ein gültiges Dokument löst keine Regel aus, es zeigt also nur, dass
+  eine Prüfung nicht zu streng ist. Das Artefakt bringt aber eine zweite
+  Sammlung mit — 277 Dateien, eine je Geschäftsregel, jede mit der Erwartung, ob
+  die Regel anschlagen muss oder schweigen. **191 der 223 Regeln sind darüber
+  bestätigt**, die übrigen 32 bringt die Suite nicht mit und haben eigene Tests.
+  `task test:en16931` lässt beides laufen.
 
-  **Wie die Teilmenge belastbar wird.** Testdateien machen eine Prüfung nicht
-  vollständig – sie decken ab, was sie enthalten, und über beliebige Eingaben
-  sagen sie nichts. Sie sind trotzdem das schärfste Werkzeug, das hier zur
-  Verfügung steht, weil die 15 offiziellen CII-Beispiele des Artefakts *bekannt
-  gültig* sind: jeder Fund darin ist ein Fehler im Prüfer, nicht in der
-  Rechnung. Sechs Fehler kamen so heraus, darunter zwei, die korrekte Rechnungen
-  abgewiesen hätten (BR-08/BR-10 verlangten Straße und Ort, wo die Norm nur nach
-  der Adressgruppe fragt; BR-CO-17 verglich ohne die zulässige Toleranz von
-  einer Währungseinheit), einer im eigenen Erzeuger (das Bestimmungsland BT-80
-  fehlte bei innergemeinschaftlicher Lieferung) und einer, den nur eine echte
-  Datei zeigt: eine dänische Rechnung führt den Steuerbetrag zweimal, in
-  Rechnungs- und in Abrechnungswährung, und Buchfink las den falschen.
+  Dabei kamen achtzehn Fehler heraus, elf allein aus der Regelsuite. Vier davon
+  sind Stellen, an denen die **beiden Syntaxbindungen der Norm einander
+  widersprechen**: BT-8 wird in CII und UBL verschieden verschlüsselt, BR-AF-05
+  verlangt in CII einen Satz größer null und in UBL null oder größer, BR-AF-09
+  und BR-AG-09 sind in CII `true()` und in UBL vollwertig geprüft, und die
+  Codelisten weichen an vier Werten ab. Solche Stellen findet nur, wer beide
+  Syntaxen baut.
 
-  Zwei Fehlerarten finden Beispieldateien allerdings **nicht**, weil ein gültiges
-  Dokument keine Regel auslöst: eine Regel, die unter falscher Kennung gemeldet
-  wird, und eine Regel, die in der Liste steht, aber nichts prüft. Beides ist
-  vorgekommen – die innergemeinschaftlichen Regeln liefen unter dem erfundenen
-  Namen BR-K statt BR-IC, drei BR-CL-Kennungen zeigten auf andere Felder als
-  gemeint, und BR-AG-05 stand in der Liste, ohne dass die Kategorie „IPSI"
-  überhaupt eine Satzbedingung hinterlegt hatte. Dagegen laufen zwei eigene
-  Tests: einer vergleicht jede zugesagte Kennung mit dem Regelinventar der Norm,
-  der andere liest den Quelltext der Prüfung und meldet jede Regel, die zugesagt,
-  aber nirgends gemeldet wird – und umgekehrt.
+  Der Prüfumfang kennt trotzdem **keinen Wert für „vollständig geprüft"**. Das
+  ist Absicht: XRechnung (BR-DE-*) und Peppol legen eigene Regeln über
+  EN 16931, und die prüft das Modul nicht. Dass ein Dokument eine XRechnung zu
+  sein behauptet, sagt es — damit ein Aufrufer weiß, dass Bestehen hier nicht
+  die ganze Geschichte ist. `RulesChecked()`, `RulesUnchecked()` und `Rule()`
+  machen den Umfang abfragbar statt behauptbar; zwei Tests halten ihn ehrlich,
+  einer gegen erfundene Regelnamen, einer gegen zugesagte Regeln ohne Prüfung.
 
-  Die Beispieldateien liegen **nicht** im Repository: das Artefakt steht unter
-  EUPL-1.2, Buchfink unter MIT. Übernommen wurden nur die Regelkennungen, das
-  sind Tatsachen über die Norm. `task test:en16931` holt die Dateien bei Bedarf
-  und lässt den Abgleich laufen; ohne sie überspringt sich der Test.
-
-  Der Prüfumfang kennt **keinen Wert für „vollständig geprüft"** – nur
-  `partial`. Das ist Absicht: Vollständigkeit zu behaupten wäre der einzige
-  Fehler, der schlimmer wäre als die Lücke selbst, weil sich jemand darauf
-  verließe. Ergebnis, Zeitpunkt, Regelwerk und dessen Version stehen am Beleg,
-  damit ein späterer Prüflauf vergleichbar bleibt; die Prüfung fasst keine Datei
-  an und lässt den Beleg-Hash deshalb unberührt.
+  Ergebnis, Zeitpunkt, Regelwerk und dessen Version stehen am Beleg, damit ein
+  späterer Prüflauf vergleichbar bleibt; die Prüfung fasst keine Datei an und
+  lässt den Beleg-Hash deshalb unberührt. Jeder Befund nennt Regel, Ort und die
+  betroffenen Geschäftsbegriffe, sodass eine Oberfläche auf das Feld zeigen kann
+  statt eine Regelnummer zum Nachschlagen hinzulegen.
 
   Buchfink hält auch die **eigenen** Rechnungen gegen dieses Regelwerk: eine
   Ausgangsrechnung, die es verletzt, wird gar nicht erst erzeugt. Eine Rechnung
   ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
   ordnungsmäßige Rechnung – der Empfänger verlöre den Vorsteuerabzug und merkte
   es erst bei der Betriebsprüfung.
+
+  Die Beispiel- und Regeldateien liegen **nicht** im Repository: das Artefakt
+  steht unter EUPL-1.2, Buchfink unter MIT. Übernommen wurden nur Regelkennungen,
+  Begriffsnummern und Codewerte — Tatsachen über die Norm.
 - **Umgang mit abweichendem Bildteil:** anzeigen und blockieren, oder anzeigen und
   weiterbuchen lassen? *Vorschlag: anzeigen, Buchung aus dem XML, Hinweis auf die
   mögliche § 14c-Relevanz – keine automatische Bewertung.*

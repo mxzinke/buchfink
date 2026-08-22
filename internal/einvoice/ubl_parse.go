@@ -86,7 +86,7 @@ func ublMapHeader(inv *Invoice, doc *ublDocument) {
 	inv.ProjectReference = trim(doc.ProjectReference.ID.Value)
 
 	for _, ref := range doc.BillingReference {
-		inv.PrecedingInvoices = append(inv.PrecedingInvoices, Invoicedoc{
+		inv.PrecedingInvoices = append(inv.PrecedingInvoices, PrecedingInvoice{
 			Number:    trim(ref.InvoiceDocumentReference.ID),
 			IssueDate: NewDate(ref.InvoiceDocumentReference.IssueDate),
 		})
