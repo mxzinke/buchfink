@@ -501,13 +501,23 @@ abziehbar. Sie brauchen getrennte Konten, sonst ist die Steuerbilanz falsch:
 
 | Fall | Konten |
 |---|---|
-| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Satz 1 Nr. 2 EStG); die Vorsteuer bleibt trotzdem voll abziehbar, § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus | 6640 abziehbar, 6644 nicht abzugsfähig |
+| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Satz 1 Nr. 2 EStG); die Vorsteuer bleibt trotzdem voll abziehbar, § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus | **6640** abziehbar, **6644** nicht abzugsfähig |
 | **Geschenke** – abziehbar, solange die Zuwendungen an einen Empfänger im Wirtschaftsjahr **50 €** nicht übersteigen (§ 4 Abs. 5 Satz 1 Nr. 1 Satz 2 EStG); darüber weder Aufwand noch Vorsteuer (§ 15 Abs. 1a Satz 1 UStG) | 6610 abzugsfähig, 6620 nicht abzugsfähig |
 
-Beide Grenzen gehören wie die AfA-Wertgrenzen in die versionierten Stammdaten: die
-Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
-Wirtschaftsjahre bei 35 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes
-Altjahr still falsch.
+Der abziehbare Anteil wird gebucht, nicht nur berechnet: eine Bewirtungsposition
+erzeugt zwei Aufwandszeilen, den abziehbaren Teil auf 6640 und den Rest als
+Differenz auf 6644 – nie zweimal gerundet, sonst summierten sich die beiden an
+einem Cent vorbei. Die Bemessungsgrundlage der Vorsteuerzeile bleibt der volle
+Nettobetrag.
+
+Beide Grenzen sind wie die AfA-Wertgrenzen nach Gültigkeitszeitraum geschlüsselt:
+die Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
+Wirtschaftsjahre bei 35 €, die Kleinbetragsgrenze des § 33 UStDV bis 2016 bei
+150 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes Altjahr still falsch.
+Sie stehen dabei **nicht** in editierbaren Stammdaten, sondern in einer datierten
+Tabelle im Code (`internal/accounting/tax_params.go`), die `PostingRuleVersion`
+mitabdeckt: diese Werte ändert der Gesetzgeber, nicht der Nutzer, und editierbar zu
+machen, was nicht zur Wahl steht, lädt zum Falschbuchen ein.
 
 Die Bewirtung hat zusätzlich eine **Aufzeichnungspflicht**, die keine Buchung ist:
 Ort, Tag, Teilnehmer und Anlass der Bewirtung sowie die Höhe der Aufwendungen sind
@@ -693,6 +703,31 @@ Das Versiegeln gehört **hinter** den Journalschreibvorgang. Scheitert die
 Buchung, muss der Beleg offen bleiben und korrigiert erneut gebucht werden
 können; die andere Reihenfolge hinterließe einen unveränderlichen Beleg ohne
 Buchung.
+
+### Hinweis auf die E-Rechnungspflicht
+
+Stellt ein inländischer Lieferant, der Unternehmer ist, eine gewöhnliche PDF- oder
+Papierrechnung, ist das zweierlei: ein Risiko für den eigenen Vorsteuerabzug und
+ein Anlass, den Lieferanten auf eine Pflicht hinzuweisen, die für ihn läuft.
+Buchfink zeigt beides an der Buchungsvorschau an und **blockiert nie** – was daraus
+folgt, ist eine Rechtsfrage.
+
+Der Text hängt am Belegdatum. Bis zum 31.12.2026 ist die sonstige Rechnung nach
+§ 27 Abs. 38 Nr. 1 UStG noch zulässig, also ein reiner Hinweis. Für 2027 hängt es am
+Gesamtumsatz des **Ausstellers** im Vorjahr (§ 27 Abs. 38 Nr. 2 UStG) – den Buchfink
+nicht kennt, was der Hinweis sagt, statt eine Bewertung zu behaupten. Ab 2028 gibt es
+keine Übergangsregelung mehr.
+
+Kein Hinweis erscheint, wo keine Pflicht besteht: bei einem strukturierten Teil am
+Beleg, bei ausländischen Lieferanten, bei Kleinunternehmern (§ 34a UStDV), bei
+Privatpersonen, unterhalb der Kleinbetragsgrenze des § 33 UStDV und bei steuerfreien
+Umsätzen. Der letzte Punkt ist eine **Näherung**: Buchfink weiß, dass ein Umsatz als
+steuerfrei behandelt wurde, nicht welche Nummer des § 4 UStG greift – nur Nr. 8 bis 29
+nehmen die Pflicht heraus.
+
+Ob ein Geschäftspartner Unternehmer und ob er Kleinunternehmer ist, steht in den
+Kontaktstammdaten. An einem Hinweis zum Vorsteuerabzug darf nicht hängen, ob jemand
+einen Firmennamen eingetippt hat.
 
 ### Die Oberfläche rechnet nicht
 

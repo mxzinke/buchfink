@@ -58,6 +58,12 @@ type ReceiptRequest struct {
 	Settlement     SettlementKind      `json:"settlement"`
 	PaymentAccount string              `json:"paymentAccount,omitempty"`
 	Currency       string              `json:"currency,omitempty"`
+
+	// Entertainment carries the record § 4 Abs. 5 Satz 1 Nr. 2 EStG requires
+	// whenever entertainment expenses are booked. Without it the deduction is
+	// lost even for the deductible 70 %, so the booking is refused rather than
+	// written incomplete.
+	Entertainment *domain.EntertainmentDetail `json:"entertainment,omitempty"`
 }
 
 // PostingPreview is what a booking would look like, computed without writing it.
@@ -76,6 +82,11 @@ type PostingPreview struct {
 	Tax      domain.Cents `json:"tax"`
 	Gross    domain.Cents `json:"gross"`
 	Balanced bool         `json:"balanced"`
+
+	// Warnings are notes the user should see before booking. They never block.
+	// They are computed on demand rather than stored: a conserved legal
+	// assessment goes stale, and every input it depends on is still there.
+	Warnings []PostingWarning `json:"warnings,omitempty"`
 }
 
 // PostingService turns business documents into journal entries using the
@@ -133,6 +144,7 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 		Currency:           req.Currency,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
+		Entertainment:      req.Entertainment,
 	}
 
 	created, err := s.journalSvc.Post(ctx, entry)
@@ -154,11 +166,15 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 // PreviewIncomingReceipt computes the booking of an Eingangsbeleg without
 // writing it.
 func (s *PostingService) PreviewIncomingReceipt(ctx context.Context, req ReceiptRequest) (*PostingPreview, error) {
-	lines, _, _, err := s.buildIncomingLines(ctx, req)
+	lines, contact, receipt, err := s.buildIncomingLines(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return s.preview(ctx, lines), nil
+	preview := s.preview(ctx, lines)
+	if notice := eInvoiceNotice(contact, receipt, req.TaxTreatment, req.DocumentDate, preview.Gross); notice != nil {
+		preview.Warnings = append(preview.Warnings, *notice)
+	}
+	return preview, nil
 }
 
 // buildIncomingLines produces the journal lines of an Eingangsbeleg. It is the
@@ -192,18 +208,33 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 
 	// 1. Aufwands- bzw. Anschaffungszeilen aus den fachlichen Gruppen.
 	netByRate := map[domain.TaxRate]domain.Cents{}
+	needsEntertainmentRecord := false
 	for i, p := range req.Positions {
 		if p.Net <= 0 {
 			return nil, nil, nil, fmt.Errorf("Position %d: der Nettobetrag muss größer als null sein", i+1)
 		}
-		account, err := s.resolveAccount(p, domain.DirectionIncoming, req.TaxTreatment)
+		positionLines, quota, err := s.expenseLines(p, req.TaxTreatment, req.DocumentDate)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Position %d: %w", i+1, err)
 		}
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: account, Amount: p.Net, Text: p.Text,
-		})
+		lines = append(lines, positionLines...)
+		if quota == accounting.QuotaEntertainment {
+			needsEntertainmentRecord = true
+		}
+		// Die Bemessungsgrundlage bleibt der volle Nettobetrag, auch wo der
+		// Aufwand geteilt wird: § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungs-
+		// aufwendungen vom Vorsteuerausschluss ausdrücklich aus.
 		netByRate[p.TaxRate] += p.Net
+	}
+
+	if needsEntertainmentRecord {
+		if req.Entertainment == nil {
+			return nil, nil, nil, fmt.Errorf(
+				"zu einer Bewirtung gehören Ort, Tag, Teilnehmer und Anlass (§ 4 Abs. 5 Satz 1 Nr. 2 EStG). Ohne diese Aufzeichnung ist der Abzug auch für die abziehbaren 70 %% verloren")
+		}
+		if err := req.Entertainment.Validate(); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	// 2. Steuerzeilen, einmal je Steuersatzgruppe gerundet.
@@ -387,23 +418,72 @@ func (s *PostingService) buildOutgoingLines(inv *domain.Invoice, contact *domain
 	return append(lines, settlementLine), nil
 }
 
-func (s *PostingService) resolveAccount(p ReceiptPosition, dir domain.Direction, treatment domain.TaxTreatment) (string, error) {
+// expenseLines turns one position into its expense lines.
+//
+// Most positions produce exactly one. An expense that is only partly deductible
+// produces two: the deductible share on the group's account and the rest on the
+// non-deductible one. Booking both to one account would leave the Steuerbilanz
+// wrong, and splitting it later is not possible — the information which part was
+// which is gone by then.
+func (s *PostingService) expenseLines(p ReceiptPosition, treatment domain.TaxTreatment, documentDate string) ([]domain.JournalLine, accounting.DeductibleQuota, error) {
 	if p.Account != "" {
 		// A directly chosen account still has to pass the journal's checks; this
 		// is the escape hatch for cases the group catalog does not cover.
-		return p.Account, nil
+		return []domain.JournalLine{{
+			Side: domain.SideDebit, Account: p.Account, Amount: p.Net, Text: p.Text,
+		}}, "", nil
 	}
 	if p.PostingGroup == "" {
-		return "", fmt.Errorf("weder eine Buchungsgruppe noch ein Konto angegeben")
+		return nil, "", fmt.Errorf("weder eine Buchungsgruppe noch ein Konto angegeben")
 	}
 	group, err := accounting.LookupPostingGroup(p.PostingGroup)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
-	if group.Direction != dir {
-		return "", fmt.Errorf("%q passt nicht zur Belegrichtung", group.Label)
+	if group.Direction != domain.DirectionIncoming {
+		return nil, "", fmt.Errorf("%q passt nicht zur Belegrichtung", group.Label)
 	}
-	return group.ResolveAccount(treatment, p.TaxRate), nil
+
+	account := group.ResolveAccount(treatment, p.TaxRate)
+	if group.NonDeductibleAccount == "" {
+		return []domain.JournalLine{{
+			Side: domain.SideDebit, Account: account, Amount: p.Net, Text: p.Text,
+		}}, "", nil
+	}
+
+	params, err := accounting.TaxParametersFor(documentDate)
+	if err != nil {
+		return nil, "", err
+	}
+	permille := deductiblePermille(group.DeductibleQuota, params)
+	if permille <= 0 || permille >= 1000 {
+		return nil, "", fmt.Errorf("für %q ist kein abziehbarer Anteil hinterlegt", group.Label)
+	}
+
+	deductible := domain.MulRound(p.Net, permille, 1000)
+	// Der Rest ergibt sich als Differenz und wird nicht ein zweites Mal
+	// gerundet — sonst summierten sich die beiden Zeilen an einem Cent vorbei.
+	nonDeductible := p.Net - deductible
+
+	lines := []domain.JournalLine{
+		{Side: domain.SideDebit, Account: account, Amount: deductible, Text: p.Text},
+	}
+	if nonDeductible > 0 {
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideDebit, Account: group.NonDeductibleAccount,
+			Amount: nonDeductible, Text: p.Text,
+		})
+	}
+	return lines, group.DeductibleQuota, nil
+}
+
+func deductiblePermille(quota accounting.DeductibleQuota, params accounting.TaxParameters) int64 {
+	switch quota {
+	case accounting.QuotaEntertainment:
+		return params.EntertainmentDeductiblePermille
+	default:
+		return 0
+	}
 }
 
 // taxLines produces the tax legs, rounding once per rate group.

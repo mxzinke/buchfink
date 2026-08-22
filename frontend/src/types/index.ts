@@ -217,6 +217,10 @@ export interface PostingGroup {
   defaultRate: TaxRate;
   /** Der Steuerfall, den die Gruppe vorschlägt. Leer = Inland, steuerpflichtig. */
   defaultTreatment?: TaxTreatment;
+  /** Konto für den nicht abzugsfähigen Anteil, z. B. 6644 bei Bewirtung. */
+  nonDeductibleAccount?: string;
+  /** Gesetzliche Abzugsquote, die für diese Gruppe gilt. */
+  deductibleQuota?: string;
 }
 
 export interface TaxTreatmentInfo {
@@ -256,6 +260,8 @@ export interface ReceiptRequest {
   settlement: Settlement;
   paymentAccount?: string;
   currency?: string;
+  /** Pflicht, sobald auf ein Bewirtungskonto gebucht wird. */
+  entertainment?: EntertainmentDetail;
 }
 
 /**
@@ -274,6 +280,7 @@ export interface PostingPreview {
   /** Was tatsächlich gezahlt oder vereinnahmt wird — die Gegenzeile. */
   gross: Cents;
   balanced: boolean;
+  warnings?: PostingWarning[];
 }
 
 // -------------------------------------------------------------------------
@@ -396,8 +403,30 @@ export interface Contact {
   iban: string;
   bic: string;
   paymentTermsDays: number;
+  /** Keine Unternehmerin/kein Unternehmer — dann greift keine E-Rechnungspflicht. */
+  isPrivate: boolean;
+  /** Kleinunternehmer nach § 19 UStG: darf immer eine sonstige Rechnung stellen. */
+  isSmallBusiness: boolean;
   openAmount: Cents;
   createdAt: string;
+}
+
+/** Aufzeichnung zu einer Bewirtung, § 4 Abs. 5 Satz 1 Nr. 2 EStG. */
+export interface EntertainmentDetail {
+  place: string;
+  day: string;
+  participants: string;
+  occasion: string;
+}
+
+/** Ein Hinweis zur Buchung. Blockiert nie — was folgt, ist eine Rechtsfrage. */
+export interface PostingWarning {
+  code: string;
+  severity: 'info' | 'warning';
+  title: string;
+  detail: string;
+  /** Text zum Weitergeben an den Lieferanten. */
+  supplierNote?: string;
 }
 
 export interface InvoiceItem {

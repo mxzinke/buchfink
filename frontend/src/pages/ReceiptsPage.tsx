@@ -12,8 +12,10 @@ import {
 import type {
   Account,
   Contact,
+  EntertainmentDetail,
   PostingGroup,
   PostingPreview,
+  PostingWarning,
   Receipt,
   ReceiptFileInput,
   ReceiptFileRole,
@@ -471,6 +473,18 @@ const BookingForm: React.FC<{
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
   const [description, setDescription] = useState('');
+  const [entertainment, setEntertainment] = useState<EntertainmentDetail>({
+    place: '',
+    day: today,
+    participants: '',
+    occasion: '',
+  });
+
+  // Ob die Aufzeichnung nötig ist, sagt der Katalog: die Gruppe trägt das Konto
+  // für den nicht abzugsfähigen Anteil. Das Backend besteht darauf.
+  const needsEntertainment = positions.some(
+    (p) => groups.find((g) => g.key === p.postingGroup)?.deductibleQuota === 'entertainment',
+  );
 
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -498,6 +512,7 @@ const BookingForm: React.FC<{
       settlement,
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
       currency: 'EUR',
+      entertainment: needsEntertainment ? entertainment : undefined,
     }),
     [
       contactId,
@@ -511,6 +526,8 @@ const BookingForm: React.FC<{
       positions,
       settlement,
       paymentAccount,
+      needsEntertainment,
+      entertainment,
     ],
   );
 
@@ -753,6 +770,55 @@ const BookingForm: React.FC<{
           )}
         </div>
 
+        {needsEntertainment && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+            <div className="text-xs font-semibold text-amber-900">
+              Aufzeichnung zur Bewirtung
+              <span className="block text-[11px] font-normal text-amber-800/80">
+                § 4 Abs. 5 Satz 1 Nr. 2 EStG. Ohne sie ist der Abzug auch für die abziehbaren
+                70 % verloren.
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Ort">
+                <input
+                  className={inputClass}
+                  value={entertainment.place}
+                  onChange={(e) => setEntertainment({ ...entertainment, place: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label="Tag">
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={entertainment.day}
+                  onChange={(e) => setEntertainment({ ...entertainment, day: e.target.value })}
+                  required
+                />
+              </Field>
+            </div>
+            <Field label="Teilnehmer" hint="alle bewirteten Personen, mit Firma">
+              <input
+                className={inputClass}
+                value={entertainment.participants}
+                onChange={(e) =>
+                  setEntertainment({ ...entertainment, participants: e.target.value })
+                }
+                required
+              />
+            </Field>
+            <Field label="Anlass" hint="der konkrete geschäftliche Anlass">
+              <input
+                className={inputClass}
+                value={entertainment.occasion}
+                onChange={(e) => setEntertainment({ ...entertainment, occasion: e.target.value })}
+                required
+              />
+            </Field>
+          </div>
+        )}
+
         <Field label="Buchungstext" hint="leer lassen für den Standardtext">
           <input
             className={inputClass}
@@ -761,6 +827,7 @@ const BookingForm: React.FC<{
           />
         </Field>
 
+        <PostingWarnings warnings={preview?.warnings} />
         <PostingPreviewPanel preview={preview} error={previewError} />
         <ErrorBox message={error} />
       </div>
@@ -771,6 +838,55 @@ const BookingForm: React.FC<{
         </PrimaryButton>
       </div>
     </form>
+  );
+};
+
+/**
+ * Hinweise zur Buchung.
+ *
+ * Sie blockieren nie. Was aus einer fehlenden E-Rechnung folgt, ist eine
+ * Rechtsfrage — Buchfink zeigt sie an und bewertet sie nicht.
+ */
+const PostingWarnings: React.FC<{ warnings?: PostingWarning[] }> = ({ warnings }) => {
+  const [copied, setCopied] = useState<string | null>(null);
+  if (!warnings || warnings.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      {warnings.map((warning) => (
+        <div
+          key={warning.code}
+          className={`rounded-lg border px-3 py-2 space-y-1.5 ${
+            warning.severity === 'warning'
+              ? 'border-amber-300 bg-amber-50'
+              : 'border-sky-200 bg-sky-50'
+          }`}
+        >
+          <div className="flex items-start gap-1.5 text-xs font-semibold text-stone-800">
+            <AlertTriangle
+              className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
+                warning.severity === 'warning' ? 'text-amber-600' : 'text-sky-600'
+              }`}
+            />
+            {warning.title}
+          </div>
+          <p className="text-[11px] text-stone-600 leading-relaxed">{warning.detail}</p>
+          {warning.supplierNote && (
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(warning.supplierNote ?? '');
+                setCopied(warning.code);
+                window.setTimeout(() => setCopied(null), 2000);
+              }}
+              className="text-[11px] font-semibold text-stone-500 hover:text-stone-800 underline underline-offset-2"
+            >
+              {copied === warning.code ? 'Kopiert' : 'Hinweistext für den Lieferanten kopieren'}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 };
 

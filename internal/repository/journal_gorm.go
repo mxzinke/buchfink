@@ -10,6 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// Every read preloads the Aufzeichnung along with the lines. It is part of the
+// entry's canonical form, so an entry read without it hashes differently than it
+// was written — the integrity check would report every entertainment booking as
+// broken.
 type journalRepositoryGorm struct {
 	db *gorm.DB
 }
@@ -20,7 +24,7 @@ func NewJournalRepository(db *gorm.DB) domain.JournalRepository {
 }
 
 func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm.DB {
-	q := r.db.WithContext(ctx).Preload("Lines").Order("id asc")
+	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -35,7 +39,7 @@ func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	if err := r.db.WithContext(ctx).Preload("Lines").First(&entry, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {
 		return nil, err
 	}
 	return &entry, nil
@@ -57,7 +61,7 @@ func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account strin
 	}
 
 	var entries []domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").
+	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
 		Where("id IN ?", ids).
 		Order("booking_date asc, id asc").
 		Find(&entries).Error
@@ -66,7 +70,7 @@ func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account strin
 
 func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]domain.JournalEntry, error) {
 	var entries []domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").
+	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
 		Where("contact_id = ?", contactID).
 		Order("booking_date asc, id asc")
 	if fiscalYear > 0 {
@@ -78,7 +82,7 @@ func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uin
 
 func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").Where("reversal_of_id = ?", entryID).First(&entry).Error
+	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Where("reversal_of_id = ?", entryID).First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -90,7 +94,7 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 
 func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").Order("id desc")
+	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id desc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -109,7 +113,7 @@ func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int
 // skipped.
 func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").
+	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
 		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
 		Order("id asc").First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -134,7 +138,7 @@ func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.Journa
 		// The chain head is read inside the transaction, so a second writer
 		// cannot branch the chain by reading the same predecessor.
 		var last domain.JournalEntry
-		err = tx.Preload("Lines").
+		err = tx.Preload("Lines").Preload("Entertainment").
 			Where("fiscal_year = ?", entry.FiscalYear).
 			Order("id desc").First(&last).Error
 		switch {

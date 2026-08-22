@@ -13,6 +13,17 @@ import (
 // show.
 const PostingRuleVersion = "2026.1"
 
+// DeductibleQuota names a statutory limit on how much of an expense may be
+// deducted. It is a key into the dated parameters, not the figure itself.
+type DeductibleQuota string
+
+const (
+	// QuotaEntertainment is the entertainment share of § 4 Abs. 5 Satz 1 Nr. 2
+	// EStG. Only the expense is split — the input tax stays fully deductible,
+	// because § 15 Abs. 1a Satz 2 UStG takes entertainment out of the ban.
+	QuotaEntertainment DeductibleQuota = "entertainment"
+)
+
 // PostingGroup is a fachliche Gruppe the user picks instead of an account
 // number. The mapping to SKR04 is fixed and deterministic: no learning, no
 // heuristics, no per-user drift.
@@ -31,6 +42,14 @@ type PostingGroup struct {
 	// Reverse-Charge purchase of services does not belong on the same account as
 	// a domestic one, because the VAT return reports them in different boxes.
 	TreatmentAccounts map[domain.TaxTreatment]string `json:"-"`
+
+	// NonDeductibleAccount carries the share of an expense that is an expense
+	// under commercial law but only partly deductible for tax purposes. Booking
+	// both shares to one account would make the Steuerbilanz wrong.
+	NonDeductibleAccount string `json:"nonDeductibleAccount,omitempty"`
+	// DeductibleQuota names which statutory share applies to this group. The
+	// figure itself is dated and lives in tax_params.go.
+	DeductibleQuota DeductibleQuota `json:"deductibleQuota,omitempty"`
 
 	DefaultRate domain.TaxRate `json:"defaultRate"`
 	// DefaultTreatment is the Steuerfall the group proposes. It matters for the
@@ -174,8 +193,10 @@ var postingGroups = []PostingGroup{
 	{Key: "werbung", Label: "Werbekosten", Category: "Vertrieb",
 		Direction: domain.DirectionIncoming, Account: "6600", DefaultRate: domain.TaxRateStandard},
 	{Key: "bewirtung", Label: "Bewirtungskosten", Category: "Vertrieb",
-		Hint:      "Nach § 4 Abs. 5 Nr. 2 EStG sind 70 % abziehbar; der Rest gehört auf 6644. Die Vorsteuer bleibt voll abziehbar.",
-		Direction: domain.DirectionIncoming, Account: "6640", DefaultRate: domain.TaxRateStandard},
+		Hint:      "Nach § 4 Abs. 5 Satz 1 Nr. 2 EStG sind 70 % abziehbar; der Rest wird auf 6644 gebucht. Die Vorsteuer bleibt voll abziehbar. Ort, Tag, Teilnehmer und Anlass sind aufzuzeichnen.",
+		Direction: domain.DirectionIncoming, Account: "6640",
+		NonDeductibleAccount: "6644", DeductibleQuota: QuotaEntertainment,
+		DefaultRate: domain.TaxRateStandard},
 
 	// --- Anlagen ----------------------------------------------------------
 	{Key: "gwg", Label: "Geringwertige Wirtschaftsgüter (Sofortabschreibung)", Category: "Anlagen",

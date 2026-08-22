@@ -324,6 +324,37 @@ const ContactForm: React.FC<{
             </Field>
           </div>
 
+          <div className="space-y-1.5 pt-1">
+            <label className="flex items-start gap-2 text-xs text-stone-600">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-amber-700"
+                checked={draft.isPrivate ?? false}
+                onChange={(e) => set({ isPrivate: e.target.checked })}
+              />
+              <span>
+                Privatperson, kein Unternehmer
+                <span className="block text-[11px] text-stone-400">
+                  Dann besteht für Rechnungen dieses Partners keine E-Rechnungspflicht.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-stone-600">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-amber-700"
+                checked={draft.isSmallBusiness ?? false}
+                onChange={(e) => set({ isSmallBusiness: e.target.checked })}
+              />
+              <span>
+                Kleinunternehmer nach § 19 UStG
+                <span className="block text-[11px] text-stone-400">
+                  Darf nach § 34a UStDV immer eine sonstige Rechnung ausstellen.
+                </span>
+              </span>
+            </label>
+          </div>
+
           <ErrorBox message={error} />
         </div>
 
