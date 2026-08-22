@@ -97,7 +97,7 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Mehrdateiliger Beleg mit Rollen (PDF + XML) | vorhanden (`internal/domain/receipt.go`), Beleg-Hash über die geordnete Dateiliste |
 | **Einlesen einer empfangenen E-Rechnung** | vorhanden: XML aus dem Hybrid-PDF (`pdfattach.go`), CII-Parser (`cii.go`), Buchungsvorschlag (`einvoice_service.go`) |
 | **Ablehnung der Profile MINIMUM und BASIC WL** | vorhanden |
-| **Validierung gegen EN 16931** | Teilprüfung in Go (`internal/invoice/en16931.go`), Regelliste und Version am Beleg |
+| **Validierung gegen EN 16931** | Teilprüfung in Go (`internal/invoice/en16931.go`), 170 von 223 Regeln, Regelliste und Version am Beleg |
 | **XRechnung (reines XML ohne PDF)** | ablegbar und auslesbar; buchbar erst mit erzeugter Darstellung |
 | Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, über den Beleg-Hash |
 
@@ -231,11 +231,57 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
   der Referenzweg – der KoSIT-Validator mit Schematron über Saxon-XSLT – setzt
   eine Java-Laufzeit voraus, die eine lokale Go-Desktop-App nicht mitbringen soll.
 
-  Geprüft wird eine **belegte Teilmenge**: die Pflichtangaben (BR-01 bis BR-16),
-  die Positionsregeln (BR-21 bis BR-26), die Steueraufschlüsselung (BR-45 bis
-  BR-48), die Rechenregeln (BR-CO-10, -13, -15, -16, -17), die Codelisten
-  (BR-CL-03, -10, -11, -17) und die kategoriespezifischen Regeln für AE, E, K, Z
-  und O. Die Liste ist über `GetEInvoiceRules()` abrufbar und Teil des Ergebnisses.
+  Geprüft wird eine **belegte Teilmenge, und zwar eine gemessene**: 170 der 223
+  Geschäftsregeln, die das Validierungsartefakt der EU-Kommission für CII
+  definiert – rund drei Viertel. Die Zahl steht nicht in diesem Dokument, weil
+  sie jemand geschätzt hätte: `internal/invoice/en16931_rules.go` führt die
+  Regelkennungen der Norm als Inventar, und `TestCoverageIsMeasured` rechnet die
+  Abdeckung bei jedem Testlauf aus. Die Liste der geprüften Regeln ist über
+  `GetEInvoiceRules()` abrufbar und Teil jedes Ergebnisses.
+
+  Abgedeckt sind die Pflichtangaben (BR-01 bis BR-16), die Positionsregeln
+  (BR-21 bis BR-26), Nachlässe und Zuschläge (BR-31 bis BR-44), die
+  Steueraufschlüsselung (BR-45 bis BR-48), die Rechenregeln (BR-CO-04, -09 bis
+  -19, -26), die Nachkommastellen (BR-DEC, bis auf eine Regel vollständig), die
+  Codelisten für Währung, Land und Steuerkategorie (BR-CL-03, -04, -05, -14,
+  -18) und **alle neun Steuerkategorie-Familien vollständig** – BR-S, BR-Z,
+  BR-E, BR-AE, BR-IC, BR-G, BR-O, BR-AF, BR-AG mit je zehn Regeln, dazu
+  BR-IC-11/-12 und BR-O-11 bis -14.
+
+  Ungeprüft bleiben Regeln zu Feldern, die Buchfink nicht liest: Zahlungsmittel,
+  Anlagen, Rechnungsbezüge, Kennungsschemata nach ISO 6523 und die zugehörigen
+  Codelisten. `EN16931UncheckedRules()` nennt sie einzeln, damit sich für eine
+  bestimmte Regel nachsehen lässt, ob sie geprüft wurde – statt es aus einer
+  Prozentzahl zu erraten.
+
+  **Wie die Teilmenge belastbar wird.** Testdateien machen eine Prüfung nicht
+  vollständig – sie decken ab, was sie enthalten, und über beliebige Eingaben
+  sagen sie nichts. Sie sind trotzdem das schärfste Werkzeug, das hier zur
+  Verfügung steht, weil die 15 offiziellen CII-Beispiele des Artefakts *bekannt
+  gültig* sind: jeder Fund darin ist ein Fehler im Prüfer, nicht in der
+  Rechnung. Sechs Fehler kamen so heraus, darunter zwei, die korrekte Rechnungen
+  abgewiesen hätten (BR-08/BR-10 verlangten Straße und Ort, wo die Norm nur nach
+  der Adressgruppe fragt; BR-CO-17 verglich ohne die zulässige Toleranz von
+  einer Währungseinheit), einer im eigenen Erzeuger (das Bestimmungsland BT-80
+  fehlte bei innergemeinschaftlicher Lieferung) und einer, den nur eine echte
+  Datei zeigt: eine dänische Rechnung führt den Steuerbetrag zweimal, in
+  Rechnungs- und in Abrechnungswährung, und Buchfink las den falschen.
+
+  Zwei Fehlerarten finden Beispieldateien allerdings **nicht**, weil ein gültiges
+  Dokument keine Regel auslöst: eine Regel, die unter falscher Kennung gemeldet
+  wird, und eine Regel, die in der Liste steht, aber nichts prüft. Beides ist
+  vorgekommen – die innergemeinschaftlichen Regeln liefen unter dem erfundenen
+  Namen BR-K statt BR-IC, drei BR-CL-Kennungen zeigten auf andere Felder als
+  gemeint, und BR-AG-05 stand in der Liste, ohne dass die Kategorie „IPSI"
+  überhaupt eine Satzbedingung hinterlegt hatte. Dagegen laufen zwei eigene
+  Tests: einer vergleicht jede zugesagte Kennung mit dem Regelinventar der Norm,
+  der andere liest den Quelltext der Prüfung und meldet jede Regel, die zugesagt,
+  aber nirgends gemeldet wird – und umgekehrt.
+
+  Die Beispieldateien liegen **nicht** im Repository: das Artefakt steht unter
+  EUPL-1.2, Buchfink unter MIT. Übernommen wurden nur die Regelkennungen, das
+  sind Tatsachen über die Norm. `task test:en16931` holt die Dateien bei Bedarf
+  und lässt den Abgleich laufen; ohne sie überspringt sich der Test.
 
   Der Prüfumfang kennt **keinen Wert für „vollständig geprüft"** – nur
   `partial`. Das ist Absicht: Vollständigkeit zu behaupten wäre der einzige
@@ -252,11 +298,16 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
 - **Umgang mit abweichendem Bildteil:** anzeigen und blockieren, oder anzeigen und
   weiterbuchen lassen? *Vorschlag: anzeigen, Buchung aus dem XML, Hinweis auf die
   mögliche § 14c-Relevanz – keine automatische Bewertung.*
-- **Papierrechnung im Pflichtfall:** Soll Buchfink warnen, wenn ein inländischer
-  B2B-Eingangsbeleg als Papier- oder PDF-Rechnung erfasst wird, obwohl eine
-  E-Rechnung Pflicht gewesen wäre? Der Vorsteuerabzug ist dann dem Grunde nach
-  gefährdet. Die Software kennt Ansässigkeit und Steuerfall und könnte es
-  erkennen – ab wann sie es *sagen* soll, ist eine UX-Frage.
+- **Papierrechnung im Pflichtfall:** entschieden und umgesetzt
+  (`internal/service/einvoice_notice.go`). Buchfink weist in der
+  Buchungsvorschau darauf hin, wenn ein inländischer, unternehmerischer
+  Lieferant ohne Kleinunternehmerstatus über der Kleinbetragsgrenze des
+  § 33 UStDV eine sonstige Rechnung stellt und der Beleg keinen strukturierten
+  Teil trägt. Der Text wechselt mit dem Belegdatum über die Fristen des
+  § 27 Abs. 38 UStG; dazu kommt ein zweiter, der sich an den Lieferanten
+  weitergeben lässt. **Blockiert wird nie** – ob aus der sonstigen Rechnung ein
+  Vorsteuerabzug folgt, ist eine Rechtsfrage, und den Vorjahresumsatz des
+  Ausstellers kennt Buchfink nicht.
 - **Aufbewahrung des eigenen PDF:** Rz. 76 Abs. 2 erlaubt den Verzicht. Nutzen
   oder trotzdem archivieren?
 - **Ausstellungsseite:** XRechnung zusätzlich zu ZUGFeRD anbieten? Beide sind

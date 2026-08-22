@@ -22,6 +22,9 @@ go.work.sum
 
 # Wails & Build
 .task
+
+# Auf Anforderung geholte Fremdartefakte (task test:en16931)
+.cache/
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 

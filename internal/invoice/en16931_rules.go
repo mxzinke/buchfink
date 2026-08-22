@@ -1,5 +1,7 @@
 package invoice
 
+import "sort"
+
 // en16931BusinessRules lists every business rule of the EN 16931 CII validation
 // artefact, as of the release this list was taken from.
 //
@@ -52,6 +54,47 @@ var en16931BusinessRules = []string{
 	"BR-S-08", "BR-S-09", "BR-S-10", "BR-Z-01", "BR-Z-02", "BR-Z-03",
 	"BR-Z-04", "BR-Z-05", "BR-Z-06", "BR-Z-07", "BR-Z-08", "BR-Z-09",
 	"BR-Z-10",
+}
+
+// ValidationRules documents exactly which rules ValidateEN16931 implements.
+//
+// It is part of the result rather than a comment, because "validated" without
+// the list of what was checked tells the reader nothing they can act on.
+//
+// The list lives next to the standard's own inventory on purpose: two tests keep
+// it honest. One fails if Buchfink claims a rule the standard does not define,
+// the other if a rule is claimed here without a check in en16931.go that reports
+// it. A claim nobody can check is worth as little as no claim at all.
+func ValidationRules() []string {
+	rules := []string{
+		"BR-01", "BR-02", "BR-03", "BR-04", "BR-05", "BR-06", "BR-07", "BR-08",
+		"BR-09", "BR-10", "BR-11", "BR-12", "BR-13", "BR-14", "BR-15", "BR-16",
+		"BR-21", "BR-22", "BR-24", "BR-25", "BR-26",
+		"BR-31", "BR-32", "BR-33", "BR-36", "BR-37", "BR-38",
+		"BR-41", "BR-42", "BR-43", "BR-44",
+		"BR-45", "BR-46", "BR-47", "BR-48",
+		"BR-CL-03", "BR-CL-04", "BR-CL-05", "BR-CL-14", "BR-CL-18",
+		"BR-CO-04", "BR-CO-09", "BR-CO-10", "BR-CO-11", "BR-CO-12", "BR-CO-13",
+		"BR-CO-14", "BR-CO-15", "BR-CO-16", "BR-CO-17", "BR-CO-18", "BR-CO-19",
+		"BR-CO-26",
+		"BR-DEC-01", "BR-DEC-02", "BR-DEC-05", "BR-DEC-06", "BR-DEC-09",
+		"BR-DEC-10", "BR-DEC-11", "BR-DEC-12", "BR-DEC-13", "BR-DEC-14",
+		"BR-DEC-15",
+		"BR-DEC-16", "BR-DEC-17", "BR-DEC-18", "BR-DEC-19", "BR-DEC-20",
+		"BR-DEC-23", "BR-DEC-24", "BR-DEC-25", "BR-DEC-27", "BR-DEC-28",
+		"BR-IC-11", "BR-IC-12",
+		"BR-O-11", "BR-O-12", "BR-O-13", "BR-O-14",
+	}
+	// Die Kategorie-Familien haben alle denselben Zuschnitt, deshalb entsteht
+	// ihr Anteil an der Liste aus derselben Tabelle, aus der auch die Prüfung
+	// entsteht. Eine getippte Liste liefe früher oder später auseinander.
+	for _, spec := range categorySpecs {
+		for _, n := range []string{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10"} {
+			rules = append(rules, "BR-"+spec.family+"-"+n)
+		}
+	}
+	sort.Strings(rules)
+	return rules
 }
 
 // EN16931RuleCount is the number of business rules the standard defines for CII.

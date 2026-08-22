@@ -71,29 +71,42 @@ type CIIInvoice struct {
 			Event  struct {
 				Occurrence ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 OccurrenceDateTime"`
 			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ActualDeliverySupplyChainEvent"`
-			Period struct {
-				Start ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 StartDateTime"`
-				End   ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 EndDateTime"`
-			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BillingSpecifiedPeriod"`
+			// Period is a pointer for the same reason the address is: BR-CO-19
+			// asks whether a stated Abrechnungszeitraum has a beginning or an
+			// end, which only means something if "no period" and "an empty
+			// period" are distinguishable.
+			Period *ciiPeriod `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BillingSpecifiedPeriod"`
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableHeaderTradeDelivery"`
 
 		Settlement struct {
-			Currency string        `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 InvoiceCurrencyCode"`
-			Taxes    []ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableTradeTax"`
-			// Nachlässe und Zuschläge auf Dokumentebene (BG-20, BG-21). Buchfink
-			// wertet sie nicht aus, muss aber wissen, ob welche da sind: sie
-			// verschieben die Summenregeln, und eine Abweichung wäre dann
-			// zulässig statt fehlerhaft.
+			Currency string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 InvoiceCurrencyCode"`
+			// TaxCurrency (BT-6) is the currency the VAT is accounted in when it
+			// differs from the invoice currency.
+			TaxCurrency string        `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxCurrencyCode"`
+			Taxes       []ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableTradeTax"`
+			// Nachlässe und Zuschläge auf Dokumentebene (BG-20, BG-21). Sie
+			// verschieben jede Summenregel: ohne sie ist der Nettogesamtbetrag
+			// die Summe der Positionen, mit ihnen nicht mehr. Wer sie nicht
+			// liest, kann die Summen nur noch vermuten.
 			AllowancesCharges []ciiAllowanceCharge `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeAllowanceCharge"`
 			Terms             struct {
 				DueDate ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 DueDateDateTime"`
 			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradePaymentTerms"`
 			Summation struct {
-				LineTotal     string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineTotalAmount"`
-				TaxBasisTotal string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxBasisTotalAmount"`
-				TaxTotal      string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxTotalAmount"`
-				GrandTotal    string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 GrandTotalAmount"`
-				DuePayable    string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 DuePayableAmount"`
+				LineTotal      string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineTotalAmount"`
+				AllowanceTotal string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 AllowanceTotalAmount"`
+				ChargeTotal    string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ChargeTotalAmount"`
+				TaxBasisTotal  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxBasisTotalAmount"`
+				// TaxTotals holds BT-110 and, where the VAT is accounted in a
+				// second currency, BT-111. Both are written as the same element
+				// and only the currencyID tells them apart — reading just one of
+				// them picks whichever came last, which on a Danish invoice with
+				// a euro VAT total is the wrong number.
+				TaxTotals      []ciiAmount `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxTotalAmount"`
+				GrandTotal     string      `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 GrandTotalAmount"`
+				TotalPrepaid   string      `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TotalPrepaidAmount"`
+				RoundingAmount string      `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 RoundingAmount"`
+				DuePayable     string      `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 DuePayableAmount"`
 			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeSettlementHeaderMonetarySummation"`
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableHeaderTradeSettlement"`
 	} `xml:"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100 SupplyChainTradeTransaction"`
@@ -101,6 +114,13 @@ type CIIInvoice struct {
 
 type ciiParty struct {
 	Name string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 Name"`
+	// ID, GlobalID and LegalOrganization carry the identifiers BR-CO-26 asks
+	// for (BT-29, BT-30). They are also what Buchfink matches a Kontakt on.
+	ID                string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ID"`
+	GlobalID          string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 GlobalID"`
+	LegalOrganization struct {
+		ID string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ID"`
+	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedLegalOrganization"`
 	// Address is a pointer because BR-08 and BR-10 ask whether the address
 	// element exists at all, not whether any particular field in it is filled.
 	// An address consisting of nothing but a country code is valid — BR-09 is
@@ -147,16 +167,51 @@ func (p ciiParty) CountryCode() string {
 	return strings.TrimSpace(p.Address.CountryID)
 }
 
+// ciiAmount is a monetary value together with the currency it is stated in.
+type ciiAmount struct {
+	Value      string `xml:",chardata"`
+	CurrencyID string `xml:"currencyID,attr"`
+}
+
+type ciiPeriod struct {
+	Start ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 StartDateTime"`
+	End   ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 EndDateTime"`
+}
+
 type ciiDateTime struct {
 	Value string `xml:"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100 DateTimeString"`
 }
 
 type ciiAllowanceCharge struct {
-	// ChargeIndicator false = Nachlass, true = Zuschlag.
+	// ChargeIndicator false = Nachlass, true = Zuschlag. Beide stehen im
+	// selben Element; allein dieses Flag trennt einen Abzug von einem Aufschlag,
+	// und mit ihm kehrt sich das Vorzeichen jeder Summenregel um.
 	Indicator struct {
 		Value string `xml:"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100 Indicator"`
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ChargeIndicator"`
 	ActualAmount string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ActualAmount"`
+	BasisAmount  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BasisAmount"`
+	Reason       string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 Reason"`
+	ReasonCode   string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ReasonCode"`
+	// CategoryTax trägt Steuerkategorie und Satz des Nachlasses (BT-95/BT-96
+	// bzw. BT-102/BT-103). Ein Nachlass gehört damit in dieselbe Steuergruppe
+	// wie die Positionen, die er mindert.
+	CategoryTax ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CategoryTradeTax"`
+}
+
+// IsCharge reports whether the entry is a Zuschlag rather than a Nachlass.
+func (a ciiAllowanceCharge) IsCharge() bool {
+	switch strings.ToLower(strings.TrimSpace(a.Indicator.Value)) {
+	case "true", "1":
+		return true
+	}
+	return false
+}
+
+// HasReason reports whether a reason or a reason code is given, which BR-33,
+// BR-38, BR-42 and BR-44 require — one of the two, not both.
+func (a ciiAllowanceCharge) HasReason() bool {
+	return strings.TrimSpace(a.Reason) != "" || strings.TrimSpace(a.ReasonCode) != ""
 }
 
 type ciiTradeTax struct {
@@ -188,18 +243,67 @@ type ciiLine struct {
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BilledQuantity"`
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedLineTradeDelivery"`
 	Settlement struct {
-		Tax       ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableTradeTax"`
-		Summation struct {
+		Tax ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableTradeTax"`
+		// Nachlässe und Zuschläge auf Positionsebene (BG-27, BG-28).
+		AllowancesCharges []ciiAllowanceCharge `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeAllowanceCharge"`
+		Summation         struct {
 			LineTotal string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineTotalAmount"`
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeSettlementLineMonetarySummation"`
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedLineTradeSettlement"`
 }
 
-// HasAllowancesOrCharges reports whether the invoice carries allowances or
-// charges at document level. Buchfink does not evaluate them, so the sum rules
-// only hold in their absence.
-func (c *CIIInvoice) HasAllowancesOrCharges() bool {
-	return len(c.Transaction.Settlement.AllowancesCharges) > 0
+// TaxTotal returns the total VAT amount in the invoice currency (BT-110).
+func (c *CIIInvoice) TaxTotal() ciiAmount {
+	return pickAmount(c.Transaction.Settlement.Summation.TaxTotals, c.Currency())
+}
+
+// TaxTotalInAccountingCurrency returns the total VAT in the VAT accounting
+// currency (BT-111), or an empty amount if the invoice states only one.
+func (c *CIIInvoice) TaxTotalInAccountingCurrency() ciiAmount {
+	totals := c.Transaction.Settlement.Summation.TaxTotals
+	if len(totals) < 2 {
+		return ciiAmount{}
+	}
+	invoiceCurrency := strings.ToUpper(strings.TrimSpace(c.Currency()))
+	for _, a := range totals {
+		if strings.ToUpper(strings.TrimSpace(a.CurrencyID)) != invoiceCurrency {
+			return a
+		}
+	}
+	return ciiAmount{}
+}
+
+func pickAmount(amounts []ciiAmount, currency string) ciiAmount {
+	if len(amounts) == 0 {
+		return ciiAmount{}
+	}
+	want := strings.ToUpper(strings.TrimSpace(currency))
+	for _, a := range amounts {
+		if strings.ToUpper(strings.TrimSpace(a.CurrencyID)) == want {
+			return a
+		}
+	}
+	return amounts[0]
+}
+
+// DocumentAllowances returns the Nachlässe on document level (BG-20).
+func (c *CIIInvoice) DocumentAllowances() []ciiAllowanceCharge {
+	return splitAllowancesCharges(c.Transaction.Settlement.AllowancesCharges, false)
+}
+
+// DocumentCharges returns the Zuschläge on document level (BG-21).
+func (c *CIIInvoice) DocumentCharges() []ciiAllowanceCharge {
+	return splitAllowancesCharges(c.Transaction.Settlement.AllowancesCharges, true)
+}
+
+func splitAllowancesCharges(all []ciiAllowanceCharge, wantCharge bool) []ciiAllowanceCharge {
+	var out []ciiAllowanceCharge
+	for _, a := range all {
+		if a.IsCharge() == wantCharge {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // ParseCII reads a Cross Industry Invoice.

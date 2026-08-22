@@ -28,6 +28,20 @@ tasks:
         ./internal/invoice/... ./internal/receiptstore/... ./internal/repository/...
         ./internal/security/... ./internal/service/... ./internal/timestamp/... {{.CLI_ARGS}}
 
+  test:en16931:
+    summary: Runs the EN-16931 checker against the official example invoices
+    # Die Beispiele gehören zum Validierungsartefakt der EU-Kommission und stehen
+    # unter EUPL-1.2, Buchfink unter MIT — deshalb liegen sie nicht im Repository,
+    # sondern werden bei Bedarf geholt. Ohne sie überspringt sich der Test still;
+    # dieser Task ist der Weg, ihn tatsächlich laufen zu lassen.
+    vars:
+      EN16931_DIR: '{{.EN16931_DIR | default ".cache/eInvoicing-EN16931"}}'
+      EN16931_REPO: "https://github.com/ConnectingEurope/eInvoicing-EN16931.git"
+    cmds:
+      - test -d {{.EN16931_DIR}} || git clone --depth 1 {{.EN16931_REPO}} {{.EN16931_DIR}}
+      - EN16931_CII_EXAMPLES={{.EN16931_DIR}}/cii/examples go test ./internal/invoice/ -v
+        -run 'TestOfficialExamplesProduceNoErrors|TestCoverageIsMeasured|TestClaimedRulesExistInTheStandard|TestEveryClaimedRuleIsActuallyChecked'
+
   vet:
     summary: Runs go vet over the same packages as the test suite
     cmds:

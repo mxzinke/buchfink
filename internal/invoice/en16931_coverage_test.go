@@ -3,6 +3,7 @@ package invoice
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -60,8 +61,10 @@ func TestCoverageIsMeasured(t *testing.T) {
 	}
 
 	// Eine Untergrenze, kein Ziel: sie fängt einen Rückschritt ab, ohne so zu
-	// tun, als wäre die erreichte Zahl genug.
-	const minimum = 40
+	// tun, als wäre die erreichte Zahl genug. Ungeprüft bleiben vor allem die
+	// Codelisten zu Feldern, die Buchfink gar nicht liest (Zahlungsmittel,
+	// Anlagen, Kennungsschemata), und die Regeln zu Rechnungsbezügen.
+	const minimum = 165
 	if checked < minimum {
 		t.Errorf("die Abdeckung ist auf %d Regeln gefallen, erwartet mindestens %d", checked, minimum)
 	}
@@ -137,4 +140,46 @@ func TestOfficialExamplesProduceNoErrors(t *testing.T) {
 		t.Fatalf("in %s liegt keine einzige XML-Datei", dir)
 	}
 	t.Logf("%d offizielle Beispiele geprüft", checked)
+}
+
+// Eine behauptete Regel ohne Prüfung ist schlimmer als eine ungeprüfte Regel:
+// die eine steht in der Abdeckungsliste und beruhigt, die andere nicht.
+//
+// Der Test liest die Prüfung im Quelltext und vergleicht die dort gemeldeten
+// Regelkennungen mit denen, die ValidationRules zusagt. Er hat einen echten
+// Fehler gefunden: BR-AG-05 stand in der Liste, die Kategorie "IPSI" hatte aber
+// gar keine Satzbedingung hinterlegt, also prüfte niemand etwas.
+func TestEveryClaimedRuleIsActuallyChecked(t *testing.T) {
+	source, err := os.ReadFile("en16931.go")
+	if err != nil {
+		t.Fatalf("Quelltext der Prüfung lesen: %v", err)
+	}
+
+	reported := map[string]bool{}
+	for _, m := range regexp.MustCompile(`"(BR-[A-Z]*-?\d+)"`).FindAllStringSubmatch(string(source), -1) {
+		reported[m[1]] = true
+	}
+	// Die Kategorie-Familien werden zur Laufzeit zusammengesetzt, deshalb steht
+	// im Quelltext nur die Endung.
+	for _, m := range regexp.MustCompile(`"BR-"\s*\+\s*spec\.family\s*\+\s*"-(\d+)"`).FindAllStringSubmatch(string(source), -1) {
+		for _, spec := range categorySpecs {
+			reported["BR-"+spec.family+"-"+m[1]] = true
+		}
+	}
+
+	for _, rule := range ValidationRules() {
+		if !reported[rule] {
+			t.Errorf("%s steht in der Abdeckungsliste, wird aber nirgends gemeldet", rule)
+		}
+	}
+
+	claimed := map[string]bool{}
+	for _, rule := range ValidationRules() {
+		claimed[rule] = true
+	}
+	for rule := range reported {
+		if !claimed[rule] {
+			t.Errorf("%s wird gemeldet, steht aber nicht in der Abdeckungsliste", rule)
+		}
+	}
 }
