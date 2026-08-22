@@ -633,11 +633,37 @@ Umgekehrt gilt die Trennung genauso streng: bei einem Hybridbeleg ist der Bildte
 potenziell eine zweite Rechnung mit § 14c-Folgen – Buchfink zeigt die Abweichung
 an und bewertet sie nicht.
 
+### Ablegen und Buchen sind zwei Schritte
+
+Das ist die Unterscheidung, die man beim Bauen zuerst falsch macht. Eine
+XRechnung besteht nur aus XML und hat keinen Bildteil. Sie muss trotzdem
+**sofort ablegbar** sein – die GoBD verlangen die Aufbewahrung in der
+empfangenen Form (Rz. 131), und die Darstellung kann erst danach erzeugt
+werden. Was sie nicht sein darf, ist **buchbar**, bevor diese Darstellung
+existiert: niemand soll eine Buchung zu einem Beleg freigeben, den er nicht
+ansehen kann.
+
+Die Prüfungen sind also zwei:
+
+| Prüfung | Wann | Was |
+|---|---|---|
+| **Struktur** | beim Ablegen | genau ein Original, höchstens ein strukturierter Teil, höchstens eine Darstellung, jede Datei mit Prüfsumme; abgeleitete Dateien als solche gekennzeichnet |
+| **Buchbarkeit** | beim Buchen | zusätzlich: der Beleg ist anzeigbar |
+
+Wer beides in eine Prüfung legt, kann eine XRechnung gar nicht erst annehmen –
+und verstößt damit gegen genau die Norm, die er einhalten will.
+
 ### Ablage und Hash
 
 - **Ablage** nach Jahr und Richtung (`belege/<jahr>/eingang/…`, `…/ausgang/…`),
   jede Datei unverändert.
 - **Je Datei** ein SHA256 über den Dateiinhalt.
+- **Der Dateiname auf der Platte ist die Prüfsumme**, nicht die Belegnummer.
+  Das ist kein Detail: stünde die Belegnummer im Pfad, müsste sie feststehen,
+  bevor die erste Datei geschrieben wird – also *vor* der Transaktion, die den
+  Beleg einfügt. Eine fehlgeschlagene Ablage risse dann eine Lücke in den
+  Nummernkreis. Inhaltsadressierte Ablage entkoppelt beides, und identische
+  Dateien liegen nebenbei nur einmal auf der Platte.
 - **Je Beleg** ein Beleg-Hash über die *geordnete* Liste aus Rolle,
   Originaldateiname und Datei-Hash – längenpräfigiert wie bei der Buchung, damit
   kein Dateiname eine Feldgrenze vortäuschen kann. Damit ändert jede zusätzliche,
@@ -652,12 +678,23 @@ Mahnung, ein Zahlungsnachweis, eine korrigierte Rechnung – ist ein eigener Bel
 der auf denselben Geschäftsvorfall zeigt. Für eine inhaltliche Korrektur gilt
 weiter Storno plus Neuerfassung.
 
+Das Versiegeln gehört **hinter** den Journalschreibvorgang. Scheitert die
+Buchung, muss der Beleg offen bleiben und korrigiert erneut gebucht werden
+können; die andere Reihenfolge hinterließe einen unveränderlichen Beleg ohne
+Buchung.
+
 ### Migration
 
 `DocumentHash` und `DocumentPath` am Journaleintrag werden durch einen Verweis auf
 den Beleg plus den Beleg-Hash ersetzt; `DocumentNumber` bleibt, es ist das
 Belegfeld für den DATEV-Export. Da noch keine produktiven Daten existieren, ist
 das ein Schnitt und keine Datenmigration.
+
+Der Beleg-Hash tritt an die Stelle des bisherigen Datei-Hashes in der
+Kanonisierung der Buchung – die Kette deckt damit unverändert **ein** Feld ab,
+nur zeigt es jetzt auf die ganze Dateiliste statt auf eine einzelne Datei. Die
+Belegtabelle selbst hat keine eigene Kette: sie hängt über diesen einen Wert an
+der des Journals.
 
 ## 16. Entscheidungen
 
