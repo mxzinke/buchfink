@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 import React from 'react';
 import { toast } from 'sonner';
 import {

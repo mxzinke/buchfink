@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: EUPL-1.2
 
 """
 Erzeugt THIRD-PARTY-NOTICES.md aus den tatsaechlich mitgelieferten Abhaengigkeiten.

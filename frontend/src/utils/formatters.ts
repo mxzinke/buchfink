@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 /**
  * Formatierung für de-DE. Beträge kommen aus dem Backend als ganze Cent.
  */

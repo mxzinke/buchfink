@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, ShieldAlert, RefreshCw, Lock, Loader2, Clock } from 'lucide-react';
 import { toast } from 'sonner';

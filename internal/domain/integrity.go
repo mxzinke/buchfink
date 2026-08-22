@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 package domain
 
 // HashChainService defines the contract for computing and validating GoBD hash chains.

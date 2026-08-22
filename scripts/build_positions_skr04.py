@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: EUPL-1.2
 
 """
 DATEV SKR 04 (BilRUG 2026) Parser & Position Generator

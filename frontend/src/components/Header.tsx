@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 import React, { useState } from 'react';
 import { Calendar, Building2, ChevronDown, Plus, Check, Menu } from 'lucide-react';
 import { TenantConfig } from '../types';

@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: EUPL-1.2 -->
-
 # Mitwirken an Buchfink
 
 Danke für dein Interesse. Buchfink ist Buchhaltungssoftware — Fehler haben hier
@@ -21,7 +19,8 @@ eingereichten Inhalt.
 
 Buchfink steht unter der [EUPL-1.2](LICENSE); die Lizenzdatei enthält den
 deutschen und den englischen Wortlaut. Dein Beitrag wird unter derselben
-Lizenz veröffentlicht.
+Lizenz veröffentlicht. Einzelne Quelldateien tragen keinen Lizenzkopf — es
+gilt die Lizenz des Projekts.
 
 Zusätzlich brauchen wir deine Zustimmung zur
 [Vereinbarung über Beiträge (CLA)](CLA.md). Du behältst das Urheberrecht an
@@ -41,19 +40,6 @@ keine Daten aus fremden Quellen ins Repository, ohne die Lizenz zu prüfen und
 im Pull Request zu nennen. Das gilt auch für Auszüge aus Fachliteratur,
 Kontenrahmen-Veröffentlichungen und Formularen. Kommt neues Material dazu,
 gehört es in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
-
-## Lizenzkopf in neuen Dateien
-
-Jede Quelldatei trägt oben eine Zeile — im jeweils passenden Kommentarstil:
-
-```go
-// SPDX-License-Identifier: EUPL-1.2
-```
-
-Der Urheberrechtshinweis steht nicht in jeder Datei, sondern gesammelt im
-[README](README.md#lizenz) und in den Metadaten der gebauten Anwendung.
-
-Generierte Dateien (`frontend/bindings/`) sind davon ausgenommen.
 
 ## Entwicklungsumgebung
 

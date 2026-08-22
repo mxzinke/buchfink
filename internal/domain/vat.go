@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 package domain
 
 // VatFigure is the net base and the tax of one VAT rate.

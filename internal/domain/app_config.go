@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 package domain
 
 // TenantConfig represents a single company / client workspace. Field encryption

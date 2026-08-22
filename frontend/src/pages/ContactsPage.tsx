@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: EUPL-1.2
-
 import React, { useEffect, useState } from 'react';
 import { Plus, Building, User, Mail, CreditCard } from 'lucide-react';
 import { Contact } from '../types';

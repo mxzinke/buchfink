@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: EUPL-1.2 -->
-
 # Vereinbarung über Beiträge (Contributor License Agreement)
 
 Buchfink wird unter der [EUPL-1.2](LICENSE) veröffentlicht. Damit das Projekt
