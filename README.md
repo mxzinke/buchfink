@@ -16,6 +16,7 @@
   <a href="#tech-stack">Tech-Stack</a> &bull;
   <a href="#entwicklung">Entwicklung & Setup</a> &bull;
   <a href="#scope--entscheidungen">Scope & Entscheidungen</a> &bull;
+  <a href="#mitwirken">Mitwirken</a> &bull;
   <a href="#lizenz">Lizenz</a>
 </p>
 
@@ -197,6 +198,48 @@ buchfink/
 
 ---
 
+## Mitwirken
+
+Fehlerberichte und Pull Requests sind willkommen. Wie der Ablauf aussieht, was
+vor einem Pull Request laufen sollte und welche Regeln für fremdes Material
+gelten, steht in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Eingereichter Inhalt setzt die Zustimmung zur
+[Vereinbarung über Beiträge](CLA.md) voraus. Das Urheberrecht am eigenen
+Beitrag bleibt beim Beitragenden; die Vereinbarung hält dem Projekt die
+Möglichkeit offen, seine Lizenzierung aus einer Hand anzupassen.
+
+---
+
 ## Lizenz
 
-Dieses Projekt ist unter der [MIT-Lizenz](LICENSE) lizenziert.
+```text
+Copyright (c) 2026 Maximilian P.
+
+Lizenziert unter der EUPL
+```
+
+Buchfink steht unter der **[European Union Public Licence v1.2](LICENSE)**
+(EUPL-1.2). Der [deutsche Lizenztext](docs/lizenz-eupl-1.2-de.txt) ist nach
+Artikel 13 der Lizenz gleichwertig — alle Sprachfassungen haben denselben Rang.
+
+Was das praktisch bedeutet:
+
+- **Nutzen und anpassen:** uneingeschränkt. Wer Buchfink für den eigenen
+  Betrieb umbaut und intern einsetzt, muss nichts veröffentlichen.
+- **Weitergeben:** Wer eine veränderte Fassung verbreitet oder ihre wesentlichen
+  Funktionen online zugänglich macht — auch als gehostete Anwendung —, gibt sie
+  unter der EUPL weiter und liefert den Quellcode mit oder nennt einen frei
+  zugänglichen Speicherort.
+- **Hinweise erhalten:** Urheberrechts- und Lizenzhinweise bleiben stehen,
+  Änderungen werden mit Datum kenntlich gemacht.
+- **Name und Logo:** „Buchfink“ und die Kennzeichen des Projekts sind von der
+  Lizenz nicht erfasst (Artikel 5 EUPL). Ein Fork braucht einen eigenen Namen.
+- **Recht und Gerichtsstand:** deutsches Recht, Gericht am Sitz des
+  Lizenzgebers (Artikel 14 und 15 EUPL).
+
+Mitgelieferte Komponenten Dritter behalten ihre eigenen Lizenzen und sind in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) aufgeführt.
+
+> Frühere Stände dieses Repositorys standen unter der MIT-Lizenz. Was unter MIT
+> veröffentlicht wurde, bleibt unter MIT nutzbar; die EUPL gilt ab dem Wechsel.

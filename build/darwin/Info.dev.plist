@@ -22,6 +22,6 @@
         <key>NSHighResolutionCapable</key>
             <string>true</string>
         <key>NSHumanReadableCopyright</key>
-            <string>Copyright (c) 2026 Maximilian P.</string>
+            <string>Copyright (c) 2026 Maximilian P. - Licensed under the EUPL-1.2</string>
     </dict>
 </plist>

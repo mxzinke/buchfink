@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import React, { useEffect, useState } from 'react';
 import { Download, CheckCircle2, Code } from 'lucide-react';
 import { Api } from '../services/api';

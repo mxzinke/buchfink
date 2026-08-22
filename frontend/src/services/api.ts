@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import { bridge as Bridge } from './bridge';
 import skr04CatalogData from '../assets/skr04_2026.json';
 import type {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { Sidebar, TabType } from './components/Sidebar';

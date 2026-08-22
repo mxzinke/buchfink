@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";

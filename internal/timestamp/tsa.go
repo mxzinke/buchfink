@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 // Package timestamp obtains and verifies RFC-3161 trusted timestamps over the
 // GoBD hash chain head. Only a SHA-256 hash is ever sent to the Time-Stamping
 // Authority (TSA) — never accounting data — so no confidential content leaves

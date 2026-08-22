@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import React, { useState } from 'react';
 import { KeyRound, AlertTriangle, ShieldCheck, Loader2 } from 'lucide-react';
 import { Api } from '../services/api';

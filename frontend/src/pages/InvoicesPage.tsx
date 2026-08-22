@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-License-Identifier: EUPL-1.2
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AlertCircle, Code, FileText, Plus, RefreshCw, Trash2, Undo2, X } from 'lucide-react';

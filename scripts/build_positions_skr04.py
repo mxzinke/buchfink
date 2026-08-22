@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Maximilian P.
+# SPDX-License-Identifier: EUPL-1.2
+
 """
 DATEV SKR 04 (BilRUG 2026) Parser & Position Generator
 Extracts all accounts, positions, categories, tax functions, footnotes and hierarchy
