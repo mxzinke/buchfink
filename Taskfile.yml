@@ -17,6 +17,31 @@ includes:
   linux: ./build/linux/Taskfile.yml
 
 tasks:
+  test:
+    summary: Runs the Go test suite
+    # Not `go test ./...`: main.go embeds frontend/dist, which only exists after a
+    # frontend build, and internal/wailsbridge pulls in Wails v3 with its GTK and
+    # WebKit headers. Neither package has tests. Listing the packages that do
+    # keeps the suite runnable from a plain checkout.
+    cmds:
+      - go test ./internal/accounting/... ./internal/bank/... ./internal/domain/...
+        ./internal/invoice/... ./internal/receiptstore/... ./internal/repository/...
+        ./internal/security/... ./internal/service/... ./internal/timestamp/... {{.CLI_ARGS}}
+
+  vet:
+    summary: Runs go vet over the same packages as the test suite
+    cmds:
+      - go vet ./internal/accounting/... ./internal/bank/... ./internal/domain/...
+        ./internal/invoice/... ./internal/receiptstore/... ./internal/repository/...
+        ./internal/security/... ./internal/service/... ./internal/timestamp/...
+
+  check:
+    summary: Formatting, vet and tests — what to run before committing
+    cmds:
+      - gofmt -l internal main.go
+      - task: vet
+      - task: test
+
   build:
     summary: Builds the application
     cmds:

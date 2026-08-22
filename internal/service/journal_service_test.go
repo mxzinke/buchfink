@@ -7,6 +7,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"gorm.io/gorm"
 )
@@ -17,9 +18,13 @@ type testEnv struct {
 	posting     *PostingService
 	accounting  *AccountingService
 	contacts    *ContactService
+	receipts    *ReceiptService
 	journalRepo domain.JournalRepository
 	contactRepo domain.ContactRepository
 	numberRepo  domain.NumberRangeRepository
+	receiptRepo domain.ReceiptRepository
+	store       *receiptstore.Store
+	dataDir     string
 	fiscalYear  int
 }
 
@@ -40,15 +45,22 @@ func newTestEnv(t *testing.T) *testEnv {
 	numberRepo := repository.NewNumberRangeRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
+	receiptRepo := repository.NewReceiptRepository(db)
+
+	dataDir := t.TempDir()
+	store := receiptstore.New(dataDir)
 
 	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
+	receipts := NewReceiptService(receiptRepo, store, auditRepo, 2026)
 
 	return &testEnv{
 		db: db, journal: journal, posting: posting, accounting: acc, contacts: contacts,
+		receipts:    receipts,
 		journalRepo: journalRepo, contactRepo: contactRepo, numberRepo: numberRepo,
+		receiptRepo: receiptRepo, store: store, dataDir: dataDir,
 		fiscalYear: 2026,
 	}
 }

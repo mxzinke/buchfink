@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -23,23 +22,11 @@ type HashChain struct{}
 // NewHashChain returns the hash chain implementation.
 func NewHashChain() *HashChain { return &HashChain{} }
 
-// canonicalize renders an entry into an unambiguous byte sequence.
-//
-// Each field is written as name, byte length and value. The explicit length
-// makes the encoding injection-proof: no value can be crafted to look like a
-// field boundary, which a plain delimiter-joined string would allow.
+// canonicalize renders an entry into an unambiguous byte sequence using the
+// shared length-prefixed encoding (see canonicalWriter).
 func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
-	var b strings.Builder
-
-	put := func(name, value string) {
-		b.WriteString(name)
-		b.WriteByte(':')
-		b.WriteString(strconv.Itoa(len(value)))
-		b.WriteByte(':')
-		b.WriteString(value)
-		b.WriteByte('\n')
-	}
-	putInt := func(name string, value int64) { put(name, strconv.FormatInt(value, 10)) }
+	var w canonicalWriter
+	put, putInt := w.put, w.putInt
 
 	put("prev", prevHash)
 	put("number", e.EntryNumber)
@@ -85,7 +72,7 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("line_text", l.Text)
 	}
 
-	return []byte(b.String())
+	return w.bytes()
 }
 
 func optUint(v *uint) string {
