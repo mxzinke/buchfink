@@ -85,23 +85,17 @@ nicht gelistet.
 
 ---
 
-## Ungeklärte Rechtslage — vor einer Veröffentlichung zu prüfen
+## Kontenrahmen SKR 04
 
-Die folgenden Bestandteile des Repositorys sind **nicht** durch die EUPL
-gedeckt und auch nicht als Drittlizenz abgebildet, weil ihre Rechtslage
-ungeklärt ist:
+Die mitgelieferten Kontendaten (`skr04_2026.json`) lehnen sich an den
+DATEV-Standardkontenrahmen SKR 04 in der BilRUG-Fassung 2026 an. „DATEV“ und
+„SKR 04“ sind Kennzeichen der DATEV eG. Zwischen Buchfink und der DATEV eG
+besteht keine Verbindung; die DATEV eG prüft oder unterstützt dieses Projekt
+nicht.
 
-| Datei | Herkunft | Problem |
-|---|---|---|
-| `assets/DATEV-SKR04-BilrUg-2026.pdf` | DATEV eG, Art.-Nr. 11175 | Wortgleiche Kopie einer urheberrechtlich geschützten DATEV-Veröffentlichung. Eine Weiterverbreitung über dieses Repository ist ohne Erlaubnis von DATEV nicht gedeckt. |
-| `assets/skr04_2026.json`, `internal/accounting/skr04_2026.json`, `frontend/{src/assets,public}/skr04_2026.json` | maschinelle Extraktion aus derselben PDF | Enthält Kontenbezeichnungen und die Fußnotentexte von DATEV im Wortlaut. Bearbeitung eines fremden Werks; zusätzlich kommt ein Datenbankherstellerrecht nach § 87a UrhG in Betracht. |
-
-Das ist relevant, weil Artikel 6 EUPL vom Lizenzgeber die Zusicherung
-verlangt, die Rechte am Originalwerk selbst zu besitzen. Für diese Dateien
-trifft das nicht zu. Mögliche Wege: Nutzungserlaubnis von DATEV einholen,
-die Dateien aus dem Repository entfernen und der Anwendung nur einen
-Importpfad für den vom Anwender selbst beschafften Kontenrahmen mitgeben,
-oder den Kontenrahmen aus frei verfügbaren Quellen neu aufbauen.
+Die zugrunde liegende DATEV-Veröffentlichung wird nicht mit diesem Repository
+verteilt. Wer `scripts/build_positions_skr04.py` ausführen möchte, beschafft
+sie selbst.
 
 ---
 
