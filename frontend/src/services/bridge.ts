@@ -79,6 +79,8 @@ export const bridge = {
   GetReceipt: <T>(id: number) => invoke<T>('GetReceipt', id),
   DiscardReceipt: (id: number, reason: string) => invoke<void>('DiscardReceipt', id, reason),
   GetReceiptPreview: <T>(receiptId: number) => invoke<T>('GetReceiptPreview', receiptId),
+  ExtractStructuredPart: <T>(receiptId: number) => invoke<T>('ExtractStructuredPart', receiptId),
+  ProposeFromEInvoice: <T>(receiptId: number) => invoke<T>('ProposeFromEInvoice', receiptId),
   PreviewIncomingReceipt: <T>(request: unknown) => invoke<T>('PreviewIncomingReceipt', request),
   PreviewOutgoingInvoice: <T>(invoice: unknown) => invoke<T>('PreviewOutgoingInvoice', invoice),
 

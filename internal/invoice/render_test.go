@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -125,5 +126,70 @@ func TestTypstDateHandlesMissingAndMalformedDates(t *testing.T) {
 		if got := typstDate(input); got != want {
 			t.Errorf("typstDate(%q) = %q, erwartet %q", input, got, want)
 		}
+	}
+}
+
+// Der Rundlauf über das Dokument: erzeugen, das XML wieder herausziehen, lesen.
+// Das ist der Weg, den eine empfangene E-Rechnung nimmt.
+func TestEmbeddedInvoiceCanBeExtractedAgain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
+	}
+	inv, seller, buyer := sampleInvoice()
+
+	xml, err := GenerateZUGFeRDXML(inv, seller, buyer)
+	if err != nil {
+		t.Fatalf("ZUGFeRD-XML: %v", err)
+	}
+	renderer := NewRenderer()
+	ctx := context.Background()
+	t.Cleanup(func() { _ = renderer.Close(ctx) })
+
+	pdf, err := renderer.RenderInvoicePDF(ctx, inv, seller, buyer, xml)
+	if err != nil {
+		t.Fatalf("PDF erzeugen: %v", err)
+	}
+
+	embedded, err := ExtractEmbeddedInvoice(pdf)
+	if err != nil {
+		t.Fatalf("XML aus dem PDF holen: %v", err)
+	}
+	if embedded.Name != "factur-x.xml" {
+		t.Errorf("Dateiname des Anhangs = %q, erwartet factur-x.xml", embedded.Name)
+	}
+	if string(embedded.Data) != xml {
+		t.Error("das herausgeholte XML weicht vom eingebetteten ab")
+	}
+
+	doc, err := ParseCII(embedded.Data)
+	if err != nil {
+		t.Fatalf("XML lesen: %v", err)
+	}
+	if doc.Document.ID != inv.InvoiceNumber {
+		t.Errorf("Rechnungsnummer nach dem Rundlauf = %q", doc.Document.ID)
+	}
+}
+
+// Ein PDF ohne eingebetteten Datensatz ist eine sonstige Rechnung — und die
+// Meldung soll das sagen, statt nur "nichts gefunden".
+func TestPlainPDFIsReportedAsSonstigeRechnung(t *testing.T) {
+	if testing.Short() {
+		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
+	}
+	renderer := NewRenderer()
+	ctx := context.Background()
+	t.Cleanup(func() { _ = renderer.Close(ctx) })
+	if err := renderer.Warm(ctx); err != nil {
+		t.Fatalf("Renderer: %v", err)
+	}
+
+	pdf, err := renderer.compilePlainForTest(ctx)
+	if err != nil {
+		t.Fatalf("PDF ohne Anhang: %v", err)
+	}
+	if _, err := ExtractEmbeddedInvoice(pdf); err == nil {
+		t.Fatal("ein PDF ohne Anhang darf keinen Rechnungsdatensatz liefern")
+	} else if !strings.Contains(err.Error(), "sonstige Rechnung") {
+		t.Errorf("die Meldung soll den Fall benennen, lautet aber: %v", err)
 	}
 }

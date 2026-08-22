@@ -10,6 +10,7 @@ import type {
   Contact,
   DifferenceKindInfo,
   Direction,
+  EInvoiceProposal,
   Festschreibung,
   FestschreibungVerification,
   FinancialSummary,
@@ -171,6 +172,12 @@ export const Api = {
     call(() => Bridge.DiscardReceipt(id, reason)),
   getReceiptPreview: (receiptId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetReceiptPreview(receiptId) as Promise<ReceiptPreview>),
+  /** Zieht den strukturierten Rechnungsdatensatz aus einem abgelegten Beleg. */
+  extractStructuredPart: (receiptId: number): Promise<Receipt> =>
+    call(() => Bridge.ExtractStructuredPart(receiptId) as Promise<Receipt>),
+  /** Buchungsvorschlag aus dem strukturierten Teil. Das Konto bleibt offen. */
+  proposeFromEInvoice: (receiptId: number): Promise<EInvoiceProposal> =>
+    call(() => Bridge.ProposeFromEInvoice(receiptId) as Promise<EInvoiceProposal>),
   /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
   getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),

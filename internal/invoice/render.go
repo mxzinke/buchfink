@@ -96,3 +96,18 @@ func (r *Renderer) RenderInvoicePDF(ctx context.Context, inv *domain.Invoice, se
 	}
 	return pdf, nil
 }
+
+// compilePlainForTest renders a document without an attachment. It exists so the
+// extraction path can be tested against a PDF that is a sonstige Rechnung —
+// which is what most incoming documents still are.
+func (r *Renderer) compilePlainForTest(ctx context.Context) ([]byte, error) {
+	if err := r.ensure(ctx); err != nil {
+		return nil, err
+	}
+	return r.compiler.Compile(ctx, typst.CompileRequest{
+		Template: `#set document(title: "Rechnung", date: datetime(year: 2026, month: 8, day: 22))
+= Rechnung ohne strukturierten Teil`,
+		Fonts:   [][]byte{fontRegular},
+		PDFOpts: typst.PDFOptions{Standards: []string{"a-3b"}},
+	})
+}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
+  FileCode,
   FileText,
   Paperclip,
   Plus,
@@ -12,6 +13,7 @@ import {
 import type {
   Account,
   Contact,
+  EInvoiceProposal,
   EntertainmentDetail,
   PostingGroup,
   PostingPreview,
@@ -77,6 +79,7 @@ export const ReceiptsPage: React.FC = () => {
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
   const [selected, setSelected] = useState<Receipt | null>(null);
+  const [proposal, setProposal] = useState<EInvoiceProposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +110,33 @@ export const ReceiptsPage: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Liegt ein strukturierter Teil vor, ist er die Buchungsquelle — der
+  // Vorsteuerabzug ist nur aus ihm möglich (UStAE 14c.1 Abs. 4a Satz 4).
+  useEffect(() => {
+    if (!selected || selected.status !== 'filed') {
+      setProposal(null);
+      return;
+    }
+    if (!selected.files.some((f) => f.role === 'structured')) {
+      setProposal(null);
+      return;
+    }
+    let cancelled = false;
+    Api.proposeFromEInvoice(selected.id)
+      .then((p) => {
+        if (!cancelled) setProposal(p);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setProposal(null);
+          toast.error(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   async function fileReceipt() {
     setFiling(true);
@@ -178,6 +208,7 @@ export const ReceiptsPage: React.FC = () => {
             groups={groups}
             treatments={treatments}
             paymentAccounts={paymentAccounts}
+            proposal={proposal}
             onChanged={async (updated) => {
               setSelected(updated);
               await load();
@@ -267,16 +298,19 @@ const ReceiptDetail: React.FC<{
   paymentAccounts: Account[];
   onChanged: (updated: Receipt) => Promise<void>;
   onBooked: (entryNumber: string) => Promise<void>;
-}> = ({ receipt, vendors, groups, treatments, paymentAccounts, onChanged, onBooked }) => (
+  proposal: EInvoiceProposal | null;
+}> = ({ receipt, vendors, groups, treatments, paymentAccounts, proposal, onChanged, onBooked }) => (
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} />
     {receipt.status === 'filed' ? (
       <BookingForm
+        key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
         receipt={receipt}
         vendors={vendors}
         groups={groups}
         treatments={treatments}
         paymentAccounts={paymentAccounts}
+        proposal={proposal}
         onBooked={onBooked}
       />
     ) : (
@@ -347,6 +381,25 @@ const ReceiptViewer: React.FC<{
     setBusy(true);
     try {
       await onChanged(await Api.removeReceiptFile(receipt.id, fileId));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Zieht den strukturierten Rechnungsdatensatz aus dem Beleg.
+   *
+   * Ein eigener Schritt: der Beleg wird in der empfangenen Form abgelegt und
+   * erst danach untersucht. Findet sich nichts, ist es eine sonstige Rechnung —
+   * die Meldung sagt das.
+   */
+  async function extractStructured() {
+    setBusy(true);
+    try {
+      await onChanged(await Api.extractStructuredPart(receipt.id));
+      toast.success('Strukturierter Rechnungsdatensatz übernommen');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -439,7 +492,13 @@ const ReceiptViewer: React.FC<{
       </ul>
 
       {open && (
-        <div className="px-4 py-2 border-t border-stone-100 flex gap-2">
+        <div className="px-4 py-2 border-t border-stone-100 flex flex-wrap gap-2">
+          {!receipt.files.some((f) => f.role === 'structured') && (
+            <SecondaryButton onClick={() => void extractStructured()} disabled={busy}>
+              <FileCode className="w-3.5 h-3.5 inline mr-1" />
+              E-Rechnung auslesen
+            </SecondaryButton>
+          )}
           <SecondaryButton onClick={() => void addFile('attachment')} disabled={busy}>
             Anhang hinzufügen
           </SecondaryButton>
@@ -460,19 +519,32 @@ const BookingForm: React.FC<{
   groups: PostingGroup[];
   treatments: TaxTreatmentInfo[];
   paymentAccounts: Account[];
+  proposal: EInvoiceProposal | null;
   onBooked: (entryNumber: string) => Promise<void>;
-}> = ({ receipt, vendors, groups, treatments, paymentAccounts, onBooked }) => {
+}> = ({ receipt, vendors, groups, treatments, paymentAccounts, proposal, onBooked }) => {
   const today = receipt.receivedAt || new Date().toISOString().split('T')[0];
-  const [contactId, setContactId] = useState(vendors[0]?.id ?? 0);
-  const [documentDate, setDocumentDate] = useState(today);
-  const [bookingDate, setBookingDate] = useState(today);
-  const [serviceFrom, setServiceFrom] = useState(today);
-  const [serviceTo, setServiceTo] = useState(today);
-  const [treatment, setTreatment] = useState<TaxTreatment>('domestic');
-  const [positions, setPositions] = useState<DraftPosition[]>([emptyPosition(groups[0])]);
+  const p = proposal?.request;
+  const [contactId, setContactId] = useState(p?.contactId || vendors[0]?.id || 0);
+  const [documentDate, setDocumentDate] = useState(p?.documentDate || today);
+  const [bookingDate, setBookingDate] = useState(p?.bookingDate || today);
+  const [serviceFrom, setServiceFrom] = useState(p?.serviceDateFrom || today);
+  const [serviceTo, setServiceTo] = useState(p?.serviceDateTo || today);
+  const [treatment, setTreatment] = useState<TaxTreatment>(p?.taxTreatment || 'domestic');
+  const [positions, setPositions] = useState<DraftPosition[]>(
+    // Beträge und Steuersätze kommen aus dem strukturierten Teil, die
+    // Buchungsgruppe bleibt offen — sie steht in keiner Rechnung.
+    p && p.positions.length > 0
+      ? p.positions.map((pos) => ({
+          postingGroup: '',
+          net: (pos.net / 100).toFixed(2).replace('.', ','),
+          taxRate: pos.taxRate,
+          text: pos.text ?? '',
+        }))
+      : [emptyPosition(groups[0])],
+  );
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(p?.description ?? '');
   const [entertainment, setEntertainment] = useState<EntertainmentDetail>({
     place: '',
     day: today,
@@ -827,6 +899,7 @@ const BookingForm: React.FC<{
           />
         </Field>
 
+        {proposal && <ProposalNotes proposal={proposal} />}
         <PostingWarnings warnings={preview?.warnings} />
         <PostingPreviewPanel preview={preview} error={previewError} />
         <ErrorBox message={error} />
@@ -840,6 +913,28 @@ const BookingForm: React.FC<{
     </form>
   );
 };
+
+/** Was aus dem strukturierten Teil kam und was offen blieb. */
+const ProposalNotes: React.FC<{ proposal: EInvoiceProposal }> = ({ proposal }) => (
+  <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 space-y-1">
+    <div className="flex items-start gap-1.5 text-xs font-semibold text-emerald-900">
+      <FileCode className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />
+      Aus der E-Rechnung übernommen
+    </div>
+    <p className="text-[11px] text-stone-600">
+      {proposal.supplierName}
+      {proposal.invoiceNumber && ` · Rechnung ${proposal.invoiceNumber}`}
+      {proposal.profile && ` · Profil ${proposal.profile}`}
+    </p>
+    {proposal.notes && proposal.notes.length > 0 && (
+      <ul className="text-[11px] text-stone-600 list-disc pl-4 space-y-0.5">
+        {proposal.notes.map((note, i) => (
+          <li key={i}>{note}</li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
 
 /**
  * Hinweise zur Buchung.

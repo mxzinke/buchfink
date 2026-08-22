@@ -7,7 +7,6 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"gorm.io/gorm"
@@ -467,7 +466,7 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 func (e *testEnv) invoicesWithDocuments(t *testing.T) *InvoiceService {
 	t.Helper()
 	svc := e.invoices(t)
-	svc.SetDocumentPipeline(e.receipts, invoice.NewRenderer())
+	svc.SetDocumentPipeline(e.receipts, sharedRenderer())
 	return svc
 }
 

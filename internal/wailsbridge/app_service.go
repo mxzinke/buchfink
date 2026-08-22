@@ -50,6 +50,7 @@ type BuchfinkBridge struct {
 	journalSvc    *service.JournalService
 	postingSvc    *service.PostingService
 	receiptSvc    *service.ReceiptService
+	eInvoiceSvc   *service.EInvoiceService
 	paymentSvc    *service.PaymentService
 	vatSvc        *service.VatService
 	accountingSvc *service.AccountingService
@@ -198,6 +199,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
+	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
@@ -620,6 +622,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.receiptSvc != nil {
 		b.receiptSvc.SetFiscalYear(year)
+	}
+	if b.eInvoiceSvc != nil {
+		b.eInvoiceSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
@@ -1115,6 +1120,32 @@ func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, er
 		MimeType: content.MimeType,
 		Intact:   content.Intact,
 	}, nil
+}
+
+// ExtractStructuredPart pulls the invoice data out of a filed Beleg and attaches
+// it under the role `structured`.
+//
+// It is a step of its own because filing must not depend on it: a Beleg is kept
+// in the form it arrived, and only then is it examined.
+func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.ExtractStructuredPart(context.Background(), receiptID)
+}
+
+// ProposeFromEInvoice turns the structured part of a Beleg into a prefilled
+// booking. The fachliche Gruppe stays open — no invoice knows which expense
+// account a supply belongs on.
+func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceProposal, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.Propose(context.Background(), receiptID)
 }
 
 // PreviewIncomingReceipt computes the booking without writing it, so the form can

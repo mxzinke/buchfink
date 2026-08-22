@@ -326,6 +326,26 @@ export interface ReceiptFileInput {
   role: ReceiptFileRole;
 }
 
+/**
+ * Was Buchfink aus einer empfangenen E-Rechnung liest.
+ *
+ * Ein Vorschlag, keine Buchung. Die Buchungsgruppe bleibt leer — welches
+ * Aufwandskonto zutrifft, sagt keine Rechnung.
+ */
+export interface EInvoiceProposal {
+  request: ReceiptRequest;
+  format: string;
+  profile: string;
+  supplierName: string;
+  supplierVatId?: string;
+  supplierTaxId?: string;
+  invoiceNumber: string;
+  grossAmount: Cents;
+  matchedContact: boolean;
+  /** Was nicht gefüllt werden konnte und warum. */
+  notes?: string[];
+}
+
 export interface ReceiptPreview {
   dataUrl: string;
   fileName: string;

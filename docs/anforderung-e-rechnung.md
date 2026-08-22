@@ -1,7 +1,6 @@
 # Buchfink – E-Rechnung (Empfang und Ausstellung)
 
-Status: Anforderung, **nicht implementiert – und im Gegensatz zu den übrigen
-offenen Punkten bereits geltendes Recht**
+Status: Empfang umgesetzt; Validierung siehe Abschnitt 8
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
@@ -38,10 +37,12 @@ Konsequenz:
 >
 > — UStAE Abschnitt 14.1 Abs. 5 i. d. F. des BMF-Schreibens vom 15.10.2025
 
-**Buchfink kann heute keine E-Rechnung empfangen.** Ein Beleg ist ein Dateipfad am
-Journaleintrag; ein strukturierter Rechnungsdatensatz existiert im Modell nicht.
-Das ist damit nicht eine Lücke unter mehreren, sondern die einzige, die eine
-laufende Rechtspflicht des Nutzers unerfüllt lässt.
+**Buchfink konnte lange keine E-Rechnung empfangen.** Ein Beleg war ein Dateipfad
+am Journaleintrag; ein strukturierter Rechnungsdatensatz existierte im Modell
+nicht. Das war nicht eine Lücke unter mehreren, sondern die einzige, die eine
+laufende Rechtspflicht des Nutzers unerfüllt ließ. Sie ist geschlossen: der Beleg
+trägt den strukturierten Teil als eigene Datei, das XML wird aus dem Hybrid-PDF
+gezogen, und der Buchungsvorschlag entsteht daraus.
 
 ## 2. Wer betroffen ist und wer nicht
 
@@ -92,12 +93,13 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Baustein | Stand |
 |---|---|
 | ZUGFeRD-XML-Erzeugung für Ausgangsrechnungen | vorhanden (`internal/invoice/zugferd.go`), Profil `urn:cen.eu:en16931:2017` |
-| Beleg als **eine** Datei am Journaleintrag (`DocumentPath`, `DocumentHash`) | vorhanden – und genau das ist zu eng, siehe unten |
-| Mehrdateiliger Beleg mit Rollen (PDF + XML) | **konzipiert** in [anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md) Abschnitt 15, **nicht implementiert** |
-| **Empfang und Einlesen einer E-Rechnung** | **fehlt vollständig** |
-| **Validierung gegen EN 16931 / Schematron** | fehlt (steht als TODO an `ZUGFeRDGenerator`) |
-| **XRechnung (reines XML ohne PDF)** | fehlt (steht als TODO an `Invoice`) |
-| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, aber auf **eine** Datei ausgelegt; der Beleg-Hash über mehrere Dateien ist konzipiert, nicht gebaut |
+| **Hybrides PDF/A-3b mit eingebettetem XML** | vorhanden (`internal/invoice/render.go`), Typst als WebAssembly im Prozess |
+| Mehrdateiliger Beleg mit Rollen (PDF + XML) | vorhanden (`internal/domain/receipt.go`), Beleg-Hash über die geordnete Dateiliste |
+| **Einlesen einer empfangenen E-Rechnung** | vorhanden: XML aus dem Hybrid-PDF (`pdfattach.go`), CII-Parser (`cii.go`), Buchungsvorschlag (`einvoice_service.go`) |
+| **Ablehnung der Profile MINIMUM und BASIC WL** | vorhanden |
+| **Validierung gegen EN 16931** | siehe Abschnitt 8 |
+| **XRechnung (reines XML ohne PDF)** | ablegbar und auslesbar; buchbar erst mit erzeugter Darstellung |
+| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, über den Beleg-Hash |
 
 Das gewählte Profil ist bereits das richtige: zulässig sind ZUGFeRD ab Version
 2.0.1 **außer den Profilen MINIMUM und BASIC-WL** (UStAE 14.1 Abs. 14 Satz 4).
@@ -196,6 +198,18 @@ Der Buchungsvorschlag entsteht aus der Datei mit der Rolle `structured`:
 Lieferant über die USt-IdNr. oder Steuernummer, Beträge und Steuersätze aus den
 XML-Feldern, Leistungsdatum aus dem entsprechenden Feld der Norm. Das ist ein
 deutlich besserer Ausgangspunkt als OCR – die Daten sind exakt statt geraten.
+
+**Der Steuerkategoriecode wird dabei gedreht.** Er steht aus Sicht des Ausstellers
+im Dokument: „K" heißt beim Lieferanten steuerfreie innergemeinschaftliche
+Lieferung und beim Empfänger innergemeinschaftlicher Erwerb, „AE" heißt
+Steuerschuld beim Leistungsempfänger – also bei uns. Wer den Code eins zu eins
+übernimmt, bucht den halben Vorgang und meldet die Erwerbsteuer nicht.
+
+Was Buchfink nicht ehrlich abbilden kann, wird benannt statt geraten: „G" steht
+für eine Ausfuhr des Lieferanten, beim Empfänger also eine Einfuhr mit
+Einfuhrumsatzsteuer aus dem Zollbescheid – die steht nicht in dieser Rechnung.
+Ebenso bleibt die **Buchungsgruppe offen**: welches Aufwandskonto zutrifft, sagt
+keine Rechnung.
 
 Für die **Ausgangsseite** gilt dasselbe Modell in die andere Richtung: eine
 selbst erzeugte ZUGFeRD-Rechnung ist ein Beleg mit dem hybriden PDF als
