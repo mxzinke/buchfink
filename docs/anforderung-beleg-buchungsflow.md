@@ -574,11 +574,90 @@ Eröffnungsbilanz als PDF erzeugt – wie die Ausgangsrechnungen über Typst.
 
 ## 15. Beleg- & Dateiverwaltung
 
-- **Vorschau:** PDF für Belege und Rechnungen, Bildvorschau für Scans und Fotos.
-- **Ablage:** nach Jahr und Art sortiert (`belege/<jahr>/eingang/…`, `…/ausgang/…`),
-  Originaldatei unverändert, Hash-gesichert.
-- Der Beleg-Hash ist Teil der Buchung und damit der Hash-Chain; der Dateipfad nicht,
-  damit ein verschobener Datenordner die Kette nicht bricht.
+### Ein Beleg ist mehrere Dateien, nicht eine
+
+Das ist die Konsequenz aus der E-Rechnung, und sie gehört hierher und nicht in ein
+Randdokument: eine ZUGFeRD-Rechnung ist ein PDF **mit eingebettetem XML**, eine
+XRechnung ist ein XML **ganz ohne** PDF, ein gescannter Papierbeleg ist ein Bild,
+und ein Bewirtungsbeleg besteht aus Rechnung plus Eigenbeleg mit Teilnehmern.
+
+Das heutige Modell trägt das nicht. Am Journaleintrag hängt genau ein
+`DocumentHash` und ein `DocumentPath` – ein Beleg, eine Datei. Für den
+Hybridfall müsste man sich entscheiden, welche Hälfte man sichert, und läge in
+beide Richtungen falsch: sichert man das PDF, fehlt der Teil, aus dem der
+Vorsteuerabzug kommt; sichert man das XML, fehlt das, was der Nutzer ansieht.
+
+**Der Beleg wird deshalb eine eigene Entität zwischen Datei und Buchung:**
+
+| Feld | Inhalt |
+|---|---|
+| **Belegnummer** | aus dem eigenen Nummernkreis, das Belegfeld für den Prüfer |
+| **Richtung** | Eingang / Ausgang |
+| **Dateien** | 1..n, jede mit Rolle, Hash, MIME-Typ und Originaldateiname |
+| **Beleg-Hash** | über die geordnete Liste der Dateien, siehe unten |
+| **Empfangsweg und -zeitpunkt** | bei Eingangsbelegen: wann kam der Beleg herein |
+| **Buchungsbezug** | in beide Richtungen |
+
+Die Rolle je Datei ist die tragende Angabe:
+
+| Rolle | Bedeutung |
+|---|---|
+| **original** | die Datei in der Form, in der sie empfangen wurde – genau eine je Beleg |
+| **structured** | der strukturierte Rechnungsdatensatz; bei einem Hybridformat aus dem Original extrahiert und damit abgeleitet, bei einer XRechnung mit dem Original identisch |
+| **rendering** | eine von Buchfink erzeugte menschenlesbare Darstellung, wenn das Original keine hat |
+| **attachment** | Eigenbeleg, Teilnehmerliste, Lieferschein, Zahlungsnachweis |
+
+Das ist keine Formalie, sondern folgt direkt aus der GoBD: eingehende Belege sind
+in dem Format aufzubewahren, in dem sie empfangen wurden (Rz. 131), und der
+strukturierte Datenteil darf nicht durch eine Formatumwandlung verloren gehen
+(Rz. 125, Beispiel 10). „Original" und „strukturierter Teil" sind deshalb zwei
+Rollen und nicht zwei Namen für dieselbe Datei.
+
+### Was das für die Anzeige heißt
+
+Die Vorschau kann sich nicht mehr darauf verlassen, dass es ein Bild gibt. Drei
+Fälle:
+
+| Beleg | Was angezeigt wird |
+|---|---|
+| Papier, Scan, Foto, reines PDF | die Originaldatei |
+| ZUGFeRD (Hybrid) | der PDF-Teil des Originals – **gebucht wird trotzdem aus dem XML** |
+| XRechnung (reines XML) | eine von Buchfink erzeugte Darstellung, Rolle `rendering` |
+
+Der dritte Fall ist neu und nicht optional: eine XRechnung hat schlicht keinen
+Bildteil. Ohne eigene Darstellung kann der Nutzer den Beleg nicht prüfen, den er
+gerade bucht.
+
+Umgekehrt gilt die Trennung genauso streng: bei einem Hybridbeleg ist der Bildteil
+**Anzeige, nie Buchungsquelle**. Weicht er inhaltlich vom XML ab, ist das
+potenziell eine zweite Rechnung mit § 14c-Folgen – Buchfink zeigt die Abweichung
+an und bewertet sie nicht.
+
+### Ablage und Hash
+
+- **Ablage** nach Jahr und Richtung (`belege/<jahr>/eingang/…`, `…/ausgang/…`),
+  jede Datei unverändert.
+- **Je Datei** ein SHA256 über den Dateiinhalt.
+- **Je Beleg** ein Beleg-Hash über die *geordnete* Liste aus Rolle,
+  Originaldateiname und Datei-Hash – längenpräfigiert wie bei der Buchung, damit
+  kein Dateiname eine Feldgrenze vortäuschen kann. Damit ändert jede zusätzliche,
+  entfernte oder umsortierte Datei den Beleg-Hash.
+- **In der Buchung** steht der Beleg-Hash, nicht der Pfad. Ein verschobener
+  Datenordner darf die Kette nicht brechen.
+
+Daraus folgt eine Regel, die zum bestehenden Umgang mit gebuchten Daten passt:
+**mit der Buchung ist der Beleg versiegelt.** Nachträglich eine Datei anzuhängen
+würde den Beleg-Hash und damit die Kette brechen. Was später dazukommt – eine
+Mahnung, ein Zahlungsnachweis, eine korrigierte Rechnung – ist ein eigener Beleg,
+der auf denselben Geschäftsvorfall zeigt. Für eine inhaltliche Korrektur gilt
+weiter Storno plus Neuerfassung.
+
+### Migration
+
+`DocumentHash` und `DocumentPath` am Journaleintrag werden durch einen Verweis auf
+den Beleg plus den Beleg-Hash ersetzt; `DocumentNumber` bleibt, es ist das
+Belegfeld für den DATEV-Export. Da noch keine produktiven Daten existieren, ist
+das ein Schnitt und keine Datenmigration.
 
 ## 16. Entscheidungen
 
@@ -590,6 +669,8 @@ Eröffnungsbilanz als PDF erzeugt – wie die Ausgangsrechnungen über Typst.
 | **Personenkonten** | echte DATEV-Nummernkreise 10000–69999 / 70000–99999; 1200 und 3300 sind Bilanzpositionen und keine Buchungsziele |
 | **Reverse Charge** | in v1 enthalten, kein Randfall |
 | **Kontierung** | deterministisch, keine Lernfunktion, Regelwerk versioniert |
+| **Beleg** | eigene Entität mit 1..n Dateien je Rolle; Beleg-Hash über die geordnete Dateiliste, mit der Buchung versiegelt |
+| **E-Rechnung** | Teil des Belegflows, kein Zusatzmodul; gebucht wird immer aus dem strukturierten Teil |
 | **Versteuerung** | nur Sollversteuerung; Istversteuerung wird abgewiesen |
 | **CAMT-Import** | schlägt keine Konten vor |
 | **Warenbestand** | out of scope für v1 |
@@ -601,7 +682,7 @@ Jeder hat ein eigenes Anforderungsdokument, damit er für sich angegangen werden
 
 | Thema | Dokument | Was noch fehlt |
 |---|---|---|
-| **E-Rechnung** | [anforderung-e-rechnung.md](anforderung-e-rechnung.md) | **Kein Konzeptpunkt, sondern geltendes Recht.** Der Empfang einer E-Rechnung ist seit dem 01.01.2025 Pflicht und hat nie eine Übergangsfrist gehabt; Buchfink kann ihn nicht. Der Vorsteuerabzug hängt am strukturierten Teil. |
+| **E-Rechnung** | [anforderung-e-rechnung.md](anforderung-e-rechnung.md) | **Kein Konzeptpunkt, sondern geltendes Recht.** Der Empfang einer E-Rechnung ist seit dem 01.01.2025 Pflicht und hat nie eine Übergangsfrist gehabt; Buchfink kann ihn nicht. Der Vorsteuerabzug hängt am strukturierten Teil. Das **Belegmodell** dafür steht in Abschnitt 15 dieses Dokuments – E-Rechnung ist Teil des Belegflows, kein Anbau. Offen bleibt das Einlesen und die Validierung. |
 | **Rechnungsabgrenzung** | [anforderung-rechnungsabgrenzung.md](anforderung-rechnungsabgrenzung.md) | Der Leistungszeitraum wird erfasst, die Abgrenzungsbuchung auf 1900 / 3900 fehlt. Kleinster Punkt, hängt im Kern an einer Entscheidung. |
 | **Anzahlungen & Rechnungsverbund** | [anforderung-anzahlungen.md](anforderung-anzahlungen.md) | Die Steuer entsteht mit der Vereinnahmung, nicht mit der Rechnung. Die Schlussrechnung muss die Anzahlungen absetzen, sonst greift § 14c Abs. 1 UStG. |
 | **Anlagenverwaltung** | [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md) | Größter Block: GWG und Sammelposten, AfA-Methoden, Abgang, Anlagenspiegel. |

@@ -92,12 +92,12 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Baustein | Stand |
 |---|---|
 | ZUGFeRD-XML-Erzeugung für Ausgangsrechnungen | vorhanden (`internal/invoice/zugferd.go`), Profil `urn:cen.eu:en16931:2017` |
-| Beleg als Datei am Journaleintrag (`DocumentPath`) | vorhanden |
+| Beleg als **eine** Datei am Journaleintrag (`DocumentPath`, `DocumentHash`) | vorhanden – und genau das ist zu eng, siehe unten |
+| Mehrdateiliger Beleg mit Rollen (PDF + XML) | **konzipiert** in [anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md) Abschnitt 15, **nicht implementiert** |
 | **Empfang und Einlesen einer E-Rechnung** | **fehlt vollständig** |
-| **Strukturierter Rechnungsdatensatz im Eingangsbeleg-Modell** | **fehlt** |
 | **Validierung gegen EN 16931 / Schematron** | fehlt (steht als TODO an `ZUGFeRDGenerator`) |
 | **XRechnung (reines XML ohne PDF)** | fehlt (steht als TODO an `Invoice`) |
-| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, aber **nicht auf den XML-Teil angewandt** |
+| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, aber auf **eine** Datei ausgelegt; der Beleg-Hash über mehrere Dateien ist konzipiert, nicht gebaut |
 
 Das gewählte Profil ist bereits das richtige: zulässig sind ZUGFeRD ab Version
 2.0.1 **außer den Profilen MINIMUM und BASIC-WL** (UStAE 14.1 Abs. 14 Satz 4).
@@ -167,22 +167,40 @@ Unveränderbarkeitsnachweis wie die Buchung – und zwar über seinen Hash, nich
 seinen Pfad, konsistent zu der Entscheidung, `DocumentPath` bewusst aus der
 Kanonisierung herauszulassen.
 
+Genau das leistet der **Beleg-Hash** aus Abschnitt 15 des Hauptkonzepts: er läuft
+über die geordnete Liste aller Belegdateien, deckt damit Original *und*
+strukturierten Teil ab und wandert als ein Wert in die Buchung. Ein
+nachträglich ausgetauschtes XML fällt auf, ohne dass die Buchung n Hashes tragen
+muss.
+
 ## 7. Was daraus für das Datenmodell folgt
 
-Der heutige Beleg – ein Pfad am Journaleintrag – trägt das nicht. Gebraucht wird
-ein eigener **Eingangsbeleg** als Entity, zwischen Datei und Buchung:
+**Das Belegmodell ist nicht Teil dieses Dokuments, sondern des Hauptkonzepts.**
+E-Rechnung ist kein Anbau neben dem Belegflow, sondern der Grund, warum ein Beleg
+dort aus mehreren Dateien besteht: Rollen `original`, `structured`, `rendering`
+und `attachment`, Hash je Datei, Beleg-Hash über die geordnete Liste, mit der
+Buchung versiegelt. Siehe
+[anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md),
+Abschnitt 15.
 
-- die **Originaldatei** in der empfangenen Form, mit Hash,
-- der **strukturierte Teil** getrennt herausgelöst und gespeichert (bei einem
-  Hybridformat also das extrahierte XML), ebenfalls mit Hash,
-- das **Validierungsergebnis** gegen EN 16931 mit Zeitpunkt und Regelversion,
-- der **Empfangsweg und -zeitpunkt** – Nachweis, wann der Beleg eingegangen ist,
-- der **Bezug zur erzeugten Buchung**, in beide Richtungen.
+Was dieses Dokument darüber hinaus verlangt, sind zwei Angaben am Beleg, die nur
+im E-Rechnungsfall entstehen:
 
-Der Buchungsvorschlag entsteht dann aus dem strukturierten Teil: Lieferant über
-die USt-IdNr. oder Steuernummer, Beträge und Steuersätze aus den XML-Feldern,
-Leistungsdatum aus `BT-72` bzw. dem Leistungszeitraum. Das ist ein deutlich
-besserer Ausgangspunkt als OCR – die Daten sind exakt statt geraten.
+- das **Validierungsergebnis** gegen EN 16931 – mit Zeitpunkt, Regelversion und
+  dem erkannten Format samt Profil, damit ein späterer Prüflauf reproduzierbar
+  bleibt,
+- das Ergebnis des **Abgleichs zwischen Bild- und strukturiertem Teil** bei
+  Hybridbelegen (siehe Abschnitt 5).
+
+Der Buchungsvorschlag entsteht aus der Datei mit der Rolle `structured`:
+Lieferant über die USt-IdNr. oder Steuernummer, Beträge und Steuersätze aus den
+XML-Feldern, Leistungsdatum aus dem entsprechenden Feld der Norm. Das ist ein
+deutlich besserer Ausgangspunkt als OCR – die Daten sind exakt statt geraten.
+
+Für die **Ausgangsseite** gilt dasselbe Modell in die andere Richtung: eine
+selbst erzeugte ZUGFeRD-Rechnung ist ein Beleg mit dem hybriden PDF als
+`original`, eine XRechnung einer mit dem XML als `original` und einer erzeugten
+Darstellung als `rendering`. Damit braucht der Ausgangsfall keine eigene Ablage.
 
 **Der Empfangsweg selbst gehört ausdrücklich nicht in v1.** Ein eigenes
 Postfach ist nicht erforderlich (UStAE 14.1 Abs. 5 Satz 3); es genügt, wenn der
