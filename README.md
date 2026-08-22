@@ -242,6 +242,3 @@ Was das praktisch bedeutet:
 
 Mitgelieferte Komponenten Dritter behalten ihre eigenen Lizenzen und sind in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) aufgeführt.
-
-> Frühere Stände dieses Repositorys standen unter der MIT-Lizenz. Was unter MIT
-> veröffentlicht wurde, bleibt unter MIT nutzbar; die EUPL gilt ab dem Wechsel.

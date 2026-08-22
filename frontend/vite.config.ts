@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: 2026 Maximilian Pfennig
 // SPDX-License-Identifier: EUPL-1.2
 
 import { defineConfig } from "vite";

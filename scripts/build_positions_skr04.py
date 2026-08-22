@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2026 Maximilian Pfennig
 # SPDX-License-Identifier: EUPL-1.2
 
 """

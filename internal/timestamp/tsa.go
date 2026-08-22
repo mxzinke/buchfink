@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: 2026 Maximilian Pfennig
 // SPDX-License-Identifier: EUPL-1.2
 
 // Package timestamp obtains and verifies RFC-3161 trusted timestamps over the

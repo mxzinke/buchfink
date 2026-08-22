@@ -1,4 +1,3 @@
-<!-- SPDX-FileCopyrightText: 2026 Maximilian Pfennig -->
 <!-- SPDX-License-Identifier: EUPL-1.2 -->
 
 # Mitwirken an Buchfink
@@ -45,12 +44,14 @@ gehört es in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ## Lizenzkopf in neuen Dateien
 
-Jede Quelldatei trägt oben zwei Zeilen — im jeweils passenden Kommentarstil:
+Jede Quelldatei trägt oben eine Zeile — im jeweils passenden Kommentarstil:
 
 ```go
-// SPDX-FileCopyrightText: 2026 Maximilian Pfennig
 // SPDX-License-Identifier: EUPL-1.2
 ```
+
+Der Urheberrechtshinweis steht nicht in jeder Datei, sondern gesammelt im
+[README](README.md#lizenz) und in den Metadaten der gebauten Anwendung.
 
 Generierte Dateien (`frontend/bindings/`) sind davon ausgenommen.
 
