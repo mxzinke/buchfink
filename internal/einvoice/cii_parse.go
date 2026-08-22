@@ -92,9 +92,12 @@ func ciiMapHeader(inv *Invoice, doc *ciiDocument) {
 				Reference:   trim(ref.IssuerAssignedID),
 				Description: trim(ref.Name),
 				ExternalURI: trim(ref.URIID),
-				Attachment:  ref.Binary.Value,
-				MimeCode:    trim(ref.Binary.MimeCode),
-				Filename:    trim(ref.Binary.Filename),
+				// Der Inhalt steht base64-kodiert im XML. Ihn roh zu übernehmen
+				// hieße, den kodierten Text für die Datei zu halten — die Anlage
+				// landete als unlesbarer Block in der Belegablage.
+				Attachment: decodeBase64(ref.Binary.Value),
+				MimeCode:   trim(ref.Binary.MimeCode),
+				Filename:   trim(ref.Binary.Filename),
 			})
 		}
 	}

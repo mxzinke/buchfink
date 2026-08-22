@@ -103,7 +103,7 @@ type ciiSupportingDoc struct {
 	Name             string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 Name"`
 	ReferenceTypeID  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ReferenceTypeCode"`
 	Binary           struct {
-		Value    []byte `xml:",chardata"`
+		Value    string `xml:",chardata"`
 		MimeCode string `xml:"mimeCode,attr"`
 		Filename string `xml:"filename,attr"`
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 AttachmentBinaryObject"`
