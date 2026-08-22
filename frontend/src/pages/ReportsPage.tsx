@@ -3,7 +3,6 @@ import {
   TrendingUp,
   TrendingDown,
   ReceiptText,
-  Info,
 } from 'lucide-react';
 import { Account, FinancialSummary, CompanySettings, VatSummary } from '../types';
 import { Api } from '../services/api';
@@ -62,7 +61,6 @@ export const ReportsPage: React.FC = () => {
 
   const currentYear = settings?.fiscalYear || new Date().getFullYear();
   const vatPeriod = settings?.vatPeriod || 'quarter';
-  const isSmallBusiness = settings?.isSmallBusiness;
 
   // GuV & Bilanz account breakdowns according to SKR04 / HGB
   const revenueAccounts = accounts.filter(
@@ -260,9 +258,7 @@ export const ReportsPage: React.FC = () => {
                 Vorläufiges Jahresergebnis
               </span>
               <p className="text-xs text-amber-800/80 mt-0.5">
-                {settings?.isSmallBusiness
-                  ? 'Einnahmen abzüglich Ausgaben (befreit nach § 19 UStG)'
-                  : 'Einnahmen abzüglich Ausgaben vor Steuern'}
+                Einnahmen abzüglich Ausgaben vor Steuern
               </p>
             </div>
             <div className="text-2xl font-extrabold font-mono text-amber-900">
@@ -332,112 +328,6 @@ export const ReportsPage: React.FC = () => {
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'ust' && (
         <div className="space-y-6">
-          {isSmallBusiness ? (
-            /* Case A: Kleinunternehmer (§ 19 UStG) */
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-8 shadow-xs space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200/60">
-                  <ReceiptText className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-stone-900">
-                      Kleinunternehmerregelung (§ 19 UStG)
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-                      UStVA-Befreit
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
-                    Als Kleinunternehmer nach § 19 UStG weisen Sie auf Ihren Rechnungen keine Umsatzsteuer aus und sind von der Abgabe monatlicher oder quartalsweiser Umsatzsteuer-Voranmeldungen befreit.
-                  </p>
-                </div>
-              </div>
-
-              {/* Turnover Limits & Status */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200/80 space-y-1">
-                  <span className="text-stone-500 font-medium">Gesamtumsatz Geschäftsjahr {currentYear}:</span>
-                  <div className="text-xl font-bold font-mono text-stone-900">
-                    {formatCents(summary?.totalRevenue || 0)}
-                  </div>
-                  <span className="text-[11px] text-stone-400">Erfasste steuerfreie Betriebseinnahmen</span>
-                </div>
-
-                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200/80 space-y-1">
-                  <span className="text-stone-500 font-medium">Gesetzliche Grenzen (§ 19 Abs. 1 UStG):</span>
-                  <div className="text-sm font-semibold text-stone-800">
-                    Vorjahr: max. 22.000 € &bull; Laufend: max. 50.000 €
-                  </div>
-                  <span className="text-[11px] text-emerald-700 font-medium">
-                    ✓ Im Rahmen der Kleinunternehmergrenzen
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs space-y-1.5 text-stone-700">
-                <div className="font-semibold text-amber-950 flex items-center gap-1.5">
-                  <Info className="w-4 h-4 text-amber-800" />
-                  Hinweis zur Jahressteuererklärung:
-                </div>
-                <p className="text-[11px] leading-relaxed">
-                  Im Rahmen der jährlichen Umsatzsteuererklärung tragen Sie Ihren Gesamtumsatz ({formatCents(summary?.totalRevenue || 0)}) in die Zeile für Kleinunternehmer (§ 19 Abs. 1 UStG) ein. Eine laufende USt-Zahllast entsteht nicht.
-                </p>
-              </div>
-            </div>
-          ) : vatPeriod === 'year' ? (
-            /* Case B: Jährlicher Rhythmus */
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-6 shadow-xs space-y-6">
-              <div className="border-b border-stone-100 pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-stone-900">
-                      Umsatzsteuer-Jahresübersicht {currentYear}
-                    </h3>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      Mandant ist für die jährliche Umsatzsteuererklärung konfiguriert (keine Voranmeldungen).
-                    </p>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700">
-                    Jährlicher Rhythmus
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
-                  <span className="text-stone-500 font-medium">1. Gesamterlöse (Netto)</span>
-                  <div className="text-xl font-bold font-mono text-stone-900">
-                    {formatCents(fullYearVat.totalRevenueNet)}
-                  </div>
-                  <span className="text-[11px] text-stone-400">
-                    19%: {formatCents(fullYearVat.rev19Net)} &bull; 7%: {formatCents(fullYearVat.rev7Net)}
-                  </span>
-                </div>
-
-                <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
-                  <span className="text-stone-500 font-medium">2. Entstandene USt</span>
-                  <div className="text-xl font-bold font-mono text-amber-800">
-                    {formatCents(fullYearVat.totalTax)}
-                  </div>
-                  <span className="text-[11px] text-stone-400">
-                    Abziehbare Vorsteuer: {formatCents(fullYearVat.inputTax)}
-                  </span>
-                </div>
-
-                <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-1">
-                  <span className="text-amber-900 font-bold">3. Jahres-Umsatzsteuerzahllast</span>
-                  <div className="text-xl font-extrabold font-mono text-amber-950">
-                    {formatCents(fullYearVat.zahllast)}
-                  </div>
-                  <span className="text-[11px] text-amber-800/80">
-                    Fällig zur USt-Jahreserklärung
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Case C: Voranmeldungs-Rhythmus (Quartalsweise oder Monatlich) */
             <div className="space-y-6">
               {/* Period Selector Header */}
               <div className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -659,7 +549,6 @@ export const ReportsPage: React.FC = () => {
                 </div>
               )}
             </div>
-          )}
         </div>
       )}
     </div>

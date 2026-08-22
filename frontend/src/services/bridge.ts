@@ -68,6 +68,20 @@ export const bridge = {
   GetFinancialSummary: <T>() => invoke<T>('GetFinancialSummary'),
   GetVatSummary: <T>(from: string, to: string) => invoke<T>('GetVatSummary', from, to),
 
+  // Belege
+  SelectReceiptFilesDialog: (title: string) => invoke<string[]>('SelectReceiptFilesDialog', title),
+  FileIncomingReceipt: <T>(receivedAt: string, receivedVia: string, files: unknown[]) =>
+    invoke<T>('FileIncomingReceipt', receivedAt, receivedVia, files),
+  AddReceiptFile: <T>(receiptId: number, file: unknown) => invoke<T>('AddReceiptFile', receiptId, file),
+  RemoveReceiptFile: <T>(receiptId: number, fileId: number) =>
+    invoke<T>('RemoveReceiptFile', receiptId, fileId),
+  GetReceipts: <T>(status: string) => invoke<T>('GetReceipts', status),
+  GetReceipt: <T>(id: number) => invoke<T>('GetReceipt', id),
+  DiscardReceipt: (id: number, reason: string) => invoke<void>('DiscardReceipt', id, reason),
+  GetReceiptPreview: <T>(receiptId: number) => invoke<T>('GetReceiptPreview', receiptId),
+  PreviewIncomingReceipt: <T>(request: unknown) => invoke<T>('PreviewIncomingReceipt', request),
+  PreviewOutgoingInvoice: <T>(invoice: unknown) => invoke<T>('PreviewOutgoingInvoice', invoice),
+
   // Bank & Zahlungen
   GetBankTransactions: <T>() => invoke<T>('GetBankTransactions'),
   ImportCAMT053XML: (xmlContent: string, ledgerAccount: string) =>

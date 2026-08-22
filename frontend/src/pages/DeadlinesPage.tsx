@@ -134,7 +134,6 @@ export const DeadlinesPage: React.FC = () => {
     const nextY = y + 1;
     const list: DeadlineItem[] = [];
 
-    const isSmallBusiness = settings?.isSmallBusiness;
     const vatPeriod = settings?.vatPeriod || 'quarter';
 
     // -------------------------------------------------------------
@@ -161,84 +160,80 @@ export const DeadlinesPage: React.FC = () => {
     });
 
     // UStVA in Q1
-    if (!isSmallBusiness) {
-      if (vatPeriod === 'month') {
-        list.push(
-          {
-            id: `dauerfrist_${y}`,
-            title: `1/11 Sondervorauszahlung (Dauerfristverlängerung)`,
-            category: 'ust',
-            dueDate: `${y}-02-10`,
-            quarter: 1,
-            description: `Zahlung der 1/11 Sondervorauszahlung für die Fristverlängerung bei monatlicher Abgabe.`,
-          },
-          {
-            id: `ustva_m1_${y}`,
-            title: `USt-Voranmeldung Januar ${y}`,
-            category: 'ust',
-            dueDate: `${y}-02-10`,
-            quarter: 1,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Januar.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m2_${y}`,
-            title: `USt-Voranmeldung Februar ${y}`,
-            category: 'ust',
-            dueDate: `${y}-03-10`,
-            quarter: 1,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Februar.`,
-            isImportant: true,
-          }
-        );
-      }
+    if (vatPeriod === 'month') {
+      list.push(
+        {
+          id: `dauerfrist_${y}`,
+          title: `1/11 Sondervorauszahlung (Dauerfristverlängerung)`,
+          category: 'ust',
+          dueDate: `${y}-02-10`,
+          quarter: 1,
+          description: `Zahlung der 1/11 Sondervorauszahlung für die Fristverlängerung bei monatlicher Abgabe.`,
+        },
+        {
+          id: `ustva_m1_${y}`,
+          title: `USt-Voranmeldung Januar ${y}`,
+          category: 'ust',
+          dueDate: `${y}-02-10`,
+          quarter: 1,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Januar.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m2_${y}`,
+          title: `USt-Voranmeldung Februar ${y}`,
+          category: 'ust',
+          dueDate: `${y}-03-10`,
+          quarter: 1,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Februar.`,
+          isImportant: true,
+        }
+      );
     }
 
     // -------------------------------------------------------------
     // 2. QUARTAL (April – Juni)
     // -------------------------------------------------------------
-    if (!isSmallBusiness) {
-      if (vatPeriod === 'quarter') {
-        list.push({
-          id: `ustva_q1_${y}`,
-          title: `USt-Voranmeldung 1. Quartal ${y}`,
+    if (vatPeriod === 'quarter') {
+      list.push({
+        id: `ustva_q1_${y}`,
+        title: `USt-Voranmeldung 1. Quartal ${y}`,
+        category: 'ust',
+        dueDate: `${y}-04-10`,
+        quarter: 2,
+        description: `Voranmeldung für Januar bis März ${y} (bzw. 10.05. mit Dauerfristverlängerung).`,
+        isImportant: true,
+      });
+    } else if (vatPeriod === 'month') {
+      list.push(
+        {
+          id: `ustva_m3_${y}`,
+          title: `USt-Voranmeldung März ${y}`,
           category: 'ust',
           dueDate: `${y}-04-10`,
           quarter: 2,
-          description: `Voranmeldung für Januar bis März ${y} (bzw. 10.05. mit Dauerfristverlängerung).`,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für März.`,
           isImportant: true,
-        });
-      } else if (vatPeriod === 'month') {
-        list.push(
-          {
-            id: `ustva_m3_${y}`,
-            title: `USt-Voranmeldung März ${y}`,
-            category: 'ust',
-            dueDate: `${y}-04-10`,
-            quarter: 2,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für März.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m4_${y}`,
-            title: `USt-Voranmeldung April ${y}`,
-            category: 'ust',
-            dueDate: `${y}-05-10`,
-            quarter: 2,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für April.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m5_${y}`,
-            title: `USt-Voranmeldung Mai ${y}`,
-            category: 'ust',
-            dueDate: `${y}-06-10`,
-            quarter: 2,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Mai.`,
-            isImportant: true,
-          }
-        );
-      }
+        },
+        {
+          id: `ustva_m4_${y}`,
+          title: `USt-Voranmeldung April ${y}`,
+          category: 'ust',
+          dueDate: `${y}-05-10`,
+          quarter: 2,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für April.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m5_${y}`,
+          title: `USt-Voranmeldung Mai ${y}`,
+          category: 'ust',
+          dueDate: `${y}-06-10`,
+          quarter: 2,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Mai.`,
+          isImportant: true,
+        }
+      );
     }
 
     // Gewerbesteuer Q2
@@ -264,48 +259,46 @@ export const DeadlinesPage: React.FC = () => {
     // -------------------------------------------------------------
     // 3. QUARTAL (Juli – September)
     // -------------------------------------------------------------
-    if (!isSmallBusiness) {
-      if (vatPeriod === 'quarter') {
-        list.push({
-          id: `ustva_q2_${y}`,
-          title: `USt-Voranmeldung 2. Quartal ${y}`,
+    if (vatPeriod === 'quarter') {
+      list.push({
+        id: `ustva_q2_${y}`,
+        title: `USt-Voranmeldung 2. Quartal ${y}`,
+        category: 'ust',
+        dueDate: `${y}-07-10`,
+        quarter: 3,
+        description: `Voranmeldung für April bis Juni ${y} (bzw. 10.08. mit Dauerfristverlängerung).`,
+        isImportant: true,
+      });
+    } else if (vatPeriod === 'month') {
+      list.push(
+        {
+          id: `ustva_m6_${y}`,
+          title: `USt-Voranmeldung Juni ${y}`,
           category: 'ust',
           dueDate: `${y}-07-10`,
           quarter: 3,
-          description: `Voranmeldung für April bis Juni ${y} (bzw. 10.08. mit Dauerfristverlängerung).`,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Juni.`,
           isImportant: true,
-        });
-      } else if (vatPeriod === 'month') {
-        list.push(
-          {
-            id: `ustva_m6_${y}`,
-            title: `USt-Voranmeldung Juni ${y}`,
-            category: 'ust',
-            dueDate: `${y}-07-10`,
-            quarter: 3,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Juni.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m7_${y}`,
-            title: `USt-Voranmeldung Juli ${y}`,
-            category: 'ust',
-            dueDate: `${y}-08-10`,
-            quarter: 3,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Juli.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m8_${y}`,
-            title: `USt-Voranmeldung August ${y}`,
-            category: 'ust',
-            dueDate: `${y}-09-10`,
-            quarter: 3,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für August.`,
-            isImportant: true,
-          }
-        );
-      }
+        },
+        {
+          id: `ustva_m7_${y}`,
+          title: `USt-Voranmeldung Juli ${y}`,
+          category: 'ust',
+          dueDate: `${y}-08-10`,
+          quarter: 3,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Juli.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m8_${y}`,
+          title: `USt-Voranmeldung August ${y}`,
+          category: 'ust',
+          dueDate: `${y}-09-10`,
+          quarter: 3,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für August.`,
+          isImportant: true,
+        }
+      );
     }
 
     // Gewerbesteuer Q3
@@ -331,68 +324,66 @@ export const DeadlinesPage: React.FC = () => {
     // -------------------------------------------------------------
     // 4. QUARTAL (Oktober – Dezember & Jan Folgejahr)
     // -------------------------------------------------------------
-    if (!isSmallBusiness) {
-      if (vatPeriod === 'quarter') {
-        list.push(
-          {
-            id: `ustva_q3_${y}`,
-            title: `USt-Voranmeldung 3. Quartal ${y}`,
-            category: 'ust',
-            dueDate: `${y}-10-10`,
-            quarter: 4,
-            description: `Voranmeldung für Juli bis September ${y} (bzw. 10.11. mit Dauerfristverlängerung).`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_q4_${y}`,
-            title: `USt-Voranmeldung 4. Quartal ${y}`,
-            category: 'ust',
-            dueDate: `${nextY}-01-10`,
-            quarter: 4,
-            description: `Voranmeldung für Oktober bis Dezember ${y} (bzw. 10.02.${nextY} mit Dauerfristverlängerung).`,
-            isImportant: true,
-          }
-        );
-      } else if (vatPeriod === 'month') {
-        list.push(
-          {
-            id: `ustva_m9_${y}`,
-            title: `USt-Voranmeldung September ${y}`,
-            category: 'ust',
-            dueDate: `${y}-10-10`,
-            quarter: 4,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für September.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m10_${y}`,
-            title: `USt-Voranmeldung Oktober ${y}`,
-            category: 'ust',
-            dueDate: `${y}-11-10`,
-            quarter: 4,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Oktober.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m11_${y}`,
-            title: `USt-Voranmeldung November ${y}`,
-            category: 'ust',
-            dueDate: `${y}-12-10`,
-            quarter: 4,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für November.`,
-            isImportant: true,
-          },
-          {
-            id: `ustva_m12_${y}`,
-            title: `USt-Voranmeldung Dezember ${y}`,
-            category: 'ust',
-            dueDate: `${nextY}-01-10`,
-            quarter: 4,
-            description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Dezember.`,
-            isImportant: true,
-          }
-        );
-      }
+    if (vatPeriod === 'quarter') {
+      list.push(
+        {
+          id: `ustva_q3_${y}`,
+          title: `USt-Voranmeldung 3. Quartal ${y}`,
+          category: 'ust',
+          dueDate: `${y}-10-10`,
+          quarter: 4,
+          description: `Voranmeldung für Juli bis September ${y} (bzw. 10.11. mit Dauerfristverlängerung).`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_q4_${y}`,
+          title: `USt-Voranmeldung 4. Quartal ${y}`,
+          category: 'ust',
+          dueDate: `${nextY}-01-10`,
+          quarter: 4,
+          description: `Voranmeldung für Oktober bis Dezember ${y} (bzw. 10.02.${nextY} mit Dauerfristverlängerung).`,
+          isImportant: true,
+        }
+      );
+    } else if (vatPeriod === 'month') {
+      list.push(
+        {
+          id: `ustva_m9_${y}`,
+          title: `USt-Voranmeldung September ${y}`,
+          category: 'ust',
+          dueDate: `${y}-10-10`,
+          quarter: 4,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für September.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m10_${y}`,
+          title: `USt-Voranmeldung Oktober ${y}`,
+          category: 'ust',
+          dueDate: `${y}-11-10`,
+          quarter: 4,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Oktober.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m11_${y}`,
+          title: `USt-Voranmeldung November ${y}`,
+          category: 'ust',
+          dueDate: `${y}-12-10`,
+          quarter: 4,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für November.`,
+          isImportant: true,
+        },
+        {
+          id: `ustva_m12_${y}`,
+          title: `USt-Voranmeldung Dezember ${y}`,
+          category: 'ust',
+          dueDate: `${nextY}-01-10`,
+          quarter: 4,
+          description: `Monatliche Voranmeldung und Zahlung der Umsatzsteuer für Dezember.`,
+          isImportant: true,
+        }
+      );
     }
 
     // Gewerbesteuer Q4
@@ -564,11 +555,6 @@ export const DeadlinesPage: React.FC = () => {
                 content="Gesetzliche Fristen für Umsatzsteuer-Voranmeldungen, Ertragsteuer-Vorauszahlungen und Jahressteuererklärungen. Nicht abgehakte, vergangene Fristen werden als überfällig markiert."
               />
             </h2>
-            {settings?.isSmallBusiness && (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
-                § 19 UStG (UStVA befreit)
-              </span>
-            )}
           </div>
           <p className="text-xs text-stone-500 mt-1">
             Übersichtliche Quartals- und Jahresfristen &bull; Termine einfach abhaken und im Blick behalten

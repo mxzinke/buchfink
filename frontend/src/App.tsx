@@ -10,6 +10,7 @@ import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
 import { BankImportPage } from './pages/BankImportPage';
 import { InvoicesPage } from './pages/InvoicesPage';
+import { ReceiptsPage } from './pages/ReceiptsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
@@ -191,6 +192,8 @@ export function App() {
         return <JournalPage />;
       case 'bank':
         return <BankImportPage />;
+      case 'receipts':
+        return <ReceiptsPage />;
       case 'invoices':
         return <InvoicesPage />;
       case 'contacts':

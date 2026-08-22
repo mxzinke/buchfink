@@ -5,6 +5,7 @@ import type {
   Contact,
   Invoice,
   InvoiceItem,
+  PostingPreview,
   TaxRate,
   TaxTreatment,
   TaxTreatmentInfo,
@@ -13,6 +14,7 @@ import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
 import { formatCents, formatDate, formatTaxRate, parseCents } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
+import { inputClass } from '../components/Form';
 
 /**
  * Ausgangsrechnungen.
@@ -22,9 +24,6 @@ import { HelpTooltip } from '../components/HelpTooltip';
  * Forderung wird im selben Schritt gebucht. Es gibt keinen Zustand, in dem eine
  * Rechnung existiert, aber nicht im Journal steht.
  */
-
-const inputClass =
-  'w-full px-2.5 py-1.5 text-sm rounded-lg border border-stone-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none';
 
 const STATUS_LABELS: Record<Invoice['status'], { label: string; classes: string }> = {
   draft: { label: 'Entwurf', classes: 'bg-stone-100 text-stone-600' },
@@ -252,33 +251,65 @@ const InvoiceForm: React.FC<{
   const [items, setItems] = useState<DraftItem[]>([newItem(TAX_RATE_STANDARD)]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PostingPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const contact = contacts.find((c) => c.id === contactId);
   const treatmentInfo = treatments.find((t) => t.treatment === treatment);
   const taxable = treatment === 'domestic';
 
-  const computed = useMemo(() => {
-    const parsed = items.map((item) => {
-      const quantityMilli = Math.round((Number(item.quantity.replace(',', '.')) || 0) * 1000);
-      const unitPrice = parseCents(item.unitPrice) ?? 0;
-      // Mengen mit drei Nachkommastellen, dann kaufmännisch auf den Cent.
-      const net = Math.round((unitPrice * quantityMilli) / 1000);
-      return { ...item, quantityMilli, unitPrice, net };
-    });
+  // Die Positionen in der Form, die das Backend erwartet. Hier wird nur
+  // umgerechnet, nicht gerechnet: Mengen von drei Nachkommastellen auf Milli,
+  // Preise auf Cent.
+  const draft = useMemo(
+    () => ({
+      contactId,
+      date,
+      serviceDateFrom: serviceFrom,
+      serviceDateTo: serviceTo,
+      taxTreatment: treatment,
+      currency: 'EUR',
+      items: items.map((item, index) => ({
+        position: index + 1,
+        description: item.description,
+        quantityMilli: Math.round((Number(item.quantity.replace(',', '.')) || 0) * 1000),
+        unit: item.unit,
+        unitPrice: parseCents(item.unitPrice) ?? 0,
+        taxRate: item.taxRate,
+      })) as InvoiceItem[],
+    }),
+    [contactId, date, serviceFrom, serviceTo, treatment, items],
+  );
 
-    // Die Steuer wird je Steuersatzgruppe gerundet, nicht je Position — genau wie
-    // im Backend, damit die Vorschau der gebuchten Rechnung entspricht.
-    const byRate = new Map<TaxRate, number>();
-    for (const item of parsed) byRate.set(item.taxRate, (byRate.get(item.taxRate) ?? 0) + item.net);
-
-    let net = 0;
-    let tax = 0;
-    for (const [rate, groupNet] of byRate) {
-      net += groupNet;
-      if (taxable) tax += Math.round((groupNet * rate) / 10000);
+  // Netto, Steuer und Brutto kommen aus dem Backend. Diese Maske hat die
+  // Steuerrechnung früher selbst nachgebaut, samt Rundung je Steuersatzgruppe —
+  // eine zweite Wahrheit, die auseinanderläuft, sobald ein Steuerfall dazukommt.
+  useEffect(() => {
+    const complete = contactId > 0 && draft.items.every((i) => i.description && i.unitPrice > 0);
+    if (!complete) {
+      setPreview(null);
+      setPreviewError(null);
+      return;
     }
-    return { parsed, net, tax, gross: net + tax };
-  }, [items, taxable]);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      Api.previewOutgoingInvoice(draft)
+        .then((p) => {
+          if (cancelled) return;
+          setPreview(p);
+          setPreviewError(null);
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setPreview(null);
+          setPreviewError(e instanceof Error ? e.message : String(e));
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [draft, contactId]);
 
   function update(index: number, patch: Partial<DraftItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -289,22 +320,7 @@ const InvoiceForm: React.FC<{
     setBusy(true);
     setError(null);
     try {
-      const invoice = await Api.issueInvoice({
-        contactId,
-        date,
-        serviceDateFrom: serviceFrom,
-        serviceDateTo: serviceTo,
-        taxTreatment: treatment,
-        currency: 'EUR',
-        items: computed.parsed.map((item, index) => ({
-          position: index + 1,
-          description: item.description,
-          quantityMilli: item.quantityMilli,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-        })) as InvoiceItem[],
-      });
+      const invoice = await Api.issueInvoice(draft);
       onIssued(invoice.invoiceNumber);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -479,7 +495,7 @@ const InvoiceForm: React.FC<{
                   </select>
                 </label>
                 <div className="w-28 text-right pb-1.5 font-mono text-sm tabular-nums text-stone-800">
-                  {formatCents(computed.parsed[index]?.net ?? 0)}
+                  {formatCents(draft.items[index]?.unitPrice ?? 0)}
                 </div>
                 {items.length > 1 && (
                   <button
@@ -494,26 +510,36 @@ const InvoiceForm: React.FC<{
             ))}
           </div>
 
-          <div className="bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-stone-600">Nettobetrag</span>
-              <span className="font-mono tabular-nums">{formatCents(computed.net)}</span>
+          {previewError ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-lg px-4 py-3 text-xs text-rose-700 whitespace-pre-line">
+              {previewError}
             </div>
-            <div className="flex justify-between">
-              <span className="text-stone-600">Umsatzsteuer</span>
-              <span className="font-mono tabular-nums">{formatCents(computed.tax)}</span>
+          ) : !preview ? (
+            <div className="bg-stone-50 border border-dashed border-stone-200 rounded-lg px-4 py-3 text-xs text-stone-400 text-center">
+              Die Summen erscheinen, sobald Kunde und Positionen vollständig sind.
             </div>
-            <div className="flex justify-between font-semibold text-stone-900 pt-1 border-t border-stone-200">
-              <span>Gesamtbetrag</span>
-              <span className="font-mono tabular-nums">{formatCents(computed.gross)}</span>
+          ) : (
+            <div className="bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-stone-600">Nettobetrag</span>
+                <span className="font-mono tabular-nums">{formatCents(preview.net)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-600">Umsatzsteuer</span>
+                <span className="font-mono tabular-nums">{formatCents(preview.tax)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-stone-900 pt-1 border-t border-stone-200">
+                <span>Gesamtbetrag</span>
+                <span className="font-mono tabular-nums">{formatCents(preview.gross)}</span>
+              </div>
+              {!taxable && (
+                <p className="text-[11px] text-stone-500 pt-1">
+                  Steuerfreier Umsatz — die Rechnung weist keine Umsatzsteuer aus und nennt den
+                  Befreiungsgrund.
+                </p>
+              )}
             </div>
-            {!taxable && (
-              <p className="text-[11px] text-stone-500 pt-1">
-                Steuerfreier Umsatz — die Rechnung weist keine Umsatzsteuer aus und nennt den
-                Befreiungsgrund.
-              </p>
-            )}
-          </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-lg p-3">
@@ -533,7 +559,7 @@ const InvoiceForm: React.FC<{
           </button>
           <button
             type="submit"
-            disabled={busy || computed.gross <= 0}
+            disabled={busy || !preview || preview.gross <= 0}
             className="px-3 py-2 text-sm rounded-lg bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-40"
           >
             {busy ? 'Wird ausgestellt…' : 'Ausstellen und buchen'}

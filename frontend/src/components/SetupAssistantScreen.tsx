@@ -54,7 +54,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     country: 'Deutschland',
     currency: 'EUR',
     skr: 'SKR04',
-    isSmallBusiness: false,
     vatPeriod: 'quarter',
     taxationType: 'SOLL',
   });
@@ -363,15 +362,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       <label className="font-medium text-stone-200 block mb-1">Rechtsform:</label>
                       <select
                         value={companySettings.legalForm}
-                        onChange={(e) => {
-                          const form = e.target.value;
-                          const isCorp = ['GmbH', 'UG (haftungsbeschränkt)', 'AG', 'GmbH & Co. KG'].includes(form);
-                          setCompanySettings({
-                            ...companySettings,
-                            legalForm: form,
-                            taxationType: isCorp ? 'SOLL' : companySettings.taxationType,
-                          });
-                        }}
+                        onChange={(e) =>
+                          setCompanySettings({ ...companySettings, legalForm: e.target.value })
+                        }
                         className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
                       >
                         <option value="Einzelunternehmen">Einzelunternehmen / Freiberufler</option>
@@ -442,72 +435,31 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                     <div>
                       <label className="font-medium text-stone-200 block mb-1">
-                        Umsatzsteuerpflicht:
+                        USt-Voranmeldezeitraum:
                       </label>
                       <select
-                        value={companySettings.isSmallBusiness ? 'small_business' : 'standard'}
-                        onChange={(e) => {
-                          const isSmall = e.target.value === 'small_business';
+                        value={companySettings.vatPeriod || 'quarter'}
+                        onChange={(e) =>
                           setCompanySettings({
                             ...companySettings,
-                            isSmallBusiness: isSmall,
-                            vatPeriod: isSmall ? 'exempt' : 'quarter',
-                            taxationType: 'IST',
-                          });
-                        }}
+                            vatPeriod: e.target.value as any,
+                          })
+                        }
                         className="w-full p-2 bg-[#1D1B19]/90 border border-stone-700 rounded-lg text-stone-200 focus:border-amber-400 focus:outline-hidden"
                       >
-                        <option value="standard">Regelbesteuerung (Umsatzsteuerpflichtig mit Vorsteuerabzug)</option>
-                        <option value="small_business">Kleinunternehmer nach § 19 UStG (Keine Umsatzsteuer auf Rechnungen)</option>
+                        <option value="quarter">Quartalsweise (Standard)</option>
+                        <option value="month">Monatlich (z. B. Neugründung)</option>
+                        <option value="year">Jährlich (nur USt-Erklärung)</option>
                       </select>
                     </div>
 
-                    {!companySettings.isSmallBusiness ? (
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div>
-                          <label className="font-medium text-stone-200 block mb-1">
-                            USt-Voranmeldezeitraum:
-                          </label>
-                          <select
-                            value={companySettings.vatPeriod || 'quarter'}
-                            onChange={(e) =>
-                              setCompanySettings({
-                                ...companySettings,
-                                vatPeriod: e.target.value as any,
-                              })
-                            }
-                            className="w-full p-2 bg-[#1D1B19]/90 border border-stone-700 rounded-lg text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                          >
-                            <option value="quarter">Quartalsweise (Standard)</option>
-                            <option value="month">Monatlich (z. B. Neugründung)</option>
-                            <option value="year">Jährlich (nur USt-Erklärung)</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="font-medium text-stone-200 block mb-1">
-                            Besteuerungsart:
-                          </label>
-                          <select
-                            value={companySettings.taxationType || 'IST'}
-                            onChange={(e) =>
-                              setCompanySettings({
-                                ...companySettings,
-                                taxationType: e.target.value as any,
-                              })
-                            }
-                            className="w-full p-2 bg-[#1D1B19]/90 border border-stone-700 rounded-lg text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                          >
-                            <option value="IST">IST-Versteuerung (Zahlungseingang / Bank)</option>
-                            <option value="SOLL">SOLL-Versteuerung (Rechnungsdatum)</option>
-                          </select>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20 text-[11px] text-amber-200 leading-relaxed">
-                        Als Kleinunternehmer nach § 19 UStG weisen Sie auf Ausgangsrechnungen keine Umsatzsteuer aus und führen keine monatlichen oder quartalsweisen Voranmeldungen ab.
-                      </div>
-                    )}
+                    <div className="p-2.5 bg-[#1D1B19]/60 rounded-lg border border-stone-700 text-[11px] text-stone-300 leading-relaxed">
+                      Buchfink rechnet nach vereinbarten Entgelten ab (Sollversteuerung,
+                      § 16 Abs. 1 Satz 1 UStG): eine Rechnung wird mit ihrem Datum gebucht, die
+                      Zahlung ist ein späterer, eigener Vorgang. Istversteuerung und die
+                      Kleinunternehmerregelung nach § 19 UStG werden nicht unterstützt — Buchfink
+                      richtet sich an bilanzierende Kapitalgesellschaften.
+                    </div>
                   </div>
                 </div>
               )}

@@ -160,6 +160,37 @@ func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *doma
 	return nil
 }
 
+// Preview computes what an invoice would book, without issuing it.
+//
+// It applies the same defaults Issue does, so the numbers the form shows are the
+// numbers that will be booked. The invoice form used to compute net, tax and
+// gross itself, in a second implementation of the rounding rules — this replaces
+// it, because two implementations of a tax computation are one too many.
+func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*PostingPreview, error) {
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
+	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
+	}
+
+	draft := *inv
+	if draft.TaxTreatment == "" {
+		draft.TaxTreatment = domain.TaxTreatmentDomestic
+	}
+	for i := range draft.Items {
+		if draft.Items[i].Position == 0 {
+			draft.Items[i].Position = i + 1
+		}
+	}
+	if err := s.validateTaxTreatment(&draft, contact); err != nil {
+		return nil, err
+	}
+
+	return s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
+}
+
 // Cancel reverses an issued invoice by Generalumkehr.
 func (s *InvoiceService) Cancel(ctx context.Context, invoiceID uint, reason string) error {
 	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)

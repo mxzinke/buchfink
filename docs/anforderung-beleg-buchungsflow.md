@@ -694,6 +694,19 @@ Buchung, muss der Beleg offen bleiben und korrigiert erneut gebucht werden
 können; die andere Reihenfolge hinterließe einen unveränderlichen Beleg ohne
 Buchung.
 
+### Die Oberfläche rechnet nicht
+
+Netto, Steuer und Brutto einer Erfassungsmaske kommen aus einer Buchungsvorschau
+des Backends, die exakt dieselben Zeilen erzeugt wie die spätere Buchung – sie
+schreibt sie nur nicht. Die Rechnungsmaske hatte die Steuerermittlung samt
+Rundung je Steuersatzgruppe selbst nachgebaut, mit dem Kommentar „genau wie im
+Backend". Das ist eine zweite Wahrheit, die auseinanderläuft, sobald ein
+Steuerfall dazukommt – und zwar die, die niemand testet.
+
+Ebenso wird der Steuerfall nicht in der Maske hergeleitet: welche Stammdaten er
+verlangt, sagt das Backend über `TaxTreatmentInfo`, und welchen Fall eine
+Buchungsgruppe vorschlägt, sagt die Gruppe selbst.
+
 ### Keine Buchung ohne Beleg
 
 Der Belegbezug ist verbindlich, nicht optional: eine Eingangsbuchung ohne
@@ -732,6 +745,8 @@ der des Journals.
 | **Beleg** | eigene Entität mit 1..n Dateien je Rolle; Beleg-Hash über die geordnete Dateiliste, mit der Buchung versiegelt; verbindlich, nicht optional |
 | **E-Rechnung** | Teil des Belegflows, kein Zusatzmodul; gebucht wird immer aus dem strukturierten Teil |
 | **Versteuerung** | nur Sollversteuerung; Istversteuerung wird im Buchungskern abgewiesen |
+| **Kleinunternehmer** | § 19 UStG wird für den eigenen Mandanten nicht unterstützt (Zielgruppe sind bilanzierende Kapitalgesellschaften); als Eigenschaft eines Lieferanten bleibt der Fall relevant |
+| **Fachlogik** | steht im Backend; die Oberfläche sammelt ein, zeigt an und rechnet nichts nach |
 | **Nullsteuersatz** | eigener Steuerfall (§ 12 Abs. 3 UStG), Erlöse auf 4290; der Steuerfall steht an der Buchung |
 | **CAMT-Import** | schlägt keine Konten vor |
 | **Warenbestand** | out of scope für v1 |

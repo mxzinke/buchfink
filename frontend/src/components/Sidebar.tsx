@@ -4,6 +4,7 @@ import {
   Landmark,
   FileText,
   ListOrdered,
+  Receipt,
   Users,
   BookOpen,
   Scale,
@@ -22,6 +23,7 @@ export type TabType =
   | 'welcome'
   | 'dashboard'
   | 'bank'
+  | 'receipts'
   | 'invoices'
   | 'journal'
   | 'contacts'
@@ -74,6 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Buchhaltung',
       items: [
         { id: 'bank', label: 'Bank & Zahlungen', icon: <Landmark className="w-4 h-4" /> },
+        { id: 'receipts', label: 'Belege', icon: <Receipt className="w-4 h-4" /> },
         { id: 'invoices', label: 'Rechnungen', icon: <FileText className="w-4 h-4" /> },
         { id: 'journal', label: 'Journal', icon: <ListOrdered className="w-4 h-4" /> },
       ],

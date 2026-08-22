@@ -32,6 +32,8 @@ export type TaxTreatment =
   | 'intra_community_supply'
   | 'export'
   | 'reverse_charge_supply'
+  /** Nullsteuersatz § 12 Abs. 3 UStG — steuerpflichtig zum Satz null, nicht steuerfrei. */
+  | 'zero_rated'
   | 'exempt'
   | 'not_taxable';
 
@@ -128,8 +130,9 @@ export interface JournalEntry {
   description: string;
   source: EntrySource;
   documentNumber?: string;
-  documentHash?: string;
-  documentPath?: string;
+  receiptId?: number;
+  receiptHash?: string;
+  taxTreatment?: TaxTreatment;
   contactId?: number;
   bankTxId?: number;
   kind: EntryKind;
@@ -212,6 +215,8 @@ export interface PostingGroup {
   direction: Direction;
   account: string;
   defaultRate: TaxRate;
+  /** Der Steuerfall, den die Gruppe vorschlägt. Leer = Inland, steuerpflichtig. */
+  defaultTreatment?: TaxTreatment;
 }
 
 export interface TaxTreatmentInfo {
@@ -239,19 +244,87 @@ export interface ReceiptPosition {
 
 export interface ReceiptRequest {
   contactId: number;
+  /** Der abgelegte Beleg. Pflicht: keine Buchung ohne Beleg. */
+  receiptId: number;
   bookingDate: string;
   documentDate: string;
   serviceDateFrom: string;
   serviceDateTo: string;
-  documentNumber: string;
-  documentHash?: string;
-  documentPath?: string;
   description: string;
   taxTreatment: TaxTreatment;
   positions: ReceiptPosition[];
   settlement: Settlement;
   paymentAccount?: string;
   currency?: string;
+}
+
+/**
+ * Der Buchungssatz, wie das Backend ihn berechnet — ohne ihn zu schreiben.
+ *
+ * Die Oberfläche zeigt diese Zahlen an und rechnet sie nicht selbst nach. Eine
+ * zweite Steuerrechnung im Frontend wäre eine zweite Wahrheit, die auseinander
+ * läuft, sobald ein Steuerfall dazukommt.
+ */
+export interface PostingPreview {
+  lines: JournalLine[];
+  /** Summe der Aufwands- bzw. Ertragszeilen. */
+  net: Cents;
+  /** Differenz zwischen Brutto und Netto. Bei § 13b null: gezahlt wird netto. */
+  tax: Cents;
+  /** Was tatsächlich gezahlt oder vereinnahmt wird — die Gegenzeile. */
+  gross: Cents;
+  balanced: boolean;
+}
+
+// -------------------------------------------------------------------------
+// Belege
+
+export type ReceiptFileRole = 'original' | 'structured' | 'rendering' | 'attachment';
+export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
+
+export interface ReceiptFile {
+  id: number;
+  receiptId: number;
+  position: number;
+  role: ReceiptFileRole;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  /** Aus einer anderen Datei erzeugt statt empfangen. */
+  derived: boolean;
+  storedPath: string;
+  createdAt: string;
+}
+
+export interface Receipt {
+  id: number;
+  fiscalYear: number;
+  receiptNumber: string;
+  direction: Direction;
+  status: ReceiptStatus;
+  files: ReceiptFile[];
+  /** Über die geordnete Dateiliste; steht so in der Buchung. */
+  receiptHash: string;
+  receivedAt?: string;
+  receivedVia?: string;
+  journalEntryId?: number;
+  discardReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReceiptFileInput {
+  path: string;
+  role: ReceiptFileRole;
+}
+
+export interface ReceiptPreview {
+  dataUrl: string;
+  fileName: string;
+  mimeType: string;
+  /** false, wenn die Datei auf der Platte nicht mehr zu ihrer Prüfsumme passt. */
+  intact: boolean;
 }
 
 // -------------------------------------------------------------------------
@@ -431,7 +504,6 @@ export interface CompanySettings {
   country: string;
   currency: string;
   skr: string;
-  isSmallBusiness: boolean;
   vatPeriod: string;
   taxationType: string;
 }
