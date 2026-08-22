@@ -219,9 +219,11 @@ Copyright (c) 2026 Maximilian Pfennig
 Lizenziert unter der EUPL
 ```
 
-Buchfink steht unter der **[European Union Public Licence v1.2](LICENSE)**
-(EUPL-1.2). Der [deutsche Lizenztext](docs/lizenz-eupl-1.2-de.txt) ist nach
-Artikel 13 der Lizenz gleichwertig — alle Sprachfassungen haben denselben Rang.
+Buchfink steht unter der **[Open-Source-Lizenz für die Europäische Union
+v1.2](LICENSE)** (EUPL-1.2). Die [`LICENSE`](LICENSE) enthält den amtlichen
+deutschen und den amtlichen englischen Wortlaut. Nach Artikel 13 der Lizenz
+haben alle Sprachfassungen denselben Rang; du kannst dich auf die Fassung
+deiner Wahl berufen.
 
 Was das praktisch bedeutet:
 

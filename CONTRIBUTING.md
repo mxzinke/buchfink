@@ -20,9 +20,9 @@ eingereichten Inhalt.
 
 ## Lizenz und Rechte
 
-Buchfink steht unter der [EUPL-1.2](LICENSE) (deutscher Lizenztext:
-[`docs/lizenz-eupl-1.2-de.txt`](docs/lizenz-eupl-1.2-de.txt)). Dein Beitrag
-wird unter derselben Lizenz veröffentlicht.
+Buchfink steht unter der [EUPL-1.2](LICENSE); die Lizenzdatei enthält den
+deutschen und den englischen Wortlaut. Dein Beitrag wird unter derselben
+Lizenz veröffentlicht.
 
 Zusätzlich brauchen wir deine Zustimmung zur
 [Vereinbarung über Beiträge (CLA)](CLA.md). Du behältst das Urheberrecht an
