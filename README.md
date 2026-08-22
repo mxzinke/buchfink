@@ -214,7 +214,7 @@ Möglichkeit offen, seine Lizenzierung aus einer Hand anzupassen.
 ## Lizenz
 
 ```text
-Copyright (c) 2026 Maximilian P.
+Copyright (c) 2026 Maximilian Pfennig
 
 Lizenziert unter der EUPL
 ```

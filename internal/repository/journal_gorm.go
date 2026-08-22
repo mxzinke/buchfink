@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Maximilian P.
+// SPDX-FileCopyrightText: 2026 Maximilian Pfennig
 // SPDX-License-Identifier: EUPL-1.2
 
 package repository

@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: 2026 Maximilian P. -->
+<!-- SPDX-FileCopyrightText: 2026 Maximilian Pfennig -->
 <!-- SPDX-License-Identifier: EUPL-1.2 -->
 
 # Vereinbarung über Beiträge (Contributor License Agreement)
@@ -25,7 +25,7 @@ Vereinbarung willkommen — sie gilt nur für eingereichten Inhalt.
 
 1. **Projekt** ist das Softwareprojekt Buchfink einschließlich seines
    Repositorys unter `github.com/mxzinke/buchfink` und aller Nachfolger.
-2. **Projektinhaber** ist Maximilian P. als Inhaber der Rechte am Projekt.
+2. **Projektinhaber** ist Maximilian Pfennig als Inhaber der Rechte am Projekt.
 3. **Beitrag** ist jeder Inhalt, den Sie zur Aufnahme in das Projekt
    einreichen — Quellcode, Dokumentation, Übersetzungen, Konfiguration,
    Testdaten, Grafiken oder anderes Material — unabhängig davon, auf welchem
@@ -151,7 +151,7 @@ would require the individual consent of every contributor.
 
 **§ 1 Definitions.** *Project*: the Buchfink software project including its
 repository at `github.com/mxzinke/buchfink` and any successor. *Project owner*:
-Maximilian P. *Contribution*: any content you submit for inclusion — source
+Maximilian Pfennig. *Contribution*: any content you submit for inclusion — source
 code, documentation, translations, configuration, test data, graphics or other
 material — regardless of how you submit it. *You*: the natural or legal person
 submitting the contribution.
