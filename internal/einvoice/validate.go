@@ -14,15 +14,19 @@ const RulesetVersion = "buchfink-en16931/2026.3"
 
 // Severity separates what makes a document unusable from what is worth knowing.
 //
-// Which is which comes from the standard, not from Buchfink: EN 16931 flags
-// exactly one rule as a warning (BR-51, the card number), and inventing a
-// different severity anywhere else would mean disagreeing with the norm while
-// claiming to implement it.
+// Which is which comes from the rule set, not from Buchfink: EN 16931 flags
+// exactly one of its rules as a warning (BR-51, the card number), and the
+// German CIUS marks a good dozen of its own that way. Inventing a different
+// severity would mean disagreeing with a specification while claiming to
+// implement it.
 type Severity string
 
 const (
 	SeverityFatal   Severity = "fatal"
 	SeverityWarning Severity = "warning"
+	// SeverityInfo is a remark that is not a defect at all. EN 16931 has none;
+	// the layers above it do.
+	SeverityInfo Severity = "information"
 )
 
 // Finding is one violated business rule.
@@ -43,7 +47,10 @@ type Finding struct {
 
 // Result is the outcome of checking an invoice.
 type Result struct {
-	Ruleset  string    `json:"ruleset"`
+	// Rulesets names every rule set that ran, in order. A verdict without it is
+	// not evidence: "passed" means nothing until it says passed *what*, and a
+	// document that clears EN 16931 can still fail the German CIUS.
+	Rulesets []string  `json:"rulesets"`
 	Syntax   Syntax    `json:"syntax"`
 	Profile  string    `json:"profile"`
 	Findings []Finding `json:"findings,omitempty"`
@@ -126,9 +133,9 @@ func Rule(id string) (RuleInfo, bool) {
 // alike.
 func Validate(inv *Invoice) Result {
 	result := Result{
-		Ruleset: RulesetVersion,
-		Syntax:  inv.Syntax,
-		Profile: inv.SpecificationID,
+		Rulesets: []string{RulesetVersion},
+		Syntax:   inv.Syntax,
+		Profile:  inv.SpecificationID,
 	}
 	v := &validator{inv: inv, seen: map[string]bool{}}
 
@@ -170,9 +177,7 @@ func (v *validator) report(rule, where, format string, args ...any) {
 	severity := SeverityFatal
 	var terms []string
 	if info, ok := en16931Rules[rule]; ok {
-		if !info.Fatal {
-			severity = SeverityWarning
-		}
+		severity = info.Severity
 		terms = info.Terms
 	}
 	v.findings = append(v.findings, Finding{
@@ -267,3 +272,84 @@ func (v *validator) inListAt(rule, where, code string, list map[string]struct{},
 
 func linePos(i int) string      { return fmt.Sprintf("Position %d", i+1) }
 func breakdownPos(i int) string { return fmt.Sprintf("Steuergruppe %d", i+1) }
+
+// Ruleset is a layer of rules on top of EN 16931.
+//
+// XRechnung and ZUGFeRD are not separate formats — they are a CIUS and a set of
+// profiles *over* the standard, adding rules and narrowing what a document may
+// contain. Modelling them as layers rather than as parallel implementations is
+// what keeps them from drifting: they see the same parsed invoice as the core
+// rules do, and a document is judged by the core exactly once no matter how
+// many layers apply.
+type Ruleset interface {
+	// ID identifies the rule set, e.g. "xrechnung/3.0".
+	ID() string
+	// Check returns the findings this layer adds. The core rules have already
+	// run; a layer neither repeats nor overrides them.
+	Check(inv *Invoice) []Finding
+}
+
+// ValidateWith checks an invoice against EN 16931 and then against every layer
+// given, in order.
+func ValidateWith(inv *Invoice, layers ...Ruleset) Result {
+	result := Validate(inv)
+	for _, layer := range layers {
+		if layer == nil {
+			continue
+		}
+		result.Rulesets = append(result.Rulesets, layer.ID())
+		result.Findings = append(result.Findings, layer.Check(inv)...)
+	}
+	return result
+}
+
+// Reporter collects the findings of a rule set layer.
+//
+// It exists so a layer does not have to restate, at every call site, what
+// severity a rule carries and which business terms it is about. Those come from
+// the layer's own inventory — the same arrangement the core rules use, and the
+// reason a wrong severity or an unknown rule identifier cannot slip in
+// unnoticed.
+type Reporter struct {
+	rules    map[string]RuleInfo
+	findings []Finding
+	seen     map[string]bool
+}
+
+// NewReporter starts collecting for a layer with the given rule inventory.
+func NewReporter(rules map[string]RuleInfo) *Reporter {
+	return &Reporter{rules: rules, seen: map[string]bool{}}
+}
+
+// Report records a violation. The severity and the business terms come from the
+// inventory; a rule that is not in it is reported as fatal, which is the safe
+// direction — an unknown rule identifier is a defect in the layer, and burying
+// it as a remark would hide it.
+func (r *Reporter) Report(rule, where, format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	key := rule + "\x00" + where + "\x00" + message
+	if r.seen[key] {
+		return
+	}
+	r.seen[key] = true
+
+	finding := Finding{Rule: rule, Severity: SeverityFatal, Where: where, Message: message}
+	if info, ok := r.rules[rule]; ok {
+		finding.Severity = info.Severity
+		finding.Terms = info.Terms
+	}
+	r.findings = append(r.findings, finding)
+}
+
+// Require reports the rule when the value is blank, and says whether it was
+// there.
+func (r *Reporter) Require(rule, where, value, label string) bool {
+	if strings.TrimSpace(value) == "" {
+		r.Report(rule, where, "%s fehlt", label)
+		return false
+	}
+	return true
+}
+
+// Findings returns what was collected.
+func (r *Reporter) Findings() []Finding { return r.findings }

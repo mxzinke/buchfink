@@ -90,7 +90,7 @@ func TestEveryClaimedRuleIsActuallyChecked(t *testing.T) {
 func TestSeverityFollowsTheStandard(t *testing.T) {
 	var warnings []string
 	for rule, info := range en16931Rules {
-		if !info.Fatal {
+		if info.Severity != SeverityFatal {
 			warnings = append(warnings, rule)
 		}
 	}
