@@ -45,7 +45,10 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 	}
 	inv.Recalculate()
 
-	buyer := &domain.Contact{Name: "Buchfink-Mandant", CountryCode: "DE", VatID: "DE111111111"}
+	buyer := &domain.Contact{
+		Name: "Buchfink-Mandant", Address: "Hauptstraße 1, 80331 München",
+		CountryCode: "DE", VatID: "DE111111111",
+	}
 	xml, err := invoice.GenerateZUGFeRDXML(inv, supplier, buyer)
 	if err != nil {
 		t.Fatalf("Lieferanten-XML: %v", err)
@@ -312,5 +315,108 @@ func TestExtractingFromAScanIsRefused(t *testing.T) {
 
 	if _, err := env.einvoices().ExtractStructuredPart(ctx, receipt.ID); err == nil {
 		t.Error("aus einem Scan lässt sich kein Rechnungsdatensatz holen")
+	}
+}
+
+// Das Prüfergebnis bleibt am Beleg: mit Zeitpunkt, Regelwerk und Version. Ein
+// Urteil ohne die Regeln, die es erzeugt haben, ist später nicht nachvollziehbar.
+func TestValidationResultIsKeptWithTheReceipt(t *testing.T) {
+	if testing.Short() {
+		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
+	}
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	receipt := env.hybridReceipt(t, supplierSettings("Netzwerk GmbH", "DE555666777"),
+		domain.TaxTreatmentDomestic, domain.TaxRateStandard, 100000)
+
+	updated, err := env.einvoices().ExtractStructuredPart(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("strukturierten Teil holen: %v", err)
+	}
+
+	if updated.DetectedFormat != string(invoice.FormatCII) {
+		t.Errorf("erkanntes Format = %q, erwartet %q", updated.DetectedFormat, invoice.FormatCII)
+	}
+	if updated.DetectedProfile != "urn:cen.eu:en16931:2017" {
+		t.Errorf("erkanntes Profil = %q", updated.DetectedProfile)
+	}
+	if updated.ValidationRuleset != invoice.EN16931RulesetID {
+		t.Errorf("Regelwerk = %q", updated.ValidationRuleset)
+	}
+	if updated.ValidationVersion != invoice.EN16931RulesetVersion {
+		t.Errorf("Regelwerksversion = %q", updated.ValidationVersion)
+	}
+	if updated.ValidatedAt == "" {
+		t.Error("der Prüfzeitpunkt fehlt")
+	}
+	if updated.ValidationCoverage != string(invoice.CoveragePartial) {
+		t.Errorf("Prüfumfang = %q — es darf keinen Wert für Vollständigkeit geben", updated.ValidationCoverage)
+	}
+	if updated.ValidationErrors != 0 {
+		t.Errorf("eine von Buchfink erzeugte Rechnung soll fehlerfrei sein, gemeldet sind %d", updated.ValidationErrors)
+	}
+
+	// Und die Prüfung lässt sich wiederholen — das Regelwerk ist versioniert.
+	result, err := env.einvoices().Validate(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("erneut prüfen: %v", err)
+	}
+	if !result.Valid() {
+		t.Errorf("die erneute Prüfung meldet %d Fehler", result.ErrorCount())
+	}
+}
+
+// Eine Prüfung darf auch nach dem Buchen noch laufen: sie fasst keine Datei an,
+// der Beleg-Hash bleibt unberührt und die Kette damit heil.
+func TestValidationCanRunOnASealedReceipt(t *testing.T) {
+	if testing.Short() {
+		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
+	}
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	vendor := env.vendor(t, "Netzwerk GmbH", "DE", "DE555666777")
+	receipt := env.hybridReceipt(t, supplierSettings("Netzwerk GmbH", "DE555666777"),
+		domain.TaxTreatmentDomestic, domain.TaxRateStandard, 100000)
+
+	svc := env.einvoices()
+	if _, err := svc.ExtractStructuredPart(ctx, receipt.ID); err != nil {
+		t.Fatalf("strukturierten Teil holen: %v", err)
+	}
+	proposal, err := svc.Propose(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("Vorschlag: %v", err)
+	}
+	req := proposal.Request
+	req.ContactID = vendor.ID
+	req.Positions[0].PostingGroup = "fremdleistungen"
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("buchen: %v", err)
+	}
+
+	before, err := env.receipts.Get(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("Beleg laden: %v", err)
+	}
+
+	if _, err := svc.Validate(ctx, receipt.ID); err != nil {
+		t.Fatalf("Prüfung nach dem Buchen: %v", err)
+	}
+
+	after, err := env.receipts.Get(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("Beleg laden: %v", err)
+	}
+	if after.ReceiptHash != before.ReceiptHash {
+		t.Error("eine Prüfung darf den Beleg-Hash nicht verändern")
+	}
+
+	result, err := env.journal.VerifyIntegrity(ctx)
+	if err != nil {
+		t.Fatalf("Integritätsprüfung: %v", err)
+	}
+	if !result.IsValid {
+		t.Errorf("die Kette muss nach einer Prüfung heil sein: %s", result.Message)
 	}
 }

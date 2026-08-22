@@ -30,6 +30,7 @@ import type {
   SuSaOverview,
   TaxTreatmentInfo,
   TenantConfig,
+  ValidationResult,
   VatSummary,
 } from '../types';
 
@@ -178,6 +179,11 @@ export const Api = {
   /** Buchungsvorschlag aus dem strukturierten Teil. Das Konto bleibt offen. */
   proposeFromEInvoice: (receiptId: number): Promise<EInvoiceProposal> =>
     call(() => Bridge.ProposeFromEInvoice(receiptId) as Promise<EInvoiceProposal>),
+  /** Prüft den strukturierten Teil erneut. Das Regelwerk ist versioniert. */
+  validateEInvoice: (receiptId: number): Promise<ValidationResult> =>
+    call(() => Bridge.ValidateEInvoice(receiptId) as Promise<ValidationResult>),
+  /** Die Regeln, die Buchfink prüft — der Prüfumfang ist Teil des Ergebnisses. */
+  getEInvoiceRules: (): Promise<string[]> => call(() => Bridge.GetEInvoiceRules()),
   /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
   getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),

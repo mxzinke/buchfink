@@ -243,7 +243,29 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 		inv.GrossAmount.Decimal(),
 	)
 
+	// Die eigene Rechnung wird gegen die eigene Prüfung gehalten. Eine Rechnung
+	// ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
+	// ordnungsmäßige Rechnung — der Empfänger verlöre den Vorsteuerabzug, und er
+	// merkte es erst bei der Prüfung. Lieber jetzt eine Meldung an den Aussteller.
+	if doc, err := ParseCII([]byte(xmlContent)); err == nil {
+		if result := ValidateEN16931(doc); !result.Valid() {
+			return "", fmt.Errorf(
+				"die Rechnung erfüllt EN 16931 noch nicht: %s. Bitte die fehlenden Stammdaten ergänzen",
+				strings.Join(errorMessages(result), "; "))
+		}
+	}
+
 	return xmlContent, nil
+}
+
+func errorMessages(result ValidationResult) []string {
+	var out []string
+	for _, f := range result.Findings {
+		if f.Severity == SeverityError {
+			out = append(out, f.Message)
+		}
+	}
+	return out
 }
 
 func countryOrDE(code string) string {

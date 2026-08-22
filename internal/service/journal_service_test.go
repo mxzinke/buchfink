@@ -39,6 +39,20 @@ func newTestEnv(t *testing.T) *testEnv {
 		t.Fatalf("SKR04-Kontenplan konnte nicht geladen werden: %v", err)
 	}
 
+	// Ohne vollständige Unternehmensdaten lässt sich keine ordnungsmäßige
+	// Rechnung ausstellen — § 14 Abs. 4 Nr. 1 UStG verlangt Name und Anschrift
+	// beider Seiten, und die Erzeugung besteht darauf.
+	settings := repository.NewSettingsRepository(db)
+	if err := settings.UpdateCompanySettings(context.Background(), &domain.CompanySettings{
+		CompanyName: "Pfennig Ventures GmbH", LegalForm: "GmbH",
+		Street: "Hauptstraße 1", ZipCity: "80331 München", Country: "Deutschland",
+		TaxNumber: "143/815/08151", VatID: "DE123456789",
+		FiscalYear: 2026, FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04",
+		VatPeriod: "quarter", TaxationType: "SOLL",
+	}); err != nil {
+		t.Fatalf("Unternehmensdaten konnten nicht gesetzt werden: %v", err)
+	}
+
 	accountRepo := repository.NewAccountRepository(db)
 	journalRepo := repository.NewJournalRepository(db)
 	contactRepo := repository.NewContactRepository(db)
@@ -68,7 +82,10 @@ func newTestEnv(t *testing.T) *testEnv {
 
 func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Contact {
 	t.Helper()
-	c := &domain.Contact{Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID}
+	c := &domain.Contact{
+		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
+		Address: "Lieferantenweg 3, 20095 Hamburg",
+	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s konnte nicht angelegt werden: %v", name, err)
 	}
@@ -77,7 +94,10 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 
 func (e *testEnv) customer(t *testing.T, name, country, vatID string) *domain.Contact {
 	t.Helper()
-	c := &domain.Contact{Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID}
+	c := &domain.Contact{
+		Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID,
+		Address: "Kundenweg 2, 10115 Berlin",
+	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Kunde %s konnte nicht angelegt werden: %v", name, err)
 	}

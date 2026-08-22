@@ -195,6 +195,26 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 	})
 }
 
+// SaveValidation records the outcome of checking the structured part.
+//
+// It is allowed on a sealed Beleg: the check touches no file, so the Beleg-Hash
+// and the journal chain are unaffected, and a rule set updated later must be able
+// to write a fresh result against an already booked document.
+func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID uint, v domain.ReceiptValidation) error {
+	return r.db.WithContext(ctx).Model(&domain.Receipt{}).Where("id = ?", receiptID).
+		Updates(map[string]any{
+			"detected_format":     v.Format,
+			"detected_profile":    v.Profile,
+			"validated_at":        v.At,
+			"validation_ruleset":  v.Ruleset,
+			"validation_version":  v.Version,
+			"validation_coverage": v.Coverage,
+			"validation_errors":   v.Errors,
+			"validation_findings": v.Findings,
+			"updated_at":          time.Now(),
+		}).Error
+}
+
 // numberRangeFor picks the counter a Beleg draws its number from. Incoming
 // documents get their own series; an outgoing Beleg carries the Rechnungsnummer
 // the invoice already allocated, so it never reaches this function.

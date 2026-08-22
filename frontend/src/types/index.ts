@@ -317,6 +317,18 @@ export interface Receipt {
   receivedVia?: string;
   journalEntryId?: number;
   discardReason?: string;
+
+  // E-Rechnung: leer bei einem Scan oder einer gewöhnlichen PDF-Rechnung.
+  detectedFormat?: string;
+  detectedProfile?: string;
+  validatedAt?: string;
+  validationRuleset?: string;
+  validationVersion?: string;
+  validationCoverage?: string;
+  validationErrors: number;
+  /** Die Befunde als JSON, siehe ValidationFinding. */
+  validationFindings?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -344,6 +356,28 @@ export interface EInvoiceProposal {
   matchedContact: boolean;
   /** Was nicht gefüllt werden konnte und warum. */
   notes?: string[];
+}
+
+/**
+ * Das Ergebnis der EN-16931-Prüfung.
+ *
+ * `coverage` kennt bewusst keinen Wert für „vollständig geprüft": die
+ * Referenzumsetzung ist ein Schematron-Regelwerk, das kein Go-Prozessor
+ * ausführt. Die geprüften Regeln sind über `Api.getEInvoiceRules()` abrufbar.
+ */
+export interface ValidationFinding {
+  rule: string;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+export interface ValidationResult {
+  ruleset: string;
+  version: string;
+  format: string;
+  profile: string;
+  coverage: 'partial';
+  findings?: ValidationFinding[];
 }
 
 export interface ReceiptPreview {

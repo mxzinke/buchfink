@@ -127,6 +127,27 @@ type Receipt struct {
 	ReceivedAt  string `gorm:"size:10" json:"receivedAt,omitempty"`
 	ReceivedVia string `gorm:"size:30" json:"receivedVia,omitempty"`
 
+	// The E-Rechnung fields. They stay empty on a Beleg without a structured
+	// part — a scan or a plain PDF is not an E-Rechnung and must not look like a
+	// failed one.
+	//
+	// The validation result is kept with the time, the rule set and its version.
+	// A verdict without the rules that produced it cannot be reproduced later,
+	// and reproducibility is the whole point of recording it.
+	DetectedFormat  string `gorm:"size:20" json:"detectedFormat,omitempty"`
+	DetectedProfile string `gorm:"size:120" json:"detectedProfile,omitempty"`
+
+	ValidatedAt       string `gorm:"size:25" json:"validatedAt,omitempty"`
+	ValidationRuleset string `gorm:"size:40" json:"validationRuleset,omitempty"`
+	ValidationVersion string `gorm:"size:20" json:"validationVersion,omitempty"`
+	// ValidationCoverage says how far the check went. There is no value meaning
+	// "fully validated" — see internal/invoice/en16931.go.
+	ValidationCoverage string `gorm:"size:20" json:"validationCoverage,omitempty"`
+	ValidationErrors   int    `gorm:"default:0" json:"validationErrors"`
+	// ValidationFindings holds the findings as JSON. They are display material,
+	// not booking data, which is why they are not part of the Beleg-Hash.
+	ValidationFindings string `gorm:"type:text;serializer:encrypted" json:"validationFindings,omitempty"`
+
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	DiscardReason  string `gorm:"size:255;serializer:encrypted" json:"discardReason,omitempty"`
@@ -299,4 +320,19 @@ type ReceiptRepository interface {
 	// crash between the journal write and the seal can be repaired by repeating it.
 	Seal(ctx context.Context, receiptID uint, entryID uint) error
 	Discard(ctx context.Context, receiptID uint, reason string) error
+	// SaveValidation records the outcome of reading and checking the structured
+	// part. It touches no file, so the Beleg-Hash is unaffected.
+	SaveValidation(ctx context.Context, receiptID uint, v ReceiptValidation) error
+}
+
+// ReceiptValidation is what a check of the structured part leaves behind.
+type ReceiptValidation struct {
+	Format   string
+	Profile  string
+	At       string
+	Ruleset  string
+	Version  string
+	Coverage string
+	Errors   int
+	Findings string
 }

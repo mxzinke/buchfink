@@ -97,7 +97,7 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Mehrdateiliger Beleg mit Rollen (PDF + XML) | vorhanden (`internal/domain/receipt.go`), Beleg-Hash über die geordnete Dateiliste |
 | **Einlesen einer empfangenen E-Rechnung** | vorhanden: XML aus dem Hybrid-PDF (`pdfattach.go`), CII-Parser (`cii.go`), Buchungsvorschlag (`einvoice_service.go`) |
 | **Ablehnung der Profile MINIMUM und BASIC WL** | vorhanden |
-| **Validierung gegen EN 16931** | siehe Abschnitt 8 |
+| **Validierung gegen EN 16931** | Teilprüfung in Go (`internal/invoice/en16931.go`), Regelliste und Version am Beleg |
 | **XRechnung (reines XML ohne PDF)** | ablegbar und auslesbar; buchbar erst mit erzeugter Darstellung |
 | Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, über den Beleg-Hash |
 
@@ -226,10 +226,29 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
 - **Reihenfolge:** Empfang zuerst, Ausstellung danach – das folgt aus den Fristen.
   Zu entscheiden ist, ob der Empfang vor die übrigen offenen Punkte gezogen wird.
   *Vorschlag: ja, weil er als einziger eine bereits laufende Pflicht betrifft.*
-- **Validierung:** eigene Schematron-Prüfung oder eine Bibliothek? Eine
-  vollständige EN-16931-Validierung ist erheblicher Aufwand. Zwischenstufe: die
-  für die Buchung nötigen Felder prüfen und das Ergebnis als „nicht vollständig
-  validiert" kennzeichnen, statt Vollständigkeit vorzutäuschen.
+- **Validierung:** entschieden und umgesetzt als eigener Regelprüfer in Go
+  (`internal/invoice/en16931.go`). Eine native Go-Bibliothek gibt es nicht, und
+  der Referenzweg – der KoSIT-Validator mit Schematron über Saxon-XSLT – setzt
+  eine Java-Laufzeit voraus, die eine lokale Go-Desktop-App nicht mitbringen soll.
+
+  Geprüft wird eine **belegte Teilmenge**: die Pflichtangaben (BR-01 bis BR-16),
+  die Positionsregeln (BR-21 bis BR-26), die Steueraufschlüsselung (BR-45 bis
+  BR-48), die Rechenregeln (BR-CO-10, -13, -15, -16, -17), die Codelisten
+  (BR-CL-03, -10, -11, -17) und die kategoriespezifischen Regeln für AE, E, K, Z
+  und O. Die Liste ist über `GetEInvoiceRules()` abrufbar und Teil des Ergebnisses.
+
+  Der Prüfumfang kennt **keinen Wert für „vollständig geprüft"** – nur
+  `partial`. Das ist Absicht: Vollständigkeit zu behaupten wäre der einzige
+  Fehler, der schlimmer wäre als die Lücke selbst, weil sich jemand darauf
+  verließe. Ergebnis, Zeitpunkt, Regelwerk und dessen Version stehen am Beleg,
+  damit ein späterer Prüflauf vergleichbar bleibt; die Prüfung fasst keine Datei
+  an und lässt den Beleg-Hash deshalb unberührt.
+
+  Buchfink hält auch die **eigenen** Rechnungen gegen dieses Regelwerk: eine
+  Ausgangsrechnung, die es verletzt, wird gar nicht erst erzeugt. Eine Rechnung
+  ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
+  ordnungsmäßige Rechnung – der Empfänger verlöre den Vorsteuerabzug und merkte
+  es erst bei der Betriebsprüfung.
 - **Umgang mit abweichendem Bildteil:** anzeigen und blockieren, oder anzeigen und
   weiterbuchen lassen? *Vorschlag: anzeigen, Buchung aus dem XML, Hinweis auf die
   mögliche § 14c-Relevanz – keine automatische Bewertung.*

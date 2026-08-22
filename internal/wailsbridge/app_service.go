@@ -1148,6 +1148,28 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 	return b.eInvoiceSvc.Propose(context.Background(), receiptID)
 }
 
+// ValidateEInvoice re-runs the EN-16931 rule check against the structured part of
+// a Beleg and records the result.
+//
+// The rule set is versioned, so a document checked under an older version can be
+// checked again without being re-filed. The check touches no file, which is why
+// it is allowed on a booked Beleg too.
+func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*invoice.ValidationResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.Validate(context.Background(), receiptID)
+}
+
+// GetEInvoiceRules lists the EN-16931 rules Buchfink checks. It is deliberately
+// exposed: "validated" without the list of what was checked tells a user nothing
+// they can act on.
+func (b *BuchfinkBridge) GetEInvoiceRules() []string {
+	return invoice.ValidationRules()
+}
+
 // PreviewIncomingReceipt computes the booking without writing it, so the form can
 // show the Buchungssatz instead of re-deriving it.
 func (b *BuchfinkBridge) PreviewIncomingReceipt(req service.ReceiptRequest) (*service.PostingPreview, error) {

@@ -26,6 +26,7 @@ import type {
   TaxRate,
   TaxTreatment,
   TaxTreatmentInfo,
+  ValidationFinding,
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
@@ -467,6 +468,8 @@ const ReceiptViewer: React.FC<{
           verändert.
         </div>
       )}
+
+      <ValidationPanel receipt={receipt} />
 
       <ul className="divide-y divide-stone-100">
         {receipt.files.map((file) => (
@@ -911,6 +914,57 @@ const BookingForm: React.FC<{
         </PrimaryButton>
       </div>
     </form>
+  );
+};
+
+/**
+ * Das Prüfergebnis am Beleg.
+ *
+ * Der Prüfumfang wird benannt, nicht behauptet: die Referenzumsetzung von
+ * EN 16931 ist ein Schematron-Regelwerk, das kein Go-Prozessor ausführt. Was
+ * Buchfink prüft, ist eine belegte Teilmenge — das steht hier, statt
+ * Vollständigkeit vorzutäuschen.
+ */
+const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
+  if (!receipt.validatedAt) return null;
+
+  let findings: ValidationFinding[] = [];
+  try {
+    findings = receipt.validationFindings ? JSON.parse(receipt.validationFindings) : [];
+  } catch {
+    findings = [];
+  }
+  const errors = findings.filter((f) => f.severity === 'error');
+  const warnings = findings.filter((f) => f.severity === 'warning');
+  const clean = errors.length === 0;
+
+  return (
+    <div
+      className={`px-4 py-2 border-b space-y-1 ${
+        clean ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50 border-rose-100'
+      }`}
+    >
+      <div className="flex items-start gap-1.5 text-xs font-semibold text-stone-800">
+        {clean ? (
+          <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />
+        ) : (
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-rose-600" />
+        )}
+        {clean
+          ? 'Geprüfte Regeln erfüllt'
+          : `${errors.length} ${errors.length === 1 ? 'Verstoß' : 'Verstöße'} gegen EN 16931`}
+      </div>
+      <p className="text-[11px] text-stone-500">
+        {receipt.detectedProfile} · Regelwerk {receipt.validationRuleset}{' '}
+        {receipt.validationVersion} · Teilprüfung, keine vollständige
+        EN-16931-Validierung
+      </p>
+      {[...errors, ...warnings].map((f, i) => (
+        <p key={i} className="text-[11px] text-stone-700">
+          <span className="font-mono text-stone-500">{f.rule}</span> {f.message}
+        </p>
+      ))}
+    </div>
   );
 };
 

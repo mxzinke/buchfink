@@ -78,56 +78,93 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 		return nil, err
 	}
 
+	var structured NewFile
 	switch {
 	case invoice.IsPDF(content.Data):
 		embedded, err := invoice.ExtractEmbeddedInvoice(content.Data)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := invoice.ParseCII(embedded.Data); err != nil {
-			return nil, err
-		}
-		return s.receiptSvc.AddFile(ctx, receiptID, NewFile{
+		structured = NewFile{
 			Role: domain.ReceiptRoleStructured, FileName: embedded.Name,
 			Content: embedded.Data, Derived: true,
-		})
+		}
 
 	case isXML(content.MimeType, content.Data):
 		// Eine XRechnung ist strukturierter Teil und Original zugleich. Beide
 		// Rollen zeigen auf denselben Inhalt, der auf der Platte nur einmal liegt.
-		if _, err := invoice.ParseCII(content.Data); err != nil {
-			return nil, err
-		}
-		return s.receiptSvc.AddFile(ctx, receiptID, NewFile{
+		structured = NewFile{
 			Role: domain.ReceiptRoleStructured, FileName: original.FileName,
 			Content: content.Data,
-		})
+		}
 
 	default:
 		return nil, fmt.Errorf(
 			"Beleg %s ist weder ein PDF noch ein XML — ein Scan oder Foto enthält keinen strukturierten Rechnungsdatensatz",
 			receipt.ReceiptNumber)
 	}
-}
 
-// Propose turns the structured part of a filed Beleg into a booking proposal.
-func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoiceProposal, error) {
-	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	doc, err := invoice.ParseCII(structured.Content)
 	if err != nil {
 		return nil, err
 	}
+
+	updated, err := s.receiptSvc.AddFile(ctx, receiptID, structured)
+	if err != nil {
+		return nil, err
+	}
+
+	// Geprüft wird direkt nach dem Auslesen: das Ergebnis gehört zum Beleg, und
+	// wer eine Rechnung bucht, soll vorher sehen, was an ihr nicht stimmt.
+	if err := s.receiptSvc.SaveValidation(ctx, receiptID, invoice.ValidateEN16931(doc)); err != nil {
+		return nil, err
+	}
+	return s.receiptSvc.Get(ctx, updated.ID)
+}
+
+// Validate re-runs the rule check against the structured part of a Beleg and
+// records the result.
+//
+// Re-running matters because the rule set is versioned: a document checked under
+// an older version can be checked again without being re-filed.
+func (s *EInvoiceService) Validate(ctx context.Context, receiptID uint) (*invoice.ValidationResult, error) {
+	doc, _, err := s.structuredDocument(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	result := invoice.ValidateEN16931(doc)
+	if err := s.receiptSvc.SaveValidation(ctx, receiptID, result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// structuredDocument loads and parses the structured part of a Beleg.
+func (s *EInvoiceService) structuredDocument(ctx context.Context, receiptID uint) (*invoice.CIIInvoice, *domain.Receipt, error) {
+	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	if err != nil {
+		return nil, nil, err
+	}
 	structured, ok := receipt.FileByRole(domain.ReceiptRoleStructured)
 	if !ok {
-		return nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"Beleg %s trägt keinen strukturierten Rechnungsdatensatz. Der Vorsteuerabzug ist nur aus diesem Teil möglich (UStAE 14c.1 Abs. 4a Satz 4)",
 			receipt.ReceiptNumber)
 	}
 	content, err := s.receiptSvc.Content(ctx, receiptID, structured.ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
 	doc, err := invoice.ParseCII(content.Data)
+	if err != nil {
+		return nil, nil, err
+	}
+	return doc, receipt, nil
+}
+
+// Propose turns the structured part of a filed Beleg into a booking proposal.
+func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoiceProposal, error) {
+	doc, receipt, err := s.structuredDocument(ctx, receiptID)
 	if err != nil {
 		return nil, err
 	}
