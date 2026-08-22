@@ -1,3 +1,16 @@
+// ACHTUNG: Dieser Prüfer ist abgelöst.
+//
+// Die EN-16931-Prüfung liegt in `internal/einvoice`. Sie läuft auf einem
+// semantischen Modell statt auf CII-Structs, deckt alle 223 Geschäftsregeln ab
+// statt 170, liest neben CII auch UBL, und XRechnung und ZUGFeRD sitzen als
+// Schichten darüber.
+//
+// Was hier steht, hängt nur noch am Buchungspfad (`internal/service`), der
+// weiterhin die CIIInvoice-Struktur verwendet. Das Umhängen ist der zweite
+// Schritt und für sich zu machen — bis dahin gilt: **neue Regeln kommen ins
+// Modul, nicht hierher.** Zwei Prüfer im Baum sind genau die Stelle, an der
+// jemand den falschen bearbeitet.
+
 package invoice
 
 import "strings"
