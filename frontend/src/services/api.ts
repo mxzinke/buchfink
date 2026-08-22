@@ -171,6 +171,9 @@ export const Api = {
     call(() => Bridge.DiscardReceipt(id, reason)),
   getReceiptPreview: (receiptId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetReceiptPreview(receiptId) as Promise<ReceiptPreview>),
+  /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
+  getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
+    call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),
   reverseJournalEntry: (entryId: number, reason: string): Promise<JournalEntry> =>
     call(() => Bridge.ReverseJournalEntry(entryId, reason) as Promise<JournalEntry>),
   verifyIntegrity: (): Promise<IntegrityCheckResult> =>

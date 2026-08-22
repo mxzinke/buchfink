@@ -13,6 +13,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/security"
@@ -54,6 +55,7 @@ type BuchfinkBridge struct {
 	accountingSvc *service.AccountingService
 	bankSvc       *service.BankService
 	invoiceSvc    *service.InvoiceService
+	renderer      *invoice.Renderer
 	contactSvc    *service.ContactService
 	ebilanzSvc    *service.EBilanzService
 	auditSvc      *service.AuditService
@@ -201,6 +203,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
+	b.renderer = invoice.NewRenderer()
+	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
+	// Das WASM-Modul zu übersetzen kostet ein paar Sekunden. Die soll nicht
+	// zahlen, wer auf "Rechnung ausstellen" drückt.
+	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
@@ -1070,6 +1077,37 @@ func (b *BuchfinkBridge) GetReceiptPreview(receiptID uint) (*ReceiptPreview, err
 	}
 	if len(content.Data) > maxPreviewBytes {
 		return nil, fmt.Errorf("die Belegdatei %s ist zu groß für die Vorschau (%d MB)", content.FileName, len(content.Data)>>20)
+	}
+	return &ReceiptPreview{
+		DataURL:  "data:" + content.MimeType + ";base64," + base64.StdEncoding.EncodeToString(content.Data),
+		FileName: content.FileName,
+		MimeType: content.MimeType,
+		Intact:   content.Intact,
+	}, nil
+}
+
+// GetInvoiceDocument returns the issued invoice as a data URL for display and
+// download. It is the same hybrid PDF that was archived when the invoice was
+// issued, not a fresh rendering — what the customer received is what is shown.
+func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.invoiceSvc == nil || b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	inv, err := b.invoiceRepo.FindByID(context.Background(), invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	if inv.ReceiptID == nil {
+		return nil, fmt.Errorf("zu Rechnung %s liegt kein Belegdokument vor", inv.InvoiceNumber)
+	}
+	content, err := b.receiptSvc.DisplayContent(context.Background(), *inv.ReceiptID)
+	if err != nil {
+		return nil, err
+	}
+	if len(content.Data) > maxPreviewBytes {
+		return nil, fmt.Errorf("das Rechnungsdokument ist zu groß für die Anzeige")
 	}
 	return &ReceiptPreview{
 		DataURL:  "data:" + content.MimeType + ";base64," + base64.StdEncoding.EncodeToString(content.Data),

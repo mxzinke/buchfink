@@ -460,6 +460,8 @@ export interface Invoice {
   currency: string;
   status: 'draft' | 'issued' | 'paid' | 'cancelled';
   journalEntryId?: number;
+  /** Der Beleg mit dem hybriden PDF und dem ZUGFeRD-XML. */
+  receiptId?: number;
   paidAmount: Cents;
   createdAt: string;
 }

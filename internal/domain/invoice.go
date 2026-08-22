@@ -75,10 +75,14 @@ type Invoice struct {
 	// JournalEntryID links the invoice to the booking it produced.
 	JournalEntryID *uint `gorm:"index" json:"journalEntryId,omitempty"`
 
-	ZUGFeRDXML string    `gorm:"type:text;serializer:encrypted" json:"zugferdXml,omitempty"`
-	PDFPath    string    `gorm:"size:255;serializer:encrypted" json:"pdfPath,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ZUGFeRDXML string `gorm:"type:text;serializer:encrypted" json:"zugferdXml,omitempty"`
+
+	// ReceiptID points at the Beleg holding the issued document: the hybrid PDF
+	// as the received form and the XML as the structured part. It replaces the
+	// former PDFPath, which was never set — a path to a file nothing produced.
+	ReceiptID *uint     `gorm:"index" json:"receiptId,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// PaidAmount is the settled part, computed on read.
 	PaidAmount Cents `gorm:"-" json:"paidAmount"`

@@ -7,6 +7,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"gorm.io/gorm"
@@ -448,7 +449,7 @@ func (e *testEnv) postingGroup(key string) (accounting.PostingGroup, error) {
 
 func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 	t.Helper()
-	return NewInvoiceService(
+	svc := NewInvoiceService(
 		repository.NewInvoiceRepository(e.db),
 		e.contactRepo,
 		repository.NewSettingsRepository(e.db),
@@ -456,6 +457,18 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 		e.posting,
 		repository.NewAuditRepository(e.db),
 	)
+	// Ohne Renderer bleibt der Ausgangsbeleg aus. Die meisten Tests prüfen die
+	// Buchung, und das Übersetzen des WASM-Moduls kostet Sekunden — wer den Beleg
+	// braucht, setzt die Pipeline selbst (siehe invoice_document_test.go).
+	return svc
+}
+
+// invoicesWithDocuments liefert den Rechnungsdienst mitsamt Beleg-Pipeline.
+func (e *testEnv) invoicesWithDocuments(t *testing.T) *InvoiceService {
+	t.Helper()
+	svc := e.invoices(t)
+	svc.SetDocumentPipeline(e.receipts, invoice.NewRenderer())
+	return svc
 }
 
 // Offene Posten gehören auf das Personenkonto. Eine Buchung direkt auf 1200

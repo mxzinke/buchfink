@@ -100,6 +100,7 @@ export const bridge = {
   IssueInvoice: <T>(invoice: unknown) => invoke<T>('IssueInvoice', invoice),
   CancelInvoice: (invoiceId: number, reason: string) => invoke<void>('CancelInvoice', invoiceId, reason),
   GenerateInvoiceZUGFeRD: <T>(invoiceId: number) => invoke<T>('GenerateInvoiceZUGFeRD', invoiceId),
+  GetInvoiceDocument: <T>(invoiceId: number) => invoke<T>('GetInvoiceDocument', invoiceId),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => invoke<string>('ExportEBilanzXBRL'),

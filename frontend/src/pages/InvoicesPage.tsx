@@ -4,6 +4,7 @@ import { AlertCircle, Code, FileText, Plus, RefreshCw, Trash2, Undo2, X } from '
 import type {
   Contact,
   Invoice,
+  ReceiptPreview,
   InvoiceItem,
   PostingPreview,
   TaxRate,
@@ -56,6 +57,9 @@ export const InvoicesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [preview, setPreview] = useState<{ invoice: Invoice; xml: string } | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<
+    ({ invoice: Invoice } & ReceiptPreview) | null
+  >(null);
   const [cancelling, setCancelling] = useState<Invoice | null>(null);
 
   useEffect(() => {
@@ -86,6 +90,22 @@ export const InvoicesPage: React.FC = () => {
     try {
       const [xml] = await Api.generateInvoiceZUGFeRD(invoice.id);
       setPreview({ invoice, xml });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /**
+   * Öffnet das archivierte Rechnungsdokument.
+   *
+   * Gezeigt wird das hybride PDF, das beim Ausstellen abgelegt wurde — nicht eine
+   * frische Darstellung. Was der Kunde bekommen hat, ist das, was hier erscheint.
+   */
+  async function showDocument(invoice: Invoice) {
+    setError(null);
+    try {
+      const doc = await Api.getInvoiceDocument(invoice.id);
+      setDocumentPreview({ invoice, ...doc });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -164,6 +184,15 @@ export const InvoicesPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
+                      {invoice.receiptId && (
+                        <button
+                          onClick={() => showDocument(invoice)}
+                          title="Rechnungsdokument ansehen"
+                          className="text-stone-400 hover:text-stone-800 p-1"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => showZugferd(invoice)}
                         title="ZUGFeRD-XML ansehen"
@@ -200,6 +229,40 @@ export const InvoicesPage: React.FC = () => {
             await load();
           }}
         />
+      )}
+
+      {documentPreview && (
+        <div className="fixed inset-0 bg-stone-900/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-4xl max-h-[88vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-stone-100">
+              <div>
+                <h2 className="font-semibold text-stone-900">
+                  {documentPreview.invoice.invoiceNumber}
+                </h2>
+                <p className="text-[11px] text-stone-500">
+                  Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML — das archivierte Dokument, nicht
+                  eine neue Darstellung.
+                </p>
+              </div>
+              <button
+                onClick={() => setDocumentPreview(null)}
+                className="text-stone-400 hover:text-stone-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {!documentPreview.intact && (
+              <div className="px-5 py-2 bg-rose-50 border-b border-rose-100 text-[11px] text-rose-700">
+                Die Datei auf der Platte passt nicht mehr zu ihrer Prüfsumme.
+              </div>
+            )}
+            <iframe
+              title={documentPreview.fileName}
+              src={documentPreview.dataUrl}
+              className="flex-1 min-h-[32rem] rounded-b-2xl bg-stone-50"
+            />
+          </div>
+        </div>
       )}
 
       {preview && (

@@ -639,6 +639,7 @@ Fälle:
 | Papier, Scan, Foto, reines PDF | die Originaldatei |
 | ZUGFeRD (Hybrid) | der PDF-Teil des Originals – **gebucht wird trotzdem aus dem XML** |
 | XRechnung (reines XML) | eine von Buchfink erzeugte Darstellung, Rolle `rendering` |
+| eigene Ausgangsrechnung | das beim Ausstellen erzeugte hybride PDF |
 
 Der dritte Fall ist neu und nicht optional: eine XRechnung hat schlicht keinen
 Bildteil. Ohne eigene Darstellung kann der Nutzer den Beleg nicht prüfen, den er
@@ -754,6 +755,28 @@ Beleg. Beim Ausgangsbeleg ist sie die Rechnungsnummer, die die Rechnung ohnehin
 schon aus ihrem Nummernkreis gezogen hat – zwei Nummern für dasselbe Dokument
 wären eine zu viel.
 
+### Die eigene Ausgangsrechnung
+
+Beim Ausstellen entsteht ein hybrides PDF/A-3b mit dem ZUGFeRD-XML als
+zugeordneter Datei, und daraus ein Ausgangsbeleg: das PDF als `original`, das XML
+als `structured` und als abgeleitet gekennzeichnet, weil es aus demselben Vorgang
+stammt. Die Belegnummer ist die Rechnungsnummer – zwei Nummern für dasselbe
+Dokument wären eine zu viel.
+
+Gerendert wird mit Typst, das als WebAssembly im Prozess läuft: kein externes
+Programm, kein CGO, nichts mitzuinstallieren. Typst erzeugt PDF/A-3b und hängt die
+Datei in einem Schritt an, samt der XMP-Kennzeichnung – das erspart eine
+Nachbearbeitung, in der das Factur-X-Extension-Schema von Hand zu schreiben wäre.
+Die Beziehung ist `alternative`: PDF und XML sind zwei Darstellungen derselben
+Rechnung, und für die Profile BASIC und EN 16931 ist alles andere in Deutschland
+nicht rechtsgültig. Typst besteht dabei selbst darauf, dass eine eingebettete
+Datei Dateityp und Beschreibung trägt – genau die Prüfung, die ZUGFeRD braucht.
+
+GoBD Rz. 76 Abs. 2 erlaubte, auf das archivierte PDF ganz zu verzichten, solange
+sich jederzeit ein inhaltlich identisches Mehrstück erzeugen lässt. Es wird
+trotzdem abgelegt: ein gespeichertes Dokument ist für den Nutzer greifbarer als
+eine Rendering-Zusage.
+
 ### Migration
 
 `DocumentHash` und `DocumentPath` am Journaleintrag sind durch einen Verweis auf
@@ -779,6 +802,7 @@ der des Journals.
 | **Kontierung** | deterministisch, keine Lernfunktion, Regelwerk versioniert |
 | **Beleg** | eigene Entität mit 1..n Dateien je Rolle; Beleg-Hash über die geordnete Dateiliste, mit der Buchung versiegelt; verbindlich, nicht optional |
 | **E-Rechnung** | Teil des Belegflows, kein Zusatzmodul; gebucht wird immer aus dem strukturierten Teil |
+| **Rechnungs-PDF** | Typst als WebAssembly im Prozess; PDF/A-3b mit eingebettetem XML in einem Schritt |
 | **Versteuerung** | nur Sollversteuerung; Istversteuerung wird im Buchungskern abgewiesen |
 | **Kleinunternehmer** | § 19 UStG wird für den eigenen Mandanten nicht unterstützt (Zielgruppe sind bilanzierende Kapitalgesellschaften); als Eigenschaft eines Lieferanten bleibt der Fall relevant |
 | **Fachlogik** | steht im Backend; die Oberfläche sammelt ein, zeigt an und rechnet nichts nach |

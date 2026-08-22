@@ -56,6 +56,17 @@ func compactDate(iso string) string {
 	return time.Now().Format("20060102")
 }
 
+// typstDate renders an ISO date as a Typst datetime call, falling back to the
+// current day only when the invoice carries no date at all — which the invoice
+// validation prevents.
+func typstDate(iso string) string {
+	var y, m, d int
+	if n, err := fmt.Sscanf(iso, "%4d-%2d-%2d", &y, &m, &d); err != nil || n != 3 {
+		return "auto"
+	}
+	return fmt.Sprintf("datetime(year: %d, month: %d, day: %d)", y, m, d)
+}
+
 func quantityString(milli int64) string {
 	neg := ""
 	if milli < 0 {
@@ -278,7 +289,22 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
 #text(size: 8.5pt, fill: rgb("#78716c"), style: "italic")[%s]`, typstEscape(reason))
 	}
 
-	return fmt.Sprintf(`#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
+	// PDF/A demands a document date, and the embedded file needs both a mime type
+	// and a description — Typst refuses to emit a-3b without them, which is
+	// exactly the check ZUGFeRD needs. The relationship must be "alternative":
+	// the PDF and the XML are two renderings of one invoice, and for the BASIC
+	// and EN-16931 profiles anything else is not legally valid in Germany.
+	docDate := typstDate(inv.Date)
+
+	return fmt.Sprintf(`#set document(title: "Rechnung %s", author: %q, date: %s)
+#pdf.embed(
+  "factur-x.xml",
+  bytes(sys.inputs.zugferd_xml),
+  relationship: "alternative",
+  mime-type: "application/xml",
+  description: "Factur-X / ZUGFeRD invoice data (EN 16931)",
+)
+#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
 #set text(font: "Manrope", size: 10pt, fill: rgb("#1c1917"))
 
 #grid(
@@ -327,6 +353,11 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
   Steuernummer: %s · USt-IdNr.: %s
 ]
 `,
+		typstEscape(inv.InvoiceNumber),
+		// %q inside a Typst string literal: the markup escaping of typstEscape
+		// would land as visible backslashes in the PDF metadata.
+		seller.CompanyName,
+		docDate,
 		typstEscape(seller.CompanyName), typstEscape(seller.Street), typstEscape(seller.ZipCity),
 		typstEscape(buyer.Name), typstEscape(buyer.Address),
 		typstEscape(inv.InvoiceNumber), inv.Date, inv.ServiceDateFrom, inv.ServiceDateTo, inv.DueDate,
