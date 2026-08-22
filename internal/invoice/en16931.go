@@ -2,6 +2,7 @@ package invoice
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -84,19 +85,26 @@ func (r ValidationResult) ErrorCount() int {
 // It is part of the result rather than a comment, because "validated" without
 // the list of what was checked tells the reader nothing they can act on.
 func ValidationRules() []string {
-	return []string{
+	rules := []string{
 		"BR-01", "BR-02", "BR-03", "BR-04", "BR-05", "BR-06", "BR-07",
 		"BR-08", "BR-09", "BR-10", "BR-11", "BR-12", "BR-13", "BR-14", "BR-15", "BR-16",
 		"BR-21", "BR-22", "BR-24", "BR-25", "BR-26",
 		"BR-45", "BR-46", "BR-47", "BR-48",
 		"BR-CO-10", "BR-CO-13", "BR-CO-15", "BR-CO-16", "BR-CO-17",
 		"BR-CL-03", "BR-CL-10", "BR-CL-11", "BR-CL-17",
-		"BR-AE-05", "BR-AE-08", "BR-AE-10",
-		"BR-E-05", "BR-E-08", "BR-E-10",
-		"BR-K-05", "BR-K-08", "BR-K-10",
-		"BR-Z-05", "BR-Z-08",
-		"BR-O-05", "BR-O-08",
+		"BR-IC-11", "BR-IC-12",
+		"BR-O-11", "BR-O-12",
 	}
+	// Die Kategorie-Familien haben alle denselben Zuschnitt, deshalb entsteht
+	// ihr Anteil an der Liste aus derselben Tabelle, aus der auch die Prüfung
+	// entsteht. Eine getippte Liste liefe früher oder später auseinander.
+	for _, spec := range categorySpecs {
+		for _, n := range []string{"01", "02", "05", "08", "09", "10"} {
+			rules = append(rules, "BR-"+spec.family+"-"+n)
+		}
+	}
+	sort.Strings(rules)
+	return rules
 }
 
 // ValidateEN16931 checks a Cross Industry Invoice against the rules listed in
@@ -167,20 +175,23 @@ func (v *validator) checkParties(doc *CIIInvoice) {
 	v.require("BR-06", seller.Name, "Der Name des Verkäufers (BT-27)")
 	v.require("BR-07", buyer.Name, "Der Name des Erwerbers (BT-44)")
 
-	if seller.Address.LineOne == "" && seller.Address.CityName == "" && seller.Address.PostCode == "" {
+	// BR-08 und BR-10 fragen nach dem Vorhandensein der Adressgruppe, nicht nach
+	// ihrem Inhalt. Eine Anschrift, die nur aus dem Länderkennzeichen besteht,
+	// ist gültig — dafür ist BR-09 zuständig, und das ist eine eigene Regel.
+	if seller.Address == nil {
 		v.fail("BR-08", "Die Anschrift des Verkäufers (BG-5) fehlt")
 	}
-	if v.require("BR-09", seller.Address.CountryID, "Das Länderkennzeichen des Verkäufers (BT-40)") &&
-		!isCountryCode(seller.Address.CountryID) {
-		v.fail("BR-CL-10", "Das Länderkennzeichen %q des Verkäufers steht nicht in ISO 3166-1", seller.Address.CountryID)
+	if v.require("BR-09", seller.CountryCode(), "Das Länderkennzeichen des Verkäufers (BT-40)") &&
+		!isCountryCode(seller.CountryCode()) {
+		v.fail("BR-CL-10", "Das Länderkennzeichen %q des Verkäufers steht nicht in ISO 3166-1", seller.CountryCode())
 	}
 
-	if buyer.Address.LineOne == "" && buyer.Address.CityName == "" && buyer.Address.PostCode == "" {
+	if buyer.Address == nil {
 		v.fail("BR-10", "Die Anschrift des Erwerbers (BG-8) fehlt")
 	}
-	if v.require("BR-11", buyer.Address.CountryID, "Das Länderkennzeichen des Erwerbers (BT-55)") &&
-		!isCountryCode(buyer.Address.CountryID) {
-		v.fail("BR-CL-11", "Das Länderkennzeichen %q des Erwerbers steht nicht in ISO 3166-1", buyer.Address.CountryID)
+	if v.require("BR-11", buyer.CountryCode(), "Das Länderkennzeichen des Erwerbers (BT-55)") &&
+		!isCountryCode(buyer.CountryCode()) {
+		v.fail("BR-CL-11", "Das Länderkennzeichen %q des Erwerbers steht nicht in ISO 3166-1", buyer.CountryCode())
 	}
 }
 
@@ -232,49 +243,249 @@ func (v *validator) checkTaxBreakdown(doc *CIIInvoice) {
 			v.require("BR-48", tax.RatePercent, fmt.Sprintf("Steuergruppe %d: der Steuersatz (BT-119)", n))
 		}
 
-		v.checkCategoryRules(n, category, tax)
+	}
+
+	v.checkCategoryRules(doc)
+}
+
+// categorySpec describes one VAT category family of EN 16931.
+//
+// The families have the same shape — what differs is the rate constraint, what
+// the tax amount has to be, whether an exemption reason is required or
+// forbidden, and which VAT identifiers have to be on the document. Writing that
+// out as a table rather than nine near-identical branches is what keeps the
+// nine of them from drifting apart.
+//
+// Note the family names: the intra-community rules are BR-IC, not BR-K. The
+// category *code* is "K", the rule *family* is "IC" — a distinction worth
+// keeping straight, because a wrong rule identifier looks exactly like a
+// citation somebody can look up.
+type categorySpec struct {
+	code   string // UNTDID 5305
+	family string // EN 16931 rule family
+
+	ratePositive bool // -05: Satz muss größer null sein
+	rateZero     bool // -05: Satz muss null sein
+	rateAbsent   bool // -05: es darf gar keinen Satz geben
+	taxZero      bool // -09: Steuerbetrag muss null sein
+
+	reasonRequired  bool // -10
+	reasonForbidden bool // -10
+
+	sellerVatRequired  bool // -02
+	buyerVatRequired   bool // -02
+	sellerVatForbidden bool // -02
+}
+
+var categorySpecs = []categorySpec{
+	{code: "S", family: "S", ratePositive: true, reasonForbidden: true, sellerVatRequired: true},
+	{code: "Z", family: "Z", rateZero: true, taxZero: true, reasonForbidden: true, sellerVatRequired: true},
+	{code: "E", family: "E", rateZero: true, taxZero: true, reasonRequired: true, sellerVatRequired: true},
+	{code: "AE", family: "AE", rateZero: true, taxZero: true, reasonRequired: true, sellerVatRequired: true, buyerVatRequired: true},
+	{code: "K", family: "IC", rateZero: true, taxZero: true, reasonRequired: true, sellerVatRequired: true, buyerVatRequired: true},
+	{code: "G", family: "G", rateZero: true, taxZero: true, reasonRequired: true, sellerVatRequired: true},
+	{code: "O", family: "O", rateAbsent: true, taxZero: true, reasonRequired: true, sellerVatForbidden: true},
+	{code: "L", family: "AF", ratePositive: true, reasonForbidden: true, sellerVatRequired: true},
+	{code: "M", family: "AG", reasonForbidden: true, sellerVatRequired: true},
+}
+
+func specForCategory(code string) (categorySpec, bool) {
+	for _, s := range categorySpecs {
+		if s.code == strings.ToUpper(strings.TrimSpace(code)) {
+			return s, true
+		}
+	}
+	return categorySpec{}, false
+}
+
+// checkCategoryRules implements the per-category rules of EN 16931.
+//
+// They decide whether a document says what it claims. A breakdown carrying
+// "reverse charge" together with a rate of 19 % contradicts itself, and booking
+// from it would produce the tax twice.
+func (v *validator) checkCategoryRules(doc *CIIInvoice) {
+	taxes := doc.Transaction.Settlement.Taxes
+	seller := doc.Transaction.Agreement.Seller
+	buyer := doc.Transaction.Agreement.Buyer
+
+	sellerIdentified := seller.VatID() != "" || seller.TaxNumber() != ""
+	buyerIdentified := buyer.VatID() != ""
+
+	// -01: benutzt eine Position eine Kategorie, muss die Aufschlüsselung eine
+	// Gruppe dafür führen. Sonst fehlt der Umsatz in der Voranmeldung.
+	inBreakdown := map[string]bool{}
+	for _, tax := range taxes {
+		inBreakdown[strings.ToUpper(strings.TrimSpace(tax.CategoryCode))] = true
+	}
+	for i, line := range doc.Transaction.Lines {
+		code := strings.ToUpper(strings.TrimSpace(line.Settlement.Tax.CategoryCode))
+		spec, known := specForCategory(code)
+		if !known {
+			continue
+		}
+		if !inBreakdown[code] {
+			v.fail("BR-"+spec.family+"-01",
+				"Position %d führt die Steuerkategorie %q, die Aufschlüsselung enthält dafür aber keine Gruppe",
+				i+1, code)
+		}
+		// -05: die Satzbedingung je Kategorie, auf Positionsebene.
+		v.checkRateConstraint("BR-"+spec.family+"-05", spec,
+			fmt.Sprintf("Position %d", i+1), line.Settlement.Tax.RatePercent)
+	}
+
+	for i, tax := range taxes {
+		n := i + 1
+		code := strings.ToUpper(strings.TrimSpace(tax.CategoryCode))
+		spec, known := specForCategory(code)
+		if !known {
+			continue
+		}
+
+		// -02: welche Steuernummern das Dokument tragen muss.
+		if spec.sellerVatRequired && !sellerIdentified {
+			v.fail("BR-"+spec.family+"-02",
+				"Bei der Steuerkategorie %q braucht die Rechnung die USt-IdNr. oder Steuernummer des Verkäufers (BT-31/BT-32)", code)
+		}
+		if spec.buyerVatRequired && !buyerIdentified {
+			v.fail("BR-"+spec.family+"-02",
+				"Bei der Steuerkategorie %q braucht die Rechnung die USt-IdNr. des Erwerbers (BT-48)", code)
+		}
+		// Verboten ist allein die USt-IdNr. (schemeID "VA"). Die Steuernummer
+		// (schemeID "FC") darf ein nicht steuerbarer Umsatz sehr wohl tragen —
+		// beides zusammenzuwerfen meldete korrekte Rechnungen als falsch.
+		if spec.sellerVatForbidden && (seller.VatID() != "" || buyer.VatID() != "") {
+			v.fail("BR-"+spec.family+"-02",
+				"Bei der Steuerkategorie %q darf die Rechnung keine USt-IdNr. tragen — der Umsatz ist nicht steuerbar", code)
+		}
+
+		// -08: die Bemessungsgrundlage der Gruppe folgt aus den Positionen.
+		v.checkBreakdownBase("BR-"+spec.family+"-08", doc, n, code, tax)
+
+		// -09: was der Steuerbetrag der Gruppe sein muss.
+		if amount, err := domain.ParseCents(tax.CalculatedAmount); err == nil {
+			if spec.taxZero && amount != 0 {
+				v.fail("BR-"+spec.family+"-09",
+					"Steuergruppe %d: bei Kategorie %q muss der Steuerbetrag null sein, angegeben sind %s",
+					n, code, amount)
+			}
+		}
+
+		// -10: Befreiungsgrund erforderlich oder verboten.
+		reason := strings.TrimSpace(tax.ExemptionReason) != "" || strings.TrimSpace(tax.ExemptionReasonCode) != ""
+		if spec.reasonRequired && !reason {
+			v.fail("BR-"+spec.family+"-10",
+				"Steuergruppe %d: bei Kategorie %q ist der Grund für Befreiung oder Umkehr der Steuerschuld anzugeben (BT-120/BT-121)",
+				n, code)
+		}
+		if spec.reasonForbidden && reason {
+			v.fail("BR-"+spec.family+"-10",
+				"Steuergruppe %d: bei Kategorie %q darf kein Befreiungsgrund angegeben werden — der Umsatz ist steuerpflichtig",
+				n, code)
+		}
+
+		// Die Zusatzregeln der beiden Familien, die mehr als zehn haben.
+		if spec.family == "IC" {
+			period := doc.Transaction.Delivery.Period
+			if doc.DeliveryDate() == "" && period.Start.Value == "" && period.End.Value == "" {
+				v.fail("BR-IC-11", "Bei einer innergemeinschaftlichen Lieferung ist das Lieferdatum oder der Abrechnungszeitraum anzugeben (BT-72)")
+			}
+			if doc.Transaction.Delivery.ShipTo == nil || doc.Transaction.Delivery.ShipTo.CountryCode() == "" {
+				v.fail("BR-IC-12", "Bei einer innergemeinschaftlichen Lieferung ist das Bestimmungsland anzugeben (BT-80)")
+			}
+		}
+		if spec.family == "O" {
+			if len(taxes) > 1 {
+				v.fail("BR-O-11", "Eine Rechnung mit der Kategorie \"nicht steuerbar\" darf keine weiteren Steuergruppen enthalten")
+			}
+			for j, line := range doc.Transaction.Lines {
+				if strings.ToUpper(strings.TrimSpace(line.Settlement.Tax.CategoryCode)) != "O" {
+					v.fail("BR-O-12", "Position %d führt eine andere Steuerkategorie, obwohl die Rechnung als nicht steuerbar ausgewiesen ist", j+1)
+					break
+				}
+			}
+		}
 	}
 }
 
-// checkCategoryRules implements the per-category rules of EN 16931 that decide
-// whether a document says what it claims.
-//
-// The pattern is the same for every exempt or shifted category: the rate has to
-// be zero, and a reason has to be given. A document that carries "reverse
-// charge" and a rate of 19 % is internally contradictory, and booking from it
-// would produce tax twice.
-func (v *validator) checkCategoryRules(n int, category string, tax ciiTradeTax) {
-	rateRules := map[string][2]string{
-		"AE": {"BR-AE-05", "BR-AE-08"},
-		"E":  {"BR-E-05", "BR-E-08"},
-		"K":  {"BR-K-05", "BR-K-08"},
-		"Z":  {"BR-Z-05", "BR-Z-08"},
-		"O":  {"BR-O-05", "BR-O-08"},
+// checkRateConstraint applies the -05 rule of a category family.
+func (v *validator) checkRateConstraint(rule string, spec categorySpec, where, rawRate string) {
+	trimmed := strings.TrimSpace(rawRate)
+
+	if spec.rateAbsent {
+		if trimmed != "" {
+			if rate, err := domain.ParseCents(trimmed); err == nil && rate != 0 {
+				v.fail(rule, "%s: bei Kategorie %q darf kein Steuersatz angegeben werden, angegeben sind %s %%%%",
+					where, spec.code, trimmed)
+			}
+		}
+		return
 	}
-	rules, applies := rateRules[category]
-	if !applies {
+	if trimmed == "" {
+		return
+	}
+	rate, err := domain.ParseCents(trimmed)
+	if err != nil {
+		return
+	}
+	switch {
+	case spec.ratePositive && rate <= 0:
+		v.fail(rule, "%s: bei Kategorie %q muss der Steuersatz größer null sein, angegeben sind %s %%%%",
+			where, spec.code, trimmed)
+	case spec.rateZero && rate != 0:
+		v.fail(rule, "%s: bei Kategorie %q muss der Steuersatz null sein, angegeben sind %s %%%%",
+			where, spec.code, trimmed)
+	}
+}
+
+// checkBreakdownBase applies the -08 rule: the taxable amount of a breakdown
+// group has to match the lines that carry the same category.
+//
+// For the standard rate the norm groups by rate as well, because an invoice may
+// carry 19 % and 7 % under the same category code. Allowances and charges at
+// document level would enter here too; Buchfink does not read them yet, so a
+// difference is only reported when no such element is present at all.
+func (v *validator) checkBreakdownBase(rule string, doc *CIIInvoice, n int, code string, tax ciiTradeTax) {
+	if doc.HasAllowancesOrCharges() {
+		return
+	}
+	declared, err := domain.ParseCents(tax.BasisAmount)
+	if err != nil {
 		return
 	}
 
-	if rate, err := domain.ParseCents(tax.RatePercent); err == nil && rate != 0 {
-		v.fail(rules[0], "Steuergruppe %d: bei Kategorie %q muss der Steuersatz null sein, angegeben sind %s %%",
-			n, category, tax.RatePercent)
-	}
-	if amount, err := domain.ParseCents(tax.CalculatedAmount); err == nil && amount != 0 {
-		v.fail(rules[1], "Steuergruppe %d: bei Kategorie %q muss der Steuerbetrag null sein, angegeben sind %s",
-			n, category, tax.CalculatedAmount)
-	}
-
-	// BR-AE-10, BR-E-10, BR-K-10: ein Befreiungsgrund ist anzugeben. Bei "O"
-	// verlangt die Norm ihn nicht.
-	switch category {
-	case "AE", "E", "K":
-		if strings.TrimSpace(tax.ExemptionReason) == "" {
-			v.fail("BR-"+category+"-10",
-				"Steuergruppe %d: bei Kategorie %q ist der Grund für die Befreiung oder Umkehr der Steuerschuld anzugeben (BT-120)",
-				n, category)
+	var sum domain.Cents
+	var matched int
+	for _, line := range doc.Transaction.Lines {
+		lineCode := strings.ToUpper(strings.TrimSpace(line.Settlement.Tax.CategoryCode))
+		if lineCode != code {
+			continue
 		}
+		if code == "S" && !sameRate(line.Settlement.Tax.RatePercent, tax.RatePercent) {
+			continue
+		}
+		amount, err := domain.ParseCents(line.Settlement.Summation.LineTotal)
+		if err != nil {
+			return
+		}
+		sum += amount
+		matched++
 	}
+	if matched == 0 {
+		return
+	}
+	if sum != declared {
+		v.fail(rule, "Steuergruppe %d: die Bemessungsgrundlage ist %s, die Positionen der Kategorie %q ergeben aber %s",
+			n, declared, code, sum)
+	}
+}
+
+func sameRate(a, b string) bool {
+	ra, errA := domain.ParseCents(strings.TrimSpace(a))
+	rb, errB := domain.ParseCents(strings.TrimSpace(b))
+	if errA != nil || errB != nil {
+		return strings.TrimSpace(a) == strings.TrimSpace(b)
+	}
+	return ra == rb
 }
 
 // checkTotals verifies the arithmetic of the document.
@@ -340,6 +551,12 @@ func (v *validator) checkTotals(doc *CIIInvoice) {
 	}
 
 	// BR-CO-17: der Steuerbetrag je Gruppe folgt aus Bemessungsgrundlage und Satz.
+	//
+	// Die Norm lässt dabei eine Toleranz von einer Währungseinheit zu. Das ist
+	// kein Schlendrian: Währungen ohne Nachkommastellen und Systeme, die je
+	// Position statt je Gruppe runden, landen sonst regelmäßig einen Cent daneben,
+	// und eine korrekte Rechnung würde als fehlerhaft gemeldet.
+	const toleranceCents = 100
 	for i, tax := range doc.Transaction.Settlement.Taxes {
 		base, errBase := domain.ParseCents(tax.BasisAmount)
 		amount, errAmount := domain.ParseCents(tax.CalculatedAmount)
@@ -347,8 +564,8 @@ func (v *validator) checkTotals(doc *CIIInvoice) {
 		if errBase != nil || errAmount != nil || errRate != nil {
 			continue
 		}
-		expected := domain.MulRound(base, int64(rate), 10000)
-		if expected != amount {
+		expected := domain.MulRound(base.Abs(), int64(rate), 10000)
+		if diff := (amount.Abs() - expected).Abs(); diff > toleranceCents {
 			v.fail("BR-CO-17", "Steuergruppe %d: aus %s zu %s %%%% folgt ein Steuerbetrag von %s, angegeben ist %s",
 				i+1, base, tax.RatePercent, expected, amount)
 		}

@@ -208,7 +208,7 @@ func TestMissingExemptionReasonIsReported(t *testing.T) {
 	broken := xml[:start] + xml[end+len("</ram:ExemptionReason>"):]
 
 	result := ValidateEN16931(mustParse(t, broken))
-	if len(findingsFor(result, "BR-K-10")) == 0 {
+	if len(findingsFor(result, "BR-IC-10")) == 0 {
 		t.Error("ein fehlender Befreiungsgrund bei i. g. Lieferung muss auffallen")
 	}
 }

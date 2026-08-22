@@ -65,15 +65,27 @@ type CIIInvoice struct {
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableHeaderTradeAgreement"`
 
 		Delivery struct {
-			Event struct {
+			// ShipTo carries the Bestimmungsland (BT-80), which BR-IC-12 requires
+			// on an intra-community supply.
+			ShipTo *ciiParty `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ShipToTradeParty"`
+			Event  struct {
 				Occurrence ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 OccurrenceDateTime"`
 			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ActualDeliverySupplyChainEvent"`
+			Period struct {
+				Start ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 StartDateTime"`
+				End   ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 EndDateTime"`
+			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BillingSpecifiedPeriod"`
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableHeaderTradeDelivery"`
 
 		Settlement struct {
 			Currency string        `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 InvoiceCurrencyCode"`
 			Taxes    []ciiTradeTax `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ApplicableTradeTax"`
-			Terms    struct {
+			// Nachlässe und Zuschläge auf Dokumentebene (BG-20, BG-21). Buchfink
+			// wertet sie nicht aus, muss aber wissen, ob welche da sind: sie
+			// verschieben die Summenregeln, und eine Abweichung wäre dann
+			// zulässig statt fehlerhaft.
+			AllowancesCharges []ciiAllowanceCharge `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeAllowanceCharge"`
+			Terms             struct {
 				DueDate ciiDateTime `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 DueDateDateTime"`
 			} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradePaymentTerms"`
 			Summation struct {
@@ -88,13 +100,12 @@ type CIIInvoice struct {
 }
 
 type ciiParty struct {
-	Name    string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 Name"`
-	Address struct {
-		LineOne   string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineOne"`
-		PostCode  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 PostcodeCode"`
-		CityName  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CityName"`
-		CountryID string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CountryID"`
-	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 PostalTradeAddress"`
+	Name string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 Name"`
+	// Address is a pointer because BR-08 and BR-10 ask whether the address
+	// element exists at all, not whether any particular field in it is filled.
+	// An address consisting of nothing but a country code is valid — BR-09 is
+	// the rule that requires the country, and it is a separate one.
+	Address       *ciiAddress          `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 PostalTradeAddress"`
 	Registrations []ciiTaxRegistration `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTaxRegistration"`
 }
 
@@ -120,17 +131,42 @@ type ciiTaxRegistration struct {
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ID"`
 }
 
+type ciiAddress struct {
+	LineOne   string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineOne"`
+	PostCode  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 PostcodeCode"`
+	CityName  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CityName"`
+	CountryID string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CountryID"`
+}
+
+// CountryCode returns the party's country, or the empty string if no address is
+// present at all.
+func (p ciiParty) CountryCode() string {
+	if p.Address == nil {
+		return ""
+	}
+	return strings.TrimSpace(p.Address.CountryID)
+}
+
 type ciiDateTime struct {
 	Value string `xml:"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100 DateTimeString"`
 }
 
+type ciiAllowanceCharge struct {
+	// ChargeIndicator false = Nachlass, true = Zuschlag.
+	Indicator struct {
+		Value string `xml:"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100 Indicator"`
+	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ChargeIndicator"`
+	ActualAmount string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ActualAmount"`
+}
+
 type ciiTradeTax struct {
-	CalculatedAmount string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CalculatedAmount"`
-	TypeCode         string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TypeCode"`
-	ExemptionReason  string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ExemptionReason"`
-	BasisAmount      string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BasisAmount"`
-	CategoryCode     string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CategoryCode"`
-	RatePercent      string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 RateApplicablePercent"`
+	CalculatedAmount    string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CalculatedAmount"`
+	TypeCode            string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TypeCode"`
+	ExemptionReason     string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ExemptionReason"`
+	ExemptionReasonCode string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 ExemptionReasonCode"`
+	BasisAmount         string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 BasisAmount"`
+	CategoryCode        string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CategoryCode"`
+	RatePercent         string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 RateApplicablePercent"`
 }
 
 type ciiLine struct {
@@ -157,6 +193,13 @@ type ciiLine struct {
 			LineTotal string `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 LineTotalAmount"`
 		} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedTradeSettlementLineMonetarySummation"`
 	} `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 SpecifiedLineTradeSettlement"`
+}
+
+// HasAllowancesOrCharges reports whether the invoice carries allowances or
+// charges at document level. Buchfink does not evaluate them, so the sum rules
+// only hold in their absence.
+func (c *CIIInvoice) HasAllowancesOrCharges() bool {
+	return len(c.Transaction.Settlement.AllowancesCharges) > 0
 }
 
 // ParseCII reads a Cross Industry Invoice.

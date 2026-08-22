@@ -156,6 +156,10 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 		))
 	}
 
+	// Das Bestimmungsland (BT-80) gehört auf jede Rechnung und ist bei einer
+	// innergemeinschaftlichen Lieferung Pflicht (BR-IC-12): ohne es lässt sich
+	// nicht belegen, dass die Ware das Inland verlassen hat, und daran hängt die
+	// Steuerbefreiung nach § 6a UStG.
 	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
     xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
@@ -198,6 +202,12 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 			</ram:BuyerTradeParty>
 		</ram:ApplicableHeaderTradeAgreement>
 		<ram:ApplicableHeaderTradeDelivery>
+			<ram:ShipToTradeParty>
+				<ram:Name>%s</ram:Name>
+				<ram:PostalTradeAddress>
+					<ram:CountryID>%s</ram:CountryID>
+				</ram:PostalTradeAddress>
+			</ram:ShipToTradeParty>
 			<ram:ActualDeliverySupplyChainEvent>
 				<ram:OccurrenceDateTime>
 					<udt:DateTimeString format="102">%s</udt:DateTimeString>
@@ -232,6 +242,8 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 		html.EscapeString(strings.ReplaceAll(buyer.Address, "\n", ", ")),
 		html.EscapeString(countryOrDE(buyer.CountryCode)),
 		html.EscapeString(buyer.VatID),
+		html.EscapeString(buyer.Name),
+		html.EscapeString(countryOrDE(buyer.CountryCode)),
 		compactDate(inv.ServiceDateTo),
 		inv.Currency,
 		taxBlocks.String(),
