@@ -62,11 +62,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
               Buchhaltungsübersicht
             </h2>
-            {settings?.isSmallBusiness && (
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                § 19 UStG (Kleinunternehmer)
-              </span>
-            )}
             {settings?.taxationType && (
               <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-stone-100 text-stone-600 border border-stone-200">
                 {settings.taxationType}-Versteuerung

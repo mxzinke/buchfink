@@ -17,6 +17,45 @@ includes:
   linux: ./build/linux/Taskfile.yml
 
 tasks:
+  test:
+    summary: Runs the Go test suite
+    # Not `go test ./...`: main.go embeds frontend/dist, which only exists after a
+    # frontend build, and internal/wailsbridge pulls in Wails v3 with its GTK and
+    # WebKit headers. Neither package has tests. Listing the packages that do
+    # keeps the suite runnable from a plain checkout.
+    cmds:
+      - go test ./internal/accounting/... ./internal/bank/... ./internal/domain/...
+        ./internal/invoice/... ./internal/receiptstore/... ./internal/repository/...
+        ./internal/security/... ./internal/service/... ./internal/timestamp/... {{.CLI_ARGS}}
+
+  test:en16931:
+    summary: Runs the EN-16931 checker against the official example invoices
+    # Die Beispiele gehören zum Validierungsartefakt der EU-Kommission und stehen
+    # unter EUPL-1.2, Buchfink unter MIT — deshalb liegen sie nicht im Repository,
+    # sondern werden bei Bedarf geholt. Ohne sie überspringt sich der Test still;
+    # dieser Task ist der Weg, ihn tatsächlich laufen zu lassen.
+    vars:
+      EN16931_DIR: '{{.EN16931_DIR | default ".cache/eInvoicing-EN16931"}}'
+      EN16931_REPO: "https://github.com/ConnectingEurope/eInvoicing-EN16931.git"
+    cmds:
+      - test -d {{.EN16931_DIR}} || git clone --depth 1 {{.EN16931_REPO}} {{.EN16931_DIR}}
+      - EN16931_CII_EXAMPLES={{.EN16931_DIR}}/cii/examples go test ./internal/invoice/ -v
+        -run 'TestOfficialExamplesProduceNoErrors|TestCoverageIsMeasured|TestClaimedRulesExistInTheStandard|TestEveryClaimedRuleIsActuallyChecked'
+
+  vet:
+    summary: Runs go vet over the same packages as the test suite
+    cmds:
+      - go vet ./internal/accounting/... ./internal/bank/... ./internal/domain/...
+        ./internal/invoice/... ./internal/receiptstore/... ./internal/repository/...
+        ./internal/security/... ./internal/service/... ./internal/timestamp/...
+
+  check:
+    summary: Formatting, vet and tests — what to run before committing
+    cmds:
+      - gofmt -l internal main.go
+      - task: vet
+      - task: test
+
   build:
     summary: Builds the application
     cmds:

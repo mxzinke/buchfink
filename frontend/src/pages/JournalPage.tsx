@@ -16,6 +16,7 @@ import type { Account, IntegrityCheckResult, JournalEntry, JournalLine, Side } f
 import { Api } from '../services/api';
 import { formatCents, formatDate, formatDateRange, formatShortHash, parseCents } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
+import { Field, inputClass } from '../components/Form';
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manuell',
@@ -587,23 +588,6 @@ const BookingForm: React.FC<{
     </div>
   );
 };
-
-const inputClass =
-  'w-full px-2.5 py-1.5 text-sm rounded-lg border border-stone-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none';
-
-const Field: React.FC<{ label: string; hint?: string; children: React.ReactNode }> = ({
-  label,
-  hint,
-  children,
-}) => (
-  <label className="block">
-    <span className="block text-xs font-medium text-stone-600 mb-1">
-      {label}
-      {hint && <span className="text-stone-400 font-normal"> · {hint}</span>}
-    </span>
-    {children}
-  </label>
-);
 
 // -------------------------------------------------------------------------
 

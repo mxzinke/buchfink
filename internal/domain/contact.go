@@ -27,18 +27,37 @@ type Contact struct {
 	// LedgerAccount is the Personenkonto, e.g. "10001" or "70023".
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 
-	Name             string    `gorm:"size:255;not null;index" json:"name"`
-	Company          string    `gorm:"size:255;serializer:encrypted" json:"company"`
-	Email            string    `gorm:"size:255;serializer:encrypted" json:"email"`
-	Address          string    `gorm:"type:text;serializer:encrypted" json:"address"`
-	TaxID            string    `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
-	VatID            string    `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
-	CountryCode      string    `gorm:"size:2;default:'DE'" json:"countryCode"`
-	IBAN             string    `gorm:"size:34;serializer:encrypted" json:"iban"`
-	BIC              string    `gorm:"size:11;serializer:encrypted" json:"bic"`
-	PaymentTermsDays int       `gorm:"default:14" json:"paymentTermsDays"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	Name             string `gorm:"size:255;not null;index" json:"name"`
+	Company          string `gorm:"size:255;serializer:encrypted" json:"company"`
+	Email            string `gorm:"size:255;serializer:encrypted" json:"email"`
+	Address          string `gorm:"type:text;serializer:encrypted" json:"address"`
+	TaxID            string `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
+	VatID            string `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
+	CountryCode      string `gorm:"size:2;default:'DE'" json:"countryCode"`
+	IBAN             string `gorm:"size:34;serializer:encrypted" json:"iban"`
+	BIC              string `gorm:"size:11;serializer:encrypted" json:"bic"`
+	PaymentTermsDays int    `gorm:"default:14" json:"paymentTermsDays"`
+
+	// IsPrivate marks a partner who is not an Unternehmer. It decides whether the
+	// e-invoice obligation of § 14 Abs. 2 Satz 2 Nr. 1 UStG can apply to a
+	// document they issue.
+	//
+	// The field is phrased negatively on purpose. Business partners are the
+	// overwhelming default, so that case has to be the zero value: a boolean with
+	// a database default of true can never be set back to false through a struct,
+	// and the flag would silently stick.
+	//
+	// It is master data rather than a guess from the VAT id or a company name — a
+	// note about the input tax deduction must not hang on whether somebody filled
+	// in a field.
+	IsPrivate bool `gorm:"not null;default:false" json:"isPrivate"`
+	// IsSmallBusiness marks a partner under § 19 UStG. They may always issue a
+	// sonstige Rechnung (§ 34a UStDV), so no e-invoice is owed. This is a
+	// property of the *counterparty*; Buchfink's own client is always a
+	// bilanzierende Kapitalgesellschaft.
+	IsSmallBusiness bool      `gorm:"not null;default:false" json:"isSmallBusiness"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 
 	// OpenAmount is the balance of the Personenkonto, computed on read.
 	OpenAmount Cents `gorm:"-" json:"openAmount"`
@@ -46,6 +65,9 @@ type Contact struct {
 	// TODO: Add support for partner-specific default revenue/expense accounts
 	// TODO: Add support for SEPA direct debit mandates (SEPA-Lastschriftmandate)
 }
+
+// IsBusiness reports whether the partner is an Unternehmer.
+func (c *Contact) IsBusiness() bool { return !c.IsPrivate }
 
 // CollectiveAccount returns the SKR04 Sammelkonto a partner's open items roll up
 // into for the balance sheet.

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -23,23 +22,11 @@ type HashChain struct{}
 // NewHashChain returns the hash chain implementation.
 func NewHashChain() *HashChain { return &HashChain{} }
 
-// canonicalize renders an entry into an unambiguous byte sequence.
-//
-// Each field is written as name, byte length and value. The explicit length
-// makes the encoding injection-proof: no value can be crafted to look like a
-// field boundary, which a plain delimiter-joined string would allow.
+// canonicalize renders an entry into an unambiguous byte sequence using the
+// shared length-prefixed encoding (see canonicalWriter).
 func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
-	var b strings.Builder
-
-	put := func(name, value string) {
-		b.WriteString(name)
-		b.WriteByte(':')
-		b.WriteString(strconv.Itoa(len(value)))
-		b.WriteByte(':')
-		b.WriteString(value)
-		b.WriteByte('\n')
-	}
-	putInt := func(name string, value int64) { put(name, strconv.FormatInt(value, 10)) }
+	var w canonicalWriter
+	put, putInt := w.put, w.putInt
 
 	put("prev", prevHash)
 	put("number", e.EntryNumber)
@@ -52,9 +39,16 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("description", e.Description)
 	put("source", string(e.Source))
 	put("document_number", e.DocumentNumber)
-	// DocumentPath is deliberately excluded: moving the data directory must not
-	// break the chain. DocumentHash pins the file content instead.
-	put("document_hash", e.DocumentHash)
+	// The Beleg is covered by one value, as the single file hash used to be —
+	// only now that value stands for the whole ordered file list. ReceiptID is
+	// deliberately excluded for the same reason the old DocumentPath was: moving
+	// or re-importing data must not break the chain, and an id is a location
+	// rather than content.
+	put("receipt_hash", e.ReceiptHash)
+	// The Steuerfall is part of the record, not just of the input. On the
+	// incoming side it is the only thing separating an exempt purchase from one
+	// at the Nullsteuersatz of § 12 Abs. 3 UStG.
+	put("tax_treatment", string(e.TaxTreatment))
 	put("contact", optUint(e.ContactID))
 	put("bank_tx", optUint(e.BankTxID))
 	put("kind", string(e.Kind))
@@ -85,7 +79,22 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("line_text", l.Text)
 	}
 
-	return []byte(b.String())
+	// The Aufzeichnung for entertainment expenses is what the deduction hangs on
+	// (§ 4 Abs. 5 Satz 1 Nr. 2 EStG), so it is covered like every other field
+	// that carries accounting meaning. Absent, it contributes a single empty
+	// marker rather than nothing, so "no record" and "an empty record" cannot
+	// hash alike.
+	if d := e.Entertainment; d != nil {
+		putInt("entertainment", 1)
+		put("entertainment_place", d.Place)
+		put("entertainment_day", d.Day)
+		put("entertainment_participants", d.Participants)
+		put("entertainment_occasion", d.Occasion)
+	} else {
+		putInt("entertainment", 0)
+	}
+
+	return w.bytes()
 }
 
 func optUint(v *uint) string {

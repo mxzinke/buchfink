@@ -10,6 +10,7 @@ import type {
   Contact,
   DifferenceKindInfo,
   Direction,
+  EInvoiceProposal,
   Festschreibung,
   FestschreibungVerification,
   FinancialSummary,
@@ -19,11 +20,17 @@ import type {
   OpenItem,
   PaymentRequest,
   PostingGroup,
+  PostingPreview,
+  Receipt,
+  ReceiptFileInput,
+  ReceiptPreview,
   ReceiptRequest,
+  ReceiptStatus,
   SKR04Catalog,
   SuSaOverview,
   TaxTreatmentInfo,
   TenantConfig,
+  ValidationResult,
   VatSummary,
 } from '../types';
 
@@ -139,6 +146,47 @@ export const Api = {
     call(() => Bridge.PostJournalEntry(entry as any) as Promise<JournalEntry>),
   postIncomingReceipt: (request: ReceiptRequest): Promise<JournalEntry> =>
     call(() => Bridge.PostIncomingReceipt(request as any) as Promise<JournalEntry>),
+  /** Der Buchungssatz, wie er gebucht würde. Das Frontend rechnet ihn nicht nach. */
+  previewIncomingReceipt: (request: ReceiptRequest): Promise<PostingPreview> =>
+    call(() => Bridge.PreviewIncomingReceipt(request as any) as Promise<PostingPreview>),
+  previewOutgoingInvoice: (invoice: Partial<Invoice>): Promise<PostingPreview> =>
+    call(() => Bridge.PreviewOutgoingInvoice(invoice as any) as Promise<PostingPreview>),
+
+  // --- Belege ------------------------------------------------------------
+
+  selectReceiptFiles: (title = 'Belegdateien auswählen'): Promise<string[]> =>
+    call(() => Bridge.SelectReceiptFilesDialog(title)),
+  fileIncomingReceipt: (
+    files: ReceiptFileInput[],
+    receivedAt = '',
+    receivedVia = 'upload',
+  ): Promise<Receipt> =>
+    call(() => Bridge.FileIncomingReceipt(receivedAt, receivedVia, files) as Promise<Receipt>),
+  addReceiptFile: (receiptId: number, file: ReceiptFileInput): Promise<Receipt> =>
+    call(() => Bridge.AddReceiptFile(receiptId, file) as Promise<Receipt>),
+  removeReceiptFile: (receiptId: number, fileId: number): Promise<Receipt> =>
+    call(() => Bridge.RemoveReceiptFile(receiptId, fileId) as Promise<Receipt>),
+  getReceipts: (status: ReceiptStatus | '' = ''): Promise<Receipt[]> =>
+    call(() => Bridge.GetReceipts(status) as Promise<Receipt[]>),
+  getReceipt: (id: number): Promise<Receipt> => call(() => Bridge.GetReceipt(id) as Promise<Receipt>),
+  discardReceipt: (id: number, reason: string): Promise<void> =>
+    call(() => Bridge.DiscardReceipt(id, reason)),
+  getReceiptPreview: (receiptId: number): Promise<ReceiptPreview> =>
+    call(() => Bridge.GetReceiptPreview(receiptId) as Promise<ReceiptPreview>),
+  /** Zieht den strukturierten Rechnungsdatensatz aus einem abgelegten Beleg. */
+  extractStructuredPart: (receiptId: number): Promise<Receipt> =>
+    call(() => Bridge.ExtractStructuredPart(receiptId) as Promise<Receipt>),
+  /** Buchungsvorschlag aus dem strukturierten Teil. Das Konto bleibt offen. */
+  proposeFromEInvoice: (receiptId: number): Promise<EInvoiceProposal> =>
+    call(() => Bridge.ProposeFromEInvoice(receiptId) as Promise<EInvoiceProposal>),
+  /** Prüft den strukturierten Teil erneut. Das Regelwerk ist versioniert. */
+  validateEInvoice: (receiptId: number): Promise<ValidationResult> =>
+    call(() => Bridge.ValidateEInvoice(receiptId) as Promise<ValidationResult>),
+  /** Die Regeln, die Buchfink prüft — der Prüfumfang ist Teil des Ergebnisses. */
+  getEInvoiceRules: (): Promise<string[]> => call(() => Bridge.GetEInvoiceRules()),
+  /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
+  getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
+    call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),
   reverseJournalEntry: (entryId: number, reason: string): Promise<JournalEntry> =>
     call(() => Bridge.ReverseJournalEntry(entryId, reason) as Promise<JournalEntry>),
   verifyIntegrity: (): Promise<IntegrityCheckResult> =>

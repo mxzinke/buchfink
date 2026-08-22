@@ -1,7 +1,7 @@
 # Buchfink – Beleg- & Buchungsflow
 
 Status: Konzept, Buchungskern implementiert
-Letzte Aktualisierung: 2026-08-22
+Letzte Aktualisierung: 2026-08-22 (Belegkern und Steuerfall umgesetzt)
 Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 
 > Alle Kontonummern in diesem Dokument sind gegen `internal/accounting/skr04_2026.json`
@@ -46,9 +46,10 @@ Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wurde
 (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Die
 Gestattung ist an keine Rechtsform gebunden: § 20 Satz 1 Nr. 1 UStG stellt allein
 auf einen Gesamtumsatz von höchstens 800.000 € im Vorjahr ab, steht also auch
-einer GmbH offen. Buchfink fragt die Versteuerungsart im Setup ab und weist
-Istversteuerung in v1 ausdrücklich ab, statt sie stillschweigend falsch zu
-behandeln.
+einer GmbH offen. Buchfink fragt die Versteuerungsart im Setup ab, und der
+Buchungskern weist jede Buchung ab, solange sie nicht auf Sollversteuerung steht –
+statt sie stillschweigend falsch zu behandeln. Die Einstellung war lange nur ein
+Feld, das niemand prüfte; das ist der gefährlichere Zustand von beiden.
 
 **E-Rechnung ist keine Scope-Grenze, sondern eine offene Pflicht.** Der Empfang
 strukturierter Eingangsrechnungen fehlt, ist aber seit dem 01.01.2025 verpflichtend
@@ -500,20 +501,35 @@ abziehbar. Sie brauchen getrennte Konten, sonst ist die Steuerbilanz falsch:
 
 | Fall | Konten |
 |---|---|
-| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Satz 1 Nr. 2 EStG); die Vorsteuer bleibt trotzdem voll abziehbar, § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus | 6640 abziehbar, 6644 nicht abzugsfähig |
+| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Satz 1 Nr. 2 EStG); die Vorsteuer bleibt trotzdem voll abziehbar, § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus | **6640** abziehbar, **6644** nicht abzugsfähig |
 | **Geschenke** – abziehbar, solange die Zuwendungen an einen Empfänger im Wirtschaftsjahr **50 €** nicht übersteigen (§ 4 Abs. 5 Satz 1 Nr. 1 Satz 2 EStG); darüber weder Aufwand noch Vorsteuer (§ 15 Abs. 1a Satz 1 UStG) | 6610 abzugsfähig, 6620 nicht abzugsfähig |
 
-Beide Grenzen gehören wie die AfA-Wertgrenzen in die versionierten Stammdaten: die
-Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
-Wirtschaftsjahre bei 35 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes
-Altjahr still falsch.
+Der abziehbare Anteil wird gebucht, nicht nur berechnet: eine Bewirtungsposition
+erzeugt zwei Aufwandszeilen, den abziehbaren Teil auf 6640 und den Rest als
+Differenz auf 6644 – nie zweimal gerundet, sonst summierten sich die beiden an
+einem Cent vorbei. Die Bemessungsgrundlage der Vorsteuerzeile bleibt der volle
+Nettobetrag.
 
-Die Bewirtung hat zusätzlich eine **Aufzeichnungspflicht**, die keine Buchung ist,
-aber am Beleg hängt: Ort, Tag, Teilnehmer und Anlass der Bewirtung sowie die Höhe
-der Aufwendungen sind schriftlich festzuhalten; bei einer Gaststätte genügen Anlass
-und Teilnehmer, die Rechnung ist beizufügen (§ 4 Abs. 5 Satz 1 Nr. 2 Sätze 2 und 3
-EStG). Das sind Pflichtfelder am Beleg, sobald auf 6640 gebucht wird – ohne sie ist
+Beide Grenzen sind wie die AfA-Wertgrenzen nach Gültigkeitszeitraum geschlüsselt:
+die Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
+Wirtschaftsjahre bei 35 €, die Kleinbetragsgrenze des § 33 UStDV bis 2016 bei
+150 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes Altjahr still falsch.
+Sie stehen dabei **nicht** in editierbaren Stammdaten, sondern in einer datierten
+Tabelle im Code (`internal/accounting/tax_params.go`), die `PostingRuleVersion`
+mitabdeckt: diese Werte ändert der Gesetzgeber, nicht der Nutzer, und editierbar zu
+machen, was nicht zur Wahl steht, lädt zum Falschbuchen ein.
+
+Die Bewirtung hat zusätzlich eine **Aufzeichnungspflicht**, die keine Buchung ist:
+Ort, Tag, Teilnehmer und Anlass der Bewirtung sowie die Höhe der Aufwendungen sind
+schriftlich festzuhalten; bei einer Gaststätte genügen Anlass und Teilnehmer, die
+Rechnung ist beizufügen (§ 4 Abs. 5 Satz 1 Nr. 2 Sätze 2 und 3 EStG). Ohne sie ist
 der Abzug auch für die 70 % verloren.
+
+Die Angaben hängen an der **Buchung**, nicht am Beleg. Das ist eine bewusste
+Abweichung von der naheliegenden Ablage: der Beleg-Hash deckt ausschließlich die
+Dateiliste ab (siehe Abschnitt 15), eine Teilnehmerliste am Beleg wäre also von
+keiner Prüfsumme gedeckt und nachträglich änderbar. Eine Aufzeichnung, an der der
+Betriebsausgabenabzug hängt, gehört unter die Hash-Chain.
 
 ## 14. Eröffnungsbilanz & Stammkapital
 
@@ -623,6 +639,7 @@ Fälle:
 | Papier, Scan, Foto, reines PDF | die Originaldatei |
 | ZUGFeRD (Hybrid) | der PDF-Teil des Originals – **gebucht wird trotzdem aus dem XML** |
 | XRechnung (reines XML) | eine von Buchfink erzeugte Darstellung, Rolle `rendering` |
+| eigene Ausgangsrechnung | das beim Ausstellen erzeugte hybride PDF |
 
 Der dritte Fall ist neu und nicht optional: eine XRechnung hat schlicht keinen
 Bildteil. Ohne eigene Darstellung kann der Nutzer den Beleg nicht prüfen, den er
@@ -663,7 +680,12 @@ und verstößt damit gegen genau die Norm, die er einhalten will.
   bevor die erste Datei geschrieben wird – also *vor* der Transaktion, die den
   Beleg einfügt. Eine fehlgeschlagene Ablage risse dann eine Lücke in den
   Nummernkreis. Inhaltsadressierte Ablage entkoppelt beides, und identische
-  Dateien liegen nebenbei nur einmal auf der Platte.
+  Dateien liegen nebenbei nur einmal auf der Platte. Die Originalendung bleibt
+  angehängt (`<prüfsumme>.pdf`) – wer den Belegordner außerhalb von Buchfink
+  öffnet, fände sonst ein Verzeichnis typloser Blobs.
+- **Geschrieben wird in eine Temporärdatei, dann `fsync` und atomares Umbenennen.**
+  Eine mitten im Schreiben abgebrochene Ablage hinterlässt damit keine halbe
+  Belegdatei, sondern gar keine.
 - **Je Beleg** ein Beleg-Hash über die *geordnete* Liste aus Rolle,
   Originaldateiname und Datei-Hash – längenpräfigiert wie bei der Buchung, damit
   kein Dateiname eine Feldgrenze vortäuschen kann. Damit ändert jede zusätzliche,
@@ -683,11 +705,83 @@ Buchung, muss der Beleg offen bleiben und korrigiert erneut gebucht werden
 können; die andere Reihenfolge hinterließe einen unveränderlichen Beleg ohne
 Buchung.
 
+### Hinweis auf die E-Rechnungspflicht
+
+Stellt ein inländischer Lieferant, der Unternehmer ist, eine gewöhnliche PDF- oder
+Papierrechnung, ist das zweierlei: ein Risiko für den eigenen Vorsteuerabzug und
+ein Anlass, den Lieferanten auf eine Pflicht hinzuweisen, die für ihn läuft.
+Buchfink zeigt beides an der Buchungsvorschau an und **blockiert nie** – was daraus
+folgt, ist eine Rechtsfrage.
+
+Der Text hängt am Belegdatum. Bis zum 31.12.2026 ist die sonstige Rechnung nach
+§ 27 Abs. 38 Nr. 1 UStG noch zulässig, also ein reiner Hinweis. Für 2027 hängt es am
+Gesamtumsatz des **Ausstellers** im Vorjahr (§ 27 Abs. 38 Nr. 2 UStG) – den Buchfink
+nicht kennt, was der Hinweis sagt, statt eine Bewertung zu behaupten. Ab 2028 gibt es
+keine Übergangsregelung mehr.
+
+Kein Hinweis erscheint, wo keine Pflicht besteht: bei einem strukturierten Teil am
+Beleg, bei ausländischen Lieferanten, bei Kleinunternehmern (§ 34a UStDV), bei
+Privatpersonen, unterhalb der Kleinbetragsgrenze des § 33 UStDV und bei steuerfreien
+Umsätzen. Der letzte Punkt ist eine **Näherung**: Buchfink weiß, dass ein Umsatz als
+steuerfrei behandelt wurde, nicht welche Nummer des § 4 UStG greift – nur Nr. 8 bis 29
+nehmen die Pflicht heraus.
+
+Ob ein Geschäftspartner Unternehmer und ob er Kleinunternehmer ist, steht in den
+Kontaktstammdaten. An einem Hinweis zum Vorsteuerabzug darf nicht hängen, ob jemand
+einen Firmennamen eingetippt hat.
+
+### Die Oberfläche rechnet nicht
+
+Netto, Steuer und Brutto einer Erfassungsmaske kommen aus einer Buchungsvorschau
+des Backends, die exakt dieselben Zeilen erzeugt wie die spätere Buchung – sie
+schreibt sie nur nicht. Die Rechnungsmaske hatte die Steuerermittlung samt
+Rundung je Steuersatzgruppe selbst nachgebaut, mit dem Kommentar „genau wie im
+Backend". Das ist eine zweite Wahrheit, die auseinanderläuft, sobald ein
+Steuerfall dazukommt – und zwar die, die niemand testet.
+
+Ebenso wird der Steuerfall nicht in der Maske hergeleitet: welche Stammdaten er
+verlangt, sagt das Backend über `TaxTreatmentInfo`, und welchen Fall eine
+Buchungsgruppe vorschlägt, sagt die Gruppe selbst.
+
+### Keine Buchung ohne Beleg
+
+Der Belegbezug ist verbindlich, nicht optional: eine Eingangsbuchung ohne
+abgelegten Beleg wird abgewiesen. Liegt kein Dokument des Lieferanten vor, gehört
+ein Eigenbeleg abgelegt. Ein optionaler Verweis hätte das freihändig getippte
+Belegfeld wieder eingeführt, das dieses Modell gerade ersetzt.
+
+Die Belegnummer kommt damit auch nicht mehr aus der Eingabe, sondern aus dem
+Beleg. Beim Ausgangsbeleg ist sie die Rechnungsnummer, die die Rechnung ohnehin
+schon aus ihrem Nummernkreis gezogen hat – zwei Nummern für dasselbe Dokument
+wären eine zu viel.
+
+### Die eigene Ausgangsrechnung
+
+Beim Ausstellen entsteht ein hybrides PDF/A-3b mit dem ZUGFeRD-XML als
+zugeordneter Datei, und daraus ein Ausgangsbeleg: das PDF als `original`, das XML
+als `structured` und als abgeleitet gekennzeichnet, weil es aus demselben Vorgang
+stammt. Die Belegnummer ist die Rechnungsnummer – zwei Nummern für dasselbe
+Dokument wären eine zu viel.
+
+Gerendert wird mit Typst, das als WebAssembly im Prozess läuft: kein externes
+Programm, kein CGO, nichts mitzuinstallieren. Typst erzeugt PDF/A-3b und hängt die
+Datei in einem Schritt an, samt der XMP-Kennzeichnung – das erspart eine
+Nachbearbeitung, in der das Factur-X-Extension-Schema von Hand zu schreiben wäre.
+Die Beziehung ist `alternative`: PDF und XML sind zwei Darstellungen derselben
+Rechnung, und für die Profile BASIC und EN 16931 ist alles andere in Deutschland
+nicht rechtsgültig. Typst besteht dabei selbst darauf, dass eine eingebettete
+Datei Dateityp und Beschreibung trägt – genau die Prüfung, die ZUGFeRD braucht.
+
+GoBD Rz. 76 Abs. 2 erlaubte, auf das archivierte PDF ganz zu verzichten, solange
+sich jederzeit ein inhaltlich identisches Mehrstück erzeugen lässt. Es wird
+trotzdem abgelegt: ein gespeichertes Dokument ist für den Nutzer greifbarer als
+eine Rendering-Zusage.
+
 ### Migration
 
-`DocumentHash` und `DocumentPath` am Journaleintrag werden durch einen Verweis auf
+`DocumentHash` und `DocumentPath` am Journaleintrag sind durch einen Verweis auf
 den Beleg plus den Beleg-Hash ersetzt; `DocumentNumber` bleibt, es ist das
-Belegfeld für den DATEV-Export. Da noch keine produktiven Daten existieren, ist
+Belegfeld für den DATEV-Export. Da noch keine produktiven Daten existieren, war
 das ein Schnitt und keine Datenmigration.
 
 Der Beleg-Hash tritt an die Stelle des bisherigen Datei-Hashes in der
@@ -706,9 +800,13 @@ der des Journals.
 | **Personenkonten** | echte DATEV-Nummernkreise 10000–69999 / 70000–99999; 1200 und 3300 sind Bilanzpositionen und keine Buchungsziele |
 | **Reverse Charge** | in v1 enthalten, kein Randfall |
 | **Kontierung** | deterministisch, keine Lernfunktion, Regelwerk versioniert |
-| **Beleg** | eigene Entität mit 1..n Dateien je Rolle; Beleg-Hash über die geordnete Dateiliste, mit der Buchung versiegelt |
+| **Beleg** | eigene Entität mit 1..n Dateien je Rolle; Beleg-Hash über die geordnete Dateiliste, mit der Buchung versiegelt; verbindlich, nicht optional |
 | **E-Rechnung** | Teil des Belegflows, kein Zusatzmodul; gebucht wird immer aus dem strukturierten Teil |
-| **Versteuerung** | nur Sollversteuerung; Istversteuerung wird abgewiesen |
+| **Rechnungs-PDF** | Typst als WebAssembly im Prozess; PDF/A-3b mit eingebettetem XML in einem Schritt |
+| **Versteuerung** | nur Sollversteuerung; Istversteuerung wird im Buchungskern abgewiesen |
+| **Kleinunternehmer** | § 19 UStG wird für den eigenen Mandanten nicht unterstützt (Zielgruppe sind bilanzierende Kapitalgesellschaften); als Eigenschaft eines Lieferanten bleibt der Fall relevant |
+| **Fachlogik** | steht im Backend; die Oberfläche sammelt ein, zeigt an und rechnet nichts nach |
+| **Nullsteuersatz** | eigener Steuerfall (§ 12 Abs. 3 UStG), Erlöse auf 4290; der Steuerfall steht an der Buchung |
 | **CAMT-Import** | schlägt keine Konten vor |
 | **Warenbestand** | out of scope für v1 |
 | **Steuern & Abschluss** | eigene Masken, nicht Teil des Belegflows |
@@ -731,26 +829,35 @@ fehlen; sie beschreibt eine Pflicht, die läuft.
 Die Abschnitte 11 (Anlagenverwaltung) und 12 (Anzahlungen) in diesem Dokument bleiben
 als Überblick stehen; die Ausarbeitung steht in den verlinkten Dokumenten.
 
-### Bekannte Lücke im Steuermodell: der Nullsteuersatz
+### Der Nullsteuersatz
 
-`TaxRate` ist in Basispunkten geführt, und `0` bedeutet dort „keine Steuer".
-Damit lässt sich der **Nullsteuersatz des § 12 Abs. 3 UStG** nicht abbilden:
-„Die Steuer ermäßigt sich auf 0 Prozent" für die Lieferung von Solarmodulen an
-den Betreiber einer Photovoltaikanlage, für deren wesentliche Komponenten und
-Speicher, für den innergemeinschaftlichen Erwerb und die Einfuhr solcher
-Gegenstände sowie für die Installation (Nrn. 1 bis 4).
+Der **Nullsteuersatz des § 12 Abs. 3 UStG** – „Die Steuer ermäßigt sich auf
+0 Prozent" für die Lieferung von Solarmodulen an den Betreiber einer
+Photovoltaikanlage, für deren wesentliche Komponenten und Speicher, für den
+innergemeinschaftlichen Erwerb und die Einfuhr solcher Gegenstände sowie für die
+Installation (Nrn. 1 bis 4) – ist etwas anderes als eine Steuerbefreiung: der
+Umsatz ist **steuerpflichtig zum Satz null**, der Vorsteuerabzug des Leistenden
+bleibt erhalten, und der SKR04 hat dafür ein eigenes Erlöskonto (**4290** Erlöse
+0 % USt), das nicht mit den Konten für steuerfreie Umsätze zusammenfällt.
 
-Fachlich ist das etwas anderes als eine Steuerbefreiung: der Umsatz ist
-**steuerpflichtig zum Satz null**, der Vorsteuerabzug des Leistenden bleibt
-erhalten, und der SKR04 hat dafür ein eigenes Erlöskonto (**4290** Erlöse 0 %
-USt), das nicht mit den Konten für steuerfreie Umsätze zusammenfällt.
+Der Fall ist als **eigener Steuerfall** umgesetzt, nicht als Steuersatz. Das war
+die Alternative zu einem Eingriff in `TaxRate`, wo `0` weiterhin „kein Steuersatz"
+bedeutet – die Doppelbelegung, an der der Fall früher scheiterte, löst sich damit
+auf, statt sie mit einem Sentinel in die Steuerarithmetik zu tragen.
 
-Solange `0` doppelt belegt ist, würde der Fall stillschweigend als steuerfrei
-gebucht und auf dem falschen Konto landen. Die Lösung ist klein, aber sie greift
-in den Typ ein: entweder ein eigener `TaxTreatment` für den Nullsteuersatz oder
-ein separates „Steuersatz gesetzt / nicht gesetzt" neben dem Wert. Bis dahin gilt
-der Fall ausdrücklich als **nicht unterstützt** – lieber eine bekannte Lücke als
-eine unbemerkt falsche Buchung.
+Zwei Konsequenzen hängen daran:
+
+- **Ein steuerpflichtiger Inlandsumsatz ohne Steuersatz wird abgewiesen.** Er hat
+  19 % oder 7 %; fällt keine Steuer an, ist zu sagen warum. Die Buchungsgruppen,
+  die bisher einen Satz von null als Abkürzung für „hier gibt es keine Vorsteuer"
+  benutzten – Miete, Versicherungen, Beiträge, Nebenkosten des Geldverkehrs,
+  Gehälter –, schlagen jetzt den zutreffenden Steuerfall vor.
+- **Der Steuerfall wird an der Buchung gespeichert** und ist von der Hash-Chain
+  gedeckt. Auf der Ausgangsseite ließe er sich aus dem Erlöskonto erschließen, auf
+  der Eingangsseite nicht: ein nullbesteuerter Einkauf bucht auf dasselbe
+  Aufwandskonto wie ein steuerfreier und hat wie dieser keine Steuerzeile. Ohne das
+  Feld wären die beiden nach dem Buchen nicht mehr unterscheidbar – und sie sind
+  nicht dasselbe.
 
 ## 17. Quellen
 

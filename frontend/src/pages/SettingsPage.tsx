@@ -364,73 +364,54 @@ export const SettingsPage: React.FC = () => {
           </h3>
 
           <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">
-                Umsatzsteuer-Status:
-              </label>
-              <select
-                value={settings.isSmallBusiness ? 'small_business' : 'standard'}
-                onChange={(e) => {
-                  const isSmall = e.target.value === 'small_business';
-                  setSettings({
-                    ...settings,
-                    isSmallBusiness: isSmall,
-                    vatPeriod: isSmall ? 'exempt' : settings.vatPeriod || 'quarter',
-                  });
-                }}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs"
-              >
-                <option value="standard">Regelbesteuerung (Umsatzsteuerpflichtig mit Vorsteuerabzug)</option>
-                <option value="small_business">Kleinunternehmer nach § 19 UStG (Keine Umsatzsteuer auf Rechnungen)</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="font-semibold text-stone-700 block mb-1">
+                  USt-Voranmeldezeitraum:
+                </label>
+                <select
+                  value={settings.vatPeriod || 'quarter'}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      vatPeriod: e.target.value as any,
+                    })
+                  }
+                  className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs"
+                >
+                  <option value="quarter">Quartalsweise / Vierteljährlich (Standard)</option>
+                  <option value="month">Monatlich (z. B. Neugründung oder hohe Zahllast)</option>
+                  <option value="year">Jährlich (nur USt-Jahreserklärung)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-stone-700 block mb-1">Besteuerungsart:</label>
+                <select
+                  value="SOLL"
+                  disabled
+                  className="w-full p-2 bg-stone-100 border border-stone-200 rounded-lg text-stone-500 text-xs"
+                >
+                  <option value="SOLL">
+                    SOLL-Versteuerung (nach vereinbarten Entgelten / Rechnungsdatum)
+                  </option>
+                </select>
+              </div>
             </div>
 
-            {!settings.isSmallBusiness ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                <div>
-                  <label className="font-semibold text-stone-700 block mb-1">
-                    USt-Voranmeldezeitraum:
-                  </label>
-                  <select
-                    value={settings.vatPeriod || 'quarter'}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        vatPeriod: e.target.value as any,
-                      })
-                    }
-                    className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs"
-                  >
-                    <option value="quarter">Quartalsweise / Vierteljährlich (Standard)</option>
-                    <option value="month">Monatlich (z. B. Neugründung oder hohe Zahllast)</option>
-                    <option value="year">Jährlich (nur USt-Jahreserklärung)</option>
-                  </select>
-                </div>
+            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/60 text-stone-600 leading-relaxed">
+              Buchfink rechnet nach vereinbarten Entgelten ab (§ 16 Abs. 1 Satz 1 UStG). Bei
+              Istversteuerung entstünde die Steuer erst mit der Vereinnahmung des Entgelts
+              (§ 13 Abs. 1 Nr. 1 Buchst. b UStG) und die Buchungen sähen anders aus — der
+              Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln.
+            </div>
 
-                <div>
-                  <label className="font-semibold text-stone-700 block mb-1">
-                    Besteuerungsart:
-                  </label>
-                  <select
-                    value={settings.taxationType || 'IST'}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        taxationType: e.target.value as any,
-                      })
-                    }
-                    className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs"
-                  >
-                    <option value="IST">IST-Versteuerung (nach vereinnahmten Entgelten / Zahlungseingang)</option>
-                    <option value="SOLL">SOLL-Versteuerung (nach vereinbarten Entgelten / Rechnungsdatum)</option>
-                  </select>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-amber-50/70 rounded-lg border border-amber-200/60 text-stone-600 leading-relaxed">
-                Als Kleinunternehmer nach § 19 UStG weisen Sie auf Ihren Rechnungen keine Umsatzsteuer aus und führen keine USt-Voranmeldungen durch.
-              </div>
-            )}
+            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/60 text-stone-600 leading-relaxed">
+              Buchfink richtet sich an bilanzierende Kapitalgesellschaften. Die
+              Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein
+              Kleinunternehmer als <em>Lieferant</em> ist dagegen ein normaler Fall und wird am
+              Kontakt hinterlegt.
+            </div>
           </div>
         </div>
 

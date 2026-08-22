@@ -3,6 +3,7 @@ package wailsbridge
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/invoice"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/security"
 	"github.com/buchfink/buchfink/internal/service"
@@ -38,6 +41,7 @@ type BuchfinkBridge struct {
 	invoiceRepo        domain.InvoiceRepository
 	numberRepo         domain.NumberRangeRepository
 	allocationRepo     domain.PaymentAllocationRepository
+	receiptRepo        domain.ReceiptRepository
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
@@ -45,11 +49,14 @@ type BuchfinkBridge struct {
 	// Services
 	journalSvc    *service.JournalService
 	postingSvc    *service.PostingService
+	receiptSvc    *service.ReceiptService
+	eInvoiceSvc   *service.EInvoiceService
 	paymentSvc    *service.PaymentService
 	vatSvc        *service.VatService
 	accountingSvc *service.AccountingService
 	bankSvc       *service.BankService
 	invoiceSvc    *service.InvoiceService
+	renderer      *invoice.Renderer
 	contactSvc    *service.ContactService
 	ebilanzSvc    *service.EBilanzService
 	auditSvc      *service.AuditService
@@ -169,6 +176,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.settingsRepo = repository.NewSettingsRepository(db)
 	b.festschreibungRepo = repository.NewFestschreibungRepository(db)
 	b.allocationRepo = repository.NewPaymentAllocationRepository(db)
+	b.receiptRepo = repository.NewReceiptRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -189,11 +197,19 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, fiscalYear)
 	b.journalSvc.SetFestschreibungRepo(b.festschreibungRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
+	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
+	b.postingSvc.SetReceiptService(b.receiptSvc)
+	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
+	b.renderer = invoice.NewRenderer()
+	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
+	// Das WASM-Modul zu übersetzen kostet ein paar Sekunden. Die soll nicht
+	// zahlen, wer auf "Rechnung ausstellen" drückt.
+	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
@@ -604,6 +620,12 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.vatSvc != nil {
 		b.vatSvc.SetFiscalYear(year)
 	}
+	if b.receiptSvc != nil {
+		b.receiptSvc.SetFiscalYear(year)
+	}
+	if b.eInvoiceSvc != nil {
+		b.eInvoiceSvc.SetFiscalYear(year)
+	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
 }
@@ -925,6 +947,267 @@ func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string,
 // -------------------------------------------------------------
 // E-BILANZ & AUDIT TRAIL
 // -------------------------------------------------------------
+
+// -------------------------------------------------------------
+// BELEGE
+// -------------------------------------------------------------
+
+// ReceiptFileInput is one file on its way into a Beleg.
+//
+// Files travel as paths, not as content: the native dialog and drag & drop both
+// hand over paths, and a multi-megabyte scan has no business crossing the IPC
+// boundary base64-encoded.
+type ReceiptFileInput struct {
+	Path string `json:"path"`
+	Role string `json:"role"`
+}
+
+// SelectReceiptFilesDialog opens the native picker for Belegdateien.
+func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error) {
+	if title == "" {
+		title = "Belegdateien auswählen"
+	}
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return nil, nil
+	}
+	return app.Dialog.OpenFile().
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		AddFilter("Belege (PDF, Bild, XML)", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml").
+		SetTitle(title).
+		PromptForMultipleSelection()
+}
+
+// FileIncomingReceipt files an incoming Beleg away without booking it. The two
+// are separate steps: an XRechnung has to be storable the moment it arrives, and
+// only becomes bookable once a rendering exists.
+func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, files []ReceiptFileInput) (*domain.Receipt, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.receiptSvc.File(context.Background(), service.FileReceiptRequest{
+		Direction:   domain.DirectionIncoming,
+		ReceivedAt:  receivedAt,
+		ReceivedVia: receivedVia,
+		Files:       toNewFiles(files),
+	})
+}
+
+// AddReceiptFile appends a file to a Beleg that is not yet booked.
+func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (*domain.Receipt, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.receiptSvc.AddFile(context.Background(), receiptID, toNewFiles([]ReceiptFileInput{file})[0])
+}
+
+// RemoveReceiptFile drops a file from a Beleg that is not yet booked.
+func (b *BuchfinkBridge) RemoveReceiptFile(receiptID, fileID uint) (*domain.Receipt, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.receiptSvc.RemoveFile(context.Background(), receiptID, fileID)
+}
+
+// GetReceipts lists the Belege of the active fiscal year. An empty status
+// returns all of them.
+func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.receiptSvc == nil {
+		return []domain.Receipt{}, nil
+	}
+	return b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status))
+}
+
+// GetReceipt returns one Beleg with its files.
+func (b *BuchfinkBridge) GetReceipt(id uint) (*domain.Receipt, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.receiptSvc.Get(context.Background(), id)
+}
+
+// DiscardReceipt retires a filed Beleg. It keeps its number and stays findable —
+// a received document must not vanish without a trace.
+func (b *BuchfinkBridge) DiscardReceipt(id uint, reason string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.receiptSvc == nil {
+		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.receiptSvc.Discard(context.Background(), id, reason)
+}
+
+// ReceiptPreview is what the frontend shows for a Beleg.
+type ReceiptPreview struct {
+	// DataURL carries the displayable file inline so the frontend can render it
+	// without a second transport.
+	DataURL  string `json:"dataUrl"`
+	FileName string `json:"fileName"`
+	MimeType string `json:"mimeType"`
+	// Intact is false when the file on disk no longer matches the checksum it
+	// was filed under. It is shown rather than hidden.
+	Intact bool `json:"intact"`
+}
+
+// maxPreviewBytes caps what is inlined into the IPC response. Larger files are
+// reported rather than silently truncated.
+const maxPreviewBytes = 32 << 20
+
+// GetReceiptPreview returns the file the user is shown for a Beleg — the
+// original for a PDF or an image, the generated rendering for an XRechnung.
+//
+// On a hybrid Beleg this is the image part, which is display only: booking reads
+// the structured part. A difference between the two is potentially a second
+// invoice with § 14c consequences and is shown, not judged.
+func (b *BuchfinkBridge) GetReceiptPreview(receiptID uint) (*ReceiptPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	content, err := b.receiptSvc.DisplayContent(context.Background(), receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if len(content.Data) > maxPreviewBytes {
+		return nil, fmt.Errorf("die Belegdatei %s ist zu groß für die Vorschau (%d MB)", content.FileName, len(content.Data)>>20)
+	}
+	return &ReceiptPreview{
+		DataURL:  "data:" + content.MimeType + ";base64," + base64.StdEncoding.EncodeToString(content.Data),
+		FileName: content.FileName,
+		MimeType: content.MimeType,
+		Intact:   content.Intact,
+	}, nil
+}
+
+// GetInvoiceDocument returns the issued invoice as a data URL for display and
+// download. It is the same hybrid PDF that was archived when the invoice was
+// issued, not a fresh rendering — what the customer received is what is shown.
+func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.invoiceSvc == nil || b.receiptSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	inv, err := b.invoiceRepo.FindByID(context.Background(), invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	if inv.ReceiptID == nil {
+		return nil, fmt.Errorf("zu Rechnung %s liegt kein Belegdokument vor", inv.InvoiceNumber)
+	}
+	content, err := b.receiptSvc.DisplayContent(context.Background(), *inv.ReceiptID)
+	if err != nil {
+		return nil, err
+	}
+	if len(content.Data) > maxPreviewBytes {
+		return nil, fmt.Errorf("das Rechnungsdokument ist zu groß für die Anzeige")
+	}
+	return &ReceiptPreview{
+		DataURL:  "data:" + content.MimeType + ";base64," + base64.StdEncoding.EncodeToString(content.Data),
+		FileName: content.FileName,
+		MimeType: content.MimeType,
+		Intact:   content.Intact,
+	}, nil
+}
+
+// ExtractStructuredPart pulls the invoice data out of a filed Beleg and attaches
+// it under the role `structured`.
+//
+// It is a step of its own because filing must not depend on it: a Beleg is kept
+// in the form it arrived, and only then is it examined.
+func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.ExtractStructuredPart(context.Background(), receiptID)
+}
+
+// ProposeFromEInvoice turns the structured part of a Beleg into a prefilled
+// booking. The fachliche Gruppe stays open — no invoice knows which expense
+// account a supply belongs on.
+func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceProposal, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.Propose(context.Background(), receiptID)
+}
+
+// ValidateEInvoice re-runs the EN-16931 rule check against the structured part of
+// a Beleg and records the result.
+//
+// The rule set is versioned, so a document checked under an older version can be
+// checked again without being re-filed. The check touches no file, which is why
+// it is allowed on a booked Beleg too.
+func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*invoice.ValidationResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.eInvoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.eInvoiceSvc.Validate(context.Background(), receiptID)
+}
+
+// GetEInvoiceRules lists the EN-16931 rules Buchfink checks. It is deliberately
+// exposed: "validated" without the list of what was checked tells a user nothing
+// they can act on.
+func (b *BuchfinkBridge) GetEInvoiceRules() []string {
+	return invoice.ValidationRules()
+}
+
+// PreviewIncomingReceipt computes the booking without writing it, so the form can
+// show the Buchungssatz instead of re-deriving it.
+func (b *BuchfinkBridge) PreviewIncomingReceipt(req service.ReceiptRequest) (*service.PostingPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.postingSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.postingSvc.PreviewIncomingReceipt(context.Background(), req)
+}
+
+// PreviewOutgoingInvoice computes what an invoice would book, without issuing it.
+func (b *BuchfinkBridge) PreviewOutgoingInvoice(inv domain.Invoice) (*service.PostingPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.invoiceSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.invoiceSvc.Preview(context.Background(), &inv)
+}
+
+func toNewFiles(files []ReceiptFileInput) []service.NewFile {
+	out := make([]service.NewFile, 0, len(files))
+	for _, f := range files {
+		role := domain.ReceiptFileRole(f.Role)
+		if role == "" {
+			role = domain.ReceiptRoleOriginal
+		}
+		out = append(out, service.NewFile{
+			Path: f.Path,
+			Role: role,
+			// A rendering is the only role the user can pick that is by
+			// definition produced rather than received.
+			Derived: role == domain.ReceiptRoleRendering,
+		})
+	}
+	return out
+}
 
 func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	b.mu.RLock()

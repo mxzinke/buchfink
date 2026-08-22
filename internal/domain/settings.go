@@ -28,10 +28,9 @@ type CompanySettings struct {
 	ZipCity              string `json:"zipCity"`
 	Country              string `json:"country"`
 	Currency             string `json:"currency"`
-	SKR                  string `json:"skr"`             // "SKR04"
-	IsSmallBusiness      bool   `json:"isSmallBusiness"` // § 19 UStG Kleinunternehmer
-	VatPeriod            string `json:"vatPeriod"`       // "month", "quarter", "year", "exempt"
-	TaxationType         string `json:"taxationType"`    // "IST", "SOLL"
+	SKR                  string `json:"skr"`          // "SKR04"
+	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
+	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
 }
 
 // GetFiscalYearForDate computes the fiscal year for a given date (YYYY-MM-DD)

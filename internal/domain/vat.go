@@ -20,6 +20,12 @@ type VatSummary struct {
 	// Steuerpflichtige Inlandsumsätze je Steuersatz.
 	TaxableRevenue []VatFigure `json:"taxableRevenue"`
 
+	// ZeroRatedRevenue sind Umsätze zum Nullsteuersatz des § 12 Abs. 3 UStG.
+	// Sie stehen bewusst *nicht* bei den steuerfreien Umsätzen: der Umsatz ist
+	// steuerpflichtig, nur eben zum Satz null, und der Vorsteuerabzug des
+	// Leistenden bleibt erhalten.
+	ZeroRatedRevenue Cents `json:"zeroRatedRevenue"`
+
 	// Steuerfreie und nicht im Inland steuerbare Umsätze.
 	ExemptRevenue        Cents `json:"exemptRevenue"`
 	IntraCommunitySupply Cents `json:"intraCommunitySupply"`

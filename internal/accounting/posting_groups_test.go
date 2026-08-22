@@ -24,19 +24,10 @@ func chartForTest(t *testing.T) *Chart {
 func TestPostingGroupAccountsExistInSKR04(t *testing.T) {
 	chart := chartForTest(t)
 
-	treatments := []domain.TaxTreatment{
-		domain.TaxTreatmentDomestic,
-		domain.TaxTreatmentReverseCharge,
-		domain.TaxTreatmentIntraCommunityAcquisition,
-		domain.TaxTreatmentIntraCommunitySupply,
-		domain.TaxTreatmentReverseChargeSupply,
-		domain.TaxTreatmentExport,
-		domain.TaxTreatmentExempt,
-		domain.TaxTreatmentNotTaxable,
-	}
-
+	// Derived, not hand-listed: a Steuerfall added later has to run through this
+	// guard without anybody remembering to extend it.
 	for _, group := range PostingGroups("") {
-		for _, treatment := range treatments {
+		for _, treatment := range domain.AllTaxTreatments() {
 			for _, rate := range domain.ValidTaxRates() {
 				account := group.ResolveAccount(treatment, rate)
 
@@ -54,6 +45,21 @@ func TestPostingGroupAccountsExistInSKR04(t *testing.T) {
 				if resolved.Type != wantType {
 					t.Errorf("Gruppe %q (Steuerfall %s) → Konto %s %q ist %s, erwartet %s",
 						group.Key, treatment, account, resolved.Name, resolved.Type, wantType)
+				}
+
+				// Das Konto für den nicht abzugsfähigen Anteil wird genauso
+				// bebucht und muss denselben Prüfungen standhalten.
+				if group.NonDeductibleAccount == "" {
+					continue
+				}
+				if err := chart.EnsurePostable(group.NonDeductibleAccount); err != nil {
+					t.Errorf("Gruppe %q → nicht abzugsfähiges Konto %s: %v",
+						group.Key, group.NonDeductibleAccount, err)
+					continue
+				}
+				if nd, _ := chart.Lookup(group.NonDeductibleAccount); nd.Type != wantType {
+					t.Errorf("Gruppe %q → Konto %s %q ist %s, erwartet %s",
+						group.Key, group.NonDeductibleAccount, nd.Name, nd.Type, wantType)
 				}
 			}
 		}

@@ -83,8 +83,6 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.ZipCity = it.Value
 		case "country":
 			settings.Country = it.Value
-		case "is_small_business":
-			settings.IsSmallBusiness = (it.Value == "true" || it.Value == "1")
 		case "vat_period":
 			settings.VatPeriod = it.Value
 		case "taxation_type":
@@ -102,11 +100,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
 	vatPeriod := s.VatPeriod
 	if vatPeriod == "" {
-		if s.IsSmallBusiness {
-			vatPeriod = "exempt"
-		} else {
-			vatPeriod = "quarter"
-		}
+		vatPeriod = "quarter"
 	}
 	taxationType := s.TaxationType
 	if taxationType == "" {
@@ -131,7 +125,6 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"street":                  s.Street,
 		"zip_city":                s.ZipCity,
 		"country":                 s.Country,
-		"is_small_business":       fmt.Sprintf("%t", s.IsSmallBusiness),
 		"vat_period":              vatPeriod,
 		"taxation_type":           taxationType,
 	}

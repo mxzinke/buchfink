@@ -13,6 +13,17 @@ import (
 // show.
 const PostingRuleVersion = "2026.1"
 
+// DeductibleQuota names a statutory limit on how much of an expense may be
+// deducted. It is a key into the dated parameters, not the figure itself.
+type DeductibleQuota string
+
+const (
+	// QuotaEntertainment is the entertainment share of § 4 Abs. 5 Satz 1 Nr. 2
+	// EStG. Only the expense is split — the input tax stays fully deductible,
+	// because § 15 Abs. 1a Satz 2 UStG takes entertainment out of the ban.
+	QuotaEntertainment DeductibleQuota = "entertainment"
+)
+
 // PostingGroup is a fachliche Gruppe the user picks instead of an account
 // number. The mapping to SKR04 is fixed and deterministic: no learning, no
 // heuristics, no per-user drift.
@@ -32,7 +43,29 @@ type PostingGroup struct {
 	// a domestic one, because the VAT return reports them in different boxes.
 	TreatmentAccounts map[domain.TaxTreatment]string `json:"-"`
 
+	// NonDeductibleAccount carries the share of an expense that is an expense
+	// under commercial law but only partly deductible for tax purposes. Booking
+	// both shares to one account would make the Steuerbilanz wrong.
+	NonDeductibleAccount string `json:"nonDeductibleAccount,omitempty"`
+	// DeductibleQuota names which statutory share applies to this group. The
+	// figure itself is dated and lives in tax_params.go.
+	DeductibleQuota DeductibleQuota `json:"deductibleQuota,omitempty"`
+
 	DefaultRate domain.TaxRate `json:"defaultRate"`
+	// DefaultTreatment is the Steuerfall the group proposes. It matters for the
+	// groups that carry no VAT: a rate of zero says "no rate applies", but not
+	// *why*, and the booking core insists on the reason. Empty means
+	// TaxTreatmentDomestic.
+	DefaultTreatment domain.TaxTreatment `json:"defaultTreatment,omitempty"`
+}
+
+// Treatment returns the Steuerfall the group proposes, defaulting to a domestic
+// taxable transaction.
+func (g PostingGroup) Treatment() domain.TaxTreatment {
+	if g.DefaultTreatment == "" {
+		return domain.TaxTreatmentDomestic
+	}
+	return g.DefaultTreatment
 }
 
 // ResolveAccount returns the SKR04 account for a Steuerfall and rate.
@@ -62,7 +95,10 @@ var postingGroups = []PostingGroup{
 			domain.TaxTreatmentIntraCommunitySupply: "4125", // § 4 Nr. 1b UStG
 			domain.TaxTreatmentExport:               "4120", // § 4 Nr. 1a UStG
 			domain.TaxTreatmentReverseChargeSupply:  "4337", // § 13b UStG
-			domain.TaxTreatmentExempt:               "4150",
+			// Nullsteuersatz nach § 12 Abs. 3 UStG. Eigenes Konto, weil der
+			// Umsatz steuerpflichtig ist und nicht zu den steuerfreien zählt.
+			domain.TaxTreatmentZeroRated: "4290",
+			domain.TaxTreatmentExempt:    "4150",
 		},
 	},
 	{
@@ -104,8 +140,9 @@ var postingGroups = []PostingGroup{
 
 	// --- Raum- und Fahrzeugkosten ----------------------------------------
 	{Key: "miete", Label: "Miete & Pacht", Category: "Raumkosten",
-		Hint:      "Miete für Büro, Lager oder andere unbewegliche Wirtschaftsgüter.",
-		Direction: domain.DirectionIncoming, Account: "6310", DefaultRate: domain.TaxRateNone},
+		Hint:      "Miete für Büro, Lager oder andere unbewegliche Wirtschaftsgüter. Nach § 4 Nr. 12 UStG steuerfrei, sofern der Vermieter nicht nach § 9 UStG zur Steuerpflicht optiert hat.",
+		Direction: domain.DirectionIncoming, Account: "6310",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 	{Key: "raumkosten", Label: "Nebenkosten & sonstige Raumkosten", Category: "Raumkosten",
 		Hint:      "Strom, Heizung, Reinigung.",
 		Direction: domain.DirectionIncoming, Account: "6345", DefaultRate: domain.TaxRateStandard},
@@ -132,16 +169,22 @@ var postingGroups = []PostingGroup{
 		Direction: domain.DirectionIncoming, Account: "6827", DefaultRate: domain.TaxRateStandard},
 	{Key: "versicherungen", Label: "Versicherungen", Category: "Verwaltung",
 		Hint:      "Versicherungsprämien sind nach § 4 Nr. 10 UStG steuerfrei – hier fällt keine Vorsteuer an.",
-		Direction: domain.DirectionIncoming, Account: "6400", DefaultRate: domain.TaxRateNone},
+		Direction: domain.DirectionIncoming, Account: "6400",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 	{Key: "beitraege", Label: "Beiträge & Gebühren", Category: "Verwaltung",
-		Direction: domain.DirectionIncoming, Account: "6420", DefaultRate: domain.TaxRateNone},
+		Hint:      "Kammer- und Verbandsbeiträge, behördliche Gebühren: meist nicht steuerbar.",
+		Direction: domain.DirectionIncoming, Account: "6420",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "geldverkehr", Label: "Nebenkosten des Geldverkehrs", Category: "Verwaltung",
-		Hint:      "Kontoführung, Überweisungsentgelte, Zahlungsdienstleister-Gebühren.",
-		Direction: domain.DirectionIncoming, Account: "6855", DefaultRate: domain.TaxRateNone},
+		Hint:      "Kontoführung, Überweisungsentgelte, Zahlungsdienstleister-Gebühren. Nach § 4 Nr. 8 UStG steuerfrei.",
+		Direction: domain.DirectionIncoming, Account: "6855",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 
 	// --- Personal und Vertrieb -------------------------------------------
 	{Key: "gehaelter", Label: "Gehälter", Category: "Personal",
-		Direction: domain.DirectionIncoming, Account: "6020", DefaultRate: domain.TaxRateNone},
+		Hint:      "Arbeitslohn ist kein Leistungsaustausch im Sinne des UStG.",
+		Direction: domain.DirectionIncoming, Account: "6020",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "fortbildung", Label: "Fortbildung", Category: "Personal",
 		Direction: domain.DirectionIncoming, Account: "6821", DefaultRate: domain.TaxRateStandard},
 	{Key: "reisekosten", Label: "Reisekosten", Category: "Personal",
@@ -150,8 +193,10 @@ var postingGroups = []PostingGroup{
 	{Key: "werbung", Label: "Werbekosten", Category: "Vertrieb",
 		Direction: domain.DirectionIncoming, Account: "6600", DefaultRate: domain.TaxRateStandard},
 	{Key: "bewirtung", Label: "Bewirtungskosten", Category: "Vertrieb",
-		Hint:      "Nach § 4 Abs. 5 Nr. 2 EStG sind 70 % abziehbar; der Rest gehört auf 6644. Die Vorsteuer bleibt voll abziehbar.",
-		Direction: domain.DirectionIncoming, Account: "6640", DefaultRate: domain.TaxRateStandard},
+		Hint:      "Nach § 4 Abs. 5 Satz 1 Nr. 2 EStG sind 70 % abziehbar; der Rest wird auf 6644 gebucht. Die Vorsteuer bleibt voll abziehbar. Ort, Tag, Teilnehmer und Anlass sind aufzuzeichnen.",
+		Direction: domain.DirectionIncoming, Account: "6640",
+		NonDeductibleAccount: "6644", DeductibleQuota: QuotaEntertainment,
+		DefaultRate: domain.TaxRateStandard},
 
 	// --- Anlagen ----------------------------------------------------------
 	{Key: "gwg", Label: "Geringwertige Wirtschaftsgüter (Sofortabschreibung)", Category: "Anlagen",
