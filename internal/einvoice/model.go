@@ -70,6 +70,10 @@ type Invoice struct {
 	SupportingDocs []SupportingDocument // BG-24 Rechnungsbegründende Unterlagen
 	Lines          []Line               // BG-25 Rechnungspositionen
 
+	// CreditorReference is BT-90, the creditor identifier of a SEPA mandate. It
+	// sits at document level in both syntaxes although it belongs to BG-19.
+	CreditorReference string
+
 	// Syntax records which wire format the document was read from. It carries no
 	// semantics; it exists so a finding can say what was actually inspected.
 	Syntax Syntax
@@ -221,6 +225,7 @@ type AllowanceCharge struct {
 	Amount      Amount // BT-92  / BT-99  / BT-136 / BT-141
 	BaseAmount  Amount // BT-93  / BT-100 / BT-137 / BT-142
 	Percentage  Amount // BT-94  / BT-101 / BT-138 / BT-143
+	VATTypeCode string // "VAT", siehe VATBreakdown.TypeCode
 	VATCategory string // BT-95  / BT-102
 	VATRate     Amount // BT-96  / BT-103
 	Reason      string // BT-97  / BT-104 / BT-139 / BT-144
@@ -249,6 +254,11 @@ type Totals struct {
 
 // VATBreakdown is one group of the VAT breakdown (BG-23).
 type VATBreakdown struct {
+	// TypeCode is "VAT" for everything EN 16931 models. CII allows other taxes
+	// in the same element, and the norm's own bindings filter on this — a group
+	// that is not VAT is not part of the Umsatzsteueraufschlüsselung. It is kept
+	// rather than dropped so that reading a document never loses what it said.
+	TypeCode            string // BT-118-0
 	TaxableAmount       Amount // BT-116 Bemessungsgrundlage
 	TaxAmount           Amount // BT-117 Steuerbetrag
 	CategoryCode        string // BT-118 Steuerkategorie (UNTDID 5305)
@@ -327,4 +337,60 @@ type Item struct {
 type ItemAttribute struct {
 	Name  string // BT-160
 	Value string // BT-161
+}
+
+// VATBreakdowns returns the groups that carry value added tax.
+//
+// EN 16931 models only VAT, but both syntaxes allow other taxes in the same
+// element, and the standard's own rule bindings filter on the type code before
+// they apply anything. A group carrying an environmental levy is not part of
+// the Umsatzsteueraufschlüsselung, and treating it as one would put the levy
+// into the Voranmeldung.
+func (inv *Invoice) VATBreakdowns() []VATBreakdown {
+	out := make([]VATBreakdown, 0, len(inv.VATBreakdown))
+	for _, b := range inv.VATBreakdown {
+		if isVATTypeCode(b.TypeCode) {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// isVATTypeCode reports whether a tax type code means value added tax. An
+// absent code counts as VAT: several real documents omit it, and every rule of
+// the standard is written for VAT.
+func isVATTypeCode(code string) bool {
+	trimmed := strings.TrimSpace(code)
+	return trimmed == "" || strings.EqualFold(trimmed, "VAT")
+}
+
+// LineVATs returns the tax information of every line, in document order.
+func (inv *Invoice) LineVATs() []LineVAT {
+	out := make([]LineVAT, 0, len(inv.Lines))
+	for _, l := range inv.Lines {
+		out = append(out, l.VAT)
+	}
+	return out
+}
+
+// CategoryCodesInUse collects every VAT category the document assigns to a
+// line, an allowance or a charge — the trigger side of the BR-<category>-01
+// rules.
+func (inv *Invoice) CategoryCodesInUse() map[string]bool {
+	inUse := map[string]bool{}
+	for _, l := range inv.Lines {
+		if c := normaliseCategory(l.VAT.CategoryCode); c != "" {
+			inUse[c] = true
+		}
+	}
+	for _, a := range append(append([]AllowanceCharge{}, inv.Allowances...), inv.Charges...) {
+		if c := normaliseCategory(a.VATCategory); c != "" {
+			inUse[c] = true
+		}
+	}
+	return inUse
+}
+
+func normaliseCategory(code string) string {
+	return strings.ToUpper(strings.TrimSpace(code))
 }
