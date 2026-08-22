@@ -1,11 +1,13 @@
 # Buchfink – Rechnungsabgrenzung
 
 Status: Anforderung, noch nicht implementiert
-Letzte Aktualisierung: 2026-08-21
+Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft.
+> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
+> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
+> [Abschnitt 8](#8-quellen).
 
 ## 1. Worum es geht
 
@@ -80,8 +82,9 @@ Gesamtmonate.
 ## 5. Wesentlichkeitsgrenze
 
 Handelsrechtlich gibt es keine Bagatellgrenze; jeder abgrenzungspflichtige Sachverhalt
-ist abzugrenzen. Steuerlich existiert eine Erleichterung für kleine Beträge [zu prüfen:
-§ 5 Abs. 5 Satz 2 EStG und die maßgebliche Grenze].
+ist abzugrenzen. Steuerlich darf der Ansatz unterbleiben, wenn die einzelne Ausgabe oder
+Einnahme den Betrag des § 6 Abs. 2 Satz 1 EStG nicht übersteigt – also 800 €
+(§ 5 Abs. 5 Satz 2 EStG). Das ist ein Wahlrecht, keine Pflicht.
 
 Praktisch braucht es trotzdem eine konfigurierbare Schwelle, unterhalb derer Buchfink
 nicht vorschlägt – sonst produziert die Prüfung dreißig Vorschläge über je vier Euro und
@@ -108,3 +111,27 @@ Das ist der kleinste der offenen Punkte; im Kern hängt alles an einer Frage.
 - Die Abgrenzung greift auf den **Leistungszeitraum** zu, der bereits an jeder Buchung
   steht. Es sind keine Modelländerungen am Journal nötig.
 - Ein **Jahreswechsel-Ablauf** muss die Auflösungen ins neue Jahr tragen.
+
+## 8. Quellen
+
+Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
+
+| Aussage im Dokument | Fundstelle | Link |
+|---|---|---|
+| Aktiver RAP: Ausgabe vor dem Stichtag, soweit Aufwand für eine bestimmte Zeit danach | § 250 Abs. 1 HGB | [hgb/__250.html](https://www.gesetze-im-internet.de/hgb/__250.html) |
+| Passiver RAP: Einnahme vor dem Stichtag, soweit Ertrag für eine bestimmte Zeit danach | § 250 Abs. 2 HGB | dito |
+| Wortlaut „für eine bestimmte Zeit nach diesem Tag" als Abgrenzungskriterium | § 250 Abs. 1 und 2 HGB | dito |
+| Steuerliches Wahlrecht, den Ansatz bis zur Grenze des § 6 Abs. 2 Satz 1 EStG zu unterlassen | § 5 Abs. 5 Satz 2 EStG | [estg/__5.html](https://www.gesetze-im-internet.de/estg/__5.html) |
+| Betragsgrenze dieses Wahlrechts: 800 € | § 6 Abs. 2 Satz 1 EStG (Verweisziel) | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
+
+**Zur Formulierung „Handelsrechtlich gibt es keine Bagatellgrenze":** das ist eine
+Aussage über das Fehlen einer Norm, nicht über eine Norm. § 250 HGB kennt keine
+Wertgrenze; in der Praxis wird der allgemeine Wesentlichkeitsgrundsatz bemüht,
+der aber nicht kodifiziert ist. Das steuerliche Wahlrecht in § 5 Abs. 5 Satz 2
+EStG ist demgegenüber ausdrücklich geregelt und gilt nur steuerlich.
+
+**Monatsgenau oder taggenau** ist keine Gesetzesfrage. § 250 HGB sagt nur „für
+eine bestimmte Zeit" und schreibt kein Verteilungsverfahren vor. Die Bindung an
+eine einmal gewählte Methode folgt aus dem Stetigkeitsgebot des § 252 Abs. 1
+Nr. 6 HGB ([hgb/__252.html](https://www.gesetze-im-internet.de/hgb/__252.html)),
+das die Beibehaltung der Bewertungsmethoden verlangt.

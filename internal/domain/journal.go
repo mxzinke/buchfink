@@ -92,7 +92,7 @@ type JournalEntry struct {
 	// periods and wrong VAT returns, so each has its own field.
 	BookingDate     string `gorm:"size:10;not null;index" json:"bookingDate"` // Buchungsdatum – bestimmt die Periode
 	DocumentDate    string `gorm:"size:10;not null" json:"documentDate"`      // Belegdatum (Rechnungsdatum)
-	ServiceDateFrom string `gorm:"size:10;not null" json:"serviceDateFrom"`   // Leistungsdatum / -beginn (§ 14 Abs. 4 Nr. 6 UStG)
+	ServiceDateFrom string `gorm:"size:10;not null" json:"serviceDateFrom"`   // Leistungsdatum / -beginn; der Zeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG
 	ServiceDateTo   string `gorm:"size:10;not null" json:"serviceDateTo"`     // Leistungsende; gleich From bei Zeitpunktleistung
 	ValueDate       string `gorm:"size:10" json:"valueDate,omitempty"`        // Valuta, nur bei Zahlungsbuchungen
 
@@ -180,7 +180,7 @@ func (e *JournalEntry) Validate() error {
 		return fmt.Errorf("Belegdatum fehlt")
 	}
 	if e.ServiceDateFrom == "" || e.ServiceDateTo == "" {
-		return fmt.Errorf("Leistungsdatum fehlt (Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
+		return fmt.Errorf("Leistungsdatum fehlt (der Leistungszeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
 	}
 	if e.ServiceDateTo < e.ServiceDateFrom {
 		return fmt.Errorf("Leistungsende %s liegt vor dem Leistungsbeginn %s", e.ServiceDateTo, e.ServiceDateFrom)

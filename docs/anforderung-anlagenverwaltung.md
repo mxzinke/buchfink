@@ -1,13 +1,14 @@
 # Buchfink – Anlagenverwaltung
 
 Status: Anforderung, noch nicht implementiert
-Letzte Aktualisierung: 2026-08-21
+Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft. Rechtsstände, die als **[zu prüfen]** markiert sind,
-> müssen vor der Umsetzung gegen den Gesetzestext verifiziert werden – die
-> AfA-Regeln ändern sich häufig.
+> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
+> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
+> [Abschnitt 11](#11-quellen). Die AfA-Regeln ändern sich häufig – vor der
+> Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
 
 ## 1. Die erste Frage ist nicht die AfA-Methode
 
@@ -16,8 +17,8 @@ entscheidet über den ganzen weiteren Verlauf:
 
 | Fall | Voraussetzung | Behandlung | Konten |
 |---|---|---|---|
-| **Sofortabzug** | selbständig nutzbar, AK bis zur GWG-Grenze (§ 6 Abs. 2 EStG) | voller Aufwand im Anschaffungsjahr | **0670** GWG · **6260** Sofortabschreibungen GWG |
-| **Sammelposten** | AK oberhalb der Untergrenze bis zur Sammelposten-Obergrenze (§ 6 Abs. 2a EStG) | Pool, linear über fünf Jahre mit je einem Fünftel | **0675** Wirtschaftsgüter (Sammelposten) · **6264** Abschreibungen auf den Sammelposten |
+| **Sofortabzug** | selbständig nutzbar, AK bis 800 € (§ 6 Abs. 2 Satz 1 EStG) | voller Aufwand im Anschaffungsjahr | **0670** GWG · **6260** Sofortabschreibungen GWG |
+| **Sammelposten** | AK über 250 € bis 1.000 € (§ 6 Abs. 2a Satz 1 EStG) | Pool, im Jahr der Bildung und den folgenden vier Jahren mit je einem Fünftel aufzulösen | **0675** Wirtschaftsgüter (Sammelposten) · **6264** Abschreibungen auf den Sammelposten |
 | **Aktivierung** | alles darüber, und alles nicht selbständig Nutzbare | planmäßige AfA über die Nutzungsdauer | Anlagekonto · **6220** / **6222** |
 
 Zwei Fallen stecken darin. **„Selbständig nutzbar"** ist die eigentliche Hürde, nicht
@@ -26,10 +27,13 @@ Und das **Sammelposten-Wahlrecht gilt einheitlich für alle Wirtschaftsgüter ei
 Jahres** – wer einmal poolt, poolt für dieses Jahr durchgehend. Beides muss die
 Software abfragen bzw. festhalten, nicht raten.
 
-**Die Wertgrenzen gehören in die Stammdaten, versioniert je Geschäftsjahr.** Sie haben
-sich in den letzten Jahren mehrfach geändert; ein fest verdrahteter Wert produziert
-still falsche Buchungen, sobald ein altes Jahr nachbearbeitet wird. [zu prüfen: aktuelle
-Grenzen für GWG und Sammelposten]
+Ab 250 € ist ein GWG zusätzlich in ein besonderes, laufend zu führendes Verzeichnis
+aufzunehmen (§ 6 Abs. 2 Satz 4 EStG) – es sei denn, die Angaben sind aus der Buchführung
+ersichtlich (Satz 5). Buchfink führt die Anlagenkartei ohnehin, erfüllt das also.
+
+**Die Wertgrenzen gehören trotzdem in die Stammdaten, versioniert je Geschäftsjahr.**
+Sie haben sich in den letzten Jahren mehrfach geändert; ein fest verdrahteter Wert
+produziert still falsche Buchungen, sobald ein altes Jahr nachbearbeitet wird.
 
 ## 2. Zugang
 
@@ -59,8 +63,8 @@ Geleistete Anzahlungen und Anlagen im Bau und werden bei Fertigstellung umgebuch
 | Methode | Grundlage | Anmerkung |
 |---|---|---|
 | **Linear** | § 7 Abs. 1 EStG | Standard; gleichmäßig über die betriebsgewöhnliche Nutzungsdauer |
-| **Degressiv** | § 7 Abs. 2 EStG | zeitlich befristet zulässig [zu prüfen: Satz, Höchstgrenze und Anschaffungszeitraum nach dem aktuellen Stand] |
-| **Sonderabschreibung** | § 7g Abs. 5 EStG | zusätzlich zur planmäßigen AfA, an eine Gewinngrenze gebunden [zu prüfen: Satz und Grenze] |
+| **Degressiv** | § 7 Abs. 2 EStG | höchstens das Dreifache des linearen Prozentsatzes und höchstens 30 %; nur für bewegliche Wirtschaftsgüter, die nach dem 30.06.2025 und vor dem 01.01.2028 angeschafft wurden |
+| **Sonderabschreibung** | § 7g Abs. 5 EStG | bis zu 40 % der Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier Folgejahre; Gewinn des Vorjahres höchstens 200.000 € (§ 7g Abs. 6 i. V. m. Abs. 1 Satz 2 Nr. 1 EStG) |
 
 **Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Eine
 im September angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
@@ -142,7 +146,9 @@ dann nicht fällig.
 Der Anlagenspiegel stellt für jede Position die Entwicklung dar: Anschaffungskosten am
 Jahresanfang, Zugänge, Abgänge, Umbuchungen, kumulierte Abschreibungen, Buchwerte zum
 Anfang und Ende. Für Kapitalgesellschaften ist er Bestandteil des Anhangs (§ 284 Abs. 3
-HGB) [zu prüfen: größenabhängige Erleichterungen nach § 274a HGB].
+HGB). Kleine Kapitalgesellschaften sind davon befreit – die Erleichterung steht in
+**§ 288 Abs. 1 Nr. 1 HGB**, nicht in § 274a HGB, der nur § 268 Abs. 4/5/6 und § 274
+betrifft.
 
 Er ist keine zusätzliche Buchung, sondern eine Auswertung – aber eine, die nur
 funktioniert, wenn Zugänge, Abgänge und kumulierte AfA je Anlagegut über die Jahre
@@ -179,3 +185,34 @@ Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 - Der **Festschreibungs-Workflow** muss vor der Jahressperre die AfA-Prüfung aufrufen.
 - Der **Zahlungsflow** braucht eine Sonderbehandlung für Skonto auf Anlagen.
 - Die **E-Bilanz** braucht den Anlagenspiegel als Kontennachweis.
+
+## 11. Quellen
+
+Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
+
+| Aussage im Dokument | Fundstelle | Link |
+|---|---|---|
+| GWG-Grenze 800 € (netto), Sofortabzug | § 6 Abs. 2 Satz 1 EStG | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
+| Verzeichnispflicht ab 250 €, Entbehrlichkeit bei Ersichtlichkeit aus der Buchführung | § 6 Abs. 2 Sätze 4 und 5 EStG | dito |
+| Sammelposten 250 € bis 1.000 €, Auflösung über fünf Jahre, Wahlrecht einheitlich je Wirtschaftsjahr | § 6 Abs. 2a Sätze 1 bis 5 EStG | dito |
+| Anschaffungskosten = Anschaffungspreis + Nebenkosten − Minderungen | § 255 Abs. 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
+| Lineare AfA über die betriebsgewöhnliche Nutzungsdauer | § 7 Abs. 1 Sätze 1 und 2 EStG | [estg/__7.html](https://www.gesetze-im-internet.de/estg/__7.html) |
+| Zeitanteilige AfA ab dem Anschaffungsmonat (pro rata temporis) | § 7 Abs. 1 Satz 4 EStG | dito |
+| Degressive AfA: höchstens das Dreifache des linearen Satzes, höchstens 30 %, Anschaffung nach dem 30.06.2025 und vor dem 01.01.2028 | § 7 Abs. 2 Sätze 1 und 2 EStG | dito |
+| Übergang degressiv → linear zulässig | § 7 Abs. 3 EStG | dito |
+| Sonderabschreibung bis 40 %, verteilbar auf fünf Jahre | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
+| Gewinngrenze 200.000 € im Vorjahr | § 7g Abs. 6 Nr. 1 i. V. m. Abs. 1 Satz 2 Nr. 1 Buchst. b EStG | dito |
+| Außerplanmäßige Abschreibung bei voraussichtlich dauernder Wertminderung | § 253 Abs. 3 Satz 5 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
+| Anlagenspiegel als Anhangbestandteil | § 284 Abs. 3 HGB | [hgb/__284.html](https://www.gesetze-im-internet.de/hgb/__284.html) |
+| Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |
+
+**Korrektur gegenüber einer früheren Fassung dieses Dokuments:** die Befreiung
+kleiner Kapitalgesellschaften vom Anlagenspiegel wurde dort auf § 274a HGB
+gestützt. Das ist falsch – § 274a HGB befreit von § 268 Abs. 4 Satz 2, § 268
+Abs. 5 Satz 3, § 268 Abs. 6 und § 274 HGB, nicht von § 284 Abs. 3 HGB. Die
+richtige Fundstelle ist § 288 Abs. 1 Nr. 1 HGB.
+
+**Nicht aus dem Gesetz, sondern Verwaltungsanweisung:** die AfA-Tabellen (BMF).
+Sie binden die Finanzverwaltung, nicht den Steuerpflichtigen; eine abweichende,
+begründete Nutzungsdauer ist zulässig. Deshalb muss der Katalog in Buchfink
+überschreibbar bleiben.

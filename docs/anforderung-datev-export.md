@@ -1,12 +1,20 @@
 # Buchfink – DATEV-Export
 
 Status: Anforderung, noch nicht implementiert
-Letzte Aktualisierung: 2026-08-21
+Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
-> Die Feldnamen und Formatnummern in diesem Dokument sind **[zu verifizieren]** gegen
-> die offizielle DATEV-Formatdokumentation, bevor implementiert wird. Der fachliche
-> Kern – Abschnitt 2 – hängt nicht daran.
+> **Dieses Dokument ist als einziges nicht gegen eine Primärquelle geprüft.** Ein
+> Versuch am 22.08.2026 ist gescheitert: die DATEV-Formatbeschreibung liegt hinter
+> einem JavaScript-Portal, das ohne Browser nur eine leere Hülle ausliefert
+> (`developer.datev.de/de/file-format/…` und die Wissensplattform, Dok. 1036228,
+> liefern beide keinen Text). Alle Feldnamen, Formatkategorien und Längen unten
+> stammen daher aus **Sekundärquellen** und sind mit **[unverifiziert]** markiert.
+> Sie sind vor der Umsetzung gegen die offizielle Beschreibung zu prüfen – siehe
+> [Abschnitt 8](#8-quellen).
+>
+> Der fachliche Kern des Dokuments – die Architekturentscheidung in Abschnitt 2 –
+> hängt an keinem dieser Details.
 
 ## 1. Wozu
 
@@ -79,16 +87,23 @@ lässt sich später nur schwer zurücknehmen.
 
 ## 3. Was exportiert wird
 
-| Datei | Inhalt | Formatkategorie [zu verifizieren] |
+| Datei | Inhalt | Formatkategorie **[unverifiziert]** |
 |---|---|---|
 | **Buchungsstapel** | die Buchungen eines Zeitraums | 21 |
 | **Debitoren/Kreditoren** | Personenkonten-Stammdaten | 16 |
 | **Sachkontenbeschriftungen** | abweichende Kontobezeichnungen | 20 |
 
 Alle drei als CSV mit Semikolon, Windows-1252, einer Kopfzeile mit Metadaten, einer
-Zeile mit Spaltenüberschriften und danach den Daten. [zu verifizieren]
+Zeile mit Spaltenüberschriften und danach den Daten. **[unverifiziert]**
+
+Die Kopfzeile beginnt mit dem Kennzeichen `EXTF` (Export aus einem Fremdprogramm)
+und trägt Versionsnummer, Formatkategorie, Formatversion, Berater- und
+Mandantennummer, Wirtschaftsjahresbeginn, Sachkontenlänge und Buchungszeitraum.
+**[unverifiziert]**
 
 ### Buchungsstapel: die tragenden Felder
+
+Alle Zeilen dieser Tabelle sind **[unverifiziert]**.
 
 | Feld | Quelle in Buchfink | Anmerkung |
 |---|---|---|
@@ -109,6 +124,11 @@ in einer Datei. Und **der Umsatz hat kein Vorzeichen**; die Richtung steckt alle
 Soll/Haben-Kennzeichen. Eine Generalumkehr mit negativem Betrag muss deshalb über das
 GU-Kennzeichen abgebildet werden und nicht über ein Minus im Betrag.
 
+Beide Punkte sind nicht verifiziert, aber sie sind der Grund, warum der Export
+überhaupt Anforderungen an den Buchungskern stellt – wenn eines davon anders ist,
+ändert sich die Abbildung, nicht das Datenmodell. Der Kern trägt beide Varianten:
+das Belegdatum steht vollständig im Journal, und der Storno-Kind steht am Kopf.
+
 ### Personenkonten
 
 Der Export der Debitoren und Kreditoren ist der Grund, warum echte Nummernkreise
@@ -119,7 +139,7 @@ Zu klären ist die **Sachkontenlänge**: DATEV leitet die Länge der Personenkon
 der Sachkontenlänge ab. Bei vierstelligen Sachkonten sind Personenkonten fünfstellig,
 was zu den Bereichen 10000–69999 und 70000–99999 passt. Der Wert gehört in den
 Dateikopf und muss mit den Einstellungen des Beraters übereinstimmen, sonst weist DATEV
-den Stapel ab.
+den Stapel ab. **[unverifiziert]**
 
 ## 4. Was der Export braucht und schon hat
 
@@ -159,3 +179,41 @@ Rückimport wäre kein Datenaustausch, sondern eine zweite Buchhaltung.
 - Die **Steuerlogik** braucht eine Abbildung ihrer Steuerfälle auf BU-Schlüssel.
 - Der Export sollte **nach** Anlagen und Anzahlungen kommen, damit deren Buchungen von
   Anfang an mit abgedeckt sind – blockiert ist er dadurch aber nicht.
+
+## 8. Quellen
+
+**Primärquelle, noch nicht ausgewertet.** Verbindlich ist allein die
+DATEV-Formatbeschreibung:
+
+- DATEV-Entwicklerportal, „DATEV-Format – Buchungsstapel":
+  <https://developer.datev.de/de/file-format/details/datev-format/format-description/booking-batch>
+- DATEV-Wissensplattform, Dokument **1036228** („DATEV-Format"):
+  <https://wissensplattform.apps.datev.de/help/document/1036228>
+
+Beide Seiten wurden am 22.08.2026 abgerufen und liefern ohne JavaScript-Browser
+keinen Text (die erste antwortet mit 200 und 648 Byte leerer Hülle). Eine
+Verifikation im Rahmen dieser Konzeptarbeit war damit nicht möglich.
+
+**Was tatsächlich zu tun ist**, bevor implementiert wird: die Formatbeschreibung
+als PDF aus dem DATEV-Portal ziehen (dafür genügt ein normaler Browser, kein
+DATEV-Zugang) und die Tabellen in Abschnitt 3 Feld für Feld dagegen abgleichen.
+Erst danach dürfen die **[unverifiziert]**-Marken entfallen.
+
+**Sekundärquellen**, aus denen die Angaben in Abschnitt 3 stammen – brauchbar für
+das Grobbild, nicht als Implementierungsgrundlage:
+
+| Quelle | Link |
+|---|---|
+| `datev-types-rs` (Rust-Implementierung des Formats) | <https://github.com/JensWalter/datev-types-rs> |
+| „DATEV EXTF-Format erklärt" | <https://smartkontoauszug.de/blog/datev-extf-format-erklaert> |
+| „DATEV Buchungsstapel EXTF — Format, Export & Auswertung" | <https://auditplan.io/datev-buchungsstapel-extf> |
+| DATEV-Community, Thread zur Schnittstellenbeschreibung | <https://www.datev-community.de/t5/Betriebliches-Rechnungswesen/DATEV-Format-Schnittstellenbeschreibung/td-p/24100> |
+
+Sie stimmen untereinander darin überein, dass die Kopfzeile mit `EXTF` beginnt und
+die Formatkategorie 21 den Buchungsstapel bezeichnet. Zur Formatversion nennen sie
+unterschiedliche Stände – ein weiterer Grund, die Primärquelle abzuwarten.
+
+**Nicht zu verwechseln:** die BU-Schlüssel sind kein Teil der Formatbeschreibung,
+sondern hängen am Kontenrahmen und am Mandanten. Die Abbildung aus Abschnitt 4
+(„Steuerfall → BU-Schlüssel") braucht also eine eigene Quelle und muss gegen die
+Einstellungen des jeweiligen Beraters geprüft werden.

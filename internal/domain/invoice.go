@@ -150,7 +150,7 @@ func (inv *Invoice) Validate() error {
 		return fmt.Errorf("Rechnungsdatum fehlt")
 	}
 	if inv.ServiceDateFrom == "" || inv.ServiceDateTo == "" {
-		return fmt.Errorf("Leistungsdatum fehlt (Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
+		return fmt.Errorf("Leistungsdatum fehlt (der Leistungszeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
 	}
 	if inv.ServiceDateTo < inv.ServiceDateFrom {
 		return fmt.Errorf("Leistungsende liegt vor dem Leistungsbeginn")

@@ -1,13 +1,17 @@
 # Buchfink – Beleg- & Buchungsflow
 
 Status: Konzept, Buchungskern implementiert
-Letzte Aktualisierung: 2026-08-21
+Letzte Aktualisierung: 2026-08-22
 Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 
 > Alle Kontonummern in diesem Dokument sind gegen `internal/accounting/skr04_2026.json`
 > geprüft, das aus `assets/DATEV-SKR04-BilrUg-2026.pdf` extrahiert wurde. Der Test
 > `TestPostingGroupAccountsExistInSKR04` prüft bei jedem Build, dass jede Kontierung
 > im Code auf ein existierendes, bebuchbares SKR04-Konto zeigt.
+>
+> **Alle Paragrafenangaben sind am 22.08.2026 gegen den Gesetzestext geprüft**;
+> das Quellenverzeichnis mit Fundstellen und den dabei gefundenen Korrekturen
+> steht in [Abschnitt 17](#17-quellen).
 >
 > **Vorsicht bei SKR03-Nummern.** Eine frühere Fassung dieses Dokuments enthielt
 > durchgehend SKR03-Konten. Die Nummern kollidieren: 1600 ist im SKR04 die *Kasse*
@@ -36,11 +40,21 @@ ist immer Storno plus Neuerfassung.
 ## 2. Scope-Grenzen
 
 **Nur Sollversteuerung.** Der gesamte Flow „Rechnung erfassen → sofort buchen →
-Zahlung später" setzt die Sollversteuerung nach § 16 Abs. 1 UStG voraus. Bei
-Istversteuerung (§ 20 UStG, zulässig bis 800.000 € Vorjahresumsatz – auch für eine
-GmbH) entsteht die Umsatzsteuer erst mit Zahlungseingang, und die Buchungen sähen
-anders aus. Buchfink fragt die Versteuerungsart im Setup ab und weist Istversteuerung
-in v1 ausdrücklich ab, statt sie stillschweigend falsch zu behandeln.
+Zahlung später" setzt die Berechnung der Steuer nach vereinbarten Entgelten
+(§ 16 Abs. 1 Satz 1 UStG) voraus. Bei Istversteuerung entsteht die Steuer erst mit
+Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wurde
+(§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Die
+Gestattung ist an keine Rechtsform gebunden: § 20 Satz 1 Nr. 1 UStG stellt allein
+auf einen Gesamtumsatz von höchstens 800.000 € im Vorjahr ab, steht also auch
+einer GmbH offen. Buchfink fragt die Versteuerungsart im Setup ab und weist
+Istversteuerung in v1 ausdrücklich ab, statt sie stillschweigend falsch zu
+behandeln.
+
+**E-Rechnung ist keine Scope-Grenze, sondern eine offene Pflicht.** Der Empfang
+strukturierter Eingangsrechnungen fehlt, ist aber seit dem 01.01.2025 verpflichtend
+und von den Übergangsregelungen des § 27 Abs. 38 UStG nicht erfasst – die gelten
+nur für das Ausstellen. Das ist damit kein „in v1 außen vor", sondern eine Lücke
+mit Frist; siehe [anforderung-e-rechnung.md](anforderung-e-rechnung.md).
 
 **Steuern und Auswertungen bleiben außen vor.** USt-Voranmeldung, USt-Erklärung, ZM
 und der Jahresabschluss (Saldenvortrag, GuV-Abrechnung, Bilanzierung) sind nicht Teil
@@ -62,7 +76,7 @@ Input sind acht Angaben:
 | 1 | **Richtung** (Eingang / Ausgang) | bestimmt Aufwands- oder Ertragsseite |
 | 2 | **Geschäftspartner** | Personenkonto, offener Posten, USt-IdNr. für EU-Fälle |
 | 3 | **Belegdatum** | Entstehung der Umsatzsteuer, Vorsteuerabzug |
-| 4 | **Leistungsdatum / -zeitraum** | Periodenabgrenzung, Pflichtangabe § 14 Abs. 4 Nr. 6 UStG |
+| 4 | **Leistungsdatum / -zeitraum** | Periodenabgrenzung; der Leistungs*zeitpunkt* ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG |
 | 5 | **Nettobeträge je Steuersatz** | ein Beleg kann 19 % und 7 % enthalten |
 | 6 | **Steuerfall** | entscheidet über Vorsteuer- und Umsatzsteuerkonto |
 | 7 | **Fachliche Gruppe** | Aufwands- bzw. Ertragskonto |
@@ -81,7 +95,7 @@ Ursache für falsche Perioden und falsche Voranmeldungen.
 | Feld | Bedeutung | Wofür maßgeblich |
 |---|---|---|
 | **Belegdatum** | Rechnungsdatum | Entstehung der USt, Vorsteuerabzug |
-| **Leistungsdatum / -zeitraum** | wann geleistet wurde | Periodenabgrenzung, § 14 Abs. 4 Nr. 6 UStG |
+| **Leistungsdatum / -zeitraum** | wann geleistet wurde | Periodenabgrenzung; § 14 Abs. 4 Nr. 6 UStG verlangt den Zeitpunkt, der Zeitraum ist Buchfinks eigene Anforderung für die Abgrenzung |
 | **Buchungsdatum** | Zuordnung zur Periode | Geschäftsjahr, Festschreibung |
 | **Valuta** | Wertstellung der Bank | nur bei Zahlungsbuchungen |
 
@@ -486,15 +500,27 @@ abziehbar. Sie brauchen getrennte Konten, sonst ist die Steuerbilanz falsch:
 
 | Fall | Konten |
 |---|---|
-| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Nr. 2 EStG); die Vorsteuer bleibt voll abziehbar (§ 15 Abs. 1a UStG) | 6640 abziehbar, 6644 nicht abzugsfähig |
-| **Geschenke** – bis zur Freigrenze abziehbar, darüber weder Aufwand noch Vorsteuer | 6610 abzugsfähig, 6620 nicht abzugsfähig |
+| **Bewirtung** – 70 % abziehbar, 30 % nicht (§ 4 Abs. 5 Satz 1 Nr. 2 EStG); die Vorsteuer bleibt trotzdem voll abziehbar, § 15 Abs. 1a Satz 2 UStG nimmt Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus | 6640 abziehbar, 6644 nicht abzugsfähig |
+| **Geschenke** – abziehbar, solange die Zuwendungen an einen Empfänger im Wirtschaftsjahr **50 €** nicht übersteigen (§ 4 Abs. 5 Satz 1 Nr. 1 Satz 2 EStG); darüber weder Aufwand noch Vorsteuer (§ 15 Abs. 1a Satz 1 UStG) | 6610 abzugsfähig, 6620 nicht abzugsfähig |
+
+Beide Grenzen gehören wie die AfA-Wertgrenzen in die versionierten Stammdaten: die
+Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
+Wirtschaftsjahre bei 35 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes
+Altjahr still falsch.
+
+Die Bewirtung hat zusätzlich eine **Aufzeichnungspflicht**, die keine Buchung ist,
+aber am Beleg hängt: Ort, Tag, Teilnehmer und Anlass der Bewirtung sowie die Höhe
+der Aufwendungen sind schriftlich festzuhalten; bei einer Gaststätte genügen Anlass
+und Teilnehmer, die Rechnung ist beizufügen (§ 4 Abs. 5 Satz 1 Nr. 2 Sätze 2 und 3
+EStG). Das sind Pflichtfelder am Beleg, sobald auf 6640 gebucht wird – ohne sie ist
+der Abzug auch für die 70 % verloren.
 
 ## 14. Eröffnungsbilanz & Stammkapital
 
 Die Gründung einer Kapitalgesellschaft erfordert besondere Buchungssätze, die Buchfink
 als geführten Workflow anbietet. Rechtsgrundlagen: § 272 Abs. 1 HGB (offener Abzug
-nicht eingeforderter Einlagen vom gezeichneten Kapital) und § 19 Abs. 2 GmbHG
-(Einfordern nur per Gesellschafterbeschluss).
+nicht eingeforderter Einlagen vom gezeichneten Kapital) und § 46 Nr. 2 GmbHG – die
+Einforderung der Einlagen unterliegt der Bestimmung der Gesellschafter.
 
 Das Eröffnungsbilanzkonto ist im SKR04 **9000 Saldenvorträge, Sachkonten**; für
 Personenkonten gibt es 9008 (Debitoren) und 9009 (Kreditoren). Nach allen
@@ -575,10 +601,126 @@ Jeder hat ein eigenes Anforderungsdokument, damit er für sich angegangen werden
 
 | Thema | Dokument | Was noch fehlt |
 |---|---|---|
+| **E-Rechnung** | [anforderung-e-rechnung.md](anforderung-e-rechnung.md) | **Kein Konzeptpunkt, sondern geltendes Recht.** Der Empfang einer E-Rechnung ist seit dem 01.01.2025 Pflicht und hat nie eine Übergangsfrist gehabt; Buchfink kann ihn nicht. Der Vorsteuerabzug hängt am strukturierten Teil. |
 | **Rechnungsabgrenzung** | [anforderung-rechnungsabgrenzung.md](anforderung-rechnungsabgrenzung.md) | Der Leistungszeitraum wird erfasst, die Abgrenzungsbuchung auf 1900 / 3900 fehlt. Kleinster Punkt, hängt im Kern an einer Entscheidung. |
 | **Anzahlungen & Rechnungsverbund** | [anforderung-anzahlungen.md](anforderung-anzahlungen.md) | Die Steuer entsteht mit der Vereinnahmung, nicht mit der Rechnung. Die Schlussrechnung muss die Anzahlungen absetzen, sonst greift § 14c Abs. 1 UStG. |
 | **Anlagenverwaltung** | [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md) | Größter Block: GWG und Sammelposten, AfA-Methoden, Abgang, Anlagenspiegel. |
 | **DATEV-Export** | [anforderung-datev-export.md](anforderung-datev-export.md) | Keine buchhalterische Entscheidung offen, aber eine architektonische: das n-Zeilen-Modell trifft auf DATEVs Konto/Gegenkonto. |
 
+Die E-Rechnung steht bewusst oben. Die anderen vier beschreiben Funktionen, die
+fehlen; sie beschreibt eine Pflicht, die läuft.
+
 Die Abschnitte 11 (Anlagenverwaltung) und 12 (Anzahlungen) in diesem Dokument bleiben
 als Überblick stehen; die Ausarbeitung steht in den verlinkten Dokumenten.
+
+### Bekannte Lücke im Steuermodell: der Nullsteuersatz
+
+`TaxRate` ist in Basispunkten geführt, und `0` bedeutet dort „keine Steuer".
+Damit lässt sich der **Nullsteuersatz des § 12 Abs. 3 UStG** nicht abbilden:
+„Die Steuer ermäßigt sich auf 0 Prozent" für die Lieferung von Solarmodulen an
+den Betreiber einer Photovoltaikanlage, für deren wesentliche Komponenten und
+Speicher, für den innergemeinschaftlichen Erwerb und die Einfuhr solcher
+Gegenstände sowie für die Installation (Nrn. 1 bis 4).
+
+Fachlich ist das etwas anderes als eine Steuerbefreiung: der Umsatz ist
+**steuerpflichtig zum Satz null**, der Vorsteuerabzug des Leistenden bleibt
+erhalten, und der SKR04 hat dafür ein eigenes Erlöskonto (**4290** Erlöse 0 %
+USt), das nicht mit den Konten für steuerfreie Umsätze zusammenfällt.
+
+Solange `0` doppelt belegt ist, würde der Fall stillschweigend als steuerfrei
+gebucht und auf dem falschen Konto landen. Die Lösung ist klein, aber sie greift
+in den Typ ein: entweder ein eigener `TaxTreatment` für den Nullsteuersatz oder
+ein separates „Steuersatz gesetzt / nicht gesetzt" neben dem Wert. Bis dahin gilt
+der Fall ausdrücklich als **nicht unterstützt** – lieber eine bekannte Lücke als
+eine unbemerkt falsche Buchung.
+
+## 17. Quellen
+
+Stand der Prüfung: **22.08.2026**. Alle Paragrafenangaben in diesem Dokument sind
+gegen den Volltext auf [gesetze-im-internet.de](https://www.gesetze-im-internet.de)
+geprüft, die GoBD gegen das BMF-Schreiben im Original.
+
+### Umsatzsteuer
+
+| Aussage | Fundstelle | Link |
+|---|---|---|
+| Sollversteuerung: Berechnung nach vereinbarten Entgelten | § 16 Abs. 1 Satz 1 UStG | [ustg_1980/__16.html](https://www.gesetze-im-internet.de/ustg_1980/__16.html) |
+| Entstehung der Steuer bei Sollversteuerung mit Ablauf des Voranmeldungszeitraums der Leistung | § 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG | [ustg_1980/__13.html](https://www.gesetze-im-internet.de/ustg_1980/__13.html) |
+| Istversteuerung: Entstehung mit Vereinnahmung | § 13 Abs. 1 Nr. 1 Buchst. b UStG | dito |
+| Gestattung der Istversteuerung, Gesamtumsatz höchstens 800.000 € im Vorjahr, ohne Rechtsformbindung | § 20 Satz 1 Nr. 1 UStG | [ustg_1980/__20.html](https://www.gesetze-im-internet.de/ustg_1980/__20.html) |
+| Rechnungsnummer einmalig und fortlaufend | § 14 Abs. 4 Nr. 4 UStG | [ustg_1980/__14.html](https://www.gesetze-im-internet.de/ustg_1980/__14.html) |
+| Leistungszeitpunkt als Pflichtangabe | § 14 Abs. 4 Nr. 6 UStG | dito |
+| E-Rechnungspflicht im B2B-Inland | § 14 Abs. 2 Satz 2 Nr. 1 UStG | dito |
+| Übergangsregelungen zur E-Rechnung (nur Ausstellung) | § 27 Abs. 38 UStG | [ustg_1980/__27.html](https://www.gesetze-im-internet.de/ustg_1980/__27.html) |
+| Steuerschuld bei zu hohem Steuerausweis | § 14c Abs. 1 UStG | [ustg_1980/__14c.html](https://www.gesetze-im-internet.de/ustg_1980/__14c.html) |
+| Steuerbefreiungen (i. g. Lieferung, Ausfuhr u. a.) | § 4 UStG | [ustg_1980/__4.html](https://www.gesetze-im-internet.de/ustg_1980/__4.html) |
+| Nullsteuersatz Photovoltaik | § 12 Abs. 3 UStG | [ustg_1980/__12.html](https://www.gesetze-im-internet.de/ustg_1980/__12.html) |
+| Reverse Charge, Steuerschuldnerschaft des Leistungsempfängers | § 13b UStG | [ustg_1980/__13b.html](https://www.gesetze-im-internet.de/ustg_1980/__13b.html) |
+| Änderung der Bemessungsgrundlage (Skonto) | § 17 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
+| Vorsteuerausschluss, Ausnahme für Bewirtung | § 15 Abs. 1a UStG | [ustg_1980/__15.html](https://www.gesetze-im-internet.de/ustg_1980/__15.html) |
+
+Zum § 13b-Fall ist eine Präzisierung nötig, die im Code umgesetzt ist: die
+Steuerschuldnerschaft folgt in den beiden für Buchfink relevanten Fällen aus
+verschiedenen Merkmalen. Bei einer sonstigen Leistung eines im übrigen
+Gemeinschaftsgebiet ansässigen Unternehmers (§ 13b Abs. 1 UStG) belegt die
+USt-IdNr. des Lieferanten dessen Unternehmereigenschaft im Ausland. Bei einer
+inländischen Bauleistung (§ 13b Abs. 2 Nr. 4 UStG) hängt die Steuerschuld dagegen
+am **Leistungsempfänger**, der selbst nachhaltig Bauleistungen erbringen muss
+(§ 13b Abs. 5 UStG). Eine fehlende USt-IdNr. des inländischen Lieferanten darf den
+Fall deshalb nicht blockieren – sie ist für ihn kein Tatbestandsmerkmal.
+
+### Einkommensteuer
+
+| Aussage | Fundstelle | Link |
+|---|---|---|
+| Bewirtung: 70 % abziehbar, Aufzeichnungspflichten | § 4 Abs. 5 Satz 1 Nr. 2 EStG | [estg/__4.html](https://www.gesetze-im-internet.de/estg/__4.html) |
+| Geschenke: Grenze 50 € je Empfänger und Wirtschaftsjahr | § 4 Abs. 5 Satz 1 Nr. 1 Satz 2 EStG | dito |
+| GWG, Sammelposten | § 6 Abs. 2, Abs. 2a EStG | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
+| AfA | § 7 EStG | [estg/__7.html](https://www.gesetze-im-internet.de/estg/__7.html) |
+| Sonderabschreibung | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
+
+### Handelsrecht
+
+| Aussage | Fundstelle | Link |
+|---|---|---|
+| Rückstellungen | § 249 HGB | [hgb/__249.html](https://www.gesetze-im-internet.de/hgb/__249.html) |
+| Rechnungsabgrenzungsposten | § 250 HGB | [hgb/__250.html](https://www.gesetze-im-internet.de/hgb/__250.html) |
+| Außerplanmäßige Abschreibung | § 253 Abs. 3 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
+| Währungsumrechnung | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
+| Bilanzgliederung | § 266 HGB | [hgb/__266.html](https://www.gesetze-im-internet.de/hgb/__266.html) |
+| Gezeichnetes Kapital, offener Abzug nicht eingeforderter Einlagen | § 272 Abs. 1 HGB, insbes. Satz 3 | [hgb/__272.html](https://www.gesetze-im-internet.de/hgb/__272.html) |
+| Einforderung der Einlagen durch Gesellschafterbeschluss | § 46 Nr. 2 GmbHG | [gmbhg/__46.html](https://www.gesetze-im-internet.de/gmbhg/__46.html) |
+
+**Korrektur gegenüber einer früheren Fassung:** die Einforderung ausstehender
+Einlagen war dort auf § 19 Abs. 2 GmbHG gestützt. Das ist falsch – § 19 Abs. 2
+GmbHG regelt das Verbot, den Gesellschafter von der Einlagepflicht zu befreien.
+Die Zuständigkeit der Gesellschafter für die Einforderung steht in § 46 Nr. 2
+GmbHG.
+
+### GoBD
+
+**GoBD in der Fassung vom 14.07.2025**, BMF-Schreiben GZ IV D 2 -
+S 0316/00128/005/088, BStBl I S. 1502 (2. Änderung). Ausgangsfassung: BMF-Schreiben
+vom 28.11.2019, BStBl I S. 1269, geändert am 11.03.2024, BStBl I S. 374.
+
+<https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.html>
+
+Die 2. Änderung ist ausdrücklich mit der Einführung der obligatorischen E-Rechnung
+begründet und betrifft die Aufbewahrung strukturierter Datensätze. Was daraus für
+Buchfink folgt, steht in [anforderung-e-rechnung.md](anforderung-e-rechnung.md),
+Abschnitt 6.
+
+### Kontenrahmen
+
+DATEV **SKR04** 2026, Art.-Nr. 11175, extrahiert aus
+`assets/DATEV-SKR04-BilrUg-2026.pdf` nach
+`internal/accounting/skr04_2026.json`. Der Test
+`TestConceptDocumentsUseRealSKR04Accounts` prüft bei jedem Build, dass jede in den
+Konzeptdokumenten hervorgehobene Kontonummer im Katalog existiert.
+
+### Was nicht geprüft ist
+
+- Das **DATEV-Austauschformat** – siehe die Vorbemerkung in
+  [anforderung-datev-export.md](anforderung-datev-export.md).
+- Die **technischen Normen** EN 16931, XRechnung und ZUGFeRD.
+- Die amtlichen **AfA-Tabellen**; sie sind Verwaltungsanweisung, nicht Gesetz.

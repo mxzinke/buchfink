@@ -333,8 +333,18 @@ func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Co
 			return fmt.Errorf("für einen innergemeinschaftlichen Erwerb braucht %s eine USt-IdNr.", contact.Name)
 		}
 	case domain.TaxTreatmentReverseCharge:
-		if contact.CountryCode == "DE" && contact.VatID == "" {
-			return fmt.Errorf("für § 13b UStG braucht %s eine USt-IdNr. oder eine Kennzeichnung als Bauleistender", contact.Name)
+		// § 13b UStG hat zwei getrennte Fälle. Bei einer sonstigen Leistung eines
+		// im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (Abs. 1) belegt
+		// die USt-IdNr. die Unternehmereigenschaft im Ausland. Bei einer
+		// inländischen Bauleistung (Abs. 2 Nr. 4) hängt die Steuerschuld dagegen
+		// am *Leistungsempfänger* – er muss selbst nachhaltig Bauleistungen
+		// erbringen (Abs. 5). Das steht nicht in den Lieferantenstammdaten, also
+		// darf eine fehlende USt-IdNr. des inländischen Lieferanten den Fall auch
+		// nicht blockieren.
+		if contact.IsEUCounterparty() && contact.VatID == "" {
+			return fmt.Errorf(
+				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
+				contact.Name)
 		}
 	}
 	return nil
