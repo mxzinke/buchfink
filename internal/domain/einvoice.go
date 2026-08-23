@@ -49,6 +49,11 @@ type IncomingInvoice struct {
 	// References the document carries. PrecedingInvoices is what ties a
 	// correction to what it corrects and a Schlussrechnung to its
 	// Anzahlungsrechnungen.
+	//
+	// TODO: Rechnungsverbund — die genannten Nummern gegen die abgelegten Belege
+	// auflösen und den Bezug speichern, statt ihn nur anzuzeigen. Ohne das bleibt
+	// die Verrechnung einer Korrektur oder einer Anzahlung Handarbeit; siehe
+	// docs/anforderung-anzahlungen.md.
 	BuyerReference    string   `json:"buyerReference,omitempty"`
 	OrderReference    string   `json:"orderReference,omitempty"`
 	PrecedingInvoices []string `json:"precedingInvoices,omitempty"`
@@ -87,6 +92,12 @@ const (
 // and deducted again in the Schlussrechnung. Proposing an ordinary expense
 // booking for any of them would put the sign or the period wrong, and it would
 // look right.
+//
+// TODO: eigene Buchungswege für Gutschrift (Minderung von Aufwand und Vorsteuer,
+// verrechnet gegen die ursprüngliche Rechnung), Rechnungskorrektur und
+// Anzahlungsrechnung (§ 14 Abs. 5 UStG — steuerwirksam erst mit der Zahlung, in
+// der Schlussrechnung wieder abzusetzen). Kein Sonderfall im vorhandenen Weg:
+// jede von ihnen ist ein anderer Geschäftsvorfall.
 func (k EInvoiceKind) Bookable() bool { return k == EInvoiceKindInvoice }
 
 // Label returns a German name.
@@ -179,6 +190,9 @@ func TaxTreatmentForIncomingCategory(categoryCode string) (TaxTreatment, error) 
 		// Einfuhrumsatzsteuer aus dem Zollbescheid statt aus dieser Rechnung.
 		// Buchfink bildet den Fall nicht ab, und ihn als "steuerfrei" zu buchen
 		// wäre falsch.
+		//
+		// TODO: Einfuhr abbilden — Einfuhrumsatzsteuer aus dem Zollbescheid als
+		// eigener Beleg, verknüpft mit dieser Rechnung.
 		return "", fmt.Errorf("der Kategoriecode G steht für eine Ausfuhr des Lieferanten. Für den Empfänger ist das eine Einfuhr, die Buchfink noch nicht abbildet — die Einfuhrumsatzsteuer steht im Zollbescheid, nicht in dieser Rechnung")
 	case "L", "M":
 		// IGIC und IPSI sind spanische Sondergebietsteuern. Sie kommen in

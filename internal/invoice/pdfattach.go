@@ -17,3 +17,6 @@ func ExtractEmbeddedInvoice(pdf []byte) (*EmbeddedFile, error) {
 
 // IsPDF reports whether the bytes start with a PDF header.
 func IsPDF(data []byte) bool { return einvoice.IsPDF(data) }
+
+// LooksLikeXML reports whether the bytes begin like an XML document.
+func LooksLikeXML(data []byte) bool { return einvoice.LooksLikeXML(data) }

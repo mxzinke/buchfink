@@ -184,8 +184,13 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	if len(req.Positions) == 0 {
 		return nil, nil, nil, fmt.Errorf("der Beleg hat keine Positionen")
 	}
+	// Kein stiller Vorgabewert: ein steuerfreier, ein nullbesteuerter und ein
+	// dem Reverse-Charge unterliegender Einkauf sehen im Betrag gleich aus und
+	// werden verschieden gebucht. Wo der Steuerfall fehlt — etwa weil der
+	// Rechnungsdatensatz Kategorien mischt —, ist er zu wählen, nicht zu raten.
 	if req.TaxTreatment == "" {
-		req.TaxTreatment = domain.TaxTreatmentDomestic
+		return nil, nil, nil, fmt.Errorf(
+			"der Steuerfall fehlt. Er ist anzugeben und lässt sich nicht aus den Beträgen erschließen")
 	}
 
 	contact, err := s.contactRepo.FindByID(ctx, req.ContactID)

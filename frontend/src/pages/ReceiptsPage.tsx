@@ -81,6 +81,7 @@ export const ReceiptsPage: React.FC = () => {
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
   const [selected, setSelected] = useState<Receipt | null>(null);
   const [proposal, setProposal] = useState<EInvoiceProposal | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +116,7 @@ export const ReceiptsPage: React.FC = () => {
   // Liegt ein strukturierter Teil vor, ist er die Buchungsquelle — der
   // Vorsteuerabzug ist nur aus ihm möglich (UStAE 14c.1 Abs. 4a Satz 4).
   useEffect(() => {
+    setProposalError(null);
     if (!selected || selected.status !== 'filed') {
       setProposal(null);
       return;
@@ -129,9 +131,13 @@ export const ReceiptsPage: React.FC = () => {
         if (!cancelled) setProposal(p);
       })
       .catch((e) => {
+        // Kein Toast: warum aus diesem Datensatz kein Vorschlag wird — eine
+        // Gutschrift, ein unbekannter Steuerkategoriecode —, muss stehen
+        // bleiben, solange der Beleg offen ist. Eine Meldung, die nach fünf
+        // Sekunden verschwindet, beantwortet die Frage genau einmal.
         if (!cancelled) {
           setProposal(null);
-          toast.error(e instanceof Error ? e.message : String(e));
+          setProposalError(e instanceof Error ? e.message : String(e));
         }
       });
     return () => {
@@ -210,6 +216,7 @@ export const ReceiptsPage: React.FC = () => {
             treatments={treatments}
             paymentAccounts={paymentAccounts}
             proposal={proposal}
+            proposalError={proposalError}
             onChanged={async (updated) => {
               setSelected(updated);
               await load();
@@ -300,20 +307,34 @@ const ReceiptDetail: React.FC<{
   onChanged: (updated: Receipt) => Promise<void>;
   onBooked: (entryNumber: string) => Promise<void>;
   proposal: EInvoiceProposal | null;
-}> = ({ receipt, vendors, groups, treatments, paymentAccounts, proposal, onChanged, onBooked }) => (
+  proposalError: string | null;
+}> = ({
+  receipt,
+  vendors,
+  groups,
+  treatments,
+  paymentAccounts,
+  proposal,
+  proposalError,
+  onChanged,
+  onBooked,
+}) => (
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} />
     {receipt.status === 'filed' ? (
-      <BookingForm
-        key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
-        receipt={receipt}
-        vendors={vendors}
-        groups={groups}
-        treatments={treatments}
-        paymentAccounts={paymentAccounts}
-        proposal={proposal}
-        onBooked={onBooked}
-      />
+      <div className="space-y-3">
+        <ProposalRefusal message={proposalError} />
+        <BookingForm
+          key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
+          receipt={receipt}
+          vendors={vendors}
+          groups={groups}
+          treatments={treatments}
+          paymentAccounts={paymentAccounts}
+          proposal={proposal}
+          onBooked={onBooked}
+        />
+      </div>
     ) : (
       <div className="rounded-2xl border border-stone-200 bg-white p-5 text-xs text-stone-500 space-y-2">
         <div className="flex items-center gap-1.5 font-semibold text-stone-700">
@@ -532,7 +553,14 @@ const BookingForm: React.FC<{
   const [bookingDate, setBookingDate] = useState(p?.bookingDate || today);
   const [serviceFrom, setServiceFrom] = useState(p?.serviceDateFrom || today);
   const [serviceTo, setServiceTo] = useState(p?.serviceDateTo || today);
-  const [treatment, setTreatment] = useState<TaxTreatment>(p?.taxTreatment || 'domestic');
+  // Ohne Vorschlag steht „Inland" — die gewöhnliche Eingangsrechnung. Kam ein
+  // Vorschlag, ließ sich der Steuerfall daraus aber nicht ableiten, bleibt das
+  // Feld leer: das Backend hat sich bewusst enthalten (gemischte Kategorien, ein
+  // Code ohne deutsche Entsprechung), und „Inland" hier einzusetzen überschriebe
+  // genau diese Enthaltung. Das Backend nimmt eine Buchung ohne Steuerfall nicht an.
+  const [treatment, setTreatment] = useState<TaxTreatment | ''>(
+    proposal ? p?.taxTreatment || '' : 'domestic',
+  );
   const [positions, setPositions] = useState<DraftPosition[]>(
     // Beträge und Steuersätze kommen aus dem strukturierten Teil, die
     // Buchungsgruppe bleibt offen — sie steht in keiner Rechnung.
@@ -575,7 +603,7 @@ const BookingForm: React.FC<{
       serviceDateFrom: serviceFrom,
       serviceDateTo: serviceTo,
       description,
-      taxTreatment: treatment,
+      taxTreatment: treatment as TaxTreatment,
       positions: positions
         .filter((p) => p.postingGroup && parseCents(p.net) !== null)
         .map((p) => ({
@@ -609,7 +637,7 @@ const BookingForm: React.FC<{
   // Der Buchungssatz kommt aus dem Backend. Das Frontend rechnet ihn nicht nach:
   // eine zweite Steuerrechnung hier wäre eine zweite Wahrheit.
   useEffect(() => {
-    if (!contactId || request.positions.length === 0) {
+    if (!contactId || !treatment || request.positions.length === 0) {
       setPreview(null);
       setPreviewError(null);
       return;
@@ -632,7 +660,7 @@ const BookingForm: React.FC<{
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [request, contactId]);
+  }, [request, contactId, treatment]);
 
   function updatePosition(index: number, patch: Partial<DraftPosition>) {
     setPositions((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -749,7 +777,9 @@ const BookingForm: React.FC<{
             className={inputClass}
             value={treatment}
             onChange={(e) => setTreatment(e.target.value as TaxTreatment)}
+            required
           >
+            {!treatment && <option value="">Steuerfall wählen…</option>}
             {treatments.map((t) => (
               <option key={t.treatment} value={t.treatment}>
                 {t.label}
@@ -974,6 +1004,30 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
   );
 };
 
+/**
+ * Warum aus dem strukturierten Teil kein Buchungsvorschlag wurde.
+ *
+ * Der Beleg bleibt buchbar — von Hand. Was das Backend ablehnt, ist der
+ * Vorschlag, nicht die Buchung: eine Gutschrift ist ein gültiges Dokument mit
+ * einem anderen Geschäftsvorfall dahinter, und diese Entscheidung trifft der
+ * Nutzer, nicht Buchfink.
+ */
+const ProposalRefusal: React.FC<{ message: string | null }> = ({ message }) => {
+  if (!message) return null;
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 space-y-1">
+      <div className="flex items-start gap-1.5 text-xs font-semibold text-amber-900">
+        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />
+        Kein Buchungsvorschlag aus dem Rechnungsdatensatz
+      </div>
+      <p className="text-[11px] text-stone-700 leading-relaxed">{message}</p>
+      <p className="text-[11px] text-stone-500 leading-relaxed">
+        Der Beleg lässt sich weiterhin von Hand kontieren.
+      </p>
+    </div>
+  );
+};
+
 /** Was aus dem strukturierten Teil kam und was offen blieb. */
 const ProposalNotes: React.FC<{ proposal: EInvoiceProposal }> = ({ proposal }) => (
   <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 space-y-1">
@@ -984,8 +1038,15 @@ const ProposalNotes: React.FC<{ proposal: EInvoiceProposal }> = ({ proposal }) =
     <p className="text-[11px] text-stone-600">
       {proposal.supplierName}
       {proposal.invoiceNumber && ` · Rechnung ${proposal.invoiceNumber}`}
+      {proposal.kindLabel && ` · ${proposal.kindLabel}`}
       {proposal.profile && ` · Profil ${proposal.profile}`}
     </p>
+    {proposal.precedingInvoices && proposal.precedingInvoices.length > 0 && (
+      <p className="text-[11px] text-stone-600">
+        Bezug auf {proposal.precedingInvoices.join(', ')} — die Verrechnung mit der genannten
+        Rechnung führt Buchfink noch nicht; sie ist von Hand zu prüfen.
+      </p>
+    )}
     {proposal.notes && proposal.notes.length > 0 && (
       <ul className="text-[11px] text-stone-600 list-disc pl-4 space-y-0.5">
         {proposal.notes.map((note, i) => (

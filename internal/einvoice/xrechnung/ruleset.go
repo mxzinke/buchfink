@@ -451,6 +451,11 @@ func UncheckedRules() map[string]string {
 
 // uncheckedRules are the rules that cannot be decided on the semantic model of
 // EN 16931, with the reason for each.
+//
+// TODO: die Extension-Regeln (BR-DEX-*) brauchen ein Modell der XRechnung-
+// Erweiterung — Unterpositionen und Zahlungen durch Dritte —, die Syntaxregeln
+// (BR-TMP-3 bis -5) eine Prüfung am XML-Baum statt am Modell. Beides ist eine
+// eigene Schicht, kein Nachtrag hier.
 var uncheckedRules = map[string]string{
 	"BR-DEX-02": "betrifft Unterpositionen (BG-DEX-01), die EN 16931 nicht kennt",
 	"BR-DEX-03": "betrifft Unterpositionen (BG-DEX-01), die EN 16931 nicht kennt",

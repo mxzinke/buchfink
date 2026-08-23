@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -136,10 +135,21 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	}
 
 	// Erst lesen, dann ablegen: was sich nicht lesen lässt, wird auch nicht als
-	// strukturierter Teil an den Beleg gehängt.
-	validation, err := s.reader.ValidateOnly(structured.Content)
-	if err != nil {
-		return nil, err
+	// strukturierter Teil an den Beleg gehängt. Gelesen wird einmal — das
+	// Prüfergebnis und die mitgeschickten Unterlagen fallen beide dabei an.
+	read, readErr := s.reader.Read(structured.Content)
+	validation := domain.ReceiptValidation{}
+	if readErr == nil {
+		validation = read.Validation
+	} else {
+		// Ein Datensatz in einem Profil, aus dem sich nicht buchen lässt —
+		// ZUGFeRD MINIMUM oder BASIC WL —, gehört trotzdem an den Beleg und
+		// geprüft: das Prüfergebnis ist gerade die Begründung dafür, dass er
+		// nicht reicht. Ist er überhaupt nicht lesbar, scheitert auch die
+		// Prüfung, und dann zählt der erste, sprechendere Fehler.
+		if validation, err = s.reader.ValidateOnly(structured.Content); err != nil {
+			return nil, readErr
+		}
 	}
 
 	updated, err := s.receiptSvc.AddFile(ctx, receiptID, structured)
@@ -150,8 +160,10 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	// Die im Datensatz mitgeschickten Unterlagen gehören zum Beleg. Sie wegzuwerfen
 	// hieße, einen Teil des Empfangenen zu verlieren — der Stundenzettel zur
 	// Rechnung ist Aufbewahrungsgegenstand wie die Rechnung selbst.
-	if updated, err = s.attachEnclosures(ctx, updated, structured.Content); err != nil {
-		return nil, err
+	if readErr == nil {
+		if updated, err = s.attachEnclosures(ctx, updated, read.Attachments); err != nil {
+			return nil, err
+		}
 	}
 
 	// Geprüft wird direkt nach dem Auslesen: das Ergebnis gehört zum Beleg, und
@@ -162,19 +174,14 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	return s.receiptSvc.Get(ctx, updated.ID)
 }
 
-// attachEnclosures files the documents the invoice carried inside itself.
+// attachEnclosures files the documents the invoice carried inside itself (BG-24).
 //
-// A record that cannot be mapped is not an error here: a ZUGFeRD MINIMUM
-// document has no enclosures to lose, and refusing to file the Beleg over it
-// would leave the user with neither the record nor the reason. A failure to
-// *store* an enclosure is a different matter and passes through — a file that
-// arrived and did not get written is exactly what must not disappear quietly.
-func (s *EInvoiceService) attachEnclosures(ctx context.Context, receipt *domain.Receipt, structured []byte) (*domain.Receipt, error) {
-	read, err := s.reader.Read(structured)
-	if err != nil || len(read.Attachments) == 0 {
-		return receipt, nil
-	}
-	for _, enclosure := range read.Attachments {
+// A failure to store one passes through rather than being swallowed: a file
+// that arrived and did not get written is exactly what must not disappear
+// quietly.
+func (s *EInvoiceService) attachEnclosures(ctx context.Context, receipt *domain.Receipt, enclosures []domain.IncomingAttachment) (*domain.Receipt, error) {
+	var err error
+	for _, enclosure := range enclosures {
 		receipt, err = s.receiptSvc.AddFile(ctx, receipt.ID, NewFile{
 			Role:     domain.ReceiptRoleAttachment,
 			FileName: enclosure.FileName,
@@ -328,6 +335,10 @@ func resolveTreatment(read *domain.IncomingInvoice) (domain.TaxTreatment, string
 	default:
 		// Buchfink führt den Steuerfall je Beleg, nicht je Position. Eine
 		// Rechnung, die beides mischt, ist von Hand zu teilen.
+		//
+		// TODO: Steuerfall je Position führen. Eine Rechnung mit steuerpflichtigen
+		// und steuerfreien Positionen ist zulässig und kommt vor; sie zu teilen
+		// erzeugt zwei Belege für ein Dokument.
 		return "", fmt.Sprintf(
 			"Die Rechnung mischt die Steuerkategorien %s. Buchfink führt den Steuerfall je Beleg — bitte von Hand wählen oder den Beleg aufteilen.",
 			strings.Join(read.TaxCategories, ", "))
@@ -379,10 +390,5 @@ func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.Inv
 }
 
 func isXML(mimeType string, data []byte) bool {
-	if strings.Contains(mimeType, "xml") {
-		return true
-	}
-	// Ein UTF-8-BOM am Anfang ist verbreitet und kein Fehler.
-	trimmed := strings.TrimLeft(string(bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})), " \t\r\n")
-	return strings.HasPrefix(trimmed, "<?xml") || strings.HasPrefix(trimmed, "<")
+	return strings.Contains(mimeType, "xml") || invoice.LooksLikeXML(data)
 }

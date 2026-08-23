@@ -2,6 +2,7 @@ package invoice
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -172,7 +173,7 @@ func categories(inv *einvoice.Invoice) []string {
 		seen[code] = true
 		out = append(out, code)
 	}
-	sortStrings(out)
+	sort.Strings(out)
 	return out
 }
 
@@ -279,6 +280,9 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 // XRechnung is not: its extension rules concern business terms the semantic
 // model does not carry, and saying "geprüft" without that caveat would be the
 // one failure worse than the gap.
+//
+// TODO: sobald die Extension- und Syntaxregeln geprüft werden (siehe
+// xrechnung.UncheckedRules), fällt die Unterscheidung weg.
 func coverage(inv *einvoice.Invoice) string {
 	if inv.IsXRechnung() {
 		return "partial"
@@ -294,12 +298,4 @@ func attachmentName(doc einvoice.SupportingDocument) string {
 		return ref
 	}
 	return "anlage"
-}
-
-func sortStrings(values []string) {
-	for i := 1; i < len(values); i++ {
-		for j := i; j > 0 && values[j] < values[j-1]; j-- {
-			values[j], values[j-1] = values[j-1], values[j]
-		}
-	}
 }

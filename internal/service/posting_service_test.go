@@ -450,3 +450,28 @@ func TestSuSaIsExactlyBalanced(t *testing.T) {
 			susa.Difference, susa.TotalDebit, susa.TotalCredit)
 	}
 }
+
+// Ein fehlender Steuerfall wird abgewiesen, nicht auf "Inland" gesetzt.
+//
+// Der Fall entsteht real: liest der E-Rechnungs-Leser einen Kategoriecode, für
+// den es keine deutsche Entsprechung gibt, oder mischt die Rechnung mehrere
+// Kategorien, dann enthält er sich bewusst. Ein stiller Vorgabewert würde daraus
+// eine Buchung mit Vorsteuerabzug machen, die richtig aussieht.
+func TestIncomingReceiptWithoutTreatmentIsRefused(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Agentur GmbH", "DE", "")
+
+	req := env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.TaxTreatment = ""
+
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
+		t.Fatal("eine Buchung ohne Steuerfall wurde angenommen")
+	} else if !strings.Contains(err.Error(), "Steuerfall") {
+		t.Fatalf("die Meldung nennt den Grund nicht: %v", err)
+	}
+
+	if _, err := env.posting.PreviewIncomingReceipt(ctx, req); err == nil {
+		t.Fatal("die Vorschau rechnete ohne Steuerfall")
+	}
+}

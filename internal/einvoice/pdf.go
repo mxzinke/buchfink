@@ -55,7 +55,7 @@ func ExtractFromPDF(pdf []byte) (*EmbeddedFile, error) {
 		}
 	}
 	for i := range files {
-		if strings.HasSuffix(strings.ToLower(files[i].Name), ".xml") || looksLikeXML(files[i].Data) {
+		if strings.HasSuffix(strings.ToLower(files[i].Name), ".xml") || LooksLikeXML(files[i].Data) {
 			return &files[i], nil
 		}
 	}
@@ -97,7 +97,12 @@ func extractAttachments(pdf []byte) ([]EmbeddedFile, error) {
 	return out, nil
 }
 
-func looksLikeXML(data []byte) bool {
+// LooksLikeXML reports whether the bytes begin like an XML document.
+//
+// It is a shape check, not a parse: what it answers is "is it worth handing
+// this to the parser", and it has to answer that on the first few bytes of a
+// file that may be megabytes.
+func LooksLikeXML(data []byte) bool {
 	// Ein UTF-8-BOM am Anfang ist verbreitet und kein Fehler.
 	trimmed := bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	trimmed = bytes.TrimLeft(trimmed, " \t\r\n")
