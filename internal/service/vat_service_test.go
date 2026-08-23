@@ -155,6 +155,24 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 	if year.InputTax != 28500 {
 		t.Errorf("Vorsteuer Gesamtjahr = %s, erwartet 285,00", year.InputTax)
 	}
+
+	// Beide Grenzen zählen mit. Ein Zeitraum, der den ersten oder letzten Tag
+	// ausschlösse, ließe genau die Buchungen fallen, die am Rand einer
+	// Voranmeldung liegen — und niemandem fiele es auf.
+	edges, err := env.vat().Summary(ctx, "2026-01-15", "2026-04-15")
+	if err != nil {
+		t.Fatalf("Randzeitraum: %v", err)
+	}
+	if edges.InputTax != 28500 {
+		t.Errorf("Vorsteuer 15.01.–15.04. = %s, erwartet 285,00 (beide Tage einschließlich)", edges.InputTax)
+	}
+	empty, err := env.vat().Summary(ctx, "2026-01-16", "2026-04-14")
+	if err != nil {
+		t.Fatalf("Zeitraum ohne Buchungen: %v", err)
+	}
+	if empty.InputTax != 0 {
+		t.Errorf("Vorsteuer 16.01.–14.04. = %s, erwartet 0,00", empty.InputTax)
+	}
 }
 
 // Ein steuerfreier sonstiger Ertrag gehört in die Auswertung. Der Katalog führt

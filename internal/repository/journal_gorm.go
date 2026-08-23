@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -39,6 +40,44 @@ func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm
 	return q
 }
 
+// entryBatchSize keeps the preloads' IN lists far below SQLite's limit of 32766
+// bind variables, with room for both preloads on the same batch.
+const entryBatchSize = 2000
+
+// findBatched runs a query in batches instead of one statement.
+//
+// This is not tuning, it is the difference between working and failing. GORM
+// loads the lines of an entry through an IN list with one bind variable per
+// parent row, and SQLite refuses above 32766 of them — a query does not get
+// slow there, it returns an error. The readers on this path are the journal
+// list, the Umsatzsteuer-Auswertung and the GoBD integrity check, so the failure
+// would arrive as "the journal cannot be read" on a perfectly healthy database.
+//
+// The paging is by primary key, so every caller must be ordered by it — which
+// preloaded already is. A query ordered by anything else pages wrong and has to
+// sort in Go afterwards.
+func findBatched(q *gorm.DB) ([]domain.JournalEntry, error) {
+	var out []domain.JournalEntry
+	batch := make([]domain.JournalEntry, 0, entryBatchSize)
+	err := q.FindInBatches(&batch, entryBatchSize, func(*gorm.DB, int) error {
+		out = append(out, batch...)
+		return nil
+	}).Error
+	return out, err
+}
+
+// byBookingDate orders entries for display: chronologically, and within a day by
+// the order they were written.
+func byBookingDate(entries []domain.JournalEntry) []domain.JournalEntry {
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].BookingDate != entries[j].BookingDate {
+			return entries[i].BookingDate < entries[j].BookingDate
+		}
+		return entries[i].ID < entries[j].ID
+	})
+	return entries
+}
+
 // notReversed narrows a query to the entries that are still in force: neither a
 // Generalumkehr itself nor cancelled by one.
 //
@@ -53,9 +92,20 @@ func notReversed(q *gorm.DB, alias string) *gorm.DB {
 }
 
 func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
-	var entries []domain.JournalEntry
-	err := r.scope(ctx, fiscalYear).Find(&entries).Error
-	return entries, err
+	return findBatched(r.scope(ctx, fiscalYear))
+}
+
+// FindByBookingDateRange narrows to a booking-date window inside a fiscal year.
+// Empty bounds mean the whole year.
+func (r *journalRepositoryGorm) FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]domain.JournalEntry, error) {
+	q := r.scope(ctx, fiscalYear)
+	if from != "" {
+		q = q.Where("booking_date >= ?", from)
+	}
+	if to != "" {
+		q = q.Where("booking_date <= ?", to)
+	}
+	return findBatched(q)
 }
 
 func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
@@ -71,25 +121,8 @@ func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fisc
 		q = q.Where("fiscal_year <= ?", fiscalYear)
 	}
 
-	// Gelesen wird in Stapeln, und das ist keine Vorsichtsmaßnahme: GORM lädt
-	// die Zeilen über eine IN-Liste mit einer Bindvariablen je Buchung, und
-	// SQLite bricht bei 32.766 davon ab. Über alle Jahre summiert ist diese
-	// Zahl erreichbar — und dann läge nicht die Liste der offenen Posten
-	// langsam, sondern sie käme mit einem Fehler zurück, und mit ihr jede
-	// Zahlung. Je Stapel bleibt die Liste kurz, unabhängig davon, wie viele
-	// Jahre der Mandant schon läuft.
-	var entries []domain.JournalEntry
-	batch := make([]domain.JournalEntry, 0, openItemBatchSize)
-	err := q.FindInBatches(&batch, openItemBatchSize, func(*gorm.DB, int) error {
-		entries = append(entries, batch...)
-		return nil
-	}).Error
-	return entries, err
+	return findBatched(q)
 }
-
-// openItemBatchSize keeps the preload's IN list far below SQLite's limit of
-// 32766 bind variables, with room for the second preload on the same batch.
-const openItemBatchSize = 2000
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
@@ -100,38 +133,24 @@ func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 }
 
 func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account string, fiscalYear int) ([]domain.JournalEntry, error) {
-	var ids []uint
-	q := r.db.WithContext(ctx).Model(&domain.JournalLine{}).
-		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id").
-		Where("journal_lines.account = ?", account)
-	if fiscalYear > 0 {
-		q = q.Where("e.fiscal_year = ?", fiscalYear)
-	}
-	if err := q.Distinct("journal_lines.entry_id").Pluck("journal_lines.entry_id", &ids).Error; err != nil {
+	// Ein EXISTS statt einer Liste eingesammelter Kennungen: die Liste wäre eine
+	// zweite Abfrage und eine zweite Bindvariablenliste, und beide wachsen mit
+	// der Zahl der Buchungen auf dem Konto.
+	q := r.scope(ctx, fiscalYear).
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND l.account = ?)", account)
+	entries, err := findBatched(q)
+	if err != nil {
 		return nil, err
 	}
-	if len(ids) == 0 {
-		return []domain.JournalEntry{}, nil
-	}
-
-	var entries []domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
-		Where("id IN ?", ids).
-		Order("booking_date asc, id asc").
-		Find(&entries).Error
-	return entries, err
+	return byBookingDate(entries), nil
 }
 
 func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]domain.JournalEntry, error) {
-	var entries []domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
-		Where("contact_id = ?", contactID).
-		Order("booking_date asc, id asc")
-	if fiscalYear > 0 {
-		q = q.Where("fiscal_year = ?", fiscalYear)
+	entries, err := findBatched(r.scope(ctx, fiscalYear).Where("contact_id = ?", contactID))
+	if err != nil {
+		return nil, err
 	}
-	err := q.Find(&entries).Error
-	return entries, err
+	return byBookingDate(entries), nil
 }
 
 func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {

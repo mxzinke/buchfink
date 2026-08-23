@@ -337,6 +337,11 @@ type EntryHashFunc func(e *JournalEntry, prevHash string) string
 // JournalRepository defines persistence for journal entries.
 type JournalRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindByBookingDateRange narrows to a booking-date window inside a fiscal
+	// year; empty bounds mean the whole year. The Umsatzsteuer-Voranmeldung is
+	// monthly or quarterly, and filtering a whole year in Go to report one month
+	// of it reads twelve times what it needs.
+	FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]JournalEntry, error)
 	// FindOpenItemCandidates returns the entries a Forderung or Verbindlichkeit
 	// could still sit in: the given year and every earlier one, minus everything
 	// a Generalumkehr has cancelled.

@@ -33,7 +33,10 @@ func (s *VatService) SetFiscalYear(year int) { s.fiscalYear = year }
 // Summary computes the VAT figures for a date range. Empty bounds mean the
 // whole fiscal year.
 func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatSummary, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+	// Der Zeitraum wird in der Abfrage eingegrenzt, nicht hinterher: eine
+	// monatliche Voranmeldung liest sonst ein ganzes Jahr, um einen Monat
+	// auszuweisen.
+	entries, err := s.journalRepo.FindByBookingDateRange(ctx, s.fiscalYear, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -47,13 +50,6 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 
 	for i := range entries {
 		entry := &entries[i]
-		if from != "" && entry.BookingDate < from {
-			continue
-		}
-		if to != "" && entry.BookingDate > to {
-			continue
-		}
-
 		for _, line := range entry.Lines {
 			// Signed in the account's natural direction, base included.
 			credit, base := line.Amount, line.TaxBase
