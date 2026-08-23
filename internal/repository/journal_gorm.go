@@ -23,12 +23,33 @@ func NewJournalRepository(db *gorm.DB) domain.JournalRepository {
 	return &journalRepositoryGorm{db: db}
 }
 
+// preloaded is the read every finder starts from. The preload set is not a
+// convenience: an entry read without its Aufzeichnung hashes differently than it
+// was written, so a finder that forgets it makes the integrity check report
+// every Bewirtungsbuchung as broken. Written once, it cannot be forgotten.
+func (r *journalRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
+	return r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+}
+
 func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm.DB {
-	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+	q := r.preloaded(ctx)
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
 	return q
+}
+
+// notReversed narrows a query to the entries that are still in force: neither a
+// Generalumkehr itself nor cancelled by one.
+//
+// It is deliberately not bounded by fiscal year, and that is the whole point.
+// A Generalumkehr is dated at the day of the correction, never backdated into
+// the period it corrects, so it regularly lands in a later year than the entry
+// it cancels. Asking the question inside a year window answers it wrong for
+// exactly the entries that matter.
+func notReversed(q *gorm.DB, alias string) *gorm.DB {
+	return q.Where(alias+".kind <> ?", domain.EntryKindReversal).
+		Where("NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = " + alias + ".id)")
 }
 
 func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
@@ -37,15 +58,38 @@ func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]
 	return entries, err
 }
 
-func (r *journalRepositoryGorm) FindThroughFiscalYear(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
-	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
+	q := notReversed(r.preloaded(ctx), "journal_entries").
+		// Zahlungen begründen selbst keinen offenen Posten.
+		Where("source <> ?", domain.EntrySourcePayment).
+		// Und nur eine Buchung mit einem Personenkonto trägt überhaupt einen.
+		// Die Vorauswahl ist absichtlich loser als domain.IsLedgerAccount: sie
+		// darf nie strenger sein als die Regel, die anschließend im Go-Code
+		// entscheidet, sonst fiele ein Posten stillschweigend heraus.
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND length(l.account) = 5)")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year <= ?", fiscalYear)
 	}
+
+	// Gelesen wird in Stapeln, und das ist keine Vorsichtsmaßnahme: GORM lädt
+	// die Zeilen über eine IN-Liste mit einer Bindvariablen je Buchung, und
+	// SQLite bricht bei 32.766 davon ab. Über alle Jahre summiert ist diese
+	// Zahl erreichbar — und dann läge nicht die Liste der offenen Posten
+	// langsam, sondern sie käme mit einem Fehler zurück, und mit ihr jede
+	// Zahlung. Je Stapel bleibt die Liste kurz, unabhängig davon, wie viele
+	// Jahre der Mandant schon läuft.
 	var entries []domain.JournalEntry
-	err := q.Find(&entries).Error
+	batch := make([]domain.JournalEntry, 0, openItemBatchSize)
+	err := q.FindInBatches(&batch, openItemBatchSize, func(*gorm.DB, int) error {
+		entries = append(entries, batch...)
+		return nil
+	}).Error
 	return entries, err
 }
+
+// openItemBatchSize keeps the preload's IN list far below SQLite's limit of
+// 32766 bind variables, with room for the second preload on the same batch.
+const openItemBatchSize = 2000
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry

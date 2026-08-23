@@ -192,3 +192,29 @@ func TestChartLookupInheritsRangeClassification(t *testing.T) {
 		t.Error("ein aus einem Bereich abgeleitetes Konto darf selbst kein Bereichskonto sein")
 	}
 }
+
+// Die USt-Auswertung erkennt steuerfreie und nullbesteuerte Erlöse am Konto.
+// Welches Konto für welchen Steuerfall steht, darf nur an einer Stelle stehen —
+// hier. Eine zweite Tabelle driftet, und der nächste Steuerfall verschwände aus
+// der Voranmeldung, ohne dass irgendwo etwas fehlschlägt.
+func TestRevenueAccountTreatmentsCoverTheCatalogue(t *testing.T) {
+	got := RevenueAccountTreatments()
+	for _, g := range PostingGroups(domain.DirectionOutgoing) {
+		for treatment, account := range g.TreatmentAccounts {
+			if got[account] != treatment {
+				t.Errorf("Konto %s steht im Katalog für %q, in der Rückabbildung aber für %q",
+					account, treatment, got[account])
+			}
+		}
+	}
+	// Zwei, die der Katalog kennt und eine handgepflegte Liste schon einmal
+	// verloren hatte.
+	for account, want := range map[string]domain.TaxTreatment{
+		"4290": domain.TaxTreatmentZeroRated,
+		"4842": domain.TaxTreatmentExempt,
+	} {
+		if got[account] != want {
+			t.Errorf("Konto %s fehlt in der Rückabbildung (erhalten %q)", account, got[account])
+		}
+	}
+}

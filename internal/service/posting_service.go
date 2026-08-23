@@ -509,16 +509,25 @@ func (s *PostingService) taxLines(dir domain.Direction, treatment domain.TaxTrea
 			if leg.Amount == 0 {
 				continue
 			}
-			lines = append(lines, domain.JournalLine{
-				Side:    leg.Side,
-				Account: leg.Account,
-				Amount:  leg.Amount,
-				TaxKey:  leg.Key,
-				TaxBase: leg.Base,
-			})
+			lines = append(lines, taxLegLine(leg))
 		}
 	}
 	return lines, nil
+}
+
+// taxLegLine turns a Steuerbein into the journal line that carries it.
+//
+// The renaming between the two types — Base to TaxBase, Key to TaxKey — is
+// written once. A second copy is where a field added to TaxLeg reaches one
+// booking path and silently misses the other.
+func taxLegLine(leg domain.TaxLeg) domain.JournalLine {
+	return domain.JournalLine{
+		Side:    leg.Side,
+		Account: leg.Account,
+		Amount:  leg.Amount,
+		TaxKey:  leg.Key,
+		TaxBase: leg.Base,
+	}
 }
 
 // settlementLine closes the entry against the partner's Personenkonto or a

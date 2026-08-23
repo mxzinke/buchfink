@@ -217,6 +217,26 @@ var groupIndex = func() map[string]PostingGroup {
 
 // PostingGroups returns the catalog for a direction, sorted by category then
 // label so the UI can group them without re-sorting.
+// RevenueAccountTreatments maps every Erlöskonto that stands for a particular
+// Steuerfall back to that Steuerfall.
+//
+// It is derived from the catalogue rather than written out a second time. The
+// Umsatzsteuer-Auswertung has to recognise these accounts, and a hand-kept copy
+// of the same table drifts silently: a Steuerfall added here would simply stop
+// appearing in the Voranmeldung, in no bucket at all.
+func RevenueAccountTreatments() map[string]domain.TaxTreatment {
+	out := map[string]domain.TaxTreatment{}
+	for _, g := range postingGroups {
+		if g.Direction != domain.DirectionOutgoing {
+			continue
+		}
+		for treatment, account := range g.TreatmentAccounts {
+			out[account] = treatment
+		}
+	}
+	return out
+}
+
 func PostingGroups(dir domain.Direction) []PostingGroup {
 	var out []PostingGroup
 	for _, g := range postingGroups {

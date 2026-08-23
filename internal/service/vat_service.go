@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -54,16 +55,12 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 		}
 
 		for _, line := range entry.Lines {
-			// Signed amount in the account's natural direction.
-			credit := line.Amount
-			debit := line.Amount
-			base := line.TaxBase
+			// Signed in the account's natural direction, base included.
+			credit, base := line.Amount, line.TaxBase
 			if line.Side == domain.SideDebit {
-				credit = -credit
-				base = -base
-			} else {
-				debit = -debit
+				credit, base = -credit, -base
 			}
+			debit := -credit
 
 			// Die Bemessungsgrundlage folgt derselben Seitenlogik wie der
 			// Steuerbetrag, und das ist keine Kosmetik: die Steuerkorrektur
@@ -102,20 +99,26 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 				domain.AccountVorsteuerIG19, domain.AccountVorsteuerIG:
 				summary.InputTax += debit
 
-			// Steuerfreie Umsätze mit eigenem Erlöskonto.
-			case "4125":
-				summary.IntraCommunitySupply += credit
-			case "4120":
-				summary.Export += credit
-			case "4337":
-				summary.ReverseChargeSupply += credit
-			// Nullsteuersatz § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
-			// deshalb ein eigener Ausweis und nicht der Topf der steuerfreien
-			// Umsätze.
-			case "4290":
-				summary.ZeroRatedRevenue += credit
-			case "4150", "4110", "4160", "4165":
-				summary.ExemptRevenue += credit
+			// Erlöse mit eigenem Konto je Steuerfall. Welches Konto für welchen
+			// Fall steht, sagt der Buchungsgruppen-Katalog — hier steht es nicht
+			// ein zweites Mal, sonst fiele der nächste Steuerfall stillschweigend
+			// aus der Voranmeldung.
+			default:
+				switch revenueTreatments[line.Account] {
+				case domain.TaxTreatmentIntraCommunitySupply:
+					summary.IntraCommunitySupply += credit
+				case domain.TaxTreatmentExport:
+					summary.Export += credit
+				case domain.TaxTreatmentReverseChargeSupply:
+					summary.ReverseChargeSupply += credit
+				// Nullsteuersatz § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
+				// deshalb ein eigener Ausweis und nicht der Topf der steuerfreien
+				// Umsätze.
+				case domain.TaxTreatmentZeroRated:
+					summary.ZeroRatedRevenue += credit
+				case domain.TaxTreatmentExempt:
+					summary.ExemptRevenue += credit
+				}
 			}
 		}
 	}
@@ -133,6 +136,17 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 	summary.Payable = summary.TotalOwedTax - summary.InputTax
 	return summary, nil
 }
+
+// revenueTreatments is the catalogue's account-to-Steuerfall table, plus the
+// steuerfreie Erlöskonten of the SKR04 that no Buchungsgruppe offers but a
+// handwritten journal entry can still reach.
+var revenueTreatments = func() map[string]domain.TaxTreatment {
+	out := accounting.RevenueAccountTreatments()
+	for _, account := range []string{"4110", "4160", "4165"} {
+		out[account] = domain.TaxTreatmentExempt
+	}
+	return out
+}()
 
 func rateForOutputAccount(account string) domain.TaxRate {
 	switch account {

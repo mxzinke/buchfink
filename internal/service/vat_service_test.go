@@ -156,3 +156,23 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 		t.Errorf("Vorsteuer Gesamtjahr = %s, erwartet 285,00", year.InputTax)
 	}
 }
+
+// Ein steuerfreier sonstiger Ertrag gehört in die Auswertung. Der Katalog führt
+// dafür ein eigenes Konto; solange die Auswertung eine eigene Kontenliste
+// pflegte, kam der Betrag dort nie an.
+func TestExemptOtherIncomeReachesTheSummary(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	if _, err := env.journal.Post(ctx, simpleEntry("1800", "4842", 50000)); err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+
+	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	if err != nil {
+		t.Fatalf("USt-Auswertung: %v", err)
+	}
+	if summary.ExemptRevenue != 50000 {
+		t.Errorf("steuerfreie Umsätze = %s €, erwartet 500,00", summary.ExemptRevenue)
+	}
+}

@@ -18,6 +18,15 @@ const (
 	SideCredit Side = "H" // Haben
 )
 
+// Opposite returns the other side: where the Gegenbuchung sits, and the side a
+// correction has to use to take a line back.
+func (s Side) Opposite() Side {
+	if s == SideDebit {
+		return SideCredit
+	}
+	return SideDebit
+}
+
 // EntryKind separates original bookings from corrections.
 type EntryKind string
 
@@ -70,6 +79,13 @@ type JournalLine struct {
 	// TaxKey names the Steuerschlüssel this line was derived from (see tax.go).
 	// It is empty on lines that carry no VAT relevance.
 	TaxKey string `gorm:"size:30;index" json:"taxKey,omitempty"`
+	// TaxBase carries the same sign as Amount, always. A Generalumkehr negates
+	// both and keeps the side; a correction that changes the base — a Skonto
+	// under § 17 Abs. 1 UStG — writes both positive on the opposite side. Every
+	// reader derives the direction from the line's side, so a base that
+	// disagreed in sign with its amount would raise a turnover while lowering
+	// the tax on it.
+	//
 	// TaxBase is the Bemessungsgrundlage the tax amount was computed from. Only
 	// set on tax lines; needed to reproduce the UStVA figures from the journal.
 	TaxBase Cents `gorm:"default:0" json:"taxBase,omitempty"`
@@ -321,12 +337,18 @@ type EntryHashFunc func(e *JournalEntry, prevHash string) string
 // JournalRepository defines persistence for journal entries.
 type JournalRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
-	// FindThroughFiscalYear returns the entries of a year and of every earlier
-	// one. Offene Posten are what it exists for: a receivable from the previous
-	// year is still a receivable, and § 252 Abs. 1 Nr. 5 HGB puts the payment in
-	// the year it happens — so the invoice and its settlement routinely sit in
-	// different years, and a view bounded to one of them sees half the story.
-	FindThroughFiscalYear(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindOpenItemCandidates returns the entries a Forderung or Verbindlichkeit
+	// could still sit in: the given year and every earlier one, minus everything
+	// a Generalumkehr has cancelled.
+	//
+	// Both bounds are there for the same reason. § 252 Abs. 1 Nr. 5 HGB puts the
+	// Ertrag in the year of performance and the payment in the year it happens,
+	// so an invoice and its settlement routinely sit in different years — a view
+	// bounded to one of them sees half the story. And a Generalumkehr carries the
+	// date of the correction, so it regularly sits in a *later* year than the
+	// entry it cancels: whether a booking still stands cannot be answered inside
+	// a year window at all.
+	FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)

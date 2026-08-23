@@ -640,3 +640,58 @@ func TestReversedPaymentReopensTheItem(t *testing.T) {
 		t.Errorf("offen sind %s €, erwartet wieder 1.190,00", found.OpenAmount)
 	}
 }
+
+// Eine Generalumkehr wird auf den Tag der Korrektur datiert, nie zurück in den
+// Zeitraum der falschen Buchung. Sie liegt damit regelmäßig in einem späteren
+// Wirtschaftsjahr als die Buchung, die sie aufhebt. Wer den Blick auf das
+// Vorjahr stellt, darf die stornierte Rechnung trotzdem nicht als offenen
+// Posten wiederfinden — dort wäre sie Geld, das niemand mehr schuldet, und
+// bezahlbar wäre sie auch noch.
+func TestReversedInvoiceStaysClosedInAnEarlierYearView(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+
+	filed := env.fileIncoming(t, "vorjahresrechnung.pdf")
+	invoice, err := env.posting.PostIncomingReceipt(ctx, ReceiptRequest{
+		ContactID:       vendor.ID,
+		ReceiptID:       filed.ID,
+		BookingDate:     "2025-12-20",
+		DocumentDate:    "2025-12-20",
+		ServiceDateFrom: "2025-12-20",
+		ServiceDateTo:   "2025-12-20",
+		Description:     "Rechnung aus dem Vorjahr",
+		TaxTreatment:    domain.TaxTreatmentDomestic,
+		Positions:       []ReceiptPosition{{PostingGroup: "fremdleistungen", Net: 100000, TaxRate: domain.TaxRateStandard}},
+		Settlement:      SettlementOpen,
+	})
+	if err != nil {
+		t.Fatalf("Rechnung im Vorjahr: %v", err)
+	}
+	if invoice.FiscalYear != 2025 {
+		t.Fatalf("die Rechnung gehört in das Wirtschaftsjahr 2025, gebucht wurde %d", invoice.FiscalYear)
+	}
+
+	// Storniert heute — die Generalumkehr landet damit in einem späteren Jahr.
+	reversal, err := env.journal.Reverse(ctx, invoice.ID, "doppelt erfasst")
+	if err != nil {
+		t.Fatalf("Storno: %v", err)
+	}
+	if reversal.FiscalYear <= invoice.FiscalYear {
+		t.Fatalf("der Test setzt voraus, dass das Storno in einem späteren Jahr liegt (%d, Rechnung %d)",
+			reversal.FiscalYear, invoice.FiscalYear)
+	}
+
+	payments := env.payments(t)
+	payments.SetFiscalYear(invoice.FiscalYear)
+
+	items, err := payments.OpenItems(ctx)
+	if err != nil {
+		t.Fatalf("offene Posten: %v", err)
+	}
+	for _, item := range items {
+		if item.EntryID == invoice.ID {
+			t.Errorf("die stornierte Rechnung steht mit %s € als offener Posten da", item.OpenAmount)
+		}
+	}
+}
