@@ -50,3 +50,8 @@ belege/
 
 # Wails-generierte Bindings (nicht mehr genutzt: siehe frontend/src/services/bridge.ts)
 frontend/bindings
+
+# Quell-PDF fuer scripts/build_positions_skr04.py — liegt nur lokal vor und
+# wird bewusst nicht mit dem Repository verteilt.
+assets/DATEV-SKR04-*.pdf
+assets/DATEV-SKR04-*.json

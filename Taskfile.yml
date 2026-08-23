@@ -131,3 +131,10 @@ tasks:
     summary: Builds and runs the Docker image
     cmds:
       - task: common:run:docker
+
+  notices:
+    summary: Regenerates THIRD-PARTY-NOTICES.md from the actual dependencies
+    cmds:
+      - go mod download
+      - "{{.PACKAGE_MANAGER}} --prefix frontend install"
+      - python3 scripts/gen_third_party_notices.py

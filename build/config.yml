@@ -8,7 +8,7 @@ info:
   productName: "Buchfink"
   productIdentifier: "com.buchfink.app"
   description: "Native Open-Source-Buchhaltungssoftware (SKR04, GoBD-konform, E-Bilanz)"
-  copyright: "Copyright (c) 2026 Pfennig Ventures GmbH"
+  copyright: "Copyright (c) 2026 Maximilian Pfennig - Licensed under the EUPL-1.2"
   comments: "Open-Source-Buchhaltung für kleine Unternehmen"
   version: "0.1.0"
 

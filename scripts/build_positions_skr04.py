@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+
 """
 DATEV SKR 04 (BilRUG 2026) Parser & Position Generator
 Extracts all accounts, positions, categories, tax functions, footnotes and hierarchy
 directly from the official DATEV SKR04 PDF with exact bounding boxes.
+
+The source PDF is not part of this repository. Obtain it from DATEV and place
+it at assets/DATEV-SKR04-BilrUg-2026.pdf before running this script.
 """
 
 import pdfplumber
