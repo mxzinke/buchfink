@@ -102,29 +102,41 @@
   --color-shell-text-muted: #968E84;
 
   /* ---------------------------------------------------------------------
-     Bernstein — Marke, „hier bist du" und „das ist noch offen"
-     Abgeleitet aus dem Logo (#B36800). Kein dekorativer Einsatz.
-     --------------------------------------------------------------------- */
-  --color-accent: #A8620A;       /* Text/Icon auf hellem Grund (4,8:1) */
-  --color-accent-strong: #8A4F06;/* Hover / gedrückt */
-  --color-accent-light: #E0A356; /* Auf dunklem Grund (Shell) */
-  --color-accent-line: #E8D5B4;  /* Rahmen getönter Flächen */
-  --color-accent-soft: #F7EDDD;  /* Getönte Fläche */
+     Vier Farbfamilien, vier Rollen — siehe §3.2 des Konzepts.
 
-  /* ---------------------------------------------------------------------
-     Grün — geprüft, abgestimmt, im Plus
-     Abgeleitet aus dem Logo (#1B5E20).
-     --------------------------------------------------------------------- */
-  --color-positive: #1B5E20;     /* 7,3:1 auf Weiß */
-  --color-positive-line: #CBE3CE;
-  --color-positive-soft: #E9F3EA;
+       -soft   Fläche (Badge, Hinweis, Zeilentönung)
+       -line   Rand dieser Fläche, rund 1,8:1 gegen Papier
+       Basis   Marker: Punkt, Leiste, Fokusring, Diagrammlinie — 3:1
+       -text   Text und Icons — 4,5:1 gegen Papier und gegen -soft
 
-  /* ---------------------------------------------------------------------
-     Rot — Storno, Fehler, im Minus
+     Die Trennung ist der Preis für Pastell: Ein pastelliger Ton trägt keinen
+     Text, ein textfähiger Ton ist nicht pastellig.
      --------------------------------------------------------------------- */
-  --color-negative: #A5342A;     /* 6,3:1 auf Weiß */
-  --color-negative-line: #F0D2CB;
-  --color-negative-soft: #FBECE9;
+
+  /* Himmelblau — die Marke. Wortmarke, aktiver Ort, Fokus, Links, Auswahl. */
+  --color-accent: #4090C0;         /* 3,3:1 Marker */
+  --color-accent-text: #1D6A96;    /* 5,6:1 Text */
+  --color-accent-soft: #E8F2F9;
+  --color-accent-line: #93C1DF;
+  --color-accent-light: #8FC4E4;   /* auf der dunklen Navigationsfläche, 7,6:1 */
+
+  /* Bernstein — offen, zu erledigen. Aus dem Logo abgeleitet. */
+  --color-attention: #B37F33;      /* 3,3:1 */
+  --color-attention-text: #8A5A15; /* 5,6:1 */
+  --color-attention-soft: #FBF0DE;
+  --color-attention-line: #D6B575;
+
+  /* Salbei — geprüft, abgestimmt, festgeschrieben, im Plus. Aus dem Logo. */
+  --color-positive: #5A9A6B;       /* 3,2:1 */
+  --color-positive-text: #2E6B3C;  /* 6,0:1 */
+  --color-positive-soft: #E6F1E8;
+  --color-positive-line: #93BF9F;
+
+  /* Rosé — Storno, Fehler, Integritätsbruch, im Minus. */
+  --color-negative: #C4736A;       /* 3,3:1 */
+  --color-negative-text: #A0453A;  /* 5,8:1 */
+  --color-negative-soft: #FAEBE8;
+  --color-negative-line: #DB9E93;
 
   /* ---------------------------------------------------------------------
      Typografische Skala — sieben Stufen, mehr gibt es nicht
@@ -189,11 +201,11 @@
 
   ::selection {
     background-color: var(--color-accent-soft);
-    color: var(--color-accent-strong);
+    color: var(--color-accent-text);
   }
 
-  /* Ein sichtbarer Fokus ist Pflicht — die Anwendung wird mit der Tastatur
-     bedient. Bernstein ist hier Zustand, nicht Dekoration. */
+  /* Ein sichtbarer Fokus ist Pflicht, die Anwendung wird mit der Tastatur
+     bedient. `accent` erreicht als Marker 3,3:1 auf Papier. */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
