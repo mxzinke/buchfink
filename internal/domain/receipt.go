@@ -279,6 +279,11 @@ func (r *Receipt) ValidateBookable() error {
 	if r.Status == ReceiptStatusDiscarded {
 		return fmt.Errorf("Beleg %s wurde verworfen und kann nicht gebucht werden", r.ReceiptNumber)
 	}
+	// TODO: die Darstellung für eine XRechnung selbst erzeugen. Heute muss der
+	// Nutzer sie von Hand beibringen ("Darstellung hinzufügen"), obwohl der
+	// Rechnungsdatensatz gelesen und der Typst-Renderer für Ausgangsrechnungen
+	// bereits da ist. Bis dahin ist eine reine XRechnung erst nach einem
+	// Handgriff buchbar.
 	if !r.IsDisplayable() {
 		return fmt.Errorf(
 			"Beleg %s hat keine ansehbare Darstellung. Ein rein strukturierter Beleg (z. B. eine XRechnung) muss vor dem Buchen eine erzeugte Darstellung bekommen",

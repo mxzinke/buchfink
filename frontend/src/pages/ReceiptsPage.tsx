@@ -145,6 +145,9 @@ export const ReceiptsPage: React.FC = () => {
     };
   }, [selected]);
 
+  // TODO: Drag & Drop über den Wails-Drop-Handler. Er liefert wie der Dialog
+  // Pfade, sodass mehrere Megabyte große Scans nicht über die IPC-Grenze
+  // müssen. Heute führt der einzige Weg über den Knopf.
   async function fileReceipt() {
     setFiling(true);
     try {
