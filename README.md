@@ -95,9 +95,12 @@ buchfink-data/
 
 ## UI & Design-Prinzipien
 
-- **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) – modern, klar lesbar und neutral.
-- **Farbwelt:** Warme, erdige Nuancen (Stone, Sand, warmes Slate & Terracotta) statt kaltem Corporate-Blau.
+Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das vollständige Konzept steht in [`docs/design-konzept.md`](./docs/design-konzept.md), die visuelle Referenz zum Öffnen im Browser in [`docs/design-konzept.html`](./docs/design-konzept.html).
+
+- **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) in sechs Stufen – modern, klar lesbar und neutral. Beträge in tabellarischen Ziffern, damit Spalten untereinander stehen.
+- **Farbwelt:** Warmes Papier und Tinte als Grundfläche, dazu genau drei Signalfarben aus dem Logo: Bernstein (offen), Grün (geprüft), Rot (Storno). Kein Corporate-Blau, keine dekorative Farbe.
 - **Zahlenformatierung:** Konsequent de-DE (`1.234,56 €`, `01.01.2024`).
+- **Fachliche Muster:** Soll und Haben zweispaltig und neutral, Summen mit buchhalterischer Doppellinie, Storno sichtbar markiert statt durchgestrichen.
 - **Barrierearme Buchhaltung:** Versteckte Fachbegriff-Erklärungen, Tastatur-Shortcuts und geführte Workflows für Nicht-Buchhalter.
 
 ---

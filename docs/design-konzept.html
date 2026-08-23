@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Buchfink Design-Konzept "Stilles Kontor" - visuelle Referenz zu docs/design-konzept.md.
+     Eigenstaendige Datei, einfach im Browser oeffnen. Die Seite ist in genau den Tokens
+     gesetzt, die sie beschreibt - inklusive Dunkelmodus. -->
+<title>Stilles Kontor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ==========================================================================
+     Tokens — identisch zu frontend/src/index.css
+     ========================================================================== */
+  :root {
+    --paper:        #FAF8F5;
+    --surface:      #FFFFFF;
+    --sunken:       #F4F1EB;
+    --line:         #E9E4DC;
+    --line-strong:  #D8D1C6;
+    --control:      #948E85;
+    --ink:          #1C1917;
+    --ink-muted:    #57514A;
+    --ink-subtle:   #756E65;
+    --ink-faint:    #A79F94;
+
+    --accent:       #A8620A;
+    --accent-strong:#8A4F06;
+    --accent-soft:  #F7EDDD;
+    --accent-line:  #E8D5B4;
+    --positive:     #1B5E20;
+    --positive-soft:#E9F3EA;
+    --positive-line:#CBE3CE;
+    --negative:     #A5342A;
+    --negative-soft:#FBECE9;
+    --negative-line:#F0D2CB;
+
+    /* Die dunkle Navigationszone behält in beiden Themes ihre eigenen Werte */
+    --shell:        #24211E;
+    --shell-deep:   #1B1917;
+    --shell-raised: #2E2A26;
+    --shell-line:   #37322D;
+    --shell-text:   #D8D2CA;
+    --shell-muted:  #968E84;
+    --accent-light: #E0A356;
+
+    --chip-ring:    rgba(28,25,23,.16);
+    --ring:         rgba(168,98,10,.22);
+
+    --radius-control: 6px;
+    --radius-card:   10px;
+    --radius-overlay:14px;
+    --shadow-popover: 0 1px 2px rgba(28,25,23,.04), 0 8px 24px -8px rgba(28,25,23,.18);
+    --ease: cubic-bezier(.2,.7,.3,1);
+
+    --measure: 66ch;
+    --gutter: 40px;
+  }
+
+  /* Dunkelmodus nach §15 des Konzepts — Systemeinstellung */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:        #1B1917;
+      --surface:      #24211E;
+      --sunken:       #211E1B;
+      --line:         #332E29;
+      --line-strong:  #443D36;
+      --control:      #6E665D;
+      --ink:          #F2EFEA;
+      --ink-muted:    #B6AEA4;
+      --ink-subtle:   #918980;
+      --ink-faint:    #6B645C;
+
+      --accent:       #E0A356;
+      --accent-strong:#EFBC7C;
+      --accent-soft:  #3A2E1D;
+      --accent-line:  #5A472B;
+      --positive:     #7CC08A;
+      --positive-soft:#1E2E22;
+      --positive-line:#33513A;
+      --negative:     #E58A7E;
+      --negative-soft:#33201D;
+      --negative-line:#5A322C;
+
+      --chip-ring:    rgba(242,239,234,.18);
+      --ring:         rgba(224,163,86,.26);
+      --shadow-popover: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.6);
+    }
+  }
+
+  /* Dunkelmodus — ausdrückliche Wahl */
+  :root[data-theme="dark"] {
+    --paper:        #1B1917;
+    --surface:      #24211E;
+    --sunken:       #211E1B;
+    --line:         #332E29;
+    --line-strong:  #443D36;
+    --control:      #6E665D;
+    --ink:          #F2EFEA;
+    --ink-muted:    #B6AEA4;
+    --ink-subtle:   #918980;
+    --ink-faint:    #6B645C;
+
+    --accent:       #E0A356;
+    --accent-strong:#EFBC7C;
+    --accent-soft:  #3A2E1D;
+    --accent-line:  #5A472B;
+    --positive:     #7CC08A;
+    --positive-soft:#1E2E22;
+    --positive-line:#33513A;
+    --negative:     #E58A7E;
+    --negative-soft:#33201D;
+    --negative-line:#5A322C;
+
+    --chip-ring:    rgba(242,239,234,.18);
+    --ring:         rgba(224,163,86,.26);
+    --shadow-popover: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.6);
+  }
+
+  /* ==========================================================================
+     Grundlage
+     ========================================================================== */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+  h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.018em; font-weight: 600; }
+  h1 { font-size: clamp(38px, 5.4vw, 54px); line-height: 1.06; }
+  h2 { font-size: 25px; line-height: 1.2; }
+  h3 { font-size: 15px; letter-spacing: 0; }
+  p  { margin: 0; }
+
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-subtle);
+  }
+  .lede  { font-size: 17px; color: var(--ink-muted); max-width: var(--measure); }
+  .note  { font-size: 13.5px; color: var(--ink-muted); max-width: var(--measure); }
+  .cap   { font-size: 12px; color: var(--ink-subtle); line-height: 1.5; }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-control);
+  }
+
+  /* ==========================================================================
+     Kopf
+     ========================================================================== */
+  .masthead { padding: 92px 0 64px; }
+  .masthead .eyebrow { display: block; margin-bottom: 22px; }
+  .masthead h1 { margin-bottom: 26px; }
+  .masthead .lede { font-size: 19px; }
+
+  .facts {
+    display: flex; flex-wrap: wrap; gap: 0 40px;
+    margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .fact { display: flex; flex-direction: column; gap: 2px; }
+  .fact dt { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-subtle); }
+  .fact dd { margin: 0; font-size: 13.5px; font-weight: 500; }
+
+  /* ==========================================================================
+     Prinzipien
+     ========================================================================== */
+  .principles {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line);
+    border-radius: var(--radius-card); overflow: hidden; margin-top: 56px;
+  }
+  .principle { background: var(--surface); padding: 24px 22px 26px; display: flex; flex-direction: column; gap: 10px; }
+  .principle .n { font-size: 11px; font-weight: 500; color: var(--accent); }
+  .principle h3 { font-size: 15.5px; }
+  .principle p { font-size: 13px; color: var(--ink-muted); line-height: 1.55; }
+
+  /* ==========================================================================
+     Abschnitte
+     ========================================================================== */
+  .section {
+    display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--gutter);
+    padding: 72px 0; border-top: 1px solid var(--line);
+  }
+  .section:first-of-type { border-top: none; }
+  /* Ohne min-width:0 wächst die Grid-Spur auf die min-content-Breite der
+     Tabellen — die Seite scrollt dann seitlich statt der Tabelle. */
+  .section > * { min-width: 0; }
+  .rail { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); padding-top: 7px; }
+  .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
+  .block { margin-top: 44px; }
+  .block-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .block-head h3 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-subtle); font-weight: 600; }
+
+  /* ==========================================================================
+     Farbe
+     ========================================================================== */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 1px;
+              background: var(--line); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
+  .sw { background: var(--surface); padding: 14px 16px; display: flex; gap: 13px; align-items: flex-start; }
+  .chip { width: 34px; height: 34px; border-radius: var(--radius-control); flex: none;
+          box-shadow: inset 0 0 0 1px var(--chip-ring); }
+  .sw-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .sw-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+  .sw-hex  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+  .sw-use  { font-size: 12px; color: var(--ink-muted); line-height: 1.4; margin-top: 3px; }
+
+  .signals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .signal { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
+  .signal-bar { height: 56px; display: flex; align-items: flex-end; padding: 9px 14px; }
+  .signal-bar span { font-size: 11.5px; font-weight: 600; color: #fff; letter-spacing: .02em; }
+  .signal-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 7px; }
+  .signal-body .m { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+  .signal-body p { font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+
+  .rules { display: flex; flex-direction: column; gap: 1px; background: var(--line);
+           border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
+  .rule { background: var(--surface); padding: 15px 18px; display: grid; grid-template-columns: 22px 1fr; gap: 14px; align-items: baseline; }
+  .rule .k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+  .rule p { font-size: 13.5px; color: var(--ink-muted); }
+  .rule strong { color: var(--ink); font-weight: 600; }
+
+  /* ==========================================================================
+     Typografie
+     ========================================================================== */
+  .scale { display: flex; flex-direction: column; }
+  .row-t { display: grid; grid-template-columns: 128px minmax(0,1fr) 132px; gap: 24px;
+           align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .row-t:last-child { border-bottom: none; }
+  .row-t .t-name { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--accent); }
+  .row-t .t-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); text-align: right; }
+  .s-display { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.015em; }
+  .s-heading { font-size: 16px; line-height: 22px; font-weight: 600; letter-spacing: -.01em; }
+  .s-body    { font-size: 13px; line-height: 20px; }
+  .s-label   { font-size: 12px; line-height: 16px; font-weight: 500; }
+  .s-caption { font-size: 11px; line-height: 15px; }
+  .s-overline{ font-size: 10px; line-height: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .fig { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 18px 20px 20px; }
+  .fig-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .fig-h .t { font-size: 12px; font-weight: 600; }
+  .fig-col { display: flex; flex-direction: column; font-size: 15px; text-align: right; }
+  .fig-col > span { padding: 3px 0; }
+  .prop { font-variant-numeric: proportional-nums; }
+  .tab  { font-variant-numeric: tabular-nums; }
+  .verdict { font-size: 11.5px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
+  .verdict.bad  { color: var(--negative); }
+  .verdict.good { color: var(--positive); }
+
+  /* ==========================================================================
+     Form
+     ========================================================================== */
+  .radii { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .rad { display: flex; flex-direction: column; gap: 10px; }
+  .rad-box { height: 72px; border: 1px solid var(--control); background: var(--sunken); }
+  .rad-meta { display: flex; flex-direction: column; gap: 1px; }
+  .rad-meta .n { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .rad-meta .u { font-size: 11.5px; color: var(--ink-subtle); }
+
+  .elev { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+  .elev-item { padding: 18px 20px; background: var(--surface); border-radius: var(--radius-card); }
+  .elev-item.flat { border: 1px solid var(--line); }
+  .elev-item.pop  { border: 1px solid var(--line); box-shadow: var(--shadow-popover); border-radius: var(--radius-overlay); }
+  .elev-item.dlg  { border: 1px solid var(--line); box-shadow: 0 2px 4px rgba(28,25,23,.04), 0 24px 64px -24px rgba(28,25,23,.35); border-radius: var(--radius-overlay); }
+  .elev-item .n { font-size: 12.5px; font-weight: 600; }
+  .elev-item .u { font-size: 11.5px; color: var(--ink-subtle); margin-top: 3px; }
+
+  /* ==========================================================================
+     Komponenten
+     ========================================================================== */
+  .demo { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 22px; }
+  .demo + .demo { margin-top: 16px; }
+  .demo-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .demo-row.top { align-items: flex-start; }
+
+  .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-control); border: 1px solid transparent;
+         font: 500 12px/1 'Manrope', sans-serif; font-weight: 600; cursor: pointer;
+         display: inline-flex; align-items: center; gap: 8px; transition: background-color .12s var(--ease), color .12s var(--ease); }
+  .btn-primary   { background: var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: var(--ink-muted); }
+  .btn-secondary { background: var(--surface); color: var(--ink-muted); border-color: var(--control); }
+  .btn-secondary:hover { background: var(--sunken); color: var(--ink); }
+  .btn-quiet     { background: transparent; color: var(--ink-subtle); height: 32px; padding: 0 10px; }
+  .btn-quiet:hover { background: var(--sunken); color: var(--ink); }
+  .btn-danger    { background: var(--negative); color: #fff; }
+  .btn-danger:hover { filter: brightness(.94); }
+  .btn:disabled  { background: var(--sunken); color: var(--ink-faint); border-color: var(--line); cursor: not-allowed; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 190px; }
+  .field > label { font-size: 12px; font-weight: 500; color: var(--ink-muted); }
+  .field .hint { font-size: 11px; color: var(--ink-subtle); }
+  .field .err  { font-size: 11px; color: var(--negative); }
+  .input { height: 36px; padding: 0 11px; border-radius: var(--radius-control);
+           border: 1px solid var(--control); background: var(--surface); color: var(--ink);
+           font: 400 13px 'Manrope', sans-serif; width: 100%; }
+  .input::placeholder { color: var(--ink-faint); }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  .input.amount { text-align: right; font-variant-numeric: tabular-nums; }
+  .input.invalid { border-color: var(--negative); box-shadow: 0 0 0 3px rgba(165,52,42,.14); }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; height: 21px; padding: 0 8px;
+           border-radius: var(--radius-control); border: 1px solid; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .badge .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; flex: none; }
+  .b-neutral  { background: var(--sunken);        color: var(--ink-subtle); border-color: var(--line-strong); }
+  .b-open     { background: var(--accent-soft);   color: var(--accent-strong); border-color: var(--accent-line); }
+  .b-partial  { background: transparent;          color: var(--accent-strong); border-color: var(--accent-line); }
+  .b-done     { background: var(--positive-soft); color: var(--positive); border-color: var(--positive-line); }
+  .b-error    { background: var(--negative-soft); color: var(--negative); border-color: var(--negative-line); }
+
+  /* ==========================================================================
+     Tabellen
+     ========================================================================== */
+  .t-wrap { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
+  .t-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  thead th { background: var(--sunken); border-bottom: 1px solid var(--line);
+             font-size: 12px; font-weight: 500; color: var(--ink-subtle); text-align: left;
+             padding: 0 16px; height: 34px; white-space: nowrap; }
+  tbody td { padding: 0 16px; height: 40px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--sunken); }
+  .r { text-align: right; font-variant-numeric: tabular-nums; }
+  .doc-no { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
+  .acct   { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
+  .muted  { color: var(--ink-subtle); }
+
+  tr.storno td { background: color-mix(in srgb, var(--negative-soft) 55%, var(--surface)); }
+  tr.storno:hover td { background: color-mix(in srgb, var(--negative-soft) 75%, var(--surface)); }
+  tr.storno td:first-child { box-shadow: inset 2px 0 0 var(--negative); }
+
+  tr.sum td { background: var(--sunken); font-weight: 600; border-top: 3px double var(--line-strong); border-bottom: none; }
+
+  /* ==========================================================================
+     Navigation
+     ========================================================================== */
+  .nav-demo { display: grid; grid-template-columns: 240px minmax(0,1fr); border: 1px solid var(--line);
+              border-radius: var(--radius-card); overflow: hidden; min-height: 340px; }
+  .nav { background: var(--shell); border-right: 1px solid var(--shell-line); padding: 16px 0; display: flex; flex-direction: column; }
+  .nav-brand { display: flex; flex-direction: column; gap: 2px; padding: 4px 18px 16px; border-bottom: 1px solid var(--shell-line); margin-bottom: 14px; }
+  .nav-brand .b1 { font-size: 13px; font-weight: 600; color: #F2EFEA; }
+  .nav-brand .b2 { font-size: 11px; color: var(--shell-muted); }
+  .nav-group { font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+               color: var(--shell-muted); padding: 14px 18px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 0 18px; height: 30px;
+              font-size: 12.5px; color: var(--shell-text); opacity: .78; border-left: 2px solid transparent; }
+  .nav-item.active { background: var(--shell-raised); color: #fff; opacity: 1; border-left-color: var(--accent-light); font-weight: 500; }
+  .nav-item .g { width: 11px; height: 11px; border: 1px solid currentColor; border-radius: 2px; opacity: .32; flex: none; }
+  .nav-foot { margin-top: auto; padding: 12px 18px 0; border-top: 1px solid var(--shell-line); }
+  .nav-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--shell-text); }
+  .nav-status .d { width: 6px; height: 6px; border-radius: 999px; background: #7CC08A; flex: none; }
+  .nav-status .ts { display: block; font-size: 10.5px; color: var(--shell-muted); margin-top: 2px; }
+
+  .canvas { background: var(--paper); padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+  .canvas-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+                padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .canvas-title { font-size: 22px; font-weight: 600; letter-spacing: -.015em; }
+  .canvas-sub { font-size: 11px; color: var(--ink-subtle); margin-top: 2px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpi { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 14px 16px; }
+  .kpi .l { font-size: 11px; color: var(--ink-subtle); }
+  .kpi .v { font-size: 19px; font-weight: 600; margin-top: 5px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .kpi .d { font-size: 11px; color: var(--ink-subtle); margin-top: 2px; }
+
+  /* ==========================================================================
+     Umsetzung
+     ========================================================================== */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line);
+           border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
+  .step { background: var(--surface); padding: 20px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .step .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
+  .step h3 { font-size: 14px; }
+  .step p { font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+
+  .check { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .check li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; padding: 9px 0;
+              border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-muted); }
+  .check li::before { content: ""; width: 13px; height: 13px; margin-top: 4px;
+                      border: 1px solid var(--control); border-radius: 3px; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 24px; padding: 34px 0 72px;
+           display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; align-items: baseline; }
+  footer p { font-size: 12px; color: var(--ink-subtle); }
+
+  /* ==========================================================================
+     Schmale Ansichten
+     ========================================================================== */
+  @media (max-width: 900px) {
+    .principles, .steps { grid-template-columns: repeat(2, 1fr); }
+    .signals, .radii, .elev, .kpis { grid-template-columns: 1fr 1fr; }
+    .figures, .check { grid-template-columns: 1fr; }
+    .nav-demo { grid-template-columns: 1fr; }
+    .nav { border-right: none; border-bottom: 1px solid var(--shell-line); }
+  }
+  @media (max-width: 680px) {
+    .wrap { padding: 0 20px; }
+    .section { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 52px 0; }
+    .rail { padding-top: 0; }
+    .principles, .steps, .signals, .radii, .elev, .kpis { grid-template-columns: 1fr; }
+    .row-t { grid-template-columns: 1fr; gap: 6px; }
+    .row-t .t-meta { text-align: left; }
+    .masthead { padding: 64px 0 48px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">Buchfink · Design-Konzept</span>
+    <h1>Stilles Kontor</h1>
+    <p class="lede">
+      Buchfink ist Werkzeug, keine Bühne. Wer damit arbeitet, sitzt vier Stunden am Stück vor
+      Journal und Kontenabgleich und sucht Abweichungen. Die Oberfläche hat dabei genau eine
+      Aufgabe: nicht im Weg zu stehen.
+    </p>
+
+    <dl class="facts">
+      <div class="fact"><dt>Farben mit Bedeutung</dt><dd>3 Signale, sonst Papier und Tinte</dd></div>
+      <div class="fact"><dt>Schriftgrößen</dt><dd>6 Stufen statt bisher 9</dd></div>
+      <div class="fact"><dt>Eckenradien</dt><dd>3 statt bisher 6</dd></div>
+      <div class="fact"><dt>Schatten</dt><dd>nur Popover und Dialog</dd></div>
+    </dl>
+
+    <div class="principles">
+      <div class="principle">
+        <span class="n">Prinzip 1</span>
+        <h3>Ruhe ist Funktion</h3>
+        <p>Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die Suche nach dem, was zählt.</p>
+      </div>
+      <div class="principle">
+        <span class="n">Prinzip 2</span>
+        <h3>Farbe ist Information</h3>
+        <p>Grün heißt geprüft, Rot heißt Storno, Bernstein heißt offen. Wer dekorativ einfärbt, verbraucht Bedeutung, die später fehlt.</p>
+      </div>
+      <div class="principle">
+        <span class="n">Prinzip 3</span>
+        <h3>Die Zahl ist der Held</h3>
+        <p>Beträge stehen rechtsbündig, in gleicher Ziffernbreite, mit Luft — und ohne Konkurrenz durch Rahmen und Icons.</p>
+      </div>
+      <div class="principle">
+        <span class="n">Prinzip 4</span>
+        <h3>Nichts verschwindet</h3>
+        <p>Die GoBD verlangt sichtbare Korrekturen. Storniertes wird markiert, nicht versteckt — und nie durchgestrichen.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ================= FARBE ================= -->
+    <section class="section">
+      <div class="rail">§ 3</div>
+      <div>
+        <div class="head">
+          <h2>Farbe</h2>
+          <p class="note">
+            Warme Neutraltöne statt Grau: Grau wirkt technisch, warmes Papier passt zu Belegen und
+            ermüdet bei langer Nutzung weniger. Darauf liegen genau drei Signalfarben — alle drei
+            stammen aus dem Logo, damit Marke und Semantik zusammenbleiben.
+          </p>
+        </div>
+
+        <div class="block-head"><h3>Papier und Tinte</h3></div>
+        <div class="swatches">
+          <div class="sw"><span class="chip" style="background:#FAF8F5"></span><span class="sw-body"><span class="sw-name">paper</span><span class="sw-hex">#FAF8F5</span><span class="sw-use">App-Hintergrund</span></span></div>
+          <div class="sw"><span class="chip" style="background:#FFFFFF"></span><span class="sw-body"><span class="sw-name">surface</span><span class="sw-hex">#FFFFFF</span><span class="sw-use">Karten, Tabellenzeilen</span></span></div>
+          <div class="sw"><span class="chip" style="background:#F4F1EB"></span><span class="sw-body"><span class="sw-name">sunken</span><span class="sw-hex">#F4F1EB</span><span class="sw-use">Tabellenkopf, gesperrte Bereiche</span></span></div>
+          <div class="sw"><span class="chip" style="background:#E9E4DC"></span><span class="sw-body"><span class="sw-name">line</span><span class="sw-hex">#E9E4DC</span><span class="sw-use">Haarlinie, Standardtrennung</span></span></div>
+          <div class="sw"><span class="chip" style="background:#D8D1C6"></span><span class="sw-body"><span class="sw-name">line-strong</span><span class="sw-hex">#D8D1C6</span><span class="sw-use">Außenkanten, Summenlinie</span></span></div>
+          <div class="sw"><span class="chip" style="background:#948E85"></span><span class="sw-body"><span class="sw-name">control-border</span><span class="sw-hex">#948E85</span><span class="sw-use">Rahmen bedienbarer Elemente · 3,3:1</span></span></div>
+          <div class="sw"><span class="chip" style="background:#1C1917"></span><span class="sw-body"><span class="sw-name">ink</span><span class="sw-hex">#1C1917</span><span class="sw-use">Primärtext, Primärbutton · 16,5:1</span></span></div>
+          <div class="sw"><span class="chip" style="background:#57514A"></span><span class="sw-body"><span class="sw-name">ink-muted</span><span class="sw-hex">#57514A</span><span class="sw-use">Sekundärtext · 7,4:1</span></span></div>
+          <div class="sw"><span class="chip" style="background:#756E65"></span><span class="sw-body"><span class="sw-name">ink-subtle</span><span class="sw-hex">#756E65</span><span class="sw-use">Labels, Metadaten · 4,7:1</span></span></div>
+          <div class="sw"><span class="chip" style="background:#A79F94"></span><span class="sw-body"><span class="sw-name">ink-faint</span><span class="sw-hex">#A79F94</span><span class="sw-use">Deaktiviert — nie Fließtext</span></span></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Die drei Signale</h3></div>
+          <div class="signals">
+            <div class="signal">
+              <div class="signal-bar" style="background:#A8620A"><span>Bernstein</span></div>
+              <div class="signal-body">
+                <span class="m">#A8620A · aus dem Logo</span>
+                <p>Marke, aktueller Ort in der Navigation, <strong>offen / zu erledigen</strong>. Nichts sonst.</p>
+              </div>
+            </div>
+            <div class="signal">
+              <div class="signal-bar" style="background:#1B5E20"><span>Grün</span></div>
+              <div class="signal-body">
+                <span class="m">#1B5E20 · aus dem Logo</span>
+                <p>Geprüft, abgestimmt, festgeschrieben, im Plus.</p>
+              </div>
+            </div>
+            <div class="signal">
+              <div class="signal-bar" style="background:#A5342A"><span>Rot</span></div>
+              <div class="signal-body">
+                <span class="m">#A5342A</span>
+                <p>Storno, Fehler, Integritätsbruch, im Minus.</p>
+              </div>
+            </div>
+          </div>
+          <p class="cap" style="margin-top:12px">
+            Angegeben sind die Werte für den Hellmodus. Auf dunklem Grund verlieren diese Töne
+            an Kontrast; §&nbsp;15 nennt die aufgehellten Entsprechungen.
+          </p>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Die vier Regeln, die das System tragen</h3></div>
+          <div class="rules">
+            <div class="rule"><span class="k">01</span><p><strong>Primäraktionen sind Tinte, nicht Bernstein.</strong> Eine Buchhaltung hat pro Ansicht eine wichtigste Aktion. Sie muss sich abheben, ohne zu leuchten — und Bernstein bleibt als Statusfarbe frei.</p></div>
+            <div class="rule"><span class="k">02</span><p><strong>Soll und Haben werden nie eingefärbt.</strong> Farbe suggeriert hier eine Wertung, die es fachlich nicht gibt. Gefärbt wird nur das Ergebnis und der Zustand.</p></div>
+            <div class="rule"><span class="k">03</span><p><strong>Farbe steht nie allein.</strong> Jeder farbige Zustand trägt zusätzlich Text oder Icon — für Rot-Grün-Sehschwäche und für den Schwarz-Weiß-Ausdruck, der bei Auswertungen die Regel ist.</p></div>
+            <div class="rule"><span class="k">04</span><p><strong>Blau kommt nicht vor.</strong> Es ist die Standardfarbe für „Information“ in fast jeder Business-Software und damit der schnellste Weg, austauschbar auszusehen.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TYPOGRAFIE ================= -->
+    <section class="section">
+      <div class="rail">§ 4</div>
+      <div>
+        <div class="head">
+          <h2>Typografie</h2>
+          <p class="note">
+            Manrope trägt die gesamte Oberfläche, in sechs Stufen. Was nicht in diese Skala passt,
+            ist ein Layoutproblem, kein Schriftgrößenproblem.
+          </p>
+        </div>
+
+        <div class="scale">
+          <div class="row-t"><span class="t-name">text-display</span><span class="s-display">Buchhaltungsübersicht</span><span class="t-meta">22 / 28 · 600</span></div>
+          <div class="row-t"><span class="t-name">text-heading</span><span class="s-heading">Letzte Buchungen</span><span class="t-meta">16 / 22 · 600</span></div>
+          <div class="row-t"><span class="t-name">text-body</span><span class="s-body">Ausgangsrechnung Meridian GmbH, Leistungszeitraum März 2024</span><span class="t-meta">13 / 20 · 400</span></div>
+          <div class="row-t"><span class="t-name">text-label</span><span class="s-label">Buchungstext</span><span class="t-meta">12 / 16 · 500</span></div>
+          <div class="row-t"><span class="t-name">text-caption</span><span class="s-caption">Zuletzt geprüft am 14.03.2024 um 09:12 Uhr</span><span class="t-meta">11 / 15 · 400</span></div>
+          <div class="row-t"><span class="t-name">text-overline</span><span class="s-overline">Auswertungen</span><span class="t-meta">10 / 14 · 600</span></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>Zahlensatz</h3>
+            <p class="cap">Manrope bringt tabellarische Ziffern mit. Es braucht also keinen zweiten Schriftschnitt für Beträge — und Zahlen bleiben Teil des Textbildes, statt als Monospace-Fremdkörper zu stehen.</p>
+          </div>
+          <div class="figures">
+            <div class="fig">
+              <div class="fig-h"><span class="t">Ohne <code>.num</code></span><span class="cap">proportionale Ziffern</span></div>
+              <div class="fig-col prop">
+                <span>11.900,00 €</span><span>2.380,00 €</span><span>218,89 €</span><span>1.111,11 €</span><span>4.165,00 €</span>
+              </div>
+              <p class="verdict bad">Ziffern haben unterschiedliche Breiten. Die Spalte franst aus, Beträge springen beim Aktualisieren.</p>
+            </div>
+            <div class="fig">
+              <div class="fig-h"><span class="t">Mit <code>.num</code></span><span class="cap">tabellarische Ziffern</span></div>
+              <div class="fig-col tab">
+                <span>11.900,00 €</span><span>2.380,00 €</span><span>218,89 €</span><span>1.111,11 €</span><span>4.165,00 €</span>
+              </div>
+              <p class="verdict good">Gleiche Ziffernbreite. Komma steht unter Komma, die Größenordnung ist ohne Lesen erkennbar.</p>
+            </div>
+          </div>
+          <p class="cap" style="margin-top:14px">
+            Beleg- und Kontonummern bekommen zusätzlich die durchgestrichene Null (<code>.code-num</code>),
+            damit <span class="doc-no">RE-2024-0117</span> nicht als O gelesen wird. Echtes Monospace bleibt
+            Hashes und Dateipfaden vorbehalten.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FORM ================= -->
+    <section class="section">
+      <div class="rail">§ 6</div>
+      <div>
+        <div class="head">
+          <h2>Form und Höhe</h2>
+          <p class="note">
+            Drei Radien, plus rund. Und Rahmen statt Schatten: Ein Schatten bedeutet, dass ein
+            Element wirklich über der Seite schwebt — nicht, dass es wichtig ist.
+          </p>
+        </div>
+
+        <div class="radii">
+          <div class="rad"><div class="rad-box" style="border-radius:6px"></div><span class="rad-meta"><span class="n">6 px · control</span><span class="u">Buttons, Felder, Badges</span></span></div>
+          <div class="rad"><div class="rad-box" style="border-radius:10px"></div><span class="rad-meta"><span class="n">10 px · card</span><span class="u">Karten, Tabellen, Panels</span></span></div>
+          <div class="rad"><div class="rad-box" style="border-radius:14px"></div><span class="rad-meta"><span class="n">14 px · overlay</span><span class="u">Dialoge, Popover</span></span></div>
+          <div class="rad"><div class="rad-box" style="border-radius:999px"></div><span class="rad-meta"><span class="n">voll · full</span><span class="u">Statuspunkte, Zähler</span></span></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Drei Ebenen, mehr gibt es nicht</h3></div>
+          <div class="elev">
+            <div class="elev-item flat"><div class="n">Kein Schatten</div><div class="u">Karten, Tabellen, Buttons, Felder — alles im Textfluss</div></div>
+            <div class="elev-item pop"><div class="n">shadow-popover</div><div class="u">Dropdowns, Popover, Tooltips</div></div>
+            <div class="elev-item dlg"><div class="n">shadow-dialog</div><div class="u">Modale Dialoge</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= KOMPONENTEN ================= -->
+    <section class="section">
+      <div class="rail">§ 9</div>
+      <div>
+        <div class="head">
+          <h2>Komponenten</h2>
+          <p class="note">
+            Einmal gebaut in <code>components/ui/</code>, nicht pro Seite neu erfunden. Die Bausteine
+            unten sind in den Werten dieses Konzepts gesetzt — was hier zu sehen ist, ist die Spezifikation.
+          </p>
+        </div>
+
+        <div class="demo">
+          <div class="block-head"><h3>Buttons · 36 px</h3></div>
+          <div class="demo-row">
+            <button class="btn btn-primary">Buchung festschreiben</button>
+            <button class="btn btn-secondary">Als Entwurf sichern</button>
+            <button class="btn btn-quiet">Abbrechen</button>
+            <button class="btn btn-danger">Stornieren</button>
+            <button class="btn btn-primary" disabled title="Die Buchung ist nicht ausgeglichen">Festschreiben</button>
+          </div>
+          <p class="cap" style="margin-top:14px">
+            Genau eine Primäraktion pro Ansicht. Ein deaktivierter Button braucht immer eine
+            Erklärung im <code>title</code> — „ausgegraut ohne Grund“ ist die häufigste Frustquelle
+            in Buchhaltungssoftware.
+          </p>
+        </div>
+
+        <div class="demo">
+          <div class="block-head"><h3>Eingabefelder</h3></div>
+          <div class="demo-row top">
+            <span class="field">
+              <label for="f1">Buchungstext</label>
+              <input class="input" id="f1" value="Ausgangsrechnung Meridian GmbH">
+            </span>
+            <span class="field" style="max-width:150px">
+              <label for="f2">Bruttobetrag</label>
+              <input class="input amount" id="f2" value="11.900,00">
+            </span>
+            <span class="field" style="max-width:160px">
+              <label for="f3">Gegenkonto</label>
+              <input class="input" id="f3" placeholder="Konto suchen …">
+              <span class="hint">SKR04 · optional</span>
+            </span>
+            <span class="field" style="max-width:170px">
+              <label for="f4">Belegdatum</label>
+              <input class="input invalid" id="f4" value="31.02.2024" aria-invalid="true" aria-describedby="f4e">
+              <span class="err" id="f4e">Kein gültiges Datum.</span>
+            </span>
+          </div>
+          <p class="cap" style="margin-top:14px">
+            Pflichtfelder tragen kein Sternchen — stattdessen wird das Seltenere gekennzeichnet:
+            „optional“. Betragsfelder sind rechtsbündig und tabellarisch.
+          </p>
+        </div>
+
+        <div class="demo">
+          <div class="block-head">
+            <h3>Status-Vokabular</h3>
+            <p class="cap">Ein Wort pro Zustand, in der ganzen Anwendung dasselbe. Keine Synonyme wie „erledigt“ oder „fertig“ für denselben Zustand.</p>
+          </div>
+          <div class="demo-row" style="align-items:center">
+            <span class="badge b-neutral"><span class="dot"></span>Entwurf</span>
+            <span class="badge b-open"><span class="dot"></span>Offen</span>
+            <span class="badge b-partial"><span class="dot"></span>Teilweise ausgeglichen</span>
+            <span class="badge b-neutral"><span class="dot"></span>Zugeordnet</span>
+            <span class="badge b-done"><span class="dot"></span>Gebucht</span>
+            <span class="badge b-done"><span class="dot"></span>Ausgeglichen</span>
+            <span class="badge b-done"><span class="dot"></span>Festgeschrieben</span>
+            <span class="badge b-error"><span class="dot"></span>Überfällig</span>
+            <span class="badge b-error"><span class="dot"></span>Storniert</span>
+            <span class="badge b-error"><span class="dot"></span>Fehlerhaft</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FACHLICHE MUSTER ================= -->
+    <section class="section">
+      <div class="rail">§ 10</div>
+      <div>
+        <div class="head">
+          <h2>Fachliche Muster</h2>
+          <p class="note">
+            Der Teil, der Buchfink von einer beliebigen Anwendung unterscheidet. Hier entscheidet
+            sich, ob die Oberfläche von Buchhaltern ernst genommen wird.
+          </p>
+        </div>
+
+        <div class="block-head">
+          <h3>Journal</h3>
+          <p class="cap">Feste Spaltenreihenfolge, Text links, Zahlen rechts, nichts zentriert. Keine Zebrastreifen — Haarlinien reichen.</p>
+        </div>
+        <div class="t-wrap"><div class="t-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Beleg</th><th>Datum</th><th>Buchungstext</th><th>Konten · Soll → Haben</th>
+                <th class="r">Betrag</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="doc-no">RE-2024-0117</td><td class="muted">04.03.2024</td>
+                <td>Ausgangsrechnung Meridian GmbH</td>
+                <td class="acct">1200 → 4400 · 3806</td>
+                <td class="r">11.900,00 €</td>
+                <td><span class="badge b-done"><span class="dot"></span>Gebucht</span></td>
+              </tr>
+              <tr>
+                <td class="doc-no">BK-2024-0288</td><td class="muted">07.03.2024</td>
+                <td>Miete Büro März 2024</td>
+                <td class="acct">6310 · 1406 → 1800</td>
+                <td class="r">2.380,00 €</td>
+                <td><span class="badge b-done"><span class="dot"></span>Festgeschrieben</span></td>
+              </tr>
+              <tr>
+                <td class="doc-no">RE-2024-0118</td><td class="muted">11.03.2024</td>
+                <td>Ausgangsrechnung Hoffmann KG</td>
+                <td class="acct">1200 → 4400 · 3806</td>
+                <td class="r">4.165,00 €</td>
+                <td><span class="badge b-open"><span class="dot"></span>Offen</span></td>
+              </tr>
+              <tr>
+                <td class="doc-no">BK-2024-0291</td><td class="muted">12.03.2024</td>
+                <td>Bürobedarf Kramer &amp; Söhne</td>
+                <td class="acct">6815 · 1406 → 1800</td>
+                <td class="r">218,89 €</td>
+                <td><span class="badge b-done"><span class="dot"></span>Gebucht</span></td>
+              </tr>
+              <tr class="storno">
+                <td class="doc-no">ST-2024-0009</td><td class="muted">14.03.2024</td>
+                <td>Generalumkehr zu BK-2024-0288</td>
+                <td class="acct">1800 → 6310 · 1406</td>
+                <td class="r">−2.380,00 €</td>
+                <td><span class="badge b-error"><span class="dot"></span>Storniert</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div></div>
+        <p class="cap" style="margin-top:12px">
+          Die Stornozeile trägt eine rote Kante, eine leicht getönte Fläche und ein Badge — aber
+          <strong style="color:var(--ink)">keine Durchstreichung</strong>. Der ursprüngliche Betrag
+          muss lesbar bleiben, sonst ist die Nachvollziehbarkeit dahin. Storno und Original verlinken
+          sich gegenseitig, in beide Richtungen.
+        </p>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>Buchungssatz</h3>
+            <p class="cap">Zwei getrennte, rechtsbündige Spalten — nicht eine Spalte mit Vorzeichen. Soll links, Haben rechts, so wie im Buch. Beide neutral.</p>
+          </div>
+          <div class="t-wrap"><div class="t-scroll">
+            <table>
+              <thead>
+                <tr><th style="width:96px">Konto</th><th>Bezeichnung</th><th class="r" style="width:150px">Soll</th><th class="r" style="width:150px">Haben</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="acct">1200</td><td>Forderungen aus Lieferungen und Leistungen</td><td class="r">11.900,00</td><td class="r muted">—</td></tr>
+                <tr><td class="acct">4400</td><td>Erlöse 19 % USt</td><td class="r muted">—</td><td class="r">10.000,00</td></tr>
+                <tr><td class="acct">3806</td><td>Umsatzsteuer 19 %</td><td class="r muted">—</td><td class="r">1.900,00</td></tr>
+                <tr class="sum"><td></td><td>Summe</td><td class="r">11.900,00</td><td class="r">11.900,00</td></tr>
+              </tbody>
+            </table>
+          </div></div>
+          <p class="cap" style="margin-top:12px">
+            Die Doppellinie über der Summe ist buchhalterische Konvention, kein Zierrat. Dass Soll-
+            und Habensumme sichtbar gleich sind, ist die Kontrolle, die Buchhalter als erstes suchen.
+            Kontonummern immer mit ihrer Bezeichnung — die Nummer allein hilft niemandem, der SKR04
+            nicht auswendig kann.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LAYOUT ================= -->
+    <section class="section">
+      <div class="rail">§ 11</div>
+      <div>
+        <div class="head">
+          <h2>Layout</h2>
+          <p class="note">
+            Dunkle Navigationsspalte als eigener Raum, helle Arbeitsfläche daneben. Der aktive
+            Eintrag bekommt eine 2 px schmale bernsteinfarbene Leiste statt einer leuchtenden
+            Fläche — ein Zustand, der dauerhaft sichtbar ist, darf nicht laut sein.
+          </p>
+        </div>
+
+        <div class="nav-demo">
+          <nav class="nav" aria-label="Beispiel-Navigation">
+            <div class="nav-brand">
+              <span class="b1">Meridian Handels GmbH</span>
+              <span class="b2">Geschäftsjahr 2024</span>
+            </div>
+            <div class="nav-group">Übersicht</div>
+            <div class="nav-item"><span class="g"></span>Übersicht</div>
+            <div class="nav-group">Buchhaltung</div>
+            <div class="nav-item"><span class="g"></span>Bank &amp; Zahlungen</div>
+            <div class="nav-item"><span class="g"></span>Belege</div>
+            <div class="nav-item"><span class="g"></span>Rechnungen</div>
+            <div class="nav-item active"><span class="g"></span>Journal</div>
+            <div class="nav-group">Auswertungen</div>
+            <div class="nav-item"><span class="g"></span>GuV &amp; Bilanz</div>
+            <div class="nav-item"><span class="g"></span>E-Bilanz</div>
+            <div class="nav-foot">
+              <div class="nav-status">
+                <span class="d"></span>
+                <span>Daten unverändert<span class="ts">Geprüft am 14.03.2024, 09:12</span></span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="canvas">
+            <div class="canvas-bar">
+              <div>
+                <div class="canvas-title">Journal</div>
+                <div class="canvas-sub">312 Buchungen · Geschäftsjahr 2024 · lokal gespeichert</div>
+              </div>
+              <button class="btn btn-primary">Neue Buchung</button>
+            </div>
+            <div class="kpis">
+              <div class="kpi"><div class="l">Bankguthaben</div><div class="v">48.219,73 €</div><div class="d">Geschäftskonto 1800</div></div>
+              <div class="kpi"><div class="l">Offene Posten</div><div class="v">12.470,00 €</div><div class="d">7 Rechnungen</div></div>
+              <div class="kpi"><div class="l">Ergebnis vor Steuern</div><div class="v">31.084,12 €</div><div class="d">Stand 14.03.2024</div></div>
+            </div>
+            <p class="cap">
+              Jede Ansicht beginnt gleich: Titel, eine Zeile Kontext, rechts die Primäraktion.
+              Kein Icon neben dem Titel. Inhalt maximal 1200 px breit, Tabellen dürfen darüber hinaus.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= UMSETZUNG ================= -->
+    <section class="section">
+      <div class="rail">§ 16</div>
+      <div>
+        <div class="head">
+          <h2>Umsetzung</h2>
+          <p class="note">
+            Die Tokens liegen bereits in <code>frontend/src/index.css</code>. Alle bisherigen
+            Tailwind-Klassen funktionieren unverändert weiter, die Umstellung läuft also
+            schrittweise und ohne Bruch.
+          </p>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <span class="n">Schritt 1</span><h3>Bausteine</h3>
+            <p>Button, Input, Field, Card, Table, StatusBadge, Dialog, EmptyState, PageHeader in <code>components/ui/</code>. Das heutige <code>Form.tsx</code> geht darin auf.</p>
+          </div>
+          <div class="step">
+            <span class="n">Schritt 2</span><h3>Rahmen</h3>
+            <p>Sidebar, Header und App auf Tokens umstellen. Danach stimmt der erste Eindruck, auch wenn die Seiten noch alt aussehen.</p>
+          </div>
+          <div class="step">
+            <span class="n">Schritt 3</span><h3>Seiten</h3>
+            <p>Nach verbrachter Arbeitszeit sortiert: Journal, Bank, Belege, Rechnungen, Auswertungen, Rest.</p>
+          </div>
+          <div class="step">
+            <span class="n">Schritt 4</span><h3>Aufräumen</h3>
+            <p>Alte Paletten und Hex-Literale aus <code>src/</code> entfernen, danach als Grep-Prüfung in CI, damit es so bleibt.</p>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Prüfliste für jeden Pull Request</h3></div>
+          <ul class="check">
+            <li>Keine Hex-Farben, keine Klassen aus den alten Paletten</li>
+            <li>Schriftgrößen ausschließlich aus der Skala</li>
+            <li>Radien nur control, card, overlay, full</li>
+            <li>Schatten nur an Popover und Dialog</li>
+            <li>Jede Zahlenspalte tabellarisch und rechtsbündig</li>
+            <li>Farbige Zustände tragen zusätzlich Text oder Icon</li>
+            <li>Leer-, Lade- und Fehlerzustand vorhanden</li>
+            <li>Mit der Tastatur bedienbar, Fokus sichtbar</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Buchfink · Design-Konzept „Stilles Kontor“ · Volltext in <code>docs/design-konzept.md</code></p>
+    <p>Diese Seite ist in den Tokens gesetzt, die sie beschreibt — inklusive Dunkelmodus nach §&nbsp;15.</p>
+  </footer>
+
+</div>
+</body>
+</html>

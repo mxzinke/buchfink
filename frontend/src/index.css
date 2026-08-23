@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   Buchfink Design System — Token-Ebene
+   Konzept & Begründungen: docs/design-konzept.md
+   ========================================================================= */
+
 @font-face {
   font-family: 'Manrope';
   src: url('/Manrope-Light.ttf') format('truetype');
@@ -48,14 +53,148 @@
   font-display: swap;
 }
 
+/* `static`: alle Tokens landen als CSS-Variablen im Dokument, auch wenn noch
+   keine Utility sie benutzt. Damit ist das System in den DevTools sichtbar
+   und in eigenem CSS über var(--color-…) verwendbar. */
+@theme static {
+  /* ---------------------------------------------------------------------
+     Schrift
+     Manrope trägt die gesamte Oberfläche. Der Mono-Stack ist ausschließlich
+     für technische Zeichenketten (Hashes, Dateipfade) reserviert — Zahlen
+     setzt Manrope selbst über tabellarische Ziffern (siehe .num).
+     --------------------------------------------------------------------- */
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* ---------------------------------------------------------------------
+     Papier — die neutrale Grundfläche (warm, nicht grau)
+     --------------------------------------------------------------------- */
+  --color-paper: #FAF8F5;        /* Canvas / App-Hintergrund */
+  --color-surface: #FFFFFF;      /* Karten, Tabellenzeilen, Dialoge */
+  --color-sunken: #F4F1EB;       /* Tabellenkopf, Wells, inaktive Bereiche */
+  --color-line: #E9E4DC;         /* Haarlinie — Standardtrennung */
+  --color-line-strong: #D8D1C6;  /* Eingabefeld-Rahmen, Außenkanten */
+
+  /* ---------------------------------------------------------------------
+     Tinte — Text und Primärfläche
+     --------------------------------------------------------------------- */
+  --color-ink: #1C1917;          /* Primärtext, Primärbutton (16,5:1 auf Papier) */
+  --color-ink-muted: #57514A;    /* Sekundärtext (7,4:1) */
+  --color-ink-subtle: #756E65;   /* Labels, Metadaten (4,7:1) */
+  --color-ink-faint: #A79F94;    /* Deaktiviert, dekorative Icons — kein Fließtext */
+
+  /* Rahmen bedienbarer Elemente. Bewusst dunkler als `line-strong`: eine
+     Haarlinie erreicht die 3:1 aus WCAG 1.4.11 nicht, und ein Eingabefeld
+     muss als solches erkennbar sein. */
+  --color-control-border: #948E85; /* 3,3:1 auf Weiß */
+
+  /* ---------------------------------------------------------------------
+     Shell — die dunkle Navigationszone
+     --------------------------------------------------------------------- */
+  --color-shell: #24211E;
+  --color-shell-deep: #1B1917;
+  --color-shell-raised: #2E2A26;
+  --color-shell-line: #37322D;
+  --color-shell-text: #D8D2CA;
+  --color-shell-text-muted: #968E84;
+
+  /* ---------------------------------------------------------------------
+     Bernstein — Marke, „hier bist du" und „das ist noch offen"
+     Abgeleitet aus dem Logo (#B36800). Kein dekorativer Einsatz.
+     --------------------------------------------------------------------- */
+  --color-accent: #A8620A;       /* Text/Icon auf hellem Grund (4,8:1) */
+  --color-accent-strong: #8A4F06;/* Hover / gedrückt */
+  --color-accent-light: #E0A356; /* Auf dunklem Grund (Shell) */
+  --color-accent-line: #E8D5B4;  /* Rahmen getönter Flächen */
+  --color-accent-soft: #F7EDDD;  /* Getönte Fläche */
+
+  /* ---------------------------------------------------------------------
+     Grün — geprüft, abgestimmt, im Plus
+     Abgeleitet aus dem Logo (#1B5E20).
+     --------------------------------------------------------------------- */
+  --color-positive: #1B5E20;     /* 7,3:1 auf Weiß */
+  --color-positive-line: #CBE3CE;
+  --color-positive-soft: #E9F3EA;
+
+  /* ---------------------------------------------------------------------
+     Rot — Storno, Fehler, im Minus
+     --------------------------------------------------------------------- */
+  --color-negative: #A5342A;     /* 6,3:1 auf Weiß */
+  --color-negative-line: #F0D2CB;
+  --color-negative-soft: #FBECE9;
+
+  /* ---------------------------------------------------------------------
+     Typografische Skala — sieben Stufen, mehr gibt es nicht
+     --------------------------------------------------------------------- */
+  --text-display: 1.375rem;      /* 22px — Seitentitel */
+  --text-display--line-height: 1.75rem;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.015em;
+
+  --text-heading: 1rem;          /* 16px — Karten- und Abschnittstitel */
+  --text-heading--line-height: 1.375rem;
+  --text-heading--font-weight: 600;
+  --text-heading--letter-spacing: -0.01em;
+
+  --text-body: 0.8125rem;        /* 13px — Fließtext, Tabellen, Formularwerte */
+  --text-body--line-height: 1.25rem;
+
+  --text-label: 0.75rem;         /* 12px — Feldbeschriftungen, Tabellenkopf */
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 500;
+
+  --text-caption: 0.6875rem;     /* 11px — Hilfstext, Metadaten */
+  --text-caption--line-height: 0.9375rem;
+
+  --text-overline: 0.625rem;     /* 10px — Gruppenlabels, sehr sparsam */
+  --text-overline--line-height: 0.875rem;
+  --text-overline--font-weight: 600;
+  --text-overline--letter-spacing: 0.08em;
+
+  /* ---------------------------------------------------------------------
+     Form — vier Radien, mehr braucht die Anwendung nicht
+     --------------------------------------------------------------------- */
+  --radius-control: 6px;         /* Buttons, Eingabefelder, Chips */
+  --radius-card: 10px;           /* Karten, Tabellencontainer */
+  --radius-overlay: 14px;        /* Dialoge, Popover */
+
+  /* ---------------------------------------------------------------------
+     Höhe — nur was wirklich über der Seite schwebt, wirft einen Schatten
+     --------------------------------------------------------------------- */
+  --shadow-popover: 0 1px 2px rgba(28, 25, 23, 0.04), 0 8px 24px -8px rgba(28, 25, 23, 0.18);
+  --shadow-dialog: 0 2px 4px rgba(28, 25, 23, 0.04), 0 24px 64px -24px rgba(28, 25, 23, 0.35);
+
+  /* ---------------------------------------------------------------------
+     Bewegung — kurz, gerichtet, ohne Nachschwingen
+     --------------------------------------------------------------------- */
+  --ease-quiet: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* =========================================================================
+   Basis
+   ========================================================================= */
+
 @layer base {
   :root {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
     color-scheme: light;
   }
 
   body {
-    @apply bg-[#FAF8F5] text-stone-800 antialiased selection:bg-amber-200 selection:text-amber-950 min-h-screen overflow-hidden;
+    @apply bg-paper text-ink text-body antialiased min-h-screen overflow-hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  /* Ein sichtbarer Fokus ist Pflicht — die Anwendung wird mit der Tastatur
+     bedient. Bernstein ist hier Zustand, nicht Dekoration. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
   }
 
   /* Universal WebKit & Cross-Browser Select Styling */
@@ -63,7 +202,7 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2378716c' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%237C756C' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;
     background-repeat: no-repeat;
     background-size: 1.15rem 1.15rem;
@@ -83,15 +222,49 @@
   }
 
   /* Dark themed selects */
-  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"]) {
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23d6d3d1' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, .text-shell-text, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"], [class*="bg-shell"]) {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23968E84' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     color-scheme: dark;
   }
 
-  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"]) option {
+  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, .text-shell-text, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"], [class*="bg-shell"]) option {
     background-color: #24211E;
     color: #f5f5f4;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* =========================================================================
+   Utilities
+   ========================================================================= */
+
+/* Beträge, Salden, Datumsangaben: gleiche Ziffernbreite, damit Spalten
+   untereinander stehen und Zahlen beim Aktualisieren nicht springen. */
+@utility num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Beleg- und Kontonummern, IBAN, Steuernummern: zusätzlich die
+   durchgestrichene Null, damit 0 und O nicht verwechselt werden. */
+@utility code-num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: 0.01em;
+}
+
+/* Summenzeile nach Buchhalter-Konvention: Doppellinie über dem Ergebnis. */
+@utility rule-total {
+  border-top: 3px double var(--color-line-strong);
 }
 
 /* macOS Window Dragging Helpers */
@@ -114,10 +287,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
+  background: #D8D1C6;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a29e;
+  background: #A79F94;
 }
