@@ -309,7 +309,9 @@ ist das leiseste Trennmittel und deshalb das erste.
 |---|---|---|
 | `rounded-control` | 6 px | Buttons, Felder, Chips, Badges, Hinweise |
 | `rounded-overlay` | 14 px | Dialoge, Popover, Dropdowns |
-| `rounded-full` | | Avatare, Statuspunkte, Zähler |
+| `rounded-full` | | Avatare, Zähler-Pills |
+
+Statusmarker sind davon ausgenommen. Sie sind Rauten, siehe §10.
 
 `rounded-card` (10 px) bleibt als Token, hat aber nur noch einen Einsatzort: die
 Belegvorschau. Neue Verwendungen sind begründungspflichtig.
@@ -557,7 +559,28 @@ inline-flex items-center gap-1.5 h-5 px-2 rounded-control border text-caption fo
 ```
 
 Dazu das Vierergespann der Familie, etwa `bg-positive-soft text-positive-text
-border-positive-line`. Ein Badge enthält immer Text, nie nur einen Punkt.
+border-positive-line`. Ein Badge enthält immer Text, nie nur den Marker.
+
+Der Marker ist eine **Raute**, 7 mal 7 px, in der Basisfarbe der Familie
+(`mark-diamond bg-positive`). Der Kreis ist die weichste Form, die es gibt, und
+in einer Statusspalte beliebig. Die Raute hat vier definierte Kanten und eine
+Achse und liest sich als gesetzte Marke statt als Punkt.
+
+Umgesetzt über `clip-path`, nicht über `rotate(45deg)`:
+
+```css
+width: 7px; height: 7px;
+clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+```
+
+Eine gedrehte Fläche behält ihre ursprüngliche Layoutbox. Bei 5 mal 5 px malt
+sie 7,07 px, die Spitzen ragen also einen Pixel über die Box hinaus und
+verkürzen den Abstand zum Text auf 5 px, obwohl 6 px gesetzt sind. Mit
+`clip-path` ist die Box so groß wie die gezeichnete Form, und der Abstand
+stimmt.
+
+Dieselbe Raute markiert den Integritätszustand im Fuß der Navigation (§11.4).
+Andere Statuspunkte gibt es nicht.
 
 ### Dialog
 
@@ -636,7 +659,7 @@ Der Zustand steht dauerhaft im Fuß der Navigation, nie als Toast.
 
 | Zustand | Darstellung |
 |---|---|
-| geprüft | Haken in Salbei, "Daten unverändert", darunter der Zeitpunkt |
+| geprüft | Raute in Salbei, "Daten unverändert", darunter der Zeitpunkt |
 | wird geprüft | rotierendes Icon in `ink-subtle`, "Prüfung läuft" |
 | gebrochen | Schild in Rosé, "Integrität verletzt", Klick öffnet das Protokoll bei der ersten abweichenden Buchung |
 

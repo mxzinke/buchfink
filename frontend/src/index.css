@@ -282,6 +282,18 @@
   border-top: 3px double var(--color-line-strong);
 }
 
+/* Statusmarker: eine Raute, keine Kreisform. Vier definierte Kanten, eine
+   Achse. Bewusst über clip-path statt rotate(45deg): Eine gedrehte Fläche
+   behält ihre alte Layoutbox, die Spitzen ragen einen Pixel darüber hinaus
+   und fressen den Abstand zum Text. So ist die Box so groß wie die Form.
+   Die Farbe kommt vom Basis-Token der Familie, etwa `bg-positive`. */
+@utility mark-diamond {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
 /* macOS Window Dragging Helpers */
 .window-drag {
   -webkit-app-region: drag;

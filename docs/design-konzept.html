@@ -385,17 +385,21 @@
 
   .badge { display: inline-flex; align-items: center; gap: 6px; height: 21px; padding: 0 8px;
            border-radius: var(--radius-control); border: 1px solid; font-size: 11px; font-weight: 500; white-space: nowrap; }
-  .badge .dot { width: 5px; height: 5px; border-radius: 999px; flex: none; }
+  /* Statusmarker: Raute statt Kreis. clip-path, damit die Layoutbox so groß ist
+     wie die gezeichnete Form. Ein rotiertes Quadrat behielte seine alte Box,
+     die Spitzen ragten darüber hinaus und fräßen den Abstand zum Text. */
+  .badge .mark { width: 7px; height: 7px; flex: none;
+                 clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
   .b-neutral  { background: transparent;           color: var(--ink-subtle);     border-color: var(--line-strong); }
-  .b-neutral .dot  { background: var(--ink-faint); }
+  .b-neutral .mark { background: var(--ink-faint); }
   .b-open     { background: var(--attention-soft); color: var(--attention-text); border-color: var(--attention-line); }
-  .b-open .dot     { background: var(--attention); }
+  .b-open .mark    { background: var(--attention); }
   .b-partial  { background: transparent;           color: var(--attention-text); border-color: var(--attention-line); }
-  .b-partial .dot  { background: var(--attention); }
+  .b-partial .mark { background: var(--attention); }
   .b-done     { background: var(--positive-soft);  color: var(--positive-text);  border-color: var(--positive-line); }
-  .b-done .dot     { background: var(--positive); }
+  .b-done .mark    { background: var(--positive); }
   .b-error    { background: var(--negative-soft);  color: var(--negative-text);  border-color: var(--negative-line); }
-  .b-error .dot    { background: var(--negative); }
+  .b-error .mark   { background: var(--negative); }
 
   /* ==========================================================================
      Tabellen — ohne Container, direkt auf dem Papier
@@ -433,7 +437,8 @@
   .nav-item .g { width: 11px; height: 11px; border: 1px solid currentColor; border-radius: 2px; opacity: .32; flex: none; }
   .nav-foot { margin-top: auto; padding: 12px 18px 0; border-top: 1px solid var(--shell-line); }
   .nav-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--shell-text); }
-  .nav-status .d { width: 6px; height: 6px; border-radius: 999px; background: #9BCFA6; flex: none; }
+  .nav-status .d { width: 7px; height: 7px; background: #9BCFA6; flex: none;
+                   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
   .nav-status .ts { display: block; font-size: 10.5px; color: var(--shell-muted); margin-top: 2px; }
 
   .canvas { background: var(--paper); padding: 22px 24px; display: flex; flex-direction: column; }
@@ -1009,16 +1014,16 @@
             <p class="cap wide">Ein Wort pro Zustand, in der ganzen Anwendung dasselbe. Keine Synonyme wie erledigt oder fertig für denselben Zustand.</p>
           </div>
           <div class="demo-row" style="align-items:center">
-            <span class="badge b-neutral"><span class="dot"></span>Entwurf</span>
-            <span class="badge b-open"><span class="dot"></span>Offen</span>
-            <span class="badge b-partial"><span class="dot"></span>Teilweise ausgeglichen</span>
-            <span class="badge b-neutral"><span class="dot"></span>Zugeordnet</span>
-            <span class="badge b-done"><span class="dot"></span>Gebucht</span>
-            <span class="badge b-done"><span class="dot"></span>Ausgeglichen</span>
-            <span class="badge b-done"><span class="dot"></span>Festgeschrieben</span>
-            <span class="badge b-error"><span class="dot"></span>Überfällig</span>
-            <span class="badge b-error"><span class="dot"></span>Storniert</span>
-            <span class="badge b-error"><span class="dot"></span>Fehlerhaft</span>
+            <span class="badge b-neutral"><span class="mark"></span>Entwurf</span>
+            <span class="badge b-open"><span class="mark"></span>Offen</span>
+            <span class="badge b-partial"><span class="mark"></span>Teilweise ausgeglichen</span>
+            <span class="badge b-neutral"><span class="mark"></span>Zugeordnet</span>
+            <span class="badge b-done"><span class="mark"></span>Gebucht</span>
+            <span class="badge b-done"><span class="mark"></span>Ausgeglichen</span>
+            <span class="badge b-done"><span class="mark"></span>Festgeschrieben</span>
+            <span class="badge b-error"><span class="mark"></span>Überfällig</span>
+            <span class="badge b-error"><span class="mark"></span>Storniert</span>
+            <span class="badge b-error"><span class="mark"></span>Fehlerhaft</span>
           </div>
         </div>
       </div>
@@ -1054,35 +1059,35 @@
                 <td>Ausgangsrechnung Meridian GmbH</td>
                 <td class="acct">1200 → 4400 · 3806</td>
                 <td class="r">11.900,00 €</td>
-                <td><span class="badge b-done"><span class="dot"></span>Gebucht</span></td>
+                <td><span class="badge b-done"><span class="mark"></span>Gebucht</span></td>
               </tr>
               <tr>
                 <td class="doc-no">BK-2024-0288</td><td class="muted">07.03.2024</td>
                 <td>Miete Büro März 2024</td>
                 <td class="acct">6310 · 1406 → 1800</td>
                 <td class="r">2.380,00 €</td>
-                <td><span class="badge b-done"><span class="dot"></span>Festgeschrieben</span></td>
+                <td><span class="badge b-done"><span class="mark"></span>Festgeschrieben</span></td>
               </tr>
               <tr>
                 <td class="doc-no">RE-2024-0118</td><td class="muted">11.03.2024</td>
                 <td>Ausgangsrechnung Hoffmann KG</td>
                 <td class="acct">1200 → 4400 · 3806</td>
                 <td class="r">4.165,00 €</td>
-                <td><span class="badge b-open"><span class="dot"></span>Offen</span></td>
+                <td><span class="badge b-open"><span class="mark"></span>Offen</span></td>
               </tr>
               <tr>
                 <td class="doc-no">BK-2024-0291</td><td class="muted">12.03.2024</td>
                 <td>Bürobedarf Kramer &amp; Söhne</td>
                 <td class="acct">6815 · 1406 → 1800</td>
                 <td class="r">218,89 €</td>
-                <td><span class="badge b-done"><span class="dot"></span>Gebucht</span></td>
+                <td><span class="badge b-done"><span class="mark"></span>Gebucht</span></td>
               </tr>
               <tr class="storno">
                 <td class="doc-no">ST-2024-0009</td><td class="muted">14.03.2024</td>
                 <td>Generalumkehr zu BK-2024-0288</td>
                 <td class="acct">1800 → 6310 · 1406</td>
                 <td class="r">−2.380,00 €</td>
-                <td><span class="badge b-error"><span class="dot"></span>Storniert</span></td>
+                <td><span class="badge b-error"><span class="mark"></span>Storniert</span></td>
               </tr>
             </tbody>
           </table>
