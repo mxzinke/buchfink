@@ -209,6 +209,12 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
+	// Der Renderer eines vorigen Mandanten hält eine WASM-Instanz von
+	// zweistelliger Megabyte-Größe. Sie wird im Hintergrund freigegeben — ein
+	// noch laufendes Warm würde den Mandantenwechsel sonst blockieren.
+	if previous := b.renderer; previous != nil {
+		go func() { _ = previous.Close(context.Background()) }()
+	}
 	b.renderer = invoice.NewRenderer()
 	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
 	// Das WASM-Modul zu übersetzen kostet ein paar Sekunden. Die soll nicht
@@ -1032,9 +1038,11 @@ func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 }
 
 // GetReceipt returns one Beleg with its files.
+// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
+// darum die Schreibsperre.
 func (b *BuchfinkBridge) GetReceipt(id uint) (*domain.Receipt, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1074,9 +1082,11 @@ const maxPreviewBytes = 32 << 20
 // On a hybrid Beleg this is the image part, which is display only: booking reads
 // the structured part. A difference between the two is potentially a second
 // invoice with § 14c consequences and is shown, not judged.
+// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
+// darum die Schreibsperre.
 func (b *BuchfinkBridge) GetReceiptPreview(receiptID uint) (*ReceiptPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1098,9 +1108,11 @@ func (b *BuchfinkBridge) GetReceiptPreview(receiptID uint) (*ReceiptPreview, err
 // GetInvoiceDocument returns the issued invoice as a data URL for display and
 // download. It is the same hybrid PDF that was archived when the invoice was
 // issued, not a fresh rendering — what the customer received is what is shown.
+// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
+// darum die Schreibsperre.
 func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.invoiceSvc == nil || b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1143,9 +1155,11 @@ func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt,
 // ProposeFromEInvoice turns the structured part of a Beleg into a prefilled
 // booking. The fachliche Gruppe stays open — no invoice knows which expense
 // account a supply belongs on.
+// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
+// darum die Schreibsperre.
 func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceProposal, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.eInvoiceSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1200,9 +1214,11 @@ func (b *BuchfinkBridge) GetUncheckedEInvoiceRules() map[string]string {
 
 // PreviewIncomingReceipt computes the booking without writing it, so the form can
 // show the Buchungssatz instead of re-deriving it.
+// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
+// darum die Schreibsperre.
 func (b *BuchfinkBridge) PreviewIncomingReceipt(req service.ReceiptRequest) (*service.PostingPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.postingSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}

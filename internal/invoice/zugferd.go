@@ -27,6 +27,11 @@ func vatCategoryCode(t domain.TaxTreatment) string {
 		return "E" // Steuerbefreit
 	case domain.TaxTreatmentNotTaxable:
 		return "O" // Nicht steuerbar
+	case domain.TaxTreatmentZeroRated:
+		// Nullsteuersatz nach § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
+		// nicht steuerfrei. "S" mit 0,00 % wäre nach BR-S-05 formal falsch, und
+		// die Rechnung ließe sich gar nicht erst ausstellen.
+		return "Z"
 	default:
 		return "S" // Regelbesteuerung
 	}

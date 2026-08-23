@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -268,11 +270,15 @@ func (s *ReceiptService) Content(ctx context.Context, receiptID, fileID uint) (*
 		if err != nil {
 			return nil, err
 		}
+		// Die Prüfsumme aus den gelesenen Bytes, nicht aus einem zweiten Lesen:
+		// eine Belegdatei kann zweistellig MB groß sein, und die Vorschau lädt
+		// sie ohnehin schon einmal ganz.
+		sum := sha256.Sum256(data)
 		return &FileContent{
 			Data:     data,
 			FileName: f.FileName,
 			MimeType: f.MimeType,
-			Intact:   s.store.Verify(f.StoredPath, f.SHA256) == nil,
+			Intact:   hex.EncodeToString(sum[:]) == f.SHA256,
 		}, nil
 	}
 	return nil, fmt.Errorf("die Datei gehört nicht zu Beleg %s", receipt.ReceiptNumber)

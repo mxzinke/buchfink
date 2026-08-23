@@ -12,6 +12,19 @@ func TestUnusableProfilesAreRefused(t *testing.T) {
 			t.Errorf("%s hätte abgewiesen werden müssen", profile)
 		}
 	}
+	// Dieselben zwei Profile werden auch unter der ZUGFeRD-Kennung ausgestellt.
+	// Ein Wächter, der nur eine Schreibweise kennt, lässt genau die Dokumente
+	// durch, die er aufhalten soll.
+	for _, profile := range []string{
+		"urn:zugferd.de:2p0:minimum", "urn:zugferd.de:2p0:basicwl",
+		"urn:zugferd.de:2p1:minimum", "urn:zugferd.de:2p1:basicwl",
+		"URN:FACTUR-X.EU:1P0:MINIMUM",
+	} {
+		inv := &Invoice{SpecificationID: profile}
+		if err := inv.EnsureUsableProfile(); err == nil {
+			t.Errorf("%s hätte abgewiesen werden müssen", profile)
+		}
+	}
 	for _, profile := range []string{ProfileEN16931, ProfileBasic, ProfileExtended, ProfileXRechnung} {
 		inv := &Invoice{SpecificationID: profile}
 		if err := inv.EnsureUsableProfile(); err != nil {

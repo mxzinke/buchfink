@@ -32,7 +32,12 @@ var (
 // attaches the XML in one step, so there is no post-processing pass that would
 // have to write the Factur-X XMP extension schema by hand.
 type Renderer struct {
-	once     sync.Once
+	// mu guards the start-up. Warm runs in the background while the rest of the
+	// application carries on, so the compiler handle has to be published under a
+	// lock rather than read straight off the struct.
+	mu       sync.Mutex
+	started  bool
+	closed   bool
 	compiler *typst.Compiler
 	initErr  error
 }
@@ -44,21 +49,42 @@ func NewRenderer() *Renderer { return &Renderer{} }
 
 // Warm compiles the WASM module ahead of the first invoice, so the wait does not
 // land on the user pressing "Rechnung ausstellen".
-func (r *Renderer) Warm(ctx context.Context) error { return r.ensure(ctx) }
-
-// Close releases the WASM instance.
-func (r *Renderer) Close(ctx context.Context) error {
-	if r.compiler == nil {
-		return nil
-	}
-	return r.compiler.Close(ctx)
+func (r *Renderer) Warm(ctx context.Context) error {
+	_, err := r.ensure(ctx)
+	return err
 }
 
-func (r *Renderer) ensure(ctx context.Context) error {
-	r.once.Do(func() {
+// Close releases the WASM instance. It is idempotent, and safe to call while a
+// Warm is still compiling: whoever gets the lock first wins, and a renderer that
+// was closed before it started never compiles at all.
+func (r *Renderer) Close(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed = true
+	compiler := r.compiler
+	r.compiler = nil
+	if compiler == nil {
+		return nil
+	}
+	return compiler.Close(ctx)
+}
+
+// ensure hands back the compiler, starting it on first use.
+//
+// It returns the handle rather than leaving the caller to read the field: a
+// concurrent Close clears it, and a caller that took the field afterwards would
+// dereference nil.
+func (r *Renderer) ensure(ctx context.Context) (*typst.Compiler, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return nil, fmt.Errorf("der PDF-Renderer wurde bereits geschlossen")
+	}
+	if !r.started {
+		r.started = true
 		r.compiler, r.initErr = typst.NewCompiler(ctx)
-	})
-	return r.initErr
+	}
+	return r.compiler, r.initErr
 }
 
 // RenderInvoicePDF produces the hybrid invoice document.
@@ -73,11 +99,12 @@ func (r *Renderer) RenderInvoicePDF(ctx context.Context, inv *domain.Invoice, se
 	}
 	// Erst prüfen, dann den Compiler hochfahren: das Übersetzen des
 	// WASM-Moduls kostet beim ersten Aufruf mehrere Sekunden.
-	if err := r.ensure(ctx); err != nil {
+	compiler, err := r.ensure(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("der PDF-Renderer konnte nicht gestartet werden: %w", err)
 	}
 
-	pdf, err := r.compiler.Compile(ctx, typst.CompileRequest{
+	pdf, err := compiler.Compile(ctx, typst.CompileRequest{
 		Template: GenerateTypstTemplate(inv, seller, buyer),
 		Data:     map[string]any{"zugferd_xml": zugferdXML},
 		Fonts:    [][]byte{fontRegular, fontSemiBold, fontBold},
@@ -101,10 +128,11 @@ func (r *Renderer) RenderInvoicePDF(ctx context.Context, inv *domain.Invoice, se
 // extraction path can be tested against a PDF that is a sonstige Rechnung —
 // which is what most incoming documents still are.
 func (r *Renderer) compilePlainForTest(ctx context.Context) ([]byte, error) {
-	if err := r.ensure(ctx); err != nil {
+	compiler, err := r.ensure(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return r.compiler.Compile(ctx, typst.CompileRequest{
+	return compiler.Compile(ctx, typst.CompileRequest{
 		Template: `#set document(title: "Rechnung", date: datetime(year: 2026, month: 8, day: 22))
 = Rechnung ohne strukturierten Teil`,
 		Fonts:   [][]byte{fontRegular},

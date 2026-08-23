@@ -558,7 +558,16 @@ const InvoiceForm: React.FC<{
                   </select>
                 </label>
                 <div className="w-28 text-right pb-1.5 font-mono text-sm tabular-nums text-stone-800">
-                  {formatCents(draft.items[index]?.unitPrice ?? 0)}
+                  {/* Menge mal Einzelpreis — dieselbe Rechnung wie InvoiceItem.TotalNet
+                      im Backend. Reine Darstellung: Steuer und Rundung je Satzgruppe
+                      stehen weiter allein in der Buchungsvorschau. */}
+                  {formatCents(
+                    Math.round(
+                      ((draft.items[index]?.unitPrice ?? 0) *
+                        (draft.items[index]?.quantityMilli ?? 0)) /
+                        1000,
+                    ),
+                  )}
                 </div>
                 {items.length > 1 && (
                   <button

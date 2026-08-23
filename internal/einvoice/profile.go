@@ -42,11 +42,15 @@ func (inv *Invoice) IsXRechnung() bool {
 // deducting from a document that legally is not an invoice
 // (UStAE 14.1 Abs. 14 Satz 4). They exist as an accompanying record for a paper
 // invoice, and that is how they have to be treated.
+// The check is on the suffix, not on the two Factur-X 1p0 constants: the same
+// two profiles are also issued as `urn:zugferd.de:2p0:minimum` and
+// `urn:zugferd.de:2p1:basicwl`, and a guard that only knows one spelling lets
+// exactly the documents through it exists to stop.
 func (inv *Invoice) EnsureUsableProfile() error {
-	switch strings.ToLower(inv.Profile()) {
-	case ProfileMinimum:
+	switch profile := strings.ToLower(inv.Profile()); {
+	case strings.HasSuffix(profile, "minimum"):
 		return fmt.Errorf("das Profil ZUGFeRD MINIMUM enthält keine vollständige Rechnung und ist keine E-Rechnung im Sinne des Gesetzes (UStAE 14.1 Abs. 14 Satz 4)")
-	case ProfileBasicWL:
+	case strings.HasSuffix(profile, "basicwl"):
 		return fmt.Errorf("das Profil ZUGFeRD BASIC WL enthält keine Rechnungspositionen und ist keine E-Rechnung im Sinne des Gesetzes (UStAE 14.1 Abs. 14 Satz 4)")
 	}
 	return nil

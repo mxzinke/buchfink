@@ -143,3 +143,23 @@ func TestCentsFormatsGerman(t *testing.T) {
 		}
 	}
 }
+
+// big.Rat.SetString nimmt weit mehr an, als XML erlaubt: Exponenten, Brüche,
+// Hexadezimalzahlen, Unterstriche. Keine dieser Formen hat einen Punkt, also
+// zählt Decimals() null Nachkommastellen — und ein Betrag wie "1460505e-3"
+// käme als Zehntelcent durch die BR-DEC-Prüfung, die genau ihn abfangen soll.
+func TestOnlyDecimalLiteralsAreAmounts(t *testing.T) {
+	for _, raw := range []string{"1e3", "1E3", "3/2", "0x10", "0b101", "0o17", "1_000", "1460505e-3", "abc", "1.2.3", "", " ", "-", "+"} {
+		if _, ok := NewAmount(raw).Rat(); ok {
+			t.Errorf("%q ist keine Dezimalzahl, wurde aber angenommen", raw)
+		}
+		if _, err := NewAmount(raw).Cents(); err == nil {
+			t.Errorf("%q ist keine Dezimalzahl, lieferte aber Cent", raw)
+		}
+	}
+	for _, raw := range []string{"19.00", "+1.5", "-0.0", "0", "1125", "1460.5", "19"} {
+		if _, ok := NewAmount(raw).Rat(); !ok {
+			t.Errorf("%q ist eine gültige Dezimalzahl, wurde aber abgewiesen", raw)
+		}
+	}
+}

@@ -1,6 +1,7 @@
 package invoice
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -253,14 +254,19 @@ func taxRate(rate einvoice.Amount) (domain.TaxRate, error) {
 }
 
 // validationOf records the check the way the Beleg stores it.
+//
+// The findings go in as JSON, not as prose: the Beleg keeps them for the
+// interface, which shows rule, severity and the affected business terms
+// separately. A joined string would force the interface to parse German back
+// apart, and a severity it cannot read is a severity it will show as green.
 func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptValidation {
-	messages := make([]string, 0, len(result.Findings))
-	for _, f := range result.Findings {
-		where := ""
-		if f.Where != "" {
-			where = f.Where + ": "
+	findings := ""
+	if len(result.Findings) > 0 {
+		// Nur der Fehlerfall bleibt leer: eine leere Liste als "null" abzulegen
+		// hieße, der Oberfläche etwas zu schicken, worüber sie nicht laufen kann.
+		if encoded, err := json.Marshal(result.Findings); err == nil {
+			findings = string(encoded)
 		}
-		messages = append(messages, fmt.Sprintf("[%s] %s%s", f.Rule, where, f.Message))
 	}
 	return domain.ReceiptValidation{
 		Format:   string(inv.Syntax),
@@ -270,7 +276,7 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 		Version:  einvoice.RulesetVersion,
 		Coverage: coverage(inv),
 		Errors:   result.ErrorCount(),
-		Findings: strings.Join(messages, "\n"),
+		Findings: findings,
 	}
 }
 

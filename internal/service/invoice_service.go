@@ -129,9 +129,8 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 	}
 
 	// Das Dokument entsteht vor der Buchung: der Beleg trägt die Rechnungsnummer,
-	// und die Buchung soll auf einen fertigen Beleg zeigen. Scheitert die
-	// Buchung, bleibt der Beleg unversiegelt und kann verworfen werden — die
-	// andere Reihenfolge hinterließe eine Buchung ohne Dokument.
+	// und die Buchung soll auf einen fertigen Beleg zeigen — die andere
+	// Reihenfolge hinterließe eine Buchung ohne Dokument.
 	receipt, err := s.fileInvoiceDocument(ctx, inv, contact)
 	if err != nil {
 		return err
@@ -142,6 +141,20 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 
 	entry, err := s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
 	if err != nil {
+		// Scheitert die Buchung — ein Rechnungsdatum in einem festgeschriebenen
+		// Zeitraum reicht dafür —, wird der eben abgelegte Beleg gleich wieder
+		// verworfen. Er trägt die Rechnungsnummer in einem eindeutigen Index;
+		// bliebe er stehen, wäre diese Nummer für immer belegt und jeder neue
+		// Versuch verbrauchte die nächste.
+		if receipt != nil {
+			if discardErr := s.receiptSvc.Discard(ctx, receipt.ID, fmt.Sprintf(
+				"Die Buchung der Rechnung %s ist fehlgeschlagen, der Beleg wurde nicht ausgestellt",
+				inv.InvoiceNumber)); discardErr != nil {
+				return fmt.Errorf("%w (der Beleg %s ließ sich anschließend nicht verwerfen: %v)",
+					err, inv.InvoiceNumber, discardErr)
+			}
+			inv.ReceiptID = nil
+		}
 		return err
 	}
 	inv.JournalEntryID = &entry.ID

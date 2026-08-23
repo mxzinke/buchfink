@@ -416,3 +416,38 @@ func TestBookingRequiresAReceipt(t *testing.T) {
 		t.Errorf("die Meldung soll den Ausweg über den Eigenbeleg nennen, lautet aber: %v", err)
 	}
 }
+
+// Die Abweisung der Istversteuerung gilt für neue Buchungen, nicht für die
+// Korrektur vorhandener. Wer einen Mandanten in diesem Zustand vorfindet, muss
+// die falschen Buchungen stornieren können — sonst schließt die Prüfung ihn in
+// genau dem Zustand ein, den sie beanstandet.
+func TestReversalStaysPossibleUnderCashAccounting(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	entry, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 10000))
+	if err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Einstellungen: %v", err)
+	}
+	cfg.TaxationType = "IST"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Einstellungen speichern: %v", err)
+	}
+
+	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 10000)); err == nil {
+		t.Fatal("eine neue Buchung hätte abgewiesen werden müssen")
+	}
+	reversal, err := env.journal.Reverse(ctx, entry.ID, "falscher Betrag")
+	if err != nil {
+		t.Fatalf("die Generalumkehr wurde abgewiesen: %v", err)
+	}
+	if reversal.Kind != domain.EntryKindReversal {
+		t.Errorf("die Buchung ist keine Generalumkehr, sondern %q", reversal.Kind)
+	}
+}

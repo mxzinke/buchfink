@@ -583,6 +583,14 @@ const BookingForm: React.FC<{
     occasion: '',
   });
 
+  // Ein Betrag, den parseCents nicht lesen kann ("1.2.3", "250,--", auch das
+  // deutsche "1.234"), fällt beim Aufbau der Anfrage unten aus den Positionen
+  // heraus. Ohne diese Prüfung würde der Beleg ohne diese Position gebucht, und
+  // die Vorschau sähe dabei sauber aus. Das ist keine Fachlogik: gerechnet wird
+  // nichts, es wird nur gesagt, dass hier etwas nicht lesbar ist.
+  const unreadableAmount = (value: string) => value.trim() !== '' && parseCents(value) === null;
+  const hasUnreadableAmount = positions.some((p) => unreadableAmount(p.net));
+
   // Ob die Aufzeichnung nötig ist, sagt der Katalog: die Gruppe trägt das Konto
   // für den nicht abzugsfähigen Anteil. Das Backend besteht darauf.
   const needsEntertainment = positions.some(
@@ -810,11 +818,19 @@ const BookingForm: React.FC<{
                 ))}
               </select>
               <input
-                className={inputClass}
+                className={`${inputClass} ${
+                  unreadableAmount(position.net) ? 'border-rose-300 bg-rose-50' : ''
+                }`}
                 placeholder="Netto"
                 inputMode="decimal"
                 value={position.net}
                 onChange={(e) => updatePosition(index, { net: e.target.value })}
+                aria-invalid={unreadableAmount(position.net)}
+                title={
+                  unreadableAmount(position.net)
+                    ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56 — ohne Tausenderpunkt.'
+                    : undefined
+                }
                 required
               />
               <select
@@ -933,13 +949,19 @@ const BookingForm: React.FC<{
         </Field>
 
         {proposal && <ProposalNotes proposal={proposal} />}
+        {hasUnreadableAmount && (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+            Ein Nettobetrag ist nicht lesbar. Erwartet wird etwa <code>1234,56</code> — ohne
+            Tausenderpunkt. Solange er so dasteht, würde die Position aus der Buchung fallen.
+          </div>
+        )}
         <PostingWarnings warnings={preview?.warnings} />
         <PostingPreviewPanel preview={preview} error={previewError} />
         <ErrorBox message={error} />
       </div>
 
       <div className="flex justify-end gap-2 px-4 py-3 border-t border-stone-100">
-        <PrimaryButton type="submit" disabled={busy || !preview?.balanced}>
+        <PrimaryButton type="submit" disabled={busy || hasUnreadableAmount || !preview?.balanced}>
           {busy ? 'Wird gebucht…' : 'Buchen'}
         </PrimaryButton>
       </div>
@@ -959,14 +981,21 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
   if (!receipt.validatedAt) return null;
 
   let findings: ValidationFinding[] = [];
+  let unreadable = false;
   try {
-    findings = receipt.validationFindings ? JSON.parse(receipt.validationFindings) : [];
+    const parsed = receipt.validationFindings ? JSON.parse(receipt.validationFindings) : [];
+    findings = Array.isArray(parsed) ? parsed : [];
+    unreadable = !Array.isArray(parsed);
   } catch {
-    findings = [];
+    unreadable = true;
   }
   const errors = findings.filter((f) => f.severity === 'fatal');
   const rest = findings.filter((f) => f.severity !== 'fatal');
-  const clean = errors.length === 0;
+  // Grün nur, wenn beide Quellen es sagen. Die Zahl kommt aus dem Backend und
+  // überlebt jede Formatänderung an der Befundliste; ohne sie hieße eine Liste,
+  // die sich nicht lesen lässt, „keine Verstöße" — die Falschaussage, die von
+  // allen die teuerste ist.
+  const clean = errors.length === 0 && !receipt.validationErrors && !unreadable;
   const complete = receipt.validationCoverage === 'full';
 
   return (
@@ -985,7 +1014,11 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
           ? complete
             ? 'Alle Regeln der Norm erfüllt'
             : 'Geprüfte Regeln erfüllt'
-          : `${errors.length} ${errors.length === 1 ? 'Verstoß' : 'Verstöße'} gegen die geprüften Regeln`}
+          : errors.length > 0
+            ? `${errors.length} ${errors.length === 1 ? 'Verstoß' : 'Verstöße'} gegen die geprüften Regeln`
+            : `${receipt.validationErrors} ${
+                receipt.validationErrors === 1 ? 'Verstoß' : 'Verstöße'
+              } gegen die geprüften Regeln — die Einzelheiten sind nicht lesbar`}
       </div>
       <p className="text-[11px] text-stone-500">
         {receipt.detectedProfile} · Regelwerk {receipt.validationRuleset}

@@ -83,8 +83,15 @@ func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver
 func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (*domain.JournalEntry, error) {
 	s.applyDefaults(ctx, entry)
 
-	if err := s.ensureAccrualTaxation(ctx); err != nil {
-		return nil, err
+	// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf
+	// nicht die Korrektur vorhandener verhindern. Wer einen Mandanten auf
+	// Istversteuerung stehen hat, muss seine falschen Buchungen stornieren
+	// können — sonst schließt die Prüfung ihn in dem Zustand ein, den sie
+	// beanstandet.
+	if entry.Kind != domain.EntryKindReversal {
+		if err := s.ensureAccrualTaxation(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if err := entry.Validate(); err != nil {
 		return nil, err
@@ -278,8 +285,11 @@ func (s *JournalService) ensureAccrualTaxation(ctx context.Context) error {
 	if strings.EqualFold(cfg.TaxationType, "SOLL") {
 		return nil
 	}
+	// Kein Verweis auf eine Einstellung: die Besteuerungsart ist in der
+	// Oberfläche nur ablesbar, nicht änderbar. Eine Meldung, die auf einen
+	// Schalter zeigt, den es nicht gibt, hilft niemandem weiter.
 	return fmt.Errorf(
-		"Buchfink unterstützt derzeit nur die Sollversteuerung (§ 16 Abs. 1 Satz 1 UStG). Bei Istversteuerung entsteht die Steuer erst mit der Vereinnahmung des Entgelts (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Bitte in den Einstellungen auf Sollversteuerung umstellen")
+		"Für diesen Mandanten ist die Istversteuerung hinterlegt. Buchfink unterstützt derzeit nur die Sollversteuerung (§ 16 Abs. 1 Satz 1 UStG): bei Istversteuerung entsteht die Steuer erst mit der Vereinnahmung des Entgelts (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Stornos bestehender Buchungen bleiben möglich")
 }
 
 func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {

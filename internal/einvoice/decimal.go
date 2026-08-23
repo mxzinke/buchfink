@@ -46,8 +46,15 @@ func (a Amount) Decimals() int {
 
 // Rat returns the exact value. The second result is false if the amount is
 // absent or unreadable.
+//
+// The literal is checked against the lexical space of xs:decimal before it is
+// parsed. big.Rat.SetString is far more generous than XML is — it takes "1e3",
+// "3/2", "0x10" and "1_000" — and every one of those slips past Decimals(),
+// which can only count what follows a dot. A document writing "1460505e-3"
+// would then state a sub-cent amount and pass the BR-DEC check that exists to
+// catch exactly that.
 func (a Amount) Rat() (*big.Rat, bool) {
-	if a.raw == "" {
+	if !isDecimalLiteral(a.raw) {
 		return nil, false
 	}
 	r, ok := new(big.Rat).SetString(a.raw)
@@ -55,6 +62,32 @@ func (a Amount) Rat() (*big.Rat, bool) {
 		return nil, false
 	}
 	return r, true
+}
+
+// isDecimalLiteral reports whether the string is a decimal in the sense of
+// xs:decimal: an optional sign, digits, at most one dot, nothing else.
+func isDecimalLiteral(s string) bool {
+	if s == "" {
+		return false
+	}
+	if s[0] == '+' || s[0] == '-' {
+		s = s[1:]
+	}
+	digits, dots := 0, 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c >= '0' && c <= '9':
+			digits++
+		case c == '.':
+			dots++
+			if dots > 1 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return digits > 0
 }
 
 // Cents returns the amount in hundredths.

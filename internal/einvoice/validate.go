@@ -237,6 +237,16 @@ func (v *validator) decimals(rule string, a Amount, label string) {
 }
 
 func (v *validator) decimalsAt(rule, where string, a Amount, label string) {
+	// Was gar keine Dezimalzahl ist, wird hier gemeldet und nicht erst dort, wo
+	// gerechnet wird. Ein Betrag in Exponentialschreibweise hat nach Decimals()
+	// null Nachkommastellen; ohne diese Zeile bliebe er unbeanstandet und fiele
+	// anschließend still aus jeder Summenprüfung heraus.
+	if a.Present() {
+		if _, ok := a.Rat(); !ok {
+			v.report(rule, where, "%s ist mit %q keine Dezimalzahl", label, a)
+			return
+		}
+	}
 	if n := a.Decimals(); n > 2 {
 		v.report(rule, where, "%s hat %d Nachkommastellen, erlaubt sind höchstens zwei", label, n)
 	}
