@@ -200,6 +200,41 @@ Ist die Zahlung ein Bankumsatz, muss die Summe der Zuordnungen exakt dem Kontoau
 entsprechen. Ein vertipptes Skonto wird so zur Fehlermeldung statt zur stillen
 Falschbuchung.
 
+**Offene Posten kennen keinen Jahreswechsel.** Die Rechnung vom 20. Dezember wird im
+Januar bezahlt — das ist der Normalfall, nicht die Ausnahme, und beide Hälften des
+Vorgangs liegen planmäßig in verschiedenen Wirtschaftsjahren. § 252 Abs. 1 Nr. 5 HGB
+verlangt genau das: Aufwendungen und Erträge sind „unabhängig von den Zeitpunkten der
+entsprechenden Zahlungen" zu erfassen. Die Forderung und der Ertrag entstehen mit der
+Leistung, die Zahlung wird gebucht, wann sie fließt.
+
+Das gilt **unabhängig von der Besteuerungsart**. Die Istversteuerung nach § 20 UStG
+verschiebt allein den Zeitpunkt, zu dem die *Umsatzsteuer* entsteht
+(§ 13 Abs. 1 Nr. 1 Buchst. b UStG); bei einem bilanzierenden Unternehmen bleiben
+Forderung und Ertrag im Jahr der Leistung, und die Steuer wartet solange auf einem
+Konto „Umsatzsteuer nicht fällig". Ein **Rechnungsabgrenzungsposten** entsteht dabei
+nicht: § 250 HGB setzt eine Ausgabe oder Einnahme **vor** dem Stichtag voraus, die
+Aufwand oder Ertrag für eine Zeit **danach** ist — also den umgekehrten Fall. Hier ist
+die Leistung vor dem Stichtag und die Zahlung danach, und das ist eine Forderung.
+
+Daraus folgt für die Liste der offenen Posten:
+
+- Sie zeigt die Posten **aller Jahre bis zum eingestellten**, nicht nur die des
+  laufenden. Sonst ließe sich die Dezemberrechnung im Januar in keiner Auswahl mehr
+  finden und nie mehr ausgleichen.
+- Der ausgeglichene Betrag zählt über die **ganze Historie**, nicht je Jahr. Zählte er
+  je Jahr, stünde die im Januar bezahlte Rechnung im Blick auf das Vorjahr weiter offen
+  — und der Zuordnungsdialog ließe sie ein zweites Mal bezahlen.
+- Zuordnungen, deren **Zahlungsbuchung storniert** wurde, zählen nicht mit. Die
+  Generalumkehr lässt die Zuordnungszeilen stehen; ohne diese Regel bliebe der Posten
+  ausgeglichen, ohne dass jemand gezahlt hätte.
+
+**Was das ausdrücklich nicht ist:** eine Stichtagsbetrachtung. „Welche Posten waren am
+31.12. offen" ist eine andere Frage, und sie braucht eine Datumsgrenze statt einer
+Jahreszahl. Die Bilanz ist davon unberührt — die Position *Forderungen aus Lieferungen
+und Leistungen* kommt aus den Salden der Personenkonten des Jahres, nicht aus dieser
+Liste. Eine stichtagsbezogene OP-Liste gibt es noch nicht; sie gehört zum
+Jahresabschluss und ist dort vermerkt.
+
 ### 7.3 Zahlungsdifferenzen
 
 Der Zahlbetrag stimmt aus mehreren Gründen nicht mit dem Belegbetrag überein. Ohne

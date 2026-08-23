@@ -515,3 +515,128 @@ func TestSkontoOnReverseChargeCorrectsBothLegs(t *testing.T) {
 		t.Errorf("bei § 13b gleichen sich Steuer und Vorsteuer aus, die Zahllast ist aber %s €", summary.Payable)
 	}
 }
+
+// Ein offener Posten schließt nicht zum Jahreswechsel. § 252 Abs. 1 Nr. 5 HGB
+// legt den Ertrag in das Jahr der Leistung und die Zahlung in das Jahr, in dem
+// sie fließt — die Dezemberrechnung und ihr Ausgleich liegen also planmäßig in
+// verschiedenen Jahren. Zählte nur das laufende Jahr, stünde die bezahlte
+// Rechnung weiter offen und ließe sich ein zweites Mal ausgleichen.
+func TestSettlementIsSeenAcrossTheFiscalYearBoundary(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+
+	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	// Bezahlt im Januar des Folgejahres — die Buchung landet in 2027.
+	payment, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2027-01-15",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID: invoice.ID,
+			SettledAmount:   119000,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung im Folgejahr: %v", err)
+	}
+	if payment.FiscalYear != 2027 {
+		t.Fatalf("die Zahlung gehört in das Wirtschaftsjahr 2027, gebucht wurde %d", payment.FiscalYear)
+	}
+
+	items, err := payments.OpenItems(ctx)
+	if err != nil {
+		t.Fatalf("offene Posten: %v", err)
+	}
+	for _, item := range items {
+		if item.EntryID == invoice.ID {
+			t.Errorf("die Rechnung ist bezahlt, steht aber mit %s € weiter offen", item.OpenAmount)
+		}
+	}
+}
+
+// Und dieselbe Rechnung muss im Folgejahr überhaupt noch auswählbar sein:
+// wäre die Liste auf das laufende Jahr begrenzt, ließe sie sich nicht mehr
+// ausgleichen — sie stünde in keiner Auswahl.
+func TestOpenItemsFromEarlierYearsStayVisible(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	payments := env.payments(t)
+	payments.SetFiscalYear(2027)
+
+	items, err := payments.OpenItems(ctx)
+	if err != nil {
+		t.Fatalf("offene Posten: %v", err)
+	}
+	var found *domain.OpenItem
+	for i := range items {
+		if items[i].EntryID == invoice.ID {
+			found = &items[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("die Rechnung aus dem Vorjahr steht in keiner Auswahl und ließe sich nie mehr ausgleichen")
+	}
+	if found.OpenAmount != 119000 {
+		t.Errorf("offen sind %s €, erwartet 1.190,00", found.OpenAmount)
+	}
+
+	if _, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2027-02-01",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID: invoice.ID,
+			SettledAmount:   119000,
+		}},
+	}); err != nil {
+		t.Fatalf("die Rechnung aus dem Vorjahr ließ sich nicht ausgleichen: %v", err)
+	}
+}
+
+// Wird eine Zahlung storniert, ist der Posten wieder offen. Die
+// Zuordnungszeilen bleiben beim Storno stehen — zählten sie weiter, wäre die
+// Rechnung ausgeglichen, ohne dass jemand gezahlt hätte.
+func TestReversedPaymentReopensTheItem(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	payment, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2026-03-20",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID: invoice.ID,
+			SettledAmount:   119000,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung: %v", err)
+	}
+
+	if _, err := env.journal.Reverse(ctx, payment.ID, "Zahlung war dem falschen Posten zugeordnet"); err != nil {
+		t.Fatalf("Storno der Zahlung: %v", err)
+	}
+
+	items, err := payments.OpenItems(ctx)
+	if err != nil {
+		t.Fatalf("offene Posten: %v", err)
+	}
+	var found *domain.OpenItem
+	for i := range items {
+		if items[i].EntryID == invoice.ID {
+			found = &items[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("nach dem Storno der Zahlung muss der Posten wieder offen sein")
+	}
+	if found.OpenAmount != 119000 {
+		t.Errorf("offen sind %s €, erwartet wieder 1.190,00", found.OpenAmount)
+	}
+}

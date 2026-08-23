@@ -76,12 +76,23 @@ func NewPaymentService(
 func (s *PaymentService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OpenItems lists the unsettled receivables and payables.
+//
+// TODO: stichtagsbezogene OP-Liste — „welche Posten waren am 31.12. offen".
+// Diese hier ist die operative Sicht: was ist heute noch offen, und wogegen darf
+// gebucht werden. Für den Jahresabschluss braucht es dieselbe Rechnung mit einer
+// Datumsgrenze auf Buchungsdatum der Zahlung, nicht mit einer Jahreszahl. Die
+// Bilanzposition selbst kommt aus den Salden der Personenkonten und ist davon
+// nicht betroffen.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+	// Auch die Vorjahre: eine Forderung aus dem Dezember ist im Januar noch eine
+	// Forderung. Wäre die Liste auf das laufende Jahr begrenzt, ließe sich die
+	// Rechnung, die den Jahreswechsel überlebt hat, überhaupt nicht mehr
+	// ausgleichen — sie stünde in keiner Auswahl.
+	entries, err := s.journalRepo.FindThroughFiscalYear(ctx, s.fiscalYear)
 	if err != nil {
 		return nil, err
 	}
-	settled, err := s.allocationRepo.SettledByOpenItem(ctx, s.fiscalYear)
+	settled, err := s.allocationRepo.SettledByOpenItem(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -37,6 +37,16 @@ func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]
 	return entries, err
 }
 
+func (r *journalRepositoryGorm) FindThroughFiscalYear(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
+	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year <= ?", fiscalYear)
+	}
+	var entries []domain.JournalEntry
+	err := q.Find(&entries).Error
+	return entries, err
+}
+
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
 	if err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {

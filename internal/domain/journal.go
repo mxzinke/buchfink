@@ -321,6 +321,12 @@ type EntryHashFunc func(e *JournalEntry, prevHash string) string
 // JournalRepository defines persistence for journal entries.
 type JournalRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindThroughFiscalYear returns the entries of a year and of every earlier
+	// one. Offene Posten are what it exists for: a receivable from the previous
+	// year is still a receivable, and § 252 Abs. 1 Nr. 5 HGB puts the payment in
+	// the year it happens — so the invoice and its settlement routinely sit in
+	// different years, and a view bounded to one of them sees half the story.
+	FindThroughFiscalYear(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)

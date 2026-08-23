@@ -110,7 +110,11 @@ func (o *OpenItem) IsOverdue(today string) bool {
 type PaymentAllocationRepository interface {
 	Create(ctx context.Context, allocations []PaymentAllocation) error
 	FindByOpenItem(ctx context.Context, entryID uint) ([]PaymentAllocation, error)
-	SettledByOpenItem(ctx context.Context, fiscalYear int) (map[uint]Cents, error)
+	// SettledByOpenItem sums what has been settled per open item, over the whole
+	// history and not per fiscal year. An open item does not close at the
+	// Jahreswechsel: a December invoice paid in January is settled, and a list
+	// that showed it as open would invite a second payment.
+	SettledByOpenItem(ctx context.Context) (map[uint]Cents, error)
 	FindByBankTx(ctx context.Context, bankTxID uint) ([]PaymentAllocation, error)
 }
 
