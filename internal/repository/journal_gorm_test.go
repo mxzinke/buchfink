@@ -8,12 +8,12 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// GORM lädt die Zeilen einer Buchung über eine IN-Liste mit einer Bindvariablen
-// je Elternzeile, und SQLite bricht bei 32.766 davon ab. Weil die offenen Posten
-// über alle Jahre gelesen werden, ist diese Zahl erreichbar — und dann käme
-// nicht eine langsame Liste zurück, sondern ein Fehler, der die Liste der
-// offenen Posten und damit jede Zahlung stilllegt.
-func TestEntryReadsSurviveTheBindVariableLimit(t *testing.T) {
+// GORM lädt die Zeilen einer Buchung über eine IN-Liste mit einem Parameter je
+// Elternzeile, und SQLite lässt höchstens 32.766 Parameter je Abfrage zu. Über
+// mehrere Jahre ist diese Zahl erreichbar — und dann käme keine langsame Liste
+// zurück, sondern ein Fehler, der das Journal, die USt-Auswertung und die
+// Integritätsprüfung stilllegt.
+func TestEntryReadsSurviveTheParameterLimit(t *testing.T) {
 	if testing.Short() {
 		t.Skip("legt 33.000 Buchungen an, zu langsam für -short")
 	}
@@ -54,7 +54,7 @@ func TestEntryReadsSurviveTheBindVariableLimit(t *testing.T) {
 	} {
 		got, err := read()
 		if err != nil {
-			t.Errorf("%s über der Bindvariablengrenze: %v", name, err)
+			t.Errorf("%s über der Parametergrenze: %v", name, err)
 			continue
 		}
 		if len(got) != n {

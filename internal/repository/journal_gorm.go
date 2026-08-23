@@ -41,15 +41,15 @@ func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm
 }
 
 // entryBatchSize keeps the preloads' IN lists far below SQLite's limit of 32766
-// bind variables, with room for both preloads on the same batch.
+// parameters per statement, with room for both preloads on the same batch.
 const entryBatchSize = 2000
 
 // findBatched runs a query in batches instead of one statement.
 //
 // This is not tuning, it is the difference between working and failing. GORM
-// loads the lines of an entry through an IN list with one bind variable per
-// parent row, and SQLite refuses above 32766 of them — a query does not get
-// slow there, it returns an error. The readers on this path are the journal
+// loads the lines of an entry through an IN list with one parameter per parent
+// row, and SQLite refuses a statement with more than 32766 of them — a query
+// does not get slow there, it returns an error. The readers on this path are the journal
 // list, the Umsatzsteuer-Auswertung and the GoBD integrity check, so the failure
 // would arrive as "the journal cannot be read" on a perfectly healthy database.
 //
@@ -134,8 +134,8 @@ func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 
 func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account string, fiscalYear int) ([]domain.JournalEntry, error) {
 	// Ein EXISTS statt einer Liste eingesammelter Kennungen: die Liste wäre eine
-	// zweite Abfrage und eine zweite Bindvariablenliste, und beide wachsen mit
-	// der Zahl der Buchungen auf dem Konto.
+	// zweite Abfrage und eine zweite Reihe von Abfrageparametern, und beide
+	// wachsen mit der Zahl der Buchungen auf dem Konto.
 	q := r.scope(ctx, fiscalYear).
 		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND l.account = ?)", account)
 	entries, err := findBatched(q)
