@@ -9,6 +9,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
+	"github.com/buchfink/buchfink/internal/einvoice/zugferd"
 )
 
 func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact) {
@@ -36,6 +37,18 @@ func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact)
 	}
 	buyer := &domain.Contact{Name: "Kunde GmbH", Address: "Kundenweg 2\n10115 Berlin", CountryCode: "DE"}
 	return inv, seller, buyer
+}
+
+// Die eingebettete Datei muss text/xml sein — so schreibt es die
+// ZUGFeRD-Spezifikation vor, und darauf prüfen die Konformitätswerkzeuge der
+// Empfänger. Der Wert steht in internal/einvoice/zugferd; die Vorlage darf nicht
+// davon abweichen.
+func TestTemplateDeclaresTheAttachmentMimeType(t *testing.T) {
+	inv, seller, buyer := sampleInvoice()
+	template := GenerateTypstTemplate(inv, seller, buyer)
+	if !strings.Contains(template, `mime-type: "`+zugferd.MimeType+`"`) {
+		t.Errorf("die Vorlage deklariert nicht %q als MIME-Typ", zugferd.MimeType)
+	}
 }
 
 // Die Ausgangsrechnung entsteht als hybrides PDF: PDF/A-3b mit dem

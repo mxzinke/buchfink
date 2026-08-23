@@ -266,12 +266,18 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 	// ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
 	// ordnungsmäßige Rechnung — der Empfänger verlöre den Vorsteuerabzug, und er
 	// merkte es erst bei der Prüfung. Lieber jetzt eine Meldung an den Aussteller.
-	if doc, err := einvoice.ParseCII([]byte(xmlContent)); err == nil {
-		if result := ruleset.Validate(doc); !result.Valid() {
-			return "", fmt.Errorf(
-				"die Rechnung erfüllt EN 16931 noch nicht: %s. Bitte die fehlenden Stammdaten ergänzen",
-				strings.Join(errorMessages(result), "; "))
-		}
+	// Lässt sich das eigene Erzeugnis nicht einmal lesen, ist das der schwerste
+	// denkbare Befund und kein Grund, die Prüfung zu überspringen: ein
+	// Steuerzeichen in einer Anschrift genügt, und das Ergebnis wanderte
+	// ungeprüft ins Kunden-PDF.
+	doc, err := einvoice.ParseCII([]byte(xmlContent))
+	if err != nil {
+		return "", fmt.Errorf("der erzeugte Rechnungsdatensatz ist nicht lesbar: %w", err)
+	}
+	if result := ruleset.Validate(doc); !result.Valid() {
+		return "", fmt.Errorf(
+			"die Rechnung erfüllt EN 16931 noch nicht: %s. Bitte die fehlenden Stammdaten ergänzen",
+			strings.Join(errorMessages(result), "; "))
 	}
 
 	return xmlContent, nil
@@ -342,7 +348,7 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
   "factur-x.xml",
   bytes(sys.inputs.zugferd_xml),
   relationship: "alternative",
-  mime-type: "application/xml",
+  mime-type: "text/xml",
   description: "Factur-X / ZUGFeRD invoice data (EN 16931)",
 )
 #set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
