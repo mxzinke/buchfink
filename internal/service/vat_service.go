@@ -57,14 +57,22 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 			// Signed amount in the account's natural direction.
 			credit := line.Amount
 			debit := line.Amount
+			base := line.TaxBase
 			if line.Side == domain.SideDebit {
 				credit = -credit
+				base = -base
 			} else {
 				debit = -debit
 			}
 
-			// TaxBase is already negative on a Generalumkehr, so a correction
-			// reduces the reported base without a special case here.
+			// Die Bemessungsgrundlage folgt derselben Seitenlogik wie der
+			// Steuerbetrag, und das ist keine Kosmetik: die Steuerkorrektur
+			// eines Skontos nach § 17 Abs. 1 UStG steht mit positivem Betrag
+			// und positiver Grundlage auf der Gegenseite des Steuerkontos.
+			// Roh addiert senkte ein Skonto die Steuer und erhöhte zugleich den
+			// Umsatz, aus dem sie stammt — zwei Zahlen, die einander in
+			// derselben Voranmeldung widersprechen. Die Generalumkehr bleibt
+			// unberührt: sie negiert Betrag und Grundlage und behält die Seite.
 			switch line.Account {
 			// Vereinnahmte Umsatzsteuer auf steuerpflichtige Inlandsumsätze.
 			case domain.AccountUmsatzsteuer19, domain.AccountUmsatzsteuer7, domain.AccountUmsatzsteuer:
@@ -74,19 +82,19 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 					figure = &domain.VatFigure{Rate: rate}
 					taxableByRate[rate] = figure
 				}
-				figure.Net += line.TaxBase
+				figure.Net += base
 				figure.Tax += credit
 				summary.OutputTax += credit
 
 			// Geschuldete Steuer nach § 13b UStG.
 			case domain.AccountUmsatzsteuer13b19, domain.AccountUmsatzsteuer13b:
 				summary.ReverseChargeTax += credit
-				summary.ReverseChargeBase += line.TaxBase
+				summary.ReverseChargeBase += base
 
 			// Erwerbsteuer aus innergemeinschaftlichem Erwerb.
 			case domain.AccountUmsatzsteuerIG19, domain.AccountUmsatzsteuerIG:
 				summary.IntraCommunityAcquisitionTax += credit
-				summary.IntraCommunityAcquisitionBase += line.TaxBase
+				summary.IntraCommunityAcquisitionBase += base
 
 			// Abziehbare Vorsteuer, unabhängig von ihrer Herkunft.
 			case domain.AccountVorsteuer19, domain.AccountVorsteuer7, domain.AccountVorsteuer,

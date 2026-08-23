@@ -386,3 +386,132 @@ func TestReversedDocumentHasNoOpenItem(t *testing.T) {
 		t.Errorf("ein stornierter Beleg darf keinen offenen Posten hinterlassen, es sind aber %d", len(items))
 	}
 }
+
+// Ein gewährtes Skonto mindert nach § 17 Abs. 1 Satz 1 UStG den geschuldeten
+// Steuerbetrag — und mit ihm die Bemessungsgrundlage, aus der er stammt. Beide
+// müssen in derselben Voranmeldung in dieselbe Richtung gehen; eine gesunkene
+// Steuer neben einem gestiegenen Umsatz sind zwei Zahlen, die einander
+// widersprechen.
+func TestGrantedSkontoReducesTheReportedBase(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	customer := env.customer(t, "Kunde", "DE", "")
+
+	inv := &domain.Invoice{
+		ContactID: customer.ID, Date: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Items:        []domain.InvoiceItem{{Description: "Leistung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard}},
+	}
+	if err := env.invoices(t).Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung: %v", err)
+	}
+
+	if _, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2026-03-05",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  *inv.JournalEntryID,
+			SettledAmount:    119000,
+			DifferenceKind:   domain.DifferenceSkonto,
+			DifferenceAmount: 2380,
+		}},
+	}); err != nil {
+		t.Fatalf("Zahlungseingang mit Skonto: %v", err)
+	}
+
+	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	if err != nil {
+		t.Fatalf("USt-Auswertung: %v", err)
+	}
+	if len(summary.TaxableRevenue) != 1 {
+		t.Fatalf("erwartet eine Steuersatzgruppe, erhalten %d", len(summary.TaxableRevenue))
+	}
+	figure := summary.TaxableRevenue[0]
+
+	// 1.000,00 € Umsatz abzüglich 20,00 € Skonto, 190,00 € Steuer abzüglich 3,80 €.
+	if figure.Net != 98000 {
+		t.Errorf("die Bemessungsgrundlage muss nach dem Skonto 980,00 € betragen, ist aber %s €", figure.Net)
+	}
+	if figure.Tax != 18620 {
+		t.Errorf("die Umsatzsteuer muss nach dem Skonto 186,20 € betragen, ist aber %s €", figure.Tax)
+	}
+	// Die Probe, die den Fehler ursprünglich sichtbar macht: Steuer und
+	// Grundlage müssen zueinander passen.
+	if want := domain.TaxRateStandard.Tax(figure.Net); figure.Tax != want {
+		t.Errorf("%s € Steuer passen nicht zu %s € Bemessungsgrundlage (erwartet %s €)", figure.Tax, figure.Net, want)
+	}
+	if summary.OutputTax != 18620 {
+		t.Errorf("die vereinnahmte Umsatzsteuer muss 186,20 € betragen, ist aber %s €", summary.OutputTax)
+	}
+}
+
+// § 17 Abs. 1 Satz 5 UStG erstreckt die Berichtigung auf die Fälle des § 13b:
+// dort schuldet der Empfänger die Steuer und zieht sie zugleich ab, also sind
+// beide Seiten zu berichtigen. Dass sie sich im Ergebnis ausgleichen, ist kein
+// Grund, sie wegzulassen — UStAE 17.1 Abs. 3 sagt das ausdrücklich.
+func TestSkontoOnReverseChargeCorrectsBothLegs(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	vendor := env.vendor(t, "Cloud Provider Ireland Ltd.", "IE", "IE6388047V")
+
+	filed := env.fileIncoming(t, "cloud.pdf")
+	invoice, err := env.posting.PostIncomingReceipt(ctx, ReceiptRequest{
+		ContactID:       vendor.ID,
+		ReceiptID:       filed.ID,
+		BookingDate:     "2026-03-01",
+		DocumentDate:    "2026-03-01",
+		ServiceDateFrom: "2026-03-01",
+		ServiceDateTo:   "2026-03-01",
+		Description:     "Cloud-Leistung",
+		TaxTreatment:    domain.TaxTreatmentReverseCharge,
+		Positions:       []ReceiptPosition{{PostingGroup: "fremdleistungen", Net: 100000, TaxRate: domain.TaxRateStandard}},
+		Settlement:      SettlementOpen,
+	})
+	if err != nil {
+		t.Fatalf("Eingangsrechnung: %v", err)
+	}
+
+	// Bei § 13b ist die Rechnung netto: offen sind 1.000,00 €, 2 % Skonto sind
+	// 20,00 € — und die sind vollständig Bemessungsgrundlage, nicht brutto.
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2026-03-05",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  invoice.ID,
+			SettledAmount:    100000,
+			DifferenceKind:   domain.DifferenceSkonto,
+			DifferenceAmount: 2000,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung mit Skonto: %v", err)
+	}
+
+	assertLines(t, entry, []bookedLine{
+		{domain.SideDebit, vendor.LedgerAccount, 100000},
+		{domain.SideCredit, "5730", 2000},                        // Erhaltene Skonti ohne Vorsteuer
+		{domain.SideCredit, domain.AccountVorsteuer13b19, 380},   // Vorsteuerberichtigung
+		{domain.SideDebit, domain.AccountUmsatzsteuer13b19, 380}, // Berichtigung der geschuldeten Steuer
+		{domain.SideCredit, domain.AccountBank, 98000},
+	})
+
+	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	if err != nil {
+		t.Fatalf("USt-Auswertung: %v", err)
+	}
+	if summary.ReverseChargeBase != 98000 {
+		t.Errorf("die Bemessungsgrundlage nach § 13b muss 980,00 € betragen, ist aber %s €", summary.ReverseChargeBase)
+	}
+	if summary.ReverseChargeTax != 18620 {
+		t.Errorf("die geschuldete Steuer nach § 13b muss 186,20 € betragen, ist aber %s €", summary.ReverseChargeTax)
+	}
+	if summary.InputTax != 18620 {
+		t.Errorf("die abziehbare Vorsteuer muss 186,20 € betragen, ist aber %s €", summary.InputTax)
+	}
+	if summary.Payable != 0 {
+		t.Errorf("bei § 13b gleichen sich Steuer und Vorsteuer aus, die Zahllast ist aber %s €", summary.Payable)
+	}
+}

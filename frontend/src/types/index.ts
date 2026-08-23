@@ -415,6 +415,13 @@ export interface OpenItem {
   settledAmount: Cents;
   openAmount: Cents;
   taxRate: TaxRate;
+  /**
+   * Der Steuerfall der ursprünglichen Buchung. Er entscheidet, wie ein Skonto
+   * berichtigt wird: nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer
+   * im offenen Betrag, und § 13b und der innergemeinschaftliche Erwerb haben
+   * zwei Steuerzeilen statt einer (§ 17 Abs. 1 Satz 5 UStG).
+   */
+  taxTreatment?: TaxTreatment;
 }
 
 export interface AllocationRequest {

@@ -217,6 +217,27 @@ räumt jemand sie mit einer Falschbuchung weg.
 Beispiel Skonto: 2 % auf 1.190,00 € brutto sind 23,80 € – 20,00 € netto und 3,80 €
 Steuer. Nur den Nettoteil zu buchen ließe die Vorsteuer um 3,80 € zu hoch stehen.
 
+Die Steuerkorrektur folgt dem **Steuerfall der ursprünglichen Buchung**, nicht dem
+Steuersatz allein. Das ist kein Detail, sondern der Unterschied zwischen richtig und
+plausibel:
+
+- Nur beim **steuerpflichtigen Inlandsumsatz** steckt die Steuer im offenen Betrag.
+  Dort wird das Skonto in Entgelt und Steuer zerlegt (§ 17 Abs. 1 Satz 1 und 2 UStG).
+- Bei **§ 13b** und beim **innergemeinschaftlichen Erwerb** ist die Rechnung netto
+  ausgestellt. Das ganze Skonto ist Bemessungsgrundlage, und zu berichtigen sind
+  **beide** Steuerzeilen – die geschuldete Steuer und die abgezogene Vorsteuer
+  (§ 17 Abs. 1 Satz 5 UStG). Dass sie sich im Ergebnis ausgleichen, ist ausdrücklich
+  kein Grund, sie wegzulassen: UStAE 17.1 Abs. 3 verlangt die Berichtigung „auch dann,
+  wenn sich die Berichtigung der Steuer und die Berichtigung des Vorsteuerabzugs im
+  Ergebnis ausgleichen". Ohne sie stehen zwei Kennzahlen der Voranmeldung zu hoch.
+- Bei **steuerfreien, nicht steuerbaren und nullbesteuerten** Umsätzen gibt es keine
+  Steuer zu berichtigen; das Skonto läuft vollständig über 5730 bzw. 4734.
+
+Die Steuerzeilen der Korrektur kommen deshalb aus derselben Steuerautomatik wie die
+der ursprünglichen Buchung, nicht aus einer zweiten Tabelle von Kontonummern im
+Zahlungsflow. Berichtigt wird nach § 17 Abs. 1 Satz 8 UStG im Zeitraum der Änderung,
+also mit der Zahlung – nie rückwirkend an der Rechnung.
+
 ### 7.4 Bankumsatz ohne Beleg
 
 Nicht jeder Umsatz hat einen Beleg: Zinsen, Kontoführung, Privatentnahmen,

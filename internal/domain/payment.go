@@ -81,6 +81,11 @@ type OpenItem struct {
 	// TaxRate of the original document, needed to correct the VAT base when a
 	// Skonto is granted. Zero when the document carried no VAT.
 	TaxRate TaxRate `json:"taxRate"`
+	// TaxTreatment of the original document. It decides how a Skonto is
+	// corrected: only a domestic taxable supply carries the tax inside the open
+	// amount, and § 13b and the innergemeinschaftlicher Erwerb have two tax
+	// legs to correct instead of one (§ 17 Abs. 1 Satz 5 UStG).
+	TaxTreatment TaxTreatment `json:"taxTreatment,omitempty"`
 }
 
 // Status derives the open item state from its balance, exactly as the concept

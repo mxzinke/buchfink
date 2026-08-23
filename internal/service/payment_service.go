@@ -144,6 +144,7 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 			SettledAmount:  alreadySettled,
 			OpenAmount:     open,
 			TaxRate:        documentTaxRate(entry),
+			TaxTreatment:   entry.TaxTreatment,
 		})
 	}
 
@@ -342,38 +343,7 @@ func (s *PaymentService) differenceLines(
 
 	switch alloc.DifferenceKind {
 	case domain.DifferenceSkonto:
-		// § 17 UStG: a Skonto reduces the taxable amount, so the VAT booked on
-		// the original document has to be corrected along with it. Booking only
-		// the net part would leave the VAT return overstated.
-		account, err := domain.SkontoAccount(direction, item.TaxRate)
-		if err != nil {
-			return nil, err
-		}
-		net := item.TaxRate.NetFromGross(alloc.DifferenceAmount)
-		tax := alloc.DifferenceAmount - net
-
-		lines := []domain.JournalLine{
-			{Side: opposite, Account: account, Amount: net, Text: "Skonto"},
-		}
-		if tax != 0 {
-			taxAccount := domain.AccountVorsteuer19
-			key := "SKONTO_VST"
-			if direction == domain.DirectionOutgoing {
-				taxAccount = domain.AccountUmsatzsteuer19
-				key = "SKONTO_UST"
-			}
-			if item.TaxRate == domain.TaxRateReduced {
-				taxAccount = domain.AccountVorsteuer7
-				if direction == domain.DirectionOutgoing {
-					taxAccount = domain.AccountUmsatzsteuer7
-				}
-			}
-			lines = append(lines, domain.JournalLine{
-				Side: opposite, Account: taxAccount, Amount: tax,
-				TaxKey: key, TaxBase: net, Text: "Steuerkorrektur Skonto (§ 17 UStG)",
-			})
-		}
-		return lines, nil
+		return s.skontoLines(alloc, item, direction, opposite)
 
 	case domain.DifferenceBankFee:
 		return []domain.JournalLine{{
@@ -397,6 +367,90 @@ func (s *PaymentService) differenceLines(
 	}
 
 	return nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
+}
+
+// skontoLines books a Skonto as what it is in tax law: a change of the taxable
+// amount under § 17 Abs. 1 UStG.
+//
+// Satz 1 makes the supplier correct the tax it owes, Satz 2 makes the recipient
+// correct the input tax it deducted, and Satz 8 puts both into the period in
+// which the change occurred — which is why this runs with the payment and not
+// as a backdated change to the invoice. Satz 5 extends all of it to § 13b and
+// to the innergemeinschaftlicher Erwerb, where the recipient owes the tax and
+// deducts it again: there both legs have to be corrected, even though they
+// cancel out. UStAE 17.1 Abs. 3 says so in as many words — the duty to correct
+// exists "auch dann, wenn sich die Berichtigung der Steuer und die Berichtigung
+// des Vorsteuerabzugs im Ergebnis ausgleichen". Netting them away would leave
+// two lines of the Voranmeldung overstated.
+//
+// The tax lines come from the Steuerautomatik rather than from a second table of
+// account numbers here. That is what keeps a Skonto on a § 13b purchase from
+// landing on 1406, and it is why the correction follows the Steuerfall of the
+// original document instead of guessing from the rate.
+func (s *PaymentService) skontoLines(
+	alloc AllocationRequest,
+	item domain.OpenItem,
+	direction domain.Direction,
+	opposite domain.Side,
+) ([]domain.JournalLine, error) {
+	treatment := item.TaxTreatment
+	if treatment == "" {
+		// Buchungen, die von Hand im Journal entstanden sind, tragen keinen
+		// Steuerfall. Trägt das Dokument eine Steuerzeile, ist es ein
+		// steuerpflichtiger Inlandsumsatz; trägt es keine, gibt es nichts zu
+		// berichtigen.
+		treatment = domain.TaxTreatmentDomestic
+		if item.TaxRate == domain.TaxRateNone {
+			treatment = domain.TaxTreatmentNotTaxable
+		}
+	}
+
+	// Nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer im offenen
+	// Betrag. Bei § 13b, beim innergemeinschaftlichen Erwerb und bei jedem
+	// steuerfreien Umsatz ist die Rechnung netto ausgestellt — dort ist das
+	// ganze Skonto Bemessungsgrundlage, und ihm eine Steuer herauszurechnen,
+	// die nie berechnet wurde, verkürzte die Minderung um 19 %.
+	net := alloc.DifferenceAmount
+	if treatment == domain.TaxTreatmentDomestic {
+		net = item.TaxRate.NetFromGross(alloc.DifferenceAmount)
+	}
+
+	legs, err := s.journalSvc.TaxResolver().Resolve(direction, treatment, item.TaxRate, net)
+	if err != nil {
+		return nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
+	}
+
+	// Das Aufwands- bzw. Erlöskonto richtet sich danach, ob im Skonto Steuer
+	// steckt: ohne ausgewiesene Steuer ist es das Skontokonto ohne Steuersatz.
+	accountRate := domain.TaxRateNone
+	if treatment == domain.TaxTreatmentDomestic {
+		accountRate = item.TaxRate
+	}
+	account, err := domain.SkontoAccount(direction, accountRate)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := []domain.JournalLine{
+		{Side: opposite, Account: account, Amount: net, Text: "Skonto"},
+	}
+	for _, leg := range legs {
+		if leg.Amount == 0 {
+			continue
+		}
+		// Die Minderung steht der ursprünglichen Steuerzeile gegenüber: was die
+		// Rechnung im Soll gebucht hat, wird im Haben zurückgenommen.
+		side := domain.SideCredit
+		if leg.Side == domain.SideCredit {
+			side = domain.SideDebit
+		}
+		lines = append(lines, domain.JournalLine{
+			Side: side, Account: leg.Account, Amount: leg.Amount,
+			TaxKey: "SKONTO_" + leg.Key, TaxBase: leg.Base,
+			Text: "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)",
+		})
+	}
+	return lines, nil
 }
 
 // ledgerLine returns the Personenkonto line of an entry, which is the one that
