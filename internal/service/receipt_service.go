@@ -3,14 +3,12 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 )
 
@@ -303,21 +301,12 @@ func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) erro
 }
 
 // SaveValidation records the outcome of checking the structured part of a Beleg.
-func (s *ReceiptService) SaveValidation(ctx context.Context, receiptID uint, result invoice.ValidationResult) error {
-	findings, err := json.Marshal(result.Findings)
-	if err != nil {
-		return fmt.Errorf("das Prüfergebnis konnte nicht gespeichert werden: %w", err)
-	}
-	return s.receiptRepo.SaveValidation(ctx, receiptID, domain.ReceiptValidation{
-		Format:   result.Format,
-		Profile:  result.Profile,
-		At:       time.Now().UTC().Format(time.RFC3339),
-		Ruleset:  result.Ruleset,
-		Version:  result.Version,
-		Coverage: string(result.Coverage),
-		Errors:   result.ErrorCount(),
-		Findings: string(findings),
-	})
+//
+// The result arrives ready to store. Which rules ran and how far they reached
+// is the reader's business, not the Beleg's — the Beleg only has to keep what
+// was found, so that a later run under a newer rule set is comparable.
+func (s *ReceiptService) SaveValidation(ctx context.Context, receiptID uint, result domain.ReceiptValidation) error {
+	return s.receiptRepo.SaveValidation(ctx, receiptID, result)
 }
 
 // Discard retires a filed Beleg. It keeps its number and stays findable.

@@ -184,6 +184,9 @@ export const Api = {
     call(() => Bridge.ValidateEInvoice(receiptId) as Promise<ValidationResult>),
   /** Die Regeln, die Buchfink prüft — der Prüfumfang ist Teil des Ergebnisses. */
   getEInvoiceRules: (): Promise<string[]> => call(() => Bridge.GetEInvoiceRules()),
+  /** Die Regeln, die Buchfink nicht prüft, je mit Begründung. */
+  getUncheckedEInvoiceRules: (): Promise<Record<string, string>> =>
+    call(() => Bridge.GetUncheckedEInvoiceRules()),
   /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
   getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),

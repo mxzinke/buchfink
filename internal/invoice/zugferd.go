@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/einvoice"
+	"github.com/buchfink/buchfink/internal/einvoice/ruleset"
 )
 
 // vatCategoryCode maps a Steuerfall to the EN 16931 / UNTDID 5305 category code
@@ -259,8 +261,8 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 	// ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
 	// ordnungsmäßige Rechnung — der Empfänger verlöre den Vorsteuerabzug, und er
 	// merkte es erst bei der Prüfung. Lieber jetzt eine Meldung an den Aussteller.
-	if doc, err := ParseCII([]byte(xmlContent)); err == nil {
-		if result := ValidateEN16931(doc); !result.Valid() {
+	if doc, err := einvoice.ParseCII([]byte(xmlContent)); err == nil {
+		if result := ruleset.Validate(doc); !result.Valid() {
 			return "", fmt.Errorf(
 				"die Rechnung erfüllt EN 16931 noch nicht: %s. Bitte die fehlenden Stammdaten ergänzen",
 				strings.Join(errorMessages(result), "; "))
@@ -270,10 +272,10 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 	return xmlContent, nil
 }
 
-func errorMessages(result ValidationResult) []string {
+func errorMessages(result einvoice.Result) []string {
 	var out []string
 	for _, f := range result.Findings {
-		if f.Severity == SeverityError {
+		if f.Severity == einvoice.SeverityFatal {
 			out = append(out, f.Message)
 		}
 	}

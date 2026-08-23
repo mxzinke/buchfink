@@ -8,11 +8,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/einvoice"
+	"github.com/buchfink/buchfink/internal/einvoice/xrechnung"
+	"github.com/buchfink/buchfink/internal/einvoice/zugferd"
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -199,7 +203,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
-	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, fiscalYear)
+	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, invoice.NewReader(), fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
@@ -1154,7 +1158,7 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 // The rule set is versioned, so a document checked under an older version can be
 // checked again without being re-filed. The check touches no file, which is why
 // it is allowed on a booked Beleg too.
-func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*invoice.ValidationResult, error) {
+func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*domain.ReceiptValidation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.eInvoiceSvc == nil {
@@ -1163,11 +1167,35 @@ func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*invoice.ValidationRe
 	return b.eInvoiceSvc.Validate(context.Background(), receiptID)
 }
 
-// GetEInvoiceRules lists the EN-16931 rules Buchfink checks. It is deliberately
-// exposed: "validated" without the list of what was checked tells a user nothing
-// they can act on.
+// GetEInvoiceRules lists the rules Buchfink checks. It is deliberately exposed:
+// "validated" without the list of what was checked tells a user nothing they
+// can act on.
+//
+// The list covers EN 16931 completely and the German CIUS as far as its rules
+// can be decided on the semantic model. GetUncheckedEInvoiceRules names the
+// rest, with the reason for each.
 func (b *BuchfinkBridge) GetEInvoiceRules() []string {
-	return invoice.ValidationRules()
+	rules := einvoice.RulesChecked()
+	rules = append(rules, xrechnung.CheckedRules()...)
+	rules = append(rules, zugferd.CheckedRules()...)
+	sort.Strings(rules)
+	return rules
+}
+
+// GetUncheckedEInvoiceRules names the rules of the specifications Buchfink does
+// not check, each with the reason.
+//
+// Silence about a gap is worse than the gap: a user told "geprüft" deserves to
+// know what was not looked at.
+func (b *BuchfinkBridge) GetUncheckedEInvoiceRules() map[string]string {
+	out := map[string]string{}
+	for _, rule := range einvoice.RulesUnchecked() {
+		out[rule] = "keine Regel der Norm bleibt ungeprüft"
+	}
+	for rule, reason := range xrechnung.UncheckedRules() {
+		out[rule] = reason
+	}
+	return out
 }
 
 // PreviewIncomingReceipt computes the booking without writing it, so the form can

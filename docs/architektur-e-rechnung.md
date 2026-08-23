@@ -86,38 +86,69 @@ Ebenso wenig entscheidet es über den **Rechnungstyp** (BT-3). Das Modul sagt,
 was das Dokument ist – `einvoice.KindCreditNote`, `KindCorrection`,
 `KindPrepayment` –, aber was daraus folgt, ist eine Buchungsfrage.
 
-## 5. Die Naht zum Buchungspfad (offen)
+## 5. Die Naht zum Buchungspfad
 
-Heute hängt `internal/service/einvoice_service.go` noch am alten Prüfer in
-`internal/invoice`. Dort liegen ein zweiter, kleinerer EN-16931-Prüfer und eine
-eigene CII-Struktur; beide sind als abgelöst gekennzeichnet. **Neue Regeln
-gehören ins Modul.**
-
-Der zweite Schritt hängt sie um, und zwar über eine Schnittstelle, die der
-Buchungspfad selbst besitzt – nicht über die Typen des Moduls:
+Der Buchungspfad kennt die Typen des Moduls nicht. Er besitzt eine eigene
+Schnittstelle und ein eigenes Datenmodell:
 
 ```go
 // internal/service — der Verbraucher beschreibt, was er braucht
 type EInvoiceReader interface {
-    Read(data []byte) (*IncomingInvoice, error)
+    Read(data []byte) (*domain.IncomingInvoice, error)
+    ValidateOnly(data []byte) (domain.ReceiptValidation, error)
 }
 ```
 
-Damit lässt sich der Buchungscode ohne das E-Rechnungsmodul testen: ein
-Prüfling liefert eine `IncomingInvoice` von Hand, und die Buchungsregeln werden
-gegen sie geprüft, ohne dass je ein XML entsteht. Umgekehrt bleibt das Modul
-prüfbar, ohne dass ein Konto im Spiel ist.
+`domain.IncomingInvoice` trägt die gut zwölf Felder, aus denen eine Buchung
+entsteht — nicht die 160 Geschäftsbegriffe der Norm. Übersetzt wird an einer
+einzigen Stelle, `internal/invoice/reader.go`. Die Richtung der Abhängigkeiten:
 
-Was dabei mitzunehmen ist:
+```
+internal/domain      ← kennt niemanden
+internal/service     ← kennt domain und invoice, aber nicht einvoice
+internal/invoice     ← der Adapter: kennt beides
+internal/einvoice    ← kennt nur sich selbst
+```
 
-- **BT-3 auswerten.** `Propose` liest den Rechnungstyp heute nicht. Eine
-  Gutschrift (381) trägt positive Beträge und sagt nur dort, was sie ist – als
-  gewöhnliche Rechnung gelesen dreht sie das Vorzeichen der Vorsteuer und
-  eröffnet einen offenen Posten, wo einer zu schließen wäre.
-- **BG-24 ablegen.** Eingebettete Unterlagen gehören als Belegdatei mit der
-  Rolle `attachment` an den Beleg; die Rolle gibt es bereits.
-- **BG-3 führen.** Der Rechnungsbezug ist die Klammer zwischen Korrektur und
-  Original und zwischen Schlussrechnung und Anzahlungen.
+Was das einbringt, steht in `internal/service/einvoice_seam_test.go`: in dieser
+Datei kommt kein XML vor. Der Buchungsvorschlag, die Umkehr des Steuerfalls,
+die Zuordnung des Lieferanten, die Ablage der Anlagen — alles geprüft an einer
+`IncomingInvoice`, die von Hand hingeschrieben ist. Umgekehrt kommt in
+`internal/einvoice` kein Konto vor.
+
+Die Umkehr der Perspektive steht in `internal/domain`, nicht im Leser: sie ist
+eine steuerliche Entscheidung, keine Formatfrage. `"K"` heißt beim Lieferanten
+innergemeinschaftliche Lieferung und bei uns innergemeinschaftlicher Erwerb —
+wer den Code übernimmt, bucht den halben Vorgang. Das lässt sich jetzt prüfen,
+ohne dass irgendwo ein Parser läuft.
+
+### Was dabei behoben wurde
+
+- **Der Rechnungstyp wird ausgewertet.** Eine Gutschrift trägt positive Beträge
+  und sagt nur in BT-3, was sie ist. Bisher wurde sie als Eingangsrechnung
+  vorgeschlagen — mit umgekehrtem Vorzeichen der Vorsteuer und einem neuen
+  offenen Posten, wo einer zu schließen wäre. Jetzt wird der Vorschlag
+  verweigert, und die Meldung nennt den Fall beim Namen. Dasselbe gilt für
+  Korrektur, Anzahlungs- und Abschlagsrechnung sowie das Gutschriftverfahren.
+- **Mitgeschickte Unterlagen landen am Beleg.** Was im Datensatz eingebettet
+  ankommt (BG-24), wird als Belegdatei mit der Rolle `attachment` abgelegt. Ein
+  Stundenzettel zur Rechnung ist Aufbewahrungsgegenstand wie die Rechnung.
+- **Der Rechnungsbezug wird geführt.** BG-3 steht im Vorschlag und ist die
+  Klammer zwischen Korrektur und Original.
+- **Die Prüfung ist die aus dem Modul.** Der zweite, kleinere Prüfer in
+  `internal/invoice` ist gelöscht; ein empfangener Beleg wird gegen alle 223
+  Regeln der Norm gehalten, und bei einer XRechnung zusätzlich gegen die
+  deutsche Ausprägung.
+
+### Was offen bleibt
+
+Gutschrift, Korrektur und Anzahlungsrechnung werden erkannt und benannt, aber
+nicht gebucht. Das ist kein Versehen: jede von ihnen ist ein anderer
+Geschäftsvorfall. Eine Gutschrift mindert Aufwand und Vorsteuer und verrechnet
+sich gegen die ursprüngliche Rechnung; eine Anzahlungsrechnung wird erst mit
+der Zahlung steuerwirksam und in der Schlussrechnung wieder abgesetzt
+(§ 14 Abs. 5 UStG, siehe `anforderung-anzahlungen.md`). Sie brauchen einen
+eigenen Buchungsweg, keinen Sonderfall im vorhandenen.
 
 ## 6. Herkunft und Lizenzen
 

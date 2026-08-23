@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/einvoice"
 )
 
 func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact) {
@@ -161,12 +162,12 @@ func TestEmbeddedInvoiceCanBeExtractedAgain(t *testing.T) {
 		t.Error("das herausgeholte XML weicht vom eingebetteten ab")
 	}
 
-	doc, err := ParseCII(embedded.Data)
+	doc, err := einvoice.ParseCII(embedded.Data)
 	if err != nil {
 		t.Fatalf("XML lesen: %v", err)
 	}
-	if doc.Document.ID != inv.InvoiceNumber {
-		t.Errorf("Rechnungsnummer nach dem Rundlauf = %q", doc.Document.ID)
+	if doc.Number != inv.InvoiceNumber {
+		t.Errorf("Rechnungsnummer nach dem Rundlauf = %q", doc.Number)
 	}
 }
 

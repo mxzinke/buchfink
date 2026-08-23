@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/invoice"
 )
 
@@ -23,7 +24,7 @@ func sharedRenderer() *invoice.Renderer {
 }
 
 func (e *testEnv) einvoices() *EInvoiceService {
-	return NewEInvoiceService(e.receipts, e.contactRepo, e.fiscalYear)
+	return NewEInvoiceService(e.receipts, e.contactRepo, invoice.NewReader(), e.fiscalYear)
 }
 
 // hybridReceipt legt einen Beleg mit einem echten hybriden PDF ab — erzeugt über
@@ -335,23 +336,28 @@ func TestValidationResultIsKeptWithTheReceipt(t *testing.T) {
 		t.Fatalf("strukturierten Teil holen: %v", err)
 	}
 
-	if updated.DetectedFormat != string(invoice.FormatCII) {
-		t.Errorf("erkanntes Format = %q, erwartet %q", updated.DetectedFormat, invoice.FormatCII)
+	if updated.DetectedFormat != string(einvoice.SyntaxCII) {
+		t.Errorf("erkanntes Format = %q, erwartet %q", updated.DetectedFormat, einvoice.SyntaxCII)
 	}
-	if updated.DetectedProfile != "urn:cen.eu:en16931:2017" {
+	if updated.DetectedProfile != einvoice.ProfileEN16931 {
 		t.Errorf("erkanntes Profil = %q", updated.DetectedProfile)
 	}
-	if updated.ValidationRuleset != invoice.EN16931RulesetID {
-		t.Errorf("Regelwerk = %q", updated.ValidationRuleset)
+	// Am Beleg steht, welche Regelwerke gelaufen sind — die Norm und die
+	// Profilprüfung. Ein Urteil ohne diese Angabe ist kein Nachweis.
+	if !strings.Contains(updated.ValidationRuleset, einvoice.RulesetVersion) {
+		t.Errorf("Regelwerk = %q, erwartet mindestens %q", updated.ValidationRuleset, einvoice.RulesetVersion)
 	}
-	if updated.ValidationVersion != invoice.EN16931RulesetVersion {
+	if updated.ValidationVersion != einvoice.RulesetVersion {
 		t.Errorf("Regelwerksversion = %q", updated.ValidationVersion)
 	}
 	if updated.ValidatedAt == "" {
 		t.Error("der Prüfzeitpunkt fehlt")
 	}
-	if updated.ValidationCoverage != string(invoice.CoveragePartial) {
-		t.Errorf("Prüfumfang = %q — es darf keinen Wert für Vollständigkeit geben", updated.ValidationCoverage)
+	// Eine Rechnung nach reinem EN 16931 wird vollständig geprüft — alle 223
+	// Regeln der Norm laufen. "partial" bliebe erst bei einer XRechnung, deren
+	// Extension-Regeln das Modell nicht abbildet.
+	if updated.ValidationCoverage != "full" {
+		t.Errorf("Prüfumfang = %q, erwartet full", updated.ValidationCoverage)
 	}
 	if updated.ValidationErrors != 0 {
 		t.Errorf("eine von Buchfink erzeugte Rechnung soll fehlerfrei sein, gemeldet sind %d", updated.ValidationErrors)
@@ -362,8 +368,8 @@ func TestValidationResultIsKeptWithTheReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("erneut prüfen: %v", err)
 	}
-	if !result.Valid() {
-		t.Errorf("die erneute Prüfung meldet %d Fehler", result.ErrorCount())
+	if result.Errors != 0 {
+		t.Errorf("die erneute Prüfung meldet %d Fehler: %s", result.Errors, result.Findings)
 	}
 }
 

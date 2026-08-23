@@ -348,12 +348,17 @@ export interface EInvoiceProposal {
   request: ReceiptRequest;
   format: string;
   profile: string;
+  /** Was der Datensatz zu sein angibt — entscheidet über das Vorzeichen. */
+  kind: string;
+  kindLabel: string;
   supplierName: string;
   supplierVatId?: string;
   supplierTaxId?: string;
   invoiceNumber: string;
   grossAmount: Cents;
   matchedContact: boolean;
+  /** Rechnungen, auf die sich dieser Beleg bezieht (BG-3). */
+  precedingInvoices?: string[];
   /** Was nicht gefüllt werden konnte und warum. */
   notes?: string[];
 }
@@ -367,7 +372,12 @@ export interface EInvoiceProposal {
  */
 export interface ValidationFinding {
   rule: string;
-  severity: 'error' | 'warning';
+  /** Der Schweregrad stammt aus der Spezifikation, nicht aus Buchfink. */
+  severity: 'fatal' | 'warning' | 'information';
+  /** Wo im Beleg, z. B. "Position 3". Leer bei Dokumentebene. */
+  where?: string;
+  /** Die betroffenen Geschäftsbegriffe (BT/BG). */
+  terms?: string[];
   message: string;
 }
 

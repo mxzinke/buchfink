@@ -934,9 +934,10 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
   } catch {
     findings = [];
   }
-  const errors = findings.filter((f) => f.severity === 'error');
-  const warnings = findings.filter((f) => f.severity === 'warning');
+  const errors = findings.filter((f) => f.severity === 'fatal');
+  const rest = findings.filter((f) => f.severity !== 'fatal');
   const clean = errors.length === 0;
+  const complete = receipt.validationCoverage === 'full';
 
   return (
     <div
@@ -951,17 +952,22 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-rose-600" />
         )}
         {clean
-          ? 'Geprüfte Regeln erfüllt'
-          : `${errors.length} ${errors.length === 1 ? 'Verstoß' : 'Verstöße'} gegen EN 16931`}
+          ? complete
+            ? 'Alle Regeln der Norm erfüllt'
+            : 'Geprüfte Regeln erfüllt'
+          : `${errors.length} ${errors.length === 1 ? 'Verstoß' : 'Verstöße'} gegen die geprüften Regeln`}
       </div>
       <p className="text-[11px] text-stone-500">
-        {receipt.detectedProfile} · Regelwerk {receipt.validationRuleset}{' '}
-        {receipt.validationVersion} · Teilprüfung, keine vollständige
-        EN-16931-Validierung
+        {receipt.detectedProfile} · Regelwerk {receipt.validationRuleset}
+        {complete
+          ? ' · alle 223 Geschäftsregeln der Norm'
+          : ' · Teilprüfung, die Extension-Regeln bleiben offen'}
       </p>
-      {[...errors, ...warnings].map((f, i) => (
+      {[...errors, ...rest].map((f, i) => (
         <p key={i} className="text-[11px] text-stone-700">
-          <span className="font-mono text-stone-500">{f.rule}</span> {f.message}
+          <span className="font-mono text-stone-500">{f.rule}</span>{' '}
+          {f.where ? <span className="text-stone-500">{f.where}: </span> : null}
+          {f.message}
         </p>
       ))}
     </div>

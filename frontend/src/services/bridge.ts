@@ -83,6 +83,7 @@ export const bridge = {
   ProposeFromEInvoice: <T>(receiptId: number) => invoke<T>('ProposeFromEInvoice', receiptId),
   ValidateEInvoice: <T>(receiptId: number) => invoke<T>('ValidateEInvoice', receiptId),
   GetEInvoiceRules: () => invoke<string[]>('GetEInvoiceRules'),
+  GetUncheckedEInvoiceRules: () => invoke<Record<string, string>>('GetUncheckedEInvoiceRules'),
   PreviewIncomingReceipt: <T>(request: unknown) => invoke<T>('PreviewIncomingReceipt', request),
   PreviewOutgoingInvoice: <T>(invoice: unknown) => invoke<T>('PreviewOutgoingInvoice', invoice),
 
