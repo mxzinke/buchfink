@@ -29,49 +29,6 @@ tasks:
         ./internal/repository/... ./internal/security/... ./internal/service/...
         ./internal/timestamp/... {{.CLI_ARGS}}
 
-  test:en16931:
-    summary: Runs the EN-16931 checker against the official example invoices
-    # Drei Sammlungen laufen hier: die Beispielrechnungen beider Syntaxen und die
-    # Regelsuite mit einer Datei je Geschäftsregel. Die Beispiele zeigen, dass
-    # die Prüfung nicht zu streng ist; erst die Regelsuite zeigt, dass sie
-    # überhaupt greift — ein gültiges Dokument löst keine Regel aus.
-    #
-    # Die Dateien gehören zum Validierungsartefakt der EU-Kommission und stehen
-    # unter EUPL-1.2, Buchfink unter MIT. Deshalb liegen sie nicht im
-    # Repository, sondern werden bei Bedarf geholt; ohne sie überspringen sich
-    # die Tests still.
-    vars:
-      EN16931_DIR: '{{.EN16931_DIR | default ".cache/eInvoicing-EN16931"}}'
-      EN16931_REPO: "https://github.com/ConnectingEurope/eInvoicing-EN16931.git"
-    cmds:
-      - test -d {{.EN16931_DIR}} || git clone --depth 1 {{.EN16931_REPO}} {{.EN16931_DIR}}
-      - EN16931_CII_EXAMPLES={{.EN16931_DIR}}/cii/examples
-        EN16931_UBL_EXAMPLES={{.EN16931_DIR}}/ubl/examples
-        EN16931_UNIT_TESTS={{.EN16931_DIR}}/test
-        go test ./internal/einvoice/ ./internal/invoice/ -v -count=1
-        -run 'Official|Corpus|Coverage|Claimed|ArtefactRuleSuite'
-
-  test:xrechnung:
-    summary: Runs the XRechnung layer against the KoSIT test documents
-    # KoSIT sagt für seine Testinstanzen, ob sie gültig sind. Damit lässt sich
-    # das eigene Urteil gegen ein fremdes stellen — in beide Richtungen, was
-    # eine Sammlung nur gültiger Dateien nicht kann.
-    #
-    # Beide Artefakte stehen unter Apache-2.0 und werden bei Bedarf geholt;
-    # ohne sie überspringen sich die Tests still.
-    vars:
-      KOSIT_DIR: '{{.KOSIT_DIR | default ".cache/kosit"}}'
-    cmds:
-      - test -d {{.KOSIT_DIR}}/validator-configuration-xrechnung ||
-        git clone --depth 1 https://github.com/itplr-kosit/validator-configuration-xrechnung.git
-        {{.KOSIT_DIR}}/validator-configuration-xrechnung
-      - test -d {{.KOSIT_DIR}}/xrechnung-schematron ||
-        git clone --depth 1 https://github.com/itplr-kosit/xrechnung-schematron.git
-        {{.KOSIT_DIR}}/xrechnung-schematron
-      - XRECHNUNG_TEST_INSTANCES={{.KOSIT_DIR}}/validator-configuration-xrechnung/src/test/instances
-        XRECHNUNG_RULE_INSTANCES={{.KOSIT_DIR}}/xrechnung-schematron/test/instances/cii
-        go test ./internal/einvoice/... -v -count=1 -run 'Kosit|Layers|Describe'
-
   vet:
     summary: Runs go vet over the same packages as the test suite
     cmds:

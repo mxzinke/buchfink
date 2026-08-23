@@ -76,11 +76,7 @@ func TestWhatWeWriteStillValidates(t *testing.T) {
 // Beurteilung bekommen. Das ist die Zusage des semantischen Modells, und sie
 // ist nachzuweisen statt zu behaupten.
 func TestUBLConvertsToCIIWithoutChangingTheVerdict(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(ublExamplesDir(t), "*.[xX][mM][lL]"))
-	if err != nil || len(files) == 0 {
-		t.Fatalf("keine UBL-Beispiele (%v)", err)
-	}
-	for _, path := range files {
+	for _, path := range officialUBLFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			data, err := os.ReadFile(path)
 			if err != nil {

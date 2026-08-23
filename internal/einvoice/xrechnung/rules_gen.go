@@ -9,9 +9,10 @@ import "github.com/buchfink/buchfink/internal/einvoice"
 // carries the severity KoSIT gives it — a good third are warnings, and treating
 // them as errors would block invoices that public authorities accept.
 //
-// Only identifiers, severities and business term numbers are kept. They are
-// facts about the specification. Buchfink's own wording for the findings is in
-// ruleset.go.
+// Only identifiers, severities and business term numbers are kept; the wording
+// of the findings is Buchfink's own and lives in ruleset.go. KoSIT's texts are
+// Apache-2.0 and could be reused — they are written for a validator report,
+// though, not for somebody deciding whether to book the invoice.
 //
 // Erzeugt aus: itplr-kosit/xrechnung-schematron (Apache-2.0).
 

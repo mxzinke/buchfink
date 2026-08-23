@@ -3,17 +3,16 @@ package einvoice
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func ublExamplesDir(t *testing.T) string {
+func officialUBLFiles(t *testing.T) []string {
 	t.Helper()
-	dir := strings.TrimSpace(os.Getenv("EN16931_UBL_EXAMPLES"))
-	if dir == "" {
-		t.Skip("EN16931_UBL_EXAMPLES ist nicht gesetzt — `task test:en16931` holt die Beispiele")
+	files, err := filepath.Glob(filepath.Join("testdata", "en16931", "ubl-examples", "*.[xX][mM][lL]"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("keine UBL-Beispiele unter testdata (%v)", err)
 	}
-	return dir
+	return files
 }
 
 // Die offiziellen UBL-Beispiele müssen lesbar sein und dieselbe Prüfung
@@ -21,12 +20,7 @@ func ublExamplesDir(t *testing.T) string {
 // Modells: eine Rechnung wird nach ihrem Inhalt beurteilt, nicht nach ihrer
 // Schreibweise.
 func TestOfficialUBLExamplesParseAndValidate(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(ublExamplesDir(t), "*.[xX][mM][lL]"))
-	if err != nil || len(files) == 0 {
-		t.Fatalf("keine UBL-Beispiele in %s (%v)", ublExamplesDir(t), err)
-	}
-
-	for _, path := range files {
+	for _, path := range officialUBLFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			data, err := os.ReadFile(path)
 			if err != nil {

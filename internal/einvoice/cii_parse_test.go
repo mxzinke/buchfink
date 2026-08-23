@@ -3,29 +3,20 @@ package einvoice
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-// examplesDir returns the corpus of official CII invoices, or skips.
+// officialCIIFiles returns the official CII invoices.
 //
-// Die Dateien liegen nicht im Repository: sie gehören zum Validierungsartefakt
-// der EU-Kommission und stehen unter EUPL-1.2, Buchfink unter MIT. `task
-// test:en16931` holt sie und setzt die Umgebungsvariable.
-func examplesDir(t *testing.T) string {
-	t.Helper()
-	dir := strings.TrimSpace(os.Getenv("EN16931_CII_EXAMPLES"))
-	if dir == "" {
-		t.Skip("EN16931_CII_EXAMPLES ist nicht gesetzt — `task test:en16931` holt die Beispiele")
-	}
-	return dir
-}
-
+// Sie liegen unter testdata/ im Repository. Das ist Absicht: der Beleg dafür,
+// dass die Umsetzung tut, was sie behauptet, gehört neben den Code und nicht in
+// eine Anleitung, die jemand ausführen müsste. Herkunft und Lizenz stehen in
+// testdata/README.md.
 func officialCIIFiles(t *testing.T) []string {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(examplesDir(t), "*.xml"))
+	files, err := filepath.Glob(filepath.Join("testdata", "en16931", "cii-examples", "*.xml"))
 	if err != nil || len(files) == 0 {
-		t.Fatalf("keine Beispieldateien in %s gefunden (%v)", examplesDir(t), err)
+		t.Fatalf("keine CII-Beispiele unter testdata (%v)", err)
 	}
 	return files
 }

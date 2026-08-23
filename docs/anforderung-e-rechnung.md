@@ -284,9 +284,10 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
   ordnungsmäßige Rechnung – der Empfänger verlöre den Vorsteuerabzug und merkte
   es erst bei der Betriebsprüfung.
 
-  Die Beispiel- und Regeldateien liegen **nicht** im Repository: das Artefakt
-  steht unter EUPL-1.2, Buchfink unter MIT. Übernommen wurden nur Regelkennungen,
-  Begriffsnummern und Codewerte — Tatsachen über die Norm.
+  Die Beispiel- und Regeldateien liegen unter `internal/einvoice/testdata/`.
+  Das Artefakt steht unter EUPL-1.2 — seit dem Lizenzwechsel dieselbe Lizenz wie
+  Buchfink. Die Prüfungen laufen damit ohne Netz und ohne Vorbereitung; Herkunft
+  und Lizenz stehen im README daneben.
 - **Umgang mit abweichendem Bildteil:** anzeigen und blockieren, oder anzeigen und
   weiterbuchen lassen? *Vorschlag: anzeigen, Buchung aus dem XML, Hinweis auf die
   mögliche § 14c-Relevanz – keine automatische Bewertung.*

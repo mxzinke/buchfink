@@ -8,10 +8,11 @@ package einvoice
 // assertion: which rules exist, which of them Buchfink checks, and which field
 // a finding is pointing at.
 //
-// Only identifiers are kept — rule numbers and business term numbers. They are
-// facts about the standard. The rule texts belong to the validation artefact of
-// the European Commission, which is licensed under EUPL-1.2 while Buchfink is
-// under MIT.
+// Only identifiers are kept — rule numbers and business term numbers. Not for
+// licensing reasons (the artefact is EUPL-1.2, as Buchfink is) but because the
+// findings read better in Buchfink's own words: the norm's texts are written
+// for a validator report, not for somebody who has to decide whether to book
+// the invoice.
 //
 // Erzeugt aus: ConnectingEurope/eInvoicing-EN16931 — Kontext und Schweregrad
 // aus dem abstrakten Regelsatz, die Begriffsnummern zusätzlich aus der

@@ -123,10 +123,17 @@ Was dabei mitzunehmen ist:
 
 | Artefakt | Lizenz | Verwendung |
 |---|---|---|
-| ConnectingEurope/eInvoicing-EN16931 | EUPL-1.2 | nur Regelkennungen, Begriffsnummern und Codewerte – Tatsachen über die Norm. Die Dateien liegen nicht im Repository; `task test:en16931` holt sie. |
+| ConnectingEurope/eInvoicing-EN16931 | EUPL-1.2 | Regelkennungen, Begriffsnummern, Codewerte; Beispielrechnungen und Regeldateien liegen unter `internal/einvoice/testdata/` |
 | itplr-kosit/xrechnung-schematron | Apache-2.0 | Regelkennungen, Schweregrade, Begriffsnummern |
-| itplr-kosit/validator-configuration-xrechnung | Apache-2.0 | Testinstanzen und die zugesicherten Urteile; `task test:xrechnung` holt sie |
+| itplr-kosit/validator-configuration-xrechnung | Apache-2.0 | Testinstanzen und die zugesicherten Urteile, unter `internal/einvoice/xrechnung/testdata/` |
 | ZUGFeRD/mustangproject | Apache-2.0 | die Profiltabelle, maschinell aus dem Referenz-Schematron abgeleitet |
 
-Buchfink steht unter MIT. Regeltexte aus dem EUPL-Artefakt sind deshalb nicht
-übernommen; die Meldungstexte sind durchgehend eigene.
+Buchfink steht seit dem Wechsel selbst unter EUPL-1.2 – derselben Lizenz wie
+das Validierungsartefakt. Das Prüfmaterial liegt deshalb im Repository, und die
+Prüfungen laufen ohne Netz und ohne Vorbereitung. Die Meldungstexte sind
+trotzdem durchgehend eigene: die Texte der Norm sind für einen Prüfbericht
+geschrieben, nicht für jemanden, der entscheiden muss, ob er die Rechnung
+verbucht.
+
+Alle vier Quellen stehen mit Fundstelle und Lizenz in `THIRD-PARTY-NOTICES.md`
+bzw. – für das Prüfmaterial – in `internal/einvoice/testdata/README.md`.

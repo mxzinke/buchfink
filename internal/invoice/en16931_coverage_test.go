@@ -81,7 +81,7 @@ func ruleFamily(rule string) string {
 // corpusDir liefert das Verzeichnis mit den offiziellen CII-Beispielen.
 //
 // Die Dateien werden nicht mitgeliefert: sie stehen unter der EUPL, Buchfink
-// unter MIT. Wer sie prüfen will, legt sich das Validierungsartefakt daneben und
+// unter EUPL-1.2. Wer sie prüfen will, legt sich das Validierungsartefakt daneben und
 // setzt EN16931_CII_EXAMPLES — `task test:en16931` nimmt einem das ab.
 func corpusDir(t *testing.T) string {
 	t.Helper()

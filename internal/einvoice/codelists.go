@@ -20,11 +20,9 @@ package einvoice
 // durchwinken. Der semantische Wert ist der aus UNTDID 2005; der UBL-Leser
 // rechnet um.
 //
-// Übernommen sind ausschließlich die Codewerte. Sie sind Tatsachen der jeweils
-// veröffentlichenden Stelle (UN/CEFACT, ISO, CEF) und stehen so auch im
-// Validierungsartefakt der EU-Kommission, dem sie hier entnommen sind. Dessen
-// Regeltexte sind es nicht — das Artefakt steht unter EUPL-1.2, Buchfink unter
-// MIT.
+// Entnommen sind sie dem Validierungsartefakt der EU-Kommission, das wie
+// Buchfink unter EUPL-1.2 steht. Die Werte selbst sind Tatsachen der jeweils
+// veröffentlichenden Stelle (UN/CEFACT, ISO, CEF).
 //
 // Erzeugt aus: ConnectingEurope/eInvoicing-EN16931, cii/schematron/codelist und
 // ubl/schematron/codelist.

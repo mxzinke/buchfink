@@ -23,14 +23,17 @@ import (
 // absichern, ist der Ertrag des semantischen Modells: geprüft wird derselbe
 // Code, nur der Leser davor ist ein anderer.
 
-// unitTestDir returns the artefact's rule test suite, or skips.
-func unitTestDir(t *testing.T) string {
-	t.Helper()
-	dir := strings.TrimSpace(os.Getenv("EN16931_UNIT_TESTS"))
-	if dir == "" {
-		t.Skip("EN16931_UNIT_TESTS ist nicht gesetzt — `task test:en16931` holt die Dateien")
+// ruleSuiteDirs are the artefact's per-rule test files, one collection for
+// invoices and one for credit notes.
+//
+// Beide laufen: die Regeln gelten für Rechnung und Gutschrift gleichermaßen,
+// und dass eine Gutschrift bei uns durch denselben Leser und dieselbe Prüfung
+// geht, ist eine Zusage, die nachzuweisen ist.
+func ruleSuiteDirs() []string {
+	return []string{
+		filepath.Join("testdata", "en16931", "rules-invoice"),
+		filepath.Join("testdata", "en16931", "rules-creditnote"),
 	}
-	return dir
 }
 
 // renamedFamilies maps the rule family names of the artefact's test files onto
@@ -62,20 +65,16 @@ type unitTestSet struct {
 }
 
 func TestArtefactRuleSuite(t *testing.T) {
-	// Beide Sammlungen laufen: die Regeln gelten für Rechnung und Gutschrift
-	// gleichermaßen, und dass eine Gutschrift bei uns durch denselben Leser und
-	// dieselbe Prüfung geht, ist eine Zusage, die nachzuweisen ist.
-	root := unitTestDir(t)
 	var files []string
-	for _, sub := range []string{"Invoice-unit-UBL", "CreditNote-unit-UBL"} {
-		found, err := filepath.Glob(filepath.Join(root, sub, "*.xml"))
+	for _, dir := range ruleSuiteDirs() {
+		found, err := filepath.Glob(filepath.Join(dir, "*.xml"))
 		if err != nil {
-			t.Fatalf("%s lesen: %v", sub, err)
+			t.Fatalf("%s lesen: %v", dir, err)
 		}
 		files = append(files, found...)
 	}
 	if len(files) == 0 {
-		t.Fatalf("keine Regeldateien unter %s", root)
+		t.Fatal("keine Regeldateien unter testdata")
 	}
 
 	checked := map[string]bool{}
