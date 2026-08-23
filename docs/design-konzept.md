@@ -24,6 +24,7 @@ Auszählung des Frontends zeigt den Zustand:
 
 | Dimension | Ist-Zustand | Folge |
 |---|---|---|
+| Container | 58 Karten-Flächen (`bg-white` + Rahmen + Radius) in 13 Dateien | Die Oberfläche zerfällt in Kacheln, statt als Blatt zu lesen |
 | Eckenradien | 6 verschiedene (`rounded-xs` bis `rounded-2xl`), 118× `lg` neben 97× `xl` | Karten wirken zufällig unterschiedlich |
 | Schriftgrößen | 9 Stufen, darunter `text-[9px]`, `text-[10px]`, `text-[11px]` | Hierarchie ist nicht ablesbar, 9 px ist unlesbar |
 | Farbe | rund 45 verschiedene Farb-Utilities aus 4 Paletten | Bernstein bedeutet mal Marke, mal Aktion, mal Ergebnis |
@@ -46,18 +47,26 @@ Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die
 Suche nach dem, was wirklich zählt. Keine Farbflächen ohne Bedeutung, keine
 Schatten ohne Ebenenwechsel, keine Animation ohne Zustandswechsel.
 
-**2. Farbe ist Information.**
+**2. Das Blatt, nicht der Kasten.**
+Struktur entsteht aus Weißraum, Haarlinien und Ausrichtung — nicht aus
+geschachtelten Rahmen. Eine Karte sagt: „Das hier ist ein eigenes Objekt." In
+einer Buchhaltung ist fast nichts ein eigenes Objekt. Journal, Kontenblatt und
+Auswertung sind ein fortlaufendes Blatt, und wer jeden Abschnitt in einen Rahmen
+legt, zieht Wände in ein Dokument. Flächen sind die Ausnahme und in §6
+abschließend aufgezählt; verschachtelt werden sie nie.
+
+**3. Farbe ist Information.**
 In einer Buchhaltung ist Farbe reserviert. Grün heißt geprüft oder im Plus, Rot
 heißt Storno oder im Minus, Bernstein heißt „das ist noch offen" — und markiert
 zusätzlich den aktuellen Ort in der Navigation. Alles andere ist Papier und
 Tinte. Eine dekorativ eingefärbte Fläche verbraucht Bedeutung, die später fehlt.
 
-**3. Die Zahl ist der Held.**
+**4. Die Zahl ist der Held.**
 Beträge, Salden und Belegnummern sind der Inhalt. Sie stehen rechtsbündig, in
 gleicher Ziffernbreite, mit ausreichend Luft — und ohne dass Rahmen, Icons oder
 Hintergründe mit ihnen konkurrieren.
 
-**4. Nichts verschwindet.**
+**5. Nichts verschwindet.**
 Die GoBD verlangt, dass Korrekturen sichtbar bleiben. Das ist keine Last, sondern
 ein Gestaltungsprinzip: Stornierte Buchungen werden markiert, nicht versteckt,
 und nie durchgestrichen — der ursprüngliche Betrag muss lesbar bleiben.
@@ -191,10 +200,14 @@ Alles ist ein Vielfaches von 4 px. Erlaubt sind: **4, 8, 12, 16, 24, 32, 48, 64*
 |---|---|
 | Seitenrand (Desktop / Mobil) | 32 px / 16 px |
 | Maximale Inhaltsbreite | 1200 px, zentriert — Tabellen dürfen auf volle Breite |
-| Abstand zwischen Abschnitten | 32 px |
-| Karten-Innenabstand | 20 px |
+| Abstand zwischen Abschnitten | 32 px — vor der Trennlinie, 24 px danach |
+| Innenabstand der Flächen aus §6.2 | 20 px |
 | Abstand Label → Feld | 4 px |
 | Abstand zwischen Feldern | 16 px |
+
+Weil Abschnitte nicht mehr durch Rahmen getrennt werden, trägt der Abstand die
+Gliederung allein. Zu knapper Weißraum fällt hier sofort auf — im Zweifel die
+nächstgrößere Stufe.
 
 **Dichte.** Zwei Stufen, umschaltbar in den Einstellungen und pro Mandant
 gespeichert:
@@ -209,28 +222,83 @@ Berührungsziele bleiben in beiden Stufen mindestens 32 × 32 px; auf Touch-Ger�
 
 ---
 
-## 6. Form und Höhe
+## 6. Fläche, Form und Höhe
 
-**Radien** — drei plus rund, mehr nicht:
+Der wichtigste Abschnitt für den Gesamteindruck. Hier entscheidet sich, ob die
+Anwendung wie ein Blatt aussieht oder wie ein Stapel Kacheln.
+
+### 6.1 Die Seite ist die Fläche
+
+Inhalt liegt direkt auf dem Papier. Weiß ist nicht der Standardhintergrund,
+sondern ein Signal.
+
+| Fläche | Wo sie gilt |
+|---|---|
+| `paper` | Standard: Seiten, Abschnitte, **Tabellen**, Formulare, Listen, Kennzahlen |
+| `surface` (weiß) | Eingabefelder und Overlays — Flächen, auf denen etwas passiert |
+| `sunken` | Zeilen-Hover, Summenzeilen, gesperrte Perioden |
+
+Ein weißes Eingabefeld auf Papiergrund ist eine stärkere und flachere
+Bedienbarkeits-Aussage als jede Karte darum herum.
+
+### 6.2 Wann eine Fläche erlaubt ist
+
+Abschließende Liste. Was nicht hier steht, bekommt keinen Rahmen und keinen
+eigenen Hintergrund.
+
+1. **Overlays** — Dialog, Popover, Dropdown, Tooltip. Die schweben wirklich.
+2. **Ein Fremdkörper auf dem Blatt** — die Belegvorschau, ein eingebettetes PDF.
+   Das ist ein Dokument, keine Oberfläche, und darf sich abheben.
+3. **Ein Hinweis, der den Lesefluss unterbrechen soll** — Periodensperre,
+   Integritätsbruch, Fehlermeldung aus dem Backend.
+4. **Ein Leerzustand**, der die Stelle füllt, an der sonst eine Tabelle stünde.
+
+### 6.3 Verschachtelung ist verboten
+
+Eine Fläche in einer Fläche gibt es nicht, ohne Ausnahme. Wenn ein Abschnitt
+innerhalb einer Fläche eine eigene Fläche zu brauchen scheint, ist der Abschnitt
+zu groß und gehört in eine eigene Ansicht. Eingabefelder in einem Dialog sind
+kein Verstoß — ein Feld ist Bedienelement, keine Fläche.
+
+### 6.4 Abschnitte trennen ohne Kasten
+
+Das Ersatzmuster für die Karte, überall gleich:
+
+```
+<section class="pt-8 mt-8 border-t border-line">
+  <h2 class="text-heading">Offene Posten</h2>
+  <p class="text-caption text-ink-subtle mt-1">7 Rechnungen · 12.470,00 €</p>
+  <div class="mt-5"> … Inhalt direkt auf dem Papier … </div>
+</section>
+```
+
+Der erste Abschnitt einer Ansicht bekommt keine Linie — er steht schon unter dem
+Seitenkopf. Reicht der Abstand zur Trennung aus, entfällt auch die Linie:
+Weißraum ist das leiseste Trennmittel und deshalb das erste.
+
+### 6.5 Radien
 
 | Token | Wert | Einsatz |
 |---|---|---|
-| `rounded-control` | 6 px | Buttons, Eingabefelder, Chips, Badges |
-| `rounded-card` | 10 px | Karten, Tabellencontainer, Panels |
+| `rounded-control` | 6 px | Buttons, Eingabefelder, Chips, Badges — und die Flächen aus 6.2 im Blatt |
 | `rounded-overlay` | 14 px | Dialoge, Popover, Dropdowns |
 | `rounded-full` | — | Avatare, Statuspunkte, Zähler-Pills |
 
-**Rahmen statt Schatten.** Elemente im Textfluss werden durch eine Haarlinie
-(`border border-line`) abgegrenzt, nicht durch Schatten. Ein Schatten bedeutet:
-Dieses Element schwebt wirklich über der Seite.
+`rounded-card` (10 px) bleibt als Token bestehen, hat nach dieser Regel aber nur
+noch einen Einsatzort: die Belegvorschau. Neue Verwendungen sind
+begründungspflichtig.
+
+### 6.6 Höhe
 
 | Token | Einsatz |
 |---|---|
-| kein Schatten | Karten, Tabellen, Panels, Buttons, Eingabefelder |
+| kein Schatten | alles im Blatt — Tabellen, Abschnitte, Buttons, Eingabefelder, Hinweise |
 | `shadow-popover` | Dropdowns, Popover, Tooltips, Kontextmenüs |
 | `shadow-dialog` | Modale Dialoge |
 
-Damit verschwinden `shadow-xs`, `shadow-sm` und `shadow-xl` aus dem Code.
+Damit verschwinden `shadow-xs`, `shadow-sm` und `shadow-xl` aus dem Code. Ein
+Schatten bedeutet: Dieses Element schwebt wirklich über der Seite — nicht: Dieses
+Element ist wichtig.
 
 ---
 
@@ -304,31 +372,51 @@ Fehlertext ersetzt den Hilfstext in `text-negative`. Pflichtfelder werden nicht
 mit Sternchen markiert — stattdessen werden optionale Felder mit „(optional)"
 gekennzeichnet, das sind in Buchfink die wenigeren.
 
-### Karte
+### Abschnitt
+
+Der Ersatz für die Karte, siehe §6.4: Überschrift, optionale Kontextzeile, eine
+Haarlinie darüber, Inhalt direkt auf dem Papier. Kein Rahmen, kein eigener
+Hintergrund, kein Radius.
+
+### Kennzahlenreihe
+
+Kennzahlen sind keine Kacheln. Sie stehen in einer Reihe direkt auf dem Papier,
+getrennt durch senkrechte Haarlinien:
 
 ```
-rounded-card border border-line bg-surface
+divide-x divide-line  →  je Zelle: px-6 first:pl-0
+Label   text-caption text-ink-subtle
+Wert    text-display num
+Kontext text-caption text-ink-subtle
 ```
 
-Kopfzeile `px-5 py-4 border-b border-line`, Inhalt `p-5`. Kein Schatten. Karten
-werden nicht verschachtelt — eine Karte in einer Karte ist ein Zeichen dafür,
-dass der Abschnitt eine eigene Ansicht sein sollte.
+Bei mehr als vier Kennzahlen bricht die Reihe um; die senkrechten Linien
+entfallen dann zugunsten von Abstand.
 
 ### Tabelle
 
-Das wichtigste Element der Anwendung.
+Das wichtigste Element der Anwendung — und das erste, das ohne Container
+auskommt. Ein Journal ist ein fortlaufendes Blatt, kein Objekt in einem Kasten.
 
 | Teil | Umsetzung |
 |---|---|
-| Container | `rounded-card border border-line bg-surface overflow-hidden` |
-| Kopf | `bg-sunken border-b border-line text-label text-ink-subtle font-medium`, `sticky top-0 z-10` |
-| Zelle | `px-4 h-10 text-body` (kompakt: `h-8`) |
+| Container | **keiner** — die Tabelle sitzt direkt auf dem Papier |
+| Kopf | `border-b border-line-strong text-label text-ink-subtle font-medium`, `sticky top-0 bg-paper z-10`, keine Füllung |
+| Zelle | `px-4 h-10 text-body`, erste Spalte `pl-0`, letzte `pr-0` (kompakt: `h-8`) |
 | Trennung | `divide-y divide-line` — **keine Zebrastreifen** |
-| Hover | `hover:bg-sunken/60` |
+| Hover | `hover:bg-sunken` |
 | Ausgewählt | `bg-accent-soft` |
 | Zahlenspalten | `text-right num`, Kopf ebenfalls rechtsbündig |
-| Summenzeile | `rule-total font-semibold bg-sunken` |
+| Summenzeile | `rule-total font-semibold` — die Doppellinie trägt, keine Füllung nötig |
+| Abschluss | `border-b border-line` unter der letzten Zeile |
 | Zeilenaktionen | bei Hover und Fokus sichtbar, per Tastatur immer erreichbar |
+
+Dass der Kopf ohne Füllung auskommt, ist kein Verzicht: Die Kopfzeile ist durch
+Schriftgröße, Farbe und die kräftigere Unterlinie ausreichend abgesetzt. Beim
+Scrollen braucht sie `bg-paper`, damit die Zeilen nicht durchscheinen.
+
+Breite Tabellen scrollen in einem eigenen `overflow-x-auto`-Container; die Seite
+selbst scrollt nie seitlich.
 
 Spaltenreihenfolge im Journal, fest: Belegnummer · Datum · Buchungstext · Konten
 (Soll → Haben) · Betrag · Status. Text links, Zahlen rechts, nichts zentriert.
@@ -445,8 +533,11 @@ verschwinden nicht, damit die Ansicht zwischen den Jahren gleich aussieht.
 
 ### 10.6 Belege
 
-Zwei Spalten: links das Dokument, rechts die Erfassung. Die Vorschau bleibt
-sichtbar, während gebucht wird — die häufigste Tätigkeit ist der Abgleich
+Zwei Spalten: links das Dokument, rechts die Erfassung. Die Belegvorschau ist der
+eine Ort, an dem eine echte Fläche richtig ist (§6.2, Fall 2): `rounded-card
+border border-line bg-surface`. Sie zeigt ein Dokument, keine Oberfläche, und
+darf sich vom Blatt abheben. Die Erfassung rechts daneben bekommt keine — sie
+steht direkt auf dem Papier. Die Vorschau bleibt sichtbar, während gebucht wird — die häufigste Tätigkeit ist der Abgleich
 zwischen Beleg und Feld, und der darf keinen Fenster- oder Tab-Wechsel kosten.
 Erkannte Werte aus der E-Rechnung werden als Vorschlag im Feld angezeigt, mit
 einem dezenten Hinweis „aus ZUGFeRD übernommen" — übernommene Werte sind
@@ -476,8 +567,14 @@ Auswertungen, Verwaltung). Aktiver Eintrag: `bg-shell-raised text-white` mit
 war bisher zu laut für einen Zustand, der dauerhaft sichtbar ist.
 
 **Seitenkopf.** Jede Ansicht beginnt gleich: `text-display` Titel, darunter eine
-Zeile Kontext in `text-caption text-ink-subtle`, rechts die Primäraktion. Kein
-Icon neben dem Titel.
+Zeile Kontext in `text-caption text-ink-subtle`, rechts die Primäraktion,
+darunter eine Haarlinie über die volle Breite. Kein Icon neben dem Titel, kein
+Kasten um den Kopf.
+
+**Arbeitsfläche.** Alles darunter liegt direkt auf dem Papier: Kennzahlenreihe,
+Filterleiste, Tabelle. Abschnitte trennen sich durch Abstand und bei Bedarf durch
+eine Haarlinie (§6.4). Die Ansicht liest sich von oben nach unten wie ein Blatt,
+nicht als Sammlung von Kacheln.
 
 **Mobil.** Unter 768 px wird die Navigation zur Schublade. Tabellen mit mehr als
 vier Spalten werden zu Listenkarten, statt horizontal zu scrollen — bei Beträgen
@@ -559,9 +656,12 @@ Tailwind-Klassen funktionieren unverändert weiter, die Migration kann also
 schrittweise laufen.
 
 **Schritt 1 — Bausteine.** `components/ui/` mit `Button`, `Input`, `Field`,
-`Card`, `Table`, `StatusBadge`, `Dialog`, `EmptyState`, `PageHeader`. Die
-Spezifikationen aus Abschnitt 9 einmal umsetzen. `components/Form.tsx` geht darin
-auf.
+`Section`, `StatRow`, `Table`, `StatusBadge`, `Dialog`, `EmptyState`,
+`PageHeader`. Die Spezifikationen aus Abschnitt 9 einmal umsetzen.
+`components/Form.tsx` geht darin auf. Bewusst gibt es **keine** `Card` — was
+heute eine Karte ist, wird `Section`; wo eine Fläche wirklich nötig ist (§6.2),
+steht sie an genau dieser Stelle im Code und nicht als wiederverwendbarer
+Baustein, der sich unbemerkt vermehrt.
 
 **Schritt 2 — Rahmen.** `Sidebar`, `Header`, `App` auf Tokens umstellen. Danach
 ist der erste Eindruck stimmig, auch wenn die Seiten noch alt aussehen.
@@ -576,8 +676,12 @@ bleibt.
 ### Prüfliste für jeden Pull Request
 
 - [ ] Keine Hex-Farben und keine `stone-/amber-/rose-/emerald-`Klassen
+- [ ] Keine neue Fläche außerhalb der vier Fälle aus §6.2
+- [ ] Keine Fläche in einer Fläche
+- [ ] Abschnitte durch Überschrift, Abstand und Haarlinie getrennt — nicht durch Kästen
+- [ ] Tabellen ohne Container, Kopfzeile ohne Füllung
 - [ ] Schriftgrößen ausschließlich aus der Skala in Abschnitt 4
-- [ ] Radien nur `control`, `card`, `overlay`, `full`
+- [ ] Radien nur `control`, `overlay`, `full` (`card` nur für die Belegvorschau)
 - [ ] Schatten nur an Popover und Dialog
 - [ ] Jede Zahlenspalte hat `.num` und ist rechtsbündig
 - [ ] Farbige Zustände tragen zusätzlich Text oder Icon

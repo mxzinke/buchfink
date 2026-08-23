@@ -40,7 +40,6 @@
 
     /* Die dunkle Navigationszone behält in beiden Themes ihre eigenen Werte */
     --shell:        #24211E;
-    --shell-deep:   #1B1917;
     --shell-raised: #2E2A26;
     --shell-line:   #37322D;
     --shell-text:   #D8D2CA;
@@ -54,10 +53,10 @@
     --radius-card:   10px;
     --radius-overlay:14px;
     --shadow-popover: 0 1px 2px rgba(28,25,23,.04), 0 8px 24px -8px rgba(28,25,23,.18);
+    --shadow-dialog:  0 2px 4px rgba(28,25,23,.04), 0 24px 64px -24px rgba(28,25,23,.35);
     --ease: cubic-bezier(.2,.7,.3,1);
 
     --measure: 66ch;
-    --gutter: 40px;
   }
 
   /* Dunkelmodus nach §15 des Konzepts — Systemeinstellung */
@@ -65,7 +64,7 @@
     :root:not([data-theme="light"]) {
       --paper:        #1B1917;
       --surface:      #24211E;
-      --sunken:       #211E1B;
+      --sunken:       #262220;
       --line:         #332E29;
       --line-strong:  #443D36;
       --control:      #6E665D;
@@ -88,6 +87,7 @@
       --chip-ring:    rgba(242,239,234,.18);
       --ring:         rgba(224,163,86,.26);
       --shadow-popover: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.6);
+      --shadow-dialog:  0 2px 4px rgba(0,0,0,.3), 0 24px 64px -24px rgba(0,0,0,.75);
     }
   }
 
@@ -95,7 +95,7 @@
   :root[data-theme="dark"] {
     --paper:        #1B1917;
     --surface:      #24211E;
-    --sunken:       #211E1B;
+    --sunken:       #262220;
     --line:         #332E29;
     --line-strong:  #443D36;
     --control:      #6E665D;
@@ -118,10 +118,11 @@
     --chip-ring:    rgba(242,239,234,.18);
     --ring:         rgba(224,163,86,.26);
     --shadow-popover: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.6);
+    --shadow-dialog:  0 2px 4px rgba(0,0,0,.3), 0 24px 64px -24px rgba(0,0,0,.75);
   }
 
   /* ==========================================================================
-     Grundlage
+     Grundlage — die Seite selbst folgt der Regel: keine Kästen
      ========================================================================== */
   * { box-sizing: border-box; }
 
@@ -141,18 +142,16 @@
   h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.018em; font-weight: 600; }
   h1 { font-size: clamp(38px, 5.4vw, 54px); line-height: 1.06; }
   h2 { font-size: 25px; line-height: 1.2; }
-  h3 { font-size: 15px; letter-spacing: 0; }
+  h3 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-subtle); }
   p  { margin: 0; }
 
   code, .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-  .eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: .13em;
-    text-transform: uppercase; color: var(--ink-subtle);
-  }
-  .lede  { font-size: 17px; color: var(--ink-muted); max-width: var(--measure); }
-  .note  { font-size: 13.5px; color: var(--ink-muted); max-width: var(--measure); }
-  .cap   { font-size: 12px; color: var(--ink-subtle); line-height: 1.5; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-subtle); }
+  .lede { font-size: 17px; color: var(--ink-muted); max-width: var(--measure); }
+  .note { font-size: 13.5px; color: var(--ink-muted); max-width: var(--measure); }
+  .cap  { font-size: 12px; color: var(--ink-subtle); line-height: 1.5; }
+  .cap.wide { max-width: none; }
 
   a { color: var(--accent); text-underline-offset: 3px; }
   a:focus-visible, button:focus-visible {
@@ -162,73 +161,63 @@
   /* ==========================================================================
      Kopf
      ========================================================================== */
-  .masthead { padding: 92px 0 64px; }
+  .masthead { padding: 92px 0 0; }
   .masthead .eyebrow { display: block; margin-bottom: 22px; }
   .masthead h1 { margin-bottom: 26px; }
   .masthead .lede { font-size: 19px; }
 
-  .facts {
-    display: flex; flex-wrap: wrap; gap: 0 40px;
-    margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line);
-  }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 48px; margin-top: 44px; }
   .fact { display: flex; flex-direction: column; gap: 2px; }
   .fact dt { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-subtle); }
   .fact dd { margin: 0; font-size: 13.5px; font-weight: 500; }
 
-  /* ==========================================================================
-     Prinzipien
-     ========================================================================== */
-  .principles {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
-    background: var(--line); border: 1px solid var(--line);
-    border-radius: var(--radius-card); overflow: hidden; margin-top: 56px;
+  /* Prinzipien als flache Zeilen — keine Kacheln */
+  .principles { margin-top: 52px; }
+  .principle {
+    display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;
+    padding: 20px 0; border-top: 1px solid var(--line);
   }
-  .principle { background: var(--surface); padding: 24px 22px 26px; display: flex; flex-direction: column; gap: 10px; }
-  .principle .n { font-size: 11px; font-weight: 500; color: var(--accent); }
-  .principle h3 { font-size: 15.5px; }
-  .principle p { font-size: 13px; color: var(--ink-muted); line-height: 1.55; }
+  .principle:last-child { border-bottom: 1px solid var(--line); }
+  .p-name { display: flex; flex-direction: column; gap: 2px; }
+  .p-name .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
+  .p-name .t { font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; }
+  .principle p { font-size: 13.5px; color: var(--ink-muted); line-height: 1.6; }
 
   /* ==========================================================================
-     Abschnitte
+     Abschnitte — Überschrift, Abstand, Haarlinie. Das ist das ganze Muster.
      ========================================================================== */
   .section {
-    display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--gutter);
+    display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 40px;
     padding: 72px 0; border-top: 1px solid var(--line);
   }
-  .section:first-of-type { border-top: none; }
-  /* Ohne min-width:0 wächst die Grid-Spur auf die min-content-Breite der
-     Tabellen — die Seite scrollt dann seitlich statt der Tabelle. */
   .section > * { min-width: 0; }
   .rail { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); padding-top: 7px; }
-  .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
-  .block { margin-top: 44px; }
-  .block-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-  .block-head h3 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-subtle); font-weight: 600; }
+  .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+  .block { margin-top: 48px; }
+  .block-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 
   /* ==========================================================================
      Farbe
      ========================================================================== */
-  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 1px;
-              background: var(--line); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
-  .sw { background: var(--surface); padding: 14px 16px; display: flex; gap: 13px; align-items: flex-start; }
-  .chip { width: 34px; height: 34px; border-radius: var(--radius-control); flex: none;
-          box-shadow: inset 0 0 0 1px var(--chip-ring); }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 26px 32px; }
+  .sw { display: flex; gap: 13px; align-items: flex-start; }
+  .chip { width: 34px; height: 34px; border-radius: var(--radius-control); flex: none; box-shadow: inset 0 0 0 1px var(--chip-ring); }
   .sw-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .sw-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
   .sw-hex  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
   .sw-use  { font-size: 12px; color: var(--ink-muted); line-height: 1.4; margin-top: 3px; }
 
-  .signals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .signal { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
-  .signal-bar { height: 56px; display: flex; align-items: flex-end; padding: 9px 14px; }
-  .signal-bar span { font-size: 11.5px; font-weight: 600; color: #fff; letter-spacing: .02em; }
-  .signal-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 7px; }
+  .signals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .signal-bar { height: 52px; border-radius: var(--radius-control); display: flex; align-items: flex-end; padding: 8px 12px; }
+  .signal-bar span { font-size: 11.5px; font-weight: 600; color: #fff; }
+  .signal-body { padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
   .signal-body .m { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
   .signal-body p { font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
 
-  .rules { display: flex; flex-direction: column; gap: 1px; background: var(--line);
-           border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
-  .rule { background: var(--surface); padding: 15px 18px; display: grid; grid-template-columns: 22px 1fr; gap: 14px; align-items: baseline; }
+  .rules { display: flex; flex-direction: column; }
+  .rule { display: grid; grid-template-columns: 26px 1fr; gap: 14px; align-items: baseline;
+          padding: 15px 0; border-top: 1px solid var(--line); }
+  .rule:last-child { border-bottom: 1px solid var(--line); }
   .rule .k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
   .rule p { font-size: 13.5px; color: var(--ink-muted); }
   .rule strong { color: var(--ink); font-weight: 600; }
@@ -236,10 +225,9 @@
   /* ==========================================================================
      Typografie
      ========================================================================== */
-  .scale { display: flex; flex-direction: column; }
   .row-t { display: grid; grid-template-columns: 128px minmax(0,1fr) 132px; gap: 24px;
            align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--line); }
-  .row-t:last-child { border-bottom: none; }
+  .row-t:first-child { border-top: 1px solid var(--line); }
   .row-t .t-name { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--accent); }
   .row-t .t-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); text-align: right; }
   .s-display { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.015em; }
@@ -249,9 +237,11 @@
   .s-caption { font-size: 11px; line-height: 15px; }
   .s-overline{ font-size: 10px; line-height: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 
-  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .fig { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 18px 20px 20px; }
-  .fig-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .fig { padding: 0 32px; }
+  .fig:first-child { padding-left: 0; }
+  .fig:last-child { padding-right: 0; border-left: 1px solid var(--line); }
+  .fig-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
   .fig-h .t { font-size: 12px; font-weight: 600; }
   .fig-col { display: flex; flex-direction: column; font-size: 15px; text-align: right; }
   .fig-col > span { padding: 3px 0; }
@@ -262,33 +252,63 @@
   .verdict.good { color: var(--positive); }
 
   /* ==========================================================================
-     Form
+     Fläche und Höhe — Vergleich, Radien, Schatten
      ========================================================================== */
-  .radii { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .cmp { padding: 0 32px; }
+  .cmp:first-child { padding-left: 0; }
+  .cmp:last-child { padding-right: 0; border-left: 1px solid var(--line); }
+  .cmp-label { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; margin-bottom: 16px; }
+  .cmp-label.no  { color: var(--negative); }
+  .cmp-label.yes { color: var(--positive); }
+  .cmp-label .m { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+  /* Das Gegenbeispiel — bewusst so gebaut, wie es nicht sein soll */
+  .mock-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px; }
+  .mock-card .mc-t { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .mock-card .mc-s { font-size: 11px; color: var(--ink-subtle); margin-bottom: 12px; }
+  .mock-inner { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .mock-inner .mi-h { background: var(--sunken); border-bottom: 1px solid var(--line); padding: 6px 12px; font-size: 10.5px; color: var(--ink-subtle); display: flex; justify-content: space-between; }
+  .mock-inner .mi-r { padding: 8px 12px; font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  .mock-inner .mi-r:last-child { border-bottom: none; }
+
+  /* Die Regel */
+  .mock-flat .mc-t { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .mock-flat .mc-s { font-size: 11px; color: var(--ink-subtle); margin-bottom: 12px; }
+  .mock-flat .mi-h { border-bottom: 1px solid var(--line-strong); padding: 6px 0; font-size: 10.5px; color: var(--ink-subtle); display: flex; justify-content: space-between; }
+  .mock-flat .mi-r { padding: 8px 0; font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+
+  .allow { display: grid; grid-template-columns: 26px 1fr; gap: 14px 14px; align-items: baseline; }
+  .allow > .k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+  .allow > p { font-size: 13.5px; color: var(--ink-muted); padding-bottom: 4px; }
+  .allow strong { color: var(--ink); font-weight: 600; }
+
+  .radii { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
   .rad { display: flex; flex-direction: column; gap: 10px; }
-  .rad-box { height: 72px; border: 1px solid var(--control); background: var(--sunken); }
+  .rad-box { height: 64px; border: 1px solid var(--control); }
   .rad-meta { display: flex; flex-direction: column; gap: 1px; }
   .rad-meta .n { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
   .rad-meta .u { font-size: 11.5px; color: var(--ink-subtle); }
+  .rad.faded .rad-box { border-style: dashed; border-color: var(--line-strong); }
+  .rad.faded .rad-meta .n, .rad.faded .rad-meta .u { color: var(--ink-faint); }
 
-  .elev { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-  .elev-item { padding: 18px 20px; background: var(--surface); border-radius: var(--radius-card); }
-  .elev-item.flat { border: 1px solid var(--line); }
-  .elev-item.pop  { border: 1px solid var(--line); box-shadow: var(--shadow-popover); border-radius: var(--radius-overlay); }
-  .elev-item.dlg  { border: 1px solid var(--line); box-shadow: 0 2px 4px rgba(28,25,23,.04), 0 24px 64px -24px rgba(28,25,23,.35); border-radius: var(--radius-overlay); }
+  .elev { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; align-items: start; }
+  .elev-item { padding: 16px 0; }
+  .elev-item.pop { background: var(--surface); box-shadow: var(--shadow-popover); border-radius: var(--radius-overlay); padding: 16px 18px; }
+  .elev-item.dlg { background: var(--surface); box-shadow: var(--shadow-dialog); border-radius: var(--radius-overlay); padding: 16px 18px; }
   .elev-item .n { font-size: 12.5px; font-weight: 600; }
   .elev-item .u { font-size: 11.5px; color: var(--ink-subtle); margin-top: 3px; }
 
   /* ==========================================================================
-     Komponenten
+     Komponenten — Blöcke durch Linien getrennt, keine Demo-Kästen
      ========================================================================== */
-  .demo { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 22px; }
-  .demo + .demo { margin-top: 16px; }
+  .demo { padding-top: 28px; margin-top: 28px; border-top: 1px solid var(--line); }
+  .demo:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
   .demo-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
   .demo-row.top { align-items: flex-start; }
 
   .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-control); border: 1px solid transparent;
-         font: 500 12px/1 'Manrope', sans-serif; font-weight: 600; cursor: pointer;
+         font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
          display: inline-flex; align-items: center; gap: 8px; transition: background-color .12s var(--ease), color .12s var(--ease); }
   .btn-primary   { background: var(--ink); color: var(--paper); }
   .btn-primary:hover { background: var(--ink-muted); }
@@ -298,7 +318,7 @@
   .btn-quiet:hover { background: var(--sunken); color: var(--ink); }
   .btn-danger    { background: var(--negative); color: #fff; }
   .btn-danger:hover { filter: brightness(.94); }
-  .btn:disabled  { background: var(--sunken); color: var(--ink-faint); border-color: var(--line); cursor: not-allowed; }
+  .btn:disabled  { background: transparent; color: var(--ink-faint); border-color: var(--line); cursor: not-allowed; }
 
   .field { display: flex; flex-direction: column; gap: 4px; min-width: 190px; }
   .field > label { font-size: 12px; font-weight: 500; color: var(--ink-muted); }
@@ -306,7 +326,7 @@
   .field .err  { font-size: 11px; color: var(--negative); }
   .input { height: 36px; padding: 0 11px; border-radius: var(--radius-control);
            border: 1px solid var(--control); background: var(--surface); color: var(--ink);
-           font: 400 13px 'Manrope', sans-serif; width: 100%; }
+           font-family: 'Manrope', sans-serif; font-size: 13px; width: 100%; }
   .input::placeholder { color: var(--ink-faint); }
   .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
   .input.amount { text-align: right; font-variant-numeric: tabular-nums; }
@@ -315,46 +335,43 @@
   .badge { display: inline-flex; align-items: center; gap: 6px; height: 21px; padding: 0 8px;
            border-radius: var(--radius-control); border: 1px solid; font-size: 11px; font-weight: 500; white-space: nowrap; }
   .badge .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; flex: none; }
-  .b-neutral  { background: var(--sunken);        color: var(--ink-subtle); border-color: var(--line-strong); }
+  .b-neutral  { background: transparent;          color: var(--ink-subtle);    border-color: var(--line-strong); }
   .b-open     { background: var(--accent-soft);   color: var(--accent-strong); border-color: var(--accent-line); }
   .b-partial  { background: transparent;          color: var(--accent-strong); border-color: var(--accent-line); }
-  .b-done     { background: var(--positive-soft); color: var(--positive); border-color: var(--positive-line); }
-  .b-error    { background: var(--negative-soft); color: var(--negative); border-color: var(--negative-line); }
+  .b-done     { background: var(--positive-soft); color: var(--positive);      border-color: var(--positive-line); }
+  .b-error    { background: var(--negative-soft); color: var(--negative);      border-color: var(--negative-line); }
 
   /* ==========================================================================
-     Tabellen
+     Tabellen — ohne Container, direkt auf dem Papier
      ========================================================================== */
-  .t-wrap { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
   .t-scroll { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  thead th { background: var(--sunken); border-bottom: 1px solid var(--line);
+  thead th { border-bottom: 1px solid var(--line-strong);
              font-size: 12px; font-weight: 500; color: var(--ink-subtle); text-align: left;
-             padding: 0 16px; height: 34px; white-space: nowrap; }
+             padding: 0 16px; height: 30px; white-space: nowrap; }
   tbody td { padding: 0 16px; height: 40px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  tbody tr:last-child td { border-bottom: none; }
+  th:first-child, td:first-child { padding-left: 0; }
+  th:last-child,  td:last-child  { padding-right: 0; }
   tbody tr:hover td { background: var(--sunken); }
   .r { text-align: right; font-variant-numeric: tabular-nums; }
-  .doc-no { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
-  .acct   { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
-  .muted  { color: var(--ink-subtle); }
+  .doc-no, .acct { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
+  .muted { color: var(--ink-subtle); }
 
-  tr.storno td { background: color-mix(in srgb, var(--negative-soft) 55%, var(--surface)); }
-  tr.storno:hover td { background: color-mix(in srgb, var(--negative-soft) 75%, var(--surface)); }
-  tr.storno td:first-child { box-shadow: inset 2px 0 0 var(--negative); }
+  tr.storno td { background: color-mix(in srgb, var(--negative-soft) 55%, var(--paper)); }
+  tr.storno:hover td { background: color-mix(in srgb, var(--negative-soft) 75%, var(--paper)); }
+  tr.storno td:first-child { box-shadow: inset 2px 0 0 var(--negative); padding-left: 10px; }
 
-  tr.sum td { background: var(--sunken); font-weight: 600; border-top: 3px double var(--line-strong); border-bottom: none; }
+  tr.sum td { font-weight: 600; border-top: 3px double var(--line-strong); border-bottom: none; }
 
   /* ==========================================================================
-     Navigation
+     Layout-Beispiel
      ========================================================================== */
-  .nav-demo { display: grid; grid-template-columns: 240px minmax(0,1fr); border: 1px solid var(--line);
-              border-radius: var(--radius-card); overflow: hidden; min-height: 340px; }
+  .nav-demo { display: grid; grid-template-columns: 240px minmax(0,1fr); border: 1px solid var(--line); min-height: 320px; }
   .nav { background: var(--shell); border-right: 1px solid var(--shell-line); padding: 16px 0; display: flex; flex-direction: column; }
   .nav-brand { display: flex; flex-direction: column; gap: 2px; padding: 4px 18px 16px; border-bottom: 1px solid var(--shell-line); margin-bottom: 14px; }
   .nav-brand .b1 { font-size: 13px; font-weight: 600; color: #F2EFEA; }
   .nav-brand .b2 { font-size: 11px; color: var(--shell-muted); }
-  .nav-group { font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
-               color: var(--shell-muted); padding: 14px 18px 6px; }
+  .nav-group { font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--shell-muted); padding: 14px 18px 6px; }
   .nav-item { display: flex; align-items: center; gap: 10px; padding: 0 18px; height: 30px;
               font-size: 12.5px; color: var(--shell-text); opacity: .78; border-left: 2px solid transparent; }
   .nav-item.active { background: var(--shell-raised); color: #fff; opacity: 1; border-left-color: var(--accent-light); font-weight: 500; }
@@ -364,28 +381,30 @@
   .nav-status .d { width: 6px; height: 6px; border-radius: 999px; background: #7CC08A; flex: none; }
   .nav-status .ts { display: block; font-size: 10.5px; color: var(--shell-muted); margin-top: 2px; }
 
-  .canvas { background: var(--paper); padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+  .canvas { background: var(--paper); padding: 22px 24px; display: flex; flex-direction: column; }
   .canvas-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px;
                 padding-bottom: 14px; border-bottom: 1px solid var(--line); }
   .canvas-title { font-size: 22px; font-weight: 600; letter-spacing: -.015em; }
   .canvas-sub { font-size: 11px; color: var(--ink-subtle); margin-top: 2px; }
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .kpi { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 14px 16px; }
-  .kpi .l { font-size: 11px; color: var(--ink-subtle); }
-  .kpi .v { font-size: 19px; font-weight: 600; margin-top: 5px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-  .kpi .d { font-size: 11px; color: var(--ink-subtle); margin-top: 2px; }
+
+  /* Kennzahlenreihe — flach, senkrechte Haarlinien statt Kacheln */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 22px 0 20px; }
+  .stat { padding: 0 24px; border-left: 1px solid var(--line); }
+  .stat:first-child { padding-left: 0; border-left: none; }
+  .stat .l { font-size: 11px; color: var(--ink-subtle); }
+  .stat .v { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: -.015em; }
+  .stat .d { font-size: 11px; color: var(--ink-subtle); margin-top: 2px; }
 
   /* ==========================================================================
      Umsetzung
      ========================================================================== */
-  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line);
-           border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
-  .step { background: var(--surface); padding: 20px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  .step { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 2px solid var(--ink); }
   .step .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
-  .step h3 { font-size: 14px; }
+  .step h4 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
   .step p { font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
 
-  .check { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .check { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
   .check li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; padding: 9px 0;
               border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-muted); }
   .check li::before { content: ""; width: 13px; height: 13px; margin-top: 4px;
@@ -399,20 +418,24 @@
      Schmale Ansichten
      ========================================================================== */
   @media (max-width: 900px) {
-    .principles, .steps { grid-template-columns: repeat(2, 1fr); }
-    .signals, .radii, .elev, .kpis { grid-template-columns: 1fr 1fr; }
-    .figures, .check { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    .signals, .radii, .elev, .stats { grid-template-columns: 1fr 1fr; }
+    .figures, .compare, .check { grid-template-columns: 1fr; }
+    .fig, .cmp { padding: 0; }
+    .fig:last-child, .cmp:last-child { border-left: none; border-top: 1px solid var(--line); padding-top: 28px; margin-top: 28px; }
     .nav-demo { grid-template-columns: 1fr; }
     .nav { border-right: none; border-bottom: 1px solid var(--shell-line); }
+    .stat { padding-left: 0; border-left: none; }
   }
   @media (max-width: 680px) {
     .wrap { padding: 0 20px; }
     .section { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 52px 0; }
     .rail { padding-top: 0; }
-    .principles, .steps, .signals, .radii, .elev, .kpis { grid-template-columns: 1fr; }
+    .principle { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .signals, .radii, .elev, .stats, .steps { grid-template-columns: 1fr; }
     .row-t { grid-template-columns: 1fr; gap: 6px; }
     .row-t .t-meta { text-align: left; }
-    .masthead { padding: 64px 0 48px; }
+    .masthead { padding: 64px 0 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -435,35 +458,118 @@
     <dl class="facts">
       <div class="fact"><dt>Farben mit Bedeutung</dt><dd>3 Signale, sonst Papier und Tinte</dd></div>
       <div class="fact"><dt>Schriftgrößen</dt><dd>6 Stufen statt bisher 9</dd></div>
-      <div class="fact"><dt>Eckenradien</dt><dd>3 statt bisher 6</dd></div>
+      <div class="fact"><dt>Flächen</dt><dd>4 erlaubte Fälle statt 58 Karten</dd></div>
       <div class="fact"><dt>Schatten</dt><dd>nur Popover und Dialog</dd></div>
     </dl>
 
     <div class="principles">
       <div class="principle">
-        <span class="n">Prinzip 1</span>
-        <h3>Ruhe ist Funktion</h3>
+        <div class="p-name"><span class="n">Prinzip 1</span><span class="t">Ruhe ist Funktion</span></div>
         <p>Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die Suche nach dem, was zählt.</p>
       </div>
       <div class="principle">
-        <span class="n">Prinzip 2</span>
-        <h3>Farbe ist Information</h3>
+        <div class="p-name"><span class="n">Prinzip 2</span><span class="t">Das Blatt, nicht der Kasten</span></div>
+        <p>Struktur entsteht aus Weißraum, Haarlinien und Ausrichtung — nicht aus geschachtelten Rahmen. Journal, Kontenblatt und Auswertung sind ein fortlaufendes Blatt. Wer jeden Abschnitt einrahmt, zieht Wände in ein Dokument.</p>
+      </div>
+      <div class="principle">
+        <div class="p-name"><span class="n">Prinzip 3</span><span class="t">Farbe ist Information</span></div>
         <p>Grün heißt geprüft, Rot heißt Storno, Bernstein heißt offen. Wer dekorativ einfärbt, verbraucht Bedeutung, die später fehlt.</p>
       </div>
       <div class="principle">
-        <span class="n">Prinzip 3</span>
-        <h3>Die Zahl ist der Held</h3>
+        <div class="p-name"><span class="n">Prinzip 4</span><span class="t">Die Zahl ist der Held</span></div>
         <p>Beträge stehen rechtsbündig, in gleicher Ziffernbreite, mit Luft — und ohne Konkurrenz durch Rahmen und Icons.</p>
       </div>
       <div class="principle">
-        <span class="n">Prinzip 4</span>
-        <h3>Nichts verschwindet</h3>
+        <div class="p-name"><span class="n">Prinzip 5</span><span class="t">Nichts verschwindet</span></div>
         <p>Die GoBD verlangt sichtbare Korrekturen. Storniertes wird markiert, nicht versteckt — und nie durchgestrichen.</p>
       </div>
     </div>
   </header>
 
   <main>
+
+    <!-- ================= FLÄCHE ================= -->
+    <section class="section">
+      <div class="rail">§ 6</div>
+      <div>
+        <div class="head">
+          <h2>Fläche und Höhe</h2>
+          <p class="note">
+            Der Abschnitt, der den Gesamteindruck entscheidet. Inhalt liegt direkt auf dem Papier.
+            Weiß ist kein Hintergrund, sondern ein Signal: Dort passiert etwas — ein Eingabefeld,
+            ein Overlay.
+          </p>
+        </div>
+
+        <div class="block-head">
+          <h3>Derselbe Abschnitt, zweimal</h3>
+          <p class="cap wide">Links das Muster, das die Oberfläche heute prägt. Rechts dieselbe Information ohne einen einzigen Rahmen.</p>
+        </div>
+        <div class="compare">
+          <div class="cmp">
+            <span class="cmp-label no"><span class="m">✕</span> Karte in Karte</span>
+            <div class="mock-card">
+              <div class="mc-t">Offene Posten</div>
+              <div class="mc-s">7 Rechnungen · 12.470,00 €</div>
+              <div class="mock-inner">
+                <div class="mi-h"><span>Kunde</span><span>Betrag</span></div>
+                <div class="mi-r"><span>Meridian GmbH</span><span>11.900,00</span></div>
+                <div class="mi-r"><span>Hoffmann KG</span><span>4.165,00</span></div>
+              </div>
+            </div>
+            <p class="cap" style="margin-top:14px">Drei Rahmen, zwei Hintergründe und zwei Radien für zwei Zeilen Inhalt. Der Blick zählt Kästen, bevor er Zahlen liest.</p>
+          </div>
+          <div class="cmp">
+            <span class="cmp-label yes"><span class="m">✓</span> Abschnitt auf dem Blatt</span>
+            <div class="mock-flat">
+              <div class="mc-t">Offene Posten</div>
+              <div class="mc-s">7 Rechnungen · 12.470,00 €</div>
+              <div>
+                <div class="mi-h"><span>Kunde</span><span>Betrag</span></div>
+                <div class="mi-r"><span>Meridian GmbH</span><span>11.900,00</span></div>
+                <div class="mi-r"><span>Hoffmann KG</span><span>4.165,00</span></div>
+              </div>
+            </div>
+            <p class="cap" style="margin-top:14px">Überschrift, Kontextzeile, Haarlinien. Gleiche Information, gleiche Gliederung — nur ohne Wände.</p>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>Wann eine Fläche erlaubt ist</h3>
+            <p class="cap wide">Abschließende Liste. Was nicht hier steht, bekommt keinen Rahmen und keinen eigenen Hintergrund — und verschachtelt wird nie.</p>
+          </div>
+          <div class="allow">
+            <span class="k">01</span><p><strong>Overlays</strong> — Dialog, Popover, Dropdown, Tooltip. Die schweben wirklich.</p>
+            <span class="k">02</span><p><strong>Ein Fremdkörper auf dem Blatt</strong> — die Belegvorschau, ein eingebettetes PDF. Das ist ein Dokument, keine Oberfläche.</p>
+            <span class="k">03</span><p><strong>Ein Hinweis, der den Lesefluss unterbrechen soll</strong> — Periodensperre, Integritätsbruch, Fehlermeldung.</p>
+            <span class="k">04</span><p><strong>Ein Leerzustand</strong>, der die Stelle füllt, an der sonst eine Tabelle stünde.</p>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Radien</h3></div>
+          <div class="radii">
+            <div class="rad"><div class="rad-box" style="border-radius:6px"></div><span class="rad-meta"><span class="n">6 px · control</span><span class="u">Buttons, Felder, Badges, Hinweise</span></span></div>
+            <div class="rad"><div class="rad-box" style="border-radius:14px"></div><span class="rad-meta"><span class="n">14 px · overlay</span><span class="u">Dialoge, Popover</span></span></div>
+            <div class="rad"><div class="rad-box" style="border-radius:999px"></div><span class="rad-meta"><span class="n">voll · full</span><span class="u">Statuspunkte, Zähler</span></span></div>
+            <div class="rad faded"><div class="rad-box" style="border-radius:10px"></div><span class="rad-meta"><span class="n">10 px · card</span><span class="u">nur noch Belegvorschau</span></span></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>Drei Ebenen, mehr gibt es nicht</h3>
+            <p class="cap wide">Ein Schatten bedeutet: Dieses Element schwebt wirklich über der Seite — nicht: Dieses Element ist wichtig.</p>
+          </div>
+          <div class="elev">
+            <div class="elev-item"><div class="n">Kein Schatten, kein Rahmen</div><div class="u">Alles im Blatt — Abschnitte, Tabellen, Formulare, Kennzahlen</div></div>
+            <div class="elev-item pop"><div class="n">shadow-popover</div><div class="u">Dropdowns, Popover, Tooltips</div></div>
+            <div class="elev-item dlg"><div class="n">shadow-dialog</div><div class="u">Modale Dialoge</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ================= FARBE ================= -->
     <section class="section">
@@ -480,11 +586,11 @@
 
         <div class="block-head"><h3>Papier und Tinte</h3></div>
         <div class="swatches">
-          <div class="sw"><span class="chip" style="background:#FAF8F5"></span><span class="sw-body"><span class="sw-name">paper</span><span class="sw-hex">#FAF8F5</span><span class="sw-use">App-Hintergrund</span></span></div>
-          <div class="sw"><span class="chip" style="background:#FFFFFF"></span><span class="sw-body"><span class="sw-name">surface</span><span class="sw-hex">#FFFFFF</span><span class="sw-use">Karten, Tabellenzeilen</span></span></div>
-          <div class="sw"><span class="chip" style="background:#F4F1EB"></span><span class="sw-body"><span class="sw-name">sunken</span><span class="sw-hex">#F4F1EB</span><span class="sw-use">Tabellenkopf, gesperrte Bereiche</span></span></div>
+          <div class="sw"><span class="chip" style="background:#FAF8F5"></span><span class="sw-body"><span class="sw-name">paper</span><span class="sw-hex">#FAF8F5</span><span class="sw-use">Standardgrund: Seiten, Tabellen, Abschnitte</span></span></div>
+          <div class="sw"><span class="chip" style="background:#FFFFFF"></span><span class="sw-body"><span class="sw-name">surface</span><span class="sw-hex">#FFFFFF</span><span class="sw-use">Eingabefelder, Overlays</span></span></div>
+          <div class="sw"><span class="chip" style="background:#F4F1EB"></span><span class="sw-body"><span class="sw-name">sunken</span><span class="sw-hex">#F4F1EB</span><span class="sw-use">Zeilen-Hover, gesperrte Perioden</span></span></div>
           <div class="sw"><span class="chip" style="background:#E9E4DC"></span><span class="sw-body"><span class="sw-name">line</span><span class="sw-hex">#E9E4DC</span><span class="sw-use">Haarlinie, Standardtrennung</span></span></div>
-          <div class="sw"><span class="chip" style="background:#D8D1C6"></span><span class="sw-body"><span class="sw-name">line-strong</span><span class="sw-hex">#D8D1C6</span><span class="sw-use">Außenkanten, Summenlinie</span></span></div>
+          <div class="sw"><span class="chip" style="background:#D8D1C6"></span><span class="sw-body"><span class="sw-name">line-strong</span><span class="sw-hex">#D8D1C6</span><span class="sw-use">Tabellenkopf, Summenlinie</span></span></div>
           <div class="sw"><span class="chip" style="background:#948E85"></span><span class="sw-body"><span class="sw-name">control-border</span><span class="sw-hex">#948E85</span><span class="sw-use">Rahmen bedienbarer Elemente · 3,3:1</span></span></div>
           <div class="sw"><span class="chip" style="background:#1C1917"></span><span class="sw-body"><span class="sw-name">ink</span><span class="sw-hex">#1C1917</span><span class="sw-use">Primärtext, Primärbutton · 16,5:1</span></span></div>
           <div class="sw"><span class="chip" style="background:#57514A"></span><span class="sw-body"><span class="sw-name">ink-muted</span><span class="sw-hex">#57514A</span><span class="sw-use">Sekundärtext · 7,4:1</span></span></div>
@@ -495,21 +601,21 @@
         <div class="block">
           <div class="block-head"><h3>Die drei Signale</h3></div>
           <div class="signals">
-            <div class="signal">
+            <div>
               <div class="signal-bar" style="background:#A8620A"><span>Bernstein</span></div>
               <div class="signal-body">
                 <span class="m">#A8620A · aus dem Logo</span>
                 <p>Marke, aktueller Ort in der Navigation, <strong>offen / zu erledigen</strong>. Nichts sonst.</p>
               </div>
             </div>
-            <div class="signal">
+            <div>
               <div class="signal-bar" style="background:#1B5E20"><span>Grün</span></div>
               <div class="signal-body">
                 <span class="m">#1B5E20 · aus dem Logo</span>
                 <p>Geprüft, abgestimmt, festgeschrieben, im Plus.</p>
               </div>
             </div>
-            <div class="signal">
+            <div>
               <div class="signal-bar" style="background:#A5342A"><span>Rot</span></div>
               <div class="signal-body">
                 <span class="m">#A5342A</span>
@@ -517,9 +623,9 @@
               </div>
             </div>
           </div>
-          <p class="cap" style="margin-top:12px">
-            Angegeben sind die Werte für den Hellmodus. Auf dunklem Grund verlieren diese Töne
-            an Kontrast; §&nbsp;15 nennt die aufgehellten Entsprechungen.
+          <p class="cap wide" style="margin-top:20px">
+            Angegeben sind die Werte für den Hellmodus. Auf dunklem Grund verlieren diese Töne an
+            Kontrast; §&nbsp;15 nennt die aufgehellten Entsprechungen.
           </p>
         </div>
 
@@ -547,7 +653,7 @@
           </p>
         </div>
 
-        <div class="scale">
+        <div>
           <div class="row-t"><span class="t-name">text-display</span><span class="s-display">Buchhaltungsübersicht</span><span class="t-meta">22 / 28 · 600</span></div>
           <div class="row-t"><span class="t-name">text-heading</span><span class="s-heading">Letzte Buchungen</span><span class="t-meta">16 / 22 · 600</span></div>
           <div class="row-t"><span class="t-name">text-body</span><span class="s-body">Ausgangsrechnung Meridian GmbH, Leistungszeitraum März 2024</span><span class="t-meta">13 / 20 · 400</span></div>
@@ -559,7 +665,7 @@
         <div class="block">
           <div class="block-head">
             <h3>Zahlensatz</h3>
-            <p class="cap">Manrope bringt tabellarische Ziffern mit. Es braucht also keinen zweiten Schriftschnitt für Beträge — und Zahlen bleiben Teil des Textbildes, statt als Monospace-Fremdkörper zu stehen.</p>
+            <p class="cap wide">Manrope bringt tabellarische Ziffern mit. Es braucht also keinen zweiten Schriftschnitt für Beträge — und Zahlen bleiben Teil des Textbildes, statt als Monospace-Fremdkörper zu stehen.</p>
           </div>
           <div class="figures">
             <div class="fig">
@@ -577,41 +683,11 @@
               <p class="verdict good">Gleiche Ziffernbreite. Komma steht unter Komma, die Größenordnung ist ohne Lesen erkennbar.</p>
             </div>
           </div>
-          <p class="cap" style="margin-top:14px">
+          <p class="cap wide" style="margin-top:20px">
             Beleg- und Kontonummern bekommen zusätzlich die durchgestrichene Null (<code>.code-num</code>),
             damit <span class="doc-no">RE-2024-0117</span> nicht als O gelesen wird. Echtes Monospace bleibt
             Hashes und Dateipfaden vorbehalten.
           </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= FORM ================= -->
-    <section class="section">
-      <div class="rail">§ 6</div>
-      <div>
-        <div class="head">
-          <h2>Form und Höhe</h2>
-          <p class="note">
-            Drei Radien, plus rund. Und Rahmen statt Schatten: Ein Schatten bedeutet, dass ein
-            Element wirklich über der Seite schwebt — nicht, dass es wichtig ist.
-          </p>
-        </div>
-
-        <div class="radii">
-          <div class="rad"><div class="rad-box" style="border-radius:6px"></div><span class="rad-meta"><span class="n">6 px · control</span><span class="u">Buttons, Felder, Badges</span></span></div>
-          <div class="rad"><div class="rad-box" style="border-radius:10px"></div><span class="rad-meta"><span class="n">10 px · card</span><span class="u">Karten, Tabellen, Panels</span></span></div>
-          <div class="rad"><div class="rad-box" style="border-radius:14px"></div><span class="rad-meta"><span class="n">14 px · overlay</span><span class="u">Dialoge, Popover</span></span></div>
-          <div class="rad"><div class="rad-box" style="border-radius:999px"></div><span class="rad-meta"><span class="n">voll · full</span><span class="u">Statuspunkte, Zähler</span></span></div>
-        </div>
-
-        <div class="block">
-          <div class="block-head"><h3>Drei Ebenen, mehr gibt es nicht</h3></div>
-          <div class="elev">
-            <div class="elev-item flat"><div class="n">Kein Schatten</div><div class="u">Karten, Tabellen, Buttons, Felder — alles im Textfluss</div></div>
-            <div class="elev-item pop"><div class="n">shadow-popover</div><div class="u">Dropdowns, Popover, Tooltips</div></div>
-            <div class="elev-item dlg"><div class="n">shadow-dialog</div><div class="u">Modale Dialoge</div></div>
-          </div>
         </div>
       </div>
     </section>
@@ -623,8 +699,9 @@
         <div class="head">
           <h2>Komponenten</h2>
           <p class="note">
-            Einmal gebaut in <code>components/ui/</code>, nicht pro Seite neu erfunden. Die Bausteine
-            unten sind in den Werten dieses Konzepts gesetzt — was hier zu sehen ist, ist die Spezifikation.
+            Einmal gebaut in <code>components/ui/</code>, nicht pro Seite neu erfunden. Bewusst
+            ohne <code>Card</code>: Was heute eine Karte ist, wird <code>Section</code> — Überschrift,
+            Abstand, Haarlinie.
           </p>
         </div>
 
@@ -637,7 +714,7 @@
             <button class="btn btn-danger">Stornieren</button>
             <button class="btn btn-primary" disabled title="Die Buchung ist nicht ausgeglichen">Festschreiben</button>
           </div>
-          <p class="cap" style="margin-top:14px">
+          <p class="cap wide" style="margin-top:16px">
             Genau eine Primäraktion pro Ansicht. Ein deaktivierter Button braucht immer eine
             Erklärung im <code>title</code> — „ausgegraut ohne Grund“ ist die häufigste Frustquelle
             in Buchhaltungssoftware.
@@ -666,16 +743,16 @@
               <span class="err" id="f4e">Kein gültiges Datum.</span>
             </span>
           </div>
-          <p class="cap" style="margin-top:14px">
-            Pflichtfelder tragen kein Sternchen — stattdessen wird das Seltenere gekennzeichnet:
-            „optional“. Betragsfelder sind rechtsbündig und tabellarisch.
+          <p class="cap wide" style="margin-top:16px">
+            Das weiße Feld auf Papiergrund ist die Bedienbarkeits-Aussage — es braucht keine Karte
+            darum herum. Pflichtfelder tragen kein Sternchen; gekennzeichnet wird das Seltenere: „optional“.
           </p>
         </div>
 
         <div class="demo">
           <div class="block-head">
             <h3>Status-Vokabular</h3>
-            <p class="cap">Ein Wort pro Zustand, in der ganzen Anwendung dasselbe. Keine Synonyme wie „erledigt“ oder „fertig“ für denselben Zustand.</p>
+            <p class="cap wide">Ein Wort pro Zustand, in der ganzen Anwendung dasselbe. Keine Synonyme wie „erledigt“ oder „fertig“ für denselben Zustand.</p>
           </div>
           <div class="demo-row" style="align-items:center">
             <span class="badge b-neutral"><span class="dot"></span>Entwurf</span>
@@ -707,9 +784,9 @@
 
         <div class="block-head">
           <h3>Journal</h3>
-          <p class="cap">Feste Spaltenreihenfolge, Text links, Zahlen rechts, nichts zentriert. Keine Zebrastreifen — Haarlinien reichen.</p>
+          <p class="cap wide">Ohne Container, direkt auf dem Papier — ein Journal ist ein fortlaufendes Blatt, kein Objekt in einem Kasten. Kopfzeile ohne Füllung, Text links, Zahlen rechts, keine Zebrastreifen.</p>
         </div>
-        <div class="t-wrap"><div class="t-scroll">
+        <div class="t-scroll">
           <table>
             <thead>
               <tr>
@@ -755,8 +832,8 @@
               </tr>
             </tbody>
           </table>
-        </div></div>
-        <p class="cap" style="margin-top:12px">
+        </div>
+        <p class="cap wide" style="margin-top:16px">
           Die Stornozeile trägt eine rote Kante, eine leicht getönte Fläche und ein Badge — aber
           <strong style="color:var(--ink)">keine Durchstreichung</strong>. Der ursprüngliche Betrag
           muss lesbar bleiben, sonst ist die Nachvollziehbarkeit dahin. Storno und Original verlinken
@@ -766,9 +843,9 @@
         <div class="block">
           <div class="block-head">
             <h3>Buchungssatz</h3>
-            <p class="cap">Zwei getrennte, rechtsbündige Spalten — nicht eine Spalte mit Vorzeichen. Soll links, Haben rechts, so wie im Buch. Beide neutral.</p>
+            <p class="cap wide">Zwei getrennte, rechtsbündige Spalten — nicht eine Spalte mit Vorzeichen. Soll links, Haben rechts, so wie im Buch. Beide neutral.</p>
           </div>
-          <div class="t-wrap"><div class="t-scroll">
+          <div class="t-scroll">
             <table>
               <thead>
                 <tr><th style="width:96px">Konto</th><th>Bezeichnung</th><th class="r" style="width:150px">Soll</th><th class="r" style="width:150px">Haben</th></tr>
@@ -780,12 +857,12 @@
                 <tr class="sum"><td></td><td>Summe</td><td class="r">11.900,00</td><td class="r">11.900,00</td></tr>
               </tbody>
             </table>
-          </div></div>
-          <p class="cap" style="margin-top:12px">
-            Die Doppellinie über der Summe ist buchhalterische Konvention, kein Zierrat. Dass Soll-
-            und Habensumme sichtbar gleich sind, ist die Kontrolle, die Buchhalter als erstes suchen.
-            Kontonummern immer mit ihrer Bezeichnung — die Nummer allein hilft niemandem, der SKR04
-            nicht auswendig kann.
+          </div>
+          <p class="cap wide" style="margin-top:16px">
+            Die Doppellinie über der Summe ist buchhalterische Konvention, kein Zierrat — und sie
+            trägt allein, die Summenzeile braucht keine Füllung. Dass Soll- und Habensumme sichtbar
+            gleich sind, ist die Kontrolle, die Buchhalter als erstes suchen. Kontonummern immer mit
+            ihrer Bezeichnung; die Nummer allein hilft niemandem, der SKR04 nicht auswendig kann.
           </p>
         </div>
       </div>
@@ -798,9 +875,9 @@
         <div class="head">
           <h2>Layout</h2>
           <p class="note">
-            Dunkle Navigationsspalte als eigener Raum, helle Arbeitsfläche daneben. Der aktive
-            Eintrag bekommt eine 2 px schmale bernsteinfarbene Leiste statt einer leuchtenden
-            Fläche — ein Zustand, der dauerhaft sichtbar ist, darf nicht laut sein.
+            Dunkle Navigationsspalte als eigener Raum, helle Arbeitsfläche daneben — und auf dieser
+            Fläche kein einziger Kasten. Kennzahlen stehen in einer Reihe, getrennt durch senkrechte
+            Haarlinien statt in Kacheln.
           </p>
         </div>
 
@@ -836,14 +913,14 @@
               </div>
               <button class="btn btn-primary">Neue Buchung</button>
             </div>
-            <div class="kpis">
-              <div class="kpi"><div class="l">Bankguthaben</div><div class="v">48.219,73 €</div><div class="d">Geschäftskonto 1800</div></div>
-              <div class="kpi"><div class="l">Offene Posten</div><div class="v">12.470,00 €</div><div class="d">7 Rechnungen</div></div>
-              <div class="kpi"><div class="l">Ergebnis vor Steuern</div><div class="v">31.084,12 €</div><div class="d">Stand 14.03.2024</div></div>
+            <div class="stats">
+              <div class="stat"><div class="l">Bankguthaben</div><div class="v">48.219,73 €</div><div class="d">Geschäftskonto 1800</div></div>
+              <div class="stat"><div class="l">Offene Posten</div><div class="v">12.470,00 €</div><div class="d">7 Rechnungen</div></div>
+              <div class="stat"><div class="l">Ergebnis vor Steuern</div><div class="v">31.084,12 €</div><div class="d">Stand 14.03.2024</div></div>
             </div>
             <p class="cap">
-              Jede Ansicht beginnt gleich: Titel, eine Zeile Kontext, rechts die Primäraktion.
-              Kein Icon neben dem Titel. Inhalt maximal 1200 px breit, Tabellen dürfen darüber hinaus.
+              Jede Ansicht beginnt gleich: Titel, eine Zeile Kontext, rechts die Primäraktion,
+              darunter eine Haarlinie. Kein Icon neben dem Titel, kein Kasten um den Kopf.
             </p>
           </div>
         </div>
@@ -865,19 +942,19 @@
 
         <div class="steps">
           <div class="step">
-            <span class="n">Schritt 1</span><h3>Bausteine</h3>
-            <p>Button, Input, Field, Card, Table, StatusBadge, Dialog, EmptyState, PageHeader in <code>components/ui/</code>. Das heutige <code>Form.tsx</code> geht darin auf.</p>
+            <span class="n">Schritt 1</span><h4>Bausteine</h4>
+            <p>Button, Input, Field, Section, StatRow, Table, StatusBadge, Dialog, EmptyState, PageHeader. Keine Card — die vermehrt sich sonst unbemerkt.</p>
           </div>
           <div class="step">
-            <span class="n">Schritt 2</span><h3>Rahmen</h3>
+            <span class="n">Schritt 2</span><h4>Rahmen</h4>
             <p>Sidebar, Header und App auf Tokens umstellen. Danach stimmt der erste Eindruck, auch wenn die Seiten noch alt aussehen.</p>
           </div>
           <div class="step">
-            <span class="n">Schritt 3</span><h3>Seiten</h3>
-            <p>Nach verbrachter Arbeitszeit sortiert: Journal, Bank, Belege, Rechnungen, Auswertungen, Rest.</p>
+            <span class="n">Schritt 3</span><h4>Seiten</h4>
+            <p>Nach verbrachter Arbeitszeit sortiert: Journal, Bank, Belege, Rechnungen, Auswertungen, Rest. Dabei fallen die 58 Karten.</p>
           </div>
           <div class="step">
-            <span class="n">Schritt 4</span><h3>Aufräumen</h3>
+            <span class="n">Schritt 4</span><h4>Aufräumen</h4>
             <p>Alte Paletten und Hex-Literale aus <code>src/</code> entfernen, danach als Grep-Prüfung in CI, damit es so bleibt.</p>
           </div>
         </div>
@@ -885,14 +962,14 @@
         <div class="block">
           <div class="block-head"><h3>Prüfliste für jeden Pull Request</h3></div>
           <ul class="check">
+            <li>Keine neue Fläche außerhalb der vier Fälle aus §6</li>
+            <li>Keine Fläche in einer Fläche</li>
+            <li>Abschnitte durch Linie und Abstand getrennt, nicht durch Kästen</li>
+            <li>Tabellen ohne Container, Kopfzeile ohne Füllung</li>
             <li>Keine Hex-Farben, keine Klassen aus den alten Paletten</li>
             <li>Schriftgrößen ausschließlich aus der Skala</li>
-            <li>Radien nur control, card, overlay, full</li>
-            <li>Schatten nur an Popover und Dialog</li>
             <li>Jede Zahlenspalte tabellarisch und rechtsbündig</li>
-            <li>Farbige Zustände tragen zusätzlich Text oder Icon</li>
             <li>Leer-, Lade- und Fehlerzustand vorhanden</li>
-            <li>Mit der Tastatur bedienbar, Fokus sichtbar</li>
           </ul>
         </div>
       </div>
@@ -902,7 +979,7 @@
 
   <footer>
     <p>Buchfink · Design-Konzept „Stilles Kontor“ · Volltext in <code>docs/design-konzept.md</code></p>
-    <p>Diese Seite ist in den Tokens gesetzt, die sie beschreibt — inklusive Dunkelmodus nach §&nbsp;15.</p>
+    <p>Diese Seite ist in den Tokens gesetzt, die sie beschreibt — und hält sich an ihre eigene Flächenregel.</p>
   </footer>
 
 </div>

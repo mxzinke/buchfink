@@ -69,11 +69,14 @@
   /* ---------------------------------------------------------------------
      Papier — die neutrale Grundfläche (warm, nicht grau)
      --------------------------------------------------------------------- */
-  --color-paper: #FAF8F5;        /* Canvas / App-Hintergrund */
-  --color-surface: #FFFFFF;      /* Karten, Tabellenzeilen, Dialoge */
-  --color-sunken: #F4F1EB;       /* Tabellenkopf, Wells, inaktive Bereiche */
+  /* Papier ist der Standardgrund: Tabellen, Formulare und Abschnitte liegen
+     direkt darauf. Weiß ist kein Hintergrund, sondern ein Signal — siehe §6.1
+     des Konzepts. */
+  --color-paper: #FAF8F5;        /* Canvas, Seiten, Tabellen, Abschnitte */
+  --color-surface: #FFFFFF;      /* Eingabefelder, Overlays, Belegvorschau */
+  --color-sunken: #F4F1EB;       /* Zeilen-Hover, gesperrte Perioden */
   --color-line: #E9E4DC;         /* Haarlinie — Standardtrennung */
-  --color-line-strong: #D8D1C6;  /* Eingabefeld-Rahmen, Außenkanten */
+  --color-line-strong: #D8D1C6;  /* Tabellenkopf-Unterlinie, Summenlinie */
 
   /* ---------------------------------------------------------------------
      Tinte — Text und Primärfläche
@@ -154,8 +157,8 @@
   /* ---------------------------------------------------------------------
      Form — vier Radien, mehr braucht die Anwendung nicht
      --------------------------------------------------------------------- */
-  --radius-control: 6px;         /* Buttons, Eingabefelder, Chips */
-  --radius-card: 10px;           /* Karten, Tabellencontainer */
+  --radius-control: 6px;         /* Buttons, Eingabefelder, Chips, Hinweise */
+  --radius-card: 10px;           /* nur noch die Belegvorschau — siehe §6.5 */
   --radius-overlay: 14px;        /* Dialoge, Popover */
 
   /* ---------------------------------------------------------------------
