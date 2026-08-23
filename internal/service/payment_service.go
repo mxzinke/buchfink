@@ -76,12 +76,21 @@ func NewPaymentService(
 func (s *PaymentService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OpenItems lists the unsettled receivables and payables.
+//
+// TODO: stichtagsbezogene OP-Liste — „welche Posten waren am 31.12. offen".
+// Diese hier ist die operative Sicht: was ist heute noch offen, und wogegen darf
+// gebucht werden. Für den Jahresabschluss braucht es dieselbe Rechnung mit einer
+// Datumsgrenze auf Buchungsdatum der Zahlung, nicht mit einer Jahreszahl. Die
+// Bilanzposition selbst kommt aus den Salden der Personenkonten und ist davon
+// nicht betroffen.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+	// Beide Abfragen sind bewusst nicht auf das Wirtschaftsjahr begrenzt — die
+	// Begründung steht an den Schnittstellen, die sie beantworten.
+	entries, err := s.journalRepo.FindOpenItemCandidates(ctx, s.fiscalYear)
 	if err != nil {
 		return nil, err
 	}
-	settled, err := s.allocationRepo.SettledByOpenItem(ctx, s.fiscalYear)
+	settled, err := s.allocationRepo.SettledByOpenItem(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,20 +104,9 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 		byID[c.ID] = c
 	}
 
-	// A Generalumkehr cancels the open item of the entry it reverses.
-	reversed := map[uint]bool{}
-	for i := range entries {
-		if entries[i].ReversalOfID != nil {
-			reversed[*entries[i].ReversalOfID] = true
-		}
-	}
-
 	var items []domain.OpenItem
 	for i := range entries {
 		entry := &entries[i]
-		if entry.Kind == domain.EntryKindReversal || reversed[entry.ID] {
-			continue
-		}
 		// Payments themselves do not create open items.
 		if entry.Source == domain.EntrySourcePayment {
 			continue
@@ -130,6 +128,26 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 			continue
 		}
 
+		// Steuersatz und Steuerfall werden hier bestimmt, nicht erst dort, wo ein
+		// Skonto sie braucht: so gilt für jeden Leser dieselbe Regel, und ein
+		// leerer Steuerfall heißt überall dasselbe — nicht bestimmbar.
+		rate, rateKnown := documentTaxRate(entry)
+		treatment := entry.TaxTreatment
+		switch {
+		case !rateKnown:
+			// Eine Steuerzeile, die zu keinem bekannten Satz passt. Dann ist auch
+			// der Steuerfall nicht bestimmbar.
+			treatment = ""
+		case treatment == "":
+			// Von Hand im Journal erfasste Buchungen tragen keinen Steuerfall.
+			// Trägt das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
+			// Inlandsumsatz; trägt es keine, gibt es nichts zu berichtigen.
+			treatment = domain.TaxTreatmentDomestic
+			if rate == domain.TaxRateNone {
+				treatment = domain.TaxTreatmentNotTaxable
+			}
+		}
+
 		items = append(items, domain.OpenItem{
 			EntryID:        entry.ID,
 			EntryNumber:    entry.EntryNumber,
@@ -143,7 +161,8 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 			GrossAmount:    gross,
 			SettledAmount:  alreadySettled,
 			OpenAmount:     open,
-			TaxRate:        documentTaxRate(entry),
+			TaxRate:        rate,
+			TaxTreatment:   treatment,
 		})
 	}
 
@@ -219,18 +238,11 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 			return nil, fmt.Errorf("Zuordnung %d: für die Differenzart %q fehlt der Betrag", i+1, alloc.DifferenceKind)
 		}
 
-		// Settling a payable is a debit on the Kreditorenkonto, settling a
-		// receivable a credit on the Debitorenkonto.
-		settleSide := domain.SideDebit
-		direction := domain.DirectionIncoming
-		if item.ContactType == domain.ContactTypeCustomer {
-			settleSide = domain.SideCredit
-			direction = domain.DirectionOutgoing
-		}
-
 		cid := item.ContactID
+		// Settling a payable is a debit on the Kreditorenkonto, settling a
+		// receivable a credit on the Debitorenkonto — the item knows which.
 		lines = append(lines, domain.JournalLine{
-			Side:      settleSide,
+			Side:      item.SettleSide(),
 			Account:   item.LedgerAccount,
 			ContactID: &cid,
 			Amount:    alloc.SettledAmount,
@@ -240,7 +252,7 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 			contactID = &cid
 		}
 
-		diffLines, err := s.differenceLines(alloc, item, direction, settleSide)
+		diffLines, err := s.differenceLines(alloc, item)
 		if err != nil {
 			return nil, fmt.Errorf("Zuordnung %d: %w", i+1, err)
 		}
@@ -275,11 +287,9 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 	}
 
 	// Money leaving is a credit on the liquid account, money arriving a debit.
-	cashSide := domain.SideCredit
-	if lines[0].Side == domain.SideCredit {
-		cashSide = domain.SideDebit
-	}
-	lines = append(lines, domain.JournalLine{Side: cashSide, Account: req.PaymentAccount, Amount: totalCash})
+	lines = append(lines, domain.JournalLine{
+		Side: lines[0].Side.Opposite(), Account: req.PaymentAccount, Amount: totalCash,
+	})
 
 	description := req.Description
 	if description == "" {
@@ -326,8 +336,6 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 func (s *PaymentService) differenceLines(
 	alloc AllocationRequest,
 	item domain.OpenItem,
-	direction domain.Direction,
-	settleSide domain.Side,
 ) ([]domain.JournalLine, error) {
 	if alloc.DifferenceKind == domain.DifferenceNone {
 		return nil, nil
@@ -335,49 +343,15 @@ func (s *PaymentService) differenceLines(
 
 	// The difference sits on the side opposite the settlement, except for a bank
 	// fee, which is an additional expense on the same side as the settlement.
-	opposite := domain.SideCredit
-	if settleSide == domain.SideCredit {
-		opposite = domain.SideDebit
-	}
+	opposite := item.SettleSide().Opposite()
 
 	switch alloc.DifferenceKind {
 	case domain.DifferenceSkonto:
-		// § 17 UStG: a Skonto reduces the taxable amount, so the VAT booked on
-		// the original document has to be corrected along with it. Booking only
-		// the net part would leave the VAT return overstated.
-		account, err := domain.SkontoAccount(direction, item.TaxRate)
-		if err != nil {
-			return nil, err
-		}
-		net := item.TaxRate.NetFromGross(alloc.DifferenceAmount)
-		tax := alloc.DifferenceAmount - net
-
-		lines := []domain.JournalLine{
-			{Side: opposite, Account: account, Amount: net, Text: "Skonto"},
-		}
-		if tax != 0 {
-			taxAccount := domain.AccountVorsteuer19
-			key := "SKONTO_VST"
-			if direction == domain.DirectionOutgoing {
-				taxAccount = domain.AccountUmsatzsteuer19
-				key = "SKONTO_UST"
-			}
-			if item.TaxRate == domain.TaxRateReduced {
-				taxAccount = domain.AccountVorsteuer7
-				if direction == domain.DirectionOutgoing {
-					taxAccount = domain.AccountUmsatzsteuer7
-				}
-			}
-			lines = append(lines, domain.JournalLine{
-				Side: opposite, Account: taxAccount, Amount: tax,
-				TaxKey: key, TaxBase: net, Text: "Steuerkorrektur Skonto (§ 17 UStG)",
-			})
-		}
-		return lines, nil
+		return s.skontoLines(alloc, item, opposite)
 
 	case domain.DifferenceBankFee:
 		return []domain.JournalLine{{
-			Side: settleSide, Account: domain.AccountNebenkostenGeld,
+			Side: item.SettleSide(), Account: domain.AccountNebenkostenGeld,
 			Amount: alloc.DifferenceAmount, Text: "Bankgebühr",
 		}}, nil
 
@@ -399,6 +373,78 @@ func (s *PaymentService) differenceLines(
 	return nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
 }
 
+// skontoLines books a Skonto as what it is in tax law: a change of the taxable
+// amount under § 17 Abs. 1 UStG.
+//
+// Satz 1 makes the supplier correct the tax it owes, Satz 2 makes the recipient
+// correct the input tax it deducted, and Satz 8 puts both into the period in
+// which the change occurred — which is why this runs with the payment and not
+// as a backdated change to the invoice. Satz 5 extends all of it to § 13b and
+// to the innergemeinschaftlicher Erwerb, where the recipient owes the tax and
+// deducts it again: there both legs have to be corrected, even though they
+// cancel out. UStAE 17.1 Abs. 3 says so in as many words — the duty to correct
+// exists "auch dann, wenn sich die Berichtigung der Steuer und die Berichtigung
+// des Vorsteuerabzugs im Ergebnis ausgleichen". Netting them away would leave
+// two lines of the Voranmeldung overstated.
+//
+// The tax lines come from the Steuerautomatik rather than from a second table of
+// account numbers here. That is what keeps a Skonto on a § 13b purchase from
+// landing on 1406, and it is why the correction follows the Steuerfall of the
+// original document instead of guessing from the rate.
+func (s *PaymentService) skontoLines(
+	alloc AllocationRequest,
+	item domain.OpenItem,
+	opposite domain.Side,
+) ([]domain.JournalLine, error) {
+	if item.TaxTreatment == "" {
+		return nil, fmt.Errorf(
+			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf wäre nach § 17 Abs. 1 UStG nicht sauber zu berichtigen",
+			item.DocumentNumber)
+	}
+	direction := item.Direction()
+
+	// Nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer im offenen
+	// Betrag. Bei § 13b, beim innergemeinschaftlichen Erwerb und bei jedem
+	// steuerfreien Umsatz ist die Rechnung netto ausgestellt — dort ist das
+	// ganze Skonto Bemessungsgrundlage, und ihm eine Steuer herauszurechnen,
+	// die nie berechnet wurde, verkürzte die Minderung um 19 %. Derselbe Satz
+	// entscheidet über das Skontokonto: ohne ausgewiesene Steuer ist es das
+	// ohne Steuersatz.
+	skontoRate := domain.TaxRateNone
+	if item.TaxTreatment == domain.TaxTreatmentDomestic {
+		skontoRate = item.TaxRate
+	}
+	net := skontoRate.NetFromGross(alloc.DifferenceAmount)
+
+	// Der Steuersatz des Belegs bleibt der des Belegs: er bestimmt die Höhe der
+	// Berichtigung, auch wo im Skonto selbst keine Steuer steckt.
+	legs, err := s.journalSvc.TaxResolver().Resolve(direction, item.TaxTreatment, item.TaxRate, net)
+	if err != nil {
+		return nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
+	}
+	account, err := domain.SkontoAccount(direction, skontoRate)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := []domain.JournalLine{
+		{Side: opposite, Account: account, Amount: net, Text: "Skonto"},
+	}
+	for _, leg := range legs {
+		if leg.Amount == 0 {
+			continue
+		}
+		// Die Minderung steht der ursprünglichen Steuerzeile gegenüber: was die
+		// Rechnung im Soll gebucht hat, wird im Haben zurückgenommen.
+		line := taxLegLine(leg)
+		line.Side = leg.Side.Opposite()
+		line.TaxKey = "SKONTO_" + leg.Key
+		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
+		lines = append(lines, line)
+	}
+	return lines, nil
+}
+
 // ledgerLine returns the Personenkonto line of an entry, which is the one that
 // carries the open item.
 func ledgerLine(entry *domain.JournalEntry) (domain.JournalLine, bool) {
@@ -412,19 +458,26 @@ func ledgerLine(entry *domain.JournalEntry) (domain.JournalLine, bool) {
 
 // documentTaxRate derives the VAT rate of a document from its tax lines. It is
 // needed to correct the taxable amount when a Skonto is granted later.
-func documentTaxRate(entry *domain.JournalEntry) domain.TaxRate {
+//
+// The second result separates "carried no VAT" from "carried VAT I could not
+// read". Both would be TaxRateNone, and TaxRateNone means "no rate applies" —
+// letting it also mean "unknown" is how a taxable supply ends up booked as a
+// tax-free one.
+func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
 	for _, l := range entry.Lines {
 		if l.TaxKey == "" || l.TaxBase == 0 {
 			continue
 		}
 		// Recover the rate from base and amount rather than parsing the key.
-		for _, rate := range []domain.TaxRate{domain.TaxRateStandard, domain.TaxRateReduced} {
-			if rate.Tax(l.TaxBase) == l.Amount {
-				return rate
-			}
+		switch {
+		case domain.TaxRateStandard.Tax(l.TaxBase) == l.Amount:
+			return domain.TaxRateStandard, true
+		case domain.TaxRateReduced.Tax(l.TaxBase) == l.Amount:
+			return domain.TaxRateReduced, true
 		}
+		return domain.TaxRateNone, false
 	}
-	return domain.TaxRateNone
+	return domain.TaxRateNone, true
 }
 
 func dueDate(entry *domain.JournalEntry, contact domain.Contact) string {

@@ -81,6 +81,15 @@ type OpenItem struct {
 	// TaxRate of the original document, needed to correct the VAT base when a
 	// Skonto is granted. Zero when the document carried no VAT.
 	TaxRate TaxRate `json:"taxRate"`
+	// TaxTreatment of the original document. It decides how a Skonto is
+	// corrected: only a domestic taxable supply carries the tax inside the open
+	// amount, and § 13b and the innergemeinschaftlicher Erwerb have two tax
+	// legs to correct instead of one (§ 17 Abs. 1 Satz 5 UStG).
+	//
+	// Empty means the Steuerfall could not be determined — an old booking whose
+	// tax line fits no known rate. A Skonto on such an item is refused rather
+	// than corrected on a guess.
+	TaxTreatment TaxTreatment `json:"taxTreatment,omitempty"`
 }
 
 // Status derives the open item state from its balance, exactly as the concept
@@ -105,8 +114,42 @@ func (o *OpenItem) IsOverdue(today string) bool {
 type PaymentAllocationRepository interface {
 	Create(ctx context.Context, allocations []PaymentAllocation) error
 	FindByOpenItem(ctx context.Context, entryID uint) ([]PaymentAllocation, error)
-	SettledByOpenItem(ctx context.Context, fiscalYear int) (map[uint]Cents, error)
+	// SettledByOpenItem sums what has been settled per open item.
+	//
+	// Two bounds it deliberately does not have. It is not per fiscal year: an
+	// open item does not close at the Jahreswechsel, because § 252 Abs. 1 Nr. 5
+	// HGB puts the Ertrag in the year of performance and the payment in the year
+	// it happens — a December invoice settled in January has its two halves in
+	// different years by design. Counting one year would show a paid invoice as
+	// open and invite a second payment. A Stichtag view — what was open on
+	// 31.12. — is a different question and needs a date bound, not this sum.
+	//
+	// And it does not count allocations whose payment booking was reversed. A
+	// Generalumkehr leaves its allocation rows behind and carries the date of
+	// the correction, so it regularly sits in a later year than what it cancels:
+	// whether a booking still stands cannot be answered inside a year window.
+	SettledByOpenItem(ctx context.Context) (map[uint]Cents, error)
 	FindByBankTx(ctx context.Context, bankTxID uint) ([]PaymentAllocation, error)
+}
+
+// Direction of the document behind the open item: a customer's invoice is an
+// outgoing document, a vendor's an incoming one. It is not an independent fact —
+// it follows from the Personenkonto the item sits on, and passing it separately
+// only creates a way for the two to disagree.
+func (o *OpenItem) Direction() Direction {
+	if o.ContactType == ContactTypeCustomer {
+		return DirectionOutgoing
+	}
+	return DirectionIncoming
+}
+
+// SettleSide is the side the Personenkonto is booked on when the item is
+// settled: a credit on a Debitorenkonto, a debit on a Kreditorenkonto.
+func (o *OpenItem) SettleSide() Side {
+	if o.ContactType == ContactTypeCustomer {
+		return SideCredit
+	}
+	return SideDebit
 }
 
 // SkontoAccount returns the SKR04 account for a Skonto at a given VAT rate.
@@ -118,7 +161,7 @@ func SkontoAccount(dir Direction, rate TaxRate) (string, error) {
 		// Erhaltene Skonti mindern den Aufwand.
 		switch rate {
 		case TaxRateStandard:
-			return "5736", nil
+			return AccountErhalteneSkonti19, nil
 		case TaxRateReduced:
 			return "5731", nil
 		case TaxRateNone:
@@ -129,7 +172,7 @@ func SkontoAccount(dir Direction, rate TaxRate) (string, error) {
 	// Gewährte Skonti mindern den Erlös.
 	switch rate {
 	case TaxRateStandard:
-		return "4736", nil
+		return AccountGewaehrteSkonti19, nil
 	case TaxRateReduced:
 		return "4731", nil
 	case TaxRateNone:

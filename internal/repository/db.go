@@ -72,6 +72,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.Account{},
 		&domain.JournalEntry{},
 		&domain.JournalLine{},
+		&domain.EntertainmentDetail{},
+		&domain.Receipt{},
+		&domain.ReceiptFile{},
 		&domain.NumberRange{},
 		&domain.PaymentAllocation{},
 		&domain.BankTransaction{},
@@ -125,7 +128,6 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 			{Key: "country", Value: "Deutschland"},
 			{Key: "currency", Value: "EUR"},
 			{Key: "skr", Value: "SKR04"},
-			{Key: "is_small_business", Value: "false"},
 			{Key: "vat_period", Value: "quarter"},
 			{Key: "taxation_type", Value: "SOLL"},
 		}

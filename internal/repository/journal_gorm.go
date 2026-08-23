@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
 )
 
+// Every read preloads the Aufzeichnung along with the lines. It is part of the
+// entry's canonical form, so an entry read without it hashes differently than it
+// was written — the integrity check would report every entertainment booking as
+// broken.
 type journalRepositoryGorm struct {
 	db *gorm.DB
 }
@@ -19,66 +24,138 @@ func NewJournalRepository(db *gorm.DB) domain.JournalRepository {
 	return &journalRepositoryGorm{db: db}
 }
 
+// preloaded is the read every finder starts from. The preload set is not a
+// convenience: an entry read without its Aufzeichnung hashes differently than it
+// was written, so a finder that forgets it makes the integrity check report
+// every Bewirtungsbuchung as broken. Written once, it cannot be forgotten.
+func (r *journalRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
+	return r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+}
+
 func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm.DB {
-	q := r.db.WithContext(ctx).Preload("Lines").Order("id asc")
+	q := r.preloaded(ctx)
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
 	return q
 }
 
+// entryBatchSize keeps the preloads' IN lists far below SQLite's limit of 32766
+// parameters per statement, with room for both preloads on the same batch.
+const entryBatchSize = 2000
+
+// findBatched runs a query in batches instead of one statement.
+//
+// This is not tuning, it is the difference between working and failing. GORM
+// loads the lines of an entry through an IN list with one parameter per parent
+// row, and SQLite refuses a statement with more than 32766 of them — a query
+// does not get slow there, it returns an error. The readers on this path are the journal
+// list, the Umsatzsteuer-Auswertung and the GoBD integrity check, so the failure
+// would arrive as "the journal cannot be read" on a perfectly healthy database.
+//
+// The paging is by primary key, so every caller must be ordered by it — which
+// preloaded already is. A query ordered by anything else pages wrong and has to
+// sort in Go afterwards.
+func findBatched(q *gorm.DB) ([]domain.JournalEntry, error) {
+	var out []domain.JournalEntry
+	batch := make([]domain.JournalEntry, 0, entryBatchSize)
+	err := q.FindInBatches(&batch, entryBatchSize, func(*gorm.DB, int) error {
+		out = append(out, batch...)
+		return nil
+	}).Error
+	return out, err
+}
+
+// byBookingDate orders entries for display: chronologically, and within a day by
+// the order they were written.
+func byBookingDate(entries []domain.JournalEntry) []domain.JournalEntry {
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].BookingDate != entries[j].BookingDate {
+			return entries[i].BookingDate < entries[j].BookingDate
+		}
+		return entries[i].ID < entries[j].ID
+	})
+	return entries
+}
+
+// notReversed narrows a query to the entries that are still in force: neither a
+// Generalumkehr itself nor cancelled by one.
+//
+// It is deliberately not bounded by fiscal year, and that is the whole point.
+// A Generalumkehr is dated at the day of the correction, never backdated into
+// the period it corrects, so it regularly lands in a later year than the entry
+// it cancels. Asking the question inside a year window answers it wrong for
+// exactly the entries that matter.
+func notReversed(q *gorm.DB, alias string) *gorm.DB {
+	return q.Where(alias+".kind <> ?", domain.EntryKindReversal).
+		Where("NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = " + alias + ".id)")
+}
+
 func (r *journalRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
-	var entries []domain.JournalEntry
-	err := r.scope(ctx, fiscalYear).Find(&entries).Error
-	return entries, err
+	return findBatched(r.scope(ctx, fiscalYear))
+}
+
+// FindByBookingDateRange narrows to a booking-date window inside a fiscal year.
+// Empty bounds mean the whole year.
+func (r *journalRepositoryGorm) FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]domain.JournalEntry, error) {
+	q := r.scope(ctx, fiscalYear)
+	if from != "" {
+		q = q.Where("booking_date >= ?", from)
+	}
+	if to != "" {
+		q = q.Where("booking_date <= ?", to)
+	}
+	return findBatched(q)
+}
+
+func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
+	q := notReversed(r.preloaded(ctx), "journal_entries").
+		// Zahlungen begründen selbst keinen offenen Posten.
+		Where("source <> ?", domain.EntrySourcePayment).
+		// Und nur eine Buchung mit einem Personenkonto trägt überhaupt einen.
+		// Die Vorauswahl ist absichtlich loser als domain.IsLedgerAccount: sie
+		// darf nie strenger sein als die Regel, die anschließend im Go-Code
+		// entscheidet, sonst fiele ein Posten stillschweigend heraus.
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND length(l.account) = 5)")
+	if fiscalYear > 0 {
+		q = q.Where("fiscal_year <= ?", fiscalYear)
+	}
+
+	return findBatched(q)
 }
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	if err := r.db.WithContext(ctx).Preload("Lines").First(&entry, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {
 		return nil, err
 	}
 	return &entry, nil
 }
 
 func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account string, fiscalYear int) ([]domain.JournalEntry, error) {
-	var ids []uint
-	q := r.db.WithContext(ctx).Model(&domain.JournalLine{}).
-		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id").
-		Where("journal_lines.account = ?", account)
-	if fiscalYear > 0 {
-		q = q.Where("e.fiscal_year = ?", fiscalYear)
-	}
-	if err := q.Distinct("journal_lines.entry_id").Pluck("journal_lines.entry_id", &ids).Error; err != nil {
+	// Ein EXISTS statt einer Liste eingesammelter Kennungen: die Liste wäre eine
+	// zweite Abfrage und eine zweite Reihe von Abfrageparametern, und beide
+	// wachsen mit der Zahl der Buchungen auf dem Konto.
+	q := r.scope(ctx, fiscalYear).
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND l.account = ?)", account)
+	entries, err := findBatched(q)
+	if err != nil {
 		return nil, err
 	}
-	if len(ids) == 0 {
-		return []domain.JournalEntry{}, nil
-	}
-
-	var entries []domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").
-		Where("id IN ?", ids).
-		Order("booking_date asc, id asc").
-		Find(&entries).Error
-	return entries, err
+	return byBookingDate(entries), nil
 }
 
 func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]domain.JournalEntry, error) {
-	var entries []domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").
-		Where("contact_id = ?", contactID).
-		Order("booking_date asc, id asc")
-	if fiscalYear > 0 {
-		q = q.Where("fiscal_year = ?", fiscalYear)
+	entries, err := findBatched(r.scope(ctx, fiscalYear).Where("contact_id = ?", contactID))
+	if err != nil {
+		return nil, err
 	}
-	err := q.Find(&entries).Error
-	return entries, err
+	return byBookingDate(entries), nil
 }
 
 func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").Where("reversal_of_id = ?", entryID).First(&entry).Error
+	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Where("reversal_of_id = ?", entryID).First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -90,11 +167,28 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 
 func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").Order("id desc")
+	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id desc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
 	err := q.First(&entry).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &entry, nil
+}
+
+// FindByReceipt returns the original booking that references a Beleg. A
+// Generalumkehr points at the same Beleg but is not what sealed it, so it is
+// skipped.
+func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
+	var entry domain.JournalEntry
+	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
+		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
+		Order("id asc").First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -117,7 +211,7 @@ func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.Journa
 		// The chain head is read inside the transaction, so a second writer
 		// cannot branch the chain by reading the same predecessor.
 		var last domain.JournalEntry
-		err = tx.Preload("Lines").
+		err = tx.Preload("Lines").Preload("Entertainment").
 			Where("fiscal_year = ?", entry.FiscalYear).
 			Order("id desc").First(&last).Error
 		switch {

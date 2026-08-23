@@ -17,6 +17,11 @@ const (
 type TaxRate int
 
 const (
+	// TaxRateNone means no rate applies, not "zero percent". The Nullsteuersatz
+	// of § 12 Abs. 3 UStG is a Steuerfall (TaxTreatmentZeroRated), not a rate:
+	// letting 0 carry both meanings is how a taxable supply at zero ends up
+	// booked as exempt. A domestic taxable transaction with this rate is
+	// therefore rejected — if no tax arises, the Steuerfall has to say why.
 	TaxRateNone     TaxRate = 0
 	TaxRateReduced  TaxRate = 700  // § 12 Abs. 2 UStG
 	TaxRateStandard TaxRate = 1900 // § 12 Abs. 1 UStG
@@ -83,6 +88,18 @@ const (
 	// TaxTreatmentNotTaxable is outside the scope of German VAT (nicht steuerbar),
 	// e.g. genuine damages or a transfer between own accounts.
 	TaxTreatmentNotTaxable TaxTreatment = "not_taxable"
+	// TaxTreatmentZeroRated is the Nullsteuersatz of § 12 Abs. 3 UStG: solar
+	// modules supplied to the operator of a photovoltaic installation, their
+	// essential components and storage, their intra-community acquisition and
+	// import, and their installation.
+	//
+	// It is not an exemption, and treating it as one books it to the wrong
+	// account. The transaction is taxable at a rate of zero: the supplier keeps
+	// the input tax deduction, and the SKR04 has its own revenue account for it
+	// (4290) that does not coincide with the exempt ones. The distinction is why
+	// this is a Steuerfall of its own instead of a rate of zero — a rate of zero
+	// already means "no rate applies" and cannot carry both meanings.
+	TaxTreatmentZeroRated TaxTreatment = "zero_rated"
 )
 
 // TaxTreatmentInfo describes a Steuerfall for the UI and for validation.
@@ -98,6 +115,25 @@ type TaxTreatmentInfo struct {
 	RequiresVatID bool `json:"requiresVatId"`
 }
 
+// AllTaxTreatments lists every Steuerfall the system knows, in a stable order.
+//
+// It exists so that guards over the mapping — "does every group resolve to a
+// real account for every Steuerfall?" — cannot silently skip a case that was
+// added later. A hand-maintained list in a test is a guard with a hole in it.
+func AllTaxTreatments() []TaxTreatment {
+	return []TaxTreatment{
+		TaxTreatmentDomestic,
+		TaxTreatmentReverseCharge,
+		TaxTreatmentIntraCommunityAcquisition,
+		TaxTreatmentIntraCommunitySupply,
+		TaxTreatmentReverseChargeSupply,
+		TaxTreatmentExport,
+		TaxTreatmentZeroRated,
+		TaxTreatmentExempt,
+		TaxTreatmentNotTaxable,
+	}
+}
+
 // TaxTreatments returns the Steuerfälle valid for a direction.
 func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 	switch dir {
@@ -106,6 +142,7 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 			{TaxTreatmentDomestic, "Inland, steuerpflichtig", "Normalfall: deutscher Lieferant weist Umsatzsteuer aus.", dir, true, false},
 			{TaxTreatmentReverseCharge, "§ 13b UStG (Reverse Charge)", "Leistung eines ausländischen Unternehmers oder Bauleistung: Du schuldest die Steuer und ziehst sie zugleich als Vorsteuer.", dir, true, true},
 			{TaxTreatmentIntraCommunityAcquisition, "Innergemeinschaftlicher Erwerb", "Warenkauf aus einem anderen EU-Land ohne ausgewiesene Steuer.", dir, true, true},
+			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},
 			{TaxTreatmentNotTaxable, "Nicht steuerbar", "Kein Leistungsaustausch, z. B. echter Schadenersatz.", dir, false, false},
 		}
@@ -115,6 +152,7 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 			{TaxTreatmentIntraCommunitySupply, "Innergemeinschaftliche Lieferung", "Warenlieferung an ein EU-Unternehmen, steuerfrei nach § 4 Nr. 1b UStG.", dir, false, true},
 			{TaxTreatmentReverseChargeSupply, "§ 13b UStG (Steuerschuld beim Empfänger)", "Leistung an ein Unternehmen, das die Steuer schuldet.", dir, false, true},
 			{TaxTreatmentExport, "Ausfuhr in ein Drittland", "Lieferung außerhalb der EU, steuerfrei nach § 4 Nr. 1a UStG.", dir, false, false},
+			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei — der Vorsteuerabzug bleibt erhalten.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},
 			{TaxTreatmentNotTaxable, "Nicht steuerbar", "Kein Leistungsaustausch, z. B. echter Schadenersatz.", dir, false, false},
 		}

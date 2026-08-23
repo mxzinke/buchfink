@@ -18,6 +18,16 @@ type InvoiceService struct {
 	numberRepo   domain.NumberRangeRepository
 	postingSvc   *PostingService
 	auditRepo    domain.AuditRepository
+	receiptSvc   *ReceiptService
+	renderer     *invoice.Renderer
+}
+
+// SetDocumentPipeline wires in what an issued invoice needs to become a Beleg of
+// its own: the renderer that produces the hybrid PDF and the Beleg service that
+// files and seals it.
+func (s *InvoiceService) SetDocumentPipeline(receiptSvc *ReceiptService, renderer *invoice.Renderer) {
+	s.receiptSvc = receiptSvc
+	s.renderer = renderer
 }
 
 // NewInvoiceService creates the invoice service.
@@ -118,8 +128,33 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 		inv.InvoiceNumber = domain.FormatInvoiceNumber(inv.FiscalYear, seq)
 	}
 
+	// Das Dokument entsteht vor der Buchung: der Beleg trägt die Rechnungsnummer,
+	// und die Buchung soll auf einen fertigen Beleg zeigen — die andere
+	// Reihenfolge hinterließe eine Buchung ohne Dokument.
+	receipt, err := s.fileInvoiceDocument(ctx, inv, contact)
+	if err != nil {
+		return err
+	}
+	if receipt != nil {
+		inv.ReceiptID = &receipt.ID
+	}
+
 	entry, err := s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
 	if err != nil {
+		// Scheitert die Buchung — ein Rechnungsdatum in einem festgeschriebenen
+		// Zeitraum reicht dafür —, wird der eben abgelegte Beleg gleich wieder
+		// verworfen. Er trägt die Rechnungsnummer in einem eindeutigen Index;
+		// bliebe er stehen, wäre diese Nummer für immer belegt und jeder neue
+		// Versuch verbrauchte die nächste.
+		if receipt != nil {
+			if discardErr := s.receiptSvc.Discard(ctx, receipt.ID, fmt.Sprintf(
+				"Die Buchung der Rechnung %s ist fehlgeschlagen, der Beleg wurde nicht ausgestellt",
+				inv.InvoiceNumber)); discardErr != nil {
+				return fmt.Errorf("%w (der Beleg %s ließ sich anschließend nicht verwerfen: %v)",
+					err, inv.InvoiceNumber, discardErr)
+			}
+			inv.ReceiptID = nil
+		}
 		return err
 	}
 	inv.JournalEntryID = &entry.ID
@@ -129,12 +164,65 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 		return err
 	}
 
+	if receipt != nil {
+		if err := s.receiptSvc.Seal(ctx, receipt.ID, entry.ID); err != nil {
+			return fmt.Errorf(
+				"die Rechnung %s wurde gebucht, der Beleg konnte aber nicht versiegelt werden: %w",
+				inv.InvoiceNumber, err)
+		}
+	}
+
 	if s.auditRepo != nil {
 		_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
 			fmt.Sprintf("Rechnung %s über %s %s an %s ausgestellt und als %s gebucht",
 				inv.InvoiceNumber, inv.GrossAmount, inv.Currency, contact.Name, entry.EntryNumber))
 	}
 	return nil
+}
+
+// fileInvoiceDocument renders the hybrid invoice and files it as the outgoing
+// Beleg.
+//
+// The Beleg carries the PDF as the received form and the XML as the structured
+// part, marked as derived — the XML is extracted from the same document rather
+// than received separately. Both roles matter: the PDF is what the customer
+// reads, the XML is what a recipient's input tax deduction hangs on.
+//
+// GoBD Rz. 76 Abs. 2 would allow skipping the archived PDF entirely, since
+// Buchfink can reproduce an identical Mehrstück from the data at any time. It is
+// archived anyway: a stored document is more tangible to the user than a promise
+// to re-render one.
+func (s *InvoiceService) fileInvoiceDocument(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) (*domain.Receipt, error) {
+	if s.receiptSvc == nil || s.renderer == nil {
+		return nil, nil
+	}
+
+	seller, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
+	}
+
+	xml, err := invoice.GenerateZUGFeRDXML(inv, seller, contact)
+	if err != nil {
+		return nil, fmt.Errorf("ZUGFeRD-XML konnte nicht erzeugt werden: %w", err)
+	}
+	pdf, err := s.renderer.RenderInvoicePDF(ctx, inv, seller, contact, xml)
+	if err != nil {
+		return nil, err
+	}
+	inv.ZUGFeRDXML = xml
+
+	return s.receiptSvc.File(ctx, FileReceiptRequest{
+		Direction:     domain.DirectionOutgoing,
+		FiscalYear:    inv.FiscalYear,
+		ReceiptNumber: inv.InvoiceNumber,
+		ReceivedAt:    inv.Date,
+		ReceivedVia:   domain.ReceivedViaSelfIssued,
+		Files: []NewFile{
+			{Role: domain.ReceiptRoleOriginal, FileName: inv.InvoiceNumber + ".pdf", Content: pdf},
+			{Role: domain.ReceiptRoleStructured, FileName: "factur-x.xml", Content: []byte(xml), Derived: true},
+		},
+	})
 }
 
 // validateTaxTreatment blocks the combinations that would produce a formally
@@ -158,6 +246,37 @@ func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *doma
 		}
 	}
 	return nil
+}
+
+// Preview computes what an invoice would book, without issuing it.
+//
+// It applies the same defaults Issue does, so the numbers the form shows are the
+// numbers that will be booked. The invoice form used to compute net, tax and
+// gross itself, in a second implementation of the rounding rules — this replaces
+// it, because two implementations of a tax computation are one too many.
+func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*PostingPreview, error) {
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
+	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
+	}
+
+	draft := *inv
+	if draft.TaxTreatment == "" {
+		draft.TaxTreatment = domain.TaxTreatmentDomestic
+	}
+	for i := range draft.Items {
+		if draft.Items[i].Position == 0 {
+			draft.Items[i].Position = i + 1
+		}
+	}
+	if err := s.validateTaxTreatment(&draft, contact); err != nil {
+		return nil, err
+	}
+
+	return s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
 }
 
 // Cancel reverses an issued invoice by Generalumkehr.
@@ -203,9 +322,6 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 	}
 
 	typst = invoice.GenerateTypstTemplate(inv, seller, buyer)
-	// TODO: Compile Typst template to PDF using typst CLI or pure-Go typst compiler
-	// TODO: Embed Factur-X / ZUGFeRD XML into PDF/A-3 as attachment
-
 	return xml, typst, nil
 }
 

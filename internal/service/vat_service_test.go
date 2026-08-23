@@ -33,7 +33,7 @@ func TestVatSummaryFromJournal(t *testing.T) {
 
 	// Eingangsbeleg 1.000,00 netto, 19 % → 190,00 Vorsteuer.
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+		env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
 		t.Fatalf("Eingangsbeleg: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func TestVatSummaryCountsReverseChargeOnBothSides(t *testing.T) {
 	vendor := env.vendor(t, "SaaS Ireland Ltd.", "IE", "IE6388047V")
 
 	if _, err := env.posting.PostIncomingReceipt(ctx,
-		receipt(vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
+		env.receipt(t, vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentReverseCharge)); err != nil {
 		t.Fatalf("§ 13b-Beleg: %v", err)
 	}
 
@@ -129,14 +129,14 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
-	first := receipt(vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	first := env.receipt(t, vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	first.BookingDate = "2026-01-15"
 	first.DocumentDate = "2026-01-15"
 	if _, err := env.posting.PostIncomingReceipt(ctx, first); err != nil {
 		t.Fatalf("Januar-Beleg: %v", err)
 	}
 
-	second := receipt(vendor.ID, "buerobedarf", 50000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	second := env.receipt(t, vendor.ID, "buerobedarf", 50000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	second.BookingDate = "2026-04-15"
 	second.DocumentDate = "2026-04-15"
 	if _, err := env.posting.PostIncomingReceipt(ctx, second); err != nil {
@@ -154,5 +154,43 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 	year, _ := env.vat().Summary(ctx, "", "")
 	if year.InputTax != 28500 {
 		t.Errorf("Vorsteuer Gesamtjahr = %s, erwartet 285,00", year.InputTax)
+	}
+
+	// Beide Grenzen zählen mit. Ein Zeitraum, der den ersten oder letzten Tag
+	// ausschlösse, ließe genau die Buchungen fallen, die am Rand einer
+	// Voranmeldung liegen — und niemandem fiele es auf.
+	edges, err := env.vat().Summary(ctx, "2026-01-15", "2026-04-15")
+	if err != nil {
+		t.Fatalf("Randzeitraum: %v", err)
+	}
+	if edges.InputTax != 28500 {
+		t.Errorf("Vorsteuer 15.01.–15.04. = %s, erwartet 285,00 (beide Tage einschließlich)", edges.InputTax)
+	}
+	empty, err := env.vat().Summary(ctx, "2026-01-16", "2026-04-14")
+	if err != nil {
+		t.Fatalf("Zeitraum ohne Buchungen: %v", err)
+	}
+	if empty.InputTax != 0 {
+		t.Errorf("Vorsteuer 16.01.–14.04. = %s, erwartet 0,00", empty.InputTax)
+	}
+}
+
+// Ein steuerfreier sonstiger Ertrag gehört in die Auswertung. Der Katalog führt
+// dafür ein eigenes Konto; solange die Auswertung eine eigene Kontenliste
+// pflegte, kam der Betrag dort nie an.
+func TestExemptOtherIncomeReachesTheSummary(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	if _, err := env.journal.Post(ctx, simpleEntry("1800", "4842", 50000)); err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+
+	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	if err != nil {
+		t.Fatalf("USt-Auswertung: %v", err)
+	}
+	if summary.ExemptRevenue != 50000 {
+		t.Errorf("steuerfreie Umsätze = %s €, erwartet 500,00", summary.ExemptRevenue)
 	}
 }

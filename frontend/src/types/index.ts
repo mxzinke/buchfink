@@ -32,6 +32,8 @@ export type TaxTreatment =
   | 'intra_community_supply'
   | 'export'
   | 'reverse_charge_supply'
+  /** Nullsteuersatz § 12 Abs. 3 UStG — steuerpflichtig zum Satz null, nicht steuerfrei. */
+  | 'zero_rated'
   | 'exempt'
   | 'not_taxable';
 
@@ -128,8 +130,9 @@ export interface JournalEntry {
   description: string;
   source: EntrySource;
   documentNumber?: string;
-  documentHash?: string;
-  documentPath?: string;
+  receiptId?: number;
+  receiptHash?: string;
+  taxTreatment?: TaxTreatment;
   contactId?: number;
   bankTxId?: number;
   kind: EntryKind;
@@ -212,6 +215,12 @@ export interface PostingGroup {
   direction: Direction;
   account: string;
   defaultRate: TaxRate;
+  /** Der Steuerfall, den die Gruppe vorschlägt. Leer = Inland, steuerpflichtig. */
+  defaultTreatment?: TaxTreatment;
+  /** Konto für den nicht abzugsfähigen Anteil, z. B. 6644 bei Bewirtung. */
+  nonDeductibleAccount?: string;
+  /** Gesetzliche Abzugsquote, die für diese Gruppe gilt. */
+  deductibleQuota?: string;
 }
 
 export interface TaxTreatmentInfo {
@@ -239,19 +248,154 @@ export interface ReceiptPosition {
 
 export interface ReceiptRequest {
   contactId: number;
+  /** Der abgelegte Beleg. Pflicht: keine Buchung ohne Beleg. */
+  receiptId: number;
   bookingDate: string;
   documentDate: string;
   serviceDateFrom: string;
   serviceDateTo: string;
-  documentNumber: string;
-  documentHash?: string;
-  documentPath?: string;
   description: string;
   taxTreatment: TaxTreatment;
   positions: ReceiptPosition[];
   settlement: Settlement;
   paymentAccount?: string;
   currency?: string;
+  /** Pflicht, sobald auf ein Bewirtungskonto gebucht wird. */
+  entertainment?: EntertainmentDetail;
+}
+
+/**
+ * Der Buchungssatz, wie das Backend ihn berechnet — ohne ihn zu schreiben.
+ *
+ * Die Oberfläche zeigt diese Zahlen an und rechnet sie nicht selbst nach. Eine
+ * zweite Steuerrechnung im Frontend wäre eine zweite Wahrheit, die auseinander
+ * läuft, sobald ein Steuerfall dazukommt.
+ */
+export interface PostingPreview {
+  lines: JournalLine[];
+  /** Summe der Aufwands- bzw. Ertragszeilen. */
+  net: Cents;
+  /** Differenz zwischen Brutto und Netto. Bei § 13b null: gezahlt wird netto. */
+  tax: Cents;
+  /** Was tatsächlich gezahlt oder vereinnahmt wird — die Gegenzeile. */
+  gross: Cents;
+  balanced: boolean;
+  warnings?: PostingWarning[];
+}
+
+// -------------------------------------------------------------------------
+// Belege
+
+export type ReceiptFileRole = 'original' | 'structured' | 'rendering' | 'attachment';
+export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
+
+export interface ReceiptFile {
+  id: number;
+  receiptId: number;
+  position: number;
+  role: ReceiptFileRole;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  /** Aus einer anderen Datei erzeugt statt empfangen. */
+  derived: boolean;
+  storedPath: string;
+  createdAt: string;
+}
+
+export interface Receipt {
+  id: number;
+  fiscalYear: number;
+  receiptNumber: string;
+  direction: Direction;
+  status: ReceiptStatus;
+  files: ReceiptFile[];
+  /** Über die geordnete Dateiliste; steht so in der Buchung. */
+  receiptHash: string;
+  receivedAt?: string;
+  receivedVia?: string;
+  journalEntryId?: number;
+  discardReason?: string;
+
+  // E-Rechnung: leer bei einem Scan oder einer gewöhnlichen PDF-Rechnung.
+  detectedFormat?: string;
+  detectedProfile?: string;
+  validatedAt?: string;
+  validationRuleset?: string;
+  validationVersion?: string;
+  validationCoverage?: string;
+  validationErrors: number;
+  /** Die Befunde als JSON, siehe ValidationFinding. */
+  validationFindings?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReceiptFileInput {
+  path: string;
+  role: ReceiptFileRole;
+}
+
+/**
+ * Was Buchfink aus einer empfangenen E-Rechnung liest.
+ *
+ * Ein Vorschlag, keine Buchung. Die Buchungsgruppe bleibt leer — welches
+ * Aufwandskonto zutrifft, sagt keine Rechnung.
+ */
+export interface EInvoiceProposal {
+  request: ReceiptRequest;
+  format: string;
+  profile: string;
+  /** Was der Datensatz zu sein angibt — entscheidet über das Vorzeichen. */
+  kind: string;
+  kindLabel: string;
+  supplierName: string;
+  supplierVatId?: string;
+  supplierTaxId?: string;
+  invoiceNumber: string;
+  grossAmount: Cents;
+  matchedContact: boolean;
+  /** Rechnungen, auf die sich dieser Beleg bezieht (BG-3). */
+  precedingInvoices?: string[];
+  /** Was nicht gefüllt werden konnte und warum. */
+  notes?: string[];
+}
+
+/**
+ * Das Ergebnis der EN-16931-Prüfung.
+ *
+ * `coverage` kennt bewusst keinen Wert für „vollständig geprüft": die
+ * Referenzumsetzung ist ein Schematron-Regelwerk, das kein Go-Prozessor
+ * ausführt. Die geprüften Regeln sind über `Api.getEInvoiceRules()` abrufbar.
+ */
+export interface ValidationFinding {
+  rule: string;
+  /** Der Schweregrad stammt aus der Spezifikation, nicht aus Buchfink. */
+  severity: 'fatal' | 'warning' | 'information';
+  /** Wo im Beleg, z. B. "Position 3". Leer bei Dokumentebene. */
+  where?: string;
+  /** Die betroffenen Geschäftsbegriffe (BT/BG). */
+  terms?: string[];
+  message: string;
+}
+
+export interface ValidationResult {
+  ruleset: string;
+  version: string;
+  format: string;
+  profile: string;
+  coverage: 'partial';
+  findings?: ValidationFinding[];
+}
+
+export interface ReceiptPreview {
+  dataUrl: string;
+  fileName: string;
+  mimeType: string;
+  /** false, wenn die Datei auf der Platte nicht mehr zu ihrer Prüfsumme passt. */
+  intact: boolean;
 }
 
 // -------------------------------------------------------------------------
@@ -271,6 +415,13 @@ export interface OpenItem {
   settledAmount: Cents;
   openAmount: Cents;
   taxRate: TaxRate;
+  /**
+   * Der Steuerfall der ursprünglichen Buchung. Er entscheidet, wie ein Skonto
+   * berichtigt wird: nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer
+   * im offenen Betrag, und § 13b und der innergemeinschaftliche Erwerb haben
+   * zwei Steuerzeilen statt einer (§ 17 Abs. 1 Satz 5 UStG).
+   */
+  taxTreatment?: TaxTreatment;
 }
 
 export interface AllocationRequest {
@@ -323,8 +474,30 @@ export interface Contact {
   iban: string;
   bic: string;
   paymentTermsDays: number;
+  /** Keine Unternehmerin/kein Unternehmer — dann greift keine E-Rechnungspflicht. */
+  isPrivate: boolean;
+  /** Kleinunternehmer nach § 19 UStG: darf immer eine sonstige Rechnung stellen. */
+  isSmallBusiness: boolean;
   openAmount: Cents;
   createdAt: string;
+}
+
+/** Aufzeichnung zu einer Bewirtung, § 4 Abs. 5 Satz 1 Nr. 2 EStG. */
+export interface EntertainmentDetail {
+  place: string;
+  day: string;
+  participants: string;
+  occasion: string;
+}
+
+/** Ein Hinweis zur Buchung. Blockiert nie — was folgt, ist eine Rechtsfrage. */
+export interface PostingWarning {
+  code: string;
+  severity: 'info' | 'warning';
+  title: string;
+  detail: string;
+  /** Text zum Weitergeben an den Lieferanten. */
+  supplierNote?: string;
 }
 
 export interface InvoiceItem {
@@ -358,6 +531,8 @@ export interface Invoice {
   currency: string;
   status: 'draft' | 'issued' | 'paid' | 'cancelled';
   journalEntryId?: number;
+  /** Der Beleg mit dem hybriden PDF und dem ZUGFeRD-XML. */
+  receiptId?: number;
   paidAmount: Cents;
   createdAt: string;
 }
@@ -431,7 +606,6 @@ export interface CompanySettings {
   country: string;
   currency: string;
   skr: string;
-  isSmallBusiness: boolean;
   vatPeriod: string;
   taxationType: string;
 }

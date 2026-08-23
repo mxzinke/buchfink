@@ -1,7 +1,6 @@
 # Buchfink – E-Rechnung (Empfang und Ausstellung)
 
-Status: Anforderung, **nicht implementiert – und im Gegensatz zu den übrigen
-offenen Punkten bereits geltendes Recht**
+Status: Empfang umgesetzt; Validierung siehe Abschnitt 8
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
@@ -38,10 +37,12 @@ Konsequenz:
 >
 > — UStAE Abschnitt 14.1 Abs. 5 i. d. F. des BMF-Schreibens vom 15.10.2025
 
-**Buchfink kann heute keine E-Rechnung empfangen.** Ein Beleg ist ein Dateipfad am
-Journaleintrag; ein strukturierter Rechnungsdatensatz existiert im Modell nicht.
-Das ist damit nicht eine Lücke unter mehreren, sondern die einzige, die eine
-laufende Rechtspflicht des Nutzers unerfüllt lässt.
+**Buchfink konnte lange keine E-Rechnung empfangen.** Ein Beleg war ein Dateipfad
+am Journaleintrag; ein strukturierter Rechnungsdatensatz existierte im Modell
+nicht. Das war nicht eine Lücke unter mehreren, sondern die einzige, die eine
+laufende Rechtspflicht des Nutzers unerfüllt ließ. Sie ist geschlossen: der Beleg
+trägt den strukturierten Teil als eigene Datei, das XML wird aus dem Hybrid-PDF
+gezogen, und der Buchungsvorschlag entsteht daraus.
 
 ## 2. Wer betroffen ist und wer nicht
 
@@ -92,12 +93,15 @@ hat keine. Diese Asymmetrie bestimmt die Reihenfolge der Umsetzung.
 | Baustein | Stand |
 |---|---|
 | ZUGFeRD-XML-Erzeugung für Ausgangsrechnungen | vorhanden (`internal/invoice/zugferd.go`), Profil `urn:cen.eu:en16931:2017` |
-| Beleg als **eine** Datei am Journaleintrag (`DocumentPath`, `DocumentHash`) | vorhanden – und genau das ist zu eng, siehe unten |
-| Mehrdateiliger Beleg mit Rollen (PDF + XML) | **konzipiert** in [anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md) Abschnitt 15, **nicht implementiert** |
-| **Empfang und Einlesen einer E-Rechnung** | **fehlt vollständig** |
-| **Validierung gegen EN 16931 / Schematron** | fehlt (steht als TODO an `ZUGFeRDGenerator`) |
-| **XRechnung (reines XML ohne PDF)** | fehlt (steht als TODO an `Invoice`) |
-| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, aber auf **eine** Datei ausgelegt; der Beleg-Hash über mehrere Dateien ist konzipiert, nicht gebaut |
+| **Hybrides PDF/A-3b mit eingebettetem XML** | vorhanden (`internal/invoice/render.go`), Typst als WebAssembly im Prozess |
+| Mehrdateiliger Beleg mit Rollen (PDF + XML) | vorhanden (`internal/domain/receipt.go`), Beleg-Hash über die geordnete Dateiliste |
+| **Einlesen einer empfangenen E-Rechnung** | vorhanden: XML aus dem Hybrid-PDF (`pdfattach.go`), CII-Parser (`cii.go`), Buchungsvorschlag (`einvoice_service.go`) |
+| **Ablehnung der Profile MINIMUM und BASIC WL** | vorhanden |
+| **Validierung gegen EN 16931** | vollständig in Go (`internal/einvoice`), 223 von 223 Regeln, Regelliste und Version am Beleg |
+| **UBL lesen (Peppol, XRechnung-UBL)** | vorhanden (`internal/einvoice`), dieselbe Prüfung wie für CII |
+| **Rechnungstyp auswerten (BT-3)** | im Modul vorhanden; die Verbuchung von Gutschrift und Korrektur steht noch aus |
+| **XRechnung (reines XML ohne PDF)** | ablegbar und auslesbar; buchbar erst mit erzeugter Darstellung |
+| Unveränderbare Aufbewahrung über die Hash-Chain | vorhanden, über den Beleg-Hash |
 
 Das gewählte Profil ist bereits das richtige: zulässig sind ZUGFeRD ab Version
 2.0.1 **außer den Profilen MINIMUM und BASIC-WL** (UStAE 14.1 Abs. 14 Satz 4).
@@ -197,6 +201,18 @@ Lieferant über die USt-IdNr. oder Steuernummer, Beträge und Steuersätze aus d
 XML-Feldern, Leistungsdatum aus dem entsprechenden Feld der Norm. Das ist ein
 deutlich besserer Ausgangspunkt als OCR – die Daten sind exakt statt geraten.
 
+**Der Steuerkategoriecode wird dabei gedreht.** Er steht aus Sicht des Ausstellers
+im Dokument: „K" heißt beim Lieferanten steuerfreie innergemeinschaftliche
+Lieferung und beim Empfänger innergemeinschaftlicher Erwerb, „AE" heißt
+Steuerschuld beim Leistungsempfänger – also bei uns. Wer den Code eins zu eins
+übernimmt, bucht den halben Vorgang und meldet die Erwerbsteuer nicht.
+
+Was Buchfink nicht ehrlich abbilden kann, wird benannt statt geraten: „G" steht
+für eine Ausfuhr des Lieferanten, beim Empfänger also eine Einfuhr mit
+Einfuhrumsatzsteuer aus dem Zollbescheid – die steht nicht in dieser Rechnung.
+Ebenso bleibt die **Buchungsgruppe offen**: welches Aufwandskonto zutrifft, sagt
+keine Rechnung.
+
 Für die **Ausgangsseite** gilt dasselbe Modell in die andere Richtung: eine
 selbst erzeugte ZUGFeRD-Rechnung ist ein Beleg mit dem hybriden PDF als
 `original`, eine XRechnung einer mit dem XML als `original` und einer erzeugten
@@ -212,18 +228,79 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
 - **Reihenfolge:** Empfang zuerst, Ausstellung danach – das folgt aus den Fristen.
   Zu entscheiden ist, ob der Empfang vor die übrigen offenen Punkte gezogen wird.
   *Vorschlag: ja, weil er als einziger eine bereits laufende Pflicht betrifft.*
-- **Validierung:** eigene Schematron-Prüfung oder eine Bibliothek? Eine
-  vollständige EN-16931-Validierung ist erheblicher Aufwand. Zwischenstufe: die
-  für die Buchung nötigen Felder prüfen und das Ergebnis als „nicht vollständig
-  validiert" kennzeichnen, statt Vollständigkeit vorzutäuschen.
+- **Validierung:** entschieden und umgesetzt als eigener Regelprüfer in Go
+  (`internal/invoice/en16931.go`). Eine native Go-Bibliothek gibt es nicht, und
+  der Referenzweg – der KoSIT-Validator mit Schematron über Saxon-XSLT – setzt
+  eine Java-Laufzeit voraus, die eine lokale Go-Desktop-App nicht mitbringen soll.
+
+  Geprüft werden **alle 223 Geschäftsregeln**, die EN 16931 für das semantische
+  Modell und seine Codelisten definiert. Vier davon — BR-CO-05 bis BR-CO-08 —
+  verlangen, dass ein Grundschlüssel und ein freier Begründungstext dasselbe
+  bedeuten; das ist maschinell nicht entscheidbar, und der Referenzprüfer der
+  Norm führt sie selbst als `true()`. Buchfink hält es genauso und schreibt
+  dazu, warum.
+
+  **Der Aufbau folgt dem der Norm.** Deren Geschäftsregeln stehen nicht an einer
+  Syntax, sondern in einem abstrakten Regelsatz über dem semantischen Modell;
+  CII und UBL liefern nur die Bindungen. `internal/einvoice` ist genauso gebaut:
+  in der Mitte das Modell mit allen Geschäftsbegriffen, daneben zwei Leser und
+  ein Schreiber. Dieselbe Rechnung wird damit gleich beurteilt, egal in welcher
+  Schreibweise sie ankommt — nachgewiesen über alle offiziellen UBL-Beispiele,
+  die durch das Modell nach CII geschrieben dieselbe Beurteilung bekommen.
+
+  **Wie belegt wird, dass die Prüfungen greifen.** Beispielrechnungen können das
+  nicht: ein gültiges Dokument löst keine Regel aus, es zeigt also nur, dass
+  eine Prüfung nicht zu streng ist. Das Artefakt bringt aber eine zweite
+  Sammlung mit — 277 Dateien, eine je Geschäftsregel, jede mit der Erwartung, ob
+  die Regel anschlagen muss oder schweigen. **191 der 223 Regeln sind darüber
+  bestätigt**, die übrigen 32 bringt die Suite nicht mit und haben eigene Tests.
+  `task test:en16931` lässt beides laufen.
+
+  Dabei kamen achtzehn Fehler heraus, elf allein aus der Regelsuite. Vier davon
+  sind Stellen, an denen die **beiden Syntaxbindungen der Norm einander
+  widersprechen**: BT-8 wird in CII und UBL verschieden verschlüsselt, BR-AF-05
+  verlangt in CII einen Satz größer null und in UBL null oder größer, BR-AF-09
+  und BR-AG-09 sind in CII `true()` und in UBL vollwertig geprüft, und die
+  Codelisten weichen an vier Werten ab. Solche Stellen findet nur, wer beide
+  Syntaxen baut.
+
+  Der Prüfumfang kennt trotzdem **keinen Wert für „vollständig geprüft"**. Das
+  ist Absicht: XRechnung (BR-DE-*) und Peppol legen eigene Regeln über
+  EN 16931, und die prüft das Modul nicht. Dass ein Dokument eine XRechnung zu
+  sein behauptet, sagt es — damit ein Aufrufer weiß, dass Bestehen hier nicht
+  die ganze Geschichte ist. `RulesChecked()`, `RulesUnchecked()` und `Rule()`
+  machen den Umfang abfragbar statt behauptbar; zwei Tests halten ihn ehrlich,
+  einer gegen erfundene Regelnamen, einer gegen zugesagte Regeln ohne Prüfung.
+
+  Ergebnis, Zeitpunkt, Regelwerk und dessen Version stehen am Beleg, damit ein
+  späterer Prüflauf vergleichbar bleibt; die Prüfung fasst keine Datei an und
+  lässt den Beleg-Hash deshalb unberührt. Jeder Befund nennt Regel, Ort und die
+  betroffenen Geschäftsbegriffe, sodass eine Oberfläche auf das Feld zeigen kann
+  statt eine Regelnummer zum Nachschlagen hinzulegen.
+
+  Buchfink hält auch die **eigenen** Rechnungen gegen dieses Regelwerk: eine
+  Ausgangsrechnung, die es verletzt, wird gar nicht erst erzeugt. Eine Rechnung
+  ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
+  ordnungsmäßige Rechnung – der Empfänger verlöre den Vorsteuerabzug und merkte
+  es erst bei der Betriebsprüfung.
+
+  Die Beispiel- und Regeldateien liegen unter `internal/einvoice/testdata/`.
+  Das Artefakt steht unter EUPL-1.2 — seit dem Lizenzwechsel dieselbe Lizenz wie
+  Buchfink. Die Prüfungen laufen damit ohne Netz und ohne Vorbereitung; Herkunft
+  und Lizenz stehen im README daneben.
 - **Umgang mit abweichendem Bildteil:** anzeigen und blockieren, oder anzeigen und
   weiterbuchen lassen? *Vorschlag: anzeigen, Buchung aus dem XML, Hinweis auf die
   mögliche § 14c-Relevanz – keine automatische Bewertung.*
-- **Papierrechnung im Pflichtfall:** Soll Buchfink warnen, wenn ein inländischer
-  B2B-Eingangsbeleg als Papier- oder PDF-Rechnung erfasst wird, obwohl eine
-  E-Rechnung Pflicht gewesen wäre? Der Vorsteuerabzug ist dann dem Grunde nach
-  gefährdet. Die Software kennt Ansässigkeit und Steuerfall und könnte es
-  erkennen – ab wann sie es *sagen* soll, ist eine UX-Frage.
+- **Papierrechnung im Pflichtfall:** entschieden und umgesetzt
+  (`internal/service/einvoice_notice.go`). Buchfink weist in der
+  Buchungsvorschau darauf hin, wenn ein inländischer, unternehmerischer
+  Lieferant ohne Kleinunternehmerstatus über der Kleinbetragsgrenze des
+  § 33 UStDV eine sonstige Rechnung stellt und der Beleg keinen strukturierten
+  Teil trägt. Der Text wechselt mit dem Belegdatum über die Fristen des
+  § 27 Abs. 38 UStG; dazu kommt ein zweiter, der sich an den Lieferanten
+  weitergeben lässt. **Blockiert wird nie** – ob aus der sonstigen Rechnung ein
+  Vorsteuerabzug folgt, ist eine Rechtsfrage, und den Vorjahresumsatz des
+  Ausstellers kennt Buchfink nicht.
 - **Aufbewahrung des eigenen PDF:** Rz. 76 Abs. 2 erlaubt den Verzicht. Nutzen
   oder trotzdem archivieren?
 - **Ausstellungsseite:** XRechnung zusätzlich zu ZUGFeRD anbieten? Beide sind

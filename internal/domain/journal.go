@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,15 @@ const (
 	SideDebit  Side = "S" // Soll
 	SideCredit Side = "H" // Haben
 )
+
+// Opposite returns the other side: where the Gegenbuchung sits, and the side a
+// correction has to use to take a line back.
+func (s Side) Opposite() Side {
+	if s == SideDebit {
+		return SideCredit
+	}
+	return SideDebit
+}
 
 // EntryKind separates original bookings from corrections.
 type EntryKind string
@@ -69,6 +79,13 @@ type JournalLine struct {
 	// TaxKey names the Steuerschlüssel this line was derived from (see tax.go).
 	// It is empty on lines that carry no VAT relevance.
 	TaxKey string `gorm:"size:30;index" json:"taxKey,omitempty"`
+	// TaxBase carries the same sign as Amount, always. A Generalumkehr negates
+	// both and keeps the side; a correction that changes the base — a Skonto
+	// under § 17 Abs. 1 UStG — writes both positive on the opposite side. Every
+	// reader derives the direction from the line's side, so a base that
+	// disagreed in sign with its amount would raise a turnover while lowering
+	// the tax on it.
+	//
 	// TaxBase is the Bemessungsgrundlage the tax amount was computed from. Only
 	// set on tax lines; needed to reproduce the UStVA figures from the journal.
 	TaxBase Cents `gorm:"default:0" json:"taxBase,omitempty"`
@@ -100,10 +117,29 @@ type JournalEntry struct {
 	Source      EntrySource `gorm:"size:20;not null;index" json:"source"`
 
 	// Belegverweis. DocumentNumber is the Belegfeld the auditor uses to find the
-	// paper/PDF; DocumentHash pins the file content.
+	// document and the field the DATEV export carries; ReceiptHash pins the
+	// Beleg's whole file list at once.
+	//
+	// This used to be a single file: one DocumentHash, one DocumentPath. That
+	// cannot hold a ZUGFeRD invoice (PDF plus XML) or an XRechnung (XML plus a
+	// generated rendering), so the reference now points at the Beleg entity.
+	// ReceiptID is deliberately kept out of the hash chain — like the old path it
+	// is a location, not content — while ReceiptHash and DocumentNumber together
+	// identify the Beleg even if two of them happen to hold identical files.
 	DocumentNumber string `gorm:"size:100;index" json:"documentNumber,omitempty"`
-	DocumentHash   string `gorm:"size:64" json:"documentHash,omitempty"`
-	DocumentPath   string `gorm:"size:255;serializer:encrypted" json:"documentPath,omitempty"`
+	ReceiptID      *uint  `gorm:"index" json:"receiptId,omitempty"`
+	ReceiptHash    string `gorm:"size:64" json:"receiptHash,omitempty"`
+
+	// TaxTreatment records which Steuerfall produced this booking.
+	//
+	// It used to be input only, recoverable afterwards from the accounts alone.
+	// That works on the outgoing side, where every case has its own revenue
+	// account, but not on the incoming one: a purchase at the Nullsteuersatz of
+	// § 12 Abs. 3 UStG books to the same expense account as an exempt one and has
+	// no tax line either. Without this field the two would be indistinguishable
+	// once booked — and they are not the same thing, because one keeps the input
+	// tax deduction and the other does not.
+	TaxTreatment TaxTreatment `gorm:"size:40;index" json:"taxTreatment,omitempty"`
 
 	ContactID *uint `gorm:"index" json:"contactId,omitempty"`
 	BankTxID  *uint `gorm:"index" json:"bankTxId,omitempty"`
@@ -126,6 +162,13 @@ type JournalEntry struct {
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`
+
+	// Entertainment carries the Aufzeichnung § 4 Abs. 5 Satz 1 Nr. 2 EStG
+	// demands whenever entertainment expenses are booked. It hangs off the entry
+	// rather than the Beleg because the Beleg-Hash covers only the file list: a
+	// participant list stored there would be covered by no checksum at all, and a
+	// record the deduction depends on must not be silently editable.
+	Entertainment *EntertainmentDetail `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"entertainment,omitempty"`
 
 	PreviousHash string    `gorm:"size:64;not null" json:"previousHash"`
 	EntryHash    string    `gorm:"size:64;not null" json:"entryHash"`
@@ -235,6 +278,48 @@ func (e *JournalEntry) Validate() error {
 	return nil
 }
 
+// EntertainmentDetail is the record § 4 Abs. 5 Satz 1 Nr. 2 Sätze 2 und 3 EStG
+// requires for entertainment expenses: place, day, participants and occasion,
+// alongside the amount. For a restaurant bill the occasion and the participants
+// suffice and the invoice is attached.
+//
+// It is not a booking line but a written record the deduction hangs on — without
+// it even the deductible 70 % are lost. It is therefore part of the entry's
+// canonical form and covered by the hash chain.
+type EntertainmentDetail struct {
+	ID      uint `gorm:"primaryKey" json:"id"`
+	EntryID uint `gorm:"uniqueIndex;not null" json:"entryId"`
+
+	Place        string `gorm:"size:255;not null;serializer:encrypted" json:"place"`
+	Day          string `gorm:"size:10;not null" json:"day"`
+	Participants string `gorm:"type:text;not null;serializer:encrypted" json:"participants"`
+	Occasion     string `gorm:"size:500;not null;serializer:encrypted" json:"occasion"`
+}
+
+// Validate checks that the record is complete. An incomplete one is worse than
+// none: it looks like compliance and is not.
+func (d *EntertainmentDetail) Validate() error {
+	missing := make([]string, 0, 4)
+	if strings.TrimSpace(d.Place) == "" {
+		missing = append(missing, "Ort")
+	}
+	if strings.TrimSpace(d.Day) == "" {
+		missing = append(missing, "Tag")
+	}
+	if strings.TrimSpace(d.Participants) == "" {
+		missing = append(missing, "Teilnehmer")
+	}
+	if strings.TrimSpace(d.Occasion) == "" {
+		missing = append(missing, "Anlass")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf(
+			"zu einer Bewirtung gehören Ort, Tag, Teilnehmer und Anlass (§ 4 Abs. 5 Satz 1 Nr. 2 EStG). Es fehlt: %s",
+			strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 // AccountTurnover holds the Verkehrszahlen of one account.
 type AccountTurnover struct {
 	Debit  Cents `json:"debit"`
@@ -252,10 +337,32 @@ type EntryHashFunc func(e *JournalEntry, prevHash string) string
 // JournalRepository defines persistence for journal entries.
 type JournalRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindByBookingDateRange narrows to a booking-date window inside a fiscal
+	// year; empty bounds mean the whole year. The Umsatzsteuer-Voranmeldung is
+	// monthly or quarterly, and filtering a whole year in Go to report one month
+	// of it reads twelve times what it needs.
+	FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]JournalEntry, error)
+	// FindOpenItemCandidates returns the entries a Forderung or Verbindlichkeit
+	// could still sit in: the given year and every earlier one, minus everything
+	// a Generalumkehr has cancelled.
+	//
+	// Both bounds are there for the same reason. § 252 Abs. 1 Nr. 5 HGB puts the
+	// Ertrag in the year of performance and the payment in the year it happens,
+	// so an invoice and its settlement routinely sit in different years — a view
+	// bounded to one of them sees half the story. And a Generalumkehr carries the
+	// date of the correction, so it regularly sits in a *later* year than the
+	// entry it cancels: whether a booking still stands cannot be answered inside
+	// a year window at all.
+	FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
+	// FindByReceipt returns the original booking that references a Beleg, or nil.
+	// It is what lets an unsealed Beleg be repaired: the seal is written after
+	// the journal transaction commits, so a crash in between leaves a booked
+	// Beleg that still looks open.
+	FindByReceipt(ctx context.Context, receiptID uint) (*JournalEntry, error)
 	GetLastEntry(ctx context.Context, fiscalYear int) (*JournalEntry, error)
 	// Append allocates the entry number, links the hash chain and persists the
 	// entry in a single transaction. Doing all three atomically is what keeps

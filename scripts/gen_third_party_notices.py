@@ -37,6 +37,28 @@ ASSETS = [
         "license_file": "frontend/public/Manrope-OFL.txt",
     },
     {
+        "name": "eInvoicing-EN16931 (Pruefmaterial)",
+        "version": "internal/einvoice/testdata/en16931/",
+        "license": "EUPL-1.2",
+        "copyright": "European Commission / ConnectingEurope "
+                     "(https://github.com/ConnectingEurope/eInvoicing-EN16931)",
+        "note": "Beispielrechnungen und Regeldateien des Validierungsartefakts. "
+                "Sie werden nur von Tests gelesen und landen nicht im Binary. "
+                "Lizenztext: `internal/einvoice/testdata/en16931/LICENSE.txt`.",
+        "license_file": "internal/einvoice/testdata/en16931/LICENSE.txt",
+    },
+    {
+        "name": "validator-configuration-xrechnung (Pruefmaterial)",
+        "version": "internal/einvoice/xrechnung/testdata/kosit/",
+        "license": "Apache-2.0",
+        "copyright": "Koordinierungsstelle fuer IT-Standards (KoSIT) "
+                     "(https://github.com/itplr-kosit/validator-configuration-xrechnung)",
+        "note": "Testinstanzen mit den von KoSIT zugesicherten Urteilen. "
+                "Sie werden nur von Tests gelesen und landen nicht im Binary. "
+                "Lizenztext: `internal/einvoice/xrechnung/testdata/kosit/LICENSE`.",
+        "license_file": "internal/einvoice/xrechnung/testdata/kosit/LICENSE",
+    },
+    {
         "name": "Startbildschirm-Foto",
         "version": "frontend/public/bg-startupscreen_unsplash-steven-kamenar.jpg",
         "license": "Unsplash License",

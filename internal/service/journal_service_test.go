@@ -7,6 +7,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"gorm.io/gorm"
 )
@@ -17,9 +18,13 @@ type testEnv struct {
 	posting     *PostingService
 	accounting  *AccountingService
 	contacts    *ContactService
+	receipts    *ReceiptService
 	journalRepo domain.JournalRepository
 	contactRepo domain.ContactRepository
 	numberRepo  domain.NumberRangeRepository
+	receiptRepo domain.ReceiptRepository
+	store       *receiptstore.Store
+	dataDir     string
 	fiscalYear  int
 }
 
@@ -34,28 +39,53 @@ func newTestEnv(t *testing.T) *testEnv {
 		t.Fatalf("SKR04-Kontenplan konnte nicht geladen werden: %v", err)
 	}
 
+	// Ohne vollständige Unternehmensdaten lässt sich keine ordnungsmäßige
+	// Rechnung ausstellen — § 14 Abs. 4 Nr. 1 UStG verlangt Name und Anschrift
+	// beider Seiten, und die Erzeugung besteht darauf.
+	settings := repository.NewSettingsRepository(db)
+	if err := settings.UpdateCompanySettings(context.Background(), &domain.CompanySettings{
+		CompanyName: "Pfennig Ventures GmbH", LegalForm: "GmbH",
+		Street: "Hauptstraße 1", ZipCity: "80331 München", Country: "Deutschland",
+		TaxNumber: "143/815/08151", VatID: "DE123456789",
+		FiscalYear: 2026, FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04",
+		VatPeriod: "quarter", TaxationType: "SOLL",
+	}); err != nil {
+		t.Fatalf("Unternehmensdaten konnten nicht gesetzt werden: %v", err)
+	}
+
 	accountRepo := repository.NewAccountRepository(db)
 	journalRepo := repository.NewJournalRepository(db)
 	contactRepo := repository.NewContactRepository(db)
 	numberRepo := repository.NewNumberRangeRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
+	receiptRepo := repository.NewReceiptRepository(db)
+
+	dataDir := t.TempDir()
+	store := receiptstore.New(dataDir)
 
 	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
+	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	posting.SetReceiptService(receipts)
 
 	return &testEnv{
 		db: db, journal: journal, posting: posting, accounting: acc, contacts: contacts,
+		receipts:    receipts,
 		journalRepo: journalRepo, contactRepo: contactRepo, numberRepo: numberRepo,
+		receiptRepo: receiptRepo, store: store, dataDir: dataDir,
 		fiscalYear: 2026,
 	}
 }
 
 func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Contact {
 	t.Helper()
-	c := &domain.Contact{Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID}
+	c := &domain.Contact{
+		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
+		Address: "Lieferantenweg 3, 20095 Hamburg",
+	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s konnte nicht angelegt werden: %v", name, err)
 	}
@@ -64,7 +94,10 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 
 func (e *testEnv) customer(t *testing.T, name, country, vatID string) *domain.Contact {
 	t.Helper()
-	c := &domain.Contact{Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID}
+	c := &domain.Contact{
+		Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID,
+		Address: "Kundenweg 2, 10115 Berlin",
+	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Kunde %s konnte nicht angelegt werden: %v", name, err)
 	}
@@ -408,14 +441,15 @@ func TestPostingRuleVersionIsRecorded(t *testing.T) {
 	ctx := context.Background()
 
 	vendor := env.vendor(t, "Lieferant", "DE", "")
+	filed := env.fileIncoming(t, "buerobedarf.pdf")
 	entry, err := env.posting.PostIncomingReceipt(ctx, ReceiptRequest{
-		ContactID:      vendor.ID,
-		DocumentDate:   "2026-03-01",
-		BookingDate:    "2026-03-01",
-		DocumentNumber: "RE-4711",
-		TaxTreatment:   domain.TaxTreatmentDomestic,
-		Positions:      []ReceiptPosition{{PostingGroup: "buerobedarf", Net: 5000, TaxRate: domain.TaxRateStandard}},
-		Settlement:     SettlementOpen,
+		ContactID:    vendor.ID,
+		ReceiptID:    filed.ID,
+		DocumentDate: "2026-03-01",
+		BookingDate:  "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Positions:    []ReceiptPosition{{PostingGroup: "buerobedarf", Net: 5000, TaxRate: domain.TaxRateStandard}},
+		Settlement:   SettlementOpen,
 	})
 	if err != nil {
 		t.Fatalf("Beleg buchen: %v", err)
@@ -427,9 +461,14 @@ func TestPostingRuleVersionIsRecorded(t *testing.T) {
 
 // invoices wires the invoice service on demand; it needs the posting service,
 // which the base environment already holds.
+// postingGroup looks a fachliche Gruppe up from the catalog.
+func (e *testEnv) postingGroup(key string) (accounting.PostingGroup, error) {
+	return accounting.LookupPostingGroup(key)
+}
+
 func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 	t.Helper()
-	return NewInvoiceService(
+	svc := NewInvoiceService(
 		repository.NewInvoiceRepository(e.db),
 		e.contactRepo,
 		repository.NewSettingsRepository(e.db),
@@ -437,6 +476,18 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 		e.posting,
 		repository.NewAuditRepository(e.db),
 	)
+	// Ohne Renderer bleibt der Ausgangsbeleg aus. Die meisten Tests prüfen die
+	// Buchung, und das Übersetzen des WASM-Moduls kostet Sekunden — wer den Beleg
+	// braucht, setzt die Pipeline selbst (siehe invoice_document_test.go).
+	return svc
+}
+
+// invoicesWithDocuments liefert den Rechnungsdienst mitsamt Beleg-Pipeline.
+func (e *testEnv) invoicesWithDocuments(t *testing.T) *InvoiceService {
+	t.Helper()
+	svc := e.invoices(t)
+	svc.SetDocumentPipeline(e.receipts, sharedRenderer())
+	return svc
 }
 
 // Offene Posten gehören auf das Personenkonto. Eine Buchung direkt auf 1200
@@ -468,7 +519,7 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 	second := env.vendor(t, "Lieferant B", "DE", "")
 	for _, vendor := range []*domain.Contact{first, second} {
 		if _, err := env.posting.PostIncomingReceipt(ctx,
-			receipt(vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
+			env.receipt(t, vendor.ID, "buerobedarf", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
 			t.Fatalf("Beleg für %s: %v", vendor.Name, err)
 		}
 	}

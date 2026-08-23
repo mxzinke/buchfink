@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -82,8 +83,23 @@ func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver
 func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (*domain.JournalEntry, error) {
 	s.applyDefaults(ctx, entry)
 
+	// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf
+	// nicht die Korrektur vorhandener verhindern. Wer einen Mandanten auf
+	// Istversteuerung stehen hat, muss seine falschen Buchungen stornieren
+	// können — sonst schließt die Prüfung ihn in dem Zustand ein, den sie
+	// beanstandet.
+	if entry.Kind != domain.EntryKindReversal {
+		if err := s.ensureAccrualTaxation(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if err := entry.Validate(); err != nil {
 		return nil, err
+	}
+	if d := entry.Entertainment; d != nil {
+		if err := d.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.validateAccounts(ctx, entry); err != nil {
 		return nil, err
@@ -162,8 +178,9 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 		Description:        fmt.Sprintf("Storno zu %s: %s", original.EntryNumber, original.Description),
 		Source:             original.Source,
 		DocumentNumber:     original.DocumentNumber,
-		DocumentHash:       original.DocumentHash,
-		DocumentPath:       original.DocumentPath,
+		ReceiptID:          original.ReceiptID,
+		ReceiptHash:        original.ReceiptHash,
+		TaxTreatment:       original.TaxTreatment,
 		ContactID:          original.ContactID,
 		BankTxID:           original.BankTxID,
 		Kind:               domain.EntryKindReversal,
@@ -175,6 +192,13 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 		ExchangeRateDate:   original.ExchangeRateDate,
 		PostingRuleVersion: original.PostingRuleVersion,
 		Lines:              lines,
+	}
+	// The Generalumkehr points at the same Beleg and carries the same
+	// Aufzeichnung: it corrects the booking, it does not undo the meal.
+	if d := original.Entertainment; d != nil {
+		reversal.Entertainment = &domain.EntertainmentDetail{
+			Place: d.Place, Day: d.Day, Participants: d.Participants, Occasion: d.Occasion,
+		}
 	}
 
 	created, err := s.Post(ctx, reversal)
@@ -238,6 +262,34 @@ func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEnt
 			e.Lines[i].Position = i + 1
 		}
 	}
+}
+
+// ensureAccrualTaxation refuses to book while the company is set to
+// Istversteuerung.
+//
+// The whole flow — record the invoice, book it at once, settle it later —
+// presumes taxation on agreed consideration (§ 16 Abs. 1 Satz 1 UStG). Under
+// Istversteuerung the tax only arises with the receipt of payment
+// (§ 13 Abs. 1 Nr. 1 Buchst. b UStG) and the bookings would look different. The
+// setting has existed since the setup wizard shipped, but nothing ever checked
+// it — so the option quietly produced wrong VAT returns. Refusing is the honest
+// behaviour until the second booking path exists.
+func (s *JournalService) ensureAccrualTaxation(ctx context.Context) error {
+	if s.settingsRepo == nil {
+		return nil
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil || cfg.TaxationType == "" {
+		return nil
+	}
+	if strings.EqualFold(cfg.TaxationType, "SOLL") {
+		return nil
+	}
+	// Kein Verweis auf eine Einstellung: die Besteuerungsart ist in der
+	// Oberfläche nur ablesbar, nicht änderbar. Eine Meldung, die auf einen
+	// Schalter zeigt, den es nicht gibt, hilft niemandem weiter.
+	return fmt.Errorf(
+		"Für diesen Mandanten ist die Istversteuerung hinterlegt. Buchfink unterstützt derzeit nur die Sollversteuerung (§ 16 Abs. 1 Satz 1 UStG): bei Istversteuerung entsteht die Steuer erst mit der Vereinnahmung des Entgelts (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Stornos bestehender Buchungen bleiben möglich")
 }
 
 func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {

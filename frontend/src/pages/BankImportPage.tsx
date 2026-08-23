@@ -12,6 +12,7 @@ import type {
 import { Api } from '../services/api';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import { HelpTooltip } from '../components/HelpTooltip';
+import { inputClass } from '../components/Form';
 
 /**
  * Bank & Zahlungen.
@@ -22,9 +23,6 @@ import { HelpTooltip } from '../components/HelpTooltip';
  * gebucht. Beides steht hier nebeneinander, statt beides über dieselbe Maske zu
  * zwingen.
  */
-
-const inputClass =
-  'w-full px-2.5 py-1.5 text-sm rounded-lg border border-stone-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none';
 
 export const BankImportPage: React.FC = () => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);

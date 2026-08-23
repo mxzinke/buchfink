@@ -32,7 +32,10 @@ func (r *paymentAllocationRepositoryGorm) FindByOpenItem(ctx context.Context, en
 // SettledByOpenItem sums what has already been settled per open item, so the
 // remaining amount can be derived instead of stored. A stored status would drift
 // apart from the journal on the first correction.
-func (r *paymentAllocationRepositoryGorm) SettledByOpenItem(ctx context.Context, fiscalYear int) (map[uint]domain.Cents, error) {
+//
+// Neither bound the query lacks — no fiscal year, no reversed payments — is an
+// oversight; domain.PaymentAllocationRepository states why.
+func (r *paymentAllocationRepositoryGorm) SettledByOpenItem(ctx context.Context) (map[uint]domain.Cents, error) {
 	type row struct {
 		OpenItemEntryID uint
 		Total           int64
@@ -42,9 +45,7 @@ func (r *paymentAllocationRepositoryGorm) SettledByOpenItem(ctx context.Context,
 	q := r.db.WithContext(ctx).Model(&domain.PaymentAllocation{}).
 		Select("payment_allocations.open_item_entry_id as open_item_entry_id, COALESCE(SUM(payment_allocations.settled_amount),0) as total").
 		Joins("JOIN journal_entries e ON e.id = payment_allocations.payment_entry_id")
-	if fiscalYear > 0 {
-		q = q.Where("e.fiscal_year = ?", fiscalYear)
-	}
+	q = notReversed(q, "e")
 	if err := q.Group("payment_allocations.open_item_entry_id").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
