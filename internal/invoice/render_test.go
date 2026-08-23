@@ -40,8 +40,7 @@ func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact)
 }
 
 // Die eingebettete Datei muss text/xml sein — so schreibt es die
-// ZUGFeRD-Spezifikation vor, und darauf prüfen die Konformitätswerkzeuge der
-// Empfänger. Der Wert steht in internal/einvoice/zugferd; die Vorlage darf nicht
+// ZUGFeRD-Spezifikation vor, und darauf prüfen die Prüfprogramme der Empfänger. Der Wert steht in internal/einvoice/zugferd; die Vorlage darf nicht
 // davon abweichen.
 func TestTemplateDeclaresTheAttachmentMimeType(t *testing.T) {
 	inv, seller, buyer := sampleInvoice()

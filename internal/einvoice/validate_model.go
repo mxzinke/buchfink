@@ -259,8 +259,8 @@ func (v *validator) checkAllowancesCharges() {
 		v.requireAt("BR-31", where, a.Amount.String(), "Der Betrag des Nachlasses (BT-92)")
 		v.requireAt("BR-32", where, a.VATCategory, "Die Steuerkategorie des Nachlasses (BT-95)")
 		if !a.HasReason() {
-			v.failAt("BR-33", where, "Es fehlt der Grund (BT-97) oder der Grundschlüssel (BT-98)")
-			v.failAt("BR-CO-21", where, "Es fehlt der Grund (BT-97) oder der Grundschlüssel (BT-98)")
+			v.failAt("BR-33", where, "Es fehlt der Grund (BT-97) oder sein Schlüssel (BT-98)")
+			v.failAt("BR-CO-21", where, "Es fehlt der Grund (BT-97) oder sein Schlüssel (BT-98)")
 		}
 		v.decimalsAt("BR-DEC-01", where, a.Amount, "Der Betrag des Nachlasses (BT-92)")
 		v.decimalsAt("BR-DEC-02", where, a.BaseAmount, "Der Grundbetrag des Nachlasses (BT-93)")
@@ -271,8 +271,8 @@ func (v *validator) checkAllowancesCharges() {
 		v.requireAt("BR-36", where, a.Amount.String(), "Der Betrag des Zuschlags (BT-99)")
 		v.requireAt("BR-37", where, a.VATCategory, "Die Steuerkategorie des Zuschlags (BT-102)")
 		if !a.HasReason() {
-			v.failAt("BR-38", where, "Es fehlt der Grund (BT-104) oder der Grundschlüssel (BT-105)")
-			v.failAt("BR-CO-22", where, "Es fehlt der Grund (BT-104) oder der Grundschlüssel (BT-105)")
+			v.failAt("BR-38", where, "Es fehlt der Grund (BT-104) oder sein Schlüssel (BT-105)")
+			v.failAt("BR-CO-22", where, "Es fehlt der Grund (BT-104) oder sein Schlüssel (BT-105)")
 		}
 		v.decimalsAt("BR-DEC-05", where, a.Amount, "Der Betrag des Zuschlags (BT-99)")
 		v.decimalsAt("BR-DEC-06", where, a.BaseAmount, "Der Grundbetrag des Zuschlags (BT-100)")
@@ -283,8 +283,8 @@ func (v *validator) checkAllowancesCharges() {
 			where := fmt.Sprintf("%s, Nachlass %d", linePos(i), j+1)
 			v.requireAt("BR-41", where, a.Amount.String(), "Der Betrag des Nachlasses (BT-136)")
 			if !a.HasReason() {
-				v.failAt("BR-42", where, "Es fehlt der Grund (BT-139) oder der Grundschlüssel (BT-140)")
-				v.failAt("BR-CO-23", where, "Es fehlt der Grund (BT-139) oder der Grundschlüssel (BT-140)")
+				v.failAt("BR-42", where, "Es fehlt der Grund (BT-139) oder sein Schlüssel (BT-140)")
+				v.failAt("BR-CO-23", where, "Es fehlt der Grund (BT-139) oder sein Schlüssel (BT-140)")
 			}
 			v.decimalsAt("BR-DEC-24", where, a.Amount, "Der Betrag des Nachlasses (BT-136)")
 			v.decimalsAt("BR-DEC-25", where, a.BaseAmount, "Der Grundbetrag des Nachlasses (BT-137)")
@@ -293,17 +293,18 @@ func (v *validator) checkAllowancesCharges() {
 			where := fmt.Sprintf("%s, Zuschlag %d", linePos(i), j+1)
 			v.requireAt("BR-43", where, a.Amount.String(), "Der Betrag des Zuschlags (BT-141)")
 			if !a.HasReason() {
-				v.failAt("BR-44", where, "Es fehlt der Grund (BT-144) oder der Grundschlüssel (BT-145)")
-				v.failAt("BR-CO-24", where, "Es fehlt der Grund (BT-144) oder der Grundschlüssel (BT-145)")
+				v.failAt("BR-44", where, "Es fehlt der Grund (BT-144) oder sein Schlüssel (BT-145)")
+				v.failAt("BR-CO-24", where, "Es fehlt der Grund (BT-144) oder sein Schlüssel (BT-145)")
 			}
 			v.decimalsAt("BR-DEC-27", where, a.Amount, "Der Betrag des Zuschlags (BT-141)")
 			v.decimalsAt("BR-DEC-28", where, a.BaseAmount, "Der Grundbetrag des Zuschlags (BT-142)")
 		}
 	}
 
-	// BR-CO-05 bis BR-CO-08 verlangen, dass Grundschlüssel und Grundtext
-	// dasselbe bedeuten. Das ist ein Vergleich zwischen einem Schlüssel und
-	// freiem Text und maschinell nicht entscheidbar — der Referenzprüfer der
+	// BR-CO-05 bis BR-CO-08 verlangen, dass der Schlüssel eines Nachlass- oder
+	// Zuschlagsgrundes und derselbe Grund im Klartext dasselbe bedeuten. Das ist
+	// ein Vergleich zwischen einem Schlüssel und freiem Text und maschinell
+	// nicht entscheidbar — der Referenzprüfer der
 	// Norm führt diese vier Regeln als `true()`. Buchfink hält es genauso und
 	// sagt es, statt eine Prüfung zu behaupten, die keine ist.
 }

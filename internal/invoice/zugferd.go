@@ -267,9 +267,9 @@ func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buy
 	// ordnungsmäßige Rechnung — der Empfänger verlöre den Vorsteuerabzug, und er
 	// merkte es erst bei der Prüfung. Lieber jetzt eine Meldung an den Aussteller.
 	// Lässt sich das eigene Erzeugnis nicht einmal lesen, ist das der schwerste
-	// denkbare Befund und kein Grund, die Prüfung zu überspringen: ein
-	// Steuerzeichen in einer Anschrift genügt, und das Ergebnis wanderte
-	// ungeprüft ins Kunden-PDF.
+	// denkbare Befund und kein Grund, die Prüfung zu überspringen: ein nicht
+	// druckbares Zeichen in einer Anschrift genügt — wie es beim Kopieren aus
+	// einem PDF entsteht —, und das Ergebnis wanderte ungeprüft ins Kunden-PDF.
 	doc, err := einvoice.ParseCII([]byte(xmlContent))
 	if err != nil {
 		return "", fmt.Errorf("der erzeugte Rechnungsdatensatz ist nicht lesbar: %w", err)

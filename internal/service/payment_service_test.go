@@ -254,8 +254,8 @@ func TestBankFeeIsBookedSeparately(t *testing.T) {
 	})
 }
 
-// Kleinbetragsdifferenz: der Rest wird ausgebucht, statt als Cent-Leiche
-// stehen zu bleiben.
+// Kleinbetragsdifferenz: der Rest wird ausgebucht, statt als offener Posten über
+// wenige Cent stehen zu bleiben.
 func TestRoundingDifferenceClosesTheItem(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

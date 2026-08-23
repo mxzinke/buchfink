@@ -66,12 +66,12 @@ func (v *validator) checkCodeLists() {
 	for i, a := range inv.Allowances {
 		where := "Nachlass " + itoa(i+1) + " auf Dokumentebene"
 		v.inListAt("BR-CL-17", where, a.VATCategory, untdid5305, "Die Steuerkategorie (BT-95)")
-		v.inListAt("BR-CL-19", where, a.ReasonCode, uncl5189, "Der Grundschlüssel (BT-98)")
+		v.inListAt("BR-CL-19", where, a.ReasonCode, uncl5189, "Der Schlüssel des Grundes (BT-98)")
 	}
 	for i, a := range inv.Charges {
 		where := "Zuschlag " + itoa(i+1) + " auf Dokumentebene"
 		v.inListAt("BR-CL-17", where, a.VATCategory, untdid5305, "Die Steuerkategorie (BT-102)")
-		v.inListAt("BR-CL-20", where, a.ReasonCode, uncl7161, "Der Grundschlüssel (BT-105)")
+		v.inListAt("BR-CL-20", where, a.ReasonCode, uncl7161, "Der Schlüssel des Grundes (BT-105)")
 	}
 
 	for i, group := range inv.VATBreakdown {
@@ -104,11 +104,11 @@ func (v *validator) checkCodeLists() {
 		}
 		for j, a := range line.Allowances {
 			v.inListAt("BR-CL-19", where+", Nachlass "+itoa(j+1), a.ReasonCode, uncl5189,
-				"Der Grundschlüssel (BT-140)")
+				"Der Schlüssel des Grundes (BT-140)")
 		}
 		for j, a := range line.Charges {
 			v.inListAt("BR-CL-20", where+", Zuschlag "+itoa(j+1), a.ReasonCode, uncl7161,
-				"Der Grundschlüssel (BT-145)")
+				"Der Schlüssel des Grundes (BT-145)")
 		}
 	}
 

@@ -42,7 +42,8 @@
 //
 // Alle 223 Geschäftsregeln, die EN 16931 für das semantische Modell und seine
 // Codelisten definiert. Vier davon — BR-CO-05 bis BR-CO-08 — verlangen, dass
-// ein Grundschlüssel und ein freier Begründungstext dasselbe bedeuten; das ist
+// der Schlüssel eines Grundes und derselbe Grund im Klartext dasselbe bedeuten;
+// das ist
 // maschinell nicht entscheidbar, und der Referenzprüfer der Norm führt sie
 // selbst als `true()`. Buchfink hält es genauso.
 //

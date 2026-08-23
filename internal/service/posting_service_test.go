@@ -334,7 +334,7 @@ func TestDirectionMustMatchPartnerType(t *testing.T) {
 }
 
 // Die Steuer wird einmal je Steuersatzgruppe gerundet, nicht je Position.
-// Positionsweise Rundung ergäbe hier 3 × 0,63 = 1,89 statt 1,90 auf die Summe.
+// Eine Rundung je Position ergäbe hier 3 × 0,63 = 1,89 statt 1,90 auf die Summe.
 func TestTaxIsRoundedOncePerRateGroup(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

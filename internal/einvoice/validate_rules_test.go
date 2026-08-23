@@ -236,7 +236,8 @@ func TestIntraCommunityNeedsItsExemptionReason(t *testing.T) {
 }
 
 // Vier Regeln der Norm sind auch im Referenzprüfer `true()`: sie verlangen, dass
-// ein Grundschlüssel und ein freier Begründungstext dasselbe bedeuten. Das ist
+// der Schlüssel eines Grundes und derselbe Grund im Klartext dasselbe bedeuten.
+// Das ist
 // maschinell nicht entscheidbar. Buchfink führt sie im Umfang und meldet nichts
 // — dieser Test hält fest, dass das Absicht ist und nicht Vergesslichkeit.
 func TestReasonAgreementRulesAreDeliberatelySilent(t *testing.T) {
