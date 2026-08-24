@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import {
   AlertTriangle,
   FileCode,
@@ -31,8 +30,27 @@ import type {
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
-import { ErrorBox, Field, PrimaryButton, SecondaryButton, inputClass } from '../components/Form';
-import { HelpTooltip } from '../components/HelpTooltip';
+import {
+  Button,
+  Combobox,
+  Dialog,
+  EmptyState,
+  Field,
+  HelpPopover,
+  Input,
+  PageHeader,
+  Section,
+  Select,
+  SkeletonRows,
+  StatusBadge,
+  Table,
+  Tbody,
+  Td,
+  Tr,
+  cn,
+  toast,
+  type Status,
+} from '../components/ui';
 
 /**
  * Belege.
@@ -53,10 +71,24 @@ const ROLE_LABELS: Record<ReceiptFileRole, string> = {
   attachment: 'Anhang',
 };
 
-const STATUS_BADGES: Record<Receipt['status'], { label: string; classes: string }> = {
-  filed: { label: 'Abgelegt', classes: 'bg-amber-100 text-amber-800' },
-  sealed: { label: 'Gebucht', classes: 'bg-emerald-100 text-emerald-800' },
-  discarded: { label: 'Verworfen', classes: 'bg-stone-100 text-stone-500' },
+/**
+ * Das Status-Vokabular ist abgeschlossen (§11.3). Ein abgelegter Beleg ist ein
+ * offener Vorgang, ein verworfener ist zurückgenommen — dafür gibt es keine
+ * eigenen Wörter, und es sollen auch keine entstehen.
+ */
+const STATUS: Record<Receipt['status'], Status> = {
+  filed: 'offen',
+  sealed: 'gebucht',
+  discarded: 'storniert',
+};
+
+/** Hinweisfläche nach §6.2, Fall 4. Trägt Rand und Fläche immer zusammen. */
+const NOTE = 'rounded-control border px-4 py-3';
+const NOTE_TONE = {
+  neutral: 'border-line-strong bg-sunken',
+  attention: 'border-attention-line bg-attention-soft',
+  positive: 'border-positive-line bg-positive-soft',
+  negative: 'border-negative-line bg-negative-soft',
 };
 
 interface DraftPosition {
@@ -84,7 +116,6 @@ export const ReceiptsPage: React.FC = () => {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,9 +132,8 @@ export const ReceiptsPage: React.FC = () => {
       setGroups(groupList ?? []);
       setTreatments(treatmentList ?? []);
       setPaymentAccounts(accounts ?? []);
-      setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -161,7 +191,7 @@ export const ReceiptsPage: React.FC = () => {
         role: index === 0 ? 'original' : 'attachment',
       }));
       const receipt = await Api.fileIncomingReceipt(files);
-      toast.success(`Beleg ${receipt.receiptNumber} abgelegt`);
+      toast.success(`Beleg ${receipt.receiptNumber} abgelegt.`);
       await load();
       setSelected(receipt);
     } catch (e) {
@@ -172,43 +202,49 @@ export const ReceiptsPage: React.FC = () => {
   }
 
   const vendors = useMemo(() => contacts.filter((c) => c.type === 'vendor'), [contacts]);
+  const openCount = receipts.filter((r) => r.status === 'filed').length;
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            Belege
-            <HelpTooltip
-              title="Ablegen und Buchen"
-              content="Belege werden zuerst abgelegt und dann gebucht. Ein Beleg kann aus mehreren Dateien bestehen — eine ZUGFeRD-Rechnung ist ein PDF mit eingebettetem XML, eine XRechnung ist reines XML und braucht vor dem Buchen eine erzeugte Darstellung."
-            />
-          </h2>
-          <p className="text-xs text-stone-500 mt-1">
-            Eingangsbelege ablegen, ansehen und buchen
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <SecondaryButton onClick={() => void load()} disabled={loading}>
-            <RefreshCw className={`w-3.5 h-3.5 inline mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-            Aktualisieren
-          </SecondaryButton>
-          <PrimaryButton onClick={() => void fileReceipt()} disabled={filing}>
-            <Plus className="w-3.5 h-3.5 inline mr-1.5" />
-            Beleg ablegen
-          </PrimaryButton>
-        </div>
-      </div>
+    <div className="max-w-[1440px] mx-auto px-8 py-8">
+      <PageHeader
+        title="Belege"
+        context={loading ? undefined : `${receipts.length} abgelegt · ${openCount} noch zu buchen`}
+        action={
+          <div className="flex items-center gap-2">
+            <HelpPopover label="Erklärung zum Ablegen und Buchen">
+              Belege werden zuerst abgelegt und dann gebucht. Ein Beleg kann aus mehreren Dateien
+              bestehen: Eine ZUGFeRD-Rechnung ist ein PDF mit eingebettetem XML, eine XRechnung ist
+              reines XML und braucht vor dem Buchen eine erzeugte Darstellung.
+            </HelpPopover>
+            <Button
+              variant="secondary"
+              disabled={loading}
+              onClick={() => void load()}
+              icon={<RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} strokeWidth={1.5} />}
+            >
+              Aktualisieren
+            </Button>
+            <Button
+              variant="primary"
+              loading={filing}
+              onClick={() => void fileReceipt()}
+              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            >
+              Beleg ablegen
+            </Button>
+          </div>
+        }
+      />
 
-      <ErrorBox message={error} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,22rem)_1fr] gap-5">
-        <ReceiptList
-          receipts={receipts}
-          loading={loading}
-          selectedId={selected?.id}
-          onSelect={setSelected}
-        />
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-[19rem_minmax(0,1fr)] gap-8">
+        <aside className="xl:border-r xl:border-line xl:pr-6">
+          <ReceiptList
+            receipts={receipts}
+            loading={loading}
+            selectedId={selected?.id}
+            onSelect={setSelected}
+          />
+        </aside>
 
         {selected ? (
           <ReceiptDetail
@@ -225,20 +261,24 @@ export const ReceiptsPage: React.FC = () => {
               await load();
             }}
             onBooked={async (entryNumber) => {
-              toast.success(`Beleg gebucht als ${entryNumber}`);
+              toast.success(`Beleg gebucht als ${entryNumber}.`);
               setSelected(null);
               await load();
             }}
           />
         ) : (
-          <div className="rounded-2xl border border-dashed border-stone-200 bg-white/50 p-12 text-center text-xs text-stone-400">
-            Wählen Sie links einen Beleg aus, um ihn anzusehen und zu buchen.
-          </div>
+          <EmptyState
+            icon={<FileText className="w-6 h-6" strokeWidth={1.5} />}
+            title="Kein Beleg ausgewählt"
+            description="Links einen Beleg wählen, um ihn anzusehen und zu buchen."
+          />
         )}
       </div>
     </div>
   );
 };
+
+// -------------------------------------------------------------------------
 
 const ReceiptList: React.FC<{
   receipts: Receipt[];
@@ -246,60 +286,61 @@ const ReceiptList: React.FC<{
   selectedId?: number;
   onSelect: (r: Receipt) => void;
 }> = ({ receipts, loading, selectedId, onSelect }) => {
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-xs text-stone-400">
-        Belege werden geladen…
-      </div>
-    );
-  }
-  if (receipts.length === 0) {
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-xs text-stone-400">
-        Noch keine Belege abgelegt.
-      </div>
-    );
-  }
+  if (loading) return <SkeletonRows rows={6} />;
+  if (receipts.length === 0) return <EmptyState title="Noch keine Belege abgelegt" />;
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden">
+    <nav className="flex flex-col gap-0.5" aria-label="Belege">
       {receipts.map((receipt) => {
-        const badge = STATUS_BADGES[receipt.status];
+        const active = selectedId === receipt.id;
         const original = receipt.files.find((f) => f.role === 'original');
         return (
           <button
             key={receipt.id}
+            type="button"
+            aria-current={active || undefined}
             onClick={() => onSelect(receipt)}
-            className={`w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors ${
-              selectedId === receipt.id ? 'bg-amber-50/60' : ''
-            }`}
+            className={cn(
+              'flex items-start gap-2.5 rounded-card px-3 py-2.5 text-left',
+              'transition-colors duration-120 ease-quiet',
+              active ? 'bg-accent-soft' : 'hover:bg-sunken',
+            )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs font-semibold text-stone-800">
-                {receipt.receiptNumber}
-              </span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${badge.classes}`}>
-                {badge.label}
-              </span>
-            </div>
-            <div className="mt-1 text-[11px] text-stone-500 truncate">
-              {original?.fileName ?? '—'}
-            </div>
-            <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-400">
-              <span>{receipt.receivedAt ? formatDate(receipt.receivedAt) : '—'}</span>
-              {receipt.files.length > 1 && (
-                <span className="inline-flex items-center gap-0.5">
-                  <Paperclip className="w-3 h-3" />
-                  {receipt.files.length}
-                </span>
+            {/* Einseitige Markierung als Pille, nicht als gekrümmte Border (§12). */}
+            <span
+              className={cn(
+                'mt-0.5 h-8 w-0.5 shrink-0 rounded-full',
+                active ? 'bg-accent' : 'bg-transparent',
               )}
-            </div>
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-2">
+                <span className="code-num text-caption text-ink">{receipt.receiptNumber}</span>
+                <StatusBadge status={STATUS[receipt.status]} />
+              </span>
+              <span className="block text-caption text-ink-muted truncate mt-1">
+                {original?.fileName ?? '—'}
+              </span>
+              <span className="flex items-center gap-2 text-caption text-ink-subtle mt-0.5">
+                <span className="num">
+                  {receipt.receivedAt ? formatDate(receipt.receivedAt) : '—'}
+                </span>
+                {receipt.files.length > 1 && (
+                  <span className="inline-flex items-center gap-1">
+                    <Paperclip className="w-3 h-3" strokeWidth={1.5} />
+                    {receipt.files.length}
+                  </span>
+                )}
+              </span>
+            </span>
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 };
+
+// -------------------------------------------------------------------------
 
 const ReceiptDetail: React.FC<{
   receipt: Receipt;
@@ -322,10 +363,11 @@ const ReceiptDetail: React.FC<{
   onChanged,
   onBooked,
 }) => (
-  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+  <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} />
+
     {receipt.status === 'filed' ? (
-      <div className="space-y-3">
+      <div>
         <ProposalRefusal message={proposalError} />
         <BookingForm
           key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
@@ -339,23 +381,27 @@ const ReceiptDetail: React.FC<{
         />
       </div>
     ) : (
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 text-xs text-stone-500 space-y-2">
-        <div className="flex items-center gap-1.5 font-semibold text-stone-700">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+      <div>
+        <h2 className="flex items-center gap-2 text-heading text-ink">
+          <ShieldCheck className="w-4 h-4 shrink-0 text-positive" strokeWidth={1.5} />
           {receipt.status === 'sealed' ? 'Gebucht und versiegelt' : 'Verworfen'}
-        </div>
+        </h2>
         {receipt.status === 'sealed' && (
-          <p className="leading-relaxed">
-            Der Beleg ist mit der Buchung versiegelt. Was später dazukommt — eine Mahnung, ein
-            Zahlungsnachweis, eine korrigierte Rechnung — ist ein eigener Beleg auf denselben
-            Geschäftsvorfall. Eine inhaltliche Korrektur läuft über Storno der Buchung.
+          <p className="text-body text-ink-muted mt-2">
+            Was später dazukommt — eine Mahnung, ein Zahlungsnachweis, eine korrigierte Rechnung —
+            ist ein eigener Beleg auf denselben Geschäftsvorfall. Eine inhaltliche Korrektur läuft
+            über den Storno der Buchung.
           </p>
         )}
-        {receipt.discardReason && <p>Grund: {receipt.discardReason}</p>}
+        {receipt.discardReason && (
+          <p className="text-body text-ink-muted mt-2">Grund: {receipt.discardReason}</p>
+        )}
       </div>
     )}
   </div>
 );
+
+// -------------------------------------------------------------------------
 
 const ReceiptViewer: React.FC<{
   receipt: Receipt;
@@ -366,6 +412,8 @@ const ReceiptViewer: React.FC<{
   );
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardReason, setDiscardReason] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -424,7 +472,7 @@ const ReceiptViewer: React.FC<{
     setBusy(true);
     try {
       await onChanged(await Api.extractStructuredPart(receipt.id));
-      toast.success('Strukturierter Rechnungsdatensatz übernommen');
+      toast.success('Strukturierter Rechnungsdatensatz übernommen.');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -433,8 +481,9 @@ const ReceiptViewer: React.FC<{
   }
 
   async function discard() {
-    const reason = window.prompt('Warum wird der Beleg verworfen?');
+    const reason = discardReason.trim();
     if (!reason) return;
+    setDiscarding(false);
     setBusy(true);
     try {
       await Api.discardReceipt(receipt.id, reason);
@@ -449,96 +498,154 @@ const ReceiptViewer: React.FC<{
   const open = receipt.status === 'filed';
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
-        <div>
-          <div className="font-mono text-xs font-semibold text-stone-800">
-            {receipt.receiptNumber}
-          </div>
-          <div className="text-[10px] text-stone-400 font-mono">
+    <div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="code-num text-heading text-ink">{receipt.receiptNumber}</h2>
+          <p className="code-num text-caption text-ink-subtle mt-0.5">
             Beleg-Hash {receipt.receiptHash.slice(0, 12)}…
-          </div>
+          </p>
         </div>
         {open && (
-          <SecondaryButton onClick={() => void discard()} disabled={busy}>
+          <Button variant="quiet" size="sm" disabled={busy} onClick={() => setDiscarding(true)}>
             Verwerfen
-          </SecondaryButton>
+          </Button>
         )}
       </div>
 
-      <div className="bg-stone-50 border-b border-stone-100 min-h-[18rem] flex items-center justify-center p-3">
+      {/* Der Beleg ist ein Fremdkörper in der Oberfläche und bekommt deshalb
+          eine eigene Fläche (§6.2, Fall 3). */}
+      <div className="mt-4 rounded-card border border-line bg-sunken min-h-[20rem] flex items-center justify-center p-4">
         {previewError ? (
-          <div className="text-center space-y-2 max-w-sm">
-            <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto" />
-            <p className="text-xs text-stone-600 leading-relaxed">{previewError}</p>
+          <div className="text-center max-w-sm">
+            <AlertTriangle className="w-6 h-6 mx-auto text-attention" strokeWidth={1.5} />
+            <p className="text-body text-ink-muted mt-3">{previewError}</p>
             {open && (
-              <PrimaryButton onClick={() => void addFile('rendering')} disabled={busy}>
+              <Button
+                variant="secondary"
+                className="mt-4"
+                disabled={busy}
+                onClick={() => void addFile('rendering')}
+              >
                 Darstellung hinzufügen
-              </PrimaryButton>
+              </Button>
             )}
           </div>
         ) : !preview ? (
-          <span className="text-xs text-stone-400">Vorschau wird geladen…</span>
+          <span className="text-body text-ink-subtle">Vorschau wird geladen …</span>
         ) : preview.mimeType === 'application/pdf' ? (
-          <iframe title="Belegvorschau" src={preview.dataUrl} className="w-full h-[28rem] rounded-lg bg-white" />
+          <iframe
+            title="Belegvorschau"
+            src={preview.dataUrl}
+            className="w-full h-[30rem] rounded-control bg-surface"
+          />
         ) : (
-          <img src={preview.dataUrl} alt="Beleg" className="max-h-[28rem] rounded-lg" />
+          <img src={preview.dataUrl} alt="Beleg" className="max-h-[30rem] rounded-control" />
         )}
       </div>
 
       {preview && !preview.intact && (
-        <div className="px-4 py-2 bg-rose-50 border-b border-rose-100 text-[11px] text-rose-700">
+        <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text mt-3')}>
           Die Datei auf der Platte passt nicht mehr zu ihrer Prüfsumme. Sie wurde nach dem Ablegen
           verändert.
-        </div>
+        </p>
       )}
 
       <ValidationPanel receipt={receipt} />
 
-      <ul className="divide-y divide-stone-100">
+      <ul className="mt-4 divide-y divide-line border-t border-line">
         {receipt.files.map((file) => (
-          <li key={file.id} className="px-4 py-2 flex items-center gap-2 text-xs">
-            <FileText className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-            <span className="truncate flex-1 text-stone-700">{file.fileName}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 shrink-0">
+          <li key={file.id} className="flex items-center gap-2 py-2 text-body">
+            <FileText className="w-4 h-4 shrink-0 text-ink-faint" strokeWidth={1.5} />
+            <span className="truncate flex-1 text-ink">{file.fileName}</span>
+            <span className="shrink-0 text-caption text-ink-subtle">
               {ROLE_LABELS[file.role]}
               {file.derived && ' · erzeugt'}
             </span>
             {open && receipt.files.length > 1 && file.role !== 'original' && (
-              <button
-                onClick={() => void removeFile(file.id)}
+              <Button
+                variant="quiet"
+                size="sm"
+                iconOnly
                 disabled={busy}
-                className="text-stone-300 hover:text-rose-600 shrink-0"
                 title="Datei entfernen"
+                aria-label={`${file.fileName} entfernen`}
+                onClick={() => void removeFile(file.id)}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+              </Button>
             )}
           </li>
         ))}
       </ul>
 
       {open && (
-        <div className="px-4 py-2 border-t border-stone-100 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {!receipt.files.some((f) => f.role === 'structured') && (
-            <SecondaryButton onClick={() => void extractStructured()} disabled={busy}>
-              <FileCode className="w-3.5 h-3.5 inline mr-1" />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => void extractStructured()}
+              icon={<FileCode className="w-3.5 h-3.5" strokeWidth={1.5} />}
+            >
               E-Rechnung auslesen
-            </SecondaryButton>
+            </Button>
           )}
-          <SecondaryButton onClick={() => void addFile('attachment')} disabled={busy}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void addFile('attachment')}>
             Anhang hinzufügen
-          </SecondaryButton>
+          </Button>
           {!receipt.files.some((f) => f.role === 'rendering') && (
-            <SecondaryButton onClick={() => void addFile('rendering')} disabled={busy}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => void addFile('rendering')}
+            >
               Darstellung hinzufügen
-            </SecondaryButton>
+            </Button>
           )}
         </div>
       )}
+
+      <Dialog
+        open={discarding}
+        onOpenChange={(next) => {
+          setDiscarding(next);
+          if (!next) setDiscardReason('');
+        }}
+        title="Beleg verwerfen"
+        width="max-w-lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDiscarding(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="danger" disabled={!discardReason.trim()} onClick={() => void discard()}>
+              Verwerfen
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body text-ink-muted">
+          <span className="code-num text-ink">{receipt.receiptNumber}</span> bleibt aufbewahrt und
+          nachvollziehbar, wird aber nicht gebucht.
+        </p>
+        <Field label="Grund" className="mt-4">
+          <Input
+            value={discardReason}
+            onChange={(e) => setDiscardReason(e.target.value)}
+            placeholder="Doppelt erhalten"
+          />
+        </Field>
+      </Dialog>
     </div>
   );
 };
+
+// -------------------------------------------------------------------------
+
+const POSITION_GRID = 'grid grid-cols-[minmax(0,1fr)_7rem_6rem_2rem] gap-2 items-start';
 
 const BookingForm: React.FC<{
   receipt: Receipt;
@@ -592,12 +699,12 @@ const BookingForm: React.FC<{
   // die Vorschau sähe dabei sauber aus. Das ist keine Fachlogik: gerechnet wird
   // nichts, es wird nur gesagt, dass hier etwas nicht lesbar ist.
   const unreadableAmount = (value: string) => value.trim() !== '' && parseCents(value) === null;
-  const hasUnreadableAmount = positions.some((p) => unreadableAmount(p.net));
+  const hasUnreadableAmount = positions.some((pos) => unreadableAmount(pos.net));
 
   // Ob die Aufzeichnung nötig ist, sagt der Katalog: die Gruppe trägt das Konto
   // für den nicht abzugsfähigen Anteil. Das Backend besteht darauf.
   const needsEntertainment = positions.some(
-    (p) => groups.find((g) => g.key === p.postingGroup)?.deductibleQuota === 'entertainment',
+    (pos) => groups.find((g) => g.key === pos.postingGroup)?.deductibleQuota === 'entertainment',
   );
 
   const [preview, setPreview] = useState<PostingPreview | null>(null);
@@ -616,12 +723,12 @@ const BookingForm: React.FC<{
       description,
       taxTreatment: treatment as TaxTreatment,
       positions: positions
-        .filter((p) => p.postingGroup && parseCents(p.net) !== null)
-        .map((p) => ({
-          postingGroup: p.postingGroup,
-          net: parseCents(p.net) ?? 0,
-          taxRate: p.taxRate,
-          text: p.text || undefined,
+        .filter((pos) => pos.postingGroup && parseCents(pos.net) !== null)
+        .map((pos) => ({
+          postingGroup: pos.postingGroup,
+          net: parseCents(pos.net) ?? 0,
+          taxRate: pos.taxRate,
+          text: pos.text || undefined,
         })),
       settlement,
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
@@ -656,9 +763,9 @@ const BookingForm: React.FC<{
     let cancelled = false;
     const timer = window.setTimeout(() => {
       Api.previewIncomingReceipt(request)
-        .then((p) => {
+        .then((result) => {
           if (cancelled) return;
-          setPreview(p);
+          setPreview(result);
           setPreviewError(null);
         })
         .catch((e) => {
@@ -674,7 +781,7 @@ const BookingForm: React.FC<{
   }, [request, contactId, treatment]);
 
   function updatePosition(index: number, patch: Partial<DraftPosition>) {
-    setPositions((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+    setPositions((prev) => prev.map((pos, i) => (i === index ? { ...pos, ...patch } : pos)));
   }
 
   function selectGroup(index: number, key: string) {
@@ -700,277 +807,232 @@ const BookingForm: React.FC<{
     }
   }
 
-  const groupsByCategory = useMemo(() => {
-    const map = new Map<string, PostingGroup[]>();
-    for (const g of groups) {
-      const list = map.get(g.category) ?? [];
-      list.push(g);
-      map.set(g.category, list);
-    }
-    return [...map.entries()];
-  }, [groups]);
+  const groupItems = useMemo(
+    () => groups.map((g) => ({ value: g.key, label: g.label, meta: g.category })),
+    [groups],
+  );
 
   if (vendors.length === 0) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 text-xs text-stone-600 leading-relaxed">
-        Für einen Eingangsbeleg braucht es einen Lieferanten. Legen Sie ihn unter „Kunden &
-        Lieferanten“ an — er bekommt dabei sein Personenkonto aus dem Kreditoren-Nummernkreis.
-      </div>
+      <EmptyState
+        title="Noch kein Lieferant angelegt"
+        description="Für einen Eingangsbeleg braucht es einen Lieferanten. Unter Kunden & Lieferanten bekommt er sein Personenkonto aus dem Kreditoren-Nummernkreis."
+      />
     );
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-stone-200 bg-white">
-      <div className="px-4 py-3 border-b border-stone-100 font-semibold text-stone-900 text-sm">
-        Beleg buchen
-      </div>
+    <form onSubmit={submit}>
+      <h2 className="text-heading text-ink">Beleg buchen</h2>
 
-      <div className="p-4 space-y-3">
+      <div className="mt-5 flex flex-col gap-4">
         <Field label="Lieferant">
-          <select
-            className={inputClass}
+          <Select
+            items={vendors.map((v) => ({ value: v.id, label: `${v.name} · ${v.ledgerAccount}` }))}
             value={contactId}
-            onChange={(e) => setContactId(Number(e.target.value))}
-            required
-          >
-            {vendors.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name} · {v.ledgerAccount}
-              </option>
-            ))}
-          </select>
+            onValueChange={setContactId}
+          />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <Field label="Belegdatum" hint="Rechnungsdatum">
-            <input
-              type="date"
-              className={inputClass}
-              value={documentDate}
-              onChange={(e) => setDocumentDate(e.target.value)}
-              required
-            />
+            <Input type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} />
           </Field>
           <Field label="Buchungsdatum" hint="bestimmt die Periode">
-            <input
-              type="date"
-              className={inputClass}
-              value={bookingDate}
-              onChange={(e) => setBookingDate(e.target.value)}
-              required
-            />
+            <Input type="date" value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} />
           </Field>
           <Field label="Leistung von" hint="§ 14 Abs. 4 Nr. 6 UStG">
-            <input
-              type="date"
-              className={inputClass}
-              value={serviceFrom}
-              onChange={(e) => setServiceFrom(e.target.value)}
-              required
-            />
+            <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
           </Field>
           <Field label="Leistung bis">
-            <input
-              type="date"
-              className={inputClass}
-              value={serviceTo}
-              onChange={(e) => setServiceTo(e.target.value)}
-              required
-            />
+            <Input type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />
           </Field>
         </div>
 
         <Field
           label="Steuerfall"
           hint={treatments.find((t) => t.treatment === treatment)?.hint}
+          help="Der Steuerfall entscheidet über Aufwandskonto und Steuerzeile. Ohne ihn nimmt Buchfink die Buchung nicht an."
         >
-          <select
-            className={inputClass}
-            value={treatment}
-            onChange={(e) => setTreatment(e.target.value as TaxTreatment)}
-            required
-          >
-            {!treatment && <option value="">Steuerfall wählen…</option>}
-            {treatments.map((t) => (
-              <option key={t.treatment} value={t.treatment}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            items={treatments.map((t) => ({ value: t.treatment, label: t.label }))}
+            value={treatment || undefined}
+            onValueChange={(next) => setTreatment(next as TaxTreatment)}
+            placeholder="Steuerfall wählen"
+          />
         </Field>
+      </div>
 
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-stone-600">Positionen</div>
+      <div className="mt-6 pt-6 border-t border-line">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-label text-ink-muted">Positionen</h3>
+          <Button
+            variant="quiet"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5" strokeWidth={1.5} />}
+            onClick={() => setPositions((prev) => [...prev, emptyPosition(groups[0])])}
+          >
+            Position hinzufügen
+          </Button>
+        </div>
+
+        <div className={cn(POSITION_GRID, 'text-caption text-ink-subtle mb-1')}>
+          <span>Buchungsgruppe</span>
+          <span className="text-right">Netto</span>
+          <span>USt</span>
+          <span />
+        </div>
+
+        <div className="flex flex-col gap-2">
           {positions.map((position, index) => (
-            <div key={index} className="grid grid-cols-[1fr_6rem_5.5rem_auto] gap-2 items-start">
-              <select
-                className={inputClass}
-                value={position.postingGroup}
-                onChange={(e) => selectGroup(index, e.target.value)}
-                required
-              >
-                <option value="">Gruppe wählen…</option>
-                {groupsByCategory.map(([category, list]) => (
-                  <optgroup key={category} label={category}>
-                    {list.map((g) => (
-                      <option key={g.key} value={g.key}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <input
-                className={`${inputClass} ${
-                  unreadableAmount(position.net) ? 'border-rose-300 bg-rose-50' : ''
-                }`}
-                placeholder="Netto"
+            <div key={index} className={POSITION_GRID}>
+              <Combobox
+                items={groupItems}
+                value={position.postingGroup || null}
+                onValueChange={(key) => selectGroup(index, key ?? '')}
+                placeholder="Gruppe suchen"
+                emptyText="Keine passende Buchungsgruppe."
+              />
+              <Input
+                align="right"
                 inputMode="decimal"
+                placeholder="0,00"
                 value={position.net}
                 onChange={(e) => updatePosition(index, { net: e.target.value })}
-                aria-invalid={unreadableAmount(position.net)}
+                aria-label={`Nettobetrag der Position ${index + 1}`}
                 title={
                   unreadableAmount(position.net)
                     ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56 — ohne Tausenderpunkt.'
                     : undefined
                 }
-                required
+                className={cn(
+                  unreadableAmount(position.net) && 'border-negative ring-2 ring-negative/20',
+                )}
               />
-              <select
-                className={inputClass}
+              <Select
+                items={[
+                  { value: TAX_RATE_STANDARD, label: '19 %' },
+                  { value: TAX_RATE_REDUCED, label: '7 %' },
+                  { value: TAX_RATE_NONE, label: 'ohne' },
+                ]}
                 value={position.taxRate}
-                onChange={(e) => updatePosition(index, { taxRate: Number(e.target.value) })}
-              >
-                <option value={TAX_RATE_STANDARD}>19 %</option>
-                <option value={TAX_RATE_REDUCED}>7 %</option>
-                <option value={TAX_RATE_NONE}>ohne</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => setPositions((prev) => prev.filter((_, i) => i !== index))}
+                onValueChange={(taxRate) => updatePosition(index, { taxRate })}
+              />
+              <Button
+                variant="quiet"
+                size="sm"
+                iconOnly
                 disabled={positions.length === 1}
-                className="mt-1.5 text-stone-300 hover:text-rose-600 disabled:opacity-30"
                 title="Position entfernen"
+                aria-label={`Position ${index + 1} entfernen`}
+                onClick={() => setPositions((prev) => prev.filter((_, i) => i !== index))}
               >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+              </Button>
             </div>
           ))}
-          <SecondaryButton
-            type="button"
-            onClick={() => setPositions((prev) => [...prev, emptyPosition(groups[0])])}
-          >
-            <Plus className="w-3.5 h-3.5 inline mr-1" />
-            Position
-          </SecondaryButton>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
+      <div className="mt-6 pt-6 border-t border-line flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <Field label="Zahlung">
-            <select
-              className={inputClass}
+            <Select
+              items={[
+                { value: 'open', label: 'Auf Ziel — offener Posten' },
+                { value: 'paid', label: 'Sofort bezahlt' },
+              ]}
               value={settlement}
-              onChange={(e) => setSettlement(e.target.value as Settlement)}
-            >
-              <option value="open">Auf Ziel — offener Posten</option>
-              <option value="paid">Sofort bezahlt</option>
-            </select>
+              onValueChange={(next) => setSettlement(next as Settlement)}
+            />
           </Field>
           {settlement === 'paid' && (
             <Field label="Zahlungsmittel" hint="Bar heißt Kasse, nicht Bank">
-              <select
-                className={inputClass}
+              <Select
+                items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
                 value={paymentAccount}
-                onChange={(e) => setPaymentAccount(e.target.value)}
-                required
-              >
-                {paymentAccounts.map((a) => (
-                  <option key={a.number} value={a.number}>
-                    {a.number} {a.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setPaymentAccount}
+              />
             </Field>
           )}
         </div>
 
         {needsEntertainment && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
-            <div className="text-xs font-semibold text-amber-900">
+          <div className={cn(NOTE, NOTE_TONE.attention)}>
+            <h4 className="text-label text-attention-text">
               Aufzeichnung zur Bewirtung
-              <span className="block text-[11px] font-normal text-amber-800/80">
-                § 4 Abs. 5 Satz 1 Nr. 2 EStG. Ohne sie ist der Abzug auch für die abziehbaren
-                70 % verloren.
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Ort">
-                <input
-                  className={inputClass}
-                  value={entertainment.place}
-                  onChange={(e) => setEntertainment({ ...entertainment, place: e.target.value })}
-                  required
+              <HelpPopover label="Erklärung zur Bewirtungsaufzeichnung">
+                § 4 Abs. 5 Satz 1 Nr. 2 EStG verlangt Ort, Tag, Teilnehmer und Anlass. Ohne diese
+                Angaben ist der Abzug auch für die abziehbaren 70 % verloren.
+              </HelpPopover>
+            </h4>
+            <div className="mt-3 flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Ort">
+                  <Input
+                    value={entertainment.place}
+                    onChange={(e) => setEntertainment({ ...entertainment, place: e.target.value })}
+                  />
+                </Field>
+                <Field label="Tag">
+                  <Input
+                    type="date"
+                    value={entertainment.day}
+                    onChange={(e) => setEntertainment({ ...entertainment, day: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <Field label="Teilnehmer" hint="alle bewirteten Personen, mit Firma">
+                <Input
+                  value={entertainment.participants}
+                  onChange={(e) => setEntertainment({ ...entertainment, participants: e.target.value })}
                 />
               </Field>
-              <Field label="Tag">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={entertainment.day}
-                  onChange={(e) => setEntertainment({ ...entertainment, day: e.target.value })}
-                  required
+              <Field label="Anlass" hint="der konkrete geschäftliche Anlass">
+                <Input
+                  value={entertainment.occasion}
+                  onChange={(e) => setEntertainment({ ...entertainment, occasion: e.target.value })}
                 />
               </Field>
             </div>
-            <Field label="Teilnehmer" hint="alle bewirteten Personen, mit Firma">
-              <input
-                className={inputClass}
-                value={entertainment.participants}
-                onChange={(e) =>
-                  setEntertainment({ ...entertainment, participants: e.target.value })
-                }
-                required
-              />
-            </Field>
-            <Field label="Anlass" hint="der konkrete geschäftliche Anlass">
-              <input
-                className={inputClass}
-                value={entertainment.occasion}
-                onChange={(e) => setEntertainment({ ...entertainment, occasion: e.target.value })}
-                required
-              />
-            </Field>
           </div>
         )}
 
-        <Field label="Buchungstext" hint="leer lassen für den Standardtext">
-          <input
-            className={inputClass}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+        <Field label="Buchungstext" hint="leer lassen für den Standardtext" optional>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
+      </div>
 
+      <div className="mt-6 flex flex-col gap-3">
         {proposal && <ProposalNotes proposal={proposal} />}
         {hasUnreadableAmount && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
-            Ein Nettobetrag ist nicht lesbar. Erwartet wird etwa <code>1234,56</code> — ohne
-            Tausenderpunkt. Solange er so dasteht, würde die Position aus der Buchung fallen.
-          </div>
+          <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>
+            Ein Nettobetrag ist nicht lesbar. Erwartet wird etwa <span className="code-num">1234,56</span>{' '}
+            — ohne Tausenderpunkt. Solange er so dasteht, fiele die Position aus der Buchung.
+          </p>
         )}
         <PostingWarnings warnings={preview?.warnings} />
         <PostingPreviewPanel preview={preview} error={previewError} />
-        <ErrorBox message={error} />
+        {error && (
+          <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>{error}</p>
+        )}
       </div>
 
-      <div className="flex justify-end gap-2 px-4 py-3 border-t border-stone-100">
-        <PrimaryButton type="submit" disabled={busy || hasUnreadableAmount || !preview?.balanced}>
-          {busy ? 'Wird gebucht…' : 'Buchen'}
-        </PrimaryButton>
+      <div className="mt-6 flex justify-end">
+        <Button
+          type="submit"
+          variant="primary"
+          loading={busy}
+          disabled={hasUnreadableAmount || !preview?.balanced}
+        >
+          Buchen
+        </Button>
       </div>
     </form>
   );
 };
+
+// -------------------------------------------------------------------------
 
 /**
  * Das Prüfergebnis am Beleg.
@@ -1002,16 +1064,17 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
   const complete = receipt.validationCoverage === 'full';
 
   return (
-    <div
-      className={`px-4 py-2 border-b space-y-1 ${
-        clean ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50 border-rose-100'
-      }`}
-    >
-      <div className="flex items-start gap-1.5 text-xs font-semibold text-stone-800">
+    <div className={cn(NOTE, clean ? NOTE_TONE.positive : NOTE_TONE.negative, 'mt-3')}>
+      <h3
+        className={cn(
+          'flex items-start gap-2 text-label',
+          clean ? 'text-positive-text' : 'text-negative-text',
+        )}
+      >
         {clean ? (
-          <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />
+          <ShieldCheck className="w-4 h-4 mt-px shrink-0" strokeWidth={1.5} />
         ) : (
-          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-rose-600" />
+          <AlertTriangle className="w-4 h-4 mt-px shrink-0" strokeWidth={1.5} />
         )}
         {clean
           ? complete
@@ -1022,17 +1085,17 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
             : `${receipt.validationErrors} ${
                 receipt.validationErrors === 1 ? 'Verstoß' : 'Verstöße'
               } gegen die geprüften Regeln — die Einzelheiten sind nicht lesbar`}
-      </div>
-      <p className="text-[11px] text-stone-500">
+      </h3>
+      <p className="text-caption text-ink-muted mt-1">
         {receipt.detectedProfile} · Regelwerk {receipt.validationRuleset}
         {complete
           ? ' · alle 223 Geschäftsregeln der Norm'
           : ' · Teilprüfung, die Extension-Regeln bleiben offen'}
       </p>
       {[...errors, ...rest].map((f, i) => (
-        <p key={i} className="text-[11px] text-stone-700">
-          <span className="font-mono text-stone-500">{f.rule}</span>{' '}
-          {f.where ? <span className="text-stone-500">{f.where}: </span> : null}
+        <p key={i} className="text-caption text-ink-muted mt-1">
+          <span className="code-num text-ink-subtle">{f.rule}</span>{' '}
+          {f.where ? <span className="text-ink-subtle">{f.where}: </span> : null}
           {f.message}
         </p>
       ))}
@@ -1051,13 +1114,13 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
 const ProposalRefusal: React.FC<{ message: string | null }> = ({ message }) => {
   if (!message) return null;
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 space-y-1">
-      <div className="flex items-start gap-1.5 text-xs font-semibold text-amber-900">
-        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />
+    <div className={cn(NOTE, NOTE_TONE.attention, 'mb-5')}>
+      <h3 className="flex items-start gap-2 text-label text-attention-text">
+        <AlertTriangle className="w-4 h-4 mt-px shrink-0" strokeWidth={1.5} />
         Kein Buchungsvorschlag aus dem Rechnungsdatensatz
-      </div>
-      <p className="text-[11px] text-stone-700 leading-relaxed">{message}</p>
-      <p className="text-[11px] text-stone-500 leading-relaxed">
+      </h3>
+      <p className="text-body text-ink-muted mt-1.5">{message}</p>
+      <p className="text-caption text-ink-subtle mt-1">
         Der Beleg lässt sich weiterhin von Hand kontieren.
       </p>
     </div>
@@ -1066,25 +1129,25 @@ const ProposalRefusal: React.FC<{ message: string | null }> = ({ message }) => {
 
 /** Was aus dem strukturierten Teil kam und was offen blieb. */
 const ProposalNotes: React.FC<{ proposal: EInvoiceProposal }> = ({ proposal }) => (
-  <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 space-y-1">
-    <div className="flex items-start gap-1.5 text-xs font-semibold text-emerald-900">
-      <FileCode className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />
+  <div className={cn(NOTE, NOTE_TONE.neutral)}>
+    <h3 className="flex items-start gap-2 text-label text-ink">
+      <FileCode className="w-4 h-4 mt-px shrink-0 text-ink-subtle" strokeWidth={1.5} />
       Aus der E-Rechnung übernommen
-    </div>
-    <p className="text-[11px] text-stone-600">
+    </h3>
+    <p className="text-caption text-ink-muted mt-1.5">
       {proposal.supplierName}
       {proposal.invoiceNumber && ` · Rechnung ${proposal.invoiceNumber}`}
       {proposal.kindLabel && ` · ${proposal.kindLabel}`}
       {proposal.profile && ` · Profil ${proposal.profile}`}
     </p>
     {proposal.precedingInvoices && proposal.precedingInvoices.length > 0 && (
-      <p className="text-[11px] text-stone-600">
+      <p className="text-caption text-ink-muted mt-1">
         Bezug auf {proposal.precedingInvoices.join(', ')} — die Verrechnung mit der genannten
         Rechnung führt Buchfink noch nicht; sie ist von Hand zu prüfen.
       </p>
     )}
     {proposal.notes && proposal.notes.length > 0 && (
-      <ul className="text-[11px] text-stone-600 list-disc pl-4 space-y-0.5">
+      <ul className="text-caption text-ink-muted list-disc pl-4 mt-1 space-y-0.5">
         {proposal.notes.map((note, i) => (
           <li key={i}>{note}</li>
         ))}
@@ -1104,40 +1167,41 @@ const PostingWarnings: React.FC<{ warnings?: PostingWarning[] }> = ({ warnings }
   if (!warnings || warnings.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      {warnings.map((warning) => (
-        <div
-          key={warning.code}
-          className={`rounded-lg border px-3 py-2 space-y-1.5 ${
-            warning.severity === 'warning'
-              ? 'border-amber-300 bg-amber-50'
-              : 'border-sky-200 bg-sky-50'
-          }`}
-        >
-          <div className="flex items-start gap-1.5 text-xs font-semibold text-stone-800">
-            <AlertTriangle
-              className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                warning.severity === 'warning' ? 'text-amber-600' : 'text-sky-600'
-              }`}
-            />
-            {warning.title}
-          </div>
-          <p className="text-[11px] text-stone-600 leading-relaxed">{warning.detail}</p>
-          {warning.supplierNote && (
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard?.writeText(warning.supplierNote ?? '');
-                setCopied(warning.code);
-                window.setTimeout(() => setCopied(null), 2000);
-              }}
-              className="text-[11px] font-semibold text-stone-500 hover:text-stone-800 underline underline-offset-2"
+    <div className="flex flex-col gap-3">
+      {warnings.map((warning) => {
+        const loud = warning.severity === 'warning';
+        return (
+          <div key={warning.code} className={cn(NOTE, loud ? NOTE_TONE.attention : NOTE_TONE.neutral)}>
+            <h3
+              className={cn(
+                'flex items-start gap-2 text-label',
+                loud ? 'text-attention-text' : 'text-ink',
+              )}
             >
-              {copied === warning.code ? 'Kopiert' : 'Hinweistext für den Lieferanten kopieren'}
-            </button>
-          )}
-        </div>
-      ))}
+              <AlertTriangle
+                className={cn('w-4 h-4 mt-px shrink-0', !loud && 'text-ink-subtle')}
+                strokeWidth={1.5}
+              />
+              {warning.title}
+            </h3>
+            <p className="text-body text-ink-muted mt-1.5">{warning.detail}</p>
+            {warning.supplierNote && (
+              <Button
+                variant="quiet"
+                size="sm"
+                className="mt-2 -ml-2.5"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(warning.supplierNote ?? '');
+                  setCopied(warning.code);
+                  window.setTimeout(() => setCopied(null), 2000);
+                }}
+              >
+                {copied === warning.code ? 'Kopiert' : 'Hinweistext für den Lieferanten kopieren'}
+              </Button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -1147,53 +1211,53 @@ const PostingPreviewPanel: React.FC<{ preview: PostingPreview | null; error: str
   preview,
   error,
 }) => {
-  if (error) return <ErrorBox message={error} />;
+  if (error) {
+    return <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>{error}</p>;
+  }
   if (!preview) {
     return (
-      <div className="rounded-lg border border-dashed border-stone-200 px-3 py-4 text-center text-[11px] text-stone-400">
+      <p className="text-caption text-ink-subtle">
         Der Buchungssatz erscheint, sobald Lieferant und Positionen vollständig sind.
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="rounded-lg border border-stone-200 overflow-hidden">
-      <table className="w-full text-xs">
-        <tbody className="divide-y divide-stone-100">
+    <Section title="Buchungssatz" divider={false} className="mt-2">
+      <Table density="kompakt">
+        <Tbody>
           {preview.lines.map((line, index) => (
-            <tr key={index}>
-              <td className="px-2.5 py-1.5 w-12 text-stone-500">
-                {line.side === 'S' ? 'Soll' : 'Haben'}
-              </td>
-              <td className="px-2.5 py-1.5 font-mono text-stone-700">{line.account}</td>
-              <td className="px-2.5 py-1.5 text-stone-500 truncate">{line.accountName}</td>
-              <td className="px-2.5 py-1.5 text-right font-mono text-stone-800">
-                {formatCents(line.amount)}
-              </td>
-            </tr>
+            <Tr key={index}>
+              <Td className="w-14 text-ink-subtle">{line.side === 'S' ? 'Soll' : 'Haben'}</Td>
+              <Td code className="w-20">
+                {line.account}
+              </Td>
+              <Td className="max-w-[16rem] truncate text-ink-muted">{line.accountName}</Td>
+              <Td numeric>{formatCents(line.amount)}</Td>
+            </Tr>
           ))}
-        </tbody>
-        <tfoot className="bg-stone-50 text-[11px]">
-          <tr>
-            <td colSpan={3} className="px-2.5 py-1 text-stone-500">
+          <Tr>
+            <Td colSpan={3} className="text-ink-subtle">
               Netto
-            </td>
-            <td className="px-2.5 py-1 text-right font-mono">{formatCents(preview.net)}</td>
-          </tr>
-          <tr>
-            <td colSpan={3} className="px-2.5 py-1 text-stone-500">
+            </Td>
+            <Td numeric className="text-ink-muted">
+              {formatCents(preview.net)}
+            </Td>
+          </Tr>
+          <Tr>
+            <Td colSpan={3} className="text-ink-subtle">
               Steuer
-            </td>
-            <td className="px-2.5 py-1 text-right font-mono">{formatCents(preview.tax)}</td>
-          </tr>
-          <tr className="font-semibold text-stone-800">
-            <td colSpan={3} className="px-2.5 py-1">
-              Zahlbetrag
-            </td>
-            <td className="px-2.5 py-1 text-right font-mono">{formatCents(preview.gross)}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+            </Td>
+            <Td numeric className="text-ink-muted">
+              {formatCents(preview.tax)}
+            </Td>
+          </Tr>
+          <Tr variant="sum">
+            <Td colSpan={3}>Zahlbetrag</Td>
+            <Td numeric>{formatCents(preview.gross)}</Td>
+          </Tr>
+        </Tbody>
+      </Table>
+    </Section>
   );
 };
