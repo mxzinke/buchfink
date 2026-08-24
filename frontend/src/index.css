@@ -100,6 +100,11 @@
   --color-shell-line: #37322D;
   --color-shell-text: #D8D2CA;
   --color-shell-text-muted: #968E84;
+  /* Die Signalfarben aus §3.3 sind für helles Papier gerechnet und verlieren
+     auf der dunklen Fläche den Kontrast. Für die Statuszeile im Fuß der
+     Navigation gelten deshalb die aufgehellten Werte aus §16. */
+  --color-shell-positive: #9BCFA6; /* 9,9:1 auf shell */
+  --color-shell-negative: #E8A79C; /* 8,7:1 auf shell */
 
   /* ---------------------------------------------------------------------
      Vier Farbfamilien, vier Rollen — siehe §3.2 des Konzepts.

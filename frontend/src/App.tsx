@@ -138,8 +138,8 @@ export function App() {
   // Loading Screen while reading initial config
   if (loadingConfig) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#24211E] text-stone-300 text-xs font-sans">
-        Buchfink wird gestartet...
+      <div className="h-screen flex items-center justify-center bg-shell text-shell-text-muted text-body">
+        Buchfink wird gestartet …
       </div>
     );
   }
@@ -214,13 +214,13 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#FAF8F5] text-stone-800 overflow-hidden font-sans">
+    <div className="flex h-screen bg-paper text-ink overflow-hidden">
       <Toaster
         position="bottom-right"
         richColors
         closeButton
         toastOptions={{
-          className: 'font-sans text-xs',
+          className: 'font-sans text-body',
         }}
       />
       {/* Grouped Sidebar Navigation */}
@@ -253,7 +253,11 @@ export function App() {
           />
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentTab === 'welcome' ? 'bg-stone-900' : 'bg-[#FAF8F5]'}`}>
+        <main
+          className={`flex-1 overflow-y-auto ${
+            currentTab === 'welcome' ? 'bg-shell-deep' : 'bg-paper'
+          }`}
+        >
           {renderContent()}
         </main>
       </div>

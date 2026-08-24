@@ -101,6 +101,11 @@ Die dunkle Navigationsspalte hat eine eigene Skala, damit sie als eigener Raum
 lesbar bleibt: `shell` `#24211E`, `shell-raised` `#2E2A26`, `shell-line`
 `#37322D`, `shell-text` `#D8D2CA`, `shell-text-muted` `#968E84`.
 
+Für die Statuszeile im Fuß der Navigation kommen zwei aufgehellte Signalfarben
+dazu, weil die Werte aus §3.3 für helles Papier gerechnet sind und auf der
+dunklen Fläche den Kontrast verlieren: `shell-positive` `#9BCFA6` (9,9:1) und
+`shell-negative` `#E8A79C` (8,7:1).
+
 ### 3.2 Vier Familien, vier Rollen
 
 Jede Farbfamilie hat vier Tokens mit fester Aufgabe. Das ist der Preis für
@@ -852,8 +857,17 @@ Solange keine Seite die Bausteine importiert, kostet Base UI nichts: Das
 JS-Bundle bleibt bei 2.173 kB, die Bibliothek wird vollständig wegoptimiert. Das
 CSS wächst um 12,7 kB, weil Tailwind die Klassen der Bausteine bereits erzeugt.
 
-**Schritt 2, Rahmen.** Sidebar, Header und App auf Tokens umstellen. Danach
-stimmt der erste Eindruck, auch wenn die Seiten noch alt aussehen.
+**Schritt 2, Rahmen. Erledigt.** Sidebar, Header und App laufen auf Tokens. Der
+Mandantenwechsel benutzt jetzt `Menu`, damit ist Base UI erstmals im Bundle: Das
+JS wächst von 2.173 auf 2.329 kB (gzip 210 auf 262 kB). Die Popup-Maschinerie
+zahlt man einmal, jede weitere Komponente daraus kostet wenig. Das CSS schrumpft
+von 76,5 auf 74,4 kB, weil die alten Paletten aus der Shell verschwunden sind.
+
+Zwei Dinge sind dabei über reines Umfärben hinausgegangen, beide aus dem
+Konzept: Der aktive Navigationseintrag trägt statt der bernsteinfarbenen Fläche
+eine 2 px schmale Leiste in `accent-light` auf `shell-raised` (§12), und die
+Integritätszeile im Fuß zeigt die drei Zustände aus §11.4 samt Prüfzeitpunkt,
+mit der Raute als Marker.
 
 **Schritt 3, Seiten.** Nach verbrachter Arbeitszeit sortiert: Journal, Bank,
 Belege, Rechnungen, Auswertungen, Rest. Dabei fallen die 58 Karten.
