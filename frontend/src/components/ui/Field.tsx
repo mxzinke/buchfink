@@ -52,7 +52,12 @@ export const Field: React.FC<FieldProps> = ({
     {children}
 
     {error ? (
-      <Base.Error className="text-caption text-negative-text">{error}</Base.Error>
+      // `match` erzwingt die Anzeige. Ohne das Prop richtet sich Base UI nach
+      // dem Validity-State des Controls, und ein fachlicher Fehler aus dem
+      // Backend taucht dort nie auf.
+      <Base.Error match className="text-caption text-negative-text">
+        {error}
+      </Base.Error>
     ) : hint ? (
       <Base.Description className="text-caption text-ink-subtle">{hint}</Base.Description>
     ) : null}

@@ -92,7 +92,7 @@ const GROUPS: NavGroup[] = [
 ];
 
 const NAV_ITEM =
-  'w-full flex items-center gap-2.5 h-8 pl-2.5 pr-2 rounded-control border-l-2 ' +
+  'w-full flex items-center gap-2 h-8 pl-1.5 pr-2 rounded-control ' +
   'text-body text-left transition-colors duration-120 ease-quiet';
 
 const NavItem: React.FC<{
@@ -107,11 +107,19 @@ const NavItem: React.FC<{
     className={cn(
       NAV_ITEM,
       isActive
-        ? 'border-accent-light bg-shell-raised text-white font-medium'
-        : 'border-transparent text-shell-text-muted hover:bg-shell-raised hover:text-shell-text',
+        ? 'bg-shell-raised text-white font-medium'
+        : 'text-shell-text-muted hover:bg-shell-raised hover:text-shell-text',
     )}
   >
-    <span className="shrink-0">{item.icon}</span>
+    {/* Die Markierung ist eine eigene Pille, keine einseitige Border: Eine
+        Border folgt dem Eckenradius und wird an den Enden krumm. */}
+    <span
+      className={cn(
+        'w-0.5 h-4 shrink-0 rounded-full',
+        isActive ? 'bg-accent-light' : 'bg-transparent',
+      )}
+    />
+    <span className="shrink-0 ml-0.5">{item.icon}</span>
     <span className="truncate">{item.label}</span>
   </button>
 );

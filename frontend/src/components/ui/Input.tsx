@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input as Base } from '@base-ui/react/input';
 import { NumberField } from '@base-ui/react/number-field';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, Search } from 'lucide-react';
 import { cn } from './cn';
 
 /**
@@ -78,4 +78,17 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 
 export const Textarea: React.FC<TextareaProps> = ({ className, ...props }) => (
   <textarea className={cn(CONTROL, 'h-auto min-h-20 py-2 leading-5', className)} {...props} />
+);
+
+export interface SearchInputProps extends Omit<InputProps, 'type'> {}
+
+/** Suchfeld mit Lupe. Der Platzhalter sagt, wonach gesucht wird. */
+export const SearchInput: React.FC<SearchInputProps> = ({ className, ...props }) => (
+  <div className="relative min-w-0 flex-1">
+    <Search
+      className="pointer-events-none absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-ink-faint"
+      strokeWidth={1.5}
+    />
+    <Input type="search" className={cn('pl-9', className)} {...props} />
+  </div>
 );

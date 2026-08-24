@@ -23,6 +23,8 @@ export interface ComboboxProps<T> {
   emptyText?: string;
   disabled?: boolean;
   name?: string;
+  /** Obergrenze der angezeigten Treffer. SKR04 hat rund 1500 Konten. */
+  limit?: number;
   className?: string;
 }
 
@@ -42,15 +44,19 @@ export function Combobox<T extends string | number>({
   emptyText = 'Kein Treffer.',
   disabled,
   name,
+  limit = 100,
   className,
 }: ComboboxProps<T>) {
   const [query, setQuery] = useState('');
 
-  const filtered = useMemo(() => {
+  const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter((item) => item.label.toLowerCase().includes(q));
   }, [items, query]);
+
+  const filtered = matches.slice(0, limit);
+  const truncated = matches.length - filtered.length;
 
   // Zuordnung Wert → Beschriftung, sonst steht der rohe Wert im Feld.
   const labels = useMemo(
@@ -97,6 +103,11 @@ export function Combobox<T extends string | number>({
                 </Base.Item>
               ))}
             </Base.List>
+            {truncated > 0 && (
+              <span className="block px-3 py-2 text-caption text-ink-subtle border-t border-line">
+                {truncated} weitere Treffer. Suche verfeinern.
+              </span>
+            )}
           </Base.Popup>
         </Base.Positioner>
       </Base.Portal>

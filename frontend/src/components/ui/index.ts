@@ -42,9 +42,11 @@ export {
   AmountInput,
   CONTROL,
   Input,
+  SearchInput,
   Textarea,
   type AmountInputProps,
   type InputProps,
+  type SearchInputProps,
   type TextareaProps,
 } from './Input';
 export {

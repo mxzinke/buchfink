@@ -81,9 +81,16 @@ export interface TrProps extends React.HTMLAttributes<HTMLTableRowElement> {
 const ROW: Record<RowVariant, string> = {
   default: '',
   selected: '[&>td]:bg-accent-soft',
-  // Kante, Tönung und Badge. Nie durchgestrichen, der Betrag bleibt lesbar (§11.2).
+  // Tönung, Markierung und Badge. Nie durchgestrichen, der Betrag bleibt
+  // lesbar (§11.2). Die Markierung ist eine Pille im Pseudo-Element, keine
+  // einseitige Border: Die wuerde am Eckenradius der Flaeche krumm laufen.
   storno:
-    '[&>td]:bg-negative-soft/60 [&>td:first-child]:shadow-[inset_2px_0_0_var(--color-negative)]',
+    '[&>td]:bg-negative-soft/60 [&>td:first-child]:relative ' +
+    "[&>td:first-child]:before:content-[''] [&>td:first-child]:before:absolute " +
+    '[&>td:first-child]:before:left-1.5 [&>td:first-child]:before:top-1/2 ' +
+    '[&>td:first-child]:before:h-4 [&>td:first-child]:before:w-0.5 ' +
+    '[&>td:first-child]:before:-translate-y-1/2 [&>td:first-child]:before:rounded-full ' +
+    '[&>td:first-child]:before:bg-negative',
   // Buchhalterische Doppellinie. Sie trägt allein, ohne Füllung.
   sum: '[&>td]:rule-total [&>td]:font-semibold [&>td]:border-b-0',
 };

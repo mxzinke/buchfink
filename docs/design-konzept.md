@@ -330,6 +330,13 @@ ist das leiseste Trennmittel und deshalb das erste.
 
 Statusmarker sind davon ausgenommen. Sie sind Rauten, siehe §10.
 
+**Eine einseitige Markierung ist keine Border.** Eine Border folgt dem
+Eckenradius und läuft an den Enden krumm. Wo etwas an einer Kante markiert wird,
+etwa der aktive Navigationseintrag oder eine Stornozeile, bleibt die Fläche
+abgerundet und die Markierung ist eine eigene Pille: 2 px breit, 16 px hoch,
+`rounded-full`, senkrecht zentriert. Im Fluss als Element, in Tabellenzellen als
+Pseudo-Element.
+
 ### 6.6 Höhe
 
 | Token | Einsatz |
@@ -724,9 +731,11 @@ sichtbarer Zustand darf nicht laut sein.
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
 über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf.
 
-**Mobil.** Unter 768 px wird die Navigation zur Schublade. Tabellen mit mehr als
-vier Spalten werden zu Listenzeilen statt horizontal zu scrollen. Bei Beträgen
-ist seitliches Scrollen unbrauchbar.
+**Schmale Fenster.** Buchfink ist eine Desktop-Anwendung. Telefone sind kein
+Ziel, und es wird nichts dafür gebaut. Die Oberfläche muss lediglich ein kleines
+Fenster überstehen: Unter 768 px wird die Navigation zur Schublade, Tabellen
+scrollen seitlich in ihrer eigenen Fläche. Eigene Listenlayouts für kleine
+Breiten gibt es nicht.
 
 ---
 
@@ -871,6 +880,15 @@ mit der Raute als Marker.
 
 **Schritt 3, Seiten.** Nach verbrachter Arbeitszeit sortiert: Journal, Bank,
 Belege, Rechnungen, Auswertungen, Rest. Dabei fallen die 58 Karten.
+
+Das Journal ist umgestellt. Aus der Klappliste wurde die Tabelle aus §10, das
+Aufklappen zeigt den Buchungssatz aus §11.1 mit Soll und Haben in zwei Spalten
+und der Doppellinie über der Summe. Die Kontoauswahl im Erfassungsdialog ist
+jetzt die Kontosuche (§8.6) statt einer `datalist`, und der Buchen-Knopf bleibt
+bei unausgeglichener Buchung aktiv und nennt beim Klick den Grund (§8.3). Die
+lange Erklärung zur Generalumkehr steht hinter dem Erklärzeichen statt im
+Fließtext (§15). `Form.tsx` und `HelpTooltip.tsx` sind hier abgelöst, elf Seiten
+benutzen sie noch.
 
 **Schritt 4, Aufräumen.** `stone-*`, `amber-*`, `rose-*`, `emerald-*` und alle
 Hex-Literale aus `src/` entfernen, danach als Grep-Prüfung in CI.
