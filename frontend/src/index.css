@@ -217,12 +217,14 @@
     border-radius: var(--radius-control);
   }
 
-  /* Universal WebKit & Cross-Browser Select Styling */
+  /* Native Auswahlfelder stehen nur noch auf der Schale (§16); im
+     Arbeitsbereich übernimmt der Baustein `Select`. Der Pfeil kommt als
+     Hintergrundbild, weil `appearance: none` den eigenen entfernt. */
   select {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%237C756C' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23756E65' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;
     background-repeat: no-repeat;
     background-size: 1.15rem 1.15rem;
@@ -236,20 +238,19 @@
   }
 
   select option {
-    background-color: #FAF8F5;
-    color: #1c1917;
+    background-color: var(--color-surface);
+    color: var(--color-ink);
     padding: 4px 8px;
   }
 
-  /* Dark themed selects */
-  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, .text-shell-text, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"], [class*="bg-shell"]) {
+  select:is([class*="bg-shell"]) {
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23968E84' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     color-scheme: dark;
   }
 
-  select:is(.text-stone-100, .text-stone-200, .text-stone-300, .text-white, .text-shell-text, [class*="bg-[#1D1B19]"], [class*="bg-stone-800"], [class*="bg-stone-900"], [class*="bg-shell"]) option {
-    background-color: #24211E;
-    color: #f5f5f4;
+  select:is([class*="bg-shell"]) option {
+    background-color: var(--color-shell);
+    color: var(--color-shell-text);
   }
 
   @media (prefers-reduced-motion: reduce) {

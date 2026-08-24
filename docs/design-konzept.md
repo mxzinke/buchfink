@@ -546,6 +546,7 @@ machen gibt.
 | `StatusBadge` | `StatusBadge.tsx` | eigen |
 | `EmptyState` | `EmptyState.tsx` | eigen |
 | `cn` | `cn.ts` | Klassen zusammenführen, letzte Angabe gewinnt |
+| `SHELL_PANEL`, `SHELL_BUTTON`, `SHELL_CONTROL` | `shell.ts` | Klassenbündel für die Vollbild-Schirme (§12) |
 
 Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist (§6.2), steht sie an genau
 dieser Stelle im Code und nicht als Baustein, der sich unbemerkt vermehrt.
@@ -731,6 +732,15 @@ sichtbarer Zustand darf nicht laut sein.
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
 über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf.
 
+**Vollbild-Schirme.** Start, Einrichtung und Wiederherstellung stehen vor dem
+Arbeitsbereich und laufen ganz auf der dunklen Schale, mit denselben
+`shell`-Tokens wie die Navigation. Dort gibt es kein Papier, also drehen sich
+die Rollen um: Die Primäraktion trägt die hellste Fläche (`bg-paper
+text-shell-deep`), nicht die dunkelste. Die Klassenbündel dafür stehen in
+`components/ui/shell.ts` — `SHELL_PANEL`, `SHELL_BUTTON`, `SHELL_CONTROL`.
+Eigene Bausteine bekommen diese Schirme nicht: Auf jedem stehen ein bis zwei
+Bedienelemente, ein zweiter Bausteinsatz würde mehr kosten, als er trägt.
+
 **Schmale Fenster.** Buchfink ist eine Desktop-Anwendung. Telefone sind kein
 Ziel, und es wird nichts dafür gebaut. Die Oberfläche muss lediglich ein kleines
 Fenster überstehen: Unter 768 px wird die Navigation zur Schublade, Tabellen
@@ -854,17 +864,18 @@ Bedingung für den Start: kein Hex-Literal mehr im Komponentencode.
 
 ## 17. Umsetzung
 
-Die Tokens stehen in `frontend/src/index.css`. Alle bisherigen Tailwind-Klassen
-funktionieren weiter, die Migration läuft schrittweise.
+Die Tokens stehen in `frontend/src/index.css`, die Bausteine in
+`frontend/src/components/ui/`. Die Umstellung ist abgeschlossen; was hier steht,
+ist die Chronik dazu und der Maßstab für alles Weitere.
 
 **Schritt 1, Bausteine. Erledigt.** `components/ui/` steht, siehe §10, mit
-Base UI als Verhaltensebene. Noch nicht erledigt ist die Ablösung:
-`components/Form.tsx` und `components/HelpTooltip.tsx` bleiben in Betrieb, bis
-die Seiten umgestellt sind, und verschwinden dann.
+Base UI als Verhaltensebene. `components/Form.tsx` und
+`components/HelpTooltip.tsx` blieben zunächst in Betrieb, bis die Seiten
+umgestellt waren.
 
-Solange keine Seite die Bausteine importiert, kostet Base UI nichts: Das
-JS-Bundle bleibt bei 2.173 kB, die Bibliothek wird vollständig wegoptimiert. Das
-CSS wächst um 12,7 kB, weil Tailwind die Klassen der Bausteine bereits erzeugt.
+Solange keine Seite die Bausteine importierte, kostete Base UI nichts: Das
+JS-Bundle blieb bei 2.173 kB, die Bibliothek wurde vollständig wegoptimiert. Das
+CSS wuchs um 12,7 kB, weil Tailwind die Klassen der Bausteine bereits erzeugte.
 
 **Schritt 2, Rahmen. Erledigt.** Sidebar, Header und App laufen auf Tokens. Der
 Mandantenwechsel benutzt jetzt `Menu`, damit ist Base UI erstmals im Bundle: Das
@@ -878,20 +889,40 @@ eine 2 px schmale Leiste in `accent-light` auf `shell-raised` (§12), und die
 Integritätszeile im Fuß zeigt die drei Zustände aus §11.4 samt Prüfzeitpunkt,
 mit der Raute als Marker.
 
-**Schritt 3, Seiten.** Nach verbrachter Arbeitszeit sortiert: Journal, Bank,
-Belege, Rechnungen, Auswertungen, Rest. Dabei fallen die 58 Karten.
+**Schritt 3, Seiten. Erledigt.** Alle zwölf Ansichten und die drei
+Vollbild-Schirme laufen auf Tokens. Die 58 Karten sind weg; geblieben sind die
+Flächen aus §6.2 — Datentabelle, Belegvorschau, Overlay, Hinweis, Leerzustand.
 
-Das Journal ist umgestellt. Aus der Klappliste wurde die Tabelle aus §10, das
-Aufklappen zeigt den Buchungssatz aus §11.1 mit Soll und Haben in zwei Spalten
-und der Doppellinie über der Summe. Die Kontoauswahl im Erfassungsdialog ist
-jetzt die Kontosuche (§8.6) statt einer `datalist`, und der Buchen-Knopf bleibt
-bei unausgeglichener Buchung aktiv und nennt beim Klick den Grund (§8.3). Die
-lange Erklärung zur Generalumkehr steht hinter dem Erklärzeichen statt im
-Fließtext (§15). `Form.tsx` und `HelpTooltip.tsx` sind hier abgelöst, elf Seiten
-benutzen sie noch.
+Was dabei über reines Umfärben hinausging, kam jeweils aus dem Konzept:
 
-**Schritt 4, Aufräumen.** `stone-*`, `amber-*`, `rose-*`, `emerald-*` und alle
-Hex-Literale aus `src/` entfernen, danach als Grep-Prüfung in CI.
+- **Journal.** Die Klappliste wurde die Tabelle aus §10, das Aufklappen zeigt
+  den Buchungssatz aus §11.1. Die Kontoauswahl ist die Kontosuche (§8.6) statt
+  einer `datalist`, der Buchen-Knopf bleibt bei unausgeglichener Buchung aktiv
+  und nennt beim Klick den Grund (§8.3).
+- **Konten.** Die Kontoart war eine von sechs Farben und ist jetzt ein Wort
+  (§3.4). Summen & Salden zeigt die Ausgeglichenheit als Kennzahl statt als
+  farbigen Kasten.
+- **Auswertungen.** Die GuV steht als eine durchgehende Aufstellung mit
+  Doppellinie unter den Summen, nicht mehr als zwei Karten nebeneinander.
+- **Belege und Rechnungen.** Der Buchungssatz und die Kennziffern der
+  Voranmeldung liegen in Tabellen mit Doppellinie unter dem Ergebnis.
+- **Unumkehrbares fragt nach.** Festschreiben, Beleg verwerfen und Mandant
+  entfernen laufen über `ConfirmDialog` statt über `window.confirm` oder
+  `window.prompt` (§8.2).
+- **Text.** Die Absätze zu Generalumkehr, Anwendungsbereich, Istversteuerung,
+  Recovery-Schlüssel, Bewirtungsaufzeichnung und Kontierung stehen hinter dem
+  Erklärzeichen (§15.2).
+
+`Form.tsx` und `HelpTooltip.tsx` sind abgelöst und gelöscht. Das JS-Bundle liegt
+bei 2.400 kB (gzip 297 kB), das CSS ist von 76,5 auf 50,4 kB gefallen: Die alten
+Paletten erzeugten mehr Klassen als das Tokenset.
+
+**Schritt 4, Aufräumen. Erledigt.** In `frontend/src/` steht keine Klasse einer
+Tailwind-Standardpalette und kein Hex-Literal mehr. Einzige Ausnahme ist die
+Bundesflagge, deren Farben vorgeschrieben sind. Geprüft wird das von
+`scripts/check_design_tokens.py`, eingehängt in `task check`.
+
+Offen bleibt der Dunkelmodus (§16). Seine Bedingung ist damit erfüllt.
 
 ### Prüfliste für jeden Pull Request
 
@@ -911,3 +942,4 @@ Hex-Literale aus `src/` entfernen, danach als Grep-Prüfung in CI.
 - [ ] Leer-, Lade- und Fehlerzustand vorhanden
 - [ ] Mit der Tastatur bedienbar, Fokus sichtbar, Fokusrückgabe geregelt
 - [ ] Beträge und Daten über `utils/formatters.ts`
+- [ ] `task check:design` läuft durch

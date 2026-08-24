@@ -37,12 +37,18 @@ tasks:
         ./internal/repository/... ./internal/security/... ./internal/service/...
         ./internal/timestamp/...
 
+  check:design:
+    summary: Checks the frontend against the token layer of docs/design-konzept.md
+    cmds:
+      - python3 scripts/check_design_tokens.py
+
   check:
     summary: Formatting, vet and tests — what to run before committing
     cmds:
       - gofmt -l internal main.go
       - task: vet
       - task: test
+      - task: check:design
 
   build:
     summary: Builds the application
