@@ -206,7 +206,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setSetupChoice('new')}
-                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet"
+                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
                 >
                   <PlusCircle className="w-5 h-5 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
                   <span className="min-w-0 flex-1">
@@ -216,7 +216,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     </span>
                   </span>
                   <ArrowRight
-                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted transition-transform
+                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
                                duration-120 ease-quiet group-hover:translate-x-0.5"
                     strokeWidth={1.5}
                   />
@@ -225,7 +225,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setSetupChoice('existing')}
-                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet"
+                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
                 >
                   <Database className="w-5 h-5 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
                   <span className="min-w-0 flex-1">
@@ -235,7 +235,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     </span>
                   </span>
                   <ArrowRight
-                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted transition-transform
+                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
                                duration-120 ease-quiet group-hover:translate-x-0.5"
                     strokeWidth={1.5}
                   />
