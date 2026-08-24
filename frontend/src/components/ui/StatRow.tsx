@@ -23,7 +23,7 @@ export const StatRow: React.FC<{ className?: string; children: React.ReactNode }
 };
 
 export interface StatProps {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   /** Eine Zeile Herkunft, etwa "Geschäftskonto 1800". */
   context?: string;
@@ -39,7 +39,7 @@ const TONE = {
 
 export const Stat: React.FC<StatProps> = ({ label, value, context, tone = 'neutral' }) => (
   <div className="min-w-0">
-    <div className="text-caption text-ink-subtle">{label}</div>
+    <div className="flex items-center text-caption text-ink-subtle">{label}</div>
     <div className={cn('text-display num mt-1 truncate', TONE[tone])}>{value}</div>
     {context && <div className="text-caption text-ink-subtle mt-0.5 truncate">{context}</div>}
   </div>
