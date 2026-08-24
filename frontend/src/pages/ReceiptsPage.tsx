@@ -363,7 +363,7 @@ const ReceiptDetail: React.FC<{
   onChanged,
   onBooked,
 }) => (
-  <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8 items-start">
+  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} />
 
     {receipt.status === 'filed' ? (

@@ -66,7 +66,8 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
         style={{ backgroundImage: "url('/bg-startupscreen_unsplash-steven-kamenar.jpg')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-shell-deep via-shell-deep/85 to-shell-deep/60 pointer-events-none" />
+      <div className="absolute inset-0 bg-shell-deep/85 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-shell-deep to-transparent pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-3xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center gap-6">
         <header className="flex items-center justify-between gap-4">
@@ -77,7 +78,9 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
                 alt=""
                 className="w-11 h-11 rounded-control border border-shell-line bg-shell-raised p-1.5"
               />
-              <GermanFlag className="absolute -bottom-1 -right-1 w-4 h-3 rounded-[2px] border border-shell-deep" />
+              <span className="absolute -bottom-1 -right-1">
+                <GermanFlag className="w-4 h-3 rounded-[2px] border border-shell-deep" />
+              </span>
             </span>
             <span>
               <h1 className="text-heading text-white">Buchfink</h1>

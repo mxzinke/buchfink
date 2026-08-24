@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, Clock, Lock, ShieldCheck } from 'lucide-react';
 import { AuditLogEntry, Festschreibung, IntegrityCheckResult } from '../types';
 import { Api } from '../services/api';
+import { formatDate } from '../utils/formatters';
 import {
   Button,
   EmptyState,
@@ -179,7 +180,7 @@ export const AuditPage: React.FC = () => {
                             {fs.periodLabel}
                           </span>
                         </Td>
-                        <Td className="text-ink-subtle num">{fs.cutoffDate}</Td>
+                        <Td className="text-ink-subtle num">{formatDate(fs.cutoffDate)}</Td>
                         <Td numeric>{fs.entryCount}</Td>
                         <Td className={cn('text-caption', confirmed ? 'text-ink-muted' : 'text-attention-text')}>
                           <span className="flex items-center gap-1.5">
