@@ -1,556 +1,324 @@
 import React, { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { Save, CheckCircle2, Building, DollarSign, FolderOpen, Shield, ReceiptText, Loader2, Check, AlertCircle, Calendar, Info } from 'lucide-react';
+import { Save, Shield } from 'lucide-react';
 import { CompanySettings, AppConfig } from '../types';
 import { Api } from '../services/api';
-import { HelpTooltip } from '../components/HelpTooltip';
+import {
+  Button,
+  Field,
+  HelpPopover,
+  Input,
+  PageHeader,
+  RadioGroup,
+  Section,
+  Select,
+  SkeletonRows,
+  toast,
+} from '../components/ui';
+
+/**
+ * Einstellungen.
+ *
+ * Stammdaten des Mandanten: Sie gelten über alle Geschäftsjahre hinweg. Was
+ * Buchfink bewusst nicht kann — Istversteuerung, Kleinunternehmerregelung —
+ * steht hier als Erklärung am jeweiligen Feld, nicht als Absatz auf der Seite.
+ */
+
+const MONTHS = [
+  { value: 1, label: 'Januar · Kalenderjahr' },
+  { value: 2, label: 'Februar · 1. Feb bis 31. Jan' },
+  { value: 3, label: 'März · 1. Mär bis 28./29. Feb' },
+  { value: 4, label: 'April · 1. Apr bis 31. Mär' },
+  { value: 5, label: 'Mai · 1. Mai bis 30. Apr' },
+  { value: 6, label: 'Juni · 1. Jun bis 31. Mai' },
+  { value: 7, label: 'Juli · 1. Jul bis 30. Jun' },
+  { value: 8, label: 'August · 1. Aug bis 31. Jul' },
+  { value: 9, label: 'September · 1. Sep bis 31. Aug' },
+  { value: 10, label: 'Oktober · 1. Okt bis 30. Sep' },
+  { value: 11, label: 'November · 1. Nov bis 31. Okt' },
+  { value: 12, label: 'Dezember · 1. Dez bis 30. Nov' },
+];
+
+const VAT_PERIODS = [
+  { value: 'quarter', label: 'Vierteljährlich' },
+  { value: 'month', label: 'Monatlich' },
+  { value: 'year', label: 'Jährlich, nur die Jahreserklärung' },
+];
+
+/** Wo der Schlüssel im jeweiligen Betriebssystem zu finden ist. */
+function keychainHint(): string {
+  if (navigator.platform.startsWith('Mac')) return 'In der Schlüsselbundverwaltung unter diesem Eintrag.';
+  if (navigator.platform.startsWith('Win'))
+    return 'In der Anmeldeinformationsverwaltung unter Windows-Anmeldeinformationen.';
+  return 'Im Secret Service, etwa dem GNOME-Schlüsselbund, unter diesem Dienst und Konto.';
+}
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedMessage, setSavedMessage] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const monthNames = [
-    { value: 1, label: 'Januar (Standard Kalenderjahr)' },
-    { value: 2, label: 'Februar (1. Feb – 31. Jan)' },
-    { value: 3, label: 'März (1. Mär – 28./29. Feb)' },
-    { value: 4, label: 'April (1. Apr – 31. Mär)' },
-    { value: 5, label: 'Mai (1. Mai – 30. Apr)' },
-    { value: 6, label: 'Juni (1. Jun – 31. Mai)' },
-    { value: 7, label: 'Juli (1. Jul – 30. Jun)' },
-    { value: 8, label: 'August (1. Aug – 31. Jul)' },
-    { value: 9, label: 'September (1. Sep – 31. Aug)' },
-    { value: 10, label: 'Oktober (1. Okt – 30. Sep)' },
-    { value: 11, label: 'November (1. Nov – 31. Okt)' },
-    { value: 12, label: 'Dezember (1. Dez – 30. Nov)' },
-  ];
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    loadSettings();
+    void loadSettings();
   }, []);
 
-  const loadSettings = async () => {
+  async function loadSettings() {
     setLoading(true);
     try {
-      const [s, cfg] = await Promise.all([
-        Api.getCompanySettings(),
-        Api.getAppConfig(),
-      ]);
+      const [s, cfg] = await Promise.all([Api.getCompanySettings(), Api.getAppConfig()]);
       setSettings(s);
       setAppConfig(cfg);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  };
-
-  const [isExportingRecovery, setIsExportingRecovery] = useState(false);
-
-  const handlePickDirectory = async () => {
-    try {
-      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner ändern');
-      if (selected && appConfig) {
-        setAppConfig({ ...appConfig, dataDir: selected });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleExportRecovery = async () => {
-    setIsExportingRecovery(true);
-    try {
-      const path = await Api.exportRecoveryKey();
-      if (path) {
-        toast.success('Recovery-Schlüssel gespeichert', {
-          description: `Bewahren Sie diese Datei sicher und getrennt von Ihrem Datenbackup auf:\n${path}`,
-        });
-      }
-    } catch (e: any) {
-      const msg = typeof e?.message === 'string' ? e.message : String(e);
-      if (!msg.includes('kein Zielordner')) {
-        toast.error('Export fehlgeschlagen', { description: msg });
-      }
-    } finally {
-      setIsExportingRecovery(false);
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!settings || isSaving) return;
-    setIsSaving(true);
-    setErrorMessage(null);
-    try {
-      await Api.updateCompanySettings(settings);
-      setSavedMessage(true);
-      toast.success('Einstellungen gespeichert', {
-        description: 'Ihre Unternehmensdaten wurden erfolgreich aktualisiert.',
-      });
-      setTimeout(() => setSavedMessage(false), 3500);
-    } catch (err: any) {
-      const msg = err?.message || 'Fehler beim Speichern der Einstellungen.';
-      setErrorMessage(msg);
-      toast.error('Fehler beim Speichern', {
-        description: msg,
-      });
-      setTimeout(() => setErrorMessage(null), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (loading || !settings) {
-    return <div className="p-8 text-center text-stone-500 text-xs">Einstellungen werden geladen...</div>;
   }
 
+  async function pickDirectory() {
+    try {
+      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner ändern');
+      if (selected && appConfig) setAppConfig({ ...appConfig, dataDir: selected });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function exportRecovery() {
+    setExporting(true);
+    try {
+      const path = await Api.exportRecoveryKey();
+      if (path) toast.success(`Recovery-Schlüssel gespeichert: ${path}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      // Der abgebrochene Ordnerdialog ist kein Fehler, den jemand lesen muss.
+      if (!message.includes('kein Zielordner')) toast.error(message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!settings || saving) return;
+    setSaving(true);
+    try {
+      await Api.updateCompanySettings(settings);
+      toast.success('Einstellungen gespeichert.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading || !settings) {
+    return (
+      <div className="max-w-[900px] mx-auto px-8 py-8">
+        <SkeletonRows rows={8} />
+      </div>
+    );
+  }
+
+  const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
   const startMonth = settings.fiscalYearStartMonth || 1;
-  const isDeviating = startMonth !== 1;
+  const deviating = startMonth !== 1;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center">
-            Einstellungen
-            <HelpTooltip
-              title="Einstellungen & Unternehmensdaten"
-              content="Diese Stammdaten gelten übergeordnet für das gesamte Unternehmen. Buchungen und Rechnungen werden automatisch dem passenden Geschäftsjahr zugeordnet."
+    <form onSubmit={save} className="max-w-[900px] mx-auto px-8 py-8">
+      <PageHeader
+        title="Einstellungen"
+        context="Stammdaten des Mandanten · gelten über alle Geschäftsjahre"
+        action={
+          <Button
+            type="submit"
+            variant="primary"
+            loading={saving}
+            icon={<Save className="w-4 h-4" strokeWidth={1.5} />}
+          >
+            Speichern
+          </Button>
+        }
+      />
+
+      <Section title="Unternehmen" divider={false} className="mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Firmen- oder Inhabername">
+            <Input value={settings.companyName} onChange={(e) => patch({ companyName: e.target.value })} />
+          </Field>
+          <Field label="Rechtsform">
+            <Input value={settings.legalForm} onChange={(e) => patch({ legalForm: e.target.value })} />
+          </Field>
+          <Field label="Steuernummer">
+            <Input
+              className="code-num"
+              value={settings.taxNumber}
+              onChange={(e) => patch({ taxNumber: e.target.value })}
             />
-          </h2>
-          <p className="text-xs text-stone-500 mt-1">
-            Übergeordnete Stammdaten &bull; Lokal &amp; privat auf Ihrem Rechner gespeichert
-          </p>
+          </Field>
+          <Field label="Umsatzsteuer-Identifikationsnummer">
+            <Input
+              className="code-num"
+              value={settings.vatId}
+              onChange={(e) => patch({ vatId: e.target.value })}
+            />
+          </Field>
+          <Field label="Zuständiges Finanzamt" className="md:col-span-2">
+            <Input value={settings.taxOffice} onChange={(e) => patch({ taxOffice: e.target.value })} />
+          </Field>
         </div>
+      </Section>
 
-        {savedMessage && (
-          <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-1.5 font-medium animate-in fade-in transition-all">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            Änderungen gespeichert
-          </div>
+      <Section title="Anschrift">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Straße und Hausnummer" className="md:col-span-2">
+            <Input value={settings.street} onChange={(e) => patch({ street: e.target.value })} />
+          </Field>
+          <Field label="PLZ und Ort">
+            <Input value={settings.zipCity} onChange={(e) => patch({ zipCity: e.target.value })} />
+          </Field>
+          <Field label="Land">
+            <Input value={settings.country} onChange={(e) => patch({ country: e.target.value })} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="Geschäftsjahr"
+        action={
+          <HelpPopover label="Erklärung zur Jahreszuordnung">
+            Belege, Rechnungen und Zahlungen tragen ein Datum, daraus ergibt sich das Geschäftsjahr
+            von selbst. Im Grenzbereich zum Jahreswechsel lässt sich die Zuordnung einer Buchung im
+            Journal übersteuern.
+          </HelpPopover>
+        }
+      >
+        <RadioGroup
+          options={[
+            {
+              value: 'calendar',
+              label: 'Kalenderjahr',
+              hint: '1. Januar bis 31. Dezember',
+            },
+            {
+              value: 'deviating',
+              label: 'Abweichendes Wirtschaftsjahr',
+              hint: 'beginnt in einem anderen Monat',
+            },
+          ]}
+          value={deviating ? 'deviating' : 'calendar'}
+          onValueChange={(next) => patch({ fiscalYearStartMonth: next === 'deviating' ? 7 : 1 })}
+          inline
+        />
+
+        {deviating && (
+          <Field label="Beginn des Wirtschaftsjahres" className="mt-4 max-w-sm">
+            <Select
+              items={MONTHS}
+              value={startMonth}
+              onValueChange={(month) => patch({ fiscalYearStartMonth: month })}
+            />
+          </Field>
         )}
-      </div>
+      </Section>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Storage & Key */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
-            <FolderOpen className="w-4 h-4 text-amber-700" />
-            Speicherort &amp; Sicherheitsschlüssel dieses Mandanten
-          </h3>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Speicherort für Buchungsdaten &amp; Belege:</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={appConfig?.dataDir || ''}
-                  readOnly
-                  className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-700 text-xs font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={handlePickDirectory}
-                  className="px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold border border-stone-200 transition-colors shrink-0 text-xs"
-                >
-                  Ordner wählen...
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Verschlüsselung sensibler Daten:</label>
-              <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-stone-600 flex items-center gap-2 text-xs">
-                <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="truncate">Aktiv – Zugriffsschlüssel im Betriebssystem-Schlüsselbund hinterlegt</span>
-              </div>
-
-              {/* Where the key actually lives */}
-              <div className="mt-2 p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-xs text-stone-600 space-y-1">
-                <div className="flex items-center gap-1.5 font-semibold text-stone-700">
-                  <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                  Fundort des Schlüssels im System-Schlüsselbund
-                </div>
-                <p className="leading-relaxed">
-                  {navigator.platform.startsWith('Mac')
-                    ? 'Öffnen Sie die App „Schlüsselbundverwaltung" und suchen Sie nach:'
-                    : navigator.platform.startsWith('Win')
-                    ? 'Öffnen Sie „Anmeldeinformationsverwaltung → Windows-Anmeldeinformationen" und suchen Sie nach:'
-                    : 'Im Secret Service (z. B. GNOME-Schlüsselbund) unter folgendem Dienst/Konto:'}
-                </p>
-                <div className="font-mono text-stone-700 bg-white border border-stone-200 rounded p-1.5">
-                  Dienst: <span className="font-semibold">org.buchfink.app</span>
-                  <br />
-                  Konto: <span className="font-semibold">{appConfig?.activeTenantId || '—'}</span>
-                </div>
-              </div>
-
-              {/* Recovery key backup */}
-              <div className="mt-2 p-3 bg-amber-50/70 rounded-lg border border-amber-200/70 text-xs text-amber-900 space-y-2">
-                <p className="leading-relaxed">
-                  <strong>Externe Sicherung (wichtig!):</strong> Geht dieser Rechner verloren, ist der Schlüsselbund weg –
-                  ohne Recovery-Schlüssel sind die verschlüsselten Daten dann <strong>unwiederbringlich</strong>.
-                  Exportieren Sie eine Recovery-Datei und bewahren Sie sie sicher und <strong>getrennt von Ihrem
-                  Datenbackup</strong> auf (z. B. USB-Stick, Tresor).
-                </p>
-                <button
-                  type="button"
-                  onClick={handleExportRecovery}
-                  disabled={isExportingRecovery}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors disabled:opacity-70"
-                >
-                  {isExportingRecovery ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shield className="w-3.5 h-3.5" />}
-                  Recovery-Schlüssel exportieren...
-                </button>
-              </div>
-            </div>
-          </div>
+      <Section title="Umsatzsteuer">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field
+            label="Voranmeldezeitraum"
+            help="Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall."
+          >
+            <Select
+              items={VAT_PERIODS}
+              value={settings.vatPeriod || 'quarter'}
+              onValueChange={(period) => patch({ vatPeriod: period as CompanySettings['vatPeriod'] })}
+            />
+          </Field>
+          <Field
+            label="Besteuerungsart"
+            hint="nach vereinbarten Entgelten"
+            help="Buchfink rechnet nach § 16 Abs. 1 Satz 1 UStG. Bei Istversteuerung entstünde die Steuer erst mit der Vereinnahmung, die Buchungen sähen anders aus — der Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln."
+          >
+            <Select items={[{ value: 'SOLL', label: 'Sollversteuerung' }]} value="SOLL" disabled />
+          </Field>
         </div>
+      </Section>
 
-        {/* Company Identity */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
-            <Building className="w-4 h-4 text-amber-700" />
-            Unternehmensdaten (Stammdaten)
-          </h3>
-
-          <div className="p-3 bg-amber-50/60 rounded-lg border border-amber-200/60 text-xs text-amber-900 leading-relaxed">
-            <strong>Stammdaten:</strong> Diese Firmendaten gelten übergeordnet für alle Geschäftsjahre dieses Mandanten.
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Firmen- oder Inhabername:</label>
-              <input
-                type="text"
-                value={settings.companyName}
-                onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Rechtsform:</label>
-              <input
-                type="text"
-                value={settings.legalForm}
-                onChange={(e) => setSettings({ ...settings, legalForm: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Steuernummer:</label>
-              <input
-                type="text"
-                value={settings.taxNumber}
-                onChange={(e) => setSettings({ ...settings, taxNumber: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 font-mono text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Umsatzsteuer-Identifikationsnummer (USt-IdNr.):</label>
-              <input
-                type="text"
-                value={settings.vatId}
-                onChange={(e) => setSettings({ ...settings, vatId: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 font-mono text-xs text-stone-800"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="font-semibold text-stone-700 block mb-1">Zuständiges Finanzamt:</label>
-              <input
-                type="text"
-                value={settings.taxOffice}
-                onChange={(e) => setSettings({ ...settings, taxOffice: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-          </div>
+      <Section title="Bankverbindung">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Bankname">
+            <Input value={settings.bankName} onChange={(e) => patch({ bankName: e.target.value })} />
+          </Field>
+          <Field label="IBAN">
+            <Input
+              className="code-num"
+              value={settings.iban}
+              onChange={(e) => patch({ iban: e.target.value })}
+            />
+          </Field>
+          <Field label="BIC">
+            <Input
+              className="code-num"
+              value={settings.bic}
+              onChange={(e) => patch({ bic: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Kontenrahmen"
+            help="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
+          >
+            <Input value="SKR04 · Bilanz und GuV" disabled readOnly />
+          </Field>
         </div>
+      </Section>
 
-        {/* Fiscal Year Configuration (Standard vs Deviating) */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
-            <Calendar className="w-4 h-4 text-amber-700" />
-            Geschäftsjahr &amp; Wirtschaftsjahr
-          </h3>
-
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">
-                Geschäftsjahr-Typ:
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 transition-all ${
-                  !isDeviating ? 'bg-amber-50/70 border-amber-600 ring-1 ring-amber-600/30' : 'bg-stone-50 border-stone-200 hover:bg-stone-100'
-                }`}>
-                  <input
-                    type="radio"
-                    name="fy_type"
-                    checked={!isDeviating}
-                    onChange={() => setSettings({ ...settings, fiscalYearStartMonth: 1 })}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <span className="font-bold text-stone-900 block">Kalenderjahr (Standard)</span>
-                    <span className="text-[11px] text-stone-500">
-                      Läuft vom 1. Januar bis zum 31. Dezember.
-                    </span>
-                  </div>
-                </label>
-
-                <label className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 transition-all ${
-                  isDeviating ? 'bg-amber-50/70 border-amber-600 ring-1 ring-amber-600/30' : 'bg-stone-50 border-stone-200 hover:bg-stone-100'
-                }`}>
-                  <input
-                    type="radio"
-                    name="fy_type"
-                    checked={isDeviating}
-                    onChange={() => setSettings({ ...settings, fiscalYearStartMonth: 7 })}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <span className="font-bold text-stone-900 block">Abweichendes Geschäftsjahr</span>
-                    <span className="text-[11px] text-stone-500">
-                      Beginnt an einem anderen Monat (z. B. 1. Juli oder 1. April).
-                    </span>
-                  </div>
-                </label>
-              </div>
+      <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
+        <div className="flex flex-col gap-4 max-w-2xl">
+          <Field label="Ordner für Buchungsdaten und Belege">
+            <div className="flex gap-2">
+              <Input className="code-num" value={appConfig?.dataDir || ''} readOnly />
+              <Button variant="secondary" onClick={() => void pickDirectory()} className="shrink-0">
+                Ordner wählen
+              </Button>
             </div>
+          </Field>
 
-            {isDeviating && (
-              <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/70 space-y-3 animate-in fade-in">
-                <div>
-                  <label className="font-semibold text-stone-800 block mb-1">
-                    Beginn des Wirtschaftsjahres (Startmonat):
-                  </label>
-                  <select
-                    value={settings.fiscalYearStartMonth || 7}
-                    onChange={(e) => setSettings({ ...settings, fiscalYearStartMonth: Number(e.target.value) })}
-                    className="w-full p-2 bg-white border border-stone-300 rounded-lg text-xs text-stone-800 focus:outline-none focus:border-amber-600"
-                  >
-                    {monthNames.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+          <Field label="Schlüssel im Schlüsselbund des Betriebssystems" help={keychainHint()}>
+            <p className="flex items-center gap-2 text-body text-ink-muted">
+              <span className="mark-diamond bg-positive" aria-hidden="true" />
+              Dienst <span className="code-num text-ink">org.buchfink.app</span> · Konto{' '}
+              <span className="code-num text-ink">{appConfig?.activeTenantId || '—'}</span>
+            </p>
+          </Field>
 
-            <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/70 flex items-start gap-2.5 text-stone-600">
-              <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <p className="text-[11px] leading-relaxed">
-                <strong>Automatische Jahreszuordnung:</strong> Da Belege, Rechnungen und Bankzahlungen jeweils ein Datum aufweisen, weist Buchfink jeden Vorgang automatisch dem passenden Geschäftsjahr zu. Bei Buchungen im Grenzbereich (Übergangsfrist / Jahresabschluss) können Sie das Geschäftsjahr bei Bedarf im Journal manuell übersteuern.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Taxes & VAT Configuration */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
-            <ReceiptText className="w-4 h-4 text-amber-700" />
-            Steuern &amp; Umsatzsteuer
-          </h3>
-
-          <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="font-semibold text-stone-700 block mb-1">
-                  USt-Voranmeldezeitraum:
-                </label>
-                <select
-                  value={settings.vatPeriod || 'quarter'}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      vatPeriod: e.target.value as any,
-                    })
-                  }
-                  className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs"
-                >
-                  <option value="quarter">Quartalsweise / Vierteljährlich (Standard)</option>
-                  <option value="month">Monatlich (z. B. Neugründung oder hohe Zahllast)</option>
-                  <option value="year">Jährlich (nur USt-Jahreserklärung)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-stone-700 block mb-1">Besteuerungsart:</label>
-                <select
-                  value="SOLL"
-                  disabled
-                  className="w-full p-2 bg-stone-100 border border-stone-200 rounded-lg text-stone-500 text-xs"
-                >
-                  <option value="SOLL">
-                    SOLL-Versteuerung (nach vereinbarten Entgelten / Rechnungsdatum)
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/60 text-stone-600 leading-relaxed">
-              Buchfink rechnet nach vereinbarten Entgelten ab (§ 16 Abs. 1 Satz 1 UStG). Bei
-              Istversteuerung entstünde die Steuer erst mit der Vereinnahmung des Entgelts
-              (§ 13 Abs. 1 Nr. 1 Buchst. b UStG) und die Buchungen sähen anders aus — der
-              Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln.
-            </div>
-
-            <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/60 text-stone-600 leading-relaxed">
-              Buchfink richtet sich an bilanzierende Kapitalgesellschaften. Die
-              Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein
-              Kleinunternehmer als <em>Lieferant</em> ist dagegen ein normaler Fall und wird am
-              Kontakt hinterlegt.
-            </div>
-          </div>
-        </div>
-
-        {/* Address */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 border-b border-stone-100 pb-2">
-            Anschrift
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="md:col-span-2">
-              <label className="font-semibold text-stone-700 block mb-1">Straße &amp; Hausnummer:</label>
-              <input
-                type="text"
-                value={settings.street}
-                onChange={(e) => setSettings({ ...settings, street: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">PLZ &amp; Ort:</label>
-              <input
-                type="text"
-                value={settings.zipCity}
-                onChange={(e) => setSettings({ ...settings, zipCity: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Land:</label>
-              <input
-                type="text"
-                value={settings.country}
-                onChange={(e) => setSettings({ ...settings, country: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Banking */}
-        <div className="bg-white p-6 rounded-xl border border-stone-200/80 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 border-b border-stone-100 pb-2">
-            <DollarSign className="w-4 h-4 text-amber-700" />
-            Bankverbindung &amp; Kontenrahmen
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Bankname:</label>
-              <input
-                type="text"
-                value={settings.bankName}
-                onChange={(e) => setSettings({ ...settings, bankName: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">IBAN:</label>
-              <input
-                type="text"
-                value={settings.iban}
-                onChange={(e) => setSettings({ ...settings, iban: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 font-mono text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">BIC:</label>
-              <input
-                type="text"
-                value={settings.bic}
-                onChange={(e) => setSettings({ ...settings, bic: e.target.value })}
-                className="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 font-mono text-xs text-stone-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-stone-700 block mb-1">Kontenrahmen:</label>
-              <input
-                type="text"
-                disabled
-                value="Standard SKR04 (Bilanz &amp; GuV)"
-                className="w-full p-2 bg-stone-100 border border-stone-200 rounded-lg text-stone-600 cursor-not-allowed text-xs"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Action Bar / Submit */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-stone-200/60">
-          <div className="flex items-center gap-2">
-            {savedMessage && (
-              <div className="px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-medium animate-in fade-in slide-in-from-bottom-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Einstellungen wurden erfolgreich gespeichert.</span>
-              </div>
-            )}
-            {errorMessage && (
-              <div className="px-3.5 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 font-medium animate-in fade-in slide-in-from-bottom-1">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 ml-auto">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 disabled:cursor-not-allowed ${
-                savedMessage
-                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                  : 'bg-amber-700 hover:bg-amber-800 text-white'
-              }`}
+          {/* Hinweisfläche nach §6.2, Fall 4: Der Verlust ist endgültig, das
+              darf einmal laut werden. */}
+          <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
+            <h3 className="flex items-center text-label text-attention-text">
+              Recovery-Schlüssel getrennt sichern
+              <HelpPopover label="Erklärung zum Recovery-Schlüssel">
+                Geht dieser Rechner verloren, ist der Schlüsselbund weg und die verschlüsselten
+                Daten sind ohne Recovery-Datei unwiederbringlich. Die Datei gehört an einen anderen
+                Ort als das Datenbackup — ein Backup, das beide enthält, schützt vor nichts.
+              </HelpPopover>
+            </h3>
+            <p className="text-body text-ink-muted mt-1">
+              Ohne diese Datei sind die Daten verloren, wenn der Rechner abhandenkommt.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={exporting}
+              onClick={() => void exportRecovery()}
+              icon={<Shield className="w-3.5 h-3.5" strokeWidth={1.5} />}
+              className="mt-3"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Wird gespeichert...</span>
-                </>
-              ) : savedMessage ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Gespeichert!</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Einstellungen speichern</span>
-                </>
-              )}
-            </button>
+              Recovery-Schlüssel exportieren
+            </Button>
           </div>
         </div>
-      </form>
-    </div>
+      </Section>
+    </form>
   );
 };

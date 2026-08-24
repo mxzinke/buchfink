@@ -1,22 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Calendar,
-  Check,
-  Clock,
-  AlertTriangle,
-  ReceiptText,
-  Building2,
-  FileSpreadsheet,
-  CalendarDays,
-  Lock,
-  Loader2,
-  ShieldCheck,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { Lock } from 'lucide-react';
 import { CompanySettings, Festschreibung } from '../types';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
-import { HelpTooltip } from '../components/HelpTooltip';
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  EmptyState,
+  HelpPopover,
+  HelpTooltip,
+  PageHeader,
+  Section,
+  Stat,
+  StatRow,
+  StatusBadge,
+  Table,
+  Tabs,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
+  cn,
+  toast,
+} from '../components/ui';
+
+/**
+ * Steuerfristen.
+ *
+ * Die Termine entstehen aus der Mandantenkonfiguration: Der Rhythmus der
+ * Voranmeldung entscheidet, ob monatlich oder quartalsweise abzugeben ist.
+ * Abgehakt wird lokal — es ist eine Merkhilfe, keine Meldung ans Finanzamt.
+ */
+
+/** Die Kategorie steht als Wort, nicht als Farbe (§3.4). */
+const CATEGORY_LABELS: Record<DeadlineItem['category'], string> = {
+  ust: 'Umsatzsteuer',
+  income: 'Ertragsteuer',
+  trade: 'Gewerbesteuer',
+  annual: 'Jahresabschluss',
+};
+
+type Filter = 'all' | 'open' | 'overdue' | 'done';
 
 interface CommittablePeriod {
   type: 'month' | 'quarter';
@@ -98,18 +124,15 @@ export const DeadlinesPage: React.FC = () => {
     try {
       const rec = await Api.commitPeriod(p.type, p.label, p.cutoff);
       if (rec) {
-        toast.success(`${p.label} festgeschrieben`, {
-          description:
-            rec.timestampStatus === 'confirmed'
-              ? `Beglaubigt durch ${rec.tsaName}.`
-              : 'Gespeichert. Zeitstempel wird nachgeholt (aktuell offline).',
-        });
+        toast.success(
+          rec.timestampStatus === 'confirmed'
+            ? `${p.label} festgeschrieben, beglaubigt durch ${rec.tsaName}.`
+            : `${p.label} festgeschrieben. Der Zeitstempel wird nachgeholt, sobald wieder Netz da ist.`,
+        );
         setFestschreibungen(await Api.getFestschreibungen());
       }
-    } catch (e: any) {
-      toast.error('Festschreibung fehlgeschlagen', {
-        description: typeof e?.message === 'string' ? e.message : String(e),
-      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setCommittingCutoff(null);
     }
@@ -434,393 +457,262 @@ export const DeadlinesPage: React.FC = () => {
   };
 
   const allDeadlines = generateDeadlines();
+  const [confirming, setConfirming] = useState<CommittablePeriod | null>(null);
 
-  // Status calculation helpers
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const getDeadlineStatus = (dueDateStr: string, isCompleted: boolean) => {
-    if (isCompleted) return 'done';
-    const due = new Date(dueDateStr);
+  /** Tage bis zur Fälligkeit. Negativ heißt überfällig. */
+  const daysUntil = (iso: string) => {
+    const due = new Date(iso);
     due.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
 
-    if (diffDays < 0) return 'overdue';
-    if (diffDays <= 30) return 'upcoming';
+  const statusOf = (dueDate: string, done: boolean) => {
+    if (done) return 'done';
+    const diff = daysUntil(dueDate);
+    if (diff < 0) return 'overdue';
+    if (diff <= 30) return 'upcoming';
     return 'open';
   };
 
-  // Summary counts
-  const overdueCount = allDeadlines.filter(
-    (d) => getDeadlineStatus(d.dueDate, completedDeadlines.includes(d.id)) === 'overdue'
-  ).length;
-
-  const upcomingCount = allDeadlines.filter(
-    (d) => getDeadlineStatus(d.dueDate, completedDeadlines.includes(d.id)) === 'upcoming'
-  ).length;
-
   const doneCount = allDeadlines.filter((d) => completedDeadlines.includes(d.id)).length;
   const openCount = allDeadlines.length - doneCount;
+  const overdueCount = allDeadlines.filter(
+    (d) => statusOf(d.dueDate, completedDeadlines.includes(d.id)) === 'overdue',
+  ).length;
+  const upcomingCount = allDeadlines.filter(
+    (d) => statusOf(d.dueDate, completedDeadlines.includes(d.id)) === 'upcoming',
+  ).length;
 
-  // Filtered list
-  const filteredList = allDeadlines.filter((item) => {
-    const isCompleted = completedDeadlines.includes(item.id);
-    const status = getDeadlineStatus(item.dueDate, isCompleted);
-
-    if (activeFilter === 'open' && isCompleted) return false;
+  const filtered = allDeadlines.filter((item) => {
+    const done = completedDeadlines.includes(item.id);
+    const status = statusOf(item.dueDate, done);
+    if (activeFilter === 'open' && done) return false;
     if (activeFilter === 'overdue' && status !== 'overdue') return false;
-    if (activeFilter === 'done' && !isCompleted) return false;
+    if (activeFilter === 'done' && !done) return false;
     return true;
   });
 
-  // Grouping sections
-  const sections: { key: number; title: string; subtitle: string }[] = [
-    { key: 1, title: '1. Quartal (Januar – März)', subtitle: `Laufende Vorauszahlungen Q1 ${currentYear}` },
-    { key: 2, title: '2. Quartal (April – Juni)', subtitle: `Laufende Vorauszahlungen Q2 ${currentYear}` },
-    { key: 3, title: '3. Quartal (Juli – September)', subtitle: `Laufende Vorauszahlungen Q3 ${currentYear}` },
-    { key: 4, title: '4. Quartal (Oktober – Dezember)', subtitle: `Laufende Vorauszahlungen Q4 ${currentYear}` },
-    {
-      key: 5,
-      title: 'Jahresabschluss & Steuererklärungen',
-      subtitle: `Fristen für die Jahressteuererklärungen und E-Bilanz ${currentYear}`,
-    },
+  const sections: { key: number; title: string }[] = [
+    { key: 1, title: `1. Quartal ${currentYear} · Januar bis März` },
+    { key: 2, title: `2. Quartal ${currentYear} · April bis Juni` },
+    { key: 3, title: `3. Quartal ${currentYear} · Juli bis September` },
+    { key: 4, title: `4. Quartal ${currentYear} · Oktober bis Dezember` },
+    { key: 5, title: 'Jahresabschluss und Steuererklärungen' },
   ];
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'ust':
-        return <ReceiptText className="w-4 h-4 text-amber-700" />;
-      case 'income':
-        return <Building2 className="w-4 h-4 text-sky-700" />;
-      case 'trade':
-        return <Building2 className="w-4 h-4 text-stone-700" />;
-      case 'annual':
-        return <FileSpreadsheet className="w-4 h-4 text-emerald-700" />;
-      default:
-        return <Calendar className="w-4 h-4 text-stone-600" />;
-    }
-  };
-
-  const renderStatusBadge = (dueDateStr: string, isCompleted: boolean) => {
-    if (isCompleted) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-          <Check className="w-3 h-3" /> Erledigt
-        </span>
-      );
-    }
-
-    const due = new Date(dueDateStr);
-    due.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" /> Überfällig ({Math.abs(diffDays)} Tage)
-        </span>
-      );
-    } else if (diffDays === 0) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 animate-pulse">
-          Heute fällig
-        </span>
-      );
-    } else if (diffDays <= 30) {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200">
-          In {diffDays} Tagen ({formatDate(dueDateStr)})
-        </span>
-      );
-    } else {
-      return (
-        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-600">
-          Fällig am {formatDate(dueDateStr)}
-        </span>
-      );
-    }
-  };
+  const periods = getCommittablePeriods();
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-7">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
-              <CalendarDays className="w-6 h-6 text-amber-700" />
-              Steuerfristen {currentYear}
-              <HelpTooltip
-                title="Steuerfristen"
-                content="Gesetzliche Fristen für Umsatzsteuer-Voranmeldungen, Ertragsteuer-Vorauszahlungen und Jahressteuererklärungen. Nicht abgehakte, vergangene Fristen werden als überfällig markiert."
-              />
-            </h2>
-          </div>
-          <p className="text-xs text-stone-500 mt-1">
-            Übersichtliche Quartals- und Jahresfristen &bull; Termine einfach abhaken und im Blick behalten
-          </p>
-        </div>
+    <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <PageHeader
+        title={`Steuerfristen ${currentYear}`}
+        context="Voranmeldungen, Vorauszahlungen und Jahreserklärungen"
+        action={
+          <HelpPopover label="Erklärung zu den Steuerfristen">
+            Die Termine ergeben sich aus dem Rhythmus der Voranmeldung. Abgehakt wird lokal, als
+            Merkhilfe. Bei Überweisung an das Finanzamt gilt die Zahlungsschonfrist von drei Tagen
+            nach § 240 Abs. 3 AO; fällt ein Fälligkeitstag auf ein Wochenende oder einen Feiertag,
+            verschiebt er sich auf den nächsten Werktag.
+          </HelpPopover>
+        }
+      />
 
-        {/* Quick Filter Switcher */}
-        <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'all'
-                ? 'bg-amber-700 text-white shadow-xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            Alle ({allDeadlines.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('open')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'open'
-                ? 'bg-amber-700 text-white shadow-xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            Offen ({openCount})
-          </button>
-          {overdueCount > 0 && (
-            <button
-              onClick={() => setActiveFilter('overdue')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1 ${
-                activeFilter === 'overdue'
-                  ? 'bg-rose-700 text-white shadow-xs font-semibold'
-                  : 'text-rose-700 hover:bg-rose-50'
-              }`}
-            >
-              <AlertTriangle className="w-3 h-3" />
-              Überfällig ({overdueCount})
-            </button>
-          )}
-          <button
-            onClick={() => setActiveFilter('done')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'done'
-                ? 'bg-emerald-700 text-white shadow-xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            Erledigt ({doneCount})
-          </button>
-        </div>
+      <div className="mt-6">
+        <StatRow>
+          <Stat label="Termine" value={String(allDeadlines.length)} context={`im Jahr ${currentYear}`} />
+          <Stat
+            label="Überfällig"
+            value={String(overdueCount)}
+            context={overdueCount > 0 ? 'ohne Haken in der Vergangenheit' : 'keine Rückstände'}
+            tone={overdueCount > 0 ? 'negative' : 'neutral'}
+          />
+          <Stat
+            label="Demnächst fällig"
+            value={String(upcomingCount)}
+            context="in den nächsten 30 Tagen"
+          />
+          <Stat label="Erledigt" value={String(doneCount)} context={`${openCount} noch offen`} />
+        </StatRow>
       </div>
 
-      {/* Festschreibung: commit accounting periods (couples to the VAT cadence) */}
-      <div className="bg-white rounded-xl border border-stone-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-stone-100 flex items-center gap-2">
-          <Lock className="w-4 h-4 text-amber-700" />
-          <h3 className="text-sm font-bold text-stone-900">Zeiträume festschreiben</h3>
-          <HelpTooltip
-            title="Festschreibung"
-            content="Schließen Sie einen Zeitraum passend zur USt-Voranmeldung verbindlich ab. Danach sind keine rückdatierten Buchungen mehr möglich (Korrekturen nur per Storno). Der Stand wird zusätzlich von einem unabhängigen Zeitstempeldienst beglaubigt – im Hintergrund, es wird nur eine Prüfsumme übertragen."
+      <Section
+        title="Zeiträume festschreiben"
+        context="Abschluss passend zum Rhythmus der Voranmeldung"
+        action={
+          <HelpPopover label="Erklärung zur Festschreibung">
+            Ein festgeschriebener Zeitraum nimmt keine rückdatierten Buchungen mehr an, Korrekturen
+            laufen ab dann über den Storno. Zusätzlich beglaubigt ein unabhängiger Zeitstempeldienst
+            den Stand — übertragen wird dabei nur eine Prüfsumme, keine Buchung.
+          </HelpPopover>
+        }
+      >
+        {periods.length === 0 ? (
+          <EmptyState
+            icon={<Lock className="w-6 h-6" strokeWidth={1.5} />}
+            title="Noch kein abgeschlossener Zeitraum"
+            description="Zeiträume lassen sich festschreiben, sobald sie beendet sind."
           />
-        </div>
-        <div className="p-4">
-          {getCommittablePeriods().length === 0 ? (
-            <p className="text-xs text-stone-400">
-              Noch kein abgeschlossener Zeitraum vorhanden. Perioden können festgeschrieben werden,
-              sobald sie beendet sind.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {getCommittablePeriods().map((p) => {
-                const isCommitted = committedCutoffs.has(p.cutoff);
-                const isBusy = committingCutoff === p.cutoff;
-                // Only the next uncommitted, in-order period is actionable.
-                const isNext = !isCommitted && p.cutoff > latestCommittedCutoff;
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Zeitraum</Th>
+                <Th className="w-40">Stichtag</Th>
+                <Th className="w-56" aria-label="Zustand" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {periods.map((period) => {
+                const committed = committedCutoffs.has(period.cutoff);
+                const busy = committingCutoff === period.cutoff;
+                // Festgeschrieben wird der Reihe nach. Ein Zeitraum mit Lücke
+                // davor wäre kein Abschluss.
+                const isNext = !committed && period.cutoff > latestCommittedCutoff;
                 return (
-                  <div
-                    key={p.cutoff}
-                    className={`flex items-center justify-between gap-3 p-3 rounded-lg border text-xs ${
-                      isCommitted ? 'bg-emerald-50/60 border-emerald-200' : 'bg-stone-50 border-stone-200'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="font-semibold text-stone-800">{p.label}</div>
-                      <div className="text-[11px] text-stone-500">Stichtag {p.cutoff}</div>
-                    </div>
-                    {isCommitted ? (
-                      <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold shrink-0">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Festgeschrieben
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleCommitPeriod(p)}
-                        disabled={!isNext || isBusy}
-                        title={!isNext ? 'Bitte frühere Zeiträume zuerst festschreiben' : undefined}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-semibold transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                        Festschreiben
-                      </button>
-                    )}
-                  </div>
+                  <Tr key={period.cutoff}>
+                    <Td>{period.label}</Td>
+                    <Td className="num text-ink-subtle">{formatDate(period.cutoff)}</Td>
+                    <Td className="text-right">
+                      {committed ? (
+                        <StatusBadge status="festgeschrieben" />
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          loading={busy}
+                          disabled={!isNext}
+                          title={!isNext ? 'Frühere Zeiträume zuerst festschreiben' : undefined}
+                          onClick={() => setConfirming(period)}
+                          icon={<Lock className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                        >
+                          Festschreiben
+                        </Button>
+                      )}
+                    </Td>
+                  </Tr>
                 );
               })}
-            </div>
-          )}
-        </div>
-      </div>
+            </Tbody>
+          </Table>
+        )}
+      </Section>
 
-      {/* KPI Overview Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs space-y-1">
-          <span className="text-[11px] uppercase tracking-wider text-stone-500 font-medium">
-            Gesamte Termine
-          </span>
-          <div className="text-xl font-bold font-mono text-stone-900">{allDeadlines.length}</div>
-          <span className="text-[11px] text-stone-400">Für {currentYear}</span>
-        </div>
+      <Section title="Termine" context="Abhaken merkt sich Buchfink lokal">
+        <Tabs
+          items={[
+            { value: 'all' as Filter, label: 'Alle', count: allDeadlines.length },
+            { value: 'open' as Filter, label: 'Offen', count: openCount },
+            { value: 'overdue' as Filter, label: 'Überfällig', count: overdueCount },
+            { value: 'done' as Filter, label: 'Erledigt', count: doneCount },
+          ]}
+          value={activeFilter}
+          onValueChange={setActiveFilter}
+          className="mb-6"
+        />
 
-        <div
-          className={`p-4 rounded-xl border shadow-xs space-y-1 ${
-            overdueCount > 0
-              ? 'bg-rose-50/70 border-rose-200 text-rose-950'
-              : 'bg-white border-stone-200/80 text-stone-900'
-          }`}
-        >
-          <span className="text-[11px] uppercase tracking-wider font-medium opacity-80">
-            Überfällig
-          </span>
-          <div
-            className={`text-xl font-bold font-mono ${
-              overdueCount > 0 ? 'text-rose-700' : 'text-stone-900'
-            }`}
-          >
-            {overdueCount}
-          </div>
-          <span className="text-[11px] opacity-70">
-            {overdueCount > 0 ? 'Dringend prüfen' : 'Keine Rückstände'}
-          </span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs space-y-1">
-          <span className="text-[11px] uppercase tracking-wider text-amber-800 font-medium">
-            Demnächst fällig
-          </span>
-          <div className="text-xl font-bold font-mono text-amber-800">{upcomingCount}</div>
-          <span className="text-[11px] text-stone-400">In den nächsten 30 Tagen</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-stone-200/80 shadow-xs space-y-1">
-          <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-medium">
-            Erledigt
-          </span>
-          <div className="text-xl font-bold font-mono text-emerald-700">{doneCount}</div>
-          <span className="text-[11px] text-stone-400">Abgehakt</span>
-        </div>
-      </div>
-
-      {/* Grouped by Quarter Sections */}
-      <div className="space-y-6">
-        {sections.map((section) => {
-          const sectionDeadlines = filteredList.filter((d) => d.quarter === section.key);
-          if (sectionDeadlines.length === 0) return null;
-
-          return (
-            <div
-              key={section.key}
-              className="bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden"
-            >
-              {/* Section Header */}
-              <div className="p-4 bg-stone-50/80 border-b border-stone-200/80 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                    <span>{section.title}</span>
-                  </h3>
-                  <p className="text-[11px] text-stone-500 mt-0.5">{section.subtitle}</p>
-                </div>
-                <span className="text-xs font-mono text-stone-400">
-                  {sectionDeadlines.length} {sectionDeadlines.length === 1 ? 'Termin' : 'Termine'}
-                </span>
-              </div>
-
-              {/* Deadlines List */}
-              <div className="divide-y divide-stone-100">
-                {sectionDeadlines.map((item) => {
-                  const isCompleted = completedDeadlines.includes(item.id);
-                  const status = getDeadlineStatus(item.dueDate, isCompleted);
-                  const isOverdue = status === 'overdue';
-
-                  return (
-                    <div
-                      key={item.id}
-                      className={`p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        isCompleted
-                          ? 'bg-stone-50/40 opacity-60'
-                          : isOverdue
-                          ? 'bg-rose-50/30'
-                          : 'hover:bg-amber-50/20'
-                      }`}
-                    >
-                      {/* Checkbox and Title */}
-                      <div className="flex items-start gap-3.5 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleDeadline(item.id)}
-                          className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-                            isCompleted
-                              ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : isOverdue
-                              ? 'border-rose-400 hover:border-rose-600 bg-white'
-                              : 'border-stone-300 hover:border-amber-600 bg-white'
-                          }`}
-                          title={isCompleted ? 'Als offen markieren' : 'Als erledigt abhaken'}
-                        >
-                          {isCompleted && <Check className="w-3.5 h-3.5" />}
-                        </button>
-
-                        <div className="space-y-0.5 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="shrink-0">{getCategoryIcon(item.category)}</span>
-                            <h4
-                              className={`text-xs font-bold truncate ${
-                                isCompleted
-                                  ? 'line-through text-stone-500'
-                                  : isOverdue
-                                  ? 'text-rose-950 font-semibold'
-                                  : 'text-stone-900'
-                              }`}
-                            >
-                              {item.title}
-                            </h4>
-                            {item.isImportant && !isCompleted && !isOverdue && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
-                                Wichtig
+        {filtered.length === 0 ? (
+          <EmptyState title="Kein Termin in dieser Auswahl" />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th className="w-10" aria-label="Erledigt" />
+                <Th>Termin</Th>
+                <Th className="w-40">Art</Th>
+                <Th className="w-32">Fällig am</Th>
+                <Th className="w-52">Zustand</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {sections.map((section) => {
+                const items = filtered.filter((d) => d.quarter === section.key);
+                if (items.length === 0) return null;
+                return (
+                  <React.Fragment key={section.key}>
+                    <Tr>
+                      <Td colSpan={5} className="text-overline uppercase text-ink-subtle">
+                        {section.title}
+                      </Td>
+                    </Tr>
+                    {items.map((item) => {
+                      const done = completedDeadlines.includes(item.id);
+                      const diff = daysUntil(item.dueDate);
+                      const overdue = !done && diff < 0;
+                      return (
+                        <Tr key={item.id}>
+                          <Td className="pr-0">
+                            <Checkbox
+                              checked={done}
+                              onCheckedChange={() => toggleDeadline(item.id)}
+                              label={
+                                <span className="sr-only">
+                                  {done ? 'Als offen markieren' : 'Als erledigt abhaken'}
+                                </span>
+                              }
+                            />
+                          </Td>
+                          <Td className="max-w-[30rem]">
+                            <span className="flex items-center gap-1">
+                              <span className={cn('truncate', done && 'text-ink-subtle line-through')}>
+                                {item.title}
                               </span>
+                              <HelpTooltip
+                                label={`Erklärung zu ${item.title}`}
+                                content={item.description}
+                              />
+                              {item.isImportant && !done && (
+                                <span className="text-caption text-attention-text">wichtig</span>
+                              )}
+                            </span>
+                          </Td>
+                          <Td className="text-ink-muted">{CATEGORY_LABELS[item.category]}</Td>
+                          <Td className="num text-ink-subtle">{formatDate(item.dueDate)}</Td>
+                          <Td>
+                            {done ? (
+                              <span className="text-caption text-ink-subtle">Erledigt</span>
+                            ) : overdue ? (
+                              <span className="flex items-center gap-2">
+                                <StatusBadge status="ueberfaellig" />
+                                <span className="text-caption text-ink-subtle num">
+                                  seit {Math.abs(diff)} Tagen
+                                </span>
+                              </span>
+                            ) : diff === 0 ? (
+                              <span className="text-caption text-attention-text">Heute fällig</span>
+                            ) : diff <= 30 ? (
+                              <span className="text-caption text-attention-text num">
+                                in {diff} Tagen
+                              </span>
+                            ) : (
+                              <span className="text-caption text-ink-subtle">Offen</span>
                             )}
-                          </div>
-                          <p className="text-xs text-stone-500 leading-snug">{item.description}</p>
-                        </div>
-                      </div>
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
 
-                      {/* Status Badge */}
-                      <div className="sm:text-right shrink-0 pl-8 sm:pl-0">
-                        {renderStatusBadge(item.dueDate, isCompleted)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Info Tip Footer */}
-      <div className="p-4 bg-stone-50 rounded-xl border border-stone-200/80 text-xs text-stone-600 space-y-1">
-        <div className="font-semibold text-stone-800 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-amber-700" />
-          Zahlungsschonfrist nach § 240 Abs. 3 AO:
-        </div>
-        <p className="text-[11px] leading-relaxed text-stone-500">
-          Bei Banküberweisungen an das Finanzamt gilt eine gesetzliche Zahlungsschonfrist von 3 Tagen nach Fälligkeit. Fällt ein Fälligkeitstag auf ein Wochenende oder einen gesetzlichen Feiertag, verschiebt sich die Frist automatisch auf den nächsten Werktag.
-        </p>
-      </div>
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(next) => !next && setConfirming(null)}
+        title={`${confirming?.label ?? ''} festschreiben`}
+        description="Danach nimmt der Zeitraum keine rückdatierten Buchungen mehr an. Korrekturen laufen ab dann über den Storno."
+        confirmLabel="Festschreiben"
+        onConfirm={() => {
+          const period = confirming;
+          setConfirming(null);
+          if (period) void handleCommitPeriod(period);
+        }}
+      />
     </div>
   );
 };
