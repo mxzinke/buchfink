@@ -42,6 +42,11 @@ tasks:
     cmds:
       - python3 scripts/check_design_tokens.py
 
+  check:bridge:
+    summary: Checks that frontend/src/services/bridge.ts matches the Go bridge
+    cmds:
+      - python3 scripts/check_bridge_bindings.py
+
   check:
     summary: Formatting, vet and tests — what to run before committing
     cmds:
@@ -49,6 +54,7 @@ tasks:
       - task: vet
       - task: test
       - task: check:design
+      - task: check:bridge
 
   build:
     summary: Builds the application

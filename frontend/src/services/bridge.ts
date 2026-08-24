@@ -10,7 +10,16 @@ import { Call } from '@wailsio/runtime';
  * Methodennamen und Signaturen der Bridge festgehalten sind.
  */
 
-const SERVICE = 'wailsbridge.BuchfinkBridge';
+/**
+ * Wails registriert gebundene Methoden unter ihrem voll qualifizierten Namen:
+ * dem vollständigen Go-Importpfad des Pakets, dem Typnamen und dem
+ * Methodennamen. Der kurze Paketname `wailsbridge` reicht nicht — die Laufzeit
+ * schlägt den Namen unverändert in einer Map nach und antwortet sonst mit
+ * „unknown bound method name". Die Konstante muss also mit dem Modulpfad aus
+ * go.mod und dem Verzeichnis des Pakets übereinstimmen;
+ * `scripts/check_bridge_bindings.py` prüft das.
+ */
+const SERVICE = 'github.com/buchfink/buchfink/internal/wailsbridge.BuchfinkBridge';
 
 function invoke<T>(method: string, ...args: unknown[]): Promise<T> {
   return Call.ByName(`${SERVICE}.${method}`, ...args) as unknown as Promise<T>;
