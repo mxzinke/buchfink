@@ -1,23 +1,18 @@
 import React, { useState } from 'react';
 import {
-  FolderOpen,
-  ArrowRight,
   ArrowLeft,
-  CheckCircle2,
+  ArrowRight,
+  Check,
   Database,
+  FolderOpen,
   PlusCircle,
-  FileSearch,
-  KeyRound,
-  AlertTriangle,
-  Info,
-  Shield,
-  ReceiptText,
-  ShieldCheck,
   Scale,
+  ShieldCheck,
 } from 'lucide-react';
 import { CompanySettings } from '../types';
 import { Api } from '../services/api';
 import { GermanFlag } from './GermanFlag';
+import { HelpPopover, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
 interface SetupAssistantScreenProps {
   onSetupCompleted: () => void;
@@ -25,20 +20,55 @@ interface SetupAssistantScreenProps {
   isAdditionalTenant?: boolean;
 }
 
+const STEP_TITLES: Record<number, string> = {
+  1: 'Speicherort',
+  2: 'Verschlüsselung',
+  3: 'Unternehmen und Steuern',
+  4: 'Bankverbindung',
+};
+
+const LEGAL_FORMS = [
+  'Einzelunternehmen',
+  'UG (haftungsbeschränkt)',
+  'GmbH',
+  'GbR',
+  'GmbH & Co. KG',
+  'AG',
+  'Sonstige',
+];
+
+/** Feld auf der Schale. Gleiche Anordnung wie `Field`, dunkle Rollen (§16). */
+const ShellField: React.FC<{
+  label: string;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ label, hint, className, children }) => (
+  <label className={cn('flex flex-col gap-1 min-w-0', className)}>
+    <span className="text-label text-shell-text-muted">{label}</span>
+    {children}
+    {hint && <span className="text-caption text-shell-text-muted">{hint}</span>}
+  </label>
+);
+
+/**
+ * Der Einrichtungsassistent. Vier Schritte, je einer pro Entscheidung, und auf
+ * jedem Schirm genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und
+ * steht deshalb auf dunklem Grund.
+ */
 export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   onSetupCompleted,
   onCancel,
   isAdditionalTenant = false,
 }) => {
-  const currentYear = new Date().getFullYear(); // e.g. 2026
+  const currentYear = new Date().getFullYear();
   const [setupChoice, setSetupChoice] = useState<'new' | 'existing' | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Form State
   const [dataDir, setDataDir] = useState('~/.buchfink/data');
   const [existingDbPath, setExistingDbPath] = useState('');
 
-  const [companySettings, setCompanySettings] = useState<CompanySettings>({
+  const [settings, setSettings] = useState<CompanySettings>({
     companyName: '',
     legalForm: 'GmbH',
     fiscalYear: currentYear,
@@ -58,580 +88,463 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     taxationType: 'SOLL',
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePickDataDirectory = async () => {
+  const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
+
+  async function pickDataDirectory() {
     try {
       const selected = await Api.selectDirectoryDialog('Buchfink Datenordner auswählen');
-      if (selected) {
-        setDataDir(selected);
-      }
+      if (selected) setDataDir(selected);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }
 
-  const handlePickDatabaseFile = async () => {
+  async function pickDatabaseFile() {
     try {
       const selected = await Api.selectDatabaseFileDialog('Buchfink Buchhaltungsdatei auswählen');
-      if (selected) {
-        setExistingDbPath(selected);
-      }
+      if (selected) setExistingDbPath(selected);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }
 
-  const handleFinishWizard = async () => {
-    setIsSubmitting(true);
-    setErrorMsg(null);
+  async function finish() {
+    setSubmitting(true);
+    setError(null);
     try {
-      // Encryption is provisioned transparently via the OS keychain; the user is
-      // guided to export a recovery key afterwards (Step 2 + Settings).
-      await Api.setupApplication(dataDir, companySettings);
+      // Die Verschlüsselung entsteht im Hintergrund über den Schlüsselbund des
+      // Betriebssystems. Der Recovery-Schlüssel wird danach in den
+      // Einstellungen exportiert.
+      await Api.setupApplication(dataDir, settings);
       onSetupCompleted();
-    } catch (e: any) {
-      setErrorMsg(e.message || 'Fehler bei der Ersteinrichtung.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
-  };
+  }
 
-  const handleLoadExisting = async (e: React.FormEvent) => {
+  async function loadExisting(e: React.FormEvent) {
     e.preventDefault();
     if (!existingDbPath.trim()) return;
-    setIsSubmitting(true);
-    setErrorMsg(null);
+    setSubmitting(true);
+    setError(null);
     try {
       await Api.loadExistingDatabase(existingDbPath.trim());
       onSetupCompleted();
-    } catch (e: any) {
-      setErrorMsg(e.message || 'Buchhaltungsdatei konnte nicht geladen werden.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-stone-900 text-stone-100 overflow-y-auto">
-      {/* Background with warm atmospheric view */}
+    <div className="relative min-h-screen flex flex-col overflow-y-auto bg-shell-deep text-shell-text">
       <div
-        className="absolute inset-0 bg-cover bg-center opacity-85 pointer-events-none scale-100"
+        className="absolute inset-0 bg-cover bg-center pointer-events-none"
         style={{ backgroundImage: "url('/bg-startupscreen_unsplash-steven-kamenar.jpg')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#1A1816]/90 via-[#1F1C1A]/60 to-[#1A1816]/40 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-shell-deep via-shell-deep/85 to-shell-deep/60 pointer-events-none" />
 
-      {/* Main Content Area */}
-      <div className="relative z-10 max-w-2xl mx-auto w-full px-6 py-12 flex-1 flex flex-col justify-center space-y-6">
-        {/* Brand Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
+      <div className="relative z-10 w-full max-w-2xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center gap-6">
+        <header className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="relative shrink-0">
               <img
                 src="/buchfink-logo.svg"
-                alt="Buchfink"
-                className="w-14 h-14 rounded-2xl bg-white/15 p-1.5 border border-white/20 backdrop-blur-md drop-shadow-lg"
+                alt=""
+                className="w-11 h-11 rounded-control border border-shell-line bg-shell-raised p-1.5"
               />
-              <div className="absolute -bottom-1 -right-1">
-                <GermanFlag className="w-4 h-3 shadow-sm border border-[#1A1816] rounded-xs" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Buchfink</h1>
-                <span className="text-xs text-stone-300">Buchhaltung</span>
-              </div>
-              <p className="text-xs text-stone-200/90 mt-0.5">
-                {isAdditionalTenant ? 'Weiteren Mandanten hinzufügen' : 'Ersteinrichtung in wenigen Schritten'}
+              <GermanFlag className="absolute -bottom-1 -right-1 w-4 h-3 rounded-[2px] border border-shell-deep" />
+            </span>
+            <span>
+              <h1 className="text-heading text-white">Buchfink</h1>
+              <p className="text-caption text-shell-text-muted">
+                {isAdditionalTenant ? 'Weiteren Mandanten hinzufügen' : 'Einrichtung'}
               </p>
-            </div>
+            </span>
           </div>
 
           {isAdditionalTenant && onCancel && (
-            <button
-              onClick={onCancel}
-              className="px-3.5 py-1.5 text-xs font-medium text-stone-300 hover:text-white bg-stone-800/80 hover:bg-stone-700 rounded-xl border border-white/10 transition-colors"
-            >
+            <button type="button" onClick={onCancel} className={SHELL_BUTTON.quiet}>
               Abbrechen
             </button>
           )}
-        </div>
+        </header>
 
-        {/* Wizard Box */}
-        <div className="bg-[#24211E]/85 backdrop-blur-xl border border-white/15 rounded-2xl p-7 shadow-2xl space-y-6">
-          {errorMsg && (
-            <div className="p-3 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs rounded-xl">
-              {errorMsg}
-            </div>
+        <div className={cn(SHELL_PANEL, 'p-7')}>
+          {error && (
+            <p className="mb-5 rounded-control border border-negative/50 bg-negative/15 px-4 py-3 text-body text-shell-negative">
+              {error}
+            </p>
           )}
 
-          {/* Initial Choice: New vs Existing */}
           {setupChoice === null ? (
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-base font-bold text-white">Willkommen bei Buchfink</h2>
-                <p className="text-xs text-stone-300">
-                  Wählen Sie, wie Sie Ihre Buchhaltung starten möchten:
-                </p>
-              </div>
-
-              {/* Accounting Scope & Double-entry Note */}
-              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-stone-200 text-xs flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-semibold text-amber-200 block">Wichtiger Hinweis zum Anwendungsbereich</span>
-                  <p className="text-stone-300 leading-relaxed text-[11px]">
-                    Buchfink ist ausschließlich für Unternehmen konzipiert, die zur <strong>doppelten Buchführung und Bilanzierung</strong> verpflichtet sind (z.&nbsp;B. UG, GmbH, AG, bilanzierende Kaufleute). Es ist <strong>nicht für kleine Selbstständige oder Freiberufler</strong> mit einfacher Einnahmen-Überschuss-Rechnung (EÜR) geeignet.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Option 1: New Setup */}
-                <div
-                  onClick={() => setSetupChoice('new')}
-                  className="p-5 rounded-2xl bg-[#1D1B19]/75 border-2 border-white/10 hover:border-amber-400 hover:bg-[#1D1B19]/90 transition-all cursor-pointer group space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-500/30 group-hover:scale-105 transition-transform">
-                    <PlusCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm text-white group-hover:text-amber-300 transition-colors">
-                      Neue Buchhaltung anlegen
-                    </h3>
-                    <p className="text-xs text-stone-300 mt-1 leading-snug">
-                      Richtet Ihre Buchhaltung für {currentYear} mit Kontenrahmen und sicherem lokalen Speicherort ein.
-                    </p>
-                  </div>
-                  <div className="text-xs font-semibold text-amber-300 flex items-center gap-1 pt-1">
-                    Jetzt einrichten &rarr;
-                  </div>
-                </div>
-
-                {/* Option 2: Load Existing Database */}
-                <div
-                  onClick={() => setSetupChoice('existing')}
-                  className="p-5 rounded-2xl bg-[#1D1B19]/75 border-2 border-white/10 hover:border-amber-400 hover:bg-[#1D1B19]/90 transition-all cursor-pointer group space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-stone-800/80 text-stone-300 flex items-center justify-center border border-stone-700 group-hover:scale-105 transition-transform">
-                    <Database className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm text-white group-hover:text-amber-300 transition-colors">
-                      Bestehende Buchhaltung öffnen
-                    </h3>
-                    <p className="text-xs text-stone-300 mt-1 leading-snug">
-                      Laden Sie eine bereits vorhandene Buchfink-Datei von Ihrer Festplatte oder ein Backup.
-                    </p>
-                  </div>
-                  <div className="text-xs font-semibold text-stone-300 group-hover:text-amber-300 flex items-center gap-1 pt-1">
-                    Datei auswählen &rarr;
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : setupChoice === 'new' ? (
-            /* New Setup Wizard */
             <>
-              {/* Step indicator */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <h2 className="text-heading text-white">Willkommen bei Buchfink</h2>
+              <p className="flex items-center text-caption text-shell-text-muted mt-1">
+                Für Unternehmen mit doppelter Buchführung
+                <HelpPopover
+                  label="Erklärung zum Anwendungsbereich"
+                  className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                >
+                  Buchfink ist für Unternehmen gebaut, die zur doppelten Buchführung und
+                  Bilanzierung verpflichtet sind — UG, GmbH, AG, bilanzierende Kaufleute. Für die
+                  Einnahmen-Überschuss-Rechnung kleiner Selbstständiger und Freiberufler ist es
+                  nicht geeignet.
+                </HelpPopover>
+              </p>
+
+              <div className="mt-5 divide-y divide-shell-line border-t border-shell-line">
+                <button
+                  type="button"
+                  onClick={() => setSetupChoice('new')}
+                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet"
+                >
+                  <PlusCircle className="w-5 h-5 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body text-white">Neue Buchhaltung anlegen</span>
+                    <span className="block text-caption text-shell-text-muted mt-0.5">
+                      Kontenrahmen SKR04, Geschäftsjahr {currentYear}, lokaler Speicherort.
+                    </span>
+                  </span>
+                  <ArrowRight
+                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted transition-transform
+                               duration-120 ease-quiet group-hover:translate-x-0.5"
+                    strokeWidth={1.5}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSetupChoice('existing')}
+                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet"
+                >
+                  <Database className="w-5 h-5 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-body text-white">Bestehende Buchhaltung öffnen</span>
+                    <span className="block text-caption text-shell-text-muted mt-0.5">
+                      Eine vorhandene Buchfink-Datei von der Festplatte oder aus einem Backup.
+                    </span>
+                  </span>
+                  <ArrowRight
+                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted transition-transform
+                               duration-120 ease-quiet group-hover:translate-x-0.5"
+                    strokeWidth={1.5}
+                  />
+                </button>
+              </div>
+            </>
+          ) : setupChoice === 'new' ? (
+            <>
+              <div className="flex items-end justify-between gap-4 pb-4 border-b border-shell-line">
                 <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
+                  <span className="text-overline uppercase text-accent-light">
                     Schritt {step} von 4
                   </span>
-                  <h2 className="text-sm font-semibold text-white mt-0.5">
-                    {step === 1 && '1. Speicherort festlegen'}
-                    {step === 2 && '2. Verschlüsselung'}
-                    {step === 3 && '3. Unternehmensdaten & Geschäftsjahr'}
-                    {step === 4 && '4. Bankverbindung & Konten'}
-                  </h2>
+                  <h2 className="text-heading text-white mt-1">{STEP_TITLES[step]}</h2>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pb-1" aria-hidden="true">
                   {[1, 2, 3, 4].map((s) => (
-                    <div
+                    <span
                       key={s}
-                      className={`h-2 rounded-full transition-all ${
-                        step === s ? 'bg-amber-400 w-6' : step > s ? 'bg-amber-400/50 w-2' : 'bg-stone-700 w-2'
-                      }`}
+                      className={cn(
+                        'h-0.5 rounded-full transition-all duration-180 ease-quiet',
+                        step === s ? 'w-6 bg-accent-light' : s < step ? 'w-2 bg-accent' : 'w-2 bg-shell-line',
+                      )}
                     />
                   ))}
                 </div>
               </div>
 
-              {/* Step 1: Storage Location for Data */}
-              {step === 1 && (
-                <div className="space-y-4 text-xs">
-                  <div className="p-3.5 bg-[#1D1B19]/70 rounded-xl border border-white/10 text-stone-300 flex items-start gap-2.5">
-                    <Info className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <span className="font-semibold text-white block">Lokale Speicherung auf Ihrem Computer</span>
-                      <p className="text-xs leading-relaxed text-stone-300">
-                        Buchfink speichert Ihre Buchungsdaten und Belege sicher auf Ihrer lokalen Festplatte. Sie behalten die volle Kontrolle über Ihre Finanzdaten.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">
-                      Ordner für Buchungsdaten & Belege:
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <FolderOpen className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="py-6">
+                {step === 1 && (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-body text-shell-text-muted">
+                      Buchungsdaten und Belege liegen auf dieser Festplatte, nicht in einer Cloud.
+                    </p>
+                    <ShellField label="Ordner für Buchungsdaten und Belege">
+                      <span className="flex gap-2">
                         <input
                           type="text"
                           value={dataDir}
                           onChange={(e) => setDataDir(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
+                          className={cn(SHELL_CONTROL, 'code-num')}
                         />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handlePickDataDirectory}
-                        className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
-                      >
-                        <FolderOpen className="w-3.5 h-3.5 text-amber-300" />
-                        Ordner auswählen...
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Encryption & Recovery Key */}
-              {step === 2 && (
-                <div className="space-y-4 text-xs">
-                  <div className="p-4 bg-[#1D1B19]/70 rounded-xl border border-white/10 space-y-2">
-                    <div className="flex items-center gap-2 font-semibold text-amber-300">
-                      <Shield className="w-4 h-4 text-amber-300" />
-                      Ihre Daten werden verschlüsselt
-                    </div>
-                    <p className="text-xs text-stone-300 leading-relaxed">
-                      Sensible Inhalte (Buchungstexte, Verwendungszwecke, Kontaktdaten) werden mit AES-256
-                      verschlüsselt. Der Zugriffsschlüssel wird automatisch und sicher im Schlüsselbund Ihres
-                      Betriebssystems hinterlegt – Sie müssen sich kein Passwort merken. Original-Belege bleiben
-                      aus rechtlichen Gründen unverändert erhalten.
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30 space-y-2">
-                    <div className="flex items-center gap-2 font-semibold text-amber-200">
-                      <KeyRound className="w-4 h-4 text-amber-300" />
-                      Wichtig: Recovery-Schlüssel für den Notfall
-                    </div>
-                    <p className="text-xs text-amber-100/90 leading-relaxed">
-                      Geht dieser Rechner verloren oder defekt, ist der Schlüsselbund weg. Ohne externe Sicherung
-                      sind die verschlüsselten Daten dann <strong>unwiederbringlich verloren</strong> – auch aus
-                      einem Backup.
-                    </p>
-                    <div className="flex items-start gap-2 text-xs text-amber-100/90 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed">
-                      <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                      <span>
-                        Exportieren Sie direkt nach der Einrichtung unter <strong>Einstellungen &rarr; Speicherort
-                        &amp; Sicherheitsschlüssel</strong> einen <strong>Recovery-Schlüssel</strong> und bewahren Sie
-                        ihn sicher und getrennt von Ihrem Datenbackup auf (z. B. USB-Stick, Tresor, Passwortmanager).
+                        <button
+                          type="button"
+                          onClick={() => void pickDataDirectory()}
+                          className={cn(SHELL_BUTTON.secondary, 'shrink-0')}
+                        >
+                          <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+                          Wählen
+                        </button>
                       </span>
-                    </div>
+                    </ShellField>
                   </div>
-                </div>
-              )}
+                )}
 
-
-              {/* Step 3: Company & Tax Info */}
-              {step === 3 && (
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">
-                      Firmen- oder Inhabername:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="z. B. Musterfirma GmbH oder Max Mustermann"
-                      value={companySettings.companyName}
-                      onChange={(e) =>
-                        setCompanySettings({ ...companySettings, companyName: e.target.value })
-                      }
-                      className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-medium text-stone-200 block mb-1">Rechtsform:</label>
-                      <select
-                        value={companySettings.legalForm}
-                        onChange={(e) =>
-                          setCompanySettings({ ...companySettings, legalForm: e.target.value })
-                        }
-                        className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                      >
-                        <option value="Einzelunternehmen">Einzelunternehmen / Freiberufler</option>
-                        <option value="UG (haftungsbeschränkt)">UG (haftungsbeschränkt)</option>
-                        <option value="GmbH">GmbH</option>
-                        <option value="GbR">GbR</option>
-                        <option value="GmbH & Co. KG">GmbH & Co. KG</option>
-                        <option value="AG">AG</option>
-                        <option value="Sonstige">Sonstige</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="font-medium text-stone-200 block mb-1">
-                        Start-Geschäftsjahr:
-                      </label>
-                      <input
-                        type="number"
-                        value={companySettings.fiscalYear}
-                        onChange={(e) =>
-                          setCompanySettings({
-                            ...companySettings,
-                            fiscalYear: Number(e.target.value),
-                          })
-                        }
-                        className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 font-mono focus:border-amber-400 focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-medium text-stone-200 block mb-1">
-                        Steuernummer (Finanzamt):
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="12/345/67890"
-                        value={companySettings.taxNumber}
-                        onChange={(e) =>
-                          setCompanySettings({ ...companySettings, taxNumber: e.target.value })
-                        }
-                        className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 font-mono focus:border-amber-400 focus:outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-medium text-stone-200 block mb-1">
-                        USt-IdNr. (optional):
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="DE123456789"
-                        value={companySettings.vatId}
-                        onChange={(e) =>
-                          setCompanySettings({ ...companySettings, vatId: e.target.value })
-                        }
-                        className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 font-mono focus:border-amber-400 focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Taxes and VAT Configuration */}
-                  <div className="p-3.5 bg-[#1D1B19]/70 rounded-xl border border-white/10 space-y-3">
-                    <div className="flex items-center gap-2 font-semibold text-amber-300">
-                      <ReceiptText className="w-4 h-4 text-amber-300" />
-                      Umsatzsteuer & Besteuerungsart
-                    </div>
-
-                    <div>
-                      <label className="font-medium text-stone-200 block mb-1">
-                        USt-Voranmeldezeitraum:
-                      </label>
-                      <select
-                        value={companySettings.vatPeriod || 'quarter'}
-                        onChange={(e) =>
-                          setCompanySettings({
-                            ...companySettings,
-                            vatPeriod: e.target.value as any,
-                          })
-                        }
-                        className="w-full p-2 bg-[#1D1B19]/90 border border-stone-700 rounded-lg text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                      >
-                        <option value="quarter">Quartalsweise (Standard)</option>
-                        <option value="month">Monatlich (z. B. Neugründung)</option>
-                        <option value="year">Jährlich (nur USt-Erklärung)</option>
-                      </select>
-                    </div>
-
-                    <div className="p-2.5 bg-[#1D1B19]/60 rounded-lg border border-stone-700 text-[11px] text-stone-300 leading-relaxed">
-                      Buchfink rechnet nach vereinbarten Entgelten ab (Sollversteuerung,
-                      § 16 Abs. 1 Satz 1 UStG): eine Rechnung wird mit ihrem Datum gebucht, die
-                      Zahlung ist ein späterer, eigener Vorgang. Istversteuerung und die
-                      Kleinunternehmerregelung nach § 19 UStG werden nicht unterstützt — Buchfink
-                      richtet sich an bilanzierende Kapitalgesellschaften.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Bank & Konten */}
-              {step === 4 && (
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">
-                      Geschäftskonto IBAN:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="DE89 3704 0044 0532 0130 00"
-                      value={companySettings.iban}
-                      onChange={(e) =>
-                        setCompanySettings({ ...companySettings, iban: e.target.value })
-                      }
-                      className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 font-mono focus:border-amber-400 focus:outline-hidden"
-                    />
-                    <p className="text-xs text-stone-400 mt-1">
-                      Wird automatisch mit Ihrem Haupt-Bankkonto verknüpft.
+                {step === 2 && (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-body text-shell-text-muted">
+                      Buchungstexte, Verwendungszwecke und Kontaktdaten werden mit AES-256
+                      verschlüsselt. Der Schlüssel liegt im Schlüsselbund des Betriebssystems, ein
+                      Passwort ist nicht zu merken.
+                    </p>
+                    <p className="rounded-control border border-attention/50 bg-attention/15 px-4 py-3">
+                      <span className="flex items-center text-label text-attention-line">
+                        Recovery-Schlüssel gleich danach exportieren
+                        <HelpPopover
+                          label="Erklärung zum Recovery-Schlüssel"
+                          className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                        >
+                          Geht dieser Rechner verloren, ist der Schlüsselbund weg und die
+                          verschlüsselten Daten sind ohne Recovery-Datei unwiederbringlich — auch
+                          aus einem Backup. Die Datei gehört an einen anderen Ort als das
+                          Datenbackup.
+                        </HelpPopover>
+                      </span>
+                      <span className="block text-body text-shell-text-muted mt-1">
+                        In den Einstellungen unter Speicherort und Schlüssel.
+                      </span>
                     </p>
                   </div>
+                )}
 
-                  <div>
-                    <label className="font-medium text-stone-200 block mb-1">Bankname:</label>
-                    <input
-                      type="text"
-                      placeholder="z. B. Sparkasse, Volksbank, Commerzbank, Qonto, N26"
-                      value={companySettings.bankName}
-                      onChange={(e) =>
-                        setCompanySettings({ ...companySettings, bankName: e.target.value })
-                      }
-                      className="w-full p-2.5 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 focus:border-amber-400 focus:outline-hidden"
-                    />
-                  </div>
+                {step === 3 && (
+                  <div className="flex flex-col gap-4">
+                    <ShellField label="Firmen- oder Inhabername">
+                      <input
+                        type="text"
+                        placeholder="Musterfirma GmbH"
+                        value={settings.companyName}
+                        onChange={(e) => patch({ companyName: e.target.value })}
+                        className={SHELL_CONTROL}
+                      />
+                    </ShellField>
 
-                  <div className="p-3.5 bg-[#1D1B19]/70 rounded-xl border border-white/10 text-stone-300 space-y-1">
-                    <span className="font-semibold text-white block">
-                      Standard-Kontenrahmen
-                    </span>
-                    <p className="text-xs leading-relaxed text-stone-300">
-                      Enthält alle gängigen Konten für Einnahmen, Ausgaben, Steuern und Bankverkehr mit einfachen Beschreibungen.
+                    <div className="grid grid-cols-2 gap-4">
+                      <ShellField label="Rechtsform">
+                        <select
+                          value={settings.legalForm}
+                          onChange={(e) => patch({ legalForm: e.target.value })}
+                          className={SHELL_CONTROL}
+                        >
+                          {LEGAL_FORMS.map((form) => (
+                            <option key={form} value={form}>
+                              {form}
+                            </option>
+                          ))}
+                        </select>
+                      </ShellField>
+                      <ShellField label="Erstes Geschäftsjahr">
+                        <input
+                          type="number"
+                          value={settings.fiscalYear}
+                          onChange={(e) => patch({ fiscalYear: Number(e.target.value) })}
+                          className={cn(SHELL_CONTROL, 'num')}
+                        />
+                      </ShellField>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <ShellField label="Steuernummer">
+                        <input
+                          type="text"
+                          placeholder="12/345/67890"
+                          value={settings.taxNumber}
+                          onChange={(e) => patch({ taxNumber: e.target.value })}
+                          className={cn(SHELL_CONTROL, 'code-num')}
+                        />
+                      </ShellField>
+                      <ShellField label="USt-IdNr. · optional">
+                        <input
+                          type="text"
+                          placeholder="DE123456789"
+                          value={settings.vatId}
+                          onChange={(e) => patch({ vatId: e.target.value })}
+                          className={cn(SHELL_CONTROL, 'code-num')}
+                        />
+                      </ShellField>
+                    </div>
+
+                    <ShellField
+                      label="USt-Voranmeldezeitraum"
+                      hint="Vierteljährlich ist der Regelfall, monatlich gilt bei Neugründung."
+                    >
+                      <select
+                        value={settings.vatPeriod || 'quarter'}
+                        onChange={(e) =>
+                          patch({ vatPeriod: e.target.value as CompanySettings['vatPeriod'] })
+                        }
+                        className={SHELL_CONTROL}
+                      >
+                        <option value="quarter">Vierteljährlich</option>
+                        <option value="month">Monatlich</option>
+                        <option value="year">Jährlich, nur die Jahreserklärung</option>
+                      </select>
+                    </ShellField>
+
+                    <p className="flex items-center text-caption text-shell-text-muted">
+                      Gebucht wird nach vereinbarten Entgelten
+                      <HelpPopover
+                        label="Erklärung zur Besteuerungsart"
+                        className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                      >
+                        Sollversteuerung nach § 16 Abs. 1 Satz 1 UStG: Eine Rechnung wird mit ihrem
+                        Datum gebucht, die Zahlung ist ein späterer, eigener Vorgang. Istversteuerung
+                        und die Kleinunternehmerregelung nach § 19 UStG unterstützt Buchfink nicht.
+                      </HelpPopover>
                     </p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Actions */}
-              <div className="flex items-center justify-between border-t border-white/10 pt-4">
+                {step === 4 && (
+                  <div className="flex flex-col gap-4">
+                    <ShellField
+                      label="IBAN des Geschäftskontos"
+                      hint="Wird mit dem Bankkonto 1800 verknüpft."
+                    >
+                      <input
+                        type="text"
+                        placeholder="DE89 3704 0044 0532 0130 00"
+                        value={settings.iban}
+                        onChange={(e) => patch({ iban: e.target.value })}
+                        className={cn(SHELL_CONTROL, 'code-num')}
+                      />
+                    </ShellField>
+                    <ShellField label="Bankname">
+                      <input
+                        type="text"
+                        placeholder="Sparkasse, Volksbank, Qonto"
+                        value={settings.bankName}
+                        onChange={(e) => patch({ bankName: e.target.value })}
+                        className={SHELL_CONTROL}
+                      />
+                    </ShellField>
+                    <p className="text-caption text-shell-text-muted">
+                      Der Kontenrahmen SKR04 bringt alle gängigen Konten für Erlöse, Aufwendungen,
+                      Steuern und Bankverkehr mit.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
                 <button
                   type="button"
-                  onClick={() => (step > 1 ? setStep((s) => (s - 1) as any) : setSetupChoice(null))}
-                  className="px-4 py-2 text-xs font-medium text-stone-300 hover:text-white rounded-lg flex items-center gap-1.5 transition-colors"
+                  onClick={() => (step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : setSetupChoice(null))}
+                  className={SHELL_BUTTON.quiet}
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" /> Zurück
+                  <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
+                  Zurück
                 </button>
 
                 {step < 4 ? (
                   <button
                     type="button"
-                    disabled={
-                      (step === 3 && !companySettings.companyName.trim())
-                    }
-                    onClick={() => setStep((s) => (s + 1) as any)}
-                    className="px-5 py-2.5 text-xs font-semibold bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                    disabled={step === 3 && !settings.companyName.trim()}
+                    onClick={() => setStep((s) => (s + 1) as 2 | 3 | 4)}
+                    className={SHELL_BUTTON.primary}
                   >
-                    Weiter <ArrowRight className="w-3.5 h-3.5" />
+                    Weiter
+                    <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
                   </button>
                 ) : (
                   <button
                     type="button"
-                    disabled={isSubmitting}
-                    onClick={handleFinishWizard}
-                    className="px-6 py-2.5 text-xs font-semibold bg-amber-700 hover:bg-amber-600 text-white rounded-xl shadow-md flex items-center gap-2 transition-all"
+                    disabled={submitting}
+                    onClick={() => void finish()}
+                    className={SHELL_BUTTON.primary}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {isSubmitting ? 'Wird eingerichtet...' : 'Buchhaltung jetzt starten'}
+                    <Check className="w-4 h-4" strokeWidth={1.5} />
+                    {submitting ? 'Wird eingerichtet …' : 'Buchhaltung anlegen'}
                   </button>
                 )}
               </div>
             </>
           ) : (
-            /* Load Existing DB Mode */
-            <form onSubmit={handleLoadExisting} className="space-y-4 text-xs">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-sm font-bold text-white">Bestehende Buchhaltungsdatei öffnen</h2>
-                <p className="text-xs text-stone-300 mt-0.5">
-                  Wählen Sie eine vorhandene Buchfink-Datei von Ihrer Festplatte aus.
-                </p>
-              </div>
+            <form onSubmit={loadExisting}>
+              <h2 className="text-heading text-white pb-4 border-b border-shell-line">
+                Bestehende Buchhaltung öffnen
+              </h2>
 
-              <div>
-                <label className="font-medium text-stone-200 block mb-1">
-                  Pfad zur Buchhaltungsdatei:
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Database className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="py-6">
+                <ShellField label="Pfad zur Buchhaltungsdatei">
+                  <span className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="/Pfad/zur/buchfink_2026_datei"
+                      placeholder="/Pfad/zur/buchfink-datei"
                       value={existingDbPath}
                       onChange={(e) => setExistingDbPath(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 bg-[#1D1B19]/80 border border-stone-700 rounded-xl text-stone-200 text-xs focus:border-amber-400 focus:outline-hidden"
+                      className={cn(SHELL_CONTROL, 'code-num')}
                       required
                     />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handlePickDatabaseFile}
-                    className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-xs border border-stone-700 transition-colors shrink-0 flex items-center gap-1.5"
-                  >
-                    <FileSearch className="w-3.5 h-3.5 text-amber-300" />
-                    Datei auswählen...
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => void pickDatabaseFile()}
+                      className={cn(SHELL_BUTTON.secondary, 'shrink-0')}
+                    >
+                      <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+                      Wählen
+                    </button>
+                  </span>
+                </ShellField>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
                 <button
                   type="button"
                   onClick={() => setSetupChoice(null)}
-                  className="px-4 py-2 text-xs font-medium text-stone-300 hover:text-white transition-colors"
+                  className={SHELL_BUTTON.quiet}
                 >
-                  Zurück zur Auswahl
+                  <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
+                  Zurück
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !existingDbPath.trim()}
-                  className="px-5 py-2.5 text-xs font-semibold bg-amber-700 hover:bg-amber-600 text-white rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                  disabled={submitting || !existingDbPath.trim()}
+                  className={SHELL_BUTTON.primary}
                 >
-                  <FolderOpen className="w-4 h-4" />
-                  {isSubmitting ? 'Wird geladen...' : 'Buchhaltung öffnen'}
+                  {submitting ? 'Wird geladen …' : 'Buchhaltung öffnen'}
                 </button>
               </div>
             </form>
           )}
         </div>
 
-        {/* Feature & Security Advantages Footer */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-stone-300 border-t border-white/10 pt-6">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-white">Sicher &amp; unveränderbar</p>
-              <p className="text-[11px] text-stone-300/80 mt-0.5 leading-snug">
-                GoBD-konforme kryptografische Hashkette schützt Buchungen lückenlos vor Manipulation.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <FolderOpen className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-white">100% lokal &amp; privat</p>
-              <p className="text-[11px] text-stone-300/80 mt-0.5 leading-snug">
-                Kein Cloud-Zwang. Ihre Finanzdaten und Schlüssel bleiben vollständig auf Ihrem Computer.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <Scale className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-white">Auswertungen &amp; E-Bilanz</p>
-              <p className="text-[11px] text-stone-300/80 mt-0.5 leading-snug">
-                Rechtssichere GuV, Bilanz und automatisierte Exporte für Finanzamt und Steuerberater.
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-shell-line">
+          <p className="flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-shell-positive" strokeWidth={1.5} />
+            <span>
+              <span className="block text-label text-white">Unveränderbar</span>
+              <span className="block text-caption text-shell-text-muted mt-0.5">
+                Eine Hashkette schützt die Buchungen lückenlos, wie es die GoBD verlangen.
+              </span>
+            </span>
+          </p>
+          <p className="flex items-start gap-2.5">
+            <FolderOpen className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
+            <span>
+              <span className="block text-label text-white">Lokal</span>
+              <span className="block text-caption text-shell-text-muted mt-0.5">
+                Daten und Schlüssel bleiben auf diesem Rechner. Kein Cloud-Zwang.
+              </span>
+            </span>
+          </p>
+          <p className="flex items-start gap-2.5">
+            <Scale className="w-4 h-4 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
+            <span>
+              <span className="block text-label text-white">Auswertungen</span>
+              <span className="block text-caption text-shell-text-muted mt-0.5">
+                GuV, Bilanz und E-Bilanz für Finanzamt und Steuerberatung.
+              </span>
+            </span>
+          </p>
         </div>
       </div>
     </div>

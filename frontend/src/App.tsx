@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
@@ -19,6 +19,7 @@ import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig } from './types';
 import { Api } from './services/api';
+import { toast } from './components/ui';
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
@@ -105,9 +106,9 @@ export function App() {
       await Api.switchTenant(tenantId);
       await refreshTenants();
       await loadActiveFiscalYearData();
-      toast.success('Mandant gewechselt');
-    } catch (e: any) {
-      toast.error(e?.message || 'Fehler beim Wechseln des Mandanten');
+      toast.success('Mandant gewechselt.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 

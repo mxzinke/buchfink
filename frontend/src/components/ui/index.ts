@@ -58,6 +58,7 @@ export {
   type MenuProps,
 } from './Menu';
 export { PageHeader, Section, type PageHeaderProps, type SectionProps } from './Section';
+export { SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL } from './shell';
 export { Select, type SelectOption, type SelectProps } from './Select';
 export { Stat, StatRow, type StatProps } from './StatRow';
 export { StatusBadge, type Status, type StatusBadgeProps } from './StatusBadge';
