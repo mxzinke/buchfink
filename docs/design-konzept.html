@@ -283,8 +283,12 @@
   .mock-inner .mi-h { background: var(--sunken); border-bottom: 1px solid var(--line); padding: 6px 12px; font-size: 10.5px; color: var(--ink-subtle); display: flex; justify-content: space-between; }
   .mock-inner .mi-r { padding: 8px 12px; font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
   .mock-inner .mi-r:last-child { border-bottom: none; }
-  .mock-flat .mi-h { border-bottom: 1px solid var(--line-strong); padding: 6px 0; font-size: 10.5px; color: var(--ink-subtle); display: flex; justify-content: space-between; }
-  .mock-flat .mi-r { padding: 8px 0; font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  /* Die Regel: Ueberschrift auf dem Blatt, die Tabelle in einer Flaeche */
+  .mock-flat .mi-box { border: 1px solid var(--line); border-radius: var(--radius-card);
+                       background: var(--surface); overflow: hidden; }
+  .mock-flat .mi-h { border-bottom: 1px solid var(--line-strong); padding: 7px 12px; font-size: 10.5px; color: var(--ink-subtle); display: flex; justify-content: space-between; }
+  .mock-flat .mi-r { padding: 8px 12px; font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  .mock-flat .mi-r:last-child { border-bottom: none; }
 
   .allow { display: grid; grid-template-columns: 26px 1fr; gap: 14px; align-items: baseline; }
   .allow > .k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
@@ -348,6 +352,49 @@
   .skeleton { display: flex; flex-direction: column; gap: 10px; max-width: 340px; }
   .skeleton span { height: 10px; border-radius: 3px; background: var(--sunken); display: block; }
 
+
+  /* ==========================================================================
+     Text und Erklaerung
+     ========================================================================== */
+  .budget { width: 100%; }
+  .budget th { font-size: 11px; font-weight: 500; color: var(--ink-subtle); text-transform: uppercase;
+               letter-spacing: .07em; text-align: left; padding: 0 16px 8px; border-bottom: 1px solid var(--line-strong); }
+  .budget td { padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .budget th:first-child, .budget td:first-child { padding-left: 0; width: 260px; font-weight: 600; }
+  .budget th:last-child,  .budget td:last-child  { padding-right: 0; color: var(--ink-muted); }
+
+  .tips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+  .tip { padding: 0 28px; }
+  .tip:first-child { padding-left: 0; }
+  .tip:last-child { padding-right: 0; }
+  .tip + .tip { border-left: 1px solid var(--line); }
+  .tip-n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-text); }
+  .tip-t { font-size: 14px; font-weight: 600; letter-spacing: -.01em; margin: 4px 0 3px; }
+  .tip-m { font-size: 11.5px; color: var(--ink-subtle); margin-bottom: 16px; }
+  .tip-stage { min-height: 168px; display: flex; align-items: flex-start; }
+  .tip-note { font-size: 12px; color: var(--ink-subtle); line-height: 1.5; margin-top: 14px;
+              padding-top: 12px; border-top: 1px solid var(--line); }
+
+  .spec-tooltip { background: var(--ink); color: var(--paper); border-radius: var(--radius-control);
+                  padding: 7px 10px; font-size: 11px; line-height: 1.45; max-width: 240px; }
+  .spec-popover { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-overlay);
+                  box-shadow: var(--shadow-popover); padding: 14px 16px; max-width: 300px; }
+  .spec-popover p { font-size: 12.5px; color: var(--ink-muted); line-height: 1.55; }
+  .spec-popover a { font-size: 12px; font-weight: 600; display: inline-block; margin-top: 10px; text-decoration: none; }
+  .spec-dialog { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-overlay);
+                 box-shadow: var(--shadow-dialog); max-width: 300px; overflow: hidden; }
+  .spec-dialog .sd-h { padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; }
+  .spec-dialog .sd-b { padding: 12px 16px; font-size: 12px; color: var(--ink-muted); line-height: 1.55; }
+
+  /* Das Erklaerzeichen: Fragezeichen in einem 24 px grossen Klickfeld */
+  .helpmark { display: inline-flex; align-items: center; justify-content: center;
+              width: 24px; height: 24px; margin-left: 2px; vertical-align: middle;
+              font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: help;
+              background: none; border: none; font-family: inherit;
+              transition: color 120ms var(--ease); }
+  .helpmark:hover { color: var(--ink-muted); }
+  .label-demo { font-size: 12px; font-weight: 500; color: var(--ink-muted); display: inline-flex; align-items: center; }
+
   /* ==========================================================================
      Komponenten
      ========================================================================== */
@@ -406,20 +453,23 @@
      ========================================================================== */
   .t-scroll { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  /* Datentabellen bekommen eine eigene Flaeche: eigene Spalten, eigenes
+     Scrollen, stehende Kopfzeile. Der Inhalt ist vom Blatt geloest. */
+  .t-card { border: 1px solid var(--line); border-radius: var(--radius-card);
+            background: var(--surface); overflow: hidden; }
   .j-table thead th { border-bottom: 1px solid var(--line-strong);
              font-size: 12px; font-weight: 500; color: var(--ink-subtle); text-align: left;
-             padding: 0 16px; height: 30px; white-space: nowrap; }
+             padding: 0 16px; height: 34px; white-space: nowrap; }
   .j-table tbody td { padding: 0 16px; height: 40px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  .j-table th:first-child, .j-table td:first-child { padding-left: 0; }
-  .j-table th:last-child,  .j-table td:last-child  { padding-right: 0; }
+  .j-table tbody tr:last-child td { border-bottom: none; }
   .j-table tbody tr:hover td { background: var(--sunken); }
   .r { text-align: right; font-variant-numeric: tabular-nums; }
   .doc-no, .acct { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-feature-settings: "zero" 1; color: var(--ink-muted); }
   .muted { color: var(--ink-subtle); }
 
-  .j-table tr.storno td { background: color-mix(in srgb, var(--negative-soft) 55%, var(--paper)); }
-  .j-table tr.storno:hover td { background: color-mix(in srgb, var(--negative-soft) 75%, var(--paper)); }
-  .j-table tr.storno td:first-child { box-shadow: inset 2px 0 0 var(--negative); padding-left: 10px; }
+  .j-table tr.storno td { background: color-mix(in srgb, var(--negative-soft) 60%, var(--surface)); }
+  .j-table tr.storno:hover td { background: color-mix(in srgb, var(--negative-soft) 80%, var(--surface)); }
+  .j-table tr.storno td:first-child { box-shadow: inset 2px 0 0 var(--negative); }
   .j-table tr.sum td { font-weight: 600; border-top: 3px double var(--line-strong); border-bottom: none; }
 
   /* ==========================================================================
@@ -479,6 +529,9 @@
     .steps { grid-template-columns: repeat(2, 1fr); }
     .radii, .elev, .stats { grid-template-columns: 1fr 1fr; }
     .figures, .compare, .check { grid-template-columns: 1fr; }
+    .tips { grid-template-columns: 1fr; }
+    .tip { padding: 0; }
+    .tip + .tip { border-left: none; border-top: 1px solid var(--line); padding-top: 26px; margin-top: 26px; }
     .fig, .cmp { padding: 0; }
     .fig:last-child, .cmp:last-child { border-left: none; border-top: 1px solid var(--line); padding-top: 28px; margin-top: 28px; }
     .nav-demo { grid-template-columns: 1fr; }
@@ -517,7 +570,7 @@
     <dl class="facts">
       <div class="fact"><dt>Farbe</dt><dd>4 Familien, je 4 Rollen</dd></div>
       <div class="fact"><dt>Schriftgrößen</dt><dd>6 Stufen statt bisher 9</dd></div>
-      <div class="fact"><dt>Flächen</dt><dd>4 erlaubte Fälle statt 58 Karten</dd></div>
+      <div class="fact"><dt>Flächen</dt><dd>5 erlaubte Fälle statt 58 Karten</dd></div>
       <div class="fact"><dt>Bewegung</dt><dd>6 erlaubte Übergänge</dd></div>
     </dl>
 
@@ -715,7 +768,7 @@
         </div>
         <div class="compare">
           <div class="cmp">
-            <span class="cmp-label no"><span class="m">✕</span> Karte in Karte</span>
+            <span class="cmp-label no"><span class="m">✕</span> Fläche in Fläche</span>
             <div class="mock-card">
               <div class="mc-t">Offene Posten</div>
               <div class="mc-s">7 Rechnungen · 12.470,00 €</div>
@@ -725,20 +778,20 @@
                 <div class="mi-r"><span>Hoffmann KG</span><span>4.165,00</span></div>
               </div>
             </div>
-            <p class="cap" style="margin-top:14px">Drei Rahmen, zwei Hintergründe und zwei Radien für zwei Zeilen Inhalt. Der Blick zählt Kästen, bevor er Zahlen liest.</p>
+            <p class="cap" style="margin-top:14px">Zwei geschachtelte Flächen für zwei Zeilen Inhalt. Der Blick zählt Kästen, bevor er Zahlen liest.</p>
           </div>
           <div class="cmp">
-            <span class="cmp-label yes"><span class="m">✓</span> Abschnitt auf dem Blatt</span>
+            <span class="cmp-label yes"><span class="m">✓</span> Abschnitt flach, Tabelle in Fläche</span>
             <div class="mock-flat">
               <div class="mc-t">Offene Posten</div>
               <div class="mc-s">7 Rechnungen · 12.470,00 €</div>
-              <div>
+              <div class="mi-box">
                 <div class="mi-h"><span>Kunde</span><span>Betrag</span></div>
                 <div class="mi-r"><span>Meridian GmbH</span><span>11.900,00</span></div>
                 <div class="mi-r"><span>Hoffmann KG</span><span>4.165,00</span></div>
               </div>
             </div>
-            <p class="cap" style="margin-top:14px">Überschrift, Kontextzeile, Haarlinien. Gleiche Information, gleiche Gliederung, nur ohne Wände.</p>
+            <p class="cap" style="margin-top:14px">Die Überschrift steht auf dem Blatt, die Tabelle in ihrer eigenen Fläche. Eine Ebene statt zwei.</p>
           </div>
         </div>
 
@@ -749,9 +802,10 @@
           </div>
           <div class="allow">
             <span class="k">01</span><p><strong>Overlays.</strong> Dialog, Popover, Dropdown, Tooltip. Die schweben wirklich.</p>
-            <span class="k">02</span><p><strong>Ein Fremdkörper auf dem Blatt.</strong> Die Belegvorschau, ein eingebettetes PDF. Das ist ein Dokument, keine Oberfläche.</p>
-            <span class="k">03</span><p><strong>Ein Hinweis, der den Lesefluss unterbrechen soll.</strong> Periodensperre, Integritätsbruch, Fehlermeldung.</p>
-            <span class="k">04</span><p><strong>Ein Leerzustand</strong>, der die Stelle füllt, an der sonst eine Tabelle stünde.</p>
+            <span class="k">02</span><p><strong>Eine Datentabelle.</strong> Journal, Kontenliste, Offene Posten. Eigene Spalten, eigenes Scrollen, eine Kopfzeile, die stehen bleibt. Die Fläche macht diese Ablösung sichtbar. Ein Formular oder eine Kennzahl hat nichts davon und bekommt deshalb auch keine.</p>
+            <span class="k">03</span><p><strong>Ein Fremdkörper auf dem Blatt.</strong> Die Belegvorschau, ein eingebettetes PDF. Das ist ein Dokument, keine Oberfläche.</p>
+            <span class="k">04</span><p><strong>Ein Hinweis, der den Lesefluss unterbrechen soll.</strong> Periodensperre, Integritätsbruch, Fehlermeldung.</p>
+            <span class="k">05</span><p><strong>Ein Leerzustand</strong>, der die Stelle füllt, an der sonst eine Tabelle stünde.</p>
           </div>
         </div>
 
@@ -761,7 +815,7 @@
             <div class="rad"><div class="rad-box" style="border-radius:6px"></div><span class="rad-meta"><span class="n">6 px · control</span><span class="u">Buttons, Felder, Badges, Hinweise</span></span></div>
             <div class="rad"><div class="rad-box" style="border-radius:14px"></div><span class="rad-meta"><span class="n">14 px · overlay</span><span class="u">Dialoge, Popover</span></span></div>
             <div class="rad"><div class="rad-box" style="border-radius:999px"></div><span class="rad-meta"><span class="n">voll · full</span><span class="u">Statuspunkte, Zähler</span></span></div>
-            <div class="rad faded"><div class="rad-box" style="border-radius:10px"></div><span class="rad-meta"><span class="n">10 px · card</span><span class="u">nur noch Belegvorschau</span></span></div>
+            <div class="rad"><div class="rad-box" style="border-radius:10px"></div><span class="rad-meta"><span class="n">10 px · card</span><span class="u">Datentabellen, Belegvorschau</span></span></div>
           </div>
         </div>
 
@@ -1043,9 +1097,9 @@
 
         <div class="block-head">
           <h3>Journal</h3>
-          <p class="cap wide">Ohne Container, direkt auf dem Papier. Kopfzeile ohne Füllung, Text links, Zahlen rechts, keine Zebrastreifen.</p>
+          <p class="cap wide">In eigener Fläche, weil der Inhalt vom Blatt gelöst ist. Kopfzeile ohne Füllung, Text links, Zahlen rechts, keine Zebrastreifen.</p>
         </div>
-        <div class="t-scroll">
+        <div class="t-card"><div class="t-scroll">
           <table class="j-table">
             <thead>
               <tr>
@@ -1091,7 +1145,7 @@
               </tr>
             </tbody>
           </table>
-        </div>
+        </div></div>
         <p class="cap wide" style="margin-top:16px">
           Die Stornozeile trägt eine Kante in Rosé, eine leicht getönte Fläche und ein Badge, aber
           <strong style="color:var(--ink)">keine Durchstreichung</strong>. Der ursprüngliche Betrag
@@ -1103,7 +1157,7 @@
             <h3>Buchungssatz</h3>
             <p class="cap wide">Zwei getrennte, rechtsbündige Spalten, nicht eine Spalte mit Vorzeichen. Soll links, Haben rechts, wie im Buch. Beide neutral.</p>
           </div>
-          <div class="t-scroll">
+          <div class="t-card"><div class="t-scroll">
             <table class="j-table">
               <thead>
                 <tr><th style="width:96px">Konto</th><th>Bezeichnung</th><th class="r" style="width:150px">Soll</th><th class="r" style="width:150px">Haben</th></tr>
@@ -1115,7 +1169,7 @@
                 <tr class="sum"><td></td><td>Summe</td><td class="r">11.900,00</td><td class="r">11.900,00</td></tr>
               </tbody>
             </table>
-          </div>
+          </div></div>
           <p class="cap wide" style="margin-top:16px">
             Die Doppellinie über der Summe ist buchhalterische Konvention, kein Zierrat, und sie trägt
             allein. Dass Soll- und Habensumme sichtbar gleich sind, ist die Kontrolle, die Buchhalter
@@ -1133,9 +1187,9 @@
         <div class="head">
           <h2>Layout</h2>
           <p class="note">
-            Dunkle Navigationsspalte als eigener Raum, helle Arbeitsfläche daneben, und auf dieser
-            Fläche kein einziger Kasten. Der aktive Eintrag bekommt eine 2 px schmale Leiste in
-            Himmelblau.
+            Dunkle Navigationsspalte als eigener Raum, helle Arbeitsfläche daneben. Kennzahlen und
+            Filter liegen dort direkt auf dem Papier, eine eigene Fläche bekommt nur die Tabelle.
+            Der aktive Eintrag trägt eine 2 px schmale Leiste in Himmelblau.
           </p>
         </div>
 
@@ -1185,6 +1239,102 @@
       </div>
     </section>
 
+    <!-- ================= TEXT ================= -->
+    <section class="section">
+      <div class="rail">§ 15</div>
+      <div>
+        <div class="head">
+          <h2>Text</h2>
+          <p class="note">
+            Buchfink erklärt, ohne zuzutexten. Wer täglich damit arbeitet, liest den Erklärsatz beim
+            zwanzigsten Mal nicht mehr, sondern scrollt an ihm vorbei. Text, der immer sichtbar ist,
+            obwohl man ihn selten braucht, ist kein Service, sondern Lärm.
+          </p>
+        </div>
+
+        <div class="block-head">
+          <h3>Textbudget</h3>
+          <p class="cap wide">Eine Arbeitsansicht enthält keinen Fließtext. Was länger ist als hier erlaubt, wandert hinter das Erklärzeichen.</p>
+        </div>
+        <div class="t-scroll">
+          <table class="budget">
+            <thead><tr><th>Ort</th><th>Erlaubt</th></tr></thead>
+            <tbody>
+              <tr><td>Seitenkopf</td><td>Titel plus eine Zeile Kontext, höchstens 60 Zeichen</td></tr>
+              <tr><td>Feldhilfe unter dem Feld</td><td>höchstens sechs Wörter, sonst Tooltip</td></tr>
+              <tr><td>Fehlermeldung</td><td>zwei Sätze: Ursache, nächster Schritt</td></tr>
+              <tr><td>Leerzustand</td><td>Überschrift, ein Satz, eine Aktion</td></tr>
+              <tr><td>Hinweisstreifen</td><td>ein Satz</td></tr>
+              <tr><td>Tabellenzelle</td><td>kein Erklärtext, nie</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>Drei Stufen der Erklärung</h3>
+            <p class="cap wide">
+              Ausgelöst wird immer bewusst, nie automatisch. Es gibt keine Tour, kein Popover beim
+              ersten Besuch, keinen Hinweis, der von selbst aufgeht.
+            </p>
+          </div>
+          <div class="tips">
+            <div class="tip">
+              <span class="tip-n">Stufe 1</span>
+              <div class="tip-t">Tooltip</div>
+              <div class="tip-m">ein Satz · Hover und Fokus, 400 ms</div>
+              <div class="tip-stage">
+                <span class="spec-tooltip">Summe aller Erlöse im laufenden Geschäftsjahr, vor Steuern.</span>
+              </div>
+              <p class="tip-note">Erklärt nur. Kein Link, nichts Klickbares. Sobald etwas darin klickbar wäre, ist es ein Popover.</p>
+            </div>
+            <div class="tip">
+              <span class="tip-n">Stufe 2</span>
+              <div class="tip-t">Popover</div>
+              <div class="tip-m">bis drei Sätze · Klick auf das Zeichen</div>
+              <div class="tip-stage">
+                <div class="spec-popover">
+                  <p>Ein Storno hebt eine Buchung nicht auf, sondern bucht sie spiegelbildlich zurück. Beide Zeilen bleiben im Journal stehen. Die GoBD verlangt genau das.</p>
+                  <a href="#" onclick="return false">Mehr dazu</a>
+                </div>
+              </div>
+              <p class="tip-note">Fachbegriff, Rechenweg, oder warum eine Aktion gesperrt ist. Fokussierbar, Escape schließt.</p>
+            </div>
+            <div class="tip">
+              <span class="tip-n">Stufe 3</span>
+              <div class="tip-t">Dialog</div>
+              <div class="tip-m">mit Beispiel oder Tabelle · auf Anforderung</div>
+              <div class="tip-stage">
+                <div class="spec-dialog">
+                  <div class="sd-h">Storno und Generalumkehr</div>
+                  <div class="sd-b">Wann storniert wird, wie die Gegenbuchung entsteht, und was im Journal sichtbar bleibt. Mit Beispiel.</div>
+                </div>
+              </div>
+              <p class="tip-note">SKR04-Kontenlogik, GoBD-Regeln, E-Bilanz-Mapping. Nur über „Mehr dazu“ erreichbar.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><h3>Das Erklärzeichen</h3></div>
+          <p class="cap wide" style="margin-bottom:16px">
+            Ein Fragezeichen in <code>ink-faint</code>, Klickfeld 24 mal 24 px, auf Touch-Geräten 44.
+            Es steht hinter der Beschriftung, nie davor, und ist mit der Tastatur erreichbar.
+          </p>
+          <div class="demo-row top">
+            <span class="field" style="max-width:220px">
+              <span class="label-demo">Einnahmen<button class="helpmark" type="button" title="Summe aller Erlöse im laufenden Geschäftsjahr, vor Steuern." aria-label="Erklärung zu Einnahmen">?</button></span>
+              <input class="input amount" value="184.320,00" readonly>
+            </span>
+            <span class="field" style="max-width:220px">
+              <span class="label-demo">Umsatzsteuer-Voranmeldung<button class="helpmark" type="button" title="Zeitraum und Fristen richten sich nach der Zahllast des Vorjahres." aria-label="Erklärung zur Umsatzsteuer-Voranmeldung">?</button></span>
+              <input class="input" value="monatlich" readonly>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= UMSETZUNG ================= -->
     <section class="section">
       <div class="rail">§ 17</div>
@@ -1219,9 +1369,9 @@
         <div class="block">
           <div class="block-head"><h3>Prüfliste für jeden Pull Request</h3></div>
           <ul class="check">
-            <li>Keine neue Fläche außerhalb der vier Fälle aus §6, keine Fläche in einer Fläche</li>
+            <li>Keine neue Fläche außerhalb der fünf Fälle aus §6, keine Fläche in einer Fläche</li>
             <li>Abschnitte durch Linie und Abstand getrennt, nicht durch Kästen</li>
-            <li>Tabellen ohne Container, Kopfzeile ohne Füllung</li>
+            <li>Tabellenüberschrift über der Fläche, Kopfzeile ohne Füllung</li>
             <li><code>-text</code> für Text, Basis für Marker, <code>-soft</code> mit <code>-line</code> für Flächen</li>
             <li>Keine Hex-Farben, keine Klassen aus den alten Paletten</li>
             <li>Schriftgrößen aus der Skala, Zahlenspalten tabellarisch und rechtsbündig</li>

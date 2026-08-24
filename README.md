@@ -99,8 +99,9 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
 
 - **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) in sechs Stufen – modern, klar lesbar und neutral. Beträge in tabellarischen Ziffern, damit Spalten untereinander stehen.
 - **Farbwelt:** Warmes Papier und Tinte als Grundfläche, dazu vier pastellige Familien: Himmelblau als Marke, Bernstein für offen, Salbei für geprüft, Rosé für Storno. Jede Familie hat vier Rollen (Fläche, Rand, Marker, Text), damit Pastell die Kontrastvorgaben hält.
-- **Flach statt gekachelt:** Inhalt liegt direkt auf dem Papier. Abschnitte trennen Überschrift, Abstand und Haarlinie, keine Karten. Tabellen haben keinen Container.
+- **Flach statt gekachelt:** Inhalt liegt direkt auf dem Papier. Abschnitte trennen Überschrift, Abstand und Haarlinie, keine Karten. Eine eigene Fläche bekommt nur, was vom Blatt gelöst ist: Datentabellen, Overlays, Belegvorschau.
 - **Bewegung:** sechs erlaubte Übergänge, 120 bis 180 ms. Zahlen animieren nie.
+- **Wenig Text:** Arbeitsansichten enthalten keinen Fließtext. Erklärungen liegen hinter einem Erklärzeichen, in drei Stufen: Tooltip, Popover, Dialog.
 - **Zahlenformatierung:** Konsequent de-DE (`1.234,56 €`, `01.01.2024`).
 - **Fachliche Muster:** Soll und Haben zweispaltig und neutral, Summen mit buchhalterischer Doppellinie, Storno sichtbar markiert statt durchgestrichen.
 - **Barrierearme Buchhaltung:** Versteckte Fachbegriff-Erklärungen, Tastatur-Shortcuts und geführte Workflows für Nicht-Buchhalter.

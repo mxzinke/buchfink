@@ -44,7 +44,9 @@ dabei eine Aufgabe: nicht im Weg zu stehen.
 **1. Ruhe ist Funktion, nicht Geschmack.**
 Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die
 Suche nach dem, was zählt. Keine Farbfläche ohne Bedeutung, kein Schatten ohne
-Ebenenwechsel, keine Animation ohne Zustandswechsel.
+Ebenenwechsel, keine Animation ohne Zustandswechsel, kein Erklärsatz, den man ab
+dem zweiten Mal überliest. Erklärungen gehören hinter ein Zeichen, das man
+anklickt, wenn man sie braucht (§15).
 
 **2. Das Blatt, nicht der Kasten.**
 Struktur entsteht aus Weißraum, Haarlinien und Ausrichtung. Eine Karte sagt:
@@ -247,6 +249,9 @@ Dichte, umschaltbar in den Einstellungen und pro Mandant gespeichert:
 | Komfortabel | 40 px | Standard, Stammdaten, alles mit Bearbeitungsaktionen |
 
 Berührungsziele bleiben mindestens 32 mal 32 px, auf Touch-Geräten 44 mal 44 px.
+Eine Ausnahme: das Erklärzeichen aus §15.2 hat auf dem Desktop 24 mal 24 px. Es
+sitzt inline neben einer Beschriftung, wo 32 px die Zeile auseinanderziehen
+würden, und auf Touch-Geräten gilt auch dort 44 px.
 
 ---
 
@@ -261,8 +266,8 @@ Signal: Dort passiert etwas.
 
 | Fläche | Wo sie gilt |
 |---|---|
-| `paper` | Standard: Seiten, Abschnitte, Tabellen, Formulare, Kennzahlen |
-| `surface` | Eingabefelder und Overlays |
+| `paper` | Standard: Seiten, Abschnitte, Formulare, Kennzahlen, Filterleisten |
+| `surface` | Eingabefelder, Overlays, Datentabellen, Belegvorschau |
 | `sunken` | Zeilen-Hover, gesperrte Perioden |
 
 Ein weißes Eingabefeld auf Papiergrund ist eine stärkere und flachere
@@ -274,11 +279,16 @@ Abschließende Liste. Was nicht hier steht, bekommt keinen Rahmen und keinen
 eigenen Hintergrund.
 
 1. **Overlays.** Dialog, Popover, Dropdown, Tooltip. Die schweben wirklich.
-2. **Ein Fremdkörper auf dem Blatt.** Die Belegvorschau, ein eingebettetes PDF.
+2. **Eine Datentabelle.** Journal, Kontenliste, Offene Posten, SuSa. Der Inhalt
+   ist vom Blatt gelöst: eigene Spalten, eigenes seitliches Scrollen, ein Kopf,
+   der beim Scrollen stehen bleibt. Die Fläche macht diese Ablösung sichtbar und
+   gibt der stehenden Kopfzeile einen Grund. Ein Formular oder eine Kennzahl hat
+   nichts davon und bekommt deshalb auch keine Fläche.
+3. **Ein Fremdkörper auf dem Blatt.** Die Belegvorschau, ein eingebettetes PDF.
    Das ist ein Dokument, keine Oberfläche.
-3. **Ein Hinweis, der den Lesefluss unterbrechen soll.** Periodensperre,
+4. **Ein Hinweis, der den Lesefluss unterbrechen soll.** Periodensperre,
    Integritätsbruch, Fehlermeldung aus dem Backend.
-4. **Ein Leerzustand**, der die Stelle füllt, an der sonst eine Tabelle stünde.
+5. **Ein Leerzustand**, der die Stelle füllt, an der sonst eine Tabelle stünde.
 
 ### 6.3 Verschachtelung ist verboten
 
@@ -308,13 +318,11 @@ ist das leiseste Trennmittel und deshalb das erste.
 | Token | Wert | Einsatz |
 |---|---|---|
 | `rounded-control` | 6 px | Buttons, Felder, Chips, Badges, Hinweise |
+| `rounded-card` | 10 px | Datentabellen, Belegvorschau |
 | `rounded-overlay` | 14 px | Dialoge, Popover, Dropdowns |
 | `rounded-full` | | Avatare, Zähler-Pills |
 
 Statusmarker sind davon ausgenommen. Sie sind Rauten, siehe §10.
-
-`rounded-card` (10 px) bleibt als Token, hat aber nur noch einen Einsatzort: die
-Belegvorschau. Neue Verwendungen sind begründungspflichtig.
 
 ### 6.6 Höhe
 
@@ -534,13 +542,14 @@ zugunsten von Abstand.
 
 ### Tabelle
 
-Das wichtigste Element der Anwendung und das erste ohne Container.
+Das wichtigste Element der Anwendung, und die eine Stelle im Arbeitsbereich, die
+eine eigene Fläche bekommt (§6.2, Fall 2).
 
 | Teil | Umsetzung |
 |---|---|
-| Container | keiner, die Tabelle sitzt auf dem Papier |
-| Kopf | `border-b border-line-strong text-label text-ink-subtle`, `sticky top-0 bg-paper z-10`, keine Füllung |
-| Zelle | `px-4 h-10 text-body`, erste Spalte `pl-0`, letzte `pr-0` |
+| Container | `rounded-card border border-line bg-surface overflow-hidden` |
+| Kopf | `border-b border-line-strong text-label text-ink-subtle`, `sticky top-0 bg-surface z-10`, keine Füllung |
+| Zelle | `px-4 h-10 text-body` (kompakt `h-8`) |
 | Trennung | `divide-y divide-line`, **keine Zebrastreifen** |
 | Hover | `hover:bg-sunken` |
 | Ausgewählt | `bg-accent-soft` |
@@ -548,7 +557,13 @@ Das wichtigste Element der Anwendung und das erste ohne Container.
 | Summenzeile | `rule-total font-semibold`, die Doppellinie trägt allein |
 | Zeilenaktionen | bei Hover und Fokus sichtbar, per Tastatur immer erreichbar |
 
-Der Kopf braucht beim Scrollen `bg-paper`, damit die Zeilen nicht durchscheinen.
+Die Fläche ersetzt nicht die Kopflinie. Der Kopf bleibt ohne Füllung, `bg-surface`
+braucht er nur, damit beim Scrollen keine Zeilen durchscheinen.
+
+Die Überschrift des Abschnitts steht **über** der Fläche, nicht darin. Sonst
+entsteht wieder eine Karte mit Kopfzeile, und der Abschnitt aus §6.4 verliert
+seine Funktion.
+
 Breite Tabellen scrollen in einem eigenen `overflow-x-auto`-Container, die Seite
 selbst scrollt nie seitlich.
 
@@ -592,6 +607,19 @@ links von Primär. Escape schließt, der Fokus wird gefangen (§8.8).
 Ein Dialog ist für eine abgeschlossene Eingabe da. Was länger als ein Bildschirm
 ist, etwa die Rechnungserfassung oder der Beleg-Buchungsflow, gehört in eine
 eigene Ansicht.
+
+### Erklärung
+
+Das Erklärzeichen und seine drei Stufen sind in §15.2 festgelegt. Als Baustein:
+`HelpTooltip` für die Tooltip-Stufe, `HelpPopover` für Popover und den Sprung in
+den Dialog. Beide sitzen hinter der Beschriftung, nicht davor, und sind
+fokussierbar.
+
+| Stufe | Fläche |
+|---|---|
+| Tooltip | `rounded-control bg-ink text-paper px-2.5 py-1.5 text-caption`, max. 260 px breit |
+| Popover | `rounded-overlay border border-line bg-surface shadow-popover p-4 text-body`, max. 340 px |
+| Dialog | wie oben unter Dialog |
 
 ### Meldungen
 
@@ -699,8 +727,8 @@ dargestellt.
 │  Navigation  ├─────────────────────────────────────────────┤
 │  240 px      │  Seitentitel + Primäraktion                 │
 │  dunkel      │  ─────────────────────────────────────────  │
-│              │  Kennzahlen, Filter, Tabelle                │
-│  ──────────  │  alles direkt auf dem Papier                │
+│              │  Kennzahlen und Filter auf dem Papier,      │
+│  ──────────  │  die Tabelle in ihrer eigenen Fläche        │
 │  Integrität  │                                             │
 └──────────────┴─────────────────────────────────────────────┘
 ```
@@ -755,16 +783,61 @@ Details hinter "Details anzeigen". Keine Stack-Traces im Klartext.
 
 ---
 
-## 15. Sprache
+## 15. Text
+
+Buchfink erklärt, ohne zuzutexten. Wer täglich damit arbeitet, liest den
+Erklärsatz beim zwanzigsten Mal nicht mehr, sondern scrollt an ihm vorbei. Text,
+der immer sichtbar ist, obwohl man ihn selten braucht, ist deshalb kein Service,
+sondern Lärm.
+
+Die Regel: **Eine Arbeitsansicht enthält keinen Fließtext.** Was länger als ein
+Satz ist, wandert hinter ein Erklärzeichen.
+
+### 15.1 Textbudget
+
+| Ort | Erlaubt |
+|---|---|
+| Seitenkopf | Titel plus eine Zeile Kontext, höchstens 60 Zeichen |
+| Feldhilfe unter dem Feld | höchstens sechs Wörter, sonst Tooltip |
+| Fehlermeldung | zwei Sätze: Ursache, nächster Schritt |
+| Leerzustand | Überschrift, ein Satz, eine Aktion |
+| Hinweisstreifen | ein Satz |
+| Tabellenzelle | kein Erklärtext, nie |
+
+Alles darüber gehört in eine Erklärung nach §15.2. Wer beim Schreiben merkt, dass
+ein Absatz nötig wäre, hat entweder die Oberfläche zu erklärungsbedürftig gebaut
+oder schreibt gerade Dokumentation an der falschen Stelle.
+
+### 15.2 Drei Stufen der Erklärung
+
+Ausgelöst wird immer bewusst, nie automatisch. Es gibt keine Tour, kein
+Popover beim ersten Besuch, keinen Hinweis, der von selbst aufgeht.
+
+| Stufe | Umfang | Auslöser | Einsatz |
+|---|---|---|---|
+| Tooltip | ein Satz, kein Link, nichts Klickbares | Hover und Fokus, 400 ms Verzögerung | Was ist dieses Feld, was tut dieser Button |
+| Popover | bis drei Sätze, ein Link "Mehr dazu" erlaubt | Klick auf das Erklärzeichen | Fachbegriff, Rechenweg, warum eine Aktion gesperrt ist |
+| Dialog | mehr, mit Beispiel oder Tabelle | Klick auf "Mehr dazu" | SKR04-Kontenlogik, GoBD-Regeln, E-Bilanz-Mapping |
+
+Das Erklärzeichen ist ein Fragezeichen in `ink-faint`, das bei Hover und Fokus
+auf `ink-muted` wechselt. Klickfeld 24 mal 24 px, auf Touch-Geräten 44. Es steht
+hinter der Beschriftung, nie davor, und ist mit der Tastatur erreichbar. Escape
+schließt.
+
+Ein Tooltip erklärt nur. Sobald etwas darin klickbar wäre, ist es ein Popover.
+
+### 15.3 Wortwahl
 
 - Sie-Form, kurze Sätze, keine Ausrufezeichen.
 - Fachbegriffe werden verwendet, nicht umschrieben. Die Zielgruppe bilanziert.
-  Erklärungen kommen über `HelpTooltip`.
+  Erklärt wird über §15.2, nicht durch vereinfachte Labels.
 - Fehlermeldungen nennen Ursache und nächsten Schritt: "Die Buchung ist nicht
   ausgeglichen. Soll (1.190,00 €) und Haben (1.000,00 €) müssen übereinstimmen."
   Nicht: "Ungültige Eingabe."
 - Buttons tragen Verben: "Buchung festschreiben", nicht "OK".
 - Bestätigungen benennen die Folge, siehe §8.2.
+- Kein Text, der nur beschreibt, was ohnehin zu sehen ist. Eine Tabelle mit fünf
+  Spalten braucht keinen Satz darüber, der die fünf Spalten aufzählt.
 
 ---
 
@@ -810,9 +883,11 @@ Hex-Literale aus `src/` entfernen, danach als Grep-Prüfung in CI.
 
 ### Prüfliste für jeden Pull Request
 
-- [ ] Keine neue Fläche außerhalb der vier Fälle aus §6.2, keine Fläche in einer Fläche
+- [ ] Keine neue Fläche außerhalb der fünf Fälle aus §6.2, keine Fläche in einer Fläche
 - [ ] Abschnitte durch Überschrift, Abstand und Haarlinie getrennt, nicht durch Kästen
-- [ ] Tabellen ohne Container, Kopfzeile ohne Füllung
+- [ ] Tabellenüberschrift über der Fläche, Kopfzeile ohne Füllung
+- [ ] Kein Fließtext in der Ansicht, Erklärungen hinter dem Erklärzeichen (§15)
+- [ ] Textbudget je Ort eingehalten (§15.1)
 - [ ] Keine Hex-Farben, keine Klassen aus den alten Paletten
 - [ ] `-text` für Text, Basis für Marker, `-soft` mit `-line` für Flächen
 - [ ] Schriftgrößen aus der Skala in §4
