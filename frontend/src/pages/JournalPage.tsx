@@ -1,22 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Trash2,
-  Undo2,
-  X,
-} from 'lucide-react';
-import type { Account, IntegrityCheckResult, JournalEntry, JournalLine, Side } from '../types';
+import { AlertCircle, ChevronDown, ChevronRight, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react';
+import type { Account, JournalEntry, JournalLine, Side } from '../types';
 import { Api } from '../services/api';
-import { formatCents, formatDate, formatDateRange, formatShortHash, parseCents } from '../utils/formatters';
-import { HelpTooltip } from '../components/HelpTooltip';
-import { Field, inputClass } from '../components/Form';
+import {
+  formatCents,
+  formatDate,
+  formatDateRange,
+  formatShortHash,
+  parseCents,
+} from '../utils/formatters';
+import {
+  Button,
+  Combobox,
+  Dialog,
+  EmptyState,
+  Field,
+  HelpPopover,
+  Input,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonRows,
+  StatusBadge,
+  Table,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
+  cn,
+  toast,
+} from '../components/ui';
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manuell',
@@ -39,14 +53,27 @@ const emptyDraft = (): DraftLine[] => [
   { side: 'H', account: '', amount: '' },
 ];
 
+/** Bruttobetrag einer Buchung, gemessen an der Sollseite. */
+function grossOf(entry: JournalEntry): number {
+  return entry.lines.filter((line) => line.side === 'S').reduce((sum, line) => sum + line.amount, 0);
+}
+
+/** Konten in der Schreibweise Soll → Haben, so wie sie im Journal steht. */
+function accountPath(entry: JournalEntry): string {
+  const debit = entry.lines.filter((l) => l.side === 'S').map((l) => l.account);
+  const credit = entry.lines.filter((l) => l.side === 'H').map((l) => l.account);
+  return `${debit.join(' · ')} → ${credit.join(' · ')}`;
+}
+
 export const JournalPage: React.FC = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-  const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
@@ -59,7 +86,10 @@ export const JournalPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [entryList, accountList] = await Promise.all([Api.getJournalEntries(), Api.getAccounts()]);
+      const [entryList, accountList] = await Promise.all([
+        Api.getJournalEntries(),
+        Api.getAccounts(),
+      ]);
       setEntries(entryList);
       setAccounts(accountList);
     } catch (e) {
@@ -69,12 +99,27 @@ export const JournalPage: React.FC = () => {
     }
   }
 
+  /**
+   * Der dauerhafte Zustand steht im Fuß der Navigation (§11.4). Hier zählt nur
+   * das Ergebnis der ausgelösten Prüfung: gelungen als Toast, ein Bruch als
+   * Hinweisfläche, die stehen bleibt.
+   */
   async function runIntegrityCheck() {
-    setError(null);
+    setChecking(true);
+    setIntegrityError(null);
     try {
-      setIntegrity(await Api.verifyIntegrity());
+      const result = await Api.verifyIntegrity();
+      if (result.isValid) {
+        toast.success(`Kette geprüft, ${result.checkedEntries} Buchungen unverändert.`);
+      } else {
+        setIntegrityError(
+          `${result.message} Kettenkopf ${formatShortHash(result.lastVerifiedHash)}.`,
+        );
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setIntegrityError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -84,6 +129,19 @@ export const JournalPage: React.FC = () => {
     return map;
   }, [accounts]);
 
+  /** Ursprungsbuchungen, zu denen es eine Generalumkehr gibt. */
+  const reversedIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const entry of entries) if (entry.reversalOfId) ids.add(entry.reversalOfId);
+    return ids;
+  }, [entries]);
+
+  const entryNumbers = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const entry of entries) map.set(entry.id, entry.entryNumber);
+    return map;
+  }, [entries]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return entries;
@@ -92,257 +150,341 @@ export const JournalPage: React.FC = () => {
         entry.entryNumber.toLowerCase().includes(query) ||
         entry.description.toLowerCase().includes(query) ||
         (entry.documentNumber ?? '').toLowerCase().includes(query) ||
-        entry.lines.some((line) => line.account.includes(query))
+        entry.lines.some((line) => line.account.includes(query)),
     );
   }, [entries, search]);
 
+  const fiscalYear = entries[0]?.fiscalYear;
+
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Journal</h1>
-          <p className="text-sm text-stone-600">
-            Alle Buchungen des Geschäftsjahres in der Reihenfolge ihrer Erfassung. Jede Buchung ist über
-            eine Hash-Kette mit ihrer Vorgängerin verbunden und nicht mehr veränderbar.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={runIntegrityCheck}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-50"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            Integrität prüfen
-          </button>
-          <button
+    <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <PageHeader
+        title="Journal"
+        context={
+          fiscalYear
+            ? `${entries.length} Buchungen · Geschäftsjahr ${fiscalYear} · lokal gespeichert`
+            : 'Lokal gespeichert'
+        }
+        action={
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-amber-700 text-white hover:bg-amber-800"
           >
-            <Plus className="w-4 h-4" />
             Neue Buchung
-          </button>
+          </Button>
+        }
+      />
+
+      {/* Ein Integritätsbruch ist der einzige Fall, in dem die Oberfläche laut
+          werden darf (§11.4). */}
+      {integrityError && (
+        <div className="mt-6 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
+          <p className="text-body text-negative-text flex-1">{integrityError}</p>
+          <Button variant="quiet" size="sm" onClick={() => setIntegrityError(null)}>
+            Verstanden
+          </Button>
         </div>
-      </header>
+      )}
 
       {error && (
-        <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl p-3">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{error}</span>
+        <div className="mt-6 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
+          <p className="text-body text-negative-text">{error}</p>
         </div>
       )}
 
-      {integrity && (
-        <div
-          className={`flex items-start gap-2 rounded-xl p-3 text-sm border ${
-            integrity.isValid
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
-        >
-          {integrity.isValid ? (
-            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          )}
-          <div className="space-y-0.5">
-            <div>{integrity.message}</div>
-            <div className="text-xs opacity-80">
-              Geprüft am {integrity.checkedAt} · Kettenkopf{' '}
-              <span className="font-mono">{formatShortHash(integrity.lastVerifiedHash)}</span>
-            </div>
-          </div>
-          <button onClick={() => setIntegrity(null)} className="ml-auto shrink-0 opacity-60 hover:opacity-100">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-        <input
+      <div className="mt-6 flex items-center gap-3">
+        <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buchungsnummer, Text, Belegnummer oder Konto"
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stone-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          placeholder="Belegnummer, Buchungstext oder Konto"
+          className="max-w-md"
         />
+        <Button
+          variant="secondary"
+          loading={checking}
+          onClick={runIntegrityCheck}
+          icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.5} />}
+        >
+          Integrität prüfen
+        </Button>
       </div>
 
-      {loading ? (
-        <div className="bg-white p-8 rounded-xl border border-stone-200/80 text-center text-stone-400">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-amber-600" />
-          Buchungen werden geladen…
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white p-8 rounded-xl border border-stone-200/80 text-center text-sm text-stone-500">
-          {entries.length === 0
-            ? 'Noch keine Buchungen im aktiven Geschäftsjahr.'
-            : 'Keine Buchung passt zur Suche.'}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs divide-y divide-stone-100">
-          {filtered.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              accountNames={accountNames}
-              expanded={expanded[entry.id] ?? false}
-              onToggle={() => setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))}
-              onReverse={() => setReversing(entry)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="mt-5">
+        {loading ? (
+          <SkeletonRows rows={8} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            variant={entries.length === 0 ? 'leer' : 'gefiltert'}
+            title={
+              entries.length === 0
+                ? 'Noch keine Buchungen erfasst'
+                : 'Keine Buchung passt zur Suche'
+            }
+            description={
+              entries.length === 0
+                ? 'Buchungen entstehen aus dem Abgleich von Bankumsätzen mit Belegen oder direkt hier im Journal.'
+                : undefined
+            }
+            action={
+              entries.length === 0 ? (
+                <Button variant="primary" onClick={() => setShowForm(true)}>
+                  Neue Buchung
+                </Button>
+              ) : (
+                <Button variant="secondary" onClick={() => setSearch('')}>
+                  Suche zurücksetzen
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <Table>
+            <Thead sticky>
+              <Tr>
+                <Th className="w-8" aria-label="Aufklappen" />
+                <Th>Beleg</Th>
+                <Th>Datum</Th>
+                <Th>Buchungstext</Th>
+                <Th>Konten · Soll → Haben</Th>
+                <Th numeric>Betrag</Th>
+                <Th>Status</Th>
+                <Th className="w-10" aria-label="Aktionen" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filtered.map((entry) => (
+                <EntryRows
+                  key={entry.id}
+                  entry={entry}
+                  accountNames={accountNames}
+                  originNumber={
+                    entry.reversalOfId ? entryNumbers.get(entry.reversalOfId) : undefined
+                  }
+                  isReversed={reversedIds.has(entry.id)}
+                  expanded={expanded[entry.id] ?? false}
+                  onToggle={() =>
+                    setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))
+                  }
+                  onReverse={() => setReversing(entry)}
+                />
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </div>
 
-      {showForm && (
-        <BookingForm
-          accounts={accounts}
-          onClose={() => setShowForm(false)}
-          onSaved={async () => {
-            setShowForm(false);
-            await load();
-          }}
-        />
-      )}
+      <BookingForm
+        open={showForm}
+        accounts={accounts}
+        onOpenChange={setShowForm}
+        onSaved={async () => {
+          setShowForm(false);
+          await load();
+          toast.success('Buchung festgeschrieben.');
+        }}
+      />
 
-      {reversing && (
-        <ReverseDialog
-          entry={reversing}
-          onClose={() => setReversing(null)}
-          onDone={async () => {
-            setReversing(null);
-            await load();
-          }}
-        />
-      )}
+      <ReverseDialog
+        entry={reversing}
+        onClose={() => setReversing(null)}
+        onDone={async () => {
+          setReversing(null);
+          await load();
+          toast.success('Generalumkehr gebucht.');
+        }}
+      />
     </div>
   );
 };
 
 // -------------------------------------------------------------------------
 
-const EntryRow: React.FC<{
+/**
+ * Eine Buchung als Zeile, aufgeklappt zusätzlich der Buchungssatz.
+ *
+ * Storniert wird nichts durchgestrichen: Ursprung und Generalumkehr bleiben
+ * beide lesbar, markiert durch Tönung, Pille und Badge (§11.2).
+ */
+const EntryRows: React.FC<{
   entry: JournalEntry;
   accountNames: Map<string, string>;
+  originNumber?: string;
+  isReversed: boolean;
   expanded: boolean;
   onToggle: () => void;
   onReverse: () => void;
-}> = ({ entry, accountNames, expanded, onToggle, onReverse }) => {
-  const gross = entry.lines
-    .filter((l) => l.side === 'S')
-    .reduce((sum, l) => sum + l.amount, 0);
+}> = ({ entry, accountNames, originNumber, isReversed, expanded, onToggle, onReverse }) => {
   const isReversal = entry.kind === 'reversal';
+  const storno = isReversal || isReversed;
 
   return (
-    <div className={isReversal ? 'bg-rose-50/40' : undefined}>
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button onClick={onToggle} className="text-stone-400 hover:text-stone-700 shrink-0">
-          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-stone-600">{entry.entryNumber}</span>
-            <span className="text-sm text-stone-900 truncate">{entry.description}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded border border-stone-200 text-stone-500">
-              {SOURCE_LABELS[entry.source] ?? entry.source}
-            </span>
-            {isReversal && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-medium">
-                Generalumkehr
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-stone-500 mt-0.5">
-            Buchung {formatDate(entry.bookingDate)} · Beleg {formatDate(entry.documentDate)} · Leistung{' '}
-            {formatDateRange(entry.serviceDateFrom, entry.serviceDateTo)}
-            {entry.documentNumber ? ` · ${entry.documentNumber}` : ''}
-          </div>
-        </div>
-
-        <div className="text-right shrink-0">
-          <div className="font-mono text-sm tabular-nums text-stone-900">{formatCents(gross)}</div>
-          <div className="text-[10px] text-stone-400">{entry.lines.length} Zeilen</div>
-        </div>
-
-        {!isReversal && (
+    <>
+      <Tr variant={storno ? 'storno' : 'default'} className="group">
+        <Td className="pr-0">
           <button
-            onClick={onReverse}
-            title="Buchung per Generalumkehr stornieren"
-            className="shrink-0 text-stone-400 hover:text-rose-600 p-1"
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Buchungssatz einklappen' : 'Buchungssatz anzeigen'}
+            className="grid place-items-center w-6 h-6 rounded-control text-ink-faint
+                       transition-colors duration-120 ease-quiet hover:bg-sunken hover:text-ink"
           >
-            <Undo2 className="w-4 h-4" />
+            {expanded ? (
+              <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+            ) : (
+              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+            )}
           </button>
-        )}
-      </div>
+        </Td>
+        <Td code>{entry.entryNumber}</Td>
+        <Td className="text-ink-subtle num">{formatDate(entry.bookingDate)}</Td>
+        <Td className="max-w-[22rem] truncate" title={entry.description}>
+          {entry.description}
+        </Td>
+        <Td code>{accountPath(entry)}</Td>
+        <Td numeric>{formatCents(grossOf(entry), entry.currency)}</Td>
+        <Td>
+          <StatusBadge status={storno ? 'storniert' : 'gebucht'} />
+        </Td>
+        <Td className="pl-0">
+          {!isReversal && !isReversed && (
+            <Button
+              variant="quiet"
+              size="sm"
+              iconOnly
+              onClick={onReverse}
+              title="Buchung per Generalumkehr stornieren"
+              aria-label={`Buchung ${entry.entryNumber} stornieren`}
+              className="opacity-0 transition-opacity duration-120 ease-quiet
+                         group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <Undo2 className="w-4 h-4" strokeWidth={1.5} />
+            </Button>
+          )}
+        </Td>
+      </Tr>
 
       {expanded && (
-        <div className="px-4 pb-3">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-wide text-stone-400">
-                <th className="text-left font-medium py-1">Seite</th>
-                <th className="text-left font-medium py-1">Konto</th>
-                <th className="text-left font-medium py-1">Bezeichnung</th>
-                <th className="text-right font-medium py-1">Betrag</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entry.lines.map((line) => (
-                <LineRow key={line.id || `${line.position}`} line={line} accountNames={accountNames} />
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-2 pt-2 border-t border-stone-100 text-[10px] text-stone-400 font-mono">
-            Hash {formatShortHash(entry.entryHash)} · Vorgänger {formatShortHash(entry.previousHash)}
-            {entry.postingRuleVersion ? ` · Kontierungsregeln ${entry.postingRuleVersion}` : ''}
-          </div>
-        </div>
+        <Tr className={cn(storno && '[&>td]:bg-negative-soft/40')}>
+          <Td colSpan={8} className="whitespace-normal py-4">
+            <EntryDetail
+              entry={entry}
+              accountNames={accountNames}
+              originNumber={originNumber}
+            />
+          </Td>
+        </Tr>
       )}
-    </div>
+    </>
   );
 };
 
-const LineRow: React.FC<{ line: JournalLine; accountNames: Map<string, string> }> = ({
-  line,
-  accountNames,
-}) => (
-  <tr className="border-t border-stone-50">
-    <td className="py-1.5">
-      <span
-        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-          line.side === 'S' ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'
-        }`}
-      >
-        {line.side === 'S' ? 'Soll' : 'Haben'}
-      </span>
-    </td>
-    <td className="py-1.5 font-mono text-stone-700">{line.account}</td>
-    <td className="py-1.5 text-stone-600">
-      {line.accountName || accountNames.get(line.account) || '—'}
-      {line.taxKey && (
-        <span className="ml-1.5 text-[10px] text-stone-400 font-mono">{line.taxKey}</span>
-      )}
-    </td>
-    <td className="py-1.5 text-right font-mono tabular-nums text-stone-900">
-      {formatCents(line.amount)}
-    </td>
-  </tr>
-);
+/** Der Buchungssatz: Soll links, Haben rechts, Summe mit Doppellinie (§11.1). */
+const EntryDetail: React.FC<{
+  entry: JournalEntry;
+  accountNames: Map<string, string>;
+  originNumber?: string;
+}> = ({ entry, accountNames, originNumber }) => {
+  const debit = entry.lines.filter((l) => l.side === 'S').reduce((s, l) => s + l.amount, 0);
+  const credit = entry.lines.filter((l) => l.side === 'H').reduce((s, l) => s + l.amount, 0);
+
+  return (
+    <div className="pl-8 pr-2">
+      <table className="w-full text-body">
+        <thead>
+          <tr className="[&>th]:h-7 [&>th]:text-label [&>th]:font-medium [&>th]:text-ink-subtle [&>th]:border-b [&>th]:border-line-strong">
+            <th className="text-left w-24">Konto</th>
+            <th className="text-left">Bezeichnung</th>
+            <th className="text-right w-36">Soll</th>
+            <th className="text-right w-36">Haben</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entry.lines.map((line) => (
+            <tr key={line.id || line.position} className="[&>td]:h-8 [&>td]:border-b [&>td]:border-line">
+              <td className="code-num text-caption text-ink-muted">{line.account}</td>
+              <td className="text-ink">
+                {line.accountName || accountNames.get(line.account) || '—'}
+                {line.taxKey && (
+                  <span className="ml-2 code-num text-caption text-ink-subtle">{line.taxKey}</span>
+                )}
+              </td>
+              <td className="text-right num">
+                {line.side === 'S' ? formatCents(line.amount, entry.currency) : <span className="text-ink-subtle">—</span>}
+              </td>
+              <td className="text-right num">
+                {line.side === 'H' ? formatCents(line.amount, entry.currency) : <span className="text-ink-subtle">—</span>}
+              </td>
+            </tr>
+          ))}
+          <tr className="[&>td]:h-9 [&>td]:rule-total [&>td]:font-semibold">
+            <td />
+            <td>Summe</td>
+            <td className="text-right num">{formatCents(debit, entry.currency)}</td>
+            <td className="text-right num">{formatCents(credit, entry.currency)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-1 text-caption text-ink-subtle">
+        <div className="flex gap-1.5">
+          <dt>Herkunft</dt>
+          <dd className="text-ink-muted">{SOURCE_LABELS[entry.source] ?? entry.source}</dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt>Beleg</dt>
+          <dd className="text-ink-muted num">
+            {formatDate(entry.documentDate)}
+            {entry.documentNumber ? ` · ${entry.documentNumber}` : ''}
+          </dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt>Leistung</dt>
+          <dd className="text-ink-muted num">
+            {formatDateRange(entry.serviceDateFrom, entry.serviceDateTo)}
+          </dd>
+        </div>
+        {originNumber && (
+          <div className="flex gap-1.5">
+            <dt>Storno zu</dt>
+            <dd className="code-num text-negative-text">{originNumber}</dd>
+          </div>
+        )}
+        {entry.reversalReason && (
+          <div className="flex gap-1.5">
+            <dt>Grund</dt>
+            <dd className="text-ink-muted">{entry.reversalReason}</dd>
+          </div>
+        )}
+        <div className="flex gap-1.5">
+          <dt>Hash</dt>
+          <dd className="font-mono text-ink-muted">
+            {formatShortHash(entry.entryHash)} ← {formatShortHash(entry.previousHash)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+};
 
 // -------------------------------------------------------------------------
 
 /**
  * Erfassung eines Buchungssatzes mit beliebig vielen Zeilen.
  *
- * Die Summenzeile zeigt Soll und Haben laufend an. Gespeichert werden kann erst,
- * wenn beide übereinstimmen — dieselbe Regel, die das Backend beim Buchen
- * erzwingt, hier nur früher sichtbar.
+ * Die Differenz zwischen Soll und Haben läuft mit. Das ist eine Rechenhilfe und
+ * kein Fehler, solange die Buchung nicht abgeschickt ist (§8.3). Der Knopf
+ * bleibt deshalb aktiv und nennt beim Klick den Grund.
  */
 const BookingForm: React.FC<{
+  open: boolean;
   accounts: Account[];
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   onSaved: () => void;
-}> = ({ accounts, onClose, onSaved }) => {
+}> = ({ open, accounts, onOpenChange, onSaved }) => {
   const today = new Date().toISOString().split('T')[0];
   const [bookingDate, setBookingDate] = useState(today);
   const [documentDate, setDocumentDate] = useState(today);
@@ -359,17 +501,25 @@ const BookingForm: React.FC<{
   const creditTotal = parsed.filter((l) => l.side === 'H').reduce((s, l) => s + l.cents, 0);
   const balanced = debitTotal === creditTotal && debitTotal > 0;
 
-  const postable = useMemo(
-    () => accounts.filter((a) => !a.isRange && !a.isReserved && a.kontenklasse !== 8),
-    [accounts]
+  const options = useMemo(
+    () =>
+      accounts
+        .filter((a) => !a.isRange && !a.isReserved && a.kontenklasse !== 8)
+        .map((a) => ({ value: a.number, label: `${a.number} ${a.name}`, meta: a.kontenklasseName })),
+    [accounts],
   );
 
   function updateLine(index: number, patch: Partial<DraftLine>) {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit() {
+    if (!balanced) {
+      setError(
+        `Die Buchung ist nicht ausgeglichen. Soll (${formatCents(debitTotal)}) und Haben (${formatCents(creditTotal)}) müssen übereinstimmen.`,
+      );
+      return;
+    }
     setError(null);
     setSaving(true);
     try {
@@ -397,202 +547,153 @@ const BookingForm: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 bg-stone-900/40 flex items-start justify-center p-4 overflow-y-auto z-50">
-      <form
-        onSubmit={submit}
-        className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-3xl my-8"
-      >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-900">Neue Buchung</h2>
-          <button type="button" onClick={onClose} className="text-stone-400 hover:text-stone-700">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="Buchungsdatum" hint="Bestimmt die Periode">
-              <input
-                type="date"
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                className={inputClass}
-                required
-              />
-            </Field>
-            <Field label="Belegdatum" hint="Rechnungsdatum">
-              <input
-                type="date"
-                value={documentDate}
-                onChange={(e) => setDocumentDate(e.target.value)}
-                className={inputClass}
-                required
-              />
-            </Field>
-            <Field label="Leistung von" hint="§ 14 Abs. 4 Nr. 6 UStG">
-              <input
-                type="date"
-                value={serviceFrom}
-                onChange={(e) => setServiceFrom(e.target.value)}
-                className={inputClass}
-                required
-              />
-            </Field>
-            <Field label="Leistung bis">
-              <input
-                type="date"
-                value={serviceTo}
-                onChange={(e) => setServiceTo(e.target.value)}
-                className={inputClass}
-                required
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <Field label="Buchungstext">
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Wofür wurde gebucht?"
-                  className={inputClass}
-                  required
-                />
-              </Field>
-            </div>
-            <Field label="Belegnummer">
-              <input
-                value={documentNumber}
-                onChange={(e) => setDocumentNumber(e.target.value)}
-                placeholder="z. B. ER-2026-0042"
-                className={inputClass}
-              />
-            </Field>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-stone-700 uppercase tracking-wide">
-                Buchungszeilen
-                <HelpTooltip
-                  title="Warum mehr als zwei Zeilen?"
-                  content={
-                    'Ein Beleg mit Vorsteuer hat drei Zeilen: Aufwand und Vorsteuer im Soll, ' +
-                    'die Verbindlichkeit im Haben. Bei Reverse Charge sind es vier. Die Summe der ' +
-                    'Sollzeilen muss der Summe der Habenzeilen entsprechen.'
-                  }
-                />
-              </span>
-              <button
-                type="button"
-                onClick={() => setLines((prev) => [...prev, { side: 'S', account: '', amount: '' }])}
-                className="text-xs text-amber-800 hover:text-amber-900 font-medium"
-              >
-                Zeile hinzufügen
-              </button>
-            </div>
-
-            {lines.map((line, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <select
-                  value={line.side}
-                  onChange={(e) => updateLine(index, { side: e.target.value as Side })}
-                  className={`${inputClass} w-24 shrink-0`}
-                >
-                  <option value="S">Soll</option>
-                  <option value="H">Haben</option>
-                </select>
-                <input
-                  list="postable-accounts"
-                  value={line.account}
-                  onChange={(e) => updateLine(index, { account: e.target.value })}
-                  placeholder="Konto"
-                  className={`${inputClass} w-32 shrink-0 font-mono`}
-                  required
-                />
-                <span className="text-xs text-stone-500 truncate flex-1">
-                  {postable.find((a) => a.number === line.account)?.name ?? ''}
-                </span>
-                <input
-                  value={line.amount}
-                  onChange={(e) => updateLine(index, { amount: e.target.value })}
-                  placeholder="0,00"
-                  inputMode="decimal"
-                  className={`${inputClass} w-32 shrink-0 text-right font-mono`}
-                  required
-                />
-                {lines.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-stone-400 hover:text-rose-600 shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            <datalist id="postable-accounts">
-              {postable.map((a) => (
-                <option key={a.number} value={a.number}>
-                  {a.name}
-                </option>
-              ))}
-            </datalist>
-
-            <div
-              className={`flex justify-between items-center text-sm rounded-lg px-3 py-2 border ${
-                balanced
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-stone-50 border-stone-200 text-stone-600'
-              }`}
-            >
-              <span className="font-medium">
-                {balanced
-                  ? 'Soll und Haben stimmen überein'
-                  : `Differenz ${formatCents(debitTotal - creditTotal)}`}
-              </span>
-              <span className="font-mono tabular-nums">
-                Soll {formatCents(debitTotal)} · Haben {formatCents(creditTotal)}
-              </span>
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-lg p-3">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-stone-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-2 text-sm rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-50"
-          >
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Neue Buchung"
+      width="max-w-3xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Abbrechen
-          </button>
-          <button
-            type="submit"
-            disabled={!balanced || saving}
-            className="px-3 py-2 text-sm rounded-lg bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          </Button>
+          <Button variant="primary" loading={saving} onClick={submit}>
+            Buchen
+          </Button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-4 gap-4">
+        <Field label="Buchungsdatum" hint="Bestimmt die Periode">
+          <Input type="date" value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} />
+        </Field>
+        <Field label="Belegdatum" hint="Rechnungsdatum">
+          <Input
+            type="date"
+            value={documentDate}
+            onChange={(e) => setDocumentDate(e.target.value)}
+          />
+        </Field>
+        <Field label="Leistung von" help="Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG.">
+          <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
+        </Field>
+        <Field label="Leistung bis">
+          <Input type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mt-4">
+        <Field label="Buchungstext" className="col-span-2">
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Wofür wurde gebucht?"
+          />
+        </Field>
+        <Field label="Belegnummer" optional>
+          <Input
+            value={documentNumber}
+            onChange={(e) => setDocumentNumber(e.target.value)}
+            placeholder="ER-2026-0042"
+          />
+        </Field>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-line">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <span className="flex items-center text-label text-ink-muted">
+            Buchungszeilen
+            <HelpPopover label="Erklärung zu Buchungszeilen">
+              Ein Beleg mit Vorsteuer hat drei Zeilen: Aufwand und Vorsteuer im Soll, die
+              Verbindlichkeit im Haben. Bei Reverse Charge sind es vier. Die Summe der Sollzeilen
+              muss der Summe der Habenzeilen entsprechen.
+            </HelpPopover>
+          </span>
+          <Button
+            variant="quiet"
+            size="sm"
+            onClick={() => setLines((prev) => [...prev, { side: 'S', account: '', amount: '' }])}
           >
-            {saving ? 'Wird gebucht…' : 'Buchen'}
-          </button>
+            Zeile hinzufügen
+          </Button>
         </div>
-      </form>
-    </div>
+
+        <div className="grid grid-cols-[7rem_1fr_10rem_2rem] gap-x-3 gap-y-2 items-center">
+          <span className="text-caption text-ink-subtle">Seite</span>
+          <span className="text-caption text-ink-subtle">Konto</span>
+          <span className="text-caption text-ink-subtle text-right">Betrag</span>
+          <span />
+
+          {lines.map((line, index) => (
+            <React.Fragment key={index}>
+              <Select
+                items={[
+                  { value: 'S', label: 'Soll' },
+                  { value: 'H', label: 'Haben' },
+                ]}
+                value={line.side}
+                onValueChange={(side) => updateLine(index, { side: side as Side })}
+              />
+              <Combobox
+                items={options}
+                value={line.account || null}
+                onValueChange={(account) => updateLine(index, { account: account ?? '' })}
+                placeholder="Konto suchen …"
+                emptyText="Kein Konto gefunden."
+              />
+              <Input
+                align="right"
+                inputMode="decimal"
+                value={line.amount}
+                onChange={(e) => updateLine(index, { amount: e.target.value })}
+                placeholder="0,00"
+                aria-label={`Betrag Zeile ${index + 1}`}
+              />
+              {lines.length > 2 ? (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  iconOnly
+                  onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}
+                  title="Zeile entfernen"
+                  aria-label={`Zeile ${index + 1} entfernen`}
+                >
+                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                </Button>
+              ) : (
+                <span />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="mt-4 pt-3 rule-total flex items-center justify-between gap-4 text-body">
+          <span className={cn('font-semibold', balanced ? 'text-positive-text' : 'text-ink-muted')}>
+            {balanced ? 'Soll und Haben stimmen überein' : 'Noch nicht ausgeglichen'}
+          </span>
+          <span className="num text-ink">
+            Soll {formatCents(debitTotal)} · Haben {formatCents(creditTotal)}
+            {!balanced && (
+              <span className="text-ink-subtle"> · Differenz {formatCents(debitTotal - creditTotal)}</span>
+            )}
+          </span>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
+          <p className="text-body text-negative-text">{error}</p>
+        </div>
+      )}
+    </Dialog>
   );
 };
 
 // -------------------------------------------------------------------------
 
 const ReverseDialog: React.FC<{
-  entry: JournalEntry;
+  entry: JournalEntry | null;
   onClose: () => void;
   onDone: () => void;
 }> = ({ entry, onClose, onDone }) => {
@@ -600,12 +701,22 @@ const ReverseDialog: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (entry) {
+      setReason('');
+      setError(null);
+    }
+  }, [entry]);
+
+  async function submit() {
+    if (!reason.trim()) {
+      setError('Ohne Grund lässt sich die Stornierung später nicht nachvollziehen.');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
-      await Api.reverseJournalEntry(entry.id, reason);
+      await Api.reverseJournalEntry(entry!.id, reason);
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -615,58 +726,45 @@ const ReverseDialog: React.FC<{
   }
 
   return (
-    <div className="fixed inset-0 bg-stone-900/40 flex items-center justify-center p-4 z-50">
-      <form onSubmit={submit} className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-lg">
-        <div className="px-5 py-3 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-900">Buchung stornieren</h2>
-        </div>
-        <div className="p-5 space-y-3">
-          <p className="text-sm text-stone-600">
-            Buchung <span className="font-mono">{entry.entryNumber}</span> über{' '}
-            <span className="font-mono">
-              {formatCents(entry.lines.filter((l) => l.side === 'S').reduce((s, l) => s + l.amount, 0))}
-            </span>
-            .
+    <Dialog
+      open={entry !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title="Buchung stornieren"
+      width="max-w-lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button variant="danger" loading={busy} onClick={submit}>
+            Stornieren
+          </Button>
+        </>
+      }
+    >
+      {entry && (
+        <>
+          <p className="text-body text-ink-muted">
+            <span className="code-num text-ink">{entry.entryNumber}</span> über{' '}
+            <span className="num text-ink">{formatCents(grossOf(entry), entry.currency)}</span> wird
+            per Generalumkehr zurückgebucht.
+            <HelpPopover label="Erklärung zur Generalumkehr">
+              Storniert wird mit denselben Konten auf denselben Seiten und negiertem Betrag. Die
+              Umsätze der betroffenen Konten gehen dadurch auf null zurück, statt sich wie bei einer
+              spiegelverkehrten Gegenbuchung zu verdoppeln. Die Stornobuchung wird auf heute datiert,
+              die ursprüngliche Buchung bleibt im Journal sichtbar.
+            </HelpPopover>
           </p>
-          <p className="text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-3 leading-relaxed">
-            Storniert wird per <strong>Generalumkehr</strong>: dieselben Konten auf denselben Seiten mit
-            negiertem Betrag. Die Umsätze der betroffenen Konten gehen dadurch auf null zurück, statt sich
-            wie bei einer spiegelverkehrten Gegenbuchung zu verdoppeln. Die Stornobuchung wird auf heute
-            datiert; die ursprüngliche Buchung bleibt im Journal sichtbar.
-          </p>
-          <Field label="Grund der Stornierung">
-            <input
+
+          <Field label="Grund der Stornierung" className="mt-4" error={error ?? undefined}>
+            <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="z. B. Beleg doppelt erfasst"
-              className={inputClass}
-              required
+              placeholder="Beleg doppelt erfasst"
             />
           </Field>
-          {error && (
-            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-lg p-3">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-stone-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-2 text-sm rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-50"
-          >
-            Abbrechen
-          </button>
-          <button
-            type="submit"
-            disabled={busy || !reason.trim()}
-            className="px-3 py-2 text-sm rounded-lg bg-rose-700 text-white hover:bg-rose-800 disabled:opacity-40"
-          >
-            {busy ? 'Wird storniert…' : 'Stornieren'}
-          </button>
-        </div>
-      </form>
-    </div>
+        </>
+      )}
+    </Dialog>
   );
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
@@ -19,6 +19,7 @@ import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig } from './types';
 import { Api } from './services/api';
+import { toast } from './components/ui';
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
@@ -105,9 +106,9 @@ export function App() {
       await Api.switchTenant(tenantId);
       await refreshTenants();
       await loadActiveFiscalYearData();
-      toast.success('Mandant gewechselt');
-    } catch (e: any) {
-      toast.error(e?.message || 'Fehler beim Wechseln des Mandanten');
+      toast.success('Mandant gewechselt.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -138,8 +139,8 @@ export function App() {
   // Loading Screen while reading initial config
   if (loadingConfig) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#24211E] text-stone-300 text-xs font-sans">
-        Buchfink wird gestartet...
+      <div className="h-screen flex items-center justify-center bg-shell text-shell-text-muted text-body">
+        Buchfink wird gestartet …
       </div>
     );
   }
@@ -214,13 +215,13 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#FAF8F5] text-stone-800 overflow-hidden font-sans">
+    <div className="flex h-screen bg-paper text-ink overflow-hidden">
       <Toaster
         position="bottom-right"
         richColors
         closeButton
         toastOptions={{
-          className: 'font-sans text-xs',
+          className: 'font-sans text-body',
         }}
       />
       {/* Grouped Sidebar Navigation */}
@@ -253,7 +254,11 @@ export function App() {
           />
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentTab === 'welcome' ? 'bg-stone-900' : 'bg-[#FAF8F5]'}`}>
+        <main
+          className={`flex-1 overflow-y-auto ${
+            currentTab === 'welcome' ? 'bg-shell-deep' : 'bg-paper'
+          }`}
+        >
           {renderContent()}
         </main>
       </div>

@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import { AlertCircle, ArrowDownLeft, ArrowUpRight, Ban, Landmark, RefreshCw, Upload } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Ban, Landmark, Upload } from 'lucide-react';
 import type {
   Account,
   AllocationRequest,
@@ -11,8 +10,30 @@ import type {
 } from '../types';
 import { Api } from '../services/api';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
-import { HelpTooltip } from '../components/HelpTooltip';
-import { inputClass } from '../components/Form';
+import {
+  Button,
+  Checkbox,
+  Combobox,
+  Dialog,
+  EmptyState,
+  Field,
+  HelpPopover,
+  Input,
+  PageHeader,
+  Section,
+  Select,
+  SkeletonRows,
+  TabPanel,
+  Table,
+  Tabs,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
+  cn,
+  toast,
+} from '../components/ui';
 
 /**
  * Bank & Zahlungen.
@@ -20,8 +41,8 @@ import { inputClass } from '../components/Form';
  * Ein Kontoauszug kennt zwei Fälle. Entweder gehört die Zahlung zu einem offenen
  * Posten — dann wird sie zugeordnet, samt Skonto oder Gebühr. Oder es gibt keinen
  * Beleg, etwa bei Kontoführungsentgelten — dann wird direkt gegen ein Konto
- * gebucht. Beides steht hier nebeneinander, statt beides über dieselbe Maske zu
- * zwingen.
+ * gebucht. Beides steht als Reiter nebeneinander, statt beides über dieselbe
+ * Maske zu zwingen.
  */
 
 export const BankImportPage: React.FC = () => {
@@ -33,7 +54,8 @@ export const BankImportPage: React.FC = () => {
   const [importAccount, setImportAccount] = useState('1800');
   const [active, setActive] = useState<BankTransaction | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void load();
@@ -41,7 +63,6 @@ export const BankImportPage: React.FC = () => {
 
   async function load() {
     setLoading(true);
-    setError(null);
     try {
       const [txs, accs, payAccs, items, kinds] = await Promise.all([
         Api.getBankTransactions(),
@@ -56,55 +77,51 @@ export const BankImportPage: React.FC = () => {
       setOpenItems(items);
       setDifferenceKinds(kinds);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function importFile(file: File) {
-    setError(null);
+    setImporting(true);
     try {
-      const content = await file.text();
-      const count = await Api.importCAMT(content, importAccount);
-      toast.success(`${count} Umsätze importiert`);
+      const count = await Api.importCAMT(await file.text(), importAccount);
+      toast.success(`${count} Umsätze eingelesen.`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
     }
   }
 
   const unmatched = transactions.filter((t) => t.matchStatus === 'unmatched');
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Bank & Zahlungen</h1>
-          <p className="text-sm text-stone-600">
-            Kontoauszüge einlesen und Zahlungen den offenen Posten zuordnen.
-          </p>
-        </div>
-
-        <div className="flex items-end gap-2">
-          <label className="block">
-            <span className="block text-xs font-medium text-stone-600 mb-1">Bankkonto des Auszugs</span>
-            <select
+    <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <PageHeader
+        title="Bank & Zahlungen"
+        context="Kontoauszüge einlesen und Zahlungen den offenen Posten zuordnen"
+        action={
+          <div className="flex items-center gap-2">
+            <Select
+              items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} · ${a.name}` }))}
               value={importAccount}
-              onChange={(e) => setImportAccount(e.target.value)}
-              className={`${inputClass} w-56`}
+              onValueChange={setImportAccount}
+              placeholder="Bankkonto"
+              className="w-56"
+            />
+            <Button
+              variant="primary"
+              icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
+              loading={importing}
+              onClick={() => fileInput.current?.click()}
             >
-              {paymentAccounts.map((a) => (
-                <option key={a.number} value={a.number}>
-                  {a.number} · {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-700 text-white text-sm font-medium hover:bg-amber-800 cursor-pointer">
-            <Upload className="w-4 h-4" />
-            CAMT.053 importieren
+              CAMT.053 einlesen
+            </Button>
             <input
+              ref={fileInput}
               type="file"
               accept=".xml"
               className="hidden"
@@ -114,62 +131,81 @@ export const BankImportPage: React.FC = () => {
                 e.target.value = '';
               }}
             />
-          </label>
-        </div>
-      </header>
+          </div>
+        }
+      />
 
-      {error && (
-        <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl p-3">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <p className="text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-3 leading-relaxed">
-        Buchfink schlägt bewusst kein Gegenkonto vor. Aus dem Verwendungszweck ein Aufwandskonto zu raten
-        wäre eine unprüfbare Vermutung an der Stelle, an der die Kontierung entschieden wird — und für
-        diese Entscheidung haftet das Unternehmen.
-      </p>
-
-      {loading ? (
-        <div className="bg-white p-8 rounded-xl border border-stone-200/80 text-center text-stone-400">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-amber-600" />
-          Bankumsätze werden geladen…
-        </div>
-      ) : unmatched.length === 0 ? (
-        <div className="bg-white p-8 rounded-xl border border-stone-200/80 text-center text-sm text-stone-500">
-          <Landmark className="w-6 h-6 mx-auto mb-2 text-stone-300" />
-          Keine offenen Bankumsätze. Alle importierten Zahlungen sind zugeordnet.
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs divide-y divide-stone-100">
-          {unmatched.map((tx) => (
-            <button
-              key={tx.id}
-              onClick={() => setActive(tx)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50/40"
-            >
-              {tx.amount > 0 ? (
-                <ArrowDownLeft className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <ArrowUpRight className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="text-sm text-stone-900 truncate">{tx.counterpartyName || '—'}</div>
-                <div className="text-xs text-stone-500 truncate">{tx.remittanceInfo}</div>
-              </div>
-              <div className="text-xs text-stone-500 shrink-0">{formatDate(tx.bookingDate)}</div>
-              <div
-                className={`font-mono text-sm tabular-nums shrink-0 ${
-                  tx.amount > 0 ? 'text-emerald-700' : 'text-stone-900'
-                }`}
-              >
-                {formatCents(tx.amount, tx.currency)}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <Section
+        title="Offene Bankumsätze"
+        context={loading ? undefined : `${unmatched.length} von ${transactions.length} noch nicht zugeordnet`}
+        divider={false}
+        className="mt-8"
+        action={
+          <HelpPopover label="Erklärung zur Kontierung">
+            Buchfink schlägt bewusst kein Gegenkonto vor. Aus dem Verwendungszweck ein Aufwandskonto
+            zu raten wäre eine unprüfbare Vermutung an genau der Stelle, an der die Kontierung
+            entschieden wird — und für diese Entscheidung haftet das Unternehmen.
+          </HelpPopover>
+        }
+      >
+        {loading ? (
+          <SkeletonRows rows={6} />
+        ) : unmatched.length === 0 ? (
+          <EmptyState
+            icon={<Landmark className="w-6 h-6" strokeWidth={1.5} />}
+            title="Keine offenen Bankumsätze"
+            description="Alle eingelesenen Zahlungen sind zugeordnet."
+          />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th className="w-10" aria-label="Richtung" />
+                <Th className="w-28">Datum</Th>
+                <Th>Zahlungspartner</Th>
+                <Th>Verwendungszweck</Th>
+                <Th numeric className="w-36">
+                  Betrag
+                </Th>
+                <Th className="w-28" aria-label="Aktionen" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {unmatched.map((tx) => {
+                const incoming = tx.amount > 0;
+                return (
+                  <Tr key={tx.id} className="group cursor-pointer" onClick={() => setActive(tx)}>
+                    <Td className="pr-0 text-ink-faint">
+                      {incoming ? (
+                        <ArrowDownLeft className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+                      )}
+                      <span className="sr-only">{incoming ? 'Eingang' : 'Ausgang'}</span>
+                    </Td>
+                    <Td className="text-ink-subtle num">{formatDate(tx.bookingDate)}</Td>
+                    <Td className="max-w-[16rem] truncate">{tx.counterpartyName || '—'}</Td>
+                    <Td className="max-w-[24rem] truncate text-ink-muted" title={tx.remittanceInfo}>
+                      {tx.remittanceInfo}
+                    </Td>
+                    <Td numeric>{formatCents(tx.amount, tx.currency)}</Td>
+                    <Td className="pl-0">
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        className="opacity-0 transition-opacity duration-120 ease-quiet
+                                   group-hover:opacity-100 focus-visible:opacity-100"
+                      >
+                        Zuordnen
+                      </Button>
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
 
       {active && (
         <AssignDialog
@@ -199,24 +235,23 @@ const AssignDialog: React.FC<{
   onDone: () => void;
 }> = ({ tx, accounts, openItems, differenceKinds, onClose, onDone }) => {
   const [mode, setMode] = useState<'open_item' | 'direct'>('open_item');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'submit' | 'ignore' | null>(null);
 
   // Zahlungseingänge gleichen Forderungen aus, Ausgänge Verbindlichkeiten.
   const relevant = useMemo(
     () => openItems.filter((i) => (tx.amount > 0 ? i.contactType === 'customer' : i.contactType === 'vendor')),
-    [openItems, tx.amount]
+    [openItems, tx.amount],
   );
 
   const [selected, setSelected] = useState<Record<number, { amount: string; kind: DifferenceKind; diff: string }>>(
-    {}
+    {},
   );
-  const [counterAccount, setCounterAccount] = useState('');
+  const [counterAccount, setCounterAccount] = useState<string | null>(null);
   const [description, setDescription] = useState(`${tx.counterpartyName} – ${tx.remittanceInfo}`);
 
   const postable = useMemo(
     () => accounts.filter((a) => !a.isRange && !a.isReserved && a.kontenklasse !== 8),
-    [accounts]
+    [accounts],
   );
 
   const allocations: AllocationRequest[] = Object.entries(selected).map(([entryId, value]) => ({
@@ -249,8 +284,7 @@ const AssignDialog: React.FC<{
   }
 
   async function submit() {
-    setBusy(true);
-    setError(null);
+    setBusy('submit');
     try {
       if (mode === 'open_item') {
         await Api.settlePayment({
@@ -260,269 +294,204 @@ const AssignDialog: React.FC<{
           valueDate: tx.valueDate,
           allocations,
         });
-        toast.success('Zahlung zugeordnet');
+        toast.success('Zahlung zugeordnet.');
       } else {
-        await Api.bookBankTransactionDirect(tx.id, counterAccount.trim(), description);
-        toast.success('Bankumsatz gebucht');
+        await Api.bookBankTransactionDirect(tx.id, (counterAccount ?? '').trim(), description);
+        toast.success('Bankumsatz gebucht.');
       }
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   async function ignore() {
-    setBusy(true);
-    setError(null);
+    setBusy('ignore');
     try {
       await Api.ignoreBankTransaction(tx.id);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
+  const canSubmit = mode === 'open_item' ? matches : Boolean(counterAccount?.trim());
+
   return (
-    <div className="fixed inset-0 bg-stone-900/40 flex items-start justify-center p-4 overflow-y-auto z-50">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-3xl my-8">
-        <div className="px-5 py-3 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-900">Bankumsatz zuordnen</h2>
-          <p className="text-xs text-stone-500 mt-0.5">
-            {formatDate(tx.bookingDate)} · {tx.counterpartyName} ·{' '}
-            <span className="font-mono">{formatCents(tx.amount, tx.currency)}</span> auf Konto{' '}
-            {tx.ledgerAccount}
-          </p>
-        </div>
-
-        <div className="px-5 pt-4">
-          <div className="flex gap-1 border-b border-stone-200">
-            {(
-              [
-                { id: 'open_item', label: 'Offenen Posten ausgleichen' },
-                { id: 'direct', label: 'Ohne Beleg direkt buchen' },
-              ] as const
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setMode(id)}
-                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
-                  mode === id
-                    ? 'border-amber-600 text-amber-800'
-                    : 'border-transparent text-stone-500 hover:text-stone-800'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {mode === 'open_item' ? (
-            <>
-              {relevant.length === 0 ? (
-                <p className="text-sm text-stone-500">
-                  Es gibt keine passenden offenen Posten. Wenn zu dieser Zahlung kein Beleg gehört, buche
-                  sie über den zweiten Reiter direkt.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {relevant.map((item) => {
-                    const entry = selected[item.entryId];
-                    return (
-                      <div
-                        key={item.entryId}
-                        className={`rounded-lg border p-3 ${
-                          entry ? 'border-amber-300 bg-amber-50/40' : 'border-stone-200'
-                        }`}
-                      >
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(entry)}
-                            onChange={() => toggle(item)}
-                            className="accent-amber-700"
-                          />
-                          <span className="text-sm text-stone-900 flex-1">
-                            {item.documentNumber || item.entryNumber} · {item.contactName}
-                          </span>
-                          <span className="text-xs text-stone-500">
-                            fällig {formatDate(item.dueDate)}
-                          </span>
-                          <span className="font-mono text-sm tabular-nums">
-                            {formatCents(item.openAmount)}
-                          </span>
-                        </label>
-
-                        {entry && (
-                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <label className="block">
-                              <span className="block text-[11px] text-stone-500 mb-1">Ausgleichsbetrag</span>
-                              <input
-                                value={entry.amount}
-                                onChange={(e) =>
-                                  setSelected((prev) => ({
-                                    ...prev,
-                                    [item.entryId]: { ...prev[item.entryId], amount: e.target.value },
-                                  }))
-                                }
-                                className={`${inputClass} text-right font-mono`}
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="block text-[11px] text-stone-500 mb-1">Differenz</span>
-                              <select
-                                value={entry.kind}
-                                onChange={(e) =>
-                                  setSelected((prev) => ({
-                                    ...prev,
-                                    [item.entryId]: {
-                                      ...prev[item.entryId],
-                                      kind: e.target.value as DifferenceKind,
-                                    },
-                                  }))
-                                }
-                                className={inputClass}
-                              >
-                                {differenceKinds.map((k) => (
-                                  <option key={k.kind} value={k.kind} title={k.hint}>
-                                    {k.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            {entry.kind !== 'none' && (
-                              <label className="block">
-                                <span className="block text-[11px] text-stone-500 mb-1">
-                                  Betrag der Differenz
-                                </span>
-                                <input
-                                  value={entry.diff}
-                                  onChange={(e) =>
-                                    setSelected((prev) => ({
-                                      ...prev,
-                                      [item.entryId]: { ...prev[item.entryId], diff: e.target.value },
-                                    }))
-                                  }
-                                  placeholder="0,00"
-                                  className={`${inputClass} text-right font-mono`}
-                                />
-                              </label>
-                            )}
-                            {entry.kind === 'skonto' && (
-                              <p className="sm:col-span-3 text-[11px] text-stone-500">
-                                Skonto brutto eingeben. Buchfink teilt den Betrag in Entgelt und Steuer und
-                                korrigiert die Umsatz- bzw. Vorsteuer nach § 17 UStG mit
-                                {' '}
-                                {item.taxRate ? `${item.taxRate / 100} %` : 'dem Satz des Belegs'}.
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  <div
-                    className={`flex justify-between items-center text-sm rounded-lg px-3 py-2 border ${
-                      matches
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                        : 'bg-stone-50 border-stone-200 text-stone-600'
-                    }`}
-                  >
-                    <span className="font-medium">
-                      {matches
-                        ? 'Zuordnung passt zum Kontoauszug'
-                        : `Noch ${formatCents(statementAmount - cashTotal)} offen`}
-                    </span>
-                    <span className="font-mono tabular-nums">
-                      {formatCents(cashTotal)} von {formatCents(statementAmount)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-3">
-                Für Zinsen, Kontoführungsentgelte, Privatentnahmen oder Umbuchungen zwischen eigenen
-                Konten. Die Bankseite kommt aus dem Kontoauszug — die Richtung kann nicht vertippt werden.
-              </p>
-              <label className="block">
-                <span className="block text-xs font-medium text-stone-600 mb-1">
-                  Gegenkonto
-                  <HelpTooltip
-                    title="Gegenkonto"
-                    content="Das Konto, gegen das der Bankumsatz gebucht wird. Buchfink prüft, ob es im SKR04 existiert und bebucht werden darf."
-                  />
-                </span>
-                <input
-                  list="bank-postable-accounts"
-                  value={counterAccount}
-                  onChange={(e) => setCounterAccount(e.target.value)}
-                  placeholder="z. B. 6855"
-                  className={`${inputClass} font-mono`}
-                />
-                <datalist id="bank-postable-accounts">
-                  {postable.map((a) => (
-                    <option key={a.number} value={a.number}>
-                      {a.name}
-                    </option>
-                  ))}
-                </datalist>
-                <span className="block text-xs text-stone-500 mt-1">
-                  {postable.find((a) => a.number === counterAccount)?.name ?? ''}
-                </span>
-              </label>
-              <label className="block">
-                <span className="block text-xs font-medium text-stone-600 mb-1">Buchungstext</span>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={inputClass}
-                />
-              </label>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-lg p-3">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-stone-100">
-          <button
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="Bankumsatz zuordnen"
+      width="max-w-3xl"
+      footer={
+        <>
+          <Button
+            variant="quiet"
+            icon={<Ban className="w-4 h-4" strokeWidth={1.5} />}
+            loading={busy === 'ignore'}
             onClick={ignore}
-            disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg text-stone-500 hover:text-stone-800"
+            className="mr-auto"
           >
-            <Ban className="w-4 h-4" />
             Nicht buchen
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-3 py-2 text-sm rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-50"
+          </Button>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button variant="primary" loading={busy === 'submit'} disabled={!canSubmit} onClick={submit}>
+            Buchen
+          </Button>
+        </>
+      }
+    >
+      <p className="text-caption text-ink-subtle -mt-1 mb-5">
+        {formatDate(tx.bookingDate)} · {tx.counterpartyName} ·{' '}
+        <span className="num">{formatCents(tx.amount, tx.currency)}</span> auf Konto{' '}
+        <span className="code-num">{tx.ledgerAccount}</span>
+      </p>
+
+      <Tabs
+        items={[
+          { value: 'open_item', label: 'Offenen Posten ausgleichen', count: relevant.length },
+          { value: 'direct', label: 'Ohne Beleg direkt buchen' },
+        ]}
+        value={mode}
+        onValueChange={setMode}
+      >
+        <TabPanel value="open_item">
+          {relevant.length === 0 ? (
+            <EmptyState
+              title="Keine passenden offenen Posten"
+              description="Wenn zu dieser Zahlung kein Beleg gehört, buche sie über den zweiten Reiter direkt."
+            />
+          ) : (
+            <>
+              <div className="divide-y divide-line">
+                {relevant.map((item) => {
+                  const entry = selected[item.entryId];
+                  return (
+                    <div key={item.entryId} className="py-3 first:pt-0">
+                      <div
+                        className={cn(
+                          'flex items-center gap-3',
+                          entry && '-mx-3 px-3 py-2 rounded-control bg-accent-soft',
+                        )}
+                      >
+                        <Checkbox
+                          checked={Boolean(entry)}
+                          onCheckedChange={() => toggle(item)}
+                          label={`${item.documentNumber || item.entryNumber} · ${item.contactName}`}
+                          className="flex-1 min-w-0"
+                        />
+                        <span className="shrink-0 text-caption text-ink-subtle">
+                          fällig {formatDate(item.dueDate)}
+                        </span>
+                        <span className="shrink-0 num">{formatCents(item.openAmount)}</span>
+                      </div>
+
+                      {entry && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                          <Field label="Ausgleichsbetrag">
+                            <Input
+                              align="right"
+                              value={entry.amount}
+                              onChange={(e) =>
+                                setSelected((prev) => ({
+                                  ...prev,
+                                  [item.entryId]: { ...prev[item.entryId], amount: e.target.value },
+                                }))
+                              }
+                            />
+                          </Field>
+                          <Field
+                            label="Differenz"
+                            help={`Skonto wird brutto erfasst. Buchfink teilt den Betrag in Entgelt und Steuer und korrigiert die Steuer nach § 17 UStG mit ${
+                              item.taxRate ? `${item.taxRate / 100} %` : 'dem Satz des Belegs'
+                            }.`}
+                          >
+                            <Select
+                              items={differenceKinds.map((k) => ({ value: k.kind, label: k.label }))}
+                              value={entry.kind}
+                              onValueChange={(kind) =>
+                                setSelected((prev) => ({
+                                  ...prev,
+                                  [item.entryId]: { ...prev[item.entryId], kind },
+                                }))
+                              }
+                            />
+                          </Field>
+                          {entry.kind !== 'none' && (
+                            <Field label="Betrag der Differenz">
+                              <Input
+                                align="right"
+                                placeholder="0,00"
+                                value={entry.diff}
+                                onChange={(e) =>
+                                  setSelected((prev) => ({
+                                    ...prev,
+                                    [item.entryId]: { ...prev[item.entryId], diff: e.target.value },
+                                  }))
+                                }
+                              />
+                            </Field>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Doppellinie wie unter einer Summe: Die Zuordnung muss den
+                  Kontoauszug treffen, sonst bleibt die Aktion gesperrt. */}
+              <div
+                className={cn(
+                  'flex items-center justify-between gap-4 mt-4 pt-3 rule-total text-body',
+                  matches ? 'text-positive-text' : 'text-ink-muted',
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  {matches && <span className="mark-diamond bg-positive" aria-hidden="true" />}
+                  {matches
+                    ? 'Zuordnung passt zum Kontoauszug'
+                    : `Noch ${formatCents(statementAmount - cashTotal)} offen`}
+                </span>
+                <span className="num">
+                  {formatCents(cashTotal)} von {formatCents(statementAmount)}
+                </span>
+              </div>
+            </>
+          )}
+        </TabPanel>
+
+        <TabPanel value="direct">
+          <div className="flex flex-col gap-4 max-w-md">
+            <Field
+              label="Gegenkonto"
+              hint="Für Zinsen, Entgelte oder Umbuchungen"
+              help="Die Bankseite kommt aus dem Kontoauszug, die Richtung kann nicht vertippt werden. Buchfink prüft, ob das Gegenkonto im SKR04 existiert und bebucht werden darf."
             >
-              Abbrechen
-            </button>
-            <button
-              onClick={submit}
-              disabled={busy || (mode === 'open_item' ? !matches : !counterAccount.trim())}
-              className="px-3 py-2 text-sm rounded-lg bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {busy ? 'Wird gebucht…' : 'Buchen'}
-            </button>
+              <Combobox
+                items={postable.map((a) => ({
+                  value: a.number,
+                  label: `${a.number} ${a.name}`,
+                }))}
+                value={counterAccount}
+                onValueChange={setCounterAccount}
+                placeholder="Konto suchen, z. B. 6855"
+              />
+            </Field>
+            <Field label="Buchungstext">
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </Field>
           </div>
-        </div>
-      </div>
-    </div>
+        </TabPanel>
+      </Tabs>
+    </Dialog>
   );
 };
