@@ -4,14 +4,15 @@ Die visuelle und interaktive Grundlage von Buchfink. Dieses Dokument ist die
 Referenz für Code-Reviews. Eine Ansicht, die gegen die Regeln hier verstößt, ist
 ein Fehler und keine Geschmacksfrage.
 
-Die Tokens stehen in [`frontend/src/index.css`](../frontend/src/index.css) als
-Tailwind-`@theme`. Sie sind als Utility-Klassen (`bg-paper`, `text-ink`) und als
-CSS-Variablen (`var(--color-ink)`) nutzbar.
+Zwei Stellen setzen es um:
 
-Visuelle Referenz: [`design-konzept.html`](./design-konzept.html), im Browser zu
-öffnen. Die Seite zeigt Palette, Schriftskala, Komponenten und fachliche Muster
-als gerenderte Beispiele und ist selbst in den Tokens gesetzt, die sie
-beschreibt.
+- [`frontend/src/index.css`](../frontend/src/index.css) hält die Tokens als
+  Tailwind-`@theme`. Nutzbar als Utility (`bg-paper`, `text-ink`) und als
+  CSS-Variable (`var(--color-ink)`).
+- [`frontend/src/components/ui/`](../frontend/src/components/ui) hält die
+  Bausteine. Wo dieses Dokument einen Baustein beschreibt, steht dort die
+  verbindliche Umsetzung. Klassenketten gehören in die Komponente, nicht in
+  dieses Dokument und nicht in eine Seite.
 
 ---
 
@@ -489,145 +490,121 @@ existiert, braucht `title` und `aria-label`. Farbige Icons folgen der Farbregel.
 
 ## 10. Komponenten
 
-Die folgenden Klassenketten sind verbindlich. Sie gehören in `components/ui/` und
-werden nicht pro Seite neu geschrieben.
+Die Bausteine liegen in [`frontend/src/components/ui/`](../frontend/src/components/ui).
+Dort steht die verbindliche Umsetzung, hier stehen nur die Regeln, die man dem
+Code nicht ansieht. Klassenketten werden nicht in Seiten geschrieben und nicht in
+diesem Dokument gepflegt.
 
-### Buttons
+### 10.1 Verhalten kommt von Base UI
 
-| Variante | Klassen | Einsatz |
+Alles, was Fokus fängt, positioniert oder auf Tasten hört, kommt aus
+[`@base-ui/react`](https://base-ui.com). Selbst gebaut waren diese Teile
+fehleranfällig, und die Fehler zeigen sich erst spät: ein Tooltip, der am
+Bildschirmrand hinausläuft, ein Dialog, aus dem die Tabulatortaste
+herausspringt, ein Menü ohne Typeahead.
+
+Base UI liefert nur Verhalten und keine Gestalt. Die Gestalt kommt von hier, in
+Tailwind-Klassen aus den Tokens in §3. Zustände hängen an den Datenattributen
+der Bibliothek (`data-[open]`, `data-[highlighted]`, `data-[invalid]`), das
+bleibt also Tailwind ohne Zwischenschicht.
+
+Rein darstellende Bausteine bauen wir selbst, weil es dort nichts falsch zu
+machen gibt.
+
+### 10.2 Was es gibt
+
+| Baustein | Datei | Verhalten von |
 |---|---|---|
-| Primär | `h-9 px-4 rounded-control bg-ink text-white text-label font-semibold hover:bg-ink-muted transition-colors` | eine pro Ansicht |
-| Sekundär | `h-9 px-4 rounded-control border border-control-border bg-surface text-ink-muted text-label font-semibold hover:bg-sunken hover:text-ink` | alle weiteren Aktionen |
-| Unauffällig | `h-8 px-2.5 rounded-control text-ink-subtle text-label hover:bg-sunken hover:text-ink` | Zeilenaktionen, Toolbars |
-| Destruktiv | `h-9 px-4 rounded-control bg-negative-text text-white text-label font-semibold hover:brightness-95` | nur Storno und Löschen |
+| `Button` | `Button.tsx` | eigen |
+| `Input`, `Textarea` | `Input.tsx` | Base UI (Field-Anbindung) |
+| `AmountInput` | `Input.tsx` | Base UI NumberField |
+| `Select` | `Select.tsx` | Base UI Select |
+| `Combobox` | `Combobox.tsx` | Base UI Combobox |
+| `Checkbox`, `RadioGroup`, `Switch` | `Toggle.tsx` | Base UI |
+| `Field`, `FieldRow` | `Field.tsx` | Base UI Field |
+| `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
+| `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
+| `HelpTooltip`, `HelpPopover`, `InfoPopover` | `Help.tsx` | Base UI Tooltip, Popover |
+| `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
+| `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
+| `FileDrop` | `FileDrop.tsx` | eigen |
+| `Section`, `PageHeader` | `Section.tsx` | eigen |
+| `StatRow`, `Stat` | `StatRow.tsx` | eigen |
+| `Table` und Zellen | `Table.tsx` | eigen |
+| `StatusBadge` | `StatusBadge.tsx` | eigen |
+| `EmptyState` | `EmptyState.tsx` | eigen |
+| `cn` | `cn.ts` | Klassen zusammenführen, letzte Angabe gewinnt |
 
-36 px Standard, 32 px kompakt, Icon-only quadratisch. Ein deaktivierter Button
-braucht eine Erklärung im `title`.
+Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist (§6.2), steht sie an genau
+dieser Stelle im Code und nicht als Baustein, der sich unbemerkt vermehrt.
 
-### Eingabefelder
+### 10.3 Abdeckung
 
-```
-h-9 w-full px-3 rounded-control border border-control-border bg-surface text-body
-placeholder:text-ink-faint
-focus:border-accent focus:ring-2 focus:ring-accent/25 outline-none
-disabled:bg-sunken disabled:text-ink-faint
-aria-[invalid=true]:border-negative aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-negative/20
-```
+Abgeglichen mit dem, was die zwölf Seiten heute benutzen:
 
-Betragsfelder zusätzlich `text-right num`. Label darüber (`text-label
-text-ink-muted mb-1`), Hilfstext darunter (`text-caption text-ink-subtle mt-1`),
-Fehlertext ersetzt den Hilfstext in `text-negative-text`. Pflichtfelder werden
-nicht mit Sternchen markiert, stattdessen tragen optionale Felder den Zusatz
-"optional". Das sind in Buchfink die wenigeren.
+| Bedarf | Heute im Code | Baustein |
+|---|---|---|
+| Textfeld | 20 mal | `Input` |
+| Auswahlliste | 19 mal | `Select` |
+| Datum | 12 mal | `Input type="date"` |
+| Dialog | 8 mal | `Dialog`, `ConfirmDialog` |
+| Aufklappmenü | 9 mal | `Menu` |
+| Tabelle | 8 mal | `Table` |
+| Rückmeldung | 26 mal | `toast` |
+| Kästchen, Radio | 5 mal | `Checkbox`, `RadioGroup` |
+| Zahl, Betrag | 2 mal | `AmountInput` |
+| Mehrzeilig | 1 mal | `Textarea` |
+| Datei | 1 mal | `FileDrop` |
+| Kontosuche | fehlte | `Combobox` |
+| Schalter | fehlte | `Switch` |
+| Reiter | fehlte | `Tabs` |
+| Ladezustand | fehlte | `SkeletonRows` |
+| Fortschritt | fehlte | `Progress` |
 
-### Abschnitt
+Ein echter Datumswähler mit Kalender fehlt noch. Bis dahin bleibt es beim
+nativen Feld, das im Desktop-WebView brauchbar ist.
 
-Der Ersatz für die Karte, siehe §6.4. Überschrift, optionale Kontextzeile,
-Haarlinie darüber, Inhalt direkt auf dem Papier.
+### 10.4 Regeln, die der Code nicht zeigt
 
-### Kennzahlenreihe
+**Buttons.** Genau eine Primäraktion pro Ansicht, in Tinte. Ein deaktivierter
+Button braucht eine Erklärung im `title`, sonst versteckt er seinen Grund. Beim
+Laden bleibt er an seiner Stelle, behält die Breite und tauscht die Beschriftung
+nicht aus.
 
-Kennzahlen sind keine Kacheln. Sie stehen in einer Reihe, getrennt durch
-senkrechte Haarlinien:
+**Felder.** Pflichtfelder tragen kein Sternchen. Gekennzeichnet wird das
+Seltenere: optional. Der Fehlertext ersetzt den Hinweis, solange er steht.
 
-```
-divide-x divide-line  →  je Zelle: px-6 first:pl-0
-Label   text-caption text-ink-subtle
-Wert    text-display num
-Kontext text-caption text-ink-subtle
-```
+**Auswahl gegen Suche.** `Select` für kurze feste Listen, `Combobox` für alles,
+was man suchen muss. Der SKR04-Kontenrahmen ist immer eine Suche.
 
-Ab fünf Kennzahlen bricht die Reihe um, die senkrechten Linien entfallen dann
-zugunsten von Abstand.
+**Bestätigung.** `ConfirmDialog` nur für unumkehrbare Schritte (§8.2). Er lässt
+sich nicht durch einen Klick daneben schließen. Was rückgängig gemacht werden
+kann, läuft ohne Rückfrage und bekommt `toast.undo`.
 
-### Tabelle
+**Tabelle.** Die Fläche ersetzt nicht die Kopflinie: Der Kopf bleibt ohne
+Füllung. Die Überschrift des Abschnitts steht über der Fläche, nicht darin,
+sonst entsteht wieder eine Karte mit Kopfzeile. Keine Zebrastreifen.
 
-Das wichtigste Element der Anwendung, und die eine Stelle im Arbeitsbereich, die
-eine eigene Fläche bekommt (§6.2, Fall 2).
+**Status-Badge.** Enthält immer Text, nie nur den Marker. Der Marker ist eine
+Raute, 7 mal 7 px, in der Basisfarbe der Familie. Der Kreis ist die weichste
+Form, die es gibt, und in einer Statusspalte beliebig; die Raute hat vier
+definierte Kanten und eine Achse.
 
-| Teil | Umsetzung |
-|---|---|
-| Container | `rounded-card border border-line bg-surface overflow-hidden` |
-| Kopf | `border-b border-line-strong text-label text-ink-subtle`, `sticky top-0 bg-surface z-10`, keine Füllung |
-| Zelle | `px-4 h-10 text-body` (kompakt `h-8`) |
-| Trennung | `divide-y divide-line`, **keine Zebrastreifen** |
-| Hover | `hover:bg-sunken` |
-| Ausgewählt | `bg-accent-soft` |
-| Zahlenspalten | `text-right num`, Kopf ebenfalls rechtsbündig |
-| Summenzeile | `rule-total font-semibold`, die Doppellinie trägt allein |
-| Zeilenaktionen | bei Hover und Fokus sichtbar, per Tastatur immer erreichbar |
+Sie entsteht über `clip-path`, nicht über `rotate(45deg)`. Eine gedrehte Fläche
+behält ihre ursprüngliche Layoutbox: Bei 5 mal 5 px malt sie 7,07 px, die
+Spitzen ragen über die Box hinaus und verkürzen den Abstand zum Text auf 5 px,
+obwohl 6 px gesetzt sind. Die Geometrie liegt als Utility `mark-diamond` in
+`index.css`. Dieselbe Raute markiert den Integritätszustand im Fuß der
+Navigation (§11.4), andere Statuspunkte gibt es nicht.
 
-Die Fläche ersetzt nicht die Kopflinie. Der Kopf bleibt ohne Füllung, `bg-surface`
-braucht er nur, damit beim Scrollen keine Zeilen durchscheinen.
-
-Die Überschrift des Abschnitts steht **über** der Fläche, nicht darin. Sonst
-entsteht wieder eine Karte mit Kopfzeile, und der Abschnitt aus §6.4 verliert
-seine Funktion.
-
-Breite Tabellen scrollen in einem eigenen `overflow-x-auto`-Container, die Seite
-selbst scrollt nie seitlich.
-
-### Status-Badge
-
-```
-inline-flex items-center gap-1.5 h-5 px-2 rounded-control border text-caption font-medium
-```
-
-Dazu das Vierergespann der Familie, etwa `bg-positive-soft text-positive-text
-border-positive-line`. Ein Badge enthält immer Text, nie nur den Marker.
-
-Der Marker ist eine **Raute**, 7 mal 7 px, in der Basisfarbe der Familie
-(`mark-diamond bg-positive`). Der Kreis ist die weichste Form, die es gibt, und
-in einer Statusspalte beliebig. Die Raute hat vier definierte Kanten und eine
-Achse und liest sich als gesetzte Marke statt als Punkt.
-
-Umgesetzt über `clip-path`, nicht über `rotate(45deg)`:
-
-```css
-width: 7px; height: 7px;
-clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-```
-
-Eine gedrehte Fläche behält ihre ursprüngliche Layoutbox. Bei 5 mal 5 px malt
-sie 7,07 px, die Spitzen ragen also einen Pixel über die Box hinaus und
-verkürzen den Abstand zum Text auf 5 px, obwohl 6 px gesetzt sind. Mit
-`clip-path` ist die Box so groß wie die gezeichnete Form, und der Abstand
-stimmt.
-
-Dieselbe Raute markiert den Integritätszustand im Fuß der Navigation (§11.4).
-Andere Statuspunkte gibt es nicht.
-
-### Dialog
-
-Overlay `bg-ink/40`, Panel `rounded-overlay border border-line bg-surface
-shadow-dialog max-w-2xl`. Kopf `px-6 py-4 border-b border-line` mit
-`text-heading`, Fuß `px-6 py-4 border-t border-line`, Aktionen rechts, Sekundär
-links von Primär. Escape schließt, der Fokus wird gefangen (§8.8).
-
-Ein Dialog ist für eine abgeschlossene Eingabe da. Was länger als ein Bildschirm
-ist, etwa die Rechnungserfassung oder der Beleg-Buchungsflow, gehört in eine
-eigene Ansicht.
-
-### Erklärung
-
-Das Erklärzeichen und seine drei Stufen sind in §15.2 festgelegt. Als Baustein:
-`HelpTooltip` für die Tooltip-Stufe, `HelpPopover` für Popover und den Sprung in
-den Dialog. Beide sitzen hinter der Beschriftung, nicht davor, und sind
-fokussierbar.
-
-| Stufe | Fläche |
-|---|---|
-| Tooltip | `rounded-control bg-ink text-paper px-2.5 py-1.5 text-caption`, max. 260 px breit |
-| Popover | `rounded-overlay border border-line bg-surface shadow-popover p-4 text-body`, max. 340 px |
-| Dialog | wie oben unter Dialog |
-
-### Meldungen
+**Meldungen.**
 
 | Art | Umsetzung |
 |---|---|
-| Erfolg einer Aktion | Toast unten rechts, 4 s, siehe §8.5 |
+| Erfolg einer Aktion | `toast.success`, 4 s |
+| Umkehrbarer Schritt | `toast.undo`, 8 s |
 | Fachlicher Fehler im Formular | am Feld, nie als Toast |
-| Fehler aus dem Backend | `rounded-control border border-negative-line bg-negative-soft px-4 py-3 text-body text-negative-text` über den Aktionen |
+| Fehler aus dem Backend | Hinweisfläche in Rosé über den Aktionen |
 | Dauerhafter Zustand | Statusleiste, kein Toast |
 
 ---
@@ -866,11 +843,14 @@ Bedingung für den Start: kein Hex-Literal mehr im Komponentencode.
 Die Tokens stehen in `frontend/src/index.css`. Alle bisherigen Tailwind-Klassen
 funktionieren weiter, die Migration läuft schrittweise.
 
-**Schritt 1, Bausteine.** `components/ui/` mit `Button`, `Input`, `Field`,
-`Section`, `StatRow`, `Table`, `StatusBadge`, `Dialog`, `EmptyState`,
-`PageHeader`. `components/Form.tsx` geht darin auf. Bewusst gibt es keine `Card`.
-Was heute Karte ist, wird `Section`. Wo eine Fläche nötig ist (§6.2), steht sie an
-genau dieser Stelle im Code und nicht als Baustein, der sich unbemerkt vermehrt.
+**Schritt 1, Bausteine. Erledigt.** `components/ui/` steht, siehe §10, mit
+Base UI als Verhaltensebene. Noch nicht erledigt ist die Ablösung:
+`components/Form.tsx` und `components/HelpTooltip.tsx` bleiben in Betrieb, bis
+die Seiten umgestellt sind, und verschwinden dann.
+
+Solange keine Seite die Bausteine importiert, kostet Base UI nichts: Das
+JS-Bundle bleibt bei 2.173 kB, die Bibliothek wird vollständig wegoptimiert. Das
+CSS wächst um 12,7 kB, weil Tailwind die Klassen der Bausteine bereits erzeugt.
 
 **Schritt 2, Rahmen.** Sidebar, Header und App auf Tokens umstellen. Danach
 stimmt der erste Eindruck, auch wenn die Seiten noch alt aussehen.

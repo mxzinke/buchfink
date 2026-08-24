@@ -95,7 +95,7 @@ buchfink-data/
 
 ## UI & Design-Prinzipien
 
-Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das vollständige Konzept steht in [`docs/design-konzept.md`](./docs/design-konzept.md), die visuelle Referenz zum Öffnen im Browser in [`docs/design-konzept.html`](./docs/design-konzept.html).
+Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das vollständige Konzept steht in [`docs/design-konzept.md`](./docs/design-konzept.md), die Bausteine in [`frontend/src/components/ui/`](./frontend/src/components/ui).
 
 - **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) in sechs Stufen – modern, klar lesbar und neutral. Beträge in tabellarischen Ziffern, damit Spalten untereinander stehen.
 - **Farbwelt:** Warmes Papier und Tinte als Grundfläche, dazu vier pastellige Familien: Himmelblau als Marke, Bernstein für offen, Salbei für geprüft, Rosé für Storno. Jede Familie hat vier Rollen (Fläche, Rand, Marker, Text), damit Pastell die Kontrastvorgaben hält.
@@ -116,6 +116,7 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
 | **Backend** | Go (Golang) | Performante Geschäftslogik, Hash-Chain, XML/XBRL & Bankparser |
 | **Datenbank** | SQLite (Pure Go) | Eine SQLite-Datei pro Geschäftsjahr, CGO-frei |
 | **Frontend** | React, TypeScript, Vite | Schnelles, reaktives UI ohne schweren Design-System-Overhead |
+| **UI-Bausteine** | [Base UI](https://base-ui.com) | Unstyled: Fokusfang, Positionierung und Tastaturführung. Gestalt kommt aus dem eigenen Design-System |
 | **Styling** | Tailwind CSS & Lucide Icons | Minimalistisch, flach und warm gestaltet |
 | **Dokumente** | Typst | Layout-Engine für ZUGFeRD PDF/A-3 Rechnungen |
 
