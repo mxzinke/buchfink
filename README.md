@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <a href="https://mxzinke.github.io/buchfink/"><strong>Projektseite mit Screenshots</strong></a>
+</p>
+
+<p align="center">
   <a href="#ziel--anwendungsbereich">Ziel & Anwendungsbereich</a> &bull;
   <a href="#kernfunktionen">Kernfunktionen</a> &bull;
   <a href="#speicherung--integrität">Speicherung & Integrität</a> &bull;
@@ -185,10 +189,17 @@ buchfink/
 │   ├── database/           # SQLite Initialisierung & Migrationen
 │   ├── ebilanz/            # XBRL Taxonomie-Mapping & XML-Export
 │   └── invoice/            # ZUGFeRD / Factur-X XML & Typst Rendering
+├── scripts/                # Prüf- und Erzeugungsskripte
+├── website/                # Projektseite für GitHub Pages
 ├── main.go                 # App Entrypoint & Wails Service Registration
 ├── Taskfile.yml            # Build & Automation Tasks
 └── go.mod
 ```
+
+Die Projektseite unter [`website/`](./website) wird von
+`.github/workflows/pages.yml` veröffentlicht. Ihre Screenshots entstehen aus
+der echten Oberfläche mit Beispieldaten; wie das läuft, steht in
+[`scripts/site-screenshots/`](./scripts/site-screenshots).
 
 ---
 

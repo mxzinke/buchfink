@@ -1,0 +1,51 @@
+name: Projektseite veröffentlichen
+
+# Veröffentlicht den Inhalt von website/ auf GitHub Pages.
+#
+# Es gibt keinen Build-Schritt: Die Seite besteht aus statischem HTML, einer
+# CSS-Datei, den Schriftschnitten und den Screenshots. Was im Verzeichnis
+# liegt, ist genau das, was ausgeliefert wird.
+#
+# Einmalige Einrichtung im Repository: Settings → Pages → Source auf
+# „GitHub Actions" stellen.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Ein Deployment zur Zeit; ein laufendes wird nicht abgebrochen, damit eine
+# angefangene Veröffentlichung sauber zu Ende geht.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Pages einrichten
+        uses: actions/configure-pages@v5
+
+      - name: Seite als Artefakt hochladen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+      - name: Veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v4

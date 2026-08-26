@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Beispielbeleg</title>
+    <style>
+      @font-face {
+        font-family: 'Manrope';
+        src: url('/Manrope-Regular.ttf') format('truetype');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Manrope';
+        src: url('/Manrope-SemiBold.ttf') format('truetype');
+        font-weight: 600;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Manrope', system-ui, sans-serif;
+        background: #fff;
+        color: #1c1917;
+        width: 794px;
+        padding: 56px 64px;
+        font-size: 12px;
+        line-height: 1.55;
+        font-variant-numeric: tabular-nums;
+      }
+      .head { display: flex; justify-content: space-between; align-items: flex-start; }
+      .brand { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+      .brand span { display: block; font-size: 11px; font-weight: 400; color: #57514a; margin-top: 4px; }
+      .meta { text-align: right; font-size: 11px; color: #57514a; }
+      .meta b { color: #1c1917; font-weight: 600; }
+      .to { margin-top: 44px; font-size: 12px; }
+      .to em { display: block; font-style: normal; font-size: 10px; color: #756e65; margin-bottom: 6px; }
+      h1 { margin-top: 36px; font-size: 16px; font-weight: 600; }
+      .sub { font-size: 11px; color: #57514a; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+      th {
+        text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+        text-transform: uppercase; color: #756e65; padding: 0 0 8px; border-bottom: 1px solid #d8d1c6;
+      }
+      td { padding: 9px 0; border-bottom: 1px solid #e9e4dc; vertical-align: top; }
+      .r { text-align: right; white-space: nowrap; }
+      .sums { margin-top: 18px; margin-left: auto; width: 260px; }
+      .sums div { display: flex; justify-content: space-between; padding: 4px 0; }
+      .sums .total {
+        border-top: 1px solid #1c1917; border-bottom: 3px double #1c1917;
+        margin-top: 6px; padding: 8px 0; font-weight: 600;
+      }
+      .note { margin-top: 34px; font-size: 11px; color: #57514a; }
+      footer {
+        margin-top: 44px; padding-top: 14px; border-top: 1px solid #e9e4dc;
+        display: flex; gap: 40px; font-size: 10px; color: #756e65;
+      }
+      .tag {
+        display: inline-block; margin-top: 12px; padding: 3px 8px; border-radius: 6px;
+        background: #e6f1e8; border: 1px solid #93bf9f; color: #2e6b3c; font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <div class="brand">
+        Techpartner Nord GmbH
+        <span>Ruhrstraße 42 · 22761 Hamburg</span>
+      </div>
+      <div class="meta">
+        Rechnung <b>ER-2026-0231</b><br />
+        Rechnungsdatum <b>10.08.2026</b><br />
+        Leistungsdatum <b>10.08.2026</b><br />
+        Kundennummer <b>K-4412</b>
+      </div>
+    </div>
+
+    <div class="to">
+      <em>Techpartner Nord GmbH · Ruhrstraße 42 · 22761 Hamburg</em>
+      Nordlicht Systeme GmbH<br />
+      Hafenstraße 14<br />
+      20359 Hamburg
+    </div>
+
+    <h1>Rechnung ER-2026-0231</h1>
+    <p class="sub">Lieferung vom 10.08.2026 · Zahlbar bis 30.08.2026 ohne Abzug</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 34px">Pos.</th>
+          <th>Bezeichnung</th>
+          <th class="r" style="width: 52px">Menge</th>
+          <th class="r" style="width: 88px">Einzelpreis</th>
+          <th class="r" style="width: 44px">USt</th>
+          <th class="r" style="width: 92px">Betrag</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Notebook 14″, 32 GB RAM, 1 TB SSD<br /><span style="color: #756e65">Artikel-Nr. TPN-NB-1432</span></td>
+          <td class="r">4</td>
+          <td class="r">679,00 €</td>
+          <td class="r">19 %</td>
+          <td class="r">2.716,00 €</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sums">
+      <div><span>Nettobetrag</span><span>2.716,00 €</span></div>
+      <div><span>Umsatzsteuer 19 %</span><span>516,04 €</span></div>
+      <div class="total"><span>Rechnungsbetrag</span><span>3.232,04 €</span></div>
+    </div>
+
+    <p class="note">
+      Zahlung bitte innerhalb von 20 Tagen auf das unten genannte Konto unter Angabe der
+      Rechnungsnummer. Es gelten unsere Allgemeinen Geschäftsbedingungen.
+    </p>
+    <span class="tag">Diese Rechnung enthält einen strukturierten Datensatz (ZUGFeRD, Profil EN 16931).</span>
+
+    <footer>
+      <div>
+        Techpartner Nord GmbH<br />
+        Ruhrstraße 42, 22761 Hamburg<br />
+        Amtsgericht Hamburg HRB 118 402
+      </div>
+      <div>
+        USt-IdNr. DE263558107<br />
+        Steuernummer 41/812/00934<br />
+        Geschäftsführung: L. Brandt
+      </div>
+      <div>
+        Nordbank AG<br />
+        IBAN DE93 3704 0044 4567 8901 23<br />
+        BIC COBADEFFXXX
+      </div>
+    </footer>
+  </body>
+</html>
