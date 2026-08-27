@@ -114,11 +114,11 @@ tasks:
       - python3 -m http.server 8000 --directory website
 
   pages:publish:
-    summary: Publishes website/ to the gh-pages branch — der Weg ohne CI
+    summary: Publishes website/ to the gh-pages branch
     # Schiebt den Inhalt von website/ als Wurzel des Zweigs gh-pages. In den
-    # Repository-Einstellungen steht Pages dann auf „Deploy from a branch",
-    # Zweig gh-pages, Ordner „/ (root)". Damit braucht die Veröffentlichung
-    # keinen Actions-Lauf.
+    # Repository-Einstellungen steht Pages auf „Deploy from a branch", Zweig
+    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand
+    # und ohne CI. Nach jeder Änderung an der Seite ausführen.
     #
     # Weist der Push zurück, weil gh-pages auseinandergelaufen ist, hilft die
     # ausdrückliche Form:

@@ -196,9 +196,9 @@ buchfink/
 └── go.mod
 ```
 
-Die Projektseite unter [`website/`](./website) wird von
-`.github/workflows/pages.yml` veröffentlicht. Ihre Screenshots entstehen aus
-der echten Oberfläche mit Beispieldaten; wie das läuft, steht in
+Die Projektseite unter [`website/`](./website) wird mit `task pages:publish`
+veröffentlicht — von Hand, ohne CI. Ihre Screenshots entstehen aus der echten
+Oberfläche mit Beispieldaten; wie das läuft, steht in
 [`scripts/site-screenshots/`](./scripts/site-screenshots).
 
 ---

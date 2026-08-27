@@ -19,39 +19,36 @@ website/
 
 ## Veröffentlichen
 
-Es gibt zwei Wege. Beide führen zu derselben Adresse
-`https://mxzinke.github.io/buchfink/`; die Wahl steht im Repository unter
-**Settings → Pages** als *Source*.
-
-### Mit Actions (eingerichtet)
-
-*Source: GitHub Actions.* `.github/workflows/pages.yml` lädt das Verzeichnis bei
-jedem Push auf `master` hoch, der `website/` berührt. Nichts weiter zu tun.
-
-### Ohne Actions
-
-*Source: Deploy from a branch → `gh-pages` → `/ (root)`.*
-
-Pages kann beim Ausliefern aus einem Zweig nur dessen Wurzel oder den Ordner
-`docs/` bedienen — ein beliebiges Unterverzeichnis wie `website/` geht nicht.
-`docs/` ist hier von den Fachkonzepten belegt, also bekommt die Seite einen
-eigenen Zweig, in dem `website/` die Wurzel ist:
+Von Hand, ohne Actions-Lauf:
 
 ```bash
 task pages:publish        # git subtree push --prefix website origin gh-pages
 ```
 
-Der Befehl muss nach jeder Änderung an der Seite laufen — das ist der Preis
-dafür, keinen Actions-Lauf zu brauchen. Weist der Push zurück, weil `gh-pages`
-auseinandergelaufen ist:
+Der Befehl schiebt den Inhalt von `website/` als Wurzel in den Zweig
+`gh-pages`. Er muss nach jeder Änderung an der Seite laufen — sonst steht im
+Netz weiter der alte Stand.
+
+Einmalige Einrichtung im Repository unter **Settings → Pages**:
+*Source: Deploy from a branch*, Zweig `gh-pages`, Ordner `/ (root)`.
+
+Weist der Push zurück, weil `gh-pages` auseinandergelaufen ist, hilft die
+ausdrückliche Form:
 
 ```bash
 git push origin $(git subtree split --prefix website HEAD):gh-pages --force
 ```
 
-Beim Ausliefern aus einem Zweig lässt GitHub standardmäßig Jekyll über die
-Dateien laufen. `website/.nojekyll` verhindert das und wandert beim
-`subtree push` mit in die Wurzel — deshalb muss die Datei bleiben, wo sie ist.
+### Warum ein eigener Zweig
+
+Pages bedient beim Ausliefern aus einem Zweig nur dessen Wurzel oder den Ordner
+`docs/` — ein beliebiges Unterverzeichnis wie `website/` geht nicht, und `docs/`
+ist hier von den Fachkonzepten belegt. Deshalb der Umweg über `gh-pages`, in dem
+`website/` die Wurzel ist.
+
+Dabei lässt GitHub standardmäßig Jekyll über die Dateien laufen. `.nojekyll`
+verhindert das und wandert beim `subtree push` mit in die Wurzel — deshalb muss
+die Datei bleiben, wo sie ist.
 
 ### Lokal ansehen
 
