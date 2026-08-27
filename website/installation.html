@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Installation und lokal bauen — Buchfink</title>
+    <meta
+      name="description"
+      content="Buchfink aus dem Quellcode bauen: Go, Node.js und die Wails-CLI einrichten, Repository klonen, Entwicklungsmodus starten und ein Desktop-Paket erzeugen."
+    />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html#ablauf">So läuft es</a>
+          <a href="index.html#funktionen">Funktionen</a>
+          <a href="index.html#abgrenzung">Für wen</a>
+          <a href="preis.html">Preis</a>
+          <a href="installation.html" aria-current="page">Installation</a>
+          <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+              />
+            </svg>
+            GitHub
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt" class="prose">
+      <!-- ================================================================= -->
+      <section class="band band--plain" style="padding-bottom: 40px">
+        <div class="wrap">
+          <p class="overline">Installation</p>
+          <h1 class="hero__title" style="font-size: clamp(28px, 3.6vw, 38px)">
+            Buchfink aus dem Quellcode bauen
+          </h1>
+          <p class="hero__lead">
+            Fertige Installationspakete gibt es noch nicht — Buchfink ist in Entwicklung. Der Weg
+            führt deshalb über den Quellcode: Werkzeuge einrichten, herunterladen, starten. Auf
+            einem Rechner mit Go und Node.js dauert das ein paar Minuten.
+          </p>
+
+          <div class="code" style="margin-top: 32px">
+            <div class="code__head"><span>Kurzfassung</span><span>wenn Go, Node.js und Wails schon da sind</span></div>
+            <pre>git clone https://github.com/mxzinke/buchfink.git
+cd buchfink
+npm --prefix frontend install
+wails3 dev -config ./build/config.yml -port 9245</pre>
+          </div>
+
+          <p class="step__body" style="margin-top: 24px">
+            Alles Weitere unten in Ruhe erklärt.
+          </p>
+
+          <div class="note note--attention" style="margin-top: 40px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
+            </svg>
+            <div>
+              <p class="note__title">Noch keine Version 1</p>
+              <p class="note__body">
+                Ein selbst gebauter Stand ist zum Ausprobieren gedacht. Wer damit echte Buchungen
+                erfasst, sichert das Datenverzeichnis regelmäßig und prüft die Ergebnisse gegen die
+                eigene Steuerberatung.
+              </p>
+            </div>
+          </div>
+
+          <nav class="toc" aria-label="Auf dieser Seite">
+            <a href="#voraussetzungen">Voraussetzungen</a>
+            <a href="#werkzeuge">Werkzeuge einrichten</a>
+            <a href="#schritte">Bauen und starten</a>
+            <a href="#pruefen">Vor einem Pull Request</a>
+            <a href="#struktur">Projektstruktur</a>
+            <a href="#stolpersteine">Stolpersteine</a>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="voraussetzungen">
+        <div class="wrap">
+          <p class="overline">Voraussetzungen</p>
+          <h2 class="section__title">Was auf dem Rechner sein muss</h2>
+          <p class="section__lead">
+            Buchfink läuft auf macOS, Windows und Linux. Gebaut wird jeweils für das System, auf dem
+            man arbeitet; Cross-Compilation gibt es über einen Docker-Weg, den man für den Anfang
+            nicht braucht.
+          </p>
+
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th scope="col">Werkzeug</th>
+                  <th scope="col">Version</th>
+                  <th scope="col">Wofür</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="https://go.dev/dl/">Go</a></td>
+                  <td>≥ 1.22</td>
+                  <td>Backend, Buchungslogik, Hash-Kette, Bankparser, XBRL</td>
+                </tr>
+                <tr>
+                  <td><a href="https://nodejs.org/">Node.js</a></td>
+                  <td>≥ 20</td>
+                  <td>Oberfläche bauen (React, TypeScript, Vite)</td>
+                </tr>
+                <tr>
+                  <td><a href="https://v3.wails.io/">Wails v3 CLI</a></td>
+                  <td>aktuell</td>
+                  <td>Entwicklungsmodus, Desktop-Build und Paketierung</td>
+                </tr>
+                <tr>
+                  <td>C-Toolchain</td>
+                  <td>Systemabhängig</td>
+                  <td>Nur für die WebView-Anbindung; die Datenbank selbst ist CGO-frei</td>
+                </tr>
+                <tr>
+                  <td><a href="https://taskfile.dev/">Task</a> <span class="caption">optional</span></td>
+                  <td>v3</td>
+                  <td>Kurzbefehle wie <code>task dev</code>, <code>task build</code>, <code>task check</code></td>
+                </tr>
+                <tr>
+                  <td><a href="https://typst.app/">Typst</a> <span class="caption">optional</span></td>
+                  <td>aktuell</td>
+                  <td>Rechnungen lokal setzen und als PDF/A-3 prüfen</td>
+                </tr>
+                <tr>
+                  <td>Python 3 <span class="caption">optional</span></td>
+                  <td>≥ 3.10</td>
+                  <td>Prüfskripte für Design-Tokens und Bridge-Bindings</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="werkzeuge">
+        <div class="wrap">
+          <p class="overline">Werkzeuge einrichten</p>
+          <h2 class="section__title">Je nach Betriebssystem</h2>
+          <p class="section__lead">
+            Go und Node.js lassen sich auch direkt von den Herstellerseiten installieren. Die
+            folgenden Befehle sind der kürzeste Weg über die übliche Paketverwaltung.
+          </p>
+
+          <h3 class="column__title" style="margin-top: 40px; font-size: 18px">macOS</h3>
+          <div class="code">
+            <div class="code__head"><span>Terminal</span><span>Homebrew</span></div>
+            <pre>brew install go node
+brew install go-task typst        <span class="c"># optional</span>
+xcode-select --install            <span class="c"># Befehlszeilenwerkzeuge, falls noch nicht da</span></pre>
+          </div>
+
+          <h3 class="column__title" style="margin-top: 40px; font-size: 18px">Linux (Debian, Ubuntu)</h3>
+          <div class="code">
+            <div class="code__head"><span>Terminal</span><span>apt</span></div>
+            <pre>sudo apt update
+sudo apt install golang-go nodejs npm build-essential pkg-config \
+                 libgtk-3-dev libwebkit2gtk-4.1-dev</pre>
+          </div>
+          <p class="step__body">
+            Wails baut die Oberfläche unter Linux gegen GTK und WebKit — ohne diese
+            Entwicklungspakete bricht der Build mit einer fehlenden Header-Datei ab. Liefert die
+            Distribution ein zu altes Go oder Node.js, sind die offiziellen Archive von
+            <a href="https://go.dev/dl/">go.dev</a> und <a href="https://nodejs.org/">nodejs.org</a>
+            der verlässlichere Weg.
+          </p>
+
+          <h3 class="column__title" style="margin-top: 40px; font-size: 18px">Windows</h3>
+          <div class="code">
+            <div class="code__head"><span>PowerShell</span><span>winget</span></div>
+            <pre>winget install GoLang.Go
+winget install OpenJS.NodeJS.LTS
+winget install Task.Task          <span class="c"># optional</span></pre>
+          </div>
+          <p class="step__body">
+            Windows braucht zusätzlich die
+            <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2-Laufzeit</a>.
+            Auf Windows 11 und aktuellen Windows-10-Installationen ist sie bereits vorhanden.
+          </p>
+
+          <h3 class="column__title" style="margin-top: 40px; font-size: 18px">Wails-CLI, auf allen Systemen gleich</h3>
+          <div class="code">
+            <div class="code__head"><span>Terminal</span><span>go install</span></div>
+            <pre>go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+wails3 doctor                     <span class="c"># meldet, was noch fehlt</span></pre>
+          </div>
+          <p class="step__body">
+            <code>go install</code> legt die Binärdatei unter <code>$(go env GOPATH)/bin</code> ab.
+            Falls <code>wails3</code> danach nicht gefunden wird, gehört dieses Verzeichnis in den
+            <code>PATH</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="schritte">
+        <div class="wrap">
+          <p class="overline">Bauen und starten</p>
+          <h2 class="section__title">Vier Schritte bis zur laufenden Anwendung</h2>
+
+          <div class="steps">
+            <!-- --------------------------------------------------------- -->
+            <article class="step">
+              <h3 class="step__title">Repository klonen und Abhängigkeiten holen</h3>
+              <p class="step__body">
+                Die Go-Abhängigkeiten zieht der erste Build von selbst; die Pakete der Oberfläche
+                muss <code>npm</code> einmal installieren.
+              </p>
+              <div class="code">
+                <div class="code__head"><span>Terminal</span><span>git &amp; npm</span></div>
+                <pre>git clone https://github.com/mxzinke/buchfink.git
+cd buchfink
+
+go mod download
+npm --prefix frontend install</pre>
+              </div>
+            </article>
+
+            <!-- --------------------------------------------------------- -->
+            <article class="step">
+              <h3 class="step__title">Entwicklungsmodus starten</h3>
+              <p class="step__body">
+                <code>wails3 dev</code> startet Go-Backend und Vite gemeinsam und öffnet das
+                Anwendungsfenster. Änderungen an der Oberfläche sind sofort sichtbar, Änderungen am
+                Go-Code lösen einen Neustart aus.
+              </p>
+              <div class="code">
+                <div class="code__head"><span>Terminal</span><span>Entwicklungsmodus</span></div>
+                <pre>wails3 dev -config ./build/config.yml -port 9245
+
+<span class="c"># dasselbe kürzer, wenn Task installiert ist:</span>
+task dev</pre>
+              </div>
+              <p class="step__body">
+                Beim ersten Start legt der Einrichtungsassistent den Mandanten an: Firmendaten,
+                Geschäftsjahr, Datenverzeichnis. Danach steht der Wiederherstellungsschlüssel auf
+                dem Bildschirm — er wird gebraucht, wenn die Datenbank auf einem anderen Rechner
+                geöffnet werden soll, und lässt sich später nicht neu erzeugen.
+              </p>
+            </article>
+
+            <!-- --------------------------------------------------------- -->
+            <article class="step">
+              <h3 class="step__title">Nur die Oberfläche im Browser ansehen</h3>
+              <p class="step__body">
+                Für Arbeiten an der Gestaltung reicht der reine Vite-Server. Ohne Desktop-Laufzeit
+                gibt es kein Backend: Jeder Aufruf meldet das offen, statt Beispieldaten
+                vorzutäuschen. Zum Buchen ist dieser Modus also nicht gedacht.
+              </p>
+              <div class="code">
+                <div class="code__head"><span>Terminal</span><span>Vite allein</span></div>
+                <pre>npm --prefix frontend run dev     <span class="c"># http://127.0.0.1:9245</span></pre>
+              </div>
+            </article>
+
+            <!-- --------------------------------------------------------- -->
+            <article class="step">
+              <h3 class="step__title">Desktop-Build und Paket erzeugen</h3>
+              <p class="step__body">
+                <code>build</code> erzeugt die ausführbare Datei, <code>package</code> daraus das
+                systemübliche Paket — <code>.app</code> unter macOS, ein Installer unter Windows,
+                <code>.deb</code> beziehungsweise <code>AppImage</code> unter Linux. Das Ergebnis
+                liegt unter <code>bin/</code>.
+              </p>
+              <div class="code">
+                <div class="code__head"><span>Terminal</span><span>Build</span></div>
+                <pre>wails3 build                      <span class="c"># oder: task build</span>
+wails3 package                    <span class="c"># oder: task package</span>
+
+./bin/buchfink                    <span class="c"># oder: task run</span></pre>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band band--sunken" id="pruefen">
+        <div class="wrap">
+          <p class="overline">Beitragen</p>
+          <h2 class="section__title">Was vor einem Pull Request läuft</h2>
+          <p class="section__lead">
+            Buchfink ist Buchhaltungssoftware — ein Fehler hat Folgen für Jahresabschluss und
+            Betriebsprüfung. Deshalb prüft das Projekt mehr als nur Kompilierbarkeit. Der gesammelte
+            Durchlauf steht als eine Aufgabe bereit.
+          </p>
+
+          <div class="code">
+            <div class="code__head"><span>Terminal</span><span>Prüfungen</span></div>
+            <pre>task check                        <span class="c"># Formatierung, vet, Tests, Design, Bridge</span>
+
+<span class="c"># einzeln, ohne Task:</span>
+gofmt -l internal main.go
+go vet ./internal/...
+go test ./internal/...
+python3 scripts/check_design_tokens.py
+python3 scripts/check_bridge_bindings.py
+
+<span class="c"># Oberfläche:</span>
+npm --prefix frontend exec tsc -- --noEmit
+npm --prefix frontend run build</pre>
+          </div>
+
+          <div class="columns">
+            <div>
+              <h3 class="column__title">Design-Tokens</h3>
+              <p class="column__body">
+                <code>check_design_tokens.py</code> lässt in <code>frontend/src/</code> weder
+                Hex-Farben noch Klassen der Tailwind-Standardpaletten durch. Die verbindlichen Werte
+                stehen im
+                <a href="https://github.com/mxzinke/buchfink/blob/master/docs/design-konzept.md">Design-Konzept</a>.
+              </p>
+            </div>
+            <div>
+              <h3 class="column__title">Bridge-Bindings</h3>
+              <p class="column__body">
+                <code>check_bridge_bindings.py</code> vergleicht
+                <code>frontend/src/services/bridge.ts</code> mit den gebundenen Go-Methoden. Ein
+                Tippfehler im Methodennamen fällt so beim Prüflauf auf und nicht erst im laufenden
+                Fenster.
+              </p>
+            </div>
+            <div>
+              <h3 class="column__title">Neue Abhängigkeiten</h3>
+              <p class="column__body">
+                Nach jeder Änderung an den Abhängigkeiten gehört
+                <code>python3 scripts/gen_third_party_notices.py</code> (oder
+                <code>task notices</code>) dazu. Copyleft-Lizenzen bitte vorher im Issue ansprechen —
+                sie können über die Kompatibilitätsklausel der EUPL die Lizenz des Gesamtwerks
+                verschieben.
+              </p>
+            </div>
+          </div>
+
+          <p class="step__body" style="margin-top: 32px">
+            Alles Weitere — Commit-Stil, Tests für Buchungslogik, die Vereinbarung über Beiträge —
+            steht in
+            <a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="struktur">
+        <div class="wrap">
+          <p class="overline">Orientierung</p>
+          <h2 class="section__title">Wo was liegt</h2>
+
+          <div class="code">
+            <div class="code__head"><span>Projektstruktur</span><span>Auszug</span></div>
+            <pre>buchfink/
+├── <span class="p">assets/</span>                 <span class="c"># Logo, Brand-Assets, SKR04-Katalog</span>
+├── <span class="p">build/</span>                  <span class="c"># Wails-Konfiguration je Betriebssystem</span>
+├── <span class="p">docs/</span>                   <span class="c"># Design-, Sicherheits- und Anforderungskonzepte</span>
+├── <span class="p">frontend/</span>
+│   ├── src/components/ui/  <span class="c"># die Bausteine des Design-Systems</span>
+│   ├── src/pages/          <span class="c"># Journal, Bank, Belege, Auswertungen …</span>
+│   ├── src/services/       <span class="c"># Bridge zum Go-Backend</span>
+│   └── src/index.css       <span class="c"># die Tokens als Tailwind-@theme</span>
+├── <span class="p">internal/</span>
+│   ├── accounting/         <span class="c"># SKR04, Buchungsgruppen, Hash-Berechnung</span>
+│   ├── audit/              <span class="c"># Änderungsprotokoll und Integritätsprüfung</span>
+│   ├── bank/               <span class="c"># CAMT.053-Parser</span>
+│   ├── domain/             <span class="c"># Fachmodell: Buchung, Beleg, Steuer, Geld</span>
+│   ├── ebilanz/            <span class="c"># Taxonomie-Mapping und XBRL-Ausgabe</span>
+│   ├── einvoice/           <span class="c"># ZUGFeRD, Factur-X, XRechnung: lesen und prüfen</span>
+│   ├── invoice/            <span class="c"># Typst-Rendering und PDF/A-3</span>
+│   ├── security/           <span class="c"># Verschlüsselung, Schlüsselbund, Wiederherstellung</span>
+│   └── service/            <span class="c"># Anwendungsfälle über dem Fachmodell</span>
+├── <span class="p">scripts/</span>                <span class="c"># Prüf- und Erzeugungsskripte</span>
+├── <span class="p">website/</span>                <span class="c"># diese Projektseite</span>
+├── main.go
+└── Taskfile.yml</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="stolpersteine">
+        <div class="wrap">
+          <p class="overline">Stolpersteine</p>
+          <h2 class="section__title">Was erfahrungsgemäß hakt</h2>
+
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th scope="col">Meldung</th>
+                  <th scope="col">Ursache und Abhilfe</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>wails3: command not found</code></td>
+                  <td>
+                    <code>$(go env GOPATH)/bin</code> liegt nicht im <code>PATH</code>. Verzeichnis
+                    ergänzen oder die Binärdatei mit vollem Pfad aufrufen.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>webkit2gtk-4.1 not found</code></td>
+                  <td>
+                    Unter Linux fehlen die Entwicklungspakete für GTK und WebKit. Siehe den
+                    apt-Befehl oben; auf Fedora heißen sie <code>gtk3-devel</code> und
+                    <code>webkit2gtk4.1-devel</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>go test ./...</code> schlägt fehl</td>
+                  <td>
+                    <code>main.go</code> bindet <code>frontend/dist</code> ein, das es vor dem ersten
+                    Frontend-Build nicht gibt, und <code>internal/wailsbridge</code> zieht Wails samt
+                    GTK-Headern. <code>task test</code> listet deshalb genau die Pakete auf, die
+                    Tests haben.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>unknown bound method name</code></td>
+                  <td>
+                    Der Methodenname in <code>bridge.ts</code> passt nicht zum voll qualifizierten
+                    Go-Namen. <code>python3 scripts/check_bridge_bindings.py</code> zeigt die
+                    Abweichung.
+                  </td>
+                </tr>
+                <tr>
+                  <td>„Keine Verbindung zum Buchfink-Backend“</td>
+                  <td>
+                    Die Oberfläche läuft im Browser statt in der Desktop-App. Das ist kein Fehler,
+                    sondern die ehrliche Meldung aus <code>npm run dev</code>. Zum Buchen
+                    <code>wails3 dev</code> starten.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Mandant lässt sich nicht öffnen</td>
+                  <td>
+                    Das Geheimnis liegt im Schlüsselbund des Rechners, auf dem eingerichtet wurde.
+                    Auf einem anderen Rechner braucht es den Wiederherstellungsschlüssel aus der
+                    Einrichtung.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band band--shell">
+        <div class="wrap">
+          <p class="overline" style="color: var(--shell-text-muted)">Hängengeblieben?</p>
+          <h2 class="section__title">Fragen und Fehlerberichte sind willkommen</h2>
+          <p class="section__lead">
+            Wenn ein Schritt auf dieser Seite nicht funktioniert, ist das ein Fehler in der
+            Anleitung. Ein Issue mit Betriebssystem, Versionen und der genauen Meldung hilft
+            unmittelbar weiter.
+          </p>
+          <div class="hero__actions">
+            <a class="btn btn--onshell" href="https://github.com/mxzinke/buchfink/issues/new">Issue eröffnen</a>
+            <a
+              class="btn btn--secondary"
+              style="background: transparent; color: var(--shell-text); border-color: var(--shell-line)"
+              href="index.html"
+              >Zurück zur Übersicht</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- =================================================================== -->
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Kostenlose Buchhaltung für Unternehmen, die eine Bilanz aufstellen. Läuft auf dem
+              eigenen Rechner, erfüllt die GoBD, erzeugt die E-Bilanz.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CLA.md">Vereinbarung über Beiträge</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="index.html">Übersicht</a></li>
+              <li><a href="preis.html">Preis</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/docs/design-konzept.md">Design-Konzept</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/THIRD-PARTY-NOTICES.md">Drittkomponenten</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt oder online
+              zugänglich macht, gibt sie unter derselben Lizenz weiter. Name und Logo sind von der
+              Lizenz nicht erfasst.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

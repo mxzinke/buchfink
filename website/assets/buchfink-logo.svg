@@ -1,0 +1,422 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <!-- Coin & Gold Gradients -->
+    <linearGradient id="gold-bright" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBD9" />
+      <stop offset="25%" stop-color="#FFDF48" />
+      <stop offset="70%" stop-color="#F5A315" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="gold-mid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFEB7A" />
+      <stop offset="50%" stop-color="#F5A826" />
+      <stop offset="100%" stop-color="#C96B00" />
+    </linearGradient>
+
+    <linearGradient id="gold-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E59600" />
+      <stop offset="100%" stop-color="#8C4A00" />
+    </linearGradient>
+
+    <linearGradient id="gold-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFF5" />
+      <stop offset="100%" stop-color="#E68A00" />
+    </linearGradient>
+
+    <!-- Banknote Gradients -->
+    <linearGradient id="euro-green-1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4CAF50" />
+      <stop offset="60%" stop-color="#2E7D32" />
+      <stop offset="100%" stop-color="#1B5E20" />
+    </linearGradient>
+
+    <linearGradient id="euro-green-2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#66BB6A" />
+      <stop offset="60%" stop-color="#388E3C" />
+      <stop offset="100%" stop-color="#1B5E20" />
+    </linearGradient>
+
+    <!-- Bird Plumage Gradients -->
+    <linearGradient id="blue-hood-grad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#72B6EB" />
+      <stop offset="50%" stop-color="#5599D4" />
+      <stop offset="100%" stop-color="#3A729E" />
+    </linearGradient>
+
+    <linearGradient id="orange-body-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F48E44" />
+      <stop offset="40%" stop-color="#DE6730" />
+      <stop offset="100%" stop-color="#CB5324" />
+    </linearGradient>
+
+    <linearGradient id="beak-top-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B8D4E8" />
+      <stop offset="100%" stop-color="#7EA5C4" />
+    </linearGradient>
+
+    <linearGradient id="beak-bot-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6B96BA" />
+      <stop offset="100%" stop-color="#3F698C" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="scene-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0B1926" flood-opacity="0.18" />
+    </filter>
+
+    <filter id="gold-sparkle" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Ground Contact Shadow -->
+  <ellipse cx="300" cy="546" rx="260" ry="30" fill="#091522" opacity="0.14" />
+  <ellipse cx="300" cy="544" rx="200" ry="18" fill="#091522" opacity="0.12" />
+
+  <!-- ============================================================== -->
+  <!-- 1. GELDHAUFEN (ORGANIC COIN PILE & EURO BANKNOTES)             -->
+  <!-- ============================================================== -->
+  <g id="money-pile" filter="url(#scene-shadow)">
+
+    <!-- BANKNOTE: Back Left -->
+    <g transform="translate(85, 470) rotate(-28)">
+      <rect x="0" y="0" width="125" height="62" rx="4" fill="url(#euro-green-1)" stroke="#0E3D12" stroke-width="1.2" />
+      <rect x="5" y="5" width="115" height="52" rx="3" fill="none" stroke="#A5D6A7" stroke-width="2" stroke-opacity="0.85" />
+      <circle cx="62.5" cy="31" r="16" fill="none" stroke="#A5D6A7" stroke-width="2" stroke-opacity="0.85" />
+      <text x="62.5" y="37" font-size="18" font-family="system-ui, sans-serif" font-weight="900" fill="#E8F5E9" text-anchor="middle">€</text>
+    </g>
+
+    <!-- BANKNOTE: Back Right -->
+    <g transform="translate(390, 420) rotate(24)">
+      <rect x="0" y="0" width="125" height="62" rx="4" fill="url(#euro-green-2)" stroke="#0E3D12" stroke-width="1.2" />
+      <rect x="5" y="5" width="115" height="52" rx="3" fill="none" stroke="#C8E6C9" stroke-width="2" stroke-opacity="0.85" />
+      <circle cx="62.5" cy="31" r="16" fill="none" stroke="#C8E6C9" stroke-width="2" stroke-opacity="0.85" />
+      <text x="62.5" y="37" font-size="18" font-family="system-ui, sans-serif" font-weight="900" fill="#E8F5E9" text-anchor="middle">€</text>
+    </g>
+
+    <!-- BANKNOTE: Mid Left Slanted -->
+    <g transform="translate(195, 450) rotate(14)">
+      <rect x="0" y="0" width="110" height="56" rx="3" fill="url(#euro-green-1)" stroke="#0E3D12" stroke-width="1.2" />
+      <rect x="5" y="5" width="100" height="46" rx="2" fill="none" stroke="#A5D6A7" stroke-width="1.8" />
+      <circle cx="55" cy="28" r="14" fill="none" stroke="#A5D6A7" stroke-width="1.8" />
+      <text x="55" y="34" font-size="16" font-family="system-ui, sans-serif" font-weight="900" fill="#E8F5E9" text-anchor="middle">€</text>
+    </g>
+
+    <!-- BACK / DEEP COINS FILLING PILE VOLUME -->
+    <g transform="translate(210, 410) rotate(-14)">
+      <path d="M -36 0 C -36 15, 36 15, 36 0 L 36 18 C 36 33, -36 33, -36 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="36" ry="15" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+      <text x="0" y="5" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+    <g transform="translate(390, 405) rotate(14)">
+      <path d="M -36 0 C -36 15, 36 15, 36 0 L 36 18 C 36 33, -36 33, -36 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="36" ry="15" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+      <text x="0" y="5" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+    <g transform="translate(150, 450) rotate(-10)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 18 C 38 34, -38 34, -38 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-mid)" stroke="url(#gold-rim)" stroke-width="1.6" />
+    </g>
+    <g transform="translate(450, 445) rotate(12)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 18 C 38 34, -38 34, -38 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+    </g>
+
+    <!-- FILLER COINS (Bridging Summit to Mid-level without gaps) -->
+    <g transform="translate(270, 415) rotate(4)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+    <g transform="translate(330, 410) rotate(-6)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+
+    <!-- MID LAYER: Overlapping Stacks -->
+    <g transform="translate(250, 440) rotate(-6)">
+      <path d="M -40 0 C -40 17, 40 17, 40 0 L 40 18 C 40 35, -40 35, -40 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="40" ry="17" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <ellipse cx="0" cy="0" rx="31" ry="13" fill="none" stroke="#D97706" stroke-width="1.4" />
+      <text x="0" y="6" font-size="15" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+    <g transform="translate(350, 435) rotate(8)">
+      <path d="M -40 0 C -40 17, 40 17, 40 0 L 40 18 C 40 35, -40 35, -40 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="40" ry="17" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <ellipse cx="0" cy="0" rx="31" ry="13" fill="none" stroke="#D97706" stroke-width="1.4" />
+      <text x="0" y="6" font-size="15" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+    <g transform="translate(300, 430) rotate(2)">
+      <path d="M -42 0 C -42 18, 42 18, 42 0 L 42 18 C 42 36, -42 36, -42 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="42" ry="18" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="2" />
+      <ellipse cx="0" cy="0" rx="32" ry="13" fill="none" stroke="#D97706" stroke-width="1.5" />
+      <text x="0" y="7" font-size="17" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+
+    <!-- UPPER SUMMIT PERCH STACKS -->
+    <g transform="translate(240, 395) rotate(-10)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-mid)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+    <g transform="translate(360, 390) rotate(12)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+
+    <!-- TOP SUMMIT COIN STACK (Bird stands here) -->
+    <g transform="translate(300, 384) rotate(-1)">
+      <path d="M -46 0 C -46 19, 46 19, 46 0 L 46 18 C 46 37, -46 37, -46 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="46" ry="19" fill="url(#gold-mid)" stroke="url(#gold-rim)" stroke-width="2" />
+    </g>
+    <g transform="translate(300, 370) rotate(-1)">
+      <path d="M -48 0 C -48 20, 48 20, 48 0 L 48 18 C 48 38, -48 38, -48 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="48" ry="20" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="2.5" />
+      <ellipse cx="0" cy="0" rx="38" ry="15" fill="none" stroke="#D97706" stroke-width="1.8" />
+      <text x="0" y="8" font-size="22" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+
+    <!-- FOREGROUND BASE LAYER COINS -->
+    <g transform="translate(55, 528) rotate(-18)">
+      <path d="M -30 0 C -30 13, 30 13, 30 0 L 30 14 C 30 27, -30 27, -30 14 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="30" ry="13" fill="url(#gold-mid)" stroke="url(#gold-rim)" stroke-width="1.5" />
+    </g>
+    <g transform="translate(105, 522) rotate(-8)">
+      <path d="M -34 0 C -34 14, 34 14, 34 0 L 34 15 C 34 29, -34 29, -34 15 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="34" ry="14" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.6" />
+    </g>
+    <g transform="translate(155, 514) rotate(14)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+    <g transform="translate(205, 510) rotate(-6)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <ellipse cx="0" cy="0" rx="30" ry="12" fill="none" stroke="#D97706" stroke-width="1.3" />
+      <text x="0" y="5" font-size="15" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+    <g transform="translate(255, 482) rotate(8)">
+      <path d="M -40 0 C -40 17, 40 17, 40 0 L 40 17 C 40 34, -40 34, -40 17 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="40" ry="17" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <ellipse cx="0" cy="0" rx="31" ry="13" fill="none" stroke="#D97706" stroke-width="1.4" />
+      <text x="0" y="6" font-size="16" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+
+    <!-- BANKNOTE: Front Center Overlap -->
+    <g transform="translate(320, 475) rotate(-6)">
+      <rect x="0" y="0" width="105" height="54" rx="4" fill="url(#euro-green-1)" stroke="#0E3D12" stroke-width="1.2" />
+      <rect x="5" y="5" width="95" height="44" rx="2" fill="none" stroke="#C8E6C9" stroke-width="1.8" />
+      <circle cx="52.5" cy="27" r="14" fill="none" stroke="#C8E6C9" stroke-width="1.8" />
+      <text x="52.5" y="33" font-size="16" font-family="system-ui, sans-serif" font-weight="900" fill="#E8F5E9" text-anchor="middle">€</text>
+    </g>
+
+    <g transform="translate(415, 490) rotate(10)">
+      <path d="M -40 0 C -40 17, 40 17, 40 0 L 40 17 C 40 34, -40 34, -40 17 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="40" ry="17" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <text x="0" y="5" font-size="15" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">★</text>
+    </g>
+    <g transform="translate(470, 508) rotate(-12)">
+      <path d="M -38 0 C -38 16, 38 16, 38 0 L 38 16 C 38 32, -38 32, -38 16 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="38" ry="16" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.8" />
+      <text x="0" y="5" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+    <g transform="translate(520, 520) rotate(14)">
+      <path d="M -32 0 C -32 14, 32 14, 32 0 L 32 13 C 32 27, -32 27, -32 13 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="32" ry="14" fill="url(#gold-mid)" stroke="url(#gold-rim)" stroke-width="1.5" />
+    </g>
+    <g transform="translate(555, 528) rotate(20)">
+      <path d="M -28 0 C -28 12, 28 12, 28 0 L 28 12 C 28 24, -28 24, -28 12 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="28" ry="12" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="1.5" />
+    </g>
+
+    <!-- Foreground Center Large Coins -->
+    <g transform="translate(295, 516) rotate(-3)">
+      <path d="M -46 0 C -46 19, 46 19, 46 0 L 46 18 C 46 37, -46 37, -46 18 Z" fill="url(#gold-edge)" />
+      <ellipse cx="0" cy="0" rx="46" ry="19" fill="url(#gold-bright)" stroke="url(#gold-rim)" stroke-width="2.4" />
+      <ellipse cx="0" cy="0" rx="36" ry="15" fill="none" stroke="#D97706" stroke-width="1.6" stroke-dasharray="3 2" />
+      <text x="0" y="7" font-size="19" font-family="system-ui, sans-serif" font-weight="900" fill="#B36800" text-anchor="middle">€</text>
+    </g>
+  </g>
+
+  <!-- Golden Glints & Sparkles -->
+  <g fill="#FFFDF0" filter="url(#gold-sparkle)">
+    <path d="M 390 340 Q 390 354 404 354 Q 390 354 390 368 Q 390 354 376 354 Q 390 354 390 340 Z" />
+    <path d="M 185 405 Q 185 415 195 415 Q 185 415 185 425 Q 185 415 175 415 Q 185 415 185 405 Z" />
+    <path d="M 495 440 Q 495 451 506 451 Q 495 451 495 462 Q 495 451 484 451 Q 495 451 495 440 Z" />
+  </g>
+
+
+  <!-- ============================================================== -->
+  <!-- 2. BUCHFINK (FRIENDLY, CHARMING EXPRESSION & SMOOTH HOOD)      -->
+  <!-- ============================================================== -->
+  <g id="buchfink-bird" filter="url(#scene-shadow)">
+
+    <!-- LEGS & CLAWS GRIPPING THE TOP GOLD COIN -->
+    <!-- Back Leg -->
+    <g stroke="#66302A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M 314 316 L 322 346 L 305 368" />
+      <path d="M 305 368 L 278 370" stroke-width="4" />
+      <path d="M 305 368 L 290 380" stroke-width="4" />
+      <path d="M 305 368 L 318 375" stroke-width="3.5" />
+    </g>
+
+    <!-- Front Leg -->
+    <g stroke="#803830" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M 346 316 L 362 346 L 344 366" />
+      <path d="M 344 366 L 316 367" stroke-width="4.5" />
+      <path d="M 344 366 L 326 378" stroke-width="4.5" />
+      <path d="M 344 366 L 358 373" stroke-width="4" />
+    </g>
+
+    <!-- TAIL -->
+    <!-- Lower Tail Pale Tan Border -->
+    <path d="M 195 328 L 52 390 C 42 394 50 405 60 401 L 225 338 Z" fill="#D8BCB0" />
+    <!-- Main Tail Dark Slate-Charcoal Feather -->
+    <path d="M 225 312 L 46 389 C 38 392 43 403 54 398 L 245 330 Z" fill="#32333B" />
+    <!-- Tail Inner Light Feather Edge -->
+    <path d="M 215 318 L 82 380 L 102 383 L 230 328 Z" fill="#F0F4F8" />
+
+    <!-- RUMP (Light Blue wedge above tail, below wing) -->
+    <path d="M 195 278 Q 168 310 248 340 Q 228 296 195 278 Z" fill="#8BBDE3" />
+
+    <!-- BODY BASE: Soft Taupe/Beige Belly & Flank -->
+    <path d="M 245 332 
+             C 275 385, 365 385, 420 315 
+             C 438 292, 446 265, 444 235 
+             C 424 278, 350 350, 245 332 Z" fill="#CBB1A6" />
+    <!-- Flank Shadow Curve -->
+    <path d="M 265 332 C 310 378, 375 372, 420 315 C 378 352, 315 354, 265 332 Z" fill="#B4978D" />
+
+    <!-- BODY MID: Warm Orange Breast & Body -->
+    <path d="M 444 235 
+             C 448 200, 432 165, 412 145 
+             C 382 150, 335 178, 280 228 
+             C 225 278, 235 315, 245 332 
+             C 350 350, 424 278, 444 235 Z" fill="url(#orange-body-grad)" />
+
+    <!-- Golden-Apricot Throat & Upper Breast Accent -->
+    <path d="M 425 152 C 450 190, 448 240, 422 285 C 445 245, 448 200, 425 152 Z" fill="#F2A649" />
+
+    <!-- MANTLE / UPPER BACK (Hazelnut Olive-Brown & Amber-Tawny) -->
+    <!-- Olive-Brown Top Saddle -->
+    <path d="M 335 150 
+             C 285 176, 235 236, 205 278 
+             C 235 264, 285 226, 335 196 
+             C 350 180, 345 160, 335 150 Z" fill="#8E5D2A" />
+    <!-- Amber-Tawny Lower Saddle -->
+    <path d="M 335 196 
+             C 290 226, 245 261, 215 278 
+             C 245 261, 295 226, 335 196 Z" fill="#DE7E2E" />
+
+    <!-- BLUE HOOD (Continuous, Friendly Rounded Helmet / Cap) -->
+    <path d="M 425 125 
+             C 425 102, 406 80, 370 75 
+             C 320 68, 280 108, 280 142 
+             C 280 178, 318 208, 372 210 
+             C 384 210, 386 200, 374 196 
+             C 334 192, 308 166, 312 142 
+             C 318 112, 350 96, 378 102 
+             C 404 108, 416 118, 425 125 Z" fill="url(#blue-hood-grad)" />
+
+    <!-- SOFT FOREHEAD ACCENT (Small, Round, Non-Intrusive) -->
+    <path d="M 425 125 C 428 116, 422 104, 414 98 C 420 108, 424 116, 425 125 Z" fill="#1B3650" />
+
+    <!-- WARM ORANGE CHEEK & FACE (Bright and Open) -->
+    <path d="M 425 125 
+             C 416 118, 404 108, 378 102 
+             C 350 96, 318 112, 312 142 
+             C 308 166, 334 192, 374 196 
+             C 404 178, 422 152, 425 125 Z" fill="#DE682D" />
+
+    <!-- Friendly Peach Cheek Glow -->
+    <path d="M 376 130 C 400 138, 414 154, 410 170 C 398 168, 386 156, 376 130 Z" fill="#F48A44" opacity="0.9" />
+
+    <!-- FRIENDLY EYE (Round, Large, Warm and Cheerful) -->
+    <g id="friendly-eye">
+      <!-- Cream / Buff soft eye-ring -->
+      <circle cx="395" cy="133" r="15" fill="#FFE2D1" />
+      <circle cx="395" cy="133" r="13" fill="#FFFFFF" />
+      <!-- Big, friendly dark pupil -->
+      <circle cx="395" cy="133" r="10.5" fill="#181920" />
+      
+      <!-- Cheerful Specular Glints -->
+      <circle cx="392" cy="128.5" r="4.2" fill="#FFFFFF" />
+      <circle cx="398.5" cy="137" r="1.8" fill="#FFFFFF" />
+      <circle cx="391" cy="135" r="1.2" fill="#FFFFFF" opacity="0.7" />
+    </g>
+
+    <!-- ========================================================== -->
+    <!-- FRIENDLY CONICAL BEAK WITH SUBTLE SMILE CURVE               -->
+    <!-- ========================================================== -->
+    <g id="beak">
+      <!-- Upper Mandible -->
+      <path d="M 425 125 
+               L 472 143 
+               C 477 145, 476 148, 471 149 
+               L 423 151 Z" fill="url(#beak-top-grad)" />
+
+      <!-- Lower Mandible -->
+      <path d="M 423 151 
+               L 471 149 
+               C 476 150, 475 154, 470 155 
+               L 425 162 Z" fill="url(#beak-bot-grad)" />
+
+      <!-- Smile Gape Line (Gently curving upwards at mouth corner) -->
+      <path d="M 421 149 Q 445 152 472 148" stroke="#1E374D" stroke-width="1.8" stroke-linecap="round" fill="none" />
+    </g>
+
+    <!-- WING (Folded Wing with Detailed Scallops & Wing Bars) -->
+    <g id="wing">
+      <!-- Dark Charcoal Main Wing Body -->
+      <path d="M 340 180 
+               C 300 210, 215 262, 146 306 
+               C 138 311, 144 321, 154 317 
+               C 210 293, 290 272, 360 248 
+               C 368 220, 358 193, 340 180 Z" fill="#2C2D35" />
+
+      <!-- Primary Flight Feather Separators (Fine Parallel Lines) -->
+      <g stroke="#1C1D22" stroke-width="2.5" stroke-linecap="round">
+        <line x1="164" y1="308" x2="256" y2="276" />
+        <line x1="180" y1="302" x2="272" y2="270" />
+        <line x1="196" y1="296" x2="288" y2="264" />
+        <line x1="212" y1="290" x2="304" y2="258" />
+        <line x1="228" y1="284" x2="320" y2="252" />
+      </g>
+
+      <!-- Delicate Light Buff Fringes on Flight Feathers -->
+      <g stroke="#D1AC84" stroke-width="1.8" stroke-linecap="round">
+        <line x1="152" y1="308" x2="248" y2="274" />
+        <line x1="168" y1="302" x2="264" y2="268" />
+        <line x1="184" y1="296" x2="280" y2="262" />
+      </g>
+
+      <!-- MIDDLE BLACK WING BAR WITH WHITE SCALLOPS -->
+      <!-- Black Accent Band -->
+      <path d="M 345 186 C 310 211, 240 246, 205 261 C 225 274, 265 276, 305 260 C 335 246, 355 216, 360 194 Z" fill="#1A1B20" />
+
+      <!-- BOLD TOP WHITE SHOULDER PATCH -->
+      <path d="M 338 184 
+               C 305 208, 250 234, 215 246 
+               C 232 259, 268 262, 302 248 
+               C 335 234, 352 208, 358 190 Z" fill="#FFFFFF" />
+      <!-- Soft Depth Shadow inside Shoulder Patch -->
+      <path d="M 215 246 C 242 250, 275 242, 305 228 C 268 246, 238 249, 215 246 Z" fill="#D6E0EA" />
+
+      <!-- SECONDARY WHITE WING BAR WITH SCALLOPED EDGES -->
+      <path d="M 260 261 
+               C 230 274, 190 288, 172 294 
+               C 182 298, 215 290, 252 276 
+               C 272 268, 278 264, 260 261 Z" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="0.8" />
+
+      <!-- Scalloped Feather Notches on White Bar -->
+      <path d="M 235 268 Q 242 264 250 270 Q 258 266 265 272" stroke="#1A1B20" stroke-width="2.5" fill="none" stroke-linecap="round" />
+    </g>
+
+  </g>
+
+</svg>

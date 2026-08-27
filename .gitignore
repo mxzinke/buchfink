@@ -55,3 +55,6 @@ frontend/bindings
 # wird bewusst nicht mit dem Repository verteilt.
 assets/DATEV-SKR04-*.pdf
 assets/DATEV-SKR04-*.json
+
+# Screenshot-Werkzeug der Projektseite
+scripts/site-screenshots/node_modules

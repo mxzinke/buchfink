@@ -1,0 +1,1059 @@
+/* =========================================================================
+   Buchfink — Projektseite
+
+   Dieselbe Gestaltung wie die Anwendung: die Tokens aus
+   docs/design-konzept.md, dieselbe Schrift, dasselbe Raster, dieselbe
+   Zurückhaltung. Was hier über das Konzept hinausgeht, steht in
+   website/README.md: größere Schriftgrade für Fließtext, ein
+   Rasterhintergrund im Kopf und eine leisere Fassung des Hinweisstreifens.
+   Karten, Schatten und Farbverläufe gibt es auch hier nicht.
+   ========================================================================= */
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  /* Papier und Tinte (§3.1) */
+  --paper: #faf8f5;
+  --surface: #ffffff;
+  --sunken: #f4f1eb;
+  --line: #e9e4dc;
+  --line-strong: #d8d1c6;
+  --control-border: #948e85;
+  --ink: #1c1917;
+  --ink-muted: #57514a;
+  --ink-subtle: #756e65;
+  --ink-faint: #a79f94;
+
+  /* Dunkle Schale (§3.1) */
+  --shell: #24211e;
+  --shell-raised: #2e2a26;
+  --shell-line: #37322d;
+  --shell-text: #d8d2ca;
+  --shell-text-muted: #968e84;
+
+  /* Himmelblau, die Marke (§3.3) */
+  --accent: #4090c0;
+  --accent-text: #1d6a96;
+  --accent-soft: #e8f2f9;
+  --accent-line: #93c1df;
+  --accent-light: #8fc4e4;
+
+  /* Bernstein: offen, zu beachten */
+  --attention: #b37f33;
+  --attention-text: #8a5a15;
+  --attention-soft: #fbf0de;
+  --attention-line: #d6b575;
+
+  /* Salbei: geprüft, festgeschrieben */
+  --positive: #5a9a6b;
+  --positive-text: #2e6b3c;
+  --positive-soft: #e6f1e8;
+  --positive-line: #93bf9f;
+
+  /* Rosé: Storno, Fehler, Abgrenzung */
+  --negative: #c4736a;
+  --negative-text: #a0453a;
+  --negative-soft: #faebe8;
+  --negative-line: #db9e93;
+
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --ease-quiet: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --page: 1120px;
+  --wide: 1400px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 26px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Zahlen stehen untereinander (§4.1) */
+.num,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+.code-num {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+ol,
+dl,
+dt,
+dd,
+figure,
+pre {
+  margin: 0;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-line);
+  transition: border-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
+}
+a:hover {
+  border-bottom-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+code {
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: 0.88em;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* -------------------------------------------------------------------------
+   Grundraster
+   ------------------------------------------------------------------------- */
+
+.wrap {
+  width: 100%;
+  max-width: var(--page);
+  margin-inline: auto;
+  padding-inline: 32px;
+}
+.wrap--wide {
+  max-width: var(--wide);
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px;
+  top: 16px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 8px 16px;
+  border-radius: var(--radius-control);
+  border: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Kopfleiste
+   ------------------------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 60px;
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  border: 0;
+  letter-spacing: -0.01em;
+}
+.wordmark img {
+  width: 26px;
+  height: 26px;
+}
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.topnav a {
+  color: var(--ink-muted);
+  border: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
+}
+.topnav a:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.topnav a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Typografie über der App-Skala
+   ------------------------------------------------------------------------- */
+
+.hero__title {
+  font-size: clamp(32px, 4.6vw, 46px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  max-width: 20ch;
+}
+.hero__lead {
+  margin-top: 20px;
+  max-width: 62ch;
+  font-size: 17px;
+  line-height: 28px;
+  color: var(--ink-muted);
+}
+
+.section__title {
+  font-size: clamp(24px, 2.6vw, 30px);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.section__lead {
+  margin-top: 16px;
+  max-width: 66ch;
+  font-size: 16px;
+  line-height: 27px;
+  color: var(--ink-muted);
+}
+
+.overline {
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+
+.caption {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-subtle);
+}
+
+/* -------------------------------------------------------------------------
+   Abschnitte trennen ohne Kasten (§6.4)
+   ------------------------------------------------------------------------- */
+
+.band {
+  padding-block: 104px;
+  border-top: 1px solid var(--line);
+}
+.band--plain {
+  border-top: 0;
+}
+.band--sunken {
+  background: var(--sunken);
+  border-top: 1px solid var(--line);
+}
+.band--shell {
+  background: var(--shell);
+  color: var(--shell-text);
+  border-top: 0;
+}
+.band--shell .section__title {
+  color: #fff;
+}
+.band--shell .section__lead,
+.band--shell p {
+  color: var(--shell-text-muted);
+}
+/* :not(.btn), sonst überschreibt diese Regel die Schaltflächen auf der
+   dunklen Schale — sie ist spezifischer als .btn--onshell. */
+.band--shell a:not(.btn) {
+  color: var(--accent-light);
+  border-bottom-color: color-mix(in srgb, var(--accent-light) 45%, transparent);
+}
+
+/* -------------------------------------------------------------------------
+   Hero
+   ------------------------------------------------------------------------- */
+
+.hero {
+  padding-top: 96px;
+  padding-bottom: 80px;
+  position: relative;
+  overflow: hidden;
+}
+/* Der einzige dekorative Hintergrund der Seite: ein Millimeterraster wie auf
+   Buchhaltungspapier, so leise, dass es erst beim zweiten Blick auffällt. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 0%, transparent 75%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.hero > * {
+  position: relative;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+.hero__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 28px 40px;
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+.fact__value {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fact__label {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-subtle);
+  margin-top: 2px;
+}
+
+/* -------------------------------------------------------------------------
+   Schaltflächen (§3.4: Primäraktion ist Tinte, nicht Himmelblau)
+   ------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 18px;
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background-color 120ms var(--ease-quiet), border-color 120ms var(--ease-quiet),
+    color 120ms var(--ease-quiet);
+  white-space: nowrap;
+}
+.btn--primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn--primary:hover {
+  background: #322c28;
+}
+.btn--secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--control-border);
+}
+.btn--secondary:hover {
+  background: var(--sunken);
+}
+.btn--onshell {
+  background: var(--paper);
+  color: var(--shell);
+  border-color: transparent;
+}
+.btn--onshell:hover {
+  background: #fff;
+}
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* -------------------------------------------------------------------------
+   Marker und Kennzeichnungen (§10.4)
+   ------------------------------------------------------------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding-inline: 9px;
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+.tag--accent {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+}
+.tag--positive {
+  background: var(--positive-soft);
+  border-color: var(--positive-line);
+  color: var(--positive-text);
+}
+.tag--attention {
+  background: var(--attention-soft);
+  border-color: var(--attention-line);
+  color: var(--attention-text);
+}
+
+/* Die Raute aus §10.4 — clip-path, nicht rotate. */
+.diamond {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: currentColor;
+}
+
+/* -------------------------------------------------------------------------
+   Hinweisstreifen (§6.2, Fall 4)
+   ------------------------------------------------------------------------- */
+
+/* Die App füllt einen Hinweis pastellig aus, weil er dort den Lesefluss
+   unterbrechen soll. Auf einer Seite, die man einmal von oben nach unten
+   liest, wäre dieselbe Fläche zu laut: Sie zieht den Blick vom Inhalt weg.
+   Deshalb trägt hier nur die senkrechte Leiste die Farbe — Bedeutung bleibt
+   ablesbar, ohne dass der Abschnitt leuchtet. */
+.note {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  padding: 22px 24px 22px 28px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.note::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--ink-faint);
+}
+.note--attention::before {
+  background: var(--attention);
+}
+.note--attention svg {
+  color: var(--attention);
+}
+.note--negative::before {
+  background: var(--negative);
+}
+.note--negative svg {
+  color: var(--negative);
+}
+.note__title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.note__body {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+  max-width: 78ch;
+}
+.note svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 4px;
+  color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------------------
+   Grundsätze und Merkmale: Spalten mit Haarlinie, keine Karten
+   ------------------------------------------------------------------------- */
+
+.columns {
+  display: grid;
+  gap: 0;
+  margin-top: 56px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  border-top: 1px solid var(--line);
+}
+.columns > * {
+  padding: 36px 36px 36px 0;
+  border-right: 1px solid var(--line);
+}
+.columns > *:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+.columns > * + * {
+  padding-left: 36px;
+}
+.column__title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: 16px;
+  letter-spacing: -0.01em;
+}
+.column__body {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+.column__icon {
+  color: var(--accent);
+}
+.column__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* -------------------------------------------------------------------------
+   Funktionen: Text neben Bild, abwechselnd
+   ------------------------------------------------------------------------- */
+
+/* Jeder Funktionsblock ist gleich gebaut: Text links, Bild rechts. Ein
+   Wechsel der Seite von Block zu Block sieht nach Abwechslung aus, kostet
+   aber bei jedem Block einen neuen Lesestart. */
+.feature {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
+  gap: 64px;
+  align-items: start;
+  padding-top: 80px;
+  margin-top: 80px;
+  border-top: 1px solid var(--line);
+}
+.feature:first-of-type {
+  border-top: 0;
+  margin-top: 56px;
+  padding-top: 0;
+}
+.feature__title {
+  font-size: 23px;
+  line-height: 32px;
+  font-weight: 600;
+  margin-top: 12px;
+  letter-spacing: -0.015em;
+}
+.feature__body {
+  margin-top: 14px;
+  color: var(--ink-muted);
+}
+.feature__list {
+  list-style: none;
+  padding: 0;
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.feature__list li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 22px;
+}
+.feature__list .diamond {
+  margin-top: 8px;
+  color: var(--positive);
+}
+
+/* Die Belegvorschau ist der eine Ort, an dem eine Fläche richtig ist (§6.2).
+   Hier gilt dasselbe für einen Screenshot: er ist ein Fremdkörper auf dem
+   Blatt und bekommt deshalb Rahmen und Radius, aber keinen Schatten. */
+/* Kein `margin: 0` hier: figure ist oben schon zurückgesetzt, und die
+   Kurzform wäre spezifischer als .hero__shot — der Abstand über dem Bild im
+   Kopf fiele damit weg. */
+figure.shot {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface);
+}
+figure.shot a {
+  display: block;
+  border: 0;
+}
+figure.shot img {
+  width: 100%;
+}
+figure.shot figcaption {
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--sunken);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-subtle);
+}
+.shot-stack {
+  display: grid;
+  gap: 28px;
+}
+
+.hero__shot {
+  margin-top: 72px;
+}
+
+/* -------------------------------------------------------------------------
+   Tabellen (§10.4: Kopf ohne Füllung, keine Zebrastreifen)
+   ------------------------------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  margin-top: 40px;
+}
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+table.data th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-subtle);
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+table.data td {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  line-height: 22px;
+}
+table.data tr:last-child td {
+  border-bottom: 0;
+}
+table.data td:first-child {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------
+   Diagramme
+
+   Liegen ohne Rahmen direkt auf dem Papier: Eine Fläche darum wäre eine
+   Karte, und die Kästen im Bild bringen ihre eigene Abgrenzung schon mit.
+   ------------------------------------------------------------------------- */
+
+.diagram {
+  margin-top: 56px;
+  overflow-x: auto;
+}
+.diagram svg {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  height: auto;
+}
+/* Im schmalen Fenster schiebt man Schaubild und Tabelle seitlich. Ohne
+   Hinweis sieht ein abgeschnittenes Bild nach einem Fehler aus. */
+.scroll-hint {
+  display: none;
+}
+.diagram figcaption {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  max-width: 78ch;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Preis
+   ------------------------------------------------------------------------- */
+
+.price {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  gap: 56px;
+  align-items: start;
+  margin-top: 56px;
+}
+.price__figure {
+  font-size: clamp(56px, 7vw, 84px);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.price__note {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+.band--shell .price__figure {
+  color: #ffffff;
+}
+.band--shell .price__note {
+  color: var(--shell-text-muted);
+}
+.price__list {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.band--shell .price__list {
+  border-top-color: var(--shell-line);
+}
+.price__list li {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 24px;
+}
+.band--shell .price__list li {
+  border-bottom-color: var(--shell-line);
+}
+.price__list .diamond {
+  color: var(--positive);
+  transform: translateY(-2px);
+}
+.band--shell .price__list .diamond {
+  color: #9bcfa6;
+}
+.price__list strong {
+  font-weight: 600;
+}
+.band--shell .price__list strong {
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------------------------
+   Codeblöcke: technische Ausgabe auf der dunklen Schale (§4.1)
+   ------------------------------------------------------------------------- */
+
+.code {
+  margin-top: 20px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--shell-line);
+  background: var(--shell);
+  overflow: hidden;
+}
+.code__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--shell-line);
+  background: var(--shell-raised);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--shell-text-muted);
+}
+.code pre {
+  margin: 0;
+  padding: 16px 20px;
+  overflow-x: auto;
+  color: var(--shell-text);
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 22px;
+  tab-size: 2;
+}
+.code pre .c {
+  color: var(--shell-text-muted);
+}
+.code pre .p {
+  color: var(--accent-light);
+}
+
+/* -------------------------------------------------------------------------
+   Schritte auf der Installationsseite
+   ------------------------------------------------------------------------- */
+
+.steps {
+  counter-reset: step;
+  margin-top: 8px;
+}
+.step {
+  counter-increment: step;
+  padding-top: 40px;
+  margin-top: 40px;
+  border-top: 1px solid var(--line);
+}
+.step:first-child {
+  border-top: 0;
+  margin-top: 24px;
+  padding-top: 0;
+}
+.step__title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.step__title::before {
+  content: counter(step);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-control);
+  min-width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  align-self: center;
+}
+.step__body {
+  margin-top: 12px;
+  max-width: 72ch;
+  color: var(--ink-muted);
+}
+.step__body + .step__body {
+  margin-top: 12px;
+}
+
+.prose ul {
+  margin-top: 12px;
+  padding-left: 0;
+  list-style: none;
+  max-width: 72ch;
+}
+.prose ul li {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 8px;
+  color: var(--ink-muted);
+}
+.prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--ink-faint);
+}
+.prose ul li strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Inhaltsverzeichnis der Installationsseite */
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.toc a {
+  font-size: 13px;
+  color: var(--ink-muted);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 5px 11px;
+}
+.toc a:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------------------
+   Fuß
+   ------------------------------------------------------------------------- */
+
+.foot {
+  background: var(--shell);
+  color: var(--shell-text-muted);
+  padding-block: 48px;
+  font-size: 13px;
+  line-height: 22px;
+}
+.foot a {
+  color: var(--shell-text);
+  border-bottom-color: var(--shell-line);
+}
+.foot a:hover {
+  border-bottom-color: var(--shell-text-muted);
+}
+.foot__grid {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.foot__title {
+  color: var(--shell-text);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.foot ul {
+  list-style: none;
+  padding: 0;
+}
+.foot li + li {
+  margin-top: 6px;
+}
+.foot__bottom {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--shell-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------------------
+   Schmale Fenster
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .feature {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding-top: 56px;
+    margin-top: 56px;
+  }
+  .price {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .scroll-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ink-subtle);
+  }
+  .scroll-hint svg {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .scroll-hint + .diagram,
+  .scroll-hint + .table-scroll {
+    margin-top: 12px;
+  }
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .columns > * {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 24px 0;
+  }
+  .columns > * + * {
+    padding-left: 0;
+  }
+  .columns > *:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    padding-inline: 16px;
+  }
+  .band {
+    padding-block: 64px;
+  }
+  .topnav a:not(.btn) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition-duration: 0ms !important;
+  }
+}

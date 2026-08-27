@@ -107,3 +107,21 @@ tasks:
       - go mod download
       - "{{.PACKAGE_MANAGER}} --prefix frontend install"
       - python3 scripts/gen_third_party_notices.py
+
+  pages:preview:
+    summary: Serves website/ locally at http://127.0.0.1:8000
+    cmds:
+      - python3 -m http.server 8000 --directory website
+
+  pages:publish:
+    summary: Publishes website/ to the gh-pages branch
+    # Schiebt den Inhalt von website/ als Wurzel des Zweigs gh-pages. In den
+    # Repository-Einstellungen steht Pages auf „Deploy from a branch", Zweig
+    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand
+    # und ohne CI. Nach jeder Änderung an der Seite ausführen.
+    #
+    # Weist der Push zurück, weil gh-pages auseinandergelaufen ist, hilft die
+    # ausdrückliche Form:
+    #   git push origin $(git subtree split --prefix website HEAD):gh-pages --force
+    cmds:
+      - git subtree push --prefix website origin gh-pages

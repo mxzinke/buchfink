@@ -546,7 +546,7 @@ const ReceiptViewer: React.FC<{
 
       {preview && !preview.intact && (
         <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text mt-3')}>
-          Die Datei auf der Platte passt nicht mehr zu ihrer Prüfsumme. Sie wurde nach dem Ablegen
+          Die Datei im Datenspeicher passt nicht mehr zu ihrer Prüfsumme. Sie wurde nach dem Ablegen
           verändert.
         </p>
       )}
