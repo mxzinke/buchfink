@@ -116,6 +116,27 @@ export const bridge = {
   GenerateInvoiceZUGFeRD: <T>(invoiceId: number) => invoke<T>('GenerateInvoiceZUGFeRD', invoiceId),
   GetInvoiceDocument: <T>(invoiceId: number) => invoke<T>('GetInvoiceDocument', invoiceId),
 
+  // Anlagevermögen
+  GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),
+  GetAssetSummary: <T>(assetClass: string) => invoke<T>('GetAssetSummary', assetClass),
+  GetFixedAsset: <T>(id: number) => invoke<T>('GetFixedAsset', id),
+  SaveFixedAsset: <T>(asset: unknown) => invoke<T>('SaveFixedAsset', asset),
+  DeleteFixedAsset: (id: number) => invoke<void>('DeleteFixedAsset', id),
+  RecordAssetCostAdjustment: <T>(request: unknown) => invoke<T>('RecordAssetCostAdjustment', request),
+  GetAssetAccounts: <T>(assetClass: string) => invoke<T>('GetAssetAccounts', assetClass),
+  GetAssetRules: <T>() => invoke<T>('GetAssetRules'),
+  ClassifyAcquisition: <T>(netCost: number, date: string, selfUsable: boolean) =>
+    invoke<T>('ClassifyAcquisition', netCost, date, selfUsable),
+  GetDepreciationRun: <T>() => invoke<T>('GetDepreciationRun'),
+  BookDepreciationRun: <T>(request: unknown) => invoke<T>('BookDepreciationRun', request),
+  BookAssetImpairment: <T>(request: unknown) => invoke<T>('BookAssetImpairment', request),
+  BookAssetWriteUp: <T>(request: unknown) => invoke<T>('BookAssetWriteUp', request),
+  PreviewAssetDisposal: <T>(request: unknown) => invoke<T>('PreviewAssetDisposal', request),
+  DisposeFixedAsset: <T>(request: unknown) => invoke<T>('DisposeFixedAsset', request),
+  GetAnlagenspiegel: <T>() => invoke<T>('GetAnlagenspiegel'),
+  GetAssetAcquisitionCandidates: <T>() => invoke<T>('GetAssetAcquisitionCandidates'),
+  GetSammelposten: <T>(fiscalYear: number) => invoke<T>('GetSammelposten', fiscalYear),
+
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => invoke<string>('ExportEBilanzXBRL'),
   GetAuditLogs: <T>() => invoke<T>('GetAuditLogs'),

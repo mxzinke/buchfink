@@ -698,3 +698,277 @@ export interface SKR04Catalog {
   statistics: SKR04Statistics;
   positions: SKR04Position[];
 }
+
+// -------------------------------------------------------------------------
+// Anlagevermögen (internal/domain/asset.go)
+
+/** Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. */
+export type AssetClass = 'intangible' | 'tangible' | 'financial';
+
+export type DepreciationMethod = 'linear' | 'degressive' | 'pool' | 'immediate' | 'none';
+
+export type AssetStatus =
+  | 'active'
+  | 'fully_written'
+  | 'disposed'
+  | 'unbooked'
+  | 'depreciate_due';
+
+export type DisposalKind = 'sale' | 'scrapped';
+
+export type AssetMovementKind =
+  | 'acquisition'
+  | 'subsequent_cost'
+  | 'cost_reduction'
+  | 'depreciation'
+  | 'impairment'
+  | 'write_up'
+  | 'disposal';
+
+export interface AssetMovement {
+  id: number;
+  assetId: number;
+  kind: AssetMovementKind;
+  date: string;
+  fiscalYear: number;
+  /** Verändert die Anschaffungs- und Herstellungskosten. */
+  costAmount: Cents;
+  /** Verändert die kumulierten Abschreibungen. */
+  depreciationAmount: Cents;
+  journalEntryId?: number;
+  entryNumber?: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface FixedAsset {
+  id: number;
+  inventoryNumber: string;
+  name: string;
+  description?: string;
+  class: AssetClass;
+  account: string;
+  depreciationAccount?: string;
+  acquisitionDate: string;
+  acquisitionCost: Cents;
+  method: DepreciationMethod;
+  usefulLifeMonths: number;
+  poolYear?: number;
+  identifier?: string;
+  /** Beteiligungsquote in Promille: 200 sind 20 %. */
+  holdingPermille?: number;
+  taxPrivileged?: boolean;
+  contactId?: number;
+  acquisitionEntryId?: number;
+  disposalDate?: string;
+  disposalKind?: DisposalKind;
+  disposalProceeds?: Cents;
+  disposalEntryId?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  movements?: AssetMovement[];
+
+  // Abgeleitet vom Backend, nicht gespeichert.
+  accountName?: string;
+  cost: Cents;
+  accumulated: Cents;
+  bookValue: Cents;
+  yearAmount: Cents;
+  dueAmount: Cents;
+  status: AssetStatus;
+  statusNote?: string;
+}
+
+export interface AssetSummary {
+  fiscalYear: number;
+  count: number;
+  cost: Cents;
+  accumulated: Cents;
+  bookValue: Cents;
+  yearAmount: Cents;
+  dueAmount: Cents;
+  dueCount: number;
+}
+
+export interface AssetScheduleYear {
+  fiscalYear: number;
+  months: number;
+  method: DepreciationMethod;
+  rateLabel: string;
+  openingBookValue: Cents;
+  amount: Cents;
+  closingBookValue: Cents;
+  note?: string;
+  booked: Cents;
+  due: Cents;
+  status: 'gebucht' | 'offen' | 'teilweise' | 'geplant';
+}
+
+export interface AssetDetail {
+  asset: FixedAsset;
+  schedule: AssetScheduleYear[];
+  movements: AssetMovement[];
+  /** Die Sätze, die zu genau diesem Anlagegut gehören — vom Backend gerechnet. */
+  notes: string[];
+}
+
+export interface AssetAccountInfo {
+  number: string;
+  name: string;
+  class: AssetClass;
+  group: string;
+  hint?: string;
+  depreciationAccount?: string;
+  depreciable: boolean;
+  defaultUsefulLifeMonths?: number;
+  usefulLifeSource?: string;
+}
+
+export type AcquisitionOption = 'immediate' | 'pool' | 'activate';
+
+export interface AcquisitionAdvice {
+  recommended: AcquisitionOption;
+  allowed: AcquisitionOption[];
+  reason: string;
+  poolNote?: string;
+  limits: {
+    immediate: Cents;
+    recordFrom: Cents;
+    poolLowerLimit: Cents;
+    poolUpperLimit: Cents;
+  };
+}
+
+export interface DegressiveWindow {
+  From: string;
+  Until: string;
+  FactorTimes: number;
+  MaxPermille: number;
+  Source: string;
+}
+
+export interface AssetMethodInfo {
+  method: DepreciationMethod;
+  label: string;
+  classes: AssetClass[];
+  hint: string;
+}
+
+export interface AssetRules {
+  fiscalYear: number;
+  gwgImmediateLimit: Cents;
+  gwgRecordFrom: Cents;
+  poolLowerLimit: Cents;
+  poolUpperLimit: Cents;
+  poolYears: number;
+  degressiveWindows: DegressiveWindow[];
+  methods: AssetMethodInfo[];
+}
+
+export interface DepreciationDue {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  account: string;
+  expenseAccount: string;
+  method: string;
+  rateLabel: string;
+  months: number;
+  planned: Cents;
+  booked: Cents;
+  due: Cents;
+  bookValueBefore: Cents;
+  bookValueAfter: Cents;
+  note?: string;
+}
+
+export interface DepreciationRun {
+  fiscalYear: number;
+  bookingDate: string;
+  due: DepreciationDue[];
+  total: Cents;
+  missingPriorYears?: number[];
+}
+
+export interface DepreciationResult {
+  entries: JournalEntry[];
+  total: Cents;
+  skipped?: string[];
+}
+
+export interface DisposalAccounts {
+  revenue?: string;
+  bookValue: string;
+  explanation: string;
+}
+
+export interface DisposalRequest {
+  assetId: number;
+  date: string;
+  kind: DisposalKind;
+  proceeds: Cents;
+  taxTreatment?: TaxTreatment;
+  taxRate?: TaxRate;
+  settlement: Settlement;
+  paymentAccount?: string;
+  contactId?: number;
+  note?: string;
+}
+
+export interface DisposalPreview {
+  catchUpAmount: Cents;
+  catchUpLines?: JournalLine[];
+  bookValue: Cents;
+  /** Buchgewinn positiv, Buchverlust negativ. */
+  result: Cents;
+  isGain: boolean;
+  accounts: DisposalAccounts;
+  lines: JournalLine[];
+  gross: Cents;
+  tax: Cents;
+  warnings?: string[];
+}
+
+export interface DisposalResult {
+  catchUpEntry?: JournalEntry;
+  disposalEntry?: JournalEntry;
+  asset: FixedAsset;
+  message: string;
+}
+
+export interface AcquisitionCandidate {
+  entryId: number;
+  entryNumber: string;
+  bookingDate: string;
+  description: string;
+  account: string;
+  accountName: string;
+  amount: Cents;
+  contactId?: number;
+}
+
+export interface AnlagenspiegelRow {
+  class: AssetClass;
+  account: string;
+  accountName: string;
+  assetCount: number;
+  costOpening: Cents;
+  additions: Cents;
+  disposals: Cents;
+  costClosing: Cents;
+  depreciationOpening: Cents;
+  depreciationYear: Cents;
+  writeUpsYear: Cents;
+  depreciationDisposal: Cents;
+  depreciationClosing: Cents;
+  bookValueOpening: Cents;
+  bookValueClosing: Cents;
+}
+
+export interface Anlagenspiegel {
+  fiscalYear: number;
+  rows: AnlagenspiegelRow[];
+  totals: AnlagenspiegelRow;
+  classTotals: AnlagenspiegelRow[];
+}

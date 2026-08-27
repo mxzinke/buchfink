@@ -85,6 +85,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.SettingItem{},
 		&domain.ExchangeRate{},
 		&domain.Festschreibung{},
+		&domain.FixedAsset{},
+		&domain.AssetMovement{},
 	)
 }
 

@@ -3,6 +3,7 @@ package wailsbridge
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -29,6 +30,10 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 	// Guard against re-committing an already committed (or earlier) period.
 	if latest, err := b.festschreibungRepo.LatestCutoff(ctx, b.currentYear); err == nil && latest != "" && cutoffDate <= latest {
 		return nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
+	}
+
+	if err := b.ensureDepreciationBooked(ctx, periodType); err != nil {
+		return nil, err
 	}
 
 	// Anchor the current chain head of the fiscal year.
@@ -67,6 +72,47 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 			fmt.Sprintf("Festschreibung %s (bis %s, %d Buchungen, Zeitstempel: %s)", periodLabel, cutoffDate, count, rec.TimestampStatus))
 	}
 	return rec, nil
+}
+
+// ensureDepreciationBooked blocks the Festschreibung of a whole year while an
+// Anlagegut still has AfA open for it.
+//
+// AfA is an Abschlussbuchung zum Bilanzstichtag: sie entsteht nicht im Lauf des
+// Jahres, sondern zum Abschluss — und ein festgeschriebenes Jahr nimmt keine
+// Buchung mehr auf. Ohne diese Prüfung ließe sich ein Jahr schließen, dessen
+// Abschreibung fehlt, und das ließe sich danach nicht mehr geradeziehen.
+//
+// Monats- und Quartalsfestschreibungen prüfen nicht: dort ist die AfA nicht
+// fällig.
+func (b *BuchfinkBridge) ensureDepreciationBooked(ctx context.Context, periodType string) error {
+	if periodType != "year" || b.assetSvc == nil {
+		return nil
+	}
+	pending, err := b.assetSvc.PendingDepreciation(ctx, b.currentYear)
+	if err != nil {
+		return fmt.Errorf("die fällige Abschreibung konnte nicht geprüft werden: %w", err)
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+
+	var total domain.Cents
+	names := make([]string, 0, len(pending))
+	for _, p := range pending {
+		total += p.Due
+		if len(names) < 3 {
+			names = append(names, fmt.Sprintf("%s %s", p.InventoryNumber, p.Name))
+		}
+	}
+	list := strings.Join(names, ", ")
+	if len(pending) > len(names) {
+		list += fmt.Sprintf(" und %d weitere", len(pending)-len(names))
+	}
+	return fmt.Errorf(
+		"für %d ist die Abschreibung auf %d Anlagegüter über zusammen %s € noch nicht gebucht (%s). "+
+			"Die AfA ist eine Abschlussbuchung zum Bilanzstichtag und lässt sich nach der Festschreibung "+
+			"nicht mehr nachholen — buche sie zuerst im Anlagenverzeichnis unter „Abschreibungen\"",
+		b.currentYear, len(pending), total, list)
 }
 
 // GetFestschreibungen returns the period commitments of the active fiscal year.

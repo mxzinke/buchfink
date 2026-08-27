@@ -46,6 +46,7 @@ type BuchfinkBridge struct {
 	numberRepo         domain.NumberRangeRepository
 	allocationRepo     domain.PaymentAllocationRepository
 	receiptRepo        domain.ReceiptRepository
+	assetRepo          domain.AssetRepository
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
@@ -63,6 +64,7 @@ type BuchfinkBridge struct {
 	renderer      *invoice.Renderer
 	contactSvc    *service.ContactService
 	ebilanzSvc    *service.EBilanzService
+	assetSvc      *service.AssetService
 	auditSvc      *service.AuditService
 	settingsSvc   *service.SettingsService
 	currencySvc   *service.CurrencyService
@@ -181,6 +183,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.festschreibungRepo = repository.NewFestschreibungRepository(db)
 	b.allocationRepo = repository.NewPaymentAllocationRepository(db)
 	b.receiptRepo = repository.NewReceiptRepository(db)
+	b.assetRepo = repository.NewAssetRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -221,6 +224,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// zahlen, wer auf "Rechnung ausstellen" drückt.
 	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
+	b.assetSvc = service.NewAssetService(
+		b.assetRepo, b.journalRepo, b.journalSvc, b.numberRepo,
+		b.contactRepo, b.settingsRepo, b.auditRepo, fiscalYear,
+	)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
@@ -635,6 +642,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.eInvoiceSvc != nil {
 		b.eInvoiceSvc.SetFiscalYear(year)
+	}
+	if b.assetSvc != nil {
+		b.assetSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)

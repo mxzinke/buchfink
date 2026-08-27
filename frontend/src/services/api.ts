@@ -3,17 +3,32 @@ import skr04CatalogData from '../assets/skr04_2026.json';
 import type {
   Account,
   AccountLedger,
+  AcquisitionAdvice,
+  AcquisitionCandidate,
+  Anlagenspiegel,
   AppConfig,
+  AssetAccountInfo,
+  AssetClass,
+  AssetDetail,
+  AssetRules,
+  AssetSummary,
   AuditLogEntry,
   BankTransaction,
+  Cents,
   CompanySettings,
   Contact,
+  DepreciationResult,
+  DepreciationRun,
   DifferenceKindInfo,
   Direction,
+  DisposalPreview,
+  DisposalRequest,
+  DisposalResult,
   EInvoiceProposal,
   Festschreibung,
   FestschreibungVerification,
   FinancialSummary,
+  FixedAsset,
   IntegrityCheckResult,
   Invoice,
   JournalEntry,
@@ -230,6 +245,73 @@ export const Api = {
     call(() => Bridge.CancelInvoice(invoiceId, reason) as Promise<void>),
   generateInvoiceZUGFeRD: (invoiceId: number): Promise<[string, string]> =>
     call(() => Bridge.GenerateInvoiceZUGFeRD(invoiceId) as Promise<[string, string]>),
+
+  // --- Anlagevermögen ----------------------------------------------------
+
+  getFixedAssets: (assetClass: AssetClass | '' = ''): Promise<FixedAsset[]> =>
+    call(() => Bridge.GetFixedAssets(assetClass) as Promise<FixedAsset[]>),
+  getAssetSummary: (assetClass: AssetClass | '' = ''): Promise<AssetSummary> =>
+    call(() => Bridge.GetAssetSummary(assetClass) as Promise<AssetSummary>),
+  getFixedAsset: (id: number): Promise<AssetDetail> =>
+    call(() => Bridge.GetFixedAsset(id) as Promise<AssetDetail>),
+  saveFixedAsset: (asset: Partial<FixedAsset>): Promise<FixedAsset> =>
+    call(() => Bridge.SaveFixedAsset(asset as any) as Promise<FixedAsset>),
+  deleteFixedAsset: (id: number): Promise<void> => call(() => Bridge.DeleteFixedAsset(id)),
+  /** Nachträgliche Anschaffungskosten oder eine Minderung — ohne eigene Buchung. */
+  recordAssetCostAdjustment: (request: {
+    assetId: number;
+    date: string;
+    amount: Cents;
+    reduction?: boolean;
+    note?: string;
+    journalEntryId?: number;
+  }): Promise<FixedAsset> =>
+    call(() => Bridge.RecordAssetCostAdjustment(request as any) as Promise<FixedAsset>),
+  /** Der kuratierte Katalog der Anlagekonten, je mit seinem AfA-Konto. */
+  getAssetAccounts: (assetClass: AssetClass | '' = ''): Promise<AssetAccountInfo[]> =>
+    call(() => Bridge.GetAssetAccounts(assetClass) as Promise<AssetAccountInfo[]>),
+  /** Wertgrenzen, Zeitfenster der degressiven AfA und zulässige Methoden. */
+  getAssetRules: (): Promise<AssetRules> => call(() => Bridge.GetAssetRules() as Promise<AssetRules>),
+  /**
+   * Sofortabzug, Sammelposten oder aktivieren? Die Antwort kommt aus dem
+   * Backend, damit die Wertgrenzen nur an einer Stelle stehen.
+   */
+  classifyAcquisition: (netCost: Cents, date: string, selfUsable: boolean): Promise<AcquisitionAdvice> =>
+    call(() => Bridge.ClassifyAcquisition(netCost, date, selfUsable) as Promise<AcquisitionAdvice>),
+  getDepreciationRun: (): Promise<DepreciationRun> =>
+    call(() => Bridge.GetDepreciationRun() as Promise<DepreciationRun>),
+  bookDepreciationRun: (request: {
+    fiscalYear: number;
+    bookingDate?: string;
+    assetIds?: number[];
+  }): Promise<DepreciationResult> =>
+    call(() => Bridge.BookDepreciationRun(request as any) as Promise<DepreciationResult>),
+  bookAssetImpairment: (request: {
+    assetId: number;
+    date: string;
+    amount: Cents;
+    permanent: boolean;
+    reason: string;
+  }): Promise<JournalEntry> =>
+    call(() => Bridge.BookAssetImpairment(request as any) as Promise<JournalEntry>),
+  bookAssetWriteUp: (request: {
+    assetId: number;
+    date: string;
+    amount: Cents;
+    reason: string;
+  }): Promise<JournalEntry> =>
+    call(() => Bridge.BookAssetWriteUp(request as any) as Promise<JournalEntry>),
+  previewAssetDisposal: (request: DisposalRequest): Promise<DisposalPreview> =>
+    call(() => Bridge.PreviewAssetDisposal(request as any) as Promise<DisposalPreview>),
+  disposeFixedAsset: (request: DisposalRequest): Promise<DisposalResult> =>
+    call(() => Bridge.DisposeFixedAsset(request as any) as Promise<DisposalResult>),
+  getAnlagenspiegel: (): Promise<Anlagenspiegel> =>
+    call(() => Bridge.GetAnlagenspiegel() as Promise<Anlagenspiegel>),
+  /** Buchungen auf Anlagekonten, zu denen noch kein Anlagegut erfasst ist. */
+  getAssetAcquisitionCandidates: (): Promise<AcquisitionCandidate[]> =>
+    call(() => Bridge.GetAssetAcquisitionCandidates() as Promise<AcquisitionCandidate[]>),
+  getSammelposten: (fiscalYear = 0): Promise<FixedAsset | null> =>
+    call(() => Bridge.GetSammelposten(fiscalYear) as Promise<FixedAsset | null>),
 
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 

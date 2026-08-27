@@ -1,8 +1,16 @@
 # Buchfink – Anlagenverwaltung
 
-Status: Anforderung, noch nicht implementiert
-Letzte Aktualisierung: 2026-08-22
+Status: umgesetzt, mit benannten offenen Punkten (siehe [Abschnitt 9](#9-offene-entscheidungen))
+Letzte Aktualisierung: 2026-08-27
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+
+> **Umsetzung.** Das Anlagenverzeichnis liegt unter „Anlagevermögen" in der
+> Seitenspalte. Der Kern steht in `internal/domain/asset.go` (Anlagegut und
+> Bewegung), `internal/accounting/afa.go` (Wertgrenzen, Zeitfenster der
+> degressiven AfA, Abschreibungsplan), `internal/accounting/asset_accounts.go`
+> (Kontenkatalog und die Ableitung der Abgangskonten) und
+> `internal/service/asset_service.go` (Kartei, Abschreibungslauf, Abgang,
+> Anlagenspiegel). Die Oberfläche ist `frontend/src/pages/AssetsPage.tsx`.
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
@@ -167,24 +175,53 @@ Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 
 ## 9. Offene Entscheidungen
 
-- **Wertgrenzen und AfA-Sätze:** Quelle und Versionierung. Vorschlag: Stammdaten je
-  Geschäftsjahr mit vorbelegten Werten, überschreibbar.
-- **Skonto und Rabatt auf Anlagen:** die bestehende Skonto-Logik mindert Aufwand und
-  Steuer. Für Anlagen müsste sie die Anschaffungskosten mindern und die AfA neu
-  berechnen. Wie weit soll das automatisch laufen?
-- **Nutzungsdauer-Katalog:** ausliefern oder leer starten?
-- **Wechsel degressiv → linear:** automatisch zum optimalen Zeitpunkt vorschlagen oder
-  nur zulassen?
-- **Anlagenkartei über Geschäftsjahre:** eigene Tabelle außerhalb der
-  Geschäftsjahres-Logik, oder Fortschreibung beim Jahreswechsel?
-- **Finanzanlagen:** Wertpapiere und Beteiligungen unterliegen anderen
-  Bewertungsregeln als Sachanlagen. In v1 aufnehmen oder zurückstellen?
+Entschieden und umgesetzt:
+
+- **Wertgrenzen und AfA-Sätze:** datierte Tabelle im Code
+  (`accounting.AfAParametersFor`), nicht editierbare Stammdaten — wie bei den
+  Steuerparametern. Eine Grenze ist keine Wahl des Nutzers, und ein fest
+  verdrahteter Wert würde ein nachbearbeitetes altes Jahr still falsch rechnen.
+- **Nutzungsdauer-Katalog:** ausgeliefert, aber nur für die Fälle, die eindeutig
+  sind (Pkw, Lkw, Büromöbel, Ladeneinbauten, Geschäfts- oder Firmenwert). Jeder
+  Vorschlag ist überschreibbar; die AfA-Tabellen binden die Finanzverwaltung,
+  nicht den Steuerpflichtigen.
+- **Wechsel degressiv → linear:** Buchfink rechnet den Übergang selbst und weist
+  ihn im Plan als eigene Zeile aus. Der Nutzer rechnet nichts nach.
+- **Anlagenkartei über Geschäftsjahre:** eigene Tabellen (`fixed_assets`,
+  `asset_movements`) außerhalb der Geschäftsjahres-Logik. Der Anlagenspiegel
+  verlangt genau das.
+- **Finanzanlagen:** in v1 aufgenommen, mit eigenen Regeln — keine planmäßige
+  AfA, gemildertes Niederstwertprinzip (§ 253 Abs. 3 Satz 6 HGB), Wertaufholung
+  nach § 253 Abs. 5 Satz 1 HGB und eigene Abgangskonten für Anteile, die
+  § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG unterliegen.
+
+Noch offen:
+
+- **Skonto und Rabatt auf Anlagen:** die bestehende Skonto-Logik im
+  Zahlungsflow bucht weiterhin auf 5736/4736 und korrigiert die Steuer. Die
+  Kartei nimmt eine Anschaffungskostenminderung bisher nur als erfasste
+  Bewegung auf (die Bemessungsgrundlage sinkt, die Buchung bleibt unverändert).
+  Die automatische Kopplung fehlt.
+- **Sonderabschreibung nach § 7g Abs. 5 EStG:** nicht umgesetzt. Sie ist auf
+  fünf Jahre verteilbar und zieht die Restwertverteilung des § 7a Abs. 9 EStG
+  nach sich; halb umgesetzt wäre sie schlechter als gar nicht.
+- **Degressive AfA außerhalb des laufenden Zeitfensters:** Buchfink rechnet nur
+  den Zeitraum, den § 7 Abs. 2 EStG in der geltenden Fassung öffnet
+  (01.07.2025 bis 31.12.2027). Ältere degressive Zeiträume standen in früheren
+  Fassungen derselben Vorschrift und sind nicht hinterlegt; ein Plan dafür wird
+  abgelehnt statt geraten.
+- **Umbuchung von 0700 (Anlagen im Bau) auf das endgültige Anlagekonto:** die
+  Kartei kennt den Vorgang, hat aber keine eigene Aktion dafür.
 
 ## 10. Abhängigkeiten
 
-- Der **Festschreibungs-Workflow** muss vor der Jahressperre die AfA-Prüfung aufrufen.
-- Der **Zahlungsflow** braucht eine Sonderbehandlung für Skonto auf Anlagen.
-- Die **E-Bilanz** braucht den Anlagenspiegel als Kontennachweis.
+- Der **Festschreibungs-Workflow** ruft vor der Jahressperre die AfA-Prüfung auf
+  (`ensureDepreciationBooked` in `internal/wailsbridge/festschreibung_service.go`).
+  Monats- und Quartalsfestschreibungen prüfen nicht — dort ist die AfA nicht fällig.
+- Der **Zahlungsflow** braucht eine Sonderbehandlung für Skonto auf Anlagen; sie
+  fehlt noch (siehe Abschnitt 9).
+- Die **E-Bilanz** braucht den Anlagenspiegel als Kontennachweis. Die Auswertung
+  steht; die Übernahme in den XBRL-Export ist noch nicht verdrahtet.
 
 ## 11. Quellen
 

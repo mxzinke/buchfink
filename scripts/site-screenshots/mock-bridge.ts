@@ -920,6 +920,394 @@ function invoice(
 // -------------------------------------------------------------------------
 // Die Bridge
 
+
+// -------------------------------------------------------------------------
+// Anlagevermögen
+
+/** Ein Anlagegut samt der Werte, die das Backend sonst aus den Bewegungen rechnet. */
+function asset(
+  id: number,
+  inventoryNumber: string,
+  name: string,
+  assetClass: 'tangible' | 'financial' | 'intangible',
+  account: string,
+  accountName: string,
+  depreciationAccount: string,
+  acquisitionDate: string,
+  cost: number,
+  accumulated: number,
+  yearAmount: number,
+  dueAmount: number,
+  method: 'linear' | 'degressive' | 'pool' | 'immediate' | 'none',
+  usefulLifeMonths: number,
+  extra: Record<string, unknown> = {},
+) {
+  const status =
+    dueAmount > 0
+      ? 'depreciate_due'
+      : cost - accumulated === 0 && method !== 'none'
+        ? 'fully_written'
+        : 'active';
+  return {
+    id,
+    inventoryNumber,
+    name,
+    class: assetClass,
+    account,
+    accountName,
+    depreciationAccount,
+    acquisitionDate,
+    acquisitionCost: cost,
+    method,
+    usefulLifeMonths,
+    createdAt: `${acquisitionDate}T09:00:00Z`,
+    updatedAt: `${acquisitionDate}T09:00:00Z`,
+    cost,
+    accumulated,
+    bookValue: cost - accumulated,
+    yearAmount,
+    dueAmount,
+    status,
+    ...extra,
+  };
+}
+
+const ASSETS = [
+  asset(1, 'AN-2024-0001', 'Büroeinrichtung Konferenzraum', 'tangible', '0650', 'Büroeinrichtung',
+    '6220', '2024-06-01', c(9600), c(1169.23), 0, c(738.46), 'linear', 156),
+  asset(2, 'AN-2025-0002', 'Pkw VW ID.4 · HH-NS 412', 'tangible', '0520', 'Pkw',
+    '6222', '2025-03-15', c(42000), c(5833.33), 0, c(7000), 'linear', 72),
+  asset(3, 'AN-2026-0003', 'CNC-Fräse Haas VF-2', 'tangible', '0440', 'Maschinen',
+    '6220', '2026-02-01', c(24000), 0, 0, c(2750), 'linear', 96),
+  asset(4, 'AN-2026-0004', 'Notebook Entwicklung', 'tangible', '0670',
+    'Geringwertige Wirtschaftsgüter', '6260', '2026-04-20', c(780), c(780), c(780), 0, 'immediate', 0),
+  asset(5, 'AN-2026-0005', 'Sammelposten 2026', 'tangible', '0675',
+    'Wirtschaftsgüter (Sammelposten)', '6264', '2026-01-01', c(4200), 0, 0, c(840), 'pool', 0,
+    { poolYear: YEAR }),
+  asset(6, 'AN-2023-0006', 'Beteiligung Werftgrund GmbH', 'financial', '0850',
+    'Beteiligungen an Kapitalgesellschaften', '', '2023-09-01', c(50000), c(5000), 0, 0, 'none', 0,
+    { identifier: 'HRB 148223', holdingPermille: 260, taxPrivileged: true }),
+  asset(7, 'AN-2024-0007', 'Festverzinsliche Anleihe 2031', 'financial', '0920',
+    'Festverzinsliche Wertpapiere', '', '2024-11-04', c(25000), 0, 0, 0, 'none', 0,
+    { identifier: 'DE000A2LQ5H0' }),
+  asset(8, 'AN-2025-0008', 'ERP-Lizenz Warenwirtschaft', 'intangible', '0135', 'EDV-Software',
+    '6200', '2025-07-01', c(12000), c(2000), 0, c(4000), 'linear', 36),
+];
+
+const ASSET_ACCOUNTS = [
+  { number: '0135', name: 'EDV-Software', class: 'intangible', group: 'Konzessionen, Lizenzen und Software', depreciationAccount: '6200', depreciable: true },
+  { number: '0150', name: 'Geschäfts- oder Firmenwert', class: 'intangible', group: 'Geschäfts- oder Firmenwert', depreciationAccount: '6205', depreciable: true, defaultUsefulLifeMonths: 180, usefulLifeSource: '§ 7 Abs. 1 Satz 3 EStG' },
+  { number: '0440', name: 'Maschinen', class: 'tangible', group: 'Technische Anlagen und Maschinen', depreciationAccount: '6220', depreciable: true, usefulLifeSource: 'AfA-Tabelle des BMF' },
+  { number: '0520', name: 'Pkw', class: 'tangible', group: 'Fahrzeuge', depreciationAccount: '6222', depreciable: true, defaultUsefulLifeMonths: 72, usefulLifeSource: 'AfA-Tabelle AV (BMF): Personenkraftwagen sechs Jahre' },
+  { number: '0650', name: 'Büroeinrichtung', class: 'tangible', group: 'Betriebs- und Geschäftsausstattung', depreciationAccount: '6220', depreciable: true, defaultUsefulLifeMonths: 156 },
+  { number: '0670', name: 'Geringwertige Wirtschaftsgüter', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6260', depreciable: true },
+  { number: '0675', name: 'Wirtschaftsgüter (Sammelposten)', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6264', depreciable: true },
+  { number: '0215', name: 'Unbebaute Grundstücke', class: 'tangible', group: 'Grundstücke und Bauten', depreciable: false, hint: 'Grund und Boden nutzt sich nicht ab.' },
+  { number: '0850', name: 'Beteiligungen an Kapitalgesellschaften', class: 'financial', group: 'Anteile und Beteiligungen', depreciable: false },
+  { number: '0920', name: 'Festverzinsliche Wertpapiere', class: 'financial', group: 'Wertpapiere', depreciable: false },
+];
+
+const ASSET_RULES = {
+  fiscalYear: YEAR,
+  gwgImmediateLimit: c(800),
+  gwgRecordFrom: c(250),
+  poolLowerLimit: c(250),
+  poolUpperLimit: c(1000),
+  poolYears: 5,
+  degressiveWindows: [
+    { From: '2025-07-01', Until: '2027-12-31', FactorTimes: 3, MaxPermille: 300, Source: '§ 7 Abs. 2 Sätze 1 und 2 EStG' },
+  ],
+  methods: [
+    { method: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)', classes: ['intangible', 'tangible'], hint: 'Gleichmäßig über die betriebsgewöhnliche Nutzungsdauer, zeitanteilig ab dem Anschaffungsmonat.' },
+    { method: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)', classes: ['tangible'], hint: 'Vom Restbuchwert, höchstens das Dreifache des linearen Satzes und höchstens 30 %.' },
+    { method: 'pool', label: 'Sammelposten (§ 6 Abs. 2a EStG)', classes: ['tangible'], hint: 'Ein Pool je Wirtschaftsjahr, aufgelöst mit je einem Fünftel.' },
+    { method: 'immediate', label: 'Sofortabzug GWG (§ 6 Abs. 2 EStG)', classes: ['tangible'], hint: 'Voller Aufwand im Anschaffungsjahr.' },
+    { method: 'none', label: 'Keine planmäßige Abschreibung', classes: ['intangible', 'tangible', 'financial'], hint: 'Für alles, was sich nicht abnutzt.' },
+  ],
+};
+
+const DEPRECIATION_RUN = {
+  fiscalYear: YEAR,
+  bookingDate: `${YEAR}-12-31`,
+  due: [
+    { assetId: 1, inventoryNumber: 'AN-2024-0001', name: 'Büroeinrichtung Konferenzraum', account: '0650', expenseAccount: '6220', method: 'linear', rateLabel: '7,7 %', months: 12, planned: c(738.46), booked: 0, due: c(738.46), bookValueBefore: c(8430.77), bookValueAfter: c(7692.31) },
+    { assetId: 2, inventoryNumber: 'AN-2025-0002', name: 'Pkw VW ID.4 · HH-NS 412', account: '0520', expenseAccount: '6222', method: 'linear', rateLabel: '16,7 %', months: 12, planned: c(7000), booked: 0, due: c(7000), bookValueBefore: c(36166.67), bookValueAfter: c(29166.67) },
+    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'CNC-Fräse Haas VF-2', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
+    { assetId: 5, inventoryNumber: 'AN-2026-0005', name: 'Sammelposten 2026', account: '0675', expenseAccount: '6264', method: 'pool', rateLabel: '1/5', months: 12, planned: c(840), booked: 0, due: c(840), bookValueBefore: c(4200), bookValueAfter: c(3360), note: 'Auflösung des Sammelpostens 2026 mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).' },
+    { assetId: 8, inventoryNumber: 'AN-2025-0008', name: 'ERP-Lizenz Warenwirtschaft', account: '0135', expenseAccount: '6200', method: 'linear', rateLabel: '33,3 %', months: 12, planned: c(4000), booked: 0, due: c(4000), bookValueBefore: c(10000), bookValueAfter: c(6000) },
+  ],
+  total: c(15328.46),
+};
+
+function spiegelRow(
+  assetClass: 'intangible' | 'tangible' | 'financial',
+  account: string,
+  accountName: string,
+  assetCount: number,
+  costOpening: number,
+  additions: number,
+  disposals: number,
+  depreciationOpening: number,
+  depreciationYear: number,
+) {
+  const costClosing = costOpening + additions - disposals;
+  const depreciationClosing = depreciationOpening + depreciationYear;
+  return {
+    class: assetClass,
+    account,
+    accountName,
+    assetCount,
+    costOpening,
+    additions,
+    disposals,
+    costClosing,
+    depreciationOpening,
+    depreciationYear,
+    writeUpsYear: 0,
+    depreciationDisposal: 0,
+    depreciationClosing,
+    bookValueOpening: costOpening - depreciationOpening,
+    bookValueClosing: costClosing - depreciationClosing,
+  };
+}
+
+const SPIEGEL_ROWS = [
+  spiegelRow('intangible', '0135', 'EDV-Software', 1, c(12000), 0, 0, c(2000), c(4000)),
+  spiegelRow('tangible', '0440', 'Maschinen', 1, 0, c(24000), 0, 0, c(2750)),
+  spiegelRow('tangible', '0520', 'Pkw', 1, c(42000), 0, 0, c(5833.33), c(7000)),
+  spiegelRow('tangible', '0650', 'Büroeinrichtung', 1, c(9600), 0, 0, c(1169.23), c(738.46)),
+  spiegelRow('tangible', '0670', 'Geringwertige Wirtschaftsgüter', 1, 0, c(780), 0, 0, c(780)),
+  spiegelRow('tangible', '0675', 'Wirtschaftsgüter (Sammelposten)', 1, 0, c(4200), 0, 0, c(840)),
+  spiegelRow('financial', '0850', 'Beteiligungen an Kapitalgesellschaften', 1, c(50000), 0, 0, c(5000), 0),
+  spiegelRow('financial', '0920', 'Festverzinsliche Wertpapiere', 1, c(25000), 0, 0, 0, 0),
+];
+
+function sumSpiegel(rows: typeof SPIEGEL_ROWS, accountName: string, assetClass = '' as any) {
+  const total = rows.reduce(
+    (acc, row) => ({
+      ...acc,
+      assetCount: acc.assetCount + row.assetCount,
+      costOpening: acc.costOpening + row.costOpening,
+      additions: acc.additions + row.additions,
+      disposals: acc.disposals + row.disposals,
+      costClosing: acc.costClosing + row.costClosing,
+      depreciationOpening: acc.depreciationOpening + row.depreciationOpening,
+      depreciationYear: acc.depreciationYear + row.depreciationYear,
+      depreciationClosing: acc.depreciationClosing + row.depreciationClosing,
+      bookValueOpening: acc.bookValueOpening + row.bookValueOpening,
+      bookValueClosing: acc.bookValueClosing + row.bookValueClosing,
+    }),
+    {
+      class: assetClass,
+      account: '',
+      accountName,
+      assetCount: 0,
+      costOpening: 0,
+      additions: 0,
+      disposals: 0,
+      costClosing: 0,
+      depreciationOpening: 0,
+      depreciationYear: 0,
+      writeUpsYear: 0,
+      depreciationDisposal: 0,
+      depreciationClosing: 0,
+      bookValueOpening: 0,
+      bookValueClosing: 0,
+    },
+  );
+  return total;
+}
+
+const ANLAGENSPIEGEL = {
+  fiscalYear: YEAR,
+  rows: SPIEGEL_ROWS,
+  totals: sumSpiegel(SPIEGEL_ROWS, 'Anlagevermögen gesamt'),
+  classTotals: (['intangible', 'tangible', 'financial'] as const).map((assetClass) =>
+    sumSpiegel(
+      SPIEGEL_ROWS.filter((r) => r.class === assetClass),
+      assetClass === 'intangible'
+        ? 'Immaterielle Vermögensgegenstände'
+        : assetClass === 'tangible'
+          ? 'Sachanlagen'
+          : 'Finanzanlagen',
+      assetClass,
+    ),
+  ),
+};
+
+const ASSET_CANDIDATES = [
+  {
+    entryId: 41,
+    entryNumber: `${YEAR}-000041`,
+    bookingDate: `${YEAR}-05-12`,
+    description: 'Hebebühne Werkstatt',
+    account: '0440',
+    accountName: 'Maschinen',
+    amount: c(6800),
+  },
+];
+
+const ASSET_SCHEDULES: Record<number, unknown[]> = {
+  2: [
+    { fiscalYear: 2025, months: 10, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(42000), amount: c(5833.33), closingBookValue: c(36166.67), booked: c(5833.33), due: 0, status: 'gebucht', note: 'Zeitanteilig für 10 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
+    { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(36166.67), amount: c(7000), closingBookValue: c(29166.67), booked: 0, due: c(7000), status: 'offen' },
+    { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(29166.67), amount: c(7000), closingBookValue: c(22166.67), booked: 0, due: c(7000), status: 'geplant' },
+    { fiscalYear: 2028, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(22166.67), amount: c(7000), closingBookValue: c(15166.67), booked: 0, due: c(7000), status: 'geplant' },
+    { fiscalYear: 2029, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(15166.67), amount: c(7000), closingBookValue: c(8166.67), booked: 0, due: c(7000), status: 'geplant' },
+    { fiscalYear: 2030, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(8166.67), amount: c(7000), closingBookValue: c(1166.67), booked: 0, due: c(7000), status: 'geplant' },
+    { fiscalYear: 2031, months: 2, method: 'linear', rateLabel: 'Restwert', openingBookValue: c(1166.67), amount: c(1166.67), closingBookValue: 0, booked: 0, due: c(1166.67), status: 'geplant' },
+  ],
+};
+
+const ASSET_MOVEMENTS: Record<number, unknown[]> = {
+  2: [
+    { id: 1, assetId: 2, kind: 'acquisition', date: '2025-03-15', fiscalYear: 2025, costAmount: c(42000), depreciationAmount: 0, entryNumber: '2025-000112', note: 'Zugang', createdAt: '2025-03-15T09:00:00Z' },
+    { id: 2, assetId: 2, kind: 'depreciation', date: '2025-12-31', fiscalYear: 2025, costAmount: 0, depreciationAmount: c(5833.33), entryNumber: '2025-000488', note: 'AfA 2025', createdAt: '2025-12-31T09:00:00Z' },
+  ],
+};
+
+const ASSET_NOTES: Record<string, string[]> = {
+  tangible: [
+    'Lineare Abschreibung über die betriebsgewöhnliche Nutzungsdauer (§ 7 Abs. 1 EStG), zeitanteilig ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG).',
+  ],
+  financial: [
+    'Finanzanlagen nutzen sich nicht ab und werden deshalb nicht planmäßig abgeschrieben. Sie stehen mit ihren Anschaffungskosten in der Bilanz, bis ein Grund für eine außerplanmäßige Abschreibung eintritt.',
+    'Für Finanzanlagen gilt das gemilderte Niederstwertprinzip: bei voraussichtlich dauernder Wertminderung ist abzuschreiben, bei einer nicht dauernden darf abgeschrieben werden (§ 253 Abs. 3 Sätze 5 und 6 HGB).',
+    'Fällt der Grund später weg, ist wieder zuzuschreiben — höchstens bis zu den Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot, kein Wahlrecht.',
+  ],
+  intangible: [
+    'Immaterielle Vermögensgegenstände des Anlagevermögens dürfen nur angesetzt werden, wenn sie entgeltlich erworben wurden (§ 248 Abs. 2 HGB).',
+  ],
+};
+
+function assetDetail(id: number) {
+  const found = ASSETS.find((a) => a.id === id)!;
+  return {
+    asset: found,
+    schedule: ASSET_SCHEDULES[id] ?? [],
+    movements: ASSET_MOVEMENTS[id] ?? [
+      { id: 100 + id, assetId: id, kind: 'acquisition', date: found.acquisitionDate, fiscalYear: Number(found.acquisitionDate.slice(0, 4)), costAmount: found.cost, depreciationAmount: 0, note: 'Zugang', createdAt: `${found.acquisitionDate}T09:00:00Z` },
+    ],
+    notes: ASSET_NOTES[found.class] ?? [],
+  };
+}
+
+function assetSummary(assetClass: string) {
+  const list = ASSETS.filter((a) => !assetClass || a.class === assetClass);
+  return {
+    fiscalYear: YEAR,
+    count: list.length,
+    cost: list.reduce((sum, a) => sum + a.cost, 0),
+    accumulated: list.reduce((sum, a) => sum + a.accumulated, 0),
+    bookValue: list.reduce((sum, a) => sum + a.bookValue, 0),
+    yearAmount: list.reduce((sum, a) => sum + a.yearAmount, 0),
+    dueAmount: list.reduce((sum, a) => sum + a.dueAmount, 0),
+    dueCount: list.filter((a) => a.dueAmount > 0).length,
+  };
+}
+
+
+/** Die Einordnung nach § 6 Abs. 2 und 2a EStG, wie sie das Backend rechnet. */
+function classifyAcquisition(netCost: number, selfUsable: boolean) {
+  const limits = {
+    immediate: c(800),
+    recordFrom: c(250),
+    poolLowerLimit: c(250),
+    poolUpperLimit: c(1000),
+  };
+  if (!selfUsable) {
+    return {
+      recommended: 'activate',
+      allowed: ['activate'],
+      reason:
+        'Das Wirtschaftsgut ist nicht selbständig nutzbar. Damit scheiden Sofortabzug und Sammelposten aus, ' +
+        'unabhängig vom Betrag: § 6 Abs. 2 Satz 1 EStG setzt beim geringwertigen Wirtschaftsgut die selbständige ' +
+        'Nutzbarkeit voraus.',
+      limits,
+    };
+  }
+  if (netCost <= limits.immediate) {
+    return {
+      recommended: 'immediate',
+      allowed: ['immediate', 'pool', 'activate'],
+      reason:
+        'Bis 800,00 € netto ist der Sofortabzug nach § 6 Abs. 2 Satz 1 EStG möglich. Ab 250,00 € gehört das Gut ' +
+        'in ein laufend geführtes Verzeichnis (§ 6 Abs. 2 Satz 4 EStG) — das Anlagenverzeichnis erfüllt das.',
+      poolNote:
+        'Das Wahlrecht zum Sammelposten gilt einheitlich für alle Wirtschaftsgüter eines Wirtschaftsjahres ' +
+        '(§ 6 Abs. 2a Satz 5 EStG).',
+      limits,
+    };
+  }
+  if (netCost <= limits.poolUpperLimit) {
+    return {
+      recommended: 'pool',
+      allowed: ['pool', 'activate'],
+      reason:
+        'Über 800,00 € ist der Sofortabzug ausgeschlossen. Bis 1.000,00 € netto kann das Gut in den Sammelposten ' +
+        'des Wirtschaftsjahres eingestellt werden (§ 6 Abs. 2a Satz 1 EStG).',
+      poolNote:
+        'Das Wahlrecht zum Sammelposten gilt einheitlich für alle Wirtschaftsgüter eines Wirtschaftsjahres ' +
+        '(§ 6 Abs. 2a Satz 5 EStG).',
+      limits,
+    };
+  }
+  return {
+    recommended: 'activate',
+    allowed: ['activate'],
+    reason:
+      'Über 1.000,00 € netto bleibt nur die Aktivierung: das Gut kommt auf ein Anlagekonto und wird über die ' +
+      'betriebsgewöhnliche Nutzungsdauer abgeschrieben (§ 7 Abs. 1 EStG).',
+    limits,
+  };
+}
+
+/** Der Abgang, wie ihn das Backend vorrechnet: erst das Ergebnis, dann die Konten. */
+function disposalPreview(request: any) {
+  const found = ASSETS.find((a) => a.id === request.assetId)!;
+  const catchUp = found.dueAmount;
+  const bookValue = Math.max(found.bookValue - catchUp, 0);
+  const proceeds = request.kind === 'scrapped' ? 0 : (request.proceeds ?? 0);
+  const result = proceeds - bookValue;
+  const isGain = result > 0;
+  const tax =
+    request.taxTreatment === 'domestic' ? Math.round((proceeds * (request.taxRate ?? 1900)) / 10000) : 0;
+  const gross = proceeds + tax;
+  const accounts = isGain
+    ? { revenue: '4845', bookValue: '4855', explanation: 'Der Verkaufserlös liegt über dem Restbuchwert: es entsteht ein Buchgewinn. Der SKR04 führt Erlös und Restbuchwert dann unter den sonstigen betrieblichen Erträgen.' }
+    : { revenue: '6885', bookValue: '6895', explanation: 'Der Verkaufserlös liegt unter dem Restbuchwert: es entsteht ein Buchverlust. Derselbe Vorgang läuft im SKR04 dann über die sonstigen betrieblichen Aufwendungen.' };
+
+  const lines: any[] = [];
+  if (proceeds > 0) {
+    lines.push({ id: 1, position: 1, side: 'S', account: request.paymentAccount ?? '1800', accountName: 'Bank', amount: gross });
+    lines.push({ id: 2, position: 2, side: 'H', account: accounts.revenue, accountName: isGain ? 'Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchgewinn)' : 'Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchverlust)', amount: proceeds });
+    if (tax > 0) {
+      lines.push({ id: 3, position: 3, side: 'H', account: '3806', accountName: 'Umsatzsteuer 19 %', amount: tax, taxKey: 'UST19', taxBase: proceeds });
+    }
+  }
+  if (bookValue > 0) {
+    lines.push({ id: 4, position: 4, side: 'S', account: accounts.bookValue, accountName: 'Anlagenabgänge Sachanlagen', amount: bookValue });
+    lines.push({ id: 5, position: 5, side: 'H', account: found.account, accountName: found.accountName, amount: bookValue });
+  }
+
+  return {
+    catchUpAmount: catchUp,
+    catchUpLines: catchUp > 0
+      ? [
+          { id: 6, position: 1, side: 'S', account: found.depreciationAccount, accountName: 'Abschreibungen auf Fahrzeuge', amount: catchUp, text: 'AfA bis zum Abgangsmonat' },
+          { id: 7, position: 2, side: 'H', account: found.account, accountName: found.accountName, amount: catchUp, text: 'AfA bis zum Abgangsmonat' },
+        ]
+      : [],
+    bookValue,
+    result,
+    isGain,
+    accounts,
+    lines,
+    gross,
+    tax,
+  };
+}
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -1023,6 +1411,29 @@ export const bridge = {
   CancelInvoice: unsupported('CancelInvoice'),
   GenerateInvoiceZUGFeRD: unsupported('GenerateInvoiceZUGFeRD'),
   GetInvoiceDocument: unsupported('GetInvoiceDocument'),
+
+  // Anlagevermögen
+  GetFixedAssets: (assetClass: string) =>
+    later(assetClass ? ASSETS.filter((a) => a.class === assetClass) : ASSETS),
+  GetAssetSummary: (assetClass: string) => later(assetSummary(assetClass)),
+  GetFixedAsset: (id: number) => later(assetDetail(id)),
+  SaveFixedAsset: unsupported('SaveFixedAsset'),
+  DeleteFixedAsset: unsupported('DeleteFixedAsset'),
+  RecordAssetCostAdjustment: unsupported('RecordAssetCostAdjustment'),
+  GetAssetAccounts: (assetClass: string) =>
+    later(assetClass ? ASSET_ACCOUNTS.filter((a) => a.class === assetClass) : ASSET_ACCOUNTS),
+  GetAssetRules: () => later(ASSET_RULES),
+  ClassifyAcquisition: (netCost: number, _date: string, selfUsable: boolean) =>
+    later(classifyAcquisition(netCost, selfUsable)),
+  GetDepreciationRun: () => later(DEPRECIATION_RUN),
+  BookDepreciationRun: unsupported('BookDepreciationRun'),
+  BookAssetImpairment: unsupported('BookAssetImpairment'),
+  BookAssetWriteUp: unsupported('BookAssetWriteUp'),
+  PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
+  DisposeFixedAsset: unsupported('DisposeFixedAsset'),
+  GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
+  GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
+  GetSammelposten: () => later(ASSETS.find((a) => a.method === 'pool') ?? null),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => later(XBRL, 400),

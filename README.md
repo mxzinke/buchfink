@@ -67,14 +67,19 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 5. **Bankumsatz-Import (CAMT.053)**
    - Schneller Import von standardisierten CAMT.053-Bankauszügen.
    - Automatischer Vorschlag für Beleg- und Kontenzuordnungen.
-6. **Bilanz & GuV**
+6. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
+   - Verzeichnis für Sach-, Finanz- und immaterielle Anlagen mit Inventarnummer, Bewegungen und jahresübergreifender Kartei.
+   - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, außerplanmäßige Abschreibung und Zuschreibung.
+   - Abschreibungslauf als Abschlussbuchung mit Vorschau; die Jahres-Festschreibung prüft vorher, ob die AfA vollständig gebucht ist.
+   - Abgang mit Erlöskonto nach Buchgewinn oder -verlust und Anlagenspiegel nach § 284 Abs. 3 HGB.
+7. **Bilanz & GuV**
    - Echtzeit-Auswertung von Bilanz, Gewinn- und Verlustrechnung (GuV) sowie Summen- und Saldenliste (SuSa).
-7. **E-Bilanz-Export (XBRL)**
+8. **E-Bilanz-Export (XBRL)**
    - Automatisches Mapping der SKR04-Konten auf die offizielle E-Bilanz-Taxonomie.
    - Direkte Erzeugung einer validen XBRL-Datei inkl. Kontennachweis (Übermittlung via Mein ELSTER / externe Bridge).
-8. **Fremdwährungsumrechnung**
+9. **Fremdwährungsumrechnung**
    - Buchung in EUR mit tagesaktuellen EZB-Referenzkursen (protokolliert mit Kursquelle und Zeitstempel).
-9. **Verfahrensdokumentation & Audit-Log**
+10. **Verfahrensdokumentation & Audit-Log**
    - Live-Prüfung der Hash-Chain-Integrität in der UI.
    - Vollständiges Änderungsprotokoll aller Stammdaten und verknüpfte Verfahrensdokumentation (Markdown).
 
