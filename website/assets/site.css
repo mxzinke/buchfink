@@ -4,9 +4,9 @@
    Dieselbe Gestaltung wie die Anwendung: die Tokens aus
    docs/design-konzept.md, dieselbe Schrift, dasselbe Raster, dieselbe
    Zurückhaltung. Was hier über das Konzept hinausgeht, steht in
-   website/README.md und ist auf zwei Punkte begrenzt: zwei Schriftgrade
-   über der App-Skala für Fließtext und Titel, und ein Rasterhintergrund im
-   Kopf. Karten, Schatten und Farbverläufe gibt es auch hier nicht.
+   website/README.md: größere Schriftgrade für Fließtext, ein
+   Rasterhintergrund im Kopf und eine leisere Fassung des Hinweisstreifens.
+   Karten, Schatten und Farbverläufe gibt es auch hier nicht.
    ========================================================================= */
 
 @font-face {
@@ -270,8 +270,10 @@ code {
   letter-spacing: -0.015em;
 }
 .section__lead {
-  margin-top: 12px;
-  max-width: 68ch;
+  margin-top: 16px;
+  max-width: 66ch;
+  font-size: 16px;
+  line-height: 27px;
   color: var(--ink-muted);
 }
 
@@ -295,7 +297,7 @@ code {
    ------------------------------------------------------------------------- */
 
 .band {
-  padding-block: 72px;
+  padding-block: 104px;
   border-top: 1px solid var(--line);
 }
 .band--plain {
@@ -317,7 +319,9 @@ code {
 .band--shell p {
   color: var(--shell-text-muted);
 }
-.band--shell a {
+/* :not(.btn), sonst überschreibt diese Regel die Schaltflächen auf der
+   dunklen Schale — sie ist spezifischer als .btn--onshell. */
+.band--shell a:not(.btn) {
   color: var(--accent-light);
   border-bottom-color: color-mix(in srgb, var(--accent-light) 45%, transparent);
 }
@@ -327,8 +331,8 @@ code {
    ------------------------------------------------------------------------- */
 
 .hero {
-  padding-top: 72px;
-  padding-bottom: 8px;
+  padding-top: 96px;
+  padding-bottom: 16px;
   position: relative;
   overflow: hidden;
 }
@@ -363,11 +367,11 @@ code {
   margin-top: 32px;
 }
 .hero__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px 48px;
-  margin-top: 44px;
-  padding-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 28px 40px;
+  margin-top: 64px;
+  padding-top: 32px;
   border-top: 1px solid var(--line);
 }
 .fact__value {
@@ -475,43 +479,59 @@ code {
    Hinweisstreifen (§6.2, Fall 4)
    ------------------------------------------------------------------------- */
 
+/* Die App füllt einen Hinweis pastellig aus, weil er dort den Lesefluss
+   unterbrechen soll. Auf einer Seite, die man einmal von oben nach unten
+   liest, wäre dieselbe Fläche zu laut: Sie zieht den Blick vom Inhalt weg.
+   Deshalb trägt hier nur die senkrechte Leiste die Farbe — Bedeutung bleibt
+   ablesbar, ohne dass der Abschnitt leuchtet. */
 .note {
+  position: relative;
   display: flex;
-  gap: 12px;
-  padding: 16px 18px;
-  border-radius: var(--radius-control);
-  border: 1px solid var(--line-strong);
+  gap: 16px;
+  padding: 22px 24px 22px 28px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
   background: var(--surface);
 }
-.note--attention {
-  background: var(--attention-soft);
-  border-color: var(--attention-line);
+.note::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--ink-faint);
 }
-.note--attention .note__title {
-  color: var(--attention-text);
+.note--attention::before {
+  background: var(--attention);
 }
-.note--negative {
-  background: var(--negative-soft);
-  border-color: var(--negative-line);
+.note--attention svg {
+  color: var(--attention);
 }
-.note--negative .note__title {
-  color: var(--negative-text);
+.note--negative::before {
+  background: var(--negative);
+}
+.note--negative svg {
+  color: var(--negative);
 }
 .note__title {
   font-weight: 600;
   font-size: 15px;
 }
 .note__body {
-  margin-top: 4px;
-  font-size: 14px;
-  line-height: 23px;
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 25px;
   color: var(--ink-muted);
+  max-width: 78ch;
 }
 .note svg {
   width: 18px;
   height: 18px;
   flex: none;
   margin-top: 4px;
+  color: var(--ink-faint);
 }
 
 /* -------------------------------------------------------------------------
@@ -521,30 +541,31 @@ code {
 .columns {
   display: grid;
   gap: 0;
-  margin-top: 48px;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin-top: 56px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   border-top: 1px solid var(--line);
 }
 .columns > * {
-  padding: 28px 28px 28px 0;
+  padding: 36px 36px 36px 0;
   border-right: 1px solid var(--line);
 }
 .columns > *:last-child {
   border-right: 0;
+  padding-right: 0;
 }
 .columns > * + * {
-  padding-left: 28px;
+  padding-left: 36px;
 }
 .column__title {
   font-size: 17px;
   font-weight: 600;
-  margin-top: 14px;
+  margin-top: 16px;
   letter-spacing: -0.01em;
 }
 .column__body {
-  margin-top: 8px;
-  font-size: 14px;
-  line-height: 23px;
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 25px;
   color: var(--ink-muted);
 }
 .column__icon {
@@ -559,49 +580,44 @@ code {
    Funktionen: Text neben Bild, abwechselnd
    ------------------------------------------------------------------------- */
 
+/* Jeder Funktionsblock ist gleich gebaut: Text links, Bild rechts. Ein
+   Wechsel der Seite von Block zu Block sieht nach Abwechslung aus, kostet
+   aber bei jedem Block einen neuen Lesestart. */
 .feature {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(0, 2.1fr);
-  gap: 48px;
+  grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
+  gap: 64px;
   align-items: start;
-  padding-top: 56px;
-  margin-top: 56px;
+  padding-top: 80px;
+  margin-top: 80px;
   border-top: 1px solid var(--line);
 }
 .feature:first-of-type {
   border-top: 0;
-  margin-top: 40px;
+  margin-top: 56px;
   padding-top: 0;
 }
-/* Gespiegelt: Text rechts. Die Spaltenbreiten wandern mit, sonst landet der
-   Screenshot in der schmalen Spalte und ist nicht mehr lesbar. */
-.feature--flip {
-  grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr);
-}
-.feature--flip > .feature__text {
-  order: 2;
-}
 .feature__title {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 23px;
+  line-height: 32px;
   font-weight: 600;
-  margin-top: 10px;
+  margin-top: 12px;
   letter-spacing: -0.015em;
 }
 .feature__body {
-  margin-top: 12px;
+  margin-top: 14px;
   color: var(--ink-muted);
 }
 .feature__list {
   list-style: none;
   padding: 0;
-  margin-top: 20px;
+  margin-top: 28px;
   border-top: 1px solid var(--line);
 }
 .feature__list li {
   display: flex;
-  gap: 10px;
-  padding: 10px 0;
+  gap: 12px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
   line-height: 22px;
@@ -638,11 +654,11 @@ figure.shot figcaption {
 }
 .shot-stack {
   display: grid;
-  gap: 20px;
+  gap: 28px;
 }
 
 .hero__shot {
-  margin-top: 56px;
+  margin-top: 72px;
 }
 
 /* -------------------------------------------------------------------------
@@ -654,7 +670,7 @@ figure.shot figcaption {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
-  margin-top: 32px;
+  margin-top: 40px;
 }
 table.data {
   width: 100%;
@@ -666,12 +682,12 @@ table.data th {
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-subtle);
-  padding: 12px 20px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--line-strong);
   white-space: nowrap;
 }
 table.data td {
-  padding: 14px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   line-height: 22px;
@@ -682,6 +698,101 @@ table.data tr:last-child td {
 table.data td:first-child {
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------
+   Diagramme
+
+   Liegen ohne Rahmen direkt auf dem Papier: Eine Fläche darum wäre eine
+   Karte, und die Kästen im Bild bringen ihre eigene Abgrenzung schon mit.
+   ------------------------------------------------------------------------- */
+
+.diagram {
+  margin-top: 56px;
+  overflow-x: auto;
+}
+.diagram svg {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  height: auto;
+}
+/* Im schmalen Fenster schiebt man Schaubild und Tabelle seitlich. Ohne
+   Hinweis sieht ein abgeschnittenes Bild nach einem Fehler aus. */
+.scroll-hint {
+  display: none;
+}
+.diagram figcaption {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  max-width: 78ch;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Preis
+   ------------------------------------------------------------------------- */
+
+.price {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  gap: 56px;
+  align-items: start;
+  margin-top: 56px;
+}
+.price__figure {
+  font-size: clamp(56px, 7vw, 84px);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.price__note {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+.band--shell .price__figure {
+  color: #ffffff;
+}
+.band--shell .price__note {
+  color: var(--shell-text-muted);
+}
+.price__list {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.band--shell .price__list {
+  border-top-color: var(--shell-line);
+}
+.price__list li {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 24px;
+}
+.band--shell .price__list li {
+  border-bottom-color: var(--shell-line);
+}
+.price__list .diamond {
+  color: var(--positive);
+  transform: translateY(-2px);
+}
+.band--shell .price__list .diamond {
+  color: #9bcfa6;
+}
+.price__list strong {
+  font-weight: 600;
+}
+.band--shell .price__list strong {
+  color: #ffffff;
 }
 
 /* -------------------------------------------------------------------------
@@ -882,10 +993,31 @@ table.data td:first-child {
 @media (max-width: 900px) {
   .feature {
     grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+    gap: 32px;
+    padding-top: 56px;
+    margin-top: 56px;
   }
-  .feature--flip > .feature__text {
-    order: 0;
+  .price {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .scroll-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ink-subtle);
+  }
+  .scroll-hint svg {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .scroll-hint + .diagram,
+  .scroll-hint + .table-scroll {
+    margin-top: 12px;
   }
   .columns {
     grid-template-columns: minmax(0, 1fr);
@@ -908,7 +1040,7 @@ table.data td:first-child {
     padding-inline: 16px;
   }
   .band {
-    padding-block: 48px;
+    padding-block: 64px;
   }
   .topnav a:not(.btn) {
     display: none;

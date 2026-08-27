@@ -3,18 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Buchfink — Open-Source-Buchhaltung für bilanzierende Unternehmen</title>
+    <title>Buchfink — kostenlose Buchhaltung für bilanzierende Unternehmen</title>
     <meta
       name="description"
-      content="Native Desktop-Buchhaltung nach SKR04: doppelte Buchführung, GoBD-konform ab Tag 1, E-Rechnung, Bilanz, GuV und E-Bilanz als XBRL. Alle Daten bleiben auf dem eigenen Rechner."
+      content="Buchhaltungsprogramm für Unternehmen, die eine Bilanz aufstellen. Läuft auf dem eigenen Rechner statt in der Cloud, erfüllt die GoBD ab der ersten Buchung und erzeugt die E-Bilanz. Kostenlos und quelloffen."
     />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
-    <meta property="og:title" content="Buchfink — Open-Source-Buchhaltung für bilanzierende Unternehmen" />
+    <meta property="og:title" content="Buchfink — kostenlose Buchhaltung für bilanzierende Unternehmen" />
     <meta
       property="og:description"
-      content="Doppelte Buchführung nach SKR04, GoBD-konform ab Tag 1, E-Bilanz als XBRL. Local-First, ohne Cloud und ohne Abo."
+      content="Läuft auf dem eigenen Rechner statt in der Cloud. Erfüllt die GoBD ab der ersten Buchung. Kostenlos und quelloffen."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="assets/screenshots/uebersicht.png" />
@@ -30,10 +30,10 @@
           Buchfink
         </a>
         <nav class="topnav" aria-label="Hauptnavigation">
-          <a href="#grundsaetze">Grundsätze</a>
+          <a href="#ablauf">So läuft es</a>
           <a href="#funktionen">Funktionen</a>
           <a href="#abgrenzung">Für wen</a>
-          <a href="#technik">Technik</a>
+          <a href="preis.html">Preis</a>
           <a href="installation.html">Installation</a>
           <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -52,8 +52,8 @@
       <section class="hero">
         <div class="wrap wrap--wide">
           <div class="badges">
+            <span class="tag tag--positive"><span class="diamond"></span> Kostenlos</span>
             <span class="tag tag--accent">Open Source · EUPL-1.2</span>
-            <span class="tag"><span class="diamond" style="color: var(--positive)"></span> SKR04 2026</span>
             <span class="tag">macOS · Windows · Linux</span>
             <span class="tag">In Entwicklung</span>
           </div>
@@ -61,10 +61,9 @@
           <h1 class="hero__title">Buchhaltung, die auf dem eigenen Rechner bleibt.</h1>
 
           <p class="hero__lead">
-            Buchfink ist eine native Desktop-Anwendung für die doppelte Buchführung nach SKR04 —
-            für Unternehmen, die bilanzieren. Buchungen entstehen aus dem Abgleich von
-            Bankumsätzen mit Belegen, jede Zeile hängt in einer Hash-Kette, und am Ende steht die
-            E-Bilanz als XBRL-Datei. Ohne Cloud, ohne Abo, ohne fremden Server.
+            Buchfink ist ein Buchhaltungsprogramm für Unternehmen, die eine Bilanz aufstellen. Es
+            läuft als Programm auf dem eigenen Rechner statt im Netz — die Buchhaltung liegt als
+            Datei auf der eigenen Festplatte. Kostenlos, quelloffen und ohne Konto.
           </p>
 
           <div class="hero__actions">
@@ -72,27 +71,27 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                 <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
               </svg>
-              Installieren und lokal bauen
+              Installieren
             </a>
-            <a class="btn btn--secondary" href="#funktionen">Funktionen ansehen</a>
+            <a class="btn btn--secondary" href="#funktionen">Erst ansehen</a>
           </div>
 
           <dl class="hero__facts">
             <div>
-              <dt class="fact__value">Doppelte Buchführung</dt>
-              <dd class="fact__label">Soll und Haben, SKR04, Bilanz und GuV</dd>
+              <dt class="fact__value">Kostenlos</dt>
+              <dd class="fact__label">Kein Kaufpreis, kein Abo, keine Nutzerlizenzen</dd>
             </div>
             <div>
-              <dt class="fact__value">GoBD ab Tag 1</dt>
-              <dd class="fact__label">Hash-Kette, Storno-Prinzip, Audit-Log</dd>
+              <dt class="fact__value">Ohne Cloud</dt>
+              <dd class="fact__label">Nichts wird an einen Server übertragen</dd>
             </div>
             <div>
-              <dt class="fact__value">E-Rechnung</dt>
-              <dd class="fact__label">ZUGFeRD, Factur-X und XRechnung</dd>
+              <dt class="fact__value">Prüfungssicher</dt>
+              <dd class="fact__label">Erfüllt die GoBD ab der ersten Buchung</dd>
             </div>
             <div>
-              <dt class="fact__value">Eine Datei je Jahr</dt>
-              <dd class="fact__label">SQLite, lesbar ohne Buchfink</dd>
+              <dt class="fact__value">Bis zur E-Bilanz</dt>
+              <dd class="fact__label">SKR04, Bilanz, GuV und Umsatzsteuer</dd>
             </div>
           </dl>
 
@@ -114,13 +113,100 @@
       </section>
 
       <!-- ================================================================= -->
-      <section class="band" id="grundsaetze">
+      <section class="band" id="ablauf">
         <div class="wrap wrap--wide">
-          <p class="overline">Grundsätze</p>
+          <p class="overline">So läuft es</p>
+          <h2 class="section__title">Fünf Schritte durch den Monat</h2>
+          <p class="section__lead">
+            Der Alltag ist kein freies Tippen von Soll und Haben. Er beginnt beim Kontoauszug und
+            endet bei den Auswertungen — Buchfink führt einmal durch diese Kette.
+          </p>
+
+          <p class="scroll-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M3 12h18m0 0-4-4m4 4-4 4M3 12l4-4m-4 4 4 4" />
+            </svg>
+            Das Schaubild lässt sich seitlich schieben.
+          </p>
+          <figure class="diagram">
+            <svg viewBox="0 0 1200 200" role="img" aria-labelledby="ablauf-titel ablauf-text">
+              <title id="ablauf-titel">Der Weg vom Kontoauszug zur Auswertung</title>
+              <desc id="ablauf-text">
+                Fünf aufeinanderfolgende Schritte: Kontoauszug einlesen, Beleg ablegen, Zahlung und
+                Beleg einander zuordnen, buchen, auswerten.
+              </desc>
+
+              <g font-family="Manrope, sans-serif">
+                <!-- Schritt 1 -->
+                <g>
+                  <rect x="1" y="41" width="198" height="118" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="21" y="72" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">SCHRITT 1</text>
+                  <text x="21" y="99" font-size="16" font-weight="600" fill="#1c1917">Kontoauszug</text>
+                  <text x="21" y="121" font-size="13" fill="#57514a">CAMT.053 aus dem</text>
+                  <text x="21" y="139" font-size="13" fill="#57514a">Onlinebanking einlesen</text>
+                </g>
+                <path d="M209 100h26" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m235 95 6 5-6 5z" fill="#a79f94" />
+
+                <!-- Schritt 2 -->
+                <g>
+                  <rect x="251" y="41" width="198" height="118" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="271" y="72" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">SCHRITT 2</text>
+                  <text x="271" y="99" font-size="16" font-weight="600" fill="#1c1917">Beleg ablegen</text>
+                  <text x="271" y="121" font-size="13" fill="#57514a">PDF oder E-Rechnung,</text>
+                  <text x="271" y="139" font-size="13" fill="#57514a">so wie sie ankam</text>
+                </g>
+                <path d="M459 100h26" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m485 95 6 5-6 5z" fill="#a79f94" />
+
+                <!-- Schritt 3 -->
+                <g>
+                  <rect x="501" y="41" width="198" height="118" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="521" y="72" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">SCHRITT 3</text>
+                  <text x="521" y="99" font-size="16" font-weight="600" fill="#1c1917">Zuordnen</text>
+                  <text x="521" y="121" font-size="13" fill="#57514a">Welche Zahlung gehört</text>
+                  <text x="521" y="139" font-size="13" fill="#57514a">zu welchem Beleg?</text>
+                </g>
+                <path d="M709 100h26" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m735 95 6 5-6 5z" fill="#a79f94" />
+
+                <!-- Schritt 4 -->
+                <g>
+                  <rect x="751" y="41" width="198" height="118" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="771" y="72" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">SCHRITT 4</text>
+                  <text x="771" y="99" font-size="16" font-weight="600" fill="#1c1917">Buchen</text>
+                  <text x="771" y="121" font-size="13" fill="#57514a">Buchfink rechnet Steuer</text>
+                  <text x="771" y="139" font-size="13" fill="#57514a">und Buchungssatz</text>
+                </g>
+                <path d="M959 100h26" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m985 95 6 5-6 5z" fill="#a79f94" />
+
+                <!-- Schritt 5 -->
+                <g>
+                  <rect x="1001" y="41" width="198" height="118" rx="10" fill="#e8f2f9" stroke="#93c1df" />
+                  <text x="1021" y="72" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#1d6a96">ERGEBNIS</text>
+                  <text x="1021" y="99" font-size="16" font-weight="600" fill="#1c1917">Auswerten</text>
+                  <text x="1021" y="121" font-size="13" fill="#1d6a96">Umsatzsteuer, GuV,</text>
+                  <text x="1021" y="139" font-size="13" fill="#1d6a96">Bilanz und E-Bilanz</text>
+                </g>
+              </g>
+            </svg>
+            <figcaption>
+              Ein Konto schlägt Buchfink dabei bewusst nicht vor. Ob eine Ausgabe Bürobedarf oder
+              Werbung ist, entscheidet das Unternehmen — es haftet dafür.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="warum">
+        <div class="wrap wrap--wide">
+          <p class="overline">Warum Buchfink</p>
           <h2 class="section__title">Vier Entscheidungen, die alles andere bestimmen</h2>
           <p class="section__lead">
-            Buchfink ist kein Rundum-Werkzeug. Es ist auf einen Fall zugeschnitten und trifft dafür
-            vier Entscheidungen, von denen jede weitere Funktion abhängt.
+            Buchfink ist kein Werkzeug für alles. Es ist auf einen Fall zugeschnitten, und diese
+            vier Entscheidungen prägen jede Funktion.
           </p>
 
           <div class="columns">
@@ -131,11 +217,10 @@
                   <path d="M8 20h8M12 16v4" />
                 </svg>
               </span>
-              <h3 class="column__title">Local-First</h3>
+              <h3 class="column__title">Die Daten bleiben bei Ihnen</h3>
               <p class="column__body">
-                Die Daten liegen als SQLite-Dateien im eigenen Dateisystem — eine Datei je
-                Geschäftsjahr, dazu die Belege in ihrer empfangenen Form. Sichern heißt kopieren.
-                Es gibt keinen Server, der ausfallen, kündigen oder den Preis erhöhen kann.
+                Die Buchhaltung liegt als Datei auf der eigenen Festplatte. Sichern heißt kopieren.
+                Kein Anbieter kann ausfallen, kündigen oder den Preis erhöhen.
               </p>
             </div>
             <div>
@@ -145,11 +230,10 @@
                   <path d="m9 12 2 2 4-4" />
                 </svg>
               </span>
-              <h3 class="column__title">GoBD ab Tag 1</h3>
+              <h3 class="column__title">Prüfungssicher von Anfang an</h3>
               <p class="column__body">
-                Jede Buchung trägt den Hash ihrer Vorgängerin, wie Commits in Git. Korrigiert wird
-                ausschließlich per Generalumkehr; nichts wird überschrieben und nichts verschwindet.
-                Die Oberfläche prüft die Kette und sagt jederzeit, ob sie unverändert ist.
+                Eine gebuchte Zeile lässt sich nicht mehr überschreiben, nur mit einer Gegenbuchung
+                korrigieren. Beides bleibt sichtbar — genau das verlangt die GoBD.
               </p>
             </div>
             <div>
@@ -158,11 +242,10 @@
                   <path d="M3 7h13l-3-3M21 17H8l3 3" />
                 </svg>
               </span>
-              <h3 class="column__title">Buchung folgt Bankumsatz</h3>
+              <h3 class="column__title">Die Bank gibt den Takt vor</h3>
               <p class="column__body">
-                Der Alltag ist kein Soll/Haben-Tippen. Ein CAMT.053-Auszug kommt herein, die
-                Zahlungen werden offenen Posten zugeordnet, und der Buchungssatz entsteht daraus.
-                Das Gegenkonto rät Buchfink bewusst nicht — für die Kontierung haftet das Unternehmen.
+                Gebucht wird aus dem Kontoauszug heraus. Die Zahlung wird ihrem Beleg zugeordnet,
+                und die Buchung entsteht daraus — nicht andersherum.
               </p>
             </div>
             <div>
@@ -172,11 +255,10 @@
                   <path d="M14 3v5h5M9 13h6M9 17h4" />
                 </svg>
               </span>
-              <h3 class="column__title">E-Bilanz bereit</h3>
+              <h3 class="column__title">Die E-Bilanz fällt hinten raus</h3>
               <p class="column__body">
-                Die SKR04-Konten werden auf die amtliche Taxonomie abgebildet, und Buchfink erzeugt
-                die XBRL-Datei samt Kontennachweis. Übermittelt wird über Mein ELSTER oder eine
-                Bridge — die proprietäre ERiC-Bibliothek steckt bewusst nicht in der Anwendung.
+                Aus denselben Buchungen entsteht die Datei, die das Finanzamt erwartet. Hochgeladen
+                wird sie über Mein ELSTER — Buchfink verschickt selbst nichts.
               </p>
             </div>
           </div>
@@ -189,9 +271,8 @@
           <p class="overline">Funktionen</p>
           <h2 class="section__title">Was die Anwendung tut</h2>
           <p class="section__lead">
-            Die folgenden Bilder stammen aus der laufenden Oberfläche, gefüttert mit den Daten einer
-            erfundenen Nordlicht Systeme GmbH. Nichts daran ist nachgebaut. Ein Klick öffnet das Bild
-            in voller Größe.
+            Alle Bilder stammen aus der laufenden Anwendung, gefüllt mit den Daten einer erfundenen
+            Beispielfirma. Ein Klick öffnet das Bild in voller Größe.
           </p>
 
           <!-- ----------------------------------------------------------- -->
@@ -200,18 +281,14 @@
               <p class="overline">Bank &amp; Zahlungen</p>
               <h3 class="feature__title">Vom Kontoauszug zur Buchung</h3>
               <p class="feature__body">
-                CAMT.053 einlesen, und die offenen Umsätze stehen als Liste da. Ein Klick auf eine
-                Zeile öffnet die Zuordnung: offene Posten anhaken, Skonto oder Bankgebühr als
-                Differenz benennen — gebucht wird erst, wenn die Summe den Kontoauszug trifft.
+                Den Auszug aus dem Onlinebanking einlesen, und die offenen Umsätze stehen als Liste
+                da. Ein Klick auf eine Zeile zeigt, welche Rechnungen dazu passen könnten. Gebucht
+                wird erst, wenn die Summe den Auszug genau trifft.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> Import standardisierter CAMT.053-Auszüge</li>
-                <li><span class="diamond"></span> Zuordnung mehrerer offener Posten zu einer Zahlung</li>
-                <li>
-                  <span class="diamond"></span> Skonto wird brutto erfasst und die Steuer nach
-                  § 17 UStG berichtigt
-                </li>
-                <li><span class="diamond"></span> Zahlungen ohne Beleg lassen sich direkt kontieren</li>
+                <li><span class="diamond"></span> Liest den Standard, den jede Bank ausgibt (CAMT.053)</li>
+                <li><span class="diamond"></span> Eine Zahlung kann mehrere Rechnungen ausgleichen</li>
+                <li><span class="diamond"></span> Skonto und Bankgebühr werden richtig herausgerechnet</li>
               </ul>
             </div>
             <div class="shot-stack">
@@ -225,7 +302,7 @@
                     alt="Liste offener Bankumsätze mit Datum, Zahlungspartner, Verwendungszweck und Betrag."
                   />
                 </a>
-                <figcaption>Sechs von acht Umsätzen aus dem eingelesenen Auszug sind noch nicht zugeordnet.</figcaption>
+                <figcaption>Sechs von acht Umsätzen sind noch nicht zugeordnet.</figcaption>
               </figure>
               <figure class="shot">
                 <a href="assets/screenshots/bank-zuordnung.png" title="Bild in voller Größe öffnen">
@@ -234,31 +311,28 @@
                     width="2880"
                     height="1800"
                     loading="lazy"
-                    alt="Dialog „Bankumsatz zuordnen“ mit ausgewähltem offenen Posten und der Bestätigung, dass die Zuordnung zum Kontoauszug passt."
+                    alt="Dialog „Bankumsatz zuordnen“ mit ausgewählter Rechnung und der Bestätigung, dass die Zuordnung zum Kontoauszug passt."
                   />
                 </a>
-                <figcaption>Die Doppellinie unter der Zuordnung ist die Kontrolle: erst wenn sie aufgeht, ist der Knopf sinnvoll.</figcaption>
+                <figcaption>Erst wenn die Summe stimmt, ist der Knopf sinnvoll.</figcaption>
               </figure>
             </div>
           </article>
 
           <!-- ----------------------------------------------------------- -->
-          <article class="feature feature--flip">
+          <article class="feature">
             <div class="feature__text">
               <p class="overline">Belege &amp; E-Rechnung</p>
               <h3 class="feature__title">Erst ablegen, dann buchen</h3>
               <p class="feature__body">
-                Ein Beleg wird in der Form abgelegt, in der er ankam, und bekommt sofort seine
-                Prüfsumme. Erst danach wird er untersucht: Steckt ein strukturierter Datensatz
-                darin, liest Buchfink Beträge, Steuersätze und Rechnungsnummer aus und prüft ihn
-                gegen EN 16931. Welches Aufwandskonto zutrifft, bleibt offen — das sagt keine
-                Rechnung.
+                Ein Beleg wird so abgelegt, wie er ankam, und erst danach untersucht. Steckt in der
+                Rechnung ein maschinenlesbarer Datensatz — bei ZUGFeRD und XRechnung ist das so —,
+                liest Buchfink Beträge, Steuersätze und Rechnungsnummer heraus und prüft sie.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> ZUGFeRD, Factur-X und XRechnung werden erkannt und gelesen</li>
-                <li><span class="diamond"></span> Ein Beleg kann aus mehreren Dateien bestehen</li>
-                <li><span class="diamond"></span> Prüfbefunde stehen mit Regelnummer und Schweregrad am Beleg</li>
-                <li><span class="diamond"></span> Der Buchungssatz kommt aus dem Backend, nicht aus dem Formular</li>
+                <li><span class="diamond"></span> Erkennt ZUGFeRD, Factur-X und XRechnung von selbst</li>
+                <li><span class="diamond"></span> Ein Beleg darf aus mehreren Dateien bestehen</li>
+                <li><span class="diamond"></span> Rechnung und Eingabemaske stehen nebeneinander</li>
               </ul>
             </div>
             <figure class="shot">
@@ -272,8 +346,8 @@
                 />
               </a>
               <figcaption>
-                Die Vorschau bleibt sichtbar, während gebucht wird — der Abgleich zwischen Beleg
-                und Feld ist die häufigste Tätigkeit.
+                Die Rechnung bleibt sichtbar, während gebucht wird — kein Fensterwechsel beim
+                Abtippen.
               </figcaption>
             </figure>
           </article>
@@ -284,16 +358,14 @@
               <p class="overline">Journal</p>
               <h3 class="feature__title">Nichts verschwindet</h3>
               <p class="feature__body">
-                Jede Buchung lässt sich aufklappen: Soll links, Haben rechts, die Summe unter der
-                buchhalterischen Doppellinie, dazu Herkunft, Belegnummer und der Hash der
-                Vorgängerin. Eine Korrektur ist eine Generalumkehr — Original und Storno bleiben
-                beide lesbar und verlinken sich gegenseitig.
+                Jede Buchung lässt sich aufklappen: Soll links, Haben rechts, die Summe darunter.
+                Ein Fehler wird nicht gelöscht, sondern mit einer Gegenbuchung ausgeglichen. Beide
+                Zeilen bleiben stehen und verweisen aufeinander.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> Lückenlose Belegnummern je Geschäftsjahr</li>
-                <li><span class="diamond"></span> Storno markiert statt durchgestrichen oder ausgeblendet</li>
-                <li><span class="diamond"></span> Integritätsprüfung auf Knopfdruck</li>
-                <li><span class="diamond"></span> Kontosuche über den SKR04 statt Nummern auswendig lernen</li>
+                <li><span class="diamond"></span> Fortlaufende Belegnummern ohne Lücken</li>
+                <li><span class="diamond"></span> Korrekturen sind markiert, nicht durchgestrichen</li>
+                <li><span class="diamond"></span> Kontosuche über den SKR04 statt Nummern im Kopf</li>
               </ul>
             </div>
             <figure class="shot">
@@ -303,31 +375,27 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="Journal mit einer stornierten Buchung, ihrer Generalumkehr und einem aufgeklappten Buchungssatz."
+                  alt="Journal mit einer korrigierten Buchung, ihrer Gegenbuchung und einem aufgeklappten Buchungssatz."
                 />
               </a>
-              <figcaption>
-                Fehlbuchung, Generalumkehr und Neubuchung stehen nebeneinander im Journal.
-              </figcaption>
+              <figcaption>Fehlbuchung, Korrektur und Neubuchung stehen nebeneinander.</figcaption>
             </figure>
           </article>
 
           <!-- ----------------------------------------------------------- -->
-          <article class="feature feature--flip">
+          <article class="feature">
             <div class="feature__text">
               <p class="overline">Auswertungen</p>
-              <h3 class="feature__title">GuV, Bilanz und Voranmeldung</h3>
+              <h3 class="feature__title">GuV, Bilanz und Umsatzsteuer</h3>
               <p class="feature__body">
-                Die Auswertungen rechnen aus den erfassten Buchungen, nicht aus einer zweiten
-                Ableitung: An jeder Buchungszeile hängen Steuerschlüssel und Bemessungsgrundlage.
-                Die Kennziffern der Umsatzsteuer-Voranmeldung entsprechen den Feldern des amtlichen
-                Vordrucks und werden in Mein ELSTER übertragen.
+                Die Auswertungen rechnen direkt aus den erfassten Buchungen. Die
+                Umsatzsteuer-Voranmeldung zeigt genau die Felder, die im Formular des Finanzamts
+                stehen — die Zahlen lassen sich Feld für Feld in Mein ELSTER übertragen.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> GuV nach dem Gesamtkostenverfahren, § 275 HGB</li>
-                <li><span class="diamond"></span> Bilanz nach Aktiva und Passiva</li>
-                <li><span class="diamond"></span> Voranmeldung je Monat oder Quartal, mit Jahresverlauf</li>
-                <li><span class="diamond"></span> Summen- und Saldenliste je Kontenklasse</li>
+                <li><span class="diamond"></span> Gewinn- und Verlustrechnung nach HGB</li>
+                <li><span class="diamond"></span> Bilanz mit Aktiva und Passiva</li>
+                <li><span class="diamond"></span> Voranmeldung je Monat oder Quartal</li>
               </ul>
             </div>
             <div class="shot-stack">
@@ -341,7 +409,7 @@
                     alt="Gewinn- und Verlustrechnung mit Erlösen, Aufwendungen und dem vorläufigen Jahresergebnis."
                   />
                 </a>
-                <figcaption>Eine durchgehende Aufstellung mit Doppellinie unter den Summen — keine zwei Karten nebeneinander.</figcaption>
+                <figcaption>Eine durchgehende Aufstellung, keine Kacheln.</figcaption>
               </figure>
               <figure class="shot">
                 <a href="assets/screenshots/umsatzsteuer.png" title="Bild in voller Größe öffnen">
@@ -353,7 +421,7 @@
                     alt="Umsatzsteuer-Voranmeldung für ein Quartal mit den Kennziffern 81, 86, 66 und 83."
                   />
                 </a>
-                <figcaption>Kennziffern der Voranmeldung, hier für das dritte Quartal.</figcaption>
+                <figcaption>Dieselben Kennziffern wie im amtlichen Vordruck.</figcaption>
               </figure>
             </div>
           </article>
@@ -362,17 +430,15 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Sicherheit &amp; Protokoll</p>
-              <h3 class="feature__title">Nachweisbar unverändert</h3>
+              <h3 class="feature__title">Auf Knopfdruck nachweisbar</h3>
               <p class="feature__body">
-                Der Zustand der Hash-Kette steht dauerhaft im Fuß der Navigation, nicht in einer
-                Meldung, die nach vier Sekunden weg ist. Abgeschlossene Zeiträume werden
-                festgeschrieben und ihr Kettenkopf von einem Zeitstempeldienst beglaubigt. Jeder
-                Vorgang landet im Änderungsprotokoll.
+                Buchfink prüft jederzeit, ob an den Buchungen etwas verändert wurde, und sagt das
+                dauerhaft an derselben Stelle. Abgeschlossene Quartale werden festgeschrieben und
+                von einem unabhängigen Dienst mit einem Zeitstempel versehen.
               </p>
               <ul class="feature__list">
                 <li><span class="diamond"></span> Festschreibung je Quartal oder Geschäftsjahr</li>
-                <li><span class="diamond"></span> RFC-3161-Zeitstempel auf den Kettenkopf</li>
-                <li><span class="diamond"></span> Änderungsprotokoll über Buchungen, Belege und Stammdaten</li>
+                <li><span class="diamond"></span> Protokoll über Buchungen, Belege und Stammdaten</li>
                 <li><span class="diamond"></span> Verschlüsselte Ablage mit Wiederherstellungsschlüssel</li>
               </ul>
             </div>
@@ -383,27 +449,26 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="Seite „Sicherheit & Protokoll“ mit dem Zustand der Hash-Kette, festgeschriebenen Zeiträumen und dem Änderungsprotokoll."
+                  alt="Seite „Sicherheit und Protokoll“ mit dem Zustand der Buchungen, festgeschriebenen Zeiträumen und dem Änderungsprotokoll."
                 />
               </a>
-              <figcaption>Zustand der Kette, festgeschriebene Zeiträume und das Protokoll auf einer Seite.</figcaption>
+              <figcaption>Zustand, festgeschriebene Zeiträume und Protokoll auf einer Seite.</figcaption>
             </figure>
           </article>
 
           <!-- ----------------------------------------------------------- -->
-          <article class="feature feature--flip">
+          <article class="feature">
             <div class="feature__text">
               <p class="overline">E-Bilanz</p>
-              <h3 class="feature__title">XBRL, das man vorher ansehen kann</h3>
+              <h3 class="feature__title">Die Datei fürs Finanzamt</h3>
               <p class="feature__body">
-                Buchfink bildet die SKR04-Konten auf die Positionen der amtlichen Taxonomie ab und
-                erzeugt daraus die XBRL-Instanz mit Bilanz, GuV und Kontennachweis. Die Rohdaten
-                lassen sich vor dem Export ansehen — was übermittelt wird, soll niemand raten müssen.
+                Buchfink ordnet die Konten den Positionen zu, die das Finanzamt vorgibt, und
+                erzeugt daraus die Datei für die E-Bilanz. Man kann hineinsehen, bevor man sie
+                weitergibt — was übermittelt wird, soll niemand raten müssen.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> Mapping SKR04 auf die Taxonomie nach § 5b EStG</li>
-                <li><span class="diamond"></span> Kontennachweis in derselben Datei</li>
-                <li><span class="diamond"></span> Einreichung über Mein ELSTER oder eine Bridge</li>
+                <li><span class="diamond"></span> Bilanz, GuV und Kontennachweis in einer Datei</li>
+                <li><span class="diamond"></span> Einreichung über Mein ELSTER oder die Steuerberatung</li>
               </ul>
             </div>
             <figure class="shot">
@@ -413,139 +478,253 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="E-Bilanz-Seite mit der Zuordnung der Standardkonten und den XBRL-Rohdaten in einem dunklen Codefeld."
+                  alt="E-Bilanz-Seite mit der Zuordnung der Konten und den Rohdaten der erzeugten Datei."
                 />
               </a>
-              <figcaption>Die erzeugte XBRL-Instanz, bevor sie das Haus verlässt.</figcaption>
-            </figure>
-          </article>
-
-          <!-- ----------------------------------------------------------- -->
-          <article class="feature">
-            <div class="feature__text">
-              <p class="overline">Konten</p>
-              <h3 class="feature__title">SKR04, ohne Auswendiglernen</h3>
-              <p class="feature__body">
-                Der vollständige DATEV-Kontenrahmen SKR04 in der Fassung 2026 liegt bei. Bebuchte
-                Konten stehen oben, der Rest ist durchsuchbar; jedes Konto öffnet sein Kontenblatt
-                mit laufendem Saldo und Gegenkonten. Neue Konten entstehen von selbst, sobald eine
-                Buchungsgruppe sie zum ersten Mal verwendet.
-              </p>
-            </div>
-            <figure class="shot">
-              <a href="assets/screenshots/konten.png" title="Bild in voller Größe öffnen">
-                <img
-                  src="assets/screenshots/konten.png"
-                  width="2880"
-                  height="1800"
-                  loading="lazy"
-                  alt="Kontenübersicht mit den bebuchten Konten, ihren Verkehrszahlen und Salden."
-                />
-              </a>
-              <figcaption>Die bebuchten Konten mit Soll, Haben und Saldo.</figcaption>
+              <figcaption>Die erzeugte Datei, bevor sie das Haus verlässt.</figcaption>
             </figure>
           </article>
         </div>
       </section>
 
       <!-- ================================================================= -->
-      <section class="band band--sunken" id="abgrenzung">
-        <div class="wrap">
-          <p class="overline">Für wen</p>
-          <h2 class="section__title">Buchfink ist etwas für bilanzierende Unternehmen</h2>
+      <section class="band band--sunken" id="daten">
+        <div class="wrap wrap--wide">
+          <p class="overline">Wo die Daten liegen</p>
+          <h2 class="section__title">Auf Ihrer Festplatte, sonst nirgends</h2>
           <p class="section__lead">
-            Der Anwendungsbereich ist eng gezogen, und das ist Absicht. Wer bilanziert, bekommt ein
-            geschlossenes System; wer eine Einnahmen-Überschuss-Rechnung macht, ist hier falsch.
+            Ein Geschäftsjahr ist eine Datei, daneben liegen die Belege so, wie sie angekommen
+            sind. Beides lässt sich auch ohne Buchfink öffnen — und in zehn Jahren noch.
+          </p>
+
+          <p class="scroll-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M3 12h18m0 0-4-4m4 4-4 4M3 12l4-4m-4 4 4 4" />
+            </svg>
+            Das Schaubild lässt sich seitlich schieben.
+          </p>
+          <figure class="diagram">
+            <svg viewBox="0 0 1200 300" role="img" aria-labelledby="daten-titel daten-text">
+              <title id="daten-titel">Wo die Buchhaltung gespeichert wird</title>
+              <desc id="daten-text">
+                Auf dem eigenen Rechner liegen eine Datei je Geschäftsjahr und ein Ordner mit den
+                Belegen. Eine Sicherung ist eine Kopie davon. Es gibt keinen Server und kein Konto.
+              </desc>
+
+              <g font-family="Manrope, sans-serif">
+                <!-- Der eigene Rechner -->
+                <text x="0" y="26" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">IHR RECHNER</text>
+                <rect x="1" y="41" width="518" height="218" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+
+                <g>
+                  <rect x="29" y="69" width="30" height="36" rx="4" fill="#faf8f5" stroke="#948e85" />
+                  <path d="M36 80h16M36 88h16M36 96h10" stroke="#948e85" stroke-width="1.5" />
+                  <text x="77" y="86" font-size="15" font-weight="600" fill="#1c1917">2026.sqlite</text>
+                  <text x="77" y="106" font-size="13" fill="#57514a">Konten, Buchungen, Protokoll — das laufende Jahr</text>
+                </g>
+                <g>
+                  <rect x="29" y="129" width="30" height="36" rx="4" fill="#faf8f5" stroke="#948e85" />
+                  <path d="M36 140h16M36 148h16M36 156h10" stroke="#948e85" stroke-width="1.5" />
+                  <text x="77" y="146" font-size="15" font-weight="600" fill="#1c1917">2025.sqlite</text>
+                  <text x="77" y="166" font-size="13" fill="#57514a">Das abgeschlossene Jahr, schreibgeschützt</text>
+                </g>
+                <g>
+                  <path
+                    d="M29 195a3 3 0 0 1 3-3h9l3.5 5H56a3 3 0 0 1 3 3v22a3 3 0 0 1-3 3H32a3 3 0 0 1-3-3z"
+                    fill="#faf8f5"
+                    stroke="#948e85"
+                  />
+                  <text x="77" y="206" font-size="15" font-weight="600" fill="#1c1917">belege/</text>
+                  <text x="77" y="226" font-size="13" fill="#57514a">Jede Rechnung als PDF, unverändert</text>
+                </g>
+
+                <!-- Sichern -->
+                <path d="M529 150h44" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m573 145 6 5-6 5z" fill="#a79f94" />
+                <text x="551" y="136" font-size="12" fill="#756e65" text-anchor="middle">kopieren</text>
+
+                <text x="601" y="26" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">SICHERUNG</text>
+                <rect x="601" y="41" width="238" height="218" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                <rect x="629" y="103" width="46" height="34" rx="5" fill="#faf8f5" stroke="#948e85" />
+                <path d="M639 103v12h26v-12" stroke="#948e85" stroke-width="1.5" fill="none" />
+                <text x="629" y="167" font-size="15" font-weight="600" fill="#1c1917">USB-Stick, NAS,</text>
+                <text x="629" y="187" font-size="15" font-weight="600" fill="#1c1917">zweiter Rechner</text>
+                <text x="629" y="211" font-size="13" fill="#57514a">Sichern heißt kopieren.</text>
+                <text x="629" y="229" font-size="13" fill="#57514a">Kein eigenes Verfahren nötig.</text>
+
+                <!-- Kein Server -->
+                <text x="921" y="26" font-size="10" font-weight="600" letter-spacing="0.08em" fill="#756e65">NICHT VORHANDEN</text>
+                <rect x="921" y="41" width="278" height="218" rx="10" fill="#faf8f5" stroke="#e9e4dc" stroke-dasharray="5 5" />
+                <g transform="translate(963 92)">
+                  <path
+                    d="M22 34a16 16 0 0 1 1-31.9A20 20 0 0 1 59 8a14 14 0 0 1 2 26z"
+                    fill="none"
+                    stroke="#a79f94"
+                    stroke-width="1.6"
+                  />
+                  <path d="M8 38 68 -2" stroke="#c4736a" stroke-width="2" stroke-linecap="round" />
+                </g>
+                <text x="949" y="187" font-size="15" font-weight="600" fill="#57514a">Kein Server, kein Konto,</text>
+                <text x="949" y="207" font-size="15" font-weight="600" fill="#57514a">keine Übertragung</text>
+                <text x="949" y="231" font-size="13" fill="#756e65">Buchfink funktioniert ohne Internet.</text>
+              </g>
+            </svg>
+            <figcaption>
+              Eine einzige Ausnahme gibt es: Wer mit Fremdwährungen bucht, kann die Referenzkurse
+              der Europäischen Zentralbank abrufen. Der Abruf steht im Protokoll, und ohne ihn
+              funktioniert alles andere weiter.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="pruefsicher">
+        <div class="wrap wrap--wide">
+          <p class="overline">Prüfungssicherheit</p>
+          <h2 class="section__title">Warum sich nichts heimlich ändern lässt</h2>
+          <p class="section__lead">
+            Jede Buchung trägt einen Fingerabdruck ihrer Vorgängerin. Wird eine alte Zeile
+            nachträglich verändert, passt die Kette ab dieser Stelle nicht mehr zusammen — und
+            Buchfink zeigt, wo.
+          </p>
+
+          <p class="scroll-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M3 12h18m0 0-4-4m4 4-4 4M3 12l4-4m-4 4 4 4" />
+            </svg>
+            Das Schaubild lässt sich seitlich schieben.
+          </p>
+          <figure class="diagram">
+            <svg viewBox="0 0 1200 320" role="img" aria-labelledby="kette-titel kette-text">
+              <title id="kette-titel">Die Buchungen hängen aneinander</title>
+              <desc id="kette-text">
+                Oben eine unveränderte Kette aus drei Buchungen, deren Fingerabdrücke
+                zusammenpassen. Unten dieselbe Kette, in der die mittlere Buchung nachträglich
+                geändert wurde; ab dort passt sie nicht mehr zusammen.
+              </desc>
+
+              <g font-family="Manrope, sans-serif">
+                <!-- Reihe 1: unverändert -->
+                <g>
+                  <path d="M0 22h7l3.5 6 3.5-6h7" transform="translate(-8 -6)" fill="none" />
+                  <rect x="0" y="10" width="7" height="7" transform="rotate(45 3.5 13.5)" fill="#5a9a6b" />
+                  <text x="18" y="20" font-size="13" font-weight="600" fill="#2e6b3c">Unverändert</text>
+                </g>
+
+                <rect x="1" y="41" width="250" height="86" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                <text x="21" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0048</text>
+                <text x="21" y="95" font-size="12" fill="#756e65">Fingerabdruck</text>
+                <text x="21" y="113" font-size="13" fill="#1c1917">8f2c…a91d</text>
+
+                <path d="M261 84h48" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m309 79 6 5-6 5z" fill="#a79f94" />
+                <text x="285" y="72" font-size="11" fill="#756e65" text-anchor="middle">passt</text>
+
+                <rect x="321" y="41" width="250" height="86" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                <text x="341" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0049</text>
+                <text x="341" y="95" font-size="12" fill="#756e65">enthält 8f2c…a91d</text>
+                <text x="341" y="113" font-size="13" fill="#1c1917">4b70…c233</text>
+
+                <path d="M581 84h48" stroke="#a79f94" stroke-width="1.5" />
+                <path d="m629 79 6 5-6 5z" fill="#a79f94" />
+                <text x="605" y="72" font-size="11" fill="#756e65" text-anchor="middle">passt</text>
+
+                <rect x="641" y="41" width="250" height="86" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                <text x="661" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0050</text>
+                <text x="661" y="95" font-size="12" fill="#756e65">enthält 4b70…c233</text>
+                <text x="661" y="113" font-size="13" fill="#1c1917">e88a…54d6</text>
+
+                <text x="931" y="78" font-size="15" font-weight="600" fill="#2e6b3c">Kette geschlossen</text>
+                <text x="931" y="100" font-size="13" fill="#57514a">Buchfink meldet: Daten unverändert.</text>
+
+                <!-- Reihe 2: nachträglich geändert -->
+                <g transform="translate(0 168)">
+                  <rect x="0" y="10" width="7" height="7" transform="rotate(45 3.5 13.5)" fill="#c4736a" />
+                  <text x="18" y="20" font-size="13" font-weight="600" fill="#a0453a">Jemand ändert eine alte Zeile</text>
+
+                  <rect x="1" y="41" width="250" height="86" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="21" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0048</text>
+                  <text x="21" y="95" font-size="12" fill="#756e65">Fingerabdruck</text>
+                  <text x="21" y="113" font-size="13" fill="#1c1917">8f2c…a91d</text>
+
+                  <path d="M261 84h48" stroke="#a79f94" stroke-width="1.5" />
+                  <path d="m309 79 6 5-6 5z" fill="#a79f94" />
+                  <text x="285" y="72" font-size="11" fill="#756e65" text-anchor="middle">passt</text>
+
+                  <rect x="321" y="41" width="250" height="86" rx="10" fill="#faebe8" stroke="#db9e93" />
+                  <text x="341" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0049</text>
+                  <text x="341" y="95" font-size="12" fill="#a0453a">Betrag nachträglich geändert</text>
+                  <text x="341" y="113" font-size="13" fill="#a0453a">9d14…07fb</text>
+
+                  <path d="M581 84h20m14 0h14" stroke="#c4736a" stroke-width="1.5" />
+                  <path d="m596 74 12 20m0-20-12 20" stroke="#c4736a" stroke-width="2" />
+                  <text x="605" y="66" font-size="11" font-weight="600" fill="#a0453a" text-anchor="middle">passt nicht</text>
+
+                  <rect x="641" y="41" width="250" height="86" rx="10" fill="#ffffff" stroke="#d8d1c6" />
+                  <text x="661" y="72" font-size="14" font-weight="600" fill="#1c1917">B-2026-0050</text>
+                  <text x="661" y="95" font-size="12" fill="#756e65">enthält noch 4b70…c233</text>
+                  <text x="661" y="113" font-size="13" fill="#1c1917">e88a…54d6</text>
+
+                  <text x="931" y="78" font-size="15" font-weight="600" fill="#a0453a">Kette gebrochen</text>
+                  <text x="931" y="100" font-size="13" fill="#57514a">Buchfink zeigt genau diese Buchung an.</text>
+                </g>
+              </g>
+            </svg>
+            <figcaption>
+              Deshalb wird ein Fehler in Buchfink nicht überschrieben, sondern mit einer
+              Gegenbuchung ausgeglichen. Das ist keine Umständlichkeit, sondern der Weg, den die
+              GoBD vorschreibt: Was einmal gebucht war, muss lesbar bleiben.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band" id="abgrenzung">
+        <div class="wrap wrap--wide">
+          <p class="overline">Für wen</p>
+          <h2 class="section__title">Für Unternehmen, die eine Bilanz aufstellen</h2>
+          <p class="section__lead">
+            Der Anwendungsbereich ist eng gezogen, und das mit Absicht. Wer bilanziert, bekommt ein
+            geschlossenes System. Wer eine Einnahmen-Überschuss-Rechnung macht, ist hier falsch.
           </p>
 
           <div class="columns">
             <div>
               <h3 class="column__title">Passt</h3>
               <p class="column__body">
-                Kapitalgesellschaften wie UG (haftungsbeschränkt), GmbH und AG.
-                Personenhandelsgesellschaften wie GmbH &amp; Co. KG, KG und OHG. Bilanzierende
-                Einzelunternehmen und eingetragene Kaufleute.
+                UG, GmbH und AG. GmbH &amp; Co. KG, KG und OHG. Bilanzierende Einzelunternehmen und
+                eingetragene Kaufleute.
               </p>
             </div>
             <div>
               <h3 class="column__title">Passt nicht</h3>
               <p class="column__body">
                 Freiberuflerinnen, Kleinunternehmer und kleine Selbstständige mit einfacher
-                Einnahmen-Überschuss-Rechnung nach § 4 Abs. 3 EStG. Buchfink unterstützt keine EÜR,
-                und das ist keine Lücke, die noch geschlossen wird.
+                Einnahmen-Überschuss-Rechnung. Das ist keine Lücke, die noch geschlossen wird.
               </p>
             </div>
             <div>
-              <h3 class="column__title">Voraussetzung</h3>
+              <h3 class="column__title">Vorkenntnisse</h3>
               <p class="column__body">
-                Grundverständnis der doppelten Buchführung hilft, ist aber keine Bedingung:
-                Fachbegriffe stehen hinter einem Erklärzeichen, und der Alltag läuft über den
-                Belegabgleich statt über freies Kontieren.
+                Hilfreich, aber keine Bedingung. Fachbegriffe stehen hinter einem Fragezeichen zum
+                Anklicken, und der Alltag läuft über den Belegabgleich.
               </p>
             </div>
           </div>
 
-          <div class="note note--attention" style="margin-top: 40px">
+          <div class="note note--attention" style="margin-top: 48px">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
             </svg>
             <div>
               <p class="note__title">Buchfink ist in Entwicklung und ersetzt keine Steuerberatung</p>
               <p class="note__body">
-                Das Projekt ist noch nicht bei Version 1. Wer es einsetzt, prüft die Ergebnisse
-                selbst und sichert seine Daten. Die fachlichen Entscheidungen — Kontierung,
-                Steuerfall, Jahresabschluss — bleiben beim Unternehmen und seiner Steuerberatung.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <section class="band">
-        <div class="wrap">
-          <p class="overline">Speicherung</p>
-          <h2 class="section__title">Was auf der Platte liegt</h2>
-          <p class="section__lead">
-            Eine SQLite-Datei je Geschäftsjahr, daneben die Belege in ihrer empfangenen Form. Beides
-            lässt sich mit gewöhnlichen Werkzeugen öffnen — auch ohne Buchfink, auch in zehn Jahren.
-          </p>
-
-          <div class="code">
-            <div class="code__head"><span>Ablage</span><span>SQLite &amp; Originaldateien</span></div>
-            <pre>buchfink-data/
-├── 2025.sqlite                       <span class="c"># abgeschlossen, schreibgeschützt</span>
-├── 2026.sqlite                       <span class="c"># Konfiguration, Konten, Journal, Audit-Log</span>
-└── belege/
-    └── 2026/
-        ├── <span class="p">ER-2026-0231-f38383.pdf</span>       <span class="c"># Original mit Hash-Präfix</span>
-        ├── <span class="p">ER-2026-0231-f38383.xml</span>       <span class="c"># der strukturierte Teil daraus</span>
-        └── …</pre>
-          </div>
-
-          <div class="columns">
-            <div>
-              <h3 class="column__title">Hash-Kette</h3>
-              <p class="column__body">
-                Jede Buchungszeile enthält den SHA-256-Hash der vorangehenden. Wer eine
-                abgeschlossene Periode nachträglich ändert, bricht die Kette an genau dieser Stelle
-                — und die Oberfläche zeigt, an welcher.
-              </p>
-            </div>
-            <div>
-              <h3 class="column__title">Trennung je Jahr</h3>
-              <p class="column__body">
-                Ein Geschäftsjahr ist eine Datei. Abgeschlossene Jahre werden eingefroren und
-                erscheinen in der Oberfläche als gesperrt, mit deaktivierten Aktionen an derselben
-                Stelle wie sonst.
-              </p>
-            </div>
-            <div>
-              <h3 class="column__title">Belegintegrität</h3>
-              <p class="column__body">
-                Originaldateien bleiben unverändert und werden inhaltsadressiert abgelegt. Passt
-                eine Datei nicht mehr zu ihrer Prüfsumme, sagt die Belegvorschau das, statt sie
-                stillschweigend anzuzeigen.
+                Das Projekt hat noch keine Version 1. Wer es einsetzt, prüft die Ergebnisse selbst
+                und sichert seine Daten. Die fachlichen Entscheidungen — Kontierung, Steuerfall,
+                Jahresabschluss — bleiben beim Unternehmen und seiner Steuerberatung.
               </p>
             </div>
           </div>
@@ -555,124 +734,101 @@
       <!-- ================================================================= -->
       <section class="band" id="technik">
         <div class="wrap">
-          <p class="overline">Technik</p>
-          <h2 class="section__title">Womit es gebaut ist</h2>
+          <p class="overline">Umfang</p>
+          <h2 class="section__title">Was drin ist — und was nicht</h2>
+          <p class="section__lead">
+            Ein Programm, das alles verspricht, kann nichts davon gut. Diese Liste sagt, wo die
+            Grenze verläuft.
+          </p>
 
           <div class="table-scroll">
             <table class="data">
               <thead>
                 <tr>
-                  <th scope="col">Schicht</th>
-                  <th scope="col">Technologie</th>
-                  <th scope="col">Wozu</th>
+                  <th scope="col">Nicht dabei</th>
+                  <th scope="col">Warum</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Desktop-Shell</td>
-                  <td><a href="https://v3.wails.io/">Wails v3</a></td>
-                  <td>Schlanke native WebView-Anwendung für macOS, Windows und Linux</td>
+                  <td>Einnahmen-Überschuss-Rechnung</td>
+                  <td>Buchfink baut vollständig auf der doppelten Buchführung auf.</td>
                 </tr>
                 <tr>
-                  <td>Backend</td>
-                  <td>Go</td>
-                  <td>Buchungslogik, Hash-Kette, Steuerrecht, XML- und XBRL-Erzeugung, Bankparser</td>
-                </tr>
-                <tr>
-                  <td>Datenbank</td>
-                  <td>SQLite, reines Go</td>
-                  <td>Eine Datei je Geschäftsjahr, ohne CGO und ohne Serverprozess</td>
-                </tr>
-                <tr>
-                  <td>Oberfläche</td>
-                  <td>React, TypeScript, Vite</td>
-                  <td>Reaktive Ansichten ohne schweres Design-System darüber</td>
-                </tr>
-                <tr>
-                  <td>Bausteine</td>
-                  <td><a href="https://base-ui.com">Base UI</a></td>
-                  <td>Fokusfang, Positionierung und Tastaturführung; die Gestalt kommt aus dem eigenen Tokenset</td>
-                </tr>
-                <tr>
-                  <td>Gestaltung</td>
-                  <td>Tailwind CSS, Lucide</td>
-                  <td>Tokens aus dem Design-Konzept, flach und warm statt gekachelt</td>
-                </tr>
-                <tr>
-                  <td>Dokumente</td>
-                  <td><a href="https://typst.app/">Typst</a></td>
-                  <td>Rechnungslayout und PDF/A-3 mit eingebettetem ZUGFeRD-XML</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3 class="section__title" style="font-size: 22px; margin-top: 56px">Bewusst nicht dabei</h3>
-          <div class="table-scroll">
-            <table class="data">
-              <thead>
-                <tr>
-                  <th scope="col">Thema</th>
-                  <th scope="col">Entscheidung</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>EÜR</td>
+                  <td>Direkte Übermittlung ans Finanzamt</td>
                   <td>
-                    Nicht unterstützt. Buchfink baut vollständig auf dem geschlossenen System der
-                    doppelten Buchführung auf.
-                  </td>
-                </tr>
-                <tr>
-                  <td>ERiC-Übermittlung</td>
-                  <td>
-                    Out of Scope: eine proprietäre C-Bibliothek gehört nicht in eine EUPL-lizenzierte
-                    Anwendung. Die erzeugte XBRL-Datei geht über Mein ELSTER oder eine Bridge.
+                    Dafür bräuchte es eine Bibliothek, die sich mit einer freien Lizenz nicht
+                    verträgt. Die erzeugte Datei geht über Mein ELSTER.
                   </td>
                 </tr>
                 <tr>
                   <td>Lohnbuchhaltung</td>
-                  <td>Nicht vorgesehen. Gehälter werden als Aufwand gebucht, nicht abgerechnet.</td>
+                  <td>Gehälter werden als Ausgabe gebucht, aber nicht abgerechnet.</td>
                 </tr>
                 <tr>
                   <td>Lager und Inventur</td>
                   <td>Nicht vorgesehen.</td>
                 </tr>
                 <tr>
-                  <td>Cloud-Abhängigkeiten</td>
+                  <td>Cloud-Funktionen</td>
                   <td>
-                    Ausgeschlossen. Was einen fremden Server braucht, kommt nicht hinein — außer den
-                    EZB-Referenzkursen, die abrufbar sind und protokolliert werden.
+                    Was einen fremden Server braucht, kommt nicht hinein. Damit fällt auch die
+                    Zusammenarbeit mehrerer Personen an derselben Datei weg.
                   </td>
                 </tr>
                 <tr>
-                  <td>Mehrsprachige Oberfläche</td>
-                  <td>Für v1 nicht geplant. Buchfink spricht Deutsch und rechnet nach deutschem Recht.</td>
+                  <td>Andere Sprachen als Deutsch</td>
+                  <td>Buchfink rechnet nach deutschem Recht und spricht Deutsch.</td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          <p class="section__lead" style="margin-top: 48px">
+            Technisch steht dahinter eine native Desktop-Anwendung: ein Programm in Go mit einer
+            Oberfläche aus React, die Daten in SQLite. Wer es genauer wissen will, findet die
+            Einzelheiten in der
+            <a href="https://github.com/mxzinke/buchfink#readme">README</a> und im
+            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/design-konzept.md"
+              >Design-Konzept</a
+            >.
+          </p>
         </div>
       </section>
 
       <!-- ================================================================= -->
-      <section class="band band--shell">
-        <div class="wrap">
-          <p class="overline" style="color: var(--shell-text-muted)">Loslegen</p>
-          <h2 class="section__title">Selbst bauen und ausprobieren</h2>
+      <section class="band band--shell" id="preis">
+        <div class="wrap wrap--wide">
+          <p class="overline" style="color: var(--shell-text-muted)">Preis</p>
+          <h2 class="section__title">Buchfink kostet nichts.</h2>
           <p class="section__lead">
-            Fertige Installationspakete gibt es noch nicht. Wer Go und Node.js installiert hat, ist
-            in wenigen Minuten durch — die Installationsseite führt Schritt für Schritt durch
-            Werkzeuge, Entwicklungsmodus und Desktop-Build.
+            Kein Kaufpreis, kein Abo, keine Testphase, die abläuft. Es gibt keine bezahlte Fassung
+            mit mehr Funktionen — es gibt nur diese eine.
           </p>
-          <div class="hero__actions">
-            <a class="btn btn--onshell" href="installation.html">Zur Installationsanleitung</a>
+
+          <div class="price">
+            <div>
+              <p class="price__figure">0 €</p>
+              <p class="price__note">
+                dauerhaft, für jede Firmengröße und jede Zahl von Geschäftsjahren
+              </p>
+            </div>
+            <ul class="price__list">
+              <li><span class="diamond"></span> <span><strong>Alle Funktionen</strong> — nichts ist hinter einer Bezahlschranke</span></li>
+              <li><span class="diamond"></span> <span><strong>Beliebig viele Mandanten</strong> und Geschäftsjahre</span></li>
+              <li><span class="diamond"></span> <span><strong>Keine Nutzerlizenzen</strong> — das Programm läuft auf Ihrem Rechner</span></li>
+              <li><span class="diamond"></span> <span><strong>Kein Konto, keine Registrierung</strong>, keine E-Mail-Adresse</span></li>
+              <li><span class="diamond"></span> <span><strong>Ihre Daten werden nicht verwertet</strong> — sie verlassen den Rechner nicht</span></li>
+            </ul>
+          </div>
+
+          <div class="hero__actions" style="margin-top: 48px">
+            <a class="btn btn--onshell" href="installation.html">Installieren</a>
             <a
               class="btn btn--secondary"
               style="background: transparent; color: var(--shell-text); border-color: var(--shell-line)"
-              href="https://github.com/mxzinke/buchfink"
-              >Quellcode auf GitHub</a
+              href="preis.html"
+              >Warum kostenlos?</a
             >
           </div>
         </div>
@@ -686,9 +842,18 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Open-Source-Buchhaltung für bilanzierende Unternehmen. Doppelte Buchführung nach
-              SKR04, GoBD-konform, local-first.
+              Kostenlose Buchhaltung für Unternehmen, die eine Bilanz aufstellen. Läuft auf dem
+              eigenen Rechner, erfüllt die GoBD, erzeugt die E-Bilanz.
             </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="installation.html">Installation</a></li>
+              <li><a href="preis.html">Preis</a></li>
+              <li><a href="#funktionen">Funktionen</a></li>
+              <li><a href="#abgrenzung">Für wen</a></li>
+            </ul>
           </div>
           <div>
             <p class="foot__title">Projekt</p>
@@ -696,25 +861,15 @@
               <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CLA.md">Vereinbarung über Beiträge</a></li>
-            </ul>
-          </div>
-          <div>
-            <p class="foot__title">Unterlagen</p>
-            <ul>
-              <li><a href="installation.html">Installation und Bauen</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/docs/design-konzept.md">Design-Konzept</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/blob/master/docs/security-concept.md">Sicherheitskonzept</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/blob/master/THIRD-PARTY-NOTICES.md">Drittkomponenten</a></li>
             </ul>
           </div>
           <div>
             <p class="foot__title">Lizenz</p>
             <p>
               <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
-              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt oder online
-              zugänglich macht, gibt sie unter derselben Lizenz weiter. Name und Logo sind von der
-              Lizenz nicht erfasst.
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
             </p>
           </div>
         </div>

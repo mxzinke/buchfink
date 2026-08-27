@@ -23,10 +23,10 @@
           Buchfink
         </a>
         <nav class="topnav" aria-label="Hauptnavigation">
-          <a href="index.html#grundsaetze">Grundsätze</a>
+          <a href="index.html#ablauf">So läuft es</a>
           <a href="index.html#funktionen">Funktionen</a>
           <a href="index.html#abgrenzung">Für wen</a>
-          <a href="index.html#technik">Technik</a>
+          <a href="preis.html">Preis</a>
           <a href="installation.html" aria-current="page">Installation</a>
           <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -50,13 +50,26 @@
           </h1>
           <p class="hero__lead">
             Fertige Installationspakete gibt es noch nicht — Buchfink ist in Entwicklung. Der Weg
-            führt deshalb über den Quellcode: Werkzeuge einrichten, klonen, starten. Auf einem
-            Rechner mit Go und Node.js dauert das ein paar Minuten.
+            führt deshalb über den Quellcode: Werkzeuge einrichten, herunterladen, starten. Auf
+            einem Rechner mit Go und Node.js dauert das ein paar Minuten.
           </p>
 
-          <div class="note note--attention" style="margin-top: 32px">
+          <div class="code" style="margin-top: 32px">
+            <div class="code__head"><span>Kurzfassung</span><span>wenn Go, Node.js und Wails schon da sind</span></div>
+            <pre>git clone https://github.com/mxzinke/buchfink.git
+cd buchfink
+npm --prefix frontend install
+wails3 dev -config ./build/config.yml -port 9245</pre>
+          </div>
+
+          <p class="step__body" style="margin-top: 24px">
+            Alles Weitere unten in Ruhe erklärt.
+          </p>
+
+          <div class="note note--attention" style="margin-top: 40px">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
             </svg>
             <div>
               <p class="note__title">Noch keine Version 1</p>
@@ -483,8 +496,8 @@ npm --prefix frontend run build</pre>
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Open-Source-Buchhaltung für bilanzierende Unternehmen. Doppelte Buchführung nach
-              SKR04, GoBD-konform, local-first.
+              Kostenlose Buchhaltung für Unternehmen, die eine Bilanz aufstellen. Läuft auf dem
+              eigenen Rechner, erfüllt die GoBD, erzeugt die E-Bilanz.
             </p>
           </div>
           <div>
@@ -497,11 +510,11 @@ npm --prefix frontend run build</pre>
             </ul>
           </div>
           <div>
-            <p class="foot__title">Unterlagen</p>
+            <p class="foot__title">Seiten</p>
             <ul>
               <li><a href="index.html">Übersicht</a></li>
+              <li><a href="preis.html">Preis</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/docs/design-konzept.md">Design-Konzept</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/blob/master/docs/security-concept.md">Sicherheitskonzept</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/THIRD-PARTY-NOTICES.md">Drittkomponenten</a></li>
             </ul>
           </div>
