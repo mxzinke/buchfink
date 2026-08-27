@@ -282,7 +282,7 @@ export const InvoicesPage: React.FC = () => {
               <div className="mb-3 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
                 <p className="text-body text-negative-text">
-                  Die Datei auf der Platte passt nicht mehr zu ihrer Prüfsumme.
+                  Die Datei im Datenspeicher passt nicht mehr zu ihrer Prüfsumme.
                 </p>
               </div>
             )}
