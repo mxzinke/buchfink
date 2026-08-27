@@ -8,6 +8,11 @@ name: Projektseite veröffentlichen
 #
 # Einmalige Einrichtung im Repository: Settings → Pages → Source auf
 # „GitHub Actions" stellen.
+#
+# Ohne Actions geht es auch: `task pages:publish` schiebt website/ als Wurzel
+# in den Zweig gh-pages, und Pages steht dann auf „Deploy from a branch".
+# Beides zugleich einzuschalten geht nicht — Pages kennt nur eine Quelle.
+# Siehe website/README.md.
 
 on:
   push:

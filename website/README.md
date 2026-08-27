@@ -19,15 +19,53 @@ website/
 
 ## Veröffentlichen
 
-`.github/workflows/pages.yml` lädt das Verzeichnis bei jedem Push auf `master`
-hoch, der `website/` berührt. Einmalig muss im Repository unter
-**Settings → Pages** als *Source* **GitHub Actions** eingestellt sein.
+Es gibt zwei Wege. Beide führen zu derselben Adresse
+`https://mxzinke.github.io/buchfink/`; die Wahl steht im Repository unter
+**Settings → Pages** als *Source*.
 
-Lokal ansehen genügt ein beliebiger statischer Server:
+### Mit Actions (eingerichtet)
+
+*Source: GitHub Actions.* `.github/workflows/pages.yml` lädt das Verzeichnis bei
+jedem Push auf `master` hoch, der `website/` berührt. Nichts weiter zu tun.
+
+### Ohne Actions
+
+*Source: Deploy from a branch → `gh-pages` → `/ (root)`.*
+
+Pages kann beim Ausliefern aus einem Zweig nur dessen Wurzel oder den Ordner
+`docs/` bedienen — ein beliebiges Unterverzeichnis wie `website/` geht nicht.
+`docs/` ist hier von den Fachkonzepten belegt, also bekommt die Seite einen
+eigenen Zweig, in dem `website/` die Wurzel ist:
 
 ```bash
-python3 -m http.server 8000 --directory website
+task pages:publish        # git subtree push --prefix website origin gh-pages
 ```
+
+Der Befehl muss nach jeder Änderung an der Seite laufen — das ist der Preis
+dafür, keinen Actions-Lauf zu brauchen. Weist der Push zurück, weil `gh-pages`
+auseinandergelaufen ist:
+
+```bash
+git push origin $(git subtree split --prefix website HEAD):gh-pages --force
+```
+
+Beim Ausliefern aus einem Zweig lässt GitHub standardmäßig Jekyll über die
+Dateien laufen. `website/.nojekyll` verhindert das und wandert beim
+`subtree push` mit in die Wurzel — deshalb muss die Datei bleiben, wo sie ist.
+
+### Lokal ansehen
+
+```bash
+task pages:preview        # http://127.0.0.1:8000
+```
+
+### Adresse
+
+`buchfink.github.io` steht nicht zur Verfügung: Eine solche Adresse gehört zum
+GitHub-Konto gleichen Namens, und das Konto `Buchfink` ist bereits vergeben.
+Was bleibt, ist die Projektadresse `mxzinke.github.io/buchfink/` — oder eine
+eigene Domain, die sich unter **Settings → Pages → Custom domain** eintragen
+lässt und dann als `CNAME`-Datei in diesem Verzeichnis landet.
 
 ## Gestaltung
 
