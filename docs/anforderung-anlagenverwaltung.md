@@ -79,6 +79,12 @@ Zugangsbuchung (Beispiel Pkw auf Ziel):
 Anzahlungen auf noch nicht gelieferte Anlagen und Anlagen im Bau laufen über **0700**
 Geleistete Anzahlungen und Anlagen im Bau und werden bei Fertigstellung umgebucht.
 
+Bei der Umbuchung geschehen zwei Dinge, und das zweite wird gern übersehen: das Konto
+wechselt, **und die Abschreibung beginnt** — ab der Betriebsbereitschaft, nicht rückwirkend
+zur ersten Anzahlung. Buchfink führt dafür ein eigenes Datum am Anlagegut. Im
+Anlagenspiegel steht die Umbuchung in einer eigenen Spalte: bei der abgebenden Position
+negativ, bei der aufnehmenden positiv, über alle Positionen zusammen null.
+
 ## 3. Planmäßige Abschreibung
 
 | Methode | Grundlage | Anmerkung |
@@ -149,6 +155,12 @@ Rechenergebnis ab und nicht nur von der Nutzereingabe.
 
 Verschrottung ohne Erlös: Restbuchwert direkt in den Aufwand.
 
+**Teilabgang.** Bei Finanzanlagen ist er der Normalfall: eine Tranche von Anteilen wird
+verkauft, eine Ausleihung wird getilgt. Dann gehen nur ein Teil der Anschaffungskosten und
+der entsprechende Anteil einer früheren außerplanmäßigen Abschreibung hinaus; der Rest
+bleibt im Bestand. Bei Sach- und immateriellen Anlagen ist der Teilabgang nicht vorgesehen
+— dort liefe ein Abschreibungsplan, der aufzuteilen wäre, und ein halber Pkw geht nicht ab.
+
 ## 6. Kopplung an die Festschreibung
 
 AfA ist eine Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall. Sie
@@ -210,8 +222,11 @@ Entschieden und umgesetzt:
   verlangt genau das.
 - **Finanzanlagen:** in v1 aufgenommen, mit eigenen Regeln — keine planmäßige
   AfA, gemildertes Niederstwertprinzip (§ 253 Abs. 3 Satz 6 HGB), Wertaufholung
-  nach § 253 Abs. 5 Satz 1 HGB und eigene Abgangskonten für Anteile, die
-  § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG unterliegen.
+  nach § 253 Abs. 5 Satz 1 HGB, Teilabgang für Tranchen und Tilgungen und eigene
+  Abgangskonten für Anteile, die § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG
+  unterliegen.
+- **Anlagen im Bau:** die Fertigstellung ist eine eigene Aktion. Sie bucht um,
+  setzt das Datum der Betriebsbereitschaft und startet damit die AfA.
 
 Noch offen:
 
@@ -228,11 +243,16 @@ Noch offen:
   (01.07.2025 bis 31.12.2027). Ältere degressive Zeiträume standen in früheren
   Fassungen derselben Vorschrift und sind nicht hinterlegt; ein Plan dafür wird
   abgelehnt statt geraten.
-- **Umbuchung von 0700 (Anlagen im Bau) auf das endgültige Anlagekonto:** die
-  Kartei kennt den Vorgang, hat aber keine eigene Aktion dafür.
 - **Erhaltungsaufwand:** Buchfink fragt die Abgrenzung zur Erweiterung, bucht den
   Erhaltungsaufwand aber nicht selbst — er läuft wie jeder andere Aufwand über den
   Beleg.
+- **Stückzahlen bei Wertpapieren:** der Teilabgang rechnet mit Beträgen, nicht mit
+  Stück. Für eine Tranche ist das genau, was die Buchhaltung braucht; wer nach
+  Stück verkauft, rechnet den Anteil der Anschaffungskosten selbst aus.
+- **Fremdwährung bei Finanzanlagen:** § 256a HGB ist nicht abgebildet. Ein
+  Wertpapier in Fremdwährung steht mit seinem Anschaffungskurs im Verzeichnis.
+- **Laufende Erträge** aus Beteiligungen und Wertpapieren laufen über den Beleg
+  und sind nicht mit dem Anlagegut verknüpft.
 
 ## 10. Abhängigkeiten
 

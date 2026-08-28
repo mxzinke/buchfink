@@ -34,6 +34,12 @@ type AssetAccount struct {
 	// Bau, und das gesamte Finanzanlagevermögen.
 	Depreciable bool `json:"depreciable"`
 
+	// InProgress marks the Sammelkonten, auf denen etwas liegt, das noch nicht
+	// fertig ist: Anlagen im Bau und geleistete Anzahlungen. Von ihnen wird mit
+	// der Fertigstellung auf das endgültige Anlagekonto umgebucht, und erst dann
+	// beginnt die Abschreibung.
+	InProgress bool `json:"inProgress,omitempty"`
+
 	// DefaultUsefulLifeMonths is a proposal, never a rule. Die AfA-Tabellen sind
 	// eine Verwaltungsanweisung; sie binden die Finanzverwaltung, nicht den
 	// Steuerpflichtigen. Eine begründete abweichende Nutzungsdauer ist zulässig,
@@ -65,7 +71,8 @@ var assetAccounts = []AssetAccount{
 			"hier ausgeschlossen: § 253 Abs. 5 Satz 2 HGB verbietet sie für den Geschäfts- oder Firmenwert."},
 	{Number: "0170", Name: "Geleistete Anzahlungen auf immaterielle Vermögensgegenstände",
 		Class: domain.AssetClassIntangible, Group: "Geleistete Anzahlungen", Depreciable: false,
-		Hint: "Bis zum Zugang des Rechts wird nicht abgeschrieben; danach wird umgebucht."},
+		InProgress: true,
+		Hint:       "Bis zum Zugang des Rechts wird nicht abgeschrieben; danach wird umgebucht."},
 
 	// --- Sachanlagen (§ 266 Abs. 2 A. II. HGB) ----------------------------
 	{Number: "0215", Name: "Unbebaute Grundstücke", Class: domain.AssetClassTangible,
@@ -126,9 +133,15 @@ var assetAccounts = []AssetAccount{
 		Group: "Geringwertige Wirtschaftsgüter", DepreciationAccount: "6264", Depreciable: true,
 		Hint: "Der Sammelposten eines Wirtschaftsjahres nach § 6 Abs. 2a EStG, aufzulösen mit je einem Fünftel."},
 	{Number: "0700", Name: "Geleistete Anzahlungen und Anlagen im Bau", Class: domain.AssetClassTangible,
-		Group: "Anlagen im Bau", Depreciable: false,
+		Group: "Anlagen im Bau", Depreciable: false, InProgress: true,
 		Hint: "Solange die Anlage nicht fertig ist, wird nicht abgeschrieben. Mit der Fertigstellung " +
 			"wird auf das endgültige Anlagekonto umgebucht und die AfA beginnt."},
+	{Number: "0710", Name: "Geschäfts-, Fabrik- und andere Bauten im Bau auf eigenen Grundstücken",
+		Class: domain.AssetClassTangible, Group: "Anlagen im Bau", Depreciable: false, InProgress: true},
+	{Number: "0770", Name: "Technische Anlagen und Maschinen im Bau", Class: domain.AssetClassTangible,
+		Group: "Anlagen im Bau", Depreciable: false, InProgress: true},
+	{Number: "0785", Name: "Andere Anlagen, Betriebs- und Geschäftsausstattung im Bau",
+		Class: domain.AssetClassTangible, Group: "Anlagen im Bau", Depreciable: false, InProgress: true},
 
 	// --- Finanzanlagen (§ 266 Abs. 2 A. III. HGB) --------------------------
 	{Number: "0800", Name: "Anteile an verbundenen Unternehmen", Class: domain.AssetClassFinancial,

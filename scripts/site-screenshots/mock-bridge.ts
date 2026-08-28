@@ -992,6 +992,8 @@ const ASSETS = [
     { identifier: 'DE000A2LQ5H0' }),
   asset(8, 'AN-2025-0008', 'ERP-Lizenz Warenwirtschaft', 'intangible', '0135', 'EDV-Software',
     '6200', '2025-07-01', c(12000), c(2000), 0, c(4000), 'linear', 36),
+  asset(9, 'AN-2026-0009', 'Fertigungslinie (im Bau)', 'tangible', '0700',
+    'Geleistete Anzahlungen und Anlagen im Bau', '', '2026-01-15', c(80000), 0, 0, 0, 'none', 0),
 ];
 
 const ASSET_ACCOUNTS = [
@@ -1003,6 +1005,7 @@ const ASSET_ACCOUNTS = [
   { number: '0670', name: 'Geringwertige Wirtschaftsgüter', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6260', depreciable: true },
   { number: '0675', name: 'Wirtschaftsgüter (Sammelposten)', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6264', depreciable: true },
   { number: '0215', name: 'Unbebaute Grundstücke', class: 'tangible', group: 'Grundstücke und Bauten', depreciable: false, hint: 'Grund und Boden nutzt sich nicht ab.' },
+  { number: '0700', name: 'Geleistete Anzahlungen und Anlagen im Bau', class: 'tangible', group: 'Anlagen im Bau', depreciable: false, inProgress: true, hint: 'Mit der Fertigstellung wird umgebucht, und die AfA beginnt.' },
   { number: '0850', name: 'Beteiligungen an Kapitalgesellschaften', class: 'financial', group: 'Anteile und Beteiligungen', depreciable: false },
   { number: '0920', name: 'Festverzinsliche Wertpapiere', class: 'financial', group: 'Wertpapiere', depreciable: false },
 ];
@@ -1061,10 +1064,12 @@ function spiegelRow(
     additions,
     disposals,
     costClosing,
+    transfers: 0,
     depreciationOpening,
     depreciationYear,
     writeUpsYear: 0,
     depreciationDisposal: 0,
+    depreciationTransfer: 0,
     depreciationClosing,
     bookValueOpening: costOpening - depreciationOpening,
     bookValueClosing: costClosing - depreciationClosing,
@@ -1091,6 +1096,7 @@ function sumSpiegel(rows: typeof SPIEGEL_ROWS, accountName: string, assetClass =
       additions: acc.additions + row.additions,
       disposals: acc.disposals + row.disposals,
       costClosing: acc.costClosing + row.costClosing,
+      transfers: acc.transfers + row.transfers,
       depreciationOpening: acc.depreciationOpening + row.depreciationOpening,
       depreciationYear: acc.depreciationYear + row.depreciationYear,
       depreciationClosing: acc.depreciationClosing + row.depreciationClosing,
@@ -1106,11 +1112,13 @@ function sumSpiegel(rows: typeof SPIEGEL_ROWS, accountName: string, assetClass =
       additions: 0,
       disposals: 0,
       costClosing: 0,
+      transfers: 0,
       depreciationOpening: 0,
       depreciationYear: 0,
       writeUpsYear: 0,
       depreciationDisposal: 0,
       depreciationClosing: 0,
+      depreciationTransfer: 0,
       bookValueOpening: 0,
       bookValueClosing: 0,
     },
@@ -1269,31 +1277,62 @@ function classifyAcquisition(netCost: number, selfUsable: boolean) {
 function disposalPreview(request: any) {
   const found = ASSETS.find((a) => a.id === request.assetId)!;
   const catchUp = found.dueAmount;
-  const bookValue = Math.max(found.bookValue - catchUp, 0);
+  const partial = (request.costShare ?? 0) > 0 && request.costShare < found.cost;
+  const costShare = partial ? request.costShare : found.cost;
+  const depreciationShare = partial
+    ? Math.round((found.accumulated * request.costShare) / found.cost)
+    : found.accumulated;
+  const bookValue = Math.max(costShare - depreciationShare - catchUp, 0);
   const proceeds = request.kind === 'scrapped' ? 0 : (request.proceeds ?? 0);
   const result = proceeds - bookValue;
   const isGain = result > 0;
   const tax =
     request.taxTreatment === 'domestic' ? Math.round((proceeds * (request.taxRate ?? 1900)) / 10000) : 0;
   const gross = proceeds + tax;
+  // Der SKR04 wählt nach Anlagenklasse *und* Ergebnis — beides bildet der Mock ab,
+  // sonst zeigen die Screenshots eine Kontierung, die es so nicht gibt.
+  const financial = found.class === 'financial';
   const accounts = isGain
-    ? { revenue: '4845', bookValue: '4855', explanation: 'Der Verkaufserlös liegt über dem Restbuchwert: es entsteht ein Buchgewinn. Der SKR04 führt Erlös und Restbuchwert dann unter den sonstigen betrieblichen Erträgen.' }
-    : { revenue: '6885', bookValue: '6895', explanation: 'Der Verkaufserlös liegt unter dem Restbuchwert: es entsteht ein Buchverlust. Derselbe Vorgang läuft im SKR04 dann über die sonstigen betrieblichen Aufwendungen.' };
+    ? {
+        revenue: financial ? '4851' : '4845',
+        bookValue: financial ? '4857' : '4855',
+        explanation:
+          'Der Verkaufserlös liegt über dem Restbuchwert: es entsteht ein Buchgewinn. Der SKR04 führt Erlös und Restbuchwert dann unter den sonstigen betrieblichen Erträgen.',
+      }
+    : {
+        revenue: financial ? '6891' : '6885',
+        bookValue: financial ? '6897' : '6895',
+        explanation:
+          'Der Verkaufserlös liegt unter dem Restbuchwert: es entsteht ein Buchverlust. Derselbe Vorgang läuft im SKR04 dann über die sonstigen betrieblichen Aufwendungen.',
+      };
 
   const lines: any[] = [];
   if (proceeds > 0) {
     lines.push({ id: 1, position: 1, side: 'S', account: request.paymentAccount ?? '1800', accountName: 'Bank', amount: gross });
-    lines.push({ id: 2, position: 2, side: 'H', account: accounts.revenue, accountName: isGain ? 'Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchgewinn)' : 'Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchverlust)', amount: proceeds });
+    lines.push({
+      id: 2, position: 2, side: 'H', account: accounts.revenue,
+      accountName: financial
+        ? `Erlöse aus Verkäufen Finanzanlagen (bei ${isGain ? 'Buchgewinn' : 'Buchverlust'})`
+        : `Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei ${isGain ? 'Buchgewinn' : 'Buchverlust'})`,
+      amount: proceeds,
+    });
     if (tax > 0) {
       lines.push({ id: 3, position: 3, side: 'H', account: '3806', accountName: 'Umsatzsteuer 19 %', amount: tax, taxKey: 'UST19', taxBase: proceeds });
     }
   }
   if (bookValue > 0) {
-    lines.push({ id: 4, position: 4, side: 'S', account: accounts.bookValue, accountName: 'Anlagenabgänge Sachanlagen', amount: bookValue });
+    lines.push({
+      id: 4, position: 4, side: 'S', account: accounts.bookValue,
+      accountName: financial ? 'Anlagenabgänge Finanzanlagen' : 'Anlagenabgänge Sachanlagen',
+      amount: bookValue,
+    });
     lines.push({ id: 5, position: 5, side: 'H', account: found.account, accountName: found.accountName, amount: bookValue });
   }
 
   return {
+    partial,
+    costShare,
+    depreciationShare,
     catchUpAmount: catchUp,
     catchUpLines: catchUp > 0
       ? [
@@ -1485,6 +1524,7 @@ export const bridge = {
   BookDepreciationRun: unsupported('BookDepreciationRun'),
   BookAssetImpairment: unsupported('BookAssetImpairment'),
   BookAssetWriteUp: unsupported('BookAssetWriteUp'),
+  TransferFixedAsset: unsupported('TransferFixedAsset'),
   PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
   DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),

@@ -177,10 +177,17 @@ type WriteUpRequest struct {
 
 // DisposalRequest is the Abgang of an Anlagegut.
 type DisposalRequest struct {
-	AssetID      uint                `json:"assetId"`
-	Date         string              `json:"date"`
-	Kind         domain.DisposalKind `json:"kind"`
-	Proceeds     domain.Cents        `json:"proceeds"` // netto
+	AssetID  uint                `json:"assetId"`
+	Date     string              `json:"date"`
+	Kind     domain.DisposalKind `json:"kind"`
+	Proceeds domain.Cents        `json:"proceeds"` // netto
+	// CostShare ist der Teil der Anschaffungskosten, der abgeht. Null heißt: alles.
+	//
+	// Bei Finanzanlagen ist der Teilabgang der Normalfall — eine Tranche von
+	// Anteilen wird verkauft, eine Ausleihung wird getilgt. Der Rest bleibt im
+	// Bestand, und mit ihm der entsprechende Teil einer früheren außerplanmäßigen
+	// Abschreibung.
+	CostShare    domain.Cents        `json:"costShare,omitempty"`
 	TaxTreatment domain.TaxTreatment `json:"taxTreatment"`
 	TaxRate      domain.TaxRate      `json:"taxRate"`
 	// Settlement says whether the Erlös lands on a Zahlungsmittelkonto or stays
@@ -193,16 +200,21 @@ type DisposalRequest struct {
 
 // DisposalPreview is what an Abgang would look like before it is written.
 type DisposalPreview struct {
-	CatchUpAmount domain.Cents                `json:"catchUpAmount"`
-	CatchUpLines  []domain.JournalLine        `json:"catchUpLines,omitempty"`
-	BookValue     domain.Cents                `json:"bookValue"`
-	Result        domain.Cents                `json:"result"` // Buchgewinn (+) oder Buchverlust (−)
-	IsGain        bool                        `json:"isGain"`
-	Accounts      accounting.DisposalAccounts `json:"accounts"`
-	Lines         []domain.JournalLine        `json:"lines"`
-	Gross         domain.Cents                `json:"gross"`
-	Tax           domain.Cents                `json:"tax"`
-	Warnings      []string                    `json:"warnings,omitempty"`
+	CatchUpAmount domain.Cents         `json:"catchUpAmount"`
+	CatchUpLines  []domain.JournalLine `json:"catchUpLines,omitempty"`
+	// Partial sagt, ob nur ein Teil abgeht; CostShare und DepreciationShare sind
+	// die Beträge, die dabei die Bücher verlassen.
+	Partial           bool                        `json:"partial"`
+	CostShare         domain.Cents                `json:"costShare"`
+	DepreciationShare domain.Cents                `json:"depreciationShare"`
+	BookValue         domain.Cents                `json:"bookValue"`
+	Result            domain.Cents                `json:"result"` // Buchgewinn (+) oder Buchverlust (−)
+	IsGain            bool                        `json:"isGain"`
+	Accounts          accounting.DisposalAccounts `json:"accounts"`
+	Lines             []domain.JournalLine        `json:"lines"`
+	Gross             domain.Cents                `json:"gross"`
+	Tax               domain.Cents                `json:"tax"`
+	Warnings          []string                    `json:"warnings,omitempty"`
 }
 
 // DisposalResult reports the bookings an Abgang produced.
@@ -551,6 +563,7 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	movement := &domain.AssetMovement{
 		AssetID:        asset.ID,
 		Kind:           domain.AssetMovementAcquisition,
+		Account:        asset.Account,
 		Date:           asset.AcquisitionDate,
 		FiscalYear:     domain.GetFiscalYearForDate(asset.AcquisitionDate, s.fiscalYearStartMonth(ctx)),
 		CostAmount:     asset.AcquisitionCost,
@@ -647,6 +660,7 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 	movement := &domain.AssetMovement{
 		AssetID:             asset.ID,
 		Kind:                domain.AssetMovementSubsequentCost,
+		Account:             asset.Account,
 		Date:                date,
 		FiscalYear:          domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)),
 		CostAmount:          req.Amount,
@@ -876,6 +890,7 @@ func (s *AssetService) postDepreciation(
 	movement := &domain.AssetMovement{
 		AssetID:            asset.ID,
 		Kind:               domain.AssetMovementDepreciation,
+		Account:            asset.Account,
 		Date:               bookingDate,
 		FiscalYear:         fiscalYear,
 		DepreciationAmount: amount,
@@ -973,6 +988,7 @@ func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest
 	movement := &domain.AssetMovement{
 		AssetID:            asset.ID,
 		Kind:               domain.AssetMovementImpairment,
+		Account:            asset.Account,
 		Date:               req.Date,
 		FiscalYear:         domain.GetFiscalYearForDate(req.Date, startMonth),
 		DepreciationAmount: req.Amount,
@@ -1053,6 +1069,7 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 	movement := &domain.AssetMovement{
 		AssetID:            asset.ID,
 		Kind:               domain.AssetMovementWriteUp,
+		Account:            asset.Account,
 		Date:               req.Date,
 		FiscalYear:         fiscalYear,
 		DepreciationAmount: -req.Amount,
@@ -1093,6 +1110,139 @@ func (s *AssetService) writeUpCeiling(
 		return 0, nil
 	}
 	return ceiling, nil
+}
+
+// -------------------------------------------------------------------------
+// Umbuchung (Fertigstellung)
+// -------------------------------------------------------------------------
+
+// TransferRequest bucht eine Anlage im Bau auf ihr endgültiges Anlagekonto um.
+type TransferRequest struct {
+	AssetID uint   `json:"assetId"`
+	Date    string `json:"date"`
+	// Account ist das Zielkonto, DepreciationAccount das Aufwandskonto, das ab
+	// jetzt die Abschreibung trägt.
+	Account             string                    `json:"account"`
+	DepreciationAccount string                    `json:"depreciationAccount,omitempty"`
+	Method              domain.DepreciationMethod `json:"method"`
+	UsefulLifeMonths    int                       `json:"usefulLifeMonths"`
+	Note                string                    `json:"note,omitempty"`
+}
+
+// Transfer books the Fertigstellung: was als Anlage im Bau auf 0700 lag, wandert
+// auf sein endgültiges Konto.
+//
+// Zwei Dinge geschehen dabei, und das zweite wird gern übersehen: das Konto
+// wechselt, **und die Abschreibung beginnt** — nicht rückwirkend zur ersten
+// Anzahlung, sondern ab der Betriebsbereitschaft (§ 7 Abs. 1 Satz 4 EStG). Bis
+// dahin wurde nichts abgeschrieben, und das war richtig: was nicht fertig ist,
+// nutzt sich nicht ab.
+func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*domain.FixedAsset, error) {
+	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
+	}
+	if asset.IsDisposed() {
+		return nil, fmt.Errorf("%s ist bereits abgegangen", asset.InventoryNumber)
+	}
+	if len(req.Date) != 10 {
+		return nil, fmt.Errorf("das Datum der Fertigstellung fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if req.Date < asset.AcquisitionDate {
+		return nil, fmt.Errorf("die Fertigstellung am %s läge vor dem Zugang am %s",
+			req.Date, asset.AcquisitionDate)
+	}
+	if req.Account == "" || req.Account == asset.Account {
+		return nil, fmt.Errorf("für die Umbuchung fehlt ein anderes Zielkonto als %s", asset.Account)
+	}
+
+	// Umgebucht wird von den Sammelkonten der noch nicht fertigen Anlagen. Ein
+	// Kontowechsel an einem laufenden Anlagegut ist keine Umbuchung, sondern eine
+	// Korrektur — und die gehört in die Stammdaten, solange nichts gebucht ist.
+	source, known := accounting.LookupAssetAccount(asset.Account)
+	if !known || !source.InProgress {
+		return nil, fmt.Errorf(
+			"%s steht auf Konto %s und ist keine Anlage im Bau. Umgebucht wird von den "+
+				"Konten der geleisteten Anzahlungen und Anlagen im Bau; ein anderes Konto änderst du "+
+				"in den Stammdaten, solange noch nichts gebucht ist",
+			asset.InventoryNumber, asset.Account)
+	}
+
+	target := *asset
+	target.Account = req.Account
+	target.DepreciationAccount = req.DepreciationAccount
+	target.Method = req.Method
+	target.UsefulLifeMonths = req.UsefulLifeMonths
+	target.InServiceDate = req.Date
+	if err := target.Validate(); err != nil {
+		return nil, err
+	}
+	if err := s.validateAccounts(ctx, &target); err != nil {
+		return nil, err
+	}
+
+	startMonth := s.fiscalYearStartMonth(ctx)
+	fiscalYear := domain.GetFiscalYearForDate(req.Date, startMonth)
+	s.enrich(asset, fiscalYear, startMonth)
+	if asset.Cost <= 0 {
+		return nil, fmt.Errorf("auf %s liegen keine Anschaffungskosten, die umzubuchen wären",
+			asset.InventoryNumber)
+	}
+
+	entry := &domain.JournalEntry{
+		BookingDate:        req.Date,
+		DocumentDate:       req.Date,
+		ServiceDateFrom:    req.Date,
+		ServiceDateTo:      req.Date,
+		Description:        fmt.Sprintf("Fertigstellung %s (%s)", asset.Name, asset.InventoryNumber),
+		Source:             domain.EntrySourceManual,
+		DocumentNumber:     asset.InventoryNumber,
+		PostingRuleVersion: accounting.PostingRuleVersion,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: req.Account, Amount: asset.BookValue,
+				Text: "Umbuchung " + asset.InventoryNumber},
+			{Side: domain.SideCredit, Account: asset.Account, Amount: asset.BookValue,
+				Text: "Umbuchung " + asset.InventoryNumber},
+		},
+	}
+	created, err := s.journalSvc.Post(ctx, entry)
+	if err != nil {
+		return nil, err
+	}
+
+	// Zwei Bewegungen, nicht eine: der Anlagenspiegel weist die abgebende und die
+	// aufnehmende Position getrennt aus, und über beide summiert sich die
+	// Umbuchung zu null.
+	out := &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementTransfer, Account: asset.Account,
+		Date: req.Date, FiscalYear: fiscalYear,
+		CostAmount: -asset.Cost, DepreciationAmount: -asset.Accumulated,
+		JournalEntryID: &created.ID,
+		Note:           fmt.Sprintf("Umbuchung auf %s", req.Account),
+	}
+	in := &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementTransfer, Account: req.Account,
+		Date: req.Date, FiscalYear: fiscalYear,
+		CostAmount: asset.Cost, DepreciationAmount: asset.Accumulated,
+		JournalEntryID: &created.ID,
+		Note:           req.Note,
+	}
+	for _, m := range []*domain.AssetMovement{out, in} {
+		if err := s.assetRepo.AddMovement(ctx, m); err != nil {
+			return nil, fmt.Errorf(
+				"die Buchung %s wurde geschrieben, die Umbuchung im Verzeichnis aber nicht: %w",
+				created.EntryNumber, err)
+		}
+	}
+
+	if err := s.assetRepo.Save(ctx, &target); err != nil {
+		return nil, fmt.Errorf("die Fertigstellung konnte nicht gespeichert werden: %w", err)
+	}
+	s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+		"Fertigstellung %s am %s: %s € von %s auf %s umgebucht, AfA beginnt",
+		asset.InventoryNumber, req.Date, asset.BookValue, asset.Account, req.Account))
+
+	return s.reload(ctx, asset.ID)
 }
 
 // -------------------------------------------------------------------------
@@ -1182,14 +1332,25 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	}
 	s.enrich(fresh, fiscalYear, startMonth)
 
+	// Die Anteile werden am frischen Stand gerechnet, nicht an dem der Vorschau:
+	// zwischen beiden liegt die eben gebuchte AfA bis zum Abgangsmonat, und die
+	// muss mit hinaus.
+	costShare, depreciationShare := fresh.Cost, fresh.Accumulated
+	note := req.Note
+	if preview.Partial {
+		costShare = req.CostShare
+		depreciationShare = domain.MulRound(fresh.Accumulated, int64(costShare), int64(fresh.Cost))
+		note = strings.TrimSpace(fmt.Sprintf("Teilabgang: %s €. %s", costShare, req.Note))
+	}
 	movement := &domain.AssetMovement{
 		AssetID:            fresh.ID,
 		Kind:               domain.AssetMovementDisposal,
+		Account:            fresh.Account,
 		Date:               req.Date,
 		FiscalYear:         fiscalYear,
-		CostAmount:         -fresh.Cost,
-		DepreciationAmount: -fresh.Accumulated,
-		Note:               req.Note,
+		CostAmount:         -costShare,
+		DepreciationAmount: -depreciationShare,
+		Note:               note,
 	}
 	if result.DisposalEntry != nil {
 		movement.JournalEntryID = &result.DisposalEntry.ID
@@ -1198,14 +1359,19 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		return nil, fmt.Errorf("die Abgangsbewegung konnte nicht gespeichert werden: %w", err)
 	}
 
-	fresh.DisposalDate = req.Date
-	fresh.DisposalKind = req.Kind
-	fresh.DisposalProceeds = req.Proceeds
-	if result.DisposalEntry != nil {
-		fresh.DisposalEntryID = &result.DisposalEntry.ID
-	}
-	if err := s.assetRepo.Save(ctx, fresh); err != nil {
-		return nil, fmt.Errorf("der Abgang konnte nicht gespeichert werden: %w", err)
+	// Nur der Vollabgang schließt das Anlagegut ab. Bei einem Teilabgang bleibt
+	// es im Bestand — mit dem Rest seiner Anschaffungskosten und dem Rest einer
+	// früheren außerplanmäßigen Abschreibung.
+	if !preview.Partial {
+		fresh.DisposalDate = req.Date
+		fresh.DisposalKind = req.Kind
+		fresh.DisposalProceeds = req.Proceeds
+		if result.DisposalEntry != nil {
+			fresh.DisposalEntryID = &result.DisposalEntry.ID
+		}
+		if err := s.assetRepo.Save(ctx, fresh); err != nil {
+			return nil, fmt.Errorf("der Abgang konnte nicht gespeichert werden: %w", err)
+		}
 	}
 
 	reloaded, err := s.reload(ctx, fresh.ID)
@@ -1213,13 +1379,17 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		return nil, err
 	}
 	result.Asset = *reloaded
+	label := "Abgang"
+	if preview.Partial {
+		label = "Teilabgang"
+	}
 	switch {
 	case preview.Result > 0:
-		result.Message = fmt.Sprintf("Abgang gebucht. Buchgewinn %s €.", preview.Result)
+		result.Message = fmt.Sprintf("%s gebucht. Buchgewinn %s €.", label, preview.Result)
 	case preview.Result < 0:
-		result.Message = fmt.Sprintf("Abgang gebucht. Buchverlust %s €.", -preview.Result)
+		result.Message = fmt.Sprintf("%s gebucht. Buchverlust %s €.", label, -preview.Result)
 	default:
-		result.Message = "Abgang gebucht. Weder Buchgewinn noch Buchverlust."
+		result.Message = fmt.Sprintf("%s gebucht. Weder Buchgewinn noch Buchverlust.", label)
 	}
 
 	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
@@ -1256,6 +1426,14 @@ func (s *AssetService) buildDisposal(
 			"ein Sammelposten geht nicht ab. Scheidet ein einzelnes Wirtschaftsgut aus dem " +
 				"Betriebsvermögen aus, wird der Sammelposten nicht vermindert (§ 6 Abs. 2a Satz 4 EStG) — " +
 				"er löst sich weiter mit einem Fünftel je Jahr auf")
+	}
+	if req.CostShare > 0 && asset.Class != domain.AssetClassFinancial {
+		// Ein halber Pkw geht nicht ab. Wo ein Abschreibungsplan läuft, müsste ein
+		// Teilabgang ihn aufteilen — das ist bei Sach- und immateriellen Anlagen
+		// die Ausnahme und hier bewusst nicht abgebildet.
+		return nil, nil, nil, fmt.Errorf(
+			"ein Teilabgang ist nur bei Finanzanlagen vorgesehen. %s geht ganz ab oder gar nicht",
+			asset.InventoryNumber)
 	}
 
 	startMonth := s.fiscalYearStartMonth(ctx)
@@ -1299,7 +1477,24 @@ func (s *AssetService) buildDisposal(
 	preview.CatchUpLines = s.named(ctx, catchUpLines)
 
 	s.enrich(asset, fiscalYear, startMonth)
-	preview.BookValue = asset.BookValue - preview.CatchUpAmount
+
+	// Beim Teilabgang wandern die Anschaffungskosten und die darauf entfallende
+	// Abschreibung im selben Verhältnis hinaus.
+	preview.CostShare = asset.Cost
+	preview.DepreciationShare = asset.Accumulated
+	preview.Partial = req.CostShare > 0 && req.CostShare < asset.Cost
+	if req.CostShare > asset.Cost {
+		return nil, nil, nil, fmt.Errorf(
+			"%s trägt nur %s € Anschaffungskosten; mehr kann nicht abgehen",
+			asset.InventoryNumber, asset.Cost)
+	}
+	if preview.Partial {
+		preview.CostShare = req.CostShare
+		preview.DepreciationShare = domain.MulRound(
+			asset.Accumulated, int64(req.CostShare), int64(asset.Cost))
+	}
+
+	preview.BookValue = preview.CostShare - preview.DepreciationShare - preview.CatchUpAmount
 	if preview.BookValue < 0 {
 		preview.BookValue = 0
 	}
@@ -1430,25 +1625,38 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 	byAccount := map[string]*domain.AnlagenspiegelRow{}
 	order := []string{}
 
+	// Gruppiert wird nach dem Konto der Bewegung, nicht nach dem heutigen Konto
+	// des Anlageguts. Nach einer Fertigstellung stehen beide nicht mehr überein:
+	// die Zugänge von damals gehören weiter zu der Anlage im Bau, sonst
+	// verschöbe eine Umbuchung rückwirkend die Vorjahre.
+	rowFor := func(account string, class domain.AssetClass) *domain.AnlagenspiegelRow {
+		row, ok := byAccount[account]
+		if ok {
+			return row
+		}
+		name := account
+		if entry, found := accounting.LookupAssetAccount(account); found {
+			name = entry.Name
+		} else if chart != nil {
+			name = chart.Name(account)
+		}
+		row = &domain.AnlagenspiegelRow{Class: class, Account: account, AccountName: name}
+		byAccount[account] = row
+		order = append(order, account)
+		return row
+	}
+
 	for i := range assets {
 		asset := &assets[i]
-		row, ok := byAccount[asset.Account]
-		if !ok {
-			name := asset.Account
-			if entry, found := accounting.LookupAssetAccount(asset.Account); found {
-				name = entry.Name
-			} else if chart != nil {
-				name = chart.Name(asset.Account)
-			}
-			row = &domain.AnlagenspiegelRow{
-				Class: asset.Class, Account: asset.Account, AccountName: name,
-			}
-			byAccount[asset.Account] = row
-			order = append(order, asset.Account)
-		}
-		row.AssetCount++
+		rowFor(asset.Account, asset.Class).AssetCount++
 
 		for _, m := range asset.Movements {
+			account := m.Account
+			if account == "" {
+				account = asset.Account
+			}
+			row := rowFor(account, asset.Class)
+
 			switch {
 			case m.FiscalYear < year:
 				row.CostOpening += m.CostAmount
@@ -1458,6 +1666,9 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 				case domain.AssetMovementDisposal:
 					row.Disposals += -m.CostAmount
 					row.DepreciationDisposal += -m.DepreciationAmount
+				case domain.AssetMovementTransfer:
+					row.Transfers += m.CostAmount
+					row.DepreciationTransfer += m.DepreciationAmount
 				case domain.AssetMovementWriteUp:
 					row.WriteUpsYear += -m.DepreciationAmount
 				case domain.AssetMovementDepreciation, domain.AssetMovementImpairment:
@@ -1474,9 +1685,9 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 
 	for _, account := range order {
 		row := byAccount[account]
-		row.CostClosing = row.CostOpening + row.Additions - row.Disposals
+		row.CostClosing = row.CostOpening + row.Additions - row.Disposals + row.Transfers
 		row.DepreciationClosing = row.DepreciationOpening + row.DepreciationYear -
-			row.WriteUpsYear - row.DepreciationDisposal
+			row.WriteUpsYear - row.DepreciationDisposal + row.DepreciationTransfer
 		row.BookValueOpening = row.CostOpening - row.DepreciationOpening
 		row.BookValueClosing = row.CostClosing - row.DepreciationClosing
 		spiegel.Rows = append(spiegel.Rows, *row)
@@ -1511,11 +1722,13 @@ func addRow(into *domain.AnlagenspiegelRow, from *domain.AnlagenspiegelRow) {
 	into.CostOpening += from.CostOpening
 	into.Additions += from.Additions
 	into.Disposals += from.Disposals
+	into.Transfers += from.Transfers
 	into.CostClosing += from.CostClosing
 	into.DepreciationOpening += from.DepreciationOpening
 	into.DepreciationYear += from.DepreciationYear
 	into.WriteUpsYear += from.WriteUpsYear
 	into.DepreciationDisposal += from.DepreciationDisposal
+	into.DepreciationTransfer += from.DepreciationTransfer
 	into.DepreciationClosing += from.DepreciationClosing
 	into.BookValueOpening += from.BookValueOpening
 	into.BookValueClosing += from.BookValueClosing
@@ -1635,7 +1848,9 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 // planFor turns an asset into the input of the AfA computation.
 func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
 	plan := accounting.AfAPlan{
-		AcquisitionDate:      asset.AcquisitionDate,
+		// Abgeschrieben wird ab der Betriebsbereitschaft. Bei einer Anlage im Bau
+		// liegt zwischen der ersten Anzahlung und ihr oft ein Jahr.
+		AcquisitionDate:      asset.DepreciationStart(),
 		UsefulLifeMonths:     asset.UsefulLifeMonths,
 		Method:               asset.Method,
 		FiscalYearStartMonth: startMonth,
@@ -1711,6 +1926,7 @@ func (s *AssetService) syncImmediateWriteOff(
 	writeOff := &domain.AssetMovement{
 		AssetID:            asset.ID,
 		Kind:               domain.AssetMovementDepreciation,
+		Account:            asset.Account,
 		Date:               asset.AcquisitionDate,
 		FiscalYear:         domain.GetFiscalYearForDate(asset.AcquisitionDate, s.fiscalYearStartMonth(ctx)),
 		DepreciationAmount: asset.AcquisitionCost,

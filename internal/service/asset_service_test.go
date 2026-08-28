@@ -917,3 +917,219 @@ func TestAdditionsRespectPoolYearAndGWGLimit(t *testing.T) {
 		t.Error("zusammen über der GWG-Grenze war der Sofortabzug nie zulässig")
 	}
 }
+
+// Die Fertigstellung bucht um und lässt erst dann die Abschreibung beginnen.
+func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	aib, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Fertigungslinie", Class: domain.AssetClassTangible, Account: "0700",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 6_000_000,
+		Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Anlage im Bau: %v", err)
+	}
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: aib.ID, Date: "2026-04-01", Amount: 2_000_000, Note: "zweite Rate",
+	}); err != nil {
+		t.Fatalf("weitere Anzahlung: %v", err)
+	}
+
+	// Solange sie nicht fertig ist, wird nichts abgeschrieben.
+	run, err := svc.Run(ctx)
+	if err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+	if len(run.Due) != 0 {
+		t.Errorf("eine Anlage im Bau wird nicht abgeschrieben: %+v", run.Due)
+	}
+
+	done, err := svc.Transfer(ctx, TransferRequest{
+		AssetID: aib.ID, Date: "2026-07-01", Account: "0440",
+		DepreciationAccount: "6220", Method: domain.DepreciationLinear,
+		UsefulLifeMonths: 96, Note: "Abnahme erfolgt",
+	})
+	if err != nil {
+		t.Fatalf("Fertigstellung: %v", err)
+	}
+	if done.Account != "0440" || done.InServiceDate != "2026-07-01" {
+		t.Errorf("nach der Umbuchung: Konto %s, betriebsbereit am %s", done.Account, done.InServiceDate)
+	}
+	if done.Cost != 8_000_000 || done.BookValue != 8_000_000 {
+		t.Errorf("AHK %s €, Buchwert %s € — die Umbuchung ändert den Wert nicht",
+			done.Cost, done.BookValue)
+	}
+
+	// Die AfA läuft ab der Betriebsbereitschaft, nicht ab der ersten Anzahlung:
+	// sechs Monate von 96, also die Hälfte eines Jahresbetrags von 1.000.000.
+	run, err = svc.Run(ctx)
+	if err != nil {
+		t.Fatalf("Abschreibungslauf nach der Fertigstellung: %v", err)
+	}
+	if len(run.Due) != 1 || run.Due[0].Due != 500_000 || run.Due[0].Months != 6 {
+		t.Fatalf("fällige AfA %+v — erwartet 5.000,00 € für sechs Monate", run.Due)
+	}
+
+	// Der Anlagenspiegel zeigt beide Positionen: 0700 gibt ab, 0440 nimmt auf.
+	spiegel, err := svc.Anlagenspiegel(ctx)
+	if err != nil {
+		t.Fatalf("Anlagenspiegel: %v", err)
+	}
+	var out, in *domain.AnlagenspiegelRow
+	for i := range spiegel.Rows {
+		switch spiegel.Rows[i].Account {
+		case "0700":
+			out = &spiegel.Rows[i]
+		case "0440":
+			in = &spiegel.Rows[i]
+		}
+	}
+	if out == nil || in == nil {
+		t.Fatalf("erwartet je eine Zeile für 0700 und 0440, bekommen %+v", spiegel.Rows)
+	}
+	if out.Additions != 8_000_000 || out.Transfers != -8_000_000 || out.CostClosing != 0 {
+		t.Errorf("Anlage im Bau: Zugänge %s €, Umbuchungen %s €, Ende %s €",
+			out.Additions, out.Transfers, out.CostClosing)
+	}
+	if in.Transfers != 8_000_000 || in.CostClosing != 8_000_000 {
+		t.Errorf("Maschinen: Umbuchungen %s €, Ende %s €", in.Transfers, in.CostClosing)
+	}
+	if spiegel.Totals.Transfers != 0 {
+		t.Errorf("über alle Positionen summieren sich Umbuchungen zu null, hier %s €",
+			spiegel.Totals.Transfers)
+	}
+}
+
+// Umgebucht wird von den Konten der Anlagen im Bau — ein Kontowechsel an einer
+// laufenden Anlage ist eine Korrektur und keine Fertigstellung.
+func TestTransferOnlyFromConstructionAccounts(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	machine := env.machine(t, svc)
+
+	if _, err := svc.Transfer(ctx, TransferRequest{
+		AssetID: machine.ID, Date: "2026-07-01", Account: "0630",
+		DepreciationAccount: "6220", Method: domain.DepreciationLinear, UsefulLifeMonths: 48,
+	}); err == nil {
+		t.Fatal("von einem laufenden Anlagekonto wird nicht umgebucht")
+	}
+}
+
+// Der Teilabgang ist bei Finanzanlagen der Normalfall: eine Tranche wird
+// verkauft, der Rest bleibt im Bestand.
+func TestPartialDisposalOfAFinancialAsset(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	share, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anleihe 2031", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 2_500_000,
+		Method: domain.DepreciationNone, Identifier: "DE000A2LQ5H0",
+	})
+	if err != nil {
+		t.Fatalf("Finanzanlage: %v", err)
+	}
+
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: share.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 1_100_000, CostShare: 1_000_000,
+		TaxTreatment: domain.TaxTreatmentExempt,
+		Settlement:   SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if !preview.Partial || preview.BookValue != 1_000_000 || preview.Result != 100_000 {
+		t.Fatalf("Vorschau %+v — erwartet Teilabgang, Restbuchwert 10.000 €, Gewinn 1.000 €", preview)
+	}
+	if preview.Accounts.Revenue != "4851" || preview.Accounts.BookValue != "4857" {
+		t.Errorf("Konten %+v — erwartet 4851 und 4857 bei Buchgewinn einer Finanzanlage",
+			preview.Accounts)
+	}
+
+	result, err := svc.Dispose(ctx, DisposalRequest{
+		AssetID: share.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 1_100_000, CostShare: 1_000_000,
+		TaxTreatment: domain.TaxTreatmentExempt,
+		Settlement:   SettlementPaid, PaymentAccount: "1800", Note: "40 von 100 Stück",
+	})
+	if err != nil {
+		t.Fatalf("Teilabgang: %v", err)
+	}
+	if result.Asset.IsDisposed() {
+		t.Error("nach einem Teilabgang bleibt das Anlagegut im Bestand")
+	}
+	if result.Asset.Cost != 1_500_000 || result.Asset.BookValue != 1_500_000 {
+		t.Errorf("Rest: AHK %s €, Buchwert %s € — erwartet je 15.000,00 €",
+			result.Asset.Cost, result.Asset.BookValue)
+	}
+
+	// Ein zweiter Teilabgang über den Rest hinaus geht nicht.
+	if _, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: share.ID, Date: "2026-10-30", Kind: domain.DisposalSale,
+		Proceeds: 100, CostShare: 2_000_000, TaxTreatment: domain.TaxTreatmentExempt,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	}); err == nil {
+		t.Error("mehr als der Rest kann nicht abgehen")
+	}
+}
+
+// Eine außerplanmäßige Abschreibung wandert beim Teilabgang anteilig mit hinaus.
+func TestPartialDisposalCarriesItsShareOfTheImpairment(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	share, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Beteiligung Süd GmbH", Class: domain.AssetClassFinancial, Account: "0850",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 4_000_000,
+		Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Finanzanlage: %v", err)
+	}
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+		AssetID: share.ID, Date: "2026-06-30", Amount: 800_000,
+		Permanent: true, Reason: "Dauerhafter Wertverlust",
+	}); err != nil {
+		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
+	}
+
+	// Ein Viertel geht ab: 10.000 € AHK und 2.000 € der Abschreibung.
+	result, err := svc.Dispose(ctx, DisposalRequest{
+		AssetID: share.ID, Date: "2026-11-30", Kind: domain.DisposalSale,
+		Proceeds: 900_000, CostShare: 1_000_000, TaxTreatment: domain.TaxTreatmentExempt,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Teilabgang: %v", err)
+	}
+	if result.Asset.Cost != 3_000_000 || result.Asset.Accumulated != 600_000 {
+		t.Errorf("Rest: AHK %s €, kumulierte Abschreibung %s € — erwartet 30.000 € und 6.000 €",
+			result.Asset.Cost, result.Asset.Accumulated)
+	}
+	if result.Asset.BookValue != 2_400_000 {
+		t.Errorf("Restbuchwert %s € — erwartet 24.000,00 €", result.Asset.BookValue)
+	}
+}
+
+// Bei Sachanlagen gibt es keinen Teilabgang: ein halber Pkw geht nicht ab.
+func TestPartialDisposalIsRefusedForTangibleAssets(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	machine := env.machine(t, svc)
+
+	if _, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: machine.ID, Date: "2026-06-30", Kind: domain.DisposalSale,
+		Proceeds: 100_000, CostShare: 200_000, TaxTreatment: domain.TaxTreatmentDomestic,
+		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
+	}); err == nil {
+		t.Fatal("ein Teilabgang einer Sachanlage muss abgelehnt werden")
+	}
+}

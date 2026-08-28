@@ -314,6 +314,17 @@ export const Api = {
     reason: string;
   }): Promise<JournalEntry> =>
     call(() => Bridge.BookAssetWriteUp(request as any) as Promise<JournalEntry>),
+  /** Fertigstellung: Umbuchung von der Anlage im Bau auf ihr endgültiges Konto. */
+  transferFixedAsset: (request: {
+    assetId: number;
+    date: string;
+    account: string;
+    depreciationAccount?: string;
+    method: DepreciationMethod;
+    usefulLifeMonths: number;
+    note?: string;
+  }): Promise<FixedAsset> =>
+    call(() => Bridge.TransferFixedAsset(request as any) as Promise<FixedAsset>),
   previewAssetDisposal: (request: DisposalRequest): Promise<DisposalPreview> =>
     call(() => Bridge.PreviewAssetDisposal(request as any) as Promise<DisposalPreview>),
   disposeFixedAsset: (request: DisposalRequest): Promise<DisposalResult> =>

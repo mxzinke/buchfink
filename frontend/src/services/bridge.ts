@@ -132,6 +132,7 @@ export const bridge = {
   BookDepreciationRun: <T>(request: unknown) => invoke<T>('BookDepreciationRun', request),
   BookAssetImpairment: <T>(request: unknown) => invoke<T>('BookAssetImpairment', request),
   BookAssetWriteUp: <T>(request: unknown) => invoke<T>('BookAssetWriteUp', request),
+  TransferFixedAsset: <T>(request: unknown) => invoke<T>('TransferFixedAsset', request),
   PreviewAssetDisposal: <T>(request: unknown) => invoke<T>('PreviewAssetDisposal', request),
   DisposeFixedAsset: <T>(request: unknown) => invoke<T>('DisposeFixedAsset', request),
   GetAnlagenspiegel: <T>() => invoke<T>('GetAnlagenspiegel'),

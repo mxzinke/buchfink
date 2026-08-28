@@ -529,6 +529,7 @@ export const AssetsPage: React.FC = () => {
         assetId={detailId}
         contacts={contacts}
         paymentAccounts={paymentAccounts}
+        accounts={accounts}
         onClose={() => setDetailId(null)}
         onEdit={(asset) => {
           setDetailId(null);
@@ -860,7 +861,8 @@ const SpiegelTab: React.FC<{
   // Die Spalte Zuschreibungen steht nur da, wo es welche gibt. Elf Spalten
   // brauchen jeden Millimeter, und eine Spalte aus lauter Nullen erklärt nichts.
   const showWriteUps = rows.some((row) => row.writeUpsYear !== 0);
-  const columnCount = showWriteUps ? 11 : 10;
+  const showTransfers = rows.some((row) => row.transfers !== 0);
+  const columnCount = 10 + (showWriteUps ? 1 : 0) + (showTransfers ? 1 : 0);
   const cell = 'px-2.5';
 
   const renderRow = (row: AnlagenspiegelRow, key: string, variant?: 'sum') => (
@@ -872,6 +874,7 @@ const SpiegelTab: React.FC<{
       <Td numeric className={cell}>{formatCents(row.costOpening)}</Td>
       <Td numeric className={cell}>{formatCents(row.additions)}</Td>
       <Td numeric className={cell}>{formatCents(row.disposals)}</Td>
+      {showTransfers && <Td numeric className={cell}>{formatCents(row.transfers)}</Td>}
       <Td numeric className={cell}>{formatCents(row.costClosing)}</Td>
       <Td numeric className={cell}>{formatCents(row.depreciationYear)}</Td>
       {showWriteUps && <Td numeric className={cell}>{formatCents(row.writeUpsYear)}</Td>}
@@ -899,6 +902,9 @@ const SpiegelTab: React.FC<{
               <Th numeric className={cell}>AHK 01.01.</Th>
               <Th numeric className={cell}>Zugänge</Th>
               <Th numeric className={cell}>Abgänge</Th>
+              {showTransfers && (
+                <Th numeric className={cell}>Umbuchungen</Th>
+              )}
               <Th numeric className={cell}>AHK 31.12.</Th>
               <Th numeric className={cell}>AfA {year}</Th>
               {showWriteUps && (
@@ -1513,16 +1519,17 @@ const AssetFormDialog: React.FC<{
 // Anlagegut im Detail: Plan, Bewegungen und die Vorgänge daran
 // -------------------------------------------------------------------------
 
-type DetailAction = 'impairment' | 'writeUp' | 'cost' | 'disposal' | null;
+type DetailAction = 'impairment' | 'writeUp' | 'cost' | 'disposal' | 'transfer' | null;
 
 const AssetDetailDialog: React.FC<{
   assetId: number | null;
   contacts: Contact[];
   paymentAccounts: Account[];
+  accounts: AssetAccountInfo[];
   onClose: () => void;
   onEdit: (asset: FixedAsset) => void;
   onChanged: () => Promise<void>;
-}> = ({ assetId, contacts, paymentAccounts, onClose, onEdit, onChanged }) => {
+}> = ({ assetId, contacts, paymentAccounts, accounts, onClose, onEdit, onChanged }) => {
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [action, setAction] = useState<DetailAction>(null);
   const [loading, setLoading] = useState(false);
@@ -1548,6 +1555,10 @@ const AssetDetailDialog: React.FC<{
   }
 
   const asset = detail?.asset;
+  // Von einer Anlage im Bau wird umgebucht — der Katalog sagt, welche Konten das sind.
+  const inProgress = Boolean(
+    asset && accounts.find((a) => a.number === asset.account)?.inProgress,
+  );
 
   async function afterBooking(message: string) {
     toast.success(message);
@@ -1568,6 +1579,11 @@ const AssetDetailDialog: React.FC<{
             <Button variant="quiet" onClick={() => setAction('cost')}>
               Erweiterung erfassen
             </Button>
+            {!asset.disposalDate && inProgress && (
+              <Button variant="secondary" onClick={() => setAction('transfer')}>
+                Fertigstellung buchen
+              </Button>
+            )}
             {!asset.disposalDate && (
               <>
                 <Button variant="secondary" onClick={() => setAction('impairment')}>
@@ -1604,6 +1620,8 @@ const AssetDetailDialog: React.FC<{
         <WriteUpForm asset={asset} ceiling={detail.writeUpCeiling} onDone={afterBooking} />
       ) : action === 'cost' ? (
         <CostAdjustmentForm asset={asset} onDone={afterBooking} />
+      ) : action === 'transfer' ? (
+        <TransferForm asset={asset} accounts={accounts} onDone={afterBooking} />
       ) : action === 'disposal' ? (
         <DisposalForm
           asset={asset}
@@ -1696,6 +1714,9 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
                 <Td className="text-ink-muted">{formatDate(movement.date)}</Td>
                 <Td className="max-w-[18rem] truncate" title={movement.note}>
                   {MOVEMENT_LABEL[movement.kind] ?? movement.kind}
+                  {movement.account && movement.kind === 'transfer' && (
+                    <span className="text-ink-subtle code-num text-caption"> · {movement.account}</span>
+                  )}
                 </Td>
                 <Td numeric>{movement.costAmount === 0 ? '—' : formatCents(movement.costAmount)}</Td>
                 <Td numeric>
@@ -1719,6 +1740,7 @@ const MOVEMENT_LABEL: Record<string, string> = {
   impairment: 'Außerplanmäßige Abschreibung',
   write_up: 'Zuschreibung',
   disposal: 'Abgang',
+  transfer: 'Umbuchung',
 };
 
 // -------------------------------------------------------------------------
@@ -2037,6 +2059,145 @@ const CostAdjustmentForm: React.FC<{
   );
 };
 
+const TransferForm: React.FC<{
+  asset: FixedAsset;
+  accounts: AssetAccountInfo[];
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, accounts, onDone }) => {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [account, setAccount] = useState<string | null>(null);
+  const [method, setMethod] = useState<DepreciationMethod>('linear');
+  const [lifeYears, setLifeYears] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Zielkonten sind die endgültigen Anlagekonten derselben Klasse — nicht die,
+  // von denen gerade umgebucht wird.
+  const targets = accounts.filter((a) => a.class === asset.class && !a.inProgress);
+  const target = targets.find((a) => a.number === account);
+  const usefulLifeMonths = Math.round(Number(lifeYears || '0') * 12);
+
+  function pick(number: string | null) {
+    const entry = targets.find((a) => a.number === number);
+    setAccount(number);
+    if (entry) {
+      setMethod(entry.depreciable ? 'linear' : 'none');
+      if (entry.defaultUsefulLifeMonths) {
+        setLifeYears(String(Math.round((entry.defaultUsefulLifeMonths / 12) * 10) / 10));
+      }
+    }
+  }
+
+  async function submit() {
+    if (!account) {
+      setError('Ohne Zielkonto lässt sich nicht umbuchen.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await Api.transferFixedAsset({
+        assetId: asset.id,
+        date,
+        account,
+        depreciationAccount: target?.depreciationAccount ?? '',
+        method,
+        usefulLifeMonths: method === 'linear' || method === 'degressive' ? usefulLifeMonths : 0,
+        note,
+      });
+      await onDone('Fertigstellung gebucht — die Abschreibung beginnt.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zur Fertigstellung"
+        line="Erst mit der Betriebsbereitschaft beginnt die Abschreibung — nicht mit der ersten Anzahlung."
+      >
+        Solange eine Anlage nicht fertig ist, nutzt sie sich nicht ab; sie liegt auf dem Konto der
+        Anlagen im Bau und wird nicht abgeschrieben. Mit der Fertigstellung wird sie auf ihr
+        endgültiges Anlagekonto umgebucht, und die AfA läuft ab diesem Monat (§ 7 Abs. 1 Satz 4
+        EStG). Im Anlagenspiegel erscheint das als Umbuchung: bei der einen Position ab, bei der
+        anderen zu.
+      </FormHint>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Fertigstellung am" help="Ab diesem Monat wird abgeschrieben.">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Buchwert" hint={`von Konto ${asset.account}`}>
+          <Input value={formatCents(asset.bookValue)} disabled align="right" />
+        </Field>
+      </div>
+
+      <Field label="Zielkonto" hint={target?.hint}>
+        <Combobox
+          items={targets.map((a) => ({
+            value: a.number,
+            label: `${a.number} ${a.name}`,
+            meta: a.group,
+          }))}
+          value={account}
+          onValueChange={pick}
+          placeholder="Konto suchen"
+          emptyText="Kein Konto passt zur Suche."
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Abschreibungsmethode">
+          <Select
+            items={[
+              { value: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)' },
+              { value: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)' },
+              { value: 'none', label: 'Keine planmäßige Abschreibung' },
+            ]}
+            value={method}
+            onValueChange={(next) => setMethod(next as DepreciationMethod)}
+          />
+        </Field>
+        {(method === 'linear' || method === 'degressive') && (
+          <Field
+            label="Nutzungsdauer in Jahren"
+            hint={
+              usefulLifeMonths > 0
+                ? `${usefulLifeMonths} Monate ab der Fertigstellung`
+                : target?.usefulLifeSource
+            }
+          >
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              align="right"
+              value={lifeYears}
+              onChange={(e) => setLifeYears(e.target.value)}
+            />
+          </Field>
+        )}
+      </div>
+
+      <Field label="Notiz" optional>
+        <Input value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button variant="primary" loading={busy} disabled={!account} onClick={submit}>
+          Fertigstellung buchen
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const DisposalForm: React.FC<{
   asset: FixedAsset;
   contacts: Contact[];
@@ -2057,6 +2218,11 @@ const DisposalForm: React.FC<{
     note: '',
   });
   const [proceedsText, setProceedsText] = useState('');
+  // Nur Finanzanlagen gehen anteilig ab — eine Tranche Anteile, die Tilgung
+  // einer Ausleihung. Ein halber Pkw geht nicht ab.
+  const partialPossible = asset.class === 'financial';
+  const [partial, setPartial] = useState(false);
+  const [costShareText, setCostShareText] = useState('');
   const [preview, setPreview] = useState<DisposalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2142,6 +2308,44 @@ const DisposalForm: React.FC<{
         </Field>
       </div>
 
+      {partialPossible && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-end pb-2">
+            <Checkbox
+              checked={partial}
+              onCheckedChange={(checked) => {
+                const next = Boolean(checked);
+                setPartial(next);
+                if (!next) {
+                  setCostShareText('');
+                  set({ costShare: 0 });
+                }
+              }}
+              label="Nur ein Teil geht ab"
+              hint="Eine Tranche von Anteilen, die Tilgung einer Ausleihung."
+            />
+          </div>
+          {partial && (
+            <Field
+              label="Abgehende Anschaffungskosten"
+              hint={`von ${formatCents(asset.cost)}`}
+              help="Die kumulierten Abschreibungen wandern im selben Verhältnis mit hinaus."
+            >
+              <Input
+                align="right"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={costShareText}
+                onChange={(e) => {
+                  setCostShareText(e.target.value);
+                  set({ costShare: parseCents(e.target.value) ?? 0 });
+                }}
+              />
+            </Field>
+          )}
+        </div>
+      )}
+
       {request.kind === 'sale' && (
         <div className="grid grid-cols-3 gap-4">
           <Field label="Steuerfall">
@@ -2214,7 +2418,15 @@ const DisposalForm: React.FC<{
         <Section title="Was gebucht wird" divider={false}>
           <StatRow className="mb-4">
             <Stat label="Nachgeholte AfA" value={formatCents(preview.catchUpAmount)} />
-            <Stat label="Restbuchwert" value={formatCents(preview.bookValue)} />
+            <Stat
+              label={preview.partial ? 'Restbuchwert des Anteils' : 'Restbuchwert'}
+              value={formatCents(preview.bookValue)}
+              context={
+                preview.partial
+                  ? `${formatCents(preview.costShare)} AHK · ${formatCents(preview.depreciationShare)} AfA`
+                  : undefined
+              }
+            />
             <Stat
               label={preview.result >= 0 ? 'Buchgewinn' : 'Buchverlust'}
               value={formatCents(Math.abs(preview.result))}
@@ -2242,7 +2454,7 @@ const DisposalForm: React.FC<{
 
       <div className="flex justify-end">
         <Button variant="primary" loading={busy} disabled={Boolean(previewError)} onClick={submit}>
-          Abgang buchen
+          {preview?.partial ? 'Teilabgang buchen' : 'Abgang buchen'}
         </Button>
       </div>
     </div>

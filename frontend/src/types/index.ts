@@ -717,6 +717,7 @@ export type AssetStatus =
 export type DisposalKind = 'sale' | 'scrapped';
 
 export type AssetMovementKind =
+  | 'transfer'
   | 'acquisition'
   | 'subsequent_cost'
   | 'cost_reduction'
@@ -729,6 +730,8 @@ export interface AssetMovement {
   id: number;
   assetId: number;
   kind: AssetMovementKind;
+  /** Konto, das diese Bewegung berührt — nach einer Umbuchung nicht das aktuelle. */
+  account?: string;
   date: string;
   fiscalYear: number;
   /** Verändert die Anschaffungs- und Herstellungskosten. */
@@ -752,6 +755,8 @@ export interface FixedAsset {
   account: string;
   depreciationAccount?: string;
   acquisitionDate: string;
+  /** Tag der Betriebsbereitschaft; ab hier läuft die AfA. Leer = mit der Anschaffung. */
+  inServiceDate?: string;
   acquisitionCost: Cents;
   method: DepreciationMethod;
   usefulLifeMonths: number;
@@ -823,6 +828,8 @@ export interface AssetAccountInfo {
   class: AssetClass;
   group: string;
   hint?: string;
+  /** Anlagen im Bau und geleistete Anzahlungen: von hier wird umgebucht. */
+  inProgress?: boolean;
   depreciationAccount?: string;
   depreciable: boolean;
   defaultUsefulLifeMonths?: number;
@@ -912,6 +919,8 @@ export interface DisposalRequest {
   date: string;
   kind: DisposalKind;
   proceeds: Cents;
+  /** Teil der Anschaffungskosten, der abgeht. Leer = alles. Nur bei Finanzanlagen. */
+  costShare?: Cents;
   taxTreatment?: TaxTreatment;
   taxRate?: TaxRate;
   settlement: Settlement;
@@ -923,6 +932,9 @@ export interface DisposalRequest {
 export interface DisposalPreview {
   catchUpAmount: Cents;
   catchUpLines?: JournalLine[];
+  partial: boolean;
+  costShare: Cents;
+  depreciationShare: Cents;
   bookValue: Cents;
   /** Buchgewinn positiv, Buchverlust negativ. */
   result: Cents;
@@ -960,11 +972,13 @@ export interface AnlagenspiegelRow {
   costOpening: Cents;
   additions: Cents;
   disposals: Cents;
+  transfers: Cents;
   costClosing: Cents;
   depreciationOpening: Cents;
   depreciationYear: Cents;
   writeUpsYear: Cents;
   depreciationDisposal: Cents;
+  depreciationTransfer: Cents;
   depreciationClosing: Cents;
   bookValueOpening: Cents;
   bookValueClosing: Cents;

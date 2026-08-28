@@ -241,6 +241,17 @@ func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.J
 	return b.assetSvc.BookWriteUp(context.Background(), req)
 }
 
+// TransferFixedAsset bucht die Fertigstellung: von der Anlage im Bau auf ihr
+// endgültiges Konto, und ab da läuft die Abschreibung.
+func (b *BuchfinkBridge) TransferFixedAsset(req service.TransferRequest) (*domain.FixedAsset, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.assetSvc == nil {
+		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	}
+	return b.assetSvc.Transfer(context.Background(), req)
+}
+
 // PreviewAssetDisposal computes an Abgang without writing it.
 func (b *BuchfinkBridge) PreviewAssetDisposal(req service.DisposalRequest) (*service.DisposalPreview, error) {
 	b.mu.RLock()

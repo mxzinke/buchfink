@@ -165,8 +165,16 @@ const (
 	// Anschaffungskosten.
 	AssetMovementWriteUp AssetMovementKind = "write_up"
 	// AssetMovementDisposal takes both the Anschaffungskosten and the accumulated
-	// depreciation out of the books.
+	// depreciation out of the books. Bei Finanzanlagen auch anteilig: eine
+	// Tranche von Anteilen, die Tilgung einer Ausleihung.
 	AssetMovementDisposal AssetMovementKind = "disposal"
+	// AssetMovementTransfer is eine Umbuchung zwischen zwei Anlagekonten.
+	//
+	// Der Regelfall ist die Fertigstellung: was als Anlage im Bau auf 0700 lag,
+	// wandert auf sein endgültiges Konto, und erst dann beginnt die Abschreibung.
+	// Sie entsteht immer paarweise — eine Bewegung ab dem alten Konto, eine auf
+	// das neue —, weil der Anlagenspiegel beide Positionen getrennt ausweist.
+	AssetMovementTransfer AssetMovementKind = "transfer"
 )
 
 // Label renders the movement kind for the UI.
@@ -186,6 +194,8 @@ func (k AssetMovementKind) Label() string {
 		return "Zuschreibung"
 	case AssetMovementDisposal:
 		return "Abgang"
+	case AssetMovementTransfer:
+		return "Umbuchung"
 	default:
 		return string(k)
 	}
@@ -211,6 +221,14 @@ type AssetMovement struct {
 	// change while old movements must keep their year.
 	Date       string `gorm:"size:10;not null;index" json:"date"`
 	FiscalYear int    `gorm:"index;not null" json:"fiscalYear"`
+
+	// Account is the Anlagekonto this movement belongs to.
+	//
+	// Fast immer ist es das Konto des Anlageguts. Nach einer Umbuchung ist es das
+	// nicht mehr: die Zugänge von damals gehören weiter zu dem Konto, auf dem sie
+	// standen, sonst verschiebt eine Fertigstellung rückwirkend die Vorjahre des
+	// Anlagenspiegels. Leer heißt: das aktuelle Konto des Anlageguts.
+	Account string `gorm:"size:10;index" json:"account,omitempty"`
 
 	// CostAmount changes the Anschaffungs- und Herstellungskosten, positive on a
 	// Zugang, negative on a Minderung or Abgang.
@@ -281,6 +299,14 @@ type FixedAsset struct {
 	// against.
 	AcquisitionCost Cents `gorm:"not null" json:"acquisitionCost"`
 
+	// InServiceDate ist der Tag, ab dem abgeschrieben wird.
+	//
+	// Er weicht vom Anschaffungsdatum ab, wo zwischen beiden etwas liegt: eine
+	// Anlage im Bau wird über Monate bezahlt und erst mit der Fertigstellung
+	// betriebsbereit. Die AfA beginnt dann dort und nicht bei der ersten
+	// Anzahlung. Leer heißt: mit der Anschaffung.
+	InServiceDate string `gorm:"size:10" json:"inServiceDate,omitempty"`
+
 	Method DepreciationMethod `gorm:"size:20;not null" json:"method"`
 	// UsefulLifeMonths is the betriebsgewöhnliche Nutzungsdauer in months. It
 	// comes from the AfA-Tabellen of the BMF, which bind the Finanzverwaltung and
@@ -342,6 +368,15 @@ type FixedAsset struct {
 
 // IsDisposed reports whether the asset has left the books.
 func (a *FixedAsset) IsDisposed() bool { return a.DisposalDate != "" }
+
+// DepreciationStart is the day the AfA runs from: die Betriebsbereitschaft, und
+// nur wo die nicht eigens vermerkt ist, die Anschaffung.
+func (a *FixedAsset) DepreciationStart() string {
+	if a.InServiceDate != "" {
+		return a.InServiceDate
+	}
+	return a.AcquisitionDate
+}
 
 // Validate enforces what has to hold before an Anlagegut may be saved.
 //
@@ -451,12 +486,16 @@ type AnlagenspiegelRow struct {
 	CostOpening Cents `json:"costOpening"` // AHK zu Beginn des Geschäftsjahres
 	Additions   Cents `json:"additions"`   // Zugänge (inkl. nachträglicher AK, abzüglich Minderungen)
 	Disposals   Cents `json:"disposals"`   // Abgänge zu Anschaffungskosten
+	// Transfers sind Umbuchungen: negativ, wo etwas abgeht (Anlage im Bau),
+	// positiv, wo es ankommt. Über alle Positionen summieren sie sich zu null.
+	Transfers   Cents `json:"transfers"`
 	CostClosing Cents `json:"costClosing"` // AHK am Ende des Geschäftsjahres
 
 	DepreciationOpening  Cents `json:"depreciationOpening"`  // kumulierte Abschreibungen zu Beginn
 	DepreciationYear     Cents `json:"depreciationYear"`     // Abschreibungen des Geschäftsjahres
 	WriteUpsYear         Cents `json:"writeUpsYear"`         // Zuschreibungen des Geschäftsjahres
 	DepreciationDisposal Cents `json:"depreciationDisposal"` // mit dem Abgang ausgebuchte Abschreibungen
+	DepreciationTransfer Cents `json:"depreciationTransfer"` // mit der Umbuchung mitgewanderte Abschreibungen
 	DepreciationClosing  Cents `json:"depreciationClosing"`  // kumulierte Abschreibungen am Ende
 
 	BookValueOpening Cents `json:"bookValueOpening"` // Buchwert zu Beginn (= Vorjahr)
