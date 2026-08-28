@@ -182,6 +182,12 @@ Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 
 ## 10. Abhängigkeiten
 
+- Die **Passiva-Verwaltung** ([anforderung-passiva-verwaltung.md](anforderung-passiva-verwaltung.md))
+  beschreibt dieselbe Mechanik für Darlehen, Rückstellungen und Sonderposten: Stammsatz,
+  Plan, Bewegungen mit Journalverweis. Das Datenmodell aus Abschnitt 8 sollte für beide
+  Bilanzseiten tragen – und ein Verzeichniseintrag muss auf einen anderen verweisen
+  können, weil ein Investitionszuschuss (Sonderposten **2998**) an der AfA des
+  Anlageguts hängt.
 - Der **Festschreibungs-Workflow** muss vor der Jahressperre die AfA-Prüfung aufrufen.
 - Der **Zahlungsflow** braucht eine Sonderbehandlung für Skonto auf Anlagen.
 - Die **E-Bilanz** braucht den Anlagenspiegel als Kontennachweis.

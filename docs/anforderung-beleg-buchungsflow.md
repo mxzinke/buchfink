@@ -464,6 +464,10 @@ Folgejahres gebucht.
 
 ### 10.11 Darlehen
 
+> Überblick. Die Ausarbeitung – Tilgungsplan, Restlaufzeitgliederung, Zinsabgrenzung
+> und der Rest der Passivseite – steht in
+> [anforderung-passiva-verwaltung.md](anforderung-passiva-verwaltung.md).
+
 | Schritt | Buchung |
 |---|---|
 | Auszahlung 50.000 € | SOLL **1800** Bank 50.000,00 · HABEN **3160** Verb. ggü. Kreditinstituten (1–5 J.) 50.000,00 |
@@ -877,9 +881,10 @@ Jeder hat ein eigenes Anforderungsdokument, damit er für sich angegangen werden
 | **Rechnungsabgrenzung** | [anforderung-rechnungsabgrenzung.md](anforderung-rechnungsabgrenzung.md) | Der Leistungszeitraum wird erfasst, die Abgrenzungsbuchung auf 1900 / 3900 fehlt. Kleinster Punkt, hängt im Kern an einer Entscheidung. |
 | **Anzahlungen & Rechnungsverbund** | [anforderung-anzahlungen.md](anforderung-anzahlungen.md) | Die Steuer entsteht mit der Vereinnahmung, nicht mit der Rechnung. Die Schlussrechnung muss die Anzahlungen absetzen, sonst greift § 14c Abs. 1 UStG. |
 | **Anlagenverwaltung** | [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md) | Größter Block: GWG und Sammelposten, AfA-Methoden, Abgang, Anlagenspiegel. |
+| **Passiva-Verwaltung** | [anforderung-passiva-verwaltung.md](anforderung-passiva-verwaltung.md) | Darlehen, Rückstellungen, Eigenkapital und Sonderposten haben keinen Beleg und entstehen heute nur von Hand. Dieselbe Mechanik wie die Anlagenverwaltung – deshalb gehört die Entscheidung über das gemeinsame Datenmodell vor beide. |
 | **DATEV-Export** | [anforderung-datev-export.md](anforderung-datev-export.md) | Keine buchhalterische Entscheidung offen, aber eine architektonische: das n-Zeilen-Modell trifft auf DATEVs Konto/Gegenkonto. |
 
-Die E-Rechnung steht bewusst oben. Die anderen vier beschreiben Funktionen, die
+Die E-Rechnung steht bewusst oben. Die anderen fünf beschreiben Funktionen, die
 fehlen; sie beschreibt eine Pflicht, die läuft.
 
 Die Abschnitte 11 (Anlagenverwaltung) und 12 (Anzahlungen) in diesem Dokument bleiben
