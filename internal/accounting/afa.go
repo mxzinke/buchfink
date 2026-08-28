@@ -3,6 +3,7 @@ package accounting
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -40,6 +41,19 @@ type AfAParameters struct {
 // kept rather than overwritten: an asset acquired in 2020 has to stay
 // explainable with the limits that applied then.
 var afaParameterSets = []AfAParameters{
+	{
+		// § 6 Abs. 2 und 2a EStG in der von 2010 bis 2017 geltenden Fassung.
+		// Der Sofortabzug endete bei 410 €, der Sammelposten begann schon bei
+		// 150 €. Ein Wirtschaftsgut aus dieser Zeit steht heute noch im
+		// Verzeichnis; mit den heutigen Grenzen gerechnet wäre seine Behandlung
+		// nicht mehr erklärbar.
+		ValidFrom:          "2010-01-01",
+		GWGImmediateLimit:  41000,
+		GWGRecordThreshold: 15000,
+		PoolLowerLimit:     15000,
+		PoolUpperLimit:     100000,
+		PoolYears:          5,
+	},
 	{
 		// § 6 Abs. 2 und 2a EStG in der ab 2018 geltenden Fassung.
 		ValidFrom:          "2018-01-01",
@@ -79,28 +93,63 @@ type DegressiveWindow struct {
 	// From and Until bound the acquisition date, both inclusive.
 	From  string
 	Until string
-	// FactorTimes is the multiple of the linear percentage the degressive rate
-	// may reach, MaxPermille the absolute ceiling in permille.
-	FactorTimes int64
-	MaxPermille int64
+	// FactorPermille is the multiple of the linear percentage the degressive
+	// rate may reach, in thousandths — 3000 für das Dreifache, 2500 für das
+	// Zweieinhalbfache. Der Faktor war in einer der Fassungen ein halber, ein
+	// ganzzahliges Feld hätte ihn stillschweigend auf zwei oder drei gerundet.
+	// MaxPermille is the absolute ceiling in permille.
+	FactorPermille int64
+	MaxPermille    int64
 	// Source names the provision, for the message the user gets.
 	Source string
 }
 
 // degressiveWindows lists the periods Buchfink computes a degressive AfA for.
 //
-// Only the current window is listed. § 7 Abs. 2 EStG in its present wording
-// covers acquisitions after 30.06.2025 and before 01.01.2028; the earlier
-// degressive periods stood in earlier versions of the same provision and are not
-// reproduced here. Refusing a degressive plan outside the window is the honest
-// answer — computing one from a rule that is not in the law would be worse.
+// Die Fenster sind nicht historisch interessant, sondern Rechenvoraussetzung:
+// die Anlagenkartei wird über die Jahre geführt, und ein 2021 angeschafftes
+// Wirtschaftsgut schreibt heute noch nach dem Satz ab, der damals galt. Ohne die
+// alten Fassungen wäre sein Plan nicht mehr rechenbar — und ein Plan, den die
+// Software verweigert, obwohl das Gesetz ihn eröffnet hat, ist so falsch wie
+// einer, den sie erfindet.
+//
+// Zwischen den Fenstern liegen Lücken, und die sind gewollt: 2023, das erste
+// Quartal 2024 und das erste Halbjahr 2025 kannten keine degressive AfA. Dort
+// bleibt es bei der linearen.
 var degressiveWindows = []DegressiveWindow{
 	{
-		From:        "2025-07-01",
-		Until:       "2027-12-31",
-		FactorTimes: 3,
-		MaxPermille: 300,
-		Source:      "§ 7 Abs. 2 Sätze 1 und 2 EStG",
+		// Konjunkturpaket 2009: Anschaffung nach dem 31.12.2008 und vor dem
+		// 01.01.2011.
+		From:           "2009-01-01",
+		Until:          "2010-12-31",
+		FactorPermille: 2500,
+		MaxPermille:    250,
+		Source:         "§ 7 Abs. 2 EStG in der Fassung des Gesetzes vom 21.12.2008",
+	},
+	{
+		// Zweites Corona-Steuerhilfegesetz, verlängert durch das Vierte:
+		// Anschaffung nach dem 31.12.2019 und vor dem 01.01.2023.
+		From:           "2020-01-01",
+		Until:          "2022-12-31",
+		FactorPermille: 2500,
+		MaxPermille:    250,
+		Source:         "§ 7 Abs. 2 EStG in der Fassung des Zweiten Corona-Steuerhilfegesetzes",
+	},
+	{
+		// Wachstumschancengesetz: Anschaffung nach dem 31.03.2024 und vor dem
+		// 01.01.2025.
+		From:           "2024-04-01",
+		Until:          "2024-12-31",
+		FactorPermille: 2000,
+		MaxPermille:    200,
+		Source:         "§ 7 Abs. 2 EStG in der Fassung des Wachstumschancengesetzes",
+	},
+	{
+		From:           "2025-07-01",
+		Until:          "2027-12-31",
+		FactorPermille: 3000,
+		MaxPermille:    300,
+		Source:         "§ 7 Abs. 2 Sätze 1 und 2 EStG",
 	},
 }
 
@@ -120,6 +169,25 @@ func DegressiveWindows() []DegressiveWindow {
 	out := make([]DegressiveWindow, len(degressiveWindows))
 	copy(out, degressiveWindows)
 	return out
+}
+
+// degressiveWindowList renders the open periods for an error message. Es nützt
+// niemandem zu erfahren, dass ein Datum außerhalb liegt, ohne zu erfahren, wo
+// die Grenzen verlaufen.
+func degressiveWindowList() string {
+	parts := make([]string, 0, len(degressiveWindows))
+	for _, w := range degressiveWindows {
+		parts = append(parts, fmt.Sprintf("%s bis %s", germanDate(w.From), germanDate(w.Until)))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// germanDate turns an ISO date into the form a German reader expects.
+func germanDate(iso string) string {
+	if len(iso) != 10 {
+		return iso
+	}
+	return iso[8:10] + "." + iso[5:7] + "." + iso[0:4]
 }
 
 // AcquisitionOption is the answer to the first question of every acquisition:
@@ -262,7 +330,24 @@ type AfAPlan struct {
 	// Geschäftsjahr. Eine Erweiterung, die das Wirtschaftsgut länger nutzbar
 	// macht, wirkt nach vorn — die bereits gebuchten Jahre bleiben, wie sie sind.
 	LifeExtensionsByYear map[int]int
+
+	// SpecialPermille ist der Satz der Sonderabschreibung nach § 7g Abs. 5 EStG
+	// in Promille der Anschaffungskosten, SpecialYears die Zahl der Jahre, auf
+	// die er gleichmäßig verteilt wird. Null heißt: keine Sonderabschreibung.
+	SpecialPermille int
+	SpecialYears    int
 }
+
+// Die Sonderabschreibung des § 7g Abs. 5 EStG in Zahlen.
+const (
+	// SpecialMaxPermille sind die höchstens 40 Prozent der Anschaffungs- oder
+	// Herstellungskosten, die § 7g Abs. 5 EStG zulässt.
+	SpecialMaxPermille = 400
+	// SpecialPeriodYears ist der Begünstigungszeitraum: das Jahr der Anschaffung
+	// und die vier folgenden. Über ihn darf verteilt werden, und mit seinem Ende
+	// beginnt die Restwertabschreibung des § 7a Abs. 9 EStG.
+	SpecialPeriodYears = 5
+)
 
 // AfAYear is one fiscal year of the plan.
 type AfAYear struct {
@@ -275,9 +360,20 @@ type AfAYear struct {
 	RateLabel        string                    `json:"rateLabel"`
 	OpeningBookValue domain.Cents              `json:"openingBookValue"`
 	Amount           domain.Cents              `json:"amount"`
-	ClosingBookValue domain.Cents              `json:"closingBookValue"`
-	Note             string                    `json:"note,omitempty"`
+	// SpecialAmount ist die Sonderabschreibung des Jahres (§ 7g Abs. 5 EStG).
+	//
+	// Sie steht neben der planmäßigen AfA und nicht an ihrer Stelle
+	// (§ 7a Abs. 4 EStG) — und sie läuft im SKR04 über ein eigenes
+	// Aufwandskonto. Beides ist der Grund, warum sie hier ein zweites Feld ist
+	// und nicht in Amount aufgeht: eine Summe ließe sich nicht mehr auf zwei
+	// Konten buchen.
+	SpecialAmount    domain.Cents `json:"specialAmount,omitempty"`
+	ClosingBookValue domain.Cents `json:"closingBookValue"`
+	Note             string       `json:"note,omitempty"`
 }
+
+// TotalAmount is what the fiscal year writes off altogether.
+func (y AfAYear) TotalAmount() domain.Cents { return y.Amount + y.SpecialAmount }
 
 // BuildAfASchedule computes the whole plan of an asset, year by year.
 //
@@ -348,6 +444,9 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	if plan.UsefulLifeMonths <= 0 {
 		return nil, fmt.Errorf("ohne Nutzungsdauer lässt sich keine planmäßige Abschreibung rechnen")
 	}
+	if err := checkSpecialDepreciation(plan); err != nil {
+		return nil, err
+	}
 
 	window := DegressiveWindow{}
 	degressive := plan.Method == domain.DepreciationDegressive
@@ -356,10 +455,9 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		if !ok {
 			return nil, fmt.Errorf(
 				"für eine Anschaffung am %s ist die degressive Abschreibung nicht zulässig. "+
-					"%s öffnet sie nur für Anschaffungen zwischen dem %s und dem %s; außerhalb dieses "+
-					"Zeitraums bleibt die lineare Abschreibung",
-				plan.AcquisitionDate, degressiveWindows[0].Source,
-				degressiveWindows[0].From, degressiveWindows[0].Until)
+					"§ 7 Abs. 2 EStG hat sie nur für Anschaffungen in diesen Zeiträumen geöffnet: %s. "+
+					"Außerhalb davon bleibt es bei der linearen Abschreibung",
+				plan.AcquisitionDate, degressiveWindowList())
 		}
 		window = w
 	}
@@ -391,6 +489,25 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	basisChanged := false
 	var addedNote string
 
+	// Die Sonderabschreibung des § 7g Abs. 5 EStG läuft neben dem Plan her: sie
+	// ändert die planmäßige AfA nicht, sondern kommt hinzu (§ 7a Abs. 4 EStG).
+	// Erst mit dem Ende des Begünstigungszeitraums greift § 7a Abs. 9 EStG und
+	// verteilt den verbliebenen Restwert auf die Restnutzungsdauer.
+	specialRemaining := domain.Cents(0)
+	specialYears := plan.SpecialYears
+	if plan.SpecialPermille > 0 && plan.Method == domain.DepreciationLinear {
+		specialRemaining = domain.MulRound(plan.Cost, int64(plan.SpecialPermille), 1000)
+		if specialYears <= 0 {
+			specialYears = 1
+		}
+		if specialYears > SpecialPeriodYears {
+			specialYears = SpecialPeriodYears
+		}
+	}
+	specialLastYear := acquisitionYear + specialYears - 1
+	periodEndYear := acquisitionYear + SpecialPeriodYears - 1
+	restwertPhase := false
+
 	for year := acquisitionYear; ; year++ {
 		// Nachträgliche Anschaffungskosten und eine verlängerte Nutzungsdauer
 		// wirken zu Beginn ihres Jahres — vor der Rechnung dieses Jahres, aber
@@ -419,6 +536,17 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			basisChanged = true
 			addedNote = appendNote(addedNote, fmt.Sprintf(
 				"Die Nutzungsdauer verlängert sich um %d Monate.", ext))
+		}
+		if plan.SpecialPermille > 0 && year > periodEndYear && !restwertPhase {
+			// § 7a Abs. 9 EStG: nach Ablauf des Begünstigungszeitraums bemisst
+			// sich die weitere AfA nach dem Restwert und der Restnutzungsdauer.
+			// Weiter vom ursprünglichen Satz zu rechnen ließe das Wirtschaftsgut
+			// vor dem Ende seiner Nutzungsdauer bei null ankommen.
+			restwertPhase = true
+			basisChanged = true
+			addedNote = appendNote(addedNote,
+				"Der Begünstigungszeitraum der Sonderabschreibung ist abgelaufen: der Restwert "+
+					"verteilt sich von hier an auf die Restnutzungsdauer (§ 7a Abs. 9 EStG).")
 		}
 
 		fyStart := time.Date(year, time.Month(start), 1, 0, 0, 0, 0, time.UTC)
@@ -498,7 +626,30 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 				"Zeitanteilig für %d von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).", months))
 		}
 
-		bookValue -= row.Amount
+		// Die Sonderabschreibung kommt oben drauf — und anders als die planmäßige
+		// AfA wird sie im Anschaffungsjahr *nicht* zeitanteilig gekürzt: § 7 Abs. 1
+		// Satz 4 EStG gilt für die Absetzung für Abnutzung, nicht für die
+		// Sonderabschreibung. Eine im Dezember angeschaffte Maschine bekommt ihr
+		// Fünftel voll.
+		if specialRemaining > 0 && year >= acquisitionYear && year <= specialLastYear {
+			share := domain.MulRound(
+				domain.MulRound(plan.Cost, int64(plan.SpecialPermille), 1000), 1, int64(specialYears))
+			if year == specialLastYear || share > specialRemaining {
+				share = specialRemaining
+			}
+			if room := bookValue - row.Amount; share > room {
+				share = room
+			}
+			if share > 0 {
+				row.SpecialAmount = share
+				specialRemaining -= share
+				row.Note = appendNote(row.Note, fmt.Sprintf(
+					"Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG: %s €. Sie tritt neben die "+
+						"planmäßige AfA, die daneben unverändert weiterläuft (§ 7a Abs. 4 EStG).", share))
+			}
+		}
+
+		bookValue -= row.Amount + row.SpecialAmount
 		if impair := plan.ImpairmentsByYear[year]; impair > 0 {
 			bookValue -= impair
 			if bookValue < 0 {
@@ -578,10 +729,10 @@ func poolSchedule(plan AfAPlan) ([]AfAYear, error) {
 // of the linear rate, capped by the statutory ceiling.
 func degressiveRate(usefulLifeMonths int, window DegressiveWindow) (int64, int64) {
 	// Der lineare Satz ist 12/Nutzungsdauer in Monaten; das Vielfache davon ist
-	// FactorTimes * 12 / Monate. Verglichen wird als Bruch, damit kein
-	// Zwischenrunden den Deckel verschiebt.
-	num := window.FactorTimes * 12
-	den := int64(usefulLifeMonths)
+	// FactorPermille * 12 / (Monate * 1000). Verglichen wird als Bruch, damit
+	// kein Zwischenrunden den Deckel verschiebt.
+	num := window.FactorPermille * 12
+	den := int64(usefulLifeMonths) * 1000
 	if num*1000 > window.MaxPermille*den {
 		return window.MaxPermille, 1000
 	}
@@ -646,4 +797,46 @@ func ScheduleAmountFor(rows []AfAYear, fiscalYear int) domain.Cents {
 		}
 	}
 	return 0
+}
+
+// ScheduleSpecialFor returns the Sonderabschreibung of one fiscal year. Sie ist
+// bewusst getrennt abzufragen: sie gehört auf ein eigenes Konto, und wer beide
+// Beträge addiert bekäme, könnte sie dort nicht mehr auseinanderhalten.
+func ScheduleSpecialFor(rows []AfAYear, fiscalYear int) domain.Cents {
+	for _, r := range rows {
+		if r.FiscalYear == fiscalYear {
+			return r.SpecialAmount
+		}
+	}
+	return 0
+}
+
+// checkSpecialDepreciation holds the two limits of § 7g Abs. 5 EStG that a plan
+// can be refused for before anything is computed.
+//
+// Die dritte Voraussetzung — die Gewinngrenze des Vorjahres und die fast
+// ausschließlich betriebliche Nutzung (§ 7g Abs. 6 EStG) — steht nicht hier:
+// sie ist keine Rechnung, sondern ein Sachverhalt, den nur der Steuerpflichtige
+// kennt. Er wird am Anlagegut festgehalten, nicht geraten.
+func checkSpecialDepreciation(plan AfAPlan) error {
+	if plan.SpecialPermille <= 0 {
+		return nil
+	}
+	if plan.SpecialPermille > SpecialMaxPermille {
+		return fmt.Errorf(
+			"die Sonderabschreibung nach § 7g Abs. 5 EStG beträgt höchstens 40 %% der "+
+				"Anschaffungskosten; %s sind zu viel", permilleLabel(int64(plan.SpecialPermille), 1000))
+	}
+	if plan.Method != domain.DepreciationLinear {
+		return fmt.Errorf(
+			"neben einer Sonderabschreibung ist die Absetzung für Abnutzung linear vorzunehmen "+
+				"(§ 7a Abs. 4 EStG). Mit der Methode %q lässt sie sich nicht verbinden", plan.Method)
+	}
+	if plan.SpecialYears > SpecialPeriodYears {
+		return fmt.Errorf(
+			"der Begünstigungszeitraum umfasst das Jahr der Anschaffung und die vier folgenden "+
+				"(§ 7g Abs. 5 EStG); auf %d Jahre lässt sich die Sonderabschreibung nicht verteilen",
+			plan.SpecialYears)
+	}
+	return nil
 }

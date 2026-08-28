@@ -101,6 +101,54 @@ func TestDerivedAssetAccountsExistInSKR04(t *testing.T) {
 			}
 		}
 	}
+
+	// Die Konten, die sich aus dem Anlagekonto ableiten: Sonderabschreibung,
+	// Erhaltungsaufwand und laufender Ertrag. Jede dieser Ableitungen führt zu
+	// genau einer Nummer, und jede muss bebuchbar sein.
+	for _, entry := range AssetAccounts("") {
+		if account, err := SpecialDepreciationAccount(entry.Class, entry.Number); err == nil {
+			if err := chart.EnsurePostable(account); err != nil {
+				t.Errorf("Konto der Sonderabschreibung %s zu %s: %v", account, entry.Number, err)
+			}
+		}
+		if account, err := MaintenanceAccount(entry.Class, entry.Number); err == nil {
+			if err := chart.EnsurePostable(account); err != nil {
+				t.Errorf("Konto des Erhaltungsaufwands %s zu %s: %v", account, entry.Number, err)
+			}
+		}
+		if account, err := AssetIncomeAccount(entry.Class, entry.Number); err == nil {
+			if err := chart.EnsurePostable(account); err != nil {
+				t.Errorf("Ertragskonto %s zu %s: %v", account, entry.Number, err)
+			}
+		}
+	}
+	for _, account := range []string{CurrencyLossAccount, CurrencyGainAccount} {
+		if err := chart.EnsurePostable(account); err != nil {
+			t.Errorf("Konto der Währungsumrechnung %s: %v", account, err)
+		}
+	}
+}
+
+// § 7g Abs. 5 EStG begünstigt nur bewegliche Wirtschaftsgüter. Ein Gebäude ist
+// eine Sachanlage wie eine Maschine — die Sonderabschreibung bekommt es trotzdem
+// nicht.
+func TestSpecialDepreciationIsOnlyForMovableAssets(t *testing.T) {
+	if _, err := SpecialDepreciationAccount(domain.AssetClassTangible, "0240"); err == nil {
+		t.Error("für Geschäftsbauten darf es keine Sonderabschreibung nach § 7g Abs. 5 EStG geben")
+	}
+	if _, err := SpecialDepreciationAccount(domain.AssetClassFinancial, "0820"); err == nil {
+		t.Error("für eine Beteiligung darf es keine Sonderabschreibung geben")
+	}
+	account, err := SpecialDepreciationAccount(domain.AssetClassTangible, "0520")
+	if err != nil {
+		t.Fatalf("Pkw: %v", err)
+	}
+	if account != "6242" {
+		t.Errorf("Sonderabschreibung auf einen Pkw läuft auf %s — erwartet 6242 (Fahrzeuge)", account)
+	}
+	if account, err := SpecialDepreciationAccount(domain.AssetClassTangible, "0440"); err != nil || account != "6241" {
+		t.Errorf("Sonderabschreibung auf eine Maschine: %s, %v — erwartet 6241", account, err)
+	}
 }
 
 // Auf den Geschäfts- oder Firmenwert darf nicht zugeschrieben werden.

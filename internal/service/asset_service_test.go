@@ -1133,3 +1133,164 @@ func TestPartialDisposalIsRefusedForTangibleAssets(t *testing.T) {
 		t.Fatal("ein Teilabgang einer Sachanlage muss abgelehnt werden")
 	}
 }
+
+// Die Sonderabschreibung des § 7g Abs. 5 EStG wird in derselben Buchung erfasst
+// wie die planmäßige AfA, aber auf einem eigenen Aufwandskonto — der SKR04
+// trennt sie, weil die GuV sie getrennt ausweist.
+func TestSpecialDepreciationBooksOnItsOwnAccount(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000, // 100.000,00 €
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €; ausschließlich betriebliche Nutzung",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut mit Sonderabschreibung: %v", err)
+	}
+	if asset.SpecialAccount != "6241" {
+		t.Errorf("Konto der Sonderabschreibung %q — erwartet 6241", asset.SpecialAccount)
+	}
+
+	run, err := svc.Run(ctx)
+	if err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+	if len(run.Due) != 1 {
+		t.Fatalf("erwartet eine fällige Zeile, bekommen %d", len(run.Due))
+	}
+	due := run.Due[0]
+	if due.Due != 1_000_000 || due.SpecialDue != 800_000 {
+		t.Fatalf("fällig: planmäßig %s €, Sonderabschreibung %s € — erwartet 10.000,00 € und 8.000,00 €",
+			due.Due, due.SpecialDue)
+	}
+
+	result, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026})
+	if err != nil {
+		t.Fatalf("AfA buchen: %v", err)
+	}
+	if len(result.Entries) != 1 {
+		t.Fatalf("erwartet eine Buchung, bekommen %d", len(result.Entries))
+	}
+	lines := map[string]domain.Cents{}
+	for _, l := range result.Entries[0].Lines {
+		if l.Side == domain.SideDebit {
+			lines[l.Account] += l.Amount
+		} else {
+			lines["haben:"+l.Account] += l.Amount
+		}
+	}
+	if lines["6220"] != 1_000_000 || lines["6241"] != 800_000 || lines["haben:0440"] != 1_800_000 {
+		t.Errorf("Buchung %+v — erwartet 6220 an 10.000,00 €, 6241 an 8.000,00 €, 0440 im Haben 18.000,00 €", lines)
+	}
+
+	reloaded, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if reloaded.Asset.BookValue != 8_200_000 {
+		t.Errorf("Buchwert %s € — erwartet 82.000,00 €", reloaded.Asset.BookValue)
+	}
+	if reloaded.Schedule[0].SpecialBooked != 800_000 || reloaded.Schedule[0].SpecialDue != 0 {
+		t.Errorf("2026 im Plan: %s € gebucht, %s € offen — erwartet 8.000,00 € und null",
+			reloaded.Schedule[0].SpecialBooked, reloaded.Schedule[0].SpecialDue)
+	}
+}
+
+// § 7g Abs. 6 EStG hängt an Sachverhalten, die keine Software kennt. Ohne
+// festgehaltene Begründung entsteht die Sonderabschreibung nicht — wie bei der
+// außerplanmäßigen Abschreibung ist der Grund Pflicht.
+func TestSpecialDepreciationNeedsItsGrounds(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+
+	_, err := svc.Save(context.Background(), &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000,
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+	})
+	if err == nil {
+		t.Fatal("ohne Begründung darf die Sonderabschreibung nicht gespeichert werden")
+	}
+	if !strings.Contains(err.Error(), "7g Abs. 6") {
+		t.Errorf("die Meldung nennt die Voraussetzung nicht: %v", err)
+	}
+}
+
+// Ein Gebäude ist eine Sachanlage, aber unbeweglich. § 7g Abs. 5 EStG gilt für
+// es nicht — und das muss beim Speichern auffallen, nicht bei der Betriebsprüfung.
+func TestSpecialDepreciationIsRefusedForBuildings(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+
+	_, err := svc.Save(context.Background(), &domain.FixedAsset{
+		Name:                "Lagerhalle",
+		Class:               domain.AssetClassTangible,
+		Account:             "0250",
+		DepreciationAccount: "6221",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     50_000_000,
+		UsefulLifeMonths:    396,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025 unter der Grenze",
+	})
+	if err == nil {
+		t.Fatal("für ein Gebäude darf es keine Sonderabschreibung nach § 7g Abs. 5 EStG geben")
+	}
+	if !strings.Contains(err.Error(), "beweglich") {
+		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
+	}
+}
+
+// Ist die Sonderabschreibung einmal gebucht, lässt sie sich nicht mehr
+// umverteilen: das änderte den Plan eines abgeschlossenen Jahres.
+func TestBookedSpecialDepreciationCannotBeRedistributed(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000,
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	if _, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026}); err != nil {
+		t.Fatalf("AfA buchen: %v", err)
+	}
+
+	changed := *asset
+	changed.SpecialYears = 2
+	if _, err := svc.Save(ctx, &changed); err == nil {
+		t.Fatal("eine gebuchte Sonderabschreibung darf nicht nachträglich umverteilt werden")
+	}
+}

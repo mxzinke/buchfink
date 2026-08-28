@@ -164,6 +164,27 @@ const (
 	// Abschreibung weg, ist zuzuschreiben — höchstens bis zu den fortgeführten
 	// Anschaffungskosten.
 	AssetMovementWriteUp AssetMovementKind = "write_up"
+	// AssetMovementSpecialDepreciation is die Sonderabschreibung nach
+	// § 7g Abs. 5 EStG.
+	//
+	// Sie ist eine eigene Bewegungsart und keine Spielart der planmäßigen AfA,
+	// weil sie im SKR04 auf ein eigenes Aufwandskonto läuft und weil der
+	// Abschreibungsplan sie getrennt führen muss: die planmäßige AfA läuft
+	// daneben unverändert weiter (§ 7a Abs. 4 EStG).
+	AssetMovementSpecialDepreciation AssetMovementKind = "special_depreciation"
+	// AssetMovementMaintenance ist Erhaltungsaufwand: eine Buchung, die zum
+	// Anlagegut gehört, seinen Wert aber nicht ändert.
+	//
+	// Sie trägt deshalb weder Anschaffungskosten noch Abschreibung — nur den
+	// Verweis auf die Buchung. Was den Zustand nur erhält, ist sofort abziehbarer
+	// Aufwand; was erweitert oder wesentlich verbessert, sind nachträgliche
+	// Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB) und damit eine andere
+	// Bewegungsart. Die Abgrenzung ist eine Einschätzung, keine Rechnung.
+	AssetMovementMaintenance AssetMovementKind = "maintenance"
+	// AssetMovementIncome ist ein laufender Ertrag aus einer Finanzanlage —
+	// Dividende, Ausschüttung, Zins. Auch er ändert den Buchwert nicht; er
+	// verbindet nur die Ertragsbuchung mit dem Anteil, aus dem sie stammt.
+	AssetMovementIncome AssetMovementKind = "income"
 	// AssetMovementDisposal takes both the Anschaffungskosten and the accumulated
 	// depreciation out of the books. Bei Finanzanlagen auch anteilig: eine
 	// Tranche von Anteilen, die Tilgung einer Ausleihung.
@@ -188,6 +209,12 @@ func (k AssetMovementKind) Label() string {
 		return "Anschaffungskostenminderung"
 	case AssetMovementDepreciation:
 		return "Planmäßige Abschreibung"
+	case AssetMovementSpecialDepreciation:
+		return "Sonderabschreibung (§ 7g Abs. 5 EStG)"
+	case AssetMovementMaintenance:
+		return "Erhaltungsaufwand"
+	case AssetMovementIncome:
+		return "Laufender Ertrag"
 	case AssetMovementImpairment:
 		return "Außerplanmäßige Abschreibung"
 	case AssetMovementWriteUp:
@@ -317,6 +344,30 @@ type FixedAsset struct {
 	// pool per Wirtschaftsjahr; two years never share one.
 	PoolYear int `gorm:"index;default:0" json:"poolYear,omitempty"`
 
+	// --- Sonderabschreibung § 7g Abs. 5 EStG -------------------------------
+
+	// SpecialPermille ist der in Anspruch genommene Satz in Promille der
+	// Anschaffungskosten, höchstens 400 (40 %). Null heißt: keine.
+	SpecialPermille int `gorm:"default:0" json:"specialPermille,omitempty"`
+	// SpecialYears ist die Zahl der Jahre, auf die der Betrag gleichmäßig
+	// verteilt wird — eins bis fünf. § 7g Abs. 5 EStG lässt die Verteilung auf
+	// das Jahr der Anschaffung und die vier folgenden zu; wie sie ausfällt, ist
+	// eine Entscheidung des Steuerpflichtigen und keine Rechnung.
+	SpecialYears int `gorm:"default:0" json:"specialYears,omitempty"`
+	// SpecialAccount trägt den Aufwand. Der SKR04 trennt ihn nach Fahrzeugen
+	// (6242) und allem anderen (6241).
+	SpecialAccount string `gorm:"size:10" json:"specialAccount,omitempty"`
+	// SpecialReason hält fest, worauf sich die Inanspruchnahme stützt.
+	//
+	// § 7g Abs. 6 EStG knüpft die Sonderabschreibung an zwei Sachverhalte, die
+	// keine Software kennt: der Gewinn des Vorjahres darf 200.000 € nicht
+	// überschritten haben (Nr. 1 i. V. m. Abs. 1 Satz 2 Nr. 1), und das
+	// Wirtschaftsgut muss im Jahr der Anschaffung und im folgenden Jahr fast
+	// ausschließlich betrieblich genutzt werden (Nr. 2). Beides wird deshalb
+	// abgefragt und festgehalten, nicht geraten — wie bei der außerplanmäßigen
+	// Abschreibung ist die Begründung Pflicht.
+	SpecialReason string `gorm:"size:500;serializer:encrypted" json:"specialReason,omitempty"`
+
 	// --- Finanzanlagen -----------------------------------------------------
 
 	// Identifier is the ISIN, WKN or Handelsregisternummer — what identifies a
@@ -362,6 +413,7 @@ type FixedAsset struct {
 	BookValue   Cents       `gorm:"-" json:"bookValue"`            // Buchwert zum Stichtag
 	YearAmount  Cents       `gorm:"-" json:"yearAmount"`           // im Geschäftsjahr gebuchte AfA
 	DueAmount   Cents       `gorm:"-" json:"dueAmount"`            // im Geschäftsjahr noch fällige AfA
+	SpecialDue  Cents       `gorm:"-" json:"specialDue"`           // im Geschäftsjahr noch fällige Sonderabschreibung
 	Status      AssetStatus `gorm:"-" json:"status"`               // abgeleitet, nie gespeichert
 	StatusNote  string      `gorm:"-" json:"statusNote,omitempty"` // ein Satz zum Status
 }
@@ -434,6 +486,57 @@ func (a *FixedAsset) Validate() error {
 	}
 	if a.HoldingPermille < 0 || a.HoldingPermille > 1000 {
 		return fmt.Errorf("die Beteiligungsquote liegt zwischen 0 und 100 %%")
+	}
+	if err := a.validateSpecialDepreciation(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateSpecialDepreciation holds the Voraussetzungen des § 7g Abs. 5 EStG
+// that are visible in the master data.
+//
+// Was hier nicht steht, steht nicht deshalb nicht hier, weil es unwichtig wäre:
+// ob das Wirtschaftsgut beweglich ist, entscheidet das Anlagekonto, und den
+// Kontenkatalog kennt erst die Schicht darüber. Alles, was ohne ihn zu
+// entscheiden ist, wird hier entschieden.
+func (a *FixedAsset) validateSpecialDepreciation() error {
+	if a.SpecialPermille == 0 && a.SpecialYears == 0 && a.SpecialAccount == "" {
+		return nil
+	}
+	if a.SpecialPermille <= 0 {
+		return fmt.Errorf("für die Sonderabschreibung fehlt der Satz")
+	}
+	if a.SpecialPermille > 400 {
+		return fmt.Errorf(
+			"die Sonderabschreibung nach § 7g Abs. 5 EStG beträgt höchstens 40 %% der Anschaffungskosten")
+	}
+	if a.SpecialYears < 1 || a.SpecialYears > 5 {
+		return fmt.Errorf(
+			"der Begünstigungszeitraum umfasst das Jahr der Anschaffung und die vier folgenden " +
+				"(§ 7g Abs. 5 EStG); verteilt wird auf ein bis fünf Jahre")
+	}
+	if a.Method != DepreciationLinear {
+		return fmt.Errorf(
+			"neben einer Sonderabschreibung ist die Absetzung für Abnutzung linear vorzunehmen " +
+				"(§ 7a Abs. 4 EStG). Mit der degressiven AfA, dem Sammelposten und dem Sofortabzug " +
+				"lässt sie sich nicht verbinden")
+	}
+	if a.Class != AssetClassTangible {
+		return fmt.Errorf(
+			"die Sonderabschreibung nach § 7g Abs. 5 EStG gibt es nur für abnutzbare bewegliche " +
+				"Wirtschaftsgüter des Anlagevermögens — nicht für immaterielle Vermögensgegenstände " +
+				"und nicht für Finanzanlagen")
+	}
+	if a.SpecialAccount == "" {
+		return fmt.Errorf("für die Sonderabschreibung fehlt das Aufwandskonto")
+	}
+	if strings.TrimSpace(a.SpecialReason) == "" {
+		return fmt.Errorf(
+			"§ 7g Abs. 6 EStG setzt zweierlei voraus, das Buchfink nicht wissen kann: einen Gewinn " +
+				"des Vorjahres von höchstens 200.000 € und eine fast ausschließlich betriebliche " +
+				"Nutzung im Jahr der Anschaffung und im folgenden. Halte fest, worauf sich die " +
+				"Inanspruchnahme stützt")
 	}
 	return nil
 }

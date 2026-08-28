@@ -34,6 +34,13 @@ type AssetAccount struct {
 	// Bau, und das gesamte Finanzanlagevermögen.
 	Depreciable bool `json:"depreciable"`
 
+	// Immovable marks the unbeweglichen Wirtschaftsgüter: Grund und Boden und
+	// alles, was darauf steht. Sie sind vom Kontenkatalog her erkennbar und
+	// nirgends sonst — und die Unterscheidung entscheidet mit: die degressive
+	// AfA des § 7 Abs. 2 EStG und die Sonderabschreibung des § 7g Abs. 5 EStG
+	// gibt es nur für bewegliche Wirtschaftsgüter.
+	Immovable bool `json:"immovable,omitempty"`
+
 	// InProgress marks the Sammelkonten, auf denen etwas liegt, das noch nicht
 	// fertig ist: Anlagen im Bau und geleistete Anzahlungen. Von ihnen wird mit
 	// der Fertigstellung auf das endgültige Anlagekonto umgebucht, und erst dann
@@ -76,24 +83,24 @@ var assetAccounts = []AssetAccount{
 
 	// --- Sachanlagen (§ 266 Abs. 2 A. II. HGB) ----------------------------
 	{Number: "0215", Name: "Unbebaute Grundstücke", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", Depreciable: false,
+		Group: "Grundstücke und Bauten", Depreciable: false, Immovable: true,
 		Hint: "Grund und Boden nutzt sich nicht ab und wird nicht planmäßig abgeschrieben. " +
 			"An Wert verlieren kann er nur außerplanmäßig (§ 253 Abs. 3 Satz 5 HGB)."},
 	{Number: "0235", Name: "Grundstückswerte eigener bebauter Grundstücke", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", Depreciable: false,
+		Group: "Grundstücke und Bauten", Depreciable: false, Immovable: true,
 		Hint: "Der Grund und Boden wird vom Gebäude getrennt geführt: das Gebäude wird abgeschrieben, " +
 			"der Boden nicht. Der Kaufpreis ist dafür aufzuteilen."},
 	{Number: "0240", Name: "Geschäftsbauten", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true,
+		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true,
 		Hint: "Gebäude folgen nicht den AfA-Tabellen, sondern den festen Sätzen des § 7 Abs. 4 EStG — " +
 			"für Betriebsgebäude in der Regel 3 %, also 33 Jahre."},
 	{Number: "0250", Name: "Fabrikbauten", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true,
+		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true,
 		Hint: "Feste AfA-Sätze nach § 7 Abs. 4 EStG."},
 	{Number: "0260", Name: "Andere Bauten", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true},
+		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true},
 	{Number: "0300", Name: "Wohnbauten", Class: domain.AssetClassTangible,
-		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true,
+		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true,
 		Hint: "Für Wohngebäude gelten eigene Sätze des § 7 Abs. 4 EStG."},
 	{Number: "0420", Name: "Technische Anlagen", Class: domain.AssetClassTangible,
 		Group: "Technische Anlagen und Maschinen", DepreciationAccount: "6220", Depreciable: true,
@@ -373,3 +380,101 @@ func tangibleRevenueAccount(treatment domain.TaxTreatment, gain bool) string {
 		return "6889"
 	}
 }
+
+// SpecialDepreciationAccount picks the Aufwandskonto der Sonderabschreibung nach
+// § 7g Abs. 5 EStG — und weist ab, wo es sie nicht gibt.
+//
+// Die Vorschrift gilt nur für **abnutzbare bewegliche** Wirtschaftsgüter des
+// Anlagevermögens. Das ist keine Formalie: ein Gebäude ist eine Sachanlage wie
+// eine Maschine, aber unbeweglich, und für es kommt die Sonderabschreibung nicht
+// in Betracht. Woran das erkennbar ist, weiß allein der Kontenkatalog.
+func SpecialDepreciationAccount(class domain.AssetClass, account string) (string, error) {
+	if class != domain.AssetClassTangible {
+		return "", fmt.Errorf(
+			"die Sonderabschreibung nach § 7g Abs. 5 EStG gibt es nur für bewegliche Wirtschaftsgüter " +
+				"des Sachanlagevermögens")
+	}
+	entry, known := LookupAssetAccount(account)
+	if known && entry.Immovable {
+		return "", fmt.Errorf(
+			"%s (%s) trägt ein unbewegliches Wirtschaftsgut. § 7g Abs. 5 EStG begünstigt nur "+
+				"bewegliche — für Gebäude gelten die festen Sätze des § 7 Abs. 4 EStG",
+			account, entry.Name)
+	}
+	if known && entry.InProgress {
+		return "", fmt.Errorf(
+			"%s steht noch als Anlage im Bau. Die Sonderabschreibung setzt die Anschaffung oder "+
+				"Herstellung voraus; buche zuerst die Fertigstellung um", account)
+	}
+	if known && entry.DepreciationAccount == "6222" {
+		// Der SKR04 führt die Sonderabschreibung auf Fahrzeuge getrennt, weil die
+		// GuV sie getrennt ausweist.
+		return "6242", nil
+	}
+	return "6241", nil
+}
+
+// MaintenanceAccount picks the Aufwandskonto des Erhaltungsaufwands.
+//
+// Erhaltungsaufwand ist der Gegenbegriff zu den nachträglichen
+// Herstellungskosten: was ein Wirtschaftsgut nur in seinem Zustand hält oder in
+// zeitgemäßer Weise wiederherstellt, ist sofort abziehbarer Aufwand; was es
+// erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich
+// verbessert, ist zu aktivieren (§ 255 Abs. 2 Satz 1 HGB). Die Abgrenzung ist
+// eine Einschätzung und keine Rechnung — Buchfink fragt sie und bucht danach.
+func MaintenanceAccount(class domain.AssetClass, account string) (string, error) {
+	if class == domain.AssetClassFinancial {
+		return "", fmt.Errorf(
+			"eine Finanzanlage nutzt sich nicht ab und wird nicht instand gehalten; " +
+				"Erhaltungsaufwand gibt es für sie nicht")
+	}
+	entry, known := LookupAssetAccount(account)
+	switch {
+	case known && entry.Immovable:
+		return "6450", nil // Reparaturen und Instandhaltung von Bauten
+	case known && entry.Group == "Fahrzeuge":
+		return "6540", nil // Fahrzeug-Reparaturen
+	case known && entry.Group == "Technische Anlagen und Maschinen":
+		return "6460", nil // Reparaturen und Instandhaltung von technischen Anlagen und Maschinen
+	case known:
+		return "6470", nil // andere Anlagen und Betriebs- und Geschäftsausstattung
+	default:
+		return "6490", nil // Sonstige Reparaturen und Instandhaltung
+	}
+}
+
+// AssetIncomeAccount is the Ertragskonto of a laufender Ertrag aus einer
+// Finanzanlage.
+//
+// Der SKR04 trennt die Erträge des Finanzanlagevermögens nach ihrer Herkunft,
+// weil die GuV sie nach § 275 Abs. 2 Nr. 9 bis 11 HGB getrennt ausweist:
+// Erträge aus Beteiligungen, Erträge aus anderen Wertpapieren und Ausleihungen
+// des Finanzanlagevermögens, sonstige Zinsen. Auf ein Sammelkonto gebucht wären
+// sie in der GuV nicht mehr auseinanderzuhalten.
+func AssetIncomeAccount(class domain.AssetClass, account string) (string, error) {
+	if class != domain.AssetClassFinancial {
+		return "", fmt.Errorf(
+			"laufende Erträge werden hier nur für Finanzanlagen mit dem Anlagegut verknüpft")
+	}
+	entry, known := LookupAssetAccount(account)
+	if !known {
+		return "7100", nil // Sonstige Zinsen und ähnliche Erträge
+	}
+	switch entry.Group {
+	case "Anteile und Beteiligungen":
+		return "7000", nil // Erträge aus Beteiligungen
+	case "Ausleihungen":
+		return "7011", nil // Erträge aus Ausleihungen des Finanzanlagevermögens
+	case "Wertpapiere":
+		return "7010", nil // Erträge aus anderen Wertpapieren des Finanzanlagevermögens
+	default:
+		return "7100", nil
+	}
+}
+
+// CurrencyTranslationAccounts are the two accounts of § 256a HGB: der Aufwand
+// aus der Währungsumrechnung und der Ertrag daraus.
+const (
+	CurrencyLossAccount = "6880" // Aufwendungen aus der Währungsumrechnung
+	CurrencyGainAccount = "4840" // Erträge aus der Währungsumrechnung
+)
