@@ -188,6 +188,18 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 	}, nil
 }
 
+// PreviewDepreciationPlan rechnet den Abschreibungsplan für eine Eingabe, die
+// noch kein Anlagegut ist. Die Erfassungsmaske zeigt damit beim Tippen, was die
+// Nutzungsdauer bedeutet, statt es den Nutzer schätzen zu lassen.
+func (b *BuchfinkBridge) PreviewDepreciationPlan(req service.PlanRequest) ([]accounting.AfAYear, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.assetSvc == nil {
+		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	}
+	return b.assetSvc.PreviewPlan(context.Background(), req)
+}
+
 // GetDepreciationRun computes the AfA of the active fiscal year without writing
 // anything.
 func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) {

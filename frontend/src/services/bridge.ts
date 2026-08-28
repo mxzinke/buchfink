@@ -127,6 +127,7 @@ export const bridge = {
   GetAssetRules: <T>() => invoke<T>('GetAssetRules'),
   ClassifyAcquisition: <T>(netCost: number, date: string, selfUsable: boolean) =>
     invoke<T>('ClassifyAcquisition', netCost, date, selfUsable),
+  PreviewDepreciationPlan: <T>(request: unknown) => invoke<T>('PreviewDepreciationPlan', request),
   GetDepreciationRun: <T>() => invoke<T>('GetDepreciationRun'),
   BookDepreciationRun: <T>(request: unknown) => invoke<T>('BookDepreciationRun', request),
   BookAssetImpairment: <T>(request: unknown) => invoke<T>('BookAssetImpairment', request),

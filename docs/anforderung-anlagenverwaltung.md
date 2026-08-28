@@ -181,6 +181,11 @@ Entschieden und umgesetzt:
   (`accounting.AfAParametersFor`), nicht editierbare Stammdaten — wie bei den
   Steuerparametern. Eine Grenze ist keine Wahl des Nutzers, und ein fest
   verdrahteter Wert würde ein nachbearbeitetes altes Jahr still falsch rechnen.
+  Die Grenzen binden auch die Eingabe: ein Sofortabzug über der GWG-Grenze und
+  ein Sammelposten außerhalb des Korridors werden abgelehnt, beim Sammelposten
+  je einzelnem Wirtschaftsgut und nicht auf die Summe des Postens. Je
+  Wirtschaftsjahr entsteht genau ein Sammelposten; weitere Güter des Jahres
+  kommen als Zugang hinein.
 - **Nutzungsdauer-Katalog:** ausgeliefert, aber nur für die Fälle, die eindeutig
   sind (Pkw, Lkw, Büromöbel, Ladeneinbauten, Geschäfts- oder Firmenwert). Jeder
   Vorschlag ist überschreibbar; die AfA-Tabellen binden die Finanzverwaltung,

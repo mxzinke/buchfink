@@ -1184,6 +1184,9 @@ function assetDetail(id: number) {
   const found = ASSETS.find((a) => a.id === id)!;
   return {
     asset: found,
+    // Ohne planmäßige AfA ist die kumulierte Abschreibung eine außerplanmäßige —
+    // und damit genau der Betrag, der zugeschrieben werden dürfte.
+    writeUpCeiling: found.method === 'none' ? found.accumulated : 0,
     schedule: ASSET_SCHEDULES[id] ?? [],
     movements: ASSET_MOVEMENTS[id] ?? [
       { id: 100 + id, assetId: id, kind: 'acquisition', date: found.acquisitionDate, fiscalYear: Number(found.acquisitionDate.slice(0, 4)), costAmount: found.cost, depreciationAmount: 0, note: 'Zugang', createdAt: `${found.acquisitionDate}T09:00:00Z` },
@@ -1308,6 +1311,58 @@ function disposalPreview(request: any) {
   };
 }
 
+
+/** Der Abschreibungsplan einer Eingabe, wie ihn das Backend rechnet. */
+function previewPlan(request: any) {
+  const cost = request.cost ?? 0;
+  if (cost <= 0) return [];
+  const start = Number(String(request.acquisitionDate).slice(0, 4));
+
+  if (request.method === 'immediate') {
+    return [{ fiscalYear: start, months: 1, method: 'immediate', rateLabel: '100 %', openingBookValue: cost, amount: cost, closingBookValue: 0 }];
+  }
+  if (request.method === 'pool') {
+    const share = Math.round(cost / 5);
+    return Array.from({ length: 5 }, (_, i) => ({
+      fiscalYear: (request.poolYear || start) + i,
+      months: 12,
+      method: 'pool',
+      rateLabel: '1/5',
+      openingBookValue: cost - share * i,
+      amount: i === 4 ? cost - share * 4 : share,
+      closingBookValue: cost - share * (i + 1),
+    }));
+  }
+
+  const life = request.usefulLifeMonths ?? 0;
+  if (life <= 0) return [];
+  const month = Number(String(request.acquisitionDate).slice(5, 7));
+  const firstMonths = 13 - month;
+  const annual = Math.round((cost * 12) / life);
+  const rows: any[] = [];
+  let book = cost;
+  let remaining = life;
+  let year = start;
+  let months = Math.min(firstMonths, life);
+  while (remaining > 0 && book > 0) {
+    const amount = remaining - months <= 0 ? book : Math.round((annual * months) / 12);
+    rows.push({
+      fiscalYear: year,
+      months,
+      method: 'linear',
+      rateLabel: `${Math.round((1200 / life) * 10) / 10} %`,
+      openingBookValue: book,
+      amount,
+      closingBookValue: book - amount,
+    });
+    book -= amount;
+    remaining -= months;
+    year += 1;
+    months = Math.min(12, remaining);
+  }
+  return rows;
+}
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -1425,6 +1480,7 @@ export const bridge = {
   GetAssetRules: () => later(ASSET_RULES),
   ClassifyAcquisition: (netCost: number, _date: string, selfUsable: boolean) =>
     later(classifyAcquisition(netCost, selfUsable)),
+  PreviewDepreciationPlan: (request: any) => later(previewPlan(request), 60),
   GetDepreciationRun: () => later(DEPRECIATION_RUN),
   BookDepreciationRun: unsupported('BookDepreciationRun'),
   BookAssetImpairment: unsupported('BookAssetImpairment'),
@@ -1433,7 +1489,8 @@ export const bridge = {
   DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
-  GetSammelposten: () => later(ASSETS.find((a) => a.method === 'pool') ?? null),
+  GetSammelposten: (fiscalYear: number) =>
+    later(ASSETS.find((a) => a.method === 'pool' && a.poolYear === (fiscalYear || YEAR)) ?? null),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => later(XBRL, 400),

@@ -809,6 +809,8 @@ export interface AssetDetail {
   asset: FixedAsset;
   schedule: AssetScheduleYear[];
   movements: AssetMovement[];
+  /** Höchstbetrag einer Zuschreibung (§ 253 Abs. 5 Satz 1 HGB), vom Backend gerechnet. */
+  writeUpCeiling: Cents;
   /** Die Sätze, die zu genau diesem Anlagegut gehören — vom Backend gerechnet. */
   notes: string[];
 }

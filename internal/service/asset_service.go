@@ -81,6 +81,11 @@ type AssetDetail struct {
 	Asset     domain.FixedAsset      `json:"asset"`
 	Schedule  []AssetScheduleYear    `json:"schedule"`
 	Movements []domain.AssetMovement `json:"movements"`
+	// WriteUpCeiling ist der Betrag, der höchstens zugeschrieben werden darf —
+	// die fortgeführten Anschaffungskosten abzüglich des heutigen Buchwerts
+	// (§ 253 Abs. 5 Satz 1 HGB). Die Maske nennt ihn, bevor jemand mehr eingibt,
+	// statt ihn erst beim Buchen abzuweisen.
+	WriteUpCeiling domain.Cents `json:"writeUpCeiling"`
 	// Notes are the sentences that apply to *this* asset — its method, its class,
 	// its account. They are computed rather than written into the frontend, so
 	// they cannot drift away from the rules the booking actually follows.
@@ -343,11 +348,19 @@ func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
 	movements := append([]domain.AssetMovement(nil), asset.Movements...)
 	s.fillEntryNumbers(ctx, movements)
 
+	ceiling, err := s.writeUpCeiling(ctx, asset, s.fiscalYear, startMonth)
+	if err != nil {
+		// Ein nicht rechenbarer Plan darf die Detailansicht nicht blockieren; die
+		// Obergrenze bleibt dann ungenannt und wird beim Buchen geprüft.
+		ceiling = 0
+	}
+
 	return &AssetDetail{
-		Asset:     *asset,
-		Schedule:  schedule,
-		Movements: movements,
-		Notes:     s.notesFor(asset),
+		Asset:          *asset,
+		Schedule:       schedule,
+		Movements:      movements,
+		WriteUpCeiling: ceiling,
+		Notes:          s.notesFor(asset),
 	}, nil
 }
 
@@ -424,6 +437,33 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 	return notes
 }
 
+// PlanRequest is a plan that does not exist yet: what the AfA would look like for
+// these inputs.
+type PlanRequest struct {
+	AcquisitionDate  string                    `json:"acquisitionDate"`
+	Cost             domain.Cents              `json:"cost"`
+	UsefulLifeMonths int                       `json:"usefulLifeMonths"`
+	Method           domain.DepreciationMethod `json:"method"`
+	PoolYear         int                       `json:"poolYear,omitempty"`
+}
+
+// PreviewPlan computes an AfA schedule for inputs that are still being typed.
+//
+// Es ist dieselbe Rechnung wie im Abschreibungslauf, nur ohne Anlagegut. Damit
+// sieht die Maske, was die Eingabe bedeutet — der erste Jahresbetrag, das letzte
+// Jahr —, bevor gespeichert wird, und die Oberfläche muss dafür nichts
+// nachrechnen.
+func (s *AssetService) PreviewPlan(ctx context.Context, req PlanRequest) ([]accounting.AfAYear, error) {
+	return accounting.BuildAfASchedule(accounting.AfAPlan{
+		AcquisitionDate:      req.AcquisitionDate,
+		Cost:                 req.Cost,
+		UsefulLifeMonths:     req.UsefulLifeMonths,
+		Method:               req.Method,
+		PoolYear:             req.PoolYear,
+		FiscalYearStartMonth: s.fiscalYearStartMonth(ctx),
+	})
+}
+
 // -------------------------------------------------------------------------
 // Schreiben (ohne Buchung)
 // -------------------------------------------------------------------------
@@ -447,6 +487,9 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		return nil, err
 	}
 	if err := s.validateAccounts(ctx, asset); err != nil {
+		return nil, err
+	}
+	if err := s.validateValueLimits(asset, asset.AcquisitionCost); err != nil {
 		return nil, err
 	}
 
@@ -480,6 +523,19 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
 			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name))
 		return s.reload(ctx, asset.ID)
+	}
+
+	if asset.Method == domain.DepreciationPool {
+		existing, err := s.assetRepo.FindPool(ctx, asset.PoolYear)
+		if err != nil {
+			return nil, fmt.Errorf("der Sammelposten des Jahres konnte nicht geprüft werden: %w", err)
+		}
+		if existing != nil {
+			return nil, fmt.Errorf(
+				"für das Wirtschaftsjahr %d besteht bereits der Sammelposten %s. § 6 Abs. 2a EStG kennt "+
+					"genau einen je Wirtschaftsjahr — nimm das Wirtschaftsgut dort als weiteren Zugang auf",
+				asset.PoolYear, existing.InventoryNumber)
+		}
 	}
 
 	number, err := s.nextInventoryNumber(ctx, asset.AcquisitionDate)
@@ -549,6 +605,14 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 	date := req.Date
 	if len(date) != 10 {
 		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	// Ein Zugang zum Sammelposten ist ein weiteres Wirtschaftsgut und muss die
+	// Wertgrenze für sich einhalten — der Posten als Ganzes darf sie überschreiten,
+	// das einzelne Gut darin nicht.
+	if !req.Reduction {
+		if err := s.validateValueLimits(asset, req.Amount); err != nil {
+			return nil, err
+		}
 	}
 
 	movement := &domain.AssetMovement{
@@ -1633,6 +1697,51 @@ func (s *AssetService) adjustAcquisitionMovement(
 		}
 		m.CostAmount = newCost
 		return s.assetRepo.AddMovement(ctx, m)
+	}
+	return nil
+}
+
+// validateValueLimits holds the Wertgrenzen of § 6 Abs. 2 und 2a EStG against the
+// chosen treatment.
+//
+// Ohne sie nimmt das Verzeichnis einen Sofortabzug für eine 5.000-€-Maschine an
+// und schreibt sie im Anschaffungsjahr voll ab. Der Fehler fiele erst bei der
+// Betriebsprüfung auf, und dann an einer Stelle, an der niemand mehr weiß, wie er
+// zustande kam.
+//
+// itemCost ist immer der Wert *eines* Wirtschaftsguts: beim Sammelposten also der
+// einzelne Zugang und nicht die Summe des Postens.
+func (s *AssetService) validateValueLimits(asset *domain.FixedAsset, itemCost domain.Cents) error {
+	if asset.Method != domain.DepreciationImmediate && asset.Method != domain.DepreciationPool {
+		return nil
+	}
+	params, err := accounting.AfAParametersFor(asset.AcquisitionDate)
+	if err != nil {
+		return err
+	}
+
+	switch asset.Method {
+	case domain.DepreciationImmediate:
+		if itemCost > params.GWGImmediateLimit {
+			return fmt.Errorf(
+				"der Sofortabzug endet bei %s € netto (§ 6 Abs. 2 Satz 1 EStG); %s € liegen darüber. "+
+					"Bis %s € bleibt der Sammelposten, darüber wird aktiviert und über die Nutzungsdauer "+
+					"abgeschrieben",
+				params.GWGImmediateLimit, itemCost, params.PoolUpperLimit)
+		}
+	case domain.DepreciationPool:
+		if itemCost <= params.PoolLowerLimit {
+			return fmt.Errorf(
+				"in den Sammelposten kommen Wirtschaftsgüter über %s € (§ 6 Abs. 2a Satz 1 EStG); "+
+					"%s € liegen darunter und werden sofort abgezogen",
+				params.PoolLowerLimit, itemCost)
+		}
+		if itemCost > params.PoolUpperLimit {
+			return fmt.Errorf(
+				"der Sammelposten endet bei %s € je Wirtschaftsgut (§ 6 Abs. 2a Satz 1 EStG); %s € liegen "+
+					"darüber und werden aktiviert und über die Nutzungsdauer abgeschrieben",
+				params.PoolUpperLimit, itemCost)
+		}
 	}
 	return nil
 }

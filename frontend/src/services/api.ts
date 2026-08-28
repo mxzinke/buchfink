@@ -11,12 +11,14 @@ import type {
   AssetClass,
   AssetDetail,
   AssetRules,
+  AssetScheduleYear,
   AssetSummary,
   AuditLogEntry,
   BankTransaction,
   Cents,
   CompanySettings,
   Contact,
+  DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
   DifferenceKindInfo,
@@ -278,6 +280,15 @@ export const Api = {
    */
   classifyAcquisition: (netCost: Cents, date: string, selfUsable: boolean): Promise<AcquisitionAdvice> =>
     call(() => Bridge.ClassifyAcquisition(netCost, date, selfUsable) as Promise<AcquisitionAdvice>),
+  /** Der Abschreibungsplan für eine Eingabe, die noch kein Anlagegut ist. */
+  previewDepreciationPlan: (request: {
+    acquisitionDate: string;
+    cost: Cents;
+    usefulLifeMonths: number;
+    method: DepreciationMethod;
+    poolYear?: number;
+  }): Promise<AssetScheduleYear[]> =>
+    call(() => Bridge.PreviewDepreciationPlan(request as any) as Promise<AssetScheduleYear[]>),
   getDepreciationRun: (): Promise<DepreciationRun> =>
     call(() => Bridge.GetDepreciationRun() as Promise<DepreciationRun>),
   bookDepreciationRun: (request: {

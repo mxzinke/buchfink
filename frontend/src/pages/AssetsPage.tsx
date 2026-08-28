@@ -10,7 +10,10 @@ import {
   AssetClass,
   AssetDetail,
   AssetRules,
+  AssetScheduleYear,
+  AcquisitionOption,
   Cents,
+  DepreciationMethod,
   Contact,
   DepreciationRun,
   DisposalKind,
@@ -935,6 +938,12 @@ const SpiegelTab: React.FC<{
 // Anlagegut erfassen und ändern
 // -------------------------------------------------------------------------
 
+const ADVICE_LABEL: Record<AcquisitionOption, string> = {
+  immediate: 'Sofortabzug',
+  pool: 'Sammelposten',
+  activate: 'Aktivieren und abschreiben',
+};
+
 const AssetFormDialog: React.FC<{
   draft: Partial<FixedAsset> | null;
   accounts: AssetAccountInfo[];
@@ -951,6 +960,8 @@ const AssetFormDialog: React.FC<{
   const [costText, setCostText] = useState('');
   const [selfUsable, setSelfUsable] = useState(true);
   const [advice, setAdvice] = useState<AcquisitionAdvice | null>(null);
+  const [plan, setPlan] = useState<AssetScheduleYear[]>([]);
+  const [pool, setPool] = useState<FixedAsset | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -960,6 +971,7 @@ const AssetFormDialog: React.FC<{
       setCostText(draft.acquisitionCost ? formatCentsPlain(draft.acquisitionCost) : '');
       setError(null);
       setAdvice(null);
+      setPlan([]);
     }
   }, [draft]);
 
@@ -968,12 +980,17 @@ const AssetFormDialog: React.FC<{
   const catalog = accounts.filter((a) => a.class === assetClass);
   const selectedAccount = catalog.find((a) => a.number === asset.account);
 
+  const cost = parseCents(costText);
+  const costError =
+    costText.trim() !== '' && (cost === null || cost <= 0)
+      ? 'Erwartet wird ein Betrag wie 1.234,56.'
+      : undefined;
+
   // Die Einordnung nach § 6 Abs. 2 und 2a EStG rechnet das Backend. Sie wird
   // angefragt, sobald Betrag und Datum stehen — und nur für Sachanlagen, weil
   // die Wertgrenzen nur dort greifen.
   useEffect(() => {
-    const cost = parseCents(costText) ?? 0;
-    if (assetClass !== 'tangible' || cost <= 0 || !asset.acquisitionDate) {
+    if (assetClass !== 'tangible' || !cost || cost <= 0 || !asset.acquisitionDate) {
       setAdvice(null);
       return;
     }
@@ -986,10 +1003,85 @@ const AssetFormDialog: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [assetClass, costText, asset.acquisitionDate, selfUsable]);
+  }, [assetClass, cost, asset.acquisitionDate, selfUsable]);
+
+  // Der Plan wird nicht hier gerechnet, sondern gefragt — dieselbe Rechnung, die
+  // später auch bucht. So steht schon in der Maske, was die Nutzungsdauer
+  // bedeutet, statt erst nach dem Speichern.
+  useEffect(() => {
+    if (!cost || cost <= 0 || !asset.acquisitionDate || !asset.method || asset.method === 'none') {
+      setPlan([]);
+      return;
+    }
+    if ((asset.method === 'linear' || asset.method === 'degressive') && !asset.usefulLifeMonths) {
+      setPlan([]);
+      return;
+    }
+    let cancelled = false;
+    Api.previewDepreciationPlan({
+      acquisitionDate: asset.acquisitionDate,
+      cost,
+      usefulLifeMonths: asset.usefulLifeMonths ?? 0,
+      method: asset.method,
+      poolYear: asset.poolYear || year,
+    })
+      .then((rows) => {
+        if (!cancelled) setPlan(rows ?? []);
+      })
+      .catch(() => setPlan([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [cost, asset.acquisitionDate, asset.method, asset.usefulLifeMonths, asset.poolYear, year]);
+
+  // Es gibt genau einen Sammelposten je Wirtschaftsjahr. Besteht er schon, wird
+  // das Gut dort eingestellt statt ein zweiter Posten angelegt.
+  useEffect(() => {
+    if (asset.method !== 'pool' || !isNew) {
+      setPool(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getSammelposten(asset.poolYear || year)
+      .then((found) => {
+        if (!cancelled) setPool(found);
+      })
+      .catch(() => setPool(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [asset.method, asset.poolYear, isNew, year]);
 
   function set(patch: Partial<FixedAsset>) {
     setAsset((prev) => ({ ...prev, ...patch }));
+  }
+
+  /**
+   * Die Zugangsbuchung kennt Konto, Betrag, Datum und Lieferant bereits. Sie
+   * abzutippen ist genau die Art Arbeit, die eine Buchhaltung nicht braucht.
+   */
+  function pickEntry(entryId: number) {
+    if (entryId === 0) {
+      set({ acquisitionEntryId: undefined });
+      return;
+    }
+    const candidate = candidates.find((c) => c.entryId === entryId);
+    if (!candidate) {
+      set({ acquisitionEntryId: entryId });
+      return;
+    }
+    const entry = accounts.find((a) => a.number === candidate.account);
+    setCostText(formatCentsPlain(candidate.amount));
+    set({
+      acquisitionEntryId: entryId,
+      account: candidate.account,
+      acquisitionDate: candidate.bookingDate,
+      contactId: candidate.contactId,
+      name: asset.name || candidate.description,
+      depreciationAccount: entry?.depreciationAccount ?? asset.depreciationAccount ?? '',
+      usefulLifeMonths: entry?.defaultUsefulLifeMonths || asset.usefulLifeMonths || 0,
+      method: entry && !entry.depreciable ? 'none' : asset.method ?? 'linear',
+    });
   }
 
   function pickAccount(number: string | null) {
@@ -1002,12 +1094,89 @@ const AssetFormDialog: React.FC<{
     });
   }
 
+  /**
+   * Warum eine Methode hier nicht wählbar ist — oder undefined, wenn sie es ist.
+   *
+   * Die Gründe stehen alle schon fest, bevor jemand speichert: die Wertgrenzen aus
+   * der Einordnung, das Zeitfenster der degressiven AfA und die Frage, ob sich das
+   * gewählte Konto überhaupt abnutzt. Sie erst beim Speichern als Fehler zu
+   * zeigen, wäre eine Maske, die etwas anbietet und es dann verweigert.
+   */
+  function methodBlocked(method: DepreciationMethod): string | undefined {
+    if (selectedAccount && !selectedAccount.depreciable && method !== 'none') {
+      return `${selectedAccount.name} nutzt sich nicht ab.`;
+    }
+    if (method === 'degressive' && asset.acquisitionDate) {
+      const open = (rules?.degressiveWindows ?? []).some(
+        (w) => asset.acquisitionDate! >= w.From && asset.acquisitionDate! <= w.Until,
+      );
+      if (!open) {
+        return 'Für dieses Anschaffungsdatum ist die degressive AfA nicht zulässig.';
+      }
+    }
+    if (advice && (method === 'immediate' || method === 'pool')) {
+      if (!advice.allowed.includes(method === 'immediate' ? 'immediate' : 'pool')) {
+        return method === 'immediate'
+          ? `Über ${formatCents(advice.limits.immediate)} netto ist der Sofortabzug ausgeschlossen.`
+          : `Der Sammelposten gilt von ${formatCents(advice.limits.poolLowerLimit)} bis ${formatCents(
+              advice.limits.poolUpperLimit,
+            )} netto.`;
+      }
+    }
+    return undefined;
+  }
+
+  const currentOption: AcquisitionOption =
+    asset.method === 'immediate' ? 'immediate' : asset.method === 'pool' ? 'pool' : 'activate';
+
   const methods = (rules?.methods ?? []).filter((m) => m.classes.includes(assetClass));
   const activeMethod = methods.find((m) => m.method === asset.method);
+  const blockedReason = asset.method ? methodBlocked(asset.method) : undefined;
   const needsUsefulLife = asset.method === 'linear' || asset.method === 'degressive';
 
+  /** Übernimmt den Vorschlag der Einordnung samt des Kontos, das dazu gehört. */
+  function applyAdvice(option: AcquisitionOption) {
+    if (option === 'immediate') {
+      set({ method: 'immediate', account: '0670', depreciationAccount: '6260', usefulLifeMonths: 0 });
+      return;
+    }
+    if (option === 'pool') {
+      set({
+        method: 'pool',
+        account: '0675',
+        depreciationAccount: '6264',
+        usefulLifeMonths: 0,
+        poolYear: asset.poolYear || year,
+      });
+      return;
+    }
+    set({ method: 'linear' });
+  }
+
+  /** Das Gut in den bestehenden Sammelposten des Jahres einstellen. */
+  async function addToPool() {
+    if (!pool || !cost || cost <= 0) {
+      setError('Für den Zugang zum Sammelposten fehlt ein lesbarer Betrag.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await Api.recordAssetCostAdjustment({
+        assetId: pool.id,
+        date: asset.acquisitionDate ?? new Date().toISOString().slice(0, 10),
+        amount: cost,
+        note: asset.name || 'Zugang',
+      });
+      await onSaved(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit() {
-    const cost = parseCents(costText);
     if (cost === null || cost <= 0) {
       setError('Die Anschaffungskosten fehlen oder sind nicht lesbar. Erwartet wird ein Betrag wie 1.234,56.');
       return;
@@ -1104,6 +1273,7 @@ const AssetFormDialog: React.FC<{
         <Field
           label="Anschaffungskosten"
           hint="netto, ohne Vorsteuer"
+          error={costError}
           help="Anschaffungspreis zuzüglich Nebenkosten wie Fracht und Montage, abzüglich Minderungen (§ 255 Abs. 1 HGB)."
         >
           <Input
@@ -1114,13 +1284,17 @@ const AssetFormDialog: React.FC<{
             onChange={(e) => setCostText(e.target.value)}
           />
         </Field>
-        <Field label="Zugangsbuchung" optional help="Verknüpft das Anlagegut mit der Buchung, die den Zugang erfasst hat.">
+        <Field
+          label="Zugangsbuchung"
+          optional
+          help="Die gewählte Buchung füllt Konto, Betrag, Datum und Lieferant — sie weiß das alles bereits."
+        >
           <Select
             items={[
               { value: 0, label: 'Nicht verknüpft' },
               ...candidates.map((c) => ({
                 value: c.entryId,
-                label: `${c.entryNumber} · ${formatCents(c.amount)}`,
+                label: `${c.entryNumber} · ${c.account} · ${formatCents(c.amount)}`,
               })),
               ...(asset.acquisitionEntryId &&
               !candidates.some((c) => c.entryId === asset.acquisitionEntryId)
@@ -1128,7 +1302,7 @@ const AssetFormDialog: React.FC<{
                 : []),
             ]}
             value={asset.acquisitionEntryId ?? 0}
-            onValueChange={(next) => set({ acquisitionEntryId: next === 0 ? undefined : Number(next) })}
+            onValueChange={(next) => pickEntry(Number(next))}
           />
         </Field>
       </div>
@@ -1142,26 +1316,41 @@ const AssetFormDialog: React.FC<{
             hint="Ein Bildschirm ist es ohne Rechner nicht — und damit kein GWG, egal wie günstig er war."
           />
           {advice && (
-            <div className="rounded-control border border-accent-line bg-accent-soft px-4 py-3 text-body text-ink-muted">
-              <p>{advice.reason}</p>
-              {advice.poolNote && <p className="mt-2">{advice.poolNote}</p>}
-              <p className="mt-2 text-caption text-ink-subtle">
-                Vorschlag:{' '}
-                {advice.recommended === 'immediate'
-                  ? 'Sofortabzug'
-                  : advice.recommended === 'pool'
-                    ? 'Sammelposten'
-                    : 'Aktivieren und abschreiben'}
+            <div className="flex items-start justify-between gap-4 rounded-control border border-accent-line bg-accent-soft px-4 py-3">
+              <p className="text-body text-ink-muted">
+                {ADVICE_LABEL[advice.recommended]} — {advice.reason}
+                {advice.poolNote ? ` ${advice.poolNote}` : ''}
               </p>
+              {advice.recommended !== currentOption && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => applyAdvice(advice.recommended)}
+                >
+                  Übernehmen
+                </Button>
+              )}
             </div>
           )}
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-4 mt-4">
-        <Field label="Abschreibungsmethode" hint={activeMethod?.hint}>
+        <Field
+          label="Abschreibungsmethode"
+          hint={activeMethod?.hint}
+          error={blockedReason}
+        >
           <Select
-            items={methods.map((m) => ({ value: m.method, label: m.label }))}
+            items={methods.map((m) => {
+              const blocked = methodBlocked(m.method);
+              return {
+                value: m.method,
+                label: blocked ? `${m.label} — ${blocked}` : m.label,
+                disabled: Boolean(blocked),
+              };
+            })}
             value={asset.method ?? 'linear'}
             onValueChange={(next) => set({ method: next as FixedAsset['method'] })}
           />
@@ -1256,6 +1445,48 @@ const AssetFormDialog: React.FC<{
           />
         </Field>
       </div>
+
+      {pool && (
+        <div className="mt-4 flex items-start justify-between gap-4 rounded-control border border-attention-line bg-attention-soft px-4 py-3">
+          <p className="text-body text-attention-text">
+            Für {asset.poolYear || year} besteht bereits der Sammelposten {pool.inventoryNumber} über{' '}
+            {formatCents(pool.cost)}. § 6 Abs. 2a EStG kennt genau einen je Wirtschaftsjahr.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            loading={busy}
+            onClick={addToPool}
+          >
+            Dort aufnehmen
+          </Button>
+        </div>
+      )}
+
+      {plan.length > 0 && (
+        <div className="mt-4 rounded-control border border-line bg-sunken px-4 py-3">
+          <div className="text-overline text-ink-subtle mb-2">So läuft die Abschreibung</div>
+          <div className="flex flex-wrap gap-x-8 gap-y-1 text-body text-ink-muted">
+            <span>
+              {plan[0].fiscalYear}:{' '}
+              <span className="num text-ink">{formatCents(plan[0].amount)}</span>
+              {plan[0].months < 12 && (
+                <span className="text-ink-subtle"> · {plan[0].months} von 12 Monaten</span>
+              )}
+            </span>
+            {plan.length > 1 && (
+              <span>
+                {plan[1].fiscalYear}:{' '}
+                <span className="num text-ink">{formatCents(plan[1].amount)}</span>
+              </span>
+            )}
+            <span className="text-ink-subtle">
+              vollständig abgeschrieben {plan[plan.length - 1].fiscalYear}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5">
         <FormHint
@@ -1370,7 +1601,7 @@ const AssetDetailDialog: React.FC<{
       ) : action === 'impairment' ? (
         <ImpairmentForm asset={asset} onDone={afterBooking} />
       ) : action === 'writeUp' ? (
-        <WriteUpForm asset={asset} onDone={afterBooking} />
+        <WriteUpForm asset={asset} ceiling={detail.writeUpCeiling} onDone={afterBooking} />
       ) : action === 'cost' ? (
         <CostAdjustmentForm asset={asset} onDone={afterBooking} />
       ) : action === 'disposal' ? (
@@ -1550,7 +1781,15 @@ const ImpairmentForm: React.FC<{
         <Field label="Datum">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Betrag" hint={`Buchwert ${formatCents(asset.bookValue)}`}>
+        <Field
+          label="Betrag"
+          hint={`höchstens ${formatCents(asset.bookValue)} — der heutige Buchwert`}
+          error={
+            (parseCents(amount) ?? 0) > asset.bookValue
+              ? 'Mehr als den Buchwert kann ein Anlagegut nicht verlieren.'
+              : undefined
+          }
+        >
           <Input
             align="right"
             inputMode="decimal"
@@ -1593,8 +1832,10 @@ const ImpairmentForm: React.FC<{
 
 const WriteUpForm: React.FC<{
   asset: FixedAsset;
+  /** Höchstbetrag aus dem Backend — dieselbe Grenze, an der das Buchen scheitern würde. */
+  ceiling: Cents;
   onDone: (message: string) => Promise<void>;
-}> = ({ asset, onDone }) => {
+}> = ({ asset, ceiling, onDone }) => {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -1635,11 +1876,24 @@ const WriteUpForm: React.FC<{
         <Field label="Datum">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Betrag" hint={`Buchwert ${formatCents(asset.bookValue)}`}>
+        <Field
+          label="Betrag"
+          hint={
+            ceiling > 0
+              ? `höchstens ${formatCents(ceiling)} — fortgeführte Anschaffungskosten`
+              : 'Es gibt nichts zuzuschreiben: der Buchwert entspricht den fortgeführten Anschaffungskosten.'
+          }
+          error={
+            (parseCents(amount) ?? 0) > ceiling && ceiling > 0
+              ? `Mehr als ${formatCents(ceiling)} lässt § 253 Abs. 5 Satz 1 HGB nicht zu.`
+              : undefined
+          }
+        >
           <Input
             align="right"
             inputMode="decimal"
             placeholder="0,00"
+            disabled={ceiling <= 0}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
@@ -1653,7 +1907,12 @@ const WriteUpForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={ceiling <= 0 || (parseCents(amount) ?? 0) <= 0 || (parseCents(amount) ?? 0) > ceiling}
+          onClick={submit}
+        >
           Zuschreibung buchen
         </Button>
       </div>

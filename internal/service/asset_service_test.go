@@ -625,17 +625,158 @@ func TestPoolCannotBeDisposed(t *testing.T) {
 	svc := env.assets(t)
 	ctx := context.Background()
 
+	// Der Posten entsteht aus einzelnen Wirtschaftsgütern, von denen jedes für sich
+	// die Wertgrenze einhält — die Summe darf darüber liegen.
 	pool, err := svc.Save(ctx, &domain.FixedAsset{
 		Name: "Sammelposten 2026", Class: domain.AssetClassTangible, Account: "0675",
 		DepreciationAccount: "6264", AcquisitionDate: "2026-01-01",
-		AcquisitionCost: 420_000, Method: domain.DepreciationPool, PoolYear: 2026,
+		AcquisitionCost: 60_000, Method: domain.DepreciationPool, PoolYear: 2026,
 	})
 	if err != nil {
 		t.Fatalf("Sammelposten: %v", err)
+	}
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: pool.ID, Date: "2026-04-01", Amount: 90_000, Note: "Regal",
+	}); err != nil {
+		t.Fatalf("Zugang zum Sammelposten: %v", err)
 	}
 	if _, err := svc.PreviewDisposal(ctx, DisposalRequest{
 		AssetID: pool.ID, Date: "2026-08-01", Kind: domain.DisposalScrapped,
 	}); err == nil {
 		t.Fatal("ein Sammelposten darf nicht abgehen")
+	}
+}
+
+// Die Wertgrenzen des § 6 Abs. 2 und 2a EStG sind keine Empfehlung. Ohne diese
+// Prüfung nähme das Verzeichnis einen Sofortabzug für eine 5.000-€-Maschine an.
+func TestValueLimitsBindTheTreatment(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	_, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Fräsmaschine", Class: domain.AssetClassTangible, Account: "0670",
+		DepreciationAccount: "6260", AcquisitionDate: "2026-03-01",
+		AcquisitionCost: 500_000, Method: domain.DepreciationImmediate,
+	})
+	if err == nil {
+		t.Fatal("ein Sofortabzug über der GWG-Grenze darf nicht durchgehen")
+	}
+	if !strings.Contains(err.Error(), "§ 6 Abs. 2 Satz 1 EStG") {
+		t.Errorf("die Meldung sollte die Fundstelle nennen, lautet aber: %v", err)
+	}
+
+	if _, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Bürostuhl", Class: domain.AssetClassTangible, Account: "0675",
+		DepreciationAccount: "6264", AcquisitionDate: "2026-03-01",
+		AcquisitionCost: 20_000, Method: domain.DepreciationPool, PoolYear: 2026,
+	}); err == nil {
+		t.Error("unter der Sammelposten-Untergrenze gehört das Gut in den Sofortabzug")
+	}
+	if _, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Werkbank", Class: domain.AssetClassTangible, Account: "0675",
+		DepreciationAccount: "6264", AcquisitionDate: "2026-03-01",
+		AcquisitionCost: 150_000, Method: domain.DepreciationPool, PoolYear: 2026,
+	}); err == nil {
+		t.Error("über der Sammelposten-Obergrenze wird aktiviert")
+	}
+}
+
+// § 6 Abs. 2a EStG kennt genau einen Sammelposten je Wirtschaftsjahr. Weitere
+// Güter des Jahres kommen als Zugang hinein, nicht als zweiter Posten.
+func TestOnlyOnePoolPerFiscalYear(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	pool := &domain.FixedAsset{
+		Name: "Sammelposten 2026", Class: domain.AssetClassTangible, Account: "0675",
+		DepreciationAccount: "6264", AcquisitionDate: "2026-02-01",
+		AcquisitionCost: 60_000, Method: domain.DepreciationPool, PoolYear: 2026,
+	}
+	first, err := svc.Save(ctx, pool)
+	if err != nil {
+		t.Fatalf("erster Sammelposten: %v", err)
+	}
+
+	_, err = svc.Save(ctx, &domain.FixedAsset{
+		Name: "Sammelposten 2026 (zweiter)", Class: domain.AssetClassTangible, Account: "0675",
+		DepreciationAccount: "6264", AcquisitionDate: "2026-06-01",
+		AcquisitionCost: 40_000, Method: domain.DepreciationPool, PoolYear: 2026,
+	})
+	if err == nil {
+		t.Fatal("ein zweiter Sammelposten desselben Jahres darf nicht entstehen")
+	}
+	if !strings.Contains(err.Error(), first.InventoryNumber) {
+		t.Errorf("die Meldung sollte den bestehenden Posten nennen, lautet aber: %v", err)
+	}
+
+	// Der richtige Weg: als Zugang in den bestehenden Posten.
+	updated, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: first.ID, Date: "2026-06-01", Amount: 40_000, Note: "Regal",
+	})
+	if err != nil {
+		t.Fatalf("Zugang zum Sammelposten: %v", err)
+	}
+	if updated.Cost != 100_000 {
+		t.Errorf("Sammelposten %s € — erwartet 1.000,00 €", updated.Cost)
+	}
+
+	// Auch der Zugang hält die Wertgrenze je Wirtschaftsgut ein.
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: first.ID, Date: "2026-07-01", Amount: 150_000, Note: "Werkbank",
+	}); err == nil {
+		t.Error("ein Gut über 1.000 € gehört nicht in den Sammelposten")
+	}
+}
+
+// Die Maske rechnet den Plan nicht selbst — sie fragt dieselbe Rechnung, die
+// später auch bucht.
+func TestPreviewPlanAnswersBeforeTheAssetExists(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+
+	rows, err := svc.PreviewPlan(context.Background(), PlanRequest{
+		AcquisitionDate:  "2026-09-15",
+		Cost:             1_200_000,
+		UsefulLifeMonths: 48,
+		Method:           domain.DepreciationLinear,
+	})
+	if err != nil {
+		t.Fatalf("Planvorschau: %v", err)
+	}
+	if len(rows) != 5 || rows[0].Amount != 100_000 {
+		t.Fatalf("Vorschau %+v — erwartet fünf Jahre, im ersten 1.000,00 €", rows)
+	}
+}
+
+// Die Obergrenze der Zuschreibung steht in der Detailansicht, bevor jemand mehr
+// eingibt.
+func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	share, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anteile Musterwerk GmbH", Class: domain.AssetClassFinancial,
+		Account: "0850", AcquisitionDate: "2026-02-01", AcquisitionCost: 5_000_000,
+		Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Finanzanlage: %v", err)
+	}
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+		AssetID: share.ID, Date: "2026-06-30", Amount: 500_000,
+		Permanent: true, Reason: "Verlustjahr",
+	}); err != nil {
+		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
+	}
+
+	detail, err := svc.Get(ctx, share.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.WriteUpCeiling != 500_000 {
+		t.Errorf("Obergrenze %s € — erwartet 5.000,00 €", detail.WriteUpCeiling)
 	}
 }
