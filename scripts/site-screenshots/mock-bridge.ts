@@ -1004,11 +1004,24 @@ const ASSETS = [
       specialReason: 'Gewinn 2025: 142.000 €; ausschließlich betriebliche Nutzung',
       specialDue: c(8000),
     }),
+  asset(12, 'AN-2025-0012', 'MSCI-World-ETF (thesaurierend)', 'financial', '0900',
+    'Wertpapiere des Anlagevermögens', '', '2025-01-02', c(100000), 0, 0, 0, 'none', 0,
+    {
+      identifier: 'IE00B4L5Y983',
+      fundClass: 'equity',
+      quantity: 1200 * 10000,
+      unitsHeld: 1200 * 10000,
+      vorabpauschalen: c(1771),
+    }),
+  asset(13, 'AN-2024-0013', 'Darlehen an Werftgrund GmbH', 'financial', '0940',
+    'Darlehen', '', '2024-03-01', c(50000), 0, 0, 0, 'none', 0,
+    { maturityDate: '2027-03-01' }),
   asset(11, 'AN-2025-0011', 'US-Staatsanleihe 2032', 'financial', '0920',
     'Festverzinsliche Wertpapiere', '', '2025-05-12', c(10000), 0, 0, 0, 'none', 0,
     {
       identifier: 'US912828Z294',
       currency: 'USD',
+      maturityDate: '2032-05-12',
       foreignCost: c(12000),
       quantity: 100 * 10000,
       unitsHeld: 100 * 10000,
@@ -1027,6 +1040,8 @@ const ASSET_ACCOUNTS = [
   { number: '0700', name: 'Geleistete Anzahlungen und Anlagen im Bau', class: 'tangible', group: 'Anlagen im Bau', depreciable: false, inProgress: true, hint: 'Mit der Fertigstellung wird umgebucht, und die AfA beginnt.' },
   { number: '0850', name: 'Beteiligungen an Kapitalgesellschaften', class: 'financial', group: 'Anteile und Beteiligungen', depreciable: false },
   { number: '0920', name: 'Festverzinsliche Wertpapiere', class: 'financial', group: 'Wertpapiere', depreciable: false },
+  { number: '0900', name: 'Wertpapiere des Anlagevermögens', class: 'financial', group: 'Wertpapiere', depreciable: false },
+  { number: '0940', name: 'Darlehen', class: 'financial', group: 'Ausleihungen', depreciable: false },
 ];
 
 const ASSET_RULES = {
@@ -1224,6 +1239,19 @@ ASSET_MOVEMENTS[11] = [
   { id: 31, assetId: 11, kind: 'income', date: `${YEAR}-06-30`, fiscalYear: YEAR, costAmount: 0, depreciationAmount: 0, entryNumber: `${YEAR}-000318`, note: '250,00 € auf 7010. Halbjahreszins', createdAt: `${YEAR}-06-30T09:00:00Z` },
 ];
 
+// Verträge und Papiere zum Anlagegut — abgelegt, nicht gebucht.
+const ASSET_DOCUMENTS: Record<number, unknown[]> = {
+  3: [
+    { id: 1, assetId: 3, kind: 'contract', title: 'Kaufvertrag Haas Automation', fileName: 'kaufvertrag-vf2.pdf', mimeType: 'application/pdf', size: 184320, sha256: 'a'.repeat(64), storedPath: 'dokumente/contract/a.pdf', documentDate: '2026-01-28', createdAt: '2026-02-01T09:00:00Z' },
+    { id: 2, assetId: 3, kind: 'maintenance', title: 'Abnahmeprotokoll und Einweisung', fileName: 'abnahme.pdf', mimeType: 'application/pdf', size: 92160, sha256: 'b'.repeat(64), storedPath: 'dokumente/maintenance/b.pdf', documentDate: '2026-02-03', createdAt: '2026-02-04T09:00:00Z' },
+    { id: 3, assetId: 3, kind: 'insurance', title: 'Maschinenbruchversicherung', fileName: 'police.pdf', mimeType: 'application/pdf', size: 61440, sha256: 'c'.repeat(64), storedPath: 'dokumente/insurance/c.pdf', documentDate: '2026-02-10', validUntil: `${YEAR}-12-31`, createdAt: '2026-02-10T09:00:00Z' },
+  ],
+  13: [
+    { id: 4, assetId: 13, kind: 'contract', title: 'Darlehensvertrag vom 01.03.2024', fileName: 'darlehensvertrag.pdf', mimeType: 'application/pdf', size: 133120, sha256: 'd'.repeat(64), storedPath: 'dokumente/contract/d.pdf', documentDate: '2024-03-01', validUntil: '2027-03-01', createdAt: '2024-03-01T09:00:00Z' },
+    { id: 5, assetId: 13, kind: 'statement', title: 'Tilgungsplan', fileName: 'tilgungsplan.csv', mimeType: 'text/csv', size: 2048, sha256: 'e'.repeat(64), storedPath: 'dokumente/statement/e.csv', createdAt: '2024-03-01T09:00:00Z' },
+  ],
+};
+
 const ASSET_NOTES: Record<string, string[]> = {
   tangible: [
     'Lineare Abschreibung über die betriebsgewöhnliche Nutzungsdauer (§ 7 Abs. 1 EStG), zeitanteilig ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG).',
@@ -1241,7 +1269,9 @@ const ASSET_NOTES: Record<string, string[]> = {
 function assetDetail(id: number) {
   const found = ASSETS.find((a) => a.id === id)!;
   return {
-    asset: found,
+    // Die Dokumente hängen am Anlagegut, nicht an der Detailansicht — im
+    // Backend lädt das Repository sie mit.
+    asset: { ...found, documents: ASSET_DOCUMENTS[id] ?? [] },
     // Ohne planmäßige AfA ist die kumulierte Abschreibung eine außerplanmäßige —
     // und damit genau der Betrag, der zugeschrieben werden dürfte.
     writeUpCeiling: found.method === 'none' ? found.accumulated : 0,
@@ -1252,6 +1282,45 @@ function assetDetail(id: number) {
     notes: ASSET_NOTES[found.class] ?? [],
   };
 }
+
+/** Fondsarten, Anlegerstellungen und der Satz, der sich aus beidem ergibt. */
+const INVESTMENT_RULES = {
+  fundClasses: [
+    { class: '', label: 'Kein Investmentanteil' },
+    { class: 'equity', label: 'Aktienfonds (mindestens 51 % Kapitalbeteiligungen)' },
+    { class: 'mixed', label: 'Mischfonds (mindestens 25 % Kapitalbeteiligungen)' },
+    { class: 'real_estate', label: 'Immobilienfonds' },
+    { class: 'foreign_real_estate', label: 'Auslands-Immobilienfonds' },
+    { class: 'other', label: 'Investmentfonds ohne Teilfreistellung' },
+  ],
+  investorTypes: [
+    { type: 'corporate', label: 'Anleger unterliegt dem Körperschaftsteuergesetz' },
+    { type: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen' },
+    { type: 'basic', label: 'Grundsatz (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)' },
+    { type: 'mixed', label: 'Personengesellschaft mit gemischt besteuerten Gesellschaftern' },
+  ],
+  investorType: 'corporate',
+  investorLabel: 'Anleger unterliegt dem Körperschaftsteuergesetz',
+  exemptions: [
+    { class: 'equity', label: 'Aktienfonds', permille: 800, source: '§ 20 Abs. 1 Satz 3 InvStG', explanation: 'Der Anleger unterliegt dem Körperschaftsteuergesetz: die Aktienteilfreistellung beträgt 80 %.' },
+    { class: 'mixed', label: 'Mischfonds', permille: 400, source: '§ 20 Abs. 1 Satz 3 i. V. m. § 20 Abs. 2 InvStG', explanation: 'Bei Mischfonds ist die Hälfte der Aktienteilfreistellung anzusetzen.' },
+    { class: 'real_estate', label: 'Immobilienfonds', permille: 600, source: '§ 20 Abs. 3 Satz 1 InvStG', explanation: 'Der Satz hängt nicht vom Anleger ab.' },
+    { class: 'foreign_real_estate', label: 'Auslands-Immobilienfonds', permille: 800, source: '§ 20 Abs. 3 Satz 2 InvStG', explanation: 'Der Satz hängt nicht vom Anleger ab.' },
+    { class: 'other', label: 'Investmentfonds ohne Teilfreistellung', permille: 0, source: '§ 20 InvStG', explanation: 'Der Fonds erreicht keine der Quoten.' },
+  ],
+};
+
+const ASSET_DOCUMENT_KINDS = [
+  { kind: 'contract', label: 'Vertrag' },
+  { kind: 'invoice', label: 'Rechnung (Kopie)' },
+  { kind: 'statement', label: 'Abrechnung' },
+  { kind: 'valuation', label: 'Gutachten' },
+  { kind: 'registration', label: 'Register- oder Zulassungspapier' },
+  { kind: 'insurance', label: 'Versicherung' },
+  { kind: 'maintenance', label: 'Wartung und Prüfung' },
+  { kind: 'photo', label: 'Bild' },
+  { kind: 'other', label: 'Sonstiges' },
+];
 
 function assetSummary(assetClass: string) {
   const list = ASSETS.filter((a) => !assetClass || a.class === assetClass);
@@ -1407,6 +1476,7 @@ function disposalPreview(request: any) {
     lines,
     gross,
     tax,
+    investment: investmentNote(found.id, result, true),
   };
 }
 
@@ -1432,6 +1502,13 @@ function currencyValuation(request: any) {
     valueAtRate,
     bookValue: found.bookValue,
     difference,
+    shortTerm: Boolean(
+      found.maturityDate &&
+        found.maturityDate <=
+          new Date(new Date(request.date ?? `${YEAR}-12-31`).getTime() + 365 * 864e5)
+            .toISOString()
+            .slice(0, 10),
+    ),
     proposal,
     proposedAmount,
     explanation:
@@ -1513,6 +1590,77 @@ function previewPlan(request: any) {
     months = Math.min(12, remaining);
   }
   return rows;
+}
+
+/** Beträge wie im Backend: zwei Nachkommastellen, deutsche Schreibweise. */
+const euro = (cents: number) =>
+  (cents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Die Vorabpauschale nach § 18 InvStG, wie sie das Backend rechnet. */
+function vorabpauschale(request: any) {
+  const opening = request.openingPrice ?? 0;
+  const closing = request.closingPrice ?? 0;
+  const distributions = request.distributions ?? 0;
+  const points = request.basisPoints ?? 0;
+  let basis = Math.round((opening * points * 70) / (10_000 * 100));
+  const growth = Math.max(closing - opening + distributions, 0);
+  const capped = basis > growth;
+  if (capped) basis = growth;
+  let amount = Math.max(basis - distributions, 0);
+
+  // § 18 Abs. 2 InvStG kürzt im Erwerbsjahr um ein Zwölftel je vollem Monat.
+  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
+  let months = 12;
+  if (String(found.acquisitionDate).slice(0, 4) === String(request.year)) {
+    months = 13 - Number(String(found.acquisitionDate).slice(5, 7));
+    amount = Math.round((amount * months) / 12);
+  }
+  return {
+    year: request.year,
+    basisReturn: basis,
+    growth,
+    capped,
+    distributions,
+    monthsCounted: months,
+    amount,
+    accruedOn: `${request.year + 1}-01-02`,
+    explanation:
+      `Basisertrag ${request.year}: ${euro(opening)} € × 70 % von ` +
+      `${(points / 100).toFixed(2).replace('.', ',')} % = ${euro(basis)} €` +
+      (capped ? ', begrenzt auf den Wertzuwachs (§ 18 Abs. 1 Satz 3 InvStG)' : '') +
+      (months < 12 ? `, gekürzt auf ${months} Zwölftel für das Erwerbsjahr (§ 18 Abs. 2 InvStG)` : '') +
+      `. Handelsrechtlich ist das kein Ertrag — es wird nichts gebucht.`,
+  };
+}
+
+/** Die Teilfreistellung nach § 20 InvStG, mit den Vorabpauschalen beim Abgang. */
+function investmentNote(assetId: number, gross: number, disposal: boolean) {
+  const found = ASSETS.find((a) => a.id === assetId)! as any;
+  if (!found.fundClass) return null;
+  const exemption = INVESTMENT_RULES.exemptions.find((e) => e.class === found.fundClass)!;
+  const vorab = disposal ? (found.vorabpauschalen ?? 0) : 0;
+  const taxable = gross - vorab;
+  const exempt = taxable > 0 ? Math.round((taxable * exemption.permille) / 1000) : 0;
+  return {
+    fundClass: found.fundClass,
+    fundClassLabel: exemption.label,
+    exemption: {
+      permille: exemption.permille,
+      determined: true,
+      source: exemption.source,
+      explanation: exemption.explanation,
+    },
+    grossAmount: gross,
+    vorabpauschalen: vorab,
+    exemptAmount: exempt,
+    taxableAmount: taxable - exempt,
+    explanation:
+      `${disposal ? 'Der Buchgewinn' : 'Der Ertrag'} beträgt ${euro(gross)} €.` +
+      (vorab > 0
+        ? ` Davon gehen ${euro(vorab)} € an Vorabpauschalen ab, die über die Besitzzeit bereits versteuert wurden.`
+        : '') +
+      ` ${exemption.explanation} Steuerfrei bleiben ${euro(exempt)} €.`,
+  };
 }
 
 const unsupported = (name: string) => () =>
@@ -1642,6 +1790,17 @@ export const bridge = {
   BookAssetMaintenance: unsupported('BookAssetMaintenance'),
   BookAssetIncome: unsupported('BookAssetIncome'),
   ValuateAssetCurrency: (request: any) => later(currencyValuation(request), 60),
+  BookAssetCurrencyValuation: unsupported('BookAssetCurrencyValuation'),
+  SelectAssetDocumentsDialog: unsupported('SelectAssetDocumentsDialog'),
+  AttachAssetDocument: unsupported('AttachAssetDocument'),
+  RemoveAssetDocument: unsupported('RemoveAssetDocument'),
+  GetAssetDocumentContent: unsupported('GetAssetDocumentContent'),
+  GetAssetDocumentKinds: () => later(ASSET_DOCUMENT_KINDS),
+  GetExpiringAssetDocuments: () => later([]),
+  GetInvestmentRules: () => later(INVESTMENT_RULES),
+  ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
+  GetInvestmentNoteForIncome: (assetId: number, amount: number) =>
+    later(investmentNote(assetId, amount, false), 60),
   DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),

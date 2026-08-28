@@ -20,8 +20,15 @@ import {
   DisposalPreview,
   DisposalRequest,
   FixedAsset,
+  AssetDocument,
+  AssetDocumentKind,
+  AssetDocumentKindInfo,
   CurrencyValuation,
+  FundClass,
+  InvestmentRules,
+  InvestmentTaxNote,
   JournalLine,
+  Vorabpauschale,
   Settlement,
   TaxTreatment,
 } from '../types';
@@ -367,6 +374,8 @@ export const AssetsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [rules, setRules] = useState<AssetRules | null>(null);
+  const [investment, setInvestment] = useState<InvestmentRules | null>(null);
+  const [documentKinds, setDocumentKinds] = useState<AssetDocumentKindInfo[]>([]);
   const [run, setRun] = useState<DepreciationRun | null>(null);
   const [spiegel, setSpiegel] = useState<Anlagenspiegel | null>(null);
   const [candidates, setCandidates] = useState<AcquisitionCandidate[]>([]);
@@ -385,17 +394,29 @@ export const AssetsPage: React.FC = () => {
   async function loadAll() {
     setLoading(true);
     try {
-      const [list, ruleSet, runData, spiegelData, candidateList, accountList, contactList, payment] =
-        await Promise.all([
-          Api.getFixedAssets(''),
-          Api.getAssetRules(),
-          Api.getDepreciationRun(),
-          Api.getAnlagenspiegel(),
-          Api.getAssetAcquisitionCandidates(),
-          Api.getAssetAccounts(''),
-          Api.getContacts(),
-          Api.getPaymentAccounts(),
-        ]);
+      const [
+        list,
+        ruleSet,
+        runData,
+        spiegelData,
+        candidateList,
+        accountList,
+        contactList,
+        payment,
+        investmentRules,
+        kinds,
+      ] = await Promise.all([
+        Api.getFixedAssets(''),
+        Api.getAssetRules(),
+        Api.getDepreciationRun(),
+        Api.getAnlagenspiegel(),
+        Api.getAssetAcquisitionCandidates(),
+        Api.getAssetAccounts(''),
+        Api.getContacts(),
+        Api.getPaymentAccounts(),
+        Api.getInvestmentRules(),
+        Api.getAssetDocumentKinds(),
+      ]);
       setAssets(list ?? []);
       setRules(ruleSet);
       setRun(runData);
@@ -404,6 +425,8 @@ export const AssetsPage: React.FC = () => {
       setAccounts(accountList ?? []);
       setContacts(contactList ?? []);
       setPaymentAccounts(payment ?? []);
+      setInvestment(investmentRules);
+      setDocumentKinds(kinds ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -517,6 +540,7 @@ export const AssetsPage: React.FC = () => {
         draft={editing}
         accounts={accounts}
         rules={rules}
+        investment={investment}
         candidates={candidates}
         contacts={contacts}
         year={year}
@@ -538,6 +562,7 @@ export const AssetsPage: React.FC = () => {
         contacts={contacts}
         paymentAccounts={paymentAccounts}
         accounts={accounts}
+        documentKinds={documentKinds}
         onClose={() => setDetailId(null)}
         onEdit={(asset) => {
           setDetailId(null);
@@ -980,12 +1005,13 @@ const AssetFormDialog: React.FC<{
   draft: Partial<FixedAsset> | null;
   accounts: AssetAccountInfo[];
   rules: AssetRules | null;
+  investment: InvestmentRules | null;
   candidates: AcquisitionCandidate[];
   contacts: Contact[];
   year: number;
   onClose: () => void;
   onSaved: (asset: FixedAsset) => Promise<void>;
-}> = ({ draft, accounts, rules, candidates, contacts, year, onClose, onSaved }) => {
+}> = ({ draft, accounts, rules, investment, candidates, contacts, year, onClose, onSaved }) => {
   const [asset, setAsset] = useState<Partial<FixedAsset>>(draft ?? {});
   // Beträge stehen als Text im Formular und werden erst beim Speichern gelesen.
   // Ein Feld, das bei jedem Tastendruck neu formatiert, lässt sich nicht tippen.
@@ -1255,6 +1281,10 @@ const AssetFormDialog: React.FC<{
         ...(assetClass === 'financial' && asset.currency
           ? { foreignCost: parseCents(foreignText) ?? 0 }
           : { currency: '', foreignCost: 0 }),
+        // Eine Fondsart und eine Fälligkeit an einer Maschine wären nicht
+        // falsch, sondern sinnlos — und eine sinnlose Angabe wird später als
+        // bedeutsam gelesen.
+        ...(assetClass === 'financial' ? {} : { fundClass: '' as FundClass, maturityDate: '' }),
       };
       const saved = await Api.saveFixedAsset(payload);
       await onSaved(saved);
@@ -1590,6 +1620,32 @@ const AssetFormDialog: React.FC<{
               onChange={(e) => set({ currency: e.target.value.toUpperCase() })}
             />
           </Field>
+          <Field
+            label="Fondsart"
+            optional
+            hint="entscheidet über die Teilfreistellung"
+            help="Ein Investmentanteil steht in der Bilanz wie jedes andere Wertpapier. Steuerlich legt das Investmentsteuergesetz zwei Rechnungen daneben: die Teilfreistellung nach § 20 InvStG und die Vorabpauschale nach § 18 InvStG. Für eine Einzelaktie und eine Anleihe gibt es beides nicht."
+          >
+            <Select
+              items={(investment?.fundClasses ?? [{ class: '' as FundClass, label: 'Kein Investmentanteil' }]).map(
+                (f) => ({ value: f.class, label: f.label }),
+              )}
+              value={asset.fundClass ?? ''}
+              onValueChange={(next) => set({ fundClass: next as FundClass })}
+            />
+          </Field>
+          <Field
+            label="Fälligkeit"
+            optional
+            hint="bei einer Ausleihung"
+            help="Sie entscheidet über die Bewertung: § 256a Satz 2 HGB nimmt Posten mit einer Restlaufzeit von höchstens einem Jahr vom Anschaffungskostenprinzip aus — dort schlägt ein gestiegener Kurs voll durch."
+          >
+            <Input
+              type="date"
+              value={asset.maturityDate ?? ''}
+              onChange={(e) => set({ maturityDate: e.target.value })}
+            />
+          </Field>
           {asset.currency ? (
             <Field label={`Anschaffungskosten in ${asset.currency}`} hint="Betrag in der Notierungswährung">
               <Input
@@ -1699,6 +1755,8 @@ type DetailAction =
   | 'maintenance'
   | 'income'
   | 'currency'
+  | 'document'
+  | 'vorabpauschale'
   | null;
 
 const AssetDetailDialog: React.FC<{
@@ -1706,10 +1764,20 @@ const AssetDetailDialog: React.FC<{
   contacts: Contact[];
   paymentAccounts: Account[];
   accounts: AssetAccountInfo[];
+  documentKinds: AssetDocumentKindInfo[];
   onClose: () => void;
   onEdit: (asset: FixedAsset) => void;
   onChanged: () => Promise<void>;
-}> = ({ assetId, contacts, paymentAccounts, accounts, onClose, onEdit, onChanged }) => {
+}> = ({
+  assetId,
+  contacts,
+  paymentAccounts,
+  accounts,
+  documentKinds,
+  onClose,
+  onEdit,
+  onChanged,
+}) => {
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [action, setAction] = useState<DetailAction>(null);
   const [loading, setLoading] = useState(false);
@@ -1779,6 +1847,14 @@ const AssetDetailDialog: React.FC<{
                 Währung bewerten
               </Button>
             )}
+            {!asset.disposalDate && asset.fundClass && (
+              <Button variant="quiet" onClick={() => setAction('vorabpauschale')}>
+                Vorabpauschale
+              </Button>
+            )}
+            <Button variant="quiet" onClick={() => setAction('document')}>
+              Dokument ablegen
+            </Button>
             {!asset.disposalDate && (
               <>
                 <Button variant="secondary" onClick={() => setAction('impairment')}>
@@ -1833,6 +1909,10 @@ const AssetDetailDialog: React.FC<{
         />
       ) : action === 'currency' ? (
         <CurrencyForm asset={asset} onDone={afterBooking} />
+      ) : action === 'document' ? (
+        <DocumentForm asset={asset} kinds={documentKinds} onDone={afterBooking} />
+      ) : action === 'vorabpauschale' ? (
+        <VorabpauschaleForm asset={asset} onDone={afterBooking} />
       ) : action === 'disposal' ? (
         <DisposalForm
           asset={asset}
@@ -1841,13 +1921,22 @@ const AssetDetailDialog: React.FC<{
           onDone={afterBooking}
         />
       ) : (
-        <AssetOverview detail={detail} />
+        <AssetOverview
+          detail={detail}
+          onDocumentsChanged={async () => {
+            if (assetId !== null) await load(assetId);
+            await onChanged();
+          }}
+        />
       )}
     </Dialog>
   );
 };
 
-const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
+const AssetOverview: React.FC<{
+  detail: AssetDetail;
+  onDocumentsChanged: () => Promise<void>;
+}> = ({ detail, onDocumentsChanged }) => {
   const { asset, schedule, movements, notes } = detail;
   // Die Spalte erscheint nur, wo es eine Sonderabschreibung gibt. Eine leere
   // Spalte in jedem Plan wäre eine Frage, die sich niemand gestellt hat.
@@ -1935,6 +2024,13 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
         </Section>
       )}
 
+      <DocumentSection
+        asset={asset}
+        onChanged={async () => {
+          await onDocumentsChanged();
+        }}
+      />
+
       <Section title="Bewegungen" context="Jede Wertänderung mit ihrer Buchung">
         <Table density="kompakt">
           <Thead>
@@ -1973,6 +2069,455 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
     </div>
   );
 };
+
+/**
+ * Die Papiere zum Anlagegut.
+ *
+ * Sie sind kein zweiter Belegkreis: kein Nummernkreis, kein Geschäftsjahr,
+ * keine Versiegelung. Ein Kaufvertrag wird nicht gebucht — er erklärt die
+ * Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
+ */
+const DocumentSection: React.FC<{
+  asset: FixedAsset;
+  onChanged: () => Promise<void>;
+}> = ({ asset, onChanged }) => {
+  const documents = asset.documents ?? [];
+  const [busy, setBusy] = useState<number | null>(null);
+  const today = new Date().toISOString().slice(0, 10);
+
+  async function open(document: AssetDocument) {
+    try {
+      const preview = await Api.getAssetDocumentContent(document.id);
+      if (!preview.intact) {
+        toast.error(
+          `${document.fileName} stimmt nicht mehr mit der Prüfsumme überein, unter der es abgelegt wurde.`,
+        );
+      }
+      window.open(preview.dataUrl, '_blank');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function remove(document: AssetDocument) {
+    setBusy(document.id);
+    try {
+      await Api.removeAssetDocument(asset.id, document.id);
+      toast.success(`${document.title || document.fileName} entfernt.`);
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (documents.length === 0) return null;
+
+  return (
+    <Section
+      title="Dokumente"
+      context="Verträge, Gutachten und Papiere — abgelegt, nicht gebucht"
+    >
+      <Table density="kompakt">
+        <Thead>
+          <Tr>
+            <Th className="w-44">Art</Th>
+            <Th>Bezeichnung</Th>
+            <Th className="w-28">Datum</Th>
+            <Th className="w-28">Läuft ab</Th>
+            <Th className="w-32" />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {documents.map((document) => (
+            <Tr key={document.id}>
+              <Td className="text-ink-muted">{DOCUMENT_KIND_LABEL[document.kind] ?? document.kind}</Td>
+              <Td className="max-w-[20rem] truncate" title={document.note || document.fileName}>
+                <button
+                  type="button"
+                  className="text-left hover:underline"
+                  onClick={() => void open(document)}
+                >
+                  {document.title || document.fileName}
+                </button>
+              </Td>
+              <Td className="text-ink-muted">
+                {document.documentDate ? formatDate(document.documentDate) : '—'}
+              </Td>
+              <Td
+                className={
+                  document.validUntil && document.validUntil <= today
+                    ? 'text-negative-text'
+                    : 'text-ink-muted'
+                }
+              >
+                {document.validUntil ? formatDate(document.validUntil) : '—'}
+              </Td>
+              <Td>
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  loading={busy === document.id}
+                  onClick={() => void remove(document)}
+                >
+                  Entfernen
+                </Button>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Section>
+  );
+};
+
+/**
+ * Die Ausleihungen aus dem Kontenkatalog. Nur sie werden getilgt — eine
+ * Beteiligung und ein Wertpapier werden verkauft.
+ */
+const LOAN_ACCOUNTS = ['0810', '0880', '0930', '0940', '0990'];
+
+const DOCUMENT_KIND_LABEL: Record<string, string> = {
+  contract: 'Vertrag',
+  invoice: 'Rechnung (Kopie)',
+  valuation: 'Gutachten',
+  registration: 'Register- oder Zulassungspapier',
+  insurance: 'Versicherung',
+  maintenance: 'Wartung und Prüfung',
+  statement: 'Abrechnung',
+  photo: 'Bild',
+  other: 'Sonstiges',
+};
+
+const DocumentForm: React.FC<{
+  asset: FixedAsset;
+  kinds: AssetDocumentKindInfo[];
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, kinds, onDone }) => {
+  const [kind, setKind] = useState<AssetDocumentKind>('contract');
+  const [paths, setPaths] = useState<string[]>([]);
+  const [title, setTitle] = useState('');
+  const [documentDate, setDocumentDate] = useState('');
+  const [validUntil, setValidUntil] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pick() {
+    try {
+      const chosen = await Api.selectAssetDocumentsDialog('Dokumente zum Anlagegut auswählen');
+      if (chosen?.length) setPaths(chosen);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function submit() {
+    if (paths.length === 0) {
+      setError('Es wurde keine Datei ausgewählt.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      for (const path of paths) {
+        await Api.attachAssetDocument({
+          assetId: asset.id,
+          kind,
+          path,
+          // Ein Titel für mehrere Dateien wäre für alle bis auf eine falsch.
+          title: paths.length === 1 ? title : '',
+          documentDate,
+          validUntil,
+          note,
+        });
+      }
+      await onDone(paths.length === 1 ? 'Dokument abgelegt.' : `${paths.length} Dokumente abgelegt.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zu den Dokumenten"
+        line="Was hier liegt, wird nicht gebucht — es gehört zum Wirtschaftsgut, nicht zum Geschäftsjahr."
+      >
+        Der Beleg zur Anschaffung steht im Belegkreis, mit Belegnummer und in der Journalkette. Ein
+        Kaufvertrag, ein Gutachten, ein Fahrzeugbrief sind nichts davon: sie erklären das
+        Wirtschaftsgut noch, wenn es zehn Jahre im Bestand ist. Abgelegt werden sie auf demselben
+        Weg wie ein Beleg — unter ihrer eigenen Prüfsumme, sodass später feststeht, ob noch dort
+        liegt, was abgelegt wurde. Die Aufbewahrungspflicht des § 147 AO ersetzt das nicht; sie
+        trifft weiterhin das Original.
+      </FormHint>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Art des Dokuments">
+          <Select
+            items={kinds.map((k) => ({ value: k.kind, label: k.label }))}
+            value={kind}
+            onValueChange={(next) => setKind(next as AssetDocumentKind)}
+          />
+        </Field>
+        <Field
+          label="Datei"
+          hint={
+            paths.length === 0
+              ? 'noch keine ausgewählt'
+              : paths.length === 1
+                ? paths[0].split(/[\\/]/).pop()
+                : `${paths.length} Dateien`
+          }
+        >
+          <Button variant="secondary" onClick={pick}>
+            Datei auswählen
+          </Button>
+        </Field>
+      </div>
+
+      {paths.length === 1 && (
+        <Field label="Bezeichnung" optional hint="was in der Liste steht; leer heißt der Dateiname">
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+      )}
+
+      <div className="grid grid-cols-3 gap-4">
+        <Field label="Datum des Dokuments" optional>
+          <Input
+            type="date"
+            value={documentDate}
+            onChange={(e) => setDocumentDate(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Läuft ab am"
+          optional
+          hint="Police, Frist, Fälligkeit"
+          help="Ein Ablaufdatum, das niemand wieder liest, wäre keine Angabe. Buchfink beantwortet damit, was bis zu einem Stichtag ausläuft."
+        >
+          <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+        </Field>
+        <Field label="Notiz" optional>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+      </div>
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button variant="primary" loading={busy} disabled={paths.length === 0} onClick={submit}>
+          Ablegen
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Die Vorabpauschale nach § 18 InvStG.
+ *
+ * Der Fall, um den es geht: ein thesaurierender Fonds schüttet nichts aus, und
+ * zu versteuern ist trotzdem etwas. Gebucht wird nichts — handelsrechtlich
+ * geschieht nichts —, festgehalten schon, weil der Betrag beim Abgang wieder
+ * abgezogen wird.
+ */
+const VorabpauschaleForm: React.FC<{
+  asset: FixedAsset;
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, onDone }) => {
+  const [year, setYear] = useState(new Date().getFullYear() - 1);
+  const [opening, setOpening] = useState('');
+  const [closing, setClosing] = useState('');
+  const [distributions, setDistributions] = useState('');
+  const [basisPercent, setBasisPercent] = useState('');
+  const [result, setResult] = useState<Vorabpauschale | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const basisPoints = Math.round(Number(basisPercent.replace(',', '.') || '0') * 100);
+  const request = {
+    assetId: asset.id,
+    year,
+    openingPrice: parseCents(opening) ?? 0,
+    closingPrice: parseCents(closing) ?? 0,
+    distributions: parseCents(distributions) ?? 0,
+    basisPoints,
+  };
+
+  // Gerechnet wird im Backend, auch die Vorschau: § 18 InvStG hat drei
+  // Begrenzungen, und eine zweite Fassung davon hier driftete beim ersten
+  // Sonderfall.
+  useEffect(() => {
+    if (basisPoints <= 0 || request.openingPrice <= 0) {
+      setResult(null);
+      return;
+    }
+    let cancelled = false;
+    Api.computeVorabpauschale(request)
+      .then((next) => {
+        if (!cancelled) {
+          setResult(next);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setResult(null);
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset.id, year, opening, closing, distributions, basisPercent]);
+
+  async function record() {
+    setBusy(true);
+    setError(null);
+    try {
+      await Api.computeVorabpauschale({ ...request, record: true });
+      await onDone(`Vorabpauschale ${year} festgehalten.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zur Vorabpauschale"
+        line="Zu versteuern, ohne dass Geld fließt — und deshalb nicht zu buchen."
+      >
+        Schüttet ein Fonds weniger aus als den Basisertrag, ist die Differenz zu versteuern
+        (§ 18 Abs. 1 InvStG). Der Basisertrag sind 70 % des Basiszinses auf den Rücknahmepreis zu
+        Jahresbeginn, begrenzt auf den Wertzuwachs des Jahres; im Erwerbsjahr wird um ein Zwölftel
+        je vollem Monat vor dem Erwerb gekürzt. Handelsrechtlich geschieht nichts, deshalb entsteht
+        keine Buchung. Festgehalten wird sie trotzdem: beim Abgang wird sie wieder abgezogen, weil
+        sie über die Jahre schon versteuert wurde.
+      </FormHint>
+
+      <div className="grid grid-cols-4 gap-4">
+        <Field label="Kalenderjahr" help="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
+          <Input
+            type="number"
+            align="right"
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+          />
+        </Field>
+        <Field label="Rücknahmepreis am Jahresanfang" hint="des gehaltenen Bestands">
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={opening}
+            onChange={(e) => setOpening(e.target.value)}
+          />
+        </Field>
+        <Field label="Rücknahmepreis am Jahresende">
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={closing}
+            onChange={(e) => setClosing(e.target.value)}
+          />
+        </Field>
+        <Field label="Ausschüttungen des Jahres" optional>
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={distributions}
+            onChange={(e) => setDistributions(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Field
+        label="Basiszins in Prozent"
+        hint="aus dem BMF-Schreiben im Bundessteuerblatt"
+        help="Der Basiszins steht nicht im Gesetz. Die Bundesbank errechnet ihn auf den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Buchfink liefert ihn deshalb nicht mit — ein mitgelieferter Wert wäre im nächsten Jahr falsch."
+        className="max-w-xs"
+      >
+        <Input
+          align="right"
+          inputMode="decimal"
+          placeholder="2,53"
+          value={basisPercent}
+          onChange={(e) => setBasisPercent(e.target.value)}
+        />
+      </Field>
+
+      {result && (
+        <Section title="Was daraus folgt" divider={false}>
+          <StatRow className="mb-4">
+            <Stat label="Basisertrag" value={formatCents(result.basisReturn)} />
+            <Stat
+              label="Wertzuwachs"
+              value={formatCents(result.growth)}
+              context={result.capped ? 'begrenzt den Basisertrag' : undefined}
+            />
+            <Stat
+              label="Vorabpauschale"
+              value={formatCents(result.amount)}
+              context={result.monthsCounted < 12 ? `${result.monthsCounted} von 12 Monaten` : undefined}
+            />
+            <Stat label="Gilt als zugeflossen" value={formatDate(result.accruedOn)} />
+          </StatRow>
+          <p className="text-body text-ink-muted">{result.explanation}</p>
+        </Section>
+      )}
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={!result || result.amount <= 0}
+          onClick={record}
+        >
+          Festhalten
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+/** Die steuerliche Nebenrechnung eines Investmentanteils, neben der Buchung. */
+const InvestmentNote: React.FC<{ note: InvestmentTaxNote }> = ({ note }) => (
+  <div className="rounded-control border border-line bg-sunken px-4 py-3 space-y-2">
+    <div className="text-overline text-ink-subtle">
+      Steuerlich daneben · {note.fundClassLabel}
+    </div>
+    <div className="flex flex-wrap gap-x-8 gap-y-1 text-body">
+      <span className="text-ink-muted">
+        Vor Teilfreistellung <span className="num text-ink">{formatCents(note.grossAmount)}</span>
+      </span>
+      {note.vorabpauschalen > 0 && (
+        <span className="text-ink-muted">
+          Angesetzte Vorabpauschalen{' '}
+          <span className="num text-ink">−{formatCents(note.vorabpauschalen)}</span>
+        </span>
+      )}
+      <span className="text-ink-muted">
+        Steuerfrei <span className="num text-ink">{formatCents(note.exemptAmount)}</span>
+      </span>
+      <span className="text-ink-muted">
+        Zu versteuern <span className="num text-ink">{formatCents(note.taxableAmount)}</span>
+      </span>
+    </div>
+    <p className="text-caption text-ink-subtle">{note.explanation}</p>
+  </div>
+);
 
 const MOVEMENT_LABEL: Record<string, string> = {
   acquisition: 'Zugang',
@@ -2599,24 +3144,15 @@ const CurrencyForm: React.FC<{
     setBusy(true);
     setError(null);
     try {
-      if (valuation.proposal === 'impairment') {
-        await Api.bookAssetImpairment({
-          assetId: asset.id,
-          date,
-          amount: valuation.proposedAmount,
-          permanent: false,
-          reason: `Umrechnung zum Devisenkassamittelkurs ${rate} ${valuation.currency}/€ (§ 256a HGB)`,
-        });
-        await onDone('Außerplanmäßige Abschreibung aus der Währungsumrechnung gebucht.');
-        return;
-      }
-      await Api.bookAssetWriteUp({
-        assetId: asset.id,
-        date,
-        amount: valuation.proposedAmount,
-        reason: `Umrechnung zum Devisenkassamittelkurs ${rate} ${valuation.currency}/€ (§ 256a HGB)`,
-      });
-      await onDone('Zuschreibung aus der Währungsumrechnung gebucht.');
+      // Gebucht wird über die Konten der Währungsumrechnung (6880/4840), nicht
+      // über die der außerplanmäßigen Abschreibung: sonst sähe ein Kursverlust
+      // aus wie eine Wertminderung des Papiers selbst.
+      await Api.bookAssetCurrencyValuation({ assetId: asset.id, date, ratePerEuro: rateValue });
+      await onDone(
+        valuation.proposal === 'impairment'
+          ? 'Kursverlust aus der Währungsumrechnung gebucht.'
+          : 'Kursgewinn aus der Währungsumrechnung gebucht.',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -2689,6 +3225,13 @@ const CurrencyForm: React.FC<{
             />
           </StatRow>
           <p className="text-body text-ink-muted">{valuation.explanation}</p>
+          {valuation.shortTerm && (
+            <p className="mt-2 text-caption text-ink-subtle">
+              Die Restlaufzeit beträgt höchstens ein Jahr: § 256a Satz 2 HGB nimmt den Posten damit
+              vom Anschaffungskostenprinzip aus — anders als bei einer Beteiligung ohne Fälligkeit
+              schlägt ein gestiegener Kurs hier voll durch.
+            </p>
+          )}
         </Section>
       )}
 
@@ -2701,7 +3244,7 @@ const CurrencyForm: React.FC<{
           disabled={!valuation || valuation.proposedAmount <= 0}
           onClick={book}
         >
-          {valuation?.proposal === 'write_up' ? 'Zuschreibung buchen' : 'Abschreibung buchen'}
+          {valuation?.proposal === 'write_up' ? 'Kursgewinn buchen' : 'Kursverlust buchen'}
         </Button>
       </div>
     </div>
@@ -2877,6 +3420,9 @@ const DisposalForm: React.FC<{
   // Ergebnis. Beide Felder zugleich anzubieten hieße, den Nutzer zwei Wege
   // rechnen zu lassen, die auseinanderlaufen können.
   const tracksUnits = (asset.unitsHeld ?? 0) > 0;
+  // Getilgt wird eine Ausleihung. Eine Beteiligung und ein Wertpapier werden
+  // verkauft — der Katalog sagt, welches Konto welches ist.
+  const isLoan = asset.class === 'financial' && LOAN_ACCOUNTS.includes(asset.account);
   const [preview, setPreview] = useState<DisposalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2934,10 +3480,19 @@ const DisposalForm: React.FC<{
         <Field label="Abgangsdatum" help="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
           <Input type="date" value={request.date} onChange={(e) => set({ date: e.target.value })} />
         </Field>
-        <Field label="Art des Abgangs">
+        <Field
+          label="Art des Abgangs"
+          hint={request.kind === 'repayment' ? 'kein Umsatz, kein Erlöskonto' : undefined}
+          help={
+            isLoan
+              ? 'Eine Tilgung ist kein Verkauf: zurückgezahlt wird, was ausgeliehen wurde. Zum Buchwert entsteht dabei weder Erlös noch Buchgewinn — die Buchung ist Geld an Ausleihung.'
+              : undefined
+          }
+        >
           <Select
             items={[
               { value: 'sale', label: 'Verkauf' },
+              ...(isLoan ? [{ value: 'repayment', label: 'Tilgung' }] : []),
               { value: 'scrapped', label: 'Verschrottung ohne Erlös' },
             ]}
             value={request.kind}
@@ -2947,7 +3502,11 @@ const DisposalForm: React.FC<{
             }}
           />
         </Field>
-        <Field label="Erlös" hint="netto" disabled={request.kind === 'scrapped'}>
+        <Field
+          label={request.kind === 'repayment' ? 'Rückzahlung' : 'Erlös'}
+          hint={request.kind === 'repayment' ? 'was zurückfließt' : 'netto'}
+          disabled={request.kind === 'scrapped'}
+        >
           <Input
             align="right"
             inputMode="decimal"
@@ -3023,6 +3582,14 @@ const DisposalForm: React.FC<{
         </div>
       )}
 
+      {request.kind === 'repayment' && (
+        <Notice>
+          Eine Rückzahlung ist kein Leistungsaustausch: sie ist nicht steuerbar, nicht bloß
+          steuerfrei. Über ein Erlöskonto gebucht stünde in der Gewinn- und Verlustrechnung ein
+          Umsatz, den es nie gab.
+        </Notice>
+      )}
+
       {request.kind === 'sale' && (
         <div className="grid grid-cols-3 gap-4">
           <Field label="Steuerfall">
@@ -3061,7 +3628,7 @@ const DisposalForm: React.FC<{
         </div>
       )}
 
-      {request.kind === 'sale' && (
+      {request.kind !== 'scrapped' && (
         <div className="grid grid-cols-2 gap-4">
           {request.settlement === 'paid' ? (
             <Field label="Zahlungsmittel">
@@ -3113,6 +3680,12 @@ const DisposalForm: React.FC<{
           </StatRow>
 
           <p className="text-caption text-ink-subtle mb-4">{preview.accounts.explanation}</p>
+
+          {preview.investment && (
+            <div className="mb-4">
+              <InvestmentNote note={preview.investment} />
+            </div>
+          )}
 
           {preview.warnings?.map((warning, index) => (
             <div key={index} className="mb-3">

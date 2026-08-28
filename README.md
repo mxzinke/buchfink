@@ -72,6 +72,9 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, Sonderabschreibung nach § 7g Abs. 5 EStG samt Restwertverteilung des § 7a Abs. 9 EStG, außerplanmäßige Abschreibung und Zuschreibung.
    - Abschreibungslauf als Abschlussbuchung mit Vorschau; die Jahres-Festschreibung prüft vorher, ob die AfA vollständig gebucht ist.
    - Fertigstellung von Anlagen im Bau, Erhaltungsaufwand und laufende Erträge am Anlagegut, Stückzahlen und Fremdwährungsbewertung nach § 256a HGB bei Finanzanlagen.
+   - Verträge, Gutachten, Zulassungen und Policen am Anlagegut ablegen — mit Ablaufdatum, das wieder gelesen wird.
+   - Darlehen und Ausleihungen mit Fälligkeit und Tilgung als eigenem Weg: eine Rückzahlung ist kein Verkauf und erzeugt keinen Erlös.
+   - Investmentanteile (ETF, Aktien- und Immobilienfonds): Teilfreistellung nach § 20 InvStG und Vorabpauschale nach § 18 InvStG als außerbilanzielle Nebenrechnung.
    - Skonto auf eine Anlagenrechnung mindert im Zahlungsflow die Anschaffungskosten (§ 255 Abs. 1 Satz 3 HGB) statt den Aufwand.
    - Abgang mit Erlöskonto nach Buchgewinn oder -verlust, Teilabgang nach Stück bei Finanzanlagen und Anlagenspiegel nach § 284 Abs. 3 HGB — auch als Kontennachweis in der E-Bilanz.
 7. **Bilanz & GuV**

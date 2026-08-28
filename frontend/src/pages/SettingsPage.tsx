@@ -23,6 +23,24 @@ import {
  * steht hier als Erklärung am jeweiligen Feld, nicht als Absatz auf der Seite.
  */
 
+/**
+ * Die Anlegerstellung nach § 20 InvStG. „Nicht festgelegt" ist die
+ * Voreinstellung und bleibt eine gültige Antwort: geraten wird hier nichts.
+ */
+const INVESTOR_TYPES = [
+  { value: '', label: 'Nicht festgelegt' },
+  { value: 'corporate', label: 'Anleger unterliegt dem Körperschaftsteuergesetz — 80 %' },
+  { value: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen — 60 %' },
+  {
+    value: 'basic',
+    label: 'Grundsatz — 30 % (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)',
+  },
+  {
+    value: 'mixed',
+    label: 'Personengesellschaft mit gemischt besteuerten Gesellschaftern — kein einheitlicher Satz',
+  },
+];
+
 const MONTHS = [
   { value: 1, label: 'Januar · Kalenderjahr' },
   { value: 2, label: 'Februar · 1. Feb bis 31. Jan' },
@@ -243,6 +261,26 @@ export const SettingsPage: React.FC = () => {
             <Select items={[{ value: 'SOLL', label: 'Sollversteuerung' }]} value="SOLL" disabled />
           </Field>
         </div>
+      </Section>
+
+      <Section title="Investmentanteile">
+        <Field
+          label="Anlegerstellung"
+          hint="entscheidet über die Teilfreistellung nach § 20 InvStG"
+          help="Aus der Rechtsform folgt der Satz nicht. Eine GmbH & Co. KG ist keine Körperschaft, ihre Gesellschafter können welche sein, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem Gesellschafter. Auch eine Kapitalgesellschaft trägt nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
+          className="max-w-2xl"
+        >
+          <Select
+            items={INVESTOR_TYPES}
+            value={settings.investorType || ''}
+            onValueChange={(next) => patch({ investorType: next as CompanySettings['investorType'] })}
+          />
+        </Field>
+        <p className="mt-3 text-body text-ink-muted max-w-2xl">
+          Die Angabe wird nur für Investmentanteile gebraucht — für einen ETF, einen Aktien- oder
+          Immobilienfonds im Anlagevermögen. Ohne sie rechnet Buchfink keine Teilfreistellung,
+          sondern weist den Ertrag ungekürzt aus und sagt, was zu entscheiden ist.
+        </p>
       </Section>
 
       <Section title="Bankverbindung">

@@ -15,8 +15,8 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
 > gesetze-im-internet.de verifiziert — der ursprüngliche Bestand am **22.08.2026**,
-> die Vorschriften zur Sonderabschreibung, zur Fremdwährung und zum
-> Erhaltungsaufwand am **28.08.2026**; die Fundstellen stehen in
+> die Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und
+> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen in
 > [Abschnitt 11](#11-quellen). Die AfA-Regeln ändern sich häufig – vor der
 > Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
 
@@ -181,6 +181,15 @@ Rechenergebnis ab und nicht nur von der Nutzereingabe.
 
 Verschrottung ohne Erlös: Restbuchwert direkt in den Aufwand.
 
+**Tilgung ist kein Abgang mit Erlös.** Wird eine Ausleihung zurückgezahlt, wird nichts
+veräußert — es kommt zurück, was ausgeliehen wurde. Zum Buchwert getilgt entsteht deshalb
+weder Erlös noch Buchgewinn; die Buchung ist Geld an Ausleihung, sonst nichts. Über ein
+Erlöskonto gebucht stünde in der GuV ein Umsatz, den es nie gab, und in der
+Umsatzsteuer-Voranmeldung eine Bemessungsgrundlage, die niemand erklären könnte: eine
+Rückzahlung ist kein Leistungsaustausch und damit nicht steuerbar, nicht bloß steuerfrei.
+Zahlt der Schuldner mehr oder weniger als den Buchwert — ein Agio, ein Teilausfall —, ist
+die Differenz sehr wohl ein Ergebnis und läuft auf dieselben Konten wie beim Verkauf.
+
 **Teilabgang.** Bei Finanzanlagen ist er der Normalfall: eine Tranche von Anteilen wird
 verkauft, eine Ausleihung wird getilgt. Dann gehen nur ein Teil der Anschaffungskosten und
 der entsprechende Anteil einer früheren außerplanmäßigen Abschreibung hinaus; der Rest
@@ -192,6 +201,68 @@ verkauft wird eine Tranche von 40 Anteilen, nicht ein Betrag von 4.000 €. Den 
 Anschaffungskosten daraus zu rechnen ist genau die Arbeit, die dem Nutzer sonst bliebe —
 und die er dann rundet. Die Stückzahl steht an jeder Bewegung, sonst ergäbe sich der
 Bestand nach dem ersten Teilabgang nicht mehr.
+
+## 5a. Was zum Anlagegut gehört, ohne gebucht zu werden
+
+Drei Dinge stehen beim Wirtschaftsgut, ohne je in einer Buchung aufzutauchen. Sie haben
+sonst keinen Ort — und das ist der Grund, warum sie hier stehen.
+
+**Dokumente.** Der Kaufvertrag, das Gutachten, der Fahrzeugbrief, die Police. Der Beleg
+zur Anschaffung liegt im Belegkreis, mit Belegnummer und in der Journalkette; ein Vertrag
+ist nichts davon. Er trägt keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
+gebucht — und erklärt die Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
+Ihn in das Belegmodell zu zwingen hieße, ihm eine Belegnummer zu geben, die nie in einer
+Buchung auftaucht. Der Ablageweg ist trotzdem derselbe: inhaltsadressiert unter dem
+eigenen SHA256, dedupliziert, mit atomarem Umbenennen. Zwei Speicher für zwei Dateiarten
+wären zwei Stellen, an denen dasselbe schiefgehen kann. Ein Ablaufdatum wird abgefragt und
+wieder gelesen: was bis zu einem Stichtag ausläuft, lässt sich nennen. Die
+Aufbewahrungspflicht des § 147 AO ersetzt das nicht — sie trifft weiterhin das Original.
+
+**Die Fremdwährungsbewertung** nach § 256a HGB. Der Anschaffungskurs folgt aus Fremdbetrag
+und Euro-Anschaffungskosten, der Stichtagskurs kommt vom Nutzer. Nach oben deckelt das
+Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB) — **außer** bei einer
+Restlaufzeit von einem Jahr oder weniger: § 256a Satz 2 HGB nimmt solche Posten
+ausdrücklich davon aus. Deshalb steht die Fälligkeit am Anlagegut. Ohne sie wäre jeder
+Fremdwährungsposten gedeckelt, auch das Darlehen, das in drei Monaten zurückfließt.
+Gebucht wird über **6880** und **4840**, die Konten der Währungsumrechnung — auf 7200
+gebucht sähe ein Kursverlust aus wie eine Wertminderung des Papiers selbst.
+
+**Die Investmentbesteuerung** bei einem ETF oder Fonds. In der Bilanz ist der Anteil ein
+Wertpapier des Anlagevermögens wie jedes andere; steuerlich legt das InvStG zwei
+Rechnungen daneben, die in keiner Buchung auftauchen:
+
+| Vorgang | Regel | Wirkung |
+|---|---|---|
+| **Teilfreistellung** | § 20 InvStG | ein Teil der Ausschüttungen *und* des Veräußerungsgewinns bleibt steuerfrei |
+| **Vorabpauschale** | § 18 InvStG | ein Mindestertrag ist zu versteuern, auch wenn der Fonds thesauriert und kein Geld fließt |
+
+Die Vorabpauschale ist der Thesaurierungsfall: Basisertrag = Rücknahmepreis zu
+Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs des Jahres, abzüglich
+der Ausschüttungen, im Erwerbsjahr um ein Zwölftel je vollem Monat vor dem Erwerb gekürzt.
+Sie gilt am ersten Werktag des folgenden Kalenderjahres als zugeflossen. Handelsrechtlich
+geschieht nichts, also wird nichts gebucht — festgehalten wird sie trotzdem, weil sie beim
+Abgang wieder abzuziehen ist. Ohne diese Fortschreibung könnte das später niemand mehr
+rekonstruieren.
+
+**Die Höhe der Teilfreistellung hängt am Anleger, und aus der Rechtsform folgt sie nicht.**
+Das ist die Stelle, an der eine Ableitung still falsch rechnete:
+
+- Eine GmbH & Co. KG ist keine Körperschaft. Ihre Gesellschafter können welche sein oder
+  natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem
+  Gesellschafter — für die Gesellschaft als Ganzes gibt es dann keinen.
+- Auch eine Kapitalgesellschaft trägt nicht immer 80 %: für Lebens- und
+  Krankenversicherungsunternehmen, für Institute nach § 8b Abs. 7 KStG mit Handelsbestand
+  und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die erhöhten Sätze zurück.
+- Die Immobilienteilfreistellung kennt die Staffelung gar nicht: 60 % bzw. 80 % gelten für
+  jeden Anleger, und sie schließt die Aktienteilfreistellung aus (§ 20 Abs. 3 Satz 3).
+
+Die Anlegerstellung ist deshalb eine eigene Angabe in den Stammdaten. Fehlt sie, rechnet
+Buchfink nicht, sondern sagt, was zu entscheiden ist.
+
+Auch der **Basiszins** wird nicht mitgeliefert: er steht nicht im Gesetz. § 18 Abs. 4
+InvStG lässt ihn die Bundesbank auf den ersten Börsentag des Jahres errechnen, das
+Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt. Ein
+mitgelieferter Wert wäre im nächsten Jahr falsch.
 
 ## 6. Kopplung an die Festschreibung
 
@@ -229,6 +300,13 @@ Abgangsart. Dazu eine Historie der AfA-Buchungen mit Verweis auf den Journaleint
 
 Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen tragen: vom
 Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
+
+Dazu zwei Dinge, die keine Buchung tragen. Die **Dokumente** hängen als eigene Tabelle am
+Anlagegut (`asset_documents`) und verweisen auf eine Datei im inhaltsadressierten
+Speicher — dieselbe Ablage wie für die Belege, ein anderer Zweig darin. Und die Bewegung
+kennt neben den beiden Wertspalten einen **steuerlichen Betrag**: die Vorabpauschale wird
+versteuert, ohne dass in der Bilanz etwas geschieht, und in einer der Wertspalten
+verschöbe sie Buchwert und Anlagenspiegel.
 
 ## 9. Entscheidungen
 
@@ -304,6 +382,21 @@ Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
   und der Sammelposten begann bei 150 €. Ein Altbestand bleibt damit erklärbar;
   für Anschaffungen davor lehnt Buchfink die Einordnung ab, statt sie zu raten.
 
+- **Dokumente am Anlagegut:** eigene Tabelle, kein zweiter Belegkreis. Löschen
+  ist möglich und steht im Protokoll; die Datei auf der Platte geht erst, wenn
+  kein anderes Dokument mehr auf sie zeigt — zwei Anlagegüter dürfen sich einen
+  Rahmenvertrag teilen.
+- **Tilgung:** eigener Abgangsweg ohne Erlöskonto und ohne Steuerfall, nur für
+  die Ausleihungen des Kontenkatalogs. Eine Beteiligung und ein Wertpapier
+  werden verkauft, nicht getilgt.
+- **Anlegerstellung für § 20 InvStG:** eine Angabe in den Stammdaten, keine
+  Ableitung aus der Rechtsform. Für die gemischt besteuerte Personengesellschaft
+  gibt es keinen einheitlichen Satz; dort weist Buchfink den Betrag ungekürzt
+  aus und sagt, warum.
+- **Basiszins für § 18 InvStG:** Eingabe mit genannter Quelle, keine Tabelle im
+  Code. Anders als die Wertgrenzen wird er jedes Jahr neu veröffentlicht — eine
+  ausgelieferte Tabelle wäre im nächsten Januar veraltet.
+
 Bewusst nicht abgebildet:
 
 - **Die Anrechnung der Kapitalertragsteuer.** Der einbehaltene Betrag wird
@@ -312,6 +405,15 @@ Bewusst nicht abgebildet:
 - **Erhaltungsaufwand als Rückstellung** für unterlassene Instandhaltung
   (§ 249 Abs. 1 Satz 2 Nr. 1 HGB). Das ist ein Vorgang des Jahresabschlusses und
   gehört nicht an das einzelne Anlagegut.
+- **Der Tilgungsplan eines Darlehens.** Getilgt wird als einzelner Vorgang
+  erfasst; einen Plan, der Raten im Voraus kennt und abarbeitet, gibt es nicht.
+  Er lässt sich als Dokument beilegen.
+- **Agio und Disagio bei einer Ausleihung.** Die Ausleihung steht mit ihren
+  Anschaffungskosten; ein Unterschied zum Nennwert wird nicht über die Laufzeit
+  verteilt.
+- **Die Anwendung der Teilfreistellung auf eine Wertminderung.** § 20 InvStG
+  erfasst auch sie; Buchfink rechnet die Nebenrechnung bisher für Ausschüttungen
+  und für den Veräußerungsgewinn.
 
 ## 10. Abhängigkeiten
 
@@ -323,6 +425,13 @@ Bewusst nicht abgebildet:
   Er soll Anlagegüter nicht verwalten können, sondern nur erkennen, dass eine
   Rechnung eine war. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
   bisher — eine fehlende Verdrahtung darf keine Zahlung scheitern lassen.
+- Die **Dokumentenablage** ist derselbe inhaltsadressierte Speicher wie für die
+  Belege (`internal/receiptstore`), unter einem eigenen Zweig `dokumente/`. Sie
+  wird beim Mandantenwechsel verdrahtet; fehlt sie, nimmt die Kartei keine
+  Dokumente auf und funktioniert im Übrigen weiter.
+- Die **Stammdaten** tragen die Anlegerstellung für § 20 InvStG. Ohne sie
+  entsteht keine Teilfreistellung — die Nebenrechnung weist den Betrag dann
+  ungekürzt aus und nennt den Grund.
 - Die **E-Bilanz** übernimmt den Anlagenspiegel als Kontennachweis
   (`SetAnlagenspiegelSource` in `internal/service/ebilanz_service.go`). Die
   Bilanz zeigt einen Buchwert; erst der Spiegel zeigt, woraus er entstanden ist.
@@ -333,7 +442,9 @@ Bewusst nicht abgebildet:
 
 ## 11. Quellen
 
-Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
+Stand der Prüfung: 22.08.2026 für den ursprünglichen Bestand, 28.08.2026 für die
+Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und für das
+Investmentsteuergesetz. Volltexte über gesetze-im-internet.de.
 
 | Aussage im Dokument | Fundstelle | Link |
 |---|---|---|
@@ -355,6 +466,16 @@ Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
 | Vermögensgegenstände höchstens mit den Anschaffungskosten, vermindert um Abschreibungen | § 253 Abs. 1 Satz 1 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
 | Fremdwährungsposten zum Devisenkassamittelkurs am Abschlussstichtag; die Ausnahme gilt nur bei einer Restlaufzeit von höchstens einem Jahr | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
 | Berichtigung der Bemessungsgrundlage bei Skonto | § 17 Abs. 1 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
+| Investmenterträge sind Ausschüttungen, Vorabpauschalen und Veräußerungsgewinne | § 16 Abs. 1 InvStG | [invstg_2018/__16.html](https://www.gesetze-im-internet.de/invstg_2018/__16.html) |
+| Vorabpauschale: Basisertrag = Rücknahmepreis zu Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs | § 18 Abs. 1 InvStG | [invstg_2018/__18.html](https://www.gesetze-im-internet.de/invstg_2018/__18.html) |
+| Kürzung um ein Zwölftel je vollem Monat vor dem Erwerb; Zufluss am ersten Werktag des Folgejahres | § 18 Abs. 2 und 3 InvStG | dito |
+| Basiszins von der Bundesbank auf den ersten Börsentag, veröffentlicht im Bundessteuerblatt | § 18 Abs. 4 InvStG | dito |
+| Abzug der angesetzten Vorabpauschalen vom Veräußerungsgewinn (Privatvermögen) | § 19 Abs. 1 Satz 3 InvStG | [invstg_2018/__19.html](https://www.gesetze-im-internet.de/invstg_2018/__19.html) |
+| Aktienteilfreistellung 30 %, im Betriebsvermögen 60 % bzw. 80 %; Rücknahme für Versicherer, Handelsbestand und Pensionsfonds | § 20 Abs. 1 InvStG | [invstg_2018/__20.html](https://www.gesetze-im-internet.de/invstg_2018/__20.html) |
+| Mischfonds: die Hälfte des Aktiensatzes | § 20 Abs. 2 InvStG | dito |
+| Immobilienfonds 60 %, Auslands-Immobilienfonds 80 %; schließt die Aktienteilfreistellung aus | § 20 Abs. 3 InvStG | dito |
+| Bei mittelbarem Halten über Personengesellschaften bestimmt der Gesellschafter den Satz | § 20 Abs. 3a InvStG | dito |
+| Aufbewahrung von Verträgen und Handelsbriefen | § 147 Abs. 1 AO | [ao_1977/__147.html](https://www.gesetze-im-internet.de/ao_1977/__147.html) |
 | Außerplanmäßige Abschreibung bei voraussichtlich dauernder Wertminderung | § 253 Abs. 3 Satz 5 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
 | Anlagenspiegel als Anhangbestandteil | § 284 Abs. 3 HGB | [hgb/__284.html](https://www.gesetze-im-internet.de/hgb/__284.html) |
 | Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |

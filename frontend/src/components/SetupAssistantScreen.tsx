@@ -86,6 +86,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     skr: 'SKR04',
     vatPeriod: 'quarter',
     taxationType: 'SOLL',
+    // Leer heißt „nicht festgelegt". Die Anlegerstellung für die
+    // Teilfreistellung nach § 20 InvStG folgt nicht aus der Rechtsform; sie
+    // wird gefragt, wenn sie zum ersten Mal gebraucht wird.
+    investorType: '',
   });
 
   const [submitting, setSubmitting] = useState(false);

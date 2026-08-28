@@ -608,6 +608,16 @@ export interface CompanySettings {
   skr: string;
   vatPeriod: string;
   taxationType: string;
+  /**
+   * Anlegerstellung für die Teilfreistellung nach § 20 InvStG.
+   *
+   * Eine eigene Angabe und keine Ableitung aus der Rechtsform: aus
+   * „GmbH & Co. KG" folgt nichts, und auch eine Kapitalgesellschaft trägt nicht
+   * immer 80 % — § 20 Abs. 1 Sätze 4 und 5 InvStG nehmen die Erhöhung für
+   * Lebens- und Krankenversicherer, Kreditinstitute mit Handelsbestand und
+   * Pensionsfonds zurück.
+   */
+  investorType: InvestorType;
 }
 
 export interface AuditLogEntry {
@@ -714,7 +724,58 @@ export type AssetStatus =
   | 'unbooked'
   | 'depreciate_due';
 
-export type DisposalKind = 'sale' | 'scrapped';
+export type DisposalKind = 'sale' | 'scrapped' | 'repayment';
+
+/** Die Fondsarten, an denen § 20 InvStG die Teilfreistellung festmacht. */
+export type FundClass = '' | 'equity' | 'mixed' | 'real_estate' | 'foreign_real_estate' | 'other';
+
+/** Die Anlegerstellung, an der § 20 Abs. 1 InvStG die Höhe des Satzes festmacht. */
+export type InvestorType = '' | 'basic' | 'individual_business' | 'corporate' | 'mixed';
+
+/** Was zu einem Anlagegut abgelegt wird, ohne gebucht zu werden. */
+export type AssetDocumentKind =
+  | 'contract'
+  | 'invoice'
+  | 'valuation'
+  | 'registration'
+  | 'insurance'
+  | 'maintenance'
+  | 'statement'
+  | 'photo'
+  | 'other';
+
+export interface AssetDocument {
+  id: number;
+  assetId: number;
+  kind: AssetDocumentKind;
+  title?: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  storedPath: string;
+  documentDate?: string;
+  /** Tag, an dem das Dokument abläuft — eine Police, eine Frist. */
+  validUntil?: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface AssetDocumentKindInfo {
+  kind: AssetDocumentKind;
+  label: string;
+}
+
+export interface ExpiringAssetDocument {
+  assetId: number;
+  inventoryNumber: string;
+  assetName: string;
+  documentId: number;
+  kind: AssetDocumentKind;
+  kindLabel: string;
+  title: string;
+  validUntil: string;
+}
 
 export type AssetMovementKind =
   | 'transfer'
@@ -727,6 +788,7 @@ export type AssetMovementKind =
   | 'write_up'
   | 'maintenance'
   | 'income'
+  | 'vorabpauschale'
   | 'disposal';
 
 /**
@@ -759,6 +821,8 @@ export interface AssetMovement {
   entryNumber?: string;
   /** Stückzahl, die diese Bewegung bewegt: positiv beim Zugang, negativ beim Abgang. */
   quantity?: Units;
+  /** Betrag, der nur steuerlich zählt — die Vorabpauschale wird nicht gebucht. */
+  taxAmount?: Cents;
   /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
   lifeExtensionMonths?: number;
   note?: string;
@@ -795,6 +859,10 @@ export interface FixedAsset {
   currency?: string;
   /** Anschaffungskosten in der Notierungswährung. */
   foreignCost?: Cents;
+  /** Fälligkeit einer Ausleihung. Entscheidet über § 256a Satz 2 HGB. */
+  maturityDate?: string;
+  /** Fondsart eines Investmentanteils. Leer heißt: kein Investmentanteil. */
+  fundClass?: FundClass;
   /** Beteiligungsquote in Promille: 200 sind 20 %. */
   holdingPermille?: number;
   taxPrivileged?: boolean;
@@ -808,6 +876,7 @@ export interface FixedAsset {
   createdAt: string;
   updatedAt: string;
   movements?: AssetMovement[];
+  documents?: AssetDocument[];
 
   // Abgeleitet vom Backend, nicht gespeichert.
   accountName?: string;
@@ -820,6 +889,8 @@ export interface FixedAsset {
   specialDue: Cents;
   /** Gehaltene Stückzahl nach allen Bewegungen. */
   unitsHeld?: Units;
+  /** Summe der über die Besitzzeit angesetzten Vorabpauschalen. */
+  vorabpauschalen?: Cents;
   status: AssetStatus;
   statusNote?: string;
 }
@@ -1003,7 +1074,60 @@ export interface DisposalPreview {
   lines: JournalLine[];
   gross: Cents;
   tax: Cents;
+  /** Steuerliche Nebenrechnung eines Investmentanteils — sie ändert die Buchung nicht. */
+  investment?: InvestmentTaxNote;
   warnings?: string[];
+}
+
+/** Die Teilfreistellung eines Fonds für einen Anleger (§ 20 InvStG). */
+export interface PartialExemption {
+  /** Steuerfreier Anteil in Promille: 800 sind 80 %. */
+  permille: number;
+  determined: boolean;
+  source: string;
+  explanation: string;
+}
+
+/** Was das InvStG neben der Buchung aus einem Betrag macht. */
+export interface InvestmentTaxNote {
+  fundClass: FundClass;
+  fundClassLabel: string;
+  exemption: PartialExemption;
+  /** Steht, wenn sich kein Satz bestimmen lässt — und sagt warum. */
+  exemptionError?: string;
+  grossAmount: Cents;
+  vorabpauschalen: Cents;
+  exemptAmount: Cents;
+  taxableAmount: Cents;
+  explanation: string;
+}
+
+/** Die Vorabpauschale eines Kalenderjahres (§ 18 InvStG), mit jedem Schritt. */
+export interface Vorabpauschale {
+  year: number;
+  basisReturn: Cents;
+  growth: Cents;
+  capped: boolean;
+  distributions: Cents;
+  monthsCounted: number;
+  amount: Cents;
+  accruedOn: string;
+  explanation: string;
+}
+
+export interface InvestmentRules {
+  fundClasses: { class: FundClass; label: string }[];
+  investorTypes: { type: InvestorType; label: string }[];
+  investorType: InvestorType;
+  investorLabel: string;
+  exemptions: {
+    class: FundClass;
+    label: string;
+    permille: number;
+    source?: string;
+    explanation?: string;
+    problem?: string;
+  }[];
 }
 
 export interface DisposalResult {
@@ -1022,6 +1146,8 @@ export interface CurrencyValuation {
   ratePerEuro: number;
   valueAtRate: Cents;
   bookValue: Cents;
+  /** Greift § 256a Satz 2 HGB — Restlaufzeit höchstens ein Jahr, kein Deckel nach oben? */
+  shortTerm: boolean;
   /** Unterschied zum Buchwert: negativ, wo der Kurs gefallen ist. */
   difference: Cents;
   /** Was daraus folgt — und mit welchem Betrag er tatsächlich gebucht werden dürfte. */

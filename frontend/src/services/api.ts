@@ -10,6 +10,8 @@ import type {
   AssetAccountInfo,
   AssetClass,
   AssetDetail,
+  AssetDocumentKind,
+  AssetDocumentKindInfo,
   AssetRules,
   AssetScheduleYear,
   AssetSummary,
@@ -28,11 +30,14 @@ import type {
   DisposalRequest,
   DisposalResult,
   EInvoiceProposal,
+  ExpiringAssetDocument,
   Festschreibung,
   FestschreibungVerification,
   FinancialSummary,
   FixedAsset,
   IntegrityCheckResult,
+  InvestmentRules,
+  InvestmentTaxNote,
   Invoice,
   JournalEntry,
   OpenItem,
@@ -54,6 +59,7 @@ import type {
   Units,
   ValidationResult,
   VatSummary,
+  Vorabpauschale,
 } from '../types';
 
 /**
@@ -368,6 +374,64 @@ export const Api = {
     ratePerEuro: number;
   }): Promise<CurrencyValuation> =>
     call(() => Bridge.ValuateAssetCurrency(request as any) as Promise<CurrencyValuation>),
+  /** Bucht die Umrechnungsdifferenz auf die Konten der Währungsumrechnung (6880/4840). */
+  bookAssetCurrencyValuation: (request: {
+    assetId: number;
+    date: string;
+    ratePerEuro: number;
+  }): Promise<JournalEntry> =>
+    call(() => Bridge.BookAssetCurrencyValuation(request as any) as Promise<JournalEntry>),
+
+  // --- Dokumente am Anlagegut -------------------------------------------
+
+  /** Öffnet den nativen Dateidialog. Dateien reisen als Pfad, nicht als Inhalt. */
+  selectAssetDocumentsDialog: (title = ''): Promise<string[]> =>
+    call(() => Bridge.SelectAssetDocumentsDialog(title) as Promise<string[]>),
+  attachAssetDocument: (request: {
+    assetId: number;
+    kind: AssetDocumentKind;
+    path: string;
+    title?: string;
+    documentDate?: string;
+    validUntil?: string;
+    note?: string;
+  }): Promise<FixedAsset> =>
+    call(() => Bridge.AttachAssetDocument(request as any) as Promise<FixedAsset>),
+  removeAssetDocument: (assetId: number, documentId: number): Promise<FixedAsset> =>
+    call(() => Bridge.RemoveAssetDocument(assetId, documentId) as Promise<FixedAsset>),
+  getAssetDocumentContent: (documentId: number): Promise<ReceiptPreview> =>
+    call(() => Bridge.GetAssetDocumentContent(documentId) as Promise<ReceiptPreview>),
+  getAssetDocumentKinds: (): Promise<AssetDocumentKindInfo[]> =>
+    call(() => Bridge.GetAssetDocumentKinds() as Promise<AssetDocumentKindInfo[]>),
+  /** Was bis zu einem Stichtag ausläuft. Leer heißt: bis zum Ende des Geschäftsjahres. */
+  getExpiringAssetDocuments: (until = ''): Promise<ExpiringAssetDocument[]> =>
+    call(() => Bridge.GetExpiringAssetDocuments(until) as Promise<ExpiringAssetDocument[]>),
+
+  // --- Investmentanteile ------------------------------------------------
+
+  /** Fondsarten, Anlegerstellungen und der Satz, der sich aus beidem ergibt. */
+  getInvestmentRules: (): Promise<InvestmentRules> =>
+    call(() => Bridge.GetInvestmentRules() as Promise<InvestmentRules>),
+  /**
+   * Rechnet die Vorabpauschale eines Kalenderjahres (§ 18 InvStG) — und hält
+   * sie fest, wenn `record` gesetzt ist. Gebucht wird nichts.
+   */
+  computeVorabpauschale: (request: {
+    assetId: number;
+    year: number;
+    openingPrice: Cents;
+    closingPrice: Cents;
+    distributions?: Cents;
+    /** Basiszins in Basispunkten: 253 sind 2,53 %. */
+    basisPoints: number;
+    record?: boolean;
+    note?: string;
+  }): Promise<Vorabpauschale> =>
+    call(() => Bridge.ComputeVorabpauschale(request as any) as Promise<Vorabpauschale>),
+  /** Die Teilfreistellung einer Ausschüttung, bevor sie gebucht wird. */
+  getInvestmentNoteForIncome: (assetId: number, amount: Cents): Promise<InvestmentTaxNote> =>
+    call(() => Bridge.GetInvestmentNoteForIncome(assetId, amount) as Promise<InvestmentTaxNote>),
+
   /** Fertigstellung: Umbuchung von der Anlage im Bau auf ihr endgültiges Konto. */
   transferFixedAsset: (request: {
     assetId: number;

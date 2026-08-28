@@ -135,6 +135,20 @@ export const bridge = {
   BookAssetMaintenance: <T>(request: unknown) => invoke<T>('BookAssetMaintenance', request),
   BookAssetIncome: <T>(request: unknown) => invoke<T>('BookAssetIncome', request),
   ValuateAssetCurrency: <T>(request: unknown) => invoke<T>('ValuateAssetCurrency', request),
+  BookAssetCurrencyValuation: <T>(request: unknown) =>
+    invoke<T>('BookAssetCurrencyValuation', request),
+  SelectAssetDocumentsDialog: <T>(title: string) => invoke<T>('SelectAssetDocumentsDialog', title),
+  AttachAssetDocument: <T>(request: unknown) => invoke<T>('AttachAssetDocument', request),
+  RemoveAssetDocument: <T>(assetId: number, documentId: number) =>
+    invoke<T>('RemoveAssetDocument', assetId, documentId),
+  GetAssetDocumentContent: <T>(documentId: number) =>
+    invoke<T>('GetAssetDocumentContent', documentId),
+  GetAssetDocumentKinds: <T>() => invoke<T>('GetAssetDocumentKinds'),
+  GetExpiringAssetDocuments: <T>(until: string) => invoke<T>('GetExpiringAssetDocuments', until),
+  GetInvestmentRules: <T>() => invoke<T>('GetInvestmentRules'),
+  ComputeVorabpauschale: <T>(request: unknown) => invoke<T>('ComputeVorabpauschale', request),
+  GetInvestmentNoteForIncome: <T>(assetId: number, amount: number) =>
+    invoke<T>('GetInvestmentNoteForIncome', assetId, amount),
   TransferFixedAsset: <T>(request: unknown) => invoke<T>('TransferFixedAsset', request),
   PreviewAssetDisposal: <T>(request: unknown) => invoke<T>('PreviewAssetDisposal', request),
   DisposeFixedAsset: <T>(request: unknown) => invoke<T>('DisposeFixedAsset', request),
