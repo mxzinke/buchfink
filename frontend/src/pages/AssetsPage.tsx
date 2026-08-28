@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Building2, Info, Plus } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Building2, Plus } from 'lucide-react';
 import {
   AcquisitionAdvice,
   AcquisitionCandidate,
@@ -30,6 +30,7 @@ import {
   Dialog,
   EmptyState,
   Field,
+  HelpPopover,
   Input,
   PageHeader,
   RadioGroup,
@@ -84,16 +85,66 @@ function classOfAccount(account: string): AssetClass | null {
   return 'financial';
 }
 
-/** Ein Merkblatt über der Tabelle: was hier steht und warum. */
-const Explainer: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="rounded-card border border-line bg-surface px-5 py-4">
-    <div className="flex items-start gap-2.5">
-      <Info className="w-4 h-4 mt-0.5 shrink-0 text-accent-text" strokeWidth={1.5} />
-      <div className="min-w-0 space-y-2">
-        <h3 className="text-label font-semibold text-ink">{title}</h3>
-        <div className="text-body text-ink-muted space-y-2">{children}</div>
-      </div>
-    </div>
+/**
+ * Erklärungen laufen über die drei Stufen aus §15.2: eine Zeile Kontext in der
+ * Ansicht, bis zu drei Sätze im Popover, alles Weitere im Dialog hinter „Mehr
+ * dazu".
+ *
+ * Eine Arbeitsansicht enthält keinen Fließtext. Wer täglich damit arbeitet,
+ * liest den Erklärsatz beim zwanzigsten Mal nicht mehr, sondern scrollt an ihm
+ * vorbei — und die Anlagenbuchhaltung hat genug zu erklären, um eine Ansicht
+ * damit zuzuschütten.
+ */
+interface Explanation {
+  title: string;
+  /** Eine Zeile, die in der Ansicht stehen bleibt. */
+  line: string;
+  /** Bis drei Sätze im Popover. */
+  short: React.ReactNode;
+  /** Der lange Text, nur auf Klick. */
+  full: React.ReactNode;
+}
+
+const ExplainLine: React.FC<{ explanation: Explanation; onMore: () => void }> = ({
+  explanation,
+  onMore,
+}) => (
+  <div className="flex items-center gap-1 text-caption text-ink-subtle">
+    <span>{explanation.line}</span>
+    <HelpPopover label={`Erklärung zu ${explanation.title}`} onMore={onMore}>
+      {explanation.short}
+    </HelpPopover>
+  </div>
+);
+
+const ExplainDialog: React.FC<{ explanation: Explanation | null; onClose: () => void }> = ({
+  explanation,
+  onClose,
+}) => (
+  <Dialog
+    open={explanation !== null}
+    onOpenChange={(next) => !next && onClose()}
+    title={explanation?.title ?? ''}
+    width="max-w-2xl"
+    footer={
+      <Button variant="secondary" onClick={onClose}>
+        Schließen
+      </Button>
+    }
+  >
+    <div className="text-body text-ink-muted space-y-3">{explanation?.full}</div>
+  </Dialog>
+);
+
+/** In den Masken bleibt es bei zwei Stufen — ein Dialog im Dialog hilft niemandem. */
+const FormHint: React.FC<{ label: string; line: string; children: React.ReactNode }> = ({
+  label,
+  line,
+  children,
+}) => (
+  <div className="flex items-center gap-1 text-caption text-ink-subtle">
+    <span>{line}</span>
+    <HelpPopover label={label}>{children}</HelpPopover>
   </div>
 );
 
@@ -118,6 +169,188 @@ const Notice: React.FC<{ tone?: 'attention' | 'negative'; children: React.ReactN
   </div>
 );
 
+type Topic = 'tangible' | 'financial' | 'intangible' | 'depreciation' | 'spiegel';
+
+/**
+ * Die Texte stehen beieinander, damit die Ansicht nur noch eine Zeile davon
+ * zeigt. Die Wertgrenzen kommen aus dem Backend — sie stehen hier nicht ein
+ * zweites Mal als Zahl im Text.
+ */
+function explanations(rules: AssetRules | null, year: number): Record<Topic, Explanation> {
+  const gwg = formatCents(rules?.gwgImmediateLimit ?? 0);
+  const poolFrom = formatCents(rules?.poolLowerLimit ?? 0);
+  const poolTo = formatCents(rules?.poolUpperLimit ?? 0);
+  const record = formatCents(rules?.gwgRecordFrom ?? 0);
+
+  return {
+    tangible: {
+      title: 'Sachanlagen',
+      line: 'Erst die Wertgrenze, dann die Abschreibungsmethode.',
+      short: (
+        <>
+          Bis {gwg} netto ist der Sofortabzug möglich, bis {poolTo} der Sammelposten, darüber wird
+          aktiviert und über die Nutzungsdauer abgeschrieben. Die eigentliche Hürde ist dabei nicht
+          der Betrag, sondern die selbständige Nutzbarkeit. Buchfink fragt sie beim Erfassen ab,
+          statt sie zu raten.
+        </>
+      ),
+      full: (
+        <>
+          <p>
+            Bei jeder Anschaffung steht eine Entscheidung <em>vor</em> der Abschreibungsmethode, und
+            sie bestimmt den ganzen weiteren Verlauf:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Sofortabzug</strong> bis {gwg} netto — voller Aufwand im Anschaffungsjahr
+              (§ 6 Abs. 2 Satz 1 EStG).
+            </li>
+            <li>
+              <strong>Sammelposten</strong> von {poolFrom} bis {poolTo} — ein Pool je
+              Wirtschaftsjahr, aufgelöst mit je einem Fünftel über {rules?.poolYears ?? 5} Jahre
+              (§ 6 Abs. 2a EStG).
+            </li>
+            <li>
+              <strong>Aktivierung</strong> darüber — planmäßige AfA über die betriebsgewöhnliche
+              Nutzungsdauer (§ 7 Abs. 1 EStG).
+            </li>
+          </ul>
+          <p>
+            Zwei Fallen stecken darin. Die eigentliche Hürde ist nicht der Betrag, sondern die{' '}
+            <strong>selbständige Nutzbarkeit</strong>: ein Bildschirm für 300 € ist ohne Rechner
+            nicht nutzbar und damit kein GWG. Und das{' '}
+            <strong>Sammelposten-Wahlrecht gilt einheitlich</strong> für alle Wirtschaftsgüter eines
+            Jahres — wer einmal poolt, poolt für dieses Jahr durchgehend.
+          </p>
+          <p>
+            Ab {record} muss ein geringwertiges Wirtschaftsgut in ein laufend geführtes Verzeichnis
+            (§ 6 Abs. 2 Satz 4 EStG) — dieses Verzeichnis erfüllt das.
+          </p>
+        </>
+      ),
+    },
+    financial: {
+      title: 'Finanzanlagen',
+      line: 'Finanzanlagen werden nicht planmäßig abgeschrieben.',
+      short: (
+        <>
+          Sie nutzen sich nicht ab und stehen mit ihren Anschaffungskosten in der Bilanz. Wertverlust
+          wird außerplanmäßig erfasst — bei Finanzanlagen auch bei einer nur vorübergehenden
+          Wertminderung (§ 253 Abs. 3 Satz 6 HGB). Fällt der Grund später weg, ist wieder
+          zuzuschreiben.
+        </>
+      ),
+      full: (
+        <>
+          <p>
+            Hier stehen Beteiligungen, Anteile an verbundenen Unternehmen, Wertpapiere des
+            Anlagevermögens und Ausleihungen — alles, was <em>dauernd</em> dem Geschäftsbetrieb
+            dienen soll. Was nur vorübergehend gehalten wird, gehört ins Umlaufvermögen und
+            unterliegt dort strengeren Bewertungsregeln.
+          </p>
+          <p>
+            Für Finanzanlagen gilt das <em>gemilderte</em> Niederstwertprinzip: bei voraussichtlich
+            dauernder Wertminderung <em>ist</em> abzuschreiben, bei einer nicht dauernden{' '}
+            <em>darf</em> abgeschrieben werden (§ 253 Abs. 3 Sätze 5 und 6 HGB). Fällt der Grund
+            später weg, ist wieder zuzuschreiben — höchstens bis zu den Anschaffungskosten
+            (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot, kein Wahlrecht.
+          </p>
+          <p>
+            Beide Vorgänge stehen im Anlagegut selbst: öffne eine Zeile und wähle „Außerplanmäßig
+            abschreiben" oder „Zuschreiben". Der Grund gehört zwingend dazu — ohne ihn kann später
+            niemand mehr nachvollziehen, warum der Wert gefallen ist.
+          </p>
+        </>
+      ),
+    },
+    intangible: {
+      title: 'Immaterielle Vermögensgegenstände',
+      line: 'Nur entgeltlich erworbene Werte gehören hierher.',
+      short: (
+        <>
+          Software, Lizenzen, Konzessionen und der Geschäfts- oder Firmenwert. Selbst geschaffene
+          Werte dürfen handelsrechtlich nur wahlweise aktiviert werden (§ 248 Abs. 2 HGB), steuerlich
+          gar nicht. Abgeschrieben wird planmäßig über die Nutzungsdauer wie bei den Sachanlagen.
+        </>
+      ),
+      full: (
+        <>
+          <p>
+            Software, Lizenzen, Konzessionen, gewerbliche Schutzrechte und der Geschäfts- oder
+            Firmenwert. Angesetzt werden dürfen nur <em>entgeltlich erworbene</em> Werte; für selbst
+            geschaffene besteht handelsrechtlich lediglich ein Wahlrecht (§ 248 Abs. 2 HGB) und
+            steuerlich ein Ansatzverbot.
+          </p>
+          <p>
+            Abgeschrieben wird planmäßig über die Nutzungsdauer wie bei den Sachanlagen. Der
+            Geschäfts- oder Firmenwert ist der Sonderfall: steuerlich über 15 Jahre
+            (§ 7 Abs. 1 Satz 3 EStG), und eine Zuschreibung auf ihn ist ausgeschlossen
+            (§ 253 Abs. 5 Satz 2 HGB).
+          </p>
+        </>
+      ),
+    },
+    depreciation: {
+      title: 'Abschreibungslauf',
+      line: 'Die Abschreibung ist eine Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall.',
+      short: (
+        <>
+          Buchfink bucht sie deshalb nie im Hintergrund: hier steht, was für {year} fällig ist, und
+          gebucht wird auf Freigabe. Gerechnet wird monatsgenau ab dem Anschaffungsmonat
+          (§ 7 Abs. 1 Satz 4 EStG). Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob
+          hier noch etwas offen ist.
+        </>
+      ),
+      full: (
+        <>
+          <p>
+            Die AfA entsteht nicht nebenbei im Lauf des Jahres, sondern zum Bilanzstichtag. Buchfink
+            bucht sie deshalb nie im Hintergrund: hier steht, was für {year} fällig ist, und gebucht
+            wird auf Freigabe — eine Buchung je Anlagegut, damit der Bezug in beide Richtungen trägt.
+          </p>
+          <p>
+            Gerechnet wird monatsgenau ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Ein im
+            September angeschafftes Wirtschaftsgut trägt im ersten Jahr vier Zwölftel.
+          </p>
+          <p>
+            Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob hier noch etwas offen ist.
+            Ein festgeschriebenes Jahr nimmt keine Buchung mehr auf — die fehlende Abschreibung ließe
+            sich danach nicht mehr nachholen.
+          </p>
+        </>
+      ),
+    },
+    spiegel: {
+      title: 'Anlagenspiegel',
+      line: 'Die Entwicklung jeder Position über das Geschäftsjahr.',
+      short: (
+        <>
+          Anfangsbestand, Zugänge, Abgänge, Abschreibungen und Buchwert am Ende. Für
+          Kapitalgesellschaften ist der Anlagenspiegel Bestandteil des Anhangs (§ 284 Abs. 3 HGB);
+          kleine Kapitalgesellschaften sind davon befreit (§ 288 Abs. 1 Nr. 1 HGB). Er ist keine
+          Buchung, sondern eine Auswertung.
+        </>
+      ),
+      full: (
+        <>
+          <p>
+            Der Anlagenspiegel zeigt für jeden Posten, was am Anfang da war, was hinzukam, was abging
+            und wie viel abgeschrieben wurde. Für Kapitalgesellschaften ist er Bestandteil des
+            Anhangs (§ 284 Abs. 3 HGB); kleine Kapitalgesellschaften sind davon befreit
+            (§ 288 Abs. 1 Nr. 1 HGB).
+          </p>
+          <p>
+            Er ist keine zusätzliche Buchung, sondern eine Auswertung — aber eine, die nur
+            funktioniert, weil die Anlagenkartei jahresübergreifend geführt wird. Ein 2019
+            angeschafftes Wirtschaftsgut steht {year} noch mit seinen Zugängen und seiner kumulierten
+            Abschreibung da, obwohl das Journal pro Geschäftsjahr organisiert ist.
+          </p>
+        </>
+      ),
+    },
+  };
+}
+
 export const AssetsPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('tangible');
   const [loading, setLoading] = useState(true);
@@ -132,6 +365,7 @@ export const AssetsPage: React.FC = () => {
 
   const [editing, setEditing] = useState<Partial<FixedAsset> | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [topic, setTopic] = useState<Topic | null>(null);
 
   useEffect(() => {
     void loadAll();
@@ -178,6 +412,7 @@ export const AssetsPage: React.FC = () => {
   }, [assets]);
 
   const dueCount = run?.due.filter((d) => d.due > 0).length ?? 0;
+  const explain = useMemo(() => explanations(rules, year), [rules, year]);
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
@@ -221,7 +456,8 @@ export const AssetsPage: React.FC = () => {
               <RegisterTab
                 assetClass={assetClass}
                 assets={byClass[assetClass]}
-                rules={rules}
+                explanation={explain[assetClass]}
+                onExplain={() => setTopic(assetClass)}
                 year={year}
                 candidates={candidates.filter((c) => classOfAccount(c.account) === assetClass)}
                 onOpen={setDetailId}
@@ -242,12 +478,27 @@ export const AssetsPage: React.FC = () => {
           {loading ? (
             <SkeletonRows rows={6} />
           ) : (
-            <DepreciationTab run={run} year={year} onBooked={loadAll} />
+            <DepreciationTab
+              run={run}
+              year={year}
+              explanation={explain.depreciation}
+              onExplain={() => setTopic('depreciation')}
+              onBooked={loadAll}
+            />
           )}
         </TabPanel>
 
         <TabPanel value="spiegel">
-          {loading ? <SkeletonRows rows={8} /> : <SpiegelTab spiegel={spiegel} year={year} />}
+          {loading ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <SpiegelTab
+              spiegel={spiegel}
+              year={year}
+              explanation={explain.spiegel}
+              onExplain={() => setTopic('spiegel')}
+            />
+          )}
         </TabPanel>
       </Tabs>
 
@@ -264,6 +515,11 @@ export const AssetsPage: React.FC = () => {
           toast.success(`${asset.inventoryNumber} gespeichert.`);
           await loadAll();
         }}
+      />
+
+      <ExplainDialog
+        explanation={topic ? explain[topic] : null}
+        onClose={() => setTopic(null)}
       />
 
       <AssetDetailDialog
@@ -288,12 +544,13 @@ export const AssetsPage: React.FC = () => {
 const RegisterTab: React.FC<{
   assetClass: AssetClass;
   assets: FixedAsset[];
-  rules: AssetRules | null;
+  explanation: Explanation;
+  onExplain: () => void;
   year: number;
   candidates: AcquisitionCandidate[];
   onOpen: (id: number) => void;
   onCreate: (prefill: Partial<FixedAsset>) => void;
-}> = ({ assetClass, assets, rules, year, candidates, onOpen, onCreate }) => {
+}> = ({ assetClass, assets, explanation, onExplain, year, candidates, onOpen, onCreate }) => {
   const inStock = assets.filter((a) => a.status !== 'disposed');
   const disposed = assets.filter((a) => a.status === 'disposed');
 
@@ -301,7 +558,7 @@ const RegisterTab: React.FC<{
 
   return (
     <div className="space-y-6">
-      <ClassExplainer assetClass={assetClass} rules={rules} />
+      <ExplainLine explanation={explanation} onMore={onExplain} />
 
       <StatRow>
         <Stat label="Anschaffungskosten" value={formatCents(sum((a) => a.cost))} context={`${inStock.length} im Bestand`} />
@@ -319,9 +576,7 @@ const RegisterTab: React.FC<{
           <p>
             {candidates.length === 1
               ? 'Eine Buchung liegt auf einem Anlagekonto, ohne dass es dazu ein Anlagegut gibt.'
-              : `${candidates.length} Buchungen liegen auf Anlagekonten, ohne dass es dazu ein Anlagegut gibt.`}{' '}
-            Der Zugang wird über den Beleg gebucht — mit Vorsteuer, Lieferant und Belegverweis. Damit
-            daraus eine Abschreibung wird, gehört er anschließend ins Verzeichnis.
+              : `${candidates.length} Buchungen liegen auf Anlagekonten, ohne dass es dazu ein Anlagegut gibt.`}
           </p>
           <ul className="mt-2 space-y-1">
             {candidates.slice(0, 4).map((candidate) => (
@@ -427,95 +682,6 @@ const AssetStatusCell: React.FC<{ asset: FixedAsset }> = ({ asset }) => {
   }
 };
 
-/** Die Erklärung, die zu genau dieser Anlagenklasse gehört. */
-const ClassExplainer: React.FC<{ assetClass: AssetClass; rules: AssetRules | null }> = ({
-  assetClass,
-  rules,
-}) => {
-  if (assetClass === 'financial') {
-    return (
-      <Explainer title="Finanzanlagen: Anteile, Wertpapiere, Ausleihungen">
-        <p>
-          Hier stehen Beteiligungen, Anteile an verbundenen Unternehmen, Wertpapiere des
-          Anlagevermögens und Ausleihungen — alles, was <em>dauernd</em> dem Geschäftsbetrieb dienen
-          soll. Was nur vorübergehend gehalten wird, gehört ins Umlaufvermögen und unterliegt dort
-          strengeren Bewertungsregeln.
-        </p>
-        <p>
-          <strong>Finanzanlagen werden nicht planmäßig abgeschrieben.</strong> Sie nutzen sich nicht
-          ab, deshalb gibt es für sie keinen AfA-Plan. Sie stehen mit ihren Anschaffungskosten in der
-          Bilanz, bis ein Grund für eine außerplanmäßige Abschreibung eintritt.
-        </p>
-        <p>
-          Für sie gilt das <em>gemilderte</em> Niederstwertprinzip: bei voraussichtlich dauernder
-          Wertminderung <em>ist</em> abzuschreiben, bei einer nicht dauernden <em>darf</em>{' '}
-          abgeschrieben werden (§ 253 Abs. 3 Sätze 5 und 6 HGB). Fällt der Grund später weg, ist
-          wieder zuzuschreiben — höchstens bis zu den Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB).
-          Das ist ein Gebot, kein Wahlrecht.
-        </p>
-        <p>
-          Beide Vorgänge stehen im Anlagegut selbst: öffne eine Zeile und wähle „Außerplanmäßig
-          abschreiben" oder „Zuschreiben". Der Grund gehört zwingend dazu — ohne ihn kann später
-          niemand mehr nachvollziehen, warum der Wert gefallen ist.
-        </p>
-      </Explainer>
-    );
-  }
-
-  if (assetClass === 'intangible') {
-    return (
-      <Explainer title="Immaterielle Vermögensgegenstände">
-        <p>
-          Software, Lizenzen, Konzessionen, gewerbliche Schutzrechte und der Geschäfts- oder
-          Firmenwert. Angesetzt werden dürfen nur <em>entgeltlich erworbene</em> Werte; für selbst
-          geschaffene besteht handelsrechtlich lediglich ein Wahlrecht (§ 248 Abs. 2 HGB) und
-          steuerlich ein Ansatzverbot.
-        </p>
-        <p>
-          Abgeschrieben wird planmäßig über die Nutzungsdauer wie bei den Sachanlagen. Der
-          Geschäfts- oder Firmenwert ist der Sonderfall: steuerlich über 15 Jahre (§ 7 Abs. 1 Satz 3
-          EStG), und eine Zuschreibung auf ihn ist ausgeschlossen (§ 253 Abs. 5 Satz 2 HGB).
-        </p>
-      </Explainer>
-    );
-  }
-
-  return (
-    <Explainer title="Sachanlagen: erst die Wertgrenze, dann die Abschreibung">
-      <p>
-        Bei jeder Anschaffung steht eine Entscheidung <em>vor</em> der Abschreibungsmethode, und sie
-        bestimmt den ganzen weiteren Verlauf:
-      </p>
-      <ul className="list-disc pl-5 space-y-1">
-        <li>
-          <strong>Sofortabzug</strong> bis {formatCents(rules?.gwgImmediateLimit ?? 0)} netto — voller
-          Aufwand im Anschaffungsjahr (§ 6 Abs. 2 Satz 1 EStG).
-        </li>
-        <li>
-          <strong>Sammelposten</strong> von {formatCents(rules?.poolLowerLimit ?? 0)} bis{' '}
-          {formatCents(rules?.poolUpperLimit ?? 0)} — ein Pool je Wirtschaftsjahr, aufgelöst mit je
-          einem Fünftel über {rules?.poolYears ?? 5} Jahre (§ 6 Abs. 2a EStG).
-        </li>
-        <li>
-          <strong>Aktivierung</strong> darüber — planmäßige AfA über die betriebsgewöhnliche
-          Nutzungsdauer (§ 7 Abs. 1 EStG).
-        </li>
-      </ul>
-      <p>
-        Zwei Fallen stecken darin. Die eigentliche Hürde ist nicht der Betrag, sondern die{' '}
-        <strong>selbständige Nutzbarkeit</strong>: ein Bildschirm für 300 € ist ohne Rechner nicht
-        nutzbar und damit kein GWG. Und das <strong>Sammelposten-Wahlrecht gilt einheitlich</strong>{' '}
-        für alle Wirtschaftsgüter eines Jahres — wer einmal poolt, poolt für dieses Jahr durchgehend.
-        Buchfink fragt beides beim Erfassen, statt es zu raten.
-      </p>
-      <p>
-        Ab {formatCents(rules?.gwgRecordFrom ?? 0)} muss ein geringwertiges Wirtschaftsgut in ein
-        laufend geführtes Verzeichnis (§ 6 Abs. 2 Satz 4 EStG) — dieses Verzeichnis erfüllt das.
-      </p>
-    </Explainer>
-  );
-};
-
 // -------------------------------------------------------------------------
 // Abschreibungslauf
 // -------------------------------------------------------------------------
@@ -523,8 +689,10 @@ const ClassExplainer: React.FC<{ assetClass: AssetClass; rules: AssetRules | nul
 const DepreciationTab: React.FC<{
   run: DepreciationRun | null;
   year: number;
+  explanation: Explanation;
+  onExplain: () => void;
   onBooked: () => Promise<void>;
-}> = ({ run, year, onBooked }) => {
+}> = ({ run, year, explanation, onExplain, onBooked }) => {
   const [selected, setSelected] = useState<number[]>([]);
   const [bookingDate, setBookingDate] = useState(run?.bookingDate ?? `${year}-12-31`);
   const [busy, setBusy] = useState(false);
@@ -561,28 +729,12 @@ const DepreciationTab: React.FC<{
 
   return (
     <div className="space-y-6">
-      <Explainer title="Die Abschreibung ist eine Abschlussbuchung, kein laufender Geschäftsvorfall">
-        <p>
-          Die AfA entsteht nicht nebenbei im Lauf des Jahres, sondern zum Bilanzstichtag. Buchfink
-          bucht sie deshalb nie im Hintergrund: hier steht, was für {year} fällig ist, und gebucht
-          wird auf Freigabe — eine Buchung je Anlagegut, damit der Bezug in beide Richtungen trägt.
-        </p>
-        <p>
-          Gerechnet wird monatsgenau ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Ein im
-          September angeschafftes Wirtschaftsgut trägt im ersten Jahr vier Zwölftel.
-        </p>
-        <p>
-          Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob hier noch etwas offen ist.
-          Ein festgeschriebenes Jahr nimmt keine Buchung mehr auf — die fehlende Abschreibung ließe
-          sich danach nicht mehr nachholen.
-        </p>
-      </Explainer>
+      <ExplainLine explanation={explanation} onMore={onExplain} />
 
       {run?.missingPriorYears && run.missingPriorYears.length > 0 && (
         <Notice>
-          Für {run.missingPriorYears.join(', ')} fehlt noch Abschreibung. Sie gehört in ihr eigenes
-          Geschäftsjahr und wird hier nicht nachgeholt: wechsle oben rechts das Geschäftsjahr und
-          buche sie dort.
+          Für {run.missingPriorYears.join(', ')} fehlt noch Abschreibung — sie gehört in ihr eigenes
+          Geschäftsjahr und wird hier nicht nachgeholt.
         </Notice>
       )}
 
@@ -695,10 +847,12 @@ const DepreciationTab: React.FC<{
 // Anlagenspiegel
 // -------------------------------------------------------------------------
 
-const SpiegelTab: React.FC<{ spiegel: Anlagenspiegel | null; year: number }> = ({
-  spiegel,
-  year,
-}) => {
+const SpiegelTab: React.FC<{
+  spiegel: Anlagenspiegel | null;
+  year: number;
+  explanation: Explanation;
+  onExplain: () => void;
+}> = ({ spiegel, year, explanation, onExplain }) => {
   const rows = spiegel?.rows ?? [];
   // Die Spalte Zuschreibungen steht nur da, wo es welche gibt. Elf Spalten
   // brauchen jeden Millimeter, und eine Spalte aus lauter Nullen erklärt nichts.
@@ -726,20 +880,7 @@ const SpiegelTab: React.FC<{ spiegel: Anlagenspiegel | null; year: number }> = (
 
   return (
     <div className="space-y-6">
-      <Explainer title="Anlagenspiegel: die Entwicklung jeder Position über das Jahr">
-        <p>
-          Der Anlagenspiegel zeigt für jeden Posten, was am Anfang da war, was hinzukam, was
-          abging und wie viel abgeschrieben wurde. Für Kapitalgesellschaften ist er Bestandteil des
-          Anhangs (§ 284 Abs. 3 HGB); kleine Kapitalgesellschaften sind davon befreit
-          (§ 288 Abs. 1 Nr. 1 HGB).
-        </p>
-        <p>
-          Er ist keine zusätzliche Buchung, sondern eine Auswertung — aber eine, die nur funktioniert,
-          weil die Anlagenkartei jahresübergreifend geführt wird. Ein 2019 angeschafftes
-          Wirtschaftsgut steht {year} noch mit seinen Zugängen und seiner kumulierten Abschreibung da,
-          obwohl das Journal pro Geschäftsjahr organisiert ist.
-        </p>
-      </Explainer>
+      <ExplainLine explanation={explanation} onMore={onExplain} />
 
       {rows.length === 0 ? (
         <EmptyState
@@ -1116,11 +1257,16 @@ const AssetFormDialog: React.FC<{
         </Field>
       </div>
 
-      <p className="mt-5 text-caption text-ink-subtle">
-        Der Zugang selbst wird über den Beleg gebucht — mit Vorsteuer, Lieferant und Belegverweis. Das
-        Verzeichnis führt das Anlagegut daneben fort: es kennt die Bemessungsgrundlage, den Plan und
-        die Bewegungen über alle Jahre. Beides zusammen ergibt den Anlagenspiegel.
-      </p>
+      <div className="mt-5">
+        <FormHint
+          label="Erklärung zum Zugang"
+          line="Der Zugang selbst wird über den Beleg gebucht, nicht hier."
+        >
+          Die Buchung entsteht mit Vorsteuer, Lieferant und Belegverweis im Belegflow. Das
+          Verzeichnis führt das Anlagegut daneben fort: es kennt die Bemessungsgrundlage, den Plan
+          und die Bewegungen über alle Jahre. Beides zusammen ergibt den Anlagenspiegel.
+        </FormHint>
+      </div>
 
       {error && (
         <div className="mt-4 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
@@ -1389,17 +1535,16 @@ const ImpairmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <Explainer title="Außerplanmäßige Abschreibung">
-        <p>
-          Sie ist ein Ermessensvorgang und keine Rechnung: Buchfink kann sie erfassen und
-          dokumentieren, aber nicht auslösen. Der Grund gehört deshalb zwingend an die Buchung.
-        </p>
-        <p>
-          {isFinancial
-            ? 'Bei Finanzanlagen darf auch bei einer nur vorübergehenden Wertminderung abgeschrieben werden (§ 253 Abs. 3 Satz 6 HGB) — das gemilderte Niederstwertprinzip. Das Konto unterscheidet die beiden Fälle.'
-            : 'Zulässig nur bei voraussichtlich dauernder Wertminderung (§ 253 Abs. 3 Satz 5 HGB). Die Ausnahme für die nicht dauernde Wertminderung gilt allein für Finanzanlagen.'}
-        </p>
-      </Explainer>
+      <FormHint
+        label="Erklärung zur außerplanmäßigen Abschreibung"
+        line="Ein Ermessensvorgang: Buchfink kann ihn erfassen, aber nicht auslösen."
+      >
+        Der Grund gehört deshalb zwingend an die Buchung — ohne ihn kann ihn später niemand mehr
+        nachvollziehen.{' '}
+        {isFinancial
+          ? 'Bei Finanzanlagen darf auch bei einer nur vorübergehenden Wertminderung abgeschrieben werden (§ 253 Abs. 3 Satz 6 HGB); das Konto unterscheidet die beiden Fälle.'
+          : 'Zulässig ist sie nur bei voraussichtlich dauernder Wertminderung (§ 253 Abs. 3 Satz 5 HGB); die Ausnahme für die nicht dauernde gilt allein für Finanzanlagen.'}
+      </FormHint>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -1476,15 +1621,15 @@ const WriteUpForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <Explainer title="Zuschreibung">
-        <p>
-          Fällt der Grund für eine frühere außerplanmäßige Abschreibung weg, <em>ist</em>{' '}
-          zuzuschreiben — § 253 Abs. 5 Satz 1 HGB stellt das nicht ins Belieben. Die Obergrenze sind
-          die fortgeführten Anschaffungskosten: der Buchwert, den das Anlagegut ohne die
-          außerplanmäßige Abschreibung heute hätte. Buchfink rechnet diese Grenze und weist einen
-          höheren Betrag ab.
-        </p>
-      </Explainer>
+      <FormHint
+        label="Erklärung zur Zuschreibung"
+        line="Zuschreiben ist ein Gebot, kein Wahlrecht (§ 253 Abs. 5 Satz 1 HGB)."
+      >
+        Fällt der Grund für eine frühere außerplanmäßige Abschreibung weg, ist zuzuschreiben. Die
+        Obergrenze sind die fortgeführten Anschaffungskosten: der Buchwert, den das Anlagegut ohne
+        die außerplanmäßige Abschreibung heute hätte. Buchfink rechnet diese Grenze und weist einen
+        höheren Betrag ab.
+      </FormHint>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Datum">
@@ -1547,19 +1692,15 @@ const CostAdjustmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <Explainer title="Nachträgliche Anschaffungskosten und Minderungen">
-        <p>
-          Fracht, Montage und Überführung gehören zu den Anschaffungskosten, Finanzierungskosten
-          nicht (§ 255 Abs. 1 HGB). Und ein <strong>Skonto auf eine Anlage mindert die
-          Anschaffungskosten</strong>, nicht den Aufwand — die Bemessungsgrundlage der AfA sinkt
-          entsprechend.
-        </p>
-        <p>
-          Gebucht wird hier nichts: der Betrag steht bereits über den Beleg bzw. die Zahlung auf dem
-          Anlagekonto. Was hier entsteht, ist die Fortschreibung der Kartei — und damit ein neuer
-          Plan für die Folgejahre.
-        </p>
-      </Explainer>
+      <FormHint
+        label="Erklärung zu nachträglichen Anschaffungskosten"
+        line="Skonto auf eine Anlage mindert die Anschaffungskosten, nicht den Aufwand."
+      >
+        Fracht, Montage und Überführung gehören zu den Anschaffungskosten, Finanzierungskosten nicht
+        (§ 255 Abs. 1 HGB). Gebucht wird hier nichts: der Betrag steht bereits über den Beleg oder
+        die Zahlung auf dem Anlagekonto. Was hier entsteht, ist die Fortschreibung der Kartei — und
+        damit ein neuer Plan für die Folgejahre.
+      </FormHint>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -1663,18 +1804,16 @@ const DisposalForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <Explainer title="Beim Abgang geschehen drei Dinge gleichzeitig">
-        <p>
-          Die Abschreibung wird bis zum Abgangsmonat nachgeholt, der Restbuchwert verschwindet, und
-          ein Erlös entsteht. Die Differenz ist der Buchgewinn oder -verlust.
-        </p>
-        <p>
-          <strong>Der SKR04 wählt das Erlöskonto nach dem Ergebnis, nicht nach dem Vorgang.</strong>{' '}
-          Derselbe Verkauf steht bei Buchgewinn unter den Erträgen und bei Buchverlust unter den
-          Aufwendungen. Buchfink rechnet das Ergebnis deshalb zuerst und zeigt unten, welche Konten
-          daraus folgen.
-        </p>
-      </Explainer>
+      <FormHint
+        label="Erklärung zum Abgang"
+        line="Der SKR04 wählt das Erlöskonto nach dem Ergebnis, nicht nach dem Vorgang."
+      >
+        Beim Abgang geschehen drei Dinge gleichzeitig: die Abschreibung wird bis zum Abgangsmonat
+        nachgeholt, der Restbuchwert verschwindet, und ein Erlös entsteht. Die Differenz ist der
+        Buchgewinn oder -verlust — und derselbe Verkauf steht damit einmal unter den Erträgen und
+        einmal unter den Aufwendungen. Buchfink rechnet das Ergebnis deshalb zuerst und zeigt unten,
+        welche Konten daraus folgen.
+      </FormHint>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Abgangsdatum" help="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
@@ -1789,7 +1928,7 @@ const DisposalForm: React.FC<{
             <Stat label="Zahlbetrag" value={formatCents(preview.gross)} context={`darin ${formatCents(preview.tax)} USt`} />
           </StatRow>
 
-          <p className="text-body text-ink-muted mb-4">{preview.accounts.explanation}</p>
+          <p className="text-caption text-ink-subtle mb-4">{preview.accounts.explanation}</p>
 
           {preview.warnings?.map((warning, index) => (
             <div key={index} className="mb-3">
