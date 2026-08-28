@@ -57,6 +57,19 @@ Dasselbe gilt für Rabatte und für nachträgliche Anschaffungskosten.
 Ebenso zu erfassen: Fracht, Montage, Überführung sind Nebenkosten und gehören auf das
 Anlagekonto; Finanzierungskosten dagegen nicht.
 
+**Erweiterungen kommen später wieder.** Was ein Anlagegut erweitert oder über seinen
+ursprünglichen Zustand hinaus wesentlich verbessert, sind nachträgliche Herstellungskosten
+(§ 255 Abs. 2 Satz 1 HGB); was es nur im Zustand hält, ist Erhaltungsaufwand und geht
+sofort in die GuV. Die Abgrenzung ist eine Einschätzung, keine Rechnung — Buchfink fragt
+sie, statt sie zu raten.
+
+Für die AfA gilt: der Betrag wirkt **ab seinem eigenen Jahr**, behandelt als wäre er zu
+dessen Beginn angefallen (R 7.4 Abs. 9 EStR). Der Restbuchwert samt Erweiterung verteilt
+sich auf die Restnutzungsdauer; verlängert die Erweiterung die Nutzungsdauer, wächst die
+Restnutzungsdauer mit. Den Plan von vorn zu rechnen wäre der naheliegende Fehler: er
+behauptete rückwirkend, in längst festgeschriebenen Jahren sei zu wenig abgeschrieben
+worden.
+
 Zugangsbuchung (Beispiel Pkw auf Ziel):
 
 | Buchung |
@@ -217,6 +230,9 @@ Noch offen:
   abgelehnt statt geraten.
 - **Umbuchung von 0700 (Anlagen im Bau) auf das endgültige Anlagekonto:** die
   Kartei kennt den Vorgang, hat aber keine eigene Aktion dafür.
+- **Erhaltungsaufwand:** Buchfink fragt die Abgrenzung zur Erweiterung, bucht den
+  Erhaltungsaufwand aber nicht selbst — er läuft wie jeder andere Aufwand über den
+  Beleg.
 
 ## 10. Abhängigkeiten
 

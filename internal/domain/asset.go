@@ -226,6 +226,15 @@ type AssetMovement struct {
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
 
+	// LifeExtensionMonths verlängert die Restnutzungsdauer ab dem Jahr dieser
+	// Bewegung.
+	//
+	// Eine Erweiterung macht ein Wirtschaftsgut oft länger nutzbar — ein Anbau
+	// hält so lange wie das Gebäude, ein Austauschmotor verlängert das Leben der
+	// Maschine. Die Verlängerung gehört an die Bewegung und nicht in die
+	// Stammdaten: dort würde sie auch die Jahre ändern, die längst gebucht sind.
+	LifeExtensionMonths int `gorm:"default:0" json:"lifeExtensionMonths,omitempty"`
+
 	// Note carries the reason. On an außerplanmäßige Abschreibung it is not
 	// optional: ein Ermessensvorgang, dessen Begründung fehlt, ist später von
 	// niemandem mehr nachvollziehbar.

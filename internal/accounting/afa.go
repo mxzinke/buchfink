@@ -245,6 +245,23 @@ type AfAPlan struct {
 	// from. A planmäßige AfA after an außerplanmäßigen Abschreibung is computed
 	// from the reduced value, not from the original one.
 	ImpairmentsByYear map[int]domain.Cents
+
+	// BasisChangesByYear carries nachträgliche Anschaffungs- oder
+	// Herstellungskosten und Anschaffungspreisminderungen, dem Geschäftsjahr
+	// zugeordnet, in dem sie angefallen sind.
+	//
+	// Sie ändern die Vergangenheit nicht. Der Betrag wird so behandelt, als wäre
+	// er zu Beginn seines Jahres angefallen (R 7.4 Abs. 9 EStR), und von da an
+	// verteilt sich der neue Restbuchwert auf die Restnutzungsdauer. Den ganzen
+	// Plan von vorn zu rechnen wäre der naheliegende Fehler: er behauptete
+	// rückwirkend, in längst abgeschlossenen Jahren sei zu wenig abgeschrieben
+	// worden.
+	BasisChangesByYear map[int]domain.Cents
+
+	// LifeExtensionsByYear verlängert die Nutzungsdauer ab dem genannten
+	// Geschäftsjahr. Eine Erweiterung, die das Wirtschaftsgut länger nutzbar
+	// macht, wirkt nach vorn — die bereits gebuchten Jahre bleiben, wie sie sind.
+	LifeExtensionsByYear map[int]int
 }
 
 // AfAYear is one fiscal year of the plan.
@@ -279,6 +296,32 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	if start <= 0 || start > 12 {
 		start = 1
 	}
+	acquisitionYear := domain.GetFiscalYearForDate(plan.AcquisitionDate, start)
+
+	// Was im Zugangsjahr selbst hinzukommt oder wegfällt — Fracht, Montage, ein
+	// Skonto —, gehört zu den Anschaffungskosten und nicht zu einer späteren
+	// Änderung der Bemessungsgrundlage. Beim Sammelposten gilt das für alle
+	// Zugänge: er besteht nur aus Gütern seines eigenen Wirtschaftsjahres.
+	baseCost := plan.Cost
+	lifeMonths := plan.UsefulLifeMonths
+	later := map[int]domain.Cents{}
+	for year, amount := range plan.BasisChangesByYear {
+		if year <= acquisitionYear || plan.Method == domain.DepreciationPool {
+			baseCost += amount
+			continue
+		}
+		later[year] = amount
+	}
+	laterLife := map[int]int{}
+	for year, months := range plan.LifeExtensionsByYear {
+		if year <= acquisitionYear {
+			lifeMonths += months
+			continue
+		}
+		laterLife[year] = months
+	}
+	plan.Cost = baseCost
+	plan.UsefulLifeMonths = lifeMonths
 
 	switch plan.Method {
 	case domain.DepreciationNone:
@@ -345,9 +388,39 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	bookValue := plan.Cost
 	remainingMonths := monthsBetween(afaStart, naturalEnd)
 	switchedToLinear := false
-	impaired := false
+	basisChanged := false
+	var addedNote string
 
-	for year := domain.GetFiscalYearForDate(plan.AcquisitionDate, start); ; year++ {
+	for year := acquisitionYear; ; year++ {
+		// Nachträgliche Anschaffungskosten und eine verlängerte Nutzungsdauer
+		// wirken zu Beginn ihres Jahres — vor der Rechnung dieses Jahres, aber
+		// ohne die bereits gebuchten davor anzurühren.
+		addedNote = ""
+		if added := later[year]; added != 0 {
+			bookValue += added
+			basisChanged = true
+			if added > 0 {
+				addedNote = fmt.Sprintf(
+					"Nachträgliche Anschaffungskosten von %s € erhöhen die Bemessungsgrundlage; "+
+						"der Restbuchwert verteilt sich ab hier auf die Restnutzungsdauer "+
+						"(R 7.4 Abs. 9 EStR).", added)
+			} else {
+				addedNote = fmt.Sprintf(
+					"Die Anschaffungskosten mindern sich um %s €; der Restbuchwert verteilt sich "+
+						"ab hier auf die Restnutzungsdauer.", -added)
+			}
+		}
+		if ext := laterLife[year]; ext > 0 {
+			remainingMonths += ext
+			naturalEnd = naturalEnd.AddDate(0, ext, 0)
+			if !truncated {
+				afaEnd = naturalEnd
+			}
+			basisChanged = true
+			addedNote = appendNote(addedNote, fmt.Sprintf(
+				"Die Nutzungsdauer verlängert sich um %d Monate.", ext))
+		}
+
 		fyStart := time.Date(year, time.Month(start), 1, 0, 0, 0, 0, time.UTC)
 		fyEnd := fyStart.AddDate(1, 0, 0)
 		months := overlapMonths(afaStart, afaEnd, fyStart, fyEnd)
@@ -361,13 +434,12 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			break
 		}
 
-		// Eine außerplanmäßige Abschreibung dieses Jahres mindert den Wert, von
-		// dem die planmäßige AfA der Folgejahre ausgeht.
 		row := AfAYear{
 			FiscalYear:       year,
 			Months:           months,
 			Method:           domain.DepreciationLinear,
 			OpeningBookValue: bookValue,
+			Note:             addedNote,
 		}
 
 		isFinal := !truncated && remainingMonths-months <= 0
@@ -403,11 +475,12 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			annualLin := domain.MulRound(bookValue, 12, int64(remainingMonths))
 			row.Amount = domain.MulRound(annualLin, int64(months), 12)
 			row.RateLabel = fmt.Sprintf("linear auf %d Restmonate", remainingMonths)
-		case impaired:
-			// Nach einer außerplanmäßigen Abschreibung wird die planmäßige AfA
-			// vom geminderten Wert auf die Restnutzungsdauer neu verteilt. Weiter
-			// von den ursprünglichen Anschaffungskosten abzuschreiben würde das
-			// Anlagegut vor dem Ende seiner Nutzungsdauer auf null bringen.
+		case basisChanged:
+			// Hat sich die Bemessungsgrundlage einmal geändert — durch eine
+			// außerplanmäßige Abschreibung, nachträgliche Anschaffungskosten oder
+			// eine verlängerte Nutzungsdauer —, verteilt sich der Restbuchwert auf
+			// die Restnutzungsdauer. Weiter von den ursprünglichen
+			// Anschaffungskosten zu rechnen träfe weder das Ende noch die Summe.
 			annual := domain.MulRound(bookValue, 12, int64(remainingMonths))
 			row.Amount = domain.MulRound(annual, int64(months), 12)
 			row.RateLabel = fmt.Sprintf("linear auf %d Restmonate", remainingMonths)
@@ -431,7 +504,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			if bookValue < 0 {
 				bookValue = 0
 			}
-			impaired = true
+			basisChanged = true
 			row.Note = appendNote(row.Note, fmt.Sprintf(
 				"Zusätzlich außerplanmäßig abgeschrieben: %s €.", impair))
 		}

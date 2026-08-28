@@ -737,6 +737,8 @@ export interface AssetMovement {
   depreciationAmount: Cents;
   journalEntryId?: number;
   entryNumber?: string;
+  /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
+  lifeExtensionMonths?: number;
   note?: string;
   createdAt: string;
 }

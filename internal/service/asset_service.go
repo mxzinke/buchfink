@@ -579,9 +579,12 @@ type CostAdjustmentRequest struct {
 	Date    string       `json:"date"`
 	Amount  domain.Cents `json:"amount"` // immer positiv
 	// Reduction switches from nachträglichen Anschaffungskosten to a Minderung.
-	Reduction      bool   `json:"reduction"`
-	Note           string `json:"note"`
-	JournalEntryID *uint  `json:"journalEntryId,omitempty"`
+	Reduction bool `json:"reduction"`
+	// ExtendLifeMonths verlängert die Restnutzungsdauer ab dem Jahr dieser
+	// Bewegung. Null heißt: die Erweiterung ändert nichts an der Nutzungsdauer.
+	ExtendLifeMonths int    `json:"extendLifeMonths,omitempty"`
+	Note             string `json:"note"`
+	JournalEntryID   *uint  `json:"journalEntryId,omitempty"`
 }
 
 // RecordCostAdjustment writes a cost movement without booking anything.
@@ -614,19 +617,52 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 			return nil, err
 		}
 	}
+	if asset.Method == domain.DepreciationPool {
+		year := domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
+		if year != asset.PoolYear {
+			return nil, fmt.Errorf(
+				"in den Sammelposten %d kommen nur Wirtschaftsgüter dieses Wirtschaftsjahres "+
+					"(§ 6 Abs. 2a Satz 1 EStG); der %s gehört zu %d",
+				asset.PoolYear, date, year)
+		}
+	}
+	// Nachträgliche Anschaffungskosten auf ein geringwertiges Wirtschaftsgut
+	// messen sich an der Summe: über der Grenze war der Sofortabzug nie zulässig.
+	if asset.Method == domain.DepreciationImmediate && !req.Reduction {
+		params, err := accounting.AfAParametersFor(asset.AcquisitionDate)
+		if err != nil {
+			return nil, err
+		}
+		startMonth := s.fiscalYearStartMonth(ctx)
+		s.enrich(asset, domain.GetFiscalYearForDate(date, startMonth), startMonth)
+		if asset.Cost+req.Amount > params.GWGImmediateLimit {
+			return nil, fmt.Errorf(
+				"mit diesem Zugang kostet %s zusammen %s € und überschreitet die Grenze des "+
+					"Sofortabzugs von %s € (§ 6 Abs. 2 Satz 1 EStG). Das Wirtschaftsgut ist dann zu "+
+					"aktivieren und über seine Nutzungsdauer abzuschreiben",
+				asset.InventoryNumber, asset.Cost+req.Amount, params.GWGImmediateLimit)
+		}
+	}
 
 	movement := &domain.AssetMovement{
-		AssetID:        asset.ID,
-		Kind:           domain.AssetMovementSubsequentCost,
-		Date:           date,
-		FiscalYear:     domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)),
-		CostAmount:     req.Amount,
-		JournalEntryID: req.JournalEntryID,
-		Note:           req.Note,
+		AssetID:             asset.ID,
+		Kind:                domain.AssetMovementSubsequentCost,
+		Date:                date,
+		FiscalYear:          domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)),
+		CostAmount:          req.Amount,
+		LifeExtensionMonths: req.ExtendLifeMonths,
+		JournalEntryID:      req.JournalEntryID,
+		Note:                req.Note,
 	}
 	if req.Reduction {
 		movement.Kind = domain.AssetMovementCostReduction
 		movement.CostAmount = -req.Amount
+		movement.LifeExtensionMonths = 0
+	}
+	if movement.LifeExtensionMonths > 0 && !asset.Method.IsPlanned() {
+		return nil, fmt.Errorf(
+			"%s hat keinen Abschreibungsplan, den eine längere Nutzungsdauer verlängern könnte",
+			asset.InventoryNumber)
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
 		return nil, fmt.Errorf("die Bewegung konnte nicht gespeichert werden: %w", err)
@@ -1607,17 +1643,31 @@ func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) account
 		DisposalDate:         asset.DisposalDate,
 	}
 	for _, m := range asset.Movements {
-		plan.Cost += m.CostAmount
-		if m.Kind == domain.AssetMovementImpairment {
+		switch m.Kind {
+		case domain.AssetMovementAcquisition:
+			plan.Cost += m.CostAmount
+		case domain.AssetMovementSubsequentCost, domain.AssetMovementCostReduction:
+			// Nicht in die Anschaffungskosten hineinrechnen: eine Erweiterung im
+			// dritten Jahr darf die beiden Jahre davor nicht rückwirkend ändern.
+			// Sie wirkt ab ihrem eigenen Jahr, und der Plan weiß das.
+			if plan.BasisChangesByYear == nil {
+				plan.BasisChangesByYear = map[int]domain.Cents{}
+			}
+			plan.BasisChangesByYear[m.FiscalYear] += m.CostAmount
+			if m.LifeExtensionMonths > 0 {
+				if plan.LifeExtensionsByYear == nil {
+					plan.LifeExtensionsByYear = map[int]int{}
+				}
+				plan.LifeExtensionsByYear[m.FiscalYear] += m.LifeExtensionMonths
+			}
+		case domain.AssetMovementImpairment:
 			if plan.ImpairmentsByYear == nil {
 				plan.ImpairmentsByYear = map[int]domain.Cents{}
 			}
 			plan.ImpairmentsByYear[m.FiscalYear] += m.DepreciationAmount
-		}
-		if m.Kind == domain.AssetMovementDisposal {
+		case domain.AssetMovementDisposal:
 			// Der Abgang nimmt die Anschaffungskosten aus den Büchern; für den Plan
 			// bleiben sie die Bemessungsgrundlage.
-			plan.Cost -= m.CostAmount
 		}
 	}
 	if plan.Cost == 0 {

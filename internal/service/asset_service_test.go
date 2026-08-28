@@ -780,3 +780,140 @@ func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
 		t.Errorf("Obergrenze %s € — erwartet 5.000,00 €", detail.WriteUpCeiling)
 	}
 }
+
+// Eine Erweiterung ändert die Vergangenheit nicht.
+//
+// Die Maschine von 2024 ist zwei Jahre abgeschrieben, als 2026 ein Zusatzmodul
+// dazukommt: Restbuchwert 6.000 € plus 2.400 € verteilen sich auf die 24
+// Restmonate. Den Plan von vorn zu rechnen — der naheliegende Fehler — würde
+// behaupten, 2024 und 2025 sei zu wenig abgeschrieben worden.
+func TestSubsequentCostSpreadsOverTheRemainingLife(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	repo := repository.NewAssetRepository(env.db)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Fräsmaschine", Class: domain.AssetClassTangible, Account: "0440",
+		DepreciationAccount: "6220", AcquisitionDate: "2024-01-01",
+		AcquisitionCost: 1_200_000, UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	for _, year := range []int{2024, 2025} {
+		if err := repo.AddMovement(ctx, &domain.AssetMovement{
+			AssetID: asset.ID, Kind: domain.AssetMovementDepreciation,
+			Date: "2024-12-31", FiscalYear: year, DepreciationAmount: 300_000,
+		}); err != nil {
+			t.Fatalf("AfA %d: %v", year, err)
+		}
+	}
+
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: asset.ID, Date: "2026-03-01", Amount: 240_000, Note: "Zusatzmodul",
+	}); err != nil {
+		t.Fatalf("Erweiterung: %v", err)
+	}
+
+	run, err := svc.Run(ctx)
+	if err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+	if len(run.MissingPriorYears) > 0 {
+		t.Errorf("für %v soll nichts fehlen — die Erweiterung wirkt ab ihrem eigenen Jahr",
+			run.MissingPriorYears)
+	}
+	if len(run.Due) != 1 || run.Due[0].Due != 420_000 {
+		t.Fatalf("fällige AfA %+v — erwartet 4.200,00 € (6.000 + 2.400 auf 24 Monate)", run.Due)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	var total domain.Cents
+	for _, row := range detail.Schedule {
+		total += row.Amount
+		if row.FiscalYear < 2026 && row.Amount != 300_000 {
+			t.Errorf("%d: %s € — die gebuchten Jahre bleiben, wie sie sind", row.FiscalYear, row.Amount)
+		}
+	}
+	if total != 1_440_000 {
+		t.Errorf("Summe des Plans %s € — erwartet die vollen 14.400,00 €", total)
+	}
+	if detail.Schedule[len(detail.Schedule)-1].FiscalYear != 2027 {
+		t.Errorf("letztes Jahr %d — ohne verlängerte Nutzungsdauer bleibt es bei 2027",
+			detail.Schedule[len(detail.Schedule)-1].FiscalYear)
+	}
+}
+
+// Verlängert die Erweiterung die Nutzungsdauer, wirkt auch das nach vorn.
+func TestExtensionCanProlongTheRemainingLife(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	asset := env.machine(t, svc) // 12.000 €, 48 Monate ab 2026-01-10
+
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: asset.ID, Date: "2026-07-01", Amount: 600_000,
+		ExtendLifeMonths: 24, Note: "Generalüberholung",
+	}); err != nil {
+		t.Fatalf("Erweiterung: %v", err)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	last := detail.Schedule[len(detail.Schedule)-1]
+	if last.FiscalYear != 2031 {
+		t.Errorf("letztes Jahr %d — 48 Monate ab 2026 plus 24 enden 2031", last.FiscalYear)
+	}
+	var total domain.Cents
+	for _, row := range detail.Schedule {
+		total += row.Amount
+	}
+	if total != 1_800_000 {
+		t.Errorf("Summe %s € — erwartet 18.000,00 €", total)
+	}
+	if last.ClosingBookValue != 0 {
+		t.Errorf("Restbuchwert am Ende %s € — erwartet null", last.ClosingBookValue)
+	}
+}
+
+// In den Sammelposten kommen nur Güter seines eigenen Wirtschaftsjahres, und ein
+// GWG bleibt auch mit Erweiterung eines.
+func TestAdditionsRespectPoolYearAndGWGLimit(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	pool, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Sammelposten 2026", Class: domain.AssetClassTangible, Account: "0675",
+		DepreciationAccount: "6264", AcquisitionDate: "2026-02-01",
+		AcquisitionCost: 60_000, Method: domain.DepreciationPool, PoolYear: 2026,
+	})
+	if err != nil {
+		t.Fatalf("Sammelposten: %v", err)
+	}
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: pool.ID, Date: "2027-02-01", Amount: 50_000, Note: "Regal",
+	}); err == nil {
+		t.Error("ein Gut aus 2027 gehört nicht in den Sammelposten 2026")
+	}
+
+	gwg, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Notebook", Class: domain.AssetClassTangible, Account: "0670",
+		DepreciationAccount: "6260", AcquisitionDate: "2026-04-20",
+		AcquisitionCost: 78_000, Method: domain.DepreciationImmediate,
+	})
+	if err != nil {
+		t.Fatalf("GWG: %v", err)
+	}
+	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+		AssetID: gwg.ID, Date: "2026-05-02", Amount: 10_000, Note: "Dockingstation",
+	}); err == nil {
+		t.Error("zusammen über der GWG-Grenze war der Sofortabzug nie zulässig")
+	}
+}

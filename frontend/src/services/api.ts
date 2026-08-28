@@ -265,6 +265,8 @@ export const Api = {
     date: string;
     amount: Cents;
     reduction?: boolean;
+    /** Monate, um die sich die Restnutzungsdauer ab diesem Jahr verlängert. */
+    extendLifeMonths?: number;
     note?: string;
     journalEntryId?: number;
   }): Promise<FixedAsset> =>

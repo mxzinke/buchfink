@@ -1566,7 +1566,7 @@ const AssetDetailDialog: React.FC<{
         action === null && asset ? (
           <>
             <Button variant="quiet" onClick={() => setAction('cost')}>
-              Nachträgliche Kosten
+              Erweiterung erfassen
             </Button>
             {!asset.disposalDate && (
               <>
@@ -1927,9 +1927,15 @@ const CostAdjustmentForm: React.FC<{
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reduction, setReduction] = useState(false);
+  const [extendYears, setExtendYears] = useState('0');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Die Nutzungsdauer kann eine Erweiterung verlängern — aber nur dort, wo es
+  // überhaupt einen Plan gibt, den sie verlängern könnte.
+  const canExtend = asset.method === 'linear' || asset.method === 'degressive';
+  const extendMonths = Math.round(Number(extendYears || '0') * 12);
 
   async function submit() {
     setBusy(true);
@@ -1940,7 +1946,14 @@ const CostAdjustmentForm: React.FC<{
         setError('Der Betrag fehlt oder ist nicht lesbar.');
         return;
       }
-      await Api.recordAssetCostAdjustment({ assetId: asset.id, date, amount: value, reduction, note });
+      await Api.recordAssetCostAdjustment({
+        assetId: asset.id,
+        date,
+        amount: value,
+        reduction,
+        extendLifeMonths: reduction || !canExtend ? 0 : extendMonths,
+        note,
+      });
       await onDone(reduction ? 'Minderung erfasst.' : 'Nachträgliche Anschaffungskosten erfasst.');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1952,13 +1965,14 @@ const CostAdjustmentForm: React.FC<{
   return (
     <div className="space-y-4">
       <FormHint
-        label="Erklärung zu nachträglichen Anschaffungskosten"
-        line="Skonto auf eine Anlage mindert die Anschaffungskosten, nicht den Aufwand."
+        label="Erklärung zu Erweiterungen und nachträglichen Anschaffungskosten"
+        line="Erweiterung oder Reparatur? Nur die Erweiterung erhöht die Anschaffungskosten."
       >
-        Fracht, Montage und Überführung gehören zu den Anschaffungskosten, Finanzierungskosten nicht
-        (§ 255 Abs. 1 HGB). Gebucht wird hier nichts: der Betrag steht bereits über den Beleg oder
-        die Zahlung auf dem Anlagekonto. Was hier entsteht, ist die Fortschreibung der Kartei — und
-        damit ein neuer Plan für die Folgejahre.
+        Aktiviert wird, was das Anlagegut erweitert oder über seinen ursprünglichen Zustand hinaus
+        wesentlich verbessert (§ 255 Abs. 2 HGB) — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
+        die es nur im Zustand hält, ist Erhaltungsaufwand und gehört sofort in die Gewinn- und
+        Verlustrechnung, nicht hierher. Fracht und Montage zählen zu den Anschaffungskosten,
+        Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
       </FormHint>
 
       <div className="grid grid-cols-3 gap-4">
@@ -1985,6 +1999,28 @@ const CostAdjustmentForm: React.FC<{
           />
         </Field>
       </div>
+
+      {!reduction && canExtend && (
+        <Field
+          label="Nutzungsdauer verlängert sich um"
+          hint={
+            extendMonths > 0
+              ? `${extendMonths} Monate — wirkt ab ${date.slice(0, 4)}, die gebuchten Jahre bleiben`
+              : 'Jahre · 0, wenn die Erweiterung nichts daran ändert'
+          }
+          help="Ein Anbau hält oft so lange wie das Gebäude. Die Verlängerung wirkt nach vorn: sie verteilt den Restbuchwert auf mehr Restmonate, ohne die bereits gebuchten Jahre anzurühren."
+          className="max-w-xs"
+        >
+          <Input
+            type="number"
+            min={0}
+            step={0.5}
+            align="right"
+            value={extendYears}
+            onChange={(e) => setExtendYears(e.target.value)}
+          />
+        </Field>
+      )}
 
       <Field label="Notiz" optional>
         <Input value={note} onChange={(e) => setNote(e.target.value)} />
