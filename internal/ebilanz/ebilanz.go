@@ -10,12 +10,57 @@ import (
 
 // TaxonomyMapping maps an SKR04 account number to standard XBRL German GAAP 6.x taxonomy elements.
 var skr04ToXBRL = map[string]string{
-	// Aktiva
-	"0520": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	// Anlagevermögen — die Konten des Anlagenkatalogs
+	// (internal/accounting/asset_accounts.go). Sie stehen hier vollständig,
+	// weil der Anlagenspiegel jede Position einzeln ausweist: ein Konto ohne
+	// Zuordnung landete auf bs.other und wäre im Nachweis nicht mehr
+	// auffindbar.
+	"0110": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	"0120": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	"0130": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	"0135": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	"0140": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
+	"0150": "de-gaap-ci:bs.ass.fixAss.imm.goodwill",
+	"0170": "de-gaap-ci:bs.ass.fixAss.imm.prepaid",
+	"0215": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0235": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0240": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0250": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0260": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0300": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+	"0420": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
+	"0440": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
+	"0460": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
+	"0520": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
+	"0540": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
+	"0560": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
+	"0620": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
+	"0630": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
+	"0635": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
+	"0640": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
 	"0650": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
 	"0670": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwg",
+	"0675": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwg",
 	"0680": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.office",
+	"0690": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
+	"0700": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
+	"0710": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
+	"0770": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
+	"0785": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
 	"0800": "de-gaap-ci:bs.ass.fixAss.fin.shares",
+	"0810": "de-gaap-ci:bs.ass.fixAss.fin.loansAffiliated",
+	"0820": "de-gaap-ci:bs.ass.fixAss.fin.participation",
+	"0850": "de-gaap-ci:bs.ass.fixAss.fin.participation",
+	"0860": "de-gaap-ci:bs.ass.fixAss.fin.participation",
+	"0880": "de-gaap-ci:bs.ass.fixAss.fin.loansParticipation",
+	"0900": "de-gaap-ci:bs.ass.fixAss.fin.securities",
+	"0920": "de-gaap-ci:bs.ass.fixAss.fin.securities",
+	"0930": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
+	"0940": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
+	"0980": "de-gaap-ci:bs.ass.fixAss.fin.participation",
+	"0990": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
+
+	// Übriges Aktivvermögen
 	"1200": "de-gaap-ci:bs.ass.currAss.receiv.trade",
 	"1400": "de-gaap-ci:bs.ass.currAss.receiv.other.taxVAT",
 	"1401": "de-gaap-ci:bs.ass.currAss.receiv.other.taxVAT",
@@ -50,9 +95,93 @@ var skr04ToXBRL = map[string]string{
 	"6900": "de-gaap-ci:is.deprAmort",
 }
 
+// anlagenspiegelXML renders the Entwicklung des Anlagevermögens (§ 284 Abs. 3
+// HGB) as one block per Position.
+//
+// Der Anlagenspiegel ist keine zweite Buchung, sondern die Auswertung der
+// Kartei — aber eine, die das Journal allein nicht liefern könnte: Zugänge,
+// Abgänge und kumulierte Abschreibungen eines vor Jahren angeschafften
+// Wirtschaftsguts stehen nur dort. Genau deshalb gehört sie in den
+// Kontennachweis: die Bilanz zeigt einen Buchwert, und erst der Spiegel zeigt,
+// woraus er entstanden ist.
+//
+// Die Elementnamen folgen der vereinfachten Form, in der diese Datei schon den
+// Kontennachweis führt. Vor der Übermittlung ist sie gegen die amtliche
+// Taxonomie zu prüfen; die Zahlen darin sind es, die aus der Buchführung
+// stammen.
+func anlagenspiegelXML(spiegel *domain.Anlagenspiegel) string {
+	if spiegel == nil || len(spiegel.Rows) == 0 {
+		return ""
+	}
+	var buf bytes.Buffer
+	buf.WriteString("\n\t<!-- Anlagenspiegel (§ 284 Abs. 3 HGB) -->")
+
+	write := func(row domain.AnlagenspiegelRow, element, key, label string) {
+		position, ok := skr04ToXBRL[row.Account]
+		if !ok {
+			position = "de-gaap-ci:bs.ass.fixAss"
+		}
+		buf.WriteString(fmt.Sprintf(`
+	<de-gaap-ci:%s contextRef="ctx_duration">
+		<de-gaap-ci:position>%s</de-gaap-ci:position>
+		<de-gaap-ci:positionLabel>%s</de-gaap-ci:positionLabel>
+		<de-gaap-ci:taxonomyPosition>%s</de-gaap-ci:taxonomyPosition>
+		<de-gaap-ci:histCost.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.begin>
+		<de-gaap-ci:histCost.addition unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.addition>
+		<de-gaap-ci:histCost.disposal unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.disposal>
+		<de-gaap-ci:histCost.transfer unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.transfer>
+		<de-gaap-ci:histCost.end unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.end>
+		<de-gaap-ci:deprec.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.begin>
+		<de-gaap-ci:deprec.currentYear unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.currentYear>
+		<de-gaap-ci:deprec.writeUp unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.writeUp>
+		<de-gaap-ci:deprec.disposal unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.disposal>
+		<de-gaap-ci:deprec.transfer unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.transfer>
+		<de-gaap-ci:deprec.end unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.end>
+		<de-gaap-ci:netBookValue.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:netBookValue.begin>
+		<de-gaap-ci:netBookValue.end unitRef="EUR" decimals="2">%s</de-gaap-ci:netBookValue.end>
+	</de-gaap-ci:%s>`,
+			element,
+			html.EscapeString(key),
+			html.EscapeString(label),
+			position,
+			row.CostOpening.Decimal(),
+			row.Additions.Decimal(),
+			row.Disposals.Decimal(),
+			row.Transfers.Decimal(),
+			row.CostClosing.Decimal(),
+			row.DepreciationOpening.Decimal(),
+			row.DepreciationYear.Decimal(),
+			row.WriteUpsYear.Decimal(),
+			row.DepreciationDisposal.Decimal(),
+			row.DepreciationTransfer.Decimal(),
+			row.DepreciationClosing.Decimal(),
+			row.BookValueOpening.Decimal(),
+			row.BookValueClosing.Decimal(),
+			element,
+		))
+	}
+
+	for _, row := range spiegel.Rows {
+		write(row, "fixedAssetsMovement", row.Account, row.AccountName)
+	}
+	// Die drei Blöcke des § 266 Abs. 2 A HGB und die Gesamtsumme. Sie stehen
+	// hier, weil die Bilanz sie so ausweist — nachrechnen soll sie niemand
+	// müssen, der den Nachweis liest.
+	for _, total := range spiegel.ClassTotals {
+		write(total, "fixedAssetsMovementSubtotal", string(total.Class), total.AccountName)
+	}
+	write(spiegel.Totals, "fixedAssetsMovementTotal", "total", spiegel.Totals.AccountName)
+	return buf.String()
+}
+
 // GenerateEBilanzXBRL creates an official, valid XBRL instance file for German E-Bilanz
-// based on GAAP Taxonomie 6.7, including full Kontennachweis.
-func GenerateEBilanzXBRL(settings *domain.CompanySettings, accounts []domain.Account, summary *domain.FinancialSummary) (string, error) {
+// based on GAAP Taxonomie 6.7, including full Kontennachweis and Anlagenspiegel.
+func GenerateEBilanzXBRL(
+	settings *domain.CompanySettings,
+	accounts []domain.Account,
+	summary *domain.FinancialSummary,
+	spiegel *domain.Anlagenspiegel,
+) (string, error) {
 	year := settings.FiscalYear
 	startDate := fmt.Sprintf("%d-01-01", year)
 	endDate := fmt.Sprintf("%d-12-31", year)
@@ -131,6 +260,7 @@ func GenerateEBilanzXBRL(settings *domain.CompanySettings, accounts []domain.Acc
 
 	<!-- Kontennachweis (Audit Proof per SKR04 Account) -->
 	%s
+%s
 </xbrli:xbrl>`,
 		html.EscapeString(settings.TaxNumber),
 		endDate,
@@ -145,6 +275,7 @@ func GenerateEBilanzXBRL(settings *domain.CompanySettings, accounts []domain.Acc
 		summary.TotalExpenses.Decimal(),
 		summary.NetIncome.Decimal(),
 		proofOfAccountsBuf.String(),
+		anlagenspiegelXML(spiegel),
 	)
 
 	return xbrl, nil

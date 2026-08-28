@@ -233,6 +233,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// braucht er die Kartei — mehr von ihr nicht.
 	b.paymentSvc.SetAssetRegister(b.assetSvc)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
+	// Die E-Bilanz braucht den Anlagenspiegel als Kontennachweis: die Bilanz
+	// zeigt einen Buchwert, und erst er zeigt, woraus er entstanden ist.
+	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
