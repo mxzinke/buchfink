@@ -2021,7 +2021,9 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stammdaten: %v", err)
 	}
-	cfg.InvestorType = domain.InvestorCorporate
+	// Die Anlegerstellung folgt sonst aus der Rechtsform; hier wird sie
+	// ausdrücklich gesetzt, damit der Test nicht am Katalog hängt.
+	cfg.InvestorOverride = domain.InvestorCorporate
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 		t.Fatalf("Stammdaten speichern: %v", err)
 	}
@@ -2094,12 +2096,24 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 	}
 }
 
-// Ohne festgelegte Anlegerstellung rechnet Buchfink keine Teilfreistellung —
-// aus der Rechtsform folgt sie nicht.
+// Bei einer Personengesellschaft lässt die Rechtsform die Anlegerstellung
+// offen: § 20 Abs. 3a InvStG stellt auf den Gesellschafter ab. Dann rechnet
+// Buchfink keine Teilfreistellung, sondern sagt, was zu entscheiden ist.
 func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)
 	ctx := context.Background()
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Stammdaten: %v", err)
+	}
+	cfg.LegalForm = "GmbH & Co. KG"
+	cfg.InvestorOverride = ""
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Stammdaten speichern: %v", err)
+	}
 
 	asset, err := svc.Save(ctx, &domain.FixedAsset{
 		Name: "MSCI-World-ETF", Class: domain.AssetClassFinancial, Account: "0900",
@@ -2153,5 +2167,47 @@ func TestSingleSecurityHasNoInvestmentNote(t *testing.T) {
 	}
 	if preview.Investment != nil {
 		t.Error("zu einem Einzeltitel gehört keine investmentsteuerliche Nebenrechnung")
+	}
+}
+
+// Der Regelfall braucht keine zweite Angabe: aus der Rechtsform folgt die
+// Anlegerstellung, und damit die Teilfreistellung.
+func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Stammdaten: %v", err)
+	}
+	cfg.LegalForm = "Einzelunternehmen"
+	cfg.InvestorOverride = ""
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Stammdaten speichern: %v", err)
+	}
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "MSCI-World-ETF", Class: domain.AssetClassFinancial, Account: "0900",
+		AcquisitionDate: "2025-01-02", AcquisitionCost: 10_000_000, Method: domain.DepreciationNone,
+		FundClass: string(accounting.FundEquity),
+	})
+	if err != nil {
+		t.Fatalf("ETF: %v", err)
+	}
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 12_000_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.Investment == nil || preview.Investment.ExemptionError != "" {
+		t.Fatalf("aus der Rechtsform Einzelunternehmen folgt die Anlegerstellung: %+v", preview.Investment)
+	}
+	if preview.Investment.Exemption.Permille != 600 {
+		t.Errorf("Teilfreistellung %d Promille — eine natürliche Person im Betriebsvermögen trägt 60 %%",
+			preview.Investment.Exemption.Permille)
 	}
 }

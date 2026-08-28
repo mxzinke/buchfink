@@ -31,18 +31,23 @@ type CompanySettings struct {
 	SKR                  string `json:"skr"`          // "SKR04"
 	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
 	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
-	// InvestorType entscheidet über die Teilfreistellung nach § 20 InvStG.
+	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
+	// fest — und ist normalerweise leer.
 	//
-	// Es ist bewusst eine eigene Angabe und keine Ableitung aus der Rechtsform:
-	// aus „GmbH & Co. KG" folgt nichts. Die Gesellschaft ist keine
-	// Körperschaft, ihre Gesellschafter können Körperschaften sein oder
-	// natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den
-	// Satz nach dem Gesellschafter. Auch eine Kapitalgesellschaft trägt nicht
-	// immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit
-	// Handelsbestand und für Pensionsfonds nimmt § 20 Abs. 1 Sätze 4 und 5 die
-	// erhöhten Sätze ausdrücklich zurück. Wer das aus einem Freitextfeld rät,
-	// rechnet still falsch.
-	InvestorType InvestorType `json:"investorType"`
+	// Der Regelfall folgt aus der Rechtsform: eine GmbH unterliegt dem KStG,
+	// ein Einzelunternehmen wird von einer natürlichen Person geführt. Zwei
+	// Fälle entscheidet sie aber nicht, und für sie gibt es dieses Feld.
+	//
+	// Erstens die Personengesellschaft: sie ist keine Körperschaft, ihre
+	// Gesellschafter können welche sein, und § 20 Abs. 3a InvStG bestimmt den
+	// Satz nach dem Gesellschafter. Zweitens die Ausnahmen des § 20 Abs. 1
+	// Sätze 4 und 5 — für Lebens- und Krankenversicherer, für Kreditinstitute
+	// mit Handelsbestand und für Pensionsfonds gelten die erhöhten Sätze nicht,
+	// obwohl es Körperschaften sind.
+	//
+	// Gelesen wird es über InvestorTypeOrDerived, nie direkt: sonst stünde an
+	// jeder Aufrufstelle noch einmal, was die Ableitung ist.
+	InvestorOverride InvestorType `json:"investorOverride"`
 }
 
 // InvestorType ist die Anlegerstellung, an der § 20 InvStG die Höhe der

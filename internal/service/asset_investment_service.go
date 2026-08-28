@@ -153,10 +153,13 @@ func (s *AssetService) investmentNote(
 		GrossAmount:    gross,
 	}
 
+	// Die Anlegerstellung folgt aus der Rechtsform, wo diese sie hergibt, und
+	// aus der ausdrücklichen Festlegung, wo nicht. Beides steht an einer Stelle
+	// — hier noch einmal abzuleiten hieße, die Regel zu verdoppeln.
 	investor := domain.InvestorUnknown
 	if s.settingsRepo != nil {
 		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil {
-			investor = cfg.InvestorType
+			investor, _ = cfg.InvestorTypeOrDerived()
 		}
 	}
 

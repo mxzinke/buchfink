@@ -145,6 +145,7 @@ export const bridge = {
     invoke<T>('GetAssetDocumentContent', documentId),
   GetAssetDocumentKinds: <T>() => invoke<T>('GetAssetDocumentKinds'),
   GetExpiringAssetDocuments: <T>(until: string) => invoke<T>('GetExpiringAssetDocuments', until),
+  GetLegalForms: <T>() => invoke<T>('GetLegalForms'),
   GetInvestmentRules: <T>() => invoke<T>('GetInvestmentRules'),
   ComputeVorabpauschale: <T>(request: unknown) => invoke<T>('ComputeVorabpauschale', request),
   GetInvestmentNoteForIncome: <T>(assetId: number, amount: number) =>

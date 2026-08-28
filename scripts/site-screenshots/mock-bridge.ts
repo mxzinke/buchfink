@@ -81,6 +81,8 @@ const SETTINGS = {
   skr: 'SKR04',
   vatPeriod: 'quarter',
   taxationType: 'Soll',
+  // Leer: die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
+  investorOverride: '',
 };
 
 // -------------------------------------------------------------------------
@@ -1301,6 +1303,9 @@ const INVESTMENT_RULES = {
   ],
   investorType: 'corporate',
   investorLabel: 'Anleger unterliegt dem Körperschaftsteuergesetz',
+  investorReason:
+    'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).',
+  legalForm: 'GmbH',
   exemptions: [
     { class: 'equity', label: 'Aktienfonds', permille: 800, source: '§ 20 Abs. 1 Satz 3 InvStG', explanation: 'Der Anleger unterliegt dem Körperschaftsteuergesetz: die Aktienteilfreistellung beträgt 80 %.' },
     { class: 'mixed', label: 'Mischfonds', permille: 400, source: '§ 20 Abs. 1 Satz 3 i. V. m. § 20 Abs. 2 InvStG', explanation: 'Bei Mischfonds ist die Hälfte der Aktienteilfreistellung anzusetzen.' },
@@ -1309,6 +1314,26 @@ const INVESTMENT_RULES = {
     { class: 'other', label: 'Investmentfonds ohne Teilfreistellung', permille: 0, source: '§ 20 InvStG', explanation: 'Der Fonds erreicht keine der Quoten.' },
   ],
 };
+
+/** Der Rechtsformkatalog, je mit der Anlegerstellung, die aus ihr folgt. */
+const LEGAL_FORMS = [
+  { name: 'Einzelunternehmen', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
+  { name: 'Eingetragener Kaufmann (e. K.)', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
+  { name: 'Freiberufliche Praxis', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
+  { name: 'GbR', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
+  { name: 'OHG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
+  { name: 'KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
+  { name: 'GmbH & Co. KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG). Sind alle Gesellschafter natürliche Personen, sind es 60 %; ist eine Körperschaft beteiligt, gilt für deren Anteil 80 %.' },
+  { name: 'Partnerschaftsgesellschaft', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
+  { name: 'UG (haftungsbeschränkt)', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'GmbH', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'AG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'SE', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'eG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'e. V.', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'Stiftung', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
+  { name: 'Sonstige', investor: '', note: 'Aus dieser Rechtsform folgt die Anlegerstellung nicht. Wenn du Investmentanteile hältst, lege sie fest.' },
+];
 
 const ASSET_DOCUMENT_KINDS = [
   { kind: 'contract', label: 'Vertrag' },
@@ -1797,6 +1822,7 @@ export const bridge = {
   GetAssetDocumentContent: unsupported('GetAssetDocumentContent'),
   GetAssetDocumentKinds: () => later(ASSET_DOCUMENT_KINDS),
   GetExpiringAssetDocuments: () => later([]),
+  GetLegalForms: () => later(LEGAL_FORMS),
   GetInvestmentRules: () => later(INVESTMENT_RULES),
   ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
   GetInvestmentNoteForIncome: (assetId: number, amount: number) =>

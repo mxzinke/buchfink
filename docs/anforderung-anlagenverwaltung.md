@@ -256,8 +256,18 @@ Das ist die Stelle, an der eine Ableitung still falsch rechnete:
 - Die Immobilienteilfreistellung kennt die Staffelung gar nicht: 60 % bzw. 80 % gelten für
   jeden Anleger, und sie schließt die Aktienteilfreistellung aus (§ 20 Abs. 3 Satz 3).
 
-Die Anlegerstellung ist deshalb eine eigene Angabe in den Stammdaten. Fehlt sie, rechnet
-Buchfink nicht, sondern sagt, was zu entscheiden ist.
+Gefragt wird sie deshalb — aber nicht als eigene Frage. Die **Rechtsform** steht ohnehin
+in den Stammdaten, und aus ihr folgt die Anlegerstellung in den allermeisten Fällen
+eindeutig: eine GmbH, eine AG, eine eG unterliegen dem KStG; ein Einzelunternehmen und
+eine freiberufliche Praxis werden von einer natürlichen Person geführt. Sie ist deshalb
+kein Freitextfeld mehr, sondern eine Auswahl, und unter ihr steht in einem Halbsatz, was
+sie für Investmentanteile bedeutet.
+
+Offen bleibt sie nur bei einer **Personengesellschaft** — dort fragt Buchfink nach, weil
+§ 20 Abs. 3a InvStG auf den Gesellschafter abstellt. Und für die Ausnahmen des
+§ 20 Abs. 1 Sätze 4 und 5 gibt es eine Festlegung, die die Ableitung schlägt; sie liegt
+hinter „abweichend festlegen" und ist normalerweise unsichtbar. Fehlt die Angabe, wo sie
+gebraucht wird, rechnet Buchfink nicht, sondern sagt, was zu entscheiden ist.
 
 Auch der **Basiszins** wird nicht mitgeliefert: er steht nicht im Gesetz. § 18 Abs. 4
 InvStG lässt ihn die Bundesbank auf den ersten Börsentag des Jahres errechnen, das
@@ -389,10 +399,15 @@ Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
 - **Tilgung:** eigener Abgangsweg ohne Erlöskonto und ohne Steuerfall, nur für
   die Ausleihungen des Kontenkatalogs. Eine Beteiligung und ein Wertpapier
   werden verkauft, nicht getilgt.
-- **Anlegerstellung für § 20 InvStG:** eine Angabe in den Stammdaten, keine
-  Ableitung aus der Rechtsform. Für die gemischt besteuerte Personengesellschaft
-  gibt es keinen einheitlichen Satz; dort weist Buchfink den Betrag ungekürzt
-  aus und sagt, warum.
+- **Anlegerstellung für § 20 InvStG:** abgeleitet aus der Rechtsform, die
+  ohnehin erfasst wird — sie ist dafür ein Katalog geworden statt eines
+  Freitextfeldes. Gefragt wird nur, wo die Rechtsform es offen lässt: bei einer
+  Personengesellschaft, weil § 20 Abs. 3a InvStG auf den Gesellschafter
+  abstellt. Dazu eine Festlegung, die die Ableitung schlägt — für die Ausnahmen
+  des § 20 Abs. 1 Sätze 4 und 5, die eine Körperschaft auf den Grundsatz
+  zurückwerfen. Sie liegt hinter „abweichend festlegen" und ist normalerweise
+  unsichtbar. Zwei Fragen für einen Satz wären eine zu viel; keine wäre eine zu
+  wenig.
 - **Basiszins für § 18 InvStG:** Eingabe mit genannter Quelle, keine Tabelle im
   Code. Anders als die Wertgrenzen wird er jedes Jahr neu veröffentlicht — eine
   ausgelieferte Tabelle wäre im nächsten Januar veraltet.
@@ -429,9 +444,12 @@ Bewusst nicht abgebildet:
   Belege (`internal/receiptstore`), unter einem eigenen Zweig `dokumente/`. Sie
   wird beim Mandantenwechsel verdrahtet; fehlt sie, nimmt die Kartei keine
   Dokumente auf und funktioniert im Übrigen weiter.
-- Die **Stammdaten** tragen die Anlegerstellung für § 20 InvStG. Ohne sie
-  entsteht keine Teilfreistellung — die Nebenrechnung weist den Betrag dann
-  ungekürzt aus und nennt den Grund.
+- Die **Stammdaten** tragen die Rechtsform, aus der die Anlegerstellung für
+  § 20 InvStG folgt (`domain.LegalFormCatalog` und
+  `CompanySettings.InvestorTypeOrDerived`). Gelesen wird sie nur über diese
+  eine Ableitung; ein zweiter Aufruf, der das Feld direkt nähme, verdoppelte
+  die Regel. Wo sie offen bleibt, entsteht keine Teilfreistellung — die
+  Nebenrechnung weist den Betrag dann ungekürzt aus und nennt den Grund.
 - Die **E-Bilanz** übernimmt den Anlagenspiegel als Kontennachweis
   (`SetAnlagenspiegelSource` in `internal/service/ebilanz_service.go`). Die
   Bilanz zeigt einen Buchwert; erst der Spiegel zeigt, woraus er entstanden ist.

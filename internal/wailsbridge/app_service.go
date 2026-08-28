@@ -1273,6 +1273,16 @@ func toNewFiles(files []ReceiptFileInput) []service.NewFile {
 	return out
 }
 
+// GetLegalForms hands the Rechtsform catalog to the UI, jede mit dem, was sie
+// steuerlich nach sich zieht.
+//
+// Die Rechtsform wird ohnehin eingetragen. Sie mitzuliefern statt die
+// Anlegerstellung für § 20 InvStG gesondert abzufragen ist der Unterschied
+// zwischen einer Einstellung und einer Prüfungsfrage.
+func (b *BuchfinkBridge) GetLegalForms() []domain.LegalFormInfo {
+	return domain.LegalFormCatalog()
+}
+
 func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

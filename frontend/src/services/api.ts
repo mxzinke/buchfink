@@ -40,6 +40,7 @@ import type {
   InvestmentTaxNote,
   Invoice,
   JournalEntry,
+  LegalFormInfo,
   OpenItem,
   PaymentRequest,
   PostingGroup,
@@ -409,6 +410,9 @@ export const Api = {
 
   // --- Investmentanteile ------------------------------------------------
 
+  /** Der Rechtsformkatalog, je mit dem, was die Form steuerlich nach sich zieht. */
+  getLegalForms: (): Promise<LegalFormInfo[]> =>
+    call(() => Bridge.GetLegalForms() as Promise<LegalFormInfo[]>),
   /** Fondsarten, Anlegerstellungen und der Satz, der sich aus beidem ergibt. */
   getInvestmentRules: (): Promise<InvestmentRules> =>
     call(() => Bridge.GetInvestmentRules() as Promise<InvestmentRules>),

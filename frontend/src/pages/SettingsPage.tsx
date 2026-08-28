@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Shield } from 'lucide-react';
-import { CompanySettings, AppConfig } from '../types';
+import { CompanySettings, AppConfig, InvestorType, LegalFormInfo } from '../types';
 import { Api } from '../services/api';
 import {
   Button,
@@ -27,18 +27,36 @@ import {
  * Die Anlegerstellung nach § 20 InvStG. „Nicht festgelegt" ist die
  * Voreinstellung und bleibt eine gültige Antwort: geraten wird hier nichts.
  */
+/** Was eine abgeleitete Anlegerstellung in einem Halbsatz bedeutet. */
+function investorHint(investor: InvestorType): string {
+  switch (investor) {
+    case 'corporate':
+      return 'Investmentanteile: 80 % Teilfreistellung';
+    case 'individual_business':
+      return 'Investmentanteile: 60 % Teilfreistellung';
+    case 'basic':
+      return 'Investmentanteile: 30 % Teilfreistellung';
+    default:
+      return 'Investmentanteile: Teilfreistellung noch offen';
+  }
+}
+
+/**
+ * Die Anlegerstellung nach § 20 InvStG, als Ausnahme von der Ableitung.
+ * „Aus der Rechtsform" ist die Voreinstellung und bleibt eine gültige Antwort.
+ */
+/**
+ * Der Platzhalter für „keine Festlegung". Ein leerer Wert wäre für das
+ * Auswahlfeld kein Wert und deshalb nicht wieder wählbar — gespeichert wird
+ * trotzdem leer, denn leer heißt: aus der Rechtsform.
+ */
+const DERIVE = 'derive';
+
 const INVESTOR_TYPES = [
-  { value: '', label: 'Nicht festgelegt' },
-  { value: 'corporate', label: 'Anleger unterliegt dem Körperschaftsteuergesetz — 80 %' },
+  { value: 'corporate', label: 'Körperschaft — 80 %' },
   { value: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen — 60 %' },
-  {
-    value: 'basic',
-    label: 'Grundsatz — 30 % (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)',
-  },
-  {
-    value: 'mixed',
-    label: 'Personengesellschaft mit gemischt besteuerten Gesellschaftern — kein einheitlicher Satz',
-  },
+  { value: 'basic', label: 'Grundsatz — 30 % (auch für Versicherer, Handelsbestand, Pensionsfonds)' },
+  { value: 'mixed', label: 'Gesellschafter unterschiedlich besteuert — kein einheitlicher Satz' },
 ];
 
 const MONTHS = [
@@ -76,6 +94,8 @@ export const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
+  const [showInvestorChoice, setShowInvestorChoice] = useState(false);
 
   useEffect(() => {
     void loadSettings();
@@ -84,9 +104,17 @@ export const SettingsPage: React.FC = () => {
   async function loadSettings() {
     setLoading(true);
     try {
-      const [s, cfg] = await Promise.all([Api.getCompanySettings(), Api.getAppConfig()]);
+      const [s, cfg, forms] = await Promise.all([
+        Api.getCompanySettings(),
+        Api.getAppConfig(),
+        Api.getLegalForms(),
+      ]);
       setSettings(s);
       setAppConfig(cfg);
+      setLegalForms(forms ?? []);
+      // Wer die Anlegerstellung schon einmal abweichend festgelegt hat, soll
+      // sie auch wiederfinden.
+      if (s.investorOverride) setShowInvestorChoice(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -139,6 +167,27 @@ export const SettingsPage: React.FC = () => {
     );
   }
 
+  // Eine gespeicherte Rechtsform, die nicht im Katalog steht, bleibt wählbar:
+  // sonst überschriebe das Öffnen der Einstellungen still, was dort stand.
+  const known = legalForms.some((form) => form.name === settings.legalForm);
+  const legalFormItems = [
+    ...(settings.legalForm && !known ? [{ value: settings.legalForm, label: settings.legalForm }] : []),
+    ...legalForms.map((form) => ({ value: form.name, label: form.name })),
+  ];
+  const selectedForm = legalForms.find((form) => form.name === settings.legalForm);
+  // Was die Rechtsform für Investmentanteile bedeutet — als Hinweis am Feld,
+  // nicht als zweite Frage.
+  const derivedInvestor = settings.investorOverride
+    ? {
+        label: 'Anlegerstellung abweichend festgelegt',
+        note: 'Die Rechtsform entscheidet hier nicht; unten steht, was stattdessen gilt.',
+      }
+    : selectedForm
+      ? { label: investorHint(selectedForm.investor), note: selectedForm.note }
+      : undefined;
+  // Gefragt wird nur, wo die Rechtsform die Anlegerstellung offen lässt.
+  const needsInvestorChoice = Boolean(selectedForm) && !selectedForm?.investor;
+
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
   const startMonth = settings.fiscalYearStartMonth || 1;
   const deviating = startMonth !== 1;
@@ -165,8 +214,16 @@ export const SettingsPage: React.FC = () => {
           <Field label="Firmen- oder Inhabername">
             <Input value={settings.companyName} onChange={(e) => patch({ companyName: e.target.value })} />
           </Field>
-          <Field label="Rechtsform">
-            <Input value={settings.legalForm} onChange={(e) => patch({ legalForm: e.target.value })} />
+          <Field
+            label="Rechtsform"
+            hint={derivedInvestor?.label}
+            help={derivedInvestor?.note}
+          >
+            <Select
+              items={legalFormItems}
+              value={settings.legalForm || ''}
+              onValueChange={(next) => patch({ legalForm: String(next) })}
+            />
           </Field>
           <Field label="Steuernummer">
             <Input
@@ -186,6 +243,51 @@ export const SettingsPage: React.FC = () => {
             <Input value={settings.taxOffice} onChange={(e) => patch({ taxOffice: e.target.value })} />
           </Field>
         </div>
+
+        {/*
+          Die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform. Sichtbar
+          wird sie nur, wo diese sie nicht hergibt — bei einer
+          Personengesellschaft — oder wo jemand sie ausdrücklich anders
+          festlegen will. Als eigenes Pflichtfeld stünde hier sonst eine
+          Rechtsfrage, die die meisten nie beantworten müssten.
+        */}
+        {(needsInvestorChoice || showInvestorChoice) && (
+          <Field
+            label="Anlegerstellung für Investmentanteile"
+            optional={!needsInvestorChoice}
+            hint="nur für die Teilfreistellung nach § 20 InvStG"
+            help="Der Satz hängt am Anleger. Bei einer Personengesellschaft bestimmt ihn der einzelne Gesellschafter (§ 20 Abs. 3a InvStG). Und auch eine Körperschaft trägt nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
+            className="mt-4 max-w-2xl"
+          >
+            <Select
+              items={[
+                {
+                  value: DERIVE,
+                  label: needsInvestorChoice ? 'Noch nicht festgelegt' : 'Aus der Rechtsform',
+                },
+                ...INVESTOR_TYPES,
+              ]}
+              value={settings.investorOverride || DERIVE}
+              onValueChange={(next) =>
+                patch({
+                  investorOverride: (next === DERIVE
+                    ? ''
+                    : next) as CompanySettings['investorOverride'],
+                })
+              }
+            />
+          </Field>
+        )}
+        {!needsInvestorChoice && !showInvestorChoice && (
+          <Button
+            variant="quiet"
+            size="sm"
+            className="mt-4 -ml-3"
+            onClick={() => setShowInvestorChoice(true)}
+          >
+            Anlegerstellung für Investmentanteile abweichend festlegen
+          </Button>
+        )}
       </Section>
 
       <Section title="Anschrift">
@@ -263,25 +365,7 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Section>
 
-      <Section title="Investmentanteile">
-        <Field
-          label="Anlegerstellung"
-          hint="entscheidet über die Teilfreistellung nach § 20 InvStG"
-          help="Aus der Rechtsform folgt der Satz nicht. Eine GmbH & Co. KG ist keine Körperschaft, ihre Gesellschafter können welche sein, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem Gesellschafter. Auch eine Kapitalgesellschaft trägt nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
-          className="max-w-2xl"
-        >
-          <Select
-            items={INVESTOR_TYPES}
-            value={settings.investorType || ''}
-            onValueChange={(next) => patch({ investorType: next as CompanySettings['investorType'] })}
-          />
-        </Field>
-        <p className="mt-3 text-body text-ink-muted max-w-2xl">
-          Die Angabe wird nur für Investmentanteile gebraucht — für einen ETF, einen Aktien- oder
-          Immobilienfonds im Anlagevermögen. Ohne sie rechnet Buchfink keine Teilfreistellung,
-          sondern weist den Ertrag ungekürzt aus und sagt, was zu entscheiden ist.
-        </p>
-      </Section>
+
 
       <Section title="Bankverbindung">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -482,8 +482,11 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 	if err != nil || cfg == nil {
 		return rules, nil
 	}
-	rules.InvestorType = cfg.InvestorType
-	rules.InvestorLabel = cfg.InvestorType.Label()
+	investor, reason := cfg.InvestorTypeOrDerived()
+	rules.InvestorType = investor
+	rules.InvestorLabel = investor.Label()
+	rules.InvestorReason = reason
+	rules.LegalForm = cfg.LegalForm
 
 	// Der Satz je Fondsart, wie er sich aus der eingestellten Anlegerstellung
 	// ergibt — und, wo er sich nicht ergibt, der Grund dafür. Beides gehört an
@@ -493,7 +496,7 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 		if !class.IsFund() {
 			continue
 		}
-		exemption, err := accounting.PartialExemptionFor(class, cfg.InvestorType)
+		exemption, err := accounting.PartialExemptionFor(class, investor)
 		info := exemptionInfo{Class: class, Label: class.Label()}
 		if err != nil {
 			info.Problem = err.Error()
@@ -513,7 +516,12 @@ type InvestmentRules struct {
 	InvestorTypes []investorTypeInfo  `json:"investorTypes"`
 	InvestorType  domain.InvestorType `json:"investorType"`
 	InvestorLabel string              `json:"investorLabel"`
-	Exemptions    []exemptionInfo     `json:"exemptions"`
+	// InvestorReason sagt, woher die Anlegerstellung kommt: aus der Rechtsform
+	// oder aus einer ausdrücklichen Festlegung. Ein Satz, der sich aus einer
+	// anderen Angabe ergibt, sähe sonst wie eine Voreinstellung aus.
+	InvestorReason string          `json:"investorReason"`
+	LegalForm      string          `json:"legalForm"`
+	Exemptions     []exemptionInfo `json:"exemptions"`
 }
 
 type fundClassInfo struct {

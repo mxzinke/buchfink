@@ -609,15 +609,23 @@ export interface CompanySettings {
   vatPeriod: string;
   taxationType: string;
   /**
-   * Anlegerstellung für die Teilfreistellung nach § 20 InvStG.
+   * Legt die Anlegerstellung für § 20 InvStG ausdrücklich fest — normalerweise
+   * leer, weil sie aus der Rechtsform folgt.
    *
-   * Eine eigene Angabe und keine Ableitung aus der Rechtsform: aus
-   * „GmbH & Co. KG" folgt nichts, und auch eine Kapitalgesellschaft trägt nicht
-   * immer 80 % — § 20 Abs. 1 Sätze 4 und 5 InvStG nehmen die Erhöhung für
-   * Lebens- und Krankenversicherer, Kreditinstitute mit Handelsbestand und
-   * Pensionsfonds zurück.
+   * Gebraucht wird sie in zwei Fällen: bei einer Personengesellschaft, wo
+   * § 20 Abs. 3a InvStG auf den Gesellschafter abstellt, und bei den Ausnahmen
+   * des § 20 Abs. 1 Sätze 4 und 5 — Lebens- und Krankenversicherer,
+   * Kreditinstitute mit Handelsbestand, Pensionsfonds.
    */
-  investorType: InvestorType;
+  investorOverride: InvestorType;
+}
+
+/** Eine Rechtsform aus dem Katalog, mit dem, was sie steuerlich nach sich zieht. */
+export interface LegalFormInfo {
+  name: string;
+  /** Die abgeleitete Anlegerstellung. Leer heißt: aus der Rechtsform folgt sie nicht. */
+  investor: InvestorType;
+  note: string;
 }
 
 export interface AuditLogEntry {
@@ -1120,6 +1128,9 @@ export interface InvestmentRules {
   investorTypes: { type: InvestorType; label: string }[];
   investorType: InvestorType;
   investorLabel: string;
+  /** Woher die Anlegerstellung kommt: aus der Rechtsform oder aus einer Festlegung. */
+  investorReason: string;
+  legalForm: string;
   exemptions: {
     class: FundClass;
     label: string;

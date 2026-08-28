@@ -27,13 +27,31 @@ const STEP_TITLES: Record<number, string> = {
   4: 'Bankverbindung',
 };
 
+/**
+ * Die Rechtsformen der Ersteinrichtung.
+ *
+ * Sie stehen hier als Liste und nicht als Abfrage aus der Bridge: die
+ * Einrichtung läuft, bevor ein Mandant existiert. Die Schreibweisen müssen zu
+ * `domain.LegalFormCatalog` passen — aus ihnen leitet Buchfink später die
+ * Anlegerstellung für § 20 InvStG ab, und eine abweichende Schreibweise fiele
+ * dort aus dem Katalog.
+ */
 const LEGAL_FORMS = [
   'Einzelunternehmen',
+  'Eingetragener Kaufmann (e. K.)',
+  'Freiberufliche Praxis',
+  'GbR',
+  'OHG',
+  'KG',
+  'GmbH & Co. KG',
+  'Partnerschaftsgesellschaft',
   'UG (haftungsbeschränkt)',
   'GmbH',
-  'GbR',
-  'GmbH & Co. KG',
   'AG',
+  'SE',
+  'eG',
+  'e. V.',
+  'Stiftung',
   'Sonstige',
 ];
 
@@ -86,10 +104,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     skr: 'SKR04',
     vatPeriod: 'quarter',
     taxationType: 'SOLL',
-    // Leer heißt „nicht festgelegt". Die Anlegerstellung für die
-    // Teilfreistellung nach § 20 InvStG folgt nicht aus der Rechtsform; sie
-    // wird gefragt, wenn sie zum ersten Mal gebraucht wird.
-    investorType: '',
+    // Leer heißt: die Anlegerstellung für § 20 InvStG folgt aus der
+    // Rechtsform. Gefragt wird sie nur, wo diese sie offen lässt.
+    investorOverride: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
