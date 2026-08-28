@@ -30,6 +30,22 @@ export function formatCentsPlain(amount: Cents): string {
   return formatCents(amount, '').trimEnd();
 }
 
+/**
+ * Stückzahlen aus {@link Units} — Zehntausendstel — in lesbare Form, ohne
+ * überflüssige Nullen: "100" für hundert ganze Stück, "3,4567" für einen
+ * Bruchteil. Fondsanteile gibt es in Bruchteilen, ganze Zahlen wären dort
+ * gerundet.
+ */
+export function formatUnits(units: number): string {
+  const negative = units < 0;
+  const absolute = Math.abs(Math.trunc(units));
+  const whole = Math.floor(absolute / 10000);
+  const fraction = String(absolute % 10000).padStart(4, '0').replace(/0+$/, '');
+
+  const grouped = whole.toLocaleString('de-DE');
+  return `${negative ? '−' : ''}${grouped}${fraction ? `,${fraction}` : ''}`;
+}
+
 /** Wandelt eine Nutzereingabe ("1.234,56", "1234.56") in Cent um. */
 export function parseCents(input: string): Cents | null {
   const raw = input.trim().replace(/[€\s]/g, '');

@@ -87,6 +87,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.VatPeriod = it.Value
 		case "taxation_type":
 			settings.TaxationType = it.Value
+		case "investor_override":
+			settings.InvestorOverride = domain.InvestorType(it.Value)
 		}
 	}
 
@@ -127,6 +129,10 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"country":                 s.Country,
 		"vat_period":              vatPeriod,
 		"taxation_type":           taxationType,
+		// Leer bleibt leer: die Anlegerstellung folgt dann aus der Rechtsform.
+		// Ein hier eingesetzter Vorgabewert wäre eine Festlegung, die niemand
+		// getroffen hat — und die die Ableitung stumm überschriebe.
+		"investor_override": string(s.InvestorOverride),
 	}
 
 	for k, v := range kv {

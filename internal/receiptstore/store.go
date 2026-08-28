@@ -60,22 +60,66 @@ type StoredFile struct {
 // and then renamed into place. An interrupted write therefore never leaves a
 // half-written Beleg behind — it leaves a temporary file that belongs to nothing.
 func (s *Store) Put(fiscalYear int, direction domain.Direction, originalName string, src io.Reader) (*StoredFile, error) {
-	if s.dataDir == "" {
-		return nil, fmt.Errorf("kein Datenordner konfiguriert")
-	}
 	subDir, err := directorySegment(direction)
 	if err != nil {
 		return nil, err
 	}
+	return s.putInto([]string{"belege", fmt.Sprintf("%d", fiscalYear), subDir}, originalName, src)
+}
 
-	absDir := filepath.Join(s.dataDir, "belege", fmt.Sprintf("%d", fiscalYear), subDir)
+// PutDocument stores a file that is not a Beleg.
+//
+// Ein Vertrag, ein Gutachten, ein Zulassungspapier gehören zu einem Anlagegut,
+// aber nicht in den Belegkreis: sie tragen keine Belegnummer, sie werden nicht
+// gebucht, und sie hängen an keinem Geschäftsjahr — ein Kaufvertrag erklärt die
+// Anschaffung noch, wenn das Wirtschaftsgut zehn Jahre im Bestand ist. Der
+// Ablageweg ist trotzdem derselbe: inhaltsadressiert, dedupliziert, mit
+// atomarem Umbenennen. Zwei Speicher für zwei Dateiarten wären zwei Stellen,
+// an denen dasselbe schiefgehen kann.
+func (s *Store) PutDocument(category, originalName string, src io.Reader) (*StoredFile, error) {
+	if err := checkSegment(category); err != nil {
+		return nil, err
+	}
+	return s.putInto([]string{"dokumente", category}, originalName, src)
+}
+
+// PutDocumentPath stores a document from the local file system.
+func (s *Store) PutDocumentPath(category, path string) (*StoredFile, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("Datei %s konnte nicht gelesen werden: %w", filepath.Base(path), err)
+	}
+	defer f.Close()
+	return s.PutDocument(category, filepath.Base(path), f)
+}
+
+// checkSegment refuses a path segment that could leave the data directory. Der
+// Aufrufer gibt eine Kategorie vor, keinen Pfad.
+func checkSegment(segment string) error {
+	if segment == "" {
+		return fmt.Errorf("ohne Kategorie lässt sich die Datei nicht ablegen")
+	}
+	if strings.ContainsAny(segment, `/\`) || segment == "." || segment == ".." {
+		return fmt.Errorf("%q ist keine gültige Ablagekategorie", segment)
+	}
+	return nil
+}
+
+// putInto is the shared body: hash while writing, name the file after its own
+// digest, rename it into place.
+func (s *Store) putInto(segments []string, originalName string, src io.Reader) (*StoredFile, error) {
+	if s.dataDir == "" {
+		return nil, fmt.Errorf("kein Datenordner konfiguriert")
+	}
+
+	absDir := filepath.Join(append([]string{s.dataDir}, segments...)...)
 	if err := os.MkdirAll(absDir, dirPerm); err != nil {
-		return nil, fmt.Errorf("Belegordner konnte nicht angelegt werden: %w", err)
+		return nil, fmt.Errorf("Ablageordner konnte nicht angelegt werden: %w", err)
 	}
 
 	tmp, err := os.CreateTemp(absDir, ".upload-*")
 	if err != nil {
-		return nil, fmt.Errorf("Belegdatei konnte nicht angelegt werden: %w", err)
+		return nil, fmt.Errorf("Die Datei konnte nicht angelegt werden: %w", err)
 	}
 	tmpName := tmp.Name()
 	defer func() {
@@ -83,33 +127,34 @@ func (s *Store) Put(fiscalYear int, direction domain.Direction, originalName str
 		os.Remove(tmpName) // no-op once the rename succeeded
 	}()
 	if err := tmp.Chmod(filePerm); err != nil {
-		return nil, fmt.Errorf("Rechte der Belegdatei konnten nicht gesetzt werden: %w", err)
+		return nil, fmt.Errorf("Die Rechte der Datei konnten nicht gesetzt werden: %w", err)
 	}
 
 	digest := sha256.New()
 	head := make([]byte, 0, maxSniff)
 	size, err := copyHashingAndSniffing(tmp, digest, &head, src)
 	if err != nil {
-		return nil, fmt.Errorf("Belegdatei konnte nicht geschrieben werden: %w", err)
+		return nil, fmt.Errorf("Die Datei konnte nicht geschrieben werden: %w", err)
 	}
 	if size == 0 {
 		return nil, fmt.Errorf("die Datei %s ist leer", originalName)
 	}
 	if err := tmp.Sync(); err != nil {
-		return nil, fmt.Errorf("Belegdatei konnte nicht gesichert werden: %w", err)
+		return nil, fmt.Errorf("Die Datei konnte nicht gesichert werden: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("Belegdatei konnte nicht geschlossen werden: %w", err)
+		return nil, fmt.Errorf("Die Datei konnte nicht geschlossen werden: %w", err)
 	}
 
 	sum := hex.EncodeToString(digest.Sum(nil))
 	mimeType := detectMime(head, originalName)
 	fileName := sum + extensionFor(originalName, mimeType)
 	absPath := filepath.Join(absDir, fileName)
-	relPath := filepath.ToSlash(filepath.Join("belege", fmt.Sprintf("%d", fiscalYear), subDir, fileName))
+	relPath := filepath.ToSlash(filepath.Join(append(append([]string{}, segments...), fileName)...))
 
 	// Identical content is stored once. Two Belege may legitimately share a file,
-	// and re-filing the same scan must not double the disk usage.
+	// and so may two Anlagegüter share one contract — re-filing the same scan must
+	// not double the disk usage.
 	if existing, err := os.Stat(absPath); err == nil {
 		if existing.Size() == size {
 			return &StoredFile{SHA256: sum, RelPath: relPath, Size: size, MimeType: mimeType, Deduplicated: true}, nil
@@ -119,7 +164,7 @@ func (s *Store) Put(fiscalYear int, direction domain.Direction, originalName str
 	}
 
 	if err := os.Rename(tmpName, absPath); err != nil {
-		return nil, fmt.Errorf("Belegdatei konnte nicht abgelegt werden: %w", err)
+		return nil, fmt.Errorf("Die Datei konnte nicht abgelegt werden: %w", err)
 	}
 	return &StoredFile{SHA256: sum, RelPath: relPath, Size: size, MimeType: mimeType}, nil
 }
@@ -171,6 +216,24 @@ func (s *Store) Exists(relPath string) bool {
 	}
 	info, err := os.Stat(abs)
 	return err == nil && !info.IsDir()
+}
+
+// Delete removes a stored file.
+//
+// Für Belege gibt es das nicht: ein empfangenes Dokument verschwindet nicht,
+// es wird verworfen und bleibt liegen. Für ein Dokument am Anlagegut schon —
+// wer eine falsche Datei hochgeladen hat, soll sie wieder loswerden. Der
+// Aufrufer prüft vorher, dass niemand sonst auf sie zeigt; identische Inhalte
+// werden hier nur einmal gespeichert.
+func (s *Store) Delete(relPath string) error {
+	abs, err := s.resolve(relPath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(abs); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("die Datei konnte nicht entfernt werden: %w", err)
+	}
+	return nil
 }
 
 // resolve turns a stored relative path into an absolute one, refusing anything

@@ -8,6 +8,7 @@ import { RecoveryScreen } from './components/RecoveryScreen';
 import { DashboardPage } from './pages/DashboardPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
+import { AssetsPage } from './pages/AssetsPage';
 import { BankImportPage } from './pages/BankImportPage';
 import { InvoicesPage } from './pages/InvoicesPage';
 import { ReceiptsPage } from './pages/ReceiptsPage';
@@ -191,6 +192,8 @@ export function App() {
         return <AccountsPage />;
       case 'journal':
         return <JournalPage />;
+      case 'assets':
+        return <AssetsPage />;
       case 'bank':
         return <BankImportPage />;
       case 'receipts':

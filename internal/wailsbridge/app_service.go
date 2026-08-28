@@ -46,6 +46,7 @@ type BuchfinkBridge struct {
 	numberRepo         domain.NumberRangeRepository
 	allocationRepo     domain.PaymentAllocationRepository
 	receiptRepo        domain.ReceiptRepository
+	assetRepo          domain.AssetRepository
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
@@ -63,6 +64,7 @@ type BuchfinkBridge struct {
 	renderer      *invoice.Renderer
 	contactSvc    *service.ContactService
 	ebilanzSvc    *service.EBilanzService
+	assetSvc      *service.AssetService
 	auditSvc      *service.AuditService
 	settingsSvc   *service.SettingsService
 	currencySvc   *service.CurrencyService
@@ -181,6 +183,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.festschreibungRepo = repository.NewFestschreibungRepository(db)
 	b.allocationRepo = repository.NewPaymentAllocationRepository(db)
 	b.receiptRepo = repository.NewReceiptRepository(db)
+	b.assetRepo = repository.NewAssetRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -221,7 +224,21 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// zahlen, wer auf "Rechnung ausstellen" drückt.
 	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
 	b.contactSvc = service.NewContactService(b.contactRepo, b.journalRepo, b.numberRepo, b.auditRepo, fiscalYear)
+	b.assetSvc = service.NewAssetService(
+		b.assetRepo, b.journalRepo, b.journalSvc, b.numberRepo,
+		b.contactRepo, b.settingsRepo, b.auditRepo, fiscalYear,
+	)
+	// Ein Skonto auf eine Anlagenrechnung mindert die Anschaffungskosten
+	// (§ 255 Abs. 1 Satz 3 HGB). Damit der Zahlungsflow das erkennen kann,
+	// braucht er die Kartei — mehr von ihr nicht.
+	b.paymentSvc.SetAssetRegister(b.assetSvc)
+	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
+	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
+	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
+	// Die E-Bilanz braucht den Anlagenspiegel als Kontennachweis: die Bilanz
+	// zeigt einen Buchwert, und erst er zeigt, woraus er entstanden ist.
+	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
@@ -635,6 +652,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.eInvoiceSvc != nil {
 		b.eInvoiceSvc.SetFiscalYear(year)
+	}
+	if b.assetSvc != nil {
+		b.assetSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
@@ -1251,6 +1271,16 @@ func toNewFiles(files []ReceiptFileInput) []service.NewFile {
 		})
 	}
 	return out
+}
+
+// GetLegalForms hands the Rechtsform catalog to the UI, jede mit dem, was sie
+// steuerlich nach sich zieht.
+//
+// Die Rechtsform wird ohnehin eingetragen. Sie mitzuliefern statt die
+// Anlegerstellung für § 20 InvStG gesondert abzufragen ist der Unterschied
+// zwischen einer Einstellung und einer Prüfungsfrage.
+func (b *BuchfinkBridge) GetLegalForms() []domain.LegalFormInfo {
+	return domain.LegalFormCatalog()
 }
 
 func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   BookOpen,
+  Building2,
   Calendar,
   FileSpreadsheet,
   FileText,
@@ -27,6 +28,7 @@ export type TabType =
   | 'receipts'
   | 'invoices'
   | 'journal'
+  | 'assets'
   | 'contacts'
   | 'accounts'
   | 'reports'
@@ -65,6 +67,7 @@ const GROUPS: NavGroup[] = [
       { id: 'receipts', label: 'Belege', icon: <Receipt className={icon} /> },
       { id: 'invoices', label: 'Rechnungen', icon: <FileText className={icon} /> },
       { id: 'journal', label: 'Journal', icon: <ListOrdered className={icon} /> },
+      { id: 'assets', label: 'Anlagevermögen', icon: <Building2 className={icon} /> },
     ],
   },
   {

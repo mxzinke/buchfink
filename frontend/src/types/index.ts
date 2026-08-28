@@ -608,6 +608,24 @@ export interface CompanySettings {
   skr: string;
   vatPeriod: string;
   taxationType: string;
+  /**
+   * Legt die Anlegerstellung für § 20 InvStG ausdrücklich fest — normalerweise
+   * leer, weil sie aus der Rechtsform folgt.
+   *
+   * Gebraucht wird sie in zwei Fällen: bei einer Personengesellschaft, wo
+   * § 20 Abs. 3a InvStG auf den Gesellschafter abstellt, und bei den Ausnahmen
+   * des § 20 Abs. 1 Sätze 4 und 5 — Lebens- und Krankenversicherer,
+   * Kreditinstitute mit Handelsbestand, Pensionsfonds.
+   */
+  investorOverride: InvestorType;
+}
+
+/** Eine Rechtsform aus dem Katalog, mit dem, was sie steuerlich nach sich zieht. */
+export interface LegalFormInfo {
+  name: string;
+  /** Die abgeleitete Anlegerstellung. Leer heißt: aus der Rechtsform folgt sie nicht. */
+  investor: InvestorType;
+  note: string;
 }
 
 export interface AuditLogEntry {
@@ -697,4 +715,492 @@ export interface SKR04Catalog {
   legend: SKR04Legend;
   statistics: SKR04Statistics;
   positions: SKR04Position[];
+}
+
+// -------------------------------------------------------------------------
+// Anlagevermögen (internal/domain/asset.go)
+
+/** Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. */
+export type AssetClass = 'intangible' | 'tangible' | 'financial';
+
+export type DepreciationMethod = 'linear' | 'degressive' | 'pool' | 'immediate' | 'none';
+
+export type AssetStatus =
+  | 'active'
+  | 'fully_written'
+  | 'disposed'
+  | 'unbooked'
+  | 'depreciate_due';
+
+export type DisposalKind = 'sale' | 'scrapped' | 'repayment';
+
+/** Die Fondsarten, an denen § 20 InvStG die Teilfreistellung festmacht. */
+export type FundClass = '' | 'equity' | 'mixed' | 'real_estate' | 'foreign_real_estate' | 'other';
+
+/** Die Anlegerstellung, an der § 20 Abs. 1 InvStG die Höhe des Satzes festmacht. */
+export type InvestorType = '' | 'basic' | 'individual_business' | 'corporate' | 'mixed';
+
+/** Was zu einem Anlagegut abgelegt wird, ohne gebucht zu werden. */
+export type AssetDocumentKind =
+  | 'contract'
+  | 'invoice'
+  | 'valuation'
+  | 'registration'
+  | 'insurance'
+  | 'maintenance'
+  | 'statement'
+  | 'photo'
+  | 'other';
+
+export interface AssetDocument {
+  id: number;
+  assetId: number;
+  kind: AssetDocumentKind;
+  title?: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  storedPath: string;
+  documentDate?: string;
+  /** Tag, an dem das Dokument abläuft — eine Police, eine Frist. */
+  validUntil?: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface AssetDocumentKindInfo {
+  kind: AssetDocumentKind;
+  label: string;
+}
+
+export interface ExpiringAssetDocument {
+  assetId: number;
+  inventoryNumber: string;
+  assetName: string;
+  documentId: number;
+  kind: AssetDocumentKind;
+  kindLabel: string;
+  title: string;
+  validUntil: string;
+}
+
+export type AssetMovementKind =
+  | 'transfer'
+  | 'acquisition'
+  | 'subsequent_cost'
+  | 'cost_reduction'
+  | 'depreciation'
+  | 'special_depreciation'
+  | 'impairment'
+  | 'write_up'
+  | 'maintenance'
+  | 'income'
+  | 'vorabpauschale'
+  | 'disposal';
+
+/**
+ * Stückzahl in Zehntausendstel: 100 Anteile sind 1_000_000.
+ *
+ * Wie bei den Beträgen eine ganze Zahl, damit die Summe der Zu- und Abgänge
+ * nicht vom Bestand abdriftet — Fondsanteile gibt es in Bruchteilen.
+ */
+export type Units = number;
+
+/** Ein Stück in der Skalierung von {@link Units}. */
+export const UNIT_SCALE = 10000;
+
+/** Devisenkurse werden als Fremdwährungseinheiten je Euro mal einer Million geführt. */
+export const RATE_SCALE = 1_000_000;
+
+export interface AssetMovement {
+  id: number;
+  assetId: number;
+  kind: AssetMovementKind;
+  /** Konto, das diese Bewegung berührt — nach einer Umbuchung nicht das aktuelle. */
+  account?: string;
+  date: string;
+  fiscalYear: number;
+  /** Verändert die Anschaffungs- und Herstellungskosten. */
+  costAmount: Cents;
+  /** Verändert die kumulierten Abschreibungen. */
+  depreciationAmount: Cents;
+  journalEntryId?: number;
+  entryNumber?: string;
+  /** Stückzahl, die diese Bewegung bewegt: positiv beim Zugang, negativ beim Abgang. */
+  quantity?: Units;
+  /** Betrag, der nur steuerlich zählt — die Vorabpauschale wird nicht gebucht. */
+  taxAmount?: Cents;
+  /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
+  lifeExtensionMonths?: number;
+  note?: string;
+  createdAt: string;
+}
+
+export interface FixedAsset {
+  id: number;
+  inventoryNumber: string;
+  name: string;
+  description?: string;
+  class: AssetClass;
+  account: string;
+  depreciationAccount?: string;
+  acquisitionDate: string;
+  /** Tag der Betriebsbereitschaft; ab hier läuft die AfA. Leer = mit der Anschaffung. */
+  inServiceDate?: string;
+  acquisitionCost: Cents;
+  method: DepreciationMethod;
+  usefulLifeMonths: number;
+  poolYear?: number;
+  /** Sonderabschreibung nach § 7g Abs. 5 EStG: Satz in Promille, höchstens 400. */
+  specialPermille?: number;
+  /** Jahre, auf die der Betrag gleichmäßig verteilt wird — eins bis fünf. */
+  specialYears?: number;
+  /** Aufwandskonto der Sonderabschreibung: 6242 für Fahrzeuge, sonst 6241. */
+  specialAccount?: string;
+  /** Pflichtangabe zu den Voraussetzungen des § 7g Abs. 6 EStG. */
+  specialReason?: string;
+  identifier?: string;
+  /** Stückzahl des Zugangs. Null heißt: dieses Anlagegut wird nicht in Stück geführt. */
+  quantity?: Units;
+  /** Notierungswährung (ISO 4217). Leer heißt Euro. */
+  currency?: string;
+  /** Anschaffungskosten in der Notierungswährung. */
+  foreignCost?: Cents;
+  /** Fälligkeit einer Ausleihung. Entscheidet über § 256a Satz 2 HGB. */
+  maturityDate?: string;
+  /** Fondsart eines Investmentanteils. Leer heißt: kein Investmentanteil. */
+  fundClass?: FundClass;
+  /** Beteiligungsquote in Promille: 200 sind 20 %. */
+  holdingPermille?: number;
+  taxPrivileged?: boolean;
+  contactId?: number;
+  acquisitionEntryId?: number;
+  disposalDate?: string;
+  disposalKind?: DisposalKind;
+  disposalProceeds?: Cents;
+  disposalEntryId?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  movements?: AssetMovement[];
+  documents?: AssetDocument[];
+
+  // Abgeleitet vom Backend, nicht gespeichert.
+  accountName?: string;
+  cost: Cents;
+  accumulated: Cents;
+  bookValue: Cents;
+  yearAmount: Cents;
+  dueAmount: Cents;
+  /** Noch fällige Sonderabschreibung des Geschäftsjahres. */
+  specialDue: Cents;
+  /** Gehaltene Stückzahl nach allen Bewegungen. */
+  unitsHeld?: Units;
+  /** Summe der über die Besitzzeit angesetzten Vorabpauschalen. */
+  vorabpauschalen?: Cents;
+  status: AssetStatus;
+  statusNote?: string;
+}
+
+export interface AssetSummary {
+  fiscalYear: number;
+  count: number;
+  cost: Cents;
+  accumulated: Cents;
+  bookValue: Cents;
+  yearAmount: Cents;
+  dueAmount: Cents;
+  specialDue: Cents;
+  dueCount: number;
+}
+
+export interface AssetScheduleYear {
+  fiscalYear: number;
+  months: number;
+  method: DepreciationMethod;
+  rateLabel: string;
+  openingBookValue: Cents;
+  amount: Cents;
+  /** Sonderabschreibung des Jahres, getrennt geführt: eigenes Aufwandskonto. */
+  specialAmount?: Cents;
+  closingBookValue: Cents;
+  note?: string;
+  booked: Cents;
+  due: Cents;
+  specialBooked: Cents;
+  specialDue: Cents;
+  status: 'gebucht' | 'offen' | 'teilweise' | 'geplant';
+}
+
+export interface AssetDetail {
+  asset: FixedAsset;
+  schedule: AssetScheduleYear[];
+  movements: AssetMovement[];
+  /** Höchstbetrag einer Zuschreibung (§ 253 Abs. 5 Satz 1 HGB), vom Backend gerechnet. */
+  writeUpCeiling: Cents;
+  /** Die Sätze, die zu genau diesem Anlagegut gehören — vom Backend gerechnet. */
+  notes: string[];
+}
+
+export interface AssetAccountInfo {
+  number: string;
+  name: string;
+  class: AssetClass;
+  group: string;
+  hint?: string;
+  /** Anlagen im Bau und geleistete Anzahlungen: von hier wird umgebucht. */
+  inProgress?: boolean;
+  /** Grund und Boden und alles, was darauf steht — keine degressive AfA, keine Sonderabschreibung. */
+  immovable?: boolean;
+  depreciationAccount?: string;
+  depreciable: boolean;
+  defaultUsefulLifeMonths?: number;
+  usefulLifeSource?: string;
+}
+
+export type AcquisitionOption = 'immediate' | 'pool' | 'activate';
+
+export interface AcquisitionAdvice {
+  recommended: AcquisitionOption;
+  allowed: AcquisitionOption[];
+  reason: string;
+  poolNote?: string;
+  limits: {
+    immediate: Cents;
+    recordFrom: Cents;
+    poolLowerLimit: Cents;
+    poolUpperLimit: Cents;
+  };
+}
+
+export interface DegressiveWindow {
+  From: string;
+  Until: string;
+  /** Vielfaches des linearen Satzes in Tausendsteln: 3000 ist das Dreifache. */
+  FactorPermille: number;
+  MaxPermille: number;
+  Source: string;
+}
+
+export interface AssetMethodInfo {
+  method: DepreciationMethod;
+  label: string;
+  classes: AssetClass[];
+  hint: string;
+}
+
+export interface AssetRules {
+  fiscalYear: number;
+  gwgImmediateLimit: Cents;
+  gwgRecordFrom: Cents;
+  poolLowerLimit: Cents;
+  poolUpperLimit: Cents;
+  poolYears: number;
+  degressiveWindows: DegressiveWindow[];
+  /** Höchstsatz der Sonderabschreibung in Promille (§ 7g Abs. 5 EStG). */
+  specialMaxPermille: number;
+  /** Begünstigungszeitraum in Jahren: das Anschaffungsjahr und die vier folgenden. */
+  specialPeriodYears: number;
+  methods: AssetMethodInfo[];
+}
+
+export interface DepreciationDue {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  account: string;
+  expenseAccount: string;
+  method: string;
+  rateLabel: string;
+  months: number;
+  planned: Cents;
+  booked: Cents;
+  due: Cents;
+  specialAccount?: string;
+  specialPlanned: Cents;
+  specialBooked: Cents;
+  specialDue: Cents;
+  bookValueBefore: Cents;
+  bookValueAfter: Cents;
+  note?: string;
+}
+
+export interface DepreciationRun {
+  fiscalYear: number;
+  bookingDate: string;
+  due: DepreciationDue[];
+  total: Cents;
+  missingPriorYears?: number[];
+}
+
+export interface DepreciationResult {
+  entries: JournalEntry[];
+  total: Cents;
+  skipped?: string[];
+}
+
+export interface DisposalAccounts {
+  revenue?: string;
+  bookValue: string;
+  explanation: string;
+}
+
+export interface DisposalRequest {
+  assetId: number;
+  date: string;
+  kind: DisposalKind;
+  proceeds: Cents;
+  /** Teil der Anschaffungskosten, der abgeht. Leer = alles. Nur bei Finanzanlagen. */
+  costShare?: Cents;
+  /** Derselbe Teilabgang in Stück. Hat Vorrang vor costShare. */
+  quantity?: Units;
+  taxTreatment?: TaxTreatment;
+  taxRate?: TaxRate;
+  settlement: Settlement;
+  paymentAccount?: string;
+  contactId?: number;
+  note?: string;
+}
+
+export interface DisposalPreview {
+  catchUpAmount: Cents;
+  /** Im Abgangsjahr noch offene Sonderabschreibung, mit demselben Beleg nachgeholt. */
+  specialCatchUp: Cents;
+  catchUpLines?: JournalLine[];
+  partial: boolean;
+  costShare: Cents;
+  /** Abgehende Stückzahl und der Bestand danach. */
+  quantityShare?: Units;
+  unitsRemaining?: Units;
+  depreciationShare: Cents;
+  bookValue: Cents;
+  /** Buchgewinn positiv, Buchverlust negativ. */
+  result: Cents;
+  isGain: boolean;
+  accounts: DisposalAccounts;
+  lines: JournalLine[];
+  gross: Cents;
+  tax: Cents;
+  /** Steuerliche Nebenrechnung eines Investmentanteils — sie ändert die Buchung nicht. */
+  investment?: InvestmentTaxNote;
+  warnings?: string[];
+}
+
+/** Die Teilfreistellung eines Fonds für einen Anleger (§ 20 InvStG). */
+export interface PartialExemption {
+  /** Steuerfreier Anteil in Promille: 800 sind 80 %. */
+  permille: number;
+  determined: boolean;
+  source: string;
+  explanation: string;
+}
+
+/** Was das InvStG neben der Buchung aus einem Betrag macht. */
+export interface InvestmentTaxNote {
+  fundClass: FundClass;
+  fundClassLabel: string;
+  exemption: PartialExemption;
+  /** Steht, wenn sich kein Satz bestimmen lässt — und sagt warum. */
+  exemptionError?: string;
+  grossAmount: Cents;
+  vorabpauschalen: Cents;
+  exemptAmount: Cents;
+  taxableAmount: Cents;
+  explanation: string;
+}
+
+/** Die Vorabpauschale eines Kalenderjahres (§ 18 InvStG), mit jedem Schritt. */
+export interface Vorabpauschale {
+  year: number;
+  basisReturn: Cents;
+  growth: Cents;
+  capped: boolean;
+  distributions: Cents;
+  monthsCounted: number;
+  amount: Cents;
+  accruedOn: string;
+  explanation: string;
+}
+
+export interface InvestmentRules {
+  fundClasses: { class: FundClass; label: string }[];
+  investorTypes: { type: InvestorType; label: string }[];
+  investorType: InvestorType;
+  investorLabel: string;
+  /** Woher die Anlegerstellung kommt: aus der Rechtsform oder aus einer Festlegung. */
+  investorReason: string;
+  legalForm: string;
+  exemptions: {
+    class: FundClass;
+    label: string;
+    permille: number;
+    source?: string;
+    explanation?: string;
+    problem?: string;
+  }[];
+}
+
+export interface DisposalResult {
+  catchUpEntry?: JournalEntry;
+  disposalEntry?: JournalEntry;
+  asset: FixedAsset;
+  message: string;
+}
+
+/** Was der Devisenkassamittelkurs eines Stichtags für eine Finanzanlage bedeutet. */
+export interface CurrencyValuation {
+  currency: string;
+  foreignAmount: Cents;
+  /** Anschaffungskurs, abgeleitet aus Fremdbetrag und Euro-Anschaffungskosten. */
+  acquisitionRate: number;
+  ratePerEuro: number;
+  valueAtRate: Cents;
+  bookValue: Cents;
+  /** Greift § 256a Satz 2 HGB — Restlaufzeit höchstens ein Jahr, kein Deckel nach oben? */
+  shortTerm: boolean;
+  /** Unterschied zum Buchwert: negativ, wo der Kurs gefallen ist. */
+  difference: Cents;
+  /** Was daraus folgt — und mit welchem Betrag er tatsächlich gebucht werden dürfte. */
+  proposal: 'impairment' | 'write_up' | 'none';
+  proposedAmount: Cents;
+  explanation: string;
+}
+
+export interface AcquisitionCandidate {
+  entryId: number;
+  entryNumber: string;
+  bookingDate: string;
+  description: string;
+  account: string;
+  accountName: string;
+  amount: Cents;
+  contactId?: number;
+}
+
+export interface AnlagenspiegelRow {
+  class: AssetClass;
+  account: string;
+  accountName: string;
+  assetCount: number;
+  costOpening: Cents;
+  additions: Cents;
+  disposals: Cents;
+  transfers: Cents;
+  costClosing: Cents;
+  depreciationOpening: Cents;
+  depreciationYear: Cents;
+  writeUpsYear: Cents;
+  depreciationDisposal: Cents;
+  depreciationTransfer: Cents;
+  depreciationClosing: Cents;
+  bookValueOpening: Cents;
+  bookValueClosing: Cents;
+}
+
+export interface Anlagenspiegel {
+  fiscalYear: number;
+  rows: AnlagenspiegelRow[];
+  totals: AnlagenspiegelRow;
+  classTotals: AnlagenspiegelRow[];
 }
