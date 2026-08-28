@@ -31,6 +31,77 @@ type CompanySettings struct {
 	SKR                  string `json:"skr"`          // "SKR04"
 	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
 	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
+	// InvestorType entscheidet über die Teilfreistellung nach § 20 InvStG.
+	//
+	// Es ist bewusst eine eigene Angabe und keine Ableitung aus der Rechtsform:
+	// aus „GmbH & Co. KG" folgt nichts. Die Gesellschaft ist keine
+	// Körperschaft, ihre Gesellschafter können Körperschaften sein oder
+	// natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den
+	// Satz nach dem Gesellschafter. Auch eine Kapitalgesellschaft trägt nicht
+	// immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit
+	// Handelsbestand und für Pensionsfonds nimmt § 20 Abs. 1 Sätze 4 und 5 die
+	// erhöhten Sätze ausdrücklich zurück. Wer das aus einem Freitextfeld rät,
+	// rechnet still falsch.
+	InvestorType InvestorType `json:"investorType"`
+}
+
+// InvestorType ist die Anlegerstellung, an der § 20 InvStG die Höhe der
+// Teilfreistellung festmacht.
+type InvestorType string
+
+const (
+	// InvestorUnknown heißt: nicht festgelegt. Buchfink rechnet dann keine
+	// Teilfreistellung, sondern sagt, was zu entscheiden ist.
+	InvestorUnknown InvestorType = ""
+	// InvestorBasic sind die Grundsätze des § 20 Abs. 1 Satz 1 und Abs. 2
+	// InvStG: 30 % bei Aktienfonds, die Hälfte bei Mischfonds. Das trifft
+	// Anteile im Privatvermögen und die Fälle, in denen § 20 Abs. 1 Sätze 4
+	// und 5 die erhöhten Sätze zurücknehmen.
+	InvestorBasic InvestorType = "basic"
+	// InvestorIndividualBusiness ist die natürliche Person, die ihre Anteile im
+	// Betriebsvermögen hält (§ 20 Abs. 1 Satz 2): 60 % bzw. 30 %.
+	InvestorIndividualBusiness InvestorType = "individual_business"
+	// InvestorCorporate ist der Anleger, der dem Körperschaftsteuergesetz
+	// unterliegt (§ 20 Abs. 1 Satz 3): 80 % bzw. 40 %.
+	InvestorCorporate InvestorType = "corporate"
+	// InvestorMixed ist die Personengesellschaft mit Gesellschaftern
+	// unterschiedlicher Besteuerung. § 20 Abs. 3a InvStG bestimmt den Satz nach
+	// dem Gesellschafter; ein einziger Prozentsatz kann das nicht ausdrücken,
+	// und Buchfink weist die Erträge dann ungekürzt aus.
+	InvestorMixed InvestorType = "mixed"
+)
+
+// Label renders the investor type for the UI.
+func (t InvestorType) Label() string {
+	switch t {
+	case InvestorBasic:
+		return "Grundsatz (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)"
+	case InvestorIndividualBusiness:
+		return "Natürliche Person, Anteile im Betriebsvermögen"
+	case InvestorCorporate:
+		return "Anleger unterliegt dem Körperschaftsteuergesetz"
+	case InvestorMixed:
+		return "Personengesellschaft mit gemischt besteuerten Gesellschaftern"
+	default:
+		return "Nicht festgelegt"
+	}
+}
+
+// Valid reports whether the investor type is one of the known ones.
+func (t InvestorType) Valid() bool {
+	switch t {
+	case InvestorBasic, InvestorIndividualBusiness, InvestorCorporate, InvestorMixed:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllInvestorTypes returns the choices in the order the mask offers them.
+func AllInvestorTypes() []InvestorType {
+	return []InvestorType{
+		InvestorCorporate, InvestorIndividualBusiness, InvestorBasic, InvestorMixed,
+	}
 }
 
 // GetFiscalYearForDate computes the fiscal year for a given date (YYYY-MM-DD)

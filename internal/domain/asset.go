@@ -163,7 +163,28 @@ type DisposalKind string
 const (
 	DisposalSale     DisposalKind = "sale"
 	DisposalScrapped DisposalKind = "scrapped"
+	// DisposalRepayment ist die Tilgung einer Ausleihung.
+	//
+	// Sie sieht aus wie ein Verkauf und ist keiner: es wird nichts veräußert,
+	// sondern zurückgezahlt, was ausgeliehen wurde. Zum Nennwert getilgt
+	// entsteht deshalb weder Erlös noch Buchgewinn — nur Geld gegen Forderung.
+	// Über ein Erlöskonto gebucht stünde in der GuV ein Umsatz, den es nie gab.
+	DisposalRepayment DisposalKind = "repayment"
 )
+
+// Label renders the disposal kind for the UI.
+func (k DisposalKind) Label() string {
+	switch k {
+	case DisposalSale:
+		return "Verkauf"
+	case DisposalScrapped:
+		return "Verschrottung"
+	case DisposalRepayment:
+		return "Tilgung"
+	default:
+		return string(k)
+	}
+}
 
 // AssetMovementKind names every event that changes the value of an Anlagegut.
 //
@@ -212,6 +233,15 @@ const (
 	// Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB) und damit eine andere
 	// Bewegungsart. Die Abgrenzung ist eine Einschätzung, keine Rechnung.
 	AssetMovementMaintenance AssetMovementKind = "maintenance"
+	// AssetMovementVorabpauschale ist die Vorabpauschale eines Kalenderjahres
+	// (§ 18 InvStG).
+	//
+	// Sie ändert weder Anschaffungskosten noch Abschreibungen: handelsrechtlich
+	// geschieht nichts, es fließt kein Geld, und gebucht wird nichts. Sie steht
+	// trotzdem in der Kartei, weil sie versteuert wird — und weil sie beim
+	// Abgang wieder abzuziehen ist, was ohne ihre Fortschreibung niemand mehr
+	// rekonstruieren könnte.
+	AssetMovementVorabpauschale AssetMovementKind = "vorabpauschale"
 	// AssetMovementIncome ist ein laufender Ertrag aus einer Finanzanlage —
 	// Dividende, Ausschüttung, Zins. Auch er ändert den Buchwert nicht; er
 	// verbindet nur die Ertragsbuchung mit dem Anteil, aus dem sie stammt.
@@ -246,6 +276,8 @@ func (k AssetMovementKind) Label() string {
 		return "Erhaltungsaufwand"
 	case AssetMovementIncome:
 		return "Laufender Ertrag"
+	case AssetMovementVorabpauschale:
+		return "Vorabpauschale (§ 18 InvStG)"
 	case AssetMovementImpairment:
 		return "Außerplanmäßige Abschreibung"
 	case AssetMovementWriteUp:
@@ -301,6 +333,14 @@ type AssetMovement struct {
 	// side keeps the id.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
+
+	// TaxAmount trägt einen Betrag, der nur steuerlich zählt.
+	//
+	// Die Vorabpauschale ist der Fall, für den es das Feld gibt: sie wird
+	// versteuert, ohne dass in der Bilanz etwas geschieht. In CostAmount oder
+	// DepreciationAmount gehört sie deshalb nicht — dort verschöbe sie den
+	// Buchwert und den Anlagenspiegel.
+	TaxAmount Cents `gorm:"default:0" json:"taxAmount,omitempty"`
 
 	// Quantity ist die Stückzahl, die diese Bewegung bewegt: positiv beim Zugang,
 	// negativ beim Abgang. Sie steht an der Bewegung und nicht nur am Anlagegut,
@@ -436,6 +476,22 @@ type FixedAsset struct {
 	Currency    string `gorm:"size:3" json:"currency,omitempty"`
 	ForeignCost Cents  `gorm:"default:0" json:"foreignCost,omitempty"`
 
+	// FundClass ist die Fondsart eines Investmentanteils (§ 2 InvStG). Leer
+	// heißt: kein Investmentanteil, sondern ein Einzeltitel.
+	//
+	// Sie steht hier, weil sie über die Teilfreistellung entscheidet — und die
+	// ist keine Eigenschaft des Depots, sondern des einzelnen Fonds.
+	FundClass string `gorm:"size:20" json:"fundClass,omitempty"`
+
+	// MaturityDate ist der Tag, an dem eine Ausleihung fällig wird.
+	//
+	// Bei einem Darlehen ist er keine Zierde: er entscheidet über die Bewertung.
+	// § 256a Satz 2 HGB nimmt Posten mit einer Restlaufzeit von einem Jahr oder
+	// weniger vom Anschaffungskostenprinzip aus — dort schlägt ein gestiegener
+	// Kurs also voll durch, während er bei einer Beteiligung ohne Fälligkeit
+	// gedeckelt bleibt. Leer heißt: keine feste Laufzeit.
+	MaturityDate string `gorm:"size:10;index" json:"maturityDate,omitempty"`
+
 	// TaxPrivileged marks an Anteil an einer Kapitalgesellschaft, dessen
 	// Veräußerungsgewinn dem Teileinkünfteverfahren (§ 3 Nr. 40 EStG) bzw.
 	// § 8b Abs. 2 KStG unterliegt. Der SKR04 hat dafür eigene Abgangskonten;
@@ -462,19 +518,23 @@ type FixedAsset struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 
 	Movements []AssetMovement `gorm:"foreignKey:AssetID;constraint:OnDelete:CASCADE" json:"movements,omitempty"`
+	Documents []AssetDocument `gorm:"foreignKey:AssetID;constraint:OnDelete:CASCADE" json:"documents,omitempty"`
 
 	// --- Abgeleitete Werte, nicht gespeichert -------------------------------
 
-	AccountName string      `gorm:"-" json:"accountName,omitempty"`
-	Cost        Cents       `gorm:"-" json:"cost"`                 // AHK zum Stichtag
-	Accumulated Cents       `gorm:"-" json:"accumulated"`          // kumulierte Abschreibungen
-	BookValue   Cents       `gorm:"-" json:"bookValue"`            // Buchwert zum Stichtag
-	YearAmount  Cents       `gorm:"-" json:"yearAmount"`           // im Geschäftsjahr gebuchte AfA
-	DueAmount   Cents       `gorm:"-" json:"dueAmount"`            // im Geschäftsjahr noch fällige AfA
-	SpecialDue  Cents       `gorm:"-" json:"specialDue"`           // im Geschäftsjahr noch fällige Sonderabschreibung
-	UnitsHeld   Units       `gorm:"-" json:"unitsHeld,omitempty"`  // gehaltene Stückzahl nach allen Bewegungen
-	Status      AssetStatus `gorm:"-" json:"status"`               // abgeleitet, nie gespeichert
-	StatusNote  string      `gorm:"-" json:"statusNote,omitempty"` // ein Satz zum Status
+	AccountName string `gorm:"-" json:"accountName,omitempty"`
+	Cost        Cents  `gorm:"-" json:"cost"`                // AHK zum Stichtag
+	Accumulated Cents  `gorm:"-" json:"accumulated"`         // kumulierte Abschreibungen
+	BookValue   Cents  `gorm:"-" json:"bookValue"`           // Buchwert zum Stichtag
+	YearAmount  Cents  `gorm:"-" json:"yearAmount"`          // im Geschäftsjahr gebuchte AfA
+	DueAmount   Cents  `gorm:"-" json:"dueAmount"`           // im Geschäftsjahr noch fällige AfA
+	SpecialDue  Cents  `gorm:"-" json:"specialDue"`          // im Geschäftsjahr noch fällige Sonderabschreibung
+	UnitsHeld   Units  `gorm:"-" json:"unitsHeld,omitempty"` // gehaltene Stückzahl nach allen Bewegungen
+	// Vorabpauschalen ist die Summe der angesetzten Vorabpauschalen über die
+	// bisherige Besitzzeit. Beim Abgang wird sie abgezogen.
+	Vorabpauschalen Cents       `gorm:"-" json:"vorabpauschalen,omitempty"`
+	Status          AssetStatus `gorm:"-" json:"status"`               // abgeleitet, nie gespeichert
+	StatusNote      string      `gorm:"-" json:"statusNote,omitempty"` // ein Satz zum Status
 }
 
 // IsDisposed reports whether the asset has left the books.
@@ -569,6 +629,23 @@ func (a *FixedAsset) validateSecurityFields() error {
 		return fmt.Errorf(
 			"eine Stückzahl wird nur bei Finanzanlagen geführt. Sach- und immaterielle Anlagen " +
 				"gehen ganz ab oder gar nicht")
+	}
+	if a.FundClass != "" && a.Class != AssetClassFinancial {
+		return fmt.Errorf(
+			"eine Fondsart wird nur bei Finanzanlagen geführt: ein Investmentanteil ist ein " +
+				"Wertpapier, keine Maschine")
+	}
+	if a.MaturityDate != "" {
+		if len(a.MaturityDate) != 10 {
+			return fmt.Errorf("die Fälligkeit ist unvollständig (erwartet JJJJ-MM-TT)")
+		}
+		if a.Class != AssetClassFinancial {
+			return fmt.Errorf("eine Fälligkeit wird nur bei Finanzanlagen geführt")
+		}
+		if a.MaturityDate < a.AcquisitionDate {
+			return fmt.Errorf("die Fälligkeit am %s läge vor dem Zugang am %s",
+				a.MaturityDate, a.AcquisitionDate)
+		}
 	}
 	if a.Currency == "" {
 		if a.ForeignCost != 0 {
@@ -673,6 +750,13 @@ type AssetRepository interface {
 	AddMovement(ctx context.Context, movement *AssetMovement) error
 	DeleteMovement(ctx context.Context, id uint) error
 	FindMovements(ctx context.Context, assetID uint) ([]AssetMovement, error)
+	AddDocument(ctx context.Context, document *AssetDocument) error
+	FindDocument(ctx context.Context, id uint) (*AssetDocument, error)
+	DeleteDocument(ctx context.Context, id uint) error
+	// CountDocumentsBySHA reports how many documents share one file. Zwei
+	// Anlagegüter dürfen sich einen Rahmenvertrag teilen; gelöscht werden darf
+	// die Datei erst, wenn das letzte davon geht.
+	CountDocumentsBySHA(ctx context.Context, sha256 string) (int64, error)
 	// LinkedEntryIDs returns the journal entries the Anlagenkartei already points
 	// at — the Zugangsbuchungen. It is what keeps the "noch nicht erfasst" list
 	// of acquisition candidates honest.

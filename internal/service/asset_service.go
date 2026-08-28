@@ -10,6 +10,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 )
 
 // AssetService is the Anlagenbuchhaltung: the Anlagenverzeichnis, the AfA and
@@ -30,7 +31,11 @@ type AssetService struct {
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
 	taxResolver  domain.TaxResolver
-	fiscalYear   int
+	// docStore hält die Dokumente am Anlagegut — Verträge, Gutachten,
+	// Zulassungen. Er ist derselbe inhaltsadressierte Speicher wie für die
+	// Belege, aber ein anderer Zweig darin; siehe asset_document_service.go.
+	docStore   *receiptstore.Store
+	fiscalYear int
 }
 
 // NewAssetService wires the Anlagenbuchhaltung.
@@ -239,7 +244,11 @@ type DisposalPreview struct {
 	Lines             []domain.JournalLine        `json:"lines"`
 	Gross             domain.Cents                `json:"gross"`
 	Tax               domain.Cents                `json:"tax"`
-	Warnings          []string                    `json:"warnings,omitempty"`
+	// Investment ist die steuerliche Nebenrechnung eines Investmentanteils —
+	// Teilfreistellung und abzuziehende Vorabpauschalen. Sie steht neben der
+	// Buchung und ändert an ihr nichts.
+	Investment *InvestmentTaxNote `json:"investment,omitempty"`
+	Warnings   []string           `json:"warnings,omitempty"`
 }
 
 // DisposalResult reports the bookings an Abgang produced.
@@ -477,6 +486,20 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 		}
 	}
 
+	if fund := accounting.FundClass(asset.FundClass); fund.IsFund() {
+		notes = append(notes, fmt.Sprintf(
+			"%s. In der Bilanz steht der Anteil wie jedes andere Wertpapier des Anlagevermögens; "+
+				"steuerlich legt das Investmentsteuergesetz zwei Rechnungen daneben, die in keiner "+
+				"Buchung auftauchen: die Teilfreistellung nach § 20 InvStG und die Vorabpauschale "+
+				"nach § 18 InvStG.", fund.Label()))
+		if asset.Vorabpauschalen > 0 {
+			notes = append(notes, fmt.Sprintf(
+				"Über die Besitzzeit sind %s € an Vorabpauschalen angesetzt. Sie mindern den "+
+					"steuerpflichtigen Gewinn beim Abgang — sie wurden bereits versteuert.",
+				asset.Vorabpauschalen))
+		}
+	}
+
 	if asset.SpecialPermille > 0 {
 		notes = append(notes, fmt.Sprintf(
 			"Sonderabschreibung nach § 7g Abs. 5 EStG: %s %% der Anschaffungskosten, verteilt auf "+
@@ -551,6 +574,9 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	asset.Name = strings.TrimSpace(asset.Name)
 	if asset.Method == "" {
 		asset.Method = domain.DepreciationLinear
+	}
+	if asset.FundClass != "" && !accounting.FundClass(asset.FundClass).Valid() {
+		return nil, fmt.Errorf("unbekannte Fondsart %q", asset.FundClass)
 	}
 	if asset.SpecialPermille > 0 && asset.SpecialAccount == "" {
 		// Das Aufwandskonto folgt aus dem Anlagekonto und ist keine Wahl: der
@@ -1532,6 +1558,17 @@ func (s *AssetService) BookAssetIncome(ctx context.Context, req AssetIncomeReque
 	return created, nil
 }
 
+// InvestmentNoteForIncome is the steuerliche Nebenrechnung zu einer
+// Ausschüttung: die Teilfreistellung gilt für sie ebenso wie für den
+// Veräußerungsgewinn (§ 20 Abs. 1 InvStG spricht von „den Erträgen").
+func (s *AssetService) InvestmentNoteForIncome(ctx context.Context, assetID uint, amount domain.Cents) (*InvestmentTaxNote, error) {
+	asset, err := s.assetRepo.FindByID(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", assetID, err)
+	}
+	return s.investmentNote(ctx, asset, amount, false), nil
+}
+
 // settlement closes an entry against a Zahlungsmittelkonto or the partner's
 // Personenkonto, with the partner type the direction demands.
 func (s *AssetService) settlement(
@@ -1703,6 +1740,110 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 // Fremdwährung (§ 256a HGB)
 // -------------------------------------------------------------------------
 
+// BookCurrencyValuation writes the Umrechnungsdifferenz of a Stichtag.
+//
+// Sie läuft über eigene Konten und nicht über die der außerplanmäßigen
+// Abschreibung und der Zuschreibung: der SKR04 führt Aufwand und Ertrag aus der
+// Währungsumrechnung getrennt (6880 und 4840), und er unterscheidet dort sogar
+// die Fälle des § 256a HGB von den übrigen. Auf 7200 gebucht sähe ein
+// Kursverlust aus wie eine Wertminderung des Papiers selbst — und die Frage,
+// wie viel von einem Ergebnis am Kurs lag, wäre nicht mehr zu beantworten.
+func (s *AssetService) BookCurrencyValuation(ctx context.Context, req CurrencyValuationRequest) (*domain.JournalEntry, error) {
+	valuation, err := s.ValuateCurrency(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if valuation.ProposedAmount <= 0 {
+		return nil, fmt.Errorf("zum Kurs des Stichtags ist nichts zu buchen: %s", valuation.Explanation)
+	}
+	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	startMonth := s.fiscalYearStartMonth(ctx)
+	fiscalYear := domain.GetFiscalYearForDate(req.Date, startMonth)
+
+	reason := fmt.Sprintf(
+		"Umrechnung von %s %s zum Devisenkassamittelkurs %s am %s (§ 256a HGB)",
+		asset.ForeignCost, asset.Currency, rateLabel(req.RatePerEuro), req.Date)
+
+	var lines []domain.JournalLine
+	movement := &domain.AssetMovement{
+		AssetID: asset.ID, Account: asset.Account,
+		Date: req.Date, FiscalYear: fiscalYear, Note: reason,
+	}
+	if valuation.Proposal == "impairment" {
+		lines = []domain.JournalLine{
+			{Side: domain.SideDebit, Account: accounting.CurrencyLossAccount,
+				Amount: valuation.ProposedAmount, Text: asset.InventoryNumber},
+			{Side: domain.SideCredit, Account: asset.Account,
+				Amount: valuation.ProposedAmount, Text: asset.InventoryNumber},
+		}
+		movement.Kind = domain.AssetMovementImpairment
+		movement.DepreciationAmount = valuation.ProposedAmount
+	} else {
+		lines = []domain.JournalLine{
+			{Side: domain.SideDebit, Account: asset.Account,
+				Amount: valuation.ProposedAmount, Text: asset.InventoryNumber},
+			{Side: domain.SideCredit, Account: accounting.CurrencyGainAccount,
+				Amount: valuation.ProposedAmount, Text: asset.InventoryNumber},
+		}
+		movement.Kind = domain.AssetMovementWriteUp
+		movement.DepreciationAmount = -valuation.ProposedAmount
+	}
+
+	entry := &domain.JournalEntry{
+		BookingDate:        req.Date,
+		DocumentDate:       req.Date,
+		ServiceDateFrom:    req.Date,
+		ServiceDateTo:      req.Date,
+		Description:        fmt.Sprintf("Währungsumrechnung %s: %s", asset.Name, reason),
+		Source:             domain.EntrySourceClosing,
+		DocumentNumber:     asset.InventoryNumber,
+		TaxTreatment:       domain.TaxTreatmentNotTaxable,
+		PostingRuleVersion: accounting.PostingRuleVersion,
+		Lines:              lines,
+	}
+	created, err := s.journalSvc.Post(ctx, entry)
+	if err != nil {
+		return nil, err
+	}
+	movement.JournalEntryID = &created.ID
+	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
+		return created, fmt.Errorf(
+			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
+			created.EntryNumber, err)
+	}
+	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Währungsumrechnung %s: %s €", asset.InventoryNumber, valuation.ProposedAmount))
+	return created, nil
+}
+
+// rateLabel renders a Devisenkurs with four decimals, as the Bundesbank
+// publishes it.
+func rateLabel(rate int64) string {
+	whole := rate / RateScale
+	frac := (rate % RateScale) / 100
+	return fmt.Sprintf("%d,%04d", whole, frac)
+}
+
+// shortTermAt reports whether a maturity is a year or less away from a day.
+//
+// Es ist die eine Bedingung, an der § 256a Satz 2 HGB hängt — und der einzige
+// Grund, warum die Fälligkeit am Anlagegut steht: ohne sie wäre jeder
+// Fremdwährungsposten nach oben gedeckelt, auch das Darlehen, das in drei
+// Monaten zurückfließt.
+func shortTermAt(maturity, at string) bool {
+	if len(maturity) != 10 || len(at) != 10 {
+		return false
+	}
+	day, err := time.Parse("2006-01-02", at)
+	if err != nil {
+		return false
+	}
+	return maturity <= day.AddDate(1, 0, 0).Format("2006-01-02")
+}
+
 // RateScale ist der Skalierungsfaktor der Devisenkurse: ein Kurs wird als
 // Fremdwährungseinheiten je Euro mal einer Million geführt.
 //
@@ -1726,6 +1867,11 @@ type CurrencyValuationRequest struct {
 type CurrencyValuation struct {
 	Currency      string       `json:"currency"`
 	ForeignAmount domain.Cents `json:"foreignAmount"`
+	// ShortTerm sagt, ob § 256a Satz 2 HGB greift: bei einer Restlaufzeit von
+	// einem Jahr oder weniger sind § 253 Abs. 1 Satz 1 und § 252 Abs. 1 Nr. 4
+	// Halbsatz 2 HGB nicht anzuwenden — dort schlägt ein gestiegener Kurs also
+	// voll durch, statt an den Anschaffungskosten zu enden.
+	ShortTerm bool `json:"shortTerm"`
 	// AcquisitionRate ist der Kurs, zu dem angeschafft wurde. Er steht nicht in
 	// den Stammdaten, sondern folgt aus Fremdbetrag und Euro-Anschaffungskosten:
 	// zwei Zahlen, die ohnehin gebucht sind, und ein Feld weniger, das jemand
@@ -1790,6 +1936,7 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 	}
 	out.ValueAtRate = domain.MulRound(asset.ForeignCost, RateScale, req.RatePerEuro)
 	out.Difference = out.ValueAtRate - out.BookValue
+	out.ShortTerm = shortTermAt(asset.MaturityDate, req.Date)
 
 	switch {
 	case out.Difference < 0:
@@ -1807,6 +1954,22 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 			ceiling = 0
 		}
 		out.ProposedAmount = out.Difference
+		if out.ShortTerm {
+			// § 256a Satz 2 HGB: bei einer Restlaufzeit von einem Jahr oder
+			// weniger gilt weder das Anschaffungskostenprinzip noch das
+			// Realisationsprinzip. Der Kursgewinn ist auszuweisen, obwohl er
+			// nicht realisiert ist — bei einer Ausleihung, die in Monaten
+			// zurückfließt, ist er das eben doch fast.
+			out.Proposal = "write_up"
+			out.Explanation = fmt.Sprintf(
+				"Der Kurs ist gestiegen: %s %s sind zum Stichtag %s € wert. %s wird am %s fällig, die "+
+					"Restlaufzeit beträgt höchstens ein Jahr — § 256a Satz 2 HGB nimmt den Posten damit "+
+					"vom Anschaffungskostenprinzip aus, der Kursgewinn von %s € ist in voller Höhe "+
+					"auszuweisen.",
+				asset.ForeignCost, asset.Currency, out.ValueAtRate, asset.InventoryNumber,
+				asset.MaturityDate, out.ProposedAmount)
+			break
+		}
 		if out.ProposedAmount > ceiling {
 			out.ProposedAmount = ceiling
 		}
@@ -1880,8 +2043,18 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	// 2. Restbuchwert ausbuchen und den Erlös erfassen.
 	if len(disposalLines) > 0 {
 		description := fmt.Sprintf("Abgang %s (%s)", asset.Name, asset.InventoryNumber)
-		if req.Kind == domain.DisposalScrapped {
+		switch req.Kind {
+		case domain.DisposalScrapped:
 			description = fmt.Sprintf("Verschrottung %s (%s)", asset.Name, asset.InventoryNumber)
+		case domain.DisposalRepayment:
+			description = fmt.Sprintf("Tilgung %s (%s)", asset.Name, asset.InventoryNumber)
+		}
+		treatment := req.TaxTreatment
+		if req.Kind == domain.DisposalRepayment {
+			// Eine Rückzahlung ist kein Leistungsaustausch: sie ist nicht
+			// steuerbar, nicht bloß steuerfrei. Der Unterschied steht in der
+			// Voranmeldung an verschiedenen Stellen.
+			treatment = domain.TaxTreatmentNotTaxable
 		}
 		entry := &domain.JournalEntry{
 			BookingDate:        req.Date,
@@ -1891,7 +2064,7 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 			Description:        description,
 			Source:             domain.EntrySourceManual,
 			DocumentNumber:     asset.InventoryNumber,
-			TaxTreatment:       req.TaxTreatment,
+			TaxTreatment:       treatment,
 			PostingRuleVersion: accounting.PostingRuleVersion,
 			Lines:              disposalLines,
 		}
@@ -1975,7 +2148,12 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	}
 	result.Asset = *reloaded
 	label := "Abgang"
-	if preview.Partial {
+	switch {
+	case req.Kind == domain.DisposalRepayment && preview.Partial:
+		label = "Teiltilgung"
+	case req.Kind == domain.DisposalRepayment:
+		label = "Tilgung"
+	case preview.Partial:
 		label = "Teilabgang"
 	}
 	switch {
@@ -2015,6 +2193,18 @@ func (s *AssetService) buildDisposal(
 	}
 	if req.Kind == domain.DisposalScrapped && req.Proceeds != 0 {
 		return nil, nil, nil, fmt.Errorf("eine Verschrottung hat keinen Erlös")
+	}
+	if req.Kind == domain.DisposalRepayment {
+		if asset.Class != domain.AssetClassFinancial {
+			return nil, nil, nil, fmt.Errorf(
+				"getilgt wird eine Ausleihung. %s ist keine Finanzanlage — es geht ab oder es bleibt",
+				asset.InventoryNumber)
+		}
+		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok && entry.Group != "Ausleihungen" {
+			return nil, nil, nil, fmt.Errorf(
+				"%s (%s) trägt keine Ausleihung. Eine Beteiligung und ein Wertpapier werden verkauft, "+
+					"nicht getilgt", asset.Account, entry.Name)
+		}
 	}
 	if asset.Method == domain.DepreciationPool {
 		return nil, nil, nil, fmt.Errorf(
@@ -2164,6 +2354,10 @@ func (s *AssetService) buildDisposal(
 
 	var lines []domain.JournalLine
 
+	if req.Kind == domain.DisposalRepayment {
+		return s.buildRepayment(ctx, asset, req, preview, catchUpLines)
+	}
+
 	// Erlös mit Umsatzsteuer.
 	if req.Proceeds > 0 {
 		rate := req.TaxRate
@@ -2211,6 +2405,73 @@ func (s *AssetService) buildDisposal(
 		preview.Warnings = append(preview.Warnings,
 			"Der Buchwert ist null und es fließt kein Erlös: zu buchen gibt es nichts. Das Anlagegut "+
 				"wird nur im Verzeichnis als abgegangen vermerkt.")
+	}
+	preview.Investment = s.investmentNote(ctx, asset, preview.Result, true)
+	preview.Lines = s.named(ctx, lines)
+	return preview, catchUpLines, lines, nil
+}
+
+// buildRepayment is the Tilgung einer Ausleihung.
+//
+// Sie ist der Grund, warum der Abgang nicht eine Buchung mit einem Schalter ist:
+// zurückgezahlt wird, was ausgeliehen wurde, und zum Nennwert entsteht dabei
+// weder Erlös noch Buchgewinn. Die Buchung ist Geld an Ausleihung, sonst
+// nichts. Ein Erlöskonto wäre hier nicht nur überflüssig, es stellte einen
+// Umsatz in die GuV, den es nie gab — und in die Umsatzsteuer-Voranmeldung eine
+// Bemessungsgrundlage, die niemand erklären könnte.
+//
+// Weicht der zurückgezahlte Betrag vom Buchwert ab — ein Teilausfall, ein Agio,
+// eine über pari getilgte Anleihe —, ist die Differenz sehr wohl ein Ergebnis
+// und läuft auf dieselben Konten wie beim Verkauf.
+func (s *AssetService) buildRepayment(
+	ctx context.Context, asset *domain.FixedAsset, req DisposalRequest,
+	preview *DisposalPreview, catchUpLines []domain.JournalLine,
+) (*DisposalPreview, []domain.JournalLine, []domain.JournalLine, error) {
+	settlement, err := s.disposalSettlementLine(ctx, req, req.Proceeds)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	preview.Gross = req.Proceeds
+	preview.Tax = 0
+
+	// Aus den Büchern geht der Buchwert des getilgten Teils; was der Schuldner
+	// darüber oder darunter zahlt, ist das Ergebnis. Eine Teiltilgung wird über
+	// den Anteil der Anschaffungskosten angegeben — dieselbe Rechnung wie beim
+	// Teilabgang.
+	lines := []domain.JournalLine{settlement}
+	if preview.BookValue > 0 {
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideCredit, Account: asset.Account, Amount: preview.BookValue,
+			Text: "Tilgung " + asset.InventoryNumber,
+		})
+	}
+	switch {
+	case preview.Result > 0:
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideCredit, Account: preview.Accounts.Revenue, Amount: preview.Result,
+			Text: "Mehrerlös über den Buchwert " + asset.InventoryNumber,
+		})
+		preview.Accounts.Explanation = "Zurückgezahlt wurde mehr als der Buchwert. Die Tilgung " +
+			"selbst ist kein Umsatz — sie bucht Geld gegen die Ausleihung; nur der Unterschied " +
+			"zum Buchwert ist ein Ertrag."
+	case preview.Result < 0:
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideDebit, Account: preview.Accounts.BookValue, Amount: -preview.Result,
+			Text: "Ausfall " + asset.InventoryNumber,
+		})
+		preview.Accounts.Explanation = "Zurückgezahlt wurde weniger als der Buchwert. Die Tilgung " +
+			"selbst ist kein Umsatz; der Ausfall läuft über die sonstigen betrieblichen " +
+			"Aufwendungen."
+	default:
+		preview.Accounts.Revenue = ""
+		preview.Accounts.Explanation = "Zum Buchwert getilgt: Geld gegen Ausleihung, kein Erlös " +
+			"und kein Ergebnis. Ein Erlöskonto stellte hier einen Umsatz in die GuV, den es nie gab."
+	}
+
+	if len(lines) <= 1 {
+		preview.Warnings = append(preview.Warnings,
+			"Es fließt nichts zurück und der Buchwert ist null: zu buchen gibt es nichts.")
+		lines = nil
 	}
 	preview.Lines = s.named(ctx, lines)
 	return preview, catchUpLines, lines, nil
@@ -2321,7 +2582,8 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 				case domain.AssetMovementDepreciation, domain.AssetMovementSpecialDepreciation,
 					domain.AssetMovementImpairment:
 					row.DepreciationYear += m.DepreciationAmount
-				case domain.AssetMovementMaintenance, domain.AssetMovementIncome:
+				case domain.AssetMovementMaintenance, domain.AssetMovementIncome,
+					domain.AssetMovementVorabpauschale:
 					// Erhaltungsaufwand und laufende Erträge gehören zum Anlagegut,
 					// aber nicht in den Anlagenspiegel: sie ändern weder die
 					// Anschaffungskosten noch die kumulierten Abschreibungen.
@@ -2471,6 +2733,7 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 		asset.Cost += m.CostAmount
 		asset.Accumulated += m.DepreciationAmount
 		asset.UnitsHeld += m.Quantity
+		asset.Vorabpauschalen += m.TaxAmount
 		if m.FiscalYear != fiscalYear {
 			continue
 		}

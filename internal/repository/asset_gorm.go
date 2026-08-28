@@ -26,6 +26,9 @@ func (r *assetRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
 		Preload("Movements", func(db *gorm.DB) *gorm.DB {
 			return db.Order("asset_movements.date asc, asset_movements.id asc")
 		}).
+		Preload("Documents", func(db *gorm.DB) *gorm.DB {
+			return db.Order("asset_documents.document_date desc, asset_documents.id desc")
+		}).
 		Order("inventory_number asc")
 }
 
@@ -142,6 +145,34 @@ func (r *assetRepositoryGorm) FindByAcquisitionEntry(ctx context.Context, entryI
 		return nil, err
 	}
 	return &asset, nil
+}
+
+// AddDocument stores a document of an Anlagegut.
+func (r *assetRepositoryGorm) AddDocument(ctx context.Context, document *domain.AssetDocument) error {
+	return r.db.WithContext(ctx).Save(document).Error
+}
+
+// FindDocument returns one document.
+func (r *assetRepositoryGorm) FindDocument(ctx context.Context, id uint) (*domain.AssetDocument, error) {
+	var document domain.AssetDocument
+	if err := r.db.WithContext(ctx).First(&document, id).Error; err != nil {
+		return nil, err
+	}
+	return &document, nil
+}
+
+// DeleteDocument removes the record. Die Datei auf der Platte räumt der Dienst
+// ab, und nur, wenn kein anderes Dokument mehr auf sie zeigt.
+func (r *assetRepositoryGorm) DeleteDocument(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&domain.AssetDocument{}, id).Error
+}
+
+// CountDocumentsBySHA reports how many documents share one file.
+func (r *assetRepositoryGorm) CountDocumentsBySHA(ctx context.Context, sha256 string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.AssetDocument{}).
+		Where("sha256 = ?", sha256).Count(&count).Error
+	return count, err
 }
 
 func (r *assetRepositoryGorm) Count(ctx context.Context) (int64, error) {

@@ -232,6 +232,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// (§ 255 Abs. 1 Satz 3 HGB). Damit der Zahlungsflow das erkennen kann,
 	// braucht er die Kartei — mehr von ihr nicht.
 	b.paymentSvc.SetAssetRegister(b.assetSvc)
+	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
+	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
+	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	// Die E-Bilanz braucht den Anlagenspiegel als Kontennachweis: die Bilanz
 	// zeigt einen Buchwert, und erst er zeigt, woraus er entstanden ist.

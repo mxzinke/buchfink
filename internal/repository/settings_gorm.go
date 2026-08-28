@@ -87,6 +87,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.VatPeriod = it.Value
 		case "taxation_type":
 			settings.TaxationType = it.Value
+		case "investor_type":
+			settings.InvestorType = domain.InvestorType(it.Value)
 		}
 	}
 
@@ -127,6 +129,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"country":                 s.Country,
 		"vat_period":              vatPeriod,
 		"taxation_type":           taxationType,
+		// Leer bleibt leer: „nicht festgelegt" ist eine Antwort, und sie durch
+		// eine Voreinstellung zu ersetzen hieße, die Teilfreistellung zu raten.
+		"investor_type": string(s.InvestorType),
 	}
 
 	for k, v := range kv {

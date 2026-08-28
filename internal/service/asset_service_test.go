@@ -2,10 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -1733,5 +1738,420 @@ func TestSkontoOnAnOrdinaryInvoiceIsUnchanged(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ohne Anlagenbezug gehört das Skonto weiter auf 5736: %+v", entry.Lines)
+	}
+}
+
+// Ein Vertrag zum Anlagegut ist kein Beleg: er trägt keine Belegnummer, gehört
+// zu keinem Geschäftsjahr und wird nicht gebucht. Abgelegt wird er trotzdem auf
+// demselben Weg — inhaltsadressiert und dedupliziert.
+func TestAssetDocumentsAreKeptAlongsideTheAsset(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
+	ctx := context.Background()
+	asset := env.machine(t, svc)
+
+	path := filepath.Join(t.TempDir(), "kaufvertrag.pdf")
+	if err := os.WriteFile(path, []byte("%PDF-1.4 Kaufvertrag Fräsmaschine"), 0o600); err != nil {
+		t.Fatalf("Testdatei: %v", err)
+	}
+
+	updated, err := svc.AttachDocument(ctx, AttachDocumentRequest{
+		AssetID: asset.ID, Kind: domain.AssetDocContract, Path: path,
+		Title: "Kaufvertrag Maschinenbau Muster", DocumentDate: "2026-01-08",
+	})
+	if err != nil {
+		t.Fatalf("Dokument ablegen: %v", err)
+	}
+	if len(updated.Documents) != 1 {
+		t.Fatalf("erwartet ein Dokument, bekommen %d", len(updated.Documents))
+	}
+	document := updated.Documents[0]
+	if document.Kind != domain.AssetDocContract || document.MimeType != "application/pdf" {
+		t.Errorf("Dokument %+v — erwartet einen Vertrag als PDF", document)
+	}
+	if document.DisplayTitle() != "Kaufvertrag Maschinenbau Muster" {
+		t.Errorf("Titel %q", document.DisplayTitle())
+	}
+
+	content, err := svc.DocumentContent(ctx, document.ID)
+	if err != nil {
+		t.Fatalf("Inhalt lesen: %v", err)
+	}
+	if !content.Intact {
+		t.Error("die abgelegte Datei stimmt nicht mehr mit ihrer Prüfsumme überein")
+	}
+	if string(content.Data) != "%PDF-1.4 Kaufvertrag Fräsmaschine" {
+		t.Errorf("Inhalt %q — erwartet die abgelegte Datei", string(content.Data))
+	}
+
+	after, err := svc.RemoveDocument(ctx, asset.ID, document.ID)
+	if err != nil {
+		t.Fatalf("Dokument entfernen: %v", err)
+	}
+	if len(after.Documents) != 0 {
+		t.Errorf("nach dem Entfernen bleiben %d Dokumente", len(after.Documents))
+	}
+	if _, err := svc.DocumentContent(ctx, document.ID); err == nil {
+		t.Error("ein entferntes Dokument darf nicht mehr lesbar sein")
+	}
+}
+
+// Ein Ablaufdatum, das niemand wieder liest, ist keine Angabe. Die Kartei
+// beantwortet deshalb, was bis zu einem Stichtag ausläuft.
+func TestExpiringDocumentsAreFound(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
+	ctx := context.Background()
+	asset := env.machine(t, svc)
+
+	dir := t.TempDir()
+	for i, c := range []struct {
+		name       string
+		validUntil string
+	}{
+		{"police.pdf", "2026-12-31"},
+		{"wartung.pdf", "2028-06-30"},
+	} {
+		path := filepath.Join(dir, c.name)
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("%%PDF-1.4 Dokument %d", i)), 0o600); err != nil {
+			t.Fatalf("Testdatei: %v", err)
+		}
+		if _, err := svc.AttachDocument(ctx, AttachDocumentRequest{
+			AssetID: asset.ID, Kind: domain.AssetDocInsurance, Path: path, ValidUntil: c.validUntil,
+		}); err != nil {
+			t.Fatalf("Dokument ablegen: %v", err)
+		}
+	}
+
+	due, err := svc.ExpiringDocuments(ctx, "2026-12-31")
+	if err != nil {
+		t.Fatalf("Fristen: %v", err)
+	}
+	if len(due) != 1 || due[0].ValidUntil != "2026-12-31" {
+		t.Fatalf("erwartet genau die zum 31.12.2026 auslaufende Police, bekommen %+v", due)
+	}
+	if due[0].InventoryNumber != asset.InventoryNumber {
+		t.Errorf("die Frist zeigt auf %q statt auf %q", due[0].InventoryNumber, asset.InventoryNumber)
+	}
+}
+
+// Eine Tilgung ist kein Verkauf. Zum Buchwert zurückgezahlt entsteht weder
+// Erlös noch Buchgewinn — nur Geld gegen Ausleihung. Ein Erlöskonto stellte
+// hier einen Umsatz in die GuV, den es nie gab.
+func TestRepaymentBooksWithoutRevenue(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Darlehen an Werftgrund GmbH", Class: domain.AssetClassFinancial,
+		Account: "0940", AcquisitionDate: "2024-03-01", AcquisitionCost: 5_000_000,
+		Method: domain.DepreciationNone, MaturityDate: "2027-03-01",
+	})
+	if err != nil {
+		t.Fatalf("Darlehen: %v", err)
+	}
+
+	// Teiltilgung über 20.000,00 € zum Buchwert.
+	req := DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalRepayment,
+		CostShare: 2_000_000, Proceeds: 2_000_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	}
+	preview, err := svc.PreviewDisposal(ctx, req)
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.Result != 0 || preview.Accounts.Revenue != "" {
+		t.Errorf("zum Buchwert getilgt: Ergebnis %s €, Erlöskonto %q — erwartet null und keines",
+			preview.Result, preview.Accounts.Revenue)
+	}
+	if preview.Tax != 0 {
+		t.Errorf("eine Tilgung trägt keine Umsatzsteuer, hier %s €", preview.Tax)
+	}
+
+	result, err := svc.Dispose(ctx, req)
+	if err != nil {
+		t.Fatalf("Tilgung: %v", err)
+	}
+	lines := map[string]domain.Cents{}
+	for _, l := range result.DisposalEntry.Lines {
+		lines[string(l.Side)+":"+l.Account] += l.Amount
+	}
+	if len(lines) != 2 || lines["S:1800"] != 2_000_000 || lines["H:0940"] != 2_000_000 {
+		t.Errorf("Buchung %+v — erwartet allein 1800 an 0940 über 20.000,00 €", lines)
+	}
+	if result.DisposalEntry.TaxTreatment != domain.TaxTreatmentNotTaxable {
+		t.Errorf("Steuerfall %q — eine Rückzahlung ist kein Leistungsaustausch",
+			result.DisposalEntry.TaxTreatment)
+	}
+	if result.Asset.IsDisposed() {
+		t.Error("nach einer Teiltilgung bleibt das Darlehen im Bestand")
+	}
+	if result.Asset.Cost != 3_000_000 {
+		t.Errorf("Restvaluta %s € — erwartet 30.000,00 €", result.Asset.Cost)
+	}
+}
+
+// Getilgt wird eine Ausleihung. Eine Beteiligung wird verkauft.
+func TestRepaymentIsOnlyForLoans(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Beteiligung", Class: domain.AssetClassFinancial, Account: "0820",
+		AcquisitionDate: "2024-03-01", AcquisitionCost: 5_000_000, Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Beteiligung: %v", err)
+	}
+	_, err = svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalRepayment,
+		Proceeds: 5_000_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err == nil {
+		t.Fatal("eine Beteiligung wird nicht getilgt")
+	}
+}
+
+// § 256a Satz 2 HGB nimmt Posten mit einer Restlaufzeit von höchstens einem
+// Jahr vom Anschaffungskostenprinzip aus. Ein Darlehen, das in Monaten
+// zurückfließt, weist den Kursgewinn deshalb voll aus — eine Beteiligung ohne
+// Fälligkeit nicht.
+func TestShortMaturityLiftsTheAcquisitionCostCeiling(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	// 12.000 USD zu 1,20 USD/EUR sind 10.000,00 €.
+	loan, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Darlehen in USD", Class: domain.AssetClassFinancial, Account: "0940",
+		AcquisitionDate: "2025-01-15", AcquisitionCost: 10_000_00,
+		Method: domain.DepreciationNone, Currency: "USD", ForeignCost: 12_000_00,
+		MaturityDate: "2027-03-31",
+	})
+	if err != nil {
+		t.Fatalf("Darlehen: %v", err)
+	}
+
+	// Stichtag 31.12.2026: die Restlaufzeit beträgt drei Monate. Kurs 1,00
+	// macht aus 12.000 USD 12.000,00 € — 2.000,00 € über den Anschaffungskosten.
+	up, err := svc.ValuateCurrency(ctx, CurrencyValuationRequest{
+		AssetID: loan.ID, Date: "2026-12-31", RatePerEuro: 1_000_000,
+	})
+	if err != nil {
+		t.Fatalf("Bewertung: %v", err)
+	}
+	if !up.ShortTerm {
+		t.Fatal("zum 31.12.2026 ist ein am 31.03.2027 fälliges Darlehen kurzfristig")
+	}
+	if up.Proposal != "write_up" || up.ProposedAmount != 2_000_00 {
+		t.Errorf("Vorschlag %q über %s € — § 256a Satz 2 HGB hebt hier die Obergrenze auf",
+			up.Proposal, up.ProposedAmount)
+	}
+
+	// Zwei Jahre vorher ist die Restlaufzeit länger als ein Jahr: dann greift
+	// das Anschaffungskostenprinzip wieder.
+	early, err := svc.ValuateCurrency(ctx, CurrencyValuationRequest{
+		AssetID: loan.ID, Date: "2025-12-31", RatePerEuro: 1_000_000,
+	})
+	if err != nil {
+		t.Fatalf("Bewertung: %v", err)
+	}
+	if early.ShortTerm || early.Proposal != "none" {
+		t.Errorf("zum 31.12.2025 ist die Restlaufzeit über ein Jahr: Vorschlag %q über %s €",
+			early.Proposal, early.ProposedAmount)
+	}
+}
+
+// Der Kursverlust läuft über die Konten der Währungsumrechnung, nicht über die
+// der außerplanmäßigen Abschreibung: sonst sähe er aus wie eine Wertminderung
+// des Papiers selbst.
+func TestCurrencyValuationBooksOnItsOwnAccounts(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "US-Anleihe", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 10_000_00,
+		Method: domain.DepreciationNone, Currency: "USD", ForeignCost: 12_000_00,
+	})
+	if err != nil {
+		t.Fatalf("Anleihe: %v", err)
+	}
+
+	entry, err := svc.BookCurrencyValuation(ctx, CurrencyValuationRequest{
+		AssetID: asset.ID, Date: "2026-12-31", RatePerEuro: 1_500_000,
+	})
+	if err != nil {
+		t.Fatalf("Währungsumrechnung: %v", err)
+	}
+	lines := map[string]domain.Cents{}
+	for _, l := range entry.Lines {
+		lines[string(l.Side)+":"+l.Account] += l.Amount
+	}
+	if lines["S:6880"] != 2_000_00 || lines["H:0920"] != 2_000_00 {
+		t.Errorf("Buchung %+v — erwartet 6880 an 0920 über 2.000,00 €", lines)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.BookValue != 8_000_00 {
+		t.Errorf("Buchwert %s € — erwartet 8.000,00 €", detail.Asset.BookValue)
+	}
+}
+
+// Ein ETF steht in der Bilanz wie jedes andere Wertpapier. Steuerlich legt das
+// InvStG zwei Rechnungen daneben: die Vorabpauschale wird über die Jahre
+// angesetzt, ohne dass etwas gebucht wird, und beim Abgang zusammen mit der
+// Teilfreistellung wieder abgezogen.
+func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Stammdaten: %v", err)
+	}
+	cfg.InvestorType = domain.InvestorCorporate
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Stammdaten speichern: %v", err)
+	}
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "MSCI-World-ETF", Class: domain.AssetClassFinancial, Account: "0900",
+		AcquisitionDate: "2025-01-02", AcquisitionCost: 10_000_000, Method: domain.DepreciationNone,
+		Identifier: "IE00B4L5Y983", FundClass: string(accounting.FundEquity),
+		Quantity: 1000 * domain.UnitScale,
+	})
+	if err != nil {
+		t.Fatalf("ETF: %v", err)
+	}
+
+	// Thesaurierend: 2025 entsteht eine Vorabpauschale.
+	result, err := svc.Vorabpauschale(ctx, VorabpauschaleRequest{
+		AssetID: asset.ID, Year: 2025, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000,
+		BasisPoints: 253, Record: true,
+	})
+	if err != nil {
+		t.Fatalf("Vorabpauschale: %v", err)
+	}
+	// Erwerb im Januar: keine Kürzung.
+	if result.Amount != 177_100 {
+		t.Errorf("Vorabpauschale %s € — erwartet 1.771,00 €", result.Amount)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.BookValue != 10_000_000 {
+		t.Errorf("Buchwert %s € — die Vorabpauschale wird nicht gebucht", detail.Asset.BookValue)
+	}
+	if detail.Asset.Vorabpauschalen != 177_100 {
+		t.Errorf("angesetzte Vorabpauschalen %s €", detail.Asset.Vorabpauschalen)
+	}
+
+	// Für dasselbe Jahr ein zweites Mal geht nicht.
+	if _, err := svc.Vorabpauschale(ctx, VorabpauschaleRequest{
+		AssetID: asset.ID, Year: 2025, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000,
+		BasisPoints: 253, Record: true,
+	}); err == nil {
+		t.Error("eine Vorabpauschale je Kalenderjahr, nicht zwei")
+	}
+
+	// Verkauf mit 20.000,00 € Buchgewinn.
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 12_000_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.Investment == nil {
+		t.Fatal("zu einem Investmentanteil gehört die steuerliche Nebenrechnung")
+	}
+	note := preview.Investment
+	if note.GrossAmount != 2_000_000 || note.Vorabpauschalen != 177_100 {
+		t.Fatalf("Buchgewinn %s €, Vorabpauschalen %s €", note.GrossAmount, note.Vorabpauschalen)
+	}
+	// 20.000,00 − 1.771,00 = 18.229,00 €; davon 80 % steuerfrei.
+	if note.Exemption.Permille != 800 {
+		t.Errorf("Teilfreistellung %d Promille — bei einem KSt-Anleger sind es 80 %%",
+			note.Exemption.Permille)
+	}
+	if note.ExemptAmount != 1_458_320 || note.TaxableAmount != 364_580 {
+		t.Errorf("steuerfrei %s €, steuerpflichtig %s € — erwartet 14.583,20 € und 3.645,80 €",
+			note.ExemptAmount, note.TaxableAmount)
+	}
+}
+
+// Ohne festgelegte Anlegerstellung rechnet Buchfink keine Teilfreistellung —
+// aus der Rechtsform folgt sie nicht.
+func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "MSCI-World-ETF", Class: domain.AssetClassFinancial, Account: "0900",
+		AcquisitionDate: "2025-01-02", AcquisitionCost: 10_000_000, Method: domain.DepreciationNone,
+		FundClass: string(accounting.FundEquity),
+	})
+	if err != nil {
+		t.Fatalf("ETF: %v", err)
+	}
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 12_000_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.Investment == nil || preview.Investment.ExemptionError == "" {
+		t.Fatal("ohne Anlegerstellung muss die Nebenrechnung sagen, was fehlt")
+	}
+	if preview.Investment.ExemptAmount != 0 || preview.Investment.TaxableAmount != 2_000_000 {
+		t.Errorf("steuerfrei %s €, steuerpflichtig %s € — erwartet null und den vollen Buchgewinn",
+			preview.Investment.ExemptAmount, preview.Investment.TaxableAmount)
+	}
+}
+
+// Für einen Einzeltitel gibt es weder Vorabpauschale noch Teilfreistellung.
+func TestSingleSecurityHasNoInvestmentNote(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anleihe", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2025-01-02", AcquisitionCost: 10_000_00, Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Anleihe: %v", err)
+	}
+	if _, err := svc.Vorabpauschale(ctx, VorabpauschaleRequest{
+		AssetID: asset.ID, Year: 2025, OpeningPrice: 10_000_00, ClosingPrice: 11_000_00,
+		BasisPoints: 253,
+	}); err == nil {
+		t.Error("eine Einzelanleihe trägt keine Vorabpauschale")
+	}
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Proceeds: 11_000_00, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.Investment != nil {
+		t.Error("zu einem Einzeltitel gehört keine investmentsteuerliche Nebenrechnung")
 	}
 }
