@@ -674,6 +674,10 @@ type AssetRepository interface {
 	// at — the Zugangsbuchungen. It is what keeps the "noch nicht erfasst" list
 	// of acquisition candidates honest.
 	LinkedEntryIDs(ctx context.Context) (map[uint]bool, error)
+	// FindByAcquisitionEntry returns the Anlagegut a booking is the Zugang of,
+	// or nil. Der Zahlungsflow fragt danach: ein Skonto auf eine Anlagenrechnung
+	// mindert die Anschaffungskosten und nicht den Aufwand.
+	FindByAcquisitionEntry(ctx context.Context, entryID uint) (*FixedAsset, error)
 	Count(ctx context.Context) (int64, error)
 }
 

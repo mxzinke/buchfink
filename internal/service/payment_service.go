@@ -43,6 +43,18 @@ type PaymentRequest struct {
 	Allocations    []AllocationRequest `json:"allocations"`
 }
 
+// AssetRegister is the little the Zahlungsflow needs to know about the
+// Anlagenbuchhaltung.
+//
+// Es ist bewusst eine Schnittstelle mit zwei Methoden und kein Verweis auf den
+// ganzen Dienst: der Zahlungsflow soll Anlagegüter nicht verwalten können,
+// sondern nur erkennen, dass eine Rechnung eine war — und die Minderung
+// weiterreichen, die daraus folgt.
+type AssetRegister interface {
+	AssetForEntry(ctx context.Context, entryID uint) (*domain.FixedAsset, error)
+	RecordCostAdjustment(ctx context.Context, req CostAdjustmentRequest) (*domain.FixedAsset, error)
+}
+
 // PaymentService settles open items and books the differences.
 type PaymentService struct {
 	journalSvc     *JournalService
@@ -50,7 +62,22 @@ type PaymentService struct {
 	allocationRepo domain.PaymentAllocationRepository
 	contactRepo    domain.ContactRepository
 	bankRepo       domain.BankRepository
+	assets         AssetRegister
 	fiscalYear     int
+}
+
+// SetAssetRegister couples the payment flow to the Anlagenkartei. Ohne sie
+// bucht ein Skonto wie bisher; das ist für jede Rechnung richtig, die keine
+// Anlagenrechnung ist.
+func (s *PaymentService) SetAssetRegister(register AssetRegister) { s.assets = register }
+
+// assetCostReduction is a Skonto that turned out to lower Anschaffungskosten
+// instead of an expense. Es wird erst nach der Buchung in die Kartei
+// geschrieben: vorher gibt es keine Buchungsnummer, an die es sich hängen ließe.
+type assetCostReduction struct {
+	assetID uint
+	amount  domain.Cents
+	note    string
 }
 
 // NewPaymentService creates the payment matching service.
@@ -216,6 +243,7 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 	var lines []domain.JournalLine
 	var totalCash domain.Cents
 	var contactID *uint
+	var reductions []assetCostReduction
 	allocations := make([]domain.PaymentAllocation, 0, len(req.Allocations))
 
 	for i, alloc := range req.Allocations {
@@ -252,11 +280,14 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 			contactID = &cid
 		}
 
-		diffLines, err := s.differenceLines(alloc, item)
+		diffLines, reduction, err := s.differenceLines(ctx, alloc, item)
 		if err != nil {
 			return nil, fmt.Errorf("Zuordnung %d: %w", i+1, err)
 		}
 		lines = append(lines, diffLines...)
+		if reduction != nil {
+			reductions = append(reductions, *reduction)
+		}
 
 		cash := alloc.cashAmount()
 		if cash < 0 {
@@ -328,17 +359,36 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		}
 	}
 
+	// Die Kartei erst jetzt fortschreiben: vorher gibt es die Buchung nicht, an
+	// die sich die Minderung hängen soll.
+	for _, reduction := range reductions {
+		entryID := created.ID
+		if _, err := s.assets.RecordCostAdjustment(ctx, CostAdjustmentRequest{
+			AssetID:        reduction.assetID,
+			Date:           req.PaymentDate,
+			Amount:         reduction.amount,
+			Reduction:      true,
+			Note:           reduction.note,
+			JournalEntryID: &entryID,
+		}); err != nil {
+			return created, fmt.Errorf(
+				"die Zahlung %s wurde gebucht, die Minderung der Anschaffungskosten aber nicht in das "+
+					"Anlagenverzeichnis übernommen: %w", created.EntryNumber, err)
+		}
+	}
+
 	return created, nil
 }
 
 // differenceLines books the difference between the settled amount and the cash
 // that moved.
 func (s *PaymentService) differenceLines(
+	ctx context.Context,
 	alloc AllocationRequest,
 	item domain.OpenItem,
-) ([]domain.JournalLine, error) {
+) ([]domain.JournalLine, *assetCostReduction, error) {
 	if alloc.DifferenceKind == domain.DifferenceNone {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// The difference sits on the side opposite the settlement, except for a bank
@@ -347,13 +397,13 @@ func (s *PaymentService) differenceLines(
 
 	switch alloc.DifferenceKind {
 	case domain.DifferenceSkonto:
-		return s.skontoLines(alloc, item, opposite)
+		return s.skontoLines(ctx, alloc, item, opposite)
 
 	case domain.DifferenceBankFee:
 		return []domain.JournalLine{{
 			Side: item.SettleSide(), Account: domain.AccountNebenkostenGeld,
 			Amount: alloc.DifferenceAmount, Text: "Bankgebühr",
-		}}, nil
+		}}, nil, nil
 
 	case domain.DifferenceRounding, domain.DifferenceCurrency:
 		text := "Rundungsdifferenz"
@@ -367,10 +417,10 @@ func (s *PaymentService) differenceLines(
 		}
 		return []domain.JournalLine{{
 			Side: opposite, Account: account, Amount: alloc.DifferenceAmount, Text: text,
-		}}, nil
+		}}, nil, nil
 	}
 
-	return nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
+	return nil, nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
 }
 
 // skontoLines books a Skonto as what it is in tax law: a change of the taxable
@@ -392,12 +442,13 @@ func (s *PaymentService) differenceLines(
 // landing on 1406, and it is why the correction follows the Steuerfall of the
 // original document instead of guessing from the rate.
 func (s *PaymentService) skontoLines(
+	ctx context.Context,
 	alloc AllocationRequest,
 	item domain.OpenItem,
 	opposite domain.Side,
-) ([]domain.JournalLine, error) {
+) ([]domain.JournalLine, *assetCostReduction, error) {
 	if item.TaxTreatment == "" {
-		return nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf wäre nach § 17 Abs. 1 UStG nicht sauber zu berichtigen",
 			item.DocumentNumber)
 	}
@@ -420,15 +471,37 @@ func (s *PaymentService) skontoLines(
 	// Berichtigung, auch wo im Skonto selbst keine Steuer steckt.
 	legs, err := s.journalSvc.TaxResolver().Resolve(direction, item.TaxTreatment, item.TaxRate, net)
 	if err != nil {
-		return nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
+		return nil, nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
 	}
+
+	// Auf eine Anlagenrechnung mindert das Skonto die Anschaffungskosten und
+	// nicht den Aufwand.
+	//
+	// § 255 Abs. 1 Satz 3 HGB zieht Anschaffungspreisminderungen von den
+	// Anschaffungskosten ab; auf 5736 gebucht wäre das Skonto ein Ertrag des
+	// Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das
+	// Wirtschaftsgut nie gekostet hat. Die Steuerkorrektur nach § 17 Abs. 1 UStG
+	// bleibt davon unberührt: sie hängt am Umsatz, nicht daran, was mit dem
+	// Entgelt im Anlagevermögen geschieht.
 	account, err := domain.SkontoAccount(direction, skontoRate)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	text := "Skonto"
+	var reduction *assetCostReduction
+	if asset := s.assetForItem(ctx, item, direction); asset != nil {
+		account = asset.Account
+		text = "Skonto: Minderung der Anschaffungskosten " + asset.InventoryNumber
+		reduction = &assetCostReduction{
+			assetID: asset.ID,
+			amount:  net,
+			note: fmt.Sprintf("Skonto auf %s: Minderung der Anschaffungskosten "+
+				"(§ 255 Abs. 1 Satz 3 HGB)", item.DocumentNumber),
+		}
 	}
 
 	lines := []domain.JournalLine{
-		{Side: opposite, Account: account, Amount: net, Text: "Skonto"},
+		{Side: opposite, Account: account, Amount: net, Text: text},
 	}
 	for _, leg := range legs {
 		if leg.Amount == 0 {
@@ -442,7 +515,27 @@ func (s *PaymentService) skontoLines(
 		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
 		lines = append(lines, line)
 	}
-	return lines, nil
+	return lines, reduction, nil
+}
+
+// assetForItem reports whether an open item is the invoice of an Anlagegut.
+//
+// Nur auf der Eingangsseite: ein Skonto, das wir gewähren, mindert unseren
+// Erlös und nicht die Anschaffungskosten von irgendetwas. Und nur, wenn nichts
+// dazwischenkommt — ist die Kartei nicht angeschlossen oder die Abfrage
+// gescheitert, bleibt es beim gewöhnlichen Skonto statt bei einem Abbruch der
+// Zahlung.
+func (s *PaymentService) assetForItem(
+	ctx context.Context, item domain.OpenItem, direction domain.Direction,
+) *domain.FixedAsset {
+	if s.assets == nil || direction != domain.DirectionIncoming {
+		return nil
+	}
+	asset, err := s.assets.AssetForEntry(ctx, item.EntryID)
+	if err != nil || asset == nil || asset.IsDisposed() {
+		return nil
+	}
+	return asset
 }
 
 // ledgerLine returns the Personenkonto line of an entry, which is the one that

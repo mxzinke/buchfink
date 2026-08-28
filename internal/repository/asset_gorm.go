@@ -124,6 +124,26 @@ func (r *assetRepositoryGorm) LinkedEntryIDs(ctx context.Context) (map[uint]bool
 	return linked, nil
 }
 
+// FindByAcquisitionEntry returns the Anlagegut a booking is the Zugang of.
+//
+// Der Zahlungsflow fragt danach, bevor er ein Skonto bucht: auf eine
+// Anlagenrechnung mindert es die Anschaffungskosten und nicht den Aufwand
+// (§ 255 Abs. 1 Satz 3 HGB). Ohne Treffer bleibt es beim gewöhnlichen Skonto.
+func (r *assetRepositoryGorm) FindByAcquisitionEntry(ctx context.Context, entryID uint) (*domain.FixedAsset, error) {
+	if entryID == 0 {
+		return nil, nil
+	}
+	var asset domain.FixedAsset
+	err := r.preloaded(ctx).Where("acquisition_entry_id = ?", entryID).First(&asset).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
 func (r *assetRepositoryGorm) Count(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&domain.FixedAsset{}).Count(&count).Error

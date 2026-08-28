@@ -666,6 +666,14 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	return s.reload(ctx, asset.ID)
 }
 
+// AssetForEntry returns the Anlagegut a booking is the Zugang of, oder nichts.
+//
+// Der Zahlungsflow fragt darüber an — es ist die einzige Stelle, an der er die
+// Anlagenbuchhaltung überhaupt kennt.
+func (s *AssetService) AssetForEntry(ctx context.Context, entryID uint) (*domain.FixedAsset, error) {
+	return s.assetRepo.FindByAcquisitionEntry(ctx, entryID)
+}
+
 // CostAdjustmentRequest records nachträgliche Anschaffungskosten or an
 // Anschaffungspreisminderung.
 type CostAdjustmentRequest struct {

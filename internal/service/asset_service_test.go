@@ -1606,3 +1606,132 @@ func TestForeignCurrencyNeedsItsAmount(t *testing.T) {
 		t.Fatal("ohne Fremdwährungsbetrag darf keine Währung gespeichert werden")
 	}
 }
+
+// Ein Skonto auf eine Anlagenrechnung mindert die Anschaffungskosten und nicht
+// den Aufwand (§ 255 Abs. 1 Satz 3 HGB). Auf 5736 gebucht wäre es ein Ertrag des
+// Zahlungsjahres, und die AfA liefe weiter von einem Wert, den die Maschine nie
+// gekostet hat. Die Steuerkorrektur nach § 17 Abs. 1 UStG bleibt davon unberührt.
+func TestSkontoOnAnAssetInvoiceLowersTheAcquisitionCost(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	payments := env.payments(t)
+	payments.SetAssetRegister(svc)
+	ctx := context.Background()
+
+	vendor := env.vendor(t, "Maschinenbau Muster", "DE", "")
+	invoice, err := env.journal.Post(ctx, &domain.JournalEntry{
+		BookingDate: "2026-03-01", DocumentDate: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		Description: "Fräsmaschine", Source: domain.EntrySourceManual,
+		DocumentNumber: "ER-2026-0001", TaxTreatment: domain.TaxTreatmentDomestic,
+		ContactID: &vendor.ID,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: "0440", Amount: 1_000_000},
+			{Side: domain.SideDebit, Account: domain.AccountVorsteuer19, Amount: 190_000,
+				TaxKey: "VST19", TaxBase: 1_000_000},
+			{Side: domain.SideCredit, Account: vendor.LedgerAccount, ContactID: &vendor.ID, Amount: 1_190_000},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Eingangsrechnung: %v", err)
+	}
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Fräsmaschine", Class: domain.AssetClassTangible,
+		Account: "0440", DepreciationAccount: "6220",
+		AcquisitionDate: "2026-03-01", AcquisitionCost: 1_000_000,
+		UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
+		AcquisitionEntryID: &invoice.ID,
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+
+	// 2 % Skonto auf 11.900,00 € brutto sind 238,00 € (200,00 netto + 38,00 Steuer).
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2026-03-10",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  invoice.ID,
+			SettledAmount:    1_190_000,
+			DifferenceKind:   domain.DifferenceSkonto,
+			DifferenceAmount: 23_800,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung mit Skonto: %v", err)
+	}
+
+	lines := map[string]domain.Cents{}
+	for _, l := range entry.Lines {
+		lines[string(l.Side)+":"+l.Account] += l.Amount
+	}
+	if lines["H:0440"] != 20_000 {
+		t.Errorf("Buchung %+v — das Skonto gehört mit 200,00 € im Haben auf das Anlagekonto 0440", lines)
+	}
+	if lines["H:5736"] != 0 {
+		t.Errorf("auf 5736 stehen %s € — auf einer Anlagenrechnung gehört das Skonto dort nicht hin",
+			lines["H:5736"])
+	}
+	if lines["H:"+domain.AccountVorsteuer19] != 3_800 {
+		t.Errorf("Vorsteuerkorrektur %+v — § 17 Abs. 1 UStG verlangt sie unverändert", lines)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.Cost != 980_000 {
+		t.Errorf("Anschaffungskosten %s € — erwartet 9.800,00 € nach dem Skonto", detail.Asset.Cost)
+	}
+	var linked bool
+	for _, m := range detail.Movements {
+		if m.Kind == domain.AssetMovementCostReduction {
+			linked = m.JournalEntryID != nil && *m.JournalEntryID == entry.ID
+		}
+	}
+	if !linked {
+		t.Error("die Minderung ist nicht mit der Zahlungsbuchung verknüpft")
+	}
+
+	// Und der Plan rechnet ab jetzt von der geminderten Bemessungsgrundlage.
+	if detail.Schedule[0].Amount != 204_167 {
+		t.Errorf("AfA 2026 %s € — erwartet 2.041,67 € (9.800,00 € über 48 Monate, zehn Monate)",
+			detail.Schedule[0].Amount)
+	}
+}
+
+// Auf jeder anderen Rechnung bleibt das Skonto, was es war: ein Ertrag auf 5736
+// mit Vorsteuerkorrektur.
+func TestSkontoOnAnOrdinaryInvoiceIsUnchanged(t *testing.T) {
+	env := newTestEnv(t)
+	payments := env.payments(t)
+	payments.SetAssetRegister(env.assets(t))
+	ctx := context.Background()
+
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	invoice := env.openPayable(t, vendor.ID, 100_000, domain.TaxRateStandard)
+
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank,
+		PaymentDate:    "2026-03-05",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  invoice.ID,
+			SettledAmount:    119_000,
+			DifferenceKind:   domain.DifferenceSkonto,
+			DifferenceAmount: 2_380,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung mit Skonto: %v", err)
+	}
+	var found bool
+	for _, l := range entry.Lines {
+		if l.Account == "5736" && l.Side == domain.SideCredit && l.Amount == 2_000 {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("ohne Anlagenbezug gehört das Skonto weiter auf 5736: %+v", entry.Lines)
+	}
+}

@@ -228,6 +228,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.assetRepo, b.journalRepo, b.journalSvc, b.numberRepo,
 		b.contactRepo, b.settingsRepo, b.auditRepo, fiscalYear,
 	)
+	// Ein Skonto auf eine Anlagenrechnung mindert die Anschaffungskosten
+	// (§ 255 Abs. 1 Satz 3 HGB). Damit der Zahlungsflow das erkennen kann,
+	// braucht er die Kartei — mehr von ihr nicht.
+	b.paymentSvc.SetAssetRegister(b.assetSvc)
 	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
