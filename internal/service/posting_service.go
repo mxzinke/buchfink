@@ -538,6 +538,14 @@ func taxLegLine(leg domain.TaxLeg) domain.JournalLine {
 // net plus input tax, a Reverse-Charge purchase settles at net, because there
 // the input tax leg is cancelled out by the output tax leg.
 func (s *PostingService) settlementLine(content []domain.JournalLine, kind SettlementKind, paymentAccount string, contact *domain.Contact) (domain.JournalLine, error) {
+	return settlementLineFor(content, kind, paymentAccount, contact)
+}
+
+// settlementLineFor is the same computation without a service around it. Die
+// Anlagenbuchhaltung bucht Erhaltungsaufwand und laufende Erträge nach derselben
+// Regel; eine zweite Fassung davon wäre die, die beim nächsten Steuerfall
+// vergessen wird.
+func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymentAccount string, contact *domain.Contact) (domain.JournalLine, error) {
 	var debit, credit domain.Cents
 	for _, l := range content {
 		if l.Side == domain.SideDebit {

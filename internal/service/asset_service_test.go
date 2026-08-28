@@ -1294,3 +1294,315 @@ func TestBookedSpecialDepreciationCannotBeRedistributed(t *testing.T) {
 		t.Fatal("eine gebuchte Sonderabschreibung darf nicht nachträglich umverteilt werden")
 	}
 }
+
+// Erhaltungsaufwand gehört zum Anlagegut, ändert seinen Wert aber nicht. Genau
+// das unterscheidet ihn von den nachträglichen Herstellungskosten.
+func TestMaintenanceIsLinkedButDoesNotChangeTheBookValue(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	asset := env.machine(t, svc)
+	before := asset.BookValue
+
+	entry, err := svc.BookMaintenance(ctx, MaintenanceRequest{
+		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
+		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
+		Note: "Lagerschaden behoben, kein Mehrwert gegenüber dem ursprünglichen Zustand",
+	})
+	if err != nil {
+		t.Fatalf("Erhaltungsaufwand: %v", err)
+	}
+	lines := map[string]domain.Cents{}
+	for _, l := range entry.Lines {
+		lines[string(l.Side)+":"+l.Account] += l.Amount
+	}
+	// Eine Maschine: Reparaturen und Instandhaltung von technischen Anlagen.
+	if lines["S:6460"] != 90_000 {
+		t.Errorf("Aufwandskonto %+v — erwartet 6460 mit 900,00 €", lines)
+	}
+	if lines["H:1800"] != 107_100 {
+		t.Errorf("Zahlung %+v — erwartet 1.071,00 € brutto", lines)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.BookValue != before {
+		t.Errorf("Buchwert %s € — Erhaltungsaufwand darf ihn nicht ändern (vorher %s €)",
+			detail.Asset.BookValue, before)
+	}
+	var found bool
+	for _, m := range detail.Movements {
+		if m.Kind == domain.AssetMovementMaintenance {
+			found = true
+			if m.CostAmount != 0 || m.DepreciationAmount != 0 {
+				t.Errorf("die Bewegung trägt %s €/%s € — erwartet null in beiden Spalten",
+					m.CostAmount, m.DepreciationAmount)
+			}
+			if m.JournalEntryID == nil {
+				t.Error("die Bewegung ist mit keiner Buchung verknüpft")
+			}
+		}
+	}
+	if !found {
+		t.Error("der Erhaltungsaufwand taucht beim Anlagegut nicht auf")
+	}
+
+	spiegel, err := svc.Anlagenspiegel(ctx)
+	if err != nil {
+		t.Fatalf("Anlagenspiegel: %v", err)
+	}
+	if spiegel.Totals.Additions != 1_200_000 {
+		t.Errorf("Zugänge im Anlagenspiegel %s € — erwartet allein den Zugang von 12.000,00 €; "+
+			"Erhaltungsaufwand gehört dort nicht hinein", spiegel.Totals.Additions)
+	}
+}
+
+// Ohne festgehaltene Abgrenzung entsteht kein Erhaltungsaufwand: die
+// Unterscheidung zur Erweiterung ist eine Einschätzung, keine Rechnung.
+func TestMaintenanceNeedsItsReasoning(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	asset := env.machine(t, svc)
+
+	_, err := svc.BookMaintenance(context.Background(), MaintenanceRequest{
+		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err == nil {
+		t.Fatal("ohne Begründung darf der Erhaltungsaufwand nicht gebucht werden")
+	}
+}
+
+// Eine Dividende ist Ertrag des Jahres und kein Rückfluss der
+// Anschaffungskosten: der Buchwert der Beteiligung bleibt unberührt. Die
+// einbehaltene Kapitalertragsteuer mindert den Zufluss, nicht den Ertrag.
+func TestAssetIncomeKeepsTheBookValueAndSplitsTheWithholdingTax(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:            "Beteiligung Musterwerk GmbH",
+		Class:           domain.AssetClassFinancial,
+		Account:         "0820",
+		AcquisitionDate: "2026-02-01",
+		AcquisitionCost: 5_000_000,
+		Method:          domain.DepreciationNone,
+		HoldingPermille: 300,
+	})
+	if err != nil {
+		t.Fatalf("Beteiligung: %v", err)
+	}
+
+	entry, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: asset.ID, Date: "2026-07-01", Amount: 400_000, WithholdingTax: 100_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800", Note: "Gewinnausschüttung 2025",
+	})
+	if err != nil {
+		t.Fatalf("Ertrag: %v", err)
+	}
+	lines := map[string]domain.Cents{}
+	for _, l := range entry.Lines {
+		lines[string(l.Side)+":"+l.Account] += l.Amount
+	}
+	if lines["H:7000"] != 400_000 {
+		t.Errorf("Ertragskonto %+v — erwartet 7000 mit 4.000,00 €", lines)
+	}
+	if lines["S:7630"] != 100_000 {
+		t.Errorf("Kapitalertragsteuer %+v — erwartet 7630 mit 1.000,00 €", lines)
+	}
+	if lines["S:1800"] != 300_000 {
+		t.Errorf("Zufluss %+v — erwartet 3.000,00 € auf der Bank", lines)
+	}
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.BookValue != 5_000_000 {
+		t.Errorf("Buchwert %s € — ein Ertrag mindert die Anschaffungskosten nicht", detail.Asset.BookValue)
+	}
+}
+
+// Laufende Erträge werden für Sachanlagen nicht mit dem Anlagegut verknüpft —
+// dort gibt es sie in diesem Sinn nicht.
+func TestAssetIncomeIsOnlyForFinancialAssets(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	asset := env.machine(t, svc)
+
+	_, err := svc.BookAssetIncome(context.Background(), AssetIncomeRequest{
+		AssetID: asset.ID, Date: "2026-07-01", Amount: 10_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err == nil {
+		t.Fatal("für eine Maschine darf kein laufender Ertrag verknüpft werden")
+	}
+}
+
+// Wer eine Tranche verkauft, nennt Stücke und keinen Betrag. Buchfink rechnet
+// daraus den Anteil der Anschaffungskosten — und der Rest bleibt mit seiner
+// Stückzahl im Bestand.
+func TestPartialDisposalByQuantity(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:            "Anleihe Musterbank 2035",
+		Class:           domain.AssetClassFinancial,
+		Account:         "0920",
+		AcquisitionDate: "2026-01-15",
+		AcquisitionCost: 10_000_00, // 10.000,00 €
+		Method:          domain.DepreciationNone,
+		Identifier:      "DE000A1B2C3",
+		Quantity:        100 * domain.UnitScale,
+	})
+	if err != nil {
+		t.Fatalf("Wertpapier: %v", err)
+	}
+	if asset.UnitsHeld != 100*domain.UnitScale {
+		t.Fatalf("Bestand %s Stück — erwartet 100", asset.UnitsHeld)
+	}
+
+	req := DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Quantity: 40 * domain.UnitScale, Proceeds: 4_500_00,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	}
+	preview, err := svc.PreviewDisposal(ctx, req)
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if !preview.Partial {
+		t.Fatal("40 von 100 Stück sind ein Teilabgang")
+	}
+	if preview.CostShare != 4_000_00 {
+		t.Errorf("Anteil der Anschaffungskosten %s € — erwartet 4.000,00 €", preview.CostShare)
+	}
+	if preview.UnitsRemaining != 60*domain.UnitScale {
+		t.Errorf("Restbestand %s Stück — erwartet 60", preview.UnitsRemaining)
+	}
+
+	if _, err := svc.Dispose(ctx, req); err != nil {
+		t.Fatalf("Teilabgang: %v", err)
+	}
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Asset.IsDisposed() {
+		t.Error("nach einem Teilabgang bleibt das Wertpapier im Bestand")
+	}
+	if detail.Asset.UnitsHeld != 60*domain.UnitScale {
+		t.Errorf("Bestand %s Stück — erwartet 60", detail.Asset.UnitsHeld)
+	}
+	if detail.Asset.Cost != 6_000_00 {
+		t.Errorf("verbliebene Anschaffungskosten %s € — erwartet 6.000,00 €", detail.Asset.Cost)
+	}
+}
+
+// Mehr Stücke als im Bestand können nicht abgehen.
+func TestDisposalRefusesMoreUnitsThanHeld(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anleihe", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 10_000_00,
+		Method: domain.DepreciationNone, Quantity: 100 * domain.UnitScale,
+	})
+	if err != nil {
+		t.Fatalf("Wertpapier: %v", err)
+	}
+	_, err = svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,
+		Quantity: 140 * domain.UnitScale, Proceeds: 1, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err == nil {
+		t.Fatal("140 von 100 Stück dürfen nicht abgehen")
+	}
+}
+
+// § 256a HGB rechnet zum Devisenkassamittelkurs des Stichtags um — nach oben
+// aber nur bis zu den Anschaffungskosten (§ 253 Abs. 1 Satz 1 HGB).
+func TestCurrencyValuationProposesButNeverExceedsCost(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	// 12.000 USD zu 1,20 USD/EUR sind 10.000,00 €.
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "US-Staatsanleihe", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 10_000_00,
+		Method: domain.DepreciationNone, Currency: "USD", ForeignCost: 12_000_00,
+	})
+	if err != nil {
+		t.Fatalf("Wertpapier: %v", err)
+	}
+
+	// Der Dollar fällt: 1,50 USD/EUR machen aus 12.000 USD nur noch 8.000,00 €.
+	down, err := svc.ValuateCurrency(ctx, CurrencyValuationRequest{
+		AssetID: asset.ID, Date: "2026-12-31", RatePerEuro: 1_500_000,
+	})
+	if err != nil {
+		t.Fatalf("Bewertung: %v", err)
+	}
+	if down.Proposal != "impairment" || down.ProposedAmount != 2_000_00 {
+		t.Errorf("Vorschlag %q über %s € — erwartet eine Abschreibung von 2.000,00 €",
+			down.Proposal, down.ProposedAmount)
+	}
+	if down.AcquisitionRate != 1_200_000 {
+		t.Errorf("Anschaffungskurs %d — erwartet 1,20 USD/EUR", down.AcquisitionRate)
+	}
+
+	// Der Dollar steigt über den Anschaffungskurs: zuzuschreiben ist trotzdem
+	// nichts, solange nie abgeschrieben wurde.
+	up, err := svc.ValuateCurrency(ctx, CurrencyValuationRequest{
+		AssetID: asset.ID, Date: "2026-12-31", RatePerEuro: 1_000_000,
+	})
+	if err != nil {
+		t.Fatalf("Bewertung: %v", err)
+	}
+	if up.Proposal != "none" || up.ProposedAmount != 0 {
+		t.Errorf("Vorschlag %q über %s € — über die Anschaffungskosten hinaus darf nicht bewertet werden",
+			up.Proposal, up.ProposedAmount)
+	}
+
+	// Nach einer außerplanmäßigen Abschreibung ist wieder Luft nach oben.
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Amount: 2_000_00,
+		Reason: "Kursverfall des US-Dollars",
+	}); err != nil {
+		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
+	}
+	again, err := svc.ValuateCurrency(ctx, CurrencyValuationRequest{
+		AssetID: asset.ID, Date: "2026-12-31", RatePerEuro: 1_000_000,
+	})
+	if err != nil {
+		t.Fatalf("Bewertung: %v", err)
+	}
+	if again.Proposal != "write_up" || again.ProposedAmount != 2_000_00 {
+		t.Errorf("Vorschlag %q über %s € — erwartet eine Zuschreibung von 2.000,00 € bis zu den "+
+			"Anschaffungskosten", again.Proposal, again.ProposedAmount)
+	}
+}
+
+// Eine Fremdwährung ohne den Betrag in dieser Währung ergibt keinen Kurs — und
+// ohne Kurs ist am Stichtag nichts zu rechnen.
+func TestForeignCurrencyNeedsItsAmount(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+
+	_, err := svc.Save(context.Background(), &domain.FixedAsset{
+		Name: "US-Staatsanleihe", Class: domain.AssetClassFinancial, Account: "0920",
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 10_000_00,
+		Method: domain.DepreciationNone, Currency: "USD",
+	})
+	if err == nil {
+		t.Fatal("ohne Fremdwährungsbetrag darf keine Währung gespeichert werden")
+	}
+}

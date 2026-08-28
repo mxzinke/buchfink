@@ -7,6 +7,37 @@ import (
 	"time"
 )
 
+// Units is a quantity of securities in ten-thousandths of a unit.
+//
+// Stück sind nicht immer ganze Stück: Fondsanteile werden in Bruchteilen
+// gehalten, und eine Tranche von 3,4567 Anteilen ist keine Ausnahme. Aus
+// demselben Grund wie bei den Beträgen ist es eine ganze Zahl und keine
+// Fließkommazahl — sonst driftete die Summe der Zu- und Abgänge vom Bestand ab.
+type Units int64
+
+// UnitScale is how many stored units make one Stück.
+const UnitScale = 10000
+
+// String formats a quantity in German notation, ohne überflüssige Nullen:
+// "12" für zwölf ganze Stück, "3,4567" für einen Bruchteil.
+func (u Units) String() string {
+	neg := u < 0
+	v := int64(u)
+	if neg {
+		v = -v
+	}
+	whole, frac := v/UnitScale, v%UnitScale
+	out := groupThousands(whole)
+	if frac != 0 {
+		digits := strings.TrimRight(fmt.Sprintf("%04d", frac), "0")
+		out += "," + digits
+	}
+	if neg {
+		return "-" + out
+	}
+	return out
+}
+
 // AssetClass separates the three blocks the Anlagevermögen is shown in
 // (§ 266 Abs. 2 A HGB). It is not cosmetic: each block follows different
 // valuation rules, and every account the Anlagenverzeichnis proposes hangs off
@@ -271,6 +302,12 @@ type AssetMovement struct {
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
 
+	// Quantity ist die Stückzahl, die diese Bewegung bewegt: positiv beim Zugang,
+	// negativ beim Abgang. Sie steht an der Bewegung und nicht nur am Anlagegut,
+	// weil sich der gehaltene Bestand sonst nach einem Teilabgang nicht mehr
+	// ergäbe.
+	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
+
 	// LifeExtensionMonths verlängert die Restnutzungsdauer ab dem Jahr dieser
 	// Bewegung.
 	//
@@ -378,6 +415,27 @@ type FixedAsset struct {
 	// entscheidet also mit darüber, ob der Anteil unter "Beteiligungen" oder
 	// unter "Wertpapiere des Anlagevermögens" auszuweisen ist.
 	HoldingPermille int `gorm:"default:0" json:"holdingPermille,omitempty"`
+	// Quantity ist die Stückzahl des Zugangs — Anteile, Stücke, Nominale.
+	//
+	// Sie ist bei Wertpapieren die natürliche Größe: verkauft wird eine Tranche
+	// von 50 Stück, nicht ein Betrag. Aus ihr rechnet Buchfink den Anteil der
+	// Anschaffungskosten, der mit hinausgeht. Null heißt: dieses Anlagegut wird
+	// nicht in Stück geführt, ein Teilabgang wird dann als Betrag angegeben.
+	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
+
+	// Currency ist die Währung, in der das Papier notiert (ISO 4217). Leer heißt
+	// Euro. ForeignCost sind die Anschaffungskosten in dieser Währung.
+	//
+	// Beides zusammen ergibt den Anschaffungskurs, und den braucht die
+	// Stichtagsbewertung nach § 256a HGB: umgerechnet wird zum
+	// Devisenkassamittelkurs des Abschlussstichtags. Für eine Finanzanlage
+	// begrenzt das Anschaffungskostenprinzip das Ergebnis nach oben
+	// (§ 253 Abs. 1 Satz 1 HGB) — die Ausnahme des § 256a Satz 2 für eine
+	// Restlaufzeit von höchstens einem Jahr passt auf ein Anlagegut nicht, das
+	// dauernd dem Geschäftsbetrieb dienen soll.
+	Currency    string `gorm:"size:3" json:"currency,omitempty"`
+	ForeignCost Cents  `gorm:"default:0" json:"foreignCost,omitempty"`
+
 	// TaxPrivileged marks an Anteil an einer Kapitalgesellschaft, dessen
 	// Veräußerungsgewinn dem Teileinkünfteverfahren (§ 3 Nr. 40 EStG) bzw.
 	// § 8b Abs. 2 KStG unterliegt. Der SKR04 hat dafür eigene Abgangskonten;
@@ -414,6 +472,7 @@ type FixedAsset struct {
 	YearAmount  Cents       `gorm:"-" json:"yearAmount"`           // im Geschäftsjahr gebuchte AfA
 	DueAmount   Cents       `gorm:"-" json:"dueAmount"`            // im Geschäftsjahr noch fällige AfA
 	SpecialDue  Cents       `gorm:"-" json:"specialDue"`           // im Geschäftsjahr noch fällige Sonderabschreibung
+	UnitsHeld   Units       `gorm:"-" json:"unitsHeld,omitempty"`  // gehaltene Stückzahl nach allen Bewegungen
 	Status      AssetStatus `gorm:"-" json:"status"`               // abgeleitet, nie gespeichert
 	StatusNote  string      `gorm:"-" json:"statusNote,omitempty"` // ein Satz zum Status
 }
@@ -489,6 +548,50 @@ func (a *FixedAsset) Validate() error {
 	}
 	if err := a.validateSpecialDepreciation(); err != nil {
 		return err
+	}
+	if err := a.validateSecurityFields(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateSecurityFields holds what only a Finanzanlage may carry: eine
+// Stückzahl und eine Fremdwährung.
+//
+// Beides an einer Maschine wäre nicht falsch, sondern sinnlos — und eine
+// sinnlose Angabe wird später als bedeutsam gelesen. Ein halber Pkw geht nicht
+// ab, und ein Gebäude notiert nicht in Dollar.
+func (a *FixedAsset) validateSecurityFields() error {
+	if a.Quantity < 0 {
+		return fmt.Errorf("die Stückzahl kann nicht negativ sein")
+	}
+	if a.Quantity > 0 && a.Class != AssetClassFinancial {
+		return fmt.Errorf(
+			"eine Stückzahl wird nur bei Finanzanlagen geführt. Sach- und immaterielle Anlagen " +
+				"gehen ganz ab oder gar nicht")
+	}
+	if a.Currency == "" {
+		if a.ForeignCost != 0 {
+			return fmt.Errorf("zu den Anschaffungskosten in Fremdwährung fehlt die Währung")
+		}
+		return nil
+	}
+	if len(a.Currency) != 3 {
+		return fmt.Errorf("die Währung wird als dreistelliger ISO-Code angegeben, etwa USD oder CHF")
+	}
+	if a.Currency == "EUR" {
+		return fmt.Errorf(
+			"der Euro ist die Buchwährung. Eine Fremdwährung wird nur eingetragen, wo das Papier " +
+				"tatsächlich in einer anderen notiert")
+	}
+	if a.Class != AssetClassFinancial {
+		return fmt.Errorf(
+			"die Fremdwährungsbewertung nach § 256a HGB ist hier nur für Finanzanlagen abgebildet")
+	}
+	if a.ForeignCost <= 0 {
+		return fmt.Errorf(
+			"zur Währung %s fehlen die Anschaffungskosten in dieser Währung. Ohne sie steht kein "+
+				"Anschaffungskurs fest, gegen den ein Stichtagskurs zu halten wäre", a.Currency)
 	}
 	return nil
 }

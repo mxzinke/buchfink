@@ -200,7 +200,11 @@ type DisposalRequest struct {
 	// Anteilen wird verkauft, eine Ausleihung wird getilgt. Der Rest bleibt im
 	// Bestand, und mit ihm der entsprechende Teil einer früheren außerplanmäßigen
 	// Abschreibung.
-	CostShare    domain.Cents        `json:"costShare,omitempty"`
+	CostShare domain.Cents `json:"costShare,omitempty"`
+	// Quantity ist derselbe Teilabgang in Stück. Wer eine Tranche verkauft,
+	// nennt die Stückzahl und nicht den Betrag — Buchfink rechnet daraus den
+	// Anteil der Anschaffungskosten. Sie hat Vorrang vor CostShare.
+	Quantity     domain.Units        `json:"quantity,omitempty"`
 	TaxTreatment domain.TaxTreatment `json:"taxTreatment"`
 	TaxRate      domain.TaxRate      `json:"taxRate"`
 	// Settlement says whether the Erlös lands on a Zahlungsmittelkonto or stays
@@ -221,8 +225,12 @@ type DisposalPreview struct {
 	CatchUpLines   []domain.JournalLine `json:"catchUpLines,omitempty"`
 	// Partial sagt, ob nur ein Teil abgeht; CostShare und DepreciationShare sind
 	// die Beträge, die dabei die Bücher verlassen.
-	Partial           bool                        `json:"partial"`
-	CostShare         domain.Cents                `json:"costShare"`
+	Partial   bool         `json:"partial"`
+	CostShare domain.Cents `json:"costShare"`
+	// QuantityShare ist die abgehende Stückzahl, UnitsRemaining der Bestand
+	// danach. Beide bleiben null, wo das Anlagegut nicht in Stück geführt wird.
+	QuantityShare     domain.Units                `json:"quantityShare,omitempty"`
+	UnitsRemaining    domain.Units                `json:"unitsRemaining,omitempty"`
 	DepreciationShare domain.Cents                `json:"depreciationShare"`
 	BookValue         domain.Cents                `json:"bookValue"`
 	Result            domain.Cents                `json:"result"` // Buchgewinn (+) oder Buchverlust (−)
@@ -639,6 +647,7 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		Date:           asset.AcquisitionDate,
 		FiscalYear:     domain.GetFiscalYearForDate(asset.AcquisitionDate, s.fiscalYearStartMonth(ctx)),
 		CostAmount:     asset.AcquisitionCost,
+		Quantity:       asset.Quantity,
 		JournalEntryID: asset.AcquisitionEntryID,
 		Note:           "Zugang",
 	}
@@ -667,9 +676,13 @@ type CostAdjustmentRequest struct {
 	Reduction bool `json:"reduction"`
 	// ExtendLifeMonths verlängert die Restnutzungsdauer ab dem Jahr dieser
 	// Bewegung. Null heißt: die Erweiterung ändert nichts an der Nutzungsdauer.
-	ExtendLifeMonths int    `json:"extendLifeMonths,omitempty"`
-	Note             string `json:"note"`
-	JournalEntryID   *uint  `json:"journalEntryId,omitempty"`
+	ExtendLifeMonths int `json:"extendLifeMonths,omitempty"`
+	// Quantity ist die zugekaufte Stückzahl bei einer Finanzanlage. Ein Nachkauf
+	// erhöht Anschaffungskosten und Bestand zugleich; ohne die Stückzahl stimmte
+	// der spätere Teilabgang nicht mehr.
+	Quantity       domain.Units `json:"quantity,omitempty"`
+	Note           string       `json:"note"`
+	JournalEntryID *uint        `json:"journalEntryId,omitempty"`
 }
 
 // RecordCostAdjustment writes a cost movement without booking anything.
@@ -736,6 +749,7 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 		Date:                date,
 		FiscalYear:          domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)),
 		CostAmount:          req.Amount,
+		Quantity:            req.Quantity,
 		LifeExtensionMonths: req.ExtendLifeMonths,
 		JournalEntryID:      req.JournalEntryID,
 		Note:                req.Note,
@@ -744,6 +758,15 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 		movement.Kind = domain.AssetMovementCostReduction
 		movement.CostAmount = -req.Amount
 		movement.LifeExtensionMonths = 0
+		// Ein Skonto oder Rabatt bringt keine Stücke zurück; er mindert nur den
+		// Preis der bereits gehaltenen.
+		movement.Quantity = 0
+	}
+	if req.Quantity < 0 {
+		return nil, fmt.Errorf("die Stückzahl kann nicht negativ sein")
+	}
+	if req.Quantity > 0 && asset.Class != domain.AssetClassFinancial {
+		return nil, fmt.Errorf("eine Stückzahl wird nur bei Finanzanlagen geführt")
 	}
 	if movement.LifeExtensionMonths > 0 && !asset.Method.IsPlanned() {
 		return nil, fmt.Errorf(
@@ -1236,6 +1259,305 @@ func (s *AssetService) writeUpCeiling(
 }
 
 // -------------------------------------------------------------------------
+// Erhaltungsaufwand und laufende Erträge
+// -------------------------------------------------------------------------
+
+// MaintenanceRequest bucht Erhaltungsaufwand zu einem Anlagegut.
+type MaintenanceRequest struct {
+	AssetID uint         `json:"assetId"`
+	Date    string       `json:"date"`
+	Amount  domain.Cents `json:"amount"` // netto
+	// Account überschreibt das aus dem Anlagekonto abgeleitete Aufwandskonto.
+	Account      string              `json:"account,omitempty"`
+	TaxTreatment domain.TaxTreatment `json:"taxTreatment"`
+	TaxRate      domain.TaxRate      `json:"taxRate"`
+	Settlement   SettlementKind      `json:"settlement"`
+	// PaymentAccount bei sofortiger Zahlung, ContactID beim offenen Posten.
+	PaymentAccount string `json:"paymentAccount,omitempty"`
+	ContactID      uint   `json:"contactId,omitempty"`
+	// Note ist Pflicht. Sie hält die Abgrenzung fest, um die es hier geht: was
+	// den Zustand nur erhält, ist sofort abziehbar; was erweitert oder wesentlich
+	// verbessert, ist zu aktivieren (§ 255 Abs. 2 Satz 1 HGB). Die Entscheidung
+	// ist eine Einschätzung, und ohne ihre Begründung ist sie später nicht mehr
+	// nachvollziehbar.
+	Note string `json:"note"`
+}
+
+// BookMaintenance writes Erhaltungsaufwand and links it to the Anlagegut.
+//
+// Der Aufwand ändert den Buchwert nicht — genau das unterscheidet ihn von den
+// nachträglichen Herstellungskosten. Die Bewegung, die dabei entsteht, trägt
+// deshalb weder Anschaffungskosten noch Abschreibung: sie verbindet nur die
+// Buchung mit dem Wirtschaftsgut, an dem gearbeitet wurde. Wer später fragt,
+// was eine Maschine gekostet hat, bekommt beides zu sehen und kann es
+// auseinanderhalten.
+func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*domain.JournalEntry, error) {
+	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
+	}
+	if asset.IsDisposed() {
+		return nil, fmt.Errorf("%s ist am %s abgegangen", asset.InventoryNumber, asset.DisposalDate)
+	}
+	if len(req.Date) != 10 {
+		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if req.Amount <= 0 {
+		return nil, fmt.Errorf("der Betrag muss größer als null sein")
+	}
+	if strings.TrimSpace(req.Note) == "" {
+		return nil, fmt.Errorf(
+			"halte fest, warum die Maßnahme den Zustand nur erhält. Was ein Wirtschaftsgut " +
+				"erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich verbessert, ist " +
+				"zu aktivieren (§ 255 Abs. 2 Satz 1 HGB) — die Abgrenzung ist eine Einschätzung und " +
+				"gehört an die Buchung")
+	}
+
+	expense := req.Account
+	if expense == "" {
+		expense, err = accounting.MaintenanceAccount(asset.Class, asset.Account)
+		if err != nil {
+			return nil, err
+		}
+	}
+	chart, err := s.journalSvc.Chart(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := chart.EnsurePostable(expense); err != nil {
+		return nil, fmt.Errorf("Aufwandskonto des Erhaltungsaufwands: %w", err)
+	}
+
+	treatment := req.TaxTreatment
+	if treatment == "" {
+		treatment = domain.TaxTreatmentDomestic
+	}
+	rate := req.TaxRate
+	if treatment == domain.TaxTreatmentDomestic && rate == domain.TaxRateNone {
+		rate = domain.TaxRateStandard
+	}
+	legs, err := s.taxResolver.Resolve(domain.DirectionIncoming, treatment, rate, req.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := []domain.JournalLine{
+		{Side: domain.SideDebit, Account: expense, Amount: req.Amount, Text: asset.InventoryNumber},
+	}
+	for _, leg := range legs {
+		if leg.Amount == 0 {
+			continue
+		}
+		lines = append(lines, taxLegLine(leg))
+	}
+	settlement, err := s.settlement(ctx, lines, req.Settlement, req.PaymentAccount, req.ContactID,
+		domain.ContactTypeVendor)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, settlement)
+
+	entry := &domain.JournalEntry{
+		BookingDate:        req.Date,
+		DocumentDate:       req.Date,
+		ServiceDateFrom:    req.Date,
+		ServiceDateTo:      req.Date,
+		Description:        fmt.Sprintf("Erhaltungsaufwand %s: %s", asset.Name, req.Note),
+		Source:             domain.EntrySourceManual,
+		DocumentNumber:     asset.InventoryNumber,
+		TaxTreatment:       treatment,
+		PostingRuleVersion: accounting.PostingRuleVersion,
+		Lines:              lines,
+	}
+	if req.ContactID != 0 {
+		contactID := req.ContactID
+		entry.ContactID = &contactID
+	}
+	created, err := s.journalSvc.Post(ctx, entry)
+	if err != nil {
+		return nil, err
+	}
+
+	movement := &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementMaintenance, Account: asset.Account,
+		Date: req.Date, FiscalYear: domain.GetFiscalYearForDate(req.Date, s.fiscalYearStartMonth(ctx)),
+		JournalEntryID: &created.ID,
+		Note:           fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
+	}
+	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
+		return created, fmt.Errorf(
+			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
+			created.EntryNumber, err)
+	}
+	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Erhaltungsaufwand zu %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
+	return created, nil
+}
+
+// AssetIncomeRequest bucht einen laufenden Ertrag aus einer Finanzanlage.
+type AssetIncomeRequest struct {
+	AssetID uint         `json:"assetId"`
+	Date    string       `json:"date"`
+	Amount  domain.Cents `json:"amount"`
+	// Account überschreibt das aus dem Anlagekonto abgeleitete Ertragskonto.
+	Account        string              `json:"account,omitempty"`
+	TaxTreatment   domain.TaxTreatment `json:"taxTreatment,omitempty"`
+	Settlement     SettlementKind      `json:"settlement"`
+	PaymentAccount string              `json:"paymentAccount,omitempty"`
+	ContactID      uint                `json:"contactId,omitempty"`
+	// WithholdingTax ist die einbehaltene Kapitalertragsteuer samt
+	// Solidaritätszuschlag. Sie mindert den Zufluss, nicht den Ertrag.
+	WithholdingTax domain.Cents `json:"withholdingTax,omitempty"`
+	Note           string       `json:"note,omitempty"`
+}
+
+// BookAssetIncome writes a Dividende, Ausschüttung oder Zins and links it to the
+// Finanzanlage it came from.
+//
+// Der Ertrag ändert den Buchwert des Anteils nicht; er ist kein Rückfluss der
+// Anschaffungskosten, sondern Ertrag des Geschäftsjahres. Verknüpft wird er
+// trotzdem: sonst steht im Verzeichnis eine Beteiligung, deren Erträge nirgends
+// bei ihr auftauchen, und die Frage „was hat dieser Anteil eingebracht" bleibt
+// unbeantwortbar.
+func (s *AssetService) BookAssetIncome(ctx context.Context, req AssetIncomeRequest) (*domain.JournalEntry, error) {
+	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
+	}
+	if len(req.Date) != 10 {
+		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if req.Amount <= 0 {
+		return nil, fmt.Errorf("der Betrag muss größer als null sein")
+	}
+	if req.WithholdingTax < 0 || req.WithholdingTax > req.Amount {
+		return nil, fmt.Errorf(
+			"die einbehaltene Kapitalertragsteuer liegt zwischen null und dem Bruttoertrag von %s €",
+			req.Amount)
+	}
+
+	revenue := req.Account
+	if revenue == "" {
+		revenue, err = accounting.AssetIncomeAccount(asset.Class, asset.Account)
+		if err != nil {
+			return nil, err
+		}
+	}
+	chart, err := s.journalSvc.Chart(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := chart.EnsurePostable(revenue); err != nil {
+		return nil, fmt.Errorf("Ertragskonto: %w", err)
+	}
+
+	// Umsatzsteuerlich ist eine Dividende kein Entgelt: der Gesellschafter
+	// erbringt keine Leistung, der Vorgang ist nicht steuerbar. Zinsen aus einer
+	// Ausleihung sind dagegen steuerbar und nach § 4 Nr. 8 Buchst. a UStG
+	// steuerfrei — das ist ein Unterschied, den die Voranmeldung sieht.
+	treatment := req.TaxTreatment
+	if treatment == "" {
+		treatment = domain.TaxTreatmentNotTaxable
+		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok && entry.Group == "Ausleihungen" {
+			treatment = domain.TaxTreatmentExempt
+		}
+	}
+
+	lines := []domain.JournalLine{
+		{Side: domain.SideCredit, Account: revenue, Amount: req.Amount, Text: asset.InventoryNumber},
+	}
+	if req.WithholdingTax > 0 {
+		// Die Kapitalertragsteuer ist eine Vorauszahlung auf die eigene Steuer,
+		// kein Aufwand: sie mindert den Zufluss und steht als Forderung gegen das
+		// Finanzamt in den Büchern.
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideDebit, Account: accounting.WithholdingTaxAccount,
+			Amount: req.WithholdingTax, Text: "Kapitalertragsteuer " + asset.InventoryNumber,
+		})
+	}
+	settlement, err := s.settlement(ctx, lines, req.Settlement, req.PaymentAccount, req.ContactID,
+		domain.ContactTypeCustomer)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, settlement)
+
+	description := fmt.Sprintf("Ertrag aus %s", asset.Name)
+	if req.Note != "" {
+		description = fmt.Sprintf("%s: %s", description, req.Note)
+	}
+	entry := &domain.JournalEntry{
+		BookingDate:        req.Date,
+		DocumentDate:       req.Date,
+		ServiceDateFrom:    req.Date,
+		ServiceDateTo:      req.Date,
+		Description:        description,
+		Source:             domain.EntrySourceManual,
+		DocumentNumber:     asset.InventoryNumber,
+		TaxTreatment:       treatment,
+		PostingRuleVersion: accounting.PostingRuleVersion,
+		Lines:              lines,
+	}
+	if req.ContactID != 0 {
+		contactID := req.ContactID
+		entry.ContactID = &contactID
+	}
+	created, err := s.journalSvc.Post(ctx, entry)
+	if err != nil {
+		return nil, err
+	}
+
+	movement := &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementIncome, Account: asset.Account,
+		Date: req.Date, FiscalYear: domain.GetFiscalYearForDate(req.Date, s.fiscalYearStartMonth(ctx)),
+		JournalEntryID: &created.ID,
+		Note:           strings.TrimSpace(fmt.Sprintf("%s € auf %s. %s", req.Amount, revenue, req.Note)),
+	}
+	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
+		return created, fmt.Errorf(
+			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
+			created.EntryNumber, err)
+	}
+	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Laufender Ertrag aus %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
+	return created, nil
+}
+
+// settlement closes an entry against a Zahlungsmittelkonto or the partner's
+// Personenkonto, with the partner type the direction demands.
+func (s *AssetService) settlement(
+	ctx context.Context, content []domain.JournalLine, kind SettlementKind,
+	paymentAccount string, contactID uint, want domain.ContactType,
+) (domain.JournalLine, error) {
+	if kind == "" {
+		kind = SettlementPaid
+	}
+	var contact *domain.Contact
+	if kind == SettlementOpen {
+		if contactID == 0 {
+			return domain.JournalLine{}, fmt.Errorf(
+				"ohne Geschäftspartner bleibt offen, auf wessen Personenkonto der Posten steht. " +
+					"Wähle ihn aus oder buche sofort bezahlt")
+		}
+		found, err := s.contactRepo.FindByID(ctx, contactID)
+		if err != nil {
+			return domain.JournalLine{}, fmt.Errorf("der Geschäftspartner konnte nicht geladen werden: %w", err)
+		}
+		if found.Type != want {
+			side, other := "Debitorenkonto", "Lieferant"
+			if want == domain.ContactTypeVendor {
+				side, other = "Kreditorenkonto", "Kunde"
+			}
+			return domain.JournalLine{}, fmt.Errorf(
+				"%s ist als %s angelegt; hier gehört der Posten auf ein %s",
+				found.Name, other, side)
+		}
+		contact = found
+	}
+	return settlementLineFor(content, kind, paymentAccount, contact)
+}
+
+// -------------------------------------------------------------------------
 // Umbuchung (Fertigstellung)
 // -------------------------------------------------------------------------
 
@@ -1369,6 +1691,139 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 }
 
 // -------------------------------------------------------------------------
+// Fremdwährung (§ 256a HGB)
+// -------------------------------------------------------------------------
+
+// RateScale ist der Skalierungsfaktor der Devisenkurse: ein Kurs wird als
+// Fremdwährungseinheiten je Euro mal einer Million geführt.
+//
+// Sechs Nachkommastellen sind nicht Zierde. Bei einem Bestand von einer Million
+// Fremdwährungseinheiten verschiebt schon die vierte Stelle das Ergebnis um
+// dreistellige Beträge — und der Kurs ist der einzige Wert in dieser Rechnung,
+// den Buchfink nicht selbst kennt.
+const RateScale = 1_000_000
+
+// CurrencyValuationRequest bewertet eine Fremdwährungs-Finanzanlage zum
+// Stichtag.
+type CurrencyValuationRequest struct {
+	AssetID uint   `json:"assetId"`
+	Date    string `json:"date"`
+	// RatePerEuro ist der Devisenkassamittelkurs des Abschlussstichtags in
+	// Fremdwährungseinheiten je Euro, mal einer Million.
+	RatePerEuro int64 `json:"ratePerEuro"`
+}
+
+// CurrencyValuation is what the Stichtagskurs would mean for the asset.
+type CurrencyValuation struct {
+	Currency      string       `json:"currency"`
+	ForeignAmount domain.Cents `json:"foreignAmount"`
+	// AcquisitionRate ist der Kurs, zu dem angeschafft wurde. Er steht nicht in
+	// den Stammdaten, sondern folgt aus Fremdbetrag und Euro-Anschaffungskosten:
+	// zwei Zahlen, die ohnehin gebucht sind, und ein Feld weniger, das jemand
+	// nachpflegen müsste.
+	AcquisitionRate int64        `json:"acquisitionRate"`
+	RatePerEuro     int64        `json:"ratePerEuro"`
+	ValueAtRate     domain.Cents `json:"valueAtRate"`
+	BookValue       domain.Cents `json:"bookValue"`
+	// Difference ist der Unterschied zwischen dem Stichtagswert und dem Buchwert:
+	// negativ, wo der Kurs gefallen ist.
+	Difference domain.Cents `json:"difference"`
+	// Proposal ist "impairment", "write_up" oder "none", ProposedAmount der
+	// Betrag, der tatsächlich gebucht werden dürfte. Er weicht von Difference ab,
+	// wo das Anschaffungskostenprinzip die Zuschreibung deckelt.
+	Proposal       string       `json:"proposal"`
+	ProposedAmount domain.Cents `json:"proposedAmount"`
+	Explanation    string       `json:"explanation"`
+}
+
+// ValuateCurrency computes what the Devisenkassamittelkurs of a Stichtag means
+// for a Finanzanlage in fremder Währung (§ 256a HGB).
+//
+// Es bucht nichts. § 256a Satz 1 HGB verlangt die Umrechnung zum
+// Devisenkassamittelkurs des Abschlussstichtags, aber für eine Finanzanlage
+// begrenzt das Anschaffungskostenprinzip das Ergebnis nach oben
+// (§ 253 Abs. 1 Satz 1 HGB): die Ausnahme des § 256a Satz 2 gilt nur für eine
+// Restlaufzeit von höchstens einem Jahr und passt auf ein Anlagegut nicht, das
+// dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener Kurs führt deshalb zu
+// einer außerplanmäßigen Abschreibung, ein gestiegener höchstens zu einer
+// Zuschreibung bis zu den Anschaffungskosten — und beide Buchungen laufen über
+// die Wege, die ihre Grenzen ohnehin prüfen.
+func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuationRequest) (*CurrencyValuation, error) {
+	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
+	}
+	if asset.Currency == "" || asset.ForeignCost <= 0 {
+		return nil, fmt.Errorf(
+			"%s wird in Euro geführt. Eine Umrechnung nach § 256a HGB gibt es nur, wo ein "+
+				"Fremdwährungsbetrag hinterlegt ist", asset.InventoryNumber)
+	}
+	if req.RatePerEuro <= 0 {
+		return nil, fmt.Errorf(
+			"ohne den Devisenkassamittelkurs des Stichtags lässt sich nicht umrechnen (§ 256a HGB)")
+	}
+	if len(req.Date) != 10 {
+		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+
+	startMonth := s.fiscalYearStartMonth(ctx)
+	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth)
+
+	out := &CurrencyValuation{
+		Currency:      asset.Currency,
+		ForeignAmount: asset.ForeignCost,
+		RatePerEuro:   req.RatePerEuro,
+		BookValue:     asset.BookValue,
+	}
+	if asset.AcquisitionCost > 0 {
+		out.AcquisitionRate = int64(domain.MulRound(
+			asset.ForeignCost, RateScale, int64(asset.AcquisitionCost)))
+	}
+	out.ValueAtRate = domain.MulRound(asset.ForeignCost, RateScale, req.RatePerEuro)
+	out.Difference = out.ValueAtRate - out.BookValue
+
+	switch {
+	case out.Difference < 0:
+		out.Proposal = "impairment"
+		out.ProposedAmount = -out.Difference
+		out.Explanation = fmt.Sprintf(
+			"Zum Kurs des Stichtags sind %s %s noch %s € wert, gebucht stehen %s €. Die Differenz von "+
+				"%s € ist außerplanmäßig abzuschreiben — bei Finanzanlagen auch dann, wenn die "+
+				"Wertminderung voraussichtlich nicht von Dauer ist (§ 253 Abs. 3 Satz 6 HGB).",
+			asset.ForeignCost, asset.Currency, out.ValueAtRate, out.BookValue, out.ProposedAmount)
+	case out.Difference > 0:
+		ceiling, err := s.writeUpCeiling(ctx, asset,
+			domain.GetFiscalYearForDate(req.Date, startMonth), startMonth)
+		if err != nil {
+			ceiling = 0
+		}
+		out.ProposedAmount = out.Difference
+		if out.ProposedAmount > ceiling {
+			out.ProposedAmount = ceiling
+		}
+		if out.ProposedAmount <= 0 {
+			out.Proposal = "none"
+			out.Explanation = fmt.Sprintf(
+				"Der Kurs ist gestiegen: %s %s sind zum Stichtag %s € wert. Zuzuschreiben ist trotzdem "+
+					"nichts — über die Anschaffungskosten hinaus darf nicht bewertet werden "+
+					"(§ 253 Abs. 1 Satz 1 HGB). Die Ausnahme des § 256a Satz 2 HGB gilt nur bei einer "+
+					"Restlaufzeit von höchstens einem Jahr und passt auf eine Finanzanlage nicht.",
+				asset.ForeignCost, asset.Currency, out.ValueAtRate)
+			break
+		}
+		out.Proposal = "write_up"
+		out.Explanation = fmt.Sprintf(
+			"Der Kurs ist gestiegen: %s %s sind zum Stichtag %s € wert. Zuzuschreiben sind %s € — "+
+				"höchstens bis zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB).",
+			asset.ForeignCost, asset.Currency, out.ValueAtRate, out.ProposedAmount)
+	default:
+		out.Proposal = "none"
+		out.Explanation = "Der Stichtagskurs führt zu genau dem gebuchten Wert; zu buchen ist nichts."
+	}
+	return out, nil
+}
+
+// -------------------------------------------------------------------------
 // Abgang
 // -------------------------------------------------------------------------
 
@@ -1459,11 +1914,18 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	// zwischen beiden liegt die eben gebuchte AfA bis zum Abgangsmonat, und die
 	// muss mit hinaus.
 	costShare, depreciationShare := fresh.Cost, fresh.Accumulated
+	quantityShare := fresh.UnitsHeld
 	note := req.Note
 	if preview.Partial {
-		costShare = req.CostShare
+		costShare = preview.CostShare
 		depreciationShare = domain.MulRound(fresh.Accumulated, int64(costShare), int64(fresh.Cost))
-		note = strings.TrimSpace(fmt.Sprintf("Teilabgang: %s €. %s", costShare, req.Note))
+		quantityShare = preview.QuantityShare
+		if quantityShare > 0 {
+			note = strings.TrimSpace(fmt.Sprintf(
+				"Teilabgang: %s Stück zu %s €. %s", quantityShare, costShare, req.Note))
+		} else {
+			note = strings.TrimSpace(fmt.Sprintf("Teilabgang: %s €. %s", costShare, req.Note))
+		}
 	}
 	movement := &domain.AssetMovement{
 		AssetID:            fresh.ID,
@@ -1473,6 +1935,7 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		FiscalYear:         fiscalYear,
 		CostAmount:         -costShare,
 		DepreciationAmount: -depreciationShare,
+		Quantity:           -quantityShare,
 		Note:               note,
 	}
 	if result.DisposalEntry != nil {
@@ -1550,7 +2013,12 @@ func (s *AssetService) buildDisposal(
 				"Betriebsvermögen aus, wird der Sammelposten nicht vermindert (§ 6 Abs. 2a Satz 4 EStG) — " +
 				"er löst sich weiter mit einem Fünftel je Jahr auf")
 	}
-	if req.CostShare > 0 && asset.Class != domain.AssetClassFinancial {
+	if req.Quantity > 0 && asset.Class != domain.AssetClassFinancial {
+		return nil, nil, nil, fmt.Errorf(
+			"eine Stückzahl wird nur bei Finanzanlagen geführt. %s geht ganz ab oder gar nicht",
+			asset.InventoryNumber)
+	}
+	if (req.CostShare > 0 || req.Quantity > 0) && asset.Class != domain.AssetClassFinancial {
 		// Ein halber Pkw geht nicht ab. Wo ein Abschreibungsplan läuft, müsste ein
 		// Teilabgang ihn aufteilen — das ist bei Sach- und immateriellen Anlagen
 		// die Ausnahme und hier bewusst nicht abgebildet.
@@ -1621,18 +2089,46 @@ func (s *AssetService) buildDisposal(
 
 	// Beim Teilabgang wandern die Anschaffungskosten und die darauf entfallende
 	// Abschreibung im selben Verhältnis hinaus.
+	//
+	// Wo Stücke geführt werden, ist die Stückzahl die Vorgabe und der Betrag das
+	// Ergebnis: verkauft wird eine Tranche von 50 Anteilen, nicht ein Betrag von
+	// 3.412,77 €. Den Anteil der Anschaffungskosten daraus zu rechnen ist genau
+	// die Arbeit, die dem Nutzer sonst bliebe — und die er dann rundet.
+	costShare := req.CostShare
+	if req.Quantity > 0 {
+		if asset.UnitsHeld <= 0 {
+			return nil, nil, nil, fmt.Errorf(
+				"%s wird nicht in Stück geführt. Gib den Anteil der Anschaffungskosten als Betrag an",
+				asset.InventoryNumber)
+		}
+		if req.Quantity > asset.UnitsHeld {
+			return nil, nil, nil, fmt.Errorf(
+				"im Bestand sind %s Stück; %s können nicht abgehen",
+				asset.UnitsHeld, req.Quantity)
+		}
+		preview.QuantityShare = req.Quantity
+		preview.UnitsRemaining = asset.UnitsHeld - req.Quantity
+		if req.Quantity == asset.UnitsHeld {
+			costShare = asset.Cost
+		} else {
+			costShare = domain.MulRound(asset.Cost, int64(req.Quantity), int64(asset.UnitsHeld))
+		}
+	} else if asset.UnitsHeld > 0 {
+		preview.QuantityShare = asset.UnitsHeld
+	}
+
 	preview.CostShare = asset.Cost
 	preview.DepreciationShare = asset.Accumulated
-	preview.Partial = req.CostShare > 0 && req.CostShare < asset.Cost
-	if req.CostShare > asset.Cost {
+	preview.Partial = costShare > 0 && costShare < asset.Cost
+	if costShare > asset.Cost {
 		return nil, nil, nil, fmt.Errorf(
 			"%s trägt nur %s € Anschaffungskosten; mehr kann nicht abgehen",
 			asset.InventoryNumber, asset.Cost)
 	}
 	if preview.Partial {
-		preview.CostShare = req.CostShare
+		preview.CostShare = costShare
 		preview.DepreciationShare = domain.MulRound(
-			asset.Accumulated, int64(req.CostShare), int64(asset.Cost))
+			asset.Accumulated, int64(costShare), int64(asset.Cost))
 	}
 
 	preview.BookValue = preview.CostShare - preview.DepreciationShare -
@@ -1958,12 +2454,14 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 	// Sollwert, und eine Summe ließe eine gebuchte Sonderabschreibung wie eine
 	// erfüllte planmäßige AfA aussehen.
 	var plannedYearAmount, specialYearAmount domain.Cents
+	asset.UnitsHeld = 0
 	for _, m := range asset.Movements {
 		if m.FiscalYear > fiscalYear {
 			continue
 		}
 		asset.Cost += m.CostAmount
 		asset.Accumulated += m.DepreciationAmount
+		asset.UnitsHeld += m.Quantity
 		if m.FiscalYear != fiscalYear {
 			continue
 		}

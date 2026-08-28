@@ -478,3 +478,10 @@ const (
 	CurrencyLossAccount = "6880" // Aufwendungen aus der Währungsumrechnung
 	CurrencyGainAccount = "4840" // Erträge aus der Währungsumrechnung
 )
+
+// WithholdingTaxAccount trägt die einbehaltene Kapitalertragsteuer.
+//
+// Sie ist kein Aufwand des Beteiligungsertrags, sondern eine Vorauszahlung auf
+// die eigene Steuer — sie mindert den Zufluss, nicht den Ertrag. Der Ertrag
+// steht deshalb brutto in der GuV, und die einbehaltene Steuer daneben.
+const WithholdingTaxAccount = "7630"
