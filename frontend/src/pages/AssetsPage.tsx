@@ -20,12 +20,14 @@ import {
   DisposalPreview,
   DisposalRequest,
   FixedAsset,
+  CurrencyValuation,
   JournalLine,
   Settlement,
   TaxTreatment,
 } from '../types';
+import { RATE_SCALE, UNIT_SCALE } from '../types';
 import { Api } from '../services/api';
-import { formatCents, formatCentsPlain, formatDate, parseCents } from '../utils/formatters';
+import { formatCents, formatCentsPlain, formatDate, formatUnits, parseCents } from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -316,6 +318,12 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
             September angeschafftes Wirtschaftsgut trägt im ersten Jahr vier Zwölftel.
           </p>
           <p>
+            Eine Sonderabschreibung nach § 7g Abs. 5 EStG erscheint in einer eigenen Spalte und wird
+            mit derselben Buchung erfasst, aber auf einem eigenen Aufwandskonto: sie tritt{' '}
+            <em>neben</em> die Absetzung für Abnutzung und ersetzt sie nicht. Nach dem
+            Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer.
+          </p>
+          <p>
             Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob hier noch etwas offen ist.
             Ein festgeschriebenes Jahr nimmt keine Buchung mehr auf — die fehlende Abschreibung ließe
             sich danach nicht mehr nachholen.
@@ -571,7 +579,11 @@ const RegisterTab: React.FC<{
         <Stat
           label={`Abschreibung ${year}`}
           value={formatCents(sum((a) => a.yearAmount))}
-          context={sum((a) => a.dueAmount) > 0 ? `${formatCents(sum((a) => a.dueAmount))} noch offen` : 'vollständig gebucht'}
+          context={
+            sum((a) => a.dueAmount + a.specialDue) > 0
+              ? `${formatCents(sum((a) => a.dueAmount + a.specialDue))} noch offen`
+              : 'vollständig gebucht'
+          }
         />
       </StatRow>
 
@@ -668,7 +680,9 @@ const AssetStatusCell: React.FC<{ asset: FixedAsset }> = ({ asset }) => {
       return (
         <span title={asset.statusNote} className="inline-flex items-center gap-2">
           <StatusBadge status="offen" />
-          <span className="text-caption text-ink-subtle num">{formatCents(asset.dueAmount)}</span>
+          <span className="text-caption text-ink-subtle num">
+            {formatCents(asset.dueAmount + asset.specialDue)}
+          </span>
         </span>
       );
     case 'unbooked':
@@ -707,10 +721,12 @@ const DepreciationTab: React.FC<{
   }, [run]);
 
   const due = run?.due ?? [];
-  const bookable = due.filter((d) => d.due > 0);
+  const bookable = due.filter((d) => d.due > 0 || d.specialDue > 0);
   const total = bookable
     .filter((d) => selected.includes(d.assetId))
-    .reduce((sum, d) => sum + d.due, 0);
+    .reduce((sum, d) => sum + d.due + d.specialDue, 0);
+  // Die Sonderabschreibung bekommt nur dann eine Spalte, wenn eine läuft.
+  const showSpecial = bookable.some((d) => d.specialDue > 0);
 
   async function book() {
     setBusy(true);
@@ -777,16 +793,21 @@ const DepreciationTab: React.FC<{
             </div>
           </div>
 
-          <Table>
+          <Table className={showSpecial ? '[&_td]:px-2.5 [&_th]:px-2.5' : undefined}>
             <Thead sticky>
               <Tr>
                 <Th className="w-10" aria-label="Auswahl" />
                 <Th className="w-32">Inventarnummer</Th>
                 <Th>Bezeichnung</Th>
                 <Th className="w-40">Buchungssatz</Th>
-                <Th className="w-36">Methode</Th>
+                <Th className={showSpecial ? 'w-24' : 'w-36'}>Methode</Th>
                 <Th numeric className="w-28">Buchwert vorher</Th>
                 <Th numeric className="w-28">Abschreibung</Th>
+                {showSpecial && (
+                  <Th numeric className="w-28">
+                    Sonderabschreibung
+                  </Th>
+                )}
                 <Th numeric className="w-28">Buchwert nachher</Th>
               </Tr>
             </Thead>
@@ -809,7 +830,9 @@ const DepreciationTab: React.FC<{
                     {row.name}
                   </Td>
                   <Td code>
-                    {row.expenseAccount} an {row.account}
+                    {row.expenseAccount}
+                    {row.specialDue > 0 && row.specialAccount ? ` + ${row.specialAccount}` : ''} an{' '}
+                    {row.account}
                   </Td>
                   <Td className="text-ink-muted">
                     {row.rateLabel}
@@ -817,11 +840,14 @@ const DepreciationTab: React.FC<{
                   </Td>
                   <Td numeric>{formatCents(row.bookValueBefore)}</Td>
                   <Td numeric>{formatCents(row.due)}</Td>
+                  {showSpecial && (
+                    <Td numeric>{row.specialDue === 0 ? '—' : formatCents(row.specialDue)}</Td>
+                  )}
                   <Td numeric>{formatCents(row.bookValueAfter)}</Td>
                 </Tr>
               ))}
               <Tr variant="sum">
-                <Td colSpan={6}>Summe der ausgewählten Abschreibungen</Td>
+                <Td colSpan={showSpecial ? 7 : 6}>Summe der ausgewählten Abschreibungen</Td>
                 <Td numeric>{formatCents(total)}</Td>
                 <Td />
               </Tr>
@@ -830,11 +856,11 @@ const DepreciationTab: React.FC<{
         </>
       )}
 
-      {due.some((d) => d.due <= 0 && d.note) && (
+      {due.some((d) => d.due <= 0 && d.specialDue <= 0 && d.note) && (
         <Section title="Nicht rechenbare Anlagegüter" context="Diese Zeilen bleiben ungebucht">
           <ul className="space-y-2 text-body text-ink-muted">
             {due
-              .filter((d) => d.due <= 0 && d.note)
+              .filter((d) => d.due <= 0 && d.specialDue <= 0 && d.note)
               .map((d) => (
                 <li key={d.assetId}>
                   <span className="code-num text-caption">{d.inventoryNumber}</span> {d.name}: {d.note}
@@ -964,6 +990,7 @@ const AssetFormDialog: React.FC<{
   // Beträge stehen als Text im Formular und werden erst beim Speichern gelesen.
   // Ein Feld, das bei jedem Tastendruck neu formatiert, lässt sich nicht tippen.
   const [costText, setCostText] = useState('');
+  const [foreignText, setForeignText] = useState('');
   const [selfUsable, setSelfUsable] = useState(true);
   const [advice, setAdvice] = useState<AcquisitionAdvice | null>(null);
   const [plan, setPlan] = useState<AssetScheduleYear[]>([]);
@@ -975,6 +1002,7 @@ const AssetFormDialog: React.FC<{
     if (draft) {
       setAsset(draft);
       setCostText(draft.acquisitionCost ? formatCentsPlain(draft.acquisitionCost) : '');
+      setForeignText(draft.foreignCost ? formatCentsPlain(draft.foreignCost) : '');
       setError(null);
       setAdvice(null);
       setPlan([]);
@@ -987,6 +1015,18 @@ const AssetFormDialog: React.FC<{
   const selectedAccount = catalog.find((a) => a.number === asset.account);
 
   const cost = parseCents(costText);
+  // § 7g Abs. 5 EStG begünstigt nur abnutzbare bewegliche Wirtschaftsgüter, und
+  // die Sonderabschreibung tritt neben die Absetzung für Abnutzung „nach § 7
+  // Absatz 1 oder Absatz 2" — also neben die lineare wie neben die degressive.
+  // Beides entscheidet hier darüber, ob das Feld überhaupt erscheint, statt erst
+  // beim Speichern als Fehlermeldung.
+  const specialAvailable =
+    assetClass === 'tangible' &&
+    (asset.method === 'linear' || asset.method === 'degressive') &&
+    Boolean(selectedAccount) &&
+    !selectedAccount?.immovable &&
+    !selectedAccount?.inProgress;
+  const usesSpecial = (asset.specialPermille ?? 0) > 0;
   const costError =
     costText.trim() !== '' && (cost === null || cost <= 0)
       ? 'Erwartet wird ein Betrag wie 1.234,56.'
@@ -1030,6 +1070,8 @@ const AssetFormDialog: React.FC<{
       usefulLifeMonths: asset.usefulLifeMonths ?? 0,
       method: asset.method,
       poolYear: asset.poolYear || year,
+      specialPermille: asset.specialPermille ?? 0,
+      specialYears: asset.specialYears ?? 0,
     })
       .then((rows) => {
         if (!cancelled) setPlan(rows ?? []);
@@ -1038,7 +1080,16 @@ const AssetFormDialog: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [cost, asset.acquisitionDate, asset.method, asset.usefulLifeMonths, asset.poolYear, year]);
+  }, [
+    cost,
+    asset.acquisitionDate,
+    asset.method,
+    asset.usefulLifeMonths,
+    asset.poolYear,
+    asset.specialPermille,
+    asset.specialYears,
+    year,
+  ]);
 
   // Es gibt genau einen Sammelposten je Wirtschaftsjahr. Besteht er schon, wird
   // das Gut dort eingestellt statt ein zweiter Posten angelegt.
@@ -1195,6 +1246,15 @@ const AssetFormDialog: React.FC<{
         class: assetClass,
         acquisitionCost: cost,
         poolYear: asset.method === 'pool' ? asset.poolYear || year : 0,
+        // Wo die Sonderabschreibung nicht offensteht, darf auch kein Rest von
+        // ihr mitgespeichert werden: ein Methodenwechsel würde sie sonst still
+        // mitnehmen.
+        ...(specialAvailable && usesSpecial
+          ? {}
+          : { specialPermille: 0, specialYears: 0, specialAccount: '', specialReason: '' }),
+        ...(assetClass === 'financial' && asset.currency
+          ? { foreignCost: parseCents(foreignText) ?? 0 }
+          : { currency: '', foreignCost: 0 }),
       };
       const saved = await Api.saveFixedAsset(payload);
       await onSaved(saved);
@@ -1398,6 +1458,76 @@ const AssetFormDialog: React.FC<{
         </Field>
       </div>
 
+      {specialAvailable && (
+        <div className="mt-4 space-y-3">
+          <Checkbox
+            checked={usesSpecial}
+            onCheckedChange={(checked) =>
+              set(
+                checked
+                  ? { specialPermille: rules?.specialMaxPermille ?? 400, specialYears: 1 }
+                  : { specialPermille: 0, specialYears: 0, specialReason: '' },
+              )
+            }
+            label="Sonderabschreibung nach § 7g Abs. 5 EStG in Anspruch nehmen"
+            hint="Bis 40 % der Anschaffungskosten, zusätzlich zur Absetzung für Abnutzung — verteilbar auf das Anschaffungsjahr und die vier folgenden."
+          />
+          {usesSpecial && (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                <Field
+                  label="Satz in Prozent"
+                  hint={`höchstens ${(rules?.specialMaxPermille ?? 400) / 10} %`}
+                  help="Der Satz bemisst sich an den Anschaffungskosten, nicht am Restbuchwert. Die planmäßige AfA läuft daneben unverändert weiter — § 7g Abs. 5 EStG lässt die Sonderabschreibung neben der linearen wie neben der degressiven zu."
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={(rules?.specialMaxPermille ?? 400) / 10}
+                    step={1}
+                    align="right"
+                    value={(asset.specialPermille ?? 0) / 10}
+                    onChange={(e) => set({ specialPermille: Math.round(Number(e.target.value) * 10) })}
+                  />
+                </Field>
+                <Field
+                  label="Verteilt auf Jahre"
+                  hint={`eins bis ${rules?.specialPeriodYears ?? 5}`}
+                  help="Wie der Betrag über den Begünstigungszeitraum verteilt wird, entscheidest du. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
+                >
+                  <Input
+                    type="number"
+                    min={1}
+                    max={rules?.specialPeriodYears ?? 5}
+                    step={1}
+                    align="right"
+                    value={asset.specialYears ?? 1}
+                    onChange={(e) => set({ specialYears: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Aufwandskonto" hint="folgt aus dem Anlagekonto" optional>
+                  <Input
+                    value={asset.specialAccount ?? (selectedAccount?.depreciationAccount === '6222' ? '6242' : '6241')}
+                    disabled
+                  />
+                </Field>
+              </div>
+              <Field
+                label="Voraussetzungen nach § 7g Abs. 6 EStG"
+                hint="Gewinn des Vorjahres höchstens 200.000 €, fast ausschließlich betriebliche Nutzung"
+                help="Zwei Sachverhalte, die Buchfink nicht kennen kann. Halte fest, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
+              >
+                <Textarea
+                  rows={2}
+                  value={asset.specialReason ?? ''}
+                  onChange={(e) => set({ specialReason: e.target.value })}
+                />
+              </Field>
+            </>
+          )}
+        </div>
+      )}
+
       {assetClass === 'financial' && (
         <div className="mt-4 grid grid-cols-3 gap-4">
           <Field label="Kennung" optional hint="ISIN, WKN oder Registernummer">
@@ -1430,6 +1560,47 @@ const AssetFormDialog: React.FC<{
               hint="Gewinn und Verlust laufen dann über eigene Konten — § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG."
             />
           </div>
+          <Field
+            label="Stückzahl"
+            optional
+            hint="Anteile, Stücke, Nominale"
+            help="Wird sie geführt, rechnet Buchfink beim Teilabgang den Anteil der Anschaffungskosten aus der Stückzahl. Ohne sie wird der Teilabgang als Betrag angegeben."
+          >
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              align="right"
+              value={asset.quantity ? asset.quantity / UNIT_SCALE : ''}
+              onChange={(e) =>
+                set({ quantity: Math.round(Number(e.target.value || '0') * UNIT_SCALE) })
+              }
+            />
+          </Field>
+          <Field
+            label="Notierungswährung"
+            optional
+            hint="ISO-Code, leer heißt Euro"
+            help="Nur nötig, wo das Papier tatsächlich in einer anderen Währung notiert. Aus Fremdbetrag und Euro-Anschaffungskosten ergibt sich der Anschaffungskurs, gegen den § 256a HGB den Stichtagskurs hält."
+          >
+            <Input
+              className="code-num uppercase"
+              maxLength={3}
+              value={asset.currency ?? ''}
+              onChange={(e) => set({ currency: e.target.value.toUpperCase() })}
+            />
+          </Field>
+          {asset.currency ? (
+            <Field label={`Anschaffungskosten in ${asset.currency}`} hint="Betrag in der Notierungswährung">
+              <Input
+                align="right"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={foreignText}
+                onChange={(e) => setForeignText(e.target.value)}
+              />
+            </Field>
+          ) : null}
         </div>
       )}
 
@@ -1519,7 +1690,16 @@ const AssetFormDialog: React.FC<{
 // Anlagegut im Detail: Plan, Bewegungen und die Vorgänge daran
 // -------------------------------------------------------------------------
 
-type DetailAction = 'impairment' | 'writeUp' | 'cost' | 'disposal' | 'transfer' | null;
+type DetailAction =
+  | 'impairment'
+  | 'writeUp'
+  | 'cost'
+  | 'disposal'
+  | 'transfer'
+  | 'maintenance'
+  | 'income'
+  | 'currency'
+  | null;
 
 const AssetDetailDialog: React.FC<{
   assetId: number | null;
@@ -1584,6 +1764,21 @@ const AssetDetailDialog: React.FC<{
                 Fertigstellung buchen
               </Button>
             )}
+            {!asset.disposalDate && asset.class !== 'financial' && (
+              <Button variant="quiet" onClick={() => setAction('maintenance')}>
+                Erhaltungsaufwand
+              </Button>
+            )}
+            {!asset.disposalDate && asset.class === 'financial' && (
+              <Button variant="quiet" onClick={() => setAction('income')}>
+                Ertrag buchen
+              </Button>
+            )}
+            {!asset.disposalDate && asset.currency && (
+              <Button variant="quiet" onClick={() => setAction('currency')}>
+                Währung bewerten
+              </Button>
+            )}
             {!asset.disposalDate && (
               <>
                 <Button variant="secondary" onClick={() => setAction('impairment')}>
@@ -1622,6 +1817,22 @@ const AssetDetailDialog: React.FC<{
         <CostAdjustmentForm asset={asset} onDone={afterBooking} />
       ) : action === 'transfer' ? (
         <TransferForm asset={asset} accounts={accounts} onDone={afterBooking} />
+      ) : action === 'maintenance' ? (
+        <MaintenanceForm
+          asset={asset}
+          contacts={contacts}
+          paymentAccounts={paymentAccounts}
+          onDone={afterBooking}
+        />
+      ) : action === 'income' ? (
+        <AssetIncomeForm
+          asset={asset}
+          contacts={contacts}
+          paymentAccounts={paymentAccounts}
+          onDone={afterBooking}
+        />
+      ) : action === 'currency' ? (
+        <CurrencyForm asset={asset} onDone={afterBooking} />
       ) : action === 'disposal' ? (
         <DisposalForm
           asset={asset}
@@ -1638,6 +1849,10 @@ const AssetDetailDialog: React.FC<{
 
 const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
   const { asset, schedule, movements, notes } = detail;
+  // Die Spalte erscheint nur, wo es eine Sonderabschreibung gibt. Eine leere
+  // Spalte in jedem Plan wäre eine Frage, die sich niemand gestellt hat.
+  const hasSpecial = schedule.some((row) => (row.specialAmount ?? 0) > 0);
+  const tracksUnits = movements.some((movement) => Boolean(movement.quantity));
 
   return (
     <div className="space-y-6">
@@ -1645,12 +1860,29 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
         <Stat label="Anschaffungskosten" value={formatCents(asset.cost)} context={formatDate(asset.acquisitionDate)} />
         <Stat label="Kumulierte Abschreibungen" value={formatCents(asset.accumulated)} />
         <Stat label="Buchwert" value={formatCents(asset.bookValue)} />
-        <Stat
-          label="Konto"
-          value={<span className="code-num text-body">{asset.account}</span>}
-          context={asset.accountName}
-        />
+        {asset.unitsHeld ? (
+          <Stat
+            label="Bestand"
+            value={`${formatUnits(asset.unitsHeld)} Stück`}
+            context={asset.identifier}
+          />
+        ) : (
+          <Stat
+            label="Konto"
+            value={<span className="code-num text-body">{asset.account}</span>}
+            context={asset.accountName}
+          />
+        )}
       </StatRow>
+
+      {asset.currency && asset.foreignCost ? (
+        <div className="rounded-control border border-line bg-sunken px-4 py-3 text-body text-ink-muted">
+          Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
+          Anschaffungskosten von {formatCents(asset.acquisitionCost)}. Zum Abschlussstichtag ist zum
+          Devisenkassamittelkurs umzurechnen (§ 256a HGB) — nach oben begrenzt durch die
+          Anschaffungskosten.
+        </div>
+      ) : null}
 
       {notes.length > 0 && (
         <div className="rounded-card border border-line bg-surface px-5 py-4 space-y-2">
@@ -1664,7 +1896,7 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
 
       {schedule.length > 0 && (
         <Section title="Abschreibungsplan" divider={false} context="Gerechnet, nicht gespeichert — er folgt den Bewegungen">
-          <Table density="kompakt">
+          <Table density="kompakt" className={hasSpecial ? '[&_td]:px-2.5 [&_th]:px-2.5' : undefined}>
             <Thead>
               <Tr>
                 <Th className="w-20">Jahr</Th>
@@ -1672,6 +1904,7 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
                 <Th>Satz</Th>
                 <Th numeric>Buchwert Anfang</Th>
                 <Th numeric>Abschreibung</Th>
+                {hasSpecial && <Th numeric>Sonderabschreibung</Th>}
                 <Th numeric>Gebucht</Th>
                 <Th numeric>Buchwert Ende</Th>
                 <Th className="w-24">Zustand</Th>
@@ -1687,7 +1920,12 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
                   </Td>
                   <Td numeric>{formatCents(row.openingBookValue)}</Td>
                   <Td numeric>{formatCents(row.amount)}</Td>
-                  <Td numeric>{formatCents(row.booked)}</Td>
+                  {hasSpecial && (
+                    <Td numeric>
+                      {(row.specialAmount ?? 0) === 0 ? '—' : formatCents(row.specialAmount ?? 0)}
+                    </Td>
+                  )}
+                  <Td numeric>{formatCents(row.booked + row.specialBooked)}</Td>
                   <Td numeric>{formatCents(row.closingBookValue)}</Td>
                   <Td className="text-caption text-ink-subtle">{row.status}</Td>
                 </Tr>
@@ -1705,6 +1943,7 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
               <Th>Vorgang</Th>
               <Th numeric>Anschaffungskosten</Th>
               <Th numeric>Abschreibungen</Th>
+              {tracksUnits && <Th numeric>Stück</Th>}
               <Th className="w-32">Buchung</Th>
             </Tr>
           </Thead>
@@ -1722,6 +1961,9 @@ const AssetOverview: React.FC<{ detail: AssetDetail }> = ({ detail }) => {
                 <Td numeric>
                   {movement.depreciationAmount === 0 ? '—' : formatCents(movement.depreciationAmount)}
                 </Td>
+                {tracksUnits && (
+                  <Td numeric>{movement.quantity ? formatUnits(movement.quantity) : '—'}</Td>
+                )}
                 <Td code>{movement.entryNumber ?? '—'}</Td>
               </Tr>
             ))}
@@ -1737,8 +1979,11 @@ const MOVEMENT_LABEL: Record<string, string> = {
   subsequent_cost: 'Nachträgliche Anschaffungskosten',
   cost_reduction: 'Anschaffungskostenminderung',
   depreciation: 'Planmäßige Abschreibung',
+  special_depreciation: 'Sonderabschreibung (§ 7g Abs. 5 EStG)',
   impairment: 'Außerplanmäßige Abschreibung',
   write_up: 'Zuschreibung',
+  maintenance: 'Erhaltungsaufwand',
+  income: 'Laufender Ertrag',
   disposal: 'Abgang',
   transfer: 'Umbuchung',
 };
@@ -1993,8 +2238,8 @@ const CostAdjustmentForm: React.FC<{
         Aktiviert wird, was das Anlagegut erweitert oder über seinen ursprünglichen Zustand hinaus
         wesentlich verbessert (§ 255 Abs. 2 HGB) — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
         die es nur im Zustand hält, ist Erhaltungsaufwand und gehört sofort in die Gewinn- und
-        Verlustrechnung, nicht hierher. Fracht und Montage zählen zu den Anschaffungskosten,
-        Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
+        Verlustrechnung: dafür gibt es am Anlagegut die eigene Aktion „Erhaltungsaufwand". Fracht und
+        Montage zählen zu den Anschaffungskosten, Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
       </FormHint>
 
       <div className="grid grid-cols-3 gap-4">
@@ -2053,6 +2298,410 @@ const CostAdjustmentForm: React.FC<{
       <div className="flex justify-end">
         <Button variant="primary" loading={busy} onClick={submit}>
           Erfassen
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const MaintenanceForm: React.FC<{
+  asset: FixedAsset;
+  contacts: Contact[];
+  paymentAccounts: Account[];
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState('');
+  const [settlement, setSettlement] = useState<Settlement>('paid');
+  const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
+  const [contactId, setContactId] = useState(0);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const vendors = contacts.filter((c) => c.type === 'vendor');
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const value = parseCents(amount);
+      if (value === null || value <= 0) {
+        setError('Der Betrag fehlt oder ist nicht lesbar.');
+        return;
+      }
+      await Api.bookAssetMaintenance({
+        assetId: asset.id,
+        date,
+        amount: value,
+        settlement,
+        paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
+        contactId: settlement === 'open' ? contactId : undefined,
+        note,
+      });
+      await onDone('Erhaltungsaufwand gebucht.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zum Erhaltungsaufwand"
+        line="Was den Zustand nur erhält, ist sofort abziehbar — es erhöht die Anschaffungskosten nicht."
+      >
+        Aktiviert wird nur, was das Wirtschaftsgut erweitert oder über seinen ursprünglichen Zustand
+        hinaus wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB). Eine Reparatur, die es im Zustand
+        hält, gehört sofort in die Gewinn- und Verlustrechnung. Die Buchung wird hier trotzdem mit
+        dem Anlagegut verknüpft: wer später fragt, was die Maschine gekostet hat, sieht beides und
+        kann es auseinanderhalten. Das Aufwandskonto folgt aus dem Anlagekonto.
+      </FormHint>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Field label="Datum">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Betrag" hint="netto, ohne Vorsteuer">
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </Field>
+        <Field label="Zahlung">
+          <RadioGroup
+            options={[
+              { value: 'paid', label: 'Sofort bezahlt' },
+              { value: 'open', label: 'Offener Posten' },
+            ]}
+            value={settlement}
+            onValueChange={(next) => setSettlement(next as Settlement)}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {settlement === 'paid' ? (
+          <Field label="Zahlungsmittel">
+            <Select
+              items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
+              value={paymentAccount}
+              onValueChange={(next) => setPaymentAccount(String(next))}
+            />
+          </Field>
+        ) : (
+          <Field label="Lieferant" hint="die Verbindlichkeit steht auf seinem Personenkonto">
+            <Select
+              items={vendors.map((c) => ({ value: c.id, label: c.name }))}
+              value={contactId}
+              onValueChange={(next) => setContactId(Number(next))}
+            />
+          </Field>
+        )}
+        <Field
+          label="Abgrenzung zur Erweiterung"
+          hint="wird mit der Buchung festgehalten"
+          help="Die Unterscheidung ist eine Einschätzung, keine Rechnung. Ohne festgehaltene Begründung ist sie später nicht mehr nachvollziehbar."
+        >
+          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+      </div>
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button variant="primary" loading={busy} onClick={submit}>
+          Aufwand buchen
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const AssetIncomeForm: React.FC<{
+  asset: FixedAsset;
+  contacts: Contact[];
+  paymentAccounts: Account[];
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState('');
+  const [withholding, setWithholding] = useState('');
+  const [settlement, setSettlement] = useState<Settlement>('paid');
+  const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
+  const [contactId, setContactId] = useState(0);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const customers = contacts.filter((c) => c.type === 'customer');
+  const gross = parseCents(amount) ?? 0;
+  const tax = parseCents(withholding) ?? 0;
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (gross <= 0) {
+        setError('Der Betrag fehlt oder ist nicht lesbar.');
+        return;
+      }
+      await Api.bookAssetIncome({
+        assetId: asset.id,
+        date,
+        amount: gross,
+        withholdingTax: tax,
+        settlement,
+        paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
+        contactId: settlement === 'open' ? contactId : undefined,
+        note,
+      });
+      await onDone('Ertrag gebucht.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zum laufenden Ertrag"
+        line="Eine Ausschüttung ist Ertrag des Jahres, kein Rückfluss der Anschaffungskosten."
+      >
+        Der Buchwert des Anteils bleibt deshalb unberührt. Verknüpft wird der Ertrag trotzdem, sonst
+        bliebe die Frage unbeantwortbar, was dieser Anteil eingebracht hat. Das Ertragskonto folgt
+        aus der Art der Finanzanlage: die Gewinn- und Verlustrechnung weist Beteiligungserträge,
+        Erträge aus Ausleihungen und sonstige Zinsen getrennt aus (§ 275 Abs. 2 HGB). Eine
+        einbehaltene Kapitalertragsteuer mindert den Zufluss und nicht den Ertrag — sie ist eine
+        Vorauszahlung auf die eigene Steuer.
+      </FormHint>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Field label="Datum">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Ertrag" hint="brutto, vor Kapitalertragsteuer">
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Einbehaltene Kapitalertragsteuer"
+          optional
+          hint={gross > 0 ? `Zufluss ${formatCents(gross - tax)}` : 'samt Solidaritätszuschlag'}
+          error={tax > gross ? 'Mehr als der Ertrag kann nicht einbehalten worden sein.' : undefined}
+        >
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={withholding}
+            onChange={(e) => setWithholding(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Field label="Zufluss">
+          <RadioGroup
+            options={[
+              { value: 'paid', label: 'Sofort zugeflossen' },
+              { value: 'open', label: 'Offene Forderung' },
+            ]}
+            value={settlement}
+            onValueChange={(next) => setSettlement(next as Settlement)}
+          />
+        </Field>
+        {settlement === 'paid' ? (
+          <Field label="Zahlungsmittel">
+            <Select
+              items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
+              value={paymentAccount}
+              onValueChange={(next) => setPaymentAccount(String(next))}
+            />
+          </Field>
+        ) : (
+          <Field label="Schuldner" hint="die Forderung steht auf seinem Personenkonto">
+            <Select
+              items={customers.map((c) => ({ value: c.id, label: c.name }))}
+              value={contactId}
+              onValueChange={(next) => setContactId(Number(next))}
+            />
+          </Field>
+        )}
+        <Field label="Notiz" optional>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+      </div>
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button variant="primary" loading={busy} onClick={submit}>
+          Ertrag buchen
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const CurrencyForm: React.FC<{
+  asset: FixedAsset;
+  onDone: (message: string) => Promise<void>;
+}> = ({ asset, onDone }) => {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [rate, setRate] = useState('');
+  const [valuation, setValuation] = useState<CurrencyValuation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const rateValue = Math.round(Number(rate.replace(',', '.') || '0') * RATE_SCALE);
+
+  // Die Umrechnung rechnet das Backend — dieselbe Rechnung, die auch die
+  // Obergrenze der Zuschreibung kennt.
+  useEffect(() => {
+    if (rateValue <= 0) {
+      setValuation(null);
+      return;
+    }
+    let cancelled = false;
+    Api.valuateAssetCurrency({ assetId: asset.id, date, ratePerEuro: rateValue })
+      .then((result) => {
+        if (!cancelled) {
+          setValuation(result);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setValuation(null);
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [asset.id, date, rateValue]);
+
+  async function book() {
+    if (!valuation || valuation.proposedAmount <= 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (valuation.proposal === 'impairment') {
+        await Api.bookAssetImpairment({
+          assetId: asset.id,
+          date,
+          amount: valuation.proposedAmount,
+          permanent: false,
+          reason: `Umrechnung zum Devisenkassamittelkurs ${rate} ${valuation.currency}/€ (§ 256a HGB)`,
+        });
+        await onDone('Außerplanmäßige Abschreibung aus der Währungsumrechnung gebucht.');
+        return;
+      }
+      await Api.bookAssetWriteUp({
+        assetId: asset.id,
+        date,
+        amount: valuation.proposedAmount,
+        reason: `Umrechnung zum Devisenkassamittelkurs ${rate} ${valuation.currency}/€ (§ 256a HGB)`,
+      });
+      await onDone('Zuschreibung aus der Währungsumrechnung gebucht.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormHint
+        label="Erklärung zur Fremdwährungsbewertung"
+        line="Umgerechnet wird zum Devisenkassamittelkurs des Abschlussstichtags (§ 256a HGB)."
+      >
+        Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB): die
+        Ausnahme des § 256a Satz 2 HGB gilt nur bei einer Restlaufzeit von höchstens einem Jahr und
+        passt auf ein Anlagegut nicht, das dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener
+        Kurs führt deshalb zu einer außerplanmäßigen Abschreibung, ein gestiegener höchstens zu einer
+        Zuschreibung bis zu den Anschaffungskosten. Buchfink rechnet den Betrag; gebucht wird er über
+        dieselben Wege wie jede andere Wertänderung.
+      </FormHint>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Field label="Stichtag">
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field
+          label={`Kurs in ${asset.currency} je Euro`}
+          hint={
+            valuation && valuation.acquisitionRate > 0
+              ? `angeschafft zu ${(valuation.acquisitionRate / RATE_SCALE).toFixed(4)}`
+              : 'Devisenkassamittelkurs des Stichtags'
+          }
+        >
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="1,0000"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+          />
+        </Field>
+        <Field label="Bestand in Fremdwährung" hint="aus den Stammdaten">
+          <Input align="right" disabled value={formatCentsPlain(asset.foreignCost ?? 0)} />
+        </Field>
+      </div>
+
+      {valuation && (
+        <Section title="Was der Stichtagskurs bedeutet" divider={false}>
+          <StatRow className="mb-4">
+            <Stat
+              label="Wert zum Stichtagskurs"
+              value={formatCents(valuation.valueAtRate)}
+              context={`${formatCentsPlain(valuation.foreignAmount)} ${valuation.currency}`}
+            />
+            <Stat label="Buchwert" value={formatCents(valuation.bookValue)} />
+            <Stat
+              label="Unterschied"
+              value={formatCents(valuation.difference)}
+              tone={valuation.difference < 0 ? 'negative' : 'positive'}
+            />
+            <Stat
+              label={
+                valuation.proposal === 'impairment'
+                  ? 'Abzuschreiben'
+                  : valuation.proposal === 'write_up'
+                    ? 'Zuzuschreiben'
+                    : 'Zu buchen'
+              }
+              value={formatCents(valuation.proposedAmount)}
+            />
+          </StatRow>
+          <p className="text-body text-ink-muted">{valuation.explanation}</p>
+        </Section>
+      )}
+
+      <FormError message={error} />
+
+      <div className="flex justify-end">
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={!valuation || valuation.proposedAmount <= 0}
+          onClick={book}
+        >
+          {valuation?.proposal === 'write_up' ? 'Zuschreibung buchen' : 'Abschreibung buchen'}
         </Button>
       </div>
     </div>
@@ -2223,6 +2872,11 @@ const DisposalForm: React.FC<{
   const partialPossible = asset.class === 'financial';
   const [partial, setPartial] = useState(false);
   const [costShareText, setCostShareText] = useState('');
+  const [quantityText, setQuantityText] = useState('');
+  // Wo Stücke geführt werden, ist die Stückzahl die Vorgabe und der Betrag das
+  // Ergebnis. Beide Felder zugleich anzubieten hieße, den Nutzer zwei Wege
+  // rechnen zu lassen, die auseinanderlaufen können.
+  const tracksUnits = (asset.unitsHeld ?? 0) > 0;
   const [preview, setPreview] = useState<DisposalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2318,14 +2972,37 @@ const DisposalForm: React.FC<{
                 setPartial(next);
                 if (!next) {
                   setCostShareText('');
-                  set({ costShare: 0 });
+                  setQuantityText('');
+                  set({ costShare: 0, quantity: 0 });
                 }
               }}
               label="Nur ein Teil geht ab"
               hint="Eine Tranche von Anteilen, die Tilgung einer Ausleihung."
             />
           </div>
-          {partial && (
+          {partial && tracksUnits ? (
+            <Field
+              label="Abgehende Stückzahl"
+              hint={
+                preview?.quantityShare
+                  ? `von ${formatUnits(asset.unitsHeld ?? 0)} · Rest ${formatUnits(preview.unitsRemaining ?? 0)}`
+                  : `von ${formatUnits(asset.unitsHeld ?? 0)} im Bestand`
+              }
+              help="Verkauft wird eine Tranche, kein Betrag. Den Anteil der Anschaffungskosten rechnet Buchfink daraus — samt der Abschreibungen, die im selben Verhältnis mit hinauswandern."
+            >
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                align="right"
+                value={quantityText}
+                onChange={(e) => {
+                  setQuantityText(e.target.value);
+                  set({ quantity: Math.round(Number(e.target.value || '0') * UNIT_SCALE) });
+                }}
+              />
+            </Field>
+          ) : partial ? (
             <Field
               label="Abgehende Anschaffungskosten"
               hint={`von ${formatCents(asset.cost)}`}
@@ -2342,7 +3019,7 @@ const DisposalForm: React.FC<{
                 }}
               />
             </Field>
-          )}
+          ) : null}
         </div>
       )}
 

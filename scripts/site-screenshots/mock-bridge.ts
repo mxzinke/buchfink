@@ -967,6 +967,7 @@ function asset(
     bookValue: cost - accumulated,
     yearAmount,
     dueAmount,
+    specialDue: 0,
     status,
     ...extra,
   };
@@ -994,6 +995,24 @@ const ASSETS = [
     '6200', '2025-07-01', c(12000), c(2000), 0, c(4000), 'linear', 36),
   asset(9, 'AN-2026-0009', 'Fertigungslinie (im Bau)', 'tangible', '0700',
     'Geleistete Anzahlungen und Anlagen im Bau', '', '2026-01-15', c(80000), 0, 0, 0, 'none', 0),
+  asset(10, 'AN-2026-0010', 'Fertigungsroboter KR-210', 'tangible', '0440', 'Maschinen',
+    '6220', '2026-01-05', c(100000), 0, 0, c(10000), 'linear', 120,
+    {
+      specialPermille: 400,
+      specialYears: 5,
+      specialAccount: '6241',
+      specialReason: 'Gewinn 2025: 142.000 €; ausschließlich betriebliche Nutzung',
+      specialDue: c(8000),
+    }),
+  asset(11, 'AN-2025-0011', 'US-Staatsanleihe 2032', 'financial', '0920',
+    'Festverzinsliche Wertpapiere', '', '2025-05-12', c(10000), 0, 0, 0, 'none', 0,
+    {
+      identifier: 'US912828Z294',
+      currency: 'USD',
+      foreignCost: c(12000),
+      quantity: 100 * 10000,
+      unitsHeld: 100 * 10000,
+    }),
 ];
 
 const ASSET_ACCOUNTS = [
@@ -1018,8 +1037,13 @@ const ASSET_RULES = {
   poolUpperLimit: c(1000),
   poolYears: 5,
   degressiveWindows: [
-    { From: '2025-07-01', Until: '2027-12-31', FactorTimes: 3, MaxPermille: 300, Source: '§ 7 Abs. 2 Sätze 1 und 2 EStG' },
+    { From: '2009-01-01', Until: '2010-12-31', FactorPermille: 2500, MaxPermille: 250, Source: '§ 7 Abs. 2 EStG in der Fassung des Gesetzes vom 21.12.2008' },
+    { From: '2020-01-01', Until: '2022-12-31', FactorPermille: 2500, MaxPermille: 250, Source: '§ 7 Abs. 2 EStG in der Fassung des Zweiten Corona-Steuerhilfegesetzes' },
+    { From: '2024-04-01', Until: '2024-12-31', FactorPermille: 2000, MaxPermille: 200, Source: '§ 7 Abs. 2 EStG in der Fassung des Wachstumschancengesetzes' },
+    { From: '2025-07-01', Until: '2027-12-31', FactorPermille: 3000, MaxPermille: 300, Source: '§ 7 Abs. 2 Sätze 1 und 2 EStG' },
   ],
+  specialMaxPermille: 400,
+  specialPeriodYears: 5,
   methods: [
     { method: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)', classes: ['intangible', 'tangible'], hint: 'Gleichmäßig über die betriebsgewöhnliche Nutzungsdauer, zeitanteilig ab dem Anschaffungsmonat.' },
     { method: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)', classes: ['tangible'], hint: 'Vom Restbuchwert, höchstens das Dreifache des linearen Satzes und höchstens 30 %.' },
@@ -1033,13 +1057,16 @@ const DEPRECIATION_RUN = {
   fiscalYear: YEAR,
   bookingDate: `${YEAR}-12-31`,
   due: [
-    { assetId: 1, inventoryNumber: 'AN-2024-0001', name: 'Büroeinrichtung Konferenzraum', account: '0650', expenseAccount: '6220', method: 'linear', rateLabel: '7,7 %', months: 12, planned: c(738.46), booked: 0, due: c(738.46), bookValueBefore: c(8430.77), bookValueAfter: c(7692.31) },
-    { assetId: 2, inventoryNumber: 'AN-2025-0002', name: 'Pkw VW ID.4 · HH-NS 412', account: '0520', expenseAccount: '6222', method: 'linear', rateLabel: '16,7 %', months: 12, planned: c(7000), booked: 0, due: c(7000), bookValueBefore: c(36166.67), bookValueAfter: c(29166.67) },
-    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'CNC-Fräse Haas VF-2', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
-    { assetId: 5, inventoryNumber: 'AN-2026-0005', name: 'Sammelposten 2026', account: '0675', expenseAccount: '6264', method: 'pool', rateLabel: '1/5', months: 12, planned: c(840), booked: 0, due: c(840), bookValueBefore: c(4200), bookValueAfter: c(3360), note: 'Auflösung des Sammelpostens 2026 mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).' },
-    { assetId: 8, inventoryNumber: 'AN-2025-0008', name: 'ERP-Lizenz Warenwirtschaft', account: '0135', expenseAccount: '6200', method: 'linear', rateLabel: '33,3 %', months: 12, planned: c(4000), booked: 0, due: c(4000), bookValueBefore: c(10000), bookValueAfter: c(6000) },
+    { assetId: 1, inventoryNumber: 'AN-2024-0001', name: 'Büroeinrichtung Konferenzraum', account: '0650', expenseAccount: '6220', method: 'linear', rateLabel: '7,7 %', months: 12, planned: c(738.46), booked: 0, due: c(738.46), bookValueBefore: c(8430.77), bookValueAfter: c(7692.31), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    { assetId: 2, inventoryNumber: 'AN-2025-0002', name: 'Pkw VW ID.4 · HH-NS 412', account: '0520', expenseAccount: '6222', method: 'linear', rateLabel: '16,7 %', months: 12, planned: c(7000), booked: 0, due: c(7000), bookValueBefore: c(36166.67), bookValueAfter: c(29166.67), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'CNC-Fräse Haas VF-2', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    { assetId: 5, inventoryNumber: 'AN-2026-0005', name: 'Sammelposten 2026', account: '0675', expenseAccount: '6264', method: 'pool', rateLabel: '1/5', months: 12, planned: c(840), booked: 0, due: c(840), bookValueBefore: c(4200), bookValueAfter: c(3360), note: 'Auflösung des Sammelpostens 2026 mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    { assetId: 8, inventoryNumber: 'AN-2025-0008', name: 'ERP-Lizenz Warenwirtschaft', account: '0135', expenseAccount: '6200', method: 'linear', rateLabel: '33,3 %', months: 12, planned: c(4000), booked: 0, due: c(4000), bookValueBefore: c(10000), bookValueAfter: c(6000), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    // Die Sonderabschreibung läuft neben der planmäßigen AfA und auf einem
+    // eigenen Aufwandskonto (§ 7g Abs. 5 EStG, § 7a Abs. 4 EStG).
+    { assetId: 10, inventoryNumber: 'AN-2026-0010', name: 'Fertigungsroboter KR-210', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '10 %', months: 12, planned: c(10000), booked: 0, due: c(10000), bookValueBefore: c(100000), bookValueAfter: c(82000), specialAccount: '6241', specialPlanned: c(8000), specialBooked: 0, specialDue: c(8000) },
   ],
-  total: c(15328.46),
+  total: c(33328.46),
 };
 
 function spiegelRow(
@@ -1157,15 +1184,31 @@ const ASSET_CANDIDATES = [
 
 const ASSET_SCHEDULES: Record<number, unknown[]> = {
   2: [
-    { fiscalYear: 2025, months: 10, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(42000), amount: c(5833.33), closingBookValue: c(36166.67), booked: c(5833.33), due: 0, status: 'gebucht', note: 'Zeitanteilig für 10 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
-    { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(36166.67), amount: c(7000), closingBookValue: c(29166.67), booked: 0, due: c(7000), status: 'offen' },
-    { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(29166.67), amount: c(7000), closingBookValue: c(22166.67), booked: 0, due: c(7000), status: 'geplant' },
-    { fiscalYear: 2028, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(22166.67), amount: c(7000), closingBookValue: c(15166.67), booked: 0, due: c(7000), status: 'geplant' },
-    { fiscalYear: 2029, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(15166.67), amount: c(7000), closingBookValue: c(8166.67), booked: 0, due: c(7000), status: 'geplant' },
-    { fiscalYear: 2030, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(8166.67), amount: c(7000), closingBookValue: c(1166.67), booked: 0, due: c(7000), status: 'geplant' },
-    { fiscalYear: 2031, months: 2, method: 'linear', rateLabel: 'Restwert', openingBookValue: c(1166.67), amount: c(1166.67), closingBookValue: 0, booked: 0, due: c(1166.67), status: 'geplant' },
+    { fiscalYear: 2025, months: 10, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(42000), amount: c(5833.33), closingBookValue: c(36166.67), booked: c(5833.33), due: 0, specialBooked: 0, specialDue: 0, status: 'gebucht', note: 'Zeitanteilig für 10 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
+    { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(36166.67), amount: c(7000), closingBookValue: c(29166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'offen' },
+    { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(29166.67), amount: c(7000), closingBookValue: c(22166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+    { fiscalYear: 2028, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(22166.67), amount: c(7000), closingBookValue: c(15166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+    { fiscalYear: 2029, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(15166.67), amount: c(7000), closingBookValue: c(8166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+    { fiscalYear: 2030, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(8166.67), amount: c(7000), closingBookValue: c(1166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+    { fiscalYear: 2031, months: 2, method: 'linear', rateLabel: 'Restwert', openingBookValue: c(1166.67), amount: c(1166.67), closingBookValue: 0, booked: 0, due: c(1166.67), specialBooked: 0, specialDue: 0, status: 'geplant' },
   ],
 };
+
+// Der Fertigungsroboter zeigt beide Phasen: den Begünstigungszeitraum mit der
+// Sonderabschreibung neben der planmäßigen AfA, und danach die
+// Restwertverteilung des § 7a Abs. 9 EStG.
+ASSET_SCHEDULES[10] = [
+  { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(100000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(82000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'offen', note: 'Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG: 8.000,00 €. Sie tritt neben die planmäßige AfA, die daneben unverändert weiterläuft (§ 7a Abs. 4 EStG).' },
+  { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(82000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(64000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
+  { fiscalYear: 2028, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(64000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(46000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
+  { fiscalYear: 2029, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(46000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(28000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
+  { fiscalYear: 2030, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(28000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(10000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
+  { fiscalYear: 2031, months: 12, method: 'linear', rateLabel: 'linear auf 60 Restmonate', openingBookValue: c(10000), amount: c(2000), closingBookValue: c(8000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant', note: 'Der Begünstigungszeitraum der Sonderabschreibung ist abgelaufen: der Restwert verteilt sich von hier an auf die Restnutzungsdauer (§ 7a Abs. 9 EStG).' },
+  { fiscalYear: 2032, months: 12, method: 'linear', rateLabel: 'linear auf 48 Restmonate', openingBookValue: c(8000), amount: c(2000), closingBookValue: c(6000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+  { fiscalYear: 2033, months: 12, method: 'linear', rateLabel: 'linear auf 36 Restmonate', openingBookValue: c(6000), amount: c(2000), closingBookValue: c(4000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+  { fiscalYear: 2034, months: 12, method: 'linear', rateLabel: 'linear auf 24 Restmonate', openingBookValue: c(4000), amount: c(2000), closingBookValue: c(2000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+  { fiscalYear: 2035, months: 12, method: 'linear', rateLabel: 'Restwert', openingBookValue: c(2000), amount: c(2000), closingBookValue: 0, booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
+];
 
 const ASSET_MOVEMENTS: Record<number, unknown[]> = {
   2: [
@@ -1173,6 +1216,13 @@ const ASSET_MOVEMENTS: Record<number, unknown[]> = {
     { id: 2, assetId: 2, kind: 'depreciation', date: '2025-12-31', fiscalYear: 2025, costAmount: 0, depreciationAmount: c(5833.33), entryNumber: '2025-000488', note: 'AfA 2025', createdAt: '2025-12-31T09:00:00Z' },
   ],
 };
+
+// Die Anleihe wird in Stück geführt: Zugang und Nachkauf tragen ihre
+// Stückzahl, sonst ergäbe sich der Bestand nach einem Teilabgang nicht mehr.
+ASSET_MOVEMENTS[11] = [
+  { id: 30, assetId: 11, kind: 'acquisition', date: '2025-05-12', fiscalYear: 2025, costAmount: c(10000), depreciationAmount: 0, quantity: 100 * 10000, entryNumber: '2025-000231', note: 'Zugang · 12.000,00 USD', createdAt: '2025-05-12T09:00:00Z' },
+  { id: 31, assetId: 11, kind: 'income', date: `${YEAR}-06-30`, fiscalYear: YEAR, costAmount: 0, depreciationAmount: 0, entryNumber: `${YEAR}-000318`, note: '250,00 € auf 7010. Halbjahreszins', createdAt: `${YEAR}-06-30T09:00:00Z` },
+];
 
 const ASSET_NOTES: Record<string, string[]> = {
   tangible: [
@@ -1213,6 +1263,7 @@ function assetSummary(assetClass: string) {
     bookValue: list.reduce((sum, a) => sum + a.bookValue, 0),
     yearAmount: list.reduce((sum, a) => sum + a.yearAmount, 0),
     dueAmount: list.reduce((sum, a) => sum + a.dueAmount, 0),
+    specialDue: list.reduce((sum, a: any) => sum + (a.specialDue ?? 0), 0),
     dueCount: list.filter((a) => a.dueAmount > 0).length,
   };
 }
@@ -1275,12 +1326,18 @@ function classifyAcquisition(netCost: number, selfUsable: boolean) {
 
 /** Der Abgang, wie ihn das Backend vorrechnet: erst das Ergebnis, dann die Konten. */
 function disposalPreview(request: any) {
-  const found = ASSETS.find((a) => a.id === request.assetId)!;
+  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
   const catchUp = found.dueAmount;
-  const partial = (request.costShare ?? 0) > 0 && request.costShare < found.cost;
-  const costShare = partial ? request.costShare : found.cost;
+  const held = found.unitsHeld ?? 0;
+  // Wo Stücke geführt werden, ist die Stückzahl die Vorgabe und der Betrag das
+  // Ergebnis — genau wie im Dienst.
+  const byUnits = (request.quantity ?? 0) > 0 && held > 0;
+  const shareFromUnits = byUnits ? Math.round((found.cost * request.quantity) / held) : 0;
+  const requested = byUnits ? shareFromUnits : (request.costShare ?? 0);
+  const partial = requested > 0 && requested < found.cost;
+  const costShare = partial ? requested : found.cost;
   const depreciationShare = partial
-    ? Math.round((found.accumulated * request.costShare) / found.cost)
+    ? Math.round((found.accumulated * costShare) / found.cost)
     : found.accumulated;
   const bookValue = Math.max(costShare - depreciationShare - catchUp, 0);
   const proceeds = request.kind === 'scrapped' ? 0 : (request.proceeds ?? 0);
@@ -1332,8 +1389,11 @@ function disposalPreview(request: any) {
   return {
     partial,
     costShare,
+    quantityShare: byUnits ? request.quantity : held,
+    unitsRemaining: byUnits ? held - request.quantity : 0,
     depreciationShare,
     catchUpAmount: catchUp,
+    specialCatchUp: found.specialDue ?? 0,
     catchUpLines: catchUp > 0
       ? [
           { id: 6, position: 1, side: 'S', account: found.depreciationAccount, accountName: 'Abschreibungen auf Fahrzeuge', amount: catchUp, text: 'AfA bis zum Abgangsmonat' },
@@ -1351,14 +1411,49 @@ function disposalPreview(request: any) {
 }
 
 
+/**
+ * Die Umrechnung zum Devisenkassamittelkurs des Stichtags (§ 256a HGB), nach
+ * oben begrenzt durch die Anschaffungskosten (§ 253 Abs. 1 Satz 1 HGB).
+ */
+function currencyValuation(request: any) {
+  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
+  const foreign = found.foreignCost ?? 0;
+  const rate = request.ratePerEuro ?? 1_000_000;
+  const valueAtRate = Math.round((foreign * 1_000_000) / rate);
+  const difference = valueAtRate - found.bookValue;
+  const ceiling = Math.max(found.acquisitionCost - found.bookValue, 0);
+  const proposedAmount = difference < 0 ? -difference : Math.min(difference, ceiling);
+  const proposal = difference < 0 ? 'impairment' : proposedAmount > 0 ? 'write_up' : 'none';
+  return {
+    currency: found.currency ?? 'EUR',
+    foreignAmount: foreign,
+    acquisitionRate: found.acquisitionCost > 0 ? Math.round((foreign * 1_000_000) / found.acquisitionCost) : 0,
+    ratePerEuro: rate,
+    valueAtRate,
+    bookValue: found.bookValue,
+    difference,
+    proposal,
+    proposedAmount,
+    explanation:
+      difference < 0
+        ? 'Zum Kurs des Stichtags ist der Bestand weniger wert als gebucht. Die Differenz ist außerplanmäßig abzuschreiben — bei Finanzanlagen auch dann, wenn die Wertminderung voraussichtlich nicht von Dauer ist (§ 253 Abs. 3 Satz 6 HGB).'
+        : proposedAmount > 0
+          ? 'Der Kurs ist gestiegen: zuzuschreiben ist höchstens bis zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB).'
+          : 'Der Kurs ist gestiegen, zuzuschreiben ist trotzdem nichts — über die Anschaffungskosten hinaus darf nicht bewertet werden (§ 253 Abs. 1 Satz 1 HGB).',
+  };
+}
+
 /** Der Abschreibungsplan einer Eingabe, wie ihn das Backend rechnet. */
 function previewPlan(request: any) {
   const cost = request.cost ?? 0;
   if (cost <= 0) return [];
   const start = Number(String(request.acquisitionDate).slice(0, 4));
 
+  const specialTotal = Math.round((cost * (request.specialPermille ?? 0)) / 1000);
+  const specialYears = Math.min(Math.max(request.specialYears ?? 0, 0), 5);
+
   if (request.method === 'immediate') {
-    return [{ fiscalYear: start, months: 1, method: 'immediate', rateLabel: '100 %', openingBookValue: cost, amount: cost, closingBookValue: 0 }];
+    return [{ fiscalYear: start, months: 1, method: 'immediate', rateLabel: '100 %', openingBookValue: cost, amount: cost, closingBookValue: 0, specialBooked: 0, specialDue: 0 }];
   }
   if (request.method === 'pool') {
     const share = Math.round(cost / 5);
@@ -1370,6 +1465,8 @@ function previewPlan(request: any) {
       openingBookValue: cost - share * i,
       amount: i === 4 ? cost - share * 4 : share,
       closingBookValue: cost - share * (i + 1),
+      specialBooked: 0,
+      specialDue: 0,
     }));
   }
 
@@ -1383,18 +1480,34 @@ function previewPlan(request: any) {
   let remaining = life;
   let year = start;
   let months = Math.min(firstMonths, life);
+  let specialLeft = specialTotal;
+  const specialShare = specialYears > 0 ? Math.round(specialTotal / specialYears) : 0;
   while (remaining > 0 && book > 0) {
-    const amount = remaining - months <= 0 ? book : Math.round((annual * months) / 12);
+    const inPeriod = specialYears > 0 && year < start + specialYears;
+    // Die Sonderabschreibung wird im Anschaffungsjahr nicht zeitanteilig
+    // gekürzt und kommt zur planmäßigen AfA hinzu, nicht an ihre Stelle.
+    let special = 0;
+    if (inPeriod && specialLeft > 0) {
+      special = year === start + specialYears - 1 ? specialLeft : Math.min(specialShare, specialLeft);
+      specialLeft -= special;
+    }
+    // Nach dem Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert.
+    const residual = specialTotal > 0 && year >= start + 5;
+    const planned = residual ? Math.round((book * months) / remaining) : Math.round((annual * months) / 12);
+    const amount = remaining - months <= 0 ? book - special : planned;
     rows.push({
       fiscalYear: year,
       months,
       method: 'linear',
-      rateLabel: `${Math.round((1200 / life) * 10) / 10} %`,
+      rateLabel: residual ? `linear auf ${remaining} Restmonate` : `${Math.round((1200 / life) * 10) / 10} %`,
       openingBookValue: book,
       amount,
-      closingBookValue: book - amount,
+      specialAmount: special,
+      closingBookValue: book - amount - special,
+      specialBooked: 0,
+      specialDue: 0,
     });
-    book -= amount;
+    book -= amount + special;
     remaining -= months;
     year += 1;
     months = Math.min(12, remaining);
@@ -1526,6 +1639,9 @@ export const bridge = {
   BookAssetWriteUp: unsupported('BookAssetWriteUp'),
   TransferFixedAsset: unsupported('TransferFixedAsset'),
   PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
+  BookAssetMaintenance: unsupported('BookAssetMaintenance'),
+  BookAssetIncome: unsupported('BookAssetIncome'),
+  ValuateAssetCurrency: (request: any) => later(currencyValuation(request), 60),
   DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),

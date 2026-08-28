@@ -722,9 +722,26 @@ export type AssetMovementKind =
   | 'subsequent_cost'
   | 'cost_reduction'
   | 'depreciation'
+  | 'special_depreciation'
   | 'impairment'
   | 'write_up'
+  | 'maintenance'
+  | 'income'
   | 'disposal';
+
+/**
+ * Stückzahl in Zehntausendstel: 100 Anteile sind 1_000_000.
+ *
+ * Wie bei den Beträgen eine ganze Zahl, damit die Summe der Zu- und Abgänge
+ * nicht vom Bestand abdriftet — Fondsanteile gibt es in Bruchteilen.
+ */
+export type Units = number;
+
+/** Ein Stück in der Skalierung von {@link Units}. */
+export const UNIT_SCALE = 10000;
+
+/** Devisenkurse werden als Fremdwährungseinheiten je Euro mal einer Million geführt. */
+export const RATE_SCALE = 1_000_000;
 
 export interface AssetMovement {
   id: number;
@@ -740,6 +757,8 @@ export interface AssetMovement {
   depreciationAmount: Cents;
   journalEntryId?: number;
   entryNumber?: string;
+  /** Stückzahl, die diese Bewegung bewegt: positiv beim Zugang, negativ beim Abgang. */
+  quantity?: Units;
   /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
   lifeExtensionMonths?: number;
   note?: string;
@@ -761,7 +780,21 @@ export interface FixedAsset {
   method: DepreciationMethod;
   usefulLifeMonths: number;
   poolYear?: number;
+  /** Sonderabschreibung nach § 7g Abs. 5 EStG: Satz in Promille, höchstens 400. */
+  specialPermille?: number;
+  /** Jahre, auf die der Betrag gleichmäßig verteilt wird — eins bis fünf. */
+  specialYears?: number;
+  /** Aufwandskonto der Sonderabschreibung: 6242 für Fahrzeuge, sonst 6241. */
+  specialAccount?: string;
+  /** Pflichtangabe zu den Voraussetzungen des § 7g Abs. 6 EStG. */
+  specialReason?: string;
   identifier?: string;
+  /** Stückzahl des Zugangs. Null heißt: dieses Anlagegut wird nicht in Stück geführt. */
+  quantity?: Units;
+  /** Notierungswährung (ISO 4217). Leer heißt Euro. */
+  currency?: string;
+  /** Anschaffungskosten in der Notierungswährung. */
+  foreignCost?: Cents;
   /** Beteiligungsquote in Promille: 200 sind 20 %. */
   holdingPermille?: number;
   taxPrivileged?: boolean;
@@ -783,6 +816,10 @@ export interface FixedAsset {
   bookValue: Cents;
   yearAmount: Cents;
   dueAmount: Cents;
+  /** Noch fällige Sonderabschreibung des Geschäftsjahres. */
+  specialDue: Cents;
+  /** Gehaltene Stückzahl nach allen Bewegungen. */
+  unitsHeld?: Units;
   status: AssetStatus;
   statusNote?: string;
 }
@@ -795,6 +832,7 @@ export interface AssetSummary {
   bookValue: Cents;
   yearAmount: Cents;
   dueAmount: Cents;
+  specialDue: Cents;
   dueCount: number;
 }
 
@@ -805,10 +843,14 @@ export interface AssetScheduleYear {
   rateLabel: string;
   openingBookValue: Cents;
   amount: Cents;
+  /** Sonderabschreibung des Jahres, getrennt geführt: eigenes Aufwandskonto. */
+  specialAmount?: Cents;
   closingBookValue: Cents;
   note?: string;
   booked: Cents;
   due: Cents;
+  specialBooked: Cents;
+  specialDue: Cents;
   status: 'gebucht' | 'offen' | 'teilweise' | 'geplant';
 }
 
@@ -830,6 +872,8 @@ export interface AssetAccountInfo {
   hint?: string;
   /** Anlagen im Bau und geleistete Anzahlungen: von hier wird umgebucht. */
   inProgress?: boolean;
+  /** Grund und Boden und alles, was darauf steht — keine degressive AfA, keine Sonderabschreibung. */
+  immovable?: boolean;
   depreciationAccount?: string;
   depreciable: boolean;
   defaultUsefulLifeMonths?: number;
@@ -854,7 +898,8 @@ export interface AcquisitionAdvice {
 export interface DegressiveWindow {
   From: string;
   Until: string;
-  FactorTimes: number;
+  /** Vielfaches des linearen Satzes in Tausendsteln: 3000 ist das Dreifache. */
+  FactorPermille: number;
   MaxPermille: number;
   Source: string;
 }
@@ -874,6 +919,10 @@ export interface AssetRules {
   poolUpperLimit: Cents;
   poolYears: number;
   degressiveWindows: DegressiveWindow[];
+  /** Höchstsatz der Sonderabschreibung in Promille (§ 7g Abs. 5 EStG). */
+  specialMaxPermille: number;
+  /** Begünstigungszeitraum in Jahren: das Anschaffungsjahr und die vier folgenden. */
+  specialPeriodYears: number;
   methods: AssetMethodInfo[];
 }
 
@@ -889,6 +938,10 @@ export interface DepreciationDue {
   planned: Cents;
   booked: Cents;
   due: Cents;
+  specialAccount?: string;
+  specialPlanned: Cents;
+  specialBooked: Cents;
+  specialDue: Cents;
   bookValueBefore: Cents;
   bookValueAfter: Cents;
   note?: string;
@@ -921,6 +974,8 @@ export interface DisposalRequest {
   proceeds: Cents;
   /** Teil der Anschaffungskosten, der abgeht. Leer = alles. Nur bei Finanzanlagen. */
   costShare?: Cents;
+  /** Derselbe Teilabgang in Stück. Hat Vorrang vor costShare. */
+  quantity?: Units;
   taxTreatment?: TaxTreatment;
   taxRate?: TaxRate;
   settlement: Settlement;
@@ -931,9 +986,14 @@ export interface DisposalRequest {
 
 export interface DisposalPreview {
   catchUpAmount: Cents;
+  /** Im Abgangsjahr noch offene Sonderabschreibung, mit demselben Beleg nachgeholt. */
+  specialCatchUp: Cents;
   catchUpLines?: JournalLine[];
   partial: boolean;
   costShare: Cents;
+  /** Abgehende Stückzahl und der Bestand danach. */
+  quantityShare?: Units;
+  unitsRemaining?: Units;
   depreciationShare: Cents;
   bookValue: Cents;
   /** Buchgewinn positiv, Buchverlust negativ. */
@@ -951,6 +1011,23 @@ export interface DisposalResult {
   disposalEntry?: JournalEntry;
   asset: FixedAsset;
   message: string;
+}
+
+/** Was der Devisenkassamittelkurs eines Stichtags für eine Finanzanlage bedeutet. */
+export interface CurrencyValuation {
+  currency: string;
+  foreignAmount: Cents;
+  /** Anschaffungskurs, abgeleitet aus Fremdbetrag und Euro-Anschaffungskosten. */
+  acquisitionRate: number;
+  ratePerEuro: number;
+  valueAtRate: Cents;
+  bookValue: Cents;
+  /** Unterschied zum Buchwert: negativ, wo der Kurs gefallen ist. */
+  difference: Cents;
+  /** Was daraus folgt — und mit welchem Betrag er tatsächlich gebucht werden dürfte. */
+  proposal: 'impairment' | 'write_up' | 'none';
+  proposedAmount: Cents;
+  explanation: string;
 }
 
 export interface AcquisitionCandidate {

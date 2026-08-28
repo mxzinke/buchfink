@@ -18,6 +18,7 @@ import type {
   Cents,
   CompanySettings,
   Contact,
+  CurrencyValuation,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -44,9 +45,13 @@ import type {
   ReceiptRequest,
   ReceiptStatus,
   SKR04Catalog,
+  Settlement,
   SuSaOverview,
+  TaxRate,
+  TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
+  Units,
   ValidationResult,
   VatSummary,
 } from '../types';
@@ -267,6 +272,8 @@ export const Api = {
     reduction?: boolean;
     /** Monate, um die sich die Restnutzungsdauer ab diesem Jahr verlängert. */
     extendLifeMonths?: number;
+    /** Zugekaufte Stückzahl bei einer Finanzanlage. */
+    quantity?: Units;
     note?: string;
     journalEntryId?: number;
   }): Promise<FixedAsset> =>
@@ -289,6 +296,9 @@ export const Api = {
     usefulLifeMonths: number;
     method: DepreciationMethod;
     poolYear?: number;
+    /** Sonderabschreibung nach § 7g Abs. 5 EStG, in Promille und über so viele Jahre. */
+    specialPermille?: number;
+    specialYears?: number;
   }): Promise<AssetScheduleYear[]> =>
     call(() => Bridge.PreviewDepreciationPlan(request as any) as Promise<AssetScheduleYear[]>),
   getDepreciationRun: (): Promise<DepreciationRun> =>
@@ -314,6 +324,50 @@ export const Api = {
     reason: string;
   }): Promise<JournalEntry> =>
     call(() => Bridge.BookAssetWriteUp(request as any) as Promise<JournalEntry>),
+  /**
+   * Erhaltungsaufwand: eine Buchung, die zum Anlagegut gehört, seinen Wert aber
+   * nicht ändert. Genau das unterscheidet sie von den nachträglichen
+   * Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB).
+   */
+  bookAssetMaintenance: (request: {
+    assetId: number;
+    date: string;
+    amount: Cents;
+    account?: string;
+    taxTreatment?: TaxTreatment;
+    taxRate?: TaxRate;
+    settlement: Settlement;
+    paymentAccount?: string;
+    contactId?: number;
+    note: string;
+  }): Promise<JournalEntry> =>
+    call(() => Bridge.BookAssetMaintenance(request as any) as Promise<JournalEntry>),
+  /** Dividende, Ausschüttung oder Zins, verknüpft mit dem Anteil, aus dem sie stammt. */
+  bookAssetIncome: (request: {
+    assetId: number;
+    date: string;
+    amount: Cents;
+    account?: string;
+    taxTreatment?: TaxTreatment;
+    settlement: Settlement;
+    paymentAccount?: string;
+    contactId?: number;
+    /** Einbehaltene Kapitalertragsteuer: sie mindert den Zufluss, nicht den Ertrag. */
+    withholdingTax?: Cents;
+    note?: string;
+  }): Promise<JournalEntry> =>
+    call(() => Bridge.BookAssetIncome(request as any) as Promise<JournalEntry>),
+  /**
+   * Umrechnung zum Devisenkassamittelkurs des Stichtags (§ 256a HGB). Bucht
+   * nichts — es nennt den Betrag, den eine Abschreibung oder Zuschreibung hätte.
+   */
+  valuateAssetCurrency: (request: {
+    assetId: number;
+    date: string;
+    /** Fremdwährungseinheiten je Euro, mal einer Million (RATE_SCALE). */
+    ratePerEuro: number;
+  }): Promise<CurrencyValuation> =>
+    call(() => Bridge.ValuateAssetCurrency(request as any) as Promise<CurrencyValuation>),
   /** Fertigstellung: Umbuchung von der Anlage im Bau auf ihr endgültiges Konto. */
   transferFixedAsset: (request: {
     assetId: number;

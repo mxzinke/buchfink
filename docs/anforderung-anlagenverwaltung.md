@@ -1,7 +1,7 @@
 # Buchfink – Anlagenverwaltung
 
-Status: umgesetzt, mit benannten offenen Punkten (siehe [Abschnitt 9](#9-offene-entscheidungen))
-Letzte Aktualisierung: 2026-08-27
+Status: umgesetzt
+Letzte Aktualisierung: 2026-08-28
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > **Umsetzung.** Das Anlagenverzeichnis liegt unter „Anlagevermögen" in der
@@ -13,8 +13,10 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Anlagenspiegel). Die Oberfläche ist `frontend/src/pages/AssetsPage.tsx`.
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
-> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
+> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
+> gesetze-im-internet.de verifiziert — der ursprüngliche Bestand am **22.08.2026**,
+> die Vorschriften zur Sonderabschreibung, zur Fremdwährung und zum
+> Erhaltungsaufwand am **28.08.2026**; die Fundstellen stehen in
 > [Abschnitt 11](#11-quellen). Die AfA-Regeln ändern sich häufig – vor der
 > Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
 
@@ -48,11 +50,17 @@ produziert still falsche Buchungen, sobald ein altes Jahr nachbearbeitet wird.
 **Anschaffungskosten nach § 255 Abs. 1 HGB** sind der Anschaffungspreis zuzüglich
 Anschaffungsnebenkosten und abzüglich Anschaffungspreisminderungen.
 
-Daraus folgt ein Punkt, der mit dem bestehenden Zahlungsflow kollidiert: **Skonto auf
-eine Anlage mindert die Anschaffungskosten, nicht den Aufwand.** Die vorhandene
-Skonto-Logik bucht auf 5736/4736 und korrigiert die Steuer – für eine Anlage müsste
-sie stattdessen das Anlagekonto mindern und die AfA-Bemessungsgrundlage anpassen.
-Dasselbe gilt für Rabatte und für nachträgliche Anschaffungskosten.
+Daraus folgt ein Punkt, den der Zahlungsflow kennen muss: **Skonto auf eine Anlage
+mindert die Anschaffungskosten, nicht den Aufwand.** Auf 5736 gebucht wäre es ein Ertrag
+des Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das Wirtschaftsgut nie
+gekostet hat – ein Fehler, der mit jedem Jahr des Plans wächst.
+
+Der Zahlungsflow fragt deshalb die Kartei, ob die bezahlte Rechnung die Zugangsbuchung
+eines Anlageguts war. Ist sie es, geht das Skonto im Haben auf das Anlagekonto statt auf
+das Skontokonto, und die Kartei nimmt die Minderung mit Verweis auf die Zahlungsbuchung
+auf. Die Steuerkorrektur nach § 17 Abs. 1 UStG bleibt unverändert: sie hängt am Umsatz und
+nicht daran, was mit dem Entgelt im Anlagevermögen geschieht. Nur auf der Eingangsseite –
+ein gewährtes Skonto mindert den eigenen Erlös.
 
 Ebenso zu erfassen: Fracht, Montage, Überführung sind Nebenkosten und gehören auf das
 Anlagekonto; Finanzierungskosten dagegen nicht.
@@ -99,6 +107,24 @@ im September angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgesch
 Der **Übergang von degressiv auf linear** ist zulässig (§ 7 Abs. 3 EStG) und lohnt sich
 ab dem Jahr, in dem die lineare Restwert-AfA höher wäre. Die Software sollte den
 optimalen Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
+
+**Die Sonderabschreibung tritt neben die planmäßige AfA**, sie ersetzt sie nicht: § 7g
+Abs. 5 EStG lässt sie „neben den Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2"
+zu, also neben der linearen wie neben der degressiven. Die allgemeine Regel des
+§ 7a Abs. 4 EStG, die nur § 7 Abs. 1 oder 4 nennt, wird davon verdrängt – und weil der
+SKR04 die Sonderabschreibung getrennt ausweist, läuft sie auf ein eigenes
+Aufwandskonto: **6242** für Fahrzeuge, **6241** für alles andere. Im Anschaffungsjahr wird
+sie *nicht* zeitanteilig gekürzt; § 7 Abs. 1 Satz 4 EStG betrifft die Absetzung für
+Abnutzung. Mit dem Ende des Begünstigungszeitraums – dem Anschaffungsjahr und den vier
+folgenden – verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer; ohne diese
+Umstellung stünde das Wirtschaftsgut Jahre vor seinem Ende bei null.
+
+Zwei Voraussetzungen kennt keine Software: der Gewinn des Vorjahres von höchstens
+200.000 € und die fast ausschließlich betriebliche Nutzung (§ 7g Abs. 6 EStG). Buchfink
+fragt sie und hält die Begründung fest, wie bei der außerplanmäßigen Abschreibung.
+Begünstigt sind außerdem nur **bewegliche** Wirtschaftsgüter – ein Gebäude ist eine
+Sachanlage wie eine Maschine und bekommt sie trotzdem nicht. Woran das erkennbar ist,
+weiß allein der Kontenkatalog.
 
 **Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen. Ein hinterlegter Katalog der
 gängigen Fälle wäre nützlich; er ist aber kein Gesetz, sondern eine Verwaltungsanweisung
@@ -161,6 +187,12 @@ der entsprechende Anteil einer früheren außerplanmäßigen Abschreibung hinaus
 bleibt im Bestand. Bei Sach- und immateriellen Anlagen ist der Teilabgang nicht vorgesehen
 — dort liefe ein Abschreibungsplan, der aufzuteilen wäre, und ein halber Pkw geht nicht ab.
 
+Wo Stücke geführt werden, ist die **Stückzahl die Vorgabe und der Betrag das Ergebnis**:
+verkauft wird eine Tranche von 40 Anteilen, nicht ein Betrag von 4.000 €. Den Anteil der
+Anschaffungskosten daraus zu rechnen ist genau die Arbeit, die dem Nutzer sonst bliebe —
+und die er dann rundet. Die Stückzahl steht an jeder Bewegung, sonst ergäbe sich der
+Bestand nach dem ersten Teilabgang nicht mehr.
+
 ## 6. Kopplung an die Festschreibung
 
 AfA ist eine Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall. Sie
@@ -198,7 +230,7 @@ Abgangsart. Dazu eine Historie der AfA-Buchungen mit Verweis auf den Journaleint
 Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen tragen: vom
 Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 
-## 9. Offene Entscheidungen
+## 9. Entscheidungen
 
 Entschieden und umgesetzt:
 
@@ -227,42 +259,77 @@ Entschieden und umgesetzt:
   unterliegen.
 - **Anlagen im Bau:** die Fertigstellung ist eine eigene Aktion. Sie bucht um,
   setzt das Datum der Betriebsbereitschaft und startet damit die AfA.
+- **Sonderabschreibung nach § 7g Abs. 5 EStG:** umgesetzt, mit eigenem
+  Aufwandskonto, ohne Zeitanteil im Anschaffungsjahr, neben der linearen wie
+  neben der degressiven AfA und mit der Restwertverteilung des § 7a Abs. 9 EStG
+  nach dem Begünstigungszeitraum — sie geht dort auch der degressiven vor. Wie
+  der Betrag über bis zu fünf Jahre verteilt wird, entscheidet der
+  Steuerpflichtige; ist sie einmal gebucht, lässt sie sich nicht mehr
+  umverteilen — das änderte ein abgeschlossenes Jahr.
+- **Skonto und Rabatt auf Anlagen:** der Zahlungsflow erkennt die
+  Anlagenrechnung und bucht die Minderung auf das Anlagekonto
+  (§ 255 Abs. 1 Satz 3 HGB). Die Kartei bekommt sie mit Verweis auf die
+  Zahlungsbuchung; die Steuerkorrektur nach § 17 Abs. 1 UStG bleibt unverändert.
 
-Noch offen:
+Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
 
-- **Skonto und Rabatt auf Anlagen:** die bestehende Skonto-Logik im
-  Zahlungsflow bucht weiterhin auf 5736/4736 und korrigiert die Steuer. Die
-  Kartei nimmt eine Anschaffungskostenminderung bisher nur als erfasste
-  Bewegung auf (die Bemessungsgrundlage sinkt, die Buchung bleibt unverändert).
-  Die automatische Kopplung fehlt.
-- **Sonderabschreibung nach § 7g Abs. 5 EStG:** nicht umgesetzt. Sie ist auf
-  fünf Jahre verteilbar und zieht die Restwertverteilung des § 7a Abs. 9 EStG
-  nach sich; halb umgesetzt wäre sie schlechter als gar nicht.
-- **Degressive AfA außerhalb des laufenden Zeitfensters:** Buchfink rechnet nur
-  den Zeitraum, den § 7 Abs. 2 EStG in der geltenden Fassung öffnet
-  (01.07.2025 bis 31.12.2027). Ältere degressive Zeiträume standen in früheren
-  Fassungen derselben Vorschrift und sind nicht hinterlegt; ein Plan dafür wird
-  abgelehnt statt geraten.
-- **Erhaltungsaufwand:** Buchfink fragt die Abgrenzung zur Erweiterung, bucht den
-  Erhaltungsaufwand aber nicht selbst — er läuft wie jeder andere Aufwand über den
-  Beleg.
-- **Stückzahlen bei Wertpapieren:** der Teilabgang rechnet mit Beträgen, nicht mit
-  Stück. Für eine Tranche ist das genau, was die Buchhaltung braucht; wer nach
-  Stück verkauft, rechnet den Anteil der Anschaffungskosten selbst aus.
-- **Fremdwährung bei Finanzanlagen:** § 256a HGB ist nicht abgebildet. Ein
-  Wertpapier in Fremdwährung steht mit seinem Anschaffungskurs im Verzeichnis.
-- **Laufende Erträge** aus Beteiligungen und Wertpapieren laufen über den Beleg
-  und sind nicht mit dem Anlagegut verknüpft.
+- **Erhaltungsaufwand und laufende Erträge:** beide werden gebucht und mit dem
+  Anlagegut verknüpft, ohne seinen Buchwert anzurühren — genau das unterscheidet
+  den Erhaltungsaufwand von den nachträglichen Herstellungskosten und die
+  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen tragen null in
+  beiden Wertspalten und erscheinen deshalb nicht im Anlagenspiegel. Das
+  Aufwandskonto folgt aus dem Anlagekonto, das Ertragskonto aus der Art der
+  Finanzanlage; die einbehaltene Kapitalertragsteuer mindert den Zufluss und
+  nicht den Ertrag.
+- **Fremdwährung:** § 256a HGB ist als Bewertung abgebildet, nicht als eigene
+  Buchung. Der Anschaffungskurs folgt aus Fremdbetrag und
+  Euro-Anschaffungskosten, der Stichtagskurs kommt vom Nutzer, und aus beiden
+  entsteht ein Vorschlag. Nach oben deckelt ihn das Anschaffungskostenprinzip
+  (§ 253 Abs. 1 Satz 1 HGB) — die Ausnahme des § 256a Satz 2 HGB für eine
+  Restlaufzeit bis zu einem Jahr passt auf ein Anlagegut nicht, das dauernd dem
+  Geschäftsbetrieb dienen soll. Gebucht wird über die Wege, die ihre Grenzen
+  ohnehin prüfen: die außerplanmäßige Abschreibung und die Zuschreibung.
+- **Stückzahlen bei Wertpapieren:** in Zehntausendsteln geführt, weil
+  Fondsanteile in Bruchteilen gehalten werden. Der Teilabgang rechnet damit; wo
+  keine Stückzahl geführt wird, bleibt der Betrag die Vorgabe.
+- **Degressive AfA in älteren Zeiträumen:** die früheren Fassungen des
+  § 7 Abs. 2 EStG stehen als eigene Zeitfenster in derselben Tabelle — 2009/2010
+  und 2020 bis 2022 mit dem Zweieinhalbfachen und höchstens 25 %, das zweite bis
+  vierte Quartal 2024 mit dem Zweifachen und höchstens 20 %, ab dem 01.07.2025
+  mit dem Dreifachen und höchstens 30 %. Zwischen ihnen liegen Lücken, und die
+  sind gewollt: 2023, das erste Quartal 2024 und das erste Halbjahr 2025 kannten
+  keine degressive AfA. Der Faktor war einmal ein halber und steht deshalb in
+  Promille.
+- **Wertgrenzen vor 2018:** von 2010 bis 2017 endete der Sofortabzug bei 410 €
+  und der Sammelposten begann bei 150 €. Ein Altbestand bleibt damit erklärbar;
+  für Anschaffungen davor lehnt Buchfink die Einordnung ab, statt sie zu raten.
+
+Bewusst nicht abgebildet:
+
+- **Die Anrechnung der Kapitalertragsteuer.** Der einbehaltene Betrag wird
+  erfasst und gebucht; die Anrechnung selbst ist Sache der Steuererklärung und
+  nicht dieser Kartei.
+- **Erhaltungsaufwand als Rückstellung** für unterlassene Instandhaltung
+  (§ 249 Abs. 1 Satz 2 Nr. 1 HGB). Das ist ein Vorgang des Jahresabschlusses und
+  gehört nicht an das einzelne Anlagegut.
 
 ## 10. Abhängigkeiten
 
 - Der **Festschreibungs-Workflow** ruft vor der Jahressperre die AfA-Prüfung auf
   (`ensureDepreciationBooked` in `internal/wailsbridge/festschreibung_service.go`).
   Monats- und Quartalsfestschreibungen prüfen nicht — dort ist die AfA nicht fällig.
-- Der **Zahlungsflow** braucht eine Sonderbehandlung für Skonto auf Anlagen; sie
-  fehlt noch (siehe Abschnitt 9).
-- Die **E-Bilanz** braucht den Anlagenspiegel als Kontennachweis. Die Auswertung
-  steht; die Übernahme in den XBRL-Export ist noch nicht verdrahtet.
+- Der **Zahlungsflow** fragt die Kartei über eine Schnittstelle mit zwei Methoden,
+  bevor er ein Skonto bucht (`AssetRegister` in `internal/service/payment_service.go`).
+  Er soll Anlagegüter nicht verwalten können, sondern nur erkennen, dass eine
+  Rechnung eine war. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
+  bisher — eine fehlende Verdrahtung darf keine Zahlung scheitern lassen.
+- Die **E-Bilanz** übernimmt den Anlagenspiegel als Kontennachweis
+  (`SetAnlagenspiegelSource` in `internal/service/ebilanz_service.go`). Die
+  Bilanz zeigt einen Buchwert; erst der Spiegel zeigt, woraus er entstanden ist.
+  Scheitert seine Auswertung, entsteht die Instanz ohne den Block. Die
+  Elementnamen folgen der vereinfachten Form, in der diese Datei schon den
+  Kontennachweis führt, und sind vor der Übermittlung gegen die amtliche
+  Taxonomie zu prüfen; die Zahlen darin stammen aus der Buchführung.
 
 ## 11. Quellen
 
@@ -278,8 +345,16 @@ Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
 | Zeitanteilige AfA ab dem Anschaffungsmonat (pro rata temporis) | § 7 Abs. 1 Satz 4 EStG | dito |
 | Degressive AfA: höchstens das Dreifache des linearen Satzes, höchstens 30 %, Anschaffung nach dem 30.06.2025 und vor dem 01.01.2028 | § 7 Abs. 2 Sätze 1 und 2 EStG | dito |
 | Übergang degressiv → linear zulässig | § 7 Abs. 3 EStG | dito |
-| Sonderabschreibung bis 40 %, verteilbar auf fünf Jahre | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
-| Gewinngrenze 200.000 € im Vorjahr | § 7g Abs. 6 Nr. 1 i. V. m. Abs. 1 Satz 2 Nr. 1 Buchst. b EStG | dito |
+| Sonderabschreibung bis 40 %, im Jahr der Anschaffung und den vier folgenden, **neben** der AfA nach § 7 Abs. 1 **oder Abs. 2** | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
+| Nur abnutzbare **bewegliche** Wirtschaftsgüter des Anlagevermögens | § 7g Abs. 5 EStG | dito |
+| Gewinngrenze des Vorjahres und fast ausschließlich betriebliche Nutzung im Jahr der Anschaffung und im folgenden | § 7g Abs. 6 Nr. 1 und 2 EStG | dito |
+| Allgemeine Regel: neben Sonderabschreibungen AfA nach § 7 Abs. 1 oder 4 — von § 7g Abs. 5 EStG verdrängt | § 7a Abs. 4 EStG | [estg/__7a.html](https://www.gesetze-im-internet.de/estg/__7a.html) |
+| Nach Ablauf des Begünstigungszeitraums AfA „nach dem Restwert und der Restnutzungsdauer" | § 7a Abs. 9 EStG | dito |
+| Herstellungskosten sind Aufwendungen für die Erweiterung oder eine über den ursprünglichen Zustand hinausgehende wesentliche Verbesserung | § 255 Abs. 2 Satz 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
+| Anschaffungspreisminderungen sind abzusetzen (Skonto auf eine Anlage) | § 255 Abs. 1 Satz 3 HGB | dito |
+| Vermögensgegenstände höchstens mit den Anschaffungskosten, vermindert um Abschreibungen | § 253 Abs. 1 Satz 1 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
+| Fremdwährungsposten zum Devisenkassamittelkurs am Abschlussstichtag; die Ausnahme gilt nur bei einer Restlaufzeit von höchstens einem Jahr | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
+| Berichtigung der Bemessungsgrundlage bei Skonto | § 17 Abs. 1 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
 | Außerplanmäßige Abschreibung bei voraussichtlich dauernder Wertminderung | § 253 Abs. 3 Satz 5 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
 | Anlagenspiegel als Anhangbestandteil | § 284 Abs. 3 HGB | [hgb/__284.html](https://www.gesetze-im-internet.de/hgb/__284.html) |
 | Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |
@@ -289,6 +364,14 @@ kleiner Kapitalgesellschaften vom Anlagenspiegel wurde dort auf § 274a HGB
 gestützt. Das ist falsch – § 274a HGB befreit von § 268 Abs. 4 Satz 2, § 268
 Abs. 5 Satz 3, § 268 Abs. 6 und § 274 HGB, nicht von § 284 Abs. 3 HGB. Die
 richtige Fundstelle ist § 288 Abs. 1 Nr. 1 HGB.
+
+**Nicht am Volltext prüfbar:** die früheren Fassungen des § 7 Abs. 2 EStG.
+gesetze-im-internet.de führt nur die geltende Fassung; die aufgehobenen Zeiträume der
+degressiven AfA (2009/2010, 2020 bis 2022, das zweite bis vierte Quartal 2024) stehen
+in `internal/accounting/afa.go` mit dem Änderungsgesetz, auf das sie zurückgehen. Nur
+das laufende Fenster — nach dem 30.06.2025 und vor dem 01.01.2028, höchstens das
+Dreifache des linearen Satzes und höchstens 30 % — ist am Volltext verifiziert. Wer ein
+Altjahr nachbearbeitet, prüft den Satz an der damaligen Fassung nach.
 
 **Nicht aus dem Gesetz, sondern Verwaltungsanweisung:** die AfA-Tabellen (BMF).
 Sie binden die Finanzverwaltung, nicht den Steuerpflichtigen; eine abweichende,

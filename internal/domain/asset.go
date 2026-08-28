@@ -619,11 +619,14 @@ func (a *FixedAsset) validateSpecialDepreciation() error {
 			"der Begünstigungszeitraum umfasst das Jahr der Anschaffung und die vier folgenden " +
 				"(§ 7g Abs. 5 EStG); verteilt wird auf ein bis fünf Jahre")
 	}
-	if a.Method != DepreciationLinear {
+	if a.Method != DepreciationLinear && a.Method != DepreciationDegressive {
+		// § 7g Abs. 5 EStG lässt die Sonderabschreibung „neben den Absetzungen für
+		// Abnutzung nach § 7 Absatz 1 oder Absatz 2" zu — neben der linearen wie
+		// neben der degressiven. Der Sammelposten und der Sofortabzug kennen
+		// dagegen keine Absetzung für Abnutzung, neben die etwas treten könnte.
 		return fmt.Errorf(
-			"neben einer Sonderabschreibung ist die Absetzung für Abnutzung linear vorzunehmen " +
-				"(§ 7a Abs. 4 EStG). Mit der degressiven AfA, dem Sammelposten und dem Sofortabzug " +
-				"lässt sie sich nicht verbinden")
+			"die Sonderabschreibung tritt neben die Absetzung für Abnutzung nach § 7 Abs. 1 oder " +
+				"Abs. 2 EStG. Mit dem Sammelposten und dem Sofortabzug lässt sie sich nicht verbinden")
 	}
 	if a.Class != AssetClassTangible {
 		return fmt.Errorf(

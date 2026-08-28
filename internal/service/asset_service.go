@@ -480,8 +480,9 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 	if asset.SpecialPermille > 0 {
 		notes = append(notes, fmt.Sprintf(
 			"Sonderabschreibung nach § 7g Abs. 5 EStG: %s %% der Anschaffungskosten, verteilt auf "+
-				"%d Jahr(e). Sie tritt neben die lineare AfA und ersetzt sie nicht (§ 7a Abs. 4 EStG), "+
-				"und sie wird im Anschaffungsjahr nicht zeitanteilig gekürzt.",
+				"%d Jahr(e). Sie tritt neben die Absetzung für Abnutzung und ersetzt sie nicht — "+
+				"§ 7g Abs. 5 EStG lässt sie neben der linearen wie neben der degressiven AfA zu. Im "+
+				"Anschaffungsjahr wird sie nicht zeitanteilig gekürzt.",
 			permilleLabel(asset.SpecialPermille), asset.SpecialYears))
 		notes = append(notes,
 			"Nach Ablauf des Begünstigungszeitraums — dem Anschaffungsjahr und den vier folgenden — "+

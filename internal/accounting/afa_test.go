@@ -475,12 +475,71 @@ func TestSpecialDepreciationLimits(t *testing.T) {
 		t.Error("mehr als 40 % Sonderabschreibung muss abgewiesen werden (§ 7g Abs. 5 EStG)")
 	}
 
-	// § 7a Abs. 4 EStG: neben einer Sonderabschreibung ist linear abzuschreiben.
-	withDegressive := base
-	withDegressive.SpecialPermille = 400
-	withDegressive.Method = domain.DepreciationDegressive
-	withDegressive.AcquisitionDate = "2026-01-01"
-	if _, err := BuildAfASchedule(withDegressive); err == nil {
-		t.Error("Sonderabschreibung neben degressiver AfA muss abgewiesen werden (§ 7a Abs. 4 EStG)")
+	// § 7g Abs. 5 EStG lässt die Sonderabschreibung „neben den Absetzungen für
+	// Abnutzung nach § 7 Absatz 1 oder Absatz 2" zu — die degressive AfA ist
+	// also kein Ausschlussgrund. Der Sammelposten kennt dagegen keine AfA, neben
+	// die etwas treten könnte.
+	withPool := base
+	withPool.SpecialPermille = 400
+	withPool.Method = domain.DepreciationPool
+	if _, err := BuildAfASchedule(withPool); err == nil {
+		t.Error("Sonderabschreibung neben dem Sammelposten muss abgewiesen werden")
+	}
+}
+
+// Die Sonderabschreibung ist auch neben der degressiven AfA zulässig
+// (§ 7g Abs. 5 EStG). Nach dem Begünstigungszeitraum geht § 7a Abs. 9 EStG vor:
+// gerechnet wird dann nach Restwert und Restnutzungsdauer, nicht weiter
+// degressiv.
+func TestSpecialDepreciationAlongsideDegressive(t *testing.T) {
+	rows, err := BuildAfASchedule(AfAPlan{
+		AcquisitionDate:      "2026-01-01",
+		Cost:                 10_000_000, // 100.000,00 €
+		UsefulLifeMonths:     120,        // linear 10 %, degressiv gedeckelt auf 30 %
+		Method:               domain.DepreciationDegressive,
+		FiscalYearStartMonth: 1,
+		SpecialPermille:      400,
+		SpecialYears:         1,
+	})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	// Erstes Jahr: 30 % von 100.000 € degressiv, dazu die volle
+	// Sonderabschreibung von 40 %.
+	if rows[0].Amount != 3_000_000 || rows[0].SpecialAmount != 4_000_000 {
+		t.Fatalf("2026: %s € degressiv, %s € Sonderabschreibung — erwartet 30.000,00 € und 40.000,00 €",
+			rows[0].Amount, rows[0].SpecialAmount)
+	}
+	if rows[0].ClosingBookValue != 3_000_000 {
+		t.Errorf("Buchwert Ende 2026 %s € — erwartet 30.000,00 €", rows[0].ClosingBookValue)
+	}
+	// Zweites Jahr: 30 % vom geminderten Restbuchwert.
+	if rows[1].Amount != 900_000 {
+		t.Errorf("2027: %s € — erwartet 9.000,00 € (30 %% von 30.000,00 €)", rows[1].Amount)
+	}
+
+	// Ab 2031 — nach dem Begünstigungszeitraum — Restwert auf Restnutzungsdauer.
+	var residual *AfAYear
+	for i := range rows {
+		if rows[i].FiscalYear == 2031 {
+			residual = &rows[i]
+		}
+	}
+	if residual == nil {
+		t.Fatal("das Jahr nach dem Begünstigungszeitraum fehlt im Plan")
+	}
+	if residual.Method == domain.DepreciationDegressive {
+		t.Error("nach dem Begünstigungszeitraum wird nicht weiter degressiv abgeschrieben (§ 7a Abs. 9 EStG)")
+	}
+	if !strings.Contains(residual.RateLabel, "Restmonate") && residual.RateLabel != "Restwert" {
+		t.Errorf("Satz %q — erwartet die Restwertverteilung", residual.RateLabel)
+	}
+
+	var total domain.Cents
+	for _, r := range rows {
+		total += r.TotalAmount()
+	}
+	if total != 10_000_000 {
+		t.Errorf("Summe aller Abschreibungen %s € — erwartet die vollen Anschaffungskosten", total)
 	}
 }

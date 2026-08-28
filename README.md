@@ -69,9 +69,11 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Automatischer Vorschlag für Beleg- und Kontenzuordnungen.
 6. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
    - Verzeichnis für Sach-, Finanz- und immaterielle Anlagen mit Inventarnummer, Bewegungen und jahresübergreifender Kartei.
-   - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, außerplanmäßige Abschreibung und Zuschreibung.
+   - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, Sonderabschreibung nach § 7g Abs. 5 EStG samt Restwertverteilung des § 7a Abs. 9 EStG, außerplanmäßige Abschreibung und Zuschreibung.
    - Abschreibungslauf als Abschlussbuchung mit Vorschau; die Jahres-Festschreibung prüft vorher, ob die AfA vollständig gebucht ist.
-   - Abgang mit Erlöskonto nach Buchgewinn oder -verlust und Anlagenspiegel nach § 284 Abs. 3 HGB.
+   - Fertigstellung von Anlagen im Bau, Erhaltungsaufwand und laufende Erträge am Anlagegut, Stückzahlen und Fremdwährungsbewertung nach § 256a HGB bei Finanzanlagen.
+   - Skonto auf eine Anlagenrechnung mindert im Zahlungsflow die Anschaffungskosten (§ 255 Abs. 1 Satz 3 HGB) statt den Aufwand.
+   - Abgang mit Erlöskonto nach Buchgewinn oder -verlust, Teilabgang nach Stück bei Finanzanlagen und Anlagenspiegel nach § 284 Abs. 3 HGB — auch als Kontennachweis in der E-Bilanz.
 7. **Bilanz & GuV**
    - Echtzeit-Auswertung von Bilanz, Gewinn- und Verlustrechnung (GuV) sowie Summen- und Saldenliste (SuSa).
 8. **E-Bilanz-Export (XBRL)**

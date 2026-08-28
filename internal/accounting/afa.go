@@ -419,6 +419,12 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	plan.Cost = baseCost
 	plan.UsefulLifeMonths = lifeMonths
 
+	// Vor der Methodenweiche geprüft: der Sammelposten und der Sofortabzug
+	// kehren gleich danach zurück, und ein unzulässiger Satz fiele dort nie auf.
+	if err := checkSpecialDepreciation(plan); err != nil {
+		return nil, err
+	}
+
 	switch plan.Method {
 	case domain.DepreciationNone:
 		return nil, nil
@@ -443,9 +449,6 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 
 	if plan.UsefulLifeMonths <= 0 {
 		return nil, fmt.Errorf("ohne Nutzungsdauer lässt sich keine planmäßige Abschreibung rechnen")
-	}
-	if err := checkSpecialDepreciation(plan); err != nil {
-		return nil, err
 	}
 
 	window := DegressiveWindow{}
@@ -490,12 +493,13 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	var addedNote string
 
 	// Die Sonderabschreibung des § 7g Abs. 5 EStG läuft neben dem Plan her: sie
-	// ändert die planmäßige AfA nicht, sondern kommt hinzu (§ 7a Abs. 4 EStG).
-	// Erst mit dem Ende des Begünstigungszeitraums greift § 7a Abs. 9 EStG und
-	// verteilt den verbliebenen Restwert auf die Restnutzungsdauer.
+	// ändert die planmäßige AfA nicht, sondern kommt hinzu — „neben den
+	// Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2". Erst mit dem
+	// Ende des Begünstigungszeitraums greift § 7a Abs. 9 EStG und verteilt den
+	// verbliebenen Restwert auf die Restnutzungsdauer.
 	specialRemaining := domain.Cents(0)
 	specialYears := plan.SpecialYears
-	if plan.SpecialPermille > 0 && plan.Method == domain.DepreciationLinear {
+	if plan.SpecialPermille > 0 {
 		specialRemaining = domain.MulRound(plan.Cost, int64(plan.SpecialPermille), 1000)
 		if specialYears <= 0 {
 			specialYears = 1
@@ -576,6 +580,13 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			row.Amount = bookValue
 			row.RateLabel = "Restwert"
 			row.Note = "Letztes Jahr der Nutzungsdauer: der Restbuchwert wird vollständig abgeschrieben."
+		case restwertPhase:
+			// § 7a Abs. 9 EStG geht der Methode vor: nach dem Begünstigungszeitraum
+			// bemisst sich die AfA „nach dem Restwert und der Restnutzungsdauer",
+			// auch wo bis dahin degressiv abgeschrieben wurde.
+			annual := domain.MulRound(bookValue, 12, int64(remainingMonths))
+			row.Amount = domain.MulRound(annual, int64(months), 12)
+			row.RateLabel = fmt.Sprintf("linear auf %d Restmonate", remainingMonths)
 		case degressive && !switchedToLinear:
 			num, den := degressiveRate(plan.UsefulLifeMonths, window)
 			annualDeg := domain.MulRound(bookValue, num, den)
@@ -827,10 +838,15 @@ func checkSpecialDepreciation(plan AfAPlan) error {
 			"die Sonderabschreibung nach § 7g Abs. 5 EStG beträgt höchstens 40 %% der "+
 				"Anschaffungskosten; %s sind zu viel", permilleLabel(int64(plan.SpecialPermille), 1000))
 	}
-	if plan.Method != domain.DepreciationLinear {
+	if plan.Method != domain.DepreciationLinear && plan.Method != domain.DepreciationDegressive {
+		// § 7g Abs. 5 EStG lässt die Sonderabschreibung „neben den Absetzungen für
+		// Abnutzung nach § 7 Absatz 1 oder Absatz 2" zu — also neben der linearen
+		// wie neben der degressiven AfA. Der Sammelposten und der Sofortabzug
+		// kennen dagegen keine Absetzung für Abnutzung, neben die etwas treten
+		// könnte.
 		return fmt.Errorf(
-			"neben einer Sonderabschreibung ist die Absetzung für Abnutzung linear vorzunehmen "+
-				"(§ 7a Abs. 4 EStG). Mit der Methode %q lässt sie sich nicht verbinden", plan.Method)
+			"die Sonderabschreibung tritt neben die Absetzung für Abnutzung nach § 7 Abs. 1 oder "+
+				"Abs. 2 EStG. Mit der Methode %q lässt sie sich nicht verbinden", plan.Method)
 	}
 	if plan.SpecialYears > SpecialPeriodYears {
 		return fmt.Errorf(

@@ -114,7 +114,13 @@ type AssetRules struct {
 	PoolUpperLimit    domain.Cents                  `json:"poolUpperLimit"`
 	PoolYears         int                           `json:"poolYears"`
 	DegressiveWindows []accounting.DegressiveWindow `json:"degressiveWindows"`
-	Methods           []assetMethodInfo             `json:"methods"`
+	// SpecialMaxPermille und SpecialPeriodYears sind die Grenzen der
+	// Sonderabschreibung nach § 7g Abs. 5 EStG: höchstens 40 % der
+	// Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier
+	// folgenden.
+	SpecialMaxPermille int               `json:"specialMaxPermille"`
+	SpecialPeriodYears int               `json:"specialPeriodYears"`
+	Methods            []assetMethodInfo `json:"methods"`
 }
 
 type assetMethodInfo struct {
@@ -145,13 +151,15 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 		domain.AssetClassIntangible, domain.AssetClassTangible, domain.AssetClassFinancial,
 	}
 	return &AssetRules{
-		FiscalYear:        year,
-		GWGImmediateLimit: params.GWGImmediateLimit,
-		GWGRecordFrom:     params.GWGRecordThreshold,
-		PoolLowerLimit:    params.PoolLowerLimit,
-		PoolUpperLimit:    params.PoolUpperLimit,
-		PoolYears:         params.PoolYears,
-		DegressiveWindows: accounting.DegressiveWindows(),
+		FiscalYear:         year,
+		GWGImmediateLimit:  params.GWGImmediateLimit,
+		GWGRecordFrom:      params.GWGRecordThreshold,
+		PoolLowerLimit:     params.PoolLowerLimit,
+		PoolUpperLimit:     params.PoolUpperLimit,
+		PoolYears:          params.PoolYears,
+		DegressiveWindows:  accounting.DegressiveWindows(),
+		SpecialMaxPermille: accounting.SpecialMaxPermille,
+		SpecialPeriodYears: accounting.SpecialPeriodYears,
 		Methods: []assetMethodInfo{
 			{
 				Method: domain.DepreciationLinear, Label: domain.DepreciationLinear.Label(),
@@ -164,7 +172,8 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 				Classes: []domain.AssetClass{domain.AssetClassTangible},
 				Hint: "Vom jeweiligen Restbuchwert, höchstens das Dreifache des linearen Satzes und " +
 					"höchstens 30 %. Nur für bewegliche Wirtschaftsgüter und nur für Anschaffungen " +
-					"innerhalb des gesetzlichen Zeitfensters.",
+					"innerhalb eines der gesetzlichen Zeitfenster. Eine Sonderabschreibung nach " +
+					"§ 7g Abs. 5 EStG ist daneben zulässig.",
 			},
 			{
 				Method: domain.DepreciationPool, Label: domain.DepreciationPool.Label(),
@@ -303,4 +312,39 @@ func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, er
 		return nil, nil
 	}
 	return b.assetSvc.Pool(context.Background(), fiscalYear)
+}
+
+// BookAssetMaintenance bucht Erhaltungsaufwand und verknüpft ihn mit dem
+// Anlagegut, ohne dessen Buchwert anzurühren.
+func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.assetSvc == nil {
+		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	}
+	return b.assetSvc.BookMaintenance(context.Background(), req)
+}
+
+// BookAssetIncome bucht einen laufenden Ertrag aus einer Finanzanlage —
+// Dividende, Ausschüttung, Zins — und hängt ihn an den Anteil, aus dem er stammt.
+func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.assetSvc == nil {
+		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	}
+	return b.assetSvc.BookAssetIncome(context.Background(), req)
+}
+
+// ValuateAssetCurrency rechnet eine Fremdwährungs-Finanzanlage zum
+// Devisenkassamittelkurs des Stichtags um (§ 256a HGB). Es bucht nichts: es
+// nennt den Betrag, den eine außerplanmäßige Abschreibung oder eine
+// Zuschreibung hätte.
+func (b *BuchfinkBridge) ValuateAssetCurrency(req service.CurrencyValuationRequest) (*service.CurrencyValuation, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.assetSvc == nil {
+		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	}
+	return b.assetSvc.ValuateCurrency(context.Background(), req)
 }
