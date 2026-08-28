@@ -3,7 +3,15 @@
 Status: Anforderung, noch nicht implementiert
 Letzte Aktualisierung: 2026-08-28
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
-Schwesterdokument: [Anlagenverwaltung](anforderung-anlagenverwaltung.md) – dieselbe Mechanik, andere Bilanzseite
+Vorbild: [Anlagenverwaltung](anforderung-anlagenverwaltung.md) – umgesetzt, dieselbe Mechanik, andere Bilanzseite
+
+> **Ausgangslage.** Die Anlagenkartei steht: `internal/domain/asset.go`,
+> `internal/accounting/afa.go`, `internal/service/asset_service.go`,
+> `frontend/src/pages/AssetsPage.tsx`. Damit ist auf der Aktivseite auch der
+> Darlehensfall abgedeckt, den dieses Dokument als offen beschrieb – eine
+> Ausleihung ist dort eine Finanzanlage, ihre Tilgung ein eigener Abgangsgrund.
+> Offen ist die Passivseite. Abschnitt 10 beschreibt, wie sie an die vorhandene
+> Kartei anschließt, ohne sie umzubauen.
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **28.08.2026** gegen den
@@ -12,8 +20,8 @@ Schwesterdokument: [Anlagenverwaltung](anforderung-anlagenverwaltung.md) – die
 
 ## 1. Warum das dieselbe Maschine ist wie das Anlagenverzeichnis
 
-Das Anlagenverzeichnis ist kein Aktivthema. Es ist der erste Fall eines Musters, das
-auf der Passivseite mindestens dreimal wieder auftaucht:
+Das Anlagenverzeichnis ist kein Aktivthema. Es ist der erste umgesetzte Fall eines
+Musters, das auf der Passivseite dreimal wiederkehrt:
 
 > Ein Bestand entsteht einmal, verändert sich planmäßig über Jahre und verschwindet
 > irgendwann – und keine dieser Veränderungen hat einen Beleg.
@@ -24,13 +32,17 @@ gebildet, fortgeschrieben, verbraucht oder aufgelöst. Ein Sonderposten für ein
 Zuschuss wird eingestellt und über die Nutzungsdauer aufgelöst.
 
 Vier Sachverhalte, ein Ablauf: **Stammsatz anlegen, Plan rechnen, Bewegungen zur
-Freigabe vorschlagen, Journalbuchung erzeugen, Rückverweis behalten.** Wer das
-Anlagenverzeichnis als Spezialfall baut, baut es dreimal. Wer es als Verzeichnis mit
-Plan baut, bekommt die Passivseite fast geschenkt.
+Freigabe vorschlagen, Journalbuchung erzeugen, Rückverweis behalten.**
 
-Deshalb gehört die Entscheidung **vor** die Umsetzung der Anlagenverwaltung, nicht
-danach: Es geht nicht darum, was die Anlagenverwaltung zusätzlich können muss, sondern
-darum, dass ihr Datenmodell nicht nur für Anlagegüter geschnitten wird.
+Für die Anlagenkartei ist dieser Ablauf gebaut und im Betrieb – mit der Bewegung als
+Kern (`domain.AssetMovement` mit `JournalEntryID`, `Account` und `FiscalYear`), der
+reinen Rechnung in `internal/accounting/afa.go` und dem Dienst, der beides zu Buchungen
+zusammenführt. Die Frage lautet deshalb nicht mehr, ob das Datenmodell für beide
+Bilanzseiten geschnitten wird – dafür ist es zu spät und die Kartei zu gut. Sie lautet:
+**was davon wird geteilt, was gespiegelt, und was bleibt getrennt.**
+
+Die Antwort steht in Abschnitt 10 und in einem Satz hier: geteilt wird der Zahlungsplan,
+gespiegelt wird die Struktur, getrennt bleiben die Karteien.
 
 ## 2. Bestandsaufnahme: was auf der Passivseite liegt
 
@@ -50,7 +62,7 @@ Frage, woher der Saldo heute käme.
 | **C. 2** Kreditinstitute | Darlehen, Kontokorrent, Teilzahlungsverträge | **3150**/**3151**/**3160**/**3170**, **3180** ff. | Bank-Direktbuchung, Rate nur manuell splittbar |
 | **C. 3** Erhaltene Anzahlungen | versteuerte Anzahlungen, RLZ-Gliederung | **3250**, **3260**, **3272**, **3280** ff. | eigenes Dokument, [Anzahlungen](anforderung-anzahlungen.md) |
 | **C. 4** Verbindlichkeiten aus LL | Kreditoren | **3300** + Personenkonten | **Belegflow ✅** |
-| **C. 5** Wechsel | gezogene und eigene Wechsel | **3350**–**3399** | out of scope |
+| **C. 5** Wechsel | gezogene und eigene Wechsel | Bereich 3350–3399, im SKR04 reserviert | out of scope |
 | **C. 6/7** verbundene Unternehmen, Beteiligungen | Lieferung/Leistung und Finanzierung | **3400** ff., **3450** ff. | Belegflow, aber ohne gesonderten Ausweis |
 | **C. 8** sonstige Verbindlichkeiten – Gesellschafter | GmbH-Gesellschafter, phG, Kommanditisten, stille Gesellschafter | **3640**–**3643**, **3645**–**3648**, **3650**–**3653**, **3520** ff., **3530** ff. | manuell |
 | **C. 8** sonstige Verbindlichkeiten – Personal | Lohn- und Kirchensteuer, soziale Sicherheit | **3730**, **3740** | manuell |
@@ -91,11 +103,16 @@ ist der darunterliegende Mechanismus aus Abschnitt 4 – nicht die Maske.
 Ein Verzeichniseintrag besteht aus drei Teilen, unabhängig davon, ob er ein Anlagegut,
 ein Darlehen oder eine Rückstellung beschreibt:
 
-| Teil | Inhalt | Beispiel Darlehen | Beispiel Anlagegut |
+| Teil | Inhalt | Anlagegut (umgesetzt) | Darlehen (offen) |
 |---|---|---|---|
-| **Stammsatz** | Bezeichnung, Bestandskonto, Kontakt, Beginn, Ausgangsbetrag, Status | 3160, Hausbank, 50.000 €, 01.03.2026 | 0520, 34.000 €, 12.09.2026 |
-| **Plan** | Zeitreihe geplanter Bewegungen mit Fälligkeit, Betrag, Art, Soll- und Habenkonto | 60 Raten à 1.000 € (Tilgung + Zins) | 72 Monats-AfA |
-| **Bewegungen** | Ist-Buchungen mit Verweis auf Journaleintrag und Bankumsatz | gebuchte Raten | gebuchte AfA |
+| **Stammsatz** | Bezeichnung, Bestandskonto, Kontakt, Beginn, Ausgangsbetrag, abgeleiteter Status | `domain.FixedAsset` | `domain.Liability` |
+| **Plan** | Zeitreihe mit Fälligkeit, Betrag, Art und Kontierung | `accounting.BuildAfASchedule`, gerechnet statt gespeichert | `accounting.BuildTilgungsplan`, zusätzlich gespeichert – die Rate wird gegen einen Bankumsatz zugeordnet, die AfA nicht |
+| **Bewegungen** | Ist-Buchungen mit Verweis auf den Journaleintrag | `domain.AssetMovement` mit `JournalEntryID` | `domain.LiabilityMovement`, gleiche Felder |
+
+Der eine echte Unterschied steht in der mittleren Zeile: Ein Abschreibungsplan wird bei
+Bedarf neu gerechnet, weil ihn niemand von außen anfasst. Ein Tilgungsplan muss
+gespeichert werden, weil ein Bankumsatz auf **eine bestimmte Rate** trifft und weil
+Zinsanpassung und Sondertilgung ihn ändern, ohne die bereits gebuchten Raten anzurühren.
 
 Drei Arten, wie aus einer geplanten eine gebuchte Bewegung wird:
 
@@ -119,7 +136,7 @@ Das ist der Kern der Antwort auf „ohne manuell zu buchen".
 
 Buchfink erzeugt Buchungen heute aus zwei Quellen: aus einem Beleg (Abschnitt 10 des
 Buchungsflows) und aus der Zuordnung eines Bankumsatzes zu einem offenen Posten
-(`PaymentService.OpenItems`, `internal/service/payment_service.go:86`). Offene Posten
+(`PaymentService.OpenItems`, `internal/service/payment_service.go:113`). Offene Posten
 entstehen dort ausschließlich aus Journaleinträgen mit Personenkonto und Kontakt –
 für eine Darlehensrate gibt es beides nicht. Übrig bleibt die Direktbuchung
 (`BankService.BookDirect`, `internal/service/bank_service.go:70`), und die kann
@@ -258,21 +275,31 @@ Kontenklasse 2 gehört (**2020** Vollhafter, **2070** Kommanditisten) und damit
 rechtsformabhängig ein anderes Konto trägt als bei der GmbH. Die Rechtsform steht in den
 Stammdaten – die Ableitung gehört ins Backend, nicht in die Auswahl des Nutzers.
 
-### 6.8 Der Spiegelfall: Darlehen, die das Unternehmen vergibt
+### 6.8 Der Spiegelfall ist bereits gebaut
 
-Dasselbe Objekt mit umgekehrtem Vorzeichen. Der Plan ist identisch, nur Soll und Haben
-tauschen, und die Kontenableitung greift auf die Aktivseite:
+Ein Darlehen, das das Unternehmen **vergibt**, liegt in der Anlagenkartei: eine
+Ausleihung ist eine Finanzanlage, und die Kartei kennt sie.
 
-| Fall | Konto |
-|---|---|
-| dauerhaft überlassen (Finanzanlage) | **0940** Darlehen, **0930** übrige sonstige Ausleihungen, **0970** nahe stehende Personen |
-| an Gesellschafter | **0960**–**0963** Ausleihungen an Gesellschafter |
-| an verbundene Unternehmen / Beteiligungen | **0810** ff. / **0880** ff. |
-| kurzfristig (Umlaufvermögen) | **1360** / **1361** / **1365** Darlehen |
-| Zinsertrag | **7011** Erträge aus Ausleihungen des Finanzanlagevermögens, sonst **7100** |
+| Fall | Konto | Stand |
+|---|---|---|
+| dauerhaft überlassen | **0940** Darlehen, **0930** übrige sonstige Ausleihungen | im Katalog (`internal/accounting/asset_accounts.go`) |
+| an verbundene Unternehmen / Beteiligungen | **0810** / **0880** | im Katalog |
+| an Gesellschafter | **0960**–**0963** | **fehlt im Katalog** – gerade der Fall, den § 42 Abs. 3 GmbHG gesondert ausgewiesen sehen will |
+| Tilgung | `DisposalRepayment` – Geld gegen Ausleihung, kein Erlös, kein Buchgewinn | umgesetzt |
+| Teiltilgung | Teilabgang mit Stückzahl bzw. Betrag | umgesetzt |
+| Fälligkeit | `MaturityDate` am Anlagegut, für § 256a Satz 2 HGB | umgesetzt |
+| Zinsertrag | **7011** Erträge aus Ausleihungen, sonst **7100** | umgesetzt (`AssetIncomeAccount`) |
 
-Ein Verzeichnis, das nur Verbindlichkeiten kann, müsste für diesen Fall ein zweites Mal
-gebaut werden. Ein Verzeichnis mit Bilanzseite am Stammsatz kann beides.
+Zwei Lücken bleiben auf dieser Seite, und beide gehören zu diesem Dokument, nicht zur
+Anlagenverwaltung:
+
+1. **Die Ausleihung hat keinen Zahlungsplan.** Die Tilgung wird gebucht, wenn sie
+   kommt; dass sie kommen *wird*, weiß niemand. Genau das leistet der Plan aus
+   Abschnitt 5 – und er leistet es für beide Seiten. Deshalb hängt er nicht an der
+   Verbindlichkeit, sondern steht neben beiden Karteien.
+2. **Die Ausleihungen an Gesellschafter fehlen im Kontenkatalog.** Vier Zeilen in
+   `assetAccounts`, mehr ist es nicht – aber ohne sie muss der Nutzer für genau den
+   Fall, der eine Anhangangabe auslöst, auf **0930** ausweichen.
 
 ## 7. Rückstellungen
 
@@ -354,29 +381,186 @@ der Restsonderposten in einem Zug aufzulösen. Dasselbe Muster gilt für die ste
 Rücklagen: **2990** (Sonderabschreibungen), Einstellungen über **6922** / **6924** /
 **6927**, Auflösung über **4927** / **4928** / **4935** / **4937**.
 
-**Daraus folgt eine Anforderung an das Datenmodell der Anlagenverwaltung:** Ein
-Verzeichniseintrag muss auf einen anderen verweisen können. Wird das jetzt nicht
-vorgesehen, ist die Kopplung Zuschuss ↔ Anlagegut später ein Umbau.
+**Daraus folgt die Form des Sonderpostens:** ein eigener Stammsatz mit einem Verweis
+auf das Anlagegut, dessen Abschreibung er begleitet – nicht ein weiteres Feld an
+`FixedAsset`. Der Verweis zeigt von der Passivseite auf die Aktivseite und nicht
+umgekehrt, weil der Sonderposten ohne das Anlagegut sinnlos ist, das Anlagegut ohne ihn
+aber vollständig.
 
-## 10. Wo das im Code hingehört
+## 10. Wie die Umsetzung anzugehen ist
 
-Die Reihenfolge ist wichtiger als der Umfang: Der gemeinsame Kern zuerst, die
-Sachverhalte danach.
+### 10.1 Die Vorentscheidung: spiegeln, nicht nachträglich generalisieren
 
-| Schicht | Datei | Inhalt |
+Die naheliegende Idee wäre, aus `FixedAsset` und `AssetMovement` ein allgemeines
+Verzeichnis herauszuziehen, das beide Bilanzseiten trägt. Sie ist falsch, und zwar aus
+drei Gründen:
+
+1. **Der Umbau fasst laufenden, getesteten Code an, ohne dass ein Nutzer etwas davon
+   hat.** Die Kartei ist rund 9.000 Zeilen mit eigenen Tests; jede Woche, die in ihre
+   Verallgemeinerung geht, bringt kein Darlehen näher.
+2. **Die beiden Sachverhalte sind sich ähnlicher, als sie gleich sind.** Ein Anlagegut
+   nutzt sich ab, eine Verbindlichkeit nicht. Ein Anlagegut hat eine Nutzungsdauer,
+   eine Verbindlichkeit eine Restlaufzeit – die eine ist geschätzt und ändert die AfA,
+   die andere ist vertraglich und ändert den Bilanzausweis. Der Anlagenspiegel hat
+   Spalten, die der Verbindlichkeitenspiegel nicht kennt, und umgekehrt. Ein
+   gemeinsamer Typ müsste alles davon als „optional" führen und wäre für beide Seiten
+   schlechter als zwei klare.
+3. **Doppelter Code, den man später zusammenlegt, ist billiger als eine Abstraktion,
+   die zwei ungleiche Sachverhalte in eine Form zwingt.** Umgekehrt gilt das nicht.
+
+Gespiegelt wird deshalb die **Struktur**, nicht der Typ: gleiche Dateilage, gleiche
+Namensmuster, gleiche Art von Nahtstelle. Wer die Anlagenkartei gelesen hat, findet
+sich in der Verbindlichkeitenkartei sofort zurecht.
+
+| Anlagen (vorhanden) | Verbindlichkeiten (neu) | Inhalt |
 |---|---|---|
-| Domäne | `internal/domain/register.go` (neu) | `RegisterItem` (Stammsatz, Bilanzseite, Bestandskonto, Kontakt, Status), `PlannedMovement`, `RegisterMovement` mit `JournalEntryID` und `BankTxID`, Repository-Interfaces – analog zu `domain/receipt.go` |
-| Persistenz | `internal/repository/register_gorm.go` (neu), Eintrag in `AutoMigrate` (`internal/repository/db.go:71`) | jahresübergreifend geführt, nicht je Geschäftsjahr – dieselbe Anforderung wie bei der Anlagenkartei |
-| Kontenableitung | `internal/accounting/register_accounts.go` (neu) | Kreditgebertyp × Rechtsform × Restlaufzeit → Konto. Bewusst getrennt von `posting_groups.go`: dort entscheidet der Steuerfall, hier die Vertragsart |
-| Plan | `internal/service/register_service.go` (neu) | Tilgungs-, Auflösungs- und Abgrenzungspläne rechnen; Vorschau erzeugen; nach Freigabe über `JournalService.Post` buchen |
-| Zahlungszuordnung | `internal/service/payment_service.go` erweitern | zweite Quelle neben `OpenItems`: erwartete Zahlungen aus Plänen, gleiche Struktur, gleiche Differenzbehandlung |
-| Abschluss | Festschreibungs-Workflow | ein Prüfschritt für alle stichtagsgetriebenen Bewegungen: AfA, RAP, Zinsabgrenzung, Restlaufzeit-Umgliederung, Sonderposten, Rückstellungsbewertung |
-| Bridge | `internal/wailsbridge/app_service.go` | CRUD, Planvorschau, Freigabe – wie `PreviewIncomingReceipt` / `PostIncomingReceipt` |
-| Oberfläche | `frontend/src/pages/` + `Sidebar.tsx:62` | eigene Gruppe „Verzeichnisse" mit Anlagen, Darlehen, Rückstellungen; im Bankimport erscheinen fällige Raten in der bestehenden Zuordnungsansicht |
+| `internal/domain/asset.go` | `internal/domain/liability.go` | Stammsatz, Bewegung, Repository-Schnittstelle |
+| `internal/repository/asset_gorm.go` | `internal/repository/liability_gorm.go` | Persistenz, Eintrag in `AutoMigrate` |
+| `internal/accounting/afa.go` | `internal/accounting/tilgung.go` | die reine Rechnung, ohne Datenbank und ohne Buchung |
+| `internal/accounting/asset_accounts.go` | `internal/accounting/liability_accounts.go` | Kontenkatalog und Kontenableitung |
+| `internal/service/asset_service.go` | `internal/service/liability_service.go` | Kartei, Vorschau, Buchung, Auswertung |
+| `internal/wailsbridge/asset_service.go` | `internal/wailsbridge/liability_service.go` | Endpunkte mit `nil`-Wache |
+| `frontend/src/pages/AssetsPage.tsx` | `frontend/src/pages/LiabilitiesPage.tsx` | Oberfläche |
 
-Zwei Dinge sind bewusst **nicht** in dieser Liste: eine neue Buchungsmaske und eine
-Erweiterung von `BookDirect`. Beides wäre der falsche Weg – Buchungen entstehen aus dem
-Plan, nicht aus einer Eingabe.
+Geteilt wird genau ein Stück – der **Zahlungsplan** aus Stufe 2. Er ist der einzige
+Baustein, für den es zwei echte Nutzer gibt: die Rate eines Darlehens und die
+erwartete Tilgung einer Ausleihung (6.8). Ein Baustein mit einem Nutzer wäre
+Spekulation; dieser hat zwei, bevor er geschrieben ist.
+
+### 10.2 Was ausdrücklich nicht getan wird
+
+- **`FixedAsset` nicht um Verbindlichkeiten erweitern.** Ein Darlehen wäre dort ein
+  Anlagegut mit negativem Vorzeichen, ohne Abschreibungsplan, das nicht in den
+  Anlagenspiegel darf. Jede Abfrage der Kartei müsste es danach ausschließen.
+- **`BookDirect` nicht auf n Zeilen erweitern.** Die Zwei-Zeilen-Grenze ist dort
+  richtig: eine Buchung ohne Beleg soll klein bleiben. Die Mehrzeilenbuchung kommt aus
+  dem Plan.
+- **Keine neue Buchungsmaske.** Wo der Nutzer Soll und Haben tippt, hat die Software
+  ihre Arbeit nicht getan.
+- **Kein zweiter Belegkreis für Verträge.** Kreditverträge gehen in dieselbe
+  Dokumentenablage wie die Papiere am Anlagegut (`internal/receiptstore`, Zweig
+  `dokumente/`).
+
+### 10.3 Stufe 1 – Die Kartei für Verbindlichkeiten
+
+Das kleinste, das für sich Sinn ergibt: Darlehen anlegen, Plan sehen, Auszahlung buchen.
+
+**Modell** (`internal/domain/liability.go`), gebaut wie `asset.go`:
+
+- `Liability`: Bezeichnung, Vertragsnummer, Art (Bankdarlehen, Anleihe, Privatdarlehen,
+  Gesellschafterdarlehen, stille Beteiligung, Kaution), Bestandskonto, Kontakt,
+  Auszahlungsdatum, Nennbetrag, Auszahlungsbetrag, Zinssatz in Basispunkten, Zinsbindung,
+  Laufzeit, Tilgungsart, Rhythmus, Sicherheit (Art und Form – § 285 Nr. 1 HGB),
+  Disagio-Behandlung, Status.
+- `LiabilityMovement` mit denselben Feldern, die sich an `AssetMovement` bewährt haben:
+  `Date`, `FiscalYear`, `Account` (das Konto *dieser* Bewegung, nicht das aktuelle des
+  Stammsatzes – sonst verschiebt eine Restlaufzeit-Umgliederung rückwirkend die
+  Vorjahre des Spiegels), `JournalEntryID`, `Note`.
+- Bewegungsarten, bewusst geschlossen wie `AssetMovementKind`: `disbursement`,
+  `repayment`, `interest`, `fee`, `accrual` (Zinsabgrenzung), `reclassification`
+  (Restlaufzeit), `disagio_release`, `waiver` (Erlass), `final`.
+- Ein `Status`, der wie beim Anlagegut abgeleitet und nie gespeichert wird – inklusive
+  `unbooked` für den **Bestandsfall**: ein Darlehen, das schon läuft, wird mit
+  Restsaldo erfasst, ohne eine Auszahlungsbuchung zu erfinden. Das ist der Normalfall
+  bei der Einführung und darf nicht der Sonderfall im Code sein.
+
+**Rechnung** (`internal/accounting/tilgung.go`): eine reine Funktion
+`BuildTilgungsplan(plan) ([]TilgungsRate, error)` nach dem Vorbild von
+`BuildAfASchedule` – Annuität, Rate, endfällig; monatlich bis jährlich; auf ganze Cent
+mit Ausgleich in der Schlussrate. Kein Datenbankzugriff, keine Buchung, damit sie so
+testbar ist wie `afa_test.go` es vormacht.
+
+**Kontenableitung** (`internal/accounting/liability_accounts.go`): Katalog nach dem
+Muster von `assetAccounts`, mit der Ableitung Art × Rechtsform × Restlaufzeit → Konto
+(Tabelle in 6.1) und den Zinskonten. Die Rechtsform steht seit
+`domain.LegalFormCatalog` als auswertbares Feld bereit – die Ableitung für
+Gesellschafterdarlehen (2020/2070 gegenüber 3640 ff.) kann sie direkt lesen. Ein Test
+nach dem Vorbild von `TestAssetAccountsExistInSKR04` hält den Katalog am SKR04 fest.
+
+**Dienst** (`internal/service/liability_service.go`): `List`, `Get`, `Save`,
+`PreviewSchedule`, `BookDisbursement`, `Delete`. Gebucht wird über `JournalService.Post`
+wie überall, mit Rückverweis in beide Richtungen.
+
+**Oberfläche**: `LiabilitiesPage.tsx`, Sidebar-Eintrag „Finanzierungen" in der Gruppe
+„Buchhaltung" neben „Anlagevermögen" (`frontend/src/components/Sidebar.tsx:70`).
+Verdrahtet wird der Dienst in `internal/wailsbridge/app_service.go:227`, wo auch die
+Anlagenkartei entsteht.
+
+### 10.4 Stufe 2 – Der Zahlungsplan und die erwartete Zahlung
+
+Erst hier entsteht der Nutzen, um den es geht: die Rate ohne Handarbeit.
+
+- `internal/domain/schedule.go`: `ScheduledPayment` mit Fälligkeit, Betrag,
+  Buchungszeilen und einem Besitzer aus zwei Feldern (`OwnerKind` = `liability` oder
+  `asset`, `OwnerID`). Der zweite Wert ist kein Vorrat für die Zukunft, sondern der
+  Fall aus 6.8, der heute schon existiert.
+- Nahtstelle im Zahlungsflow nach dem Vorbild von `AssetRegister`
+  (`internal/service/payment_service.go:53`) – zwei Methoden, optional verdrahtet, ohne
+  sie bucht alles wie bisher:
+
+  ```go
+  type ScheduleRegister interface {
+      DuePayments(ctx context.Context, until string) ([]ScheduledPayment, error)
+      SettleScheduled(ctx context.Context, req ScheduledSettlement) (*domain.JournalEntry, error)
+  }
+  ```
+
+- Im Bankimport erscheinen fällige Raten in derselben Liste wie die offenen Posten
+  (`frontend/src/pages/BankImportPage.tsx:360`). Betragsabweichungen laufen durch
+  dieselbe Differenzbehandlung wie eine Zahlungsdifferenz.
+
+Prüfstein für diese Stufe: Eine Rate über 1.000 € wird zugeordnet und erzeugt eine
+dreizeilige Buchung (Tilgung, Zins, Bank), ohne dass der Nutzer ein Konto gesehen hat.
+
+### 10.5 Stufe 3 – Der Stichtagslauf
+
+Die Bewegungen, die kein Bankumsatz auslöst. Vorbild ist der Abschreibungslauf mit
+`PendingDepreciation` und der Sperre in `ensureDepreciationBooked`
+(`internal/wailsbridge/festschreibung_service.go`):
+
+- `PendingLiabilityBookings(ctx, fiscalYear)` liefert, was zum Stichtag fehlt:
+  Zinsabgrenzung, Restlaufzeit-Umgliederung, Disagio-Auflösung.
+- Der Festschreibungs-Hook prüft künftig beide Karteien. Er heißt dann nicht mehr
+  `ensureDepreciationBooked`, sondern trägt den Namen des Vorgangs, den er absichert –
+  der Jahresabschluss, nicht die Abschreibung.
+- Die Restlaufzeit-Umgliederung ist die eine Stelle, an der die Kartei ihr eigenes
+  Bestandskonto ändert. Das Muster dafür steht in `AssetService.Transfer`: eine
+  Bewegung ab dem alten Konto, eine auf das neue, jede mit ihrem eigenen `Account`.
+
+### 10.6 Stufe 4 – Rückstellungen
+
+Eigene, kleinere Kartei ohne Zahlungsplan: Bildung, Zuführung, Verbrauch, Auflösung,
+Abzinsung. Der Grund der Bildung ist Pflichtfeld, wie die Begründung der
+außerplanmäßigen Abschreibung es schon ist. Sie hängt am Stichtagslauf aus Stufe 3, an
+sonst nichts – und lässt sich deshalb unabhängig von den Stufen 1 und 2 bauen, wenn
+das Darlehen warten muss.
+
+### 10.7 Stufe 5 – Auswertungen und E-Bilanz
+
+Verbindlichkeitenspiegel als Auswertung über die Bewegungen, angeboten über eine
+Schnittstelle mit einer Methode – genau wie `AnlagenspiegelSource`
+(`internal/service/ebilanz_service.go:15`). Dazu die Restlaufzeitangabe nach
+§ 268 Abs. 5 Satz 1 HGB und die Zuordnung der Passivkonten in `skr04ToXBRL`.
+
+### 10.8 Stufe 6 – Eigenkapital, Privatkonten, Lohn
+
+Unabhängig von allem Vorherigen und einzeln lieferbar: die zwei Buchungsgruppen für
+Privatentnahme und -einlage (`internal/accounting/posting_groups.go`), der
+Ergebnisverwendungs-Assistent aus Abschnitt 8 und der Import der Lohnabrechnung.
+
+### 10.9 Reihenfolge und Prüfsteine
+
+| Stufe | Ergebnis für den Nutzer | Prüfstein |
+|---|---|---|
+| 1 | Darlehen anlegen, Plan sehen, Auszahlung buchen | Bestandsdarlehen ohne Auszahlungsbuchung erfassbar |
+| 2 | Rate per Zuordnung, mehrzeilig, ohne Kontenwahl | dreizeilige Buchung aus einem Klick |
+| 3 | Jahresabschluss vollständig | Festschreibung verweigert das Jahr mit offener Umgliederung |
+| 4 | Rückstellungen geführt statt getippt | Auflösung nur mit Grund (§ 249 Abs. 2 Satz 2 HGB) |
+| 5 | Spiegel, Restlaufzeit, E-Bilanz | Verbindlichkeitenspiegel summiert sich auf den Bilanzausweis |
+| 6 | Eigenkapital und Privatkonten | Entnahme ohne Kontonummer buchbar |
+
+Jede Stufe ist für sich lieferbar. Wer nach Stufe 2 aufhört, hat den Fall gelöst, der
+heute die meiste Handarbeit macht.
 
 ## 11. Was die Auswertungen daraus brauchen
 
@@ -392,12 +576,13 @@ Plan, nicht aus einer Eingabe.
   Aktiva und Passiva über `type` und `kontenklasse`. Die Felder `hgbCode` und
   `positionId` stehen an jedem Konto (`internal/domain/account.go:30`), werden aber nicht
   ausgewertet. Ohne sie ist ein Restlaufzeitvermerk nicht darstellbar.
-- **E-Bilanz:** die Mapping-Tabelle `skr04ToXBRL` (`internal/ebilanz/ebilanz.go:12`)
-  enthält kein einziges Darlehens-, Rückstellungs- oder Eigenkapitalkonto außer 2000,
-  2100 und 2900. Alles andere fällt auf `de-gaap-ci:bs.other`
-  (`internal/ebilanz/ebilanz.go:66`). Ein Verzeichnis, dessen Ergebnis in der Sammelposition
-  landet, hilft beim Abschluss nicht. Auch die drei vorhandenen Zuordnungen sind zu
-  prüfen: **2900** Gezeichnetes Kapital zeigt dort auf `bs.eqLiab.equity.retainedEarn`
+- **E-Bilanz:** die Mapping-Tabelle `skr04ToXBRL` (`internal/ebilanz/ebilanz.go`) führt
+  inzwischen 72 Zuordnungen – aber nur sieben davon auf der Passivseite: 2000, 2100,
+  2900, 3300, 3801, 3806 und 3820. Mit dem Anlagenkatalog ist die Aktivseite
+  nachgezogen worden, die Passivseite steht noch da, wo sie war: alles Übrige fällt auf
+  `de-gaap-ci:bs.other`. Ein Verzeichnis, dessen Ergebnis in der Sammelposition landet,
+  hilft beim Abschluss nicht. Auch die drei Eigenkapitalzuordnungen sind zu prüfen:
+  **2900** Gezeichnetes Kapital zeigt auf `bs.eqLiab.equity.retainedEarn`
   (Gewinnrücklagen), **2000** Festkapital auf `subscribedCap`.
 
 ## 12. Befunde am mitgelieferten Kontenrahmen
@@ -428,12 +613,13 @@ vor der Umsetzung geklärt sein sollten – sie betreffen die Metadaten, nicht d
 
 ## 13. Offene Entscheidungen
 
-- **Ein Verzeichnis oder drei?** Vorschlag: ein Datenmodell mit `kind`-Feld, drei
-  Ansichten. Der Alternativweg – getrennte Tabellen je Sachverhalt – ist am Anfang
-  schneller und spätestens beim Sonderposten teuer.
-- **Namensgebung im Code:** `RegisterItem` / `PlannedMovement` oder fachlich deutsch?
-  Der Bestand ist englisch benannt mit deutschen Kommentaren und Meldungen; das sollte so
-  bleiben.
+- **Der Sonderposten braucht ein Zuhause.** Er gehört fachlich zur Passivseite, hängt
+  aber am Anlagegut, dessen Abschreibung er begleitet. Vorschlag: eigener Stammsatz in
+  der Verbindlichkeitenkartei mit Verweis auf das Anlagegut, weil sein Auflösungsplan
+  dessen Nutzungsdauer folgt – nicht als weiteres Feld an `FixedAsset`.
+- **Wann wird zusammengelegt?** Nach Stufe 4 stehen zwei Karteien nebeneinander. Dann,
+  und erst dann, lohnt der Blick, was wirklich doppelt ist – der Verdacht liegt auf der
+  Spiegel-Auswertung und der Ableitung des Status, nicht auf den Stammsätzen.
 - **Wie weit trägt der Plan?** Bei variablem Zins ist er ab der ersten Anpassung falsch.
   Vorschlag: Plan bis zur nächsten Zinsbindung rechnen, danach neu.
 - **Sondertilgung:** Plan neu rechnen oder Restlaufzeit verkürzen? Beides ist üblich; die
@@ -453,16 +639,22 @@ vor der Umsetzung geklärt sein sollten – sie betreffen die Metadaten, nicht d
 
 ## 14. Abhängigkeiten
 
-- Die **Anlagenverwaltung** sollte auf demselben Kern aufsetzen. Wird sie vorher als
-  Einzellösung gebaut, entsteht der Umbau später doppelt – siehe Abschnitt 9 zur
-  Kopplung Zuschuss ↔ Anlagegut.
-- Der **Festschreibungs-Workflow** bekommt einen gemeinsamen Prüfschritt für alle
-  stichtagsgetriebenen Bewegungen; AfA und Rechnungsabgrenzung beschreiben ihn bereits
-  je für sich.
+- Die **Anlagenkartei** ist das Vorbild und bleibt unangetastet. Berührt wird sie an
+  zwei Stellen: der Zahlungsplan aus Stufe 2 nimmt eine Ausleihung als Besitzer auf,
+  und der Kontenkatalog bekommt die Ausleihungen an Gesellschafter (6.8).
+- Der **Festschreibungs-Workflow** prüft heute die AfA (`ensureDepreciationBooked` in
+  `internal/wailsbridge/festschreibung_service.go`). Er wird zum Prüfschritt für alle
+  stichtagsgetriebenen Bewegungen – auch die Rechnungsabgrenzung gehört später dorthin.
 - Der **Kontakt** braucht die Merkmale „Gesellschafter", „verbundenes Unternehmen" und
   „Beteiligungsverhältnis" – ohne sie sind weder Kontenwahl noch Anhangangabe möglich.
-- Die **Stammdaten** brauchen die Rechtsform als auswertbares Feld, nicht nur als Text.
-- Die **E-Bilanz** braucht das erweiterte Kontenmapping aus Abschnitt 11.
+  Das ist die einzige Modelländerung außerhalb der neuen Dateien.
+- Die **Stammdaten** tragen die Rechtsform inzwischen als Katalogwert
+  (`domain.LegalFormCatalog`); die Ableitung der Gesellschafterkonten kann sie lesen,
+  statt Text zu raten.
+- Die **Dokumentenablage** (`internal/receiptstore`, Zweig `dokumente/`) nimmt
+  Kreditverträge auf, ohne dass dafür etwas Neues entsteht.
+- Die **E-Bilanz** braucht das erweiterte Kontenmapping aus Abschnitt 11 und einen
+  Verbindlichkeitenspiegel nach dem Muster von `AnlagenspiegelSource`.
 - Der **DATEV-Export** ist nicht betroffen: Er sieht fertige Journalbuchungen.
 
 ## 15. Quellen
