@@ -1,25 +1,29 @@
 # Buchfink – Sicherheitskonzept (Verschlüsselung & Integrität)
 
-Status: Entwurf / Konzept (noch nicht implementiert)
-Letzte Aktualisierung: 2026-08-18
+Status: umgesetzt (Phasen 0 bis 3, siehe Abschnitt 8)
+Letzte Aktualisierung: 2026-08-30
 
-Dieses Dokument beschreibt das Zielkonzept für Vertraulichkeit (Verschlüsselung
-at-rest) und Integrität/Nachweisbarkeit (Hashkette + Zeitstempel) in Buchfink.
-Es ersetzt den bisherigen, faktisch ungenutzten Zertifikats-/Signaturansatz.
+Dieses Dokument beschreibt Vertraulichkeit (Verschlüsselung at-rest) und
+Integrität/Nachweisbarkeit (Hashkette + Zeitstempel) in Buchfink. Es war
+ursprünglich das Zielkonzept und beschreibt seit der Umsetzung den gebauten
+Zustand; es ersetzt den früheren, faktisch ungenutzten
+Zertifikats-/Signaturansatz.
 
-## 1. Ausgangslage (Ist-Zustand)
+## 1. Ausgangslage vor der Umsetzung
 
-- Es wird pro Mandant ein Ed25519-Keypair + selbstsigniertes X.509-Zertifikat
+Dieser Abschnitt hält fest, wovon das Konzept ausging. Nichts davon gilt heute
+noch, die genannten Dateien gibt es nicht mehr.
+
+- Pro Mandant wurde ein Ed25519-Keypair samt selbstsigniertem X.509-Zertifikat
   erzeugt (`internal/security/cert.go`), aber **nie wieder geladen oder genutzt**.
-  Der Key-Pfad wird beim Anlegen sogar verworfen
-  (`internal/wailsbridge/app_service.go:237`, `certPath, _, err := ...`).
-- **Keine Datenverschlüsselung at-rest:** SQLite wird im Klartext geöffnet
-  (`internal/repository/db.go:34`, nur WAL + busy_timeout). Belege liegen als
-  Klartextdateien (`ReceiptPath`, `internal/domain/booking.go:30`).
-- **Integrität = ungekeyed SHA256-Hashkette** (`internal/accounting/hashchain.go`).
-  Kein Geheimnis beteiligt → wer die DB schreiben kann, kann die Kette neu rechnen.
-- UI-Label "Sicherheitsschlüssel (Signatur)" (`frontend/src/pages/SettingsPage.tsx:145`)
-  ist damit irreführend – es wird nichts signiert.
+  Der Key-Pfad wurde beim Anlegen sogar verworfen.
+- **Keine Datenverschlüsselung at-rest:** SQLite wurde im Klartext geöffnet, nur
+  WAL und busy_timeout.
+- **Integrität = ungekeyed SHA256-Hashkette.** Kein Geheimnis beteiligt → wer die
+  DB schreiben kann, kann die Kette neu rechnen. Das gilt weiterhin für die Kette
+  allein; erst die Feldverschlüsselung macht sie wirksam (Abschnitt 2).
+- Das UI-Label "Sicherheitsschlüssel (Signatur)" war irreführend, es wurde nichts
+  signiert.
 
 ## 2. Grundsatzentscheidungen
 
@@ -36,7 +40,7 @@ Es ersetzt den bisherigen, faktisch ungenutzten Zertifikats-/Signaturansatz.
 
 ## 3. Was entfällt
 
-| Fällt weg | Fundstelle heute |
+| Ist entfallen | Fundstelle damals |
 |---|---|
 | Ed25519 Private Key (`buchfink-key.pem`) | `internal/security/cert.go:34,80-104` |
 | Ed25519 Public Key (im Cert eingebettet) | `internal/security/cert.go:63` |
@@ -44,8 +48,8 @@ Es ersetzt den bisherigen, faktisch ungenutzten Zertifikats-/Signaturansatz.
 | `CertPath` in Config | `internal/domain/app_config.go:8,18` |
 | geplante Signatur-Spalte / `SigningIdentity`-Tabelle | (verworfen) |
 
-`internal/security/cert.go` wird in seiner heutigen Form entfernt und durch die
-Schlüsselableitung (Abschnitt 4) ersetzt.
+`internal/security/cert.go` wurde entfernt und durch die Schlüsselableitung
+(Abschnitt 4) ersetzt.
 
 ## 4. Vertraulichkeit: Ein-Schlüssel-Modell (Envelope)
 
@@ -64,8 +68,11 @@ Recovery-Schlüssel (Export-Datei) ───┘  (2 unabhängige Slots)      sen
   Recovery-Schlüssel (siehe Abschnitt 4a). Beide Slots wrappen denselben DEK.
 - **BELEGE WERDEN NICHT VERSCHLÜSSELT.** GoBD verlangt, dass Original-Belege
   unverändert im Originalformat erhalten bleiben. Verschlüsselt wird nur der
-  `ReceiptPath` (Pfad-Metadatum in der DB); die Beleg-Datei selbst bleibt
-  unangetastet, `ReceiptHash` (`internal/domain/booking.go:29`) sichert sie.
+  Ablagepfad und Dateiname in der Datenbank (`StoredPath`, `FileName` in
+  `internal/domain/receipt.go`); die Beleg-Datei selbst bleibt unangetastet.
+  `Receipt.SHA256` je Datei und `ReceiptHash` über die geordnete Dateiliste
+  sichern sie. Die Begründung steht auch im Code
+  (`internal/receiptstore/store.go:10`).
 - Config `~/.buchfink/config.json`: Modus `0600`, enthält keine Geheimnisse.
 
 ### 4a. Externe Sicherung: Recovery-Schlüsseldatei (LUKS-Key-Slot-Prinzip)
@@ -97,10 +104,13 @@ Klartext.
 
 | Bleibt Klartext (SQL-relevant) | Wird verschlüsselt (Freitext/PII) |
 |---|---|
-| `FiscalYear`, `BookingNumber`, `Date`, `ValueDate` | `Description` (Buchungstext) |
-| `DebitAccount`, `CreditAccount` | `ReceiptNumber`, `ReceiptPath` |
-| `Amount`, `TaxAmount` (für SQL-Summen) | Gegenpartei-Name/-IBAN (Bank-Tx) |
-| `PreviousHash`, `EntryHash`, `ReceiptHash` | Kontakt-/Stammdaten-PII, Rechnungs-Freitext |
+| `FiscalYear`, `EntryNumber`, `BookingDate`, `DocumentDate` | `Description` (Buchungstext), Zeilentext |
+| `JournalLine.Account`, `Side` | `StoredPath`, `FileName`, Verwerfungsgrund |
+| `Amount`, `TaxBase` (für SQL-Summen) | Gegenpartei-IBAN und Verwendungszweck (Bank-Tx) |
+| `PreviousHash`, `EntryHash`, `ReceiptHash` | Kontakt-/Stammdaten-PII, Rechnungs-Freitext, Stornogrund |
+
+Heute tragen 31 Felder das Tag `serializer:encrypted`; die aktuelle Liste findet
+sich mit `grep -rn 'serializer:encrypted' internal/domain`.
 
 Konsequenz: Beträge bleiben lesbar (nötig für `CalculateAccountSums`/`CalculateTypeSums`).
 Wer stärkeren Schutz will, müsste später auf SQLCipher (CGo) oder App-seitige
@@ -108,10 +118,9 @@ Aggregation umstellen.
 
 ## 5. Integrität & Nachweis: Hashkette + RFC-3161-Zeitstempel
 
-- **Hashkette** unverändert (`internal/accounting/hashchain.go`):
-  Erzeugung in `AccountingService.CreateBooking`
-  (`internal/service/accounting_service.go:391`), Prüfung in `VerifyIntegrity`
-  (`accounting_service.go:497`).
+- **Hashkette** unverändert (`internal/accounting/journalhash.go`):
+  Erzeugung in `JournalService.Post` (`internal/service/journal_service.go:83`),
+  Prüfung in `JournalService.VerifyIntegrity` (`journal_service.go:218`).
 - **RFC-3161-Zeitstempel** als zusätzlicher, unabhängiger Nachweis ("dieser Zustand
   existierte nachweislich zu Zeitpunkt T", durch eine dritte Partei bestätigt):
   - Es wird **nur der SHA256-Hash** an die TSA gesendet, **nie Buchungsdaten** –
@@ -129,15 +138,18 @@ Aggregation umstellen.
     nicht nötig.
   - Andockpunkt Interface: `HashChainService`, TODO bei `internal/domain/integrity.go:18`.
 
-## 6. Auswirkungen auf Konfiguration & UI
+## 6. Konfiguration & UI
 
-- `TenantConfig`: `CertPath`/`KeyPath` entfallen; stattdessen Keyfile bei den Daten.
-- Frage "Key-Pfad in Settings nicht änderbar" löst sich auf: statt Pfad auf eine
-  Key-Datei nun **Passphrase eingeben/ändern**; Keyfile lebt beim Datenspeicher.
-- `frontend/src/pages/SettingsPage.tsx`: Read-only-Zertifikatsanzeige → "Passphrase
-  ändern" + "Datenspeicher wählen".
-- Setup-Wizard `frontend/src/components/SetupAssistantScreen.tsx`: Schritt
-  "Sicherheitsschlüssel (Signatur)" → "Passwort / Verschlüsselung des Datenspeichers".
+- `TenantConfig` führt weder `CertPath` noch `KeyPath`. Das Keyfile liegt im
+  Datenordner des Mandanten, das Wrapping-Geheimnis im Schlüsselbund
+  (`internal/domain/app_config.go`).
+- Eine Passphrase gibt es nicht: das Entsperren ist transparent über den
+  Schlüsselbund. Zu merken ist nichts, zu sichern ist die Recovery-Datei.
+- `frontend/src/pages/SettingsPage.tsx:398` zeigt unter "Speicherort und
+  Schlüssel" den Datenordner, den Schlüsselbund-Eintrag samt Fundort je
+  Betriebssystem und den Export des Recovery-Schlüssels.
+- `frontend/src/components/RecoveryScreen.tsx` liest eine Recovery-Datei wieder
+  ein, wenn der Schlüsselbund den Eintrag nicht mehr hat.
 
 ## 7. Migration (Entwicklungsphase)
 
@@ -165,10 +177,11 @@ Aggregation umstellen.
   GoBD-Festschreibung**:
   - Modell `domain.Festschreibung` (Periode, Stichtag, Chain-Head, eingebetteter
     Zeitstempel), Repo, Migration.
-  - **Enforcement** (`AccountingService.CreateBooking`): keine rückdatierten
-    Neubuchungen in einen festgeschriebenen Zeitraum (`b.Date <= LatestCutoff`);
-    Storno bleibt erlaubt (auf heute datiert). Test:
-    `festschreibung_enforcement_test.go`.
+  - **Enforcement** (`JournalService.ensurePeriodOpen`,
+    `internal/service/journal_service.go:372`): keine rückdatierten Neubuchungen
+    in einen festgeschriebenen Zeitraum (`BookingDate <= LatestCutoff`); Storno
+    bleibt erlaubt (auf heute datiert). Ein automatischer Test dafür fehlt
+    bisher.
   - **Stiller Zeitstempel**: bei `CommitPeriod` best-effort über DigiCert; offline →
     Festschreibung steht trotzdem, Status `pending`, Nachholen beim Start
     (`retryPendingTimestamps`).

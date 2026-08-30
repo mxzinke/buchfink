@@ -282,8 +282,9 @@
               <h3 class="feature__title">Vom Kontoauszug zur Buchung</h3>
               <p class="feature__body">
                 Den Auszug aus dem Onlinebanking einlesen, und die offenen Umsätze stehen als Liste
-                da. Ein Klick auf eine Zeile zeigt, welche Rechnungen dazu passen könnten. Gebucht
-                wird erst, wenn die Summe den Auszug genau trifft.
+                da. Ein Klick auf eine Zeile zeigt die offenen Rechnungen der passenden Richtung,
+                aus denen die Zahlung ausgeglichen wird. Gebucht wird erst, wenn die Summe den
+                Auszug genau trifft.
               </p>
               <ul class="feature__list">
                 <li><span class="diamond"></span> Liest den Standard, den jede Bank ausgibt (CAMT.053)</li>
@@ -388,14 +389,14 @@
               <p class="overline">Auswertungen</p>
               <h3 class="feature__title">GuV, Bilanz und Umsatzsteuer</h3>
               <p class="feature__body">
-                Die Auswertungen rechnen direkt aus den erfassten Buchungen. Die
-                Umsatzsteuer-Voranmeldung zeigt genau die Felder, die im Formular des Finanzamts
-                stehen — die Zahlen lassen sich Feld für Feld in Mein ELSTER übertragen.
+                Die Auswertungen rechnen direkt aus den erfassten Buchungen. Zur Umsatzsteuer
+                stehen die Kennziffern des amtlichen Vordrucks mit ihren Nummern da, sodass sich
+                die Zahlen in Mein ELSTER übertragen lassen.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> Gewinn- und Verlustrechnung nach HGB</li>
-                <li><span class="diamond"></span> Bilanz mit Aktiva und Passiva</li>
-                <li><span class="diamond"></span> Voranmeldung je Monat oder Quartal</li>
+                <li><span class="diamond"></span> Gewinn- und Verlustrechnung, Bilanz und Summen- und Saldenliste</li>
+                <li><span class="diamond"></span> Umsatzsteuer je Monat oder Quartal, mit den Kennziffern 81, 86, 66 und 83</li>
+                <li><span class="diamond"></span> Noch im Bau: die vollständige Voranmeldung und die Ausgabe als Datei</li>
               </ul>
             </div>
             <div class="shot-stack">
@@ -421,7 +422,7 @@
                     alt="Umsatzsteuer-Voranmeldung für ein Quartal mit den Kennziffern 81, 86, 66 und 83."
                   />
                 </a>
-                <figcaption>Dieselben Kennziffern wie im amtlichen Vordruck.</figcaption>
+                <figcaption>Die Kennziffern tragen dieselben Nummern wie im amtlichen Vordruck.</figcaption>
               </figure>
             </div>
           </article>
@@ -467,8 +468,9 @@
                 weitergibt — was übermittelt wird, soll niemand raten müssen.
               </p>
               <ul class="feature__list">
-                <li><span class="diamond"></span> Bilanz, GuV und Kontennachweis in einer Datei</li>
+                <li><span class="diamond"></span> Kontennachweis und Anlagenspiegel je Konto in einer Datei</li>
                 <li><span class="diamond"></span> Einreichung über Mein ELSTER oder die Steuerberatung</li>
+                <li><span class="diamond"></span> Noch ein Gerüst: die Zuordnung deckt erst einen Teil der Konten ab und ist vor der Abgabe zu prüfen</li>
               </ul>
             </div>
             <figure class="shot">
@@ -493,8 +495,9 @@
           <p class="overline">Wo die Daten liegen</p>
           <h2 class="section__title">Auf Ihrer Festplatte, sonst nirgends</h2>
           <p class="section__lead">
-            Ein Geschäftsjahr ist eine Datei, daneben liegen die Belege so, wie sie angekommen
-            sind. Beides lässt sich auch ohne Buchfink öffnen — und in zehn Jahren noch.
+            Die Buchhaltung eines Unternehmens ist eine Datei, daneben liegen die Belege so, wie
+            sie angekommen sind. Beides lässt sich auch ohne Buchfink öffnen — und in zehn Jahren
+            noch.
           </p>
 
           <p class="scroll-hint">
@@ -507,8 +510,9 @@
             <svg viewBox="0 0 1200 300" role="img" aria-labelledby="daten-titel daten-text">
               <title id="daten-titel">Wo die Buchhaltung gespeichert wird</title>
               <desc id="daten-text">
-                Auf dem eigenen Rechner liegen eine Datei je Geschäftsjahr und ein Ordner mit den
-                Belegen. Eine Sicherung ist eine Kopie davon. Es gibt keinen Server und kein Konto.
+                Auf dem eigenen Rechner liegen die Buchhaltungsdatei, der Schlüssel dazu und ein
+                Ordner mit den Belegen. Eine Sicherung ist eine Kopie davon. Es gibt keinen Server
+                und kein Konto.
               </desc>
 
               <g font-family="Manrope, sans-serif">
@@ -519,14 +523,14 @@
                 <g>
                   <rect x="29" y="69" width="30" height="36" rx="4" fill="#faf8f5" stroke="#948e85" />
                   <path d="M36 80h16M36 88h16M36 96h10" stroke="#948e85" stroke-width="1.5" />
-                  <text x="77" y="86" font-size="15" font-weight="600" fill="#1c1917">2026.sqlite</text>
-                  <text x="77" y="106" font-size="13" fill="#57514a">Konten, Buchungen, Protokoll — das laufende Jahr</text>
+                  <text x="77" y="86" font-size="15" font-weight="600" fill="#1c1917">buchfink.sqlite</text>
+                  <text x="77" y="106" font-size="13" fill="#57514a">Konten, Buchungen und Protokoll aller Jahre</text>
                 </g>
                 <g>
                   <rect x="29" y="129" width="30" height="36" rx="4" fill="#faf8f5" stroke="#948e85" />
                   <path d="M36 140h16M36 148h16M36 156h10" stroke="#948e85" stroke-width="1.5" />
-                  <text x="77" y="146" font-size="15" font-weight="600" fill="#1c1917">2025.sqlite</text>
-                  <text x="77" y="166" font-size="13" fill="#57514a">Das abgeschlossene Jahr, schreibgeschützt</text>
+                  <text x="77" y="146" font-size="15" font-weight="600" fill="#1c1917">buchfink.keyfile.json</text>
+                  <text x="77" y="166" font-size="13" fill="#57514a">Der Schlüssel zu den verschlüsselten Feldern</text>
                 </g>
                 <g>
                   <path
@@ -570,9 +574,10 @@
               </g>
             </svg>
             <figcaption>
-              Eine einzige Ausnahme gibt es: Wer mit Fremdwährungen bucht, kann die Referenzkurse
-              der Europäischen Zentralbank abrufen. Der Abruf steht im Protokoll, und ohne ihn
-              funktioniert alles andere weiter.
+              Eine einzige Ausnahme ist vorgesehen: Wer mit Fremdwährungen bucht, soll die
+              Referenzkurse der Europäischen Zentralbank abrufen können. Der Abruf ist noch nicht
+              an die Oberfläche angeschlossen, Kurse werden bis dahin von Hand erfasst — mit
+              Quelle und Datum an der Buchung.
             </figcaption>
           </figure>
         </div>
@@ -725,6 +730,13 @@
                 Das Projekt hat noch keine Version 1. Wer es einsetzt, prüft die Ergebnisse selbst
                 und sichert seine Daten. Die fachlichen Entscheidungen — Kontierung, Steuerfall,
                 Jahresabschluss — bleiben beim Unternehmen und seiner Steuerberatung.
+              </p>
+              <p class="note__body">
+                Konkret fehlt heute vor allem der Jahreswechsel: Salden werden noch nicht ins
+                nächste Geschäftsjahr vorgetragen. Was gebaut ist und was nicht, steht offen in
+                <a href="https://github.com/mxzinke/buchfink/blob/master/docs/stand-der-umsetzung.md"
+                  >Stand der Umsetzung</a
+                >.
               </p>
             </div>
           </div>

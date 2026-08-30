@@ -51,11 +51,13 @@ Buchungskern weist jede Buchung ab, solange sie nicht auf Sollversteuerung steht
 statt sie stillschweigend falsch zu behandeln. Die Einstellung war lange nur ein
 Feld, das niemand prüfte; das ist der gefährlichere Zustand von beiden.
 
-**E-Rechnung ist keine Scope-Grenze, sondern eine offene Pflicht.** Der Empfang
-strukturierter Eingangsrechnungen fehlt, ist aber seit dem 01.01.2025 verpflichtend
-und von den Übergangsregelungen des § 27 Abs. 38 UStG nicht erfasst – die gelten
-nur für das Ausstellen. Das ist damit kein „in v1 außen vor", sondern eine Lücke
-mit Frist; siehe [anforderung-e-rechnung.md](anforderung-e-rechnung.md).
+**E-Rechnung ist keine Scope-Grenze, sondern eine Pflicht, die seit dem
+01.01.2025 gilt** und von den Übergangsregelungen des § 27 Abs. 38 UStG nicht
+erfasst ist – die gelten nur für das Ausstellen. Der Empfang strukturierter
+Eingangsrechnungen ist inzwischen umgesetzt: ZUGFeRD, Factur-X und XRechnung
+werden erkannt, CII und UBL gelesen und gegen das Regelwerk geprüft
+(`internal/einvoice/`). Ausgestellt wird bisher nur als ZUGFeRD-PDF, die reine
+XRechnung fehlt; siehe [anforderung-e-rechnung.md](anforderung-e-rechnung.md).
 
 **Steuern und Auswertungen bleiben außen vor.** USt-Voranmeldung, USt-Erklärung, ZM
 und der Jahresabschluss (Saldenvortrag, GuV-Abrechnung, Bilanzierung) sind nicht Teil

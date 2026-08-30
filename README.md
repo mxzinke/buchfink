@@ -10,6 +10,13 @@
 </p>
 
 <p align="center">
+  <em>In Entwicklung. Was heute trägt, wo eine Funktion an ihrer Grenze endet und was
+  noch fehlt, steht in <a href="./docs/stand-der-umsetzung.md">docs/stand-der-umsetzung.md</a>.
+  Für ein volles Geschäftsjahr fehlt derzeit vor allem der Jahreswechsel mit
+  Saldenvortrag.</em>
+</p>
+
+<p align="center">
   <a href="https://mxzinke.github.io/buchfink/"><strong>Projektseite mit Screenshots</strong></a>
 </p>
 
@@ -20,6 +27,7 @@
   <a href="#tech-stack">Tech-Stack</a> &bull;
   <a href="#entwicklung">Entwicklung & Setup</a> &bull;
   <a href="#scope--entscheidungen">Scope & Entscheidungen</a> &bull;
+  <a href="#stand-der-umsetzung">Stand der Umsetzung</a> &bull;
   <a href="#mitwirken">Mitwirken</a> &bull;
   <a href="#lizenz">Lizenz</a>
 </p>
@@ -45,10 +53,11 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 
 ### Grundprinzipien
 
-- **Local-First:** Alle Daten verbleiben auf dem eigenen Rechner in standardisierten SQLite-Dateien.
-- **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage und integriertes Audit-Log.
-- **Automatisierungsfokus:** Buchungen entstehen primär aus dem Abgleich von Banktransaktionen mit Belegen – kein manuelles Soll/Haben-Tippen im Alltag.
-- **E-Bilanz bereit:** Integrierter XBRL-Export für die E-Bilanz zur direkten Übergabe an Mein ELSTER oder Bridges.
+- **Local-First:** Alle Daten verbleiben auf dem eigenen Rechner in einer standardisierten SQLite-Datei je Mandant.
+- **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage, Festschreibung mit Zeitstempel und integriertes Audit-Log. Der Datenexport für die Betriebsprüfung (Z3) fehlt noch.
+- **Automatisierungsfokus:** Der Alltag beginnt beim Kontoauszug: eine Zahlung wird ihrem offenen Posten oder einem Beleg zugeordnet, den Buchungssatz und die Steuer rechnet Buchfink daraus. Welcher Posten zu welcher Zahlung gehört, entscheidet heute noch der Nutzer.
+- **E-Rechnung:** Eingehende ZUGFeRD-, Factur-X- und XRechnung-Dateien werden erkannt, gelesen und gegen das Regelwerk geprüft. Ausgestellt wird als ZUGFeRD-PDF.
+- **Verschlüsselt abgelegt:** Personenbezogene und geschäftliche Datenbankfelder liegen mit AES-256-GCM verschlüsselt, der Schlüssel im Schlüsselbund des Betriebssystems.
 
 ---
 
@@ -56,18 +65,21 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 
 1. **Kontenverwaltung (SKR04)**
    - Vorinstallierter, erweiterbarer SKR04-Kontenrahmen mit Such- und Hilfefunktion für steuerliche Einsteiger.
-2. **Automatisiertes Journal**
-   - Transparente Soll/Haben-Ansicht. Buchungen entstehen automatisch durch Zuordnung von Banktransaktionen zu Belegen/Kontakten.
+2. **Journal aus dem Belegfluss**
+   - Transparente Soll/Haben-Ansicht. Den Buchungssatz und die Steuer rechnet Buchfink aus dem erfassten Beleg, aus der Rechnung oder aus der zugeordneten Zahlung.
    - Lückenlose Belegnummerierung und GoBD-Korrekturen ausschließlich per Storno.
 3. **Kunden & Lieferanten (Offene Posten)**
-   - Stammdatenverwaltung, OPOS-Listen und intelligenter Zahlungsabgleich.
+   - Stammdatenverwaltung, OPOS-Liste und Zahlungsausgleich mit Teilzahlung, Skonto und Differenzgründen.
 4. **Rechnungserstellung mit Typst & ZUGFeRD**
    - Professionelles Rechnungslayout via [Typst](https://typst.app/).
    - Generierung von ZUGFeRD-/Factur-X-konformen PDF/A-3-Dokumenten mit eingebettetem XML.
-5. **Bankumsatz-Import (CAMT.053)**
-   - Schneller Import von standardisierten CAMT.053-Bankauszügen.
-   - Automatischer Vorschlag für Beleg- und Kontenzuordnungen.
-6. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
+5. **E-Rechnungs-Empfang**
+   - Erkennt ZUGFeRD, Factur-X und XRechnung im eingegangenen Beleg, liest CII und UBL und prüft beides gegen das Regelwerk der Norm.
+   - Aus dem gelesenen Datensatz entsteht ein Buchungsvorschlag; der Beleg bleibt unverändert, wie er ankam.
+6. **Bankumsatz-Import (CAMT.053)**
+   - Import von standardisierten CAMT.053-Bankauszügen.
+   - Zu einem Umsatz zeigt Buchfink die offenen Posten der passenden Richtung; welcher davon gemeint ist, wählt der Nutzer. Einen Vorschlag nach Betrag oder Verwendungszweck gibt es noch nicht.
+7. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
    - Verzeichnis für Sach-, Finanz- und immaterielle Anlagen mit Inventarnummer, Bewegungen und jahresübergreifender Kartei.
    - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, Sonderabschreibung nach § 7g Abs. 5 EStG samt Restwertverteilung des § 7a Abs. 9 EStG, außerplanmäßige Abschreibung und Zuschreibung.
    - Abschreibungslauf als Abschlussbuchung mit Vorschau; die Jahres-Festschreibung prüft vorher, ob die AfA vollständig gebucht ist.
@@ -77,33 +89,51 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Investmentanteile (ETF, Aktien- und Immobilienfonds): Teilfreistellung nach § 20 InvStG und Vorabpauschale nach § 18 InvStG als außerbilanzielle Nebenrechnung.
    - Skonto auf eine Anlagenrechnung mindert im Zahlungsflow die Anschaffungskosten (§ 255 Abs. 1 Satz 3 HGB) statt den Aufwand.
    - Abgang mit Erlöskonto nach Buchgewinn oder -verlust, Teilabgang nach Stück bei Finanzanlagen und Anlagenspiegel nach § 284 Abs. 3 HGB — auch als Kontennachweis in der E-Bilanz.
-7. **Bilanz & GuV**
-   - Echtzeit-Auswertung von Bilanz, Gewinn- und Verlustrechnung (GuV) sowie Summen- und Saldenliste (SuSa).
-8. **E-Bilanz-Export (XBRL)**
-   - Automatisches Mapping der SKR04-Konten auf die offizielle E-Bilanz-Taxonomie.
-   - Direkte Erzeugung einer validen XBRL-Datei inkl. Kontennachweis (Übermittlung via Mein ELSTER / externe Bridge).
-9. **Fremdwährungsumrechnung**
-   - Buchung in EUR mit tagesaktuellen EZB-Referenzkursen (protokolliert mit Kursquelle und Zeitstempel).
-10. **Verfahrensdokumentation & Audit-Log**
-   - Live-Prüfung der Hash-Chain-Integrität in der UI.
-   - Vollständiges Änderungsprotokoll aller Stammdaten und verknüpfte Verfahrensdokumentation (Markdown).
+8. **Auswertungen**
+   - Kontenblatt, Summen- und Saldenliste, Gewinn- und Verlustrechnung, Bilanz und eine Umsatzsteuer-Übersicht, alle direkt aus den Buchungen des Geschäftsjahres.
+   - Bilanz und GuV sind heute nach Kontenklassen gruppiert, nicht nach § 266 und § 275 HGB gegliedert, und es gibt keine Vorjahresspalte und keine Ausgabe als Datei.
+   - Die Umsatzsteuer-Ansicht zeigt vier Kennziffern des amtlichen Vordrucks (81, 86, 66, 83) zum Abtippen in Mein ELSTER. Eine vollständige Voranmeldung ist sie nicht.
+9. **E-Bilanz-Export (XBRL)**
+   - Zuordnung der SKR04-Konten auf die E-Bilanz-Taxonomie, Erzeugung einer XBRL-Instanz mit Kontennachweis und Anlagenspiegel.
+   - Noch ein Gerüst: rund fünfzig Konten sind zugeordnet, aus dem GAAP-Modul werden drei Summenwerte geschrieben, eine Bilanz steht nicht in der Instanz. Vor einer Übermittlung über Mein ELSTER ist die Datei von Hand zu prüfen. Einzelheiten in [docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md).
+10. **Fremdwährung**
+   - Kurs, Kursquelle und Kursdatum hängen an der Buchung und gehen in die Hash-Chain ein; Finanzanlagen werden nach § 256a HGB zum Stichtag bewertet.
+   - Die Kurse werden heute von Hand erfasst. Der Abruf der EZB-Referenzkurse ist vorbereitet, aber noch nicht an die Oberfläche angeschlossen.
+11. **Festschreibung, Audit-Log & Integrität**
+   - Live-Prüfung der Hash-Chain in der Oberfläche.
+   - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf.
+   - Änderungsprotokoll über Buchungen, Belege und Stammdaten.
+12. **Mandanten & Verschlüsselung**
+   - Mehrere Unternehmen nebeneinander, je eigener Datenordner und eigener Schlüssel.
+   - Felder mit personenbezogenem oder geschäftlichem Inhalt liegen mit AES-256-GCM verschlüsselt in der Datenbank, dazu eine Wiederherstellungsdatei für den Fall eines verlorenen Schlüsselbunds. Siehe [docs/security-concept.md](./docs/security-concept.md).
 
 ---
 
 ## Speicherung & Integrität
 
 ```text
-buchfink-data/
-├── 2024.sqlite                  # SQLite DB pro Geschäftsjahr (Konfig, Konten, Journal)
-└── belege/
-    └── 2024/
-        ├── RE-2024-001-a1b2c3.pdf # Originalbelege mit SHA256-Hash-Präfix
-        └── ...
+buchfink-data/                        # Datenordner eines Mandanten
+├── buchfink.sqlite                   # Konfiguration, Konten, Journal, Belegsätze
+├── buchfink.keyfile.json             # Gewrappter Datenschlüssel, zwei Slots
+├── belege/
+│   └── 2026/
+│       ├── eingang/
+│       │   └── 3f7a…c1.pdf           # Ablage unter dem eigenen SHA256
+│       └── ausgang/
+│           └── 9b2e…44.pdf
+└── dokumente/
+    └── contract/                     # Dokumente am Anlagegut, je Art ein Ordner
+        └── 71d0…8a.pdf
 ```
 
-- **Hash-Chain:** Jede Buchungszeile enthält den SHA256-Hash der vorangehenden Buchung (Git-Prinzip). Manipulationen an vergangenen Perioden werden sofort sichtbar.
-- **Isolation:** Eine SQLite-Datei pro Geschäftsjahr. Abgeschlossene Jahre werden schreibgeschützt eingefroren.
-- **Belegintegrität:** Originaldateien bleiben unverändert; Hash-basierte Dateiablage.
+- **Hash-Chain:** Jede Buchung enthält den SHA256-Hash der vorangehenden (Git-Prinzip). Manipulationen an vergangenen Perioden werden sofort sichtbar.
+- **Festschreibung:** Ein festgeschriebener Zeitraum nimmt keine rückdatierten Buchungen mehr an. Der Kettenkopf wird dabei durch einen RFC-3161-Zeitstempel eines unabhängigen Dienstes beglaubigt.
+- **Isolation:** Eine SQLite-Datei je Mandant, das Geschäftsjahr ist ein Feld an der Buchung. Auswertungen und Erfassung laufen immer gegen das aktive Jahr.
+- **Belegintegrität:** Originaldateien bleiben unverändert. Der Dateiname ist der SHA256 des Inhalts, gleicher Inhalt wird nur einmal abgelegt.
+- **Verschlüsselung:** Datenbankfelder mit personenbezogenem oder geschäftlichem Inhalt sind mit AES-256-GCM verschlüsselt. Die Belegdateien selbst bleiben bewusst im Original, weil die GoBD den unveränderten Eingangsbeleg verlangt.
+
+> Eine Sicherung des Datenordners und ein Rückspielweg fehlen bisher. Wer Buchfink
+> ernsthaft einsetzt, sichert den Ordner heute selbst.
 
 ---
 
@@ -128,7 +158,7 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
 |---|---|---|
 | **Desktop Shell** | [Wails v3](https://v3.wails.io/) | Schlanke, native WebView-Desktop-Shell (macOS, Windows, Linux) |
 | **Backend** | Go (Golang) | Performante Geschäftslogik, Hash-Chain, XML/XBRL & Bankparser |
-| **Datenbank** | SQLite (Pure Go) | Eine SQLite-Datei pro Geschäftsjahr, CGO-frei |
+| **Datenbank** | SQLite (Pure Go) | Eine SQLite-Datei je Mandant, CGO-frei, Feldverschlüsselung über einen GORM-Serializer |
 | **Frontend** | React, TypeScript, Vite | Schnelles, reaktives UI ohne schweren Design-System-Overhead |
 | **UI-Bausteine** | [Base UI](https://base-ui.com) | Unstyled: Fokusfang, Positionierung und Tastaturführung. Gestalt kommt aus dem eigenen Design-System |
 | **Styling** | Tailwind CSS & Lucide Icons | Minimalistisch, flach und warm gestaltet |
@@ -140,7 +170,7 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
 
 ### Voraussetzungen
 
-- **Go:** `>= 1.22` ([Download](https://golang.org/dl/))
+- **Go:** `>= 1.25` ([Download](https://golang.org/dl/))
 - **Node.js:** `>= 20` ([Download](https://nodejs.org/))
 - **Wails v3 CLI:**
   ```bash
@@ -153,7 +183,7 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
 
 1. **Repository klonen und Frontend-Abhängigkeiten installieren:**
    ```bash
-   git clone https://github.com/buchfink/buchfink.git
+   git clone https://github.com/mxzinke/buchfink.git
    cd buchfink
    cd frontend && npm install && cd ..
    ```
@@ -187,18 +217,26 @@ buchfink/
 ├── frontend/               # React + TypeScript + Vite Frontend
 │   ├── src/
 │   │   ├── components/     # UI-Komponenten (Sidebar, Header, Dialoge)
-│   │   ├── pages/          # Ansichten (Journal, Konten, Bank, Bilanz, ...)
+│   │   │   └── ui/         # Bausteine des Design-Systems
+│   │   ├── pages/          # Ansichten (Journal, Konten, Bank, Auswertungen, ...)
 │   │   ├── services/       # Wails Go-Bindings / API Client
+│   │   ├── types/          # Gemeinsame TypeScript-Typen
 │   │   └── utils/          # Formatierung (Währung, Datum), Hilfsfunktionen
 │   └── package.json
 ├── internal/               # Go Backend Module
-│   ├── accounting/         # SKR04 Kontenplan, Buchungssätze, Hash-Chain
-│   ├── audit/              # GoBD Audit-Log & Integritätsprüfung
-│   ├── bank/               # CAMT.053 Parser & Bank-Zuordnungslogik
+│   ├── accounting/         # SKR04-Kontenplan, Buchungsgruppen, Steuerschlüssel, AfA, Hash-Chain
+│   ├── bank/               # CAMT.053-Parser
 │   ├── currency/           # EZB-Referenzkurse
-│   ├── database/           # SQLite Initialisierung & Migrationen
-│   ├── ebilanz/            # XBRL Taxonomie-Mapping & XML-Export
-│   └── invoice/            # ZUGFeRD / Factur-X XML & Typst Rendering
+│   ├── domain/             # Fachliche Typen und Repository-Schnittstellen
+│   ├── ebilanz/            # XBRL-Zuordnung & Instanzerzeugung
+│   ├── einvoice/           # E-Rechnung: CII, UBL, ZUGFeRD, XRechnung, Regelwerk
+│   ├── invoice/            # Ausgangsrechnung: ZUGFeRD-XML & Typst-Rendering
+│   ├── receiptstore/       # Belegablage unter SHA256
+│   ├── repository/         # GORM/SQLite-Persistenz & Feldverschlüsselung
+│   ├── security/           # Vault, Schlüsselbund, Wiederherstellung
+│   ├── service/            # Anwendungsfälle (Buchen, Zahlen, Anlagen, Belege, ...)
+│   ├── timestamp/          # RFC-3161-Zeitstempel für die Festschreibung
+│   └── wailsbridge/        # Aufrufbare Oberfläche für das Frontend
 ├── scripts/                # Prüf- und Erzeugungsskripte
 ├── website/                # Projektseite für GitHub Pages
 ├── main.go                 # App Entrypoint & Wails Service Registration
@@ -220,9 +258,31 @@ Oberfläche mit Beispieldaten; wie das läuft, steht in
 | **Anwendungsbereich & Zielgruppe** | **Ausschließlich bilanzierende Unternehmen** (z. B. UG, GmbH, AG, bilanzierende Kaufleute). **Nicht geeignet** für kleine Selbstständige, Freiberufler oder Kleinunternehmer mit einfacher Einnahmen-Überschuss-Rechnung (EÜR). |
 | **Buchungsansatz** | Doppelte Buchführung (Soll & Haben) nach dem Prinzip „Buchung folgt Bankumsatz“: Transaktionen werden Belegen zugeordnet und generieren automatisch Soll/Haben-Sätze. |
 | **Kontenrahmen** | SKR04 als Standard für v1 (Abschlussgliederungsprinzip für Bilanz & GuV). |
-| **GoBD** | Vollständige GoBD-Konformität von Tag 1 (Unveränderbarkeit, Hash-Chains, Storno-Prinzip). |
-| **E-Bilanz / ERiC** | Eigene Erzeugung gültiger XBRL-Dateien im Tool inkl. Kontennachweis nach amtlicher Taxonomie. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); Einreichung erfolgt über Mein ELSTER oder Bridges (z. B. eBilanz+). |
+| **GoBD** | Unveränderbarkeit, Hash-Chains, Storno-Prinzip und Festschreibung sind ab Tag 1 gebaut. Der Datenexport für die Betriebsprüfung (Z3) fehlt noch. |
+| **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, inklusive Kontennachweis und Anlagenspiegel. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); Einreichung erfolgt über Mein ELSTER oder Bridges (z. B. eBilanz+). Der Export ist heute ein Gerüst, siehe [Stand der Umsetzung](./docs/stand-der-umsetzung.md). |
 | **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Lohnbuchhaltung, Lagerverwaltung/Inventur, mehrsprachige UI (v1 fokussiert auf Deutsch/DACH). |
+
+---
+
+## Stand der Umsetzung
+
+Buchfink ist in Entwicklung, und das README beschreibt das Ziel. Was davon im Code
+angekommen ist, steht mit Fundstellen in
+[docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md). Die größten offenen
+Punkte in Kurzform:
+
+| Lücke | Wirkung |
+|---|---|
+| **Jahreswechsel und Saldenvortrag** | Kontensalden entstehen nur aus den Buchungen des aktiven Jahres. Ein Bestandskonto zeigt im zweiten Jahr nicht seinen Bestand. Damit endet eine Buchhaltung heute nach einem Geschäftsjahr. |
+| **Abschlussbuchungen** | Es gibt den Abschreibungslauf. Der Abschluss der Erfolgskonten, die Umsatzsteuer-Verrechnung, die Steuerrückstellung und die Ergebnisverwendung fehlen. |
+| **Umsatzsteuer-Voranmeldung** | Vorhanden ist eine Auswertung mit vier Kennziffern, kein vollständiger Vordruck und keine Übermittlungsdatei. Ebenso fehlen Dauerfristverlängerung und Zusammenfassende Meldung. |
+| **Rechnungsabgrenzung, Rückstellungen, Anzahlungen** | Für die Bilanz nicht verzichtbar, jeweils beschrieben und noch nicht gebaut. |
+| **DATEV- und Z3-Export** | Ohne sie bleibt die Buchhaltung eine Insel und die Betriebsprüfung ohne Datenträger. |
+| **Datensicherung** | Kein Sicherungs- und Rückspielweg. Bei einer Anwendung, die alles lokal hält, das größte Betriebsrisiko. |
+| **Mahnwesen, Kassenbuch, wiederkehrende Buchungen** | Alltagsfunktionen, die noch fehlen. |
+
+Ausführlich, mit den offenen Punkten aus dem Zahlungsverkehr, dem Bankimport und
+der Ausgangsrechnung: [docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md).
 
 ---
 
