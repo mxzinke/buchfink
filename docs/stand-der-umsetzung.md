@@ -1,7 +1,7 @@
 # Buchfink – Stand der Umsetzung
 
 Status: laufend gepflegt
-Letzte Aktualisierung: 2026-08-30
+Letzte Aktualisierung: 2026-09-01
 
 Dieses Dokument beschreibt, was Buchfink heute tut, wo eine Funktion an einer
 Grenze endet und was noch fehlt. Es ist die Gegenprobe zum README: dort steht,
@@ -27,6 +27,7 @@ und wenn sie dort fehlt, ist sie noch nie bedacht worden.
 | Audit-Log | Änderungsprotokoll über Buchungen, Belege und Stammdaten. | `internal/service/audit_service.go` |
 | Verschlüsselung at rest | 31 Datenbankfelder mit personenbezogenem oder geschäftlichem Inhalt, AES-256-GCM, Schlüssel im Betriebssystem-Schlüsselbund, Wiederherstellungsdatei. | `internal/repository/encryption.go`, `internal/security/` |
 | Mandanten | Mehrere Unternehmen nebeneinander, je eigener Datenordner und eigener Schlüssel. | `internal/domain/app_config.go` |
+| Gründung einer Kapitalgesellschaft | Erfassung im Einrichtungsassistenten, Kapitalaufbringung nach § 7 Abs. 2 GmbHG bzw. § 5a Abs. 2 GmbHG und § 36a AktG, Unterbilanzrechnung auf den Eintragungstag, Gründungsbuchungen und die Fristen der Gründung. | `internal/accounting/gruendung.go`, `internal/service/foundation_service.go` |
 
 ## 2. Wo eine Funktion an ihrer Grenze endet
 
@@ -68,10 +69,12 @@ nach § 256a HGB rechnet mit ihnen. Der EZB-Abruf existiert als Service
 (`internal/currency/ecb.go`), wird aber von keiner Bridge-Methode aufgerufen:
 Kurse kommen heute nur von Hand herein.
 
-**Die Fristenseite ist eine Merkliste.** Die Termine berechnet das Frontend aus
-dem Voranmeldungszeitraum, der Haken liegt im `localStorage` des Browsers
-(`frontend/src/pages/DeadlinesPage.tsx:82`), nicht in der Datenbank und nicht
-im Audit-Log. Die Festschreibung auf derselben Seite ist dagegen echt.
+**Die Fristenseite ist zur Hälfte eine Merkliste.** Die Steuertermine berechnet
+das Frontend aus dem Voranmeldungszeitraum, der Haken liegt im `localStorage` des
+Browsers (`frontend/src/pages/DeadlinesPage.tsx`), nicht in der Datenbank und
+nicht im Audit-Log. Für die Gründungspflichten gilt das nicht mehr: Sie werden
+mit ihrem Datum als `FoundationTask` gespeichert. Die Festschreibung auf
+derselben Seite ist ebenfalls echt.
 
 ## 3. Was fehlt und den Jahreslauf blockiert
 
@@ -83,15 +86,15 @@ dieses Ergebnis in den Kontenplan (`internal/service/accounting_service.go:59`).
 Ein Bestandskonto zeigt im zweiten Jahr deshalb nur die Bewegung dieses Jahres,
 nicht seinen Bestand. Die Bausteine liegen bereit und sind unbenutzt:
 
-- `EntrySourceOpening` ist als Buchungsquelle definiert
-  (`internal/domain/journal.go:53`) und wird von keiner Stelle im Code erzeugt.
 - Die Vortragskonten 9000, 9008 und 9009 stehen als Konstanten
-  (`internal/domain/skr04_accounts.go:27`) und werden nie bebucht.
+  (`internal/domain/skr04_accounts.go`) und werden nie bebucht.
 - `CreateFiscalYear` legt kein Jahr an, sondern schaltet nur den Jahresfilter um
-  (`internal/wailsbridge/app_service.go:623`). Der Name führt in die Irre.
+  (`internal/wailsbridge/app_service.go`). Der Name führt in die Irre.
 - Ein Erfassungsweg für Eröffnungswerte beim Einrichten eines Mandanten fehlt
-  ebenfalls, wer mit laufender Buchhaltung umsteigt, kann seine Bestände nicht
-  eingeben.
+  für den Umsteiger mit laufender Buchhaltung weiterhin. Der Gründungsfall ist
+  seit dem Gründungsweg abgedeckt: `EntrySourceOpening` wird dort erzeugt
+  (`internal/service/foundation_service.go`), und die Kapitalkonten 2900 und 1298
+  werden bebucht.
 
 **Abschlussbuchungen.** `EntrySourceClosing` setzt allein der
 Abschreibungslauf (`internal/service/asset_service.go:1156`). Es fehlen der
@@ -148,7 +151,9 @@ Rechnung (`internal/service/einvoice_service.go:339`), Versand per E-Mail oder
 Peppol, Angebot und Lieferschein.
 
 Rechtsform und Eigenkapital: Kapitalkonten der Gesellschafter, Privatentnahmen
-und Privateinlagen, Gesellschafterverrechnungskonten. Das trifft die
+und Privateinlagen, Gesellschafterverrechnungskonten. Der Gründungsweg kennt die
+Gesellschafter einer Kapitalgesellschaft und ihre Einlagen, führt für sie aber
+kein laufendes Kapitalkonto. Das trifft die
 Personenhandelsgesellschaften, die das README ausdrücklich als Zielgruppe
 nennt. Dazu die Rückstellungsrechnung für Körperschaft- und Gewerbesteuer.
 

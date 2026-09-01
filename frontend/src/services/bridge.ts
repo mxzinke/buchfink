@@ -164,4 +164,17 @@ export const bridge = {
   CommitPeriod: <T>(periodType: string, periodLabel: string, cutoffDate: string) =>
     invoke<T>('CommitPeriod', periodType, periodLabel, cutoffDate),
   VerifyFestschreibung: <T>(id: number) => invoke<T>('VerifyFestschreibung', id),
+
+  // Gründung
+  GetFoundationState: <T>() => invoke<T>('GetFoundationState'),
+  SaveFoundation: <T>(foundation: unknown) => invoke<T>('SaveFoundation', foundation),
+  GetFoundationRules: <T>() => invoke<T>('GetFoundationRules'),
+  GetRecommendedVatPeriod: <T>(foundingYear: number) =>
+    invoke<T>('GetRecommendedVatPeriod', foundingYear),
+  PreviewFoundationPostings: <T>() => invoke<T>('PreviewFoundationPostings'),
+  BookFoundationPostings: <T>() => invoke<T>('BookFoundationPostings'),
+  RegisterCompany: <T>(date: string, court: string, number: string) =>
+    invoke<T>('RegisterCompany', date, court, number),
+  CompleteFoundationDuty: (key: string, doneOn: string, note: string) =>
+    invoke<void>('CompleteFoundationDuty', key, doneOn, note),
 };

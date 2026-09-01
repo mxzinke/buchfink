@@ -35,6 +35,10 @@ import type {
   FestschreibungVerification,
   FinancialSummary,
   FixedAsset,
+  Foundation,
+  FoundationPostingPreview,
+  FoundationRules,
+  FoundationState,
   IntegrityCheckResult,
   InvestmentRules,
   InvestmentTaxNote,
@@ -469,4 +473,37 @@ export const Api = {
     call(() => Bridge.CommitPeriod(periodType, periodLabel, cutoffDate) as Promise<Festschreibung>),
   verifyFestschreibung: (id: number): Promise<FestschreibungVerification> =>
     call(() => Bridge.VerifyFestschreibung(id) as Promise<FestschreibungVerification>),
+
+  // --- Gründung ---------------------------------------------------------
+
+  /**
+   * Regeln, Gründung, Anmeldungsbefund, Unterbilanz und Fristen in einem Aufruf.
+   * `applies` ist falsch, wenn die Rechtsform keine Kapitalgesellschaft ist.
+   */
+  getFoundationState: (): Promise<FoundationState> =>
+    call(() => Bridge.GetFoundationState() as Promise<FoundationState>),
+  saveFoundation: (foundation: Partial<Foundation>): Promise<Foundation> =>
+    call(() => Bridge.SaveFoundation(foundation as any) as Promise<Foundation>),
+  /** Die Kapitalaufbringungsregeln der Rechtsformen, die der Gründungsweg abdeckt. */
+  getFoundationRules: (): Promise<FoundationRules[]> =>
+    call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),
+  /**
+   * Voranmeldungszeitraum einer Gründung in diesem Jahr, mit Begründung.
+   * § 18 Abs. 2 UStG hat dafür ein Stichjahr — deshalb wird gefragt statt geraten.
+   */
+  getRecommendedVatPeriod: (foundingYear: number): Promise<{ period: string; reason: string }> =>
+    call(
+      () =>
+        Bridge.GetRecommendedVatPeriod(foundingYear) as Promise<{ period: string; reason: string }>
+    ),
+  previewFoundationPostings: (): Promise<FoundationPostingPreview> =>
+    call(() => Bridge.PreviewFoundationPostings() as Promise<FoundationPostingPreview>),
+  bookFoundationPostings: (): Promise<JournalEntry[]> =>
+    call(() => Bridge.BookFoundationPostings() as Promise<JournalEntry[]>),
+  /** Die Eintragung ins Handelsregister — sie beendet die Vorgesellschaft. */
+  registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
+    call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
+  /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
+  completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
+    call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
 };
