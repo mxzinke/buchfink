@@ -1,34 +1,34 @@
 # Buchfink – Anzahlungen & Rechnungsverbund
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), UST-02,
+RECH-02, RECH-03, RECH-10, BEL-07
+
 Status: Anforderung, noch nicht implementiert
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
-> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
-> [Abschnitt 7](#7-quellen).
+> Art.-Nr. 11175) geprüft. Die gesetzlichen Anforderungen samt Fundstellen stehen im
+> Anforderungskatalog unter UST-02, RECH-02, RECH-03 und RECH-10.
 
 ## 1. Warum das kein normaler Rechnungsfall ist
 
-Bei Anzahlungen entsteht die Umsatzsteuer **mit der Vereinnahmung des Entgelts**, nicht
-mit der Leistung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG). Das gilt auch bei
-Sollversteuerung und ist die Ausnahme, die den Fall vom übrigen Flow trennt: überall
-sonst entsteht die Steuer mit der Rechnung, hier mit dem Geldeingang.
+Die gesetzlichen Anforderungen stehen im Anforderungskatalog: die Entstehung der
+Steuer mit der Vereinnahmung unter UST-02, die Anzahlungsrechnung und ihre
+Pflichtangaben unter RECH-02 und RECH-03, die Folge eines doppelten Steuerausweises
+unter RECH-10.
 
-Der zweite Unterschied ist die Schlussrechnung. Sie muss die bereits vereinnahmten
-Teilentgelte **und die darauf entfallenden Steuerbeträge absetzen** – aber nur,
-„wenn über die Teilentgelte Rechnungen im Sinne der Absätze 1 bis 4 ausgestellt
-worden sind" (§ 14 Abs. 5 Satz 2 UStG). Die Absetzungspflicht hängt also an der
-**ausgestellten Anzahlungsrechnung**, nicht am Geldeingang: wer eine Anzahlung
-ohne Rechnung vereinnahmt hat, muss in der Endrechnung nichts absetzen, weil dort
-auch nichts doppelt ausgewiesen wurde.
-
-Wer die Absetzung dagegen vergisst, obwohl eine Anzahlungsrechnung existiert,
-weist die Steuer zweimal aus – einmal in der Anzahlungsrechnung, einmal in der
-Schlussrechnung – und **schuldet den Mehrbetrag nach § 14c Abs. 1 UStG**, auch
-wenn er ihn nie erhalten hat. Das ist der teuerste Fehler in diesem ganzen
-Themenkomplex, und er entsteht durch bloßes Weglassen.
+Zwei Punkte trennen den Fall vom übrigen Flow. Erstens entsteht die Steuer mit dem
+Geldeingang statt mit der Rechnung – auch bei Sollversteuerung. Zweitens muss die
+Schlussrechnung die bereits vereinnahmten Teilentgelte und die darauf entfallenden
+Steuerbeträge absetzen, aber nur, soweit über sie Anzahlungsrechnungen ausgestellt
+wurden. Die Absetzungspflicht hängt also an der **ausgestellten
+Anzahlungsrechnung**, nicht am Geldeingang: wer eine Anzahlung ohne Rechnung
+vereinnahmt hat, muss in der Endrechnung nichts absetzen, weil dort auch nichts
+doppelt ausgewiesen wurde. Wer sie dagegen vergisst, obwohl eine
+Anzahlungsrechnung existiert, weist die Steuer zweimal aus und schuldet den
+Mehrbetrag – der teuerste Fehler dieses Themenkomplexes, und er entsteht durch
+bloßes Weglassen.
 
 Daraus folgt die zentrale Anforderung: **die Schlussrechnung darf nicht ohne die
 Verrechnung der berechneten Anzahlungen erstellbar sein.** Nicht als Warnung,
@@ -179,19 +179,10 @@ Designentscheidung nötig (siehe unten).
   auch für Anzahlungsrechnungen im B2B-Inland – § 14 Abs. 5 Satz 1 UStG verweist
   auf die Absätze 1 bis 4 und damit auf die Formvorschrift des Abs. 1.
 
-## 7. Quellen
+## 7. Anmerkungen zu den Fundstellen
 
-Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
-
-| Aussage im Dokument | Fundstelle | Link |
-|---|---|---|
-| Steuer entsteht bei Anzahlungen mit der Vereinnahmung, auch bei Sollversteuerung | § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG | [ustg_1980/__13.html](https://www.gesetze-im-internet.de/ustg_1980/__13.html) |
-| Anzahlungsrechnung ist vollwertige Rechnung („gelten die Absätze 1 bis 4 sinngemäß") | § 14 Abs. 5 Satz 1 UStG | [ustg_1980/__14.html](https://www.gesetze-im-internet.de/ustg_1980/__14.html) |
-| Absetzungspflicht in der Endrechnung, Bedingung „wenn über die Teilentgelte Rechnungen … ausgestellt worden sind" | § 14 Abs. 5 Satz 2 UStG | dito |
-| Zeitpunkt der Vereinnahmung statt Leistungszeitpunkt als Pflichtangabe | § 14 Abs. 4 Nr. 6 UStG | dito |
-| Steuerschuld für zu hoch ausgewiesene Steuer | § 14c Abs. 1 UStG | [ustg_1980/__14c.html](https://www.gesetze-im-internet.de/ustg_1980/__14c.html) |
-| Gesonderter Verbindlichkeitsausweis, offene Absetzung nur bei Vorräten | § 268 Abs. 5 Satz 2 HGB | [hgb/__268.html](https://www.gesetze-im-internet.de/hgb/__268.html) |
-| Darstellungsstetigkeit der Gliederung | § 265 Abs. 1 HGB | [hgb/__265.html](https://www.gesetze-im-internet.de/hgb/__265.html) |
+Die Normen und ihre Fundstellen stehen im Anforderungskatalog unter UST-02,
+RECH-02, RECH-03 und RECH-10. Zwei Punkte trägt der Katalog nicht:
 
 **Präzisierung zur Entstehung der Steuer:** § 13 Abs. 1 Nr. 1 Buchst. a Satz 4
 UStG lässt die Steuer nicht taggenau mit dem Geldeingang entstehen, sondern „mit

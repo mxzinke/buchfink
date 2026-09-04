@@ -1,24 +1,29 @@
 # Buchfink – Rechnungsabgrenzung
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-08, GOB-06
+
 Status: Anforderung, noch nicht implementiert
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **22.08.2026** gegen den
-> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
-> [Abschnitt 8](#8-quellen).
+> Art.-Nr. 11175) geprüft. Die gesetzlichen Anforderungen samt Fundstellen stehen im
+> Anforderungskatalog unter BEW-08 und GOB-06.
 
 ## 1. Worum es geht
 
-Die Rechnungsabgrenzung sorgt dafür, dass Aufwand und Ertrag in dem Jahr stehen, zu dem
-sie gehören – und nicht in dem, in dem das Geld geflossen ist. Die Versicherungsprämie,
-die im Dezember für das kommende Jahr gezahlt wird, ist Aufwand des kommenden Jahres.
+Die gesetzlichen Anforderungen an die Rechnungsabgrenzung stehen im
+Anforderungskatalog unter BEW-08, die Periodenabgrenzung unter GOB-06. Hier steht,
+was Buchfink daraus baut.
 
-| Fall | § 250 HGB | Konto |
-|---|---|---|
-| **Aktive RAP** – Ausgabe vor dem Stichtag, Aufwand danach | Abs. 1 | **1900** Aktive Rechnungsabgrenzung |
-| **Passive RAP** – Einnahme vor dem Stichtag, Ertrag danach | Abs. 2 | **3900** Passive Rechnungsabgrenzung |
+Aufwand und Ertrag gehören in das Jahr, zu dem sie gehören – nicht in das, in dem das
+Geld geflossen ist. Die Versicherungsprämie, die im Dezember für das kommende Jahr
+gezahlt wird, ist Aufwand des kommenden Jahres.
+
+| Fall | Konto |
+|---|---|
+| **Aktive RAP** – Ausgabe vor dem Stichtag, Aufwand danach | **1900** Aktive Rechnungsabgrenzung |
+| **Passive RAP** – Einnahme vor dem Stichtag, Ertrag danach | **3900** Passive Rechnungsabgrenzung |
 
 Beispiel Versicherung, 1.200 € für zwölf Monate ab 1. Dezember:
 
@@ -32,9 +37,9 @@ Im alten Jahr bleibt ein Monat Aufwand stehen, elf Monate wandern ins neue.
 
 ## 2. Die Abgrenzung gilt nicht für alles
 
-§ 250 HGB verlangt einen Rechnungsabgrenzungsposten nur, soweit die Ausgabe „Aufwand
-für eine **bestimmte Zeit** nach diesem Tag" darstellt. Das ist die entscheidende
-Einschränkung und der häufigste Fehler:
+Abzugrenzen ist nur, was Aufwand oder Ertrag „für eine **bestimmte Zeit**" nach dem
+Stichtag ist (BEW-08). Das ist die entscheidende Einschränkung und der häufigste
+Fehler:
 
 - **Zeitraumbezogen** – Miete, Versicherung, Wartungsvertrag, Lizenz, Zeitschriftenabo:
   echter RAP.
@@ -112,17 +117,10 @@ Das ist der kleinste der offenen Punkte; im Kern hängt alles an einer Frage.
   steht. Es sind keine Modelländerungen am Journal nötig.
 - Ein **Jahreswechsel-Ablauf** muss die Auflösungen ins neue Jahr tragen.
 
-## 8. Quellen
+## 8. Anmerkungen zu den Fundstellen
 
-Stand der Prüfung: 22.08.2026, Volltexte über gesetze-im-internet.de.
-
-| Aussage im Dokument | Fundstelle | Link |
-|---|---|---|
-| Aktiver RAP: Ausgabe vor dem Stichtag, soweit Aufwand für eine bestimmte Zeit danach | § 250 Abs. 1 HGB | [hgb/__250.html](https://www.gesetze-im-internet.de/hgb/__250.html) |
-| Passiver RAP: Einnahme vor dem Stichtag, soweit Ertrag für eine bestimmte Zeit danach | § 250 Abs. 2 HGB | dito |
-| Wortlaut „für eine bestimmte Zeit nach diesem Tag" als Abgrenzungskriterium | § 250 Abs. 1 und 2 HGB | dito |
-| Steuerliches Wahlrecht, den Ansatz bis zur Grenze des § 6 Abs. 2 Satz 1 EStG zu unterlassen | § 5 Abs. 5 Satz 2 EStG | [estg/__5.html](https://www.gesetze-im-internet.de/estg/__5.html) |
-| Betragsgrenze dieses Wahlrechts: 800 € | § 6 Abs. 2 Satz 1 EStG (Verweisziel) | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
+Die Normen und ihre Fundstellen stehen im Anforderungskatalog unter BEW-08 und
+GOB-06. Zwei Punkte trägt der Katalog nicht:
 
 **Zur Formulierung „Handelsrechtlich gibt es keine Bagatellgrenze":** das ist eine
 Aussage über das Fehlen einer Norm, nicht über eine Norm. § 250 HGB kennt keine

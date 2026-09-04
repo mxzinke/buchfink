@@ -1,5 +1,9 @@
 # Buchfink – Beleg- & Buchungsflow
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01 bis
+GOB-06, BEL-01 bis BEL-09, UNV-01, UNV-02, RECH-02, RECH-03, RECH-06, RECH-07,
+UST-01, UST-02, UST-05, BEW-08, BEW-12
+
 Status: Konzept, Buchungskern implementiert
 Letzte Aktualisierung: 2026-08-22 (Belegkern und Steuerfall umgesetzt)
 Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
@@ -9,9 +13,9 @@ Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 > `TestPostingGroupAccountsExistInSKR04` prüft bei jedem Build, dass jede Kontierung
 > im Code auf ein existierendes, bebuchbares SKR04-Konto zeigt.
 >
-> **Alle Paragrafenangaben sind am 22.08.2026 gegen den Gesetzestext geprüft**;
-> das Quellenverzeichnis mit Fundstellen und den dabei gefundenen Korrekturen
-> steht in [Abschnitt 17](#17-quellen).
+> **Alle Paragrafenangaben sind am 22.08.2026 gegen den Gesetzestext geprüft**; die
+> Fundstellen stehen im Anforderungskatalog, die dabei gefundenen Korrekturen in
+> [Abschnitt 17](#17-fundstellen).
 >
 > **Vorsicht bei SKR03-Nummern.** Eine frühere Fassung dieses Dokuments enthielt
 > durchgehend SKR03-Konten. Die Nummern kollidieren: 1600 ist im SKR04 die *Kasse*
@@ -485,68 +489,31 @@ deterministisch aus fachlicher Gruppe, Steuerfall, Steuersatz und Zahlungsweg.
 ## 11. Anlagenverwaltung
 
 > Überblick. Die Ausarbeitung steht in
-> [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md).
+> [anforderung-anlagenverwaltung.md](anforderung-anlagenverwaltung.md), die
+> gesetzlichen Anforderungen im Anforderungskatalog unter BEW-03, BEW-04 und
+> BEW-05.
 
-### 11.1 Die erste Frage ist nicht die AfA-Methode
-
-Bei jeder Anschaffung steht zuerst eine andere Entscheidung an:
-
-| Fall | Behandlung | Konten |
-|---|---|---|
-| **GWG, Sofortabschreibung** | selbständig nutzbar bis zur Wertgrenze § 6 Abs. 2 EStG | 0670 Zugang, 6260 Sofortabschreibung |
-| **Sammelposten** | Poolabschreibung § 6 Abs. 2a EStG über fünf Jahre | 0675 Zugang, 6264 Abschreibung |
-| **Anlagegut** | Aktivierung mit planmäßiger AfA | Anlagekonto, 6220 / 6222 |
-
-Die Wertgrenzen gehören in die Stammdaten, nicht in den Code – sie ändern sich.
-
-### 11.2 Anlagegut
-
-- **Erfassen:** Bezeichnung, Anschaffungskosten, Anschaffungsdatum, Nutzungsdauer,
-  AfA-Methode.
-- **Zugang:** SOLL Anlagekonto · HABEN Kreditorenkonto oder Zahlungsmittel.
-  Beispiel Pkw: SOLL **0520** Pkw · HABEN **1800** Bank.
-- **AfA:** SOLL **6222** Abschreibungen auf Fahrzeuge · HABEN **0520** Pkw. Für übrige
-  Sachanlagen 6220.
-- **Abgang:** Restbuchwert ausbuchen, Gewinn oder Verlust erfassen.
-
-### 11.3 AfA-Methoden
-
-Linear als Standard. Degressiv nach dem Investitionssofortprogramm 2025 (das Dreifache
-der linearen AfA, höchstens 30 %, für Anschaffungen vom 01.07.2025 bis 31.12.2027).
-Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG (bis 40 % für KMU,
-Fünf-Jahres-Begünstigungszeitraum). Übergang von degressiv auf linear ist zulässig.
-
-### 11.4 Kopplung an die Festschreibung
-
-AfA und Rückstellungen sind Abschlussbuchungen zum Bilanzstichtag (§ 253 Abs. 3 HGB,
-§ 7 EStG, § 249 HGB), keine laufenden Geschäftsvorfälle. Sie werden nicht im
-Hintergrund gebucht. Stattdessen ist die **jährliche** Festschreibung der Auslöser:
-
-1. Vor der Jahres-Festschreibung prüft Buchfink, ob für alle Anlagegüter die fällige
-   AfA gebucht ist.
-2. Fehlende Buchungen werden angezeigt und lassen sich mit Vorschau und Freigabe
-   erzeugen.
-3. Erst danach kann das Jahr festgeschrieben werden.
-
-Bei monatlicher oder quartalsweiser Festschreibung wird die AfA nicht geprüft – sie ist
-eine Jahresendbuchung. Bei unterjähriger Anschaffung wird zeitanteilig monatsgenau
-gerechnet.
+Vor der Abschreibung steht die Entscheidung zwischen Sofortabzug (0670 · 6260),
+Sammelposten (0675 · 6264) und Aktivierung (Anlagekonto · 6220 oder 6222). Für den
+Buchungsflow zählt daran vor allem die Kopplung an die Festschreibung: AfA und
+Rückstellungen sind Abschlussbuchungen zum Bilanzstichtag, keine laufenden
+Geschäftsvorfälle, und werden nicht im Hintergrund gebucht. Auslöser ist die
+**jährliche** Festschreibung – sie prüft vor dem Sperren, ob für alle Anlagegüter die
+fällige AfA gebucht ist, zeigt Fehlendes an und lässt es mit Vorschau und Freigabe
+erzeugen. Bei monatlicher oder quartalsweiser Festschreibung wird nicht geprüft.
 
 ## 12. Anzahlungen
 
 > Überblick. Die Ausarbeitung steht in
-> [anforderung-anzahlungen.md](anforderung-anzahlungen.md).
+> [anforderung-anzahlungen.md](anforderung-anzahlungen.md), die gesetzlichen
+> Anforderungen im Anforderungskatalog unter UST-02 und RECH-10.
 
 Bei Anzahlungen entsteht die Umsatzsteuer mit der Vereinnahmung – auch bei
-Sollversteuerung (§ 13 Abs. 1 Nr. 1 lit. a Satz 4 UStG). Das ist kein Detail, sondern
-ein eigener Buchungsweg:
-
-- Erhaltene Anzahlung: HABEN **3272** Erhaltene, versteuerte Anzahlungen 19 % USt,
-  Steuer sofort abführen.
-- Geleistete Anzahlung: SOLL **1180** Geleistete Anzahlungen auf Vorräte (bzw. das
-  passende Anzahlungskonto der jeweiligen Bilanzposition).
-- Die Schlussrechnung setzt die Anzahlungen ab; nur die Differenz wird zum offenen
-  Posten.
+Sollversteuerung. Das ist kein Detail, sondern ein eigener Buchungsweg: die erhaltene
+Anzahlung läuft über **3272** Erhaltene, versteuerte Anzahlungen 19 % USt, die
+geleistete über das Anzahlungskonto der jeweiligen Bilanzposition (etwa **1180**
+Geleistete Anzahlungen auf Vorräte), und die Schlussrechnung setzt die Anzahlungen
+ab; nur die Differenz wird zum offenen Posten.
 
 Der Rechnungsverbund fasst Abschläge und Schlussrechnung als eigener Entity zusammen
 und stellt den Gesamtfortschritt dar. Ohne die Anzahlungskonten und die Verrechnung in
@@ -917,30 +884,15 @@ Zwei Konsequenzen hängen daran:
   Feld wären die beiden nach dem Buchen nicht mehr unterscheidbar – und sie sind
   nicht dasselbe.
 
-## 17. Quellen
+## 17. Fundstellen
 
-Stand der Prüfung: **22.08.2026**. Alle Paragrafenangaben in diesem Dokument sind
-gegen den Volltext auf [gesetze-im-internet.de](https://www.gesetze-im-internet.de)
-geprüft, die GoBD gegen das BMF-Schreiben im Original.
-
-### Umsatzsteuer
-
-| Aussage | Fundstelle | Link |
-|---|---|---|
-| Sollversteuerung: Berechnung nach vereinbarten Entgelten | § 16 Abs. 1 Satz 1 UStG | [ustg_1980/__16.html](https://www.gesetze-im-internet.de/ustg_1980/__16.html) |
-| Entstehung der Steuer bei Sollversteuerung mit Ablauf des Voranmeldungszeitraums der Leistung | § 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG | [ustg_1980/__13.html](https://www.gesetze-im-internet.de/ustg_1980/__13.html) |
-| Istversteuerung: Entstehung mit Vereinnahmung | § 13 Abs. 1 Nr. 1 Buchst. b UStG | dito |
-| Gestattung der Istversteuerung, Gesamtumsatz höchstens 800.000 € im Vorjahr, ohne Rechtsformbindung | § 20 Satz 1 Nr. 1 UStG | [ustg_1980/__20.html](https://www.gesetze-im-internet.de/ustg_1980/__20.html) |
-| Rechnungsnummer einmalig und fortlaufend | § 14 Abs. 4 Nr. 4 UStG | [ustg_1980/__14.html](https://www.gesetze-im-internet.de/ustg_1980/__14.html) |
-| Leistungszeitpunkt als Pflichtangabe | § 14 Abs. 4 Nr. 6 UStG | dito |
-| E-Rechnungspflicht im B2B-Inland | § 14 Abs. 2 Satz 2 Nr. 1 UStG | dito |
-| Übergangsregelungen zur E-Rechnung (nur Ausstellung) | § 27 Abs. 38 UStG | [ustg_1980/__27.html](https://www.gesetze-im-internet.de/ustg_1980/__27.html) |
-| Steuerschuld bei zu hohem Steuerausweis | § 14c Abs. 1 UStG | [ustg_1980/__14c.html](https://www.gesetze-im-internet.de/ustg_1980/__14c.html) |
-| Steuerbefreiungen (i. g. Lieferung, Ausfuhr u. a.) | § 4 UStG | [ustg_1980/__4.html](https://www.gesetze-im-internet.de/ustg_1980/__4.html) |
-| Nullsteuersatz Photovoltaik | § 12 Abs. 3 UStG | [ustg_1980/__12.html](https://www.gesetze-im-internet.de/ustg_1980/__12.html) |
-| Reverse Charge, Steuerschuldnerschaft des Leistungsempfängers | § 13b UStG | [ustg_1980/__13b.html](https://www.gesetze-im-internet.de/ustg_1980/__13b.html) |
-| Änderung der Bemessungsgrundlage (Skonto) | § 17 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
-| Vorsteuerausschluss, Ausnahme für Bewirtung | § 15 Abs. 1a UStG | [ustg_1980/__15.html](https://www.gesetze-im-internet.de/ustg_1980/__15.html) |
+Die gesetzlichen Grundlagen dieses Dokuments stehen mit Fundstellen im
+Anforderungskatalog: die Buchführungsgrundsätze unter GOB-01 bis GOB-06, Beleg,
+Journal und offene Posten unter BEL-01 bis BEL-09, Unveränderbarkeit und
+Festschreibung unter UNV-01 und UNV-02, Rechnung und E-Rechnung unter RECH-02,
+RECH-03, RECH-06 und RECH-07, die Umsatzsteuer unter UST-01, UST-02 und UST-05,
+Rechnungsabgrenzung und nicht abziehbare Betriebsausgaben unter BEW-08 und BEW-12.
+Was der Katalog nicht trägt, steht hier:
 
 Zum § 13b-Fall ist eine Präzisierung nötig, die im Code umgesetzt ist: die
 Steuerschuldnerschaft folgt in den beiden für Buchfink relevanten Fällen aus
@@ -952,46 +904,11 @@ am **Leistungsempfänger**, der selbst nachhaltig Bauleistungen erbringen muss
 (§ 13b Abs. 5 UStG). Eine fehlende USt-IdNr. des inländischen Lieferanten darf den
 Fall deshalb nicht blockieren – sie ist für ihn kein Tatbestandsmerkmal.
 
-### Einkommensteuer
-
-| Aussage | Fundstelle | Link |
-|---|---|---|
-| Bewirtung: 70 % abziehbar, Aufzeichnungspflichten | § 4 Abs. 5 Satz 1 Nr. 2 EStG | [estg/__4.html](https://www.gesetze-im-internet.de/estg/__4.html) |
-| Geschenke: Grenze 50 € je Empfänger und Wirtschaftsjahr | § 4 Abs. 5 Satz 1 Nr. 1 Satz 2 EStG | dito |
-| GWG, Sammelposten | § 6 Abs. 2, Abs. 2a EStG | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
-| AfA | § 7 EStG | [estg/__7.html](https://www.gesetze-im-internet.de/estg/__7.html) |
-| Sonderabschreibung | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
-
-### Handelsrecht
-
-| Aussage | Fundstelle | Link |
-|---|---|---|
-| Rückstellungen | § 249 HGB | [hgb/__249.html](https://www.gesetze-im-internet.de/hgb/__249.html) |
-| Rechnungsabgrenzungsposten | § 250 HGB | [hgb/__250.html](https://www.gesetze-im-internet.de/hgb/__250.html) |
-| Außerplanmäßige Abschreibung | § 253 Abs. 3 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
-| Währungsumrechnung | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
-| Bilanzgliederung | § 266 HGB | [hgb/__266.html](https://www.gesetze-im-internet.de/hgb/__266.html) |
-| Gezeichnetes Kapital, offener Abzug nicht eingeforderter Einlagen | § 272 Abs. 1 HGB, insbes. Satz 3 | [hgb/__272.html](https://www.gesetze-im-internet.de/hgb/__272.html) |
-| Einforderung der Einlagen durch Gesellschafterbeschluss | § 46 Nr. 2 GmbHG | [gmbhg/__46.html](https://www.gesetze-im-internet.de/gmbhg/__46.html) |
-
 **Korrektur gegenüber einer früheren Fassung:** die Einforderung ausstehender
 Einlagen war dort auf § 19 Abs. 2 GmbHG gestützt. Das ist falsch – § 19 Abs. 2
 GmbHG regelt das Verbot, den Gesellschafter von der Einlagepflicht zu befreien.
 Die Zuständigkeit der Gesellschafter für die Einforderung steht in § 46 Nr. 2
 GmbHG.
-
-### GoBD
-
-**GoBD in der Fassung vom 14.07.2025**, BMF-Schreiben GZ IV D 2 -
-S 0316/00128/005/088, BStBl I S. 1502 (2. Änderung). Ausgangsfassung: BMF-Schreiben
-vom 28.11.2019, BStBl I S. 1269, geändert am 11.03.2024, BStBl I S. 374.
-
-<https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.html>
-
-Die 2. Änderung ist ausdrücklich mit der Einführung der obligatorischen E-Rechnung
-begründet und betrifft die Aufbewahrung strukturierter Datensätze. Was daraus für
-Buchfink folgt, steht in [anforderung-e-rechnung.md](anforderung-e-rechnung.md),
-Abschnitt 6.
 
 ### Kontenrahmen
 

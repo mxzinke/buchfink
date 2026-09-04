@@ -1,6 +1,12 @@
 # Buchfink – Aufbau der E-Rechnungs-Module
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), RECH-06, RECH-07
+
 Stand: 22.08.2026
+
+Dieses Dokument beschreibt den Modulschnitt, nicht das Recht: was beim Erzeugen und
+beim Empfang einer E-Rechnung zu prüfen ist, steht im Anforderungskatalog unter
+RECH-06 und RECH-07.
 
 ## 1. Warum geschichtet
 

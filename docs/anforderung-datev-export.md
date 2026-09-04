@@ -1,8 +1,15 @@
 # Buchfink – DATEV-Export
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), PRF-02, PRF-06
+
 Status: Anforderung, noch nicht implementiert
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+
+Der DATEV-Export ist keine gesetzliche Pflicht: den Beschreibungsstandard für die
+Datenüberlassung an die Betriebsprüfung führt der Anforderungskatalog unter PRF-02,
+die künftige Buchführungsschnittstelle unter PRF-06. Dieses Dokument beschreibt
+allein das DATEV-Format.
 
 > **Dieses Dokument ist als einziges nicht gegen eine Primärquelle geprüft.** Ein
 > Versuch am 22.08.2026 ist gescheitert: die DATEV-Formatbeschreibung liegt hinter

@@ -1,5 +1,8 @@
 # Buchfink – E-Rechnung (Empfang und Ausstellung)
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), RECH-05,
+RECH-06, RECH-07, RECH-10, UST-07, ARC-01, ARC-07
+
 Status: Empfang umgesetzt; Validierung siehe Abschnitt 8
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
@@ -7,7 +10,8 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Dieses Dokument ist vollständig gegen Primärquellen geprüft (Stand 22.08.2026):
 > UStG über gesetze-im-internet.de, das BMF-Schreiben vom 15.10.2025 zur
 > obligatorischen E-Rechnung und die GoBD in der Fassung vom 14.07.2025. Die
-> Fundstellen stehen in [Abschnitt 9](#9-quellen).
+> gesetzlichen Anforderungen samt Fundstellen stehen im Anforderungskatalog unter
+> RECH-05, RECH-06, RECH-07 und ARC-01/ARC-07.
 
 ## 1. Warum dieses Dokument anders ist als die anderen
 
@@ -46,14 +50,9 @@ gezogen, und der Buchungsvorschlag entsteht daraus.
 
 ## 2. Wer betroffen ist und wer nicht
 
-Die Pflicht zur **Ausstellung** einer E-Rechnung setzt drei Dinge zusammen
-voraus (§ 14 Abs. 2 Satz 2 Nr. 1 UStG):
-
-| Voraussetzung | Anmerkung |
-|---|---|
-| Leistung an einen **anderen Unternehmer für dessen Unternehmen** | B2C ist nie betroffen |
-| **Beide im Inland ansässig** (Sitz, Geschäftsleitung oder beteiligte Betriebsstätte, § 14 Abs. 2 Satz 3 UStG) | ist einer im Ausland ansässig, entfällt die Pflicht |
-| Der Umsatz ist **nicht nach § 4 Nr. 8 bis 29 UStG steuerfrei** | Vermietung, Heilbehandlung, Finanzdienstleistungen etc. fallen heraus |
+Wen die Pflicht zur **Ausstellung** trifft, steht im Anforderungskatalog unter
+RECH-06; welche Rechnungen sonstige Rechnungen bleiben dürfen – Kleinbeträge,
+Fahrausweise, Kleinunternehmer –, unter RECH-05.
 
 Drei Punkte daran werden regelmäßig falsch erinnert:
 
@@ -69,20 +68,10 @@ Drei Punkte daran werden regelmäßig falsch erinnert:
   Rechnung ausgestellt werden; die Empfangspflicht gilt ausdrücklich „auch, wenn
   der Rechnungsempfänger der Sonderregelung nach § 19 UStG unterliegt".
 
-Immer als sonstige Rechnung zulässig bleiben außerdem Kleinbetragsrechnungen
-(§ 33 UStDV) und Fahrausweise (§ 34 UStDV).
-
 ## 3. Die Übergangsfristen – nur für das Ausstellen
 
-§ 27 Abs. 38 UStG kennt drei Nummern:
-
-| Nr. | Was erlaubt bleibt | Bis wann | Bedingung |
-|---|---|---|---|
-| 1 | Papier oder – mit Zustimmung des Empfängers – ein nicht konformes elektronisches Format | **31.12.2026** | für Umsätze nach dem 31.12.2024 und vor dem 01.01.2027 |
-| 2 | dasselbe | **31.12.2027** | für Umsätze in 2027, wenn der **Gesamtumsatz des Ausstellers im Vorjahr höchstens 800.000 €** betrug |
-| 3 | abweichende EDI-Formate nach der Empfehlung 94/820/EG | **31.12.2027** | – |
-
-Ab 2028 gibt es keine Übergangsregelung mehr.
+Die Übergangsregelungen des § 27 Abs. 38 UStG stehen mit ihren Fristen und der
+Umsatzgrenze im Anforderungskatalog unter RECH-06 und im dortigen Terminplan.
 
 Für Buchfink heißt das: die **Ausgangsseite** hat noch Zeit – bei einem
 Vorjahresumsatz über 800.000 € allerdings nur bis Ende 2026. Die **Eingangsseite**
@@ -162,8 +151,8 @@ Daten jederzeit ein identisches Mehrstück erzeugen lässt. Ob man diese
 Erleichterung nutzen *will*, ist eine andere Frage – ein archiviertes PDF ist für
 den Nutzer greifbarer als eine Rendering-Zusage.
 
-Die Aufbewahrungsfrist beträgt acht Jahre (§ 14b Abs. 1 UStG), beginnend mit dem
-Schluss des Kalenderjahres, in dem die Rechnung ausgestellt wurde.
+Die Aufbewahrungsfristen und die Anforderungen an die Aufbewahrung von
+E-Rechnungen stehen im Anforderungskatalog unter ARC-01 und ARC-07.
 
 **Die Kopplung an die Hash-Chain ist damit klar:** was gesichert werden muss, ist
 der strukturierte Datensatz in seiner empfangenen Form. Er gehört in denselben
@@ -306,62 +295,18 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
 - **Ausstellungsseite:** XRechnung zusätzlich zu ZUGFeRD anbieten? Beide sind
   zulässig; XRechnung ist bei öffentlichen Auftraggebern verbreiteter.
 
-## 9. Quellen
+## 9. Anmerkungen zu den Fundstellen
 
-Stand der Prüfung: 22.08.2026.
-
-### Gesetz
-
-| Aussage | Fundstelle | Link |
-|---|---|---|
-| Definition E-Rechnung (strukturiertes Format, elektronische Verarbeitung) | § 14 Abs. 1 Satz 3 UStG | [ustg_1980/__14.html](https://www.gesetze-im-internet.de/ustg_1980/__14.html) |
-| Definition sonstige Rechnung (anderes elektronisches Format oder Papier) | § 14 Abs. 1 Satz 4 UStG | dito |
-| Zustimmung des Empfängers nur, soweit keine Pflicht nach Abs. 2 Satz 2 Nr. 1 besteht | § 14 Abs. 1 Satz 5 UStG | dito |
-| Zulässige Formate: EN 16931 oder vereinbart | § 14 Abs. 1 Satz 6 UStG | dito |
-| Ausstellungspflicht B2B im Inland, Frist sechs Monate, Ausnahme § 4 Nr. 8 bis 29 | § 14 Abs. 2 Satz 2 Nr. 1 UStG | dito |
-| Ansässigkeitsbegriff | § 14 Abs. 2 Satz 3 UStG | dito |
-| Übergangsregelungen (2026 / 2027 / EDI, Grenze 800.000 €) | § 27 Abs. 38 Nrn. 1 bis 3 UStG | [ustg_1980/__27.html](https://www.gesetze-im-internet.de/ustg_1980/__27.html) |
-| Aufbewahrungsfrist acht Jahre | § 14b Abs. 1 UStG | [ustg_1980/__14b.html](https://www.gesetze-im-internet.de/ustg_1980/__14b.html) |
-| Steuerschuld bei zu hohem Steuerausweis | § 14c Abs. 1 UStG | [ustg_1980/__14c.html](https://www.gesetze-im-internet.de/ustg_1980/__14c.html) |
-| Kleinbetragsrechnungen / Fahrausweise / Kleinunternehmerrechnungen | §§ 33, 34, 34a UStDV | [ustdv_1980](https://www.gesetze-im-internet.de/ustdv_1980/) |
-
-### Verwaltungsanweisungen
-
-**BMF-Schreiben vom 15.10.2025**, „Einführung der obligatorischen elektronischen
-Rechnung bei Umsätzen zwischen inländischen Unternehmern ab dem 1. Januar 2025",
-Änderung des Umsatzsteuer-Anwendungserlasses (33 Seiten). Es ersetzt das
-BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320), dessen Rn. 62 bis 65 zu den
-Übergangsregelungen weiter zu beachten sind.
-
-<https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html>
-
-Die in diesem Dokument zitierten Stellen des neu gefassten UStAE:
-
-| Stelle | Inhalt |
-|---|---|
-| Abschnitt 14.1 Abs. 4 Sätze 4 bis 10 | keine Zustimmung nötig; Übermittlungswege; § 13b und § 4 Nr. 1 bis 7 erfasst |
-| Abschnitt 14.1 Abs. 5 | **Empfangspflicht**, auch für Kleinunternehmer; kein eigenes Postfach nötig; kein Anspruch auf eine sonstige Rechnung |
-| Abschnitt 14.1 Abs. 6 Sätze 3 bis 5 | Auslandsbezug; §§ 33, 34, 34a UStDV |
-| Abschnitt 14.1 Abs. 13 | XRechnung als Umsetzung der EN 16931 |
-| Abschnitt 14.1 Abs. 14 | hybride Formate; ZUGFeRD ab 2.0.1 außer MINIMUM und BASIC-WL |
-| Abschnitt 14.1 Abs. 15 | vereinbarte Formate, Interoperabilität, Informationsverlust |
-| Abschnitt 14c.1 Abs. 4a | Bildteil als inhaltlich identisches Mehrstück; abweichender Bildteil und § 14c; **Vorsteuerabzug nur aus dem strukturierten Teil** |
-| Abschnitt 15.2a Abs. 1 Sätze 3 und 4 | sonstige Rechnung im Pflichtfall berechtigt dem Grunde nach nicht zum Vorsteuerabzug |
+Die Normen, das BMF-Schreiben vom 15.10.2025 und die GoBD in der Fassung vom
+14.07.2025 stehen mit Fundstellen im Anforderungskatalog unter RECH-05, RECH-06,
+RECH-07, RECH-10, UST-07 sowie ARC-01, ARC-03 und ARC-07. Zwei Punkte trägt der
+Katalog nicht:
 
 Die Abschnittsnummern beziehen sich auf den UStAE in der durch das
 BMF-Schreiben vom 15.10.2025 geänderten Fassung. Achtung bei der Nachprüfung: die
 E-Rechnungs-Regelungen stehen in **Abschnitt 14.1** (Rechnung), nicht in
 Abschnitt 14.4 (Echtheit und Unversehrtheit) – eine Verwechslung, die naheliegt,
 weil Abschnitt 14.4 ebenfalls geändert wurde.
-
-**GoBD in der Fassung vom 14.07.2025** (BMF, GZ IV D 2 - S 0316/00128/005/088,
-BStBl I S. 1502), 2. Änderung, ausdrücklich begründet mit der Einführung der
-obligatorischen E-Rechnung. Sie ändert die Randziffern 76, 118, 119, 121, 125,
-127, 131, 133, 166 und 175 und ist mit Wirkung vom 14.07.2025 anzuwenden (neue
-Rz. 185). Ausgangsfassung: BMF-Schreiben vom 28.11.2019 (BStBl I S. 1269),
-geändert am 11.03.2024 (BStBl I S. 374).
-
-<https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.html>
 
 ### Nicht geprüft
 

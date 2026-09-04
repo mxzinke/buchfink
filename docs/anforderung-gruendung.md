@@ -1,13 +1,17 @@
 # Buchfink – Gründung einer Kapitalgesellschaft
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01,
+GOB-06, JAB-07, UST-03, QUE-02
+
 Status: umgesetzt
 Letzte Aktualisierung: 2026-09-01
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **01.09.2026** gegen den
-> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
-> [Abschnitt 9](#9-quellen).
+> Gesetzestext auf gesetze-im-internet.de verifiziert. Eröffnungsbilanz, Offenlegung
+> und Voranmeldungszeitraum stehen im Anforderungskatalog unter GOB-01, GOB-06,
+> JAB-07 und UST-03; das Gründungsrecht führt [Abschnitt 9](#9-fundstellen).
 
 ## 1. Worum es geht
 
@@ -161,10 +165,10 @@ Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 | Anmeldung zum Handelsregister | sobald die Mindesteinlage geleistet ist | §§ 7, 8 GmbHG |
 | Fragebogen zur steuerlichen Erfassung | einen Monat nach der Gründung | § 138 Abs. 1b und Abs. 4 AO |
 | Gewerbeanmeldung bei der Gemeinde | einen Monat | § 14 GewO, § 138 Abs. 1 AO |
-| Eröffnungsbilanz auf den Beurkundungstag | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB |
+| Eröffnungsbilanz auf den Beurkundungstag | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB, Katalog GOB-01 und GOB-06 |
 | Gesetzliche Rücklage, nur UG | mit dem Jahresabschluss | § 5a Abs. 3 GmbHG |
 | Wirtschaftlich Berechtigte melden | unverzüglich nach der Eintragung | § 20 Abs. 1 GwG |
-| Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB |
+| Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB, Katalog JAB-07 |
 
 Wo das Gesetz „unverzüglich" sagt, steht kein Datum in der Liste, sondern der
 Wortlaut. Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
@@ -262,19 +266,21 @@ Kennzeichnung am Beleg wäre möglich und ist bewusst nicht gebaut: sie verlangt
 eine Angabe bei jeder Buchung der Gründungsphase, und die meisten Gründer haben
 gar keine Satzungsklausel.
 
-## 9. Quellen
+## 9. Fundstellen
 
-Geprüft am 01.09.2026 gegen den Wortlaut auf gesetze-im-internet.de.
+Eröffnungsbilanz und Rumpfgeschäftsjahr stehen im Anforderungskatalog unter GOB-01
+und GOB-06, die Offenlegung unter JAB-07, der Voranmeldungszeitraum unter UST-03,
+die Verschlüsselung personenbezogener Felder unter QUE-02. Das Gründungsrecht selbst
+kennt der Katalog nicht; dafür gilt, geprüft am 01.09.2026 gegen den Wortlaut auf
+gesetze-im-internet.de:
 
 - § 5 GmbHG – Stammkapital, Geschäftsanteil, Sachgründungsbericht
 - § 5a GmbHG – Unternehmergesellschaft: Volleinzahlung, Sacheinlageverbot, gesetzliche Rücklage
 - § 7 GmbHG – Anmeldung, Viertelregel, Untergrenze, Sacheinlagen
 - § 11 GmbHG – Vorgesellschaft und Handelndenhaftung
 - § 7 AktG, § 36a AktG – Grundkapital und Leistung der Einlagen
-- § 242 HGB – Pflicht zur Aufstellung der Eröffnungsbilanz
 - § 248 Abs. 1 Nr. 1 HGB – Aktivierungsverbot für Gründungsaufwand
 - § 272 Abs. 1 HGB – Ausweis von gezeichnetem Kapital und ausstehenden Einlagen
-- § 325 HGB – Offenlegung
 - § 138 AO – Anzeige der Erwerbstätigkeit, Monatsfrist in Absatz 4
 - § 18 Abs. 2 UStG – Voranmeldungszeitraum, Aussetzung 2021 bis 2026 in Satz 6
 - § 20 GwG – Mitteilung an das Transparenzregister

@@ -1,5 +1,8 @@
 # Buchfink – Anlagenverwaltung
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-02,
+BEW-03, BEW-04, BEW-05, BEW-06, BEW-10, JAB-05
+
 Status: umgesetzt
 Letzte Aktualisierung: 2026-08-28
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
@@ -16,8 +19,9 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
 > gesetze-im-internet.de verifiziert — der ursprüngliche Bestand am **22.08.2026**,
 > die Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und
-> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen in
-> [Abschnitt 11](#11-quellen). Die AfA-Regeln ändern sich häufig – vor der
+> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen im
+> Anforderungskatalog unter BEW-02 bis BEW-06 und BEW-10, die übrigen in
+> [Abschnitt 11](#11-fundstellen). Die AfA-Regeln ändern sich häufig – vor der
 > Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
 
 ## 1. Die erste Frage ist nicht die AfA-Methode
@@ -95,18 +99,16 @@ negativ, bei der aufnehmenden positiv, über alle Positionen zusammen null.
 
 ## 3. Planmäßige Abschreibung
 
-| Methode | Grundlage | Anmerkung |
-|---|---|---|
-| **Linear** | § 7 Abs. 1 EStG | Standard; gleichmäßig über die betriebsgewöhnliche Nutzungsdauer |
-| **Degressiv** | § 7 Abs. 2 EStG | höchstens das Dreifache des linearen Prozentsatzes und höchstens 30 %; nur für bewegliche Wirtschaftsgüter, die nach dem 30.06.2025 und vor dem 01.01.2028 angeschafft wurden |
-| **Sonderabschreibung** | § 7g Abs. 5 EStG | bis zu 40 % der Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier Folgejahre; Gewinn des Vorjahres höchstens 200.000 € (§ 7g Abs. 6 i. V. m. Abs. 1 Satz 2 Nr. 1 EStG) |
+Die zulässigen Methoden – linear, degressiv mit ihren Zeitfenstern und die
+Sonderabschreibung nach § 7g EStG – stehen mit Fundstellen im Anforderungskatalog
+unter BEW-04.
 
-**Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Eine
-im September angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
+**Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat. Eine im September
+angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
 
-Der **Übergang von degressiv auf linear** ist zulässig (§ 7 Abs. 3 EStG) und lohnt sich
-ab dem Jahr, in dem die lineare Restwert-AfA höher wäre. Die Software sollte den
-optimalen Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
+Der **Übergang von degressiv auf linear** ist zulässig und lohnt sich ab dem Jahr, in
+dem die lineare Restwert-AfA höher wäre. Die Software sollte den optimalen
+Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
 
 **Die Sonderabschreibung tritt neben die planmäßige AfA**, sie ersetzt sie nicht: § 7g
 Abs. 5 EStG lässt sie „neben den Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2"
@@ -126,7 +128,7 @@ Begünstigt sind außerdem nur **bewegliche** Wirtschaftsgüter – ein Gebäude
 Sachanlage wie eine Maschine und bekommt sie trotzdem nicht. Woran das erkennbar ist,
 weiß allein der Kontenkatalog.
 
-**Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen. Ein hinterlegter Katalog der
+**Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen (BEW-04). Ein hinterlegter Katalog der
 gängigen Fälle wäre nützlich; er ist aber kein Gesetz, sondern eine Verwaltungsanweisung
 und muss überschreibbar bleiben.
 
@@ -458,32 +460,17 @@ Bewusst nicht abgebildet:
   Kontennachweis führt, und sind vor der Übermittlung gegen die amtliche
   Taxonomie zu prüfen; die Zahlen darin stammen aus der Buchführung.
 
-## 11. Quellen
+## 11. Fundstellen
 
-Stand der Prüfung: 22.08.2026 für den ursprünglichen Bestand, 28.08.2026 für die
-Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und für das
-Investmentsteuergesetz. Volltexte über gesetze-im-internet.de.
+Die Normen zu Anschaffungs- und Herstellungskosten (BEW-02), zur
+Anlagenbuchhaltung und zum Anlagenspiegel (BEW-03, JAB-05), zu den Abschreibungen
+(BEW-04), zu geringwertigen Wirtschaftsgütern und Sammelposten (BEW-05), zum
+Verzeichnis steuerlicher Wahlrechte (BEW-06) und zur Fremdwährung (BEW-10) stehen
+mit Fundstellen im Anforderungskatalog. Was der Katalog nicht führt, steht hier —
+geprüft am 28.08.2026 gegen die Volltexte auf gesetze-im-internet.de:
 
 | Aussage im Dokument | Fundstelle | Link |
 |---|---|---|
-| GWG-Grenze 800 € (netto), Sofortabzug | § 6 Abs. 2 Satz 1 EStG | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
-| Verzeichnispflicht ab 250 €, Entbehrlichkeit bei Ersichtlichkeit aus der Buchführung | § 6 Abs. 2 Sätze 4 und 5 EStG | dito |
-| Sammelposten 250 € bis 1.000 €, Auflösung über fünf Jahre, Wahlrecht einheitlich je Wirtschaftsjahr | § 6 Abs. 2a Sätze 1 bis 5 EStG | dito |
-| Anschaffungskosten = Anschaffungspreis + Nebenkosten − Minderungen | § 255 Abs. 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
-| Lineare AfA über die betriebsgewöhnliche Nutzungsdauer | § 7 Abs. 1 Sätze 1 und 2 EStG | [estg/__7.html](https://www.gesetze-im-internet.de/estg/__7.html) |
-| Zeitanteilige AfA ab dem Anschaffungsmonat (pro rata temporis) | § 7 Abs. 1 Satz 4 EStG | dito |
-| Degressive AfA: höchstens das Dreifache des linearen Satzes, höchstens 30 %, Anschaffung nach dem 30.06.2025 und vor dem 01.01.2028 | § 7 Abs. 2 Sätze 1 und 2 EStG | dito |
-| Übergang degressiv → linear zulässig | § 7 Abs. 3 EStG | dito |
-| Sonderabschreibung bis 40 %, im Jahr der Anschaffung und den vier folgenden, **neben** der AfA nach § 7 Abs. 1 **oder Abs. 2** | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
-| Nur abnutzbare **bewegliche** Wirtschaftsgüter des Anlagevermögens | § 7g Abs. 5 EStG | dito |
-| Gewinngrenze des Vorjahres und fast ausschließlich betriebliche Nutzung im Jahr der Anschaffung und im folgenden | § 7g Abs. 6 Nr. 1 und 2 EStG | dito |
-| Allgemeine Regel: neben Sonderabschreibungen AfA nach § 7 Abs. 1 oder 4 — von § 7g Abs. 5 EStG verdrängt | § 7a Abs. 4 EStG | [estg/__7a.html](https://www.gesetze-im-internet.de/estg/__7a.html) |
-| Nach Ablauf des Begünstigungszeitraums AfA „nach dem Restwert und der Restnutzungsdauer" | § 7a Abs. 9 EStG | dito |
-| Herstellungskosten sind Aufwendungen für die Erweiterung oder eine über den ursprünglichen Zustand hinausgehende wesentliche Verbesserung | § 255 Abs. 2 Satz 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
-| Anschaffungspreisminderungen sind abzusetzen (Skonto auf eine Anlage) | § 255 Abs. 1 Satz 3 HGB | dito |
-| Vermögensgegenstände höchstens mit den Anschaffungskosten, vermindert um Abschreibungen | § 253 Abs. 1 Satz 1 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
-| Fremdwährungsposten zum Devisenkassamittelkurs am Abschlussstichtag; die Ausnahme gilt nur bei einer Restlaufzeit von höchstens einem Jahr | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
-| Berichtigung der Bemessungsgrundlage bei Skonto | § 17 Abs. 1 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
 | Investmenterträge sind Ausschüttungen, Vorabpauschalen und Veräußerungsgewinne | § 16 Abs. 1 InvStG | [invstg_2018/__16.html](https://www.gesetze-im-internet.de/invstg_2018/__16.html) |
 | Vorabpauschale: Basisertrag = Rücknahmepreis zu Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs | § 18 Abs. 1 InvStG | [invstg_2018/__18.html](https://www.gesetze-im-internet.de/invstg_2018/__18.html) |
 | Kürzung um ein Zwölftel je vollem Monat vor dem Erwerb; Zufluss am ersten Werktag des Folgejahres | § 18 Abs. 2 und 3 InvStG | dito |
@@ -494,8 +481,6 @@ Investmentsteuergesetz. Volltexte über gesetze-im-internet.de.
 | Immobilienfonds 60 %, Auslands-Immobilienfonds 80 %; schließt die Aktienteilfreistellung aus | § 20 Abs. 3 InvStG | dito |
 | Bei mittelbarem Halten über Personengesellschaften bestimmt der Gesellschafter den Satz | § 20 Abs. 3a InvStG | dito |
 | Aufbewahrung von Verträgen und Handelsbriefen | § 147 Abs. 1 AO | [ao_1977/__147.html](https://www.gesetze-im-internet.de/ao_1977/__147.html) |
-| Außerplanmäßige Abschreibung bei voraussichtlich dauernder Wertminderung | § 253 Abs. 3 Satz 5 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
-| Anlagenspiegel als Anhangbestandteil | § 284 Abs. 3 HGB | [hgb/__284.html](https://www.gesetze-im-internet.de/hgb/__284.html) |
 | Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |
 
 **Korrektur gegenüber einer früheren Fassung dieses Dokuments:** die Befreiung
