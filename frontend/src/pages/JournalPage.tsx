@@ -65,7 +65,18 @@ function accountPath(entry: JournalEntry): string {
   return `${debit.join(' · ')} → ${credit.join(' · ')}`;
 }
 
-export const JournalPage: React.FC = () => {
+export interface JournalPageProps {
+  /**
+   * Das angezeigte Geschäftsjahr, sofern es festgestellt oder offengelegt ist.
+   * Es nimmt keine Buchung mehr an; die Erfassung bleibt an ihrem Platz und
+   * wird deaktiviert, damit die Ansicht zwischen den Jahren gleich aussieht
+   * (§11.5). Grund und Hinweisstreifen der Sperre stehen zentral in App.tsx,
+   * damit jede Erfassungsansicht sie zeigt und keine sie vergisst.
+   */
+  closedYear?: number;
+}
+
+export const JournalPage: React.FC<JournalPageProps> = ({ closedYear }) => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +167,13 @@ export const JournalPage: React.FC = () => {
 
   const fiscalYear = entries[0]?.fiscalYear;
 
+  // Der Grund der Sperre steht im title des deaktivierten Knopfes, sonst
+  // verschwiege er ihn (§10.4).
+  const lockedReason = closedYear
+    ? `Das Geschäftsjahr ${closedYear} ist festgestellt. Buchungen nimmt es erst wieder an, ` +
+      `wenn die Feststellung mit Grund zurückgesetzt wird.`
+    : undefined;
+
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
@@ -169,6 +187,8 @@ export const JournalPage: React.FC = () => {
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={Boolean(closedYear)}
+            title={closedYear ? lockedReason : undefined}
             onClick={() => setShowForm(true)}
           >
             Neue Buchung
@@ -230,7 +250,12 @@ export const JournalPage: React.FC = () => {
             }
             action={
               entries.length === 0 ? (
-                <Button variant="primary" onClick={() => setShowForm(true)}>
+                <Button
+                  variant="primary"
+                  disabled={Boolean(closedYear)}
+                  title={closedYear ? lockedReason : undefined}
+                  onClick={() => setShowForm(true)}
+                >
                   Neue Buchung
                 </Button>
               ) : (

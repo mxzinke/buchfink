@@ -138,6 +138,15 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 		if entry.Source == domain.EntrySourcePayment {
 			continue
 		}
+		// Und der Saldenvortrag auch nicht. Er bucht den offenen Rest des
+		// Vorjahres noch einmal auf dasselbe Personenkonto, damit die Bilanz des
+		// neuen Jahres stimmt — der Posten selbst ist aber weiterhin die
+		// Rechnung von damals, gegen die auch die Zahlung läuft. Ohne diese
+		// Zeile stünde jede Forderung nach dem Jahreswechsel zweimal in der
+		// OP-Liste, und die zweite ließe sich nie ausgleichen.
+		if entry.Source == domain.EntrySourceOpening {
+			continue
+		}
 
 		line, ok := ledgerLine(entry)
 		if !ok || entry.ContactID == nil {

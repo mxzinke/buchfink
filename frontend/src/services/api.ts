@@ -17,7 +17,9 @@ import type {
   AssetSummary,
   AuditLogEntry,
   BankTransaction,
+  CarryForwardPreview,
   Cents,
+  ClosingState,
   CompanySettings,
   Contact,
   CurrencyValuation,
@@ -34,6 +36,8 @@ import type {
   Festschreibung,
   FestschreibungVerification,
   FinancialSummary,
+  FiscalYear,
+  FiscalYearStatus,
   FixedAsset,
   Foundation,
   FoundationPostingPreview,
@@ -473,6 +477,34 @@ export const Api = {
     call(() => Bridge.CommitPeriod(periodType, periodLabel, cutoffDate) as Promise<Festschreibung>),
   verifyFestschreibung: (id: number): Promise<FestschreibungVerification> =>
     call(() => Bridge.VerifyFestschreibung(id) as Promise<FestschreibungVerification>),
+
+  // --- Jahresabschluss ---------------------------------------------------
+
+  /** Die Geschäftsjahre als Entitäten: Zeitraum, Rumpfjahr, Abschlussstand. */
+  getFiscalYears: (): Promise<FiscalYear[]> => call(() => Bridge.GetFiscalYears() as Promise<FiscalYear[]>),
+  /** Legt das Geschäftsjahr an und schaltet auf es um. */
+  createFiscalYear: (year: number): Promise<void> => call(() => Bridge.CreateFiscalYear(year)),
+  getClosingState: (year: number): Promise<ClosingState> =>
+    call(() => Bridge.GetClosingState(year) as Promise<ClosingState>),
+  /**
+   * Der Vortragsstand ins Zieljahr: je Konto Schlusssaldo des Vorjahres,
+   * bereits vorgetragener Wert und Differenz. Bucht nichts.
+   */
+  getCarryForwardPreview: (toYear: number): Promise<CarryForwardPreview> =>
+    call(() => Bridge.GetCarryForwardPreview(toYear) as Promise<CarryForwardPreview>),
+  /** Bucht den Saldenvortrag; ein erneuter Lauf nimmt den bestehenden zurück. */
+  carryForward: (toYear: number): Promise<JournalEntry[]> =>
+    call(() => Bridge.CarryForward(toYear) as Promise<JournalEntry[]>),
+  setFiscalYearStatus: (
+    year: number,
+    status: FiscalYearStatus,
+    date: string,
+    note = ''
+  ): Promise<FiscalYear> =>
+    call(() => Bridge.SetFiscalYearStatus(year, status, date, note) as Promise<FiscalYear>),
+  /** Nimmt die Feststellung zurück; der Grund ist Pflicht und wird protokolliert. */
+  reopenFiscalYear: (year: number, reason: string): Promise<FiscalYear> =>
+    call(() => Bridge.ReopenFiscalYear(year, reason) as Promise<FiscalYear>),
 
   // --- Gründung ---------------------------------------------------------
 

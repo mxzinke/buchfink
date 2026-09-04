@@ -124,6 +124,23 @@ func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fisc
 	return findBatched(q)
 }
 
+// FindOpenItemCandidatesAt ist die Stichtagssicht auf dieselben Kandidaten.
+//
+// Zwei Grenzen statt einer: das Buchungsdatum der Buchung selbst und das
+// Buchungsdatum ihrer Generalumkehr. Die zweite ist die eigentliche Arbeit —
+// notReversed kennt kein Datum und schlösse eine Rechnung auch dann aus, wenn
+// ihr Storno erst nach dem Bilanzstichtag gebucht wurde. Am Stichtag stand sie
+// aber noch in den Büchern, und der Saldo des Personenkontos weist sie aus.
+func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cutoff string) ([]domain.JournalEntry, error) {
+	q := r.preloaded(ctx).
+		Where("journal_entries.kind <> ?", domain.EntryKindReversal).
+		Where("NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = journal_entries.id AND gu.booking_date <= ?)", cutoff).
+		Where("source <> ?", domain.EntrySourcePayment).
+		Where("booking_date <= ?", cutoff).
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND length(l.account) = 5)")
+	return findBatched(q)
+}
+
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
 	if err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {

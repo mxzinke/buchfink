@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Lock } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -14,13 +15,21 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { ReceiptsPage } from './pages/ReceiptsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { ClosingPage } from './pages/ClosingPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig } from './types';
+import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
 import { toast } from './components/ui';
+
+/**
+ * Ansichten, in denen im gesperrten Geschäftsjahr erfasst würde. Nur sie tragen
+ * den Hinweisstreifen; eine Auswertung ist auch im abgeschlossenen Jahr das,
+ * was sie sein soll (§11.5).
+ */
+const POSTING_TABS: TabType[] = ['journal', 'bank', 'receipts', 'invoices', 'assets'];
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
@@ -30,6 +39,10 @@ export function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('welcome');
   const [currentYear, setCurrentYear] = useState<number>(currentCalendarYear);
   const [availableYears, setAvailableYears] = useState<number[]>([currentCalendarYear]);
+  // Ab der Feststellung nimmt ein Geschäftsjahr keine Buchung mehr an. Der
+  // Abschlussstand gehört deshalb in die Kopfzeile und ins Journal und nicht
+  // erst in die Fehlermeldung beim Buchen (§11.5).
+  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
@@ -83,9 +96,55 @@ export function App() {
       if (currentActive) {
         setActiveTenant(currentActive);
       }
+      await refreshFiscalYears();
       await refreshIntegrity();
     } catch (e) {
       console.error('Error loading fiscal year data:', e);
+    }
+  };
+
+  /**
+   * Die Abschlussstände der Geschäftsjahre. Eigener Fehlerpfad: fehlen sie,
+   * fehlt nur das Schloss, die übrige Ansicht bleibt benutzbar.
+   */
+  const refreshFiscalYears = async () => {
+    try {
+      setFiscalYears(await Api.getFiscalYears());
+    } catch (e) {
+      console.error('Error loading fiscal years:', e);
+      setFiscalYears([]);
+    }
+  };
+
+  /**
+   * Nach einer Änderung am Abschluss: der Saldenvortrag legt das Zieljahr an und
+   * bucht hinein, `GetAvailableFiscalYears` kennt es danach. Ohne die neu
+   * gelesene Liste stünde das neue Jahr erst nach einem Neustart zur Auswahl.
+   */
+  const refreshFiscalYearSelection = async () => {
+    await refreshFiscalYears();
+    try {
+      const years = await Api.getAvailableFiscalYears();
+      if (years.length > 0) {
+        setAvailableYears(years);
+      }
+    } catch (e) {
+      console.error('Error loading available fiscal years:', e);
+    }
+  };
+
+  /**
+   * Ein Geschäftsjahr von Hand anlegen: die Entität beginnt am Tag nach dem Ende
+   * des Vorjahres, auch nach einem Rumpfgeschäftsjahr, und die Ansicht schaltet
+   * auf sie um.
+   */
+  const handleCreateFiscalYear = async (year: number) => {
+    try {
+      await Api.createFiscalYear(year);
+      await loadActiveFiscalYearData();
+      toast.success(`Geschäftsjahr ${year} angelegt.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -171,6 +230,13 @@ export function App() {
     );
   }
 
+  // Abgeschlossen ist ein Jahr ab der Feststellung: JournalService.Post weist
+  // dann jede Buchung mit Datum in diesem Jahr ab (§11.5).
+  const closedYears = fiscalYears
+    .filter((fy) => fy.status === 'adopted' || fy.status === 'disclosed')
+    .map((fy) => fy.year);
+  const yearClosed = closedYears.includes(currentYear);
+
   const renderContent = () => {
     switch (currentTab) {
       case 'welcome':
@@ -191,7 +257,7 @@ export function App() {
       case 'accounts':
         return <AccountsPage />;
       case 'journal':
-        return <JournalPage />;
+        return <JournalPage closedYear={closedYears.includes(currentYear) ? currentYear : undefined} />;
       case 'assets':
         return <AssetsPage />;
       case 'bank':
@@ -204,6 +270,10 @@ export function App() {
         return <ContactsPage />;
       case 'reports':
         return <ReportsPage />;
+      case 'closing':
+        // Die Abschlussansicht folgt dem Jahr aus der Kopfzeile; sie zeigt
+        // Stand und Vortrag genau eines Geschäftsjahres.
+        return <ClosingPage year={currentYear} onFiscalYearChanged={refreshFiscalYearSelection} />;
       case 'deadlines':
         return <DeadlinesPage />;
       case 'ebilanz':
@@ -248,7 +318,9 @@ export function App() {
           <Header
             currentYear={currentYear}
             availableYears={availableYears}
+            closedYears={closedYears}
             onYearChange={handleYearChange}
+            onCreateFiscalYear={handleCreateFiscalYear}
             tenants={tenants}
             activeTenant={activeTenant}
             onSwitchTenant={handleSwitchTenant}
@@ -257,11 +329,26 @@ export function App() {
           />
         )}
 
+        {/* Ein abgeschlossenes Geschäftsjahr trägt einen anderen Grund: `sunken`
+            statt `paper`, und zwar in jeder Ansicht und nicht nur im Journal —
+            die Sperre gilt dem Jahr, nicht der Seite (§11.5). */}
         <main
           className={`flex-1 overflow-y-auto ${
-            currentTab === 'welcome' ? 'bg-shell-deep' : 'bg-paper'
+            currentTab === 'welcome' ? 'bg-shell-deep' : yearClosed ? 'bg-sunken' : 'bg-paper'
           }`}
         >
+          {/* Der Hinweisstreifen steht über dem Inhalt, damit jede Ansicht mit
+              Erfassung ihn zeigt und keine ihn vergisst. */}
+          {yearClosed && POSTING_TABS.includes(currentTab) && (
+            <div className="max-w-[1200px] mx-auto px-8 pt-8">
+              <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface px-4 py-3">
+                <Lock className="w-4 h-4 mt-0.5 shrink-0 text-ink-faint" strokeWidth={1.5} />
+                <p className="text-body text-ink-muted">
+                  {`Geschäftsjahr ${currentYear} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`}
+                </p>
+              </div>
+            </div>
+          )}
           {renderContent()}
         </main>
       </div>

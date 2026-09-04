@@ -50,6 +50,14 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 
 	for i := range entries {
 		entry := &entries[i]
+		// Der Saldenvortrag bringt den Bestand der Steuerkonten aus dem
+		// Vorjahr ins neue Jahr. Er ist kein Umsatz und keine Vorsteuer dieses
+		// Zeitraums — die Auswertung liest die Konten und nicht die
+		// Steuerschlüssel, und ohne diese Zeile stünde die Vorsteuer des alten
+		// Jahres ein zweites Mal in der Voranmeldung des Januars.
+		if entry.Source == domain.EntrySourceOpening {
+			continue
+		}
 		for _, line := range entry.Lines {
 			// Signed in the account's natural direction, base included.
 			credit, base := line.Amount, line.TaxBase

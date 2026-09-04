@@ -91,6 +91,21 @@ export function formatDate(dateStr: string): string {
   return Number.isNaN(parsed.getTime()) ? dateStr : new Intl.DateTimeFormat('de-DE').format(parsed);
 }
 
+/**
+ * Formatiert einen Zeitstempel mit Uhrzeit in der Zeitzone des Rechners.
+ *
+ * Das Backend schreibt Zeitpunkte in UTC. Ein Zeitstempel darf deshalb nicht
+ * wie ein Datum am „T" abgeschnitten werden: nach 22 bzw. 23 Uhr Ortszeit steht
+ * dort bereits der Folgetag, und die Ansicht zeigte einen Tag, an dem niemand
+ * gearbeitet hat.
+ */
+export function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
+}
+
 /** Zeigt einen Leistungszeitraum an; bei Zeitpunktleistung nur ein Datum. */
 export function formatDateRange(from: string, to: string): string {
   if (!from) return '—';

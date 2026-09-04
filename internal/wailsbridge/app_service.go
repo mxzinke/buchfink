@@ -51,6 +51,7 @@ type BuchfinkBridge struct {
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
+	fiscalYearRepo     domain.FiscalYearRepository
 
 	// Services
 	journalSvc    *service.JournalService
@@ -70,6 +71,7 @@ type BuchfinkBridge struct {
 	settingsSvc   *service.SettingsService
 	currencySvc   *service.CurrencyService
 	foundationSvc *service.FoundationService
+	closingSvc    *service.ClosingService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -187,6 +189,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.receiptRepo = repository.NewReceiptRepository(db)
 	b.assetRepo = repository.NewAssetRepository(db)
 	b.foundationRepo = repository.NewFoundationRepository(db)
+	b.fiscalYearRepo = repository.NewFiscalYearRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -206,6 +209,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// produces a booking goes through it.
 	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, fiscalYear)
 	b.journalSvc.SetFestschreibungRepo(b.festschreibungRepo)
+	// Ein festgestellter Jahresabschluss nimmt keine Buchung mehr auf. Der
+	// Journaldienst muss das wissen, bevor er schreibt.
+	b.journalSvc.SetFiscalYearRepo(b.fiscalYearRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
@@ -252,6 +258,19 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.foundationRepo, b.accountRepo, b.journalRepo, b.settingsRepo,
 		b.journalSvc, b.auditRepo, fiscalYear,
 	)
+
+	b.closingSvc = service.NewClosingService(
+		b.fiscalYearRepo, b.journalRepo, b.accountRepo, b.contactRepo, b.allocationRepo,
+		b.settingsRepo, b.festschreibungRepo, b.auditRepo, b.journalSvc, fiscalYear,
+	)
+	b.closingSvc.SetFoundationRepo(b.foundationRepo)
+	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
+	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
+	// Umstellung; scheitert das, bleibt der Mandant benutzbar und die Ansicht
+	// „Jahresabschluss" legt das Jahr beim ersten Aufruf an.
+	if err := b.closingSvc.EnsureFiscalYears(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Geschäftsjahre konnten nicht angelegt werden: %v\n", err)
+	}
 
 	b.appConfig.ActiveTenantID = t.ID
 	b.appConfig.DataDir = t.DataDir
@@ -621,21 +640,39 @@ func (b *BuchfinkBridge) SelectDatabaseFileDialog(title string) (string, error) 
 // DYNAMIC FISCAL YEARS & FILTERING
 // -------------------------------------------------------------
 
+// GetAvailableFiscalYears lists the fiscal years the user can switch to: the
+// union of the recorded fiscal years and those that only appear in the journal.
+//
+// Beide Quellen, weil beide unvollständig sind. Ein neu angelegtes Geschäftsjahr
+// hat noch keine Buchung, und eine gewachsene Datenbank hat Buchungen in Jahren,
+// zu denen die Entität erst nachträglich entsteht.
 func (b *BuchfinkBridge) GetAvailableFiscalYears() []int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
 		return repository.DiscoverAvailableFiscalYears(b.dataDir)
 	}
-	return b.accountingSvc.GetAvailableFiscalYears(context.Background())
-}
 
-func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.setFiscalYearLocked(year)
-	return nil
+	years := b.accountingSvc.GetAvailableFiscalYears(context.Background())
+	if b.closingSvc == nil {
+		return years
+	}
+	known := make(map[int]bool, len(years))
+	for _, y := range years {
+		known[y] = true
+	}
+	recorded, err := b.closingSvc.FiscalYears(context.Background())
+	if err != nil {
+		return years
+	}
+	for _, fy := range recorded {
+		if fy.Year > 0 && !known[fy.Year] {
+			known[fy.Year] = true
+			years = append(years, fy.Year)
+		}
+	}
+	sort.Ints(years)
+	return years
 }
 
 // setFiscalYearLocked switches the active year across every service that
@@ -668,6 +705,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.foundationSvc != nil {
 		b.foundationSvc.SetFiscalYear(year)
+	}
+	if b.closingSvc != nil {
+		b.closingSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)

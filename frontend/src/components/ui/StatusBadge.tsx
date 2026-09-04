@@ -17,7 +17,14 @@ export type Status =
   | 'festgeschrieben'
   | 'ueberfaellig'
   | 'storniert'
-  | 'fehlerhaft';
+  | 'fehlerhaft'
+  // Die Stände des Jahresabschlusses. Sie beschreiben nicht dieselbe Sache wie
+  // „Festgeschrieben": festgeschrieben ist der Zeitraum, festgestellt ist der
+  // Abschluss, und beschlossen haben ihn die Gesellschafter (§ 42a Abs. 2
+  // GmbHG). Ein gemeinsames Wort für beides würde den Beschluss unterschlagen.
+  | 'aufgestellt'
+  | 'festgestellt'
+  | 'offengelegt';
 
 type Tone = 'neutral' | 'attention' | 'attentionOutline' | 'positive' | 'negative';
 
@@ -52,6 +59,11 @@ const STATUS: Record<Status, { label: string; tone: Tone; lock?: boolean }> = {
   ueberfaellig: { label: 'Überfällig', tone: 'negative' },
   storniert: { label: 'Storniert', tone: 'negative' },
   fehlerhaft: { label: 'Fehlerhaft', tone: 'negative' },
+  aufgestellt: { label: 'Aufgestellt', tone: 'neutral' },
+  // Ab der Feststellung nimmt das Geschäftsjahr keine Buchung mehr auf; das
+  // Schloss steht für dieselbe Sperre wie neben der Jahreszahl (§11.5).
+  festgestellt: { label: 'Festgestellt', tone: 'positive', lock: true },
+  offengelegt: { label: 'Offengelegt', tone: 'positive', lock: true },
 };
 
 export interface StatusBadgeProps {

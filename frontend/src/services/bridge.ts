@@ -165,6 +165,16 @@ export const bridge = {
     invoke<T>('CommitPeriod', periodType, periodLabel, cutoffDate),
   VerifyFestschreibung: <T>(id: number) => invoke<T>('VerifyFestschreibung', id),
 
+  // Jahresabschluss
+  GetFiscalYears: <T>() => invoke<T>('GetFiscalYears'),
+  CreateFiscalYear: (year: number) => invoke<void>('CreateFiscalYear', year),
+  GetClosingState: <T>(year: number) => invoke<T>('GetClosingState', year),
+  GetCarryForwardPreview: <T>(toYear: number) => invoke<T>('GetCarryForwardPreview', toYear),
+  CarryForward: <T>(toYear: number) => invoke<T>('CarryForward', toYear),
+  SetFiscalYearStatus: <T>(year: number, status: string, date: string, note: string) =>
+    invoke<T>('SetFiscalYearStatus', year, status, date, note),
+  ReopenFiscalYear: <T>(year: number, reason: string) => invoke<T>('ReopenFiscalYear', year, reason),
+
   // Gründung
   GetFoundationState: <T>() => invoke<T>('GetFoundationState'),
   SaveFoundation: <T>(foundation: unknown) => invoke<T>('SaveFoundation', foundation),

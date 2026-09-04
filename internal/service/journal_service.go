@@ -23,6 +23,7 @@ type JournalService struct {
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
+	fiscalYearRepo     domain.FiscalYearRepository
 
 	hashChain   *accounting.HashChain
 	taxResolver domain.TaxResolver
@@ -56,6 +57,9 @@ func NewJournalService(
 func (s *JournalService) SetFestschreibungRepo(r domain.FestschreibungRepository) {
 	s.festschreibungRepo = r
 }
+
+// SetFiscalYearRepo wires the Abschlussstand of the fiscal years. Optional.
+func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fiscalYearRepo = r }
 
 // SetFiscalYear updates the active fiscal year filter.
 func (s *JournalService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -104,6 +108,13 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	if err := s.validateAccounts(ctx, entry); err != nil {
 		return nil, err
 	}
+	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
+	// ist immer auch festgeschrieben, und von den beiden Meldungen ist die über
+	// die Feststellung die weiterführende — sie nennt die Rücksetzung, während
+	// die Festschreibung nur auf den Storno verweist, der hier nicht hilft.
+	if err := s.ensureYearNotAdopted(ctx, entry); err != nil {
+		return nil, err
+	}
 	if err := s.ensurePeriodOpen(ctx, entry); err != nil {
 		return nil, err
 	}
@@ -122,6 +133,43 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	return entry, nil
 }
 
+// ValidatePostable prüft eine Buchung, ohne sie zu schreiben.
+//
+// Gedacht für Vorgänge, die aus mehreren Buchungen bestehen und nicht zur Hälfte
+// geschehen dürfen — allen voran der Korrekturvortrag, der erst den alten
+// Saldenvortrag zurücknimmt und dann den neuen bucht. Scheiterte dort die zweite
+// Buchung, stünde das Zieljahr mit zurückgenommenem Altvortrag und halbem
+// Neuvortrag da, also mit einer Eröffnungsbilanz, die es so nie gab. Geprüft
+// wird deshalb vorher, was sich vorher prüfen lässt: Konten, Abschlussstand und
+// Periodensperre. Die Buchung selbst bleibt unverändert; gearbeitet wird auf
+// einer Kopie.
+func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.JournalEntry) error {
+	probe := *entry
+	probe.Lines = append([]domain.JournalLine(nil), entry.Lines...)
+	s.applyDefaults(ctx, &probe)
+
+	if probe.Kind != domain.EntryKindReversal {
+		if err := s.ensureAccrualTaxation(ctx); err != nil {
+			return err
+		}
+	}
+	if err := probe.Validate(); err != nil {
+		return err
+	}
+	if d := probe.Entertainment; d != nil {
+		if err := d.Validate(); err != nil {
+			return err
+		}
+	}
+	if err := s.validateAccounts(ctx, &probe); err != nil {
+		return err
+	}
+	if err := s.ensureYearNotAdopted(ctx, &probe); err != nil {
+		return err
+	}
+	return s.ensurePeriodOpen(ctx, &probe)
+}
+
 // Reverse cancels a booking by Generalumkehr: the same accounts on the same
 // sides with negated amounts.
 //
@@ -131,12 +179,40 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 // Saldenliste and the VAT figures derived from turnover would then be wrong. The
 // Generalumkehr returns the turnover to zero and is what DATEV records as "GU".
 func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason string) (*domain.JournalEntry, error) {
+	return s.ReverseOn(ctx, entryID, reason, "")
+}
+
+// ReverseOn is the Generalumkehr with an explicit correction date; an empty date
+// means today, which is what Reverse passes.
+//
+// Es gibt genau einen Grund, das Datum vorzugeben, und der ist der
+// Korrekturvortrag. Ein Saldenvortrag steht auf dem ersten Tag des neuen Jahres;
+// seine Rücknahme muss in demselben Jahr landen, sonst trägt das neue Jahr den
+// alten Vortrag weiter und den neuen dazu — die Eröffnungsbilanz wäre doppelt
+// gebucht. Auf dem Weg über „heute" wäre das nur so lange richtig, wie die
+// Korrektur im selben Jahr geschieht; im Januar darauf wäre sie es nicht mehr.
+//
+// Rückdatiert wird trotzdem nicht in eine geschlossene Periode: ensurePeriodOpen
+// weist jedes Datum bis zur letzten Festschreibung ab, und der Aufrufer, der ein
+// Datum vorgibt, muss sich am ersten offenen Tag orientieren.
+//
+// Und das vorgegebene Datum bleibt auf Eröffnungsbuchungen beschränkt: für jede
+// andere Buchung wäre es ein Weg, eine Korrektur in einen abgelaufenen, nur noch
+// nicht festgeschriebenen Zeitraum zurückzudatieren — genau das, was der Storno
+// auf „heute" verhindert.
+func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, date string) (*domain.JournalEntry, error) {
 	original, err := s.journalRepo.FindByID(ctx, entryID)
 	if err != nil {
 		return nil, fmt.Errorf("Buchung %d wurde nicht gefunden: %w", entryID, err)
 	}
 	if original.Kind == domain.EntryKindReversal {
 		return nil, fmt.Errorf("Buchung %s ist selbst eine Generalumkehr und kann nicht erneut storniert werden", original.EntryNumber)
+	}
+	if date != "" && original.Source != domain.EntrySourceOpening {
+		return nil, fmt.Errorf(
+			"Buchung %s ist keine Eröffnungsbuchung; eine Generalumkehr mit vorgegebenem Datum gibt es "+
+				"nur für den Saldenvortrag. Storniere die Buchung ohne Datumsangabe – die Korrektur trägt "+
+				"dann den Tag ihrer Erstellung", original.EntryNumber)
 	}
 
 	existing, err := s.journalRepo.FindReversalOf(ctx, entryID)
@@ -152,7 +228,10 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 
 	// The correction is dated at the time of correction, never backdated into
 	// the original period: that is what keeps a committed period untouched.
-	today := time.Now().Format("2006-01-02")
+	today := date
+	if today == "" {
+		today = time.Now().Format("2006-01-02")
+	}
 
 	lines := make([]domain.JournalLine, 0, len(original.Lines))
 	for _, l := range original.Lines {
@@ -327,7 +406,14 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 		// Tax accounts carry the figures of the Umsatzsteuer-Voranmeldung. They
 		// may only be written by the tax automation, which stamps a TaxKey on
 		// the line it generates.
-		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" {
+		//
+		// Der Saldenvortrag ist die Ausnahme, und er ist keine Umgehung: Konten
+		// wie die abziehbare Vorsteuer sind Bilanzkonten und tragen zum
+		// Bilanzstichtag einen Bestand, der ins neue Jahr gehört (§ 252 Abs. 1
+		// Nr. 1 HGB). Vorgetragen wird der Saldo, nicht ein Umsatz — die Zeile
+		// trägt deshalb bewusst keinen Steuerschlüssel, und die
+		// Umsatzsteuer-Auswertung lässt Eröffnungsbuchungen aus.
+		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" && e.Source != domain.EntrySourceOpening {
 			return fmt.Errorf(
 				"Zeile %d: Konto %s ist ein Steuerkonto und darf nur über die Steuerautomatik bebucht werden",
 				i+1, l.Account,
@@ -384,6 +470,38 @@ func (s *JournalService) ensurePeriodOpen(ctx context.Context, e *domain.Journal
 		)
 	}
 	return nil
+}
+
+// ensureYearNotAdopted blocks every booking into a fiscal year whose annual
+// accounts have been adopted.
+//
+// Mit der Feststellung durch die Gesellschafter (§ 42a Abs. 2 GmbHG) ist der
+// Abschluss verbindlich: er ist die Grundlage des Ergebnisverwendungsbeschlusses
+// und der Steuererklärung. Eine Buchung danach änderte Zahlen, die beschlossen
+// und weitergereicht sind, ohne dass jemand davon erführe. Deshalb sperrt die
+// Feststellung das Jahr — und deshalb nennt die Meldung den Weg zurück, statt
+// nur nein zu sagen: die Rücksetzung ist möglich, sie ist nur eine Entscheidung
+// und kein Nebeneffekt einer Buchung.
+//
+// Die Generalumkehr ist nicht ausgenommen. Sie trägt das Datum ihrer eigenen
+// Erstellung und landet damit im laufenden Jahr; nur eine ausdrücklich in das
+// festgestellte Jahr datierte Korrektur fällt hierunter, und die soll auffallen.
+func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.JournalEntry) error {
+	if s.fiscalYearRepo == nil {
+		return nil
+	}
+	fy, err := s.fiscalYearRepo.FindByYear(ctx, e.FiscalYear)
+	if err != nil {
+		return fmt.Errorf("der Abschlussstand des Geschäftsjahres %d konnte nicht geprüft werden: %w", e.FiscalYear, err)
+	}
+	if fy == nil || !fy.IsAdopted() {
+		return nil
+	}
+	return fmt.Errorf(
+		"Der Jahresabschluss %d ist am %s festgestellt (§ 42a Abs. 2 GmbHG). Eine Buchung zum %s ist "+
+			"deshalb nicht mehr möglich. Wenn der Abschluss geändert werden muss, setze das Geschäftsjahr "+
+			"zunächst unter „Jahresabschluss\" mit Angabe des Grundes zurück",
+		fy.Year, fy.AdoptedOn, e.BookingDate)
 }
 
 func (s *JournalService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {

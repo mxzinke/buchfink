@@ -1,12 +1,23 @@
 import React from 'react';
-import { Building2, Calendar, Check, ChevronDown, Menu as MenuIcon, Plus } from 'lucide-react';
+import { Building2, Calendar, Check, ChevronDown, Lock, Menu as MenuIcon, Plus } from 'lucide-react';
 import { TenantConfig } from '../types';
 import { Button, Menu, MenuGroup, MenuItem, MenuSeparator, cn } from './ui';
 
 interface HeaderProps {
   currentYear: number;
   availableYears: number[];
+  /**
+   * Geschäftsjahre ab der Feststellung. Sie nehmen keine Buchung mehr an, und
+   * das steht neben der Jahreszahl, nicht erst in der Ablehnung (§11.5).
+   */
+  closedYears?: number[];
   onYearChange: (year: number) => void;
+  /**
+   * Legt das nächste Geschäftsjahr als Entität an und schaltet auf es um. Ohne
+   * diesen Weg entstünde ein Jahr erst mit der ersten Buchung oder mit dem
+   * Saldenvortrag — also nie, bevor man darin arbeiten will.
+   */
+  onCreateFiscalYear?: (year: number) => void;
   tenants?: TenantConfig[];
   activeTenant?: TenantConfig | null;
   onSwitchTenant?: (tenantId: string) => void;
@@ -17,7 +28,9 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentYear,
   availableYears,
+  closedYears = [],
   onYearChange,
+  onCreateFiscalYear,
   tenants = [],
   activeTenant,
   onSwitchTenant,
@@ -25,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
 }) => {
   const currentCalendarYear = new Date().getFullYear();
+  const nextYear = availableYears.length > 0 ? Math.max(...availableYears) + 1 : currentCalendarYear;
 
   return (
     <header
@@ -53,13 +67,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Calendar className="w-3.5 h-3.5 shrink-0 ml-1.5 mr-0.5 text-ink-faint" strokeWidth={1.5} />
           {availableYears.map((year) => {
             const isSelected = currentYear === year;
+            const isClosed = closedYears.includes(year);
             return (
               <button
                 key={year}
                 type="button"
                 onClick={() => onYearChange(year)}
                 aria-pressed={isSelected}
-                title={`Ansicht auf Geschäftsjahr ${year} filtern`}
+                title={
+                  isClosed
+                    ? `Geschäftsjahr ${year} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`
+                    : `Ansicht auf Geschäftsjahr ${year} filtern`
+                }
                 className={cn(
                   'flex items-center gap-1.5 h-7 px-2.5 shrink-0 rounded-[4px] text-label num',
                   'transition-colors duration-120 ease-quiet',
@@ -69,6 +88,13 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               >
                 {year}
+                {isClosed && (
+                  <Lock
+                    className="w-3 h-3 shrink-0 text-ink-faint"
+                    strokeWidth={1.5}
+                    aria-label="abgeschlossen"
+                  />
+                )}
                 {year === currentCalendarYear && !isSelected && (
                   <span
                     className="mark-diamond bg-ink-faint scale-75"
@@ -78,6 +104,20 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             );
           })}
+          {onCreateFiscalYear && (
+            <button
+              type="button"
+              onClick={() => onCreateFiscalYear(nextYear)}
+              title={`Geschäftsjahr ${nextYear} anlegen`}
+              aria-label={`Geschäftsjahr ${nextYear} anlegen`}
+              className={cn(
+                'flex items-center h-7 px-2 shrink-0 rounded-[4px] text-ink-faint',
+                'transition-colors duration-120 ease-quiet hover:bg-sunken hover:text-ink',
+              )}
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          )}
         </div>
       </div>
 

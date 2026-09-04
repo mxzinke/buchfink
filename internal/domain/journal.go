@@ -354,6 +354,17 @@ type JournalRepository interface {
 	// entry it cancels: whether a booking still stands cannot be answered inside
 	// a year window at all.
 	FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindOpenItemCandidatesAt beantwortet dieselbe Frage zu einem Stichtag:
+	// welche Posten waren am Bilanzstichtag offen.
+	//
+	// Das ist nicht dieselbe Abfrage mit einem zusätzlichen Filter. Die
+	// operative Sicht fragt, was heute noch offen ist, und wirft deshalb jede
+	// Buchung weg, die jemals storniert wurde. Zum Stichtag zählt aber der
+	// Stand von damals: eine Rechnung aus dem Dezember, die im März storniert
+	// wurde, stand am 31.12. in der Bilanz und gehört in den Saldenvortrag —
+	// der Storno nimmt sie im neuen Jahr wieder heraus. Deshalb ist auch die
+	// Generalumkehr auf ihr Datum begrenzt.
+	FindOpenItemCandidatesAt(ctx context.Context, cutoff string) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)

@@ -1354,3 +1354,97 @@ export interface FoundationState {
   duties: FoundationDuty[];
   postingsBooked: boolean;
 }
+
+// -------------------------------------------------------------
+// Jahresabschluss: Geschäftsjahr, Saldenvortrag, Abschlussstand
+// (internal/domain/fiscalyear.go, internal/service/closing_service.go)
+// -------------------------------------------------------------
+
+/**
+ * Die vier Stände sind keine Abstufungen derselben Sache, sondern Vorgänge mit
+ * verschiedenen Beteiligten: Aufstellung durch die Geschäftsführung (§ 242,
+ * § 264 Abs. 1 HGB), Feststellung durch die Gesellschafter (§ 42a Abs. 2
+ * GmbHG), Offenlegung gegenüber dem Bundesanzeiger (§ 325 HGB).
+ */
+export type FiscalYearStatus = 'open' | 'prepared' | 'adopted' | 'disclosed';
+
+/** Das Geschäftsjahr als Entität: Zeitraum, Rumpfjahr, Abschlussstand. */
+export interface FiscalYear {
+  year: number;
+  startDate: string;
+  endDate: string;
+  /** Rumpfgeschäftsjahr (§ 8b EStDV): kürzer als zwölf Monate. */
+  isShort: boolean;
+  status: FiscalYearStatus;
+  preparedOn?: string;
+  adoptedOn?: string;
+  disclosedOn?: string;
+  /** Welcher Gesellschafterbeschluss den Abschluss festgestellt hat. */
+  adoptionNote?: string;
+  /** Zeitpunkt des letzten Saldenvortrags in dieses Jahr. */
+  carriedForwardAt?: string;
+  createdAt: string;
+}
+
+/** Alles, was die Abschlussansicht eines Jahres braucht — in einem Aufruf. */
+export interface ClosingState {
+  year: number;
+  fiscalYear: FiscalYear;
+  /** Erträge minus Aufwendungen der GuV-Konten; abgeleitet, nicht gebucht. */
+  netIncome: Cents;
+  /** Ohne Jahres-Festschreibung lässt sich der Abschluss nicht feststellen. */
+  hasYearCommitment: boolean;
+  committedUntil?: string;
+  nextYear: number;
+  carriedForward: boolean;
+  /** Falsch, sobald im abgelaufenen Jahr nach dem Vortrag noch gebucht wurde. */
+  carryForwardCurrent: boolean;
+  carriedForwardAt?: string;
+  /** Leer, wenn das Jahr offengelegt ist. */
+  nextStatus?: FiscalYearStatus;
+  canAdopt: boolean;
+  blocker?: string;
+}
+
+/** Vortragsart: je eine Buchung gegen 9000, 9008 und 9009. */
+export type CarryForwardKind = 'sachkonto' | 'debitor' | 'kreditor';
+
+/**
+ * Eine Zeile der Vortragsvorschau. Alle Beträge sind vorzeichenbehaftet in
+ * Soll-Richtung: positiv ist ein Sollsaldo, negativ ein Habensaldo.
+ */
+export interface CarryForwardRow {
+  account: string;
+  name: string;
+  kind: CarryForwardKind;
+  closingBalance: Cents;
+  carried: Cents;
+  difference: Cents;
+  /** Zahl der offenen Posten hinter einem Personenkonto. */
+  openItems?: number;
+  includesNetIncome?: boolean;
+}
+
+/** Der Stand des Saldenvortrags in ein Geschäftsjahr. */
+export interface CarryForwardPreview {
+  fromYear: number;
+  toYear: number;
+  /** Erster Tag des neuen Jahres, sonst der erste nicht festgeschriebene Tag. */
+  bookingDate: string;
+  deferred: boolean;
+  rows: CarryForwardRow[];
+  netIncome: Cents;
+  resultAccount: string;
+  resultAccountName: string;
+  alreadyCarried: boolean;
+  needsCorrection: boolean;
+  /** Vortragswerte ohne zurücknehmbare Buchung: ein Lauf würde sie verdoppeln. */
+  irreversible?: boolean;
+  /** Das Vorjahr selbst trägt keinen Saldenvortrag, obwohl es einen bräuchte. */
+  priorYearNotCarried?: boolean;
+  /** Zahl der Buchungen, die ein Lauf erzeugt; höchstens drei. */
+  entries: number;
+  /** Probe auf die Bilanzidentität: Summe aller Vortragswerte, muss null sein. */
+  balanceDifference: Cents;
+  isBalanced: boolean;
+}

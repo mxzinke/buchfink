@@ -129,6 +129,15 @@ type PaymentAllocationRepository interface {
 	// the correction, so it regularly sits in a later year than what it cancels:
 	// whether a booking still stands cannot be answered inside a year window.
 	SettledByOpenItem(ctx context.Context) (map[uint]Cents, error)
+	// SettledByOpenItemAt ist dieselbe Summe zu einem Stichtag: nur Zahlungen,
+	// die bis dahin gebucht waren, und nur solche, deren Storno ebenfalls bis
+	// dahin gebucht war.
+	//
+	// Der Saldenvortrag braucht sie, und nur er. Eine Dezemberrechnung, die im
+	// Januar bezahlt wird, war am 31.12. offen — die Summe ohne Datumsgrenze
+	// sagt „bezahlt" und ließe den Posten aus der Eröffnungsbilanz fallen,
+	// während der Saldo des Personenkontos ihn weiter ausweist.
+	SettledByOpenItemAt(ctx context.Context, cutoff string) (map[uint]Cents, error)
 	FindByBankTx(ctx context.Context, bankTxID uint) ([]PaymentAllocation, error)
 }
 

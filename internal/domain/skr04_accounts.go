@@ -28,6 +28,22 @@ const (
 	AccountSaldenvortraegeDebitoren  = "9008" // Saldenvorträge, Debitoren
 	AccountSaldenvortraegeKreditoren = "9009" // Saldenvorträge, Kreditoren
 
+	// Ergebnisvortrag der Kapitalgesellschaft (§ 266 Abs. 3 A. IV HGB).
+	//
+	// Beide Konten bilden denselben Bilanzposten „Gewinn-/Verlustvortrag" ab und
+	// unterscheiden sich nur in der Richtung; der SKR04-Katalog führt sie unter
+	// derselben position_id bilanz.passiva_a_iv.gewinn_verlustvortrag. Der Name
+	// des Kontos 2978 trägt im Katalog noch die Überschrift des folgenden
+	// Abschnitts („Sonderposten mit Rücklageanteil") mit sich — gemeint ist der
+	// Verlustvortrag vor Verwendung.
+	//
+	// „Vor Verwendung" ist wörtlich zu nehmen: hierher kommt das Jahresergebnis
+	// des abgelaufenen Jahres beim Saldenvortrag. Was die Gesellschafter daraus
+	// machen — Einstellung in Rücklagen oder Ausschüttung —, ist ein eigener
+	// Beschluss und eine eigene Buchung.
+	AccountGewinnvortrag  = "2970" // Gewinnvortrag vor Verwendung
+	AccountVerlustvortrag = "2978" // Verlustvortrag vor Verwendung
+
 	// Umsatzsteuer / Vorsteuer
 	AccountVorsteuer         = "1400" // Abziehbare Vorsteuer
 	AccountVorsteuer7        = "1401" // Abziehbare Vorsteuer 7 %
@@ -49,6 +65,30 @@ const (
 	AccountGewaehrteSkonti19 = "4736" // Gewährte Skonti 19 % USt
 	AccountNebenkostenGeld   = "6855" // Nebenkosten des Geldverkehrs
 )
+
+// ResultCarryForwardAccount benennt das Eigenkapitalkonto, auf das das
+// Jahresergebnis beim Saldenvortrag ins Folgejahr gebracht wird. Ein Gewinn
+// steht im Haben auf 2970, ein Verlust im Soll auf 2978.
+func ResultCarryForwardAccount(netIncome Cents) string {
+	if netIncome < 0 {
+		return AccountVerlustvortrag
+	}
+	return AccountGewinnvortrag
+}
+
+// IsCarryForwardAccount meldet, ob ein Konto eines der statistischen
+// Vortragskonten ist.
+//
+// Sie sind das Gegenkonto des Saldenvortrags und werden deshalb selbst nie
+// vorgetragen: täte man es, trüge das neue Jahr den Vortrag des alten ein
+// zweites Mal.
+func IsCarryForwardAccount(account string) bool {
+	switch account {
+	case AccountSaldenvortraegeSachkonten, AccountSaldenvortraegeDebitoren, AccountSaldenvortraegeKreditoren:
+		return true
+	}
+	return false
+}
 
 // CollectiveAccounts are the balance sheet positions that Personenkonten roll
 // up into. They must not be booked to directly.

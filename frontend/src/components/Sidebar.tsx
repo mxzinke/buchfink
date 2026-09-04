@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  BookCheck,
   BookOpen,
   Building2,
   Calendar,
@@ -32,6 +33,7 @@ export type TabType =
   | 'contacts'
   | 'accounts'
   | 'reports'
+  | 'closing'
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
@@ -81,6 +83,7 @@ const GROUPS: NavGroup[] = [
     label: 'Auswertungen',
     items: [
       { id: 'reports', label: 'GuV & Bilanz', icon: <Scale className={icon} /> },
+      { id: 'closing', label: 'Jahresabschluss', icon: <BookCheck className={icon} /> },
       { id: 'deadlines', label: 'Steuerfristen', icon: <Calendar className={icon} /> },
       { id: 'ebilanz', label: 'E-Bilanz', icon: <FileSpreadsheet className={icon} /> },
     ],
