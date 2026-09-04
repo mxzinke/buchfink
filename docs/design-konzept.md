@@ -667,9 +667,18 @@ abschließend.
 | Überfällig | Rosé | Rechnung, Steuerfrist |
 | Storniert | Rosé | Buchung, Rechnung |
 | Fehlerhaft | Rosé | Import, Validierung, Integritätsprüfung |
+| Aufgestellt | neutral | Jahresabschluss |
+| Festgestellt | Salbei mit Schloss-Icon | Jahresabschluss, Geschäftsjahr |
+| Offengelegt | Salbei mit Schloss-Icon | Jahresabschluss, Geschäftsjahr |
 
 Synonyme wie erledigt, fertig oder abgeschlossen für denselben Zustand sind nicht
 erlaubt.
+
+Die drei letzten Stände beschreiben nicht dasselbe wie Festgeschrieben:
+festgeschrieben ist der Zeitraum, festgestellt ist der Abschluss, und beschlossen
+haben ihn die Gesellschafter. Aufgestellt bleibt neutral, weil noch nichts
+beschlossen und nichts gesperrt ist. Ab Festgestellt trägt das Abzeichen das
+Schloss, denn ab dort nimmt das Geschäftsjahr keine Buchung mehr an.
 
 ### 11.4 Integrität der Hash-Chain
 
@@ -690,6 +699,12 @@ Abgeschlossene Geschäftsjahre sind schreibgeschützt. Sichtbar durch `sunken`
 statt `paper` als Grund, ein Schloss neben der Jahreszahl in der Kopfzeile und
 einen Hinweisstreifen: "Geschäftsjahr 2024 ist abgeschlossen. Buchungen sind nur
 im laufenden Jahr möglich."
+
+Ein festgestelltes Geschäftsjahr wird wie eine gesperrte Periode behandelt:
+Schloss neben der Jahreszahl, Hinweisstreifen, Bearbeitungsaktionen deaktiviert.
+Der Hinweisstreifen nennt dabei den Weg zurück, weil es ihn gibt: "Geschäftsjahr
+2024 ist festgestellt. Buchungen nimmt es erst wieder an, wenn die Feststellung
+mit Grund zurückgesetzt wird."
 
 Bearbeitungsaktionen werden deaktiviert und behalten ihre Position, damit die
 Ansicht zwischen den Jahren gleich aussieht.

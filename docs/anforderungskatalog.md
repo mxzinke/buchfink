@@ -101,10 +101,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Jeder Geschäftsvorfall wird als Buchungssatz mit mindestens einer Soll- und einer Habenposition erfasst, Sollsumme gleich Habensumme | ✅ | internal/domain/journal.go:215-278, :208 (`IsBalanced`, ohne Toleranz) | – |
 | Ein Buchungssatz ohne Ausgleich lässt sich nicht speichern | ✅ | internal/service/journal_service.go:96, internal/domain/journal.go:266; `Post` ist der einzige Schreibweg | – |
-| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | 🟡 | internal/service/accounting_service.go:266-343 weist Differenz exakt aus, kennt aber keinen Stichtagsparameter; ohne Saldenvortrag zeigen Bestandskonten ab dem zweiten Jahr nur die Jahresbewegung | 1 |
-| Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | 🟡 | frontend/src/pages/ReportsPage.tsx:93-116 leitet aus den Salden ab, ohne Eröffnungswerte bleibt die Bilanz ab dem zweiten Geschäftsjahr unvollständig | 1 |
+| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | 🟡 | internal/service/accounting_service.go:266-343 weist Differenz exakt aus; die Bestandskonten tragen seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert, ein Stichtagsparameter fehlt weiterhin, die Liste gilt für das ganze Geschäftsjahr | 2 |
+| Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | ✅ | frontend/src/pages/ReportsPage.tsx:93-116 leitet aus den Salden ab; die Eröffnungswerte kommen als gebuchter Saldenvortrag aus dem Vorjahr (internal/service/closing_service.go:1107-1175), nicht aus einer Nacherfassung | – |
 
-**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert. Was fehlt, ist der Jahreswechsel: ohne Saldenvortrag (internal/repository/journal_gorm.go:247) stimmen Summen- und Saldenliste und Bilanz ab dem zweiten Geschäftsjahr nicht mehr. Welle 1.
+**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel trägt sie weiter: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Offen bleibt allein die Summen- und Saldenliste auf einen Stichtag innerhalb des Jahres. Welle 2.
 
 ### GOB-02 Nachvollziehbarkeit für einen sachverständigen Dritten `MUSS`
 
@@ -172,12 +172,12 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Geschäftsjahr frei definierbar, höchstens zwölf Monate, Rumpfgeschäftsjahre möglich | 🟡 | internal/domain/settings.go:20, :114-136; konfigurierbar ist nur ein Startmonat, `CreateFiscalYear` (internal/wailsbridge/app_service.go:633) schaltet nur den Filter um | 1 |
+| Geschäftsjahr frei definierbar, höchstens zwölf Monate, Rumpfgeschäftsjahre möglich | ✅ | internal/domain/fiscalyear.go:81-120 führt Beginn und Ende je Jahr, :161-197 weist mehr als zwölf Monate nach § 240 Abs. 2 Satz 2 HGB ab, :124-130 kennzeichnet das Rumpfjahr; internal/service/closing_service.go:213-231 setzt den Beginn des Gründungsjahres auf die Beurkundung | – |
 | Buchungsdatum getrennt vom Belegdatum, Periodenzuordnung nach Buchungsdatum | ✅ | internal/domain/journal.go:110-114, internal/service/journal_service.go:257; vier getrennte Datumsfelder | – |
-| Buchung in ein abgeschlossenes Jahr nur nach dokumentierter Wiedereröffnung, protokolliert | 🟡 | internal/service/journal_service.go:372-387 weist Rückdatierung in festgeschriebene Zeiträume ab; einen Jahresabschluss und damit eine Wiedereröffnung gibt es nicht. Berechtigte Rollen entfallen im Einzelplatzbetrieb | 1 |
+| Buchung in ein abgeschlossenes Jahr nur nach dokumentierter Wiedereröffnung, protokolliert | ✅ | internal/service/journal_service.go:489-505 (`ensureYearNotAdopted`) weist jede Buchung in ein festgestelltes Jahr ab und nennt den Weg zurück; internal/service/closing_service.go:443-474 (`ReopenFiscalYear`) verlangt einen Grund und schreibt ihn ins Protokoll. Berechtigte Rollen entfallen im Einzelplatzbetrieb | – |
 | Abgrenzungsbuchungen mit automatischer Auflösung im Folgejahr | ❌ | Weder Entität noch Buchungsweg; docs/anforderung-rechnungsabgrenzung.md beschreibt den Weg, gebaut ist er nicht (siehe BEW-08) | 5 |
 
-**Stand.** Die Periodenzuordnung folgt sauber dem Buchungsdatum, aber ein Geschäftsjahr ist in Buchfink kein Objekt, sondern ein Filter. Rumpfjahr, Wiedereröffnung und Rechnungsabgrenzung hängen daran. Wellen 1 und 5.
+**Stand.** Das Geschäftsjahr ist eine eigene Entität mit Zeitraum, Rumpfjahrkennzeichen und Abschlussstand; die Periodenzuordnung folgt weiterhin dem Buchungsdatum, und die Wiedereröffnung ist ein dokumentierter Vorgang statt einer Lücke. Offen bleibt die Rechnungsabgrenzung. Welle 5.
 
 ---
 
@@ -872,12 +872,12 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Eröffnungsbilanzwerte entsprechen zwingend den Schlussbilanzwerten des Vorjahres, Abweichung technisch ausgeschlossen | ❌ | internal/wailsbridge/app_service.go:633 schaltet nur den Jahresfilter um; die Vortragskonten 9000/9008/9009 werden nie bebucht, Bilanzidentität ist nicht darstellbar | 1 |
+| Eröffnungsbilanzwerte entsprechen zwingend den Schlussbilanzwerten des Vorjahres, Abweichung technisch ausgeschlossen | ✅ | internal/service/closing_service.go:603-775 stellt die Vortragsvorschau je Konto aus den Schlusssalden des Vorjahres zusammen und rechnet mit :563-568 die Probe (Summe aller Vortragswerte gleich null); :1002-1015 lehnt einen Vortrag ab, dessen Werte nicht aufgehen, statt die Differenz ins neue Jahr zu tragen. Die Probe steht als Kennzahl in frontend/src/pages/ClosingPage.tsx:586-595 | – |
 | Bewertungsmethoden je Bilanzposition hinterlegt, fortgeschrieben, Änderung begründet mit Anhangshinweis | 🟡 | internal/domain/asset.go:414 führt eine Methode je Anlagegut, nicht je Bilanzposition; eine Methodenänderung ist ein gewöhnliches Feldupdate ohne Begründungspflicht | 2 |
 | Wertansätze je Wirtschaftsgut, Sammelbewertungen gekennzeichnet | 🟡 | internal/domain/asset.go:294-372 bewertet im Anlagevermögen streng einzeln, jede Wertänderung ist eine Bewegung, der Sammelposten ist gekennzeichnet; Sammelbewertungen nach §§ 240 Abs. 3, 4 und 256 HGB betreffen Vorräte und sind außerhalb des Funktionsumfangs | 5 |
 | Bericht über alle im Geschäftsjahr geänderten Bewertungsmethoden | ❌ | Kein solcher Bericht in internal/ oder frontend/src | 2 |
 
-**Stand.** Die Einzelbewertung im Anlagevermögen ist nachweisbar, der Kern des § 252 ist es nicht: ohne Saldenvortrag gibt es keine Bilanzidentität und ohne geführte Methoden keine Stetigkeit. Wellen 1 und 2.
+**Stand.** Die Bilanzidentität ist seit dem Saldenvortrag nicht nur darstellbar, sondern erzwungen: ein Vortrag, der nicht aufgeht, wird abgelehnt. Die Einzelbewertung im Anlagevermögen ist nachweisbar. Was bleibt, ist die Stetigkeit: ohne geführte Bewertungsmethoden je Bilanzposition gibt es weder Begründungspflicht noch Änderungsbericht. Welle 2.
 
 ### BEW-02 Anschaffungs- und Herstellungskosten `MUSS`
 
@@ -1148,13 +1148,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Status Entwurf, aufgestellt, festgestellt, offengelegt, jeder Wechsel mit Datum, Person und Beschlussbezug protokolliert | ❌ | Es gibt kein Abschlussobjekt; internal/domain/festschreibung.go ist eine Periodensperre und kennt weder Person noch Beschluss | 1 |
-| Ab dem Status festgestellt keine Änderungen an den zugrunde liegenden Buchungen | 🟡 | internal/service/journal_service.go (`ensurePeriodOpen`) und internal/wailsbridge/festschreibung_service.go:30 sperren wirksam bis zum Stichtag, hängen aber an keinem Feststellungsbeschluss | 1 |
-| Dokumentierte Rücksetzung des Status bei Änderung | ❌ | Ein Zurücknehmen ist nicht vorgesehen, weil es keinen Status gibt | 1 |
+| Status Entwurf, aufgestellt, festgestellt, offengelegt, jeder Wechsel mit Datum, Person und Beschlussbezug protokolliert | ✅ | internal/domain/fiscalyear.go:18-72 führt die vier Stände (der Entwurf heißt "Offen"), :92-98 Datum je Schritt und den Beschlussbezug, :184-195 lässt keinen Stand ohne sein Datum zu; internal/service/closing_service.go:360-433 (`SetFiscalYearStatus`) schaltet nur einen Schritt weiter und protokolliert jeden Wechsel mit Datum und Beschluss. Die Person entfällt im Einzelplatzbetrieb | – |
+| Ab dem Status festgestellt keine Änderungen an den zugrunde liegenden Buchungen | ✅ | internal/service/journal_service.go:489-505 (`ensureYearNotAdopted`) weist jede Buchung in ein festgestelltes Jahr ab, geprüft auf dem einzigen Schreibweg (:115-117) und in der Vorprüfung mehrteiliger Vorgänge (:146-170); die Feststellung setzt ihrerseits die Jahres-Festschreibung voraus (internal/service/closing_service.go:394-405) | – |
+| Dokumentierte Rücksetzung des Status bei Änderung | ✅ | internal/service/closing_service.go:443-474 (`ReopenFiscalYear`) setzt auf "Aufgestellt" zurück, verlangt einen Grund und schreibt ihn samt Ausgangsstand ins Protokoll; die Festschreibungen bleiben unberührt | – |
 | Feststellungsbeschluss als Dokument mit dem Abschluss verknüpfbar | ❌ | internal/receiptstore/store.go trägt Eingangsbelege, Ausgangsrechnungen und Anlagendokumente, keine Abschlussunterlagen | 1 |
 | Unterzeichneter Abschluss als unveränderliches Dokument archiviert | ❌ | Es entsteht kein Abschlussdokument | 1 |
 
-**Stand.** Die Sperrwirkung ist da, das Objekt fehlt: ohne Abschlussstatus ist nicht belegbar, welcher Zahlenstand festgestellt wurde. Welle 1.
+**Stand.** Der Abschlussstand ist als Kette aus vier Ständen geführt, mit Datum, Beschlussbezug und einer Rücksetzung, die nur mit Grund geht; ab der Feststellung nimmt das Jahr keine Buchung mehr an. Was fehlt, sind die Papiere dazu: der Feststellungsbeschluss als Dokument und der unterzeichnete Abschluss als archiviertes Dokument. Welle 1.
 
 ### JAB-05 E-Bilanz `MUSS` / `TERMIN`
 
@@ -1229,13 +1229,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Saldenvortrag als eigener Buchungsvorgang mit eigenem Belegverweis, im Journal sichtbar | ❌ | internal/domain/skr04_accounts.go:27-29; die Vortragskonten 9000, 9008 und 9009 werden im Produktivcode kein einziges Mal verwendet, `CreateFiscalYear` (internal/wailsbridge/app_service.go:633) schaltet nur den Jahresfilter um | 1 |
-| Vortrag wiederholbar ohne doppelte Werte, ein erneuter Lauf ersetzt den vorherigen nachvollziehbar | ❌ | Es gibt keinen Lauf | 1 |
-| Ändert sich das Vorjahr nach dem Vortrag, wird die Differenz gemeldet und ein korrigierender Vortrag angeboten | ❌ | Nicht vorhanden | 1 |
-| Personenkonten mit offenen Posten vorgetragen, nicht nur mit Saldo | ❌ | Kein Vortrag; gemildert dadurch, dass die OP-Rechnung jahresübergreifend arbeitet (internal/domain/payment.go:118-131) | 1 |
-| Vorjahresergebnis auf das Ergebnisvortragskonto gebucht, gesteuert durch den Ergebnisverwendungsbeschluss | ❌ | internal/service/accounting_service.go:435-443 bildet das Ergebnis nur als Anzeigedifferenz, nie als Buchung | 1 |
+| Saldenvortrag als eigener Buchungsvorgang mit eigenem Belegverweis, im Journal sichtbar | ✅ | internal/service/closing_service.go:1107-1175 (`buildEntry`) bucht die Bestandskonten gegen 9000, die Personenkonten gegen 9008 und 9009 (internal/domain/skr04_accounts.go:27-29), als Buchung der Herkunft Eröffnung mit dem Belegverweis "SV JJJJ" (:1176); geschrieben wird über denselben `Post`-Weg wie jede andere Buchung und steht damit im Journal | – |
+| Vortrag wiederholbar ohne doppelte Werte, ein erneuter Lauf ersetzt den vorherigen nachvollziehbar | ✅ | internal/service/closing_service.go:995-1100 nimmt die bestehenden Vortragsbuchungen per Generalumkehr auf das Vortragsdatum zurück (internal/service/journal_service.go:203-215, `ReverseOn`) und bucht neu; ein Lauf ohne Änderung wird abgewiesen (:1019-1022), ein nicht mehr zurücknehmbarer Altvortrag ebenfalls, statt seine Werte zu verdoppeln (:1026-1034) | – |
+| Ändert sich das Vorjahr nach dem Vortrag, wird die Differenz gemeldet und ein korrigierender Vortrag angeboten | ✅ | internal/service/closing_service.go:708-738 stellt je Konto Schlusssaldo, vorgetragenen Wert und Differenz gegenüber und setzt daraus `NeedsCorrection` (:764); die Vorschau zeigt die Zeilen, der Korrekturvortrag steht als Aktion daneben (frontend/src/pages/ClosingPage.tsx:516-670) | – |
+| Personenkonten mit offenen Posten vorgetragen, nicht nur mit Saldo | ✅ | internal/service/closing_service.go:897-942 (`openItemsAt`) sammelt die zum Bilanzstichtag offenen Posten je Geschäftspartner, internal/repository/journal_gorm.go:134-141 liefert dafür die Stichtagssicht einschließlich später stornierter Rechnungen; :1133-1148 schreibt je Posten eine eigene Zeile mit Belegverweis und Kontakt. Der Vortrag selbst zählt nicht noch einmal als offener Posten (internal/service/payment_service.go:141-149) | – |
+| Vorjahresergebnis auf das Ergebnisvortragskonto gebucht, gesteuert durch den Ergebnisverwendungsbeschluss | 🟡 | internal/service/closing_service.go:654-663 bringt das Jahresergebnis mit dem Vortrag auf 2970 oder 2978 (internal/domain/skr04_accounts.go:69-77); gesteuert wird das nicht: einen Ergebnisverwendungsbeschluss gibt es als Objekt nicht, das Ergebnis geht immer unverwendet in den Vortrag | 1 |
 
-**Stand.** Die Lücke, die den Jahreslauf blockiert. `AccountLedger.OpeningBalance` steht hart auf 0 (internal/service/accounting_service.go:230), ein Bestandskonto zeigt im zweiten Jahr nur die Bewegung dieses Jahres. Welle 1.
+**Stand.** Der Jahreslauf ist nicht mehr blockiert: der Vortrag bringt Bestandskonten, offene Posten und Jahresergebnis ins Folgejahr, ist wiederholbar und wird abgelehnt, wenn er nicht aufgeht. Zwei Ränder bleiben: die Ergebnisverwendung ist nicht beschlossen, sondern unterstellt, und `AccountLedger.OpeningBalance` steht im Kontoblatt weiterhin hart auf 0 (internal/service/accounting_service.go:230): der Vortrag erscheint dort als erste Buchung des Jahres statt als Anfangsbestand. Welle 1.
 
 ---
 
@@ -1438,17 +1438,17 @@ Gezählt werden Akzeptanzkriterien, nicht Anforderungen. 82 Anforderungen zerfal
 
 | Modul | Anforderungen | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
 |---|---|---|---|---|---|---|
-| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 4 | 13 | 5 | 0 | 22 |
+| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 7 | 10 | 5 | 0 | 22 |
 | B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 11 | 14 | 6 | 4 | 35 |
 | C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 4 | 8 | 6 | 4 | 22 |
 | D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 8 | 4 | 16 | 3 | 31 |
 | E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 7 | 17 | 14 | 5 | 43 |
 | F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 1 | 5 | 23 | 13 | 42 |
-| G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 9 | 16 | 20 | 18 | 63 |
-| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 0 | 6 | 35 | 3 | 44 |
+| G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 10 | 16 | 19 | 18 | 63 |
+| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 7 | 6 | 28 | 3 | 44 |
 | I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 0 | 4 | 13 | 6 | 23 |
 | J. Querschnitt | QUE-01 bis QUE-06 | 4 | 5 | 14 | 1 | 24 |
-| **Summe** | **82** | **48** | **92** | **152** | **57** | **349** |
+| **Summe** | **82** | **59** | **89** | **144** | **57** | **349** |
 
 Das Bild ist eindeutig: der laufende Buchungsstoff steht (Module A bis C), die Jahresabschlusskette und das Meldewesen stehen nicht (Module F und H). Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
 
