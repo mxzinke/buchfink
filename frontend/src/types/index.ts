@@ -1204,3 +1204,153 @@ export interface Anlagenspiegel {
   totals: AnlagenspiegelRow;
   classTotals: AnlagenspiegelRow[];
 }
+
+// -------------------------------------------------------------
+// Gründung: von der Beurkundung bis zur Eintragung
+// -------------------------------------------------------------
+
+/** Die Phase der Gründung. Sie folgt aus dem Eintragungsdatum, nicht umgekehrt. */
+export type FoundationStage = 'vorgesellschaft' | 'eingetragen';
+
+/** Bar- oder Sacheinlage. Der Unterschied entscheidet über die Mindesteinzahlung. */
+export type ContributionKind = 'cash' | 'kind';
+
+/** Ein Gesellschafter und der Geschäftsanteil, den er übernommen hat. */
+export interface Shareholder {
+  id: number;
+  foundationId: number;
+  name: string;
+  /** Nennbetrag des übernommenen Geschäftsanteils. */
+  shareCapital: Cents;
+  /** Was darauf tatsächlich geleistet wurde. */
+  paidIn: Cents;
+  kind: ContributionKind;
+}
+
+export interface Foundation {
+  id: number;
+  /** Tag der notariellen Beurkundung. Mit ihm entsteht die Vorgesellschaft. */
+  notarizedOn: string;
+  /** Tag der Eintragung. Leer heißt: noch Vorgesellschaft. */
+  registeredOn: string;
+  registerCourt: string;
+  registerNumber: string;
+  shareCapital: Cents;
+  /**
+   * Gründungsaufwand laut Gesellschaftsvertrag. Er begrenzt die
+   * Vorbelastungshaftung: was die Satzung der Gesellschaft auferlegt, ist
+   * zulässig von ihr getragen.
+   */
+  foundationCostCap: Cents;
+  shareholders: Shareholder[];
+}
+
+/** Was eine Rechtsform vor der Anmeldung verlangt. */
+export interface FoundationRules {
+  legalForm: string;
+  minShareCapital: Cents;
+  paidInPerShareQuota: number;
+  paidInFloor: Cents;
+  paidInFloorIsFullCapital: boolean;
+  cashOnly: boolean;
+  legalReserve: boolean;
+  reference: string;
+  note: string;
+}
+
+/** Der Anteil eines Gesellschafters an der Unterbilanzhaftung. */
+export interface UnterbilanzShare {
+  shareholderId: number;
+  name: string;
+  shareCapital: Cents;
+  amount: Cents;
+}
+
+/**
+ * Die Vorbelastungsrechnung: was die Gesellschafter der Gesellschaft schulden,
+ * weil ihr Reinvermögen hinter dem Stammkapital zurückbleibt.
+ */
+export interface Unterbilanz {
+  asOf: string;
+  /** Erst ab der Eintragung steht die Zahl endgültig fest. */
+  isFinal: boolean;
+  shareCapital: Cents;
+  assets: Cents;
+  liabilities: Cents;
+  netAssets: Cents;
+  /** Rohe Unterdeckung, davon durch die Satzungsklausel gedeckt, und der Rest. */
+  shortfall: Cents;
+  covered: Cents;
+  amount: Cents;
+  shares: UnterbilanzShare[];
+}
+
+export interface ShareholderCheck {
+  shareholderId: number;
+  name: string;
+  kind: ContributionKind;
+  shareCapital: Cents;
+  requiredPaidIn: Cents;
+  paidIn: Cents;
+  isSatisfied: boolean;
+}
+
+/** Reicht die geleistete Einlage für die Anmeldung zum Handelsregister? */
+export interface AnmeldungCheck {
+  legalForm: string;
+  minShareCapital: Cents;
+  shareCapital: Cents;
+  requiredPaidIn: Cents;
+  actualPaidIn: Cents;
+  isSatisfied: boolean;
+  /** Was fehlt, je Befund ein Satz mit Fundstelle. Leer heißt: es passt. */
+  findings: string[];
+  reference: string;
+  shareholders: ShareholderCheck[];
+}
+
+/** Eine Pflicht aus der Gründung, mit Frist und Erledigung. */
+export interface FoundationDuty {
+  key: string;
+  title: string;
+  /** Leer, wo das Gesetz „unverzüglich" sagt statt einer Tagesfrist. */
+  dueDate: string;
+  deadline: string;
+  reference: string;
+  description: string;
+  doneOn: string;
+  isDone: boolean;
+}
+
+/** Ein Buchungsvorschlag der Gründung, vor der Freigabe. */
+export interface FoundationPosting {
+  title: string;
+  date: string;
+  description: string;
+  reference: string;
+  lines: JournalLine[];
+  amount: Cents;
+}
+
+export interface FoundationPostingPreview {
+  postings: FoundationPosting[];
+  total: Cents;
+  alreadyBooked: boolean;
+  /** Was nicht gebucht wird, und warum. */
+  skipped: string[];
+}
+
+/** Alles, was die Gründungsansicht braucht — in einem Aufruf. */
+export interface FoundationState {
+  /** Falsch, wenn die Rechtsform keine Kapitalgesellschaft ist. */
+  applies: boolean;
+  hasFoundation: boolean;
+  legalForm: string;
+  rules: FoundationRules;
+  foundation?: Foundation;
+  stage: FoundationStage;
+  anmeldung?: AnmeldungCheck;
+  unterbilanz?: Unterbilanz;
+  duties: FoundationDuty[];
+  postingsBooked: boolean;
+}

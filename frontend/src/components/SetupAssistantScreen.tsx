@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   Check,
   Database,
   FolderOpen,
+  Plus,
   PlusCircle,
   Scale,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
-import { CompanySettings } from '../types';
+import { CompanySettings, ContributionKind, FoundationRules } from '../types';
 import { Api } from '../services/api';
+import { formatCents, parseCents } from '../utils/formatters';
 import { GermanFlag } from './GermanFlag';
 import { HelpPopover, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
@@ -19,13 +22,6 @@ interface SetupAssistantScreenProps {
   onCancel?: () => void;
   isAdditionalTenant?: boolean;
 }
-
-const STEP_TITLES: Record<number, string> = {
-  1: 'Speicherort',
-  2: 'Verschlüsselung',
-  3: 'Unternehmen und Steuern',
-  4: 'Bankverbindung',
-};
 
 /**
  * Die Rechtsformen der Ersteinrichtung.
@@ -55,24 +51,51 @@ const LEGAL_FORMS = [
   'Sonstige',
 ];
 
-/** Feld auf der Schale. Gleiche Anordnung wie `Field`, dunkle Rollen (§16). */
+/** Eine Zeile der Gesellschafterliste, solange sie in der Maske steht. */
+interface ShareholderDraft {
+  name: string;
+  shareCapital: string;
+  paidIn: string;
+  kind: ContributionKind;
+}
+
+const emptyShareholder = (): ShareholderDraft => ({
+  name: '',
+  shareCapital: '',
+  paidIn: '',
+  kind: 'cash',
+});
+
+/**
+ * Feld auf der Schale. Gleiche Anordnung wie `Field`, dunkle Rollen (§16).
+ *
+ * `labelHidden` blendet die Beschriftung aus, ohne sie wegzulassen: In einer
+ * Liste gleichartiger Zeilen steht sie nur über der ersten, jede weitere braucht
+ * sie trotzdem — für die Vorlesesoftware und damit die Zeilen gleich hoch
+ * bleiben.
+ */
 const ShellField: React.FC<{
   label: string;
   hint?: string;
+  labelHidden?: boolean;
   className?: string;
   children: React.ReactNode;
-}> = ({ label, hint, className, children }) => (
+}> = ({ label, hint, labelHidden = false, className, children }) => (
   <label className={cn('flex flex-col gap-1 min-w-0', className)}>
-    <span className="text-label text-shell-text-muted">{label}</span>
+    <span className={cn('text-label text-shell-text-muted', labelHidden && 'sr-only')}>{label}</span>
     {children}
     {hint && <span className="text-caption text-shell-text-muted">{hint}</span>}
   </label>
 );
 
 /**
- * Der Einrichtungsassistent. Vier Schritte, je einer pro Entscheidung, und auf
- * jedem Schirm genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und
- * steht deshalb auf dunklem Grund.
+ * Der Einrichtungsassistent. Je Schritt eine Entscheidung, und auf jedem Schirm
+ * genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und steht deshalb
+ * auf dunklem Grund.
+ *
+ * Die Zahl der Schritte hängt an der Rechtsform: Nur eine Kapitalgesellschaft
+ * durchläuft eine Vorgesellschaft, und nur dort gibt es eine Unterbilanzhaftung,
+ * die Buchfink von Anfang an mitrechnen muss.
  */
 export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   onSetupCompleted,
@@ -81,7 +104,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 }) => {
   const currentYear = new Date().getFullYear();
   const [setupChoice, setSetupChoice] = useState<'new' | 'existing' | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState(1);
 
   const [dataDir, setDataDir] = useState('~/.buchfink/data');
   const [existingDbPath, setExistingDbPath] = useState('');
@@ -109,10 +132,52 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     investorOverride: '',
   });
 
+  /**
+   * Die Kapitalaufbringungsregeln kommen aus dem Backend, nicht aus einer
+   * zweiten Liste hier: Mindestkapital und Einzahlungsquote sind Recht, und
+   * Recht gehört an eine Stelle. Der Aufruf braucht keinen Mandanten — er liest
+   * einen Katalog, keine Datenbank. Bleibt er ohne Antwort, läuft die
+   * Einrichtung ohne Gründungsschritt weiter; ohne Backend ließe sie sich
+   * ohnehin nicht abschließen.
+   */
+  const [foundationRules, setFoundationRules] = useState<FoundationRules[]>([]);
+  useEffect(() => {
+    Api.getFoundationRules()
+      .then(setFoundationRules)
+      .catch(() => setFoundationRules([]));
+  }, []);
+
+  const rules = foundationRules.find((r) => r.legalForm === settings.legalForm) ?? null;
+  const isCapitalCompany = rules !== null;
+
+  const [isFoundingCase, setIsFoundingCase] = useState<boolean | null>(null);
+  const [notarizedOn, setNotarizedOn] = useState('');
+  const [registeredOn, setRegisteredOn] = useState('');
+  const [registerCourt, setRegisterCourt] = useState('');
+  const [registerNumber, setRegisterNumber] = useState('');
+  const [shareCapital, setShareCapital] = useState('');
+  const [foundationCostCap, setFoundationCostCap] = useState('');
+  const [shareholders, setShareholders] = useState<ShareholderDraft[]>([emptyShareholder()]);
+  const [vatReason, setVatReason] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
+
+  // Die Schritte des Neuanlage-Wegs. Der Gründungsschritt steht zwischen
+  // Stammdaten und Bankverbindung, weil er die Rechtsform aus dem Schritt davor
+  // braucht — und weil aus dem Beurkundungsdatum das Rumpfgeschäftsjahr folgt.
+  const stepTitles = [
+    'Speicherort',
+    'Verschlüsselung',
+    'Unternehmen und Steuern',
+    ...(isCapitalCompany ? ['Gründung'] : []),
+    'Bankverbindung',
+  ];
+  const stepCount = stepTitles.length;
+  const currentTitle = stepTitles[step - 1] ?? '';
+  const isFoundingStep = isCapitalCompany && step === 4;
 
   async function pickDataDirectory() {
     try {
@@ -132,6 +197,66 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     }
   }
 
+  /**
+   * Aus dem Beurkundungsdatum folgen zwei Angaben, die sonst zu raten wären:
+   * das Rumpfgeschäftsjahr und der Voranmeldungszeitraum. Den zweiten
+   * beantwortet das Backend, weil § 18 Abs. 2 UStG dafür ein Stichjahr hat.
+   */
+  async function applyFoundingDate(date: string) {
+    setNotarizedOn(date);
+    if (date.length !== 10) return;
+    const year = Number(date.slice(0, 4));
+    if (!Number.isFinite(year) || year < 1900) return;
+
+    setSettings((prev) => ({ ...prev, fiscalYear: year }));
+    try {
+      const recommendation = await Api.getRecommendedVatPeriod(year);
+      setSettings((prev) => ({
+        ...prev,
+        fiscalYear: year,
+        vatPeriod: recommendation.period as CompanySettings['vatPeriod'],
+      }));
+      setVatReason(recommendation.reason);
+    } catch {
+      // Ohne Antwort bleibt die Auswahl aus Schritt 3 stehen.
+    }
+  }
+
+  const subscribedCapital = shareholders.reduce(
+    (sum, s) => sum + (parseCents(s.shareCapital) ?? 0),
+    0
+  );
+  const capitalTarget = parseCents(shareCapital) ?? 0;
+  const paidInTotal = shareholders.reduce((sum, s) => sum + (parseCents(s.paidIn) ?? 0), 0);
+
+  /**
+   * Was die Anmeldung verlangt, gerechnet wie im Backend: ein Anteil je
+   * Geschäftsanteil, eine Untergrenze für die Summe. Hier steht es nur, um es
+   * schon während der Eingabe zu zeigen — verbindlich prüft der Dienst.
+   */
+  const requiredPaidIn = (() => {
+    if (!rules) return 0;
+    const perShare = shareholders.reduce((sum, s) => {
+      const share = parseCents(s.shareCapital) ?? 0;
+      if (s.kind === 'kind') return sum + share;
+      return sum + Math.ceil(share * rules.paidInPerShareQuota);
+    }, 0);
+    const floor = rules.paidInFloorIsFullCapital ? capitalTarget : rules.paidInFloor;
+    return Math.max(perShare, floor);
+  })();
+
+  const capitalMatches = capitalTarget > 0 && subscribedCapital === capitalTarget;
+  const foundingComplete =
+    isFoundingCase === false ||
+    (isFoundingCase === true &&
+      notarizedOn.length === 10 &&
+      capitalMatches &&
+      shareholders.every((s) => s.name.trim() !== '' && (parseCents(s.shareCapital) ?? 0) > 0));
+
+  function patchShareholder(index: number, next: Partial<ShareholderDraft>) {
+    setShareholders((prev) => prev.map((s, i) => (i === index ? { ...s, ...next } : s)));
+  }
+
   async function finish() {
     setSubmitting(true);
     setError(null);
@@ -140,6 +265,27 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       // Betriebssystems. Der Recovery-Schlüssel wird danach in den
       // Einstellungen exportiert.
       await Api.setupApplication(dataDir, settings);
+
+      // Die Gründung erst danach: sie gehört in die Datenbank des Mandanten,
+      // den der Aufruf oben gerade angelegt hat.
+      if (isCapitalCompany && isFoundingCase && notarizedOn.length === 10) {
+        await Api.saveFoundation({
+          notarizedOn,
+          registeredOn: registeredOn.length === 10 ? registeredOn : '',
+          registerCourt: registerCourt.trim(),
+          registerNumber: registerNumber.trim(),
+          shareCapital: capitalTarget,
+          foundationCostCap: parseCents(foundationCostCap) ?? 0,
+          shareholders: shareholders.map((s) => ({
+            id: 0,
+            foundationId: 0,
+            name: s.name.trim(),
+            shareCapital: parseCents(s.shareCapital) ?? 0,
+            paidIn: parseCents(s.paidIn) ?? 0,
+            kind: s.kind,
+          })),
+        });
+      }
       onSetupCompleted();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -268,17 +414,21 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
               <div className="flex items-end justify-between gap-4 pb-4 border-b border-shell-line">
                 <div>
                   <span className="text-overline uppercase text-accent-light">
-                    Schritt {step} von 4
+                    Schritt {step} von {stepCount}
                   </span>
-                  <h2 className="text-heading text-white mt-1">{STEP_TITLES[step]}</h2>
+                  <h2 className="text-heading text-white mt-1">{currentTitle}</h2>
                 </div>
                 <div className="flex items-center gap-1.5 pb-1" aria-hidden="true">
-                  {[1, 2, 3, 4].map((s) => (
+                  {stepTitles.map((title, index) => (
                     <span
-                      key={s}
+                      key={title}
                       className={cn(
                         'h-0.5 rounded-full transition-all duration-180 ease-quiet',
-                        step === s ? 'w-6 bg-accent-light' : s < step ? 'w-2 bg-accent' : 'w-2 bg-shell-line',
+                        step === index + 1
+                          ? 'w-6 bg-accent-light'
+                          : index + 1 < step
+                            ? 'w-2 bg-accent'
+                            : 'w-2 bg-shell-line'
                       )}
                     />
                   ))}
@@ -396,10 +546,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       </ShellField>
                     </div>
 
-                    <ShellField
-                      label="USt-Voranmeldezeitraum"
-                      hint="Vierteljährlich ist der Regelfall, monatlich gilt bei Neugründung."
-                    >
+                    <ShellField label="USt-Voranmeldezeitraum">
                       <select
                         value={settings.vatPeriod || 'quarter'}
                         onChange={(e) =>
@@ -427,7 +574,300 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   </div>
                 )}
 
-                {step === 4 && (
+                {isFoundingStep && (
+                  <div className="flex flex-col gap-4">
+                    {isFoundingCase === null ? (
+                      <>
+                        <p className="flex items-center text-body text-shell-text-muted">
+                          Wo steht die {settings.legalForm} heute?
+                          <HelpPopover
+                            label="Erklärung zur Vorgesellschaft"
+                            className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                          >
+                            Zwischen der notariellen Beurkundung und der Eintragung besteht die
+                            Vorgesellschaft. Sie ist bereits buchführungspflichtig, die
+                            Haftungsbeschränkung greift aber noch nicht: Wer in ihrem Namen handelt,
+                            haftet persönlich (§ 11 Abs. 2 GmbHG), und bleibt das Reinvermögen am
+                            Tag der Eintragung hinter dem Stammkapital zurück, schulden die
+                            Gesellschafter die Differenz.
+                          </HelpPopover>
+                        </p>
+
+                        <div className="divide-y divide-shell-line border-t border-shell-line">
+                          <button
+                            type="button"
+                            onClick={() => setIsFoundingCase(true)}
+                            className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
+                          >
+                            <Scale className="w-5 h-5 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-body text-white">
+                                Gerade gegründet oder in Gründung
+                              </span>
+                              <span className="block text-caption text-shell-text-muted mt-0.5">
+                                Buchfink führt die Fristen und rechnet die Unterbilanz mit.
+                              </span>
+                            </span>
+                            <ArrowRight
+                              className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
+                                         duration-120 ease-quiet group-hover:translate-x-0.5"
+                              strokeWidth={1.5}
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsFoundingCase(false)}
+                            className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
+                          >
+                            <Check className="w-5 h-5 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-body text-white">
+                                Länger im Handelsregister eingetragen
+                              </span>
+                              <span className="block text-caption text-shell-text-muted mt-0.5">
+                                Kein Gründungsfall, dieser Schritt entfällt.
+                              </span>
+                            </span>
+                            <ArrowRight
+                              className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
+                                         duration-120 ease-quiet group-hover:translate-x-0.5"
+                              strokeWidth={1.5}
+                            />
+                          </button>
+                        </div>
+                      </>
+                    ) : isFoundingCase === false ? (
+                      <p className="text-body text-shell-text-muted">
+                        Kein Gründungsfall. Der Gründungsabschnitt der Steuerfristen bleibt leer.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <ShellField
+                            label="Beurkundung des Gesellschaftsvertrags"
+                            hint="Setzt Geschäftsjahr und Fristen"
+                          >
+                            <input
+                              type="date"
+                              value={notarizedOn}
+                              onChange={(e) => void applyFoundingDate(e.target.value)}
+                              className={cn(SHELL_CONTROL, 'num')}
+                            />
+                          </ShellField>
+                          <ShellField
+                            label={`${rules?.legalForm === 'AG' ? 'Grundkapital' : 'Stammkapital'} laut Satzung`}
+                            hint={`Mindestens ${formatCents(rules?.minShareCapital ?? 0)}`}
+                          >
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder={formatCents(rules?.minShareCapital ?? 0)}
+                              value={shareCapital}
+                              onChange={(e) => setShareCapital(e.target.value)}
+                              className={cn(SHELL_CONTROL, 'num')}
+                            />
+                          </ShellField>
+                        </div>
+
+                        {vatReason && (
+                          <p className="flex items-center text-caption text-shell-text-muted">
+                            Voranmeldung{' '}
+                            {settings.vatPeriod === 'month' ? 'monatlich' : 'vierteljährlich'}
+                            <HelpPopover
+                              label="Erklärung zum Voranmeldezeitraum bei Neugründung"
+                              className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                            >
+                              {vatReason}
+                            </HelpPopover>
+                          </p>
+                        )}
+
+                        <div>
+                          <div className="flex items-center justify-between gap-4 pb-2 border-b border-shell-line">
+                            <span className="flex items-center text-label text-shell-text-muted">
+                              Gesellschafter
+                              <HelpPopover
+                                label="Erklärung zu den Geschäftsanteilen"
+                                className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                              >
+                                Die Summe der übernommenen Geschäftsanteile muss dem Stammkapital
+                                entsprechen (§ 5 Abs. 3 Satz 2 GmbHG). Nach ihr richtet sich später
+                                auch, wer welchen Teil einer Unterbilanz trägt.
+                              </HelpPopover>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShareholders((prev) => [...prev, emptyShareholder()])}
+                              className={cn(SHELL_BUTTON.quiet, 'h-8 px-2')}
+                            >
+                              <Plus className="w-4 h-4" strokeWidth={1.5} />
+                              Gesellschafter hinzufügen
+                            </button>
+                          </div>
+
+                          <ul className="divide-y divide-shell-line">
+                            {shareholders.map((holder, index) => (
+                              <li key={index} className="flex items-end gap-2 py-3">
+                                <ShellField label="Name" labelHidden={index > 0} className="flex-1">
+                                  <input
+                                    type="text"
+                                    placeholder="Anna Bauer"
+                                    value={holder.name}
+                                    onChange={(e) => patchShareholder(index, { name: e.target.value })}
+                                    className={SHELL_CONTROL}
+                                  />
+                                </ShellField>
+                                <ShellField label="Übernommener Anteil" labelHidden={index > 0} className="w-32">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="15.000,00"
+                                    value={holder.shareCapital}
+                                    onChange={(e) =>
+                                      patchShareholder(index, { shareCapital: e.target.value })
+                                    }
+                                    className={cn(SHELL_CONTROL, 'num')}
+                                  />
+                                </ShellField>
+                                <ShellField label="Geleistet" labelHidden={index > 0} className="w-32">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="7.500,00"
+                                    value={holder.paidIn}
+                                    onChange={(e) => patchShareholder(index, { paidIn: e.target.value })}
+                                    className={cn(SHELL_CONTROL, 'num')}
+                                  />
+                                </ShellField>
+                                {!rules?.cashOnly && (
+                                  <ShellField label="Art der Einlage" labelHidden={index > 0} className="w-32">
+                                    <select
+                                      value={holder.kind}
+                                      onChange={(e) =>
+                                        patchShareholder(index, {
+                                          kind: e.target.value as ContributionKind,
+                                        })
+                                      }
+                                      className={SHELL_CONTROL}
+                                    >
+                                      <option value="cash">Bar</option>
+                                      <option value="kind">Sache</option>
+                                    </select>
+                                  </ShellField>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={shareholders.length === 1}
+                                  onClick={() =>
+                                    setShareholders((prev) => prev.filter((_, i) => i !== index))
+                                  }
+                                  title="Gesellschafter entfernen"
+                                  aria-label={`${holder.name || `Gesellschafter ${index + 1}`} entfernen`}
+                                  className={cn(SHELL_BUTTON.quiet, 'h-9 w-9 px-0 shrink-0')}
+                                >
+                                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+
+                          <dl className="flex flex-wrap gap-x-6 gap-y-1 pt-3 border-t border-shell-line">
+                            <span className="flex items-baseline gap-2">
+                              <dt className="text-caption text-shell-text-muted">Übernommen</dt>
+                              <dd
+                                className={cn(
+                                  'text-body num',
+                                  capitalTarget > 0 && !capitalMatches
+                                    ? 'text-shell-negative'
+                                    : 'text-shell-text'
+                                )}
+                              >
+                                {formatCents(subscribedCapital)}
+                              </dd>
+                            </span>
+                            <span className="flex items-baseline gap-2">
+                              <dt className="text-caption text-shell-text-muted">Geleistet</dt>
+                              <dd className="text-body num text-shell-text">
+                                {formatCents(paidInTotal)}
+                              </dd>
+                            </span>
+                            <span className="flex items-baseline gap-2">
+                              <dt className="text-caption text-shell-text-muted">
+                                Vor der Anmeldung nötig
+                              </dt>
+                              <dd
+                                className={cn(
+                                  'text-body num',
+                                  paidInTotal >= requiredPaidIn && requiredPaidIn > 0
+                                    ? 'text-shell-positive'
+                                    : 'text-shell-text'
+                                )}
+                              >
+                                {formatCents(requiredPaidIn)}
+                              </dd>
+                            </span>
+                          </dl>
+                          {capitalTarget > 0 && !capitalMatches && (
+                            <p className="mt-2 text-caption text-shell-negative">
+                              Die Anteile ergeben {formatCents(subscribedCapital)}, das Kapital
+                              beträgt {formatCents(capitalTarget)}.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <ShellField
+                            label="Gründungsaufwand laut Satzung · optional"
+                            hint="Begrenzt die Unterbilanzhaftung"
+                          >
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="2.500,00"
+                              value={foundationCostCap}
+                              onChange={(e) => setFoundationCostCap(e.target.value)}
+                              className={cn(SHELL_CONTROL, 'num')}
+                            />
+                          </ShellField>
+                          <ShellField label="Eintragung im Handelsregister · falls schon erfolgt">
+                            <input
+                              type="date"
+                              value={registeredOn}
+                              onChange={(e) => setRegisteredOn(e.target.value)}
+                              className={cn(SHELL_CONTROL, 'num')}
+                            />
+                          </ShellField>
+                        </div>
+
+                        {registeredOn.length === 10 && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <ShellField label="Registergericht">
+                              <input
+                                type="text"
+                                placeholder="Amtsgericht München"
+                                value={registerCourt}
+                                onChange={(e) => setRegisterCourt(e.target.value)}
+                                className={SHELL_CONTROL}
+                              />
+                            </ShellField>
+                            <ShellField label="Registernummer">
+                              <input
+                                type="text"
+                                placeholder="HRB 123456"
+                                value={registerNumber}
+                                onChange={(e) => setRegisterNumber(e.target.value)}
+                                className={cn(SHELL_CONTROL, 'code-num')}
+                              />
+                            </ShellField>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {step === stepCount && (
                   <div className="flex flex-col gap-4">
                     <ShellField
                       label="IBAN des Geschäftskontos"
@@ -461,18 +901,28 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
               <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
                 <button
                   type="button"
-                  onClick={() => (step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : setSetupChoice(null))}
+                  onClick={() => {
+                    if (isFoundingStep && isFoundingCase !== null) {
+                      setIsFoundingCase(null);
+                      return;
+                    }
+                    if (step > 1) setStep(step - 1);
+                    else setSetupChoice(null);
+                  }}
                   className={SHELL_BUTTON.quiet}
                 >
                   <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
                   Zurück
                 </button>
 
-                {step < 4 ? (
+                {step < stepCount ? (
                   <button
                     type="button"
-                    disabled={step === 3 && !settings.companyName.trim()}
-                    onClick={() => setStep((s) => (s + 1) as 2 | 3 | 4)}
+                    disabled={
+                      (step === 3 && !settings.companyName.trim()) ||
+                      (isFoundingStep && !foundingComplete)
+                    }
+                    onClick={() => setStep(step + 1)}
                     className={SHELL_BUTTON.primary}
                   >
                     Weiter

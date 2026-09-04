@@ -40,7 +40,7 @@
 
 ### 🎯 Zielgruppe & Voraussetzungen
 Buchfink ist speziell für Unternehmen konzipiert, die zur **doppelten Buchführung und Bilanzierung** (Erstellung von Bilanz, Gewinn- und Verlustrechnung sowie E-Bilanz) verpflichtet sind oder freiwillig bilanzieren:
-- **Kapitalgesellschaften:** z. B. UG (haftungsbeschränkt), GmbH, AG
+- **Kapitalgesellschaften:** z. B. UG (haftungsbeschränkt), GmbH, AG – auch schon in Gründung, von der Beurkundung bis zur Eintragung
 - **Personenhandelsgesellschaften:** z. B. GmbH & Co. KG, KG, OHG
 - **Bilanzierende Einzelunternehmen & Kaufleute (e.K.)**
 
@@ -103,7 +103,12 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Live-Prüfung der Hash-Chain in der Oberfläche.
    - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf.
    - Änderungsprotokoll über Buchungen, Belege und Stammdaten.
-12. **Mandanten & Verschlüsselung**
+12. **Gründung einer Kapitalgesellschaft**
+   - Erfassung im Einrichtungsassistenten: Beurkundungsdatum, Stammkapital, Gesellschafter und der Gründungsaufwand laut Satzung. Aus dem Beurkundungsdatum folgen Rumpfgeschäftsjahr und Voranmeldungszeitraum.
+   - Prüfung der Kapitalaufbringung vor der Anmeldung zum Handelsregister: Viertelregel je Geschäftsanteil und Untergrenze nach § 7 Abs. 2 GmbHG, Volleinzahlung und Sacheinlageverbot der UG nach § 5a Abs. 2 GmbHG, § 36a AktG bei der AG.
+   - **Unterbilanzhaftung**: laufende Rechnung, um wie viel das Reinvermögen hinter dem Stammkapital zurückbleibt, aufgeteilt auf die Gesellschafter. Mit der Eintragung steht sie fest.
+   - Gründungsbuchungen als Vorschlag mit Vorschau, und die Fristen der Gründung von der Gewerbeanmeldung bis zum Transparenzregister. Einzelheiten in [docs/anforderung-gruendung.md](./docs/anforderung-gruendung.md).
+13. **Mandanten & Verschlüsselung**
    - Mehrere Unternehmen nebeneinander, je eigener Datenordner und eigener Schlüssel.
    - Felder mit personenbezogenem oder geschäftlichem Inhalt liegen mit AES-256-GCM verschlüsselt in der Datenbank, dazu eine Wiederherstellungsdatei für den Fall eines verlorenen Schlüsselbunds. Siehe [docs/security-concept.md](./docs/security-concept.md).
 

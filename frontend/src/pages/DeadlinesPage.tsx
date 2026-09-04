@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { CompanySettings, Festschreibung } from '../types';
+import { CompanySettings, Festschreibung, FoundationState } from '../types';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
+import { FoundationDutyResetDialog, FoundationSection } from '../components/FoundationSection';
 import {
   Button,
   Checkbox,
@@ -36,6 +37,7 @@ import {
 
 /** Die Kategorie steht als Wort, nicht als Farbe (§3.4). */
 const CATEGORY_LABELS: Record<DeadlineItem['category'], string> = {
+  gruendung: 'Gründung',
   ust: 'Umsatzsteuer',
   income: 'Ertragsteuer',
   trade: 'Gewerbesteuer',
@@ -53,11 +55,21 @@ interface CommittablePeriod {
 interface DeadlineItem {
   id: string;
   title: string;
-  category: 'ust' | 'income' | 'trade' | 'annual';
-  dueDate: string; // YYYY-MM-DD
-  quarter: 1 | 2 | 3 | 4 | 5; // 1-4: Quarters, 5: Annual/Abschluss
+  category: 'gruendung' | 'ust' | 'income' | 'trade' | 'annual';
+  dueDate: string; // YYYY-MM-DD; bei „unverzüglich" leer
+  quarter: 0 | 1 | 2 | 3 | 4 | 5; // 0: Gründung, 1-4: Quartale, 5: Jahresabschluss
   description: string;
   isImportant?: boolean;
+  /**
+   * Bei einer Gründungspflicht steht hier ihr Schlüssel. Sie wird dann nicht im
+   * `localStorage` abgehakt, sondern mit Datum in der Datenbank quittiert: dass
+   * der Fragebogen übermittelt wurde, ist eine Tatsache über das Unternehmen
+   * und keine Merkhilfe.
+   */
+  dutyKey?: string;
+  /** Der Wortlaut, wo das Gesetz keine Tagesfrist nennt. */
+  deadlineText?: string;
+  doneOn?: string;
 }
 
 export const DeadlinesPage: React.FC = () => {
@@ -66,6 +78,8 @@ export const DeadlinesPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'overdue' | 'done'>('all');
   const [festschreibungen, setFestschreibungen] = useState<Festschreibung[]>([]);
   const [committingCutoff, setCommittingCutoff] = useState<string | null>(null);
+  const [foundation, setFoundation] = useState<FoundationState | null>(null);
+  const [resettingDuty, setResettingDuty] = useState<DeadlineItem | null>(null);
 
   const currentYear = settings?.fiscalYear || new Date().getFullYear();
 
@@ -87,8 +101,38 @@ export const DeadlinesPage: React.FC = () => {
         console.error(e);
       }
       setFestschreibungen(await Api.getFestschreibungen());
+      setFoundation(await Api.getFoundationState());
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  /**
+   * Eine Gründungspflicht wird mit ihrem Datum quittiert, nicht mit einem Haken.
+   * Zurückgenommen wird sie über die Rückfrage — ein Klick, der ein Datum
+   * löscht, gehört nicht in eine Tabellenzeile.
+   */
+  const toggleDuty = async (item: DeadlineItem) => {
+    if (!item.dutyKey) return;
+    if (item.doneOn) {
+      setResettingDuty(item);
+      return;
+    }
+    try {
+      await Api.completeFoundationDuty(item.dutyKey, new Date().toISOString().slice(0, 10));
+      setFoundation(await Api.getFoundationState());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const resetDuty = async (item: DeadlineItem) => {
+    if (!item.dutyKey) return;
+    try {
+      await Api.completeFoundationDuty(item.dutyKey, '');
+      setFoundation(await Api.getFoundationState());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -456,7 +500,34 @@ export const DeadlinesPage: React.FC = () => {
     return list.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   };
 
-  const allDeadlines = generateDeadlines();
+  /**
+   * Die Pflichten aus der Gründung, als Termine derselben Liste.
+   *
+   * Sie stehen in einem eigenen Abschnitt vor dem ersten Quartal und tragen ihr
+   * Erledigungsdatum statt eines Hakens. Fristen ohne Tagesangabe — das Gesetz
+   * sagt dort „unverzüglich" — bekommen keine erfundene: sie sortieren ans Ende
+   * ihres Abschnitts und nennen den Wortlaut.
+   */
+  const foundationDeadlines = (): DeadlineItem[] =>
+    (foundation?.duties ?? []).map((duty) => ({
+      id: `gruendung_${duty.key}`,
+      title: duty.title,
+      category: 'gruendung' as const,
+      dueDate: duty.dueDate,
+      quarter: 0 as const,
+      description: `${duty.description} Frist: ${duty.deadline} (${duty.reference}).`,
+      isImportant: true,
+      dutyKey: duty.key,
+      deadlineText: duty.deadline,
+      doneOn: duty.doneOn,
+    })).sort((a, b) => {
+      if (a.dueDate === b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+  const allDeadlines = [...foundationDeadlines(), ...generateDeadlines()];
   const [confirming, setConfirming] = useState<CommittablePeriod | null>(null);
 
   const today = new Date();
@@ -469,33 +540,39 @@ export const DeadlinesPage: React.FC = () => {
     return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const statusOf = (dueDate: string, done: boolean) => {
-    if (done) return 'done';
-    const diff = daysUntil(dueDate);
+  /**
+   * Erledigt ist eine Gründungspflicht, wenn ihr Datum in der Datenbank steht;
+   * ein gewöhnlicher Steuertermin, wenn der Haken im `localStorage` liegt.
+   */
+  const isDone = (item: DeadlineItem) =>
+    item.dutyKey ? Boolean(item.doneOn) : completedDeadlines.includes(item.id);
+
+  const statusOf = (item: DeadlineItem) => {
+    if (isDone(item)) return 'done';
+    // Ohne Tagesfrist gibt es kein Überfällig — „unverzüglich" lässt sich nicht
+    // in Tagen messen.
+    if (!item.dueDate) return 'open';
+    const diff = daysUntil(item.dueDate);
     if (diff < 0) return 'overdue';
     if (diff <= 30) return 'upcoming';
     return 'open';
   };
 
-  const doneCount = allDeadlines.filter((d) => completedDeadlines.includes(d.id)).length;
+  const doneCount = allDeadlines.filter(isDone).length;
   const openCount = allDeadlines.length - doneCount;
-  const overdueCount = allDeadlines.filter(
-    (d) => statusOf(d.dueDate, completedDeadlines.includes(d.id)) === 'overdue',
-  ).length;
-  const upcomingCount = allDeadlines.filter(
-    (d) => statusOf(d.dueDate, completedDeadlines.includes(d.id)) === 'upcoming',
-  ).length;
+  const overdueCount = allDeadlines.filter((d) => statusOf(d) === 'overdue').length;
+  const upcomingCount = allDeadlines.filter((d) => statusOf(d) === 'upcoming').length;
 
   const filtered = allDeadlines.filter((item) => {
-    const done = completedDeadlines.includes(item.id);
-    const status = statusOf(item.dueDate, done);
-    if (activeFilter === 'open' && done) return false;
+    const status = statusOf(item);
+    if (activeFilter === 'open' && status === 'done') return false;
     if (activeFilter === 'overdue' && status !== 'overdue') return false;
-    if (activeFilter === 'done' && !done) return false;
+    if (activeFilter === 'done' && status !== 'done') return false;
     return true;
   });
 
   const sections: { key: number; title: string }[] = [
+    { key: 0, title: 'Gründung und Anmeldung' },
     { key: 1, title: `1. Quartal ${currentYear} · Januar bis März` },
     { key: 2, title: `2. Quartal ${currentYear} · April bis Juni` },
     { key: 3, title: `3. Quartal ${currentYear} · Juli bis September` },
@@ -537,6 +614,10 @@ export const DeadlinesPage: React.FC = () => {
           <Stat label="Erledigt" value={String(doneCount)} context={`${openCount} noch offen`} />
         </StatRow>
       </div>
+
+      {foundation?.applies && foundation.hasFoundation && foundation.stage === 'vorgesellschaft' && (
+        <FoundationSection state={foundation} onChanged={loadSettings} />
+      )}
 
       <Section
         title="Zeiträume festschreiben"
@@ -638,15 +719,17 @@ export const DeadlinesPage: React.FC = () => {
                       </Td>
                     </Tr>
                     {items.map((item) => {
-                      const done = completedDeadlines.includes(item.id);
-                      const diff = daysUntil(item.dueDate);
-                      const overdue = !done && diff < 0;
+                      const status = statusOf(item);
+                      const done = status === 'done';
+                      const diff = item.dueDate ? daysUntil(item.dueDate) : null;
                       return (
                         <Tr key={item.id}>
                           <Td className="pr-0">
                             <Checkbox
                               checked={done}
-                              onCheckedChange={() => toggleDeadline(item.id)}
+                              onCheckedChange={() =>
+                                item.dutyKey ? void toggleDuty(item) : toggleDeadline(item.id)
+                              }
                               label={
                                 <span className="sr-only">
                                   {done ? 'Als offen markieren' : 'Als erledigt abhaken'}
@@ -656,7 +739,16 @@ export const DeadlinesPage: React.FC = () => {
                           </Td>
                           <Td className="max-w-[30rem]">
                             <span className="flex items-center gap-1">
-                              <span className={cn('truncate', done && 'text-ink-subtle line-through')}>
+                              {/* Eine erledigte Gründungspflicht wird nicht
+                                  durchgestrichen: sie ist ein Vorgang mit Datum
+                                  und bleibt lesbar (§11.2). */}
+                              <span
+                                className={cn(
+                                  'truncate',
+                                  done && 'text-ink-subtle',
+                                  done && !item.dutyKey && 'line-through',
+                                )}
+                              >
                                 {item.title}
                               </span>
                               <HelpTooltip
@@ -669,11 +761,17 @@ export const DeadlinesPage: React.FC = () => {
                             </span>
                           </Td>
                           <Td className="text-ink-muted">{CATEGORY_LABELS[item.category]}</Td>
-                          <Td className="num text-ink-subtle">{formatDate(item.dueDate)}</Td>
+                          <Td className={cn(item.dueDate ? 'num text-ink-subtle' : 'text-ink-subtle')}>
+                            {item.dueDate ? formatDate(item.dueDate) : (item.deadlineText ?? '—')}
+                          </Td>
                           <Td>
                             {done ? (
-                              <span className="text-caption text-ink-subtle">Erledigt</span>
-                            ) : overdue ? (
+                              <span className="text-caption text-ink-subtle">
+                                {item.doneOn ? `Erledigt am ${formatDate(item.doneOn)}` : 'Erledigt'}
+                              </span>
+                            ) : diff === null ? (
+                              <span className="text-caption text-ink-subtle">Offen</span>
+                            ) : diff < 0 ? (
                               <span className="flex items-center gap-2">
                                 <StatusBadge status="ueberfaellig" />
                                 <span className="text-caption text-ink-subtle num">
@@ -700,6 +798,16 @@ export const DeadlinesPage: React.FC = () => {
           </Table>
         )}
       </Section>
+
+      <FoundationDutyResetDialog
+        title={resettingDuty?.title ?? null}
+        onOpenChange={(next) => !next && setResettingDuty(null)}
+        onConfirm={() => {
+          const item = resettingDuty;
+          setResettingDuty(null);
+          if (item) void resetDuty(item);
+        }}
+      />
 
       <ConfirmDialog
         open={confirming !== null}

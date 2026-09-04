@@ -50,6 +50,7 @@ type BuchfinkBridge struct {
 	auditRepo          domain.AuditRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
+	foundationRepo     domain.FoundationRepository
 
 	// Services
 	journalSvc    *service.JournalService
@@ -68,6 +69,7 @@ type BuchfinkBridge struct {
 	auditSvc      *service.AuditService
 	settingsSvc   *service.SettingsService
 	currencySvc   *service.CurrencyService
+	foundationSvc *service.FoundationService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -184,6 +186,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.allocationRepo = repository.NewPaymentAllocationRepository(db)
 	b.receiptRepo = repository.NewReceiptRepository(db)
 	b.assetRepo = repository.NewAssetRepository(db)
+	b.foundationRepo = repository.NewFoundationRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -242,6 +245,13 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
+	// Die Gründungsbegleitung liest das Journal und schreibt über den
+	// JournalService wie jeder andere Weg auch — eine Gründungsbuchung ist
+	// keine Buchung zweiter Klasse.
+	b.foundationSvc = service.NewFoundationService(
+		b.foundationRepo, b.accountRepo, b.journalRepo, b.settingsRepo,
+		b.journalSvc, b.auditRepo, fiscalYear,
+	)
 
 	b.appConfig.ActiveTenantID = t.ID
 	b.appConfig.DataDir = t.DataDir
@@ -655,6 +665,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.assetSvc != nil {
 		b.assetSvc.SetFiscalYear(year)
+	}
+	if b.foundationSvc != nil {
+		b.foundationSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
@@ -1346,4 +1359,92 @@ func (b *BuchfinkBridge) GetVatSummary(from, to string) (*domain.VatSummary, err
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.vatSvc.Summary(context.Background(), from, to)
+}
+
+// -------------------------------------------------------------
+// GRÜNDUNG (VORGESELLSCHAFT BIS EINTRAGUNG)
+// -------------------------------------------------------------
+
+// GetFoundationState returns everything the Gründungsansicht needs: die Regeln
+// der Rechtsform, die erfasste Gründung, den Anmeldungsbefund, die Unterbilanz
+// und die Fristen.
+//
+// Ein Aufruf, nicht fünf: die Teile hängen voneinander ab, und fünf Aufrufe
+// könnten einen Stand zeigen, den es so nie gab.
+func (b *BuchfinkBridge) GetFoundationState() (*service.FoundationState, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.GetState(context.Background())
+}
+
+// SaveFoundation records or updates the Gründung of the active tenant.
+func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.Save(context.Background(), &f)
+}
+
+// GetFoundationRules returns the Kapitalaufbringungsregeln of every legal form
+// the Gründungsweg covers. Der Einrichtungsassistent verzweigt daran, statt
+// Rechtsformnamen zu vergleichen.
+func (b *BuchfinkBridge) GetFoundationRules() []accounting.FoundationRules {
+	return accounting.FoundationLegalForms()
+}
+
+// GetRecommendedVatPeriod is the Voranmeldungszeitraum a company founded in this
+// year starts with, plus the reason. § 18 Abs. 2 UStG hat dafür ein Stichjahr,
+// deshalb kommt die Antwort aus dem Code und steht nicht als Satz in der Maske.
+func (b *BuchfinkBridge) GetRecommendedVatPeriod(foundingYear int) map[string]string {
+	return map[string]string{
+		"period": accounting.RecommendedVatPeriod(foundingYear),
+		"reason": accounting.VatPeriodReason(foundingYear),
+	}
+}
+
+// PreviewFoundationPostings shows the Gründungsbuchungen before they are written.
+func (b *BuchfinkBridge) PreviewFoundationPostings() (*service.FoundationPostingPreview, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.PreviewPostings(context.Background())
+}
+
+// BookFoundationPostings writes the released Gründungsbuchungen.
+func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.BookPostings(context.Background())
+}
+
+// RegisterCompany records the entry in the Handelsregister and ends the
+// Vorgesellschaft. Ab hier steht die Unterbilanz auf diesen Tag fest.
+func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Foundation, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.Register(context.Background(), date, court, number)
+}
+
+// CompleteFoundationDuty records a fulfilled Gründungspflicht with the day it
+// happened, or takes it back when the date is empty.
+func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.foundationSvc == nil {
+		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.CompleteDuty(context.Background(), key, doneOn, note)
 }
