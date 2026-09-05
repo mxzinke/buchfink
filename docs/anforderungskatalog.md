@@ -101,10 +101,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Jeder Geschäftsvorfall wird als Buchungssatz mit mindestens einer Soll- und einer Habenposition erfasst, Sollsumme gleich Habensumme | ✅ | internal/domain/journal.go:215-278, :208 (`IsBalanced`, ohne Toleranz) | – |
 | Ein Buchungssatz ohne Ausgleich lässt sich nicht speichern | ✅ | internal/service/journal_service.go:96, internal/domain/journal.go:266; `Post` ist der einzige Schreibweg | – |
-| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | 🟡 | internal/service/accounting_service.go:282-359 weist die Differenz exakt aus; die Bestandskonten tragen seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert, und :70-101 (`AccountsForYear`) beschafft seit Welle 2 die Salden jedes beliebigen Geschäftsjahres — ein Stichtagsparameter innerhalb des Jahres fehlt weiterhin, die Liste gilt für das ganze Geschäftsjahr | 2 |
+| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | ✅ | internal/service/accounting_service.go:326-330 (`GetSuSaOverviewAt`) baut die Liste aus den Verkehrszahlen bis zum Stichtag (:76-120, internal/repository/journal_gorm.go:274-293 `AccountTurnoversUntil`), statt das Jahr zu summieren und danach Zeilen auszublenden; die Differenz weist :389-400 exakt aus, die Bestandskonten tragen seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert. Der Stichtag steht als Feld an der Liste (frontend/src/pages/AccountsPage.tsx:171-177, :366) | – |
 | Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | ✅ | internal/accounting/statement.go:291-358 (`BuildStatement`) gliedert allein die Kontensalden und weist eine Bilanz ab, die nicht aufgeht (:354-356); die Eröffnungswerte kommen als gebuchter Saldenvortrag aus dem Vorjahr (internal/service/closing_service.go:1107-1175), nicht aus einer Nacherfassung | – |
 
-**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel trägt sie weiter: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Seit Welle 2 entsteht sie nicht mehr in der Ansicht, sondern im Backend, aus denselben Salden. Offen bleibt allein die Summen- und Saldenliste auf einen Stichtag innerhalb des Jahres. Welle 2.
+**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel trägt sie weiter: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Seit Welle 2 entsteht sie nicht mehr in der Ansicht, sondern im Backend, aus denselben Salden. Mit Welle 4 kommt der Stichtag dazu: die Summen- und Saldenliste lässt sich auf jeden Tag innerhalb des Jahres ziehen, und die Grenze liegt in der Abfrage. Alle vier Kriterien sind erfüllt.
 
 ### GOB-02 Nachvollziehbarkeit für einen sachverständigen Dritten `MUSS`
 
@@ -116,7 +116,7 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Drill-down von jedem Wert in Bilanz oder GuV in höchstens vier Schritten zum Buchungssatz und zum Beleg | 🟡 | frontend/src/components/StatementView.tsx:116, :450-471 verlinkt jedes Konto unter einer Gliederungsposition ins Kontoblatt, frontend/src/pages/AccountsPage.tsx:105-113 öffnet es, :531-544 führt von der Kontoblattzeile zur Buchung (frontend/src/pages/JournalPage.tsx:92-107, frontend/src/App.tsx:193-197): drei Schritte von der Bilanz zum Buchungssatz. Der vierte fehlt — das Journal nennt Belegdatum und Belegnummer als Text (:472-478) und verlinkt den Beleg nicht | 2 |
 | Drill-up vom Beleg zu den Buchungen und zu den Konten | 🟡 | internal/domain/receipt.go:152, internal/repository/receipt_gorm.go:56 tragen beide Richtungen im Datenmodell; die Oberfläche zeigt am versiegelten Beleg nicht einmal die Buchungsnummer | 2 |
-| Bezeichnungen im Klartext oder als exportierbares Schlüsselverzeichnis | 🟡 | internal/domain/tax.go:154, internal/accounting/chart.go:49 lösen alles im Klartext auf; ein Export als Datei existiert nirgends (siehe GOB-04) | 4 |
+| Bezeichnungen im Klartext oder als exportierbares Schlüsselverzeichnis | ✅ | internal/domain/tax.go:154, internal/accounting/chart.go:49 lösen alles im Klartext auf; seit Welle 4 geht dasselbe Verzeichnis auch als Datei hinaus und liegt jeder Datenüberlassung bei (internal/service/export_tables.go:530-714, internal/service/export_service.go:229-247, siehe GOB-04) | – |
 | Testlauf mit einer fachkundigen Person ohne Produktkenntnis | ❌ | Kein Nachweis eines solchen Durchlaufs im Repository; ohne Drill-down absehbar erfolglos | 2 |
 
 **Stand.** Seit Welle 2 führt der Weg von der Bilanzposition über das Konto ins Kontoblatt und von dort zur Buchung. Dort endet er: vom Buchungssatz zum versiegelten Beleg und vom Beleg zurück verlinkt die Oberfläche nichts, obwohl das Datenmodell beide Richtungen trägt. Welle 2.
@@ -144,11 +144,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Schlüsselverzeichnis aller Codes als Datei exportierbar, Teil der Verfahrensdokumentation | ❌ | internal/wailsbridge/app_service.go:769-779, internal/domain/tax.go:130-160; die Kataloge gehen an die Oberfläche, lassen sich aber nicht ausgeben | 4 |
+| Schlüsselverzeichnis aller Codes als Datei exportierbar, Teil der Verfahrensdokumentation | ✅ | internal/service/export_tables.go:530-714 (`keyDirectoryTable`) führt jeden Code aus Quelle, Buchungsart, Steuerfall, Belegart, Belegstatus, Prüfregeln und Steuerschlüssel mit Bedeutung; internal/service/export_service.go:229-247 schreibt ihn als CSV an einen gewählten Ort (Bridge: internal/wailsbridge/export_service.go:78-90), er liegt jeder Datenüberlassung als `schluesselverzeichnis.csv` bei und steht im Klartext in der Feldbeschreibung (internal/export/fielddoc.go:12, :165-174). Die Oberfläche zeigt dieselbe Tabelle (frontend/src/pages/DataAccessPage.tsx:722) | – |
 | Bilanz, GuV und Anhang in deutscher Sprache und in Euro | 🟡 | internal/service/statement_export.go:149-210 setzt Bilanz, GuV und die Angaben unter der Bilanz als PDF (`lang: "de"`, :152), :20-116 gibt dieselbe Gliederung als CSV mit Semikolon und deutsch geschriebenen Beträgen aus (:88-116); die Bezeichnungen folgen dem Gesetzeswortlaut (internal/accounting/statement.go:64-188), die E-Bilanz rechnet in Euro (internal/ebilanz/ebilanz.go:142-146). Ein Anhang entsteht nicht (JAB-03) | 2 |
 | Buchungswährung des Hauptbuchs ist Euro, Fremdwährung zusätzlich | 🟡 | internal/domain/journal.go:154-157 führt Kurs, Kursquelle und Kursdatum im Hash; ein Feld für den Fremdwährungsbetrag fehlt, Euro wird nur von der Oberfläche gesetzt | 5 |
 
-**Stand.** Bilanz und Gewinn- und Verlustrechnung verlassen das Programm seit Welle 2 als PDF und als CSV, deutsch und in Euro. Der Anhang fehlt weiterhin, und das Schlüsselverzeichnis (internal/wailsbridge/app_service.go:769) verlässt das Programm nicht. Wellen 2 und 4.
+**Stand.** Bilanz und Gewinn- und Verlustrechnung verlassen das Programm seit Welle 2 als PDF und als CSV, deutsch und in Euro. Das Schlüsselverzeichnis geht seit Welle 4 als Datei hinaus und liegt jeder Datenüberlassung bei — die Bedeutung jeder Abkürzung steht damit dort, wo die Abkürzung ankommt. Der Anhang fehlt weiterhin. Welle 2.
 
 ### GOB-05 Einzelaufzeichnung `MUSS`
 
@@ -158,11 +158,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Sammelbuchungen verweisen auf eine gespeicherte Einzelpostenliste mit gleicher Aufbewahrungsfrist | 🟡 | internal/domain/payment.go:48-65; die Allokationen der Sammelzahlung stehen in der Datenbank, eine Fristenklasse gibt es nicht (siehe ARC-01). Kassenbuch, Lohnjournal und Stapelerfassung sind außerhalb des Funktionsumfangs | 4 |
-| Einzelpostenliste mit einem Klick erreichbar und maschinell auswertbar exportierbar | ❌ | internal/wailsbridge/app_service.go:1340 schreibt die Allokationen, gibt sie aber nirgends wieder aus | 4 |
+| Sammelbuchungen verweisen auf eine gespeicherte Einzelpostenliste mit gleicher Aufbewahrungsfrist | 🟡 | internal/domain/payment.go:48-65; die Allokationen der Sammelzahlung stehen in der Datenbank und gehen als eigene Tabelle in die Überlassung (internal/service/export_tables.go:210-244), eine Fristenklasse gibt es nicht (siehe ARC-01). Kassenbuch, Lohnjournal und Stapelerfassung sind außerhalb des Funktionsumfangs | 6 |
+| Einzelpostenliste mit einem Klick erreichbar und maschinell auswertbar exportierbar | ✅ | frontend/src/pages/JournalPage.tsx:594-660 klappt die Einzelposten einer Sammelzahlung an der Buchung auf, mit Belegverweis und Betrag je Posten (Bridge: internal/wailsbridge/export_service.go:266-273, internal/service/payment_service.go:129-163); dieselben Zeilen gehen als Tabelle `zahlungszuordnungen` in die Datenüberlassung (internal/service/export_tables.go:210-244) | – |
 | Je Geschäftsvorfall mindestens Datum, Betrag, Steuerbetrag und -satz, Leistungsgegenstand, Partner, Belegverweis | 🟡 | internal/domain/journal.go:110-145, :79-91 erfassen alles auf dem Belegweg; bei der manuellen Buchung (internal/wailsbridge/app_service.go:823) sind Partner und Belegverweis optional und eine Steuerzeile nicht erfassbar | 3 |
 
-**Stand.** Der Belegweg zeichnet vollständig einzeln auf, der manuelle Weg daneben nicht. Die einzige Sammelbuchung, die Buchfink erzeugt, hält ihre Einzelposten vor, gibt sie aber nicht heraus. Wellen 3 und 4.
+**Stand.** Der Belegweg zeichnet vollständig einzeln auf, der manuelle Weg daneben nicht. Die einzige Sammelbuchung, die Buchfink erzeugt, gibt ihre Einzelposten seit Welle 4 auch heraus: an der Buchung aufklappbar und als eigene Tabelle der Überlassung. Offen bleiben die Steuerzeile im manuellen Weg und die Aufbewahrungsfrist an der Einzelpostenliste. Wellen 3 und 6.
 
 ### GOB-06 Geschäftsjahr und Periodenabgrenzung `MUSS`
 
@@ -251,10 +251,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Jede Buchung genau einmal, chronologisch, mit fortlaufender lückenloser Journalnummer | ✅ | internal/repository/journal_gorm.go:203-231 vergibt Nummer und Kettenkopf in einer Transaktion, `uniqueIndex` auf `EntryNumber` | – |
 | Journalnummer bei der Festschreibung vergeben und danach unveränderlich | ✅ | internal/accounting/journalhash.go:32, internal/repository/journal_gorm.go:209; die Nummer entsteht bereits bei der Erfassung und geht in den Hash ein, strenger als gefordert | – |
-| Journal für jeden Zeitraum als Bericht und als maschinell auswertbare Datei | 🟡 | internal/domain/journal.go:344 (`FindByBookingDateRange`) existiert, wird von keiner Bridge-Methode genutzt; die Oberfläche zeigt nur das aktive Geschäftsjahr, eine Dateiausgabe gibt es nicht | 4 |
+| Journal für jeden Zeitraum als Bericht und als maschinell auswertbare Datei | ✅ | frontend/src/pages/JournalPage.tsx:285-315 grenzt das Journal auf ein Datumsfenster ein, über Jahresgrenzen hinweg, und gibt genau dieses Fenster als CSV aus; internal/service/export_service.go:190-224 schreibt dafür dieselbe Tabelle wie der Z3-Export (internal/service/export_tables.go:68-165, einschließlich der Hashwerte) und protokolliert den Lauf, die Buchungen liefert internal/repository/journal_gorm.go:100-115 | – |
 | Stornierungen als eigene Journalzeilen, nicht als Löschung | ✅ | internal/service/journal_service.go:133-215; die Generalumkehr ist eine neue Buchung mit eigener Nummer | – |
 
-**Stand.** Das Journal selbst erfüllt die Anforderung strenger als verlangt. Es verlässt nur das Programm nicht: es gibt keinen Journalexport, und damit auch keine Grundlage für UNV-01 und die Datenträgerüberlassung nach Z3. Welle 4.
+**Stand.** Das Journal selbst erfüllt die Anforderung strenger als verlangt, und seit Welle 4 verlässt es auch das Programm: jeder Zeitraum geht als CSV hinaus, mit denselben Spalten wie die Datenüberlassung nach Z3 und mit den Hashwerten, an denen sich die Kette von außen nachrechnen lässt (UNV-01). Alle vier Kriterien sind erfüllt.
 
 ### BEL-06 Kontenfunktion und Kontenrahmen `MUSS`
 
@@ -280,11 +280,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Personenkonten rollen auf Sammelkonten auf, Saldo stimmt immer überein | ✅ | internal/service/accounting_service.go:87-119 verdichtet an einer Stelle auf 1200/3300, internal/service/journal_service.go:340-350 weist die direkte Buchung auf das Sammelkonto ab | – |
-| Offene-Posten-Liste je Debitor und Kreditor zu jedem Stichtag, mit Fälligkeit und Altersstruktur | 🟡 | internal/service/payment_service.go:106-195 führt Partner, Fälligkeit und offenen Betrag; eine Stichtagsgrenze fehlt, eine Altersstruktur gibt es nicht | 6 |
+| Offene-Posten-Liste je Debitor und Kreditor zu jedem Stichtag, mit Fälligkeit und Altersstruktur | 🟡 | internal/service/payment_service.go:176-189 (`OpenItemsAt`) liest die zum Stichtag offenen Buchungen (internal/repository/journal_gorm.go:134-141) und die bis dahin gebuchten Ausgleiche (internal/repository/payment_gorm.go:66-72), beide Grenzen auf dem Buchungsdatum; die Oberfläche führt den Stichtag als Feld und rechnet die Überfälligkeit gegen ihn (frontend/src/pages/AccountsPage.tsx:159-169, :393, :622-630). Eine Altersstruktur gibt es weiterhin nicht | 6 |
 | Restlaufzeiten für §§ 268 Abs. 4, 5 und 285 Nr. 1 HGB auswertbar | ❌ | internal/domain/payment.go:67-93; `OpenItem` kennt kein Restlaufzeitband, keine Auswertung gliedert danach | 6 |
 | Teilzahlungen, Skonti, Gutschriften und Ausbuchungen je Posten dokumentiert | 🟡 | internal/service/payment_service.go:426-520 hält Teilzahlung, Skonto mit Steuerkorrektur nach § 17 UStG sowie Rundungs- und Kursdifferenzen je Allokation fest; Gutschrift und Ausbuchung fehlen als eigener Weg | 6 |
 
-**Stand.** Das Kontokorrent stimmt rechnerisch immer, aber es kennt nur die Gegenwart: ohne Stichtag, Altersstruktur und Restlaufzeitbänder trägt es weder Bilanzausweis noch Anhangangaben. Welle 6.
+**Stand.** Das Kontokorrent stimmt rechnerisch immer und kennt seit Welle 4 den Stichtag: die Liste zeigt, welche Posten am Bilanzstichtag offen waren, und nicht, was heute davon übrig ist. Für Bilanzausweis und Anhangangaben fehlen weiterhin Altersstruktur und Restlaufzeitbänder. Welle 6.
 
 ### BEL-08 Ersetzendes Scannen `MUSS*`
 
@@ -330,11 +330,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Kein UPDATE oder DELETE auf festgeschriebene Buchungszeilen, technisch abgesichert | ✅ | internal/repository/journal_gorm.go:352 kennt nur `Append`, internal/accounting/journalhash.go:105 verkettet kryptografisch. Einschränkung: keine Datenbanktrigger (internal/repository/db.go:70), die Kette wirkt zusammen mit der Feldverschlüsselung (internal/repository/encryption.go) | – |
-| Manipulationstest wird erkannt und benannt, mit erwartetem und tatsächlichem Prüfwert | 🟡 | internal/accounting/journalhash.go:110-172 erkennt gebrochene Kette und geänderte Daten und nennt `EntryNumber`; erwarteter und tatsächlicher Prüfwert fehlen, `IntegrityCheckResult` (internal/domain/journal.go:395-403) hat kein Feld dafür | 4 |
-| Integritätsprüfung für Anwender und Prüfer aufrufbar, mit Protokoll über Ergebnis, Zeitpunkt und Umfang | ✅ | internal/service/journal_service.go:218-230, frontend/src/pages/AuditPage.tsx:61-72; der Lauf wird als `AuditActionIntegrityCheck` protokolliert. Geprüft wird das aktive Geschäftsjahr | – |
-| Export der Buchungsdaten enthält die Integritätsmerkmale | ❌ | Es gibt keinen Journalexport; die einzige Ausgabe ist die XBRL-Instanz (internal/service/ebilanz_service.go:44) | 4 |
+| Manipulationstest wird erkannt und benannt, mit erwartetem und tatsächlichem Prüfwert | ✅ | internal/accounting/journalhash.go:173-236 (`verifyYear`) meldet je Bruch Geschäftsjahr, Buchung, Grund (unterbrochene Kette oder veränderter Inhalt) sowie erwarteten und tatsächlichen Hash als `domain.IntegrityBreak` (internal/domain/journal.go:432-445) und hält beim ersten Bruch nicht an (:229-231); frontend/src/pages/AuditPage.tsx:176-220 zeigt beide Hashwerte in voller Länge, weil sich nur damit außerhalb von Buchfink nachrechnen lässt, welche Seite recht hat | – |
+| Integritätsprüfung für Anwender und Prüfer aufrufbar, mit Protokoll über Ergebnis, Zeitpunkt und Umfang | ✅ | internal/service/journal_service.go:310-346, frontend/src/pages/AuditPage.tsx:61-72; der Lauf wird als `AuditActionIntegrityCheck` mit allen geprüften Geschäftsjahren protokolliert (:325-341). Geprüft wird seit Welle 4 jedes Geschäftsjahr für sich und nicht mehr nur das aktive (internal/accounting/journalhash.go:136-170) | – |
+| Export der Buchungsdaten enthält die Integritätsmerkmale | ✅ | internal/service/export_tables.go:94-97 gibt je Buchung Erfassungszeitpunkt in UTC, Vorgängerhash, Eigenhash und den Tag der Festschreibung in `journal.csv` aus; internal/export/fielddoc.go:25-89 beschreibt die kanonische Form mit Feldreihenfolge, Längenpräfixen und der Behandlung leerer Werte, sodass sich die Kette ohne Buchfink nachrechnen lässt, und internal/service/export_service.go:761-808 legt dem Prüferpaket den Nachweis über Kette und Belegdateien bei | – |
 
-**Stand.** Die Hash-Kette trägt und ist prüfbar, aber nur von innen: ohne Export kann niemand außerhalb von Buchfink nachrechnen, und das ist genau, was ein Prüfer verlangt. Welle 4.
+**Stand.** Die Kette ist seit Welle 4 auch von außen prüfbar: die Überlassung trägt beide Hashwerte je Buchung, die Feldbeschreibung nennt das Verfahren, mit dem sie entstehen, und ein Bruch wird mit erwartetem und tatsächlichem Wert benannt, über alle Geschäftsjahre. Alle vier Kriterien sind erfüllt.
 
 ### UNV-02 Festschreibung `MUSS`
 
@@ -361,10 +361,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Änderungen an buchungsrelevanten Stammdaten mit Vorher- und Nachherwert, Zeitpunkt und Benutzer | 🟡 | internal/service/contact_service.go:97-100, internal/domain/audit.go:20-33 protokollieren Zeitpunkt und den neuen Zustand in Kurzform; der Vorherwert wird nirgends gelesen. Der Benutzer entfällt im Einzelplatzbetrieb | 6 |
 | Zeitabhängige Stammdaten versioniert, Auswertung nutzt die damals gültige Version | 🟡 | internal/accounting/tax_params.go:39-65 löst Bewirtungsanteil und Kleinbetragsgrenze über `ValidFrom` auf, internal/accounting/groessenklasse.go:39-74 seit Welle 2 auch die Schwellenwerte der Größenklassen nach dem Beginn des Geschäftsjahres; die Steuersätze selbst sind feste Konstanten (internal/domain/tax.go:25-27), die Kontenzuordnung trägt nur den String `PostingRuleVersion` | 6 |
-| Protokoll mit derselben Aufbewahrungsfrist, maschinell auswertbar exportierbar | ❌ | internal/service/audit_service.go:18 liefert nur an die Anzeige; es gibt keinen Export und keine Fristenlogik (siehe ARC-01) | 6 |
+| Protokoll mit derselben Aufbewahrungsfrist, maschinell auswertbar exportierbar | 🟡 | Seit Welle 4 geht das Protokoll als `aenderungsprotokoll.csv` mit Zeitpunkt in UTC, Art, Objekt und Einzelheiten in jede Datenüberlassung (internal/service/export_tables.go:716-735); eine Fristenlogik gibt es nicht (siehe ARC-01) | 6 |
 | Protokoll selbst nicht änderbar oder löschbar | 🟡 | internal/repository/audit_gorm.go:20-30 bietet nur `Log`, `FindAll`, `Count`; technisch abgesichert ist es nicht, die Felder `PreviousHash` und `EntryHash` (internal/domain/audit.go:29-30) werden nie gesetzt | 6 |
 
-**Stand.** Das Protokoll ist chronologisch vorhanden, sagt aber nicht, was sich geändert hat, und schützt sich nicht selbst. Der Bruch zur sonst konsequenten Linie steht in internal/repository/audit_gorm.go:20. Welle 6.
+**Stand.** Das Protokoll ist chronologisch vorhanden und verlässt seit Welle 4 als eigene Tabelle das Programm; es sagt aber weiterhin nicht, was sich geändert hat, und schützt sich nicht selbst. Der Bruch zur sonst konsequenten Linie steht in internal/repository/audit_gorm.go:20. Welle 6.
 
 ### UNV-04 Berechtigungen und Funktionstrennung `MUSS`
 
@@ -403,11 +403,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Jede festgeschriebene Buchung speichert die Versionskennung der erzeugenden Programmversion | 🟡 | internal/accounting/posting_groups.go:14 führt `PostingRuleVersion` in den Hash, das ist die Version der Kontenzuordnung, nicht des Programms; `applyDefaults` setzt sie nicht, eine manuelle Buchung trägt gar keine Kennung. Eine Programmversion existiert im Code nirgends | 6 |
+| Jede festgeschriebene Buchung speichert die Versionskennung der erzeugenden Programmversion | 🟡 | internal/accounting/posting_groups.go:14 führt `PostingRuleVersion` in den Hash, das ist die Version der Kontenzuordnung, nicht des Programms; `applyDefaults` setzt sie nicht, eine manuelle Buchung trägt gar keine Kennung. Seit Welle 4 gibt es die Programmfassung als geführte Größe (internal/buildinfo/buildinfo.go:22, vom Bau aus `git describe` gesetzt) und sie steht in Datenüberlassung (internal/service/export_service.go:441), Sicherungslauf (internal/service/backup_service.go:151) und Einstellungen (internal/wailsbridge/export_service.go:24) — an der einzelnen Buchung steht sie nicht | 6 |
 | Versionshistorie mit Datum, Version und Änderungsbeschreibung, exportierbar | ❌ | Ohne Versionskennung gibt es keine Historie und keinen Export | 6 |
 | Update ändert festgeschriebene Daten nicht, Migrationen protokolliert | ❌ | internal/repository/db.go:36, :70 führt bei jedem Start `AutoMigrate` über alle Entitäten ohne Protokoll; internal/repository/db.go:106 führt bei weniger als 100 Konten ein unprotokolliertes `DELETE FROM accounts` aus | 6 |
 
-**Stand.** Von den drei Kriterien ist keines belastbar erfüllt: Buchfink kann heute nicht sagen, welche Programmversion eine Buchung erzeugt hat. Welle 6.
+**Stand.** Seit Welle 4 weiß Buchfink, welche Fassung läuft, und schreibt sie in jede Überlassung und jeden Sicherungslauf. An der einzelnen Buchung steht sie nicht, und damit bleibt unbeantwortet, welche Programmversion eine Buchung erzeugt hat. Welle 6.
 
 ---
 
@@ -460,11 +460,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Eingehende Dateien im Originalformat, zusätzlich zu jeder erzeugten Ansicht | ✅ | internal/domain/receipt.go:22-37, :251-268 erzwingen genau eine Datei in der Rolle `original`; internal/receiptstore/store.go:110-170 schreibt die Bytes unverändert | – |
-| Strukturierte Formate bleiben strukturiert erhalten | 🟡 | internal/service/einvoice_service.go:90-171 legt das eingebettete XML als eigene Datei ab; internal/service/bank_service.go:38-63 parst die CAMT.053-Datei und archiviert sie nicht | 4 |
+| Strukturierte Formate bleiben strukturiert erhalten | ✅ | internal/service/einvoice_service.go:90-171 legt das eingebettete XML als eigene Datei ab; internal/service/bank_service.go:64-113 (`ImportCAMT053File`) legt die CAMT.053-Datei vor dem Parsen als Beleg der Art Kontoauszug ab und hängt jeden Umsatz daran (:127), sodass sie auch dann im Archiv liegt, wenn das Parsen scheitert. Ein zweiter Import derselben Datei erzeugt über die Prüfsumme keinen zweiten Beleg (:70-84) | – |
 | Ursprünglicher Dateiname, Format, Zeitpunkt, Quelle und Prüfsumme gespeichert | ✅ | internal/domain/receipt.go:78-103, :125-128 | – |
 | Konvertate gekennzeichnet und mit dem Original verknüpft | ✅ | internal/domain/receipt.go:94-99, :184-189; `Derived` markiert jede abgeleitete Datei, `DisplayFile` bevorzugt das Original | – |
 
-**Stand.** Für Belege sauber gelöst, der Bankimport fällt heraus: der Kontoauszug ist eine aufbewahrungspflichtige Unterlage und wird nach dem Parsen verworfen (internal/service/bank_service.go:38). Welle 4.
+**Stand.** Seit Welle 4 trägt auch der Bankimport: der Kontoauszug ist eine aufbewahrungspflichtige Unterlage und wird zuerst abgelegt und dann gelesen, nicht umgekehrt. Alle vier Kriterien sind erfüllt.
 
 ### ARC-04 Lesbarmachung `MUSS`
 
@@ -474,11 +474,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Jede archivierte Unterlage am Bildschirm anzeigbar und als Datei ausgebbar | 🟡 | internal/wailsbridge/app_service.go:1120-1145 löst die Anzeige mit Prüfsummenwarnung; eine Dateiausgabe gibt es nur für das Rechnungsdokument und die XBRL-Instanz, auf der Belegseite fehlt sie | 4 |
-| Vollständiger Archivexport eines Geschäftsjahres in offenem Format mit Index und Feldbeschreibung | ❌ | Existiert nicht | 4 |
-| Export ohne die Anwendung lesbar, belegt durch einen Test auf fremdem System | ❌ | Ohne Export nicht belegbar; 31 Datenbankfelder sind verschlüsselt (internal/repository/encryption.go:13), die SQLite-Datei allein ist keine lesbar gemachte Unterlage | 4 |
+| Jede archivierte Unterlage am Bildschirm anzeigbar und als Datei ausgebbar | ✅ | internal/wailsbridge/app_service.go:1451-1470 löst die Anzeige mit Prüfsummenwarnung; internal/wailsbridge/export_service.go:171-200 (`SaveReceiptFileAs`) gibt jede Belegdatei unter ihrem Originalnamen heraus — als Kopie, der Beleg bleibt im Archiv — und verweigert die Ausgabe, wenn die Prüfsumme nicht mehr stimmt (frontend/src/pages/ReceiptsPage.tsx:509-527) | – |
+| Vollständiger Archivexport eines Geschäftsjahres in offenem Format mit Index und Feldbeschreibung | ✅ | internal/service/export_service.go:116-181 (`ExportArchive`) schreibt siebzehn Tabellen als CSV, dazu index.xml, die amtliche Grammatik und die Feldbeschreibung (internal/export/writer.go:146-163), und legt die Belegdateien unter Belegnummer und Originalnamen sowie die Anlagendokumente daneben (:700-757); jede geschriebene Datei steht mit Prüfsumme in export.json (internal/export/writer.go:234-252) | – |
+| Export ohne die Anwendung lesbar, belegt durch einen Test auf fremdem System | 🟡 | Der Export ist klarschriftlich und erklärt sich selbst: CSV nach RFC 4180 mit benannten Trennzeichen (internal/export/csv.go:178-207), index.xml gegen die mitgelieferte amtliche Grammatik (internal/export/gdpdu.go:17-52) und die Feldbeschreibung mit jeder Spalte im Klartext (internal/export/fielddoc.go:97-175) — die Verschlüsselung der Datenbank steht der Lesbarkeit damit nicht mehr im Weg. Ein Einlesen auf einem fremden System ist nicht belegt (siehe PRF-02) | 6 |
 
-**Stand.** Anzeigen kann Buchfink alles, herausgeben fast nichts. Der Archivexport ist zugleich die Grundlage für PRF-01 und PRF-02. Welle 4.
+**Stand.** Seit Welle 4 gibt Buchfink heraus, was es anzeigt: die einzelne Belegdatei unter ihrem Originalnamen, das Geschäftsjahr als Archivexport mit Index, Feldbeschreibung und Belegdateien. Derselbe Export trägt PRF-01, PRF-02 und UNV-01. Offen bleibt der Nachweis, dass ein fremdes System die Überlassung liest; er entsteht mit dem Testeinlesen aus PRF-02.
 
 ### ARC-05 Systemwechsel und Auslagerung `MUSS`
 
@@ -523,7 +523,7 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Validierungsberichte mit der Rechnung gespeichert | ✅ | internal/domain/receipt.go:134-149, internal/service/einvoice_service.go:150-172; Zeitpunkt, Regelwerk, Version, Abdeckung und Befunde als JSON | – |
 | Bildansicht ergänzt das Original, ersetzt es nicht | ✅ | internal/domain/receipt.go:30-33, :266-268; die Buchung liest immer den strukturierten Teil | – |
 
-**Stand.** Der einzige Punkt des Moduls, der vollständig trägt. Der Validierungsbericht am Beleg (internal/domain/receipt.go:134) ist zugleich der Nachweis für den Vertrauensschutz nach dem BMF-Schreiben vom 15.10.2025 Rn. 35a.
+**Stand.** Der einzige Punkt des Moduls, der vollständig trägt. Der Validierungsbericht am Beleg (internal/domain/receipt.go:134) ist zugleich der Nachweis für den Vertrauensschutz nach dem BMF-Schreiben vom 15.10.2025 Rn. 35a. Seit Welle 4 wird die Unversehrtheit nicht mehr nur beim einzelnen Abruf geprüft: der Belegprüflauf rechnet die Prüfsumme jeder Beleg- und Anlagendatei über alle Geschäftsjahre neu (internal/service/file_check.go:22-44, frontend/src/pages/DataAccessPage.tsx:519) und findet den stillen Plattenfehler, bevor der Prüfer den Beleg sehen will.
 
 ### ARC-08 Verfügbarkeit und Wiederherstellbarkeit `MUSS`
 
@@ -533,12 +533,12 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Automatisierte Sicherungen nach dokumentiertem Plan, Ergebnis je Lauf protokolliert | ❌ | Es gibt keinen Sicherungsweg; internal/security/recovery.go rettet den Datenschlüssel, nicht die Daten | 4 |
-| Mindestens jährlich vollständiger Wiederherstellungstest, dokumentiert | ❌ | Ohne Sicherung kein Test | 4 |
-| Nach der Wiederherstellung bestätigt die Integritätsprüfung den Bestand | 🟡 | internal/service/journal_service.go:218-230 wäre das richtige Werkzeug; `ImportTenant` (internal/wailsbridge/app_service.go:478) ruft es nicht auf | 4 |
-| Aufbewahrungsdauer der Sicherungen deckt die Fristen ab oder das Archiv ist getrennt | ❌ | Weder Sicherungen noch Fristen vorhanden | 4 |
+| Automatisierte Sicherungen nach dokumentiertem Plan, Ergebnis je Lauf protokolliert | ✅ | internal/service/backup_service.go:147-170 schreibt Datenbank (`VACUUM INTO`), Schlüsseldatei, Belege und Dokumente als ZIP mit Prüfsumme je Datei (:173-318) und hält jeden Lauf mit Zeitpunkt, Umfang, Ergebnis und Programmfassung fest, auch den gescheiterten; internal/wailsbridge/backup_service.go:305-330 löst ihn beim Start und beim Beenden aus, sobald die letzte gelungene Sicherung älter als 24 Stunden ist (internal/service/backup_service.go:44, :134-140) | – |
+| Mindestens jährlich vollständiger Wiederherstellungstest, dokumentiert | ✅ | internal/service/backup_service.go:326-402 (`VerifyBackup`) entpackt die Sicherung in einen Temporärordner, prüft die Prüfsummen aus backup.json, öffnet die Datenbank mit dem Schlüssel der Sicherung, rechnet die Hash-Chain über alle Geschäftsjahre nach, prüft die Belegdateien und räumt den Ordner wieder ab; der Lauf steht als eigene Art im Protokoll (internal/domain/backup.go:21-24) und ist über frontend/src/pages/DataAccessPage.tsx:653 jederzeit auszulösen | – |
+| Nach der Wiederherstellung bestätigt die Integritätsprüfung den Bestand | ✅ | internal/wailsbridge/backup_service.go:222-245 ruft nach jeder Wiederherstellung zwingend Hash-Chain-Prüfung und Belegprüflauf über den wiederhergestellten Mandanten und schreibt das Ergebnis ins Änderungsprotokoll; wo nicht geprüft werden kann — verschlüsselt ohne Schlüssel, Mandant nicht offen —, sagt die Meldung das, statt Unversehrtheit zu behaupten (:191-220). Wiederhergestellt wird nur in einen leeren Ordner (internal/service/backup_service.go:443-461) | – |
+| Aufbewahrungsdauer der Sicherungen deckt die Fristen ab oder das Archiv ist getrennt | 🟡 | internal/wailsbridge/backup_service.go:47-58 weist einen Sicherungsordner im Datenordner ab, das Archiv liegt also getrennt, und jeder Lauf legt eine neue Datei mit Zeitstempel an, ohne eine ältere zu löschen (internal/service/backup_service.go:198-200). Wie lange eine Sicherung aufzubewahren ist und wann eine alte weichen darf, führt Buchfink nicht (siehe ARC-01) | 6 |
 
-**Stand.** Die Lücke mit dem größten Schadenspotenzial, weil eine lokale Anwendung alles auf einem Gerät hält. Welle 4.
+**Stand.** Die Lücke mit dem größten Schadenspotenzial ist mit Welle 4 geschlossen: die Sicherung läuft von selbst, sobald die letzte einen Tag alt ist, sie liegt außerhalb des Datenordners, sie lässt sich versuchsweise zurückspielen, und nach einer echten Wiederherstellung prüft Buchfink Kette und Belegdateien, bevor jemand weiterbucht. Was fehlt, ist die Aufbewahrungsdauer der Sicherungen — sie hängt an den Fristen aus ARC-01. Welle 6.
 
 ---
 
@@ -679,7 +679,7 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Abgleich jeder Eingangsrechnung gegen Bestellung, Auftrag, Vertrag oder Leistungsnachweis, Ergebnis gespeichert | ❌ | internal/domain/einvoice.go:57 liest `BuyerReference` und `OrderReference`, löst sie aber nirgends auf; Bestellungen gibt es als Objekt nicht | 7 |
-| Prüfpfad Rechnung, Leistung, Zahlung in beide Richtungen navigierbar und exportierbar | 🟡 | internal/domain/receipt.go:151 und die offenen Posten verketten Beleg, Buchung und Zahlung und sind in der Oberfläche erreichbar; ein Export dieses Pfads fehlt | 7 |
+| Prüfpfad Rechnung, Leistung, Zahlung in beide Richtungen navigierbar und exportierbar | ✅ | internal/domain/receipt.go:151 und die offenen Posten verketten Beleg, Buchung und Zahlung und sind in der Oberfläche erreichbar; seit Welle 4 geht derselbe Pfad als Datei hinaus — belege.csv nennt je Beleg die Buchung (internal/service/export_tables.go:748-750), journal.csv Belegnummer, Beleg-Prüfsumme und Leistungszeitraum (:74-96), zahlungszuordnungen.csv die Zahlung je offenem Posten (:210-244) | – |
 | Prüfsumme bei Eingang gebildet und bei jedem Abruf verifiziert | ✅ | internal/service/receipt_service.go:276; die Oberfläche zeigt einen Bruch an, statt ihn zu verschweigen | – |
 | Kontrollverfahren in der Verfahrensdokumentation beschrieben | ❌ | Es gibt keine erzeugte oder gepflegte Verfahrensdokumentation (siehe PRF-03) | 6 |
 
@@ -1213,13 +1213,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Prüferzugang mit ausschließlich lesenden Rechten, zeitlich befristbar | ❌ | Es gibt keinen Benutzer und keine Rolle; der Zugriffsschutz über den Schlüsselbund (internal/security/keyring.go) ist binär. Statt Benutzerkonten erhält Buchfink einen schreibgeschützten Prüfermodus mit Ablaufdatum | 4 |
-| Alle Bewegungsdaten eines Geschäftsjahres maschinell auswertbar exportierbar, einschließlich Journal, Konten, Salden, Belegverweisen und Änderungsprotokoll | ❌ | internal/wailsbridge/app_service.go:1299; der einzige Datenexport ist die XBRL-Instanz | 4 |
-| Summen- und Saldenlisten zu jedem beliebigen Stichtag reproduzierbar, auch rückwirkend | ❌ | internal/service/accounting_service.go:266 und internal/repository/journal_gorm.go:247 kennen nur das Geschäftsjahr, keine Datumsgrenze | 4 |
-| Saldenbestätigungslauf für Debitoren und Kreditoren | ❌ | internal/service/payment_service.go:105 liefert die operative OP-Liste; ein Bestätigungslauf fehlt | 4 |
-| Prüfungsvermerk und Prüfungsbericht als Dokument mit dem Abschluss verknüpfbar | ❌ | Kein Abschlussobjekt, keine Verknüpfung (siehe JAB-04) | 4 |
+| Prüferzugang mit ausschließlich lesenden Rechten, zeitlich befristbar | ✅ | Statt Benutzerkonten, die es im Einzelplatzbetrieb nicht gibt, schaltet der Prüfermodus die ganze Anwendung schreibgeschützt: internal/wailsbridge/readonly.go:227-260 verlangt Ablaufdatum und Grund und protokolliert beides, :210-220 weist jede schreibende Bridge-Methode ab, :37-189 führt die zulässigen Methoden als abschließende Liste — ein Test ordnet jede exportierte Bridge-Methode einer der beiden Seiten zu (internal/wailsbridge/readonly_test.go) | – |
+| Alle Bewegungsdaten eines Geschäftsjahres maschinell auswertbar exportierbar, einschließlich Journal, Konten, Salden, Belegverweisen und Änderungsprotokoll | ✅ | internal/service/export_service.go:654-689 stellt siebzehn Tabellen zusammen (internal/service/export_tables.go:20-37): Journal mit Hashes, Konten mit Gliederungs- und Taxonomieposition, Salden, Kontakte, offene Posten, Anlagen und Bewegungen, Belege, Dokumente, Voranmeldungen, Festschreibungen, Prüfläufe, Zahlungszuordnungen, Bewirtungen, Änderungsprotokoll, Steuerschlüssel und Schlüsselverzeichnis; das Prüferpaket legt Belegdateien, Integritätsnachweis und Verfahrensdokumentation dazu (:122-181) | – |
+| Summen- und Saldenlisten zu jedem beliebigen Stichtag reproduzierbar, auch rückwirkend | ✅ | internal/service/accounting_service.go:326-330 und internal/repository/journal_gorm.go:274-293 summieren bis zum Stichtag; dieselbe Grenze tragen das Kontoblatt über Jahresgrenzen hinweg (internal/service/accounting_service.go:196-200, internal/repository/journal_gorm.go:167) und die offenen Posten (internal/service/payment_service.go:176-189). Die Listen entstehen aus den Buchungen und nicht aus einem fortgeschriebenen Saldo, sind also beliebig oft rückwirkend herstellbar | – |
+| Saldenbestätigungslauf für Debitoren und Kreditoren | ❌ | internal/service/payment_service.go:109-127 liefert die operative Liste, :176-189 dieselbe zum Stichtag; ein Bestätigungslauf mit Anschreiben je Geschäftspartner und festgehaltener Rückmeldung fehlt | 6 |
+| Prüfungsvermerk und Prüfungsbericht als Dokument mit dem Abschluss verknüpfbar | ❌ | Kein Abschlussobjekt, keine Verknüpfung (siehe JAB-04) | 1 |
 
-**Stand.** Kein Scope-Fall: der Geltungsbereich schließt mittelgroße Gesellschaften ein, und ein Nur-Lese-Modus ist auch lokal baubar. Die Stichtagsvariante der Kontenumsätze trägt zugleich SuSa, Kontoblatt und OP-Liste. Welle 4.
+**Stand.** Der Prüfer bekommt seit Welle 4, was er zum Arbeiten braucht: einen befristeten Nur-Lese-Zugang, die Bewegungsdaten des Jahres als Datenüberlassung und jede Auswertung auf den Stichtag, nach dem er fragt — die Stichtagsvariante der Kontenumsätze trägt SuSa, Kontoblatt und OP-Liste zugleich. Offen bleiben die beiden Punkte, die an der Abschlussprüfung selbst hängen: der Saldenbestätigungslauf und der Prüfungsvermerk am Abschlussobjekt aus Welle 1.
 
 ### JAB-09 Jahreswechsel und Saldenvortrag `MUSS`
 
@@ -1255,13 +1255,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Prüferprofil mit Nur-Lese-Zugriff auf Buchungen, Belege, Stammdaten, Auswertungen und Änderungsprotokolle | ❌ | Kein Rollen- oder Benutzermodell; jede Bridge-Methode ist für jeden ausführbar, der die Anwendung öffnet. Statt Benutzerkonten erhält Buchfink einen schreibgeschützten Prüfermodus | 4 |
-| Zugriff auf Geschäftsjahre und Mandanten eingrenzbar und protokolliert | 🟡 | internal/wailsbridge/app_service.go:682, :290 erlauben das Umschalten, nicht das Eingrenzen; beide Wechsel schreiben nichts ins Protokoll | 4 |
-| Auswertungen nach freien Kriterien filter-, sortier- und summierbar | 🟡 | frontend/src/pages/JournalPage.tsx:145-155 bietet Volltextsuche, internal/service/accounting_service.go:159 das Kontoblatt mit laufendem Saldo; Filter nach Betragsbereich, Steuerschlüssel und Belegart, jede Sortierwahl und jede freie Summe fehlen | 4 |
-| Vollständiger Datenexport eines Geschäftsjahres ohne Nachbearbeitung, einlesbar in Prüfsoftware | ❌ | Siehe PRF-02 | 4 |
-| Bereitstellung über eine Datenaustauschplattform möglich | ❌ | Es gibt keine Datei, die bereitzustellen wäre; der Plattformweg selbst ist für eine lokale Anwendung nachrangig, der fehlende Datensatz nicht | 4 |
+| Prüferprofil mit Nur-Lese-Zugriff auf Buchungen, Belege, Stammdaten, Auswertungen und Änderungsprotokolle | ✅ | Kein Rollenmodell, sondern ein Modus — im Einzelplatzbetrieb ohne Benutzerkonten ist das die Form, in der Z1 überhaupt herstellbar ist (docs/architektur.md Abschnitt 2): internal/wailsbridge/readonly.go:37-189 lässt Lesen, Auswerten, Prüfen und Ausgeben zu, :210-220 weist alles Schreibende an der Bridge ab und nicht erst in der Oberfläche. Der Modus gilt befristet und mit protokolliertem Grund (:227-260), die Oberfläche nennt beides über jeder Ansicht (frontend/src/pages/DataAccessPage.tsx:342-411) | – |
+| Zugriff auf Geschäftsjahre und Mandanten eingrenzbar und protokolliert | 🟡 | Ein- und Ausschalten des Prüfermodus stehen mit Datum und Grund im Änderungsprotokoll (internal/wailsbridge/readonly.go:255-258, :285-288), und die Überlassung ist auf ein Geschäftsjahr begrenzt und wird mit Umfang protokolliert (internal/service/export_service.go:902-912). Der Zugriff selbst bleibt unbegrenzt: internal/wailsbridge/app_service.go:424-433 (`SwitchTenant`) und :964-969 (`SetFiscalYear`) sind auch im Prüfermodus offen und schreiben nichts ins Protokoll | 6 |
+| Auswertungen nach freien Kriterien filter-, sortier- und summierbar | 🟡 | frontend/src/pages/JournalPage.tsx:285-315 filtert Volltext und Buchungsdatum über Jahresgrenzen hinweg und gibt das Ergebnis als CSV aus; Summen- und Saldenliste und offene Posten kennen einen Stichtag (frontend/src/pages/AccountsPage.tsx:366, :393), das Kontoblatt einen Zeitraum (internal/service/accounting_service.go:196-200). Filter nach Betragsbereich, Steuerschlüssel und Belegart, jede Sortierwahl und jede freie Summe fehlen weiterhin — sie geschehen in der Prüfsoftware am Z3-Export | 6 |
+| Vollständiger Datenexport eines Geschäftsjahres ohne Nachbearbeitung, einlesbar in Prüfsoftware | ✅ | internal/service/export_service.go:107-181; ein Aufruf schreibt Tabellen, index.xml, Grammatik, Feldbeschreibung und Metadatei in den gewählten Ordner (internal/export/writer.go:146-163), das Prüferpaket zusätzlich Belegdateien, Integritätsnachweis und Verfahrensdokumentation (:700-757, :761-808, :877-888). Nachzubearbeiten ist nichts; das Testeinlesen in eine Prüfsoftware steht aus (PRF-02) | – |
+| Bereitstellung über eine Datenaustauschplattform möglich | ⛔ | Buchfink überträgt nichts selbst: Local-First, kein Fernzugriff, keine Anbindung an einen Dienst (docs/architektur.md Abschnitt 2, ebenso PRF-05). Was der Plattformweg braucht, ist eine Datei, und die entsteht seit Welle 4 — die Überlassung liegt als Ordner mit CSV, index.xml und Prüfsummen je Datei (internal/export/writer.go:234-252) und lässt sich unverändert hochladen oder auf einem Datenträger übergeben | – |
 
-**Stand.** Z2 ist ansatzweise bedienbar, Z1 und Z3 gar nicht. Prüfermodus und Export sind derselbe Arbeitsblock. Welle 4.
+**Stand.** Mit Welle 4 sind alle drei Zugriffsarten bedienbar: Z1 als befristeter Prüfermodus, Z2 über die Auswertungen mit Zeitraum und Stichtag, Z3 als Datenüberlassung im Beschreibungsstandard. Was bleibt, sind zwei Ränder: der Zugriff des Prüfers lässt sich nicht auf Jahre oder Mandanten eingrenzen, und die freie Auswertung endet dort, wo die Prüfsoftware am Export anfängt. Welle 6.
 
 ### PRF-02 Format der Datenüberlassung `MUSS`
 
@@ -1271,12 +1271,12 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Export erzeugt Datendateien plus eine XML-Strukturbeschreibung mit Feldnamen, Typen, Längen und fachlicher Bedeutung | ❌ | Keine Fundstelle: `index.xml` und der Beschreibungsstandard kommen im Code nicht vor | 4 |
-| Zielformate mindestens CSV oder ASCII mit definiertem Trennzeichen und XLSX, keine aufgegebenen Formate | ❌ | Es gibt überhaupt keinen tabellarischen Export | 4 |
-| Umfang mindestens Journal, Kontenbeschreibung, Kontensalden, Debitoren- und Kreditorenstammdaten, offene Posten, Anlagenstammdaten und -bewegungen, Steuerschlüsselverzeichnis, Änderungsprotokoll, Belegverzeichnis | ❌ | Nicht vorhanden; die Daten liegen alle in den Repositories, nur der Ausgabeweg fehlt | 4 |
-| Testeinlesen in eine Prüfsoftware belegt die Verwendbarkeit | ❌ | Ohne Export gegenstandslos | 4 |
+| Export erzeugt Datendateien plus eine XML-Strukturbeschreibung mit Feldnamen, Typen, Längen und fachlicher Bedeutung | ✅ | internal/export/gdpdu.go:52-79 schreibt index.xml nach dem Beschreibungsstandard: je Tabelle Dateiname, Bezeichnung, Zeitraum und Formatfestlegungen, je Spalte Name, Erläuterung und Typ (alphanumerisch, numerisch mit Nachkommastellen, Datum mit Format). Die amtliche Grammatik liegt eingebettet bei und wird mitgeschrieben (:17-44, internal/export/gdpdu-01-09-2004.dtd), die fachliche Bedeutung jeder Spalte steht zusätzlich im Klartext in feldbeschreibung.md (internal/export/fielddoc.go:97-175, gespeist aus der Erläuterung, die jedes Feld in internal/service/export_tables.go mitträgt) | – |
+| Zielformate mindestens CSV oder ASCII mit definiertem Trennzeichen und XLSX, keine aufgegebenen Formate | 🟡 | internal/export/csv.go:178-207 schreibt UTF-8 ohne BOM nach RFC 4180: Semikolon als Trennzeichen, CR LF, doppeltes Anführungszeichen, Punkt als Dezimaltrennzeichen — dieselben Festlegungen stehen maschinenlesbar in index.xml und im Klartext in der Feldbeschreibung (internal/export/fielddoc.go:112-126). Aufgegebene Formate kommen nicht vor. XLSX ist bewusst weggelassen, und der Grund steht in der Überlassung selbst (internal/export/fielddoc.go:141-145): es wäre eine zweite Fassung derselben Daten in einem Format, das Beträge und führende Nullen beim Öffnen verändert | – |
+| Umfang mindestens Journal, Kontenbeschreibung, Kontensalden, Debitoren- und Kreditorenstammdaten, offene Posten, Anlagenstammdaten und -bewegungen, Steuerschlüsselverzeichnis, Änderungsprotokoll, Belegverzeichnis | ✅ | internal/service/export_tables.go:20-37 nennt die siebzehn Tabellen, gebaut in internal/service/export_service.go:654-689: journal (:68-165), konten mit Gliederungs- und Taxonomieposition (:245-295), salden (:314-348), kontakte (:349-379), offene_posten (:380-415), anlagen (:416-460) und anlagen_bewegungen (:461-500), steuerschluessel (:501-529), schluesselverzeichnis (:530-714), aenderungsprotokoll (:716-737), belege (:738-790) — dazu dokumente, voranmeldungen, festschreibungen, pruefläufe, zahlungszuordnungen und bewirtungen | – |
+| Testeinlesen in eine Prüfsoftware belegt die Verwendbarkeit | ❌ | Der Export ist gegen die mitgelieferte amtliche Grammatik gebaut und in internal/export/export_test.go sowie internal/service/export_service_test.go geprüft; ein Einlesen in IDEA oder ACL hat nicht stattgefunden und lässt sich im Code auch nicht belegen | 6 |
 
-**Stand.** Vollständig offen, und zugleich der Punkt mit dem größten Hebel: derselbe Export trägt ARC-04, UNV-01, JAB-08 und später den DATEV-Export. Welle 4.
+**Stand.** Mit Welle 4 gebaut, und der Hebel hat sich gezeigt: derselbe Export trägt ARC-04, UNV-01, JAB-08, QUE-06 und später den DATEV-Export. Zwei Punkte bleiben, und keiner davon ist Programmierarbeit: XLSX wird bewusst nicht angeboten, und ob eine Prüfsoftware die Überlassung tatsächlich einliest, ist erst belegt, wenn es jemand versucht hat. Welle 6.
 
 ### PRF-03 Verfahrensdokumentation `MUSS`
 
@@ -1303,9 +1303,9 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 |---|---|---|---|
 | Digitale Lohnschnittstelle in der jeweils aktuellen Version bedienbar, wenn Lohndaten verarbeitet werden | ⛔ | Buchfink verarbeitet keine Lohndaten; der Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros herein, die Schnittstelle trifft den Lohnabrechner | – |
 | DSFinV-K-Exporte einlesbar, Sammelbuchung auf die Einzelvorgänge zurückführbar | ⛔ | Kein Kassensystem und kein Aufzeichnungssystem nach § 146a AO | – |
-| Schnittstellenversionen konfigurierbar und mit dem Export protokolliert | ❌ | internal/service/ebilanz_service.go:78-84 protokolliert weder Taxonomie- noch Formatversion; die Taxonomie ist hartcodiert (siehe JAB-05) | 4 |
+| Schnittstellenversionen konfigurierbar und mit dem Export protokolliert | ✅ | internal/export/gdpdu.go:33 führt die Fassung des Beschreibungsstandards, internal/export/writer.go:61-70 schreibt sie zusammen mit der Programmfassung in export.json, internal/export/gdpdu.go:57, :66-68 nennt beide in index.xml, und internal/service/export_service.go:902-912 hält Art, Umfang und Fassung jedes Exports im Änderungsprotokoll fest | – |
 
-**Stand.** Die beiden Sachverhalte, an die § 158 Abs. 2 AO heute anknüpft, liegen außerhalb des Funktionsumfangs. Offen ist die Protokollierung der Schnittstellenversion, die mit jedem neuen Export dringlicher wird. Welle 4.
+**Stand.** Die beiden Sachverhalte, an die § 158 Abs. 2 AO heute anknüpft, liegen außerhalb des Funktionsumfangs. Seit Welle 4 nennt jede Datenüberlassung ihre Fassung: Beschreibungsstandard und Programmversion stehen in index.xml, in export.json und im Änderungsprotokoll. Wählbar ist die Fassung nicht, und die Taxonomieversion der E-Bilanz bleibt hartcodiert — das steht in JAB-05.
 
 ### PRF-05 Zugriff bei Cloud- und Drittbetrieb `MUSS*`
 
@@ -1330,11 +1330,11 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Exportschicht trennt Datenmodell und Ausgabeformat | ❌ | internal/ebilanz/ebilanz.go:199-279 baut XML als Format-String direkt aus den Domain-Typen, genau die Kopplung, die die Anforderung ausschließen will. Das Gegenbeispiel im selben Haus ist internal/einvoice/ mit getrenntem Modell, Parser und Renderer | 4 |
-| Internes Datenmodell hält alle Felder vor, die der Entwurf verlangt | 🟡 | internal/domain/journal.go:104-176 ist feldreich: vier getrennte Daten, Steuerschlüssel und Bemessungsgrundlage je Zeile, Währung mit Kurs und Quelle, Belegverweis, Regelversion, Herkunft. Es fehlen eine Bearbeiterkennung, eine Kostenstelle und eine feldbezogene Änderungshistorie | 4 |
-| Entwicklungsplan enthält einen Prüfpunkt für den Zeitpunkt der Verkündung | ❌ | Weder docs/architektur.md Abschnitt 7 noch docs/stand-der-umsetzung.md nennen einen Termin für § 147b AO | 4 |
+| Exportschicht trennt Datenmodell und Ausgabeformat | ✅ | internal/export/dataset.go:1-14 benennt die Trennung und setzt sie durch: `Dataset`, `Table` und `Field` (:45-78) kennen kein Format, die Erzeuger kennen keine Buchhaltung (internal/export/csv.go:201, internal/export/gdpdu.go:52, internal/export/fielddoc.go:97), und die Auswahl entsteht ausschließlich in internal/service/export_tables.go. Ein Erzeuger für xBRL-CSV tritt daneben, ohne die Auswahl anzufassen; die E-Bilanz bleibt der Altfall (internal/ebilanz/ebilanz.go:199-279) | – |
+| Internes Datenmodell hält alle Felder vor, die der Entwurf verlangt | 🟡 | internal/domain/journal.go:104-176 ist feldreich: vier getrennte Daten, Steuerschlüssel und Bemessungsgrundlage je Zeile, Währung mit Kurs und Quelle, Belegverweis, Regelversion, Herkunft. Es fehlen eine Bearbeiterkennung, eine Kostenstelle und eine feldbezogene Änderungshistorie | 6 |
+| Entwicklungsplan enthält einen Prüfpunkt für den Zeitpunkt der Verkündung | ❌ | docs/architektur.md:112-114 nennt die Schnittstelle nach § 147b AO als künftiges Formatmodul, aber keinen Termin, zu dem der Stand der Verordnung zu prüfen wäre; der Terminplan dieses Katalogs führt sie ohne Datum als „offen“ | 6 |
 
-**Stand.** Der Zeitdruck ist gering, die Architekturfolge nicht: jeder weitere Export, der wie die E-Bilanz gebaut wird, vergrößert die spätere Umstellung. Der Z3-Export aus PRF-02 ist so zu schneiden, dass die Datenauswahl formatfrei bleibt. Welle 4.
+**Stand.** Die Architekturfolge ist mit Welle 4 gezogen: der Z3-Export ist so geschnitten, dass die Datenauswahl formatfrei bleibt, und xBRL-CSV wäre ein Erzeuger neben CSV und index.xml, kein Umbau. Offen bleiben zwei Felder im Datenmodell und der Prüfpunkt für den Tag, an dem die Verordnung verkündet wird. Welle 6.
 
 ---
 
@@ -1424,11 +1424,11 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Lesender Zugang für Gesellschafter oder Beiräte, Umfang einstellbar, Zugriffe protokolliert | ❌ | Kein Benutzer-, Rollen- oder Zugriffsbegriff; es ist dieselbe Lücke wie in JAB-08 und PRF-01. Statt Benutzerkonten deckt der schreibgeschützte Prüfermodus diesen Zugang mit ab | 4 |
-| Geordnete Zusammenstellung der Einnahmen und Ausgaben mit Belegverweisen als Bericht und als Datei | 🟡 | frontend/src/pages/ReportsPage.tsx:179-267 zeigt sie am Bildschirm samt Belegnummer und Belegvorschau; eine Dateiausgabe gibt es für keine Auswertung | 4 |
+| Lesender Zugang für Gesellschafter oder Beiräte, Umfang einstellbar, Zugriffe protokolliert | ✅ | Derselbe Prüfermodus wie in PRF-01 und JAB-08: internal/wailsbridge/readonly.go:37-189 lässt Lesen und Auswerten zu, :210-220 weist jede Änderung ab, befristet und mit protokolliertem Grund (:227-289). Je Person einstellbar ist der Umfang nicht — im Einzelplatzbetrieb gibt es keine Person, an der er hinge (docs/architektur.md Abschnitt 2); protokolliert wird der Modus, nicht der einzelne Lesezugriff (QUE-02) | – |
+| Geordnete Zusammenstellung der Einnahmen und Ausgaben mit Belegverweisen als Bericht und als Datei | ✅ | frontend/src/pages/ReportsPage.tsx:179-267 zeigt sie am Bildschirm samt Belegnummer und Belegvorschau; als Datei geht dieselbe Aufstellung über den Journalexport eines beliebigen Zeitraums hinaus, der Belegnummer und Beleg-Prüfsumme je Buchung führt (internal/service/export_service.go:190-224, internal/service/export_tables.go:74-96), im Archivexport zusammen mit den Belegdateien selbst (internal/service/export_service.go:700-727) | – |
 | Jahresabschluss steht den Gesellschaftern in der Frist des § 42a GmbHG zur Verfügung | ❌ | Es entsteht kein Jahresabschluss und keine zugehörige Frist (siehe JAB-04) | 1 |
 
-**Stand.** Der Prüfermodus aus Welle 4 und die Dateiausgabe aus dem Exportpaket decken die ersten beiden Punkte mit ab; die Frist des § 42a GmbHG setzt das Abschlussobjekt aus Welle 1 voraus.
+**Stand.** Der Prüfermodus und die Dateiausgabe aus Welle 4 decken die ersten beiden Punkte mit ab: wer Einsicht verlangt, bekommt einen lesenden Zugang und eine geordnete Zusammenstellung mit Belegverweisen, ohne dass jemand daneben sitzen muss. Die Frist des § 42a GmbHG setzt weiterhin das Abschlussobjekt aus Welle 1 voraus.
 
 ---
 
@@ -1438,19 +1438,19 @@ Gezählt werden Akzeptanzkriterien, nicht Anforderungen. 82 Anforderungen zerfal
 
 | Modul | Anforderungen | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
 |---|---|---|---|---|---|---|
-| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 10 | 8 | 4 | 0 | 22 |
-| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 16 | 13 | 2 | 4 | 35 |
-| C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 7 | 6 | 5 | 4 | 22 |
-| D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 8 | 4 | 16 | 3 | 31 |
-| E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 10 | 17 | 11 | 5 | 43 |
+| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 14 | 6 | 2 | 0 | 22 |
+| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 17 | 12 | 2 | 4 | 35 |
+| C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 9 | 6 | 3 | 4 | 22 |
+| D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 14 | 3 | 11 | 3 | 31 |
+| E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 11 | 16 | 11 | 5 | 43 |
 | F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 12 | 5 | 12 | 13 | 42 |
 | G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 10 | 16 | 19 | 18 | 63 |
-| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 17 | 9 | 15 | 3 | 44 |
-| I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 0 | 4 | 13 | 6 | 23 |
-| J. Querschnitt | QUE-01 bis QUE-06 | 4 | 5 | 14 | 1 | 24 |
-| **Summe** | **82** | **94** | **87** | **111** | **57** | **349** |
+| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 20 | 9 | 12 | 3 | 44 |
+| I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 6 | 5 | 5 | 7 | 23 |
+| J. Querschnitt | QUE-01 bis QUE-06 | 6 | 4 | 13 | 1 | 24 |
+| **Summe** | **82** | **119** | **82** | **90** | **58** | **349** |
 
-Mit Welle 3 hat sich das Meldewesen bewegt: Modul F kommt von einem auf zwölf erfüllte Kriterien, weil die Voranmeldung alle Kennziffern des Vordrucks USt 1 A trägt und die Zusammenfassende Meldung dazugekommen ist. Mitgewachsen sind die Module A bis C, weil vor jeder Festschreibung jetzt ein gespeicherter Prüfbericht steht: Nummernlücken, Buchungen ohne Beleg und liegen gebliebene Belege halten sie auf. Offen bleiben im Meldewesen die Sachverhalte, die Buchfink nicht führt, und die Übermittlung selbst — sie geschieht in Mein ELSTER, nicht hier. Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
+Mit Welle 4 hat sich der Datenzugriff bewegt, und mit ihm zwei Module, die vorher am schlechtesten dastanden: Modul I kommt von null auf sechs erfüllte Kriterien, weil Prüfermodus und Datenüberlassung nach dem Beschreibungsstandard gebaut sind, Modul D von acht auf vierzehn, weil Archivexport, Sicherung, Wiederherstellungstest und Belegprüflauf dazugekommen sind. Mitgewachsen sind die Module A bis C, E, H und J, weil dieselbe Exportschicht das Journal jedes Zeitraums, das Schlüsselverzeichnis, die Einzelposten einer Sammelzahlung und die Hashwerte der Kette nach außen trägt und jede Auswertung einen Stichtag bekommen hat. Offen bleibt in Modul D, was an den Aufbewahrungsfristen hängt, und in Modul I, was sich nicht programmieren lässt: der Beleg, dass eine Prüfsoftware die Überlassung einliest. Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
 
 ---
 
@@ -1474,8 +1474,8 @@ Diese Punkte tauchen in Anforderungslisten regelmäßig auf, obwohl sie für ein
 
 Die folgenden Auslassungen sind keine Rechtsfragen, sondern Produktentscheidungen aus docs/architektur.md Abschnitt 2. Sie tragen im Katalog den Status `⛔`.
 
-- **Einzelplatz, ein Bearbeiter.** Kein Rollenmodell, keine Benutzerkonten, keine Funktionstrennung im System (UNV-04). Der Schutz liegt beim Betriebssystem-Konto und beim Schlüsselbund; jede Buchung erhält als erkennbare Sammelkennung eine Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername (Welle 6). Wo der Katalog Benutzerkonten für Dritte verlangt (JAB-08, PRF-01, QUE-06), tritt ein schreibgeschützter Prüfermodus an ihre Stelle (Welle 4).
-- **Local-First, Speicherort Inland.** Kein Cloud-Betrieb, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO (ARC-06 Kriterien 2 bis 4, PRF-05, QUE-02 Kriterium 3). Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Datenordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen.
+- **Einzelplatz, ein Bearbeiter.** Kein Rollenmodell, keine Benutzerkonten, keine Funktionstrennung im System (UNV-04). Der Schutz liegt beim Betriebssystem-Konto und beim Schlüsselbund; jede Buchung erhält als erkennbare Sammelkennung eine Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername (Welle 6). Wo der Katalog Benutzerkonten für Dritte verlangt (JAB-08, PRF-01, QUE-06), tritt ein schreibgeschützter Prüfermodus an ihre Stelle; er ist seit Welle 4 gebaut (internal/wailsbridge/readonly.go).
+- **Local-First, Speicherort Inland.** Kein Cloud-Betrieb, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO, und keine eigene Anbindung an eine Datenaustauschplattform — die Überlassung entsteht als Ordner, den der Anwender selbst weitergibt (ARC-06 Kriterien 2 bis 4, PRF-01 Kriterium 5, PRF-05, QUE-02 Kriterium 3). Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Datenordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen.
 - **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung und E-Bilanz entstehen als Kennziffernblatt und als Exportdatei zum Übertragen in Mein ELSTER oder zur Übermittlung durch den Steuerberater (UST-03 Kriterium 2, JAB-05 Kriterium 1). Das Übermittlungsprotokoll wird nach der Übermittlung manuell erfasst (Datum, Transferticket) und ist danach unveränderlich.
 - **Steuerfälle sind eine geschlossene Liste.** Ausgeschlossen sind Kleinunternehmer (UST-09, RECH-05 Kriterium 4), Differenzbesteuerung, Reiseleistungen und Dreiecksgeschäft (RECH-04), OSS und IOSS (UST-08), Konsignationslager (UST-01), Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG (UST-05 Kriterium 2) und die Option nach § 9 UStG. Unentgeltliche Wertabgaben kommen als Buchungsgruppe, die Einfuhrumsatzsteuer als Belegart in Welle 5 hinzu. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet.
 - **Nur Sollversteuerung.** Die Istversteuerung nach § 20 UStG wird beim Buchen ausdrücklich abgewiesen, statt still falsch gebucht zu werden (UST-01 Kriterium 2, UST-02 Kriterien 1, 2 und 5).
