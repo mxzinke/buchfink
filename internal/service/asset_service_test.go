@@ -336,6 +336,12 @@ func TestDisposalPicksAccountsByResult(t *testing.T) {
 		Name: "Transporter", Class: domain.AssetClassTangible, Account: "0540",
 		DepreciationAccount: "6222", AcquisitionDate: "2026-01-10",
 		AcquisitionCost: 1_200_000, UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
+		// Kürzer als der Erfahrungswert der AfA-Tabelle. Das ist zulässig — die
+		// Tabelle bindet die Finanzverwaltung und nicht den Steuerpflichtigen —
+		// und die Begründung steht hier freiwillig. Verlangt wird sie nur dort,
+		// wo Buchfink das Wahlrecht des BMF-Schreibens vom 22.02.2022
+		// vorschlägt.
+		UsefulLifeReason: "Einsatz im Baustellenverkehr, Laufleistung 90.000 km im Jahr",
 	})
 	if err != nil {
 		t.Fatalf("zweites Anlagegut: %v", err)
@@ -908,16 +914,21 @@ func TestAdditionsRespectPoolYearAndGWGLimit(t *testing.T) {
 		t.Error("ein Gut aus 2027 gehört nicht in den Sammelposten 2026")
 	}
 
+	// Das Notebook liegt bewusst in einem anderen Wirtschaftsjahr als der
+	// Sammelposten: § 6 Abs. 2a Satz 5 EStG verlangt die einheitliche Ausübung
+	// des Wahlrechts innerhalb eines Wirtschaftsjahres, und ein Sofortabzug
+	// neben einem Sammelposten desselben Jahres wird deshalb zurückgewiesen.
+	// Geprüft wird hier die Wertgrenze und nicht die Einheitlichkeit.
 	gwg, err := svc.Save(ctx, &domain.FixedAsset{
 		Name: "Notebook", Class: domain.AssetClassTangible, Account: "0670",
-		DepreciationAccount: "6260", AcquisitionDate: "2026-04-20",
+		DepreciationAccount: "6260", AcquisitionDate: "2027-04-20",
 		AcquisitionCost: 78_000, Method: domain.DepreciationImmediate,
 	})
 	if err != nil {
 		t.Fatalf("GWG: %v", err)
 	}
 	if _, err := svc.RecordCostAdjustment(ctx, CostAdjustmentRequest{
-		AssetID: gwg.ID, Date: "2026-05-02", Amount: 10_000, Note: "Dockingstation",
+		AssetID: gwg.ID, Date: "2027-05-02", Amount: 10_000, Note: "Dockingstation",
 	}); err == nil {
 		t.Error("zusammen über der GWG-Grenze war der Sofortabzug nie zulässig")
 	}
@@ -1561,7 +1572,7 @@ func TestMaintenanceIsLinkedButDoesNotChangeTheBookValue(t *testing.T) {
 	asset := env.machine(t, svc)
 	before := asset.BookValue
 
-	entry, err := svc.BookMaintenance(ctx, MaintenanceRequest{
+	result, err := svc.BookMaintenance(ctx, MaintenanceRequest{
 		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
 		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
 		Note: "Lagerschaden behoben, kein Mehrwert gegenüber dem ursprünglichen Zustand",
@@ -1569,8 +1580,13 @@ func TestMaintenanceIsLinkedButDoesNotChangeTheBookValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Erhaltungsaufwand: %v", err)
 	}
+	// Eine Maschine ist kein Gebäude: die Prüfung des 15-%-Rahmens ist nicht
+	// einschlägig, und das Ergebnis sagt es statt zu schweigen.
+	if result.NearAcquisition != nil && result.NearAcquisition.Applicable {
+		t.Errorf("§ 6 Abs. 1 Nr. 1a EStG gilt für Gebäude: %+v", result.NearAcquisition)
+	}
 	lines := map[string]domain.Cents{}
-	for _, l := range entry.Lines {
+	for _, l := range result.Entry.Lines {
 		lines[string(l.Side)+":"+l.Account] += l.Amount
 	}
 	// Eine Maschine: Reparaturen und Instandhaltung von technischen Anlagen.

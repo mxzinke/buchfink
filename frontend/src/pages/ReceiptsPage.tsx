@@ -15,8 +15,10 @@ import type {
   AdvanceTarget,
   AdvanceTargetOption,
   Contact,
+  Conversion,
   EInvoiceProposal,
   EntertainmentDetail,
+  InputTaxFinding,
   PostingGroup,
   PostingPreview,
   PostingWarning,
@@ -33,10 +35,23 @@ import type {
   ValidationFinding,
   VendorAdvance,
 } from '../types';
-import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
+import {
+  LIMIT_GIFT_PER_RECIPIENT,
+  TAX_RATE_NONE,
+  TAX_RATE_REDUCED,
+  TAX_RATE_STANDARD,
+} from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import { formatCents, formatDate, parseCents } from '../utils/formatters';
+import {
+  formatCents,
+  formatDate,
+  formatDateTime,
+  formatExchangeRate,
+  formatPermille,
+  parseCents,
+  parseExchangeRate,
+} from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -54,6 +69,7 @@ import {
   Table,
   Tbody,
   Td,
+  Textarea,
   Tr,
   cn,
   toast,
@@ -156,6 +172,17 @@ interface DraftPosition {
   net: string;
   taxRate: TaxRate;
   text: string;
+  /**
+   * Der abziehbare Vorsteueranteil in Promille als Text — leer heißt: voll
+   * abziehbar. Als Text und nicht als Zahl, damit ein halb getippter Wert nicht
+   * schon als 6 ‰ an die Vorschau geht.
+   */
+  inputTaxShare: string;
+  inputTaxShareReason: string;
+  /** Der Empfänger eines Geschenks: aus der Kartei oder als Freitext. */
+  giftContactId: number;
+  giftName: string;
+  giftOccasion: string;
 }
 
 const emptyPosition = (group?: PostingGroup): DraftPosition => ({
@@ -163,7 +190,24 @@ const emptyPosition = (group?: PostingGroup): DraftPosition => ({
   net: '',
   taxRate: group?.defaultRate ?? TAX_RATE_STANDARD,
   text: '',
+  inputTaxShare: '',
+  inputTaxShareReason: '',
+  giftContactId: 0,
+  giftName: '',
+  giftOccasion: '',
 });
+
+/**
+ * Ob zu dieser Gruppe der Empfänger gehört.
+ *
+ * Die Frage beantwortet der Katalog und nicht diese Datei: an der Gruppe hängt
+ * die Aufzeichnungspflicht des § 4 Abs. 7 EStG, und ohne den Empfänger weist
+ * das Backend die Buchung zurück. Eine Liste von Gruppenschlüsseln hier wäre
+ * eine zweite Fassung derselben Regel.
+ */
+function needsRecipient(group?: PostingGroup): boolean {
+  return Boolean(group?.recipientRequired) || group?.limit === LIMIT_GIFT_PER_RECIPIENT;
+}
 
 export const ReceiptsPage: React.FC = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -341,6 +385,7 @@ export const ReceiptsPage: React.FC = () => {
             key={selected.id}
             receipt={selected}
             vendors={vendors}
+            contacts={contacts}
             groups={groups}
             treatments={treatments}
             paymentAccounts={paymentAccounts}
@@ -459,6 +504,8 @@ const ReceiptList: React.FC<{
 const ReceiptDetail: React.FC<{
   receipt: Receipt;
   vendors: Contact[];
+  /** Alle Kontakte — der Empfänger eines Geschenks ist selten ein Lieferant. */
+  contacts: Contact[];
   groups: PostingGroup[];
   treatments: TaxTreatmentInfo[];
   paymentAccounts: Account[];
@@ -469,6 +516,7 @@ const ReceiptDetail: React.FC<{
 }> = ({
   receipt,
   vendors,
+  contacts,
   groups,
   treatments,
   paymentAccounts,
@@ -498,6 +546,7 @@ const ReceiptDetail: React.FC<{
           key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
           receipt={receipt}
           vendors={vendors}
+          contacts={contacts}
           groups={groups}
           treatments={treatments}
           paymentAccounts={paymentAccounts}
@@ -517,6 +566,19 @@ const ReceiptDetail: React.FC<{
             ist ein eigener Beleg auf denselben Geschäftsvorfall. Eine inhaltliche Korrektur läuft
             über den Storno der Buchung.
           </p>
+        )}
+        {receipt.inputTaxOverride && (
+          // Der Grund gehört nach der Buchung an den Beleg: wer den Vorsteuerabzug
+          // trotz eines Befundes genommen hat, muss das später belegen können.
+          <div className="mt-4">
+            <h3 className="text-label text-ink">Übersteuerter Vorsteuerabzug</h3>
+            <p className="text-body text-ink-muted mt-1">{receipt.inputTaxOverride}</p>
+            {receipt.inputTaxOverrideAt && (
+              <p className="text-caption text-ink-muted mt-1">
+                festgehalten am {formatDateTime(receipt.inputTaxOverrideAt)}
+              </p>
+            )}
+          </div>
         )}
         {receipt.discardReason && (
           <p className="text-body text-ink-muted mt-2">Grund: {receipt.discardReason}</p>
@@ -826,12 +888,13 @@ const POSITION_GRID = 'grid grid-cols-[minmax(0,1fr)_7rem_6rem_2rem] gap-2 items
 const BookingForm: React.FC<{
   receipt: Receipt;
   vendors: Contact[];
+  contacts: Contact[];
   groups: PostingGroup[];
   treatments: TaxTreatmentInfo[];
   paymentAccounts: Account[];
   proposal: EInvoiceProposal | null;
   onBooked: (entryNumber: string) => Promise<void>;
-}> = ({ receipt, vendors, groups, treatments, paymentAccounts, proposal, onBooked }) => {
+}> = ({ receipt, vendors, contacts, groups, treatments, paymentAccounts, proposal, onBooked }) => {
   const writeLock = useWriteLock();
   const today = receipt.receivedAt || new Date().toISOString().split('T')[0];
   const p = proposal?.request;
@@ -853,7 +916,7 @@ const BookingForm: React.FC<{
     // Buchungsgruppe bleibt offen — sie steht in keiner Rechnung.
     p && p.positions.length > 0
       ? p.positions.map((pos) => ({
-          postingGroup: '',
+          ...emptyPosition(),
           net: (pos.net / 100).toFixed(2).replace('.', ','),
           taxRate: pos.taxRate,
           text: pos.text ?? '',
@@ -882,6 +945,15 @@ const BookingForm: React.FC<{
     participants: '',
     occasion: '',
   });
+  // Die Währung des Belegs. Leer heißt Euro; die Positionsbeträge sind dann die
+  // Eurobeträge. Steht eine Fremdwährung, sind sie die der Fremdwährung — der
+  // Anwender tippt ab, was auf der Rechnung steht, und rechnet nicht selbst um.
+  const [currency, setCurrency] = useState(p?.currency && p.currency !== 'EUR' ? p.currency : '');
+  const [foreignTotal, setForeignTotal] = useState('');
+  // Der Grund, mit dem ein blockierender Befund der Rechnungsprüfung
+  // übersteuert wird. Er steht am Beleg und im Protokoll; ohne ihn gibt es
+  // keine Buchung mit Vorsteuer.
+  const [overrideReason, setOverrideReason] = useState('');
 
   // Ein Betrag, den parseCents nicht lesen kann ("1.2.3", "250,--", auch das
   // deutsche "1.234"), fällt beim Aufbau der Anfrage unten aus den Positionen
@@ -897,10 +969,85 @@ const BookingForm: React.FC<{
     (pos) => groups.find((g) => g.key === pos.postingGroup)?.deductibleQuota === 'entertainment',
   );
 
+  const groupOf = useCallback(
+    (key: string) => groups.find((g) => g.key === key),
+    [groups],
+  );
+
+  /**
+   * Der Vorsteueranteil einer Position in Promille — oder null, wo das Feld
+   * leer oder unlesbar ist.
+   *
+   * Leer heißt voll abziehbar und geht gar nicht erst mit; das Backend liest
+   * eine fehlende Angabe als 1000. Ein unlesbarer Wert darf nicht als 0
+   * durchgehen: 0 ‰ ist der vollständige Ausschluss des Abzugs und damit eine
+   * Aussage, keine leere Eingabe.
+   */
+  const shareOf = (value: string): number | null => {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+  const unreadableShare = (value: string) => value.trim() !== '' && shareOf(value) === null;
+  /**
+   * Der Anteil liegt zwischen 1 und 1000 ‰ — die Null gehört nicht dazu.
+   *
+   * Ein vollständig ausgeschlossener Vorsteuerabzug ist keine Aufteilung nach
+   * § 15 Abs. 4 UStG, sondern der Ausschluss des § 15 Abs. 1a UStG. Er hängt an
+   * der Buchungsgruppe (Gästehaus, Jagd, Yacht) und nicht an einem Schlüssel;
+   * eine Null hier ginge im Backend als „nicht angegeben" durch und führte zum
+   * vollen Abzug — dem Gegenteil dessen, was sie sagen sollte.
+   */
+  const shareOutOfRange = (value: string) => {
+    const share = shareOf(value);
+    return share !== null && (share < 1 || share > 1000);
+  };
+  /** Ein geteilter Abzug ohne seinen Maßstab: § 15 Abs. 4 Satz 2 UStG verlangt ihn. */
+  const shareWithoutReason = (pos: DraftPosition) => {
+    const share = shareOf(pos.inputTaxShare);
+    return share !== null && share < 1000 && pos.inputTaxShareReason.trim() === '';
+  };
+  /** Ein Geschenk ohne Empfänger: § 4 Abs. 7 EStG lässt den Abzug dann nicht zu. */
+  const giftWithoutRecipient = (pos: DraftPosition) =>
+    needsRecipient(groupOf(pos.postingGroup)) &&
+    pos.giftContactId === 0 &&
+    pos.giftName.trim() === '';
+
+  const hasShareProblem = positions.some(
+    (pos) =>
+      unreadableShare(pos.inputTaxShare) ||
+      shareOutOfRange(pos.inputTaxShare) ||
+      shareWithoutReason(pos),
+  );
+  const hasGiftProblem = positions.some(giftWithoutRecipient);
+  const foreignTotalCents = parseCents(foreignTotal);
+  const unreadableForeignTotal = foreignTotal.trim() !== '' && foreignTotalCents === null;
+
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Solange keine Umrechnung in der Vorschau steht, fehlt der Kurs: entweder
+  // scheitert die Vorschau, oder sie kommt ohne Umrechnung zurück. Die frühere
+  // Prüfung suchte das Wort „Kurs" im Fehlertext und hing damit am Wortlaut des
+  // Backends — eine Umformulierung dort hätte die Vorschau zur Sackgasse
+  // gemacht, und genau die soll das Formular vermeiden.
+  const rateMissing =
+    currency.trim() !== '' &&
+    (previewError !== null || (preview !== null && !preview.conversion));
+
+  // Ein von Hand erfasster Kurs ändert die Antwort des Backends, nicht die
+  // Eingabe. Ohne diesen Zähler bliebe die Vorschau auf ihrem Fehler stehen,
+  // bis der Anwender irgendein Feld anfasst.
+  const [rateNonce, setRateNonce] = useState(0);
+
+  // Ein offener Befund hält die Buchung an, solange kein Grund dasteht — genau
+  // wie im Backend. Die Sperre steht hier, damit der Anwender nicht erst nach
+  // dem Klick erfährt, dass ihm ein Feld fehlt.
+  const findings = preview?.inputTaxFindings ?? [];
+  const findingsOpen = findings.length > 0 && overrideReason.trim() === '';
 
   const request: ReceiptRequest = useMemo(
     () => ({
@@ -914,15 +1061,32 @@ const BookingForm: React.FC<{
       taxTreatment: treatment as TaxTreatment,
       positions: positions
         .filter((pos) => pos.postingGroup && parseCents(pos.net) !== null)
-        .map((pos) => ({
-          postingGroup: pos.postingGroup,
-          net: parseCents(pos.net) ?? 0,
-          taxRate: pos.taxRate,
-          text: pos.text || undefined,
-        })),
+        .map((pos) => {
+          const share = shareOf(pos.inputTaxShare);
+          const recipient = needsRecipient(groups.find((g) => g.key === pos.postingGroup));
+          return {
+            postingGroup: pos.postingGroup,
+            net: parseCents(pos.net) ?? 0,
+            taxRate: pos.taxRate,
+            text: pos.text || undefined,
+            // 1000 ist der Regelfall und geht nicht mit: das Backend liest eine
+            // fehlende Angabe genauso.
+            inputTaxShare: share !== null && share !== 1000 ? share : undefined,
+            inputTaxShareReason:
+              share !== null && share < 1000 ? pos.inputTaxShareReason.trim() || undefined : undefined,
+            gift: recipient
+              ? {
+                  contactId: pos.giftContactId || undefined,
+                  name: pos.giftContactId ? undefined : pos.giftName.trim() || undefined,
+                  occasion: pos.giftOccasion.trim() || undefined,
+                }
+              : undefined,
+          };
+        }),
       settlement,
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
-      currency: 'EUR',
+      currency: currency.trim().toUpperCase() || 'EUR',
+      foreignAmount: currency.trim() ? foreignTotalCents ?? undefined : undefined,
       entertainment: needsEntertainment ? entertainment : undefined,
       provisionId: provisionId ? Number.parseInt(provisionId, 10) : undefined,
       advanceTarget: advanceTarget || undefined,
@@ -938,8 +1102,11 @@ const BookingForm: React.FC<{
       description,
       treatment,
       positions,
+      groups,
       settlement,
       paymentAccount,
+      currency,
+      foreignTotalCents,
       needsEntertainment,
       entertainment,
       provisionId,
@@ -1007,7 +1174,7 @@ const BookingForm: React.FC<{
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [request, contactId, treatment]);
+  }, [request, contactId, treatment, rateNonce]);
 
   function updatePosition(index: number, patch: Partial<DraftPosition>) {
     setPositions((prev) => prev.map((pos, i) => (i === index ? { ...pos, ...patch } : pos)));
@@ -1027,7 +1194,13 @@ const BookingForm: React.FC<{
     setBusy(true);
     setError(null);
     try {
-      const entry = await Api.postIncomingReceipt(request);
+      // Der Grund geht erst mit der Buchung mit und nicht schon mit jeder
+      // Vorschau: sonst holte jeder Tastendruck im Grundfeld einen neuen
+      // Buchungssatz, der davon nicht anders aussieht.
+      const entry = await Api.postIncomingReceipt({
+        ...request,
+        overrideReason: overrideReason.trim() || undefined,
+      });
       await onBooked(entry.entryNumber);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -1090,6 +1263,47 @@ const BookingForm: React.FC<{
             placeholder="Steuerfall wählen"
           />
         </Field>
+
+        {/* Fremdwährung. Leer heißt Euro — der Regelfall bekommt kein Feld, das
+            er ausfüllen müsste. Steht eine Währung, sind die Positionsbeträge
+            die der Rechnung, und Buchfink rechnet um; geraten wird kein Kurs. */}
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Währung"
+            optional
+            hint="ISO 4217, leer für Euro"
+            explain="Bei einem Beleg in Fremdwährung werden die Positionsbeträge in der Fremdwährung erfasst. Buchfink holt den Referenzkurs der EZB zum Belegdatum und rechnet damit den Aufwand; die Bemessungsgrundlage der Umsatzsteuer folgt dem Durchschnittskurs des Monats (§ 16 Abs. 6 UStG), sofern einer vorliegt. Liegt kein Kurs vor, wird keiner geraten — er ist dann von Hand zu erfassen."
+          >
+            <Input
+              className="code-num"
+              maxLength={3}
+              placeholder="EUR"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+            />
+          </Field>
+          {currency.trim() !== '' && (
+            <Field
+              label={`Endsumme in ${currency}`}
+              optional
+              hint="Kontrollsumme zu den Positionen"
+              error={
+                unreadableForeignTotal
+                  ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56.'
+                  : undefined
+              }
+              help="Die Endsumme der Rechnung. Stimmt sie nicht mit den Positionen überein, weist das Backend die Buchung zurück — ein Tippfehler fällt hier auf und nicht in der Bilanz."
+            >
+              <Input
+                align="right"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={foreignTotal}
+                onChange={(e) => setForeignTotal(e.target.value)}
+              />
+            </Field>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 pt-6 border-t border-line">
@@ -1107,57 +1321,169 @@ const BookingForm: React.FC<{
 
         <div className={cn(POSITION_GRID, 'text-caption text-ink-subtle mb-1')}>
           <span>Buchungsgruppe</span>
-          <span className="text-right">Netto</span>
+          <span className="text-right">Netto{currency.trim() ? ` in ${currency}` : ''}</span>
           <span>USt</span>
           <span />
         </div>
 
         <div className="flex flex-col gap-2">
           {positions.map((position, index) => (
-            <div key={index} className={POSITION_GRID}>
-              <Combobox
-                items={groupItems}
-                value={position.postingGroup || null}
-                onValueChange={(key) => selectGroup(index, key ?? '')}
-                placeholder="Gruppe suchen"
-                emptyText="Keine passende Buchungsgruppe."
-              />
-              <Input
-                align="right"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={position.net}
-                onChange={(e) => updatePosition(index, { net: e.target.value })}
-                aria-label={`Nettobetrag der Position ${index + 1}`}
-                title={
-                  unreadableAmount(position.net)
-                    ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56 — ohne Tausenderpunkt.'
-                    : undefined
-                }
-                className={cn(
-                  unreadableAmount(position.net) && 'border-negative ring-2 ring-negative/20',
-                )}
-              />
-              <Select
-                items={[
-                  { value: TAX_RATE_STANDARD, label: '19 %' },
-                  { value: TAX_RATE_REDUCED, label: '7 %' },
-                  { value: TAX_RATE_NONE, label: 'ohne' },
-                ]}
-                value={position.taxRate}
-                onValueChange={(taxRate) => updatePosition(index, { taxRate })}
-              />
-              <Button
-                variant="quiet"
-                size="sm"
-                iconOnly
-                disabled={positions.length === 1}
-                title="Position entfernen"
-                aria-label={`Position ${index + 1} entfernen`}
-                onClick={() => setPositions((prev) => prev.filter((_, i) => i !== index))}
-              >
-                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-              </Button>
+            <div key={index} className="flex flex-col gap-2">
+              <div className={POSITION_GRID}>
+                <Combobox
+                  items={groupItems}
+                  value={position.postingGroup || null}
+                  onValueChange={(key) => selectGroup(index, key ?? '')}
+                  placeholder="Gruppe suchen"
+                  emptyText="Keine passende Buchungsgruppe."
+                />
+                <Input
+                  align="right"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={position.net}
+                  onChange={(e) => updatePosition(index, { net: e.target.value })}
+                  aria-label={`Nettobetrag der Position ${index + 1}`}
+                  title={
+                    unreadableAmount(position.net)
+                      ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56 — ohne Tausenderpunkt.'
+                      : undefined
+                  }
+                  className={cn(
+                    unreadableAmount(position.net) && 'border-negative ring-2 ring-negative/20',
+                  )}
+                />
+                <Select
+                  items={[
+                    { value: TAX_RATE_STANDARD, label: '19 %' },
+                    { value: TAX_RATE_REDUCED, label: '7 %' },
+                    { value: TAX_RATE_NONE, label: 'ohne' },
+                  ]}
+                  value={position.taxRate}
+                  onValueChange={(taxRate) => updatePosition(index, { taxRate })}
+                />
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  iconOnly
+                  disabled={positions.length === 1}
+                  title="Position entfernen"
+                  aria-label={`Position ${index + 1} entfernen`}
+                  onClick={() => setPositions((prev) => prev.filter((_, i) => i !== index))}
+                >
+                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                </Button>
+              </div>
+
+              {/* Der Empfänger gehört zur Position und nicht zum Beleg: eine
+                  Rechnung kann Geschenke an zwei Empfänger tragen, und die
+                  Freigrenze läuft je Empfänger. */}
+              {needsRecipient(groupOf(position.postingGroup)) && (
+                <div className={cn(NOTE, NOTE_TONE.attention)}>
+                  <h4 className="text-label text-attention-text">
+                    Empfänger des Geschenks
+                    <HelpPopover label="Erklärung zur Aufzeichnung des Empfängers">
+                      § 4 Abs. 7 EStG lässt den Abzug nur zu, wenn die Aufwendung einzeln und
+                      getrennt aufgezeichnet ist. Ohne den Empfänger ließe sich außerdem die
+                      Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG je Empfänger und Wirtschaftsjahr
+                      nicht führen — und mit ihrer Überschreitung entfällt der Abzug für sämtliche
+                      Geschenke an diesen Empfänger, nach § 15 Abs. 1a UStG auch der Vorsteuerabzug.
+                    </HelpPopover>
+                  </h4>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <Field label="Aus der Kartei" optional>
+                      <Select
+                        items={[
+                          { value: 0, label: 'Nicht erfasst — als Freitext' },
+                          ...contacts.map((c) => ({
+                            value: c.id,
+                            label: `${c.name} · ${c.ledgerAccount}`,
+                          })),
+                        ]}
+                        value={position.giftContactId}
+                        onValueChange={(next) =>
+                          updatePosition(index, { giftContactId: Number(next) })
+                        }
+                      />
+                    </Field>
+                    <Field
+                      label="Name des Empfängers"
+                      hint={position.giftContactId ? 'kommt aus der Kartei' : 'Pflicht'}
+                      disabled={position.giftContactId !== 0}
+                    >
+                      <Input
+                        disabled={position.giftContactId !== 0}
+                        value={position.giftName}
+                        onChange={(e) => updatePosition(index, { giftName: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Anlass" className="mt-3" optional hint="Jubiläum, Weihnachten, Messe">
+                    <Input
+                      value={position.giftOccasion}
+                      onChange={(e) => updatePosition(index, { giftOccasion: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {/* Der Vorsteuerschlüssel steht bei der Position, weil er zu ihr
+                  gehört: ein Beleg kann eine voll und eine anteilig abziehbare
+                  Leistung tragen. Er erscheint nur, wo es überhaupt Vorsteuer zu
+                  teilen gibt — beim steuerpflichtigen Inlandsumsatz mit
+                  Steuersatz und außerhalb der Gruppen, denen § 15 Abs. 1a UStG
+                  den Abzug ohnehin nimmt. */}
+              {treatment === 'domestic' &&
+                position.taxRate !== TAX_RATE_NONE &&
+                !groupOf(position.postingGroup)?.inputTaxExcluded && (
+                <div className="grid grid-cols-[9rem_minmax(0,1fr)] gap-3">
+                  <Field
+                    label="Vorsteuer ‰"
+                    optional
+                    hint={
+                      shareOf(position.inputTaxShare) !== null
+                        ? formatPermille(shareOf(position.inputTaxShare) as number)
+                        : 'leer = voll'
+                    }
+                    error={
+                      unreadableShare(position.inputTaxShare)
+                        ? 'Erwartet wird eine ganze Zahl von 1 bis 1000.'
+                        : shareOutOfRange(position.inputTaxShare)
+                          ? 'Der Anteil liegt zwischen 1 und 1000 ‰. Wo gar kein Abzug zusteht, ist die Buchungsgruppe die richtige Stelle (§ 15 Abs. 1a UStG).'
+                          : undefined
+                    }
+                    explain="Der abziehbare Anteil der Vorsteuer in Promille bei gemischter Nutzung (§ 15 Abs. 4 UStG). 600 heißt: 60 % der Vorsteuer sind abziehbar, der Rest wird dem Aufwand zugeschlagen (§ 9b Abs. 1 EStG). Leer heißt voll abziehbar — der Regelfall."
+                  >
+                    <Input
+                      align="right"
+                      inputMode="numeric"
+                      placeholder="1000"
+                      value={position.inputTaxShare}
+                      onChange={(e) => updatePosition(index, { inputTaxShare: e.target.value })}
+                    />
+                  </Field>
+                  {shareOf(position.inputTaxShare) !== null &&
+                    (shareOf(position.inputTaxShare) as number) < 1000 && (
+                      <Field
+                        label="Maßstab der Aufteilung"
+                        hint="Pflicht unter 1000 ‰"
+                        error={
+                          shareWithoutReason(position)
+                            ? 'Ohne den Maßstab nimmt das Backend die Buchung nicht an.'
+                            : undefined
+                        }
+                        help="§ 15 Abs. 4 Satz 2 UStG lässt die Aufteilung nach einer sachgerechten Schätzung zu. Halte fest, worauf sie beruht — etwa „Kfz zu 60 % betrieblich genutzt, Fahrtenbuch 2026&quot;."
+                      >
+                        <Input
+                          value={position.inputTaxShareReason}
+                          onChange={(e) =>
+                            updatePosition(index, { inputTaxShareReason: e.target.value })
+                          }
+                        />
+                      </Field>
+                    )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1316,7 +1642,26 @@ const BookingForm: React.FC<{
             — ohne Tausenderpunkt. Solange er so dasteht, fiele die Position aus der Buchung.
           </p>
         )}
+        {hasGiftProblem && (
+          <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>
+            Zu einem Geschenk gehört der Empfänger (§ 4 Abs. 7 EStG). Wähle ihn aus der Kartei
+            oder trage seinen Namen ein.
+          </p>
+        )}
+        <ConversionPanel conversion={preview?.conversion} date={documentDate} />
+        {rateMissing && (
+          <ManualRateForm
+            currency={currency.trim().toUpperCase()}
+            date={documentDate}
+            onSaved={() => setRateNonce((n) => n + 1)}
+          />
+        )}
         <PostingWarnings warnings={preview?.warnings} />
+        <InputTaxFindings
+          findings={preview?.inputTaxFindings}
+          reason={overrideReason}
+          onReasonChange={setOverrideReason}
+        />
         <PostingPreviewPanel preview={preview} error={previewError} />
         {error && (
           <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>{error}</p>
@@ -1328,8 +1673,20 @@ const BookingForm: React.FC<{
           type="submit"
           variant="primary"
           loading={busy}
-          disabled={hasUnreadableAmount || !preview?.balanced || writeLock.locked}
-          title={writeLock.hint}
+          disabled={
+            hasUnreadableAmount ||
+            unreadableForeignTotal ||
+            hasShareProblem ||
+            hasGiftProblem ||
+            findingsOpen ||
+            !preview?.balanced ||
+            writeLock.locked
+          }
+          title={
+            findingsOpen
+              ? 'Ohne festgehaltenen Grund wird eine Rechnung mit fehlender Pflichtangabe nicht mit Vorsteuer gebucht.'
+              : writeLock.hint
+          }
         >
           Buchen
         </Button>
@@ -1508,6 +1865,206 @@ const PostingWarnings: React.FC<{ warnings?: PostingWarning[] }> = ({ warnings }
           </div>
         );
       })}
+    </div>
+  );
+};
+
+/**
+ * Die blockierenden Befunde der Rechnungsprüfung samt dem Feld für die
+ * Übersteuerung.
+ *
+ * Sie stehen neben den Warnungen und nicht in ihnen: eine Warnung zeigt, ein
+ * Befund hält an. § 15 Abs. 1 Satz 1 Nr. 1 UStG lässt den Abzug nur aus einer
+ * Rechnung nach §§ 14, 14a UStG zu — fehlt eine Pflichtangabe, gibt es zwei
+ * Wege, und beide stehen hier: die Angabe ergänzen oder mit einem Grund buchen,
+ * der am Beleg und im Protokoll bleibt. Ohne dieses Feld wäre die Maske eine
+ * Sackgasse, weil das Backend die Buchung anhält und nichts anbietet.
+ */
+const InputTaxFindings: React.FC<{
+  findings?: InputTaxFinding[];
+  reason: string;
+  onReasonChange: (value: string) => void;
+}> = ({ findings, reason, onReasonChange }) => {
+  const rows = findings ?? [];
+  if (rows.length === 0) return null;
+
+  return (
+    <div className={cn(NOTE, NOTE_TONE.negative)}>
+      <h3 className="flex items-start gap-2 text-label text-negative-text">
+        <AlertTriangle className="w-4 h-4 mt-px shrink-0" strokeWidth={1.5} />
+        {rows.length === 1
+          ? 'Eine Pflichtangabe der Rechnung fehlt'
+          : `${rows.length} Pflichtangaben der Rechnung fehlen`}
+      </h3>
+      <ul className="mt-2 flex flex-col gap-2">
+        {rows.map((finding) => (
+          <li key={finding.code}>
+            <p className="text-body text-ink">{finding.title}</p>
+            <p className="text-caption text-ink-muted mt-0.5">
+              {finding.detail}
+              {finding.fixable &&
+                ' Diese Angabe lässt sich in den Stammdaten des Ausstellers nachtragen.'}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <Field
+        label="Grund der Übersteuerung"
+        className="mt-3"
+        hint={reason.trim() === '' ? 'Pflicht, solange ein Befund offen ist' : undefined}
+        explain="Der Grund wird am Beleg und im Änderungsprotokoll festgehalten. Er ersetzt die fehlende Angabe nicht — er hält fest, worauf der Abzug trotzdem gestützt wird, etwa weil die berichtigte Rechnung vorliegt oder die Angabe aus anderen Unterlagen hervorgeht."
+      >
+        <Textarea
+          rows={2}
+          value={reason}
+          onChange={(e) => onReasonChange(e.target.value)}
+          placeholder="Worauf der Vorsteuerabzug trotz des Befundes gestützt wird"
+        />
+      </Field>
+    </div>
+  );
+};
+
+/**
+ * Der Kurs von Hand — der Ausweg, wenn der Kursdienst nicht antwortet.
+ *
+ * Buchfink rät keinen Kurs: ohne Kurs gibt es keine Umrechnung, und ein
+ * Rückfall auf 1,0 wäre eine erfundene Zahl im Buchungssatz. Damit die
+ * Ablehnung keine Sackgasse ist, steht der zweite Weg an derselben Stelle wie
+ * die Meldung. Die Quelle ist Pflicht: ein Kurs ohne Herkunft ist eine
+ * Behauptung, und er entscheidet über den Aufwand.
+ */
+const ManualRateForm: React.FC<{
+  currency: string;
+  date: string;
+  onSaved: () => void;
+}> = ({ currency, date, onSaved }) => {
+  const writeLock = useWriteLock();
+  const [rate, setRate] = useState('');
+  const [source, setSource] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const micros = parseExchangeRate(rate);
+  const unreadable = rate.trim() !== '' && micros === null;
+
+  async function save() {
+    if (micros === null || source.trim() === '') {
+      setError('Ein Kurs von Hand braucht seinen Wert und seine Quelle.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await Api.saveExchangeRate({
+        currency,
+        date,
+        rateMicros: micros,
+        source: source.trim(),
+        manual: true,
+      });
+      setRate('');
+      setSource('');
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={cn(NOTE, NOTE_TONE.attention)}>
+      <h3 className="text-label text-attention-text">
+        Kurs für {currency} am {formatDate(date)} von Hand erfassen
+        <HelpPopover label="Erklärung zum Kurs von Hand">
+          Buchfink holt den Referenzkurs der Europäischen Zentralbank zum Belegdatum. Ist der
+          Kursdienst nicht erreichbar oder gibt es für den Tag keinen Kurs, wird keiner geraten —
+          der Beleg bleibt dann liegen, bis ein Kurs mit seiner Quelle erfasst ist. Der erfasste
+          Kurs bleibt als „von Hand" erkennbar.
+        </HelpPopover>
+      </h3>
+      <div className="mt-3 grid grid-cols-[10rem_minmax(0,1fr)_auto] gap-3 items-end">
+        <Field
+          label={`${currency} je Euro`}
+          error={unreadable ? 'Erwartet wird ein Kurs wie 1,0874.' : undefined}
+        >
+          <Input
+            align="right"
+            inputMode="decimal"
+            placeholder="1,0874"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+          />
+        </Field>
+        <Field label="Quelle" hint="woher der Kurs stammt">
+          <Input
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="EZB-Referenzkurs, abgelesen am …"
+          />
+        </Field>
+        <Button
+          variant="secondary"
+          loading={busy}
+          disabled={writeLock.locked || micros === null || source.trim() === ''}
+          title={writeLock.hint}
+          onClick={save}
+        >
+          Kurs übernehmen
+        </Button>
+      </div>
+      {error && <p className="text-body text-negative-text mt-2">{error}</p>}
+    </div>
+  );
+};
+
+/**
+ * Die Umrechnung eines Fremdwährungsbelegs.
+ *
+ * Zwei Kurse und ihre Differenz: der Tageskurs bewertet den Aufwand, der
+ * Durchschnittskurs des Monats die Bemessungsgrundlage der Umsatzsteuer
+ * (§ 16 Abs. 6 UStG). Dass beide auseinandergehen, ist kein Fehler — es ist
+ * Kursaufwand oder Kursertrag, und wer den Buchungssatz später liest, sucht
+ * genau diese Zeile.
+ */
+const ConversionPanel: React.FC<{ conversion?: Conversion; date: string }> = ({
+  conversion,
+  date,
+}) => {
+  if (!conversion) return null;
+  const rate = conversion.rate;
+  return (
+    <div className={cn(NOTE, NOTE_TONE.neutral)}>
+      <h3 className="text-label text-ink">Umrechnung aus {conversion.currency}</h3>
+      <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-caption">
+        <dt className="text-ink-subtle">Tageskurs</dt>
+        <dd className="text-ink-muted">
+          <span className="num">
+            1 € = {formatExchangeRate(rate?.rateMicros ?? 0)} {conversion.currency}
+          </span>
+          {rate?.source ? ` · ${rate.source}` : ''}
+          {rate?.date ? ` · ${formatDate(rate.date)}` : ''}
+          {rate?.manual ? ' · von Hand erfasst' : ''}
+        </dd>
+        <dt className="text-ink-subtle">Aufwand</dt>
+        <dd className="text-ink-muted num">{formatCents(conversion.amount)}</dd>
+        <dt className="text-ink-subtle">Bemessungsgrundlage</dt>
+        <dd className="text-ink-muted">
+          <span className="num">{formatCents(conversion.taxBaseAmount)}</span>
+          {conversion.vatRate
+            ? ` · Durchschnittskurs ${conversion.vatRate.month} (§ 16 Abs. 6 UStG)`
+            : ' · kein Durchschnittskurs hinterlegt, es bleibt beim Tageskurs'}
+        </dd>
+        {conversion.difference !== 0 && (
+          <>
+            <dt className="text-ink-subtle">Kursdifferenz</dt>
+            <dd className="text-ink-muted num">{formatCents(conversion.difference)}</dd>
+          </>
+        )}
+      </dl>
+      {conversion.note && <p className="text-caption text-ink-muted mt-2">{conversion.note}</p>}
+      <p className="text-caption text-ink-subtle mt-2">Belegdatum {formatDate(date)}</p>
     </div>
   );
 };

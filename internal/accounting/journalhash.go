@@ -76,6 +76,26 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("line_contact", optUint(l.ContactID))
 		put("line_tax_key", l.TaxKey)
 		putInt("line_tax_base", int64(l.TaxBase))
+		// Der Vorsteuerschlüssel der gemischten Nutzung wird nur geschrieben, wo
+		// er belegt ist.
+		//
+		// Das ist keine Sparsamkeit, sondern Rückwärtskompatibilität: ein
+		// zusätzliches Feld in der Kanonisierung ändert den Hash *jeder*
+		// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung
+		// wäre mit dem nächsten Update gebrochen. Ein Anteil von null heißt
+		// „nicht einschlägig" und ist damit gleichbedeutend mit „nicht
+		// vorhanden"; jeder tatsächliche Anteil ist ungleich null und wird
+		// gedeckt.
+		if l.InputTaxShare != 0 {
+			putInt("line_input_tax_share", int64(l.InputTaxShare))
+		}
+		// Der Fremdbetrag ebenso: er steht nur an Zeilen einer
+		// Fremdwährungsbuchung, und eine Eurobuchung hasht weiter genau wie zuvor.
+		// Gedeckt sein muss er trotzdem — er ist der Betrag, auf den die Rechnung
+		// lautete, und aus dem Eurobetrag nicht wiederzugewinnen.
+		if l.ForeignAmount != 0 {
+			putInt("line_foreign_amount", int64(l.ForeignAmount))
+		}
 		put("line_text", l.Text)
 	}
 
@@ -92,6 +112,36 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("entertainment_occasion", d.Occasion)
 	} else {
 		putInt("entertainment", 0)
+	}
+
+	// Die Aufzeichnung zum Geschenk wird nur geschrieben, wo es eine gibt.
+	//
+	// Anders als bei der Bewirtung fehlt hier der Nullmarker, und das ist kein
+	// Versehen: das Feld ist neu, und ein Marker an jeder Buchung änderte den
+	// Hash jeder bestehenden. Eine Buchung ohne Geschenk hasht deshalb weiter
+	// genau wie zuvor, und eine mit ist vollständig gedeckt.
+	if len(e.Gifts) > 0 {
+		gifts := make([]domain.GiftRecord, len(e.Gifts))
+		copy(gifts, e.Gifts)
+		sort.SliceStable(gifts, func(i, j int) bool {
+			return gifts[i].RecipientKey() < gifts[j].RecipientKey()
+		})
+		putInt("gifts", int64(len(gifts)))
+		for i := range gifts {
+			g := &gifts[i]
+			put("gift_recipient", g.RecipientName)
+			put("gift_recipient_contact", optUint(g.RecipientContactID))
+			put("gift_occasion", g.Occasion)
+			put("gift_date", g.Date)
+			putInt("gift_net", int64(g.NetAmount))
+			put("gift_account", g.Account)
+			putInt("gift_fiscal_year", int64(g.FiscalYear))
+			if g.Deductible() {
+				putInt("gift_deductible", 1)
+			} else {
+				putInt("gift_deductible", 0)
+			}
+		}
 	}
 
 	return w.bytes()

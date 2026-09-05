@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
@@ -379,5 +380,53 @@ func TestDeleteTenantIsRefusedForTheAuditedTenant(t *testing.T) {
 	})
 	if err := b.DeleteTenant("tenant_zweiter"); err != nil {
 		t.Errorf("ein anderer Mandant ließ sich im Prüfermodus nicht entfernen: %v", err)
+	}
+}
+
+// Der Prüfermodus sperrt die Vorschau der Stichtagsbewertung nicht.
+//
+// Sie ist eine Auswertung, und der Prüfermodus ist der Modus, in dem
+// ausgewertet wird. Weil sie einen fehlenden Kurs sonst holt und ablegt, stand
+// sie eine Zeit lang hinter ensureWritable — und ein Prüfer konnte die
+// Bewertung eines abgeschlossenen Jahres nicht einmal ansehen, obwohl alle
+// Kurse dazu längst in der Historie stehen. Jetzt antwortet dort der nur
+// lesende Kursdienst: er nimmt, was gespeichert ist, und holt nichts nach.
+func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
+	b := testBridge(t)
+	ctx := context.Background()
+	b.exchangeRateRepo = repository.NewExchangeRateRepository(b.db)
+	// Ein Kursdienst, dessen Adresse ins Leere zeigt: würde geholt, käme ein
+	// Fehler — und genau das soll im Prüfermodus nicht geschehen.
+	b.currencySvc = service.NewCurrencyService(
+		b.exchangeRateRepo, currency.New("http://127.0.0.1:1"), b.auditRepo)
+	b.currencySvc.SetJournalRepo(b.journalRepo)
+	b.currencySvc.SetJournalService(b.journalSvc)
+
+	if err := b.exchangeRateRepo.SaveRate(ctx, &domain.ExchangeRate{
+		Currency: "USD", Date: "2026-12-31", RateMicros: 1_085_000,
+		Source: "EZB-Referenzkurs",
+	}); err != nil {
+		t.Fatalf("Kurs anlegen: %v", err)
+	}
+
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+
+	rate, err := b.GetExchangeRate("USD", "2026-12-31")
+	if err != nil {
+		t.Fatalf("im Prüfermodus muss der gespeicherte Kurs lesbar sein: %v", err)
+	}
+	if rate.RateMicros != 1_085_000 {
+		t.Errorf("Kurs %d Millionstel — erwartet den gespeicherten", rate.RateMicros)
+	}
+
+	// Und wo keiner gespeichert ist, sagt der Dienst genau das, statt still
+	// einen zu holen und abzulegen.
+	if _, err := b.GetExchangeRate("CHF", "2026-12-31"); err == nil {
+		t.Error("ohne gespeicherten Kurs darf im Prüfermodus keiner geholt werden")
+	} else if !strings.Contains(err.Error(), "Prüfermodus") {
+		t.Errorf("die Meldung muss den Grund nennen: %v", err)
 	}
 }

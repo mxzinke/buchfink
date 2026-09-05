@@ -119,11 +119,17 @@ func VacuumInto(db *gorm.DB, targetPath string) error {
 
 // AutoMigrate applies schema changes for all domain entities.
 func AutoMigrate(db *gorm.DB) error {
+	// Der Kurstabelle muss vor dem Anlegen der Schlüssel gewechselt werden:
+	// AutoMigrate ändert Spalten, aber keinen Primärschlüssel.
+	if err := migrateExchangeRateTable(db); err != nil {
+		return err
+	}
 	return db.AutoMigrate(
 		&domain.Account{},
 		&domain.JournalEntry{},
 		&domain.JournalLine{},
 		&domain.EntertainmentDetail{},
+		&domain.GiftRecord{},
 		&domain.Receipt{},
 		&domain.ReceiptFile{},
 		&domain.NumberRange{},
@@ -170,7 +176,73 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.AdvanceItem{},
 		&domain.VendorAdvance{},
 		&domain.NumberGap{},
+		// Welle 5c: die steuerlichen Nebenpflichten. Das Verzeichnis nach § 15a
+		// UStG verweist auf Anlagegut, Beleg und Buchung, der Belegnachweis auf
+		// die Rechnung, die Bestätigungsabfrage auf den Kontakt — alle drei
+		// stehen deshalb hinter ihnen.
+		&domain.InputTaxCorrection{},
+		&domain.InputTaxUsage{},
+		&domain.VatIDCheck{},
+		&domain.SupplyEvidence{},
+		&domain.VatExchangeRate{},
 	)
+}
+
+// migrateExchangeRateTable bringt die Kurstabelle auf ihre datierte Form.
+//
+// Die alte Fassung hatte die Währung als einzigen Primärschlüssel und konnte
+// damit nur einen Kurs je Währung halten — eine Zwischenablage, keine Historie.
+// AutoMigrate ändert Spalten, aber keinen Primärschlüssel: die Tabelle muss neu
+// angelegt werden, und der Inhalt muss mit.
+//
+// Der Inhalt ist in der Praxis leer. `domain.ExchangeRate` war zwar migriert,
+// aber es gab keinen Weg, der je einen Kurs geschrieben hätte. Trotzdem wird
+// umkopiert statt gelöscht: eine Annahme über fremde Daten, die man auch prüfen
+// kann, prüft man.
+func migrateExchangeRateTable(db *gorm.DB) error {
+	if !db.Migrator().HasTable("exchange_rates") {
+		return nil
+	}
+	if db.Migrator().HasColumn(&domain.ExchangeRate{}, "id") {
+		return nil
+	}
+
+	type legacyRate struct {
+		Currency string
+		Rate     float64
+		Date     string
+		Source   string
+	}
+	var legacy []legacyRate
+	if err := db.Table("exchange_rates").Find(&legacy).Error; err != nil {
+		return fmt.Errorf("die bisherigen Umrechnungskurse ließen sich nicht lesen: %w", err)
+	}
+	if err := db.Migrator().DropTable("exchange_rates"); err != nil {
+		return fmt.Errorf("die alte Kurstabelle ließ sich nicht ablösen: %w", err)
+	}
+	if err := db.AutoMigrate(&domain.ExchangeRate{}); err != nil {
+		return fmt.Errorf("die neue Kurstabelle ließ sich nicht anlegen: %w", err)
+	}
+	for _, l := range legacy {
+		if l.Currency == "" || l.Date == "" || l.Rate <= 0 {
+			continue
+		}
+		source := l.Source
+		if source == "" {
+			source = "aus der früheren Kurstabelle übernommen"
+		}
+		rate := domain.ExchangeRate{
+			Currency:   l.Currency,
+			Date:       l.Date,
+			RateMicros: int64(l.Rate*float64(domain.RateScale) + 0.5),
+			Source:     source,
+		}
+		if err := db.Create(&rate).Error; err != nil {
+			return fmt.Errorf("der übernommene Kurs %s zum %s ließ sich nicht schreiben: %w",
+				l.Currency, l.Date, err)
+		}
+	}
+	return nil
 }
 
 // BackfillContactAddresses zerlegt die einzeilige Anschrift alter Kontakte in

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus } from 'lucide-react';
-import { Contact, ContactType, EInvoiceProfileInfo, TaxTreatmentInfo } from '../types';
+import { Contact, ContactType, EInvoiceProfileInfo, TaxTreatmentInfo, VatIDStatus } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import { formatCents } from '../utils/formatters';
+import type { NavigateFn } from '../components/Sidebar';
+import { formatCents, formatDateTime } from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -24,10 +25,11 @@ import {
   Th,
   Thead,
   Tr,
+  cn,
   toast,
 } from '../components/ui';
 
-export const ContactsPage: React.FC = () => {
+export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
   // Ein Kontakt trägt sein Personenkonto: ihn anzulegen ist eine Änderung an
   // den Stammdaten und im Prüfermodus gesperrt (§10.4).
   const writeLock = useWriteLock();
@@ -35,6 +37,11 @@ export const ContactsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Partial<Contact> | null>(null);
+  // Der Hinweis, den das Speichern eines Kontakts mit einer USt-IdNr. aus einem
+  // anderen Mitgliedstaat zurückgibt. Er steht auf der Fläche und nicht als
+  // Toast: er nennt eine Arbeit, die noch aussteht, und die verschwindet nicht
+  // nach vier Sekunden (§11.4).
+  const [vatIdNotice, setVatIdNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void loadContacts();
@@ -82,6 +89,29 @@ export const ContactsPage: React.FC = () => {
           </Button>
         }
       />
+
+      {vatIdNotice && (
+        <Notice
+          className="mt-6"
+          text={vatIdNotice}
+          action={
+            <div className="flex gap-2">
+              {onNavigate && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
+                >
+                  Zur Bestätigungsabfrage
+                </Button>
+              )}
+              <Button variant="quiet" size="sm" onClick={() => setVatIdNotice(null)}>
+                Verstanden
+              </Button>
+            </div>
+          }
+        />
+      )}
 
       <div className="mt-6">
         <SearchInput
@@ -172,10 +202,17 @@ export const ContactsPage: React.FC = () => {
 
       <ContactForm
         contact={editing}
+        onNavigate={onNavigate}
         onClose={() => setEditing(null)}
-        onSaved={async (name) => {
+        onSaved={async (saved) => {
           setEditing(null);
-          toast.success(`${name} gespeichert.`);
+          toast.success(`${saved.name} gespeichert.`);
+          // Der Hinweis zur Bestätigungsabfrage kommt aus dem Backend und wird
+          // nicht gespeichert. Ihn hier zu verwerfen hieße, das Speichern eines
+          // Kontakts mit einer USt-IdNr. aus einem anderen Mitgliedstaat still
+          // zu quittieren — und genau dieser Hinweis ist der Anlass, die
+          // Bestätigung zu holen, bevor die erste Rechnung ansteht.
+          setVatIdNotice(saved.vatIdNotice ?? null);
           await loadContacts();
         }}
       />
@@ -196,14 +233,20 @@ export const ContactsPage: React.FC = () => {
 const ContactForm: React.FC<{
   contact: Partial<Contact> | null;
   onClose: () => void;
-  onSaved: (name: string) => Promise<void>;
-}> = ({ contact, onClose, onSaved }) => {
+  onSaved: (saved: Contact) => Promise<void>;
+  onNavigate?: NavigateFn;
+}> = ({ contact, onClose, onSaved, onNavigate }) => {
   const writeLock = useWriteLock();
   const [draft, setDraft] = useState<Partial<Contact>>(contact ?? {});
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
   const [profiles, setProfiles] = useState<EInvoiceProfileInfo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Der Bestätigungsstand der USt-IdNr. Er wird gelesen und nicht gefragt: die
+  // Abfrage geht ans Netz und läuft nur auf Knopfdruck.
+  const [vatIdStatus, setVatIdStatus] = useState<VatIDStatus | null>(null);
+  const [vatIdBusy, setVatIdBusy] = useState(false);
+  const [vatIdError, setVatIdError] = useState<string | null>(null);
 
   const isNew = !draft.id;
   const direction = draft.type === 'customer' ? 'outgoing' : 'incoming';
@@ -222,8 +265,45 @@ const ContactForm: React.FC<{
     if (contact) {
       setDraft(contact);
       setError(null);
+      setVatIdError(null);
     }
   }, [contact]);
+
+  // Nur für einen gespeicherten Kontakt mit USt-IdNr.: für einen Entwurf gibt
+  // es weder eine Kennung noch einen Verlauf.
+  useEffect(() => {
+    const id = contact?.id;
+    if (!id || !contact?.vatId) {
+      setVatIdStatus(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getVatIDStatus(id)
+      .then((status) => {
+        if (!cancelled) setVatIdStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setVatIdStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact?.id, contact?.vatId]);
+
+  /** Die qualifizierte Bestätigungsanfrage (§ 18e UStG). */
+  async function checkVatID() {
+    if (!draft.id) return;
+    setVatIdBusy(true);
+    setVatIdError(null);
+    try {
+      await Api.checkVatID(draft.id);
+      setVatIdStatus(await Api.getVatIDStatus(draft.id));
+    } catch (e) {
+      setVatIdError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVatIdBusy(false);
+    }
+  }
 
   // Die Zielformate kommen aus dem Backend und nicht aus einer zweiten Liste
   // hier: welches Format Buchfink erzeugen kann, weiß nur der Renderer.
@@ -264,7 +344,7 @@ const ContactForm: React.FC<{
     setError(null);
     try {
       const saved = await Api.saveContact(draft);
-      await onSaved(saved.name);
+      await onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -429,6 +509,96 @@ const ContactForm: React.FC<{
           }
         >
           <Input value={draft.vatId ?? ''} onChange={(e) => set({ vatId: e.target.value })} />
+        </Field>
+      </div>
+
+      {/* Der Bestätigungsstand steht am Kontakt, weil die Nummer am Kontakt
+          steht: wer sie hier einträgt, ist der, der sie bestätigen lassen
+          muss — und nicht der, der eine Woche später vor der Rechnung sitzt. */}
+      {draft.id && draft.vatId && (
+        <div
+          className={cn(
+            'mt-4 rounded-control border px-4 py-3',
+            vatIdStatus?.confirmed
+              ? 'border-positive-line bg-positive-soft'
+              : 'border-line-strong bg-sunken',
+          )}
+        >
+          <h3
+            className={cn(
+              'text-label',
+              vatIdStatus?.confirmed ? 'text-positive-text' : 'text-ink',
+            )}
+          >
+            Bestätigung beim Bundeszentralamt
+            <HelpPopover label="Erklärung zur Bestätigungsabfrage">
+              § 18e UStG lässt die Bestätigung einer ausländischen USt-IdNr. beim Bundeszentralamt
+              für Steuern zu. Für eine steuerfreie innergemeinschaftliche Lieferung ist eine
+              gültige, vom Bestimmungsland erteilte Nummer des Abnehmers materielle Voraussetzung
+              (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Die Antwort wird dauerhaft festgehalten — sie ist
+              der Beleg gegenüber der Finanzverwaltung.
+            </HelpPopover>
+          </h3>
+          <p className="text-body text-ink-muted mt-1.5">
+            {vatIdStatus ? vatIdStatus.note : 'Der Stand wird gelesen …'}
+          </p>
+          {vatIdStatus?.latest && (
+            <p className="text-caption text-ink-subtle mt-1">
+              Letzte Abfrage {formatDateTime(vatIdStatus.latest.checkedAt)}
+              {vatIdStatus.latest.resultCode ? ` · Ergebnis ${vatIdStatus.latest.resultCode}` : ''}
+              {vatIdStatus.latest.requestId ? ` · Abfrage-ID ${vatIdStatus.latest.requestId}` : ''}
+            </p>
+          )}
+          {vatIdError && <p className="text-body text-negative-text mt-1.5">{vatIdError}</p>}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={vatIdBusy}
+              disabled={vatIdBusy || writeLock.locked}
+              title={writeLock.hint}
+              onClick={checkVatID}
+            >
+              Bestätigung abfragen
+            </Button>
+            {onNavigate && (
+              <Button
+                variant="quiet"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onNavigate('obligations', { obligationsTab: 'vatid' });
+                }}
+              >
+                Verlauf und alle Nummern
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Die Freistellungsbescheinigung nach § 48b EStG. Buchfink rechnet den
+          Steuerabzug bei Bauleistungen nicht — die Bescheinigung wird trotzdem
+          geführt, weil ihr Ablauf sonst niemandem auffällt. */}
+      <div className="grid grid-cols-2 gap-4 mt-4">
+        <Field
+          label="Freistellungsbescheinigung"
+          optional
+          hint="Nummer nach § 48b EStG"
+          explain="Bei Bauleistungen hat der Leistungsempfänger 15 % der Gegenleistung einzubehalten und an das Finanzamt abzuführen (§ 48 EStG), es sei denn, der Leistende legt eine gültige Freistellungsbescheinigung vor. Buchfink rechnet diesen Steuerabzug nicht; es führt die Bescheinigung und weist 30 Tage vor ihrem Ablauf darauf hin."
+        >
+          <Input
+            className="code-num"
+            value={draft.exemptionCertificateNumber ?? ''}
+            onChange={(e) => set({ exemptionCertificateNumber: e.target.value })}
+          />
+        </Field>
+        <Field label="Gültig bis" optional hint="letzter Gültigkeitstag">
+          <Input
+            type="date"
+            value={draft.exemptionCertificateValidUntil ?? ''}
+            onChange={(e) => set({ exemptionCertificateValidUntil: e.target.value })}
+          />
         </Field>
       </div>
 

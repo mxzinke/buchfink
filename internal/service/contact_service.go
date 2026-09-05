@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -13,7 +16,10 @@ type ContactService struct {
 	journalRepo domain.JournalRepository
 	numberRepo  domain.NumberRangeRepository
 	auditRepo   domain.AuditRepository
-	fiscalYear  int
+	// vatIDs ist die Bestätigungsabfrage. Sie ist optional: ohne sie bleibt der
+	// Hinweis beim Speichern allgemein.
+	vatIDs     vatIDStatusSource
+	fiscalYear int
 }
 
 // NewContactService creates the master data service.
@@ -66,6 +72,7 @@ func (s *ContactService) GetContacts(ctx context.Context) ([]domain.Contact, err
 // SaveContact stores a business partner, assigning a Personenkonto from the
 // DATEV number range on first save.
 func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) error {
+	c.VatIDNotice = ""
 	if c.Type != domain.ContactTypeCustomer && c.Type != domain.ContactTypeVendor {
 		return fmt.Errorf("Kontakttyp muss Kunde (Debitor) oder Lieferant (Kreditor) sein")
 	}
@@ -117,8 +124,46 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 		_ = s.auditRepo.Log(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
 			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type))
 	}
+	c.VatIDNotice = s.vatIDNotice(ctx, c)
 	return nil
 }
+
+// vatIDNotice ist der Hinweis zur Bestätigung einer EU-USt-IdNr.
+//
+// Er hält nichts an. Die Bestätigungsanfrage ist beim Ausstellen einer
+// steuerfreien innergemeinschaftlichen Lieferung zwingend (§ 6a Abs. 1 Satz 1
+// Nr. 4 UStG); beim Erfassen des Kontakts ist sie eine gute Gewohnheit, und ein
+// Netzaufruf, den niemand angefordert hat, gehört nicht in das Speichern von
+// Stammdaten. Der Hinweis sagt deshalb, was ist, und bietet die Abfrage an.
+func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) string {
+	if strings.TrimSpace(c.VatID) == "" || !c.IsEUCounterparty() {
+		return ""
+	}
+	if s.vatIDs != nil {
+		if status, err := s.vatIDs.Status(ctx, c); err == nil && status != nil {
+			if status.Confirmed {
+				return status.Note
+			}
+			return status.Note + " Hole die qualifizierte Bestätigungsanfrage nach § 18e UStG nach: " +
+				"beim Ausstellen einer steuerfreien innergemeinschaftlichen Lieferung ist sie zwingend."
+		}
+	}
+	return fmt.Sprintf(
+		"%s trägt die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
+			"bestätigen (§ 18e UStG) — beim Ausstellen einer steuerfreien innergemeinschaftlichen "+
+			"Lieferung ist die gültige Nummer materielle Voraussetzung der Befreiung "+
+			"(§ 6a Abs. 1 Satz 1 Nr. 4 UStG).", c.Name, c.VatID)
+}
+
+// vatIDStatusSource ist der Ausschnitt der Bestätigungsabfrage, den die
+// Kontaktverwaltung für ihren Hinweis braucht.
+type vatIDStatusSource interface {
+	Status(ctx context.Context, contact *domain.Contact) (*VatIDStatus, error)
+}
+
+// SetVatIDStatusSource koppelt die Bestätigungsabfrage an die Kontaktverwaltung.
+// Ohne sie bleibt der Hinweis allgemein statt konkret.
+func (s *ContactService) SetVatIDStatusSource(src vatIDStatusSource) { s.vatIDs = src }
 
 // allocateLedgerAccount takes the next free number from the Debitoren or
 // Kreditoren range. Numbers are never reused, so a deleted partner does not free
@@ -182,4 +227,67 @@ func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
 			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gelöscht", contact.Name, contact.LedgerAccount))
 	}
 	return nil
+}
+
+// ExemptionCertificateWarning ist eine ablaufende oder abgelaufene
+// Freistellungsbescheinigung nach § 48b EStG.
+//
+// Wer eine Bauleistung bezieht, hat nach § 48 EStG 15 % der Gegenleistung
+// einzubehalten — es sei denn, der Leistende legt eine gültige Bescheinigung
+// vor. Der Bauabzug selbst ist nicht Teil von Buchfink; die Frist wird trotzdem
+// überwacht, weil eine abgelaufene Bescheinigung sonst erst auffällt, wenn die
+// Haftung schon entstanden ist.
+type ExemptionCertificateWarning struct {
+	ContactID  uint   `json:"contactId"`
+	Name       string `json:"name"`
+	Number     string `json:"number"`
+	ValidUntil string `json:"validUntil"`
+	// State ist „expiring" oder „expired".
+	State string `json:"state"`
+	Note  string `json:"note"`
+}
+
+// ExemptionCertificateWarnings liefert die Bescheinigungen, die in den nächsten
+// 30 Tagen ablaufen oder abgelaufen sind.
+//
+// today wird übergeben und nicht aus der Uhr genommen: eine Frist, die sich beim
+// Testen nicht setzen lässt, ist eine Frist, die nicht geprüft wird. Leer heißt:
+// heute.
+func (s *ContactService) ExemptionCertificateWarnings(
+	ctx context.Context, today string,
+) ([]ExemptionCertificateWarning, error) {
+	if today == "" {
+		today = time.Now().Format("2006-01-02")
+	}
+	contacts, err := s.contactRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ExemptionCertificateWarning, 0)
+	for i := range contacts {
+		c := &contacts[i]
+		state := c.ExemptionCertificateState(today)
+		if state != "expiring" && state != "expired" {
+			continue
+		}
+		note := fmt.Sprintf(
+			"Die Freistellungsbescheinigung von %s läuft am %s ab. Ohne sie sind bei einer "+
+				"Bauleistung 15 %% der Gegenleistung einzubehalten (§ 48 EStG).",
+			c.Name, c.ExemptionCertificateValidUntil)
+		if state == "expired" {
+			note = fmt.Sprintf(
+				"Die Freistellungsbescheinigung von %s ist am %s abgelaufen. Ohne sie sind bei einer "+
+					"Bauleistung 15 %% der Gegenleistung einzubehalten und an das Finanzamt abzuführen "+
+					"(§ 48 EStG).",
+				c.Name, c.ExemptionCertificateValidUntil)
+		}
+		out = append(out, ExemptionCertificateWarning{
+			ContactID: c.ID, Name: c.Name,
+			Number:     c.ExemptionCertificateNumber,
+			ValidUntil: c.ExemptionCertificateValidUntil,
+			State:      state, Note: note,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ValidUntil < out[j].ValidUntil })
+	return out, nil
 }

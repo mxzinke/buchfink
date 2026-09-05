@@ -4,6 +4,7 @@ import type {
   Account,
   Contact,
   EInvoiceProfileInfo,
+  EvidenceStatus,
   Invoice,
   InvoiceSentVia,
   InvoiceSentViaOption,
@@ -16,12 +17,15 @@ import type {
   TaxRate,
   TaxTreatment,
   TaxTreatmentInfo,
+  TransportKind,
   UnitCode,
+  VatIDStatus,
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import { formatCents, formatDate, formatTaxRate, parseCents } from '../utils/formatters';
+import type { NavigateFn } from '../components/Sidebar';
+import { formatCents, formatDate, formatDateTime, formatTaxRate, parseCents } from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -43,6 +47,7 @@ import {
   Table,
   Tbody,
   Td,
+  Textarea,
   Th,
   Thead,
   Tr,
@@ -152,7 +157,7 @@ const cancellationReference = (invoice: Invoice): string | undefined =>
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-export const InvoicesPage: React.FC = () => {
+export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
   // Ausstellen und Stornieren sind Buchungen; Ansehen und Ausgeben bleiben im
   // Prüfermodus möglich (§10.4).
   const writeLock = useWriteLock();
@@ -168,6 +173,10 @@ export const InvoicesPage: React.FC = () => {
   const [gapReasons, setGapReasons] = useState<NumberGapReasonOption[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
   const [gaps, setGaps] = useState<NumberGapReport | null>(null);
+  // Der Nachweisstand je ig. Lieferung, damit die Frage „fehlt hier noch etwas?"
+  // schon in der Rechnungsliste beantwortet ist und nicht erst auf der Seite
+  // der Nebenpflichten.
+  const [evidence, setEvidence] = useState<Map<number, EvidenceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [preview, setPreview] = useState<{ invoice: Invoice; xml: string } | null>(null);
@@ -219,6 +228,41 @@ export const InvoicesPage: React.FC = () => {
       setGaps(null);
     }
   }
+
+  // Der Nachweisstand wird je Geschäftsjahr berichtet. Geholt werden nur die
+  // Jahre, in denen es überhaupt eine ig. Lieferung gibt — meist eines, oft
+  // keines; und wie der Lückenbericht ist das eine Auskunft, die die Liste
+  // nicht mitnimmt, wenn sie scheitert.
+  useEffect(() => {
+    const years = Array.from(
+      new Set(
+        invoices
+          .filter((invoice) => invoice.taxTreatment === 'intra_community_supply')
+          .map((invoice) => Number.parseInt(invoice.date.slice(0, 4), 10))
+          .filter((year) => Number.isFinite(year) && year > 0),
+      ),
+    );
+    if (years.length === 0) {
+      setEvidence(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(years.map((year) => Api.getSupplyEvidenceReport(year)))
+      .then((reports) => {
+        if (cancelled) return;
+        const next = new Map<number, EvidenceStatus>();
+        for (const report of reports) {
+          for (const row of report?.rows ?? []) next.set(row.invoiceId, row.status);
+        }
+        setEvidence(next);
+      })
+      .catch(() => {
+        if (!cancelled) setEvidence(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [invoices]);
 
   /** Holt ein fehlendes Dokument nach; die Nummer bleibt dieselbe. */
   async function regenerate(invoice: Invoice) {
@@ -456,6 +500,25 @@ export const InvoicesPage: React.FC = () => {
                       status={statusOf(invoice)}
                       reference={cancellationReference(invoice)}
                     />
+                    {/* Der Nachweisstand steht unter dem Statuswort und nicht
+                        an seiner Stelle: die Rechnung ist offen oder bezahlt,
+                        der Nachweis ist eine zweite, eigene Frage (§ 17a
+                        UStDV). Farbe steht nie allein (§3.4). */}
+                    {evidence.has(invoice.id) && (
+                      <span
+                        className={cn(
+                          'block text-caption',
+                          evidence.get(invoice.id)?.fulfilled
+                            ? 'text-positive-text'
+                            : 'text-attention-text',
+                        )}
+                        title={evidence.get(invoice.id)?.reason}
+                      >
+                        {evidence.get(invoice.id)?.fulfilled
+                          ? 'Nachweis vollständig'
+                          : 'Nachweis unvollständig'}
+                      </span>
+                    )}
                   </Td>
                   <Td className="pl-0">
                     <span className="flex items-center justify-end">
@@ -480,6 +543,24 @@ export const InvoicesPage: React.FC = () => {
                         <MenuItem onClick={() => showZugferd(invoice)}>
                           Strukturierten Datensatz ansehen
                         </MenuItem>
+                        {/* Der Belegnachweis liegt bei den Nebenpflichten, wo
+                            auch der Bericht über die unvollständigen steht.
+                            Von hier führt der Weg dorthin, weil die Frage an
+                            der Rechnung entsteht — mit der Rechnung im Gepäck,
+                            damit dort ihre Belege aufgeschlagen sind und nicht
+                            wieder eine Liste. */}
+                        {onNavigate && invoice.taxTreatment === 'intra_community_supply' && (
+                          <MenuItem
+                            onClick={() =>
+                              onNavigate('obligations', {
+                                obligationsTab: 'evidence',
+                                invoiceId: invoice.id,
+                              })
+                            }
+                          >
+                            Belegnachweis der ig. Lieferung
+                          </MenuItem>
+                        )}
                         {invoice.status === 'issued_pending_document' && (
                           <MenuItem
                             disabled={writeLock.locked}
@@ -741,6 +822,14 @@ const InvoiceForm: React.FC<{
   const [discountDays, setDiscountDays] = useState('');
   const [smallAmount, setSmallAmount] = useState(false);
   const [paymentAccount, setPaymentAccount] = useState('');
+  // Wer den Gegenstand befördert hat. Leer ist der Regelfall — der Lieferer;
+  // beim Abholfall verlangt § 17a Abs. 2 UStDV zusätzlich die
+  // Gelangensbestätigung, und das entscheidet später über den Belegnachweis.
+  const [transportKind, setTransportKind] = useState<TransportKind>('');
+  // Der Grund, mit dem eine steuerfreie Lieferung ohne Bestätigung der
+  // USt-IdNr. ausgestellt wird. Ohne ihn lehnt das Backend bei ausbleibender
+  // Auskunft ab — mit ihm steht die Übersteuerung an der Rechnung.
+  const [vatIdOverrideReason, setVatIdOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -748,10 +837,33 @@ const InvoiceForm: React.FC<{
   // Vorgang und bleibt stehen, bis sie behoben ist (§10.4). Ein Toast wäre nach
   // vier Sekunden weg, während das Formular unverändert offen steht.
   const [failure, setFailure] = useState<string | null>(null);
+  // Der Bestätigungsstand kommt aus dem Bestand und nicht aus einer Abfrage:
+  // ihn beim Öffnen des Dialogs zu holen hieße, für jede Rechnung ans Netz zu
+  // gehen. Gefragt wird erst auf Knopfdruck — oder vom Backend beim Ausstellen.
+  const [vatIdStatus, setVatIdStatus] = useState<VatIDStatus | null>(null);
+  const [vatIdBusy, setVatIdBusy] = useState(false);
+  const [vatIdError, setVatIdError] = useState<string | null>(null);
 
   const contact = contacts.find((c) => c.id === contactId);
   const treatmentInfo = treatments.find((t) => t.treatment === treatment);
   const taxable = treatment === 'domestic';
+  /**
+   * Ob vor dem Ausstellen die USt-IdNr. des Empfängers bestätigt sein muss.
+   *
+   * Die beiden Steuerfälle, bei denen sie materielle Voraussetzung ist: die
+   * innergemeinschaftliche Lieferung (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die
+   * Verlagerung der Steuerschuld auf einen Empfänger im übrigen
+   * Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die Nummer des Kunden
+   * Voraussetzung von nichts, und eine Abfrage dort wäre ein Netzaufruf ohne
+   * Zweck. Ob das Bestimmungsland wirklich ein Mitgliedstaat ist, entscheidet
+   * das Backend — hier steht nur, wann die Frage überhaupt gestellt wird.
+   */
+  const needsVatIDConfirmation =
+    contactId > 0 &&
+    (treatment === 'intra_community_supply' ||
+      (treatment === 'reverse_charge_supply' &&
+        (contact?.countryCode ?? '') !== '' &&
+        contact?.countryCode !== 'DE'));
   // § 33 Satz 2 UStDV nimmt die innergemeinschaftliche Lieferung, den
   // Fernverkauf und die Steuerschuldnerschaft des Leistungsempfängers von der
   // Kleinbetragsrechnung aus. Angeboten wird sie deshalb nur beim
@@ -790,6 +902,49 @@ const InvoiceForm: React.FC<{
     if (!smallAmount && contactId === 0) setContactId(contacts[0]?.id ?? 0);
   }, [smallAmount, contactId, contacts]);
 
+  useEffect(() => {
+    if (!needsVatIDConfirmation) {
+      setVatIdStatus(null);
+      setVatIdError(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getVatIDStatus(contactId)
+      .then((status) => {
+        if (!cancelled) {
+          setVatIdStatus(status);
+          setVatIdError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setVatIdStatus(null);
+          setVatIdError(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsVatIDConfirmation, contactId]);
+
+  /** Die qualifizierte Abfrage beim Bundeszentralamt (§ 18e UStG). */
+  async function checkVatID() {
+    setVatIdBusy(true);
+    setVatIdError(null);
+    try {
+      await Api.checkVatID(contactId);
+      setVatIdStatus(await Api.getVatIDStatus(contactId));
+    } catch (e) {
+      setVatIdError(e instanceof Error ? e.message : String(e));
+      // Auch die gescheiterte Abfrage ändert den Stand nicht — er wird
+      // trotzdem neu gelesen, damit ein zwischenzeitlich gespeichertes
+      // Ergebnis nicht verloren aussieht.
+      Api.getVatIDStatus(contactId).then(setVatIdStatus).catch(() => undefined);
+    } finally {
+      setVatIdBusy(false);
+    }
+  }
+
   // Die Positionen in der Form, die das Backend erwartet. Hier wird nur
   // umgerechnet, nicht gerechnet: Mengen von drei Nachkommastellen auf Milli,
   // Preise auf Cent.
@@ -805,6 +960,7 @@ const InvoiceForm: React.FC<{
       serviceDateTo: serviceTo,
       taxTreatment: treatment,
       currency: 'EUR',
+      transportKind: needsVatIDConfirmation ? transportKind || undefined : undefined,
       smallAmount,
       paymentAccount: smallAmount && contactId === 0 ? paymentAccount : undefined,
       terms: {
@@ -830,6 +986,8 @@ const InvoiceForm: React.FC<{
       items,
       smallAmount,
       paymentAccount,
+      needsVatIDConfirmation,
+      transportKind,
       dueDays,
       discountPermille,
       discountDays,
@@ -875,7 +1033,15 @@ const InvoiceForm: React.FC<{
     setFailure(null);
     setBusy(true);
     try {
-      const invoice = await Api.issueInvoice(draft);
+      // Der Grund geht erst mit dem Ausstellen mit: die Vorschau rechnet
+      // denselben Buchungssatz, ob er dasteht oder nicht, und holte sich sonst
+      // bei jedem Tastendruck einen neuen.
+      const invoice = await Api.issueInvoice({
+        ...draft,
+        vatIdOverrideReason: needsVatIDConfirmation
+          ? vatIdOverrideReason.trim() || undefined
+          : undefined,
+      });
       onIssued(invoice.invoiceNumber);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : String(e));
@@ -1021,6 +1187,94 @@ const InvoiceForm: React.FC<{
           />
         </Field>
       </div>
+
+      {needsVatIDConfirmation && (
+        <div
+          className={cn(
+            'mt-4 rounded-control border px-4 py-3',
+            vatIdStatus?.confirmed
+              ? 'border-positive-line bg-positive-soft'
+              : 'border-attention-line bg-attention-soft',
+          )}
+        >
+          <h3
+            className={cn(
+              'text-label',
+              vatIdStatus?.confirmed ? 'text-positive-text' : 'text-attention-text',
+            )}
+          >
+            Bestätigung der USt-IdNr.
+            <HelpPopover label="Erklärung zur Bestätigungsabfrage">
+              Die Steuerbefreiung der innergemeinschaftlichen Lieferung setzt eine gültige, vom
+              Bestimmungsland erteilte USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4
+              UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
+              das Ergebnis am Kontakt fest. Eine negative Antwort hält die Rechnung an. Bleibt die
+              Antwort aus — kein Netz, Dienst gestört —, ist das kein negatives Ergebnis, aber auch
+              kein Nachweis: die Rechnung geht dann nur mit einem festgehaltenen Grund hinaus.
+            </HelpPopover>
+          </h3>
+          <p className="text-body text-ink-muted mt-1.5">
+            {vatIdStatus
+              ? vatIdStatus.note
+              : vatIdError
+                ? vatIdError
+                : 'Der Bestätigungsstand wird gelesen …'}
+          </p>
+          {vatIdStatus?.latest && (
+            <p className="text-caption text-ink-subtle mt-1">
+              Letzte Abfrage {formatDateTime(vatIdStatus.latest.checkedAt)}
+              {vatIdStatus.latest.resultCode ? ` · Ergebnis ${vatIdStatus.latest.resultCode}` : ''}
+              {vatIdStatus.latest.requestId ? ` · Abfrage-ID ${vatIdStatus.latest.requestId}` : ''}
+            </p>
+          )}
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={vatIdBusy}
+              disabled={vatIdBusy}
+              onClick={checkVatID}
+            >
+              Jetzt abfragen
+            </Button>
+            {vatIdError && vatIdStatus && (
+              <span className="text-caption text-negative-text">{vatIdError}</span>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Beförderung"
+              hint="entscheidet über den Belegnachweis"
+              explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten trägt die Vermutung des § 17a UStDV schon mit zwei einander nicht widersprechenden Belegen. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
+            >
+              <Select
+                items={[
+                  { value: '', label: 'Lieferer oder sein Beauftragter (Regelfall)' },
+                  { value: 'customer', label: 'Abholung durch den Erwerber' },
+                ]}
+                value={transportKind}
+                onValueChange={(next) => setTransportKind(next as TransportKind)}
+              />
+            </Field>
+            {vatIdStatus && !vatIdStatus.confirmed && (
+              <Field
+                label="Grund für die Ausstellung ohne Bestätigung"
+                optional
+                hint="ohne ihn wird abgelehnt"
+                explain="Bleibt die Auskunft des Bundeszentralamts aus, stellt Buchfink die steuerfreie Lieferung nur mit einem festgehaltenen Grund aus. Er steht an der Rechnung und im Protokoll, und der nächste Prüflauf führt die Lieferung als offen. Eine negative Auskunft lässt sich damit nicht übersteuern."
+              >
+                <Textarea
+                  rows={2}
+                  value={vatIdOverrideReason}
+                  onChange={(e) => setVatIdOverrideReason(e.target.value)}
+                  placeholder="etwa: BZSt nicht erreichbar, Bestätigung wird nachgeholt"
+                />
+              </Field>
+            )}
+          </div>
+        </div>
+      )}
 
       {smallAmount && contactId === 0 && (
         <Field

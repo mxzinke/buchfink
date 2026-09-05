@@ -249,6 +249,27 @@ type Invoice struct {
 	// § 13b case — never a mixture.
 	TaxTreatment TaxTreatment `gorm:"size:40;not null;default:'domestic'" json:"taxTreatment"`
 
+	// VatIDOverrideReason hält den Grund fest, mit dem eine steuerfreie
+	// innergemeinschaftliche Lieferung ohne Bestätigung der USt-IdNr. ausgestellt
+	// wurde.
+	//
+	// Er steht an der Rechnung und nicht nur im Protokoll: die Frage, ob die
+	// Befreiung trägt, wird später an dieser Rechnung gestellt, und die Antwort
+	// muss dort stehen, wo sie gestellt wird.
+	VatIDOverrideReason string `gorm:"size:500;serializer:encrypted" json:"vatIdOverrideReason,omitempty"`
+
+	// TransportKind sagt, wer den Gegenstand befördert hat: „supplier" der
+	// Lieferer, „customer" der Abnehmer (Abholfall). Leer wird als Regelfall
+	// gelesen — Beförderung durch den Lieferer.
+	//
+	// Die Angabe gehört an die Rechnung und nicht an den einzelnen Nachweisbeleg:
+	// sie beschreibt die Lieferung und entscheidet darüber, ob Art. 45a Abs. 1
+	// Buchst. b MwStVO zusätzlich die Gelangensbestätigung des Abnehmers
+	// verlangt. Ohne sie bewertete der Jahresbericht jede Lieferung als
+	// Regelfall, und ein Abholfall ohne Gelangensbestätigung erschien als
+	// nachgewiesen, obwohl er es nicht ist.
+	TransportKind string `gorm:"size:20" json:"transportKind,omitempty"`
+
 	NetAmount   Cents  `gorm:"not null" json:"netAmount"`
 	TaxAmount   Cents  `gorm:"not null" json:"taxAmount"`
 	GrossAmount Cents  `gorm:"not null" json:"grossAmount"`
@@ -553,6 +574,13 @@ type InvoiceRepository interface {
 	FindByGroup(ctx context.Context, groupID uint) ([]Invoice, error)
 	Save(ctx context.Context, invoice *Invoice) error
 	UpdateStatus(ctx context.Context, id uint, status InvoiceStatus) error
+	// UpdateTransportKind hält fest, wer den Gegenstand befördert hat.
+	//
+	// Ein eigener Schreibweg und kein Save der ganzen Rechnung: die Angabe
+	// entsteht beim Ablegen eines Nachweisbelegs, oft lange nach dem Ausstellen,
+	// und eine ausgestellte Rechnung im Ganzen zurückzuschreiben hieße, ihre
+	// Positionen und ihre Beträge anzufassen, an denen sich nichts geändert hat.
+	UpdateTransportKind(ctx context.Context, id uint, kind string) error
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 }
 

@@ -44,6 +44,46 @@ type TaxParameters struct {
 	// WithholdingTaxPermille ist der Kapitalertragsteuersatz auf eine
 	// Ausschüttung (250 = 25 %, § 43a Abs. 1 Satz 1 Nr. 1 EStG).
 	WithholdingTaxPermille int64
+
+	// GiftDeductibleLimit ist die Freigrenze für Geschenke an Personen, die
+	// nicht Arbeitnehmer sind (§ 4 Abs. 5 Satz 1 Nr. 1 EStG), je Empfänger und
+	// Wirtschaftsjahr, netto.
+	//
+	// Es ist eine Freigrenze und kein Freibetrag: wird sie überschritten, ist
+	// nicht der übersteigende Teil nicht abziehbar, sondern der ganze Betrag —
+	// und mit ihm nach § 15 Abs. 1a UStG auch die Vorsteuer.
+	GiftDeductibleLimit domain.Cents
+
+	// Die drei Bagatellgrenzen des § 44 UStDV zur Vorsteuerberichtigung nach
+	// § 15a UStG. Sie stehen zusammen, weil sie aufeinander aufbauen: die erste
+	// entscheidet, ob ein Wirtschaftsgut überhaupt ins Verzeichnis gehört, die
+	// zweite über die Berichtigung eines einzelnen Jahres, die dritte nur noch
+	// über den Zeitpunkt.
+
+	// InputTaxCorrectionFloor ist die Vorsteuer je Wirtschaftsgut, bis zu der
+	// eine Berichtigung ganz entfällt (§ 44 Abs. 1 UStDV: 1.000 €).
+	InputTaxCorrectionFloor domain.Cents
+	// InputTaxCorrectionMinorPoints ist die Änderung des Verwendungsanteils in
+	// Prozentpunkten, unterhalb derer § 44 Abs. 2 UStDV die Jahresberichtigung
+	// erlässt — sofern auch der Betrag klein bleibt.
+	InputTaxCorrectionMinorPoints int64
+	// InputTaxCorrectionMinorAmount ist der zugehörige Betrag (§ 44 Abs. 2
+	// UStDV: 1.000 €). Beide Bedingungen müssen zusammentreffen.
+	InputTaxCorrectionMinorAmount domain.Cents
+	// InputTaxCorrectionAnnualAmount ist der Betrag, bis zu dem die Berichtigung
+	// erst bei der Steuerberechnung für das Kalenderjahr vorzunehmen ist
+	// (§ 44 Abs. 3 UStDV: 6.000 €). Sie entfällt dadurch nicht — sie wandert nur
+	// aus dem Voranmeldungszeitraum ans Jahresende.
+	InputTaxCorrectionAnnualAmount domain.Cents
+
+	// NearAcquisitionPermille ist der Anteil der Gebäude-Anschaffungskosten, ab
+	// dem Instandsetzungs- und Modernisierungsaufwendungen der ersten drei Jahre
+	// zu anschaffungsnahen Herstellungskosten werden (§ 6 Abs. 1 Nr. 1a EStG:
+	// 15 %, netto gerechnet).
+	NearAcquisitionPermille int64
+	// NearAcquisitionYears ist der Zeitraum, über den dieser Aufwand summiert
+	// wird: drei Jahre nach der Anschaffung.
+	NearAcquisitionYears int
 }
 
 // taxParameterSets are ordered by ValidFrom, oldest first.
@@ -63,6 +103,7 @@ var taxParameterSets = []TaxParameters{
 		SolidarityPermille:     55,
 		TradeTaxBasePermille:   50,
 		WithholdingTaxPermille: 200,
+		GiftDeductibleLimit:    3500,
 	},
 	{
 		ValidFrom:                       "2008-01-01",
@@ -74,6 +115,7 @@ var taxParameterSets = []TaxParameters{
 		// Die Abgeltungsteuer von 25 % gilt seit dem 1. Januar 2009
 		// (§ 43a Abs. 1 Satz 1 Nr. 1 EStG i. d. F. des UntStRefG 2008).
 		WithholdingTaxPermille: 200,
+		GiftDeductibleLimit:    3500,
 	},
 	{
 		ValidFrom:                       "2009-01-01",
@@ -83,6 +125,7 @@ var taxParameterSets = []TaxParameters{
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             3500,
 	},
 	{
 		ValidFrom:                       "2017-01-01",
@@ -92,8 +135,46 @@ var taxParameterSets = []TaxParameters{
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             3500,
+	},
+	{
+		// Das Wachstumschancengesetz hat die Freigrenze des § 4 Abs. 5 Satz 1
+		// Nr. 1 EStG für Wirtschaftsjahre, die nach dem 31.12.2023 beginnen, von
+		// 35 € auf 50 € angehoben. Alles andere blieb, wie es war.
+		ValidFrom:                       "2024-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         25000,
+		CorporateTaxPermille:            150,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             5000,
 	},
 }
+
+// withStableParameters ergänzt die Werte, die seit Beginn der geführten Zeit
+// unverändert gelten.
+//
+// Sie stehen nicht in jedem Satz, weil sie sich nie geändert haben und eine
+// vierfach wiederholte Zahl beim nächsten Satz genau einmal vergessen würde.
+// Ändert der Gesetzgeber einen von ihnen, wandert er in die Sätze — die Struktur
+// dafür steht schon.
+func withStableParameters(sets []TaxParameters) []TaxParameters {
+	for i := range sets {
+		// § 44 UStDV in seiner seit der Euro-Umstellung geltenden Fassung.
+		sets[i].InputTaxCorrectionFloor = 100_000
+		sets[i].InputTaxCorrectionMinorPoints = 10
+		sets[i].InputTaxCorrectionMinorAmount = 100_000
+		sets[i].InputTaxCorrectionAnnualAmount = 600_000
+		// § 6 Abs. 1 Nr. 1a EStG, eingefügt durch das StÄndG 2003 und seither
+		// unverändert.
+		sets[i].NearAcquisitionPermille = 150
+		sets[i].NearAcquisitionYears = 3
+	}
+	return sets
+}
+
+func init() { taxParameterSets = withStableParameters(taxParameterSets) }
 
 // TaxParametersFor returns the values that applied on a date.
 func TaxParametersFor(date string) (TaxParameters, error) {

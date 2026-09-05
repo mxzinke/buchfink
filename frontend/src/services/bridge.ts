@@ -363,6 +363,67 @@ export const bridge = {
   SelectBackupDirDialog: (title: string) => invoke<string>('SelectBackupDirDialog', title),
   SelectBackupFileDialog: (title: string) => invoke<string>('SelectBackupFileDialog', title),
 
+  // Steuerliche Nebenpflichten: Vorsteuerberichtigung § 15a UStG
+  GetInputTaxCorrections: <T>(year: number) => invoke<T>('GetInputTaxCorrections', year),
+  PreviewInputTaxCorrection: <T>(year: number) => invoke<T>('PreviewInputTaxCorrection', year),
+  RegisterInputTaxCorrection: <T>(request: unknown) =>
+    invoke<T>('RegisterInputTaxCorrection', request),
+  CloseInputTaxCorrection: <T>(id: number, reason: string, date: string) =>
+    invoke<T>('CloseInputTaxCorrection', id, reason, date),
+  SaveInputTaxUsage: <T>(request: unknown) => invoke<T>('SaveInputTaxUsage', request),
+  BookInputTaxCorrection: <T>(year: number) => invoke<T>('BookInputTaxCorrection', year),
+
+  // Bestätigung der USt-IdNr. (§ 18e UStG)
+  GetVatIDChecks: <T>(contactId: number) => invoke<T>('GetVatIDChecks', contactId),
+  GetVatIDStatus: <T>(contactId: number) => invoke<T>('GetVatIDStatus', contactId),
+  CheckVatID: <T>(contactId: number) => invoke<T>('CheckVatID', contactId),
+
+  // Belegnachweis der innergemeinschaftlichen Lieferung
+  GetSupplyEvidenceKinds: <T>() => invoke<T>('GetSupplyEvidenceKinds'),
+  GetSupplyEvidence: <T>(invoiceId: number, transport: string) =>
+    invoke<T>('GetSupplyEvidence', invoiceId, transport),
+  AddSupplyEvidence: <T>(request: unknown) => invoke<T>('AddSupplyEvidence', request),
+  SetSupplyTransport: <T>(invoiceId: number, transport: string) =>
+    invoke<T>('SetSupplyTransport', invoiceId, transport),
+  RemoveSupplyEvidence: <T>(invoiceId: number, evidenceId: number, transport: string) =>
+    invoke<T>('RemoveSupplyEvidence', invoiceId, evidenceId, transport),
+  GetSupplyEvidenceReport: <T>(year: number) => invoke<T>('GetSupplyEvidenceReport', year),
+
+  // Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG)
+  GetNonDeductibleCategories: <T>() => invoke<T>('GetNonDeductibleCategories'),
+  GetNonDeductibleReport: <T>(year: number) => invoke<T>('GetNonDeductibleReport', year),
+  RebookGiftsForRecipient: <T>(request: unknown) => invoke<T>('RebookGiftsForRecipient', request),
+
+  // Fremdwährung: Tageskurse, Umsatzsteuerkurse, Stichtagsbewertung
+  GetExchangeRate: <T>(currency: string, date: string) =>
+    invoke<T>('GetExchangeRate', currency, date),
+  GetExchangeRates: <T>(currency: string, from: string, to: string) =>
+    invoke<T>('GetExchangeRates', currency, from, to),
+  SaveExchangeRate: <T>(rate: unknown) => invoke<T>('SaveExchangeRate', rate),
+  GetVatExchangeRates: <T>(from: string, to: string) =>
+    invoke<T>('GetVatExchangeRates', from, to),
+  SaveVatExchangeRate: <T>(rate: unknown) => invoke<T>('SaveVatExchangeRate', rate),
+  ImportVatExchangeRatesCSV: <T>(path: string) => invoke<T>('ImportVatExchangeRatesCSV', path),
+  PreviewCurrencyValuation: <T>(year: number) => invoke<T>('PreviewCurrencyValuation', year),
+  BookCurrencyValuation: <T>(year: number) => invoke<T>('BookCurrencyValuation', year),
+
+  // Anlagen: Regelsätze, Wertaufholung, Sammelposten, anschaffungsnahe Kosten
+  GetAfaRules: <T>() => invoke<T>('GetAfaRules'),
+  GetWriteUpReport: <T>(year: number) => invoke<T>('GetWriteUpReport', year),
+  ConfirmImpairmentPersists: <T>(assetId: number, year: number, note: string) =>
+    invoke<T>('ConfirmImpairmentPersists', assetId, year, note),
+  GetPoolConsistencyReport: <T>(year: number) => invoke<T>('GetPoolConsistencyReport', year),
+  CheckNearAcquisitionCost: <T>(assetId: number, date: string, amount: number) =>
+    invoke<T>('CheckNearAcquisitionCost', assetId, date, amount),
+  CapitalizeNearAcquisitionCost: <T>(request: unknown) =>
+    invoke<T>('CapitalizeNearAcquisitionCost', request),
+  GetExemptionCertificateWarnings: <T>(today: string) =>
+    invoke<T>('GetExemptionCertificateWarnings', today),
+
+  // Adressen der Netzdienste
+  GetServiceEndpoints: <T>() => invoke<T>('GetServiceEndpoints'),
+  SaveServiceEndpoints: <T>(endpoints: unknown) => invoke<T>('SaveServiceEndpoints', endpoints),
+
   // Prüfermodus
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
   DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),

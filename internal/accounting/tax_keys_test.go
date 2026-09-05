@@ -16,7 +16,12 @@ import (
 func TestTaxKeyCatalogCoversEveryProducedKey(t *testing.T) {
 	resolver := NewSKR04TaxResolver()
 
-	produced := map[string]bool{TaxKeyUnlawful: true}
+	// Zwei Schlüssel entstehen nicht aus einem Steuerfall und stehen deshalb von
+	// vornherein in der erwarteten Menge: der § 14c-Betrag wird ohne
+	// steuerpflichtigen Umsatz geschuldet, und die Vorsteuerberichtigung nach
+	// § 15a UStG bewertet die Verwendung eines früheren Jahres neu. Beide sind
+	// trotzdem Schlüssel, die im Journal stehen — und damit auflösbar sein müssen.
+	produced := map[string]bool{TaxKeyUnlawful: true, TaxKeyInputTaxCorrection: true}
 	for _, dir := range []domain.Direction{domain.DirectionIncoming, domain.DirectionOutgoing} {
 		for _, treatment := range domain.AllTaxTreatments() {
 			for _, rate := range []domain.TaxRate{domain.TaxRateNone, domain.TaxRateReduced, domain.TaxRateStandard} {

@@ -52,6 +52,11 @@ func (r *invoiceRepositoryGorm) UpdateStatus(ctx context.Context, id uint, statu
 	return dbFrom(ctx, r.db).Model(&domain.Invoice{}).Where("id = ?", id).Update("status", status).Error
 }
 
+func (r *invoiceRepositoryGorm) UpdateTransportKind(ctx context.Context, id uint, kind string) error {
+	return dbFrom(ctx, r.db).Model(&domain.Invoice{}).Where("id = ?", id).
+		Update("transport_kind", kind).Error
+}
+
 // FindNumbers liefert die vergebenen Rechnungsnummern eines Geschäftsjahres.
 func (r *invoiceRepositoryGorm) FindNumbers(ctx context.Context, fiscalYear int) ([]string, error) {
 	numbers := make([]string, 0)

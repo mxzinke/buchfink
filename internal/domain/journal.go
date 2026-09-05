@@ -95,8 +95,46 @@ type JournalLine struct {
 	// set on tax lines; needed to reproduce the UStVA figures from the journal.
 	TaxBase Cents `gorm:"default:0" json:"taxBase,omitempty"`
 
+	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille, wo er
+	// nicht voll ist — der Vorsteuerschlüssel der gemischten Nutzung.
+	//
+	// Null heißt „nicht einschlägig": entweder trägt die Zeile keine Vorsteuer,
+	// oder sie ist voll abziehbar. Das ist der Grund, warum hier nicht 1000
+	// steht, wo alles abziehbar ist: die Kanonisierung schreibt das Feld nur,
+	// wenn es belegt ist, und damit hasht jede Buchung ohne Vorsteuerschlüssel
+	// weiter genau so wie vor dieser Welle. Eine Zahl, die überall steht, hätte
+	// die Kette jeder bestehenden Buchhaltung gebrochen.
+	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — trägt
+	// deshalb den eigenen Wert InputTaxExcluded und nicht die Zahl null: „gar
+	// nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst dasselbe.
+	InputTaxShare int `gorm:"default:0" json:"inputTaxShare,omitempty"`
+
+	// ForeignAmount ist der Betrag dieser Zeile in der Fremdwährung des
+	// Buchungskopfes, in der kleinsten Einheit dieser Währung.
+	//
+	// Der Eurobetrag der Zeile ist das Ergebnis einer Umrechnung, und eine
+	// Umrechnung lässt sich nicht zurückrechnen: Rundung je Zeile und Ausgleich
+	// auf der letzten Zeile machen aus 1.000,00 USD und 999,99 USD denselben
+	// Eurobetrag. Wer später fragt, worauf die Rechnung des Lieferanten lautete,
+	// bekommt hier die Zahl, die auf ihr stand — nicht eine, die Buchfink aus dem
+	// Eurobetrag zurückgerechnet hat.
+	//
+	// Null heißt „keine Fremdwährung": eine Buchung in Euro trägt das Feld nicht,
+	// und die Kanonisierung schreibt es nur, wo es belegt ist — die Hash-Kette
+	// jeder bestehenden Buchhaltung bleibt damit unverändert.
+	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
+
 	Text string `gorm:"size:255;serializer:encrypted" json:"text,omitempty"`
 }
+
+// InputTaxExcluded ist der Wert, den JournalLine.InputTaxShare trägt, wo der
+// Vorsteuerabzug ganz ausgeschlossen ist (§ 15 Abs. 1a UStG).
+//
+// Er ist negativ, weil das Feld null als „nicht einschlägig" liest und ein
+// Anteil von null Promille genau das nicht ist: die Vorsteuer ist da, sie ist
+// nur nicht abziehbar. Ein eigener Wert dafür hält die beiden auseinander, ohne
+// die Hash-Kette bestehender Buchungen anzurühren.
+const InputTaxExcluded = -1
 
 // JournalEntry is one complete Geschäftsvorfall (Buchungssatz) with n lines.
 //
@@ -174,6 +212,16 @@ type JournalEntry struct {
 	// participant list stored there would be covered by no checksum at all, and a
 	// record the deduction depends on must not be silently editable.
 	Entertainment *EntertainmentDetail `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"entertainment,omitempty"`
+
+	// Gifts tragen die Aufzeichnungen des § 4 Abs. 7 EStG zu den Geschenken
+	// dieser Buchung. Sie hängen aus demselben Grund an ihr wie die
+	// Bewirtungsaufzeichnung: der Abzug hängt an ihnen, und was an der Buchung
+	// hängt, deckt die Hashkette.
+	//
+	// Eine Liste und kein einzelner Datensatz: eine Lieferantenrechnung über
+	// zehn Präsentkörbe an zehn Empfänger ist ein Beleg und eine Buchung, aber
+	// zehn Aufzeichnungen — die Freigrenze läuft je Empfänger.
+	Gifts []GiftRecord `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"gifts,omitempty"`
 
 	PreviousHash string    `gorm:"size:64;not null" json:"previousHash"`
 	EntryHash    string    `gorm:"size:64;not null" json:"entryHash"`

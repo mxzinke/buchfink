@@ -39,6 +39,9 @@ type ClosingService struct {
 	// zuvor.
 	accruals AccrualCarrier
 	notes    NotesCopier
+	// currency ist die Fremdwährungsbewertung. Ihre Auflösung gehört wie die der
+	// Abgrenzung in das Folgejahr und wird vom Saldenvortrag gebucht.
+	currency CurrencyReverser
 	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
 	// an dem die Übergangsfrist des § 27 Abs. 38 UStG hängt.
 	revenue    RevenueSource
@@ -92,6 +95,20 @@ type AccrualCarrier interface {
 
 // SetAccrualCarrier koppelt die Rechnungsabgrenzung an den Saldenvortrag.
 func (s *ClosingService) SetAccrualCarrier(c AccrualCarrier) { s.accruals = c }
+
+// CurrencyReverser ist der Ausschnitt der Fremdwährungsbewertung, den der
+// Saldenvortrag braucht.
+//
+// Die Stichtagsbewertung gilt dem Stichtag und nicht dem Posten: sie wird am
+// ersten Tag des Folgejahres wieder aufgelöst. Diese Auflösung hängt aus
+// demselben Grund am Vortrag wie die der Abgrenzung — der Vortrag ist der
+// Vorgang, der das neue Jahr eröffnet.
+type CurrencyReverser interface {
+	ReverseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error)
+}
+
+// SetCurrencyReverser koppelt die Fremdwährungsbewertung an den Saldenvortrag.
+func (s *ClosingService) SetCurrencyReverser(c CurrencyReverser) { s.currency = c }
 
 // NotesCopier übernimmt die Anhangtexte des Vorjahres in ein neu angelegtes
 // Geschäftsjahr.
@@ -1182,6 +1199,20 @@ func (s *ClosingService) CarryForward(ctx context.Context, toYear int) ([]domain
 			return created, fmt.Errorf(
 				"der Saldenvortrag ins Geschäftsjahr %d steht; die Auflösung der Rechnungsabgrenzung "+
 					"ist aber unvollständig: %w", toYear, err)
+		}
+	}
+
+	// Und ebenso die Auflösung der Fremdwährungsbewertung. Sie ist ein
+	// Nachholweg und nicht nur ein Anstoß: bleibt sie beim ersten Vortrag aus —
+	// weil die Bewertung noch nicht gebucht war —, holt der nächste Vortrag sie
+	// nach, denn sie fragt das Journal und nicht ein Merkzeichen.
+	if s.currency != nil {
+		reversals, err := s.currency.ReverseInto(ctx, toYear)
+		created = append(created, reversals...)
+		if err != nil {
+			return created, fmt.Errorf(
+				"der Saldenvortrag ins Geschäftsjahr %d steht; die Auflösung der "+
+					"Fremdwährungsbewertung ist aber unvollständig: %w", toYear, err)
 		}
 	}
 

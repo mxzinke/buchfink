@@ -45,6 +45,16 @@ const (
 	// ist keine Fehlbuchung, aber eine Aussage — und sie gehört in den Bericht,
 	// den der Prüfer liest, nicht nur in die Schrittliste des Anwenders.
 	CheckRuleClosingStepSkipped = "closing_step_skipped"
+	// CheckRuleICSupplyEvidenceMissing meldet eine steuerfreie
+	// innergemeinschaftliche Lieferung ohne vollständigen Belegnachweis
+	// (§§ 17a bis 17c UStDV). Der Nachweis ist bis zur Abgabe der Voranmeldung
+	// des Zeitraums zu führen, in dem die Lieferung ausgeführt wurde; fehlt er,
+	// droht die Steuerpflicht der Lieferung.
+	CheckRuleICSupplyEvidenceMissing = "ic_supply_evidence_missing"
+	// CheckRuleICSupplyUnconfirmed meldet eine steuerfreie ig. Lieferung, deren
+	// USt-IdNr. beim Ausstellen nicht bestätigt werden konnte — der Folgebefund
+	// zu jeder dokumentierten Übersteuerung.
+	CheckRuleICSupplyUnconfirmed = "ic_supply_unconfirmed"
 )
 
 // CheckFinding ist ein einzelner Befund eines Prüflaufs.

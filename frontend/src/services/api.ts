@@ -14,6 +14,7 @@ import type {
   AdvanceInvoiceRequest,
   AdvanceItem,
   AdvanceTargetOption,
+  AfaRules,
   Anlagenspiegel,
   AppConfig,
   Appropriation,
@@ -30,6 +31,7 @@ import type {
   AuditLogEntry,
   BackupRun,
   BankTransaction,
+  CapitalizeNearAcquisitionCostRequest,
   CarryForwardPreview,
   Cents,
   CheckRun,
@@ -51,6 +53,10 @@ import type {
   DisposalResult,
   EInvoiceProfileInfo,
   EInvoiceProposal,
+  EvidenceKindInfo,
+  EvidenceStatus,
+  ExchangeRate,
+  ExemptionCertificateWarning,
   ExpiringAssetDocument,
   ExportResult,
   Festschreibung,
@@ -62,10 +68,14 @@ import type {
   FiscalYear,
   FiscalYearStatus,
   FixedAsset,
+  ForeignCurrencyValuation,
   Foundation,
   FoundationPostingPreview,
   FoundationRules,
   FoundationState,
+  GiftRebooking,
+  InputTaxCorrection,
+  InputTaxCorrectionYear,
   IntegrityCheckResult,
   InventoryCount,
   InventoryOverview,
@@ -81,15 +91,20 @@ import type {
   KeyDirectoryEntry,
   LegacySpecialDepreciationNotice,
   LegalFormInfo,
+  MaintenanceResult,
   MappingReport,
+  NearAcquisitionCheck,
+  NonDeductibleCategory,
+  NonDeductibleReport,
   NotesSection,
+  NotesSectionText,
   NumberGapReason,
   NumberGapReasonOption,
   NumberGapReport,
-  NotesSectionText,
   OpenItem,
   PaymentAllocationDetail,
   PaymentRequest,
+  PoolConsistencyReport,
   PostingGroup,
   PostingPreview,
   Provision,
@@ -97,19 +112,26 @@ import type {
   ProvisionMirror,
   ProvisionPreview,
   ProvisionRequest,
+  RebookGiftsRequest,
   Receipt,
-  RefundAdvanceRequest,
   ReceiptFileInput,
   ReceiptPreview,
   ReceiptRequest,
   ReceiptStatus,
   Reconciliation,
-  SKR04Catalog,
+  RefundAdvanceRequest,
+  RegisterInputTaxRequest,
+  SaveInputTaxUsageRequest,
+  ServiceEndpoints,
   SettleAdvanceRequest,
   Settlement,
   SizeClass,
+  SKR04Catalog,
   SpecialPrepaymentSuggestion,
   StatementDepth,
+  SupplyEvidenceReport,
+  SupplyEvidenceRequest,
+  SupplyEvidenceView,
   SuSaOverview,
   TaxElectionRegister,
   TaxProvisionPreview,
@@ -118,16 +140,22 @@ import type {
   TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
+  TransportKind,
   UnitCode,
   Units,
   ValidationResult,
+  VatExchangeRate,
+  VatIDCheck,
+  VatIDStatus,
   VatPeriodStatus,
+  VatRateImport,
   VatReturn,
   VatSettlement,
   VatSummary,
   VendorAdvance,
   Vorabpauschale,
   WriteOffRequest,
+  WriteUpReport,
   ZMPeriodStatus,
   ZMReturn,
 } from '../types';
@@ -303,6 +331,90 @@ function normalizeInvoiceGroup(group: InvoiceGroup): InvoiceGroup {
   };
 }
 
+/**
+ * Die Listen der steuerlichen Nebenpflichten (Welle 5c).
+ *
+ * Alle vier sind der Regelfall des unbelasteten Jahres: kein Wirtschaftsgut im
+ * Verzeichnis, kein Nachweisbeleg, kein Geschenk, kein Posten in Fremdwährung.
+ * Ein `null` aus Go an einer dieser Stellen reißt die Ansicht ausgerechnet dort
+ * mit, wo nichts zu beanstanden ist.
+ */
+function normalizeInputTaxYear(year: InputTaxCorrectionYear): InputTaxCorrectionYear {
+  if (!year) return year;
+  return {
+    ...year,
+    rows: list(year.rows).map((row) => ({
+      ...row,
+      correction: row.correction
+        ? { ...row.correction, usages: list(row.correction.usages) }
+        : row.correction,
+    })),
+  };
+}
+
+/** `missing` ist leer, wo nichts fehlt — und das ist der gute Fall. */
+function normalizeEvidenceStatusHolder<T extends { status: EvidenceStatus }>(holder: T): T {
+  if (!holder || !holder.status) return holder;
+  return { ...holder, status: { ...holder.status, missing: list(holder.status.missing) } };
+}
+
+function normalizeSupplyEvidenceView(view: SupplyEvidenceView): SupplyEvidenceView {
+  if (!view) return view;
+  return normalizeEvidenceStatusHolder({
+    ...view,
+    items: list(view.items),
+    kinds: list(view.kinds),
+  });
+}
+
+function normalizeNonDeductibleReport(report: NonDeductibleReport): NonDeductibleReport {
+  if (!report) return report;
+  return {
+    ...report,
+    categories: list(report.categories),
+    recipients: list(report.recipients).map((row) => ({
+      ...row,
+      toRebook: list(row.toRebook),
+      bookings: list(row.bookings),
+    })),
+  };
+}
+
+function normalizeCurrencyValuation(
+  valuation: ForeignCurrencyValuation,
+): ForeignCurrencyValuation {
+  if (!valuation) return valuation;
+  return { ...valuation, items: list(valuation.items) };
+}
+
+function normalizeWriteUpReport(report: WriteUpReport): WriteUpReport {
+  if (!report) return report;
+  return {
+    ...report,
+    candidates: list(report.candidates).map((candidate) => ({
+      ...candidate,
+      impairments: list(candidate.impairments),
+    })),
+  };
+}
+
+/**
+ * Die Listen der Buchungsvorschau.
+ *
+ * Der gute Fall ist hier der leere: eine Rechnung ohne Beanstandung hat keine
+ * Warnung und keinen Befund. Käme dafür ein `null` aus Go, risse ausgerechnet
+ * der gute Fall die Vorschau beim ersten `.length`.
+ */
+function normalizePostingPreview(preview: PostingPreview): PostingPreview {
+  if (!preview) return preview;
+  return {
+    ...preview,
+    lines: list(preview.lines),
+    warnings: list(preview.warnings),
+    inputTaxFindings: list(preview.inputTaxFindings),
+  };
+}
+
 const catalog = skr04CatalogData as unknown as SKR04Catalog;
 
 export const Api = {
@@ -389,9 +501,13 @@ export const Api = {
     call(() => Bridge.PostIncomingReceipt(request as any) as Promise<JournalEntry>),
   /** Der Buchungssatz, wie er gebucht würde. Das Frontend rechnet ihn nicht nach. */
   previewIncomingReceipt: (request: ReceiptRequest): Promise<PostingPreview> =>
-    call(() => Bridge.PreviewIncomingReceipt(request as any) as Promise<PostingPreview>),
+    call(() => Bridge.PreviewIncomingReceipt(request as any) as Promise<PostingPreview>).then(
+      normalizePostingPreview,
+    ),
   previewOutgoingInvoice: (invoice: Partial<Invoice>): Promise<PostingPreview> =>
-    call(() => Bridge.PreviewOutgoingInvoice(invoice as any) as Promise<PostingPreview>),
+    call(() => Bridge.PreviewOutgoingInvoice(invoice as any) as Promise<PostingPreview>).then(
+      normalizePostingPreview,
+    ),
 
   // --- Belege ------------------------------------------------------------
 
@@ -627,7 +743,17 @@ export const Api = {
   getAssetAccounts: (assetClass: AssetClass | '' = ''): Promise<AssetAccountInfo[]> =>
     call(() => Bridge.GetAssetAccounts(assetClass) as Promise<AssetAccountInfo[]>),
   /** Wertgrenzen, Zeitfenster der degressiven AfA und zulässige Methoden. */
-  getAssetRules: (): Promise<AssetRules> => call(() => Bridge.GetAssetRules() as Promise<AssetRules>),
+  getAssetRules: (): Promise<AssetRules> =>
+    call(() => Bridge.GetAssetRules() as Promise<AssetRules>).then((rules) =>
+      rules
+        ? {
+            ...rules,
+            degressiveWindows: list(rules.degressiveWindows),
+            electricVehicleWindows: list(rules.electricVehicleWindows),
+            methods: list(rules.methods),
+          }
+        : rules,
+    ),
   /**
    * Sofortabzug, Sammelposten oder aktivieren? Die Antwort kommt aus dem
    * Backend, damit die Wertgrenzen nur an einer Stelle stehen.
@@ -685,8 +811,14 @@ export const Api = {
     paymentAccount?: string;
     contactId?: number;
     note: string;
-  }): Promise<JournalEntry> =>
-    call(() => Bridge.BookAssetMaintenance(request as any) as Promise<JournalEntry>),
+    /**
+     * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus
+     * — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten. Negativ
+     * formuliert, weil der Regelfall der Vorgabewert sein muss.
+     */
+    notModernisation?: boolean;
+  }): Promise<MaintenanceResult> =>
+    call(() => Bridge.BookAssetMaintenance(request as any) as Promise<MaintenanceResult>),
   /** Dividende, Ausschüttung oder Zins, verknüpft mit dem Anteil, aus dem sie stammt. */
   bookAssetIncome: (request: {
     assetId: number;
@@ -1290,6 +1422,203 @@ export const Api = {
     call(() => Bridge.SelectBackupDirDialog(title)),
   selectBackupFile: (title = 'Buchfink-Sicherung auswählen'): Promise<string> =>
     call(() => Bridge.SelectBackupFileDialog(title)),
+
+  // --- Vorsteuerberichtigung nach § 15a UStG -----------------------------
+
+  /** Das Verzeichnis mit Blick auf ein Geschäftsjahr. */
+  getInputTaxCorrections: (year: number): Promise<InputTaxCorrectionYear> =>
+    call(() => Bridge.GetInputTaxCorrections(year) as Promise<InputTaxCorrectionYear>).then(
+      normalizeInputTaxYear,
+    ),
+  /** Dieselbe Sicht unter dem Namen, unter dem der Abschlussbaustein sie aufruft. */
+  previewInputTaxCorrection: (year: number): Promise<InputTaxCorrectionYear> =>
+    call(() => Bridge.PreviewInputTaxCorrection(year) as Promise<InputTaxCorrectionYear>).then(
+      normalizeInputTaxYear,
+    ),
+  /** Nimmt ein Wirtschaftsgut ins Verzeichnis auf. */
+  registerInputTaxCorrection: (request: RegisterInputTaxRequest): Promise<InputTaxCorrection> =>
+    call(() => Bridge.RegisterInputTaxCorrection(request as any) as Promise<InputTaxCorrection>),
+  /** Schließt einen Eintrag vorzeitig ab — Abgang, Entnahme, Fehleintrag. */
+  closeInputTaxCorrection: (id: number, reason: string, date = ''): Promise<InputTaxCorrection> =>
+    call(() => Bridge.CloseInputTaxCorrection(id, reason, date) as Promise<InputTaxCorrection>),
+  /** Bestätigt oder ändert den Verwendungsanteil eines Jahres. */
+  saveInputTaxUsage: (request: SaveInputTaxUsageRequest): Promise<InputTaxCorrectionYear> =>
+    call(() => Bridge.SaveInputTaxUsage(request as any) as Promise<InputTaxCorrectionYear>).then(
+      normalizeInputTaxYear,
+    ),
+  /** Bucht die Berichtigungen eines Geschäftsjahres; der Betrag geht in Kz 64. */
+  bookInputTaxCorrection: (year: number): Promise<InputTaxCorrectionYear> =>
+    call(() => Bridge.BookInputTaxCorrection(year) as Promise<InputTaxCorrectionYear>).then(
+      normalizeInputTaxYear,
+    ),
+
+  // --- Bestätigung der USt-IdNr. (§ 18e UStG) ----------------------------
+
+  /** Der Verlauf der Bestätigungsabfragen eines Kontakts. */
+  getVatIDChecks: (contactId: number): Promise<VatIDCheck[]> =>
+    call(() => Bridge.GetVatIDChecks(contactId) as Promise<VatIDCheck[]>).then(list),
+  /** Der Stand der Bestätigung, ohne dass dafür gefragt würde. */
+  getVatIDStatus: (contactId: number): Promise<VatIDStatus> =>
+    call(() => Bridge.GetVatIDStatus(contactId) as Promise<VatIDStatus>),
+  /** Die qualifizierte Bestätigungsanfrage. Ihr Ergebnis bleibt am Kontakt. */
+  checkVatID: (contactId: number): Promise<VatIDCheck> =>
+    call(() => Bridge.CheckVatID(contactId) as Promise<VatIDCheck>),
+
+  // --- Belegnachweis der innergemeinschaftlichen Lieferung ---------------
+
+  /** Die Belegarten mit ihrer Gruppe nach Art. 45a MwStVO. */
+  getSupplyEvidenceKinds: (): Promise<EvidenceKindInfo[]> =>
+    call(() => Bridge.GetSupplyEvidenceKinds() as Promise<EvidenceKindInfo[]>).then(list),
+  /** Der Nachweisstand einer Rechnung. Leerer Transport heißt Regelfall. */
+  getSupplyEvidence: (invoiceId: number, transport: TransportKind = ''): Promise<SupplyEvidenceView> =>
+    call(() => Bridge.GetSupplyEvidence(invoiceId, transport) as Promise<SupplyEvidenceView>).then(
+      normalizeSupplyEvidenceView,
+    ),
+  /** Legt einen Nachweisbeleg ab; die Datei geht in den Belegspeicher. */
+  addSupplyEvidence: (request: SupplyEvidenceRequest): Promise<SupplyEvidenceView> =>
+    call(() => Bridge.AddSupplyEvidence(request as any) as Promise<SupplyEvidenceView>).then(
+      normalizeSupplyEvidenceView,
+    ),
+  /**
+   * Hält an der Rechnung fest, wer den Gegenstand befördert hat.
+   *
+   * Eigener Aufruf und nicht nur ein Ansichtsparameter: der Abholfall verlangt
+   * zusätzlich die Gelangensbestätigung, und diese Angabe muss die Rechnung
+   * überleben.
+   */
+  setSupplyTransport: (invoiceId: number, transport: TransportKind): Promise<SupplyEvidenceView> =>
+    call(
+      () => Bridge.SetSupplyTransport(invoiceId, transport) as Promise<SupplyEvidenceView>,
+    ).then(normalizeSupplyEvidenceView),
+  /** Nimmt einen Nachweisbeleg zurück. */
+  removeSupplyEvidence: (
+    invoiceId: number,
+    evidenceId: number,
+    transport: TransportKind = '',
+  ): Promise<SupplyEvidenceView> =>
+    call(
+      () =>
+        Bridge.RemoveSupplyEvidence(invoiceId, evidenceId, transport) as Promise<SupplyEvidenceView>,
+    ).then(normalizeSupplyEvidenceView),
+  /** Die steuerfreien ig. Lieferungen eines Jahres mit ihrem Nachweisstand. */
+  getSupplyEvidenceReport: (year: number): Promise<SupplyEvidenceReport> =>
+    call(() => Bridge.GetSupplyEvidenceReport(year) as Promise<SupplyEvidenceReport>).then(
+      (report) =>
+        report
+          ? { ...report, rows: list(report.rows).map(normalizeEvidenceStatusHolder) }
+          : report,
+    ),
+
+  // --- Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG) ---------------
+
+  /** Die Kategorien mit ihren Konten. */
+  getNonDeductibleCategories: (): Promise<NonDeductibleCategory[]> =>
+    call(() => Bridge.GetNonDeductibleCategories() as Promise<NonDeductibleCategory[]>).then(list),
+  /** Der Bericht eines Geschäftsjahres: je Kategorie und je Empfänger. */
+  getNonDeductibleReport: (year: number): Promise<NonDeductibleReport> =>
+    call(() => Bridge.GetNonDeductibleReport(year) as Promise<NonDeductibleReport>).then(
+      normalizeNonDeductibleReport,
+    ),
+  /** Bucht die noch abziehbar stehenden Geschenke eines Empfängers um. */
+  rebookGiftsForRecipient: (request: RebookGiftsRequest): Promise<GiftRebooking> =>
+    call(() => Bridge.RebookGiftsForRecipient(request as any) as Promise<GiftRebooking>).then(
+      (result) =>
+        result
+          ? { ...result, reversals: list(result.reversals), rebookings: list(result.rebookings) }
+          : result,
+    ),
+
+  // --- Fremdwährung ------------------------------------------------------
+
+  /** Der Kurs eines Tages. Fehlt er, wird er geholt und in der Historie abgelegt. */
+  getExchangeRate: (currency: string, date: string): Promise<ExchangeRate> =>
+    call(() => Bridge.GetExchangeRate(currency, date) as Promise<ExchangeRate>),
+  /** Die Kurshistorie einer Währung. */
+  getExchangeRates: (currency: string, from = '', to = ''): Promise<ExchangeRate[]> =>
+    call(() => Bridge.GetExchangeRates(currency, from, to) as Promise<ExchangeRate[]>).then(list),
+  /** Nimmt einen von Hand erfassten Kurs auf. Ohne Quelle ist er eine Behauptung. */
+  saveExchangeRate: (rate: Partial<ExchangeRate>): Promise<ExchangeRate> =>
+    call(() => Bridge.SaveExchangeRate(rate as any) as Promise<ExchangeRate>),
+  /** Die Umsatzsteuer-Durchschnittskurse eines Zeitraums (§ 16 Abs. 6 UStG). */
+  getVatExchangeRates: (from = '', to = ''): Promise<VatExchangeRate[]> =>
+    call(() => Bridge.GetVatExchangeRates(from, to) as Promise<VatExchangeRate[]>).then(list),
+  saveVatExchangeRate: (rate: Partial<VatExchangeRate>): Promise<VatExchangeRate> =>
+    call(() => Bridge.SaveVatExchangeRate(rate as any) as Promise<VatExchangeRate>),
+  /** Liest die Durchschnittskurse aus einer CSV-Datei. */
+  importVatExchangeRatesCSV: (path: string): Promise<VatRateImport> =>
+    call(() => Bridge.ImportVatExchangeRatesCSV(path) as Promise<VatRateImport>).then((result) =>
+      result ? { ...result, problems: list(result.problems) } : result,
+    ),
+  /** Die Stichtagsbewertung, ohne sie zu buchen (§ 256a HGB). */
+  previewCurrencyValuation: (year: number): Promise<ForeignCurrencyValuation> =>
+    call(() => Bridge.PreviewCurrencyValuation(year) as Promise<ForeignCurrencyValuation>).then(
+      normalizeCurrencyValuation,
+    ),
+  /** Bucht die Bewertung und ihre Auflösung im Folgejahr. */
+  bookCurrencyValuation: (year: number): Promise<ForeignCurrencyValuation> =>
+    call(() => Bridge.BookCurrencyValuation(year) as Promise<ForeignCurrencyValuation>).then(
+      normalizeCurrencyValuation,
+    ),
+
+  // --- Anlagen: Regelsätze, Wertaufholung, Sammelposten ------------------
+
+  /** Die Abschreibungsregeln aus der Ressource, aus der auch gerechnet wird. */
+  getAfaRules: (): Promise<AfaRules> =>
+    call(() => Bridge.GetAfaRules() as Promise<AfaRules>).then((rules) =>
+      rules
+        ? {
+            ...rules,
+            parameterSets: list(rules.parameterSets),
+            degressiveWindows: list(rules.degressiveWindows),
+            electricVehicleWindows: list(rules.electricVehicleWindows),
+            buildingRates: list(rules.buildingRates),
+          }
+        : rules,
+    ),
+  /** Die Anlagegüter, bei denen die Wertaufholung zu prüfen ist (§ 253 Abs. 5 HGB). */
+  getWriteUpReport: (year: number): Promise<WriteUpReport> =>
+    call(() => Bridge.GetWriteUpReport(year) as Promise<WriteUpReport>).then(normalizeWriteUpReport),
+  /** Hält fest, dass der Grund einer außerplanmäßigen Abschreibung fortbesteht. */
+  confirmImpairmentPersists: (assetId: number, year: number, note: string): Promise<WriteUpReport> =>
+    call(
+      () => Bridge.ConfirmImpairmentPersists(assetId, year, note) as Promise<WriteUpReport>,
+    ).then(normalizeWriteUpReport),
+  /** Die Einheitlichkeit des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG. */
+  getPoolConsistencyReport: (year: number): Promise<PoolConsistencyReport> =>
+    call(() => Bridge.GetPoolConsistencyReport(year) as Promise<PoolConsistencyReport>).then(
+      (report) =>
+        report
+          ? { ...report, pooled: list(report.pooled), immediate: list(report.immediate) }
+          : report,
+    ),
+  /** Der 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG für eine geplante Instandsetzung. */
+  checkNearAcquisitionCost: (
+    assetId: number,
+    date: string,
+    amount: Cents,
+  ): Promise<NearAcquisitionCheck> =>
+    call(
+      () => Bridge.CheckNearAcquisitionCost(assetId, date, amount) as Promise<NearAcquisitionCheck>,
+    ),
+  /** Bucht den Erhaltungsaufwand als nachträgliche Herstellungskosten um. */
+  capitalizeNearAcquisitionCost: (
+    request: CapitalizeNearAcquisitionCostRequest,
+  ): Promise<FixedAsset> =>
+    call(() => Bridge.CapitalizeNearAcquisitionCost(request as any) as Promise<FixedAsset>),
+  /** Freistellungsbescheinigungen § 48b EStG, die ablaufen oder abgelaufen sind. */
+  getExemptionCertificateWarnings: (today = ''): Promise<ExemptionCertificateWarning[]> =>
+    call(
+      () => Bridge.GetExemptionCertificateWarnings(today) as Promise<ExemptionCertificateWarning[]>,
+    ).then(list),
+
+  // --- Adressen der Netzdienste ------------------------------------------
+
+  /** Die eingestellten Adressen samt ihren Voreinstellungen. */
+  getServiceEndpoints: (): Promise<ServiceEndpoints> =>
+    call(() => Bridge.GetServiceEndpoints() as Promise<ServiceEndpoints>),
+  /** Schreibt sie fort. Ein leerer Wert setzt die Voreinstellung wieder in Kraft. */
+  saveServiceEndpoints: (endpoints: ServiceEndpoints): Promise<ServiceEndpoints> =>
+    call(() => Bridge.SaveServiceEndpoints(endpoints as any) as Promise<ServiceEndpoints>),
 
   // --- Prüfermodus -------------------------------------------------------
 

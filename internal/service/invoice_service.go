@@ -32,6 +32,10 @@ type InvoiceService struct {
 	groupRepo      domain.InvoiceGroupRepository
 	fiscalYearRepo domain.FiscalYearRepository
 	bankRepo       domain.BankRepository
+
+	// vatIDs ist die Bestätigungsabfrage der USt-IdNr. (Welle 5c). Ebenso
+	// optional: ohne sie stellt der Dienst aus wie zuvor.
+	vatIDs vatIDConfirmer
 }
 
 // InvoiceRegistry bündelt, was das Rechnungswesen der Welle 5b zusätzlich
@@ -272,6 +276,12 @@ func (s *InvoiceService) prepareForIssue(
 	}
 	if contact != nil {
 		if err := s.validateTaxTreatment(inv, contact); err != nil {
+			return nil, err
+		}
+		// Die Bestätigung der USt-IdNr. steht hinter der Stammdatenprüfung und
+		// vor der Nummernvergabe: sie ist die letzte Frage, die noch mit einem
+		// Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen.
+		if err := s.ensureVatIDConfirmed(ctx, inv, contact); err != nil {
 			return nil, err
 		}
 	}
@@ -887,6 +897,43 @@ func ensureNoUnlawfulTax(inv *domain.Invoice) error {
 			i+1, item.TaxRate.Label(), inv.TaxTreatment)
 	}
 	return nil
+}
+
+// vatIDConfirmer ist der Ausschnitt der Bestätigungsabfrage, den der
+// Rechnungsweg braucht.
+type vatIDConfirmer interface {
+	EnsureConfirmed(ctx context.Context, contact *domain.Contact, overrideReason string) error
+}
+
+// SetVatIDConfirmer koppelt die Bestätigungsabfrage an den Rechnungsweg. Ohne
+// sie stellt Buchfink wie bisher aus — mit ihr erst nach einer Bestätigung.
+func (s *InvoiceService) SetVatIDConfirmer(c vatIDConfirmer) { s.vatIDs = c }
+
+// ensureVatIDConfirmed hält eine steuerfreie Lieferung an, solange die USt-IdNr.
+// des Empfängers nicht bestätigt ist.
+//
+// Nur für die beiden Steuerfälle, bei denen die Nummer des Empfängers
+// materielle Voraussetzung ist: die innergemeinschaftliche Lieferung
+// (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die Verlagerung der Steuerschuld auf einen
+// Empfänger im übrigen Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die
+// USt-IdNr. des Kunden keine Voraussetzung von irgendetwas, und eine Abfrage
+// dort wäre ein Netzaufruf ohne Zweck.
+func (s *InvoiceService) ensureVatIDConfirmed(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+) error {
+	if s.vatIDs == nil {
+		return nil
+	}
+	switch inv.TaxTreatment {
+	case domain.TaxTreatmentIntraCommunitySupply:
+	case domain.TaxTreatmentReverseChargeSupply:
+		if !contact.IsEUCounterparty() {
+			return nil
+		}
+	default:
+		return nil
+	}
+	return s.vatIDs.EnsureConfirmed(ctx, contact, inv.VatIDOverrideReason)
 }
 
 // validateTaxTreatment blocks the combinations that would produce a formally

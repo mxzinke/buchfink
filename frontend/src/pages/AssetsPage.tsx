@@ -29,6 +29,7 @@ import {
   InvestmentTaxNote,
   JournalLine,
   LegacySpecialDepreciationNotice,
+  NearAcquisitionCheck,
   TaxElectionRegister,
   Vorabpauschale,
   Settlement,
@@ -65,6 +66,7 @@ import {
   Th,
   Thead,
   Tr,
+  cn,
   toast,
 } from '../components/ui';
 
@@ -1491,11 +1493,30 @@ const AssetFormDialog: React.FC<{
     }
     if (method === 'degressive' && asset.acquisitionDate) {
       const open = (rules?.degressiveWindows ?? []).some(
-        (w) => asset.acquisitionDate! >= w.From && asset.acquisitionDate! <= w.Until,
+        (w) => asset.acquisitionDate! >= w.from && asset.acquisitionDate! <= w.until,
       );
       if (!open) {
         return 'Für dieses Anschaffungsdatum ist die degressive AfA nicht zulässig.';
       }
+    }
+    // Dieselben Voraussetzungen, die das Backend prüft: sie hier zu wiederholen
+    // erspart dem Anwender nicht die Regel, sondern den Umweg über eine
+    // Fehlermeldung nach dem Speichern.
+    if (method === 'electric_vehicle') {
+      if (selectedAccount && selectedAccount.group !== 'Fahrzeuge') {
+        return `${selectedAccount.name} trägt kein Fahrzeug.`;
+      }
+      if (asset.acquisitionDate) {
+        const open = (rules?.electricVehicleWindows ?? []).some(
+          (w) => asset.acquisitionDate! >= w.from && asset.acquisitionDate! <= w.until,
+        );
+        if (!open) {
+          return 'Für dieses Anschaffungsdatum gibt es die Staffel des § 7 Abs. 2a EStG nicht.';
+        }
+      }
+    }
+    if (method === 'building_linear' && selectedAccount && !selectedAccount.immovable) {
+      return `${selectedAccount.name} trägt kein Gebäude.`;
     }
     if (advice && (method === 'immediate' || method === 'pool')) {
       if (!advice.allowed.includes(method === 'immediate' ? 'immediate' : 'pool')) {
@@ -1516,6 +1537,24 @@ const AssetFormDialog: React.FC<{
   const activeMethod = methods.find((m) => m.method === asset.method);
   const blockedReason = asset.method ? methodBlocked(asset.method) : undefined;
   const needsUsefulLife = asset.method === 'linear' || asset.method === 'degressive';
+  /**
+   * Ob die Nutzungsdauer zu begründen ist.
+   *
+   * Die Regel kommt aus dem Kontenkatalog und wird hier nicht nachgebaut: nur
+   * wo Buchfink das Wahlrecht des BMF-Schreibens vom 22.02.2022 vorschlägt,
+   * verlangt es bei einer Abweichung die Begründung. Das Backend prüft
+   * dieselbe Kennzeichnung — ohne dieses Feld ließe sich ein Kopierer auf 0690
+   * nicht mehr anlegen.
+   */
+  const usefulLifeDeviates =
+    needsUsefulLife &&
+    Boolean(selectedAccount?.usefulLifeReasonRequired) &&
+    (asset.usefulLifeMonths ?? 0) !== (selectedAccount?.defaultUsefulLifeMonths ?? 0);
+  /** Das Kennzeichen des § 7 Abs. 2a EStG gehört zum Fahrzeug, nicht zur Methode. */
+  const isVehicle = selectedAccount?.group === 'Fahrzeuge';
+  /** Der Stichtag des § 7 Abs. 4 EStG: Bauantrag oder Fertigstellung. */
+  const needsBuildingDate =
+    asset.method === 'building_linear' || Boolean(selectedAccount?.immovable);
 
   /** Übernimmt den Vorschlag der Einordnung samt des Kontos, das dazu gehört. */
   function applyAdvice(option: AcquisitionOption) {
@@ -1793,6 +1832,48 @@ const AssetFormDialog: React.FC<{
           <Input value={asset.depreciationAccount ?? ''} disabled />
         </Field>
       </div>
+
+      {usefulLifeDeviates && (
+        <Field
+          label="Begründung der abweichenden Nutzungsdauer"
+          className="mt-4"
+          hint={`Vorschlag: ${selectedAccount?.defaultUsefulLifeMonths} Monate`}
+          explain={`Der Vorschlag stammt aus dem ${selectedAccount?.usefulLifeSource ?? 'BMF-Schreiben'}. Er ist ein Wahlrecht und keine Vorgabe — die Verwaltungsanweisung bindet die Finanzverwaltung, nicht dich. „Begründet" heißt aber, dass die Begründung existiert: ohne sie ist die Abweichung im Zweifel kein Wahlrecht, sondern ein Tippfehler, und der fällt erst in der Betriebsprüfung auf.`}
+        >
+          <Textarea
+            rows={2}
+            value={asset.usefulLifeReason ?? ''}
+            onChange={(e) => set({ usefulLifeReason: e.target.value })}
+            placeholder="etwa: Server im Dauerbetrieb, Herstellergarantie über drei Jahre"
+          />
+        </Field>
+      )}
+
+      {(isVehicle || needsBuildingDate) && (
+        <div className="mt-4 grid grid-cols-2 gap-4 items-end">
+          {isVehicle && (
+            <Checkbox
+              checked={asset.isElectric ?? false}
+              onCheckedChange={(checked) => set({ isElectric: Boolean(checked) })}
+              label="Rein elektrisch betrieben"
+              hint="Voraussetzung der Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3 und 2 % der Anschaffungskosten."
+            />
+          )}
+          {needsBuildingDate && (
+            <Field
+              label="Stichtag des Gebäudes"
+              hint="Bauantrag oder Fertigstellung"
+              explain="§ 7 Abs. 4 EStG macht den Satz an diesem Tag fest: beim Betriebsgebäude am Bauantrag, beim Wohngebäude an der Fertigstellung. Das Anschaffungsdatum ist kein Ersatz — ein altes Gebäude, das gerade gekauft wurde, bekäme daraus den falschen Satz."
+            >
+              <Input
+                type="date"
+                value={asset.buildingReferenceDate ?? ''}
+                onChange={(e) => set({ buildingReferenceDate: e.target.value })}
+              />
+            </Field>
+          )}
+        </div>
+      )}
 
       {specialAvailable && (
         <div className="mt-4 space-y-3">
@@ -3259,8 +3340,47 @@ const MaintenanceForm: React.FC<{
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus.
+   *
+   * Negativ formuliert und nicht angehakt, weil der Regelfall der Vorgabewert
+   * sein muss: Instandsetzung und Modernisierung zählen in den Rahmen,
+   * jährlich üblicherweise anfallende Erhaltungsarbeiten sind ausdrücklich
+   * ausgenommen (Satz 2 Nr. 1).
+   */
+  const [notModernisation, setNotModernisation] = useState(false);
+  // Die 15-%-Prüfung vor und nach der Buchung. Vorher als Vorschau, nachher
+  // als Befund samt dem Weg, der aus ihm herausführt.
+  const [check, setCheck] = useState<NearAcquisitionCheck | null>(null);
+  const [booked, setBooked] = useState<NearAcquisitionCheck | null>(null);
+  const [capitalizeReason, setCapitalizeReason] = useState('');
 
   const vendors = contacts.filter((c) => c.type === 'vendor');
+  const planned = parseCents(amount);
+
+  // Der Rahmen wird vor der Buchung gefragt, sobald Betrag und Datum stehen:
+  // wer erst nach dem Buchen erfährt, dass die 15 % gerissen sind, hat den
+  // Aufwand schon in der GuV — und die Rücknahme ist eine zweite Buchung.
+  useEffect(() => {
+    if (notModernisation || planned === null || planned <= 0 || !date) {
+      setCheck(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      Api.checkNearAcquisitionCost(asset.id, date, planned)
+        .then((result) => {
+          if (!cancelled) setCheck(result);
+        })
+        .catch(() => {
+          if (!cancelled) setCheck(null);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [asset.id, date, planned, notModernisation]);
 
   async function submit() {
     setBusy(true);
@@ -3271,7 +3391,7 @@ const MaintenanceForm: React.FC<{
         setError('Der Betrag fehlt oder ist nicht lesbar.');
         return;
       }
-      await Api.bookAssetMaintenance({
+      const result = await Api.bookAssetMaintenance({
         assetId: asset.id,
         date,
         amount: value,
@@ -3279,8 +3399,40 @@ const MaintenanceForm: React.FC<{
         paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
         contactId: settlement === 'open' ? contactId : undefined,
         note,
+        notModernisation,
       });
+      // Der Rahmen ist gerissen: die Buchung steht, und die Entscheidung über
+      // die Aktivierung ist die nächste. Der Dialog bleibt deshalb offen statt
+      // zu schließen und den Befund mitzunehmen.
+      if (result?.nearAcquisition?.exceeded) {
+        setBooked(result.nearAcquisition);
+        setAmount('');
+        setCheck(null);
+        return;
+      }
       await onDone('Erhaltungsaufwand gebucht.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Die Umbuchung des Aufwands in nachträgliche Herstellungskosten. */
+  async function capitalize() {
+    if (capitalizeReason.trim() === '') {
+      setError('Die Umbuchung verteilt einen sofort abgezogenen Aufwand — ohne Grund nicht.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await Api.capitalizeNearAcquisitionCost({
+        assetId: asset.id,
+        date,
+        reason: capitalizeReason.trim(),
+      });
+      await onDone('Als nachträgliche Herstellungskosten aktiviert.');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -3353,19 +3505,104 @@ const MaintenanceForm: React.FC<{
         </Field>
       </div>
 
+      <Checkbox
+        checked={notModernisation}
+        onCheckedChange={(checked) => setNotModernisation(Boolean(checked))}
+        label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
+        hint="§ 6 Abs. 1 Nr. 1a Satz 2 EStG nimmt sie aus dem 15-%-Rahmen der ersten drei Jahre heraus. Instandsetzung und Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als um den laufenden Unterhalt."
+      />
+
+      {/* Der Rahmen des § 6 Abs. 1 Nr. 1a EStG: vor der Buchung als Vorschau,
+          nach ihr als Befund mit dem Weg heraus. */}
+      {check?.applicable && !booked && (
+        <div
+          className={cn(
+            'rounded-control border px-4 py-3',
+            check.exceeded
+              ? 'border-attention-line bg-attention-soft'
+              : 'border-line-strong bg-sunken',
+          )}
+        >
+          <h4 className={cn('text-label', check.exceeded ? 'text-attention-text' : 'text-ink')}>
+            Anschaffungsnahe Herstellungskosten
+            <HelpPopover label="Erklärung zum 15-%-Rahmen">
+              Übersteigen die Aufwendungen für Instandsetzung und Modernisierung innerhalb von drei
+              Jahren nach der Anschaffung eines Gebäudes 15 % der Anschaffungskosten ohne
+              Umsatzsteuer, gehören sie zu den Herstellungskosten (§ 6 Abs. 1 Nr. 1a EStG). Sie
+              sind dann nicht sofort abziehbar, sondern über die Gebäude-AfA zu verteilen — und
+              zwar sämtliche, auch die bereits als Aufwand gebuchten.
+            </HelpPopover>
+          </h4>
+          <p className="text-body text-ink-muted mt-1.5">{check.note}</p>
+          <p className="text-caption text-ink-subtle mt-1">
+            <span className="num">{formatCents(check.spent)}</span> gebucht
+            {check.planned > 0 && (
+              <>
+                {' · '}
+                <span className="num">{formatCents(check.planned)}</span> geplant
+              </>
+            )}
+            {' · Rahmen '}
+            <span className="num">{formatCents(check.limit)}</span>
+            {check.periodEnd ? ` · Zeitraum bis ${formatDate(check.periodEnd)}` : ''}
+          </p>
+        </div>
+      )}
+
+      {booked && (
+        <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
+          <h4 className="text-label text-attention-text">
+            Der 15-%-Rahmen ist überschritten
+          </h4>
+          <p className="text-body text-ink-muted mt-1.5">{booked.note}</p>
+          <p className="text-caption text-ink-subtle mt-1">
+            <span className="num">{formatCents(booked.spent)}</span> gegenüber{' '}
+            <span className="num">{formatCents(booked.limit)}</span>
+          </p>
+          <Field
+            label="Grund der Aktivierung"
+            className="mt-3"
+            help="Die Umbuchung nimmt gebuchten Aufwand zurück und aktiviert ihn. Wer sie später liest, muss wissen, worauf sie beruht."
+          >
+            <Textarea
+              rows={2}
+              value={capitalizeReason}
+              onChange={(e) => setCapitalizeReason(e.target.value)}
+              placeholder="etwa: 15-%-Grenze des § 6 Abs. 1 Nr. 1a EStG mit der Sanierung 2027 überschritten"
+            />
+          </Field>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => void onDone('Erhaltungsaufwand gebucht.')}>
+              Später entscheiden
+            </Button>
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={writeLock.locked || capitalizeReason.trim() === ''}
+              title={writeLock.hint}
+              onClick={capitalize}
+            >
+              Als nachträgliche Herstellungskosten aktivieren
+            </Button>
+          </div>
+        </div>
+      )}
+
       <FormError message={error} />
 
-      <div className="flex justify-end">
-        <Button
-          variant="primary"
-          loading={busy}
-          disabled={writeLock.locked}
-          title={writeLock.hint}
-          onClick={submit}
-        >
-          Aufwand buchen
-        </Button>
-      </div>
+      {!booked && (
+        <div className="flex justify-end">
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Aufwand buchen
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

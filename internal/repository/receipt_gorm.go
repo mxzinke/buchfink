@@ -190,6 +190,20 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 	})
 }
 
+// SaveInputTaxOverride schreibt den Grund der Übersteuerung an den Beleg.
+//
+// Über den Datensatz und nicht über eine Map: der Grund liegt verschlüsselt in
+// der Spalte, und GORM wendet den Feld-Serializer nur auf dem Struct-Weg an. Ein
+// Map-Update legte den Klartext dorthin, wo Geheimtext erwartet wird, und beim
+// nächsten Lesen scheiterte die Entschlüsselung des ganzen Belegs.
+func (r *receiptRepositoryGorm) SaveInputTaxOverride(
+	ctx context.Context, receiptID uint, reason, at string,
+) error {
+	receipt := domain.Receipt{ID: receiptID, InputTaxOverride: reason, InputTaxOverrideAt: at}
+	return dbFrom(ctx, r.db).Model(&receipt).
+		Select("InputTaxOverride", "InputTaxOverrideAt").Updates(&receipt).Error
+}
+
 // Discard retires a filed Beleg without deleting it. It already carries a
 // Belegnummer, and a received document must stay findable.
 func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, reason string) error {

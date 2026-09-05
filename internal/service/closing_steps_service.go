@@ -33,6 +33,10 @@ type ClosingStepsService struct {
 	closingSvc        *ClosingService
 	depreciation      PendingDepreciationSource
 	fiscalYear        int
+	// Welle 5c: die beiden Bausteine, deren Zustand aus einer eigenen Kartei
+	// folgt. Beide sind optional — ohne sie bleibt ihr Schritt schlicht offen.
+	writeUps WriteUpSource
+	inputTax InputTaxCorrectionSource
 }
 
 // NewClosingStepsService wires den Abschlussassistenten.
@@ -64,6 +68,25 @@ func (s *ClosingStepsService) SetFiscalYear(year int) { s.fiscalYear = year }
 func (s *ClosingStepsService) SetDepreciationSource(src PendingDepreciationSource) {
 	s.depreciation = src
 }
+
+// WriteUpSource ist der Ausschnitt der Anlagenkartei, den der Baustein
+// „Wertaufholung prüfen" braucht: wie viele Anlagegüter mit außerplanmäßiger
+// Abschreibung im Jahr noch unbeantwortet sind.
+type WriteUpSource interface {
+	WriteUpReport(ctx context.Context, year int) (*WriteUpReport, error)
+}
+
+// InputTaxCorrectionSource ist der Ausschnitt des Verzeichnisses nach § 15a
+// UStG, den der Abschluss braucht.
+type InputTaxCorrectionSource interface {
+	Year(ctx context.Context, year int) (*InputTaxCorrectionYear, error)
+}
+
+// SetWriteUpSource koppelt die Wertaufholung an die Schrittliste.
+func (s *ClosingStepsService) SetWriteUpSource(src WriteUpSource) { s.writeUps = src }
+
+// SetInputTaxSource koppelt die Vorsteuerberichtigung an die Schrittliste.
+func (s *ClosingStepsService) SetInputTaxSource(src InputTaxCorrectionSource) { s.inputTax = src }
 
 // ClosingStepView ist ein Baustein mit seinem Zustand.
 type ClosingStepView struct {
@@ -163,6 +186,68 @@ func (s *ClosingStepsService) derive(
 			return domain.ClosingStepDone, "keine Abschreibung offen"
 		}
 		return domain.ClosingStepOpen, fmt.Sprintf("AfA für %d Anlagegüter offen", len(due))
+
+	case domain.ClosingStepWriteUp:
+		if s.writeUps == nil {
+			return domain.ClosingStepOpen, ""
+		}
+		report, err := s.writeUps.WriteUpReport(ctx, year)
+		if err != nil {
+			return domain.ClosingStepOpen, ""
+		}
+		if len(report.Candidates) == 0 {
+			return domain.ClosingStepDone, "kein Anlagegut mit außerplanmäßiger Abschreibung"
+		}
+		if report.Open == 0 {
+			return domain.ClosingStepDone, fmt.Sprintf(
+				"%d Anlagegüter geprüft", len(report.Candidates))
+		}
+		return domain.ClosingStepOpen, fmt.Sprintf(
+			"%d von %d Anlagegütern noch nicht beantwortet", report.Open, len(report.Candidates))
+
+	case domain.ClosingStepCurrencyValuation:
+		// Die Bewertung wird an ihrer Belegnummer erkannt und nicht an einer
+		// eigenen Kartei: sie hinterlässt genau zwei Buchungen, und ob sie
+		// stehen, weiß das Journal.
+		standing, reversed := s.hasClosingReference(ctx, year, foreignCurrencyDocument(year))
+		if standing {
+			return domain.ClosingStepDone, "Fremdwährungsposten bewertet"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Bewertungsbuchung wurde storniert"
+		}
+		return domain.ClosingStepOpen, ""
+
+	case domain.ClosingStepInputTaxCorrection:
+		standing, reversed := s.hasClosingReference(ctx, year, inputTaxCorrectionDocument(year))
+		if standing {
+			return domain.ClosingStepDone, "Vorsteuerberichtigung gebucht"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Berichtigungsbuchung wurde storniert"
+		}
+		if s.inputTax == nil {
+			return domain.ClosingStepOpen, ""
+		}
+		view, err := s.inputTax.Year(ctx, year)
+		if err != nil {
+			return domain.ClosingStepOpen, ""
+		}
+		pending := 0
+		for _, row := range view.Rows {
+			if row.InPeriod && row.Assessment.Required && !row.Booked {
+				pending++
+			}
+		}
+		switch {
+		case view.Unconfirmed > 0:
+			return domain.ClosingStepOpen, fmt.Sprintf(
+				"%d Verwendungsanteile noch nicht bestätigt", view.Unconfirmed)
+		case pending == 0:
+			return domain.ClosingStepDone, "nichts zu berichtigen"
+		default:
+			return domain.ClosingStepOpen, fmt.Sprintf("%d Berichtigungen offen", pending)
+		}
 
 	case domain.ClosingStepAccruals:
 		// Gezählt wird, was noch steht: ein Posten, dessen Bildungsbuchung per

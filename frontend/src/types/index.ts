@@ -140,7 +140,40 @@ export interface JournalLine {
   contactId?: number;
   taxKey?: string;
   taxBase?: Cents;
+  /**
+   * Der abziehbare Anteil der Vorsteuer in Promille (§ 15 Abs. 4 UStG).
+   *
+   * Null heißt „nicht einschlägig", 1000 heißt voll abziehbar. `-1` steht für
+   * den ganz ausgeschlossenen Abzug (§ 15 Abs. 1a UStG) — eine Vorsteuer, die
+   * es gibt und die niemand ziehen darf, ist etwas anderes als keine.
+   */
+  inputTaxShare?: number;
+  /** Der Betrag der Zeile in der Fremdwährung; null bei einer Buchung in Euro. */
+  foreignAmount?: Cents;
   text?: string;
+}
+
+/**
+ * Die Prüfung des 15-%-Rahmens des § 6 Abs. 1 Nr. 1a EStG zu einer
+ * Instandsetzung an einem Gebäude.
+ */
+export interface NearAcquisitionCheck {
+  applicable: boolean;
+  periodEnd?: string;
+  limit: Cents;
+  spent: Cents;
+  planned: Cents;
+  exceeded: boolean;
+  note: string;
+}
+
+/**
+ * Das Ergebnis einer Erhaltungsaufwandsbuchung: die Buchung und, bei einem
+ * Gebäude in den ersten drei Jahren, die Prüfung des 15-%-Rahmens.
+ */
+export interface MaintenanceResult {
+  entry: JournalEntry;
+  nearAcquisition?: NearAcquisitionCheck;
 }
 
 export interface JournalEntry {
@@ -169,6 +202,8 @@ export interface JournalEntry {
   exchangeRateDate?: string;
   postingRuleVersion?: string;
   lines: JournalLine[];
+  /** Die Aufzeichnung nach § 4 Abs. 7 EStG zu einem Geschenk. */
+  gifts?: GiftRecord[];
   previousHash: string;
   entryHash: string;
   createdAt: string;
@@ -251,7 +286,22 @@ export interface PostingGroup {
   nonDeductibleAccount?: string;
   /** Gesetzliche Abzugsquote, die für diese Gruppe gilt. */
   deductibleQuota?: string;
+  /**
+   * Eine Freigrenze, die über das Konto entscheidet statt den Betrag zu teilen.
+   * `gift_per_recipient` ist die des § 4 Abs. 5 Satz 1 Nr. 1 EStG.
+   */
+  limit?: string;
+  /**
+   * Der Empfänger ist aufzuzeichnen (§ 4 Abs. 7 EStG). Ohne ihn nimmt das
+   * Backend die Buchung nicht an — die Maske muss ihn deshalb erfragen.
+   */
+  recipientRequired?: boolean;
+  /** Zu dieser Gruppe gehört kein Vorsteuerabzug (§ 15 Abs. 1a UStG). */
+  inputTaxExcluded?: boolean;
 }
+
+/** Die Freigrenze je Empfänger und Wirtschaftsjahr (§ 4 Abs. 5 Satz 1 Nr. 1 EStG). */
+export const LIMIT_GIFT_PER_RECIPIENT = 'gift_per_recipient';
 
 export interface TaxTreatmentInfo {
   treatment: TaxTreatment;
@@ -279,6 +329,25 @@ export interface ReceiptPosition {
   net: Cents;
   taxRate: TaxRate;
   text?: string;
+  /**
+   * Der Vorsteuerschlüssel der gemischten Nutzung in Promille. Null heißt voll
+   * abziehbar; der nicht abziehbare Teil wird dem Aufwand zugeschlagen
+   * (§ 9b Abs. 1 EStG).
+   */
+  inputTaxShare?: number;
+  /** Pflicht unter 1000: die Aufteilung ist eine Schätzung und braucht ihren Maßstab. */
+  inputTaxShareReason?: string;
+  /** Pflicht auf einem Geschenkekonto: die Aufzeichnung nach § 4 Abs. 7 EStG. */
+  gift?: GiftInput;
+}
+
+/** Der Empfänger eines Geschenks, wie ihn die Maske übergibt. */
+export interface GiftInput {
+  /** Der Empfänger als erfasster Geschäftspartner. */
+  contactId?: number;
+  /** Der Empfänger als Freitext — für den, der nicht in der Kontaktliste steht. */
+  name?: string;
+  occasion?: string;
 }
 
 export interface ReceiptRequest {
@@ -310,6 +379,16 @@ export interface ReceiptRequest {
    * Nr. 1 Satz 3 UStG).
    */
   advanceTarget?: AdvanceTarget;
+  /**
+   * Die Endsumme des Belegs in der Fremdwährung — die Kontrollsumme zu den
+   * Positionen. Freiwillig; wo sie steht, wird sie gegen die Summe gehalten.
+   */
+  foreignAmount?: Cents;
+  /**
+   * Übersteuert einen blockierenden Befund der Rechnungsprüfung. Ohne Grund
+   * wird eine Rechnung mit fehlender Pflichtangabe nicht mit Vorsteuer gebucht.
+   */
+  overrideReason?: string;
   /** Die geleisteten Anzahlungen, die dieser Beleg als Schlussrechnung absetzt. */
   settledAdvanceIds?: number[];
 }
@@ -336,6 +415,47 @@ export interface PostingPreview {
    * datiert im Backend. Fehlt außerhalb der Ausgangsrechnung.
    */
   smallAmountLimit?: Cents;
+  /**
+   * Die blockierenden Befunde der Rechnungsprüfung. Sie stehen neben den
+   * Warnungen und nicht in ihnen: eine Warnung zeigt, ein Befund hält an.
+   */
+  inputTaxFindings: InputTaxFinding[];
+  /** Die Umrechnung eines Fremdwährungsbelegs; fehlt bei einem Beleg in Euro. */
+  conversion?: Conversion;
+}
+
+/**
+ * Ein blockierender Befund der Rechnungsprüfung: eine Pflichtangabe der
+ * §§ 14, 14a UStG fehlt, und ohne sie gibt es keinen Vorsteuerabzug.
+ */
+export interface InputTaxFinding {
+  code: string;
+  title: string;
+  /** Was fehlt, samt der Vorschrift dazu. */
+  detail: string;
+  /** Lässt sich der Befund durch eine Ergänzung der Stammdaten beheben? */
+  fixable: boolean;
+}
+
+/** Die Umrechnung eines Fremdwährungsbelegs. */
+export interface Conversion {
+  currency: string;
+  date: string;
+  /** Der Tageskurs, mit dem der Aufwand bewertet wird. */
+  rate: ExchangeRate;
+  /**
+   * Der Durchschnittskurs, mit dem die Bemessungsgrundlage der Umsatzsteuer
+   * gerechnet wird (§ 16 Abs. 6 UStG). Fehlt er, bleibt es beim Tageskurs.
+   */
+  vatRate?: VatExchangeRate;
+  foreignAmount: Cents;
+  /** Gegenwert zum Tageskurs. */
+  amount: Cents;
+  /** Gegenwert zum Umsatzsteuerkurs. */
+  taxBaseAmount: Cents;
+  /** Die Differenz zwischen beiden: Kursaufwand oder Kursertrag. */
+  difference: Cents;
+  note: string;
 }
 
 // -------------------------------------------------------------------------
@@ -389,6 +509,13 @@ export interface Receipt {
   validationErrors: number;
   /** Die Befunde als JSON, siehe ValidationFinding. */
   validationFindings?: string;
+
+  /**
+   * Der Grund, mit dem ein blockierender Befund der Rechnungsprüfung
+   * übersteuert wurde, samt dem Zeitpunkt. Er steht am Beleg und im Protokoll.
+   */
+  inputTaxOverride?: string;
+  inputTaxOverrideAt?: string;
 
   createdAt: string;
   updatedAt: string;
@@ -611,7 +738,20 @@ export interface Contact {
   isPrivate: boolean;
   /** Kleinunternehmer nach § 19 UStG: darf immer eine sonstige Rechnung stellen. */
   isSmallBusiness: boolean;
+  /**
+   * Die Freistellungsbescheinigung nach § 48b EStG mit ihrem letzten
+   * Gültigkeitstag. Buchfink rechnet den Steuerabzug bei Bauleistungen nicht,
+   * führt die Bescheinigung aber und weist 30 Tage vorher auf ihren Ablauf hin.
+   */
+  exemptionCertificateNumber?: string;
+  exemptionCertificateValidUntil?: string;
   openAmount: Cents;
+  /**
+   * Der Hinweis zum Stand der Bestätigungsabfrage, den das Speichern eines
+   * Kontakts mit einer USt-IdNr. aus einem anderen Mitgliedstaat zurückgibt.
+   * Nicht gespeichert und nicht blockierend.
+   */
+  vatIdNotice?: string;
   createdAt: string;
 }
 
@@ -733,6 +873,18 @@ export interface Invoice {
   paymentAccount?: string;
   /** Das Format, in dem dieses Dokument erzeugt wurde. */
   eInvoiceProfile?: EInvoiceProfile;
+  /**
+   * Der Grund, mit dem eine steuerfreie ig. Lieferung ohne Bestätigung der
+   * USt-IdNr. ausgestellt wurde. Er steht an der Rechnung, weil die Frage nach
+   * der Befreiung später an ihr gestellt wird.
+   */
+  vatIdOverrideReason?: string;
+  /**
+   * Wer den Gegenstand befördert hat. Leer wird als Regelfall gelesen —
+   * Beförderung durch den Lieferer; „customer" ist der Abholfall und verlangt
+   * zusätzlich die Gelangensbestätigung.
+   */
+  transportKind?: TransportKind;
   /** Bezug auf die berichtigte oder stornierte Rechnung (BG-3). */
   correctsInvoiceId?: number;
   correctsInvoiceNumber?: string;
@@ -1166,7 +1318,16 @@ export interface SKR04Catalog {
 /** Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. */
 export type AssetClass = 'intangible' | 'tangible' | 'financial';
 
-export type DepreciationMethod = 'linear' | 'degressive' | 'pool' | 'immediate' | 'none';
+export type DepreciationMethod =
+  | 'linear'
+  | 'degressive'
+  /** Die Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3, 2 % der Anschaffungskosten. */
+  | 'electric_vehicle'
+  /** Die festen Sätze des § 7 Abs. 4 EStG für Gebäude. */
+  | 'building_linear'
+  | 'pool'
+  | 'immediate'
+  | 'none';
 
 export type AssetStatus =
   | 'active'
@@ -1274,6 +1435,15 @@ export interface AssetMovement {
   quantity?: Units;
   /** Betrag, der nur steuerlich zählt — die Vorabpauschale wird nicht gebucht. */
   taxAmount?: Cents;
+  /** Betrag einer Bewegung ohne Buchwertänderung (Erhaltungsaufwand). */
+  expenseAmount?: Cents;
+  /** Aufwandskonto einer Bewegung ohne Buchwertänderung (Erhaltungsaufwand). */
+  expenseAccount?: string;
+  /**
+   * Instandsetzung oder Modernisierung im Sinne des § 6 Abs. 1 Nr. 1a EStG.
+   * Nur solcher Aufwand zählt in den 15-%-Rahmen der ersten drei Jahre.
+   */
+  isModernisation?: boolean;
   /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
   lifeExtensionMonths?: number;
   note?: string;
@@ -1294,6 +1464,31 @@ export interface FixedAsset {
   acquisitionCost: Cents;
   method: DepreciationMethod;
   usefulLifeMonths: number;
+  /**
+   * Die Begründung einer Nutzungsdauer, die vom Vorschlag des Kontos abweicht
+   * — etwa bei EDV-Hardware, für die das BMF-Schreiben vom 22.02.2022 zwölf
+   * Monate zulässt.
+   */
+  usefulLifeReason?: string;
+  /**
+   * Vorsteuer der Anschaffung und der Anteil, mit dem sie gezogen wurde. Beide
+   * gehen ins Verzeichnis nach § 15a UStG ein.
+   */
+  inputTaxAmount?: Cents;
+  inputTaxPermille?: number;
+  /** Rein elektrisch betriebenes Fahrzeug — Voraussetzung des § 7 Abs. 2a EStG. */
+  isElectric?: boolean;
+  /**
+   * Der Stichtag, an dem § 7 Abs. 4 EStG den Gebäudesatz festmacht: Bauantrag
+   * bzw. Fertigstellung.
+   */
+  buildingReferenceDate?: string;
+  /**
+   * Das Geschäftsjahr, für das bestätigt wurde, dass der Grund einer
+   * außerplanmäßigen Abschreibung fortbesteht, samt der Begründung.
+   */
+  impairmentPersistsYear?: number;
+  impairmentPersistsNote?: string;
   poolYear?: number;
   /** Sonderabschreibung nach § 7g Abs. 5 EStG: Satz in Promille, höchstens 400. */
   specialPermille?: number;
@@ -1396,10 +1591,21 @@ export interface AssetAccountInfo {
   inProgress?: boolean;
   /** Grund und Boden und alles, was darauf steht — keine degressive AfA, keine Sonderabschreibung. */
   immovable?: boolean;
+  /**
+   * Ein Gebäude, das Wohnzwecken dient. § 7 Abs. 4 EStG macht den Satz beim
+   * Wohngebäude an der Fertigstellung fest, beim Betriebsgebäude am Bauantrag.
+   */
+  residential?: boolean;
   depreciationAccount?: string;
   depreciable: boolean;
   defaultUsefulLifeMonths?: number;
   usefulLifeSource?: string;
+  /**
+   * Eine Abweichung vom Vorschlag dieses Kontos ist zu begründen. Gesetzt für
+   * die Konten mit dem Wahlrecht des BMF-Schreibens vom 22.02.2022; das
+   * Backend verlangt dort dasselbe.
+   */
+  usefulLifeReasonRequired?: boolean;
 }
 
 export type AcquisitionOption = 'immediate' | 'pool' | 'activate';
@@ -1417,13 +1623,18 @@ export interface AcquisitionAdvice {
   };
 }
 
+/**
+ * Ein Zeitfenster, in dem die degressive AfA zulässig ist. Die Schlüssel sind
+ * kleingeschrieben, seit die Regeln aus der Ressource `afa_rules.json` kommen
+ * und das Go-Struct dieselben JSON-Namen trägt wie die Datei.
+ */
 export interface DegressiveWindow {
-  From: string;
-  Until: string;
+  from: string;
+  until: string;
   /** Vielfaches des linearen Satzes in Tausendsteln: 3000 ist das Dreifache. */
-  FactorPermille: number;
-  MaxPermille: number;
-  Source: string;
+  factorPermille: number;
+  maxPermille: number;
+  source: string;
 }
 
 export interface AssetMethodInfo {
@@ -1441,10 +1652,17 @@ export interface AssetRules {
   poolUpperLimit: Cents;
   poolYears: number;
   degressiveWindows: DegressiveWindow[];
+  /** Das Zeitfenster der Staffel des § 7 Abs. 2a EStG für E-Fahrzeuge. */
+  electricVehicleWindows: ElectricVehicleWindow[];
   /** Höchstsatz der Sonderabschreibung in Promille (§ 7g Abs. 5 EStG). */
   specialMaxPermille: number;
   /** Begünstigungszeitraum in Jahren: das Anschaffungsjahr und die vier folgenden. */
   specialPeriodYears: number;
+  /**
+   * Warum der Investitionsabzugsbetrag des § 7g Abs. 1 EStG in Buchfink nicht
+   * vorkommt: er wird außerhalb der Bilanz vorgenommen.
+   */
+  investmentDeductionNote: string;
   methods: AssetMethodInfo[];
 }
 
@@ -1627,6 +1845,10 @@ export interface AcquisitionCandidate {
   accountName: string;
   amount: Cents;
   contactId?: number;
+  /** Vorsteuer der Zugangsbuchung; 0 heißt: die Buchung gibt sie nicht eindeutig her. */
+  inputTaxAmount: Cents;
+  /** Anteil, mit dem die Vorsteuer gezogen wurde (Promille). */
+  inputTaxPermille: number;
 }
 
 export interface AnlagenspiegelRow {
@@ -2513,13 +2735,19 @@ export interface BackupRun {
 // Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang
 // -------------------------------------------------------------------------
 
-/** Die elf Bausteine des Jahresabschlusses in ihrer fachlichen Reihenfolge. */
+/** Die Bausteine des Jahresabschlusses in ihrer fachlichen Reihenfolge. */
 export type ClosingStepKey =
   | 'depreciation'
+  /** Wertaufholung prüfen: ist der Grund einer Abwertung weggefallen (§ 253 Abs. 5 HGB)? */
+  | 'write_up'
+  /** Fremdwährungsbewertung zum Stichtag (§ 256a HGB). */
+  | 'currency_valuation'
   | 'accruals'
   | 'provisions'
   | 'inventory'
   | 'vat_settlement'
+  /** Vorsteuerberichtigung nach § 15a UStG; der Betrag geht in Kennziffer 64. */
+  | 'input_tax_correction'
   | 'tax_provision'
   | 'check_run'
   | 'statement'
@@ -3119,4 +3347,543 @@ export interface LegacySpecialDepreciationNotice {
   rows: LegacySpecialDepreciation[];
   total: Cents;
   note: string;
+}
+
+// -------------------------------------------------------------------------
+// Steuerliche Nebenpflichten (Welle 5c): Vorsteuerberichtigung § 15a UStG,
+// Bestätigung der USt-IdNr., Belegnachweis der ig. Lieferung, nicht abziehbare
+// Betriebsausgaben, Fremdwährung, Anlagen
+// -------------------------------------------------------------------------
+
+/** Der bestätigte Verwendungsanteil eines Jahres samt seiner Berichtigung. */
+export interface InputTaxUsage {
+  correctionId: number;
+  fiscalYear: number;
+  /** Anteil der Verwendung für zum Vorsteuerabzug berechtigende Umsätze, in Promille. */
+  permille: number;
+  /** Ohne Bestätigung ist der Anteil ein Vorschlag und wird nicht gebucht. */
+  confirmed: boolean;
+  /** Berichtigungsbetrag mit Vorzeichen: positiv, wo Vorsteuer hinzukommt. */
+  amount: Cents;
+  reason?: string;
+  entryId?: number;
+  bookedOn?: string;
+  updatedAt: string;
+}
+
+/** Ein Wirtschaftsgut im Verzeichnis nach § 15a UStG. */
+export interface InputTaxCorrection {
+  id: number;
+  assetId?: number;
+  receiptId?: number;
+  entryId?: number;
+  label: string;
+  /** Das Konto entscheidet über die Beweglichkeit und damit über den Zeitraum. */
+  account?: string;
+  acquisitionDate: string;
+  netAmount: Cents;
+  inputTaxAmount: Cents;
+  /** Der Anteil, mit dem die Vorsteuer beim Zugang gezogen wurde, in Promille. */
+  originalPermille: number;
+  /** Grundstück oder Gebäude: zehn Jahre statt fünf (§ 15a Abs. 1 UStG). */
+  immovable: boolean;
+  correctionPeriodYears: number;
+  firstFiscalYear: number;
+  lastFiscalYear: number;
+  /** Gesetzt heißt: der Eintrag ist vorzeitig abgeschlossen. */
+  closedReason?: string;
+  closedOn?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  usages: InputTaxUsage[];
+}
+
+/** Die Bewertung eines Jahres: ob zu berichtigen ist und mit welchem Betrag. */
+export interface InputTaxCorrectionAssessment {
+  amount: Cents;
+  /** Ist null, nennt `reason` die Bagatellgrenze des § 44 UStDV. */
+  required: boolean;
+  /** Erst bei der Steuerberechnung für das Kalenderjahr (§ 44 Abs. 3 UStDV). */
+  deferToAnnual: boolean;
+  account?: string;
+  reason: string;
+}
+
+export interface InputTaxCorrectionRow {
+  correction: InputTaxCorrection;
+  /** Fällt das Jahr in den Berichtigungszeitraum? */
+  inPeriod: boolean;
+  /** Der Anteil, mit dem gerechnet wurde — bestätigt oder als Vorschlag. */
+  permille: number;
+  confirmed: boolean;
+  assessment: InputTaxCorrectionAssessment;
+  booked: boolean;
+  entryNumber?: string;
+}
+
+export interface InputTaxCorrectionYear {
+  fiscalYear: number;
+  bookingDate: string;
+  rows: InputTaxCorrectionRow[];
+  /** Summe der zu buchenden Berichtigungen mit Vorzeichen. */
+  totalAmount: Cents;
+  /** Solange ein Verwendungsanteil unbestätigt ist, wird nicht gebucht. */
+  unconfirmed: number;
+  note: string;
+}
+
+export interface RegisterInputTaxRequest {
+  assetId?: number;
+  receiptId?: number;
+  entryId?: number;
+  label: string;
+  account?: string;
+  acquisitionDate: string;
+  netAmount: Cents;
+  inputTaxAmount: Cents;
+  /** Null wird als volle Verwendung gelesen. */
+  originalPermille?: number;
+  immovable?: boolean;
+  note?: string;
+}
+
+export interface SaveInputTaxUsageRequest {
+  correctionId: number;
+  fiscalYear: number;
+  permille: number;
+  reason?: string;
+}
+
+/**
+ * Das Ergebnis einer Bestätigungsanfrage. „unavailable" ist kein negatives
+ * Ergebnis, sondern gar keins — die beiden dürfen nicht dasselbe bedeuten.
+ */
+export type VatIDCheckStatus = 'valid' | 'invalid' | 'unavailable';
+
+/**
+ * Die Rückmeldung zu einem Feld der qualifizierten Abfrage: A stimmt überein,
+ * B stimmt nicht überein, C nicht angefragt, D vom Mitgliedstaat nicht
+ * mitgeteilt.
+ */
+export type VatIDFieldResult = 'A' | 'B' | 'C' | 'D';
+
+/** Eine Bestätigungsanfrage beim Bundeszentralamt für Steuern (§ 18e UStG). */
+export interface VatIDCheck {
+  id: number;
+  contactId: number;
+  /** Die geprüfte Nummer in der Schreibweise, in der sie abgefragt wurde. */
+  vatId: string;
+  /** Die eigene USt-IdNr.; ohne sie ist die Abfrage keine qualifizierte. */
+  ownVatId?: string;
+  /** Zeitpunkt der Abfrage als RFC3339; an ihm hängt die Frist. */
+  checkedAt: string;
+  status: VatIDCheckStatus;
+  resultCode?: string;
+  resultText?: string;
+  /** Die Abfrage-Identifikationsnummer: der Beleg gegenüber der Finanzverwaltung. */
+  requestId?: string;
+  nameResult?: VatIDFieldResult;
+  cityResult?: VatIDFieldResult;
+  postalCodeResult?: VatIDFieldResult;
+  streetResult?: VatIDFieldResult;
+  /** Die Antwort, wie sie kam (GoBD Rz. 130). */
+  rawResponse?: string;
+  /** Wohin gefragt wurde — die Adresse ist eine Einstellung. */
+  endpoint?: string;
+  createdAt: string;
+}
+
+/** Der Stand der Bestätigung, ohne dass dafür gefragt würde. */
+export interface VatIDStatus {
+  contactId: number;
+  vatId: string;
+  /** Liegt eine gültige Bestätigung innerhalb der Frist vor? */
+  confirmed: boolean;
+  latest?: VatIDCheck;
+  /** Die Frist in Tagen, mit der Buchfink rechnet. */
+  validityDays: number;
+  note: string;
+}
+
+/** Die Belegarten des Nachweises einer ig. Lieferung. */
+export type EvidenceKind =
+  | 'cmr_frachtbrief'
+  | 'konnossement'
+  | 'luftfrachtrechnung'
+  | 'spediteurbescheinigung'
+  | 'versicherungspolice'
+  | 'bankbeleg'
+  | 'behoerdliche_bestaetigung'
+  | 'lagerbescheinigung'
+  | 'gelangensbestaetigung'
+  | 'rechnungsdoppel'
+  | 'tracking_protokoll'
+  | 'sonstiges';
+
+/**
+ * Die Systematik des Art. 45a MwStVO: „a" sind Beförderungsbelege, „b" die
+ * sonstigen Belege, "" trägt die Vermutung nicht.
+ */
+export type EvidenceGroup = 'a' | 'b' | '';
+
+/** Wer den Gegenstand befördert hat. Leer heißt Regelfall — der Lieferer. */
+export type TransportKind = 'supplier' | 'customer' | '';
+
+export interface EvidenceKindInfo {
+  kind: EvidenceKind;
+  label: string;
+  group: EvidenceGroup;
+  hint?: string;
+}
+
+/** Ob der Belegnachweis trägt, und woran es sonst liegt. */
+export interface EvidenceStatus {
+  fulfilled: boolean;
+  /** Die Vorschrift, auf die sich das Ergebnis stützt. */
+  basis?: string;
+  reason: string;
+  /** Was noch fehlt; leer, wenn nichts fehlt. */
+  missing: string[];
+  groupACount: number;
+  groupBCount: number;
+}
+
+/** Ein Nachweisbeleg an einer Rechnung. */
+export interface SupplyEvidence {
+  id: number;
+  invoiceId: number;
+  kind: EvidenceKind;
+  /** Zwei Belege desselben Ausstellers sind ein Beleg mit zwei Blättern. */
+  issuer: string;
+  /** Weder Lieferer noch Erwerber — die Bedingung des Art. 45a MwStVO. */
+  independent: boolean;
+  date: string;
+  /** Der Beleg, unter dem die Datei im Belegspeicher liegt. */
+  receiptId?: number;
+  note?: string;
+  createdAt: string;
+}
+
+export interface SupplyEvidenceView {
+  invoiceId: number;
+  invoiceNumber: string;
+  date: string;
+  contactName: string;
+  transport: TransportKind;
+  items: SupplyEvidence[];
+  status: EvidenceStatus;
+  kinds: EvidenceKindInfo[];
+}
+
+export interface SupplyEvidenceRequest {
+  invoiceId: number;
+  kind: EvidenceKind;
+  issuer: string;
+  independent: boolean;
+  date: string;
+  receiptId?: number;
+  note?: string;
+  /** Leer heißt: keine Änderung an dem, was an der Rechnung steht. */
+  transport?: TransportKind;
+  /** Die Datei auf der Platte; sie geht in den Belegspeicher wie jede andere. */
+  filePath?: string;
+}
+
+export interface SupplyEvidenceReportRow {
+  invoiceId: number;
+  invoiceNumber: string;
+  date: string;
+  contactName: string;
+  netAmount: Cents;
+  evidenceCount: number;
+  transport: TransportKind;
+  status: EvidenceStatus;
+}
+
+export interface SupplyEvidenceReport {
+  fiscalYear: number;
+  rows: SupplyEvidenceReportRow[];
+  /** Zahl der Lieferungen ohne vollständigen Nachweis. */
+  incomplete: number;
+  note: string;
+}
+
+/** Die Aufzeichnung zu einem Geschenk (§ 4 Abs. 7 EStG). */
+export interface GiftRecord {
+  id: number;
+  entryId: number;
+  fiscalYear: number;
+  date: string;
+  recipientContactId?: number;
+  recipientName: string;
+  occasion?: string;
+  /** Der Nettobetrag, an dem die Freigrenze gemessen wird. */
+  netAmount: Cents;
+  /** Als nicht abziehbar gebucht, weil die Freigrenze gerissen ist. */
+  nonDeductible?: boolean;
+  account?: string;
+}
+
+/** Eine Kategorie der beschränkt abziehbaren Betriebsausgaben (§ 4 Abs. 5 EStG). */
+export interface NonDeductibleCategory {
+  key: string;
+  label: string;
+  reference: string;
+  /** Was in keiner Höhe abziehbar ist, hat kein abziehbares Konto. */
+  deductibleAccount?: string;
+  nonDeductibleAccount?: string;
+  note: string;
+}
+
+/** Eine Kategorie mit den Summen eines Geschäftsjahres. */
+export interface NonDeductibleCategoryRow extends NonDeductibleCategory {
+  deductibleAmount: Cents;
+  nonDeductibleAmount: Cents;
+  total: Cents;
+  count: number;
+}
+
+export interface GiftBookingRow {
+  entryId: number;
+  entryNumber: string;
+  date: string;
+  netAmount: Cents;
+  account: string;
+  deductible: boolean;
+  occasion?: string;
+}
+
+export interface GiftRecipientRow {
+  recipientKey: string;
+  recipientName: string;
+  contactId?: number;
+  total: Cents;
+  /** Ist die Freigrenze gerissen? Dann ist alles an diesen Empfänger nicht abziehbar. */
+  overLimit: boolean;
+  /** Buchungen, die noch abziehbar stehen, obwohl die Freigrenze gerissen ist. */
+  toRebook: GiftBookingRow[];
+  bookings: GiftBookingRow[];
+  note: string;
+}
+
+export interface NonDeductibleReport {
+  fiscalYear: number;
+  /** Die Freigrenze je Empfänger und Wirtschaftsjahr. */
+  giftLimit: Cents;
+  categories: NonDeductibleCategoryRow[];
+  recipients: GiftRecipientRow[];
+  note: string;
+}
+
+export interface RebookGiftsRequest {
+  fiscalYear: number;
+  recipientKey: string;
+  /** Leer heißt: der Tag der Korrektur. */
+  date?: string;
+  /** Pflicht: eine Umbuchung ohne Grund ist im Journal später nicht erklärbar. */
+  reason: string;
+}
+
+export interface GiftRebooking {
+  recipientName: string;
+  /** Die Buchungsnummern der Stornos und der Neubuchungen. */
+  reversals: string[];
+  rebookings: string[];
+  note: string;
+}
+
+/** Ein Devisenkurs eines Tages. */
+export interface ExchangeRate {
+  id: number;
+  currency: string;
+  date: string;
+  /** 1 EUR = rateMicros / 1.000.000 Einheiten der Fremdwährung ({@link RATE_SCALE}). */
+  rateMicros: number;
+  /** Ein Kurs ohne Quelle ist eine Behauptung. */
+  source: string;
+  /** Von Hand erfasst — zulässig, aber als solcher erkennbar. */
+  manual: boolean;
+  createdAt: string;
+}
+
+/** Ein Umsatzsteuer-Umrechnungskurs des BMF (§ 16 Abs. 6 UStG). */
+export interface VatExchangeRate {
+  /** Der Monat im Format JJJJ-MM. */
+  month: string;
+  currency: string;
+  rateMicros: number;
+  source: string;
+  updatedAt: string;
+}
+
+export interface VatRateImport {
+  imported: number;
+  skipped: number;
+  problems: string[];
+}
+
+export interface ForeignCurrencyValuationItem {
+  /** „open_item" ist eine Forderung oder Verbindlichkeit, „bank" ein Guthaben. */
+  kind: string;
+  entryId?: number;
+  entryNumber: string;
+  account: string;
+  contactId?: number;
+  description: string;
+  currency: string;
+  dueDate?: string;
+  foreignAmount: Cents;
+  /** Der bisher gebuchte Eurobetrag und sein Wert zum Stichtagskurs. */
+  bookValue: Cents;
+  valueAtCutoff: Cents;
+  difference: Cents;
+  /** Wirkt die Änderung als Ertrag? Bei einer Verbindlichkeit kehrt sich das um. */
+  gain: boolean;
+  /** Ein Gewinn aus einem langfristigen Posten wird nicht gebucht (§ 256a HGB). */
+  recognised: boolean;
+  amount: Cents;
+  reason: string;
+  rateMicros: number;
+}
+
+export interface ForeignCurrencyValuation {
+  fiscalYear: number;
+  cutoff: string;
+  /** Der erste Tag des Folgejahres: dort wird die Bewertung wieder aufgelöst. */
+  reversalDate: string;
+  items: ForeignCurrencyValuationItem[];
+  totalGain: Cents;
+  totalLoss: Cents;
+  note: string;
+  /** Nach dem Buchen belegt. */
+  entryNumber?: string;
+  reversalEntryNumber?: string;
+}
+
+/** Ein Satz Wertgrenzen aus der Ressource `afa_rules.json`. */
+export interface AfaParameterSet {
+  validFrom: string;
+  note?: string;
+  gwgImmediateLimit: Cents;
+  gwgRecordThreshold: Cents;
+  poolLowerLimit: Cents;
+  poolUpperLimit: Cents;
+  poolYears: number;
+}
+
+/** Das Zeitfenster der Staffel für E-Fahrzeuge (§ 7 Abs. 2a EStG). */
+export interface ElectricVehicleWindow {
+  from: string;
+  until: string;
+  /** Die Sätze in Promille der Anschaffungskosten, Jahr für Jahr. */
+  permillePerYear: number[];
+  source: string;
+  note: string;
+}
+
+/** Ein fester Gebäudesatz (§ 7 Abs. 4 EStG). */
+export interface BuildingRate {
+  key: string;
+  residential: boolean;
+  /** Leer heißt: kein unteres Ende — der Eintrag fängt die früheren Fälle auf. */
+  referenceFrom?: string;
+  permille: number;
+  source: string;
+  label: string;
+  note?: string;
+}
+
+/** Die Abschreibungsregeln aus der Ressource — dieselbe Datei, aus der gerechnet wird. */
+export interface AfaRules {
+  version: string;
+  source: string;
+  note: string;
+  investmentDeductionNote: string;
+  parameterSets: AfaParameterSet[];
+  degressiveWindows: DegressiveWindow[];
+  electricVehicleWindows: ElectricVehicleWindow[];
+  buildingRates: BuildingRate[];
+}
+
+export interface WriteUpImpairment {
+  fiscalYear: number;
+  date: string;
+  amount: Cents;
+  reason: string;
+}
+
+export interface WriteUpCandidate {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  account: string;
+  bookValue: Cents;
+  /** Der Buchwert ohne die außerplanmäßige Abschreibung: die Obergrenze. */
+  continuedCost: Cents;
+  /** Der Spielraum: fortgeführte Anschaffungskosten minus Buchwert. */
+  maxWriteUp: Cents;
+  impairments: WriteUpImpairment[];
+  /** Für dieses Jahr bestätigt, dass der Grund fortbesteht. */
+  confirmed: boolean;
+  confirmedNote?: string;
+  note: string;
+}
+
+export interface WriteUpReport {
+  fiscalYear: number;
+  candidates: WriteUpCandidate[];
+  /** Anlagegüter, für die weder zugeschrieben noch bestätigt wurde. */
+  open: number;
+  note: string;
+}
+
+export interface PoolConsistencyRow {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  acquisitionDate: string;
+  cost: Cents;
+  method: DepreciationMethod;
+}
+
+/** Die Einheitlichkeit des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG. */
+export interface PoolConsistencyReport {
+  fiscalYear: number;
+  lowerLimit: Cents;
+  upperLimit: Cents;
+  pooled: PoolConsistencyRow[];
+  immediate: PoolConsistencyRow[];
+  consistent: boolean;
+  note: string;
+}
+
+export interface CapitalizeNearAcquisitionCostRequest {
+  assetId: number;
+  /** Leer heißt: das Ende des Dreijahreszeitraums. */
+  date?: string;
+  /** Pflicht: die Umbuchung verteilt einen sofort abgezogenen Aufwand. */
+  reason: string;
+}
+
+/** Eine Freistellungsbescheinigung § 48b EStG, die abläuft oder abgelaufen ist. */
+export interface ExemptionCertificateWarning {
+  contactId: number;
+  name: string;
+  number: string;
+  validUntil: string;
+  /** „expiring" oder „expired". */
+  state: string;
+  note: string;
+}
+
+/**
+ * Die Adressen der beiden Netzdienste: Bundeszentralamt für Steuern und
+ * Kursdienst. Ein leerer Wert bedeutet die jeweilige Voreinstellung.
+ */
+export interface ServiceEndpoints {
+  vatIdEndpoint: string;
+  vatIdDefault: string;
+  exchangeRateEndpoint: string;
+  exchangeRateDefault: string;
 }

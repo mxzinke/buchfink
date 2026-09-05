@@ -18,17 +18,29 @@ import (
 type ClosingStepKey string
 
 const (
-	ClosingStepDepreciation  ClosingStepKey = "depreciation"   // AfA-Lauf
-	ClosingStepAccruals      ClosingStepKey = "accruals"       // Rechnungsabgrenzung
-	ClosingStepProvisions    ClosingStepKey = "provisions"     // Rückstellungen
-	ClosingStepInventory     ClosingStepKey = "inventory"      // Inventurwert der Vorräte
-	ClosingStepVatSettlement ClosingStepKey = "vat_settlement" // Umsatzsteuer-Verrechnung
-	ClosingStepTaxProvision  ClosingStepKey = "tax_provision"  // Steuerrückstellung
-	ClosingStepCheckRun      ClosingStepKey = "check_run"      // Prüfbericht
-	ClosingStepStatement     ClosingStepKey = "statement"      // Bilanz und GuV
-	ClosingStepAdoption      ClosingStepKey = "adoption"       // Aufstellen und Feststellen
-	ClosingStepDisclosure    ClosingStepKey = "disclosure"     // E-Bilanz und Offenlegung
-	ClosingStepAppropriation ClosingStepKey = "appropriation"  // Saldenvortrag und Ergebnisverwendung
+	ClosingStepDepreciation ClosingStepKey = "depreciation" // AfA-Lauf
+	// ClosingStepWriteUp ist die jährliche Frage nach der Wertaufholung: ist der
+	// Grund einer früheren außerplanmäßigen Abschreibung weggefallen? Sie steht
+	// direkt hinter der AfA, weil sie dieselbe Kartei betrifft.
+	ClosingStepWriteUp ClosingStepKey = "write_up"
+	// ClosingStepCurrencyValuation ist die Stichtagsbewertung der
+	// Fremdwährungsposten (§ 256a HGB). Sie steht vor der Abgrenzung, weil sie
+	// den Wert der offenen Posten ändert, auf denen alles Weitere aufsetzt.
+	ClosingStepCurrencyValuation ClosingStepKey = "currency_valuation"
+	ClosingStepAccruals          ClosingStepKey = "accruals"       // Rechnungsabgrenzung
+	ClosingStepProvisions        ClosingStepKey = "provisions"     // Rückstellungen
+	ClosingStepInventory         ClosingStepKey = "inventory"      // Inventurwert der Vorräte
+	ClosingStepVatSettlement     ClosingStepKey = "vat_settlement" // Umsatzsteuer-Verrechnung
+	// ClosingStepInputTaxCorrection ist die Vorsteuerberichtigung nach § 15a
+	// UStG. Sie steht hinter der Umsatzsteuer-Verrechnung, weil sie eine weitere
+	// Zeile in dieselbe Voranmeldung schreibt.
+	ClosingStepInputTaxCorrection ClosingStepKey = "input_tax_correction"
+	ClosingStepTaxProvision       ClosingStepKey = "tax_provision" // Steuerrückstellung
+	ClosingStepCheckRun           ClosingStepKey = "check_run"     // Prüfbericht
+	ClosingStepStatement          ClosingStepKey = "statement"     // Bilanz und GuV
+	ClosingStepAdoption           ClosingStepKey = "adoption"      // Aufstellen und Feststellen
+	ClosingStepDisclosure         ClosingStepKey = "disclosure"    // E-Bilanz und Offenlegung
+	ClosingStepAppropriation      ClosingStepKey = "appropriation" // Saldenvortrag und Ergebnisverwendung
 )
 
 // ClosingStepState ist der Zustand eines Bausteins.
@@ -66,25 +78,34 @@ func AllClosingSteps() []ClosingStepDefinition {
 	return []ClosingStepDefinition{
 		{ClosingStepDepreciation, 1, "Abschreibungen",
 			"Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.", true},
-		{ClosingStepAccruals, 2, "Rechnungsabgrenzung",
+		{ClosingStepWriteUp, 2, "Wertaufholung prüfen",
+			"Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist " +
+				"zuzuschreiben — § 253 Abs. 5 Satz 1 HGB macht daraus ein Gebot und kein Wahlrecht.", true},
+		{ClosingStepCurrencyValuation, 3, "Fremdwährungsbewertung",
+			"Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet (§ 256a HGB). Bei einer " +
+				"Restlaufzeit über einem Jahr wird nur der Verlust erfasst.", true},
+		{ClosingStepAccruals, 4, "Rechnungsabgrenzung",
 			"Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).", false},
-		{ClosingStepProvisions, 3, "Rückstellungen",
+		{ClosingStepProvisions, 5, "Rückstellungen",
 			"Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).", false},
-		{ClosingStepInventory, 4, "Vorräte",
+		{ClosingStepInventory, 6, "Vorräte",
 			"Der Inventurwert zum Stichtag und die Bestandsveränderung, die daraus folgt.", false},
-		{ClosingStepVatSettlement, 5, "Umsatzsteuer-Verrechnung",
+		{ClosingStepVatSettlement, 7, "Umsatzsteuer-Verrechnung",
 			"Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.", false},
-		{ClosingStepTaxProvision, 6, "Steuerrückstellung",
+		{ClosingStepInputTaxCorrection, 8, "Vorsteuerberichtigung § 15a",
+			"Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der " +
+				"Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.", true},
+		{ClosingStepTaxProvision, 9, "Steuerrückstellung",
 			"Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres.", false},
-		{ClosingStepCheckRun, 7, "Prüfbericht",
+		{ClosingStepCheckRun, 10, "Prüfbericht",
 			"Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.", true},
-		{ClosingStepStatement, 8, "Bilanz und GuV",
+		{ClosingStepStatement, 11, "Bilanz und GuV",
 			"Die Gliederung nach §§ 266 und 275 HGB samt Anhang.", true},
-		{ClosingStepAdoption, 9, "Aufstellen und Feststellen",
+		{ClosingStepAdoption, 12, "Aufstellen und Feststellen",
 			"Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.", true},
-		{ClosingStepDisclosure, 10, "E-Bilanz und Offenlegung",
+		{ClosingStepDisclosure, 13, "E-Bilanz und Offenlegung",
 			"Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.", true},
-		{ClosingStepAppropriation, 11, "Vortrag und Ergebnisverwendung",
+		{ClosingStepAppropriation, 14, "Vortrag und Ergebnisverwendung",
 			"Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.", false},
 	}
 }

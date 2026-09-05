@@ -147,13 +147,47 @@ func AllTaxTreatments() []TaxTreatment {
 	}
 }
 
+// Der Erklärtext zum Steuerfall § 13b UStG — und die Grenzen dessen, was
+// Buchfink davon abbildet.
+//
+// § 13b UStG ist kein Fall, sondern ein Katalog. Buchfink rechnet den Fall des
+// Absatzes 2 Nr. 1: die Leistung eines im Ausland ansässigen Unternehmers, für
+// die es keine Betragsgrenze gibt. Die anderen Nummern des Katalogs stehen im
+// Text, weil der Anwender sie sonst für abgedeckt hielte:
+//
+//   - Nr. 10 und 11 (Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte
+//     Schaltkreise, Edel- und unedle Metalle) greifen erst ab 5.000 € je
+//     wirtschaftlichem Vorgang. Diese Grenze prüft Buchfink nicht — wer den
+//     Steuerfall hier wählt, hat sie selbst zu beurteilen.
+//   - Nr. 4 (Bauleistungen) samt der Bauabzugsteuer des § 48 EStG bildet
+//     Buchfink nicht ab. Die Freistellungsbescheinigung nach § 48b EStG wird am
+//     Geschäftspartner geführt und mit ihrer Frist angezeigt, den Steuerabzug
+//     von 15 % rechnet und meldet Buchfink nicht.
+//
+// Der Text steht an beiden Richtungen, weil die Frage in beiden dieselbe ist.
+const (
+	reverseChargeHint = "Leistung eines im Ausland ansässigen Unternehmers (§ 13b Abs. 2 Nr. 1 UStG, " +
+		"ohne Betragsgrenze): Du schuldest die Steuer und ziehst sie zugleich als Vorsteuer. " +
+		"Buchfink bildet nur diesen Fall ab. Für Mobilfunkgeräte, Tablets, Spielekonsolen, " +
+		"integrierte Schaltkreise und Metalle (§ 13b Abs. 2 Nr. 10 und 11 UStG) gilt eine Grenze " +
+		"von 5.000 € je wirtschaftlichem Vorgang, die Buchfink nicht prüft; Bauleistungen " +
+		"(§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug nach § 48 EStG sind nicht abgebildet — die " +
+		"Freistellungsbescheinigung nach § 48b EStG wird am Geschäftspartner nur geführt."
+	reverseChargeSupplyHint = "Leistung an ein Unternehmen, das die Steuer schuldet. Buchfink " +
+		"bildet den Fall des § 13b Abs. 2 Nr. 1 UStG ab (Leistung eines im Ausland ansässigen " +
+		"Unternehmers, ohne Betragsgrenze). Die 5.000-Euro-Grenze je wirtschaftlichem Vorgang für " +
+		"Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte Schaltkreise und Metalle " +
+		"(§ 13b Abs. 2 Nr. 10 und 11 UStG) prüft Buchfink nicht; Bauleistungen " +
+		"(§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug nach § 48 EStG sind nicht abgebildet."
+)
+
 // TaxTreatments returns the Steuerfälle valid for a direction.
 func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 	switch dir {
 	case DirectionIncoming:
 		return []TaxTreatmentInfo{
 			{TaxTreatmentDomestic, "Inland, steuerpflichtig", "Normalfall: deutscher Lieferant weist Umsatzsteuer aus.", dir, true, false},
-			{TaxTreatmentReverseCharge, "§ 13b UStG (Reverse Charge)", "Leistung eines ausländischen Unternehmers oder Bauleistung: Du schuldest die Steuer und ziehst sie zugleich als Vorsteuer.", dir, true, true},
+			{TaxTreatmentReverseCharge, "§ 13b UStG (Reverse Charge)", reverseChargeHint, dir, true, true},
 			{TaxTreatmentIntraCommunityAcquisition, "Innergemeinschaftlicher Erwerb", "Warenkauf aus einem anderen EU-Land ohne ausgewiesene Steuer.", dir, true, true},
 			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},
@@ -163,7 +197,7 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 		return []TaxTreatmentInfo{
 			{TaxTreatmentDomestic, "Inland, steuerpflichtig", "Normalfall: Rechnung mit ausgewiesener Umsatzsteuer.", dir, true, false},
 			{TaxTreatmentIntraCommunitySupply, "Innergemeinschaftliche Lieferung", "Warenlieferung an ein EU-Unternehmen, steuerfrei nach § 4 Nr. 1b UStG.", dir, false, true},
-			{TaxTreatmentReverseChargeSupply, "§ 13b UStG (Steuerschuld beim Empfänger)", "Leistung an ein Unternehmen, das die Steuer schuldet.", dir, false, true},
+			{TaxTreatmentReverseChargeSupply, "§ 13b UStG (Steuerschuld beim Empfänger)", reverseChargeSupplyHint, dir, false, true},
 			{TaxTreatmentExport, "Ausfuhr in ein Drittland", "Lieferung außerhalb der EU, steuerfrei nach § 4 Nr. 1a UStG.", dir, false, false},
 			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei — der Vorsteuerabzug bleibt erhalten.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},

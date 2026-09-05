@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/xrechnung"
@@ -74,6 +75,12 @@ type BuchfinkBridge struct {
 	deadlineRepo       domain.DeadlineRepository
 	backupRunRepo      domain.BackupRunRepository
 	// Welle 5a: die Abschlussbausteine.
+	// Welle 5c: die steuerlichen Nebenpflichten.
+	inputTaxRepo       domain.InputTaxCorrectionRepository
+	vatIDCheckRepo     domain.VatIDCheckRepository
+	supplyEvidenceRepo domain.SupplyEvidenceRepository
+	exchangeRateRepo   domain.ExchangeRateRepository
+
 	closingStepRepo   domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
 	provisionRepo     domain.ProvisionRepository
@@ -118,6 +125,12 @@ type BuchfinkBridge struct {
 	closingBookingSvc *service.ClosingBookingService
 	appropriationSvc  *service.AppropriationService
 	taxRegisterSvc    *service.TaxRegisterService
+	// Welle 5c: Vorsteuerberichtigung, Bestätigungsabfrage, Belegnachweis,
+	// nicht abziehbare Betriebsausgaben.
+	inputTaxSvc       *service.InputTaxService
+	vatIDSvc          *service.VatIDService
+	supplyEvidenceSvc *service.SupplyEvidenceService
+	giftSvc           *service.GiftService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -272,6 +285,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.numberGapRepo = repository.NewNumberGapRepository(db)
 	b.invoiceGroupRepo = repository.NewInvoiceGroupRepository(db)
 	b.vendorAdvanceRepo = repository.NewVendorAdvanceRepository(db)
+	b.inputTaxRepo = repository.NewInputTaxCorrectionRepository(db)
+	b.vatIDCheckRepo = repository.NewVatIDCheckRepository(db)
+	b.supplyEvidenceRepo = repository.NewSupplyEvidenceRepository(db)
+	b.exchangeRateRepo = repository.NewExchangeRateRepository(db)
 	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
@@ -359,7 +376,13 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.receiptSvc.SetDocumentSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
-	b.currencySvc = service.NewCurrencyService()
+	// Der Kursdienst holt die Referenzkurse der EZB und führt die Historie. Er
+	// rät keinen Kurs: ohne Netz und ohne gespeicherten Kurs trägt der Anwender
+	// ihn mit seiner Quelle ein.
+	b.currencySvc = service.NewCurrencyService(
+		b.exchangeRateRepo, &settingsCurrencyFetcher{bridge: b}, b.auditRepo)
+	b.currencySvc.SetJournalRepo(b.journalRepo)
+	b.currencySvc.SetJournalService(b.journalSvc)
 	// Die Gründungsbegleitung liest das Journal und schreibt über den
 	// JournalService wie jeder andere Weg auch — eine Gründungsbuchung ist
 	// keine Buchung zweiter Klasse.
@@ -411,6 +434,55 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Die Anhangtexte des Vorjahres sind die Vorlage des neuen Jahres.
 	b.closingSvc.SetNotesCopier(b.appropriationSvc)
 
+	// Welle 5c: die steuerlichen Nebenpflichten.
+	//
+	// Das Verzeichnis nach § 15a UStG hängt am Abschluss (es bucht zum
+	// Stichtag), die Bestätigungsabfrage am Rechnungsweg (sie hält eine
+	// steuerfreie Lieferung an), der Belegnachweis an den Rechnungen und die
+	// Geschenkkartei am Belegweg (sie kennt die Freigrenze).
+	b.inputTaxSvc = service.NewInputTaxService(
+		b.inputTaxRepo, b.journalSvc, b.journalRepo, b.settingsRepo,
+		b.closingSvc, b.auditRepo, fiscalYear)
+	// Die Buchung der Berichtigung und der Vermerk am Verzeichnis gehören in eine
+	// Transaktion: eine Buchung ohne Vermerk stünde beim nächsten Lauf wieder als
+	// offen da und käme ein zweites Mal in Kennziffer 64.
+	b.inputTaxSvc.SetTxRunner(b.txRunner)
+	b.vatIDSvc = service.NewVatIDService(
+		b.vatIDCheckRepo, b.contactRepo, b.settingsRepo, b.auditRepo)
+	b.invoiceSvc.SetVatIDConfirmer(b.vatIDSvc)
+	// Ein Kontakt mit einer USt-IdNr. aus einem anderen Mitgliedstaat bekommt
+	// beim Speichern den Hinweis auf die Bestätigungsanfrage — nicht blockierend.
+	b.contactSvc.SetVatIDStatusSource(b.vatIDSvc)
+	b.supplyEvidenceSvc = service.NewSupplyEvidenceService(
+		b.supplyEvidenceRepo, b.invoiceRepo, b.auditRepo, fiscalYear)
+	b.giftSvc = service.NewGiftService(
+		b.journalRepo, b.journalSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	// Storno und Neubuchung einer Umbuchung gehören in eine Transaktion: ein
+	// zurückgenommenes Geschenk ohne seine Neubuchung wäre ein Aufwand, der aus
+	// den Büchern verschwunden ist.
+	b.giftSvc.SetTxRunner(b.txRunner)
+	b.postingSvc.SetGiftRegister(b.giftSvc)
+	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen und nicht einmal
+	// beim Einrichten: ändert der Anwender ihn, rechnete die Freigrenze für
+	// Geschenke sonst bis zum Neustart mit dem alten Wirtschaftsjahr.
+	settingsRepo := b.settingsRepo
+	b.postingSvc.SetFiscalYearStartReader(func() int { return startMonthOf(settingsRepo) })
+	// Der Belegweg braucht den Kursdienst: ein Beleg in Fremdwährung wird zum
+	// EZB-Tageskurs umgerechnet, und ohne Kurs wird er nicht gebucht.
+	b.postingSvc.SetCurrencyConverter(b.currencySvc)
+	// Die Aktivierung eines Anlageguts legt den Eintrag im Verzeichnis nach
+	// § 15a UStG an.
+	b.assetSvc.SetInputTaxRegister(b.inputTaxSvc)
+	// Der Nachweisbeleg einer ig. Lieferung kann als Datei kommen; sie geht in
+	// denselben Belegspeicher wie jede andere.
+	b.supplyEvidenceSvc.SetReceiptService(b.receiptSvc)
+	// Die Stichtagsbewertung braucht die offenen Posten und die Stichtage.
+	b.currencySvc.SetOpenItemSource(b.paymentSvc)
+	b.currencySvc.SetClosingService(b.closingSvc)
+	// Die Auflösung der Bewertung gehört ins Folgejahr und wird vom
+	// Saldenvortrag gebucht — wie die Auflösung der Rechnungsabgrenzung.
+	b.closingSvc.SetCurrencyReverser(b.currencySvc)
+
 	b.taxRegisterSvc = service.NewTaxRegisterService(
 		b.assetRepo, b.provisionRepo, b.journalRepo, b.settingsRepo, b.closingSvc, fiscalYear)
 
@@ -419,6 +491,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.appropriationRepo, b.checkRunRepo, b.journalRepo, b.auditRepo, b.closingSvc, fiscalYear,
 	)
 	b.closingStepsSvc.SetDepreciationSource(b.assetSvc)
+	// Die beiden Bausteine der Welle 5c, deren Zustand aus einer eigenen Kartei
+	// folgt: die Wertaufholung aus der Anlagenkartei, die Vorsteuerberichtigung
+	// aus dem Verzeichnis nach § 15a UStG.
+	b.closingStepsSvc.SetWriteUpSource(b.assetSvc)
+	b.closingStepsSvc.SetInputTaxSource(b.inputTaxSvc)
 
 	// Bilanz und Gewinn- und Verlustrechnung entstehen im Backend, nicht mehr
 	// in der Ansicht. Der Dienst braucht dazu das Geschäftsjahr (Stichtag und
@@ -475,6 +552,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.checkSvc.SetDepreciationSource(b.assetSvc)
 	b.checkSvc.SetProvisionSource(b.provisionSvc)
 	b.checkSvc.SetClosingStepSource(b.closingStepsSvc)
+	// Die beiden Regeln zur steuerfreien ig. Lieferung: der Belegnachweis nach
+	// §§ 17a ff. UStDV und die Bestätigung der USt-IdNr. nach § 18e UStG.
+	b.checkSvc.SetSupplyEvidenceSource(b.supplyEvidenceSvc)
+	b.checkSvc.SetVatIDStatusSource(b.vatIDSvc)
 
 	// Die Fristen kommen aus den Daten und nicht mehr aus dem localStorage.
 	b.deadlineSvc = service.NewDeadlineService(
@@ -483,6 +564,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	)
 	b.deadlineSvc.SetStatementSource(b.statementSvc)
 	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
+	// Die Ablaufwarnung der Freistellungsbescheinigung gehört in dieselbe Liste
+	// wie jede andere Frist. Eine Warnung, die nur eine eigene Abfrage kennt,
+	// sieht niemand.
+	b.deadlineSvc.SetExemptionSource(b.contactSvc)
 	// Die Datenüberlassung liest aus allen Quellen zugleich — sie ist der eine
 	// Ort, an dem die ganze Buchführung eines Jahres zusammenkommt.
 	b.exportSvc = service.NewExportService(
@@ -1963,4 +2048,51 @@ func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error 
 		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.foundationSvc.CompleteDuty(context.Background(), key, doneOn, note)
+}
+
+// settingValue liest eine Einstellung, ohne bei einem Fehler zu stören. Die
+// Adressen der beiden Netzdienste — Bundeszentralamt und Kursdienst — sind
+// Einstellungen, damit ein Wechsel keine Programmversion verlangt; fehlt der
+// Wert, greift die Voreinstellung des jeweiligen Pakets.
+func (b *BuchfinkBridge) settingValue(key string) string {
+	if b.settingsRepo == nil {
+		return ""
+	}
+	value, err := b.settingsRepo.Get(context.Background(), key)
+	if err != nil {
+		return ""
+	}
+	return value
+}
+
+// settingsCurrencyFetcher holt den Kurs über die jeweils eingestellte Adresse.
+//
+// Er steht zwischen Kursdienst und Paket, weil die Adresse eine Einstellung ist
+// und sich ändern kann: ein einmal beim Einrichten des Mandanten gebauter
+// Client fragte bis zum Neustart die alte Stelle. Die Bestätigungsabfrage der
+// USt-IdNr. macht es seit jeher so; hier war es die Ausnahme.
+type settingsCurrencyFetcher struct{ bridge *BuchfinkBridge }
+
+func (f *settingsCurrencyFetcher) RateAt(
+	ctx context.Context, code, date string,
+) (int64, string, string, error) {
+	return currency.New(f.bridge.settingValue(service.SettingExchangeRateEndpoint)).
+		RateAt(ctx, code, date)
+}
+
+// startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.
+// Er entscheidet über das Wirtschaftsjahr, in dem die Freigrenze für Geschenke
+// läuft — bei einem abweichenden Geschäftsjahr ist das nicht das Kalenderjahr.
+func startMonthOf(repo domain.SettingsRepository) int {
+	if repo == nil {
+		return 1
+	}
+	settings, err := repo.GetCompanySettings(context.Background())
+	if err != nil || settings == nil {
+		return 1
+	}
+	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
+		return 1
+	}
+	return settings.FiscalYearStartMonth
 }

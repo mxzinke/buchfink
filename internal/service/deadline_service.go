@@ -31,6 +31,11 @@ type DeadlineService struct {
 
 	statements  StatementDeadlineSource
 	foundations FoundationDeadlineSource
+	// exemptions liefert die ablaufenden Freistellungsbescheinigungen nach
+	// § 48b EStG. Sie sind Termine wie jeder andere: eine abgelaufene
+	// Bescheinigung fällt sonst erst auf, wenn die Haftung nach § 48 EStG schon
+	// entstanden ist — und eine Warnung, die keine Liste zeigt, ist keine.
+	exemptions ExemptionDeadlineSource
 
 	fiscalYear int
 }
@@ -43,6 +48,12 @@ type StatementDeadlineSource interface {
 // FoundationDeadlineSource liefert die Pflichten aus der Gründung.
 type FoundationDeadlineSource interface {
 	GetState(ctx context.Context) (*FoundationState, error)
+}
+
+// ExemptionDeadlineSource liefert die ablaufenden Freistellungsbescheinigungen.
+type ExemptionDeadlineSource interface {
+	ExemptionCertificateWarnings(
+		ctx context.Context, today string) ([]ExemptionCertificateWarning, error)
 }
 
 // NewDeadlineService wires the Fristenübersicht.
@@ -72,6 +83,9 @@ func (s *DeadlineService) SetStatementSource(src StatementDeadlineSource) { s.st
 // SetFoundationSource wires the Gründungspflichten.
 func (s *DeadlineService) SetFoundationSource(src FoundationDeadlineSource) { s.foundations = src }
 
+// SetExemptionSource wires die Freistellungsbescheinigungen.
+func (s *DeadlineService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
+
 // SetFiscalYear updates the active fiscal year.
 func (s *DeadlineService) SetFiscalYear(year int) { s.fiscalYear = year }
 
@@ -84,6 +98,7 @@ const (
 	DeadlineKeyCommit     = "festschreibung"
 	DeadlineKeyAnnualVat  = "ust.jahreserklaerung"
 	DeadlineKeyFoundation = "gruendung"
+	DeadlineKeyExemption  = "freistellungsbescheinigung"
 )
 
 // Deadlines liefert alle Termine eines Jahres, nach Datum sortiert.
@@ -111,6 +126,7 @@ func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Dea
 	if s.foundations != nil {
 		out = append(out, s.foundationDeadlines(ctx, year)...)
 	}
+	out = append(out, s.exemptionDeadlines(ctx, year)...)
 
 	// Der manuelle Haken zählt nur, wo er nicht aus den Daten kommt. Ein
 	// abgehakter Termin, den die Daten als offen ausweisen, wäre eine
@@ -161,6 +177,37 @@ func (s *DeadlineService) MarkDone(ctx context.Context, key, date string) error 
 // -------------------------------------------------------------
 // Die einzelnen Terminarten
 // -------------------------------------------------------------
+
+// exemptionDeadlines nimmt die ablaufenden Freistellungsbescheinigungen nach
+// § 48b EStG in die Fristenliste auf.
+//
+// Sie stehen dort und nicht nur in einer eigenen Ansicht: die Frist läuft
+// unabhängig vom Geschäftsjahr, und wer eine Bauleistung bezieht, ohne dass eine
+// gültige Bescheinigung vorliegt, hat 15 % der Gegenleistung einzubehalten
+// (§ 48 EStG). Gewarnt wird 30 Tage vorher — die abgelaufene Bescheinigung
+// bleibt in der Liste, bis eine neue erfasst ist.
+func (s *DeadlineService) exemptionDeadlines(ctx context.Context, year int) []domain.Deadline {
+	if s.exemptions == nil {
+		return nil
+	}
+	warnings, err := s.exemptions.ExemptionCertificateWarnings(ctx, "")
+	if err != nil {
+		return nil
+	}
+	out := make([]domain.Deadline, 0, len(warnings))
+	for _, w := range warnings {
+		out = append(out, domain.Deadline{
+			Key:        fmt.Sprintf("%s.%d", DeadlineKeyExemption, w.ContactID),
+			Title:      fmt.Sprintf("Freistellungsbescheinigung %s läuft ab", w.Name),
+			DueDate:    w.ValidUntil,
+			Reference:  "§ 48b EStG",
+			FiscalYear: year,
+			Description: w.Note +
+				" Lass dir die neue Bescheinigung vorlegen und trage sie am Geschäftspartner ein.",
+		})
+	}
+	return out
+}
 
 func (s *DeadlineService) vatDeadlines(ctx context.Context, year int, cfg *domain.CompanySettings) []domain.Deadline {
 	if s.vatSvc == nil {

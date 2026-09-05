@@ -403,6 +403,42 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
         <TabPanel value="klasse">{statementPanel('klasse')}</TabPanel>
 
       </Tabs>
+
+      {/* Zwei Auswertungen der Welle 5c stehen auf der Seite „Nebenpflichten",
+          weil sie zu Verzeichnissen gehören, die dort geführt werden. Der
+          Verweis steht hier, weil man einen Bericht unter „Auswertungen"
+          sucht. */}
+      {onNavigate && (
+        <Section
+          title="Weitere Auswertungen"
+          context="Steuerliche Nebenpflichten"
+          className="mt-8"
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-body text-ink-muted">
+              Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) und der
+              Belegnachweis der steuerfreien innergemeinschaftlichen Lieferungen (§§ 17a bis 17c
+              UStDV) stehen dort, wo auch die Verzeichnisse dazu geführt werden.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
+              >
+                Nicht abziehbare Betriebsausgaben
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onNavigate('obligations', { obligationsTab: 'evidence' })}
+              >
+                Belegnachweis ig. Lieferungen
+              </Button>
+            </div>
+          </div>
+        </Section>
+      )}
     </div>
   );
 };

@@ -100,6 +100,7 @@ const (
 	VatCodeInputTax             = "66"
 	VatCodeInputTaxAcquisition  = "61"
 	VatCodeInputTaxReverse      = "67"
+	VatCodeInputTaxCorrection   = "64" // Berichtigung § 15a UStG
 	VatCodeUnlawfulTax          = "69" // § 14c UStG
 	VatCodeSpecialPrepayment    = "39"
 	VatCodePayable              = "83"
@@ -307,18 +308,27 @@ func vatMovements(src VatReturnSource) []vatMovement {
 		// Der Saldenvortrag bringt den Bestand der Steuerkonten ins neue Jahr.
 		// Er ist kein Umsatz dieses Zeitraums; ohne diese Zeile stünde die
 		// Vorsteuer des Vorjahres ein zweites Mal in der Anmeldung des Januars.
-		// Ebenso die Umsatzsteuer-Jahresverrechnung: sie stellt die Steuerkonten
-		// zum Bilanzstichtag auf null und ist kein Umsatz des letzten
-		// Voranmeldungszeitraums.
-		if entry.Source == domain.EntrySourceOpening || entry.Source == domain.EntrySourceClosing {
+		if entry.Source == domain.EntrySourceOpening {
 			continue
 		}
+		// Die Abschlussbuchungen bleiben ebenso außen vor — die
+		// Umsatzsteuer-Jahresverrechnung stellt die Steuerkonten zum
+		// Bilanzstichtag auf null und ist kein Umsatz des letzten
+		// Voranmeldungszeitraums. Mit einer Ausnahme: die Vorsteuerberichtigung
+		// nach § 15a UStG ist eine Abschlussbuchung *und* gehört in die
+		// Anmeldung. Sie wird deshalb nicht am Kopf der Buchung ausgesondert,
+		// sondern Zeile für Zeile — ihre Zeilen tragen den Steuerschlüssel, alle
+		// anderen einer Abschlussbuchung nicht.
+		closing := entry.Source == domain.EntrySourceClosing
 		receivedAt := ""
 		if entry.ReceiptID != nil && src.ReceivedAt != nil {
 			receivedAt = src.ReceivedAt(*entry.ReceiptID)
 		}
 
 		for _, line := range entry.Lines {
+			if closing && line.TaxKey != TaxKeyInputTaxCorrection {
+				continue
+			}
 			// Vorzeichen in der natürlichen Richtung des Kontos: die
 			// Bemessungsgrundlage folgt derselben Seitenlogik wie der
 			// Steuerbetrag, sonst senkte ein Skonto die Steuer und erhöhte
@@ -389,6 +399,13 @@ func vatMovements(src VatReturnSource) []vatMovement {
 				m.code, m.tax = VatCodeInputTaxAcquisition, debit
 			case "RC19_VST", "RC7_VST":
 				m.code, m.tax = VatCodeInputTaxReverse, debit
+			case TaxKeyInputTaxCorrection:
+				// Die Berichtigung hat keine Bemessungsgrundlage im Vordruck: sie
+				// ist ein Steuerbetrag, der eine frühere Grundlage nachträglich
+				// anders bewertet. Die Seite trägt die Richtung — die
+				// zurückzuzahlende Vorsteuer steht im Haben und mindert damit die
+				// abziehbaren Beträge der Kennziffer 64.
+				m.code, m.tax = VatCodeInputTaxCorrection, debit
 			default:
 				continue
 			}

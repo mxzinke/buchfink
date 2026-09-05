@@ -5,6 +5,7 @@ import {
   BookOpen,
   Building2,
   Calendar,
+  ClipboardCheck,
   FileSpreadsheet,
   FileText,
   HandCoins,
@@ -41,6 +42,7 @@ export type TabType =
   | 'closing'
   | 'closingmodules'
   | 'vat'
+  | 'obligations'
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
@@ -59,6 +61,19 @@ export interface NavigationParams {
   account?: string;
   /** Buchungsnummer, auf die das Journal filtert. */
   entryNumber?: string;
+  /**
+   * Reiter, den die Seite „Nebenpflichten" öffnet. Aus der Schrittliste des
+   * Abschlusses führt sonst kein Weg zu der Arbeit, die die Zeile benennt: der
+   * Reiter wäre zu erraten.
+   */
+  obligationsTab?: string;
+  /**
+   * Rechnung, deren Nachweisbelege die Seite „Nebenpflichten" gleich aufschlägt.
+   * Ohne sie bräche der Weg „je Lieferung" an der Seitengrenze ab: der Anwender
+   * käme auf einer Liste an und müsste die Rechnung, von der er kommt, dort
+   * erneut suchen.
+   */
+  invoiceId?: number;
 }
 
 export type NavigateFn = (tab: TabType, params?: NavigationParams) => void;
@@ -115,6 +130,10 @@ const GROUPS: NavGroup[] = [
         icon: <ListChecks className={icon} />,
       },
       { id: 'vat', label: 'Umsatzsteuer', icon: <Percent className={icon} /> },
+      // Die Nebenpflichten stehen neben der Umsatzsteuer, weil vier ihrer sechs
+      // Bausteine aus dem Umsatzsteuerrecht kommen — und weil man sie nur
+      // findet, wenn sie in der Navigation stehen.
+      { id: 'obligations', label: 'Nebenpflichten', icon: <ClipboardCheck className={icon} /> },
       { id: 'deadlines', label: 'Steuerfristen', icon: <Calendar className={icon} /> },
       { id: 'ebilanz', label: 'E-Bilanz', icon: <FileSpreadsheet className={icon} /> },
     ],

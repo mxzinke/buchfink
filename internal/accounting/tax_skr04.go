@@ -23,6 +23,14 @@ var taxAccounts = map[string]bool{
 	domain.AccountUmsatzsteuerIG: true, domain.AccountUmsatzsteuerIG19: true,
 	domain.AccountUmsatzsteuer13b: true, domain.AccountUmsatzsteuer13b19: true,
 	domain.AccountUmsatzsteuer14c: true,
+	// Die vier Konten der Vorsteuerberichtigung nach § 15a UStG. Sie werden nur
+	// aus dem Verzeichnis heraus bebucht, und immer mit dem Steuerschlüssel:
+	// eine Handbuchung darauf käme in der Kennziffer 64 an, ohne dass im
+	// Verzeichnis stünde, aus welchem Wirtschaftsgut sie stammt.
+	InputTaxCorrectionDeductibleMovable:   true,
+	InputTaxCorrectionRepayableMovable:    true,
+	InputTaxCorrectionDeductibleImmovable: true,
+	InputTaxCorrectionRepayableImmovable:  true,
 }
 
 // TaxKeyUnlawful ist der Steuerschlüssel der nach § 14c UStG geschuldeten

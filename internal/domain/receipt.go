@@ -204,6 +204,19 @@ type Receipt struct {
 	// not booking data, which is why they are not part of the Beleg-Hash.
 	ValidationFindings string `gorm:"type:text;serializer:encrypted" json:"validationFindings,omitempty"`
 
+	// InputTaxOverride ist der Grund, mit dem der Anwender einen blockierenden
+	// Befund der Rechnungsprüfung übersteuert hat.
+	//
+	// Die Pflichtangaben der §§ 14, 14a UStG sind Voraussetzung des
+	// Vorsteuerabzugs; fehlt eine, weist Buchfink die Buchung mit Vorsteuer
+	// zurück. Der Weg daran vorbei bleibt offen — der Rechtsprechung nach heilt
+	// eine Rechnung rückwirkend, und ein Programm, das den Anwender daran
+	// hindert, seine eigene Einschätzung durchzusetzen, wird umgangen statt
+	// befolgt. Er ist aber nur mit Grund offen, und der Grund steht am Beleg und
+	// im Protokoll.
+	InputTaxOverride   string `gorm:"size:500;serializer:encrypted" json:"inputTaxOverride,omitempty"`
+	InputTaxOverrideAt string `gorm:"size:25" json:"inputTaxOverrideAt,omitempty"`
+
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	DiscardReason  string `gorm:"size:255;serializer:encrypted" json:"discardReason,omitempty"`
@@ -395,6 +408,10 @@ type ReceiptRepository interface {
 	// SaveValidation records the outcome of reading and checking the structured
 	// part. It touches no file, so the Beleg-Hash is unaffected.
 	SaveValidation(ctx context.Context, receiptID uint, v ReceiptValidation) error
+	// SaveInputTaxOverride hält den Grund fest, mit dem ein blockierender Befund
+	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
+	// damit den Beleg-Hash nicht.
+	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
 }
 
 // ReceiptValidation is what a check of the structured part leaves behind.

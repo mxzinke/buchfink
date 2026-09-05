@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -326,6 +327,27 @@ func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) erro
 // was found, so that a later run under a newer rule set is comparable.
 func (s *ReceiptService) SaveValidation(ctx context.Context, receiptID uint, result domain.ReceiptValidation) error {
 	return s.receiptRepo.SaveValidation(ctx, receiptID, result)
+}
+
+// SaveInputTaxOverride hält den Grund fest, mit dem ein blockierender Befund der
+// Rechnungsprüfung übersteuert wurde.
+func (s *ReceiptService) SaveInputTaxOverride(ctx context.Context, receiptID uint, reason string) error {
+	if strings.TrimSpace(reason) == "" {
+		return fmt.Errorf("ohne Grund wird nicht übersteuert")
+	}
+	if err := s.receiptRepo.SaveInputTaxOverride(
+		ctx, receiptID, strings.TrimSpace(reason), time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return err
+	}
+	// Ins Protokoll: die Übersteuerung ist eine Entscheidung des Anwenders gegen
+	// eine Prüfung, und solche Entscheidungen gehören nachvollziehbar
+	// festgehalten (GoBD Rz. 36).
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+			"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
+				strings.TrimSpace(reason))
+	}
+	return nil
 }
 
 // Discard retires a filed Beleg. It keeps its number and stays findable.

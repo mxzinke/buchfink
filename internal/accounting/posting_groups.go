@@ -24,6 +24,24 @@ const (
 	QuotaEntertainment DeductibleQuota = "entertainment"
 )
 
+// ExpenseLimit benennt eine Freigrenze, die nicht den Betrag teilt, sondern das
+// Konto entscheidet.
+//
+// Der Unterschied zur DeductibleQuota ist der Unterschied zwischen Freigrenze
+// und Freibetrag. Bei der Bewirtung sind 70 % jedes Betrages abziehbar — der
+// Aufwand wird geteilt. Beim Geschenk ist der ganze Betrag abziehbar oder gar
+// keiner, und was von beidem gilt, entscheidet die Summe des Jahres je
+// Empfänger. Eine Quote kann das nicht ausdrücken.
+type ExpenseLimit string
+
+const (
+	// LimitGiftPerRecipient ist die Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG
+	// je Empfänger und Wirtschaftsjahr. Wird sie überschritten, sind sämtliche
+	// Geschenke an diesen Empfänger nicht abziehbar — und mit ihnen entfällt
+	// nach § 15 Abs. 1a UStG auch der Vorsteuerabzug.
+	LimitGiftPerRecipient ExpenseLimit = "gift_per_recipient"
+)
+
 // PostingGroup is a fachliche Gruppe the user picks instead of an account
 // number. The mapping to SKR04 is fixed and deterministic: no learning, no
 // heuristics, no per-user drift.
@@ -50,6 +68,21 @@ type PostingGroup struct {
 	// DeductibleQuota names which statutory share applies to this group. The
 	// figure itself is dated and lives in tax_params.go.
 	DeductibleQuota DeductibleQuota `json:"deductibleQuota,omitempty"`
+
+	// Limit benennt eine Freigrenze, die über das Konto entscheidet statt den
+	// Betrag zu teilen. Leer heißt: keine.
+	Limit ExpenseLimit `json:"limit,omitempty"`
+	// RecipientRequired verlangt die Angabe des Empfängers.
+	//
+	// Bei Geschenken ist sie keine Zierde, sondern die Voraussetzung des Abzugs:
+	// § 4 Abs. 7 EStG lässt ihn nur zu, wenn die Aufwendungen einzeln und
+	// getrennt aufgezeichnet sind, und ohne Empfänger ließe sich die Freigrenze
+	// überdies nicht führen.
+	RecipientRequired bool `json:"recipientRequired,omitempty"`
+	// InputTaxExcluded sagt, dass zu dieser Gruppe kein Vorsteuerabzug gehört
+	// (§ 15 Abs. 1a UStG). Die nicht abziehbare Vorsteuer gehört dann zum
+	// Aufwand.
+	InputTaxExcluded bool `json:"inputTaxExcluded,omitempty"`
 
 	DefaultRate domain.TaxRate `json:"defaultRate"`
 	// DefaultTreatment is the Steuerfall the group proposes. It matters for the
@@ -197,6 +230,28 @@ var postingGroups = []PostingGroup{
 		Direction: domain.DirectionIncoming, Account: "6640",
 		NonDeductibleAccount: "6644", DeductibleQuota: QuotaEntertainment,
 		DefaultRate: domain.TaxRateStandard},
+	{Key: "geschenke", Label: "Geschenke an Geschäftspartner", Category: "Vertrieb",
+		Hint: "Nach § 4 Abs. 5 Satz 1 Nr. 1 EStG abziehbar, solange die Geschenke an einen Empfänger " +
+			"im Wirtschaftsjahr die Freigrenze nicht übersteigen. Es ist eine Freigrenze: mit dem ersten " +
+			"Cent darüber ist der gesamte Betrag nicht abziehbar, und mit ihm entfällt nach " +
+			"§ 15 Abs. 1a UStG der Vorsteuerabzug. Der Empfänger ist aufzuzeichnen (§ 4 Abs. 7 EStG).",
+		Direction: domain.DirectionIncoming, Account: "6610",
+		NonDeductibleAccount: "6620", Limit: LimitGiftPerRecipient, RecipientRequired: true,
+		DefaultRate: domain.TaxRateStandard},
+	{Key: "geschenke_betrieblich", Label: "Geschenke zur ausschließlich betrieblichen Nutzung",
+		Category: "Vertrieb",
+		Hint: "Ein Gegenstand, den der Empfänger nur betrieblich nutzen kann, fällt nicht unter die " +
+			"Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG. Er ist unbegrenzt abziehbar — aufzuzeichnen " +
+			"ist er trotzdem.",
+		Direction: domain.DirectionIncoming, Account: "6625", RecipientRequired: true,
+		DefaultRate: domain.TaxRateStandard},
+	{Key: "repraesentation", Label: "Gästehaus, Jagd, Fischerei, Yacht", Category: "Vertrieb",
+		Hint: "Aufwendungen nach § 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG: Gästehäuser außerhalb des " +
+			"Betriebsorts sowie Jagd, Fischerei, Segel- und Motoryachten samt der dazugehörigen " +
+			"Bewirtung. Sie sind in keiner Höhe abziehbar, und § 15 Abs. 1a UStG nimmt ihnen auch den " +
+			"Vorsteuerabzug — die Umsatzsteuer gehört deshalb in den Aufwand.",
+		Direction: domain.DirectionIncoming, Account: "6645", InputTaxExcluded: true,
+		DefaultRate: domain.TaxRateStandard},
 
 	// --- Anlagen ----------------------------------------------------------
 	{Key: "gwg", Label: "Geringwertige Wirtschaftsgüter (Sofortabschreibung)", Category: "Anlagen",
@@ -275,6 +330,33 @@ func PostingGroups(dir domain.Direction) []PostingGroup {
 		}
 		return out[i].Label < out[j].Label
 	})
+	return out
+}
+
+// AccountsRequiringGroup sind die Konten der beschränkt abziehbaren
+// Betriebsausgaben, die nur über ihre Buchungsgruppe erreichbar sind.
+//
+// Der freie Kontoweg der Belegmaske ist der Notausgang für Fälle, die der
+// Katalog nicht kennt. Für diese Konten darf es ihn nicht geben: an ihnen hängen
+// die Aufzeichnungspflicht des § 4 Abs. 7 EStG, die Freigrenze je Empfänger und
+// der Ausschluss der Vorsteuer. Wer 6610 von Hand wählt, bucht ein Geschenk ohne
+// Empfänger und an der Freigrenze vorbei — und niemand sähe es je wieder.
+//
+// Die Liste wird aus dem Katalog gewonnen und nicht daneben geführt: eine neue
+// Kategorie wäre sonst genau so lange ungeschützt, bis es jemandem auffällt.
+func AccountsRequiringGroup() map[string]string {
+	out := map[string]string{}
+	for _, g := range postingGroups {
+		if g.DeductibleQuota == "" && g.Limit == "" && !g.InputTaxExcluded && !g.RecipientRequired {
+			continue
+		}
+		if g.Account != "" {
+			out[g.Account] = g.Label
+		}
+		if g.NonDeductibleAccount != "" {
+			out[g.NonDeductibleAccount] = g.Label
+		}
+	}
 	return out
 }
 

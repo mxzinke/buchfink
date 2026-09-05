@@ -125,13 +125,24 @@ type AssetRules struct {
 	PoolUpperLimit    domain.Cents                  `json:"poolUpperLimit"`
 	PoolYears         int                           `json:"poolYears"`
 	DegressiveWindows []accounting.DegressiveWindow `json:"degressiveWindows"`
+	// ElectricVehicleWindows ist das Zeitfenster der Staffel des § 7 Abs. 2a
+	// EStG. Es steht neben dem der degressiven AfA und aus demselben Grund: die
+	// Maske soll eine Methode gar nicht erst anbieten, die das Backend gleich
+	// darauf wegen des Anschaffungsdatums zurückweist.
+	ElectricVehicleWindows []accounting.ElectricVehicleWindow `json:"electricVehicleWindows"`
 	// SpecialMaxPermille und SpecialPeriodYears sind die Grenzen der
 	// Sonderabschreibung nach § 7g Abs. 5 EStG: höchstens 40 % der
 	// Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier
 	// folgenden.
-	SpecialMaxPermille int               `json:"specialMaxPermille"`
-	SpecialPeriodYears int               `json:"specialPeriodYears"`
-	Methods            []assetMethodInfo `json:"methods"`
+	SpecialMaxPermille int `json:"specialMaxPermille"`
+	SpecialPeriodYears int `json:"specialPeriodYears"`
+	// InvestmentDeductionNote steht neben der Sonderabschreibung und sagt, was
+	// § 7g EStG sonst noch kennt und Buchfink nicht führt: den
+	// Investitionsabzugsbetrag des Absatzes 1. Er ist außerbilanziell und gehört
+	// in die Steuererklärung — ohne diesen Satz sähe die Maske aus, als kenne
+	// Buchfink die Vorschrift nur zur Hälfte.
+	InvestmentDeductionNote string            `json:"investmentDeductionNote"`
+	Methods                 []assetMethodInfo `json:"methods"`
 }
 
 type assetMethodInfo struct {
@@ -162,15 +173,20 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 		domain.AssetClassIntangible, domain.AssetClassTangible, domain.AssetClassFinancial,
 	}
 	return &AssetRules{
-		FiscalYear:         year,
-		GWGImmediateLimit:  params.GWGImmediateLimit,
-		GWGRecordFrom:      params.GWGRecordThreshold,
-		PoolLowerLimit:     params.PoolLowerLimit,
-		PoolUpperLimit:     params.PoolUpperLimit,
-		PoolYears:          params.PoolYears,
-		DegressiveWindows:  accounting.DegressiveWindows(),
-		SpecialMaxPermille: accounting.SpecialMaxPermille,
-		SpecialPeriodYears: accounting.SpecialPeriodYears,
+		FiscalYear:        year,
+		GWGImmediateLimit: params.GWGImmediateLimit,
+		GWGRecordFrom:     params.GWGRecordThreshold,
+		PoolLowerLimit:    params.PoolLowerLimit,
+		PoolUpperLimit:    params.PoolUpperLimit,
+		PoolYears:         params.PoolYears,
+		DegressiveWindows: accounting.DegressiveWindows(),
+		// Aus derselben Ressource, aus der auch gerechnet wird.
+		ElectricVehicleWindows: accounting.AfARuleSet().ElectricVehicle,
+		SpecialMaxPermille:     accounting.SpecialMaxPermille,
+		SpecialPeriodYears:     accounting.SpecialPeriodYears,
+		// Aus derselben Ressource wie die Sätze: der Hinweis steht dort, wo die
+		// Regeln stehen, und nicht als zweite Fassung im Bridge-Code.
+		InvestmentDeductionNote: accounting.AfARuleSet().InvestmentDeductionNote,
 		Methods: []assetMethodInfo{
 			{
 				Method: domain.DepreciationLinear, Label: domain.DepreciationLinear.Label(),
@@ -185,6 +201,26 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 					"höchstens 30 %. Nur für bewegliche Wirtschaftsgüter und nur für Anschaffungen " +
 					"innerhalb eines der gesetzlichen Zeitfenster. Eine Sonderabschreibung nach " +
 					"§ 7g Abs. 5 EStG ist daneben zulässig.",
+			},
+			{
+				// Ohne diesen Eintrag steht die Staffel des § 7 Abs. 2a EStG zwar im
+				// Rechenkern, ist aber in keiner Maske wählbar — und ein E-Fahrzeug
+				// liefe still linear.
+				Method:  domain.DepreciationElectricVehicle,
+				Label:   domain.DepreciationElectricVehicle.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3 und 2 % der " +
+					"Anschaffungskosten. Nur für neue, rein elektrisch betriebene Fahrzeuge und nur " +
+					"für Anschaffungen nach dem 30.06.2025 und vor dem 01.01.2028. Das " +
+					"Anschaffungsjahr bekommt den vollen Satz, ohne Zeitanteil.",
+			},
+			{
+				Method:  domain.DepreciationBuildingLinear,
+				Label:   domain.DepreciationBuildingLinear.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die festen Sätze des § 7 Abs. 4 EStG für Gebäude. Welcher gilt, entscheidet " +
+					"der Stichtag: der Bauantrag beim Betriebsgebäude, die Fertigstellung beim " +
+					"Wohngebäude. Die betriebsgewöhnliche Nutzungsdauer spielt hier keine Rolle.",
 			},
 			{
 				Method: domain.DepreciationPool, Label: domain.DepreciationPool.Label(),
@@ -355,7 +391,12 @@ func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, er
 
 // BookAssetMaintenance bucht Erhaltungsaufwand und verknüpft ihn mit dem
 // Anlagegut, ohne dessen Buchwert anzurühren.
-func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*domain.JournalEntry, error) {
+//
+// Zurück kommt die Buchung samt der Prüfung des 15-%-Rahmens des
+// § 6 Abs. 1 Nr. 1a EStG: bei einem Gebäude in den ersten drei Jahren
+// entscheidet sie darüber, ob der Aufwand überhaupt sofort abziehbar ist, und
+// die Maske muss sie zeigen können.
+func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*service.MaintenanceResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {

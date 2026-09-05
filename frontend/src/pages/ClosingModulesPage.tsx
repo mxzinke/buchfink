@@ -33,6 +33,7 @@ import type {
 } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
+import type { NavigateFn } from '../components/Sidebar';
 import { downloadCSV } from '../utils/download';
 import {
   formatCents,
@@ -276,10 +277,24 @@ const STEP_TABS: Partial<Record<ClosingStepKey, ModuleTab>> = {
   appropriation: 'ergebnis',
 };
 
-const StepsTab: React.FC<TabProps & { onOpenTab: (tab: ModuleTab) => void }> = ({
-  year,
-  onOpenTab,
-}) => {
+/**
+ * Die drei Bausteine, deren Arbeit auf der Seite „Nebenpflichten" liegt.
+ *
+ * Sie stehen in der Schrittliste, weil sie zum Abschluss gehören — die
+ * Wertaufholung nach § 253 Abs. 5 HGB, die Fremdwährungsbewertung nach § 256a
+ * HGB und die Vorsteuerberichtigung nach § 15a UStG. Bearbeitet werden sie
+ * dort, wo die Verzeichnisse liegen. Ohne diesen Verweis benennt die Zeile eine
+ * Arbeit und führt nicht zu ihr; der Reiter wäre zu erraten.
+ */
+const STEP_OBLIGATIONS: Partial<Record<ClosingStepKey, string>> = {
+  write_up: 'assets',
+  currency_valuation: 'currency',
+  input_tax_correction: 'inputtax',
+};
+
+const StepsTab: React.FC<
+  TabProps & { onOpenTab: (tab: ModuleTab) => void; onNavigate?: NavigateFn }
+> = ({ year, onOpenTab, onNavigate }) => {
   const writeLock = useWriteLock();
   const [steps, setSteps] = useState<ClosingSteps | null>(null);
   const [loading, setLoading] = useState(true);
@@ -420,6 +435,19 @@ const StepsTab: React.FC<TabProps & { onOpenTab: (tab: ModuleTab) => void }> = (
                         variant="quiet"
                         size="sm"
                         onClick={() => onOpenTab(STEP_TABS[step.key] as ModuleTab)}
+                      >
+                        Bearbeiten
+                      </Button>
+                    )}
+                    {STEP_OBLIGATIONS[step.key] && onNavigate && (
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        onClick={() =>
+                          onNavigate('obligations', {
+                            obligationsTab: STEP_OBLIGATIONS[step.key],
+                          })
+                        }
                       >
                         Bearbeiten
                       </Button>
@@ -3405,9 +3433,10 @@ const TABS: { value: ModuleTab; label: string }[] = [
 export interface ClosingModulesPageProps {
   /** Das Geschäftsjahr aus der Kopfzeile; die Ansicht folgt ihm. */
   year: number;
+  onNavigate?: NavigateFn;
 }
 
-export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({ year }) => {
+export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({ year, onNavigate }) => {
   const [tab, setTab] = useState<ModuleTab>('schritte');
   const [accounts, setAccounts] = useState<Account[]>([]);
   // Offene und gesamte Bausteine kommen beide aus der Schrittliste. Die Zahl
@@ -3446,7 +3475,9 @@ export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({ year }) 
       <div className="mt-6">
         <Tabs items={TABS} value={tab} onValueChange={(next) => setTab(next as ModuleTab)}>
           <TabPanel value="schritte">
-            {tab === 'schritte' && <StepsTab year={year} onOpenTab={setTab} />}
+            {tab === 'schritte' && (
+              <StepsTab year={year} onOpenTab={setTab} onNavigate={onNavigate} />
+            )}
           </TabPanel>
           <TabPanel value="abgrenzung">
             {tab === 'abgrenzung' && <AccrualsTab year={year} accounts={accounts} />}

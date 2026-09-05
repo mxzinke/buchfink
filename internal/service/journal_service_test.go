@@ -85,6 +85,12 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
 		Address: "Lieferantenweg 3, 20095 Hamburg",
+		// Die Steuernummer gehört zu den Stammdaten eines Lieferanten, weil sie
+		// zu den Pflichtangaben seiner Rechnung gehört (§ 14 Abs. 4 Nr. 2 UStG)
+		// und der Vorsteuerabzug daran hängt. Ohne sie weist der Belegweg die
+		// Buchung mit Vorsteuer zurück — das ist der Sinn der Kopplung, und ein
+		// unvollständiger Lieferant im Test prüfte nur sie.
+		TaxID: "12/345/67890",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s konnte nicht angelegt werden: %v", name, err)

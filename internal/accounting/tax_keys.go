@@ -47,23 +47,28 @@ var vatCodeForTaxKey = map[string]string{
 	"RC19_VST":     VatCodeInputTaxReverse,
 	"RC7_VST":      VatCodeInputTaxReverse,
 	TaxKeyUnlawful: VatCodeUnlawfulTax,
+	// Die Berichtigung nach § 15a UStG hat eine eigene Zeile im Vordruck. In
+	// Kz 66 gehört sie nicht: dort steht die Vorsteuer aus Rechnungen dieses
+	// Zeitraums, und die Berichtigung stammt aus einem früheren.
+	TaxKeyInputTaxCorrection: VatCodeInputTaxCorrection,
 }
 
 // taxKeyLabels sind die Klartexte der Schlüssel.
 var taxKeyLabels = map[string]string{
-	"UST19":        "Umsatzsteuer 19 % auf einen steuerpflichtigen Inlandsumsatz",
-	"UST7":         "Umsatzsteuer 7 % auf einen steuerpflichtigen Inlandsumsatz",
-	"VST19":        "Vorsteuer 19 % aus der Rechnung eines anderen Unternehmers",
-	"VST7":         "Vorsteuer 7 % aus der Rechnung eines anderen Unternehmers",
-	"IG19_UST":     "Erwerbsteuer 19 % auf einen innergemeinschaftlichen Erwerb",
-	"IG7_UST":      "Erwerbsteuer 7 % auf einen innergemeinschaftlichen Erwerb",
-	"IG19_VST":     "Vorsteuer 19 % aus dem innergemeinschaftlichen Erwerb",
-	"IG7_VST":      "Vorsteuer 7 % aus dem innergemeinschaftlichen Erwerb",
-	"RC19_UST":     "Geschuldete Steuer 19 % als Leistungsempfänger nach § 13b UStG",
-	"RC7_UST":      "Geschuldete Steuer 7 % als Leistungsempfänger nach § 13b UStG",
-	"RC19_VST":     "Vorsteuer 19 % aus der Leistung nach § 13b UStG",
-	"RC7_VST":      "Vorsteuer 7 % aus der Leistung nach § 13b UStG",
-	TaxKeyUnlawful: "Unrichtig oder unberechtigt ausgewiesene Steuer nach § 14c UStG",
+	"UST19":                  "Umsatzsteuer 19 % auf einen steuerpflichtigen Inlandsumsatz",
+	"UST7":                   "Umsatzsteuer 7 % auf einen steuerpflichtigen Inlandsumsatz",
+	"VST19":                  "Vorsteuer 19 % aus der Rechnung eines anderen Unternehmers",
+	"VST7":                   "Vorsteuer 7 % aus der Rechnung eines anderen Unternehmers",
+	"IG19_UST":               "Erwerbsteuer 19 % auf einen innergemeinschaftlichen Erwerb",
+	"IG7_UST":                "Erwerbsteuer 7 % auf einen innergemeinschaftlichen Erwerb",
+	"IG19_VST":               "Vorsteuer 19 % aus dem innergemeinschaftlichen Erwerb",
+	"IG7_VST":                "Vorsteuer 7 % aus dem innergemeinschaftlichen Erwerb",
+	"RC19_UST":               "Geschuldete Steuer 19 % als Leistungsempfänger nach § 13b UStG",
+	"RC7_UST":                "Geschuldete Steuer 7 % als Leistungsempfänger nach § 13b UStG",
+	"RC19_VST":               "Vorsteuer 19 % aus der Leistung nach § 13b UStG",
+	"RC7_VST":                "Vorsteuer 7 % aus der Leistung nach § 13b UStG",
+	TaxKeyUnlawful:           "Unrichtig oder unberechtigt ausgewiesene Steuer nach § 14c UStG",
+	TaxKeyInputTaxCorrection: "Berichtigung des Vorsteuerabzugs nach § 15a UStG",
 }
 
 // TaxKeyCatalog listet jeden Steuerschlüssel, den Buchfink erzeugen kann.
@@ -116,6 +121,20 @@ func TaxKeyCatalog() []TaxKeyInfo {
 		Direction: domain.DirectionOutgoing,
 		Side:      domain.SideCredit,
 		VatCode:   vatCodeForTaxKey[TaxKeyUnlawful],
+	}
+
+	// Ebenso die Vorsteuerberichtigung: sie entsteht aus keinem Umsatz und aus
+	// keinem Steuerfall, sondern aus einer geänderten Verwendung in einem
+	// früheren Jahr. Das Konto hängt daran, ob das Wirtschaftsgut beweglich ist
+	// und in welche Richtung berichtigt wird; genannt wird hier der Regelfall
+	// der zurückzuzahlenden Vorsteuer auf ein bewegliches Wirtschaftsgut.
+	seen[TaxKeyInputTaxCorrection] = TaxKeyInfo{
+		Key:       TaxKeyInputTaxCorrection,
+		Label:     taxKeyLabels[TaxKeyInputTaxCorrection],
+		Account:   InputTaxCorrectionRepayableMovable,
+		Direction: domain.DirectionIncoming,
+		Side:      domain.SideCredit,
+		VatCode:   vatCodeForTaxKey[TaxKeyInputTaxCorrection],
 	}
 
 	out := make([]TaxKeyInfo, 0, len(seen))

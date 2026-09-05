@@ -29,7 +29,7 @@ func NewJournalRepository(db *gorm.DB) domain.JournalRepository {
 // was written, so a finder that forgets it makes the integrity check report
 // every Bewirtungsbuchung as broken. Written once, it cannot be forgotten.
 func (r *journalRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
-	return dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Order("id asc")
+	return dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").Order("id asc")
 }
 
 func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm.DB {
@@ -143,7 +143,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cu
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	if err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").First(&entry, id).Error; err != nil {
 		return nil, err
 	}
 	return &entry, nil
@@ -190,7 +190,7 @@ func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uin
 
 func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Where("reversal_of_id = ?", entryID).First(&entry).Error
+	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").Where("reversal_of_id = ?", entryID).First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -202,7 +202,7 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 
 func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	q := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Order("id desc")
+	q := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").Order("id desc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -221,7 +221,7 @@ func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int
 // skipped.
 func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").
+	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").
 		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
 		Order("id asc").First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -249,7 +249,7 @@ func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.Journa
 		// The chain head is read inside the transaction, so a second writer
 		// cannot branch the chain by reading the same predecessor.
 		var last domain.JournalEntry
-		err = tx.Preload("Lines").Preload("Entertainment").
+		err = tx.Preload("Lines").Preload("Entertainment").Preload("Gifts").
 			Where("fiscal_year = ?", entry.FiscalYear).
 			Order("id desc").First(&last).Error
 		switch {

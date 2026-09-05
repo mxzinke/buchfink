@@ -80,12 +80,36 @@ type Contact struct {
 	// sonstige Rechnung (§ 34a UStDV), so no e-invoice is owed. This is a
 	// property of the *counterparty*; Buchfink's own client is always a
 	// bilanzierende Kapitalgesellschaft.
-	IsSmallBusiness bool      `gorm:"not null;default:false" json:"isSmallBusiness"`
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	IsSmallBusiness bool `gorm:"not null;default:false" json:"isSmallBusiness"`
+
+	// Die Freistellungsbescheinigung nach § 48b EStG.
+	//
+	// Wer eine Bauleistung bezieht, hat nach § 48 EStG 15 % der Gegenleistung
+	// einzubehalten und an das Finanzamt abzuführen — es sei denn, der
+	// Leistende legt eine gültige Freistellungsbescheinigung vor. Der Bauabzug
+	// selbst ist nicht Teil von Buchfink; die Bescheinigung wird trotzdem
+	// geführt und mit ihrer Frist überwacht, weil sie am Kontakt hängt und weil
+	// eine abgelaufene Bescheinigung sonst erst auffällt, wenn die Haftung schon
+	// entstanden ist.
+	ExemptionCertificateNumber string `gorm:"size:60;serializer:encrypted" json:"exemptionCertificateNumber,omitempty"`
+	// ExemptionCertificateValidUntil ist der letzte Tag der Gültigkeit.
+	ExemptionCertificateValidUntil string `gorm:"size:10;index" json:"exemptionCertificateValidUntil,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// OpenAmount is the balance of the Personenkonto, computed on read.
 	OpenAmount Cents `gorm:"-" json:"openAmount"`
+
+	// VatIDNotice ist der Hinweis, den das Speichern eines Kontakts mit einer
+	// USt-IdNr. aus einem anderen Mitgliedstaat zurückgibt.
+	//
+	// Nicht gespeichert und nicht blockierend: er ist eine Auskunft über den
+	// Stand der Bestätigung, und die ändert sich mit der Zeit — ein
+	// festgeschriebener Hinweis wäre morgen falsch. Er steht am Kontakt und nicht
+	// als eigener Rückgabewert, damit sich die Signatur des Speicherns nicht
+	// ändert und jeder Aufrufer ihn bekommt, ohne danach zu fragen.
+	VatIDNotice string `gorm:"-" json:"vatIdNotice,omitempty"`
 
 	// TODO: Add support for partner-specific default revenue/expense accounts
 	// TODO: Add support for SEPA direct debit mandates (SEPA-Lastschriftmandate)
@@ -93,6 +117,32 @@ type Contact struct {
 
 // IsBusiness reports whether the partner is an Unternehmer.
 func (c *Contact) IsBusiness() bool { return !c.IsPrivate }
+
+// ExemptionCertificateExpiryWarningDays ist der Vorlauf, mit dem Buchfink auf
+// eine ablaufende Freistellungsbescheinigung hinweist. Wer sie am Ablauftag
+// erfährt, hat bei der nächsten Zahlung schon einbehalten müssen.
+const ExemptionCertificateExpiryWarningDays = 30
+
+// ExemptionCertificateState sagt, wie es um die Freistellungsbescheinigung
+// steht: leer (keine erfasst), "valid", "expiring" oder "expired".
+func (c *Contact) ExemptionCertificateState(today string) string {
+	if c.ExemptionCertificateNumber == "" && c.ExemptionCertificateValidUntil == "" {
+		return ""
+	}
+	if c.ExemptionCertificateValidUntil == "" {
+		return "valid"
+	}
+	if c.ExemptionCertificateValidUntil < today {
+		return "expired"
+	}
+	if t, err := time.Parse("2006-01-02", today); err == nil {
+		warnUntil := t.AddDate(0, 0, ExemptionCertificateExpiryWarningDays).Format("2006-01-02")
+		if c.ExemptionCertificateValidUntil <= warnUntil {
+			return "expiring"
+		}
+	}
+	return "valid"
+}
 
 // EInvoiceProfile names the format an outgoing invoice is issued in.
 type EInvoiceProfile string

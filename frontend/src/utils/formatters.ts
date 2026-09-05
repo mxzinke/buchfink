@@ -94,6 +94,66 @@ export function formatRateMicros(micros: number): string {
   })} %`;
 }
 
+/**
+ * Formatiert einen Devisenkurs in Millionsteln: 1087400 → "1,0874".
+ *
+ * Eigene Funktion neben {@link formatRateMicros}, obwohl beide Millionstel
+ * lesen: ein Zinssatz ist ein Prozentsatz, ein Devisenkurs ein Verhältnis. Mit
+ * derselben Funktion stünde vor dem Kurs ein Prozentzeichen, und ein Kurs von
+ * 1,0874 sähe aus wie 108,74 %.
+ */
+export function formatExchangeRate(micros: number): string {
+  if (!Number.isFinite(micros)) return '—';
+  return (micros / 1_000_000).toLocaleString('de-DE', {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 6,
+  });
+}
+
+/**
+ * Die Grenzen, innerhalb derer eine Kurseingabe als Kurs gelesen wird.
+ *
+ * Ein Devisenkurs zum Euro liegt zwischen einem Zehntausendstel und
+ * Hunderttausend Einheiten; alles darüber oder darunter ist ein Vertipper und
+ * kein Kurs. Die Grenze steht hier, weil ein von Hand erfasster Kurs gespeichert
+ * wird und danach in Buchungen weiterläuft — ein Faktor 10.000 fiele erst in
+ * der Bilanz auf.
+ */
+const RATE_MIN = 0.0001;
+const RATE_MAX = 100_000;
+
+/**
+ * Wandelt eine Kurseingabe ("1,0874") in Millionstel um.
+ *
+ * Der Punkt wird nur dort als Tausendertrennung gelesen, wo auch ein Komma
+ * steht — wie in {@link parseCents}. Sonst würde „1.0874" zu 10874 und daraus
+ * ein Kurs von 10.874 statt 1,0874: dieselbe Eingabe, viertausendfach falsch.
+ */
+export function parseExchangeRate(input: string): number | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const raw = trimmed.includes(',')
+    ? trimmed.replace(/\./g, '').replace(',', '.')
+    : trimmed.replace(/\s/g, '');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < RATE_MIN || value > RATE_MAX) return null;
+  return Math.round(value * 1_000_000);
+}
+
+/**
+ * Formatiert einen Anteil in Promille: 600 → "60,0 %".
+ *
+ * Der Vorsteuerschlüssel und der Verwendungsanteil des § 15a UStG stehen in
+ * Promille, gelesen werden sie als Prozentsatz.
+ */
+export function formatPermille(permille: number): string {
+  if (!Number.isFinite(permille)) return '—';
+  return `${(permille / 10).toLocaleString('de-DE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} %`;
+}
+
 /** Formatiert eine Menge mit drei Nachkommastellen: 1500 → "1,5". */
 export function formatQuantity(quantityMilli: number): string {
   const value = quantityMilli / 1000;

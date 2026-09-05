@@ -34,7 +34,10 @@ type AssetService struct {
 	// docStore hält die Dokumente am Anlagegut — Verträge, Gutachten,
 	// Zulassungen. Er ist derselbe inhaltsadressierte Speicher wie für die
 	// Belege, aber ein anderer Zweig darin; siehe asset_document_service.go.
-	docStore   *receiptstore.Store
+	docStore *receiptstore.Store
+	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
+	// keinen Eintrag an — mit ihm tut sie es von allein.
+	inputTax   inputTaxRegistrar
 	fiscalYear int
 }
 
@@ -286,6 +289,13 @@ type AcquisitionCandidate struct {
 	AccountName string       `json:"accountName"`
 	Amount      domain.Cents `json:"amount"`
 	ContactID   *uint        `json:"contactId,omitempty"`
+	// InputTaxAmount ist die Vorsteuer, die aus der Buchung auf diese Zeile
+	// entfällt, InputTaxPermille der Anteil, mit dem sie gezogen wurde. Beide
+	// gehen in das Anlagegut über, das aus dem Kandidaten entsteht, und aus ihm
+	// ins Verzeichnis nach § 15a UStG. Null heißt: die Buchung gibt sie nicht
+	// eindeutig her (mehrere Steuersätze etwa) — dann trägt der Anwender sie ein.
+	InputTaxAmount   domain.Cents `json:"inputTaxAmount"`
+	InputTaxPermille int          `json:"inputTaxPermille"`
 }
 
 // -------------------------------------------------------------------------
@@ -610,6 +620,12 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	if err := s.validateValueLimits(asset, asset.AcquisitionCost); err != nil {
 		return nil, err
 	}
+	if err := s.checkPoolConsistency(ctx, asset); err != nil {
+		return nil, err
+	}
+	if err := s.checkUsefulLifeReason(ctx, asset); err != nil {
+		return nil, err
+	}
 
 	if asset.ID != 0 {
 		existing, err := s.assetRepo.FindByID(ctx, asset.ID)
@@ -670,6 +686,11 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		}
 	}
 
+	// Die Vorsteuer der Zugangsbuchung geht mit ins Anlagegut, wo sie der
+	// Aufrufer nicht gesetzt hat: aus ihr entsteht gleich darunter der Eintrag im
+	// Verzeichnis nach § 15a UStG. Vgl. asset_input_tax.go.
+	s.fillInputTaxFromAcquisition(ctx, asset)
+
 	number, err := s.nextInventoryNumber(ctx, asset.AcquisitionDate)
 	if err != nil {
 		return nil, err
@@ -696,6 +717,13 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	}
 
 	if err := s.syncImmediateWriteOff(ctx, asset, nil); err != nil {
+		return nil, err
+	}
+
+	// Mit der Aktivierung entsteht der Eintrag im Verzeichnis nach § 15a UStG.
+	// Genau hier ist der Zeitpunkt, den die Vorschrift meint — später gibt es
+	// den ursprünglichen Verwendungsanteil nirgends mehr her.
+	if err := s.registerInputTaxCorrection(ctx, asset); err != nil {
 		return nil, err
 	}
 
@@ -1316,6 +1344,17 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("der Zuschreibungsbetrag muss größer als null sein")
 	}
+	if strings.TrimSpace(req.Reason) == "" {
+		// § 253 Abs. 5 Satz 1 HGB macht die Zuschreibung zum Gebot, sobald der
+		// Grund der früheren außerplanmäßigen Abschreibung weggefallen ist. Was
+		// weggefallen ist, weiß nur der Bilanzierende — und ohne seine Angabe ist
+		// die Zuschreibung von einer willkürlichen Erhöhung des Buchwerts nicht
+		// zu unterscheiden.
+		return nil, fmt.Errorf(
+			"zu einer Zuschreibung gehört ihr Grund. § 253 Abs. 5 Satz 1 HGB verlangt sie, wenn der " +
+				"Grund der früheren außerplanmäßigen Abschreibung weggefallen ist — halte fest, " +
+				"welcher das war und wodurch er entfallen ist")
+	}
 
 	revenue, err := accounting.WriteUpAccount(asset.Class, asset.Account, asset.TaxPrivileged)
 	if err != nil {
@@ -1426,6 +1465,26 @@ type MaintenanceRequest struct {
 	// ist eine Einschätzung, und ohne ihre Begründung ist sie später nicht mehr
 	// nachvollziehbar.
 	Note string `json:"note"`
+
+	// NotModernisation nimmt die Maßnahme aus dem Rahmen des § 6 Abs. 1 Nr. 1a
+	// EStG heraus — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten
+	// und die Erweiterungen des Satzes 2. Negativ formuliert, weil der Regelfall
+	// das Gegenteil ist und der Regelfall der Vorgabewert sein muss.
+	NotModernisation bool `json:"notModernisation,omitempty"`
+}
+
+// MaintenanceResult ist das Ergebnis einer Erhaltungsaufwandsbuchung.
+//
+// Die Buchung allein wäre die halbe Antwort. Die Prüfung des 15-%-Rahmens
+// (§ 6 Abs. 1 Nr. 1a EStG) entscheidet darüber, ob der eben gebuchte Aufwand
+// überhaupt sofort abziehbar ist — sie stand vorher nur im Protokoll, und wer
+// bucht, liest kein Protokoll. Jetzt kommt sie mit der Buchung zurück.
+type MaintenanceResult struct {
+	Entry *domain.JournalEntry `json:"entry"`
+	// NearAcquisition ist die Prüfung des Rahmens, nil wo sie nicht einschlägig
+	// war (kein Gebäude, außerhalb der drei Jahre, ausdrücklich keine
+	// Modernisierung).
+	NearAcquisition *NearAcquisitionCheck `json:"nearAcquisition,omitempty"`
 }
 
 // BookMaintenance writes Erhaltungsaufwand and links it to the Anlagegut.
@@ -1436,7 +1495,7 @@ type MaintenanceRequest struct {
 // Buchung mit dem Wirtschaftsgut, an dem gearbeitet wurde. Wer später fragt,
 // was eine Maschine gekostet hat, bekommt beides zu sehen und kann es
 // auseinanderhalten.
-func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*domain.JournalEntry, error) {
+func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*MaintenanceResult, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1456,6 +1515,18 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 				"erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich verbessert, ist " +
 				"zu aktivieren (§ 255 Abs. 2 Satz 1 HGB) — die Abgrenzung ist eine Einschätzung und " +
 				"gehört an die Buchung")
+	}
+
+	// Die 15-%-Prüfung des § 6 Abs. 1 Nr. 1a EStG läuft vor der Buchung. Sie
+	// hält nicht an: ob eine Maßnahme unter die Vorschrift fällt, ist eine
+	// Beurteilung, und Buchfink trifft sie nicht. Der Hinweis steht an der
+	// Bewegung, und der Bericht führt den Fall weiter.
+	var nearAcquisition *NearAcquisitionCheck
+	if !req.NotModernisation {
+		nearAcquisition, err = s.CheckNearAcquisitionCost(ctx, asset.ID, req.Date, req.Amount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	expense := req.Account
@@ -1522,21 +1593,29 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 	if err != nil {
 		return nil, err
 	}
+	out := &MaintenanceResult{Entry: created, NearAcquisition: nearAcquisition}
 
 	movement := &domain.AssetMovement{
 		AssetID: asset.ID, Kind: domain.AssetMovementMaintenance, Account: asset.Account,
 		Date: req.Date, FiscalYear: domain.GetFiscalYearForDate(req.Date, s.fiscalYearStartMonth(ctx)),
-		JournalEntryID: &created.ID,
-		Note:           fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
+		JournalEntryID:  &created.ID,
+		ExpenseAmount:   req.Amount,
+		ExpenseAccount:  expense,
+		IsModernisation: !req.NotModernisation,
+		Note:            fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
+		return out, fmt.Errorf(
 			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
 			created.EntryNumber, err)
 	}
+	if nearAcquisition != nil && nearAcquisition.Exceeded {
+		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+			"Anschaffungsnahe Herstellungskosten: %s", nearAcquisition.Note))
+	}
 	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Erhaltungsaufwand zu %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
-	return created, nil
+	return out, nil
 }
 
 // AssetIncomeRequest bucht einen laufenden Ertrag aus einer Finanzanlage.
@@ -2805,15 +2884,20 @@ func (s *AssetService) AcquisitionCandidates(ctx context.Context) ([]Acquisition
 			if chart != nil {
 				name = chart.Name(line.Account)
 			}
+			// Die Vorsteuer wandert mit dem Kandidaten in das Anlagegut und von
+			// dort ins Verzeichnis nach § 15a UStG.
+			tax, permille, _ := acquisitionInputTax(entry, line.Account, line.Amount)
 			out = append(out, AcquisitionCandidate{
-				EntryID:     entry.ID,
-				EntryNumber: entry.EntryNumber,
-				BookingDate: entry.BookingDate,
-				Description: entry.Description,
-				Account:     line.Account,
-				AccountName: name,
-				Amount:      line.Amount,
-				ContactID:   entry.ContactID,
+				EntryID:          entry.ID,
+				EntryNumber:      entry.EntryNumber,
+				BookingDate:      entry.BookingDate,
+				Description:      entry.Description,
+				Account:          line.Account,
+				AccountName:      name,
+				Amount:           line.Amount,
+				ContactID:        entry.ContactID,
+				InputTaxAmount:   tax,
+				InputTaxPermille: permille,
 			})
 		}
 	}
@@ -2957,6 +3041,20 @@ func afaPlanFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
 	if plan.Cost == 0 {
 		plan.Cost = asset.AcquisitionCost
 	}
+	// Der feste Satz des § 7 Abs. 4 EStG wird hier aufgelöst und nicht in der
+	// Rechnung: er hängt an zwei Angaben des Anlageguts — ob das Gebäude
+	// Wohnzwecken dient (das steht im Kontenkatalog) und am Stichtag —, und die
+	// kennt die Rechnung nicht.
+	if asset.Method == domain.DepreciationBuildingLinear {
+		residential := false
+		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok {
+			residential = entry.Residential
+		}
+		if rate, err := accounting.BuildingRateFor(
+			residential, asset.BuildingReferenceDate); err == nil {
+			plan.BuildingPermille = rate.Permille
+		}
+	}
 	return plan
 }
 
@@ -3098,6 +3196,9 @@ func (s *AssetService) validateAccounts(ctx context.Context, asset *domain.Fixed
 		if err := chart.EnsurePostable(asset.DepreciationAccount); err != nil {
 			return fmt.Errorf("Abschreibungskonto: %w", err)
 		}
+	}
+	if err := validateMethodForAccount(asset); err != nil {
+		return err
 	}
 	if asset.SpecialPermille > 0 {
 		// Die Frage, ob es die Sonderabschreibung überhaupt gibt, hängt am

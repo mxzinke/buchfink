@@ -19,6 +19,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
 import { ClosingModulesPage } from './pages/ClosingModulesPage';
 import { VatPage } from './pages/VatPage';
+import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
@@ -288,13 +289,13 @@ export function App() {
       case 'receipts':
         return <ReceiptsPage />;
       case 'invoices':
-        return <InvoicesPage />;
+        return <InvoicesPage onNavigate={navigate} />;
       // Abschlagsrechnung, Vereinnahmung und Schlussrechnung stehen in einer
       // eigenen Ansicht: bei ihnen fallen Ausstellung und Buchung auseinander.
       case 'advances':
         return <AdvancesPage />;
       case 'contacts':
-        return <ContactsPage />;
+        return <ContactsPage onNavigate={navigate} />;
       case 'reports':
         // Bilanz und GuV folgen dem Jahr aus der Kopfzeile; die Gliederung
         // entsteht im Backend, die Ansicht rechnet nichts nach.
@@ -313,11 +314,22 @@ export function App() {
         // Die Abschlussbausteine buchen ins Geschäftsjahr der Kopfzeile: die
         // Abgrenzung, die Rückstellungen, den Inventurwert und die
         // Verrechnungen. Ihr Stichtag ist der des Jahres, nicht der von heute.
-        return <ClosingModulesPage year={currentYear} />;
+        return <ClosingModulesPage year={currentYear} onNavigate={navigate} />;
       case 'vat':
         // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
         // Kopfzeile; die Kennziffern entstehen im Backend.
         return <VatPage year={currentYear} onNavigate={navigate} />;
+      case 'obligations':
+        // Die steuerlichen Nebenpflichten folgen dem Jahr aus der Kopfzeile:
+        // Verzeichnis, Nachweise und Kurse gelten je Geschäftsjahr.
+        return (
+          <ObligationsPage
+            year={currentYear}
+            initialTab={navParams.obligationsTab}
+            initialInvoiceId={navParams.invoiceId}
+            onNavigate={navigate}
+          />
+        );
       case 'deadlines':
         return <DeadlinesPage onNavigate={navigate} />;
       case 'ebilanz':
@@ -338,7 +350,7 @@ export function App() {
           />
         );
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onNavigate={navigate} />;
       default:
         return <DashboardPage onNavigate={navigate} />;
     }

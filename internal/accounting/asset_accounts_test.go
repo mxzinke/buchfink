@@ -157,3 +157,46 @@ func TestGoodwillCannotBeWrittenUp(t *testing.T) {
 		t.Fatal("§ 253 Abs. 5 Satz 2 HGB verbietet die Zuschreibung auf den Geschäfts- oder Firmenwert")
 	}
 }
+
+// Die Begründungspflicht wird abgeleitet und nicht gepflegt: genau die Konten
+// mit dem Vorschlag aus dem BMF-Schreiben vom 22.02.2022 tragen sie.
+//
+// Der Test hält die Ableitung fest, weil an ihr zwei Seiten hängen: die Maske
+// blendet das Begründungsfeld danach ein, und der Dienst verlangt es danach.
+// Liefen sie auseinander, verlangte das Backend eine Angabe, für die es kein
+// Feld gibt — genau die Sackgasse, die zu vermeiden war.
+func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
+	var flagged, digital []string
+	for _, a := range AssetAccounts("") {
+		if a.UsefulLifeReasonRequired {
+			flagged = append(flagged, a.Number)
+		}
+		if a.UsefulLifeSource == UsefulLifeSourceDigital {
+			digital = append(digital, a.Number)
+		}
+	}
+	if len(digital) == 0 {
+		t.Fatal("kein Konto trägt den Vorschlag des BMF-Schreibens — der Test prüfte nichts")
+	}
+	if len(flagged) != len(digital) {
+		t.Fatalf("gekennzeichnet %v, Vorschlag an %v — die Ableitung stimmt nicht", flagged, digital)
+	}
+	for i := range digital {
+		if flagged[i] != digital[i] {
+			t.Errorf("Konto %s ist nicht gekennzeichnet", digital[i])
+		}
+	}
+
+	// Ein Konto mit einem Erfahrungswert aus der AfA-Tabelle bleibt frei: die
+	// Tabelle ist keine Wahlrechtsausübung.
+	car, ok := LookupAssetAccount("0520")
+	if !ok {
+		t.Fatal("das Fahrzeugkonto 0520 fehlt im Katalog")
+	}
+	if car.DefaultUsefulLifeMonths == 0 {
+		t.Fatal("0520 trägt keinen Vorschlag — der Test prüfte nichts")
+	}
+	if car.UsefulLifeReasonRequired {
+		t.Error("für einen Erfahrungswert der AfA-Tabelle wird keine Begründung verlangt")
+	}
+}

@@ -41,6 +41,12 @@ type AssetAccount struct {
 	// gibt es nur für bewegliche Wirtschaftsgüter.
 	Immovable bool `json:"immovable,omitempty"`
 
+	// Residential marks a Gebäude, das Wohnzwecken dient. § 7 Abs. 4 EStG hält
+	// für Wohngebäude eigene Sätze bereit, die an der Fertigstellung hängen,
+	// während beim Betriebsgebäude der Bauantrag entscheidet — dieselbe
+	// Vorschrift, zwei verschiedene Stichtage.
+	Residential bool `json:"residential,omitempty"`
+
 	// InProgress marks the Sammelkonten, auf denen etwas liegt, das noch nicht
 	// fertig ist: Anlagen im Bau und geleistete Anzahlungen. Von ihnen wird mit
 	// der Fertigstellung auf das endgültige Anlagekonto umgebucht, und erst dann
@@ -53,7 +59,28 @@ type AssetAccount struct {
 	// deshalb bleibt der Wert überschreibbar. Null heißt: kein Vorschlag.
 	DefaultUsefulLifeMonths int    `json:"defaultUsefulLifeMonths,omitempty"`
 	UsefulLifeSource        string `json:"usefulLifeSource,omitempty"`
+
+	// UsefulLifeReasonRequired sagt, dass eine Abweichung vom Vorschlag dieses
+	// Kontos zu begründen ist.
+	//
+	// Das Feld wird nicht von Hand gesetzt, sondern aus UsefulLifeSource
+	// abgeleitet (siehe init unten): die Regel hängt am Wahlrecht des
+	// BMF-Schreibens vom 22.02.2022, und sie soll an genau einer Stelle stehen.
+	// Es steht trotzdem im JSON, weil die Maske die Regel kennen muss, bevor sie
+	// speichert — sonst bietet sie ein Feld an, das das Backend gleich darauf
+	// verlangt, oder eben keines, und der Anwender sitzt vor einer Sackgasse.
+	UsefulLifeReasonRequired bool `json:"usefulLifeReasonRequired,omitempty"`
 }
+
+// UsefulLifeSourceDigital ist die Fundstelle des Vorschlags von zwölf Monaten
+// für Computerhardware und Software.
+//
+// Sie steht als Konstante, weil an ihr eine Regel hängt: nur wo Buchfink diesen
+// Vorschlag macht, verlangt er bei einer Abweichung eine Begründung. Das
+// BMF-Schreiben eröffnet ein Wahlrecht — die AfA-Tabellen daneben nennen
+// Erfahrungswerte, und eine Begründungspflicht für jeden Erfahrungswert ginge
+// über die Vorschrift hinaus.
+const UsefulLifeSourceDigital = "BMF-Schreiben vom 22.02.2022 zur Nutzungsdauer von Computerhardware und Software"
 
 // assetAccounts is the curated catalog. Every number is checked against the
 // shipped DATEV SKR04 2026 catalog by TestAssetAccountsExistInSKR04.
@@ -61,8 +88,11 @@ var assetAccounts = []AssetAccount{
 	// --- Immaterielle Vermögensgegenstände (§ 266 Abs. 2 A. I. HGB) --------
 	{Number: "0135", Name: "EDV-Software", Class: domain.AssetClassIntangible,
 		Group: "Konzessionen, Lizenzen und Software", DepreciationAccount: "6200", Depreciable: true,
+		DefaultUsefulLifeMonths: 12, UsefulLifeSource: UsefulLifeSourceDigital,
 		Hint: "Entgeltlich erworbene Software. Selbst geschaffene immaterielle Vermögensgegenstände " +
-			"dürfen nach § 248 Abs. 2 HGB nur wahlweise aktiviert werden — steuerlich gar nicht."},
+			"dürfen nach § 248 Abs. 2 HGB nur wahlweise aktiviert werden — steuerlich gar nicht. " +
+			"Für Betriebs- und Anwendersoftware lässt das BMF eine Nutzungsdauer von einem Jahr zu; " +
+			"das ist ein Vorschlag und keine Vorgabe, eine abweichende Dauer ist zu begründen."},
 	{Number: "0140", Name: "Lizenzen an gewerblichen Schutzrechten", Class: domain.AssetClassIntangible,
 		Group: "Konzessionen, Lizenzen und Software", DepreciationAccount: "6200", Depreciable: true},
 	{Number: "0110", Name: "Konzessionen", Class: domain.AssetClassIntangible,
@@ -101,7 +131,8 @@ var assetAccounts = []AssetAccount{
 		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true},
 	{Number: "0300", Name: "Wohnbauten", Class: domain.AssetClassTangible,
 		Group: "Grundstücke und Bauten", DepreciationAccount: "6221", Depreciable: true, Immovable: true,
-		Hint: "Für Wohngebäude gelten eigene Sätze des § 7 Abs. 4 EStG."},
+		Residential: true,
+		Hint:        "Für Wohngebäude gelten eigene Sätze des § 7 Abs. 4 EStG; maßgeblich ist die Fertigstellung."},
 	{Number: "0420", Name: "Technische Anlagen", Class: domain.AssetClassTangible,
 		Group: "Technische Anlagen und Maschinen", DepreciationAccount: "6220", Depreciable: true,
 		UsefulLifeSource: "AfA-Tabelle des BMF für den jeweiligen Wirtschaftszweig"},
@@ -131,7 +162,11 @@ var assetAccounts = []AssetAccount{
 		Group: "Betriebs- und Geschäftsausstattung", DepreciationAccount: "6220", Depreciable: true,
 		DefaultUsefulLifeMonths: 156, UsefulLifeSource: "AfA-Tabelle AV (BMF): Büromöbel dreizehn Jahre"},
 	{Number: "0690", Name: "Sonstige Betriebs- und Geschäftsausstattung", Class: domain.AssetClassTangible,
-		Group: "Betriebs- und Geschäftsausstattung", DepreciationAccount: "6220", Depreciable: true},
+		Group: "Betriebs- und Geschäftsausstattung", DepreciationAccount: "6220", Depreciable: true,
+		DefaultUsefulLifeMonths: 12, UsefulLifeSource: UsefulLifeSourceDigital,
+		Hint: "Das Konto der EDV-Hardware. Für Computer, Notebooks, Drucker und Peripherie lässt das BMF " +
+			"eine Nutzungsdauer von einem Jahr zu. Für alles andere auf diesem Konto passt der Vorschlag " +
+			"nicht — dann ist die Nutzungsdauer zu setzen und die Abweichung zu begründen."},
 	{Number: "0670", Name: "Geringwertige Wirtschaftsgüter", Class: domain.AssetClassTangible,
 		Group: "Geringwertige Wirtschaftsgüter", DepreciationAccount: "6260", Depreciable: true,
 		Hint: "Für den Sofortabzug nach § 6 Abs. 2 EStG. Ab 250 € gehört das Gut in ein laufend " +
@@ -179,6 +214,18 @@ var assetAccounts = []AssetAccount{
 		Class: domain.AssetClassFinancial, Group: "Anteile und Beteiligungen", Depreciable: false},
 	{Number: "0990", Name: "Rückdeckungsansprüche aus Lebensversicherungen zum langfristigen Verbleib",
 		Class: domain.AssetClassFinancial, Group: "Ausleihungen", Depreciable: false},
+}
+
+// Die Begründungspflicht folgt aus der Fundstelle und wird nicht je Konto
+// gepflegt. Zwei Listen derselben Regel laufen auseinander, sobald ein drittes
+// Konto den Vorschlag bekommt — und dann verlangte das Backend eine Begründung,
+// die die Maske nicht anbietet.
+func init() {
+	for i := range assetAccounts {
+		if assetAccounts[i].UsefulLifeSource == UsefulLifeSourceDigital {
+			assetAccounts[i].UsefulLifeReasonRequired = true
+		}
+	}
 }
 
 // AssetAccounts returns the catalog, optionally narrowed to one class.

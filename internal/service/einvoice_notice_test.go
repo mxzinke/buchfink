@@ -15,6 +15,12 @@ func (e *testEnv) businessVendor(t *testing.T, name string) *domain.Contact {
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: "DE",
+		// Anschrift und Steuernummer sind vollständig: der Hinweis auf die
+		// fehlende E-Rechnung ist der Gegenstand dieses Tests, und ein
+		// unvollständiger Lieferant ließe stattdessen die Rechnungsprüfung
+		// anschlagen — dann prüfte der Test etwas anderes als seinen Namen.
+		Street: "Agenturweg 5", PostalCode: "50667", City: "Köln",
+		TaxID: "217/5738/0123",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s: %v", name, err)

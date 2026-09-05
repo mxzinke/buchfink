@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
+import type { NavigateFn } from '../components/Sidebar';
 import { formatCents, formatCentsPlain, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -125,7 +126,7 @@ function keychainHint(): string {
   return 'Im Secret Service, etwa dem GNOME-Schlüsselbund, unter diesem Dienst und Konto.';
 }
 
-export const SettingsPage: React.FC = () => {
+export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
   // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
   // im Prüfermodus gesperrt. Der Schlüsselexport bleibt möglich (§10.4).
   const writeLock = useWriteLock();
@@ -765,6 +766,42 @@ export const SettingsPage: React.FC = () => {
           >
             <FieldValue>SKR04 · Bilanz und GuV</FieldValue>
           </Field>
+        </div>
+      </Section>
+
+      {/* Die Adressen der Netzdienste und die Umsatzsteuer-Umrechnungskurse
+          stehen auf der Seite „Nebenpflichten": dort, wo die Kurshistorie und
+          der Verlauf der Bestätigungsabfragen liegen, zu denen sie gehören.
+          Der Verweis steht hier, weil sie Einstellungen sind und niemand sie
+          zuerst unter „Nebenpflichten" sucht. */}
+      <Section
+        title="Netzdienste und Umrechnungskurse"
+        context="Bundeszentralamt für Steuern, Kursdienst, USt-Durchschnittskurse"
+      >
+        <div className="flex flex-col gap-4 max-w-2xl">
+          <p className="text-body text-ink-muted">
+            Die Adressen der beiden Netzdienste und die monatlichen
+            Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG werden dort gepflegt, wo auch die
+            Kurshistorie und der Verlauf der Bestätigungsabfragen stehen.
+          </p>
+          {onNavigate && (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onNavigate('obligations', { obligationsTab: 'currency' })}
+              >
+                Kurse und Endpunkte öffnen
+              </Button>
+              <Button
+                variant="quiet"
+                size="sm"
+                onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
+              >
+                Bestätigung der USt-IdNr.
+              </Button>
+            </div>
+          )}
         </div>
       </Section>
 

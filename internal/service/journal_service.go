@@ -286,6 +286,28 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 			Place: d.Place, Day: d.Day, Participants: d.Participants, Occasion: d.Occasion,
 		}
 	}
+	// Für das Geschenk gilt dasselbe: § 4 Abs. 7 EStG verlangt die Aufzeichnung
+	// zur Aufwendung, und die Umkehr ist eine Buchung über dieselbe Aufwendung.
+	// Sie ohne den Empfänger zu schreiben hieße, eine Buchung zu hinterlassen,
+	// die aus sich heraus nicht mehr erklärt, was sie zurücknimmt. Gezählt wird
+	// sie deshalb trotzdem nicht — die Freigrenze läuft über die Normalbuchungen.
+	for _, g := range original.Gifts {
+		var recipient *uint
+		if g.RecipientContactID != nil {
+			id := *g.RecipientContactID
+			recipient = &id
+		}
+		reversal.Gifts = append(reversal.Gifts, domain.GiftRecord{
+			RecipientContactID: recipient,
+			RecipientName:      g.RecipientName,
+			Occasion:           g.Occasion,
+			Date:               g.Date,
+			NetAmount:          g.NetAmount,
+			Account:            g.Account,
+			NonDeductible:      g.NonDeductible,
+			FiscalYear:         g.FiscalYear,
+		})
+	}
 
 	created, err := s.Post(ctx, reversal)
 	if err != nil {
