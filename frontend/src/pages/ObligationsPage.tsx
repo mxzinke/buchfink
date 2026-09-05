@@ -244,7 +244,6 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
           permille,
         }),
       );
-      toast.success(`Verwendungsanteil für ${row.correction.label} bestätigt.`);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -718,9 +717,9 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
     setBusy(true);
     setError('');
     try {
-      const result = await Api.checkVatID(contactId);
+      // Das Ergebnis steht nach dem Neuladen im Stand-Feld und in der Verlaufstabelle.
+      await Api.checkVatID(contactId);
       await loadContact(contactId);
-      toast.success(`Bestätigungsanfrage: ${VAT_ID_STATUS_LABEL[result.status]}.`);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -1058,7 +1057,6 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
       setIssuer('');
       setFilePath('');
       await loadReport();
-      toast.success('Nachweisbeleg abgelegt.');
     } catch (e) {
       setError(message(e));
     } finally {
@@ -1681,7 +1679,6 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
       setManualRate('');
       setManualSource('');
       await load();
-      toast.success('Kurs übernommen.');
     } catch (e) {
       setError(message(e));
     } finally {

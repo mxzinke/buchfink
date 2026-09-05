@@ -1257,7 +1257,10 @@ const InvoiceForm: React.FC<{
                 onValueChange={(next) => setTransportKind(next as TransportKind)}
               />
             </Field>
-            {vatIdStatus && !vatIdStatus.confirmed && (
+            {/* Auch ohne gelesenen Stand (Lesefehler, Feld noch leer) muss der Grund
+                erfassbar sein: sonst ist die Maske genau dann eine Sackgasse, wenn
+                das Backend die Übersteuerung verlangt. */}
+            {!vatIdStatus?.confirmed && (
               <Field
                 label="Grund für die Ausstellung ohne Bestätigung"
                 optional

@@ -103,7 +103,7 @@ func (b *BuchfinkBridge) GetAccruals(year int) ([]domain.Accrual, error) {
 	if b.accrualSvc == nil {
 		return []domain.Accrual{}, nil
 	}
-	return b.accrualSvc.List(context.Background(), year)
+	return emptyList(b.accrualSvc.List(context.Background(), year))
 }
 
 // GetAccrualReport ist der Bestand aller Abgrenzungen zu einem Stichtag.
@@ -127,7 +127,7 @@ func (b *BuchfinkBridge) GetProvisions(year int) ([]domain.Provision, error) {
 	if b.provisionSvc == nil {
 		return []domain.Provision{}, nil
 	}
-	return b.provisionSvc.List(context.Background(), year)
+	return emptyList(b.provisionSvc.List(context.Background(), year))
 }
 
 // PreviewProvision rechnet eine Rückstellung samt Abzinsung, ohne zu buchen.
@@ -238,7 +238,7 @@ func (b *BuchfinkBridge) GetDiscountRates(month string) ([]domain.DiscountRate, 
 	if b.provisionSvc == nil {
 		return []domain.DiscountRate{}, nil
 	}
-	return b.provisionSvc.DiscountRates(context.Background(), month)
+	return emptyList(b.provisionSvc.DiscountRates(context.Background(), month))
 }
 
 // GetDiscountRateMonths nennt die Monate, für die Sätze hinterlegt sind.
@@ -248,7 +248,7 @@ func (b *BuchfinkBridge) GetDiscountRateMonths() ([]string, error) {
 	if b.provisionSvc == nil {
 		return []string{}, nil
 	}
-	return b.provisionSvc.DiscountRateMonths(context.Background())
+	return emptyList(b.provisionSvc.DiscountRateMonths(context.Background()))
 }
 
 // SaveDiscountRates schreibt gepflegte Zinssätze fort.
@@ -368,7 +368,7 @@ func (b *BuchfinkBridge) BookTaxProvision(req service.TaxProvisionRequest) ([]do
 	if b.closingBookingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
-	return b.closingBookingSvc.BookTaxProvision(context.Background(), req)
+	return emptyList(b.closingBookingSvc.BookTaxProvision(context.Background(), req))
 }
 
 // -------------------------------------------------------------------------
@@ -419,7 +419,7 @@ func (b *BuchfinkBridge) GetNotesTexts(year int) ([]service.NotesTextView, error
 	if b.appropriationSvc == nil {
 		return []service.NotesTextView{}, nil
 	}
-	return b.appropriationSvc.NotesTexts(context.Background(), year)
+	return emptyList(b.appropriationSvc.NotesTexts(context.Background(), year))
 }
 
 // SaveNotesText schreibt einen Anhangabschnitt fort.
@@ -432,8 +432,8 @@ func (b *BuchfinkBridge) SaveNotesText(year int, section, text string) ([]servic
 	if b.appropriationSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
-	return b.appropriationSvc.SaveNotesText(
-		context.Background(), year, domain.NotesSection(section), text)
+	return emptyList(b.appropriationSvc.SaveNotesText(
+		context.Background(), year, domain.NotesSection(section), text))
 }
 
 // -------------------------------------------------------------------------

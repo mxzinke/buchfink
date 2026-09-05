@@ -113,7 +113,7 @@ func (b *BuchfinkBridge) GetInvoiceGroups() ([]domain.InvoiceGroup, error) {
 	if b.invoiceSvc == nil {
 		return []domain.InvoiceGroup{}, nil
 	}
-	return b.invoiceSvc.GetInvoiceGroups(context.Background(), b.currentYear)
+	return emptyList(b.invoiceSvc.GetInvoiceGroups(context.Background(), b.currentYear))
 }
 
 // CreateInvoiceGroup legt einen Rechnungsverbund an.
@@ -181,7 +181,7 @@ func (b *BuchfinkBridge) GetOpenVendorAdvances(contactID uint) ([]domain.VendorA
 	if b.postingSvc == nil {
 		return []domain.VendorAdvance{}, nil
 	}
-	return b.postingSvc.OpenVendorAdvances(context.Background(), contactID)
+	return emptyList(b.postingSvc.OpenVendorAdvances(context.Background(), contactID))
 }
 
 // GetAdvanceTargets liefert die Verwendungen einer geleisteten Anzahlung: wofür
@@ -231,7 +231,7 @@ func (b *BuchfinkBridge) GetOpenAdvances() ([]domain.OpenItem, error) {
 	if b.invoiceSvc == nil {
 		return []domain.OpenItem{}, nil
 	}
-	return b.invoiceSvc.OpenAdvanceItems(context.Background())
+	return emptyList(b.invoiceSvc.OpenAdvanceItems(context.Background()))
 }
 
 // WriteOffOpenItem bucht eine uneinbringliche Forderung aus.

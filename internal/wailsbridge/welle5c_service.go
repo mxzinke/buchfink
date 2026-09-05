@@ -113,7 +113,7 @@ func (b *BuchfinkBridge) GetVatIDChecks(contactID uint) ([]domain.VatIDCheck, er
 	if b.vatIDSvc == nil {
 		return []domain.VatIDCheck{}, nil
 	}
-	return b.vatIDSvc.Checks(context.Background(), contactID)
+	return emptyList(b.vatIDSvc.Checks(context.Background(), contactID))
 }
 
 // GetVatIDStatus beantwortet ohne Netzaufruf, ob eine frische Bestätigung
@@ -288,7 +288,7 @@ func (b *BuchfinkBridge) GetExchangeRates(currency, from, to string) ([]domain.E
 	if b.currencySvc == nil {
 		return []domain.ExchangeRate{}, nil
 	}
-	return b.currencySvc.Rates(context.Background(), currency, from, to)
+	return emptyList(b.currencySvc.Rates(context.Background(), currency, from, to))
 }
 
 // SaveExchangeRate nimmt einen von Hand erfassten Kurs auf.
@@ -312,7 +312,7 @@ func (b *BuchfinkBridge) GetVatExchangeRates(from, to string) ([]domain.VatExcha
 	if b.currencySvc == nil {
 		return []domain.VatExchangeRate{}, nil
 	}
-	return b.currencySvc.VatRates(context.Background(), from, to)
+	return emptyList(b.currencySvc.VatRates(context.Background(), from, to))
 }
 
 // SaveVatExchangeRate nimmt einen Durchschnittskurs auf.

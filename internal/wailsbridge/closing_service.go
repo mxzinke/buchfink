@@ -16,7 +16,7 @@ func (b *BuchfinkBridge) GetFiscalYears() ([]domain.FiscalYear, error) {
 	if b.closingSvc == nil {
 		return []domain.FiscalYear{}, nil
 	}
-	return b.closingSvc.FiscalYears(context.Background())
+	return emptyList(b.closingSvc.FiscalYears(context.Background()))
 }
 
 // CreateFiscalYear legt das Geschäftsjahr an und schaltet auf es um.
@@ -63,7 +63,7 @@ func (b *BuchfinkBridge) CarryForward(toYear int) ([]domain.JournalEntry, error)
 	if b.closingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
-	return b.closingSvc.CarryForward(context.Background(), toYear)
+	return emptyList(b.closingSvc.CarryForward(context.Background(), toYear))
 }
 
 // GetClosingState liefert den Abschlussstand eines Geschäftsjahres samt der

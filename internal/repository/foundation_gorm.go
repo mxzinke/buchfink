@@ -37,6 +37,7 @@ func (r *foundationRepositoryGorm) Get(ctx context.Context) (*domain.Foundation,
 	if err != nil {
 		return nil, err
 	}
+	f.EnsureLists()
 	return &f, nil
 }
 

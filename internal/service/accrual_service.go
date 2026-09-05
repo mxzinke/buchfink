@@ -355,6 +355,12 @@ func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*Accr
 		})
 	}
 
+	// Der Posten trägt seinen Plan schon; ohne EnsureLists käme er als `null`
+	// in der Vorschau an, wenn der Plan leer bleibt.
+	accrual.EnsureLists()
+	if plan == nil {
+		plan = make([]accounting.AccrualRelease, 0)
+	}
 	preview := &AccrualPreview{
 		Accrual: accrual, Lines: accrualLines(&accrual, false),
 		Releases: plan, BookingDate: fy.EndDate,

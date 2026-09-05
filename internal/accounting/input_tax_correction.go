@@ -77,6 +77,16 @@ type InputTaxCorrectionRequest struct {
 	CurrentPermille  int64
 	// PeriodYears ist der Berichtigungszeitraum in Jahren.
 	PeriodYears int
+	// MonthsInYear ist die Zahl der Monate des Berichtigungszeitraums, die in
+	// das Berichtigungsjahr fallen.
+	//
+	// Im Regelfall zwölf. Weniger im ersten und im letzten Jahr eines Zeitraums,
+	// der mitten im Jahr beginnt: § 15a Abs. 1 UStG rechnet ab der erstmaligen
+	// Verwendung, § 45 UStDV rundet das Ende auf einen ganzen Kalendermonat, und
+	// dazwischen liegen im Anfangs- und im Schlussjahr regelmäßig weniger als
+	// zwölf Monate. Null oder ein unsinniger Wert wird als volles Jahr gelesen —
+	// der Aufrufer, der die Monate nicht kennt, meint den Regelfall.
+	MonthsInYear int
 	// Immovable entscheidet über das Konto.
 	Immovable bool
 }
@@ -134,14 +144,32 @@ func AssessInputTaxCorrection(
 
 	// Der Berichtigungsbetrag: die Vorsteuer eines Jahres ist ihr Anteil am
 	// Zeitraum, und berichtigt wird die Differenz der Verwendungsanteile.
+	//
+	// Gerechnet wird über die Monate und nicht über die Jahre, damit das
+	// Anfangs- und das Schlussjahr eines mitten im Jahr begonnenen Zeitraums nur
+	// mit ihrem Anteil eingehen: Vorsteuer / (Zeitraum × 12) × Monate.
+	months := req.MonthsInYear
+	if months <= 0 || months > 12 {
+		months = 12
+	}
 	deltaPermille := req.CurrentPermille - req.OriginalPermille
-	yearShare := domain.MulRound(req.InputTaxAmount, 1, int64(req.PeriodYears))
+	periodMonths := int64(req.PeriodYears) * 12
+	yearShare := domain.MulRound(req.InputTaxAmount, int64(months), periodMonths)
 	amount := domain.MulRound(yearShare, deltaPermille, 1000)
 
-	if amount == 0 {
+	if deltaPermille == 0 {
 		return InputTaxCorrectionAssessment{Reason: fmt.Sprintf(
 			"Der Verwendungsanteil ist mit %s unverändert. Es ist nichts zu berichtigen.",
 			PermilleLabel(req.CurrentPermille))}, nil
+	}
+	if amount == 0 {
+		// Geänderter Anteil, aber ein Betrag, der auf null rundet — in einem
+		// Anfangsjahr mit wenigen Monaten und kleiner Vorsteuer. Eine Buchung
+		// über null Euro wäre ein Eintrag ohne Aussage.
+		return InputTaxCorrectionAssessment{Reason: fmt.Sprintf(
+			"Der Verwendungsanteil hat sich von %s auf %s geändert; auf %d Monate des Zeitraums "+
+				"entfällt davon kein Betrag. Es ist nichts zu berichtigen.",
+			PermilleLabel(req.OriginalPermille), PermilleLabel(req.CurrentPermille), months)}, nil
 	}
 
 	points := deltaPermille / 10
@@ -172,10 +200,14 @@ func AssessInputTaxCorrection(
 	if amount < 0 {
 		direction = "zurückzuzahlen"
 	}
+	span := "ein Jahr"
+	if months < 12 {
+		span = fmt.Sprintf("%d Monate", months)
+	}
 	out.Reason = fmt.Sprintf(
-		"Der Verwendungsanteil hat sich von %s auf %s geändert. Auf ein Jahr des %d-jährigen "+
+		"Der Verwendungsanteil hat sich von %s auf %s geändert. Auf %s des %d-jährigen "+
 			"Berichtigungszeitraums entfallen %s € Vorsteuer; davon sind %s € %s (§ 15a Abs. 1 UStG).",
-		PermilleLabel(req.OriginalPermille), PermilleLabel(req.CurrentPermille), req.PeriodYears,
+		PermilleLabel(req.OriginalPermille), PermilleLabel(req.CurrentPermille), span, req.PeriodYears,
 		yearShare, magnitude, direction)
 
 	// § 44 Abs. 3 UStDV: bis 6.000 € wird nicht im Voranmeldungszeitraum

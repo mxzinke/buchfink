@@ -122,6 +122,14 @@ func (s *InputTaxService) Register(
 	startMonth := s.fiscalYearStartMonth(ctx)
 	first := domain.GetFiscalYearForDate(req.AcquisitionDate, startMonth)
 	period := accounting.CorrectionPeriodYears(immovable)
+	// Das Ende des Zeitraums wird datumsgenau gerechnet und nicht als
+	// „Zugangsjahr plus Zeitraum minus eins": ein am 20.12. angeschafftes
+	// Wirtschaftsgut läuft bis in den Dezember des sechsten Kalenderjahres, und
+	// eine Änderung der Verwendung in diesem letzten Jahr ist zu berichtigen.
+	periodEnd, err := domain.CorrectionPeriodEndDate(req.AcquisitionDate, period)
+	if err != nil {
+		return nil, err
+	}
 
 	correction := &domain.InputTaxCorrection{
 		Label:                 strings.TrimSpace(req.Label),
@@ -132,8 +140,9 @@ func (s *InputTaxService) Register(
 		OriginalPermille:      permille,
 		Immovable:             immovable,
 		CorrectionPeriodYears: period,
+		PeriodEnd:             periodEnd,
 		FirstFiscalYear:       first,
-		LastFiscalYear:        first + period - 1,
+		LastFiscalYear:        domain.GetFiscalYearForDate(periodEnd, startMonth),
 		Note:                  req.Note,
 	}
 	if req.AssetID != 0 {
@@ -163,9 +172,11 @@ func (s *InputTaxService) Register(
 		return nil, fmt.Errorf("der Eintrag ließ sich nicht speichern: %w", err)
 	}
 	s.audit(ctx, correction.ID, fmt.Sprintf(
-		"Ins Verzeichnis nach § 15a UStG aufgenommen: %s, Vorsteuer %s €, Anteil %s, Zeitraum %d Jahre",
+		"Ins Verzeichnis nach § 15a UStG aufgenommen: %s, Vorsteuer %s €, Anteil %s, Zeitraum "+
+			"%d Jahre bis zum %s",
 		correction.Label, correction.InputTaxAmount,
-		accounting.PermilleLabel(int64(correction.OriginalPermille)), period))
+		accounting.PermilleLabel(int64(correction.OriginalPermille)), period,
+		germanDay(correction.PeriodEnd)))
 	correction.EnsureLists()
 	return correction, nil
 }
@@ -203,6 +214,10 @@ type InputTaxCorrectionRow struct {
 	// des Jahres, sonst der ursprüngliche als Vorschlag.
 	Permille  int  `json:"permille"`
 	Confirmed bool `json:"confirmed"`
+	// MonthsInYear ist die Zahl der Monate des Berichtigungszeitraums, die in
+	// dieses Geschäftsjahr fallen — zwölf im Regelfall, weniger im Anfangs- und
+	// im Schlussjahr eines mitten im Jahr begonnenen Zeitraums.
+	MonthsInYear int `json:"monthsInYear"`
 	// Assessment ist die Bewertung des Jahres.
 	Assessment accounting.InputTaxCorrectionAssessment `json:"assessment"`
 	// Booked sagt, ob die Berichtigung dieses Jahres bereits gebucht ist.
@@ -251,6 +266,8 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 		return nil, err
 	}
 
+	windowFrom, windowTo := s.fiscalYearWindow(ctx, year)
+
 	corrections, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, err
@@ -264,10 +281,15 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 	for i := range corrections {
 		c := &corrections[i]
 		c.EnsureLists()
+		months := c.MonthsInWindow(windowFrom, windowTo)
 		row := InputTaxCorrectionRow{
 			Correction: *c,
-			InPeriod:   c.Open() && c.CoversYear(year),
-			Permille:   c.OriginalPermille,
+			// Ein Jahr ohne einen Monat des Zeitraums ist kein Berichtigungsjahr,
+			// auch wenn es zwischen dem ersten und dem letzten Geschäftsjahr liegt
+			// — bei einem Rumpfgeschäftsjahr kann das auseinanderfallen.
+			InPeriod:     c.Open() && c.CoversYear(year) && months > 0,
+			MonthsInYear: months,
+			Permille:     c.OriginalPermille,
 		}
 		if usage, ok := c.UsageFor(year); ok {
 			row.Permille = usage.Permille
@@ -291,6 +313,7 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 			OriginalPermille: int64(c.OriginalPermille),
 			CurrentPermille:  int64(row.Permille),
 			PeriodYears:      c.CorrectionPeriodYears,
+			MonthsInYear:     months,
 			Immovable:        c.Immovable,
 		}, params)
 		if err != nil {
@@ -316,11 +339,9 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 		"Bestätige für jedes Wirtschaftsgut den Verwendungsanteil des Jahres %d oder ändere ihn. "+
 			"Berichtigt wird die Differenz zum ursprünglichen Anteil, verteilt auf den "+
 			"Berichtigungszeitraum. Gebucht wird zum %s mit dem Steuerschlüssel %s; er läuft in die "+
-			"Kennziffer %s der Voranmeldung. Buchfink rechnet dabei in vollen Wirtschaftsjahren: "+
-			"§ 15a Abs. 1 UStG i. V. m. § 45 UStDV rechnet ab dem Beginn der Verwendung monatsgenau, "+
-			"und bei einem Zugang mitten im Jahr sind das Zugangs- und das letzte Jahr genau genommen "+
-			"nur anteilig zu berichtigen. Wo das ins Gewicht fällt, ändere den Verwendungsanteil des "+
-			"Jahres entsprechend.",
+			"Kennziffer %s der Voranmeldung. Der Zeitraum läuft ab der erstmaligen Verwendung "+
+			"(§ 15a Abs. 1 UStG) und endet mit dem Kalendermonat nach § 45 UStDV; im Anfangs- und im "+
+			"Schlussjahr geht deshalb nur der Teil des Jahres ein, der in den Zeitraum fällt.",
 		year, germanDay(bookingDate), accounting.TaxKeyInputTaxCorrection,
 		accounting.VatCodeInputTaxCorrection)
 	return out, nil
@@ -355,14 +376,14 @@ func (s *InputTaxService) outOfPeriodReason(c *domain.InputTaxCorrection, year i
 	switch {
 	case !c.Open():
 		return "Der Eintrag ist abgeschlossen: " + c.ClosedReason
-	case year <= c.FirstFiscalYear:
+	case year < c.FirstFiscalYear:
 		return fmt.Sprintf(
-			"Das Jahr %d ist das Jahr der Anschaffung. In ihm wurde der Vorsteuerabzug gewährt; "+
-				"berichtigt wird ab %d.", c.FirstFiscalYear, c.FirstFiscalYear+1)
+			"Der Berichtigungszeitraum beginnt erst mit der erstmaligen Verwendung am %s.",
+			germanDay(c.AcquisitionDate))
 	default:
 		return fmt.Sprintf(
-			"Der Berichtigungszeitraum lief von %d bis %d und ist abgelaufen.",
-			c.FirstFiscalYear, c.LastFiscalYear)
+			"Der Berichtigungszeitraum lief vom %s bis zum %s und ist abgelaufen.",
+			germanDay(c.AcquisitionDate), germanDay(c.PeriodEndDate()))
 	}
 }
 
@@ -392,8 +413,9 @@ func (s *InputTaxService) SaveUsage(
 	}
 	if !correction.CoversYear(year) {
 		return nil, fmt.Errorf(
-			"das Jahr %d liegt nicht im Berichtigungszeitraum von %s (%d bis %d)",
-			year, correction.Label, correction.FirstFiscalYear+1, correction.LastFiscalYear)
+			"das Jahr %d liegt nicht im Berichtigungszeitraum von %s (%s bis %s)",
+			year, correction.Label, germanDay(correction.AcquisitionDate),
+			germanDay(correction.PeriodEndDate()))
 	}
 	if req.Permille < 0 || req.Permille > 1000 {
 		return nil, fmt.Errorf("der Verwendungsanteil liegt zwischen 0 und 100 %%")
@@ -421,11 +443,13 @@ func (s *InputTaxService) SaveUsage(
 	if err != nil {
 		return nil, err
 	}
+	windowFrom, windowTo := s.fiscalYearWindow(ctx, year)
 	assessment, err := accounting.AssessInputTaxCorrection(accounting.InputTaxCorrectionRequest{
 		InputTaxAmount:   correction.InputTaxAmount,
 		OriginalPermille: int64(correction.OriginalPermille),
 		CurrentPermille:  int64(req.Permille),
 		PeriodYears:      correction.CorrectionPeriodYears,
+		MonthsInYear:     correction.MonthsInWindow(windowFrom, windowTo),
 		Immovable:        correction.Immovable,
 	}, params)
 	if err != nil {
@@ -594,21 +618,30 @@ const (
 // festgestellt, und ein rückdatierter Voranmeldungszeitraum wäre eine
 // Berichtigung einer bereits abgegebenen Anmeldung.
 func (s *InputTaxService) bookingDate(ctx context.Context, year int) (string, error) {
+	_, end := s.fiscalYearWindow(ctx, year)
+	return end, nil
+}
+
+// fiscalYearWindow liefert den ersten und den letzten Tag eines
+// Geschäftsjahres.
+//
+// Das Fenster und nicht bloß sein Ende: der Anteil eines Jahres am
+// Berichtigungszeitraum bemisst sich nach den Monaten, die in beides fallen,
+// und ein Rumpfgeschäftsjahr hat weniger als zwölf davon.
+func (s *InputTaxService) fiscalYearWindow(ctx context.Context, year int) (string, string) {
 	if s.closingSvc != nil {
 		if fy, err := s.closingSvc.PeriodOf(ctx, year); err == nil && fy != nil {
-			return fy.EndDate, nil
+			return fy.StartDate, fy.EndDate
 		}
 	}
 	month := s.fiscalYearStartMonth(ctx)
-	if month == 1 {
-		return fmt.Sprintf("%04d-12-31", year), nil
-	}
 	// Der letzte Tag des Wirtschaftsjahres und nicht der erste des folgenden:
 	// ein Wirtschaftsjahr, das im Juli beginnt, endet am 30. Juni — und eine
 	// Berichtigung, die auf den 1. Juli datiert wäre, fiele in das nächste Jahr
 	// und in dessen Voranmeldung.
-	start := time.Date(year+1, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	return start.AddDate(0, 0, -1).Format("2006-01-02"), nil
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(1, 0, 0).AddDate(0, 0, -1)
+	return start.Format("2006-01-02"), end.Format("2006-01-02")
 }
 
 // entryNumbers löst die Buchungskennungen eines Jahres in ihre Nummern auf.

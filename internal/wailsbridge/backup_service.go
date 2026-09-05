@@ -26,7 +26,7 @@ func (b *BuchfinkBridge) GetBackupRuns() ([]domain.BackupRun, error) {
 	if b.backupSvc == nil {
 		return make([]domain.BackupRun, 0), nil
 	}
-	return b.backupSvc.GetRuns(context.Background(), 20)
+	return emptyList(b.backupSvc.GetRuns(context.Background(), 20))
 }
 
 // SetBackupDir legt den Zielordner der Sicherung fest. Leer heißt: keine

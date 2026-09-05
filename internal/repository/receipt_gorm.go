@@ -27,6 +27,7 @@ func (r *receiptRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	if err != nil {
 		return nil, err
 	}
+	receipt.EnsureLists()
 	return &receipt, nil
 }
 
@@ -50,6 +51,11 @@ func (r *receiptRepositoryGorm) find(ctx context.Context, fiscalYear int, status
 		q = q.Where("status = ?", status)
 	}
 	err := q.Find(&receipts).Error
+	// Ein Beleg ohne Datei ist der Regelfall, solange nur die Kopfdaten
+	// erfasst sind; als `null` nähme die Dateiliste die Belegansicht mit.
+	for i := range receipts {
+		receipts[i].EnsureLists()
+	}
 	return receipts, err
 }
 
@@ -66,6 +72,7 @@ func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 s
 	if err != nil {
 		return nil, err
 	}
+	receipt.EnsureLists()
 	return &receipt, nil
 }
 

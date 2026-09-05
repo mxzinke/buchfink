@@ -1249,7 +1249,7 @@ func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	if b.accountingSvc == nil {
 		return []domain.Account{}, nil
 	}
-	return b.accountingSvc.GetAccounts(context.Background())
+	return emptyList(b.accountingSvc.GetAccounts(context.Background()))
 }
 
 func (b *BuchfinkBridge) GetAccountByNumber(number string) (*domain.Account, error) {
@@ -1318,7 +1318,7 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 			result = append(result, a)
 		}
 	}
-	return result, nil
+	return emptyList(result, nil)
 }
 
 func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
@@ -1327,7 +1327,7 @@ func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
 	if b.accountingSvc == nil {
 		return []domain.JournalEntry{}, nil
 	}
-	return b.accountingSvc.GetEntries(context.Background())
+	return emptyList(b.accountingSvc.GetEntries(context.Background()))
 }
 
 func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
@@ -1336,7 +1336,7 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 	if b.accountingSvc == nil {
 		return []domain.JournalEntry{}, nil
 	}
-	return b.accountingSvc.GetAllEntries(context.Background())
+	return emptyList(b.accountingSvc.GetAllEntries(context.Background()))
 }
 
 // PostJournalEntry books a manually composed Buchungssatz. The journal enforces
@@ -1419,7 +1419,7 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 	if b.bankSvc == nil {
 		return []domain.BankTransaction{}, nil
 	}
-	return b.bankSvc.GetTransactions(context.Background(), b.currentYear)
+	return emptyList(b.bankSvc.GetTransactions(context.Background(), b.currentYear))
 }
 
 // ImportCAMT053XML imports a statement for one liquid account. The account is an
@@ -1472,7 +1472,7 @@ func (b *BuchfinkBridge) GetContacts() ([]domain.Contact, error) {
 	if b.contactSvc == nil {
 		return []domain.Contact{}, nil
 	}
-	return b.contactSvc.GetContacts(context.Background())
+	return emptyList(b.contactSvc.GetContacts(context.Background()))
 }
 
 func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) {
@@ -1508,7 +1508,7 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	if b.invoiceSvc == nil {
 		return []domain.Invoice{}, nil
 	}
-	return b.invoiceSvc.GetInvoices(context.Background(), b.currentYear)
+	return emptyList(b.invoiceSvc.GetInvoices(context.Background(), b.currentYear))
 }
 
 // IssueInvoice assigns the consecutive invoice number and books the receivable
@@ -1582,12 +1582,14 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 	if app == nil || app.Dialog == nil {
 		return []string{}, nil
 	}
-	return app.Dialog.OpenFile().
+	// Der Abbruch des Dialogs liefert nil; als `null` in der Oberfläche wäre
+	// daraus ein TypeError beim Lesen der Länge geworden.
+	return emptyList(app.Dialog.OpenFile().
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
 		AddFilter("Belege (PDF, Bild, XML)", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml").
 		SetTitle(title).
-		PromptForMultipleSelection()
+		PromptForMultipleSelection())
 }
 
 // FileIncomingReceipt files an incoming Beleg away without booking it. The two
@@ -1644,7 +1646,7 @@ func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 	if b.receiptSvc == nil {
 		return []domain.Receipt{}, nil
 	}
-	return b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status))
+	return emptyList(b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status)))
 }
 
 // GetReceipt returns one Beleg with its files.
@@ -1897,7 +1899,7 @@ func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 	if b.auditSvc == nil {
 		return []domain.AuditLogEntry{}, nil
 	}
-	return b.auditSvc.GetLogs(context.Background(), 200)
+	return emptyList(b.auditSvc.GetLogs(context.Background(), 200))
 }
 
 // -------------------------------------------------------------
@@ -1913,7 +1915,7 @@ func (b *BuchfinkBridge) GetOpenItems() ([]domain.OpenItem, error) {
 	if b.paymentSvc == nil {
 		return []domain.OpenItem{}, nil
 	}
-	return b.paymentSvc.OpenItems(context.Background())
+	return emptyList(b.paymentSvc.OpenItems(context.Background()))
 }
 
 // GetDifferenceKinds returns the payment difference kinds with their hints.
@@ -2019,7 +2021,7 @@ func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error)
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
-	return b.foundationSvc.BookPostings(context.Background())
+	return emptyList(b.foundationSvc.BookPostings(context.Background()))
 }
 
 // RegisterCompany records the entry in the Handelsregister and ends the

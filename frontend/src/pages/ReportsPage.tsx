@@ -411,31 +411,32 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
       {onNavigate && (
         <Section
           title="Weitere Auswertungen"
-          context="Steuerliche Nebenpflichten"
+          context="Auf der Seite „Nebenpflichten“"
           className="mt-8"
-        >
-          <div className="flex flex-col gap-3">
-            <p className="text-body text-ink-muted">
+          action={
+            <HelpPopover label="Erklärung zum Ort dieser Auswertungen">
               Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) und der
               Belegnachweis der steuerfreien innergemeinschaftlichen Lieferungen (§§ 17a bis 17c
-              UStDV) stehen dort, wo auch die Verzeichnisse dazu geführt werden.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
-              >
-                Nicht abziehbare Betriebsausgaben
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onNavigate('obligations', { obligationsTab: 'evidence' })}
-              >
-                Belegnachweis ig. Lieferungen
-              </Button>
-            </div>
+              UStDV) stehen bei den Verzeichnissen, aus denen sie entstehen: dort wird der
+              Empfänger eines Geschenks erfasst und dort wird ein Nachweisbeleg abgelegt.
+            </HelpPopover>
+          }
+        >
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
+            >
+              Nicht abziehbare Betriebsausgaben
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'evidence' })}
+            >
+              Belegnachweis ig. Lieferungen
+            </Button>
           </div>
         </Section>
       )}

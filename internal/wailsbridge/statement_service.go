@@ -57,7 +57,7 @@ func (b *BuchfinkBridge) GetStatementDeadlines(year int) ([]domain.Deadline, err
 	if b.statementSvc == nil {
 		return []domain.Deadline{}, nil
 	}
-	return b.statementSvc.Deadlines(context.Background(), year)
+	return emptyList(b.statementSvc.Deadlines(context.Background(), year))
 }
 
 // ExportStatementPDF liefert das Dokument als Base64 — wie der Rechnungs- und

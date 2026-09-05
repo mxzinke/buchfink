@@ -147,14 +147,18 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		return nil, err
 	}
 
-	return &domain.FinancialStatement{
+	out := &domain.FinancialStatement{
 		Header:     header,
 		Statement:  *shown,
 		SizeClass:  sizeClass,
 		Maturities: maturities,
 		Notes:      s.notesFor(ctx, year),
 		Deadlines:  s.deadlinesFor(ctx, year, header.ClosingDate, sizeClass),
-	}, nil
+	}
+	// Ohne Bilanzstichtag nennt die Größenklasse keine Frist; die Ansicht läuft
+	// trotzdem über die Liste.
+	out.EnsureLists()
+	return out, nil
 }
 
 // Notes liefert den Anhang eines Geschäftsjahres — für die Ausgabewege, die

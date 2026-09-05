@@ -57,8 +57,20 @@ type InputTaxCorrection struct {
 	// den Zeitraum eines laufenden Wirtschaftsguts nicht verschieben.
 	CorrectionPeriodYears int `gorm:"not null" json:"correctionPeriodYears"`
 
+	// PeriodEnd ist der letzte Tag des Berichtigungszeitraums, datumsgenau nach
+	// § 15a Abs. 1 UStG i. V. m. § 45 UStDV.
+	//
+	// Der Zeitraum läuft ab der erstmaligen Verwendung und nicht ab dem
+	// Jahresbeginn; bei einem Zugang mitten im Jahr reicht er in das sechste
+	// (elfte) Kalenderjahr hinein. Er wird gespeichert und nicht bei jedem
+	// Zugriff gerechnet: eine spätere Änderung der Ableitung darf den Zeitraum
+	// eines laufenden Wirtschaftsguts nicht verschieben. Leer heißt: ein Eintrag
+	// aus der Zeit vor dem datumsgenauen Zeitraum — dann leitet
+	// PeriodEndDate() ihn aus dem Anschaffungsdatum ab.
+	PeriodEnd string `gorm:"size:10" json:"periodEnd,omitempty"`
+
 	// FirstFiscalYear ist das Geschäftsjahr des Zugangs, LastFiscalYear das
-	// letzte Jahr des Berichtigungszeitraums.
+	// Geschäftsjahr, in das das Ende des Berichtigungszeitraums fällt.
 	FirstFiscalYear int `gorm:"index;not null" json:"firstFiscalYear"`
 	LastFiscalYear  int `gorm:"index;not null" json:"lastFiscalYear"`
 
@@ -121,10 +133,107 @@ func (c *InputTaxCorrection) Open() bool { return c.ClosedReason == "" }
 
 // CoversYear meldet, ob ein Geschäftsjahr in den Berichtigungszeitraum fällt.
 //
-// Das Zugangsjahr gehört nicht dazu: in ihm wurde der Vorsteuerabzug gewährt,
-// berichtigt wird erst ab dem Jahr danach.
+// Das Zugangsjahr gehört dazu. In ihm wurde der Vorsteuerabzug nach der
+// beabsichtigten Verwendung gewährt; weicht die tatsächliche Verwendung schon
+// im Jahr der erstmaligen Verwendung davon ab, ist auch das ein Fall des
+// § 15a UStG (UStAE 15a.2 Abs. 2). Und das letzte Jahr gehört ebenfalls dazu:
+// der Zeitraum läuft ab der erstmaligen Verwendung, nicht ab dem Jahresbeginn.
 func (c *InputTaxCorrection) CoversYear(fiscalYear int) bool {
-	return fiscalYear > c.FirstFiscalYear && fiscalYear <= c.LastFiscalYear
+	return fiscalYear >= c.FirstFiscalYear && fiscalYear <= c.LastFiscalYear
+}
+
+// PeriodEndDate liefert das gespeicherte Ende des Berichtigungszeitraums.
+//
+// Fehlt es — ein Eintrag aus der Zeit, in der Buchfink den Zeitraum in vollen
+// Wirtschaftsjahren führte —, wird es aus dem Anschaffungsdatum abgeleitet.
+// Sonst stünde für Altbestände weiterhin ein um bis zu ein Jahr zu kurzer
+// Zeitraum, ohne dass es jemandem auffiele.
+func (c *InputTaxCorrection) PeriodEndDate() string {
+	if len(c.PeriodEnd) == 10 {
+		return c.PeriodEnd
+	}
+	end, err := CorrectionPeriodEndDate(c.AcquisitionDate, c.CorrectionPeriodYears)
+	if err != nil {
+		return ""
+	}
+	return end
+}
+
+// CorrectionPeriodEndDate bestimmt den letzten Tag des Berichtigungszeitraums.
+//
+// § 15a Abs. 1 UStG rechnet ab dem Zeitpunkt der erstmaligen Verwendung: fünf
+// bzw. zehn Jahre, also bis zum Vortag desselben Kalendertages. § 45 UStDV
+// rundet dieses Ende auf einen ganzen Kalendermonat: endet der Zeitraum vor dem
+// 16. eines Monats, bleibt der Monat unberücksichtigt; endet er nach dem 15.,
+// ist er voll zu berücksichtigen. Erst dadurch ist das Ende ein Monatsende, und
+// nur so lässt sich ein Jahr nach Monaten gewichten.
+func CorrectionPeriodEndDate(acquisitionDate string, periodYears int) (string, error) {
+	if periodYears <= 0 {
+		return "", fmt.Errorf("der Berichtigungszeitraum fehlt")
+	}
+	start, err := time.Parse("2006-01-02", acquisitionDate)
+	if err != nil {
+		return "", fmt.Errorf(
+			"das Anschaffungsdatum %q ist kein Datum (erwartet JJJJ-MM-TT)", acquisitionDate)
+	}
+	// Der Vortag des Jahrestages: ein am 15.01.2026 in Verwendung genommenes
+	// Wirtschaftsgut hat seine fünf Jahre am 14.01.2031 hinter sich.
+	last := start.AddDate(periodYears, 0, 0).AddDate(0, 0, -1)
+	month := last.Month()
+	year := last.Year()
+	if last.Day() >= 16 {
+		// Der angefangene Monat zählt voll: das Ende rückt auf sein Ende vor.
+		month++
+	}
+	end := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -1)
+	return end.Format("2006-01-02"), nil
+}
+
+// MonthsInWindow zählt die Kalendermonate des Berichtigungszeitraums, die in
+// ein Zeitfenster fallen — regelmäßig ein Geschäftsjahr.
+//
+// Gezählt wird in ganzen Monaten und nicht in Tagen: § 45 UStDV macht aus dem
+// Zeitraum eine Folge ganzer Kalendermonate, und der Monat der erstmaligen
+// Verwendung zählt dabei voll mit.
+func (c *InputTaxCorrection) MonthsInWindow(from, to string) int {
+	periodFrom, err := monthOrdinal(c.AcquisitionDate)
+	if err != nil {
+		return 0
+	}
+	periodTo, err := monthOrdinal(c.PeriodEndDate())
+	if err != nil {
+		return 0
+	}
+	windowFrom, err := monthOrdinal(from)
+	if err != nil {
+		return 0
+	}
+	windowTo, err := monthOrdinal(to)
+	if err != nil {
+		return 0
+	}
+	first := periodFrom
+	if windowFrom > first {
+		first = windowFrom
+	}
+	last := periodTo
+	if windowTo < last {
+		last = windowTo
+	}
+	if last < first {
+		return 0
+	}
+	return int(last - first + 1)
+}
+
+// monthOrdinal nummeriert Kalendermonate fortlaufend, damit sich zwei Monate
+// über Jahresgrenzen hinweg vergleichen und subtrahieren lassen.
+func monthOrdinal(date string) (int64, error) {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return 0, err
+	}
+	return int64(t.Year())*12 + int64(t.Month()) - 1, nil
 }
 
 // Validate prüft, was gelten muss, bevor ein Eintrag gespeichert wird.

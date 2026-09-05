@@ -511,8 +511,10 @@ export const Api = {
 
   // --- Belege ------------------------------------------------------------
 
+  // Der Wails-Dateidialog liefert beim Abbruch null; ohne Normalisierung liefe jeder
+  // Aufrufer in einen TypeError statt in den leeren Fall.
   selectReceiptFiles: (title = 'Belegdateien auswählen'): Promise<string[]> =>
-    call(() => Bridge.SelectReceiptFilesDialog(title)),
+    call(() => Bridge.SelectReceiptFilesDialog(title)).then(list),
   fileIncomingReceipt: (
     files: ReceiptFileInput[],
     receivedAt = '',

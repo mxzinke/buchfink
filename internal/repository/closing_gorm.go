@@ -74,13 +74,23 @@ func (r *accrualRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
 func (r *accrualRepositoryGorm) FindAll(ctx context.Context) ([]domain.Accrual, error) {
 	accruals := make([]domain.Accrual, 0)
 	err := r.preloaded(ctx).Find(&accruals).Error
+	ensureAccrualLists(accruals)
 	return accruals, err
 }
 
 func (r *accrualRepositoryGorm) FindByYear(ctx context.Context, fiscalYear int) ([]domain.Accrual, error) {
 	accruals := make([]domain.Accrual, 0)
 	err := r.preloaded(ctx).Where("fiscal_year = ?", fiscalYear).Find(&accruals).Error
+	ensureAccrualLists(accruals)
 	return accruals, err
+}
+
+// ensureAccrualLists belegt die Auflösungspläne, die das Preload leer gelassen
+// hat. Ein Posten ohne Plan kommt sonst als `null` in der Oberfläche an.
+func ensureAccrualLists(accruals []domain.Accrual) {
+	for i := range accruals {
+		accruals[i].EnsureLists()
+	}
 }
 
 func (r *accrualRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Accrual, error) {
@@ -92,6 +102,7 @@ func (r *accrualRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	if err != nil {
 		return nil, err
 	}
+	accrual.EnsureLists()
 	return &accrual, nil
 }
 
@@ -134,13 +145,23 @@ func (r *provisionRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
 func (r *provisionRepositoryGorm) FindAll(ctx context.Context) ([]domain.Provision, error) {
 	provisions := make([]domain.Provision, 0)
 	err := r.preloaded(ctx).Find(&provisions).Error
+	ensureProvisionLists(provisions)
 	return provisions, err
 }
 
 func (r *provisionRepositoryGorm) FindByYear(ctx context.Context, fiscalYear int) ([]domain.Provision, error) {
 	provisions := make([]domain.Provision, 0)
 	err := r.preloaded(ctx).Where("fiscal_year = ?", fiscalYear).Find(&provisions).Error
+	ensureProvisionLists(provisions)
 	return provisions, err
+}
+
+// ensureProvisionLists belegt die Bewegungslisten, die das Preload leer
+// gelassen hat — eine neu gebildete Rückstellung hat noch keine.
+func ensureProvisionLists(provisions []domain.Provision) {
+	for i := range provisions {
+		provisions[i].EnsureLists()
+	}
 }
 
 func (r *provisionRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Provision, error) {
@@ -152,6 +173,7 @@ func (r *provisionRepositoryGorm) FindByID(ctx context.Context, id uint) (*domai
 	if err != nil {
 		return nil, err
 	}
+	provision.EnsureLists()
 	return &provision, nil
 }
 

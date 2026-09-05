@@ -172,13 +172,16 @@ type DepreciationResult struct {
 	// nach § 7g Abs. 5 EStG zählt ausdrücklich nicht mit: sie entsteht seit dem
 	// BilMoG nur noch als steuerlicher Wert, und eine Summe „gebuchter" Beträge,
 	// die einen ungebuchten enthält, stimmte mit keinem Konto überein.
-	Total   domain.Cents `json:"total"`
-	Skipped []string     `json:"skipped,omitempty"`
+	Total domain.Cents `json:"total"`
+	// Skipped und TaxOnly tragen kein `omitempty`: ein fehlendes Feld wäre in
+	// der Ansicht `undefined` und beim Lesen der Länge derselbe Absturz wie
+	// `null`.
+	Skipped []string `json:"skipped"`
 	// TaxOnly nennt die Anlagegüter, bei denen der Lauf nur einen steuerlichen
 	// Wert festgehalten hat — die Sonderabschreibung des § 7g Abs. 5 EStG, die
 	// seit dem BilMoG nicht mehr gebucht wird. Ohne diese Zeile sähe der Lauf
 	// aus, als hätte er das Anlagegut übergangen.
-	TaxOnly []string `json:"taxOnly,omitempty"`
+	TaxOnly []string `json:"taxOnly"`
 	// TaxOnlyTotal ist die Summe dieser nur steuerlich festgehaltenen Beträge.
 	TaxOnlyTotal domain.Cents `json:"taxOnlyTotal,omitempty"`
 }
@@ -1020,7 +1023,10 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 		selected[id] = true
 	}
 
-	result := &DepreciationResult{}
+	result := &DepreciationResult{
+		Entries: make([]domain.JournalEntry, 0),
+		Skipped: make([]string, 0), TaxOnly: make([]string, 0),
+	}
 	for _, due := range run.Due {
 		if len(selected) > 0 && !selected[due.AssetID] {
 			continue

@@ -63,6 +63,7 @@ func (r *invoiceGroupRepositoryGorm) FindByID(ctx context.Context, id uint) (*do
 		return nil, err
 	}
 	group.Advances = advances
+	group.EnsureLists()
 	group.Progress = group.ComputeProgress()
 	return &group, nil
 }

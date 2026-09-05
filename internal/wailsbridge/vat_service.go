@@ -23,7 +23,7 @@ func (b *BuchfinkBridge) GetVatPeriods(year int) ([]service.VatPeriodStatus, err
 	if b.vatReturnSvc == nil {
 		return []service.VatPeriodStatus{}, nil
 	}
-	return b.vatReturnSvc.Periods(context.Background(), year)
+	return emptyList(b.vatReturnSvc.Periods(context.Background(), year))
 }
 
 // GetVatReturn rechnet das Kennziffernblatt eines Zeitraums neu, ohne es zu
@@ -57,7 +57,7 @@ func (b *BuchfinkBridge) GetVatReturns(year int) ([]domain.VatReturn, error) {
 	if b.vatReturnSvc == nil {
 		return []domain.VatReturn{}, nil
 	}
-	return b.vatReturnSvc.List(context.Background(), year)
+	return emptyList(b.vatReturnSvc.List(context.Background(), year))
 }
 
 // ConfirmVatReturnSubmitted bestätigt die Übermittlung in Mein ELSTER. Der
@@ -125,7 +125,7 @@ func (b *BuchfinkBridge) GetZMPeriods(year int) ([]service.ZMPeriodStatus, error
 	if b.zmSvc == nil {
 		return []service.ZMPeriodStatus{}, nil
 	}
-	return b.zmSvc.Periods(context.Background(), year)
+	return emptyList(b.zmSvc.Periods(context.Background(), year))
 }
 
 // GetZMReturn rechnet die Meldung eines Zeitraums neu, ohne sie zu speichern.
@@ -158,7 +158,7 @@ func (b *BuchfinkBridge) GetZMReturns(year int) ([]domain.ZMReturn, error) {
 	if b.zmSvc == nil {
 		return []domain.ZMReturn{}, nil
 	}
-	return b.zmSvc.List(context.Background(), year)
+	return emptyList(b.zmSvc.List(context.Background(), year))
 }
 
 // ConfirmZMSubmitted bestätigt die Übermittlung an das Bundeszentralamt.

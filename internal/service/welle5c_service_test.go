@@ -54,13 +54,27 @@ func TestInputTaxCorrectionRegisterBooksIntoCode64(t *testing.T) {
 			correction.OriginalPermille)
 	}
 
-	// Im Zugangsjahr wird nicht berichtigt.
+	// Das Zugangsjahr gehört in den Zeitraum — er läuft ab der erstmaligen
+	// Verwendung (§ 15a Abs. 1 UStG). Zu berichtigen ist darin nur, was von der
+	// beim Abzug beabsichtigten Verwendung abweicht; hier nichts.
 	first, err := svc.Year(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Verzeichnis 2026: %v", err)
 	}
-	if first.Rows[0].InPeriod {
-		t.Error("im Jahr der Anschaffung wird der Abzug gewährt und nicht berichtigt")
+	if !first.Rows[0].InPeriod {
+		t.Error("das Jahr der erstmaligen Verwendung gehört in den Berichtigungszeitraum")
+	}
+	if first.Rows[0].Assessment.Required {
+		t.Errorf("ohne geänderte Verwendung ist nichts zu berichtigen: %s",
+			first.Rows[0].Assessment.Reason)
+	}
+	// Zugang am 15.01.2026: der Zeitraum endet am 14.01.2031, und weil das vor
+	// dem 16. liegt, bleibt der Januar 2031 nach § 45 UStDV unberücksichtigt.
+	if correction.PeriodEnd != "2030-12-31" {
+		t.Errorf("Ende des Zeitraums %s — erwartet 2030-12-31", correction.PeriodEnd)
+	}
+	if correction.LastFiscalYear != 2030 {
+		t.Errorf("letztes Berichtigungsjahr %d — erwartet 2030", correction.LastFiscalYear)
 	}
 
 	// Ohne bestätigten Anteil wird nicht gebucht.

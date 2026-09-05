@@ -153,7 +153,7 @@ func (b *BuchfinkBridge) GetFestschreibungen() ([]domain.Festschreibung, error) 
 	if b.festschreibungRepo == nil {
 		return []domain.Festschreibung{}, nil
 	}
-	return b.festschreibungRepo.FindByFiscalYear(context.Background(), b.currentYear)
+	return emptyList(b.festschreibungRepo.FindByFiscalYear(context.Background(), b.currentYear))
 }
 
 // VerifyFestschreibung re-checks a commitment offline: its timestamp token

@@ -106,11 +106,11 @@ func (b *BuchfinkBridge) GetKeyDirectory() ([]KeyDirectoryEntry, error) {
 	defer b.mu.RUnlock()
 	entries := make([]KeyDirectoryEntry, 0)
 	if b.exportSvc == nil {
-		return entries, nil
+		return emptyList(entries, nil)
 	}
 	table, err := b.exportSvc.KeyDirectory()
 	if err != nil {
-		return entries, err
+		return emptyList(entries, err)
 	}
 	for _, row := range table.Rows {
 		if len(row) < 4 {
@@ -120,7 +120,7 @@ func (b *BuchfinkBridge) GetKeyDirectory() ([]KeyDirectoryEntry, error) {
 			Category: row[0], Key: row[1], Label: row[2], Description: row[3],
 		})
 	}
-	return entries, nil
+	return emptyList(entries, nil)
 }
 
 // SelectExportDirectoryDialog öffnet den Ordnerdialog für einen Export.
@@ -259,7 +259,7 @@ func (b *BuchfinkBridge) GetOpenItemsAt(cutoff string) ([]domain.OpenItem, error
 	if items == nil {
 		items = make([]domain.OpenItem, 0)
 	}
-	return items, nil
+	return emptyList(items, nil)
 }
 
 // GetPaymentAllocations liefert die Einzelposten einer Zahlungsbuchung.
@@ -269,7 +269,7 @@ func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAl
 	if b.paymentSvc == nil {
 		return make([]domain.PaymentAllocationDetail, 0), nil
 	}
-	return b.paymentSvc.Allocations(context.Background(), entryID)
+	return emptyList(b.paymentSvc.Allocations(context.Background(), entryID))
 }
 
 // -------------------------------------------------------------

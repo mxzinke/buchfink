@@ -48,7 +48,7 @@ func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
 	if b.checkSvc == nil {
 		return []domain.CheckRun{}, nil
 	}
-	return b.checkSvc.Runs(context.Background(), year)
+	return emptyList(b.checkSvc.Runs(context.Background(), year))
 }
 
 // GetDeadlines liefert alle Termine eines Jahres: Voranmeldungen,
@@ -60,7 +60,7 @@ func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 	if b.deadlineSvc == nil {
 		return []domain.Deadline{}, nil
 	}
-	return b.deadlineSvc.Deadlines(context.Background(), year)
+	return emptyList(b.deadlineSvc.Deadlines(context.Background(), year))
 }
 
 // MarkDeadlineDone hakt einen Termin ab, der sich nicht aus den Daten ergibt —

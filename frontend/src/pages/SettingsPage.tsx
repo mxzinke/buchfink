@@ -776,14 +776,17 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           zuerst unter „Nebenpflichten" sucht. */}
       <Section
         title="Netzdienste und Umrechnungskurse"
-        context="Bundeszentralamt für Steuern, Kursdienst, USt-Durchschnittskurse"
+        context="Auf der Seite „Nebenpflichten“: BZSt, Kursdienst, USt-Durchschnittskurse"
+        action={
+          <HelpPopover label="Erklärung zum Ort dieser Einstellungen">
+            Die Adressen der beiden Netzdienste und die monatlichen
+            Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG stehen bei der Kurshistorie und
+            beim Verlauf der Bestätigungsabfragen: eine geänderte Adresse und ein nachgetragener
+            Kurs sind dort sofort an den Daten zu sehen, die sie betreffen.
+          </HelpPopover>
+        }
       >
         <div className="flex flex-col gap-4 max-w-2xl">
-          <p className="text-body text-ink-muted">
-            Die Adressen der beiden Netzdienste und die monatlichen
-            Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG werden dort gepflegt, wo auch die
-            Kurshistorie und der Verlauf der Bestätigungsabfragen stehen.
-          </p>
           {onNavigate && (
             <div className="flex gap-2">
               <Button

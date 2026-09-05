@@ -1049,6 +1049,23 @@ const BookingForm: React.FC<{
   const findings = preview?.inputTaxFindings ?? [];
   const findingsOpen = findings.length > 0 && overrideReason.trim() === '';
 
+  // Ein deaktivierter Knopf sagt, woran es liegt (Konzept 10.4). Die Reihenfolge
+  // entspricht der Sperrbedingung am Knopf, damit Grund und Sperre nicht
+  // auseinanderlaufen.
+  const postBlockedHint = hasUnreadableAmount
+    ? 'Ein Nettobetrag einer Position ist nicht lesbar.'
+    : unreadableForeignTotal
+      ? 'Die Endsumme in Fremdwährung ist nicht lesbar.'
+      : hasShareProblem
+        ? 'Der Vorsteueranteil einer Position ist unvollständig.'
+        : hasGiftProblem
+          ? 'Einem Geschenk fehlt der Empfänger.'
+          : findingsOpen
+            ? 'Ohne festgehaltenen Grund wird eine Rechnung mit fehlender Pflichtangabe nicht mit Vorsteuer gebucht.'
+            : !preview?.balanced
+              ? 'Solange die Vorschau nicht ausgeglichen ist, wird nicht gebucht.'
+              : writeLock.hint;
+
   const request: ReceiptRequest = useMemo(
     () => ({
       contactId,
@@ -1472,7 +1489,7 @@ const BookingForm: React.FC<{
                             ? 'Ohne den Maßstab nimmt das Backend die Buchung nicht an.'
                             : undefined
                         }
-                        help="§ 15 Abs. 4 Satz 2 UStG lässt die Aufteilung nach einer sachgerechten Schätzung zu. Halte fest, worauf sie beruht — etwa „Kfz zu 60 % betrieblich genutzt, Fahrtenbuch 2026&quot;."
+                        help="§ 15 Abs. 4 Satz 2 UStG lässt die Aufteilung nach einer sachgerechten Schätzung zu. Festzuhalten ist, worauf sie beruht — etwa „Kfz zu 60 % betrieblich genutzt, Fahrtenbuch 2026&quot;."
                       >
                         <Input
                           value={position.inputTaxShareReason}
@@ -1644,8 +1661,8 @@ const BookingForm: React.FC<{
         )}
         {hasGiftProblem && (
           <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>
-            Zu einem Geschenk gehört der Empfänger (§ 4 Abs. 7 EStG). Wähle ihn aus der Kartei
-            oder trage seinen Namen ein.
+            Zu einem Geschenk gehört der Empfänger (§ 4 Abs. 7 EStG). Er kommt aus der Kartei
+            oder als Name.
           </p>
         )}
         <ConversionPanel conversion={preview?.conversion} date={documentDate} />
@@ -1682,11 +1699,7 @@ const BookingForm: React.FC<{
             !preview?.balanced ||
             writeLock.locked
           }
-          title={
-            findingsOpen
-              ? 'Ohne festgehaltenen Grund wird eine Rechnung mit fehlender Pflichtangabe nicht mit Vorsteuer gebucht.'
-              : writeLock.hint
-          }
+          title={postBlockedHint}
         >
           Buchen
         </Button>

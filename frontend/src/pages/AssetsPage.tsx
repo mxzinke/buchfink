@@ -1806,7 +1806,7 @@ const AssetFormDialog: React.FC<{
                   }`
                 : selectedAccount?.usefulLifeSource
             }
-            help="Kommt aus den AfA-Tabellen des BMF. Die binden die Finanzverwaltung, nicht dich — eine begründete abweichende Nutzungsdauer ist zulässig."
+            help="Kommt aus den AfA-Tabellen des BMF. Die binden die Finanzverwaltung, nicht den Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig."
           >
             <Input
               type="number"
@@ -1838,7 +1838,7 @@ const AssetFormDialog: React.FC<{
           label="Begründung der abweichenden Nutzungsdauer"
           className="mt-4"
           hint={`Vorschlag: ${selectedAccount?.defaultUsefulLifeMonths} Monate`}
-          explain={`Der Vorschlag stammt aus dem ${selectedAccount?.usefulLifeSource ?? 'BMF-Schreiben'}. Er ist ein Wahlrecht und keine Vorgabe — die Verwaltungsanweisung bindet die Finanzverwaltung, nicht dich. „Begründet" heißt aber, dass die Begründung existiert: ohne sie ist die Abweichung im Zweifel kein Wahlrecht, sondern ein Tippfehler, und der fällt erst in der Betriebsprüfung auf.`}
+          explain={`Der Vorschlag stammt aus dem ${selectedAccount?.usefulLifeSource ?? 'BMF-Schreiben'}. Er ist ein Wahlrecht und keine Vorgabe — die Verwaltungsanweisung bindet die Finanzverwaltung, nicht den Steuerpflichtigen. „Begründet" heißt aber, dass die Begründung existiert: ohne sie ist die Abweichung im Zweifel kein Wahlrecht, sondern ein Tippfehler, und der fällt erst in der Betriebsprüfung auf.`}
         >
           <Textarea
             rows={2}
@@ -1910,7 +1910,7 @@ const AssetFormDialog: React.FC<{
                 <Field
                   label="Verteilt auf Jahre"
                   hint={`eins bis ${rules?.specialPeriodYears ?? 5}`}
-                  help="Wie der Betrag über den Begünstigungszeitraum verteilt wird, entscheidest du. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
+                  help="Die Verteilung über den Begünstigungszeitraum ist ein Wahlrecht. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
                 >
                   <Input
                     type="number"
@@ -1932,7 +1932,7 @@ const AssetFormDialog: React.FC<{
               <Field
                 label="Voraussetzungen nach § 7g Abs. 6 EStG"
                 hint="Gewinn des Vorjahres höchstens 200.000 €, fast ausschließlich betriebliche Nutzung"
-                help="Zwei Sachverhalte, die Buchfink nicht kennen kann. Halte fest, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
+                help="Zwei Sachverhalte, die Buchfink nicht kennen kann. Festzuhalten ist, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
               >
                 <Textarea
                   rows={2}

@@ -27,7 +27,7 @@ func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, erro
 	if b.assetSvc == nil {
 		return []domain.FixedAsset{}, nil
 	}
-	return b.assetSvc.List(context.Background(), domain.AssetClass(class))
+	return emptyList(b.assetSvc.List(context.Background(), domain.AssetClass(class)))
 }
 
 // GetAssetSummary aggregates the register of one class for the head of the view.
@@ -253,7 +253,7 @@ func (b *BuchfinkBridge) PreviewDepreciationPlan(req service.PlanRequest) ([]acc
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
-	return b.assetSvc.PreviewPlan(context.Background(), req)
+	return emptyList(b.assetSvc.PreviewPlan(context.Background(), req))
 }
 
 // GetDepreciationRun computes the AfA of the active fiscal year without writing
@@ -375,7 +375,7 @@ func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionC
 	if b.assetSvc == nil {
 		return []service.AcquisitionCandidate{}, nil
 	}
-	return b.assetSvc.AcquisitionCandidates(context.Background())
+	return emptyList(b.assetSvc.AcquisitionCandidates(context.Background()))
 }
 
 // GetSammelposten returns the Sammelposten of a fiscal year, or nothing if none
@@ -450,12 +450,14 @@ func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, err
 	if app == nil || app.Dialog == nil {
 		return []string{}, nil
 	}
-	return app.Dialog.OpenFile().
+	// Der Abbruch des Dialogs liefert nil; als `null` in der Oberfläche wäre
+	// daraus ein TypeError beim Lesen der Länge geworden.
+	return emptyList(app.Dialog.OpenFile().
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
 		AddFilter("Dokumente", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml;*.csv;*.txt").
 		SetTitle(title).
-		PromptForMultipleSelection()
+		PromptForMultipleSelection())
 }
 
 // AttachAssetDocument legt eine Datei zum Anlagegut ab — einen Vertrag, ein
@@ -540,7 +542,7 @@ func (b *BuchfinkBridge) GetExpiringAssetDocuments(until string) ([]service.Expi
 	if until == "" {
 		until = fmt.Sprintf("%d-12-31", year)
 	}
-	return svc.ExpiringDocuments(context.Background(), until)
+	return emptyList(svc.ExpiringDocuments(context.Background(), until))
 }
 
 // -------------------------------------------------------------------------
