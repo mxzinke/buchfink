@@ -2,6 +2,8 @@ package accounting
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -20,6 +22,32 @@ var taxAccounts = map[string]bool{
 	domain.AccountUmsatzsteuer: true, domain.AccountUmsatzsteuer7: true, domain.AccountUmsatzsteuer19: true,
 	domain.AccountUmsatzsteuerIG: true, domain.AccountUmsatzsteuerIG19: true,
 	domain.AccountUmsatzsteuer13b: true, domain.AccountUmsatzsteuer13b19: true,
+	domain.AccountUmsatzsteuer14c: true,
+}
+
+// TaxKeyUnlawful ist der Steuerschlüssel der nach § 14c UStG geschuldeten
+// Beträge.
+//
+// Er entsteht nicht aus einem Steuerfall, sondern aus einem Fehler: einer
+// Rechnung, die Steuer ausweist, obwohl keine entstanden ist. Buchfink stellt
+// eine solche Rechnung nicht aus (siehe Invoice.Validate), aber der Betrag wird
+// trotzdem geschuldet, wenn die Rechnung außerhalb von Buchfink entstanden ist.
+// Für diesen Fall gibt es den Schlüssel und den Weg über eine Handbuchung auf
+// das Konto 3851 — nicht als Automatik, weil es nichts zu automatisieren gibt.
+const TaxKeyUnlawful = "UST14C"
+
+// IsDomesticOutputTaxKey meldet, ob ein Steuerschlüssel die Umsatzsteuer eines
+// steuerpflichtigen Inlandsumsatzes trägt (UST19, UST7).
+//
+// Der Schlüssel des § 14c gehört ausdrücklich nicht dazu: er benennt gerade den
+// Betrag, der ohne Steuerpflicht ausgewiesen wurde, und ist der einzige Weg,
+// eine solche Steuer überhaupt zu buchen.
+func IsDomesticOutputTaxKey(key string) bool {
+	if key == TaxKeyUnlawful || !strings.HasPrefix(key, "UST") {
+		return false
+	}
+	_, err := strconv.Atoi(strings.TrimPrefix(key, "UST"))
+	return err == nil
 }
 
 // SKR04TaxResolver derives the tax lines of a booking from its Steuerfall.

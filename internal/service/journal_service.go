@@ -108,6 +108,9 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	if err := s.validateAccounts(ctx, entry); err != nil {
 		return nil, err
 	}
+	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
+		return nil, err
+	}
 	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
 	// ist immer auch festgeschrieben, und von den beiden Meldungen ist die über
 	// die Feststellung die weiterführende — sie nennt die Rücksetzung, während
@@ -162,6 +165,9 @@ func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.Jou
 		}
 	}
 	if err := s.validateAccounts(ctx, &probe); err != nil {
+		return err
+	}
+	if err := s.ensureLawfulTaxDisclosure(&probe); err != nil {
 		return err
 	}
 	if err := s.ensureYearNotAdopted(ctx, &probe); err != nil {
@@ -385,6 +391,76 @@ func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
 // validateAccounts rejects bookings that reference accounts which cannot carry
 // them. Without this check the journal accepts numbers that exist nowhere in the
 // chart of accounts, and the resulting balances silently omit them.
+// ensureLawfulTaxDisclosure hält § 14c UStG auch auf dem Handbuchungsweg.
+//
+// Der Rechnungsdienst weist eine Rechnung zurück, die zu einem Steuerfall ohne
+// Steuerpflicht Umsatzsteuer ausweist. Ohne dieselbe Regel hier bliebe die
+// Handbuchung offen: eine innergemeinschaftliche Lieferung mit einer UST19-Zeile
+// stünde in Kennziffer 41 *und* in 81, und in der Zusammenfassenden Meldung
+// stünde ein steuerfreier Umsatz, den die Voranmeldung als steuerpflichtig
+// führt. Wer die Steuer tatsächlich schuldet, weil die Rechnung außerhalb von
+// Buchfink entstanden ist, bucht sie mit dem Schlüssel UST14C in Kennziffer 69.
+//
+// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf die
+// Rücknahme vorhandener nicht verhindern.
+//
+// Fehlt der Steuerfall an der Buchung, entscheiden die Erlöskonten. Eine
+// Handbuchung trägt ihn nicht zwingend — sie kommt ohne Buchungsgruppe zustande
+// —, und ohne diese Ableitung stünde genau der Fall offen, den die Regel
+// verhindern soll: Konto 4125 und eine UST19-Zeile in einer Buchung, gemeldet in
+// Kennziffer 41 *und* in 81.
+func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error {
+	if e.Kind == domain.EntryKindReversal {
+		return nil
+	}
+	treatment := e.TaxTreatment
+	derived := false
+	if treatment == "" {
+		treatment = revenueTreatmentOf(e)
+		derived = treatment != ""
+	}
+	if treatment == "" || treatment.MayShowTax() {
+		return nil
+	}
+	for i, l := range e.Lines {
+		if !accounting.IsDomesticOutputTaxKey(l.TaxKey) {
+			continue
+		}
+		source := fmt.Sprintf("der Steuerfall %q", treatment)
+		if derived {
+			source = fmt.Sprintf("das Erlöskonto der Buchung führt den Steuerfall %q und", treatment)
+		}
+		return fmt.Errorf(
+			"Zeile %d weist %s € Umsatzsteuer aus, %s lässt aber keine entstehen. "+
+				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – buche ihn mit dem "+
+				"Steuerschlüssel %s (Kennziffer 69) oder wähle den steuerpflichtigen Inlandsumsatz",
+			i+1, l.Amount, source, accounting.TaxKeyUnlawful)
+	}
+	return nil
+}
+
+// revenueTreatmentOf leitet den Steuerfall einer Buchung aus ihren Erlöskonten
+// ab.
+//
+// Abgeleitet wird nur, wenn *jede* Erlöszeile der Buchung einen Steuerfall ohne
+// Steuerpflicht trägt. Eine Buchung, die daneben einen steuerpflichtigen
+// Inlandsumsatz enthält, darf Umsatzsteuer ausweisen — sie gehört dann zu diesem
+// Erlös, und ein Verbot träfe die richtige Buchung.
+func revenueTreatmentOf(e *domain.JournalEntry) domain.TaxTreatment {
+	treatments := accounting.RevenueTreatments()
+	taxable := accounting.TaxableRevenueAccounts()
+	found := domain.TaxTreatment("")
+	for _, l := range e.Lines {
+		if taxable[l.Account] {
+			return ""
+		}
+		if t, ok := treatments[l.Account]; ok && t != "" && !t.MayShowTax() && found == "" {
+			found = t
+		}
+	}
+	return found
+}
+
 func (s *JournalService) validateAccounts(ctx context.Context, e *domain.JournalEntry) error {
 	chart, err := s.Chart(ctx)
 	if err != nil {

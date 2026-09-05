@@ -19,6 +19,7 @@ import type {
   BankTransaction,
   CarryForwardPreview,
   Cents,
+  CheckRun,
   ClosingState,
   CompanySettings,
   Contact,
@@ -64,6 +65,7 @@ import type {
   SKR04Catalog,
   Settlement,
   SizeClass,
+  SpecialPrepaymentSuggestion,
   StatementDepth,
   SuSaOverview,
   TaxRate,
@@ -72,8 +74,12 @@ import type {
   TenantConfig,
   Units,
   ValidationResult,
+  VatPeriodStatus,
+  VatReturn,
   VatSummary,
   Vorabpauschale,
+  ZMPeriodStatus,
+  ZMReturn,
 } from '../types';
 
 /**
@@ -108,6 +114,44 @@ function isWailsRuntime(): boolean {
 async function call<T>(fn: () => Promise<T>): Promise<T> {
   if (!isWailsRuntime()) throw new BackendUnavailableError();
   return fn();
+}
+
+/**
+ * Go serialisiert eine Liste, die nie befüllt wurde, als `null`. Die Oberfläche
+ * rechnet dagegen überall mit einer Liste, und `null.length` reißt beim Rendern
+ * die ganze Ansicht mit — ausgerechnet im Regelfall: kein Nachtrag, kein Befund,
+ * keine Zeile. Was der Typ als Liste ankündigt, kommt deshalb an dieser Grenze
+ * als Liste an, statt in jeder Ansicht einzeln abgefangen zu werden.
+ */
+function list<T>(value: T[] | null | undefined): T[] {
+  return value ?? [];
+}
+
+/** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */
+function normalizeVatReturn(r: VatReturn): VatReturn {
+  if (!r) return r;
+  return {
+    ...r,
+    figures: list(r.figures).map((line) => ({ ...line, entryIds: list(line.entryIds) })),
+    lateEntries: list(r.lateEntries),
+  };
+}
+
+/** Dasselbe für die Zusammenfassende Meldung: Zeilen, Befunde, Nachträge. */
+function normalizeZMReturn(r: ZMReturn): ZMReturn {
+  if (!r) return r;
+  return {
+    ...r,
+    lines: list(r.lines),
+    findings: list(r.findings),
+    lateEntries: list(r.lateEntries),
+  };
+}
+
+/** Ein Prüflauf ohne Befund ist der gute Fall — und der mit der leeren Liste. */
+function normalizeCheckRun(run: CheckRun): CheckRun {
+  if (!run) return run;
+  return { ...run, findings: list(run.findings) };
 }
 
 const catalog = skr04CatalogData as unknown as SKR04Catalog;
@@ -181,9 +225,9 @@ export const Api = {
   // --- Journal -----------------------------------------------------------
 
   getJournalEntries: (): Promise<JournalEntry[]> =>
-    call(() => Bridge.GetJournalEntries() as Promise<JournalEntry[]>),
+    call(() => Bridge.GetJournalEntries() as Promise<JournalEntry[]>).then(list),
   getAllJournalEntries: (): Promise<JournalEntry[]> =>
-    call(() => Bridge.GetAllJournalEntries() as Promise<JournalEntry[]>),
+    call(() => Bridge.GetAllJournalEntries() as Promise<JournalEntry[]>).then(list),
   postJournalEntry: (entry: Partial<JournalEntry>): Promise<JournalEntry> =>
     call(() => Bridge.PostJournalEntry(entry as any) as Promise<JournalEntry>),
   postIncomingReceipt: (request: ReceiptRequest): Promise<JournalEntry> =>
@@ -209,7 +253,7 @@ export const Api = {
   removeReceiptFile: (receiptId: number, fileId: number): Promise<Receipt> =>
     call(() => Bridge.RemoveReceiptFile(receiptId, fileId) as Promise<Receipt>),
   getReceipts: (status: ReceiptStatus | '' = ''): Promise<Receipt[]> =>
-    call(() => Bridge.GetReceipts(status) as Promise<Receipt[]>),
+    call(() => Bridge.GetReceipts(status) as Promise<Receipt[]>).then(list),
   getReceipt: (id: number): Promise<Receipt> => call(() => Bridge.GetReceipt(id) as Promise<Receipt>),
   discardReceipt: (id: number, reason: string): Promise<void> =>
     call(() => Bridge.DiscardReceipt(id, reason)),
@@ -244,7 +288,7 @@ export const Api = {
   // --- Bank & Zahlungen --------------------------------------------------
 
   getBankTransactions: (): Promise<BankTransaction[]> =>
-    call(() => Bridge.GetBankTransactions() as Promise<BankTransaction[]>),
+    call(() => Bridge.GetBankTransactions() as Promise<BankTransaction[]>).then(list),
   importCAMT: (xmlContent: string, ledgerAccount: string): Promise<number> =>
     call(() => Bridge.ImportCAMT053XML(xmlContent, ledgerAccount) as Promise<number>),
   bookBankTransactionDirect: (
@@ -488,7 +532,7 @@ export const Api = {
     call(() => Bridge.GetSizeClass(year) as Promise<SizeClass>),
   /** Aufstellung und Offenlegung mit Datum und Norm (§ 264 Abs. 1, § 325 HGB). */
   getStatementDeadlines: (year: number): Promise<Deadline[]> =>
-    call(() => Bridge.GetStatementDeadlines(year) as Promise<Deadline[]>),
+    call(() => Bridge.GetStatementDeadlines(year) as Promise<Deadline[]>).then(list),
   /** Bilanz und GuV als PDF, Base64 wie der Rechnungsexport. */
   exportStatementPDF: (year: number): Promise<string> =>
     call(() => Bridge.ExportStatementPDF(year) as Promise<string>),
@@ -510,9 +554,27 @@ export const Api = {
     call(() => Bridge.GetEBilanzMappingReport(year) as Promise<MappingReport>),
   getAuditLogs: (): Promise<AuditLogEntry[]> => call(() => Bridge.GetAuditLogs() as Promise<AuditLogEntry[]>),
   getFestschreibungen: (): Promise<Festschreibung[]> =>
-    call(() => Bridge.GetFestschreibungen() as Promise<Festschreibung[]>),
-  commitPeriod: (periodType: string, periodLabel: string, cutoffDate: string): Promise<Festschreibung> =>
-    call(() => Bridge.CommitPeriod(periodType, periodLabel, cutoffDate) as Promise<Festschreibung>),
+    call(() => Bridge.GetFestschreibungen() as Promise<Festschreibung[]>).then(list),
+  /**
+   * Schreibt einen Zeitraum fest. Der Prüflauf läuft im Backend davor; ein
+   * blockierender Befund lässt sich nur mit Begründung übergehen, und die
+   * Begründung steht danach am Prüflauf und im Protokoll.
+   */
+  commitPeriod: (
+    periodType: string,
+    periodLabel: string,
+    cutoffDate: string,
+    overrideReason = '',
+  ): Promise<Festschreibung> =>
+    call(
+      () =>
+        Bridge.CommitPeriod(
+          periodType,
+          periodLabel,
+          cutoffDate,
+          overrideReason,
+        ) as Promise<Festschreibung>,
+    ),
   verifyFestschreibung: (id: number): Promise<FestschreibungVerification> =>
     call(() => Bridge.VerifyFestschreibung(id) as Promise<FestschreibungVerification>),
 
@@ -543,6 +605,96 @@ export const Api = {
   /** Nimmt die Feststellung zurück; der Grund ist Pflicht und wird protokolliert. */
   reopenFiscalYear: (year: number, reason: string): Promise<FiscalYear> =>
     call(() => Bridge.ReopenFiscalYear(year, reason) as Promise<FiscalYear>),
+
+  // --- Umsatzsteuer-Voranmeldung ----------------------------------------
+
+  /** Die Zeiträume eines Jahres mit Fälligkeit, Festschreibung und Stand. */
+  getVatPeriods: (year: number): Promise<VatPeriodStatus[]> =>
+    call(() => Bridge.GetVatPeriods(year) as Promise<VatPeriodStatus[]>).then(list),
+  /**
+   * Das Kennziffernblatt eines Zeitraums, neu gerechnet und nicht gespeichert.
+   * Der Entwurf ist immer der heutige Stand des Journals.
+   */
+  getVatReturn: (periodKey: string): Promise<VatReturn> =>
+    call(() => Bridge.GetVatReturn(periodKey) as Promise<VatReturn>).then(normalizeVatReturn),
+  saveVatReturn: (periodKey: string): Promise<VatReturn> =>
+    call(() => Bridge.SaveVatReturn(periodKey) as Promise<VatReturn>).then(normalizeVatReturn),
+  getVatReturns: (year: number): Promise<VatReturn[]> =>
+    call(() => Bridge.GetVatReturns(year) as Promise<VatReturn[]>).then((returns) =>
+      list(returns).map(normalizeVatReturn),
+    ),
+  /**
+   * Bestätigt die Übermittlung in Mein ELSTER. Der Zeitraum muss
+   * festgeschrieben sein, und ohne Transferticket gibt es keine Bestätigung.
+   */
+  confirmVatReturnSubmitted: (
+    id: number,
+    date: string,
+    ticket: string,
+    note = '',
+  ): Promise<VatReturn> =>
+    call(() => Bridge.ConfirmVatReturnSubmitted(id, date, ticket, note) as Promise<VatReturn>).then(
+      normalizeVatReturn,
+    ),
+  /** Legt eine berichtigte Voranmeldung an (Kennziffer 10 des Vordrucks). */
+  createVatCorrection: (periodKey: string): Promise<VatReturn> =>
+    call(() => Bridge.CreateVatCorrection(periodKey) as Promise<VatReturn>).then(normalizeVatReturn),
+  /** Das Kennziffernblatt als Text zum Abtippen in Mein ELSTER. */
+  exportVatReturnCSV: (id: number): Promise<string> =>
+    call(() => Bridge.ExportVatReturnCSV(id)),
+  /** Ein Elftel der Vorauszahlungen des Vorjahres — ein Vorschlag, kein Wert. */
+  getSpecialPrepaymentSuggestion: (year: number): Promise<SpecialPrepaymentSuggestion> =>
+    call(() =>
+      Bridge.GetSpecialPrepaymentSuggestion(year) as Promise<SpecialPrepaymentSuggestion>,
+    ).then((s) => (s ? { ...s, periods: list(s.periods) } : s)),
+
+  // --- Zusammenfassende Meldung -----------------------------------------
+
+  /** Die Meldezeiträume folgen den Umsätzen, nicht einer Einstellung. */
+  getZMPeriods: (year: number): Promise<ZMPeriodStatus[]> =>
+    call(() => Bridge.GetZMPeriods(year) as Promise<ZMPeriodStatus[]>).then(list),
+  getZMReturn: (periodKey: string): Promise<ZMReturn> =>
+    call(() => Bridge.GetZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
+  saveZMReturn: (periodKey: string): Promise<ZMReturn> =>
+    call(() => Bridge.SaveZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
+  getZMReturns: (year: number): Promise<ZMReturn[]> =>
+    call(() => Bridge.GetZMReturns(year) as Promise<ZMReturn[]>).then((returns) =>
+      list(returns).map(normalizeZMReturn),
+    ),
+  confirmZMSubmitted: (id: number, date: string, ticket: string, note = ''): Promise<ZMReturn> =>
+    call(() => Bridge.ConfirmZMSubmitted(id, date, ticket, note) as Promise<ZMReturn>).then(
+      normalizeZMReturn,
+    ),
+  createZMCorrection: (periodKey: string): Promise<ZMReturn> =>
+    call(() => Bridge.CreateZMCorrection(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
+  /** Die Meldedatei im Spaltenformat des BZSt-Online-Portals. */
+  exportZMCSV: (id: number): Promise<string> => call(() => Bridge.ExportZMCSV(id)),
+
+  // --- Prüfläufe und Fristen --------------------------------------------
+
+  /**
+   * Der Prüfbericht bis zu einem Stichtag als Vorschau — er wird nicht
+   * gespeichert. Abgelegt wird der Lauf, den die Festschreibung selbst
+   * ausführt; sonst stünden je Festschreibung zwei Läufe im Protokoll. Der
+   * Zeitraumtyp schaltet die Regeln zu, die vor der Jahresfestschreibung gelten.
+   */
+  runChecks: (cutoffDate: string, periodType = ''): Promise<CheckRun> =>
+    call(() => Bridge.RunChecks(cutoffDate, periodType) as Promise<CheckRun>).then(
+      normalizeCheckRun,
+    ),
+  getCheckRuns: (year: number): Promise<CheckRun[]> =>
+    call(() => Bridge.GetCheckRuns(year) as Promise<CheckRun[]>).then((runs) =>
+      list(runs).map(normalizeCheckRun),
+    ),
+  /**
+   * Alle Termine eines Jahres. „Erledigt" ergibt sich aus den Daten — der
+   * übermittelten Voranmeldung, der Festschreibung —, nicht aus einem Haken.
+   */
+  getDeadlines: (year: number): Promise<Deadline[]> =>
+    call(() => Bridge.GetDeadlines(year) as Promise<Deadline[]>).then(list),
+  /** Der Haken für das, was Buchfink nicht sieht. Leeres Datum nimmt ihn zurück. */
+  markDeadlineDone: (key: string, date: string): Promise<void> =>
+    call(() => Bridge.MarkDeadlineDone(key, date)),
 
   // --- Gründung ---------------------------------------------------------
 

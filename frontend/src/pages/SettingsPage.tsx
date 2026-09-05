@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Shield } from 'lucide-react';
-import { CompanySettings, AppConfig, InvestorType, LegalFormInfo } from '../types';
+import {
+  CompanySettings,
+  AppConfig,
+  InvestorType,
+  LegalFormInfo,
+  SpecialPrepaymentSuggestion,
+} from '../types';
 import { Api } from '../services/api';
+import { formatCents, formatCentsPlain, parseCents } from '../utils/formatters';
 import {
   Button,
+  Checkbox,
   Field,
   HelpPopover,
   Input,
@@ -96,6 +104,16 @@ export const SettingsPage: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
   const [showInvestorChoice, setShowInvestorChoice] = useState(false);
+  // Die Sondervorauszahlung wird als Text erfasst und erst beim Verlassen des
+  // Feldes in Cent umgerechnet (§8.3).
+  const [prepaymentText, setPrepaymentText] = useState('');
+  // Die Erfassungsfrist ebenso: ein leeres Zahlenfeld ist kein Wert, und die 0
+  // wäre hier keine Antwort, sondern eine Lücke.
+  const [captureDaysText, setCaptureDaysText] = useState('10');
+  // Die Nachfrist zur Festschreibung ebenso; hier ist die 0 allerdings eine
+  // Antwort: keine Nachfrist über das Ende des Folgemonats hinaus.
+  const [graceDaysText, setGraceDaysText] = useState('0');
+  const [suggestion, setSuggestion] = useState<SpecialPrepaymentSuggestion | null>(null);
 
   useEffect(() => {
     void loadSettings();
@@ -112,6 +130,16 @@ export const SettingsPage: React.FC = () => {
       setSettings(s);
       setAppConfig(cfg);
       setLegalForms(forms ?? []);
+      setPrepaymentText(s.specialPrepayment ? formatCentsPlain(s.specialPrepayment) : '');
+      setCaptureDaysText(String(s.receiptCaptureDays > 0 ? s.receiptCaptureDays : 10));
+      setGraceDaysText(String(s.commitGraceDays > 0 ? s.commitGraceDays : 0));
+      try {
+        // Der Vorschlag ist eine Nebenauskunft: fehlt er, bleiben die
+        // Einstellungen benutzbar.
+        setSuggestion(await Api.getSpecialPrepaymentSuggestion(s.fiscalYear || 0));
+      } catch {
+        setSuggestion(null);
+      }
       // Wer die Anlegerstellung schon einmal abweichend festgelegt hat, soll
       // sie auch wiederfinden.
       if (s.investorOverride) setShowInvestorChoice(true);
@@ -398,6 +426,117 @@ export const SettingsPage: React.FC = () => {
             help="Buchfink rechnet nach § 16 Abs. 1 Satz 1 UStG. Bei Istversteuerung entstünde die Steuer erst mit der Vereinnahmung, die Buchungen sähen anders aus — der Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln."
           >
             <Select items={[{ value: 'SOLL', label: 'Sollversteuerung' }]} value="SOLL" disabled />
+          </Field>
+        </div>
+
+        <Checkbox
+          className="mt-4"
+          checked={settings.permanentExtension}
+          onCheckedChange={(next) => patch({ permanentExtension: Boolean(next) })}
+          label={
+            <span className="flex items-center">
+              Dauerfristverlängerung
+              <HelpPopover label="Erklärung zur Dauerfristverlängerung">
+                Mit der Dauerfristverlängerung wird jede Voranmeldung einen Monat später fällig
+                (§§ 46 bis 48 UStDV). Wer monatlich anmeldet, hat dafür bis zum 10. Februar eine
+                Sondervorauszahlung von einem Elftel der Vorauszahlungen des Vorjahres anzumelden
+                und zu zahlen; angerechnet wird sie in der letzten Voranmeldung des Jahres.
+              </HelpPopover>
+            </span>
+          }
+          hint="verschiebt jede Fälligkeit um einen Monat"
+        />
+
+        {settings.permanentExtension && (
+          <Field
+            label="Angemeldete Sondervorauszahlung"
+            className="mt-4 max-w-sm"
+            hint={
+              suggestion && suggestion.amount > 0
+                ? `Vorschlag aus ${suggestion.basedOnYear}: ${formatCents(suggestion.amount)}`
+                : 'ein Elftel der Vorauszahlungen des Vorjahres'
+            }
+            explain={suggestion?.note}
+          >
+            <div className="flex gap-2">
+              <Input
+                align="right"
+                value={prepaymentText}
+                onChange={(e) => setPrepaymentText(e.target.value)}
+                onBlur={() => {
+                  const cents = parseCents(prepaymentText);
+                  patch({ specialPrepayment: cents ?? 0 });
+                  setPrepaymentText(cents ? formatCentsPlain(cents) : '');
+                }}
+                placeholder="0,00"
+              />
+              {suggestion && suggestion.amount > 0 && (
+                <Button
+                  variant="secondary"
+                  className="shrink-0"
+                  onClick={() => {
+                    patch({ specialPrepayment: suggestion.amount });
+                    setPrepaymentText(formatCentsPlain(suggestion.amount));
+                  }}
+                >
+                  Vorschlag übernehmen
+                </Button>
+              )}
+            </div>
+          </Field>
+        )}
+      </Section>
+
+      <Section
+        title="Prüfläufe"
+        action={
+          <HelpPopover label="Erklärung zu den Schwellenwerten">
+            Der Prüflauf vor der Festschreibung meldet abgelegte, aber nicht gebuchte Belege. Die
+            GoBD nennt in Rz. 47 zehn Tage für die Erfassung unbarer Geschäftsvorfälle; wer anders
+            arbeitet, setzt hier seinen eigenen Wert. Die Nachfrist zur Festschreibung entscheidet
+            daneben, ab wann ein nicht festgeschriebener Monat als überfällig gilt — in der
+            Fristenliste wie im Prüfbericht.
+          </HelpPopover>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Belege spätestens erfassen nach" hint="Tage nach Eingang · GoBD Rz. 47">
+            {/* Der Wert wird als Text geführt und erst beim Verlassen des Feldes
+                normalisiert (§8.3). Vorher zeigte das Feld die Voreinstellung
+                an, während im Zustand die 0 stand — angezeigter und
+                gespeicherter Wert stimmten nur zufällig überein. */}
+            <Input
+              type="number"
+              min={1}
+              align="right"
+              value={captureDaysText}
+              onChange={(e) => setCaptureDaysText(e.target.value)}
+              onBlur={() => {
+                const days = Number(captureDaysText);
+                const value = Number.isFinite(days) && days > 0 ? Math.trunc(days) : 10;
+                patch({ receiptCaptureDays: value });
+                setCaptureDaysText(String(value));
+              }}
+            />
+          </Field>
+          <Field label="Nachfrist Festschreibung" hint="Tage nach dem Folgemonat">
+            {/* Wie die Erfassungsfrist daneben: als Text geführt und erst beim
+                Verlassen des Feldes normalisiert (§8.3). Bei jedem Tastendruck
+                zu speichern machte aus einer gelöschten Ziffer eine 0 — ein
+                Wert, den niemand eingegeben hat. */}
+            <Input
+              type="number"
+              min={0}
+              align="right"
+              value={graceDaysText}
+              onChange={(e) => setGraceDaysText(e.target.value)}
+              onBlur={() => {
+                const days = Number(graceDaysText);
+                const value = Number.isFinite(days) && days > 0 ? Math.trunc(days) : 0;
+                patch({ commitGraceDays: value });
+                setGraceDaysText(String(value));
+              }}
+            />
           </Field>
         </div>
       </Section>

@@ -60,6 +60,19 @@ const (
 	AccountUmsatzsteuer13b   = "3835" // Umsatzsteuer nach § 13b UStG
 	AccountUmsatzsteuer13b19 = "3837" // Umsatzsteuer nach § 13b UStG 19 %
 
+	// AccountUmsatzsteuer14c nimmt die Beträge auf, die nach § 14c UStG
+	// geschuldet werden, obwohl kein steuerpflichtiger Umsatz dahintersteht.
+	//
+	// Der SKR04 führt das Konto ausdrücklich als „In Rechnung unrichtig oder
+	// unberechtigt ausgewiesene Steuerbeträge, UStVA Kz. 69" — die Kennziffer
+	// steht im Kontennamen, und genau dorthin geht der Betrag.
+	AccountUmsatzsteuer14c = "3851"
+	// AccountSondervorauszahlung ist die Sondervorauszahlung von 1/11 der
+	// Vorauszahlungen des Vorjahres, die die Dauerfristverlängerung voraussetzt
+	// (§ 47 Abs. 1 UStDV). Der SKR04 nennt das Konto „Umsatzsteuer-
+	// Vorauszahlungen 1/11"; 3820 ist die laufende Vorauszahlung und nicht sie.
+	AccountSondervorauszahlung = "3830"
+
 	// Zahlungsdifferenzen
 	AccountErhalteneSkonti19 = "5736" // Erhaltene Skonti 19 % Vorsteuer
 	AccountGewaehrteSkonti19 = "4736" // Gewährte Skonti 19 % USt

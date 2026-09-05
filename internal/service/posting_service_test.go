@@ -257,7 +257,10 @@ func TestOutgoingIntraCommunitySupply(t *testing.T) {
 		ServiceDateTo:   "2026-03-15",
 		TaxTreatment:    domain.TaxTreatmentIntraCommunitySupply,
 		Items: []domain.InvoiceItem{
-			{Description: "Warenlieferung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateStandard},
+			// Ohne Steuersatz: eine innergemeinschaftliche Lieferung weist keine
+			// Steuer aus, und ein Satz an der Position wäre ein Ausweis nach
+			// § 14c UStG (siehe TestIssueRefusesUnlawfulTax).
+			{Description: "Warenlieferung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateNone},
 		},
 	}
 
@@ -286,7 +289,7 @@ func TestTaxTreatmentIsValidatedAgainstMasterData(t *testing.T) {
 		ContactID: withoutVatID.ID, Date: "2026-03-15",
 		ServiceDateFrom: "2026-03-15", ServiceDateTo: "2026-03-15",
 		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
-		Items:        []domain.InvoiceItem{{Description: "Ware", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateStandard}},
+		Items:        []domain.InvoiceItem{{Description: "Ware", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateNone}},
 	}
 	err := env.invoices(t).Issue(ctx, inv)
 	if err == nil {

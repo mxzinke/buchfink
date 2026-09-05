@@ -341,12 +341,18 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 	}
 
 	entry := &domain.JournalEntry{
-		FiscalYear:         inv.FiscalYear,
-		BookingDate:        inv.Date,
-		DocumentDate:       inv.Date,
-		ServiceDateFrom:    inv.ServiceDateFrom,
-		ServiceDateTo:      inv.ServiceDateTo,
-		Description:        fmt.Sprintf("Rechnung %s an %s", inv.InvoiceNumber, contact.Name),
+		FiscalYear:      inv.FiscalYear,
+		BookingDate:     inv.Date,
+		DocumentDate:    inv.Date,
+		ServiceDateFrom: inv.ServiceDateFrom,
+		ServiceDateTo:   inv.ServiceDateTo,
+		Description:     fmt.Sprintf("Rechnung %s an %s", inv.InvoiceNumber, contact.Name),
+		// Der Ausgangsbeleg entsteht vor der Buchung (siehe InvoiceService.Issue)
+		// und wird hier an ihr vermerkt. Die Gegenrichtung — der Beleg zeigt nach
+		// dem Versiegeln auf die Buchung — genügt nicht: der Prüflauf fragt die
+		// Buchung, ob sie einen Beleg hat, und ohne diese Zeile hätte jede
+		// Ausgangsrechnung keinen.
+		ReceiptID:          inv.ReceiptID,
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,
 		TaxTreatment:       inv.TaxTreatment,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Clock, Lock, ShieldCheck } from 'lucide-react';
-import { AuditLogEntry, Festschreibung, IntegrityCheckResult } from '../types';
+import { AlertCircle, ChevronDown, ChevronRight, Clock, Lock, ShieldCheck } from 'lucide-react';
+import { AuditLogEntry, CheckRun, Festschreibung, IntegrityCheckResult } from '../types';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import {
@@ -32,6 +32,11 @@ export const AuditPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [commitments, setCommitments] = useState<Festschreibung[]>([]);
+  // Die Prüfläufe gehören hierher und nicht in die Fristenansicht: dort werden
+  // sie ausgelöst, hier bleiben sie nachlesbar — samt der Begründung, mit der
+  // ein blockierender Befund übergangen wurde (GoBD Rz. 34 ff.).
+  const [checkRuns, setCheckRuns] = useState<CheckRun[]>([]);
+  const [expandedRun, setExpandedRun] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
@@ -43,14 +48,17 @@ export const AuditPage: React.FC = () => {
   async function loadData() {
     setLoading(true);
     try {
-      const [logList, result, festschreibungen] = await Promise.all([
+      const [logList, result, festschreibungen, runs] = await Promise.all([
         Api.getAuditLogs(),
         Api.verifyIntegrity(),
         Api.getFestschreibungen(),
+        // Jahr 0 heißt: das aktive Geschäftsjahr.
+        Api.getCheckRuns(0),
       ]);
       setLogs(logList);
       setIntegrity(result);
       setCommitments(festschreibungen);
+      setCheckRuns(runs);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -203,6 +211,105 @@ export const AuditPage: React.FC = () => {
                           </Button>
                         </Td>
                       </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            )}
+          </Section>
+
+          <Section
+            title="Prüfläufe"
+            context="Der Bericht, der vor jeder Festschreibung läuft"
+            action={
+              <HelpPopover label="Erklärung zu den Prüfläufen">
+                Der Prüflauf sagt vor der Festschreibung, was danach nicht mehr zu ändern wäre:
+                Buchungen ohne Beleg, nicht zugeordnete Bankumsätze, Salden auf den Interimskonten.
+                Blockierende Befunde verhindern die Festschreibung; übergangen werden sie nur mit
+                einer Begründung, und die steht dann hier.
+              </HelpPopover>
+            }
+          >
+            {checkRuns.length === 0 ? (
+              <EmptyState
+                title="Noch kein Prüflauf"
+                description="Ein Lauf entsteht mit der Festschreibung eines Zeitraums unter Steuerfristen."
+              />
+            ) : (
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th className="w-44">Zeitpunkt</Th>
+                    <Th className="w-32">Stichtag</Th>
+                    <Th numeric className="w-56">Geprüft</Th>
+                    <Th className="w-44">Befunde</Th>
+                    <Th>Übergangen mit Begründung</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {checkRuns.map((run) => {
+                    const blocking = run.findings.filter((f) => f.severity === 'blocking');
+                    const warnings = run.findings.filter((f) => f.severity === 'warning');
+                    const open = expandedRun === run.id;
+                    return (
+                      <React.Fragment key={run.id}>
+                        <Tr>
+                          <Td className="text-ink-subtle num">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedRun(open ? null : run.id)}
+                              aria-expanded={open}
+                              disabled={run.findings.length === 0}
+                              className="inline-flex items-center gap-1 text-ink-muted
+                                         hover:text-ink transition-colors duration-120 ease-quiet
+                                         disabled:text-ink-faint"
+                            >
+                              {open ? (
+                                <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              )}
+                              {formatMoment(run.createdAt)}
+                            </button>
+                          </Td>
+                          <Td className="text-ink-subtle num">{formatDate(run.cutoffDate)}</Td>
+                          <Td numeric className="text-ink-muted">
+                            {run.checkedEntries} · {run.checkedReceipts} · {run.checkedBankTx}
+                          </Td>
+                          <Td
+                            className={cn(
+                              'text-caption',
+                              blocking.length > 0 ? 'text-negative-text' : 'text-ink-muted',
+                            )}
+                          >
+                            {blocking.length} blockierend · {warnings.length} Hinweise
+                          </Td>
+                          <Td className="whitespace-normal text-ink-muted">
+                            {run.overrideReason || '—'}
+                          </Td>
+                        </Tr>
+                        {open &&
+                          run.findings.map((finding) => (
+                            <Tr key={finding.id}>
+                              <Td />
+                              <Td
+                                className={
+                                  finding.severity === 'blocking'
+                                    ? 'text-negative-text'
+                                    : 'text-attention-text'
+                                }
+                              >
+                                {finding.severity === 'blocking' ? 'Blockierend' : 'Hinweis'}
+                              </Td>
+                              <Td colSpan={3} className="whitespace-normal text-ink-muted">
+                                {finding.message}
+                                {finding.reference && (
+                                  <span className="text-caption text-ink-subtle"> · {finding.reference}</span>
+                                )}
+                              </Td>
+                            </Tr>
+                          ))}
+                      </React.Fragment>
                     );
                   })}
                 </Tbody>

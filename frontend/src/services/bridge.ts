@@ -171,8 +171,12 @@ export const bridge = {
   GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetAuditLogs: <T>() => invoke<T>('GetAuditLogs'),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
-  CommitPeriod: <T>(periodType: string, periodLabel: string, cutoffDate: string) =>
-    invoke<T>('CommitPeriod', periodType, periodLabel, cutoffDate),
+  CommitPeriod: <T>(
+    periodType: string,
+    periodLabel: string,
+    cutoffDate: string,
+    overrideReason: string,
+  ) => invoke<T>('CommitPeriod', periodType, periodLabel, cutoffDate, overrideReason),
   VerifyFestschreibung: <T>(id: number) => invoke<T>('VerifyFestschreibung', id),
 
   // Jahresabschluss
@@ -184,6 +188,35 @@ export const bridge = {
   SetFiscalYearStatus: <T>(year: number, status: string, date: string, note: string) =>
     invoke<T>('SetFiscalYearStatus', year, status, date, note),
   ReopenFiscalYear: <T>(year: number, reason: string) => invoke<T>('ReopenFiscalYear', year, reason),
+
+  // Umsatzsteuer-Voranmeldung
+  GetVatPeriods: <T>(year: number) => invoke<T>('GetVatPeriods', year),
+  GetVatReturn: <T>(periodKey: string) => invoke<T>('GetVatReturn', periodKey),
+  SaveVatReturn: <T>(periodKey: string) => invoke<T>('SaveVatReturn', periodKey),
+  GetVatReturns: <T>(year: number) => invoke<T>('GetVatReturns', year),
+  ConfirmVatReturnSubmitted: <T>(id: number, date: string, ticket: string, note: string) =>
+    invoke<T>('ConfirmVatReturnSubmitted', id, date, ticket, note),
+  CreateVatCorrection: <T>(periodKey: string) => invoke<T>('CreateVatCorrection', periodKey),
+  ExportVatReturnCSV: (id: number) => invoke<string>('ExportVatReturnCSV', id),
+  GetSpecialPrepaymentSuggestion: <T>(year: number) =>
+    invoke<T>('GetSpecialPrepaymentSuggestion', year),
+
+  // Zusammenfassende Meldung
+  GetZMPeriods: <T>(year: number) => invoke<T>('GetZMPeriods', year),
+  GetZMReturn: <T>(periodKey: string) => invoke<T>('GetZMReturn', periodKey),
+  SaveZMReturn: <T>(periodKey: string) => invoke<T>('SaveZMReturn', periodKey),
+  GetZMReturns: <T>(year: number) => invoke<T>('GetZMReturns', year),
+  ConfirmZMSubmitted: <T>(id: number, date: string, ticket: string, note: string) =>
+    invoke<T>('ConfirmZMSubmitted', id, date, ticket, note),
+  CreateZMCorrection: <T>(periodKey: string) => invoke<T>('CreateZMCorrection', periodKey),
+  ExportZMCSV: (id: number) => invoke<string>('ExportZMCSV', id),
+
+  // Prüfläufe und Fristen
+  RunChecks: <T>(cutoffDate: string, periodType: string) =>
+    invoke<T>('RunChecks', cutoffDate, periodType),
+  GetCheckRuns: <T>(year: number) => invoke<T>('GetCheckRuns', year),
+  GetDeadlines: <T>(year: number) => invoke<T>('GetDeadlines', year),
+  MarkDeadlineDone: (key: string, date: string) => invoke<void>('MarkDeadlineDone', key, date),
 
   // Gründung
   GetFoundationState: <T>() => invoke<T>('GetFoundationState'),

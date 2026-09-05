@@ -92,6 +92,12 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.Foundation{},
 		&domain.Shareholder{},
 		&domain.FoundationTask{},
+		&domain.VatReturn{},
+		&domain.ZMReturn{},
+		&domain.ZMLine{},
+		&domain.CheckRun{},
+		&domain.CheckFinding{},
+		&domain.DeadlineDone{},
 	)
 }
 
@@ -142,6 +148,16 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 			{Key: "skr", Value: "SKR04"},
 			{Key: "vat_period", Value: "quarter"},
 			{Key: "taxation_type", Value: "SOLL"},
+			// Dauerfristverlängerung und Sondervorauszahlung sind eine
+			// Entscheidung des Unternehmers (§§ 46 ff. UStDV) und deshalb
+			// zunächst aus.
+			{Key: "permanent_extension", Value: "false"},
+			{Key: "special_prepayment", Value: "0"},
+			// GoBD Rz. 47: unbare Geschäftsvorfälle sind innerhalb von zehn
+			// Tagen zu erfassen. Der Wert ist einstellbar, weil die Rz. eine
+			// Obergrenze nennt und kein Gesetz.
+			{Key: "receipt_capture_days", Value: "10"},
+			{Key: "commit_grace_days", Value: "0"},
 		}
 
 		for _, s := range defaultSettings {

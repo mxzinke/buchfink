@@ -16,6 +16,7 @@ import { ReceiptsPage } from './pages/ReceiptsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
+import { VatPage } from './pages/VatPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
@@ -293,8 +294,12 @@ export function App() {
         // Die Abschlussansicht folgt dem Jahr aus der Kopfzeile; sie zeigt
         // Stand und Vortrag genau eines Geschäftsjahres.
         return <ClosingPage year={currentYear} onFiscalYearChanged={refreshFiscalYearSelection} />;
+      case 'vat':
+        // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
+        // Kopfzeile; die Kennziffern entstehen im Backend.
+        return <VatPage year={currentYear} onNavigate={navigate} />;
       case 'deadlines':
-        return <DeadlinesPage />;
+        return <DeadlinesPage onNavigate={navigate} />;
       case 'ebilanz':
         return <EBilanzPage year={currentYear} />;
       case 'audit':

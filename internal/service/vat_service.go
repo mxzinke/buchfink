@@ -141,16 +141,10 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 	return summary, nil
 }
 
-// revenueTreatments is the catalogue's account-to-Steuerfall table, plus the
-// steuerfreie Erlöskonten of the SKR04 that no Buchungsgruppe offers but a
-// handwritten journal entry can still reach.
-var revenueTreatments = func() map[string]domain.TaxTreatment {
-	out := accounting.RevenueAccountTreatments()
-	for _, account := range []string{"4110", "4160", "4165"} {
-		out[account] = domain.TaxTreatmentExempt
-	}
-	return out
-}()
+// revenueTreatments is the account-to-Steuerfall table. It lives in the
+// accounting package, where the Kennziffern of the Voranmeldung read it too — a
+// second copy here would drift the moment a Steuerfall is added.
+var revenueTreatments = accounting.RevenueTreatments()
 
 func rateForOutputAccount(account string) domain.TaxRate {
 	switch account {

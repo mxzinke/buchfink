@@ -102,6 +102,19 @@ const (
 	TaxTreatmentZeroRated TaxTreatment = "zero_rated"
 )
 
+// MayShowTax meldet, ob eine Ausgangsrechnung mit diesem Steuerfall überhaupt
+// Umsatzsteuer ausweisen darf.
+//
+// Nur der steuerpflichtige Inlandsumsatz darf es. Für jeden anderen Fall gilt
+// § 14c UStG: wer Steuer ausweist, die er nicht schuldet, schuldet sie deshalb —
+// und zwar unabhängig davon, ob der Empfänger sie als Vorsteuer abziehen kann.
+// Die Berichtigung setzt die Zustimmung des Finanzamts voraus (§ 14c Abs. 2
+// Sätze 3 bis 5 UStG), weshalb der Fehler beim Ausstellen zu verhindern ist und
+// nicht danach.
+func (t TaxTreatment) MayShowTax() bool {
+	return t == TaxTreatmentDomestic
+}
+
 // TaxTreatmentInfo describes a Steuerfall for the UI and for validation.
 type TaxTreatmentInfo struct {
 	Treatment TaxTreatment `json:"treatment"`

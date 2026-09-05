@@ -49,6 +49,10 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		SKR:                  "SKR04",
 		VatPeriod:            "quarter",
 		TaxationType:         "SOLL",
+		// Zehn Tage sind die Erfassungsfrist der GoBD Rz. 47; ohne Vorgabe
+		// stünde hier null und der Prüflauf meldete jeden Beleg am Tag seines
+		// Eingangs als überfällig.
+		ReceiptCaptureDays: 10,
 	}
 
 	for _, it := range items {
@@ -95,6 +99,19 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.TaxationType = it.Value
 		case "investor_override":
 			settings.InvestorOverride = domain.InvestorType(it.Value)
+		case "permanent_extension":
+			settings.PermanentExtension = it.Value == "true"
+		case "special_prepayment":
+			v, _ := strconv.ParseInt(it.Value, 10, 64)
+			settings.SpecialPrepayment = domain.Cents(v)
+		case "receipt_capture_days":
+			if d, err := strconv.Atoi(it.Value); err == nil && d > 0 {
+				settings.ReceiptCaptureDays = d
+			}
+		case "commit_grace_days":
+			if d, err := strconv.Atoi(it.Value); err == nil && d >= 0 {
+				settings.CommitGraceDays = d
+			}
 		}
 	}
 
@@ -117,6 +134,14 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	startMonth := s.FiscalYearStartMonth
 	if startMonth <= 0 || startMonth > 12 {
 		startMonth = 1
+	}
+	captureDays := s.ReceiptCaptureDays
+	if captureDays <= 0 {
+		captureDays = 10
+	}
+	graceDays := s.CommitGraceDays
+	if graceDays < 0 {
+		graceDays = 0
 	}
 
 	kv := map[string]string{
@@ -142,6 +167,13 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		// Ein hier eingesetzter Vorgabewert wäre eine Festlegung, die niemand
 		// getroffen hat — und die die Ableitung stumm überschriebe.
 		"investor_override": string(s.InvestorOverride),
+		// Die Dauerfristverlängerung verschiebt jede Fälligkeit um einen Monat;
+		// die Sondervorauszahlung wird im letzten Zeitraum des Jahres
+		// angerechnet. Beide gehören zusammen und stehen deshalb nebeneinander.
+		"permanent_extension":  strconv.FormatBool(s.PermanentExtension),
+		"special_prepayment":   strconv.FormatInt(int64(s.SpecialPrepayment), 10),
+		"receipt_capture_days": strconv.Itoa(captureDays),
+		"commit_grace_days":    strconv.Itoa(graceDays),
 	}
 
 	for k, v := range kv {

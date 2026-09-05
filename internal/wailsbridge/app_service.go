@@ -52,6 +52,10 @@ type BuchfinkBridge struct {
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
 	fiscalYearRepo     domain.FiscalYearRepository
+	vatReturnRepo      domain.VatReturnRepository
+	zmReturnRepo       domain.ZMReturnRepository
+	checkRunRepo       domain.CheckRunRepository
+	deadlineRepo       domain.DeadlineRepository
 
 	// Services
 	journalSvc    *service.JournalService
@@ -73,6 +77,10 @@ type BuchfinkBridge struct {
 	foundationSvc *service.FoundationService
 	closingSvc    *service.ClosingService
 	statementSvc  *service.StatementService
+	vatReturnSvc  *service.VatReturnService
+	zmSvc         *service.ZMService
+	checkSvc      *service.CheckService
+	deadlineSvc   *service.DeadlineService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -191,6 +199,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.assetRepo = repository.NewAssetRepository(db)
 	b.foundationRepo = repository.NewFoundationRepository(db)
 	b.fiscalYearRepo = repository.NewFiscalYearRepository(db)
+	b.vatReturnRepo = repository.NewVatReturnRepository(db)
+	b.zmReturnRepo = repository.NewZMReturnRepository(db)
+	b.checkRunRepo = repository.NewCheckRunRepository(db)
+	b.deadlineRepo = repository.NewDeadlineRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -278,6 +290,39 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.ebilanzSvc = service.NewEBilanzService(
 		b.statementSvc, b.settingsRepo, b.auditRepo, fiscalYear)
 	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
+
+	// Die Voranmeldung entsteht aus dem Journal, dem Belegeingang und den
+	// Stammdaten der Empfänger — die drei Angaben, die über den Zeitraum und
+	// über die Kennziffer entscheiden. Die Zusammenfassende Meldung liest
+	// dieselben Buchungen und stimmt sich gegen die Kennziffern 41 und 21 ab.
+	b.vatReturnSvc = service.NewVatReturnService(
+		b.journalRepo, b.receiptRepo, b.contactRepo, b.settingsRepo,
+		b.festschreibungRepo, b.vatReturnRepo, b.auditRepo, fiscalYear,
+	)
+	b.zmSvc = service.NewZMService(
+		b.journalRepo, b.contactRepo, b.settingsRepo, b.festschreibungRepo,
+		b.zmReturnRepo, b.vatReturnRepo, b.auditRepo, fiscalYear,
+	)
+
+	// Der Prüflauf steht vor der Festschreibung. Er braucht dieselben Quellen
+	// wie die Auswertungen und zusätzlich die Anlagenkartei — die AfA ist eine
+	// Abschlussbuchung und lässt sich danach nicht nachholen.
+	b.checkSvc = service.NewCheckService(
+		b.journalRepo, b.receiptRepo, b.bankRepo, b.invoiceRepo, b.numberRepo,
+		b.settingsRepo, b.festschreibungRepo, b.vatReturnRepo, b.checkRunRepo,
+		b.auditRepo, fiscalYear,
+	)
+	b.checkSvc.SetAccountSource(b.accountingSvc)
+	b.checkSvc.SetOpenItemSource(b.paymentSvc)
+	b.checkSvc.SetDepreciationSource(b.assetSvc)
+
+	// Die Fristen kommen aus den Daten und nicht mehr aus dem localStorage.
+	b.deadlineSvc = service.NewDeadlineService(
+		b.vatReturnSvc, b.zmSvc, b.settingsRepo, b.festschreibungRepo,
+		b.deadlineRepo, b.auditRepo, fiscalYear,
+	)
+	b.deadlineSvc.SetStatementSource(b.statementSvc)
+	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
 	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
 	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
 	// Umstellung; scheitert das, bleibt der Mandant benutzbar und die Ansicht
@@ -728,6 +773,18 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.closingSvc != nil {
 		b.closingSvc.SetFiscalYear(year)
+	}
+	if b.vatReturnSvc != nil {
+		b.vatReturnSvc.SetFiscalYear(year)
+	}
+	if b.zmSvc != nil {
+		b.zmSvc.SetFiscalYear(year)
+	}
+	if b.checkSvc != nil {
+		b.checkSvc.SetFiscalYear(year)
+	}
+	if b.deadlineSvc != nil {
+		b.deadlineSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ListOrdered,
   Loader2,
+  Percent,
   Receipt,
   Scale,
   Settings,
@@ -34,6 +35,7 @@ export type TabType =
   | 'accounts'
   | 'reports'
   | 'closing'
+  | 'vat'
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
@@ -100,6 +102,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { id: 'reports', label: 'GuV & Bilanz', icon: <Scale className={icon} /> },
       { id: 'closing', label: 'Jahresabschluss', icon: <BookCheck className={icon} /> },
+      { id: 'vat', label: 'Umsatzsteuer', icon: <Percent className={icon} /> },
       { id: 'deadlines', label: 'Steuerfristen', icon: <Calendar className={icon} /> },
       { id: 'ebilanz', label: 'E-Bilanz', icon: <FileSpreadsheet className={icon} /> },
     ],

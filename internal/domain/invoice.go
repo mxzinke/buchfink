@@ -160,6 +160,17 @@ func (inv *Invoice) Validate() error {
 	if inv.ServiceDateTo < inv.ServiceDateFrom {
 		return fmt.Errorf("Leistungsende liegt vor dem Leistungsbeginn")
 	}
+	// § 14c UStG: ein ausgewiesener Steuerbetrag zu einem Steuerfall, bei dem
+	// keine Steuer entsteht, wird trotzdem geschuldet. Die Rechnung wird deshalb
+	// gar nicht erst ausgestellt — die Berichtigung setzt später die Zustimmung
+	// des Finanzamts voraus (§ 14c Abs. 2 Sätze 3 bis 5 UStG).
+	if inv.TaxAmount != 0 && !inv.TaxTreatment.MayShowTax() {
+		return fmt.Errorf(
+			"die Rechnung weist %s € Umsatzsteuer aus, der Steuerfall %q lässt aber keine entstehen. "+
+				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – wähle entweder den "+
+				"steuerpflichtigen Inlandsumsatz oder nimm den Steuerausweis heraus",
+			inv.TaxAmount, inv.TaxTreatment)
+	}
 	for i := range inv.Items {
 		it := &inv.Items[i]
 		if it.Description == "" {

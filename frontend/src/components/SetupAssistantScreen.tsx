@@ -132,6 +132,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     skr: 'SKR04',
     vatPeriod: 'quarter',
     taxationType: 'SOLL',
+    // Die Dauerfristverlängerung wird beantragt, nicht vorausgesetzt; die
+    // Schwellenwerte der Prüfläufe stehen auf ihren Voreinstellungen
+    // (GoBD Rz. 47: zehn Tage, Festschreibung bis Ende des Folgemonats).
+    permanentExtension: false,
+    specialPrepayment: 0,
+    receiptCaptureDays: 10,
+    commitGraceDays: 0,
     // Leer heißt: die Anlegerstellung für § 20 InvStG folgt aus der
     // Rechtsform. Gefragt wird sie nur, wo diese sie offen lässt.
     investorOverride: '',

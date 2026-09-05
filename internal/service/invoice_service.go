@@ -119,6 +119,13 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 	if err := s.validateTaxTreatment(inv, contact); err != nil {
 		return err
 	}
+	// Erst die Stammdaten, dann der Steuerausweis: passt der Steuerfall gar
+	// nicht zum Empfänger, ist das die Auskunft, die weiterhilft — der Hinweis
+	// auf § 14c käme dann zu einem Steuerfall, den der Anwender ohnehin ändern
+	// muss.
+	if err := ensureNoUnlawfulTax(inv); err != nil {
+		return err
+	}
 
 	if inv.InvoiceNumber == "" {
 		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
@@ -225,6 +232,39 @@ func (s *InvoiceService) fileInvoiceDocument(ctx context.Context, inv *domain.In
 	})
 }
 
+// ensureNoUnlawfulTax weist eine Rechnung zurück, deren Positionen einen
+// Steuersatz tragen, obwohl der Steuerfall keine Steuer entstehen lässt.
+//
+// Zurückgewiesen und nicht stillschweigend berichtigt: Buchfink nahm den Satz
+// bisher selbst aus der Position, und heraus kam eine Rechnung ohne Steuer,
+// obwohl der Anwender 19 % erfasst hatte. Wer den Steuerfall falsch gewählt hat
+// — eine steuerpflichtige Inlandsleistung als innergemeinschaftliche Lieferung
+// etwa —, bekäme so eine Rechnung ohne Steuerausweis und merkte es nicht. Die
+// Summenrechnung entscheidet die Frage nicht; sie ist eine Frage an den
+// Anwender, welche der beiden Angaben stimmt.
+//
+// Die Norm dahinter ist § 14c UStG: eine ausgewiesene Steuer ohne Steuerpflicht
+// wird trotzdem geschuldet, und ihre Berichtigung setzt die Zustimmung des
+// Finanzamts voraus (§ 14c Abs. 2 Sätze 3 bis 5 UStG). Deshalb wird der Fehler
+// beim Ausstellen verhindert und nicht danach geheilt.
+func ensureNoUnlawfulTax(inv *domain.Invoice) error {
+	if inv.TaxTreatment.MayShowTax() {
+		return nil
+	}
+	for i := range inv.Items {
+		item := &inv.Items[i]
+		if item.TaxRate == domain.TaxRateNone {
+			continue
+		}
+		return fmt.Errorf(
+			"Position %d ist mit %s erfasst, der Steuerfall %q lässt aber keine Umsatzsteuer entstehen. "+
+				"Ein ausgewiesener Steuerbetrag wird nach § 14c UStG trotzdem geschuldet – wähle entweder "+
+				"den steuerpflichtigen Inlandsumsatz oder nimm den Steuersatz aus der Position",
+			i+1, item.TaxRate.Label(), inv.TaxTreatment)
+	}
+	return nil
+}
+
 // validateTaxTreatment blocks the combinations that would produce a formally
 // wrong invoice — the ones a supplier only finds out about during an audit.
 func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *domain.Contact) error {
@@ -273,6 +313,11 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 		}
 	}
 	if err := s.validateTaxTreatment(&draft, contact); err != nil {
+		return nil, err
+	}
+	// Dieselbe Prüfung wie beim Ausstellen: der § 14c-Fehler soll in der Maske
+	// auffallen und nicht erst am Knopf „Ausstellen".
+	if err := ensureNoUnlawfulTax(&draft); err != nil {
 		return nil, err
 	}
 

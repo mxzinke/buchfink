@@ -63,7 +63,9 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
   async function bookPostings() {
     setBusy(true);
     try {
-      const created = await Api.bookFoundationPostings();
+      // Eine Liste, die das Backend nie befüllt hat, kommt als `null` an; die
+      // Länge davon wäre ein Fehler statt einer Rückmeldung.
+      const created = (await Api.bookFoundationPostings()) ?? [];
       toast.success(
         created.length === 1
           ? 'Die Gründungsbuchung steht im Journal.'
@@ -193,8 +195,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             </Tr>
           </Thead>
           <Tbody>
-            {foundation.shareholders.map((holder) => {
-              const share = unterbilanz.shares.find((s) => s.shareholderId === holder.id);
+            {(foundation.shareholders ?? []).map((holder) => {
+              const share = (unterbilanz.shares ?? []).find((s) => s.shareholderId === holder.id);
               const open = holder.shareCapital - holder.paidIn;
               return (
                 <Tr key={holder.id}>
@@ -259,7 +261,7 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
           </Thead>
           <Tbody>
             {(preview?.postings ?? []).map((posting) =>
-              posting.lines.map((line, index) => (
+              (posting.lines ?? []).map((line, index) => (
                 <Tr key={`${posting.title}-${index}`}>
                   <Td className="max-w-[18rem] truncate">{index === 0 ? posting.title : ''}</Td>
                   <Td className="num text-ink-subtle">

@@ -617,6 +617,20 @@ export interface CompanySettings {
   vatPeriod: string;
   taxationType: string;
   /**
+   * Dauerfristverlängerung nach §§ 46 bis 48 UStDV: jede Voranmeldung wird
+   * einen Monat später fällig.
+   */
+  permanentExtension: boolean;
+  /**
+   * Die angemeldete Sondervorauszahlung (§ 47 Abs. 1 UStDV). Erfasst wird, was
+   * angemeldet wurde — nicht, was Buchfink daraus errechnet.
+   */
+  specialPrepayment: Cents;
+  /** Nach so vielen Tagen fällt ein abgelegter, ungebuchter Beleg auf. */
+  receiptCaptureDays: number;
+  /** Nachfrist für die Festschreibung des Vormonats; 0 heißt Monatsende. */
+  commitGraceDays: number;
+  /**
    * Legt die Anlegerstellung für § 20 InvStG ausdrücklich fest — normalerweise
    * leer, weil sie aus der Rechtsform folgt.
    *
@@ -1729,4 +1743,231 @@ export interface MappingReport {
   /** Elemente, deren Name noch gegen die amtliche Taxonomie zu prüfen ist. */
   unverified: number;
   canExport: boolean;
+}
+
+// -------------------------------------------------------------------------
+// Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung, Prüfläufe
+// -------------------------------------------------------------------------
+
+/** Länge eines Voranmeldungszeitraums (§ 18 Abs. 2 UStG). */
+export type VatPeriodType = 'month' | 'quarter' | 'year';
+
+/**
+ * Zwei Stände, mehr gibt es nicht: Buchfink übermittelt nicht selbst, und ein
+ * „übermittelt, aber ohne Ticket" wäre eine Behauptung ohne Nachweis.
+ */
+export type VatReturnStatus = 'draft' | 'submitted';
+
+/** Ein Zeitraum, wie ihn das Backend benennt: „März 2026", „2026-Q1". */
+export interface VatPeriod {
+  key: string;
+  type: VatPeriodType;
+  label: string;
+  from: string;
+  to: string;
+  year: number;
+}
+
+/** Ein Zeitraum mit Fälligkeit, Festschreibungsstand und Stand der Anmeldung. */
+export interface VatPeriodStatus extends VatPeriod {
+  dueDate: string;
+  status: VatReturnStatus;
+  returnId?: number;
+  /** Ohne Festschreibung ist die Bestätigung der Übermittlung gesperrt. */
+  committed: boolean;
+  payable: Cents;
+  submittedAt?: string;
+  isOverdue: boolean;
+}
+
+/**
+ * Eine Zeile des Vordrucks USt 1 A. `hasBase` und `hasTax` sagen, welche Felder
+ * der Vordruck in dieser Zeile kennt; `taxCode` benennt die zweite Kennziffer,
+ * wenn der Steuerbetrag unter einer eigenen steht (35/36, 46/47).
+ */
+export interface VatReturnLine {
+  code: string;
+  label: string;
+  reference?: string;
+  hasBase: boolean;
+  base: Cents;
+  hasTax: boolean;
+  taxCode?: string;
+  tax: Cents;
+  /** Die aus der Bemessungsgrundlage errechnete Steuer — zum Vergleich. */
+  expectedTax: Cents;
+  /** Die Buchungen hinter der Kennziffer (Drill-down). */
+  entryIds?: number[];
+}
+
+/** Eine Buchung, deren Voranmeldungszeitraum bereits übermittelt ist. */
+export interface VatLateEntry {
+  entryId: number;
+  entryNumber: string;
+  bookingDate: string;
+  /** Der Zeitraum, in den die Buchung gehört. */
+  periodKey: string;
+  description: string;
+  code: string;
+  base: Cents;
+  tax: Cents;
+}
+
+/** Die Umsatzsteuer-Voranmeldung eines Zeitraums, mit Übermittlungsprotokoll. */
+export interface VatReturn {
+  id: number;
+  fiscalYear: number;
+  periodType: VatPeriodType;
+  periodKey: string;
+  periodFrom: string;
+  periodTo: string;
+  /** Setzt die Kennziffer 10 des Vordrucks: berichtigte Anmeldung. */
+  isCorrection: boolean;
+  correctsId?: number;
+  status: VatReturnStatus;
+  submittedAt?: string;
+  transferTicket?: string;
+  submissionNote?: string;
+  /** Kennziffer 83; negativ heißt Überschuss zugunsten des Unternehmers. */
+  payable: Cents;
+  dueDate?: string;
+  programVersion?: string;
+  figures: VatReturnLine[];
+  lateEntries: VatLateEntry[];
+  createdAt: string;
+}
+
+/** Eine Anmeldung des Vorjahres im Vorschlag zur Sondervorauszahlung. */
+export interface SpecialPrepaymentPeriod {
+  periodKey: string;
+  periodLabel: string;
+  returnId: number;
+  submittedAt: string;
+  prepayment: Cents;
+}
+
+/** Ein Elftel der Vorauszahlungen des Vorjahres (§ 47 Abs. 1 UStDV). */
+export interface SpecialPrepaymentSuggestion {
+  year: number;
+  basedOnYear: number;
+  amount: Cents;
+  prepaymentSum: Cents;
+  periods: SpecialPrepaymentPeriod[];
+  /** Liegt für jeden Zeitraum des Vorjahres eine übermittelte Anmeldung vor? */
+  complete: boolean;
+  account: string;
+  note: string;
+}
+
+/** L: ig. Lieferung, S: sonstige Leistung § 3a Abs. 2, D: Dreiecksgeschäft. */
+export type ZMLineKind = 'L' | 'S' | 'D';
+
+/** Eine Meldezeile: je USt-IdNr. und Art ein Betrag. */
+export interface ZMLine {
+  id: number;
+  zmReturnId: number;
+  countryCode: string;
+  vatId: string;
+  kind: ZMLineKind;
+  amount: Cents;
+  contactId: number;
+  contactName?: string;
+  entryIds?: number[];
+}
+
+/** Ein meldepflichtiger Umsatz, dessen Meldezeitraum übermittelt ist. */
+export interface ZMLateEntry {
+  entryId: number;
+  entryNumber: string;
+  periodKey: string;
+  date: string;
+  vatId?: string;
+  kind: ZMLineKind;
+  amount: Cents;
+}
+
+/**
+ * Die Abstimmung gegen die Kennziffern 41 und 21 der Voranmeldungen. Sie wird
+ * nicht gespeichert: sie beschreibt den heutigen Stand beider Meldungen.
+ */
+export interface ZMReconciliation {
+  scopeKey?: string;
+  scopeLabel?: string;
+  suppliesZm: Cents;
+  suppliesVat: Cents;
+  servicesZm: Cents;
+  servicesVat: Cents;
+  vatReturnsFound: number;
+}
+
+/** Die Zusammenfassende Meldung eines Meldezeitraums (§ 18a UStG). */
+export interface ZMReturn {
+  id: number;
+  fiscalYear: number;
+  periodType: VatPeriodType;
+  periodKey: string;
+  periodFrom: string;
+  periodTo: string;
+  isCorrection: boolean;
+  correctsId?: number;
+  status: VatReturnStatus;
+  submittedAt?: string;
+  transferTicket?: string;
+  submissionNote?: string;
+  dueDate?: string;
+  totalSupplies: Cents;
+  totalServices: Cents;
+  lines: ZMLine[];
+  reconciliation?: ZMReconciliation;
+  /** Was die Bestätigung verhindert — allen voran eine fehlende USt-IdNr. */
+  findings?: string[];
+  lateEntries?: ZMLateEntry[];
+  createdAt: string;
+}
+
+/** Ein Meldezeitraum mit Fälligkeit und Stand. */
+export interface ZMPeriodStatus extends VatPeriod {
+  dueDate: string;
+  status: VatReturnStatus;
+  returnId?: number;
+  /** Ohne Festschreibung ist die Bestätigung gesperrt — wie bei der Voranmeldung. */
+  committed: boolean;
+  total: Cents;
+  submittedAt?: string;
+  isOverdue: boolean;
+}
+
+/**
+ * Das Gewicht eines Befundes. `blocking` verhindert die Festschreibung,
+ * `warning` nicht — eine dritte Stufe stünde nur in der Liste herum.
+ */
+export type CheckSeverity = 'blocking' | 'warning';
+
+/** Ein einzelner Befund eines Prüflaufs. */
+export interface CheckFinding {
+  id: number;
+  checkRunId: number;
+  rule: string;
+  severity: CheckSeverity;
+  /** Bezugsobjekt, damit die Ansicht einen Weg dorthin anbieten kann. */
+  objectType?: string;
+  objectId?: string;
+  objectName?: string;
+  message: string;
+  reference?: string;
+}
+
+/** Ein Prüflauf über einen Zeitraum bis zu einem Stichtag (GoBD Rz. 34 ff.). */
+export interface CheckRun {
+  id: number;
+  fiscalYear: number;
+  cutoffDate: string;
+  periodType?: string;
+  checkedEntries: number;
+  checkedReceipts: number;
+  checkedBankTx: number;
+  /** Die Begründung, mit der blockierende Befunde übergangen wurden. */
+  overrideReason?: string;
+  findings: CheckFinding[];
+  createdAt: string;
 }

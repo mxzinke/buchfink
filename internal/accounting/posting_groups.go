@@ -237,6 +237,29 @@ func RevenueAccountTreatments() map[string]domain.TaxTreatment {
 	return out
 }
 
+// TaxableRevenueAccounts sind die Erlöskonten des steuerpflichtigen
+// Inlandsumsatzes — die Konten, auf denen ein Steuerausweis richtig ist.
+//
+// Sie stehen als Gegenstück zu RevenueAccountTreatments: dort die Konten, deren
+// Steuerfall keine Steuer entstehen lässt, hier die, die eine tragen. Wer über
+// § 14c UStG entscheidet, braucht beide Seiten — sonst hielte er ein Konto ohne
+// Steuerfall für ein steuerfreies.
+func TaxableRevenueAccounts() map[string]bool {
+	out := map[string]bool{}
+	for _, g := range postingGroups {
+		if g.Direction != domain.DirectionOutgoing {
+			continue
+		}
+		if g.Account != "" {
+			out[g.Account] = true
+		}
+		for _, account := range g.RateAccounts {
+			out[account] = true
+		}
+	}
+	return out
+}
+
 func PostingGroups(dir domain.Direction) []PostingGroup {
 	var out []PostingGroup
 	for _, g := range postingGroups {

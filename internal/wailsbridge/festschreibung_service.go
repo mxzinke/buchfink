@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/service"
 	"github.com/buchfink/buchfink/internal/timestamp"
 )
 
@@ -15,7 +16,12 @@ import (
 // period. It silently anchors the current hash chain head with an RFC-3161
 // trusted timestamp; if the TSA is offline the commitment still stands and the
 // timestamp is fetched later (see retryPendingTimestamps).
-func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string) (*domain.Festschreibung, error) {
+//
+// Vor der Festschreibung läuft der Prüfbericht. Blockierende Befunde verhindern
+// sie, es sei denn, der Anwender übergeht sie mit einer Begründung — die steht
+// dann am Prüflauf und im Protokoll. Ohne diese Reihenfolge wäre die
+// Festschreibung ein Knopf, der einen unfertigen Stand für immer festhält.
+func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate, overrideReason string) (*domain.Festschreibung, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -32,7 +38,7 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 		return nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
 	}
 
-	if err := b.ensureDepreciationBooked(ctx, periodType); err != nil {
+	if err := b.runPreCommitChecks(ctx, periodType, cutoffDate, overrideReason); err != nil {
 		return nil, err
 	}
 
@@ -67,11 +73,33 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate string
 		return nil, fmt.Errorf("Festschreibung speichern: %w", err)
 	}
 	if b.auditRepo != nil {
+		details := fmt.Sprintf("Festschreibung %s (bis %s, %d Buchungen, Zeitstempel: %s)",
+			periodLabel, cutoffDate, count, rec.TimestampStatus)
+		if reason := strings.TrimSpace(overrideReason); reason != "" {
+			details += fmt.Sprintf(". Blockierende Befunde übergangen mit der Begründung: %s", reason)
+		}
 		_ = b.auditRepo.Log(ctx, domain.AuditActionExport, "FESTSCHREIBUNG",
-			fmt.Sprintf("%d", rec.ID),
-			fmt.Sprintf("Festschreibung %s (bis %s, %d Buchungen, Zeitstempel: %s)", periodLabel, cutoffDate, count, rec.TimestampStatus))
+			fmt.Sprintf("%d", rec.ID), details)
 	}
 	return rec, nil
+}
+
+// runPreCommitChecks führt den Prüflauf aus und entscheidet, ob festgeschrieben
+// werden darf.
+//
+// Ohne Prüfdienst bleibt es bei der bisherigen AfA-Prüfung: ein Mandant, dessen
+// Prüfläufe sich nicht speichern lassen, soll nicht ohne jede Prüfung
+// festschreiben können.
+func (b *BuchfinkBridge) runPreCommitChecks(ctx context.Context, periodType, cutoffDate, overrideReason string) error {
+	if b.checkSvc == nil {
+		return b.ensureDepreciationBooked(ctx, periodType)
+	}
+	_, err := b.checkSvc.EnsureCommittable(ctx, service.CheckRequest{
+		CutoffDate:     cutoffDate,
+		PeriodType:     periodType,
+		OverrideReason: overrideReason,
+	})
+	return err
 }
 
 // ensureDepreciationBooked blocks the Festschreibung of a whole year while an

@@ -39,6 +39,32 @@ type CompanySettings struct {
 	SKR            string `json:"skr"`          // "SKR04"
 	VatPeriod      string `json:"vatPeriod"`    // "month", "quarter", "year"
 	TaxationType   string `json:"taxationType"` // "IST", "SOLL"
+
+	// PermanentExtension ist die Dauerfristverlängerung nach §§ 46 bis 48 UStDV:
+	// jede Voranmeldung wird einen Monat später fällig — bei monatlicher wie bei
+	// vierteljährlicher Abgabe.
+	PermanentExtension bool `json:"permanentExtension"`
+	// SpecialPrepayment ist die Sondervorauszahlung von einem Elftel der
+	// Vorauszahlungen des Vorjahres (§ 47 Abs. 1 UStDV). Sie wird in der letzten
+	// Voranmeldung des Jahres angerechnet (Kennziffer 39, § 48 Abs. 4 UStDV).
+	//
+	// Sie gilt nur bei monatlichem Voranmeldungszeitraum: § 47 Abs. 1 UStDV
+	// verlangt sie von den Unternehmern, die ihre Voranmeldungen monatlich
+	// abzugeben haben. Wer vierteljährlich voranmeldet, erhält die
+	// Dauerfristverlängerung nach § 46 UStDV ohne Sondervorauszahlung — für ihn
+	// bleibt dieses Feld ohne Wirkung, auch wenn ein Betrag darin steht.
+	//
+	// Sie steht hier als erfasster Betrag und nicht als Rechnung: maßgeblich ist,
+	// was angemeldet und gezahlt wurde, nicht was Buchfink daraus errechnet.
+	SpecialPrepayment Cents `json:"specialPrepayment"`
+	// ReceiptCaptureDays ist die Frist, nach der ein abgelegter, aber nicht
+	// gebuchter Beleg im Prüflauf auffällt. GoBD Rz. 47 nennt zehn Tage für die
+	// Erfassung unbarer Geschäftsvorfälle.
+	ReceiptCaptureDays int `json:"receiptCaptureDays"`
+	// CommitGraceDays ist die Nachfrist, nach der ein nicht festgeschriebener
+	// Vormonat auf der Aufgabenliste erscheint. Null heißt: bis zum Ende des
+	// Folgemonats.
+	CommitGraceDays int `json:"commitGraceDays"`
 	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
 	// fest — und ist normalerweise leer.
 	//
