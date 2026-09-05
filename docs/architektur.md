@@ -169,6 +169,14 @@ flowchart LR
     J["Jährlich<br/>1 Prüfbericht<br/>2 AfA, Abgrenzung, Rückstellung<br/>3 Bilanz und GuV<br/>4 Aufstellen, feststellen<br/>5 E-Bilanz, Offenlegung<br/>6 Saldenvortrag"] --> T
 ```
 
+Zwei Ansichten sind mit den Wellen 5b und 5c dazugekommen, weil ihr Vorgang
+nicht in einen Dialog passt: „Anzahlungen" führt den Rechnungsverbund mit
+Abschlägen, Vereinnahmung und Schlussrechnung, und „Nebenpflichten" bündelt
+das Verzeichnis nach § 15a UStG, die USt-IdNr.-Bestätigungen, den Belegnachweis,
+die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Die
+Rechnungs- und Belegdialoge verweisen dorthin, statt die Vorgänge zu
+verdoppeln.
+
 ### 6.1 Die Übersicht ist eine Aufgabenliste
 
 Beim Start sieht die Anwenderin keine Kennzahlen, sondern was ansteht, in
@@ -265,7 +273,9 @@ Frage, was einen Jahreslauf blockiert.
 | 2 | Bilanz und GuV nach §§ 266, 275 HGB im Backend, Größenklassen, Vorjahresspalte, Ausgabe als Datei; E-Bilanz aus der Gliederung | JAB-01, JAB-02, JAB-03, JAB-05 | Erst mit der Gliederung gibt es eine Struktur, auf die E-Bilanz und Offenlegung zeigen. |
 | 3 | Umsatzsteuer-Voranmeldung mit allen Kennziffern, Dauerfristverlängerung, Übermittlungsprotokoll, Zusammenfassende Meldung, Prüfberichte vor Festschreibung | UST-01, UST-03, UST-04, GOB-03, BEL-04, UNV-05 | Die Daten hängen an den Buchungen; die Meldung ist die Pflicht mit dem kürzesten Takt. |
 | 4 | Z3-Export mit Beschreibungsstandard, Archivexport, Sicherung und Wiederherstellung, Prüfermodus | PRF-01, PRF-02, ARC-04, ARC-08 | Betriebsprüfung und Datenverlust sind die beiden Ereignisse, die eine Buchhaltung beenden. |
-| 5 | Rechnungsabgrenzung, Rückstellungen, Anzahlungen, Inventurwert | BEW-07, BEW-08, RECH-02 | Für die Bilanz nicht verzichtbar, aber erst mit Welle 1 und 2 sinnvoll. |
+| 5a | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung, Verzeichnis nach § 5 EStG | BEW-07, BEW-08, BEW-09, JAB-06 | Für die Bilanz nicht verzichtbar, aber erst mit Welle 1 und 2 sinnvoll. |
+| 5b | Rechnungsnummer in einer Transaktion, Pflichtangaben, XRechnung, Storno- und Korrekturbelege, Kleinbetrag, Anzahlungen als Rechnungsverbund, Ausbuchung | RECH-02 bis RECH-09, BEL-09, UST-02 | Die Ausgangsrechnung ist der häufigste Beleg; ihre Fehler wandern in jede Meldung. |
+| 5c | Vorsteuerkopplung, Vorsteuerschlüssel, Verzeichnis nach § 15a UStG, USt-IdNr.-Bestätigung, Belegnachweis, Geschenke, Fremdwährung, Abschreibungsregeln als Ressource | UST-05 bis UST-07, RECH-07, BEW-03, BEW-10, BEW-12 | Nebenpflichten, die im laufenden Jahr anfallen und im Abschluss nicht mehr nachholbar sind. |
 | 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
 | 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen | Abschnitt 6, QUE-05 | Die Bedienung legt sich über die fertigen Funktionen. |
 
