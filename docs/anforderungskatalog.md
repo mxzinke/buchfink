@@ -129,12 +129,12 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Lücken in der Nummerierung von Belegen und Buchungen im Prüfbericht | 🟡 | internal/repository/numberrange_gorm.go:47-70 vergibt in der Transaktion, internal/accounting/journalhash.go:131-145 meldet entfernte Buchungen; einen Lückenbericht gibt es nicht | 3 |
-| Nicht kontierte Belege in eigener Liste, blockieren den Periodenabschluss | 🟡 | internal/service/receipt_service.go:250 liefert die Liste; internal/wailsbridge/festschreibung_service.go:87 prüft nur offene AfA und lässt offene Belege durch | 3 |
-| Plausibilitätsprüfung vor dem Periodenabschluss | ❌ | internal/wailsbridge/festschreibung_service.go:35-37; vor der Festschreibung läuft ausschließlich `ensureDepreciationBooked` | 3 |
+| Lücken in der Nummerierung von Belegen und Buchungen im Prüfbericht | ✅ | internal/service/check_service.go:540-613 (`checkNumberGaps`, Regel `number_gap` in internal/domain/check.go:35) vergleicht je Nummernkreis den Zähler gegen die vorhandenen Nummern und nennt jede Lücke mit Kreis und Nummer; internal/repository/numberrange_gorm.go:47-70 vergibt weiterhin in der Transaktion, internal/accounting/journalhash.go:131-145 meldet entfernte Buchungen | – |
+| Nicht kontierte Belege in eigener Liste, blockieren den Periodenabschluss | ✅ | internal/service/check_service.go:445-505 (`receipt_unbooked`) führt jeden abgelegten, nicht gebuchten Beleg auf und macht ihn blockierend, sobald sein Eingang in den festzuschreibenden Zeitraum fällt; internal/wailsbridge/festschreibung_service.go:41-43, :93-103 lässt die Festschreibung nur durch, wenn der Lauf frei ist oder eine Begründung vorliegt | – |
+| Plausibilitätsprüfung vor dem Periodenabschluss | ✅ | internal/service/check_service.go:151-237 rechnet zwölf Regeln über Buchungen, Belege, Bank, Nummernkreise, Kontenzuordnung, Voranmeldung und Festschreibungsstand (internal/domain/check.go:28-39), :238-252 (`EnsureCommittable`) entscheidet daraus über die Festschreibung; frontend/src/pages/DeadlinesPage.tsx:252-280 zeigt den Bericht vor dem Knopf | – |
 | Reproduzierbare Sortierung von Journal und Kontenblatt | ✅ | internal/repository/journal_gorm.go:32, :70-78; jede Leseabfrage ordnet nach `id asc`, Anzeige als stabile Sortierung | – |
 
-**Stand.** Die Ordnung der Daten stimmt, die Kontrolle darüber fehlt: vor der Festschreibung prüft Buchfink nur die Abschreibungen. Welle 3.
+**Stand.** Seit Welle 3 steht die Kontrolle neben der Ordnung: vor jeder Festschreibung läuft ein Prüfbericht aus zwölf Regeln, blockierende Befunde halten sie auf, und übergehen lässt sich nur mit einer Begründung, die am Lauf und im Protokoll steht.
 
 ### GOB-04 Sprache, Abkürzungen, Währung `MUSS`
 
@@ -193,10 +193,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Jede Buchung referenziert einen Beleg oder einen Eigenbeleg | 🟡 | internal/service/posting_service.go:269-272 erzwingt die Referenz auf dem Belegweg; die manuelle Buchung (internal/wailsbridge/app_service.go:823) und die AfA-, Zahlungs- und Gründungsbuchungen kommen ohne durch, `Validate` prüft `ReceiptID` nicht | 3 |
 | Eigenbelege gekennzeichnet, mit Aussteller, Datum, Betrag, Grund und erfassender Person | ❌ | internal/domain/receipt.go:166 kennt nur den Herkunftswert `self_issued`; einen Erfassungsweg für Eigenbelege gibt es nicht | 3 |
-| Buchungen ohne Belegzuordnung im Prüfbericht, verhindern die Festschreibung | ❌ | internal/wailsbridge/festschreibung_service.go:35; vor der Festschreibung wird ausschließlich die AfA geprüft | 3 |
+| Buchungen ohne Belegzuordnung im Prüfbericht, verhindern die Festschreibung | ✅ | internal/service/check_service.go:307-343 (`entry_without_receipt`) meldet jede Buchung ohne Beleg als blockierenden Befund — der Nachweis zählt in beide Richtungen (:289-306), die Generalumkehr erbt ihn von der Ursprungsbuchung —, internal/wailsbridge/festschreibung_service.go:41-43, :93-103 hängt die Festschreibung daran | – |
 | Belegverweis bidirektional | 🟡 | internal/domain/journal.go:129-131, internal/domain/receipt.go:152; Datenmodell und Repository tragen beide Richtungen, die Oberfläche keine | 2 |
 
-**Stand.** Der Belegzwang gilt genau dort, wo er automatisch entsteht, und nirgends sonst. Solange `ReceiptID` in internal/domain/journal.go:215 keine Pflicht ist, kann eine belegfreie Buchung in den Abschluss laufen. Welle 3.
+**Stand.** Der Belegzwang gilt beim Erfassen weiterhin nur dort, wo er automatisch entsteht — `ReceiptID` ist in internal/domain/journal.go:215 keine Pflicht. Seit Welle 3 kommt eine belegfreie Buchung aber nicht mehr unbemerkt in den Abschluss: der Prüfbericht nennt sie, und sie hält die Festschreibung auf. Der Erfassungsweg für Eigenbelege fehlt.
 
 ### BEL-02 Belegangaben und eindeutige Belegnummer `MUSS`
 
@@ -235,11 +235,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Bericht über Belege, deren Eingang mehr als zehn Tage zurückliegt und die nicht erfasst sind | ❌ | internal/domain/receipt.go:127 speichert `ReceivedAt`, wertet es aber gegen keine Frist aus; die Belegliste filtert nur nach Status | 3 |
-| Festschreibung des Vormonats erzwingen oder erinnern, Schwellenwert konfigurierbar | ❌ | frontend/src/pages/DeadlinesPage.tsx:622-680 bietet die Festschreibung an, kennt weder Frist noch Erinnerung noch Schwellenwert | 3 |
-| Abstände zwischen Belegdatum, Erfassung und Festschreibung je Buchung gespeichert und auswertbar | 🟡 | internal/domain/journal.go:111, :175 führen Belegdatum und Erfassungszeitpunkt; der Festschreibungszeitpunkt hängt am Zeitraum (internal/domain/festschreibung.go:13-31), nicht an der Buchung | 3 |
+| Bericht über Belege, deren Eingang mehr als zehn Tage zurückliegt und die nicht erfasst sind | ✅ | internal/service/check_service.go:445-505 (`receipt_overdue`) misst den Belegeingang gegen die Frist aus internal/domain/settings.go:60-63 (`ReceiptCaptureDays`, ohne Einstellung zehn Tage nach GoBD Rz. 47) und nennt jeden liegen gebliebenen Beleg mit Nummer und Eingangstag | – |
+| Festschreibung des Vormonats erzwingen oder erinnern, Schwellenwert konfigurierbar | ✅ | internal/service/deadline_service.go:285-317 führt je Monat einen Festschreibungstermin zum Ende des Folgemonats zuzüglich der Nachfrist aus internal/domain/settings.go:64-67 (`CommitGraceDays`) und gilt als erledigt, sobald der Monat festgeschrieben ist; internal/service/check_service.go:700-731 (`commit_overdue`) mahnt denselben Tag im Prüfbericht an, frontend/src/pages/DashboardPage.tsx:184-196 stellt beides auf die Aufgabenliste | – |
+| Abstände zwischen Belegdatum, Erfassung und Festschreibung je Buchung gespeichert und auswertbar | 🟡 | internal/domain/journal.go:111, :175 führen Belegdatum und Erfassungszeitpunkt, internal/domain/receipt.go:127 den Belegeingang, und internal/service/check_service.go:445-505 wertet den Abstand Eingang bis Erfassung aus; der Festschreibungszeitpunkt hängt weiterhin am Zeitraum (internal/domain/festschreibung.go:13-31) und nicht an der Buchung, der dritte Abstand ist deshalb nur rechnerisch | 3 |
 
-**Stand.** Die Zeitangaben liegen alle vor, ausgewertet wird keine. Die zehn Tage der GoBD Rz 50 sind in Buchfink nirgends eine Zahl. Welle 3.
+**Stand.** Die zehn Tage sind seit Welle 3 eine Zahl: sie stehen als `receipt_capture_days` in den Einstellungen, laufen im Prüfbericht gegen jeden liegen gebliebenen Beleg und haben in der Festschreibungsfrist des Vormonats ein Gegenstück. Was fehlt, ist der Festschreibungszeitpunkt an der einzelnen Buchung (UNV-02).
 
 ### BEL-05 Journalfunktion `MUSS`
 
@@ -344,12 +344,12 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Festschreibung spätestens zum Periodenabschluss, mindestens monatlich, zusätzlich manuell auslösbar | 🟡 | internal/wailsbridge/festschreibung_service.go:18-75 erzwingt lückenlose Reihenfolge; der Rhythmus folgt dem Voranmeldungszeitraum und ist voreingestellt quartalsweise (internal/repository/db.go:137), ein monatlicher Mindestrhythmus und eine Erinnerung fehlen | 3 |
+| Festschreibung spätestens zum Periodenabschluss, mindestens monatlich, zusätzlich manuell auslösbar | 🟡 | internal/wailsbridge/festschreibung_service.go:24-85 erzwingt lückenlose Reihenfolge und lässt jederzeit von Hand festschreiben; internal/service/deadline_service.go:285-317 führt jeden Monat als Termin und internal/service/check_service.go:700-731 mahnt den nicht festgeschriebenen Vormonat an. Die Erinnerung steht damit, erzwungen wird der monatliche Rhythmus aber nicht: die Festschreibung bleibt ein Knopf, den jemand drücken muss | 3 |
 | Festschreibungszeitpunkt je Buchung gespeichert, im Journal und im Export sichtbar | ❌ | internal/domain/journal.go:100-175 hat kein Feld dafür; gespeichert wird nur der Zeitraumsatz mit `CutoffDate` und `ChainHead` (internal/domain/festschreibung.go:11-38) | 3 |
 | Rücknahme der Festschreibung ausgeschlossen | ✅ | internal/repository/festschreibung_gorm.go:19-27 kennt kein `Delete`, `CommitPeriod` weist einen zurückliegenden Stichtag ab | – |
 | Entwürfe gekennzeichnet und außerhalb von Bilanz, GuV und Meldungen | ✅ | internal/service/journal_service.go:83-123; eine Buchung entsteht erst mit `Post` und ist sofort verkettet, Rechnungsentwürfe (internal/domain/invoice.go:19) sind nicht gebucht | – |
 
-**Stand.** Die Festschreibung ist echt und unwiderruflich, ihr Nachweis an der einzelnen Buchung fehlt: welcher Lauf eine Buchung festgeschrieben hat, ist nur rechnerisch über das Buchungsdatum herstellbar. Welle 3.
+**Stand.** Die Festschreibung ist echt und unwiderruflich, und seit Welle 3 erinnert die Fristenliste an jeden nicht festgeschriebenen Monat. Ausgelöst wird sie weiterhin von Hand, und ihr Nachweis an der einzelnen Buchung fehlt: welcher Lauf eine Buchung festgeschrieben hat, ist nur rechnerisch über das Buchungsdatum herstellbar. Welle 3.
 
 ### UNV-03 Änderungsprotokoll `MUSS`
 
@@ -389,11 +389,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Regelbasierte Prüfungen vor Freigabe und Periodenabschluss | 🟡 | internal/service/journal_service.go:96-109, :309-354 prüfen Ausgeglichenheit, Kontoexistenz, Steuerautomatik, gesperrte Sammelkonten und die Bewirtungsaufzeichnung; Dubletten, Doppelzahlungen und Bandbreiten werden nicht geprüft | 3 |
-| Ergebnis jedes Kontrolllaufs mit Zeitpunkt, Prüfumfang und Befunden gespeichert | 🟡 | internal/service/journal_service.go:225-228 und internal/domain/receipt.go:140-149 speichern Integritätslauf und E-Rechnungs-Validierung mustergültig; für die Buchungsprüfungen gibt es keinen Kontrolllauf-Begriff | 3 |
-| Übergangene Warnungen mit Begründung und Benutzer protokolliert | ❌ | internal/service/einvoice_notice.go; der einzige weiche Hinweis blockiert ausdrücklich nie, dass jemand ihn übergangen hat, wird nirgends festgehalten | 3 |
+| Regelbasierte Prüfungen vor Freigabe und Periodenabschluss | ✅ | internal/service/journal_service.go:96-109, :309-354 prüfen beim Buchen Ausgeglichenheit, Kontoexistenz, Steuerautomatik, gesperrte Sammelkonten und die Bewirtungsaufzeichnung; vor dem Periodenabschluss laufen zwölf weitere Regeln (internal/service/check_service.go:151-237), darunter Doppelbelege (:344-391), Doppelzahlungen (:614-651), Interimskonten (:392-433) und nicht zugeordnete Bankumsätze (:506-539) | – |
+| Ergebnis jedes Kontrolllaufs mit Zeitpunkt, Prüfumfang und Befunden gespeichert | ✅ | internal/domain/check.go:65-84 ist der Prüflauf eine Entität mit Stichtag, Anlass, Zeitpunkt, gezählten Buchungen, Belegen und Bankumsätzen und allen Befunden je Regel und Bezugsobjekt (:42-58); internal/service/check_service.go:129-149 speichert ihn und protokolliert ihn, internal/repository/check_gorm.go:26-44 legt ihn mit seinen Befunden ab, frontend/src/pages/AuditPage.tsx:226-250 zeigt die Läufe im Prüfprotokoll | – |
+| Übergangene Warnungen mit Begründung und Benutzer protokolliert | ✅ | internal/service/check_service.go:238-252 lässt einen blockierenden Befund nur mit Begründung übergehen, :220-227 hängt sie an den Lauf, der etwas zu übergehen hatte, :139-146 und internal/wailsbridge/festschreibung_service.go:75-83 schreiben sie ins Änderungsprotokoll; internal/domain/check.go:78-80 speichert sie. Eine Bearbeiterkennung führt Buchfink als Einzelplatz nicht (UNV-04, Welle 6) | – |
 
-**Stand.** Die harten Buchungsregeln sind stark, ein dokumentiertes Kontrollsystem mit nachweisbaren Läufen ist es nicht. Welle 3.
+**Stand.** Mit Welle 3 gibt es das Kontrollsystem als Sache und nicht als Absicht: zwölf Regeln vor jeder Festschreibung, jeder Lauf mit Zeitpunkt, Prüfumfang und Befunden gespeichert, und wer einen blockierenden Befund übergeht, hinterlässt dafür eine Begründung im Protokoll.
 
 ### UNV-06 Programmidentität und Versionsnachweis `MUSS`
 
@@ -709,11 +709,11 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Risikokonstellationen nach § 14c UStG erkannt, Warnung vor der Freigabe | ❌ | internal/service/invoice_service.go:230 prüft nur Land und USt-IdNr.; § 14c kommt im Code ausschließlich in Kommentaren vor | 3 |
-| Eigenes Konto oder eigener Steuerschlüssel, gesonderte Auswertung | ❌ | internal/domain/skr04_accounts.go:32 kennt kein Konto für unrichtig oder unberechtigt ausgewiesene Steuer | 3 |
-| Beträge fließen korrekt in die Umsatzsteuer-Voranmeldung ein | ❌ | frontend/src/pages/ReportsPage.tsx:348; die Kennziffer 69 existiert in der Auswertung nicht | 3 |
+| Risikokonstellationen nach § 14c UStG erkannt, Warnung vor der Freigabe | ✅ | internal/service/invoice_service.go:250-266 (`ensureNoUnlawfulTax`) weist eine Rechnung ab, deren Position einen Steuersatz trägt, obwohl der Steuerfall keine Steuer entstehen lässt; internal/domain/invoice.go:163-173 hält dieselbe Regel an der Entität, internal/service/journal_service.go:394-438 auf dem Handbuchungsweg — dort auch über das Erlöskonto, wenn die Buchung keinen Steuerfall trägt. Abgewiesen wird beim Ausstellen, weil die Berichtigung später die Zustimmung des Finanzamts voraussetzt (§ 14c Abs. 2 Sätze 3 bis 5 UStG) | – |
+| Eigenes Konto oder eigener Steuerschlüssel, gesonderte Auswertung | ✅ | internal/domain/skr04_accounts.go:63-69 führt Konto 3851 („In Rechnung unrichtig oder unberechtigt ausgewiesene Steuerbeträge"), internal/accounting/tax_skr04.go:28-37 den Steuerschlüssel `UST14C` — bewusst ohne Automatik, weil kein Steuerfall dahintersteht —, :25 nimmt das Konto unter die Steuerkonten, und internal/accounting/tax_skr04.go:42-50 hält es aus der Inlandsumsatzsteuer heraus | – |
+| Beträge fließen korrekt in die Umsatzsteuer-Voranmeldung ein | ✅ | internal/accounting/ustva.go:80 führt Kennziffer 69, :372-376 trägt den Betrag ohne Bemessungsgrundlage dorthin, :111 nimmt ihn in die geschuldete Steuer der Kennziffer 83 auf | – |
 
-**Stand.** § 14c ist weder erkannt noch aufgezeichnet noch gemeldet. Welle 3.
+**Stand.** Mit Welle 3 geschlossen: Buchfink stellt eine Rechnung mit unrichtigem Steuerausweis gar nicht erst aus, und der Betrag aus einer außerhalb entstandenen Rechnung läuft über Konto 3851 in Kennziffer 69.
 
 ---
 
@@ -727,12 +727,12 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Je Voranmeldungszeitraum ableitbar: Entgelte nach Steuersätzen und steuerfreien Umsätzen, § 9-Option, vereinnahmte Anzahlungen, unentgeltliche Wertabgaben, § 14c-Beträge, Vorsteuer inklusive Anzahlungen, Einfuhrumsatzsteuer, innergemeinschaftliche Erwerbe, § 13b getrennt | 🟡 | internal/service/vat_service.go:69, :83-93 leitet Entgelte je Steuersatz, Vorsteuer, innergemeinschaftliche Erwerbe und § 13b für beide Seiten aus den Steuerzeilen ab. Es fehlen Anzahlungen, unentgeltliche Wertabgaben, Einfuhrumsatzsteuer und § 14c; die Option nach § 9 UStG ist kein Steuerfall von Buchfink und erhält einen Hinweis in der Oberfläche | 3 |
+| Je Voranmeldungszeitraum ableitbar: Entgelte nach Steuersätzen und steuerfreien Umsätzen, § 9-Option, vereinnahmte Anzahlungen, unentgeltliche Wertabgaben, § 14c-Beträge, Vorsteuer inklusive Anzahlungen, Einfuhrumsatzsteuer, innergemeinschaftliche Erwerbe, § 13b getrennt | 🟡 | internal/accounting/ustva.go:34-86 führt den Vordruck USt 1 A vollständig, internal/accounting/ustva.go:301-396 leitet aus den Steuerschlüsseln je Kennziffer Bemessungsgrundlage und Steuer ab: Entgelte je Steuersatz (81, 86), steuerfreie Umsätze mit und ohne Vorsteuerabzug (41, 43, 48), innergemeinschaftliche Erwerbe (89, 93), § 13b als Leistungsempfänger mit beiden Beinen (46/47 und 67) und als Leistender in Kennziffer 21 (:352-361), Vorsteuer (66) und die Beträge nach § 14c UStG (69, :372-376). Es fehlen Anzahlungen, unentgeltliche Wertabgaben und die Einfuhrumsatzsteuer — Kennziffer 62 steht auf dem Blatt, aber kein Steuerschlüssel füllt sie; die Option nach § 9 UStG ist kein Steuerfall von Buchfink | 5 |
 | Bei Ist-Versteuerung werden die vereinnahmten Entgelte aufgezeichnet | ⛔ | Buchfink führt nur die Sollversteuerung; internal/service/journal_service.go:277 weist die Istversteuerung ausdrücklich ab, statt sie still falsch zu buchen | – |
 | Aufzeichnungen zu Konsignationslagern nach § 6b UStG und zur Vorsteuerberichtigung nach § 15a UStG gesondert | ❌ | Konsignationslager sind kein Steuerfall von Buchfink; das Verzeichnis nach § 15a UStG fehlt und ist zu bauen (siehe UST-07) | 5 |
-| Jede Position der Voranmeldung per Drill-down bis auf die einzelne Buchung auflösbar | ❌ | frontend/src/pages/ReportsPage.tsx:348; die Kennzifferntabelle ist rein darstellend, nur der Umweg über das Kontoblatt existiert | 3 |
+| Jede Position der Voranmeldung per Drill-down bis auf die einzelne Buchung auflösbar | ✅ | internal/accounting/ustva.go:187-189, :246 sammelt je Kennziffer die Buchungen, aus denen sie entstanden ist, internal/domain/vatreturn.go:68-71, :191-197 trägt sie an der Zeile; frontend/src/pages/VatPage.tsx:1062, :1105-1128 klappt sie an der Kennziffernzeile auf und verlinkt jede Buchungsnummer ins Journal | – |
 
-**Stand.** Die Steuerfälle, die Buchfink kennt, sind sauber aus den Steuerzeilen ableitbar. Die Hälfte der Liste des § 22 Abs. 2 UStG fehlt, teils als Entscheidung, teils als Lücke: Anzahlungen, unentgeltliche Wertabgaben, Einfuhrumsatzsteuer und § 14c kommen in den Wellen 3 und 5.
+**Stand.** Die Aufzeichnung führt seit Welle 3 zum Vordruck: jede Kennziffer trägt die Buchungen, aus denen sie entstanden ist, und lässt sich an der Zeile bis zur einzelnen Buchung aufklappen. Von der Liste des § 22 Abs. 2 UStG fehlen noch die Anzahlungen, die unentgeltlichen Wertabgaben und die Einfuhrumsatzsteuer; § 14c ist mit Konto 3851 und Kennziffer 69 gebaut (RECH-10). Konsignationslager und § 9 UStG bleiben Entscheidungen, das Verzeichnis nach § 15a UStG kommt mit Welle 5.
 
 ### UST-02 Soll- und Ist-Versteuerung `MUSS`
 
@@ -744,11 +744,11 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 |---|---|---|---|
 | Besteuerungsverfahren je Mandant einstellbar, wirkt auf die Periodenzuordnung | ⛔ | internal/domain/settings.go:33 führt das Feld, die Oberfläche bietet nur SOLL an und internal/service/journal_service.go:286 weist IST mit Begründung ab. Bewusste, dokumentierte Einschränkung | – |
 | Wechsel des Verfahrens zum Jahreswechsel ohne Doppelerfassung, mit Abstimmbericht | ⛔ | Folgt aus dem Vorstehenden: ohne Istversteuerung gibt es keinen Wechsel | – |
-| Bei Sollversteuerung steuert das Leistungsdatum die Periode | 🟡 | internal/service/vat_service.go:39 grenzt über das Buchungsdatum ein; `ServiceDateFrom` und `ServiceDateTo` stehen an der Buchung, werden aber nicht ausgewertet, eine im Folgemonat gebuchte Rechnung fällt in den falschen Voranmeldungszeitraum | 3 |
+| Bei Sollversteuerung steuert das Leistungsdatum die Periode | ✅ | internal/accounting/vat_period.go:34-75 (`VatPeriodFor`) ordnet Ausgangsumsatz und Erlös nach `ServiceDateTo`, hilfsweise `ServiceDateFrom`, Beleg- und Buchungsdatum zu (:39-42, § 13 Abs. 1 Nr. 1 UStG); die Vorsteuer folgt dem späteren von Leistung, Rechnung und Belegeingang (:58-70), Erwerbsteuer und § 13b dem Belegdatum (:44-56). internal/accounting/ustva.go:301-320 zerlegt das Journal nach dieser Regel, nicht nach dem Buchungsdatum | – |
 | Anzahlungen führen im Zeitpunkt der Vereinnahmung zur Steuerentstehung | ❌ | internal/domain/einvoice.go:96; Anzahlungen sind nicht gebaut | 5 |
 | Umsatzgrenze von 800.000 Euro überwacht und bei Überschreitung gemeldet | ⛔ | Die Grenze entscheidet allein über die Zulässigkeit der Istversteuerung, die Buchfink nicht führt | – |
 
-**Stand.** Die Sollversteuerung ist der einzige Weg und wird ehrlich erzwungen, aber sie ordnet die Periode nach dem Buchungs- statt dem Leistungsdatum zu (internal/service/vat_service.go:39). Das ist der wichtigste Befund des Moduls. Welle 3.
+**Stand.** Die Sollversteuerung ist der einzige Weg und wird ehrlich erzwungen; seit Welle 3 ordnet sie die Periode nach dem Leistungsdatum zu, und die Regel steht an einer Stelle (internal/accounting/vat_period.go:34). Offen bleiben allein die Anzahlungen, die zur Vereinnahmung Steuer auslösen. Welle 5.
 
 ### UST-03 Umsatzsteuer-Voranmeldung `MUSS`
 
@@ -758,14 +758,14 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Voranmeldungszeitraum aus der Vorjahressteuer ermittelt und vorgeschlagen, überschreibbar | 🟡 | internal/accounting/gruendung.go:180 leitet ihn aus dem Gründungsjahr nach § 18 Abs. 2 Sätze 4 und 6 UStG ab und lässt ihn überschreiben; die Schwellen 9.000 und 2.000 Euro werden nirgends ausgewertet | 3 |
-| Amtlicher Datensatz, Übermittlung über ERiC oder ELSTER, alternativ ein in ELSTER importierbarer Export | ❌ | frontend/src/pages/ReportsPage.tsx:352 zeigt vier Kennziffern zum Abtippen. Buchfink bindet ERiC nicht ein; das Kriterium wird durch ein vollständiges Kennziffernblatt plus Exportdatei zum Übertragen in Mein ELSTER erfüllt | 3 |
-| Übermittlungsprotokoll mit Zeitpunkt, Transferticket und Status revisionssicher gespeichert | ❌ | Es gibt keine Übermittlung und kein Protokollobjekt. Das Protokoll wird nach der Übermittlung manuell erfasst (Datum, Transferticket) und ist danach unveränderlich | 3 |
-| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | ❌ | frontend/src/pages/DeadlinesPage.tsx:234 kennt nur den Termin, keine Berechnung, keine Buchung, keine Anrechnung | 3 |
-| Korrigierte Voranmeldungen gekennzeichnet und mit der ursprünglichen Übermittlung verknüpft | ❌ | Nicht vorhanden | 3 |
-| Übermittlung erst nach Festschreibung der zugrunde liegenden Periode | ❌ | internal/wailsbridge/festschreibung_service.go; die Festschreibung existiert, ist aber an keine Übermittlung gekoppelt | 3 |
+| Voranmeldungszeitraum aus der Vorjahressteuer ermittelt und vorgeschlagen, überschreibbar | 🟡 | internal/accounting/gruendung.go:180 leitet ihn aus dem Gründungsjahr nach § 18 Abs. 2 Sätze 4 und 6 UStG ab und lässt ihn überschreiben; internal/service/vat_return_service.go:102-113 liest ihn an einer Stelle für Voranmeldung, Prüflauf und Fristenliste, im Zweifel als Quartal. Die Schwellen 9.000 und 2.000 Euro werden weiterhin nirgends ausgewertet, obwohl die Vorjahressteuer mit den übermittelten Anmeldungen jetzt vorliegt | 3 |
+| Amtlicher Datensatz, Übermittlung über ERiC oder ELSTER, alternativ ein in ELSTER importierbarer Export | 🟡 | internal/accounting/ustva.go:34-86 führt das vollständige Kennziffernblatt des Vordrucks USt 1 A, internal/service/vat_return_service.go:502-529 gibt es als CSV mit Kennziffer und Wert aus (Kennziffer 10 bei der Berichtigung, :508), frontend/src/pages/VatPage.tsx:228-231, :523 zeigt und speichert es. Buchfink bindet ERiC bewusst nicht ein: die Datei wird in Mein ELSTER übertragen, ein amtlich erzeugter Datensatz entsteht nicht | 3 |
+| Übermittlungsprotokoll mit Zeitpunkt, Transferticket und Status revisionssicher gespeichert | ✅ | internal/domain/vatreturn.go:107-146 ist die Anmeldung eine Entität und zugleich das Protokoll: Status, Übermittlungsdatum, Transferticket, Vermerk, Zahllast, Fälligkeit und die Programmversion, die das Blatt gerechnet hat. internal/domain/vatreturn.go:205-222 (`ValidateSubmission`) verlangt Datum und Transferticket und weist jede Änderung einer bestätigten Anmeldung ab; internal/service/vat_return_service.go:418-452 schreibt die Bestätigung ins Änderungsprotokoll | – |
+| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | ✅ | internal/domain/settings.go:46, :59 führen Dauerfristverlängerung und Sondervorauszahlung, internal/accounting/vat_period.go:256-269 verschiebt die Fälligkeit um einen Monat, internal/service/vat_return_service.go:308-404 schlägt ein Elftel der Vorauszahlungen des Vorjahres vor — nur dem Monatszahler (§ 47 Abs. 1 UStDV) und mit den Zeiträumen, aus denen die Summe entstand —, :591-618 rechnet sie im letzten Zeitraum des Jahres an, internal/accounting/ustva.go:226 setzt sie in Kennziffer 39; internal/service/deadline_service.go:246-264 führt den Anmeldetermin | – |
+| Korrigierte Voranmeldungen gekennzeichnet und mit der ursprünglichen Übermittlung verknüpft | ✅ | internal/service/vat_return_service.go:462-495 (`CreateCorrection`) rechnet den Zeitraum vollständig neu und verknüpft ihn über `CorrectsID` mit der übermittelten Anmeldung (internal/domain/vatreturn.go:115-117), :741-763 lässt je Zeitraum nur eine Erstanmeldung zu. Nachträge zu übermittelten Zeiträumen weist internal/accounting/ustva.go:203-219 aus, statt sie still in den laufenden Zeitraum zu ziehen | – |
+| Übermittlung erst nach Festschreibung der zugrunde liegenden Periode | ✅ | internal/service/vat_return_service.go:718-733 (`ensureCommitted`) weist die Bestätigung ab, solange der Zeitraum nicht festgeschrieben ist; :764-785 (`ensureCurrent`) verlangt zusätzlich, dass das gespeicherte Blatt dem heutigen Journalstand entspricht | – |
 
-**Stand.** Vorhanden ist eine Orientierungsauswertung mit vier Kennziffern, keine Voranmeldung: es fehlen unter anderem 41, 21, 43, 89/61, 46/47, 84/85, 60 und 69, obwohl `VatSummary` (internal/domain/vat.go:28-45) die Zahlen teilweise trägt. Welle 3.
+**Stand.** Aus der Orientierungsauswertung ist mit Welle 3 eine Voranmeldung geworden: der Vordruck USt 1 A vollständig, als Entität gespeichert, mit Übermittlungsnachweis, Berichtigung nach § 153 AO, Dauerfristverlängerung und Sondervorauszahlung — und bestätigen lässt sie sich erst, wenn der Zeitraum festgeschrieben ist. Zwei Punkte bleiben: der amtliche Datensatz entsteht nicht in Buchfink (Entscheidung gegen ERiC, die Datei geht nach Mein ELSTER), und die Schwellen des § 18 Abs. 2 UStG entscheiden den Voranmeldungszeitraum noch nicht selbst.
 
 ### UST-04 Zusammenfassende Meldung `MUSS*`
 
@@ -775,13 +775,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| ZM aus den Buchungen, getrennt nach innergemeinschaftlichen Lieferungen, Dreiecksgeschäften und Leistungen nach § 3a Abs. 2 UStG | ❌ | Nirgends im Code. Die Datengrundlage liegt vor (Steuerfälle mit `ContactID` und USt-IdNr. am Personenkonto); Dreiecksgeschäfte sind kein Steuerfall von Buchfink und entfallen als Rubrik | 3 |
-| Meldezeitraum folgt der 50.000-Euro-Grenze, Wechsel ab dem Überschreitungsmonat | ❌ | Nicht vorhanden | 3 |
-| Leistungen nach § 3a Abs. 2 UStG quartalsweise, auch bei monatlicher Warenmeldung | ❌ | Nicht vorhanden | 3 |
-| Summen der ZM stimmen mit den Kennzahlen der Voranmeldung überein, Abweichung wird angezeigt | ❌ | Nicht vorhanden | 3 |
-| Berichtigungen möglich und protokolliert | ❌ | Nicht vorhanden | 3 |
+| ZM aus den Buchungen, getrennt nach innergemeinschaftlichen Lieferungen, Dreiecksgeschäften und Leistungen nach § 3a Abs. 2 UStG | ✅ | internal/accounting/zm.go:58-107 (`ZMMovements`) zerlegt die Buchungen über die Erlöskonten in Lieferungen („L") und Leistungen an Empfänger im übrigen Gemeinschaftsgebiet („S"), nach demselben Leistungsdatum wie die Voranmeldung; :172-250 (`ZMLines`) fasst sie je USt-IdNr. und Meldeart zusammen und meldet die fehlende USt-IdNr. als Befund, der die Bestätigung verhindert. internal/service/zm_service.go:313-358 baut daraus die Meldung, :290-312 die CSV für das BZSt-Portal. Dreiecksgeschäfte sind kein Steuerfall von Buchfink; die Meldeart steht nur benannt in internal/domain/vatreturn.go:246-249 | – |
+| Meldezeitraum folgt der 50.000-Euro-Grenze, Wechsel ab dem Überschreitungsmonat | ✅ | internal/accounting/zm.go:24 (`ZMThreshold`), :125-158 (`ZMPeriodsOfYear`) meldet vierteljährlich und wechselt für das ganze Quartal auf Monate, sobald die Lieferungen im laufenden oder in einem der vier vorangegangenen Quartale 50.000 Euro übersteigen (§ 18a Abs. 1 Satz 2 UStG); internal/service/zm_service.go:547-566 liest die Umsätze über drei Geschäftsjahre, damit die Rückschau trägt | – |
+| Leistungen nach § 3a Abs. 2 UStG quartalsweise, auch bei monatlicher Warenmeldung | 🟡 | internal/accounting/zm.go:127-131 lässt die sonstigen Leistungen bei der Schwelle des § 18a Abs. 1 Satz 2 UStG außer Betracht, meldet sie aber im selben Zeitraum wie die Lieferungen: bei monatlicher Warenmeldung also monatlich. Das ist der Weg des § 18a Abs. 3 UStG und nicht falsch; die Wahl, sie weiter vierteljährlich zu melden, bietet internal/accounting/zm.go:125-158 nicht an | 3 |
+| Summen der ZM stimmen mit den Kennzahlen der Voranmeldung überein, Abweichung wird angezeigt | ✅ | internal/service/zm_service.go:462-533 (`reconcile`) stellt die Meldesummen den Kennziffern 41 und 21 der jüngsten Anmeldungen desselben Zeitraums gegenüber und rechnet auch den umgekehrten Zuschnitt (monatliche ZM neben vierteljährlicher Anmeldung); internal/domain/vatreturn.go:352-367 trägt die Differenzen, frontend/src/pages/VatPage.tsx:796, :806 zeigt sie neben der Meldung | – |
+| Berichtigungen möglich und protokolliert | ✅ | internal/service/zm_service.go:258-289 (`CreateCorrection`) meldet den Zeitraum vollständig neu und verknüpft ihn mit der übermittelten Meldung (internal/domain/vatreturn.go:294-295), :204-257 (`ConfirmSubmitted`) hält Datum und Transferticket fest und schreibt beides ins Änderungsprotokoll; :359-413 weist Nachträge zu bereits übermittelten Meldezeiträumen aus | – |
 
-**Stand.** Vollständig offen, obwohl die Buchungsdaten alles hergeben, was die Meldung braucht. Welle 3.
+**Stand.** Mit Welle 3 gebaut: die Meldung entsteht je USt-IdNr. aus denselben Buchungen wie die Voranmeldung, kennt die Schwelle des § 18a Abs. 1 UStG, stimmt sich gegen die Kennziffern 41 und 21 ab und lässt sich berichtigen. Offen bleibt allein die Wahl, die sonstigen Leistungen neben monatlicher Warenmeldung weiter vierteljährlich zu melden.
 
 ### UST-05 Reverse Charge `MUSS*`
 
@@ -794,9 +794,9 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 | Steuerschlüssel für die Fälle des § 13b Abs. 2 UStG erzeugen Steuer- und korrespondierende Vorsteuerbuchung | ✅ | internal/accounting/tax_skr04.go:231; zwei Legs mit den Schlüsseln `RC19_UST` und `RC19_VST` auf 3835/3837 und 1407/1408 | – |
 | Freistellungsbescheinigung mit Gültigkeitsdauer im Stammsatz, Meldung bei Ablauf | ⛔ | Bauleistungen und Gebäudereinigung nach § 13b Abs. 2 Nr. 4 UStG sind kein Steuerfall von Buchfink; internal/domain/contact.go:32 führt entsprechend kein Feld | – |
 | Betragsgrenzen von 5.000 Euro je wirtschaftlichem Vorgang geprüft | ❌ | internal/service/posting_service.go:602 prüft nur Land und USt-IdNr. | 3 |
-| Umsätze nach § 13b UStG getrennt aufgezeichnet und in den richtigen Kennzahlen ausgewiesen | 🟡 | internal/domain/vat.go:36 zeichnet getrennt auf eigenen Konten auf; in der Voranmeldung fehlen die Kennziffern 46/47 und 84, die Beträge stecken nur in der Gesamtsumme | 3 |
+| Umsätze nach § 13b UStG getrennt aufgezeichnet und in den richtigen Kennzahlen ausgewiesen | ✅ | internal/accounting/tax_skr04.go:231 bucht auf eigene Konten, internal/accounting/ustva.go:58-60 führt die Kennziffern 46/47, 73/74 und 84/85 des Vordrucks, :381-382 trägt die Steuer des Leistungsempfängers in 46/47 und :387-388 die zugehörige Vorsteuer in 67. Die Kennziffern 73/74, 84/85 und 60 bleiben leer: die Fälle dahinter sind kein Steuerfall von Buchfink, stehen aber auf dem Blatt, damit niemand sie beim Abtippen übersieht | – |
 
-**Stand.** Die Buchungslogik für die unterstützten Reverse-Charge-Fälle stimmt, die Nebenbedingungen und die Meldung fehlen. Welle 3.
+**Stand.** Die Buchungslogik für die unterstützten Reverse-Charge-Fälle stimmt, und seit Welle 3 stehen beide Beine in den richtigen Kennziffern. Offen bleibt die Betragsgrenze von 5.000 Euro je wirtschaftlichem Vorgang.
 
 ### UST-06 Innergemeinschaftliche Lieferung und Nachweise `MUSS*`
 
@@ -1170,7 +1170,7 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 | Unverdichtete Kontennachweise mit Kontensalden erzeugt und mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:291-309 schreibt je Konto mit Saldo Nummer, Bezeichnung, Gliederungsposition, Taxonomie-Element und Saldo unverdichtet in die Instanz (:150); die Hüllelemente `accountAuditProof` und die Felder darunter stehen in keiner Taxonomie-Ressource, sie sind wie bisher frei gebildet | 2 |
 | Ab Wirtschaftsjahr 2028 Anlagenspiegel und Anlagenverzeichnis mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:320-374 schreibt den Anlagenspiegel je Konto, je Klasse des § 266 Abs. 2 A HGB und in Summe, mit Anschaffungskosten, Abschreibungen und Buchwerten, und hängt an jede Zeile die Taxonomieposition ihres Kontos; das Anlagenverzeichnis geht nicht mit | 2 |
 | Auffangpositionen nur ersatzweise verwendet, Verwendung erscheint in einem Bericht | ✅ | internal/accounting/statement.go:667-690 zählt jede als Auffang gekennzeichnete Position der Gliederung (:88, :100, :103, :120, :132, :142, :161, :171) mit Kontenzahl und Betrag aus, internal/ebilanz/mapping.go:44-45, :66-68 nimmt die Zählung in den Zuordnungsbericht, frontend/src/pages/EBilanzPage.tsx:137-141, :221-250 zeigt sie vor dem Export | – |
-| Übermittlungsprotokoll revisionssicher gespeichert | ❌ | internal/service/ebilanz_service.go:86-92 protokolliert nur, dass eine Datei erzeugt wurde; das Protokoll wird nach der Übermittlung manuell erfasst und ist danach unveränderlich | 3 |
+| Übermittlungsprotokoll revisionssicher gespeichert | ❌ | internal/service/ebilanz_service.go:86-92 protokolliert weiterhin nur, dass eine Datei erzeugt wurde. Das Muster steht seit Welle 3 an der Voranmeldung (internal/domain/vatreturn.go:107-146, :205-222: Entität mit Übermittlungsdatum, Transferticket und Status), für die E-Bilanz gibt es kein solches Objekt | 3 |
 
 **Stand.** Die Reihenfolge hat sich bewährt: seit die Gliederung aus JAB-01 steht, zeigt das Mapping auf Positionen statt auf Konten. Die Instanz trägt Bilanz und Gewinn- und Verlustrechnung mit Vorjahreskontext, den unverdichteten Kontennachweis und den Anlagenspiegel, und ein Konto ohne Zuordnung blockiert den Export namentlich, statt still auf einer Sammelposition zu verschwinden. Was bleibt, ist der Abgleich der Elementnamen gegen die amtliche Taxonomie 6.9 und das Protokoll der Übermittlung. Welle 2.
 
@@ -1438,19 +1438,19 @@ Gezählt werden Akzeptanzkriterien, nicht Anforderungen. 82 Anforderungen zerfal
 
 | Modul | Anforderungen | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
 |---|---|---|---|---|---|---|
-| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 7 | 10 | 5 | 0 | 22 |
-| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 13 | 13 | 5 | 4 | 35 |
-| C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 4 | 8 | 6 | 4 | 22 |
+| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 10 | 8 | 4 | 0 | 22 |
+| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 16 | 13 | 2 | 4 | 35 |
+| C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 7 | 6 | 5 | 4 | 22 |
 | D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 8 | 4 | 16 | 3 | 31 |
-| E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 7 | 17 | 14 | 5 | 43 |
-| F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 1 | 5 | 23 | 13 | 42 |
+| E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 10 | 17 | 11 | 5 | 43 |
+| F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 12 | 5 | 12 | 13 | 42 |
 | G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 10 | 16 | 19 | 18 | 63 |
 | H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 17 | 9 | 15 | 3 | 44 |
 | I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 0 | 4 | 13 | 6 | 23 |
 | J. Querschnitt | QUE-01 bis QUE-06 | 4 | 5 | 14 | 1 | 24 |
-| **Summe** | **82** | **71** | **91** | **130** | **57** | **349** |
+| **Summe** | **82** | **94** | **87** | **111** | **57** | **349** |
 
-Das Bild hat sich mit Welle 2 verschoben: der laufende Buchungsstoff steht (Module A bis C), und die Jahresabschlusskette trägt jetzt bis zur E-Bilanz (Modul H), wo Anhang, Offenlegungsdatensatz und die Prüfung der Elementnamen offen bleiben. Das Meldewesen steht weiterhin nicht (Modul F). Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
+Mit Welle 3 hat sich das Meldewesen bewegt: Modul F kommt von einem auf zwölf erfüllte Kriterien, weil die Voranmeldung alle Kennziffern des Vordrucks USt 1 A trägt und die Zusammenfassende Meldung dazugekommen ist. Mitgewachsen sind die Module A bis C, weil vor jeder Festschreibung jetzt ein gespeicherter Prüfbericht steht: Nummernlücken, Buchungen ohne Beleg und liegen gebliebene Belege halten sie auf. Offen bleiben im Meldewesen die Sachverhalte, die Buchfink nicht führt, und die Übermittlung selbst — sie geschieht in Mein ELSTER, nicht hier. Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
 
 ---
 
