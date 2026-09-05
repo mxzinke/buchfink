@@ -369,11 +369,31 @@ type AfAYear struct {
 	// Konten buchen.
 	SpecialAmount    domain.Cents `json:"specialAmount,omitempty"`
 	ClosingBookValue domain.Cents `json:"closingBookValue"`
-	Note             string       `json:"note,omitempty"`
+
+	// TaxAmount ist die planmäßige AfA derselben Jahres in der *steuerlichen*
+	// Rechnung, TaxClosingBookValue der steuerliche Restbuchwert danach.
+	//
+	// Ohne Sonderabschreibung sind beide Zahlen die handelsrechtlichen: die
+	// Einheitsbilanz ist der Regelfall. Erst § 7g Abs. 5 EStG trennt die beiden
+	// Rechnungen — die Sonderabschreibung mindert allein den steuerlichen
+	// Wertansatz, und nach dem Begünstigungszeitraum verteilt § 7a Abs. 9 EStG
+	// den dann verbliebenen steuerlichen Restwert auf die Restnutzungsdauer.
+	// Der handelsrechtliche Plan läuft daneben unverändert bis auf null
+	// (§ 253 HGB; § 254 HGB a. F. ist mit dem BilMoG entfallen).
+	TaxAmount           domain.Cents `json:"taxAmount"`
+	TaxClosingBookValue domain.Cents `json:"taxClosingBookValue"`
+
+	Note string `json:"note,omitempty"`
 }
 
-// TotalAmount is what the fiscal year writes off altogether.
+// TotalAmount is what the fiscal year writes off altogether — handelsrechtlich
+// planmäßig und steuerlich zusätzlich.
 func (y AfAYear) TotalAmount() domain.Cents { return y.Amount + y.SpecialAmount }
+
+// TaxDifference ist der Betrag, um den die steuerliche Abschreibung des Jahres
+// die handelsrechtliche übersteigt. Er ist die Zeile des Verzeichnisses nach
+// § 5 Abs. 1 Satz 2 EStG und kehrt sich nach dem Begünstigungszeitraum um.
+func (y AfAYear) TaxDifference() domain.Cents { return y.TaxAmount + y.SpecialAmount - y.Amount }
 
 // BuildAfASchedule computes the whole plan of an asset, year by year.
 //
@@ -382,8 +402,10 @@ func (y AfAYear) TotalAmount() domain.Cents { return y.Amount + y.SpecialAmount 
 // caught up before a disposal. One computation, one truth — a second one in the
 // user interface would drift the day a rule changes.
 func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
+	// Ohne Anschaffungskosten gibt es keinen Plan — aber eine leere Liste und
+	// kein nil: der Plan geht als JSON in die Maske, die ihn beim Tippen liest.
 	if plan.Cost <= 0 {
-		return nil, nil
+		return []AfAYear{}, nil
 	}
 	if len(plan.AcquisitionDate) != 10 {
 		return nil, fmt.Errorf("das Anschaffungsdatum fehlt oder ist unvollständig")
@@ -427,7 +449,9 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 
 	switch plan.Method {
 	case domain.DepreciationNone:
-		return nil, nil
+		// Finanzanlagen werden nicht planmäßig abgeschrieben — die Maske zeigt
+		// dann eine leere Tabelle und kein `null`.
+		return []AfAYear{}, nil
 	case domain.DepreciationImmediate:
 		year := domain.GetFiscalYearForDate(plan.AcquisitionDate, start)
 		return []AfAYear{{
@@ -438,6 +462,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			OpeningBookValue: plan.Cost,
 			Amount:           plan.Cost,
 			ClosingBookValue: 0,
+			TaxAmount:        plan.Cost,
 			Note:             "Sofortabzug im Jahr der Anschaffung (§ 6 Abs. 2 Satz 1 EStG).",
 		}}, nil
 	case domain.DepreciationPool:
@@ -485,8 +510,14 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		}
 	}
 
-	var rows []AfAYear
+	// Belegt statt nil: der Plan geht als JSON in die Maske, und eine Eingabe
+	// ohne Abschreibungsjahr käme dort sonst als `null` an.
+	rows := make([]AfAYear, 0, 16)
 	bookValue := plan.Cost
+	// taxBookValue ist der Restwert der steuerlichen Rechnung. Er läuft neben
+	// dem handelsrechtlichen her und weicht von ihm nur ab, wo § 7g Abs. 5 EStG
+	// in Anspruch genommen wurde: die Sonderabschreibung mindert allein ihn.
+	taxBookValue := plan.Cost
 	remainingMonths := monthsBetween(afaStart, naturalEnd)
 	switchedToLinear := false
 	basisChanged := false
@@ -544,13 +575,14 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		if plan.SpecialPermille > 0 && year > periodEndYear && !restwertPhase {
 			// § 7a Abs. 9 EStG: nach Ablauf des Begünstigungszeitraums bemisst
 			// sich die weitere AfA nach dem Restwert und der Restnutzungsdauer.
-			// Weiter vom ursprünglichen Satz zu rechnen ließe das Wirtschaftsgut
-			// vor dem Ende seiner Nutzungsdauer bei null ankommen.
+			// Das betrifft allein die steuerliche Rechnung — handelsrechtlich
+			// gab es die Sonderabschreibung nie, und der Plan läuft dort
+			// unverändert mit seinem Satz weiter.
 			restwertPhase = true
-			basisChanged = true
 			addedNote = appendNote(addedNote,
-				"Der Begünstigungszeitraum der Sonderabschreibung ist abgelaufen: der Restwert "+
-					"verteilt sich von hier an auf die Restnutzungsdauer (§ 7a Abs. 9 EStG).")
+				"Der Begünstigungszeitraum der Sonderabschreibung ist abgelaufen: der steuerliche "+
+					"Restwert verteilt sich von hier an auf die Restnutzungsdauer (§ 7a Abs. 9 EStG). "+
+					"Die handelsrechtliche Abschreibung bleibt davon unberührt.")
 		}
 
 		fyStart := time.Date(year, time.Month(start), 1, 0, 0, 0, 0, time.UTC)
@@ -580,13 +612,6 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			row.Amount = bookValue
 			row.RateLabel = "Restwert"
 			row.Note = "Letztes Jahr der Nutzungsdauer: der Restbuchwert wird vollständig abgeschrieben."
-		case restwertPhase:
-			// § 7a Abs. 9 EStG geht der Methode vor: nach dem Begünstigungszeitraum
-			// bemisst sich die AfA „nach dem Restwert und der Restnutzungsdauer",
-			// auch wo bis dahin degressiv abgeschrieben wurde.
-			annual := domain.MulRound(bookValue, 12, int64(remainingMonths))
-			row.Amount = domain.MulRound(annual, int64(months), 12)
-			row.RateLabel = fmt.Sprintf("linear auf %d Restmonate", remainingMonths)
 		case degressive && !switchedToLinear:
 			num, den := degressiveRate(plan.UsefulLifeMonths, window)
 			annualDeg := domain.MulRound(bookValue, num, den)
@@ -637,6 +662,25 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 				"Zeitanteilig für %d von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).", months))
 		}
 
+		// Die steuerliche Rechnung des Jahres. Bis zum Ende des
+		// Begünstigungszeitraums ist sie die handelsrechtliche — die
+		// Sonderabschreibung tritt neben die planmäßige AfA und ändert sie nicht
+		// (§ 7a Abs. 4 EStG). Danach greift § 7a Abs. 9 EStG und verteilt den
+		// steuerlichen Restwert auf die Restnutzungsdauer; weiter vom
+		// ursprünglichen Satz zu rechnen ließe das Wirtschaftsgut steuerlich vor
+		// dem Ende seiner Nutzungsdauer bei null ankommen.
+		taxAmount := row.Amount
+		if restwertPhase && remainingMonths > 0 {
+			annual := domain.MulRound(taxBookValue, 12, int64(remainingMonths))
+			taxAmount = domain.MulRound(annual, int64(months), 12)
+		}
+		if taxAmount > taxBookValue {
+			taxAmount = taxBookValue
+		}
+		if taxAmount < 0 {
+			taxAmount = 0
+		}
+
 		// Die Sonderabschreibung kommt oben drauf — und anders als die planmäßige
 		// AfA wird sie im Anschaffungsjahr *nicht* zeitanteilig gekürzt: § 7 Abs. 1
 		// Satz 4 EStG gilt für die Absetzung für Abnutzung, nicht für die
@@ -648,29 +692,42 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			if year == specialLastYear || share > specialRemaining {
 				share = specialRemaining
 			}
-			if room := bookValue - row.Amount; share > room {
+			// Der Deckel ist der steuerliche Restwert: mehr als die
+			// Anschaffungskosten lässt sich auch steuerlich nicht abschreiben.
+			if room := taxBookValue - taxAmount; share > room {
 				share = room
 			}
 			if share > 0 {
 				row.SpecialAmount = share
 				specialRemaining -= share
 				row.Note = appendNote(row.Note, fmt.Sprintf(
-					"Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG: %s €. Sie tritt neben die "+
-						"planmäßige AfA, die daneben unverändert weiterläuft (§ 7a Abs. 4 EStG).", share))
+					"Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG: %s €. Sie wird nicht gebucht: "+
+						"sie mindert allein den steuerlichen Wertansatz, während die planmäßige AfA "+
+						"handelsrechtlich unverändert weiterläuft (§ 7a Abs. 4 EStG, § 253 HGB).", share))
 			}
 		}
 
-		bookValue -= row.Amount + row.SpecialAmount
+		row.TaxAmount = taxAmount
+		bookValue -= row.Amount
+		taxBookValue -= taxAmount + row.SpecialAmount
 		if impair := plan.ImpairmentsByYear[year]; impair > 0 {
 			bookValue -= impair
 			if bookValue < 0 {
 				bookValue = 0
 			}
+			// Die außerplanmäßige Abschreibung wirkt in beiden Rechnungen: sie
+			// ist keine steuerliche Vergünstigung, sondern die dauernde
+			// Wertminderung des § 253 Abs. 3 Satz 5 HGB.
+			taxBookValue -= impair
 			basisChanged = true
 			row.Note = appendNote(row.Note, fmt.Sprintf(
 				"Zusätzlich außerplanmäßig abgeschrieben: %s €.", impair))
 		}
+		if taxBookValue < 0 {
+			taxBookValue = 0
+		}
 		row.ClosingBookValue = bookValue
+		row.TaxClosingBookValue = taxBookValue
 		rows = append(rows, row)
 
 		remainingMonths -= months
@@ -718,13 +775,15 @@ func poolSchedule(plan AfAPlan) ([]AfAYear, error) {
 		opening := bookValue
 		bookValue -= amount
 		rows = append(rows, AfAYear{
-			FiscalYear:       first + i,
-			Months:           12,
-			Method:           domain.DepreciationPool,
-			RateLabel:        fmt.Sprintf("1/%d", years),
-			OpeningBookValue: opening,
-			Amount:           amount,
-			ClosingBookValue: bookValue,
+			FiscalYear:          first + i,
+			Months:              12,
+			Method:              domain.DepreciationPool,
+			RateLabel:           fmt.Sprintf("1/%d", years),
+			OpeningBookValue:    opening,
+			Amount:              amount,
+			ClosingBookValue:    bookValue,
+			TaxAmount:           amount,
+			TaxClosingBookValue: bookValue,
 			Note: fmt.Sprintf(
 				"Auflösung des Sammelpostens %d mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).",
 				first),

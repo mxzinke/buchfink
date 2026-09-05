@@ -23,8 +23,35 @@ type StatementService struct {
 	settingsRepo  domain.SettingsRepository
 	auditRepo     domain.AuditRepository
 	openItems     OpenItemSource
+	notes         NotesSources
 	renderer      DocumentRenderer
 	fiscalYear    int
+}
+
+// Die drei Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
+// der sie führt — der Abschluss soll den Rückstellungsspiegel lesen können,
+// ohne die Rückstellungsbuchhaltung mitzubringen.
+type (
+	// ProvisionMirrorSource liefert den Rückstellungsspiegel (§ 285 HGB).
+	ProvisionMirrorSource interface {
+		Mirror(ctx context.Context, year int) (*domain.ProvisionMirror, error)
+	}
+	// ReconciliationSource liefert die Überleitung zur Steuerbilanz.
+	ReconciliationSource interface {
+		Reconcile(ctx context.Context, year int) (*domain.Reconciliation, error)
+	}
+	// NotesTextSource liefert die Freitexte des Anhangs.
+	NotesTextSource interface {
+		NotesTexts(ctx context.Context, year int) ([]domain.NotesSectionText, error)
+	}
+)
+
+// NotesSources bündelt sie, damit der Aufbau des Dienstes nicht drei Setzer
+// braucht. Fehlt eine, bleibt ihr Teil des Anhangs leer statt zu scheitern.
+type NotesSources struct {
+	Provisions     ProvisionMirrorSource
+	Reconciliation ReconciliationSource
+	Texts          NotesTextSource
 }
 
 // OpenItemSource liefert die offenen Posten für die Restlaufzeitengliederung
@@ -63,6 +90,10 @@ func NewStatementService(
 // SetOpenItemSource koppelt die offenen Posten an. Ohne sie entsteht der
 // Abschluss wie sonst, nur ohne die Restlaufzeiten.
 func (s *StatementService) SetOpenItemSource(src OpenItemSource) { s.openItems = src }
+
+// SetNotesSources koppelt den Anhang an: Rückstellungsspiegel, Überleitung und
+// Freitexte.
+func (s *StatementService) SetNotesSources(src NotesSources) { s.notes = src }
 
 // SetRenderer koppelt den PDF-Renderer an.
 func (s *StatementService) SetRenderer(r DocumentRenderer) { s.renderer = r }
@@ -121,8 +152,52 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		Statement:  *shown,
 		SizeClass:  sizeClass,
 		Maturities: maturities,
+		Notes:      s.notesFor(ctx, year),
 		Deadlines:  s.deadlinesFor(ctx, year, header.ClosingDate, sizeClass),
 	}, nil
+}
+
+// Notes liefert den Anhang eines Geschäftsjahres — für die Ausgabewege, die
+// nicht den ganzen Abschluss aufbauen, etwa die E-Bilanz.
+func (s *StatementService) Notes(ctx context.Context, year int) domain.StatementNotes {
+	if year <= 0 {
+		year = s.fiscalYear
+	}
+	return s.notesFor(ctx, year)
+}
+
+// notesFor stellt den Anhang zusammen.
+//
+// Fällt eine Quelle aus, bleibt ihr Abschnitt leer: ein Abschluss, der wegen
+// eines fehlenden Anhangtextes gar nicht mehr entsteht, hilft niemandem. Was
+// fehlt, sieht man daran, dass die Tabelle leer ist.
+func (s *StatementService) notesFor(ctx context.Context, year int) domain.StatementNotes {
+	notes := domain.StatementNotes{
+		Texts: make([]domain.NotesSectionText, 0),
+		ProvisionMirror: domain.ProvisionMirror{
+			FiscalYear: year, Rows: make([]domain.ProvisionMirrorRow, 0),
+		},
+		Reconciliation: domain.Reconciliation{
+			FiscalYear: year, Rows: make([]domain.ReconciliationRow, 0),
+		},
+		Reference: "§§ 284 und 285 HGB; Überleitung nach § 60 Abs. 2 EStDV",
+	}
+	if s.notes.Texts != nil {
+		if texts, err := s.notes.Texts.NotesTexts(ctx, year); err == nil && texts != nil {
+			notes.Texts = texts
+		}
+	}
+	if s.notes.Provisions != nil {
+		if mirror, err := s.notes.Provisions.Mirror(ctx, year); err == nil && mirror != nil {
+			notes.ProvisionMirror = *mirror
+		}
+	}
+	if s.notes.Reconciliation != nil {
+		if recon, err := s.notes.Reconciliation.Reconcile(ctx, year); err == nil && recon != nil {
+			notes.Reconciliation = *recon
+		}
+	}
+	return notes
 }
 
 // SizeClassFor beurteilt die Größenklasse eines Geschäftsjahres.

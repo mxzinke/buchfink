@@ -37,6 +37,14 @@ const (
 	CheckRuleDepreciationMissing = "depreciation_missing"
 	CheckRuleVatReturnMissing    = "vat_return_missing"
 	CheckRuleCommitOverdue       = "commit_overdue"
+	// CheckRuleProvisionDiscount meldet eine Rückstellung, die nicht mit dem
+	// Satz des Stichtagsmonats abgezinst werden konnte (§ 253 Abs. 2 HGB).
+	CheckRuleProvisionDiscount = "provision_discount"
+	// CheckRuleClosingStepSkipped nennt die Bausteine des Abschlusses, die das
+	// Jahr ausdrücklich übergeht, mit ihrem Grund. Ein übersprungener Schritt
+	// ist keine Fehlbuchung, aber eine Aussage — und sie gehört in den Bericht,
+	// den der Prüfer liest, nicht nur in die Schrittliste des Anwenders.
+	CheckRuleClosingStepSkipped = "closing_step_skipped"
 )
 
 // CheckFinding ist ein einzelner Befund eines Prüflaufs.

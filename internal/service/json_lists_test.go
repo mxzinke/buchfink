@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -163,6 +164,135 @@ func TestEnsureListsReplacesNilWithEmpty(t *testing.T) {
 	}
 }
 
+// assertNoNilSlices sucht in der Ausgabe eines Dienstes nach nicht belegten
+// Slices.
+//
+// Die Zusage gilt für alles, was als JSON an die Oberfläche geht: ein nil-Slice
+// wird dort zu `null`, und `null.length` oder `null.map` nimmt im Render den
+// ganzen Baum mit. Geprüft wird über die Struktur und nicht über einzelne
+// Feldnamen — die Bausteine des Abschlusses tragen zu viele Listen, als dass
+// eine Aufzählung vollständig bliebe.
+//
+// Ausgenommen sind Felder mit `omitempty`: sie stehen bei nil gar nicht in der
+// Ausgabe, und die Ansicht liest sie ausdrücklich als optional. Sie zu belegen
+// hieße nur, jede Zeile der Gliederung um eine leere Liste zu verlängern.
+func assertNoNilSlices(t *testing.T, label string, value any) {
+	t.Helper()
+	walkForNilSlices(t, label, reflect.ValueOf(value))
+}
+
+func walkForNilSlices(t *testing.T, path string, v reflect.Value) {
+	t.Helper()
+	if !v.IsValid() {
+		return
+	}
+	switch v.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if v.IsNil() {
+			return
+		}
+		walkForNilSlices(t, path, v.Elem())
+	case reflect.Slice:
+		if v.IsNil() {
+			t.Errorf("%s ist nil — an der Oberfläche käme dort `null` an", path)
+			return
+		}
+		for i := 0; i < v.Len(); i++ {
+			walkForNilSlices(t, path+"[]", v.Index(i))
+		}
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			walkForNilSlices(t, path+"."+key.String(), v.MapIndex(key))
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			field := v.Type().Field(i)
+			if !field.IsExported() {
+				continue
+			}
+			tag := field.Tag.Get("json")
+			if tag == "-" || strings.Contains(tag, ",omitempty") {
+				continue
+			}
+			walkForNilSlices(t, path+"."+field.Name, v.Field(i))
+		}
+	}
+}
+
+// Die Auswertungen des leeren Mandanten. Er ist der Zustand nach der
+// Einrichtung — und genau der Bildschirm, den ein neuer Anwender zuerst sieht.
+func TestServiceOutputsHaveNoNilLists(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	entries, err := env.accounting.GetEntries(ctx)
+	if err != nil {
+		t.Fatalf("Journal: %v", err)
+	}
+	assertNoNilSlices(t, "Journal", entries)
+
+	all, err := env.accounting.GetAllEntries(ctx)
+	if err != nil {
+		t.Fatalf("Journal über alle Jahre: %v", err)
+	}
+	assertNoNilSlices(t, "Journal über alle Jahre", all)
+
+	susa, err := env.accounting.GetSuSaOverview(ctx)
+	if err != nil {
+		t.Fatalf("Summen- und Saldenliste: %v", err)
+	}
+	assertNoNilSlices(t, "Summen- und Saldenliste", susa)
+
+	ledger, err := env.accounting.GetAccountLedger(ctx, domain.AccountBank)
+	if err != nil {
+		t.Fatalf("Kontoblatt: %v", err)
+	}
+	assertNoNilSlices(t, "Kontoblatt", ledger)
+
+	items, err := env.payments(t).OpenItems(ctx)
+	if err != nil {
+		t.Fatalf("Offene Posten: %v", err)
+	}
+	assertNoNilSlices(t, "Offene Posten", items)
+
+	statement, err := env.statements(t).Build(ctx, env.fiscalYear, domain.DepthFull)
+	if err != nil {
+		t.Fatalf("Bilanz und GuV: %v", err)
+	}
+	assertNoNilSlices(t, "Bilanz und GuV", statement)
+
+	assets := env.assets(t)
+	list, err := assets.List(ctx, "")
+	if err != nil {
+		t.Fatalf("Anlagenverzeichnis: %v", err)
+	}
+	assertNoNilSlices(t, "Anlagenverzeichnis", list)
+
+	spiegel, err := assets.Anlagenspiegel(ctx)
+	if err != nil {
+		t.Fatalf("Anlagenspiegel: %v", err)
+	}
+	assertNoNilSlices(t, "Anlagenspiegel", spiegel)
+
+	run, err := assets.Run(ctx)
+	if err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+	assertNoNilSlices(t, "Abschreibungslauf", run)
+
+	transactions, err := env.banking(t).GetTransactions(ctx, env.fiscalYear)
+	if err != nil {
+		t.Fatalf("Bankumsätze: %v", err)
+	}
+	assertNoNilSlices(t, "Bankumsätze", transactions)
+
+	invoices, err := env.invoices(t).GetInvoices(ctx, env.fiscalYear)
+	if err != nil {
+		t.Fatalf("Ausgangsrechnungen: %v", err)
+	}
+	assertNoNilSlices(t, "Ausgangsrechnungen", invoices)
+}
+
 // Der Belegprüflauf ohne Befund. Genau der Regelfall wäre betroffen: die
 // unversehrte Ablage.
 func TestFileCheckResultMarshalsEmptyListsNotNull(t *testing.T) {
@@ -200,4 +330,64 @@ func TestExportResultMarshalsEmptyListsNotNull(t *testing.T) {
 		t.Fatalf("Z3-Export: %v", err)
 	}
 	assertNoNullLists(t, "Export", result, "tables", "files", "notes")
+}
+
+// Die Anlagenseite des leeren Mandanten: keine Frist läuft ab, kein Zugang
+// wartet auf ein Anlagegut. Das ist der Regelfall — und genau er stand bisher
+// als `null` in der Ausgabe.
+func TestAssetListsAreEmptyNotNull(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	svc := env.assets(t)
+
+	expiring, err := svc.ExpiringDocuments(ctx, "2026-12-31")
+	if err != nil {
+		t.Fatalf("ablaufende Dokumente: %v", err)
+	}
+	assertNoNilSlices(t, "ablaufende Dokumente", expiring)
+
+	candidates, err := svc.AcquisitionCandidates(ctx)
+	if err != nil {
+		t.Fatalf("Zugangskandidaten: %v", err)
+	}
+	assertNoNilSlices(t, "Zugangskandidaten", candidates)
+
+	// Der AfA-Plan wird gerechnet, während die Maske noch gefüllt wird: ohne
+	// Anschaffungskosten gibt es kein Jahr, aber weiterhin eine Liste.
+	plan, err := svc.PreviewPlan(ctx, PlanRequest{
+		AcquisitionDate: "2026-03-15", UsefulLifeMonths: 36,
+		Method: domain.DepreciationLinear,
+	})
+	if err != nil {
+		t.Fatalf("AfA-Vorschau: %v", err)
+	}
+	assertNoNilSlices(t, "AfA-Vorschau ohne Anschaffungskosten", plan)
+
+	// Ein Anlagegut, dessen Klasse keine Erläuterung trägt, liefert trotzdem
+	// eine Liste — die Ansicht läuft über sie.
+	asset := env.machine(t, svc)
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Anlagegut lesen: %v", err)
+	}
+	assertNoNilSlices(t, "Anlagegut", detail)
+}
+
+// Das Kontoblatt nennt je Zeile die Gegenkonten. Auch die Buchung, die für ein
+// Konto keines hat, gehört als leere Liste in die Ausgabe.
+func TestAccountLedgerCounterAccountsAreEmptyNotNull(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 25_000)); err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+	ledger, err := env.accounting.GetAccountLedger(ctx, "6815")
+	if err != nil {
+		t.Fatalf("Kontoblatt: %v", err)
+	}
+	if len(ledger.Rows) == 0 {
+		t.Fatal("das Kontoblatt zeigt die gebuchte Zeile nicht")
+	}
+	assertNoNilSlices(t, "Kontoblatt", ledger)
 }

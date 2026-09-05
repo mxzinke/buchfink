@@ -1,7 +1,7 @@
 {
   "version": "6.9",
   "date": "2025-04-01",
-  "note": "Die Elementnamen sind nach der Systematik der HGB-Taxonomie 6.9 gebildet, aber nicht gegen die amtliche Fassung geprueft. Vor der Uebermittlung sind sie gegen die auf www.esteuer.de veroeffentlichte Taxonomie 6.9 abzugleichen; die Zahlen selbst stammen aus der Buchfuehrung.",
+  "note": "Die Elementnamen sind nach der Systematik der HGB-Taxonomie 6.9 gebildet, aber nicht gegen die amtliche Fassung geprueft. Vor der Uebermittlung sind sie gegen die auf www.esteuer.de veroeffentlichte Taxonomie 6.9 abzugleichen; die Zahlen selbst stammen aus der Buchfuehrung. Der Ueberleitungsblock (Schluessel ueberleitung, ueberleitung.position) folgt dem Ueberleitungsmodul der Taxonomie mit dem Namensraum-Praefix hbst; seine Elementnamen sind wie alle anderen nach der Systematik gebildet und vor der Uebermittlung gegen die amtliche Fassung zu pruefen.",
   "namespaces": {
     "xbrli": "http://www.xbrl.org/2003/instance",
     "link": "http://www.xbrl.org/2003/linkbase",
@@ -464,6 +464,16 @@
     {
       "key": "guv.17",
       "element": "de-gaap-ci:is.netIncome",
+      "verified": false
+    },
+    {
+      "key": "ueberleitung",
+      "element": "de-gaap-ci:hbst",
+      "verified": false
+    },
+    {
+      "key": "ueberleitung.position",
+      "element": "de-gaap-ci:hbst.position",
       "verified": false
     }
   ]

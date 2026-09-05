@@ -261,7 +261,9 @@ func TaxableRevenueAccounts() map[string]bool {
 }
 
 func PostingGroups(dir domain.Direction) []PostingGroup {
-	var out []PostingGroup
+	// Belegt statt nil: die Liste geht als JSON an die Oberfläche, und eine
+	// Richtung ohne Treffer käme dort sonst als `null` an.
+	out := make([]PostingGroup, 0, len(postingGroups))
 	for _, g := range postingGroups {
 		if dir == "" || g.Direction == dir {
 			out = append(out, g)

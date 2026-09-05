@@ -32,6 +32,19 @@ type ExportIntegritySource interface {
 	VerifyReceiptFiles(ctx context.Context) (*domain.FileCheckResult, error)
 }
 
+// ExportTaxRegisterSource liefert das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG
+// als CSV.
+//
+// Es gehört ins Prüferpaket, weil es dort hingehört: § 5 Abs. 1 Satz 2 EStG
+// verlangt ein „besonderes, laufend zu führendes Verzeichnis" für jedes
+// steuerliche Wahlrecht, das vom handelsrechtlichen Ansatz abweicht — und ein
+// Verzeichnis, das der Prüfer nur auf dem Bildschirm des Mandanten sehen kann,
+// ist keines. Wieder eine Schnittstelle mit einer Methode: der Export soll
+// lesen und nicht rechnen dürfen.
+type ExportTaxRegisterSource interface {
+	RegisterCSV(ctx context.Context, year int) (string, error)
+}
+
 // ExportService stellt die Datenüberlassung nach § 147 Abs. 6 AO zusammen.
 //
 // Er liest und schreibt keine Buchführungsdaten. Was er schreibt, sind Dateien
@@ -57,6 +70,7 @@ type ExportService struct {
 	tenant   string
 	openItem ExportOpenItemSource
 	checks   ExportIntegritySource
+	register ExportTaxRegisterSource
 
 	fiscalYear int
 }
@@ -93,6 +107,9 @@ func (s *ExportService) SetOpenItemSource(src ExportOpenItemSource) { s.openItem
 
 // SetIntegritySource hängt die beiden Prüfläufe an.
 func (s *ExportService) SetIntegritySource(src ExportIntegritySource) { s.checks = src }
+
+// SetTaxRegisterSource hängt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG an.
+func (s *ExportService) SetTaxRegisterSource(src ExportTaxRegisterSource) { s.register = src }
 
 // SetTenantName setzt den Mandantennamen für die Metadaten.
 func (s *ExportService) SetTenantName(name string) { s.tenant = name }
@@ -168,6 +185,9 @@ func (s *ExportService) exportPackage(
 
 	if kind == export.KindAuditPackage {
 		if err := s.writeIntegrityReport(ctx, builder); err != nil {
+			return nil, err
+		}
+		if err := s.writeTaxElectionRegister(ctx, builder, year); err != nil {
 			return nil, err
 		}
 		s.copyProcessDocumentation(builder)
@@ -805,6 +825,28 @@ nachrechnen lässt, steht in feldbeschreibung.md.
 		formatFileIssues(files.Issues),
 	)
 	return b.WriteFile("integritaet.txt", []byte(report))
+}
+
+// taxRegisterFileName ist der Name des Verzeichnisses im Prüferpaket.
+const taxRegisterFileName = "verzeichnis-5-1-2-estg.csv"
+
+// writeTaxElectionRegister legt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG bei.
+//
+// Fehlt die Quelle, wird das vermerkt und nicht verschwiegen — wie bei der
+// Verfahrensdokumentation: ein Paket, das ohne Hinweis ohne das Verzeichnis
+// ankommt, sieht vollständig aus.
+func (s *ExportService) writeTaxElectionRegister(
+	ctx context.Context, b *export.Builder, year int,
+) error {
+	if s.register == nil {
+		b.Note("Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG fehlt: die Quelle war nicht verfügbar.")
+		return nil
+	}
+	content, err := s.register.RegisterCSV(ctx, year)
+	if err != nil {
+		return fmt.Errorf("das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG konnte nicht gestellt werden: %w", err)
+	}
+	return b.WriteFile(taxRegisterFileName, []byte(content))
 }
 
 // tenantLabel ist der Name des Mandanten für den Nachweis.

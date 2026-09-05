@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Layers, Undo2 } from 'lucide-react';
-import { CarryForwardPreview, ClosingState, FiscalYearStatus, SizeClass } from '../types';
+import {
+  AccrualKind,
+  CarryForwardPreview,
+  ClosingState,
+  ClosingSteps,
+  FiscalYearStatus,
+  SizeClass,
+} from '../types';
 import { Api } from '../services/api';
+import type { NavigateFn } from '../components/Sidebar';
 import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
 import {
@@ -59,6 +67,17 @@ const STEP_ACTION: Partial<Record<FiscalYearStatus, string>> = {
   prepared: 'Abschluss aufstellen',
   adopted: 'Abschluss feststellen',
   disclosed: 'Offenlegung eintragen',
+};
+
+/**
+ * Die Arten der Rechnungsabgrenzung im Klartext. Sie stehen hier wie auf der
+ * Seite der Abschlussbausteine: der Paragraph gehört in die Erklärung, nicht in
+ * die Tabellenzelle.
+ */
+const ACCRUAL_KIND_LABELS: Record<AccrualKind, string> = {
+  active: 'Ausgabe für spätere Jahre',
+  passive: 'Einnahme für spätere Jahre',
+  disagio: 'Damnum oder Disagio aus einem Darlehen',
 };
 
 /** Die Größenklasse in der Sprache der Oberfläche. */
@@ -194,9 +213,15 @@ export interface ClosingPageProps {
    * Neustart stimmen.
    */
   onFiscalYearChanged?: () => void | Promise<void>;
+  /** Der Weg von einem offenen Baustein zu der Ansicht, die ihn bucht. */
+  onNavigate?: NavigateFn;
 }
 
-export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChanged }) => {
+export const ClosingPage: React.FC<ClosingPageProps> = ({
+  year,
+  onFiscalYearChanged,
+  onNavigate,
+}) => {
   // Feststellung, Vortrag und Arbeitnehmerzahl ändern die Bücher: im
   // Prüfermodus gesperrt, der Stand bleibt lesbar (§10.4).
   const writeLock = useWriteLock();
@@ -230,6 +255,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
   const [employees, setEmployees] = useState('0');
   const [savingEmployees, setSavingEmployees] = useState(false);
 
+  // Die Bausteine des Abschlusses — Abgrenzung, Rückstellungen, Inventurwert,
+  // Verrechnungen. Gearbeitet wird an ihnen unter „Abschlussbausteine"; hier
+  // stehen sie, weil der Weg zur Feststellung über sie führt und ein offener
+  // Baustein sonst erst am Prüflauf auffiele. Sie bekommen einen eigenen
+  // Fehlerpfad: fehlen sie, bleibt der Abschlussstand benutzbar.
+  const [closingSteps, setClosingSteps] = useState<ClosingSteps | null>(null);
+  const [closingStepsError, setClosingStepsError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -244,6 +277,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
       } catch (e) {
         setSizeClass(null);
         setSizeClassError(message(e));
+      }
+      try {
+        setClosingSteps(await Api.getClosingSteps(year));
+        setClosingStepsError('');
+      } catch (e) {
+        setClosingSteps(null);
+        setClosingStepsError(message(e));
       }
       try {
         setPreview(await Api.getCarryForwardPreview(closing.nextYear));
@@ -569,6 +609,84 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
       </Section>
 
       <Section
+        title="Abschlussbausteine"
+        context={
+          closingSteps
+            ? `${closingSteps.openCount} von ${closingSteps.steps.length} offen · Stichtag ${formatDate(closingSteps.cutoff)}`
+            : 'Die Arbeit, die zur Feststellung führt'
+        }
+        action={
+          <div className="flex items-center gap-3">
+            <HelpPopover label="Erklärung zu den Abschlussbausteinen">
+              Bevor ein Abschluss aufgestellt wird, sind die Abschlussbuchungen zu machen:
+              Abschreibungen, Rechnungsabgrenzung, Rückstellungen, der Inventurwert der Vorräte, die
+              Umsatzsteuer-Verrechnung und die Steuerrückstellung. Der Stand folgt, wo möglich, aus
+              den Daten. Ein bewusst ausgelassener Baustein wird übersprungen — mit Grund, damit
+              später erkennbar bleibt, dass er nicht vergessen wurde.
+            </HelpPopover>
+            {onNavigate && (
+              <Button variant="secondary" onClick={() => onNavigate('closingmodules')}>
+                Bausteine bearbeiten
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {closingStepsError ? (
+          <div className="flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
+            <p className="text-body text-negative-text">{closingStepsError}</p>
+          </div>
+        ) : (closingSteps?.steps ?? []).length === 0 ? (
+          <p className="text-body text-ink-muted">
+            Für dieses Geschäftsjahr sind keine Bausteine hinterlegt.
+          </p>
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-12" numeric>
+                  Nr.
+                </Th>
+                <Th>Baustein</Th>
+                <Th className="w-40">Stand</Th>
+                <Th>Woran der Stand liegt</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {(closingSteps?.steps ?? []).map((step) => (
+                <Tr key={step.key}>
+                  <Td numeric className="text-ink-subtle">
+                    {step.order}
+                  </Td>
+                  <Td>
+                    <span className="inline-flex items-center gap-1.5">
+                      {step.label}
+                      <HelpTooltip label={`Erklärung zu ${step.label}`} content={step.hint} />
+                    </span>
+                  </Td>
+                  <Td>
+                    {/* „Übersprungen" ist kein Zustand des Statusvokabulars: es
+                        beschreibt eine Entscheidung, nicht den Stand einer
+                        Buchung. Es bekommt deshalb Klartext statt eines
+                        erfundenen Abzeichens. */}
+                    {step.state === 'skipped' ? (
+                      <span className="text-ink-subtle">Übersprungen</span>
+                    ) : (
+                      <StatusBadge status={step.state === 'done' ? 'gebucht' : 'offen'} />
+                    )}
+                  </Td>
+                  <Td className="text-ink-muted whitespace-normal">
+                    {step.state === 'skipped' ? step.reason || '—' : step.detail || '—'}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
+      <Section
         title="Größenklasse"
         context={
           sizeClass
@@ -855,6 +973,61 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
                 </Tbody>
               </Table>
             )}
+
+            {/* Der Vortrag bucht die fälligen Auflösungen der
+                Rechnungsabgrenzung im neuen Jahr gleich mit
+                (internal/service/closing_service.go). Sie stehen deshalb hier:
+                eine Freigabe, die Buchungen auslöst, die die Vorschau nicht
+                nennt, wäre keine Freigabe (§8.2). */}
+            {preview.accrualReleases.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-label text-ink-muted mb-2">
+                  Auflösung der Rechnungsabgrenzung
+                </h3>
+                <p className="text-body text-ink-muted mb-3">
+                  {`Der Vortrag bucht diese ${preview.accrualReleases.length === 1 ? 'Auflösung' : `${preview.accrualReleases.length} Auflösungen`} im Geschäftsjahr ${preview.toYear} mit: ` +
+                    'Der abgegrenzte Betrag geht an seinem eigenen Datum auf das Aufwands- oder ' +
+                    'Ertragskonto zurück, zu dem er gehört (§ 250 HGB).'}
+                </p>
+                <Table density="kompakt">
+                  <Thead>
+                    <Tr>
+                      <Th>Posten</Th>
+                      <Th className="w-56">Art</Th>
+                      <Th className="w-24">Konto</Th>
+                      <Th className="w-32">Datum</Th>
+                      <Th numeric className="w-40">
+                        Betrag
+                      </Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {preview.accrualReleases.map((release) => (
+                      <Tr key={`${release.accrualId}-${release.releaseId}`}>
+                        <Td className="whitespace-normal">{release.text}</Td>
+                        <Td className="text-ink-muted">
+                          {ACCRUAL_KIND_LABELS[release.kind] ?? release.kind}
+                        </Td>
+                        <Td code>{release.account}</Td>
+                        <Td>{formatDate(release.date)}</Td>
+                        <Td numeric>{formatCents(release.amount)}</Td>
+                      </Tr>
+                    ))}
+                    <Tr variant="sum">
+                      <Td>Summe</Td>
+                      <Td />
+                      <Td />
+                      <Td />
+                      <Td numeric>
+                        {formatCents(
+                          preview.accrualReleases.reduce((sum, item) => sum + item.amount, 0),
+                        )}
+                      </Td>
+                    </Tr>
+                  </Tbody>
+                </Table>
+              </div>
+            )}
           </>
         )}
       </Section>
@@ -967,6 +1140,12 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
         description={
           preview
             ? `${preview.entries} Buchungen zum ${formatDate(preview.bookingDate)} im Geschäftsjahr ${preview.toYear}.` +
+              // Die Auflösungen der Abgrenzung sind eigene Buchungen mit
+              // eigenem Datum; sie in `entries` unterzuschlagen hieße, die
+              // Freigabe über ihren Umfang zu täuschen.
+              (preview.accrualReleases.length > 0
+                ? ` Dazu ${preview.accrualReleases.length === 1 ? 'kommt eine Auflösung' : `kommen ${preview.accrualReleases.length} Auflösungen`} der Rechnungsabgrenzung über ${formatCents(preview.accrualReleases.reduce((sum, item) => sum + item.amount, 0))}.`
+                : '') +
               (preview.alreadyCarried
                 ? ' Der bestehende Vortrag wird zuvor per Generalumkehr zurückgenommen.'
                 : '')

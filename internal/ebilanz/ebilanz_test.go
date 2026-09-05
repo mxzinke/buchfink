@@ -307,3 +307,71 @@ func TestExpensesAreReportedPositive(t *testing.T) {
 		t.Error("der Materialaufwand steht mit negativem Vorzeichen in der Instanz")
 	}
 }
+
+// Die Überleitungsrechnung geht als eigener Block in die Instanz: die
+// übermittelten Zahlen sind handelsrechtliche, und § 60 Abs. 2 EStDV verlangt
+// die Überleitung dort, wo der steuerliche Wertansatz abweicht.
+func TestInstanceCarriesTheReconciliation(t *testing.T) {
+	accounts := accountsWith(t, map[string]domain.Cents{
+		"1800": 10_000_000,
+		"2900": -2_500_000,
+		"4400": -7_500_000,
+	})
+	in := sampleInput(t, accounts)
+	in.Reconciliation = &domain.Reconciliation{
+		FiscalYear: 2026, Cutoff: "2026-12-31",
+		Rows: []domain.ReconciliationRow{{
+			Position: "Anlagevermögen", Basis: "§ 7g Abs. 5 EStG",
+			Commercial: 0, Tax: -800_000, Difference: -800_000,
+			Explanation: "Kumulierte Sonderabschreibungen mindern den steuerlichen Wertansatz.",
+		}},
+		EquityEffect: -800_000,
+		Note:         "Buchfink führt eine Einheitsbilanz.",
+	}
+
+	out, _, err := GenerateEBilanzXBRL(in)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	var doc any
+	if err := xml.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("die Instanz ist kein wohlgeformtes XML: %v", err)
+	}
+	for _, want := range []string{
+		"hbst", "Anlagevermögen", "§ 7g Abs. 5 EStG", "hbst.equityEffect",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("die Instanz enthält %q nicht", want)
+		}
+	}
+
+	// Die Elementnamen des Überleitungsmoduls sind wie alle anderen ungeprüft;
+	// die Ressource muss das sagen.
+	tax, err := LoadTaxonomy()
+	if err != nil {
+		t.Fatalf("Taxonomie: %v", err)
+	}
+	element, ok := ElementFor("ueberleitung")
+	if !ok {
+		t.Fatal("die Ressource kennt den Überleitungsblock nicht")
+	}
+	if element.Verified {
+		t.Error("der Überleitungsblock ist als geprüft ausgewiesen, ohne geprüft zu sein")
+	}
+	if !strings.Contains(tax.Note, "hbst") {
+		t.Errorf("der Ressourcenkommentar nennt das Überleitungsmodul nicht: %q", tax.Note)
+	}
+
+	// Ohne Überleitung bleibt der Block weg — eine Einheitsbilanz hat nichts
+	// überzuleiten.
+	plain := sampleInput(t, accounts)
+	without, _, err := GenerateEBilanzXBRL(plain)
+	if err != nil {
+		t.Fatalf("Export ohne Überleitung: %v", err)
+	}
+	// Geprüft wird auf das Element und nicht auf die Zeichenkette „hbst": die
+	// steht seit dieser Fassung auch im Kommentar der Datei.
+	if strings.Contains(without, "<de-gaap-ci:hbst") {
+		t.Error("ohne Differenzen darf kein Überleitungsblock in der Instanz stehen")
+	}
+}

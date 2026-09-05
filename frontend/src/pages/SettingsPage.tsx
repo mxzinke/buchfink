@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Shield } from 'lucide-react';
 import {
+  AccrualMethod,
+  AccrualReleaseCycle,
+  ClosingSettings,
   CompanySettings,
   AppConfig,
   InvestorType,
@@ -89,6 +92,30 @@ const VAT_PERIODS = [
   { value: 'year', label: 'Jährlich, nur die Jahreserklärung' },
 ];
 
+/**
+ * Die Verteilung eines Abgrenzungspostens. Beide Verfahren sind zulässig; die
+ * Wahl gilt für den ganzen Mandanten, weil § 252 Abs. 1 Nr. 6 HGB die Stetigkeit
+ * der Bewertungsmethoden verlangt.
+ */
+const ACCRUAL_METHODS = [
+  { value: 'monthly', label: 'Monatsgenau · nach Zwölfteln' },
+  { value: 'daily', label: 'Taggenau · nach Kalendertagen' },
+];
+
+/** Wie oft die Auflösung im Folgejahr gebucht wird. */
+const ACCRUAL_RELEASES = [
+  { value: 'yearly', label: 'Einmal je Geschäftsjahr · am ersten Tag' },
+  { value: 'monthly', label: 'Monatlich · für unterjährige Auswertungen' },
+];
+
+/** Die Voreinstellungen des Dienstes, bis er geantwortet hat. */
+const DEFAULT_CLOSING_SETTINGS: ClosingSettings = {
+  tradeTaxRatePercent: 400,
+  accrualMethod: 'monthly',
+  accrualThreshold: 80000,
+  accrualRelease: 'yearly',
+};
+
 /** Wo der Schlüssel im jeweiligen Betriebssystem zu finden ist. */
 function keychainHint(): string {
   if (navigator.platform.startsWith('Mac')) return 'In der Schlüsselbundverwaltung unter diesem Eintrag.';
@@ -118,6 +145,14 @@ export const SettingsPage: React.FC = () => {
   // Antwort: keine Nachfrist über das Ende des Folgemonats hinaus.
   const [graceDaysText, setGraceDaysText] = useState('0');
   const [suggestion, setSuggestion] = useState<SpecialPrepaymentSuggestion | null>(null);
+  // Die Einstellungen der Abschlussbausteine stehen in eigenen Schlüsseln und
+  // werden über einen eigenen Dienst gespeichert; sie hängen deshalb neben den
+  // Stammdaten und nicht in ihnen.
+  const [closing, setClosing] = useState<ClosingSettings>(DEFAULT_CLOSING_SETTINGS);
+  // Hebesatz und Schwelle werden als Text geführt und erst beim Verlassen des
+  // Feldes umgerechnet (§8.3): eine gelöschte Ziffer ist keine 0.
+  const [tradeTaxText, setTradeTaxText] = useState('400');
+  const [thresholdText, setThresholdText] = useState('');
 
   useEffect(() => {
     void loadSettings();
@@ -144,6 +179,14 @@ export const SettingsPage: React.FC = () => {
       } catch {
         setSuggestion(null);
       }
+      try {
+        // Ohne aktiven Mandanten antwortet der Dienst nicht; die übrigen
+        // Einstellungen bleiben dann trotzdem bedienbar.
+        const values = await Api.getClosingSettings();
+        if (values) applyClosing(values);
+      } catch {
+        applyClosing(DEFAULT_CLOSING_SETTINGS);
+      }
       // Wer die Anlegerstellung schon einmal abweichend festgelegt hat, soll
       // sie auch wiederfinden.
       if (s.investorOverride) setShowInvestorChoice(true);
@@ -152,6 +195,13 @@ export const SettingsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }
+
+  /** Übernimmt die Antwort des Dienstes in Zustand und Textfelder. */
+  function applyClosing(values: ClosingSettings) {
+    setClosing(values);
+    setTradeTaxText(String(values.tradeTaxRatePercent));
+    setThresholdText(values.accrualThreshold ? formatCentsPlain(values.accrualThreshold) : '0,00');
   }
 
   async function exportRecovery() {
@@ -176,6 +226,11 @@ export const SettingsPage: React.FC = () => {
     setSaving(true);
     try {
       await Api.updateCompanySettings(settings);
+      // Der eine Knopf speichert beides. Die Abschluss-Einstellungen liegen in
+      // eigenen Schlüsseln, aber es wäre eine Zumutung, dafür einen zweiten
+      // „Speichern" zu suchen; der Dienst prüft die Grenzen und meldet sich mit
+      // seinem eigenen Satz, wenn ihm ein Wert nicht passt.
+      applyClosing(await Api.saveClosingSettings(closing));
       toast.success('Einstellungen gespeichert.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -541,6 +596,90 @@ export const SettingsPage: React.FC = () => {
       </Section>
 
 
+
+      {/*
+        Die Abschlussbausteine rechnen mit diesen drei Angaben: ohne sie liefe
+        jede Installation mit 400 % Hebesatz, monatsgenauer Abgrenzung und 800
+        Euro Schwelle, als wäre das gewählt worden.
+      */}
+      <Section
+        title="Jahresabschluss"
+        context="Steuert die Abschlussbausteine"
+        action={
+          <HelpPopover label="Erklärung zu den Abschluss-Einstellungen">
+            Der Hebesatz geht in die Steuerrückstellung ein, die Abgrenzungsmethode in jeden
+            Abgrenzungsposten und die Vorschlagsschwelle allein in die Vorschlagsliste. Alle drei
+            gelten für den ganzen Mandanten und über alle Geschäftsjahre; die Änderung wird
+            protokolliert.
+          </HelpPopover>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field
+            label="Gewerbesteuer-Hebesatz"
+            hint="Prozent · § 16 GewStG"
+            help="Der Hebesatz der Gemeinde, in der die Betriebsstätte liegt. Er steht im Gewerbesteuermessbescheid und auf der Website der Gemeinde; mindestens 200 % (§ 16 Abs. 4 Satz 2 GewStG)."
+          >
+            <Input
+              type="number"
+              min={200}
+              max={1000}
+              align="right"
+              value={tradeTaxText}
+              onChange={(e) => setTradeTaxText(e.target.value)}
+              onBlur={() => {
+                const percent = Number(tradeTaxText);
+                const value =
+                  Number.isFinite(percent) && percent > 0 ? Math.trunc(percent) : closing.tradeTaxRatePercent;
+                setClosing({ ...closing, tradeTaxRatePercent: value });
+                setTradeTaxText(String(value));
+              }}
+            />
+          </Field>
+          <Field
+            label="Abgrenzungsmethode"
+            help="Monatsgenau verteilt nach Zwölfteln, taggenau nach Kalendertagen. Beides ist zulässig; § 252 Abs. 1 Nr. 6 HGB verlangt nur, dass es dabei bleibt — die Wahl gilt deshalb für alle Posten."
+          >
+            <Select
+              items={ACCRUAL_METHODS}
+              value={closing.accrualMethod}
+              onValueChange={(next) =>
+                setClosing({ ...closing, accrualMethod: next as AccrualMethod })
+              }
+            />
+          </Field>
+          <Field
+            label="Vorschlagsschwelle der Abgrenzung"
+            hint="unterhalb nur Anzeige"
+            help="Nur für die Vorschlagsliste: Handelsrechtlich gibt es keine Grenze, jeder Posten ist abzugrenzen (§ 250 HGB). Die 800 Euro sind das steuerliche Wahlrecht des § 6 Abs. 2 EStG, das die Finanzverwaltung auch für die Abgrenzung zulässt — wer es nicht nutzen will, trägt hier 0,00 ein."
+          >
+            <Input
+              align="right"
+              placeholder="0,00"
+              value={thresholdText}
+              onBlur={() => {
+                const cents = parseCents(thresholdText);
+                const value = cents !== null && cents >= 0 ? cents : closing.accrualThreshold;
+                setClosing({ ...closing, accrualThreshold: value });
+                setThresholdText(formatCentsPlain(value));
+              }}
+              onChange={(e) => setThresholdText(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Auflösung im Folgejahr"
+            help="Der Saldenvortrag bucht die Auflösung mit. Einmal je Jahr hält die Zahl der Abschlussbuchungen klein; monatlich braucht, wer unterjährig auswertet — sonst trägt der Januar den gesamten Vorjahresaufwand."
+          >
+            <Select
+              items={ACCRUAL_RELEASES}
+              value={closing.accrualRelease}
+              onValueChange={(next) =>
+                setClosing({ ...closing, accrualRelease: next as AccrualReleaseCycle })
+              }
+            />
+          </Field>
+        </div>
+      </Section>
 
       <Section title="Bankverbindung">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

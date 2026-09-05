@@ -307,7 +307,10 @@ func vatMovements(src VatReturnSource) []vatMovement {
 		// Der Saldenvortrag bringt den Bestand der Steuerkonten ins neue Jahr.
 		// Er ist kein Umsatz dieses Zeitraums; ohne diese Zeile stünde die
 		// Vorsteuer des Vorjahres ein zweites Mal in der Anmeldung des Januars.
-		if entry.Source == domain.EntrySourceOpening {
+		// Ebenso die Umsatzsteuer-Jahresverrechnung: sie stellt die Steuerkonten
+		// zum Bilanzstichtag auf null und ist kein Umsatz des letzten
+		// Voranmeldungszeitraums.
+		if entry.Source == domain.EntrySourceOpening || entry.Source == domain.EntrySourceClosing {
 			continue
 		}
 		receivedAt := ""

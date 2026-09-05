@@ -146,6 +146,18 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.CheckFinding{},
 		&domain.DeadlineDone{},
 		&domain.BackupRun{},
+		// Welle 5a: die Abschlussbausteine. Sie stehen am Ende, weil AutoMigrate
+		// in dieser Reihenfolge anlegt und die Fremdschlüssel auf Journal und
+		// Beleg schon existieren müssen.
+		&domain.ClosingStep{},
+		&domain.Accrual{},
+		&domain.AccrualRelease{},
+		&domain.Provision{},
+		&domain.ProvisionMovement{},
+		&domain.DiscountRate{},
+		&domain.InventoryCount{},
+		&domain.NotesText{},
+		&domain.Appropriation{},
 	)
 }
 

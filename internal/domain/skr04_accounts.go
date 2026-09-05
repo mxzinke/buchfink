@@ -73,6 +73,63 @@ const (
 	// Vorauszahlungen 1/11"; 3820 ist die laufende Vorauszahlung und nicht sie.
 	AccountSondervorauszahlung = "3830"
 
+	// Rückstellungen (§ 249 HGB) und ihre Gegenkonten.
+	//
+	// Die Nummern sind dem Katalog entnommen und nicht der Erinnerung: 3095 ist
+	// im SKR04 die Rückstellung für Abschluss- und Prüfungskosten und 3074 die
+	// für Personalkosten — genau umgekehrt zu dem, was der Schema-Vergleich mit
+	// anderen Kontenrahmen nahelegt.
+	AccountRueckstellungPensionen       = "3000" // Rückstellungen für Pensionen und ähnliche Verpflichtungen
+	AccountSteuerrueckstellungen        = "3020" // Steuerrückstellungen (Sammelkonto)
+	AccountRueckstellungGewerbesteuer   = "3035" // Gewerbesteuerrückstellung nach § 4 Abs. 5b EStG
+	AccountRueckstellungKoerperschaft   = "3040" // Körperschaftsteuerrückstellung
+	AccountRueckstellungSonstige        = "3070" // Sonstige Rückstellungen
+	AccountRueckstellungPersonal        = "3074" // Rückstellungen für Personalkosten
+	AccountRueckstellungInstandhaltung  = "3075" // Unterlassene Instandhaltung, Nachholung in den ersten drei Monaten
+	AccountRueckstellungGewaehrleistung = "3090" // Rückstellungen für Gewährleistungen
+	AccountRueckstellungDrohverlust     = "3092" // Rückstellungen für drohende Verluste aus schwebenden Geschäften
+	AccountRueckstellungAbschluss       = "3095" // Rückstellungen für Abschluss- und Prüfungskosten
+	AccountRueckstellungAufbewahrung    = "3096" // Rückstellungen zur Erfüllung der Aufbewahrungspflichten
+
+	AccountAufwandGewaehrleistung = "6790" // Aufwand für Gewährleistung
+	AccountAbschlusskosten        = "6827" // Abschluss- und Prüfungskosten
+	AccountSonstigerAufwand       = "6300" // Sonstige betriebliche Aufwendungen
+	AccountInstandhaltung         = "6490" // Sonstige Reparaturen und Instandhaltung
+	AccountPersonalaufwandUrlaub  = "6076" // Aufwendungen aus der Veränderung von Urlaubsrückstellungen
+	// AccountErtragAufloesungRueckstellungen nimmt die Auflösung auf: was
+	// zurückgestellt und nicht gebraucht wurde, ist ein Ertrag des Jahres, in
+	// dem der Grund entfällt.
+	AccountErtragAufloesungRueckstellungen = "4930" // Erträge aus der Auflösung von Rückstellungen
+	// AccountZinsaufwandAbzinsung ist der Gegenposten der Aufzinsung: der
+	// Barwert wächst, weil die Fälligkeit näher rückt, und § 277 Abs. 5 Satz 1
+	// HGB verlangt den Ausweis unter den Zinsen.
+	AccountZinsaufwandAbzinsung = "7362" // Zinsaufwendungen aus der Abzinsung von Rückstellungen
+	// AccountZinsaufwandLangfristig trägt die Auflösung eines Disagios: das
+	// Damnum ist vorausbezahlter Zins (§ 250 Abs. 3 HGB).
+	AccountZinsaufwandLangfristig = "7320" // Zinsaufwendungen für langfristige Verbindlichkeiten
+
+	// Steuern vom Einkommen und Ertrag
+	AccountKoerperschaftsteuer   = "7600" // Körperschaftsteuer
+	AccountSolidaritaetszuschlag = "7608" // Solidaritätszuschlag
+	AccountGewerbesteuer         = "7610" // Gewerbesteuer
+
+	// Umsatzsteuer-Jahresverrechnung
+	AccountUmsatzsteuerVorauszahlungen = "3820" // Umsatzsteuer-Vorauszahlungen
+	AccountUmsatzsteuerVorjahr         = "3841" // Umsatzsteuerverbindlichkeiten Vorjahr
+	AccountUmsatzsteuerforderung       = "1420" // Forderungen aus Umsatzsteuer-Vorauszahlungen
+
+	// Bestandsveränderungen der Vorräte (§ 275 Abs. 2 Nr. 2 und Nr. 5 HGB)
+	AccountBestandFertige        = "4800" // Bestandsveränderungen fertige Erzeugnisse
+	AccountBestandUnfertige      = "4810" // Bestandsveränderungen unfertige Erzeugnisse
+	AccountBestandUnfertigeLeist = "4815" // Bestandsveränderungen unfertige Leistungen
+	AccountBestandRHBWaren       = "5880" // Bestandsveränderungen Roh-, Hilfs- und Betriebsstoffe sowie bezogene Waren
+
+	// Ergebnisverwendung (§ 29 GmbHG, § 5a Abs. 3 GmbHG)
+	AccountGesetzlicheRuecklage   = "2930" // Gesetzliche Rücklage
+	AccountAndereGewinnruecklagen = "2960" // Andere Gewinnrücklagen
+	AccountAusschuettung          = "3519" // Verbindlichkeiten gegenüber Gesellschaftern für offene Ausschüttungen
+	AccountKapitalertragsteuer    = "3760" // Verbindlichkeiten aus Einbehaltungen (KapESt und SolZ) für offene Ausschüttungen
+
 	// Zahlungsdifferenzen
 	AccountErhalteneSkonti19 = "5736" // Erhaltene Skonti 19 % Vorsteuer
 	AccountGewaehrteSkonti19 = "4736" // Gewährte Skonti 19 % USt

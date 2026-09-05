@@ -203,7 +203,9 @@ func (s *PaymentService) openItemsFrom(
 		byID[c.ID] = c
 	}
 
-	var items []domain.OpenItem
+	// Leer statt nil: die leere OP-Liste ist der Regelfall eines bezahlten
+	// Monats, und `null.length` wirft in der Ansicht.
+	items := make([]domain.OpenItem, 0, len(entries))
 	for i := range entries {
 		entry := &entries[i]
 		// Payments themselves do not create open items.

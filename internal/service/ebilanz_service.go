@@ -77,6 +77,14 @@ func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, erro
 	if s.assets != nil {
 		in.Anlagenspiegel, _ = s.assets.Anlagenspiegel(ctx)
 	}
+	// Die Überleitungsrechnung gehört dazu, sobald Handels- und Steuerbilanz
+	// auseinanderfallen: die übermittelten Zahlen sind handelsrechtliche, und
+	// § 60 Abs. 2 EStDV verlangt die Überleitung, wo sie abweichen.
+	notes := s.statementSvc.Notes(ctx, in.FiscalYear)
+	if len(notes.Reconciliation.Rows) > 0 {
+		reconciliation := notes.Reconciliation
+		in.Reconciliation = &reconciliation
+	}
 
 	xbrl, _, err := ebilanz.GenerateEBilanzXBRL(in)
 	if err != nil {

@@ -198,7 +198,9 @@ func (s *AssetService) ExpiringDocuments(ctx context.Context, until string) ([]E
 	if err != nil {
 		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
 	}
-	var out []ExpiringDocument
+	// Belegt statt nil: der Regelfall ist die Ablage ohne ablaufendes
+	// Dokument, und die Ansicht läse dort sonst `null`.
+	out := make([]ExpiringDocument, 0)
 	for i := range assets {
 		asset := &assets[i]
 		if asset.IsDisposed() {

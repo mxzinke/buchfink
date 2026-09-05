@@ -37,6 +37,7 @@ import (
 var readOnlyAllowed = map[string]bool{
 	// Lesen und Auswerten
 	"GetAccountByNumber":             true,
+	"GetClosingSettings":             true,
 	"GetAccountLedger":               true,
 	"GetAccountLedgerRange":          true,
 	"GetAccounts":                    true,
@@ -110,32 +111,58 @@ var readOnlyAllowed = map[string]bool{
 	"GetZMReturns":                   true,
 	"IsLocked":                       true,
 
+	// Die Abschlussbausteine: Schrittliste, Rückstellungen, Abgrenzung,
+	// Vorräte, Verzeichnis und Anhang. Lesen und rechnen sie nur, bleiben sie
+	// im Prüfermodus offen — gerade das Verzeichnis nach § 5 Abs. 1 Satz 2
+	// EStG und die Überleitung sind das, wonach ein Prüfer als Erstes fragt.
+	"GetAccrualReport":              true,
+	"GetAccruals":                   true,
+	"GetAppropriation":              true,
+	"GetClosingSteps":               true,
+	"GetDiscountRateMonths":         true,
+	"GetDiscountRates":              true,
+	"GetInventoryAccounts":          true,
+	"GetLegacySpecialDepreciations": true,
+	"GetNotesTexts":                 true,
+	"GetProvisionMirror":            true,
+	"GetProvisions":                 true,
+	"GetReconciliation":             true,
+	"GetTaxElectionRegister":        true,
+
 	// Rechnen, ohne zu buchen
 	"ClassifyAcquisition":       true,
 	"ComputeVorabpauschale":     true,
+	"PreviewAccrual":            true,
+	"PreviewAppropriation":      true,
 	"PreviewAssetDisposal":      true,
 	"PreviewDepreciationPlan":   true,
 	"PreviewFoundationPostings": true,
 	"PreviewIncomingReceipt":    true,
+	"PreviewInventory":          true,
 	"PreviewOutgoingInvoice":    true,
+	"PreviewProvision":          true,
+	"PreviewTaxProvision":       true,
+	"PreviewVatSettlement":      true,
+	"ProposeAccruals":           true,
 	"ProposeFromEInvoice":       true,
 	"ValuateAssetCurrency":      true,
 
 	// Ausgeben. Der Export ist der Zweck des Prüfermodus und muss in ihm
 	// laufen — eine Sperre, die die Datenüberlassung verhindert, wäre das
 	// Gegenteil dessen, wofür der Modus da ist.
-	"ExportArchive":          true,
-	"ExportAuditPackage":     true,
-	"ExportEBilanzXBRL":      true,
-	"ExportJournalCSV":       true,
-	"ExportKeyDirectory":     true,
-	"ExportStatementCSV":     true,
-	"ExportStatementPDF":     true,
-	"ExportVatReturnCSV":     true,
-	"ExportZ3":               true,
-	"ExportZMCSV":            true,
-	"GenerateInvoiceZUGFeRD": true,
-	"SaveReceiptFileAs":      true,
+	"ExportArchive":                true,
+	"ExportTaxElectionRegisterCSV": true,
+	"ExportAuditPackage":           true,
+	"ExportEBilanzXBRL":            true,
+	"ExportJournalCSV":             true,
+	"ExportKeyDirectory":           true,
+	"ExportStatementCSV":           true,
+	"ExportStatementPDF":           true,
+	"ExportVatReturnCSV":           true,
+	"ExportZ3":                     true,
+	"ExportZMCSV":                  true,
+	"GenerateInvoiceZUGFeRD":       true,
+	"SaveReceiptFileAs":            true,
 
 	// Prüfen
 	"VerifyBackup":         true,

@@ -81,6 +81,36 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 			germanAmount(row.Undated), "", "")
 	}
 
+	// Der Anhang gehört zum Abschluss und damit in den Datenexport: der
+	// Rückstellungsspiegel als Tabelle, die Überleitung als Tabelle, die
+	// Freitexte als Zeilen.
+	for _, row := range fs.Notes.ProvisionMirror.Rows {
+		writeRow(&b, "rueckstellungsspiegel", string(row.Kind), row.Account, row.Label, "1",
+			germanAmount(row.Opening), germanAmount(row.Closing), "")
+		writeRow(&b, "rueckstellungsspiegel", string(row.Kind)+".zufuehrung", "",
+			row.Label+" — Zuführung", "2", germanAmount(row.Additions), "", "")
+		writeRow(&b, "rueckstellungsspiegel", string(row.Kind)+".verbrauch", "",
+			row.Label+" — Verbrauch", "2", germanAmount(row.Used), "", "")
+		writeRow(&b, "rueckstellungsspiegel", string(row.Kind)+".aufloesung", "",
+			row.Label+" — Auflösung", "2", germanAmount(row.Released), "", "")
+		writeRow(&b, "rueckstellungsspiegel", string(row.Kind)+".aufzinsung", "",
+			row.Label+" — Aufzinsung", "2", germanAmount(row.Unwinding), "", "")
+	}
+	for _, row := range fs.Notes.Reconciliation.Rows {
+		writeRow(&b, "ueberleitung", row.Position, row.Basis, row.Explanation, "1",
+			germanAmount(row.Commercial), germanAmount(row.Tax), germanAmount(row.Difference))
+	}
+	if len(fs.Notes.Reconciliation.Rows) > 0 {
+		writeRow(&b, "ueberleitung", "eigenkapital", "", "Wirkung auf das Eigenkapital", "0",
+			"", "", germanAmount(fs.Notes.Reconciliation.EquityEffect))
+	}
+	for _, text := range fs.Notes.Texts {
+		if strings.TrimSpace(text.Text) == "" {
+			continue
+		}
+		writeRow(&b, "anhang", string(text.Section), text.Basis, text.Label, "1", text.Text, "", "")
+	}
+
 	s.logExport(ctx, year, "CSV")
 	return b.String(), nil
 }
@@ -197,6 +227,8 @@ func statementTypst(fs *domain.FinancialStatement) string {
 	}
 	b.WriteString("  table.hline(),\n)\n\n")
 
+	writeTypstNotes(&b, fs)
+
 	if len(fs.Statement.Assignment.Unassigned) > 0 {
 		b.WriteString("= Nicht zugeordnete Konten\n\n")
 		for _, acc := range fs.Statement.Assignment.Unassigned {
@@ -207,6 +239,76 @@ func statementTypst(fs *domain.FinancialStatement) string {
 
 	fmt.Fprintf(&b, "#text(size: 7pt)[%s]\n", typstText(fs.SizeClass.Reason))
 	return b.String()
+}
+
+// writeTypstNotes setzt den Anhang: Freitexte, Rückstellungsspiegel und die
+// Überleitung zur Steuerbilanz.
+//
+// Er steht im Dokument und nicht nur auf dem Schirm, weil er Bestandteil des
+// Jahresabschlusses ist (§ 264 Abs. 1 Satz 1 HGB). Ein PDF ohne ihn wäre kein
+// Jahresabschluss, sondern ein Auszug daraus.
+func writeTypstNotes(b *strings.Builder, fs *domain.FinancialStatement) {
+	mirror := fs.Notes.ProvisionMirror
+	reconciliation := fs.Notes.Reconciliation
+	texts := make([]domain.NotesSectionText, 0, len(fs.Notes.Texts))
+	for _, text := range fs.Notes.Texts {
+		if strings.TrimSpace(text.Text) != "" {
+			texts = append(texts, text)
+		}
+	}
+	if len(texts) == 0 && len(mirror.Rows) == 0 && len(reconciliation.Rows) == 0 {
+		return
+	}
+
+	b.WriteString("\n#pagebreak()\n= Anhang\n\n")
+	fmt.Fprintf(b, "#text(size: 8pt)[%s]\n\n", typstText(fs.Notes.Reference))
+
+	for _, text := range texts {
+		fmt.Fprintf(b, "== %s\n\n", typstText(text.Label))
+		fmt.Fprintf(b, "#text(size: 7pt)[%s]\n\n", typstText(text.Basis))
+		fmt.Fprintf(b, "%s\n\n", typstText(text.Text))
+	}
+
+	if len(mirror.Rows) > 0 {
+		b.WriteString("== Rückstellungsspiegel\n\n")
+		b.WriteString("#table(\n  columns: (1fr, auto, auto, auto, auto, auto, auto),\n" +
+			"  align: (left, right, right, right, right, right, right),\n  stroke: none,\n")
+		b.WriteString("  table.hline(),\n")
+		b.WriteString("  [*Art*], [*Anfangsbestand*], [*Zuführung*], [*Verbrauch*], " +
+			"[*Auflösung*], [*Aufzinsung*], [*Endbestand*],\n")
+		b.WriteString("  table.hline(),\n")
+		for _, row := range mirror.Rows {
+			fmt.Fprintf(b, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s],\n",
+				typstText(row.Label), typstText(row.Opening.String()), typstText(row.Additions.String()),
+				typstText(row.Used.String()), typstText(row.Released.String()),
+				typstText(row.Unwinding.String()), typstText(row.Closing.String()))
+		}
+		b.WriteString("  table.hline(),\n")
+		fmt.Fprintf(b, "  [*Summe*], [*%s*], [*%s*], [*%s*], [*%s*], [*%s*], [*%s*],\n",
+			typstText(mirror.Total.Opening.String()), typstText(mirror.Total.Additions.String()),
+			typstText(mirror.Total.Used.String()), typstText(mirror.Total.Released.String()),
+			typstText(mirror.Total.Unwinding.String()), typstText(mirror.Total.Closing.String()))
+		b.WriteString("  table.hline(),\n)\n\n")
+	}
+
+	if len(reconciliation.Rows) > 0 {
+		b.WriteString("== Überleitung zur Steuerbilanz\n\n")
+		fmt.Fprintf(b, "#text(size: 8pt)[%s]\n\n", typstText(reconciliation.Note))
+		b.WriteString("#table(\n  columns: (1fr, auto, auto, auto),\n" +
+			"  align: (left, right, right, right),\n  stroke: none,\n")
+		b.WriteString("  table.hline(),\n")
+		b.WriteString("  [*Position*], [*Handelsbilanz*], [*Steuerbilanz*], [*Differenz*],\n")
+		b.WriteString("  table.hline(),\n")
+		for _, row := range reconciliation.Rows {
+			fmt.Fprintf(b, "  [%s], [%s], [%s], [%s],\n",
+				typstText(row.Position+" ("+row.Basis+")"), typstText(row.Commercial.String()),
+				typstText(row.Tax.String()), typstText(row.Difference.String()))
+		}
+		b.WriteString("  table.hline(),\n")
+		fmt.Fprintf(b, "  [*Wirkung auf das Eigenkapital*], [], [], [*%s*],\n",
+			typstText(reconciliation.EquityEffect.String()))
+		b.WriteString("  table.hline(),\n)\n\n")
+	}
 }
 
 func headerTitle(h domain.StatementHeader) string {

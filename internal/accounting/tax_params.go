@@ -30,6 +30,20 @@ type TaxParameters struct {
 	// rechnung is enough (§ 33 UStDV). Relevant for the e-invoice obligation: a
 	// small-amount invoice may always be a sonstige Rechnung.
 	SmallAmountInvoiceLimit domain.Cents
+
+	// CorporateTaxPermille ist der Körperschaftsteuersatz in Promille
+	// (150 = 15 %, § 23 Abs. 1 KStG).
+	CorporateTaxPermille int64
+	// SolidarityPermille ist der Solidaritätszuschlag auf die
+	// Körperschaftsteuer (55 = 5,5 %, § 4 SolZG).
+	SolidarityPermille int64
+	// TradeTaxBasePermille ist die Steuermesszahl der Gewerbesteuer
+	// (35 = 3,5 %, § 11 Abs. 2 GewStG). Der Hebesatz kommt von der Gemeinde und
+	// steht deshalb in den Einstellungen, nicht hier.
+	TradeTaxBasePermille int64
+	// WithholdingTaxPermille ist der Kapitalertragsteuersatz auf eine
+	// Ausschüttung (250 = 25 %, § 43a Abs. 1 Satz 1 Nr. 1 EStG).
+	WithholdingTaxPermille int64
 }
 
 // taxParameterSets are ordered by ValidFrom, oldest first.
@@ -42,11 +56,42 @@ var taxParameterSets = []TaxParameters{
 		EntertainmentDeductiblePermille: 700,
 		// § 33 UStDV: 150 € until 2016, 250 € from 2017.
 		SmallAmountInvoiceLimit: 15000,
+		// Bis 2007 betrug der Körperschaftsteuersatz 25 % (§ 23 Abs. 1 KStG
+		// a. F.); die Unternehmensteuerreform 2008 hat ihn auf 15 % gesenkt und
+		// zugleich die Gewerbesteuer-Messzahl von 5 % auf 3,5 % vereinheitlicht.
+		CorporateTaxPermille:   250,
+		SolidarityPermille:     55,
+		TradeTaxBasePermille:   50,
+		WithholdingTaxPermille: 200,
+	},
+	{
+		ValidFrom:                       "2008-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         15000,
+		CorporateTaxPermille:            150,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		// Die Abgeltungsteuer von 25 % gilt seit dem 1. Januar 2009
+		// (§ 43a Abs. 1 Satz 1 Nr. 1 EStG i. d. F. des UntStRefG 2008).
+		WithholdingTaxPermille: 200,
+	},
+	{
+		ValidFrom:                       "2009-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         15000,
+		CorporateTaxPermille:            150,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
 	},
 	{
 		ValidFrom:                       "2017-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
+		CorporateTaxPermille:            150,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
 	},
 }
 

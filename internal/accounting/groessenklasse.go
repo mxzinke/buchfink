@@ -113,13 +113,15 @@ func AssessSize(year int, closingDate, fiscalYearStart string, criteria domain.S
 		}
 	}
 	assessment.Class = domain.SizeLarge
-	assessment.Met = nil
+	// Die große Gesellschaft erfüllt kein Merkmal — die Liste ist leer und
+	// nicht `null`, weil die Ansicht über sie läuft.
+	assessment.Met = []string{}
 	return assessment, nil
 }
 
 // metCriteria benennt die Merkmale, die die Schwelle nicht überschreiten.
 func metCriteria(criteria, limits domain.SizeCriteria) []string {
-	var met []string
+	met := make([]string, 0, 3)
 	if criteria.BalanceSheetTotal <= limits.BalanceSheetTotal {
 		met = append(met, fmt.Sprintf("Bilanzsumme %s € (höchstens %s €)",
 			criteria.BalanceSheetTotal, limits.BalanceSheetTotal))

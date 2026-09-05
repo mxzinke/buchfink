@@ -376,9 +376,11 @@ func TestValueLimitsFollowTheirOwnYear(t *testing.T) {
 }
 
 // Die Sonderabschreibung nach § 7g Abs. 5 EStG tritt neben die planmäßige AfA,
-// sie ersetzt sie nicht (§ 7a Abs. 4 EStG). Nach dem Begünstigungszeitraum
-// verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer — sonst käme
-// das Wirtschaftsgut Jahre vor seinem Ende bei null an.
+// sie ersetzt sie nicht (§ 7a Abs. 4 EStG) — und sie wirkt allein steuerlich.
+// Der handelsrechtliche Plan läuft unverändert bis auf null (§ 253 HGB, § 254
+// HGB a. F. ist mit dem BilMoG entfallen); in der steuerlichen Rechnung
+// verteilt § 7a Abs. 9 EStG nach dem Begünstigungszeitraum den verbliebenen
+// Restwert auf die Restnutzungsdauer.
 func TestSpecialDepreciationRunsBesideThePlanAndThenSpreadsTheResidual(t *testing.T) {
 	rows, err := BuildAfASchedule(AfAPlan{
 		AcquisitionDate:      "2026-01-01",
@@ -396,39 +398,64 @@ func TestSpecialDepreciationRunsBesideThePlanAndThenSpreadsTheResidual(t *testin
 		t.Fatalf("erwartet 10 Jahre, bekommen %d", len(rows))
 	}
 
-	// Begünstigungszeitraum: lineare AfA unverändert 10 %, dazu ein Fünftel der
-	// Sonderabschreibung.
-	for i := 0; i < 5; i++ {
+	// Handelsrechtlich: zehn Jahre lang unverändert 10 % der Anschaffungskosten.
+	for i := range rows {
 		if rows[i].Amount != 1_000_000 {
 			t.Errorf("%d: planmäßige AfA %s € — erwartet 10.000,00 €", rows[i].FiscalYear, rows[i].Amount)
 		}
+	}
+	if last := rows[len(rows)-1]; last.FiscalYear != 2035 || last.ClosingBookValue != 0 {
+		t.Errorf("letztes Jahr %d endet mit einem Buchwert von %s € — erwartet 2035 und null",
+			last.FiscalYear, last.ClosingBookValue)
+	}
+
+	// Begünstigungszeitraum: dazu ein Fünftel der Sonderabschreibung, nur
+	// steuerlich.
+	for i := 0; i < 5; i++ {
 		if rows[i].SpecialAmount != 800_000 {
 			t.Errorf("%d: Sonderabschreibung %s € — erwartet 8.000,00 €", rows[i].FiscalYear, rows[i].SpecialAmount)
 		}
+		if rows[i].TaxAmount != 1_000_000 {
+			t.Errorf("%d: steuerliche AfA %s € — erwartet 10.000,00 €", rows[i].FiscalYear, rows[i].TaxAmount)
+		}
 	}
-	if rows[4].ClosingBookValue != 1_000_000 {
-		t.Errorf("Buchwert nach dem Begünstigungszeitraum %s € — erwartet 10.000,00 €", rows[4].ClosingBookValue)
+	if rows[4].ClosingBookValue != 5_000_000 {
+		t.Errorf("handelsrechtlicher Buchwert nach fünf Jahren %s € — erwartet 50.000,00 €",
+			rows[4].ClosingBookValue)
+	}
+	if rows[4].TaxClosingBookValue != 1_000_000 {
+		t.Errorf("steuerlicher Restwert nach dem Begünstigungszeitraum %s € — erwartet 10.000,00 €",
+			rows[4].TaxClosingBookValue)
 	}
 
-	// Danach: Restwert auf die verbliebenen fünf Jahre (§ 7a Abs. 9 EStG).
+	// Danach: steuerlich der Restwert auf die verbliebenen fünf Jahre
+	// (§ 7a Abs. 9 EStG), handelsrechtlich unverändert.
 	for i := 5; i < 10; i++ {
 		if rows[i].SpecialAmount != 0 {
 			t.Errorf("%d trägt noch eine Sonderabschreibung von %s €", rows[i].FiscalYear, rows[i].SpecialAmount)
 		}
-		if rows[i].Amount != 200_000 {
-			t.Errorf("%d: Restwertabschreibung %s € — erwartet 2.000,00 €", rows[i].FiscalYear, rows[i].Amount)
+		if rows[i].TaxAmount != 200_000 {
+			t.Errorf("%d: steuerliche Restwertabschreibung %s € — erwartet 2.000,00 €",
+				rows[i].FiscalYear, rows[i].TaxAmount)
 		}
 	}
-	if last := rows[len(rows)-1]; last.FiscalYear != 2035 || last.ClosingBookValue != 0 {
-		t.Errorf("letztes Jahr %d endet mit %s € — erwartet 2035 und null", last.FiscalYear, last.ClosingBookValue)
+	if last := rows[len(rows)-1]; last.TaxClosingBookValue != 0 {
+		t.Errorf("steuerlicher Restwert am Ende %s € — erwartet null", last.TaxClosingBookValue)
 	}
 
-	var total domain.Cents
+	// Beide Rechnungen kommen auf die vollen Anschaffungskosten — die
+	// handelsrechtliche über die planmäßige AfA allein, die steuerliche mit der
+	// Sonderabschreibung.
+	var commercial, tax domain.Cents
 	for _, r := range rows {
-		total += r.TotalAmount()
+		commercial += r.Amount
+		tax += r.TaxAmount + r.SpecialAmount
 	}
-	if total != 10_000_000 {
-		t.Errorf("Summe aller Abschreibungen %s € — erwartet die vollen Anschaffungskosten", total)
+	if commercial != 10_000_000 {
+		t.Errorf("Summe der planmäßigen AfA %s € — erwartet die vollen Anschaffungskosten", commercial)
+	}
+	if tax != 10_000_000 {
+		t.Errorf("Summe der steuerlichen Abschreibungen %s € — erwartet die vollen Anschaffungskosten", tax)
 	}
 }
 
@@ -488,9 +515,9 @@ func TestSpecialDepreciationLimits(t *testing.T) {
 }
 
 // Die Sonderabschreibung ist auch neben der degressiven AfA zulässig
-// (§ 7g Abs. 5 EStG). Nach dem Begünstigungszeitraum geht § 7a Abs. 9 EStG vor:
-// gerechnet wird dann nach Restwert und Restnutzungsdauer, nicht weiter
-// degressiv.
+// (§ 7g Abs. 5 EStG). Handelsrechtlich läuft der degressive Plan unverändert
+// weiter; steuerlich zehrt die Sonderabschreibung den Restwert früh auf, und
+// mehr als die Anschaffungskosten wird auch steuerlich nicht abgeschrieben.
 func TestSpecialDepreciationAlongsideDegressive(t *testing.T) {
 	rows, err := BuildAfASchedule(AfAPlan{
 		AcquisitionDate:      "2026-01-01",
@@ -505,41 +532,39 @@ func TestSpecialDepreciationAlongsideDegressive(t *testing.T) {
 		t.Fatalf("Plan: %v", err)
 	}
 	// Erstes Jahr: 30 % von 100.000 € degressiv, dazu die volle
-	// Sonderabschreibung von 40 %.
+	// Sonderabschreibung von 40 % — nur steuerlich.
 	if rows[0].Amount != 3_000_000 || rows[0].SpecialAmount != 4_000_000 {
 		t.Fatalf("2026: %s € degressiv, %s € Sonderabschreibung — erwartet 30.000,00 € und 40.000,00 €",
 			rows[0].Amount, rows[0].SpecialAmount)
 	}
-	if rows[0].ClosingBookValue != 3_000_000 {
-		t.Errorf("Buchwert Ende 2026 %s € — erwartet 30.000,00 €", rows[0].ClosingBookValue)
+	if rows[0].ClosingBookValue != 7_000_000 {
+		t.Errorf("handelsrechtlicher Buchwert Ende 2026 %s € — erwartet 70.000,00 €", rows[0].ClosingBookValue)
 	}
-	// Zweites Jahr: 30 % vom geminderten Restbuchwert.
-	if rows[1].Amount != 900_000 {
-		t.Errorf("2027: %s € — erwartet 9.000,00 € (30 %% von 30.000,00 €)", rows[1].Amount)
+	if rows[0].TaxClosingBookValue != 3_000_000 {
+		t.Errorf("steuerlicher Restwert Ende 2026 %s € — erwartet 30.000,00 €", rows[0].TaxClosingBookValue)
 	}
-
-	// Ab 2031 — nach dem Begünstigungszeitraum — Restwert auf Restnutzungsdauer.
-	var residual *AfAYear
-	for i := range rows {
-		if rows[i].FiscalYear == 2031 {
-			residual = &rows[i]
-		}
-	}
-	if residual == nil {
-		t.Fatal("das Jahr nach dem Begünstigungszeitraum fehlt im Plan")
-	}
-	if residual.Method == domain.DepreciationDegressive {
-		t.Error("nach dem Begünstigungszeitraum wird nicht weiter degressiv abgeschrieben (§ 7a Abs. 9 EStG)")
-	}
-	if !strings.Contains(residual.RateLabel, "Restmonate") && residual.RateLabel != "Restwert" {
-		t.Errorf("Satz %q — erwartet die Restwertverteilung", residual.RateLabel)
+	// Zweites Jahr: 30 % vom handelsrechtlichen Restbuchwert.
+	if rows[1].Amount != 2_100_000 {
+		t.Errorf("2027: %s € — erwartet 21.000,00 € (30 %% von 70.000,00 €)", rows[1].Amount)
 	}
 
-	var total domain.Cents
+	// Der handelsrechtliche Plan endet auf null, und die Summe der planmäßigen
+	// AfA sind die vollen Anschaffungskosten.
+	var commercial, tax domain.Cents
 	for _, r := range rows {
-		total += r.TotalAmount()
+		commercial += r.Amount
+		tax += r.TaxAmount + r.SpecialAmount
 	}
-	if total != 10_000_000 {
-		t.Errorf("Summe aller Abschreibungen %s € — erwartet die vollen Anschaffungskosten", total)
+	if commercial != 10_000_000 {
+		t.Errorf("Summe der planmäßigen AfA %s € — erwartet die vollen Anschaffungskosten", commercial)
+	}
+	if last := rows[len(rows)-1]; last.ClosingBookValue != 0 {
+		t.Errorf("Buchwert am Ende der Nutzungsdauer %s € — erwartet null", last.ClosingBookValue)
+	}
+	// Steuerlich ist der Wertansatz mit der Sonderabschreibung früher
+	// aufgezehrt; abgeschrieben wird auch dort nicht mehr als die
+	// Anschaffungskosten.
+	if tax != 10_000_000 {
+		t.Errorf("Summe der steuerlichen Abschreibungen %s € — erwartet die vollen Anschaffungskosten", tax)
 	}
 }

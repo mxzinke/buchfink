@@ -67,6 +67,9 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		_ = r.Save(&cfg)
 	}
 
+	// Eine gespeicherte Datei ohne Mandantenschlüssel ergäbe einen nicht
+	// belegten Slice — und in der Oberfläche `null` statt einer leeren Liste.
+	cfg.EnsureLists()
 	return &cfg, nil
 }
 

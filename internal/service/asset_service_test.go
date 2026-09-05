@@ -1139,10 +1139,15 @@ func TestPartialDisposalIsRefusedForTangibleAssets(t *testing.T) {
 	}
 }
 
-// Die Sonderabschreibung des § 7g Abs. 5 EStG wird in derselben Buchung erfasst
-// wie die planmäßige AfA, aber auf einem eigenen Aufwandskonto — der SKR04
-// trennt sie, weil die GuV sie getrennt ausweist.
-func TestSpecialDepreciationBooksOnItsOwnAccount(t *testing.T) {
+// Die Sonderabschreibung des § 7g Abs. 5 EStG wird nicht mehr gebucht.
+//
+// Seit dem BilMoG ist § 254 HGB entfallen, und § 253 HGB regelt die
+// handelsrechtliche Bewertung abschließend: eine Abschreibung, die allein
+// steuerlich begründet ist, hat in der Handelsbilanz nichts verloren. Sie wird
+// deshalb als steuerlicher Wert an der Bewegung geführt — der Buchwert bleibt
+// der handelsrechtliche, und die Differenz erscheint im Verzeichnis nach
+// § 5 Abs. 1 Satz 2 EStG.
+func TestSpecialDepreciationIsTaxOnlyAndNotBooked(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)
 	ctx := context.Background()
@@ -1195,20 +1200,267 @@ func TestSpecialDepreciationBooksOnItsOwnAccount(t *testing.T) {
 			lines["haben:"+l.Account] += l.Amount
 		}
 	}
-	if lines["6220"] != 1_000_000 || lines["6241"] != 800_000 || lines["haben:0440"] != 1_800_000 {
-		t.Errorf("Buchung %+v — erwartet 6220 an 10.000,00 €, 6241 an 8.000,00 €, 0440 im Haben 18.000,00 €", lines)
+	if lines["6220"] != 1_000_000 || lines["haben:0440"] != 1_000_000 {
+		t.Errorf("Buchung %+v — erwartet 6220 an 0440 über 10.000,00 €", lines)
+	}
+	if lines["6241"] != 0 {
+		t.Errorf("die Sonderabschreibung steht mit %s € im Journal; sie darf handelsrechtlich "+
+			"nicht gebucht werden", lines["6241"])
 	}
 
 	reloaded, err := svc.Get(ctx, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
-	if reloaded.Asset.BookValue != 8_200_000 {
-		t.Errorf("Buchwert %s € — erwartet 82.000,00 €", reloaded.Asset.BookValue)
+	if reloaded.Asset.BookValue != 9_000_000 {
+		t.Errorf("Buchwert %s € — erwartet 90.000,00 €: der handelsrechtliche Buchwert kennt nur "+
+			"die planmäßige AfA", reloaded.Asset.BookValue)
 	}
 	if reloaded.Schedule[0].SpecialBooked != 800_000 || reloaded.Schedule[0].SpecialDue != 0 {
 		t.Errorf("2026 im Plan: %s € gebucht, %s € offen — erwartet 8.000,00 € und null",
 			reloaded.Schedule[0].SpecialBooked, reloaded.Schedule[0].SpecialDue)
+	}
+}
+
+// Der handelsrechtliche Plan läuft neben der Sonderabschreibung unverändert
+// weiter: über die Nutzungsdauer summiert sich die planmäßige AfA auf die vollen
+// Anschaffungskosten, und der Buchwert endet auf null (§ 253 HGB).
+func TestCommercialPlanIsUntouchedBySpecialDepreciation(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000, // 100.000,00 €
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €; ausschließlich betriebliche Nutzung",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if len(detail.Schedule) != 10 {
+		t.Fatalf("erwartet zehn Planjahre, bekommen %d", len(detail.Schedule))
+	}
+	var planned domain.Cents
+	for _, row := range detail.Schedule {
+		planned += row.Amount
+	}
+	if planned != 10_000_000 {
+		t.Errorf("Summe der planmäßigen AfA %s € — erwartet die vollen Anschaffungskosten", planned)
+	}
+	last := detail.Schedule[len(detail.Schedule)-1]
+	if last.ClosingBookValue != 0 {
+		t.Errorf("Restbuchwert nach der Nutzungsdauer %s € — erwartet null", last.ClosingBookValue)
+	}
+	if last.FiscalYear != 2035 {
+		t.Errorf("letztes Planjahr %d — erwartet 2035", last.FiscalYear)
+	}
+}
+
+// Ist nur noch die Sonderabschreibung offen, entsteht keine Buchung — sie ist
+// ein reiner Steuerwert. Der Lauf darf daran nicht scheitern.
+func TestDepreciationRunHandlesTheTaxOnlyCase(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000,
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €; ausschließlich betriebliche Nutzung",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	// Die planmäßige AfA des Jahres steht bereits in der Kartei; offen ist nur
+	// noch die Sonderabschreibung.
+	if err := repository.NewAssetRepository(env.db).AddMovement(ctx, &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementDepreciation, Account: asset.Account,
+		Date: "2026-12-31", FiscalYear: 2026, DepreciationAmount: 1_000_000,
+	}); err != nil {
+		t.Fatalf("Bewegung: %v", err)
+	}
+
+	result, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026})
+	if err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+	if len(result.Entries) != 0 {
+		t.Errorf("erwartet keine Buchung, bekommen %d", len(result.Entries))
+	}
+	if len(result.TaxOnly) != 1 {
+		t.Fatalf("der Lauf nennt die nur steuerliche Sonderabschreibung nicht: %+v", result)
+	}
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	if detail.Schedule[0].SpecialBooked != 800_000 {
+		t.Errorf("erfasste Sonderabschreibung %s € — erwartet 8.000,00 €",
+			detail.Schedule[0].SpecialBooked)
+	}
+	if detail.Asset.Vorabpauschalen != 0 {
+		t.Errorf("die Sonderabschreibung erscheint mit %s € als Vorabpauschale",
+			detail.Asset.Vorabpauschalen)
+	}
+}
+
+// Beim Abgang wird die Sonderabschreibung des Jahres als steuerlicher Wert
+// festgehalten, auch wenn handelsrechtlich nichts mehr nachzuholen ist. Ginge
+// sie hier verloren, fehlte sie im Verzeichnis nach § 5 Abs. 1 Satz 2 EStG.
+func TestDisposalKeepsTheSpecialDepreciationAsTaxValue(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000,
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €; ausschließlich betriebliche Nutzung",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	// Die planmäßige AfA bis zum Abgangsmonat steht schon in der Kartei; offen
+	// bleibt allein die Sonderabschreibung.
+	if err := repository.NewAssetRepository(env.db).AddMovement(ctx, &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementDepreciation, Account: asset.Account,
+		Date: "2026-06-30", FiscalYear: 2026, DepreciationAmount: 500_000,
+	}); err != nil {
+		t.Fatalf("Bewegung: %v", err)
+	}
+
+	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalScrapped,
+	})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if preview.CatchUpAmount != 0 || preview.SpecialCatchUp != 800_000 {
+		t.Fatalf("nachzuholen: planmäßig %s €, Sonderabschreibung %s € — erwartet null und 8.000,00 €",
+			preview.CatchUpAmount, preview.SpecialCatchUp)
+	}
+
+	if _, err := svc.Dispose(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalScrapped,
+	}); err != nil {
+		t.Fatalf("Abgang: %v", err)
+	}
+
+	stored, err := repository.NewAssetRepository(env.db).FindByID(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Anlagegut laden: %v", err)
+	}
+	var special domain.Cents
+	for _, m := range stored.Movements {
+		if m.Kind == domain.AssetMovementSpecialDepreciation {
+			special += m.TaxAmount
+			if m.DepreciationAmount != 0 {
+				t.Errorf("die Sonderabschreibung steht mit %s € als handelsrechtliche Abschreibung",
+					m.DepreciationAmount)
+			}
+		}
+	}
+	if special != 800_000 {
+		t.Errorf("festgehaltene Sonderabschreibung %s € — erwartet 8.000,00 €", special)
+	}
+}
+
+// Der Migrationshinweis: Sonderabschreibungen, die vor dieser Fassung gebucht
+// wurden, bleiben stehen — die Anlagenseite nennt sie.
+func TestLegacySpecialDepreciationsAreListed(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name:                "Fertigungsroboter",
+		Class:               domain.AssetClassTangible,
+		Account:             "0440",
+		DepreciationAccount: "6220",
+		AcquisitionDate:     "2026-01-05",
+		AcquisitionCost:     10_000_000,
+		UsefulLifeMonths:    120,
+		Method:              domain.DepreciationLinear,
+		SpecialPermille:     400,
+		SpecialYears:        5,
+		SpecialReason:       "Gewinn 2025: 140.000 €",
+	})
+	if err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+
+	notice, err := svc.LegacySpecialDepreciations(ctx)
+	if err != nil {
+		t.Fatalf("Migrationshinweis: %v", err)
+	}
+	if len(notice.Rows) != 0 {
+		t.Errorf("ohne alte Buchung darf der Hinweis leer sein, hat aber %d Zeilen", len(notice.Rows))
+	}
+
+	// Eine Bewegung aus der Zeit, in der die Sonderabschreibung noch gebucht
+	// wurde: Betrag als Abschreibung, mit Buchungsverweis.
+	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
+		BookingDate: "2025-12-31", DocumentDate: "2025-12-31",
+		ServiceDateFrom: "2025-12-31", ServiceDateTo: "2025-12-31",
+		Description: "Sonderabschreibung 2025", Source: domain.EntrySourceDepreciation,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: "6241", Amount: 800_000},
+			{Side: domain.SideCredit, Account: "0440", Amount: 800_000},
+		},
+	})
+	if err != nil {
+		t.Fatalf("alte Buchung: %v", err)
+	}
+	if err := repository.NewAssetRepository(env.db).AddMovement(ctx, &domain.AssetMovement{
+		AssetID: asset.ID, Kind: domain.AssetMovementSpecialDepreciation, Account: asset.Account,
+		Date: "2025-12-31", FiscalYear: 2025, DepreciationAmount: 800_000,
+		JournalEntryID: &entry.ID,
+	}); err != nil {
+		t.Fatalf("Bewegung: %v", err)
+	}
+
+	notice, err = svc.LegacySpecialDepreciations(ctx)
+	if err != nil {
+		t.Fatalf("Migrationshinweis: %v", err)
+	}
+	if len(notice.Rows) != 1 || notice.Total != 800_000 {
+		t.Fatalf("Hinweis %+v — erwartet eine Zeile über 8.000,00 €", notice)
+	}
+	if notice.Rows[0].EntryNumber != entry.EntryNumber {
+		t.Errorf("die Zeile nennt die Buchung %q — erwartet %q",
+			notice.Rows[0].EntryNumber, entry.EntryNumber)
+	}
+	if !strings.Contains(notice.Note, "BilMoG") {
+		t.Errorf("der Hinweis erklärt nicht, warum die Buchung nicht mehr entsteht: %q", notice.Note)
 	}
 }
 

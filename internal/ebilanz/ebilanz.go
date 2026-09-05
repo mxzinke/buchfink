@@ -82,6 +82,12 @@ type InstanceInput struct {
 	// Kontennachweis führt sie unverdichtet auf.
 	Accounts       []domain.Account
 	Anlagenspiegel *domain.Anlagenspiegel
+	// Reconciliation ist die Überleitungsrechnung von der Handels- zur
+	// Steuerbilanz (§ 60 Abs. 2 EStDV). Sie geht als eigener Block in die
+	// Instanz: die Zahlen der Bilanz sind handelsrechtliche, und ohne die
+	// Überleitung wäre für das Finanzamt nicht erkennbar, wo der steuerliche
+	// Wertansatz abweicht.
+	Reconciliation *domain.Reconciliation
 
 	FiscalYear     int
 	StartDate      string
@@ -149,6 +155,7 @@ func GenerateEBilanzXBRL(in InstanceInput) (string, *MappingReport, error) {
 	root.Children = append(root.Children, statementFacts(in.Statement)...)
 	root.Children = append(root.Children, proofOfAccounts(report)...)
 	root.Children = append(root.Children, fixedAssetMovements(in.Anlagenspiegel, report)...)
+	root.Children = append(root.Children, reconciliationFacts(in.Reconciliation)...)
 
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
@@ -370,6 +377,54 @@ func fixedAssetMovements(spiegel *domain.Anlagenspiegel, report *MappingReport) 
 		nodes = append(nodes, build(total, "fixedAssetsMovementSubtotal", string(total.Class), total.AccountName))
 	}
 	nodes = append(nodes, build(spiegel.Totals, "fixedAssetsMovementTotal", "total", spiegel.Totals.AccountName))
+	return nodes
+}
+
+// reconciliationFacts ist der Überleitungsblock: je Position der
+// handelsrechtliche Wert, der steuerliche und die Differenz.
+//
+// Die Taxonomie führt die Überleitungsrechnung in einem eigenen Modul
+// („Überleitungsrechnung", Namensraum-Präfix hbst der amtlichen Fassung). Die
+// hier verwendeten Elementnamen sind nach ihrer Systematik gebildet und stehen
+// in der Zuordnungsressource mit verified:false — vor der Übermittlung sind sie
+// gegen die amtliche Taxonomie abzugleichen. Die Zahlen selbst stammen aus der
+// Buchführung und sind davon unberührt.
+func reconciliationFacts(reconciliation *domain.Reconciliation) []node {
+	if reconciliation == nil || len(reconciliation.Rows) == 0 {
+		return nil
+	}
+	element := func(key, fallback string) string {
+		if e, ok := ElementFor(key); ok {
+			return e.Element
+		}
+		return fallback
+	}
+	positionElement := element("ueberleitung.position", "de-gaap-ci:hbst.position")
+	blockElement := element("ueberleitung", "de-gaap-ci:hbst")
+
+	var nodes []node
+	for _, row := range reconciliation.Rows {
+		nodes = append(nodes, node{
+			Name:  positionElement,
+			Attrs: []xml.Attr{attr("contextRef", contextInstant)},
+			Children: []node{
+				{Name: "de-gaap-ci:hbst.positionLabel", Value: row.Position},
+				{Name: "de-gaap-ci:hbst.legalBasis", Value: row.Basis},
+				{Name: "de-gaap-ci:hbst.explanation", Value: row.Explanation},
+				fact("de-gaap-ci:hbst.commercialValue", contextInstant, row.Commercial),
+				fact("de-gaap-ci:hbst.taxValue", contextInstant, row.Tax),
+				fact("de-gaap-ci:hbst.difference", contextInstant, row.Difference),
+			},
+		})
+	}
+	nodes = append(nodes, node{
+		Name:  blockElement,
+		Attrs: []xml.Attr{attr("contextRef", contextInstant)},
+		Children: []node{
+			{Name: "de-gaap-ci:hbst.note", Value: reconciliation.Note},
+			fact("de-gaap-ci:hbst.equityEffect", contextInstant, reconciliation.EquityEffect),
+		},
+	})
 	return nodes
 }
 

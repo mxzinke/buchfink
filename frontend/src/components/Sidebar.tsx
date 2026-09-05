@@ -9,6 +9,7 @@ import {
   FileText,
   Landmark,
   LayoutDashboard,
+  ListChecks,
   ListOrdered,
   Loader2,
   Percent,
@@ -36,6 +37,7 @@ export type TabType =
   | 'accounts'
   | 'reports'
   | 'closing'
+  | 'closingmodules'
   | 'vat'
   | 'deadlines'
   | 'ebilanz'
@@ -104,6 +106,11 @@ const GROUPS: NavGroup[] = [
     items: [
       { id: 'reports', label: 'GuV & Bilanz', icon: <Scale className={icon} /> },
       { id: 'closing', label: 'Jahresabschluss', icon: <BookCheck className={icon} /> },
+      {
+        id: 'closingmodules',
+        label: 'Abschlussbausteine',
+        icon: <ListChecks className={icon} />,
+      },
       { id: 'vat', label: 'Umsatzsteuer', icon: <Percent className={icon} /> },
       { id: 'deadlines', label: 'Steuerfristen', icon: <Calendar className={icon} /> },
       { id: 'ebilanz', label: 'E-Bilanz', icon: <FileSpreadsheet className={icon} /> },

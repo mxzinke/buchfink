@@ -318,6 +318,19 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 	return b.assetSvc.Anlagenspiegel(context.Background())
 }
 
+// GetLegacySpecialDepreciations nennt die Sonderabschreibungen, die noch als
+// Buchung im Journal stehen — der Migrationshinweis der Anlagenseite.
+func (b *BuchfinkBridge) GetLegacySpecialDepreciations() (*service.LegacySpecialDepreciationNotice, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.assetSvc == nil {
+		return &service.LegacySpecialDepreciationNotice{
+			Rows: []service.LegacySpecialDepreciation{},
+		}, nil
+	}
+	return b.assetSvc.LegacySpecialDepreciations(context.Background())
+}
+
 // GetAssetAcquisitionCandidates lists bookings on Anlagekonten that no Anlagegut
 // points at yet.
 func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionCandidate, error) {
@@ -394,7 +407,7 @@ func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, err
 	}
 	app := application.Get()
 	if app == nil || app.Dialog == nil {
-		return nil, nil
+		return []string{}, nil
 	}
 	return app.Dialog.OpenFile().
 		CanChooseFiles(true).

@@ -16,6 +16,7 @@ import { ReceiptsPage } from './pages/ReceiptsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
+import { ClosingModulesPage } from './pages/ClosingModulesPage';
 import { VatPage } from './pages/VatPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
@@ -296,7 +297,18 @@ export function App() {
       case 'closing':
         // Die Abschlussansicht folgt dem Jahr aus der Kopfzeile; sie zeigt
         // Stand und Vortrag genau eines Geschäftsjahres.
-        return <ClosingPage year={currentYear} onFiscalYearChanged={refreshFiscalYearSelection} />;
+        return (
+          <ClosingPage
+            year={currentYear}
+            onFiscalYearChanged={refreshFiscalYearSelection}
+            onNavigate={navigate}
+          />
+        );
+      case 'closingmodules':
+        // Die Abschlussbausteine buchen ins Geschäftsjahr der Kopfzeile: die
+        // Abgrenzung, die Rückstellungen, den Inventurwert und die
+        // Verrechnungen. Ihr Stichtag ist der des Jahres, nicht der von heute.
+        return <ClosingModulesPage year={currentYear} />;
       case 'vat':
         // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
         // Kopfzeile; die Kennziffern entstehen im Backend.

@@ -648,6 +648,64 @@ func TestExportAuditPackageCarriesTheIntegrityReport(t *testing.T) {
 	}
 }
 
+// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG gehört ins Prüferpaket: ein
+// Verzeichnis, das nur auf dem Bildschirm des Mandanten steht, ist keines.
+func TestExportAuditPackageCarriesTheTaxElectionRegister(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.filledBooks(t)
+
+	assets := env.assets(t)
+	if _, err := assets.Save(ctx, &domain.FixedAsset{
+		Name: "Fräsmaschine", Class: domain.AssetClassTangible,
+		AcquisitionDate: "2026-01-15", AcquisitionCost: 10_000_000, UsefulLifeMonths: 120,
+		Method: domain.DepreciationLinear, Account: "0440", DepreciationAccount: "6220",
+		SpecialPermille: 400, SpecialYears: 5,
+		SpecialReason: "Gewinn 2025: 140.000 €; ausschließlich betriebliche Nutzung",
+	}); err != nil {
+		t.Fatalf("Anlagegut: %v", err)
+	}
+	if _, err := assets.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: env.fiscalYear}); err != nil {
+		t.Fatalf("Abschreibungslauf: %v", err)
+	}
+
+	svc := env.exports(t)
+	svc.SetIntegritySource(testIntegrity{journal: env.journal, receipts: env.receipts})
+	svc.SetTaxRegisterSource(NewTaxRegisterService(
+		repository.NewAssetRepository(env.db), repository.NewProvisionRepository(env.db),
+		env.journalRepo, repository.NewSettingsRepository(env.db),
+		env.closing(t), env.fiscalYear))
+
+	dir := filepath.Join(t.TempDir(), "pruefer")
+	result, err := svc.ExportAuditPackage(ctx, env.fiscalYear, dir)
+	if err != nil {
+		t.Fatalf("Prüferpaket: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dir, "verzeichnis-5-1-2-estg.csv"))
+	if err != nil {
+		t.Fatalf("das Verzeichnis fehlt im Prüferpaket: %v", err)
+	}
+	for _, want := range []string{"Fräsmaschine", "§ 7g Abs. 5 EStG", "AfA steuerlich"} {
+		if !strings.Contains(string(content), want) {
+			t.Errorf("das Verzeichnis nennt %q nicht:\n%s", want, content)
+		}
+	}
+	// Und es steht mit seiner Prüfsumme in den Metadaten des Pakets.
+	found := false
+	for _, file := range result.Files {
+		if file.Path == "verzeichnis-5-1-2-estg.csv" {
+			found = true
+			if file.SHA256 == "" || file.Bytes == 0 {
+				t.Errorf("das Verzeichnis steht ohne Prüfsumme im Paket: %+v", file)
+			}
+		}
+	}
+	if !found {
+		t.Error("das Verzeichnis fehlt in der Dateiliste des Pakets")
+	}
+}
+
 // --- Einzelexporte ---------------------------------------------------------
 
 func TestExportJournalCSVCoversADateWindow(t *testing.T) {

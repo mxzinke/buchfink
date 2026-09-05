@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Building2, Plus } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Building2, Download, Plus } from 'lucide-react';
 import {
   AcquisitionAdvice,
   AcquisitionCandidate,
@@ -28,6 +28,8 @@ import {
   InvestmentRules,
   InvestmentTaxNote,
   JournalLine,
+  LegacySpecialDepreciationNotice,
+  TaxElectionRegister,
   Vorabpauschale,
   Settlement,
   TaxTreatment,
@@ -35,6 +37,7 @@ import {
 import { RATE_SCALE, UNIT_SCALE } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
+import { downloadCSV } from '../utils/download';
 import { formatCents, formatCentsPlain, formatDate, formatUnits, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -79,7 +82,13 @@ import {
  * Reiter, zwei Erklärungen, zwei Aktionsleisten.
  */
 
-type Tab = 'tangible' | 'financial' | 'intangible' | 'depreciation' | 'spiegel';
+type Tab =
+  | 'tangible'
+  | 'financial'
+  | 'intangible'
+  | 'depreciation'
+  | 'spiegel'
+  | 'taxregister';
 
 const CLASS_TABS: AssetClass[] = ['tangible', 'financial', 'intangible'];
 
@@ -326,10 +335,12 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
             September angeschafftes Wirtschaftsgut trägt im ersten Jahr vier Zwölftel.
           </p>
           <p>
-            Eine Sonderabschreibung nach § 7g Abs. 5 EStG erscheint in einer eigenen Spalte und wird
-            mit derselben Buchung erfasst, aber auf einem eigenen Aufwandskonto: sie tritt{' '}
-            <em>neben</em> die Absetzung für Abnutzung und ersetzt sie nicht. Nach dem
-            Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer.
+            Eine Sonderabschreibung nach § 7g Abs. 5 EStG erscheint in einer eigenen Spalte, wird
+            aber nicht gebucht: seit dem Wegfall der umgekehrten Maßgeblichkeit ist sie in der
+            Handelsbilanz unzulässig. Buchfink hält sie als steuerlichen Wert am Anlagegut fest; sie
+            erscheint im Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und in der Überleitung zur
+            Steuerbilanz. Nach dem Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert auf
+            die Restnutzungsdauer.
           </p>
           <p>
             Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob hier noch etwas offen ist.
@@ -481,6 +492,7 @@ export const AssetsPage: React.FC = () => {
           { value: 'intangible' as Tab, label: 'Immaterielle Werte', count: byClass.intangible.length },
           { value: 'depreciation' as Tab, label: 'Abschreibungen', count: dueCount },
           { value: 'spiegel' as Tab, label: 'Anlagenspiegel' },
+          { value: 'taxregister' as Tab, label: 'Steuerliches Verzeichnis' },
         ]}
         value={tab}
         onValueChange={setTab}
@@ -537,6 +549,12 @@ export const AssetsPage: React.FC = () => {
               onExplain={() => setTopic('spiegel')}
             />
           )}
+        </TabPanel>
+
+        <TabPanel value="taxregister">
+          {/* Der Reiter lädt selbst: das Verzeichnis hängt am Geschäftsjahr,
+              nicht an der Liste der Anlagegüter, und niemand soll dafür warten. */}
+          <TaxRegisterTab year={year} />
         </TabPanel>
       </Tabs>
 
@@ -762,9 +780,15 @@ const DepreciationTab: React.FC<{
 
   const due = run?.due ?? [];
   const bookable = due.filter((d) => d.due > 0 || d.specialDue > 0);
+  // Gebucht wird allein die planmäßige AfA. Die Sonderabschreibung des § 7g
+  // Abs. 5 EStG steht daneben als steuerlicher Wert; sie in die Summe zu nehmen
+  // hieße, eine Zahl zu zeigen, die auf keinem Konto ankommt.
   const total = bookable
     .filter((d) => selected.includes(d.assetId))
-    .reduce((sum, d) => sum + d.due + d.specialDue, 0);
+    .reduce((sum, d) => sum + d.due, 0);
+  const taxOnlyTotal = bookable
+    .filter((d) => selected.includes(d.assetId))
+    .reduce((sum, d) => sum + d.specialDue, 0);
   // Die Sonderabschreibung bekommt nur dann eine Spalte, wenn eine läuft.
   const showSpecial = bookable.some((d) => d.specialDue > 0);
 
@@ -777,7 +801,10 @@ const DepreciationTab: React.FC<{
         assetIds: selected,
       });
       toast.success(
-        `${result.entries.length} Abschreibungsbuchungen über ${formatCents(result.total)} geschrieben.`,
+        `${result.entries.length} Abschreibungsbuchungen über ${formatCents(result.total)} geschrieben.` +
+          (result.taxOnlyTotal
+            ? ` Dazu ${formatCents(result.taxOnlyTotal)} Sonderabschreibung, nur steuerlich festgehalten.`
+            : ''),
       );
       await onBooked();
     } catch (e) {
@@ -852,6 +879,9 @@ const DepreciationTab: React.FC<{
                 {showSpecial && (
                   <Th numeric className="w-28">
                     Sonderabschreibung
+                    <span className="block text-caption font-normal text-ink-faint">
+                      nur steuerlich
+                    </span>
                   </Th>
                 )}
                 <Th numeric className="w-28">Buchwert nachher</Th>
@@ -876,9 +906,7 @@ const DepreciationTab: React.FC<{
                     {row.name}
                   </Td>
                   <Td code>
-                    {row.expenseAccount}
-                    {row.specialDue > 0 && row.specialAccount ? ` + ${row.specialAccount}` : ''} an{' '}
-                    {row.account}
+                    {row.expenseAccount} an {row.account}
                   </Td>
                   <Td className="text-ink-muted">
                     {row.rateLabel}
@@ -893,8 +921,9 @@ const DepreciationTab: React.FC<{
                 </Tr>
               ))}
               <Tr variant="sum">
-                <Td colSpan={showSpecial ? 7 : 6}>Summe der ausgewählten Abschreibungen</Td>
+                <Td colSpan={6}>Summe der ausgewählten Abschreibungen</Td>
                 <Td numeric>{formatCents(total)}</Td>
+                {showSpecial && <Td numeric>{formatCents(taxOnlyTotal)}</Td>}
                 <Td />
               </Tr>
             </Tbody>
@@ -1007,6 +1036,255 @@ const SpiegelTab: React.FC<{
             {spiegel && renderRow(spiegel.totals, 'total', 'sum')}
           </Tbody>
         </Table>
+      )}
+    </div>
+  );
+};
+
+// -------------------------------------------------------------------------
+// Verzeichnis nach § 5 Abs. 1 Satz 2 EStG
+// -------------------------------------------------------------------------
+
+/**
+ * Das Verzeichnis der steuerlichen Wahlrechte.
+ *
+ * Wer ein steuerliches Wahlrecht abweichend von der Handelsbilanz ausübt, muss
+ * die betroffenen Wirtschaftsgüter in ein laufend zu führendes Verzeichnis
+ * aufnehmen. In Buchfink entsteht ein solcher Wert allein aus der
+ * Sonderabschreibung nach § 7g Abs. 5 EStG; sie wird seit dem Wegfall der
+ * umgekehrten Maßgeblichkeit nicht mehr gebucht, sondern hier geführt. Das
+ * Verzeichnis steht deshalb auf der Anlagenseite und nicht nur im Anhang: wer
+ * die Sonderabschreibung wählt, tut das am Anlagegut.
+ */
+const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
+  const [register, setRegister] = useState<TaxElectionRegister | null>(null);
+  const [legacy, setLegacy] = useState<LegacySpecialDepreciationNotice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  // Die Jahresspalten stehen nur auf Wunsch: das Verzeichnis verlangt sie, die
+  // Übersicht über zehn Wirtschaftsgüter verträgt sie nicht nebenbei.
+  const [openRow, setOpenRow] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    Promise.all([Api.getTaxElectionRegister(year), Api.getLegacySpecialDepreciations()])
+      .then(([nextRegister, nextLegacy]) => {
+        if (cancelled) return;
+        setRegister(nextRegister);
+        setLegacy(nextLegacy);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setRegister(null);
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
+
+  async function exportCSV() {
+    setExporting(true);
+    try {
+      downloadCSV(`verzeichnis-wahlrechte-${year}.csv`, await Api.exportTaxElectionRegisterCSV(year));
+      toast.success('Verzeichnis als CSV gespeichert.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  if (loading) return <SkeletonRows rows={6} />;
+
+  const rows = register?.rows ?? [];
+  const legacyRows = legacy?.rows ?? [];
+
+  return (
+    <div className="space-y-6">
+      {error && <Notice tone="negative">{error}</Notice>}
+
+      <Section
+        title="Verzeichnis nach § 5 Abs. 1 Satz 2 EStG"
+        context={register?.note || `Geschäftsjahr ${year} · Bestandteil des Prüferpakets`}
+        divider={false}
+        action={
+          <div className="flex items-center gap-3">
+            <HelpPopover label="Erklärung zum Verzeichnis">
+              § 5 Abs. 1 Satz 2 EStG verlangt für jedes steuerliche Wahlrecht, das von der
+              Handelsbilanz abweicht, ein laufend zu führendes Verzeichnis mit Tag der Anschaffung,
+              Anschaffungs- oder Herstellungskosten, Vorschrift und vorgenommener Abschreibung. Die
+              Sonderabschreibung nach § 7g Abs. 5 EStG wird nicht gebucht; sie steht hier und in der
+              Überleitung zur Steuerbilanz.
+            </HelpPopover>
+            <Button
+              variant="secondary"
+              icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+              loading={exporting}
+              disabled={rows.length === 0}
+              title={rows.length === 0 ? 'Das Verzeichnis ist leer' : undefined}
+              onClick={() => void exportCSV()}
+            >
+              Als CSV speichern
+            </Button>
+          </div>
+        }
+      >
+        {rows.length === 0 ? (
+          <EmptyState
+            title="Kein steuerliches Wahlrecht ausgeübt"
+            description="Ohne Sonderabschreibung nach § 7g Abs. 5 EStG bleibt Handels- gleich Steuerbilanz."
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-24">Inventar-Nr.</Th>
+                <Th>Wirtschaftsgut</Th>
+                <Th className="w-28">Anschaffung</Th>
+                <Th numeric className="w-32">AHK</Th>
+                <Th className="w-40">Vorschrift</Th>
+                <Th numeric className="w-32">Buchwert HB</Th>
+                <Th numeric className="w-32">Buchwert StB</Th>
+                <Th numeric className="w-32">Differenz</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {rows.map((row) => (
+                <React.Fragment key={row.assetId}>
+                  {/* Aufklappen geht mit der Maus und mit der Tastatur: eine
+                      Zeile, die nur auf einen Klick reagiert, ist für den
+                      Tastaturnutzer keine Zeile, sondern eine Sackgasse. */}
+                  <Tr
+                    tabIndex={0}
+                    role="button"
+                    aria-expanded={openRow === row.assetId}
+                    onClick={() => setOpenRow(openRow === row.assetId ? null : row.assetId)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      setOpenRow(openRow === row.assetId ? null : row.assetId);
+                    }}
+                    title="Die Abschreibung je Jahr aufklappen"
+                  >
+                    <Td code>{row.inventoryNumber}</Td>
+                    <Td className="whitespace-normal">{row.name}</Td>
+                    <Td className="num text-ink-subtle">{formatDate(row.acquisitionDate)}</Td>
+                    <Td numeric>{formatCents(row.cost)}</Td>
+                    <Td className="text-ink-muted whitespace-normal">{row.provision}</Td>
+                    <Td numeric>{formatCents(row.bookValue)}</Td>
+                    <Td numeric>{formatCents(row.taxBookValue)}</Td>
+                    <Td numeric>{formatCents(row.totalDifference)}</Td>
+                  </Tr>
+                  {openRow === row.assetId && (
+                    <Tr>
+                      <Td colSpan={8} className="bg-sunken">
+                        <div className="py-2">
+                          {row.reason && (
+                            <p className="text-caption text-ink-subtle mb-2">{row.reason}</p>
+                          )}
+                          <Table density="kompakt">
+                            <Thead>
+                              <Tr>
+                                <Th className="w-24">Jahr</Th>
+                                <Th numeric className="w-40">AfA handelsrechtlich</Th>
+                                <Th numeric className="w-40">AfA steuerlich</Th>
+                                <Th numeric className="w-40">Differenz</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {(row.years ?? []).map((entry) => (
+                                <Tr key={entry.fiscalYear}>
+                                  <Td className="num">{entry.fiscalYear}</Td>
+                                  <Td numeric>{formatCents(entry.commercial)}</Td>
+                                  <Td numeric>{formatCents(entry.tax)}</Td>
+                                  <Td numeric>{formatCents(entry.difference)}</Td>
+                                </Tr>
+                              ))}
+                              <Tr variant="sum">
+                                <Td>Summe</Td>
+                                <Td numeric>{formatCents(row.totalCommercial)}</Td>
+                                <Td numeric>{formatCents(row.totalTax)}</Td>
+                                <Td numeric>{formatCents(row.totalDifference)}</Td>
+                              </Tr>
+                            </Tbody>
+                          </Table>
+                        </div>
+                      </Td>
+                    </Tr>
+                  )}
+                </React.Fragment>
+              ))}
+              <Tr variant="sum">
+                <Td>Summe</Td>
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td numeric>{formatCents(register?.totalBookValue ?? 0)}</Td>
+                <Td numeric>{formatCents(register?.totalTaxBookValue ?? 0)}</Td>
+                <Td numeric>{formatCents(register?.totalDifference ?? 0)}</Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
+      {legacyRows.length > 0 && (
+        <Section
+          title="Sonderabschreibungen aus früheren Jahren"
+          context={legacy?.note || 'Sie stehen als Buchung im Journal und bleiben dort'}
+          action={
+            <HelpPopover label="Erklärung zu den alten Buchungen">
+              Bis zu dieser Fassung hat Buchfink die Sonderabschreibung nach § 7g Abs. 5 EStG im
+              Journal gebucht. Gebuchtes wird nicht gelöscht (§ 239 Abs. 3 HGB), diese Buchungen
+              bleiben also stehen. Im Verzeichnis erscheinen sie nicht ein zweites Mal: dort steht
+              nur, was allein steuerlich festgehalten wurde.
+            </HelpPopover>
+          }
+        >
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-24">Inventar-Nr.</Th>
+                <Th>Wirtschaftsgut</Th>
+                <Th className="w-20">Jahr</Th>
+                <Th className="w-28">Datum</Th>
+                <Th className="w-24">Konto</Th>
+                <Th className="w-28">Buchung</Th>
+                <Th numeric className="w-32">Betrag</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {legacyRows.map((row, index) => (
+                <Tr key={`${row.assetId}-${row.date}-${index}`}>
+                  <Td code>{row.inventoryNumber}</Td>
+                  <Td className="whitespace-normal">{row.name}</Td>
+                  <Td className="num">{row.fiscalYear}</Td>
+                  <Td className="num text-ink-subtle">{formatDate(row.date)}</Td>
+                  <Td code>{row.expenseAccount}</Td>
+                  <Td code>{row.entryNumber || '—'}</Td>
+                  <Td numeric>{formatCents(row.amount)}</Td>
+                </Tr>
+              ))}
+              <Tr variant="sum">
+                <Td>Summe</Td>
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td numeric>{formatCents(legacy?.total ?? 0)}</Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        </Section>
       )}
     </div>
   );

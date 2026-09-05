@@ -523,7 +523,19 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 		// Nr. 1 HGB). Vorgetragen wird der Saldo, nicht ein Umsatz — die Zeile
 		// trägt deshalb bewusst keinen Steuerschlüssel, und die
 		// Umsatzsteuer-Auswertung lässt Eröffnungsbuchungen aus.
-		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" && e.Source != domain.EntrySourceOpening {
+		//
+		// Die zweite Ausnahme ist die Umsatzsteuer-Jahresverrechnung: sie stellt
+		// die Steuerkonten zum Bilanzstichtag auf null und bringt den Saldo auf
+		// die Verbindlichkeit bzw. Forderung, die der Jahreserklärung
+		// entspricht. Auch sie bucht keinen Umsatz, sondern einen Bestand —
+		// deshalb trägt sie keinen Steuerschlüssel, und die Auswertungen lassen
+		// Abschlussbuchungen genauso aus wie den Vortrag.
+		//
+		// Die Ausnahme gilt ausdrücklich nur für diese eine Buchung und nur für
+		// die Konten, die sie auf null stellt: jeder andere Abschlussbaustein
+		// bucht auf anwendergewählte Konten, und ein Steuerkonto darunter würde
+		// die Voranmeldung von der Jahreserklärung trennen.
+		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" && !mayWriteTaxAccount(e, l.Account) {
 			return fmt.Errorf(
 				"Zeile %d: Konto %s ist ein Steuerkonto und darf nur über die Steuerautomatik bebucht werden",
 				i+1, l.Account,
@@ -547,6 +559,47 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 	}
 
 	return nil
+}
+
+// isVatSettlementReference erkennt die Belegnummer einer Jahresverrechnung.
+//
+// Geprüft wird die Form und nicht das Jahr des Eintrags: die Generalumkehr einer
+// Verrechnung trägt deren Belegnummer, liegt aber im Geschäftsjahr ihrer
+// Erstellung. Mit einem Vergleich auf das Jahr des Eintrags ließe sich eine
+// Verrechnung nicht mehr stornieren.
+func isVatSettlementReference(documentNumber string) bool {
+	year, err := strconv.Atoi(strings.TrimPrefix(documentNumber, "USTV "))
+	if err != nil {
+		return false
+	}
+	return documentNumber == VatSettlementReference(year)
+}
+
+// mayWriteTaxAccount meldet, ob eine Zeile auf einem Steuerkonto ohne
+// Steuerschlüssel ausnahmsweise zulässig ist.
+//
+// Der Saldenvortrag darf jedes Steuerkonto anfassen — er trägt Bestände vor.
+// Die Abschlussbuchung darf es nur als Umsatzsteuer-Jahresverrechnung, erkennbar
+// an ihrer Belegnummer, und auch dann nur auf den Konten, die sie auf null
+// stellt. Die Belegnummer allein ist kein Schlüssel, den jemand von außen
+// setzen könnte: die Bridge normiert die Quelle jeder Handbuchung auf manual,
+// und ohne Quelle „closing" greift diese Ausnahme nicht.
+func mayWriteTaxAccount(e *domain.JournalEntry, account string) bool {
+	if e.Source == domain.EntrySourceOpening {
+		return true
+	}
+	if e.Source != domain.EntrySourceClosing {
+		return false
+	}
+	if !isVatSettlementReference(e.DocumentNumber) {
+		return false
+	}
+	for _, settlement := range settlementAccounts() {
+		if settlement == account {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *JournalService) validateLedgerAccount(ctx context.Context, l domain.JournalLine) error {

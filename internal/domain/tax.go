@@ -170,7 +170,9 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 			{TaxTreatmentNotTaxable, "Nicht steuerbar", "Kein Leistungsaustausch, z. B. echter Schadenersatz.", dir, false, false},
 		}
 	}
-	return nil
+	// Eine unbekannte Richtung hat keine Steuerfälle — aber eine leere Liste
+	// und kein `null`: die Auswahl in der Oberfläche liest sie ohne Umweg.
+	return []TaxTreatmentInfo{}
 }
 
 // TaxLeg is one generated tax line of a booking.

@@ -154,6 +154,7 @@ export const bridge = {
   PreviewAssetDisposal: <T>(request: unknown) => invoke<T>('PreviewAssetDisposal', request),
   DisposeFixedAsset: <T>(request: unknown) => invoke<T>('DisposeFixedAsset', request),
   GetAnlagenspiegel: <T>() => invoke<T>('GetAnlagenspiegel'),
+  GetLegacySpecialDepreciations: <T>() => invoke<T>('GetLegacySpecialDepreciations'),
   GetAssetAcquisitionCandidates: <T>() => invoke<T>('GetAssetAcquisitionCandidates'),
   GetSammelposten: <T>(fiscalYear: number) => invoke<T>('GetSammelposten', fiscalYear),
 
@@ -188,6 +189,63 @@ export const bridge = {
   SetFiscalYearStatus: <T>(year: number, status: string, date: string, note: string) =>
     invoke<T>('SetFiscalYearStatus', year, status, date, note),
   ReopenFiscalYear: <T>(year: number, reason: string) => invoke<T>('ReopenFiscalYear', year, reason),
+
+  // Abschlussbausteine: Schritte, Abgrenzung, Rückstellungen, Vorräte,
+  // Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang
+  GetClosingSteps: <T>(year: number) => invoke<T>('GetClosingSteps', year),
+  SkipClosingStep: <T>(year: number, key: string, reason: string) =>
+    invoke<T>('SkipClosingStep', year, key, reason),
+  MarkClosingStepDone: <T>(year: number, key: string) =>
+    invoke<T>('MarkClosingStepDone', year, key),
+
+  ProposeAccruals: <T>(year: number) => invoke<T>('ProposeAccruals', year),
+  PreviewAccrual: <T>(request: unknown) => invoke<T>('PreviewAccrual', request),
+  BookAccrual: <T>(request: unknown) => invoke<T>('BookAccrual', request),
+  GetAccruals: <T>(year: number) => invoke<T>('GetAccruals', year),
+  GetAccrualReport: <T>(cutoff: string) => invoke<T>('GetAccrualReport', cutoff),
+
+  GetProvisions: <T>(year: number) => invoke<T>('GetProvisions', year),
+  PreviewProvision: <T>(request: unknown) => invoke<T>('PreviewProvision', request),
+  BookProvisionFormation: <T>(request: unknown) => invoke<T>('BookProvisionFormation', request),
+  BookProvisionIncrease: <T>(request: unknown) => invoke<T>('BookProvisionIncrease', request),
+  BookProvisionRelease: <T>(request: unknown) => invoke<T>('BookProvisionRelease', request),
+  BookProvisionConsumption: <T>(request: unknown) => invoke<T>('BookProvisionConsumption', request),
+  BookProvisionUnwinding: <T>(request: unknown) => invoke<T>('BookProvisionUnwinding', request),
+  SettleProvision: <T>(provisionId: number, date: string, reason: string) =>
+    invoke<T>('SettleProvision', provisionId, date, reason),
+  GetProvisionMirror: <T>(year: number) => invoke<T>('GetProvisionMirror', year),
+  GetDiscountRates: <T>(month: string) => invoke<T>('GetDiscountRates', month),
+  GetDiscountRateMonths: () => invoke<string[]>('GetDiscountRateMonths'),
+  SaveDiscountRates: (rows: unknown[]) => invoke<void>('SaveDiscountRates', rows),
+  ImportDiscountRatesCSV: (path: string, month: string, average: number) =>
+    invoke<number>('ImportDiscountRatesCSV', path, month, average),
+
+  GetInventoryAccounts: <T>(year: number) => invoke<T>('GetInventoryAccounts', year),
+  PreviewInventory: <T>(request: unknown) => invoke<T>('PreviewInventory', request),
+  BookInventory: <T>(request: unknown) => invoke<T>('BookInventory', request),
+
+  PreviewVatSettlement: <T>(year: number) => invoke<T>('PreviewVatSettlement', year),
+  BookVatSettlement: <T>(year: number) => invoke<T>('BookVatSettlement', year),
+  PreviewTaxProvision: <T>(year: number) => invoke<T>('PreviewTaxProvision', year),
+  BookTaxProvision: <T>(request: unknown) => invoke<T>('BookTaxProvision', request),
+
+  PreviewAppropriation: <T>(year: number, request: unknown) =>
+    invoke<T>('PreviewAppropriation', year, request),
+  BookAppropriation: <T>(year: number, request: unknown) =>
+    invoke<T>('BookAppropriation', year, request),
+  GetAppropriation: <T>(year: number) => invoke<T>('GetAppropriation', year),
+
+  GetNotesTexts: <T>(year: number) => invoke<T>('GetNotesTexts', year),
+  SaveNotesText: <T>(year: number, section: string, text: string) =>
+    invoke<T>('SaveNotesText', year, section, text),
+
+  GetClosingSettings: <T>() => invoke<T>('GetClosingSettings'),
+  SaveClosingSettings: <T>(settings: unknown) => invoke<T>('SaveClosingSettings', settings),
+
+  GetTaxElectionRegister: <T>(year: number) => invoke<T>('GetTaxElectionRegister', year),
+  ExportTaxElectionRegisterCSV: (year: number) =>
+    invoke<string>('ExportTaxElectionRegisterCSV', year),
+  GetReconciliation: <T>(year: number) => invoke<T>('GetReconciliation', year),
 
   // Umsatzsteuer-Voranmeldung
   GetVatPeriods: <T>(year: number) => invoke<T>('GetVatPeriods', year),

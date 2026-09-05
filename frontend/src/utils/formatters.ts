@@ -77,6 +77,23 @@ export function formatTaxRate(rate: TaxRate): string {
   return `${(rate / 100).toFixed(2).replace('.', ',')} %`;
 }
 
+/**
+ * Formatiert einen Zinssatz in Millionsteln: 15000 → "1,50 %".
+ *
+ * Eigene Funktion neben {@link formatTaxRate}, weil die Skalen verschieden sind:
+ * Steuersätze stehen in Basispunkten, die Abzinsungssätze der Deutschen
+ * Bundesbank in Millionsteln. Dieselbe Funktion für beide hieße, sich die
+ * Skala beim Aufruf zu merken — und einmal falsch erinnert, steht ein
+ * hundertfach zu hoher Satz in der Rückstellung.
+ */
+export function formatRateMicros(micros: number): string {
+  if (!Number.isFinite(micros)) return '—';
+  return `${(micros / 10000).toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} %`;
+}
+
 /** Formatiert eine Menge mit drei Nachkommastellen: 1500 → "1,5". */
 export function formatQuantity(quantityMilli: number): string {
   const value = quantityMilli / 1000;

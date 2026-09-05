@@ -76,6 +76,17 @@ type AppConfig struct {
 	ProgramVersion string `json:"programVersion"`
 }
 
+// EnsureLists belegt die Listen, die als JSON an die Oberfläche gehen.
+//
+// Eine Konfiguration ohne Mandanten ist der Zustand vor der Einrichtung — genau
+// der Bildschirm, den ein neuer Anwender zuerst sieht. Ein nicht belegter Slice
+// käme dort als `null` an, und `null.map` nimmt im Render den ganzen Baum mit.
+func (c *AppConfig) EnsureLists() {
+	if c.Tenants == nil {
+		c.Tenants = []TenantConfig{}
+	}
+}
+
 // ActiveTenant liefert den aktiven Mandanten oder nil.
 func (c *AppConfig) ActiveTenant() *TenantConfig {
 	for i := range c.Tenants {

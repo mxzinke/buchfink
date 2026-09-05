@@ -298,7 +298,8 @@ func counterAccounts(entry *domain.JournalEntry, account string, chart *accounti
 		}
 	}
 
-	var result []domain.CounterAccount
+	// Belegt statt nil: das Kontoblatt läuft je Zeile über die Gegenkonten.
+	result := make([]domain.CounterAccount, 0, len(entry.Lines))
 	for _, l := range entry.Lines {
 		if l.Account == account || l.Side == own {
 			continue
@@ -428,6 +429,11 @@ func (s *AccountingService) GetAllEntries(ctx context.Context) ([]domain.Journal
 }
 
 func (s *AccountingService) decorate(ctx context.Context, entries []domain.JournalEntry) ([]domain.JournalEntry, error) {
+	// Leer statt nil: das leere Journal ist der Zustand jedes neuen Mandanten,
+	// und als `null` nähme `entries.map` in der Ansicht den ganzen Baum mit.
+	if entries == nil {
+		entries = make([]domain.JournalEntry, 0)
+	}
 	chart, err := s.chart(ctx)
 	if err != nil {
 		return entries, nil

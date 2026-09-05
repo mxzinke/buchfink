@@ -64,6 +64,15 @@ type ReceiptRequest struct {
 	// lost even for the deductible 70 %, so the booking is refused rather than
 	// written incomplete.
 	Entertainment *domain.EntertainmentDetail `json:"entertainment,omitempty"`
+
+	// ProvisionID ordnet den Beleg einer Rückstellung zu.
+	//
+	// Dann bucht Buchfink nicht gegen den Aufwand, sondern gegen das
+	// Rückstellungskonto: die Verpflichtung, für die zurückgestellt wurde, wird
+	// erfüllt, und der Aufwand ist im Vorjahr schon entstanden. Ein zweites Mal
+	// Aufwand zu buchen wäre die häufigste Art, eine Rückstellung falsch
+	// abzuwickeln. Was die Rückstellung nicht deckt, bleibt Aufwand.
+	ProvisionID uint `json:"provisionId,omitempty"`
 }
 
 // PostingPreview is what a booking would look like, computed without writing it.
@@ -96,11 +105,25 @@ type PostingService struct {
 	contactRepo domain.ContactRepository
 	taxResolver domain.TaxResolver
 	receiptSvc  *ReceiptService
+	// provisions ist optional: ohne sie kennt der Belegweg keine
+	// Rückstellungen und bucht wie zuvor gegen den Aufwand.
+	provisions ProvisionConsumer
 }
 
 // SetReceiptService wires in the Beleg service. Without it a booking cannot
 // reference a Beleg, which is what the manual journal entry path relies on.
 func (s *PostingService) SetReceiptService(receiptSvc *ReceiptService) { s.receiptSvc = receiptSvc }
+
+// ProvisionConsumer ist der Ausschnitt der Rückstellungen, den der Belegweg
+// braucht: wie viel eine Rückstellung von einer Rechnung deckt, und der
+// Vermerk, dass sie verbraucht wurde.
+type ProvisionConsumer interface {
+	ConsumptionSplit(ctx context.Context, provisionID uint, net domain.Cents) (string, domain.Cents, error)
+	RecordConsumption(ctx context.Context, provisionID uint, amount domain.Cents, date string, entryID uint, reason string) error
+}
+
+// SetProvisionConsumer koppelt die Rückstellungen an den Belegweg.
+func (s *PostingService) SetProvisionConsumer(c ProvisionConsumer) { s.provisions = c }
 
 // NewPostingService creates the posting service.
 func NewPostingService(journalSvc *JournalService, contactRepo domain.ContactRepository) *PostingService {
@@ -150,6 +173,28 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {
 		return nil, err
+	}
+
+	// Der Verbrauch wird in der Rückstellungskartei vermerkt, sobald die
+	// Buchung steht: der Rückstellungsspiegel liest ihn dort und nicht aus dem
+	// Journal, weil er die Bewegungsart braucht und nicht nur das Konto.
+	if req.ProvisionID != 0 && s.provisions != nil {
+		var consumed domain.Cents
+		for _, l := range created.Lines {
+			if l.Side == domain.SideDebit && l.Text == "Verbrauch der Rückstellung" {
+				consumed += l.Amount
+			}
+		}
+		if consumed > 0 {
+			if err := s.provisions.RecordConsumption(
+				ctx, req.ProvisionID, consumed, req.BookingDate, created.ID,
+				fmt.Sprintf("Rechnung %s", receipt.ReceiptNumber),
+			); err != nil {
+				return created, fmt.Errorf(
+					"die Buchung %s wurde geschrieben, der Verbrauch der Rückstellung aber nicht "+
+						"vermerkt: %w", created.EntryNumber, err)
+			}
+		}
 	}
 
 	if err := s.receiptSvc.Seal(ctx, receipt.ID, created.ID); err != nil {
@@ -249,7 +294,17 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	}
 	lines = append(lines, taxLines...)
 
-	// 3. Gegenzeile: was tatsächlich an den Lieferanten zu zahlen ist.
+	// 3. Ist der Beleg einer Rückstellung zugeordnet, tritt das
+	// Rückstellungskonto an die Stelle des Aufwands — bis zur Höhe ihres
+	// Bestands.
+	if req.ProvisionID != 0 {
+		lines, err = s.applyProvision(ctx, req.ProvisionID, lines)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	// 4. Gegenzeile: was tatsächlich an den Lieferanten zu zahlen ist.
 	settlementLine, err := s.settlementLine(lines, req.Settlement, req.PaymentAccount, contact)
 	if err != nil {
 		return nil, nil, nil, err
@@ -257,6 +312,52 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	lines = append(lines, settlementLine)
 
 	return lines, contact, receipt, nil
+}
+
+// applyProvision ersetzt Aufwandszeilen durch eine Zeile auf dem
+// Rückstellungskonto.
+//
+// Aufgezehrt wird in der Reihenfolge der Positionen, und der Rest bleibt
+// stehen: übersteigt die Rechnung die Rückstellung, ist der Mehrbetrag Aufwand
+// des laufenden Jahres. Die Steuerzeilen bleiben unberührt — die Vorsteuer
+// entsteht mit der Rechnung und hat mit der Rückstellung nichts zu tun.
+func (s *PostingService) applyProvision(
+	ctx context.Context, provisionID uint, lines []domain.JournalLine,
+) ([]domain.JournalLine, error) {
+	if s.provisions == nil {
+		return nil, fmt.Errorf("die Rückstellungen sind nicht angebunden")
+	}
+	var net domain.Cents
+	for _, l := range lines {
+		if l.Side == domain.SideDebit && !s.taxResolver.IsTaxAccount(l.Account) {
+			net += l.Amount
+		}
+	}
+	account, covered, err := s.provisions.ConsumptionSplit(ctx, provisionID, net)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]domain.JournalLine, 0, len(lines)+1)
+	out = append(out, domain.JournalLine{
+		Side: domain.SideDebit, Account: account, Amount: covered,
+		Text: "Verbrauch der Rückstellung",
+	})
+	remaining := covered
+	for _, l := range lines {
+		if l.Side != domain.SideDebit || s.taxResolver.IsTaxAccount(l.Account) || remaining <= 0 {
+			out = append(out, l)
+			continue
+		}
+		if l.Amount <= remaining {
+			remaining -= l.Amount
+			continue
+		}
+		l.Amount -= remaining
+		remaining = 0
+		out = append(out, l)
+	}
+	return out, nil
 }
 
 // loadBookableReceipt fetches the Beleg and runs the bookability check — the

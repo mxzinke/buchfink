@@ -55,7 +55,10 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 		// Zeitraums — die Auswertung liest die Konten und nicht die
 		// Steuerschlüssel, und ohne diese Zeile stünde die Vorsteuer des alten
 		// Jahres ein zweites Mal in der Voranmeldung des Januars.
-		if entry.Source == domain.EntrySourceOpening {
+		// Dasselbe gilt für die Umsatzsteuer-Jahresverrechnung: sie stellt die
+		// Steuerkonten zum Bilanzstichtag auf null. Zählte sie mit, hätte der
+		// Dezember weder Umsatz noch Vorsteuer.
+		if entry.Source == domain.EntrySourceOpening || entry.Source == domain.EntrySourceClosing {
 			continue
 		}
 		for _, line := range entry.Lines {

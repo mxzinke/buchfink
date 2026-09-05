@@ -285,6 +285,12 @@ export interface ReceiptRequest {
   currency?: string;
   /** Pflicht, sobald auf ein Bewirtungskonto gebucht wird. */
   entertainment?: EntertainmentDetail;
+  /**
+   * Ordnet den Beleg einer Rückstellung zu: gebucht wird dann gegen das
+   * Rückstellungskonto und nicht gegen den Aufwand. Was die Rückstellung nicht
+   * deckt, bleibt Aufwand.
+   */
+  provisionId?: number;
 }
 
 /**
@@ -1139,8 +1145,16 @@ export interface DepreciationRun {
 
 export interface DepreciationResult {
   entries: JournalEntry[];
+  /** Summe der gebuchten Abschreibung, ohne die Sonderabschreibung. */
   total: Cents;
   skipped?: string[];
+  /**
+   * Anlagegüter, bei denen der Lauf nur einen steuerlichen Wert festgehalten
+   * hat: die Sonderabschreibung des § 7g Abs. 5 EStG wird seit dem BilMoG
+   * nicht mehr in der Handelsbilanz gebucht.
+   */
+  taxOnly?: string[];
+  taxOnlyTotal?: Cents;
 }
 
 export interface DisposalAccounts {
@@ -1556,6 +1570,12 @@ export interface CarryForwardPreview {
   /** Probe auf die Bilanzidentität: Summe aller Vortragswerte, muss null sein. */
   balanceDifference: Cents;
   isBalanced: boolean;
+  /**
+   * Die Auflösungen der Rechnungsabgrenzung, die der Vortrag im neuen Jahr
+   * gleich mitbucht (§ 250 HGB). Sie gehören in die Vorschau: sonst gäbe der
+   * Anwender Buchungen frei, die ihm niemand genannt hat.
+   */
+  accrualReleases: AccrualReleaseDue[];
 }
 
 // -------------------------------------------------------------
@@ -1795,6 +1815,8 @@ export interface FinancialStatement {
   statement: Statement;
   sizeClass: SizeClass;
   maturities: MaturityTable;
+  /** Der Anhang gehört zum Abschluss und entsteht mit ihm, nicht daneben. */
+  notes: StatementNotes;
   deadlines: Deadline[];
 }
 
@@ -2144,4 +2166,617 @@ export interface BackupRun {
   message: string;
   programVersion?: string;
   createdAt: string;
+}
+
+// -------------------------------------------------------------------------
+// Abschlussbausteine: Schritte, Rechnungsabgrenzung, Rückstellungen, Vorräte,
+// Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang
+// -------------------------------------------------------------------------
+
+/** Die elf Bausteine des Jahresabschlusses in ihrer fachlichen Reihenfolge. */
+export type ClosingStepKey =
+  | 'depreciation'
+  | 'accruals'
+  | 'provisions'
+  | 'inventory'
+  | 'vat_settlement'
+  | 'tax_provision'
+  | 'check_run'
+  | 'statement'
+  | 'adoption'
+  | 'disclosure'
+  | 'appropriation';
+
+/** Übersprungen ist etwas anderes als offen: es ist eine Aussage mit Grund. */
+export type ClosingStepState = 'open' | 'done' | 'skipped';
+
+export interface ClosingStepView {
+  key: ClosingStepKey;
+  order: number;
+  label: string;
+  /** Was der Schritt tut und warum er an dieser Stelle steht. */
+  hint: string;
+  /** Der Zustand folgt aus den Daten, statt vom Anwender gesetzt zu werden. */
+  automatic: boolean;
+  state: ClosingStepState;
+  reason?: string;
+  changedOn?: string;
+  /** Woran der Zustand liegt: „3 Posten gebildet", „AfA für 2 Anlagegüter offen". */
+  detail?: string;
+}
+
+export interface ClosingSteps {
+  fiscalYear: number;
+  cutoff: string;
+  steps: ClosingStepView[];
+  /** Weder erledigt noch übersprungen. */
+  openCount: number;
+}
+
+/** Die drei Fälle des § 250 HGB. */
+export type AccrualKind = 'active' | 'passive' | 'disagio';
+
+/** Verteilungsverfahren; gilt für den ganzen Mandanten (§ 252 Abs. 1 Nr. 6 HGB). */
+export type AccrualMethod = 'monthly' | 'daily';
+
+/** Auflösungstakt: eine Buchung je Geschäftsjahr oder eine je Monat. */
+export type AccrualReleaseCycle = 'yearly' | 'monthly';
+
+/**
+ * Die Einstellungen, die die Abschlussbausteine steuern
+ * (internal/service/closing_settings.go).
+ *
+ * Sie stehen getrennt von `CompanySettings`, weil sie nicht den Rechtsträger
+ * beschreiben, sondern die Buchführung: der Hebesatz gehört zur Gemeinde, die
+ * Abgrenzungsmethode zur Art, wie abgegrenzt wird.
+ */
+export interface ClosingSettings {
+  /** Hebesatz der Gemeinde in Prozent (400 = 400 %), § 16 GewStG. */
+  tradeTaxRatePercent: number;
+  accrualMethod: AccrualMethod;
+  /** Vorschlagsschwelle in Cent; nur für den Vorschlag, nicht für die Pflicht. */
+  accrualThreshold: Cents;
+  accrualRelease: AccrualReleaseCycle;
+}
+
+/** Eine geplante oder gebuchte Auflösung eines Abgrenzungspostens. */
+export interface AccrualRelease {
+  id: number;
+  accrualId: number;
+  fiscalYear: number;
+  date: string;
+  amount: Cents;
+  journalEntryId?: number;
+}
+
+/**
+ * Eine Auflösung aus der Vorschau. Sie trägt keine Kennung, weil sie noch
+ * nicht existiert — deshalb ein eigener Typ und nicht `AccrualRelease` mit
+ * optionalen Feldern, die in der Vorschau nie gesetzt sind.
+ */
+export interface AccrualReleasePlanItem {
+  fiscalYear: number;
+  date: string;
+  amount: Cents;
+}
+
+/**
+ * Eine im Zieljahr fällige Auflösung, wie der Saldenvortrag sie mitbucht
+ * (`service.AccrualReleaseDue`). Sie steht in der Vortragsvorschau, weil der
+ * Vortrag sonst mehr täte, als er ankündigt.
+ */
+export interface AccrualReleaseDue {
+  accrualId: number;
+  releaseId: number;
+  kind: AccrualKind;
+  text: string;
+  /** Das Aufwands- oder Ertragskonto, auf das die Auflösung zurückfließt. */
+  account: string;
+  date: string;
+  amount: Cents;
+}
+
+export interface Accrual {
+  id: number;
+  fiscalYear: number;
+  kind: AccrualKind;
+  /** Die Buchung, aus der der Posten entstanden ist. */
+  sourceEntryId?: number;
+  text: string;
+  totalAmount: Cents;
+  /** Der Teil nach dem Stichtag — der abgegrenzte Betrag. */
+  deferredAmount: Cents;
+  startDate: string;
+  endDate: string;
+  cutoffDate: string;
+  account: string;
+  method: AccrualMethod;
+  /** Leer heißt: nur vorgeschlagen, nicht gebildet. */
+  formationEntryId?: number;
+  releases: AccrualRelease[];
+  createdAt: string;
+}
+
+/** Eine Buchung, deren Leistung über den Bilanzstichtag hinausreicht. */
+export interface AccrualProposalItem {
+  entryId: number;
+  entryNumber: string;
+  bookingDate: string;
+  description: string;
+  kind: AccrualKind;
+  account: string;
+  accountName: string;
+  serviceFrom: string;
+  serviceTo: string;
+  totalAmount: Cents;
+  deferredAmount: Cents;
+  /** Unter der Vorschlagsschwelle; angezeigt wird der Posten trotzdem. */
+  belowThreshold: boolean;
+  alreadyBooked: boolean;
+}
+
+export interface AccrualProposal {
+  fiscalYear: number;
+  cutoff: string;
+  method: AccrualMethod;
+  threshold: Cents;
+  items: AccrualProposalItem[];
+  /** Was die Schwelle bedeutet und was nicht. */
+  note: string;
+}
+
+export interface AccrualRequest {
+  fiscalYear: number;
+  kind: AccrualKind;
+  sourceEntryId?: number;
+  text: string;
+  totalAmount: Cents;
+  startDate: string;
+  endDate: string;
+  account: string;
+  /** Überschreibt den gerechneten Anteil. Null heißt: rechnen. */
+  deferredAmount?: Cents;
+}
+
+export interface AccrualPreview {
+  accrual: Accrual;
+  lines: JournalLine[];
+  releases: AccrualReleasePlanItem[];
+  bookingDate: string;
+  explanation: string;
+  warnings: string[];
+}
+
+export interface AccrualReportRow {
+  accrualId: number;
+  kind: AccrualKind;
+  kindLabel: string;
+  text: string;
+  account: string;
+  startDate: string;
+  endDate: string;
+  deferredAmount: Cents;
+  released: Cents;
+  remaining: Cents;
+  /** Restlaufzeit ab dem Stichtag in Kalendertagen. */
+  remainingDays: number;
+}
+
+export interface AccrualReport {
+  cutoff: string;
+  rows: AccrualReportRow[];
+  totalActive: Cents;
+  totalPassive: Cents;
+}
+
+/** Der Rückstellungsgrund nach § 249 HGB. */
+export type ProvisionKind =
+  | 'uncertain_liability'
+  | 'pending_loss'
+  | 'deferred_maintenance'
+  | 'warranty_without_obligation'
+  | 'tax_income'
+  | 'tax_trade'
+  | 'closing_costs'
+  | 'retention_costs'
+  | 'personnel'
+  | 'pension';
+
+/** Die fünf Spalten des Rückstellungsspiegels. */
+export type ProvisionMovementKind =
+  | 'formation'
+  | 'increase'
+  | 'consumption'
+  | 'release'
+  | 'unwinding';
+
+export interface ProvisionMovement {
+  id: number;
+  provisionId: number;
+  kind: ProvisionMovementKind;
+  date: string;
+  fiscalYear: number;
+  /** Immer positiv; die Richtung folgt aus der Art. */
+  amount: Cents;
+  /** Bei der Auflösung Pflicht (§ 249 Abs. 2 Satz 2 HGB). */
+  reason?: string;
+  journalEntryId?: number;
+  entryNumber?: string;
+  createdAt: string;
+}
+
+export interface Provision {
+  id: number;
+  fiscalYear: number;
+  kind: ProvisionKind;
+  text: string;
+  /** Erfüllungsbetrag nach § 253 Abs. 1 Satz 2 HGB. */
+  settlementAmount: Cents;
+  expectedDate: string;
+  /** Abgezinster Wert zum Stichtag; gleich dem Erfüllungsbetrag ohne Abzinsung. */
+  discountedAmount: Cents;
+  /** Der verwendete Satz in Millionsteln: 1,50 % sind 15000. */
+  discountRateMicros?: number;
+  balanceAccount: string;
+  expenseAccount: string;
+  reason: string;
+  /** Gesetzt, sobald die Rückstellung erledigt ist. */
+  settledOn?: string;
+  movements: ProvisionMovement[];
+  createdAt: string;
+}
+
+export interface ProvisionMirrorRow {
+  kind: ProvisionKind;
+  label: string;
+  account: string;
+  opening: Cents;
+  additions: Cents;
+  used: Cents;
+  released: Cents;
+  unwinding: Cents;
+  closing: Cents;
+}
+
+/** Der Rückstellungsspiegel des Anhangs (§ 285 HGB). */
+export interface ProvisionMirror {
+  fiscalYear: number;
+  rows: ProvisionMirrorRow[];
+  total: ProvisionMirrorRow;
+}
+
+/** Ein Satz der Abzinsungszinssatzverordnung, wie ihn die Bundesbank meldet. */
+export interface DiscountRate {
+  /** Monat der Veröffentlichung als JJJJ-MM. */
+  month: string;
+  /** Restlaufzeit in Jahren (1 bis 50). */
+  years: number;
+  /** Zinssatz in Millionsteln: 1,50 % sind 15000. */
+  rateMicros: number;
+  /** Mittelungsdauer: sieben Jahre, für Altersversorgung zehn. */
+  average: number;
+  updatedAt?: string;
+}
+
+export interface ProvisionRequest {
+  /** Bei einer Zuführung gesetzt, bei der Bildung leer. */
+  provisionId?: number;
+  fiscalYear: number;
+  kind: ProvisionKind;
+  text: string;
+  amount: Cents;
+  expectedOn: string;
+  reason: string;
+  /** Überschreiben den Vorschlag aus der Art. */
+  balanceAccount?: string;
+  expenseAccount?: string;
+  /** Leer heißt Bilanzstichtag. */
+  date?: string;
+}
+
+export interface ProvisionPreview {
+  provision: Provision;
+  lines: JournalLine[];
+  settlementAmount: Cents;
+  /** Der gebuchte Betrag — bei Abzinsung der Barwert. */
+  amount: Cents;
+  discounted: boolean;
+  discountYears: number;
+  discountRate?: string;
+  /** Monat der Zinstabelle, mit der gerechnet wurde. */
+  discountMonth?: string;
+  /** Der steuerliche Wert (5,5 %, § 6 Abs. 1 Nr. 3a EStG); nicht gebucht. */
+  taxAmount: Cents;
+  bookingDate: string;
+  bookingYear: number;
+  explanation: string;
+  findings: string[];
+  isIncrease: boolean;
+}
+
+export interface ProvisionChangeRequest {
+  provisionId: number;
+  amount: Cents;
+  date: string;
+  reason: string;
+  /** Nimmt beim Verbrauch ohne Rechnung die Zahlung auf. */
+  paymentAccount?: string;
+}
+
+/** Der Inventurwert eines Vorratskontos zum Bilanzstichtag (§ 240 HGB). */
+export interface InventoryCount {
+  id: number;
+  fiscalYear: number;
+  account: string;
+  amount: Cents;
+  /** Buchwert vor der Abschlussbuchung. */
+  bookValue: Cents;
+  countedOn: string;
+  method: string;
+  /** Die Inventurliste im Belegspeicher — Pflicht. */
+  receiptId?: number;
+  journalEntryId?: number;
+  createdAt: string;
+}
+
+export interface InventoryAccount {
+  account: string;
+  accountName: string;
+  group: string;
+  /** Gegenkonto der Bestandsveränderung. */
+  changeAccount: string;
+  changeAccountName: string;
+  bookValue: Cents;
+  counted: Cents;
+  countedAt?: string;
+  booked: boolean;
+}
+
+export interface InventoryOverview {
+  fiscalYear: number;
+  cutoff: string;
+  accounts: InventoryAccount[];
+  note: string;
+}
+
+export interface InventoryRequest {
+  fiscalYear: number;
+  account: string;
+  amount: Cents;
+  countedOn: string;
+  method: string;
+  /** Die Inventurliste im Belegspeicher — Pflicht. */
+  receiptId: number;
+}
+
+export interface InventoryPreview {
+  account: string;
+  accountName: string;
+  changeAccount: string;
+  bookValue: Cents;
+  counted: Cents;
+  change: Cents;
+  lines: JournalLine[];
+  bookingDate: string;
+  explanation: string;
+}
+
+export interface VatSettlementRow {
+  account: string;
+  accountName: string;
+  /** Saldo in Soll-Richtung: Vorsteuer positiv, Umsatzsteuer negativ. */
+  balance: Cents;
+}
+
+/** Die Jahresverrechnung der Umsatzsteuer zum Bilanzstichtag. */
+export interface VatSettlement {
+  fiscalYear: number;
+  cutoff: string;
+  rows: VatSettlementRow[];
+  inputTax: Cents;
+  outputTax: Cents;
+  prepaid: Cents;
+  /** Zahllast auf 3841 oder Erstattung auf 1420 — immer nur eines von beiden. */
+  payable: Cents;
+  refund: Cents;
+  lines: JournalLine[];
+  bookingDate: string;
+  explanation: string;
+}
+
+/** Was in die Steuerrückstellung eingeht. */
+export interface TaxProvisionInput {
+  profitBeforeTax: Cents;
+  nonDeductible: Cents;
+  /** Hebesatz der Gemeinde in Prozent: 400 sind 400 %. */
+  tradeTaxRatePercent: number;
+  prepaidCorporate: Cents;
+  prepaidTrade: Cents;
+  date: string;
+}
+
+/** Das Ergebnis der Rechnung, Schritt für Schritt. */
+export interface TaxProvisionResult {
+  taxableIncome: Cents;
+  corporateTax: Cents;
+  solidarity: Cents;
+  /** Auf volle 100 Euro abgerundeter Gewerbeertrag (§ 11 Abs. 1 Satz 3 GewStG). */
+  tradeIncome: Cents;
+  tradeBase: Cents;
+  tradeTax: Cents;
+  incomeProvision: Cents;
+  tradeProvision: Cents;
+  /** Überzahlungen; sie werden ausgewiesen und nicht gebucht. */
+  incomeRefund: Cents;
+  tradeRefund: Cents;
+  ratesUsed: string;
+}
+
+/**
+ * Die Vorschau erbt die Felder der Rechnung: Go bettet `TaxProvisionResult`
+ * ohne eigenen Namen ein, seine Felder stehen deshalb unmittelbar im JSON.
+ */
+export interface TaxProvisionPreview extends TaxProvisionResult {
+  fiscalYear: number;
+  cutoff: string;
+  input: TaxProvisionInput;
+  lines: JournalLine[];
+  explanation: string;
+  /** Sagt ausdrücklich, dass die Rechnung eine Schätzung ist. */
+  warning: string;
+}
+
+export interface TaxProvisionRequest {
+  fiscalYear: number;
+  incomeProvision: Cents;
+  tradeProvision: Cents;
+  reason: string;
+}
+
+/** Der Beschluss über die Ergebnisverwendung (§ 29 GmbHG). */
+export interface Appropriation {
+  year: number;
+  decisionDate: string;
+  text?: string;
+  receiptId?: number;
+  /** Das verwendbare Ergebnis, wie es auf dem Vortragskonto stand. */
+  netIncome: Cents;
+  legalReserve: Cents;
+  otherReserves: Cents;
+  distribution: Cents;
+  withholdingTax: Cents;
+  solidarityOnWithholding: Cents;
+  /** Der Rest auf neue Rechnung; er erzeugt keine Buchung. */
+  carryForward: Cents;
+  journalEntryId?: number;
+  createdAt: string;
+}
+
+export interface AppropriationRequest {
+  decisionDate: string;
+  text: string;
+  legalReserve: Cents;
+  otherReserves: Cents;
+  distribution: Cents;
+  receiptId?: number;
+}
+
+export interface AppropriationPreview {
+  year: number;
+  bookingYear: number;
+  netIncome: Cents;
+  appropriation: Appropriation;
+  lines: JournalLine[];
+  bookingDate: string;
+  /** Der Jahresüberschuss des verwendeten Jahres, ohne frühere Vorträge. */
+  yearResult: Cents;
+  /** Die Pflichtrücklage der UG (§ 5a Abs. 3 GmbHG); sonst null. */
+  requiredLegalReserve: Cents;
+  explanation: string;
+  warnings: string[];
+}
+
+/** Ein Abschnitt des Anhangs. */
+export type NotesSection =
+  | 'methods'
+  | 'board'
+  | 'subsequent'
+  | 'commitments'
+  | 'contingent'
+  | 'investments'
+  | 'appropriation';
+
+export interface NotesSectionDefinition {
+  section: NotesSection;
+  label: string;
+  hint: string;
+  /** Die Vorschrift, aus der die Angabe folgt. */
+  basis: string;
+}
+
+/** Ein Abschnitt mit seinem Freitext. */
+export interface NotesSectionText extends NotesSectionDefinition {
+  text: string;
+}
+
+/** Eine Position der Überleitungsrechnung von der Handels- zur Steuerbilanz. */
+export interface ReconciliationRow {
+  position: string;
+  basis: string;
+  commercial: Cents;
+  tax: Cents;
+  /** Steuerlich minus handelsrechtlich. */
+  difference: Cents;
+  explanation: string;
+}
+
+/** Die Überleitung Handelsbilanz → Steuerbilanz (§ 60 Abs. 2 EStDV). */
+export interface Reconciliation {
+  fiscalYear: number;
+  cutoff: string;
+  rows: ReconciliationRow[];
+  /** Summe der Differenzen: um so viel weicht das steuerliche Eigenkapital ab. */
+  equityEffect: Cents;
+  note: string;
+}
+
+/** Der Anhang: Freitexte, Rückstellungsspiegel, Überleitung. */
+export interface StatementNotes {
+  texts: NotesSectionText[];
+  provisionMirror: ProvisionMirror;
+  reconciliation: Reconciliation;
+  reference: string;
+}
+
+/** Ein Jahr im Verzeichnis: handelsrechtliche und steuerliche Abschreibung. */
+export interface TaxElectionYear {
+  fiscalYear: number;
+  commercial: Cents;
+  tax: Cents;
+  difference: Cents;
+}
+
+/** Ein Wirtschaftsgut mit steuerlichem Wahlrecht (§ 5 Abs. 1 Satz 2 EStG). */
+export interface TaxElectionRow {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  acquisitionDate: string;
+  cost: Cents;
+  /** Die Vorschrift, auf die sich das Wahlrecht stützt. */
+  provision: string;
+  reason?: string;
+  years: TaxElectionYear[];
+  totalCommercial: Cents;
+  totalTax: Cents;
+  totalDifference: Cents;
+  bookValue: Cents;
+  taxBookValue: Cents;
+}
+
+export interface TaxElectionRegister {
+  fiscalYear: number;
+  rows: TaxElectionRow[];
+  totalDifference: Cents;
+  totalBookValue: Cents;
+  totalTaxBookValue: Cents;
+  note: string;
+}
+
+/** Eine Sonderabschreibung, die noch als Buchung im Journal steht. */
+export interface LegacySpecialDepreciation {
+  assetId: number;
+  inventoryNumber: string;
+  name: string;
+  fiscalYear: number;
+  date: string;
+  amount: Cents;
+  expenseAccount: string;
+  entryNumber?: string;
+}
+
+export interface LegacySpecialDepreciationNotice {
+  rows: LegacySpecialDepreciation[];
+  total: Cents;
+  note: string;
 }

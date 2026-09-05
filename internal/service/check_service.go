@@ -38,6 +38,8 @@ type CheckService struct {
 	accounts     AccountBalanceSource
 	openItems    OpenItemSource
 	depreciation PendingDepreciationSource
+	provisions   ProvisionFindingSource
+	closingSteps SkippedClosingStepSource
 
 	// now ist der Ausführungszeitpunkt des Laufs. Er steht als Feld, weil zwei
 	// Regeln nicht nur den Stichtag, sondern auch den heutigen Tag brauchen —
@@ -57,6 +59,18 @@ type AccountBalanceSource interface {
 // PendingDepreciationSource meldet die noch nicht gebuchte AfA eines Jahres.
 type PendingDepreciationSource interface {
 	PendingDepreciation(ctx context.Context, fiscalYear int) ([]DepreciationDue, error)
+}
+
+// ProvisionFindingSource meldet, wo die Abzinsung der Rückstellungen nicht mit
+// dem Satz des Stichtagsmonats gerechnet werden konnte.
+type ProvisionFindingSource interface {
+	DiscountFindings(ctx context.Context, fiscalYear int) ([]domain.CheckFinding, error)
+}
+
+// SkippedClosingStepSource meldet die Bausteine des Abschlusses, die ein Jahr
+// ausdrücklich übergeht.
+type SkippedClosingStepSource interface {
+	SkippedSteps(ctx context.Context, fiscalYear int) ([]SkippedClosingStep, error)
 }
 
 // NewCheckService wires the Prüflauf.
@@ -97,6 +111,13 @@ func (s *CheckService) SetOpenItemSource(src OpenItemSource) { s.openItems = src
 
 // SetDepreciationSource wires the Anlagenkartei (Regel depreciation_missing).
 func (s *CheckService) SetDepreciationSource(src PendingDepreciationSource) { s.depreciation = src }
+
+// SetProvisionSource wires die Rückstellungen (Regel provision_discount).
+func (s *CheckService) SetProvisionSource(src ProvisionFindingSource) { s.provisions = src }
+
+// SetClosingStepSource wires den Abschlussassistenten (Regel
+// closing_step_skipped).
+func (s *CheckService) SetClosingStepSource(src SkippedClosingStepSource) { s.closingSteps = src }
 
 // SetFiscalYear updates the active fiscal year.
 func (s *CheckService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -204,6 +225,8 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	if req.PeriodType == "year" {
 		findings = append(findings, s.checkAccountMapping(ctx)...)
 		findings = append(findings, s.checkDepreciation(ctx)...)
+		findings = append(findings, s.checkProvisionDiscounting(ctx)...)
+		findings = append(findings, s.checkSkippedClosingSteps(ctx)...)
 	}
 
 	sort.SliceStable(findings, func(i, j int) bool {
@@ -798,6 +821,68 @@ func (s *CheckService) checkDepreciation(ctx context.Context) []domain.CheckFind
 				"Für %s %s ist die Abschreibung von %s € noch nicht gebucht",
 				p.InventoryNumber, p.Name, p.Due),
 			Reference: "§ 253 Abs. 3 HGB, § 7 EStG",
+		})
+	}
+	return out
+}
+
+// checkProvisionDiscounting nimmt die Befunde der Rückstellungsbuchhaltung auf.
+//
+// Sie entstehen bei der Bildung, wo sie in der Vorschau stehen — aber gelesen
+// wird die Vorschau einmal, und geprüft wird das Jahr am Ende. Ein Hinweis, den
+// nur sieht, wer gerade bucht, ist keine Prüfung.
+func (s *CheckService) checkProvisionDiscounting(ctx context.Context) []domain.CheckFinding {
+	if s.provisions == nil {
+		return nil
+	}
+	findings, err := s.provisions.DiscountFindings(ctx, s.fiscalYear)
+	if err != nil {
+		// Ein Fehler ist kein „keine Befunde": stillschweigend nichts zu melden
+		// hieße, dem Anwender einen geprüften Abschluss zu zeigen, der ungeprüft
+		// ist. Der Fehler selbst wird deshalb zum Hinweis.
+		return []domain.CheckFinding{{
+			Rule:       domain.CheckRuleProvisionDiscount,
+			Severity:   domain.CheckWarning,
+			ObjectType: "PROVISION",
+			Message: fmt.Sprintf(
+				"Die Rückstellungen konnten nicht auf ihre Abzinsung geprüft werden: %v", err),
+			Reference: "§ 253 Abs. 2 HGB",
+		}}
+	}
+	return findings
+}
+
+// checkSkippedClosingSteps nennt die übersprungenen Bausteine des Abschlusses.
+//
+// Übergehen ist erlaubt — ein Jahr ohne Rückstellungen gibt es —, aber es ist
+// eine Entscheidung mit Grund, und der Grund gehört dorthin, wo der Abschluss
+// beurteilt wird. Ohne diese Regel stünde er nur in der Schrittliste, die nach
+// der Festschreibung niemand mehr aufschlägt.
+func (s *CheckService) checkSkippedClosingSteps(ctx context.Context) []domain.CheckFinding {
+	if s.closingSteps == nil {
+		return nil
+	}
+	skipped, err := s.closingSteps.SkippedSteps(ctx, s.fiscalYear)
+	if err != nil || len(skipped) == 0 {
+		return nil
+	}
+	out := make([]domain.CheckFinding, 0, len(skipped))
+	for _, step := range skipped {
+		message := fmt.Sprintf(
+			"Der Abschlussschritt %q wurde übersprungen: %s", step.Label, step.Reason)
+		if step.ChangedOn != "" {
+			message = fmt.Sprintf(
+				"Der Abschlussschritt %q wurde am %s übersprungen: %s",
+				step.Label, step.ChangedOn, step.Reason)
+		}
+		out = append(out, domain.CheckFinding{
+			Rule:       domain.CheckRuleClosingStepSkipped,
+			Severity:   domain.CheckWarning,
+			ObjectType: "CLOSING_STEP",
+			ObjectID:   string(step.Key),
+			ObjectName: step.Label,
+			Message:    message,
+			Reference:  "GoBD Rz. 100 ff.",
 		})
 	}
 	return out

@@ -26,6 +26,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Listen kommen leer und nie als nil aus der Bridge — auch dann, wenn noch kein
+// Mandant offen ist. Ein nil-Slice wird über die Wails-Laufzeit zu `null`, und
+// `null.length` oder `null.map` wirft im Render einen TypeError, der ohne
+// ErrorBoundary den ganzen Baum mitnimmt. Betroffen wäre gerade der erste
+// Bildschirm nach dem Start.
+
 // BuchfinkBridge bridges between Wails v3 frontend IPC and the decoupled Go domain services.
 type BuchfinkBridge struct {
 	mu sync.RWMutex
@@ -63,33 +69,51 @@ type BuchfinkBridge struct {
 	checkRunRepo       domain.CheckRunRepository
 	deadlineRepo       domain.DeadlineRepository
 	backupRunRepo      domain.BackupRunRepository
+	// Welle 5a: die Abschlussbausteine.
+	closingStepRepo   domain.ClosingStepRepository
+	accrualRepo       domain.AccrualRepository
+	provisionRepo     domain.ProvisionRepository
+	discountRateRepo  domain.DiscountRateRepository
+	inventoryRepo     domain.InventoryRepository
+	notesRepo         domain.NotesTextRepository
+	appropriationRepo domain.AppropriationRepository
 
 	// Services
-	journalSvc    *service.JournalService
-	postingSvc    *service.PostingService
-	receiptSvc    *service.ReceiptService
-	eInvoiceSvc   *service.EInvoiceService
-	paymentSvc    *service.PaymentService
-	vatSvc        *service.VatService
-	accountingSvc *service.AccountingService
-	bankSvc       *service.BankService
-	invoiceSvc    *service.InvoiceService
-	renderer      *invoice.Renderer
-	contactSvc    *service.ContactService
-	ebilanzSvc    *service.EBilanzService
-	assetSvc      *service.AssetService
-	auditSvc      *service.AuditService
-	settingsSvc   *service.SettingsService
-	currencySvc   *service.CurrencyService
-	foundationSvc *service.FoundationService
-	closingSvc    *service.ClosingService
-	statementSvc  *service.StatementService
-	vatReturnSvc  *service.VatReturnService
-	zmSvc         *service.ZMService
-	checkSvc      *service.CheckService
-	deadlineSvc   *service.DeadlineService
-	exportSvc     *service.ExportService
-	backupSvc     *service.BackupService
+	journalSvc         *service.JournalService
+	postingSvc         *service.PostingService
+	receiptSvc         *service.ReceiptService
+	eInvoiceSvc        *service.EInvoiceService
+	paymentSvc         *service.PaymentService
+	vatSvc             *service.VatService
+	accountingSvc      *service.AccountingService
+	bankSvc            *service.BankService
+	invoiceSvc         *service.InvoiceService
+	renderer           *invoice.Renderer
+	contactSvc         *service.ContactService
+	ebilanzSvc         *service.EBilanzService
+	assetSvc           *service.AssetService
+	auditSvc           *service.AuditService
+	settingsSvc        *service.SettingsService
+	currencySvc        *service.CurrencyService
+	foundationSvc      *service.FoundationService
+	closingSvc         *service.ClosingService
+	closingSettingsSvc *service.ClosingSettingsService
+	statementSvc       *service.StatementService
+	vatReturnSvc       *service.VatReturnService
+	zmSvc              *service.ZMService
+	checkSvc           *service.CheckService
+	deadlineSvc        *service.DeadlineService
+	exportSvc          *service.ExportService
+	backupSvc          *service.BackupService
+	// Welle 5a: Abschlussassistent, Abgrenzung, Rückstellungen, die drei
+	// Bausteine ohne eigene Kartei, Ergebnisverwendung und das Verzeichnis der
+	// steuerlichen Wahlrechte.
+	closingStepsSvc   *service.ClosingStepsService
+	accrualSvc        *service.AccrualService
+	provisionSvc      *service.ProvisionService
+	closingBookingSvc *service.ClosingBookingService
+	appropriationSvc  *service.AppropriationService
+	taxRegisterSvc    *service.TaxRegisterService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -116,6 +140,10 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		dataDir:     cfg.DataDir,
 		currentYear: currentYear,
 	}
+	// Die Konfiguration geht mehrfach unverändert an die Oberfläche
+	// (GetAppConfig, SetBackupDir, EnableReadOnly). Ihre Listen werden deshalb
+	// einmal hier belegt und nicht an jeder Rückgabe erneut.
+	b.appConfig.EnsureLists()
 
 	// If configured, initialize DB for active tenant
 	if cfg.IsConfigured {
@@ -230,6 +258,13 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.checkRunRepo = repository.NewCheckRunRepository(db)
 	b.deadlineRepo = repository.NewDeadlineRepository(db)
 	b.backupRunRepo = repository.NewBackupRunRepository(db)
+	b.closingStepRepo = repository.NewClosingStepRepository(db)
+	b.accrualRepo = repository.NewAccrualRepository(db)
+	b.provisionRepo = repository.NewProvisionRepository(db)
+	b.discountRateRepo = repository.NewDiscountRateRepository(db)
+	b.inventoryRepo = repository.NewInventoryRepository(db)
+	b.notesRepo = repository.NewNotesTextRepository(db)
+	b.appropriationRepo = repository.NewAppropriationRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -306,6 +341,52 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.festschreibungRepo, b.auditRepo, b.journalSvc, fiscalYear,
 	)
 	b.closingSvc.SetFoundationRepo(b.foundationRepo)
+	b.closingSettingsSvc = service.NewClosingSettingsService(b.settingsRepo, b.auditRepo)
+
+	// Die Abschlussbausteine der Welle 5a. Sie hängen allesamt am
+	// ClosingService, weil jeder von ihnen den Bilanzstichtag braucht: eine
+	// Abschlussbuchung ohne Stichtag ist keine.
+	b.accrualSvc = service.NewAccrualService(
+		b.accrualRepo, b.journalRepo, b.journalSvc, b.settingsRepo, b.auditRepo,
+		b.closingSvc, fiscalYear,
+	)
+	b.accrualSvc.SetReceiptService(b.receiptSvc)
+	// Die Auflösung eines Abgrenzungspostens gehört in das Folgejahr und wird
+	// mit dem Saldenvortrag gebucht — sonst bliebe sie bis zum nächsten
+	// Jahresabschluss liegen.
+	b.closingSvc.SetAccrualCarrier(b.accrualSvc)
+
+	b.provisionSvc = service.NewProvisionService(
+		b.provisionRepo, b.discountRateRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.provisionSvc.SetReceiptService(b.receiptSvc)
+	// Eine Eingangsrechnung, die einer Rückstellung zugeordnet wird, bucht
+	// gegen sie statt gegen den Aufwand.
+	b.postingSvc.SetProvisionConsumer(b.provisionSvc)
+
+	b.closingBookingSvc = service.NewClosingBookingService(
+		b.inventoryRepo, b.provisionRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.closingBookingSvc.SetReceiptService(b.receiptSvc)
+
+	b.appropriationSvc = service.NewAppropriationService(
+		b.appropriationRepo, b.notesRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.appropriationSvc.SetReceiptService(b.receiptSvc)
+	// Die Anhangtexte des Vorjahres sind die Vorlage des neuen Jahres.
+	b.closingSvc.SetNotesCopier(b.appropriationSvc)
+
+	b.taxRegisterSvc = service.NewTaxRegisterService(
+		b.assetRepo, b.provisionRepo, b.journalRepo, b.settingsRepo, b.closingSvc, fiscalYear)
+
+	b.closingStepsSvc = service.NewClosingStepsService(
+		b.closingStepRepo, b.accrualRepo, b.provisionRepo, b.inventoryRepo,
+		b.appropriationRepo, b.checkRunRepo, b.journalRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.closingStepsSvc.SetDepreciationSource(b.assetSvc)
 
 	// Bilanz und Gewinn- und Verlustrechnung entstehen im Backend, nicht mehr
 	// in der Ansicht. Der Dienst braucht dazu das Geschäftsjahr (Stichtag und
@@ -315,6 +396,15 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.accountingSvc, b.closingSvc, b.settingsRepo, b.auditRepo, fiscalYear)
 	b.statementSvc.SetOpenItemSource(b.paymentSvc)
 	b.statementSvc.SetRenderer(b.renderer)
+	// Der Anhang gehört zum Abschluss: Rückstellungsspiegel, Überleitung zur
+	// Steuerbilanz und die Freitexte kommen aus ihren Diensten, erscheinen aber
+	// in derselben Struktur wie Bilanz und GuV — auf dem Schirm, im PDF und in
+	// der CSV.
+	b.statementSvc.SetNotesSources(service.NotesSources{
+		Provisions:     b.provisionSvc,
+		Reconciliation: b.taxRegisterSvc,
+		Texts:          b.appropriationSvc,
+	})
 
 	// Die E-Bilanz entsteht aus derselben Gliederung wie die Bilanz auf dem
 	// Schirm — zwei Wege zu einer Bilanz wären einer zu viel. Den
@@ -348,6 +438,8 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.checkSvc.SetAccountSource(b.accountingSvc)
 	b.checkSvc.SetOpenItemSource(b.paymentSvc)
 	b.checkSvc.SetDepreciationSource(b.assetSvc)
+	b.checkSvc.SetProvisionSource(b.provisionSvc)
+	b.checkSvc.SetClosingStepSource(b.closingStepsSvc)
 
 	// Die Fristen kommen aus den Daten und nicht mehr aus dem localStorage.
 	b.deadlineSvc = service.NewDeadlineService(
@@ -367,6 +459,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.exportSvc.SetTenantName(t.Name)
 	b.exportSvc.SetOpenItemSource(b.paymentSvc)
 	b.exportSvc.SetIntegritySource(integrityChecks{journal: b.journalSvc, receipts: b.receiptSvc})
+	// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG ist Bestandteil des
+	// Prüferpakets und nicht nur ein Einzelexport auf Knopfdruck.
+	b.exportSvc.SetTaxRegisterSource(b.taxRegisterSvc)
 
 	// Die Sicherung trägt die Schlüsselkennung und nicht die Kennung aus der
 	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
@@ -732,7 +827,9 @@ func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 	}
 
 	vaultID := tenantID
-	var newTenants []domain.TenantConfig
+	// Belegt statt nil: die Konfiguration geht als JSON an die Oberfläche, und
+	// der letzte entfernte Mandant hinterließe sonst `null`.
+	newTenants := make([]domain.TenantConfig, 0, len(b.appConfig.Tenants))
 	for _, t := range b.appConfig.Tenants {
 		if t.ID != tenantID {
 			newTenants = append(newTenants, t)
@@ -933,6 +1030,24 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.closingSvc != nil {
 		b.closingSvc.SetFiscalYear(year)
 	}
+	if b.closingStepsSvc != nil {
+		b.closingStepsSvc.SetFiscalYear(year)
+	}
+	if b.accrualSvc != nil {
+		b.accrualSvc.SetFiscalYear(year)
+	}
+	if b.provisionSvc != nil {
+		b.provisionSvc.SetFiscalYear(year)
+	}
+	if b.closingBookingSvc != nil {
+		b.closingBookingSvc.SetFiscalYear(year)
+	}
+	if b.appropriationSvc != nil {
+		b.appropriationSvc.SetFiscalYear(year)
+	}
+	if b.taxRegisterSvc != nil {
+		b.taxRegisterSvc.SetFiscalYear(year)
+	}
 	if b.vatReturnSvc != nil {
 		b.vatReturnSvc.SetFiscalYear(year)
 	}
@@ -1012,7 +1127,7 @@ func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.Account{}, nil
 	}
 	return b.accountingSvc.GetAccounts(context.Background())
 }
@@ -1066,7 +1181,7 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.Account{}, nil
 	}
 	all, err := b.accountingSvc.GetAccounts(context.Background())
 	if err != nil {
@@ -1076,7 +1191,8 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	for _, a := range domain.LiquidAccounts() {
 		liquid[a] = true
 	}
-	var result []domain.Account
+	// Belegt statt nil: die Auswahl in der Maske liest die Liste ohne Umweg.
+	result := make([]domain.Account, 0, len(all))
 	for _, a := range all {
 		if liquid[a.Number] {
 			result = append(result, a)
@@ -1089,7 +1205,7 @@ func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.JournalEntry{}, nil
 	}
 	return b.accountingSvc.GetEntries(context.Background())
 }
@@ -1098,13 +1214,19 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.JournalEntry{}, nil
 	}
 	return b.accountingSvc.GetAllEntries(context.Background())
 }
 
 // PostJournalEntry books a manually composed Buchungssatz. The journal enforces
 // the rules; the frontend only collects the input.
+//
+// Die Quelle wird dabei auf manual normiert: sie ist kein Eingabefeld, sondern
+// die Herkunft der Buchung, und die Auswertungen hängen an ihr. Ein Vortrag
+// entsteht im Saldenvortrag, eine Abschlussbuchung in den Abschlussbausteinen —
+// wer hier „opening" oder „closing" mitschickte, umginge sonst den Schutz der
+// Steuerkonten und fiele zugleich aus der Umsatzsteuer-Auswertung heraus.
 func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -1114,6 +1236,7 @@ func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.Jo
 	if b.journalSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
+	entry.Source = domain.EntrySourceManual
 	return b.journalSvc.Post(context.Background(), &entry)
 }
 
@@ -1174,7 +1297,7 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.bankSvc == nil {
-		return nil, nil
+		return []domain.BankTransaction{}, nil
 	}
 	return b.bankSvc.GetTransactions(context.Background(), b.currentYear)
 }
@@ -1227,7 +1350,7 @@ func (b *BuchfinkBridge) GetContacts() ([]domain.Contact, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.contactSvc == nil {
-		return nil, nil
+		return []domain.Contact{}, nil
 	}
 	return b.contactSvc.GetContacts(context.Background())
 }
@@ -1263,7 +1386,7 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.invoiceSvc == nil {
-		return nil, nil
+		return []domain.Invoice{}, nil
 	}
 	return b.invoiceSvc.GetInvoices(context.Background(), b.currentYear)
 }
@@ -1331,7 +1454,7 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 	}
 	app := application.Get()
 	if app == nil || app.Dialog == nil {
-		return nil, nil
+		return []string{}, nil
 	}
 	return app.Dialog.OpenFile().
 		CanChooseFiles(true).
@@ -1646,7 +1769,7 @@ func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.auditSvc == nil {
-		return nil, nil
+		return []domain.AuditLogEntry{}, nil
 	}
 	return b.auditSvc.GetLogs(context.Background(), 200)
 }
@@ -1662,7 +1785,7 @@ func (b *BuchfinkBridge) GetOpenItems() ([]domain.OpenItem, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.paymentSvc == nil {
-		return nil, nil
+		return []domain.OpenItem{}, nil
 	}
 	return b.paymentSvc.OpenItems(context.Background())
 }

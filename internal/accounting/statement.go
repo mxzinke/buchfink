@@ -297,7 +297,15 @@ func BuildStatement(current, prior []domain.Account, depth domain.StatementDepth
 		own:      map[string]domain.Cents{},
 		ownPrior: map[string]domain.Cents{},
 		accounts: map[string][]domain.StatementAccount{},
-		report:   domain.AssignmentReport{},
+		// Leer statt nil: der Zuordnungsbericht geht als JSON an die Oberfläche,
+		// und der Regelfall ist der Bericht ohne Befund — als `null` nähme
+		// `unassigned.length` dort den ganzen Baum mit.
+		report: domain.AssignmentReport{
+			Unassigned:   make([]domain.StatementAccount, 0),
+			WrongSign:    make([]domain.StatementAccount, 0),
+			SignSwitches: make([]domain.SignSwitch, 0),
+			Fallbacks:    make([]domain.FallbackCount, 0),
+		},
 	}
 	b.collect(current, prior)
 

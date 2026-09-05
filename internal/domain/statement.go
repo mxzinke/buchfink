@@ -284,13 +284,64 @@ type StatementHeader struct {
 	Missing []string `json:"missing"`
 }
 
+// ReconciliationRow ist eine Position der Überleitungsrechnung von der
+// Handels- zur Steuerbilanz.
+type ReconciliationRow struct {
+	Position   string `json:"position"`
+	Basis      string `json:"basis"`
+	Commercial Cents  `json:"commercial"`
+	Tax        Cents  `json:"tax"`
+	// Difference ist steuerlich minus handelsrechtlich: positiv, wo der
+	// Steuerbilanzwert höher ist.
+	Difference  Cents  `json:"difference"`
+	Explanation string `json:"explanation"`
+}
+
+// Reconciliation ist die Überleitung Handelsbilanz → Steuerbilanz
+// (§ 60 Abs. 2 EStDV).
+type Reconciliation struct {
+	FiscalYear int                 `json:"fiscalYear"`
+	Cutoff     string              `json:"cutoff"`
+	Rows       []ReconciliationRow `json:"rows"`
+	// EquityEffect ist die Summe der Differenzen: um so viel weicht das
+	// steuerliche Eigenkapital vom handelsrechtlichen ab.
+	EquityEffect Cents  `json:"equityEffect"`
+	Note         string `json:"note"`
+}
+
+// NotesSectionText ist ein Anhangabschnitt mit seinem Freitext.
+type NotesSectionText struct {
+	NotesSectionDefinition
+	Text string `json:"text"`
+}
+
+// StatementNotes ist der Anhang: die Freitexte des § 284 f. HGB, der
+// Rückstellungsspiegel und die Überleitung zur Steuerbilanz.
+//
+// Er gehört in den Jahresabschluss und nicht daneben. Ein Anhang, den die
+// Oberfläche aus drei Aufrufen zusammensetzt, wäre in PDF und CSV ein anderer
+// als auf dem Bildschirm — und welche Angaben ein Abschluss enthält, ist eine
+// Frage der Rechnungslegung und keine der Darstellung.
+type StatementNotes struct {
+	Texts []NotesSectionText `json:"texts"`
+	// ProvisionMirror ist der Rückstellungsspiegel; leer, wenn keine
+	// Rückstellungen bestehen.
+	ProvisionMirror ProvisionMirror `json:"provisionMirror"`
+	// Reconciliation ist die Überleitung zur Steuerbilanz. Sie ist keine Angabe
+	// des Anhangs nach HGB, steht aber an derselben Stelle: sie erklärt, wo
+	// Handels- und Steuerbilanz auseinanderfallen.
+	Reconciliation Reconciliation `json:"reconciliation"`
+	Reference      string         `json:"reference"`
+}
+
 // FinancialStatement ist der Jahresabschluss, wie ihn die Oberfläche zeigt:
-// Bilanz und GuV mit Vorjahr, Größenklasse, Angaben unter der Bilanz, Fristen
-// und der Zuordnungsbericht.
+// Bilanz und GuV mit Vorjahr, Größenklasse, Angaben unter der Bilanz, Anhang,
+// Fristen und der Zuordnungsbericht.
 type FinancialStatement struct {
 	Header     StatementHeader `json:"header"`
 	Statement  Statement       `json:"statement"`
 	SizeClass  SizeClass       `json:"sizeClass"`
 	Maturities MaturityTable   `json:"maturities"`
+	Notes      StatementNotes  `json:"notes"`
 	Deadlines  []Deadline      `json:"deadlines"`
 }

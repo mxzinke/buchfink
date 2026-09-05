@@ -33,7 +33,13 @@ type ClosingService struct {
 	foundationRepo     domain.FoundationRepository
 	auditRepo          domain.AuditRepository
 	journalSvc         *JournalService
-	fiscalYear         int
+	// accruals und notes sind die Kopplungen dieser Welle: die Auflösung der
+	// Rechnungsabgrenzung hängt am Saldenvortrag, die Anhangtexte hängen an der
+	// Jahresanlage. Beide sind optional — ohne sie arbeitet der Abschluss wie
+	// zuvor.
+	accruals   AccrualCarrier
+	notes      NotesCopier
+	fiscalYear int
 }
 
 // NewClosingService wires the Jahresabschluss.
@@ -67,6 +73,31 @@ func NewClosingService(
 // Rumpfgeschäftsjahr: eine Gesellschaft, die im März beurkundet wurde, hat kein
 // Geschäftsjahr, das im Januar begonnen hätte.
 func (s *ClosingService) SetFoundationRepo(r domain.FoundationRepository) { s.foundationRepo = r }
+
+// AccrualCarrier ist der Ausschnitt der Rechnungsabgrenzung, den der
+// Saldenvortrag braucht.
+//
+// Die Auflösung eines Abgrenzungspostens gehört in das Folgejahr und wird dort
+// am ersten Tag gebucht. Sie an den Vortrag zu hängen ist kein Zufall: der
+// Vortrag ist der eine Vorgang, der das neue Jahr eröffnet, und ohne diesen
+// Anstoß bliebe die Auflösung bis zum nächsten Jahresabschluss liegen — also
+// bis zu dem Zeitpunkt, an dem sie längst gebucht sein müsste.
+type AccrualCarrier interface {
+	PendingReleases(ctx context.Context, toYear int) ([]AccrualReleaseDue, error)
+	ReleaseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error)
+}
+
+// SetAccrualCarrier koppelt die Rechnungsabgrenzung an den Saldenvortrag.
+func (s *ClosingService) SetAccrualCarrier(c AccrualCarrier) { s.accruals = c }
+
+// NotesCopier übernimmt die Anhangtexte des Vorjahres in ein neu angelegtes
+// Geschäftsjahr.
+type NotesCopier interface {
+	CopyNotesInto(ctx context.Context, toYear int) (int, error)
+}
+
+// SetNotesCopier koppelt die Anhangtexte an die Jahresanlage.
+func (s *ClosingService) SetNotesCopier(c NotesCopier) { s.notes = c }
 
 // SetFiscalYear updates the active fiscal year.
 func (s *ClosingService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -162,6 +193,17 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	}
 	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
 		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, fy.StartDate, fy.EndDate, shortSuffix(fy)))
+	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Die
+	// Bilanzierungs- und Bewertungsmethoden ändern sich selten, und ein leerer
+	// Anhang führt in der Praxis dazu, dass die Angaben schlicht fehlen.
+	// Scheitert das, bleibt das Jahr trotzdem angelegt: eine fehlende Vorlage ist
+	// kein Grund, kein Geschäftsjahr zu haben.
+	if s.notes != nil {
+		if _, err := s.notes.CopyNotesInto(ctx, year); err != nil {
+			s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+				"Die Anhangtexte des Vorjahres konnten nicht übernommen werden: %v", err))
+		}
+	}
 	return fy, nil
 }
 
@@ -566,6 +608,11 @@ type CarryForwardPreview struct {
 	// Fehler ins neue Jahr tragen.
 	BalanceDifference domain.Cents `json:"balanceDifference"`
 	IsBalanced        bool         `json:"isBalanced"`
+
+	// AccrualReleases sind die Auflösungen der Rechnungsabgrenzung, die der
+	// Vortrag im neuen Jahr gleich mitbucht. Sie stehen in der Vorschau, weil
+	// der Vortrag sonst mehr täte, als er ankündigt.
+	AccrualReleases []AccrualReleaseDue `json:"accrualReleases"`
 }
 
 // HasDifference sagt, ob ein Korrekturvortrag nötig ist.
@@ -596,6 +643,12 @@ func (s *ClosingService) CarryForwardState(ctx context.Context, toYear int) (*Ca
 	plan, err := s.plan(ctx, toYear)
 	if err != nil {
 		return nil, err
+	}
+	plan.preview.AccrualReleases = make([]AccrualReleaseDue, 0)
+	if s.accruals != nil {
+		if due, err := s.accruals.PendingReleases(ctx, toYear); err == nil {
+			plan.preview.AccrualReleases = due
+		}
 	}
 	return plan.preview, nil
 }
@@ -1096,6 +1149,20 @@ func (s *ClosingService) CarryForward(ctx context.Context, toYear int) ([]domain
 		"%s %d → %d zum %s: %d Buchungen, Jahresergebnis %s € auf Konto %s",
 		label, preview.FromYear, toYear, preview.BookingDate, len(created),
 		preview.NetIncome, preview.ResultAccount))
+
+	// Die Auflösung der Rechnungsabgrenzung folgt unmittelbar: der Posten des
+	// Vorjahres wird am ersten Tag des neuen Jahres wieder Aufwand bzw. Ertrag.
+	// Sie scheitert, ohne den Vortrag mitzureißen — der steht und ist richtig;
+	// was fehlt, ist die Folgebuchung, und die Meldung sagt es.
+	if s.accruals != nil {
+		releases, err := s.accruals.ReleaseInto(ctx, toYear)
+		created = append(created, releases...)
+		if err != nil {
+			return created, fmt.Errorf(
+				"der Saldenvortrag ins Geschäftsjahr %d steht; die Auflösung der Rechnungsabgrenzung "+
+					"ist aber unvollständig: %w", toYear, err)
+		}
+	}
 
 	return created, nil
 }

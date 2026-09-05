@@ -16,6 +16,12 @@ package domain
 // steht so in der E-Bilanz, und ein Katalog, der die Schreibweise ändert,
 // änderte den Export mit.
 
+// LegalFormUG ist der Katalogeintrag der Unternehmergesellschaft. Er steht als
+// Konstante, weil aus ihm eine Rechtsfolge folgt: § 5a Abs. 3 GmbHG bindet die
+// Pflichtrücklage an diese Rechtsform, und ein Tippfehler im Vergleich ließe
+// sie stillschweigend entfallen.
+const LegalFormUG = "UG (haftungsbeschränkt)"
+
 // LegalFormInfo is one entry of the Rechtsform catalog.
 type LegalFormInfo struct {
 	// Name ist die gespeicherte Schreibweise.
@@ -60,7 +66,7 @@ var legalForms = []LegalFormInfo{
 	{Name: "KG", Investor: InvestorUnknown, Note: notePartnership},
 	{Name: "GmbH & Co. KG", Investor: InvestorUnknown, Note: notePartnership},
 	{Name: "Partnerschaftsgesellschaft", Investor: InvestorUnknown, Note: notePartnership},
-	{Name: "UG (haftungsbeschränkt)", Investor: InvestorCorporate, Note: noteCorporate},
+	{Name: LegalFormUG, Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "GmbH", Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "AG", Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "SE", Investor: InvestorCorporate, Note: noteCorporate},

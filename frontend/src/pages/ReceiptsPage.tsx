@@ -18,6 +18,7 @@ import type {
   PostingGroup,
   PostingPreview,
   PostingWarning,
+  Provision,
   Receipt,
   ReceiptFileInput,
   ReceiptFileRole,
@@ -792,6 +793,12 @@ const BookingForm: React.FC<{
   );
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
+  // Eine Rechnung, die eine zurückgestellte Verpflichtung erfüllt, läuft gegen
+  // die Rückstellung und nicht gegen den Aufwand: der Aufwand ist im Jahr der
+  // Bildung entstanden. Ein zweites Mal Aufwand zu buchen ist die häufigste Art,
+  // eine Rückstellung falsch abzuwickeln.
+  const [provisions, setProvisions] = useState<Provision[]>([]);
+  const [provisionId, setProvisionId] = useState('');
   const [description, setDescription] = useState(p?.description ?? '');
   const [entertainment, setEntertainment] = useState<EntertainmentDetail>({
     place: '',
@@ -841,6 +848,7 @@ const BookingForm: React.FC<{
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
       currency: 'EUR',
       entertainment: needsEntertainment ? entertainment : undefined,
+      provisionId: provisionId ? Number.parseInt(provisionId, 10) : undefined,
     }),
     [
       contactId,
@@ -856,8 +864,17 @@ const BookingForm: React.FC<{
       paymentAccount,
       needsEntertainment,
       entertainment,
+      provisionId,
     ],
   );
+
+  // Die offenen Rückstellungen des Geschäftsjahres. Erledigte stehen nicht zur
+  // Auswahl: gegen sie zu buchen brächte den Bestand unter null.
+  useEffect(() => {
+    Api.getProvisions(0)
+      .then((rows) => setProvisions(rows.filter((provision) => !provision.settledOn)))
+      .catch(() => setProvisions([]));
+  }, []);
 
   // Der Buchungssatz kommt aus dem Backend. Das Frontend rechnet ihn nicht nach:
   // eine zweite Steuerrechnung hier wäre eine zweite Wahrheit.
@@ -1059,6 +1076,26 @@ const BookingForm: React.FC<{
                 items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
                 value={paymentAccount}
                 onValueChange={setPaymentAccount}
+              />
+            </Field>
+          )}
+          {provisions.length > 0 && (
+            <Field
+              label="Gehört zu Rückstellung"
+              optional
+              help="Gebucht wird gegen die Rückstellung; nur der Mehrbetrag bleibt Aufwand."
+            >
+              <Select
+                items={[
+                  { value: '', label: 'Keine Rückstellung' },
+                  ...provisions.map((provision) => ({
+                    value: String(provision.id),
+                    label: `${provision.text} · ${formatCents(provision.settlementAmount)}`,
+                  })),
+                ]}
+                value={provisionId}
+                onValueChange={(next) => setProvisionId(next as string)}
+                placeholder="Keine Rückstellung"
               />
             </Field>
           )}
