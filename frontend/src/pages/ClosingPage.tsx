@@ -11,7 +11,7 @@ import {
 import { Api } from '../services/api';
 import type { NavigateFn } from '../components/Sidebar';
 import { useWriteLock } from '../components/WriteLock';
-import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
+import { formatCents, formatDate, formatDateTime, parseCents } from '../utils/formatters';
 import {
   Button,
   ConfirmDialog,
@@ -254,6 +254,10 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   const [sizeClassError, setSizeClassError] = useState('');
   const [employees, setEmployees] = useState('0');
   const [savingEmployees, setSavingEmployees] = useState(false);
+  // Der Vorjahresumsatz entscheidet über die Übergangsfrist des § 27 Abs. 38
+  // Nr. 2 UStG. Er steht am Geschäftsjahr, weil er für dieses Jahr gilt.
+  const [priorRevenue, setPriorRevenue] = useState('');
+  const [savingRevenue, setSavingRevenue] = useState(false);
 
   // Die Bausteine des Abschlusses — Abgrenzung, Rückstellungen, Inventurwert,
   // Verrechnungen. Gearbeitet wird an ihnen unter „Abschlussbausteine"; hier
@@ -271,6 +275,11 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       const closing = await Api.getClosingState(year);
       setState(closing);
       setEmployees(String(closing.fiscalYear.averageEmployees ?? 0));
+      setPriorRevenue(
+        closing.fiscalYear.priorYearRevenue
+          ? formatCents(closing.fiscalYear.priorYearRevenue, '').trim()
+          : '',
+      );
       try {
         setSizeClass(await Api.getSizeClass(year));
         setSizeClassError('');
@@ -325,6 +334,30 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       toast.error(message(e));
     } finally {
       setSavingEmployees(false);
+    }
+  }
+
+  /**
+   * Der Gesamtumsatz des Vorjahres. An ihm hängt § 27 Abs. 38 Nr. 2 UStG: bis
+   * 800.000 € darf 2027 noch eine sonstige Rechnung ohne strukturierten
+   * Datensatz ausgestellt werden. Vorbelegt aus der Gewinn- und
+   * Verlustrechnung, überschreibbar — der Gesamtumsatz des § 19 Abs. 3 UStG ist
+   * nicht dasselbe wie die Umsatzerlöse des § 275 HGB.
+   */
+  async function savePriorRevenue() {
+    const amount = parseCents(priorRevenue);
+    if (amount === null || amount < 0) {
+      toast.error('Der Vorjahresumsatz ist ein Betrag ab null. Bitte korrigieren Sie die Eingabe.');
+      return;
+    }
+    setSavingRevenue(true);
+    try {
+      await Api.setPriorYearRevenue(year, amount);
+      await load();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setSavingRevenue(false);
     }
   }
 
@@ -727,6 +760,32 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
               onClick={saveEmployees}
               loading={savingEmployees}
               disabled={adopted || writeLock.locked}
+              title={writeLock.hint}
+            >
+              Übernehmen
+            </Button>
+          </div>
+        </Field>
+
+        <Field
+          label="Gesamtumsatz des Vorjahres"
+          help="Entscheidet über die Übergangsfrist der E-Rechnung (§ 27 Abs. 38 Nr. 2 UStG)."
+          explain="Bis 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden; ab 2028 nicht mehr. Vorbelegt ist der Wert aus der Gewinn- und Verlustrechnung des Vorjahres — der Gesamtumsatz des § 19 Abs. 3 UStG ist damit nicht identisch, deshalb ist er überschreibbar."
+          className="mt-4 max-w-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              value={priorRevenue}
+              inputMode="decimal"
+              align="right"
+              placeholder="0,00"
+              onChange={(e) => setPriorRevenue(e.target.value)}
+            />
+            <Button
+              variant="secondary"
+              onClick={savePriorRevenue}
+              loading={savingRevenue}
+              disabled={writeLock.locked}
               title={writeLock.hint}
             >
               Übernehmen

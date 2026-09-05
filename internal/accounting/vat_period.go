@@ -35,6 +35,15 @@ func VatPeriodFor(entry *domain.JournalEntry, line domain.JournalLine, receivedA
 	if entry == nil {
 		return ""
 	}
+	// Die vereinnahmte Anzahlung folgt dem Geld und nicht der Leistung: nach
+	// § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG entsteht die Steuer mit Ablauf des
+	// Voranmeldungszeitraums, in dem das Teilentgelt vereinnahmt worden ist —
+	// auch bei Sollversteuerung, und lange bevor die Leistung erbracht ist. Ohne
+	// diesen Zweig entschiede der Leistungszeitraum, und der steht bei einer
+	// Anzahlung noch in der Zukunft.
+	if entry.Source == domain.EntrySourceAdvance {
+		return firstNonEmpty(entry.BookingDate, entry.DocumentDate)
+	}
 	switch timingOf(line.TaxKey) {
 	case timingOutput:
 		// § 13 Abs. 1 Nr. 1 Buchst. a UStG: die Steuer entsteht mit Ablauf des

@@ -350,6 +350,33 @@ func (s *StatementService) sizeClassFrom(ctx context.Context, year int, stmt *do
 	return accounting.ClassifySize(history, isFirstYear), nil
 }
 
+// RevenueOf liefert die Umsatzerlöse eines Geschäftsjahres — die Zeile Nr. 1 der
+// Gewinn- und Verlustrechnung (§ 275 Abs. 2 HGB).
+//
+// Sie entsteht aus derselben Gliederung wie die GuV auf dem Schirm und nicht
+// aus einer zweiten Kontenauswahl: die Erlösschmälerungen sind nach § 277
+// Abs. 1 HGB abzusetzen, und wer sie in einer eigenen Summe vergisst, meldet
+// einen zu hohen Umsatz. Ein Jahr ohne Buchungen oder mit einer Bilanz, die
+// nicht aufgeht, liefert null — das ist kein Fehler, sondern die Auskunft, dass
+// sich nichts ableiten lässt.
+func (s *StatementService) RevenueOf(ctx context.Context, year int) (domain.Cents, error) {
+	if year <= 0 {
+		return 0, nil
+	}
+	accounts, err := s.accountingSvc.AccountsForYear(ctx, year)
+	if err != nil {
+		return 0, err
+	}
+	if !hasAnyBalance(accounts) {
+		return 0, nil
+	}
+	stmt, err := accounting.BuildStatement(accounts, nil, domain.DepthFull)
+	if err != nil {
+		return 0, nil
+	}
+	return stmt.Revenue, nil
+}
+
 // assessYear beurteilt einen zurückliegenden Abschlussstichtag aus den Zahlen
 // dieses Jahres allein.
 //

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -21,7 +22,7 @@ func NewSettingsRepository(db *gorm.DB) domain.SettingsRepository {
 
 func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, error) {
 	var item domain.SettingItem
-	err := r.db.WithContext(ctx).Where("key = ?", key).First(&item).Error
+	err := dbFrom(ctx, r.db).Where("key = ?", key).First(&item).Error
 	if err != nil {
 		return "", err
 	}
@@ -34,12 +35,12 @@ func (r *settingsRepositoryGorm) Set(ctx context.Context, key string, value stri
 		Value:     value,
 		UpdatedAt: time.Now(),
 	}
-	return r.db.WithContext(ctx).Save(&item).Error
+	return dbFrom(ctx, r.db).Save(&item).Error
 }
 
 func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domain.CompanySettings, error) {
 	var items []domain.SettingItem
-	if err := r.db.WithContext(ctx).Find(&items).Error; err != nil {
+	if err := dbFrom(ctx, r.db).Find(&items).Error; err != nil {
 		return nil, err
 	}
 
@@ -87,6 +88,14 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.ZipCity = it.Value
 		case "country":
 			settings.Country = it.Value
+		case "contact_name":
+			settings.ContactName = it.Value
+		case "contact_phone":
+			settings.ContactPhone = it.Value
+		case "contact_email":
+			settings.ContactEmail = it.Value
+		case "invoice_number_format":
+			settings.InvoiceNumberFormat = it.Value
 		case "seat":
 			settings.Seat = it.Value
 		case "register_court":
@@ -122,6 +131,24 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	return settings, nil
 }
 
+// numberFormatOrDefault prüft die Systematik des Rechnungsnummernkreises.
+//
+// Ein leeres Feld heißt „nicht festgelegt" und bekommt die Voreinstellung. Ein
+// ausgefülltes, aber untaugliches Format wird abgewiesen und nicht ersetzt:
+// wer `RE-{JAHR}` einträgt, hat einen Nummernkreis gemeint, in dem jede
+// Rechnung dieselbe Nummer trüge — das stillschweigend durch die Voreinstellung
+// zu ersetzen ließe ihn glauben, sein Format sei gespeichert
+// (siehe domain.ValidateInvoiceNumberFormat).
+func numberFormatOrDefault(format string) (string, error) {
+	if strings.TrimSpace(format) == "" {
+		return domain.DefaultInvoiceNumberFormat, nil
+	}
+	if err := domain.ValidateInvoiceNumberFormat(format); err != nil {
+		return "", err
+	}
+	return format, nil
+}
+
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
 	vatPeriod := s.VatPeriod
 	if vatPeriod == "" {
@@ -143,6 +170,10 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	if graceDays < 0 {
 		graceDays = 0
 	}
+	numberFormat, err := numberFormatOrDefault(s.InvoiceNumberFormat)
+	if err != nil {
+		return err
+	}
 
 	kv := map[string]string{
 		"company_name":            s.CompanyName,
@@ -158,6 +189,10 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"street":                  s.Street,
 		"zip_city":                s.ZipCity,
 		"country":                 s.Country,
+		"contact_name":            s.ContactName,
+		"contact_phone":           s.ContactPhone,
+		"contact_email":           s.ContactEmail,
+		"invoice_number_format":   numberFormat,
 		"seat":                    s.Seat,
 		"register_court":          s.RegisterCourt,
 		"register_number":         s.RegisterNumber,
@@ -182,7 +217,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 			Value:     v,
 			UpdatedAt: time.Now(),
 		}
-		if err := r.db.WithContext(ctx).Save(&item).Error; err != nil {
+		if err := dbFrom(ctx, r.db).Save(&item).Error; err != nil {
 			return err
 		}
 	}

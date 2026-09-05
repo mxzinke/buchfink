@@ -27,6 +27,19 @@ type CompanySettings struct {
 	Street               string `json:"street"`
 	ZipCity              string `json:"zipCity"`
 	Country              string `json:"country"`
+
+	// Ansprechpartner, Telefon und E-Mail des Ausstellers.
+	//
+	// Sie sind bei einer XRechnung Pflicht (BR-DE-2 bis BR-DE-7): eine Behörde,
+	// die zu einer Rechnung nicht zurückfragen kann, weist sie zurück. Auf einer
+	// ZUGFeRD-Rechnung bleiben sie ohne Wirkung, wenn sie nicht gepflegt sind.
+	ContactName  string `json:"contactName"`
+	ContactPhone string `json:"contactPhone"`
+	ContactEmail string `json:"contactEmail"`
+
+	// InvoiceNumberFormat ist die Systematik des Rechnungsnummernkreises mit
+	// den Platzhaltern {JAHR} und {NR:n}. Leer heißt: die Voreinstellung.
+	InvoiceNumberFormat string `json:"invoiceNumberFormat"`
 	// Seat, RegisterCourt und RegisterNumber sind die Pflichtangaben des
 	// § 264 Abs. 1a HGB: auf jedem Jahresabschluss sind Firma, Sitz,
 	// Registergericht und Registernummer anzugeben. Sie standen bisher nur an

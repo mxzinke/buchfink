@@ -41,6 +41,10 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to backfill receipt kinds: %w", err)
 	}
 
+	if err := BackfillContactAddresses(db); err != nil {
+		return nil, fmt.Errorf("failed to backfill contact addresses: %w", err)
+	}
+
 	currentYear := time.Now().Year()
 	if err := SeedDefaultsIfEmpty(context.Background(), db, currentYear); err != nil {
 		return nil, fmt.Errorf("failed to seed initial SKR04 data: %w", err)
@@ -128,6 +132,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.Contact{},
 		&domain.Invoice{},
 		&domain.InvoiceItem{},
+		&domain.InvoiceReference{},
 		&domain.AuditLogEntry{},
 		&domain.SettingItem{},
 		&domain.ExchangeRate{},
@@ -158,7 +163,54 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.InventoryCount{},
 		&domain.NotesText{},
 		&domain.Appropriation{},
+		// Welle 5b: Rechnungswesen. Der Rechnungsverbund und seine Abschläge
+		// verweisen auf Rechnung und Buchung, der Lückenvermerk auf den
+		// Nummernkreis — beide stehen deshalb hinter ihnen.
+		&domain.InvoiceGroup{},
+		&domain.AdvanceItem{},
+		&domain.VendorAdvance{},
+		&domain.NumberGap{},
 	)
+}
+
+// BackfillContactAddresses zerlegt die einzeilige Anschrift alter Kontakte in
+// ihre Bestandteile.
+//
+// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des Empfängers,
+// und EN 16931 verlangt sie in Feldern. Bestandsdaten tragen sie als eine
+// Zeile; ohne diesen Lauf ließe sich zu keinem übernommenen Kunden mehr eine
+// Rechnung ausstellen.
+//
+// Der Parser ist bewusst streng: was er nicht sicher trennen kann, lässt er
+// stehen. Die Kontaktseite meldet den Datensatz dann als unvollständig, und
+// jemand sieht ihn an. Eine geratene Straße auf einer Rechnung wäre ein
+// Formfehler, den der Empfänger mit seinem Vorsteuerabzug bezahlt.
+func BackfillContactAddresses(db *gorm.DB) error {
+	// Gelesen wird ohne Filter auf die Anschrift: sie liegt verschlüsselt in der
+	// Spalte, und ein SQL-Vergleich auf den leeren String träfe den Geheimtext
+	// und nicht den Inhalt.
+	var contacts []domain.Contact
+	if err := db.Find(&contacts).Error; err != nil {
+		return err
+	}
+	for i := range contacts {
+		c := &contacts[i]
+		if !c.MigrateAddress() {
+			continue
+		}
+		// Geschrieben wird über den Datensatz und nicht über eine Map.
+		//
+		// GORM wendet den Feld-Serializer nur auf dem Struct-Weg an
+		// (schema.Field.ValueOf); ein Map-Update ginge an ihm vorbei und legte
+		// den Klartext in die Spalten, die als `serializer:encrypted`
+		// deklariert sind. Beim nächsten Lesen scheiterte die Entschlüsselung,
+		// und der migrierte Kontakt wäre verschwunden — aus der Kontaktliste
+		// und aus dem Rechnungsdialog.
+		if err := db.Model(c).Select("Street", "PostalCode", "City").Updates(c).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // BackfillReceiptKinds gibt Belegen aus der Zeit vor der Belegart ihren Wert.
@@ -231,6 +283,9 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 			// Obergrenze nennt und kein Gesetz.
 			{Key: "receipt_capture_days", Value: "10"},
 			{Key: "commit_grace_days", Value: "0"},
+			// Die Systematik des Rechnungsnummernkreises gehört in die
+			// Verfahrensdokumentation und ist deshalb eine Einstellung.
+			{Key: "invoice_number_format", Value: domain.DefaultInvoiceNumberFormat},
 		}
 
 		for _, s := range defaultSettings {

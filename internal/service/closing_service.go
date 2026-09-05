@@ -37,8 +37,11 @@ type ClosingService struct {
 	// Rechnungsabgrenzung hängt am Saldenvortrag, die Anhangtexte hängen an der
 	// Jahresanlage. Beide sind optional — ohne sie arbeitet der Abschluss wie
 	// zuvor.
-	accruals   AccrualCarrier
-	notes      NotesCopier
+	accruals AccrualCarrier
+	notes    NotesCopier
+	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
+	// an dem die Übergangsfrist des § 27 Abs. 38 UStG hängt.
+	revenue    RevenueSource
 	fiscalYear int
 }
 
@@ -98,6 +101,20 @@ type NotesCopier interface {
 
 // SetNotesCopier koppelt die Anhangtexte an die Jahresanlage.
 func (s *ClosingService) SetNotesCopier(c NotesCopier) { s.notes = c }
+
+// RevenueSource liefert die Umsatzerlöse eines Geschäftsjahres aus der Gewinn-
+// und Verlustrechnung.
+//
+// Ein Ausschnitt und kein Verweis auf den Abschlussdienst: gebraucht wird eine
+// Zahl, die Vorbelegung des Vorjahresumsatzes, und nicht die Fähigkeit, einen
+// Abschluss aufzustellen.
+type RevenueSource interface {
+	RevenueOf(ctx context.Context, year int) (domain.Cents, error)
+}
+
+// SetRevenueSource koppelt die GuV an das Geschäftsjahr. Ohne sie bleibt der
+// Vorjahresumsatz eine reine Eingabe.
+func (s *ClosingService) SetRevenueSource(r RevenueSource) { s.revenue = r }
 
 // SetFiscalYear updates the active fiscal year.
 func (s *ClosingService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -193,6 +210,9 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	}
 	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
 		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, fy.StartDate, fy.EndDate, shortSuffix(fy)))
+	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, an der
+	// die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG hängt.
+	s.prefillPriorYearRevenue(ctx, fy)
 	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Die
 	// Bilanzierungs- und Bewertungsmethoden ändern sich selten, und ein leerer
 	// Anhang führt in der Praxis dazu, dass die Angaben schlicht fehlen.
@@ -228,6 +248,7 @@ func (s *ClosingService) YearOf(ctx context.Context, year int) (*domain.FiscalYe
 	// über die Jahresanlage entstanden ist (Entscheidung 8).
 	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
 		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, derived.StartDate, derived.EndDate, shortSuffix(derived)))
+	s.prefillPriorYearRevenue(ctx, derived)
 	return derived, nil
 }
 
@@ -1451,6 +1472,63 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 		"Durchschnittliche Arbeitnehmerzahl des Geschäftsjahres %d von %d auf %d gesetzt (§ 267 Abs. 5 HGB)",
 		year, previous, count))
 	return fy, nil
+}
+
+// SetPriorYearRevenue hält den Gesamtumsatz des Vorjahres fest.
+//
+// An ihm hängt die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 €
+// darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz
+// ausgestellt werden. Vorbelegt wird er aus der Gewinn- und Verlustrechnung des
+// Vorjahres — überschreibbar, weil der Gesamtumsatz des § 19 Abs. 3 UStG nicht
+// dasselbe ist wie die Umsatzerlöse des § 275 HGB: steuerfreie Umsätze,
+// Geschäftsveräußerungen und die unentgeltlichen Wertabgaben gehen
+// auseinander, und die Differenz kennt nur der Steuerpflichtige.
+func (s *ClosingService) SetPriorYearRevenue(ctx context.Context, year int, amount domain.Cents) (*domain.FiscalYear, error) {
+	if amount < 0 {
+		return nil, fmt.Errorf("der Vorjahresumsatz kann nicht negativ sein")
+	}
+	fy, err := s.YearOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if fy.PriorYearRevenue == amount {
+		return fy, nil
+	}
+	previous := fy.PriorYearRevenue
+	fy.PriorYearRevenue = amount
+	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
+		return nil, err
+	}
+	s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+		"Vorjahresumsatz des Geschäftsjahres %d von %s € auf %s € gesetzt (§ 27 Abs. 38 Nr. 2 UStG)",
+		year, previous, amount))
+	return fy, nil
+}
+
+// prefillPriorYearRevenue belegt den Vorjahresumsatz eines neu angelegten
+// Geschäftsjahres aus der GuV des Vorjahres vor.
+//
+// Nur wo er noch nicht erfasst ist, und nur wo sich das Vorjahr überhaupt
+// auswerten lässt: eine Bilanz, die nicht aufgeht, gibt keine Umsatzerlöse her,
+// und das ist kein Grund, das neue Jahr nicht anzulegen. Die Vorbelegung ist
+// ein Vorschlag — ohne sie bliebe der Wert null, und null heißt „nicht
+// erfasst": die Übergangsregel des § 27 Abs. 38 Nr. 2 UStG käme dann nie zum
+// Zug.
+func (s *ClosingService) prefillPriorYearRevenue(ctx context.Context, fy *domain.FiscalYear) {
+	if s.revenue == nil || fy == nil || fy.PriorYearRevenue != 0 {
+		return
+	}
+	revenue, err := s.revenue.RevenueOf(ctx, fy.Year-1)
+	if err != nil || revenue <= 0 {
+		return
+	}
+	fy.PriorYearRevenue = revenue
+	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
+		return
+	}
+	s.audit(ctx, domain.AuditActionUpdate, fy.Year, fmt.Sprintf(
+		"Vorjahresumsatz des Geschäftsjahres %d mit %s € aus der Gewinn- und Verlustrechnung des Jahres %d "+
+			"vorbelegt (§ 27 Abs. 38 Nr. 2 UStG)", fy.Year, revenue, fy.Year-1))
 }
 
 // PeriodOf liefert den Zeitraum eines Geschäftsjahres, ohne ihn anzulegen.

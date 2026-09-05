@@ -18,12 +18,12 @@ func NewBackupRunRepository(db *gorm.DB) domain.BackupRunRepository {
 }
 
 func (r *backupRunRepositoryGorm) Create(ctx context.Context, run *domain.BackupRun) error {
-	return r.db.WithContext(ctx).Create(run).Error
+	return dbFrom(ctx, r.db).Create(run).Error
 }
 
 func (r *backupRunRepositoryGorm) FindRecent(ctx context.Context, limit int) ([]domain.BackupRun, error) {
 	runs := make([]domain.BackupRun, 0)
-	q := r.db.WithContext(ctx).Order("id desc")
+	q := dbFrom(ctx, r.db).Order("id desc")
 	if limit > 0 {
 		q = q.Limit(limit)
 	}
@@ -36,7 +36,7 @@ func (r *backupRunRepositoryGorm) FindRecent(ctx context.Context, limit int) ([]
 // und die Aufgabenliste dürfte ihn nicht als eine ausweisen.
 func (r *backupRunRepositoryGorm) LatestSuccessful(ctx context.Context) (*domain.BackupRun, error) {
 	var run domain.BackupRun
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("success = ?", true).
 		Where("kind IN ?", []domain.BackupKind{domain.BackupKindManual, domain.BackupKindAutomatic}).
 		Order("id desc").First(&run).Error

@@ -89,6 +89,17 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	if c.CountryCode == "" {
 		c.CountryCode = "DE"
 	}
+	// Wer nur die alte einzeilige Anschrift schickt, bekommt sie zerlegt: die
+	// Rechnung braucht Straße, PLZ und Ort in Feldern (§ 14 Abs. 4 Nr. 1 UStG,
+	// BT-50/52/53). Was sich nicht sicher zerlegen lässt, bleibt liegen und
+	// fällt auf der Kontaktseite als unvollständig auf — eine geratene Straße
+	// wäre schlechter als eine fehlende.
+	c.MigrateAddress()
+	// Ohne Zielformat gilt der Regelfall. Ein leeres Feld wäre kein „kein
+	// Format", sondern ein Kontakt, an den sich keine Rechnung stellen ließe.
+	if c.EInvoiceProfile == "" {
+		c.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
+	}
 
 	if err := s.contactRepo.Save(ctx, c); err != nil {
 		return err

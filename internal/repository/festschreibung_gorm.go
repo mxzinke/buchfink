@@ -17,16 +17,16 @@ func NewFestschreibungRepository(db *gorm.DB) domain.FestschreibungRepository {
 }
 
 func (r *festschreibungRepositoryGorm) Create(ctx context.Context, rec *domain.Festschreibung) error {
-	return r.db.WithContext(ctx).Create(rec).Error
+	return dbFrom(ctx, r.db).Create(rec).Error
 }
 
 func (r *festschreibungRepositoryGorm) Update(ctx context.Context, rec *domain.Festschreibung) error {
-	return r.db.WithContext(ctx).Save(rec).Error
+	return dbFrom(ctx, r.db).Save(rec).Error
 }
 
 func (r *festschreibungRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYear int) ([]domain.Festschreibung, error) {
 	var recs []domain.Festschreibung
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("fiscal_year = ?", fiscalYear).
 		Order("cutoff_date desc").
 		Find(&recs).Error
@@ -35,7 +35,7 @@ func (r *festschreibungRepositoryGorm) FindByFiscalYear(ctx context.Context, fis
 
 func (r *festschreibungRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Festschreibung, error) {
 	var rec domain.Festschreibung
-	if err := r.db.WithContext(ctx).First(&rec, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).First(&rec, id).Error; err != nil {
 		return nil, err
 	}
 	return &rec, nil
@@ -43,7 +43,7 @@ func (r *festschreibungRepositoryGorm) FindByID(ctx context.Context, id uint) (*
 
 func (r *festschreibungRepositoryGorm) LatestCutoff(ctx context.Context, fiscalYear int) (string, error) {
 	var rec domain.Festschreibung
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("fiscal_year = ?", fiscalYear).
 		Order("cutoff_date desc").
 		First(&rec).Error
@@ -58,7 +58,7 @@ func (r *festschreibungRepositoryGorm) LatestCutoff(ctx context.Context, fiscalY
 
 func (r *festschreibungRepositoryGorm) FindPendingTimestamp(ctx context.Context) ([]domain.Festschreibung, error) {
 	var recs []domain.Festschreibung
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("timestamp_status = ?", "pending").
 		Find(&recs).Error
 	return recs, err

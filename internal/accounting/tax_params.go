@@ -142,3 +142,36 @@ func EInvoiceTransitionFor(documentDate string) EInvoiceTransition {
 		return EInvoiceTransitionExpired
 	}
 }
+
+// EInvoiceTransitionRevenueLimit ist die Umsatzgrenze des § 27 Abs. 38 Nr. 2
+// UStG: 800.000 € Gesamtumsatz im vorangegangenen Kalenderjahr. Bis dahin darf
+// im Jahr 2027 noch eine sonstige Rechnung ausgestellt werden.
+const EInvoiceTransitionRevenueLimit = domain.Cents(80_000_000)
+
+// EInvoiceIssueTransitionFor beantwortet dieselbe Frage für die Ausstellerseite:
+// darf *diese* Rechnung noch ohne strukturierten Datensatz hinausgehen?
+//
+// Der Unterschied zur Empfangsseite ist der Vorjahresumsatz. Bei einem
+// eingehenden Beleg gehört er dem Lieferanten und ist unbekannt — deshalb
+// liefert EInvoiceTransitionFor dort nur die Bedingung. Beim eigenen Umsatz
+// kennt Buchfink die Zahl (Einstellung `prior_year_revenue` am Geschäftsjahr,
+// aus der GuV des Vorjahres vorbelegt) und kann die Frage entscheiden statt sie
+// weiterzureichen.
+//
+// Ein Vorjahresumsatz von null heißt „nicht erfasst" und nicht „kein Umsatz":
+// die Übergangsregel gilt dann, weil ein Mandant ohne Vorjahr die Grenze nicht
+// überschreiten kann und ein nicht gepflegtes Feld keine Rechnung blockieren
+// soll, die das Gesetz erlaubt.
+func EInvoiceIssueTransitionFor(documentDate string, priorYearRevenue domain.Cents) EInvoiceTransition {
+	switch EInvoiceTransitionFor(documentDate) {
+	case EInvoiceTransitionAllowed:
+		return EInvoiceTransitionAllowed
+	case EInvoiceTransitionConditional:
+		if priorYearRevenue > EInvoiceTransitionRevenueLimit {
+			return EInvoiceTransitionExpired
+		}
+		return EInvoiceTransitionAllowed
+	default:
+		return EInvoiceTransitionExpired
+	}
+}

@@ -108,6 +108,16 @@ type FiscalYear struct {
 	// dieses Merkmal für die kleinste Klasse spricht.
 	AverageEmployees int `gorm:"default:0" json:"averageEmployees"`
 
+	// PriorYearRevenue ist der Gesamtumsatz des vorangegangenen Kalenderjahres.
+	//
+	// Er entscheidet über die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis
+	// 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ausgestellt
+	// werden. Vorbelegt aus der Gewinn- und Verlustrechnung des Vorjahres,
+	// überschreibbar — der Gesamtumsatz des § 19 Abs. 3 UStG ist nicht dasselbe
+	// wie die Umsatzerlöse des § 275 HGB, und die Differenz kennt nur der
+	// Steuerpflichtige. Null heißt „nicht erfasst".
+	PriorYearRevenue Cents `gorm:"default:0" json:"priorYearRevenue"`
+
 	// CarriedForwardAt ist der Zeitpunkt des letzten Saldenvortrags in dieses
 	// Jahr. Nicht ob, sondern wann: ein Vortrag kann durch spätere Buchungen im
 	// Vorjahr überholt werden, und dann ist der Zeitpunkt die einzige Spur, an

@@ -21,7 +21,7 @@ func NewReceiptRepository(db *gorm.DB) domain.ReceiptRepository {
 
 func (r *receiptRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Receipt, error) {
 	var receipt domain.Receipt
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		First(&receipt, id).Error
 	if err != nil {
@@ -40,7 +40,7 @@ func (r *receiptRepositoryGorm) FindByStatus(ctx context.Context, fiscalYear int
 
 func (r *receiptRepositoryGorm) find(ctx context.Context, fiscalYear int, status domain.ReceiptStatus) ([]domain.Receipt, error) {
 	var receipts []domain.Receipt
-	q := r.db.WithContext(ctx).
+	q := dbFrom(ctx, r.db).
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		Order("id desc")
 	if fiscalYear > 0 {
@@ -55,7 +55,7 @@ func (r *receiptRepositoryGorm) find(ctx context.Context, fiscalYear int, status
 
 func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
 	var receipt domain.Receipt
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		Where("id IN (SELECT receipt_id FROM receipt_files WHERE role = ? AND sha256 = ?)",
 			domain.ReceiptRoleOriginal, sha256).
@@ -71,7 +71,7 @@ func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 s
 
 func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID uint) (*domain.Receipt, error) {
 	var receipt domain.Receipt
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		Where("journal_entry_id = ?", entryID).First(&receipt).Error
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID 
 // written to disk *before* this call — their names are their digests, so nothing
 // on disk depends on the number.
 func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Receipt, hash domain.ReceiptHashFunc) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if receipt.ReceiptNumber == "" {
 			key, err := numberRangeFor(receipt.Direction)
 			if err != nil {
@@ -120,7 +120,7 @@ func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Rece
 // its own.
 func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint, files []domain.ReceiptFile, hash domain.ReceiptHashFunc) (*domain.Receipt, error) {
 	var updated domain.Receipt
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
 			return err
@@ -167,7 +167,7 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 // entry pointing at an unsealed Beleg; repeating the seal has to repair that
 // rather than fail.
 func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryID uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
 			return err
@@ -193,7 +193,7 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 // Discard retires a filed Beleg without deleting it. It already carries a
 // Belegnummer, and a received document must stay findable.
 func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, reason string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
 			return err
@@ -217,7 +217,7 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 // and the journal chain are unaffected, and a rule set updated later must be able
 // to write a fresh result against an already booked document.
 func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID uint, v domain.ReceiptValidation) error {
-	return r.db.WithContext(ctx).Model(&domain.Receipt{}).Where("id = ?", receiptID).
+	return dbFrom(ctx, r.db).Model(&domain.Receipt{}).Where("id = ?", receiptID).
 		Updates(map[string]any{
 			"detected_format":     v.Format,
 			"detected_profile":    v.Profile,

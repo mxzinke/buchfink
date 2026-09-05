@@ -32,14 +32,14 @@ func NewClosingStepRepository(db *gorm.DB) domain.ClosingStepRepository {
 
 func (r *closingStepRepositoryGorm) FindByYear(ctx context.Context, year int) ([]domain.ClosingStep, error) {
 	steps := make([]domain.ClosingStep, 0)
-	err := r.db.WithContext(ctx).Where("year = ?", year).Find(&steps).Error
+	err := dbFrom(ctx, r.db).Where("year = ?", year).Find(&steps).Error
 	return steps, err
 }
 
 // Save legt den Zustand an oder schreibt ihn fort. Als Upsert, weil der
 // Schlüssel aus Jahr und Baustein besteht und damit vom Aufrufer gesetzt ist.
 func (r *closingStepRepositoryGorm) Save(ctx context.Context, step *domain.ClosingStep) error {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "year"}, {Name: "key"}},
 			UpdateAll: true,
@@ -64,7 +64,7 @@ func NewAccrualRepository(db *gorm.DB) domain.AccrualRepository {
 // keinen Restbetrag — der ergibt sich aus den gebuchten Auflösungen —, und der
 // Bericht zeigte für jeden Posten den vollen Betrag.
 func (r *accrualRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Preload("Releases", func(db *gorm.DB) *gorm.DB {
 			return db.Order("accrual_releases.date asc, accrual_releases.id asc")
 		}).
@@ -99,15 +99,15 @@ func (r *accrualRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 // der Bildung, weshalb er hier — anders als bei den Anlagenbewegungen —
 // mitgeschrieben werden darf.
 func (r *accrualRepositoryGorm) Save(ctx context.Context, accrual *domain.Accrual) error {
-	return r.db.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(accrual).Error
+	return dbFrom(ctx, r.db).Session(&gorm.Session{FullSaveAssociations: true}).Save(accrual).Error
 }
 
 func (r *accrualRepositoryGorm) SaveRelease(ctx context.Context, release *domain.AccrualRelease) error {
-	return r.db.WithContext(ctx).Save(release).Error
+	return dbFrom(ctx, r.db).Save(release).Error
 }
 
 func (r *accrualRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.Accrual{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.Accrual{}, id).Error
 }
 
 // -------------------------------------------------------------------------
@@ -124,7 +124,7 @@ func NewProvisionRepository(db *gorm.DB) domain.ProvisionRepository {
 }
 
 func (r *provisionRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Preload("Movements", func(db *gorm.DB) *gorm.DB {
 			return db.Order("provision_movements.date asc, provision_movements.id asc")
 		}).
@@ -159,15 +159,15 @@ func (r *provisionRepositoryGorm) FindByID(ctx context.Context, id uint) (*domai
 // entstehen einzeln neben ihrer Buchung, und ein vollständiges Save würde die
 // vorhandenen stillschweigend ersetzen.
 func (r *provisionRepositoryGorm) Save(ctx context.Context, provision *domain.Provision) error {
-	return r.db.WithContext(ctx).Omit("Movements").Save(provision).Error
+	return dbFrom(ctx, r.db).Omit("Movements").Save(provision).Error
 }
 
 func (r *provisionRepositoryGorm) AddMovement(ctx context.Context, movement *domain.ProvisionMovement) error {
-	return r.db.WithContext(ctx).Create(movement).Error
+	return dbFrom(ctx, r.db).Create(movement).Error
 }
 
 func (r *provisionRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.Provision{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.Provision{}, id).Error
 }
 
 // -------------------------------------------------------------------------
@@ -185,7 +185,7 @@ func NewDiscountRateRepository(db *gorm.DB) domain.DiscountRateRepository {
 
 func (r *discountRateRepositoryGorm) FindByMonth(ctx context.Context, month string) ([]domain.DiscountRate, error) {
 	rates := make([]domain.DiscountRate, 0)
-	err := r.db.WithContext(ctx).Where("month = ?", month).Order("average asc, years asc").Find(&rates).Error
+	err := dbFrom(ctx, r.db).Where("month = ?", month).Order("average asc, years asc").Find(&rates).Error
 	return rates, err
 }
 
@@ -194,7 +194,7 @@ func (r *discountRateRepositoryGorm) FindLatestUpTo(ctx context.Context, month s
 	// von NULL in einen string abbricht — eine frische Installation ohne
 	// gepflegte Zinstabelle ist der Normalfall, kein Fehlerfall.
 	var latest string
-	err := r.db.WithContext(ctx).Model(&domain.DiscountRate{}).
+	err := dbFrom(ctx, r.db).Model(&domain.DiscountRate{}).
 		Where("month <= ?", month).
 		Select("coalesce(max(month), '')").Scan(&latest).Error
 	if err != nil {
@@ -208,7 +208,7 @@ func (r *discountRateRepositoryGorm) FindLatestUpTo(ctx context.Context, month s
 
 func (r *discountRateRepositoryGorm) Months(ctx context.Context) ([]string, error) {
 	months := make([]string, 0)
-	err := r.db.WithContext(ctx).Model(&domain.DiscountRate{}).
+	err := dbFrom(ctx, r.db).Model(&domain.DiscountRate{}).
 		Distinct().Order("month desc").Pluck("month", &months).Error
 	return months, err
 }
@@ -217,7 +217,7 @@ func (r *discountRateRepositoryGorm) Save(ctx context.Context, rates []domain.Di
 	if len(rates) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "month"}, {Name: "years"}, {Name: "average"}},
 			UpdateAll: true,
@@ -240,13 +240,13 @@ func NewInventoryRepository(db *gorm.DB) domain.InventoryRepository {
 
 func (r *inventoryRepositoryGorm) FindByYear(ctx context.Context, fiscalYear int) ([]domain.InventoryCount, error) {
 	counts := make([]domain.InventoryCount, 0)
-	err := r.db.WithContext(ctx).Where("fiscal_year = ?", fiscalYear).
+	err := dbFrom(ctx, r.db).Where("fiscal_year = ?", fiscalYear).
 		Order("account asc, id asc").Find(&counts).Error
 	return counts, err
 }
 
 func (r *inventoryRepositoryGorm) Save(ctx context.Context, count *domain.InventoryCount) error {
-	return r.db.WithContext(ctx).Save(count).Error
+	return dbFrom(ctx, r.db).Save(count).Error
 }
 
 // -------------------------------------------------------------------------
@@ -264,12 +264,12 @@ func NewNotesTextRepository(db *gorm.DB) domain.NotesTextRepository {
 
 func (r *notesTextRepositoryGorm) FindByYear(ctx context.Context, year int) ([]domain.NotesText, error) {
 	texts := make([]domain.NotesText, 0)
-	err := r.db.WithContext(ctx).Where("year = ?", year).Find(&texts).Error
+	err := dbFrom(ctx, r.db).Where("year = ?", year).Find(&texts).Error
 	return texts, err
 }
 
 func (r *notesTextRepositoryGorm) Save(ctx context.Context, text *domain.NotesText) error {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "year"}, {Name: "section"}},
 			UpdateAll: true,
@@ -292,7 +292,7 @@ func NewAppropriationRepository(db *gorm.DB) domain.AppropriationRepository {
 
 func (r *appropriationRepositoryGorm) FindByYear(ctx context.Context, year int) (*domain.Appropriation, error) {
 	var appropriation domain.Appropriation
-	err := r.db.WithContext(ctx).Where("year = ?", year).First(&appropriation).Error
+	err := dbFrom(ctx, r.db).Where("year = ?", year).First(&appropriation).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -303,7 +303,7 @@ func (r *appropriationRepositoryGorm) FindByYear(ctx context.Context, year int) 
 }
 
 func (r *appropriationRepositoryGorm) Save(ctx context.Context, appropriation *domain.Appropriation) error {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "year"}}, UpdateAll: true}).
 		Create(appropriation).Error
 }

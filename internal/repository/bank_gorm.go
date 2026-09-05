@@ -18,7 +18,7 @@ func NewBankRepository(db *gorm.DB) domain.BankRepository {
 
 func (r *bankRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.BankTransaction, error) {
 	var txs []domain.BankTransaction
-	q := r.db.WithContext(ctx).Order("booking_date desc, id desc")
+	q := dbFrom(ctx, r.db).Order("booking_date desc, id desc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -28,7 +28,7 @@ func (r *bankRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]dom
 
 func (r *bankRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.BankTransaction, error) {
 	var tx domain.BankTransaction
-	err := r.db.WithContext(ctx).First(&tx, id).Error
+	err := dbFrom(ctx, r.db).First(&tx, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +41,11 @@ func (r *bankRepositoryGorm) CreateBatch(ctx context.Context, transactions []dom
 		// Duplicate prevention: check end_to_end_id or IBAN+date+amount
 		var count int64
 		if tx.EndToEndID != "" {
-			r.db.WithContext(ctx).Model(&domain.BankTransaction{}).
+			dbFrom(ctx, r.db).Model(&domain.BankTransaction{}).
 				Where("end_to_end_id = ?", tx.EndToEndID).
 				Count(&count)
 		} else {
-			r.db.WithContext(ctx).Model(&domain.BankTransaction{}).
+			dbFrom(ctx, r.db).Model(&domain.BankTransaction{}).
 				Where("booking_date = ? AND amount = ? AND counterparty_iban = ?", tx.BookingDate, tx.Amount, tx.CounterpartyIBAN).
 				Count(&count)
 		}
@@ -54,7 +54,7 @@ func (r *bankRepositoryGorm) CreateBatch(ctx context.Context, transactions []dom
 			continue
 		}
 
-		if err := r.db.WithContext(ctx).Create(&tx).Error; err == nil {
+		if err := dbFrom(ctx, r.db).Create(&tx).Error; err == nil {
 			inserted++
 		}
 	}
@@ -62,14 +62,14 @@ func (r *bankRepositoryGorm) CreateBatch(ctx context.Context, transactions []dom
 }
 
 func (r *bankRepositoryGorm) SetMatchStatus(ctx context.Context, id uint, status domain.MatchStatus) error {
-	return r.db.WithContext(ctx).Model(&domain.BankTransaction{}).
+	return dbFrom(ctx, r.db).Model(&domain.BankTransaction{}).
 		Where("id = ?", id).
 		Update("match_status", status).Error
 }
 
 func (r *bankRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {
 	var count int64
-	q := r.db.WithContext(ctx).Model(&domain.BankTransaction{})
+	q := dbFrom(ctx, r.db).Model(&domain.BankTransaction{})
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}

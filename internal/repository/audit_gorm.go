@@ -25,12 +25,12 @@ func (r *auditRepositoryGorm) Log(ctx context.Context, action domain.AuditAction
 		EntityID:   entityID,
 		Details:    details,
 	}
-	return r.db.WithContext(ctx).Create(&entry).Error
+	return dbFrom(ctx, r.db).Create(&entry).Error
 }
 
 func (r *auditRepositoryGorm) FindAll(ctx context.Context, limit int) ([]domain.AuditLogEntry, error) {
 	var entries []domain.AuditLogEntry
-	query := r.db.WithContext(ctx).Order("id desc")
+	query := dbFrom(ctx, r.db).Order("id desc")
 	if limit > 0 {
 		query = query.Limit(limit)
 	}
@@ -40,6 +40,6 @@ func (r *auditRepositoryGorm) FindAll(ctx context.Context, limit int) ([]domain.
 
 func (r *auditRepositoryGorm) Count(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.AuditLogEntry{}).Count(&count).Error
+	err := dbFrom(ctx, r.db).Model(&domain.AuditLogEntry{}).Count(&count).Error
 	return count, err
 }

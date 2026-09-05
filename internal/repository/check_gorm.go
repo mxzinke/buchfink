@@ -27,12 +27,12 @@ func (r *checkRunRepositoryGorm) Create(ctx context.Context, run *domain.CheckRu
 	if run.CreatedAt.IsZero() {
 		run.CreatedAt = time.Now()
 	}
-	return r.db.WithContext(ctx).Create(run).Error
+	return dbFrom(ctx, r.db).Create(run).Error
 }
 
 func (r *checkRunRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYear int) ([]domain.CheckRun, error) {
 	var runs []domain.CheckRun
-	err := r.db.WithContext(ctx).Preload("Findings").
+	err := dbFrom(ctx, r.db).Preload("Findings").
 		Where("fiscal_year = ?", fiscalYear).
 		Order("created_at desc, id desc").
 		Find(&runs).Error
@@ -44,7 +44,7 @@ func (r *checkRunRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYea
 
 func (r *checkRunRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.CheckRun, error) {
 	var run domain.CheckRun
-	if err := r.db.WithContext(ctx).Preload("Findings").First(&run, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).Preload("Findings").First(&run, id).Error; err != nil {
 		return nil, err
 	}
 	run.EnsureLists()
@@ -53,7 +53,7 @@ func (r *checkRunRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain
 
 func (r *checkRunRepositoryGorm) Latest(ctx context.Context, fiscalYear int) (*domain.CheckRun, error) {
 	var run domain.CheckRun
-	err := r.db.WithContext(ctx).Preload("Findings").
+	err := dbFrom(ctx, r.db).Preload("Findings").
 		Where("fiscal_year = ?", fiscalYear).
 		Order("created_at desc, id desc").
 		First(&run).Error

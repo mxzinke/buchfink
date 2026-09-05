@@ -55,6 +55,10 @@ type BuchfinkBridge struct {
 	bankRepo           domain.BankRepository
 	contactRepo        domain.ContactRepository
 	invoiceRepo        domain.InvoiceRepository
+	numberGapRepo      domain.NumberGapRepository
+	invoiceGroupRepo   domain.InvoiceGroupRepository
+	vendorAdvanceRepo  domain.VendorAdvanceRepository
+	txRunner           domain.TxRunner
 	numberRepo         domain.NumberRangeRepository
 	allocationRepo     domain.PaymentAllocationRepository
 	receiptRepo        domain.ReceiptRepository
@@ -265,6 +269,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.inventoryRepo = repository.NewInventoryRepository(db)
 	b.notesRepo = repository.NewNotesTextRepository(db)
 	b.appropriationRepo = repository.NewAppropriationRepository(db)
+	b.numberGapRepo = repository.NewNumberGapRepository(db)
+	b.invoiceGroupRepo = repository.NewInvoiceGroupRepository(db)
+	b.vendorAdvanceRepo = repository.NewVendorAdvanceRepository(db)
+	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -297,6 +305,16 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// bevor er sie liest.
 	b.bankSvc.SetReceiptService(b.receiptSvc)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
+	// Die Ausbuchung einer Forderung gehört mit ihrer Begründung ins Protokoll.
+	b.paymentSvc.SetAuditRepo(b.auditRepo)
+	// Die Eingangsseite der Anzahlungen: ein Beleg mit dem Kennzeichen
+	// „Anzahlung" bucht auf das Konto der geleisteten Anzahlungen, und die
+	// Schlussrechnung des Lieferanten setzt sie wieder ab.
+	b.postingSvc.SetVendorAdvances(b.vendorAdvanceRepo)
+	// Buchung und Vermerk der Anzahlungen entstehen in einer Transaktion: ohne
+	// sie stünde die Schlussrechnung des Lieferanten im Journal, während die
+	// Anzahlung weiter als offen gälte.
+	b.postingSvc.SetTxRunner(b.txRunner)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
 	// Der Renderer eines vorigen Mandanten hält eine WASM-Instanz von
@@ -307,6 +325,20 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	}
 	b.renderer = invoice.NewRenderer()
 	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
+	// Nummernvergabe, Rechnung und Buchung entstehen in einer Transaktion; dazu
+	// kommen der Lückenbericht, der Rechnungsverbund und der Vorjahresumsatz für
+	// § 27 Abs. 38 UStG.
+	// Der Kontoauszug kommt dazu, weil der Zahlungseingang auf eine
+	// Abschlagsrechnung in der Praxis aus dem Bankimport stammt: ohne ihn bliebe
+	// der Umsatz nach der Vereinnahmung als offen stehen und würde ein zweites
+	// Mal zugeordnet.
+	b.invoiceSvc.SetRegistry(service.InvoiceRegistry{
+		Tx:          b.txRunner,
+		Gaps:        b.numberGapRepo,
+		Groups:      b.invoiceGroupRepo,
+		FiscalYears: b.fiscalYearRepo,
+		Bank:        b.bankRepo,
+	})
 	// Das WASM-Modul zu übersetzen kostet ein paar Sekunden. Die soll nicht
 	// zahlen, wer auf "Rechnung ausstellen" drückt.
 	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
@@ -395,6 +427,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.statementSvc = service.NewStatementService(
 		b.accountingSvc, b.closingSvc, b.settingsRepo, b.auditRepo, fiscalYear)
 	b.statementSvc.SetOpenItemSource(b.paymentSvc)
+	// Der Vorjahresumsatz eines neuen Geschäftsjahres kommt aus der GuV des
+	// Vorjahres — die Angabe, an der § 27 Abs. 38 Nr. 2 UStG hängt.
+	b.closingSvc.SetRevenueSource(b.statementSvc)
 	b.statementSvc.SetRenderer(b.renderer)
 	// Der Anhang gehört zum Abschluss: Rückstellungsspiegel, Überleitung zur
 	// Steuerbilanz und die Freitexte kommen aus ihren Diensten, erscheinen aber
@@ -1417,7 +1452,13 @@ func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) error {
 	if b.invoiceSvc == nil {
 		return fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
-	return b.invoiceSvc.Cancel(context.Background(), invoiceID, reason)
+	// Der Weg ohne Stornodokument gibt es nicht mehr: eine stornierte Rechnung
+	// ist beim Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen
+	// (§ 14 Abs. 4 Nr. 4 UStG, § 17 Abs. 1 UStG). Diese Methode bleibt nur
+	// erhalten, weil die Oberfläche sie ruft; sie führt auf denselben Weg wie
+	// CancelInvoiceWithDocument.
+	_, err := b.invoiceSvc.CancelWithDocument(context.Background(), invoiceID, reason)
+	return err
 }
 
 func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string, error) {

@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import type {
   Account,
+  AdvanceTarget,
+  AdvanceTargetOption,
   Contact,
   EInvoiceProposal,
   EntertainmentDetail,
@@ -29,6 +31,7 @@ import type {
   TaxTreatment,
   TaxTreatmentInfo,
   ValidationFinding,
+  VendorAdvance,
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
@@ -36,6 +39,7 @@ import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
+  Checkbox,
   Combobox,
   Dialog,
   EmptyState,
@@ -104,6 +108,29 @@ function needsBooking(receipt: Receipt): boolean {
   return receipt.status === 'filed' && kindOf(receipt) !== 'statement';
 }
 
+/** Welche Belege die Liste zeigt. */
+type ReceiptFilter = 'all' | 'open' | 'unclear';
+
+/**
+ * Ob ein Beleg zu klären ist.
+ *
+ * Zwei Fälle: Der strukturierte Datensatz verstößt gegen das Regelwerk, oder er
+ * ist da und Buchfink konnte ihn nicht lesen. Beides steht zwischen dem Beleg
+ * und seiner Buchung — und beides fällt sonst erst auf, wenn jemand den Beleg
+ * zufällig öffnet.
+ *
+ * Die Buchung beendet den Befund nicht: Eine Rechnung mit fehlerhaftem
+ * Datensatz bleibt zu klären, auch wenn sie schon im Journal steht — der
+ * Vorsteuerabzug hängt an der Rechnung und nicht an der Buchung
+ * (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Ein verworfener Beleg fällt heraus: An ihm
+ * ist nichts mehr zu klären.
+ */
+function needsClarification(receipt: Receipt): boolean {
+  if (receipt.status === 'discarded') return false;
+  if (receipt.validationErrors > 0) return true;
+  return receipt.files.some((f) => f.role === 'structured') && !receipt.detectedFormat;
+}
+
 /**
  * Das Status-Vokabular ist abgeschlossen (§11.3). Ein abgelegter Beleg ist ein
  * offener Vorgang, ein verworfener ist zurückgenommen — dafür gibt es keine
@@ -149,6 +176,7 @@ export const ReceiptsPage: React.FC = () => {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
+  const [filter, setFilter] = useState<ReceiptFilter>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -236,6 +264,14 @@ export const ReceiptsPage: React.FC = () => {
 
   const vendors = useMemo(() => contacts.filter((c) => c.type === 'vendor'), [contacts]);
   const openCount = receipts.filter(needsBooking).length;
+  const unclearCount = receipts.filter(needsClarification).length;
+  // Die Klärungsliste (RECH-07): ein Beleg mit Befund bleibt sonst zwischen
+  // hundert gebuchten stehen und fällt erst bei der Voranmeldung auf.
+  const visible = useMemo(() => {
+    if (filter === 'open') return receipts.filter(needsBooking);
+    if (filter === 'unclear') return receipts.filter(needsClarification);
+    return receipts;
+  }, [receipts, filter]);
   // Der Prüfermodus sperrt jede Erfassung; der Knopf sagt das, statt es dem
   // Anwender nach dem Dateidialog als Fehlermeldung zu zeigen (§10.4).
   const writeLock = useWriteLock();
@@ -244,7 +280,11 @@ export const ReceiptsPage: React.FC = () => {
     <div className="max-w-[1440px] mx-auto px-8 py-8">
       <PageHeader
         title="Belege"
-        context={loading ? undefined : `${receipts.length} abgelegt · ${openCount} noch zu buchen`}
+        context={
+          loading
+            ? undefined
+            : `${receipts.length} abgelegt · ${openCount} zu buchen · ${unclearCount} zu klären`
+        }
         action={
           <div className="flex items-center gap-2">
             <HelpPopover label="Erklärung zum Ablegen und Buchen">
@@ -276,9 +316,21 @@ export const ReceiptsPage: React.FC = () => {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-[19rem_minmax(0,1fr)] gap-8">
         <aside className="xl:border-r xl:border-line xl:pr-6">
+          <Select
+            className="mb-4"
+            items={[
+              { value: 'all', label: `Alle Belege (${receipts.length})` },
+              { value: 'open', label: `Zu buchen (${openCount})` },
+              { value: 'unclear', label: `Zu klären (${unclearCount})` },
+            ]}
+            value={filter}
+            onValueChange={(next) => setFilter(next as ReceiptFilter)}
+          />
           <ReceiptList
-            receipts={receipts}
+            receipts={visible}
             loading={loading}
+            filtered={filter !== 'all'}
+            onResetFilter={() => setFilter('all')}
             selectedId={selected?.id}
             onSelect={setSelected}
           />
@@ -321,11 +373,28 @@ export const ReceiptsPage: React.FC = () => {
 const ReceiptList: React.FC<{
   receipts: Receipt[];
   loading: boolean;
+  /** Ob ein Filter greift — der leere Zustand liest sich dann anders (§13). */
+  filtered: boolean;
+  onResetFilter: () => void;
   selectedId?: number;
   onSelect: (r: Receipt) => void;
-}> = ({ receipts, loading, selectedId, onSelect }) => {
+}> = ({ receipts, loading, filtered, onResetFilter, selectedId, onSelect }) => {
   if (loading) return <SkeletonRows rows={6} />;
-  if (receipts.length === 0) return <EmptyState title="Noch keine Belege abgelegt" />;
+  if (receipts.length === 0) {
+    return filtered ? (
+      <EmptyState
+        variant="gefiltert"
+        title="Kein Beleg passt zu diesem Filter"
+        action={
+          <Button variant="secondary" onClick={onResetFilter}>
+            Filter zurücksetzen
+          </Button>
+        }
+      />
+    ) : (
+      <EmptyState title="Noch keine Belege abgelegt" />
+    );
+  }
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Belege">
@@ -799,6 +868,13 @@ const BookingForm: React.FC<{
   // eine Rückstellung falsch abzuwickeln.
   const [provisions, setProvisions] = useState<Provision[]>([]);
   const [provisionId, setProvisionId] = useState('');
+  // Die Anzahlung ist die zweite Ausnahme vom Aufwand: bezahlt ist etwas,
+  // geliefert nichts. Wofür angezahlt wurde, entscheidet über den Bilanzposten
+  // und lässt sich aus dem Betrag nicht ableiten.
+  const [advanceTargets, setAdvanceTargets] = useState<AdvanceTargetOption[]>([]);
+  const [advanceTarget, setAdvanceTarget] = useState<AdvanceTarget | ''>('');
+  const [openAdvances, setOpenAdvances] = useState<VendorAdvance[]>([]);
+  const [settledAdvanceIds, setSettledAdvanceIds] = useState<number[]>([]);
   const [description, setDescription] = useState(p?.description ?? '');
   const [entertainment, setEntertainment] = useState<EntertainmentDetail>({
     place: '',
@@ -849,6 +925,8 @@ const BookingForm: React.FC<{
       currency: 'EUR',
       entertainment: needsEntertainment ? entertainment : undefined,
       provisionId: provisionId ? Number.parseInt(provisionId, 10) : undefined,
+      advanceTarget: advanceTarget || undefined,
+      settledAdvanceIds: settledAdvanceIds.length > 0 ? settledAdvanceIds : undefined,
     }),
     [
       contactId,
@@ -865,6 +943,8 @@ const BookingForm: React.FC<{
       needsEntertainment,
       entertainment,
       provisionId,
+      advanceTarget,
+      settledAdvanceIds,
     ],
   );
 
@@ -874,7 +954,32 @@ const BookingForm: React.FC<{
     Api.getProvisions(0)
       .then((rows) => setProvisions(rows.filter((provision) => !provision.settledOn)))
       .catch(() => setProvisions([]));
+    Api.getAdvanceTargets()
+      .then(setAdvanceTargets)
+      .catch(() => setAdvanceTargets([]));
   }, []);
+
+  // Die noch nicht verrechneten Anzahlungen genau dieses Lieferanten: seine
+  // Schlussrechnung setzt sie ab. Ohne die Absetzung stünde die Anzahlung
+  // weiter im Vermögen und die Vorsteuer würde ein zweites Mal gezogen.
+  useEffect(() => {
+    setSettledAdvanceIds([]);
+    if (!contactId) {
+      setOpenAdvances([]);
+      return;
+    }
+    let cancelled = false;
+    Api.getOpenVendorAdvances(contactId)
+      .then((rows) => {
+        if (!cancelled) setOpenAdvances(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setOpenAdvances([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contactId]);
 
   // Der Buchungssatz kommt aus dem Backend. Das Frontend rechnet ihn nicht nach:
   // eine zweite Steuerrechnung hier wäre eine zweite Wahrheit.
@@ -1079,6 +1184,32 @@ const BookingForm: React.FC<{
               />
             </Field>
           )}
+          <Field
+            label="Anzahlung"
+            optional
+            explain="Eine geleistete Anzahlung ist kein Aufwand: Sie steht als eigener Posten im Vermögen (§ 266 Abs. 2 HGB) und wird erst mit der Schlussrechnung des Lieferanten umgebucht. Der Vorsteuerabzug setzt neben der Rechnung die Zahlung voraus (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG) — der Beleg wird deshalb als bezahlt erfasst."
+          >
+            <Select
+              items={[
+                { value: '', label: 'Keine Anzahlung' },
+                ...advanceTargets.map((target) => ({
+                  value: target.key,
+                  label: `${target.label} · ${target.account}`,
+                })),
+              ]}
+              value={advanceTarget}
+              onValueChange={(next) => {
+                setAdvanceTarget(next as AdvanceTarget | '');
+                // Der Beleg ist entweder eine geleistete Anzahlung oder die
+                // Schlussrechnung, die eine absetzt — beides zusammen weist
+                // das Backend zurück. Die angehakten Anzahlungen verschwinden
+                // hier ohnehin aus der Ansicht; blieben sie im Zustand, käme
+                // ein Fehler zu Kästchen, die der Anwender nicht mehr sieht.
+                if (next) setSettledAdvanceIds([]);
+              }}
+              placeholder="Keine Anzahlung"
+            />
+          </Field>
           {provisions.length > 0 && (
             <Field
               label="Gehört zu Rückstellung"
@@ -1100,6 +1231,36 @@ const BookingForm: React.FC<{
             </Field>
           )}
         </div>
+
+        {openAdvances.length > 0 && !advanceTarget && (
+          <div>
+            <h4 className="text-label text-ink-muted">
+              Gehört zu Anzahlung
+              <HelpPopover label="Erklärung zur Absetzung der Anzahlung">
+                Die Schlussrechnung des Lieferanten weist den Gesamtbetrag aus, die Vorsteuer auf
+                den angezahlten Teil ist aber schon gezogen. Die abgesetzte Anzahlung wird deshalb
+                vom Konto der geleisteten Anzahlungen aufgelöst; ohne die Angabe stünde sie weiter
+                im Vermögen.
+              </HelpPopover>
+            </h4>
+            <div className="mt-3 flex flex-col gap-2">
+              {openAdvances.map((advance) => (
+                <Checkbox
+                  key={advance.id}
+                  checked={settledAdvanceIds.includes(advance.id)}
+                  onCheckedChange={(checked) =>
+                    setSettledAdvanceIds((prev) =>
+                      checked ? [...prev, advance.id] : prev.filter((id) => id !== advance.id),
+                    )
+                  }
+                  label={`${advance.documentNumber} · ${formatDate(advance.paidAt)} · ${formatCents(
+                    advance.grossAmount,
+                  )}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {needsEntertainment && (
           <div className={cn(NOTE, NOTE_TONE.attention)}>

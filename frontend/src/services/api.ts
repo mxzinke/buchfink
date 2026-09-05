@@ -10,6 +10,10 @@ import type {
   AccrualRequest,
   AcquisitionAdvice,
   AcquisitionCandidate,
+  AdvanceGroupRequest,
+  AdvanceInvoiceRequest,
+  AdvanceItem,
+  AdvanceTargetOption,
   Anlagenspiegel,
   AppConfig,
   Appropriation,
@@ -45,12 +49,14 @@ import type {
   DisposalPreview,
   DisposalRequest,
   DisposalResult,
+  EInvoiceProfileInfo,
   EInvoiceProposal,
   ExpiringAssetDocument,
   ExportResult,
   Festschreibung,
   FestschreibungVerification,
   FileCheckResult,
+  FinalInvoiceRequest,
   FinancialStatement,
   FinancialSummary,
   FiscalYear,
@@ -68,12 +74,18 @@ import type {
   InvestmentRules,
   InvestmentTaxNote,
   Invoice,
+  InvoiceGroup,
+  InvoiceSentVia,
+  InvoiceSentViaOption,
   JournalEntry,
   KeyDirectoryEntry,
   LegacySpecialDepreciationNotice,
   LegalFormInfo,
   MappingReport,
   NotesSection,
+  NumberGapReason,
+  NumberGapReasonOption,
+  NumberGapReport,
   NotesSectionText,
   OpenItem,
   PaymentAllocationDetail,
@@ -86,12 +98,14 @@ import type {
   ProvisionPreview,
   ProvisionRequest,
   Receipt,
+  RefundAdvanceRequest,
   ReceiptFileInput,
   ReceiptPreview,
   ReceiptRequest,
   ReceiptStatus,
   Reconciliation,
   SKR04Catalog,
+  SettleAdvanceRequest,
   Settlement,
   SizeClass,
   SpecialPrepaymentSuggestion,
@@ -104,13 +118,16 @@ import type {
   TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
+  UnitCode,
   Units,
   ValidationResult,
   VatPeriodStatus,
   VatReturn,
   VatSettlement,
   VatSummary,
+  VendorAdvance,
   Vorabpauschale,
+  WriteOffRequest,
   ZMPeriodStatus,
   ZMReturn,
 } from '../types';
@@ -249,6 +266,39 @@ function normalizeStatement(statement: FinancialStatement): FinancialStatement {
       reconciliation: notes.reconciliation
         ? { ...notes.reconciliation, rows: list(notes.reconciliation.rows) }
         : notes.reconciliation,
+    },
+  };
+}
+
+/**
+ * Die Listen einer Rechnung: Positionen und die Bezüge auf vorausgegangene
+ * Rechnungen (BG-3). Eine gewöhnliche Rechnung hat keine Bezüge, und ohne
+ * diese Sicherung stünde in jeder Ansicht, die sie liest, ein eigener
+ * Standardwert — oder eben keiner.
+ */
+function normalizeInvoice(invoice: Invoice): Invoice {
+  if (!invoice) return invoice;
+  return { ...invoice, items: list(invoice.items), precedingRefs: list(invoice.precedingRefs) };
+}
+
+/** Ein Verbund ohne Abschlagsrechnung ist der Zustand direkt nach dem Anlegen. */
+function normalizeInvoiceGroup(group: InvoiceGroup): InvoiceGroup {
+  if (!group) return group;
+  return {
+    ...group,
+    advances: list(group.advances),
+    // Der Fortschritt kommt aus dem Backend. Fehlt er (ein Verbund aus einem
+    // älteren Aufruf), ist der Stand der eines Verbunds ohne Abschlag: nichts
+    // abgerechnet, alles offen. Ein `undefined` an dieser Stelle würde die
+    // Seite beim ersten Zugriff zerlegen.
+    progress: group.progress ?? {
+      agreedNet: group.totalNet ?? 0,
+      billedNet: 0,
+      receivedNet: 0,
+      receivedTax: 0,
+      receivedGross: 0,
+      openNet: group.totalNet ?? 0,
+      closed: Boolean(group.closed),
     },
   };
 }
@@ -434,17 +484,119 @@ export const Api = {
 
   // --- Kontakte & Rechnungen --------------------------------------------
 
-  getContacts: (): Promise<Contact[]> => call(() => Bridge.GetContacts() as Promise<Contact[]>),
+  getContacts: (): Promise<Contact[]> =>
+    call(() => Bridge.GetContacts() as Promise<Contact[]>).then(list),
   saveContact: (contact: Partial<Contact>): Promise<Contact> =>
     call(() => Bridge.SaveContact(contact as any) as Promise<Contact>),
   deleteContact: (id: number): Promise<void> => call(() => Bridge.DeleteContact(id) as Promise<void>),
-  getInvoices: (): Promise<Invoice[]> => call(() => Bridge.GetInvoices() as Promise<Invoice[]>),
+  getInvoices: (): Promise<Invoice[]> =>
+    call(() => Bridge.GetInvoices() as Promise<Invoice[]>)
+      .then(list)
+      .then((rows) => rows.map(normalizeInvoice)),
   issueInvoice: (invoice: Partial<Invoice>): Promise<Invoice> =>
-    call(() => Bridge.IssueInvoice(invoice as any) as Promise<Invoice>),
-  cancelInvoice: (invoiceId: number, reason: string): Promise<void> =>
-    call(() => Bridge.CancelInvoice(invoiceId, reason) as Promise<void>),
+    call(() => Bridge.IssueInvoice(invoice as any) as Promise<Invoice>).then(normalizeInvoice),
   generateInvoiceZUGFeRD: (invoiceId: number): Promise<[string, string]> =>
     call(() => Bridge.GenerateInvoiceZUGFeRD(invoiceId) as Promise<[string, string]>),
+
+  // --- Korrektur, Storno, Versand, Nummernkreis --------------------------
+
+  /**
+   * Holt ein fehlendes Rechnungsdokument nach. Der Fall: Nummer und Buchung
+   * stehen, das Erzeugen des PDF ist gescheitert — ohne diesen Weg wäre die
+   * Nummer verloren.
+   */
+  regenerateInvoiceDocument: (invoiceId: number): Promise<Invoice> =>
+    call(() => Bridge.RegenerateInvoiceDocument(invoiceId) as Promise<Invoice>).then(
+      normalizeInvoice,
+    ),
+  /** Storniert eine Rechnung und stellt die Stornorechnung aus; zurück kommt sie. */
+  cancelInvoiceWithDocument: (invoiceId: number, reason: string): Promise<Invoice> =>
+    call(() => Bridge.CancelInvoiceWithDocument(invoiceId, reason) as Promise<Invoice>).then(
+      normalizeInvoice,
+    ),
+  /** Storniert und stellt die berichtigte Rechnung aus; zurück kommt die neue. */
+  correctInvoice: (
+    invoiceId: number,
+    reason: string,
+    replacement: Partial<Invoice>,
+  ): Promise<Invoice> =>
+    call(() => Bridge.CorrectInvoice(invoiceId, reason, replacement) as Promise<Invoice>).then(
+      normalizeInvoice,
+    ),
+  /** Vermerkt, wann und wie die Rechnung hinausgegangen ist. */
+  markInvoiceSent: (
+    invoiceId: number,
+    date: string,
+    via: InvoiceSentVia,
+    note = '',
+  ): Promise<Invoice> =>
+    call(() => Bridge.MarkInvoiceSent(invoiceId, date, via, note) as Promise<Invoice>).then(
+      normalizeInvoice,
+    ),
+  /** Der Lückenbericht: Zählerstand gegen die vergebenen Nummern. */
+  getInvoiceNumberGaps: (year = 0): Promise<NumberGapReport> =>
+    call(() => Bridge.GetInvoiceNumberGaps(year) as Promise<NumberGapReport>).then((report) =>
+      report ? { ...report, gaps: list(report.gaps) } : report,
+    ),
+  /** Dokumentiert, warum eine Nummer keine Rechnung trägt. */
+  recordInvoiceNumberGapReason: (
+    year: number,
+    sequence: number,
+    reason: NumberGapReason,
+    detail = '',
+  ): Promise<void> => call(() => Bridge.RecordInvoiceNumberGapReason(year, sequence, reason, detail)),
+  /** Die Mengeneinheiten nach UN/ECE Rec. 20, die eine Position tragen kann. */
+  getUnitCodes: (): Promise<UnitCode[]> =>
+    call(() => Bridge.GetUnitCodes() as Promise<UnitCode[]>).then(list),
+  /** Die Zielformate, in denen eine Rechnung ausgestellt werden kann. */
+  getEInvoiceProfiles: (): Promise<EInvoiceProfileInfo[]> =>
+    call(() => Bridge.GetEInvoiceProfiles() as Promise<EInvoiceProfileInfo[]>).then(list),
+  /**
+   * Die Versandwege des Vermerks „Als versendet vermerken".
+   *
+   * Wie Einheiten und Profile aus dem Backend: die Beschriftungen stehen in
+   * `domain.InvoiceSentViaOptions` und nicht ein zweites Mal in der Seite.
+   */
+  getInvoiceSentViaOptions: (): Promise<InvoiceSentViaOption[]> =>
+    call(() => Bridge.GetInvoiceSentViaOptions() as Promise<InvoiceSentViaOption[]>).then(list),
+  /** Die Gründe, mit denen eine Lücke im Nummernkreis begründet wird. */
+  getNumberGapReasons: (): Promise<NumberGapReasonOption[]> =>
+    call(() => Bridge.GetNumberGapReasons() as Promise<NumberGapReasonOption[]>).then(list),
+
+  // --- Anzahlungen -------------------------------------------------------
+
+  getInvoiceGroups: (): Promise<InvoiceGroup[]> =>
+    call(() => Bridge.GetInvoiceGroups() as Promise<InvoiceGroup[]>)
+      .then(list)
+      .then((rows) => rows.map(normalizeInvoiceGroup)),
+  createInvoiceGroup: (request: AdvanceGroupRequest): Promise<InvoiceGroup> =>
+    call(() => Bridge.CreateInvoiceGroup(request) as Promise<InvoiceGroup>).then(
+      normalizeInvoiceGroup,
+    ),
+  /** Die Abschlagsrechnung wird beim Ausstellen nicht gebucht — erst bei Zahlung. */
+  issueAdvanceInvoice: (request: AdvanceInvoiceRequest): Promise<Invoice> =>
+    call(() => Bridge.IssueAdvanceInvoice(request) as Promise<Invoice>).then(normalizeInvoice),
+  /** Der Zahlungseingang auf einen Abschlag: hier entsteht die Steuer. */
+  settleAdvance: (request: SettleAdvanceRequest): Promise<AdvanceItem> =>
+    call(() => Bridge.SettleAdvance(request) as Promise<AdvanceItem>),
+  /** Die Rückzahlung einer vereinnahmten Anzahlung (§ 17 Abs. 2 Nr. 2 UStG). */
+  refundAdvance: (request: RefundAdvanceRequest): Promise<AdvanceItem> =>
+    call(() => Bridge.RefundAdvance(request) as Promise<AdvanceItem>),
+  /** Die Schlussrechnung setzt die vereinnahmten Anzahlungen ab (BT-113). */
+  issueFinalInvoice: (request: FinalInvoiceRequest): Promise<Invoice> =>
+    call(() => Bridge.IssueFinalInvoice(request) as Promise<Invoice>).then(normalizeInvoice),
+  /** Die gestellten, noch nicht vereinnahmten Abschläge als offene Posten. */
+  getOpenAdvances: (): Promise<OpenItem[]> =>
+    call(() => Bridge.GetOpenAdvances() as Promise<OpenItem[]>).then(list),
+  /** Die Verwendungen einer geleisteten Anzahlung mit ihrem Konto. */
+  getAdvanceTargets: (): Promise<AdvanceTargetOption[]> =>
+    call(() => Bridge.GetAdvanceTargets() as Promise<AdvanceTargetOption[]>).then(list),
+  /** Die geleisteten Anzahlungen an einen Lieferanten; 0 heißt alle. */
+  getOpenVendorAdvances: (contactId = 0): Promise<VendorAdvance[]> =>
+    call(() => Bridge.GetOpenVendorAdvances(contactId) as Promise<VendorAdvance[]>).then(list),
+  /** Bucht eine uneinbringliche Forderung aus; die Begründung ist Pflicht. */
+  writeOffOpenItem: (request: WriteOffRequest): Promise<JournalEntry> =>
+    call(() => Bridge.WriteOffOpenItem(request) as Promise<JournalEntry>),
 
   // --- Anlagevermögen ----------------------------------------------------
 
@@ -682,6 +834,13 @@ export const Api = {
   /** Das dritte Merkmal des § 267 Abs. 1 HGB; aus Buchungen nicht ableitbar. */
   setAverageEmployees: (year: number, count: number): Promise<FiscalYear> =>
     call(() => Bridge.SetAverageEmployees(year, count) as Promise<FiscalYear>),
+  /**
+   * Der Gesamtumsatz des Vorjahres. An ihm hängt, ob 2027 noch eine sonstige
+   * Rechnung ohne strukturierten Datensatz ausgestellt werden darf
+   * (§ 27 Abs. 38 Nr. 2 UStG).
+   */
+  setPriorYearRevenue: (year: number, amount: Cents): Promise<FiscalYear> =>
+    call(() => Bridge.SetPriorYearRevenue(year, amount) as Promise<FiscalYear>),
 
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 

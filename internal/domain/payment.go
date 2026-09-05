@@ -19,6 +19,12 @@ const (
 	DifferenceBankFee  DifferenceKind = "bank_fee" // Überweisungsentgelte, Fremdgebühren
 	DifferenceRounding DifferenceKind = "rounding" // Kleinbetragsdifferenz
 	DifferenceCurrency DifferenceKind = "currency" // realisierte Kursdifferenz, § 256a HGB
+	// DifferenceWriteoff ist die Ausbuchung eines uneinbringlichen Postens.
+	//
+	// Sie ist keine Zahlung: es fließt kein Geld. Sie steht trotzdem hier, weil
+	// sie einen offenen Posten schließt — und weil sie wie das Skonto die
+	// Steuer berichtigt, hier nach § 17 Abs. 2 Nr. 1 i. V. m. Abs. 1 UStG.
+	DifferenceWriteoff DifferenceKind = "writeoff"
 )
 
 // DifferenceKindInfo describes a difference kind for the UI.
@@ -26,16 +32,32 @@ type DifferenceKindInfo struct {
 	Kind  DifferenceKind `json:"kind"`
 	Label string         `json:"label"`
 	Hint  string         `json:"hint"`
+	// WithoutPayment markiert die Differenzart, zu der kein Geld fließt.
+	//
+	// Sie ist die Weiche der Oberfläche und keine Beschriftung: die Ausbuchung
+	// steht in derselben Auswahl wie Skonto und Bankgebühr, geht aber einen
+	// anderen Weg (WriteOffOpenItem statt Settle). Ohne das Kennzeichen böte
+	// der Zahlungsausgleich sie an und wiese sie beim Buchen zurück.
+	WithoutPayment bool `json:"withoutPayment"`
 }
 
 // DifferenceKinds lists the difference kinds with their explanations.
 func DifferenceKinds() []DifferenceKindInfo {
 	return []DifferenceKindInfo{
-		{DifferenceNone, "Keine Differenz", "Der Zahlbetrag entspricht dem offenen Posten."},
-		{DifferenceSkonto, "Skonto", "Der Rabatt für schnelle Zahlung mindert auch die Umsatz- bzw. Vorsteuer (§ 17 UStG)."},
-		{DifferenceBankFee, "Bankgebühr", "Die Bank hat zusätzlich zum Rechnungsbetrag ein Entgelt abgebucht."},
-		{DifferenceRounding, "Rundungsdifferenz", "Kleinbetrag, der als Aufwand oder Ertrag ausgebucht wird."},
-		{DifferenceCurrency, "Kursdifferenz", "Realisierter Kursgewinn oder -verlust bei einer Fremdwährungszahlung."},
+		{Kind: DifferenceNone, Label: "Keine Differenz",
+			Hint: "Der Zahlbetrag entspricht dem offenen Posten."},
+		{Kind: DifferenceSkonto, Label: "Skonto",
+			Hint: "Der Rabatt für schnelle Zahlung mindert auch die Umsatz- bzw. Vorsteuer (§ 17 UStG)."},
+		{Kind: DifferenceBankFee, Label: "Bankgebühr",
+			Hint: "Die Bank hat zusätzlich zum Rechnungsbetrag ein Entgelt abgebucht."},
+		{Kind: DifferenceRounding, Label: "Rundungsdifferenz",
+			Hint: "Kleinbetrag, der als Aufwand oder Ertrag ausgebucht wird."},
+		{Kind: DifferenceCurrency, Label: "Kursdifferenz",
+			Hint: "Realisierter Kursgewinn oder -verlust bei einer Fremdwährungszahlung."},
+		{Kind: DifferenceWriteoff, Label: "Ausbuchung", WithoutPayment: true,
+			Hint: "Die Forderung ist uneinbringlich. Sie wird als Forderungsverlust ausgebucht, die " +
+				"Umsatzsteuer wird berichtigt (§ 17 Abs. 2 Nr. 1 UStG). Sie läuft ohne Zahlung über " +
+				"„Forderung ausbuchen\" und nicht über den Zahlungsausgleich."},
 	}
 }
 
@@ -64,20 +86,46 @@ type PaymentAllocation struct {
 	DifferenceAmount Cents          `gorm:"default:0" json:"differenceAmount"`
 }
 
+// OpenItemSource nennt, woher ein offener Posten stammt.
+//
+// Die OP-Liste hat zwei Quellen. Die gewöhnliche leitet den Posten aus der
+// Buchung ab; die Abschlagsrechnung hat vor der Zahlung keine, weil die Steuer
+// erst mit der Vereinnahmung entsteht (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4
+// UStG). Beide stehen in derselben Liste, gehen beim Ausgleich aber
+// verschiedene Wege — PaymentService.Settle bucht gegen das Personenkonto,
+// InvoiceService.SettleAdvance gegen 3272/3806. Ohne die Herkunft am Posten
+// müsste die Oberfläche sie aus zwei getrennten Abfragen erraten.
+type OpenItemSource string
+
+const (
+	// OpenItemSourceJournal ist der Posten aus einer Buchung auf einem
+	// Personenkonto.
+	OpenItemSourceJournal OpenItemSource = "journal"
+	// OpenItemSourceAdvance ist die ausgestellte, noch nicht vereinnahmte
+	// Abschlagsrechnung.
+	OpenItemSourceAdvance OpenItemSource = "advance"
+)
+
 // OpenItem is one unsettled receivable or payable.
 type OpenItem struct {
-	EntryID        uint        `json:"entryId"`
-	EntryNumber    string      `json:"entryNumber"`
-	ContactID      uint        `json:"contactId"`
-	ContactName    string      `json:"contactName"`
-	ContactType    ContactType `json:"contactType"`
-	LedgerAccount  string      `json:"ledgerAccount"`
-	DocumentNumber string      `json:"documentNumber"`
-	DocumentDate   string      `json:"documentDate"`
-	DueDate        string      `json:"dueDate"`
-	GrossAmount    Cents       `json:"grossAmount"`
-	SettledAmount  Cents       `json:"settledAmount"`
-	OpenAmount     Cents       `json:"openAmount"`
+	// Source nennt den Weg, auf dem dieser Posten auszugleichen ist. Ein
+	// Abschlag trägt keine Buchung und damit keine EntryID.
+	Source OpenItemSource `json:"source"`
+	// AdvanceInvoiceID ist die Abschlagsrechnung hinter einem Posten der Quelle
+	// „Abschlag" — der Schlüssel, den SettleAdvance erwartet.
+	AdvanceInvoiceID uint        `json:"advanceInvoiceId,omitempty"`
+	EntryID          uint        `json:"entryId"`
+	EntryNumber      string      `json:"entryNumber"`
+	ContactID        uint        `json:"contactId"`
+	ContactName      string      `json:"contactName"`
+	ContactType      ContactType `json:"contactType"`
+	LedgerAccount    string      `json:"ledgerAccount"`
+	DocumentNumber   string      `json:"documentNumber"`
+	DocumentDate     string      `json:"documentDate"`
+	DueDate          string      `json:"dueDate"`
+	GrossAmount      Cents       `json:"grossAmount"`
+	SettledAmount    Cents       `json:"settledAmount"`
+	OpenAmount       Cents       `json:"openAmount"`
 	// TaxRate of the original document, needed to correct the VAT base when a
 	// Skonto is granted. Zero when the document carried no VAT.
 	TaxRate TaxRate `json:"taxRate"`

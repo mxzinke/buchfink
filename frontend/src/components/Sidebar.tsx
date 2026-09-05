@@ -7,6 +7,7 @@ import {
   Calendar,
   FileSpreadsheet,
   FileText,
+  HandCoins,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -31,6 +32,7 @@ export type TabType =
   | 'bank'
   | 'receipts'
   | 'invoices'
+  | 'advances'
   | 'journal'
   | 'assets'
   | 'contacts'
@@ -90,6 +92,7 @@ const GROUPS: NavGroup[] = [
       { id: 'bank', label: 'Bank & Zahlungen', icon: <Landmark className={icon} /> },
       { id: 'receipts', label: 'Belege', icon: <Receipt className={icon} /> },
       { id: 'invoices', label: 'Rechnungen', icon: <FileText className={icon} /> },
+      { id: 'advances', label: 'Anzahlungen', icon: <HandCoins className={icon} /> },
       { id: 'journal', label: 'Journal', icon: <ListOrdered className={icon} /> },
       { id: 'assets', label: 'Anlagevermögen', icon: <Building2 className={icon} /> },
     ],

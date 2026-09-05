@@ -31,7 +31,7 @@ export {
   type SkeletonRowsProps,
 } from './Feedback';
 export { FileDrop, type FileDropProps } from './FileDrop';
-export { Field, FieldRow, type FieldProps } from './Field';
+export { Field, FieldRow, FieldValue, type FieldProps } from './Field';
 export {
   HelpPopover,
   HelpTooltip,

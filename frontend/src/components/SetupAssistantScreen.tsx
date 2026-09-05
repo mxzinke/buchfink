@@ -123,6 +123,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     street: '',
     zipCity: '',
     country: 'Deutschland',
+    // Ansprechpartner und Nummernformat werden in den Einstellungen gepflegt.
+    // Sie hier abzufragen verlängerte die Einrichtung um Angaben, die erst die
+    // erste Rechnung braucht — und das Nummernformat hat eine Voreinstellung.
+    contactName: '',
+    contactPhone: '',
+    contactEmail: '',
+    invoiceNumberFormat: '',
     // Die Pflichtangaben des § 264 Abs. 1a HGB stehen erst nach der Eintragung
     // fest; der Gründungsweg trägt sie später nach.
     seat: '',

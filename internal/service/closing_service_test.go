@@ -1367,3 +1367,56 @@ func TestAverageEmployeesRefusedAfterAdoption(t *testing.T) {
 		t.Errorf("nach der Rücksetzung muss die Arbeitnehmerzahl wieder änderbar sein: %v", err)
 	}
 }
+
+// Der Vorjahresumsatz wird aus der GuV des Vorjahres vorbelegt und lässt sich
+// über den Dienstweg setzen.
+//
+// An ihm hängt die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 €
+// darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz
+// hinausgehen. Ohne Vorbelegung und ohne Setzweg bliebe der Wert null — „nicht
+// erfasst" —, und die Regel käme nie zum Zug.
+func TestPriorYearRevenueIsPrefilledAndSettable(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	closing := env.closing(t)
+	closing.SetRevenueSource(env.statements(t))
+
+	// Umsatzerlöse 2026: 900.000 € netto.
+	env.post(t, "2026-06-30", domain.AccountBank, "4400", 90_000_000)
+
+	fy, err := closing.CreateFiscalYear(ctx, 2027)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2027 anlegen: %v", err)
+	}
+	if fy.PriorYearRevenue != 90_000_000 {
+		t.Fatalf("Vorjahresumsatz = %s, erwartet 900.000,00 aus der GuV des Vorjahres", fy.PriorYearRevenue)
+	}
+
+	// Und damit ist die sonstige Rechnung 2027 nicht mehr zulässig.
+	customer := env.customer(t, "Kunde GmbH", "DE", "")
+	customer.EInvoiceProfile = domain.EInvoiceProfilePDFOnly
+	if err := env.contacts.SaveContact(ctx, customer); err != nil {
+		t.Fatalf("Kontakt speichern: %v", err)
+	}
+	svc := env.invoicesWired(t)
+	err = svc.Issue(ctx, env.simpleInvoice(customer.ID, "2027-03-01", 100000))
+	if err == nil || !strings.Contains(err.Error(), "§ 27 Abs. 38 UStG") {
+		t.Errorf("über 800.000 € Vorjahresumsatz ist die sonstige Rechnung 2027 unzulässig, erhalten: %v", err)
+	}
+
+	// Der Gesamtumsatz des § 19 Abs. 3 UStG ist nicht die Umsatzerlöse des
+	// § 275 HGB; der Wert bleibt deshalb überschreibbar.
+	corrected, err := closing.SetPriorYearRevenue(ctx, 2027, 50_000_000)
+	if err != nil {
+		t.Fatalf("Vorjahresumsatz setzen: %v", err)
+	}
+	if corrected.PriorYearRevenue != 50_000_000 {
+		t.Errorf("Vorjahresumsatz = %s, erwartet 500.000,00", corrected.PriorYearRevenue)
+	}
+	if err := svc.Issue(ctx, env.simpleInvoice(customer.ID, "2027-03-01", 100000)); err != nil {
+		t.Errorf("bis 800.000 € bleibt die sonstige Rechnung 2027 zulässig: %v", err)
+	}
+	if _, err := closing.SetPriorYearRevenue(ctx, 2027, -1); err == nil {
+		t.Error("ein negativer Vorjahresumsatz darf nicht angenommen werden")
+	}
+}

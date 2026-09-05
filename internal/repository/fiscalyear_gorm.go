@@ -20,13 +20,13 @@ func NewFiscalYearRepository(db *gorm.DB) domain.FiscalYearRepository {
 
 func (r *fiscalYearRepositoryGorm) FindAll(ctx context.Context) ([]domain.FiscalYear, error) {
 	var years []domain.FiscalYear
-	err := r.db.WithContext(ctx).Order("year asc").Find(&years).Error
+	err := dbFrom(ctx, r.db).Order("year asc").Find(&years).Error
 	return years, err
 }
 
 func (r *fiscalYearRepositoryGorm) FindByYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	var fy domain.FiscalYear
-	err := r.db.WithContext(ctx).Where("year = ?", year).First(&fy).Error
+	err := dbFrom(ctx, r.db).Where("year = ?", year).First(&fy).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -43,7 +43,7 @@ func (r *fiscalYearRepositoryGorm) FindByYear(ctx context.Context, year int) (*d
 // eines leeren Schlüssels zwischen Anlegen und Ändern und legte deshalb nie
 // etwas an.
 func (r *fiscalYearRepositoryGorm) Save(ctx context.Context, fy *domain.FiscalYear) error {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "year"}}, UpdateAll: true}).
 		Create(fy).Error
 }

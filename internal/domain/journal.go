@@ -46,10 +46,15 @@ const (
 type EntrySource string
 
 const (
-	EntrySourceManual       EntrySource = "manual"
-	EntrySourceReceipt      EntrySource = "receipt"      // Eingangsbeleg
-	EntrySourceInvoice      EntrySource = "invoice"      // Ausgangsrechnung
-	EntrySourcePayment      EntrySource = "payment"      // Zahlung / OP-Ausgleich
+	EntrySourceManual  EntrySource = "manual"
+	EntrySourceReceipt EntrySource = "receipt" // Eingangsbeleg
+	EntrySourceInvoice EntrySource = "invoice" // Ausgangsrechnung
+	EntrySourcePayment EntrySource = "payment" // Zahlung / OP-Ausgleich
+	// EntrySourceAdvance ist die Vereinnahmung einer Anzahlung. Sie ist eine
+	// eigene Quelle und keine gewöhnliche Zahlung, weil mit ihr die Steuer
+	// entsteht (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG) — eine Zahlung tut das
+	// sonst nie, und die Voranmeldung muss die beiden auseinanderhalten können.
+	EntrySourceAdvance      EntrySource = "advance"
 	EntrySourceOpening      EntrySource = "opening"      // Eröffnungsbilanz
 	EntrySourceDepreciation EntrySource = "depreciation" // AfA
 	EntrySourceClosing      EntrySource = "closing"      // Abschlussbuchung

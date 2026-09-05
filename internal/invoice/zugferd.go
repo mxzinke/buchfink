@@ -1,15 +1,11 @@
 package invoice
 
 import (
-	"bytes"
 	"fmt"
-	"html"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
-	"github.com/buchfink/buchfink/internal/einvoice/ruleset"
 )
 
 // vatCategoryCode maps a Steuerfall to the EN 16931 / UNTDID 5305 category code
@@ -56,13 +52,6 @@ func exemptionReason(t domain.TaxTreatment) string {
 	}
 }
 
-func compactDate(iso string) string {
-	if t, err := time.Parse("2006-01-02", iso); err == nil {
-		return t.Format("20060102")
-	}
-	return time.Now().Format("20060102")
-}
-
 // typstDate renders an ISO date as a Typst datetime call, falling back to the
 // current day only when the invoice carries no date at all — which the invoice
 // validation prevents.
@@ -88,199 +77,17 @@ func ratePercent(r domain.TaxRate) string {
 }
 
 // GenerateZUGFeRDXML creates a Factur-X / ZUGFeRD 2.2 (EN 16931) XML invoice.
+//
+// Sie bleibt als Name bestehen, ist aber nur noch der Regelfall von
+// RenderInvoiceXML: derselbe Datensatz über das semantische Modell, mit dem
+// ZUGFeRD-Profil als Kennung. Die frühere XML-Vorlage aus Formatstrings ist
+// entfallen — siehe cii.go.
 func GenerateZUGFeRDXML(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact) (string, error) {
-	if err := inv.Validate(); err != nil {
+	xml, _, err := RenderInvoiceXML(inv, seller, buyer, domain.EInvoiceProfileZUGFeRD)
+	if err != nil {
 		return "", err
 	}
-
-	category := vatCategoryCode(inv.TaxTreatment)
-	reason := exemptionReason(inv.TaxTreatment)
-
-	var lines bytes.Buffer
-	for i := range inv.Items {
-		item := &inv.Items[i]
-		rate := item.TaxRate
-		if inv.TaxTreatment != domain.TaxTreatmentDomestic {
-			rate = domain.TaxRateNone
-		}
-		lines.WriteString(fmt.Sprintf(`
-		<ram:IncludedSupplyChainTradeLineItem>
-			<ram:AssociatedDocumentLineDocument>
-				<ram:LineID>%d</ram:LineID>
-			</ram:AssociatedDocumentLineDocument>
-			<ram:SpecifiedTradeProduct>
-				<ram:Name>%s</ram:Name>
-			</ram:SpecifiedTradeProduct>
-			<ram:SpecifiedLineTradeAgreement>
-				<ram:NetPriceProductTradePrice>
-					<ram:ChargeAmount>%s</ram:ChargeAmount>
-				</ram:NetPriceProductTradePrice>
-			</ram:SpecifiedLineTradeAgreement>
-			<ram:SpecifiedLineTradeDelivery>
-				<ram:BilledQuantity unitCode="C62">%s</ram:BilledQuantity>
-			</ram:SpecifiedLineTradeDelivery>
-			<ram:SpecifiedLineTradeSettlement>
-				<ram:ApplicableTradeTax>
-					<ram:TypeCode>VAT</ram:TypeCode>
-					<ram:CategoryCode>%s</ram:CategoryCode>
-					<ram:RateApplicablePercent>%s</ram:RateApplicablePercent>
-				</ram:ApplicableTradeTax>
-				<ram:SpecifiedTradeSettlementLineMonetarySummation>
-					<ram:LineTotalAmount>%s</ram:LineTotalAmount>
-				</ram:SpecifiedTradeSettlementLineMonetarySummation>
-			</ram:SpecifiedLineTradeSettlement>
-		</ram:IncludedSupplyChainTradeLineItem>`,
-			item.Position,
-			html.EscapeString(item.Description),
-			item.UnitPrice.Decimal(),
-			quantityString(item.QuantityMilli),
-			category,
-			ratePercent(rate),
-			item.TotalNet().Decimal(),
-		))
-	}
-
-	// One ApplicableTradeTax block per rate group, as EN 16931 requires.
-	var taxBlocks bytes.Buffer
-	for _, g := range inv.TaxGroups() {
-		rate := g.Rate
-		if inv.TaxTreatment != domain.TaxTreatmentDomestic {
-			rate = domain.TaxRateNone
-		}
-		var reasonTag string
-		if reason != "" {
-			reasonTag = fmt.Sprintf("\n\t\t\t\t<ram:ExemptionReason>%s</ram:ExemptionReason>", html.EscapeString(reason))
-		}
-		taxBlocks.WriteString(fmt.Sprintf(`
-			<ram:ApplicableTradeTax>
-				<ram:CalculatedAmount>%s</ram:CalculatedAmount>
-				<ram:TypeCode>VAT</ram:TypeCode>%s
-				<ram:BasisAmount>%s</ram:BasisAmount>
-				<ram:CategoryCode>%s</ram:CategoryCode>
-				<ram:RateApplicablePercent>%s</ram:RateApplicablePercent>
-			</ram:ApplicableTradeTax>`,
-			g.Tax.Decimal(), reasonTag, g.Net.Decimal(), category, ratePercent(rate),
-		))
-	}
-
-	// Das Bestimmungsland (BT-80) gehört auf jede Rechnung und ist bei einer
-	// innergemeinschaftlichen Lieferung Pflicht (BR-IC-12): ohne es lässt sich
-	// nicht belegen, dass die Ware das Inland verlassen hat, und daran hängt die
-	// Steuerbefreiung nach § 6a UStG.
-	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
-    xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
-    xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
-    xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
-	<rsm:ExchangedDocumentContext>
-		<ram:GuidelineSpecifiedDocumentContextParameter>
-			<ram:ID>urn:cen.eu:en16931:2017</ram:ID>
-		</ram:GuidelineSpecifiedDocumentContextParameter>
-	</rsm:ExchangedDocumentContext>
-	<rsm:ExchangedDocument>
-		<ram:ID>%s</ram:ID>
-		<ram:TypeCode>380</ram:TypeCode>
-		<ram:IssueDateTime>
-			<udt:DateTimeString format="102">%s</udt:DateTimeString>
-		</ram:IssueDateTime>
-	</rsm:ExchangedDocument>
-	<rsm:SupplyChainTradeTransaction>%s
-		<ram:ApplicableHeaderTradeAgreement>
-			<ram:SellerTradeParty>
-				<ram:Name>%s</ram:Name>
-				<ram:PostalTradeAddress>
-					<ram:LineOne>%s</ram:LineOne>
-					<ram:CityName>%s</ram:CityName>
-					<ram:CountryID>DE</ram:CountryID>
-				</ram:PostalTradeAddress>
-				<ram:SpecifiedTaxRegistration>
-					<ram:ID schemeID="VA">%s</ram:ID>
-				</ram:SpecifiedTaxRegistration>
-			</ram:SellerTradeParty>
-			<ram:BuyerTradeParty>
-				<ram:Name>%s</ram:Name>
-				<ram:PostalTradeAddress>
-					<ram:LineOne>%s</ram:LineOne>
-					<ram:CountryID>%s</ram:CountryID>
-				</ram:PostalTradeAddress>
-				<ram:SpecifiedTaxRegistration>
-					<ram:ID schemeID="VA">%s</ram:ID>
-				</ram:SpecifiedTaxRegistration>
-			</ram:BuyerTradeParty>
-		</ram:ApplicableHeaderTradeAgreement>
-		<ram:ApplicableHeaderTradeDelivery>
-			<ram:ShipToTradeParty>
-				<ram:Name>%s</ram:Name>
-				<ram:PostalTradeAddress>
-					<ram:CountryID>%s</ram:CountryID>
-				</ram:PostalTradeAddress>
-			</ram:ShipToTradeParty>
-			<ram:ActualDeliverySupplyChainEvent>
-				<ram:OccurrenceDateTime>
-					<udt:DateTimeString format="102">%s</udt:DateTimeString>
-				</ram:OccurrenceDateTime>
-			</ram:ActualDeliverySupplyChainEvent>
-		</ram:ApplicableHeaderTradeDelivery>
-		<ram:ApplicableHeaderTradeSettlement>
-			<ram:InvoiceCurrencyCode>%s</ram:InvoiceCurrencyCode>%s
-			<ram:SpecifiedTradePaymentTerms>
-				<ram:DueDateDateTime>
-					<udt:DateTimeString format="102">%s</udt:DateTimeString>
-				</ram:DueDateDateTime>
-			</ram:SpecifiedTradePaymentTerms>
-			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-				<ram:LineTotalAmount>%s</ram:LineTotalAmount>
-				<ram:TaxBasisTotalAmount>%s</ram:TaxBasisTotalAmount>
-				<ram:TaxTotalAmount currencyID="%s">%s</ram:TaxTotalAmount>
-				<ram:GrandTotalAmount>%s</ram:GrandTotalAmount>
-				<ram:DuePayableAmount>%s</ram:DuePayableAmount>
-			</ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-		</ram:ApplicableHeaderTradeSettlement>
-	</rsm:SupplyChainTradeTransaction>
-</rsm:CrossIndustryInvoice>`,
-		html.EscapeString(inv.InvoiceNumber),
-		compactDate(inv.Date),
-		lines.String(),
-		html.EscapeString(seller.CompanyName),
-		html.EscapeString(seller.Street),
-		html.EscapeString(seller.ZipCity),
-		html.EscapeString(seller.VatID),
-		html.EscapeString(buyer.Name),
-		html.EscapeString(strings.ReplaceAll(buyer.Address, "\n", ", ")),
-		html.EscapeString(countryOrDE(buyer.CountryCode)),
-		html.EscapeString(buyer.VatID),
-		html.EscapeString(buyer.Name),
-		html.EscapeString(countryOrDE(buyer.CountryCode)),
-		compactDate(inv.ServiceDateTo),
-		inv.Currency,
-		taxBlocks.String(),
-		compactDate(inv.DueDate),
-		inv.NetAmount.Decimal(),
-		inv.NetAmount.Decimal(),
-		inv.Currency, inv.TaxAmount.Decimal(),
-		inv.GrossAmount.Decimal(),
-		inv.GrossAmount.Decimal(),
-	)
-
-	// Die eigene Rechnung wird gegen die eigene Prüfung gehalten. Eine Rechnung
-	// ohne vollständige Empfängeranschrift ist nach § 14 Abs. 4 Nr. 1 UStG keine
-	// ordnungsmäßige Rechnung — der Empfänger verlöre den Vorsteuerabzug, und er
-	// merkte es erst bei der Prüfung. Lieber jetzt eine Meldung an den Aussteller.
-	// Lässt sich das eigene Erzeugnis nicht einmal lesen, ist das der schwerste
-	// denkbare Befund und kein Grund, die Prüfung zu überspringen: ein nicht
-	// druckbares Zeichen in einer Anschrift genügt — wie es beim Kopieren aus
-	// einem PDF entsteht —, und das Ergebnis wanderte ungeprüft ins Kunden-PDF.
-	doc, err := einvoice.ParseCII([]byte(xmlContent))
-	if err != nil {
-		return "", fmt.Errorf("der erzeugte Rechnungsdatensatz ist nicht lesbar: %w", err)
-	}
-	if result := ruleset.Validate(doc); !result.Valid() {
-		return "", fmt.Errorf(
-			"die Rechnung erfüllt EN 16931 noch nicht: %s. Bitte die fehlenden Stammdaten ergänzen",
-			strings.Join(errorMessages(result), "; "))
-	}
-
-	return xmlContent, nil
+	return xml, nil
 }
 
 func errorMessages(result einvoice.Result) []string {
@@ -301,7 +108,29 @@ func countryOrDE(code string) string {
 }
 
 // GenerateTypstTemplate renders the invoice as Typst markup.
+//
+// Das PDF ist das, was der Empfänger liest. Alles, was § 14 Abs. 4 UStG als
+// Pflichtangabe nennt, muss deshalb hier stehen und nicht nur im XML: die
+// vollständige Anschrift beider Seiten, Steuernummer oder USt-IdNr. des
+// Ausstellers, die USt-IdNr. des Empfängers, wo sie hingehört, der
+// Leistungszeitpunkt, die vereinbarte Entgeltminderung — und bei einer
+// Korrektur der Bezug auf die Rechnung, die sie berichtigt.
 func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact) string {
+	return typstTemplate(inv, seller, buyer, true)
+}
+
+// GeneratePlainTypstTemplate renders the same document without the attached
+// record.
+//
+// Es ist die sonstige Rechnung des § 14 Abs. 1 Satz 4 UStG: ein PDF ohne
+// strukturierten Teil, zulässig nur innerhalb der Übergangsfrist des
+// § 27 Abs. 38 UStG. Sie entsteht aus derselben Vorlage — ein zweites Layout
+// wäre eine zweite Stelle, an der eine Pflichtangabe fehlen könnte.
+func GeneratePlainTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact) string {
+	return typstTemplate(inv, seller, buyer, false)
+}
+
+func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact, attach bool) string {
 	var rows strings.Builder
 	for i := range inv.Items {
 		item := &inv.Items[i]
@@ -309,7 +138,7 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
 			item.Position,
 			typstEscape(item.Description),
 			strings.TrimSuffix(strings.TrimRight(quantityString(item.QuantityMilli), "0"), "."),
-			typstEscape(item.Unit),
+			typstEscape(domain.UnitLabel(item.Unit)),
 			item.UnitPrice.String(),
 			item.TotalNet().String(),
 		))
@@ -326,14 +155,43 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
 		}
 	}
 	totals.WriteString(`      [*Gesamtbetrag:*], [*#text(size: 12pt, fill: rgb("#d97706"))[` + inv.GrossAmount.String() + ` €]*],` + "\n")
+	// Die verrechneten Anzahlungen stehen unter dem Gesamtbetrag und nicht
+	// darin: § 14 Abs. 5 Satz 2 UStG verlangt, dass die Schlussrechnung die
+	// vereinnahmten Teilentgelte und die darauf entfallende Steuer absetzt —
+	// sichtbar, nicht schon im Gesamtbetrag verrechnet.
+	if inv.PrepaidAmount != 0 {
+		totals.WriteString(fmt.Sprintf("      [abzüglich Anzahlungen:], [%s €],\n", (-inv.PrepaidAmount).String()))
+		totals.WriteString(fmt.Sprintf("      [*Zahlbetrag:*], [*%s €*],\n", inv.OpenAmount().String()))
+	}
 
 	// Every non-standard Steuerfall needs its legal reference printed on the
 	// invoice; § 14 Abs. 4 Nr. 8 UStG requires the reason for an exemption.
-	var note string
+	var notes []string
 	if reason := exemptionReason(inv.TaxTreatment); reason != "" {
-		note = fmt.Sprintf(`
-#v(0.3cm)
-#text(size: 8.5pt, fill: rgb("#78716c"), style: "italic")[%s]`, typstEscape(reason))
+		notes = append(notes, reason)
+	}
+	if ref := correctionNote(inv); ref != "" {
+		notes = append(notes, ref)
+	}
+	if terms := inv.Terms.Note(inv.Date); terms != "" {
+		notes = append(notes, terms)
+	}
+	if inv.SmallAmount {
+		note := "Kleinbetragsrechnung nach § 33 UStDV"
+		// Ohne Empfänger geht sie als PDF hinaus. Der Hinweis steht auf dem
+		// Dokument, weil der Empfänger sonst eine E-Rechnung erwartet, die es zu
+		// diesem Vorgang nicht gibt und nicht geben muss.
+		if inv.ContactID == 0 {
+			note += " — von der Pflicht zur E-Rechnung ausgenommen"
+		}
+		notes = append(notes, note)
+	}
+	if inv.ResolvedKind() == domain.InvoiceKindAdvance && inv.PaymentReceivedAt != "" {
+		notes = append(notes, "Zeitpunkt der Vereinnahmung: "+domain.GermanDate(inv.PaymentReceivedAt))
+	}
+	var note string
+	for _, n := range notes {
+		note += fmt.Sprintf("\n#v(0.3cm)\n#text(size: 8.5pt, fill: rgb(\"#78716c\"), style: \"italic\")[%s]", typstEscape(n))
 	}
 
 	// PDF/A demands a document date, and the embedded file needs both a mime type
@@ -342,16 +200,22 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
 	// the PDF and the XML are two renderings of one invoice, and for the BASIC
 	// and EN-16931 profiles anything else is not legally valid in Germany.
 	docDate := typstDate(inv.Date)
+	heading := strings.ToUpper(inv.ResolvedKind().Label())
 
-	return fmt.Sprintf(`#set document(title: "Rechnung %s", author: %q, date: %s)
-#pdf.embed(
+	embed := ""
+	if attach {
+		embed = `#pdf.embed(
   "factur-x.xml",
   bytes(sys.inputs.zugferd_xml),
   relationship: "alternative",
   mime-type: "text/xml",
   description: "Factur-X / ZUGFeRD invoice data (EN 16931)",
 )
-#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
+`
+	}
+
+	return fmt.Sprintf(`#set document(title: "%s %s", author: %q, date: %s)
+%s#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
 #set text(font: "Manrope", size: 10pt, fill: rgb("#1c1917"))
 
 #grid(
@@ -364,11 +228,11 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
   ],
   [
     #align(right)[
-      #text(size: 16pt, weight: "bold", fill: rgb("#d97706"))[RECHNUNG]\
+      #text(size: 16pt, weight: "bold", fill: rgb("#d97706"))[%s]\
       #v(0.2cm)
       #text(size: 10pt, weight: "bold")[Nr. %s]\
       Rechnungsdatum: %s\
-      Leistungszeitraum: %s – %s\
+      %s
       Fällig bis: %s
     ]
   ]
@@ -400,14 +264,18 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
   Steuernummer: %s · USt-IdNr.: %s
 ]
 `,
-		typstEscape(inv.InvoiceNumber),
+		typstEscape(inv.ResolvedKind().Label()), typstEscape(inv.InvoiceNumber),
 		// %q inside a Typst string literal: the markup escaping of typstEscape
 		// would land as visible backslashes in the PDF metadata.
 		seller.CompanyName,
 		docDate,
+		embed,
 		typstEscape(seller.CompanyName), typstEscape(seller.Street), typstEscape(seller.ZipCity),
-		typstEscape(buyer.Name), typstEscape(buyer.Address),
-		typstEscape(inv.InvoiceNumber), inv.Date, inv.ServiceDateFrom, inv.ServiceDateTo, inv.DueDate,
+		typstEscape(buyerName(inv, buyer)), buyerAddressBlock(inv, buyer),
+		typstEscape(heading),
+		typstEscape(inv.InvoiceNumber), domain.GermanDate(inv.Date),
+		servicePeriodLine(inv),
+		domain.GermanDate(inv.DueDate),
 		rows.String(),
 		totals.String(),
 		note,
@@ -416,8 +284,75 @@ func GenerateTypstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, 
 	)
 }
 
-// typstEscape neutralises the Typst markup characters so that a customer name
-// containing a bracket or a hash cannot break the document.
+// buyerName is what the address block is headed with. Without a contact — the
+// Barverkauf of a Kleinbetragsrechnung — it says so instead of leaving a gap.
+func buyerName(inv *domain.Invoice, buyer *domain.Contact) string {
+	if buyer != nil && buyer.Name != "" {
+		return buyer.Name
+	}
+	if inv.ContactName != "" {
+		return inv.ContactName
+	}
+	return "Barverkauf"
+}
+
+// buyerAddressBlock renders the recipient below their name: street, postal code
+// and city each on their own line, and the USt-IdNr. where § 14a UStG puts it
+// on the document.
+func buyerAddressBlock(inv *domain.Invoice, buyer *domain.Contact) string {
+	if buyer == nil {
+		return ""
+	}
+	street, postalCode, city := buyer.PostalAddress()
+	var b strings.Builder
+	if street != "" {
+		b.WriteString(typstEscape(street) + " \\\n    ")
+	}
+	if postalCode != "" || city != "" {
+		b.WriteString(typstEscape(strings.TrimSpace(postalCode+" "+city)) + " \\\n    ")
+	}
+	if buyer.VatID != "" {
+		b.WriteString("USt-IdNr.: " + typstEscape(buyer.VatID))
+	}
+	return strings.TrimSuffix(b.String(), " \\\n    ")
+}
+
+// servicePeriodLine states the Leistungszeitpunkt (§ 14 Abs. 4 Nr. 6 UStG). A
+// Abschlagsrechnung before the money came in has none to state — then the line
+// stays away rather than repeating the invoice date as if it were one.
+func servicePeriodLine(inv *domain.Invoice) string {
+	if inv.ResolvedKind() == domain.InvoiceKindAdvance {
+		if inv.PaymentReceivedAt == "" {
+			return ""
+		}
+		return "Vereinnahmung: " + domain.GermanDate(inv.PaymentReceivedAt) + "\\\n      "
+	}
+	if inv.ServiceDateFrom == inv.ServiceDateTo {
+		return "Leistungsdatum: " + domain.GermanDate(inv.ServiceDateTo) + "\\\n      "
+	}
+	return "Leistungszeitraum: " + domain.GermanDate(inv.ServiceDateFrom) + " – " +
+		domain.GermanDate(inv.ServiceDateTo) + "\\\n      "
+}
+
+// correctionNote names the document this one refers to.
+func correctionNote(inv *domain.Invoice) string {
+	if inv.CorrectsInvoiceNumber == "" {
+		return ""
+	}
+	date := ""
+	if inv.CorrectsInvoiceDate != "" {
+		date = " vom " + domain.GermanDate(inv.CorrectsInvoiceDate)
+	}
+	switch inv.ResolvedKind() {
+	case domain.InvoiceKindCancellation:
+		return "Storno zu Rechnung " + inv.CorrectsInvoiceNumber + date
+	case domain.InvoiceKindCorrection:
+		return "Berichtigung der Rechnung " + inv.CorrectsInvoiceNumber + date
+	default:
+		return "Bezug: Rechnung " + inv.CorrectsInvoiceNumber + date
+	}
+}
+
 func typstEscape(s string) string {
 	replacer := strings.NewReplacer(
 		"\\", "\\\\", "[", "\\[", "]", "\\]",

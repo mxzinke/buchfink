@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -27,16 +28,39 @@ type Contact struct {
 	// LedgerAccount is the Personenkonto, e.g. "10001" or "70023".
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 
-	Name             string `gorm:"size:255;not null;index" json:"name"`
-	Company          string `gorm:"size:255;serializer:encrypted" json:"company"`
-	Email            string `gorm:"size:255;serializer:encrypted" json:"email"`
-	Address          string `gorm:"type:text;serializer:encrypted" json:"address"`
+	Name    string `gorm:"size:255;not null;index" json:"name"`
+	Company string `gorm:"size:255;serializer:encrypted" json:"company"`
+	Email   string `gorm:"size:255;serializer:encrypted" json:"email"`
+	// Address is the unstructured address as it was captured before Welle 5b.
+	// It stays as the fallback for records the parser could not split, and is
+	// what MigrateAddress reads.
+	Address string `gorm:"type:text;serializer:encrypted" json:"address"`
+	// Street, PostalCode und City sind die Anschrift in ihren Bestandteilen.
+	//
+	// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
+	// Leistungsempfängers, und EN 16931 verlangt sie in Feldern (BT-50, BT-52,
+	// BT-53): eine einzeilige Anschrift landete bisher komplett in BT-50, und
+	// beim Empfänger stand die Stadt in der Straße. Ein Freitextfeld lässt sich
+	// auch nicht prüfen — ob eine PLZ darin vorkommt, ist keine Prüfung.
+	Street           string `gorm:"size:255;serializer:encrypted" json:"street"`
+	PostalCode       string `gorm:"size:20;serializer:encrypted" json:"postalCode"`
+	City             string `gorm:"size:120;serializer:encrypted" json:"city"`
 	TaxID            string `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
 	VatID            string `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
 	CountryCode      string `gorm:"size:2;default:'DE'" json:"countryCode"`
 	IBAN             string `gorm:"size:34;serializer:encrypted" json:"iban"`
 	BIC              string `gorm:"size:11;serializer:encrypted" json:"bic"`
 	PaymentTermsDays int    `gorm:"default:14" json:"paymentTermsDays"`
+
+	// EInvoiceProfile ist das Zielformat, in dem dieser Empfänger seine
+	// Rechnungen bekommt. Es ist eine Eigenschaft des Empfängers und keine
+	// Entscheidung je Rechnung: eine Behörde nimmt XRechnung und sonst nichts,
+	// und wer das bei jeder Rechnung neu wählt, wählt irgendwann falsch.
+	EInvoiceProfile EInvoiceProfile `gorm:"size:30;not null;default:'zugferd_en16931'" json:"eInvoiceProfile"`
+	// LeitwegID ist die Route-ID des öffentlichen Auftraggebers (BT-10). Bei
+	// XRechnung ist sie Pflicht (BR-DE-15); ohne sie findet die Rechnung ihren
+	// Empfänger in der Verwaltung nicht.
+	LeitwegID string `gorm:"size:60;serializer:encrypted" json:"leitwegId"`
 
 	// IsPrivate marks a partner who is not an Unternehmer. It decides whether the
 	// e-invoice obligation of § 14 Abs. 2 Satz 2 Nr. 1 UStG can apply to a
@@ -68,6 +92,141 @@ type Contact struct {
 
 // IsBusiness reports whether the partner is an Unternehmer.
 func (c *Contact) IsBusiness() bool { return !c.IsPrivate }
+
+// EInvoiceProfile names the format an outgoing invoice is issued in.
+type EInvoiceProfile string
+
+const (
+	// EInvoiceProfileZUGFeRD ist der Regelfall: ein PDF/A-3 mit eingebettetem
+	// CII-Datensatz nach EN 16931. Der Empfänger kann es lesen und sein System
+	// auch.
+	EInvoiceProfileZUGFeRD EInvoiceProfile = "zugferd_en16931"
+	// EInvoiceProfileXRechnungCII ist die reine XML-Datei nach der deutschen
+	// Ausprägung (CIUS) in der CII-Syntax — was Bund und Länder verlangen.
+	EInvoiceProfileXRechnungCII EInvoiceProfile = "xrechnung_cii"
+	// EInvoiceProfilePDFOnly ist die sonstige Rechnung ohne strukturierten
+	// Teil. Sie ist nur innerhalb der Übergangsfrist des § 27 Abs. 38 UStG
+	// zulässig; siehe accounting.EInvoiceIssueTransitionFor.
+	EInvoiceProfilePDFOnly EInvoiceProfile = "pdf_only"
+)
+
+// EInvoiceProfileInfo describes a profile for the UI.
+type EInvoiceProfileInfo struct {
+	Profile EInvoiceProfile `json:"profile"`
+	Label   string          `json:"label"`
+	Hint    string          `json:"hint"`
+}
+
+// EInvoiceProfiles lists the profiles an outgoing invoice can be issued in.
+//
+// XRechnung in der UBL-Syntax fehlt bewusst: Buchfink hat keinen UBL-Schreiber,
+// und ein Profil anzubieten, das nichts erzeugt, wäre ein Versprechen, das erst
+// beim Ausstellen bricht.
+func EInvoiceProfiles() []EInvoiceProfileInfo {
+	return []EInvoiceProfileInfo{
+		{EInvoiceProfileZUGFeRD, "ZUGFeRD (PDF mit Datensatz)",
+			"PDF/A-3 mit eingebettetem Rechnungsdatensatz nach EN 16931. Der Regelfall im Geschäftsverkehr."},
+		{EInvoiceProfileXRechnungCII, "XRechnung (nur XML)",
+			"Reine XML-Datei nach der deutschen Ausprägung. Öffentliche Auftraggeber verlangen sie; die Leitweg-ID ist dann Pflicht."},
+		{EInvoiceProfilePDFOnly, "Nur PDF (sonstige Rechnung)",
+			"Ohne strukturierten Datensatz. Nur innerhalb der Übergangsfrist des § 27 Abs. 38 UStG zulässig."},
+	}
+}
+
+// Label ist der Klartext für Meldungen und Oberfläche.
+func (p EInvoiceProfile) Label() string {
+	for _, info := range EInvoiceProfiles() {
+		if info.Profile == p {
+			return info.Label
+		}
+	}
+	return string(p)
+}
+
+// ResolvedEInvoiceProfile is the profile to use, filling in the default for a
+// contact captured before the field existed.
+func (c *Contact) ResolvedEInvoiceProfile() EInvoiceProfile {
+	if c.EInvoiceProfile == "" {
+		return EInvoiceProfileZUGFeRD
+	}
+	return c.EInvoiceProfile
+}
+
+// PostalAddress liefert die Anschrift in ihren Bestandteilen, notfalls aus dem
+// alten Freitextfeld gelesen.
+func (c *Contact) PostalAddress() (street, postalCode, city string) {
+	if c.Street != "" || c.PostalCode != "" || c.City != "" {
+		return c.Street, c.PostalCode, c.City
+	}
+	return ParsePostalAddress(c.Address)
+}
+
+// HasCompleteAddress reports whether street, postal code and city are all
+// known — the three parts § 14 Abs. 4 Nr. 1 UStG asks for.
+func (c *Contact) HasCompleteAddress() bool {
+	street, postalCode, city := c.PostalAddress()
+	return street != "" && postalCode != "" && city != ""
+}
+
+// MigrateAddress fills the structured fields from the free-text address.
+//
+// It is best effort and says so: what it cannot split stays in Address, and the
+// contact page shows the record as incomplete. Guessing silently would be
+// worse — a wrong street on an invoice is a formal defect the recipient pays
+// for with their input tax deduction.
+func (c *Contact) MigrateAddress() bool {
+	if c.Street != "" || c.PostalCode != "" || c.City != "" {
+		return false
+	}
+	street, postalCode, city := ParsePostalAddress(c.Address)
+	if street == "" || postalCode == "" || city == "" {
+		return false
+	}
+	c.Street, c.PostalCode, c.City = street, postalCode, city
+	return true
+}
+
+// ParsePostalAddress splits a free-text address into street, postal code and
+// city.
+//
+// The expected shape is the German one: the last line is "PLZ Ort", everything
+// before it is the street. Both a line break and a comma count as a separator,
+// because both spellings sit in the existing data.
+func ParsePostalAddress(address string) (street, postalCode, city string) {
+	normalized := strings.ReplaceAll(address, "\n", ",")
+	parts := make([]string, 0, 4)
+	for _, p := range strings.Split(normalized, ",") {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	if len(parts) < 2 {
+		return "", "", ""
+	}
+	last := parts[len(parts)-1]
+	code, town, ok := splitPostalLine(last)
+	if !ok {
+		return "", "", ""
+	}
+	return strings.Join(parts[:len(parts)-1], ", "), code, town
+}
+
+// splitPostalLine reads "80331 München" into its two halves. The postal code is
+// the leading run of digits; a line that does not start with digits is not a
+// postal line, and pretending otherwise would put a street name into BT-53.
+func splitPostalLine(line string) (postalCode, city string, ok bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return "", "", false
+	}
+	code := fields[0]
+	for _, r := range code {
+		if r < '0' || r > '9' {
+			return "", "", false
+		}
+	}
+	return code, strings.Join(fields[1:], " "), true
+}
 
 // CollectiveAccount returns the SKR04 Sammelkonto a partner's open items roll up
 // into for the balance sheet.

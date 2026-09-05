@@ -60,19 +60,19 @@ func (r *vatReturnRepositoryGorm) Create(ctx context.Context, rec *domain.VatRet
 	if rec.CreatedAt.IsZero() {
 		rec.CreatedAt = time.Now()
 	}
-	return r.db.WithContext(ctx).Create(rec).Error
+	return dbFrom(ctx, r.db).Create(rec).Error
 }
 
 func (r *vatReturnRepositoryGorm) Update(ctx context.Context, rec *domain.VatReturn) error {
 	if err := encodeVatReturn(rec); err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Save(rec).Error
+	return dbFrom(ctx, r.db).Save(rec).Error
 }
 
 func (r *vatReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.VatReturn, error) {
 	var rec domain.VatReturn
-	if err := r.db.WithContext(ctx).First(&rec, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).First(&rec, id).Error; err != nil {
 		return nil, err
 	}
 	decodeVatReturn(&rec)
@@ -81,7 +81,7 @@ func (r *vatReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domai
 
 func (r *vatReturnRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYear int) ([]domain.VatReturn, error) {
 	var recs []domain.VatReturn
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("fiscal_year = ?", fiscalYear).
 		Order("period_key asc, id asc").
 		Find(&recs).Error
@@ -93,7 +93,7 @@ func (r *vatReturnRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYe
 
 func (r *vatReturnRepositoryGorm) FindByPeriod(ctx context.Context, periodKey string) ([]domain.VatReturn, error) {
 	var recs []domain.VatReturn
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("period_key = ?", periodKey).
 		Order("id desc").
 		Find(&recs).Error
@@ -104,7 +104,7 @@ func (r *vatReturnRepositoryGorm) FindByPeriod(ctx context.Context, periodKey st
 }
 
 func (r *vatReturnRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.VatReturn{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.VatReturn{}, id).Error
 }
 
 // -------------------------------------------------------------
@@ -147,7 +147,7 @@ func (r *zmReturnRepositoryGorm) Create(ctx context.Context, rec *domain.ZMRetur
 	if rec.CreatedAt.IsZero() {
 		rec.CreatedAt = time.Now()
 	}
-	return r.db.WithContext(ctx).Create(rec).Error
+	return dbFrom(ctx, r.db).Create(rec).Error
 }
 
 // Update schreibt Kopf und Zeilen fort. Die Zeilen werden ersetzt und nicht
@@ -155,7 +155,7 @@ func (r *zmReturnRepositoryGorm) Create(ctx context.Context, rec *domain.ZMRetur
 // die aus dem Journal verschwunden ist, darf nicht als Rest stehen bleiben.
 func (r *zmReturnRepositoryGorm) Update(ctx context.Context, rec *domain.ZMReturn) error {
 	encodeZMLines(rec)
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("zm_return_id = ?", rec.ID).Delete(&domain.ZMLine{}).Error; err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func (r *zmReturnRepositoryGorm) Update(ctx context.Context, rec *domain.ZMRetur
 
 func (r *zmReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.ZMReturn, error) {
 	var rec domain.ZMReturn
-	if err := r.db.WithContext(ctx).Preload("Lines").First(&rec, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).Preload("Lines").First(&rec, id).Error; err != nil {
 		return nil, err
 	}
 	decodeZMLines(&rec)
@@ -175,7 +175,7 @@ func (r *zmReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain
 
 func (r *zmReturnRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYear int) ([]domain.ZMReturn, error) {
 	var recs []domain.ZMReturn
-	err := r.db.WithContext(ctx).Preload("Lines").
+	err := dbFrom(ctx, r.db).Preload("Lines").
 		Where("fiscal_year = ?", fiscalYear).
 		Order("period_key asc, id asc").
 		Find(&recs).Error
@@ -187,7 +187,7 @@ func (r *zmReturnRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYea
 
 func (r *zmReturnRepositoryGorm) FindByPeriod(ctx context.Context, periodKey string) ([]domain.ZMReturn, error) {
 	var recs []domain.ZMReturn
-	err := r.db.WithContext(ctx).Preload("Lines").
+	err := dbFrom(ctx, r.db).Preload("Lines").
 		Where("period_key = ?", periodKey).
 		Order("id desc").
 		Find(&recs).Error
@@ -198,7 +198,7 @@ func (r *zmReturnRepositoryGorm) FindByPeriod(ctx context.Context, periodKey str
 }
 
 func (r *zmReturnRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Select("Lines").Delete(&domain.ZMReturn{ID: id}).Error
+	return dbFrom(ctx, r.db).Select("Lines").Delete(&domain.ZMReturn{ID: id}).Error
 }
 
 // -------------------------------------------------------------
@@ -216,7 +216,7 @@ func NewDeadlineRepository(db *gorm.DB) domain.DeadlineRepository {
 
 func (r *deadlineRepositoryGorm) FindAll(ctx context.Context) ([]domain.DeadlineDone, error) {
 	var recs []domain.DeadlineDone
-	err := r.db.WithContext(ctx).Find(&recs).Error
+	err := dbFrom(ctx, r.db).Find(&recs).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -225,7 +225,7 @@ func (r *deadlineRepositoryGorm) FindAll(ctx context.Context) ([]domain.Deadline
 
 func (r *deadlineRepositoryGorm) Mark(ctx context.Context, key, doneOn string) error {
 	rec := domain.DeadlineDone{Key: key, DoneOn: doneOn, UpdatedAt: time.Now()}
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "key"}}, UpdateAll: true}).
 		Create(&rec).Error
 }

@@ -112,9 +112,41 @@ export const bridge = {
   DeleteContact: (id: number) => invoke<void>('DeleteContact', id),
   GetInvoices: <T>() => invoke<T>('GetInvoices'),
   IssueInvoice: <T>(invoice: unknown) => invoke<T>('IssueInvoice', invoice),
-  CancelInvoice: (invoiceId: number, reason: string) => invoke<void>('CancelInvoice', invoiceId, reason),
   GenerateInvoiceZUGFeRD: <T>(invoiceId: number) => invoke<T>('GenerateInvoiceZUGFeRD', invoiceId),
   GetInvoiceDocument: <T>(invoiceId: number) => invoke<T>('GetInvoiceDocument', invoiceId),
+
+  // Korrektur, Storno, Versand und Nummernkreis der Ausgangsrechnungen
+  RegenerateInvoiceDocument: <T>(invoiceId: number) =>
+    invoke<T>('RegenerateInvoiceDocument', invoiceId),
+  CancelInvoiceWithDocument: <T>(invoiceId: number, reason: string) =>
+    invoke<T>('CancelInvoiceWithDocument', invoiceId, reason),
+  CorrectInvoice: <T>(invoiceId: number, reason: string, replacement: unknown) =>
+    invoke<T>('CorrectInvoice', invoiceId, reason, replacement),
+  MarkInvoiceSent: <T>(invoiceId: number, date: string, via: string, note: string) =>
+    invoke<T>('MarkInvoiceSent', invoiceId, date, via, note),
+  GetInvoiceNumberGaps: <T>(year: number) => invoke<T>('GetInvoiceNumberGaps', year),
+  RecordInvoiceNumberGapReason: (
+    year: number,
+    sequence: number,
+    reason: string,
+    detail: string,
+  ) => invoke<void>('RecordInvoiceNumberGapReason', year, sequence, reason, detail),
+  GetUnitCodes: <T>() => invoke<T>('GetUnitCodes'),
+  GetEInvoiceProfiles: <T>() => invoke<T>('GetEInvoiceProfiles'),
+  GetInvoiceSentViaOptions: <T>() => invoke<T>('GetInvoiceSentViaOptions'),
+  GetNumberGapReasons: <T>() => invoke<T>('GetNumberGapReasons'),
+
+  // Anzahlungen: Rechnungsverbund, Abschlag, Schlussrechnung, Ausbuchung
+  GetInvoiceGroups: <T>() => invoke<T>('GetInvoiceGroups'),
+  CreateInvoiceGroup: <T>(request: unknown) => invoke<T>('CreateInvoiceGroup', request),
+  IssueAdvanceInvoice: <T>(request: unknown) => invoke<T>('IssueAdvanceInvoice', request),
+  SettleAdvance: <T>(request: unknown) => invoke<T>('SettleAdvance', request),
+  RefundAdvance: <T>(request: unknown) => invoke<T>('RefundAdvance', request),
+  IssueFinalInvoice: <T>(request: unknown) => invoke<T>('IssueFinalInvoice', request),
+  GetOpenAdvances: <T>() => invoke<T>('GetOpenAdvances'),
+  GetAdvanceTargets: <T>() => invoke<T>('GetAdvanceTargets'),
+  GetOpenVendorAdvances: <T>(contactId: number) => invoke<T>('GetOpenVendorAdvances', contactId),
+  WriteOffOpenItem: <T>(request: unknown) => invoke<T>('WriteOffOpenItem', request),
 
   // Anlagevermögen
   GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),
@@ -166,6 +198,8 @@ export const bridge = {
   ExportStatementCSV: (year: number) => invoke<string>('ExportStatementCSV', year),
   SetAverageEmployees: <T>(year: number, count: number) =>
     invoke<T>('SetAverageEmployees', year, count),
+  SetPriorYearRevenue: <T>(year: number, amount: number) =>
+    invoke<T>('SetPriorYearRevenue', year, amount),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => invoke<string>('ExportEBilanzXBRL'),

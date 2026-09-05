@@ -29,7 +29,7 @@ func NewJournalRepository(db *gorm.DB) domain.JournalRepository {
 // was written, so a finder that forgets it makes the integrity check report
 // every Bewirtungsbuchung as broken. Written once, it cannot be forgotten.
 func (r *journalRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id asc")
+	return dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Order("id asc")
 }
 
 func (r *journalRepositoryGorm) scope(ctx context.Context, fiscalYear int) *gorm.DB {
@@ -143,7 +143,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cu
 
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	if err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").First(&entry, id).Error; err != nil {
 		return nil, err
 	}
 	return &entry, nil
@@ -190,7 +190,7 @@ func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uin
 
 func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Where("reversal_of_id = ?", entryID).First(&entry).Error
+	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Where("reversal_of_id = ?", entryID).First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -202,7 +202,7 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 
 func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	q := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").Order("id desc")
+	q := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Order("id desc")
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -221,7 +221,7 @@ func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int
 // skipped.
 func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
-	err := r.db.WithContext(ctx).Preload("Lines").Preload("Entertainment").
+	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").
 		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
 		Order("id asc").First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -236,7 +236,10 @@ func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uin
 // Append allocates the Buchungsnummer, links the hash chain and inserts the
 // entry with its lines in one transaction.
 func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.JournalEntry, hash domain.EntryHashFunc) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// Läuft der Aufrufer bereits in einer Transaktion — die Ausgangsrechnung tut
+	// das —, wird deren Handle benutzt: Nummer, Rechnung und Buchung sollen
+	// zusammen gelingen oder zusammen ausbleiben.
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		seq, err := allocateNumber(tx, domain.NumberRangeJournal, entry.FiscalYear)
 		if err != nil {
 			return err
@@ -281,7 +284,7 @@ func (r *journalRepositoryGorm) AccountTurnoversUntil(ctx context.Context, fisca
 	}
 
 	var rows []row
-	q := r.db.WithContext(ctx).Model(&domain.JournalLine{}).
+	q := dbFrom(ctx, r.db).Model(&domain.JournalLine{}).
 		Select("journal_lines.account as account, journal_lines.side as side, COALESCE(SUM(journal_lines.amount),0) as total, COUNT(*) as count").
 		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id")
 	if fiscalYear > 0 {
@@ -320,7 +323,7 @@ func (r *journalRepositoryGorm) MonthlyCashflow(ctx context.Context, fiscalYear 
 	}
 
 	var rows []row
-	q := r.db.WithContext(ctx).Model(&domain.JournalLine{}).
+	q := dbFrom(ctx, r.db).Model(&domain.JournalLine{}).
 		Select("substr(e.booking_date, 1, 7) as month, journal_lines.side as side, COALESCE(SUM(journal_lines.amount),0) as total").
 		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id").
 		Where("journal_lines.account IN ?", liquidAccounts)
@@ -373,7 +376,7 @@ func monthLabel(yyyymm string) string {
 
 func (r *journalRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {
 	var count int64
-	q := r.db.WithContext(ctx).Model(&domain.JournalEntry{})
+	q := dbFrom(ctx, r.db).Model(&domain.JournalEntry{})
 	if fiscalYear > 0 {
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
@@ -383,7 +386,7 @@ func (r *journalRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int6
 
 func (r *journalRepositoryGorm) GetAvailableFiscalYears(ctx context.Context) ([]int, error) {
 	var years []int
-	err := r.db.WithContext(ctx).Model(&domain.JournalEntry{}).
+	err := dbFrom(ctx, r.db).Model(&domain.JournalEntry{}).
 		Where("fiscal_year > 0").
 		Distinct("fiscal_year").
 		Order("fiscal_year asc").

@@ -22,7 +22,7 @@ func NewAssetRepository(db *gorm.DB) domain.AssetRepository {
 // over the movements — so a finder that skips the preload would answer every
 // question with zero.
 func (r *assetRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Preload("Movements", func(db *gorm.DB) *gorm.DB {
 			return db.Order("asset_movements.date asc, asset_movements.id asc")
 		}).
@@ -73,29 +73,29 @@ func (r *assetRepositoryGorm) FindPool(ctx context.Context, fiscalYear int) (*do
 // movements: those are appended one by one alongside their booking, and a full
 // Save with an association would silently replace them.
 func (r *assetRepositoryGorm) Save(ctx context.Context, asset *domain.FixedAsset) error {
-	return r.db.WithContext(ctx).Omit("Movements").Save(asset).Error
+	return dbFrom(ctx, r.db).Omit("Movements").Save(asset).Error
 }
 
 func (r *assetRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.FixedAsset{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.FixedAsset{}, id).Error
 }
 
 // AddMovement appends a movement — or writes back one that was corrected before
 // any booking hung on it, which is why this is a Save and not a Create.
 func (r *assetRepositoryGorm) AddMovement(ctx context.Context, movement *domain.AssetMovement) error {
-	return r.db.WithContext(ctx).Save(movement).Error
+	return dbFrom(ctx, r.db).Save(movement).Error
 }
 
 // DeleteMovement removes a movement. Only movements Buchfink generated itself
 // and that carry no booking are ever deleted this way — the Sofortabzug of a
 // GWG, when its Anschaffungskosten or seine Methode korrigiert werden.
 func (r *assetRepositoryGorm) DeleteMovement(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.AssetMovement{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.AssetMovement{}, id).Error
 }
 
 func (r *assetRepositoryGorm) FindMovements(ctx context.Context, assetID uint) ([]domain.AssetMovement, error) {
 	var movements []domain.AssetMovement
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("date asc, id asc").
 		Find(&movements).Error
@@ -106,7 +106,7 @@ func (r *assetRepositoryGorm) LinkedEntryIDs(ctx context.Context) (map[uint]bool
 	linked := map[uint]bool{}
 
 	var assetEntries []uint
-	if err := r.db.WithContext(ctx).Model(&domain.FixedAsset{}).
+	if err := dbFrom(ctx, r.db).Model(&domain.FixedAsset{}).
 		Where("acquisition_entry_id IS NOT NULL").
 		Pluck("acquisition_entry_id", &assetEntries).Error; err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (r *assetRepositoryGorm) LinkedEntryIDs(ctx context.Context) (map[uint]bool
 	}
 
 	var movementEntries []uint
-	if err := r.db.WithContext(ctx).Model(&domain.AssetMovement{}).
+	if err := dbFrom(ctx, r.db).Model(&domain.AssetMovement{}).
 		Where("journal_entry_id IS NOT NULL").
 		Pluck("journal_entry_id", &movementEntries).Error; err != nil {
 		return nil, err
@@ -149,13 +149,13 @@ func (r *assetRepositoryGorm) FindByAcquisitionEntry(ctx context.Context, entryI
 
 // AddDocument stores a document of an Anlagegut.
 func (r *assetRepositoryGorm) AddDocument(ctx context.Context, document *domain.AssetDocument) error {
-	return r.db.WithContext(ctx).Save(document).Error
+	return dbFrom(ctx, r.db).Save(document).Error
 }
 
 // FindDocument returns one document.
 func (r *assetRepositoryGorm) FindDocument(ctx context.Context, id uint) (*domain.AssetDocument, error) {
 	var document domain.AssetDocument
-	if err := r.db.WithContext(ctx).First(&document, id).Error; err != nil {
+	if err := dbFrom(ctx, r.db).First(&document, id).Error; err != nil {
 		return nil, err
 	}
 	return &document, nil
@@ -164,26 +164,26 @@ func (r *assetRepositoryGorm) FindDocument(ctx context.Context, id uint) (*domai
 // FindAllDocuments liefert alle Dokumente aller Anlagegüter.
 func (r *assetRepositoryGorm) FindAllDocuments(ctx context.Context) ([]domain.AssetDocument, error) {
 	documents := make([]domain.AssetDocument, 0)
-	err := r.db.WithContext(ctx).Order("id asc").Find(&documents).Error
+	err := dbFrom(ctx, r.db).Order("id asc").Find(&documents).Error
 	return documents, err
 }
 
 // DeleteDocument removes the record. Die Datei auf der Platte räumt der Dienst
 // ab, und nur, wenn kein anderes Dokument mehr auf sie zeigt.
 func (r *assetRepositoryGorm) DeleteDocument(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.AssetDocument{}, id).Error
+	return dbFrom(ctx, r.db).Delete(&domain.AssetDocument{}, id).Error
 }
 
 // CountDocumentsBySHA reports how many documents share one file.
 func (r *assetRepositoryGorm) CountDocumentsBySHA(ctx context.Context, sha256 string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.AssetDocument{}).
+	err := dbFrom(ctx, r.db).Model(&domain.AssetDocument{}).
 		Where("sha256 = ?", sha256).Count(&count).Error
 	return count, err
 }
 
 func (r *assetRepositoryGorm) Count(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.FixedAsset{}).Count(&count).Error
+	err := dbFrom(ctx, r.db).Model(&domain.FixedAsset{}).Count(&count).Error
 	return count, err
 }

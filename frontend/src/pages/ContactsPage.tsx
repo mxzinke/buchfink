@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus } from 'lucide-react';
-import { Contact, ContactType, TaxTreatmentInfo } from '../types';
+import { Contact, ContactType, EInvoiceProfileInfo, TaxTreatmentInfo } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import { formatCents } from '../utils/formatters';
@@ -12,6 +12,7 @@ import {
   Field,
   HelpPopover,
   Input,
+  Notice,
   PageHeader,
   SearchInput,
   Select,
@@ -200,11 +201,22 @@ const ContactForm: React.FC<{
   const writeLock = useWriteLock();
   const [draft, setDraft] = useState<Partial<Contact>>(contact ?? {});
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
+  const [profiles, setProfiles] = useState<EInvoiceProfileInfo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isNew = !draft.id;
   const direction = draft.type === 'customer' ? 'outgoing' : 'incoming';
+  const profileInfo = profiles.find(
+    (p) => p.profile === (draft.eInvoiceProfile ?? 'zugferd_en16931'),
+  );
+  // Ein Bestandskontakt, dessen einzeilige Anschrift der Parser nicht trennen
+  // konnte: die Felder sind leer, der alte Text steht noch da. Geraten wird
+  // nichts — eine falsche Straße auf der Rechnung kostet den Empfänger den
+  // Vorsteuerabzug.
+  const addressIncomplete = Boolean(
+    draft.address && !(draft.street && draft.postalCode && draft.city),
+  );
 
   useEffect(() => {
     if (contact) {
@@ -212,6 +224,20 @@ const ContactForm: React.FC<{
       setError(null);
     }
   }, [contact]);
+
+  // Die Zielformate kommen aus dem Backend und nicht aus einer zweiten Liste
+  // hier: welches Format Buchfink erzeugen kann, weiß nur der Renderer.
+  useEffect(() => {
+    let cancelled = false;
+    Api.getEInvoiceProfiles()
+      .then((list) => {
+        if (!cancelled) setProfiles(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,13 +337,76 @@ const ContactForm: React.FC<{
         </Field>
       </div>
 
-      <Field label="Anschrift" className="mt-4" optional>
+      {/* Straße, PLZ und Ort einzeln: § 14 Abs. 4 Nr. 1 UStG verlangt die
+          vollständige Anschrift des Empfängers, und EN 16931 verlangt sie in
+          Feldern (BT-50, BT-52, BT-53). Aus einer einzeiligen Anschrift wurde
+          beim Empfänger die Stadt Teil der Straße. */}
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_7rem_minmax(0,2fr)] gap-4 mt-4">
+        <Field label="Straße und Hausnummer">
+          <Input value={draft.street ?? ''} onChange={(e) => set({ street: e.target.value })} />
+        </Field>
+        <Field label="PLZ">
+          <Input
+            className="code-num"
+            value={draft.postalCode ?? ''}
+            onChange={(e) => set({ postalCode: e.target.value })}
+          />
+        </Field>
+        <Field label="Ort">
+          <Input value={draft.city ?? ''} onChange={(e) => set({ city: e.target.value })} />
+        </Field>
+      </div>
+
+      {addressIncomplete && (
+        <Notice
+          className="mt-4"
+          text="Die übernommene Anschrift ließ sich nicht in Straße, PLZ und Ort trennen; die Rechnung braucht alle drei."
+        />
+      )}
+
+      <Field
+        label="Übernommene Anschrift"
+        className="mt-4"
+        optional
+        help="Die alte einzeilige Fassung. Sie bleibt als Nachweis stehen."
+      >
         <Textarea
           rows={2}
           value={draft.address ?? ''}
           onChange={(e) => set({ address: e.target.value })}
         />
       </Field>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <Field
+          label="E-Rechnungsformat"
+          hint={profileInfo?.hint ? undefined : 'für Ausgangsrechnungen'}
+          explain={profileInfo?.hint}
+        >
+          <Select
+            items={profiles.map((p) => ({ value: p.profile, label: p.label }))}
+            value={draft.eInvoiceProfile ?? 'zugferd_en16931'}
+            onValueChange={(profile) => set({ eInvoiceProfile: profile })}
+          />
+        </Field>
+        <Field
+          label="Leitweg-ID"
+          optional={draft.eInvoiceProfile !== 'xrechnung_cii'}
+          hint={draft.eInvoiceProfile === 'xrechnung_cii' ? 'bei XRechnung Pflicht' : undefined}
+          explain="Die Route-ID des öffentlichen Auftraggebers (BT-10). Ohne sie findet die Rechnung ihren Empfänger in der Verwaltung nicht; Buchfink weist die Ausstellung dann zurück (BR-DE-15)."
+        >
+          {/* Leerzeichen gehören nicht in eine Leitweg-ID, das Abschneiden
+              aber ans Verlassen des Feldes (§8.3): beim Tippen genommen,
+              springt die Schreibmarke nach jedem versehentlichen Leerzeichen
+              zurück. */}
+          <Input
+            className="code-num"
+            value={draft.leitwegId ?? ''}
+            onChange={(e) => set({ leitwegId: e.target.value })}
+            onBlur={(e) => set({ leitwegId: e.target.value.trim() })}
+          />
+        </Field>
+      </div>
 
       <div className="grid grid-cols-3 gap-4 mt-4">
         <Field label="Land" hint="ISO-Code">

@@ -12,6 +12,7 @@ import { JournalPage } from './pages/JournalPage';
 import { AssetsPage } from './pages/AssetsPage';
 import { BankImportPage } from './pages/BankImportPage';
 import { InvoicesPage } from './pages/InvoicesPage';
+import { AdvancesPage } from './pages/AdvancesPage';
 import { ReceiptsPage } from './pages/ReceiptsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -34,7 +35,7 @@ import { Button, Notice, toast } from './components/ui';
  * den Hinweisstreifen; eine Auswertung ist auch im abgeschlossenen Jahr das,
  * was sie sein soll (§11.5).
  */
-const POSTING_TABS: TabType[] = ['journal', 'bank', 'receipts', 'invoices', 'assets'];
+const POSTING_TABS: TabType[] = ['journal', 'bank', 'receipts', 'invoices', 'advances', 'assets'];
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
@@ -288,6 +289,10 @@ export function App() {
         return <ReceiptsPage />;
       case 'invoices':
         return <InvoicesPage />;
+      // Abschlagsrechnung, Vereinnahmung und Schlussrechnung stehen in einer
+      // eigenen Ansicht: bei ihnen fallen Ausstellung und Buchung auseinander.
+      case 'advances':
+        return <AdvancesPage />;
       case 'contacts':
         return <ContactsPage />;
       case 'reports':

@@ -211,7 +211,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkInterimBalances(upToCutoff, req.CutoffDate)...)
 
 	run.CheckedReceipts = len(receipts)
-	findings = append(findings, s.checkReceipts(receipts, req.CutoffDate, reference, cfg)...)
+	findings = append(findings, s.checkReceipts(receipts, req.CutoffDate, reference, cfg, s.pendingByDesign(ctx))...)
 
 	bankFindings, bankCount := s.checkBank(ctx, req.CutoffDate)
 	run.CheckedBankTx = bankCount
@@ -465,8 +465,62 @@ func (s *CheckService) allReceipts(ctx context.Context) []domain.Receipt {
 	return receipts
 }
 
+// pendingByDesign nennt die Ausgangsbelege, zu denen es noch keine Buchung
+// geben kann.
+//
+// Es ist genau ein Fall, und er folgt aus dem Gesetz: bei einer
+// Abschlagsrechnung entsteht die Steuer erst mit der Vereinnahmung
+// (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), und beim Ausstellen gibt es
+// deshalb nichts zu buchen. Dasselbe gilt für ihr Stornodokument, solange die
+// Abschlagsrechnung selbst ungebucht war: eine Buchung, die es nicht gibt,
+// lässt sich nicht durch Generalumkehr zurücknehmen.
+//
+// Ohne diese Ausnahme meldete der Prüflauf jede Abschlagsrechnung als
+// abgelegten, ungebuchten Beleg und sperrte damit die Festschreibung — für
+// einen Zustand, der richtig ist.
+func (s *CheckService) pendingByDesign(ctx context.Context) map[uint]string {
+	out := map[uint]string{}
+	if s.invoiceRepo == nil {
+		return out
+	}
+	invoices, err := s.invoiceRepo.FindAll(ctx, s.fiscalYear)
+	if err != nil {
+		return out
+	}
+	byID := map[uint]*domain.Invoice{}
+	for i := range invoices {
+		byID[invoices[i].ID] = &invoices[i]
+	}
+	for i := range invoices {
+		inv := &invoices[i]
+		if inv.ReceiptID == nil || inv.JournalEntryID != nil {
+			continue
+		}
+		switch inv.ResolvedKind() {
+		case domain.InvoiceKindAdvance:
+			out[*inv.ReceiptID] = fmt.Sprintf(
+				"trägt die Abschlagsrechnung %s. Sie wird erst mit der Vereinnahmung gebucht "+
+					"(§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG); bis dahin steht sie als offener Posten",
+				inv.InvoiceNumber)
+		case domain.InvoiceKindCancellation:
+			if inv.CorrectsInvoiceID == nil {
+				continue
+			}
+			original, ok := byID[*inv.CorrectsInvoiceID]
+			if !ok || original.ResolvedKind() != domain.InvoiceKindAdvance || original.JournalEntryID != nil {
+				continue
+			}
+			out[*inv.ReceiptID] = fmt.Sprintf(
+				"storniert die ungebuchte Abschlagsrechnung %s; es gibt keine Buchung zurückzunehmen",
+				original.InvoiceNumber)
+		}
+	}
+	return out
+}
+
 func (s *CheckService) checkReceipts(
 	receipts []domain.Receipt, cutoff, reference string, cfg *domain.CompanySettings,
+	pendingByDesign map[uint]string,
 ) []domain.CheckFinding {
 	captureDays := cfg.ReceiptCaptureDays
 	if captureDays <= 0 {
@@ -505,17 +559,29 @@ func (s *CheckService) checkReceipts(
 			// Buchung mehr auf.
 			severity = domain.CheckBlocking
 		}
+		message := fmt.Sprintf("Beleg %s (Eingang %s) ist abgelegt, aber nicht gebucht",
+			r.ReceiptNumber, relevant)
+		reference := "GoBD Rz. 47"
+		// Der Abschlagsfall ist keine Versäumnis, sondern die Rechtslage. Er
+		// bleibt sichtbar — als Hinweis, nicht als Sperre.
+		if note, ok := pendingByDesign[r.ID]; ok {
+			severity = domain.CheckWarning
+			message = fmt.Sprintf("Beleg %s %s", r.ReceiptNumber, note)
+			reference = "§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG"
+		}
 		out = append(out, domain.CheckFinding{
 			Rule:       domain.CheckRuleReceiptUnbooked,
 			Severity:   severity,
 			ObjectType: "RECEIPT",
 			ObjectID:   fmt.Sprintf("%d", r.ID),
 			ObjectName: r.ReceiptNumber,
-			Message: fmt.Sprintf("Beleg %s (Eingang %s) ist abgelegt, aber nicht gebucht",
-				r.ReceiptNumber, relevant),
-			Reference: "GoBD Rz. 47",
+			Message:    message,
+			Reference:  reference,
 		})
 
+		if _, byDesign := pendingByDesign[r.ID]; byDesign {
+			continue
+		}
 		if relevant != "" && relevant < overdueBefore {
 			out = append(out, domain.CheckFinding{
 				Rule:       domain.CheckRuleReceiptOverdue,

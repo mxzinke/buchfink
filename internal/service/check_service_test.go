@@ -621,12 +621,14 @@ func TestCheckPreviewIsNotPersisted(t *testing.T) {
 	}
 }
 
-// Eine ausgestellte Ausgangsrechnung trägt ihren Beleg an der Buchung.
+// Eine ausgestellte Ausgangsrechnung hat einen Beleg — über den Beleg.
 //
-// Der Beleg entsteht vor der Buchung und wird ihr mitgegeben; ohne diese
-// Richtung meldete der Prüflauf jede Ausgangsrechnung als „Buchung ohne Beleg"
-// und keine Festschreibung käme durch — der Beleg zeigt erst nach dem
-// Versiegeln auf die Buchung, der Prüflauf fragt aber die Buchung.
+// Seit Nummer, Rechnung und Buchung in einer Transaktion entstehen, kommt das
+// Dokument danach: die Buchung kann den Beleg nicht mehr tragen, weil der
+// Beleg-Hash in ihrem Kettenhash steht und ein Nachtrag die Kette bräche. Der
+// Nachweis läuft deshalb vom Beleg zur Buchung, und der Prüflauf zählt beide
+// Richtungen. Ohne das meldete er jede Ausgangsrechnung als „Buchung ohne
+// Beleg" und keine Festschreibung käme durch.
 func TestCheckIssuedInvoiceCarriesItsReceipt(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -648,16 +650,15 @@ func TestCheckIssuedInvoiceCarriesItsReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Buchung laden: %v", err)
 	}
-	if entry.ReceiptID == nil || inv.ReceiptID == nil || *entry.ReceiptID != *inv.ReceiptID {
-		t.Errorf("die Buchung trägt den Beleg %v, die Rechnung den Beleg %v", entry.ReceiptID, inv.ReceiptID)
+	if inv.ReceiptID == nil {
+		t.Fatal("die ausgestellte Rechnung muss auf ihren Beleg zeigen")
 	}
-	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 0, domain.CheckBlocking)
-
-	// Bestandsdaten aus der Zeit vor dieser Zuordnung: an der Buchung steht
-	// kein Beleg, der Beleg zeigt aber auf sie. Auch das ist ein Nachweis.
-	if err := env.db.Model(&domain.JournalEntry{}).Where("id = ?", entry.ID).
-		Update("receipt_id", nil).Error; err != nil {
-		t.Fatalf("Belegbezug entfernen: %v", err)
+	receipt, err := env.receipts.Get(ctx, *inv.ReceiptID)
+	if err != nil {
+		t.Fatalf("Beleg laden: %v", err)
+	}
+	if receipt.JournalEntryID == nil || *receipt.JournalEntryID != entry.ID {
+		t.Errorf("der Beleg zeigt auf die Buchung %v, gebucht wurde aber %d", receipt.JournalEntryID, entry.ID)
 	}
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 0, domain.CheckBlocking)
 }

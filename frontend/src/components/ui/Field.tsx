@@ -72,6 +72,23 @@ export const Field: React.FC<FieldProps> = ({
   </Base.Root>
 );
 
+/**
+ * Eine Auskunft an der Stelle eines Bedienelements.
+ *
+ * Für Werte, die zum Feld gehören, aber nicht gewählt werden: das Format einer
+ * Rechnung steht am Empfänger, der Kontenrahmen am Mandanten. Früher stand
+ * dort ein gesperrtes Eingabefeld — das ist kein Bedienelement, sondern Text
+ * in Deaktiviert-Optik, und §3.1 hält `ink-faint` von Fließtext fern. Die Höhe
+ * ist die eines Bedienelements, damit die Zeile neben den Feldern nicht
+ * verspringt.
+ */
+export const FieldValue: React.FC<{ className?: string; children: React.ReactNode }> = ({
+  className,
+  children,
+}) => (
+  <p className={cn('flex h-9 items-center text-body text-ink min-w-0', className)}>{children}</p>
+);
+
 /** Mehrere Felder nebeneinander, ohne dass jede Seite ein eigenes Raster baut. */
 export const FieldRow: React.FC<{ className?: string; children: React.ReactNode }> = ({
   className,

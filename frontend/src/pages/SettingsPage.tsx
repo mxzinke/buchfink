@@ -17,6 +17,7 @@ import {
   Button,
   Checkbox,
   Field,
+  FieldValue,
   HelpPopover,
   Input,
   PageHeader,
@@ -269,6 +270,10 @@ export const SettingsPage: React.FC = () => {
   const needsInvestorChoice = Boolean(selectedForm) && !selectedForm?.investor;
 
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
+  // Ohne Steuernummer und ohne USt-IdNr. lässt sich keine Rechnung ausstellen
+  // (§ 14 Abs. 4 Nr. 2 UStG). Der Hinweis steht am Feld und nicht erst in der
+  // Fehlermeldung des Rechnungsdialogs.
+  const identifierMissing = !settings.taxNumber && !settings.vatId;
   const startMonth = settings.fiscalYearStartMonth || 1;
   const deviating = startMonth !== 1;
 
@@ -307,14 +312,21 @@ export const SettingsPage: React.FC = () => {
               onValueChange={(next) => patch({ legalForm: String(next) })}
             />
           </Field>
-          <Field label="Steuernummer">
+          <Field
+            label="Steuernummer"
+            hint={identifierMissing ? 'für Rechnungen nötig' : undefined}
+            explain="§ 14 Abs. 4 Nr. 2 UStG verlangt auf jeder Rechnung die Steuernummer oder die USt-IdNr. des Ausstellers. Buchfink schreibt die USt-IdNr., wenn sie vorliegt (BT-31), sonst die Steuernummer (BT-32); ohne beide wird keine Rechnung ausgestellt."
+          >
             <Input
               className="code-num"
               value={settings.taxNumber}
               onChange={(e) => patch({ taxNumber: e.target.value })}
             />
           </Field>
-          <Field label="Umsatzsteuer-Identifikationsnummer">
+          <Field
+            label="Umsatzsteuer-Identifikationsnummer"
+            hint={identifierMissing ? 'für Rechnungen nötig' : undefined}
+          >
             <Input
               className="code-num"
               value={settings.vatId}
@@ -382,6 +394,53 @@ export const SettingsPage: React.FC = () => {
           </Field>
           <Field label="Land">
             <Input value={settings.country} onChange={(e) => patch({ country: e.target.value })} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="Rechnungsstellung"
+        action={
+          <HelpPopover label="Erklärung zur Rechnungsstellung">
+            Die Systematik des Nummernkreises gehört in die Verfahrensdokumentation und steht
+            deshalb als Einstellung: Ein Mandant mit vorhandener Buchhaltung führt seine Systematik
+            fort. Ansprechpartner, Telefon und E-Mail sind bei einer XRechnung Pflichtangaben
+            (BR-DE-2 bis BR-DE-7) — eine Behörde, die nicht zurückfragen kann, weist die Rechnung
+            zurück.
+          </HelpPopover>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field
+            label="Nummernformat"
+            hint="{JAHR} und {NR:4}"
+            explain="Zwei Platzhalter: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Ohne {NR} trüge jede Rechnung dieselbe Nummer; ein solches Format weist Buchfink zurück (§ 14 Abs. 4 Nr. 4 UStG). Leer heißt RE-{JAHR}-{NR:4}."
+          >
+            <Input
+              className="code-num"
+              placeholder="RE-{JAHR}-{NR:4}"
+              value={settings.invoiceNumberFormat}
+              onChange={(e) => patch({ invoiceNumberFormat: e.target.value })}
+            />
+          </Field>
+          <Field label="Ansprechpartner" hint="bei XRechnung Pflicht">
+            <Input
+              value={settings.contactName}
+              onChange={(e) => patch({ contactName: e.target.value })}
+            />
+          </Field>
+          <Field label="Telefon" hint="bei XRechnung Pflicht">
+            <Input
+              value={settings.contactPhone}
+              onChange={(e) => patch({ contactPhone: e.target.value })}
+            />
+          </Field>
+          <Field label="E-Mail für Rückfragen" hint="bei XRechnung Pflicht">
+            <Input
+              type="email"
+              value={settings.contactEmail}
+              onChange={(e) => patch({ contactEmail: e.target.value })}
+            />
           </Field>
         </div>
       </Section>
@@ -704,7 +763,7 @@ export const SettingsPage: React.FC = () => {
             label="Kontenrahmen"
             help="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
           >
-            <Input value="SKR04 · Bilanz und GuV" disabled readOnly />
+            <FieldValue>SKR04 · Bilanz und GuV</FieldValue>
           </Field>
         </div>
       </Section>

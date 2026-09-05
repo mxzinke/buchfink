@@ -63,8 +63,17 @@ type PaymentService struct {
 	contactRepo    domain.ContactRepository
 	bankRepo       domain.BankRepository
 	assets         AssetRegister
-	fiscalYear     int
+	// auditRepo ist optional: ohne es steht die Ausbuchung nur im Protokoll des
+	// Journals. Ein Pflichtparameter im Konstruktor hätte jeden Aufrufer
+	// erfasst.
+	auditRepo  domain.AuditRepository
+	fiscalYear int
 }
+
+// SetAuditRepo koppelt das Protokoll an. Die Ausbuchung einer Forderung ist
+// eine Entscheidung über einen offenen Posten und nicht nur eine Buchung; sie
+// gehört mit ihrer Begründung ins Protokoll des Postens.
+func (s *PaymentService) SetAuditRepo(r domain.AuditRepository) { s.auditRepo = r }
 
 // SetAssetRegister couples the payment flow to the Anlagenkartei. Ohne sie
 // bucht ein Skonto wie bisher; das ist für jede Rechnung richtig, die keine
@@ -259,6 +268,7 @@ func (s *PaymentService) openItemsFrom(
 		}
 
 		items = append(items, domain.OpenItem{
+			Source:         domain.OpenItemSourceJournal,
 			EntryID:        entry.ID,
 			EntryNumber:    entry.EntryNumber,
 			ContactID:      contact.ID,
@@ -344,6 +354,18 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		}
 		if alloc.DifferenceKind == "" {
 			alloc.DifferenceKind = domain.DifferenceNone
+		}
+		// Die Ausbuchung steht in derselben Auswahl, gehört aber nicht hierher:
+		// zu ihr fließt kein Geld, und sie bucht keinen Zahlungsausgleich,
+		// sondern den Forderungsverlust samt Steuerkorrektur (§ 17 Abs. 2 Nr. 1
+		// UStG). Ohne diesen Zweig fiele sie in die Sammelmeldung „unbekannte
+		// Differenzart" — eine Auskunft, die den Anwender im Kreis schickt,
+		// weil die Art sehr wohl bekannt ist, nur an dieser Stelle nicht
+		// buchbar.
+		if alloc.DifferenceKind == domain.DifferenceWriteoff {
+			return nil, fmt.Errorf(
+				"Zuordnung %d: die Ausbuchung ist keine Zahlung. Eine uneinbringliche Forderung wird "+
+					"über „Forderung ausbuchen\" ohne Zahlungsmittel ausgebucht, mit Begründung", i+1)
 		}
 		if alloc.DifferenceKind != domain.DifferenceNone && alloc.DifferenceAmount <= 0 {
 			return nil, fmt.Errorf("Zuordnung %d: für die Differenzart %q fehlt der Betrag", i+1, alloc.DifferenceKind)

@@ -20,6 +20,12 @@ export interface SelectProps<T> {
   disabled?: boolean;
   name?: string;
   className?: string;
+  /**
+   * Zugänglicher Name des Auslösers. In einer Positionszeile steht die
+   * Beschriftung nur als Spaltenkopf über der Auswahl — für die Sprachausgabe
+   * ist das keine Verbindung, und der Auslöser bliebe namenlos (§14).
+   */
+  'aria-label'?: string;
 }
 
 /**
@@ -39,6 +45,7 @@ export function Select<T extends string | number>({
   disabled,
   name,
   className,
+  'aria-label': ariaLabel,
 }: SelectProps<T>) {
   // Base UI braucht die Zuordnung Wert → Beschriftung, sonst zeigt der Auslöser
   // den rohen Wert. Als Record bleibt unsere Schnittstelle bei einfachen Werten.
@@ -53,6 +60,7 @@ export function Select<T extends string | number>({
       name={name}
     >
       <Base.Trigger
+        aria-label={ariaLabel}
         className={cn(CONTROL, 'flex items-center justify-between gap-2 text-left', className)}
       >
         {/* Die Render-Funktion bekommt den rohen Wert, nicht die Beschriftung.

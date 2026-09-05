@@ -44,7 +44,14 @@ export const TAX_RATE_NONE: TaxRate = 0;
 export const TAX_RATE_REDUCED: TaxRate = 700;
 export const TAX_RATE_STANDARD: TaxRate = 1900;
 
-export type DifferenceKind = 'none' | 'skonto' | 'bank_fee' | 'rounding' | 'currency';
+export type DifferenceKind =
+  | 'none'
+  | 'skonto'
+  | 'bank_fee'
+  | 'rounding'
+  | 'currency'
+  /** Ausbuchung eines uneinbringlichen Postens — ohne Zahlung, § 17 Abs. 2 Nr. 1 UStG. */
+  | 'writeoff';
 
 export type ContactType = 'customer' | 'vendor';
 export type Settlement = 'open' | 'paid';
@@ -259,6 +266,11 @@ export interface DifferenceKindInfo {
   kind: DifferenceKind;
   label: string;
   hint: string;
+  /**
+   * Zu dieser Differenzart fließt kein Geld. Sie steht in derselben Auswahl,
+   * geht aber über „Forderung ausbuchen" und nicht über den Zahlungsausgleich.
+   */
+  withoutPayment?: boolean;
 }
 
 export interface ReceiptPosition {
@@ -291,6 +303,15 @@ export interface ReceiptRequest {
    * deckt, bleibt Aufwand.
    */
   provisionId?: number;
+  /**
+   * Kennzeichnet den Beleg als geleistete Anzahlung und sagt, wofür angezahlt
+   * wurde. Gebucht wird dann auf das Konto der geleisteten Anzahlungen statt
+   * auf den Aufwand; die Vorsteuer hängt an der Zahlung (§ 15 Abs. 1 Satz 1
+   * Nr. 1 Satz 3 UStG).
+   */
+  advanceTarget?: AdvanceTarget;
+  /** Die geleisteten Anzahlungen, die dieser Beleg als Schlussrechnung absetzt. */
+  settledAdvanceIds?: number[];
 }
 
 /**
@@ -310,6 +331,11 @@ export interface PostingPreview {
   gross: Cents;
   balanced: boolean;
   warnings?: PostingWarning[];
+  /**
+   * Die Bruttogrenze der Kleinbetragsrechnung am Rechnungsdatum (§ 33 UStDV),
+   * datiert im Backend. Fehlt außerhalb der Ausgangsrechnung.
+   */
+  smallAmountLimit?: Cents;
 }
 
 // -------------------------------------------------------------------------
@@ -436,7 +462,20 @@ export interface ReceiptPreview {
 // -------------------------------------------------------------------------
 // Offene Posten & Zahlungen
 
+/**
+ * Woher ein offener Posten stammt.
+ *
+ * Die Liste hat zwei Quellen. Der gewöhnliche Posten kommt aus einer Buchung
+ * auf einem Personenkonto; die Abschlagsrechnung hat vor der Zahlung keine,
+ * weil die Steuer erst mit der Vereinnahmung entsteht. Beide stehen in
+ * derselben Liste und gehen beim Ausgleich verschiedene Wege.
+ */
+export type OpenItemSource = 'journal' | 'advance';
+
 export interface OpenItem {
+  source: OpenItemSource;
+  /** Die Abschlagsrechnung hinter einem Posten der Quelle „Abschlag". */
+  advanceInvoiceId?: number;
   entryId: number;
   entryNumber: string;
   contactId: number;
@@ -526,6 +565,21 @@ export interface BankTransaction {
   matchedAmount: Cents;
 }
 
+/**
+ * Das Format, in dem eine Ausgangsrechnung hinausgeht.
+ *
+ * XRechnung in der UBL-Syntax fehlt: Buchfink hat keinen UBL-Schreiber, und ein
+ * Profil anzubieten, das nichts erzeugt, wäre ein Versprechen, das erst beim
+ * Ausstellen bricht.
+ */
+export type EInvoiceProfile = 'zugferd_en16931' | 'xrechnung_cii' | 'pdf_only';
+
+export interface EInvoiceProfileInfo {
+  profile: EInvoiceProfile;
+  label: string;
+  hint: string;
+}
+
 export interface Contact {
   id: number;
   type: ContactType;
@@ -533,13 +587,26 @@ export interface Contact {
   name: string;
   company: string;
   email: string;
+  /** Die unstrukturierte Anschrift aus der Zeit vor der strukturierten. */
   address: string;
+  /**
+   * Straße, Postleitzahl und Ort einzeln. § 14 Abs. 4 Nr. 1 UStG verlangt die
+   * vollständige Anschrift des Empfängers, EN 16931 verlangt sie in Feldern
+   * (BT-50, BT-52, BT-53).
+   */
+  street: string;
+  postalCode: string;
+  city: string;
   taxId: string;
   vatId: string;
   countryCode: string;
   iban: string;
   bic: string;
   paymentTermsDays: number;
+  /** Das Zielformat, in dem dieser Empfänger seine Rechnungen bekommt. */
+  eInvoiceProfile: EInvoiceProfile;
+  /** Route-ID des öffentlichen Auftraggebers (BT-10); bei XRechnung Pflicht. */
+  leitwegId: string;
   /** Keine Unternehmerin/kein Unternehmer — dann greift keine E-Rechnungspflicht. */
   isPrivate: boolean;
   /** Kleinunternehmer nach § 19 UStG: darf immer eine sonstige Rechnung stellen. */
@@ -579,6 +646,62 @@ export interface InvoiceItem {
   postingGroup?: string;
 }
 
+/**
+ * Der Lebenslauf einer Ausgangsrechnung.
+ *
+ * `issued_pending_document` ist ausgestellt und gebucht, aber ohne Dokument:
+ * Nummer und Buchung stehen, das Erzeugen des PDF ist gescheitert. Der Zustand
+ * ist sichtbar, weil der Kunde noch nichts bekommen hat — und nachholbar, damit
+ * die vergebene Nummer nicht verfällt.
+ */
+export type InvoiceStatus =
+  | 'draft'
+  | 'issued'
+  | 'issued_pending_document'
+  | 'paid'
+  | 'cancelled';
+
+/**
+ * Die Dokumentart entscheidet über den Typcode (BT-3). Ein Empfängersystem
+ * bucht danach: eine Rechnungskorrektur als zweite Rechnung gelesen eröffnet
+ * eine zweite Verbindlichkeit.
+ */
+export type InvoiceKind = 'invoice' | 'advance' | 'final' | 'correction' | 'cancellation';
+
+export type InvoiceSentVia = 'email' | 'portal' | 'post' | 'other';
+
+/**
+ * Ein Versandweg mit seiner Beschriftung (domain.InvoiceSentViaOption).
+ *
+ * Die Wörter kommen aus dem Backend und nicht aus der Seite: Wertelisten mit
+ * fester Bedeutung haben eine Quelle, sonst heißt derselbe Weg an zwei Stellen
+ * verschieden.
+ */
+export interface InvoiceSentViaOption {
+  via: InvoiceSentVia;
+  label: string;
+}
+
+/**
+ * Die im Voraus vereinbarten Zahlungsbedingungen (§ 14 Abs. 4 Nr. 7 UStG,
+ * BT-20). Der Skontosatz steht in Promille: 20 sind 2 %.
+ */
+export interface PaymentTerms {
+  dueDays: number;
+  discountPermille: number;
+  discountDays: number;
+}
+
+/** Eine vorausgegangene Rechnung, auf die ein Dokument verweist (BG-3). */
+export interface InvoiceReference {
+  id: number;
+  invoiceId: number;
+  /** BT-25 */
+  number: string;
+  /** BT-26 */
+  date: string;
+}
+
 export interface Invoice {
   id: number;
   fiscalYear: number;
@@ -595,12 +718,210 @@ export interface Invoice {
   taxAmount: Cents;
   grossAmount: Cents;
   currency: string;
-  status: 'draft' | 'issued' | 'paid' | 'cancelled';
+  status: InvoiceStatus;
   journalEntryId?: number;
   /** Der Beleg mit dem hybriden PDF und dem ZUGFeRD-XML. */
   receiptId?: number;
   paidAmount: Cents;
   createdAt: string;
+  /** Leer heißt „Rechnung": Bestandsdaten aus der Zeit vor der Dokumentart. */
+  kind: InvoiceKind;
+  terms: PaymentTerms;
+  /** Kleinbetragsrechnung nach § 33 UStDV: verkürzte Angaben, kein Empfänger nötig. */
+  smallAmount: boolean;
+  /** Zahlungsmittelkonto einer Rechnung ohne Empfänger; leer heißt Kasse. */
+  paymentAccount?: string;
+  /** Das Format, in dem dieses Dokument erzeugt wurde. */
+  eInvoiceProfile?: EInvoiceProfile;
+  /** Bezug auf die berichtigte oder stornierte Rechnung (BG-3). */
+  correctsInvoiceId?: number;
+  correctsInvoiceNumber?: string;
+  correctsInvoiceDate?: string;
+  /** Gegenrichtung: das Dokument, das diese Rechnung storniert hat. */
+  cancelledByInvoiceId?: number;
+  /** Die vorausgegangenen Rechnungen — bei der Schlussrechnung die Abschläge. */
+  precedingRefs: InvoiceReference[];
+  groupId?: number;
+  /** Die abgesetzten Anzahlungen der Schlussrechnung (BT-113). */
+  prepaidAmount: Cents;
+  /** Zeitpunkt der Vereinnahmung auf einer Abschlagsrechnung. */
+  paymentReceivedAt?: string;
+  sentAt?: string;
+  sentVia?: InvoiceSentVia;
+  sentNote?: string;
+}
+
+/** Eine Mengeneinheit nach UN/ECE Rec. 20 (BT-130). */
+export interface UnitCode {
+  code: string;
+  label: string;
+}
+
+// -------------------------------------------------------------------------
+// Nummernkreis: der Lückenbericht
+
+export type NumberGapReason = 'aborted' | 'test' | 'cancelled' | 'unknown';
+
+/** Ein Lückengrund zur Auswahl; die Beschriftung ist die des Berichts. */
+export interface NumberGapReasonOption {
+  reason: NumberGapReason;
+  label: string;
+}
+
+/** Eine fehlende Nummer mit dem, was über sie bekannt ist. */
+export interface NumberGapEntry {
+  sequence: number;
+  number: string;
+  reason: NumberGapReason;
+  label: string;
+  detail?: string;
+  recordedAt?: string;
+}
+
+/** Die Antwort auf „welche Rechnungsnummern fehlen" (§ 14 Abs. 4 Nr. 4 UStG). */
+export interface NumberGapReport {
+  fiscalYear: number;
+  /** So viele Nummern hat der Zähler ausgegeben. */
+  issued: number;
+  /** So viele davon tragen ein Dokument. */
+  used: number;
+  gaps: NumberGapEntry[];
+}
+
+// -------------------------------------------------------------------------
+// Anzahlungen: Rechnungsverbund, Abschlag, Schlussrechnung
+
+/** Der offene Posten einer Abschlagsrechnung. */
+export interface AdvanceItem {
+  id: number;
+  groupId: number;
+  invoiceId: number;
+  contactId: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  netAmount: Cents;
+  taxAmount: Cents;
+  grossAmount: Cents;
+  taxRate: TaxRate;
+  /** Der Tag der Vereinnahmung; erst mit ihm entsteht die Steuer. */
+  settledAt?: string;
+  settlementEntryId?: number;
+  cancelled: boolean;
+  settledInFinal: boolean;
+}
+
+/**
+ * Ein Rechnungsverbund: ein Auftrag, abgerechnet in Abschlägen und einer
+ * Schlussrechnung.
+ */
+export interface InvoiceGroup {
+  id: number;
+  fiscalYear: number;
+  contactId: number;
+  title: string;
+  /** Der vereinbarte Gesamtbetrag netto — Obergrenze der Abschläge. */
+  totalNet: Cents;
+  taxRate: TaxRate;
+  closed: boolean;
+  finalInvoiceId?: number;
+  advances: AdvanceItem[];
+  /** Der Stand des Verbunds, im Backend gerechnet (domain.GroupProgress). */
+  progress: GroupProgress;
+  createdAt: string;
+}
+
+/**
+ * Abgerechnet, vereinnahmt und offen zu einem Verbund.
+ *
+ * Die Summen kommen aus dem Backend und werden in der Oberfläche nicht
+ * nachgerechnet: welche Abschläge mitzählen, ist eine fachliche Regel
+ * (stornierte fallen heraus, vereinnahmt zählt erst mit dem Zahlungsdatum) und
+ * gehört an eine einzige Stelle.
+ */
+export interface GroupProgress {
+  agreedNet: Cents;
+  billedNet: Cents;
+  receivedNet: Cents;
+  receivedTax: Cents;
+  receivedGross: Cents;
+  openNet: Cents;
+  closed: boolean;
+}
+
+export interface AdvanceGroupRequest {
+  contactId: number;
+  title: string;
+  totalNet: Cents;
+  taxRate: TaxRate;
+}
+
+export interface AdvanceInvoiceRequest {
+  groupId: number;
+  date: string;
+  description: string;
+  net: Cents;
+  /** Der Vereinnahmungszeitpunkt, sofern er beim Ausstellen feststeht. */
+  paymentReceivedAt?: string;
+}
+
+export interface SettleAdvanceRequest {
+  /** Die Abschlagsrechnung, auf die das Geld eingegangen ist. */
+  advanceId: number;
+  /** Der Bankumsatz, aus dem die Vereinnahmung stammt. */
+  bankTxId?: number;
+  paymentDate: string;
+  paymentAccount: string;
+}
+
+export interface RefundAdvanceRequest {
+  advanceId: number;
+  refundDate: string;
+  paymentAccount: string;
+  reason: string;
+}
+
+export interface FinalInvoiceRequest {
+  groupId: number;
+  date: string;
+  serviceDateFrom: string;
+  serviceDateTo: string;
+  items: InvoiceItem[];
+  terms: PaymentTerms;
+}
+
+/** Wofür angezahlt wurde — die Angabe entscheidet über den Bilanzposten. */
+export type AdvanceTarget = 'inventory' | 'tangible' | 'intangible';
+
+export interface AdvanceTargetOption {
+  key: AdvanceTarget;
+  label: string;
+  account: string;
+}
+
+/** Eine geleistete, noch nicht verrechnete Anzahlung an einen Lieferanten. */
+export interface VendorAdvance {
+  id: number;
+  contactId: number;
+  receiptId: number;
+  entryId: number;
+  documentNumber: string;
+  account: string;
+  target: AdvanceTarget;
+  netAmount: Cents;
+  taxAmount: Cents;
+  grossAmount: Cents;
+  taxRate: TaxRate;
+  paidAt: string;
+  settledByEntryId?: number;
+}
+
+/** Die Ausbuchung eines uneinbringlichen Postens; die Begründung ist Pflicht. */
+export interface WriteOffRequest {
+  openItemEntryId: number;
+  /** Bruttobetrag; null heißt der ganze offene Betrag. */
+  amount: Cents;
+  date: string;
+  reason: string;
 }
 
 export interface VatFigure {
@@ -691,6 +1012,19 @@ export interface CompanySettings {
   street: string;
   zipCity: string;
   country: string;
+  /**
+   * Ansprechpartner, Telefon und E-Mail des Ausstellers. Bei einer XRechnung
+   * Pflicht (BR-DE-2 bis BR-DE-7): eine Behörde, die zu einer Rechnung nicht
+   * zurückfragen kann, weist sie zurück.
+   */
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  /**
+   * Die Systematik des Rechnungsnummernkreises mit den Platzhaltern {JAHR} und
+   * {NR:n}. Leer heißt: die Voreinstellung RE-{JAHR}-{NR:4}.
+   */
+  invoiceNumberFormat: string;
   /**
    * Sitz, Registergericht und Registernummer sind die Pflichtangaben des
    * § 264 Abs. 1a HGB auf jedem Jahresabschluss. Sie standen bisher nur an der
@@ -1506,6 +1840,12 @@ export interface FiscalYear {
    * deshalb wird sie erfasst und nicht gerechnet.
    */
   averageEmployees: number;
+  /**
+   * Der Gesamtumsatz des vorangegangenen Kalenderjahres. An ihm hängt die
+   * Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 € darf 2027 noch
+   * eine sonstige Rechnung ausgestellt werden. Null heißt „nicht erfasst".
+   */
+  priorYearRevenue: Cents;
   createdAt: string;
 }
 

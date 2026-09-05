@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Ban, Landmark, Upload } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Ban, Landmark, MoreHorizontal, Upload } from 'lucide-react';
 import type {
   Account,
   AllocationRequest,
@@ -20,6 +20,8 @@ import {
   Field,
   HelpPopover,
   Input,
+  Menu,
+  MenuItem,
   PageHeader,
   Section,
   Select,
@@ -46,6 +48,26 @@ import {
  * Maske zu zwingen.
  */
 
+/**
+ * Der Grund, warum „Forderung ausbuchen" zu einem Posten nicht offensteht —
+ * `undefined`, wenn die Aktion möglich ist.
+ *
+ * Ein stumm deaktivierter Menüeintrag lässt den Anwender raten, was er falsch
+ * gemacht hat (§10.4: ein deaktivierter Knopf braucht seine Erklärung im
+ * `title`). Beide Sperren haben einen fachlichen und keinen technischen Grund:
+ * ein Abschlag ist bis zur Vereinnahmung ein Merkposten ohne Buchung, es gibt
+ * also nichts auszubuchen, und eine Verbindlichkeit erlischt durch Zahlung oder
+ * Verjährung, nicht durch einen Forderungsverlust nach § 17 UStG.
+ */
+function writeOffBlockedReason(item: OpenItem, lockHint?: string): string | undefined {
+  if (lockHint) return lockHint;
+  if (item.source === 'advance')
+    return 'Ein Abschlag wird vereinnahmt, nicht ausgebucht: bis zur Zahlung ist er ein Merkposten ohne Buchung.';
+  if (item.contactType !== 'customer')
+    return 'Verbindlichkeiten werden nicht ausgebucht; ausgebucht wird nur eine uneinbringliche Forderung.';
+  return undefined;
+}
+
 export const BankImportPage: React.FC = () => {
   // Einlesen und Zuordnen sind schreibende Schritte und im Prüfermodus
   // gesperrt; die Liste bleibt lesbar (§10.4).
@@ -57,6 +79,7 @@ export const BankImportPage: React.FC = () => {
   const [differenceKinds, setDifferenceKinds] = useState<DifferenceKindInfo[]>([]);
   const [importAccount, setImportAccount] = useState('1800');
   const [active, setActive] = useState<BankTransaction | null>(null);
+  const [writingOff, setWritingOff] = useState<OpenItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
 
@@ -67,17 +90,22 @@ export const BankImportPage: React.FC = () => {
   async function load() {
     setLoading(true);
     try {
-      const [txs, accs, payAccs, items, kinds] = await Promise.all([
+      const [txs, accs, payAccs, items, advances, kinds] = await Promise.all([
         Api.getBankTransactions(),
         Api.getAccounts(),
         Api.getPaymentAccounts(),
         Api.getOpenItems(),
+        Api.getOpenAdvances(),
         Api.getDifferenceKinds(),
       ]);
       setTransactions(txs);
       setAccounts(accs);
       setPaymentAccounts(payAccs);
-      setOpenItems(items);
+      // Die offenen Posten haben zwei Quellen: die gewöhnliche Buchung auf dem
+      // Personenkonto und die ausgestellte Abschlagsrechnung, die noch keine
+      // Buchung hat. Beide gehören in dieselbe Liste — der Anwender sieht auf
+      // dem Kontoauszug nicht, welche Herkunft eine Zahlung hat.
+      setOpenItems([...items, ...advances]);
       setDifferenceKinds(kinds);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -213,6 +241,96 @@ export const BankImportPage: React.FC = () => {
         )}
       </Section>
 
+      <Section
+        title="Offene Posten"
+        context={loading ? undefined : `${openItems.length} nicht ausgeglichen`}
+        action={
+          <HelpPopover label="Erklärung zur Ausbuchung">
+            Eine uneinbringliche Forderung wird nicht über den Zahlungsausgleich geschlossen: Es
+            fließt kein Geld, und eine Zahlung über null wäre eine Behauptung. Sie wird als
+            Forderungsverlust gebucht, die Umsatzsteuer wird dabei berichtigt
+            (§ 17 Abs. 2 Nr. 1 UStG). Ein Abschlag steht hier ohne Buchung — er wird über den
+            Kontoauszug oder unter Anzahlungen vereinnahmt.
+          </HelpPopover>
+        }
+      >
+        {loading ? (
+          <SkeletonRows rows={4} />
+        ) : openItems.length === 0 ? (
+          <EmptyState
+            title="Keine offenen Posten"
+            description="Jede Forderung und jede Verbindlichkeit ist ausgeglichen."
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-40">Beleg</Th>
+                <Th>Partner</Th>
+                <Th className="w-28">Quelle</Th>
+                <Th className="w-28">Fällig</Th>
+                <Th numeric className="w-36">
+                  Offen
+                </Th>
+                <Th className="w-20" aria-label="Aktionen" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {openItems.map((item) => (
+                <Tr
+                  key={item.source === 'advance' ? `advance-${item.advanceInvoiceId}` : item.entryId}
+                  className="group"
+                >
+                  <Td code>{item.documentNumber || item.entryNumber}</Td>
+                  <Td className="max-w-[20rem] truncate">{item.contactName}</Td>
+                  <Td className="text-ink-muted">
+                    {item.source === 'advance' ? 'Abschlag' : 'Buchung'}
+                  </Td>
+                  <Td className="text-ink-subtle num">
+                    {item.dueDate ? formatDate(item.dueDate) : '—'}
+                  </Td>
+                  <Td numeric>{formatCents(item.openAmount)}</Td>
+                  <Td className="pl-0">
+                    <span className="flex items-center justify-end">
+                      <Menu
+                        trigger={
+                          <Button
+                            variant="quiet"
+                            size="sm"
+                            iconOnly
+                            title="Aktionen zu diesem Posten"
+                            aria-label={`Aktionen zu ${item.documentNumber || item.entryNumber}`}
+                          >
+                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+                          </Button>
+                        }
+                      >
+                        <MenuItem
+                          disabled={Boolean(writeOffBlockedReason(item, writeLock.hint))}
+                          title={writeOffBlockedReason(item, writeLock.hint)}
+                          onClick={() => setWritingOff(item)}
+                        >
+                          Forderung ausbuchen
+                        </MenuItem>
+                      </Menu>
+                    </span>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
+      <WriteOffDialog
+        item={writingOff}
+        onClose={() => setWritingOff(null)}
+        onDone={async () => {
+          setWritingOff(null);
+          await load();
+        }}
+      />
+
       {active && (
         <AssignDialog
           tx={active}
@@ -253,6 +371,14 @@ const AssignDialog: React.FC<{
   const [selected, setSelected] = useState<Record<number, { amount: string; kind: DifferenceKind; diff: string }>>(
     {},
   );
+  /**
+   * Der gewählte Abschlag. Er steht neben den übrigen Posten und nicht in
+   * ihnen: eine Abschlagsrechnung hat keine Buchung, gegen die ein Ausgleich
+   * liefe, und wird über SettleAdvance vereinnahmt — mit dem ganzen Betrag,
+   * denn erst damit entsteht die Steuer. Deshalb schließt seine Auswahl die
+   * andere aus.
+   */
+  const [advance, setAdvance] = useState<OpenItem | null>(null);
   const [counterAccount, setCounterAccount] = useState<string | null>(null);
   const [description, setDescription] = useState(`${tx.counterpartyName} – ${tx.remittanceInfo}`);
 
@@ -277,6 +403,12 @@ const AssignDialog: React.FC<{
   const matches = cashTotal === statementAmount && allocations.length > 0;
 
   function toggle(item: OpenItem) {
+    if (item.source === 'advance') {
+      setSelected({});
+      setAdvance((prev) => (prev?.advanceInvoiceId === item.advanceInvoiceId ? null : item));
+      return;
+    }
+    setAdvance(null);
     setSelected((prev) => {
       if (prev[item.entryId]) {
         const next = { ...prev };
@@ -290,10 +422,27 @@ const AssignDialog: React.FC<{
     });
   }
 
+  /** Ob dieser Posten in der Liste angehakt ist — gleich welcher Quelle. */
+  function isSelected(item: OpenItem): boolean {
+    return item.source === 'advance'
+      ? advance?.advanceInvoiceId === item.advanceInvoiceId
+      : Boolean(selected[item.entryId]);
+  }
+
   async function submit() {
     setBusy('submit');
     try {
-      if (mode === 'open_item') {
+      if (mode === 'open_item' && advance) {
+        // Konto, Datum und Betrag kommen aus dem Kontoauszug: keines davon ist
+        // dann noch eine Eingabe, und keines kann sich vertippen.
+        await Api.settleAdvance({
+          advanceId: advance.advanceInvoiceId ?? 0,
+          bankTxId: tx.id,
+          paymentDate: tx.bookingDate,
+          paymentAccount: tx.ledgerAccount,
+        });
+        toast.success(`Anzahlung ${advance.documentNumber} vereinnahmt.`);
+      } else if (mode === 'open_item') {
         await Api.settlePayment({
           bankTxId: tx.id,
           paymentAccount: tx.ledgerAccount,
@@ -326,7 +475,8 @@ const AssignDialog: React.FC<{
     }
   }
 
-  const canSubmit = mode === 'open_item' ? matches : Boolean(counterAccount?.trim());
+  const canSubmit =
+    mode === 'open_item' ? Boolean(advance) || matches : Boolean(counterAccount?.trim());
 
   return (
     <Dialog
@@ -389,18 +539,24 @@ const AssignDialog: React.FC<{
               <div className="divide-y divide-line">
                 {relevant.map((item) => {
                   const entry = selected[item.entryId];
+                  const isAdvance = item.source === 'advance';
                   return (
-                    <div key={item.entryId} className="py-3 first:pt-0">
+                    <div
+                      key={isAdvance ? `advance-${item.advanceInvoiceId}` : item.entryId}
+                      className="py-3 first:pt-0"
+                    >
                       <div
                         className={cn(
                           'flex items-center gap-3',
-                          entry && '-mx-3 px-3 py-2 rounded-control bg-accent-soft',
+                          isSelected(item) && '-mx-3 px-3 py-2 rounded-control bg-accent-soft',
                         )}
                       >
                         <Checkbox
-                          checked={Boolean(entry)}
+                          checked={isSelected(item)}
                           onCheckedChange={() => toggle(item)}
-                          label={`${item.documentNumber || item.entryNumber} · ${item.contactName}`}
+                          label={`${item.documentNumber || item.entryNumber} · ${item.contactName}${
+                            isAdvance ? ' · Abschlag' : ''
+                          }`}
                           className="flex-1 min-w-0"
                         />
                         <span className="shrink-0 text-caption text-ink-subtle">
@@ -409,7 +565,7 @@ const AssignDialog: React.FC<{
                         <span className="shrink-0 num">{formatCents(item.openAmount)}</span>
                       </div>
 
-                      {entry && (
+                      {entry && !isAdvance && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                           <Field label="Ausgleichsbetrag">
                             <Input
@@ -430,7 +586,9 @@ const AssignDialog: React.FC<{
                             }.`}
                           >
                             <Select
-                              items={differenceKinds.map((k) => ({ value: k.kind, label: k.label }))}
+                              items={differenceKinds
+                                .filter((k) => !k.withoutPayment)
+                                .map((k) => ({ value: k.kind, label: k.label }))}
                               value={entry.kind}
                               onValueChange={(kind) =>
                                 setSelected((prev) => ({
@@ -507,6 +665,129 @@ const AssignDialog: React.FC<{
           </div>
         </TabPanel>
       </Tabs>
+    </Dialog>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/**
+ * Die Ausbuchung eines uneinbringlichen Postens.
+ *
+ * Sie läuft nicht über den Zahlungsausgleich: dort wird ein Zahlungsmittel
+ * bewegt, hier fließt nichts. Gebucht werden der Forderungsverlust und die
+ * Steuerkorrektur nach § 17 Abs. 2 Nr. 1 UStG — im Zeitraum der
+ * Uneinbringlichkeit.
+ */
+const WriteOffDialog: React.FC<{
+  item: OpenItem | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ item, onClose, onDone }) => {
+  const writeLock = useWriteLock();
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    setAmount(formatCents(item.openAmount, '').trim());
+    setDate(new Date().toISOString().split('T')[0]);
+    setReason('');
+    setError(null);
+  }, [item]);
+
+  async function submit() {
+    if (!reason.trim()) {
+      setError(
+        'Woran die Forderung gescheitert ist, entscheidet über die Uneinbringlichkeit. Bitte nennen Sie den Grund.',
+      );
+      return;
+    }
+    const value = parseCents(amount);
+    if (value === null || value <= 0) {
+      setError('Der auszubuchende Betrag ist nicht lesbar. Erwartet wird etwa 1234,56.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const entry = await Api.writeOffOpenItem({
+        openItemEntryId: item!.entryId,
+        amount: value,
+        date,
+        reason,
+      });
+      toast.success(`Forderung ausgebucht als ${entry.entryNumber}.`);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={item !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title="Forderung ausbuchen"
+      width="max-w-lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="danger"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Ausbuchen
+          </Button>
+        </>
+      }
+    >
+      {item && (
+        <>
+          <p className="text-body text-ink-muted">
+            <span className="code-num text-ink">{item.documentNumber || item.entryNumber}</span> ·{' '}
+            {item.contactName} · offen{' '}
+            <span className="num text-ink">{formatCents(item.openAmount)}</span>
+            <HelpPopover label="Erklärung zur Ausbuchung">
+              Gebucht werden der Forderungsverlust als Aufwand und die Steuerkorrektur nach § 17
+              Abs. 2 Nr. 1 UStG gegen das Personenkonto. Der Zeitraum ist der der
+              Uneinbringlichkeit, nicht der der Rechnung. Die Begründung steht im Protokoll: eine
+              Ausbuchung ohne sie ist von einer vergessenen Forderung nicht zu unterscheiden.
+            </HelpPopover>
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <Field label="Auszubuchender Betrag" hint="brutto">
+              <Input
+                align="right"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </Field>
+            <Field label="Datum">
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Grund der Ausbuchung" className="mt-4" error={error ?? undefined}>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Insolvenzverfahren mangels Masse abgewiesen"
+            />
+          </Field>
+        </>
+      )}
     </Dialog>
   );
 };

@@ -25,7 +25,7 @@ func NewFoundationRepository(db *gorm.DB) domain.FoundationRepository {
 // nur durch einen Fehler entstehen, und dann ist die erste die richtige.
 func (r *foundationRepositoryGorm) Get(ctx context.Context) (*domain.Foundation, error) {
 	var f domain.Foundation
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Preload("Shareholders", func(db *gorm.DB) *gorm.DB {
 			return db.Order("id asc")
 		}).
@@ -47,7 +47,7 @@ func (r *foundationRepositoryGorm) Get(ctx context.Context) (*domain.Foundation,
 // entfernten Zeile geschieht. Beides zusammen in einer Transaktion, damit nicht
 // eine gelöschte Liste ohne ihren Ersatz zurückbleibt.
 func (r *foundationRepositoryGorm) Save(ctx context.Context, f *domain.Foundation) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		shareholders := f.Shareholders
 		f.Shareholders = nil
 
@@ -79,7 +79,7 @@ func (r *foundationRepositoryGorm) Save(ctx context.Context, f *domain.Foundatio
 
 func (r *foundationRepositoryGorm) Tasks(ctx context.Context, foundationID uint) ([]domain.FoundationTask, error) {
 	var tasks []domain.FoundationTask
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("foundation_id = ?", foundationID).
 		Order("done_on asc").
 		Find(&tasks).Error
@@ -89,7 +89,7 @@ func (r *foundationRepositoryGorm) Tasks(ctx context.Context, foundationID uint)
 // CompleteTask records a fulfilled duty, replacing an earlier record of the same
 // key so a corrected date does not leave two answers behind.
 func (r *foundationRepositoryGorm) CompleteTask(ctx context.Context, task *domain.FoundationTask) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("foundation_id = ? AND key = ?", task.FoundationID, task.Key).
 			Delete(&domain.FoundationTask{}).Error; err != nil {
 			return err
@@ -100,7 +100,7 @@ func (r *foundationRepositoryGorm) CompleteTask(ctx context.Context, task *domai
 }
 
 func (r *foundationRepositoryGorm) ClearTask(ctx context.Context, foundationID uint, key string) error {
-	return r.db.WithContext(ctx).
+	return dbFrom(ctx, r.db).
 		Where("foundation_id = ? AND key = ?", foundationID, key).
 		Delete(&domain.FoundationTask{}).Error
 }
