@@ -1,0 +1,470 @@
+{
+  "version": "6.9",
+  "date": "2025-04-01",
+  "note": "Die Elementnamen sind nach der Systematik der HGB-Taxonomie 6.9 gebildet, aber nicht gegen die amtliche Fassung geprueft. Vor der Uebermittlung sind sie gegen die auf www.esteuer.de veroeffentlichte Taxonomie 6.9 abzugleichen; die Zahlen selbst stammen aus der Buchfuehrung.",
+  "namespaces": {
+    "xbrli": "http://www.xbrl.org/2003/instance",
+    "link": "http://www.xbrl.org/2003/linkbase",
+    "xlink": "http://www.w3.org/1999/xlink",
+    "iso4217": "http://www.xbrl.org/2003/iso4217",
+    "de-gcd": "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01",
+    "de-gaap-ci": "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01"
+  },
+  "elements": [
+    {
+      "key": "aktiva",
+      "element": "de-gaap-ci:bs.ass",
+      "verified": false
+    },
+    {
+      "key": "passiva",
+      "element": "de-gaap-ci:bs.eqLiab",
+      "verified": false
+    },
+    {
+      "key": "aktiva.0",
+      "element": "de-gaap-ci:bs.ass.outstContrib",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A",
+      "element": "de-gaap-ci:bs.ass.fixAss",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.I",
+      "element": "de-gaap-ci:bs.ass.fixAss.intan",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.I.1",
+      "element": "de-gaap-ci:bs.ass.fixAss.intan.selfMade",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.I.2",
+      "element": "de-gaap-ci:bs.ass.fixAss.intan.purchased",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.I.3",
+      "element": "de-gaap-ci:bs.ass.fixAss.intan.goodwill",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.I.4",
+      "element": "de-gaap-ci:bs.ass.fixAss.intan.advPay",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.II",
+      "element": "de-gaap-ci:bs.ass.fixAss.tan",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.II.1",
+      "element": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.II.2",
+      "element": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.II.3",
+      "element": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.II.4",
+      "element": "de-gaap-ci:bs.ass.fixAss.tan.advPayAssetsUnderConstr",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.1",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.shareAffil",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.2",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.loansAffil",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.3",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.particip",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.4",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.loansParticip",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.5",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.secur",
+      "verified": false
+    },
+    {
+      "key": "aktiva.A.III.6",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B",
+      "element": "de-gaap-ci:bs.ass.currAss",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.I",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.I.1",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory.rawMat",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.I.2",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory.workInProgress",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.I.3",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory.finishedGoods",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.I.4",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory.advPay",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.II",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.II.1",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.trade",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.II.2",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.affiliates",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.II.3",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.participations",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.II.4",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.other",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.III",
+      "element": "de-gaap-ci:bs.ass.currAss.secur",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.III.1",
+      "element": "de-gaap-ci:bs.ass.currAss.secur.shareAffil",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.III.2",
+      "element": "de-gaap-ci:bs.ass.currAss.secur.other",
+      "verified": false
+    },
+    {
+      "key": "aktiva.B.IV",
+      "element": "de-gaap-ci:bs.ass.currAss.cashEquiv",
+      "verified": false
+    },
+    {
+      "key": "aktiva.C",
+      "element": "de-gaap-ci:bs.ass.prepaidExp",
+      "verified": false
+    },
+    {
+      "key": "aktiva.D",
+      "element": "de-gaap-ci:bs.ass.deferredTax",
+      "verified": false
+    },
+    {
+      "key": "aktiva.E",
+      "element": "de-gaap-ci:bs.ass.excessPlanAssets",
+      "verified": false
+    },
+    {
+      "key": "passiva.A",
+      "element": "de-gaap-ci:bs.eqLiab.equity",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.I",
+      "element": "de-gaap-ci:bs.eqLiab.equity.subscribedCap",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.II",
+      "element": "de-gaap-ci:bs.eqLiab.equity.capRes",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.III",
+      "element": "de-gaap-ci:bs.eqLiab.equity.revRes",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.III.1",
+      "element": "de-gaap-ci:bs.eqLiab.equity.revRes.legal",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.III.2",
+      "element": "de-gaap-ci:bs.eqLiab.equity.revRes.sharesControlComp",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.III.3",
+      "element": "de-gaap-ci:bs.eqLiab.equity.revRes.statutory",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.III.4",
+      "element": "de-gaap-ci:bs.eqLiab.equity.revRes.other",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.IV",
+      "element": "de-gaap-ci:bs.eqLiab.equity.profitLoss",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.V",
+      "element": "de-gaap-ci:bs.eqLiab.equity.netIncome",
+      "verified": false
+    },
+    {
+      "key": "passiva.A.VI",
+      "element": "de-gaap-ci:bs.eqLiab.equity.appropriation",
+      "verified": false
+    },
+    {
+      "key": "passiva.SP",
+      "element": "de-gaap-ci:bs.eqLiab.specialItem",
+      "verified": false
+    },
+    {
+      "key": "passiva.B",
+      "element": "de-gaap-ci:bs.eqLiab.accruals",
+      "verified": false
+    },
+    {
+      "key": "passiva.B.1",
+      "element": "de-gaap-ci:bs.eqLiab.accruals.pension",
+      "verified": false
+    },
+    {
+      "key": "passiva.B.2",
+      "element": "de-gaap-ci:bs.eqLiab.accruals.tax",
+      "verified": false
+    },
+    {
+      "key": "passiva.B.3",
+      "element": "de-gaap-ci:bs.eqLiab.accruals.other",
+      "verified": false
+    },
+    {
+      "key": "passiva.C",
+      "element": "de-gaap-ci:bs.eqLiab.liab",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.1",
+      "element": "de-gaap-ci:bs.eqLiab.liab.bonds",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.2",
+      "element": "de-gaap-ci:bs.eqLiab.liab.bank",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.3",
+      "element": "de-gaap-ci:bs.eqLiab.liab.advance",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.4",
+      "element": "de-gaap-ci:bs.eqLiab.liab.trade",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.5",
+      "element": "de-gaap-ci:bs.eqLiab.liab.bills",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.6",
+      "element": "de-gaap-ci:bs.eqLiab.liab.affiliates",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.7",
+      "element": "de-gaap-ci:bs.eqLiab.liab.participations",
+      "verified": false
+    },
+    {
+      "key": "passiva.C.8",
+      "element": "de-gaap-ci:bs.eqLiab.liab.other",
+      "verified": false
+    },
+    {
+      "key": "passiva.D",
+      "element": "de-gaap-ci:bs.eqLiab.deferredInc",
+      "verified": false
+    },
+    {
+      "key": "passiva.E",
+      "element": "de-gaap-ci:bs.eqLiab.deferredTax",
+      "verified": false
+    },
+    {
+      "key": "guv.1",
+      "element": "de-gaap-ci:is.netSales",
+      "verified": false
+    },
+    {
+      "key": "guv.2",
+      "element": "de-gaap-ci:is.changeInventory",
+      "verified": false
+    },
+    {
+      "key": "guv.3",
+      "element": "de-gaap-ci:is.ownWorkCap",
+      "verified": false
+    },
+    {
+      "key": "guv.4",
+      "element": "de-gaap-ci:is.otherOpRevenue",
+      "verified": false
+    },
+    {
+      "key": "guv.5",
+      "element": "de-gaap-ci:is.materialCost",
+      "verified": false
+    },
+    {
+      "key": "guv.5.a",
+      "element": "de-gaap-ci:is.materialCost.rawMat",
+      "verified": false
+    },
+    {
+      "key": "guv.5.b",
+      "element": "de-gaap-ci:is.materialCost.purchServ",
+      "verified": false
+    },
+    {
+      "key": "guv.6",
+      "element": "de-gaap-ci:is.staffExpenses",
+      "verified": false
+    },
+    {
+      "key": "guv.6.a",
+      "element": "de-gaap-ci:is.staffExpenses.wages",
+      "verified": false
+    },
+    {
+      "key": "guv.6.b",
+      "element": "de-gaap-ci:is.staffExpenses.socSec",
+      "verified": false
+    },
+    {
+      "key": "guv.7",
+      "element": "de-gaap-ci:is.deprAmort",
+      "verified": false
+    },
+    {
+      "key": "guv.7.a",
+      "element": "de-gaap-ci:is.deprAmort.fixAss",
+      "verified": false
+    },
+    {
+      "key": "guv.7.b",
+      "element": "de-gaap-ci:is.deprAmort.currAss",
+      "verified": false
+    },
+    {
+      "key": "guv.8",
+      "element": "de-gaap-ci:is.otherCost",
+      "verified": false
+    },
+    {
+      "key": "guv.9",
+      "element": "de-gaap-ci:is.incomeParticipation",
+      "verified": false
+    },
+    {
+      "key": "guv.10",
+      "element": "de-gaap-ci:is.incomeOtherSecurities",
+      "verified": false
+    },
+    {
+      "key": "guv.11",
+      "element": "de-gaap-ci:is.otherInterest",
+      "verified": false
+    },
+    {
+      "key": "guv.11a",
+      "element": "de-gaap-ci:is.incomeLossAbsorption",
+      "verified": false
+    },
+    {
+      "key": "guv.12",
+      "element": "de-gaap-ci:is.deprFinAss",
+      "verified": false
+    },
+    {
+      "key": "guv.13",
+      "element": "de-gaap-ci:is.interestExpense",
+      "verified": false
+    },
+    {
+      "key": "guv.13a",
+      "element": "de-gaap-ci:is.expenseProfitTransfer",
+      "verified": false
+    },
+    {
+      "key": "guv.14",
+      "element": "de-gaap-ci:is.taxIncome",
+      "verified": false
+    },
+    {
+      "key": "guv.15",
+      "element": "de-gaap-ci:is.resultAfterTax",
+      "verified": false
+    },
+    {
+      "key": "guv.16",
+      "element": "de-gaap-ci:is.otherTaxes",
+      "verified": false
+    },
+    {
+      "key": "guv.17",
+      "element": "de-gaap-ci:is.netIncome",
+      "verified": false
+    }
+  ]
+}

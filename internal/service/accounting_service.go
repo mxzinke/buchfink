@@ -57,12 +57,23 @@ func (s *AccountingService) GetFiscalYear() int { return s.fiscalYear }
 // GetAccounts returns the chart of accounts with the turnover booked in the
 // active fiscal year folded in.
 func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, error) {
+	return s.AccountsForYear(ctx, s.fiscalYear)
+}
+
+// AccountsForYear liefert denselben Kontenplan mit den Salden eines beliebigen
+// Geschäftsjahres.
+//
+// Die Bilanz braucht das für die Vorjahresspalte: § 265 Abs. 2 HGB verlangt zu
+// jedem Posten den Betrag des vorhergehenden Geschäftsjahres, und den kann nur
+// liefern, wer die Salden eines anderen Jahres beschaffen kann, ohne das aktive
+// Jahr umzuschalten.
+func (s *AccountingService) AccountsForYear(ctx context.Context, year int) ([]domain.Account, error) {
 	accounts, err := s.accountRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	turnovers, err := s.collectedTurnovers(ctx)
+	turnovers, err := s.collectedTurnoversFor(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +102,12 @@ func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, 
 // into 1200 and 3300 they would be missing from the balance sheet and from the
 // Summen- und Saldenliste — which would then no longer add up.
 func (s *AccountingService) collectedTurnovers(ctx context.Context) (map[string]domain.AccountTurnover, error) {
-	raw, err := s.journalRepo.AccountTurnovers(ctx, s.fiscalYear)
+	return s.collectedTurnoversFor(ctx, s.fiscalYear)
+}
+
+// collectedTurnoversFor tut dasselbe für ein bestimmtes Geschäftsjahr.
+func (s *AccountingService) collectedTurnoversFor(ctx context.Context, year int) (map[string]domain.AccountTurnover, error) {
+	raw, err := s.journalRepo.AccountTurnovers(ctx, year)
 	if err != nil {
 		return nil, err
 	}

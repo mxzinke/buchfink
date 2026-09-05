@@ -629,6 +629,12 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 		return nil, err
 	}
 
+	// Registergericht und Registernummer sind zugleich Pflichtangaben im Kopf
+	// jedes Jahresabschlusses (§ 264 Abs. 1a HGB). Sie hier zu übernehmen
+	// erspart, dieselbe Tatsache ein zweites Mal einzutragen — überschrieben
+	// wird nichts: was in den Einstellungen steht, hat jemand dort gewollt.
+	s.adoptRegisterSettings(ctx, f)
+
 	// Die Anmeldung ist mit der Eintragung erledigt; sie noch als offene Frist
 	// zu führen wäre eine Nachfrage nach etwas, das nachweislich geschehen ist.
 	_ = s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
@@ -672,4 +678,78 @@ func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction
 		return
 	}
 	_ = s.auditRepo.Log(ctx, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
+}
+
+// adoptRegisterSettings trägt Registergericht und Registernummer in die
+// Unternehmensdaten nach, soweit sie dort noch fehlen.
+//
+// Scheitert das Schreiben, bleibt die Eintragung gültig: die Gründung ist die
+// Tatsache, die Einstellung nur ihre Wiederholung.
+func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain.Foundation) {
+	if s.settingsRepo == nil {
+		return
+	}
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || settings == nil {
+		return
+	}
+	changed := false
+	if settings.RegisterCourt == "" && f.RegisterCourt != "" {
+		settings.RegisterCourt = f.RegisterCourt
+		changed = true
+	}
+	if settings.RegisterNumber == "" && f.RegisterNumber != "" {
+		settings.RegisterNumber = f.RegisterNumber
+		changed = true
+	}
+	// Der Sitz steht in den Gründungsdaten nicht eigens; die Anschrift der
+	// Einstellungen ist die nächste Tatsache, aus der er folgt. Übernommen wird
+	// aber nur der Ort, nicht die Postleitzahl: der Sitz des § 264 Abs. 1a Nr. 2
+	// HGB ist die Gemeinde, und „80331 München" im Bilanzkopf und in
+	// de-gcd:genInfo.company.id.location.city wäre keine Angabe des Sitzes,
+	// sondern eine halbe Anschrift.
+	if seat := cityOf(settings.ZipCity); settings.Seat == "" && seat != "" {
+		settings.Seat = seat
+		changed = true
+	}
+	if !changed {
+		return
+	}
+	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
+		return
+	}
+	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll.
+	// Jeder andere Weg in die Einstellungen läuft über den SettingsService und
+	// hinterlässt dort einen Eintrag; bliebe dieser eine Weg stumm, stünden im
+	// Kopf des Jahresabschlusses eines Tages Angaben, die niemand gemacht hat.
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+			"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
+			settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
+	}
+}
+
+// cityOf schneidet die führende Postleitzahl aus einer Zeile „PLZ Ort".
+//
+// Ohne erkennbare Postleitzahl bleibt die Zeile, wie sie ist: sie enthält dann
+// schon den Ort allein, und eine weitere Vermutung darüber, welches Wort der
+// Ort ist, wäre geraten.
+func cityOf(zipCity string) string {
+	fields := strings.Fields(zipCity)
+	if len(fields) > 1 && isDigits(fields[0]) {
+		fields = fields[1:]
+	}
+	return strings.Join(fields, " ")
+}
+
+func isDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }

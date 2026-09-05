@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Lock } from 'lucide-react';
 import { Toaster } from 'sonner';
-import { Sidebar, TabType } from './components/Sidebar';
+import { NavigationParams, Sidebar, TabType } from './components/Sidebar';
 import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
@@ -37,6 +37,11 @@ export function App() {
   const [tenants, setTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(null);
   const [currentTab, setCurrentTab] = useState<TabType>('welcome');
+  // Ein Navigationsziel kann einen Parameter tragen: von der Bilanzzeile führt
+  // der Weg über das Konto ins Kontoblatt und von dort auf die Buchung im
+  // Journal (GOB-02). Ohne Parameter landete man nur auf der Übersichtsseite
+  // und müsste dort von Hand suchen, was man gerade angeklickt hat.
+  const [navParams, setNavParams] = useState<NavigationParams>({});
   const [currentYear, setCurrentYear] = useState<number>(currentCalendarYear);
   const [availableYears, setAvailableYears] = useState<number[]>([currentCalendarYear]);
   // Ab der Feststellung nimmt ein Geschäftsjahr keine Buchung mehr an. Der
@@ -184,6 +189,13 @@ export function App() {
     }
   };
 
+  /** Wechselt die Ansicht und nimmt den Parameter des Ziels mit. */
+  const navigate = (tab: TabType, params: NavigationParams = {}) => {
+    setCurrentTab(tab);
+    setNavParams(params);
+    setIsMobileSidebarOpen(false);
+  };
+
   const handleYearChange = async (year: number) => {
     setCurrentYear(year);
     await Api.setFiscalYear(year);
@@ -249,15 +261,20 @@ export function App() {
             onRefreshTenants={refreshTenants}
             onAddTenant={() => setIsAddingTenant(true)}
             onStartDashboard={() => setCurrentTab('dashboard')}
-            onNavigate={setCurrentTab}
+            onNavigate={navigate}
           />
         );
       case 'dashboard':
-        return <DashboardPage onNavigate={setCurrentTab} />;
+        return <DashboardPage onNavigate={navigate} />;
       case 'accounts':
-        return <AccountsPage />;
+        return <AccountsPage initialAccount={navParams.account} onNavigate={navigate} />;
       case 'journal':
-        return <JournalPage closedYear={closedYears.includes(currentYear) ? currentYear : undefined} />;
+        return (
+          <JournalPage
+            closedYear={closedYears.includes(currentYear) ? currentYear : undefined}
+            initialSearch={navParams.entryNumber}
+          />
+        );
       case 'assets':
         return <AssetsPage />;
       case 'bank':
@@ -269,7 +286,9 @@ export function App() {
       case 'contacts':
         return <ContactsPage />;
       case 'reports':
-        return <ReportsPage />;
+        // Bilanz und GuV folgen dem Jahr aus der Kopfzeile; die Gliederung
+        // entsteht im Backend, die Ansicht rechnet nichts nach.
+        return <ReportsPage year={currentYear} onNavigate={navigate} />;
       case 'closing':
         // Die Abschlussansicht folgt dem Jahr aus der Kopfzeile; sie zeigt
         // Stand und Vortrag genau eines Geschäftsjahres.
@@ -277,13 +296,13 @@ export function App() {
       case 'deadlines':
         return <DeadlinesPage />;
       case 'ebilanz':
-        return <EBilanzPage />;
+        return <EBilanzPage year={currentYear} />;
       case 'audit':
         return <AuditPage />;
       case 'settings':
         return <SettingsPage />;
       default:
-        return <DashboardPage onNavigate={setCurrentTab} />;
+        return <DashboardPage onNavigate={navigate} />;
     }
   };
 
@@ -300,10 +319,7 @@ export function App() {
       {/* Grouped Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={(tab) => {
-          setCurrentTab(tab);
-          setIsMobileSidebarOpen(false);
-        }}
+        onSelectTab={(tab) => navigate(tab)}
         settings={companySettings}
         integrity={integrity}
         onRefreshIntegrity={refreshIntegrity}

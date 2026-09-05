@@ -83,6 +83,12 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.ZipCity = it.Value
 		case "country":
 			settings.Country = it.Value
+		case "seat":
+			settings.Seat = it.Value
+		case "register_court":
+			settings.RegisterCourt = it.Value
+		case "register_number":
+			settings.RegisterNumber = it.Value
 		case "vat_period":
 			settings.VatPeriod = it.Value
 		case "taxation_type":
@@ -127,6 +133,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"street":                  s.Street,
 		"zip_city":                s.ZipCity,
 		"country":                 s.Country,
+		"seat":                    s.Seat,
+		"register_court":          s.RegisterCourt,
+		"register_number":         s.RegisterNumber,
 		"vat_period":              vatPeriod,
 		"taxation_type":           taxationType,
 		// Leer bleibt leer: die Anlegerstellung folgt dann aus der Rechtsform.

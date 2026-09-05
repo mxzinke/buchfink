@@ -338,6 +338,89 @@ func TestRegisterEndsTheVorgesellschaft(t *testing.T) {
 	}
 }
 
+// Registergericht und Registernummer sind zugleich Pflichtangaben im Kopf des
+// Jahresabschlusses (§ 264 Abs. 1a HGB). Die Eintragung trägt sie in die
+// Unternehmensdaten nach, soweit sie dort fehlen — der Sitz folgt aus der
+// Anschrift, aber ohne die Postleitzahl: der Sitz ist die Gemeinde.
+func TestRegisterAdoptsTheRegisterDataIntoTheCompanySettings(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	svc := env.foundations(t)
+	env.saveFoundation(t, svc, gmbhFoundation())
+
+	if _, err := svc.Register(ctx, "2026-02-10", "Amtsgericht München", "HRB 123456"); err != nil {
+		t.Fatalf("Eintragung: %v", err)
+	}
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	if cfg.RegisterCourt != "Amtsgericht München" {
+		t.Errorf("das Registergericht der Einstellungen lautet %q, erwartet „Amtsgericht München\"",
+			cfg.RegisterCourt)
+	}
+	if cfg.RegisterNumber != "HRB 123456" {
+		t.Errorf("die Registernummer der Einstellungen lautet %q, erwartet „HRB 123456\"", cfg.RegisterNumber)
+	}
+	// Die Anschrift der Testumgebung lautet „80331 München".
+	if cfg.Seat != "München" {
+		t.Errorf("der Sitz lautet %q, erwartet „München\" — die Postleitzahl gehört nicht in den "+
+			"Sitz des § 264 Abs. 1a Nr. 2 HGB", cfg.Seat)
+	}
+
+	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll:
+	// jeder andere Weg in die Einstellungen hinterlässt dort einen Eintrag.
+	entries, err := repository.NewAuditRepository(env.db).FindAll(ctx, 100)
+	if err != nil {
+		t.Fatalf("Protokoll: %v", err)
+	}
+	logged := false
+	for _, e := range entries {
+		if e.EntityType == "SETTINGS" && strings.Contains(e.Details, "HRB 123456") {
+			logged = true
+		}
+	}
+	if !logged {
+		t.Error("die Übernahme in die Unternehmensdaten steht nicht im Protokoll")
+	}
+}
+
+// Was in den Einstellungen steht, hat jemand dort gewollt: die Eintragung
+// überschreibt nichts.
+func TestRegisterLeavesExistingCompanySettingsAlone(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	cfg.Seat = "Grünwald"
+	cfg.RegisterCourt = "Amtsgericht Traunstein"
+	cfg.RegisterNumber = "HRB 999"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Unternehmensdaten speichern: %v", err)
+	}
+
+	svc := env.foundations(t)
+	env.saveFoundation(t, svc, gmbhFoundation())
+	if _, err := svc.Register(ctx, "2026-02-10", "Amtsgericht München", "HRB 123456"); err != nil {
+		t.Fatalf("Eintragung: %v", err)
+	}
+
+	after, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	if after.RegisterCourt != "Amtsgericht Traunstein" || after.RegisterNumber != "HRB 999" ||
+		after.Seat != "Grünwald" {
+		t.Errorf("die Eintragung hat die Einstellungen überschrieben: %q, %q, %q",
+			after.RegisterCourt, after.RegisterNumber, after.Seat)
+	}
+}
+
 func TestRegisterRejectsDateBeforeBeurkundung(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.foundations(t)

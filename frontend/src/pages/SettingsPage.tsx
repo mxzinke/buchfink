@@ -304,6 +304,43 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Section>
 
+      {/* Ohne diese drei Angaben trägt der Jahresabschluss den Kopf nicht, den
+          § 264 Abs. 1a HGB verlangt. Sie standen bisher nur im Gründungsweg. */}
+      <Section
+        title="Registereintragung"
+        action={
+          <HelpPopover label="Erklärung zur Registereintragung">
+            Auf jedem Jahresabschluss einer Kapitalgesellschaft sind Firma, Sitz, Registergericht
+            und Registernummer anzugeben (§ 264 Abs. 1a HGB). Buchfink setzt sie in den Kopf von
+            Bilanz, Gewinn- und Verlustrechnung und E-Bilanz.
+          </HelpPopover>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Sitz der Gesellschaft">
+            <Input
+              value={settings.seat}
+              onChange={(e) => patch({ seat: e.target.value })}
+              placeholder="Ort laut Satzung"
+            />
+          </Field>
+          <Field label="Registergericht">
+            <Input
+              value={settings.registerCourt}
+              onChange={(e) => patch({ registerCourt: e.target.value })}
+              placeholder="Amtsgericht München"
+            />
+          </Field>
+          <Field label="Registernummer">
+            <Input
+              value={settings.registerNumber}
+              onChange={(e) => patch({ registerNumber: e.target.value })}
+              placeholder="HRB 123456"
+            />
+          </Field>
+        </div>
+      </Section>
+
       <Section
         title="Geschäftsjahr"
         action={

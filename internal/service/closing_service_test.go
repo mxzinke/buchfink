@@ -1308,3 +1308,62 @@ func entriesOf(t *testing.T, e *testEnv, year int) []domain.JournalEntry {
 	}
 	return entries
 }
+
+// Die Arbeitnehmerzahl bestimmt über die Größenklasse die Gliederungstiefe und
+// den Umfang der Offenlegung. Ein festgestellter Abschluss darf sie deshalb
+// nicht mehr annehmen — sonst stünde derselbe Abschluss morgen anders da.
+func TestAverageEmployeesRefusedAfterAdoption(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	festschreibung := repository.NewFestschreibungRepository(env.db)
+	if err := festschreibung.Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: "year", PeriodLabel: "Geschäftsjahr 2026",
+		CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash,
+	}); err != nil {
+		t.Fatalf("Festschreibung: %v", err)
+	}
+	if _, err := closing.SetAverageEmployees(ctx, 2026, 12); err != nil {
+		t.Fatalf("Arbeitnehmerzahl im offenen Jahr: %v", err)
+	}
+	if _, err := closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearPrepared, "2027-03-31", ""); err != nil {
+		t.Fatalf("Aufstellung: %v", err)
+	}
+	// Aufgestellt heißt noch nicht beschlossen: bis zur Feststellung bleibt die
+	// Zahl änderbar.
+	if _, err := closing.SetAverageEmployees(ctx, 2026, 13); err != nil {
+		t.Fatalf("Arbeitnehmerzahl im aufgestellten Jahr: %v", err)
+	}
+	if _, err := closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearAdopted, "2027-06-30", "Beschluss"); err != nil {
+		t.Fatalf("Feststellung: %v", err)
+	}
+
+	_, err := closing.SetAverageEmployees(ctx, 2026, 400)
+	if err == nil {
+		t.Fatal("ein festgestelltes Geschäftsjahr darf die Arbeitnehmerzahl nicht mehr annehmen")
+	}
+	// Die Meldung nennt Ursache und nächsten Schritt (§15.3).
+	for _, want := range []string{"Festgestellt", "Feststellung zurück"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("die Fehlermeldung nennt %q nicht: %v", want, err)
+		}
+	}
+	fy, err := closing.YearOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr: %v", err)
+	}
+	if fy.AverageEmployees != 13 {
+		t.Errorf("die Arbeitnehmerzahl steht auf %d, erwartet den Stand 13 vor der Feststellung",
+			fy.AverageEmployees)
+	}
+
+	// Nach der Rücksetzung ist sie wieder zu erfassen — das ist der Weg, den
+	// die Fehlermeldung nennt.
+	if _, err := closing.ReopenFiscalYear(ctx, 2026, "Korrektur der Arbeitnehmerzahl"); err != nil {
+		t.Fatalf("Rücksetzung: %v", err)
+	}
+	if _, err := closing.SetAverageEmployees(ctx, 2026, 400); err != nil {
+		t.Errorf("nach der Rücksetzung muss die Arbeitnehmerzahl wieder änderbar sein: %v", err)
+	}
+}

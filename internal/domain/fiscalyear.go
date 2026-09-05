@@ -97,6 +97,17 @@ type FiscalYear struct {
 	// Gesellschafterbeschluss den Abschluss festgestellt hat.
 	AdoptionNote string `gorm:"size:500" json:"adoptionNote,omitempty"`
 
+	// AverageEmployees ist die durchschnittliche Zahl der Arbeitnehmer des
+	// Geschäftsjahres — das dritte Merkmal des § 267 Abs. 1 HGB neben
+	// Bilanzsumme und Umsatzerlösen.
+	//
+	// Es lässt sich aus der Buchführung nicht ableiten: § 267 Abs. 5 HGB
+	// bestimmt den Durchschnitt aus vier Quartalsstichtagen, und wer an ihnen
+	// beschäftigt war, steht in keinem Konto. Deshalb ist es eine Angabe und
+	// keine Rechnung; null heißt „noch nicht erfasst" und führt dazu, dass
+	// dieses Merkmal für die kleinste Klasse spricht.
+	AverageEmployees int `gorm:"default:0" json:"averageEmployees"`
+
 	// CarriedForwardAt ist der Zeitpunkt des letzten Saldenvortrags in dieses
 	// Jahr. Nicht ob, sondern wann: ein Vortrag kann durch spätere Buchungen im
 	// Vorjahr überholt werden, und dann ist der Zeitpunkt die einzige Spur, an

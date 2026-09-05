@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Account, FinancialSummary, CompanySettings, VatSummary } from '../types';
+import { Download, Table2 } from 'lucide-react';
+import { CompanySettings, FinancialStatement, VatSummary } from '../types';
 import { Api } from '../services/api';
 import { formatCents } from '../utils/formatters';
+import type { NavigateFn } from '../components/Sidebar';
 import {
+  DepthChoice,
+  StatementTab,
+  StatementView,
+} from '../components/StatementView';
+import {
+  Button,
   EmptyState,
   HelpPopover,
+  Notice,
   PageHeader,
   Section,
   Select,
@@ -23,14 +32,20 @@ import {
 } from '../components/ui';
 
 /**
- * Auswertungen: GuV, Bilanz und Umsatzsteuer.
+ * Auswertungen: Bilanz, Gewinn- und Verlustrechnung und Umsatzsteuer.
  *
- * Die Zahlen kommen fertig aus dem Backend, wo an jeder Buchungszeile der
- * Steuerschlüssel und die Bemessungsgrundlage hängen. Sie hier aus
- * Kontonummern zu rekonstruieren wäre eine zweite, abweichende Wahrheit.
+ * Die Zahlen kommen fertig aus dem Backend. Bilanz und GuV entstanden bis
+ * Welle 2 hier durch Filtern nach Kontenklasse und waren damit eine zweite,
+ * abweichende Wahrheit; jetzt liest die Ansicht die Gliederung nach den
+ * §§ 266 und 275 HGB aus `GetStatement` und rechnet nichts nach. Dasselbe gilt
+ * für die Umsatzsteuer, an deren Buchungszeilen der Steuerschlüssel und die
+ * Bemessungsgrundlage hängen.
  */
 
-type Tab = 'guv' | 'bilanz' | 'ust';
+type Tab = StatementTab | 'ust';
+
+/** Die Reiter, die den Abschluss zeigen — sie tragen Tiefe und Ausgabe. */
+const STATEMENT_TABS: Tab[] = ['bilanz', 'guv', 'angaben', 'klasse'];
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -39,31 +54,87 @@ const MONTH_NAMES = [
 
 const QUARTER_LABELS = ['Jan–Mär', 'Apr–Jun', 'Jul–Sep', 'Okt–Dez'];
 
-export const ReportsPage: React.FC = () => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [summary, setSummary] = useState<FinancialSummary | null>(null);
+export interface ReportsPageProps {
+  /** Das Geschäftsjahr aus der Kopfzeile. Der Abschluss folgt ihm. */
+  year: number;
+  /** Weg von der Gliederungszeile über das Konto ins Kontoblatt (GOB-02). */
+  onNavigate?: NavigateFn;
+}
+
+export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) => {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [vatByPeriod, setVatByPeriod] = useState<Record<string, VatSummary>>({});
-  const [tab, setTab] = useState<Tab>('guv');
   const [loading, setLoading] = useState(true);
 
   const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
   const [selectedMonth, setSelectedMonth] = useState<number>(1);
 
+  const [tab, setTab] = useState<Tab>('bilanz');
+  const [statement, setStatement] = useState<FinancialStatement | null>(null);
+  const [depth, setDepth] = useState<DepthChoice>('auto');
+  const [loadingStatement, setLoadingStatement] = useState(true);
+  const [statementError, setStatementError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
+
+  // Die Voranmeldung wird beim Jahreswechsel neu gelesen: die Reiter dieser
+  // Seite zeigen dasselbe Geschäftsjahr, sonst stünde neben der Bilanz 2026 die
+  // Umsatzsteuer des Vorjahres.
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [year]);
+
+  useEffect(() => {
+    void loadStatement();
+    // Die Tiefe ist ein Parameter des Aufbaus, kein Filter der Ansicht: eine
+    // verkürzte Bilanz wird gebaut und nicht ausgeblendet.
+  }, [year, depth]);
+
+  async function loadStatement() {
+    setLoadingStatement(true);
+    try {
+      setStatement(await Api.getStatement(year, depth === 'auto' ? '' : depth));
+      setStatementError(null);
+    } catch (e) {
+      // Ein Befund aus dem Aufstellen — etwa eine Bilanz, die nicht aufgeht —
+      // ist ein Fehler und kein Leerzustand: er gehört als Hinweisfläche über
+      // die Ansicht (§10), damit der Satz des Backends lesbar bleibt.
+      setStatement(null);
+      setStatementError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingStatement(false);
+    }
+  }
+
+  async function handleExport(kind: 'pdf' | 'csv') {
+    setExporting(kind);
+    try {
+      if (kind === 'pdf') {
+        const base64 = await Api.exportStatementPDF(year);
+        downloadBlob(
+          `jahresabschluss-${year}.pdf`,
+          new Blob([bufferFromBase64(base64)], { type: 'application/pdf' }),
+        );
+      } else {
+        const csv = await Api.exportStatementCSV(year);
+        // Das Byte-Order-Mark steht davor, damit die Tabellenkalkulation die
+        // Umlaute als UTF-8 liest und nicht als Zeichensalat.
+        downloadBlob(
+          `jahresabschluss-${year}.csv`,
+          new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }),
+        );
+      }
+      toast.success(kind === 'pdf' ? 'Abschluss als PDF gespeichert.' : 'Gliederung als CSV gespeichert.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
 
   async function loadData() {
     setLoading(true);
     try {
-      const [accs, sum, cfg] = await Promise.all([
-        Api.getAccounts(),
-        Api.getFinancialSummary(),
-        Api.getCompanySettings(),
-      ]);
-      setAccounts(accs);
-      setSummary(sum);
+      const cfg = await Api.getCompanySettings();
       setSettings(cfg);
 
       const year = cfg.fiscalYear || new Date().getFullYear();
@@ -89,33 +160,6 @@ export const ReportsPage: React.FC = () => {
 
   const currentYear = settings?.fiscalYear || new Date().getFullYear();
   const vatPeriod = settings?.vatPeriod || 'quarter';
-
-  // Aufteilung nach SKR04 und HGB.
-  const revenueAccounts = accounts.filter(
-    (a) => (a.type === 'revenue' || a.kontenklasse === 4) && a.balance !== 0,
-  );
-  const expenseAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'expense' || a.kontenklasse === 5 || a.kontenklasse === 6 || a.kontenklasse === 7) &&
-      a.balance !== 0,
-  );
-  const assetAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'asset' || a.balanceSide === 'Aktiva' || a.kontenklasse === 0 || a.kontenklasse === 1) &&
-      a.balance !== 0,
-  );
-  const liabilityAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'liability' ||
-        a.type === 'equity' ||
-        a.balanceSide === 'Passiva' ||
-        a.kontenklasse === 2 ||
-        a.kontenklasse === 3) &&
-      a.balance !== 0,
-  );
-
-  const totalAssets = assetAccounts.reduce((sum, a) => sum + a.balance, 0);
-  const totalLiabilities = liabilityAccounts.reduce((sum, a) => sum + a.balance, 0);
 
   /** Die Zahlen der Voranmeldung auf die Feldnamen der Ansicht gebracht. */
   const vatView = (key: string) => {
@@ -158,137 +202,94 @@ export const ReportsPage: React.FC = () => {
 
   const refund = activeVat.zahllast < 0;
 
+  const onStatement = STATEMENT_TABS.includes(tab);
+
+  /** Bilanz, Staffel, Angaben und Größenklasse — vier Sichten auf einen Aufbau. */
+  const statementPanel = (view: StatementTab) => {
+    if (loadingStatement) return <SkeletonRows rows={10} />;
+    if (!statement) {
+      // Der Fehler steht als Hinweisfläche über den Reitern; der Leerzustand
+      // gilt allein dem Fall, dass es nichts zu zeigen gibt.
+      return statementError ? null : (
+        <EmptyState
+          title={`Kein Abschluss für ${year}`}
+          description="Das Backend hat keine Gliederung geliefert."
+        />
+      );
+    }
+    return (
+      <StatementView
+        data={statement}
+        view={view}
+        depth={depth}
+        onDepthChange={setDepth}
+        onNavigate={onNavigate}
+      />
+    );
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
         title="Auswertungen"
-        context={`Geschäftsjahr ${currentYear} · berechnet aus den erfassten Buchungen`}
+        context={`Geschäftsjahr ${year} · berechnet aus den erfassten Buchungen`}
+        action={
+          onStatement ? (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                icon={<Table2 className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => handleExport('csv')}
+                loading={exporting === 'csv'}
+                disabled={!statement || exporting !== null}
+              >
+                Als CSV
+              </Button>
+              <Button
+                variant="primary"
+                icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => handleExport('pdf')}
+                loading={exporting === 'pdf'}
+                disabled={!statement || exporting !== null}
+              >
+                Als PDF
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
 
-      <Tabs
+      {onStatement && statementError && (
+        <Notice
+          className="mt-6"
+          tone="negative"
+          text={statementError}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void loadStatement()}>
+              Erneut aufstellen
+            </Button>
+          }
+        />
+      )}
+
+      <Tabs<Tab>
         items={[
-          { value: 'guv' as Tab, label: 'Gewinn & Verlust' },
-          { value: 'bilanz' as Tab, label: 'Bilanz' },
-          { value: 'ust' as Tab, label: 'Umsatzsteuer' },
+          { value: 'bilanz', label: 'Bilanz' },
+          { value: 'guv', label: 'Gewinn- und Verlustrechnung' },
+          { value: 'angaben', label: 'Angaben unter der Bilanz' },
+          { value: 'klasse', label: 'Größenklasse und Fristen' },
+          { value: 'ust', label: 'Umsatzsteuer' },
         ]}
         value={tab}
         onValueChange={setTab}
         className="mt-6"
       >
-        {/* ------------------------------------------------------------- */}
-        <TabPanel value="guv">
-          {loading ? (
-            <SkeletonRows rows={8} />
-          ) : (
-            <Section
-              title="Gewinn- und Verlustrechnung"
-              context="Erlöse abzüglich Aufwendungen, vor Steuern"
-              divider={false}
-              action={
-                <HelpPopover label="Erklärung zur Gewinn- und Verlustrechnung">
-                  Die Aufstellung folgt dem Gesamtkostenverfahren nach § 275 HGB. Sie zeigt den
-                  Stand des laufenden Geschäftsjahres und ist kein Jahresabschluss: Abgrenzungen,
-                  Abschreibungen und Rückstellungen entstehen erst beim Abschluss.
-                </HelpPopover>
-              }
-            >
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th className="w-28">Konto</Th>
-                    <Th>Position</Th>
-                    <Th numeric className="w-44">
-                      Betrag
-                    </Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  <GroupRow label="Erlöse" />
-                  {revenueAccounts.length === 0 ? (
-                    <Tr>
-                      <Td className="text-ink-subtle" colSpan={3}>
-                        Keine Erlöse gebucht
-                      </Td>
-                    </Tr>
-                  ) : (
-                    revenueAccounts.map((account) => (
-                      <Tr key={account.number}>
-                        <Td code>{account.number}</Td>
-                        <Td>{account.name}</Td>
-                        <Td numeric>{formatCents(account.balance)}</Td>
-                      </Tr>
-                    ))
-                  )}
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Summe Erlöse</Td>
-                    <Td numeric>{formatCents(summary?.totalRevenue ?? 0)}</Td>
-                  </Tr>
+        <TabPanel value="bilanz">{statementPanel('bilanz')}</TabPanel>
+        <TabPanel value="guv">{statementPanel('guv')}</TabPanel>
+        <TabPanel value="angaben">{statementPanel('angaben')}</TabPanel>
+        <TabPanel value="klasse">{statementPanel('klasse')}</TabPanel>
 
-                  <GroupRow label="Aufwendungen" />
-                  {expenseAccounts.length === 0 ? (
-                    <Tr>
-                      <Td className="text-ink-subtle" colSpan={3}>
-                        Keine Aufwendungen gebucht
-                      </Td>
-                    </Tr>
-                  ) : (
-                    expenseAccounts.map((account) => (
-                      <Tr key={account.number}>
-                        <Td code>{account.number}</Td>
-                        <Td>{account.name}</Td>
-                        <Td numeric>{formatCents(account.balance)}</Td>
-                      </Tr>
-                    ))
-                  )}
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Summe Aufwendungen</Td>
-                    <Td numeric>{formatCents(summary?.totalExpenses ?? 0)}</Td>
-                  </Tr>
-
-                  <GroupRow label="Ergebnis" />
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Vorläufiges Jahresergebnis</Td>
-                    <Td
-                      numeric
-                      className={
-                        (summary?.netIncome ?? 0) >= 0 ? 'text-positive-text' : 'text-negative-text'
-                      }
-                    >
-                      {formatCents(summary?.netIncome ?? 0)}
-                    </Td>
-                  </Tr>
-                </Tbody>
-              </Table>
-            </Section>
-          )}
-        </TabPanel>
-
-        {/* ------------------------------------------------------------- */}
-        <TabPanel value="bilanz">
-          {loading ? (
-            <SkeletonRows rows={8} />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <BalanceSide
-                title="Aktiva"
-                context="Vermögen und Bankguthaben"
-                accounts={assetAccounts}
-                total={totalAssets}
-              />
-              <BalanceSide
-                title="Passiva"
-                context="Eigenkapital und Verbindlichkeiten"
-                accounts={liabilityAccounts}
-                total={totalLiabilities}
-              />
-            </div>
-          )}
-        </TabPanel>
-
-        {/* ------------------------------------------------------------- */}
+        {/* Die Umsatzsteuer-Übersicht steht unverändert, wie vor Welle 2. */}
         <TabPanel value="ust">
           {loading ? (
             <SkeletonRows rows={8} />
@@ -455,55 +456,25 @@ export const ReportsPage: React.FC = () => {
 
 // -------------------------------------------------------------------------
 
-/** Zwischenüberschrift in der Aufstellung. Trägt allein durch Schriftschnitt. */
-const GroupRow: React.FC<{ label: string }> = ({ label }) => (
-  <Tr>
-    <Td colSpan={3} className="text-overline uppercase text-ink-subtle">
-      {label}
-    </Td>
-  </Tr>
-);
+/** Base64 aus der Bridge in Bytes — das PDF kommt wie der Rechnungsexport. */
+function bufferFromBase64(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return buffer;
+}
 
-const BalanceSide: React.FC<{
-  title: string;
-  context: string;
-  accounts: Account[];
-  total: number;
-}> = ({ title, context, accounts, total }) => (
-  <Section title={title} context={context} divider={false}>
-    {accounts.length === 0 ? (
-      <EmptyState title="Keine Positionen" />
-    ) : (
-      <Table>
-        <Thead>
-          <Tr>
-            <Th className="w-24">Konto</Th>
-            <Th>Position</Th>
-            <Th numeric className="w-36">
-              Betrag
-            </Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {accounts.map((account) => (
-            <Tr key={account.number}>
-              <Td code>{account.number}</Td>
-              <Td className="max-w-[18rem] truncate" title={account.name}>
-                {account.name}
-              </Td>
-              <Td numeric>{formatCents(account.balance)}</Td>
-            </Tr>
-          ))}
-          <Tr variant="sum">
-            <Td />
-            <Td>Summe {title}</Td>
-            <Td numeric>{formatCents(total)}</Td>
-          </Tr>
-        </Tbody>
-      </Table>
-    )}
-  </Section>
-);
+function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 /** Letzter Tag eines Monats als ISO-Datum. */
 function endOfMonth(year: number, month: number): string {

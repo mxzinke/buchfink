@@ -139,3 +139,38 @@ func (r *Renderer) compilePlainForTest(ctx context.Context) ([]byte, error) {
 		PDFOpts: typst.PDFOptions{Standards: []string{"a-3b"}},
 	})
 }
+
+// RenderDocumentPDF übersetzt ein beliebiges Typst-Dokument.
+//
+// Sie steht neben RenderInvoicePDF, weil nicht jedes Dokument eine Rechnung
+// ist: Bilanz und Gewinn- und Verlustrechnung brauchen denselben Compiler,
+// dieselben eingebetteten Schriften und dieselbe reproduzierbare Ausgabe, aber
+// keinen ZUGFeRD-Anhang — es hängt kein strukturierter Teil daran. PDF/A-3b
+// bleibt trotzdem: ein Jahresabschluss ist zehn Jahre aufzubewahren (§ 257
+// Abs. 4 HGB), und dafür ist die Schrifteneinbettung des Archivformats der
+// Unterschied zwischen lesbar und unlesbar.
+//
+// ident macht zwei Läufe desselben Abschlusses byteweise vergleichbar; das ist
+// es, was das „inhaltlich identische Mehrstück" der GoBD Rz. 76 Abs. 2 mehr als
+// eine Behauptung sein lässt.
+func (r *Renderer) RenderDocumentPDF(ctx context.Context, template, ident string) ([]byte, error) {
+	if template == "" {
+		return nil, fmt.Errorf("ohne Vorlage lässt sich kein PDF erzeugen")
+	}
+	compiler, err := r.ensure(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("der PDF-Renderer konnte nicht gestartet werden: %w", err)
+	}
+	pdf, err := compiler.Compile(ctx, typst.CompileRequest{
+		Template: template,
+		Fonts:    [][]byte{fontRegular, fontSemiBold, fontBold},
+		PDFOpts: typst.PDFOptions{
+			Standards: []string{"a-3b"},
+			Ident:     ident,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("das Dokument konnte nicht als PDF erzeugt werden: %w", err)
+	}
+	return pdf, nil
+}

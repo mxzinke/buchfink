@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Account, AccountLedger, AccountType, SuSaOverview } from '../types';
+import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { formatCents, formatDate } from '../utils/formatters';
 import {
@@ -77,7 +78,16 @@ const BALANCE_HELP =
   'Aktiv- und Aufwandskonten tragen ihren Saldo im Soll, Passiv-, Kapital- und Ertragskonten im ' +
   'Haben. Steht der Saldo auf der anderen Seite, weist die Zeile darauf hin.';
 
-export const AccountsPage: React.FC = () => {
+export interface AccountsPageProps {
+  /**
+   * Kontonummer aus dem Navigationsziel. Wer aus der Bilanz auf ein Konto
+   * klickt, will das Kontoblatt sehen und nicht die Kontenliste (GOB-02).
+   */
+  initialAccount?: string;
+  onNavigate?: NavigateFn;
+}
+
+export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNavigate }) => {
   const [tab, setTab] = useState<Tab>('konten');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [susa, setSusa] = useState<SuSaOverview | null>(null);
@@ -92,6 +102,14 @@ export const AccountsPage: React.FC = () => {
   useEffect(() => {
     void load();
   }, []);
+
+  // Das Kontoblatt folgt dem Navigationsziel in beide Richtungen: mit
+  // Kontonummer öffnet es sich, ohne schließt es. Sonst bliebe ein Kontoblatt
+  // stehen, das über die Navigation gar nicht angesteuert wurde.
+  useEffect(() => {
+    if (initialAccount) void openLedger(initialAccount);
+    else setLedger(null);
+  }, [initialAccount]);
 
   async function load() {
     setLoading(true);
@@ -153,7 +171,16 @@ export const AccountsPage: React.FC = () => {
   }, [catalog]);
 
   if (ledger) {
-    return <LedgerView ledger={ledger} loading={loadingLedger} onBack={() => setLedger(null)} />;
+    return (
+      <LedgerView
+        ledger={ledger}
+        loading={loadingLedger}
+        onBack={() => setLedger(null)}
+        onOpenEntry={
+          onNavigate && ((entryNumber: string) => onNavigate('journal', { entryNumber }))
+        }
+      />
+    );
   }
 
   return (
@@ -418,7 +445,9 @@ const LedgerView: React.FC<{
   ledger: AccountLedger;
   loading: boolean;
   onBack: () => void;
-}> = ({ ledger, loading, onBack }) => {
+  /** Weiter zur Buchung im Journal — der nächste Schritt des Drill-downs. */
+  onOpenEntry?: (entryNumber: string) => void;
+}> = ({ ledger, loading, onBack, onOpenEntry }) => {
   const account = ledger.account;
   const rows = ledger.rows ?? [];
 
@@ -502,7 +531,17 @@ const LedgerView: React.FC<{
                 >
                   <Td className="text-ink-subtle num">{formatDate(row.bookingDate)}</Td>
                   <Td code>
-                    {row.entryNumber}
+                    {onOpenEntry ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenEntry(row.entryNumber)}
+                        className="code-num text-accent-text hover:underline"
+                      >
+                        {row.entryNumber}
+                      </button>
+                    ) : (
+                      row.entryNumber
+                    )}
                     {row.kind === 'reversal' && (
                       <span className="block text-negative-text">Generalumkehr</span>
                     )}

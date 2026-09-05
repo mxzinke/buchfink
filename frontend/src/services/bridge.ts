@@ -157,8 +157,18 @@ export const bridge = {
   GetAssetAcquisitionCandidates: <T>() => invoke<T>('GetAssetAcquisitionCandidates'),
   GetSammelposten: <T>(fiscalYear: number) => invoke<T>('GetSammelposten', fiscalYear),
 
+  // Bilanz und Gewinn- und Verlustrechnung
+  GetStatement: <T>(year: number, depth: string) => invoke<T>('GetStatement', year, depth),
+  GetSizeClass: <T>(year: number) => invoke<T>('GetSizeClass', year),
+  GetStatementDeadlines: <T>(year: number) => invoke<T>('GetStatementDeadlines', year),
+  ExportStatementPDF: (year: number) => invoke<string>('ExportStatementPDF', year),
+  ExportStatementCSV: (year: number) => invoke<string>('ExportStatementCSV', year),
+  SetAverageEmployees: <T>(year: number, count: number) =>
+    invoke<T>('SetAverageEmployees', year, count),
+
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => invoke<string>('ExportEBilanzXBRL'),
+  GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetAuditLogs: <T>() => invoke<T>('GetAuditLogs'),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
   CommitPeriod: <T>(periodType: string, periodLabel: string, cutoffDate: string) =>

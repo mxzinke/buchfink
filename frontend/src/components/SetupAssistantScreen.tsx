@@ -123,6 +123,11 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     street: '',
     zipCity: '',
     country: 'Deutschland',
+    // Die Pflichtangaben des § 264 Abs. 1a HGB stehen erst nach der Eintragung
+    // fest; der Gründungsweg trägt sie später nach.
+    seat: '',
+    registerCourt: '',
+    registerNumber: '',
     currency: 'EUR',
     skr: 'SKR04',
     vatPeriod: 'quarter',

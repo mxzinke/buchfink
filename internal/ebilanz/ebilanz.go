@@ -2,101 +2,314 @@ package ebilanz
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
-	"html"
+	"sort"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// TaxonomyMapping maps an SKR04 account number to standard XBRL German GAAP 6.x taxonomy elements.
-var skr04ToXBRL = map[string]string{
-	// Anlagevermögen — die Konten des Anlagenkatalogs
-	// (internal/accounting/asset_accounts.go). Sie stehen hier vollständig,
-	// weil der Anlagenspiegel jede Position einzeln ausweist: ein Konto ohne
-	// Zuordnung landete auf bs.other und wäre im Nachweis nicht mehr
-	// auffindbar.
-	"0110": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
-	"0120": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
-	"0130": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
-	"0135": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
-	"0140": "de-gaap-ci:bs.ass.fixAss.imm.concessions",
-	"0150": "de-gaap-ci:bs.ass.fixAss.imm.goodwill",
-	"0170": "de-gaap-ci:bs.ass.fixAss.imm.prepaid",
-	"0215": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0235": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0240": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0250": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0260": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0300": "de-gaap-ci:bs.ass.fixAss.tan.realEstate",
-	"0420": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
-	"0440": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
-	"0460": "de-gaap-ci:bs.ass.fixAss.tan.techPlant",
-	"0520": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
-	"0540": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
-	"0560": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.vehicles",
-	"0620": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0630": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0635": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0640": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0650": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0670": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwg",
-	"0675": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.gwg",
-	"0680": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm.office",
-	"0690": "de-gaap-ci:bs.ass.fixAss.tan.otherEquipm",
-	"0700": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
-	"0710": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
-	"0770": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
-	"0785": "de-gaap-ci:bs.ass.fixAss.tan.constrInProgress",
-	"0800": "de-gaap-ci:bs.ass.fixAss.fin.shares",
-	"0810": "de-gaap-ci:bs.ass.fixAss.fin.loansAffiliated",
-	"0820": "de-gaap-ci:bs.ass.fixAss.fin.participation",
-	"0850": "de-gaap-ci:bs.ass.fixAss.fin.participation",
-	"0860": "de-gaap-ci:bs.ass.fixAss.fin.participation",
-	"0880": "de-gaap-ci:bs.ass.fixAss.fin.loansParticipation",
-	"0900": "de-gaap-ci:bs.ass.fixAss.fin.securities",
-	"0920": "de-gaap-ci:bs.ass.fixAss.fin.securities",
-	"0930": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
-	"0940": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
-	"0980": "de-gaap-ci:bs.ass.fixAss.fin.participation",
-	"0990": "de-gaap-ci:bs.ass.fixAss.fin.loansOther",
+// Die XBRL-Instanz der E-Bilanz (§ 5b EStG).
+//
+// Sie entsteht aus der Gliederung nach §§ 266, 275 HGB und aus der
+// eingebetteten Taxonomie-Ressource — nicht mehr aus einer Kontentabelle im
+// Code. Der Unterschied ist kein technischer: die alte Tabelle kannte rund
+// neunzig Konten, alle übrigen landeten still auf „bs.other". Eine Instanz, die
+// so entsteht, ist formal vollständig und inhaltlich unbrauchbar, und niemand
+// hätte es gemerkt. Jetzt entscheidet dieselbe Zuordnung wie in der Bilanz, und
+// was sie nicht einordnen kann, verhindert die Erzeugung.
+//
+// Geschrieben wird mit encoding/xml statt mit fmt.Sprintf: die Escaping-Regeln
+// für Attribute und Textknoten sind damit die des XML-Kodierers und nicht die
+// eines Formatstrings, der sie zufällig auch kennt.
 
-	// Übriges Aktivvermögen
-	"1200": "de-gaap-ci:bs.ass.currAss.receiv.trade",
-	"1400": "de-gaap-ci:bs.ass.currAss.receiv.other.taxVAT",
-	"1401": "de-gaap-ci:bs.ass.currAss.receiv.other.taxVAT",
-	"1600": "de-gaap-ci:bs.ass.currAss.cashEquiv.cash",
-	"1800": "de-gaap-ci:bs.ass.currAss.cashEquiv.bank",
-	"1810": "de-gaap-ci:bs.ass.currAss.cashEquiv.bank",
-	"1820": "de-gaap-ci:bs.ass.currAss.cashEquiv.bank",
-	"1900": "de-gaap-ci:bs.ass.prepaidExp",
-
-	// Passiva
-	"2000": "de-gaap-ci:bs.eqLiab.equity.subscribedCap",
-	"2100": "de-gaap-ci:bs.eqLiab.equity.drawings",
-	"2900": "de-gaap-ci:bs.eqLiab.equity.retainedEarn",
-	"3300": "de-gaap-ci:bs.eqLiab.liab.trade",
-	"3806": "de-gaap-ci:bs.eqLiab.liab.other.taxVAT",
-	"3801": "de-gaap-ci:bs.eqLiab.liab.other.taxVAT",
-	"3820": "de-gaap-ci:bs.eqLiab.liab.other.taxVATPrepay",
-
-	// GuV
-	"4400": "de-gaap-ci:is.netSales.grossSales.vat19",
-	"4300": "de-gaap-ci:is.netSales.grossSales.vat7",
-	"4120": "de-gaap-ci:is.netSales.grossSales.vatFree",
-	"4830": "de-gaap-ci:is.otherOpRevenue",
-	"6300": "de-gaap-ci:is.staffExpenses.wages",
-	"6400": "de-gaap-ci:is.otherCost.consulting",
-	"6500": "de-gaap-ci:is.otherCost.rent",
-	"6800": "de-gaap-ci:is.otherCost.it",
-	"6815": "de-gaap-ci:is.otherCost.office",
-	"6825": "de-gaap-ci:is.otherCost.legal",
-	"6850": "de-gaap-ci:is.otherCost.marketing",
-	"6870": "de-gaap-ci:is.financialCost.bankCharges",
-	"6900": "de-gaap-ci:is.deprAmort",
+// node ist ein Element der Instanz. Der Namensraum steht als Präfix im lokalen
+// Namen — so, wie die Taxonomie ihn schreibt und wie ihn die Prüfprogramme des
+// Fiskus erwarten; die Deklaration steht einmal am Wurzelelement.
+type node struct {
+	Name     string
+	Attrs    []xml.Attr
+	Value    string
+	Children []node
 }
 
-// anlagenspiegelXML renders the Entwicklung des Anlagevermögens (§ 284 Abs. 3
-// HGB) as one block per Position.
+// MarshalXML schreibt das Element mit seinem Präfix.
+func (n node) MarshalXML(e *xml.Encoder, _ xml.StartElement) error {
+	start := xml.StartElement{Name: xml.Name{Local: n.Name}, Attr: n.Attrs}
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	if n.Value != "" {
+		if err := e.EncodeToken(xml.CharData(n.Value)); err != nil {
+			return err
+		}
+	}
+	for _, child := range n.Children {
+		if err := e.Encode(child); err != nil {
+			return err
+		}
+	}
+	return e.EncodeToken(xml.EndElement{Name: start.Name})
+}
+
+func attr(name, value string) xml.Attr {
+	return xml.Attr{Name: xml.Name{Local: name}, Value: value}
+}
+
+// fact ist eine Zahl mit Kontext, Einheit und Genauigkeit.
+func fact(element, context string, amount domain.Cents) node {
+	return node{
+		Name:  element,
+		Attrs: []xml.Attr{attr("contextRef", context), attr("unitRef", "EUR"), attr("decimals", "2")},
+		Value: amount.Decimal(),
+	}
+}
+
+func text(element, context, value string) node {
+	return node{
+		Name:  element,
+		Attrs: []xml.Attr{attr("contextRef", context)},
+		Value: value,
+	}
+}
+
+// InstanceInput ist alles, was in die Instanz eingeht.
+type InstanceInput struct {
+	Settings  *domain.CompanySettings
+	Statement *domain.Statement
+	// Accounts sind die Konten des Geschäftsjahres mit ihren Salden; der
+	// Kontennachweis führt sie unverdichtet auf.
+	Accounts       []domain.Account
+	Anlagenspiegel *domain.Anlagenspiegel
+
+	FiscalYear     int
+	StartDate      string
+	EndDate        string
+	PriorStartDate string
+	PriorEndDate   string
+}
+
+const (
+	contextInstant       = "ctx_instant"
+	contextInstantPrior  = "ctx_instant_prior"
+	contextDuration      = "ctx_duration"
+	contextDurationPrior = "ctx_duration_prior"
+)
+
+// GenerateEBilanzXBRL erzeugt die Instanz.
+//
+// Sie lehnt ab, wenn der Zuordnungsbericht blockierende Befunde hat. Der
+// Bericht ist Rückgabewert und nicht nur Nebenwirkung: die Oberfläche zeigt ihn
+// vor dem Export, und der Fehlerfall soll dieselbe Liste liefern wie der
+// Erfolgsfall.
+func GenerateEBilanzXBRL(in InstanceInput) (string, *MappingReport, error) {
+	if in.Settings == nil {
+		return "", nil, fmt.Errorf("ohne die Unternehmensdaten lässt sich keine E-Bilanz erzeugen")
+	}
+	if in.Statement == nil {
+		return "", nil, fmt.Errorf("ohne Bilanz und Gewinn- und Verlustrechnung lässt sich keine E-Bilanz erzeugen")
+	}
+	tax, err := LoadTaxonomy()
+	if err != nil {
+		return "", nil, err
+	}
+
+	report, err := BuildMappingReport(in.FiscalYear, in.Statement, in.Accounts)
+	if err != nil {
+		return "", nil, err
+	}
+	if err := report.BlockingError(); err != nil {
+		return "", report, err
+	}
+
+	root := node{Name: "xbrli:xbrl"}
+	for _, prefix := range sortedPrefixes(tax.Namespaces) {
+		root.Attrs = append(root.Attrs, attr("xmlns:"+prefix, tax.Namespaces[prefix]))
+	}
+
+	identifier := in.Settings.TaxNumber
+	root.Children = append(root.Children,
+		instantContext(contextInstant, identifier, in.EndDate),
+		durationContext(contextDuration, identifier, in.StartDate, in.EndDate),
+	)
+	if in.Statement.HasPrior && in.PriorEndDate != "" {
+		root.Children = append(root.Children,
+			instantContext(contextInstantPrior, identifier, in.PriorEndDate),
+			durationContext(contextDurationPrior, identifier, in.PriorStartDate, in.PriorEndDate),
+		)
+	}
+	root.Children = append(root.Children, node{
+		Name:     "xbrli:unit",
+		Attrs:    []xml.Attr{attr("id", "EUR")},
+		Children: []node{{Name: "xbrli:measure", Value: "iso4217:EUR"}},
+	})
+
+	root.Children = append(root.Children, companyData(in)...)
+	root.Children = append(root.Children, statementFacts(in.Statement)...)
+	root.Children = append(root.Children, proofOfAccounts(report)...)
+	root.Children = append(root.Children, fixedAssetMovements(in.Anlagenspiegel, report)...)
+
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	buf.WriteString(instanceComment(tax))
+	buf.WriteString("\n")
+
+	encoder := xml.NewEncoder(&buf)
+	encoder.Indent("", "\t")
+	if err := encoder.Encode(root); err != nil {
+		return "", report, fmt.Errorf("die XBRL-Instanz konnte nicht geschrieben werden: %w", err)
+	}
+	if err := encoder.Flush(); err != nil {
+		return "", report, err
+	}
+	buf.WriteString("\n")
+	return buf.String(), report, nil
+}
+
+// instanceComment schreibt den Vorbehalt in die Datei selbst. Wer sie in fünf
+// Jahren öffnet, hat die Aktennotiz nicht mehr, in der er stand.
+func instanceComment(tax *Taxonomy) string {
+	return fmt.Sprintf(
+		"<!--\n\tErzeugt von Buchfink aus der Gliederung nach §§ 266, 275 HGB.\n"+
+			"\tTaxonomie: HGB %s vom %s.\n\t%s\n-->",
+		tax.Version, tax.Date, tax.Note)
+}
+
+func sortedPrefixes(namespaces map[string]string) []string {
+	out := make([]string, 0, len(namespaces))
+	for prefix := range namespaces {
+		out = append(out, prefix)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func entity(identifier string) node {
+	return node{
+		Name: "xbrli:entity",
+		Children: []node{{
+			Name:  "xbrli:identifier",
+			Attrs: []xml.Attr{attr("scheme", "http://www.steuerliche-identifikationsnummer.de")},
+			Value: identifier,
+		}},
+	}
+}
+
+func instantContext(id, identifier, date string) node {
+	return node{
+		Name:  "xbrli:context",
+		Attrs: []xml.Attr{attr("id", id)},
+		Children: []node{
+			entity(identifier),
+			{Name: "xbrli:period", Children: []node{{Name: "xbrli:instant", Value: date}}},
+		},
+	}
+}
+
+func durationContext(id, identifier, start, end string) node {
+	return node{
+		Name:  "xbrli:context",
+		Attrs: []xml.Attr{attr("id", id)},
+		Children: []node{
+			entity(identifier),
+			{Name: "xbrli:period", Children: []node{
+				{Name: "xbrli:startDate", Value: start},
+				{Name: "xbrli:endDate", Value: end},
+			}},
+		},
+	}
+}
+
+// companyData ist das GCD-Modul: die Stammdaten des Unternehmens einschließlich
+// der Pflichtangaben des § 264 Abs. 1a HGB.
+func companyData(in InstanceInput) []node {
+	s := in.Settings
+	nodes := []node{
+		text("de-gcd:genInfo.company.id.name", contextDuration, s.CompanyName),
+		text("de-gcd:genInfo.company.id.legalForm", contextDuration, s.LegalForm),
+		text("de-gcd:genInfo.company.id.taxNumber", contextDuration, s.TaxNumber),
+		text("de-gcd:genInfo.company.id.vatId", contextDuration, s.VatID),
+	}
+	if s.Seat != "" {
+		nodes = append(nodes, text("de-gcd:genInfo.company.id.location.city", contextDuration, s.Seat))
+	}
+	if s.RegisterCourt != "" {
+		nodes = append(nodes, text("de-gcd:genInfo.company.id.register.court", contextDuration, s.RegisterCourt))
+	}
+	if s.RegisterNumber != "" {
+		nodes = append(nodes, text("de-gcd:genInfo.company.id.register.number", contextDuration, s.RegisterNumber))
+	}
+	return append(nodes,
+		text("de-gcd:genInfo.report.period.fiscalYearBegin", contextDuration, in.StartDate),
+		text("de-gcd:genInfo.report.period.fiscalYearEnd", contextDuration, in.EndDate),
+		text("de-gcd:genInfo.report.accountingStandard", contextDuration, "HGB / Steuerrecht"),
+		text("de-gcd:genInfo.report.accountScheme", contextDuration, "SKR04"),
+	)
+}
+
+// statementFacts schreibt Bilanz und Gewinn- und Verlustrechnung, jede Position
+// mit ihrem Wert und — wenn es ein Vorjahr gibt — mit dem zweiten Kontext.
+func statementFacts(stmt *domain.Statement) []node {
+	var nodes []node
+	emitValue := func(key, current, prior string, amount, priorAmount domain.Cents) {
+		element, ok := ElementFor(key)
+		if !ok {
+			return
+		}
+		nodes = append(nodes, fact(element.Element, current, amount))
+		if stmt.HasPrior && prior != "" {
+			nodes = append(nodes, fact(element.Element, prior, priorAmount))
+		}
+	}
+	emit := func(lines []domain.StatementLine, current, prior string) {
+		for _, line := range lines {
+			amount, priorAmount := line.Amount, line.PriorAmount
+			// Die Gliederung führt Aufwendungen als negativen Beitrag zum
+			// Ergebnis, die Taxonomie erwartet sie als positiven Betrag: ein
+			// Materialaufwand von 10.000 Euro steht in der Instanz als 10000.00,
+			// nicht als -10000.00. Zwischensummen und Erträge bleiben, wie sie
+			// sind.
+			if accounting.IsExpensePosition(line.Key) {
+				amount, priorAmount = -amount, -priorAmount
+			}
+			emitValue(line.Key, current, prior, amount, priorAmount)
+		}
+	}
+	emit(stmt.Assets, contextInstant, contextInstantPrior)
+	// Die Bilanzsumme ist kein Posten des § 266 HGB und steht deshalb in keiner
+	// Zeile der Gliederung — in der Instanz muss sie trotzdem stehen: sie ist
+	// die Zahl, gegen die das Prüfprogramm des Fiskus die Seiten abgleicht, und
+	// ohne sie bliebe der Abgleich dem Leser überlassen.
+	emitValue("aktiva", contextInstant, contextInstantPrior, stmt.TotalAssets, stmt.TotalAssetsPrior)
+	emit(stmt.Liabilities, contextInstant, contextInstantPrior)
+	emitValue("passiva", contextInstant, contextInstantPrior, stmt.TotalLiabilities, stmt.TotalLiabilitiesPrior)
+	emit(stmt.Income, contextDuration, contextDurationPrior)
+	return nodes
+}
+
+// proofOfAccounts ist der Kontennachweis: jedes Konto mit Saldo, unverdichtet,
+// jetzt mit seiner Gliederungsposition und dem Taxonomie-Element.
+func proofOfAccounts(report *MappingReport) []node {
+	var nodes []node
+	for _, row := range report.Rows {
+		nodes = append(nodes, node{
+			Name:  "de-gaap-ci:accountAuditProof",
+			Attrs: []xml.Attr{attr("contextRef", contextDuration)},
+			Children: []node{
+				{Name: "de-gaap-ci:accountNumber", Value: row.Account},
+				{Name: "de-gaap-ci:accountLabel", Value: row.Name},
+				{Name: "de-gaap-ci:accountPosition", Value: row.PositionLabel},
+				{Name: "de-gaap-ci:accountTaxonomyPosition", Value: row.Element},
+				fact("de-gaap-ci:accountBalance", contextDuration, row.Balance),
+			},
+		})
+	}
+	return nodes
+}
+
+// fixedAssetMovements ist die Entwicklung des Anlagevermögens (§ 284 Abs. 3
+// HGB).
 //
 // Der Anlagenspiegel ist keine zweite Buchung, sondern die Auswertung der
 // Kartei — aber eine, die das Journal allein nicht liefern könnte: Zugänge,
@@ -104,179 +317,78 @@ var skr04ToXBRL = map[string]string{
 // Wirtschaftsguts stehen nur dort. Genau deshalb gehört sie in den
 // Kontennachweis: die Bilanz zeigt einen Buchwert, und erst der Spiegel zeigt,
 // woraus er entstanden ist.
-//
-// Die Elementnamen folgen der vereinfachten Form, in der diese Datei schon den
-// Kontennachweis führt. Vor der Übermittlung ist sie gegen die amtliche
-// Taxonomie zu prüfen; die Zahlen darin sind es, die aus der Buchführung
-// stammen.
-func anlagenspiegelXML(spiegel *domain.Anlagenspiegel) string {
+func fixedAssetMovements(spiegel *domain.Anlagenspiegel, report *MappingReport) []node {
 	if spiegel == nil || len(spiegel.Rows) == 0 {
-		return ""
+		return nil
 	}
-	var buf bytes.Buffer
-	buf.WriteString("\n\t<!-- Anlagenspiegel (§ 284 Abs. 3 HGB) -->")
+	elements := make(map[string]string, len(report.Rows))
+	for _, row := range report.Rows {
+		elements[row.Account] = row.Element
+	}
 
-	write := func(row domain.AnlagenspiegelRow, element, key, label string) {
-		position, ok := skr04ToXBRL[row.Account]
-		if !ok {
-			position = "de-gaap-ci:bs.ass.fixAss"
+	build := func(row domain.AnlagenspiegelRow, element, key, label string) node {
+		position := elements[row.Account]
+		if position == "" {
+			// Die Klassensummen tragen kein Konto; sie stehen unter der
+			// Sammelposition des Anlagevermögens.
+			if e, ok := ElementFor("aktiva.A"); ok {
+				position = e.Element
+			}
 		}
-		buf.WriteString(fmt.Sprintf(`
-	<de-gaap-ci:%s contextRef="ctx_duration">
-		<de-gaap-ci:position>%s</de-gaap-ci:position>
-		<de-gaap-ci:positionLabel>%s</de-gaap-ci:positionLabel>
-		<de-gaap-ci:taxonomyPosition>%s</de-gaap-ci:taxonomyPosition>
-		<de-gaap-ci:histCost.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.begin>
-		<de-gaap-ci:histCost.addition unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.addition>
-		<de-gaap-ci:histCost.disposal unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.disposal>
-		<de-gaap-ci:histCost.transfer unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.transfer>
-		<de-gaap-ci:histCost.end unitRef="EUR" decimals="2">%s</de-gaap-ci:histCost.end>
-		<de-gaap-ci:deprec.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.begin>
-		<de-gaap-ci:deprec.currentYear unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.currentYear>
-		<de-gaap-ci:deprec.writeUp unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.writeUp>
-		<de-gaap-ci:deprec.disposal unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.disposal>
-		<de-gaap-ci:deprec.transfer unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.transfer>
-		<de-gaap-ci:deprec.end unitRef="EUR" decimals="2">%s</de-gaap-ci:deprec.end>
-		<de-gaap-ci:netBookValue.begin unitRef="EUR" decimals="2">%s</de-gaap-ci:netBookValue.begin>
-		<de-gaap-ci:netBookValue.end unitRef="EUR" decimals="2">%s</de-gaap-ci:netBookValue.end>
-	</de-gaap-ci:%s>`,
-			element,
-			html.EscapeString(key),
-			html.EscapeString(label),
-			position,
-			row.CostOpening.Decimal(),
-			row.Additions.Decimal(),
-			row.Disposals.Decimal(),
-			row.Transfers.Decimal(),
-			row.CostClosing.Decimal(),
-			row.DepreciationOpening.Decimal(),
-			row.DepreciationYear.Decimal(),
-			row.WriteUpsYear.Decimal(),
-			row.DepreciationDisposal.Decimal(),
-			row.DepreciationTransfer.Decimal(),
-			row.DepreciationClosing.Decimal(),
-			row.BookValueOpening.Decimal(),
-			row.BookValueClosing.Decimal(),
-			element,
-		))
+		return node{
+			Name:  "de-gaap-ci:" + element,
+			Attrs: []xml.Attr{attr("contextRef", contextDuration)},
+			Children: []node{
+				{Name: "de-gaap-ci:position", Value: key},
+				{Name: "de-gaap-ci:positionLabel", Value: label},
+				{Name: "de-gaap-ci:taxonomyPosition", Value: position},
+				fact("de-gaap-ci:histCost.begin", contextDuration, row.CostOpening),
+				fact("de-gaap-ci:histCost.addition", contextDuration, row.Additions),
+				fact("de-gaap-ci:histCost.disposal", contextDuration, row.Disposals),
+				fact("de-gaap-ci:histCost.transfer", contextDuration, row.Transfers),
+				fact("de-gaap-ci:histCost.end", contextDuration, row.CostClosing),
+				fact("de-gaap-ci:deprec.begin", contextDuration, row.DepreciationOpening),
+				fact("de-gaap-ci:deprec.currentYear", contextDuration, row.DepreciationYear),
+				fact("de-gaap-ci:deprec.writeUp", contextDuration, row.WriteUpsYear),
+				fact("de-gaap-ci:deprec.disposal", contextDuration, row.DepreciationDisposal),
+				fact("de-gaap-ci:deprec.transfer", contextDuration, row.DepreciationTransfer),
+				fact("de-gaap-ci:deprec.end", contextDuration, row.DepreciationClosing),
+				fact("de-gaap-ci:netBookValue.begin", contextDuration, row.BookValueOpening),
+				fact("de-gaap-ci:netBookValue.end", contextDuration, row.BookValueClosing),
+			},
+		}
 	}
 
+	var nodes []node
 	for _, row := range spiegel.Rows {
-		write(row, "fixedAssetsMovement", row.Account, row.AccountName)
+		nodes = append(nodes, build(row, "fixedAssetsMovement", row.Account, row.AccountName))
 	}
 	// Die drei Blöcke des § 266 Abs. 2 A HGB und die Gesamtsumme. Sie stehen
 	// hier, weil die Bilanz sie so ausweist — nachrechnen soll sie niemand
 	// müssen, der den Nachweis liest.
 	for _, total := range spiegel.ClassTotals {
-		write(total, "fixedAssetsMovementSubtotal", string(total.Class), total.AccountName)
+		nodes = append(nodes, build(total, "fixedAssetsMovementSubtotal", string(total.Class), total.AccountName))
 	}
-	write(spiegel.Totals, "fixedAssetsMovementTotal", "total", spiegel.Totals.AccountName)
-	return buf.String()
+	nodes = append(nodes, build(spiegel.Totals, "fixedAssetsMovementTotal", "total", spiegel.Totals.AccountName))
+	return nodes
 }
 
-// GenerateEBilanzXBRL creates an official, valid XBRL instance file for German E-Bilanz
-// based on GAAP Taxonomie 6.7, including full Kontennachweis and Anlagenspiegel.
-func GenerateEBilanzXBRL(
-	settings *domain.CompanySettings,
-	accounts []domain.Account,
-	summary *domain.FinancialSummary,
-	spiegel *domain.Anlagenspiegel,
-) (string, error) {
-	year := settings.FiscalYear
-	startDate := fmt.Sprintf("%d-01-01", year)
-	endDate := fmt.Sprintf("%d-12-31", year)
-
-	var proofOfAccountsBuf bytes.Buffer
-	for _, acc := range accounts {
-		if acc.Balance == 0 {
+// StatementCoverage meldet die Gliederungspositionen, für die die Taxonomie
+// kein Element kennt. Der Test wacht damit darüber, dass die Ressource zur
+// Gliederung passt; ohne sie fiele eine neue Zeile erst beim Export auf.
+func StatementCoverage() []string {
+	var missing []string
+	for _, line := range accounting.StatementLines() {
+		switch line.Key {
+		case "aktiva.X", "passiva.X", "guv.X", "statistisch":
+			// Diese vier sind keine Posten des Gesetzes, sondern Befunde. Sie
+			// haben in der Taxonomie nichts zu suchen; ein Konto, das dort
+			// landet, blockiert den Export ohnehin.
 			continue
 		}
-		xbrlPos, ok := skr04ToXBRL[acc.Number]
-		if !ok {
-			xbrlPos = "de-gaap-ci:bs.other"
+		if _, ok := ElementFor(line.Key); !ok {
+			missing = append(missing, line.Key)
 		}
-
-		proofOfAccountsBuf.WriteString(fmt.Sprintf(`
-		<de-gaap-ci:accountAuditProof contextRef="ctx_duration">
-			<de-gaap-ci:accountNumber>%s</de-gaap-ci:accountNumber>
-			<de-gaap-ci:accountLabel>%s</de-gaap-ci:accountLabel>
-			<de-gaap-ci:accountTaxonomyPosition>%s</de-gaap-ci:accountTaxonomyPosition>
-			<de-gaap-ci:accountBalance unitRef="EUR" decimals="2">%s</de-gaap-ci:accountBalance>
-		</de-gaap-ci:accountAuditProof>`,
-			html.EscapeString(acc.Number),
-			html.EscapeString(acc.Name),
-			xbrlPos,
-			acc.Balance.Decimal(),
-		))
 	}
-
-	xbrl := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-    xmlns:link="http://www.xbrl.org/2003/linkbase"
-    xmlns:xlink="http://www.w3.org/1999/xlink"
-    xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-2023-04-14"
-    xmlns:de-gaap-ci="http://www.xbrl.de/taxonomies/de-gaap-ci-2023-04-14"
-    xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
-
-	<!-- Context: Instant at Fiscal Year End -->
-	<xbrli:context id="ctx_instant">
-		<xbrli:entity>
-			<xbrli:identifier scheme="http://www.steuerliche-identifikationsnummer.de">%s</xbrli:identifier>
-		</xbrli:entity>
-		<xbrli:period>
-			<xbrli:instant>%s</xbrli:instant>
-		</xbrli:period>
-	</xbrli:context>
-
-	<!-- Context: Duration of Fiscal Year -->
-	<xbrli:context id="ctx_duration">
-		<xbrli:entity>
-			<xbrli:identifier scheme="http://www.steuerliche-identifikationsnummer.de">%s</xbrli:identifier>
-		</xbrli:entity>
-		<xbrli:period>
-			<xbrli:startDate>%s</xbrli:startDate>
-			<xbrli:endDate>%s</xbrli:endDate>
-		</xbrli:period>
-	</xbrli:context>
-
-	<xbrli:unit id="EUR">
-		<xbrli:measure>iso4217:EUR</xbrli:measure>
-	</xbrli:unit>
-
-	<!-- GCD Modul: Stammdaten des Unternehmens -->
-	<de-gcd:genInfo.company.id.name contextRef="ctx_duration">%s</de-gcd:genInfo.company.id.name>
-	<de-gcd:genInfo.company.id.legalForm contextRef="ctx_duration">%s</de-gcd:genInfo.company.id.legalForm>
-	<de-gcd:genInfo.company.id.taxNumber contextRef="ctx_duration">%s</de-gcd:genInfo.company.id.taxNumber>
-	<de-gcd:genInfo.company.id.vatId contextRef="ctx_duration">%s</de-gcd:genInfo.company.id.vatId>
-	<de-gcd:genInfo.report.period.fiscalYearBegin contextRef="ctx_duration">%s</de-gcd:genInfo.report.period.fiscalYearBegin>
-	<de-gcd:genInfo.report.period.fiscalYearEnd contextRef="ctx_duration">%s</de-gcd:genInfo.report.period.fiscalYearEnd>
-	<de-gcd:genInfo.report.accountingStandard contextRef="ctx_duration">HGB / Steuerrecht</de-gcd:genInfo.report.accountingStandard>
-	<de-gcd:genInfo.report.accountScheme contextRef="ctx_duration">SKR04</de-gcd:genInfo.report.accountScheme>
-
-	<!-- GAAP Modul: Bilanz & GuV Zusammenfassung -->
-	<de-gaap-ci:is.netSales contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.netSales>
-	<de-gaap-ci:is.operatingExpenses contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.operatingExpenses>
-	<de-gaap-ci:is.netIncome contextRef="ctx_duration" unitRef="EUR" decimals="2">%s</de-gaap-ci:is.netIncome>
-
-	<!-- Kontennachweis (Audit Proof per SKR04 Account) -->
-	%s
-%s
-</xbrli:xbrl>`,
-		html.EscapeString(settings.TaxNumber),
-		endDate,
-		html.EscapeString(settings.TaxNumber),
-		startDate, endDate,
-		html.EscapeString(settings.CompanyName),
-		html.EscapeString(settings.LegalForm),
-		html.EscapeString(settings.TaxNumber),
-		html.EscapeString(settings.VatID),
-		startDate, endDate,
-		summary.TotalRevenue.Decimal(),
-		summary.TotalExpenses.Decimal(),
-		summary.NetIncome.Decimal(),
-		proofOfAccountsBuf.String(),
-		anlagenspiegelXML(spiegel),
-	)
-
-	return xbrl, nil
+	return missing
 }

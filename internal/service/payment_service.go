@@ -104,12 +104,8 @@ func (s *PaymentService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OpenItems lists the unsettled receivables and payables.
 //
-// TODO: stichtagsbezogene OP-Liste — „welche Posten waren am 31.12. offen".
-// Diese hier ist die operative Sicht: was ist heute noch offen, und wogegen darf
-// gebucht werden. Für den Jahresabschluss braucht es dieselbe Rechnung mit einer
-// Datumsgrenze auf Buchungsdatum der Zahlung, nicht mit einer Jahreszahl. Die
-// Bilanzposition selbst kommt aus den Salden der Personenkonten und ist davon
-// nicht betroffen.
+// Das ist die operative Sicht: was ist heute noch offen, und wogegen darf
+// gebucht werden. Der Jahresabschluss fragt anders — siehe OpenItemsAt.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
 	// Beide Abfragen sind bewusst nicht auf das Wirtschaftsjahr begrenzt — die
 	// Begründung steht an den Schnittstellen, die sie beantworten.
@@ -121,7 +117,40 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 	if err != nil {
 		return nil, err
 	}
+	return s.openItemsFrom(ctx, entries, settled)
+}
 
+// OpenItemsAt ist dieselbe Liste zu einem Stichtag: welche Posten waren am
+// Bilanzstichtag offen.
+//
+// Der Unterschied ist nicht kosmetisch. Die operative Liste rechnet jede
+// Zahlung mit, die inzwischen gebucht wurde, und lässt einen ausgeglichenen
+// Posten ganz weg. Für die Restlaufzeitengliederung des § 268 Abs. 4 und 5 HGB
+// wäre das eine Angabe über heute, die als Angabe über den Stichtag ausgewiesen
+// wird — und sie fiele umso kleiner aus, je später jemand den Abschluss ansieht.
+// Beide Grenzen — offene Buchung und Ausgleich — liegen deshalb auf dem
+// Buchungsdatum, nicht auf dem Geschäftsjahr.
+func (s *PaymentService) OpenItemsAt(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
+	if cutoff == "" {
+		return s.OpenItems(ctx)
+	}
+	entries, err := s.journalRepo.FindOpenItemCandidatesAt(ctx, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	settled, err := s.allocationRepo.SettledByOpenItemAt(ctx, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	return s.openItemsFrom(ctx, entries, settled)
+}
+
+// openItemsFrom macht aus Buchungen und Ausgleichsständen die offene-Posten-
+// Liste. Beide Sichten teilen sich diese Regeln: welche Buchung überhaupt einen
+// Posten trägt, wie der Steuerfall daraus folgt und wie sortiert wird.
+func (s *PaymentService) openItemsFrom(
+	ctx context.Context, entries []domain.JournalEntry, settled map[uint]domain.Cents,
+) ([]domain.OpenItem, error) {
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err

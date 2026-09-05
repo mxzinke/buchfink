@@ -27,10 +27,18 @@ type CompanySettings struct {
 	Street               string `json:"street"`
 	ZipCity              string `json:"zipCity"`
 	Country              string `json:"country"`
-	Currency             string `json:"currency"`
-	SKR                  string `json:"skr"`          // "SKR04"
-	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
-	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
+	// Seat, RegisterCourt und RegisterNumber sind die Pflichtangaben des
+	// § 264 Abs. 1a HGB: auf jedem Jahresabschluss sind Firma, Sitz,
+	// Registergericht und Registernummer anzugeben. Sie standen bisher nur an
+	// der Gründung (domain.Foundation) und fehlten damit jedem Mandanten, der
+	// nicht über den Gründungsweg entstanden ist.
+	Seat           string `json:"seat"`
+	RegisterCourt  string `json:"registerCourt"`
+	RegisterNumber string `json:"registerNumber"`
+	Currency       string `json:"currency"`
+	SKR            string `json:"skr"`          // "SKR04"
+	VatPeriod      string `json:"vatPeriod"`    // "month", "quarter", "year"
+	TaxationType   string `json:"taxationType"` // "IST", "SOLL"
 	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
 	// fest — und ist normalerweise leer.
 	//

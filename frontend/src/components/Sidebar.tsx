@@ -39,6 +39,22 @@ export type TabType =
   | 'audit'
   | 'settings';
 
+/**
+ * Ziel einer Navigation mit Parameter.
+ *
+ * Der Weg von der Bilanzzeile über das Konto zur Buchung (GOB-02) endet sonst
+ * an der Seitengrenze: die Kontenübersicht wüsste nicht, welches Kontoblatt sie
+ * öffnen soll, und das Journal nicht, auf welche Buchung es filtern soll.
+ */
+export interface NavigationParams {
+  /** Kontonummer, deren Kontoblatt die Kontenübersicht öffnet. */
+  account?: string;
+  /** Buchungsnummer, auf die das Journal filtert. */
+  entryNumber?: string;
+}
+
+export type NavigateFn = (tab: TabType, params?: NavigationParams) => void;
+
 interface SidebarProps {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Layers, Undo2 } from 'lucide-react';
-import { CarryForwardPreview, ClosingState, FiscalYearStatus } from '../types';
+import { CarryForwardPreview, ClosingState, FiscalYearStatus, SizeClass } from '../types';
 import { Api } from '../services/api';
 import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
 import {
@@ -58,6 +58,20 @@ const STEP_ACTION: Partial<Record<FiscalYearStatus, string>> = {
   prepared: 'Abschluss aufstellen',
   adopted: 'Abschluss feststellen',
   disclosed: 'Offenlegung eintragen',
+};
+
+/** Die Größenklasse in der Sprache der Oberfläche. */
+const SIZE_LABELS: Record<string, string> = {
+  micro: 'Kleinstkapitalgesellschaft',
+  small: 'Kleine Kapitalgesellschaft',
+  medium: 'Mittelgroße Kapitalgesellschaft',
+  large: 'Große Kapitalgesellschaft',
+};
+
+const SIZE_DEPTH_LABELS: Record<string, string> = {
+  full: 'Vollgliederung',
+  short: 'Verkürzte Gliederung',
+  letters: 'Buchstabengliederung',
 };
 
 function todayISO(): string {
@@ -204,6 +218,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
   const [confirmCarry, setConfirmCarry] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // Die Größenklasse hängt an der Bilanzsumme und damit an einem Abschluss, der
+  // aufgeht. Sie bekommt deshalb einen eigenen Fehlerpfad: schlägt sie fehl,
+  // bleiben Schritte und Saldenvortrag benutzbar.
+  const [sizeClass, setSizeClass] = useState<SizeClass | null>(null);
+  const [sizeClassError, setSizeClassError] = useState('');
+  const [employees, setEmployees] = useState('0');
+  const [savingEmployees, setSavingEmployees] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -211,6 +233,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
     try {
       const closing = await Api.getClosingState(year);
       setState(closing);
+      setEmployees(String(closing.fiscalYear.averageEmployees ?? 0));
+      try {
+        setSizeClass(await Api.getSizeClass(year));
+        setSizeClassError('');
+      } catch (e) {
+        setSizeClass(null);
+        setSizeClassError(message(e));
+      }
       try {
         setPreview(await Api.getCarryForwardPreview(closing.nextYear));
       } catch (e) {
@@ -232,6 +262,27 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Die Arbeitnehmerzahl ist das dritte Merkmal des § 267 Abs. 1 HGB. Sie steht
+   * am Geschäftsjahr und nicht in den Einstellungen: sie gilt für dieses Jahr.
+   */
+  async function saveEmployees() {
+    const count = Number.parseInt(employees, 10);
+    if (!Number.isFinite(count) || count < 0) {
+      toast.error('Die Arbeitnehmerzahl ist eine Zahl ab null. Bitte korrigieren Sie die Eingabe.');
+      return;
+    }
+    setSavingEmployees(true);
+    try {
+      await Api.setAverageEmployees(year, count);
+      await load();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setSavingEmployees(false);
+    }
+  }
 
   function openStepDialog(next: FiscalYearStatus) {
     setStepStatus(next);
@@ -511,6 +562,133 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
             ))}
           </Tbody>
         </Table>
+      </Section>
+
+      <Section
+        title="Größenklasse"
+        context={
+          sizeClass
+            ? `${SIZE_LABELS[sizeClass.class] ?? sizeClass.class} · ${sizeClass.reason}`
+            : 'Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl entscheiden'
+        }
+        action={
+          <HelpPopover label="Erklärung zur Größenklasse">
+            Die §§ 267, 267a HGB ordnen eine Kapitalgesellschaft nach Bilanzsumme, Umsatzerlösen und
+            Arbeitnehmerzahl ein; zwei der drei Merkmale entscheiden. Die Rechtsfolge tritt erst
+            ein, wenn zwei aufeinander folgende Stichtage dieselbe Klasse ergeben (§ 267 Abs. 4
+            HGB).
+          </HelpPopover>
+        }
+      >
+        {/* Ab der Feststellung bleibt das Feld an seinem Platz und wird
+            deaktiviert (§11.5): an der Zahl hängt über die Größenklasse die
+            Gliederungstiefe, und die eines festgestellten Abschlusses steht.
+            Der Service weist die Änderung ebenfalls ab — die Sperre gehört
+            nicht allein in die Oberfläche. */}
+        <Field
+          label="Arbeitnehmer im Jahresdurchschnitt"
+          help="Durchschnitt der an den vier Quartalsstichtagen Beschäftigten (§ 267 Abs. 5 HGB); Auszubildende bleiben außer Betracht."
+          hint={adopted ? 'Änderbar erst nach Rücksetzung der Feststellung' : undefined}
+          disabled={adopted}
+          className="max-w-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              value={employees}
+              inputMode="numeric"
+              disabled={adopted}
+              onChange={(e) => setEmployees(e.target.value)}
+              className="num"
+            />
+            <Button
+              variant="secondary"
+              onClick={saveEmployees}
+              loading={savingEmployees}
+              disabled={adopted}
+            >
+              Übernehmen
+            </Button>
+          </div>
+        </Field>
+
+        {sizeClassError ? (
+          <p className="mt-4 text-body text-ink-muted">{sizeClassError}</p>
+        ) : (
+          sizeClass && (
+            <div className="mt-6">
+              <Table density="kompakt">
+                <Thead>
+                  <Tr>
+                    <Th>Merkmal oder Folge</Th>
+                    <Th className="w-80">Wert</Th>
+                    <Th className="w-64">Norm</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  <Tr>
+                    <Td>Bilanzsumme</Td>
+                    <Td className="num">{formatCents(sizeClass.criteria.balanceSheetTotal)}</Td>
+                    <Td className="text-ink-muted">§ 267 Abs. 4a HGB</Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Umsatzerlöse</Td>
+                    <Td className="num">{formatCents(sizeClass.criteria.revenue)}</Td>
+                    <Td className="text-ink-muted">§ 275 Abs. 2 Nr. 1 HGB</Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Arbeitnehmer im Jahresdurchschnitt</Td>
+                    <Td className="num">{sizeClass.criteria.employees}</Td>
+                    <Td className="text-ink-muted">§ 267 Abs. 5 HGB</Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Gliederungstiefe</Td>
+                    <Td className="whitespace-normal">
+                      {SIZE_DEPTH_LABELS[sizeClass.obligations.depth]}
+                    </Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.depthReference}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Anhang</Td>
+                    <Td>{sizeClass.obligations.notesRequired ? 'Ja' : 'Nein'}</Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.notesReference}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Lagebericht</Td>
+                    <Td>{sizeClass.obligations.managementReport ? 'Ja' : 'Nein'}</Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.managementReportReference || '§ 264 Abs. 1 Satz 4 HGB'}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Prüfung</Td>
+                    <Td>{sizeClass.obligations.auditRequired ? 'Ja' : 'Nein'}</Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.auditReference || '§ 316 Abs. 1 Satz 1 HGB'}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Aufstellungsfrist</Td>
+                    <Td>{`${sizeClass.obligations.preparationMonths} Monate`}</Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.preparationReference}
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Offenlegung</Td>
+                    <Td className="whitespace-normal">{sizeClass.obligations.disclosureScope}</Td>
+                    <Td className="text-ink-muted whitespace-normal">
+                      {sizeClass.obligations.disclosureScopeReference}
+                    </Td>
+                  </Tr>
+                </Tbody>
+              </Table>
+            </div>
+          )
+        )}
       </Section>
 
       <Section

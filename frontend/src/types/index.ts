@@ -604,6 +604,14 @@ export interface CompanySettings {
   street: string;
   zipCity: string;
   country: string;
+  /**
+   * Sitz, Registergericht und Registernummer sind die Pflichtangaben des
+   * § 264 Abs. 1a HGB auf jedem Jahresabschluss. Sie standen bisher nur an der
+   * Gründung und fehlten damit jedem Mandanten ohne Gründungsweg.
+   */
+  seat: string;
+  registerCourt: string;
+  registerNumber: string;
   currency: string;
   skr: string;
   vatPeriod: string;
@@ -1383,6 +1391,12 @@ export interface FiscalYear {
   adoptionNote?: string;
   /** Zeitpunkt des letzten Saldenvortrags in dieses Jahr. */
   carriedForwardAt?: string;
+  /**
+   * Die durchschnittliche Zahl der Arbeitnehmer ist das dritte Merkmal des
+   * § 267 Abs. 1 HGB. Aus der Buchführung lässt sie sich nicht ableiten,
+   * deshalb wird sie erfasst und nicht gerechnet.
+   */
+  averageEmployees: number;
   createdAt: string;
 }
 
@@ -1447,4 +1461,272 @@ export interface CarryForwardPreview {
   /** Probe auf die Bilanzidentität: Summe aller Vortragswerte, muss null sein. */
   balanceDifference: Cents;
   isBalanced: boolean;
+}
+
+// -------------------------------------------------------------
+// Jahresabschluss: Bilanz und Gewinn- und Verlustrechnung
+// (internal/domain/statement.go, internal/domain/sizeclass.go,
+//  internal/ebilanz/mapping.go)
+//
+// Die Gliederung nach den §§ 266 und 275 HGB entsteht vollständig im Backend.
+// Hier stehen nur die Formen, in denen sie ankommt: die Ansicht zeigt Zeilen
+// an und rechnet an keiner Stelle nach — sonst gäbe es zwei Bilanzen.
+// -------------------------------------------------------------
+
+/**
+ * Die Gliederungstiefe ist eine Rechtsfolge der Größenklasse und kein
+ * Anzeigegeschmack: § 266 Abs. 1 Satz 3 HGB erlaubt der kleinen Gesellschaft
+ * Buchstaben und römische Ziffern, Satz 4 der Kleinstgesellschaft allein die
+ * Buchstaben.
+ */
+export type StatementDepth = 'full' | 'short' | 'letters';
+
+/** Abschnitt, in dem eine Gliederungsposition steht. */
+export type StatementSection = 'aktiva' | 'passiva' | 'guv' | 'statistisch';
+
+/** Ein Konto unter einer Gliederungsposition — der Weg zurück zum Kontoblatt. */
+export interface StatementAccount {
+  number: string;
+  name: string;
+  positionId: string;
+  /** Bezeichnung der SKR04-Position, nicht die der Gliederungszeile. */
+  position: string;
+  /** Erklärt eine Zuordnung, die dem Kontonamen widerspricht. */
+  note?: string;
+  amount: Cents;
+  priorAmount: Cents;
+}
+
+/** Eine Gliederungsposition mit ihrem Wert. */
+export interface StatementLine {
+  /** Stabiler Schlüssel, z. B. "aktiva.A.II.3". */
+  key: string;
+  /** Ordnungszahl des Gesetzes: "A.", "II.", "3.", "a)". */
+  ordinal: string;
+  label: string;
+  /** 1 Buchstabe, 2 römische Ziffer, 3 arabische Ziffer. */
+  level: number;
+  section: StatementSection;
+  note?: string;
+  /** Zwischensumme der Staffel (§ 275 Abs. 2 Nr. 15 und 17 HGB). */
+  isSubtotal: boolean;
+  /** Auffangposition ("sonstige …"). */
+  isFallback: boolean;
+  /**
+   * Posten ohne Betrag in beiden Jahren; § 265 Abs. 8 HGB lässt ihn entfallen.
+   * Die Entscheidung fällt im Backend, damit Ansicht, PDF und CSV dieselben
+   * Zeilen zeigen.
+   */
+  omitted: boolean;
+  amount: Cents;
+  priorAmount: Cents;
+  accounts?: StatementAccount[];
+}
+
+/** Was in einer Auffangposition gelandet ist. */
+export interface FallbackCount {
+  key: string;
+  label: string;
+  accounts: number;
+  amount: Cents;
+}
+
+/** Ein Konto, das wegen seines Vorzeichens auf der Gegenposition steht. */
+export interface SignSwitch {
+  account: string;
+  name: string;
+  from: string;
+  to: string;
+  label: string;
+  amount: Cents;
+}
+
+/** Was die Gliederung nicht oder nur mit Vorbehalt einordnen konnte. */
+export interface AssignmentReport {
+  /** Konten mit Saldo ohne Gliederungsposition; sie stehen in "Nicht zugeordnet". */
+  unassigned: StatementAccount[];
+  /** Saldo gegen die Richtung der Position, ohne Gegenposition. */
+  wrongSign: StatementAccount[];
+  signSwitches: SignSwitch[];
+  fallbacks: FallbackCount[];
+}
+
+/** Die Gliederung eines Geschäftsjahres mit Vorjahresspalte. */
+export interface Statement {
+  fiscalYear: number;
+  priorYear: number;
+  hasPrior: boolean;
+  depth: StatementDepth;
+  assets: StatementLine[];
+  liabilities: StatementLine[];
+  income: StatementLine[];
+  /** Konten der Klasse 9 — weder Bilanz noch GuV, aber sichtbar. */
+  statistical: StatementLine[];
+  assignment: AssignmentReport;
+
+  totalAssets: Cents;
+  totalAssetsPrior: Cents;
+  totalLiabilities: Cents;
+  totalLiabilitiesPrior: Cents;
+  /** Bilanzsumme des § 267 Abs. 4a HGB: Posten A bis E der Aktivseite. */
+  balanceSheetTotal: Cents;
+  balanceSheetTotalPrior: Cents;
+
+  netIncome: Cents;
+  netIncomePrior: Cents;
+  /** Nummer 1 der Staffel — das Merkmal "Umsatzerlöse" des § 267 HGB. */
+  revenue: Cents;
+  revenuePrior: Cents;
+}
+
+/** Eine Zeile der Restlaufzeitengliederung. */
+export interface MaturityRow {
+  key: string;
+  label: string;
+  total: Cents;
+  upToOneYear: Cents;
+  overOneYear: Cents;
+  overFiveYears: Cents;
+  items: number;
+  /** Posten ohne Fälligkeit: ohne sie gibt es keine Restlaufzeit. */
+  undated: Cents;
+  note?: string;
+}
+
+/** Angabe unter der Bilanz nach § 268 Abs. 4 und 5 HGB. */
+export interface MaturityTable {
+  closingDate: string;
+  rows: MaturityRow[];
+  reference: string;
+}
+
+/** Ein Termin des Jahresabschlusses mit seiner Norm. */
+export interface Deadline {
+  key: string;
+  title: string;
+  dueDate: string;
+  period: string;
+  reference: string;
+  description: string;
+  fiscalYear: number;
+  isDone: boolean;
+  doneOn?: string;
+}
+
+/** Die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des Abschlusses. */
+export interface StatementHeader {
+  companyName: string;
+  legalForm: string;
+  seat: string;
+  registerCourt: string;
+  registerNumber: string;
+  fiscalYear: number;
+  startDate: string;
+  closingDate: string;
+  priorYear: number;
+  isShortYear: boolean;
+  reference: string;
+  /** Pflichtangaben, die in den Einstellungen fehlen. */
+  missing: string[];
+}
+
+/** Größenklasse nach den §§ 267, 267a HGB. */
+export type SizeClassKind = 'micro' | 'small' | 'medium' | 'large';
+
+/** Die drei Merkmale des § 267 Abs. 1 HGB zu einem Stichtag. */
+export interface SizeCriteria {
+  balanceSheetTotal: Cents;
+  revenue: Cents;
+  employees: number;
+}
+
+/** Die Schwellenwerte einer Fassung, datiert nach dem Beginn des Jahres. */
+export interface SizeThresholdSet {
+  validFrom: string;
+  reference: string;
+  micro: SizeCriteria;
+  small: SizeCriteria;
+  medium: SizeCriteria;
+}
+
+/** Die Beurteilung eines einzelnen Abschlussstichtags (§ 267 Abs. 4 HGB). */
+export interface SizeAssessment {
+  year: number;
+  closingDate: string;
+  criteria: SizeCriteria;
+  class: SizeClassKind;
+  /** Die Merkmale, die für die Klasse sprechen — zwei von drei genügen. */
+  met: string[];
+  thresholds: SizeThresholdSet;
+}
+
+/** Die Folgen der Größenklasse, je mit ihrer Norm. */
+export interface SizeObligations {
+  depth: StatementDepth;
+  depthReference: string;
+  notesRequired: boolean;
+  notesReference: string;
+  managementReport: boolean;
+  managementReportReference: string;
+  auditRequired: boolean;
+  auditReference: string;
+  preparationMonths: number;
+  preparationReference: string;
+  disclosureMonths: number;
+  disclosureReference: string;
+  disclosureScope: string;
+  disclosureScopeReference: string;
+}
+
+/** Die Einordnung eines Geschäftsjahres samt Begründung. */
+export interface SizeClass {
+  year: number;
+  closingDate: string;
+  class: SizeClassKind;
+  criteria: SizeCriteria;
+  current: SizeAssessment;
+  prior?: SizeAssessment;
+  /** Die Stichtage, die in die Zweijahresregel eingegangen sind. */
+  history?: SizeAssessment[];
+  /** § 267 Abs. 4 Satz 2 HGB: bei Neugründung gilt schon der erste Stichtag. */
+  isFirstYear: boolean;
+  reason: string;
+  obligations: SizeObligations;
+}
+
+/** Der Jahresabschluss, wie ihn die Ansicht zeigt. */
+export interface FinancialStatement {
+  header: StatementHeader;
+  statement: Statement;
+  sizeClass: SizeClass;
+  maturities: MaturityTable;
+  deadlines: Deadline[];
+}
+
+/** Ein Konto mit Saldo, seine Gliederungsposition und sein Taxonomie-Element. */
+export interface MappingRow {
+  account: string;
+  name: string;
+  balance: Cents;
+  positionKey: string;
+  positionLabel: string;
+  element: string;
+  verified: boolean;
+  /** Benennt, was fehlt, wenn etwas fehlt. */
+  finding?: string;
+}
+
+/** Der Zuordnungsbericht vor dem E-Bilanz-Export. */
+export interface MappingReport {
+  fiscalYear: number;
+  taxonomyVersion: string;
+  taxonomyDate: string;
+  taxonomyNote: string;
+  rows: MappingRow[];
+  /** Konten ohne Gliederungsposition oder ohne Taxonomie-Element. */
+  blocking: MappingRow[];
+  fallbacks: FallbackCount[];
+  /** Elemente, deren Name noch gegen die amtliche Taxonomie zu prüfen ist. */
+  unverified: number;
+  canExport: boolean;
 }

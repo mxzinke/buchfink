@@ -1344,3 +1344,79 @@ func germanDate(date string) string {
 	}
 	return t.Format("02.01.2006")
 }
+
+// SetAverageEmployees hält die durchschnittliche Arbeitnehmerzahl eines
+// Geschäftsjahres fest.
+//
+// Sie ist das dritte Merkmal des § 267 Abs. 1 HGB und lässt sich aus der
+// Buchführung nicht ableiten: § 267 Abs. 5 HGB bildet den Durchschnitt aus vier
+// Quartalsstichtagen, und wer an ihnen beschäftigt war, steht in keinem Konto.
+// Sie gehört ans Geschäftsjahr und nicht in die Stammdaten, weil sie sich von
+// Jahr zu Jahr ändert — und weil die Größenklasse eines abgeschlossenen Jahres
+// sonst mit dem heutigen Personalstand berechnet würde.
+func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count int) (*domain.FiscalYear, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("die durchschnittliche Arbeitnehmerzahl kann nicht negativ sein")
+	}
+	fy, err := s.YearOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	// Ab der Feststellung steht der Abschluss. An der Arbeitnehmerzahl hängt
+	// über die Größenklasse die Gliederungstiefe und der Umfang der
+	// Offenlegung — sie danach zu ändern hieße, einen festgestellten Abschluss
+	// nachträglich anders auszuweisen.
+	if fy.IsAdopted() {
+		return nil, fmt.Errorf(
+			"das Geschäftsjahr %d ist %s; die Arbeitnehmerzahl bestimmt über die Größenklasse die "+
+				"Gliederung des Abschlusses. Nehmen Sie die Feststellung zurück, um sie zu ändern",
+			year, fy.Status.Label())
+	}
+	if fy.AverageEmployees == count {
+		return fy, nil
+	}
+	previous := fy.AverageEmployees
+	fy.AverageEmployees = count
+	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
+		return nil, err
+	}
+	s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+		"Durchschnittliche Arbeitnehmerzahl des Geschäftsjahres %d von %d auf %d gesetzt (§ 267 Abs. 5 HGB)",
+		year, previous, count))
+	return fy, nil
+}
+
+// PeriodOf liefert den Zeitraum eines Geschäftsjahres, ohne ihn anzulegen.
+//
+// Die Bilanz fragt danach, und eine Ansicht darf nichts erzeugen: wer den
+// Abschluss von 2026 ansieht, fragt damit auch nach dem Vorjahr — und fände es
+// danach in der Jahresauswahl wieder, ohne es angelegt zu haben.
+func (s *ClosingService) PeriodOf(ctx context.Context, year int) (*domain.FiscalYear, error) {
+	return s.yearOrDerived(ctx, year)
+}
+
+// EarliestFiscalYear ist das früheste erfasste Geschäftsjahr, oder 0, wenn es
+// keines gibt. Die Größenklasse braucht es für § 267 Abs. 4 Satz 2 HGB: der
+// erste Abschluss nach der Gründung wird nach seinem eigenen Stichtag beurteilt.
+func (s *ClosingService) EarliestFiscalYear(ctx context.Context) (int, error) {
+	years, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil {
+		return 0, err
+	}
+	earliest := 0
+	for _, fy := range years {
+		if earliest == 0 || fy.Year < earliest {
+			earliest = fy.Year
+		}
+	}
+	journalYears, err := s.journalRepo.GetAvailableFiscalYears(ctx)
+	if err != nil {
+		return earliest, nil
+	}
+	for _, y := range journalYears {
+		if y > 0 && (earliest == 0 || y < earliest) {
+			earliest = y
+		}
+	}
+	return earliest, nil
+}

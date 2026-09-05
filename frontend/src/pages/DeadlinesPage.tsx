@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { CompanySettings, Festschreibung, FoundationState } from '../types';
+import { CompanySettings, Deadline, Festschreibung, FoundationState } from '../types';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { FoundationDutyResetDialog, FoundationSection } from '../components/FoundationSection';
@@ -67,6 +67,17 @@ interface DeadlineItem {
    * und keine Merkhilfe.
    */
   dutyKey?: string;
+  /**
+   * Bei einem Termin des Jahresabschlusses steht der Stand fest: er folgt dem
+   * Abschlussstand des Geschäftsjahres (aufgestellt, offengelegt) und ist keine
+   * Merkhilfe, die man lokal abhaken könnte.
+   */
+  fixedDone?: boolean;
+  /**
+   * Frist und Norm als eigener Satz. Ein Tooltip trägt einen Satz (§15.2);
+   * kommt die Norm dazu, wird die Erklärung zum Popover.
+   */
+  reference?: string;
   /** Der Wortlaut, wo das Gesetz keine Tagesfrist nennt. */
   deadlineText?: string;
   doneOn?: string;
@@ -80,6 +91,10 @@ export const DeadlinesPage: React.FC = () => {
   const [committingCutoff, setCommittingCutoff] = useState<string | null>(null);
   const [foundation, setFoundation] = useState<FoundationState | null>(null);
   const [resettingDuty, setResettingDuty] = useState<DeadlineItem | null>(null);
+  // Aufstellung und Offenlegung rechnet das Backend aus Größenklasse und
+  // Stichtag (§ 264 Abs. 1, § 325 Abs. 1a HGB). Im Frontend wären es geratene
+  // Termine, denn die Frist hängt an der Klasse.
+  const [statementDeadlines, setStatementDeadlines] = useState<Deadline[]>([]);
 
   const currentYear = settings?.fiscalYear || new Date().getFullYear();
 
@@ -102,6 +117,14 @@ export const DeadlinesPage: React.FC = () => {
       }
       setFestschreibungen(await Api.getFestschreibungen());
       setFoundation(await Api.getFoundationState());
+      try {
+        setStatementDeadlines(await Api.getStatementDeadlines(year));
+      } catch (e) {
+        // Ohne Geschäftsjahr-Entität gibt es keine Fristen; die übrigen
+        // Termine bleiben davon unberührt.
+        setStatementDeadlines([]);
+        console.error(e);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -515,7 +538,8 @@ export const DeadlinesPage: React.FC = () => {
       category: 'gruendung' as const,
       dueDate: duty.dueDate,
       quarter: 0 as const,
-      description: `${duty.description} Frist: ${duty.deadline} (${duty.reference}).`,
+      description: duty.description,
+      reference: `Frist: ${duty.deadline} (${duty.reference}).`,
       isImportant: true,
       dutyKey: duty.key,
       deadlineText: duty.deadline,
@@ -527,7 +551,22 @@ export const DeadlinesPage: React.FC = () => {
       return a.dueDate.localeCompare(b.dueDate);
     });
 
-  const allDeadlines = [...foundationDeadlines(), ...generateDeadlines()];
+  /** Die Fristen des Jahresabschlusses, wie das Backend sie berechnet hat. */
+  const closingDeadlines = (): DeadlineItem[] =>
+    statementDeadlines.map((deadline) => ({
+      id: `abschluss_${deadline.key}_${deadline.fiscalYear}`,
+      title: deadline.title,
+      category: 'annual' as const,
+      dueDate: deadline.dueDate,
+      quarter: 5 as const,
+      description: deadline.description,
+      reference: `Frist: ${deadline.period} (${deadline.reference}).`,
+      isImportant: true,
+      fixedDone: deadline.isDone,
+      doneOn: deadline.doneOn,
+    }));
+
+  const allDeadlines = [...foundationDeadlines(), ...closingDeadlines(), ...generateDeadlines()];
   const [confirming, setConfirming] = useState<CommittablePeriod | null>(null);
 
   const today = new Date();
@@ -544,8 +583,13 @@ export const DeadlinesPage: React.FC = () => {
    * Erledigt ist eine Gründungspflicht, wenn ihr Datum in der Datenbank steht;
    * ein gewöhnlicher Steuertermin, wenn der Haken im `localStorage` liegt.
    */
-  const isDone = (item: DeadlineItem) =>
-    item.dutyKey ? Boolean(item.doneOn) : completedDeadlines.includes(item.id);
+  const isDone = (item: DeadlineItem) => {
+    if (item.dutyKey) return Boolean(item.doneOn);
+    // Der Abschlussstand entscheidet über die Frist des Abschlusses; ein Haken
+    // daneben behauptete etwas, das das Geschäftsjahr nicht hergibt.
+    if (item.fixedDone !== undefined) return item.fixedDone;
+    return completedDeadlines.includes(item.id);
+  };
 
   const statusOf = (item: DeadlineItem) => {
     if (isDone(item)) return 'done';
@@ -727,9 +771,12 @@ export const DeadlinesPage: React.FC = () => {
                           <Td className="pr-0">
                             <Checkbox
                               checked={done}
-                              onCheckedChange={() =>
-                                item.dutyKey ? void toggleDuty(item) : toggleDeadline(item.id)
-                              }
+                              disabled={item.fixedDone !== undefined}
+                              onCheckedChange={() => {
+                                if (item.fixedDone !== undefined) return;
+                                if (item.dutyKey) void toggleDuty(item);
+                                else toggleDeadline(item.id);
+                              }}
                               label={
                                 <span className="sr-only">
                                   {done ? 'Als offen markieren' : 'Als erledigt abhaken'}
@@ -746,15 +793,23 @@ export const DeadlinesPage: React.FC = () => {
                                 className={cn(
                                   'truncate',
                                   done && 'text-ink-subtle',
-                                  done && !item.dutyKey && 'line-through',
+                                  done && !item.dutyKey && item.fixedDone === undefined && 'line-through',
                                 )}
                               >
                                 {item.title}
                               </span>
-                              <HelpTooltip
-                                label={`Erklärung zu ${item.title}`}
-                                content={item.description}
-                              />
+                              {/* Mit der Norm daneben sind es zwei Sätze — das
+                                  ist ein Popover und kein Tooltip (§15.2). */}
+                              {item.reference ? (
+                                <HelpPopover label={`Erklärung zu ${item.title}`}>
+                                  {`${item.description} ${item.reference}`}
+                                </HelpPopover>
+                              ) : (
+                                <HelpTooltip
+                                  label={`Erklärung zu ${item.title}`}
+                                  content={item.description}
+                                />
+                              )}
                               {item.isImportant && !done && (
                                 <span className="text-caption text-attention-text">wichtig</span>
                               )}

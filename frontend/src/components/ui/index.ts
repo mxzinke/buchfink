@@ -21,10 +21,12 @@ export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
 export { ConfirmDialog, Dialog, type ConfirmDialogProps, type DialogProps } from './Dialog';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export {
+  Notice,
   Progress,
   Skeleton,
   SkeletonRows,
   toast,
+  type NoticeProps,
   type ProgressProps,
   type SkeletonRowsProps,
 } from './Feedback';

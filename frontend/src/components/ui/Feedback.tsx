@@ -1,7 +1,53 @@
 import React from 'react';
 import { Progress as Base } from '@base-ui/react/progress';
+import { AlertTriangle, OctagonAlert } from 'lucide-react';
 import { toast as sonner } from 'sonner';
 import { cn } from './cn';
+
+export interface NoticeProps {
+  /**
+   * `attention` (Bernstein) heißt: etwas ist zu klären, die Ansicht bleibt
+   * benutzbar. `negative` (Rosé) heißt: das Backend hat abgelehnt (§10).
+   */
+  tone?: 'attention' | 'negative';
+  /** Ein Satz (§15.1). Was länger ist, gehört hinter ein Erklärzeichen. */
+  text: string;
+  /** Die eine Aktion, die weiterhilft — etwa „Erneut aufstellen". */
+  action?: React.ReactNode;
+  className?: string;
+}
+
+/**
+ * Hinweisfläche nach §10 und §11.4: ein Satz auf der Fläche, kein Toast. Der
+ * Befund bleibt stehen, bis er behoben ist.
+ *
+ * Sie steht als Baustein hier und nicht als Klassenkette in einer Seite: sonst
+ * trägt jede Seite ihre eigene Kopie desselben Musters, und die Kopien laufen
+ * auseinander.
+ */
+export const Notice: React.FC<NoticeProps> = ({ tone = 'attention', text, action, className }) => {
+  const negative = tone === 'negative';
+  const Icon = negative ? OctagonAlert : AlertTriangle;
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 rounded-control border px-4 py-3',
+        negative
+          ? 'border-negative-line bg-negative-soft'
+          : 'border-attention-line bg-attention-soft',
+        className,
+      )}
+      role={negative ? 'alert' : 'status'}
+    >
+      <Icon
+        className={cn('w-4 h-4 mt-0.5 shrink-0', negative ? 'text-negative-text' : 'text-attention-text')}
+        strokeWidth={1.5}
+      />
+      <p className="text-body text-ink-muted flex-1">{text}</p>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+};
 
 /**
  * Ladezustand nach §8.4: unter 200 ms nichts, darüber Skelettzeilen in der Form

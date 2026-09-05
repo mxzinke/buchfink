@@ -23,6 +23,7 @@ import type {
   CompanySettings,
   Contact,
   CurrencyValuation,
+  Deadline,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -35,6 +36,7 @@ import type {
   ExpiringAssetDocument,
   Festschreibung,
   FestschreibungVerification,
+  FinancialStatement,
   FinancialSummary,
   FiscalYear,
   FiscalYearStatus,
@@ -49,6 +51,7 @@ import type {
   Invoice,
   JournalEntry,
   LegalFormInfo,
+  MappingReport,
   OpenItem,
   PaymentRequest,
   PostingGroup,
@@ -60,6 +63,8 @@ import type {
   ReceiptStatus,
   SKR04Catalog,
   Settlement,
+  SizeClass,
+  StatementDepth,
   SuSaOverview,
   TaxRate,
   TaxTreatment,
@@ -467,9 +472,42 @@ export const Api = {
   getSammelposten: (fiscalYear = 0): Promise<FixedAsset | null> =>
     call(() => Bridge.GetSammelposten(fiscalYear) as Promise<FixedAsset | null>),
 
+  // --- Bilanz und Gewinn- und Verlustrechnung ---------------------------
+
+  /**
+   * Der fertige Abschluss eines Geschäftsjahres: Gliederung nach den §§ 266 und
+   * 275 HGB mit Vorjahresspalte, Größenklasse, Angaben unter der Bilanz,
+   * Fristen und Zuordnungsbericht.
+   *
+   * Leere Tiefe heißt „die Tiefe, die die Größenklasse vorgibt" — nicht die
+   * volle Gliederung. Den Unterschied kennt nur das Backend.
+   */
+  getStatement: (year: number, depth: StatementDepth | '' = ''): Promise<FinancialStatement> =>
+    call(() => Bridge.GetStatement(year, depth) as Promise<FinancialStatement>),
+  getSizeClass: (year: number): Promise<SizeClass> =>
+    call(() => Bridge.GetSizeClass(year) as Promise<SizeClass>),
+  /** Aufstellung und Offenlegung mit Datum und Norm (§ 264 Abs. 1, § 325 HGB). */
+  getStatementDeadlines: (year: number): Promise<Deadline[]> =>
+    call(() => Bridge.GetStatementDeadlines(year) as Promise<Deadline[]>),
+  /** Bilanz und GuV als PDF, Base64 wie der Rechnungsexport. */
+  exportStatementPDF: (year: number): Promise<string> =>
+    call(() => Bridge.ExportStatementPDF(year) as Promise<string>),
+  /** Dieselbe Gliederung als CSV-Text (UTF-8, Semikolon). */
+  exportStatementCSV: (year: number): Promise<string> =>
+    call(() => Bridge.ExportStatementCSV(year) as Promise<string>),
+  /** Das dritte Merkmal des § 267 Abs. 1 HGB; aus Buchungen nicht ableitbar. */
+  setAverageEmployees: (year: number, count: number): Promise<FiscalYear> =>
+    call(() => Bridge.SetAverageEmployees(year, count) as Promise<FiscalYear>),
+
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 
   exportEBilanzXBRL: (): Promise<string> => call(() => Bridge.ExportEBilanzXBRL() as Promise<string>),
+  /**
+   * Welches Konto unter welcher Gliederungsposition und welchem
+   * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
+   */
+  getEBilanzMappingReport: (year: number): Promise<MappingReport> =>
+    call(() => Bridge.GetEBilanzMappingReport(year) as Promise<MappingReport>),
   getAuditLogs: (): Promise<AuditLogEntry[]> => call(() => Bridge.GetAuditLogs() as Promise<AuditLogEntry[]>),
   getFestschreibungen: (): Promise<Festschreibung[]> =>
     call(() => Bridge.GetFestschreibungen() as Promise<Festschreibung[]>),

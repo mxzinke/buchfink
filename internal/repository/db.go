@@ -133,6 +133,11 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 			{Key: "street", Value: ""},
 			{Key: "zip_city", Value: ""},
 			{Key: "country", Value: "Deutschland"},
+			// Sitz, Registergericht und Registernummer sind Pflichtangaben des
+			// § 264 Abs. 1a HGB im Kopf des Jahresabschlusses.
+			{Key: "seat", Value: ""},
+			{Key: "register_court", Value: ""},
+			{Key: "register_number", Value: ""},
 			{Key: "currency", Value: "EUR"},
 			{Key: "skr", Value: "SKR04"},
 			{Key: "vat_period", Value: "quarter"},

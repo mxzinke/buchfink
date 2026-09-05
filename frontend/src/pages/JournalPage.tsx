@@ -74,16 +74,22 @@ export interface JournalPageProps {
    * damit jede Erfassungsansicht sie zeigt und keine sie vergisst.
    */
   closedYear?: number;
+  /**
+   * Buchungsnummer aus dem Navigationsziel. Sie steht als Suchbegriff im Feld
+   * und nicht als versteckter Filter: der Weg vom Kontoblatt zur Buchung
+   * (GOB-02) endet in einer Liste, die man weiter durchsuchen können muss.
+   */
+  initialSearch?: string;
 }
 
-export const JournalPage: React.FC<JournalPageProps> = ({ closedYear }) => {
+export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSearch }) => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch ?? '');
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
   const [showForm, setShowForm] = useState(false);
@@ -92,6 +98,13 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear }) => {
   useEffect(() => {
     void load();
   }, []);
+
+  // Der Suchbegriff folgt dem Navigationsziel, auch wenn die Seite schon steht:
+  // wer nach dem Weg vom Kontoblatt zur Buchung erneut „Journal" wählt, will die
+  // ganze Liste sehen und nicht weiter den Filter auf eine Buchungsnummer.
+  useEffect(() => {
+    setSearch(initialSearch ?? '');
+  }, [initialSearch]);
 
   async function load() {
     setLoading(true);

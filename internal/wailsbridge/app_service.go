@@ -72,6 +72,7 @@ type BuchfinkBridge struct {
 	currencySvc   *service.CurrencyService
 	foundationSvc *service.FoundationService
 	closingSvc    *service.ClosingService
+	statementSvc  *service.StatementService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -244,10 +245,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
 	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
 	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
-	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
-	// Die E-Bilanz braucht den Anlagenspiegel als Kontennachweis: die Bilanz
-	// zeigt einen Buchwert, und erst er zeigt, woraus er entstanden ist.
-	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
@@ -264,6 +261,23 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.festschreibungRepo, b.auditRepo, b.journalSvc, fiscalYear,
 	)
 	b.closingSvc.SetFoundationRepo(b.foundationRepo)
+
+	// Bilanz und Gewinn- und Verlustrechnung entstehen im Backend, nicht mehr
+	// in der Ansicht. Der Dienst braucht dazu das Geschäftsjahr (Stichtag und
+	// Zeitraum), die Salden zweier Jahre, die offenen Posten für die
+	// Restlaufzeiten und den Renderer für die Ausgabe als PDF.
+	b.statementSvc = service.NewStatementService(
+		b.accountingSvc, b.closingSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	b.statementSvc.SetOpenItemSource(b.paymentSvc)
+	b.statementSvc.SetRenderer(b.renderer)
+
+	// Die E-Bilanz entsteht aus derselben Gliederung wie die Bilanz auf dem
+	// Schirm — zwei Wege zu einer Bilanz wären einer zu viel. Den
+	// Anlagenspiegel braucht sie als Kontennachweis: die Bilanz zeigt einen
+	// Buchwert, und erst er zeigt, woraus er entstanden ist.
+	b.ebilanzSvc = service.NewEBilanzService(
+		b.statementSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
 	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
 	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
 	// Umstellung; scheitert das, bleibt der Mandant benutzbar und die Ansicht
@@ -705,6 +719,12 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	if b.foundationSvc != nil {
 		b.foundationSvc.SetFiscalYear(year)
+	}
+	if b.statementSvc != nil {
+		b.statementSvc.SetFiscalYear(year)
+	}
+	if b.ebilanzSvc != nil {
+		b.ebilanzSvc.SetFiscalYear(year)
 	}
 	if b.closingSvc != nil {
 		b.closingSvc.SetFiscalYear(year)
@@ -1342,7 +1362,7 @@ func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	if b.ebilanzSvc == nil {
 		return "", fmt.Errorf("ebilanz service not initialized")
 	}
-	return b.ebilanzSvc.ExportXBRL(context.Background())
+	return b.ebilanzSvc.ExportXBRL(context.Background(), b.currentYear)
 }
 
 func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
