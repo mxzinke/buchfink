@@ -34,6 +34,7 @@ import {
 } from '../types';
 import { RATE_SCALE, UNIT_SCALE } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatCentsPlain, formatDate, formatUnits, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -370,6 +371,7 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
 }
 
 export const AssetsPage: React.FC = () => {
+  const writeLock = useWriteLock();
   const [tab, setTab] = useState<Tab>('tangible');
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<FixedAsset[]>([]);
@@ -457,6 +459,8 @@ export const AssetsPage: React.FC = () => {
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() =>
               setEditing({
                 class: activeClass ?? 'tangible',
@@ -588,6 +592,7 @@ const RegisterTab: React.FC<{
   onOpen: (id: number) => void;
   onCreate: (prefill: Partial<FixedAsset>) => void;
 }> = ({ assetClass, assets, explanation, onExplain, year, candidates, onOpen, onCreate }) => {
+  const writeLock = useWriteLock();
   const inStock = assets.filter((a) => a.status !== 'disposed');
   const disposed = assets.filter((a) => a.status === 'disposed');
 
@@ -656,7 +661,16 @@ const RegisterTab: React.FC<{
               ? 'Beteiligungen, Wertpapiere und Ausleihungen, die dauernd dem Geschäftsbetrieb dienen sollen.'
               : 'Was länger als ein Jahr genutzt wird und über der Wertgrenze liegt, gehört hierher.'
           }
-          action={<Button variant="primary" onClick={() => onCreate({})}>Anlagegut erfassen</Button>}
+          action={
+            <Button
+              variant="primary"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => onCreate({})}
+            >
+              Anlagegut erfassen
+            </Button>
+          }
         />
       ) : (
         <Table>
@@ -736,6 +750,7 @@ const DepreciationTab: React.FC<{
   onExplain: () => void;
   onBooked: () => Promise<void>;
 }> = ({ run, year, explanation, onExplain, onBooked }) => {
+  const writeLock = useWriteLock();
   const [selected, setSelected] = useState<number[]>([]);
   const [bookingDate, setBookingDate] = useState(run?.bookingDate ?? `${year}-12-31`);
   const [busy, setBusy] = useState(false);
@@ -812,7 +827,13 @@ const DepreciationTab: React.FC<{
                 {selected.length} von {bookable.length} ausgewählt ·{' '}
                 <span className="num text-ink">{formatCents(total)}</span>
               </span>
-              <Button variant="primary" loading={busy} disabled={selected.length === 0} onClick={book}>
+              <Button
+                variant="primary"
+                loading={busy}
+                disabled={selected.length === 0 || writeLock.locked}
+                title={writeLock.hint}
+                onClick={book}
+              >
                 Abschreibung buchen
               </Button>
             </div>
@@ -1012,6 +1033,7 @@ const AssetFormDialog: React.FC<{
   onClose: () => void;
   onSaved: (asset: FixedAsset) => Promise<void>;
 }> = ({ draft, accounts, rules, investment, candidates, contacts, year, onClose, onSaved }) => {
+  const writeLock = useWriteLock();
   const [asset, setAsset] = useState<Partial<FixedAsset>>(draft ?? {});
   // Beträge stehen als Text im Formular und werden erst beim Speichern gelesen.
   // Ein Feld, das bei jedem Tastendruck neu formatiert, lässt sich nicht tippen.
@@ -1306,7 +1328,13 @@ const AssetFormDialog: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={busy} onClick={submit}>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Speichern
           </Button>
         </>
@@ -1778,6 +1806,7 @@ const AssetDetailDialog: React.FC<{
   onEdit,
   onChanged,
 }) => {
+  const writeLock = useWriteLock();
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [action, setAction] = useState<DetailAction>(null);
   const [loading, setLoading] = useState(false);
@@ -1824,49 +1853,104 @@ const AssetDetailDialog: React.FC<{
       footer={
         action === null && asset ? (
           <>
-            <Button variant="quiet" onClick={() => setAction('cost')}>
+            <Button
+              variant="quiet"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setAction('cost')}
+            >
               Erweiterung erfassen
             </Button>
             {!asset.disposalDate && inProgress && (
-              <Button variant="secondary" onClick={() => setAction('transfer')}>
+              <Button
+                variant="secondary"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('transfer')}
+              >
                 Fertigstellung buchen
               </Button>
             )}
             {!asset.disposalDate && asset.class !== 'financial' && (
-              <Button variant="quiet" onClick={() => setAction('maintenance')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('maintenance')}
+              >
                 Erhaltungsaufwand
               </Button>
             )}
             {!asset.disposalDate && asset.class === 'financial' && (
-              <Button variant="quiet" onClick={() => setAction('income')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('income')}
+              >
                 Ertrag buchen
               </Button>
             )}
             {!asset.disposalDate && asset.currency && (
-              <Button variant="quiet" onClick={() => setAction('currency')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('currency')}
+              >
                 Währung bewerten
               </Button>
             )}
             {!asset.disposalDate && asset.fundClass && (
-              <Button variant="quiet" onClick={() => setAction('vorabpauschale')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('vorabpauschale')}
+              >
                 Vorabpauschale
               </Button>
             )}
-            <Button variant="quiet" onClick={() => setAction('document')}>
+            <Button
+              variant="quiet"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setAction('document')}
+            >
               Dokument ablegen
             </Button>
             {!asset.disposalDate && (
               <>
-                <Button variant="secondary" onClick={() => setAction('impairment')}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('impairment')}
+                >
                   Außerplanmäßig abschreiben
                 </Button>
-                <Button variant="secondary" onClick={() => setAction('writeUp')}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('writeUp')}
+                >
                   Zuschreiben
                 </Button>
-                <Button variant="secondary" onClick={() => onEdit(asset)}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => onEdit(asset)}
+                >
                   Bearbeiten
                 </Button>
-                <Button variant="primary" onClick={() => setAction('disposal')}>
+                <Button
+                  variant="primary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('disposal')}
+                >
                   Abgang buchen
                 </Button>
               </>
@@ -2081,6 +2165,7 @@ const DocumentSection: React.FC<{
   asset: FixedAsset;
   onChanged: () => Promise<void>;
 }> = ({ asset, onChanged }) => {
+  const writeLock = useWriteLock();
   const documents = asset.documents ?? [];
   const [busy, setBusy] = useState<number | null>(null);
   const today = new Date().toISOString().slice(0, 10);
@@ -2159,6 +2244,8 @@ const DocumentSection: React.FC<{
                   variant="quiet"
                   size="sm"
                   loading={busy === document.id}
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
                   onClick={() => void remove(document)}
                 >
                   Entfernen
@@ -2195,6 +2282,7 @@ const DocumentForm: React.FC<{
   kinds: AssetDocumentKindInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, kinds, onDone }) => {
+  const writeLock = useWriteLock();
   const [kind, setKind] = useState<AssetDocumentKind>('contract');
   const [paths, setPaths] = useState<string[]>([]);
   const [title, setTitle] = useState('');
@@ -2309,7 +2397,13 @@ const DocumentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={paths.length === 0} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={paths.length === 0 || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Ablegen
         </Button>
       </div>
@@ -2329,6 +2423,7 @@ const VorabpauschaleForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = useWriteLock();
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [opening, setOpening] = useState('');
   const [closing, setClosing] = useState('');
@@ -2482,7 +2577,8 @@ const VorabpauschaleForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={!result || result.amount <= 0}
+          disabled={!result || result.amount <= 0 || writeLock.locked}
+          title={writeLock.hint}
           onClick={record}
         >
           Festhalten
@@ -2549,6 +2645,7 @@ const ImpairmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [permanent, setPermanent] = useState(true);
@@ -2634,7 +2731,13 @@ const ImpairmentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Abschreibung buchen
         </Button>
       </div>
@@ -2648,6 +2751,7 @@ const WriteUpForm: React.FC<{
   ceiling: Cents;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, ceiling, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -2722,7 +2826,13 @@ const WriteUpForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={ceiling <= 0 || (parseCents(amount) ?? 0) <= 0 || (parseCents(amount) ?? 0) > ceiling}
+          disabled={
+            ceiling <= 0 ||
+            (parseCents(amount) ?? 0) <= 0 ||
+            (parseCents(amount) ?? 0) > ceiling ||
+            writeLock.locked
+          }
+          title={writeLock.hint}
           onClick={submit}
         >
           Zuschreibung buchen
@@ -2736,6 +2846,7 @@ const CostAdjustmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reduction, setReduction] = useState(false);
@@ -2841,7 +2952,13 @@ const CostAdjustmentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Erfassen
         </Button>
       </div>
@@ -2855,6 +2972,7 @@ const MaintenanceForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [settlement, setSettlement] = useState<Settlement>('paid');
@@ -2960,7 +3078,13 @@ const MaintenanceForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Aufwand buchen
         </Button>
       </div>
@@ -2974,6 +3098,7 @@ const AssetIncomeForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [withholding, setWithholding] = useState('');
@@ -3093,7 +3218,13 @@ const AssetIncomeForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Ertrag buchen
         </Button>
       </div>
@@ -3105,6 +3236,7 @@ const CurrencyForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [rate, setRate] = useState('');
   const [valuation, setValuation] = useState<CurrencyValuation | null>(null);
@@ -3241,7 +3373,8 @@ const CurrencyForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={!valuation || valuation.proposedAmount <= 0}
+          disabled={!valuation || valuation.proposedAmount <= 0 || writeLock.locked}
+          title={writeLock.hint}
           onClick={book}
         >
           {valuation?.proposal === 'write_up' ? 'Kursgewinn buchen' : 'Kursverlust buchen'}
@@ -3256,6 +3389,7 @@ const TransferForm: React.FC<{
   accounts: AssetAccountInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, accounts, onDone }) => {
+  const writeLock = useWriteLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [account, setAccount] = useState<string | null>(null);
   const [method, setMethod] = useState<DepreciationMethod>('linear');
@@ -3382,7 +3516,13 @@ const TransferForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={!account} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={!account || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Fertigstellung buchen
         </Button>
       </div>
@@ -3396,6 +3536,7 @@ const DisposalForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = useWriteLock();
   const customers = contacts.filter((c) => c.type === 'customer');
   const [request, setRequest] = useState<DisposalRequest>({
     assetId: asset.id,
@@ -3703,7 +3844,13 @@ const DisposalForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={Boolean(previewError)} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={Boolean(previewError) || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           {preview?.partial ? 'Teilabgang buchen' : 'Abgang buchen'}
         </Button>
       </div>

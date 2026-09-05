@@ -120,6 +120,49 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 	return s.openItemsFrom(ctx, entries, settled)
 }
 
+// Allocations liefert die Einzelposten einer Zahlungsbuchung.
+//
+// Eine Sammelüberweisung steht im Journal als eine Zeile. Wogegen sie lief,
+// ergibt sich aus dem Journal nicht mehr — die Zuordnungen sind eigene
+// Datensätze, und ohne sie ist der Vorgang nicht in seine Bestandteile
+// zerlegbar (GoBD Rz. 36).
+func (s *PaymentService) Allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
+	allocations, err := s.allocationRepo.FindByPayment(ctx, paymentEntryID)
+	if err != nil {
+		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
+	}
+
+	contacts, err := s.contactRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[uint]domain.Contact, len(contacts))
+	for _, c := range contacts {
+		byID[c.ID] = c
+	}
+
+	out := make([]domain.PaymentAllocationDetail, 0, len(allocations))
+	for _, a := range allocations {
+		detail := domain.PaymentAllocationDetail{PaymentAllocation: a}
+		if c, ok := byID[a.ContactID]; ok {
+			detail.ContactName = c.Name
+			detail.ContactType = c.Type
+			detail.LedgerAccount = c.LedgerAccount
+		}
+		// Der offene Posten wird einzeln gelesen und nicht über das ganze
+		// Journal gesucht: eine Zahlung gleicht selten mehr als eine Handvoll
+		// Rechnungen aus, und eine davon kann aus einem früheren Jahr stammen.
+		if item, err := s.journalRepo.FindByID(ctx, a.OpenItemEntryID); err == nil && item != nil {
+			detail.OpenItemEntryNumber = item.EntryNumber
+			detail.DocumentNumber = item.DocumentNumber
+			detail.DocumentDate = item.DocumentDate
+			detail.Description = item.Description
+		}
+		out = append(out, detail)
+	}
+	return out, nil
+}
+
 // OpenItemsAt ist dieselbe Liste zu einem Stichtag: welche Posten waren am
 // Bilanzstichtag offen.
 //

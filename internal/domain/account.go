@@ -95,8 +95,13 @@ type AccountLedgerRow struct {
 
 // AccountLedger is the Kontoblatt of a single account.
 type AccountLedger struct {
-	Account        Account            `json:"account"`
-	FiscalYear     int                `json:"fiscalYear"`
+	Account    Account `json:"account"`
+	FiscalYear int     `json:"fiscalYear"`
+	// From und To sind die Grenzen des ausgewerteten Zeitraums. Leer heißt: das
+	// ganze Geschäftsjahr. Sie stehen im Ergebnis, weil ein Kontoblatt ohne
+	// seinen Zeitraum eine Zahlenreihe ohne Aussage ist.
+	From           string             `json:"from,omitempty"`
+	To             string             `json:"to,omitempty"`
 	OpeningBalance Cents              `json:"openingBalance"`
 	TotalDebit     Cents              `json:"totalDebit"`
 	TotalCredit    Cents              `json:"totalCredit"`
@@ -119,7 +124,10 @@ type SuSaClassSummary struct {
 
 // SuSaOverview represents the Summen- und Saldenliste (Soll-Haben-Übersicht).
 type SuSaOverview struct {
-	FiscalYear       int                `json:"fiscalYear"`
+	FiscalYear int `json:"fiscalYear"`
+	// Cutoff ist der Stichtag, bis zu dem summiert wurde. Leer heißt: das ganze
+	// Geschäftsjahr.
+	Cutoff           string             `json:"cutoff,omitempty"`
 	TotalDebit       Cents              `json:"totalDebit"`
 	TotalCredit      Cents              `json:"totalCredit"`
 	TotalSaldoDebit  Cents              `json:"totalSaldoDebit"`

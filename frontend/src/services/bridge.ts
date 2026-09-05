@@ -230,4 +230,49 @@ export const bridge = {
     invoke<T>('RegisterCompany', date, court, number),
   CompleteFoundationDuty: (key: string, doneOn: string, note: string) =>
     invoke<void>('CompleteFoundationDuty', key, doneOn, note),
+
+  // Datenüberlassung nach § 147 Abs. 6 AO
+  ExportZ3: <T>(year: number, targetDir: string) => invoke<T>('ExportZ3', year, targetDir),
+  ExportArchive: <T>(year: number, targetDir: string) => invoke<T>('ExportArchive', year, targetDir),
+  ExportAuditPackage: <T>(year: number, targetDir: string) =>
+    invoke<T>('ExportAuditPackage', year, targetDir),
+  ExportJournalCSV: (from: string, to: string) => invoke<string>('ExportJournalCSV', from, to),
+  ExportKeyDirectory: () => invoke<string>('ExportKeyDirectory'),
+  GetKeyDirectory: <T>() => invoke<T>('GetKeyDirectory'),
+  SelectExportDirectoryDialog: (title: string) =>
+    invoke<string>('SelectExportDirectoryDialog', title),
+  SelectSaveFileDialog: (title: string, suggestedName: string) =>
+    invoke<string>('SelectSaveFileDialog', title, suggestedName),
+  SaveReceiptFileAs: (receiptId: number, fileId: number) =>
+    invoke<string>('SaveReceiptFileAs', receiptId, fileId),
+
+  // Prüfläufe über Kette und Dateien
+  VerifyReceiptFiles: <T>() => invoke<T>('VerifyReceiptFiles'),
+
+  // Stichtagsauswertungen
+  GetSuSaOverviewAt: <T>(cutoff: string) => invoke<T>('GetSuSaOverviewAt', cutoff),
+  GetAccountLedgerRange: <T>(accountNumber: string, from: string, to: string) =>
+    invoke<T>('GetAccountLedgerRange', accountNumber, from, to),
+  GetOpenItemsAt: <T>(cutoff: string) => invoke<T>('GetOpenItemsAt', cutoff),
+  GetPaymentAllocations: <T>(entryId: number) => invoke<T>('GetPaymentAllocations', entryId),
+
+  // Bankimport über den Dateipfad — die Datei wird als Beleg archiviert
+  ImportCAMT053File: (path: string, ledgerAccount: string) =>
+    invoke<number>('ImportCAMT053File', path, ledgerAccount),
+  SelectStatementFileDialog: (title: string) => invoke<string>('SelectStatementFileDialog', title),
+
+  // Sicherung und Wiederherstellung
+  GetBackupRuns: <T>() => invoke<T>('GetBackupRuns'),
+  SetBackupDir: <T>(dir: string) => invoke<T>('SetBackupDir', dir),
+  CreateBackup: <T>() => invoke<T>('CreateBackup'),
+  VerifyBackup: <T>(zipPath: string) => invoke<T>('VerifyBackup', zipPath),
+  RestoreFromBackup: <T>(zipPath: string, targetDir: string) =>
+    invoke<T>('RestoreFromBackup', zipPath, targetDir),
+  SelectBackupDirDialog: (title: string) => invoke<string>('SelectBackupDirDialog', title),
+  SelectBackupFileDialog: (title: string) => invoke<string>('SelectBackupFileDialog', title),
+
+  // Prüfermodus
+  EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
+  DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),
+  GetProgramVersion: () => invoke<string>('GetProgramVersion'),
 };

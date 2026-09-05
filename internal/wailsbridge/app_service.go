@@ -28,7 +28,13 @@ import (
 
 // BuchfinkBridge bridges between Wails v3 frontend IPC and the decoupled Go domain services.
 type BuchfinkBridge struct {
-	mu          sync.RWMutex
+	mu sync.RWMutex
+	// backupMu serialisiert die Sicherungsläufe untereinander. Sie ist von b.mu
+	// getrennt, weil eine Sicherung Minuten dauern kann und die Bridge
+	// währenddessen bedienbar bleiben muss: zwei Läufe gleichzeitig sollen sich
+	// nicht ins Gehege kommen, aber ein Lauf soll nicht das Journal sperren.
+	backupMu sync.Mutex
+
 	appCfgRepo  domain.AppConfigRepository
 	appConfig   domain.AppConfig
 	dataDir     string
@@ -56,6 +62,7 @@ type BuchfinkBridge struct {
 	zmReturnRepo       domain.ZMReturnRepository
 	checkRunRepo       domain.CheckRunRepository
 	deadlineRepo       domain.DeadlineRepository
+	backupRunRepo      domain.BackupRunRepository
 
 	// Services
 	journalSvc    *service.JournalService
@@ -81,6 +88,8 @@ type BuchfinkBridge struct {
 	zmSvc         *service.ZMService
 	checkSvc      *service.CheckService
 	deadlineSvc   *service.DeadlineService
+	exportSvc     *service.ExportService
+	backupSvc     *service.BackupService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -137,6 +146,10 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 			}
 			// Fetch any trusted timestamps that couldn't be obtained while offline.
 			go b.retryPendingTimestamps()
+			// Die fällige Sicherung läuft im Hintergrund weiter, während die
+			// Oberfläche schon da ist — und ohne die Bridge-Sperre zu halten,
+			// damit die Oberfläche währenddessen bedienbar bleibt.
+			go b.runDueBackup()
 		}
 	}
 
@@ -152,7 +165,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Existing databases without a keyfile fall back to clear text so legacy data
 	// keeps working.
 	if security.KeyfileExists(t.DataDir) {
-		vault, err := security.OpenTenantVault(t.DataDir, t.ID)
+		// Der Schlüssel wird unter VaultID gesucht und nicht unter der ID des
+		// Eintrags: eine wiederhergestellte Sicherung trägt die Schlüsseldatei
+		// des Mandanten, aus dem sie stammt, und ihr Geheimnis liegt im
+		// Schlüsselbund unter dessen Kennung.
+		vault, err := security.OpenTenantVault(t.DataDir, t.VaultID())
 		if err != nil {
 			if errors.Is(err, security.ErrNoKeyringSecret) {
 				// New machine or lost keychain: enter locked state instead of
@@ -162,7 +179,16 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 				b.vault = nil
 				repository.SetActiveVault(nil)
 				b.appConfig.ActiveTenantID = t.ID
+				b.appConfig.DataDir = t.DataDir
 				b.dataDir = t.DataDir
+				// Auch der gesperrte Mandant wird festgehalten: eine gerade
+				// wiederhergestellte Sicherung, die beim nächsten Start wieder
+				// aus der Mandantenliste verschwunden wäre, müsste ein zweites
+				// Mal wiederhergestellt werden — mit der Wiederherstellungsdatei
+				// wäre sie hier sonst gar nicht mehr zu finden.
+				if b.appCfgRepo != nil {
+					_ = b.appCfgRepo.Save(&b.appConfig)
+				}
 				return nil
 			}
 			return fmt.Errorf("failed to unlock tenant encryption at %s: %w", t.DataDir, err)
@@ -203,6 +229,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.zmReturnRepo = repository.NewZMReturnRepository(db)
 	b.checkRunRepo = repository.NewCheckRunRepository(db)
 	b.deadlineRepo = repository.NewDeadlineRepository(db)
+	b.backupRunRepo = repository.NewBackupRunRepository(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -231,6 +258,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, invoice.NewReader(), fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
+	// Der Kontoauszug ist selbst ein Beleg: der Import legt die CAMT-Datei ab,
+	// bevor er sie liest.
+	b.bankSvc.SetReceiptService(b.receiptSvc)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
@@ -257,6 +287,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
 	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
 	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
+	// Der Belegprüflauf geht über Belegdateien und Anlagendokumente: beide sind
+	// aufbewahrungspflichtig, und beide liegen im selben Speicher.
+	b.receiptSvc.SetDocumentSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.currencySvc = service.NewCurrencyService()
@@ -323,6 +356,29 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	)
 	b.deadlineSvc.SetStatementSource(b.statementSvc)
 	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
+	// Die Datenüberlassung liest aus allen Quellen zugleich — sie ist der eine
+	// Ort, an dem die ganze Buchführung eines Jahres zusammenkommt.
+	b.exportSvc = service.NewExportService(
+		b.journalRepo, b.accountRepo, b.contactRepo, b.receiptRepo, b.assetRepo,
+		b.allocationRepo, b.auditRepo, b.settingsRepo, b.festschreibungRepo,
+		b.vatReturnRepo, b.checkRunRepo, b.fiscalYearRepo,
+		receiptstore.New(t.DataDir), t.DataDir, fiscalYear,
+	)
+	b.exportSvc.SetTenantName(t.Name)
+	b.exportSvc.SetOpenItemSource(b.paymentSvc)
+	b.exportSvc.SetIntegritySource(integrityChecks{journal: b.journalSvc, receipts: b.receiptSvc})
+
+	// Die Sicherung trägt die Schlüsselkennung und nicht die Kennung aus der
+	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
+	// und die Wiederherstellung später das Geheimnis im Schlüsselbund suchen.
+	// Für einen Mandanten, der neben seinem Ursprung wiederhergestellt wurde,
+	// sind beide verschieden — er führt eine neue Listenkennung und behält den
+	// Schlüssel des Ursprungs. Stünde die Listenkennung in der Sicherung, fände
+	// weder „Sicherung prüfen" noch eine erneute Wiederherstellung den
+	// Schlüssel, und eine heile Sicherung käme als unlesbar zurück.
+	b.backupSvc = service.NewBackupService(
+		b.backupRunRepo, b.auditRepo, db, t.DataDir, t.VaultID(), t.Name)
+
 	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
 	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
 	// Umstellung; scheitert das, bleibt der Mandant benutzbar und die Ansicht
@@ -433,7 +489,7 @@ func (b *BuchfinkBridge) ExportRecoveryKey() (string, error) {
 		return "", fmt.Errorf("kein Zielordner gewählt")
 	}
 
-	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.ID, active.Name, b.vault)
+	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.VaultID(), active.Name, b.vault)
 	if err != nil {
 		return "", err
 	}
@@ -475,7 +531,7 @@ func (b *BuchfinkBridge) RecoverActiveTenantFromFile(recoveryFilePath string) er
 	if err != nil {
 		return fmt.Errorf("Recovery-Datei lesen: %w", err)
 	}
-	if _, err := security.RecoverTenantFromFile(active.DataDir, active.ID, data); err != nil {
+	if _, err := security.RecoverTenantFromFile(active.DataDir, active.VaultID(), data); err != nil {
 		return err
 	}
 	// Keychain is re-provisioned; a full init now unlocks transparently.
@@ -499,7 +555,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		}
 	}
 
-	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+	tenantID := newTenantID()
 
 	homeDir, _ := os.UserHomeDir()
 	if dataDir == "" {
@@ -556,16 +612,66 @@ func (b *BuchfinkBridge) CreateTenant(
 func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{})
+}
 
+// newTenantID vergibt eine Kennung für einen neuen Eintrag der Mandantenliste.
+func newTenantID() string {
+	return fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+}
+
+// tenantByIDLocked sucht einen Eintrag der Mandantenliste. Der Aufrufer hält b.mu.
+func (b *BuchfinkBridge) tenantByIDLocked(id string) *domain.TenantConfig {
+	for i := range b.appConfig.Tenants {
+		if b.appConfig.Tenants[i].ID == id {
+			return &b.appConfig.Tenants[i]
+		}
+	}
+	return nil
+}
+
+// registerTenantLocked meldet einen vorhandenen Datenordner als Mandanten an
+// und öffnet ihn.
+//
+// identity gibt vor, was der Aufrufer über den Ordner schon weiß: die
+// Wiederherstellung liest Kennung und Namen aus backup.json, weil der
+// Schlüsselbund das Geheimnis unter der Kennung führt, unter der die Sicherung
+// entstanden ist. Ein leeres Feld wird aus dem Ordner und den Stammdaten
+// gefüllt — das ist der Fall „vorhandene Datenbank öffnen".
+//
+// Der Aufrufer hält b.mu.
+func (b *BuchfinkBridge) registerTenantLocked(dbFilePath string, identity domain.TenantConfig) (*domain.TenantConfig, error) {
 	if _, err := os.Stat(dbFilePath); err != nil {
 		return nil, fmt.Errorf("database file not found: %s", dbFilePath)
 	}
 
 	dataDir := filepath.Dir(dbFilePath)
-	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
-	name := filepath.Base(dataDir)
-	if name == "data" || name == "." || name == "" {
-		name = fmt.Sprintf("Mandant (%s)", filepath.Base(dbFilePath))
+	// Absolut, wie bei CreateTenant: ein relativer Pfad bräche, sobald das
+	// Arbeitsverzeichnis wechselt.
+	if abs, err := filepath.Abs(dataDir); err == nil {
+		dataDir = abs
+	}
+
+	tenantID, keyID := identity.ID, identity.KeyID
+	if tenantID == "" {
+		tenantID = newTenantID()
+	} else if b.tenantByIDLocked(tenantID) != nil {
+		// Die Kennung ist schon vergeben — die Sicherung wird neben dem
+		// Mandanten wiederhergestellt, aus dem sie stammt. Zwei Einträge mit
+		// derselben Kennung machten die Mandantenliste mehrdeutig; der neue
+		// bekommt deshalb eine eigene und behält den Schlüssel des alten.
+		if keyID == "" {
+			keyID = tenantID
+		}
+		tenantID = newTenantID()
+	}
+
+	name := identity.Name
+	if name == "" {
+		name = filepath.Base(dataDir)
+		if name == "data" || name == "." || name == "" {
+			name = fmt.Sprintf("Mandant (%s)", filepath.Base(dbFilePath))
+		}
 	}
 
 	// An imported database keeps whatever encryption state it shipped with: if a
@@ -574,6 +680,7 @@ func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, 
 	t := domain.TenantConfig{
 		ID:        tenantID,
 		Name:      name,
+		KeyID:     keyID,
 		DataDir:   dataDir,
 		CreatedAt: time.Now().Format(time.RFC3339),
 	}
@@ -586,36 +693,73 @@ func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, 
 		return nil, err
 	}
 
-	// Try reading company name from settings
-	if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
-		t.Name = s.CompanyName
-		for i := range b.appConfig.Tenants {
-			if b.appConfig.Tenants[i].ID == tenantID {
-				b.appConfig.Tenants[i].Name = s.CompanyName
-				break
+	// Try reading company name from settings.
+	//
+	// Nur am offenen Mandanten: bleibt er gesperrt (Schlüssel fehlt), kehrt
+	// initTenant zurück, bevor es die Dienste verdrahtet — b.settingsSvc zeigt
+	// dann auf den vorher offenen Mandanten oder ist gar nicht belegt. Der
+	// Aufruf holte sich sonst den Firmennamen des falschen Mandanten oder
+	// stürzte auf dem Startbildschirm ab, wo noch keiner offen ist.
+	if !b.locked && b.settingsSvc != nil {
+		if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
+			t.Name = s.CompanyName
+			if entry := b.tenantByIDLocked(tenantID); entry != nil {
+				entry.Name = s.CompanyName
 			}
+			_ = b.appCfgRepo.Save(&b.appConfig)
 		}
-		_ = b.appCfgRepo.Save(&b.appConfig)
 	}
 
 	return &t, nil
 }
 
+// DeleteTenant entfernt einen Mandanten aus der Konfiguration und löscht sein
+// Schlüsselbund-Geheimnis. Die Daten auf der Platte bleiben liegen.
+//
+// Den gerade geprüften Mandanten nimmt sie im Prüfermodus nicht: ohne das
+// Geheimnis wären die eingefrorenen Daten bis zur Wiederherstellung aus der
+// Wiederherstellungsdatei unzugänglich — das ist während einer Außenprüfung
+// genau der Eingriff, den der Modus verhindern soll. Ein anderer Mandant darf
+// weiterhin gehen.
 func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if tenantID == b.appConfig.ActiveTenantID {
+		if err := b.ensureWritable(); err != nil {
+			return err
+		}
+	}
+
+	vaultID := tenantID
 	var newTenants []domain.TenantConfig
 	for _, t := range b.appConfig.Tenants {
 		if t.ID != tenantID {
 			newTenants = append(newTenants, t)
+			continue
 		}
+		vaultID = t.VaultID()
 	}
 	b.appConfig.Tenants = newTenants
 
 	// Remove the tenant's wrapping secret from the OS keychain. The keyfile and
 	// data on disk are left untouched (deletion of user data stays explicit).
-	_ = security.DeleteTenantSecret(tenantID)
+	//
+	// Nicht jedoch, solange ein anderer Eintrag denselben Schlüssel benutzt:
+	// eine wiederhergestellte Sicherung und der Mandant, aus dem sie stammt,
+	// teilen sich das Geheimnis. Es beim Entfernen der einen zu löschen,
+	// sperrte die andere aus — der Datenverlust, den die Sicherung gerade
+	// abwenden sollte.
+	shared := false
+	for _, t := range newTenants {
+		if t.VaultID() == vaultID {
+			shared = true
+			break
+		}
+	}
+	if !shared {
+		_ = security.DeleteTenantSecret(vaultID)
+	}
 
 	if b.appConfig.ActiveTenantID == tenantID {
 		if len(newTenants) > 0 {
@@ -635,10 +779,25 @@ func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 // SETUP & ONBOARDING ASSISTANT (FIRST LAUNCH & VAULT)
 // -------------------------------------------------------------
 
+// GetAppConfig liefert den Zustand, aus dem die Oberfläche liest.
+//
+// Die Spiegelfelder werden hier gerechnet und nicht beim letzten Speichern
+// übernommen: der Prüfermodus endet an einem Datum, und ein Zustand, der beim
+// Speichern eingefroren wurde, meldete ihn nach Ablauf weiter als aktiv,
+// während die Bridge längst wieder schreiben lässt. Die Oberfläche zeigte dann
+// ein Banner und blendete Knöpfe aus, die es gar nicht mehr auszublenden gilt.
+//
+// Gerechnet wird auf einer Kopie: die Konfiguration im Speicher bleibt, was sie
+// ist, und nur die Auskunft nach außen ist auf den heutigen Tag bezogen.
 func (b *BuchfinkBridge) GetAppConfig() domain.AppConfig {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	return b.appConfig
+
+	cfg := b.appConfig
+	cfg.Tenants = append(make([]domain.TenantConfig, 0, len(b.appConfig.Tenants)), b.appConfig.Tenants...)
+	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
+	cfg.ProgramVersion = programVersion()
+	return cfg
 }
 
 // SetupApplication handles initial setup: establishes the data directory,
@@ -786,6 +945,12 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.deadlineSvc != nil {
 		b.deadlineSvc.SetFiscalYear(year)
 	}
+	// Auch die Datenüberlassung: ruft die Oberfläche einen Export ohne Jahr
+	// auf, nähme er sonst das Jahr vom Öffnen des Mandanten und überließe die
+	// Bücher eines anderen Jahres, als auf dem Schirm steht.
+	if b.exportSvc != nil {
+		b.exportSvc.SetFiscalYear(year)
+	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
 }
@@ -820,6 +985,9 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 func (b *BuchfinkBridge) UpdateCompanySettings(settings domain.CompanySettings) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.settingsSvc == nil {
 		return nil
 	}
@@ -940,6 +1108,9 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.journalSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -951,6 +1122,9 @@ func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.Jo
 func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.postingSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -961,6 +1135,9 @@ func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domai
 func (b *BuchfinkBridge) ReverseJournalEntry(entryID uint, reason string) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.journalSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -971,7 +1148,11 @@ func (b *BuchfinkBridge) VerifyIntegrity() (domain.IntegrityCheckResult, error) 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.journalSvc == nil {
-		return domain.IntegrityCheckResult{IsValid: true, Message: "Bereit"}, nil
+		// Auch der Leerlauf gibt belegte Listen zurück: die Ansicht liest
+		// `breaks.length`, und `null.length` nähme den ganzen Baum mit.
+		empty := domain.IntegrityCheckResult{IsValid: true, Message: "Bereit"}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.journalSvc.VerifyIntegrity(context.Background())
 }
@@ -1003,6 +1184,9 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount string) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return 0, err
+	}
 	if b.bankSvc == nil {
 		return 0, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -1014,6 +1198,9 @@ func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount strin
 func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.bankSvc == nil {
 		return nil, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -1023,6 +1210,9 @@ func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount
 func (b *BuchfinkBridge) IgnoreBankTransaction(bankTxID uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.bankSvc == nil {
 		return fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -1045,6 +1235,9 @@ func (b *BuchfinkBridge) GetContacts() ([]domain.Contact, error) {
 func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.contactSvc == nil {
 		return nil, fmt.Errorf("Stammdaten sind noch nicht initialisiert")
 	}
@@ -1057,6 +1250,9 @@ func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) 
 func (b *BuchfinkBridge) DeleteContact(id uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.contactSvc == nil {
 		return fmt.Errorf("Stammdaten sind noch nicht initialisiert")
 	}
@@ -1077,6 +1273,9 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.invoiceSvc == nil {
 		return nil, fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
@@ -1089,6 +1288,9 @@ func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, erro
 func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.invoiceSvc == nil {
 		return fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
@@ -1145,6 +1347,9 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, files []ReceiptFileInput) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1160,6 +1365,9 @@ func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, fil
 func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1170,6 +1378,9 @@ func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (
 func (b *BuchfinkBridge) RemoveReceiptFile(receiptID, fileID uint) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1204,6 +1415,9 @@ func (b *BuchfinkBridge) GetReceipt(id uint) (*domain.Receipt, error) {
 func (b *BuchfinkBridge) DiscardReceipt(id uint, reason string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.receiptSvc == nil {
 		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1296,6 +1510,9 @@ func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, er
 func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.eInvoiceSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1325,6 +1542,9 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*domain.ReceiptValidation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.eInvoiceSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1457,6 +1677,9 @@ func (b *BuchfinkBridge) GetDifferenceKinds() []domain.DifferenceKindInfo {
 func (b *BuchfinkBridge) SettlePayment(req service.PaymentRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.paymentSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1501,6 +1724,9 @@ func (b *BuchfinkBridge) GetFoundationState() (*service.FoundationState, error) 
 func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1538,6 +1764,9 @@ func (b *BuchfinkBridge) PreviewFoundationPostings() (*service.FoundationPosting
 func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1549,6 +1778,9 @@ func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error)
 func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Foundation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1560,6 +1792,9 @@ func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Fo
 func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.foundationSvc == nil {
 		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}

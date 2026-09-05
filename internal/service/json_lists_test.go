@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -160,4 +161,43 @@ func TestEnsureListsReplacesNilWithEmpty(t *testing.T) {
 	if !strings.Contains(string(raw), `"figures":null`) {
 		t.Errorf("die Gegenprobe trägt nicht mehr — der Test prüft dann nichts mehr: %s", raw)
 	}
+}
+
+// Der Belegprüflauf ohne Befund. Genau der Regelfall wäre betroffen: die
+// unversehrte Ablage.
+func TestFileCheckResultMarshalsEmptyListsNotNull(t *testing.T) {
+	env := newTestEnv(t)
+
+	result, err := env.receipts.VerifyReceiptFiles(context.Background())
+	if err != nil {
+		t.Fatalf("Belegprüflauf: %v", err)
+	}
+	assertNoNullLists(t, "Belegprüflauf", result, "issues")
+}
+
+// Die Integritätsprüfung der unversehrten Buchführung.
+func TestIntegrityResultMarshalsEmptyListsNotNull(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 10000)); err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+	result, err := env.journal.VerifyIntegrity(ctx)
+	if err != nil {
+		t.Fatalf("Integritätsprüfung: %v", err)
+	}
+	assertNoNullLists(t, "Integritätsprüfung", result, "breaks", "fiscalYears")
+}
+
+// Das Ergebnis eines Exports geht ebenfalls an die Oberfläche.
+func TestExportResultMarshalsEmptyListsNotNull(t *testing.T) {
+	env := newTestEnv(t)
+
+	dir := filepath.Join(t.TempDir(), "z3")
+	result, err := env.exports(t).ExportZ3(context.Background(), env.fiscalYear, dir)
+	if err != nil {
+		t.Fatalf("Z3-Export: %v", err)
+	}
+	assertNoNullLists(t, "Export", result, "tables", "files", "notes")
 }

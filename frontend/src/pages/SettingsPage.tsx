@@ -8,6 +8,7 @@ import {
   SpecialPrepaymentSuggestion,
 } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatCentsPlain, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -97,6 +98,9 @@ function keychainHint(): string {
 }
 
 export const SettingsPage: React.FC = () => {
+  // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
+  // im Prüfermodus gesperrt. Der Schlüsselexport bleibt möglich (§10.4).
+  const writeLock = useWriteLock();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,15 +154,6 @@ export const SettingsPage: React.FC = () => {
     }
   }
 
-  async function pickDirectory() {
-    try {
-      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner ändern');
-      if (selected && appConfig) setAppConfig({ ...appConfig, dataDir: selected });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  }
-
   async function exportRecovery() {
     setExporting(true);
     try {
@@ -175,7 +170,9 @@ export const SettingsPage: React.FC = () => {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!settings || saving) return;
+    // Auch die Eingabetaste in einem Feld löst das Formular aus; der gesperrte
+    // Knopf allein hielte den Prüfermodus deshalb nicht.
+    if (!settings || saving || writeLock.locked) return;
     setSaving(true);
     try {
       await Api.updateCompanySettings(settings);
@@ -230,6 +227,8 @@ export const SettingsPage: React.FC = () => {
             type="submit"
             variant="primary"
             loading={saving}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             icon={<Save className="w-4 h-4" strokeWidth={1.5} />}
           >
             Speichern
@@ -573,13 +572,30 @@ export const SettingsPage: React.FC = () => {
 
       <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
         <div className="flex flex-col gap-4 max-w-2xl">
-          <Field label="Ordner für Buchungsdaten und Belege">
-            <div className="flex gap-2">
-              <Input className="code-num" value={appConfig?.dataDir || ''} readOnly />
-              <Button variant="secondary" onClick={() => void pickDirectory()} className="shrink-0">
-                Ordner wählen
-              </Button>
-            </div>
+          {/* Kein Knopf zum Wählen: Buchfink zieht einen Datenordner nicht um,
+              und ein Knopf, der nur die Anzeige ändert, verspräche das (ARC-06). */}
+          <Field
+            label="Ordner für Buchungsdaten und Belege"
+            help="Der Ordner steht beim Anlegen des Mandanten fest und lässt sich hier nicht umziehen."
+          >
+            <Input className="code-num" value={appConfig?.dataDir || ''} readOnly />
+          </Field>
+
+          <Field
+            label="Sicherungsordner"
+            hint="Einzurichten unter Datenzugriff"
+            help="Ohne Sicherungsordner schreibt Buchfink keine Sicherung — weder von Hand noch beim Beenden."
+          >
+            <Input
+              className="code-num"
+              value={appConfig?.backupDir || ''}
+              readOnly
+              placeholder="Nicht eingerichtet"
+            />
+          </Field>
+
+          <Field label="Programmversion" help="Sie steht in jedem Export und in jeder Sicherung.">
+            <Input className="code-num" value={appConfig?.programVersion || 'dev'} readOnly />
           </Field>
 
           <Field label="Schlüssel im Schlüsselbund des Betriebssystems" help={keychainHint()}>

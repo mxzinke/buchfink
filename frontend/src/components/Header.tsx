@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building2, Calendar, Check, ChevronDown, Lock, Menu as MenuIcon, Plus } from 'lucide-react';
 import { TenantConfig } from '../types';
+import { useWriteLock } from './WriteLock';
 import { Button, Menu, MenuGroup, MenuItem, MenuSeparator, cn } from './ui';
 
 interface HeaderProps {
@@ -39,6 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const currentCalendarYear = new Date().getFullYear();
   const nextYear = availableYears.length > 0 ? Math.max(...availableYears) + 1 : currentCalendarYear;
+  // Ein Geschäftsjahr anzulegen ist eine Änderung an den Büchern und im
+  // Prüfermodus gesperrt; das Umschalten der Ansicht bleibt möglich.
+  const writeLock = useWriteLock();
 
   return (
     <header
@@ -108,11 +112,13 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onCreateFiscalYear(nextYear)}
-              title={`Geschäftsjahr ${nextYear} anlegen`}
+              disabled={writeLock.locked}
+              title={writeLock.hint ?? `Geschäftsjahr ${nextYear} anlegen`}
               aria-label={`Geschäftsjahr ${nextYear} anlegen`}
               className={cn(
                 'flex items-center h-7 px-2 shrink-0 rounded-[4px] text-ink-faint',
                 'transition-colors duration-120 ease-quiet hover:bg-sunken hover:text-ink',
+                'disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink-faint',
               )}
             >
               <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />

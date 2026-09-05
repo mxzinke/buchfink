@@ -41,6 +41,9 @@ func (b *BuchfinkBridge) GetVatReturn(periodKey string) (*domain.VatReturn, erro
 func (b *BuchfinkBridge) SaveVatReturn(periodKey string) (*domain.VatReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.vatReturnSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -63,6 +66,9 @@ func (b *BuchfinkBridge) GetVatReturns(year int) ([]domain.VatReturn, error) {
 func (b *BuchfinkBridge) ConfirmVatReturnSubmitted(id uint, date, ticket, note string) (*domain.VatReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.vatReturnSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -73,6 +79,9 @@ func (b *BuchfinkBridge) ConfirmVatReturnSubmitted(id uint, date, ticket, note s
 func (b *BuchfinkBridge) CreateVatCorrection(periodKey string) (*domain.VatReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.vatReturnSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -133,6 +142,9 @@ func (b *BuchfinkBridge) GetZMReturn(periodKey string) (*domain.ZMReturn, error)
 func (b *BuchfinkBridge) SaveZMReturn(periodKey string) (*domain.ZMReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.zmSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -153,6 +165,9 @@ func (b *BuchfinkBridge) GetZMReturns(year int) ([]domain.ZMReturn, error) {
 func (b *BuchfinkBridge) ConfirmZMSubmitted(id uint, date, ticket, note string) (*domain.ZMReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.zmSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -163,6 +178,9 @@ func (b *BuchfinkBridge) ConfirmZMSubmitted(id uint, date, ticket, note string) 
 func (b *BuchfinkBridge) CreateZMCorrection(periodKey string) (*domain.ZMReturn, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.zmSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}

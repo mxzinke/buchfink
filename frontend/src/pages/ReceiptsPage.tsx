@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Download,
   FileCode,
   FileText,
   Paperclip,
@@ -20,6 +21,7 @@ import type {
   Receipt,
   ReceiptFileInput,
   ReceiptFileRole,
+  ReceiptKind,
   ReceiptRequest,
   Settlement,
   TaxRate,
@@ -29,6 +31,7 @@ import type {
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -70,6 +73,35 @@ const ROLE_LABELS: Record<ReceiptFileRole, string> = {
   rendering: 'Darstellung',
   attachment: 'Anhang',
 };
+
+/**
+ * Die Belegart (Entscheidung 9). Sie steht an der Liste, weil sie über den
+ * nächsten Schritt entscheidet: eine Rechnung wird gebucht, ein Kontoauszug
+ * belegt die Umsätze, die im Bankimport gebucht werden.
+ */
+const KIND_LABELS: Record<ReceiptKind, string> = {
+  invoice: 'Rechnung',
+  statement: 'Kontoauszug',
+  self_issued: 'Eigenbeleg',
+  other: 'Sonstiger Beleg',
+};
+
+/** Belegart mit Standardwert: ältere Belege tragen das Feld noch nicht. */
+function kindOf(receipt: Receipt): ReceiptKind {
+  return receipt.kind ?? 'invoice';
+}
+
+/**
+ * Ob dieser Beleg noch zu buchen ist.
+ *
+ * Ein Kontoauszug ist ein Beleg ohne Buchungspflicht: Er wird aufbewahrt, seine
+ * Umsätze entstehen aber im Bankimport und nicht an diesem Beleg. Als „noch zu
+ * buchen" gezählt bliebe nach jedem Auszug eine Aufgabe stehen, die niemand
+ * erledigen kann (Entscheidung 9).
+ */
+function needsBooking(receipt: Receipt): boolean {
+  return receipt.status === 'filed' && kindOf(receipt) !== 'statement';
+}
 
 /**
  * Das Status-Vokabular ist abgeschlossen (§11.3). Ein abgelegter Beleg ist ein
@@ -202,7 +234,10 @@ export const ReceiptsPage: React.FC = () => {
   }
 
   const vendors = useMemo(() => contacts.filter((c) => c.type === 'vendor'), [contacts]);
-  const openCount = receipts.filter((r) => r.status === 'filed').length;
+  const openCount = receipts.filter(needsBooking).length;
+  // Der Prüfermodus sperrt jede Erfassung; der Knopf sagt das, statt es dem
+  // Anwender nach dem Dateidialog als Fehlermeldung zu zeigen (§10.4).
+  const writeLock = useWriteLock();
 
   return (
     <div className="max-w-[1440px] mx-auto px-8 py-8">
@@ -227,6 +262,8 @@ export const ReceiptsPage: React.FC = () => {
             <Button
               variant="primary"
               loading={filing}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void fileReceipt()}
               icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
             >
@@ -321,6 +358,13 @@ const ReceiptList: React.FC<{
               <span className="block text-caption text-ink-muted truncate mt-1">
                 {original?.fileName ?? '—'}
               </span>
+              {/* Die Belegart nur, wenn sie nicht der Regelfall ist: an jeder
+                  Rechnung „Rechnung" zu schreiben, sagt nichts (§3.4). */}
+              {kindOf(receipt) !== 'invoice' && (
+                <span className="block text-caption text-ink-subtle mt-0.5">
+                  {KIND_LABELS[kindOf(receipt)]}
+                </span>
+              )}
               <span className="flex items-center gap-2 text-caption text-ink-subtle mt-0.5">
                 <span className="num">
                   {receipt.receivedAt ? formatDate(receipt.receivedAt) : '—'}
@@ -366,7 +410,18 @@ const ReceiptDetail: React.FC<{
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} />
 
-    {receipt.status === 'filed' ? (
+    {receipt.status === 'filed' && kindOf(receipt) === 'statement' ? (
+      // Ein Kontoauszug wird aufbewahrt, nicht gebucht: die Umsätze entstehen
+      // im Bankimport aus derselben Datei (Entscheidung 9). Ein Buchungsformular
+      // hier führte zu einer zweiten, doppelten Buchung.
+      <div>
+        <h2 className="text-heading text-ink">Kontoauszug</h2>
+        <p className="text-body text-ink-muted mt-2">
+          Dieser Beleg ist ein Kontoauszug und wird nicht gebucht. Seine Umsätze sind über den
+          Bankimport eingelesen und werden dort zugeordnet und gebucht.
+        </p>
+      </div>
+    ) : receipt.status === 'filed' ? (
       <div>
         <ProposalRefusal message={proposalError} />
         <BookingForm
@@ -407,6 +462,7 @@ const ReceiptViewer: React.FC<{
   receipt: Receipt;
   onChanged: (updated: Receipt) => Promise<void>;
 }> = ({ receipt, onChanged }) => {
+  const writeLock = useWriteLock();
   const [preview, setPreview] = useState<{ dataUrl: string; mimeType: string; intact: boolean } | null>(
     null,
   );
@@ -443,6 +499,26 @@ const ReceiptViewer: React.FC<{
         updated = await Api.addReceiptFile(receipt.id, { path, role });
       }
       await onChanged(updated);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Gibt eine Belegdatei unter ihrem Originalnamen nach draußen.
+   *
+   * Eine Kopie, kein Umzug: der Beleg bleibt im Archiv. Das Backend prüft dabei
+   * die Prüfsumme und verweigert eine beschädigte Datei, statt sie
+   * weiterzugeben.
+   */
+  async function saveFile(fileId: number) {
+    setBusy(true);
+    try {
+      const path = await Api.saveReceiptFileAs(receipt.id, fileId);
+      // Leerer Pfad heißt: der Speichern-Dialog wurde abgebrochen.
+      if (path) toast.success(`Gespeichert: ${path}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -507,7 +583,13 @@ const ReceiptViewer: React.FC<{
           </p>
         </div>
         {open && (
-          <Button variant="quiet" size="sm" disabled={busy} onClick={() => setDiscarding(true)}>
+          <Button
+            variant="quiet"
+            size="sm"
+            disabled={busy || writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => setDiscarding(true)}
+          >
             Verwerfen
           </Button>
         )}
@@ -524,7 +606,8 @@ const ReceiptViewer: React.FC<{
               <Button
                 variant="secondary"
                 className="mt-4"
-                disabled={busy}
+                disabled={busy || writeLock.locked}
+                title={writeLock.hint}
                 onClick={() => void addFile('rendering')}
               >
                 Darstellung hinzufügen
@@ -562,13 +645,28 @@ const ReceiptViewer: React.FC<{
               {ROLE_LABELS[file.role]}
               {file.derived && ' · erzeugt'}
             </span>
+            {/* Herausgeben lässt sich jede Datei, auch die eines gebuchten oder
+                verworfenen Belegs: gerade die gebuchten sind die, die ein Prüfer
+                verlangt (Entscheidung 10). Entfernen dagegen bleibt am offenen
+                Beleg — ein gebuchter Beleg trägt seinen Hash über die Dateien. */}
+            <Button
+              variant="quiet"
+              size="sm"
+              iconOnly
+              disabled={busy}
+              title="Datei speichern"
+              aria-label={`${file.fileName} speichern`}
+              onClick={() => void saveFile(file.id)}
+            >
+              <Download className="w-4 h-4" strokeWidth={1.5} />
+            </Button>
             {open && receipt.files.length > 1 && file.role !== 'original' && (
               <Button
                 variant="quiet"
                 size="sm"
                 iconOnly
-                disabled={busy}
-                title="Datei entfernen"
+                disabled={busy || writeLock.locked}
+                title={writeLock.hint ?? 'Datei entfernen'}
                 aria-label={`${file.fileName} entfernen`}
                 onClick={() => void removeFile(file.id)}
               >
@@ -585,21 +683,29 @@ const ReceiptViewer: React.FC<{
             <Button
               variant="secondary"
               size="sm"
-              disabled={busy}
+              disabled={busy || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void extractStructured()}
               icon={<FileCode className="w-3.5 h-3.5" strokeWidth={1.5} />}
             >
               E-Rechnung auslesen
             </Button>
           )}
-          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void addFile('attachment')}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy || writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => void addFile('attachment')}
+          >
             Anhang hinzufügen
           </Button>
           {!receipt.files.some((f) => f.role === 'rendering') && (
             <Button
               variant="secondary"
               size="sm"
-              disabled={busy}
+              disabled={busy || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void addFile('rendering')}
             >
               Darstellung hinzufügen
@@ -656,6 +762,7 @@ const BookingForm: React.FC<{
   proposal: EInvoiceProposal | null;
   onBooked: (entryNumber: string) => Promise<void>;
 }> = ({ receipt, vendors, groups, treatments, paymentAccounts, proposal, onBooked }) => {
+  const writeLock = useWriteLock();
   const today = receipt.receivedAt || new Date().toISOString().split('T')[0];
   const p = proposal?.request;
   const [contactId, setContactId] = useState(p?.contactId || vendors[0]?.id || 0);
@@ -1023,7 +1130,8 @@ const BookingForm: React.FC<{
           type="submit"
           variant="primary"
           loading={busy}
-          disabled={hasUnreadableAmount || !preview?.balanced}
+          disabled={hasUnreadableAmount || !preview?.balanced || writeLock.locked}
+          title={writeLock.hint}
         >
           Buchen
         </Button>

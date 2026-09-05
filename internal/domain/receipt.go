@@ -59,6 +59,59 @@ const (
 	ReceiptStatusDiscarded ReceiptStatus = "discarded"
 )
 
+// ReceiptKind sagt, was für ein Dokument der Beleg trägt.
+//
+// Er entscheidet über die Buchungspflicht und über sonst nichts. Ein
+// Kontoauszug ist ein Beleg — er wird abgelegt, bekommt eine Belegnummer und
+// muss zehn Jahre lesbar bleiben (§ 147 Abs. 1 Nr. 4, Abs. 3 AO) —, aber er
+// wird nicht gebucht: gebucht werden die einzelnen Umsätze daraus. Ohne diese
+// Unterscheidung meldete der Prüflauf jeden archivierten Auszug als
+// „abgelegt, aber nicht gebucht".
+type ReceiptKind string
+
+const (
+	// ReceiptKindInvoice ist eine Rechnung oder Quittung: der Regelfall, der
+	// gebucht werden muss.
+	ReceiptKindInvoice ReceiptKind = "invoice"
+	// ReceiptKindStatement ist ein Kontoauszug. Er belegt die Umsätze, die aus
+	// ihm gebucht werden, und trägt selbst keine Buchung.
+	ReceiptKindStatement ReceiptKind = "statement"
+	// ReceiptKindSelfIssued ist ein Eigenbeleg.
+	ReceiptKindSelfIssued ReceiptKind = "self_issued"
+	// ReceiptKindOther ist alles Übrige: Verträge, Bescheide, Schriftverkehr.
+	ReceiptKindOther ReceiptKind = "other"
+)
+
+// RequiresBooking meldet, ob ein Beleg dieser Art gebucht werden muss.
+//
+// Ausgenommen ist allein der Kontoauszug: er belegt die Umsätze, die aus ihm
+// gebucht werden, und trägt selbst keine Buchung. „Sonstiges" ist nicht
+// ausgenommen — es ist die Art, die jemand wählt, der die richtige nicht findet,
+// und eine Rechnung, die dort landet, soll der Prüflauf weiterhin als ungebucht
+// melden. Sonst verschwände sie stillschweigend aus der Aufsicht.
+func (k ReceiptKind) RequiresBooking() bool {
+	return k != ReceiptKindStatement
+}
+
+// Label ist der Klartext für die Oberfläche und das Schlüsselverzeichnis.
+func (k ReceiptKind) Label() string {
+	switch k {
+	case ReceiptKindStatement:
+		return "Kontoauszug"
+	case ReceiptKindSelfIssued:
+		return "Eigenbeleg"
+	case ReceiptKindOther:
+		return "Sonstiges Dokument"
+	default:
+		return "Rechnung oder Quittung"
+	}
+}
+
+// AllReceiptKinds listet die Belegarten in fester Reihenfolge.
+func AllReceiptKinds() []ReceiptKind {
+	return []ReceiptKind{ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued, ReceiptKindOther}
+}
+
 // displayableMimeTypes are the formats the user can actually look at. A Beleg
 // whose original is not one of them needs a rendering before it may be booked.
 var displayableMimeTypes = map[string]bool{
@@ -114,6 +167,9 @@ type Receipt struct {
 	ReceiptNumber string        `gorm:"size:50;not null;uniqueIndex" json:"receiptNumber"`
 	Direction     Direction     `gorm:"size:20;not null;index" json:"direction"`
 	Status        ReceiptStatus `gorm:"size:20;not null;index" json:"status"`
+	// Kind ist die Belegart. Leer wird beim Ablegen zu ReceiptKindInvoice
+	// ergänzt; der Regelfall darf keine Eingabe verlangen.
+	Kind ReceiptKind `gorm:"size:20;not null;default:'invoice';index" json:"kind"`
 
 	Files []ReceiptFile `gorm:"foreignKey:ReceiptID;constraint:OnDelete:CASCADE" json:"files"`
 
@@ -204,6 +260,11 @@ func (r *Receipt) IsOpen() bool { return r.Status == ReceiptStatusFiled }
 func (r *Receipt) ValidateStructure() error {
 	if r.Direction != DirectionIncoming && r.Direction != DirectionOutgoing {
 		return fmt.Errorf("unbekannte Belegrichtung %q", r.Direction)
+	}
+	switch r.Kind {
+	case ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued, ReceiptKindOther:
+	default:
+		return fmt.Errorf("unbekannte Belegart %q", r.Kind)
 	}
 	if len(r.Files) == 0 {
 		return fmt.Errorf("ein Beleg braucht mindestens die empfangene Originaldatei")
@@ -315,6 +376,12 @@ type ReceiptRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]Receipt, error)
 	FindByStatus(ctx context.Context, fiscalYear int, status ReceiptStatus) ([]Receipt, error)
 	FindByJournalEntry(ctx context.Context, entryID uint) (*Receipt, error)
+	// FindByOriginalHash liefert den Beleg, dessen empfangene Originaldatei
+	// diese Prüfsumme trägt, oder nil. Der Belegspeicher legt gleiche Inhalte
+	// nur einmal ab; hier geht es um die Frage, ob dazu schon ein Beleg
+	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
+	// Beleg erzeugen.
+	FindByOriginalHash(ctx context.Context, sha256 string) (*Receipt, error)
 	// Create allocates the Belegnummer, computes the Beleg-Hash and inserts the
 	// Beleg with its files in one transaction.
 	Create(ctx context.Context, receipt *Receipt, hash ReceiptHashFunc) error

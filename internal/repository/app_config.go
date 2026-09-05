@@ -77,14 +77,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 	}
 
 	// Sync active tenant fields with top-level fields for convenience
-	if cfg.ActiveTenantID != "" {
-		for _, t := range cfg.Tenants {
-			if t.ID == cfg.ActiveTenantID {
-				cfg.DataDir = t.DataDir
-				break
-			}
-		}
-	}
+	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

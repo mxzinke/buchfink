@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { ArrowRight, BookOpen, FileText, Landmark, ListOrdered, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  FileText,
+  Landmark,
+  ListOrdered,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import { CompanySettings, TenantConfig } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from './WriteLock';
 import { GermanFlag } from './GermanFlag';
 import { ConfirmDialog, SHELL_BUTTON, SHELL_PANEL, cn, toast } from './ui';
 
@@ -37,7 +47,36 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
   onStartDashboard,
   onNavigate,
 }) => {
+  // Einen Mandanten aus der Liste zu nehmen ist eine Änderung an der
+  // Anwendungsverwaltung und im Prüfermodus gesperrt; Öffnen, Anlegen und
+  // Wiederherstellen bleiben möglich (§10.4).
+  const writeLock = useWriteLock();
   const [removing, setRemoving] = useState<TenantConfig | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  /**
+   * Wiederherstellung vom Startbildschirm.
+   *
+   * Sie gehört hierher und nicht nur in die Einstellungen: gebraucht wird sie
+   * auf einem Rechner, auf dem noch keine Bücher offen sind — und dorthin
+   * käme man über eine Ansicht innerhalb eines Mandanten nicht.
+   */
+  async function restoreBackup() {
+    setRestoring(true);
+    try {
+      const zip = await Api.selectBackupFile('Sicherung zum Wiederherstellen auswählen');
+      if (!zip) return;
+      const target = await Api.selectDirectoryDialog('Leeren Zielordner für die Daten wählen');
+      if (!target) return;
+      const tenant = await Api.restoreFromBackup(zip, target);
+      await onRefreshTenants();
+      toast.success(`${tenant.name} wiederhergestellt und geprüft.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   async function removeTenant(tenant: TenantConfig) {
     try {
@@ -90,10 +129,21 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
             </span>
           </div>
 
-          <button type="button" onClick={onAddTenant} className={SHELL_BUTTON.secondary}>
-            <Plus className="w-4 h-4" strokeWidth={1.5} />
-            Mandant hinzufügen
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void restoreBackup()}
+              disabled={restoring}
+              className={SHELL_BUTTON.quiet}
+            >
+              <RotateCcw className="w-4 h-4" strokeWidth={1.5} />
+              Aus Sicherung wiederherstellen
+            </button>
+            <button type="button" onClick={onAddTenant} className={SHELL_BUTTON.secondary}>
+              <Plus className="w-4 h-4" strokeWidth={1.5} />
+              Mandant hinzufügen
+            </button>
+          </div>
         </header>
 
         <div className={cn(SHELL_PANEL, 'p-6')}>
@@ -166,12 +216,14 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({
                         <button
                           type="button"
                           onClick={() => setRemoving(tenant)}
-                          title="Aus der Liste entfernen"
+                          disabled={writeLock.locked}
+                          title={writeLock.hint ?? 'Aus der Liste entfernen'}
                           aria-label={`${tenant.name} aus der Liste entfernen`}
                           className={cn(
                             SHELL_BUTTON.quiet,
                             'h-8 w-8 px-0 shrink-0 opacity-0',
                             'group-hover:opacity-100 focus-visible:opacity-100',
+                            'disabled:cursor-not-allowed',
                           )}
                         >
                           <Trash2 className="w-4 h-4" strokeWidth={1.5} />

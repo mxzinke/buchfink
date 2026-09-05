@@ -20,22 +20,36 @@ tasks:
   test:
     summary: Runs the Go test suite
     # Not `go test ./...`: main.go embeds frontend/dist, which only exists after a
-    # frontend build, and internal/wailsbridge pulls in Wails v3 with its GTK and
-    # WebKit headers. Neither package has tests. Listing the packages that do
-    # keeps the suite runnable from a plain checkout.
+    # frontend build. Listing the packages that have tests keeps the suite
+    # runnable from a plain checkout.
+    #
+    # internal/wailsbridge is not in this list: it pulls in Wails v3 with its
+    # GTK and WebKit headers, and `task test` must stay runnable on a machine
+    # that has none. Those tests live in `test:bridge` and run wherever the app
+    # itself can be built.
     cmds:
       - go test ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/invoice/... ./internal/receiptstore/...
-        ./internal/repository/... ./internal/security/... ./internal/service/...
-        ./internal/timestamp/... {{.CLI_ARGS}}
+        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
+        ./internal/receiptstore/... ./internal/repository/... ./internal/security/...
+        ./internal/service/... ./internal/timestamp/... {{.CLI_ARGS}}
 
   vet:
     summary: Runs go vet over the same packages as the test suite
     cmds:
       - go vet ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/invoice/... ./internal/receiptstore/...
-        ./internal/repository/... ./internal/security/... ./internal/service/...
-        ./internal/timestamp/...
+        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
+        ./internal/receiptstore/... ./internal/repository/... ./internal/security/...
+        ./internal/service/... ./internal/timestamp/...
+
+  test:bridge:
+    summary: Runs vet and the tests of the Wails bridge (needs the GTK/WebKit headers)
+    # The read-only audit mode lives in the bridge, and a source-level test holds
+    # every bridge method to a classification of "reads" or "writes". A test that
+    # never runs holds nothing — so run this task wherever the app can be built,
+    # which is anywhere `task build` works.
+    cmds:
+      - go vet ./internal/wailsbridge/...
+      - go test ./internal/wailsbridge/... {{.CLI_ARGS}}
 
   check:design:
     summary: Checks the frontend against the token layer of docs/design-konzept.md
@@ -49,6 +63,9 @@ tasks:
 
   check:
     summary: Formatting, vet and tests — what to run before committing
+    # `test:bridge` is deliberately not part of this: it needs the GTK/WebKit
+    # headers, and `task check` has to work on a plain checkout. On a machine
+    # that can build the app, run `task test:bridge` alongside it.
     cmds:
       - gofmt -l internal main.go
       - task: vet

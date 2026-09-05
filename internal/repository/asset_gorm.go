@@ -161,6 +161,13 @@ func (r *assetRepositoryGorm) FindDocument(ctx context.Context, id uint) (*domai
 	return &document, nil
 }
 
+// FindAllDocuments liefert alle Dokumente aller Anlagegüter.
+func (r *assetRepositoryGorm) FindAllDocuments(ctx context.Context) ([]domain.AssetDocument, error) {
+	documents := make([]domain.AssetDocument, 0)
+	err := r.db.WithContext(ctx).Order("id asc").Find(&documents).Error
+	return documents, err
+}
+
 // DeleteDocument removes the record. Die Datei auf der Platte räumt der Dienst
 // ab, und nur, wenn kein anderes Dokument mehr auf sie zeigt.
 func (r *assetRepositoryGorm) DeleteDocument(ctx context.Context, id uint) error {

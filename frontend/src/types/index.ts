@@ -57,6 +57,14 @@ export interface TenantConfig {
   name: string;
   dataDir: string;
   createdAt: string;
+  /** Kennung im Schlüsselbund. Leer heißt: dieselbe wie `id`. */
+  keyId?: string;
+  /** Zielordner der Sicherung. Leer heißt: keine Sicherung eingerichtet. */
+  backupDir?: string;
+  lastBackupAt?: string;
+  /** Letzter Tag des Prüfermodus (JJJJ-MM-TT). Leer heißt: aus. */
+  readOnlyUntil?: string;
+  readOnlyReason?: string;
 }
 
 export interface AppConfig {
@@ -65,6 +73,16 @@ export interface AppConfig {
   dataDir: string;
   isConfigured: boolean;
   lastFiscalYear: number;
+
+  // Der Zustand des aktiven Mandanten, vom Backend nach oben gespiegelt. Die
+  // Oberfläche liest ihn hier und sucht ihn nicht in der Mandantenliste.
+  backupDir: string;
+  lastBackupAt: string;
+  /** Gilt der Prüfermodus heute noch? Dann weist die Bridge jede Änderung ab. */
+  readOnly: boolean;
+  readOnlyUntil: string;
+  readOnlyReason: string;
+  programVersion: string;
 }
 
 export interface Account {
@@ -174,6 +192,9 @@ export interface AccountLedgerRow {
 export interface AccountLedger {
   account: Account;
   fiscalYear: number;
+  /** Grenzen des ausgewerteten Zeitraums. Leer heißt: das ganze Jahr. */
+  from?: string;
+  to?: string;
   openingBalance: Cents;
   totalDebit: Cents;
   totalCredit: Cents;
@@ -195,6 +216,8 @@ export interface SuSaClassSummary {
 
 export interface SuSaOverview {
   fiscalYear: number;
+  /** Stichtag, bis zu dem summiert wurde. Leer heißt: das ganze Jahr. */
+  cutoff?: string;
   totalDebit: Cents;
   totalCredit: Cents;
   totalSaldoDebit: Cents;
@@ -288,6 +311,11 @@ export interface PostingPreview {
 
 export type ReceiptFileRole = 'original' | 'structured' | 'rendering' | 'attachment';
 export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
+/**
+ * Die Belegart entscheidet über die Buchungspflicht: ein Kontoauszug wird
+ * abgelegt, aber nicht gebucht — gebucht werden die Umsätze daraus.
+ */
+export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'other';
 
 export interface ReceiptFile {
   id: number;
@@ -310,6 +338,7 @@ export interface Receipt {
   receiptNumber: string;
   direction: Direction;
   status: ReceiptStatus;
+  kind: ReceiptKind;
   files: ReceiptFile[];
   /** Über die geordnete Dateiliste; steht so in der Buchung. */
   receiptHash: string;
@@ -424,6 +453,35 @@ export interface OpenItem {
   taxTreatment?: TaxTreatment;
 }
 
+/** Eine Zahlung, die einen offenen Posten ausgeglichen hat. */
+export interface PaymentAllocation {
+  id: number;
+  openItemEntryId: number;
+  paymentEntryId: number;
+  bankTxId?: number;
+  contactId: number;
+  /** Betrag, um den der offene Posten sinkt — samt Skonto. */
+  settledAmount: Cents;
+  /** Was auf dem Geldkonto tatsächlich bewegt wurde. */
+  cashAmount: Cents;
+  differenceKind: DifferenceKind;
+  differenceAmount: Cents;
+}
+
+/**
+ * Die Einzelposten einer Zahlungsbuchung: gegen welchen Beleg welchen Partners
+ * die Zahlung lief (GoBD Rz. 36).
+ */
+export interface PaymentAllocationDetail extends PaymentAllocation {
+  openItemEntryNumber: string;
+  documentNumber?: string;
+  documentDate?: string;
+  contactName: string;
+  contactType: ContactType;
+  ledgerAccount: string;
+  description?: string;
+}
+
 export interface AllocationRequest {
   openItemEntryId: number;
   settledAmount: Cents;
@@ -457,6 +515,8 @@ export interface BankTransaction {
   endToEndId: string;
   matchStatus: 'unmatched' | 'matched' | 'ignored';
   ledgerAccount: string;
+  /** Der abgelegte Kontoauszug, aus dem dieser Umsatz stammt. */
+  statementReceiptId?: number;
   matchedAmount: Cents;
 }
 
@@ -580,6 +640,23 @@ export interface FinancialSummary {
   cashflowHistory: CashflowDataPoint[] | null;
 }
 
+/**
+ * Woran die Kette zerbrochen ist: `linkage` heißt, eine Buchung wurde
+ * eingefügt oder entfernt; `content` heißt, eine Buchung wurde verändert.
+ */
+export type IntegrityBreakReason = 'linkage' | 'content';
+
+export interface IntegrityBreak {
+  fiscalYear: number;
+  entryId: number;
+  entryNumber: string;
+  reason: IntegrityBreakReason;
+  /** Erwarteter und tatsächlicher Hash, damit der Bruch nachrechenbar ist. */
+  expectedHash: string;
+  actualHash: string;
+  message: string;
+}
+
 export interface IntegrityCheckResult {
   isValid: boolean;
   totalEntries: number;
@@ -588,6 +665,10 @@ export interface IntegrityCheckResult {
   message: string;
   lastVerifiedHash: string;
   checkedAt: string;
+  /** Die geprüften Geschäftsjahre, aufsteigend. Jedes trägt eine eigene Kette. */
+  fiscalYears: number[];
+  /** Alle Brüche, nicht nur der erste. Leer heißt: unversehrt. */
+  breaks: IntegrityBreak[];
 }
 
 export interface CompanySettings {
@@ -1969,5 +2050,98 @@ export interface CheckRun {
   /** Die Begründung, mit der blockierende Befunde übergangen wurden. */
   overrideReason?: string;
   findings: CheckFinding[];
+  createdAt: string;
+}
+
+// -------------------------------------------------------------------------
+// Datenüberlassung, Sicherung und Prüfermodus
+
+/** Der Umfang eines Exports. Spiegelt `export.Kind` (internal/export). */
+export type ExportKind = 'z3' | 'archive' | 'audit_package' | 'journal' | 'key_directory';
+
+export interface ExportTableInfo {
+  name: string;
+  file: string;
+  rows: number;
+}
+
+/** Eine erzeugte Datei mit ihrer Prüfsumme — ein Datenträger kann unterwegs
+ *  beschädigt werden, und der Empfänger soll das bemerken können. */
+export interface ExportFileInfo {
+  path: string;
+  sha256: string;
+  bytes: number;
+}
+
+export interface ExportResult {
+  kind: ExportKind;
+  dir: string;
+  tenantName: string;
+  fiscalYear: number;
+  from?: string;
+  to?: string;
+  createdAt: string;
+  programVersion: string;
+  /** Die Fassung des Beschreibungsstandards, nach dem index.xml aufgebaut ist. */
+  standardVersion: string;
+  tables: ExportTableInfo[];
+  files: ExportFileInfo[];
+  /** Mitgegebene Originaldateien. */
+  receiptFiles: number;
+  documentFiles: number;
+  /** Hinweise, die der Export nicht selbst beheben kann. */
+  notes: string[];
+}
+
+/** Eine Zeile des Schlüsselverzeichnisses (GoBD Rz. 95). */
+export interface KeyDirectoryEntry {
+  category: string;
+  key: string;
+  label: string;
+  description: string;
+}
+
+export interface FileCheckIssue {
+  /** `receipt` für eine Belegdatei, `document` für ein Anlagendokument. */
+  kind: string;
+  receiptNumber?: string;
+  fileName: string;
+  path: string;
+  /** `missing` heißt: Datei fehlt. `damaged` heißt: Prüfsumme stimmt nicht. */
+  reason: string;
+  message: string;
+}
+
+/**
+ * Der Belegprüflauf über alle Dateien. Die Hash-Chain sichert die Buchungen,
+ * nicht die Dateien: ob die Datei noch die gebuchte ist, sagt erst der
+ * Vergleich mit ihrer Prüfsumme (GoBD Rz. 110).
+ */
+export interface FileCheckResult {
+  checked: number;
+  intact: number;
+  damaged: number;
+  missing: number;
+  issues: FileCheckIssue[];
+  isValid: boolean;
+  message: string;
+  checkedAt: string;
+}
+
+/** Der Anlass eines Sicherungslaufs. */
+export type BackupKind = 'manual' | 'automatic' | 'verify' | 'restore';
+
+export interface BackupRun {
+  id: number;
+  kind: BackupKind;
+  startedAt: string;
+  finishedAt: string;
+  /** Pfad der erzeugten oder geprüften ZIP-Datei. */
+  target: string;
+  fileCount: number;
+  bytes: number;
+  success: boolean;
+  message: string;
+  programVersion?: string;
   createdAt: string;
 }

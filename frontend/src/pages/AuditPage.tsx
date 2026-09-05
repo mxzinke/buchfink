@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronRight, Clock, Lock, ShieldCheck } from 'lucide-react';
 import { AuditLogEntry, CheckRun, Festschreibung, IntegrityCheckResult } from '../types';
+import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import {
@@ -28,7 +29,16 @@ function formatMoment(iso: string): string {
   return new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
 
-export const AuditPage: React.FC = () => {
+export interface AuditPageProps {
+  /**
+   * Weg zur Datenüberlassung. Die Kette der Buchungen wird hier geprüft, die
+   * Belegdateien und die Sicherung dort — wer das eine sucht, sucht meist auch
+   * das andere, und der Weg dorthin gehört deshalb an diese Seite.
+   */
+  onNavigate?: NavigateFn;
+}
+
+export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [commitments, setCommitments] = useState<Festschreibung[]>([]);
@@ -100,14 +110,21 @@ export const AuditPage: React.FC = () => {
         title="Sicherheit & Protokoll"
         context="Änderungsprotokoll und Schutz vor nachträglicher Veränderung"
         action={
-          <Button
-            variant="secondary"
-            loading={isVerifying}
-            onClick={handleReverify}
-            icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.5} />}
-          >
-            Daten jetzt prüfen
-          </Button>
+          <div className="flex items-center gap-2">
+            {onNavigate && (
+              <Button variant="quiet" onClick={() => onNavigate('dataaccess')}>
+                Belegprüflauf & Sicherung
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              loading={isVerifying}
+              onClick={handleReverify}
+              icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.5} />}
+            >
+              Daten jetzt prüfen
+            </Button>
+          </div>
         }
       />
 
@@ -137,7 +154,11 @@ export const AuditPage: React.FC = () => {
                 <Stat
                   label="Geprüfte Buchungen"
                   value={`${integrity.checkedEntries} von ${integrity.totalEntries}`}
-                  context="Hash-Kette vollständig durchlaufen"
+                  context={
+                    integrity.fiscalYears.length > 0
+                      ? `Geschäftsjahre ${integrity.fiscalYears.join(', ')}`
+                      : 'Hash-Kette vollständig durchlaufen'
+                  }
                 />
                 <Stat
                   label="Festgeschriebene Zeiträume"
@@ -146,6 +167,59 @@ export const AuditPage: React.FC = () => {
                 />
               </StatRow>
             </div>
+          )}
+
+          {/* Jeder Bruch mit erwartetem und tatsächlichem Hash: erst damit lässt
+              sich außerhalb von Buchfink nachrechnen, welche Seite recht hat
+              (UNV-01). */}
+          {integrity && integrity.breaks.length > 0 && (
+            <Section
+              title="Abweichende Buchungen"
+              context="Erwarteter und tatsächlicher Hash je Bruch der Kette"
+              action={
+                <HelpPopover label="Erklärung zu den Hashwerten">
+                  Jede Buchung trägt den Hash ihres Vorgängers und einen eigenen über ihre Felder.
+                  Weicht der Vorgängerhash ab, wurde eine Buchung eingefügt oder entfernt; weicht
+                  der eigene ab, wurde die Buchung selbst verändert. Wie der Wert gebildet wird,
+                  steht in der Feldbeschreibung der Datenüberlassung.
+                </HelpPopover>
+              }
+            >
+              <Table density="kompakt">
+                <Thead>
+                  <Tr>
+                    <Th className="w-28">Jahr</Th>
+                    <Th className="w-40">Buchung</Th>
+                    <Th className="w-44">Befund</Th>
+                    <Th>Erwartet</Th>
+                    <Th>Tatsächlich</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {integrity.breaks.map((issue) => (
+                    <Tr key={`${issue.entryId}-${issue.reason}`}>
+                      <Td className="num text-ink-subtle">{issue.fiscalYear}</Td>
+                      <Td code>{issue.entryNumber || issue.entryId}</Td>
+                      <Td className="text-negative-text" title={issue.message}>
+                        {issue.reason === 'linkage'
+                          ? 'Kette unterbrochen'
+                          : 'Buchung verändert'}
+                      </Td>
+                      {/* Der volle Hash, nicht die Kurzform: nachrechnen lässt
+                          sich die Kette nur mit allen 64 Zeichen, und zwar
+                          außerhalb von Buchfink (UNV-01). Er bricht um, statt
+                          abgeschnitten zu werden. */}
+                      <Td className="font-mono text-caption text-ink-muted break-all whitespace-normal">
+                        {issue.expectedHash || '—'}
+                      </Td>
+                      <Td className="font-mono text-caption text-ink-muted break-all whitespace-normal">
+                        {issue.actualHash || '—'}
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </Section>
           )}
 
           <Section

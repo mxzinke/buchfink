@@ -147,7 +147,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     }
 
     try {
-      const receipts = await Api.getReceipts('filed');
+      // Ein Kontoauszug ist ein Beleg ohne Buchungspflicht: seine Umsätze
+      // werden im Bankimport gebucht. Als Aufgabe gezählt bliebe nach jedem
+      // CAMT-Import eine Zeile stehen, die niemand erledigen kann — der
+      // Belegprüflauf nimmt ihn aus demselben Grund aus (Entscheidung 9).
+      const receipts = (await Api.getReceipts('filed')).filter((r) => r.kind !== 'statement');
       if (receipts.length > 0) {
         next.push({
           key: 'receipts-open',
@@ -194,6 +198,56 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           target: 'audit',
           action: 'Zum Prüfbericht',
         });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    try {
+      // Die Sicherung. Eine Buchführung ohne sie erfüllt die
+      // Aufbewahrungspflicht des § 147 Abs. 1 AO nur, solange die Festplatte
+      // hält — und niemand merkt den Verlust, bevor er zählt (GoBD Rz. 103).
+      const cfg = await Api.getAppConfig();
+      if (!cfg.backupDir) {
+        next.push({
+          key: 'backup-missing',
+          title: 'Keine Sicherung eingerichtet',
+          context: 'Ohne Sicherungsordner schreibt Buchfink keine Sicherung',
+          tone: 'attention',
+          target: 'dataaccess',
+          action: 'Einrichten',
+        });
+      } else {
+        const runs = await Api.getBackupRuns();
+        // Der jüngste Lauf, der eine Sicherung war: ein Prüf- oder
+        // Wiederherstellungslauf sagt nichts darüber, wann zuletzt gesichert
+        // wurde.
+        const last = runs.find((r) => r.kind === 'manual' || r.kind === 'automatic');
+        const days = last
+          ? Math.floor((Date.now() - new Date(last.startedAt).getTime()) / 86_400_000)
+          : null;
+        if (!last) {
+          next.push({
+            key: 'backup-never',
+            title: 'Noch keine Sicherung gelaufen',
+            context: `Zielordner steht: ${cfg.backupDir}`,
+            tone: 'attention',
+            target: 'dataaccess',
+            action: 'Jetzt sichern',
+          });
+        } else if (!last.success) {
+          next.push({
+            key: 'backup-failed',
+            title:
+              days === 0
+                ? 'Die letzte Sicherung ist heute fehlgeschlagen'
+                : `Die letzte Sicherung vor ${days} Tagen ist fehlgeschlagen`,
+            context: last.message || 'Grund steht unter Datenzugriff',
+            tone: 'negative',
+            target: 'dataaccess',
+            action: 'Nachsehen',
+          });
+        }
       }
     } catch (e) {
       console.error(e);

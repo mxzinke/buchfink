@@ -37,6 +37,10 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to run database automigrations: %w", err)
 	}
 
+	if err := BackfillReceiptKinds(db); err != nil {
+		return nil, fmt.Errorf("failed to backfill receipt kinds: %w", err)
+	}
+
 	currentYear := time.Now().Year()
 	if err := SeedDefaultsIfEmpty(context.Background(), db, currentYear); err != nil {
 		return nil, fmt.Errorf("failed to seed initial SKR04 data: %w", err)
@@ -62,8 +66,51 @@ func InitInMemoryDB() (*gorm.DB, error) {
 	if err := AutoMigrate(db); err != nil {
 		return nil, err
 	}
+	if err := BackfillReceiptKinds(db); err != nil {
+		return nil, err
+	}
 
 	return db, nil
+}
+
+// OpenReadOnlyDB öffnet eine vorhandene Datenbankdatei, ohne sie zu verändern.
+//
+// Der Wiederherstellungstest braucht das: er prüft eine Sicherung und darf sie
+// dabei nicht anfassen. Ohne den Nur-Lese-Modus liefe AutoMigrate über die
+// Kopie, und die geprüfte Datei wäre nicht mehr die gesicherte — ein Test, der
+// seinen Gegenstand verändert, prüft ihn nicht.
+func OpenReadOnlyDB(dbPath string) (*gorm.DB, error) {
+	if _, err := os.Stat(dbPath); err != nil {
+		return nil, fmt.Errorf("die Datenbankdatei %s wurde nicht gefunden: %w", filepath.Base(dbPath), err)
+	}
+	dsn := fmt.Sprintf("file:%s?mode=ro&_pragma=busy_timeout(5000)", dbPath)
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("die Datenbank konnte nicht schreibgeschützt geöffnet werden: %w", err)
+	}
+	return db, nil
+}
+
+// VacuumInto schreibt eine in sich stimmige Kopie der Datenbank.
+//
+// Ein einfaches Kopieren der Datei genügt im WAL-Modus nicht: die zuletzt
+// geschriebenen Seiten stehen dann noch im Write-Ahead-Log daneben, und die
+// Kopie wäre auf einem Stand, den es nie gab. VACUUM INTO schreibt eine Kopie
+// des vollständigen, in sich geschlossenen Standes (SQLite ab 3.27).
+func VacuumInto(db *gorm.DB, targetPath string) error {
+	if db == nil {
+		return fmt.Errorf("keine Datenbank geöffnet")
+	}
+	// VACUUM INTO weigert sich, eine vorhandene Datei zu überschreiben.
+	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("die vorherige Kopie konnte nicht entfernt werden: %w", err)
+	}
+	if err := db.Exec("VACUUM INTO ?", targetPath).Error; err != nil {
+		return fmt.Errorf("die Datenbank konnte nicht gesichert werden: %w", err)
+	}
+	return nil
 }
 
 // AutoMigrate applies schema changes for all domain entities.
@@ -98,7 +145,21 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.CheckRun{},
 		&domain.CheckFinding{},
 		&domain.DeadlineDone{},
+		&domain.BackupRun{},
 	)
+}
+
+// BackfillReceiptKinds gibt Belegen aus der Zeit vor der Belegart ihren Wert.
+//
+// AutoMigrate legt die Spalte an, füllt sie aber nicht: bestehende Zeilen
+// bekommen NULL oder den leeren String, und ein Beleg ohne Art fiele durch die
+// Strukturprüfung und aus dem Schlüsselverzeichnis. Der Regelfall ist die
+// Rechnung — ein Kontoauszug kann vor dieser Welle gar nicht abgelegt worden
+// sein, weil der Bankimport die Datei bisher verworfen hat.
+func BackfillReceiptKinds(db *gorm.DB) error {
+	return db.Model(&domain.Receipt{}).
+		Where("kind IS NULL OR kind = ''").
+		Update("kind", domain.ReceiptKindInvoice).Error
 }
 
 // SeedDefaultsIfEmpty populates initial SKR04 chart of accounts and default company settings if database is newly created.

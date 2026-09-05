@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -299,17 +300,50 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 	return created, nil
 }
 
-// VerifyIntegrity re-computes the hash chain of the active fiscal year.
+// VerifyIntegrity rechnet die Hash-Chain jedes Geschäftsjahres nach.
+//
+// Alle Jahre und nicht nur das aktive: die Kette beginnt je Jahr neu, und eine
+// Prüfung, die nur das laufende Jahr ansieht, meldet Unversehrtheit, während in
+// einem festgeschriebenen Jahr eine Zeile verändert wurde. Genau dagegen steht
+// die Kette (§ 146 Abs. 4 AO, GoBD Rz. 107) — sie muss also über den ganzen
+// Aufbewahrungszeitraum geprüft werden können.
 func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityCheckResult, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+	years, err := s.journalRepo.GetAvailableFiscalYears(ctx)
 	if err != nil {
 		return domain.IntegrityCheckResult{}, err
 	}
+	if len(years) == 0 && s.fiscalYear > 0 {
+		years = []int{s.fiscalYear}
+	}
 
-	result := s.hashChain.VerifyChain(entries)
+	byYear := make(map[int][]domain.JournalEntry, len(years))
+	for _, year := range years {
+		entries, err := s.journalRepo.FindAll(ctx, year)
+		if err != nil {
+			return domain.IntegrityCheckResult{}, err
+		}
+		byYear[year] = entries
+	}
+
+	result := s.hashChain.VerifyYears(byYear)
 	if s.auditRepo != nil {
+		// Die Jahre mit Komma und nicht als Go-Wert einer Liste: „GJ_[2025
+		// 2026]" steht so im Änderungsprotokoll und in aenderungsprotokoll.csv
+		// und lässt sich dort weder lesen noch filtern.
+		years := make([]string, 0, len(result.FiscalYears))
+		for _, year := range result.FiscalYears {
+			years = append(years, strconv.Itoa(year))
+		}
+		// Ohne ein einziges Geschäftsjahr — eine Datenbank ohne Buchungen —
+		// stünde sonst das nackte „GJ_" im Protokoll und in
+		// aenderungsprotokoll.csv. Eine Objektkennung, die nichts benennt, ist
+		// später nicht mehr zu deuten.
+		entity := "GJ_keine"
+		if len(years) > 0 {
+			entity = "GJ_" + strings.Join(years, ",")
+		}
 		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "HASH_CHAIN",
-			fmt.Sprintf("GJ_%d", s.fiscalYear), result.Message)
+			entity, result.Message)
 	}
 	return result, nil
 }

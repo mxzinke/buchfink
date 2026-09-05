@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Archive,
   BookCheck,
   BookOpen,
   Building2,
@@ -39,6 +40,7 @@ export type TabType =
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
+  | 'dataaccess'
   | 'settings';
 
 /**
@@ -111,6 +113,7 @@ const GROUPS: NavGroup[] = [
     label: 'Verwaltung',
     items: [
       { id: 'audit', label: 'Sicherheit & Protokoll', icon: <ShieldCheck className={icon} /> },
+      { id: 'dataaccess', label: 'Datenzugriff', icon: <Archive className={icon} /> },
       { id: 'settings', label: 'Einstellungen', icon: <Settings className={icon} /> },
     ],
   },

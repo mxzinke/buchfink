@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BookOpen, Landmark } from 'lucide-react';
 import { FoundationPostingPreview, FoundationState } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from './WriteLock';
 import { formatCents, formatDate, formatSide } from '../utils/formatters';
 import {
   Button,
@@ -36,6 +37,9 @@ interface FoundationSectionProps {
  * zurückbleibt und wer davon welchen Teil schuldet.
  */
 export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onChanged }) => {
+  // Gründungsbuchungen und die Eintragung ändern die Bücher: im Prüfermodus
+  // gesperrt (§10.4).
+  const writeLock = useWriteLock();
   const [preview, setPreview] = useState<FoundationPostingPreview | null>(null);
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -111,6 +115,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             <Button
               variant="secondary"
               icon={<BookOpen className="w-4 h-4" strokeWidth={1.5} />}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void openPreview()}
             >
               Gründung buchen
@@ -119,6 +125,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
           <Button
             variant="primary"
             icon={<Landmark className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() => setRegistering(true)}
           >
             Eintragung erfassen
@@ -239,7 +247,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             <Button
               variant="primary"
               loading={busy}
-              disabled={(preview?.postings.length ?? 0) === 0}
+              disabled={(preview?.postings.length ?? 0) === 0 || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void bookPostings()}
             >
               Buchen
@@ -296,7 +305,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             <Button
               variant="primary"
               loading={busy}
-              disabled={registerDate.length !== 10 || registerNumber.trim() === ''}
+              disabled={registerDate.length !== 10 || registerNumber.trim() === '' || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void register()}
             >
               Eintragung erfassen

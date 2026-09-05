@@ -1,7 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react';
-import type { Account, JournalEntry, JournalLine, Side } from '../types';
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  FileDown,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
+import type {
+  Account,
+  JournalEntry,
+  JournalLine,
+  PaymentAllocationDetail,
+  Side,
+} from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import {
   formatCents,
   formatDate,
@@ -83,6 +99,10 @@ export interface JournalPageProps {
 }
 
 export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSearch }) => {
+  // Zwei Sperren mit demselben Ergebnis: das festgestellte Geschäftsjahr und
+  // der Prüfermodus. Beide gehören in den title des Knopfes, damit der Grund
+  // nicht in der Fehlermeldung des ersten Versuchs steht (§10.4).
+  const writeLock = useWriteLock();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,13 +111,20 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
   const [checking, setChecking] = useState(false);
   const [search, setSearch] = useState(initialSearch ?? '');
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  // Der Zeitraum ist die Frage des Prüfers: er fragt nach Datumsgrenzen und
+  // nicht nach einem Geschäftsjahr (BEL-05). Sobald eine Grenze steht, liest
+  // die Seite alle Jahre — sonst zeigte ein Fenster über den Jahreswechsel nur
+  // dessen zweite Hälfte.
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [from, to]);
 
   // Der Suchbegriff folgt dem Navigationsziel, auch wenn die Seite schon steht:
   // wer nach dem Weg vom Kontoblatt zur Buchung erneut „Journal" wählt, will die
@@ -110,8 +137,9 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
     setLoading(true);
     setError(null);
     try {
+      const ranged = Boolean(from || to);
       const [entryList, accountList] = await Promise.all([
-        Api.getJournalEntries(),
+        ranged ? Api.getAllJournalEntries() : Api.getJournalEntries(),
         Api.getAccounts(),
       ]);
       setEntries(entryList);
@@ -168,40 +196,66 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return entries;
+    // Die Datumsgrenzen sind ISO-Zeichenketten und lassen sich deshalb
+    // vergleichen, ohne sie in ein Datum zu wandeln.
+    const inRange = (entry: JournalEntry) =>
+      (!from || entry.bookingDate >= from) && (!to || entry.bookingDate <= to);
     return entries.filter(
       (entry) =>
-        entry.entryNumber.toLowerCase().includes(query) ||
-        entry.description.toLowerCase().includes(query) ||
-        (entry.documentNumber ?? '').toLowerCase().includes(query) ||
-        entry.lines.some((line) => line.account.includes(query)),
+        inRange(entry) &&
+        (!query ||
+          entry.entryNumber.toLowerCase().includes(query) ||
+          entry.description.toLowerCase().includes(query) ||
+          (entry.documentNumber ?? '').toLowerCase().includes(query) ||
+          entry.lines.some((line) => line.account.includes(query))),
     );
-  }, [entries, search]);
+  }, [entries, search, from, to]);
+
+  /** Das Journal des gewählten Zeitraums als CSV — dieselbe Tabelle wie im Z3-Export. */
+  async function exportCsv() {
+    setExportingCsv(true);
+    try {
+      const path = await Api.exportJournalCSV(from, to);
+      // Leerer Pfad heißt: der Speichern-Dialog wurde abgebrochen.
+      if (path) toast.success(`Journal gespeichert: ${path}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExportingCsv(false);
+    }
+  }
 
   const fiscalYear = entries[0]?.fiscalYear;
 
   // Der Grund der Sperre steht im title des deaktivierten Knopfes, sonst
   // verschwiege er ihn (§10.4).
-  const lockedReason = closedYear
-    ? `Das Geschäftsjahr ${closedYear} ist festgestellt. Buchungen nimmt es erst wieder an, ` +
-      `wenn die Feststellung mit Grund zurückgesetzt wird.`
-    : undefined;
+  const lockedReason =
+    writeLock.hint ??
+    (closedYear
+      ? `Das Geschäftsjahr ${closedYear} ist festgestellt. Buchungen nimmt es erst wieder an, ` +
+        `wenn die Feststellung mit Grund zurückgesetzt wird.`
+      : undefined);
+  const postingLocked = writeLock.locked || Boolean(closedYear);
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
         title="Journal"
         context={
-          fiscalYear
-            ? `${entries.length} Buchungen · Geschäftsjahr ${fiscalYear} · lokal gespeichert`
-            : 'Lokal gespeichert'
+          // Mit Zeitraum steht die Zahl der gefilterten Buchungen da: die Liste
+          // umfasst dann alle Jahre, und „Geschäftsjahr 2026" wäre falsch.
+          from || to
+            ? `${filtered.length} Buchungen · ${from ? formatDate(from) : 'Anfang'} bis ${to ? formatDate(to) : 'heute'}`
+            : fiscalYear
+              ? `${entries.length} Buchungen · Geschäftsjahr ${fiscalYear} · lokal gespeichert`
+              : 'Lokal gespeichert'
         }
         action={
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-            disabled={Boolean(closedYear)}
-            title={closedYear ? lockedReason : undefined}
+            disabled={postingLocked}
+            title={lockedReason}
             onClick={() => setShowForm(true)}
           >
             Neue Buchung
@@ -228,13 +282,37 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
         </div>
       )}
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Belegnummer, Buchungstext oder Konto"
           className="max-w-md"
         />
+        <Input
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          aria-label="Buchungen ab"
+          title="Buchungen ab diesem Buchungsdatum"
+          className="w-40"
+        />
+        <Input
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          aria-label="Buchungen bis"
+          title="Buchungen bis zu diesem Buchungsdatum"
+          className="w-40"
+        />
+        <Button
+          variant="secondary"
+          loading={exportingCsv}
+          onClick={() => void exportCsv()}
+          icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
+        >
+          Als CSV
+        </Button>
         <Button
           variant="secondary"
           loading={checking}
@@ -265,8 +343,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
               entries.length === 0 ? (
                 <Button
                   variant="primary"
-                  disabled={Boolean(closedYear)}
-                  title={closedYear ? lockedReason : undefined}
+                  disabled={postingLocked}
+                  title={lockedReason}
                   onClick={() => setShowForm(true)}
                 >
                   Neue Buchung
@@ -355,6 +433,7 @@ const EntryRows: React.FC<{
   onToggle: () => void;
   onReverse: () => void;
 }> = ({ entry, accountNames, originNumber, isReversed, expanded, onToggle, onReverse }) => {
+  const writeLock = useWriteLock();
   const isReversal = entry.kind === 'reversal';
   const storno = isReversal || isReversed;
 
@@ -393,8 +472,9 @@ const EntryRows: React.FC<{
               variant="quiet"
               size="sm"
               iconOnly
+              disabled={writeLock.locked}
               onClick={onReverse}
-              title="Buchung per Generalumkehr stornieren"
+              title={writeLock.hint ?? 'Buchung per Generalumkehr stornieren'}
               aria-label={`Buchung ${entry.entryNumber} stornieren`}
               className="opacity-0 transition-opacity duration-120 ease-quiet
                          group-hover:opacity-100 focus-visible:opacity-100"
@@ -504,6 +584,93 @@ const EntryDetail: React.FC<{
           </dd>
         </div>
       </dl>
+
+      {entry.source === 'payment' && <PaymentAllocations entryId={entry.id} currency={entry.currency} />}
+    </div>
+  );
+};
+
+/**
+ * Die Einzelposten einer Zahlungsbuchung.
+ *
+ * Eine Sammelüberweisung ist im Journal eine Zeile über einen runden Betrag;
+ * wogegen sie lief, steht nur in den Zuordnungen. GoBD Rz. 36 verlangt, dass
+ * sich jeder Geschäftsvorfall in seine Bestandteile zerlegen lässt — deshalb
+ * werden sie erst beim Aufklappen geladen und dann vollständig gezeigt.
+ */
+const PaymentAllocations: React.FC<{ entryId: number; currency: string }> = ({
+  entryId,
+  currency,
+}) => {
+  const [allocations, setAllocations] = useState<PaymentAllocationDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Api.getPaymentAllocations(entryId)
+      .then((list) => {
+        if (!cancelled) setAllocations(list);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entryId]);
+
+  if (loading) return <SkeletonRows rows={2} className="mt-4" />;
+  if (error) return <p className="mt-4 text-caption text-negative-text">{error}</p>;
+  if (allocations.length === 0) {
+    return (
+      <p className="mt-4 text-caption text-ink-subtle">
+        Diese Zahlung ist keinem offenen Posten zugeordnet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-5">
+      <h4 className="text-label text-ink-muted mb-2">Ausgeglichene Posten</h4>
+      <table className="w-full text-body">
+        <thead>
+          <tr className="[&>th]:h-7 [&>th]:text-label [&>th]:font-medium [&>th]:text-ink-subtle [&>th]:border-b [&>th]:border-line-strong">
+            <th className="text-left w-28">Buchung</th>
+            <th className="text-left w-32">Beleg</th>
+            <th className="text-left">Partner</th>
+            <th className="text-right w-36">Ausgeglichen</th>
+            <th className="text-right w-36">Zahlbetrag</th>
+            <th className="text-right w-32">Differenz</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allocations.map((allocation) => (
+            <tr
+              key={allocation.id}
+              className="[&>td]:h-8 [&>td]:border-b [&>td]:border-line"
+            >
+              <td className="code-num text-caption text-ink-muted">
+                {allocation.openItemEntryNumber}
+              </td>
+              <td className="code-num text-caption text-ink-muted">
+                {allocation.documentNumber || '—'}
+              </td>
+              <td className="text-ink">{allocation.contactName || '—'}</td>
+              <td className="text-right num">{formatCents(allocation.settledAmount, currency)}</td>
+              <td className="text-right num">{formatCents(allocation.cashAmount, currency)}</td>
+              <td className="text-right num text-ink-muted">
+                {allocation.differenceAmount === 0
+                  ? '—'
+                  : formatCents(allocation.differenceAmount, currency)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -523,6 +690,7 @@ const BookingForm: React.FC<{
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }> = ({ open, accounts, onOpenChange, onSaved }) => {
+  const writeLock = useWriteLock();
   const today = new Date().toISOString().split('T')[0];
   const [bookingDate, setBookingDate] = useState(today);
   const [documentDate, setDocumentDate] = useState(today);
@@ -595,7 +763,13 @@ const BookingForm: React.FC<{
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={saving} onClick={submit}>
+          <Button
+            variant="primary"
+            loading={saving}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Buchen
           </Button>
         </>
@@ -735,6 +909,7 @@ const ReverseDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ entry, onClose, onDone }) => {
+  const writeLock = useWriteLock();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -774,7 +949,13 @@ const ReverseDialog: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="danger" loading={busy} onClick={submit}>
+          <Button
+            variant="danger"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Stornieren
           </Button>
         </>

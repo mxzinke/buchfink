@@ -460,6 +460,13 @@ func (s *CheckService) checkReceipts(
 		if r.Status != domain.ReceiptStatusFiled {
 			continue
 		}
+		// Ein Kontoauszug ist ein Beleg ohne Buchungspflicht: gebucht werden
+		// die einzelnen Umsätze daraus, nicht der Auszug. Ohne diese Zeile
+		// meldete der Prüflauf jeden archivierten Auszug als ungebucht und
+		// blockierte damit die Festschreibung.
+		if !r.Kind.RequiresBooking() {
+			continue
+		}
 		// Maßgeblich ist der Belegeingang, hilfsweise das Ablagedatum. Ein
 		// Belegdatum trägt domain.Receipt nicht; es steht erst an der Buchung —
 		// und die gibt es hier gerade nicht.

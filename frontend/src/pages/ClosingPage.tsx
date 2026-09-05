@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Layers, Undo2 } from 'lucide-react';
 import { CarryForwardPreview, ClosingState, FiscalYearStatus, SizeClass } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
 import {
   Button,
@@ -196,6 +197,9 @@ export interface ClosingPageProps {
 }
 
 export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChanged }) => {
+  // Feststellung, Vortrag und Arbeitnehmerzahl ändern die Bücher: im
+  // Prüfermodus gesperrt, der Stand bleibt lesbar (§10.4).
+  const writeLock = useWriteLock();
   const [state, setState] = useState<ClosingState | null>(null);
   const [preview, setPreview] = useState<CarryForwardPreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -479,8 +483,8 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
             {state.nextStatus && (
               <Button
                 variant="primary"
-                disabled={!state.canAdopt}
-                title={state.canAdopt ? undefined : state.blocker}
+                disabled={!state.canAdopt || writeLock.locked}
+                title={writeLock.hint ?? (state.canAdopt ? undefined : state.blocker)}
                 onClick={() => openStepDialog(state.nextStatus as FiscalYearStatus)}
               >
                 {STEP_ACTION[state.nextStatus]}
@@ -604,7 +608,8 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
               variant="secondary"
               onClick={saveEmployees}
               loading={savingEmployees}
-              disabled={adopted}
+              disabled={adopted || writeLock.locked}
+              title={writeLock.hint}
             >
               Übernehmen
             </Button>
@@ -705,8 +710,8 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
             <Button
               variant="secondary"
               icon={<Layers className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={carryBlocked || busy}
-              title={carryTitle}
+              disabled={carryBlocked || busy || writeLock.locked}
+              title={writeLock.hint ?? carryTitle}
               onClick={() => setConfirmCarry(true)}
             >
               {carryLabel}
@@ -864,7 +869,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
             <Button variant="secondary" onClick={() => setStepStatus(null)}>
               Abbrechen
             </Button>
-            <Button variant="primary" loading={busy} onClick={() => void submitStep()}>
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void submitStep()}
+            >
               {(stepStatus && STEP_ACTION[stepStatus]) || ''}
             </Button>
           </>
@@ -914,7 +925,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({ year, onFiscalYearChan
             <Button variant="secondary" onClick={() => setReopenOpen(false)}>
               Abbrechen
             </Button>
-            <Button variant="danger" loading={busy} onClick={() => void submitReopen()}>
+            <Button
+              variant="danger"
+              loading={busy}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void submitReopen()}
+            >
               Feststellung zurücksetzen
             </Button>
           </>

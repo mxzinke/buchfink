@@ -16,6 +16,7 @@ import type {
   AssetScheduleYear,
   AssetSummary,
   AuditLogEntry,
+  BackupRun,
   BankTransaction,
   CarryForwardPreview,
   Cents,
@@ -35,8 +36,10 @@ import type {
   DisposalResult,
   EInvoiceProposal,
   ExpiringAssetDocument,
+  ExportResult,
   Festschreibung,
   FestschreibungVerification,
+  FileCheckResult,
   FinancialStatement,
   FinancialSummary,
   FiscalYear,
@@ -51,9 +54,11 @@ import type {
   InvestmentTaxNote,
   Invoice,
   JournalEntry,
+  KeyDirectoryEntry,
   LegalFormInfo,
   MappingReport,
   OpenItem,
+  PaymentAllocationDetail,
   PaymentRequest,
   PostingGroup,
   PostingPreview,
@@ -154,6 +159,28 @@ function normalizeCheckRun(run: CheckRun): CheckRun {
   return { ...run, findings: list(run.findings) };
 }
 
+/** Dasselbe für die Prüfläufe über Kette und Dateien: kein Befund ist der Regelfall. */
+function normalizeIntegrity(result: IntegrityCheckResult): IntegrityCheckResult {
+  if (!result) return result;
+  return { ...result, breaks: list(result.breaks), fiscalYears: list(result.fiscalYears) };
+}
+
+function normalizeFileCheck(result: FileCheckResult): FileCheckResult {
+  if (!result) return result;
+  return { ...result, issues: list(result.issues) };
+}
+
+/** Ein Export ohne Hinweise ist der gute Fall — und der mit den leeren Listen. */
+function normalizeExport(result: ExportResult): ExportResult {
+  if (!result) return result;
+  return {
+    ...result,
+    tables: list(result.tables),
+    files: list(result.files),
+    notes: list(result.notes),
+  };
+}
+
 const catalog = skr04CatalogData as unknown as SKR04Catalog;
 
 export const Api = {
@@ -208,6 +235,12 @@ export const Api = {
   getAccountLedger: (accountNumber: string): Promise<AccountLedger> =>
     call(() => Bridge.GetAccountLedger(accountNumber) as Promise<AccountLedger>),
   getSuSaOverview: (): Promise<SuSaOverview> => call(() => Bridge.GetSuSaOverview() as Promise<SuSaOverview>),
+  /** Summen- und Salden zu einem Stichtag. Leerer Stichtag heißt: ganzes Jahr. */
+  getSuSaOverviewAt: (cutoff = ''): Promise<SuSaOverview> =>
+    call(() => Bridge.GetSuSaOverviewAt(cutoff) as Promise<SuSaOverview>),
+  /** Kontoblatt eines Zeitraums über die Geschäftsjahre hinweg. */
+  getAccountLedgerRange: (accountNumber: string, from = '', to = ''): Promise<AccountLedger> =>
+    call(() => Bridge.GetAccountLedgerRange(accountNumber, from, to) as Promise<AccountLedger>),
   getPaymentAccounts: (): Promise<Account[]> => call(() => Bridge.GetPaymentAccounts() as Promise<Account[]>),
 
   /** Der SKR04-Katalog ist statisch und liegt dem Frontend als Datei bei. */
@@ -273,13 +306,19 @@ export const Api = {
   /** Die Regeln, die Buchfink nicht prüft, je mit Begründung. */
   getUncheckedEInvoiceRules: (): Promise<Record<string, string>> =>
     call(() => Bridge.GetUncheckedEInvoiceRules()),
+  /**
+   * Schreibt eine Belegdatei unter ihrem Originalnamen an einen gewählten Ort.
+   * Leerer Pfad heißt: der Dialog wurde abgebrochen.
+   */
+  saveReceiptFileAs: (receiptId: number, fileId: number): Promise<string> =>
+    call(() => Bridge.SaveReceiptFileAs(receiptId, fileId)),
   /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
   getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),
   reverseJournalEntry: (entryId: number, reason: string): Promise<JournalEntry> =>
     call(() => Bridge.ReverseJournalEntry(entryId, reason) as Promise<JournalEntry>),
   verifyIntegrity: (): Promise<IntegrityCheckResult> =>
-    call(() => Bridge.VerifyIntegrity() as Promise<IntegrityCheckResult>),
+    call(() => Bridge.VerifyIntegrity() as Promise<IntegrityCheckResult>).then(normalizeIntegrity),
   getFinancialSummary: (): Promise<FinancialSummary> =>
     call(() => Bridge.GetFinancialSummary() as Promise<FinancialSummary>),
   getVatSummary: (from = '', to = ''): Promise<VatSummary> =>
@@ -289,8 +328,17 @@ export const Api = {
 
   getBankTransactions: (): Promise<BankTransaction[]> =>
     call(() => Bridge.GetBankTransactions() as Promise<BankTransaction[]>).then(list),
-  importCAMT: (xmlContent: string, ledgerAccount: string): Promise<number> =>
-    call(() => Bridge.ImportCAMT053XML(xmlContent, ledgerAccount) as Promise<number>),
+  /**
+   * Import über den Dateipfad. Nur so lässt sich die CAMT-Datei selbst als
+   * Beleg archivieren — der Inhalt allein wäre nach dem Parsen verloren
+   * (GoBD Rz. 130 f.). Den Import über den Inhalt gibt es hier bewusst nicht
+   * mehr: er ließe den Weg offen, der den Kontoauszug nicht aufbewahrt
+   * (ARC-03).
+   */
+  importCAMTFile: (path: string, ledgerAccount: string): Promise<number> =>
+    call(() => Bridge.ImportCAMT053File(path, ledgerAccount) as Promise<number>),
+  selectStatementFile: (title = 'Kontoauszug (CAMT.053) auswählen'): Promise<string> =>
+    call(() => Bridge.SelectStatementFileDialog(title)),
   bookBankTransactionDirect: (
     bankTxId: number,
     counterAccount: string,
@@ -300,6 +348,15 @@ export const Api = {
   ignoreBankTransaction: (bankTxId: number): Promise<void> =>
     call(() => Bridge.IgnoreBankTransaction(bankTxId) as Promise<void>),
   getOpenItems: (): Promise<OpenItem[]> => call(() => Bridge.GetOpenItems() as Promise<OpenItem[]>),
+  /**
+   * Die offenen Posten zu einem Stichtag: Zahlungen nach dem Stichtag zählen
+   * nicht. Leerer Stichtag heißt heute.
+   */
+  getOpenItemsAt: (cutoff = ''): Promise<OpenItem[]> =>
+    call(() => Bridge.GetOpenItemsAt(cutoff) as Promise<OpenItem[]>).then(list),
+  /** Die Einzelposten einer Zahlungsbuchung — wogegen die Zahlung lief. */
+  getPaymentAllocations: (entryId: number): Promise<PaymentAllocationDetail[]> =>
+    call(() => Bridge.GetPaymentAllocations(entryId) as Promise<PaymentAllocationDetail[]>).then(list),
   settlePayment: (request: PaymentRequest): Promise<JournalEntry> =>
     call(() => Bridge.SettlePayment(request as any) as Promise<JournalEntry>),
 
@@ -728,4 +785,64 @@ export const Api = {
   /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
   completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
     call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
+
+  // --- Datenüberlassung nach § 147 Abs. 6 AO -----------------------------
+
+  /** Zielordner für einen Export. Leerer Pfad heißt: abgebrochen. */
+  selectExportDirectory: (title = 'Zielordner für den Export wählen'): Promise<string> =>
+    call(() => Bridge.SelectExportDirectoryDialog(title)),
+  /** Die Tabellen eines Geschäftsjahres (Z3): CSV, index.xml, Feldbeschreibung. */
+  exportZ3: (year: number, targetDir: string): Promise<ExportResult> =>
+    call(() => Bridge.ExportZ3(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
+  /** Dasselbe samt Belegdateien und Anlagendokumenten. */
+  exportArchive: (year: number, targetDir: string): Promise<ExportResult> =>
+    call(() => Bridge.ExportArchive(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
+  /** Das Prüferpaket: Archiv, Integritätsnachweis, Verfahrensdokumentation. */
+  exportAuditPackage: (year: number, targetDir: string): Promise<ExportResult> =>
+    call(() => Bridge.ExportAuditPackage(year, targetDir) as Promise<ExportResult>).then(
+      normalizeExport,
+    ),
+  /** Das Journal eines Zeitraums als CSV. Leerer Pfad heißt: abgebrochen. */
+  exportJournalCSV: (from = '', to = ''): Promise<string> =>
+    call(() => Bridge.ExportJournalCSV(from, to)),
+  /** Das Schlüsselverzeichnis als CSV — dieselbe Tabelle wie im Z3-Export. */
+  exportKeyDirectory: (): Promise<string> => call(() => Bridge.ExportKeyDirectory()),
+  /** Dasselbe Verzeichnis zur Anzeige (GoBD Rz. 95). */
+  getKeyDirectory: (): Promise<KeyDirectoryEntry[]> =>
+    call(() => Bridge.GetKeyDirectory() as Promise<KeyDirectoryEntry[]>).then(list),
+
+  // --- Prüfläufe über Kette und Dateien ---------------------------------
+
+  /** Prüft jede Belegdatei und jedes Anlagendokument gegen seine Prüfsumme. */
+  verifyReceiptFiles: (): Promise<FileCheckResult> =>
+    call(() => Bridge.VerifyReceiptFiles() as Promise<FileCheckResult>).then(normalizeFileCheck),
+
+  // --- Sicherung und Wiederherstellung -----------------------------------
+
+  getBackupRuns: (): Promise<BackupRun[]> =>
+    call(() => Bridge.GetBackupRuns() as Promise<BackupRun[]>).then(list),
+  /** Setzt den Sicherungsordner und liefert die aktualisierte Konfiguration. */
+  setBackupDir: (dir: string): Promise<AppConfig> =>
+    call(() => Bridge.SetBackupDir(dir) as Promise<AppConfig>),
+  createBackup: (): Promise<BackupRun> => call(() => Bridge.CreateBackup() as Promise<BackupRun>),
+  /** Der Wiederherstellungstest: entpacken, prüfen, Temporärordner löschen. */
+  verifyBackup: (zipPath: string): Promise<BackupRun> =>
+    call(() => Bridge.VerifyBackup(zipPath) as Promise<BackupRun>),
+  /** Entpackt eine Sicherung in einen leeren Ordner und meldet ihn als Mandanten an. */
+  restoreFromBackup: (zipPath: string, targetDir: string): Promise<TenantConfig> =>
+    call(() => Bridge.RestoreFromBackup(zipPath, targetDir) as Promise<TenantConfig>),
+  selectBackupDir: (title = 'Ordner für die Sicherung wählen'): Promise<string> =>
+    call(() => Bridge.SelectBackupDirDialog(title)),
+  selectBackupFile: (title = 'Buchfink-Sicherung auswählen'): Promise<string> =>
+    call(() => Bridge.SelectBackupFileDialog(title)),
+
+  // --- Prüfermodus -------------------------------------------------------
+
+  /** Schaltet den Prüfermodus bis zu einem Tag ein. Datum und Grund sind Pflicht. */
+  enableReadOnly: (until: string, reason: string): Promise<AppConfig> =>
+    call(() => Bridge.EnableReadOnly(until, reason) as Promise<AppConfig>),
+  /** Beendet ihn. Der Grund steht danach im Änderungsprotokoll. */
+  disableReadOnly: (reason: string): Promise<AppConfig> =>
+    call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
+  getProgramVersion: (): Promise<string> => call(() => Bridge.GetProgramVersion()),
 };

@@ -33,9 +33,19 @@ type BankTransaction struct {
 	// LedgerAccount is the own liquid account this statement belongs to, e.g.
 	// "1800". Hard-coding a single bank account stops working as soon as a
 	// company has a second one, a credit card or a payment provider.
-	LedgerAccount string    `gorm:"size:10;default:'1800'" json:"ledgerAccount"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	LedgerAccount string `gorm:"size:10;default:'1800'" json:"ledgerAccount"`
+
+	// StatementReceiptID zeigt auf den abgelegten Kontoauszug, aus dem dieser
+	// Umsatz stammt.
+	//
+	// Ohne ihn wäre die importierte Zeile die einzige Spur des Auszugs, und der
+	// Grundsatz der Belegsicherung verlangt das empfangene Dokument selbst
+	// (GoBD Rz. 130 f.): die CAMT-Datei ist der Beleg, die Zeile nur, was
+	// Buchfink daraus gelesen hat.
+	StatementReceiptID *uint `gorm:"index" json:"statementReceiptId,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// MatchedAmount is the part of the transaction already assigned to bookings,
 	// computed on read. A statement line can settle several open items.

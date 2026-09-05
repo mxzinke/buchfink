@@ -1,14 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
-import type { Account, AccountLedger, AccountType, SuSaOverview } from '../types';
+import type { Account, AccountLedger, AccountType, OpenItem, SuSaOverview } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { formatCents, formatDate } from '../utils/formatters';
 import {
   Button,
   EmptyState,
+  Field,
   HelpPopover,
   HelpTooltip,
+  Input,
   PageHeader,
   SearchInput,
   Section,
@@ -36,7 +38,12 @@ import {
  * steht als Erklärung an der Übersicht, nicht als Legende auf jeder Zeile.
  */
 
-type Tab = 'konten' | 'susa';
+type Tab = 'konten' | 'susa' | 'op';
+
+/** Der heutige Tag als ISO-Datum — die Voreinstellung des OP-Stichtags. */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const CLASS_NAMES: Record<number, string> = {
   0: 'Anlagevermögen',
@@ -95,6 +102,22 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
   const [loading, setLoading] = useState(true);
   const [loadingLedger, setLoadingLedger] = useState(false);
 
+  // Der Stichtag der Summen- und Saldenliste. Leer heißt: das ganze
+  // Geschäftsjahr — das ist die Liste, die eine Bilanz trägt. Ein Stichtag
+  // mittendrin ist die Frage des Prüfers und der Banken (JAB-08).
+  const [susaCutoff, setSusaCutoff] = useState('');
+  const [loadingSusa, setLoadingSusa] = useState(false);
+
+  // Die offenen Posten zu einem Stichtag (JAB-08). Voreinstellung ist heute:
+  // das ist die Frage des Alltags. Der Prüfer fragt nach dem Bilanzstichtag,
+  // und dafür steht das Feld — Zahlungen nach dem Stichtag zählen dann nicht,
+  // statt nur ausgeblendet zu werden.
+  const [openItems, setOpenItems] = useState<OpenItem[]>([]);
+  const [openItemsCutoff, setOpenItemsCutoff] = useState(today());
+  const [loadingOpenItems, setLoadingOpenItems] = useState(false);
+
+  const loadedOpenItems = useRef(false);
+
   const [search, setSearch] = useState('');
   const [showCatalog, setShowCatalog] = useState(false);
   const [openClasses, setOpenClasses] = useState<Record<number, boolean>>({});
@@ -102,6 +125,15 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
   useEffect(() => {
     void load();
   }, []);
+
+  // Die offenen Posten werden erst beim Öffnen des Reiters geholt: sie kosten
+  // eine eigene Abfrage, und die Kontenliste ist der übliche Einstieg.
+  useEffect(() => {
+    if (tab === 'op' && !loadedOpenItems.current) {
+      loadedOpenItems.current = true;
+      void loadOpenItemsAt(openItemsCutoff);
+    }
+  }, [tab]);
 
   // Das Kontoblatt folgt dem Navigationsziel in beide Richtungen: mit
   // Kontonummer öffnet es sich, ohne schließt es. Sonst bliebe ein Kontoblatt
@@ -121,6 +153,30 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadOpenItemsAt(cutoff: string) {
+    setOpenItemsCutoff(cutoff);
+    setLoadingOpenItems(true);
+    try {
+      setOpenItems(await Api.getOpenItemsAt(cutoff));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingOpenItems(false);
+    }
+  }
+
+  async function loadSusaAt(cutoff: string) {
+    setSusaCutoff(cutoff);
+    setLoadingSusa(true);
+    try {
+      setSusa(await Api.getSuSaOverviewAt(cutoff));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingSusa(false);
     }
   }
 
@@ -191,6 +247,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
         items={[
           { value: 'konten' as Tab, label: 'Konten' },
           { value: 'susa' as Tab, label: 'Summen & Salden' },
+          { value: 'op' as Tab, label: 'Offene Posten' },
         ]}
         value={tab}
         onValueChange={setTab}
@@ -304,7 +361,64 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
         </TabPanel>
 
         <TabPanel value="susa">
-          {loading ? <SkeletonRows rows={8} /> : <SuSaView susa={susa} onSelect={openLedger} />}
+          <div className="flex flex-wrap items-end gap-4 mb-6">
+            <Field
+              label="Stichtag"
+              hint="Leer: das ganze Geschäftsjahr"
+              help="Buchungen nach dem Stichtag bleiben außen vor, statt nur ausgeblendet zu werden."
+              className="w-52"
+            >
+              <Input
+                type="date"
+                value={susaCutoff}
+                onChange={(e) => void loadSusaAt(e.target.value)}
+              />
+            </Field>
+            {susaCutoff && (
+              <Button variant="quiet" onClick={() => void loadSusaAt('')} className="mb-1">
+                Ganzes Jahr
+              </Button>
+            )}
+          </div>
+          {loading || loadingSusa ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <SuSaView susa={susa} onSelect={openLedger} />
+          )}
+        </TabPanel>
+
+        <TabPanel value="op">
+          <div className="flex flex-wrap items-end gap-4 mb-6">
+            <Field
+              label="Stichtag"
+              hint="Voreinstellung: heute"
+              help="Zahlungen, die nach dem Stichtag gebucht wurden, bleiben außen vor — die Liste zeigt den Stand von damals."
+              className="w-52"
+            >
+              <Input
+                type="date"
+                value={openItemsCutoff}
+                onChange={(e) => void loadOpenItemsAt(e.target.value)}
+              />
+            </Field>
+            {openItemsCutoff !== today() && (
+              <Button variant="quiet" onClick={() => void loadOpenItemsAt(today())} className="mb-1">
+                Heute
+              </Button>
+            )}
+            <div className="ml-auto mb-1">
+              <HelpPopover label="Erklärung zu den offenen Posten">
+                Ein offener Posten ist eine Rechnung, die noch nicht ausgeglichen ist. Forderungen
+                stehen auf den Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten.
+                Ausgeglichen wird über den Bankimport oder eine Zahlungsbuchung.
+              </HelpPopover>
+            </div>
+          </div>
+          {loadingOpenItems ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <OpenItemsView items={openItems} cutoff={openItemsCutoff} />
+          )}
         </TabPanel>
       </Tabs>
     </div>
@@ -436,6 +550,134 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
         ))
       )}
     </>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/**
+ * Die offenen Posten zum Stichtag.
+ *
+ * Zwei Listen, weil es zwei Sachverhalte sind: Forderungen stehen auf den
+ * Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten. Eine gemeinsame
+ * Summe wäre eine Saldierung, die die Bilanz nicht kennt (§ 246 Abs. 2 HGB).
+ */
+const OpenItemsView: React.FC<{ items: OpenItem[]; cutoff: string }> = ({ items, cutoff }) => {
+  const list = items ?? [];
+  const receivables = list.filter((item) => item.contactType === 'customer');
+  const payables = list.filter((item) => item.contactType === 'vendor');
+  const sum = (rows: OpenItem[]) => rows.reduce((total, row) => total + row.openAmount, 0);
+
+  return (
+    <>
+      <StatRow>
+        <Stat
+          label="Forderungen"
+          value={formatCents(sum(receivables))}
+          context={`${receivables.length} offene Posten`}
+        />
+        <Stat
+          label="Verbindlichkeiten"
+          value={formatCents(sum(payables))}
+          context={`${payables.length} offene Posten`}
+        />
+        <Stat
+          label="Stichtag"
+          value={cutoff ? formatDate(cutoff) : 'heute'}
+          context="Spätere Zahlungen bleiben außen vor"
+        />
+      </StatRow>
+
+      {list.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="Keine offenen Posten zum Stichtag"
+            description="Jede Rechnung bis zu diesem Tag ist ausgeglichen — oder es wurde noch keine auf Ziel gebucht."
+          />
+        </div>
+      ) : (
+        <>
+          <OpenItemsTable
+            title="Forderungen"
+            hint="Debitoren"
+            rows={receivables}
+            cutoff={cutoff}
+            className="mt-8"
+            divider={false}
+          />
+          <OpenItemsTable title="Verbindlichkeiten" hint="Kreditoren" rows={payables} cutoff={cutoff} />
+        </>
+      )}
+    </>
+  );
+};
+
+const OpenItemsTable: React.FC<{
+  title: string;
+  hint: string;
+  rows: OpenItem[];
+  cutoff: string;
+  className?: string;
+  divider?: boolean;
+}> = ({ title, hint, rows, cutoff, className, divider }) => {
+  if (rows.length === 0) return null;
+  // Überfällig ist ein Posten, dessen Fälligkeit vor dem Stichtag lag — nicht
+  // vor heute: die Liste beschreibt den Stand zum Stichtag.
+  const reference = cutoff || today();
+
+  return (
+    <Section
+      title={title}
+      context={`${hint} · ${rows.length} Posten · offen ${formatCents(
+        rows.reduce((total, row) => total + row.openAmount, 0),
+      )}`}
+      className={className}
+      divider={divider}
+    >
+      <Table>
+        <Thead sticky>
+          <Tr>
+            <Th className="w-28">Konto</Th>
+            <Th>Kontakt</Th>
+            <Th className="w-36">Beleg</Th>
+            <Th className="w-28">Belegdatum</Th>
+            <Th className="w-28">Fällig</Th>
+            <Th numeric className="w-32">Brutto</Th>
+            <Th numeric className="w-32">Ausgeglichen</Th>
+            <Th numeric className="w-32">Offen</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((row) => {
+            const overdue = Boolean(row.dueDate) && row.dueDate < reference;
+            return (
+              <Tr key={`${row.entryId}-${row.documentNumber}`}>
+                <Td code>{row.ledgerAccount}</Td>
+                <Td className="max-w-[22rem]">
+                  <span className="block truncate">{row.contactName || '—'}</span>
+                  <span className="block code-num text-caption text-ink-subtle">
+                    {row.entryNumber}
+                  </span>
+                </Td>
+                <Td code>{row.documentNumber || '—'}</Td>
+                <Td className="text-ink-subtle num">
+                  {row.documentDate ? formatDate(row.documentDate) : '—'}
+                </Td>
+                <Td className={overdue ? 'text-negative-text num' : 'text-ink-subtle num'}>
+                  {row.dueDate ? formatDate(row.dueDate) : '—'}
+                  {overdue && <span className="block text-caption">überfällig</span>}
+                </Td>
+                <Td numeric className="text-ink-subtle">{formatCents(row.grossAmount)}</Td>
+                <Td numeric className="text-ink-subtle">
+                  {row.settledAmount ? formatCents(row.settledAmount) : '—'}
+                </Td>
+                <Td numeric className="font-medium">{formatCents(row.openAmount)}</Td>
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Section>
   );
 };
 

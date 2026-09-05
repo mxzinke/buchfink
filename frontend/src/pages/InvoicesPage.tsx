@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, formatTaxRate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -69,6 +70,9 @@ const newItem = (rate: TaxRate): DraftItem => ({
 });
 
 export const InvoicesPage: React.FC = () => {
+  // Ausstellen und Stornieren sind Buchungen; Ansehen und Ausgeben bleiben im
+  // Prüfermodus möglich (§10.4).
+  const writeLock = useWriteLock();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
@@ -148,8 +152,11 @@ export const InvoicesPage: React.FC = () => {
             <Button
               variant="primary"
               icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={contacts.length === 0}
-              title={contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined}
+              disabled={contacts.length === 0 || writeLock.locked}
+              title={
+                writeLock.hint ??
+                (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
+              }
               onClick={() => setShowForm(true)}
             >
               Neue Rechnung
@@ -237,7 +244,8 @@ export const InvoicesPage: React.FC = () => {
                           variant="quiet"
                           size="sm"
                           iconOnly
-                          title="Rechnung stornieren"
+                          disabled={writeLock.locked}
+                          title={writeLock.hint ?? 'Rechnung stornieren'}
                           aria-label={`Rechnung ${invoice.invoiceNumber} stornieren`}
                           onClick={() => setCancelling(invoice)}
                         >
@@ -332,6 +340,7 @@ const InvoiceForm: React.FC<{
   onClose: () => void;
   onIssued: (invoiceNumber: string) => void;
 }> = ({ contacts, treatments, onClose, onIssued }) => {
+  const writeLock = useWriteLock();
   const today = new Date().toISOString().split('T')[0];
   const [contactId, setContactId] = useState(contacts[0]?.id ?? 0);
   const [date, setDate] = useState(today);
@@ -430,7 +439,8 @@ const InvoiceForm: React.FC<{
           <Button
             variant="primary"
             loading={busy}
-            disabled={!preview || preview.gross <= 0}
+            disabled={!preview || preview.gross <= 0 || writeLock.locked}
+            title={writeLock.hint}
             onClick={submit}
           >
             Ausstellen und buchen
@@ -611,6 +621,7 @@ const CancelDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ invoice, onClose, onDone }) => {
+  const writeLock = useWriteLock();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -650,7 +661,13 @@ const CancelDialog: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="danger" loading={busy} onClick={submit}>
+          <Button
+            variant="danger"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Stornieren
           </Button>
         </>

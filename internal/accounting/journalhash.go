@@ -112,16 +112,74 @@ func (h *HashChain) CalculateHash(e *domain.JournalEntry, prevHash string) strin
 
 // VerifyChain walks the entries in journal order and checks both the linkage to
 // the predecessor and that each entry still hashes to its stored digest.
+//
+// Die Prüfung hält beim ersten Bruch nicht an. Wer eine Zeile ändert, ändert
+// meist mehrere; ein Ergebnis, das nur die erste nennt, führt zu einer
+// Reparatur, die nach dem nächsten Lauf wieder von vorn beginnt. Nach einem
+// Bruch setzt die Erwartung auf dem tatsächlichen Eigenhash der Buchung auf,
+// damit nicht jede folgende Buchung als gebrochen gemeldet wird.
 func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityCheckResult {
-	checkedAt := time.Now().Format("02.01.2006 15:04:05")
+	result := h.verifyYear(0, entries)
+	result.CheckedAt = time.Now().Format("02.01.2006 15:04:05")
+	result.Message = chainMessage(result)
+	result.EnsureLists()
+	return result
+}
 
-	if len(entries) == 0 {
-		return domain.IntegrityCheckResult{
-			IsValid:          true,
-			Message:          "Keine Buchungen vorhanden. Die Buchhaltung ist bereit.",
-			LastVerifiedHash: domain.GenesisHash,
-			CheckedAt:        checkedAt,
+// VerifyYears prüft mehrere Geschäftsjahre, jedes für sich.
+//
+// Die Kette beginnt je Jahr neu beim Genesis-Hash — der Jahreswechsel ist kein
+// Bruch, sondern der Anfang einer neuen Kette. Eine Prüfung, die nur das aktive
+// Jahr ansieht, meldet Unversehrtheit, während in einem festgeschriebenen Jahr
+// eine Zeile verändert wurde; das ist genau der Fall, für den es die Kette gibt
+// (§ 146 Abs. 4 AO, GoBD Rz. 107).
+func (h *HashChain) VerifyYears(byYear map[int][]domain.JournalEntry) domain.IntegrityCheckResult {
+	years := make([]int, 0, len(byYear))
+	for year := range byYear {
+		years = append(years, year)
+	}
+	sort.Ints(years)
+
+	combined := domain.IntegrityCheckResult{
+		IsValid:          true,
+		LastVerifiedHash: domain.GenesisHash,
+		FiscalYears:      years,
+		Breaks:           make([]domain.IntegrityBreak, 0),
+	}
+	for _, year := range years {
+		one := h.verifyYear(year, byYear[year])
+		combined.TotalEntries += one.TotalEntries
+		combined.CheckedEntries += one.CheckedEntries
+		combined.Breaks = append(combined.Breaks, one.Breaks...)
+		if !one.IsValid {
+			combined.IsValid = false
+			if combined.FirstBrokenID == nil {
+				combined.FirstBrokenID = one.FirstBrokenID
+			}
 		}
+		if one.TotalEntries > 0 {
+			combined.LastVerifiedHash = one.LastVerifiedHash
+		}
+	}
+
+	combined.CheckedAt = time.Now().Format("02.01.2006 15:04:05")
+	combined.Message = chainMessage(combined)
+	combined.EnsureLists()
+	return combined
+}
+
+// verifyYear prüft eine Kette und sammelt jeden Bruch mit erwartetem und
+// tatsächlichem Hash.
+func (h *HashChain) verifyYear(year int, entries []domain.JournalEntry) domain.IntegrityCheckResult {
+	result := domain.IntegrityCheckResult{
+		IsValid:          true,
+		TotalEntries:     len(entries),
+		CheckedEntries:   len(entries),
+		LastVerifiedHash: domain.GenesisHash,
+		Breaks:           make([]domain.IntegrityBreak, 0),
+	}
+	if year > 0 {
+		result.FiscalYears = []int{year}
 	}
 
 	expectedPrev := domain.GenesisHash
@@ -129,46 +187,68 @@ func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityC
 		entry := &entries[i]
 
 		if entry.PreviousHash != expectedPrev {
-			id := entry.ID
-			return domain.IntegrityCheckResult{
-				IsValid:        false,
-				TotalEntries:   len(entries),
-				CheckedEntries: i,
-				FirstBrokenID:  &id,
+			result.IsValid = false
+			if result.FirstBrokenID == nil {
+				id := entry.ID
+				result.FirstBrokenID = &id
+			}
+			result.Breaks = append(result.Breaks, domain.IntegrityBreak{
+				FiscalYear:   entry.FiscalYear,
+				EntryID:      entry.ID,
+				EntryNumber:  entry.EntryNumber,
+				Reason:       domain.IntegrityBreakLinkage,
+				ExpectedHash: expectedPrev,
+				ActualHash:   entry.PreviousHash,
 				Message: fmt.Sprintf(
-					"Unstimmigkeit bei Buchung %s: Die Verkettung zur vorherigen Buchung weicht ab. Eine Buchung wurde nachträglich eingefügt oder entfernt.",
+					"Buchung %s: Die Verkettung zur vorherigen Buchung weicht ab. Eine Buchung wurde nachträglich eingefügt oder entfernt.",
 					entry.EntryNumber,
 				),
-				LastVerifiedHash: expectedPrev,
-				CheckedAt:        checkedAt,
-			}
+			})
 		}
 
-		if h.CalculateHash(entry, entry.PreviousHash) != entry.EntryHash {
-			id := entry.ID
-			return domain.IntegrityCheckResult{
-				IsValid:        false,
-				TotalEntries:   len(entries),
-				CheckedEntries: i,
-				FirstBrokenID:  &id,
+		if computed := h.CalculateHash(entry, entry.PreviousHash); computed != entry.EntryHash {
+			result.IsValid = false
+			if result.FirstBrokenID == nil {
+				id := entry.ID
+				result.FirstBrokenID = &id
+			}
+			result.Breaks = append(result.Breaks, domain.IntegrityBreak{
+				FiscalYear:   entry.FiscalYear,
+				EntryID:      entry.ID,
+				EntryNumber:  entry.EntryNumber,
+				Reason:       domain.IntegrityBreakContent,
+				ExpectedHash: computed,
+				ActualHash:   entry.EntryHash,
 				Message: fmt.Sprintf(
-					"Unstimmigkeit bei Buchung %s: Die Buchungsdaten wurden nach der Erfassung verändert.",
+					"Buchung %s: Die Buchungsdaten wurden nach der Erfassung verändert.",
 					entry.EntryNumber,
 				),
-				LastVerifiedHash: expectedPrev,
-				CheckedAt:        checkedAt,
-			}
+			})
 		}
 
+		// Weiter geht es mit dem gespeicherten Eigenhash: sonst schleppte ein
+		// einzelner Bruch sich durch den ganzen Rest des Jahres.
 		expectedPrev = entry.EntryHash
 	}
 
-	return domain.IntegrityCheckResult{
-		IsValid:          true,
-		TotalEntries:     len(entries),
-		CheckedEntries:   len(entries),
-		Message:          fmt.Sprintf("Alle %d Buchungen sind vollständig und unverändert.", len(entries)),
-		LastVerifiedHash: expectedPrev,
-		CheckedAt:        checkedAt,
+	result.LastVerifiedHash = expectedPrev
+	return result
+}
+
+// chainMessage formuliert das Ergebnis in einem Satz.
+func chainMessage(r domain.IntegrityCheckResult) string {
+	switch {
+	case r.TotalEntries == 0:
+		return "Keine Buchungen vorhanden. Die Buchhaltung ist bereit."
+	case r.IsValid && len(r.FiscalYears) > 1:
+		return fmt.Sprintf("Alle %d Buchungen aus %d Geschäftsjahren sind vollständig und unverändert.",
+			r.TotalEntries, len(r.FiscalYears))
+	case r.IsValid:
+		return fmt.Sprintf("Alle %d Buchungen sind vollständig und unverändert.", r.TotalEntries)
+	case len(r.Breaks) == 1:
+		return "Eine Unstimmigkeit gefunden: " + r.Breaks[0].Message
+	default:
+		return fmt.Sprintf("%d Unstimmigkeiten gefunden. Die erste: %s",
+			len(r.Breaks), r.Breaks[0].Message)
 	}
 }

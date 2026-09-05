@@ -113,6 +113,27 @@ export function formatDateRange(from: string, to: string): string {
   return `${formatDate(from)} – ${formatDate(to)}`;
 }
 
+/**
+ * Dateigrößen in de-DE: 1.234.567 Bytes werden „1,2 MB".
+ *
+ * Gerechnet wird dezimal (1000) und nicht binär (1024): die Zahl steht neben
+ * dem, was der Dateimanager des Betriebssystems zeigt, und der rechnet auf
+ * allen drei Zielsystemen dezimal.
+ */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes < 1000) return `${bytes} B`;
+
+  const units = ['kB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1000;
+  let unit = 0;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit += 1;
+  }
+  return `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} ${units[unit]}`;
+}
+
 export function formatShortHash(hash: string): string {
   if (!hash) return '—';
   if (hash.length <= 12) return hash;

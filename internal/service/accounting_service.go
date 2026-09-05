@@ -68,12 +68,18 @@ func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, 
 // liefern, wer die Salden eines anderen Jahres beschaffen kann, ohne das aktive
 // Jahr umzuschalten.
 func (s *AccountingService) AccountsForYear(ctx context.Context, year int) ([]domain.Account, error) {
+	return s.AccountsForYearAt(ctx, year, "")
+}
+
+// AccountsForYearAt liefert denselben Kontenplan mit den Salden bis zu einem
+// Stichtag. Leerer Stichtag heißt: das ganze Geschäftsjahr.
+func (s *AccountingService) AccountsForYearAt(ctx context.Context, year int, cutoff string) ([]domain.Account, error) {
 	accounts, err := s.accountRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	turnovers, err := s.collectedTurnoversFor(ctx, year)
+	turnovers, err := s.collectedTurnoversAt(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +113,12 @@ func (s *AccountingService) collectedTurnovers(ctx context.Context) (map[string]
 
 // collectedTurnoversFor tut dasselbe für ein bestimmtes Geschäftsjahr.
 func (s *AccountingService) collectedTurnoversFor(ctx context.Context, year int) (map[string]domain.AccountTurnover, error) {
-	raw, err := s.journalRepo.AccountTurnovers(ctx, year)
+	return s.collectedTurnoversAt(ctx, year, "")
+}
+
+// collectedTurnoversAt tut dasselbe bis zu einem Stichtag.
+func (s *AccountingService) collectedTurnoversAt(ctx context.Context, year int, cutoff string) (map[string]domain.AccountTurnover, error) {
+	raw, err := s.journalRepo.AccountTurnoversUntil(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +184,22 @@ func (s *AccountingService) GetAccountByNumber(ctx context.Context, number strin
 // GetAccountLedger builds the Kontoblatt: every line touching the account, with
 // its counter accounts and a running balance.
 func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber string) (*domain.AccountLedger, error) {
+	return s.accountLedger(ctx, accountNumber, "", "", false)
+}
+
+// GetAccountLedgerRange ist dasselbe Kontoblatt für ein Datumsfenster über alle
+// Geschäftsjahre hinweg.
+//
+// Ein Prüfer fragt nach einem Zeitraum, nicht nach einem Geschäftsjahr: „das
+// Bankkonto von Oktober bis März" liegt über einem Jahreswechsel, und ein
+// Kontoblatt, das an Silvester aufhört, beantwortet die Frage nicht.
+func (s *AccountingService) GetAccountLedgerRange(ctx context.Context, accountNumber, from, to string) (*domain.AccountLedger, error) {
+	return s.accountLedger(ctx, accountNumber, from, to, true)
+}
+
+func (s *AccountingService) accountLedger(
+	ctx context.Context, accountNumber, from, to string, byRange bool,
+) (*domain.AccountLedger, error) {
 	chart, err := s.chart(ctx)
 	if err != nil {
 		return nil, err
@@ -183,7 +210,12 @@ func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber 
 		return nil, fmt.Errorf("Konto %s ist im SKR04 nicht vorhanden", accountNumber)
 	}
 
-	entries, err := s.journalRepo.FindByAccount(ctx, accountNumber, s.fiscalYear)
+	var entries []domain.JournalEntry
+	if byRange {
+		entries, err = s.journalRepo.FindByAccountRange(ctx, accountNumber, from, to)
+	} else {
+		entries, err = s.journalRepo.FindByAccount(ctx, accountNumber, s.fiscalYear)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("Buchungen für Konto %s konnten nicht geladen werden: %w", accountNumber, err)
 	}
@@ -243,6 +275,8 @@ func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber 
 	return &domain.AccountLedger{
 		Account:        acc,
 		FiscalYear:     s.fiscalYear,
+		From:           from,
+		To:             to,
 		OpeningBalance: 0,
 		TotalDebit:     totalDebit,
 		TotalCredit:    totalCredit,
@@ -280,7 +314,17 @@ func counterAccounts(entry *domain.JournalEntry, account string, chart *accounti
 
 // GetSuSaOverview builds the Summen- und Saldenliste grouped by Kontenklasse.
 func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOverview, error) {
-	accounts, err := s.GetAccounts(ctx)
+	return s.GetSuSaOverviewAt(ctx, "")
+}
+
+// GetSuSaOverviewAt ist dieselbe Liste zu einem Stichtag.
+//
+// Der Stichtag gehört in die Abfrage und nicht hinter sie: eine Liste, die das
+// ganze Jahr summiert und danach Zeilen ausblendet, zeigte Salden, die es zum
+// Stichtag nie gab. Ein Prüfer fragt aber nach dem Stand an einem Tag —
+// zum 30.06., zum Tag einer Übernahme, zum Ende eines Voranmeldungszeitraums.
+func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, cutoff string) (*domain.SuSaOverview, error) {
+	accounts, err := s.AccountsForYearAt(ctx, s.fiscalYear, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -348,6 +392,7 @@ func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOv
 
 	return &domain.SuSaOverview{
 		FiscalYear:       s.fiscalYear,
+		Cutoff:           cutoff,
 		TotalDebit:       totalDebit,
 		TotalCredit:      totalCredit,
 		TotalSaldoDebit:  saldoDebit,

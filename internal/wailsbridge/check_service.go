@@ -28,6 +28,9 @@ import (
 func (b *BuchfinkBridge) RunChecks(cutoffDate, periodType string) (*domain.CheckRun, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.checkSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -65,6 +68,9 @@ func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 func (b *BuchfinkBridge) MarkDeadlineDone(key, date string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.deadlineSvc == nil {
 		return fmt.Errorf("kein aktiver Mandant")
 	}

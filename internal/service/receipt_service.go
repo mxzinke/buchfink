@@ -51,6 +51,10 @@ type FileReceiptRequest struct {
 	ReceivedAt  string `json:"receivedAt,omitempty"`
 	ReceivedVia string `json:"receivedVia,omitempty"`
 
+	// Kind ist die Belegart. Leer heißt Rechnung — der Regelfall darf keine
+	// Eingabe verlangen.
+	Kind domain.ReceiptKind `json:"kind,omitempty"`
+
 	Files []NewFile `json:"-"`
 }
 
@@ -73,6 +77,9 @@ type ReceiptService struct {
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
 	fiscalYear  int
+	// documents ist die Anlagenkartei, soweit der Belegprüflauf sie braucht.
+	// Optional: ohne sie prüft er die Belege und sagt es.
+	documents DocumentSource
 }
 
 // NewReceiptService creates the Beleg service.
@@ -113,10 +120,16 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 		return nil, fmt.Errorf("kein Geschäftsjahr gesetzt")
 	}
 
+	kind := req.Kind
+	if kind == "" {
+		kind = domain.ReceiptKindInvoice
+	}
+
 	receipt := &domain.Receipt{
 		FiscalYear:    fiscalYear,
 		ReceiptNumber: req.ReceiptNumber,
 		Direction:     req.Direction,
+		Kind:          kind,
 		Status:        domain.ReceiptStatusFiled,
 		ReceivedAt:    req.ReceivedAt,
 		ReceivedVia:   req.ReceivedVia,
@@ -376,4 +389,10 @@ func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, rec
 		return
 	}
 	_ = s.auditRepo.Log(ctx, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
+}
+
+// FindByOriginalHash liefert den Beleg zu einer bereits abgelegten
+// Originaldatei, oder nil.
+func (s *ReceiptService) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
+	return s.receiptRepo.FindByOriginalHash(ctx, sha256)
 }

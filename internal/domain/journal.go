@@ -367,6 +367,10 @@ type JournalRepository interface {
 	FindOpenItemCandidatesAt(ctx context.Context, cutoff string) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
+	// FindByAccountRange ist dasselbe Kontoblatt in einem Datumsfenster über
+	// alle Geschäftsjahre hinweg. Ein Prüfer fragt nach einem Zeitraum und
+	// nicht nach einem Geschäftsjahr; leere Grenzen heißen: alles.
+	FindByAccountRange(ctx context.Context, account, from, to string) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
 	// FindByReceipt returns the original booking that references a Beleg, or nil.
@@ -383,6 +387,11 @@ type JournalRepository interface {
 	// AccountTurnovers returns Soll/Haben sums per account number for a fiscal
 	// year in a single pass.
 	AccountTurnovers(ctx context.Context, fiscalYear int) (map[string]AccountTurnover, error)
+	// AccountTurnoversUntil sind dieselben Verkehrszahlen bis zu einem
+	// Stichtag. Die Summen- und Saldenliste zum 30.06. ist keine Jahresliste
+	// mit einem Filter darüber: sie muss die Buchungen nach dem Stichtag
+	// weglassen, bevor summiert wird. Leerer Stichtag heißt: ganzes Jahr.
+	AccountTurnoversUntil(ctx context.Context, fiscalYear int, cutoff string) (map[string]AccountTurnover, error)
 	MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]CashflowDataPoint, error)
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 	GetAvailableFiscalYears(ctx context.Context) ([]int, error)
@@ -408,13 +417,71 @@ type FinancialSummary struct {
 	CashflowHistory []CashflowDataPoint `json:"cashflowHistory"`
 }
 
+// IntegrityBreakReason benennt, woran eine Kette zerbrochen ist.
+type IntegrityBreakReason string
+
+const (
+	// IntegrityBreakLinkage: der Vorgängerhash der Buchung ist nicht der
+	// Eigenhash ihres Vorgängers — eine Buchung wurde eingefügt oder entfernt.
+	IntegrityBreakLinkage IntegrityBreakReason = "linkage"
+	// IntegrityBreakContent: die Buchung hasht nicht mehr auf ihren
+	// gespeicherten Eigenhash — ihre Daten wurden nachträglich verändert.
+	IntegrityBreakContent IntegrityBreakReason = "content"
+)
+
+// IntegrityBreak ist ein einzelner Bruch der Kette.
+//
+// Er nennt erwarteten und tatsächlichen Hash, weil die Angabe „Buchung 42 ist
+// gebrochen" außerhalb von Buchfink nicht nachrechenbar ist. Wer den erwarteten
+// Wert kennt, kann mit der Kanonisierung aus der Feldbeschreibung selbst
+// prüfen, welche Seite recht hat.
+type IntegrityBreak struct {
+	FiscalYear   int                  `json:"fiscalYear"`
+	EntryID      uint                 `json:"entryId"`
+	EntryNumber  string               `json:"entryNumber"`
+	Reason       IntegrityBreakReason `json:"reason"`
+	ExpectedHash string               `json:"expectedHash"`
+	ActualHash   string               `json:"actualHash"`
+	Message      string               `json:"message"`
+}
+
 // IntegrityCheckResult is the outcome of a hash chain verification.
+//
+// Geprüft wird jedes Geschäftsjahr für sich: die Kette beginnt je Jahr neu beim
+// Genesis-Hash. Eine Prüfung, die nur das aktive Jahr ansieht, meldet „alles in
+// Ordnung", während in einem abgeschlossenen Jahr eine Zeile verändert wurde.
 type IntegrityCheckResult struct {
-	IsValid          bool   `json:"isValid"`
-	TotalEntries     int    `json:"totalEntries"`
+	IsValid      bool `json:"isValid"`
+	TotalEntries int  `json:"totalEntries"`
+	// CheckedEntries ist die Zahl der nachgerechneten Buchungen und damit
+	// gleich TotalEntries: die Prüfung läuft nach einem Bruch weiter, statt an
+	// ihm abzubrechen — sonst verdeckte die erste geänderte Buchung jede
+	// spätere. Das Feld sagt also, wie viel geprüft wurde, und nicht, wo es
+	// aufgehört hat; wo die Kette bricht, steht in Breaks.
 	CheckedEntries   int    `json:"checkedEntries"`
 	FirstBrokenID    *uint  `json:"firstBrokenId,omitempty"`
 	Message          string `json:"message"`
 	LastVerifiedHash string `json:"lastVerifiedHash"`
 	CheckedAt        string `json:"checkedAt"`
+
+	// FiscalYears sind die geprüften Geschäftsjahre, aufsteigend.
+	FiscalYears []int `json:"fiscalYears"`
+	// Breaks sind alle gefundenen Brüche, nicht nur der erste. Nach einem Bruch
+	// läuft die Prüfung weiter, sonst verdeckte die erste geänderte Buchung
+	// jede spätere.
+	Breaks []IntegrityBreak `json:"breaks"`
+}
+
+// EnsureLists ersetzt nicht belegte Listen durch leere.
+//
+// Das Ergebnis geht als JSON an die Oberfläche; ein nicht belegter Slice wird
+// dort zu `null`, und `breaks.length` bräche ausgerechnet im Regelfall — der
+// unversehrten Buchführung.
+func (r *IntegrityCheckResult) EnsureLists() {
+	if r.Breaks == nil {
+		r.Breaks = make([]IntegrityBreak, 0)
+	}
+	if r.FiscalYears == nil {
+		r.FiscalYears = make([]int, 0)
+	}
 }

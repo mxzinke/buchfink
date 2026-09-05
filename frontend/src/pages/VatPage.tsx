@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Download, FileCheck2, Save } from 'lucide-react';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { downloadCSV } from '../utils/download';
 import { formatCents, formatDate } from '../utils/formatters';
 import type {
@@ -72,6 +73,9 @@ export interface VatPageProps {
 }
 
 export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
+  // Entwurf, Bestätigung und Berichtigung schreiben; Rechnen und Ausgeben
+  // bleiben im Prüfermodus möglich (§10.4).
+  const writeLock = useWriteLock();
   const [periods, setPeriods] = useState<VatPeriodStatus[]>([]);
   const [periodKey, setPeriodKey] = useState<string>('');
   const [vatReturn, setVatReturn] = useState<VatReturn | null>(null);
@@ -425,8 +429,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               variant="secondary"
               icon={<Save className="w-4 h-4" strokeWidth={1.5} />}
               loading={busy === 'save'}
-              disabled={!vatReturn || busy !== null}
-              title={!vatReturn ? sheetHint : undefined}
+              disabled={!vatReturn || busy !== null || writeLock.locked}
+              title={writeLock.hint ?? (!vatReturn ? sheetHint : undefined)}
               onClick={() => void handleSaveDraft()}
             >
               Entwurf speichern
@@ -444,8 +448,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
             <Button
               variant="primary"
               icon={<FileCheck2 className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={!canConfirm || busy !== null}
-              title={confirmHint}
+              disabled={!canConfirm || busy !== null || writeLock.locked}
+              title={writeLock.hint ?? confirmHint}
               onClick={() =>
                 openConfirm({
                   kind: 'vat',
@@ -646,7 +650,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                       variant="secondary"
                       size="sm"
                       loading={busy === `correction-${late.periodKey}`}
-                      disabled={busy !== null}
+                      disabled={busy !== null || writeLock.locked}
+                      title={writeLock.hint}
                       onClick={() => void handleCorrection(late.periodKey)}
                     >
                       Berichtigung erzeugen
@@ -749,8 +754,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                   variant="secondary"
                   size="sm"
                   loading={busy === 'zm-save'}
-                  disabled={!zmReturn || busy !== null}
-                  title={!zmReturn ? zmSheetHint : undefined}
+                  disabled={!zmReturn || busy !== null || writeLock.locked}
+                  title={writeLock.hint ?? (!zmReturn ? zmSheetHint : undefined)}
                   onClick={() => void handleSaveZMDraft()}
                 >
                   Entwurf speichern
@@ -768,8 +773,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={!zmReturn || busy !== null || zmConfirmHint !== undefined}
-                  title={!zmReturn ? zmSheetHint : zmConfirmHint}
+                  disabled={!zmReturn || busy !== null || zmConfirmHint !== undefined || writeLock.locked}
+                  title={writeLock.hint ?? (!zmReturn ? zmSheetHint : zmConfirmHint)}
                   onClick={() =>
                     openConfirm({
                       kind: 'zm',
@@ -903,7 +908,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                           variant="secondary"
                           size="sm"
                           loading={busy === `zm-correction-${late.periodKey}`}
-                          disabled={busy !== null}
+                          disabled={busy !== null || writeLock.locked}
+                          title={writeLock.hint}
                           onClick={() => void handleZMCorrection(late.periodKey)}
                         >
                           Berichtigung erzeugen
@@ -995,6 +1001,8 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
             <Button
               variant="primary"
               loading={busy === 'confirm'}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void handleConfirm()}
             >
               Übermittlung bestätigen

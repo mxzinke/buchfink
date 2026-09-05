@@ -162,6 +162,24 @@ func (r *journalRepositoryGorm) FindByAccount(ctx context.Context, account strin
 	return byBookingDate(entries), nil
 }
 
+// FindByAccountRange liefert das Kontoblatt eines Zeitraums, unabhängig vom
+// Geschäftsjahr. Leere Grenzen heißen: keine Grenze.
+func (r *journalRepositoryGorm) FindByAccountRange(ctx context.Context, account, from, to string) ([]domain.JournalEntry, error) {
+	q := r.preloaded(ctx).
+		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND l.account = ?)", account)
+	if from != "" {
+		q = q.Where("booking_date >= ?", from)
+	}
+	if to != "" {
+		q = q.Where("booking_date <= ?", to)
+	}
+	entries, err := findBatched(q)
+	if err != nil {
+		return nil, err
+	}
+	return byBookingDate(entries), nil
+}
+
 func (r *journalRepositoryGorm) FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]domain.JournalEntry, error) {
 	entries, err := findBatched(r.scope(ctx, fiscalYear).Where("contact_id = ?", contactID))
 	if err != nil {
@@ -250,6 +268,11 @@ func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.Journa
 }
 
 func (r *journalRepositoryGorm) AccountTurnovers(ctx context.Context, fiscalYear int) (map[string]domain.AccountTurnover, error) {
+	return r.AccountTurnoversUntil(ctx, fiscalYear, "")
+}
+
+// AccountTurnoversUntil summiert die Verkehrszahlen bis zu einem Stichtag.
+func (r *journalRepositoryGorm) AccountTurnoversUntil(ctx context.Context, fiscalYear int, cutoff string) (map[string]domain.AccountTurnover, error) {
 	type row struct {
 		Account string
 		Side    string
@@ -263,6 +286,9 @@ func (r *journalRepositoryGorm) AccountTurnovers(ctx context.Context, fiscalYear
 		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id")
 	if fiscalYear > 0 {
 		q = q.Where("e.fiscal_year = ?", fiscalYear)
+	}
+	if cutoff != "" {
+		q = q.Where("e.booking_date <= ?", cutoff)
 	}
 	if err := q.Group("journal_lines.account, journal_lines.side").Scan(&rows).Error; err != nil {
 		return nil, err

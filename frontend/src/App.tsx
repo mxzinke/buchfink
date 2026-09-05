@@ -20,10 +20,13 @@ import { VatPage } from './pages/VatPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
+import { DataAccessPage } from './pages/DataAccessPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { WriteLockProvider } from './components/WriteLock';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
-import { toast } from './components/ui';
+import { formatDate } from './utils/formatters';
+import { Button, Notice, toast } from './components/ui';
 
 /**
  * Ansichten, in denen im gesperrten Geschäftsjahr erfasst würde. Nur sie tragen
@@ -303,7 +306,20 @@ export function App() {
       case 'ebilanz':
         return <EBilanzPage year={currentYear} />;
       case 'audit':
-        return <AuditPage />;
+        return <AuditPage onNavigate={navigate} />;
+      case 'dataaccess':
+        // Datenüberlassung, Prüfläufe, Sicherung und Prüfermodus. Die Seite
+        // ändert den Prüfermodus, deshalb reicht sie die Konfiguration zurück:
+        // am Banner hängt der Zustand der ganzen Anwendung.
+        return (
+          <DataAccessPage
+            year={currentYear}
+            availableYears={availableYears}
+            appConfig={appConfig}
+            onAppConfigChange={setAppConfig}
+            onRestored={bootstrapApp}
+          />
+        );
       case 'settings':
         return <SettingsPage />;
       default:
@@ -312,68 +328,93 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen bg-paper text-ink overflow-hidden">
-      <Toaster
-        position="bottom-right"
-        richColors
-        closeButton
-        toastOptions={{
-          className: 'font-sans text-body',
-        }}
-      />
-      {/* Grouped Sidebar Navigation */}
-      <Sidebar
-        currentTab={currentTab}
-        onSelectTab={(tab) => navigate(tab)}
-        settings={companySettings}
-        integrity={integrity}
-        onRefreshIntegrity={refreshIntegrity}
-        isCheckingIntegrity={isCheckingIntegrity}
-        isOpenMobile={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
-      />
+    // Der Prüfermodus sperrt jede schreibende Bedienung der Anwendung und
+    // nicht die einer Ansicht. Der Zustand steht deshalb über allem: jeder
+    // schreibende Knopf liest ihn über `useWriteLock` (Entscheidung 7).
+    <WriteLockProvider
+      readOnly={appConfig?.readOnly ?? false}
+      until={appConfig?.readOnlyUntil}
+      reason={appConfig?.readOnlyReason}
+    >
+      <div className="flex h-screen bg-paper text-ink overflow-hidden">
+        <Toaster
+          position="bottom-right"
+          richColors
+          closeButton
+          toastOptions={{
+            className: 'font-sans text-body',
+          }}
+        />
+        {/* Grouped Sidebar Navigation */}
+        <Sidebar
+          currentTab={currentTab}
+          onSelectTab={(tab) => navigate(tab)}
+          settings={companySettings}
+          integrity={integrity}
+          onRefreshIntegrity={refreshIntegrity}
+          isCheckingIntegrity={isCheckingIntegrity}
+          isOpenMobile={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {currentTab !== 'welcome' && (
-          <Header
-            currentYear={currentYear}
-            availableYears={availableYears}
-            closedYears={closedYears}
-            onYearChange={handleYearChange}
-            onCreateFiscalYear={handleCreateFiscalYear}
-            tenants={tenants}
-            activeTenant={activeTenant}
-            onSwitchTenant={handleSwitchTenant}
-            onOpenNewTenantModal={() => setIsAddingTenant(true)}
-            onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          />
-        )}
-
-        {/* Ein abgeschlossenes Geschäftsjahr trägt einen anderen Grund: `sunken`
-            statt `paper`, und zwar in jeder Ansicht und nicht nur im Journal —
-            die Sperre gilt dem Jahr, nicht der Seite (§11.5). */}
-        <main
-          className={`flex-1 overflow-y-auto ${
-            currentTab === 'welcome' ? 'bg-shell-deep' : yearClosed ? 'bg-sunken' : 'bg-paper'
-          }`}
-        >
-          {/* Der Hinweisstreifen steht über dem Inhalt, damit jede Ansicht mit
-              Erfassung ihn zeigt und keine ihn vergisst. */}
-          {yearClosed && POSTING_TABS.includes(currentTab) && (
-            <div className="max-w-[1200px] mx-auto px-8 pt-8">
-              <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface px-4 py-3">
-                <Lock className="w-4 h-4 mt-0.5 shrink-0 text-ink-faint" strokeWidth={1.5} />
-                <p className="text-body text-ink-muted">
-                  {`Geschäftsjahr ${currentYear} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`}
-                </p>
-              </div>
-            </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {currentTab !== 'welcome' && (
+            <Header
+              currentYear={currentYear}
+              availableYears={availableYears}
+              closedYears={closedYears}
+              onYearChange={handleYearChange}
+              onCreateFiscalYear={handleCreateFiscalYear}
+              tenants={tenants}
+              activeTenant={activeTenant}
+              onSwitchTenant={handleSwitchTenant}
+              onOpenNewTenantModal={() => setIsAddingTenant(true)}
+              onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            />
           )}
-          {renderContent()}
-        </main>
+
+          {/* Ein abgeschlossenes Geschäftsjahr trägt einen anderen Grund: `sunken`
+              statt `paper`, und zwar in jeder Ansicht und nicht nur im Journal —
+              die Sperre gilt dem Jahr, nicht der Seite (§11.5). */}
+          <main
+            className={`flex-1 overflow-y-auto ${
+              currentTab === 'welcome' ? 'bg-shell-deep' : yearClosed ? 'bg-sunken' : 'bg-paper'
+            }`}
+          >
+            {/* Der Prüfermodus sperrt die ganze Anwendung und nicht eine Ansicht.
+                Der Hinweis steht deshalb über jedem Inhalt: die Bridge weist
+                jede Änderung ab, und ohne den Streifen suchte man den Grund in
+                der Fehlermeldung des ersten Versuchs (§11.5). */}
+            {appConfig?.readOnly && currentTab !== 'welcome' && (
+              <div className="max-w-[1200px] mx-auto px-8 pt-8">
+                <Notice
+                  text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => navigate('dataaccess')}>
+                      Zum Prüfermodus
+                    </Button>
+                  }
+                />
+              </div>
+            )}
+            {/* Der Hinweisstreifen steht über dem Inhalt, damit jede Ansicht mit
+                Erfassung ihn zeigt und keine ihn vergisst. */}
+            {yearClosed && POSTING_TABS.includes(currentTab) && (
+              <div className="max-w-[1200px] mx-auto px-8 pt-8">
+                <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface px-4 py-3">
+                  <Lock className="w-4 h-4 mt-0.5 shrink-0 text-ink-faint" strokeWidth={1.5} />
+                  <p className="text-body text-ink-muted">
+                    {`Geschäftsjahr ${currentYear} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`}
+                  </p>
+                </div>
+              </div>
+            )}
+            {renderContent()}
+          </main>
+        </div>
       </div>
-    </div>
+    </WriteLockProvider>
   );
 }
 

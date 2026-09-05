@@ -114,6 +114,10 @@ func (o *OpenItem) IsOverdue(today string) bool {
 type PaymentAllocationRepository interface {
 	Create(ctx context.Context, allocations []PaymentAllocation) error
 	FindByOpenItem(ctx context.Context, entryID uint) ([]PaymentAllocation, error)
+	// FindAll liefert alle Zuordnungen. Die Einzelpostenliste des Exports
+	// braucht sie: eine Zahlung, die drei Rechnungen ausgleicht, ist ohne die
+	// Zuordnungen aus dem Journal nicht mehr aufzulösen (GoBD Rz. 36).
+	FindAll(ctx context.Context) ([]PaymentAllocation, error)
 	// SettledByOpenItem sums what has been settled per open item.
 	//
 	// Two bounds it deliberately does not have. It is not per fiscal year: an
@@ -139,6 +143,26 @@ type PaymentAllocationRepository interface {
 	// während der Saldo des Personenkontos ihn weiter ausweist.
 	SettledByOpenItemAt(ctx context.Context, cutoff string) (map[uint]Cents, error)
 	FindByBankTx(ctx context.Context, bankTxID uint) ([]PaymentAllocation, error)
+	// FindByPayment liefert die Posten, die eine Zahlung ausgeglichen hat.
+	// Ohne sie zeigt das Journal eine Sammelüberweisung als eine Zeile über
+	// dreitausend Euro, und wogegen sie lief, steht nirgends.
+	FindByPayment(ctx context.Context, paymentEntryID uint) ([]PaymentAllocation, error)
+}
+
+// PaymentAllocationDetail ist eine Zuordnung, angereichert um das, was die
+// Anzeige braucht: gegen welchen Beleg welchen Partners die Zahlung lief.
+//
+// Die Einzelpostenliste ist keine Bequemlichkeit — GoBD Rz. 36 verlangt, dass
+// sich jeder Geschäftsvorfall in seine Bestandteile zerlegen lässt.
+type PaymentAllocationDetail struct {
+	PaymentAllocation
+	OpenItemEntryNumber string      `json:"openItemEntryNumber"`
+	DocumentNumber      string      `json:"documentNumber,omitempty"`
+	DocumentDate        string      `json:"documentDate,omitempty"`
+	ContactName         string      `json:"contactName"`
+	ContactType         ContactType `json:"contactType"`
+	LedgerAccount       string      `json:"ledgerAccount"`
+	Description         string      `json:"description,omitempty"`
 }
 
 // Direction of the document behind the open item: a customer's invoice is an

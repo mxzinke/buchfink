@@ -53,6 +53,22 @@ func (r *receiptRepositoryGorm) find(ctx context.Context, fiscalYear int, status
 	return receipts, err
 }
 
+func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
+	var receipt domain.Receipt
+	err := r.db.WithContext(ctx).
+		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
+		Where("id IN (SELECT receipt_id FROM receipt_files WHERE role = ? AND sha256 = ?)",
+			domain.ReceiptRoleOriginal, sha256).
+		Order("id asc").First(&receipt).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &receipt, nil
+}
+
 func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID uint) (*domain.Receipt, error) {
 	var receipt domain.Receipt
 	err := r.db.WithContext(ctx).

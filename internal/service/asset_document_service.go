@@ -30,6 +30,15 @@ import (
 // Dokumente auf; sie funktioniert im Übrigen weiter.
 func (s *AssetService) SetDocumentStore(store *receiptstore.Store) { s.docStore = store }
 
+// AllDocuments liefert alle Anlagendokumente.
+//
+// Der Belegprüflauf fragt danach: die Prüfsumme eines Vertrags ist genauso zu
+// prüfen wie die einer Rechnung, und über die Anlagegüter einzeln zu gehen
+// hieße, die Kartei so oft zu lesen, wie sie Einträge hat.
+func (s *AssetService) AllDocuments(ctx context.Context) ([]domain.AssetDocument, error) {
+	return s.assetRepo.FindAllDocuments(ctx)
+}
+
 // AttachDocumentRequest legt ein Dokument zu einem Anlagegut ab.
 type AttachDocumentRequest struct {
 	AssetID uint                     `json:"assetId"`

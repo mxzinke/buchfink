@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Ban, Landmark, Upload } from 'lucide-react';
 import type {
   Account,
@@ -9,6 +9,7 @@ import type {
   OpenItem,
 } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -46,6 +47,9 @@ import {
  */
 
 export const BankImportPage: React.FC = () => {
+  // Einlesen und Zuordnen sind schreibende Schritte und im Prüfermodus
+  // gesperrt; die Liste bleibt lesbar (§10.4).
+  const writeLock = useWriteLock();
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
@@ -55,7 +59,6 @@ export const BankImportPage: React.FC = () => {
   const [active, setActive] = useState<BankTransaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void load();
@@ -83,11 +86,21 @@ export const BankImportPage: React.FC = () => {
     }
   }
 
-  async function importFile(file: File) {
+  /**
+   * Liest einen Kontoauszug über seinen Dateipfad ein.
+   *
+   * Nicht über den Inhalt: die CAMT-Datei ist der empfangene Beleg und wird vor
+   * dem Auswerten als solcher abgelegt (GoBD Rz. 130 f.). Wer nur den Inhalt
+   * übergibt, kann sie danach nicht mehr archivieren.
+   */
+  async function importStatement() {
     setImporting(true);
     try {
-      const count = await Api.importCAMT(await file.text(), importAccount);
-      toast.success(`${count} Umsätze eingelesen.`);
+      const path = await Api.selectStatementFile();
+      // Ein abgebrochener Dateidialog ist keine Fehlermeldung wert.
+      if (!path) return;
+      const count = await Api.importCAMTFile(path, importAccount);
+      toast.success(`${count} Umsätze eingelesen, der Auszug ist als Beleg abgelegt.`);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -116,21 +129,12 @@ export const BankImportPage: React.FC = () => {
               variant="primary"
               icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
               loading={importing}
-              onClick={() => fileInput.current?.click()}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void importStatement()}
             >
               CAMT.053 einlesen
             </Button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".xml"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void importFile(file);
-                e.target.value = '';
-              }}
-            />
           </div>
         }
       />
@@ -193,6 +197,8 @@ export const BankImportPage: React.FC = () => {
                       <Button
                         variant="quiet"
                         size="sm"
+                        disabled={writeLock.locked}
+                        title={writeLock.hint}
                         className="opacity-0 transition-opacity duration-120 ease-quiet
                                    group-hover:opacity-100 focus-visible:opacity-100"
                       >
@@ -234,6 +240,7 @@ const AssignDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ tx, accounts, openItems, differenceKinds, onClose, onDone }) => {
+  const writeLock = useWriteLock();
   const [mode, setMode] = useState<'open_item' | 'direct'>('open_item');
   const [busy, setBusy] = useState<'submit' | 'ignore' | null>(null);
 
@@ -335,6 +342,8 @@ const AssignDialog: React.FC<{
             variant="quiet"
             icon={<Ban className="w-4 h-4" strokeWidth={1.5} />}
             loading={busy === 'ignore'}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={ignore}
             className="mr-auto"
           >
@@ -343,7 +352,13 @@ const AssignDialog: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={busy === 'submit'} disabled={!canSubmit} onClick={submit}>
+          <Button
+            variant="primary"
+            loading={busy === 'submit'}
+            disabled={!canSubmit || writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Buchen
           </Button>
         </>

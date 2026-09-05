@@ -85,6 +85,16 @@ func (c AssetClass) Valid() bool {
 	}
 }
 
+// AllAssetClasses listet die Anlagenklassen in fester Reihenfolge.
+//
+// Die Liste steht neben den Konstanten und nicht in der Auswertung, die sie
+// gerade braucht: das Schlüsselverzeichnis der Datenüberlassung muss jeden Code
+// nennen, den die Daten tragen können, und eine von Hand gepflegte Kopie
+// verlöre beim nächsten neuen Wert den Anschluss.
+func AllAssetClasses() []AssetClass {
+	return []AssetClass{AssetClassIntangible, AssetClassTangible, AssetClassFinancial}
+}
+
 // DepreciationMethod is how the Anschaffungskosten are spread over time — or
 // that they are not spread at all.
 //
@@ -142,6 +152,15 @@ func (m DepreciationMethod) IsPlanned() bool {
 	return m == DepreciationLinear || m == DepreciationDegressive || m == DepreciationPool
 }
 
+// AllDepreciationMethods listet die Abschreibungsverfahren in fester
+// Reihenfolge.
+func AllDepreciationMethods() []DepreciationMethod {
+	return []DepreciationMethod{
+		DepreciationLinear, DepreciationDegressive, DepreciationPool,
+		DepreciationImmediate, DepreciationNone,
+	}
+}
+
 // AssetStatus is the lifecycle of an Anlagegut. It is derived, never stored: an
 // asset is disposed of exactly when it carries an Abgangsdatum.
 type AssetStatus string
@@ -171,6 +190,11 @@ const (
 	// Über ein Erlöskonto gebucht stünde in der GuV ein Umsatz, den es nie gab.
 	DisposalRepayment DisposalKind = "repayment"
 )
+
+// AllDisposalKinds listet die Abgangsarten in fester Reihenfolge.
+func AllDisposalKinds() []DisposalKind {
+	return []DisposalKind{DisposalSale, DisposalScrapped, DisposalRepayment}
+}
 
 // Label renders the disposal kind for the UI.
 func (k DisposalKind) Label() string {
@@ -260,6 +284,17 @@ const (
 )
 
 // Label renders the movement kind for the UI.
+// AllAssetMovementKinds listet die Bewegungsarten in fester Reihenfolge.
+func AllAssetMovementKinds() []AssetMovementKind {
+	return []AssetMovementKind{
+		AssetMovementAcquisition, AssetMovementSubsequentCost, AssetMovementCostReduction,
+		AssetMovementDepreciation, AssetMovementImpairment, AssetMovementWriteUp,
+		AssetMovementSpecialDepreciation, AssetMovementMaintenance,
+		AssetMovementVorabpauschale, AssetMovementIncome,
+		AssetMovementDisposal, AssetMovementTransfer,
+	}
+}
+
 func (k AssetMovementKind) Label() string {
 	switch k {
 	case AssetMovementAcquisition:
@@ -752,6 +787,11 @@ type AssetRepository interface {
 	FindMovements(ctx context.Context, assetID uint) ([]AssetMovement, error)
 	AddDocument(ctx context.Context, document *AssetDocument) error
 	FindDocument(ctx context.Context, id uint) (*AssetDocument, error)
+	// FindAllDocuments liefert alle Anlagendokumente. Der Belegprüflauf
+	// braucht sie am Stück: ein Vertrag zum Anlagegut ist genauso
+	// aufbewahrungspflichtig wie eine Rechnung, und über die Anlagegüter
+	// einzeln zu gehen hieße, die Kartei n-mal zu lesen.
+	FindAllDocuments(ctx context.Context) ([]AssetDocument, error)
 	DeleteDocument(ctx context.Context, id uint) error
 	// CountDocumentsBySHA reports how many documents share one file. Zwei
 	// Anlagegüter dürfen sich einen Rahmenvertrag teilen; gelöscht werden darf

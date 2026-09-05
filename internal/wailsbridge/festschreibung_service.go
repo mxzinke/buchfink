@@ -24,6 +24,9 @@ import (
 func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate, overrideReason string) (*domain.Festschreibung, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 
 	if b.festschreibungRepo == nil || b.journalRepo == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")

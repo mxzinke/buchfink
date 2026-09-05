@@ -107,6 +107,9 @@ func (b *BuchfinkBridge) GetEBilanzMappingReport(year int) (*ebilanz.MappingRepo
 func (b *BuchfinkBridge) SetAverageEmployees(year, count int) (*domain.FiscalYear, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.closingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}

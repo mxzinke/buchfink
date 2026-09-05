@@ -15,10 +15,11 @@ import "fmt"
 //
 //	go build -ldflags "-X github.com/buchfink/buchfink/internal/buildinfo.Version=1.2.3"
 //
-// Ohne das steht hier die Fassung des Arbeitsstands. Ein Name, der sich nicht
-// mit dem Bau ändert — eine Wellen- oder Meilensteinbezeichnung etwa —, wäre
-// keine Version, sondern eine Behauptung.
-var Version = "0.3.0-dev"
+// Ohne das steht hier „dev": ein ungebauter Arbeitsstand hat keine Fassung, und
+// eine Zahl an dieser Stelle behauptete eine. Der Bau setzt sie aus
+// „git describe --tags --always --dirty" (build/Taskfile.yml), damit in Export
+// und Sicherung steht, welcher Stand gerechnet hat.
+var Version = "dev"
 
 // Program ist die Fassung mit dem Regelstand, unter dem gebucht wurde.
 //

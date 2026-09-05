@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { CheckRun, CompanySettings, Deadline, Festschreibung, FoundationState } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatDate } from '../utils/formatters';
 import type { NavigateFn } from '../components/Sidebar';
 import { FoundationDutyResetDialog, FoundationSection } from '../components/FoundationSection';
@@ -128,6 +129,9 @@ export interface DeadlinesPageProps {
 }
 
 export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
+  // Festschreiben und Erledigtvermerke schreiben; die Fristenliste selbst ist
+  // eine Auswertung und bleibt im Prüfermodus lesbar (§10.4).
+  const writeLock = useWriteLock();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [activeFilter, setActiveFilter] = useState<Filter>('all');
@@ -422,8 +426,11 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
                           variant="secondary"
                           size="sm"
                           loading={busy}
-                          disabled={!isNext || checking !== null}
-                          title={!isNext ? 'Frühere Zeiträume zuerst festschreiben' : undefined}
+                          disabled={!isNext || checking !== null || writeLock.locked}
+                          title={
+                            writeLock.hint ??
+                            (!isNext ? 'Frühere Zeiträume zuerst festschreiben' : undefined)
+                          }
                           onClick={() => void openCommitDialog(period)}
                           icon={<Lock className="w-3.5 h-3.5" strokeWidth={1.5} />}
                         >
@@ -520,6 +527,8 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
                           variant="quiet"
                           size="sm"
                           loading={markingKey === item.key}
+                          disabled={writeLock.locked}
+                          title={writeLock.hint}
                           onClick={() => void toggleDuty(item)}
                         >
                           {item.isDone ? 'Als offen führen' : 'Erledigt vermerken'}
@@ -529,6 +538,8 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
                           variant="quiet"
                           size="sm"
                           loading={markingKey === item.key}
+                          disabled={writeLock.locked}
+                          title={writeLock.hint}
                           onClick={() => void markManual(item)}
                         >
                           Erledigt vermerken
@@ -563,7 +574,13 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
             <Button variant="secondary" onClick={() => setCommitDialog(null)}>
               Abbrechen
             </Button>
-            <Button variant="primary" loading={committing} onClick={() => void handleCommitPeriod()}>
+            <Button
+              variant="primary"
+              loading={committing}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void handleCommitPeriod()}
+            >
               Festschreiben
             </Button>
           </>

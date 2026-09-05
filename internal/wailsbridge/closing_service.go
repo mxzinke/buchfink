@@ -28,6 +28,9 @@ func (b *BuchfinkBridge) GetFiscalYears() ([]domain.FiscalYear, error) {
 func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 
 	if b.closingSvc != nil {
 		if _, err := b.closingSvc.CreateFiscalYear(context.Background(), year); err != nil {
@@ -54,6 +57,9 @@ func (b *BuchfinkBridge) GetCarryForwardPreview(toYear int) (*service.CarryForwa
 func (b *BuchfinkBridge) CarryForward(toYear int) ([]domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.closingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -77,6 +83,9 @@ func (b *BuchfinkBridge) GetClosingState(year int) (*service.ClosingState, error
 func (b *BuchfinkBridge) SetFiscalYearStatus(year int, status, date, note string) (*domain.FiscalYear, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.closingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
@@ -88,6 +97,9 @@ func (b *BuchfinkBridge) SetFiscalYearStatus(year int, status, date, note string
 func (b *BuchfinkBridge) ReopenFiscalYear(year int, reason string) (*domain.FiscalYear, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.closingSvc == nil {
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}

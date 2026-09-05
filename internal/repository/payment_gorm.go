@@ -23,6 +23,12 @@ func (r *paymentAllocationRepositoryGorm) Create(ctx context.Context, allocation
 	return r.db.WithContext(ctx).Create(&allocations).Error
 }
 
+func (r *paymentAllocationRepositoryGorm) FindAll(ctx context.Context) ([]domain.PaymentAllocation, error) {
+	out := make([]domain.PaymentAllocation, 0)
+	err := r.db.WithContext(ctx).Order("id asc").Find(&out).Error
+	return out, err
+}
+
 func (r *paymentAllocationRepositoryGorm) FindByOpenItem(ctx context.Context, entryID uint) ([]domain.PaymentAllocation, error) {
 	var out []domain.PaymentAllocation
 	err := r.db.WithContext(ctx).Where("open_item_entry_id = ?", entryID).Order("id asc").Find(&out).Error
@@ -85,6 +91,13 @@ func (r *paymentAllocationRepositoryGorm) SettledByOpenItemAt(ctx context.Contex
 		result[x.OpenItemEntryID] = domain.Cents(x.Total)
 	}
 	return result, nil
+}
+
+// FindByPayment liefert die Posten, die eine Zahlung ausgeglichen hat.
+func (r *paymentAllocationRepositoryGorm) FindByPayment(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocation, error) {
+	out := make([]domain.PaymentAllocation, 0)
+	err := r.db.WithContext(ctx).Where("payment_entry_id = ?", paymentEntryID).Order("id asc").Find(&out).Error
+	return out, err
 }
 
 func (r *paymentAllocationRepositoryGorm) FindByBankTx(ctx context.Context, bankTxID uint) ([]domain.PaymentAllocation, error) {

@@ -59,6 +59,9 @@ func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -69,6 +72,9 @@ func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedA
 func (b *BuchfinkBridge) DeleteFixedAsset(id uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.assetSvc == nil {
 		return fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -80,6 +86,9 @@ func (b *BuchfinkBridge) DeleteFixedAsset(id uint) error {
 func (b *BuchfinkBridge) RecordAssetCostAdjustment(req service.CostAdjustmentRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -226,6 +235,9 @@ func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) 
 func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest) (*service.DepreciationResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -236,6 +248,9 @@ func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest
 func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -246,6 +261,9 @@ func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*do
 func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -257,6 +275,9 @@ func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.J
 func (b *BuchfinkBridge) TransferFixedAsset(req service.TransferRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -277,6 +298,9 @@ func (b *BuchfinkBridge) PreviewAssetDisposal(req service.DisposalRequest) (*ser
 func (b *BuchfinkBridge) DisposeFixedAsset(req service.DisposalRequest) (*service.DisposalResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -321,6 +345,9 @@ func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, er
 func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -332,6 +359,9 @@ func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*
 func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -380,6 +410,9 @@ func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, err
 func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -390,6 +423,9 @@ func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) 
 func (b *BuchfinkBridge) RemoveAssetDocument(assetID, documentID uint) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -573,6 +609,9 @@ func (b *BuchfinkBridge) GetInvestmentNoteForIncome(assetID uint, amount int64) 
 func (b *BuchfinkBridge) BookAssetCurrencyValuation(req service.CurrencyValuationRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}

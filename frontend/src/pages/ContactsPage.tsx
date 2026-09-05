@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus } from 'lucide-react';
 import { Contact, ContactType, TaxTreatmentInfo } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
 import { formatCents } from '../utils/formatters';
 import {
   Button,
@@ -26,6 +27,9 @@ import {
 } from '../components/ui';
 
 export const ContactsPage: React.FC = () => {
+  // Ein Kontakt trägt sein Personenkonto: ihn anzulegen ist eine Änderung an
+  // den Stammdaten und im Prüfermodus gesperrt (§10.4).
+  const writeLock = useWriteLock();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -69,6 +73,8 @@ export const ContactsPage: React.FC = () => {
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() => setEditing({ type: 'vendor', countryCode: 'DE', paymentTermsDays: 14 })}
           >
             Neuer Kontakt
@@ -103,6 +109,8 @@ export const ContactsPage: React.FC = () => {
               contacts.length === 0 ? (
                 <Button
                   variant="primary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
                   onClick={() => setEditing({ type: 'vendor', countryCode: 'DE', paymentTermsDays: 14 })}
                 >
                   Neuer Kontakt
@@ -189,6 +197,7 @@ const ContactForm: React.FC<{
   onClose: () => void;
   onSaved: (name: string) => Promise<void>;
 }> = ({ contact, onClose, onSaved }) => {
+  const writeLock = useWriteLock();
   const [draft, setDraft] = useState<Partial<Contact>>(contact ?? {});
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
   const [busy, setBusy] = useState(false);
@@ -252,7 +261,13 @@ const ContactForm: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={busy} onClick={submit}>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Speichern
           </Button>
         </>
