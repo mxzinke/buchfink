@@ -22,6 +22,7 @@ import {
   Input,
   Menu,
   MenuItem,
+  Notice,
   PageHeader,
   Section,
   Select,
@@ -361,6 +362,10 @@ const AssignDialog: React.FC<{
   const writeLock = useWriteLock();
   const [mode, setMode] = useState<'open_item' | 'direct'>('open_item');
   const [busy, setBusy] = useState<'submit' | 'ignore' | null>(null);
+  // Der Dialog bleibt nach einer Ablehnung offen; der Grund gehört deshalb auf
+  // die Hinweisfläche über den Aktionen und nicht in einen Toast, der nach vier
+  // Sekunden verschwindet (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
 
   // Zahlungseingänge gleichen Forderungen aus, Ausgänge Verbindlichkeiten.
   const relevant = useMemo(
@@ -402,6 +407,24 @@ const AssignDialog: React.FC<{
   const statementAmount = Math.abs(tx.amount);
   const matches = cashTotal === statementAmount && allocations.length > 0;
 
+  /**
+   * Warum der gewählte Abschlag nicht zu diesem Umsatz passt — `null`, wenn er
+   * passt oder keiner gewählt ist.
+   *
+   * Der Abschlag kennt nur ganz oder gar nicht vereinnahmt: erst mit dem vollen
+   * Betrag entsteht die Steuer (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), eine
+   * Teilzahlung brächte sie in einen Zeitraum, in dem nur ein Teil zugeflossen
+   * ist. Das Backend weist die Abweichung zurück; hier steht sie vor dem
+   * Absenden, damit der Anwender die Zahlung stattdessen als Ausgleich
+   * zuordnet, statt sie nach dem Fehlschlag noch einmal zu suchen.
+   */
+  const advanceMismatch =
+    advance && tx.amount !== advance.openAmount
+      ? `Der Bankumsatz lautet über ${formatCents(tx.amount, tx.currency)}, die Abschlagsrechnung ` +
+        `${advance.documentNumber} über ${formatCents(advance.openAmount)}. Eine Anzahlung gilt ` +
+        `erst mit dem vollen Betrag als vereinnahmt.`
+      : null;
+
   function toggle(item: OpenItem) {
     if (item.source === 'advance') {
       setSelected({});
@@ -430,6 +453,7 @@ const AssignDialog: React.FC<{
   }
 
   async function submit() {
+    setFailure(null);
     setBusy('submit');
     try {
       if (mode === 'open_item' && advance) {
@@ -457,26 +481,29 @@ const AssignDialog: React.FC<{
       }
       onDone();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
   }
 
   async function ignore() {
+    setFailure(null);
     setBusy('ignore');
     try {
       await Api.ignoreBankTransaction(tx.id);
       onDone();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
   }
 
   const canSubmit =
-    mode === 'open_item' ? Boolean(advance) || matches : Boolean(counterAccount?.trim());
+    mode === 'open_item'
+      ? (Boolean(advance) && !advanceMismatch) || matches
+      : Boolean(counterAccount?.trim());
 
   return (
     <Dialog
@@ -506,7 +533,7 @@ const AssignDialog: React.FC<{
             variant="primary"
             loading={busy === 'submit'}
             disabled={!canSubmit || writeLock.locked}
-            title={writeLock.hint}
+            title={writeLock.hint ?? advanceMismatch ?? undefined}
             onClick={submit}
           >
             Buchen
@@ -665,6 +692,12 @@ const AssignDialog: React.FC<{
           </div>
         </TabPanel>
       </Tabs>
+
+      {/* Die Abweichung sperrt das Absenden und steht deshalb vor der
+          Ablehnung des Backends, die es gar nicht mehr geben kann. */}
+      {(advanceMismatch ?? failure) && (
+        <Notice tone="negative" text={(advanceMismatch ?? failure)!} className="mt-6" />
+      )}
     </Dialog>
   );
 };
@@ -688,7 +721,14 @@ const WriteOffDialog: React.FC<{
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Drei Fehlerquellen, zwei Orte (§10.4): die fehlende Begründung und der
+  // unlesbare Betrag stehen an dem Feld, das sie meinen — der Betragsfehler
+  // hing bisher am Feld „Grund" und schickte den Anwender an die falsche
+  // Stelle. Die Ablehnung des Backends ist eine Aussage über den ganzen
+  // Vorgang und gehört auf die Hinweisfläche über die Aktionen.
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -696,21 +736,25 @@ const WriteOffDialog: React.FC<{
     setAmount(formatCents(item.openAmount, '').trim());
     setDate(new Date().toISOString().split('T')[0]);
     setReason('');
-    setError(null);
+    setReasonError(null);
+    setAmountError(null);
+    setFailure(null);
   }, [item]);
 
   async function submit() {
-    if (!reason.trim()) {
-      setError(
-        'Woran die Forderung gescheitert ist, entscheidet über die Uneinbringlichkeit. Bitte nennen Sie den Grund.',
-      );
-      return;
-    }
     const value = parseCents(amount);
-    if (value === null || value <= 0) {
-      setError('Der auszubuchende Betrag ist nicht lesbar. Erwartet wird etwa 1234,56.');
-      return;
-    }
+    setReasonError(
+      reason.trim()
+        ? null
+        : 'Woran die Forderung gescheitert ist, entscheidet über die Uneinbringlichkeit. Bitte nennen Sie den Grund.',
+    );
+    setAmountError(
+      value !== null && value > 0
+        ? null
+        : 'Der auszubuchende Betrag ist nicht lesbar. Erwartet wird etwa 1234,56.',
+    );
+    if (!reason.trim() || value === null || value <= 0) return;
+    setFailure(null);
     setBusy(true);
     try {
       const entry = await Api.writeOffOpenItem({
@@ -719,10 +763,13 @@ const WriteOffDialog: React.FC<{
         date,
         reason,
       });
+      // Die Buchungsnummer steht nirgends im Bild: Der Posten verschwindet aus
+      // der Liste, die Buchung liegt im Journal. Deshalb bleibt hier ein Toast
+      // (§8.5).
       toast.success(`Forderung ausgebucht als ${entry.entryNumber}.`);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -766,7 +813,7 @@ const WriteOffDialog: React.FC<{
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-            <Field label="Auszubuchender Betrag" hint="brutto">
+            <Field label="Auszubuchender Betrag" hint="brutto" error={amountError ?? undefined}>
               <Input
                 align="right"
                 inputMode="decimal"
@@ -779,13 +826,15 @@ const WriteOffDialog: React.FC<{
             </Field>
           </div>
 
-          <Field label="Grund der Ausbuchung" className="mt-4" error={error ?? undefined}>
+          <Field label="Grund der Ausbuchung" className="mt-4" error={reasonError ?? undefined}>
             <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Insolvenzverfahren mangels Masse abgewiesen"
             />
           </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
     </Dialog>

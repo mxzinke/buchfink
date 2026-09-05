@@ -34,25 +34,59 @@ func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint)
 	if err != nil {
 		return nil, err
 	}
-	if inv.ReceiptID != nil {
-		return nil, fmt.Errorf(
-			"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites trüge dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
-			inv.InvoiceNumber)
-	}
 	if !inv.Status.IsIssued() {
 		return nil, fmt.Errorf("Rechnung %s ist nicht ausgestellt", inv.InvoiceNumber)
 	}
-
 	contact, err := s.contactForInvoice(ctx, inv)
 	if err != nil {
 		return nil, err
 	}
+
+	// Liegt der Beleg bereits, wird kein zweiter erzeugt: er trüge dieselbe
+	// Rechnungsnummer und wäre ein zweiter Beleg zu einem Vorgang. Fehlt dann
+	// noch der letzte Schritt — Validierungsbericht, Zustand, Siegel —, wird
+	// genau der nachgeholt; das ist der Zustand, den ein Fehler hinter dem
+	// Ablegen hinterlässt.
+	if inv.ReceiptID != nil {
+		if inv.Status != domain.InvoiceStatusPendingDocument {
+			return nil, fmt.Errorf(
+				"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites trüge dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
+				inv.InvoiceNumber)
+		}
+		if err := s.finishPendingDocument(ctx, inv, contact); err != nil {
+			return nil, err
+		}
+		s.log(ctx, domain.AuditActionUpdate, inv,
+			fmt.Sprintf("Der Beleg zu Rechnung %s wurde nachträglich abgeschlossen", inv.InvoiceNumber))
+		return inv, nil
+	}
+
 	if err := s.attachDocument(ctx, inv, contact); err != nil {
 		return nil, err
 	}
 	s.log(ctx, domain.AuditActionUpdate, inv,
 		fmt.Sprintf("Das Dokument zu Rechnung %s wurde nachträglich erzeugt", inv.InvoiceNumber))
 	return inv, nil
+}
+
+// finishPendingDocument holt die Schritte nach, die hinter dem Ablegen des
+// Belegs noch offen sind.
+func (s *InvoiceService) finishPendingDocument(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+) error {
+	if s.receiptSvc == nil || inv.ReceiptID == nil {
+		inv.Status = domain.InvoiceStatusIssued
+		return s.invoiceRepo.Save(ctx, inv)
+	}
+	seller, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
+	}
+	validation, err := documentValidation(inv, seller, contact)
+	if err != nil {
+		return fmt.Errorf("der Rechnungsdatensatz zu %s konnte nicht geprüft werden: %w", inv.InvoiceNumber, err)
+	}
+	return s.completeDocument(ctx, inv, *inv.ReceiptID, validation)
 }
 
 // CancelWithDocument storniert eine Rechnung und stellt die Stornorechnung aus.
@@ -62,22 +96,24 @@ func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint)
 // Bezug auf die Ursprungsrechnung, und die Ursprungsrechnung wird als storniert
 // gekennzeichnet — mit Verweis auf das Dokument, das sie storniert.
 //
-// Das Stornodokument trägt den Tag der Korrektur. Die Buchung folgt ihm nicht:
-// die Generalumkehr übernimmt Beleg- und Leistungsdatum der Ursprungsbuchung,
-// und accounting.VatPeriodFor ordnet sie damit dem Voranmeldungszeitraum der
-// Ursprungsrechnung zu — nicht dem Korrekturmonat.
+// Das Stornodokument trägt den Tag der Korrektur, und die Umsatzsteuer folgt
+// ihm: die Generalumkehr wird über ihr Buchungsdatum dem laufenden
+// Voranmeldungszeitraum zugeordnet (accounting.VatPeriodFor, Zweig zur
+// Rechnungsberichtigung).
 //
-// Das ist die Entscheidung aus Welle 3 und keine Nachlässigkeit. Ein Storno
-// nimmt einen Umsatz zurück, den es nie gab: die Rechnung war von Anfang an
-// falsch, und die Steuer ist im Ursprungszeitraum nicht entstanden (bei einer
-// zu Unrecht ausgewiesenen Steuer § 14c UStG, dessen Berichtigung ohnehin die
-// Zustimmung des Finanzamts braucht). § 17 Abs. 1 Satz 8 UStG greift dort, wo
-// sich eine wirksam entstandene Bemessungsgrundlage *ändert* — Skonto,
-// Rückzahlung, Uneinbringlichkeit; diese Fälle bucht Buchfink deshalb mit
-// eigenem Datum (siehe PostAdvanceRefund und WriteOffOpenItem) und nicht als
-// Generalumkehr. Ist der Ursprungszeitraum bereits übermittelt, gehört dazu
-// eine berichtigte Voranmeldung (§ 153 AO); ein eigener Nachtragsweg dafür
-// steht in vat_service.go bewusst noch nicht.
+// Das ist der Zeitpunkt, den das Gesetz nennt. § 17 Abs. 1 Satz 8 UStG legt die
+// Berichtigung in den Zeitraum, in dem die Änderung eingetreten ist; bei einer
+// zu hoch oder zu Unrecht ausgewiesenen Steuer bleibt der Mehrbetrag bis zur
+// Berichtigung der Rechnung geschuldet und wirkt die Berichtigung im Zeitraum
+// der Erklärung gegenüber dem Empfänger (§ 14c Abs. 1 UStG, Abschn. 14c.1
+// Abs. 5 UStAE). Die Buchungsdaten der Ursprungsbuchung — Beleg- und
+// Leistungsdatum — bleiben an der Generalumkehr stehen, weil sie sagen, welcher
+// Vorgang zurückgenommen wird; über den Voranmeldungszeitraum entscheiden sie
+// hier nicht.
+//
+// Der Vorteil ist praktisch: ein bereits übermittelter Ursprungszeitraum bleibt
+// unberührt, und das Storno erscheint in der laufenden Anmeldung statt eine
+// Berichtigung nach § 153 AO zu erzwingen.
 func (s *InvoiceService) CancelWithDocument(ctx context.Context, invoiceID uint, reason string) (*domain.Invoice, error) {
 	original, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
@@ -254,6 +290,10 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 	replacement.JournalEntryID = nil
 	replacement.ReceiptID = nil
 	replacement.Status = domain.InvoiceStatusDraft
+	// Auch hier kommt die Rechnung aus der Oberfläche: Verbund, Anzahlungssumme
+	// und Bezüge werden verworfen und, wo sie hingehören, gleich darauf aus dem
+	// Verbund gesetzt (issueAdvanceReplacement, issueFinalReplacement).
+	dropForeignKindFields(replacement)
 	replacement.Kind = domain.InvoiceKindCorrection
 	// Die berichtigte Abschlagsrechnung bleibt eine Abschlagsrechnung.
 	//
@@ -311,7 +351,7 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 		return replacement, nil
 	}
 
-	if err := s.Issue(ctx, replacement); err != nil {
+	if err := s.issueAs(ctx, replacement, domain.InvoiceKindCorrection, nil); err != nil {
 		return nil, fmt.Errorf(
 			"die Ursprungsrechnung %s ist storniert, die berichtigte Rechnung ließ sich aber nicht ausstellen: %w",
 			original.InvoiceNumber, err)
@@ -342,6 +382,10 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 	// nicht den der Ursprungsrechnung.
 	storno.Date = time.Now().Format("2006-01-02")
 	storno.DueDate = storno.Date
+	// Ohne Zahlungsbedingungen: „Zahlbar innerhalb von 14 Tagen, bei Zahlung bis
+	// … 2 % Skonto" auf einem Dokument mit negativen Beträgen fordert eine
+	// Zahlung, die niemand leisten soll — und es stünde so auch in BT-20.
+	storno.Terms = domain.PaymentTerms{}
 
 	storno.Items = make([]domain.InvoiceItem, len(original.Items))
 	copy(storno.Items, original.Items)
@@ -374,6 +418,7 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 func (s *InvoiceService) issueCorrection(
 	ctx context.Context, doc *domain.Invoice, contact *domain.Contact, book func(context.Context) error,
 ) error {
+	doc.EnsureLists()
 	doc.FiscalYear = domain.GetFiscalYearForDate(doc.Date, s.fiscalYearStartMonth(ctx))
 	for i := range doc.Items {
 		doc.Items[i].Position = i + 1
@@ -426,6 +471,12 @@ func (s *InvoiceService) MarkSent(ctx context.Context, invoiceID uint, date stri
 	}
 	if date == "" {
 		date = time.Now().Format("2006-01-02")
+	}
+	// Der Vermerk ist der Nachweis des Zugangs; ein Datum, das keines ist, wäre
+	// keiner. Vorher wanderte jeder Text unverändert in das Feld und stand
+	// danach so im Protokoll.
+	if _, err := time.Parse("2006-01-02", date); err != nil {
+		return nil, fmt.Errorf("%q ist kein Datum (erwartet JJJJ-MM-TT)", date)
 	}
 	switch via {
 	case domain.InvoiceSentViaEmail, domain.InvoiceSentViaPortal, domain.InvoiceSentViaPost, domain.InvoiceSentViaOther:

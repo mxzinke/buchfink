@@ -117,7 +117,7 @@ type NumberGapRepository interface {
 func BuildNumberGapReport(fiscalYear int, nextSequence int64, numbers []string, recorded []NumberGap, format string) NumberGapReport {
 	used := map[int64]bool{}
 	for _, n := range numbers {
-		if seq, ok := ParseInvoiceSequence(n, fiscalYear); ok {
+		if seq, ok := ParseInvoiceSequence(n, fiscalYear, format); ok {
 			used[seq] = true
 		}
 	}

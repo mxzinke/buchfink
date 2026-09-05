@@ -346,6 +346,21 @@ type InvoiceReference struct {
 	Date      string `gorm:"size:10" json:"date"`            // BT-26
 }
 
+// EnsureLists belegt die Listen, die als JSON an die Oberfläche gehen.
+//
+// Ein nicht belegter Slice wird dort zu `null`, und `precedingRefs.length`
+// wirft im Render einen TypeError. Betroffen wäre der Regelfall: jede Rechnung
+// ohne Bezug auf eine vorausgegangene. Aus der Datenbank gelesen sind die
+// Listen belegt; frisch aufgebaut — beim Ausstellen — sind sie es nicht.
+func (inv *Invoice) EnsureLists() {
+	if inv.Items == nil {
+		inv.Items = []InvoiceItem{}
+	}
+	if inv.PrecedingRefs == nil {
+		inv.PrecedingRefs = []InvoiceReference{}
+	}
+}
+
 // ResolvedKind fills in the default for records written before the field
 // existed.
 func (inv *Invoice) ResolvedKind() InvoiceKind {

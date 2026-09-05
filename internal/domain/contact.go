@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -141,6 +142,27 @@ func (p EInvoiceProfile) Label() string {
 		}
 	}
 	return string(p)
+}
+
+// Validate weist ein Zielformat zurück, das Buchfink nicht erzeugen kann.
+//
+// Der Wert kommt aus der Oberfläche und aus übernommenen Daten, und ein
+// unbekanntes Profil bliebe sonst still: der Renderer behandelt alles, was
+// nicht XRechnung oder „nur PDF" ist, als ZUGFeRD. Ein Kontakt mit
+// „xrechnung_ubl" — ein Format, das die Fachplanung nennt und das es hier nicht
+// gibt — bekäme also ein ZUGFeRD-PDF, ohne dass irgendwo stünde, dass er etwas
+// anderes verlangt hat.
+func (p EInvoiceProfile) Validate() error {
+	profiles := EInvoiceProfiles()
+	names := make([]string, 0, len(profiles))
+	for _, info := range profiles {
+		if info.Profile == p {
+			return nil
+		}
+		names = append(names, string(info.Profile))
+	}
+	return fmt.Errorf("%q ist kein E-Rechnungsformat, das Buchfink ausstellen kann; möglich sind %s",
+		string(p), strings.Join(names, ", "))
 }
 
 // ResolvedEInvoiceProfile is the profile to use, filling in the default for a

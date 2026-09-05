@@ -100,6 +100,14 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	if c.EInvoiceProfile == "" {
 		c.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
 	}
+	// Ein unbekanntes Zielformat wird abgewiesen und nicht gespeichert. Vorher
+	// wurde nur das leere Feld belegt: ein Tippfehler oder ein Format aus der
+	// Fachplanung, das Buchfink nicht erzeugt („xrechnung_ubl"), stand danach am
+	// Kontakt und wirkte beim Ausstellen still wie ZUGFeRD — der Empfänger bekam
+	// ein anderes Dokument, als an ihm hinterlegt war.
+	if err := c.EInvoiceProfile.Validate(); err != nil {
+		return err
+	}
 
 	if err := s.contactRepo.Save(ctx, c); err != nil {
 		return err

@@ -17,11 +17,19 @@ func NewInvoiceGroupRepository(db *gorm.DB) domain.InvoiceGroupRepository {
 	return &invoiceGroupRepositoryGorm{db: db}
 }
 
+// FindAll liefert die Verbünde eines Geschäftsjahres — und jeden offenen dazu,
+// gleich aus welchem Jahr er stammt.
+//
+// Ein Vorgang hält sich nicht an den Jahreswechsel: die Abschläge fallen ins
+// eine Jahr, die Schlussrechnung ins nächste. Wäre allein das Jahr maßgeblich,
+// verschwände der Verbund am 1. Januar aus der Ansicht, obwohl seine Abschläge
+// offen sind und die Schlussrechnung noch fehlt — und mit ihm der einzige Weg,
+// die Anzahlungen abzusetzen (§ 14 Abs. 5 Satz 2 UStG).
 func (r *invoiceGroupRepositoryGorm) FindAll(ctx context.Context, fiscalYear int) ([]domain.InvoiceGroup, error) {
 	groups := make([]domain.InvoiceGroup, 0)
 	q := dbFrom(ctx, r.db).Order("id desc")
 	if fiscalYear > 0 {
-		q = q.Where("fiscal_year = ?", fiscalYear)
+		q = q.Where("fiscal_year = ? OR closed = ?", fiscalYear, false)
 	}
 	if err := q.Find(&groups).Error; err != nil {
 		return nil, err

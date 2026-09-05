@@ -118,6 +118,13 @@ func (e *testEnv) invoiceRepoOf(t *testing.T) domain.InvoiceRepository {
 	return repository.NewInvoiceRepository(e.db)
 }
 
+// invoiceGroupRepoOf liefert das Repository der Rechnungsverbünde auf derselben
+// Datenbank.
+func (e *testEnv) invoiceGroupRepoOf(t *testing.T) domain.InvoiceGroupRepository {
+	t.Helper()
+	return repository.NewInvoiceGroupRepository(e.db)
+}
+
 // Scheitert das Dokument, bleiben Nummer und Buchung stehen — sichtbar als
 // „Dokument fehlt". Die Nummer ist nicht verloren, das Dokument lässt sich
 // nachholen.

@@ -68,7 +68,8 @@ type FinalInvoiceRequest struct {
 }
 
 // GetInvoiceGroups liefert die Rechnungsverbünde eines Geschäftsjahres mit
-// ihrem Fortschritt.
+// ihrem Fortschritt — und die offenen der übrigen Jahre dazu (siehe
+// InvoiceGroupRepository.FindAll).
 func (s *InvoiceService) GetInvoiceGroups(ctx context.Context, fiscalYear int) ([]domain.InvoiceGroup, error) {
 	if s.groupRepo == nil {
 		return []domain.InvoiceGroup{}, nil
@@ -180,7 +181,7 @@ func (s *InvoiceService) IssueAdvanceInvoice(ctx context.Context, req AdvanceInv
 		ContactID: group.ContactID,
 		TaxRate:   group.TaxRate,
 	}
-	err = s.issueWith(ctx, inv, func(ctx context.Context) error {
+	err = s.issueAs(ctx, inv, domain.InvoiceKindAdvance, func(ctx context.Context) error {
 		return s.saveAdvanceItem(ctx, advance, inv)
 	})
 	if err != nil {
@@ -543,7 +544,10 @@ func (s *InvoiceService) IssueFinalInvoice(ctx context.Context, req FinalInvoice
 func (s *InvoiceService) issueFinal(
 	ctx context.Context, inv *domain.Invoice, advances []domain.AdvanceItem, within func(context.Context) error,
 ) error {
-	contact, err := s.prepareForIssue(ctx, inv)
+	// Die berichtigte Schlussrechnung trägt die Art „Rechnungskorrektur"
+	// (Typcode 384) und geht trotzdem hier entlang: sie muss dieselben
+	// Anzahlungen absetzen wie die stornierte.
+	contact, err := s.prepareForIssue(ctx, inv, domain.InvoiceKindFinal, domain.InvoiceKindCorrection)
 	if err != nil {
 		return err
 	}
@@ -818,7 +822,7 @@ func (s *InvoiceService) issueAdvanceReplacement(
 		ContactID: group.ContactID,
 		TaxRate:   group.TaxRate,
 	}
-	return s.issueWith(ctx, replacement, func(ctx context.Context) error {
+	return s.issueAs(ctx, replacement, domain.InvoiceKindAdvance, func(ctx context.Context) error {
 		return s.saveAdvanceItem(ctx, advance, replacement)
 	})
 }

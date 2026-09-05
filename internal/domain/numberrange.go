@@ -124,9 +124,26 @@ func ValidateInvoiceNumberFormat(format string) error {
 //
 // Der Lückenbericht braucht die Umkehrung: er vergleicht die vergebenen Nummern
 // mit dem Stand des Zählers, und dafür muss aus „RE-2026-0007" die 7 werden.
-// Gelesen wird die längste Ziffernfolge, die nicht das Geschäftsjahr ist — das
-// hält auch für Formate, die Buchfink nicht selbst vorgibt.
-func ParseInvoiceSequence(number string, fiscalYear int) (int64, bool) {
+//
+// Gelesen wird mit dem Nummernformat und nicht nach Gefühl. Vorher suchte die
+// Umkehrung „die längste Ziffernfolge, die nicht das Geschäftsjahr ist"; ein
+// Format ohne Trennzeichen zwischen den Platzhaltern — `{JAHR}{NR:4}` ist
+// zulässig — ergibt aber „20260007", also eine einzige Ziffernfolge, die nicht
+// das Jahr ist. Der Bericht las daraus den Zähler 20260007 und meldete jede
+// vergebene Nummer als Lücke.
+//
+// Nummern aus einem früher eingestellten Format passen nicht auf den heutigen
+// Ausdruck. Für sie bleibt die alte Heuristik als zweiter Weg: sie ist ungenau,
+// aber eine nicht gelesene Nummer wäre im Bericht eine Lücke, die es nicht gibt
+// — und die Betriebsprüfung fragt nach genau diesen Zeilen.
+func ParseInvoiceSequence(number string, fiscalYear int, format string) (int64, bool) {
+	if pattern := invoiceNumberPattern(format, fiscalYear); pattern != nil {
+		if match := pattern.FindStringSubmatch(number); match != nil {
+			if seq, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+				return seq, true
+			}
+		}
+	}
 	year := fmt.Sprintf("%d", fiscalYear)
 	groups := digitRun.FindAllString(number, -1)
 	for i := len(groups) - 1; i >= 0; i-- {
@@ -140,6 +157,41 @@ func ParseInvoiceSequence(number string, fiscalYear int) (int64, bool) {
 		return seq, true
 	}
 	return 0, false
+}
+
+// invoiceNumberPattern baut aus dem Nummernformat den Ausdruck, der eine Nummer
+// wieder zerlegt: `{JAHR}` wird zum Geschäftsjahr, `{NR:n}` zur Fangklammer um
+// den Zähler, alles andere bleibt wörtlich. Der Zähler wird bewusst nicht auf
+// die Stellenzahl des Formats festgelegt — er läuft über sie hinaus, sobald das
+// Jahr mehr Rechnungen trägt, als die Auffüllung vorsieht.
+func invoiceNumberPattern(format string, fiscalYear int) *regexp.Regexp {
+	if ValidateInvoiceNumberFormat(format) != nil {
+		format = DefaultInvoiceNumberFormat
+	}
+	var expr strings.Builder
+	expr.WriteString("^")
+	rest := strings.ReplaceAll(format, "{JAHR}", fmt.Sprintf("%d", fiscalYear))
+	for {
+		loc := numberPlaceholder.FindStringIndex(rest)
+		if loc == nil {
+			break
+		}
+		expr.WriteString(regexp.QuoteMeta(rest[:loc[0]]))
+		expr.WriteString(`(\d+)`)
+		rest = rest[loc[1]:]
+	}
+	expr.WriteString(regexp.QuoteMeta(rest))
+	expr.WriteString("$")
+	pattern, err := regexp.Compile(expr.String())
+	if err != nil {
+		return nil
+	}
+	// Mehr als eine Fangklammer hieße mehr als ein Zähler in einer Nummer; die
+	// Umkehrung wäre dann nicht eindeutig, und geraten wird hier nicht.
+	if pattern.NumSubexp() != 1 {
+		return nil
+	}
+	return pattern
 }
 
 var digitRun = regexp.MustCompile(`\d+`)

@@ -71,6 +71,27 @@ const STATUS: Record<Invoice['status'], Status> = {
   cancelled: 'storniert',
 };
 
+/**
+ * Das Textbudget der Kontextzeile im Seitenkopf (§15.1).
+ *
+ * Die Zeile wächst mit den Daten: dreistellige Anzahlen und sechsstellige
+ * Beträge sprengen sie, und ein Umbruch im Kopf schiebt die ganze Seite nach
+ * unten. Deshalb entscheidet nicht der Platz, sondern die Reihenfolge — die
+ * Teile stehen nach Wichtigkeit, und was nicht mehr hineinpasst, fällt weg.
+ */
+const HEADER_CONTEXT_LIMIT = 60;
+
+function headerContext(parts: (string | null)[]): string {
+  let line = '';
+  for (const part of parts) {
+    if (!part) continue;
+    const next = line ? `${line} · ${part}` : part;
+    if (next.length > HEADER_CONTEXT_LIMIT) break;
+    line = next;
+  }
+  return line;
+}
+
 /** Die Dokumentart in einem Wort — sie entscheidet über den Typcode (BT-3). */
 const KIND_LABEL: Record<Invoice['kind'], string> = {
   invoice: 'Rechnung',
@@ -301,17 +322,15 @@ export const InvoicesPage: React.FC = () => {
         context={
           loading
             ? undefined
-            : [
+            : headerContext([
                 `${invoices.length} im Geschäftsjahr`,
                 `${open.length} offen über ${formatCents(openTotal)}`,
+                // Wohin die Abschläge gehören, sagt die Feldhilfe im
+                // Rechnungsdialog; hier zählt nur, dass es sie gibt.
                 advances.length > 0
-                  ? `${advances.length} ${
-                      advances.length === 1 ? 'Abschlag' : 'Abschläge'
-                    } auf der Anzahlungsseite`
+                  ? `${advances.length} ${advances.length === 1 ? 'Abschlag' : 'Abschläge'}`
                   : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')
+              ])
         }
         action={
           <div className="flex items-center gap-2">
@@ -725,6 +744,10 @@ const InvoiceForm: React.FC<{
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  // Die Ablehnung des Ausstellens ist eine fachliche Aussage über den ganzen
+  // Vorgang und bleibt stehen, bis sie behoben ist (§10.4). Ein Toast wäre nach
+  // vier Sekunden weg, während das Formular unverändert offen steht.
+  const [failure, setFailure] = useState<string | null>(null);
 
   const contact = contacts.find((c) => c.id === contactId);
   const treatmentInfo = treatments.find((t) => t.treatment === treatment);
@@ -849,12 +872,13 @@ const InvoiceForm: React.FC<{
   }
 
   async function submit() {
+    setFailure(null);
     setBusy(true);
     try {
       const invoice = await Api.issueInvoice(draft);
       onIssued(invoice.invoiceNumber);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -1176,6 +1200,8 @@ const InvoiceForm: React.FC<{
           )}
         </div>
       </div>
+
+      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };
@@ -1525,7 +1551,9 @@ const SentDialog: React.FC<{
   const [date, setDate] = useState(todayISO());
   const [via, setVia] = useState<InvoiceSentVia>('email');
   const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Der Vermerk hat kein Pflichtfeld: Datum und Weg sind vorbelegt. Was hier
+  // schiefgeht, kommt aus dem Backend und gehört auf die Hinweisfläche (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -1533,17 +1561,19 @@ const SentDialog: React.FC<{
     setDate(invoice.sentAt || todayISO());
     setVia(invoice.sentVia ?? 'email');
     setNote(invoice.sentNote ?? '');
-    setError(null);
+    setFailure(null);
   }, [invoice]);
 
   async function submit() {
+    setFailure(null);
     setBusy(true);
     try {
       await Api.markInvoiceSent(invoice!.id, date, via, note);
-      toast.success(`${invoice!.invoiceNumber} als versendet vermerkt.`);
+      // Kein Toast: Der Versandvermerk steht nach dem Schließen in der Zeile
+      // der Rechnung (§8.5).
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -1589,13 +1619,15 @@ const SentDialog: React.FC<{
               />
             </Field>
           </div>
-          <Field label="Vermerk" optional className="mt-4" error={error ?? undefined}>
+          <Field label="Vermerk" optional className="mt-4">
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="An buchhaltung@kunde.de"
             />
           </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
     </Dialog>
@@ -1615,24 +1647,29 @@ const GapReasonDialog: React.FC<{
   const writeLock = useWriteLock();
   const [reason, setReason] = useState<NumberGapReason>('aborted');
   const [detail, setDetail] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Der Grund kommt aus einer Auswahl mit Voreinstellung, der Vermerk ist
+  // freiwillig: es gibt keine Pflichtangabe, die am Feld fehlen könnte. Was
+  // zurückkommt, ist die Ablehnung des Backends (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!gap) return;
     setReason('aborted');
     setDetail('');
-    setError(null);
+    setFailure(null);
   }, [gap]);
 
   async function submit() {
+    setFailure(null);
     setBusy(true);
     try {
       await Api.recordInvoiceNumberGapReason(year, gap!.sequence, reason, detail);
-      toast.success(`Lücke ${gap!.number} begründet.`);
+      // Kein Toast: Der Grund steht danach in der Zeile des Lückenberichts
+      // (§8.5).
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -1668,13 +1705,15 @@ const GapReasonDialog: React.FC<{
           onValueChange={setReason}
         />
       </Field>
-      <Field label="Vermerk" optional className="mt-4" error={error ?? undefined}>
+      <Field label="Vermerk" optional className="mt-4">
         <Input
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
           placeholder="Abbruch beim Erzeugen des Dokuments"
         />
       </Field>
+
+      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };

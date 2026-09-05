@@ -27,13 +27,31 @@ import (
 // UStG). Ist kein Beleg erfasst, bleibt der Parameter leer und die Regel fällt
 // auf Leistung und Rechnungsdatum zurück.
 //
-// Die Generalumkehr braucht keinen eigenen Zweig: sie übernimmt Belegdatum und
-// Leistungszeitraum der Ursprungsbuchung, also ergeben dieselben Regeln
-// denselben Zeitraum. Ist der bereits übermittelt, wird daraus ein Nachtrag —
-// das entscheidet die Voranmeldung, nicht diese Funktion.
+// Die Generalumkehr übernimmt Belegdatum und Leistungszeitraum der
+// Ursprungsbuchung; dieselben Regeln ergeben damit denselben Zeitraum. Für die
+// Rücknahme einer Ausgangsrechnung gilt das nicht — siehe den Zweig zur
+// Rechnungsberichtigung.
 func VatPeriodFor(entry *domain.JournalEntry, line domain.JournalLine, receivedAt string) string {
 	if entry == nil {
 		return ""
+	}
+	// Die Rücknahme einer Ausgangsrechnung wirkt im Zeitraum der Berichtigung
+	// und nicht im Ursprungszeitraum.
+	//
+	// § 17 Abs. 1 Satz 8 UStG: die Berichtigung ist für den Besteuerungszeitraum
+	// vorzunehmen, in dem die Änderung eingetreten ist. Für die zu Unrecht oder
+	// zu hoch ausgewiesene Steuer sagt Abschn. 14c.1 Abs. 5 UStAE dasselbe: der
+	// Mehrbetrag bleibt bis zur Berichtigung der Rechnung geschuldet, und die
+	// Berichtigung wirkt im Zeitraum, in dem sie gegenüber dem Empfänger
+	// erklärt wird. Beides führt auf den Tag des Stornodokuments, den die
+	// Generalumkehr als Buchungsdatum trägt.
+	//
+	// Vorher entschied hier der Leistungszeitraum der Ursprungsbuchung, und
+	// jedes Storno verlangte damit eine berichtigte Voranmeldung für einen
+	// Zeitraum, der längst übermittelt war — für einen Vorgang, der in die
+	// laufende Anmeldung gehört.
+	if entry.Kind == domain.EntryKindReversal && entry.Source == domain.EntrySourceInvoice {
+		return firstNonEmpty(entry.BookingDate, entry.DocumentDate)
 	}
 	// Die vereinnahmte Anzahlung folgt dem Geld und nicht der Leistung: nach
 	// § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG entsteht die Steuer mit Ablauf des

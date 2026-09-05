@@ -89,7 +89,7 @@ const todayISO = () => new Date().toISOString().split('T')[0];
  */
 function closedGroupHint(group: InvoiceGroup): string | undefined {
   return group.closed
-    ? 'Der Verbund ist mit der Schlussrechnung abgeschlossen und nimmt keine weitere Rechnung mehr auf.'
+    ? 'Die Schlussrechnung ist gestellt; der Verbund nimmt keine weitere Rechnung mehr auf.'
     : undefined;
 }
 
@@ -267,7 +267,7 @@ export const AdvancesPage: React.FC = () => {
                 <Th numeric className="w-36">
                   Vereinnahmt
                 </Th>
-                <Th className="w-36">Stand</Th>
+                <Th className="w-48">Stand</Th>
                 <Th className="w-20" aria-label="Aktionen" />
               </Tr>
             </Thead>
@@ -298,10 +298,15 @@ export const AdvancesPage: React.FC = () => {
                           verspräche einen Zahlungseingang, den die
                           Schlussrechnung gerade erst anfordert. Das Abzeichen
                           bleibt dem Verbund vorbehalten, der noch Rechnungen
-                          aufnimmt; der abgeschlossene sagt es als Wort und
-                          holt keine Aufmerksamkeit mehr (§11.3). */}
+                          aufnimmt.
+                          Der geschlossene bekommt kein Statuswort: Das
+                          Vokabular aus §11.3 ist abschließend und kennt für
+                          ihn keines — „Abgeschlossen" stünde ausdrücklich auf
+                          der Sperrliste. Stattdessen nennt die Zelle das
+                          Ereignis, das ihn geschlossen hat, ohne
+                          Aufmerksamkeit zu holen. */}
                       {group.closed ? (
-                        <span className="text-body text-ink-subtle">Abgeschlossen</span>
+                        <span className="text-body text-ink-subtle">Schlussrechnung gestellt</span>
                       ) : (
                         <StatusBadge status="offen" />
                       )}
@@ -523,9 +528,10 @@ export const AdvancesPage: React.FC = () => {
         open={creatingGroup}
         contacts={contacts}
         onClose={() => setCreatingGroup(false)}
-        onDone={async (title) => {
+        onDone={async () => {
+          // Kein Toast: Der neue Verbund steht danach als Zeile in der Tabelle
+          // (§8.5).
           setCreatingGroup(false);
-          toast.success(`Rechnungsverbund „${title}" angelegt.`);
           await load();
         }}
       />
@@ -580,14 +586,19 @@ const GroupDialog: React.FC<{
   open: boolean;
   contacts: Contact[];
   onClose: () => void;
-  onDone: (title: string) => void;
+  onDone: () => void;
 }> = ({ open, contacts, onClose, onDone }) => {
   const writeLock = useWriteLock();
   const [contactId, setContactId] = useState(0);
   const [title, setTitle] = useState('');
   const [totalNet, setTotalNet] = useState('');
   const [taxRate, setTaxRate] = useState<TaxRate>(TAX_RATE_STANDARD);
-  const [error, setError] = useState<string | null>(null);
+  // Zwei Fehlerarten, zwei Orte (§10.4): die fehlende Pflichtangabe steht am
+  // Feld, das sie meint; die Ablehnung des Backends ist eine Aussage über den
+  // ganzen Vorgang und gehört auf die Hinweisfläche über die Aktionen.
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -596,25 +607,27 @@ const GroupDialog: React.FC<{
     setTitle('');
     setTotalNet('');
     setTaxRate(TAX_RATE_STANDARD);
-    setError(null);
+    setTitleError(null);
+    setAmountError(null);
+    setFailure(null);
   }, [open, contacts]);
 
   async function submit() {
     const net = parseCents(totalNet);
-    if (!title.trim()) {
-      setError('Ohne Bezeichnung lässt sich der Verbund später nicht zuordnen.');
-      return;
-    }
-    if (net === null || net <= 0) {
-      setError('Der vereinbarte Gesamtbetrag ist der Rahmen der Abschläge und muss größer als null sein.');
-      return;
-    }
+    setTitleError(title.trim() ? null : 'Ohne Bezeichnung lässt sich der Verbund später nicht zuordnen.');
+    setAmountError(
+      net !== null && net > 0
+        ? null
+        : 'Der vereinbarte Gesamtbetrag ist der Rahmen der Abschläge und muss größer als null sein.',
+    );
+    if (!title.trim() || net === null || net <= 0) return;
+    setFailure(null);
     setBusy(true);
     try {
       await Api.createInvoiceGroup({ contactId, title, totalNet: net, taxRate });
-      onDone(title);
+      onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -654,7 +667,7 @@ const GroupDialog: React.FC<{
         />
       </Field>
 
-      <Field label="Bezeichnung des Auftrags" className="mt-4" error={error ?? undefined}>
+      <Field label="Bezeichnung des Auftrags" className="mt-4" error={titleError ?? undefined}>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -667,6 +680,7 @@ const GroupDialog: React.FC<{
           label="Vereinbarter Gesamtbetrag"
           hint="netto"
           explain="Er ist die Obergrenze der Abschläge und die Bemessungsgrundlage der Schlussrechnung. Buchfink weist einen Abschlag zurück, der die Summe darüber hebt."
+          error={amountError ?? undefined}
         >
           <Input
             align="right"
@@ -687,6 +701,8 @@ const GroupDialog: React.FC<{
           />
         </Field>
       </div>
+
+      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };
@@ -703,7 +719,10 @@ const AdvanceDialog: React.FC<{
   const [description, setDescription] = useState('');
   const [net, setNet] = useState('');
   const [receivedAt, setReceivedAt] = useState('');
+  // Der unlesbare Betrag steht am Feld, die Ablehnung des Backends — etwa der
+  // gesprengte Gesamtbetrag des Verbunds — auf der Hinweisfläche (§10.4).
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -713,6 +732,7 @@ const AdvanceDialog: React.FC<{
     setNet('');
     setReceivedAt('');
     setError(null);
+    setFailure(null);
   }, [group]);
 
   async function submit() {
@@ -721,6 +741,8 @@ const AdvanceDialog: React.FC<{
       setError('Der Abschlagsbetrag muss größer als null sein.');
       return;
     }
+    setError(null);
+    setFailure(null);
     setBusy(true);
     try {
       const invoice = await Api.issueAdvanceInvoice({
@@ -732,7 +754,7 @@ const AdvanceDialog: React.FC<{
       });
       onDone(invoice.invoiceNumber);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -810,6 +832,8 @@ const AdvanceDialog: React.FC<{
           >
             <Input type="date" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)} />
           </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
     </Dialog>
@@ -1088,17 +1112,21 @@ const SettleDialog: React.FC<{
   const writeLock = useWriteLock();
   const [date, setDate] = useState(todayISO());
   const [account, setAccount] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Datum und Zahlungsmittel sind vorbelegt; es gibt keine Pflichtangabe, die
+  // am Feld fehlen könnte. Was zurückkommt, ist die Ablehnung des Backends und
+  // gehört auf die Hinweisfläche (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!advance) return;
     setDate(todayISO());
     setAccount(paymentAccounts[0]?.number ?? '');
-    setError(null);
+    setFailure(null);
   }, [advance, paymentAccounts]);
 
   async function submit() {
+    setFailure(null);
     setBusy(true);
     try {
       await Api.settleAdvance({
@@ -1106,10 +1134,11 @@ const SettleDialog: React.FC<{
         paymentDate: date,
         paymentAccount: account,
       });
-      toast.success(`Zahlungseingang auf ${advance!.invoiceNumber} gebucht.`);
+      // Kein Toast: Der Abschlag steht danach als ausgeglichen in der Tabelle,
+      // und die vereinnahmte Summe des Verbunds hat sich mitbewegt (§8.5).
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -1152,7 +1181,7 @@ const SettleDialog: React.FC<{
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-            <Field label="Zahlungsdatum" error={error ?? undefined}>
+            <Field label="Zahlungsdatum">
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             <Field label="Zahlungsmittel">
@@ -1166,6 +1195,8 @@ const SettleDialog: React.FC<{
               />
             </Field>
           </div>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
     </Dialog>
@@ -1184,7 +1215,11 @@ const RefundDialog: React.FC<{
   const [date, setDate] = useState(todayISO());
   const [account, setAccount] = useState('');
   const [reason, setReason] = useState('');
+  // Der fehlende Grund steht am Feld, die Ablehnung des Backends — etwa eine
+  // bereits in der Schlussrechnung verrechnete Anzahlung — auf der
+  // Hinweisfläche (§10.4).
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -1193,6 +1228,7 @@ const RefundDialog: React.FC<{
     setAccount(paymentAccounts[0]?.number ?? '');
     setReason('');
     setError(null);
+    setFailure(null);
   }, [advance, paymentAccounts]);
 
   async function submit() {
@@ -1200,6 +1236,8 @@ const RefundDialog: React.FC<{
       setError('Ohne Grund lässt sich die Rückzahlung später nicht nachvollziehen.');
       return;
     }
+    setError(null);
+    setFailure(null);
     setBusy(true);
     try {
       await Api.refundAdvance({
@@ -1208,10 +1246,12 @@ const RefundDialog: React.FC<{
         paymentAccount: account,
         reason,
       });
-      toast.success(`Rückzahlung zu ${advance!.invoiceNumber} gebucht.`);
+      // Kein Toast: Die Rückzahlung nimmt die Vereinnahmung zurück — der
+      // Abschlag steht danach wieder als offen in der Tabelle, und die
+      // vereinnahmte Summe des Verbunds ist gesunken (§8.5).
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -1276,6 +1316,8 @@ const RefundDialog: React.FC<{
               placeholder="Auftrag storniert"
             />
           </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
     </Dialog>

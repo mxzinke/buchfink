@@ -107,24 +107,33 @@ func (s *InvoiceService) GetInvoices(ctx context.Context, fiscalYear int) ([]dom
 // Zustand „Dokument fehlt" stehen und lässt sich nachholen — die Nummer ist
 // dann nicht verloren.
 func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
-	return s.issueWith(ctx, inv, nil)
+	// Über diesen Weg kommt eine ganze `domain.Invoice` aus der Oberfläche,
+	// samt der Felder, die zu anderen Rechnungsarten gehören. Sie werden hier
+	// verworfen — die Prüfung der Art übernimmt ensureKind.
+	dropForeignKindFields(inv)
+	return s.issueAs(ctx, inv, domain.InvoiceKindInvoice, nil)
 }
 
-// issueWith ist Issue mit einem Nebenschritt innerhalb der Nummernklammer.
+// issueAs ist Issue für eine bestimmte Rechnungsart, mit einem Nebenschritt
+// innerhalb der Nummernklammer.
+//
+// Die Art ist ein Parameter des Weges und keine Angabe des Aufrufers: jede Art
+// außer der gewöhnlichen Rechnung hat eigene Invarianten, und die erzwingt
+// jeweils nur ihr eigener Weg (siehe ensureKind).
 //
 // Der Nebenschritt ist alles, was zur Rechnung gehört, ohne eine Buchung zu
 // sein — bei der Abschlagsrechnung der offene Posten des Verbunds. Er läuft
 // innerhalb der Transaktion, weil er sonst hinter der Dokumenterzeugung stünde:
 // scheitert das Dokument, gäbe es die Rechnung mit Nummer, aber ohne ihren
 // offenen Posten, und keine Wiederholung holte ihn nach.
-func (s *InvoiceService) issueWith(
-	ctx context.Context, inv *domain.Invoice, within func(context.Context) error,
+func (s *InvoiceService) issueAs(
+	ctx context.Context, inv *domain.Invoice, kind domain.InvoiceKind, within func(context.Context) error,
 ) error {
 	if inv.Status.IsIssued() || inv.JournalEntryID != nil {
 		return fmt.Errorf("Rechnung %s ist bereits ausgestellt und gebucht", inv.InvoiceNumber)
 	}
 
-	contact, err := s.prepareForIssue(ctx, inv)
+	contact, err := s.prepareForIssue(ctx, inv, kind)
 	if err != nil {
 		return err
 	}
@@ -164,7 +173,15 @@ func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) {
 // Alles, was hier scheitert, kostet keine Nummer. Das ist der Grund für den
 // Schnitt: eine Rechnung, die an ihren eigenen Stammdaten scheitert, darf den
 // Nummernkreis nicht weiterzählen.
-func (s *InvoiceService) prepareForIssue(ctx context.Context, inv *domain.Invoice) (*domain.Contact, error) {
+func (s *InvoiceService) prepareForIssue(
+	ctx context.Context, inv *domain.Invoice, allowed ...domain.InvoiceKind,
+) (*domain.Contact, error) {
+	if err := ensureKind(inv, allowed...); err != nil {
+		return nil, err
+	}
+	// Leere Listen statt nil: die Rechnung geht als JSON an die Oberfläche
+	// zurück, und dort wird sie ohne Umweg gelesen.
+	inv.EnsureLists()
 	if inv.Date == "" {
 		inv.Date = time.Now().Format("2006-01-02")
 	}
@@ -179,9 +196,6 @@ func (s *InvoiceService) prepareForIssue(ctx context.Context, inv *domain.Invoic
 	}
 	if inv.TaxTreatment == "" {
 		inv.TaxTreatment = domain.TaxTreatmentDomestic
-	}
-	if inv.Kind == "" {
-		inv.Kind = domain.InvoiceKindInvoice
 	}
 	if inv.FiscalYear == 0 {
 		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, s.fiscalYearStartMonth(ctx))
@@ -288,6 +302,84 @@ func (s *InvoiceService) prepareForIssue(ctx context.Context, inv *domain.Invoic
 	return contact, nil
 }
 
+// otherWayForKind nennt den Weg, über den eine Rechnungsart entsteht.
+//
+// Er steht in der Meldung, weil die Antwort auf „so nicht" die Frage „wie
+// dann?" nach sich zieht — und weil der Rechnungsdialog genau eine Art-Auswahl
+// anbietet: wer dort „Abschlag" wählt, soll den Verbund genannt bekommen und
+// nicht nur ein Nein.
+var otherWayForKind = map[domain.InvoiceKind]string{
+	domain.InvoiceKindAdvance: "Eine Abschlagsrechnung entsteht im Rechnungsverbund. Nur dort bekommt sie " +
+		"ihren offenen Posten, zählt gegen den vereinbarten Gesamtbetrag und wird in der Schlussrechnung " +
+		"abgesetzt (§ 14 Abs. 5 Satz 2 UStG)",
+	domain.InvoiceKindFinal: "Eine Schlussrechnung entsteht über den Rechnungsverbund. Nur dort setzt sie " +
+		"die vereinnahmten Anzahlungen ab; ohne die Absetzung wäre die Steuer zweimal ausgewiesen " +
+		"(§ 14c Abs. 1 UStG)",
+	domain.InvoiceKindCorrection: "Eine Rechnungskorrektur entsteht über „Rechnung berichtigen“. Nur dort " +
+		"wird die berichtigte Rechnung storniert und der Bezug auf sie gesetzt (BG-3)",
+	domain.InvoiceKindCancellation: "Eine Stornorechnung entsteht über „Rechnung stornieren“. Nur dort wird " +
+		"die Ursprungsbuchung zurückgenommen und die stornierte Rechnung als storniert gekennzeichnet",
+}
+
+// ensureKind hält eine Rechnung auf der Art fest, für die der eingeschlagene
+// Weg ihre Invarianten erzwingt.
+//
+// Der Grund ist der öffentliche Weg: über die Bridge kommt eine ganze
+// `domain.Invoice` aus der Oberfläche, und in ihr steht auch die Art. Ohne
+// diese Prüfung ließe sich mit `Kind = advance` eine nummerierte
+// Abschlagsrechnung ohne offenen Posten und ohne Verbund ausstellen — nie
+// vereinnahmbar, nie absetzbar, nicht in der OP-Liste —, und mit `Kind = final`
+// samt PrepaidAmount ein Dokument, das BT-113 und einen geminderten Zahlbetrag
+// trägt, während die volle Forderung ohne Auflösung der Anzahlungen gebucht
+// wird: Dokument und Buchung sagten Verschiedenes, und die Steuer wäre zweimal
+// ausgewiesen (§ 14c Abs. 1 UStG). Mit `Kind = correction` schließlich stünde
+// ein Bezug auf eine Rechnung auf dem Dokument, die niemand storniert hat.
+//
+// Erlaubt sind mehrere Arten, weil die berichtigte Schlussrechnung als
+// Rechnungskorrektur (Typcode 384) über den Weg der Schlussrechnung geht: sie
+// ist ein Korrekturdokument und muss trotzdem die Anzahlungen absetzen.
+func ensureKind(inv *domain.Invoice, allowed ...domain.InvoiceKind) error {
+	if len(allowed) == 0 {
+		return fmt.Errorf("für diesen Weg ist keine Rechnungsart vorgesehen")
+	}
+	if inv.Kind == "" {
+		inv.Kind = allowed[0]
+	}
+	for _, kind := range allowed {
+		if inv.Kind == kind {
+			return nil
+		}
+	}
+	hint := otherWayForKind[inv.Kind]
+	if hint == "" {
+		hint = fmt.Sprintf("Die Art %q gibt es beim Ausstellen nicht", inv.Kind)
+	}
+	return fmt.Errorf("%s lässt sich hier nicht ausstellen. %s", inv.Kind.Label(), hint)
+}
+
+// dropForeignKindFields verwirft die Angaben, die einer anderen Rechnungsart
+// gehören als der, die entsteht.
+//
+// Sie steht an den beiden Stellen, an denen eine ganze Rechnung aus der
+// Oberfläche kommt (Issue und CorrectInvoice). Verworfen und nicht bloß
+// übergangen: gespeichert würden sie sonst mit, und die Rechnung trüge später
+// einen Verbund, eine Anzahlungssumme oder einen Bezug, den es zu ihr nicht
+// gibt. Was der Verbundweg selbst braucht, setzt er danach — die Zuordnung zum
+// Verbund, die abgesetzten Anzahlungen und ihre Bezüge kommen aus dem Verbund
+// und nicht aus der Maske.
+func dropForeignKindFields(inv *domain.Invoice) {
+	inv.GroupID = nil
+	inv.PrepaidAmount = 0
+	// Leer und nicht nil: die Liste geht als JSON an die Oberfläche.
+	inv.PrecedingRefs = []domain.InvoiceReference{}
+	// Der Verweis auf das eigene Storno entsteht beim Stornieren und nirgends
+	// sonst; der Bezug auf die berichtigte Rechnung beim Berichtigen.
+	inv.CancelledByInvoiceID = nil
+	inv.CorrectsInvoiceID = nil
+	inv.CorrectsInvoiceNumber = ""
+	inv.CorrectsInvoiceDate = ""
+}
+
 // placeholderInvoiceNumber steht in der Prüfung an der Stelle der noch nicht
 // vergebenen Nummer.
 //
@@ -389,6 +481,13 @@ func (s *InvoiceService) validateSmallAmount(inv *domain.Invoice) error {
 // bei einer XRechnung die Leitweg-ID vor, ohne die sie im Behördennetz nicht
 // zugestellt werden kann (BR-DE-15).
 func (s *InvoiceService) validateProfile(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) error {
+	// Zuerst: ist das Profil überhaupt eines, das Buchfink erzeugt? Ein
+	// unbekanntes fiel bisher durch diesen switch und wurde vom Renderer still
+	// als ZUGFeRD behandelt — die Rechnung ginge in einem anderen Format hinaus
+	// als dem, das an ihr steht.
+	if err := inv.EInvoiceProfile.Validate(); err != nil {
+		return err
+	}
 	switch inv.EInvoiceProfile {
 	case domain.EInvoiceProfileXRechnungCII:
 		if contact == nil || contact.LeitwegID == "" {
@@ -619,18 +718,42 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 			inv.InvoiceNumber, err)
 	}
 
+	// Der Verweis auf den Beleg wird sofort festgehalten, vor allem, was danach
+	// noch scheitern kann.
+	//
+	// Vorher stand er hinter Validierungsbericht und Speichern: scheiterte einer
+	// von beiden, gab es den Beleg mit der Rechnungsnummer bereits, während die
+	// Rechnung ihn nicht kannte — und „Dokument erneut erzeugen" legte einen
+	// zweiten Beleg unter derselben Nummer an. Ein zweiter Beleg zu einem
+	// Vorgang ist genau das, was die Belegablage nicht haben darf.
+	inv.ReceiptID = &receipt.ID
+	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+		return err
+	}
+	return s.completeDocument(ctx, inv, receipt.ID, validation)
+}
+
+// completeDocument bringt eine Rechnung mit abgelegtem Beleg zu Ende:
+// Validierungsbericht, Zustand „ausgestellt" und das Siegel auf die Buchung.
+//
+// Es ist ein eigener Schritt, weil er wiederholbar sein muss. Scheitert hier
+// etwas, steht die Rechnung weiter auf „Dokument fehlt" — mit ihrem Beleg —,
+// und „Dokument erneut erzeugen" setzt genau hier wieder auf, statt ein zweites
+// Dokument zu erzeugen.
+func (s *InvoiceService) completeDocument(
+	ctx context.Context, inv *domain.Invoice, receiptID uint, validation domain.ReceiptValidation,
+) error {
 	// Der Validierungsbericht gehört an den Beleg, und zwar auch bei der eigenen
 	// Rechnung. Bisher entstand er nur beim Eingang — und damit ließ sich Jahre
 	// später nicht mehr belegen, gegen welches Regelwerk die eigene Rechnung
 	// geprüft worden war.
 	if validation.At != "" {
-		if err := s.receiptSvc.SaveValidation(ctx, receipt.ID, validation); err != nil {
+		if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
 			return fmt.Errorf("der Validierungsbericht zu %s konnte nicht gespeichert werden: %w",
 				inv.InvoiceNumber, err)
 		}
 	}
 
-	inv.ReceiptID = &receipt.ID
 	inv.Status = domain.InvoiceStatusIssued
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
 		return err
@@ -647,7 +770,7 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 	// versiegelt, und der Prüflauf zählt beide Richtungen (siehe
 	// entriesWithReceipt).
 	if inv.JournalEntryID != nil {
-		if err := s.receiptSvc.Seal(ctx, receipt.ID, *inv.JournalEntryID); err != nil {
+		if err := s.receiptSvc.Seal(ctx, receiptID, *inv.JournalEntryID); err != nil {
 			return fmt.Errorf(
 				"die Rechnung %s wurde gebucht, der Beleg konnte aber nicht versiegelt werden: %w",
 				inv.InvoiceNumber, err)
@@ -656,24 +779,45 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 	return nil
 }
 
+// documentValidation liefert den Validierungsbericht einer Rechnung, ohne das
+// Dokument noch einmal zu erzeugen.
+//
+// Gebraucht wird er, wenn der Beleg schon liegt und nur der Bericht daran fehlt.
+// Das PDF dafür ein zweites Mal zu setzen, kostete Sekunden und ergäbe dieselbe
+// Auskunft: geprüft wird der strukturierte Datensatz.
+func documentValidation(
+	inv *domain.Invoice, seller *domain.CompanySettings, contact *domain.Contact,
+) (domain.ReceiptValidation, error) {
+	profile := outputProfile(inv, contact)
+	if profile == domain.EInvoiceProfilePDFOnly {
+		return domain.ReceiptValidation{}, nil
+	}
+	_, validation, err := invoice.RenderInvoiceXML(inv, seller, contact, profile)
+	return validation, err
+}
+
+// outputProfile ist das Format, in dem das Dokument tatsächlich entsteht.
+//
+// Zwei Regeln, und beide gehören an eine Stelle: ohne Angabe gilt ZUGFeRD, und
+// die Kleinbetragsrechnung ohne Empfänger geht als reines PDF hinaus, auch wenn
+// am Kontakt etwas anderes steht — ohne Erwerber gäbe es keinen normgerechten
+// Datensatz (BR-07), und § 33 UStDV nimmt sie von der E-Rechnungspflicht aus.
+func outputProfile(inv *domain.Invoice, contact *domain.Contact) domain.EInvoiceProfile {
+	if inv.SmallAmount && contact == nil {
+		return domain.EInvoiceProfilePDFOnly
+	}
+	if inv.EInvoiceProfile == "" {
+		return domain.EInvoiceProfileZUGFeRD
+	}
+	return inv.EInvoiceProfile
+}
+
 // renderDocument produces the files of the outgoing Beleg in the invoice's
 // format.
 func (s *InvoiceService) renderDocument(
 	ctx context.Context, inv *domain.Invoice, seller *domain.CompanySettings, contact *domain.Contact,
 ) ([]NewFile, string, domain.ReceiptValidation, error) {
-	profile := inv.EInvoiceProfile
-	if profile == "" {
-		profile = domain.EInvoiceProfileZUGFeRD
-	}
-
-	// Die Kleinbetragsrechnung ohne Empfänger geht auch dann als reines PDF
-	// hinaus, wenn am Kontakt ein anderes Profil steht: ohne Erwerber gäbe es
-	// keinen normgerechten Datensatz (BR-07), und § 33 UStDV nimmt sie von der
-	// E-Rechnungspflicht aus.
-	if inv.SmallAmount && contact == nil {
-		profile = domain.EInvoiceProfilePDFOnly
-	}
-
+	profile := outputProfile(inv, contact)
 	if profile == domain.EInvoiceProfilePDFOnly {
 		pdf, err := s.renderer.RenderDocumentPDF(ctx,
 			invoice.GeneratePlainTypstTemplate(inv, seller, contact), inv.InvoiceNumber)
@@ -887,13 +1031,7 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 		}
 	}
 
-	profile := inv.EInvoiceProfile
-	if profile == "" {
-		profile = domain.EInvoiceProfileZUGFeRD
-	}
-	if inv.SmallAmount && buyer == nil {
-		profile = domain.EInvoiceProfilePDFOnly
-	}
+	profile := outputProfile(inv, buyer)
 	if profile == domain.EInvoiceProfilePDFOnly {
 		return "", invoice.GeneratePlainTypstTemplate(inv, seller, buyer), nil
 	}

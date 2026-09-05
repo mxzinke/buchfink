@@ -45,21 +45,38 @@ func TestInvoiceNumberFormat(t *testing.T) {
 func TestParseInvoiceSequence(t *testing.T) {
 	cases := []struct {
 		number string
+		format string
 		want   int64
 		ok     bool
 	}{
-		{"RE-2026-0007", 7, true},
-		{"2026-000042", 42, true},
-		{"AR/2026/128", 128, true},
+		{"RE-2026-0007", DefaultInvoiceNumberFormat, 7, true},
+		{"2026-000042", "{JAHR}-{NR:6}", 42, true},
+		{"AR/2026/128", "AR/{JAHR}/{NR:3}", 128, true},
+		// Ohne Trennzeichen zwischen Jahr und Zähler ist „20260007" eine
+		// einzige Ziffernfolge. Nur das Format trennt sie richtig; die alte
+		// Heuristik las daraus den Zähler 20260007 und machte aus jeder
+		// vergebenen Nummer eine Lücke.
+		{"20260007", "{JAHR}{NR:4}", 7, true},
+		// Eine Nummer aus einem früheren Format passt nicht auf den heutigen
+		// Ausdruck und wird trotzdem gelesen — sonst stünde sie als Lücke im
+		// Bericht.
+		{"AR/2026/128", DefaultInvoiceNumberFormat, 128, true},
 		// Nur das Geschäftsjahr und sonst keine Ziffer: da ist kein Zähler.
-		{"RE-2026", 0, false},
-		{"ohne Ziffern", 0, false},
+		{"RE-2026", DefaultInvoiceNumberFormat, 0, false},
+		{"ohne Ziffern", DefaultInvoiceNumberFormat, 0, false},
 	}
 	for _, c := range cases {
-		got, ok := ParseInvoiceSequence(c.number, 2026)
+		got, ok := ParseInvoiceSequence(c.number, 2026, c.format)
 		if ok != c.ok || (ok && got != c.want) {
-			t.Errorf("ParseInvoiceSequence(%q) = %d, %v — erwartet %d, %v", c.number, got, ok, c.want, c.ok)
+			t.Errorf("ParseInvoiceSequence(%q, %q) = %d, %v — erwartet %d, %v",
+				c.number, c.format, got, ok, c.want, c.ok)
 		}
+	}
+
+	// Und der Lückenbericht mit demselben Format meldet keine Lücke.
+	report := BuildNumberGapReport(2026, 3, []string{"20260001", "20260002"}, nil, "{JAHR}{NR:4}")
+	if len(report.Gaps) != 0 {
+		t.Errorf("der Bericht meldet %d Lücken, erwartet keine: %+v", len(report.Gaps), report.Gaps)
 	}
 }
 
