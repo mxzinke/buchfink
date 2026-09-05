@@ -1,6 +1,6 @@
 # Anforderungskatalog Buchfink
 
-**Stand:** 2026-09-04
+**Stand:** 2026-09-05
 
 Dieses Dokument führt drei Dinge zusammen: die gesetzlichen Anforderungen an eine Finanzbuchhaltung für bilanzierungspflichtige Unternehmen nach deutschem Recht, das Bewertungsraster, an dem sich eine Software messen lassen muss, und den Umsetzungsstand von Buchfink mit Fundstellen im Code. Warum Buchfink so geschnitten ist und welche Entscheidungen hinter den als `⛔` markierten Auslassungen stehen, steht in [docs/architektur.md](architektur.md), Abschnitt 2; die Reihenfolge der offenen Punkte in Abschnitt 7 desselben Dokuments. Eine erzählende Bestandsaufnahme ohne Normbezug bietet [docs/stand-der-umsetzung.md](stand-der-umsetzung.md).
 
@@ -101,10 +101,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 |---|---|---|---|
 | Jeder Geschäftsvorfall wird als Buchungssatz mit mindestens einer Soll- und einer Habenposition erfasst, Sollsumme gleich Habensumme | ✅ | internal/domain/journal.go:215-278, :208 (`IsBalanced`, ohne Toleranz) | – |
 | Ein Buchungssatz ohne Ausgleich lässt sich nicht speichern | ✅ | internal/service/journal_service.go:96, internal/domain/journal.go:266; `Post` ist der einzige Schreibweg | – |
-| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | 🟡 | internal/service/accounting_service.go:266-343 weist Differenz exakt aus; die Bestandskonten tragen seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert, ein Stichtagsparameter fehlt weiterhin, die Liste gilt für das ganze Geschäftsjahr | 2 |
-| Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | ✅ | frontend/src/pages/ReportsPage.tsx:93-116 leitet aus den Salden ab; die Eröffnungswerte kommen als gebuchter Saldenvortrag aus dem Vorjahr (internal/service/closing_service.go:1107-1175), nicht aus einer Nacherfassung | – |
+| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | 🟡 | internal/service/accounting_service.go:282-359 weist die Differenz exakt aus; die Bestandskonten tragen seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert, und :70-101 (`AccountsForYear`) beschafft seit Welle 2 die Salden jedes beliebigen Geschäftsjahres — ein Stichtagsparameter innerhalb des Jahres fehlt weiterhin, die Liste gilt für das ganze Geschäftsjahr | 2 |
+| Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | ✅ | internal/accounting/statement.go:291-358 (`BuildStatement`) gliedert allein die Kontensalden und weist eine Bilanz ab, die nicht aufgeht (:354-356); die Eröffnungswerte kommen als gebuchter Saldenvortrag aus dem Vorjahr (internal/service/closing_service.go:1107-1175), nicht aus einer Nacherfassung | – |
 
-**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel trägt sie weiter: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Offen bleibt allein die Summen- und Saldenliste auf einen Stichtag innerhalb des Jahres. Welle 2.
+**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel trägt sie weiter: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Seit Welle 2 entsteht sie nicht mehr in der Ansicht, sondern im Backend, aus denselben Salden. Offen bleibt allein die Summen- und Saldenliste auf einen Stichtag innerhalb des Jahres. Welle 2.
 
 ### GOB-02 Nachvollziehbarkeit für einen sachverständigen Dritten `MUSS`
 
@@ -114,12 +114,12 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Drill-down von jedem Wert in Bilanz oder GuV in höchstens vier Schritten zum Buchungssatz und zum Beleg | 🟡 | frontend/src/pages/AccountsPage.tsx:280, :496-533 verlinkt Summen- und Saldenliste zum Kontoblatt; Bilanz und GuV verlinken kein Konto, die Kontoblattzeile ist nicht anklickbar | 2 |
+| Drill-down von jedem Wert in Bilanz oder GuV in höchstens vier Schritten zum Buchungssatz und zum Beleg | 🟡 | frontend/src/components/StatementView.tsx:116, :450-471 verlinkt jedes Konto unter einer Gliederungsposition ins Kontoblatt, frontend/src/pages/AccountsPage.tsx:105-113 öffnet es, :531-544 führt von der Kontoblattzeile zur Buchung (frontend/src/pages/JournalPage.tsx:92-107, frontend/src/App.tsx:193-197): drei Schritte von der Bilanz zum Buchungssatz. Der vierte fehlt — das Journal nennt Belegdatum und Belegnummer als Text (:472-478) und verlinkt den Beleg nicht | 2 |
 | Drill-up vom Beleg zu den Buchungen und zu den Konten | 🟡 | internal/domain/receipt.go:152, internal/repository/receipt_gorm.go:56 tragen beide Richtungen im Datenmodell; die Oberfläche zeigt am versiegelten Beleg nicht einmal die Buchungsnummer | 2 |
 | Bezeichnungen im Klartext oder als exportierbares Schlüsselverzeichnis | 🟡 | internal/domain/tax.go:154, internal/accounting/chart.go:49 lösen alles im Klartext auf; ein Export als Datei existiert nirgends (siehe GOB-04) | 4 |
 | Testlauf mit einer fachkundigen Person ohne Produktkenntnis | ❌ | Kein Nachweis eines solchen Durchlaufs im Repository; ohne Drill-down absehbar erfolglos | 2 |
 
-**Stand.** Das Datenmodell trägt die Kette in beide Richtungen, die Oberfläche nutzt sie nicht: von der Bilanz zum Beleg führt kein Weg. Das ist die für einen Betriebsprüfer sichtbarste Lücke des Moduls. Welle 2.
+**Stand.** Seit Welle 2 führt der Weg von der Bilanzposition über das Konto ins Kontoblatt und von dort zur Buchung. Dort endet er: vom Buchungssatz zum versiegelten Beleg und vom Beleg zurück verlinkt die Oberfläche nichts, obwohl das Datenmodell beide Richtungen trägt. Welle 2.
 
 ### GOB-03 Vollständig, richtig, zeitgerecht, geordnet `MUSS`
 
@@ -145,10 +145,10 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Schlüsselverzeichnis aller Codes als Datei exportierbar, Teil der Verfahrensdokumentation | ❌ | internal/wailsbridge/app_service.go:769-779, internal/domain/tax.go:130-160; die Kataloge gehen an die Oberfläche, lassen sich aber nicht ausgeben | 4 |
-| Bilanz, GuV und Anhang in deutscher Sprache und in Euro | 🟡 | frontend/src/utils/formatters.ts:14-26; Oberfläche und Kontenrahmen sind durchgehend deutsch, ein Anhang fehlt, Bilanz und GuV lassen sich nicht ausgeben | 2 |
+| Bilanz, GuV und Anhang in deutscher Sprache und in Euro | 🟡 | internal/service/statement_export.go:149-210 setzt Bilanz, GuV und die Angaben unter der Bilanz als PDF (`lang: "de"`, :152), :20-116 gibt dieselbe Gliederung als CSV mit Semikolon und deutsch geschriebenen Beträgen aus (:88-116); die Bezeichnungen folgen dem Gesetzeswortlaut (internal/accounting/statement.go:64-188), die E-Bilanz rechnet in Euro (internal/ebilanz/ebilanz.go:142-146). Ein Anhang entsteht nicht (JAB-03) | 2 |
 | Buchungswährung des Hauptbuchs ist Euro, Fremdwährung zusätzlich | 🟡 | internal/domain/journal.go:154-157 führt Kurs, Kursquelle und Kursdatum im Hash; ein Feld für den Fremdwährungsbetrag fehlt, Euro wird nur von der Oberfläche gesetzt | 5 |
 
-**Stand.** Sprache und Währung sind faktisch richtig, aber nirgends erzwungen und nirgends belegbar: das Schlüsselverzeichnis (internal/wailsbridge/app_service.go:769) verlässt das Programm nicht. Wellen 2 und 4.
+**Stand.** Bilanz und Gewinn- und Verlustrechnung verlassen das Programm seit Welle 2 als PDF und als CSV, deutsch und in Euro. Der Anhang fehlt weiterhin, und das Schlüsselverzeichnis (internal/wailsbridge/app_service.go:769) verlässt das Programm nicht. Wellen 2 und 4.
 
 ### GOB-05 Einzelaufzeichnung `MUSS`
 
@@ -265,11 +265,11 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Standardkontenrahmen als Vorlage, je Mandant erweiterbar | 🟡 | internal/accounting/skr04.go, internal/accounting/skr04_2026.json liefern SKR04 mit 1.855 Konten; SKR03 entfällt nach der Entscheidung für einen Kontenrahmen (docs/architektur.md Abschnitt 2), ein Weg zum Anlegen eigener Konten fehlt in Bridge und Oberfläche | 2 |
-| Je Konto Zuordnung zu einer Position nach §§ 266, 275 HGB und zur E-Bilanz-Taxonomie | 🟡 | internal/domain/account.go:30-34; die HGB-Zuordnung ist mit 206 Positionen vollständig, die E-Bilanz-Zuordnung deckt 72 Konten ab, der Rest fällt auf `de-gaap-ci:bs.other` (internal/ebilanz/ebilanz.go:194-197) | 2 |
-| Konten ohne Zuordnung werden vor dem Jahresabschluss gemeldet | ❌ | internal/ebilanz/ebilanz.go:196 setzt den Sammelwert still, ohne Meldung und ohne Bericht | 2 |
+| Je Konto Zuordnung zu einer Position nach §§ 266, 275 HGB und zur E-Bilanz-Taxonomie | ✅ | internal/accounting/statement_mapping.go:27-234 führt alle 206 SKR04-Positionen (internal/domain/account.go:30-34) auf eine Gliederungsposition nach §§ 266, 275 HGB; internal/accounting/statement_test.go:70-73 prüft die Tabelle gegen den Katalog. Daran hängt internal/ebilanz/taxonomy.go:68-80 mit der Ressource internal/ebilanz/taxonomy_6.9.json das Taxonomie-Element, lückenlos geprüft von internal/ebilanz/ebilanz.go:379-394 (`StatementCoverage`); internal/accounting/statement.go:710-721 trifft für die E-Bilanz dieselbe Entscheidung wie für die Bilanz | – |
+| Konten ohne Zuordnung werden vor dem Jahresabschluss gemeldet | ✅ | internal/ebilanz/mapping.go:52-107 stellt vor jedem Export jedes Konto mit Saldo gegen Gliederung und Taxonomie, :111-128 (`BlockingError`) benennt die ungeklärten einzeln und internal/ebilanz/ebilanz.go:118-124 bricht ab, bevor eine Datei entsteht; in der Bilanz stehen dieselben Konten unter „Nicht zugeordnet" (internal/accounting/statement.go:434-448, :553-572), gezeigt in frontend/src/components/StatementView.tsx:208-215 und frontend/src/pages/EBilanzPage.tsx:116-170 | – |
 | Summe der Kontensalden gleich Summe der Journalbuchungen, automatische Abstimmung | ✅ | internal/service/accounting_service.go:294-341, :93-119; Salden und Summen entstehen aus denselben Verkehrszahlen, `Difference` weist jede Abweichung aus | – |
 
-**Stand.** Der Kontenrahmen ist vollständig und richtig an die HGB-Gliederung gehängt, die E-Bilanz-Zuordnung hängt dagegen an einer 72-zeiligen Kontotabelle statt an den 206 Positionen. Welle 2.
+**Stand.** Der Kontenrahmen ist vollständig und richtig an die HGB-Gliederung gehängt, und die E-Bilanz hängt seit Welle 2 an denselben 206 Positionen statt an einer 72-zeiligen Kontotabelle; ein Konto ohne Zuordnung verschwindet nicht mehr still auf einer Sammelposition, sondern blockiert den Export namentlich. Offen bleibt der Weg zu eigenen Konten. Welle 2.
 
 ### BEL-07 Kontokorrent und offene Posten `MUSS`
 
@@ -360,7 +360,7 @@ Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder St
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
 | Änderungen an buchungsrelevanten Stammdaten mit Vorher- und Nachherwert, Zeitpunkt und Benutzer | 🟡 | internal/service/contact_service.go:97-100, internal/domain/audit.go:20-33 protokollieren Zeitpunkt und den neuen Zustand in Kurzform; der Vorherwert wird nirgends gelesen. Der Benutzer entfällt im Einzelplatzbetrieb | 6 |
-| Zeitabhängige Stammdaten versioniert, Auswertung nutzt die damals gültige Version | 🟡 | internal/accounting/tax_params.go:39-65 löst Bewirtungsanteil und Kleinbetragsgrenze über `ValidFrom` auf; die Steuersätze selbst sind feste Konstanten (internal/domain/tax.go:25-27), die Kontenzuordnung trägt nur den String `PostingRuleVersion` | 6 |
+| Zeitabhängige Stammdaten versioniert, Auswertung nutzt die damals gültige Version | 🟡 | internal/accounting/tax_params.go:39-65 löst Bewirtungsanteil und Kleinbetragsgrenze über `ValidFrom` auf, internal/accounting/groessenklasse.go:39-74 seit Welle 2 auch die Schwellenwerte der Größenklassen nach dem Beginn des Geschäftsjahres; die Steuersätze selbst sind feste Konstanten (internal/domain/tax.go:25-27), die Kontenzuordnung trägt nur den String `PostingRuleVersion` | 6 |
 | Protokoll mit derselben Aufbewahrungsfrist, maschinell auswertbar exportierbar | ❌ | internal/service/audit_service.go:18 liefert nur an die Anzeige; es gibt keinen Export und keine Fristenlogik (siehe ARC-01) | 6 |
 | Protokoll selbst nicht änderbar oder löschbar | 🟡 | internal/repository/audit_gorm.go:20-30 bietet nur `Log`, `FindAll`, `Count`; technisch abgesichert ist es nicht, die Felder `PreviousHash` und `EntryHash` (internal/domain/audit.go:29-30) werden nie gesetzt | 6 |
 
@@ -1095,13 +1095,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Bilanz in Kontoform nach § 266 HGB und GuV in Staffelform nach § 275 HGB, mit Vorjahresvergleich | ❌ | frontend/src/pages/ReportsPage.tsx:93-118 filtert im Frontend über Kontenklasse und Bilanzseite; Ergebnis ist eine Kontenliste, keine Gliederung. Die Positionsdaten liegen an jedem Konto (internal/domain/account.go:30-34) und werden nicht gelesen. Ein zweiter Zeitraum wird nie geladen | 2 |
+| Bilanz in Kontoform nach § 266 HGB und GuV in Staffelform nach § 275 HGB, mit Vorjahresvergleich | ✅ | internal/accounting/statement.go:64-148 ist die Bilanz in Kontoform, :150-188 die Staffel des § 275 Abs. 2 HGB; :291-358 (`BuildStatement`) verteilt die Salden über die Positionsdaten der Konten (internal/domain/account.go:30-34), bucht ein Konto mit widersprechendem Vorzeichen auf die Gegenposition (:465-497) und weist eine Bilanz ab, die nicht aufgeht (:354-356, :363-378). internal/service/statement_service.go:178-201 lädt das Vorjahr und stellt seine Spalte nach § 265 Abs. 2 HGB daneben, frontend/src/components/StatementView.tsx:152-239 zeigt beides | – |
 | Gesamtkosten- und Umsatzkostenverfahren beide wählbar | ⛔ | Buchfink führt nur das Gesamtkostenverfahren; die SKR04-Gliederung GuV.1 bis GuV.16 entspricht ihm | – |
-| Gliederungstiefe folgt der Größenklasse | ❌ | internal/domain/settings.go:16-51; `CompanySettings` kennt keine Größenklasse (siehe JAB-02) | 2 |
-| Pflichtangaben nach § 264 Abs. 1a HGB auf dem Abschluss | ❌ | Registergericht und Handelsregisternummer werden nur im Gründungsweg erfasst (internal/service/foundation_service.go:627) und stehen in keiner Ausgabe | 2 |
-| Aufstellungsfrist je Größenklasse überwacht und als Termin angezeigt | ❌ | frontend/src/pages/DeadlinesPage.tsx:476-500 kennt nur Umsatzsteuer-Jahreserklärung und E-Bilanz; die Fristen des § 264 Abs. 1 HGB fehlen | 2 |
+| Gliederungstiefe folgt der Größenklasse | ✅ | internal/domain/statement.go:51-74 begrenzt die Ebenen je Tiefe, internal/accounting/groessenklasse.go:250-271 leitet sie aus der Klasse ab (§ 266 Abs. 1 Sätze 3 und 4 HGB), internal/service/statement_service.go:95-108 wendet sie an, wenn keine gewählt ist; die Merkmale der Größenklasse entstehen dabei immer aus der Vollgliederung (:83-93). Die Wahl steht auch in der Ansicht (frontend/src/components/StatementView.tsx:54-59) | – |
+| Pflichtangaben nach § 264 Abs. 1a HGB auf dem Abschluss | ✅ | internal/service/statement_service.go:322-360 (`header`) setzt Firma, Rechtsform, Sitz, Registergericht und Registernummer in den Kopf und benennt jede fehlende Angabe; frontend/src/components/StatementView.tsx:250-282 zeigt sie mit dem Weg in die Einstellungen (frontend/src/pages/SettingsPage.tsx:307-343), internal/service/statement_export.go:212-236 setzt sie in das PDF | – |
+| Aufstellungsfrist je Größenklasse überwacht und als Termin angezeigt | ✅ | internal/accounting/groessenklasse.go:287-323 (`StatementDeadlines`) rechnet die Frist aus Stichtag und Klasse, :332-339 nach den ersten drei oder sechs Monaten des folgenden Geschäftsjahres statt nach Stichtag plus N Monaten; internal/service/statement_service.go:367-388 trägt ein, was das Geschäftsjahr als aufgestellt vermerkt, frontend/src/pages/DeadlinesPage.tsx:554-567 stellt den Termin in die Fristenliste und frontend/src/components/StatementView.tsx:739-779 an den Abschluss | – |
 
-**Stand.** Buchfink erzeugt keinen Jahresabschluss, sondern eine Kontenauswertung des laufenden Jahres. Die 206 HGB-Positionen aus internal/accounting/skr04_2026.json liegen vor und werden nicht genutzt; darauf hängen JAB-03, JAB-05, JAB-06 und JAB-07. Welle 2.
+**Stand.** Bilanz und Gewinn- und Verlustrechnung entstehen im Backend aus einer festen Gliederung, auf die alle 206 HGB-Positionen aus internal/accounting/skr04_2026.json abgebildet sind; Gliederungstiefe, Kopfangaben und Aufstellungsfrist folgen der Größenklasse, die Ausgabe erfolgt als PDF und als CSV. Die Ansicht rechnet nichts mehr nach. Offen bleibt allein das Umsatzkostenverfahren, und dessen Auslassung ist gewollt.
 
 ### JAB-02 Größenklassen `MUSS`
 
@@ -1118,12 +1118,12 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Drei Merkmale je Stichtag berechnet, Größenklasse daraus abgeleitet, Zweijahresregel des § 267 Abs. 4 HGB beachtet | ❌ | Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl werden nirgends als Merkmal geführt; ein Feld für Arbeitnehmer existiert nicht | 2 |
-| Schwellenwerte parametrisierbar und zeitabhängig versioniert | ❌ | Kein Schwellenwert im Code; internal/accounting/tax_params.go ist das Vorbild ohne Anwendung | 2 |
-| Klassenwechsel angekündigt, sobald er sich am ersten Stichtag abzeichnet, mit Hinweis auf die Folgen | ❌ | Ohne Merkmale kein Wechsel | 2 |
+| Drei Merkmale je Stichtag berechnet, Größenklasse daraus abgeleitet, Zweijahresregel des § 267 Abs. 4 HGB beachtet | ✅ | internal/accounting/groessenklasse.go:89-118 (`AssessSize`) misst Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl je Stichtag und benennt die zwei Merkmale, die die Klasse tragen; :158-230 (`ClassifySize`, `effectiveClass`) löst die Zweijahresregel auf, einschließlich der Neugründung nach § 267 Abs. 4 Satz 2 HGB, und internal/service/statement_service.go:228-312 beurteilt so viele Vorjahre, wie die Regel braucht. Die Bilanzsumme des § 267 Abs. 4a HGB kommt aus der Gliederung (internal/accounting/statement.go:317-342), die Arbeitnehmerzahl steht am Geschäftsjahr (internal/domain/fiscalyear.go:100-109, internal/service/closing_service.go:1357-1387, frontend/src/pages/ClosingPage.tsx:585-605) | – |
+| Schwellenwerte parametrisierbar und zeitabhängig versioniert | ✅ | internal/accounting/groessenklasse.go:39-59 führt zwei datierte Sätze — die Werte vor und nach Art. 79 Abs. 1 EGHGB —, :63-74 (`SizeThresholdsFor`) wählt sie nach dem Beginn des Geschäftsjahres und nicht nach dem Stichtag; der Satz, an dem gemessen wurde, steht in der Beurteilung (internal/domain/sizeclass.go:99-110) und neben den Merkmalen in der Ansicht (frontend/src/components/StatementView.tsx:593-658) | – |
+| Klassenwechsel angekündigt, sobald er sich am ersten Stichtag abzeichnet, mit Hinweis auf die Folgen | 🟡 | internal/accounting/groessenklasse.go:192-209 benennt den abweichenden Stichtag im Klartext und sagt, dass die Rechtsfolgen erst am zweiten übereinstimmenden eintreten; frontend/src/components/StatementView.tsx:581-591 und :661-684 zeigen den Satz und die beurteilten Stichtage. Eine Ankündigung, die den Wechsel als bevorstehend kennzeichnet, fehlt: die Tabelle „Folgen der Größenklasse" (:686-737) nennt allein die Folgen der geltenden Klasse | 2 |
 | Kapitalmarktorientierte Gesellschaften nach § 264d HGB gelten als groß, Merkmal im Mandanten setzbar | ⛔ | Kapitalmarktorientierung liegt außerhalb des Geltungsbereichs; Buchfink verweist ab mittelgroß ohnehin an den Steuerberater | – |
 
-**Stand.** Die Größenklasse existiert als Begriff nirgends im Code, obwohl JAB-01, JAB-03, JAB-07 und die Befreiung nach BEW-11 sie voraussetzen. Welle 2.
+**Stand.** Die Größenklasse wird aus den drei Merkmalen des § 267 Abs. 1 HGB berechnet, mit datierten Schwellen, der Zweijahresregel und einer Begründung, die jeden beurteilten Stichtag nennt; aus ihr folgen Gliederungstiefe, Anhang-, Lagebericht-, Prüfungs- und Offenlegungspflicht sowie beide Fristen (internal/accounting/groessenklasse.go:240-282). Offen bleibt die Ankündigung des Wechsels, bevor er eintritt. Welle 2.
 
 ### JAB-03 Anhang und Lagebericht `MUSS`
 
@@ -1133,12 +1133,12 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Aus den Buchungsdaten mindestens Anlagenspiegel, Restlaufzeitengliederung, Haftungsverhältnisse, sonstige finanzielle Verpflichtungen, Beteiligungsliste, latente Steuern, Ergebnisverwendungsvorschlag | 🟡 | internal/service/asset_service.go (`Anlagenspiegel`) erzeugt den Anlagenspiegel vollständig aus der Kartei; von den sieben geforderten Nachweisen existiert dieser eine | 2 |
-| Freitextangaben erfassbar und über den Jahreswechsel als Vorlage fortgeschrieben | ❌ | Kein Freitextspeicher für Anhangangaben | 2 |
-| Anhangumfang folgt automatisch der Größenklasse | ❌ | Setzt JAB-02 voraus | 2 |
-| Für Kleinstkapitalgesellschaften Angaben unter der Bilanz statt eines Anhangs | ❌ | Nicht vorhanden | 2 |
+| Aus den Buchungsdaten mindestens Anlagenspiegel, Restlaufzeitengliederung, Haftungsverhältnisse, sonstige finanzielle Verpflichtungen, Beteiligungsliste, latente Steuern, Ergebnisverwendungsvorschlag | 🟡 | internal/service/asset_service.go (`Anlagenspiegel`) erzeugt den Anlagenspiegel aus der Kartei, internal/service/statement_service.go:399-450 (`maturities`) die Restlaufzeitengliederung nach § 268 Abs. 4 und 5 HGB aus den offenen Posten zum Abschlussstichtag, nicht aus der heutigen OP-Liste (frontend/src/components/StatementView.tsx:524-564, internal/service/statement_export.go:180-198); von den sieben geforderten Nachweisen stehen damit zwei | 5 |
+| Freitextangaben erfassbar und über den Jahreswechsel als Vorlage fortgeschrieben | ❌ | Kein Freitextspeicher für Anhangangaben | 5 |
+| Anhangumfang folgt automatisch der Größenklasse | 🟡 | internal/accounting/groessenklasse.go:250-282 entscheidet je Klasse über Anhang und Lagebericht und nennt die Norm dazu (§ 264 Abs. 1 Sätze 1 und 5, § 289 HGB), frontend/src/components/StatementView.tsx:686-737 zeigt beides. Ein Anhang, dessen Umfang dem folgen könnte, entsteht nicht | 5 |
+| Für Kleinstkapitalgesellschaften Angaben unter der Bilanz statt eines Anhangs | 🟡 | internal/accounting/groessenklasse.go:251-259 nimmt der Kleinstgesellschaft den Anhang unter der Bedingung des § 264 Abs. 1 Satz 5 HGB, und die Angaben unter der Bilanz stehen als eigener Abschnitt in Ansicht und PDF (frontend/src/pages/ReportsPage.tsx:279, frontend/src/components/StatementView.tsx:122-132, internal/service/statement_export.go:180-198). Sie enthalten bislang nur die Restlaufzeiten; die Haftungsverhältnisse nach § 268 Abs. 7 HGB und die Vorschüsse an Organmitglieder fehlen | 5 |
 
-**Stand.** Der Anlagenspiegel ist der Beleg dafür, dass der Weg trägt: eine Auswertung über die Kartei, keine zweite Buchung. Die Restlaufzeitengliederung ließe sich genauso aus den offenen Posten ableiten (internal/domain/payment.go:77). Welle 2.
+**Stand.** Der Weg trägt zweimal: der Anlagenspiegel als Auswertung über die Kartei, die Restlaufzeiten als Auswertung über die offenen Posten (internal/domain/payment.go:77) — beides keine zweite Buchung. Die Größenklasse sagt seit Welle 2, ob ein Anhang zu erstellen ist und was statt seiner unter der Bilanz stehen darf. Der Anhang selbst fehlt: Freitexte, Haftungsverhältnisse, Beteiligungsliste, latente Steuern und der Ergebnisverwendungsvorschlag. Welle 5.
 
 ### JAB-04 Feststellung und Unterzeichnung `MUSS`
 
@@ -1164,15 +1164,15 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| XBRL-Datensatz nach der gültigen Taxonomie, übermittelt oder zur Übermittlung durch Dritte bereitgestellt | 🟡 | internal/ebilanz/ebilanz.go:213-279 erzeugt eine herunterladbare Instanz, die aber keine Bilanz enthält: aus dem GAAP-Modul werden drei Werte geschrieben. Buchfink bindet ERiC nicht ein, die Datei wird zur Übermittlung über Mein ELSTER oder den Steuerberater bereitgestellt | 2 |
-| Taxonomieversion als austauschbare Ressource hinterlegt, Versionswechsel ohne Codeänderung | ❌ | internal/ebilanz/ebilanz.go:217-218; die Namensräume `de-gcd-2023-04-14` und `de-gaap-ci-2023-04-14` stehen im Format-String | 2 |
-| Jedes Konto einer Taxonomieposition zugeordnet, nicht zugeordnete Konten mit Saldo blockieren und werden benannt | ❌ | internal/ebilanz/ebilanz.go:12-96, :194-197; die Tabelle umfasst rund 90 Einträge, jedes andere Konto mit Saldo fällt still auf `bs.other` | 2 |
-| Unverdichtete Kontennachweise mit Kontensalden erzeugt und mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:189-211 schreibt je Konto mit Saldo Nummer, Bezeichnung, Position und Saldo; die Elementnamen sind frei gewählt und stehen so in keiner Taxonomie | 2 |
-| Ab Wirtschaftsjahr 2028 Anlagenspiegel und Anlagenverzeichnis mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:98-175 schreibt einen inhaltlich echten Anlagenspiegel in vereinfachter Form; das Anlagenverzeichnis fehlt | 2 |
-| Auffangpositionen nur ersatzweise verwendet, Verwendung erscheint in einem Bericht | ❌ | internal/ebilanz/ebilanz.go:196, :122; `bs.other` und `bs.ass.fixAss` sind genau der stille Auffang, ein Bericht existiert nicht | 2 |
-| Übermittlungsprotokoll revisionssicher gespeichert | ❌ | internal/service/ebilanz_service.go:78-84 protokolliert nur, dass eine Datei erzeugt wurde; das Protokoll wird nach der Übermittlung manuell erfasst und ist danach unveränderlich | 2 |
+| XBRL-Datensatz nach der gültigen Taxonomie, übermittelt oder zur Übermittlung durch Dritte bereitgestellt | 🟡 | internal/ebilanz/ebilanz.go:106-168 erzeugt die Instanz mit `encoding/xml` aus derselben Gliederung wie die Bilanz; :253-289 schreibt jede Position von Bilanz und GuV mit Vorjahreskontext und die Bilanzsumme dazu, Aufwendungen positiv. Geprüft ist kein Elementname: internal/ebilanz/taxonomy_6.9.json trägt durchgehend `verified: false`, und der Vorbehalt steht in der Datei selbst (:170-177). Buchfink bindet ERiC nicht ein, die Datei wird zur Übermittlung über Mein ELSTER oder den Steuerberater bereitgestellt | 2 |
+| Taxonomieversion als austauschbare Ressource hinterlegt, Versionswechsel ohne Codeänderung | ✅ | internal/ebilanz/taxonomy.go:10-11 bindet internal/ebilanz/taxonomy_6.9.json als Ressource ein, :48-66 liest Version, Datum, Namensräume und Elemente daraus; internal/ebilanz/ebilanz.go:127-129 schreibt die Namensräume der Ressource in die Instanz und :172-177 ihre Version in den Vorbehalt — der Wechsel tauscht die Datei, nicht den Übersetzer | – |
+| Jedes Konto einer Taxonomieposition zugeordnet, nicht zugeordnete Konten mit Saldo blockieren und werden benannt | ✅ | internal/ebilanz/mapping.go:52-107 führt jedes Konto mit Saldo über seine Gliederungsposition auf ein Taxonomie-Element, :111-128 (`BlockingError`) nennt die ungeklärten mit Nummer, Name und Grund, internal/ebilanz/ebilanz.go:118-124 bricht ab, bevor eine Datei entsteht; internal/ebilanz/taxonomy.go:68-80 kennt keinen Auffangwert mehr, `bs.other` entfällt. frontend/src/pages/EBilanzPage.tsx:116-170 zeigt die Liste vor dem Export | – |
+| Unverdichtete Kontennachweise mit Kontensalden erzeugt und mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:291-309 schreibt je Konto mit Saldo Nummer, Bezeichnung, Gliederungsposition, Taxonomie-Element und Saldo unverdichtet in die Instanz (:150); die Hüllelemente `accountAuditProof` und die Felder darunter stehen in keiner Taxonomie-Ressource, sie sind wie bisher frei gebildet | 2 |
+| Ab Wirtschaftsjahr 2028 Anlagenspiegel und Anlagenverzeichnis mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:320-374 schreibt den Anlagenspiegel je Konto, je Klasse des § 266 Abs. 2 A HGB und in Summe, mit Anschaffungskosten, Abschreibungen und Buchwerten, und hängt an jede Zeile die Taxonomieposition ihres Kontos; das Anlagenverzeichnis geht nicht mit | 2 |
+| Auffangpositionen nur ersatzweise verwendet, Verwendung erscheint in einem Bericht | ✅ | internal/accounting/statement.go:667-690 zählt jede als Auffang gekennzeichnete Position der Gliederung (:88, :100, :103, :120, :132, :142, :161, :171) mit Kontenzahl und Betrag aus, internal/ebilanz/mapping.go:44-45, :66-68 nimmt die Zählung in den Zuordnungsbericht, frontend/src/pages/EBilanzPage.tsx:137-141, :221-250 zeigt sie vor dem Export | – |
+| Übermittlungsprotokoll revisionssicher gespeichert | ❌ | internal/service/ebilanz_service.go:86-92 protokolliert nur, dass eine Datei erzeugt wurde; das Protokoll wird nach der Übermittlung manuell erfasst und ist danach unveränderlich | 3 |
 
-**Stand.** Kontennachweis und Anlagenspiegel tragen inhaltlich, die Instanz ist ohne Bilanz und mit einer drei Jahre alten Taxonomie nicht übermittlungsfähig. Die Reihenfolge ist vorgegeben: erst die Gliederung aus JAB-01, dann zeigt das Mapping auf Positionen statt auf Konten. Welle 2.
+**Stand.** Die Reihenfolge hat sich bewährt: seit die Gliederung aus JAB-01 steht, zeigt das Mapping auf Positionen statt auf Konten. Die Instanz trägt Bilanz und Gewinn- und Verlustrechnung mit Vorjahreskontext, den unverdichteten Kontennachweis und den Anlagenspiegel, und ein Konto ohne Zuordnung blockiert den Export namentlich, statt still auf einer Sammelposition zu verschwinden. Was bleibt, ist der Abgleich der Elementnamen gegen die amtliche Taxonomie 6.9 und das Protokoll der Übermittlung. Welle 2.
 
 ### JAB-06 Maßgeblichkeit und Überleitung `MUSS`
 
@@ -1197,13 +1197,13 @@ Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer si
 
 | Kriterium | Status | Fundstelle / Grund | Welle |
 |---|---|---|---|
-| Offenzulegender Umfang automatisch aus der Größenklasse | ❌ | Setzt JAB-02 voraus | 2 |
+| Offenzulegender Umfang automatisch aus der Größenklasse | 🟡 | internal/accounting/groessenklasse.go:250-282 setzt je Klasse den Umfang und die Norm dazu (§ 325 Abs. 1, § 326 Abs. 1 und Abs. 2 HGB), :309-321 nennt ihn im Termin, frontend/src/components/StatementView.tsx:730-734 zeigt ihn. Ein auf diesen Umfang beschränkter Datensatz entsteht nicht: internal/service/statement_export.go:168-198 gibt Bilanz, Gewinn- und Verlustrechnung und die Angaben unter der Bilanz immer vollständig aus | 2 |
 | Datensatz im Format der Einreichungsplattform erzeugt, übermittelbar oder exportierbar | ❌ | Kein Export für das Unternehmensregister | 2 |
-| Zwölfmonatsfrist je Geschäftsjahr überwacht, mit Vorwarnung | 🟡 | internal/accounting/gruendung.go:293-302 erzeugt genau einen Termin für den ersten Abschluss und erst nach der Eintragung; für laufende Geschäftsjahre kennt die Fristenliste keine Offenlegung | 2 |
+| Zwölfmonatsfrist je Geschäftsjahr überwacht, mit Vorwarnung | ✅ | internal/accounting/groessenklasse.go:309-322 setzt den Termin für jedes Geschäftsjahr auf zwölf Monate nach dem Abschlussstichtag (§ 325 Abs. 1a Satz 1 HGB), internal/service/statement_service.go:367-388 trägt eine bereits erfolgte Offenlegung aus dem Geschäftsjahr ein, frontend/src/pages/DeadlinesPage.tsx:554-567 stellt ihn in die Fristenliste, die überfällige und in den nächsten 30 Tagen fällige Termine heraushebt (:656, :768-845) | – |
 | Hinterlegungsvariante für Kleinstgesellschaften wählbar | ❌ | internal/accounting/gruendung.go:300-302 nennt § 326 Abs. 2 HGB im Beschreibungstext, nicht als Wahl | 2 |
 | Einreichungsnachweis mit dem Abschluss archiviert | ❌ | Nicht vorhanden | 2 |
 
-**Stand.** Die Frist gehört von den Gründungspflichten in die jährliche Terminliste; der Datensatz selbst hängt an JAB-01 und JAB-02. Welle 2.
+**Stand.** Die Frist ist aus den Gründungspflichten in die jährliche Terminliste gewandert, und der offenzulegende Umfang folgt der Größenklasse als benannte Rechtsfolge. Der Datensatz für das Unternehmensregister, die Wahl der Hinterlegung nach § 326 Abs. 2 HGB und der Einreichungsnachweis fehlen. Welle 2.
 
 ### JAB-08 Prüfungsfähigkeit `MUSS*`
 
@@ -1439,18 +1439,18 @@ Gezählt werden Akzeptanzkriterien, nicht Anforderungen. 82 Anforderungen zerfal
 | Modul | Anforderungen | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
 |---|---|---|---|---|---|---|
 | A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 7 | 10 | 5 | 0 | 22 |
-| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 11 | 14 | 6 | 4 | 35 |
+| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 13 | 13 | 5 | 4 | 35 |
 | C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 4 | 8 | 6 | 4 | 22 |
 | D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 8 | 4 | 16 | 3 | 31 |
 | E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 7 | 17 | 14 | 5 | 43 |
 | F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 1 | 5 | 23 | 13 | 42 |
 | G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 10 | 16 | 19 | 18 | 63 |
-| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 7 | 6 | 28 | 3 | 44 |
+| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 17 | 9 | 15 | 3 | 44 |
 | I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 0 | 4 | 13 | 6 | 23 |
 | J. Querschnitt | QUE-01 bis QUE-06 | 4 | 5 | 14 | 1 | 24 |
-| **Summe** | **82** | **59** | **89** | **144** | **57** | **349** |
+| **Summe** | **82** | **71** | **91** | **130** | **57** | **349** |
 
-Das Bild ist eindeutig: der laufende Buchungsstoff steht (Module A bis C), die Jahresabschlusskette und das Meldewesen stehen nicht (Module F und H). Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
+Das Bild hat sich mit Welle 2 verschoben: der laufende Buchungsstoff steht (Module A bis C), und die Jahresabschlusskette trägt jetzt bis zur E-Bilanz (Modul H), wo Anhang, Offenlegungsdatensatz und die Prüfung der Elementnamen offen bleiben. Das Meldewesen steht weiterhin nicht (Modul F). Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
 
 ---
 
