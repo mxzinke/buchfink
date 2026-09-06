@@ -6,9 +6,13 @@ liegt, ist genau das, was im Netz steht.
 
 ```text
 website/
-├── index.html          # Ablauf, Funktionen mit Screenshots, Abgrenzung, Preis
-├── preis.html          # kostenlos: was das heißt und was nicht
-├── installation.html   # Werkzeuge, Bauen, Prüfen, Stolpersteine
+├── index.html          # Was Buchfink ist, für wen, die Grundprinzipien, der Jahreslauf
+├── buchhaltung.html    # Bank, Belege, Journal, Rechnungen, Anzahlungen, Konten
+├── umsatzsteuer.html   # Voranmeldung, Meldungen, Fristen, Nebenpflichten
+├── abschluss.html      # Monatsabschluss, Abschlussbausteine, Bilanz und GuV, E-Bilanz
+├── nachweise.html      # Protokoll, Aufbewahrung, Sicherung, Prüferpaket
+├── roadmap.html        # Zeitleiste: was steht, was bis v1 fehlt, Prüfpunkte mit Datum
+├── installation.html   # Voraussetzungen, Bauen, Starten, Datenordner, Mitwirken
 ├── .nojekyll           # Pages soll nichts umbauen
 └── assets/
     ├── site.css        # das komplette Stylesheet
@@ -16,6 +20,14 @@ website/
     ├── fonts/          # Manrope, selbst ausgeliefert (OFL, Lizenz liegt bei)
     └── screenshots/    # aus der laufenden Oberfläche, siehe unten
 ```
+
+Es gibt keine Preisseite. Dass Buchfink kostenlos, quelloffen und ohne Cloud
+ist, steht als ein Satz auf der Startseite; eine eigene Seite dafür hätte
+denselben Satz auf zehn Absätze verteilt.
+
+Alle sieben Seiten tragen dieselbe Navigation. Sie steht in jeder Datei als
+Markup, weil es keinen Build-Schritt gibt: Wer einen Eintrag ändert, ändert ihn
+siebenmal. Der Kopf der aktuellen Seite trägt `aria-current="page"`.
 
 ## Veröffentlichen
 
@@ -104,14 +116,16 @@ des Design-Konzepts steht.
 
 ## Diagramme
 
-Die drei Schaubilder auf `index.html` — der Ablauf eines Monats, die Ablage der
-Daten und die Hash-Kette — sind handgeschriebenes SVG direkt im HTML. Kein
-Werkzeug, keine Bibliothek, kein Build. Sie benutzen dieselben Farbwerte wie der
-Rest der Seite; da SVG keine CSS-Variablen erbt, stehen die Werte dort als
-Hex-Literale. Wer eine Farbe ändert, ändert sie an beiden Stellen.
+Die Schaubilder — auf `index.html` der Jahreslauf in drei Takten — sind
+handgeschriebenes SVG direkt im HTML. Kein Werkzeug, keine Bibliothek, kein
+Build. Sie benutzen dieselben Farbwerte wie der Rest der Seite; da SVG keine
+CSS-Variablen erbt, stehen die Werte dort als Hex-Literale. Wer eine Farbe
+ändert, ändert sie an beiden Stellen.
 
 Jedes Diagramm trägt `<title>` und `<desc>` und ist über `aria-labelledby`
-damit verbunden, damit es auch vorgelesen brauchbar bleibt.
+damit verbunden, damit es auch vorgelesen brauchbar bleibt. Die Zeitleiste der
+Roadmap ist kein SVG, sondern eine Liste mit einer Haarlinie als Rand
+(`.timeline` in `assets/site.css`).
 
 ## Screenshots
 
@@ -132,6 +146,11 @@ Verzeichnis. Die Beispieldaten stehen in
 `scripts/site-screenshots/mock-bridge.ts` und sind untereinander stimmig
 gerechnet — Soll gleich Haben, Umsatzsteuer 19 % auf das Entgelt, Zahllast
 gleich Umsatzsteuer minus Vorsteuer.
+
+Zwanzig Bilder entstehen dabei, alle 2880 × 1800 (1440 × 900 bei doppelter
+Pixeldichte). Welche Seite welches Bild zeigt, steht in der Liste `shots` in
+`shoot.mjs`; jedes Bild wird von mindestens einer Seite verwendet. Ein Bild,
+das keine Seite mehr zeigt, gehört gelöscht.
 
 Alle Firmen, Namen, Beträge und Belege darin sind erfunden. Ändert sich eine
 Ansicht in der Anwendung, genügt ein erneuter Lauf; ändert sich, welche Daten

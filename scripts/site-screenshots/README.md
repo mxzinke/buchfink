@@ -17,7 +17,7 @@ node scripts/site-screenshots/four-clicks.mjs  # der Klickweg (task check:clicks
 ```
 
 Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
-wieder. Ergebnis: zehn PNG in `website/assets/screenshots/`, 2880 × 1800
+wieder. Ergebnis: zwanzig PNG in `website/assets/screenshots/`, 2880 × 1800
 (1440 × 900 bei doppelter Pixeldichte).
 
 ## Was hier liegt
@@ -52,7 +52,14 @@ wieder. Ergebnis: zehn PNG in `website/assets/screenshots/`, 2880 × 1800
   ruft, muss `mock-bridge.ts` kennen; sonst bricht sie hier mit einem
   TypeError ab, den es in der Anwendung nicht gibt. Was der Screenshot-Lauf
   nicht braucht, steht als `unsupported` dabei — das ist eine Antwort und kein
-  Loch.
+  Loch. `mock-bridge.ts` deckt seit Welle 7 alle Methoden von
+  `frontend/src/services/bridge.ts` ab: die lesenden mit Beispieldaten, die
+  schreibenden als `unsupported`.
+
+- **Die Datei liegt außerhalb der tsconfig.** `frontend/tsconfig.json` nimmt nur
+  `src` und `bindings` auf; `npx tsc --noEmit` prüft `mock-bridge.ts` also
+  nicht. Geprüft wird sie faktisch durch den Lauf selbst — bricht eine Ansicht
+  ab, fehlt eine Methode oder ein Feld.
 
 ## Der Klickweg des Prüfszenarios
 

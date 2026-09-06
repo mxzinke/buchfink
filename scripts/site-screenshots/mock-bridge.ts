@@ -514,6 +514,18 @@ const RECEIPTS = [
     receiptNumber: 'BE-2026-0231',
     direction: 'incoming',
     status: 'filed',
+    kind: 'invoice',
+    // Die Kopfdaten (BEL-02): bei einer E-Rechnung stehen sie im Datensatz und
+    // werden beim Ablegen übernommen.
+    documentDate: '2026-08-10',
+    issuerName: 'Techpartner Nord GmbH',
+    subject: 'Notebooks, 4 Stück',
+    grossAmount: c(3232.04),
+    taxAmount: c(516.04),
+    currency: EUR,
+    retentionClass: 'vouchers',
+    retentionUntil: '2034-12-31',
+    earliestDeletion: '2035-01-01',
     files: [
       file(1, 1, 'original', 'ER-2026-0231_Techpartner-Nord.pdf', 'application/pdf', 184_213, false),
       file(2, 1, 'structured', 'factur-x.xml', 'application/xml', 12_884, true),
@@ -539,12 +551,17 @@ const RECEIPTS = [
     createdAt: '2026-08-10T07:40:00Z',
     updatedAt: '2026-08-10T07:41:00Z',
   },
-  receipt(2, 'BE-2026-0230', 'filed', 'Stadtwerke_Abschlag_08-2026.pdf', '2026-08-21'),
-  receipt(3, 'BE-2026-0229', 'sealed', 'ER-2026-0238_Telefon-August.pdf', '2026-08-15', 52),
-  receipt(4, 'BE-2026-0228', 'sealed', 'ER-2026-0212_Cloud-Hosting.pdf', '2026-08-01', 42),
-  receipt(5, 'BE-2026-0227', 'sealed', 'ER-2026-0218_Miete-August.pdf', '2026-08-01', 45),
+  receipt(2, 'BE-2026-0230', 'filed', 'Stadtwerke_Abschlag_08-2026.pdf', '2026-08-21',
+    'Stadtwerke Nord AG', 'Abschlag Strom August 2026', 428.4, undefined),
+  receipt(3, 'BE-2026-0229', 'sealed', 'ER-2026-0238_Telefon-August.pdf', '2026-08-15',
+    'Nordfunk Telekommunikation GmbH', 'Telefon und Anschluss August 2026', 321.3, 52),
+  receipt(4, 'BE-2026-0228', 'sealed', 'ER-2026-0212_Cloud-Hosting.pdf', '2026-08-01',
+    'Hanse Cloud Services GmbH', 'Cloud-Hosting August 2026', 1475.6, 42),
+  receipt(5, 'BE-2026-0227', 'sealed', 'ER-2026-0218_Miete-August.pdf', '2026-08-01',
+    'Kontorhaus Verwaltung GmbH', 'Miete Büro August 2026', 3570, 45),
   {
-    ...receipt(6, 'BE-2026-0226', 'discarded', 'ER-2026-0209_doppelt.pdf', '2026-07-29'),
+    ...receipt(6, 'BE-2026-0226', 'discarded', 'ER-2026-0209_doppelt.pdf', '2026-07-29',
+      'Hanse Cloud Services GmbH', 'Cloud-Hosting Juli 2026', 1475.6, undefined),
     discardReason: 'Doppelt eingegangen, gebucht ist BE-2026-0225.',
   },
 ];
@@ -555,14 +572,30 @@ function receipt(
   status: string,
   fileName: string,
   receivedAt: string,
+  issuerName: string,
+  subject: string,
+  grossEuro: number,
   journalEntryId?: number,
 ) {
+  const gross = c(grossEuro);
+  // 19 % im Bruttobetrag: der Steueranteil ist Brutto minus Brutto/1,19.
+  const tax = gross - Math.round(gross / 1.19);
   return {
     id,
     fiscalYear: YEAR,
     receiptNumber,
     direction: 'incoming',
     status,
+    kind: 'invoice',
+    documentDate: receivedAt,
+    issuerName,
+    subject,
+    grossAmount: gross,
+    taxAmount: tax,
+    currency: EUR,
+    retentionClass: 'vouchers',
+    retentionUntil: `${YEAR + 8}-12-31`,
+    earliestDeletion: `${YEAR + 9}-01-01`,
     files: [file(id * 10, id, 'original', fileName, 'application/pdf', 96_400 + id * 517, false)],
     receiptHash: fakeHash(`receipt-${id}`),
     receivedAt,
@@ -761,6 +794,10 @@ function log(
     entityType,
     entityId,
     details,
+    // Bearbeiterkennung und Programmfassung stehen an jeder Zeile (UNV-04,
+    // UNV-06); die Ansicht „Nachweise" führt beide als eigene Spalte.
+    actor: 'anna@nordlicht-mbp',
+    appVersion: '0.9.4',
     previousHash: fakeHash(`log-${id - 1}`),
     entryHash: fakeHash(`log-${id}`),
   };
@@ -2467,6 +2504,719 @@ function paymentTermNotice(dueDays: number): string {
   );
 }
 
+// -------------------------------------------------------------------------
+// Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten und Nachweise
+//
+// Die Ansichten der Wellen 5b bis 7 holen ihre Auswertungen selbst. Was eine
+// Seite beim Öffnen ruft, steht hier mit Beispieldaten; was sie erst auf
+// Knopfdruck ruft, steht als `unsupported` in der Bridge — geschrieben wird in
+// der Vorschau nichts.
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** Die vier Quartale des Jahres als Meldezeitraum. */
+function quarters() {
+  return [1, 2, 3, 4].map((q) => {
+    const firstMonth = (q - 1) * 3 + 1;
+    const lastMonth = firstMonth + 2;
+    const lastDay = new Date(Date.UTC(YEAR, lastMonth, 0)).getUTCDate();
+    const dueYear = lastMonth === 12 ? YEAR + 1 : YEAR;
+    const dueMonth = lastMonth === 12 ? 1 : lastMonth + 1;
+    return {
+      q,
+      key: `${YEAR}-Q${q}`,
+      type: 'quarter',
+      label: `${q}. Quartal ${YEAR}`,
+      from: `${YEAR}-${pad(firstMonth)}-01`,
+      to: `${YEAR}-${pad(lastMonth)}-${pad(lastDay)}`,
+      year: YEAR,
+      dueDate: `${dueYear}-${pad(dueMonth)}-10`,
+    };
+  });
+}
+
+/**
+ * Die Voranmeldungszeiträume mit Stand. Das erste Halbjahr ist übermittelt und
+ * festgeschrieben, das laufende Quartal steht als Entwurf.
+ */
+function vatPeriods() {
+  return quarters().map((p) => {
+    const submitted = p.q <= 2;
+    return {
+      key: p.key,
+      type: p.type,
+      label: p.label,
+      from: p.from,
+      to: p.to,
+      year: p.year,
+      dueDate: p.dueDate,
+      status: submitted ? 'submitted' : 'draft',
+      returnId: p.q,
+      committed: submitted,
+      payable: vatSummary(p.from, p.to).payable,
+      submittedAt: submitted ? `${p.dueDate}T09:20:00Z` : undefined,
+      isOverdue: !submitted && p.dueDate < TODAY,
+    };
+  });
+}
+
+/** Die übermittelten Voranmeldungen, wie sie in der Liste stehen. */
+function savedVatReturns() {
+  return quarters()
+    .filter((p) => p.q <= 2)
+    .map((p) => ({
+      ...vatReturn(p.key),
+      status: 'submitted',
+      submittedAt: `${p.dueDate}T09:20:00Z`,
+      transferTicket: `TT-${YEAR}${pad(p.q * 3)}-4711${p.q}`,
+      submissionNote: 'In Mein ELSTER übermittelt.',
+    }));
+}
+
+/** Die Meldezeiträume der Zusammenfassenden Meldung. */
+function zmPeriods() {
+  return quarters().map((p) => ({
+    key: p.key,
+    type: p.type,
+    label: p.label,
+    from: p.from,
+    to: p.to,
+    year: p.year,
+    dueDate: `${p.dueDate.slice(0, 8)}25`,
+    status: 'draft',
+    committed: p.q <= 2,
+    total: 0,
+    isOverdue: false,
+  }));
+}
+
+/**
+ * Eine Meldung ohne Zeilen. Der Mandant liefert im Beispieljahr nicht
+ * innergemeinschaftlich — eine erfundene Zeile stünde gegen die
+ * Umsatzsteuerzahlen, die aus denselben Buchungen kommen.
+ */
+function zmReturnFor(periodKey: string) {
+  const period = quarters().find((p) => p.key === periodKey);
+  if (!period) throw new Error(`Für ${periodKey} liegt keine Meldung vor.`);
+  return {
+    id: period.q,
+    fiscalYear: YEAR,
+    periodType: 'quarter',
+    periodKey,
+    periodFrom: period.from,
+    periodTo: period.to,
+    isCorrection: false,
+    status: 'draft',
+    dueDate: `${period.dueDate.slice(0, 8)}25`,
+    totalSupplies: 0,
+    totalServices: 0,
+    lines: [],
+    findings: [],
+    lateEntries: [],
+    createdAt: `${period.to}T18:00:00Z`,
+  };
+}
+
+/** Die Prüfläufe vor den beiden Festschreibungen des Jahres. */
+const CHECK_RUNS = [
+  {
+    id: 2,
+    fiscalYear: YEAR,
+    cutoffDate: `${YEAR}-06-30`,
+    periodType: 'quarter',
+    checkedEntries: 37,
+    checkedReceipts: 34,
+    checkedBankTx: 96,
+    timeliness: {
+      measuredEntries: 37,
+      captureDaysMedian: 3,
+      captureDaysMax: 9,
+      captureLimitDays: 10,
+      lateEntries: 0,
+      committedEntries: 37,
+      commitDaysMedian: 10,
+      commitDaysMax: 10,
+      uncommittedEntries: 0,
+    },
+    findings: [
+      {
+        id: 4,
+        checkRunId: 2,
+        rule: 'bank_unmatched',
+        severity: 'warning',
+        objectType: 'bank_transaction',
+        objectId: '4',
+        message: 'Ein Bankumsatz vom 26.06.2026 ist keinem offenen Posten zugeordnet.',
+        reference: 'GoBD Rz. 36',
+      },
+    ],
+    createdAt: `${YEAR}-07-10T06:14:00Z`,
+  },
+  {
+    id: 1,
+    fiscalYear: YEAR,
+    cutoffDate: `${YEAR}-03-31`,
+    periodType: 'quarter',
+    checkedEntries: 19,
+    checkedReceipts: 17,
+    checkedBankTx: 48,
+    timeliness: {
+      measuredEntries: 19,
+      captureDaysMedian: 2,
+      captureDaysMax: 7,
+      captureLimitDays: 10,
+      lateEntries: 0,
+      committedEntries: 19,
+      commitDaysMedian: 9,
+      commitDaysMax: 9,
+      uncommittedEntries: 0,
+    },
+    findings: [],
+    createdAt: `${YEAR}-04-09T05:51:00Z`,
+  },
+];
+
+/** Zuordnung der bebuchten Konten auf Gliederung und Taxonomie-Element. */
+const EBILANZ_MAPPING: Record<string, [string, string]> = {
+  '0520': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquip'],
+  '1200': ['Forderungen aus Lieferungen und Leistungen', 'bs.ass.currAss.receiv.trade'],
+  '1406': ['Sonstige Vermögensgegenstände', 'bs.ass.currAss.receiv.other'],
+  '1600': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
+  '1800': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
+  '1900': ['Rechnungsabgrenzungsposten', 'bs.ass.prepaidExp'],
+  '2900': ['Gezeichnetes Kapital', 'bs.eqLiab.equity.subscribed'],
+  '2970': ['Gewinnvortrag', 'bs.eqLiab.equity.retainedEarnings'],
+  '3300': ['Verbindlichkeiten aus Lieferungen und Leistungen', 'bs.eqLiab.liab.trade'],
+  '3806': ['Sonstige Verbindlichkeiten, davon aus Steuern', 'bs.eqLiab.liab.other.taxes'],
+  '4400': ['Umsatzerlöse', 'is.netIncome.regular.operatingIncome.revenue'],
+  '4830': ['Sonstige betriebliche Erträge', 'is.netIncome.regular.operatingIncome.otherOpIncome'],
+  '5906': ['Aufwendungen für bezogene Leistungen', 'is.netIncome.regular.opEx.material.purchServices'],
+  '6020': ['Löhne und Gehälter', 'is.netIncome.regular.opEx.personnel.wages'],
+  '6260': ['Abschreibungen auf Sachanlagen', 'is.netIncome.regular.opEx.depreciation.tangible'],
+};
+
+/** Die Auffangposition, in der alles landet, was keine eigene Zeile hat. */
+const EBILANZ_FALLBACK: [string, string] = [
+  'Sonstige betriebliche Aufwendungen',
+  'is.netIncome.regular.opEx.otherOpEx',
+];
+
+function mappingReport(year: number) {
+  const booked = ACCOUNTS.filter((x) => x.bookingsCount > 0);
+  const rows = booked.map((account) => {
+    const known = EBILANZ_MAPPING[account.number];
+    const [positionLabel, element] = known ?? EBILANZ_FALLBACK;
+    return {
+      account: account.number,
+      name: account.name,
+      balance: account.debitSum - account.creditSum,
+      positionKey: element,
+      positionLabel,
+      element,
+      // Die Elementnamen sind nach der Systematik gebildet und noch nicht gegen
+      // die amtliche Taxonomie geprüft — genau wie im Programm.
+      verified: false,
+    };
+  });
+  const fallbackRows = rows.filter((row) => row.element === EBILANZ_FALLBACK[1]);
+  return {
+    fiscalYear: year || YEAR,
+    taxonomyVersion: '6.9',
+    taxonomyDate: '2026-01-01',
+    taxonomyNote:
+      'Die Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026. Ihre Elementnamen sind vor der ' +
+      'ersten Übermittlung gegen die amtliche Fassung abzugleichen.',
+    rows,
+    blocking: [],
+    fallbacks:
+      fallbackRows.length > 0
+        ? [
+            {
+              key: EBILANZ_FALLBACK[1],
+              label: EBILANZ_FALLBACK[0],
+              accounts: fallbackRows.length,
+              amount: fallbackRows.reduce((sum, row) => sum + row.balance, 0),
+            },
+          ]
+        : [],
+    unverified: rows.length,
+    canExport: true,
+  };
+}
+
+/** Der Abschlussstand des laufenden Geschäftsjahres. */
+function closingState(year: number) {
+  const fiscalYear = {
+    ...(FISCAL_YEARS.find((y) => y.year === (year || YEAR)) ?? FISCAL_YEARS[1]),
+    averageEmployees: 6,
+    priorYearRevenue: c(412800),
+    createdAt: `${YEAR}-01-02T08:00:00Z`,
+  };
+  return {
+    year: fiscalYear.year,
+    fiscalYear,
+    netIncome: SUMMARY.netIncome,
+    hasYearCommitment: false,
+    committedUntil: `${YEAR}-06-30`,
+    nextYear: fiscalYear.year + 1,
+    carriedForward: false,
+    carryForwardCurrent: false,
+    nextStatus: 'prepared',
+    canAdopt: false,
+    blocker:
+      'Aufgestellt wird erst, wenn das Geschäftsjahr festgeschrieben ist (§ 146 Abs. 4 AO).',
+  };
+}
+
+/** Die vierzehn Abschlussbausteine, wie sie im geführten Weg stehen. */
+const CLOSING_STEP_DEFS: [string, string, string, boolean][] = [
+  ['depreciation', 'Abschreibungen',
+    'Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.', true],
+  ['write_up', 'Wertaufholung prüfen',
+    'Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist zuzuschreiben (§ 253 Abs. 5 Satz 1 HGB).', true],
+  ['currency_valuation', 'Fremdwährungsbewertung',
+    'Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet (§ 256a HGB).', true],
+  ['accruals', 'Rechnungsabgrenzung',
+    'Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).', false],
+  ['provisions', 'Rückstellungen',
+    'Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).', false],
+  ['inventory', 'Vorräte',
+    'Der Inventurwert zum Stichtag und die Bestandsveränderung, die daraus folgt.', false],
+  ['vat_settlement', 'Umsatzsteuer-Verrechnung',
+    'Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.', false],
+  ['input_tax_correction', 'Vorsteuerberichtigung § 15a',
+    'Hat sich die Verwendung eines Wirtschaftsguts geändert, ist der Vorsteuerabzug anteilig zu berichtigen.', true],
+  ['tax_provision', 'Steuerrückstellung',
+    'Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres.', false],
+  ['check_run', 'Prüfbericht',
+    'Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.', true],
+  ['statement', 'Bilanz und GuV',
+    'Die Gliederung nach §§ 266 und 275 HGB samt Anhang.', true],
+  ['adoption', 'Aufstellen und Feststellen',
+    'Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.', true],
+  ['disclosure', 'E-Bilanz und Offenlegung',
+    'Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.', true],
+  ['appropriation', 'Vortrag und Ergebnisverwendung',
+    'Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.', false],
+];
+
+/** Zustand und Begründung je Baustein im Beispieljahr. */
+const CLOSING_STEP_STATE: Record<string, { state: string; detail?: string; reason?: string }> = {
+  depreciation: { state: 'done', detail: 'AfA für 4 Anlagegüter gebucht' },
+  write_up: { state: 'done', detail: 'Keine außerplanmäßige Abschreibung offen' },
+  currency_valuation: {
+    state: 'skipped',
+    reason: 'Im Geschäftsjahr steht kein offener Posten in Fremdwährung.',
+  },
+  accruals: { state: 'done', detail: '2 Abgrenzungsposten gebildet' },
+  provisions: { state: 'done', detail: '1 Rückstellung gebildet, abgezinst' },
+  inventory: { state: 'open', detail: 'Kein Inventurwert erfasst' },
+  vat_settlement: { state: 'open', detail: 'Zahllast der vier Zeiträume noch nicht verrechnet' },
+  input_tax_correction: { state: 'open', detail: '1 Wirtschaftsgut im Berichtigungszeitraum' },
+  tax_provision: { state: 'open' },
+  check_run: { state: 'open', detail: 'Letzter Lauf zum 30.06.2026' },
+  statement: { state: 'open' },
+  adoption: { state: 'open', detail: 'Ohne Jahres-Festschreibung nicht möglich' },
+  disclosure: { state: 'open' },
+  appropriation: { state: 'open' },
+};
+
+function closingSteps(year: number) {
+  const steps = CLOSING_STEP_DEFS.map(([key, label, hint, automatic], index) => {
+    const status = CLOSING_STEP_STATE[key] ?? { state: 'open' };
+    return {
+      key,
+      order: index + 1,
+      label,
+      hint,
+      automatic,
+      state: status.state,
+      reason: status.reason,
+      changedOn: status.state === 'open' ? undefined : `${YEAR}-08-20`,
+      detail: status.detail,
+    };
+  });
+  return {
+    fiscalYear: year || YEAR,
+    cutoff: `${YEAR}-12-31`,
+    steps,
+    openCount: steps.filter((s) => s.state === 'open').length,
+    doneCount: steps.filter((s) => s.state === 'done').length,
+    skippedCount: steps.filter((s) => s.state === 'skipped').length,
+    total: steps.length,
+    reopenable: true,
+  };
+}
+
+/** Der Vortragsstand ins Folgejahr; gebucht ist noch nichts. */
+function carryForwardPreview(toYear: number) {
+  const kinds: Record<string, string> = { '1200': 'debitor', '3300': 'kreditor' };
+  const openItemCount: Record<string, number> = { '1200': 3, '3300': 2 };
+  const rows = ACCOUNTS.filter((x) => x.bookingsCount > 0 && x.statementType === 'Bilanz').map(
+    (account) => {
+      const balance = account.debitSum - account.creditSum;
+      return {
+        account: account.number,
+        name: account.name,
+        kind: kinds[account.number] ?? 'sachkonto',
+        closingBalance: balance,
+        carried: 0,
+        difference: balance,
+        openItems: openItemCount[account.number],
+      };
+    },
+  );
+  return {
+    fromYear: (toYear || YEAR + 1) - 1,
+    toYear: toYear || YEAR + 1,
+    bookingDate: `${toYear || YEAR + 1}-01-01`,
+    deferred: false,
+    rows,
+    netIncome: SUMMARY.netIncome,
+    resultAccount: '2970',
+    resultAccountName: 'Gewinnvortrag vor Verwendung',
+    alreadyCarried: false,
+    needsCorrection: false,
+    entries: 3,
+    // Die Summe der Vortragswerte ist das Jahresergebnis; die Probe geht auf.
+    balanceDifference: 0,
+    isBalanced: true,
+    accrualReleases: [],
+  };
+}
+
+/** Ein Rechnungsverbund mit zwei Abschlägen und offener Schlussrechnung. */
+const INVOICE_GROUPS = [
+  {
+    id: 1,
+    fiscalYear: YEAR,
+    contactId: 2,
+    title: 'Lagerleitstand Billstraße, Ausbaustufe 1',
+    totalNet: c(84000),
+    taxRate: 1900,
+    closed: false,
+    advances: [
+      advance(1, 1, 'RE-2026-0102', `${YEAR}-03-16`, 25200, `${YEAR}-03-30`),
+      advance(2, 2, 'RE-2026-0113', `${YEAR}-06-15`, 25200, `${YEAR}-06-29`),
+    ],
+    progress: {
+      agreedNet: c(84000),
+      billedNet: c(50400),
+      receivedNet: c(50400),
+      receivedTax: c(9576),
+      receivedGross: c(59976),
+      openNet: c(33600),
+      closed: false,
+    },
+    createdAt: `${YEAR}-03-02T09:00:00Z`,
+  },
+];
+
+function advance(
+  id: number,
+  invoiceId: number,
+  invoiceNumber: string,
+  invoiceDate: string,
+  netEuro: number,
+  settledAt: string,
+) {
+  const net = c(netEuro);
+  const tax = Math.round(net * 0.19);
+  return {
+    id,
+    groupId: 1,
+    invoiceId,
+    contactId: 2,
+    invoiceNumber,
+    invoiceDate,
+    netAmount: net,
+    taxAmount: tax,
+    grossAmount: net + tax,
+    taxRate: 1900,
+    settledAt,
+    settlementEntryId: 20 + id,
+    cancelled: false,
+    settledInFinal: false,
+  };
+}
+
+/**
+ * Das Verzeichnis der Vorsteuerberichtigung nach § 15a UStG.
+ *
+ * Der Pkw ist 2025 mit vollem Abzug angeschafft; im Beispieljahr sinkt die
+ * abzugsberechtigte Verwendung von 100 auf 90 Prozent. Ein Fünftel der
+ * Vorsteuer entfällt auf das Jahr, davon zehn Prozent sind zu berichtigen.
+ */
+function inputTaxCorrections(year: number) {
+  const netAmount = c(24500);
+  const inputTax = Math.round(netAmount * 0.19);
+  const yearlyShare = Math.round(inputTax / 5);
+  const amount = -Math.round((yearlyShare * 100) / 1000);
+  const correction = {
+    id: 1,
+    assetId: 1,
+    label: 'Pkw, Inventarnummer A-2025-004',
+    account: '0520',
+    acquisitionDate: '2025-04-14',
+    netAmount,
+    inputTaxAmount: inputTax,
+    originalPermille: 1000,
+    immovable: false,
+    correctionPeriodYears: 5,
+    firstFiscalYear: 2025,
+    lastFiscalYear: 2029,
+    createdAt: '2025-04-14T10:00:00Z',
+    updatedAt: `${YEAR}-08-18T10:00:00Z`,
+    usages: [
+      {
+        correctionId: 1,
+        fiscalYear: year || YEAR,
+        permille: 900,
+        confirmed: true,
+        amount,
+        updatedAt: `${YEAR}-08-18T10:00:00Z`,
+      },
+    ],
+  };
+  return {
+    fiscalYear: year || YEAR,
+    bookingDate: `${YEAR}-12-31`,
+    rows: [
+      {
+        correction,
+        inPeriod: true,
+        permille: 900,
+        confirmed: true,
+        assessment: {
+          amount,
+          required: true,
+          deferToAnnual: true,
+          account: '1406',
+          reason:
+            'Der Berichtigungsbetrag bleibt unter 6.000 €; er wird erst bei der ' +
+            'Steuerberechnung für das Kalenderjahr berücksichtigt (§ 44 Abs. 3 UStDV).',
+        },
+        booked: false,
+      },
+    ],
+    totalAmount: amount,
+    unconfirmed: 0,
+    note:
+      'Der Berichtigungszeitraum beträgt fünf Jahre; bei Grundstücken und Gebäuden sind es zehn ' +
+      '(§ 15a Abs. 1 UStG).',
+  };
+}
+
+/** Der Zustand der zweiten Kette: die des Änderungsprotokolls. */
+const AUDIT_CHAIN = {
+  isValid: true,
+  totalEntries: AUDIT_LOGS.length + 204,
+  checkedEntries: AUDIT_LOGS.length + 204,
+  breaks: [],
+  lastVerifiedHash: fakeHash(`log-${AUDIT_LOGS[0].id}`),
+  checkedAt: '2026-08-26T08:12:00Z',
+  message: 'Alle Protokolleinträge sind unverändert. Die Kette ist lückenlos.',
+};
+
+/** Die Sicherungsläufe: einer beim Beenden, einer täglich. */
+const BACKUP_RUNS = [
+  backupRun(3, 'automatic', '2026-08-25T18:40:12Z', 'nordlicht-2026-08-25.zip', 214, 48_218_411),
+  backupRun(2, 'automatic', '2026-08-24T18:32:05Z', 'nordlicht-2026-08-24.zip', 212, 47_902_188),
+  backupRun(1, 'manual', '2026-08-21T09:14:33Z', 'nordlicht-2026-08-21.zip', 209, 47_411_902),
+];
+
+function backupRun(
+  id: number,
+  kind: string,
+  startedAt: string,
+  file: string,
+  fileCount: number,
+  bytes: number,
+) {
+  return {
+    id,
+    kind,
+    startedAt,
+    finishedAt: startedAt.replace(/:(\d\d)Z$/, ':5$1Z').slice(0, 20) + 'Z',
+    target: `/Users/anna/Sicherungen/${file}`,
+    fileCount,
+    bytes,
+    success: true,
+    message: 'Datenbank, Belege, Dokumente und Schlüsseldatei gesichert.',
+    programVersion: '0.9.4',
+    createdAt: startedAt,
+  };
+}
+
+/** Das Schlüsselverzeichnis, das mit der Datenüberlassung hinausgeht. */
+const KEY_DIRECTORY = [
+  {
+    category: 'Buchung',
+    key: 'kind',
+    label: 'Buchungsart',
+    description: 'standard, storno, afa, closing, opening, payment',
+  },
+  {
+    category: 'Buchung',
+    key: 'source',
+    label: 'Herkunft',
+    description: 'receipt, invoice, bank, manual, closing, opening',
+  },
+  {
+    category: 'Steuer',
+    key: 'taxKey',
+    label: 'Steuerschlüssel',
+    description: '9 = Vorsteuer 19 %, 3 = Umsatzsteuer 19 %, 0 = ohne Steuer',
+  },
+  {
+    category: 'Beleg',
+    key: 'kind',
+    label: 'Belegart',
+    description: 'invoice, receipt, statement, letter, self_issued, other',
+  },
+  {
+    category: 'Beleg',
+    key: 'retentionClass',
+    label: 'Aufbewahrungsklasse',
+    description: 'books = 10 Jahre, vouchers = 8 Jahre, letters = 6 Jahre',
+  },
+];
+
+/** Die Fristen je Geschäftsjahr. Gelöscht werden darf noch keines. */
+function retentionOverview() {
+  return {
+    today: TODAY,
+    years: [2024, 2025, YEAR].map((y) => retentionYear(y)),
+    concept: [
+      {
+        category: 'Bücher, Abschlüsse, Verfahrensdokumentation',
+        class: 'books',
+        years: 10,
+        legalBasis: '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB',
+        note: 'Die Frist beginnt am 31.12. des Jahres der letzten Eintragung.',
+      },
+      {
+        category: 'Buchungsbelege und Rechnungen',
+        class: 'vouchers',
+        years: 8,
+        legalBasis: '§ 147 Abs. 3 Satz 1 AO',
+        note: 'Seit 2025 acht statt zehn Jahre.',
+      },
+      {
+        category: 'Handels- und Geschäftsbriefe',
+        class: 'letters',
+        years: 6,
+        legalBasis: '§ 147 Abs. 3 AO',
+        note: 'Empfangene und abgesandte Schreiben.',
+      },
+    ],
+  };
+}
+
+function retentionYear(fiscalYear: number) {
+  const counts = {
+    journalEntries: fiscalYear === YEAR ? 55 : 148,
+    journalLines: fiscalYear === YEAR ? 171 : 452,
+    receipts: fiscalYear === YEAR ? 6 : 84,
+    receiptFiles: fiscalYear === YEAR ? 7 : 91,
+    festschreibungen: fiscalYear === YEAR ? 2 : 5,
+    checkRuns: fiscalYear === YEAR ? 2 : 5,
+    vatReturns: fiscalYear === YEAR ? 2 : 4,
+    invoices: fiscalYear === YEAR ? 19 : 46,
+    bankTransactions: fiscalYear === YEAR ? 144 : 388,
+    assetMovements: fiscalYear === YEAR ? 4 : 9,
+    accruals: 2,
+    provisions: 1,
+    inventoryCounts: 0,
+    zmReturns: 0,
+    inputTaxUsages: 1,
+    numberGaps: 0,
+    clearedReferences: 0,
+  };
+  const classes = [
+    row('books', 'Bücher und Abschlüsse', 10),
+    row('vouchers', 'Buchungsbelege und Rechnungen', 8),
+    row('letters', 'Handels- und Geschäftsbriefe', 6),
+  ];
+  function row(cls: string, label: string, years: number) {
+    const end = `${fiscalYear + years}-12-31`;
+    return {
+      class: cls,
+      label,
+      years,
+      retentionEnd: end,
+      earliestDeletion: `${fiscalYear + years + 1}-01-01`,
+      legalBasis: cls === 'books' ? '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB' : '§ 147 Abs. 3 AO',
+    };
+  }
+  return {
+    fiscalYear,
+    counts,
+    classes,
+    earliestDeletion: `${fiscalYear + 11}-01-01`,
+    expired: false,
+    deletable: false,
+    note: `Die längste Frist läuft bis zum 31.12.${fiscalYear + 10}.`,
+  };
+}
+
+
+/**
+ * Die Steuertermine des Jahres. Erledigt ist, was aus den Daten folgt — die
+ * übermittelte Voranmeldung, die Festschreibung —, und kein gesetzter Haken.
+ */
+const DEADLINES = [
+  deadline('ustva-2026-q1', 'Umsatzsteuer-Voranmeldung 1. Quartal 2026', `${YEAR}-04-10`,
+    '1. Quartal 2026', '§ 18 Abs. 1 UStG', true),
+  deadline('ustva-2026-q2', 'Umsatzsteuer-Voranmeldung 2. Quartal 2026', `${YEAR}-07-10`,
+    '2. Quartal 2026', '§ 18 Abs. 1 UStG', true),
+  deadline('ustva-2026-q3', 'Umsatzsteuer-Voranmeldung 3. Quartal 2026', `${YEAR}-10-10`,
+    '3. Quartal 2026', '§ 18 Abs. 1 UStG', false),
+  deadline('zm-2026-q3', 'Zusammenfassende Meldung 3. Quartal 2026', `${YEAR}-10-25`,
+    '3. Quartal 2026', '§ 18a Abs. 1 UStG', false),
+  deadline('festschreibung-2026-q3', 'Drittes Quartal festschreiben', `${YEAR}-10-10`,
+    '3. Quartal 2026', '§ 146 Abs. 4 AO', false),
+  deadline('aufstellung-2025', 'Jahresabschluss 2025 aufstellen', `${YEAR}-06-30`,
+    'Geschäftsjahr 2025', '§ 264 Abs. 1 HGB', true),
+  deadline('offenlegung-2025', 'Jahresabschluss 2025 offenlegen', `${YEAR + 1}-12-31`,
+    'Geschäftsjahr 2025', '§ 325 Abs. 1a HGB', false),
+];
+
+function deadline(
+  key: string,
+  title: string,
+  dueDate: string,
+  period: string,
+  reference: string,
+  isDone: boolean,
+) {
+  return {
+    key,
+    title,
+    dueDate,
+    period,
+    reference,
+    description: '',
+    fiscalYear: YEAR,
+    isDone,
+    doneOn: isDone ? dueDate : undefined,
+  };
+}
+
+/**
+ * Der Gründungsstand. Die Beispielfirma ist seit 2024 eingetragen; der
+ * Gründungsweg ist damit abgeschlossen und die Ansicht zeigt ihn nicht mehr.
+ */
+const FOUNDATION_STATE = {
+  applies: true,
+  hasFoundation: false,
+  legalForm: 'GmbH',
+  rules: {},
+  stage: 'eingetragen',
+  duties: [],
+  postingsBooked: true,
+};
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -2688,6 +3438,196 @@ export const bridge = {
       tsaName: 'freeTSA',
       message: 'Der Zeitstempel deckt den festgeschriebenen Kettenkopf ab.',
     }),
+
+  // Welle 5b bis 7: Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten
+  GetVatPeriods: () => later(vatPeriods()),
+  GetVatReturns: () => later(savedVatReturns()),
+  GetZMPeriods: () => later(zmPeriods()),
+  GetZMReturn: (periodKey: string) => later(zmReturnFor(periodKey), 60),
+  GetZMReturns: () => later([]),
+  GetCheckRuns: () => later(CHECK_RUNS),
+  GetEBilanzMappingReport: (year: number) => later(mappingReport(year), 80),
+  GetOpenItemsAt: () => later(OPEN_ITEMS),
+  GetClosingState: (year: number) => later(closingState(year), 60),
+  GetClosingSteps: (year: number) => later(closingSteps(year), 60),
+  GetCarryForwardPreview: (toYear: number) => later(carryForwardPreview(toYear), 60),
+  GetInvoiceGroups: () => later(INVOICE_GROUPS),
+  GetInputTaxCorrections: (year: number) => later(inputTaxCorrections(year), 60),
+  GetDeadlines: () => later(DEADLINES, 60),
+  GetFoundationState: () => later(FOUNDATION_STATE),
+
+  // Nachweise, Sicherung und Datenüberlassung
+  GetAuditLogsFiltered: () => later(AUDIT_LOGS, 60),
+  VerifyAuditChain: () => later(AUDIT_CHAIN, 200),
+  GetRetentionOverview: () => later(retentionOverview(), 80),
+  GetRetentionHolds: () => later([]),
+  GetExpiredObjects: () => later([]),
+  GetBackupRuns: () => later(BACKUP_RUNS),
+  GetKeyDirectory: () => later(KEY_DIRECTORY),
+
+  // Vorgänge mit Folgen — Schreiben, Dialoge, Übermittlungen. In der
+  // Vorschau steht dafür eine Antwort und kein Loch (siehe README).
+  RegenerateInvoiceDocument: unsupported('RegenerateInvoiceDocument'),
+  CancelInvoiceWithDocument: unsupported('CancelInvoiceWithDocument'),
+  CorrectInvoice: unsupported('CorrectInvoice'),
+  MarkInvoiceSent: unsupported('MarkInvoiceSent'),
+  RecordInvoiceNumberGapReason: unsupported('RecordInvoiceNumberGapReason'),
+  CreateInvoiceGroup: unsupported('CreateInvoiceGroup'),
+  IssueAdvanceInvoice: unsupported('IssueAdvanceInvoice'),
+  SettleAdvance: unsupported('SettleAdvance'),
+  RefundAdvance: unsupported('RefundAdvance'),
+  IssueFinalInvoice: unsupported('IssueFinalInvoice'),
+  WriteOffOpenItem: unsupported('WriteOffOpenItem'),
+  GetLegacySpecialDepreciations: unsupported('GetLegacySpecialDepreciations'),
+  SetAverageEmployees: unsupported('SetAverageEmployees'),
+  SetPriorYearRevenue: unsupported('SetPriorYearRevenue'),
+  CreateFiscalYear: unsupported('CreateFiscalYear'),
+  CarryForward: unsupported('CarryForward'),
+  SetFiscalYearStatus: unsupported('SetFiscalYearStatus'),
+  ReopenFiscalYear: unsupported('ReopenFiscalYear'),
+  SkipClosingStep: unsupported('SkipClosingStep'),
+  ReopenClosingStep: unsupported('ReopenClosingStep'),
+  MarkClosingStepDone: unsupported('MarkClosingStepDone'),
+  ProposeAccruals: unsupported('ProposeAccruals'),
+  PreviewAccrual: unsupported('PreviewAccrual'),
+  BookAccrual: unsupported('BookAccrual'),
+  GetAccruals: unsupported('GetAccruals'),
+  GetAccrualReport: unsupported('GetAccrualReport'),
+  PreviewProvision: unsupported('PreviewProvision'),
+  BookProvisionFormation: unsupported('BookProvisionFormation'),
+  BookProvisionIncrease: unsupported('BookProvisionIncrease'),
+  BookProvisionRelease: unsupported('BookProvisionRelease'),
+  BookProvisionConsumption: unsupported('BookProvisionConsumption'),
+  BookProvisionUnwinding: unsupported('BookProvisionUnwinding'),
+  SettleProvision: unsupported('SettleProvision'),
+  GetProvisionMirror: unsupported('GetProvisionMirror'),
+  GetDiscountRates: unsupported('GetDiscountRates'),
+  GetDiscountRateMonths: unsupported('GetDiscountRateMonths'),
+  SaveDiscountRates: unsupported('SaveDiscountRates'),
+  ImportDiscountRatesCSV: unsupported('ImportDiscountRatesCSV'),
+  GetInventoryAccounts: unsupported('GetInventoryAccounts'),
+  PreviewInventory: unsupported('PreviewInventory'),
+  BookInventory: unsupported('BookInventory'),
+  PreviewVatSettlement: unsupported('PreviewVatSettlement'),
+  BookVatSettlement: unsupported('BookVatSettlement'),
+  PreviewTaxProvision: unsupported('PreviewTaxProvision'),
+  BookTaxProvision: unsupported('BookTaxProvision'),
+  PreviewAppropriation: unsupported('PreviewAppropriation'),
+  BookAppropriation: unsupported('BookAppropriation'),
+  GetAppropriation: unsupported('GetAppropriation'),
+  GetNotesTexts: unsupported('GetNotesTexts'),
+  SaveNotesText: unsupported('SaveNotesText'),
+  GetClosingSettings: unsupported('GetClosingSettings'),
+  SaveClosingSettings: unsupported('SaveClosingSettings'),
+  GetTaxElectionRegister: unsupported('GetTaxElectionRegister'),
+  ExportTaxElectionRegisterCSV: unsupported('ExportTaxElectionRegisterCSV'),
+  GetReconciliation: unsupported('GetReconciliation'),
+  CreateVatCorrection: unsupported('CreateVatCorrection'),
+  GetSpecialPrepaymentSuggestion: unsupported('GetSpecialPrepaymentSuggestion'),
+  SaveZMReturn: unsupported('SaveZMReturn'),
+  ConfirmZMSubmitted: unsupported('ConfirmZMSubmitted'),
+  CreateZMCorrection: unsupported('CreateZMCorrection'),
+  ExportZMCSV: unsupported('ExportZMCSV'),
+  RunChecks: unsupported('RunChecks'),
+  MarkDeadlineDone: unsupported('MarkDeadlineDone'),
+  SaveFoundation: unsupported('SaveFoundation'),
+  GetFoundationRules: unsupported('GetFoundationRules'),
+  GetRecommendedVatPeriod: unsupported('GetRecommendedVatPeriod'),
+  PreviewFoundationPostings: unsupported('PreviewFoundationPostings'),
+  BookFoundationPostings: unsupported('BookFoundationPostings'),
+  RegisterCompany: unsupported('RegisterCompany'),
+  CompleteFoundationDuty: unsupported('CompleteFoundationDuty'),
+  ExportZ3: unsupported('ExportZ3'),
+  ExportArchive: unsupported('ExportArchive'),
+  ExportAuditPackage: unsupported('ExportAuditPackage'),
+  ExportKeyDirectory: unsupported('ExportKeyDirectory'),
+  SelectExportDirectoryDialog: unsupported('SelectExportDirectoryDialog'),
+  SelectSaveFileDialog: unsupported('SelectSaveFileDialog'),
+  SaveReceiptFileAs: unsupported('SaveReceiptFileAs'),
+  VerifyReceiptFiles: unsupported('VerifyReceiptFiles'),
+  GetAccountLedgerRange: unsupported('GetAccountLedgerRange'),
+  ImportCAMT053File: unsupported('ImportCAMT053File'),
+  SelectStatementFileDialog: unsupported('SelectStatementFileDialog'),
+  SetBackupDir: unsupported('SetBackupDir'),
+  CreateBackup: unsupported('CreateBackup'),
+  VerifyBackup: unsupported('VerifyBackup'),
+  RestoreFromBackup: unsupported('RestoreFromBackup'),
+  SelectBackupDirDialog: unsupported('SelectBackupDirDialog'),
+  SelectBackupFileDialog: unsupported('SelectBackupFileDialog'),
+  PreviewInputTaxCorrection: unsupported('PreviewInputTaxCorrection'),
+  RegisterInputTaxCorrection: unsupported('RegisterInputTaxCorrection'),
+  CloseInputTaxCorrection: unsupported('CloseInputTaxCorrection'),
+  SaveInputTaxUsage: unsupported('SaveInputTaxUsage'),
+  BookInputTaxCorrection: unsupported('BookInputTaxCorrection'),
+  GetVatIDChecks: unsupported('GetVatIDChecks'),
+  GetVatIDStatus: unsupported('GetVatIDStatus'),
+  CheckVatID: unsupported('CheckVatID'),
+  GetSupplyEvidenceKinds: unsupported('GetSupplyEvidenceKinds'),
+  GetSupplyEvidence: unsupported('GetSupplyEvidence'),
+  AddSupplyEvidence: unsupported('AddSupplyEvidence'),
+  SetSupplyTransport: unsupported('SetSupplyTransport'),
+  RemoveSupplyEvidence: unsupported('RemoveSupplyEvidence'),
+  GetNonDeductibleCategories: unsupported('GetNonDeductibleCategories'),
+  GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
+  RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
+  GetExchangeRate: unsupported('GetExchangeRate'),
+  GetExchangeRates: unsupported('GetExchangeRates'),
+  SaveExchangeRate: unsupported('SaveExchangeRate'),
+  GetVatExchangeRates: unsupported('GetVatExchangeRates'),
+  SaveVatExchangeRate: unsupported('SaveVatExchangeRate'),
+  ImportVatExchangeRatesCSV: unsupported('ImportVatExchangeRatesCSV'),
+  PreviewCurrencyValuation: unsupported('PreviewCurrencyValuation'),
+  BookCurrencyValuation: unsupported('BookCurrencyValuation'),
+  GetAfaRules: unsupported('GetAfaRules'),
+  GetWriteUpReport: unsupported('GetWriteUpReport'),
+  ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
+  GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
+  CheckNearAcquisitionCost: unsupported('CheckNearAcquisitionCost'),
+  CapitalizeNearAcquisitionCost: unsupported('CapitalizeNearAcquisitionCost'),
+  GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
+  GetServiceEndpoints: unsupported('GetServiceEndpoints'),
+  SaveServiceEndpoints: unsupported('SaveServiceEndpoints'),
+  GetChangeLog: unsupported('GetChangeLog'),
+  GetSchemaMigrations: unsupported('GetSchemaMigrations'),
+  GetMigrationRecords: unsupported('GetMigrationRecords'),
+  SetSystemChangeDate: unsupported('SetSystemChangeDate'),
+  SetRetentionHold: unsupported('SetRetentionHold'),
+  ReleaseRetentionHold: unsupported('ReleaseRetentionHold'),
+  ArchiveAndDeleteFiscalYear: unsupported('ArchiveAndDeleteFiscalYear'),
+  GenerateProcedureDocumentation: unsupported('GenerateProcedureDocumentation'),
+  GetProcedureDocumentations: unsupported('GetProcedureDocumentations'),
+  GetOrganisationTexts: unsupported('GetOrganisationTexts'),
+  SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
+  GetComplianceHints: unsupported('GetComplianceHints'),
+  BlockContact: unsupported('BlockContact'),
+  SaveReceiptHeader: unsupported('SaveReceiptHeader'),
+  CorrectEntry: unsupported('CorrectEntry'),
+  PreviewOpeningBalance: unsupported('PreviewOpeningBalance'),
+  BookOpeningBalance: unsupported('BookOpeningBalance'),
+  EnableReadOnly: unsupported('EnableReadOnly'),
+  DisableReadOnly: unsupported('DisableReadOnly'),
+  GetProgramVersion: unsupported('GetProgramVersion'),
+
+  // Welle 8: die laufende Buchhaltung. Gelesen wird aus denselben
+  // Beispieldaten wie das Journal — geschrieben wird nichts: die Handbuchung,
+  // der Eigenbeleg, das eigene Konto und die Fristverlängerung sind Vorgänge
+  // mit Folgen und stehen deshalb als „nicht verfügbar" da.
+  GetRetentionRules: () => later(RETENTION_RULES),
+  GetVatRatePeriods: () => later(VAT_RATE_PERIODS),
+  GetVatPeriodProposal: (year: number) => later(vatPeriodProposal(year)),
+  GetCustomAccounts: () => later(CUSTOM_ACCOUNTS),
+  GetStatementPositions: () => later(STATEMENT_POSITIONS),
+  GetEntriesForReceipt: (receiptId: number) =>
+    later(ENTRIES.filter((e: any) => e.receiptId === receiptId)),
+  GetReceiptFindings: (receiptId: number) => later(receiptFindings(receiptId)),
+  GetFilteredJournal: (filter: any) => later(filteredJournal(filter)),
+  GetFilteredJournalCSV: () => later(filteredJournalCSV()),
+  SaveFilteredJournalCSV: unsupported('SaveFilteredJournalCSV'),
+  PostManualEntry: unsupported('PostManualEntry'),
+  CreateSelfIssuedReceipt: unsupported('CreateSelfIssuedReceipt'),
+  OverrideReceiptRetention: unsupported('OverrideReceiptRetention'),
+  CreateCustomAccount: unsupported('CreateCustomAccount'),
+  SetAccountBlocked: unsupported('SetAccountBlocked'),
 };
 
 // -------------------------------------------------------------------------
@@ -2867,4 +3807,269 @@ function previewIncoming(request: any) {
   }
 
   return { lines, net, tax, gross, balanced: true, warnings };
+}
+
+
+// -------------------------------------------------------------------------
+// Welle 8: Fristen, Steuersätze, eigene Konten, Beanstandungen, Journalfilter
+
+/** Die Fristentabelle, wie sie das Backend aus `retention_rules.json` lädt. */
+const RETENTION_RULES = {
+  version: '2026.1',
+  validFrom: '2025-01-01',
+  source: 'HGB und AO in der Fassung des Vierten Bürokratieentlastungsgesetzes',
+  note: 'Die verkürzte Frist für Buchungsbelege gilt für Unterlagen, deren Frist am 1. Januar 2025 noch lief.',
+  classes: [
+    {
+      class: 'books',
+      label: 'Handelsbücher und Abschlüsse',
+      years: 10,
+      legalBasis: '§ 257 Abs. 4 HGB, § 147 Abs. 3 AO',
+      objects: ['Journal', 'Jahresabschluss', 'Inventar'],
+      previous: null,
+    },
+    {
+      class: 'vouchers',
+      label: 'Buchungsbelege und Rechnungen',
+      years: 8,
+      legalBasis: '§ 257 Abs. 4 HGB, § 147 Abs. 3 AO',
+      objects: ['Beleg', 'Rechnung', 'Kontoauszug'],
+      previous: { years: 10, replacedFrom: '2025-01-01', note: 'bis zum Vierten Bürokratieentlastungsgesetz' },
+    },
+    {
+      class: 'letters',
+      label: 'Handelsbriefe und sonstige Unterlagen',
+      years: 6,
+      legalBasis: '§ 257 Abs. 4 HGB, § 147 Abs. 3 AO',
+      objects: ['Handelsbrief', 'Angebot', 'Bestellung'],
+      previous: null,
+    },
+  ],
+};
+
+/** Die datierte Tabelle der Steuersätze (UNV-03 K2). */
+const VAT_RATE_PERIODS = [
+  { validFrom: '2007-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
+  { validFrom: '2020-07-01', standard: 1600, reduced: 500, source: 'Zweites Corona-Steuerhilfegesetz' },
+  { validFrom: '2021-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
+];
+
+/** Der Vorschlag zum Voranmeldungszeitraum aus der Steuer des Vorjahres. */
+function vatPeriodProposal(year: number) {
+  const target = year || YEAR;
+  return {
+    year: target,
+    basedOnYear: target - 1,
+    priorYearTax: c(11_480),
+    current: 'quarter',
+    proposed: 'month',
+    changes: true,
+    complete: true,
+    missingPeriods: 0,
+    reference: '§ 18 Abs. 2 UStG',
+    note:
+      `Die Steuer des Jahres ${target - 1} lag über 9.000 Euro; ab ${target} ist monatlich ` +
+      'anzumelden. Das Finanzamt setzt den Zeitraum fest — Buchfink schlägt ihn nur vor.',
+  };
+}
+
+/** Zwei selbst angelegte Konten im freien Bereich des SKR04 (BEL-06 K2). */
+const CUSTOM_ACCOUNTS = [
+  {
+    ...(ACCOUNTS[0] as any),
+    id: 9001,
+    number: '6899',
+    name: 'Werkstattverbrauch Prototypen',
+    posten: 'Sonstige betriebliche Aufwendungen',
+    positionId: 'guv_sonstige_aufwendungen',
+    statementType: 'guv',
+    isCustom: true,
+    isActive: true,
+    bookingsCount: 14,
+    debitSum: c(4_318.9),
+    creditSum: 0,
+    balance: c(4_318.9),
+  },
+  {
+    ...(ACCOUNTS[0] as any),
+    id: 9002,
+    number: '6898',
+    name: 'Messebeteiligung Nord',
+    posten: 'Sonstige betriebliche Aufwendungen',
+    positionId: 'guv_sonstige_aufwendungen',
+    statementType: 'guv',
+    isCustom: true,
+    isActive: false,
+    bookingsCount: 3,
+    debitSum: c(1_190),
+    creditSum: 0,
+    balance: c(1_190),
+  },
+];
+
+/** Die Gliederungspositionen, unter denen ein eigenes Konto stehen darf. */
+const STATEMENT_POSITIONS = [
+  {
+    id: 'guv_sonstige_aufwendungen',
+    name: 'Sonstige betriebliche Aufwendungen',
+    statementType: 'guv',
+    balanceSide: 'S',
+    hgbCode: '§ 275 Abs. 2 Nr. 8 HGB',
+    accountType: 'expense',
+  },
+  {
+    id: 'guv_sonstige_ertraege',
+    name: 'Sonstige betriebliche Erträge',
+    statementType: 'guv',
+    balanceSide: 'H',
+    hgbCode: '§ 275 Abs. 2 Nr. 4 HGB',
+    accountType: 'revenue',
+  },
+  {
+    id: 'bilanz_sonstige_vermoegen',
+    name: 'Sonstige Vermögensgegenstände',
+    statementType: 'bilanz',
+    balanceSide: 'S',
+    hgbCode: '§ 266 Abs. 2 B. II. 4. HGB',
+    accountType: 'asset',
+  },
+];
+
+/**
+ * Die Beanstandungen eines Belegs nach Fehlerklassen (RECH-07 K2).
+ *
+ * Der Beleg mit strukturiertem Teil trägt einen Geschäftsregel- und einen
+ * Inhaltsfehler, jeder andere keinen — geprüft wird, was geprüft werden kann.
+ */
+function receiptFindings(receiptId: number) {
+  const receipt = RECEIPTS.find((r: any) => r.id === receiptId) as any;
+  const checked = Boolean(receipt?.validatedAt);
+  const groups = checked
+    ? [
+        {
+          class: 'business_rule',
+          label: 'Geschäftsregelfehler',
+          findings: [
+            {
+              class: 'business_rule',
+              rule: 'BR-DE-15',
+              severity: 'warning',
+              where: '',
+              message: 'Die Bestellreferenz des Käufers fehlt.',
+              norm: 'CIUS XRechnung 3.0',
+              inputTaxEffect: 'Ohne Folge für den Vorsteuerabzug.',
+              blocking: false,
+            },
+          ],
+        },
+        {
+          class: 'content',
+          label: 'Inhaltsfehler',
+          findings: [
+            {
+              class: 'content',
+              rule: 'input_tax_service_date',
+              severity: 'fatal',
+              where: 'Kopfdaten',
+              message: 'Der Zeitpunkt der Leistung ist nicht angegeben.',
+              norm: '§ 14 Abs. 4 Satz 1 Nr. 6 UStG',
+              inputTaxEffect: 'Der Vorsteuerabzug ist bis zur Berichtigung ausgeschlossen.',
+              blocking: true,
+            },
+          ],
+        },
+      ]
+    : [];
+  const findings = groups.flatMap((g) => g.findings);
+  return {
+    receiptId,
+    receiptNumber: receipt?.receiptNumber ?? '',
+    checked,
+    groups,
+    total: findings.length,
+    blocking: findings.filter((f) => f.blocking).length,
+  };
+}
+
+/** Die Zeilen des Journals als flache Menge — die Grundlage des Filters. */
+function journalRows() {
+  const rows: any[] = [];
+  for (const entry of ENTRIES as any[]) {
+    for (const line of entry.lines) {
+      rows.push({
+        entryId: entry.id,
+        entryNumber: entry.entryNumber,
+        bookingDate: entry.bookingDate,
+        documentDate: entry.documentDate,
+        documentNumber: entry.documentNumber,
+        description: entry.description,
+        kind: entry.kind,
+        actor: entry.actor ?? 'M. Schulte',
+        hasReceipt: Boolean(entry.receiptId),
+        position: line.position,
+        side: line.side,
+        account: line.account,
+        accountName: line.accountName,
+        amount: line.amount,
+        taxKey: line.taxKey,
+        taxBase: line.taxBase,
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Die gefilterte Menge mit ihrer Summenzeile (PRF-01 K3).
+ *
+ * Gefiltert wird über dieselben Felder wie im Backend; die Vorschau nimmt
+ * davon, was ohne Datenbank geht — Zeitraum, Konto, Betragsband, Steuer-
+ * schlüssel, Bearbeiter, Beleg ja/nein und den Suchtext.
+ */
+function filteredJournal(filter: any) {
+  const f = filter ?? {};
+  const rows = journalRows().filter((row) => {
+    if (f.from && row.bookingDate < f.from) return false;
+    if (f.to && row.bookingDate > f.to) return false;
+    if (f.account && row.account !== f.account) return false;
+    if (f.amountFrom !== undefined && row.amount < f.amountFrom) return false;
+    if (f.amountTo !== undefined && row.amount > f.amountTo) return false;
+    if (f.taxKey && (row.taxKey ?? '') !== f.taxKey) return false;
+    if (f.actor && !(row.actor ?? '').includes(f.actor)) return false;
+    if (f.hasReceipt !== undefined && row.hasReceipt !== f.hasReceipt) return false;
+    if (f.text) {
+      const needle = String(f.text).toLowerCase();
+      const haystack = `${row.entryNumber} ${row.description} ${row.documentNumber ?? ''}`;
+      if (!haystack.toLowerCase().includes(needle)) return false;
+    }
+    return true;
+  });
+  const totalDebit = rows.filter((r) => r.side === 'S').reduce((sum, r) => sum + r.amount, 0);
+  const totalCredit = rows.filter((r) => r.side === 'H').reduce((sum, r) => sum + r.amount, 0);
+  return {
+    rows,
+    rowCount: rows.length,
+    entryCount: new Set(rows.map((r) => r.entryId)).size,
+    totalDebit,
+    totalCredit,
+    balance: totalDebit - totalCredit,
+  };
+}
+
+/** Dieselbe Menge als CSV — dieselben Spalten wie im Z3-Export. */
+function filteredJournalCSV() {
+  const head = 'Buchung;Datum;Buchungstext;Konto;Steuerschlüssel;Bearbeiter;Soll;Haben';
+  const body = journalRows().map((row) =>
+    [
+      row.entryNumber,
+      row.bookingDate,
+      row.description,
+      row.account,
+      row.taxKey ?? '',
+      row.actor ?? '',
+      row.side === 'S' ? euro(row.amount) : '',
+      row.side === 'H' ? euro(row.amount) : '',
+    ].join(';'),
+  );
+  return [head, ...body].join('\n');
 }

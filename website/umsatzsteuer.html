@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Umsatzsteuer und Meldungen — Buchfink</title>
+    <meta name="description" content="Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung, Steuerfristen und steuerliche Nebenpflichten in Buchfink." />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <a href="buchhaltung.html">Laufende Buchhaltung</a>
+          <a href="umsatzsteuer.html" aria-current="page">Umsatzsteuer</a>
+          <a href="abschluss.html">Abschluss</a>
+          <a href="nachweise.html">Nachweise</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+          <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Umsatzsteuer und Meldungen</h1>
+          <p class="pagehead__lead">
+            Die Kennziffern kommen aus den Steuerzeilen der Buchungen; eine zweite Datenquelle für
+            eine Zahl gibt es nicht. Buchfink übermittelt nichts selbst: es erzeugt das
+            Kennziffernblatt und die Meldedatei, die Übermittlung läuft über Mein ELSTER oder die
+            Steuerberatung, und das Protokoll wird danach erfasst.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Voranmeldung</p>
+              <h2 class="feature__title">Alle Kennziffern des Vordrucks USt 1 A</h2>
+              <p class="feature__body">
+                Buchfink rechnet den gewählten Zeitraum aus den Steuerzeilen der Buchungen und legt
+                jede Kennziffer mit Bemessungsgrundlage und Steuer vor; hinter jeder Zeile stehen
+                die Buchungen, aus denen sie entstanden ist. Die Anwenderin prüft das Blatt, gibt
+                es als Datei aus, trägt die Werte in Mein ELSTER ein und erfasst danach Datum und
+                Transferticket. Ab da ist das Protokoll unveränderlich; eine Berichtigung entsteht
+                als eigene Anmeldung mit Bezug auf die erste.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/umsatzsteuer.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/umsatzsteuer.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Umsatzsteuer“ mit der Zahllast des Quartals, den Kennziffern 81, 66 und 83 des Vordrucks USt 1 A und den übermittelten Voranmeldungen mit Transferticket."
+                />
+              </a>
+              <figcaption>
+                Die Zusammenfassende Meldung nach § 18a UStG steht auf derselben Seite, mit
+                Meldezeilen je USt-IdNr.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Fristen</p>
+              <h2 class="feature__title">Termine, deren Stand aus den Daten folgt</h2>
+              <p class="feature__body">
+                Buchfink führt die Steuertermine, die Abschlusstermine und die Gründungspflichten
+                des Geschäftsjahres mit Frist und Norm. Erledigt ist ein Termin, wenn die Daten es
+                hergeben — die bestätigte Übermittlung, die Festschreibung —, und nicht, weil
+                jemand einen Haken gesetzt hat. Von hier aus öffnet die Anwenderin den
+                Monatsabschluss und schreibt den Zeitraum fest.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/fristen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/fristen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Steuerfristen“ mit festgeschriebenen Quartalen und der Terminliste aus Voranmeldung, Zusammenfassender Meldung, Festschreibung und Offenlegung."
+                />
+              </a>
+              <figcaption>Überfällig, offen und erledigt sind drei Sichten auf dieselbe Liste.</figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Nebenpflichten</p>
+              <h2 class="feature__title">Was neben der Meldung mitläuft</h2>
+              <p class="feature__body">
+                Sechs Verzeichnisse stehen an einer Stelle: die Vorsteuerberichtigung nach § 15a
+                UStG, die qualifizierte Bestätigung der USt-IdNr. beim Bundeszentralamt, der
+                Belegnachweis je innergemeinschaftlicher Lieferung, die nicht abziehbaren
+                Betriebsausgaben, die Fremdwährungskurse und die Anlagenpflichten. Buchfink rechnet
+                den Berichtigungsbetrag je Wirtschaftsgut und legt ihn vor; die Anwenderin
+                bestätigt den Verwendungsanteil, denn eine ungeprüfte Übernahme wäre die
+                Behauptung, jemand habe hingesehen.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/nebenpflichten.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/nebenpflichten.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Steuerliche Nebenpflichten“ mit dem Verzeichnis nach § 15a UStG: Wirtschaftsgut, Anschaffung, Vorsteuer, Verwendungsanteil und Berichtigungsbetrag."
+                />
+              </a>
+              <figcaption>Der Berichtigungsbetrag geht in die Kennziffer 64.</figcaption>
+            </figure>
+          </article>
+
+          <div class="note" style="margin-top: 56px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
+            </svg>
+            <div>
+              <p class="note__title">Die Liste der Steuerfälle ist geschlossen</p>
+              <p class="note__body">
+                Unterstützt sind Inland zu 19, 7 und 0 Prozent, steuerfreie Umsätze,
+                innergemeinschaftlicher Erwerb und innergemeinschaftliche Lieferung, Reverse Charge
+                als Empfänger und als Leistender sowie die Ausfuhr. Ausgeschlossen sind unter
+                anderem Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS und IOSS,
+                Dreiecksgeschäft, Konsignationslager und Bauleistungen nach § 13b Abs. 2 Nr. 4
+                UStG. Jeder Fall, den Buchfink kennt, muss durchgehend richtig sein — von der
+                Buchung über den Rechnungstext bis in die Meldung; die Oberfläche sagt bei einem
+                ausgeschlossenen Fall, dass sie ihn nicht abbildet.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Angrenzende Seiten</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="buchhaltung.html">Laufende Buchhaltung</a></p>
+              <p class="link__body">Wo die Steuerzeilen entstehen: Bank, Belege, Journal, Rechnungen.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="abschluss.html">Abschluss</a></p>
+              <p class="link__body">Der Monatsabschluss führt Prüfbericht, Festschreibung und Voranmeldung zusammen.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="roadmap.html">Roadmap</a></p>
+              <p class="link__body">Was im Modul Umsatzsteuer erfüllt, teilweise erfüllt und offen ist.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
+              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

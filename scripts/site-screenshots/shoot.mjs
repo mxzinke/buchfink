@@ -83,16 +83,29 @@ async function main() {
 
     const shots = [
       {
-        // Die frühere Seite „Übersicht" ist in der Aufgabenliste aufgegangen
-        // (Welle 7, Entscheidung 1): Kennzahlen und zuletzt erfasste Vorgänge
-        // stehen dort unter der Liste. Der Dateiname bleibt, die Website
-        // verweist auf ihn.
-        file: 'uebersicht.png',
+        // Die Startseite: die Aufgabenliste mit den Kennzahlen darunter. Die
+        // frühere Seite „Übersicht" ist darin aufgegangen (Welle 7).
+        file: 'aufgaben.png',
         go: async () => {
           await nav('Aufgaben').click();
           await page.getByRole('heading', { name: 'Aufgaben', exact: true }).waitFor();
           await page.getByText('Zuletzt erfasst').waitFor();
           await page.getByText('B-2026-0055').waitFor();
+        },
+      },
+      {
+        // Der Monatsabschluss in drei Schritten, geöffnet aus der Aufgabenliste.
+        file: 'monatsabschluss.png',
+        go: async () => {
+          await page.getByRole('button', { name: 'Monat öffnen' }).click();
+          await page.getByRole('dialog').waitFor();
+          await page.getByText('Prüfbericht', { exact: true }).first().waitFor();
+          await page.getByText('Festschreiben', { exact: true }).first().waitFor();
+          await page.waitForTimeout(400);
+        },
+        after: async () => {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
         },
       },
       {
@@ -123,6 +136,33 @@ async function main() {
         },
       },
       {
+        // Das Mahnwesen wohnt als Reiter auf derselben Seite wie der Abgleich:
+        // beides handelt von Zahlungen.
+        file: 'mahnwesen.png',
+        go: async () => {
+          await page.getByRole('tab', { name: 'Mahnwesen' }).click();
+          await page.getByText('Mahnvorschläge').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'rechnungen.png',
+        go: async () => {
+          await nav('Rechnungen').click();
+          await page.getByText('RE-2026-0119').first().waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'anzahlungen.png',
+        go: async () => {
+          await nav('Anzahlungen').click();
+          await page.getByText('Rechnungsverbünde').waitFor();
+          await page.getByText('Lagerleitstand Billstraße, Ausbaustufe 1').first().waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
         file: 'belege.png',
         go: async () => {
           await nav('Belege').click();
@@ -141,12 +181,54 @@ async function main() {
         },
       },
       {
+        // Die Kopfdaten des Belegs (BEL-02): ohne sie nimmt das Backend die
+        // Buchung nicht an.
+        file: 'belege-kopfdaten.png',
+        go: async () => {
+          await page.getByRole('button', { name: 'Kopfdaten', exact: true }).click();
+          await page.getByRole('dialog').waitFor();
+          await page.getByText('Kopfdaten zu Beleg BE-2026-0231').waitFor();
+          await page.waitForTimeout(400);
+        },
+        after: async () => {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
+        },
+      },
+      {
         file: 'journal.png',
         go: async () => {
           await nav('Journal').click();
           await page.getByText('B-2026-0055').waitFor();
           await page.getByRole('button', { name: 'Buchungssatz anzeigen' }).nth(7).click();
           await page.waitForTimeout(300);
+        },
+      },
+      {
+        // Die Umsatzsteuer ist seit Welle 5c eine eigene Seite und kein Reiter
+        // der Auswertungen mehr.
+        file: 'umsatzsteuer.png',
+        go: async () => {
+          await nav('Umsatzsteuer').click();
+          await page.getByText('Kennziffern des Vordrucks USt 1 A').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'fristen.png',
+        go: async () => {
+          await nav('Steuerfristen').click();
+          await page.getByText('Zeiträume festschreiben').waitFor();
+          await page.getByText('Umsatzsteuer-Voranmeldung 3. Quartal 2026').first().waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'nebenpflichten.png',
+        go: async () => {
+          await nav('Nebenpflichten').click();
+          await page.getByText('Wirtschaftsgüter im Verzeichnis').waitFor();
+          await page.waitForTimeout(400);
         },
       },
       {
@@ -158,24 +240,19 @@ async function main() {
         },
       },
       {
-        file: 'umsatzsteuer.png',
+        file: 'jahresabschluss.png',
         go: async () => {
-          await page.getByRole('tab', { name: 'Umsatzsteuer' }).click();
-          await page.getByText('Kennziffern der Voranmeldung').waitFor();
-        },
-      },
-      {
-        file: 'protokoll.png',
-        go: async () => {
-          await nav('Sicherheit & Protokoll').click();
-          await page.getByText('Zustand der Kette').waitFor();
+          await nav('Jahresabschluss').click();
+          await page.getByText('Abschlussbausteine').waitFor();
+          await page.getByText('Weg zum Abschluss').waitFor();
+          await page.waitForTimeout(400);
         },
       },
       {
         file: 'ebilanz.png',
         go: async () => {
           await nav('E-Bilanz').click();
-          await page.getByText('Zuordnung der Standardkonten').waitFor();
+          await page.getByText('Zuordnung der Konten').waitFor();
           await page.getByRole('button', { name: 'Rohdaten anzeigen' }).click();
           await page.getByText('Rohdaten', { exact: true }).waitFor();
           await page.waitForTimeout(400);
@@ -186,6 +263,33 @@ async function main() {
         go: async () => {
           await nav('Kontenübersicht').click();
           await page.getByText('Bebuchte Konten').waitFor();
+        },
+      },
+      {
+        // „Sicherheit & Protokoll" zeigt seit Welle 6 den Zustand der Kette und
+        // verweist für das Protokoll auf „Nachweise".
+        file: 'sicherheit.png',
+        go: async () => {
+          await nav('Sicherheit & Protokoll').click();
+          await page.getByText('Zustand der Kette').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'nachweise.png',
+        go: async () => {
+          await nav('Nachweise').click();
+          await page.getByRole('heading', { name: 'Nachweise', exact: true }).waitFor();
+          await page.getByText('Änderungsprotokoll').first().waitFor();
+          await page.waitForTimeout(600);
+        },
+      },
+      {
+        file: 'datenzugriff.png',
+        go: async () => {
+          await nav('Datenzugriff').click();
+          await page.getByText('Datenüberlassung').first().waitFor();
+          await page.waitForTimeout(400);
         },
       },
     ];

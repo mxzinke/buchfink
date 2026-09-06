@@ -1057,3 +1057,237 @@ table.data td:first-child {
     transition-duration: 0ms !important;
   }
 }
+
+/* -------------------------------------------------------------------------
+   Kopf einer Unterseite
+
+   Kein zweiter Held: die Unterseiten tragen Titel und einen Absatz, damit der
+   Leser weiß, worauf er gestoßen ist, und dann beginnt der Inhalt.
+   ------------------------------------------------------------------------- */
+
+.pagehead {
+  padding-block: 72px 0;
+}
+.pagehead__title {
+  font-size: clamp(32px, 4.2vw, 46px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 12px 0 0;
+}
+.pagehead__lead {
+  margin-top: 20px;
+  max-width: 68ch;
+  font-size: 17px;
+  line-height: 30px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Verweise auf die Unterseiten
+
+   Keine Karten (§6.2): eine Haarlinie über jedem Eintrag, mehr braucht eine
+   Liste von Wegen nicht.
+   ------------------------------------------------------------------------- */
+
+.links {
+  display: grid;
+  gap: 0 40px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 32px;
+}
+.links > * {
+  padding-block: 20px;
+  border-top: 1px solid var(--line);
+}
+.link__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.link__title a {
+  border-bottom: 0;
+  color: var(--ink);
+}
+.link__title a:hover {
+  color: var(--accent-text);
+}
+.link__body {
+  margin-top: 6px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Zeitleiste der Roadmap
+
+   Senkrecht, weil sie in der Zeit gelesen wird und nicht im Raum. Die Linie
+   ist die Haarlinie der Seite; der Punkt sitzt darauf.
+   ------------------------------------------------------------------------- */
+
+.timeline {
+  margin-top: 40px;
+  padding-left: 28px;
+  border-left: 1px solid var(--line-strong);
+}
+.timeline__item {
+  position: relative;
+  padding-bottom: 44px;
+}
+.timeline__item:last-child {
+  padding-bottom: 0;
+}
+.timeline__item::before {
+  content: '';
+  position: absolute;
+  left: -33px;
+  top: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--control-border);
+}
+.timeline__item--done::before {
+  background: var(--positive);
+  border-color: var(--positive);
+}
+.timeline__item--open::before {
+  background: var(--attention);
+  border-color: var(--attention);
+}
+.timeline__stage {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+.timeline__title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 6px 0 0;
+}
+.timeline__body {
+  margin-top: 8px;
+  max-width: 72ch;
+  color: var(--ink-muted);
+}
+
+/* Abgehakte Punkte mit den Zahlen des Anforderungskatalogs */
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  max-width: 78ch;
+}
+.checklist li {
+  position: relative;
+  padding-left: 26px;
+  margin-top: 10px;
+  color: var(--ink-muted);
+}
+.checklist li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 12px;
+  height: 7px;
+  border-left: 1.5px solid var(--positive);
+  border-bottom: 1.5px solid var(--positive);
+  transform: rotate(-45deg);
+}
+.checklist--open li::before {
+  border: 0;
+  top: 10px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  transform: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--attention);
+}
+.checklist strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.checklist .count {
+  color: var(--ink-subtle);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------------------
+   Nachtrag für schmale Fenster
+
+   Die Navigation verschwindet auf dem Telefon nicht mehr: mit sieben Seiten
+   wäre die Seite dort ohne Weg zu den anderen.
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .topbar__inner {
+    flex-wrap: wrap;
+    /* Die feste Höhe von 60 px trägt die umgebrochene Navigation nicht; der
+       Kopf wächst hier mit seinem Inhalt. */
+    height: auto;
+    min-height: 60px;
+    padding-block: 10px;
+    gap: 8px 16px;
+  }
+  .topnav {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+  .topnav a:not(.btn) {
+    display: inline;
+    font-size: 13px;
+  }
+  .timeline {
+    padding-left: 20px;
+  }
+  .timeline__item::before {
+    left: -25px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Sechs Spalten in zwei Reihen
+
+   `auto-fit` verteilt sechs Einträge auf fünf und einen. Wo die Zahl der
+   Einträge feststeht, steht auch die Zahl der Spalten fest.
+   ------------------------------------------------------------------------- */
+
+.columns--drei {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.columns--drei > * {
+  border-right: 1px solid var(--line);
+  padding-left: 36px;
+}
+.columns--drei > *:nth-child(3n) {
+  border-right: 0;
+  padding-right: 0;
+}
+.columns--drei > *:nth-child(3n + 1) {
+  padding-left: 0;
+}
+.columns--drei > *:nth-child(n + 4) {
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .columns--drei {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .columns--drei > * {
+    border-right: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 24px 0;
+  }
+  .columns--drei > *:last-child {
+    border-bottom: 0;
+  }
+}

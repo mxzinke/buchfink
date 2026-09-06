@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abschluss — Buchfink</title>
+    <meta name="description" content="Monatsabschluss in drei Schritten, Jahresabschluss als geführter Weg, Bilanz und GuV nach HGB und die E-Bilanz als XBRL-Datei." />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <a href="buchhaltung.html">Laufende Buchhaltung</a>
+          <a href="umsatzsteuer.html">Umsatzsteuer</a>
+          <a href="abschluss.html" aria-current="page">Abschluss</a>
+          <a href="nachweise.html">Nachweise</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+          <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Abschluss</h1>
+          <p class="pagehead__lead">
+            Der Abschluss ist die Stelle, an der jemand ohne Buchhaltungsausbildung sonst
+            aussteigt. Buchfink zerlegt ihn in Schritte, die eine Reihenfolge haben und ihren Stand
+            aus den Daten holen: monatlich drei, jährlich vierzehn Bausteine in sechs Stationen.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Monatsabschluss</p>
+              <h2 class="feature__title">Drei Schritte, in dieser Reihenfolge</h2>
+              <p class="feature__body">
+                Buchfink prüft den Monat gegen dreizehn Regeln — Buchungen ohne Beleg, Belege ohne
+                Buchung, Interimskonten, offene Bankumsätze, Doppelbelege, Nummernlücken —,
+                schreibt ihn nach der Bestätigung fest und holt dafür den Zeitstempel. Die
+                Anwenderin klärt die Befunde oder übergeht sie mit Begründung, bestätigt die
+                Festschreibung und trägt danach die Voranmeldung in Mein ELSTER ein. Was gemeldet
+                wird, ist vorher unveränderlich; sonst weicht die Buchführung später von der
+                Meldung ab.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/monatsabschluss.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/monatsabschluss.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Dialog „Monatsabschluss“ mit den drei Schritten Prüfbericht, Festschreiben und Voranmeldung bestätigen sowie den Befunden bis zum Monatsende."
+                />
+              </a>
+              <figcaption>Aus der Aufgabenliste und von der Fristenseite aus erreichbar.</figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Jahresabschluss</p>
+              <h2 class="feature__title">Ein geführter Weg durch vierzehn Bausteine</h2>
+              <p class="feature__body">
+                Buchfink führt die Abschlussbausteine in fachlicher Reihenfolge — Abschreibungen,
+                Wertaufholung, Fremdwährungsbewertung, Rechnungsabgrenzung, Rückstellungen,
+                Vorräte, Umsatzsteuer-Verrechnung, Vorsteuerberichtigung, Steuerrückstellung,
+                Prüfbericht, Bilanz und GuV, Aufstellung und Feststellung, E-Bilanz und
+                Offenlegung, Saldenvortrag — und rechnet den Fortschritt selbst. Ein Knopf öffnet
+                den Baustein dort, wo er gepflegt wird. Die Anwenderin arbeitet die Schritte ab
+                oder überspringt einen mit Grund; der Grund geht ins Änderungsprotokoll, damit
+                später erkennbar bleibt, dass er nicht vergessen wurde.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/jahresabschluss.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/jahresabschluss.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Jahresabschluss“ mit Jahresergebnis, den Schritten von der Festschreibung bis zur Offenlegung und dem Fortschritt „5 von 14 Schritten“ über der Liste der Abschlussbausteine."
+                />
+              </a>
+              <figcaption>
+                Ein übersprungener Baustein zählt zum Fortschritt und gilt nicht als getan.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Bilanz und GuV</p>
+              <h2 class="feature__title">Gegliedert nach §§ 266 und 275 HGB</h2>
+              <p class="feature__body">
+                Buchfink gliedert allein aus den Kontensalden, mit Vorjahresspalte und
+                Bilanzgewinn, und bestimmt die Größenklasse aus zwei aufeinanderfolgenden
+                Stichtagen; sie setzt Gliederungstiefe, Anhangumfang und Offenlegungsumfang. Von
+                einer Bilanzposition führt der Weg über das Konto und die Buchung bis zum Beleg.
+                Die Anwenderin gibt Bilanz und GuV als PDF oder CSV aus.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/guv.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/guv.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Gewinn- und Verlustrechnung mit Umsatzerlösen, Aufwandspositionen und dem Jahresergebnis, daneben die Bilanz zum Stichtag."
+                />
+              </a>
+              <figcaption>Eine durchgehende Aufstellung, keine Kacheln.</figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">E-Bilanz</p>
+              <h2 class="feature__title">Die XBRL-Datei aus derselben Gliederung</h2>
+              <p class="feature__body">
+                Buchfink ordnet jedes bebuchte Konto über die Gliederungsposition einem
+                Taxonomie-Element zu und erzeugt daraus die Instanz — mit Vorjahreskontext,
+                unverdichtetem Kontennachweis, Anlagenspiegel und Überleitungsrechnung. Konten ohne
+                Zuordnung halten die Erzeugung auf und stehen als Liste da. Die Anwenderin sieht
+                sich die Rohdaten an, bevor sie die Datei weitergibt, und reicht sie über Mein
+                ELSTER oder die Steuerberatung ein.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/ebilanz.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/ebilanz.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „E-Bilanz“ mit der Zuordnung der Konten auf Gliederungspositionen und Taxonomie-Elemente sowie den Rohdaten der erzeugten XBRL-Datei."
+                />
+              </a>
+              <figcaption>
+                Die Spalte „Geprüft“ sagt, welche Elementnamen gegen die amtliche Fassung
+                abgeglichen sind.
+              </figcaption>
+            </figure>
+          </article>
+
+          <div class="note note--attention" style="margin-top: 56px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
+            </svg>
+            <div>
+              <p class="note__title">Die Taxonomie ist vor der ersten Übermittlung abzugleichen</p>
+              <p class="note__body">
+                Die Taxonomie liegt als Ressource neben dem Code. Ihre Elementnamen sind nach der
+                Systematik gebildet und tragen durchgehend das Merkmal „ungeprüft“; vor der ersten
+                Übermittlung sind sie gegen die amtliche Fassung abzugleichen. Ebenso offen ist der
+                Jahresabschluss als Dokument: Feststellungsbeschluss, unterzeichneter Abschluss und
+                Prüfungsvermerk lassen sich noch nicht anhängen, und für die Offenlegung entsteht
+                kein Datensatz. Beides steht auf der <a href="roadmap.html">Roadmap</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Angrenzende Seiten</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></p>
+              <p class="link__body">Der dritte Schritt des Monatsabschlusses wohnt dort.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="nachweise.html">Nachweise und Sicherheit</a></p>
+              <p class="link__body">Festschreibung, Zeitstempel und das Protokoll dahinter.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="roadmap.html">Roadmap</a></p>
+              <p class="link__body">Was im Modul Jahresabschluss noch offen ist.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
+              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
