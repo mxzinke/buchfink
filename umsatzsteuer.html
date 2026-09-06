@@ -8,6 +8,36 @@
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
   </head>
 
   <body>
@@ -110,10 +140,13 @@
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Umsatzsteuer und Meldungen</h1>
           <p class="pagehead__lead">
-            Die Kennziffern kommen aus den Steuerzeilen der Buchungen; eine zweite Datenquelle für
-            eine Zahl gibt es nicht. Buchfink übermittelt nichts selbst: es erzeugt das
-            Kennziffernblatt und die Meldedatei, die Übermittlung geschieht in Mein ELSTER oder über
-            die Steuerberatung, und das Protokoll wird danach erfasst.
+            Jede Zahl im Formular kommt aus Ihren Buchungen. Eine zweite Liste daneben führt
+            Buchfink nicht.
+          </p>
+          <p class="pagehead__note">
+            Ans Finanzamt sendet Buchfink nichts. Es legt die Zahlen als Blatt und als Datei vor.
+            Abgegeben wird in Mein ELSTER oder über Ihre Steuerberatung. Danach tragen Sie das
+            Transferticket ein.
           </p>
         </div>
       </section>
@@ -125,13 +158,17 @@
               <p class="overline">Voranmeldung</p>
               <h2 class="feature__title">Alle Kennziffern des Vordrucks USt 1 A</h2>
               <p class="feature__body">
-                Buchfink rechnet den gewählten Zeitraum aus den Steuerzeilen der Buchungen und legt
-                jede Kennziffer mit Bemessungsgrundlage und Steuer vor; hinter jeder Zeile stehen
-                die Buchungen, aus denen sie entstanden ist. Die Anwenderin prüft das Blatt, gibt
-                es als Datei aus, trägt die Werte in Mein ELSTER ein und erfasst danach Datum und
-                Transferticket. Ab da ist das Protokoll unveränderlich; eine Berichtigung entsteht
-                als eigene Anmeldung mit Bezug auf die erste.
+                Buchfink rechnet den Zeitraum aus den Buchungen und legt jede Kennziffer mit
+                Bemessungsgrundlage und Steuer vor. Hinter jeder Zeile stehen die Buchungen, aus
+                denen sie entstanden ist. Sie prüfen das Blatt, tragen die Werte in Mein ELSTER
+                ein und erfassen danach Datum und Transferticket.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-danach-passiert">
+                Was danach passiert
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -154,14 +191,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Fristen</p>
-              <h2 class="feature__title">Termine, deren Stand aus den Daten folgt</h2>
+              <h2 class="feature__title">Termine, die sich selbst abhaken</h2>
               <p class="feature__body">
-                Buchfink führt die Steuertermine, die Abschlusstermine und die Gründungspflichten
-                des Geschäftsjahres mit Frist und Norm. Erledigt ist ein Termin, wenn die Daten es
-                hergeben — die bestätigte Übermittlung, die Festschreibung —, und nicht, weil
-                jemand einen Haken gesetzt hat. Von hier aus öffnet die Anwenderin den
-                Monatsabschluss und schreibt den Zeitraum fest.
+                Buchfink führt die Steuertermine, die Abschlusstermine und die
+                Gründungspflichten des Geschäftsjahres mit Frist und Norm. Erledigt ist ein
+                Termin, wenn die Daten es hergeben, nicht weil jemand einen Haken gesetzt hat.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-die-daten-hergeben">
+                Was die Daten hergeben müssen
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -183,14 +224,17 @@
               <p class="overline">Nebenpflichten</p>
               <h2 class="feature__title">Was neben der Meldung mitläuft</h2>
               <p class="feature__body">
-                Sechs Verzeichnisse stehen an einer Stelle: die Vorsteuerberichtigung nach § 15a
-                UStG, die qualifizierte Bestätigung der USt-IdNr. beim Bundeszentralamt, der
-                Belegnachweis je innergemeinschaftlicher Lieferung, die nicht abziehbaren
-                Betriebsausgaben, die Fremdwährungskurse und die Anlagenpflichten. Buchfink rechnet
-                den Berichtigungsbetrag je Wirtschaftsgut und legt ihn vor; die Anwenderin
-                bestätigt den Verwendungsanteil, denn eine ungeprüfte Übernahme wäre die
-                Behauptung, jemand habe hingesehen.
+                Sechs Verzeichnisse stehen an einer Stelle, darunter die Vorsteuerberichtigung
+                nach § 15a UStG und die Bestätigung der USt-IdNr. beim Bundeszentralamt. Buchfink
+                rechnet den Berichtigungsbetrag je Wirtschaftsgut; den Verwendungsanteil
+                bestätigen Sie.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-die-sechs-verzeichnisse">
+                Die sechs Verzeichnisse
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -216,14 +260,16 @@
               <p class="note__title">Die Liste der Steuerfälle ist geschlossen</p>
               <p class="note__body">
                 Unterstützt sind Inland zu 19, 7 und 0 Prozent, steuerfreie Umsätze,
-                innergemeinschaftlicher Erwerb und innergemeinschaftliche Lieferung, Reverse Charge
-                als Empfänger und als Leistender sowie die Ausfuhr. Ausgeschlossen sind unter
-                anderem Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS und IOSS,
-                Dreiecksgeschäft, Konsignationslager und Bauleistungen nach § 13b Abs. 2 Nr. 4
-                UStG. Jeder Fall, den Buchfink kennt, muss durchgehend richtig sein — von der
-                Buchung über den Rechnungstext bis in die Meldung; die Oberfläche sagt bei einem
-                ausgeschlossenen Fall, dass sie ihn nicht abbildet.
+                innergemeinschaftlicher Erwerb und innergemeinschaftliche Lieferung, Reverse
+                Charge als Empfänger und als Leistender sowie die Ausfuhr. Trifft ein anderer Fall
+                zu, sagt die Oberfläche, dass sie ihn nicht abbildet.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-welche-fa-lle-ausgeschlossen">
+                Welche Fälle ausgeschlossen sind
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -249,6 +295,82 @@
           </div>
         </div>
       </section>
+
+
+      <dialog class="modal" id="dlg-was-danach-passiert" aria-labelledby="dlg-was-danach-passiert-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-danach-passiert-titel">Was danach passiert</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Ab der Erfassung ist das Protokoll unveränderlich. Eine Berichtigung entsteht
+          als eigene Anmeldung mit Bezug auf die erste.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-die-daten-hergeben" aria-labelledby="dlg-was-die-daten-hergeben-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-die-daten-hergeben-titel">Was die Daten hergeben müssen</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Die bestätigte Übermittlung oder die Festschreibung des Zeitraums. Von der
+          Fristenseite aus öffnen Sie den Monatsabschluss und schreiben den Zeitraum
+          fest.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-die-sechs-verzeichnisse" aria-labelledby="dlg-die-sechs-verzeichnisse-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-die-sechs-verzeichnisse-titel">Die sechs Verzeichnisse</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Vorsteuerberichtigung nach § 15a UStG, qualifizierte Bestätigung der
+          USt-IdNr., Belegnachweis je innergemeinschaftlicher Lieferung, nicht abziehbare
+          Betriebsausgaben, Fremdwährungskurse und Anlagenpflichten. Den Verwendungsanteil
+          übernimmt Buchfink nicht ungeprüft: das wäre die Behauptung, jemand habe
+          hingesehen.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-welche-fa-lle-ausgeschlossen" aria-labelledby="dlg-welche-fa-lle-ausgeschlossen-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-welche-fa-lle-ausgeschlossen-titel">Welche Fälle ausgeschlossen sind</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Unter anderem Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS und
+          IOSS, Dreiecksgeschäft, Konsignationslager und Bauleistungen nach § 13b Abs. 2
+          Nr. 4 UStG. Der Grund für die kurze Liste: Jeder Fall, den Buchfink kennt, muss
+          durchgehend richtig sein, von der Buchung über den Rechnungstext bis in die
+          Meldung.
+          </p>
+        </div>
+      </dialog>
     </main>
 
     <footer class="foot">
@@ -257,8 +379,8 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
-              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
             </p>
           </div>
           <div>

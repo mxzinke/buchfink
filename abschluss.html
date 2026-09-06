@@ -8,6 +8,36 @@
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
   </head>
 
   <body>
@@ -110,9 +140,9 @@
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Abschluss</h1>
           <p class="pagehead__lead">
-            Der Abschluss ist die Stelle, an der jemand ohne Buchhaltungsausbildung sonst
-            aussteigt. Buchfink zerlegt ihn in Schritte, die eine Reihenfolge haben und ihren Stand
-            aus den Daten holen: monatlich drei, jährlich vierzehn Bausteine in sechs Stationen.
+            Am Abschluss steigen die meisten ohne Buchhaltungsausbildung aus. Buchfink zerlegt ihn
+            in Schritte mit fester Reihenfolge: drei im Monat, vierzehn im Jahr. Jeder Schritt
+            sagt, ob er erledigt ist.
           </p>
         </div>
       </section>
@@ -124,14 +154,16 @@
               <p class="overline">Monatsabschluss</p>
               <h2 class="feature__title">Drei Schritte, in dieser Reihenfolge</h2>
               <p class="feature__body">
-                Buchfink prüft den Monat gegen dreizehn Regeln — Buchungen ohne Beleg, Belege ohne
-                Buchung, Interimskonten, offene Bankumsätze, Doppelbelege, Nummernlücken —,
-                schreibt ihn nach der Bestätigung fest und holt dafür den Zeitstempel. Die
-                Anwenderin klärt die Befunde oder übergeht sie mit Begründung, bestätigt die
-                Festschreibung und trägt danach die Voranmeldung in Mein ELSTER ein. Was gemeldet
-                wird, ist vorher unveränderlich; sonst weicht die Buchführung später von der
-                Meldung ab.
+                Buchfink prüft den Monat gegen dreizehn Regeln, schreibt ihn nach Ihrer
+                Bestätigung fest und holt dafür einen Zeitstempel. Danach tragen Sie die
+                Voranmeldung in Mein ELSTER ein. Was gemeldet wird, ist vorher unveränderlich.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-wogegen-gepru-ft-wird">
+                Wogegen geprüft wird, und warum die Reihenfolge feststeht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -151,17 +183,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Jahresabschluss</p>
-              <h2 class="feature__title">Ein geführter Weg durch vierzehn Bausteine</h2>
+              <h2 class="feature__title">Vierzehn Schritte, der Reihe nach</h2>
               <p class="feature__body">
-                Buchfink führt die Abschlussbausteine in fachlicher Reihenfolge — Abschreibungen,
-                Wertaufholung, Fremdwährungsbewertung, Rechnungsabgrenzung, Rückstellungen,
-                Vorräte, Umsatzsteuer-Verrechnung, Vorsteuerberichtigung, Steuerrückstellung,
-                Prüfbericht, Bilanz und GuV, Aufstellung und Feststellung, E-Bilanz und
-                Offenlegung, Saldenvortrag — und rechnet den Fortschritt selbst. Ein Knopf öffnet
-                den Baustein dort, wo er gepflegt wird. Die Anwenderin arbeitet die Schritte ab
-                oder überspringt einen mit Grund; der Grund geht ins Änderungsprotokoll, damit
-                später erkennbar bleibt, dass er nicht vergessen wurde.
+                Buchfink führt die vierzehn Abschlussbausteine in fachlicher Reihenfolge und
+                rechnet den Fortschritt selbst. Ein Knopf öffnet den Baustein dort, wo er
+                gepflegt wird. Einen Schritt können Sie überspringen, wenn Sie einen Grund angeben.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-die-vierzehn-bausteine">
+                Die vierzehn Bausteine
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -183,14 +216,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Bilanz und GuV</p>
-              <h2 class="feature__title">Gegliedert nach §§ 266 und 275 HGB</h2>
+              <h2 class="feature__title">Bilanz und GuV, gegliedert nach HGB</h2>
               <p class="feature__body">
                 Buchfink gliedert allein aus den Kontensalden, mit Vorjahresspalte und
-                Bilanzgewinn, und bestimmt die Größenklasse aus zwei aufeinanderfolgenden
-                Stichtagen; sie setzt Gliederungstiefe, Anhangumfang und Offenlegungsumfang. Von
-                einer Bilanzposition führt der Weg über das Konto und die Buchung bis zum Beleg.
-                Die Anwenderin gibt Bilanz und GuV als PDF oder CSV aus.
+                Bilanzgewinn. Von einer Bilanzposition führt der Weg über Konto und Buchung bis
+                zum Beleg. Ausgegeben wird als PDF oder CSV.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-woher-die-gro-ssenklasse">
+                Woher die Größenklasse kommt
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -210,15 +247,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">E-Bilanz</p>
-              <h2 class="feature__title">Die XBRL-Datei aus derselben Gliederung</h2>
+              <h2 class="feature__title">Die E-Bilanz aus denselben Zahlen</h2>
               <p class="feature__body">
-                Buchfink ordnet jedes bebuchte Konto über die Gliederungsposition einem
-                Taxonomie-Element zu und erzeugt daraus die Instanz — mit Vorjahreskontext,
-                unverdichtetem Kontennachweis, Anlagenspiegel und Überleitungsrechnung. Konten ohne
-                Zuordnung halten die Erzeugung auf und stehen als Liste da. Die Anwenderin sieht
-                sich die Rohdaten an, bevor sie die Datei weitergibt, und reicht sie über Mein
-                ELSTER oder die Steuerberatung ein.
+                Buchfink ordnet jedes bebuchte Konto einem Taxonomie-Element zu und erzeugt
+                daraus die XBRL-Datei. Konten ohne Zuordnung halten die Erzeugung auf und stehen
+                als Liste da. Eingereicht wird über Mein ELSTER oder die Steuerberatung.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-in-der-datei">
+                Was in der Datei steht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -246,12 +286,12 @@
             <div>
               <p class="note__title">Die Taxonomie ist vor der ersten Übermittlung abzugleichen</p>
               <p class="note__body">
-                Die Taxonomie liegt als Ressource neben dem Code. Ihre Elementnamen sind nach der
-                Systematik gebildet und haben durchgehend das Merkmal „ungeprüft“; vor der ersten
-                Übermittlung sind sie gegen die amtliche Fassung abzugleichen. Ebenso offen ist der
-                Jahresabschluss als Dokument: Feststellungsbeschluss, unterzeichneter Abschluss und
-                Prüfungsvermerk lassen sich noch nicht anhängen, und für die Offenlegung entsteht
-                kein Datensatz. Beides steht auf der <a href="roadmap.html">Roadmap</a>.
+                Die Elementnamen der Taxonomie sind nach der Systematik gebildet und tragen
+                durchgehend das Merkmal „ungeprüft“; vor der ersten Übermittlung sind sie gegen
+                die amtliche Fassung abzugleichen. Auch der Jahresabschluss als Dokument fehlt
+                noch: Feststellungsbeschluss, unterzeichneter Abschluss und Prüfungsvermerk lassen
+                sich nicht anhängen, und für die Offenlegung entsteht kein Datensatz. Beides steht
+                auf der <a href="roadmap.html">Roadmap</a>.
               </p>
             </div>
           </div>
@@ -278,6 +318,83 @@
           </div>
         </div>
       </section>
+
+
+      <dialog class="modal" id="dlg-wogegen-gepru-ft-wird" aria-labelledby="dlg-wogegen-gepru-ft-wird-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-wogegen-gepru-ft-wird-titel">Wogegen geprüft wird, und warum die Reihenfolge feststeht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Unter anderem gegen Buchungen ohne Beleg, Belege ohne Buchung,
+          Interimskonten, offene Bankumsätze, Doppelbelege und Nummernlücken. Einen Befund
+          klären Sie oder übergehen ihn mit Begründung. Stünde die Meldung vor der
+          Festschreibung, könnte die Buchführung später von dem abweichen, was gemeldet
+          wurde.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-die-vierzehn-bausteine" aria-labelledby="dlg-die-vierzehn-bausteine-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-die-vierzehn-bausteine-titel">Die vierzehn Bausteine</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Abschreibungen, Wertaufholung, Fremdwährungsbewertung, Rechnungsabgrenzung,
+          Rückstellungen, Vorräte, Umsatzsteuer-Verrechnung, Vorsteuerberichtigung,
+          Steuerrückstellung, Prüfbericht, Bilanz und GuV, Aufstellung und Feststellung,
+          E-Bilanz und Offenlegung, Saldenvortrag. Der Grund für einen übersprungenen
+          Schritt geht ins Änderungsprotokoll, damit später erkennbar bleibt, dass er
+          nicht vergessen wurde.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-woher-die-gro-ssenklasse" aria-labelledby="dlg-woher-die-gro-ssenklasse-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-woher-die-gro-ssenklasse-titel">Woher die Größenklasse kommt</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Aus zwei aufeinanderfolgenden Stichtagen. Sie setzt Gliederungstiefe,
+          Anhangumfang und Offenlegungsumfang.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-in-der-datei" aria-labelledby="dlg-was-in-der-datei-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-in-der-datei-titel">Was in der Datei steht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Vorjahreskontext, unverdichteter Kontennachweis, Anlagenspiegel und
+          Überleitungsrechnung. Die Rohdaten lassen sich ansehen, bevor die Datei aus dem
+          Haus geht.
+          </p>
+        </div>
+      </dialog>
     </main>
 
     <footer class="foot">
@@ -286,8 +403,8 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
-              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
             </p>
           </div>
           <div>
