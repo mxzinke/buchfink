@@ -13,7 +13,9 @@ import {
 import type {
   Account,
   AdvanceTarget,
+  AuditTrail,
   AdvanceTargetOption,
+  Cents,
   Contact,
   Conversion,
   EInvoiceProposal,
@@ -63,6 +65,7 @@ import {
   EmptyState,
   Field,
   HelpPopover,
+  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -214,6 +217,14 @@ const STATUS: Record<Receipt['status'], Status> = {
   discarded: 'storniert',
 };
 
+/**
+ * Die Kennung, mit der die Vorschau den fehlenden Leistungsnachweis meldet
+ * (`service.serviceProofWarningCode`). Sie ist der Anlass, das Feld im
+ * Buchungsdialog zum Pflichtfeld zu machen — die Grenze selbst steht im
+ * Backend und wird hier nicht nachgebaut.
+ */
+const SERVICE_PROOF_WARNING = 'service_proof_required';
+
 /** Hinweisfläche nach §6.2, Fall 4. Trägt Rand und Fläche immer zusammen. */
 const NOTE = 'rounded-control border px-4 py-3';
 const NOTE_TONE = {
@@ -265,7 +276,25 @@ function needsRecipient(group?: PostingGroup): boolean {
   return Boolean(group?.recipientRequired) || group?.limit === LIMIT_GIFT_PER_RECIPIENT;
 }
 
-export const ReceiptsPage: React.FC = () => {
+export interface ReceiptsPageProps {
+  /**
+   * Der Filter, mit dem die Liste öffnet: „filed" zeigt die abgelegten, noch
+   * nicht gebuchten Belege. Aus der Aufgabenliste führt sonst kein Weg zu den
+   * Belegen, die die Aufgabe zählt — man käme auf der Gesamtliste an.
+   */
+  initialStatus?: string;
+  /**
+   * Der Beleg, der gleich aufzuschlagen ist — aus der Buchung im Journal
+   * (GOB-02). Ohne ihn endete der Weg von der Bilanzposition zum Beleg auf der
+   * Belegliste, und der Beleg wäre dort erneut zu suchen.
+   */
+  initialReceiptId?: number;
+}
+
+export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
+  initialStatus,
+  initialReceiptId,
+}) => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<PostingGroup[]>([]);
@@ -276,7 +305,9 @@ export const ReceiptsPage: React.FC = () => {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
-  const [filter, setFilter] = useState<ReceiptFilter>('all');
+  // „filed" ist der Zustand des Backends, „open" der Filter dieser Liste: beide
+  // meinen den abgelegten, noch nicht gebuchten Beleg.
+  const [filter, setFilter] = useState<ReceiptFilter>(initialStatus === 'filed' ? 'open' : 'all');
   // Der Beleg, dessen Kopfdaten gerade erfasst werden. Der Dialog folgt dem
   // Ablegen und lässt sich am offenen Beleg erneut öffnen (BEL-02).
   const [headerFor, setHeaderFor] = useState<Receipt | null>(null);
@@ -309,6 +340,18 @@ export const ReceiptsPage: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Der Beleg aus dem Navigationsziel wird ausgewählt, sobald die Liste da ist.
+  // Er entscheidet nichts über den Filter: kommt der Weg aus einer gebuchten
+  // Buchung, stünde der Beleg unter „Offen" nicht in der Liste.
+  useEffect(() => {
+    if (!initialReceiptId) return;
+    const hit = receipts.find((receipt) => receipt.id === initialReceiptId);
+    if (hit) {
+      setFilter('all');
+      setSelected(hit);
+    }
+  }, [initialReceiptId, receipts]);
 
   // Liegt ein strukturierter Teil vor, ist er die Buchungsquelle — der
   // Vorsteuerabzug ist nur aus ihm möglich (UStAE 14c.1 Abs. 4a Satz 4).
@@ -811,6 +854,7 @@ const ReceiptDetail: React.FC<{
   onBooked,
   onEditHeader,
 }) => (
+  <>
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
     <ReceiptViewer receipt={receipt} onChanged={onChanged} onEditHeader={onEditHeader} />
 
@@ -821,11 +865,18 @@ const ReceiptDetail: React.FC<{
       // Geschäftsvorfall. Ein Buchungsformular hier führte im einen Fall zu
       // einer zweiten, doppelten Buchung und im anderen zu einer erfundenen.
       <div>
-        <h2 className="text-heading text-ink">{KIND_LABELS[kindOf(receipt)]}</h2>
+        <h2 className="flex items-center gap-1.5 text-heading text-ink">
+          {KIND_LABELS[kindOf(receipt)]}
+          <HelpPopover label={`Erklärung zu ${KIND_LABELS[kindOf(receipt)]}`}>
+            {kindOf(receipt) === 'statement'
+              ? 'Der Kontoauszug ist ein Beleg ohne eigene Buchung: seine Umsätze sind über den Bankimport aus derselben Datei eingelesen und werden dort zugeordnet. Eine Buchung an dieser Stelle wäre die zweite zum selben Vorgang.'
+              : 'Ein Handelsbrief belegt eine Abrede und keinen Geschäftsvorfall; gebucht wird er deshalb nicht. Aufzubewahren ist er trotzdem sechs Jahre (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO).'}
+          </HelpPopover>
+        </h2>
         <p className="text-body text-ink-muted mt-2">
           {kindOf(receipt) === 'statement'
-            ? 'Dieser Beleg ist ein Kontoauszug und wird nicht gebucht. Seine Umsätze sind über den Bankimport eingelesen und werden dort zugeordnet und gebucht.'
-            : 'Dieser Beleg ist ein Handelsbrief und wird nicht gebucht: Er belegt eine Abrede, keinen Geschäftsvorfall. Aufzubewahren ist er trotzdem — sechs Jahre nach § 257 Abs. 4 HGB, § 147 Abs. 3 AO.'}
+            ? 'Dieser Beleg wird nicht gebucht; seine Umsätze werden im Bankimport zugeordnet.'
+            : 'Dieser Beleg wird nicht gebucht, aber aufbewahrt.'}
         </p>
       </div>
     ) : receipt.status === 'filed' ? (
@@ -889,7 +940,227 @@ const ReceiptDetail: React.FC<{
       </div>
     )}
   </div>
+
+  {/* Der Prüfpfad steht über die ganze Breite und nicht in einer der beiden
+      Spalten: er ist die Kette über den Beleg hinaus — Buchung, Zahlung,
+      Bankumsatz — und keine Angabe des Dokuments. Ein verworfener Beleg hat
+      keine. */}
+  {receipt.direction === 'incoming' && receipt.status !== 'discarded' && (
+    <AuditTrailPanel receipt={receipt} onChanged={onChanged} />
+  )}
+  </>
 );
+
+// -------------------------------------------------------------------------
+
+/**
+ * Der Prüfpfad eines Eingangsbelegs und sein Leistungsnachweis (RECH-08).
+ *
+ * Die Kette Beleg → Buchung → Zahlung → Bankumsatz beantwortet die Frage einer
+ * Prüfung in beide Richtungen (GoBD Rz. 36); der Vermerk daneben beantwortet
+ * die andere: Wer hat bestätigt, dass die Leistung so bezogen wurde? Die Kette
+ * kommt aus dem Backend und wird hier nicht zusammengesucht — dieselbe, die
+ * auch in die Datei geht.
+ */
+const AuditTrailPanel: React.FC<{
+  receipt: Receipt;
+  onChanged: (updated: Receipt) => Promise<void>;
+}> = ({ receipt, onChanged }) => {
+  // Der Vermerk wird an den Beleg geschrieben und steht im Protokoll: im
+  // Prüfermodus gesperrt, der Prüfpfad selbst bleibt lesbar und ausgebbar
+  // (§10.4) — er ist die Antwort auf die Frage, die eine Prüfung stellt.
+  const writeLock = useWriteLock();
+  const [trail, setTrail] = useState<AuditTrail | null>(null);
+  const [threshold, setThreshold] = useState<Cents>(0);
+  const [proof, setProof] = useState(receipt.serviceProof ?? '');
+  const [proofDate, setProofDate] = useState(
+    receipt.serviceProofAt || new Date().toISOString().slice(0, 10),
+  );
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    setProof(receipt.serviceProof ?? '');
+    setProofDate(receipt.serviceProofAt || new Date().toISOString().slice(0, 10));
+  }, [receipt.id, receipt.serviceProof, receipt.serviceProofAt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Api.getAuditTrail(receipt.id)
+      .then((result) => {
+        if (!cancelled) setTrail(result);
+      })
+      .catch(() => {
+        if (!cancelled) setTrail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [receipt.id, receipt.journalEntryId, receipt.serviceProof]);
+
+  useEffect(() => {
+    // Die Grenze steht in den Einstellungen und wird hier nur gelesen: eine
+    // Zahl in der Ansicht wäre eine zweite Wahrheit neben der Prüfregel.
+    Api.getCompanySettings()
+      .then((settings) => setThreshold(settings.invoiceCheckThreshold ?? 0))
+      .catch(() => setThreshold(0));
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setFailure(null);
+    try {
+      const updated = await Api.saveServiceProof(receipt.id, proof, proofDate);
+      await onChanged(updated);
+      toast.success('Leistungsnachweis festgehalten.');
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function exportTrail(format: 'pdf' | 'csv') {
+    setExporting(format);
+    setFailure(null);
+    try {
+      const path = await Api.exportAuditTrail(receipt.id, format);
+      // Ein abgebrochener Speichern-Dialog ist keine Fehlermeldung wert.
+      if (path) toast.success(`Prüfpfad gespeichert: ${path}`);
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  const steps = trail?.steps ?? [];
+  const required = threshold > 0 && (receipt.grossAmount ?? 0) >= threshold;
+  // Zuerst der Bestellbezug aus dem Prüfpfad: er ist derselbe, der in die Datei
+  // und ins Prüferpaket geht. Der Beleg trägt ihn ebenfalls und springt ein,
+  // solange die Kette noch lädt.
+  const orderReference = trail?.orderReference ?? receipt.orderReference ?? '';
+
+  return (
+    <Section
+      title="Prüfpfad"
+      context={trail?.note || 'Beleg, Buchung, Zahlung und Bankumsatz in einer Kette'}
+      action={
+        <div className="flex items-center gap-2">
+          <HelpPopover label="Erklärung zum Prüfpfad">
+            Eine Buchführung muss sich in beide Richtungen verfolgen lassen: vom Beleg zur Buchung
+            und zurück (GoBD Rz. 36). Die Kette steht hier zusammen und geht so auch in die Datei
+            und ins Prüferpaket. Der Leistungsnachweis daneben hält fest, wer die sachliche
+            Richtigkeit bestätigt hat — ohne ihn steht später nur die Rechnung da.
+          </HelpPopover>
+          <Button
+            variant="quiet"
+            size="sm"
+            loading={exporting === 'csv'}
+            onClick={() => void exportTrail('csv')}
+          >
+            Als CSV
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+            loading={exporting === 'pdf'}
+            onClick={() => void exportTrail('pdf')}
+          >
+            Prüfpfad ausgeben
+          </Button>
+        </div>
+      }
+    >
+      {failure && <Notice tone="negative" text={failure} className="mb-5" />}
+
+      {steps.length === 0 ? (
+        <p className="text-body text-ink-muted">
+          Zu diesem Beleg gibt es noch keine Buchung; die Kette beginnt mit ihr.
+        </p>
+      ) : (
+        <ul className="flex flex-col">
+          {steps.map((step, index) => (
+            <li
+              key={`${step.stage}-${step.reference}-${index}`}
+              className="flex items-start gap-4 py-2 border-t border-line first:border-t-0"
+            >
+              <span className="w-28 shrink-0 text-caption text-ink-subtle num">
+                {step.date ? formatDate(step.date) : '—'}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-body text-ink">{step.title}</span>
+                <span className="block text-caption text-ink-muted">{step.detail}</span>
+              </span>
+              <span className="w-40 shrink-0 text-caption code-num truncate">
+                {step.reference}
+              </span>
+              <span className="w-32 shrink-0 text-right num">{formatCents(step.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Der Bestellbezug gehört in die Kette und nicht an das Feld daneben:
+          er ist eine Angabe der E-Rechnung und steht auch dann da, wenn kein
+          Nachweis verlangt ist. Als Hinweis am Nachweisfeld verschwand er
+          genau bei den großen Belegen, bei denen der Pflichthinweis vorgeht.
+          Schreibgeschützt: geändert wird er mit dem Beleg, nicht hier. */}
+      <div className="mt-6 max-w-md">
+        <Field
+          label="Bestellbezug"
+          explain={
+            <>
+              Die Bestellnummer aus dem strukturierten Datensatz der Rechnung. Sie ist der Anfang
+              der Kette: gegen sie wird die Rechnung sachlich geprüft, und der Vermerk darunter
+              hält fest, wer das getan hat.
+            </>
+          }
+        >
+          <Input value={orderReference || 'kein Bestellbezug in der Rechnung'} readOnly disabled />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_12rem] gap-4 mt-6 items-start">
+        <Field
+          label="Leistungsnachweis"
+          hint={required ? `Pflicht ab ${formatCents(threshold)}` : undefined}
+          explain={
+            <>
+              Der Vermerk hält fest, wogegen die Rechnung sachlich geprüft wurde — etwa „geprüft
+              gegen Bestellung 4711 vom 3. März". Der Vorsteuerabzug setzt eine tatsächlich
+              bezogene Leistung voraus (§ 15 UStG); wer ohne Prüfung bucht, hat dafür keinen
+              Nachweis. Er steht außerhalb des Beleg-Hashes und lässt sich deshalb auch am
+              gebuchten Beleg nachtragen.
+            </>
+          }
+        >
+          <Textarea
+            value={proof}
+            onChange={(e) => setProof(e.target.value)}
+            placeholder="geprüft gegen Bestellung 4711 vom 3. März"
+          />
+        </Field>
+        <div className="flex flex-col gap-4">
+          <Field label="Datum der Prüfung">
+            <Input type="date" value={proofDate} onChange={(e) => setProofDate(e.target.value)} />
+          </Field>
+          <Button
+            variant="secondary"
+            loading={saving}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => void save()}
+          >
+            Nachweis festhalten
+          </Button>
+        </div>
+      </div>
+    </Section>
+  );
+};
 
 // -------------------------------------------------------------------------
 
@@ -1329,6 +1600,14 @@ const BookingForm: React.FC<{
   // übersteuert wird. Er steht am Beleg und im Protokoll; ohne ihn gibt es
   // keine Buchung mit Vorsteuer.
   const [overrideReason, setOverrideReason] = useState('');
+  // Der Leistungsnachweis geht mit der Buchung mit (RECH-08) und nicht in einem
+  // zweiten Vorgang darunter: ein abgebrochener Buchungsversuch hinterließe
+  // sonst einen Vermerk ohne Buchung. Ob er Pflicht ist, sagt die Vorschau —
+  // die Grenze steht in den Einstellungen und wird hier nicht nachgebaut.
+  const [serviceProof, setServiceProof] = useState(receipt.serviceProof ?? '');
+  const [serviceProofAt, setServiceProofAt] = useState(
+    receipt.serviceProofAt || new Date().toISOString().slice(0, 10),
+  );
 
   // Ein Betrag, den parseCents nicht lesen kann ("1.2.3", "250,--", auch das
   // deutsche "1.234"), fällt beim Aufbau der Anfrage unten aus den Positionen
@@ -1424,6 +1703,13 @@ const BookingForm: React.FC<{
   const findings = preview?.inputTaxFindings ?? [];
   const findingsOpen = findings.length > 0 && overrideReason.trim() === '';
 
+  // Die Pflicht zum Leistungsnachweis kommt aus der Vorschau: dieselbe Regel,
+  // die das Buchen anhält, macht hier das Feld zum Pflichtfeld.
+  const proofRequired = (preview?.warnings ?? []).some(
+    (warning) => warning.code === SERVICE_PROOF_WARNING,
+  );
+  const proofOpen = proofRequired && serviceProof.trim() === '';
+
   // Ein deaktivierter Knopf sagt, woran es liegt (Konzept 10.4). Die Reihenfolge
   // entspricht der Sperrbedingung am Knopf, damit Grund und Sperre nicht
   // auseinanderlaufen.
@@ -1437,7 +1723,9 @@ const BookingForm: React.FC<{
           ? 'Einem Geschenk fehlt der Empfänger.'
           : findingsOpen
             ? 'Ohne festgehaltenen Grund wird eine Rechnung mit fehlender Pflichtangabe nicht mit Vorsteuer gebucht.'
-            : !preview?.balanced
+            : proofOpen
+              ? 'Ab der eingestellten Grenze wird ohne Leistungsnachweis nicht gebucht.'
+              : !preview?.balanced
               ? 'Solange die Vorschau nicht ausgeglichen ist, wird nicht gebucht.'
               : writeLock.hint;
 
@@ -1592,6 +1880,11 @@ const BookingForm: React.FC<{
       const entry = await Api.postIncomingReceipt({
         ...request,
         overrideReason: overrideReason.trim() || undefined,
+        // Der Vermerk geht mit der Buchung mit: das Backend schreibt ihn über
+        // den Belegdienst, bevor es prüft, ob er fehlt. Ein leeres Feld ändert
+        // dort nichts und löscht keinen schon erfassten Vermerk.
+        serviceProof: serviceProof.trim() || undefined,
+        serviceProofAt: serviceProof.trim() ? serviceProofAt : undefined,
       });
       await onBooked(entry.entryNumber);
     } catch (err) {
@@ -1635,7 +1928,11 @@ const BookingForm: React.FC<{
           <Field label="Buchungsdatum" hint="bestimmt die Periode">
             <Input type="date" value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} />
           </Field>
-          <Field label="Leistung von" hint="§ 14 Abs. 4 Nr. 6 UStG">
+          <Field
+            label="Leistung von"
+            hint="Zeitpunkt der Leistung"
+            help="Der Zeitpunkt der Lieferung oder sonstigen Leistung ist Pflichtangabe der Rechnung (§ 14 Abs. 4 Nr. 6 UStG); er entscheidet über den Zeitraum des Vorsteuerabzugs."
+          >
             <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
           </Field>
           <Field label="Leistung bis">
@@ -2036,8 +2333,14 @@ const BookingForm: React.FC<{
         )}
         {hasGiftProblem && (
           <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>
-            Zu einem Geschenk gehört der Empfänger (§ 4 Abs. 7 EStG). Er kommt aus der Kartei
-            oder als Name.
+            <span className="inline-flex items-center gap-1.5">
+              Zu einem Geschenk gehört der Empfänger — aus der Kartei oder als Name.
+              <HelpPopover label="Erklärung zum Empfänger eines Geschenks">
+                Geschenke an Geschäftsfreunde sind nur abziehbar, wenn sie einzeln und getrennt
+                aufgezeichnet sind; dazu gehört der Name des Empfängers (§ 4 Abs. 7 EStG). Ohne ihn
+                ist der Aufwand nicht abziehbar, auch wenn die Grenze eingehalten ist.
+              </HelpPopover>
+            </span>
           </p>
         )}
         <ConversionPanel conversion={preview?.conversion} date={documentDate} />
@@ -2049,6 +2352,32 @@ const BookingForm: React.FC<{
           />
         )}
         <PostingWarnings warnings={preview?.warnings} />
+        {/* Der Leistungsnachweis steht als Pflichtfeld in der Maske und nicht
+            als Fehlermeldung nach dem Klick: geprüft wird gegen die Bestellung,
+            und das geschieht vor dem Buchen oder gar nicht (RECH-08). */}
+        {proofRequired && (
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_12rem] gap-4">
+            <Field
+              label="Leistungsnachweis"
+              hint="wogegen geprüft wurde"
+              error={proofOpen ? 'Ohne diesen Vermerk wird der Beleg nicht gebucht.' : undefined}
+              explain="Ab der in den Einstellungen hinterlegten Grenze hält Buchfink die Buchung an, bis der Vermerk dasteht. Wer ihn erst nach dem Buchen nachträgt, hat die Rechnung bezahlt, bevor jemand geprüft hat, ob die Leistung erbracht wurde."
+            >
+              <Input
+                value={serviceProof}
+                onChange={(e) => setServiceProof(e.target.value)}
+                placeholder="geprüft gegen Bestellung 4711 vom 12.03.2026"
+              />
+            </Field>
+            <Field label="Geprüft am">
+              <Input
+                type="date"
+                value={serviceProofAt}
+                onChange={(e) => setServiceProofAt(e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
         <InputTaxFindings
           findings={preview?.inputTaxFindings}
           reason={overrideReason}
@@ -2071,6 +2400,7 @@ const BookingForm: React.FC<{
             hasShareProblem ||
             hasGiftProblem ||
             findingsOpen ||
+            proofOpen ||
             !preview?.balanced ||
             writeLock.locked
           }
@@ -2441,8 +2771,12 @@ const ConversionPanel: React.FC<{ conversion?: Conversion; date: string }> = ({
         <dd className="text-ink-muted">
           <span className="num">{formatCents(conversion.taxBaseAmount)}</span>
           {conversion.vatRate
-            ? ` · Durchschnittskurs ${conversion.vatRate.month} (§ 16 Abs. 6 UStG)`
+            ? ` · Durchschnittskurs ${conversion.vatRate.month}`
             : ' · kein Durchschnittskurs hinterlegt, es bleibt beim Tageskurs'}
+          <HelpTooltip
+            label="Erklärung zur Bemessungsgrundlage"
+            content="Für die Umsatzsteuer wird der monatliche Durchschnittskurs des Bundesministeriums der Finanzen genommen (§ 16 Abs. 6 UStG); fehlt er, bleibt es beim Tageskurs."
+          />
         </dd>
         {conversion.difference !== 0 && (
           <>

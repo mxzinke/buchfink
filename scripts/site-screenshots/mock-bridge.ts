@@ -83,6 +83,9 @@ const SETTINGS = {
   taxationType: 'Soll',
   // Leer: die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
   investorOverride: '',
+  // Ab diesem Bruttobetrag verlangt der Belegweg den Leistungsnachweis
+  // (RECH-08); die Voreinstellung des Backends sind 1.000 Euro.
+  invoiceCheckThreshold: c(1000),
 };
 
 // -------------------------------------------------------------------------
@@ -1688,6 +1691,782 @@ function investmentNote(assetId: number, gross: number, disposal: boolean) {
   };
 }
 
+// -------------------------------------------------------------------------
+// Jahresabschluss: Bilanz, Gewinn- und Verlustrechnung, Größenklasse
+//
+// Die Gliederung wird aus denselben Konten gerechnet, aus denen auch die
+// Summen- und Saldenliste entsteht — nicht abgetippt. Damit stimmt sie mit den
+// übrigen Ansichten überein, und die Bilanz geht auf: die Summe der Aktiva ist
+// die Summe der Passiva einschließlich des Jahresergebnisses.
+
+/**
+ * Der vorzeichenbehaftete Saldo eines Kontos.
+ *
+ * Aktiva und Aufwendungen tragen den Sollsaldo, Passiva und Erträge den
+ * Habensaldo. Das gespeicherte `balance` ist der Betrag ohne Vorzeichen und
+ * taugt deshalb nicht zum Addieren über eine Position hinweg.
+ */
+function signedBalance(account: (typeof ACCOUNTS)[number]): number {
+  const debitSide = account.type === 'asset' || account.type === 'expense';
+  return debitSide
+    ? account.debitSum - account.creditSum
+    : account.creditSum - account.debitSum;
+}
+
+/** Die bebuchten Konten einer Kontenklasse, ohne die ausgenommenen. */
+function classAccounts(kontenklasse: number, except: string[] = []) {
+  return ACCOUNTS.filter(
+    (account) =>
+      account.kontenklasse === kontenklasse &&
+      account.bookingsCount > 0 &&
+      !except.includes(account.number),
+  );
+}
+
+/** Eine Gliederungszeile mit ihren Konten; der Betrag ist deren Summe. */
+function line(
+  key: string,
+  ordinal: string,
+  label: string,
+  level: number,
+  section: string,
+  accounts: (typeof ACCOUNTS)[number][],
+  extra: { amount?: number; isSubtotal?: boolean } = {},
+) {
+  const amount = extra.amount ?? accounts.reduce((sum, a) => sum + signedBalance(a), 0);
+  return {
+    key,
+    ordinal,
+    label,
+    level,
+    section,
+    isSubtotal: extra.isSubtotal ?? false,
+    isFallback: false,
+    omitted: false,
+    amount,
+    priorAmount: 0,
+    accounts: accounts.map((account) => ({
+      number: account.number,
+      name: account.name,
+      positionId: key,
+      position: account.name,
+      amount: signedBalance(account),
+      priorAmount: 0,
+    })),
+  };
+}
+
+const REVENUE = classAccounts(4);
+const EXPENSES = [...classAccounts(5), ...classAccounts(6), ...classAccounts(7)];
+const NET_INCOME =
+  REVENUE.reduce((sum, a) => sum + signedBalance(a), 0) -
+  EXPENSES.reduce((sum, a) => sum + signedBalance(a), 0);
+
+const FIXED_ASSETS = classAccounts(0);
+const CURRENT_ASSETS = classAccounts(1, ['1900']);
+const PREPAID = classAccounts(1).filter((a) => a.number === '1900');
+const EQUITY = classAccounts(2);
+const LIABILITIES = classAccounts(3);
+
+const ASSET_LINES = [
+  line('aktiva.A', 'A.', 'Anlagevermögen', 1, 'aktiva', FIXED_ASSETS),
+  line('aktiva.B', 'B.', 'Umlaufvermögen', 1, 'aktiva', CURRENT_ASSETS),
+  line('aktiva.C', 'C.', 'Rechnungsabgrenzungsposten', 1, 'aktiva', PREPAID),
+];
+
+const LIABILITY_LINES = [
+  line('passiva.A', 'A.', 'Eigenkapital', 1, 'passiva', EQUITY, {
+    amount: EQUITY.reduce((sum, a) => sum + signedBalance(a), 0) + NET_INCOME,
+  }),
+  line('passiva.C', 'C.', 'Verbindlichkeiten', 1, 'passiva', LIABILITIES),
+];
+
+const INCOME_LINES = [
+  line('guv.1', '1.', 'Umsatzerlöse', 1, 'guv', classAccounts(4).filter((a) => a.number === '4400')),
+  line(
+    'guv.4',
+    '4.',
+    'Sonstige betriebliche Erträge',
+    1,
+    'guv',
+    classAccounts(4).filter((a) => a.number !== '4400'),
+  ),
+  line('guv.5', '5.', 'Materialaufwand', 1, 'guv', classAccounts(5), {
+    amount: -classAccounts(5).reduce((sum, a) => sum + signedBalance(a), 0),
+  }),
+  line('guv.6', '6.', 'Personalaufwand', 1, 'guv', classAccounts(6).filter((a) => a.number === '6020'), {
+    amount: -classAccounts(6)
+      .filter((a) => a.number === '6020')
+      .reduce((sum, a) => sum + signedBalance(a), 0),
+  }),
+  line(
+    'guv.8',
+    '8.',
+    'Sonstige betriebliche Aufwendungen',
+    1,
+    'guv',
+    classAccounts(6).filter((a) => a.number !== '6020'),
+    {
+      amount: -classAccounts(6)
+        .filter((a) => a.number !== '6020')
+        .reduce((sum, a) => sum + signedBalance(a), 0),
+    },
+  ),
+  line('guv.17', '17.', 'Jahresüberschuss', 1, 'guv', [], {
+    amount: NET_INCOME,
+    isSubtotal: true,
+  }),
+];
+
+/** Die Geschäftsjahre mit ihrem Abschlussstand; das laufende ist offen. */
+const FISCAL_YEARS = [
+  {
+    year: YEAR - 1,
+    startDate: `${YEAR - 1}-01-01`,
+    endDate: `${YEAR - 1}-12-31`,
+    isShort: false,
+    status: 'adopted',
+    adoptedOn: `${YEAR}-05-14`,
+  },
+  {
+    year: YEAR,
+    startDate: `${YEAR}-01-01`,
+    endDate: `${YEAR}-12-31`,
+    isShort: false,
+    status: 'open',
+  },
+];
+
+const TOTAL_ASSETS = ASSET_LINES.reduce((sum, l) => sum + l.amount, 0);
+const TOTAL_LIABILITIES = LIABILITY_LINES.reduce((sum, l) => sum + l.amount, 0);
+
+const SIZE_CRITERIA = {
+  balanceSheetTotal: TOTAL_ASSETS,
+  revenue: REVENUE.reduce((sum, a) => sum + signedBalance(a), 0),
+  employees: 9,
+};
+
+const SIZE_THRESHOLDS = {
+  validFrom: '2024-01-01',
+  reference: '§ 267 HGB in der Fassung des BEG IV',
+  micro: { balanceSheetTotal: c(450_000), revenue: c(900_000), employees: 10 },
+  small: { balanceSheetTotal: c(7_500_000), revenue: c(15_000_000), employees: 50 },
+  medium: { balanceSheetTotal: c(25_000_000), revenue: c(50_000_000), employees: 250 },
+};
+
+const SIZE_CLASS = {
+  year: YEAR,
+  closingDate: `${YEAR}-12-31`,
+  class: 'small',
+  criteria: SIZE_CRITERIA,
+  current: {
+    year: YEAR,
+    closingDate: `${YEAR}-12-31`,
+    criteria: SIZE_CRITERIA,
+    class: 'small',
+    met: ['Bilanzsumme', 'Umsatzerlöse'],
+    thresholds: SIZE_THRESHOLDS,
+  },
+  isFirstYear: false,
+  reason:
+    'Bilanzsumme und Umsatzerlöse liegen unter den Schwellen des § 267 Abs. 1 HGB; die Zahl der Arbeitnehmer ebenso. Zwei von drei Merkmalen genügen, und sie sind an zwei aufeinanderfolgenden Stichtagen erfüllt.',
+  obligations: {
+    depth: 'short',
+    depthReference: '§ 266 Abs. 1 Satz 3 HGB',
+    notesRequired: true,
+    notesReference: '§ 264 Abs. 1 Satz 1 HGB',
+    managementReport: false,
+    managementReportReference: '§ 264 Abs. 1 Satz 4 HGB',
+    auditRequired: false,
+    auditReference: '§ 316 Abs. 1 Satz 1 HGB',
+    preparationMonths: 6,
+    preparationReference: '§ 264 Abs. 1 Satz 4 HGB',
+    disclosureMonths: 12,
+    disclosureReference: '§ 325 Abs. 1a HGB',
+    disclosureScope: 'Bilanz und Anhang ohne die Angaben zur Gewinn- und Verlustrechnung',
+    disclosureScopeReference: '§ 326 Abs. 1 HGB',
+  },
+};
+
+const STATEMENT = {
+  header: {
+    companyName: SETTINGS.companyName,
+    legalForm: SETTINGS.legalForm,
+    seat: SETTINGS.zipCity,
+    registerCourt: 'Amtsgericht Hamburg',
+    registerNumber: 'HRB 148223',
+    fiscalYear: YEAR,
+    startDate: `${YEAR}-01-01`,
+    closingDate: `${YEAR}-12-31`,
+    priorYear: YEAR - 1,
+    isShortYear: false,
+    reference: '§ 264 Abs. 1a HGB',
+    missing: [],
+  },
+  statement: {
+    fiscalYear: YEAR,
+    priorYear: YEAR - 1,
+    hasPrior: false,
+    depth: 'short',
+    assets: ASSET_LINES,
+    liabilities: LIABILITY_LINES,
+    income: INCOME_LINES,
+    statistical: [],
+    assignment: { unassigned: [], wrongSign: [], signSwitches: [], fallbacks: [] },
+    totalAssets: TOTAL_ASSETS,
+    totalAssetsPrior: 0,
+    totalLiabilities: TOTAL_LIABILITIES,
+    totalLiabilitiesPrior: 0,
+    balanceSheetTotal: TOTAL_ASSETS,
+    balanceSheetTotalPrior: 0,
+    netIncome: NET_INCOME,
+    netIncomePrior: 0,
+    revenue: SIZE_CRITERIA.revenue,
+    revenuePrior: 0,
+  },
+  sizeClass: SIZE_CLASS,
+  maturities: {
+    closingDate: `${YEAR}-12-31`,
+    reference: '§ 268 Abs. 4 und 5 HGB',
+    rows: [
+      {
+        key: 'verbindlichkeiten',
+        label: 'Verbindlichkeiten aus Lieferungen und Leistungen',
+        total: LIABILITY_LINES[1].amount,
+        upToOneYear: LIABILITY_LINES[1].amount,
+        overOneYear: 0,
+        overFiveYears: 0,
+        items: 3,
+        undated: 0,
+      },
+    ],
+  },
+  notes: {
+    reference: '§§ 284 bis 288 HGB',
+    texts: [],
+    provisionMirror: {
+      fiscalYear: YEAR,
+      rows: [],
+      total: {
+        kind: 'sonstige',
+        label: 'Summe',
+        account: '',
+        opening: 0,
+        additions: 0,
+        used: 0,
+        released: 0,
+        unwinding: 0,
+        closing: 0,
+      },
+    },
+    reconciliation: {
+      fiscalYear: YEAR,
+      cutoff: `${YEAR}-12-31`,
+      rows: [],
+      equityEffect: 0,
+      note: 'Es bestehen keine Abweichungen zwischen Handels- und Steuerbilanz.',
+    },
+  },
+  deadlines: [],
+};
+
+// -------------------------------------------------------------------------
+// Welle 7: Aufgabenliste, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+
+const TODAY = `${YEAR}-08-25`;
+
+/** Die Aufgabenliste der Startseite in ihren drei Gruppen. */
+const TASKS = {
+  today: TODAY,
+  overdue: [
+    {
+      key: 'deadline.ustva-2026-07',
+      group: 'overdue',
+      title: 'Voranmeldung Juli 2026 übermitteln',
+      why: 'Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln.',
+      reference: '§ 18 Abs. 1 UStG',
+      target: { page: 'vat', params: {} },
+      count: 0,
+      amount: c(4318.4),
+      dueDate: `${YEAR}-08-10`,
+    },
+  ],
+  open: [
+    {
+      key: 'bank.unmatched',
+      group: 'open',
+      title: 'Bankumsätze ohne Zuordnung klären',
+      why: 'Ein Umsatz ohne Zuordnung steht in keiner Buchung und fehlt damit in jeder Auswertung.',
+      reference: 'GoBD Rz. 36',
+      target: { page: 'bank', params: {} },
+      count: 4,
+      amount: c(12480.6),
+    },
+    {
+      key: 'receipt.unbooked',
+      group: 'open',
+      title: 'Belege buchen',
+      why: 'Abgelegte Belege sind erfasst, aber noch nicht gebucht.',
+      target: { page: 'receipts', params: { status: 'filed' } },
+      count: 2,
+      amount: c(3630.94),
+    },
+    {
+      key: 'dunning.overdue',
+      group: 'open',
+      title: 'Überfällige Forderungen mahnen',
+      why: 'Zwei Kunden sind seit mehr als dreißig Tagen im Verzug.',
+      reference: '§ 286 Abs. 3 BGB',
+      target: { page: 'bank', params: { view: 'dunning' } },
+      count: 2,
+      amount: c(28311),
+    },
+  ],
+  upcoming: [
+    {
+      key: 'deadline.ustva-2026-08',
+      group: 'upcoming',
+      title: 'Voranmeldung August 2026 vorbereiten',
+      why: 'Der Zeitraum endet am Monatsende; die Meldung ist zehn Tage später fällig.',
+      reference: '§ 18 Abs. 1 UStG',
+      target: { page: 'deadlines', params: { key: 'ustva-2026-08' } },
+      count: 0,
+      amount: 0,
+      dueDate: `${YEAR}-09-10`,
+    },
+  ],
+};
+
+/** Der Stand eines Monats in seinen drei Schritten. */
+function monthCloseState(month: string) {
+  const [year, index] = month.split('-').map(Number);
+  if (!year || !index) throw new Error(`${month} ist kein Monat (erwartet JJJJ-MM).`);
+  if (year !== YEAR) {
+    throw new Error(
+      `Der Monat gehört zum Geschäftsjahr ${year} — wechsle zuerst das Geschäftsjahr.`,
+    );
+  }
+  const names = [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  ];
+  const last = new Date(Date.UTC(year, index, 0)).getUTCDate();
+  const label = `${names[index - 1]} ${year}`;
+  // Das Quartal endet im März, Juni, September und Dezember; nur dort steht die
+  // Voranmeldung an (der Mandant meldet vierteljährlich).
+  const quarterEnd = index % 3 === 0;
+  return {
+    month,
+    label,
+    from: `${month}-01`,
+    to: `${month}-${String(last).padStart(2, '0')}`,
+    fiscalYear: YEAR,
+    steps: [
+      {
+        number: 1,
+        key: 'check',
+        title: 'Prüfbericht',
+        state: 'open',
+        note: '2 Hinweise, die die Festschreibung nicht verhindern.',
+      },
+      {
+        number: 2,
+        key: 'commit',
+        title: 'Festschreiben',
+        state: 'open',
+        note: 'Der Monat ist noch nicht festgeschrieben.',
+      },
+      quarterEnd
+        ? {
+            number: 3,
+            key: 'vat',
+            title: `Voranmeldung ${year}-Q${index / 3} bestätigen`,
+            state: 'blocked',
+            note: 'Das Kennziffernblatt steht bereit. Bestätigen lässt sich die Übermittlung erst nach der Festschreibung.',
+          }
+        : {
+            number: 3,
+            key: 'vat',
+            title: 'Voranmeldung bestätigen',
+            state: 'not_applicable',
+            note: 'In diesem Monat ist keine Voranmeldung abzugeben.',
+          },
+    ],
+    findings: [
+      {
+        id: 1,
+        checkRunId: 0,
+        rule: 'bank_unmatched',
+        severity: 'warning',
+        objectType: 'bank_transaction',
+        objectId: '18',
+        message: '4 Bankumsätze sind keiner Buchung zugeordnet.',
+        reference: 'GoBD Rz. 36',
+      },
+      {
+        id: 2,
+        checkRunId: 0,
+        rule: 'receipt_unbooked',
+        severity: 'warning',
+        objectType: 'receipt',
+        objectId: '2',
+        message: '2 abgelegte Belege sind noch nicht gebucht.',
+      },
+    ],
+    blocking: 0,
+    committed: false,
+    committedTo: `${YEAR}-06-30`,
+    vatApplies: quarterEnd,
+    vatPeriodKey: quarterEnd ? `${year}-Q${index / 3}` : undefined,
+    vatPeriodLabel: quarterEnd ? `${index / 3}. Quartal ${year}` : undefined,
+    vatStatus: quarterEnd ? 'draft' : undefined,
+    vatDueDate: quarterEnd ? `${year}-${String(index + 1).padStart(2, '0')}-10` : undefined,
+  };
+}
+
+/**
+ * Die Vorschläge zu einem Bankumsatz, der beste zuerst.
+ *
+ * Gerechnet und nicht abgetippt: der Vorschlag entsteht aus denselben offenen
+ * Posten, die auch die Liste zeigt. Ein exakter Betrag und die Rechnungsnummer
+ * im Verwendungszweck wiegen schwer, die gelernte Regel greift erst, wo es
+ * keinen offenen Posten gibt.
+ */
+function bankSuggestions(bankTxId: number) {
+  const tx = BANK_TX.find((t) => t.id === bankTxId);
+  if (!tx) {
+    return { bankTxId, amount: 0, suggestions: [], note: 'Der Umsatz ist nicht bekannt.' };
+  }
+  const suggestions: any[] = [];
+  for (const item of OPEN_ITEMS) {
+    const reasons: string[] = [];
+    if (item.openAmount === Math.abs(tx.amount)) reasons.push('Betrag stimmt genau');
+    if (tx.remittanceInfo.includes(item.documentNumber)) {
+      reasons.push('Rechnungsnummer im Verwendungszweck');
+    }
+    if (reasons.length === 0) continue;
+    suggestions.push({
+      kind: 'open_item',
+      score: reasons.length === 2 ? 95 : 60,
+      reasons,
+      label: `${item.documentNumber} · ${item.contactName}`,
+      contactId: item.contactId,
+      contactName: item.contactName,
+      amount: item.openAmount,
+      items: [item],
+    });
+  }
+  suggestions.sort((a, b) => b.score - a.score);
+
+  if (suggestions.length === 0) {
+    const rule = BANK_RULES.find((r) => tx.remittanceInfo.toLowerCase().includes(r.pattern));
+    if (rule) {
+      suggestions.push({
+        kind: 'rule',
+        score: 70,
+        reasons: [`Zuletzt ${rule.hits} Mal so zugeordnet`],
+        label: rule.label,
+        amount: Math.abs(tx.amount),
+        items: [],
+        counterAccount: rule.counterAccount,
+        postingGroup: rule.postingGroup,
+      });
+    }
+  }
+
+  return {
+    bankTxId,
+    amount: tx.amount,
+    suggestions,
+    note:
+      suggestions.length === 0
+        ? 'Zu diesem Umsatz gibt es weder einen offenen Posten noch eine gelernte Regel.'
+        : undefined,
+  };
+}
+
+/** Die aus bestätigten Zuordnungen gelernten Regeln. */
+const BANK_RULES = [
+  {
+    id: 1,
+    pattern: 'büromiete',
+    label: 'Miete (unbewegliche Wirtschaftsgüter)',
+    counterAccount: '6310',
+    postingGroup: 'miete',
+    moneyIn: false,
+    hits: 8,
+    lastUsedAt: `${YEAR}-08-01T06:12:00Z`,
+    createdAt: '2025-09-01T06:12:00Z',
+    updatedAt: `${YEAR}-08-01T06:12:00Z`,
+  },
+  {
+    id: 2,
+    pattern: 'kontoführung',
+    label: 'Nebenkosten des Geldverkehrs',
+    counterAccount: '6855',
+    postingGroup: 'geldverkehr',
+    moneyIn: false,
+    hits: 11,
+    lastUsedAt: `${YEAR}-08-24T05:40:00Z`,
+    createdAt: '2025-01-24T05:40:00Z',
+    updatedAt: `${YEAR}-08-24T05:40:00Z`,
+  },
+];
+
+/** Der Basiszinssatz als datierte Tabelle; der letzte Wert ist fortgeschrieben. */
+const BASE_RATES = [
+  { validFrom: '2024-01-01', basisPoints: 362, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-01-02T08:00:00Z' },
+  { validFrom: '2024-07-01', basisPoints: 337, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-07-01T08:00:00Z' },
+  { validFrom: '2025-01-01', basisPoints: 227, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-01-02T08:00:00Z' },
+  { validFrom: '2025-07-01', basisPoints: 127, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-07-01T08:00:00Z' },
+  { validFrom: '2026-01-01', basisPoints: 127, source: '', provisional: true, updatedAt: '2026-01-02T08:00:00Z' },
+];
+
+/** Die Mahnvorschläge: je Kunde die Posten, die Stufe, Zinsen und Gebühr. */
+const DUNNING_PROPOSALS = [
+  {
+    contactId: 2,
+    contactName: 'Elbe Werkzeug GmbH',
+    isConsumer: false,
+    level: 2,
+    levelLabel: '1. Mahnung',
+    noticeDate: TODAY,
+    items: [
+      {
+        entryId: 44,
+        documentNumber: 'RE-2026-0112',
+        documentDate: `${YEAR}-06-18`,
+        dueDate: `${YEAR}-07-02`,
+        openAmount: c(18921),
+        daysOverdue: 54,
+        defaultFrom: `${YEAR}-07-19`,
+        interestDays: 37,
+        interest: c(197.02),
+        level: 2,
+        previousLevel: 1,
+        lumpSum: c(40),
+      },
+    ],
+    principal: c(18921),
+    interest: c(197.02),
+    fee: c(5),
+    lumpSum: c(40),
+    total: c(19163.02),
+    note: '',
+  },
+  {
+    contactId: 3,
+    contactName: 'Anna Wieland',
+    isConsumer: true,
+    level: 1,
+    levelLabel: 'Zahlungserinnerung',
+    noticeDate: TODAY,
+    items: [
+      {
+        entryId: 51,
+        documentNumber: 'RE-2026-0119',
+        documentDate: `${YEAR}-07-30`,
+        dueDate: `${YEAR}-08-13`,
+        openAmount: c(8211),
+        daysOverdue: 12,
+        defaultFrom: `${YEAR}-08-14`,
+        interestDays: 11,
+        interest: c(15.44),
+        level: 1,
+        previousLevel: 0,
+        lumpSum: 0,
+      },
+    ],
+    principal: c(8211),
+    interest: c(15.44),
+    fee: 0,
+    lumpSum: 0,
+    total: c(8226.44),
+    note: 'Verbraucher: fünf Prozentpunkte über dem Basiszinssatz, keine Pauschale.',
+  },
+];
+
+/** Die schon erzeugten Mahnschreiben, das jüngste zuerst. */
+const DUNNING_NOTICES = [
+  {
+    id: 1,
+    fiscalYear: YEAR,
+    contactId: 2,
+    contactName: 'Elbe Werkzeug GmbH',
+    isConsumer: false,
+    level: 1,
+    levelLabel: 'Zahlungserinnerung',
+    noticeDate: `${YEAR}-07-24`,
+    dueDate: `${YEAR}-08-07`,
+    principalAmount: c(18921),
+    interestAmount: c(30.11),
+    feeAmount: 0,
+    lumpSumAmount: c(40),
+    totalAmount: c(18991.11),
+    documentName: 'Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
+    documentPath: 'dokumente/mahnungen/2026/Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
+    documentSha256: fakeHash('dunning-1'),
+    items: [],
+  },
+];
+
+/** Der Prüfpfad eines Belegs: Beleg → Buchung → Zahlung → Bankumsatz. */
+function auditTrail(receiptId: number) {
+  const found = RECEIPTS.find((r) => r.id === receiptId);
+  if (!found) throw new Error('Der Beleg ist nicht bekannt.');
+  const entry = ENTRIES.find((e) => e.receiptId === receiptId);
+  return {
+    receiptId,
+    receiptNumber: found.receiptNumber,
+    direction: 'incoming',
+    documentDate: found.receivedAt,
+    issuerName: 'Nordlicht Telekommunikation GmbH',
+    grossAmount: c(321.3),
+    orderReference: 'BST-2026-0044',
+    serviceProof: 'geprüft gegen Bestellung BST-2026-0044 vom 02.08.2026',
+    serviceProofAt: `${YEAR}-08-16`,
+    steps: [
+      {
+        stage: 'receipt',
+        title: `Beleg ${found.receiptNumber}`,
+        date: found.receivedAt,
+        reference: found.receiptNumber,
+        amount: c(321.3),
+        detail: 'Eingegangen per E-Mail, versiegelt.',
+      },
+      ...(entry
+        ? [
+            {
+              stage: 'booking',
+              title: `Buchung ${entry.entryNumber}`,
+              date: entry.bookingDate,
+              reference: entry.entryNumber,
+              amount: c(321.3),
+              detail: entry.description,
+            },
+          ]
+        : []),
+    ],
+    note: entry
+      ? 'Gebucht; eine Zahlung ist zu diesem Beleg noch nicht zugeordnet.'
+      : 'Der Beleg ist noch nicht gebucht.',
+  };
+}
+
+/** Die Einheiten aus UN/ECE Rec. 20, so weit der Rechnungsdialog sie anbietet. */
+const UNIT_CODES = [
+  { code: 'C62', label: 'Stück' },
+  { code: 'HUR', label: 'Stunde' },
+  { code: 'DAY', label: 'Tag' },
+  { code: 'MON', label: 'Monat' },
+  { code: 'KGM', label: 'Kilogramm' },
+];
+
+/** Die Zielformate, in denen eine Rechnung ausgestellt werden kann. */
+const EINVOICE_PROFILES = [
+  {
+    profile: 'zugferd_en16931',
+    label: 'ZUGFeRD / Factur-X (EN 16931)',
+    hint: 'PDF mit eingebettetem Datensatz; für Unternehmen der Regelfall.',
+  },
+  {
+    profile: 'xrechnung_cii',
+    label: 'XRechnung (CII)',
+    hint: 'Reiner Datensatz; von öffentlichen Auftraggebern verlangt.',
+  },
+  { profile: 'pdf_only', label: 'Nur PDF', hint: 'Ohne Datensatz; für Verbraucher.' },
+];
+
+/** Die Versandwege des Vermerks „Als versendet vermerken". */
+const SENT_VIA_OPTIONS = [
+  { via: 'email', label: 'E-Mail' },
+  { via: 'portal', label: 'Portal' },
+  { via: 'post', label: 'Post' },
+  { via: 'other', label: 'Anderer Weg' },
+];
+
+/** Die Gründe, mit denen eine Lücke im Nummernkreis begründet wird. */
+const NUMBER_GAP_REASONS = [
+  { reason: 'aborted', label: 'Abgebrochene Ausstellung' },
+  { reason: 'test', label: 'Testlauf' },
+  { reason: 'cancelled', label: 'Storniert' },
+  { reason: 'unknown', label: 'Unbekannt' },
+];
+
+/**
+ * Das Kennziffernblatt eines Voranmeldungszeitraums.
+ *
+ * Gerechnet aus denselben Monatswerten wie die Umsatzsteuerübersicht: Zahllast
+ * gleich Umsatzsteuer minus Vorsteuer. Der Mandant meldet vierteljährlich, der
+ * Schlüssel ist deshalb „JJJJ-Qn".
+ */
+function vatReturn(periodKey: string) {
+  const quarter = Number(periodKey.split('-Q')[1] || 0);
+  if (!quarter) throw new Error(`Für ${periodKey} liegt kein Kennziffernblatt vor.`);
+  const firstMonth = (quarter - 1) * 3 + 1;
+  const from = `${YEAR}-${String(firstMonth).padStart(2, '0')}-01`;
+  const lastMonth = firstMonth + 2;
+  const lastDay = new Date(Date.UTC(YEAR, lastMonth, 0)).getUTCDate();
+  const to = `${YEAR}-${String(lastMonth).padStart(2, '0')}-${lastDay}`;
+  const summary = vatSummary(from, to);
+  const base = summary.taxableRevenue[0]?.net ?? 0;
+  const outputTax = summary.outputTax;
+  return {
+    id: quarter,
+    fiscalYear: YEAR,
+    periodType: 'quarter',
+    periodKey,
+    periodFrom: from,
+    periodTo: to,
+    isCorrection: false,
+    status: 'draft',
+    payable: summary.payable,
+    dueDate: `${YEAR}-${String(lastMonth + 1).padStart(2, '0')}-10`,
+    figures: [
+      {
+        code: '81',
+        label: 'Steuerpflichtige Umsätze zum Steuersatz von 19 %',
+        hasBase: true,
+        base,
+        hasTax: true,
+        taxCode: '81',
+        tax: outputTax,
+        expectedTax: outputTax,
+      },
+      {
+        code: '66',
+        label: 'Vorsteuerbeträge aus Rechnungen von anderen Unternehmern',
+        hasBase: false,
+        base: 0,
+        hasTax: true,
+        tax: summary.inputTax,
+        expectedTax: summary.inputTax,
+      },
+      {
+        code: '83',
+        label: 'Verbleibende Umsatzsteuer-Vorauszahlung',
+        hasBase: false,
+        base: 0,
+        hasTax: true,
+        tax: summary.payable,
+        expectedTax: summary.payable,
+      },
+    ],
+    lateEntries: [],
+    createdAt: `${to}T18:00:00Z`,
+  };
+}
+
+/** Der Hinweis zu einem langen Zahlungsziel; leer heißt: unauffällig. */
+function paymentTermNotice(dueDays: number): string {
+  if (dueDays <= 60) return '';
+  return (
+    `Ein Zahlungsziel von ${dueDays} Tagen liegt über sechzig Tagen. Eine solche Frist ist nur ` +
+    'wirksam, wenn sie ausdrücklich vereinbart und für den Gläubiger nicht grob unbillig ist ' +
+    '(§ 271a Abs. 1 BGB); andernfalls tritt Verzug früher ein, als die Rechnung erwarten lässt.'
+  );
+}
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -1832,6 +2611,67 @@ export const bridge = {
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
   GetSammelposten: (fiscalYear: number) =>
     later(ASSETS.find((a) => a.method === 'pool' && a.poolYear === (fiscalYear || YEAR)) ?? null),
+
+  // Nachgereichte Auskünfte, die eine Ansicht auf dem Weg von der Bilanz zum
+  // Beleg nebenbei holt. Ohne sie bräche die Belegliste ab: sie lädt Belege,
+  // Kontakte und Kontierung in einem Zug.
+  GetFiscalYears: () => later(FISCAL_YEARS),
+  GetSelectableContacts: () => later(CONTACTS),
+  GetSuSaOverviewAt: () => later(susa()),
+  GetOpenItemsAging: unsupported('GetOpenItemsAging'),
+  GetPaymentAllocations: () => later([]),
+  GetProvisions: () => later([]),
+  GetAdvanceTargets: () => later([]),
+  GetOpenAdvances: () => later([]),
+  GetOpenVendorAdvances: () => later([]),
+  ExportJournalCSV: unsupported('ExportJournalCSV'),
+
+  // Jahresabschluss: Bilanz, GuV, Anhang, Größenklasse
+  GetStatement: () => later(STATEMENT, 80),
+  GetSizeClass: () => later(SIZE_CLASS),
+  GetStatementDeadlines: () => later([]),
+  ExportStatementPDF: unsupported('ExportStatementPDF'),
+  ExportStatementCSV: unsupported('ExportStatementCSV'),
+
+  // Auswahllisten des Rechnungsdialogs. Ohne sie scheitert das Laden der
+  // Rechnungsseite in einem Zug, und die Maske bliebe ohne Kunden.
+  GetUnitCodes: () => later(UNIT_CODES),
+  GetEInvoiceProfiles: () => later(EINVOICE_PROFILES),
+  GetInvoiceSentViaOptions: () => later(SENT_VIA_OPTIONS),
+  GetNumberGapReasons: () => later(NUMBER_GAP_REASONS),
+  GetInvoiceNumberGaps: () => later({ fiscalYear: YEAR, issued: 19, used: 19, gaps: [] }),
+  GetSupplyEvidenceReport: () =>
+    later({
+      fiscalYear: YEAR,
+      rows: [],
+      incomplete: 0,
+      note: 'Im Geschäftsjahr sind keine innergemeinschaftlichen Lieferungen abgerechnet.',
+    }),
+
+  // Umsatzsteuer: das Kennziffernblatt, das der Monatsabschluss zeigt.
+  // Geschrieben wird hier nichts — Bestätigung und Berichtigung sind Vorgänge
+  // mit Folgen und stehen deshalb als „nicht verfügbar" da.
+  GetVatReturn: (periodKey: string) => later(vatReturn(periodKey), 60),
+  SaveVatReturn: (periodKey: string) => later(vatReturn(periodKey), 60),
+  ExportVatReturnCSV: () => later('Kennziffer;Bemessungsgrundlage;Steuer\n81;315200;59888\n'),
+  ConfirmVatReturnSubmitted: unsupported('ConfirmVatReturnSubmitted'),
+
+  // Welle 7: Aufgaben, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+  GetTasks: () => later(TASKS, 60),
+  GetMonthCloseState: (month: string) => later(monthCloseState(month), 60),
+  SuggestBankMatches: (bankTxId: number) => later(bankSuggestions(bankTxId), 60),
+  GetBankRules: () => later(BANK_RULES),
+  DeleteBankRule: unsupported('DeleteBankRule'),
+  GetDunningProposals: () => later(DUNNING_PROPOSALS, 60),
+  CreateDunningNotices: unsupported('CreateDunningNotices'),
+  GetDunningNotices: (contactId: number) =>
+    later(contactId ? DUNNING_NOTICES.filter((n) => n.contactId === contactId) : DUNNING_NOTICES),
+  GetBaseRates: () => later(BASE_RATES),
+  SaveBaseRate: unsupported('SaveBaseRate'),
+  GetAuditTrail: (receiptId: number) => later(auditTrail(receiptId), 60),
+  ExportAuditTrail: unsupported('ExportAuditTrail'),
+  SaveServiceProof: unsupported('SaveServiceProof'),
+  GetPaymentTermNotice: (dueDays: number) => later(paymentTermNotice(dueDays)),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => later(XBRL, 400),
@@ -2008,5 +2848,23 @@ function previewIncoming(request: any) {
     accountName: accountName(counter),
   });
 
-  return { lines, net, tax, gross, balanced: true, warnings: [] };
+  // Der fehlende Leistungsnachweis, wie ihn das Backend in der Vorschau meldet
+  // (RECH-08). Die Maske macht daraus ab der Grenze ein Pflichtfeld — geprüft
+  // wird gegen die Bestellung, und das geschieht vor dem Buchen oder gar nicht.
+  const warnings: any[] = [];
+  const receipt = RECEIPTS.find((r) => r.id === request.receiptId) as any;
+  const threshold = SETTINGS.invoiceCheckThreshold;
+  if (receipt && !receipt.serviceProof && threshold > 0 && gross >= threshold) {
+    warnings.push({
+      code: 'service_proof_required',
+      severity: 'warning',
+      title: 'Der Leistungsnachweis fehlt',
+      detail:
+        `Beleg ${receipt.receiptNumber} über ${euro(gross)} € trägt keinen Leistungsnachweis. ` +
+        `Ab ${euro(threshold)} € verlangt die eigene Vorgabe den Vermerk, gegen welche Bestellung ` +
+        'geprüft wurde. Ohne ihn wird der Beleg nicht gebucht.',
+    });
+  }
+
+  return { lines, net, tax, gross, balanced: true, warnings };
 }

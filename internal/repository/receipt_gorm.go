@@ -266,6 +266,22 @@ func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 		Select("InputTaxOverride", "InputTaxOverrideAt").Updates(&receipt).Error
 }
 
+// SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis an den Beleg.
+//
+// Über den Datensatz und eine Spaltenauswahl wie die Übersteuerung: der
+// Leistungsnachweis liegt verschlüsselt in seiner Spalte, und GORM wendet den
+// Feld-Serializer nur auf dem Struct-Weg an.
+func (r *receiptRepositoryGorm) SaveAuditTrail(
+	ctx context.Context, receiptID uint, orderReference, proof, proofAt string,
+) error {
+	receipt := domain.Receipt{
+		ID: receiptID, OrderReference: orderReference,
+		ServiceProof: proof, ServiceProofAt: proofAt,
+	}
+	return dbFrom(ctx, r.db).Model(&receipt).
+		Select("OrderReference", "ServiceProof", "ServiceProofAt").Updates(&receipt).Error
+}
+
 // Discard retires a filed Beleg without deleting it. It already carries a
 // Belegnummer, and a received document must stay findable.
 func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, reason string) error {

@@ -132,6 +132,15 @@ type Contact struct {
 // IsBusiness reports whether the partner is an Unternehmer.
 func (c *Contact) IsBusiness() bool { return !c.IsPrivate }
 
+// IsConsumer meldet den Verbraucher des § 13 BGB.
+//
+// Derselbe Wert wie IsPrivate, unter dem Namen, unter dem das Mahnwesen ihn
+// braucht: Verzugszinssatz und Pauschale des § 288 BGB hängen daran, ob ein
+// Verbraucher beteiligt ist. Kein zweites Feld am Kontakt — ein
+// Geschäftspartner, der kein Unternehmer ist, ist der Verbraucher, und zwei
+// Felder für eine Eigenschaft geraten irgendwann auseinander.
+func (c *Contact) IsConsumer() bool { return c.IsPrivate }
+
 // ExemptionCertificateExpiryWarningDays ist der Vorlauf, mit dem Buchfink auf
 // eine ablaufende Freistellungsbescheinigung hinweist. Wer sie am Ablauftag
 // erfährt, hat bei der nächsten Zahlung schon einbehalten müssen.

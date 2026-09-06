@@ -17,6 +17,7 @@ import type {
   PaymentAllocationDetail,
   Side,
 } from '../types';
+import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import {
@@ -119,9 +120,19 @@ export interface JournalPageProps {
    * (GOB-02) endet in einer Liste, die man weiter durchsuchen können muss.
    */
   initialSearch?: string;
+  /**
+   * Weg von der Buchung zu ihrem Beleg (GOB-02). Er schließt die Kette
+   * Bilanzposition → Konto → Buchung → Beleg: ohne ihn endete der Weg hier, und
+   * der Beleg wäre in der Belegliste erneut zu suchen.
+   */
+  onNavigate?: NavigateFn;
 }
 
-export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSearch }) => {
+export const JournalPage: React.FC<JournalPageProps> = ({
+  closedYear,
+  initialSearch,
+  onNavigate,
+}) => {
   // Zwei Sperren mit demselben Ergebnis: das festgestellte Geschäftsjahr und
   // der Prüfermodus. Beide gehören in den title des Knopfes, damit der Grund
   // nicht in der Fehlermeldung des ersten Versuchs steht (§10.4).
@@ -475,6 +486,10 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
                     setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))
                   }
                   onReverse={() => setReversing(entry)}
+                  onOpenReceipt={
+                    onNavigate &&
+                    ((receiptId: number) => onNavigate('receipts', { receiptId }))
+                  }
                 />
               ))}
             </Tbody>
@@ -543,6 +558,8 @@ const EntryRows: React.FC<{
   expanded: boolean;
   onToggle: () => void;
   onReverse: () => void;
+  /** Weg zum Beleg der Buchung; fehlt, wo die Ansicht nicht navigieren kann. */
+  onOpenReceipt?: (receiptId: number) => void;
 }> = ({
   entry,
   accountNames,
@@ -554,6 +571,7 @@ const EntryRows: React.FC<{
   expanded,
   onToggle,
   onReverse,
+  onOpenReceipt,
 }) => {
   const writeLock = useWriteLock();
   const isReversal = entry.kind === 'reversal';
@@ -581,7 +599,26 @@ const EntryRows: React.FC<{
             )}
           </button>
         </Td>
-        <Td code>{entry.entryNumber}</Td>
+        <Td code>
+          <span className="flex items-center gap-2">
+            {entry.entryNumber}
+            {/* Der Weg zum Beleg steht in der Zeile und nicht erst im
+                aufgeklappten Buchungssatz: von der Bilanzposition sind es so
+                vier Klicks bis zum Beleg, mit dem Aufklappen wären es fünf
+                (GOB-02). */}
+            {onOpenReceipt && entry.receiptId ? (
+              <Button
+                variant="quiet"
+                size="sm"
+                className="-my-1"
+                onClick={() => onOpenReceipt(entry.receiptId as number)}
+                aria-label={`Beleg zur Buchung ${entry.entryNumber} anzeigen`}
+              >
+                Beleg
+              </Button>
+            ) : null}
+          </span>
+        </Td>
         <Td className="text-ink-subtle num">{formatDate(entry.bookingDate)}</Td>
         <Td className="max-w-[22rem] truncate" title={entry.description}>
           {entry.description}

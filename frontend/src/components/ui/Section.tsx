@@ -24,6 +24,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, context, action, 
 );
 
 export interface SectionProps {
+  /** Anker, über den ein Verweis auf derselben Seite den Abschnitt anspringt. */
+  id?: string;
   title?: string;
   context?: string;
   action?: React.ReactNode;
@@ -36,6 +38,7 @@ export interface SectionProps {
 
 /** Der Ersatz für die Karte: Überschrift, Abstand, Haarlinie. */
 export const Section: React.FC<SectionProps> = ({
+  id,
   title,
   context,
   action,
@@ -43,7 +46,7 @@ export const Section: React.FC<SectionProps> = ({
   className,
   children,
 }) => (
-  <section className={cn(divider && 'mt-8 pt-8 border-t border-line', className)}>
+  <section id={id} className={cn(divider && 'mt-8 pt-8 border-t border-line', className)}>
     {(title || action) && (
       <div className="flex items-start justify-between gap-4 mb-5">
         <div className="min-w-0">

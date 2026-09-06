@@ -11,59 +11,19 @@
  * selbst gestartet und am Ende wieder beendet.
  */
 
-import { spawn } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { ORIGIN, ROOT, sleep, startVite } from './dev-server.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(HERE, '../..');
 const OUT = resolve(ROOT, 'website/assets/screenshots');
-const ORIGIN = 'http://127.0.0.1:9246';
 
 const VIEWPORT = { width: 1440, height: 900 };
 const SCALE = 2;
 
 // -------------------------------------------------------------------------
-
-async function startVite() {
-  // Direkt die Binärdatei statt über npx: npx bleibt als Elternprozess
-  // stehen, und ein SIGTERM an npx lässt den Server samt Port zurück.
-  const proc = spawn(
-    resolve(ROOT, 'frontend/node_modules/.bin/vite'),
-    ['--config', 'vite.screenshots.config.ts', '--clearScreen', 'false'],
-    { cwd: resolve(ROOT, 'frontend'), stdio: ['ignore', 'pipe', 'pipe'] },
-  );
-  proc.stderr.on('data', (chunk) => process.stderr.write(chunk));
-
-  await new Promise((ok, fail) => {
-    const timer = setTimeout(() => fail(new Error('Vite ist nicht gestartet.')), 90_000);
-    proc.stdout.on('data', (chunk) => {
-      const text = String(chunk);
-      process.stdout.write(text);
-      if (text.includes('ready in') || text.includes('Local:')) {
-        clearTimeout(timer);
-        ok();
-      }
-    });
-    proc.on('exit', (code) => fail(new Error(`Vite beendet mit Code ${code}.`)));
-  });
-
-  // Der erste Request löst das Bündeln aus; danach antwortet der Server schnell.
-  for (let i = 0; i < 40; i++) {
-    try {
-      const res = await fetch(ORIGIN);
-      if (res.ok) break;
-    } catch {
-      /* noch nicht bereit */
-    }
-    await sleep(500);
-  }
-  return proc;
-}
-
-const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 /** Rendert den Beispielbeleg als Bild, das die Belegvorschau anzeigt. */
 async function renderReceipt(context) {

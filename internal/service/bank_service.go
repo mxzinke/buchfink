@@ -23,6 +23,12 @@ type BankService struct {
 	journalSvc *JournalService
 	auditRepo  domain.AuditRepository
 	receipts   *ReceiptService
+
+	// openItems und ruleRepo tragen den Zuordnungsvorschlag (siehe
+	// bank_suggest.go). Beide dürfen fehlen: ohne sie importiert und bucht der
+	// Dienst wie zuvor, nur ohne Vorschlag.
+	openItems LiveOpenItemSource
+	ruleRepo  domain.BankRuleRepository
 }
 
 // NewBankService creates the bank import service.
@@ -209,6 +215,10 @@ func (s *BankService) BookDirect(ctx context.Context, bankTxID uint, counterAcco
 	if err := s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusMatched); err != nil {
 		return nil, fmt.Errorf("Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
 	}
+
+	// Erst jetzt lernen: gelernt wird die bestätigte Zuordnung, und bestätigt
+	// ist sie, wenn die Buchung steht.
+	s.learnRule(ctx, tx, counterAccount)
 
 	return created, nil
 }

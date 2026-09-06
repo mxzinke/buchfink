@@ -44,6 +44,21 @@ func (b *BuchfinkBridge) SkipClosingStep(year int, key, reason string) (*service
 	return b.closingStepsSvc.SkipStep(context.Background(), year, domain.ClosingStepKey(key), reason)
 }
 
+// ReopenClosingStep nimmt das Überspringen eines Bausteins zurück: er steht
+// wieder offen. Möglich, solange das Jahr weder festgeschrieben noch
+// festgestellt ist — danach führt der Weg zurück über den Storno.
+func (b *BuchfinkBridge) ReopenClosingStep(year int, key, reason string) (*service.ClosingSteps, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
+	if b.closingStepsSvc == nil {
+		return nil, fmt.Errorf("kein aktiver Mandant")
+	}
+	return b.closingStepsSvc.ReopenStep(context.Background(), year, domain.ClosingStepKey(key), reason)
+}
+
 // MarkClosingStepDone hakt einen Baustein ausdrücklich ab.
 func (b *BuchfinkBridge) MarkClosingStepDone(year int, key string) (*service.ClosingSteps, error) {
 	b.mu.Lock()

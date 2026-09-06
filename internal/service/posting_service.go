@@ -147,6 +147,19 @@ type ReceiptRequest struct {
 	// ein zweites Mal gezogen: die Schlussrechnung weist den Gesamtbetrag aus,
 	// die Steuer auf den angezahlten Teil ist aber schon abgezogen.
 	SettledAdvanceIDs []uint `json:"settledAdvanceIds,omitempty"`
+
+	// ServiceProof ist der Leistungsnachweis, den die Maske mit der Buchung
+	// mitschickt, ServiceProofAt sein Datum (leer heißt heute) — RECH-08.
+	//
+	// Ab der eingestellten Grenze verlangt der Belegweg den Vermerk, bevor er
+	// bucht. Ohne dieses Feld müsste der Buchungsdialog zweimal rufen
+	// (SaveServiceProof, dann Buchen) und die zweite Hälfte des Vorgangs an der
+	// Oberfläche zusammenhalten — mit dem Ergebnis, dass ein abgebrochener
+	// Vorgang einen Vermerk hinterlässt, aber keine Buchung. Geschrieben wird
+	// der Vermerk trotzdem über den Belegdienst, damit er dieselbe Prüfung und
+	// denselben Protokolleintrag bekommt wie der nachgetragene.
+	ServiceProof   string `json:"serviceProof,omitempty"`
+	ServiceProofAt string `json:"serviceProofAt,omitempty"`
 }
 
 // PostingPreview is what a booking would look like, computed without writing it.
@@ -227,6 +240,17 @@ type PostingService struct {
 	// currency ist der Kursdienst. Ohne ihn ist ein Beleg in Fremdwährung nicht
 	// buchbar.
 	currency currencyConverter
+
+	// settingsRepo liefert die Nachweisgrenze des Leistungsnachweises
+	// (RECH-08). Ohne ihn kennt der Belegweg keine Grenze und bucht wie zuvor —
+	// gesetzt wird er deshalb überall dort, wo es Einstellungen gibt.
+	settingsRepo domain.SettingsRepository
+}
+
+// SetSettingsSource koppelt die Unternehmenseinstellungen an den Belegweg. Aus
+// ihnen kommt die Grenze, ab der ein Eingangsbeleg den Leistungsnachweis trägt.
+func (s *PostingService) SetSettingsSource(repo domain.SettingsRepository) {
+	s.settingsRepo = repo
 }
 
 // SetTxRunner koppelt die Transaktionsklammer an den Belegweg.
@@ -293,6 +317,19 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 		return nil, err
 	}
 	if err := built.blockingError(req); err != nil {
+		return nil, err
+	}
+	// Ein mitgeschickter Leistungsnachweis wird zuerst geschrieben — über den
+	// Belegdienst, damit er dieselbe Prüfung und denselben Protokolleintrag
+	// bekommt wie der nachgetragene. Erst danach wird geprüft, ob er fehlt.
+	if err := s.saveServiceProof(ctx, built, req); err != nil {
+		return nil, err
+	}
+	// Der Leistungsnachweis ist ab der eingestellten Grenze Pflicht (RECH-08):
+	// geprüft wird vor dem Schreiben, weil ein gebuchter Beleg den Vermerk zwar
+	// noch aufnimmt, die Prüfung gegen die Bestellung dann aber niemand mehr
+	// vornimmt.
+	if err := s.requireServiceProof(ctx, built.receipt); err != nil {
 		return nil, err
 	}
 	lines, contact, receipt := built.lines, built.contact, built.receipt
@@ -433,6 +470,11 @@ func (s *PostingService) PreviewIncomingReceipt(ctx context.Context, req Receipt
 		preview.Warnings = append(preview.Warnings, *notice)
 	}
 	preview.Warnings = append(preview.Warnings, built.warnings...)
+	// Der fehlende Leistungsnachweis steht schon in der Vorschau: die Maske soll
+	// das Feld verlangen, bevor jemand auf „Buchen" drückt.
+	if notice := s.serviceProofNotice(ctx, built.receipt); notice != nil {
+		preview.Warnings = append(preview.Warnings, *notice)
+	}
 	preview.InputTaxFindings = built.findings
 	if built.fx != nil {
 		preview.Conversion = built.fx.conv

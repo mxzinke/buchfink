@@ -38,6 +38,13 @@ export interface AuditPageProps {
    * das andere, und der Weg dorthin gehört deshalb an diese Seite.
    */
   onNavigate?: NavigateFn;
+  /**
+   * Die Prüfregel, deren Befunde aus der Aufgabenliste gemeint sind. Der
+   * jüngste Lauf mit einem solchen Befund wird aufgeklappt und die Zeilen
+   * werden hervorgehoben: sonst käme die Aufgabe „Befunde klären" auf einer
+   * Liste zusammengeklappter Läufe an.
+   */
+  initialRule?: string;
 }
 
 /** „1 Tag“ und nicht „1 Tage“: die Kennzahl steht in einem Satz. */
@@ -69,7 +76,7 @@ function timelinessLines(t: CheckTimeliness): string[] {
   return lines;
 }
 
-export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
+export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate, initialRule }) => {
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [commitments, setCommitments] = useState<Festschreibung[]>([]);
   // Die Prüfläufe gehören hierher und nicht in die Fristenansicht: dort werden
@@ -97,6 +104,15 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
       setIntegrity(result);
       setCommitments(festschreibungen);
       setCheckRuns(runs);
+      // Kommt der Aufruf aus einer Aufgabe, wird der jüngste Lauf mit einem
+      // Befund dieser Regel aufgeklappt. Die Läufe stehen in absteigender
+      // Reihenfolge, der erste Treffer ist deshalb der jüngste.
+      if (initialRule) {
+        const hit = runs.find((run) =>
+          (run.findings ?? []).some((finding) => finding.rule === initialRule),
+        );
+        if (hit) setExpandedRun(hit.id);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -451,7 +467,14 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                         )}
                         {open &&
                           findings.map((finding) => (
-                            <Tr key={finding.id}>
+                            <Tr
+                              key={finding.id}
+                              className={
+                                initialRule && finding.rule === initialRule
+                                  ? 'bg-attention-soft'
+                                  : undefined
+                              }
+                            >
                               <Td />
                               <Td
                                 className={

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   ListChecks,
   ListOrdered,
+  ListTodo,
   Loader2,
   Percent,
   Receipt,
@@ -31,6 +32,7 @@ import { formatTime } from '../utils/formatters';
 
 export type TabType =
   | 'welcome'
+  | 'tasks'
   | 'dashboard'
   | 'bank'
   | 'receipts'
@@ -76,6 +78,19 @@ export interface NavigationParams {
    * Reiter wäre zu erraten.
    */
   obligationsTab?: string;
+  /** Belegfilter, mit dem die Belegseite öffnet, etwa „filed" für abgelegte. */
+  receiptStatus?: string;
+  /**
+   * Ansicht, mit der „Bank & Zahlungen" öffnet: der Abgleich oder das
+   * Mahnwesen. Beide wohnen auf derselben Seite, und eine Aufgabe, die das
+   * Mahnwesen meint, landete sonst auf dem Kontoauszug.
+   */
+  bankView?: string;
+  /**
+   * Baustein, den die Abschlussbausteine gleich aufschlagen. Aus dem geführten
+   * Weg des Jahresabschlusses wäre der Reiter sonst zu erraten.
+   */
+  closingTab?: string;
   /**
    * Rechnung, deren Nachweisbelege die Seite „Nebenpflichten" gleich aufschlägt.
    * Ohne sie bräche der Weg „je Lieferung" an der Seitengrenze ab: der Anwender
@@ -83,6 +98,28 @@ export interface NavigationParams {
    * erneut suchen.
    */
   invoiceId?: number;
+  /**
+   * Beleg, den die Belegseite gleich aufschlägt. Er schließt den Weg von der
+   * Bilanzposition über Konto und Buchung bis zum Beleg (GOB-02): ohne ihn
+   * endete der Weg im Journal, und der Beleg wäre in der Belegliste erneut zu
+   * suchen.
+   */
+  receiptId?: number;
+  /**
+   * Das Geschäftsjahr, in dem das Ziel steht. Die Abschlussansichten folgen dem
+   * Jahr aus der Kopfzeile; eine Aufgabe zum Vorjahresabschluss führte ohne
+   * diesen Parameter auf die Abschlussseite des laufenden Jahres — also auf die
+   * falsche Auskunft.
+   */
+  year?: number;
+  /**
+   * Prüfregel, deren Befunde die Seite „Sicherheit & Protokoll" hervorhebt. Ohne
+   * sie stünde die Aufgabe „Befunde klären" vor einer Liste von Prüfläufen ohne
+   * Anker.
+   */
+  auditRule?: string;
+  /** Frist, die die Fristenansicht hervorhebt. */
+  deadlineKey?: string;
 }
 
 export type NavigateFn = (tab: TabType, params?: NavigationParams) => void;
@@ -108,7 +145,13 @@ const icon = 'w-4 h-4 shrink-0';
 const GROUPS: NavGroup[] = [
   {
     label: 'Übersicht',
-    items: [{ id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard className={icon} /> }],
+    // Die Aufgabenliste steht an erster Stelle und die Kennzahlen darunter
+    // (Architektur 6.1): wer keine Buchhalterin ist, weiß nach dem Start nicht,
+    // was heute dran ist — und ein Bankguthaben beantwortet das nicht.
+    items: [
+      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className={icon} /> },
+      { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard className={icon} /> },
+    ],
   },
   {
     label: 'Buchhaltung',

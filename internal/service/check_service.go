@@ -236,6 +236,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkCommitOverdue(ctx, req.CutoffDate, cfg)...)
 	findings = append(findings, s.checkSupplyEvidence(ctx)...)
 	findings = append(findings, s.checkUnconfirmedSupplies(ctx)...)
+	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
 
 	if req.PeriodType == "year" {
 		findings = append(findings, s.checkAccountMapping(ctx)...)
@@ -692,6 +693,55 @@ func (s *CheckService) checkReceipts(
 				Reference: "GoBD Rz. 47",
 			})
 		}
+	}
+	return out
+}
+
+// checkServiceProof meldet die Eingangsbelege über der Grenze, an denen der
+// Leistungsnachweis fehlt (RECH-08).
+//
+// Gemeldet wird bis zum Stichtag und über alle Zustände außer dem verworfenen:
+// gerade am gebuchten und festgeschriebenen Beleg fällt der fehlende Vermerk
+// sonst niemandem mehr auf, und nachtragen lässt er sich noch — er steht
+// außerhalb des Beleg-Hashes.
+//
+// Hier ein Hinweis, im Buchungsweg eine Sperre: der Belegweg lässt einen Beleg
+// über der Grenze ohne Vermerk erst gar nicht durch (siehe service_proof.go).
+// Was der Prüflauf findet, sind deshalb die Belege aus der Zeit vor der Grenze
+// und die, an denen der Vermerk nach dem Buchen wieder entfernt wurde — sie
+// nachträglich zu melden ist der Sinn dieses Befundes; die Festschreibung eines
+// abgeschlossenen Monats daran scheitern zu lassen wäre keiner.
+func (s *CheckService) checkServiceProof(
+	receipts []domain.Receipt, cutoff string, cfg *domain.CompanySettings,
+) []domain.CheckFinding {
+	if cfg == nil || cfg.InvoiceCheckThreshold <= 0 {
+		return nil
+	}
+	var out []domain.CheckFinding
+	for i := range receipts {
+		r := &receipts[i]
+		if r.Status == domain.ReceiptStatusDiscarded {
+			continue
+		}
+		if !receiptNeedsServiceProof(r, cfg.InvoiceCheckThreshold) {
+			continue
+		}
+		relevant := r.ReceivedAt
+		if relevant == "" {
+			relevant = r.CreatedAt.Format("2006-01-02")
+		}
+		if relevant > cutoff {
+			continue
+		}
+		out = append(out, domain.CheckFinding{
+			Rule:       domain.CheckRuleServiceProofMissing,
+			Severity:   domain.CheckWarning,
+			ObjectType: "RECEIPT",
+			ObjectID:   fmt.Sprintf("%d", r.ID),
+			ObjectName: r.ReceiptNumber,
+			Message:    serviceProofMissingMessage(r, cfg.InvoiceCheckThreshold),
+			Reference:  "§ 15 UStG, GoBD Rz. 100 ff.",
+		})
 	}
 	return out
 }

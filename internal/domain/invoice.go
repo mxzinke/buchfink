@@ -164,6 +164,30 @@ func (t PaymentTerms) DiscountPercent() string {
 	return fmt.Sprintf("%d,%d", whole, fraction)
 }
 
+// LongPaymentTermDays ist die Grenze des § 271a Abs. 1 BGB: eine Zahlungsfrist
+// von mehr als sechzig Tagen ab Empfang der Gegenleistung ist nur wirksam, wenn
+// sie ausdrücklich getroffen und für den Gläubiger nicht grob unbillig ist.
+const LongPaymentTermDays = 60
+
+// PaymentTermNotice ist der Hinweis, den ein langes Zahlungsziel auslöst.
+//
+// Er steht im Rechnungsdialog und nicht auf der Rechnung: er richtet sich an
+// die Ausstellerin, die eine Frist einträgt, deren Wirksamkeit an einer
+// Voraussetzung hängt, die sie kennen muss. Leer heißt: unauffällig.
+func PaymentTermNotice(dueDays int) string {
+	if dueDays <= LongPaymentTermDays {
+		return ""
+	}
+	return fmt.Sprintf(
+		"Ein Zahlungsziel von %d Tagen liegt über sechzig Tagen. Eine solche Frist ist nur wirksam, "+
+			"wenn sie ausdrücklich vereinbart und für den Gläubiger nicht grob unbillig ist "+
+			"(§ 271a Abs. 1 BGB); andernfalls tritt Verzug früher ein, als die Rechnung erwarten lässt.",
+		dueDays)
+}
+
+// LongTermNotice ist derselbe Hinweis für die vereinbarten Bedingungen.
+func (t PaymentTerms) LongTermNotice() string { return PaymentTermNotice(t.DueDays) }
+
 // Note is the sentence that goes on the document and into BT-20.
 func (t PaymentTerms) Note(invoiceDate string) string {
 	if !t.Stated() {

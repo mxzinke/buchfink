@@ -1596,6 +1596,17 @@ func (s *ClosingService) PeriodOf(ctx context.Context, year int) (*domain.Fiscal
 	return s.yearOrDerived(ctx, year)
 }
 
+// HasYearCommitment meldet, ob das Jahr als Ganzes festgeschrieben ist, und mit
+// welchem Stichtag zuletzt festgeschrieben wurde.
+//
+// Die Auskunft liegt in ClosingStateFor mit, aber der Weg dorthin rechnet
+// Kontenumsätze und Ergebnis nach. Wer nur wissen will, ob das Jahr noch
+// änderbar ist — der Abschlussassistent etwa, bevor er eine Entscheidung
+// zurücknimmt —, soll dafür nicht die ganze Bilanz anfassen müssen.
+func (s *ClosingService) HasYearCommitment(ctx context.Context, year int) (bool, string, error) {
+	return s.yearCommitment(ctx, year)
+}
+
 // EarliestFiscalYear ist das früheste erfasste Geschäftsjahr, oder 0, wenn es
 // keines gibt. Die Größenklasse braucht es für § 267 Abs. 4 Satz 2 HGB: der
 // erste Abschluss nach der Gründung wird nach seinem eigenen Stichtag beurteilt.

@@ -229,6 +229,8 @@ export const bridge = {
   GetClosingSteps: <T>(year: number) => invoke<T>('GetClosingSteps', year),
   SkipClosingStep: <T>(year: number, key: string, reason: string) =>
     invoke<T>('SkipClosingStep', year, key, reason),
+  ReopenClosingStep: <T>(year: number, key: string, reason: string) =>
+    invoke<T>('ReopenClosingStep', year, key, reason),
   MarkClosingStepDone: <T>(year: number, key: string) =>
     invoke<T>('MarkClosingStepDone', year, key),
 
@@ -461,6 +463,28 @@ export const bridge = {
   PreviewOpeningBalance: <T>(request: unknown) => invoke<T>('PreviewOpeningBalance', request),
   BookOpeningBalance: <T>(request: unknown) => invoke<T>('BookOpeningBalance', request),
   GetOpenItemsAging: <T>(cutoff: string) => invoke<T>('GetOpenItemsAging', cutoff),
+
+  // Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss, Mahnwesen,
+  // Zuordnungsvorschlag und Prüfpfad. Die Reihenfolge der Argumente ist gegen
+  // internal/wailsbridge/welle7_service.go geprüft; `invoke` ist untypisiert
+  // und würde eine vertauschte Reihenfolge erst zur Laufzeit melden.
+  GetTasks: <T>() => invoke<T>('GetTasks'),
+  GetMonthCloseState: <T>(month: string) => invoke<T>('GetMonthCloseState', month),
+  SuggestBankMatches: <T>(bankTxId: number) => invoke<T>('SuggestBankMatches', bankTxId),
+  GetBankRules: <T>() => invoke<T>('GetBankRules'),
+  DeleteBankRule: (id: number) => invoke<void>('DeleteBankRule', id),
+  GetDunningProposals: <T>() => invoke<T>('GetDunningProposals'),
+  CreateDunningNotices: <T>(request: unknown) => invoke<T>('CreateDunningNotices', request),
+  GetDunningNotices: <T>(contactId: number) => invoke<T>('GetDunningNotices', contactId),
+  GetBaseRates: <T>() => invoke<T>('GetBaseRates'),
+  SaveBaseRate: <T>(validFrom: string, basisPoints: number) =>
+    invoke<T>('SaveBaseRate', validFrom, basisPoints),
+  GetAuditTrail: <T>(receiptId: number) => invoke<T>('GetAuditTrail', receiptId),
+  ExportAuditTrail: (receiptId: number, format: string) =>
+    invoke<string>('ExportAuditTrail', receiptId, format),
+  SaveServiceProof: <T>(receiptId: number, text: string, date: string) =>
+    invoke<T>('SaveServiceProof', receiptId, text, date),
+  GetPaymentTermNotice: (dueDays: number) => invoke<string>('GetPaymentTermNotice', dueDays),
 
   // Prüfermodus
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),

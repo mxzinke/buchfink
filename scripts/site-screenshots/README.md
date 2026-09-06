@@ -12,7 +12,8 @@ veraltet.
 ```bash
 npm --prefix frontend install            # einmalig
 npm --prefix scripts/site-screenshots install
-node scripts/site-screenshots/shoot.mjs
+node scripts/site-screenshots/shoot.mjs        # die Bilder
+node scripts/site-screenshots/four-clicks.mjs  # der Klickweg (task check:clicks)
 ```
 
 Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
@@ -23,7 +24,9 @@ wieder. Ergebnis: zehn PNG in `website/assets/screenshots/`, 2880 × 1800
 
 | Datei | Aufgabe |
 |---|---|
-| `shoot.mjs` | Startet Vite, klickt sich mit Playwright durch die Ansichten, schreibt die Bilder |
+| `shoot.mjs` | Klickt sich mit Playwright durch die Ansichten, schreibt die Bilder |
+| `four-clicks.mjs` | Der Klickweg des Prüfszenarios: Bilanz → Konto → Buchung → Beleg, mit Zähler |
+| `dev-server.mjs` | Startet und beendet den Vite-Server; beide Werkzeuge nutzen ihn |
 | `mock-bridge.ts` | Die Beispieldaten; tritt an die Stelle der Wails-Bridge |
 | `demo-receipt.html` | Der Beispielbeleg, der als Bild in der Belegvorschau steht |
 | `../../frontend/vite.screenshots.config.ts` | Vite ohne Wails-Plugin, mit dem Alias auf `mock-bridge.ts` |
@@ -45,6 +48,20 @@ wieder. Ergebnis: zehn PNG in `website/assets/screenshots/`, 2880 × 1800
 - **Neue Ansicht, neuer Eintrag.** Ein Screenshot besteht aus einem Eintrag in
   `shots` (Navigation, Wartebedingung, Dateiname) und den Daten, die die Ansicht
   dafür braucht.
+- **Neue Bridge-Methode, neue Beispielantwort.** Was eine Ansicht beim Öffnen
+  ruft, muss `mock-bridge.ts` kennen; sonst bricht sie hier mit einem
+  TypeError ab, den es in der Anwendung nicht gibt. Was der Screenshot-Lauf
+  nicht braucht, steht als `unsupported` dabei — das ist eine Antwort und kein
+  Loch.
+
+## Der Klickweg des Prüfszenarios
+
+`four-clicks.mjs` misst, was GOB-02 als Bedienbarkeit versteht: von der
+Bilanzposition, unter der das Bankkonto steht, bis zum Beleg der Buchung in
+höchstens vier Klicks. Gezählt wird ab der Bilanz — der Weg dorthin ist
+Navigation und nicht der Vorgang. Der Lauf schlägt fehl, wenn ein Schritt nicht
+klickbar ist oder die Grenze überschritten wird; er ist damit auch die Probe
+darauf, dass der Weg Buchung → Beleg im Journal überhaupt besteht.
 
 Playwright braucht einen Chromium-Build. Ist keiner vorhanden, holt ihn
 `npx playwright install chromium`.

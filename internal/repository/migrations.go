@@ -25,7 +25,9 @@ import (
 //	     keine Versionszeile und werden mit 0 gelesen)
 //	6    Welle 6: Änderungsprotokoll mit Kette, Aufbewahrungsfristen,
 //	     Belegkopfdaten, Migrationsprotokoll
-const SchemaVersion = 6
+//	7    Welle 7: Mahnwesen (Schreiben, Posten, Basiszinssatz), gelernte
+//	     Bankregeln, Bestellbezug und Leistungsnachweis am Beleg
+const SchemaVersion = 7
 
 // migratedTables benennt die Tabellen, die dieser Stand anlegt oder ändert.
 // Sie steht im Protokoll, damit sich später beantworten lässt, was ein Lauf
@@ -34,6 +36,7 @@ var migratedTables = []string{
 	"audit_log_entries", "journal_entries", "receipts", "contacts",
 	"festschreibungen", "asset_documents", "retention_holds", "schema_migrations",
 	"migration_records",
+	"bank_rules", "base_rates", "dunning_notices", "dunning_notice_items",
 }
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert

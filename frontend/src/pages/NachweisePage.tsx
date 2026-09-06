@@ -44,6 +44,7 @@ import {
   Field,
   FieldRow,
   HelpPopover,
+  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -1005,9 +1006,17 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
           }
         />
         <Stat
-          label="Fristen ausgesetzt"
+          label={
+            <>
+              Fristen ausgesetzt
+              <HelpTooltip
+                label="Erklärung zur ausgesetzten Frist"
+                content="Die Aufbewahrungsfrist läuft nicht ab, solange die Unterlagen für eine noch offene Festsetzung von Bedeutung sind (§ 147 Abs. 3 Satz 5 AO)."
+              />
+            </>
+          }
           value={String(activeHolds.length)}
-          context="§ 147 Abs. 3 Satz 5 AO"
+          context="laufende Aussetzungen"
         />
         <Stat
           label="Stichtag"

@@ -186,6 +186,13 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.SchemaMigration{},
 		&domain.MigrationRecord{},
 		&domain.ProcedureDocumentation{},
+		// Welle 7: die Bedienung. Die gelernte Bankregel und der
+		// Basiszinssatz hängen an nichts; das Mahnschreiben verweist auf den
+		// Kontakt und seine Posten auf Buchungen und steht deshalb dahinter.
+		&domain.BankRule{},
+		&domain.BaseRate{},
+		&domain.DunningNotice{},
+		&domain.DunningNoticeItem{},
 	)
 }
 

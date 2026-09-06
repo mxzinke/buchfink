@@ -700,7 +700,7 @@ const ContactForm: React.FC<{
         <Field
           label="Freistellungsbescheinigung"
           optional
-          hint="Nummer nach § 48b EStG"
+          hint="Nummer der Bescheinigung"
           explain="Bei Bauleistungen hat der Leistungsempfänger 15 % der Gegenleistung einzubehalten und an das Finanzamt abzuführen (§ 48 EStG), es sei denn, der Leistende legt eine gültige Freistellungsbescheinigung vor. Buchfink rechnet diesen Steuerabzug nicht; es führt die Bescheinigung und weist 30 Tage vor ihrem Ablauf darauf hin."
         >
           <Input
@@ -751,12 +751,22 @@ const ContactForm: React.FC<{
           label="Privatperson, kein Unternehmer"
           hint="Für Rechnungen an diesen Partner besteht keine E-Rechnungspflicht."
         />
-        <Checkbox
-          checked={draft.isSmallBusiness ?? false}
-          onCheckedChange={(checked) => set({ isSmallBusiness: Boolean(checked) })}
-          label="Kleinunternehmer nach § 19 UStG"
-          hint="Darf nach § 34a UStDV immer eine sonstige Rechnung ausstellen."
-        />
+        {/* Das Erklärzeichen steht neben dem Kästchen und nicht in seiner
+            Beschriftung: in der Beschriftung liegt es innerhalb des Labels, und
+            ein Klick darauf setzte den Haken. */}
+        <span className="flex items-start gap-1">
+          <Checkbox
+            checked={draft.isSmallBusiness ?? false}
+            onCheckedChange={(checked) => set({ isSmallBusiness: Boolean(checked) })}
+            label="Kleinunternehmer"
+            hint="Rechnungen ohne Umsatzsteuer"
+          />
+          <HelpPopover label="Erklärung zum Kleinunternehmer">
+            Wer die Umsatzgrenzen des § 19 UStG einhält, weist in seinen Rechnungen keine
+            Umsatzsteuer aus. Für die Rechnung an ihn gilt daneben § 34a UStDV: er darf immer eine
+            sonstige Rechnung ausstellen, unabhängig vom Betrag.
+          </HelpPopover>
+        </span>
       </div>
 
       <div className="mt-4">

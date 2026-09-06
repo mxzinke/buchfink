@@ -1,19 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, Landmark } from 'lucide-react';
-import { CheckRun, CompanySettings, Deadline, FinancialSummary, JournalEntry } from '../types';
+import { CompanySettings, FinancialSummary, JournalEntry } from '../types';
 import { Api } from '../services/api';
 import { formatCents, formatDate } from '../utils/formatters';
-import type { NavigateFn, TabType } from '../components/Sidebar';
+import type { NavigateFn } from '../components/Sidebar';
 import {
   Button,
   EmptyState,
-  HelpPopover,
-  HelpTooltip,
   PageHeader,
   Section,
   SkeletonRows,
-  Stat,
-  StatRow,
   StatusBadge,
   Table,
   Tbody,
@@ -21,32 +17,16 @@ import {
   Th,
   Thead,
   Tr,
-  cn,
 } from '../components/ui';
 
 interface DashboardPageProps {
   onNavigate: NavigateFn;
 }
 
-/**
- * Eine Zeile der Aufgabenliste: was zu tun ist, woher es kommt und wohin es
- * führt. Eine Aufgabe ohne Weg dorthin wäre eine Hausaufgabe ohne Adresse.
- */
-interface Task {
-  key: string;
-  title: string;
-  context: string;
-  /** `attention` heißt: es ist zu erledigen. `negative` heißt: die Frist ist um. */
-  tone: 'attention' | 'negative';
-  target: TabType;
-  action: string;
-}
-
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,196 +44,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       setSummary(sum);
       setRecentEntries(bookings.slice(-8).reverse());
       setSettings(cfg);
-      await loadTasks(cfg.fiscalYear || new Date().getFullYear());
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Die Aufgabenliste. Sie rechnet nichts nach: die Fristen kommen aus
-   * `GetDeadlines`, die Befunde aus dem letzten Prüflauf, die Zahlen aus den
-   * Belegen und Bankumsätzen. Was erledigt ist, steht dort schon als erledigt.
-   */
-  const loadTasks = async (year: number) => {
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const next: Task[] = [];
-    try {
-      // Die Termine des Vorjahres gehören dazu, soweit sie in diesem Jahr fällig
-      // werden: die Voranmeldung für Dezember ist am 10. Januar fällig, die des
-      // vierten Quartals am 10. Februar, die Festschreibung des Dezembers Ende
-      // Januar. Sie sind Termine des Vorjahres und stünden sonst im Januar und
-      // Februar nirgends — genau dann, wenn sie am häufigsten überfällig sind.
-      const [current, prior] = await Promise.all([
-        Api.getDeadlines(year),
-        Api.getDeadlines(year - 1),
-      ]);
-      const carried = prior.filter((d) => d.dueDate && d.dueDate >= `${year}-01-01`);
-
-      // Ein Schlüssel kommt nur einmal vor: die Gründungspflichten tragen kein
-      // Jahr im Schlüssel und stünden sonst doppelt auf der Liste.
-      const seen = new Set<string>();
-      const overdue: Deadline[] = [];
-      for (const d of [...current, ...carried]) {
-        if (seen.has(d.key)) continue;
-        seen.add(d.key);
-        if (d.isDone || !d.dueDate || d.dueDate >= todayIso) continue;
-        overdue.push(d);
-      }
-      overdue.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-
-      for (const d of overdue) {
-        next.push({
-          key: `deadline-${d.key}`,
-          title: d.title,
-          context: `Fällig am ${formatDate(d.dueDate)} · ${d.reference}`,
-          tone: 'negative',
-          target: d.key.startsWith('ustva.') || d.key.startsWith('zm.') ? 'vat' : 'deadlines',
-          action: 'Hin dazu',
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      // Nachträge sind Buchungen, deren Voranmeldungszeitraum bereits übermittelt
-      // ist. Sie verlangen eine berichtigte Anmeldung (§ 153 AO) und stehen sonst
-      // nur auf dem Blatt der Umsatzsteuer — wo niemand nachsieht, der nicht
-      // ohnehin dort ist.
-      const vatPeriods = await Api.getVatPeriods(year);
-      const running =
-        vatPeriods.find((p) => p.from <= todayIso && p.to >= todayIso) ??
-        vatPeriods[vatPeriods.length - 1];
-      if (running) {
-        const draft = await Api.getVatReturn(running.key);
-        // Ohne Nachtrag liefert das Backend keine Liste, sondern `null`. Der
-        // Fehler fiele hier in das try/catch und stünde nur in der Konsole —
-        // die Aufgabe fehlte still. Deshalb der Wert davor.
-        const lateEntries = draft.lateEntries ?? [];
-        if (lateEntries.length > 0) {
-          next.push({
-            key: 'vat-late-entries',
-            title: `${lateEntries.length} Nachträge zu übermittelten Zeiträumen`,
-            context: 'Buchungen, für die eine berichtigte Voranmeldung fällig ist',
-            tone: 'attention',
-            target: 'vat',
-            action: 'Zur Umsatzsteuer',
-          });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      // Ein Kontoauszug ist ein Beleg ohne Buchungspflicht: seine Umsätze
-      // werden im Bankimport gebucht. Als Aufgabe gezählt bliebe nach jedem
-      // CAMT-Import eine Zeile stehen, die niemand erledigen kann — der
-      // Belegprüflauf nimmt ihn aus demselben Grund aus (Entscheidung 9).
-      const receipts = (await Api.getReceipts('filed')).filter((r) => r.kind !== 'statement');
-      if (receipts.length > 0) {
-        next.push({
-          key: 'receipts-open',
-          title: `${receipts.length} Belege ohne Buchung`,
-          context: 'abgelegt, aber noch nicht gebucht',
-          tone: 'attention',
-          target: 'receipts',
-          action: 'Zu den Belegen',
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      const unmatched = (await Api.getBankTransactions()).filter(
-        (tx) => tx.matchStatus === 'unmatched',
-      );
-      if (unmatched.length > 0) {
-        next.push({
-          key: 'bank-unmatched',
-          title: `${unmatched.length} Bankumsätze ohne Zuordnung`,
-          context: 'ohne Zuordnung bleibt die Kasse nicht abgestimmt',
-          tone: 'attention',
-          target: 'bank',
-          action: 'Zum Abgleich',
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      const runs: CheckRun[] = await Api.getCheckRuns(0);
-      const latest = runs[0];
-      const latestFindings = latest?.findings ?? [];
-      if (latest && latestFindings.length > 0) {
-        const blocking = latestFindings.filter((f) => f.severity === 'blocking').length;
-        next.push({
-          key: 'check-findings',
-          title: `${latestFindings.length} Befunde aus dem letzten Prüflauf`,
-          context: `${blocking} blockierend · Stichtag ${formatDate(latest.cutoffDate)}`,
-          tone: blocking > 0 ? 'negative' : 'attention',
-          target: 'audit',
-          action: 'Zum Prüfbericht',
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      // Die Sicherung. Eine Buchführung ohne sie erfüllt die
-      // Aufbewahrungspflicht des § 147 Abs. 1 AO nur, solange die Festplatte
-      // hält — und niemand merkt den Verlust, bevor er zählt (GoBD Rz. 103).
-      const cfg = await Api.getAppConfig();
-      if (!cfg.backupDir) {
-        next.push({
-          key: 'backup-missing',
-          title: 'Keine Sicherung eingerichtet',
-          context: 'Ohne Sicherungsordner schreibt Buchfink keine Sicherung',
-          tone: 'attention',
-          target: 'dataaccess',
-          action: 'Einrichten',
-        });
-      } else {
-        const runs = await Api.getBackupRuns();
-        // Der jüngste Lauf, der eine Sicherung war: ein Prüf- oder
-        // Wiederherstellungslauf sagt nichts darüber, wann zuletzt gesichert
-        // wurde.
-        const last = runs.find((r) => r.kind === 'manual' || r.kind === 'automatic');
-        const days = last
-          ? Math.floor((Date.now() - new Date(last.startedAt).getTime()) / 86_400_000)
-          : null;
-        if (!last) {
-          next.push({
-            key: 'backup-never',
-            title: 'Noch keine Sicherung gelaufen',
-            context: `Zielordner steht: ${cfg.backupDir}`,
-            tone: 'attention',
-            target: 'dataaccess',
-            action: 'Jetzt sichern',
-          });
-        } else if (!last.success) {
-          next.push({
-            key: 'backup-failed',
-            title:
-              days === 0
-                ? 'Die letzte Sicherung ist heute fehlgeschlagen'
-                : `Die letzte Sicherung vor ${days} Tagen ist fehlgeschlagen`,
-            context: last.message || 'Grund steht unter Datenzugriff',
-            tone: 'negative',
-            target: 'dataaccess',
-            action: 'Nachsehen',
-          });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    setTasks(next);
   };
 
   const context = [
@@ -268,6 +61,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
+      {/* Die Kennzahlen — Bankguthaben, Einnahmen, Ausgaben, Ergebnis — stehen
+          auf der Aufgabenseite unter der Liste (Architektur 6.1). Zweimal
+          dieselben vier Zahlen an zwei Stellen sind keine zweite Auskunft,
+          sondern zwei Orte, an denen dieselbe Frage beantwortet wird — und
+          einer davon ist irgendwann veraltet. Hier bleibt, was die
+          Aufgabenliste nicht zeigt: die zuletzt erfassten Vorgänge. */}
       <PageHeader
         title="Buchhaltungsübersicht"
         context={context}
@@ -297,123 +96,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
       ) : (
         <>
-          <Section
-            title="Aufgaben"
-            context={tasks.length > 0 ? `${tasks.length} offen` : 'nichts offen'}
-            divider={false}
-            className="mt-8"
-            action={
-              <HelpPopover label="Erklärung zur Aufgabenliste">
-                Die Liste entsteht aus den Daten: überfällige Termine aus der Fristenübersicht —
-                auch die des Vorjahres, die erst in diesem Jahr fällig wurden —, Nachträge zu
-                übermittelten Voranmeldungszeiträumen, abgelegte Belege ohne Buchung, Bankumsätze
-                ohne Zuordnung und die Befunde des letzten Prüflaufs. Was erledigt ist,
-                verschwindet von selbst — abgehakt wird hier nichts.
-              </HelpPopover>
-            }
-          >
-            {tasks.length === 0 ? (
-              <EmptyState
-                title="Nichts offen"
-                description="Keine überfälligen Termine, keine Belege ohne Buchung, keine Bankumsätze ohne Zuordnung."
-              />
-            ) : (
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th>Aufgabe</Th>
-                    <Th className="w-96">Herkunft</Th>
-                    <Th className="w-40" aria-label="Aktion" />
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {tasks.map((task) => (
-                    <Tr key={task.key}>
-                      <Td className="max-w-[28rem]">
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              'mark-diamond',
-                              task.tone === 'negative' ? 'bg-negative' : 'bg-attention',
-                            )}
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">{task.title}</span>
-                        </span>
-                      </Td>
-                      <Td className="text-ink-subtle text-caption whitespace-normal">
-                        {task.context}
-                      </Td>
-                      <Td className="text-right">
-                        <Button variant="quiet" size="sm" onClick={() => onNavigate(task.target)}>
-                          {task.action}
-                        </Button>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            )}
-          </Section>
-
-          <div className="mt-6">
-            <StatRow>
-              <Stat
-                label={
-                  <>
-                    Bankguthaben
-                    <HelpTooltip
-                      label="Erklärung zum Bankguthaben"
-                      content="Aktueller Gesamtsaldo auf dem Geschäftskonto."
-                    />
-                  </>
-                }
-                value={formatCents(summary.bankBalance)}
-                context="Geschäftskonto 1800"
-              />
-              <Stat
-                label={
-                  <>
-                    Einnahmen
-                    <HelpTooltip
-                      label="Erklärung zu den Einnahmen"
-                      content="Summe aller Erlöse im laufenden Geschäftsjahr, vor Steuern."
-                    />
-                  </>
-                }
-                value={formatCents(summary.totalRevenue)}
-                context="Gesamterlöse"
-              />
-              <Stat
-                label={
-                  <>
-                    Ausgaben
-                    <HelpTooltip
-                      label="Erklärung zu den Ausgaben"
-                      content="Summe aller Betriebsausgaben im laufenden Geschäftsjahr."
-                    />
-                  </>
-                }
-                value={formatCents(summary.totalExpenses)}
-                context="Betriebsausgaben"
-              />
-              <Stat
-                label={
-                  <>
-                    Ergebnis
-                    <HelpTooltip
-                      label="Erklärung zum Ergebnis"
-                      content="Vorläufiger Gewinn oder Verlust vor Steuern, also Einnahmen minus Ausgaben."
-                    />
-                  </>
-                }
-                value={formatCents(summary.netIncome)}
-                context="vor Steuern"
-                tone={summary.netIncome >= 0 ? 'positive' : 'negative'}
-              />
-            </StatRow>
-          </div>
-
           {!hasData ? (
             <div className="mt-8">
               <EmptyState

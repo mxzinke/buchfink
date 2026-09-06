@@ -1,0 +1,401 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { CalendarCheck } from 'lucide-react';
+import { Api } from '../services/api';
+import { MonthCloseDialog } from '../components/MonthCloseDialog';
+import { formatCents, formatDate } from '../utils/formatters';
+import { monthOptions, previousMonth } from '../utils/months';
+import type { FinancialSummary, MonthCloseState, Task, TaskList } from '../types';
+import type { NavigateFn, NavigationParams, TabType } from '../components/Sidebar';
+import {
+  Button,
+  EmptyState,
+  HelpPopover,
+  HelpTooltip,
+  PageHeader,
+  Section,
+  SkeletonRows,
+  Stat,
+  StatRow,
+  Table,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
+  cn,
+  toast,
+} from '../components/ui';
+
+/**
+ * Die Aufgabenliste als Startseite (Architektur 6.1).
+ *
+ * Sie rechnet nichts nach: Gruppen, Reihenfolge, Titel und Begründung kommen aus
+ * `GetTasks`. Wer keine Buchhalterin ist, weiß nach dem Start nicht, was heute
+ * dran ist — und ein Bankguthaben beantwortet das nicht. Die Kennzahlen stehen
+ * deshalb darunter und nicht darüber.
+ */
+
+interface TasksPageProps {
+  onNavigate: NavigateFn;
+}
+
+/** Eine der drei Gruppen mit ihrer Überschrift und der Farbe ihrer Marke. */
+interface TaskGroup {
+  key: keyof Pick<TaskList, 'overdue' | 'open' | 'upcoming'>;
+  title: string;
+  context: string;
+  mark: string;
+}
+
+/** Die drei Gruppen in der Reihenfolge, in der sie zu lesen sind. */
+const GROUPS: TaskGroup[] = [
+  {
+    key: 'overdue',
+    title: 'Überfällig',
+    context: 'Fristen, die verstrichen sind',
+    mark: 'bg-negative',
+  },
+  { key: 'open', title: 'Offen', context: 'Arbeit ohne Frist', mark: 'bg-attention' },
+  {
+    key: 'upcoming',
+    title: 'Demnächst',
+    context: 'Fristen der nächsten dreißig Tage',
+    mark: 'bg-accent',
+  },
+];
+
+/**
+ * Die Seiten, die das Backend als Ziel nennt, sind die Reiter der Navigation.
+ * Ein unbekannter Name führt nirgendwohin — dann steht die Aufgabe ohne Knopf
+ * da, statt auf einer beliebigen Seite zu landen.
+ */
+const TARGET_TABS: TabType[] = [
+  'accounts',
+  'assets',
+  'audit',
+  'advances',
+  'bank',
+  'closing',
+  'closingmodules',
+  'contacts',
+  'dataaccess',
+  'deadlines',
+  'ebilanz',
+  'invoices',
+  'journal',
+  'nachweise',
+  'obligations',
+  'receipts',
+  'reports',
+  'settings',
+  'vat',
+];
+
+function targetTab(page: string): TabType | null {
+  return (TARGET_TABS as string[]).includes(page) ? (page as TabType) : null;
+}
+
+/**
+ * Übersetzt die Parameter des Ziels in die der Navigation.
+ *
+ * Das Backend kennt den Router nicht und liefert Zeichenketten; welche davon
+ * eine Ansicht versteht, steht hier. Ein Parameter, den keine Ansicht kennt,
+ * bleibt weg: er würde stumm ignoriert und wäre dann nur ein Versprechen.
+ *
+ * Das Jahr ist der wichtigste davon: Abschluss und Abschlussbausteine folgen dem
+ * Geschäftsjahr aus der Kopfzeile, und eine Aufgabe zum Vorjahresabschluss führte
+ * ohne es auf die gleich aussehende Seite des laufenden Jahres.
+ */
+function targetParams(task: Task): NavigationParams {
+  const params = task.target?.params ?? {};
+  const next: NavigationParams = {};
+  if (params.account) next.account = params.account;
+  if (params.entryNumber) next.entryNumber = params.entryNumber;
+  if (params.status) next.receiptStatus = params.status;
+  // Der Beleg, den die Aufgabe meint. Ohne ihn führte die Aufgabe
+  // „Leistungsnachweis erfassen" auf eine Liste, in der der gebuchte Beleg
+  // unter keinem Filter steht.
+  const receiptId = Number.parseInt(params.receiptId ?? '', 10);
+  if (Number.isFinite(receiptId) && receiptId > 0) next.receiptId = receiptId;
+  if (params.view) next.bankView = params.view;
+  if (params.rule) next.auditRule = params.rule;
+  if (params.key) next.deadlineKey = params.key;
+  const year = Number.parseInt(params.year ?? '', 10);
+  if (Number.isFinite(year) && year > 0) next.year = year;
+  return next;
+}
+
+/**
+ * Der Kontext einer Zeile: Anzahl, Betrag und Fälligkeit, soweit sie etwas
+ * aussagen. Eine Null ist keine Auskunft und steht deshalb nicht da.
+ */
+function taskContext(task: Task): string {
+  const parts: string[] = [];
+  if (task.count > 0) parts.push(task.count === 1 ? '1 Vorgang' : `${task.count} Vorgänge`);
+  if (task.amount !== 0) parts.push(formatCents(task.amount));
+  if (task.dueDate) parts.push(`fällig ${formatDate(task.dueDate)}`);
+  return parts.join(' · ');
+}
+
+export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
+  const [tasks, setTasks] = useState<TaskList | null>(null);
+  const [summary, setSummary] = useState<FinancialSummary | null>(null);
+  const [monthState, setMonthState] = useState<MonthCloseState | null>(null);
+  const [month, setMonth] = useState(() => previousMonth(new Date()));
+  // Warum es für den Monat keinen Stand gibt, sagt das Backend. Der Satz bleibt
+  // stehen, bis ein anderer Monat gewählt ist (§10.4).
+  const [monthError, setMonthError] = useState('');
+  const [monthOpen, setMonthOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      setTasks(await Api.getTasks());
+    } catch (e) {
+      setTasks(null);
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
+  useEffect(() => {
+    // Die Kennzahlen sind Nebenauskunft: fehlen sie, bleibt die Aufgabenliste
+    // die Aufgabenliste.
+    Api.getFinancialSummary()
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, []);
+
+  const loadMonth = useCallback(async () => {
+    try {
+      setMonthState(await Api.getMonthCloseState(month));
+      setMonthError('');
+    } catch (e) {
+      // Kein Toast und kein eigener Satz: das Backend sagt, warum es keinen
+      // Stand gibt — ein Monat außerhalb des Geschäftsjahres nennt das Jahr, zu
+      // dem er gehört, ein Lesefehler nennt sich selbst. Ein pauschales „gehört
+      // zu einem anderen Geschäftsjahr" wäre bei jedem zweiten Grund falsch.
+      setMonthState(null);
+      setMonthError(e instanceof Error ? e.message : String(e));
+    }
+  }, [month]);
+
+  useEffect(() => {
+    void loadMonth();
+  }, [loadMonth]);
+
+  const total = tasks ? tasks.overdue.length + tasks.open.length + tasks.upcoming.length : 0;
+  const monthSteps = monthState?.steps ?? [];
+  const monthDone = monthSteps.filter((step) => step.state === 'done').length;
+  const months = monthOptions(month);
+  // „August 2026" und nicht „2026-08": der Schlüssel ist die Kennung des
+  // Zeitraums und keine Bezeichnung. Genommen wird der Name aus der Auswahl,
+  // damit beide dasselbe sagen.
+  const monthLabel = months.find((option) => option.value === month)?.label ?? month;
+
+  return (
+    <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <PageHeader
+        title="Aufgaben"
+        context={
+          tasks ? `Stand ${formatDate(tasks.today)} · ${total} offen` : 'Was heute zu tun ist'
+        }
+        action={
+          <Button
+            variant="secondary"
+            icon={<CalendarCheck className="w-4 h-4" strokeWidth={1.5} />}
+            onClick={() => setMonthOpen(true)}
+          >
+            Monatsabschluss
+          </Button>
+        }
+      />
+
+      {loading ? (
+        <div className="mt-8">
+          <SkeletonRows rows={6} />
+        </div>
+      ) : total === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="Nichts offen"
+            description="Keine verstrichene Frist, keine Belege ohne Buchung, keine Bankumsätze ohne Zuordnung."
+          />
+        </div>
+      ) : (
+        GROUPS.filter((group) => (tasks?.[group.key] ?? []).length > 0).map((group, index) => (
+          <Section
+            key={group.key}
+            title={group.title}
+            context={group.context}
+            divider={index > 0}
+            className={index === 0 ? 'mt-8' : undefined}
+            action={
+              index === 0 ? (
+                <HelpPopover label="Erklärung zur Aufgabenliste">
+                  Die Liste entsteht aus den Daten: Befunde der Prüfläufe, Fristen, Bankumsätze ohne
+                  Zuordnung, Belege ohne Buchung, überfällige Forderungen, ablaufende Bescheinigungen
+                  und die Sicherung. Was erledigt ist, verschwindet von selbst — abgehakt wird hier
+                  nichts. Warum eine Zeile dasteht, steht hinter dem Fragezeichen daneben.
+                </HelpPopover>
+              ) : undefined
+            }
+          >
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Aufgabe</Th>
+                  <Th className="w-72">Kontext</Th>
+                  <Th className="w-32" aria-label="Ziel" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {(tasks?.[group.key] ?? []).map((task) => {
+                  const tab = targetTab(task.target?.page ?? '');
+                  return (
+                    <Tr key={`${task.key}-${task.title}`}>
+                      <Td className="max-w-[32rem]">
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            className={cn('mark-diamond shrink-0', group.mark)}
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{task.title}</span>
+                          {/* Der Grund gehört hinter das Erklärzeichen und nicht
+                              in die Zeile: eine Tabellenzelle trägt keinen
+                              Erklärtext (§15.1). */}
+                          {task.reference ? (
+                            <HelpPopover label={`Erklärung zu ${task.title}`}>
+                              {task.why} {task.reference}
+                            </HelpPopover>
+                          ) : (
+                            <HelpTooltip label={`Erklärung zu ${task.title}`} content={task.why} />
+                          )}
+                        </span>
+                      </Td>
+                      <Td className="text-ink-subtle text-caption num">{taskContext(task)}</Td>
+                      <Td className="text-right pl-0">
+                        {tab && (
+                          <Button
+                            variant="quiet"
+                            size="sm"
+                            onClick={() => onNavigate(tab, targetParams(task))}
+                          >
+                            Hin dazu
+                          </Button>
+                        )}
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </Section>
+        ))
+      )}
+
+      <Section
+        title="Monatsabschluss"
+        context={
+          monthState
+            ? `${monthState.label} · ${monthDone} von ${monthSteps.length} Schritten erledigt`
+            : 'Prüfbericht, Festschreibung, Voranmeldung'
+        }
+        action={
+          <Button variant="secondary" onClick={() => setMonthOpen(true)}>
+            Monat öffnen
+          </Button>
+        }
+      >
+        {monthState === null ? (
+          <p className="text-body text-ink-muted">
+            {`Für ${monthLabel} liegt kein Stand vor.`}
+            {monthError ? ` ${monthError}` : ''}
+          </p>
+        ) : (
+          <ul className="flex flex-col">
+            {monthSteps.map((step) => (
+              <li
+                key={step.key}
+                className="flex items-start gap-3 py-2 border-t border-line first:border-t-0"
+              >
+                <span
+                  className={cn(
+                    'mark-diamond mt-1.5 shrink-0',
+                    step.state === 'done'
+                      ? 'bg-positive'
+                      : step.state === 'blocked'
+                        ? 'bg-negative'
+                        : step.state === 'open'
+                          ? 'bg-attention'
+                          : 'bg-ink-faint',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-body text-ink">{step.title}</span>
+                  <span className="block text-caption text-ink-muted">{step.note}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {summary && (
+        <Section title="Übersicht" context="Stand des laufenden Geschäftsjahres">
+          <StatRow>
+            <Stat
+              label={
+                <>
+                  Bankguthaben
+                  <HelpTooltip
+                    label="Erklärung zum Bankguthaben"
+                    content="Aktueller Gesamtsaldo auf dem Geschäftskonto."
+                  />
+                </>
+              }
+              value={formatCents(summary.bankBalance)}
+              context="Geschäftskonto 1800"
+            />
+            <Stat
+              label="Einnahmen"
+              value={formatCents(summary.totalRevenue)}
+              context="Gesamterlöse"
+            />
+            <Stat
+              label="Ausgaben"
+              value={formatCents(summary.totalExpenses)}
+              context="Betriebsausgaben"
+            />
+            <Stat
+              label="Ergebnis"
+              value={formatCents(summary.netIncome)}
+              context="vor Steuern"
+              tone={summary.netIncome >= 0 ? 'positive' : 'negative'}
+            />
+          </StatRow>
+        </Section>
+      )}
+
+      <MonthCloseDialog
+        open={monthOpen}
+        month={month}
+        onMonthChange={setMonth}
+        months={months}
+        onClose={() => setMonthOpen(false)}
+        onChanged={async () => {
+          await loadMonth();
+          await loadTasks();
+        }}
+        onNavigate={onNavigate}
+      />
+    </div>
+  );
+};

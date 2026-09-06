@@ -204,6 +204,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     specialPrepayment: 0,
     receiptCaptureDays: 10,
     commitGraceDays: 0,
+    // Null und leer heißen hier: die Voreinstellungen des Backends gelten —
+    // tausend Euro für den Leistungsnachweis und die dortige Stufenfolge des
+    // Mahnwesens. Sie hier zu wiederholen wäre eine zweite Wahrheit, und die
+    // Einrichtung fragt nach beidem zu Recht nicht.
+    invoiceCheckThreshold: 0,
+    dunningLevels: [],
     // Leer heißt: die Anlegerstellung für § 20 InvStG folgt aus der
     // Rechtsform. Gefragt wird sie nur, wo diese sie offen lässt.
     investorOverride: '',

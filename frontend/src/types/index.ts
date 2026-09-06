@@ -419,6 +419,14 @@ export interface ReceiptRequest {
   overrideReason?: string;
   /** Die geleisteten Anzahlungen, die dieser Beleg als Schlussrechnung absetzt. */
   settledAdvanceIds?: number[];
+  /**
+   * Der Leistungsnachweis, den der Buchungsdialog mit der Buchung mitschickt,
+   * und sein Datum (leer heißt heute) — RECH-08. Ohne dieses Feld müsste die
+   * Maske zweimal rufen, und ein abgebrochener Vorgang hinterließe einen
+   * Vermerk ohne Buchung.
+   */
+  serviceProof?: string;
+  serviceProofAt?: string;
 }
 
 /**
@@ -569,6 +577,18 @@ export interface Receipt {
    */
   inputTaxOverride?: string;
   inputTaxOverrideAt?: string;
+
+  /**
+   * Der Prüfpfad des Eingangsbelegs (RECH-08).
+   *
+   * `orderReference` bringt die E-Rechnung mit, `serviceProof` ist der Vermerk,
+   * mit dem jemand die sachliche Richtigkeit bestätigt hat. Beide stehen
+   * außerhalb des Beleg-Hashes: der Vermerk entsteht regelmäßig erst beim
+   * Buchen oder danach.
+   */
+  orderReference?: string;
+  serviceProof?: string;
+  serviceProofAt?: string;
 
   createdAt: string;
   updatedAt: string;
@@ -1268,6 +1288,13 @@ export interface CompanySettings {
   specialPrepayment: Cents;
   /** Nach so vielen Tagen fällt ein abgelegter, ungebuchter Beleg auf. */
   receiptCaptureDays: number;
+  /**
+   * Der Betrag, ab dem ein Eingangsbeleg einen Leistungsnachweis tragen muss.
+   * Null heißt die Voreinstellung von 1.000 Euro, nicht „kein Nachweis".
+   */
+  invoiceCheckThreshold: Cents;
+  /** Die eingestellte Stufenfolge des Mahnwesens; leer heißt: Voreinstellung. */
+  dunningLevels: DunningLevel[];
   /** Nachfrist für die Festschreibung des Vormonats; 0 heißt Monatsende. */
   commitGraceDays: number;
   /**
@@ -2928,6 +2955,20 @@ export interface ClosingSteps {
   steps: ClosingStepView[];
   /** Weder erledigt noch übersprungen. */
   openCount: number;
+  /** Erledigte Schritte — gerechnet im Backend, nicht in der Ansicht. */
+  doneCount: number;
+  /** Bewusst übergangene Schritte; sie zählen zum Fortschritt. */
+  skippedCount: number;
+  /** Die Zahl aller Bausteine („Schritt 4 von 11"). */
+  total: number;
+  /**
+   * Ob eine Entscheidung des geführten Weges noch zurückzunehmen ist — ein
+   * übersprungener Baustein also wieder offen werden darf. Nach der
+   * Festschreibung und nach der Feststellung nicht mehr; dann sagt
+   * `reopenBlocker`, warum.
+   */
+  reopenable: boolean;
+  reopenBlocker?: string;
 }
 
 /** Die drei Fälle des § 250 HGB. */
@@ -4375,4 +4416,273 @@ export interface OpenItemsAging {
   cutoff: string;
   sides: OpenItemsAgingSide[];
   reference: string;
+}
+
+// ---------------------------------------------------------------------------
+// Die Bedienung (Welle 7): Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag,
+// Mahnwesen und Prüfpfad.
+// ---------------------------------------------------------------------------
+
+/**
+ * Die drei Gruppen der Aufgabenliste (`domain.TaskGroup`).
+ *
+ * „overdue" ist eine verstrichene Frist, „open" die laufende Arbeit ohne Frist,
+ * „upcoming" die Frist der nächsten dreißig Tage.
+ */
+export type TaskGroup = 'overdue' | 'open' | 'upcoming';
+
+/**
+ * Das Navigationsziel einer Aufgabe (`domain.TaskTarget`).
+ *
+ * Seite und Parameter getrennt: das Backend kennt den Router der Oberfläche
+ * nicht und liefert deshalb keinen fertigen Weg, sondern seine Bestandteile.
+ */
+export interface TaskTarget {
+  page: string;
+  params: Record<string, string>;
+}
+
+/** Eine Zeile der Aufgabenliste (`domain.Task`). */
+export interface Task {
+  key: string;
+  group: TaskGroup;
+  title: string;
+  /** Der eine Satz, warum die Aufgabe besteht. */
+  why: string;
+  /** Die Norm — nur für die zweite Erklärstufe, nie im Titel. */
+  reference?: string;
+  target: TaskTarget;
+  /** Anzahl und Betrag sind der Kontext; 0 heißt: für diese Aufgabe ohne Aussage. */
+  count: number;
+  amount: Cents;
+  dueDate?: string;
+}
+
+/** Die Aufgabenliste in ihren drei Gruppen (`domain.TaskList`). */
+export interface TaskList {
+  /** Der Tag, gegen den die Fristen gerechnet wurden. */
+  today: string;
+  overdue: Task[];
+  open: Task[];
+  upcoming: Task[];
+}
+
+/** Der Stand eines Schrittes im Monatsabschluss (`service.MonthCloseStepState`). */
+export type MonthCloseStepState = 'done' | 'open' | 'blocked' | 'not_applicable';
+
+/** Ein Schritt des Monatsabschlusses (`service.MonthCloseStep`). */
+export interface MonthCloseStep {
+  number: number;
+  key: string;
+  title: string;
+  state: MonthCloseStepState;
+  note: string;
+}
+
+/**
+ * Der Stand eines Monats in seinen drei Schritten (`service.MonthCloseState`).
+ *
+ * Die Reihenfolge steht im Backend und wird hier nicht nachgerechnet: erst der
+ * Prüfbericht, dann die Festschreibung, dann die Bestätigung der Voranmeldung.
+ */
+export interface MonthCloseState {
+  month: string;
+  label: string;
+  from: string;
+  to: string;
+  fiscalYear: number;
+  steps: MonthCloseStep[];
+  findings: CheckFinding[];
+  /** Zahl der Befunde, die die Festschreibung verhindern. */
+  blocking: number;
+  committed: boolean;
+  committedTo?: string;
+  vatApplies: boolean;
+  vatPeriodKey?: string;
+  vatPeriodLabel?: string;
+  vatStatus?: VatReturnStatus;
+  vatDueDate?: string;
+  vatSubmittedAt?: string;
+  vatReturnId?: number;
+}
+
+/** Die Art eines Zuordnungsvorschlags (`service.SuggestionKind`). */
+export type SuggestionKind = 'open_item' | 'collective' | 'rule';
+
+/** Ein Vorschlag zu einem Bankumsatz (`service.BankSuggestion`). */
+export interface BankSuggestion {
+  kind: SuggestionKind;
+  score: number;
+  /** Die Merkmale, auf denen der Vorschlag beruht, in der Reihenfolge ihres Gewichts. */
+  reasons: string[];
+  label: string;
+  contactId?: number;
+  contactName?: string;
+  amount: Cents;
+  items: OpenItem[];
+  counterAccount?: string;
+  postingGroup?: string;
+  ruleId?: number;
+}
+
+/** Die Vorschlagsliste zu einem Bankumsatz, die beste zuerst. */
+export interface BankSuggestions {
+  bankTxId: number;
+  amount: Cents;
+  suggestions: BankSuggestion[];
+  /** Steht dabei, wenn es nichts vorzuschlagen gab. */
+  note?: string;
+}
+
+/** Eine gelernte Zuordnung wiederkehrender Umsätze (`domain.BankRule`). */
+export interface BankRule {
+  id: number;
+  pattern: string;
+  label: string;
+  counterAccount: string;
+  postingGroup?: string;
+  /** Aus einem Geldeingang gelernt; ein Vorschlag mit vertauschter Richtung ist keiner. */
+  moneyIn: boolean;
+  hits: number;
+  lastUsedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Eine Mahnstufe (`domain.DunningLevel`). */
+export interface DunningLevel {
+  level: number;
+  label: string;
+  daysAfterDue: number;
+  fee: Cents;
+}
+
+/** Ein gemahnter Posten im Vorschlag (`service.DunningProposalItem`). */
+export interface DunningProposalItem {
+  entryId: number;
+  documentNumber: string;
+  documentDate: string;
+  dueDate: string;
+  openAmount: Cents;
+  daysOverdue: number;
+  /** Der erste Tag des Verzugs; ab ihm laufen die Zinsen. */
+  defaultFrom: string;
+  interestDays: number;
+  interest: Cents;
+  level: number;
+  previousLevel: number;
+  lumpSum: Cents;
+  /** Was an diesem Posten nicht gerechnet werden konnte — etwa ein fehlender Basiszinssatz. */
+  note?: string;
+}
+
+/** Der Mahnvorschlag eines Kunden (`service.DunningProposal`). */
+export interface DunningProposal {
+  contactId: number;
+  contactName: string;
+  /** Entscheidet über Zinssatz und Pauschale; folgt den Stammdaten. */
+  isConsumer: boolean;
+  level: number;
+  levelLabel: string;
+  noticeDate: string;
+  items: DunningProposalItem[];
+  principal: Cents;
+  interest: Cents;
+  fee: Cents;
+  lumpSum: Cents;
+  total: Cents;
+  note: string;
+}
+
+/** Der Auftrag eines Mahnlaufs (`service.DunningRunRequest`). */
+export interface DunningRunRequest {
+  /** Die ausgewählten Kunden. Leer heißt: nichts tun — ausdrücklich nicht „alle". */
+  contactIds: number[];
+  noticeDate: string;
+  paymentDeadline: string;
+}
+
+/** Ein gemahnter Posten im erzeugten Schreiben (`domain.DunningNoticeItem`). */
+export interface DunningNoticeItem {
+  id: number;
+  dunningNoticeId: number;
+  openItemEntryId: number;
+  documentNumber: string;
+  documentDate: string;
+  dueDate: string;
+  openAmount: Cents;
+  defaultFrom: string;
+  interestDays: number;
+  interestAmount: Cents;
+  lumpSumAmount: Cents;
+  level: number;
+}
+
+/** Ein erzeugtes Mahnschreiben (`domain.DunningNotice`). */
+export interface DunningNotice {
+  id: number;
+  fiscalYear: number;
+  contactId: number;
+  contactName: string;
+  isConsumer: boolean;
+  level: number;
+  levelLabel: string;
+  noticeDate: string;
+  dueDate: string;
+  principalAmount: Cents;
+  interestAmount: Cents;
+  feeAmount: Cents;
+  lumpSumAmount: Cents;
+  totalAmount: Cents;
+  documentName?: string;
+  documentPath?: string;
+  documentSha256?: string;
+  /** Der Grund, aus dem kein Schreiben entstanden ist; die Forderung gilt trotzdem als gemahnt. */
+  documentNote?: string;
+  items: DunningNoticeItem[];
+  createdAt: string;
+}
+
+/**
+ * Der Basiszinssatz ab einem Stichtag (`domain.BaseRate`).
+ *
+ * `basisPoints` sind Hundertstel eines Prozentpunktes: 127 sind 1,27 %.
+ * Ganzzahlig, weil eine Gleitkommazahl die Zinsrechnung um Cents verschöbe.
+ */
+export interface BaseRate {
+  validFrom: string;
+  basisPoints: number;
+  source?: string;
+  /** Fortgeschrieben und nicht bekanntgegeben: die Einstellungen zeigen ihn als „zu prüfen". */
+  provisional: boolean;
+  updatedAt: string;
+}
+
+/** Die Stufe der Belegkette (`service.AuditTrailStage`). */
+export type AuditTrailStage = 'receipt' | 'booking' | 'payment' | 'bank';
+
+/** Eine Stufe des Prüfpfads (`service.AuditTrailStep`). */
+export interface AuditTrailStep {
+  stage: AuditTrailStage;
+  title: string;
+  date: string;
+  reference: string;
+  amount: Cents;
+  detail: string;
+}
+
+/** Der Prüfpfad eines Belegs: Beleg → Buchung → Zahlung → Bankumsatz. */
+export interface AuditTrail {
+  receiptId: number;
+  receiptNumber: string;
+  direction: Direction;
+  documentDate: string;
+  issuerName: string;
+  grossAmount: Cents;
+  orderReference?: string;
+  serviceProof?: string;
+  serviceProofAt?: string;
+  steps: AuditTrailStep[];
+  /** Wo die Kette abbricht — etwa: gebucht, aber nicht bezahlt. */
+  note: string;
 }

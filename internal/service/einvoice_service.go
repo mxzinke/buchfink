@@ -208,8 +208,19 @@ func (s *EInvoiceService) prefillHeader(ctx context.Context, receiptID uint, rea
 	if header.TaxAmount == 0 {
 		header.TaxAmount = read.TaxAmount
 	}
-	_, err = s.receiptSvc.SaveHeader(ctx, receiptID, header)
-	return err
+	if _, err := s.receiptSvc.SaveHeader(ctx, receiptID, header); err != nil {
+		return err
+	}
+	// Die Bestellnummer (BT-13) gehört zum Prüfpfad und nicht zu den Kopfdaten:
+	// sie steht außerhalb des Beleg-Hashes und wird deshalb getrennt
+	// geschrieben. Sie kommt aus dem strukturierten Teil und muss nicht von
+	// Hand abgetippt werden — genau dafür ist sie im Datensatz.
+	if reference := strings.TrimSpace(read.OrderReference); reference != "" {
+		if _, err := s.receiptSvc.SaveOrderReference(ctx, receiptID, reference); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // firstNonEmpty liefert den ersten belegten Wert.

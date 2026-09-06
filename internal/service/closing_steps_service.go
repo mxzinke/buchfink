@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -106,6 +107,34 @@ type ClosingSteps struct {
 	// OpenCount ist die Zahl der Schritte, die weder erledigt noch übersprungen
 	// sind — die Zahl, die auf der Seite steht.
 	OpenCount int `json:"openCount"`
+	// DoneCount, SkippedCount und Total sind der Fortschritt des geführten
+	// Weges („Schritt 4 von 11", Architektur 6.3).
+	//
+	// Gerechnet und nicht von der Ansicht gezählt: der übersprungene Schritt
+	// ist erledigt, aber nicht getan, und wer das in der Oberfläche noch einmal
+	// entscheidet, entscheidet es beim nächsten Mal anders.
+	DoneCount    int `json:"doneCount"`
+	SkippedCount int `json:"skippedCount"`
+	Total        int `json:"total"`
+	// Reopenable sagt, ob eine Entscheidung des geführten Weges noch
+	// zurückzunehmen ist — ein übersprungener Baustein also wieder offen werden
+	// darf (Architektur 6.3: „Zurück ist möglich, solange nicht
+	// festgeschrieben; danach nur Storno"). ReopenBlocker nennt den Grund,
+	// wenn nicht; die Ansicht schreibt ihn an den gesperrten Knopf, statt ihn
+	// zu verschweigen.
+	Reopenable    bool   `json:"reopenable"`
+	ReopenBlocker string `json:"reopenBlocker,omitempty"`
+}
+
+// Progress ist die Zahl der abgeschlossenen Schritte — erledigte und
+// übersprungene zusammen. Sie ist der Zähler der Fortschrittsanzeige.
+func (s *ClosingSteps) Progress() int { return s.DoneCount + s.SkippedCount }
+
+// EnsureLists ersetzt eine nicht belegte Schrittliste durch eine leere.
+func (s *ClosingSteps) EnsureLists() {
+	if s.Steps == nil {
+		s.Steps = make([]ClosingStepView, 0)
+	}
 }
 
 // Steps stellt die Schrittliste eines Geschäftsjahres zusammen.
@@ -160,12 +189,55 @@ func (s *ClosingStepsService) Steps(ctx context.Context, year int) (*ClosingStep
 				}
 			}
 		}
-		if view.State == domain.ClosingStepOpen {
+		switch view.State {
+		case domain.ClosingStepOpen:
 			out.OpenCount++
+		case domain.ClosingStepSkipped:
+			out.SkippedCount++
+		default:
+			out.DoneCount++
 		}
 		out.Steps = append(out.Steps, view)
 	}
+	out.Total = len(out.Steps)
+	out.Reopenable, out.ReopenBlocker = s.reopenState(ctx, year, fy)
 	return out, nil
+}
+
+// reopenState beantwortet, ob eine Entscheidung des geführten Weges noch
+// zurückzunehmen ist.
+//
+// Zwei Sperren, in der Reihenfolge, in der sie eintreten: die Jahres-
+// Festschreibung macht die Buchungen des Jahres unveränderlich (§ 146 Abs. 4
+// AO), und die Feststellung schließt den Abschluss ab (§ 42a Abs. 1 GmbHG).
+// Danach ist der Weg zurück nicht das Zurücknehmen einer Entscheidung, sondern
+// die Rücksetzung der Feststellung beziehungsweise der Storno der Buchung —
+// beides gibt es an anderer Stelle und mit Grund im Protokoll.
+func (s *ClosingStepsService) reopenState(
+	ctx context.Context, year int, fy *domain.FiscalYear,
+) (bool, string) {
+	if fy != nil && fy.IsAdopted() {
+		return false, fmt.Sprintf(
+			"Der Abschluss %d ist festgestellt. Eine Entscheidung des Abschlussweges lässt sich "+
+				"erst nach der Rücksetzung der Feststellung zurücknehmen.", year)
+	}
+	if s.closingSvc == nil {
+		return true, ""
+	}
+	committed, _, err := s.closingSvc.HasYearCommitment(ctx, year)
+	if err != nil {
+		// Die Auskunft fehlt, also gilt die vorsichtige Antwort: lieber ein
+		// gesperrter Knopf mit Grund als eine Rücknahme in einem Jahr, dessen
+		// Festschreibung nicht gelesen werden konnte.
+		return false, fmt.Sprintf(
+			"Ob %d festgeschrieben ist, konnte nicht gelesen werden: %v", year, err)
+	}
+	if committed {
+		return false, fmt.Sprintf(
+			"Das Geschäftsjahr %d ist festgeschrieben. Was danach zu ändern ist, wird storniert "+
+				"und neu gebucht.", year)
+	}
+	return true, ""
 }
 
 // derive liest den Zustand eines Bausteins aus den Daten.
@@ -511,6 +583,84 @@ func (s *ClosingStepsService) SkipStep(
 				"Prüfbericht und erklärt dem Prüfer, warum an dieser Stelle nichts gebucht wurde")
 	}
 	return s.SetStep(ctx, year, key, domain.ClosingStepSkipped, reason)
+}
+
+// ReopenStep nimmt eine Entscheidung des geführten Weges zurück: der
+// übersprungene Baustein steht wieder offen.
+//
+// Der Weg zurück gehört zum geführten Weg (Architektur 6.3). Ohne ihn wäre das
+// Überspringen die einzige Entscheidung des Programms, die niemand mehr
+// korrigieren kann — und ein Grund wie „im ersten Jahr nicht einschlägig", der
+// sich als falsch herausstellt, bliebe für immer im Prüfbericht stehen.
+//
+// Zwei Bedingungen: Solange das Jahr festgeschrieben oder festgestellt ist,
+// bleibt es dabei (siehe reopenState). Und die Rücknahme verlangt selbst einen
+// Grund — sie überschreibt eine begründete Entscheidung, und der Prüfbericht
+// hätte sonst eine Lücke: erst stand dort ein Grund, dann nichts mehr.
+//
+// Zurückgenommen wird nur das Überspringen. Ein erledigter Baustein ist
+// entweder abgeleitet (dann folgt er den Buchungen und wird durch den Storno
+// wieder offen) oder von Hand abgehakt (dann ist das Abhaken jederzeit erneut
+// möglich); beides braucht diese Tür nicht.
+func (s *ClosingStepsService) ReopenStep(
+	ctx context.Context, year int, key domain.ClosingStepKey, reason string,
+) (*ClosingSteps, error) {
+	if year == 0 {
+		year = s.fiscalYear
+	}
+	if strings.TrimSpace(reason) == "" {
+		return nil, fmt.Errorf(
+			"eine übersprungene Arbeit wieder aufzunehmen verlangt eine Begründung: sie tritt an " +
+				"die Stelle des Grundes, mit dem der Schritt übergangen wurde")
+	}
+	def, ok := domain.ClosingStepDefinitionFor(key)
+	if !ok {
+		return nil, fmt.Errorf("unbekannter Abschlussschritt %q", key)
+	}
+	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if allowed, blocker := s.reopenState(ctx, year, fy); !allowed {
+		return nil, fmt.Errorf("%s", blocker)
+	}
+
+	stored, err := s.stepRepo.FindByYear(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	previous := ""
+	found := false
+	for _, step := range stored {
+		if step.Key != key {
+			continue
+		}
+		found = step.State == domain.ClosingStepSkipped
+		previous = step.Reason
+	}
+	if !found {
+		return nil, fmt.Errorf(
+			"der Baustein %q ist nicht übersprungen; zurückzunehmen ist nur eine Entscheidung, "+
+				"die getroffen wurde", def.Label)
+	}
+
+	// Geschrieben wird hier und nicht über SetStep: der Protokolleintrag soll
+	// beide Gründe nennen — den, mit dem übergangen wurde, und den, mit dem die
+	// Arbeit wieder aufgenommen wird. Wer später prüft, liest sonst nur, dass
+	// ein Zustand umsprang.
+	step := &domain.ClosingStep{
+		Year: year, Key: key, State: domain.ClosingStepOpen, ChangedOn: todayLocal(),
+	}
+	if err := step.Validate(); err != nil {
+		return nil, err
+	}
+	if err := s.stepRepo.Save(ctx, step); err != nil {
+		return nil, err
+	}
+	s.audit(ctx, year, fmt.Sprintf(
+		"Abschlussschritt %q im Geschäftsjahr %d wieder aufgenommen: %s (übersprungen war er mit: %s)",
+		def.Label, year, strings.TrimSpace(reason), previous))
+	return s.Steps(ctx, year)
 }
 
 func (s *ClosingStepsService) audit(ctx context.Context, year int, details string) {

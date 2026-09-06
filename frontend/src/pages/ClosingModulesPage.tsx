@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Download, Plus } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Download, Plus } from 'lucide-react';
 import type {
   Account,
+  Cents,
   Accrual,
   AccrualKind,
   AccrualPreview,
@@ -178,47 +179,92 @@ const BackendError: React.FC<{ message?: string }> = ({ message: text }) =>
  * Der Buchungssatz in zwei Spalten, Soll links und Haben rechts (§11.1). Die
  * beiden Summen müssen sichtbar gleich sein; das ist die Kontrolle, die ein
  * Buchhalter als Erstes sucht.
+ *
+ * Aufklappbar wie die Buchungszeile im Journal (Architektur 6.3): Wer den
+ * Vorschlag in Vorgangssprache liest, braucht die Konten nicht — wer sie prüfen
+ * will, findet sie an derselben Stelle. Offen ist die Voreinstellung, weil das
+ * Zuklappen eine Entscheidung ist und das Aufklappen keine sein sollte. Steht
+ * die Überschrift schon über dem Satz, tritt sie an die Stelle von
+ * „Buchungssatz" — zweimal dieselbe Überschrift wäre eine zu viel.
  */
-const PostingLines: React.FC<{ lines: JournalLine[] }> = ({ lines }) => {
+const PostingLines: React.FC<{ lines: JournalLine[]; title?: string }> = ({
+  lines,
+  title = 'Buchungssatz',
+}) => {
+  const [open, setOpen] = useState(true);
   const rows = lines ?? [];
   const debit = rows.filter((line) => line.side === 'S').reduce((sum, line) => sum + line.amount, 0);
   const credit = rows.filter((line) => line.side === 'H').reduce((sum, line) => sum + line.amount, 0);
 
+  const toggle = (
+    <button
+      type="button"
+      onClick={() => setOpen((value) => !value)}
+      aria-expanded={open}
+      className="flex items-center gap-1.5 mb-2 text-label text-ink-muted
+                 hover:text-ink transition-colors duration-120 ease-quiet"
+    >
+      {open ? (
+        <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+      ) : (
+        <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+      )}
+      {title}
+      {!open && rows.length > 0 && (
+        <span className="text-ink-subtle num">
+          {`· Soll ${formatCents(debit)} · Haben ${formatCents(credit)}`}
+        </span>
+      )}
+    </button>
+  );
+
+  if (!open) {
+    return toggle;
+  }
+
   if (rows.length === 0) {
-    return <p className="text-body text-ink-muted">Aus den Angaben entsteht keine Buchung.</p>;
+    return (
+      <>
+        {toggle}
+        <p className="text-body text-ink-muted">Aus den Angaben entsteht keine Buchung.</p>
+      </>
+    );
   }
 
   return (
-    <Table density="kompakt">
-      <Thead>
-        <Tr>
-          <Th className="w-28">Konto</Th>
-          <Th>Text</Th>
-          <Th numeric className="w-40">
-            Soll
-          </Th>
-          <Th numeric className="w-40">
-            Haben
-          </Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {rows.map((line, index) => (
-          <Tr key={`${line.account}-${index}`}>
-            <Td code>{line.account}</Td>
-            <Td className="whitespace-normal">{line.accountName || line.text || '—'}</Td>
-            <Td numeric>{line.side === 'S' ? formatCents(line.amount) : ''}</Td>
-            <Td numeric>{line.side === 'H' ? formatCents(line.amount) : ''}</Td>
+    <>
+      {toggle}
+      <Table density="kompakt">
+        <Thead>
+          <Tr>
+            <Th className="w-28">Konto</Th>
+            <Th>Text</Th>
+            <Th numeric className="w-40">
+              Soll
+            </Th>
+            <Th numeric className="w-40">
+              Haben
+            </Th>
           </Tr>
-        ))}
-        <Tr variant="sum">
-          <Td>Summe</Td>
-          <Td />
-          <Td numeric>{formatCents(debit)}</Td>
-          <Td numeric>{formatCents(credit)}</Td>
-        </Tr>
-      </Tbody>
-    </Table>
+        </Thead>
+        <Tbody>
+          {rows.map((line, index) => (
+            <Tr key={`${line.account}-${index}`}>
+              <Td code>{line.account}</Td>
+              <Td className="whitespace-normal">{line.accountName || line.text || '—'}</Td>
+              <Td numeric>{line.side === 'S' ? formatCents(line.amount) : ''}</Td>
+              <Td numeric>{line.side === 'H' ? formatCents(line.amount) : ''}</Td>
+            </Tr>
+          ))}
+          <Tr variant="sum">
+            <Td>Summe</Td>
+            <Td />
+            <Td numeric>{formatCents(debit)}</Td>
+            <Td numeric>{formatCents(credit)}</Td>
+          </Tr>
+        </Tbody>
+      </Table>
+    </>
   );
 };
 
@@ -268,7 +314,7 @@ const SkippedMark: React.FC = () => (
  * Bilanz, Feststellung und Offenlegung wohnen auf anderen Seiten; ein Verweis,
  * der dorthin führte, verließe den Reitersatz und käme nicht zurück.
  */
-const STEP_TABS: Partial<Record<ClosingStepKey, ModuleTab>> = {
+export const STEP_TABS: Partial<Record<ClosingStepKey, ModuleTab>> = {
   accruals: 'abgrenzung',
   provisions: 'rueckstellungen',
   inventory: 'vorraete',
@@ -286,7 +332,7 @@ const STEP_TABS: Partial<Record<ClosingStepKey, ModuleTab>> = {
  * dort, wo die Verzeichnisse liegen. Ohne diesen Verweis benennt die Zeile eine
  * Arbeit und führt nicht zu ihr; der Reiter wäre zu erraten.
  */
-const STEP_OBLIGATIONS: Partial<Record<ClosingStepKey, string>> = {
+export const STEP_OBLIGATIONS: Partial<Record<ClosingStepKey, string>> = {
   write_up: 'assets',
   currency_valuation: 'currency',
   input_tax_correction: 'inputtax',
@@ -300,6 +346,10 @@ const StepsTab: React.FC<
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [skipStep, setSkipStep] = useState<ClosingStepView | null>(null);
+  // Derselbe Dialog für beide Entscheidungen des geführten Weges: das
+  // Überspringen und seine Rücknahme. Beide verlangen einen Grund, und beide
+  // schreiben ihn ins Protokoll — zwei Dialoge wären zweimal dasselbe Feld.
+  const [stepMode, setStepMode] = useState<'skip' | 'reopen'>('skip');
   const [reason, setReason] = useState('');
   const [fieldError, setFieldError] = useState('');
   const [dialogError, setDialogError] = useState('');
@@ -336,12 +386,20 @@ const StepsTab: React.FC<
   async function submitSkip() {
     if (!skipStep) return;
     if (!reason.trim()) {
-      setFieldError('Der Grund fehlt. Ein Abschluss ohne diesen Schritt ist eine Aussage.');
+      setFieldError(
+        stepMode === 'skip'
+          ? 'Der Grund fehlt. Ein Abschluss ohne diesen Schritt ist eine Aussage.'
+          : 'Der Grund fehlt. Er tritt an die Stelle des Grundes, mit dem der Schritt übergangen wurde.',
+      );
       return;
     }
     setBusy(true);
     try {
-      setSteps(await Api.skipClosingStep(year, skipStep.key, reason));
+      setSteps(
+        stepMode === 'skip'
+          ? await Api.skipClosingStep(year, skipStep.key, reason)
+          : await Api.reopenClosingStep(year, skipStep.key, reason),
+      );
       setSkipStep(null);
       setReason('');
     } catch (e) {
@@ -372,7 +430,7 @@ const StepsTab: React.FC<
         <Stat
           label="Offene Schritte"
           value={String(steps.openCount)}
-          context={`von ${steps.steps.length} Bausteinen`}
+          context={`von ${steps.total} Bausteinen`}
           tone={steps.openCount === 0 ? 'positive' : 'neutral'}
         />
         <Stat label="Bilanzstichtag" value={formatDate(steps.cutoff)} context="Datum aller Abschlussbuchungen" />
@@ -475,6 +533,7 @@ const StepsTab: React.FC<
                             title={writeLock.hint}
                             onClick={() => {
                               setSkipStep(step);
+                              setStepMode('skip');
                               setReason('');
                               setFieldError('');
                               setDialogError('');
@@ -484,6 +543,28 @@ const StepsTab: React.FC<
                           </Button>
                         )}
                       </>
+                    )}
+                    {/* Der Weg zurück (Architektur 6.3): eine übersprungene
+                        Arbeit lässt sich wieder aufnehmen, solange das Jahr
+                        nicht festgeschrieben ist. Danach bleibt der Knopf
+                        stehen und sagt am Zeiger, warum er nicht mehr geht —
+                        ein verschwundener Knopf beantwortet keine Frage. */}
+                    {step.state === 'skipped' && (
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        disabled={busy || writeLock.locked || !steps.reopenable}
+                        title={writeLock.hint || steps.reopenBlocker}
+                        onClick={() => {
+                          setSkipStep(step);
+                          setStepMode('reopen');
+                          setReason('');
+                          setFieldError('');
+                          setDialogError('');
+                        }}
+                      >
+                        Zurücknehmen
+                      </Button>
                     )}
                   </div>
                 </Td>
@@ -496,7 +577,13 @@ const StepsTab: React.FC<
       <Dialog
         open={skipStep !== null}
         onOpenChange={(next) => !next && setSkipStep(null)}
-        title={skipStep ? `${skipStep.label} überspringen` : ''}
+        title={
+          skipStep
+            ? stepMode === 'skip'
+              ? `${skipStep.label} überspringen`
+              : `${skipStep.label} wieder aufnehmen`
+            : ''
+        }
         width="max-w-lg"
         footer={
           <>
@@ -510,7 +597,7 @@ const StepsTab: React.FC<
               title={writeLock.hint}
               onClick={() => void submitSkip()}
             >
-              Schritt überspringen
+              {stepMode === 'skip' ? 'Schritt überspringen' : 'Schritt wieder aufnehmen'}
             </Button>
           </>
         }
@@ -518,7 +605,11 @@ const StepsTab: React.FC<
         <Field
           label="Grund"
           error={fieldError || undefined}
-          help="Bleibt am Schritt festgehalten und steht neben ihm in der Liste."
+          help={
+            stepMode === 'skip'
+              ? 'Bleibt am Schritt festgehalten und steht neben ihm in der Liste.'
+              : 'Steht im Protokoll neben dem Grund, mit dem der Schritt übergangen wurde.'
+          }
         >
           <Textarea
             rows={3}
@@ -1374,9 +1465,17 @@ const ProvisionFormDialog: React.FC<
                 }
               />
               <Stat
-                label="Steuerlicher Wert"
+                label={
+                  <>
+                    Steuerlicher Wert
+                    <HelpTooltip
+                      label="Erklärung zum steuerlichen Wert"
+                      content="Steuerlich wird mit 5,5 % abgezinst (§ 6 Abs. 1 Nr. 3a EStG); der Wert steht zum Vergleich und wird nicht gebucht."
+                    />
+                  </>
+                }
                 value={formatCents(preview.taxAmount)}
-                context="5,5 % nach § 6 Abs. 1 Nr. 3a EStG, nicht gebucht"
+                context="nicht gebucht"
               />
             </StatRow>
 
@@ -1414,7 +1513,7 @@ const ACTION_HINTS: Record<ProvisionAction, string> = {
   increase: 'Eine Zuführung ist eine geänderte Schätzung und braucht ihre eigene Begründung.',
   unwinding: 'Der Barwert wächst, weil die Fälligkeit näher rückt; Gegenposten ist Zinsaufwand.',
   consumption: 'Die Verpflichtung wird erfüllt; was die Rückstellung nicht deckt, bleibt Aufwand.',
-  release: 'Aufgelöst wird nur, soweit der Grund entfallen ist (§ 249 Abs. 2 Satz 2 HGB).',
+  release: 'Aufgelöst wird nur, soweit der Grund für die Rückstellung entfallen ist.',
   settle: 'Ein offener Rest wird mit dieser Begründung aufgelöst.',
 };
 
@@ -2557,8 +2656,7 @@ const VatSettlementTab: React.FC<TabProps> = ({ year }) => {
               </div>
             )}
 
-            <h3 className="text-label text-ink-muted mb-2">Buchungssatz zum Stichtag</h3>
-            <PostingLines lines={settlement.lines} />
+            <PostingLines lines={settlement.lines} title="Buchungssatz zum Stichtag" />
           </>
         )}
       </Section>
@@ -2697,6 +2795,9 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
             </StatRow>
 
             <h3 className="text-label text-ink-muted mb-2">Rechenweg</h3>
+            {/* Die Rechtsgrundlage steht hinter dem Erklärzeichen und nicht in
+                einer eigenen Spalte: der Rechenweg ist die Arbeitsansicht, die
+                Norm ihre zweite Stufe (Architektur 6.4). */}
             <Table density="kompakt">
               <Thead>
                 <Tr>
@@ -2704,65 +2805,23 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
                   <Th numeric className="w-44">
                     Betrag
                   </Th>
-                  <Th className="w-72">Grundlage</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                <Tr>
-                  <Td>Ergebnis vor Steuern</Td>
-                  <Td numeric>{formatCents(preview.input.profitBeforeTax)}</Td>
-                  <Td className="text-ink-muted">§ 275 HGB</Td>
-                </Tr>
-                <Tr>
-                  <Td>Nicht abziehbare Betriebsausgaben</Td>
-                  <Td numeric>{formatCents(preview.input.nonDeductible)}</Td>
-                  <Td className="text-ink-muted">§ 4 Abs. 5 EStG, § 10 KStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Zu versteuerndes Einkommen</Td>
-                  <Td numeric>{formatCents(preview.taxableIncome)}</Td>
-                  <Td className="text-ink-muted">§ 7 Abs. 1 KStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Körperschaftsteuer</Td>
-                  <Td numeric>{formatCents(preview.corporateTax)}</Td>
-                  <Td className="text-ink-muted">§ 23 Abs. 1 KStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Solidaritätszuschlag</Td>
-                  <Td numeric>{formatCents(preview.solidarity)}</Td>
-                  <Td className="text-ink-muted">§ 4 SolZG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Gewerbeertrag, abgerundet</Td>
-                  <Td numeric>{formatCents(preview.tradeIncome)}</Td>
-                  <Td className="text-ink-muted">§ 11 Abs. 1 Satz 3 GewStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Steuermessbetrag</Td>
-                  <Td numeric>{formatCents(preview.tradeBase)}</Td>
-                  <Td className="text-ink-muted">§ 11 Abs. 2 GewStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Gewerbesteuer</Td>
-                  <Td numeric>{formatCents(preview.tradeTax)}</Td>
-                  <Td className="text-ink-muted">§ 16 GewStG</Td>
-                </Tr>
-                <Tr>
-                  <Td>Vorauszahlungen Körperschaftsteuer</Td>
-                  <Td numeric>{formatCents(preview.input.prepaidCorporate)}</Td>
-                  <Td className="text-ink-muted">Gebucht im Geschäftsjahr</Td>
-                </Tr>
-                <Tr>
-                  <Td>Vorauszahlungen Gewerbesteuer</Td>
-                  <Td numeric>{formatCents(preview.input.prepaidTrade)}</Td>
-                  <Td className="text-ink-muted">Gebucht im Geschäftsjahr</Td>
-                </Tr>
-                <Tr variant="sum">
-                  <Td>Rückstellung</Td>
-                  <Td numeric>{formatCents(preview.incomeProvision + preview.tradeProvision)}</Td>
-                  <Td className="text-ink-muted">{preview.ratesUsed}</Td>
-                </Tr>
+                {taxProvisionRows(preview).map((row) => (
+                  <Tr key={row.label} variant={row.sum ? 'sum' : 'default'}>
+                    <Td>
+                      <span className="inline-flex items-center gap-1.5">
+                        {row.label}
+                        <HelpTooltip
+                          label={`Erklärung zu ${row.label}`}
+                          content={row.explanation}
+                        />
+                      </span>
+                    </Td>
+                    <Td numeric>{formatCents(row.amount)}</Td>
+                  </Tr>
+                ))}
               </Tbody>
             </Table>
 
@@ -3004,9 +3063,17 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
             context="Ohne Vorträge früherer Jahre"
           />
           <Stat
-            label="Pflichtrücklage"
+            label={
+              <>
+                Pflichtrücklage
+                <HelpTooltip
+                  label="Erklärung zur Pflichtrücklage"
+                  content="Die Unternehmergesellschaft stellt ein Viertel des Jahresüberschusses in eine gesetzliche Rücklage ein (§ 5a Abs. 3 GmbHG)."
+                />
+              </>
+            }
             value={formatCents(preview?.requiredLegalReserve ?? 0)}
-            context="Ein Viertel, § 5a Abs. 3 GmbHG"
+            context="Ein Viertel des Überschusses"
           />
           <Stat
             label="Vortrag auf neue Rechnung"
@@ -3091,9 +3158,17 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
                 <div className="mb-6">
                   <StatRow>
                     <Stat
-                      label="Kapitalertragsteuer"
+                      label={
+                        <>
+                          Kapitalertragsteuer
+                          <HelpTooltip
+                            label="Erklärung zur Kapitalertragsteuer"
+                            content="Auf die Ausschüttung sind 25 % einzubehalten und abzuführen (§ 43a Abs. 1 Satz 1 Nr. 1 EStG), dazu der Solidaritätszuschlag."
+                          />
+                        </>
+                      }
                       value={formatCents(preview.appropriation.withholdingTax)}
-                      context="25 %, § 43a Abs. 1 Satz 1 Nr. 1 EStG"
+                      context="einzubehalten"
                     />
                     <Stat
                       label="Solidaritätszuschlag darauf"
@@ -3104,10 +3179,10 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
                 </div>
               )}
 
-              <h3 className="text-label text-ink-muted mb-2">
-                {`Buchungssatz zum ${formatDate(preview.bookingDate)}`}
-              </h3>
-              <PostingLines lines={preview.lines} />
+              <PostingLines
+                lines={preview.lines}
+                title={`Buchungssatz zum ${formatDate(preview.bookingDate)}`}
+              />
             </>
           ) : (
             <p className="text-body text-ink-muted">
@@ -3260,7 +3335,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
       </Section>
 
       <Section
-        title="Verzeichnis nach § 5 Abs. 1 Satz 2 EStG"
+        title="Verzeichnis steuerlicher Wahlrechte"
         context={register ? `Geschäftsjahr ${register.fiscalYear}` : undefined}
         action={
           <div className="flex items-center gap-3">
@@ -3294,7 +3369,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
         {!register || register.rows.length === 0 ? (
           <EmptyState
             title="Kein steuerliches Wahlrecht ausgeübt"
-            description="Ohne Sonderabschreibung nach § 7g Abs. 5 EStG bleibt Handels- gleich Steuerbilanz."
+            description="Ohne Sonderabschreibung bleibt die Steuerbilanz gleich der Handelsbilanz."
           />
         ) : (
           <Table>
@@ -3433,11 +3508,34 @@ const TABS: { value: ModuleTab; label: string }[] = [
 export interface ClosingModulesPageProps {
   /** Das Geschäftsjahr aus der Kopfzeile; die Ansicht folgt ihm. */
   year: number;
+  /**
+   * Der Reiter, mit dem die Seite öffnet. Aus dem geführten Weg des
+   * Jahresabschlusses führt sonst kein Weg zu der Arbeit, die ein Schritt
+   * benennt: der Reiter wäre zu erraten.
+   */
+  initialTab?: string;
   onNavigate?: NavigateFn;
 }
 
-export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({ year, onNavigate }) => {
-  const [tab, setTab] = useState<ModuleTab>('schritte');
+export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({
+  year,
+  initialTab,
+  onNavigate,
+}) => {
+  // Ein unbekannter Name bleibt bei der Schrittliste: ein Reiter, den es nicht
+  // gibt, zeigte eine leere Seite.
+  const [tab, setTab] = useState<ModuleTab>(() =>
+    TABS.some((item) => item.value === initialTab) ? (initialTab as ModuleTab) : 'schritte',
+  );
+
+  // Ein zweiter Weg auf diese Seite bringt einen anderen Reiter mit, ohne dass
+  // die Seite neu entsteht. Ohne diesen Abgleich bliebe der Reiter des ersten
+  // Besuchs stehen, und der Verweis führte scheinbar ins Leere.
+  useEffect(() => {
+    if (initialTab && TABS.some((item) => item.value === initialTab)) {
+      setTab(initialTab as ModuleTab);
+    }
+  }, [initialTab]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   // Offene und gesamte Bausteine kommen beide aus der Schrittliste. Die Zahl
   // der Schritte hier als Konstante zu schreiben wäre eine zweite Wahrheit:
@@ -3499,3 +3597,76 @@ export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({ year, on
     </div>
   );
 };
+
+
+/**
+ * Der Rechenweg der Steuerrückstellung: Schritt, Betrag und die Erklärung, aus
+ * der die Zeile folgt.
+ *
+ * Die Norm steht in der Erklärung und nicht in einer Spalte der Tabelle: wer
+ * die Rückstellung bildet, liest den Weg; woraus jede Zeile folgt, ist die
+ * zweite Frage (Architektur 6.4).
+ */
+function taxProvisionRows(
+  preview: TaxProvisionPreview,
+): { label: string; amount: Cents; explanation: string; sum?: boolean }[] {
+  return [
+    {
+      label: 'Ergebnis vor Steuern',
+      amount: preview.input.profitBeforeTax,
+      explanation: 'Das Ergebnis der Gewinn- und Verlustrechnung (§ 275 HGB), vor jeder Steuer.',
+    },
+    {
+      label: 'Nicht abziehbare Betriebsausgaben',
+      amount: preview.input.nonDeductible,
+      explanation:
+        'Aufwand, der das Einkommen nicht mindert — Geschenke über der Grenze, Bewirtung zu 30 %, die Steuern selbst (§ 4 Abs. 5 EStG, § 10 KStG).',
+    },
+    {
+      label: 'Zu versteuerndes Einkommen',
+      amount: preview.taxableIncome,
+      explanation: 'Bemessungsgrundlage der Körperschaftsteuer (§ 7 Abs. 1 KStG).',
+    },
+    {
+      label: 'Körperschaftsteuer',
+      amount: preview.corporateTax,
+      explanation: 'Fünfzehn Prozent des zu versteuernden Einkommens (§ 23 Abs. 1 KStG).',
+    },
+    {
+      label: 'Solidaritätszuschlag',
+      amount: preview.solidarity,
+      explanation: '5,5 % der Körperschaftsteuer (§ 4 SolZG).',
+    },
+    {
+      label: 'Gewerbeertrag, abgerundet',
+      amount: preview.tradeIncome,
+      explanation: 'Auf volle hundert Euro nach unten abgerundet (§ 11 Abs. 1 Satz 3 GewStG).',
+    },
+    {
+      label: 'Steuermessbetrag',
+      amount: preview.tradeBase,
+      explanation: '3,5 % des Gewerbeertrags (§ 11 Abs. 2 GewStG).',
+    },
+    {
+      label: 'Gewerbesteuer',
+      amount: preview.tradeTax,
+      explanation: 'Messbetrag mal Hebesatz der Gemeinde (§ 16 GewStG).',
+    },
+    {
+      label: 'Vorauszahlungen Körperschaftsteuer',
+      amount: preview.input.prepaidCorporate,
+      explanation: 'Was im Geschäftsjahr bereits als Vorauszahlung gebucht ist.',
+    },
+    {
+      label: 'Vorauszahlungen Gewerbesteuer',
+      amount: preview.input.prepaidTrade,
+      explanation: 'Was im Geschäftsjahr bereits als Vorauszahlung gebucht ist.',
+    },
+    {
+      label: 'Rückstellung',
+      amount: preview.incomeProvision + preview.tradeProvision,
+      explanation: `Die verwendeten Sätze: ${preview.ratesUsed}`,
+      sum: true,
+    },
+  ];
+}

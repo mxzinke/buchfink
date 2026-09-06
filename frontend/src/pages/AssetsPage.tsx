@@ -48,6 +48,7 @@ import {
   EmptyState,
   Field,
   HelpPopover,
+  HelpTooltip,
   Input,
   PageHeader,
   RadioGroup,
@@ -161,7 +162,15 @@ const ExplainDialog: React.FC<{ explanation: Explanation | null; onClose: () => 
 );
 
 /** In den Masken bleibt es bei zwei Stufen — ein Dialog im Dialog hilft niemandem. */
-const FormHint: React.FC<{ label: string; line: string; children: React.ReactNode }> = ({
+/**
+ * Die zweite Erklärstufe an einer Maske: eine Zeile Kontext und dahinter das
+ * Erklärzeichen mit dem Ausführlichen (§15.2).
+ *
+ * Der Name sagt, was es ist — eine Erklärung und kein `hint`: der Hinweis am
+ * Feld ist unmittelbar sichtbar und trägt deshalb keine Norm, diese Fläche
+ * schon.
+ */
+const FormExplanation: React.FC<{ label: string; line: string; children: React.ReactNode }> = ({
   label,
   line,
   children,
@@ -1116,7 +1125,7 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
       {error && <Notice tone="negative">{error}</Notice>}
 
       <Section
-        title="Verzeichnis nach § 5 Abs. 1 Satz 2 EStG"
+        title="Verzeichnis steuerlicher Wahlrechte"
         context={register?.note || `Geschäftsjahr ${year} · Bestandteil des Prüferpakets`}
         divider={false}
         action={
@@ -1144,7 +1153,7 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
         {rows.length === 0 ? (
           <EmptyState
             title="Kein steuerliches Wahlrecht ausgeübt"
-            description="Ohne Sonderabschreibung nach § 7g Abs. 5 EStG bleibt Handels- gleich Steuerbilanz."
+            description="Ohne Sonderabschreibung bleibt die Steuerbilanz gleich der Handelsbilanz."
           />
         ) : (
           <Table density="kompakt">
@@ -1514,7 +1523,7 @@ const AssetFormDialog: React.FC<{
           (w) => asset.acquisitionDate! >= w.from && asset.acquisitionDate! <= w.until,
         );
         if (!open) {
-          return 'Für dieses Anschaffungsdatum gibt es die Staffel des § 7 Abs. 2a EStG nicht.';
+          return 'Für dieses Anschaffungsdatum gibt es die Staffel für Elektrofahrzeuge nicht.';
         }
       }
     }
@@ -1855,12 +1864,20 @@ const AssetFormDialog: React.FC<{
       {(isVehicle || needsBuildingDate) && (
         <div className="mt-4 grid grid-cols-2 gap-4 items-end">
           {isVehicle && (
-            <Checkbox
-              checked={asset.isElectric ?? false}
-              onCheckedChange={(checked) => set({ isElectric: Boolean(checked) })}
-              label="Rein elektrisch betrieben"
-              hint="Voraussetzung der Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3 und 2 % der Anschaffungskosten."
-            />
+            <span className="flex items-start gap-1">
+              <Checkbox
+                checked={asset.isElectric ?? false}
+                onCheckedChange={(checked) => set({ isElectric: Boolean(checked) })}
+                label="Rein elektrisch betrieben"
+                hint="Voraussetzung der Staffel 75, 10, 5, 5, 3 und 2 %"
+              />
+              <HelpPopover label="Erklärung zur Staffel für Elektrofahrzeuge">
+                Für rein elektrisch betriebene Fahrzeuge, die in einem der begünstigten Zeiträume
+                angeschafft wurden, gilt eine feste Staffel von 75, 10, 5, 5, 3 und 2 % der
+                Anschaffungskosten (§ 7 Abs. 2a EStG) statt der linearen oder degressiven
+                Abschreibung.
+              </HelpPopover>
+            </span>
           )}
           {needsBuildingDate && (
             <Field
@@ -1889,9 +1906,15 @@ const AssetFormDialog: React.FC<{
                   : { specialPermille: 0, specialYears: 0, specialReason: '' },
               )
             }
-            label="Sonderabschreibung nach § 7g Abs. 5 EStG in Anspruch nehmen"
-            hint="Bis 40 % der Anschaffungskosten, zusätzlich zur Absetzung für Abnutzung — verteilbar auf das Anschaffungsjahr und die vier folgenden."
+            label="Sonderabschreibung in Anspruch nehmen"
+            hint="Bis 40 % zusätzlich zur Absetzung für Abnutzung"
           />
+          <HelpPopover label="Erklärung zur Sonderabschreibung">
+            Kleine und mittlere Betriebe dürfen für ein bewegliches Wirtschaftsgut bis zu 40 % der
+            Anschaffungskosten zusätzlich abschreiben, verteilbar auf das Anschaffungsjahr und die
+            vier folgenden (§ 7g Abs. 5 EStG). Sie ist ein steuerliches Wahlrecht: Buchfink bucht
+            sie nicht, sondern führt sie am Anlagegut und im Verzeichnis.
+          </HelpPopover>
           {usesSpecial && (
             <>
               <div className="grid grid-cols-3 gap-4">
@@ -1973,12 +1996,20 @@ const AssetFormDialog: React.FC<{
             />
           </Field>
           <div className="flex items-end pb-2">
-            <Checkbox
-              checked={asset.taxPrivileged ?? false}
-              onCheckedChange={(checked) => set({ taxPrivileged: Boolean(checked) })}
-              label="Anteil an einer Kapitalgesellschaft"
-              hint="Gewinn und Verlust laufen dann über eigene Konten — § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG."
-            />
+            <span className="flex items-start gap-1">
+              <Checkbox
+                checked={asset.taxPrivileged ?? false}
+                onCheckedChange={(checked) => set({ taxPrivileged: Boolean(checked) })}
+                label="Anteil an einer Kapitalgesellschaft"
+                hint="Gewinn und Verlust über eigene Konten"
+              />
+              <HelpPopover label="Erklärung zum Anteil an einer Kapitalgesellschaft">
+                Der Gewinn aus der Veräußerung ist bei einer Kapitalgesellschaft im Ergebnis zu 95 %
+                steuerfrei (§ 8b Abs. 2 KStG), bei einer natürlichen Person im Betriebsvermögen zu
+                40 % (§ 3 Nr. 40 EStG). Damit die Rechnung später stimmt, laufen Gewinn und Verlust
+                über eigene Konten.
+              </HelpPopover>
+            </span>
           </div>
           <Field
             label="Stückzahl"
@@ -2071,9 +2102,13 @@ const AssetFormDialog: React.FC<{
 
       {pool && (
         <div className="mt-4 flex items-start justify-between gap-4 rounded-control border border-attention-line bg-attention-soft px-4 py-3">
-          <p className="text-body text-attention-text">
+          <p className="flex items-center gap-1.5 text-body text-attention-text">
             Für {asset.poolYear || year} besteht bereits der Sammelposten {pool.inventoryNumber} über{' '}
-            {formatCents(pool.cost)}. § 6 Abs. 2a EStG kennt genau einen je Wirtschaftsjahr.
+            {formatCents(pool.cost)} — je Wirtschaftsjahr gibt es genau einen.
+            <HelpTooltip
+              label="Erklärung zum Sammelposten"
+              content="Der Sammelposten des § 6 Abs. 2a EStG fasst alle Wirtschaftsgüter eines Wirtschaftsjahres zwischen 250 und 1.000 Euro zusammen und wird über fünf Jahre aufgelöst."
+            />
           </p>
           <Button
             variant="secondary"
@@ -2112,14 +2147,14 @@ const AssetFormDialog: React.FC<{
       )}
 
       <div className="mt-5">
-        <FormHint
+        <FormExplanation
           label="Erklärung zum Zugang"
           line="Der Zugang selbst wird über den Beleg gebucht, nicht hier."
         >
           Die Buchung entsteht mit Vorsteuer, Lieferant und Belegverweis im Belegflow. Das
           Verzeichnis führt das Anlagegut daneben fort: es kennt die Bemessungsgrundlage, den Plan
           und die Bewegungen über alle Jahre. Beides zusammen ergibt den Anlagenspiegel.
-        </FormHint>
+        </FormExplanation>
       </div>
 
       {error && (
@@ -2412,10 +2447,14 @@ const AssetOverview: React.FC<{
 
       {asset.currency && asset.foreignCost ? (
         <div className="rounded-control border border-line bg-sunken px-4 py-3 text-body text-ink-muted">
-          Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
-          Anschaffungskosten von {formatCents(asset.acquisitionCost)}. Zum Abschlussstichtag ist zum
-          Devisenkassamittelkurs umzurechnen (§ 256a HGB) — nach oben begrenzt durch die
-          Anschaffungskosten.
+          <span className="inline-flex items-center gap-1.5">
+            Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
+            Anschaffungskosten von {formatCents(asset.acquisitionCost)}.
+            <HelpTooltip
+              label="Erklärung zur Umrechnung"
+              content="Zum Abschlussstichtag ist zum Devisenkassamittelkurs umzurechnen (§ 256a HGB), nach oben begrenzt durch die Anschaffungskosten."
+            />
+          </span>
         </div>
       ) : null}
 
@@ -2693,7 +2732,7 @@ const DocumentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zu den Dokumenten"
         line="Was hier liegt, wird nicht gebucht — es gehört zum Wirtschaftsgut, nicht zum Geschäftsjahr."
       >
@@ -2703,7 +2742,7 @@ const DocumentForm: React.FC<{
         Weg wie ein Beleg — unter ihrer eigenen Prüfsumme, sodass später feststeht, ob noch dort
         liegt, was abgelegt wurde. Die Aufbewahrungspflicht des § 147 AO ersetzt das nicht; sie
         trifft weiterhin das Original.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Art des Dokuments">
@@ -2848,17 +2887,17 @@ const VorabpauschaleForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Vorabpauschale"
         line="Zu versteuern, ohne dass Geld fließt — und deshalb nicht zu buchen."
       >
-        Schüttet ein Fonds weniger aus als den Basisertrag, ist die Differenz zu versteuern
-        (§ 18 Abs. 1 InvStG). Der Basisertrag sind 70 % des Basiszinses auf den Rücknahmepreis zu
+        Schüttet ein Fonds weniger aus als den Basisertrag, ist die Differenz zu versteuern (§ 18
+        Abs. 1 InvStG). Der Basisertrag sind 70 % des Basiszinses auf den Rücknahmepreis zu
         Jahresbeginn, begrenzt auf den Wertzuwachs des Jahres; im Erwerbsjahr wird um ein Zwölftel
         je vollem Monat vor dem Erwerb gekürzt. Handelsrechtlich geschieht nichts, deshalb entsteht
         keine Buchung. Festgehalten wird sie trotzdem: beim Abgang wird sie wieder abgezogen, weil
         sie über die Jahre schon versteuert wurde.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-4 gap-4">
         <Field label="Kalenderjahr" help="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
@@ -2982,7 +3021,7 @@ const MOVEMENT_LABEL: Record<string, string> = {
   subsequent_cost: 'Nachträgliche Anschaffungskosten',
   cost_reduction: 'Anschaffungskostenminderung',
   depreciation: 'Planmäßige Abschreibung',
-  special_depreciation: 'Sonderabschreibung (§ 7g Abs. 5 EStG)',
+  special_depreciation: 'Sonderabschreibung',
   impairment: 'Außerplanmäßige Abschreibung',
   write_up: 'Zuschreibung',
   maintenance: 'Erhaltungsaufwand',
@@ -3037,7 +3076,7 @@ const ImpairmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur außerplanmäßigen Abschreibung"
         line="Ein Ermessensvorgang: Buchfink kann ihn erfassen, aber nicht auslösen."
       >
@@ -3046,7 +3085,7 @@ const ImpairmentForm: React.FC<{
         {isFinancial
           ? 'Bei Finanzanlagen darf auch bei einer nur vorübergehenden Wertminderung abgeschrieben werden (§ 253 Abs. 3 Satz 6 HGB); das Konto unterscheidet die beiden Fälle.'
           : 'Zulässig ist sie nur bei voraussichtlich dauernder Wertminderung (§ 253 Abs. 3 Satz 5 HGB); die Ausnahme für die nicht dauernde gilt allein für Finanzanlagen.'}
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -3140,7 +3179,7 @@ const WriteUpForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Zuschreibung"
         line="Zuschreiben ist ein Gebot, kein Wahlrecht (§ 253 Abs. 5 Satz 1 HGB)."
       >
@@ -3148,7 +3187,7 @@ const WriteUpForm: React.FC<{
         Obergrenze sind die fortgeführten Anschaffungskosten: der Buchwert, den das Anlagegut ohne
         die außerplanmäßige Abschreibung heute hätte. Buchfink rechnet diese Grenze und weist einen
         höheren Betrag ab.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Datum">
@@ -3163,7 +3202,7 @@ const WriteUpForm: React.FC<{
           }
           error={
             (parseCents(amount) ?? 0) > ceiling && ceiling > 0
-              ? `Mehr als ${formatCents(ceiling)} lässt § 253 Abs. 5 Satz 1 HGB nicht zu.`
+              ? `Mehr als ${formatCents(ceiling)} lässt das Anschaffungskostenprinzip nicht zu.`
               : undefined
           }
         >
@@ -3249,16 +3288,16 @@ const CostAdjustmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zu Erweiterungen und nachträglichen Anschaffungskosten"
         line="Erweiterung oder Reparatur? Nur die Erweiterung erhöht die Anschaffungskosten."
       >
-        Aktiviert wird, was das Anlagegut erweitert oder über seinen ursprünglichen Zustand hinaus
-        wesentlich verbessert (§ 255 Abs. 2 HGB) — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
+        Aktiviert wird, was das Anlagegut erweitert oder wesentlich verbessert (§ 255 Abs. 2 HGB)
+        — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
         die es nur im Zustand hält, ist Erhaltungsaufwand und gehört sofort in die Gewinn- und
         Verlustrechnung: dafür gibt es am Anlagegut die eigene Aktion „Erhaltungsaufwand". Fracht und
         Montage zählen zu den Anschaffungskosten, Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -3445,16 +3484,16 @@ const MaintenanceForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum Erhaltungsaufwand"
         line="Was den Zustand nur erhält, ist sofort abziehbar — es erhöht die Anschaffungskosten nicht."
       >
-        Aktiviert wird nur, was das Wirtschaftsgut erweitert oder über seinen ursprünglichen Zustand
-        hinaus wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB). Eine Reparatur, die es im Zustand
+        Aktiviert wird nur, was das Wirtschaftsgut wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB)
+        — über seinen ursprünglichen Zustand hinaus. Eine Reparatur, die es im Zustand
         hält, gehört sofort in die Gewinn- und Verlustrechnung. Die Buchung wird hier trotzdem mit
         dem Anlagegut verknüpft: wer später fragt, was die Maschine gekostet hat, sieht beides und
         kann es auseinanderhalten. Das Aufwandskonto folgt aus dem Anlagekonto.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -3508,12 +3547,20 @@ const MaintenanceForm: React.FC<{
         </Field>
       </div>
 
-      <Checkbox
-        checked={notModernisation}
-        onCheckedChange={(checked) => setNotModernisation(Boolean(checked))}
-        label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
-        hint="§ 6 Abs. 1 Nr. 1a Satz 2 EStG nimmt sie aus dem 15-%-Rahmen der ersten drei Jahre heraus. Instandsetzung und Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als um den laufenden Unterhalt."
-      />
+      <span className="flex items-start gap-1">
+        <Checkbox
+          checked={notModernisation}
+          onCheckedChange={(checked) => setNotModernisation(Boolean(checked))}
+          label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
+          hint="bleibt außerhalb des 15-%-Rahmens"
+        />
+        <HelpPopover label="Erklärung zur üblichen Erhaltungsarbeit">
+          Jährlich üblicherweise anfallende Erhaltungsarbeiten bleiben aus dem 15-%-Rahmen der
+          ersten drei Jahre heraus (§ 6 Abs. 1 Nr. 1a Satz 2 EStG). Instandsetzung und
+          Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als
+          um den laufenden Unterhalt.
+        </HelpPopover>
+      </span>
 
       {/* Der Rahmen des § 6 Abs. 1 Nr. 1a EStG: vor der Buchung als Vorschau,
           nach ihr als Befund mit dem Weg heraus. */}
@@ -3571,7 +3618,7 @@ const MaintenanceForm: React.FC<{
               rows={2}
               value={capitalizeReason}
               onChange={(e) => setCapitalizeReason(e.target.value)}
-              placeholder="etwa: 15-%-Grenze des § 6 Abs. 1 Nr. 1a EStG mit der Sanierung 2027 überschritten"
+              placeholder="etwa: 15-%-Grenze mit der Sanierung 2027 überschritten"
             />
           </Field>
           <div className="mt-3 flex justify-end gap-2">
@@ -3659,7 +3706,7 @@ const AssetIncomeForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum laufenden Ertrag"
         line="Eine Ausschüttung ist Ertrag des Jahres, kein Rückfluss der Anschaffungskosten."
       >
@@ -3669,7 +3716,7 @@ const AssetIncomeForm: React.FC<{
         Erträge aus Ausleihungen und sonstige Zinsen getrennt aus (§ 275 Abs. 2 HGB). Eine
         einbehaltene Kapitalertragsteuer mindert den Zufluss und nicht den Ertrag — sie ist eine
         Vorauszahlung auf die eigene Steuer.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -3812,17 +3859,17 @@ const CurrencyForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Fremdwährungsbewertung"
         line="Umgerechnet wird zum Devisenkassamittelkurs des Abschlussstichtags (§ 256a HGB)."
       >
-        Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB): die
-        Ausnahme des § 256a Satz 2 HGB gilt nur bei einer Restlaufzeit von höchstens einem Jahr und
-        passt auf ein Anlagegut nicht, das dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener
+        Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB, Ausnahme § 256a Satz 2 HGB).
+        Die Ausnahme greift nur bis zu einem Jahr Restlaufzeit und passt auf ein Anlagegut nicht,
+        das dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener
         Kurs führt deshalb zu einer außerplanmäßigen Abschreibung, ein gestiegener höchstens zu einer
         Zuschreibung bis zu den Anschaffungskosten. Buchfink rechnet den Betrag; gebucht wird er über
         dieselben Wege wie jede andere Wertänderung.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Stichtag">
@@ -3960,7 +4007,7 @@ const TransferForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Fertigstellung"
         line="Erst mit der Betriebsbereitschaft beginnt die Abschreibung — nicht mit der ersten Anzahlung."
       >
@@ -3969,7 +4016,7 @@ const TransferForm: React.FC<{
         endgültiges Anlagekonto umgebucht, und die AfA läuft ab diesem Monat (§ 7 Abs. 1 Satz 4
         EStG). Im Anlagenspiegel erscheint das als Umbuchung: bei der einen Position ab, bei der
         anderen zu.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Fertigstellung am" help="Ab diesem Monat wird abgeschrieben.">
@@ -3995,11 +4042,14 @@ const TransferForm: React.FC<{
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Abschreibungsmethode">
+        <Field
+          label="Abschreibungsmethode"
+          help="Linear verteilt gleichmäßig über die Nutzungsdauer (§ 7 Abs. 1 EStG); degressiv schreibt vom Restbuchwert ab und ist nur für Anschaffungen in den begünstigten Zeiträumen zulässig (§ 7 Abs. 2 EStG)."
+        >
           <Select
             items={[
-              { value: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)' },
-              { value: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)' },
+              { value: 'linear', label: 'Linear' },
+              { value: 'degressive', label: 'Degressiv' },
               { value: 'none', label: 'Keine planmäßige Abschreibung' },
             ]}
             value={method}
@@ -4124,7 +4174,7 @@ const DisposalForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum Abgang"
         line="Der SKR04 wählt das Erlöskonto nach dem Ergebnis, nicht nach dem Vorgang."
       >
@@ -4133,7 +4183,7 @@ const DisposalForm: React.FC<{
         Buchgewinn oder -verlust — und derselbe Verkauf steht damit einmal unter den Erträgen und
         einmal unter den Aufwendungen. Buchfink rechnet das Ergebnis deshalb zuerst und zeigt unten,
         welche Konten daraus folgen.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Abgangsdatum" help="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">

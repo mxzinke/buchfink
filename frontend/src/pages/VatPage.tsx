@@ -19,6 +19,7 @@ import {
   EmptyState,
   Field,
   HelpPopover,
+  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -500,9 +501,17 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               tone={refund ? 'positive' : 'neutral'}
             />
             <Stat
-              label="Fällig am"
+              label={
+                <>
+                  Fällig am
+                  <HelpTooltip
+                    label="Erklärung zur Fälligkeit"
+                    content="Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln (§ 18 Abs. 1 UStG); eine Dauerfristverlängerung schiebt sie um einen Monat."
+                  />
+                </>
+              }
               value={formatDate(selectedPeriod.dueDate)}
-              context={selectedPeriod.isOverdue ? 'überfällig' : 'nach § 18 Abs. 1 UStG'}
+              context={selectedPeriod.isOverdue ? 'überfällig' : 'gesetzliche Frist'}
               tone={selectedPeriod.isOverdue ? 'negative' : 'neutral'}
             />
             <Stat
@@ -1049,7 +1058,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
 
 const ZM_KIND_LABELS: Record<string, string> = {
   L: 'Innergemeinschaftliche Lieferung',
-  S: 'Sonstige Leistung § 3a Abs. 2',
+  S: 'Sonstige Leistung',
   D: 'Dreiecksgeschäft',
 };
 

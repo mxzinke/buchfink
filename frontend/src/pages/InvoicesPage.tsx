@@ -821,6 +821,11 @@ const InvoiceForm: React.FC<{
   const [treatment, setTreatment] = useState<TaxTreatment>('domestic');
   const [items, setItems] = useState<DraftItem[]>([newItem(TAX_RATE_STANDARD)]);
   const [dueDays, setDueDays] = useState('');
+  // Der Hinweis zu einem langen Zahlungsziel kommt aus dem Fachbereich und wird
+  // hier nicht nachgebaut: die Grenze ist eine Rechtsfrage, und eine Zahl, die
+  // in der Maske ein zweites Mal stünde, wird bei der nächsten Änderung an
+  // einer der beiden Stellen vergessen. Leer heißt: unauffällig.
+  const [termNotice, setTermNotice] = useState('');
   const [discountPermille, setDiscountPermille] = useState('');
   const [discountDays, setDiscountDays] = useState('');
   const [smallAmount, setSmallAmount] = useState(false);
@@ -1027,6 +1032,28 @@ const InvoiceForm: React.FC<{
       window.clearTimeout(timer);
     };
   }, [draft, contactId, smallAmount]);
+
+  // Das Zahlungsziel wird beim Tippen gefragt und nicht erst beim Ausstellen:
+  // wer 90 Tage vereinbart, soll es lesen, solange er die Zahl noch ändern kann.
+  // Ein Fehler bleibt still — der Hinweis ist eine Auskunft, keine Bedingung.
+  useEffect(() => {
+    const days = Number.parseInt(dueDays, 10);
+    if (!Number.isFinite(days) || days <= 0) {
+      setTermNotice('');
+      return;
+    }
+    let cancelled = false;
+    Api.getPaymentTermNotice(days)
+      .then((notice) => {
+        if (!cancelled) setTermNotice(notice ?? '');
+      })
+      .catch(() => {
+        if (!cancelled) setTermNotice('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dueDays]);
 
   function update(index: number, patch: Partial<DraftItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -1335,6 +1362,11 @@ const InvoiceForm: React.FC<{
           />
         </Field>
       </div>
+
+      {/* Der Hinweis steht unter dem Feld, das ihn auslöst, und bleibt stehen,
+          solange die Frist so lang ist (§10.4). Sein Wortlaut kommt aus dem
+          Fachbereich. */}
+      {termNotice && <Notice className="mt-4" text={termNotice} />}
 
       <div className="mt-6 pt-6 border-t border-line">
         <div className="flex items-center justify-between mb-3">

@@ -4,14 +4,19 @@ import {
   AccrualKind,
   CarryForwardPreview,
   ClosingState,
+  ClosingStepKey,
   ClosingSteps,
+  ClosingStepView,
   FiscalYearStatus,
   SizeClass,
 } from '../types';
 import { Api } from '../services/api';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn, NavigationParams, TabType } from '../components/Sidebar';
 import { useWriteLock } from '../components/WriteLock';
 import { OpeningBalanceDialog } from '../components/OpeningBalanceDialog';
+// Die Zuordnung Baustein → Reiter steht dort, wo die Reiter stehen. Eine zweite
+// Kopie hier liefe auseinander, sobald ein Baustein dazukommt.
+import { STEP_OBLIGATIONS, STEP_TABS } from './ClosingModulesPage';
 import { formatCents, formatDate, formatDateTime, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -23,6 +28,7 @@ import {
   HelpTooltip,
   Input,
   PageHeader,
+  Progress,
   Section,
   SkeletonRows,
   Stat,
@@ -49,6 +55,15 @@ import {
  * Vortragsdifferenz nicht selbst nach, sonst gäbe es zwei Wahrheiten über die
  * Bilanzidentität.
  */
+
+/**
+ * Der Anker des Abschnitts „Schritte" auf dieser Seite.
+ *
+ * Die Feststellung ist der einzige Baustein, dessen Arbeit hier selbst liegt.
+ * Sein „Öffnen" springt deshalb nicht auf eine andere Seite, sondern in den
+ * Abschnitt darunter — ohne Ziel bliebe die Zeile als einzige ohne Knopf.
+ */
+const STEPS_ANCHOR = 'jahresabschluss-schritte';
 
 /** Der Abschlussstand im Vokabular der Statusanzeige (§11.3). */
 const STATUS_BADGE: Record<FiscalYearStatus, Status> = {
@@ -244,6 +259,16 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   const [reopenReason, setReopenReason] = useState('');
   const [reopenFieldError, setReopenFieldError] = useState('');
   const [reopenBackendError, setReopenBackendError] = useState('');
+
+  // Der Weg zurück im geführten Weg (Architektur 6.3): ein übersprungener
+  // Baustein wird wieder aufgenommen, solange das Jahr nicht festgeschrieben
+  // ist. Er steht hier und nicht nur unter „Abschlussbausteine", weil die
+  // Entscheidung hier zu sehen ist — und was man sieht, muss man auch
+  // zurücknehmen können.
+  const [stepReopen, setStepReopen] = useState<ClosingStepView | null>(null);
+  const [stepReopenReason, setStepReopenReason] = useState('');
+  const [stepReopenFieldError, setStepReopenFieldError] = useState('');
+  const [stepReopenBackendError, setStepReopenBackendError] = useState('');
 
   const [confirmCarry, setConfirmCarry] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -443,6 +468,27 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
     }
   }
 
+  async function submitStepReopen() {
+    if (!stepReopen) return;
+    if (!stepReopenReason.trim()) {
+      setStepReopenFieldError(
+        'Der Grund fehlt. Er tritt an die Stelle des Grundes, mit dem der Schritt übergangen wurde.',
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      setClosingSteps(await Api.reopenClosingStep(year, stepReopen.key, stepReopenReason));
+      setClosingStepsError('');
+      setStepReopen(null);
+      setStepReopenReason('');
+    } catch (e) {
+      setStepReopenBackendError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runCarryForward() {
     if (!preview) return;
     setBusy(true);
@@ -495,6 +541,39 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
 
   const fy = state.fiscalYear;
   const adopted = fy.status === 'adopted' || fy.status === 'disclosed';
+
+  // Der geführte Weg durch die Bausteine (Architektur 6.3): wie weit er ist und
+  // welcher Schritt als Nächster dran ist. Übersprungene zählen als erledigt —
+  // sie sind eine Entscheidung mit Grund und keine offene Arbeit.
+  const moduleSteps = closingSteps?.steps ?? [];
+  // Die Zähler kommen aus dem Backend (ClosingSteps.doneCount/skippedCount/
+  // total). Hier nachzurechnen hieße, dieselbe Frage zweimal zu beantworten —
+  // und die zweite Antwort wiche ab, sobald ein Zustand dazukommt.
+  const totalSteps = closingSteps?.total ?? moduleSteps.length;
+  const doneSteps = (closingSteps?.doneCount ?? 0) + (closingSteps?.skippedCount ?? 0);
+  const nextStep = moduleSteps.find((step) => step.state === 'open') ?? null;
+
+  /**
+   * Öffnet die Arbeit eines Bausteins: die Seite, auf der sie liegt, oder — bei
+   * der Feststellung — den Abschnitt dieser Seite. Ein Schritt ohne Knopf
+   * benennt eine Arbeit und führt nicht zu ihr (Architektur 6.3).
+   */
+  const openStep = (key: ClosingStepKey) => {
+    const target = stepTarget(key);
+    if (!target) return;
+    if (target.kind === 'anchor') {
+      document.getElementById(target.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    onNavigate?.(target.tab, target.params);
+  };
+
+  /** Ob der Knopf überhaupt etwas tut: ohne Navigation führt kein Seitenziel. */
+  const canOpenStep = (key: ClosingStepKey) => {
+    const target = stepTarget(key);
+    if (!target) return false;
+    return target.kind === 'anchor' || Boolean(onNavigate);
+  };
 
   const steps: Step[] = [
     {
@@ -688,6 +767,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       )}
 
       <Section
+        id={STEPS_ANCHOR}
         title="Schritte"
         context="Von der Festschreibung bis zur Offenlegung"
         action={
@@ -729,7 +809,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         title="Abschlussbausteine"
         context={
           closingSteps
-            ? `${closingSteps.openCount} von ${closingSteps.steps.length} offen · Stichtag ${formatDate(closingSteps.cutoff)}`
+            ? `${doneSteps} von ${totalSteps} erledigt · Stichtag ${formatDate(closingSteps.cutoff)}`
             : 'Die Arbeit, die zur Feststellung führt'
         }
         action={
@@ -759,6 +839,32 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             Für dieses Geschäftsjahr sind keine Bausteine hinterlegt.
           </p>
         ) : (
+          <>
+            {/* Der Fortschritt steht über der Liste, weil er die Frage
+                beantwortet, mit der jemand hierher kommt: wie weit ist der
+                Abschluss? Die Zahl der Schritte kommt aus dem Backend und wird
+                hier nicht gesetzt — sie stünde falsch da, sobald ein Baustein
+                dazukommt. */}
+            <Progress
+              className="mb-5"
+              label="Weg zum Abschluss"
+              value={progressPercent(closingSteps)}
+              detail={`${doneSteps} von ${totalSteps} Schritten`}
+            />
+
+            {nextStep && (
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <p className="text-body text-ink-muted">
+                  Als Nächstes: <span className="text-ink">{nextStep.label}</span>
+                </p>
+                {canOpenStep(nextStep.key) && (
+                  <Button variant="secondary" size="sm" onClick={() => openStep(nextStep.key)}>
+                    Schritt öffnen
+                  </Button>
+                )}
+              </div>
+            )}
+
           <Table density="kompakt">
             <Thead>
               <Tr>
@@ -768,6 +874,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                 <Th>Baustein</Th>
                 <Th className="w-40">Stand</Th>
                 <Th>Woran der Stand liegt</Th>
+                <Th className="w-56" aria-label="Ziel" />
               </Tr>
             </Thead>
             <Tbody>
@@ -796,10 +903,40 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                   <Td className="text-ink-muted whitespace-normal">
                     {step.state === 'skipped' ? step.reason || '—' : step.detail || '—'}
                   </Td>
+                  <Td className="pl-0 text-right">
+                    <div className="flex justify-end gap-1">
+                      {/* Zurück, solange nicht festgeschrieben (Architektur
+                          6.3). Danach bleibt der Knopf stehen und nennt am
+                          Zeiger den Grund — ein Knopf, der verschwindet,
+                          beantwortet die Frage nicht, warum er weg ist. */}
+                      {step.state === 'skipped' && (
+                        <Button
+                          variant="quiet"
+                          size="sm"
+                          disabled={busy || writeLock.locked || !closingSteps?.reopenable}
+                          title={writeLock.hint || closingSteps?.reopenBlocker}
+                          onClick={() => {
+                            setStepReopen(step);
+                            setStepReopenReason('');
+                            setStepReopenFieldError('');
+                            setStepReopenBackendError('');
+                          }}
+                        >
+                          Zurücknehmen
+                        </Button>
+                      )}
+                      {canOpenStep(step.key) && (
+                        <Button variant="quiet" size="sm" onClick={() => openStep(step.key)}>
+                          Öffnen
+                        </Button>
+                      )}
+                    </div>
+                  </Td>
                 </Tr>
               ))}
             </Tbody>
           </Table>
+          </>
         )}
       </Section>
 
@@ -882,74 +1019,31 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         ) : (
           sizeClass && (
             <div className="mt-6">
+              {/* Die Norm steht hinter dem Erklärzeichen und nicht in einer
+                  eigenen Spalte: in der Arbeitsansicht zählt, was gilt, und
+                  nicht, woraus es folgt (Architektur 6.4). */}
               <Table density="kompakt">
                 <Thead>
                   <Tr>
                     <Th>Merkmal oder Folge</Th>
-                    <Th className="w-80">Wert</Th>
-                    <Th className="w-64">Norm</Th>
+                    <Th className="w-96">Wert</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
-                  <Tr>
-                    <Td>Bilanzsumme</Td>
-                    <Td className="num">{formatCents(sizeClass.criteria.balanceSheetTotal)}</Td>
-                    <Td className="text-ink-muted">§ 267 Abs. 4a HGB</Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Umsatzerlöse</Td>
-                    <Td className="num">{formatCents(sizeClass.criteria.revenue)}</Td>
-                    <Td className="text-ink-muted">§ 275 Abs. 2 Nr. 1 HGB</Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Arbeitnehmer im Jahresdurchschnitt</Td>
-                    <Td className="num">{sizeClass.criteria.employees}</Td>
-                    <Td className="text-ink-muted">§ 267 Abs. 5 HGB</Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Gliederungstiefe</Td>
-                    <Td className="whitespace-normal">
-                      {SIZE_DEPTH_LABELS[sizeClass.obligations.depth]}
-                    </Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.depthReference}
-                    </Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Anhang</Td>
-                    <Td>{sizeClass.obligations.notesRequired ? 'Ja' : 'Nein'}</Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.notesReference}
-                    </Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Lagebericht</Td>
-                    <Td>{sizeClass.obligations.managementReport ? 'Ja' : 'Nein'}</Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.managementReportReference || '§ 264 Abs. 1 Satz 4 HGB'}
-                    </Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Prüfung</Td>
-                    <Td>{sizeClass.obligations.auditRequired ? 'Ja' : 'Nein'}</Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.auditReference || '§ 316 Abs. 1 Satz 1 HGB'}
-                    </Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Aufstellungsfrist</Td>
-                    <Td>{`${sizeClass.obligations.preparationMonths} Monate`}</Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.preparationReference}
-                    </Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Offenlegung</Td>
-                    <Td className="whitespace-normal">{sizeClass.obligations.disclosureScope}</Td>
-                    <Td className="text-ink-muted whitespace-normal">
-                      {sizeClass.obligations.disclosureScopeReference}
-                    </Td>
-                  </Tr>
+                  {sizeClassRows(sizeClass).map((row) => (
+                    <Tr key={row.label}>
+                      <Td>
+                        <span className="inline-flex items-center gap-1.5">
+                          {row.label}
+                          <HelpTooltip
+                            label={`Erklärung zu ${row.label}`}
+                            content={row.explanation}
+                          />
+                        </span>
+                      </Td>
+                      <Td className={row.numeric ? 'num' : 'whitespace-normal'}>{row.value}</Td>
+                    </Tr>
+                  ))}
                 </Tbody>
               </Table>
             </div>
@@ -1127,10 +1221,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                 <h3 className="text-label text-ink-muted mb-2">
                   Auflösung der Rechnungsabgrenzung
                 </h3>
-                <p className="text-body text-ink-muted mb-3">
-                  {`Der Vortrag bucht diese ${preview.accrualReleases.length === 1 ? 'Auflösung' : `${preview.accrualReleases.length} Auflösungen`} im Geschäftsjahr ${preview.toYear} mit: ` +
-                    'Der abgegrenzte Betrag geht an seinem eigenen Datum auf das Aufwands- oder ' +
-                    'Ertragskonto zurück, zu dem er gehört (§ 250 HGB).'}
+                <p className="flex items-center gap-1.5 text-body text-ink-muted mb-3">
+                  {`Der Vortrag bucht diese ${preview.accrualReleases.length === 1 ? 'Auflösung' : `${preview.accrualReleases.length} Auflösungen`} im Geschäftsjahr ${preview.toYear} mit.`}
+                  <HelpPopover label="Erklärung zur Auflösung der Rechnungsabgrenzung">
+                    Der abgegrenzte Betrag geht an seinem eigenen Datum auf das Aufwands- oder
+                    Ertragskonto zurück, zu dem er gehört. Die Abgrenzung selbst folgt aus § 250
+                    HGB: Ausgaben vor dem Stichtag, die Aufwand einer bestimmten Zeit danach sind,
+                    stehen bis dahin in der Bilanz.
+                  </HelpPopover>
                 </p>
                 <Table density="kompakt">
                   <Thead>
@@ -1232,6 +1330,56 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       </Dialog>
 
       <Dialog
+        open={stepReopen !== null}
+        onOpenChange={(next) => !next && setStepReopen(null)}
+        title={stepReopen ? `${stepReopen.label} wieder aufnehmen` : ''}
+        width="max-w-lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStepReopen(null)}>
+              Abbrechen
+            </Button>
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void submitStepReopen()}
+            >
+              Schritt wieder aufnehmen
+            </Button>
+          </>
+        }
+      >
+        {stepReopen?.reason && (
+          <p className="text-body text-ink-muted mb-5">
+            {`Übersprungen wurde der Schritt mit: ${stepReopen.reason}`}
+          </p>
+        )}
+        <Field
+          label="Grund"
+          error={stepReopenFieldError || undefined}
+          help="Geht ins Änderungsprotokoll und steht dort neben dem Grund des Überspringens."
+        >
+          <Textarea
+            rows={3}
+            value={stepReopenReason}
+            onChange={(e) => {
+              setStepReopenReason(e.target.value);
+              setStepReopenFieldError('');
+            }}
+          />
+        </Field>
+
+        {stepReopenBackendError && (
+          <div className="mt-5 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-negative" strokeWidth={1.5} />
+            <p className="text-body text-negative-text">{stepReopenBackendError}</p>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
         open={reopenOpen}
         onOpenChange={(next) => !next && setReopenOpen(false)}
         title="Feststellung zurücksetzen"
@@ -1317,3 +1465,117 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
     </div>
   );
 };
+
+
+/**
+ * Der Fortschritt des Abschlusses in Prozent; null heißt: noch keine Schritte.
+ *
+ * Aus den Zählern des Backends und nicht aus einer festen Elf: eine Zahl in der
+ * Ansicht stünde falsch da, sobald ein Baustein dazukommt. Gezählt wird auch
+ * nicht selbst nach — erledigt und übersprungen zusammen sind der Fortschritt,
+ * und diese Entscheidung trifft der Abschlussassistent.
+ */
+function progressPercent(steps: ClosingSteps | null): number | null {
+  const total = steps?.total ?? 0;
+  if (!steps || total === 0) return null;
+  return Math.round(((steps.doneCount + steps.skippedCount) / total) * 100);
+}
+
+/**
+ * Wohin ein Baustein führt.
+ *
+ * Der geführte Weg (Architektur 6.3) verlangt, dass jeder Schritt zu seiner
+ * Arbeit führt. Sechs Bausteine wohnen auf den Abschlussbausteinen, drei auf
+ * den Nebenpflichten — und die übrigen auf eigenen Seiten: die Abschreibungen
+ * im Anlagenverzeichnis, der Prüfbericht bei den Steuerfristen (dort läuft er
+ * vor der Festschreibung; die Seite „Sicherheit & Protokoll" zeigt nur die
+ * Läufe von gestern), Bilanz und GuV in den Auswertungen, die Offenlegung in
+ * der E-Bilanz. Die Feststellung bleibt auf dieser Seite und springt in den
+ * Abschnitt darunter.
+ */
+const STEP_PAGES: Partial<Record<ClosingStepKey, TabType>> = {
+  depreciation: 'assets',
+  check_run: 'deadlines',
+  statement: 'reports',
+  disclosure: 'ebilanz',
+};
+
+/** Ziel eines Bausteins: eine andere Seite oder ein Abschnitt dieser Seite. */
+type StepTarget =
+  | { kind: 'page'; tab: TabType; params: NavigationParams }
+  | { kind: 'anchor'; anchor: string };
+
+function stepTarget(key: ClosingStepKey): StepTarget | null {
+  const moduleTab = STEP_TABS[key];
+  if (moduleTab) return { kind: 'page', tab: 'closingmodules', params: { closingTab: moduleTab } };
+  const obligation = STEP_OBLIGATIONS[key];
+  if (obligation) return { kind: 'page', tab: 'obligations', params: { obligationsTab: obligation } };
+  const page = STEP_PAGES[key];
+  if (page) return { kind: 'page', tab: page, params: {} };
+  if (key === 'adoption') return { kind: 'anchor', anchor: STEPS_ANCHOR };
+  return null;
+}
+
+
+/**
+ * Die Merkmale der Größenklasse mit ihrem Wert und ihrer Rechtsgrundlage.
+ *
+ * Die Grundlage steht hier neben dem Merkmal und wird in der Ansicht hinter dem
+ * Erklärzeichen gezeigt: Wer den Abschluss aufstellt, will wissen, was gilt;
+ * woraus es folgt, ist die zweite Frage.
+ */
+function sizeClassRows(
+  sizeClass: SizeClass,
+): { label: string; value: string; explanation: string; numeric?: boolean }[] {
+  const obligations = sizeClass.obligations;
+  return [
+    {
+      label: 'Bilanzsumme',
+      value: formatCents(sizeClass.criteria.balanceSheetTotal),
+      explanation: 'Rechtsgrundlage: § 267 Abs. 4a HGB',
+      numeric: true,
+    },
+    {
+      label: 'Umsatzerlöse',
+      value: formatCents(sizeClass.criteria.revenue),
+      explanation: 'Rechtsgrundlage: § 275 Abs. 2 Nr. 1 HGB',
+      numeric: true,
+    },
+    {
+      label: 'Arbeitnehmer im Jahresdurchschnitt',
+      value: String(sizeClass.criteria.employees),
+      explanation: 'Rechtsgrundlage: § 267 Abs. 5 HGB',
+      numeric: true,
+    },
+    {
+      label: 'Gliederungstiefe',
+      value: SIZE_DEPTH_LABELS[obligations.depth] ?? obligations.depth,
+      explanation: `Rechtsgrundlage: ${obligations.depthReference}`,
+    },
+    {
+      label: 'Anhang',
+      value: obligations.notesRequired ? 'Ja' : 'Nein',
+      explanation: `Rechtsgrundlage: ${obligations.notesReference}`,
+    },
+    {
+      label: 'Lagebericht',
+      value: obligations.managementReport ? 'Ja' : 'Nein',
+      explanation: `Rechtsgrundlage: ${obligations.managementReportReference || '§ 264 Abs. 1 Satz 4 HGB'}`,
+    },
+    {
+      label: 'Prüfung',
+      value: obligations.auditRequired ? 'Ja' : 'Nein',
+      explanation: `Rechtsgrundlage: ${obligations.auditReference || '§ 316 Abs. 1 Satz 1 HGB'}`,
+    },
+    {
+      label: 'Aufstellungsfrist',
+      value: `${obligations.preparationMonths} Monate`,
+      explanation: `Rechtsgrundlage: ${obligations.preparationReference}`,
+    },
+    {
+      label: 'Offenlegung',
+      value: obligations.disclosureScope,
+      explanation: `Rechtsgrundlage: ${obligations.disclosureScopeReference}`,
+    },
+  ];
+}

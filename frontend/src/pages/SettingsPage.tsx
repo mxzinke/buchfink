@@ -3,10 +3,13 @@ import { Save, Shield } from 'lucide-react';
 import {
   AccrualMethod,
   AccrualReleaseCycle,
+  BankRule,
+  BaseRate,
   ClosingSettings,
   CompanySettings,
   ComplianceHints,
   AppConfig,
+  DunningLevel,
   InvestorType,
   LegalFormInfo,
   OrganisationTexts,
@@ -29,6 +32,12 @@ import {
   Section,
   Select,
   SkeletonRows,
+  Table,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
   toast,
 } from '../components/ui';
 
@@ -39,6 +48,19 @@ import {
  * Buchfink bewusst nicht kann — Istversteuerung, Kleinunternehmerregelung —
  * steht hier als Erklärung am jeweiligen Feld, nicht als Absatz auf der Seite.
  */
+
+/**
+ * Die Folge des Löschens einer gelernten Bankregel — am Knopf, bevor geklickt
+ * wird, und im Toast danach.
+ *
+ * Was rückgängig zu machen ist, bekommt einen Rückgängig-Toast (§8.2). Diese
+ * Regel ist es nicht: sie entsteht ausschließlich aus einer bestätigten
+ * Zuordnung, von Hand anlegen lässt sie sich nicht. Dann ist die Folge zu
+ * benennen, statt ein Rückgängig zu versprechen, das keines wäre.
+ */
+const DELETE_RULE_HINT =
+  'Die Regel lässt sich nicht zurückholen. Sie entsteht neu, sobald ein solcher Umsatz das ' +
+  'nächste Mal bestätigt zugeordnet wird.';
 
 /**
  * Die Anlegerstellung nach § 20 InvStG. „Nicht festgelegt" ist die
@@ -171,6 +193,19 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Feldes umgerechnet (§8.3): eine gelöschte Ziffer ist keine 0.
   const [tradeTaxText, setTradeTaxText] = useState('400');
   const [thresholdText, setThresholdText] = useState('');
+  // Die Grenze des Leistungsnachweises ebenfalls als Text: eine gelöschte
+  // Ziffer ist keine 0 — und eine 0 hieße hier nicht „kein Nachweis", sondern
+  // die Voreinstellung (§8.3).
+  const [checkThresholdText, setCheckThresholdText] = useState('');
+  // Die Basiszinssätze und die gelernten Bankregeln stehen in eigenen Diensten
+  // und nicht in den Stammdaten: sie werden sofort gespeichert bzw. gelöscht
+  // und nicht über den Knopf im Seitenkopf.
+  const [baseRates, setBaseRates] = useState<BaseRate[]>([]);
+  const [bankRules, setBankRules] = useState<BankRule[]>([]);
+  const [rateFrom, setRateFrom] = useState('');
+  const [rateText, setRateText] = useState('');
+  const [rateError, setRateError] = useState('');
+  const [savingRate, setSavingRate] = useState(false);
 
   useEffect(() => {
     void loadSettings();
@@ -203,6 +238,9 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         setOrgTexts(null);
       }
       setPrepaymentText(s.specialPrepayment ? formatCentsPlain(s.specialPrepayment) : '');
+      setCheckThresholdText(
+        s.invoiceCheckThreshold ? formatCentsPlain(s.invoiceCheckThreshold) : '',
+      );
       setCaptureDaysText(String(s.receiptCaptureDays > 0 ? s.receiptCaptureDays : 10));
       setGraceDaysText(String(s.commitGraceDays > 0 ? s.commitGraceDays : 0));
       try {
@@ -211,6 +249,16 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         setSuggestion(await Api.getSpecialPrepaymentSuggestion(s.fiscalYear || 0));
       } catch {
         setSuggestion(null);
+      }
+      try {
+        // Basiszins und gelernte Regeln ebenso: sie hängen an eigenen
+        // Diensten, und ohne sie bleiben die Stammdaten bedienbar.
+        const [rates, rules] = await Promise.all([Api.getBaseRates(), Api.getBankRules()]);
+        setBaseRates(rates);
+        setBankRules(rules);
+      } catch {
+        setBaseRates([]);
+        setBankRules([]);
       }
       try {
         // Ohne aktiven Mandanten antwortet der Dienst nicht; die übrigen
@@ -248,6 +296,52 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       if (!message.includes('kein Zielordner')) toast.error(message);
     } finally {
       setExporting(false);
+    }
+  }
+
+  /**
+   * Trägt einen bekanntgegebenen Basiszinssatz nach.
+   *
+   * Sofort und nicht über den Knopf im Seitenkopf: der Satz hängt an einem
+   * eigenen Dienst, und ein Wert, der bis zum nächsten „Speichern" nur in der
+   * Maske stünde, wäre für die Zinsrechnung nicht da.
+   */
+  async function saveRate() {
+    const percent = parsePercent(rateText);
+    if (!rateFrom) {
+      setRateError('Ohne Stichtag gilt der Satz für keinen Zeitraum.');
+      return;
+    }
+    if (percent === null) {
+      setRateError('Der Satz wird als Prozentzahl erfasst, etwa 1,27.');
+      return;
+    }
+    setSavingRate(true);
+    try {
+      setBaseRates(await Api.saveBaseRate(rateFrom, percent));
+      setRateFrom('');
+      setRateText('');
+      setRateError('');
+      toast.success('Basiszinssatz nachgetragen.');
+    } catch (e) {
+      setRateError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingRate(false);
+    }
+  }
+
+  /** Löscht eine gelernte Zuordnung; der nächste Umsatz wird wieder gefragt. */
+  async function deleteRule(id: number) {
+    try {
+      await Api.deleteBankRule(id);
+      setBankRules(await Api.getBankRules());
+      // Kein Rückgängig-Toast (§8.2): das Backend kennt kein Anlegen einer
+      // Regel von Hand — sie entsteht nur aus einer bestätigten Zuordnung. Ein
+      // Knopf „Rückgängig", der nichts zurückholte, wäre schlimmer als keiner.
+      // Deshalb steht hier die Folge, und sie steht schon vorher am Knopf.
+      toast.success('Regel gelöscht. Sie entsteht neu, sobald ein solcher Umsatz wieder zugeordnet wird.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -397,7 +491,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Anlegerstellung für Investmentanteile"
             optional={!needsInvestorChoice}
-            hint="nur für die Teilfreistellung nach § 20 InvStG"
+            hint="nur für die Teilfreistellung"
             help="Der Satz hängt am Anleger. Bei einer Personengesellschaft bestimmt ihn der einzelne Gesellschafter (§ 20 Abs. 3a InvStG). Und auch eine Körperschaft trägt nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
             className="mt-4 max-w-2xl"
           >
@@ -751,7 +845,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Gewerbesteuer-Hebesatz"
-            hint="Prozent · § 16 GewStG"
+            hint="Prozent der Gemeinde"
             help="Der Hebesatz der Gemeinde, in der die Betriebsstätte liegt. Er steht im Gewerbesteuermessbescheid und auf der Website der Gemeinde; mindestens 200 % (§ 16 Abs. 4 Satz 2 GewStG)."
           >
             <Input
@@ -942,6 +1036,192 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </div>
       </Section>
 
+      {/*
+        Rechnungsprüfung und Mahnwesen (RECH-08, QUE-05). Beide Einstellungen
+        steuern Vorgänge und keine Buchung: die eine sagt, ab welchem Betrag ein
+        Eingangsbeleg einen Prüfvermerk tragen soll, die andere, wann welche
+        Mahnung vorgeschlagen wird.
+      */}
+      <Section
+        title="Rechnungsprüfung und Mahnwesen"
+        context="Leistungsnachweis und Mahnstufen"
+        action={
+          <HelpPopover label="Erklärung zur Rechnungsprüfung">
+            Der Vorsteuerabzug setzt eine tatsächlich bezogene Leistung voraus (§ 15 UStG); der
+            Leistungsnachweis am Beleg hält fest, wer das bestätigt hat. Die Mahnstufen sind eine
+            Vereinbarung des Unternehmens mit sich selbst — das Gesetz kennt keine „erste Mahnung".
+            Die Gebühr ist ein Vorschlag und nur ersatzfähig, soweit sie tatsächlich entstandener
+            Verzugsschaden ist.
+          </HelpPopover>
+        }
+      >
+        <Field
+          label="Leistungsnachweis ab"
+          hint="Bruttobetrag des Eingangsbelegs"
+          className="max-w-sm"
+        >
+          <Input
+            align="right"
+            value={checkThresholdText}
+            onChange={(e) => setCheckThresholdText(e.target.value)}
+            onBlur={() => {
+              const value = parseCents(checkThresholdText);
+              // Eine Null ist hier keine Abschaltung, sondern ein leeres Feld:
+              // wer keinen Nachweis verlangt, setzt die Grenze hoch. Das
+              // Backend behandelt die Null ebenso.
+              if (value !== null && value > 0) {
+                patch({ invoiceCheckThreshold: value });
+                setCheckThresholdText(formatCentsPlain(value));
+              } else {
+                setCheckThresholdText(
+                  settings.invoiceCheckThreshold
+                    ? formatCentsPlain(settings.invoiceCheckThreshold)
+                    : '',
+                );
+              }
+            }}
+          />
+        </Field>
+
+        <div className="mt-6">
+          <DunningLevelsTable
+            levels={settings.dunningLevels ?? []}
+            onChange={(levels) => patch({ dunningLevels: levels })}
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="Basiszinssatz"
+        context="Grundlage der Verzugszinsen"
+        action={
+          <HelpPopover label="Erklärung zum Basiszinssatz">
+            Die Deutsche Bundesbank setzt den Basiszinssatz zum 1. Januar und zum 1. Juli neu fest
+            und gibt ihn im Bundesanzeiger bekannt (§ 247 BGB). Die Verzugszinsen liegen neun
+            Prozentpunkte darüber, gegenüber einem Verbraucher fünf (§ 288 BGB). Ein Wert, der als
+            „zu prüfen" steht, ist fortgeschrieben und nicht bekanntgegeben — er ist gegen die
+            Bekanntgabe abzugleichen.
+          </HelpPopover>
+        }
+      >
+        {baseRates.length === 0 ? (
+          <p className="text-body text-ink-muted">Es ist kein Basiszinssatz hinterlegt.</p>
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-32">Gültig ab</Th>
+                <Th numeric className="w-28">
+                  Satz
+                </Th>
+                <Th>Quelle</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {baseRates.map((rate) => (
+                <Tr key={rate.validFrom}>
+                  <Td className="num">{formatDate(rate.validFrom)}</Td>
+                  <Td numeric>{formatBasisPoints(rate.basisPoints)}</Td>
+                  <Td className="text-ink-muted">
+                    {rate.provisional ? 'fortgeschrieben · zu prüfen' : rate.source || '—'}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+
+        <div className="flex flex-wrap items-end gap-4 mt-5">
+          <Field label="Gültig ab" className="w-44">
+            <Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />
+          </Field>
+          <Field label="Satz in Prozent" error={rateError || undefined} className="w-44">
+            <Input
+              align="right"
+              placeholder="1,27"
+              value={rateText}
+              onChange={(e) => {
+                setRateText(e.target.value);
+                if (rateError) setRateError('');
+              }}
+            />
+          </Field>
+          <Button
+            variant="secondary"
+            loading={savingRate}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => void saveRate()}
+          >
+            Satz nachtragen
+          </Button>
+        </div>
+      </Section>
+
+      <Section
+        title="Gelernte Bankregeln"
+        context="Muster wiederkehrender Umsätze"
+        action={
+          <HelpPopover label="Erklärung zu den gelernten Regeln">
+            Miete, Kontoführungsentgelt und Gehalt kommen jeden Monat wieder und haben keinen
+            offenen Posten. Buchfink merkt sich, wogegen ein solcher Umsatz zuletzt gebucht wurde,
+            und schlägt es beim nächsten Mal vor. Gebucht wird davon nichts von selbst: Eine Regel,
+            die selbst bucht, würde aus einem einmaligen Griff eine Gewohnheit machen, die niemand
+            mehr prüft.
+          </HelpPopover>
+        }
+      >
+        {bankRules.length === 0 ? (
+          <p className="text-body text-ink-muted">
+            Es ist noch keine Regel gelernt. Sie entsteht, sobald ein Umsatz ohne Beleg zugeordnet
+            wird.
+          </p>
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th>Muster</Th>
+                <Th className="w-28">Richtung</Th>
+                <Th className="w-32">Gegenkonto</Th>
+                <Th numeric className="w-24">
+                  Treffer
+                </Th>
+                <Th className="w-32">Zuletzt</Th>
+                <Th className="w-24" aria-label="Aktionen" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {bankRules.map((rule) => (
+                <Tr key={rule.id}>
+                  <Td className="max-w-[24rem] truncate" title={rule.pattern}>
+                    {rule.label || rule.pattern}
+                  </Td>
+                  <Td className="text-ink-muted">{rule.moneyIn ? 'Eingang' : 'Ausgang'}</Td>
+                  <Td code>{rule.counterAccount}</Td>
+                  <Td numeric className="text-ink-subtle">
+                    {rule.hits}
+                  </Td>
+                  <Td className="text-ink-subtle num">
+                    {rule.lastUsedAt ? formatDate(rule.lastUsedAt) : '—'}
+                  </Td>
+                  <Td className="pl-0 text-right">
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      disabled={writeLock.locked}
+                      title={writeLock.hint ?? DELETE_RULE_HINT}
+                      onClick={() => void deleteRule(rule.id)}
+                    >
+                      Löschen
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
       <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
         <div className="flex flex-col gap-4 max-w-2xl">
           {/* Der Datenordner in einem Synchronisationsordner: § 146 Abs. 2, 2a
@@ -1011,5 +1291,212 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </div>
       </Section>
     </form>
+  );
+};
+
+
+/**
+ * Der Basiszinssatz in Hundertsteln eines Prozentpunktes: „1,27" wird zu 127.
+ *
+ * Ganzzahlig über die Brücke, weil die Bekanntgabe zwei Nachkommastellen hat
+ * und eine Gleitkommazahl die Zinsrechnung um Cents verschöbe. Negative Sätze
+ * sind zulässig: zwischen 2016 und 2022 lag der Basiszinssatz unter null.
+ */
+function parsePercent(input: string): number | null {
+  const raw = input.trim().replace(/\s|%/g, '').replace(',', '.');
+  if (!raw) return null;
+  if (!/^[+-]?\d+(\.\d{1,2})?$/.test(raw)) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  return Math.round(value * 100);
+}
+
+/** Und zurück: 127 wird „1,27 %". */
+function formatBasisPoints(points: number): string {
+  if (!Number.isFinite(points)) return '—';
+  return `${(points / 100).toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} %`;
+}
+
+/**
+ * Die Voreinstellung der Mahnstufen — dieselben drei Stufen wie in
+ * domain.DefaultDunningLevels().
+ *
+ * Sie stehen hier nur, damit der Knopf „Voreinstellung eintragen" sie in die
+ * Tabelle schreiben kann. Gerechnet wird mit ihnen nicht: der Mahnlauf nimmt
+ * die Stufen aus den Einstellungen, und was dort fehlt, ersetzt das Backend.
+ */
+const DEFAULT_DUNNING_LEVELS: DunningLevel[] = [
+  { level: 1, label: 'Zahlungserinnerung', daysAfterDue: 7, fee: 0 },
+  { level: 2, label: '1. Mahnung', daysAfterDue: 21, fee: 500 },
+  { level: 3, label: '2. Mahnung', daysAfterDue: 35, fee: 1000 },
+];
+
+/**
+ * Die Stufenfolge des Mahnwesens.
+ *
+ * Die Stufe folgt aus der Reihenfolge und wird nicht eingegeben: das Backend
+ * sortiert nach dem Abstand zur Fälligkeit und nummeriert neu. Eine Nummer im
+ * Formular ließe zwei Stufen mit derselben Zahl zu, und der Mahnlauf wüsste
+ * nicht, welche als Nächste kommt.
+ */
+const DunningLevelsTable: React.FC<{
+  levels: DunningLevel[];
+  onChange: (levels: DunningLevel[]) => void;
+}> = ({ levels, onChange }) => {
+  // Tage und Gebühr werden als Text geführt und erst beim Verlassen des Feldes
+  // umgerechnet (§8.3): eine gelöschte Ziffer ist keine 0.
+  const [drafts, setDrafts] = useState<Record<number, { days: string; fee: string }>>({});
+
+  const draftOf = (index: number, level: DunningLevel) =>
+    drafts[index] ?? { days: String(level.daysAfterDue), fee: formatCentsPlain(level.fee) };
+
+  const update = (index: number, next: Partial<DunningLevel>) => {
+    onChange(levels.map((level, i) => (i === index ? { ...level, ...next } : level)));
+  };
+
+  /**
+   * Eine weitere Stufe. Die Nummer vergibt das Backend beim Speichern neu; hier
+   * steht sie nur, damit die Zeile eine Anzeige hat.
+   */
+  const add = () => {
+    const last = levels[levels.length - 1];
+    onChange([
+      ...levels,
+      {
+        level: levels.length + 1,
+        label: `${levels.length + 1}. Mahnung`,
+        daysAfterDue: (last?.daysAfterDue ?? 0) + 14,
+        fee: last?.fee ?? 0,
+      },
+    ]);
+  };
+
+  /** Entfernt eine Stufe. Die Entwürfe rutschen mit — sie hängen am Index. */
+  const remove = (index: number) => {
+    setDrafts({});
+    onChange(levels.filter((_, i) => i !== index));
+  };
+
+  const addButton = (
+    <Button variant="secondary" size="sm" onClick={add}>
+      Stufe hinzufügen
+    </Button>
+  );
+
+  if (levels.length === 0) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        {/* Eine leere Tabelle heißt nicht, dass nichts gespeichert ist: das
+            Speichern lässt eine leere Liste bewusst aus, damit ein Formular,
+            das die Stufen nicht kennt, sie nicht stumm löscht
+            (repository/settings_gorm.go). Der Text darf deshalb nicht die
+            Voreinstellung behaupten — die stellt der Knopf daneben her, indem
+            er die drei Stufen einträgt, die dann auch gespeichert werden. */}
+        <p className="text-body text-ink-muted">
+          Es ist keine Stufe eingetragen. Bis Stufen gespeichert sind, gelten die zuletzt
+          gespeicherten weiter; ist noch nie eine gespeichert worden, mahnt Buchfink nach
+          7, 21 und 35 Tagen.
+        </p>
+        <div className="flex items-center gap-2">
+          {addButton}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onChange(DEFAULT_DUNNING_LEVELS.map((level) => ({ ...level })))}
+          >
+            Voreinstellung eintragen
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Table density="kompakt">
+        <Thead>
+          <Tr>
+            <Th className="w-12" numeric>
+              Nr.
+            </Th>
+            <Th>Bezeichnung</Th>
+            <Th className="w-40">Tage nach Fälligkeit</Th>
+            <Th className="w-40">Gebühr</Th>
+            <Th className="w-28" aria-label="Aktion" />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {levels.map((level, index) => {
+            const draft = draftOf(index, level);
+            return (
+              <Tr key={`${level.level}-${index}`}>
+                <Td numeric className="text-ink-subtle">
+                  {level.level}
+                </Td>
+                <Td>
+                  <Input
+                    value={level.label}
+                    onChange={(e) => update(index, { label: e.target.value })}
+                  />
+                </Td>
+                <Td>
+                  <Input
+                    type="number"
+                    min={0}
+                    align="right"
+                    value={draft.days}
+                    onChange={(e) =>
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [index]: { ...draftOf(index, level), days: e.target.value },
+                      }))
+                    }
+                    onBlur={() => {
+                      const days = Number(draft.days);
+                      const value = Number.isFinite(days) && days >= 0 ? Math.trunc(days) : level.daysAfterDue;
+                      update(index, { daysAfterDue: value });
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [index]: { ...draftOf(index, level), days: String(value) },
+                      }));
+                    }}
+                  />
+                </Td>
+                <Td>
+                  <Input
+                    align="right"
+                    value={draft.fee}
+                    onChange={(e) =>
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [index]: { ...draftOf(index, level), fee: e.target.value },
+                      }))
+                    }
+                    onBlur={() => {
+                      const fee = parseCents(draft.fee);
+                      const value = fee !== null && fee >= 0 ? fee : level.fee;
+                      update(index, { fee: value });
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [index]: { ...draftOf(index, level), fee: formatCentsPlain(value) },
+                      }));
+                    }}
+                  />
+                </Td>
+                <Td className="text-right">
+                  <Button variant="quiet" size="sm" onClick={() => remove(index)}>
+                    Entfernen
+                  </Button>
+                </Td>
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
+      <div className="mt-3">{addButton}</div>
+    </>
   );
 };

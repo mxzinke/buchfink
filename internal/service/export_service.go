@@ -700,6 +700,7 @@ func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 		accountsTable, balancesTable, contactsTable, openItemsTable,
 		assetsTable, assetMovementsTable,
 		receiptsTable, documentsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
+		auditTrailTable,
 	}
 
 	dataset := &export.Dataset{

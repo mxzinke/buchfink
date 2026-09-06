@@ -29,9 +29,13 @@ import type {
   AssetScheduleYear,
   AssetSummary,
   AuditChainResult,
+  AuditTrail,
   AuditFilter,
   AuditLogEntry,
   BackupRun,
+  BaseRate,
+  BankRule,
+  BankSuggestions,
   BankTransaction,
   BlockContactResult,
   CapitalizeNearAcquisitionCostRequest,
@@ -47,6 +51,9 @@ import type {
   CorrectionResult,
   CurrencyValuation,
   Deadline,
+  DunningNotice,
+  DunningProposal,
+  DunningRunRequest,
   DeleteResult,
   DepreciationMethod,
   DepreciationResult,
@@ -100,6 +107,7 @@ import type {
   MaintenanceResult,
   MappingReport,
   MigrationRecord,
+  MonthCloseState,
   NearAcquisitionCheck,
   NonDeductibleCategory,
   NonDeductibleReport,
@@ -156,6 +164,8 @@ import type {
   TaxProvisionPreview,
   TaxProvisionRequest,
   TaxRate,
+  Task,
+  TaskList,
   TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
@@ -222,6 +232,15 @@ async function call<T>(fn: () => Promise<T>): Promise<T> {
  */
 function list<T>(value: T[] | null | undefined): T[] {
   return value ?? [];
+}
+
+/**
+ * Die Parameter eines Navigationsziels. Go liefert eine leere Map als `null`,
+ * und die Ansicht liest sie ohne weitere Prüfung.
+ */
+function normalizeTask(task: Task): Task {
+  if (!task) return task;
+  return { ...task, target: { ...task.target, params: task.target?.params ?? {} } };
 }
 
 /** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */
@@ -1133,6 +1152,15 @@ export const Api = {
     call(() => Bridge.SkipClosingStep(year, key, reason) as Promise<ClosingSteps>).then((steps) =>
       steps ? { ...steps, steps: list(steps.steps) } : steps,
     ),
+  /**
+   * Nimmt das Überspringen zurück: der Baustein steht wieder offen. Möglich,
+   * solange das Jahr weder festgeschrieben noch festgestellt ist; der Grund ist
+   * Pflicht, weil er an die Stelle des Grundes tritt, mit dem übergangen wurde.
+   */
+  reopenClosingStep: (year: number, key: string, reason: string): Promise<ClosingSteps> =>
+    call(() => Bridge.ReopenClosingStep(year, key, reason) as Promise<ClosingSteps>).then((steps) =>
+      steps ? { ...steps, steps: list(steps.steps) } : steps,
+    ),
   markClosingStepDone: (year: number, key: string): Promise<ClosingSteps> =>
     call(() => Bridge.MarkClosingStepDone(year, key) as Promise<ClosingSteps>).then((steps) =>
       steps ? { ...steps, steps: list(steps.steps) } : steps,
@@ -1816,4 +1844,95 @@ export const Api = {
   disableReadOnly: (reason: string): Promise<AppConfig> =>
     call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
   getProgramVersion: (): Promise<string> => call(() => Bridge.GetProgramVersion()),
+
+  // --- Die Bedienung: Aufgaben, Monatsabschluss, Mahnwesen, Prüfpfad ------
+
+  /**
+   * Die Aufgabenliste in ihren drei Gruppen (Architektur 6.1).
+   *
+   * Der Regelfall einer aufgeräumten Buchführung ist die leere Gruppe, und
+   * genau dann käme aus Go ein `null` an. Die Listen werden deshalb hier
+   * gesetzt und nicht in der Ansicht — sonst trüge jede Gruppe ihre eigene
+   * Absicherung.
+   */
+  getTasks: (): Promise<TaskList> =>
+    call(() => Bridge.GetTasks() as Promise<TaskList>).then((tasks) =>
+      tasks
+        ? {
+            ...tasks,
+            overdue: list(tasks.overdue).map(normalizeTask),
+            open: list(tasks.open).map(normalizeTask),
+            upcoming: list(tasks.upcoming).map(normalizeTask),
+          }
+        : tasks,
+    ),
+  /** Der Stand eines Monats („JJJJ-MM") in seinen drei Schritten (6.2). */
+  getMonthCloseState: (month: string): Promise<MonthCloseState> =>
+    call(() => Bridge.GetMonthCloseState(month) as Promise<MonthCloseState>).then((state) =>
+      state ? { ...state, steps: list(state.steps), findings: list(state.findings) } : state,
+    ),
+  /** Die wahrscheinlichsten Zuordnungen zu einem Bankumsatz. Gebucht wird nichts. */
+  suggestBankMatches: (bankTxId: number): Promise<BankSuggestions> =>
+    call(() => Bridge.SuggestBankMatches(bankTxId) as Promise<BankSuggestions>).then(
+      (suggestions) =>
+        suggestions
+          ? {
+              ...suggestions,
+              suggestions: list(suggestions.suggestions).map((s) => ({
+                ...s,
+                reasons: list(s.reasons),
+                items: list(s.items),
+              })),
+            }
+          : suggestions,
+    ),
+  /** Die gelernten Zuordnungen wiederkehrender Umsätze. */
+  getBankRules: (): Promise<BankRule[]> =>
+    call(() => Bridge.GetBankRules() as Promise<BankRule[]>).then(list),
+  /** Entfernt eine gelernte Zuordnung; der nächste Umsatz wird wieder gefragt. */
+  deleteBankRule: (id: number): Promise<void> => call(() => Bridge.DeleteBankRule(id)),
+  /** Die Mahnvorschläge je Kunde, mit Posten, Stufe, Zinsen und Gebühr. */
+  getDunningProposals: (): Promise<DunningProposal[]> =>
+    call(() => Bridge.GetDunningProposals() as Promise<DunningProposal[]>).then((proposals) =>
+      list(proposals).map((proposal) => ({ ...proposal, items: list(proposal.items) })),
+    ),
+  /** Erzeugt die Mahnschreiben der ausgewählten Kunden und legt sie ab. */
+  createDunningNotices: (request: DunningRunRequest): Promise<DunningNotice[]> =>
+    call(() => Bridge.CreateDunningNotices(request as any) as Promise<DunningNotice[]>).then(
+      (notices) => list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
+    ),
+  /** Die Schreiben eines Kunden, das jüngste zuerst; 0 heißt: alle. */
+  getDunningNotices: (contactId = 0): Promise<DunningNotice[]> =>
+    call(() => Bridge.GetDunningNotices(contactId) as Promise<DunningNotice[]>).then((notices) =>
+      list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
+    ),
+  /** Die Basiszinssätze, der älteste zuerst. */
+  getBaseRates: (): Promise<BaseRate[]> =>
+    call(() => Bridge.GetBaseRates() as Promise<BaseRate[]>).then(list),
+  /**
+   * Trägt einen bekanntgegebenen Satz nach. `basisPoints` sind Hundertstel
+   * eines Prozentpunktes: 127 sind 1,27 %.
+   */
+  saveBaseRate: (validFrom: string, basisPoints: number): Promise<BaseRate[]> =>
+    call(() => Bridge.SaveBaseRate(validFrom, basisPoints) as Promise<BaseRate[]>).then(list),
+  /** Der Prüfpfad eines Belegs zur Anzeige: Beleg, Buchung, Zahlung, Bankumsatz. */
+  getAuditTrail: (receiptId: number): Promise<AuditTrail> =>
+    call(() => Bridge.GetAuditTrail(receiptId) as Promise<AuditTrail>).then((trail) =>
+      trail ? { ...trail, steps: list(trail.steps) } : trail,
+    ),
+  /** Schreibt denselben Prüfpfad in eine Datei; leerer Pfad heißt: abgebrochen. */
+  exportAuditTrail: (receiptId: number, format: 'csv' | 'pdf' = 'pdf'): Promise<string> =>
+    call(() => Bridge.ExportAuditTrail(receiptId, format)),
+  /** Schreibt den Leistungsnachweis an einen Eingangsbeleg (RECH-08). */
+  saveServiceProof: (receiptId: number, text: string, date: string): Promise<Receipt> =>
+    call(() => Bridge.SaveServiceProof(receiptId, text, date) as Promise<Receipt>),
+  /**
+   * Der Hinweis zu einem langen Zahlungsziel; leer heißt: unauffällig.
+   *
+   * Er kommt aus dem Fachbereich und wird hier nicht nachgebaut: eine Grenze,
+   * die in der Maske ein zweites Mal stünde, wird bei der nächsten Änderung an
+   * einer der beiden Stellen vergessen.
+   */
+  getPaymentTermNotice: (dueDays: number): Promise<string> =>
+    call(() => Bridge.GetPaymentTermNotice(dueDays)),
 };

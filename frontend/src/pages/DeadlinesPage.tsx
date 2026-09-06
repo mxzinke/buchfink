@@ -3,6 +3,11 @@ import { Lock } from 'lucide-react';
 import { CheckRun, CompanySettings, Deadline, Festschreibung, FoundationState } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
+// Wohin ein Befund führt, steht an einer Stelle: Fristenliste, Monatsabschluss
+// und Aufgabenliste brauchen dieselbe Zuordnung.
+import { findingParams, findingTarget } from '../utils/findings';
+import { monthOptions, previousMonth } from '../utils/months';
+import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatDate } from '../utils/formatters';
 import type { NavigateFn } from '../components/Sidebar';
 import { FoundationDutyResetDialog, FoundationSection } from '../components/FoundationSection';
@@ -126,9 +131,15 @@ const YEAR_CONSEQUENCE =
 export interface DeadlinesPageProps {
   /** Weg vom Befund zu der Stelle, an der er zu beheben ist. */
   onNavigate?: NavigateFn;
+  /**
+   * Die Frist, die aus der Aufgabenliste gemeint ist. Sie wird hervorgehoben:
+   * die Liste führt zwei Dutzend Termine, und ohne Anker suchte der Anwender
+   * den, den er gerade angeklickt hat.
+   */
+  initialKey?: string;
 }
 
-export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
+export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initialKey }) => {
   // Festschreiben und Erledigtvermerke schreiben; die Fristenliste selbst ist
   // eine Auswertung und bleibt im Prüfermodus lesbar (§10.4).
   const writeLock = useWriteLock();
@@ -139,6 +150,10 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
   const [foundation, setFoundation] = useState<FoundationState | null>(null);
   const [resettingDuty, setResettingDuty] = useState<Deadline | null>(null);
   const [commitDialog, setCommitDialog] = useState<CommitDialogState | null>(null);
+  // Der Monatsabschluss steht als eigener Weg neben der Fristenliste: er führt
+  // die drei Schritte zusammen, deren Fristen hier einzeln stehen.
+  const [monthCloseOpen, setMonthCloseOpen] = useState(false);
+  const [monthCloseMonth, setMonthCloseMonth] = useState(() => previousMonth(new Date()));
   const [checking, setChecking] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   // Die fehlende Begründung wird am Feld gemeldet und nicht durch einen
@@ -349,12 +364,20 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
         title={`Steuerfristen ${currentYear}`}
         context="Voranmeldungen, Meldungen und Festschreibung"
         action={
-          <HelpPopover label="Erklärung zu den Steuerfristen">
-            Die Termine und ihr Stand kommen aus den Daten: eine übermittelte Voranmeldung ist
-            abgegeben, ein festgeschriebener Monat ist festgeschrieben. Bei Überweisung an das
-            Finanzamt gilt die Zahlungsschonfrist von drei Tagen nach § 240 Abs. 3 AO; fällt ein
-            Fälligkeitstag auf ein Wochenende, verschiebt er sich auf den nächsten Werktag.
-          </HelpPopover>
+          <div className="flex items-center gap-2">
+            {/* Der Monatsabschluss führt die drei Schritte zusammen, deren
+                Fristen hier einzeln stehen: Prüfbericht, Festschreibung,
+                Voranmeldung (Architektur 6.2). */}
+            <Button variant="secondary" onClick={() => setMonthCloseOpen(true)}>
+              Monatsabschluss
+            </Button>
+            <HelpPopover label="Erklärung zu den Steuerfristen">
+              Die Termine und ihr Stand kommen aus den Daten: eine übermittelte Voranmeldung ist
+              abgegeben, ein festgeschriebener Monat ist festgeschrieben. Bei Überweisung an das
+              Finanzamt gilt die Zahlungsschonfrist von drei Tagen nach § 240 Abs. 3 AO; fällt ein
+              Fälligkeitstag auf ein Wochenende, verschiebt er sich auf den nächsten Werktag.
+            </HelpPopover>
+          </div>
         }
       />
 
@@ -481,8 +504,16 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
               {filtered.map((item) => {
                 const diff = item.dueDate ? daysUntil(item.dueDate) : null;
                 const dutyKey = dutyKeyOf(item.key);
+                // Die aus der Aufgabenliste gemeinte Frist trägt den Grund der
+                // Hinweisfläche: sie ist gefunden, nicht ausgewählt — deshalb
+                // keine Markierung, die nach Bedienung aussieht.
+                const marked = Boolean(initialKey) && item.key === initialKey;
                 return (
-                  <Tr key={item.key}>
+                  <Tr
+                    key={item.key}
+                    className={marked ? 'bg-attention-soft' : undefined}
+                    aria-current={marked ? 'true' : undefined}
+                  >
                     <Td className="max-w-[30rem]">
                       <span className="flex items-center gap-1">
                         <span className={cn('truncate', item.isDone && 'text-ink-subtle')}>
@@ -650,14 +681,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
                           const target = findingTarget(finding.objectType);
                           if (!target) return;
                           setCommitDialog(null);
-                          onNavigate(
-                            target,
-                            finding.objectType === 'JOURNAL_ENTRY'
-                              ? { entryNumber: finding.objectName }
-                              : finding.objectType === 'ACCOUNT'
-                                ? { account: finding.objectId }
-                                : {},
-                          );
+                          onNavigate(target, findingParams(finding));
                         }}
                       >
                         Hin dazu
@@ -687,24 +711,16 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate }) => {
           </div>
         )}
       </Dialog>
+
+      <MonthCloseDialog
+        open={monthCloseOpen}
+        month={monthCloseMonth}
+        months={monthOptions(monthCloseMonth)}
+        onMonthChange={setMonthCloseMonth}
+        onClose={() => setMonthCloseOpen(false)}
+        onChanged={loadAll}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };
-
-/** Wohin ein Befund führt. Ohne Adresse ist er eine Hausaufgabe ohne Ort. */
-function findingTarget(objectType?: string): 'journal' | 'receipts' | 'bank' | 'accounts' | 'vat' | null {
-  switch (objectType) {
-    case 'JOURNAL_ENTRY':
-      return 'journal';
-    case 'RECEIPT':
-      return 'receipts';
-    case 'BANK_TX':
-      return 'bank';
-    case 'ACCOUNT':
-      return 'accounts';
-    case 'VAT_PERIOD':
-      return 'vat';
-    default:
-      return null;
-  }
-}

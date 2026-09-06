@@ -36,6 +36,7 @@ const (
 	tableVatReturns     = "voranmeldungen"
 	tableCommits        = "festschreibungen"
 	tableCheckRuns      = "pruefläufe"
+	tableAuditTrail     = "pruefpfad"
 )
 
 func alphaField(name, description string) export.Field {
@@ -1019,6 +1020,80 @@ func checkRunsTable(d *exportData) (export.Table, error) {
 			row := append(append([]string{}, head...),
 				f.Rule, string(f.Severity), f.ObjectType, f.ObjectID, f.Message, f.Reference)
 			if err := t.AddRow(row...); err != nil {
+				return t, err
+			}
+		}
+	}
+	return t, nil
+}
+
+// auditTrailTable führt den Prüfpfad je Beleg auf: Beleg → Buchung → Zahlung →
+// Bankumsatz.
+//
+// Die einzelnen Verbindungen stehen schon in belege.csv, journal.csv und
+// zahlungszuordnungen.csv — der Prüfer müsste sie über drei Dateien
+// zusammensuchen. GoBD Rz. 36 verlangt die progressive und die retrograde
+// Prüfbarkeit; diese Tabelle ist genau das, in einer Zeile je Beleg, mit dem
+// Bestellbezug und dem Leistungsnachweis daneben (RECH-08).
+func auditTrailTable(d *exportData) (export.Table, error) {
+	t := newTable(tableAuditTrail, "pruefpfad.csv",
+		"Der Weg vom Beleg über die Buchung und die Zahlung bis zum Bankumsatz. Eine Zeile je Beleg und zugeordneter Zahlung; ein Beleg ohne Zahlung steht mit leeren Zahlungsspalten.",
+		numField("Beleg_ID", "Interne Kennung des Belegs."),
+		alphaField("Belegnummer", "Nummer, unter der der Beleg geführt wird."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst trägt."),
+		alphaField("Aussteller", "Name des Ausstellers."),
+		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
+		alphaField("Bestellbezug", "Bestellnummer aus der E-Rechnung (BT-13), soweit vorhanden."),
+		alphaField("Leistungsnachweis", "Vermerk über die sachliche Prüfung."),
+		dateField("Leistungsnachweis_am", "Tag, an dem der Vermerk erfasst wurde."),
+		numField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
+		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
+		dateField("Buchungsdatum", "Datum der Buchung."),
+		numField("Zahlung_Buchung_ID", "Buchung der Zahlung, sofern zugeordnet."),
+		alphaField("Zahlung_Buchungsnummer", "Nummer der Zahlungsbuchung."),
+		numField("Ausgleichsbetrag", "Betrag, um den der offene Posten sank, in Euro."),
+		numField("Bankumsatz_ID", "Zugeordneter Bankumsatz, sofern vorhanden."),
+	)
+
+	// Die Zuordnungen je Posten einmal gruppieren statt je Beleg zu suchen: die
+	// Zahl der Belege und die der Zuordnungen sind beide groß.
+	byOpenItem := map[uint][]domain.PaymentAllocation{}
+	for _, a := range d.allocations {
+		byOpenItem[a.OpenItemEntryID] = append(byOpenItem[a.OpenItemEntryID], a)
+	}
+	bookingDates := make(map[uint]string, len(d.entries))
+	for i := range d.entries {
+		bookingDates[d.entries[i].ID] = d.entries[i].BookingDate
+	}
+
+	for i := range d.receipts {
+		r := &d.receipts[i]
+		entryID, entryNumber, bookingDate := uint(0), "", ""
+		if r.JournalEntryID != nil {
+			entryID = *r.JournalEntryID
+			entryNumber = d.entryNumber(entryID)
+			bookingDate = bookingDates[entryID]
+		}
+		allocations := byOpenItem[entryID]
+		if entryID == 0 || len(allocations) == 0 {
+			if err := t.AddRow(
+				export.Uint(r.ID), r.ReceiptNumber, r.DocumentDate, r.IssuerName,
+				export.Amount(r.GrossAmount), r.OrderReference, r.ServiceProof, r.ServiceProofAt,
+				export.Uint(entryID), entryNumber, bookingDate,
+				"", "", export.Amount(0), "",
+			); err != nil {
+				return t, err
+			}
+			continue
+		}
+		for _, a := range allocations {
+			if err := t.AddRow(
+				export.Uint(r.ID), r.ReceiptNumber, r.DocumentDate, r.IssuerName,
+				export.Amount(r.GrossAmount), r.OrderReference, r.ServiceProof, r.ServiceProofAt,
+				export.Uint(entryID), entryNumber, bookingDate,
+				export.Uint(a.PaymentEntryID), d.entryNumber(a.PaymentEntryID),
+				export.Amount(a.SettledAmount), export.OptUint(a.BankTxID),
+			); err != nil {
 				return t, err
 			}
 		}

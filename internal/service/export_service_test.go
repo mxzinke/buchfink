@@ -143,7 +143,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	wanted := []string{
 		"journal", "bewirtungen", "zahlungszuordnungen", "konten", "salden",
 		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen", "dokumente",
-		"belege", "voranmeldungen", "festschreibungen", "pruefläufe",
+		"belege", "voranmeldungen", "festschreibungen", "pruefläufe", "pruefpfad",
 		"aenderungsprotokoll", "steuerschluessel", "schluesselverzeichnis",
 	}
 	byName := map[string]export.TableInfo{}

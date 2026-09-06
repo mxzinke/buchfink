@@ -451,6 +451,7 @@ func checkRuleCatalog() []procdoc.CheckRule {
 		{Key: domain.CheckRuleClosingStepSkipped, Severity: "Hinweis", Purpose: "Übersprungener Abschlussbaustein mit seinem Grund."},
 		{Key: domain.CheckRuleICSupplyEvidenceMissing, Severity: "Blockierend", Purpose: "Innergemeinschaftliche Lieferung ohne Belegnachweis (§§ 17a bis 17c UStDV)."},
 		{Key: domain.CheckRuleICSupplyUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
+		{Key: domain.CheckRuleServiceProofMissing, Severity: "Hinweis", Purpose: "Eingangsbeleg über der eingestellten Grenze ohne Leistungsnachweis (RECH-08); beim Buchen ist der Vermerk Pflicht, der Befund findet die Belege aus der Zeit davor."},
 	}
 }
 

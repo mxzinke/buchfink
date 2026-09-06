@@ -263,6 +263,25 @@ type Receipt struct {
 	InputTaxOverride   string `gorm:"size:500;serializer:encrypted" json:"inputTaxOverride,omitempty"`
 	InputTaxOverrideAt string `gorm:"size:25" json:"inputTaxOverrideAt,omitempty"`
 
+	// Der Prüfpfad des Eingangsbelegs (RECH-08).
+	//
+	// OrderReference ist die Bestellnummer, die die E-Rechnung mitbringt
+	// (BT-13); ServiceProof ist der Vermerk, mit dem jemand die sachliche
+	// Richtigkeit bestätigt hat („geprüft gegen Bestellung 4711 vom …"). Der
+	// Vermerk ist keine Formalie: § 15 UStG lässt den Vorsteuerabzug nur für
+	// eine tatsächlich bezogene Leistung zu, und wer eine Rechnung ohne
+	// sachliche Prüfung bucht, hat für die Frage, ob die Leistung erbracht
+	// wurde, keinen Nachweis.
+	//
+	// Beide stehen bewusst nicht im Beleg-Hash: der Vermerk entsteht regelmäßig
+	// erst beim Buchen oder danach, und ein Hash, der sich dabei änderte, bräche
+	// die Kette jeder Buchung, die auf den Beleg zeigt. Was sie festhalten, ist
+	// ein Vorgang der Prüfung und keine Angabe des empfangenen Dokuments — die
+	// Unveränderbarkeit sichert das Änderungsprotokoll.
+	OrderReference string `gorm:"size:120" json:"orderReference,omitempty"`
+	ServiceProof   string `gorm:"size:1000;serializer:encrypted" json:"serviceProof,omitempty"`
+	ServiceProofAt string `gorm:"size:10" json:"serviceProofAt,omitempty"`
+
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	DiscardReason  string `gorm:"size:255;serializer:encrypted" json:"discardReason,omitempty"`
@@ -547,6 +566,11 @@ type ReceiptRepository interface {
 	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
 	// damit den Beleg-Hash nicht.
 	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
+	// SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis. Beide stehen
+	// außerhalb des Beleg-Hashes (siehe die Felder), deshalb ist das Schreiben
+	// auch am gebuchten Beleg zulässig — der Prüfvermerk entsteht regelmäßig
+	// erst dann.
+	SaveAuditTrail(ctx context.Context, receiptID uint, orderReference, proof, proofAt string) error
 }
 
 // ReceiptHeader sind die Kopfdaten in der Form, in der sie geschrieben werden.

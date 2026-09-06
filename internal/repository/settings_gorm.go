@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -56,6 +57,14 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		// stünde hier null und der Prüflauf meldete jeden Beleg am Tag seines
 		// Eingangs als überfällig.
 		ReceiptCaptureDays: 10,
+		// Tausend Euro sind die Voreinstellung, ab der ein Eingangsbeleg einen
+		// Leistungsnachweis tragen soll (RECH-08). Sie ist eine Vorgabe des
+		// internen Kontrollsystems und keine Rechtspflicht — deshalb
+		// einstellbar.
+		InvoiceCheckThreshold: 100_000,
+		// Die Mahnstufen der Voreinstellung. Sie stehen im Fachbereich und
+		// nicht hier: die Reihenfolge und ihre Begründung gehören zusammen.
+		DunningLevels: domain.DefaultDunningLevels(),
 	}
 
 	for _, it := range items {
@@ -123,6 +132,18 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			if d, err := strconv.Atoi(it.Value); err == nil && d >= 0 {
 				settings.CommitGraceDays = d
 			}
+		case "invoice_check_threshold":
+			if v, err := strconv.ParseInt(it.Value, 10, 64); err == nil && v >= 0 {
+				settings.InvoiceCheckThreshold = domain.Cents(v)
+			}
+		case "dunning_levels":
+			// Ein unlesbarer Eintrag bleibt ohne Wirkung: dann gilt die
+			// Voreinstellung weiter. Die Mahnstufen ganz fallen zu lassen,
+			// hieße den Mahnlauf abzuschalten, weil ein Zeichen fehlt.
+			var levels []domain.DunningLevel
+			if err := json.Unmarshal([]byte(it.Value), &levels); err == nil && len(levels) > 0 {
+				settings.DunningLevels = domain.NormalizeDunningLevels(levels)
+			}
 		}
 	}
 
@@ -176,6 +197,20 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	if err != nil {
 		return err
 	}
+	// Eine Null im Feld ist ein leeres Feld und keine Abschaltung: wer keinen
+	// Leistungsnachweis verlangen will, setzt die Grenze hoch. Andernfalls
+	// schaltete ein Formular, das das Feld nicht kennt, die Regel stumm ab.
+	//
+	// Und deshalb wird die Grenze dann gar nicht geschrieben: ein gepflegter
+	// Wert bliebe sonst nicht stehen, sondern fiele auf die Voreinstellung
+	// zurück — ein Formular, das ein Feld nicht kennt, darf es nicht ändern.
+	// Dasselbe gilt für die Mahnstufen.
+	writeCheckThreshold := s.InvoiceCheckThreshold > 0
+	writeLevels := len(s.DunningLevels) > 0
+	levels, err := json.Marshal(domain.NormalizeDunningLevels(s.DunningLevels))
+	if err != nil {
+		return fmt.Errorf("die Mahnstufen ließen sich nicht speichern: %w", err)
+	}
 
 	kv := map[string]string{
 		"company_name":            s.CompanyName,
@@ -211,6 +246,15 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"special_prepayment":   strconv.FormatInt(int64(s.SpecialPrepayment), 10),
 		"receipt_capture_days": strconv.Itoa(captureDays),
 		"commit_grace_days":    strconv.Itoa(graceDays),
+	}
+	// Der Prüfvermerk am Eingangsbeleg und die Mahnstufen: beides sind
+	// Festlegungen des internen Kontrollsystems, die der Anwender trifft — und
+	// die nur ändert, wer sie mitschickt.
+	if writeCheckThreshold {
+		kv["invoice_check_threshold"] = strconv.FormatInt(int64(s.InvoiceCheckThreshold), 10)
+	}
+	if writeLevels {
+		kv["dunning_levels"] = string(levels)
 	}
 
 	for k, v := range kv {

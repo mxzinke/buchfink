@@ -84,6 +84,10 @@ type BuchfinkBridge struct {
 	supplyEvidenceRepo domain.SupplyEvidenceRepository
 	exchangeRateRepo   domain.ExchangeRateRepository
 
+	bankRuleRepo domain.BankRuleRepository
+	dunningRepo  domain.DunningRepository
+	baseRateRepo domain.BaseRateRepository
+
 	closingStepRepo   domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
 	provisionRepo     domain.ProvisionRepository
@@ -136,6 +140,12 @@ type BuchfinkBridge struct {
 	vatIDSvc          *service.VatIDService
 	supplyEvidenceSvc *service.SupplyEvidenceService
 	giftSvc           *service.GiftService
+	// Welle 7: die Bedienung — Aufgabenliste, Monatsabschluss, Mahnwesen und
+	// der Prüfpfad je Beleg.
+	taskSvc       *service.TaskService
+	monthCloseSvc *service.MonthCloseService
+	dunningSvc    *service.DunningService
+	auditTrailSvc *service.AuditTrailService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -298,6 +308,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.retentionRepo = repository.NewRetentionRepository(db)
 	b.migrationRepo = repository.NewMigrationRepository(db)
 	b.procDocRepo = repository.NewProcedureDocumentationRepository(db)
+	// Welle 7: die gelernten Bankregeln, die Mahnschreiben und die
+	// Basiszinstabelle.
+	b.bankRuleRepo = repository.NewBankRuleRepository(db)
+	b.dunningRepo = repository.NewDunningRepository(db)
+	b.baseRateRepo = repository.NewBaseRateRepository(db)
 	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
@@ -345,6 +360,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// sie stünde die Schlussrechnung des Lieferanten im Journal, während die
 	// Anzahlung weiter als offen gälte.
 	b.postingSvc.SetTxRunner(b.txRunner)
+	// Der Leistungsnachweis am größeren Eingangsbeleg ist Pflicht (RECH-08). Die
+	// Grenze steht in den Einstellungen, deshalb liest der Belegweg sie dort.
+	b.postingSvc.SetSettingsSource(b.settingsRepo)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
 	// Der Renderer eines vorigen Mandanten hält eine WASM-Instanz von
@@ -624,6 +642,45 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Schlüssel, und eine heile Sicherung käme als unlesbar zurück.
 	b.backupSvc = service.NewBackupService(
 		b.backupRunRepo, b.auditRepo, db, t.DataDir, t.VaultID(), t.Name)
+
+	// Welle 7: die Bedienung legt sich über die fertigen Funktionen.
+	//
+	// Der Zuordnungsvorschlag braucht die offenen Posten und die gelernten
+	// Regeln; gelernt wird beim Buchen eines Umsatzes ohne Beleg.
+	b.bankSvc.SetOpenItemSource(b.paymentSvc)
+	b.bankSvc.SetRuleRepo(b.bankRuleRepo)
+
+	b.dunningSvc = service.NewDunningService(
+		b.paymentSvc, b.contactRepo, b.dunningRepo, b.baseRateRepo,
+		b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir), fiscalYear,
+	)
+	b.dunningSvc.SetRenderer(b.renderer)
+
+	b.auditTrailSvc = service.NewAuditTrailService(
+		b.receiptRepo, b.journalRepo, b.allocationRepo, b.bankRepo, b.auditRepo)
+	b.auditTrailSvc.SetRenderer(b.renderer)
+
+	b.monthCloseSvc = service.NewMonthCloseService(
+		b.checkSvc, b.vatReturnSvc, b.festschreibungRepo, fiscalYear)
+	// Der Monatsdialog muss wissen, welche Monate zum aktiven Geschäftsjahr
+	// gehören: der Prüfbericht rechnet über dieses Jahr, und ein Monat aus einem
+	// anderen Jahr bekäme einen Stand aus fremden Büchern.
+	b.monthCloseSvc.SetFiscalYearSource(b.fiscalYearRepo)
+
+	// Die Aufgabenliste fragt die Dienste, die die jeweilige Sache führen. Jede
+	// Quelle darf fehlen; keine darf die Liste zu Fall bringen.
+	b.taskSvc = service.NewTaskService(b.settingsRepo, fiscalYear)
+	b.taskSvc.SetCheckSource(b.checkSvc)
+	b.taskSvc.SetDeadlineSource(b.deadlineSvc)
+	b.taskSvc.SetStatementSource(b.statementSvc)
+	b.taskSvc.SetBankSource(b.bankSvc)
+	b.taskSvc.SetReceiptSource(b.receiptSvc)
+	b.taskSvc.SetOpenItemSource(b.paymentSvc)
+	b.taskSvc.SetAssetDocumentSource(b.assetSvc)
+	b.taskSvc.SetExemptionSource(b.contactSvc)
+	b.taskSvc.SetBackupSource(b.backupSvc)
+	b.taskSvc.SetCarryForwardSource(b.closingSvc)
+	b.taskSvc.SetAppropriationSource(b.appropriationSvc)
 
 	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
 	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
@@ -1290,6 +1347,18 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	// Bücher eines anderen Jahres, als auf dem Schirm steht.
 	if b.exportSvc != nil {
 		b.exportSvc.SetFiscalYear(year)
+	}
+	// Und die Bedienung der Welle 7: die Aufgabenliste zählt die Bankumsätze
+	// und Fristen eines Jahres, der Monatsabschluss liest die Festschreibung
+	// eines Jahres, das Mahnschreiben wird in einem Jahr abgelegt.
+	if b.taskSvc != nil {
+		b.taskSvc.SetFiscalYear(year)
+	}
+	if b.monthCloseSvc != nil {
+		b.monthCloseSvc.SetFiscalYear(year)
+	}
+	if b.dunningSvc != nil {
+		b.dunningSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)

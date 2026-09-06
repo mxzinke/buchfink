@@ -256,3 +256,47 @@ func EInvoiceIssueTransitionFor(documentDate string, priorYearRevenue domain.Cen
 		return EInvoiceTransitionExpired
 	}
 }
+
+// BaseRatePeriod ist ein Basiszinssatz ab einem Stichtag.
+type BaseRatePeriod struct {
+	ValidFrom   string
+	BasisPoints int
+	Source      string
+	// Provisional markiert einen Wert, der fortgeschrieben und nicht aus der
+	// Bekanntgabe übernommen wurde.
+	Provisional bool
+}
+
+// defaultBaseRates ist die Tabelle des Basiszinssatzes nach § 247 BGB, wie die
+// Deutsche Bundesbank sie zum 1. Januar und zum 1. Juli bekannt gibt.
+//
+// Sie ist die Startbelegung der pflegbaren Tabelle und nicht die Wahrheit für
+// alle Zeit: der nächste Termin liegt immer in der Zukunft. Was hier steht, ist
+// bekanntgegeben; fortgeschriebene Werte tragen Provisional und erscheinen in
+// den Einstellungen als „zu prüfen".
+//
+// Quelle: Deutsche Bundesbank, Basiszinssatz nach § 247 BGB
+// (bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820),
+// bekanntgegeben jeweils im Bundesanzeiger.
+var defaultBaseRates = []BaseRatePeriod{
+	{ValidFrom: "2016-07-01", BasisPoints: -88, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2016"},
+	{ValidFrom: "2023-01-01", BasisPoints: 162, Source: "Bundesbank, Bekanntgabe zum 1. Januar 2023"},
+	{ValidFrom: "2023-07-01", BasisPoints: 312, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2023"},
+	{ValidFrom: "2024-01-01", BasisPoints: 362, Source: "Bundesbank, Bekanntgabe zum 1. Januar 2024"},
+	{ValidFrom: "2024-07-01", BasisPoints: 337, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2024"},
+	{ValidFrom: "2025-01-01", BasisPoints: 227, Source: "Bundesbank, Bekanntgabe zum 1. Januar 2025"},
+	{ValidFrom: "2025-07-01", BasisPoints: 127, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2025"},
+	{ValidFrom: "2026-01-01", BasisPoints: 127, Source: "Bundesbank, Bekanntgabe zum 1. Januar 2026 (unverändert)"},
+	{ValidFrom: "2026-07-01", BasisPoints: 152, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2026"},
+}
+
+// DefaultBaseRates liefert die hinterlegte Tabelle als Kopie.
+//
+// Eine Kopie, weil der Dienst sie mit den gepflegten Sätzen des Mandanten
+// mischt: gäbe es die Scheibe unmittelbar heraus, änderte ein Aufrufer die
+// Vorgabe des Programms für alle anderen mit.
+func DefaultBaseRates() []BaseRatePeriod {
+	out := make([]BaseRatePeriod, len(defaultBaseRates))
+	copy(out, defaultBaseRates)
+	return out
+}

@@ -47,6 +47,7 @@ import {
   FieldRow,
   FieldValue,
   HelpPopover,
+  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -152,7 +153,7 @@ export const ObligationsPage: React.FC<ObligationsPageProps> = ({
         onValueChange={setTab}
         className="mt-6"
         items={[
-          { value: 'inputtax', label: 'Vorsteuer § 15a' },
+          { value: 'inputtax', label: 'Vorsteuerberichtigung' },
           { value: 'vatid', label: 'USt-IdNr.' },
           { value: 'evidence', label: 'Belegnachweis' },
           { value: 'nondeductible', label: 'Nicht abziehbar' },
@@ -363,7 +364,7 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
         {rows.length === 0 ? (
           <EmptyState
             title="Kein Wirtschaftsgut im Verzeichnis"
-            description="Aufgenommen wird, wessen Vorsteuer die Grenze des § 44 Abs. 1 UStDV übersteigt."
+            description="Aufgenommen wird ein Wirtschaftsgut erst, wenn seine Vorsteuer die Bagatellgrenze übersteigt."
           />
         ) : (
           <Table density="kompakt">
@@ -621,12 +622,21 @@ const RegisterInputTaxDialog: React.FC<{
             <Input align="right" value={inputTax} onChange={(e) => setInputTax(e.target.value)} />
           </Field>
         </FieldRow>
-        <Checkbox
-          label="Grundstück oder Gebäude"
-          hint="Zehn Jahre statt fünf (§ 15a UStG)"
-          checked={immovable}
-          onCheckedChange={(checked) => setImmovable(Boolean(checked))}
-        />
+        {/* Das Erklärzeichen steht neben dem Kästchen: in seiner Beschriftung
+            setzte ein Klick darauf den Haken. */}
+        <span className="flex items-start gap-1">
+          <Checkbox
+            label="Grundstück oder Gebäude"
+            hint="Zehn Jahre statt fünf"
+            checked={immovable}
+            onCheckedChange={(checked) => setImmovable(Boolean(checked))}
+          />
+          <HelpPopover label="Erklärung zum Berichtigungszeitraum">
+            Der Zeitraum, in dem sich die Vorsteuer bei geänderter Verwendung berichtigt, beträgt
+            fünf Jahre; bei Grundstücken und Gebäuden zehn (§ 15a UStG). Er beginnt mit der
+            erstmaligen Verwendung.
+          </HelpPopover>
+        </span>
       </div>
     </Dialog>
   );
@@ -1100,9 +1110,17 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
       <StatRow>
         <Stat label="Steuerfreie Lieferungen" value={String(rows.length)} context={`${year}`} />
         <Stat
-          label="Ohne vollständigen Nachweis"
+          label={
+            <>
+              Ohne vollständigen Nachweis
+              <HelpTooltip
+                label="Erklärung zum Belegnachweis"
+                content="Die Steuerfreiheit der innergemeinschaftlichen Lieferung setzt den Beleg- und Buchnachweis voraus (§§ 17a ff. UStDV); ohne ihn ist der Umsatz steuerpflichtig."
+              />
+            </>
+          }
           value={String(report?.incomplete ?? 0)}
-          context="§§ 17a ff. UStDV"
+          context="von diesen Lieferungen"
           tone={(report?.incomplete ?? 0) > 0 ? 'negative' : 'positive'}
         />
         <Stat
@@ -1400,11 +1418,19 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
           context="je Empfänger und Jahr"
         />
         <Stat
-          label="Nicht abziehbar"
+          label={
+            <>
+              Nicht abziehbar
+              <HelpTooltip
+                label="Erklärung zum nicht abziehbaren Aufwand"
+                content="Geschenke über der Freigrenze, 30 % der Bewirtung und die übrigen Fälle des § 4 Abs. 5 EStG mindern den Gewinn nicht."
+              />
+            </>
+          }
           value={formatCents(
             categories.reduce((sum, category) => sum + category.nonDeductibleAmount, 0),
           )}
-          context="§ 4 Abs. 5 EStG"
+          context="im Geschäftsjahr"
         />
         <Stat
           label="Über der Freigrenze"
@@ -1423,7 +1449,7 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
         {categories.length === 0 ? (
           <EmptyState
             title="Keine beschränkt abziehbare Ausgabe"
-            description="Aufgeführt wird, was auf den Konten des § 4 Abs. 5 EStG gebucht ist."
+            description="Aufgeführt wird, was auf den Konten der beschränkt abziehbaren Ausgaben gebucht ist."
           />
         ) : (
           <Table density="kompakt">
@@ -2092,18 +2118,18 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
       {pool && !pool.consistent && (
         <Notice
           className="mb-6"
-          text="Das Wahlrecht zwischen Sammelposten und Sofortabzug ist im Jahr uneinheitlich ausgeübt (§ 6 Abs. 2a Satz 5 EStG)."
+          text="Das Wahlrecht zwischen Sammelposten und Sofortabzug ist im Jahr uneinheitlich ausgeübt; es gilt einheitlich für alle Wirtschaftsgüter des Jahres."
         />
       )}
 
       <Section
         title="Wertaufholung"
-        context={`Geschäftsjahr ${year} · § 253 Abs. 5 Satz 1 HGB`}
+        context={`Geschäftsjahr ${year} · Zuschreibung bis zu den fortgeführten Kosten`}
         divider={false}
         action={
           <HelpPopover label="Erklärung zur Wertaufholung">
             {writeUps?.note ||
-              'Ist der Grund einer außerplanmäßigen Abschreibung weggefallen, ist zuzuschreiben — bis höchstens zu den fortgeführten Anschaffungskosten. Das ist ein Gebot und kein Wahlrecht; besteht der Grund fort, wird das festgehalten.'}
+              'Ist der Grund einer außerplanmäßigen Abschreibung weggefallen, ist zuzuschreiben — bis höchstens zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot und kein Wahlrecht; besteht der Grund fort, wird das festgehalten.'}
           </HelpPopover>
         }
       >

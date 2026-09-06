@@ -217,6 +217,22 @@ var readOnlyAllowed = map[string]bool{
 	"PreviewOpeningBalance":      true,
 	"VerifyAuditChain":           true,
 
+	// Die Bedienung der Welle 7. Aufgabenliste, Monatsabschluss,
+	// Zuordnungsvorschlag, Mahnvorschlag, Basiszinssatz und Prüfpfad lesen und
+	// rechnen — gebucht und geschrieben wird an keiner dieser Stellen. Gerade
+	// der Prüfpfad gehört in den Prüfermodus: er ist die Antwort auf die Frage,
+	// die eine Prüfung stellt.
+	"GetTasks":             true,
+	"GetMonthCloseState":   true,
+	"SuggestBankMatches":   true,
+	"GetBankRules":         true,
+	"GetDunningProposals":  true,
+	"GetDunningNotices":    true,
+	"GetBaseRates":         true,
+	"GetAuditTrail":        true,
+	"ExportAuditTrail":     true,
+	"GetPaymentTermNotice": true,
+
 	// Prüfen
 	"VerifyBackup":         true,
 	"VerifyFestschreibung": true,

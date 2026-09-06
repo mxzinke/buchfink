@@ -55,6 +55,17 @@ const (
 	// USt-IdNr. beim Ausstellen nicht bestätigt werden konnte — der Folgebefund
 	// zu jeder dokumentierten Übersteuerung.
 	CheckRuleICSupplyUnconfirmed = "ic_supply_unconfirmed"
+	// CheckRuleServiceProofMissing meldet einen Eingangsbeleg über der
+	// eingestellten Grenze (CompanySettings.InvoiceCheckThreshold), an dem der
+	// Leistungsnachweis fehlt (RECH-08).
+	//
+	// Ein Hinweis und keine Sperre: die Grenze ist eine Vorgabe des internen
+	// Kontrollsystems und keine Rechtspflicht, und der Vermerk entsteht
+	// regelmäßig erst beim oder nach dem Buchen. Er gehört trotzdem in den
+	// Prüfbericht — sonst fällt eine Rechnung über zehntausend Euro, die
+	// niemand sachlich geprüft hat, weder im Monatsabschluss noch im
+	// Prüferpaket auf.
+	CheckRuleServiceProofMissing = "service_proof_missing"
 )
 
 // CheckFinding ist ein einzelner Befund eines Prüflaufs.

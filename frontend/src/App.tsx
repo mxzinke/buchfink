@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { StartupScreen } from './components/StartupScreen';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
 import { RecoveryScreen } from './components/RecoveryScreen';
+import { TasksPage } from './pages/TasksPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
@@ -197,8 +198,21 @@ export function App() {
     }
   };
 
-  /** Wechselt die Ansicht und nimmt den Parameter des Ziels mit. */
+  /**
+   * Wechselt die Ansicht und nimmt den Parameter des Ziels mit.
+   *
+   * Trägt das Ziel ein Geschäftsjahr, wird zuerst umgeschaltet: Abschluss,
+   * Bausteine, Bilanz und Umsatzsteuer folgen dem Jahr aus der Kopfzeile, und
+   * eine Aufgabe zum Vorjahresabschluss landete sonst auf der Seite des
+   * laufenden Jahres — mit denselben Überschriften und anderen Zahlen.
+   */
   const navigate = (tab: TabType, params: NavigationParams = {}) => {
+    if (params.year && params.year !== currentYear) {
+      // Der Jahreswechsel schreibt in die Einstellungen und lädt nach; die
+      // Ansicht wechselt trotzdem sofort, damit der Klick nicht ins Leere
+      // greift, solange geladen wird.
+      void handleYearChange(params.year);
+    }
     setCurrentTab(tab);
     setNavParams(params);
     setIsMobileSidebarOpen(false);
@@ -213,7 +227,7 @@ export function App() {
   const handleSetupCompleted = async () => {
     setIsAddingTenant(false);
     await bootstrapApp();
-    setCurrentTab('dashboard');
+    setCurrentTab('tasks');
   };
 
   // Loading Screen while reading initial config
@@ -244,7 +258,7 @@ export function App() {
         onRecovered={async () => {
           setIsLocked(false);
           await bootstrapApp();
-          setCurrentTab('dashboard');
+          setCurrentTab('tasks');
         }}
       />
     );
@@ -268,10 +282,14 @@ export function App() {
             onSwitchTenant={handleSwitchTenant}
             onRefreshTenants={refreshTenants}
             onAddTenant={() => setIsAddingTenant(true)}
-            onStartDashboard={() => setCurrentTab('dashboard')}
+            onStartDashboard={() => setCurrentTab('tasks')}
             onNavigate={navigate}
           />
         );
+      // Die Aufgabenliste ist die Startseite (Architektur 6.1); die
+      // Kennzahlenübersicht steht daneben und beantwortet eine andere Frage.
+      case 'tasks':
+        return <TasksPage onNavigate={navigate} />;
       case 'dashboard':
         return <DashboardPage onNavigate={navigate} />;
       case 'accounts':
@@ -281,14 +299,20 @@ export function App() {
           <JournalPage
             closedYear={closedYears.includes(currentYear) ? currentYear : undefined}
             initialSearch={navParams.entryNumber}
+            onNavigate={navigate}
           />
         );
       case 'assets':
         return <AssetsPage />;
       case 'bank':
-        return <BankImportPage />;
+        return <BankImportPage initialView={navParams.bankView} />;
       case 'receipts':
-        return <ReceiptsPage />;
+        return (
+          <ReceiptsPage
+            initialStatus={navParams.receiptStatus}
+            initialReceiptId={navParams.receiptId}
+          />
+        );
       case 'invoices':
         return <InvoicesPage onNavigate={navigate} />;
       // Abschlagsrechnung, Vereinnahmung und Schlussrechnung stehen in einer
@@ -315,7 +339,13 @@ export function App() {
         // Die Abschlussbausteine buchen ins Geschäftsjahr der Kopfzeile: die
         // Abgrenzung, die Rückstellungen, den Inventurwert und die
         // Verrechnungen. Ihr Stichtag ist der des Jahres, nicht der von heute.
-        return <ClosingModulesPage year={currentYear} onNavigate={navigate} />;
+        return (
+          <ClosingModulesPage
+            year={currentYear}
+            initialTab={navParams.closingTab}
+            onNavigate={navigate}
+          />
+        );
       case 'vat':
         // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
         // Kopfzeile; die Kennziffern entstehen im Backend.
@@ -332,11 +362,11 @@ export function App() {
           />
         );
       case 'deadlines':
-        return <DeadlinesPage onNavigate={navigate} />;
+        return <DeadlinesPage initialKey={navParams.deadlineKey} onNavigate={navigate} />;
       case 'ebilanz':
         return <EBilanzPage year={currentYear} />;
       case 'audit':
-        return <AuditPage onNavigate={navigate} />;
+        return <AuditPage initialRule={navParams.auditRule} onNavigate={navigate} />;
       case 'nachweise':
         // Die Nachweise folgen dem Jahr aus der Kopfzeile: die Fristenansicht
         // schlägt es als das Jahr vor, dessen Aufbewahrung gerade zur Frage
@@ -365,7 +395,7 @@ export function App() {
       case 'settings':
         return <SettingsPage onNavigate={navigate} />;
       default:
-        return <DashboardPage onNavigate={navigate} />;
+        return <TasksPage onNavigate={navigate} />;
     }
   };
 

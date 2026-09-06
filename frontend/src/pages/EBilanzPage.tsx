@@ -80,9 +80,15 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
         title="E-Bilanz"
-        context={`Geschäftsjahr ${year} · Export nach amtlicher Taxonomie, § 5b EStG`}
+        context={`Geschäftsjahr ${year} · Export nach amtlicher Taxonomie`}
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <HelpPopover label="Erklärung zur E-Bilanz">
+              Bilanz und Gewinn- und Verlustrechnung sind nach amtlich vorgeschriebenem Datensatz
+              elektronisch an das Finanzamt zu übermitteln (§ 5b EStG). Buchfink erzeugt den
+              Datensatz aus der Gliederung dieses Geschäftsjahres; übermittelt wird er über das
+              Programm, das die Schnittstelle bedient.
+            </HelpPopover>
             <Button
               variant="secondary"
               icon={<Code className="w-4 h-4" strokeWidth={1.5} />}

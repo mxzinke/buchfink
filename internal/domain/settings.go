@@ -78,6 +78,23 @@ type CompanySettings struct {
 	// Vormonat auf der Aufgabenliste erscheint. Null heißt: bis zum Ende des
 	// Folgemonats.
 	CommitGraceDays int `json:"commitGraceDays"`
+	// InvoiceCheckThreshold ist der Betrag, ab dem ein Eingangsbeleg einen
+	// Leistungsnachweis tragen muss (RECH-08).
+	//
+	// Eine Grenze und keine Pflicht für jeden Beleg: den Kaffeekassenbon gegen
+	// eine Bestellung zu prüfen, kostet mehr, als er wert ist. Oberhalb der
+	// Grenze ist der Vermerk das, was die sachliche Richtigkeit belegt — ohne
+	// ihn steht später nur die Rechnung da und niemand, der sie geprüft hat.
+	//
+	// Null heißt: die Voreinstellung von 1.000 Euro — nicht „kein Nachweis
+	// verlangt". Ein Formular, das dieses Feld nicht kennt, schickt eine Null,
+	// und eine Null, die die Prüfregel stumm abschaltete, wäre ein
+	// Kontrollsystem, das sich durch Unterlassen ausschalten lässt. Wer keinen
+	// Nachweis will, setzt die Grenze hoch.
+	InvoiceCheckThreshold Cents `json:"invoiceCheckThreshold"`
+	// DunningLevels ist die eingestellte Stufenfolge des Mahnwesens. Leer
+	// heißt: die Voreinstellung (DefaultDunningLevels).
+	DunningLevels []DunningLevel `json:"dunningLevels"`
 	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
 	// fest — und ist normalerweise leer.
 	//
