@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Laufende Buchhaltung — Buchfink</title>
+    <meta
+      name="description"
+      content="Bank und Zahlungen, Belege, Journal, Ausgangsrechnungen und Anzahlungen in Buchfink: was das Programm tut und was die Anwenderin tut."
+    />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <a href="buchhaltung.html" aria-current="page">Laufende Buchhaltung</a>
+          <a href="umsatzsteuer.html">Umsatzsteuer</a>
+          <a href="abschluss.html">Abschluss</a>
+          <a href="nachweise.html">Nachweise</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+          <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Laufende Buchhaltung</h1>
+          <p class="pagehead__lead">
+            Der Alltag beginnt beim Kontoauszug und endet im Journal. Buchfink rechnet Buchungssatz
+            und Steuer aus dem, was schon da ist: aus dem Beleg, aus der Rechnung, aus der
+            zugeordneten Zahlung. Alle Bilder stammen aus der laufenden Oberfläche mit den Daten
+            einer erfundenen Beispielfirma; ein Klick öffnet sie in voller Größe.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Bank &amp; Zahlungen</p>
+              <h2 class="feature__title">Vom Kontoauszug zur Buchung</h2>
+              <p class="feature__body">
+                Buchfink liest den CAMT.053-Auszug aus dem Onlinebanking ein und stellt die
+                Umsätze ohne Zuordnung als Liste zusammen. Zu jedem Umsatz schlägt es den offenen
+                Posten vor, der nach Betrag, Verwendungszweck, Rechnungsnummer und Datumsnähe
+                passt; Sammelzahlungen und gelernte Regeln gehen in den Vorschlag ein. Die
+                Anwenderin öffnet den Umsatz, prüft den Vorschlag und bestätigt ihn. Erst dann
+                entsteht die Buchung — mit Skonto, Bankgebühr und Differenzgrund, wenn die Summe
+                nicht genau trifft.
+              </p>
+            </div>
+            <div class="shot-stack">
+              <figure class="shot">
+                <a href="assets/screenshots/bank.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/bank.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Seite „Bank und Zahlungen“ mit der Liste offener Bankumsätze: Datum, Zahlungspartner, Verwendungszweck und Betrag."
+                  />
+                </a>
+                <figcaption>Die Umsätze, die noch keiner Buchung zugeordnet sind.</figcaption>
+              </figure>
+              <figure class="shot">
+                <a href="assets/screenshots/bank-zuordnung.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/bank-zuordnung.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Dialog zum Zuordnen eines Bankumsatzes mit vorgewähltem Vorschlag und dem Hinweis, dass die Zuordnung zum Kontoauszug passt."
+                  />
+                </a>
+                <figcaption>Der beste Vorschlag ist vorgewählt; bestätigt wird von Hand.</figcaption>
+              </figure>
+            </div>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Mahnwesen</p>
+              <h2 class="feature__title">Überfällige Forderungen anmahnen</h2>
+              <p class="feature__body">
+                Buchfink führt die offenen Posten mit Fälligkeit und rechnet je Kunde die
+                Mahnstufe, die taggenauen Verzugszinsen nach § 288 BGB auf dem datierten
+                Basiszinssatz und die Pauschale von 40 Euro. Die Anwenderin wählt die Kunden aus,
+                setzt das Datum des Schreibens und lässt die Mahnschreiben erzeugen; jedes wird
+                als Dokument abgelegt und steht danach im Verlauf.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/mahnwesen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/mahnwesen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Reiter „Mahnwesen“ mit Mahnvorschlägen je Kunde, Mahnstufe, Forderung, Zinsen, Gebühr und dem Verlauf der erzeugten Schreiben."
+                />
+              </a>
+              <figcaption>Mahnwesen und Zahlungsabgleich wohnen auf derselben Seite.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Belege</p>
+              <h2 class="feature__title">Erst ablegen, dann buchen</h2>
+              <p class="feature__body">
+                Ein Beleg wird unverändert abgelegt und unter seinem eigenen SHA256 gespeichert;
+                gleicher Inhalt liegt nur einmal da. Steckt in der Rechnung ein Datensatz nach
+                ZUGFeRD, Factur-X oder XRechnung, liest Buchfink ihn, prüft ihn gegen das
+                Regelwerk der Norm und macht daraus einen Buchungsvorschlag. Die Anwenderin
+                ergänzt die Kopfdaten — Belegart, Belegdatum, Aussteller, Betrag — und wählt die
+                Buchungsgruppe; welches Konto zutrifft, sagt keine Rechnung. Ohne Kopfdaten nimmt
+                Buchfink die Buchung nicht an.
+              </p>
+            </div>
+            <div class="shot-stack">
+              <figure class="shot">
+                <a href="assets/screenshots/belege.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/belege.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Belegansicht mit der Belegliste links, der Belegvorschau in der Mitte und dem Buchungsformular mit gerechnetem Buchungssatz rechts."
+                  />
+                </a>
+                <figcaption>Die Rechnung bleibt sichtbar, während gebucht wird.</figcaption>
+              </figure>
+              <figure class="shot">
+                <a href="assets/screenshots/belege-kopfdaten.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/belege-kopfdaten.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Dialog „Kopfdaten zu Beleg“ mit Belegart, Belegdatum, Aussteller, Betreff, Bruttobetrag und Steuerbetrag."
+                  />
+                </a>
+                <figcaption>Aus der Belegart folgt die Aufbewahrungsfrist.</figcaption>
+              </figure>
+            </div>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Journal</p>
+              <h2 class="feature__title">Jede Buchung mit ihrem Weg zurück</h2>
+              <p class="feature__body">
+                Das Journal führt alle Buchungen des Geschäftsjahres mit fortlaufender Nummer; jede
+                lässt sich aufklappen und zeigt Soll, Haben und die Summe. Ein Fehler wird nicht
+                überschrieben, sondern storniert; Storno und Neubuchung bleiben stehen und
+                verweisen aufeinander. Von der Buchung führt ein Klick auf ihren Beleg — derselbe
+                Weg, den die Betriebsprüfung geht.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/journal.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/journal.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Journal mit fortlaufenden Buchungsnummern, einer markierten Generalumkehr und einem aufgeklappten Buchungssatz mit Soll und Haben."
+                />
+              </a>
+              <figcaption>Storno und Neubuchung stehen nebeneinander.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Rechnungen</p>
+              <h2 class="feature__title">Ausgangsrechnungen mit Nummer und Buchung in einem Zug</h2>
+              <p class="feature__body">
+                Buchfink prüft vor der Nummernvergabe die Pflichtangaben des § 14 Abs. 4 UStG und
+                erzeugt Rechnungsnummer, Datensatz und Buchung in einer Transaktion. Ausgegeben
+                wird ein ZUGFeRD-PDF oder eine XRechnung im CII-Profil, je nach Empfänger. Die
+                Anwenderin erfasst Kunde, Positionen und Steuerfall; Storno und Korrektur laufen
+                als eigene Dokumente mit Bezug in beide Richtungen.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/rechnungen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/rechnungen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Rechnungsliste mit Nummer, Datum, Kunde, Betrag und Zahlungsstand der ausgestellten Ausgangsrechnungen."
+                />
+              </a>
+              <figcaption>Nummernlücken meldet der Prüfbericht.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Anzahlungen</p>
+              <h2 class="feature__title">Abschläge und Schlussrechnung als ein Verbund</h2>
+              <p class="feature__body">
+                Ein Rechnungsverbund hält den vereinbarten Gesamtbetrag, die Abschlagsrechnungen
+                und die Schlussrechnung zusammen. Buchfink rechnet, was abgerechnet, was
+                vereinnahmt und was noch offen ist; die Steuer auf einen Abschlag entsteht erst
+                mit dem Tag der Vereinnahmung. Die Anwenderin legt den Verbund an, stellt die
+                Abschläge und zum Schluss die Schlussrechnung, in der die Abschläge abgesetzt
+                werden.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/anzahlungen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/anzahlungen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Anzahlungen“ mit einem Rechnungsverbund: vereinbarter Betrag, abgerechnet, vereinnahmt und Stand."
+                />
+              </a>
+              <figcaption>Ein Verbund je Auftrag, mit seinem Stand.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Konten</p>
+              <h2 class="feature__title">SKR04, Kontoblatt und offene Posten</h2>
+              <p class="feature__body">
+                Der Kontenrahmen SKR04 liegt mit 1.855 Konten bei; die Kontenübersicht zeigt, was
+                bebucht ist, und öffnet zu jedem Konto das Kontoblatt mit allen Bewegungen des
+                Jahres. Daneben stehen die offenen Posten zu einem Stichtag mit Altersstruktur und
+                Restlaufzeiten. Die Anwenderin sucht ein Konto über seinen Namen; die Nummer muss
+                sie nicht kennen.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/konten.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/konten.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Kontenübersicht mit den bebuchten Konten des SKR04, ihren Soll- und Habensummen und dem Saldo."
+                />
+              </a>
+              <figcaption>Bebuchte Konten zuerst, der ganze Rahmen daneben.</figcaption>
+            </figure>
+          </article>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Was aus diesen Buchungen entsteht</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></p>
+              <p class="link__body">
+                Aus den Steuerzeilen der Buchungen entstehen Voranmeldung und Zusammenfassende
+                Meldung.
+              </p>
+            </div>
+            <div>
+              <p class="link__title"><a href="abschluss.html">Abschluss</a></p>
+              <p class="link__body">
+                Monatsabschluss, Abschlussbausteine, Bilanz und GuV, E-Bilanz.
+              </p>
+            </div>
+            <div>
+              <p class="link__title"><a href="nachweise.html">Nachweise und Sicherheit</a></p>
+              <p class="link__body">
+                Hashkette, Festschreibung, Protokoll, Aufbewahrung und das Prüferpaket.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
+              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nachweise und Sicherheit — Buchfink</title>
+    <meta name="description" content="Hashkette, Festschreibung mit Zeitstempel, Änderungsprotokoll, Aufbewahrungsfristen, Sicherung, Prüferpaket und Verfahrensdokumentation in Buchfink." />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <a href="buchhaltung.html">Laufende Buchhaltung</a>
+          <a href="umsatzsteuer.html">Umsatzsteuer</a>
+          <a href="abschluss.html">Abschluss</a>
+          <a href="nachweise.html" aria-current="page">Nachweise</a>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+          <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Nachweise und Sicherheit</h1>
+          <p class="pagehead__lead">
+            Eine Buchführung wird nicht dadurch ordnungsmäßig, dass niemand sie ändert, sondern
+            dadurch, dass eine Änderung sichtbar bliebe. Buchfink führt dafür zwei Hashketten, ein
+            Änderungsprotokoll mit Vorher und Nachher, Aufbewahrungsfristen je Beleg und einen
+            Ordner, der alles enthält, was eine Betriebsprüfung verlangt.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Unveränderbarkeit</p>
+              <h2 class="feature__title">Kette, Festschreibung und Zeitstempel</h2>
+              <p class="feature__body">
+                Jede Buchung enthält den Hash ihrer Vorgängerin; Buchfink rechnet die Kette nach
+                und nennt die Buchung, an der sie bricht. Ein abgeschlossener Zeitraum wird
+                festgeschrieben, und ein unabhängiger Dienst beglaubigt den Kettenkopf mit einem
+                RFC-3161-Zeitstempel. Die Anwenderin schreibt fest und kann den Zeitstempel
+                jederzeit nachprüfen; danach nimmt der Zeitraum keine rückdatierte Buchung mehr an,
+                und eine Korrektur läuft über den Storno.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/sicherheit.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/sicherheit.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Sicherheit und Protokoll“ mit dem Zustand der Hashkette, den festgeschriebenen Zeiträumen samt Zeitstempel und den Prüfläufen."
+                />
+              </a>
+              <figcaption>
+                Das Änderungsprotokoll selbst steht unter „Nachweise“; diese Seite verweist darauf.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Protokoll und Aufbewahrung</p>
+              <h2 class="feature__title">Wer wann was geändert hat</h2>
+              <p class="feature__body">
+                Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiterkennung
+                und Programmfassung fest, in einer eigenen verketteten Reihe. Auf denselben Reitern
+                stehen die Versionen und Datenübernahmen, die Aufbewahrungsfristen je Geschäftsjahr
+                mit Löschsperre und die Verfahrensdokumentation, die Buchfink aus dem laufenden
+                System erzeugt und als Fassung im Belegspeicher ablegt. Die Anwenderin filtert das
+                Protokoll nach Vorgang, Bereich, Bearbeiter und Zeitraum und lässt die Kette
+                nachrechnen.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/nachweise.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/nachweise.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Nachweise“ mit dem Zustand der Protokollkette und dem Änderungsprotokoll: Zeitpunkt, Vorgang, Bereich, Beschreibung, Bearbeiter und Programmfassung."
+                />
+              </a>
+              <figcaption>
+                Vier Reiter: Änderungsprotokoll, Versionen und Übernahmen, Aufbewahrung,
+                Verfahrensdokumentation.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Sicherung und Betriebsprüfung</p>
+              <h2 class="feature__title">Prüferpaket, Z3-Export und die tägliche Sicherung</h2>
+              <p class="feature__body">
+                Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen gewählten
+                Zielordner und protokolliert das Ergebnis; die Sicherung ist eine offene ZIP-Datei
+                mit Datenbank, Belegen, Dokumenten und Schlüsseldatei und lässt sich ohne das
+                Programm öffnen. Auf Knopfdruck entsteht das Prüferpaket in einem Ordner: der
+                Z3-Export nach dem Beschreibungsstandard mit index.xml und Feldbeschreibung, der
+                Archivexport der Belege mit Index, das Integritätsprotokoll, das
+                Schlüsselverzeichnis und die passende Fassung der Verfahrensdokumentation. Die
+                Anwenderin wählt den Zielordner und schaltet für Dritte den schreibgeschützten
+                Prüfermodus ein — mit Frist und Grund, protokolliert beim Ein- und Ausschalten.
+              </p>
+            </div>
+            <figure class="shot">
+              <a href="assets/screenshots/datenzugriff.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/datenzugriff.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Datenzugriff und Sicherung“ mit Prüfermodus, Datenüberlassung als Z3-Export, Belegprüflauf, den Sicherungsläufen und dem Schlüsselverzeichnis."
+                />
+              </a>
+              <figcaption>Wiederherstellen und danach die Integrität prüfen gehört zum Vorgang.</figcaption>
+            </figure>
+          </article>
+
+          <div class="note" style="margin-top: 56px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
+            </svg>
+            <div>
+              <p class="note__title">Ein Rechner, eine Bearbeiterin</p>
+              <p class="note__body">
+                Buchfink hat keine Benutzerverwaltung und keine Funktionstrennung. An ihrer Stelle
+                stehen die Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername an jeder
+                Buchung und jeder Protokollzeile sowie der schreibgeschützte Prüfermodus für
+                Dritte. Personenbezogene und geschäftliche Datenbankfelder liegen mit AES-256-GCM
+                verschlüsselt; der Schlüssel steht im Schlüsselbund des Betriebssystems, dazu gibt
+                es eine Wiederherstellungsdatei. Die Belegdateien selbst bleiben im Original, weil
+                die GoBD den unveränderten Eingangsbeleg verlangt.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Angrenzende Seiten</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="abschluss.html">Abschluss</a></p>
+              <p class="link__body">Der Prüfbericht läuft vor jeder Festschreibung.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="installation.html">Installation</a></p>
+              <p class="link__body">Wo der Datenordner liegt und wie er gesichert wird.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="roadmap.html">Roadmap</a></p>
+              <p class="link__body">Was in Betriebsprüfung und Aufbewahrung noch offen ist.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
+              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
