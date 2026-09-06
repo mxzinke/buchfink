@@ -165,7 +165,7 @@ Abschlussvorgänge werden geführte Wege.
 ```mermaid
 flowchart LR
     T["Täglich<br/>Bankumsätze zuordnen<br/>Belege ablegen<br/>Rechnungen schreiben"] --> M
-    M["Monatlich<br/>1 Prüfbericht<br/>2 Voranmeldung<br/>3 Festschreiben"] --> J
+    M["Monatlich<br/>1 Prüfbericht<br/>2 Festschreiben<br/>3 Voranmeldung"] --> J
     J["Jährlich<br/>1 Prüfbericht<br/>2 AfA, Abgrenzung, Rückstellung<br/>3 Bilanz und GuV<br/>4 Aufstellen, feststellen<br/>5 E-Bilanz, Offenlegung<br/>6 Saldenvortrag"] --> T
 ```
 
@@ -173,8 +173,12 @@ Zwei Ansichten sind mit den Wellen 5b und 5c dazugekommen, weil ihr Vorgang
 nicht in einen Dialog passt: „Anzahlungen" führt den Rechnungsverbund mit
 Abschlägen, Vereinnahmung und Schlussrechnung, und „Nebenpflichten" bündelt
 das Verzeichnis nach § 15a UStG, die USt-IdNr.-Bestätigungen, den Belegnachweis,
-die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Die
-Rechnungs- und Belegdialoge verweisen dorthin, statt die Vorgänge zu
+die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Mit Welle 6
+kam „Nachweise" dazu: das Änderungsprotokoll mit Vorher und Nachher, die
+Versionen und Datenübernahmen, die Aufbewahrungsfristen mit Holds und
+Löschung sowie die Verfahrensdokumentation; die Seite „Sicherheit und
+Protokoll" verweist dorthin und führt das Protokoll nicht mehr selbst. Die
+Rechnungs- und Belegdialoge verweisen auf diese Seiten, statt die Vorgänge zu
 verdoppeln.
 
 ### 6.1 Die Übersicht ist eine Aufgabenliste
