@@ -159,8 +159,9 @@ erDiagram
 ## 6. Bedienkonzept: der Jahreslauf als Rückgrat
 
 Das Menü bleibt (Übersicht, Buchhaltung, Stammdaten, Auswertungen, Verwaltung).
-Was sich ändert, ist die Übersicht: sie wird zur Aufgabenliste, und die beiden
-Abschlussvorgänge werden geführte Wege.
+Mit Welle 7 ist die Gruppe „Übersicht" die Aufgabenliste und trägt nur noch
+diesen einen Eintrag; die beiden Abschlussvorgänge sind geführte Wege
+geworden.
 
 ```mermaid
 flowchart LR
@@ -181,50 +182,77 @@ Protokoll" verweist dorthin und führt das Protokoll nicht mehr selbst. Die
 Rechnungs- und Belegdialoge verweisen auf diese Seiten, statt die Vorgänge zu
 verdoppeln.
 
-### 6.1 Die Übersicht ist eine Aufgabenliste
+### 6.1 Die Startseite ist eine Aufgabenliste
 
-Beim Start sieht die Anwenderin keine Kennzahlen, sondern was ansteht, in
-dieser Reihenfolge:
+Beim Start steht die Aufgabenliste, und die Kennzahlen stehen darunter auf
+derselben Seite. Die frühere Seite „Übersicht" ist darin aufgegangen: sie
+beantwortete dieselbe Frage ein zweites Mal und wäre irgendwann die veraltete
+von beiden gewesen.
 
-1. **Überfällig.** Voranmeldung nicht bestätigt, Vormonat nicht
-   festgeschrieben (GoBD-Frist Folgemonat), Belege älter als zehn Tage ohne
-   Buchung, Rechnungen ohne Zahlung über Zahlungsziel.
-2. **Offen.** Bankumsätze ohne Zuordnung, Belege ohne Buchung, Prüfbefunde
-   aus dem letzten Prüflauf.
-3. **Demnächst.** Fristen der nächsten dreißig Tage: Voranmeldung,
-   Offenlegung, Aufstellung, ablaufende Dokumente am Anlagegut.
+`TaskService.Tasks` (internal/service/task_service.go) rechnet nichts selbst.
+Der Dienst fragt die Dienste, die die jeweilige Sache führen, und übersetzt
+deren Antwort in Zeilen; jede Quelle hängt als eigene kleine Schnittstelle
+daran und darf fehlen, ohne dass die Liste ausbleibt. Fällt eine Quelle mit
+einem Fehler aus, fehlt ihre Zeile und der erste Bildschirm entsteht trotzdem.
+Die Quellen, so wie sie gebaut sind:
 
-Jede Zeile hat drei Teile: was zu tun ist, warum (ein Satz mit der Norm hinter
-dem Erklärzeichen) und einen Knopf, der an die richtige Stelle führt. Die
-Kennzahlen (Bankguthaben, Ergebnis, offene Posten) rutschen darunter.
+| Quelle | Was daraus wird |
+|---|---|
+| Prüflauf bis heute | jeder Befund als eigene Zeile, blockierende zuerst |
+| Fristen und Abschlusstermine | Voranmeldung, Zusammenfassende Meldung, Festschreibung, Aufstellung, Offenlegung |
+| Bankumsätze | die ohne Zuordnung |
+| Belege | abgelegt ohne Buchung, länger als die Erfassungsfrist liegen geblieben, ohne Leistungsnachweis über der Nachweisgrenze |
+| Offene Posten | überfällige Forderungen mit Zahl und Betrag |
+| Anlagendokumente | abgelaufene und in den nächsten dreißig Tagen ablaufende |
+| Freistellungsbescheinigungen | dieselben beiden Fälle |
+| Sicherung | keine seit drei Tagen, oder der letzte Lauf ist gescheitert |
+| Prüfermodus | eingeschaltet, mit Frist und Grund |
+| Jahreswechsel | Differenz im Saldenvortrag, offener Vortrag, nicht festgestellter Vorjahresabschluss nach Ablauf der Aufstellungsfrist, offene Ergebnisverwendung |
+
+Sortiert wird in drei Gruppen: **überfällig** sind verstrichene Fristen,
+**offen** ist die laufende Arbeit ohne Frist, **demnächst** sind die Fristen
+der nächsten dreißig Tage. Eine vierte Gruppe („irgendwann") wäre eine Liste,
+die niemand liest. Jede Zeile hat drei Teile: was zu tun ist, warum (ein Satz
+mit der Norm hinter dem Erklärzeichen) und einen Knopf, der an die Stelle
+führt, an der die Sache zu erledigen ist.
 
 ### 6.2 Monatsabschluss in drei Schritten
 
-Der Monatsabschluss ist ein Dialog mit drei Schritten, von der Fristenseite
-und von der Aufgabenliste aus erreichbar.
+Der Monatsabschluss ist ein Dialog mit drei Schritten, von der Aufgabenliste
+und von der Fristenseite aus erreichbar. Den Stand jedes Schrittes rechnet
+`MonthCloseService.State` (internal/service/month_close_service.go) aus
+Prüflauf, Festschreibung und Voranmeldung; der Dienst bucht und schreibt
+nichts fest, er sagt, wo der Monat steht.
 
 | Schritt | Was Buchfink tut | Was die Anwenderin tut |
 |---|---|---|
-| 1 Prüfbericht | Läuft die Plausibilitätsprüfung: unausgeglichene Konten, Buchungen ohne Beleg, Interimskonten, offene Bankumsätze, Doppelbelege. | Klärt Befunde oder übergeht sie mit Begründung. |
-| 2 Festschreiben | Schließt den Monat ab, holt den Zeitstempel. Danach ändert sich das Kennziffernblatt nicht mehr. | Bestätigt. |
-| 3 Voranmeldung | Zeigt alle Kennziffern des Vordrucks mit Drill-down bis zur Buchung, erzeugt das Kennziffernblatt als Datei. | Trägt die Werte in Mein ELSTER ein, erfasst danach Datum und Transferticket. |
+| 1 Prüfbericht | Läuft die Plausibilitätsprüfung bis zum Monatsende: Buchungen ohne Beleg, Belege ohne Buchung, Interimskonten, offene Bankumsätze, Doppelbelege, Nummernlücken. | Klärt Befunde über den Sprung an ihre Stelle oder übergeht sie mit Begründung. |
+| 2 Festschreiben | Schließt den Monat ab und holt den Zeitstempel. | Bestätigt. |
+| 3 Voranmeldung | Zeigt alle Kennziffern des Vordrucks mit Drill-down bis zur Buchung und erzeugt das Kennziffernblatt als Datei. | Trägt die Werte in Mein ELSTER ein und erfasst danach Datum und Transferticket. |
 
-Die Reihenfolge ist bewusst: Was gemeldet wird, muss vorher unveränderlich
-sein, sonst weicht die Buchführung später von der Meldung ab. Ein Monat ohne
+Die Reihenfolge ist eine Entscheidung: Was gemeldet wird, muss vorher
+unveränderlich sein, sonst weicht die Buchführung später von der Meldung ab,
+und die Abweichung fällt erst dem Prüfer auf. Deshalb steht die Festschreibung
+vor der Bestätigung der Übermittlung, und die Bestätigung setzt sie voraus. Das
+Kennziffernblatt ist von Anfang an sichtbar — wer die Werte erst nach der
+Festschreibung sähe, hätte sie in Mein ELSTER schon eingetragen. Ein Monat ohne
 Voranmeldung (Zeitraum Quartal) endet nach Schritt 2; am Quartalsende folgt
 Schritt 3 über die drei Monate.
 
 ### 6.3 Jahresabschluss als geführter Weg
 
 Der Jahresabschluss ist die Stelle, an der ein Nicht-Buchhalter bisher
-aussteigt. Buchfink führt in sechs Stationen, jede mit einer Vorschau der
-Buchungen, die entstehen, und einem Zurück.
+aussteigt. Die Jahresabschluss-Seite führt deshalb einen Weg durch die
+vierzehn Abschlussbausteine, mit einer Fortschrittsanzeige („4 von 14") und
+dem nächsten offenen Schritt darüber. Fachlich sind es sechs Stationen:
 
 1. **Prüfbericht** wie im Monat, zusätzlich: Konten ohne Bilanzposition,
-   Anlagen ohne AfA, offene Posten älter als ein Jahr (Wertberichtigung?).
+   Anlagen ohne AfA, nicht abgezinste Rückstellungen, übersprungene
+   Abschlussbausteine.
 2. **Abschlussbuchungen** in vorgegebener Reihenfolge, jede optional
-   überspringbar mit Hinweis: AfA-Lauf, Rechnungsabgrenzung, Rückstellungen,
-   Inventurwert der Vorräte, Umsatzsteuer-Verrechnung, Steuerrückstellung.
+   überspringbar mit Grund: AfA-Lauf, Rechnungsabgrenzung, Rückstellungen,
+   Inventurwert der Vorräte, Umsatzsteuer-Verrechnung, Steuerrückstellung,
+   Wertaufholung, Vorsteuerberichtigung nach § 15a UStG.
 3. **Bilanz und GuV** nach §§ 266, 275 HGB in der Gliederung der
    Größenklasse, mit Vorjahresspalte, als Datei.
 4. **Aufstellen und feststellen.** Statuswechsel mit Datum; der
@@ -233,6 +261,34 @@ Buchungen, die entstehen, und einem Zurück.
 5. **E-Bilanz und Offenlegung.** XBRL-Datei erzeugen, Übermittlung
    bestätigen; Offenlegungsumfang aus der Größenklasse, Frist und Nachweis.
 6. **Saldenvortrag** ins neue Jahr, mit Ergebnisverwendung.
+
+Zwei Entscheidungen tragen den Weg:
+
+**Der Fortschritt kommt aus dem Backend.** `ClosingSteps` liefert die Zahl der
+erledigten, der übersprungenen und der insgesamt vorhandenen Schritte
+(internal/service/closing_steps_service.go). Ein übersprungener Baustein zählt
+als abgeschlossen und nicht als getan. Die Ansicht zählt nicht nach: wer
+dieselbe Frage zweimal beantwortet, bekommt beim nächsten Baustein zwei
+Antworten.
+
+**Ein Schritt öffnet seine Arbeit dort, wo sie wohnt.** Der Knopf springt auf
+den Reiter der Abschlussbausteine (Abgrenzung, Rückstellungen, Vorräte,
+Umsatzsteuer, Steuern, Ergebnis), auf den Reiter der Nebenpflichten
+(Wertaufholung, Fremdwährung, Vorsteuerberichtigung) oder auf die Seite, die
+den Baustein führt (Anlagevermögen, Fristen, GuV & Bilanz, E-Bilanz); die
+Feststellung springt auf den Abschnitt dieser Seite. Ein eigener Dialog je
+Baustein würde dieselbe Maske ein zweites Mal bauen und liefe von der Seite
+weg, auf der der Baustein tatsächlich gepflegt wird; ein Skript hält die
+Zuordnung vollständig (scripts/check_closing_steps.py, `task check:steps`),
+damit ein neuer Baustein nicht ohne Ziel dasteht.
+
+Zurück ist möglich, solange nichts festgeschrieben ist: ein übersprungener
+Baustein lässt sich mit Grund wieder öffnen, und der Grund geht ins
+Änderungsprotokoll. Zwei Sperren beenden das in der Reihenfolge, in der sie
+eintreten — die Jahres-Festschreibung (§ 146 Abs. 4 AO) und die Feststellung
+(§ 42a Abs. 1 GmbHG). Danach führt der Weg zurück über den Storno der Buchung
+oder die Rücksetzung der Feststellung; der Knopf bleibt stehen und nennt am
+Zeiger den Grund, statt zu verschwinden.
 
 ### 6.4 Sprache
 
@@ -243,6 +299,15 @@ mit Soll und Haben steht in der Vorschau jedes Vorgangs und im Journal, damit
 der Steuerberater ihn sieht und die Anwenderin ihn lernen kann, wenn sie will.
 Das Design-Konzept regelt die drei Stufen der Erklärung (Tooltip, Popover,
 Dialog); jede gesetzliche Prüfung nennt in der zweiten Stufe die Norm.
+
+Geprüft wird das: `scripts/check_ui_text.py` (in `task check` über das Ziel
+`check:text`) liest die Seiten unter frontend/src/pages und meldet jeden
+Paragraphen, der in einer Arbeitsansicht steht und nicht in ihrem Umkreis eine
+Erklärkomponente hat. Hinweistexte unter einem Feld und der Kontext unter einer
+Abschnittsüberschrift zählen dabei als Arbeitsansicht, auch wenn drei Zeilen
+weiter ein Erklärzeichen sitzt. Die Heuristik ist grob, weil eine genaue
+Prüfung den Text verstehen müsste; sie hält die Norm dort, wo sie erklärt
+wird.
 
 ### 6.5 Das Prüferpaket
 
@@ -281,7 +346,11 @@ Frage, was einen Jahreslauf blockiert.
 | 5b | Rechnungsnummer in einer Transaktion, Pflichtangaben, XRechnung, Storno- und Korrekturbelege, Kleinbetrag, Anzahlungen als Rechnungsverbund, Ausbuchung | RECH-02 bis RECH-09, BEL-09, UST-02 | Die Ausgangsrechnung ist der häufigste Beleg; ihre Fehler wandern in jede Meldung. |
 | 5c | Vorsteuerkopplung, Vorsteuerschlüssel, Verzeichnis nach § 15a UStG, USt-IdNr.-Bestätigung, Belegnachweis, Geschenke, Fremdwährung, Abschreibungsregeln als Ressource | UST-05 bis UST-07, RECH-07, BEW-03, BEW-10, BEW-12 | Nebenpflichten, die im laufenden Jahr anfallen und im Abschluss nicht mehr nachholbar sind. |
 | 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
-| 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen | Abschnitt 6, QUE-05 | Die Bedienung legt sich über die fertigen Funktionen. |
+| 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/pruefszenario.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
 
-Welche Kriterien in welcher Welle liegen und was davon schon gebaut ist, steht
-mit Fundstellen im [Anforderungskatalog](anforderungskatalog.md).
+Nach Welle 7 folgt keine weitere. Was offen geblieben ist, trägt im
+[Anforderungskatalog](anforderungskatalog.md) in der Spalte Welle den Vermerk
+„Politur" und nennt in der Spalte Grund, woran es hängt: an einer Entscheidung,
+an einem Objekt, das Buchfink nicht führt, oder an einer Handlung außerhalb des
+Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
+steht dort mit Fundstellen.
