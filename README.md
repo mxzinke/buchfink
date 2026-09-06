@@ -10,10 +10,11 @@
 </p>
 
 <p align="center">
-  <em>In Entwicklung. Was heute trägt, wo eine Funktion an ihrer Grenze endet und was
-  noch fehlt, steht in <a href="./docs/stand-der-umsetzung.md">docs/stand-der-umsetzung.md</a>.
-  Für ein volles Geschäftsjahr fehlt derzeit vor allem der Jahreswechsel mit
-  Saldenvortrag.</em>
+  <em>In Entwicklung, vor der ersten Erprobung. Was heute trägt, wo eine Funktion an
+  ihrer Grenze endet und was noch fehlt, steht in
+  <a href="./docs/stand-der-umsetzung.md">docs/stand-der-umsetzung.md</a>, jedes
+  Kriterium mit Norm und Fundstelle in
+  <a href="./docs/anforderungskatalog.md">docs/anforderungskatalog.md</a>.</em>
 </p>
 
 <p align="center">
@@ -44,6 +45,11 @@ Buchfink ist speziell für Unternehmen konzipiert, die zur **doppelten Buchführ
 - **Personenhandelsgesellschaften:** z. B. GmbH & Co. KG, KG, OHG
 - **Bilanzierende Einzelunternehmen & Kaufleute (e.K.)**
 
+Buchfink ist für Menschen ohne Buchhaltungsausbildung gebaut: die Oberfläche
+spricht in Vorgängen statt in Konten, und die Norm steht hinter dem
+Erklärzeichen, nicht in der Arbeitsansicht. Anwender gibt es noch keine — der
+Stand ist vor der ersten Erprobung.
+
 ### ⚠️ Wichtiger Hinweis: Nicht geeignet für EÜR (Einnahmen-Überschuss-Rechnung)
 Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunternehmer geeignet**, die lediglich eine einfache **Einnahmen-Überschuss-Rechnung (EÜR nach § 4 Abs. 3 EStG)** durchführen.
 - Buchfink unterstützt **keine EÜR**.
@@ -54,9 +60,10 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 ### Grundprinzipien
 
 - **Local-First:** Alle Daten verbleiben auf dem eigenen Rechner in einer standardisierten SQLite-Datei je Mandant.
-- **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage, Festschreibung mit Zeitstempel und integriertes Audit-Log. Der Datenexport für die Betriebsprüfung (Z3) fehlt noch.
-- **Automatisierungsfokus:** Der Alltag beginnt beim Kontoauszug: eine Zahlung wird ihrem offenen Posten oder einem Beleg zugeordnet, den Buchungssatz und die Steuer rechnet Buchfink daraus. Welcher Posten zu welcher Zahlung gehört, entscheidet heute noch der Nutzer.
-- **E-Rechnung:** Eingehende ZUGFeRD-, Factur-X- und XRechnung-Dateien werden erkannt, gelesen und gegen das Regelwerk geprüft. Ausgestellt wird als ZUGFeRD-PDF.
+- **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage, Festschreibung mit Zeitstempel und ein verkettetes Änderungsprotokoll. Für die Betriebsprüfung entsteht der Z3-Export nach dem Beschreibungsstandard.
+- **Der Jahreslauf ist das Rückgrat:** Die Aufgabenliste ist die Startseite und sagt, was heute zu tun ist. Der Monatsabschluss läuft in drei Schritten (Prüfbericht, Festschreiben, Voranmeldung), der Jahresabschluss als geführter Weg durch die Abschlussbausteine. Siehe [docs/architektur.md](./docs/architektur.md), Abschnitt 6.
+- **Automatisierungsfokus:** Der Alltag beginnt beim Kontoauszug: eine Zahlung wird ihrem offenen Posten oder einem Beleg zugeordnet, den Buchungssatz und die Steuer rechnet Buchfink daraus. Den passenden Posten schlägt Buchfink vor, gebucht wird erst nach Bestätigung.
+- **E-Rechnung:** Eingehende ZUGFeRD-, Factur-X- und XRechnung-Dateien werden erkannt, gelesen und gegen das Regelwerk geprüft. Ausgestellt wird als ZUGFeRD-PDF oder als XRechnung im CII-Profil.
 - **Verschlüsselt abgelegt:** Personenbezogene und geschäftliche Datenbankfelder liegen mit AES-256-GCM verschlüsselt, der Schlüssel im Schlüsselbund des Betriebssystems.
 
 ---
@@ -64,24 +71,29 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 ## Kernfunktionen
 
 1. **Kontenverwaltung (SKR04)**
-   - Vorinstallierter, erweiterbarer SKR04-Kontenrahmen mit Such- und Hilfefunktion für steuerliche Einsteiger.
+   - Vorinstallierter SKR04-Kontenrahmen mit Such- und Hilfefunktion für steuerliche Einsteiger.
 2. **Journal aus dem Belegfluss**
    - Transparente Soll/Haben-Ansicht. Den Buchungssatz und die Steuer rechnet Buchfink aus dem erfassten Beleg, aus der Rechnung oder aus der zugeordneten Zahlung.
-   - Lückenlose Belegnummerierung und GoBD-Korrekturen ausschließlich per Storno.
-3. **Kunden & Lieferanten (Offene Posten)**
-   - Stammdatenverwaltung, OPOS-Liste und Zahlungsausgleich mit Teilzahlung, Skonto und Differenzgründen.
-4. **Rechnungserstellung mit Typst & ZUGFeRD**
-   - Professionelles Rechnungslayout via [Typst](https://typst.app/).
-   - Generierung von ZUGFeRD-/Factur-X-konformen PDF/A-3-Dokumenten mit eingebettetem XML.
-5. **E-Rechnungs-Empfang**
+   - Lückenlose Belegnummerierung und GoBD-Korrekturen ausschließlich per Storno, mit Verweis auf die Neubuchung.
+3. **Geschäftsjahr und Saldenvortrag**
+   - Das Geschäftsjahr ist eine Entität mit Beginn, Ende, Rumpfjahr-Kennzeichen, Vortragsstand und Abschlussstatus.
+   - Der Saldenvortrag bringt Bestandskonten und offene Posten ins Folgejahr; eine Differenz wird ausgewiesen und lässt sich durch Storno und Neuvortrag korrigieren.
+4. **Kunden & Lieferanten (Offene Posten)**
+   - Stammdatenverwaltung, OPOS-Liste zum Stichtag mit Altersstruktur und Restlaufzeiten, Zahlungsausgleich mit Teilzahlung, Skonto und Differenzgründen, Ausbuchung uneinbringlicher Posten.
+   - Mahnwesen mit konfigurierbaren Stufen, taggenauen Verzugszinsen nach § 288 BGB auf dem datierten Basiszinssatz und der Pauschale von 40 Euro; das Mahnschreiben wird als Dokument abgelegt.
+5. **Rechnungswesen (Ausgangsrechnungen)**
+   - Rechnungslayout via [Typst](https://typst.app/), Ausgabe als ZUGFeRD-/Factur-X-konformes PDF/A-3 mit eingebettetem XML oder als XRechnung im CII-Profil, Zielformat je Empfänger.
+   - Rechnungsnummer, Datensatz und Buchung entstehen in einer Transaktion; die Pflichtangaben des § 14 Abs. 4 UStG werden vor der Nummernvergabe geprüft, Nummernlücken meldet der Prüfbericht.
+   - Storno- und Korrekturbeleg als eigene Dokumente mit Bezug in beide Richtungen, Kleinbetragsrechnung nach § 33 UStDV, Anzahlungen als Rechnungsverbund mit Vereinnahmung und Schlussrechnung.
+6. **E-Rechnungs-Empfang**
    - Erkennt ZUGFeRD, Factur-X und XRechnung im eingegangenen Beleg, liest CII und UBL und prüft beides gegen das Regelwerk der Norm.
    - Aus dem gelesenen Datensatz entsteht ein Buchungsvorschlag; der Beleg bleibt unverändert, wie er ankam.
-6. **Bankumsatz-Import (CAMT.053)**
+7. **Bankumsatz-Import (CAMT.053)**
    - Import von standardisierten CAMT.053-Bankauszügen.
-   - Zu einem Umsatz zeigt Buchfink die offenen Posten der passenden Richtung; welcher davon gemeint ist, wählt der Nutzer. Einen Vorschlag nach Betrag oder Verwendungszweck gibt es noch nicht.
-7. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
+   - Zu einem Umsatz schlägt Buchfink den offenen Posten vor — nach Betrag, Verwendungszweck, Rechnungsnummer und Datumsnähe, mit Sammelzahlung und gelernten Regeln. Gebucht wird nach Bestätigung.
+8. **Anlagevermögen (Anlagenverzeichnis, AfA, Anlagenspiegel)**
    - Verzeichnis für Sach-, Finanz- und immaterielle Anlagen mit Inventarnummer, Bewegungen und jahresübergreifender Kartei.
-   - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, Sonderabschreibung nach § 7g Abs. 5 EStG samt Restwertverteilung des § 7a Abs. 9 EStG, außerplanmäßige Abschreibung und Zuschreibung.
+   - Wertgrenzen des § 6 Abs. 2 und 2a EStG (GWG, Sammelposten), lineare und degressive AfA mit automatischem Übergang, Staffel des § 7 Abs. 2a EStG, Gebäudesätze des § 7 Abs. 4 EStG, Sonderabschreibung nach § 7g Abs. 5 EStG samt Restwertverteilung des § 7a Abs. 9 EStG, außerplanmäßige Abschreibung und Zuschreibung — die Sätze stehen als datierte Ressource neben dem Code.
    - Abschreibungslauf als Abschlussbuchung mit Vorschau; die Jahres-Festschreibung prüft vorher, ob die AfA vollständig gebucht ist.
    - Fertigstellung von Anlagen im Bau, Erhaltungsaufwand und laufende Erträge am Anlagegut, Stückzahlen und Fremdwährungsbewertung nach § 256a HGB bei Finanzanlagen.
    - Verträge, Gutachten, Zulassungen und Policen am Anlagegut ablegen — mit Ablaufdatum, das wieder gelesen wird.
@@ -89,26 +101,49 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Investmentanteile (ETF, Aktien- und Immobilienfonds): Teilfreistellung nach § 20 InvStG und Vorabpauschale nach § 18 InvStG als außerbilanzielle Nebenrechnung.
    - Skonto auf eine Anlagenrechnung mindert im Zahlungsflow die Anschaffungskosten (§ 255 Abs. 1 Satz 3 HGB) statt den Aufwand.
    - Abgang mit Erlöskonto nach Buchgewinn oder -verlust, Teilabgang nach Stück bei Finanzanlagen und Anlagenspiegel nach § 284 Abs. 3 HGB — auch als Kontennachweis in der E-Bilanz.
-8. **Auswertungen**
-   - Kontenblatt, Summen- und Saldenliste, Gewinn- und Verlustrechnung, Bilanz und eine Umsatzsteuer-Übersicht, alle direkt aus den Buchungen des Geschäftsjahres.
-   - Bilanz und GuV sind heute nach Kontenklassen gruppiert, nicht nach § 266 und § 275 HGB gegliedert, und es gibt keine Vorjahresspalte und keine Ausgabe als Datei.
-   - Die Umsatzsteuer-Ansicht zeigt vier Kennziffern des amtlichen Vordrucks (81, 86, 66, 83) zum Abtippen in Mein ELSTER. Eine vollständige Voranmeldung ist sie nicht.
-9. **E-Bilanz-Export (XBRL)**
-   - Zuordnung der SKR04-Konten auf die E-Bilanz-Taxonomie, Erzeugung einer XBRL-Instanz mit Kontennachweis und Anlagenspiegel.
-   - Noch ein Gerüst: rund fünfzig Konten sind zugeordnet, aus dem GAAP-Modul werden drei Summenwerte geschrieben, eine Bilanz steht nicht in der Instanz. Vor einer Übermittlung über Mein ELSTER ist die Datei von Hand zu prüfen. Einzelheiten in [docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md).
-10. **Fremdwährung**
+9. **Abschlussbausteine**
+   - Rechnungsabgrenzung mit monatlicher Auflösung, Rückstellungen mit Abzinsung, Verbrauch und Auflösung, Inventurwert der Vorräte als Bestandsveränderung.
+   - Umsatzsteuer-Verrechnung auf die Zahllast, Steuerrückstellung, Abschluss der Erfolgskonten und Ergebnisverwendung mit Gesellschafterbeschluss.
+   - Verzeichnis der steuerlichen Wahlrechte nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung zur Steuerbilanz.
+10. **Auswertungen**
+   - Kontenblatt, Summen- und Saldenliste zu jedem Stichtag, Journal mit Volltextsuche über Jahresgrenzen und Ausgabe als CSV.
+11. **Bilanz und GuV nach §§ 266, 275 HGB**
+   - Gliederung im Backend aus denselben Kontensalden, mit Vorjahresspalte, Bilanzgewinn und Ausgabe als PDF und CSV.
+   - Größenklasse nach §§ 267, 267a HGB aus zwei aufeinanderfolgenden Stichtagen; sie setzt Gliederungstiefe, Anhangumfang und Offenlegungsumfang.
+   - Anhang mit Anlagenspiegel und Restlaufzeitengliederung aus den Buchungsdaten; für Kleinstgesellschaften die Angaben unter der Bilanz.
+12. **Umsatzsteuer und Meldewesen**
+   - Voranmeldung mit allen Kennziffern des Vordrucks USt 1 A aus den Steuerzeilen der Buchungen, mit Drill-down bis zur Buchung, Berichtigung, Dauerfristverlängerung und Ausgabe als Kennziffernblatt für Mein ELSTER.
+   - Zusammenfassende Meldung nach § 18a UStG mit Zeitraumbestimmung und Meldezeilen je USt-IdNr.
+   - Übermittlungsprotokoll mit Datum und Transferticket, nach der Erfassung unveränderlich.
+   - Prüfläufe vor jeder Festschreibung: dreizehn Regeln über Buchungen, Belege, Bank, Nummernkreise und Voranmeldung, im Jahreslauf vier weitere; blockierende Befunde halten die Festschreibung auf.
+   - Fristenseite mit Steuerterminen, Abschlussterminen und Gründungspflichten.
+13. **Steuerliche Nebenpflichten**
+   - Vorsteuerabzug an die geprüfte Rechnung gekoppelt, Vorsteuerschlüssel mit Aufteilungsmaßstab nach § 15 Abs. 4 UStG.
+   - Verzeichnis der Vorsteuerberichtigung nach § 15a UStG mit Meldung in Kennziffer 64.
+   - Qualifizierte Bestätigung der USt-IdNr. beim Bundeszentralamt vor der steuerfreien Lieferung, Belegnachweis nach §§ 17a, 17b UStDV je Lieferung.
+   - Geschenke und die weiteren Kategorien des § 4 Abs. 5 und 7 EStG auf eigenen Konten, Bewirtungsanteil als datierter Parameter.
+14. **E-Bilanz-Export (XBRL)**
+   - Die Instanz entsteht aus derselben Gliederung wie die Bilanz: Bilanz- und GuV-Positionen mit Vorjahreskontext, unverdichteter Kontennachweis, Anlagenspiegel und Überleitungsrechnung.
+   - Die Taxonomie liegt als Ressource neben dem Code (`internal/ebilanz/taxonomy_6.9.json`). Ihre Elementnamen sind nach der Systematik gebildet und tragen `verified: false`; vor der ersten Übermittlung sind sie gegen die amtliche Fassung abzugleichen.
+15. **Fremdwährung**
    - Kurs, Kursquelle und Kursdatum hängen an der Buchung und gehen in die Hash-Chain ein; Finanzanlagen werden nach § 256a HGB zum Stichtag bewertet.
-   - Die Kurse werden heute von Hand erfasst. Der Abruf der EZB-Referenzkurse ist vorbereitet, aber noch nicht an die Oberfläche angeschlossen.
-11. **Festschreibung, Audit-Log & Integrität**
+   - Die EZB-Referenzkurse werden abgerufen und lassen sich von Hand nachtragen.
+16. **Festschreibung, Änderungsprotokoll & Integrität**
    - Live-Prüfung der Hash-Chain in der Oberfläche.
-   - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf.
-   - Änderungsprotokoll über Buchungen, Belege und Stammdaten.
-12. **Gründung einer Kapitalgesellschaft**
+   - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf; der Zeitpunkt steht an der einzelnen Buchung.
+   - Änderungsprotokoll mit Vorher und Nachher in einer eigenen Hashkette, dazu Bearbeiterkennung, Programmfassung und Zeit in UTC an jeder Buchung.
+17. **Aufbewahrung, Sicherung und Datenzugriff**
+   - Aufbewahrungsfrist je Beleg aus seiner Art, mit Fristbeginn, frühestem Löschdatum und Aussetzung je Geschäftsjahr; die Löschung eines abgelaufenen Jahres ist ein Vorgang mit Archivexport davor und Protokoll danach.
+   - Z3-Export nach dem Beschreibungsstandard (Datendateien, `index.xml`, Feldbeschreibung, Schlüsselverzeichnis, Prüfpfad), Archivexport der Belege mit Index, Prüferpaket in einem Ordner.
+   - Schreibgeschützter Prüfermodus mit Frist und Grund, protokolliert beim Ein- und Ausschalten.
+   - Sicherung als offene ZIP-Datei mit Datenbank, Belegen, Dokumenten und Schlüsseldatei, Wiederherstellung mit anschließender Integritätsprüfung.
+   - Verfahrensdokumentation aus dem laufenden System, als Fassung im Belegspeicher abgelegt.
+18. **Gründung einer Kapitalgesellschaft**
    - Erfassung im Einrichtungsassistenten: Beurkundungsdatum, Stammkapital, Gesellschafter und der Gründungsaufwand laut Satzung. Aus dem Beurkundungsdatum folgen Rumpfgeschäftsjahr und Voranmeldungszeitraum.
    - Prüfung der Kapitalaufbringung vor der Anmeldung zum Handelsregister: Viertelregel je Geschäftsanteil und Untergrenze nach § 7 Abs. 2 GmbHG, Volleinzahlung und Sacheinlageverbot der UG nach § 5a Abs. 2 GmbHG, § 36a AktG bei der AG.
    - **Unterbilanzhaftung**: laufende Rechnung, um wie viel das Reinvermögen hinter dem Stammkapital zurückbleibt, aufgeteilt auf die Gesellschafter. Mit der Eintragung steht sie fest.
    - Gründungsbuchungen als Vorschlag mit Vorschau, und die Fristen der Gründung von der Gewerbeanmeldung bis zum Transparenzregister. Einzelheiten in [docs/anforderung-gruendung.md](./docs/anforderung-gruendung.md).
-13. **Mandanten & Verschlüsselung**
+19. **Mandanten & Verschlüsselung**
    - Mehrere Unternehmen nebeneinander, je eigener Datenordner und eigener Schlüssel.
    - Felder mit personenbezogenem oder geschäftlichem Inhalt liegen mit AES-256-GCM verschlüsselt in der Datenbank, dazu eine Wiederherstellungsdatei für den Fall eines verlorenen Schlüsselbunds. Siehe [docs/security-concept.md](./docs/security-concept.md).
 
@@ -137,8 +172,10 @@ buchfink-data/                        # Datenordner eines Mandanten
 - **Belegintegrität:** Originaldateien bleiben unverändert. Der Dateiname ist der SHA256 des Inhalts, gleicher Inhalt wird nur einmal abgelegt.
 - **Verschlüsselung:** Datenbankfelder mit personenbezogenem oder geschäftlichem Inhalt sind mit AES-256-GCM verschlüsselt. Die Belegdateien selbst bleiben bewusst im Original, weil die GoBD den unveränderten Eingangsbeleg verlangt.
 
-> Eine Sicherung des Datenordners und ein Rückspielweg fehlen bisher. Wer Buchfink
-> ernsthaft einsetzt, sichert den Ordner heute selbst.
+> Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen
+> gewählten Zielordner und bietet beim Start eine Wiederherstellung an, nach der
+> die Integritätsprüfung läuft. Die Sicherung ist eine ZIP-Datei mit Datenbank,
+> Belegen, Dokumenten und Schlüsseldatei; sie lässt sich ohne die Software öffnen.
 
 ---
 
@@ -206,7 +243,15 @@ Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das
    npm run dev
    ```
 
-4. **Desktop-Build erstellen:**
+4. **Prüfen, was vor einem Commit läuft:**
+   ```bash
+   task check          # gofmt, vet, Tests, check:design, check:bridge, check:text, check:steps
+   task check:text     # Norm in einer Arbeitsansicht statt hinter dem Erklärzeichen
+   task check:steps    # Abschlussbaustein ohne Ziel im geführten Weg
+   task check:clicks   # fährt das Prüfszenario ab und zählt die Klicks (braucht Chromium)
+   ```
+
+5. **Desktop-Build erstellen:**
    ```bash
    wails3 build
    # oder mit Taskfile:
@@ -229,20 +274,29 @@ buchfink/
 │   │   └── utils/          # Formatierung (Währung, Datum), Hilfsfunktionen
 │   └── package.json
 ├── internal/               # Go Backend Module
-│   ├── accounting/         # SKR04-Kontenplan, Buchungsgruppen, Steuerschlüssel, AfA, Hash-Chain
+│   ├── accounting/         # SKR04-Kontenplan, Buchungsgruppen, Steuerschlüssel, AfA, Größenklassen, Bilanzgliederung, Hash-Chain
+│   ├── actor/              # Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername
 │   ├── bank/               # CAMT.053-Parser
+│   ├── buildinfo/          # Programmfassung je Buchung
+│   ├── changelog/          # Programmstände, gehen mit der Datenüberlassung hinaus
 │   ├── currency/           # EZB-Referenzkurse
 │   ├── domain/             # Fachliche Typen und Repository-Schnittstellen
-│   ├── ebilanz/            # XBRL-Zuordnung & Instanzerzeugung
+│   ├── ebilanz/            # XBRL-Zuordnung, Taxonomie-Ressource & Instanzerzeugung
 │   ├── einvoice/           # E-Rechnung: CII, UBL, ZUGFeRD, XRechnung, Regelwerk
+│   ├── export/             # Z3-Datenüberlassung: CSV, index.xml, Feldbeschreibung
 │   ├── invoice/            # Ausgangsrechnung: ZUGFeRD-XML & Typst-Rendering
+│   ├── procdoc/            # Verfahrensdokumentation aus dem laufenden System
 │   ├── receiptstore/       # Belegablage unter SHA256
 │   ├── repository/         # GORM/SQLite-Persistenz & Feldverschlüsselung
 │   ├── security/           # Vault, Schlüsselbund, Wiederherstellung
-│   ├── service/            # Anwendungsfälle (Buchen, Zahlen, Anlagen, Belege, ...)
+│   ├── service/            # Anwendungsfälle (Buchen, Zahlen, Anlagen, Belege, Abschluss, Export, ...)
 │   ├── timestamp/          # RFC-3161-Zeitstempel für die Festschreibung
+│   ├── vatid/              # Qualifizierte Bestätigung der USt-IdNr. beim BZSt
 │   └── wailsbridge/        # Aufrufbare Oberfläche für das Frontend
 ├── scripts/                # Prüf- und Erzeugungsskripte
+│   ├── check_ui_text.py    # Norm nur hinter dem Erklärzeichen (task check:text)
+│   ├── check_closing_steps.py  # jeder Abschlussbaustein hat ein Ziel (task check:steps)
+│   └── site-screenshots/   # Screenshots der Projektseite, four-clicks.mjs zählt den Prüfweg
 ├── website/                # Projektseite für GitHub Pages
 ├── main.go                 # App Entrypoint & Wails Service Registration
 ├── Taskfile.yml            # Build & Automation Tasks
@@ -258,36 +312,57 @@ Oberfläche mit Beispieldaten; wie das läuft, steht in
 
 ## Scope & Entscheidungen
 
+Die Tabelle gibt die Grundentscheidungen aus [docs/architektur.md](./docs/architektur.md),
+Abschnitt 2, wieder. Jede wirkt auf den Anforderungskatalog, wo die betroffenen
+Kriterien den Status `⛔` tragen.
+
 | Thema | Entscheidung in Buchfink |
 |---|---|
 | **Anwendungsbereich & Zielgruppe** | **Ausschließlich bilanzierende Unternehmen** (z. B. UG, GmbH, AG, bilanzierende Kaufleute). **Nicht geeignet** für kleine Selbstständige, Freiberufler oder Kleinunternehmer mit einfacher Einnahmen-Überschuss-Rechnung (EÜR). |
 | **Buchungsansatz** | Doppelte Buchführung (Soll & Haben) nach dem Prinzip „Buchung folgt Bankumsatz“: Transaktionen werden Belegen zugeordnet und generieren automatisch Soll/Haben-Sätze. |
-| **Kontenrahmen** | SKR04 als Standard für v1 (Abschlussgliederungsprinzip für Bilanz & GuV). |
-| **GoBD** | Unveränderbarkeit, Hash-Chains, Storno-Prinzip und Festschreibung sind ab Tag 1 gebaut. Der Datenexport für die Betriebsprüfung (Z3) fehlt noch. |
-| **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, inklusive Kontennachweis und Anlagenspiegel. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); Einreichung erfolgt über Mein ELSTER oder Bridges (z. B. eBilanz+). Der Export ist heute ein Gerüst, siehe [Stand der Umsetzung](./docs/stand-der-umsetzung.md). |
-| **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Lohnbuchhaltung, Lagerverwaltung/Inventur, mehrsprachige UI (v1 fokussiert auf Deutsch/DACH). |
+| **Einzelplatz, ein Bearbeiter** | Keine Benutzerverwaltung, keine Rollen, keine Funktionstrennung im System. An ihrer Stelle stehen die Bearbeiterkennung (Betriebssystem-Benutzer und Rechnername) an jeder Buchung und jeder Protokollzeile sowie ein schreibgeschützter Prüfermodus für Dritte. |
+| **Kontenrahmen** | SKR04 als Einheitsbilanz: ein Kontenrahmen, ein Wertansatz. Abweichende steuerliche Werte entstehen nur aus der Sonderabschreibung nach § 7g Abs. 5 EStG und werden am Anlagegut mitgeführt; daraus entstehen das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern entfallen für kleine Kapitalgesellschaften nach § 274a Nr. 4 HGB. |
+| **Steuerfälle** | Geschlossene Liste. Unterstützt: Inland 19 %, 7 %, 0 %, steuerfrei, innergemeinschaftlicher Erwerb und Lieferung, Reverse Charge als Empfänger und als Leistender, Ausfuhr. Ausgeschlossen: Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS/IOSS, Dreiecksgeschäft, Konsignationslager, Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet. |
+| **GoBD** | Unveränderbarkeit, Hash-Chains, Storno-Prinzip, Festschreibung mit Zeitstempel und ein verkettetes Änderungsprotokoll sind ab Tag 1 gebaut. Der Datenexport für die Betriebsprüfung (Z3) entsteht nach dem Beschreibungsstandard mit `index.xml`, Feldbeschreibung und Schlüsselverzeichnis; ein Testeinlesen in eine Prüfsoftware steht aus. |
+| **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, aus derselben Gliederung wie die Bilanz, inklusive Kontennachweis, Anlagenspiegel und Überleitung. Die Taxonomie-Ressource `internal/ebilanz/taxonomy_6.9.json` trägt durchgehend `verified: false` — ihre Elementnamen sind vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); die Einreichung läuft über Mein ELSTER oder den Steuerberater, das Übermittlungsprotokoll wird danach von Hand erfasst. |
+| **Rechtsformen** | Kapitalgesellschaften zuerst. Gründungsweg, Kapitalaufbringung, Größenklassen und Offenlegung sind für UG, GmbH und AG gebaut. KG, OHG und e.K. bleiben wählbar und tragen in der Oberfläche den Hinweis, dass Kapitalkonten und Entnahmen in dieser Fassung nicht abgebildet sind. |
+| **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Kassenbuch, Lagerverwaltung, Lohnabrechnung (der Lohn kommt als Sammelbuchung aus dem Lohnjournal, die Vorräte als Inventurwert zum Stichtag), ersetzendes Scannen, Versandwege wie Peppol oder EDI, mehrsprachige UI. |
 
 ---
 
 ## Stand der Umsetzung
 
-Buchfink ist in Entwicklung, und das README beschreibt das Ziel. Was davon im Code
-angekommen ist, steht mit Fundstellen in
-[docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md). Die größten offenen
-Punkte in Kurzform:
+Der [Anforderungskatalog](./docs/anforderungskatalog.md) misst Buchfink an 349
+Akzeptanzkriterien aus 82 Anforderungen und nennt zu jedem die Fundstelle im
+Code. Sieben Umsetzungswellen sind gebaut; nach Welle 7 folgt keine weitere.
 
-| Lücke | Wirkung |
-|---|---|
-| **Jahreswechsel und Saldenvortrag** | Kontensalden entstehen nur aus den Buchungen des aktiven Jahres. Ein Bestandskonto zeigt im zweiten Jahr nicht seinen Bestand. Damit endet eine Buchhaltung heute nach einem Geschäftsjahr. |
-| **Abschlussbuchungen** | Es gibt den Abschreibungslauf. Der Abschluss der Erfolgskonten, die Umsatzsteuer-Verrechnung, die Steuerrückstellung und die Ergebnisverwendung fehlen. |
-| **Umsatzsteuer-Voranmeldung** | Vorhanden ist eine Auswertung mit vier Kennziffern, kein vollständiger Vordruck und keine Übermittlungsdatei. Ebenso fehlen Dauerfristverlängerung und Zusammenfassende Meldung. |
-| **Rechnungsabgrenzung, Rückstellungen, Anzahlungen** | Für die Bilanz nicht verzichtbar, jeweils beschrieben und noch nicht gebaut. |
-| **DATEV- und Z3-Export** | Ohne sie bleibt die Buchhaltung eine Insel und die Betriebsprüfung ohne Datenträger. |
-| **Datensicherung** | Kein Sicherungs- und Rückspielweg. Bei einer Anwendung, die alles lokal hält, das größte Betriebsrisiko. |
-| **Mahnwesen, Kassenbuch, wiederkehrende Buchungen** | Alltagsfunktionen, die noch fehlen. |
+| Modul | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
+|---|---|---|---|---|---|
+| A. Buchführungspflicht und Grundsätze | 17 | 5 | 0 | 0 | 22 |
+| B. Beleg, Journal, Konten | 26 | 4 | 1 | 4 | 35 |
+| C. Unveränderbarkeit und Protokollierung | 17 | 2 | 0 | 3 | 22 |
+| D. Aufbewahrung und Archivierung | 22 | 6 | 0 | 3 | 31 |
+| E. Ausgangsrechnungen und E-Rechnung | 32 | 5 | 0 | 6 | 43 |
+| F. Umsatzsteuer, Aufzeichnung und Meldewesen | 24 | 5 | 0 | 13 | 42 |
+| G. Bewertung, Anlagen, Fremdwährung | 33 | 12 | 3 | 15 | 63 |
+| H. Jahresabschluss, E-Bilanz, Offenlegung | 24 | 9 | 8 | 3 | 44 |
+| I. Betriebsprüfung und Verfahrensdokumentation | 10 | 4 | 2 | 7 | 23 |
+| J. Querschnitt | 18 | 4 | 1 | 1 | 24 |
+| **Summe** | **223** | **56** | **15** | **55** | **349** |
 
-Ausführlich, mit den offenen Punkten aus dem Zahlungsverkehr, dem Bankimport und
-der Ausgangsrechnung: [docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md).
+Die fünfzehn offenen Punkte in Kurzform:
+
+- **Der Jahresabschluss als Dokument.** Feststellungsbeschluss, unterzeichneter Abschluss und Prüfungsvermerk lassen sich nirgends anhängen; daran hängt auch die Frist des § 42a GmbHG gegenüber den Gesellschaftern.
+- **Offenlegung.** Kein Datensatz für das Unternehmensregister, keine Hinterlegung nach § 326 Abs. 2 HGB als Wahl, kein Einreichungsnachweis. Für die E-Bilanz fehlt das Übermittlungsprotokoll, das an der Voranmeldung schon steht.
+- **Bewertung.** Kein Bericht über geänderte Bewertungsmethoden, keine getrennte Erfassung der Pflicht- und Wahlbestandteile der Herstellungskosten, die Befreiung von den latenten Steuern hängt nicht an der Größenklasse.
+- **Belege und Abstimmung.** Kein Erfassungsweg für Eigenbelege, kein Saldenbestätigungslauf für Debitoren und Kreditoren.
+- **Nachweise außerhalb des Programms.** Ein Testeinlesen der Datenüberlassung in eine Prüfsoftware hat nicht stattgefunden; der Prüfpunkt zur Verordnung nach § 147b AO steht seit dieser Fassung in [docs/architektur.md](./docs/architektur.md), Abschnitt 4.
+
+Wo eine Funktion an ihrer Grenze endet und was bewusst außerhalb des Umfangs
+liegt, steht mit Fundstellen in
+[docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md); die Entscheidungen
+dahinter in [docs/architektur.md](./docs/architektur.md), Abschnitt 2, und die
+Wellen in Abschnitt 7.
 
 ---
 

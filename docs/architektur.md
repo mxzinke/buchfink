@@ -1,7 +1,7 @@
 # Buchfink – Architektur und Bedienkonzept
 
 Status: verbindlich für die Produktionsreife
-Letzte Aktualisierung: 2026-09-04
+Letzte Aktualisierung: 2026-09-06
 
 Dieses Dokument beschreibt, wie Buchfink gebaut ist und wie es sich anfühlen
 soll, wenn jemand ohne Buchhaltungskenntnis damit die Bücher einer kleinen
@@ -115,6 +115,31 @@ Regeln, die diese Schichtung stützen:
 5. **Die Bridge hält den Zustand, die Dienste sind zustandsarm.** Mandant und
    aktives Geschäftsjahr leben in `wailsbridge`; die Dienste bekommen das Jahr
    gesetzt und filtern danach.
+
+### Prüfpunkte mit Datum
+
+Fünf Punkte stehen von außen fest und sind zu ihrem Termin nachzuprüfen. Sie
+gehören in den Entwicklungsplan, nicht in eine Merkliste.
+
+- **§ 147b AO / DSFinVBV** — offen. Die Verordnung ist nicht erlassen; der
+  Diskussionsentwurf des BMF in der Fassung 2026 legt xBRL-CSV 1.0 fest. Der
+  Stand ist zu jeder Jahresplanung zu prüfen. Mit der Verkündung wird der Export
+  ein weiteres Formatmodul nach Regel 4, kein Umbau (Katalog PRF-06).
+- **Übergangsfrist E-Rechnung, Ausstellerseite** — 01.01.2027 und 01.01.2028
+  (§ 27 Abs. 38 UStG). Ab 2027 gilt die Sendepflicht bei einem Vorjahresumsatz
+  über 800.000 Euro, ab 2028 für alle inländischen B2B-Umsätze. Der
+  Vorjahresumsatz steht in der Buchführung und entscheidet, welcher Termin gilt.
+- **Basiszinssatz nach § 247 BGB** — 1. Januar und 1. Juli jedes Jahres. Die
+  Bundesbank gibt ihn halbjährlich bekannt; er wird als datierte Zeile
+  nachgetragen und wirkt nur auf Zeiträume ab seinem Beginn.
+- **Taxonomie-Stand der E-Bilanz** — jährlich nach dem BMF-Schreiben.
+  Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026, 6.10 ab 2027. Die Ressource
+  `internal/ebilanz/taxonomy_6.9.json` trägt durchgehend `verified: false`; vor
+  der ersten Übermittlung sind ihre Elementnamen gegen die amtliche Fassung
+  abzugleichen.
+- **Jahresstand des SKR04** — jährlich. Der Kontenrahmen liegt als
+  `internal/accounting/skr04_2026.json` bei; eine neue Fassung ist eine neue
+  Datei, keine Änderung an der bestehenden.
 
 ---
 
