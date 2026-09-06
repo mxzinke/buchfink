@@ -50,6 +50,11 @@ spricht in Vorgängen statt in Konten, und die Norm steht hinter dem
 Erklärzeichen, nicht in der Arbeitsansicht. Anwender gibt es noch keine — der
 Stand ist vor der ersten Erprobung.
 
+Buchfink wird ohne Gewährleistung bereitgestellt (Artikel 7 und 8 der
+[EUPL-1.2](LICENSE)). Wer damit bucht, prüft die Ergebnisse selbst: für die
+Richtigkeit der Buchführung, der Voranmeldung und des Abschlusses haftet das
+Unternehmen, das sie abgibt.
+
 ### ⚠️ Wichtiger Hinweis: Nicht geeignet für EÜR (Einnahmen-Überschuss-Rechnung)
 Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunternehmer geeignet**, die lediglich eine einfache **Einnahmen-Überschuss-Rechnung (EÜR nach § 4 Abs. 3 EStG)** durchführen.
 - Buchfink unterstützt **keine EÜR**.
@@ -327,6 +332,8 @@ Kriterien den Status `⛔` tragen.
 | **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, aus derselben Gliederung wie die Bilanz, inklusive Kontennachweis, Anlagenspiegel und Überleitung. Die Taxonomie-Ressource `internal/ebilanz/taxonomy_6.9.json` trägt durchgehend `verified: false` — ihre Elementnamen sind vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); die Einreichung läuft über Mein ELSTER oder den Steuerberater, das Übermittlungsprotokoll wird danach von Hand erfasst. |
 | **Rechtsformen** | Kapitalgesellschaften zuerst. Gründungsweg, Kapitalaufbringung, Größenklassen und Offenlegung sind für UG, GmbH und AG gebaut. KG, OHG und e.K. bleiben wählbar und tragen in der Oberfläche den Hinweis, dass Kapitalkonten und Entnahmen in dieser Fassung nicht abgebildet sind. |
 | **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Kassenbuch, Lagerverwaltung, Lohnabrechnung (der Lohn kommt als Sammelbuchung aus dem Lohnjournal, die Vorräte als Inventurwert zum Stichtag), ersetzendes Scannen, Versandwege wie Peppol oder EDI, mehrsprachige UI. |
+| **DATEV-Export** | Nicht vorhanden. Buchfink schreibt keinen Buchungsstapel und keine Belegbilder im Format der Kanzleisoftware. Für die Übergabe an den Steuerberater stehen der Z3-Export nach dem Beschreibungsstandard, der Archivexport der Belege und die CSV-Ausgabe von Journal, Konten und Auswertungen. |
+| **Gewährleistung** | Keine. Buchfink wird nach Artikel 7 und 8 der EUPL-1.2 „so, wie es ist“ und ohne Gewährleistung bereitgestellt; für die Richtigkeit der Buchführung und der Meldungen haftet das Unternehmen, das sie abgibt. |
 
 ---
 
@@ -407,6 +414,12 @@ Was das praktisch bedeutet:
   Lizenz nicht erfasst (Artikel 5 EUPL). Ein Fork braucht einen eigenen Namen.
 - **Recht und Gerichtsstand:** deutsches Recht, Gericht am Sitz des
   Lizenzgebers (Artikel 14 und 15 EUPL).
+- **Ohne Gewährleistung:** Das Werk wird „so, wie es ist“ bereitgestellt, ohne
+  Gewährleistung für Rechtsmängel, Marktgängigkeit, Eignung für einen bestimmten
+  Zweck oder Fehlerfreiheit (Artikel 7 EUPL). Der Lizenzgeber haftet außer bei
+  Vorsatz und Personenschäden nicht für Schäden aus der Benutzung des Werks
+  (Artikel 8 EUPL). Für Buchhaltungssoftware heißt das: die Prüfung der
+  Ergebnisse bleibt beim Unternehmen.
 
 Mitgelieferte Komponenten Dritter behalten ihre eigenen Lizenzen und sind in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) aufgeführt.
