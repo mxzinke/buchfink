@@ -39,9 +39,11 @@
           <h1 class="pagehead__title">Was steht, und was bis v1 fehlt</h1>
           <p class="pagehead__lead">
             <strong>Version 1 ist eine stabile, rechtskonforme Fassung für kleine bilanzierende
-            Unternehmen, ohne Lohnbuchhaltung.</strong> Sieben Umsetzungswellen sind gebaut; nach
-            Welle 7 folgt keine weitere. Was offen blieb, ist Politur — und die Erprobung, die
-            ohne Anwender nicht stattfinden kann.
+            Unternehmen, ohne Lohnbuchhaltung.</strong> Acht Umsetzungswellen sind gebaut. Mit
+            Welle 8 ist die laufende Buchhaltung vollständig: Belege, Journal, Konten,
+            Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer tragen kein
+            fehlendes Kriterium mehr. Der Jahresabschluss als Dokument, die Offenlegung und die
+            Prüfung sind zurückgestellt, bis ein Geschäftsjahr laufend geführt worden ist.
           </p>
           <p class="pagehead__lead">
             Die Zahlen stammen aus dem Anforderungskatalog, der Buchfink an 349 Akzeptanzkriterien
@@ -51,15 +53,15 @@
 
           <dl class="hero__facts">
             <div>
-              <dt class="fact__value">223</dt>
+              <dt class="fact__value">242</dt>
               <dd class="fact__label">Kriterien erfüllt</dd>
             </div>
             <div>
-              <dt class="fact__value">56</dt>
+              <dt class="fact__value">38</dt>
               <dd class="fact__label">teilweise erfüllt, jedes mit seiner Grenze</dd>
             </div>
             <div>
-              <dt class="fact__value">15</dt>
+              <dt class="fact__value">14</dt>
               <dd class="fact__label">fehlend</dd>
             </div>
             <div>
@@ -84,35 +86,41 @@
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Laufende Buchhaltung</h3>
           <p class="timeline__body">Buchführungspflicht und Grundsätze sowie Beleg, Journal und Konten.</p>
-  <p class="timeline__body"><span class="count">43 von 57 Kriterien erfüllt · 9 teilweise · 1 fehlend · 4 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">51 von 57 Kriterien erfüllt · 2 teilweise · 0 fehlend · 4 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Jeder Buchungssatz gleicht sich ohne Toleranz aus; es gibt einen einzigen Schreibweg ins Journal</li>
             <li>Der Beleg liegt unter seinem SHA256, die Kopfdaten sind Pflicht vor dem Buchen</li>
             <li>Nummernkreise ohne Doppelvergabe, Storno als einzige Korrektur</li>
             <li>Offene Posten zu jedem Stichtag mit Altersstruktur und Restlaufzeiten</li>
-            <li>Prüfbericht aus dreizehn Regeln vor jeder Festschreibung</li>
+            <li>Prüfbericht aus vierzehn Regeln vor jeder Festschreibung</li>
             <li>Von der Bilanzposition zum Beleg in vier Klicks, gemessen an der laufenden Oberfläche</li>
+            <li>Keine Buchung ohne Beleg: die Handbuchung verlangt ihn oder erzeugt den Eigenbeleg als Dokument im selben Vorgang</li>
+            <li>Der Beleg führt zurück ins Journal und ins Kontoblatt</li>
+            <li>Belegnummernformat einstellbar, eigene Konten mit HGB-Position anlegbar und sperrbar</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--done">
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Unveränderbarkeit und Protokoll</h3>
           <p class="timeline__body">Hashketten, Bearbeiterkennung und Festschreibung.</p>
-  <p class="timeline__body"><span class="count">17 von 22 Kriterien erfüllt · 2 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">19 von 22 Kriterien erfüllt · 0 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Hashkette über das Journal, zweite Kette über das Änderungsprotokoll</li>
             <li>Vorher und Nachher an jeder Stammdatenänderung</li>
             <li>Bearbeiterkennung und Programmfassung an jeder Buchung</li>
             <li>Festschreibung je Monat, Quartal oder Jahr mit RFC-3161-Zeitstempel</li>
+            <li>„Monat festschreiben“ ab dem 10. des Folgemonats auf der Aufgabenliste, danach überfällig</li>
+            <li>Steuersätze als datierte Tabelle, aufgelöst nach dem Leistungstag</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--done">
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Aufbewahrung</h3>
           <p class="timeline__body">Fristen, Holds, Archivexport und Sicherung.</p>
-  <p class="timeline__body"><span class="count">22 von 31 Kriterien erfüllt · 6 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">23 von 31 Kriterien erfüllt · 5 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Fristenklasse aus der Belegart, mit Fristbeginn und frühestem Löschdatum</li>
+            <li>Frist am einzelnen Beleg verlängerbar, mit Grund und Protokoll — verkürzen geht nicht</li>
             <li>Aufbewahrungs-Hold je Geschäftsjahr</li>
             <li>Archivexport der Belege mit Index</li>
             <li>Sicherung und Wiederherstellung als Vorgang, mit anschließender Integritätsprüfung</li>
@@ -122,26 +130,30 @@
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Rechnungen</h3>
           <p class="timeline__body">Ausgangsrechnungen, E-Rechnung und Anzahlungen.</p>
-  <p class="timeline__body"><span class="count">32 von 43 Kriterien erfüllt · 5 teilweise · 0 fehlend · 6 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">35 von 43 Kriterien erfüllt · 2 teilweise · 0 fehlend · 6 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Rechnungsnummer, Datensatz und Buchung in einer Transaktion</li>
             <li>Pflichtangaben des § 14 Abs. 4 UStG vor der Nummernvergabe geprüft</li>
             <li>ZUGFeRD und XRechnung im CII-Profil, Zielformat je Empfänger</li>
             <li>Storno und Berichtigung als eigene Dokumente, Anzahlungen als Rechnungsverbund</li>
             <li>Empfang mit Prüfung gegen das Regelwerk der Norm</li>
+            <li>Beanstandungen nach Formatfehler, Geschäftsregelfehler und Inhaltsfehler, je Befund mit Norm und Folge für den Vorsteuerabzug</li>
+            <li>Das eingebettete XML wird vor der Ablage gegen den Datensatz gehalten, aus dem das PDF entstand</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--done">
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Umsatzsteuer</h3>
           <p class="timeline__body">Voranmeldung, Meldungen und Nebenpflichten.</p>
-  <p class="timeline__body"><span class="count">24 von 42 Kriterien erfüllt · 5 teilweise · 0 fehlend · 13 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">27 von 42 Kriterien erfüllt · 2 teilweise · 0 fehlend · 13 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Alle Kennziffern des Vordrucks USt 1 A aus den Steuerzeilen, mit Drill-down zur Buchung</li>
             <li>Berichtigung, Dauerfristverlängerung und Übermittlungsprotokoll</li>
             <li>Zusammenfassende Meldung nach § 18a UStG</li>
             <li>Verzeichnis der Vorsteuerberichtigung nach § 15a UStG</li>
             <li>Qualifizierte Bestätigung der USt-IdNr. beim Bundeszentralamt, Belegnachweis je Lieferung</li>
+            <li>Voranmeldungszeitraum aus der Steuer des Vorjahres vorgeschlagen, überschreibbar</li>
+            <li>Geteilter Vorsteuerabzug auch beim innergemeinschaftlichen Erwerb und beim Fall des § 13b UStG</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--done">
@@ -179,6 +191,7 @@
             <li>Z3-Export nach dem Beschreibungsstandard mit index.xml und Feldbeschreibung</li>
             <li>Prüferpaket in einem Ordner</li>
             <li>Schreibgeschützter Prüfermodus mit Frist und Grund, protokolliert</li>
+            <li>Journal filterbar nach Konto, Gegenkonto, Betrag, Steuerschlüssel, Bearbeiter und Beleg, mit Summenzeile und CSV der gefilterten Menge</li>
             <li>Verfahrensdokumentation aus dem laufenden System</li>
           </ul>
         </div>
@@ -186,17 +199,19 @@
           <p class="timeline__stage">Gebaut</p>
           <h3 class="timeline__title">Datenschutz und Mahnwesen</h3>
           <p class="timeline__body">Der Querschnitt über alle Module.</p>
-  <p class="timeline__body"><span class="count">18 von 24 Kriterien erfüllt · 4 teilweise · 1 fehlend · 1 außerhalb des Umfangs</span></p>
+  <p class="timeline__body"><span class="count">20 von 24 Kriterien erfüllt · 2 teilweise · 1 fehlend · 1 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Feldverschlüsselung mit AES-256-GCM, Schlüssel je Mandant im Schlüsselbund</li>
             <li>Mahnwesen mit Basiszinssatz, taggenauen Verzugszinsen und der Pauschale von 40 Euro</li>
             <li>Prüfpfad vom Beleg zu Buchung, Zahlung und Bankumsatz</li>
+            <li>Verzeichnis von Verarbeitungstätigkeiten nach Art. 30 DSGVO in der Verfahrensdokumentation</li>
+            <li>Jede Herausgabe personenbezogener Daten im Protokoll, auswertbar über den Filter „Zugriffe“</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Bis v1 offen</p>
-          <h3 class="timeline__title">Der Jahresabschluss als Dokument und die Offenlegung</h3>
-          <p class="timeline__body">Neun der fünfzehn offenen Kriterien hängen an zwei Objekten, die Buchfink nicht führt. Wer dort ansetzt, schließt sie zusammen.</p>
+          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
+          <h3 class="timeline__title">Jahresabschluss und Prüfung</h3>
+          <p class="timeline__body">Neun der vierzehn offenen Kriterien hängen an zwei Objekten, die Buchfink nicht führt: dem Jahresabschluss als Dokument und der Offenlegung. Wer dort ansetzt, schließt sie zusammen. Sie stehen bewusst hinten an — erst soll ein Geschäftsjahr laufend geführt worden sein.</p>
           <ul class="checklist checklist--open">
             <li>Feststellungsbeschluss als Dokument am Geschäftsjahr</li>
             <li>Unterzeichneter Jahresabschluss als unveränderliches Dokument</li>
@@ -206,19 +221,12 @@
             <li>Datensatz für die Einreichung beim Unternehmensregister</li>
             <li>Hinterlegung nach § 326 Abs. 2 HGB als Wahl</li>
             <li>Einreichungsnachweis der Offenlegung</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Bis v1 offen</p>
-          <h3 class="timeline__title">Belege und Abstimmung</h3>
-          <ul class="checklist checklist--open">
-            <li>Erfassungsweg für Eigenbelege — die Herkunft ist vorgesehen, das Formular fehlt</li>
             <li>Saldenbestätigungslauf für Debitoren und Kreditoren mit Anschreiben und Rückmeldung</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Bis v1 offen</p>
-          <h3 class="timeline__title">Bewertung</h3>
+          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
+          <h3 class="timeline__title">Bewertung zum Stichtag</h3>
           <ul class="checklist checklist--open">
             <li>Bericht über die im Geschäftsjahr geänderten Bewertungsmethoden</li>
             <li>Getrennte Erfassung der Pflicht- und Wahlbestandteile der Herstellungskosten</li>
@@ -226,7 +234,7 @@
           </ul>
         </div>
         <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Bis v1 offen</p>
+          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
           <h3 class="timeline__title">Nachweise außerhalb des Programms</h3>
           <ul class="checklist checklist--open">
             <li>Testeinlesen der Datenüberlassung in eine Prüfsoftware — der Export ist gegen die amtliche Grammatik gebaut und getestet, ein Lauf in IDEA oder ACL hat nicht stattgefunden</li>
