@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 )
@@ -171,7 +172,66 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
 		return nil, err
 	}
+
+	// Die Kopfdaten kommen aus dem strukturierten Teil (BEL-02).
+	//
+	// Bei einer E-Rechnung stehen Belegdatum, Aussteller und Betrag im
+	// Datensatz; sie danach von Hand abzufragen wäre eine Eingabe, deren
+	// Ergebnis schon vorliegt — und jede Eingabe ist eine Gelegenheit, etwas
+	// anderes einzutragen, als auf der Rechnung steht. Buchfink übernimmt nur,
+	// was noch leer ist: eine bereits erfasste Angabe überschreibt es nicht.
+	if readErr == nil {
+		if err := s.prefillHeader(ctx, receiptID, read); err != nil {
+			return nil, err
+		}
+	}
 	return s.receiptSvc.Get(ctx, updated.ID)
+}
+
+// prefillHeader übernimmt die Kopfdaten aus dem gelesenen Rechnungsdatensatz.
+func (s *EInvoiceService) prefillHeader(ctx context.Context, receiptID uint, read *domain.IncomingInvoice) error {
+	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	if err != nil {
+		return err
+	}
+	header := domain.ReceiptHeader{
+		Kind:         receipt.Kind,
+		DocumentDate: firstNonEmpty(receipt.DocumentDate, read.IssueDate),
+		IssuerName:   firstNonEmpty(receipt.IssuerName, read.Supplier.Name),
+		GrossAmount:  receipt.GrossAmount,
+		TaxAmount:    receipt.TaxAmount,
+		Currency:     firstNonEmpty(receipt.Currency, read.Currency),
+		Subject:      firstNonEmpty(receipt.Subject, read.Number),
+	}
+	if header.GrossAmount == 0 {
+		header.GrossAmount = read.GrossAmount
+	}
+	if header.TaxAmount == 0 {
+		header.TaxAmount = read.TaxAmount
+	}
+	if _, err := s.receiptSvc.SaveHeader(ctx, receiptID, header); err != nil {
+		return err
+	}
+	// Die Bestellnummer (BT-13) gehört zum Prüfpfad und nicht zu den Kopfdaten:
+	// sie steht außerhalb des Beleg-Hashes und wird deshalb getrennt
+	// geschrieben. Sie kommt aus dem strukturierten Teil und muss nicht von
+	// Hand abgetippt werden — dafür ist sie im Datensatz.
+	if reference := strings.TrimSpace(read.OrderReference); reference != "" {
+		if _, err := s.receiptSvc.SaveOrderReference(ctx, receiptID, reference); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// firstNonEmpty liefert den ersten belegten Wert.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // attachEnclosures files the documents the invoice carried inside itself (BG-24).
@@ -226,7 +286,7 @@ func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint)
 	structured, ok := receipt.FileByRole(domain.ReceiptRoleStructured)
 	if !ok {
 		return nil, nil, fmt.Errorf(
-			"Beleg %s trägt keinen strukturierten Rechnungsdatensatz. Der Vorsteuerabzug ist nur aus diesem Teil möglich (UStAE 14c.1 Abs. 4a Satz 4)",
+			"Beleg %s hat keinen strukturierten Rechnungsdatensatz. Der Vorsteuerabzug ist nur aus diesem Teil möglich (UStAE 14c.1 Abs. 4a Satz 4)",
 			receipt.ReceiptNumber)
 	}
 	content, err := s.receiptSvc.Content(ctx, receiptID, structured.ID)
@@ -247,11 +307,11 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		return nil, err
 	}
 
-	// Was keine gewöhnliche Rechnung ist, wird nicht als eine vorgeschlagen.
+	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist.
 	// Eine Gutschrift mindert Aufwand und Vorsteuer und ist gegen die
 	// ursprüngliche Rechnung zu verrechnen; sie als Eingangsrechnung zu buchen
 	// dreht das Vorzeichen und eröffnet einen offenen Posten, wo einer zu
-	// schließen wäre. Das sähe richtig aus, und genau das ist das Problem.
+	// schließen wäre. Das sähe richtig aus, und darin liegt das Problem.
 	if !read.Kind.Bookable() {
 		return nil, fmt.Errorf(
 			"Beleg %s ist eine %s (Rechnungstyp aus dem Datensatz). Buchfink schlägt dafür noch keine Buchung vor — Vorzeichen und Zeitpunkt sind andere als bei einer Eingangsrechnung",
@@ -297,6 +357,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 	positions := make([]ReceiptPosition, 0, len(read.Positions))
 	for _, p := range read.Positions {
 		positions = append(positions, ReceiptPosition{Net: p.Net, TaxRate: p.TaxRate, Text: p.Text})
+	}
+	if note := vatRateMismatchNote(serviceDate, positions); note != "" {
+		proposal.Notes = append(proposal.Notes, note)
 	}
 
 	proposal.Request = ReceiptRequest{
@@ -391,4 +454,34 @@ func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.Inv
 
 func isXML(mimeType string, data []byte) bool {
 	return strings.Contains(mimeType, "xml") || invoice.LooksLikeXML(data)
+}
+
+// vatRateMismatchNote meldet einen Steuersatz, der nicht zum Leistungsdatum
+// passt (UNV-03 K2).
+//
+// Ein Hinweis und keine Sperre: die Sätze gelten datiert (19/7 % seit 2007,
+// 16/5 % vom 1.7. bis 31.12.2020), und eine Rechnung über eine Leistung aus dem
+// zweiten Halbjahr 2020 hat richtigerweise 16 %. Falsch ist erst die
+// Kombination — und die sieht Buchfink, weil beides im Datensatz steht. Ob der
+// Lieferant sich geirrt hat oder das Leistungsdatum ein anderes ist, entscheidet
+// der Anwender; deshalb steht der Satz als Vermerk am Vorschlag.
+func vatRateMismatchNote(serviceDate string, positions []ReceiptPosition) string {
+	period, err := accounting.VatRatesFor(serviceDate)
+	if err != nil {
+		return ""
+	}
+	for _, p := range positions {
+		switch p.TaxRate {
+		case domain.TaxRateNone:
+			continue
+		case period.Standard, period.Reduced:
+			continue
+		}
+		return fmt.Sprintf(
+			"Der Steuersatz %s passt nicht zum Leistungsdatum %s: an diesem Tag galten %s und %s "+
+				"(%s). Prüfe Satz und Leistungsdatum vor dem Buchen.",
+			p.TaxRate.Label(), serviceDate, period.Standard.Label(), period.Reduced.Label(),
+			period.Source)
+	}
+	return ""
 }

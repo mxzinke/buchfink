@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Building2, Plus } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Building2, Download, Plus } from 'lucide-react';
 import {
   AcquisitionAdvice,
   AcquisitionCandidate,
@@ -28,12 +28,18 @@ import {
   InvestmentRules,
   InvestmentTaxNote,
   JournalLine,
+  LegacySpecialDepreciationNotice,
+  NearAcquisitionCheck,
+  PoolConsistencyReport,
+  TaxElectionRegister,
   Vorabpauschale,
   Settlement,
   TaxTreatment,
 } from '../types';
 import { RATE_SCALE, UNIT_SCALE } from '../types';
 import { Api } from '../services/api';
+import { usePostingLock } from '../components/WriteLock';
+import { downloadCSV } from '../utils/download';
 import { formatCents, formatCentsPlain, formatDate, formatUnits, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -61,6 +67,7 @@ import {
   Th,
   Thead,
   Tr,
+  cn,
   toast,
 } from '../components/ui';
 
@@ -78,7 +85,13 @@ import {
  * Reiter, zwei Erklärungen, zwei Aktionsleisten.
  */
 
-type Tab = 'tangible' | 'financial' | 'intangible' | 'depreciation' | 'spiegel';
+type Tab =
+  | 'tangible'
+  | 'financial'
+  | 'intangible'
+  | 'depreciation'
+  | 'spiegel'
+  | 'taxregister';
 
 const CLASS_TABS: AssetClass[] = ['tangible', 'financial', 'intangible'];
 
@@ -98,14 +111,14 @@ function classOfAccount(account: string): AssetClass | null {
 }
 
 /**
- * Erklärungen laufen über die drei Stufen aus §15.2: eine Zeile Kontext in der
- * Ansicht, bis zu drei Sätze im Popover, alles Weitere im Dialog hinter „Mehr
- * dazu".
+ * Erklärungen verteilen sich auf die drei Stufen aus §15.2: eine Zeile Kontext
+ * in der Ansicht, bis zu drei Sätze im Popover, alles Weitere im Dialog hinter
+ * „Mehr dazu".
  *
  * Eine Arbeitsansicht enthält keinen Fließtext. Wer täglich damit arbeitet,
- * liest den Erklärsatz beim zwanzigsten Mal nicht mehr, sondern scrollt an ihm
- * vorbei — und die Anlagenbuchhaltung hat genug zu erklären, um eine Ansicht
- * damit zuzuschütten.
+ * scrollt am Erklärsatz beim zwanzigsten Mal nur noch vorbei — und die
+ * Anlagenbuchhaltung hat genug zu erklären, um eine Ansicht damit
+ * zuzuschütten.
  */
 interface Explanation {
   title: string;
@@ -149,7 +162,15 @@ const ExplainDialog: React.FC<{ explanation: Explanation | null; onClose: () => 
 );
 
 /** In den Masken bleibt es bei zwei Stufen — ein Dialog im Dialog hilft niemandem. */
-const FormHint: React.FC<{ label: string; line: string; children: React.ReactNode }> = ({
+/**
+ * Die zweite Erklärstufe an einer Maske: eine Zeile Kontext und dahinter das
+ * Erklärzeichen mit dem Ausführlichen (§15.2).
+ *
+ * Der Name sagt, was es ist — eine Erklärung und kein `hint`: der Hinweis am
+ * Feld ist unmittelbar sichtbar und hat deshalb keine Norm, diese Fläche
+ * schon.
+ */
+const FormExplanation: React.FC<{ label: string; line: string; children: React.ReactNode }> = ({
   label,
   line,
   children,
@@ -201,9 +222,9 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
       short: (
         <>
           Bis {gwg} netto ist der Sofortabzug möglich, bis {poolTo} der Sammelposten, darüber wird
-          aktiviert und über die Nutzungsdauer abgeschrieben. Die eigentliche Hürde ist dabei nicht
-          der Betrag, sondern die selbständige Nutzbarkeit. Buchfink fragt sie beim Erfassen ab,
-          statt sie zu raten.
+          aktiviert und über die Nutzungsdauer abgeschrieben. Die eigentliche Hürde ist dabei die
+          selbständige Nutzbarkeit, nicht der Betrag. Buchfink fragt sie beim Erfassen ab, statt sie
+          zu raten.
         </>
       ),
       full: (
@@ -228,9 +249,9 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
             </li>
           </ul>
           <p>
-            Zwei Fallen stecken darin. Die eigentliche Hürde ist nicht der Betrag, sondern die{' '}
-            <strong>selbständige Nutzbarkeit</strong>: ein Bildschirm für 300 € ist ohne Rechner
-            nicht nutzbar und damit kein GWG. Und das{' '}
+            Zwei Fallen stecken darin. Die eigentliche Hürde ist die{' '}
+            <strong>selbständige Nutzbarkeit</strong>, nicht der Betrag: ein Bildschirm für 300 €
+            ist ohne Rechner nicht nutzbar und damit kein GWG. Und das{' '}
             <strong>Sammelposten-Wahlrecht gilt einheitlich</strong> für alle Wirtschaftsgüter eines
             Jahres — wer einmal poolt, poolt für dieses Jahr durchgehend.
           </p>
@@ -316,19 +337,22 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
       full: (
         <>
           <p>
-            Die AfA entsteht nicht nebenbei im Lauf des Jahres, sondern zum Bilanzstichtag. Buchfink
-            bucht sie deshalb nie im Hintergrund: hier steht, was für {year} fällig ist, und gebucht
-            wird auf Freigabe — eine Buchung je Anlagegut, damit der Bezug in beide Richtungen trägt.
+            Die AfA entsteht zum Bilanzstichtag, nicht laufend im Jahresverlauf. Buchfink bucht sie
+            deshalb nie im Hintergrund: hier steht, was für {year} fällig ist, und gebucht wird auf
+            Freigabe — eine Buchung je Anlagegut, damit sich der Bezug in beide Richtungen
+            nachvollziehen lässt.
           </p>
           <p>
             Gerechnet wird monatsgenau ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Ein im
-            September angeschafftes Wirtschaftsgut trägt im ersten Jahr vier Zwölftel.
+            September angeschafftes Wirtschaftsgut bekommt im ersten Jahr vier Zwölftel.
           </p>
           <p>
-            Eine Sonderabschreibung nach § 7g Abs. 5 EStG erscheint in einer eigenen Spalte und wird
-            mit derselben Buchung erfasst, aber auf einem eigenen Aufwandskonto: sie tritt{' '}
-            <em>neben</em> die Absetzung für Abnutzung und ersetzt sie nicht. Nach dem
-            Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer.
+            Eine Sonderabschreibung nach § 7g Abs. 5 EStG erscheint in einer eigenen Spalte, wird
+            aber nicht gebucht: seit dem Wegfall der umgekehrten Maßgeblichkeit ist sie in der
+            Handelsbilanz unzulässig. Buchfink hält sie als steuerlichen Wert am Anlagegut fest; sie
+            erscheint im Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und in der Überleitung zur
+            Steuerbilanz. Nach dem Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert auf
+            die Restnutzungsdauer.
           </p>
           <p>
             Vor der Festschreibung eines ganzen Jahres prüft Buchfink, ob hier noch etwas offen ist.
@@ -370,6 +394,7 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
 }
 
 export const AssetsPage: React.FC = () => {
+  const writeLock = usePostingLock();
   const [tab, setTab] = useState<Tab>('tangible');
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<FixedAsset[]>([]);
@@ -412,7 +437,10 @@ export const AssetsPage: React.FC = () => {
         Api.getAnlagenspiegel(),
         Api.getAssetAcquisitionCandidates(),
         Api.getAssetAccounts(''),
-        Api.getContacts(),
+        // Die auswählbaren und nicht alle Kontakte: ein nach einem
+        // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+        // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+        Api.getSelectableContacts(),
         Api.getPaymentAccounts(),
         Api.getInvestmentRules(),
         Api.getAssetDocumentKinds(),
@@ -457,6 +485,8 @@ export const AssetsPage: React.FC = () => {
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() =>
               setEditing({
                 class: activeClass ?? 'tangible',
@@ -477,6 +507,7 @@ export const AssetsPage: React.FC = () => {
           { value: 'intangible' as Tab, label: 'Immaterielle Werte', count: byClass.intangible.length },
           { value: 'depreciation' as Tab, label: 'Abschreibungen', count: dueCount },
           { value: 'spiegel' as Tab, label: 'Anlagenspiegel' },
+          { value: 'taxregister' as Tab, label: 'Steuerliches Verzeichnis' },
         ]}
         value={tab}
         onValueChange={setTab}
@@ -534,6 +565,13 @@ export const AssetsPage: React.FC = () => {
             />
           )}
         </TabPanel>
+
+        <TabPanel value="taxregister">
+          {/* Der Reiter lädt selbst: das Verzeichnis richtet sich nach dem
+              Geschäftsjahr, nicht nach der Liste der Anlagegüter, und niemand
+              soll dafür warten. */}
+          <TaxRegisterTab year={year} />
+        </TabPanel>
       </Tabs>
 
       <AssetFormDialog
@@ -588,6 +626,7 @@ const RegisterTab: React.FC<{
   onOpen: (id: number) => void;
   onCreate: (prefill: Partial<FixedAsset>) => void;
 }> = ({ assetClass, assets, explanation, onExplain, year, candidates, onOpen, onCreate }) => {
+  const writeLock = usePostingLock();
   const inStock = assets.filter((a) => a.status !== 'disposed');
   const disposed = assets.filter((a) => a.status === 'disposed');
 
@@ -656,7 +695,16 @@ const RegisterTab: React.FC<{
               ? 'Beteiligungen, Wertpapiere und Ausleihungen, die dauernd dem Geschäftsbetrieb dienen sollen.'
               : 'Was länger als ein Jahr genutzt wird und über der Wertgrenze liegt, gehört hierher.'
           }
-          action={<Button variant="primary" onClick={() => onCreate({})}>Anlagegut erfassen</Button>}
+          action={
+            <Button
+              variant="primary"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => onCreate({})}
+            >
+              Anlagegut erfassen
+            </Button>
+          }
         />
       ) : (
         <Table>
@@ -736,6 +784,7 @@ const DepreciationTab: React.FC<{
   onExplain: () => void;
   onBooked: () => Promise<void>;
 }> = ({ run, year, explanation, onExplain, onBooked }) => {
+  const writeLock = usePostingLock();
   const [selected, setSelected] = useState<number[]>([]);
   const [bookingDate, setBookingDate] = useState(run?.bookingDate ?? `${year}-12-31`);
   const [busy, setBusy] = useState(false);
@@ -747,9 +796,15 @@ const DepreciationTab: React.FC<{
 
   const due = run?.due ?? [];
   const bookable = due.filter((d) => d.due > 0 || d.specialDue > 0);
+  // Gebucht wird allein die planmäßige AfA. Die Sonderabschreibung des § 7g
+  // Abs. 5 EStG steht daneben als steuerlicher Wert; sie in die Summe zu nehmen
+  // hieße, eine Zahl zu zeigen, die auf keinem Konto ankommt.
   const total = bookable
     .filter((d) => selected.includes(d.assetId))
-    .reduce((sum, d) => sum + d.due + d.specialDue, 0);
+    .reduce((sum, d) => sum + d.due, 0);
+  const taxOnlyTotal = bookable
+    .filter((d) => selected.includes(d.assetId))
+    .reduce((sum, d) => sum + d.specialDue, 0);
   // Die Sonderabschreibung bekommt nur dann eine Spalte, wenn eine läuft.
   const showSpecial = bookable.some((d) => d.specialDue > 0);
 
@@ -762,7 +817,10 @@ const DepreciationTab: React.FC<{
         assetIds: selected,
       });
       toast.success(
-        `${result.entries.length} Abschreibungsbuchungen über ${formatCents(result.total)} geschrieben.`,
+        `${result.entries.length} Abschreibungsbuchungen über ${formatCents(result.total)} geschrieben.` +
+          (result.taxOnlyTotal
+            ? ` Dazu ${formatCents(result.taxOnlyTotal)} Sonderabschreibung, nur steuerlich festgehalten.`
+            : ''),
       );
       await onBooked();
     } catch (e) {
@@ -799,7 +857,7 @@ const DepreciationTab: React.FC<{
               label="Buchungsdatum"
               hint="Bilanzstichtag des Geschäftsjahres"
               className="w-48"
-              help="Die AfA gehört in das Jahr, das sie betrifft. Ein Datum außerhalb wird abgelehnt."
+              explain="Die AfA gehört in das Jahr, das sie betrifft. Ein Datum außerhalb wird abgelehnt."
             >
               <Input
                 type="date"
@@ -812,7 +870,13 @@ const DepreciationTab: React.FC<{
                 {selected.length} von {bookable.length} ausgewählt ·{' '}
                 <span className="num text-ink">{formatCents(total)}</span>
               </span>
-              <Button variant="primary" loading={busy} disabled={selected.length === 0} onClick={book}>
+              <Button
+                variant="primary"
+                loading={busy}
+                disabled={selected.length === 0 || writeLock.locked}
+                title={writeLock.hint}
+                onClick={book}
+              >
                 Abschreibung buchen
               </Button>
             </div>
@@ -831,6 +895,9 @@ const DepreciationTab: React.FC<{
                 {showSpecial && (
                   <Th numeric className="w-28">
                     Sonderabschreibung
+                    <span className="block text-caption font-normal text-ink-faint">
+                      nur steuerlich
+                    </span>
                   </Th>
                 )}
                 <Th numeric className="w-28">Buchwert nachher</Th>
@@ -855,9 +922,7 @@ const DepreciationTab: React.FC<{
                     {row.name}
                   </Td>
                   <Td code>
-                    {row.expenseAccount}
-                    {row.specialDue > 0 && row.specialAccount ? ` + ${row.specialAccount}` : ''} an{' '}
-                    {row.account}
+                    {row.expenseAccount} an {row.account}
                   </Td>
                   <Td className="text-ink-muted">
                     {row.rateLabel}
@@ -872,8 +937,9 @@ const DepreciationTab: React.FC<{
                 </Tr>
               ))}
               <Tr variant="sum">
-                <Td colSpan={showSpecial ? 7 : 6}>Summe der ausgewählten Abschreibungen</Td>
+                <Td colSpan={6}>Summe der ausgewählten Abschreibungen</Td>
                 <Td numeric>{formatCents(total)}</Td>
+                {showSpecial && <Td numeric>{formatCents(taxOnlyTotal)}</Td>}
                 <Td />
               </Tr>
             </Tbody>
@@ -992,6 +1058,255 @@ const SpiegelTab: React.FC<{
 };
 
 // -------------------------------------------------------------------------
+// Verzeichnis nach § 5 Abs. 1 Satz 2 EStG
+// -------------------------------------------------------------------------
+
+/**
+ * Das Verzeichnis der steuerlichen Wahlrechte.
+ *
+ * Wer ein steuerliches Wahlrecht abweichend von der Handelsbilanz ausübt, muss
+ * die betroffenen Wirtschaftsgüter in ein laufend zu führendes Verzeichnis
+ * aufnehmen. In Buchfink entsteht ein solcher Wert allein aus der
+ * Sonderabschreibung nach § 7g Abs. 5 EStG; sie wird seit dem Wegfall der
+ * umgekehrten Maßgeblichkeit hier geführt und nicht mehr gebucht. Das
+ * Verzeichnis steht deshalb auf der Anlagenseite und nicht nur im Anhang: wer
+ * die Sonderabschreibung wählt, tut das am Anlagegut.
+ */
+const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
+  const [register, setRegister] = useState<TaxElectionRegister | null>(null);
+  const [legacy, setLegacy] = useState<LegacySpecialDepreciationNotice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  // Die Jahresspalten stehen nur auf Wunsch: das Verzeichnis verlangt sie, die
+  // Übersicht über zehn Wirtschaftsgüter verträgt sie nicht nebenbei.
+  const [openRow, setOpenRow] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    Promise.all([Api.getTaxElectionRegister(year), Api.getLegacySpecialDepreciations()])
+      .then(([nextRegister, nextLegacy]) => {
+        if (cancelled) return;
+        setRegister(nextRegister);
+        setLegacy(nextLegacy);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setRegister(null);
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
+
+  async function exportCSV() {
+    setExporting(true);
+    try {
+      downloadCSV(`verzeichnis-wahlrechte-${year}.csv`, await Api.exportTaxElectionRegisterCSV(year));
+      toast.success('Verzeichnis als CSV gespeichert.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  if (loading) return <SkeletonRows rows={6} />;
+
+  const rows = register?.rows ?? [];
+  const legacyRows = legacy?.rows ?? [];
+
+  return (
+    <div className="space-y-6">
+      {error && <Notice tone="negative">{error}</Notice>}
+
+      <Section
+        title="Verzeichnis steuerlicher Wahlrechte"
+        context={register?.note || `Geschäftsjahr ${year} · Bestandteil des Prüferpakets`}
+        divider={false}
+        explain={
+          <>
+            § 5 Abs. 1 Satz 2 EStG verlangt für jedes steuerliche Wahlrecht, das von der
+            Handelsbilanz abweicht, ein laufend zu führendes Verzeichnis mit Tag der Anschaffung,
+            Anschaffungs- oder Herstellungskosten, Vorschrift und vorgenommener Abschreibung. Die
+            Sonderabschreibung nach § 7g Abs. 5 EStG wird nicht gebucht; sie steht hier und in der
+            Überleitung zur Steuerbilanz.
+          </>
+        }
+        action={
+          <Button
+            variant="secondary"
+            icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+            loading={exporting}
+            disabled={rows.length === 0}
+            title={rows.length === 0 ? 'Das Verzeichnis ist leer' : undefined}
+            onClick={() => void exportCSV()}
+          >
+            Als CSV speichern
+          </Button>
+        }
+      >
+        {rows.length === 0 ? (
+          <EmptyState
+            title="Kein steuerliches Wahlrecht ausgeübt"
+            description="Ohne Sonderabschreibung bleibt die Steuerbilanz gleich der Handelsbilanz."
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-24">Inventar-Nr.</Th>
+                <Th>Wirtschaftsgut</Th>
+                <Th className="w-28">Anschaffung</Th>
+                <Th numeric className="w-32">AHK</Th>
+                <Th className="w-40">Vorschrift</Th>
+                <Th numeric className="w-32">Buchwert HB</Th>
+                <Th numeric className="w-32">Buchwert StB</Th>
+                <Th numeric className="w-32">Differenz</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {rows.map((row) => (
+                <React.Fragment key={row.assetId}>
+                  {/* Aufklappen geht mit der Maus und mit der Tastatur: eine
+                      Zeile, die nur auf einen Klick reagiert, ist für den
+                      Tastaturnutzer keine Zeile, sondern eine Sackgasse. */}
+                  <Tr
+                    tabIndex={0}
+                    role="button"
+                    aria-expanded={openRow === row.assetId}
+                    onClick={() => setOpenRow(openRow === row.assetId ? null : row.assetId)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      setOpenRow(openRow === row.assetId ? null : row.assetId);
+                    }}
+                    title="Die Abschreibung je Jahr aufklappen"
+                  >
+                    <Td code>{row.inventoryNumber}</Td>
+                    <Td className="whitespace-normal">{row.name}</Td>
+                    <Td className="num text-ink-subtle">{formatDate(row.acquisitionDate)}</Td>
+                    <Td numeric>{formatCents(row.cost)}</Td>
+                    <Td className="text-ink-muted whitespace-normal">{row.provision}</Td>
+                    <Td numeric>{formatCents(row.bookValue)}</Td>
+                    <Td numeric>{formatCents(row.taxBookValue)}</Td>
+                    <Td numeric>{formatCents(row.totalDifference)}</Td>
+                  </Tr>
+                  {openRow === row.assetId && (
+                    <Tr>
+                      <Td colSpan={8} className="bg-sunken">
+                        <div className="py-2">
+                          {row.reason && (
+                            <p className="text-caption text-ink-subtle mb-2">{row.reason}</p>
+                          )}
+                          <Table density="kompakt">
+                            <Thead>
+                              <Tr>
+                                <Th className="w-24">Jahr</Th>
+                                <Th numeric className="w-40">AfA handelsrechtlich</Th>
+                                <Th numeric className="w-40">AfA steuerlich</Th>
+                                <Th numeric className="w-40">Differenz</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {(row.years ?? []).map((entry) => (
+                                <Tr key={entry.fiscalYear}>
+                                  <Td className="num">{entry.fiscalYear}</Td>
+                                  <Td numeric>{formatCents(entry.commercial)}</Td>
+                                  <Td numeric>{formatCents(entry.tax)}</Td>
+                                  <Td numeric>{formatCents(entry.difference)}</Td>
+                                </Tr>
+                              ))}
+                              <Tr variant="sum">
+                                <Td>Summe</Td>
+                                <Td numeric>{formatCents(row.totalCommercial)}</Td>
+                                <Td numeric>{formatCents(row.totalTax)}</Td>
+                                <Td numeric>{formatCents(row.totalDifference)}</Td>
+                              </Tr>
+                            </Tbody>
+                          </Table>
+                        </div>
+                      </Td>
+                    </Tr>
+                  )}
+                </React.Fragment>
+              ))}
+              <Tr variant="sum">
+                <Td>Summe</Td>
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td numeric>{formatCents(register?.totalBookValue ?? 0)}</Td>
+                <Td numeric>{formatCents(register?.totalTaxBookValue ?? 0)}</Td>
+                <Td numeric>{formatCents(register?.totalDifference ?? 0)}</Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
+      {legacyRows.length > 0 && (
+        <Section
+          title="Sonderabschreibungen aus früheren Jahren"
+          context={legacy?.note || 'Sie stehen als Buchung im Journal und bleiben dort'}
+          explain={
+            <>
+              Bis zu dieser Fassung hat Buchfink die Sonderabschreibung nach § 7g Abs. 5 EStG im
+              Journal gebucht. Gebuchtes wird nicht gelöscht (§ 239 Abs. 3 HGB), diese Buchungen
+              bleiben also stehen. Im Verzeichnis erscheinen sie nicht ein zweites Mal: dort steht
+              nur, was allein steuerlich festgehalten wurde.
+            </>
+          }
+        >
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-24">Inventar-Nr.</Th>
+                <Th>Wirtschaftsgut</Th>
+                <Th className="w-20">Jahr</Th>
+                <Th className="w-28">Datum</Th>
+                <Th className="w-24">Konto</Th>
+                <Th className="w-28">Buchung</Th>
+                <Th numeric className="w-32">Betrag</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {legacyRows.map((row, index) => (
+                <Tr key={`${row.assetId}-${row.date}-${index}`}>
+                  <Td code>{row.inventoryNumber}</Td>
+                  <Td className="whitespace-normal">{row.name}</Td>
+                  <Td className="num">{row.fiscalYear}</Td>
+                  <Td className="num text-ink-subtle">{formatDate(row.date)}</Td>
+                  <Td code>{row.expenseAccount}</Td>
+                  <Td code>{row.entryNumber || '—'}</Td>
+                  <Td numeric>{formatCents(row.amount)}</Td>
+                </Tr>
+              ))}
+              <Tr variant="sum">
+                <Td>Summe</Td>
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td />
+                <Td numeric>{formatCents(legacy?.total ?? 0)}</Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        </Section>
+      )}
+    </div>
+  );
+};
+
+// -------------------------------------------------------------------------
 // Anlagegut erfassen und ändern
 // -------------------------------------------------------------------------
 
@@ -1012,6 +1327,7 @@ const AssetFormDialog: React.FC<{
   onClose: () => void;
   onSaved: (asset: FixedAsset) => Promise<void>;
 }> = ({ draft, accounts, rules, investment, candidates, contacts, year, onClose, onSaved }) => {
+  const writeLock = usePostingLock();
   const [asset, setAsset] = useState<Partial<FixedAsset>>(draft ?? {});
   // Beträge stehen als Text im Formular und werden erst beim Speichern gelesen.
   // Ein Feld, das bei jedem Tastendruck neu formatiert, lässt sich nicht tippen.
@@ -1077,9 +1393,9 @@ const AssetFormDialog: React.FC<{
     };
   }, [assetClass, cost, asset.acquisitionDate, selfUsable]);
 
-  // Der Plan wird nicht hier gerechnet, sondern gefragt — dieselbe Rechnung, die
-  // später auch bucht. So steht schon in der Maske, was die Nutzungsdauer
-  // bedeutet, statt erst nach dem Speichern.
+  // Diese Maske fragt den Plan ab, statt ihn selbst zu rechnen — dieselbe
+  // Rechnung, die später auch bucht. So steht schon in der Maske, was die
+  // Nutzungsdauer bedeutet, statt erst nach dem Speichern.
   useEffect(() => {
     if (!cost || cost <= 0 || !asset.acquisitionDate || !asset.method || asset.method === 'none') {
       setPlan([]);
@@ -1117,6 +1433,34 @@ const AssetFormDialog: React.FC<{
     year,
   ]);
 
+  /**
+   * Der Stand des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG im Wirtschaftsjahr.
+   *
+   * Sofortabzug und Sammelposten sind dieselbe Wahl; sie gilt einheitlich für
+   * alle Zugänge des Jahres zwischen den Grenzen. Das Backend weist einen
+   * Zugang zurück, der sie bricht — gefragt wird deshalb schon in der Maske,
+   * sonst erführe der Anwender die Regel erst, wenn das Formular ausgefüllt
+   * ist. Der Bericht kommt aus dem Dienst und wird hier nicht nachgerechnet:
+   * die Grenzen sind datiert und stehen in den Abschreibungsregeln.
+   */
+  const [poolReport, setPoolReport] = useState<PoolConsistencyReport | null>(null);
+
+  useEffect(() => {
+    if (asset.method !== 'immediate' && asset.method !== 'pool') {
+      setPoolReport(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getPoolConsistencyReport(year)
+      .then((report) => {
+        if (!cancelled) setPoolReport(report);
+      })
+      .catch(() => setPoolReport(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [asset.method, year]);
+
   // Es gibt genau einen Sammelposten je Wirtschaftsjahr. Besteht er schon, wird
   // das Gut dort eingestellt statt ein zweiter Posten angelegt.
   useEffect(() => {
@@ -1141,7 +1485,7 @@ const AssetFormDialog: React.FC<{
 
   /**
    * Die Zugangsbuchung kennt Konto, Betrag, Datum und Lieferant bereits. Sie
-   * abzutippen ist genau die Art Arbeit, die eine Buchhaltung nicht braucht.
+   * abzutippen ist die Art Arbeit, die eine Buchhaltung nicht braucht.
    */
   function pickEntry(entryId: number) {
     if (entryId === 0) {
@@ -1191,11 +1535,30 @@ const AssetFormDialog: React.FC<{
     }
     if (method === 'degressive' && asset.acquisitionDate) {
       const open = (rules?.degressiveWindows ?? []).some(
-        (w) => asset.acquisitionDate! >= w.From && asset.acquisitionDate! <= w.Until,
+        (w) => asset.acquisitionDate! >= w.from && asset.acquisitionDate! <= w.until,
       );
       if (!open) {
         return 'Für dieses Anschaffungsdatum ist die degressive AfA nicht zulässig.';
       }
+    }
+    // Dieselben Voraussetzungen, die das Backend prüft: sie hier zu wiederholen
+    // erspart dem Anwender den Umweg über eine Fehlermeldung nach dem
+    // Speichern — die Regel bleibt dieselbe.
+    if (method === 'electric_vehicle') {
+      if (selectedAccount && selectedAccount.group !== 'Fahrzeuge') {
+        return `${selectedAccount.name} ist kein Fahrzeugkonto.`;
+      }
+      if (asset.acquisitionDate) {
+        const open = (rules?.electricVehicleWindows ?? []).some(
+          (w) => asset.acquisitionDate! >= w.from && asset.acquisitionDate! <= w.until,
+        );
+        if (!open) {
+          return 'Für dieses Anschaffungsdatum gibt es die Staffel für Elektrofahrzeuge nicht.';
+        }
+      }
+    }
+    if (method === 'building_linear' && selectedAccount && !selectedAccount.immovable) {
+      return `${selectedAccount.name} ist kein Gebäudekonto.`;
     }
     if (advice && (method === 'immediate' || method === 'pool')) {
       if (!advice.allowed.includes(method === 'immediate' ? 'immediate' : 'pool')) {
@@ -1209,6 +1572,34 @@ const AssetFormDialog: React.FC<{
     return undefined;
   }
 
+  /**
+   * Der Satz, der vor dem Speichern auf den Bruch des Wahlrechts hinweist.
+   *
+   * Leer, solange der Betrag außerhalb der Grenzen liegt oder das Jahr die
+   * andere Behandlung noch nicht kennt — dann ist nichts einheitlich zu halten.
+   */
+  const poolConflict = (() => {
+    if (!poolReport || cost === null || cost <= 0) return '';
+    const { lowerLimit, upperLimit } = poolReport;
+    if (upperLimit <= 0 || cost <= lowerLimit || cost > upperLimit) return '';
+    const range = `zwischen ${formatCents(lowerLimit)} und ${formatCents(upperLimit)}`;
+    if (asset.method === 'immediate' && poolReport.pooled.length > 0) {
+      return (
+        `Im Wirtschaftsjahr ${poolReport.fiscalYear} stehen ${poolReport.pooled.length} Zugänge ` +
+        `im Sammelposten, und die Wahl gilt einheitlich für alle Zugänge ${range} — der ` +
+        `Sofortabzug wird beim Speichern zurückgewiesen.`
+      );
+    }
+    if (asset.method === 'pool' && poolReport.immediate.length > 0) {
+      return (
+        `Im Wirtschaftsjahr ${poolReport.fiscalYear} sind ${poolReport.immediate.length} Zugänge ` +
+        `sofort abgezogen, und die Wahl gilt einheitlich für alle Zugänge ${range} — der ` +
+        `Sammelposten wird beim Speichern zurückgewiesen.`
+      );
+    }
+    return '';
+  })();
+
   const currentOption: AcquisitionOption =
     asset.method === 'immediate' ? 'immediate' : asset.method === 'pool' ? 'pool' : 'activate';
 
@@ -1216,6 +1607,24 @@ const AssetFormDialog: React.FC<{
   const activeMethod = methods.find((m) => m.method === asset.method);
   const blockedReason = asset.method ? methodBlocked(asset.method) : undefined;
   const needsUsefulLife = asset.method === 'linear' || asset.method === 'degressive';
+  /**
+   * Ob die Nutzungsdauer zu begründen ist.
+   *
+   * Die Regel kommt aus dem Kontenkatalog und wird hier nicht nachgebaut: nur
+   * wo Buchfink das Wahlrecht des BMF-Schreibens vom 22.02.2022 vorschlägt,
+   * verlangt es bei einer Abweichung die Begründung. Das Backend prüft
+   * dieselbe Kennzeichnung — ohne dieses Feld ließe sich ein Kopierer auf 0690
+   * nicht mehr anlegen.
+   */
+  const usefulLifeDeviates =
+    needsUsefulLife &&
+    Boolean(selectedAccount?.usefulLifeReasonRequired) &&
+    (asset.usefulLifeMonths ?? 0) !== (selectedAccount?.defaultUsefulLifeMonths ?? 0);
+  /** Das Kennzeichen des § 7 Abs. 2a EStG gehört zum Fahrzeug, nicht zur Methode. */
+  const isVehicle = selectedAccount?.group === 'Fahrzeuge';
+  /** Der Stichtag des § 7 Abs. 4 EStG: Bauantrag oder Fertigstellung. */
+  const needsBuildingDate =
+    asset.method === 'building_linear' || Boolean(selectedAccount?.immovable);
 
   /** Übernimmt den Vorschlag der Einordnung samt des Kontos, das dazu gehört. */
   function applyAdvice(option: AcquisitionOption) {
@@ -1281,9 +1690,9 @@ const AssetFormDialog: React.FC<{
         ...(assetClass === 'financial' && asset.currency
           ? { foreignCost: parseCents(foreignText) ?? 0 }
           : { currency: '', foreignCost: 0 }),
-        // Eine Fondsart und eine Fälligkeit an einer Maschine wären nicht
-        // falsch, sondern sinnlos — und eine sinnlose Angabe wird später als
-        // bedeutsam gelesen.
+        // Eine Fondsart und eine Fälligkeit an einer Maschine wären sinnlos,
+        // nicht falsch — und eine sinnlose Angabe wird später als bedeutsam
+        // gelesen.
         ...(assetClass === 'financial' ? {} : { fundClass: '' as FundClass, maturityDate: '' }),
       };
       const saved = await Api.saveFixedAsset(payload);
@@ -1295,18 +1704,33 @@ const AssetFormDialog: React.FC<{
     }
   }
 
+  // Eine begonnene Eingabe geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Die Betragsfelder stehen als Text neben dem Entwurf und gehören
+  // deshalb eigens in den Vergleich.
+  const dirty =
+    JSON.stringify(asset) !== JSON.stringify(draft ?? {}) ||
+    costText !== (draft?.acquisitionCost ? formatCentsPlain(draft.acquisitionCost) : '') ||
+    foreignText !== (draft?.foreignCost ? formatCentsPlain(draft.foreignCost) : '');
+
   return (
     <Dialog
       open={draft !== null}
       onOpenChange={(next) => !next && onClose()}
       title={isNew ? 'Anlagegut erfassen' : `${asset.inventoryNumber ?? ''} bearbeiten`}
       width="max-w-3xl"
+      dirty={dirty}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={busy} onClick={submit}>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
             Speichern
           </Button>
         </>
@@ -1315,7 +1739,7 @@ const AssetFormDialog: React.FC<{
       <div className="grid grid-cols-2 gap-4">
         <Field
           label="Anlagenklasse"
-          help="Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. Sie entscheiden über Konten und Bewertung."
+          explain="Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. Sie entscheiden über Konten und Bewertung."
         >
           <Select
             items={CLASS_TABS.map((c) => ({ value: c, label: CLASS_LABEL[c] }))}
@@ -1343,7 +1767,7 @@ const AssetFormDialog: React.FC<{
         label="Anlagekonto"
         className="mt-4"
         hint={selectedAccount?.hint}
-        help="Der kuratierte Auszug aus der Kontenklasse 0. Zu jedem Konto gehört das Aufwandskonto, auf dem seine Abschreibung landet."
+        explain="Der kuratierte Auszug aus der Kontenklasse 0. Zu jedem Konto gehört das Aufwandskonto, auf dem seine Abschreibung landet."
       >
         <Combobox
           items={catalog.map((a) => ({
@@ -1359,7 +1783,7 @@ const AssetFormDialog: React.FC<{
       </Field>
 
       <div className="grid grid-cols-3 gap-4 mt-4">
-        <Field label="Anschaffungsdatum" help="Die AfA läuft monatsgenau ab diesem Monat.">
+        <Field label="Anschaffungsdatum" explain="Die AfA läuft monatsgenau ab diesem Monat.">
           <Input
             type="date"
             value={asset.acquisitionDate ?? ''}
@@ -1370,7 +1794,7 @@ const AssetFormDialog: React.FC<{
           label="Anschaffungskosten"
           hint="netto, ohne Vorsteuer"
           error={costError}
-          help="Anschaffungspreis zuzüglich Nebenkosten wie Fracht und Montage, abzüglich Minderungen (§ 255 Abs. 1 HGB)."
+          explain="Anschaffungspreis zuzüglich Nebenkosten wie Fracht und Montage, abzüglich Minderungen (§ 255 Abs. 1 HGB)."
         >
           <Input
             align="right"
@@ -1383,7 +1807,7 @@ const AssetFormDialog: React.FC<{
         <Field
           label="Zugangsbuchung"
           optional
-          help="Die gewählte Buchung füllt Konto, Betrag, Datum und Lieferant — sie weiß das alles bereits."
+          explain="Die gewählte Buchung füllt Konto, Betrag, Datum und Lieferant — sie weiß das alles bereits."
         >
           <Select
             items={[
@@ -1461,7 +1885,7 @@ const AssetFormDialog: React.FC<{
                   }`
                 : selectedAccount?.usefulLifeSource
             }
-            help="Kommt aus den AfA-Tabellen des BMF. Die binden die Finanzverwaltung, nicht dich — eine begründete abweichende Nutzungsdauer ist zulässig."
+            explain="Kommt aus den AfA-Tabellen des BMF. Die binden die Finanzverwaltung, nicht den Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig."
           >
             <Input
               type="number"
@@ -1488,6 +1912,72 @@ const AssetFormDialog: React.FC<{
         </Field>
       </div>
 
+      {poolConflict && (
+        <div className="mt-4">
+          <Notice>
+            {poolConflict}
+            {/* Die Norm steht in der zweiten Erklärstufe und nicht im
+                Hinweisstreifen (Architektur 6.4). */}
+            <HelpPopover label="Erklärung zum Wahlrecht des Sammelpostens">
+              § 6 Abs. 2a Satz 5 EStG lässt den Sammelposten nur zu, wenn er für alle
+              Wirtschaftsgüter eines Wirtschaftsjahres innerhalb der Wertgrenzen gebildet wird. Wer
+              eines davon sofort abzieht, übt das Wahlrecht uneinheitlich aus; die Prüfung greift
+              deshalb schon beim Erfassen und nicht erst im Abschluss.
+            </HelpPopover>
+          </Notice>
+        </div>
+      )}
+
+      {usefulLifeDeviates && (
+        <Field
+          label="Begründung der abweichenden Nutzungsdauer"
+          className="mt-4"
+          hint={`Vorschlag: ${selectedAccount?.defaultUsefulLifeMonths} Monate`}
+          explain={`Der Vorschlag stammt aus dem ${selectedAccount?.usefulLifeSource ?? 'BMF-Schreiben'}. Er ist ein Wahlrecht und keine Vorgabe — die Verwaltungsanweisung bindet die Finanzverwaltung, nicht den Steuerpflichtigen. „Begründet" heißt aber, dass die Begründung existiert: ohne sie ist die Abweichung im Zweifel kein Wahlrecht, sondern ein Tippfehler, und der fällt erst in der Betriebsprüfung auf.`}
+        >
+          <Textarea
+            rows={2}
+            value={asset.usefulLifeReason ?? ''}
+            onChange={(e) => set({ usefulLifeReason: e.target.value })}
+            placeholder="etwa: Server im Dauerbetrieb, Herstellergarantie über drei Jahre"
+          />
+        </Field>
+      )}
+
+      {(isVehicle || needsBuildingDate) && (
+        <div className="mt-4 grid grid-cols-2 gap-4 items-end">
+          {isVehicle && (
+            <span className="flex items-start gap-1">
+              <Checkbox
+                checked={asset.isElectric ?? false}
+                onCheckedChange={(checked) => set({ isElectric: Boolean(checked) })}
+                label="Rein elektrisch betrieben"
+                hint="Voraussetzung der Staffel 75, 10, 5, 5, 3 und 2 %"
+              />
+              <HelpPopover label="Erklärung zur Staffel für Elektrofahrzeuge">
+                Für rein elektrisch betriebene Fahrzeuge, die in einem der begünstigten Zeiträume
+                angeschafft wurden, gilt eine feste Staffel von 75, 10, 5, 5, 3 und 2 % der
+                Anschaffungskosten (§ 7 Abs. 2a EStG) statt der linearen oder degressiven
+                Abschreibung.
+              </HelpPopover>
+            </span>
+          )}
+          {needsBuildingDate && (
+            <Field
+              label="Stichtag des Gebäudes"
+              hint="Bauantrag oder Fertigstellung"
+              explain="§ 7 Abs. 4 EStG macht den Satz an diesem Tag fest: beim Betriebsgebäude am Bauantrag, beim Wohngebäude an der Fertigstellung. Das Anschaffungsdatum ist kein Ersatz — ein altes Gebäude, das gerade gekauft wurde, bekäme daraus den falschen Satz."
+            >
+              <Input
+                type="date"
+                value={asset.buildingReferenceDate ?? ''}
+                onChange={(e) => set({ buildingReferenceDate: e.target.value })}
+              />
+            </Field>
+          )}
+        </div>
+      )}
+
       {specialAvailable && (
         <div className="mt-4 space-y-3">
           <Checkbox
@@ -1499,16 +1989,22 @@ const AssetFormDialog: React.FC<{
                   : { specialPermille: 0, specialYears: 0, specialReason: '' },
               )
             }
-            label="Sonderabschreibung nach § 7g Abs. 5 EStG in Anspruch nehmen"
-            hint="Bis 40 % der Anschaffungskosten, zusätzlich zur Absetzung für Abnutzung — verteilbar auf das Anschaffungsjahr und die vier folgenden."
+            label="Sonderabschreibung in Anspruch nehmen"
+            hint="Bis 40 % zusätzlich zur Absetzung für Abnutzung"
           />
+          <HelpPopover label="Erklärung zur Sonderabschreibung">
+            Kleine und mittlere Betriebe dürfen für ein bewegliches Wirtschaftsgut bis zu 40 % der
+            Anschaffungskosten zusätzlich abschreiben, verteilbar auf das Anschaffungsjahr und die
+            vier folgenden (§ 7g Abs. 5 EStG). Sie ist ein steuerliches Wahlrecht: Buchfink führt sie
+            am Anlagegut und im Verzeichnis, statt sie zu buchen.
+          </HelpPopover>
           {usesSpecial && (
             <>
               <div className="grid grid-cols-3 gap-4">
                 <Field
                   label="Satz in Prozent"
                   hint={`höchstens ${(rules?.specialMaxPermille ?? 400) / 10} %`}
-                  help="Der Satz bemisst sich an den Anschaffungskosten, nicht am Restbuchwert. Die planmäßige AfA läuft daneben unverändert weiter — § 7g Abs. 5 EStG lässt die Sonderabschreibung neben der linearen wie neben der degressiven zu."
+                  explain="Der Satz bemisst sich an den Anschaffungskosten, nicht am Restbuchwert. Die planmäßige AfA läuft daneben unverändert weiter — § 7g Abs. 5 EStG lässt die Sonderabschreibung neben der linearen wie neben der degressiven zu."
                 >
                   <Input
                     type="number"
@@ -1523,7 +2019,7 @@ const AssetFormDialog: React.FC<{
                 <Field
                   label="Verteilt auf Jahre"
                   hint={`eins bis ${rules?.specialPeriodYears ?? 5}`}
-                  help="Wie der Betrag über den Begünstigungszeitraum verteilt wird, entscheidest du. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
+                  explain="Die Verteilung über den Begünstigungszeitraum ist ein Wahlrecht. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
                 >
                   <Input
                     type="number"
@@ -1545,7 +2041,7 @@ const AssetFormDialog: React.FC<{
               <Field
                 label="Voraussetzungen nach § 7g Abs. 6 EStG"
                 hint="Gewinn des Vorjahres höchstens 200.000 €, fast ausschließlich betriebliche Nutzung"
-                help="Zwei Sachverhalte, die Buchfink nicht kennen kann. Halte fest, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
+                explain="Zwei Sachverhalte, die Buchfink nicht kennen kann. Festzuhalten ist, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
               >
                 <Textarea
                   rows={2}
@@ -1571,7 +2067,7 @@ const AssetFormDialog: React.FC<{
             label="Beteiligungsquote"
             optional
             hint="in Prozent"
-            help="Ab einem Fünftel des Kapitals vermutet § 271 Abs. 1 Satz 3 HGB eine Beteiligung."
+            explain="Ab einem Fünftel des Kapitals vermutet § 271 Abs. 1 Satz 3 HGB eine Beteiligung."
           >
             <Input
               type="number"
@@ -1583,18 +2079,26 @@ const AssetFormDialog: React.FC<{
             />
           </Field>
           <div className="flex items-end pb-2">
-            <Checkbox
-              checked={asset.taxPrivileged ?? false}
-              onCheckedChange={(checked) => set({ taxPrivileged: Boolean(checked) })}
-              label="Anteil an einer Kapitalgesellschaft"
-              hint="Gewinn und Verlust laufen dann über eigene Konten — § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG."
-            />
+            <span className="flex items-start gap-1">
+              <Checkbox
+                checked={asset.taxPrivileged ?? false}
+                onCheckedChange={(checked) => set({ taxPrivileged: Boolean(checked) })}
+                label="Anteil an einer Kapitalgesellschaft"
+                hint="Gewinn und Verlust über eigene Konten"
+              />
+              <HelpPopover label="Erklärung zum Anteil an einer Kapitalgesellschaft">
+                Der Gewinn aus der Veräußerung ist bei einer Kapitalgesellschaft im Ergebnis zu 95 %
+                steuerfrei (§ 8b Abs. 2 KStG), bei einer natürlichen Person im Betriebsvermögen zu
+                40 % (§ 3 Nr. 40 EStG). Damit die Rechnung später stimmt, laufen Gewinn und Verlust
+                über eigene Konten.
+              </HelpPopover>
+            </span>
           </div>
           <Field
             label="Stückzahl"
             optional
             hint="Anteile, Stücke, Nominale"
-            help="Wird sie geführt, rechnet Buchfink beim Teilabgang den Anteil der Anschaffungskosten aus der Stückzahl. Ohne sie wird der Teilabgang als Betrag angegeben."
+            explain="Wird sie geführt, rechnet Buchfink beim Teilabgang den Anteil der Anschaffungskosten aus der Stückzahl. Ohne sie wird der Teilabgang als Betrag angegeben."
           >
             <Input
               type="number"
@@ -1611,7 +2115,7 @@ const AssetFormDialog: React.FC<{
             label="Notierungswährung"
             optional
             hint="ISO-Code, leer heißt Euro"
-            help="Nur nötig, wo das Papier tatsächlich in einer anderen Währung notiert. Aus Fremdbetrag und Euro-Anschaffungskosten ergibt sich der Anschaffungskurs, gegen den § 256a HGB den Stichtagskurs hält."
+            explain="Nur nötig, wo das Papier tatsächlich in einer anderen Währung notiert. Aus Fremdbetrag und Euro-Anschaffungskosten ergibt sich der Anschaffungskurs, gegen den § 256a HGB den Stichtagskurs hält."
           >
             <Input
               className="code-num uppercase"
@@ -1624,7 +2128,7 @@ const AssetFormDialog: React.FC<{
             label="Fondsart"
             optional
             hint="entscheidet über die Teilfreistellung"
-            help="Ein Investmentanteil steht in der Bilanz wie jedes andere Wertpapier. Steuerlich legt das Investmentsteuergesetz zwei Rechnungen daneben: die Teilfreistellung nach § 20 InvStG und die Vorabpauschale nach § 18 InvStG. Für eine Einzelaktie und eine Anleihe gibt es beides nicht."
+            explain="Ein Investmentanteil steht in der Bilanz wie jedes andere Wertpapier. Steuerlich legt das Investmentsteuergesetz zwei Rechnungen daneben: die Teilfreistellung nach § 20 InvStG und die Vorabpauschale nach § 18 InvStG. Für eine Einzelaktie und eine Anleihe gibt es beides nicht."
           >
             <Select
               items={(investment?.fundClasses ?? [{ class: '' as FundClass, label: 'Kein Investmentanteil' }]).map(
@@ -1638,7 +2142,7 @@ const AssetFormDialog: React.FC<{
             label="Fälligkeit"
             optional
             hint="bei einer Ausleihung"
-            help="Sie entscheidet über die Bewertung: § 256a Satz 2 HGB nimmt Posten mit einer Restlaufzeit von höchstens einem Jahr vom Anschaffungskostenprinzip aus — dort schlägt ein gestiegener Kurs voll durch."
+            explain="Sie entscheidet über die Bewertung: § 256a Satz 2 HGB nimmt Posten mit einer Restlaufzeit von höchstens einem Jahr vom Anschaffungskostenprinzip aus — dort schlägt ein gestiegener Kurs voll durch."
           >
             <Input
               type="date"
@@ -1681,9 +2185,12 @@ const AssetFormDialog: React.FC<{
 
       {pool && (
         <div className="mt-4 flex items-start justify-between gap-4 rounded-control border border-attention-line bg-attention-soft px-4 py-3">
-          <p className="text-body text-attention-text">
+          <p className="flex items-center gap-1.5 text-body text-attention-text">
             Für {asset.poolYear || year} besteht bereits der Sammelposten {pool.inventoryNumber} über{' '}
-            {formatCents(pool.cost)}. § 6 Abs. 2a EStG kennt genau einen je Wirtschaftsjahr.
+            {formatCents(pool.cost)} — je Wirtschaftsjahr gibt es genau einen.
+            <HelpPopover label="Erklärung zum Sammelposten">
+              Der Sammelposten des § 6 Abs. 2a EStG fasst alle Wirtschaftsgüter eines Wirtschaftsjahres zwischen 250 und 1.000 Euro zusammen und wird über fünf Jahre aufgelöst.
+            </HelpPopover>
           </p>
           <Button
             variant="secondary"
@@ -1722,14 +2229,14 @@ const AssetFormDialog: React.FC<{
       )}
 
       <div className="mt-5">
-        <FormHint
+        <FormExplanation
           label="Erklärung zum Zugang"
           line="Der Zugang selbst wird über den Beleg gebucht, nicht hier."
         >
           Die Buchung entsteht mit Vorsteuer, Lieferant und Belegverweis im Belegflow. Das
           Verzeichnis führt das Anlagegut daneben fort: es kennt die Bemessungsgrundlage, den Plan
           und die Bewegungen über alle Jahre. Beides zusammen ergibt den Anlagenspiegel.
-        </FormHint>
+        </FormExplanation>
       </div>
 
       {error && (
@@ -1778,6 +2285,7 @@ const AssetDetailDialog: React.FC<{
   onEdit,
   onChanged,
 }) => {
+  const writeLock = usePostingLock();
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [action, setAction] = useState<DetailAction>(null);
   const [loading, setLoading] = useState(false);
@@ -1824,49 +2332,104 @@ const AssetDetailDialog: React.FC<{
       footer={
         action === null && asset ? (
           <>
-            <Button variant="quiet" onClick={() => setAction('cost')}>
+            <Button
+              variant="quiet"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setAction('cost')}
+            >
               Erweiterung erfassen
             </Button>
             {!asset.disposalDate && inProgress && (
-              <Button variant="secondary" onClick={() => setAction('transfer')}>
+              <Button
+                variant="secondary"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('transfer')}
+              >
                 Fertigstellung buchen
               </Button>
             )}
             {!asset.disposalDate && asset.class !== 'financial' && (
-              <Button variant="quiet" onClick={() => setAction('maintenance')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('maintenance')}
+              >
                 Erhaltungsaufwand
               </Button>
             )}
             {!asset.disposalDate && asset.class === 'financial' && (
-              <Button variant="quiet" onClick={() => setAction('income')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('income')}
+              >
                 Ertrag buchen
               </Button>
             )}
             {!asset.disposalDate && asset.currency && (
-              <Button variant="quiet" onClick={() => setAction('currency')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('currency')}
+              >
                 Währung bewerten
               </Button>
             )}
             {!asset.disposalDate && asset.fundClass && (
-              <Button variant="quiet" onClick={() => setAction('vorabpauschale')}>
+              <Button
+                variant="quiet"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setAction('vorabpauschale')}
+              >
                 Vorabpauschale
               </Button>
             )}
-            <Button variant="quiet" onClick={() => setAction('document')}>
+            <Button
+              variant="quiet"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setAction('document')}
+            >
               Dokument ablegen
             </Button>
             {!asset.disposalDate && (
               <>
-                <Button variant="secondary" onClick={() => setAction('impairment')}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('impairment')}
+                >
                   Außerplanmäßig abschreiben
                 </Button>
-                <Button variant="secondary" onClick={() => setAction('writeUp')}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('writeUp')}
+                >
                   Zuschreiben
                 </Button>
-                <Button variant="secondary" onClick={() => onEdit(asset)}>
+                <Button
+                  variant="secondary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => onEdit(asset)}
+                >
                   Bearbeiten
                 </Button>
-                <Button variant="primary" onClick={() => setAction('disposal')}>
+                <Button
+                  variant="primary"
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
+                  onClick={() => setAction('disposal')}
+                >
                   Abgang buchen
                 </Button>
               </>
@@ -1966,10 +2529,13 @@ const AssetOverview: React.FC<{
 
       {asset.currency && asset.foreignCost ? (
         <div className="rounded-control border border-line bg-sunken px-4 py-3 text-body text-ink-muted">
-          Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
-          Anschaffungskosten von {formatCents(asset.acquisitionCost)}. Zum Abschlussstichtag ist zum
-          Devisenkassamittelkurs umzurechnen (§ 256a HGB) — nach oben begrenzt durch die
-          Anschaffungskosten.
+          <span className="inline-flex items-center gap-1.5">
+            Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
+            Anschaffungskosten von {formatCents(asset.acquisitionCost)}.
+            <HelpPopover label="Erklärung zur Umrechnung">
+              Zum Abschlussstichtag ist zum Devisenkassamittelkurs umzurechnen (§ 256a HGB), nach oben begrenzt durch die Anschaffungskosten.
+            </HelpPopover>
+          </span>
         </div>
       ) : null}
 
@@ -2081,6 +2647,7 @@ const DocumentSection: React.FC<{
   asset: FixedAsset;
   onChanged: () => Promise<void>;
 }> = ({ asset, onChanged }) => {
+  const writeLock = usePostingLock();
   const documents = asset.documents ?? [];
   const [busy, setBusy] = useState<number | null>(null);
   const today = new Date().toISOString().slice(0, 10);
@@ -2159,6 +2726,8 @@ const DocumentSection: React.FC<{
                   variant="quiet"
                   size="sm"
                   loading={busy === document.id}
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
                   onClick={() => void remove(document)}
                 >
                   Entfernen
@@ -2195,6 +2764,7 @@ const DocumentForm: React.FC<{
   kinds: AssetDocumentKindInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, kinds, onDone }) => {
+  const writeLock = usePostingLock();
   const [kind, setKind] = useState<AssetDocumentKind>('contract');
   const [paths, setPaths] = useState<string[]>([]);
   const [title, setTitle] = useState('');
@@ -2243,7 +2813,7 @@ const DocumentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zu den Dokumenten"
         line="Was hier liegt, wird nicht gebucht — es gehört zum Wirtschaftsgut, nicht zum Geschäftsjahr."
       >
@@ -2253,7 +2823,7 @@ const DocumentForm: React.FC<{
         Weg wie ein Beleg — unter ihrer eigenen Prüfsumme, sodass später feststeht, ob noch dort
         liegt, was abgelegt wurde. Die Aufbewahrungspflicht des § 147 AO ersetzt das nicht; sie
         trifft weiterhin das Original.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Art des Dokuments">
@@ -2297,7 +2867,7 @@ const DocumentForm: React.FC<{
           label="Läuft ab am"
           optional
           hint="Police, Frist, Fälligkeit"
-          help="Ein Ablaufdatum, das niemand wieder liest, wäre keine Angabe. Buchfink beantwortet damit, was bis zu einem Stichtag ausläuft."
+          explain="Ein Ablaufdatum, das niemand wieder liest, wäre keine Angabe. Buchfink beantwortet damit, was bis zu einem Stichtag ausläuft."
         >
           <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
         </Field>
@@ -2309,7 +2879,13 @@ const DocumentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={paths.length === 0} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={paths.length === 0 || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Ablegen
         </Button>
       </div>
@@ -2329,6 +2905,7 @@ const VorabpauschaleForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = usePostingLock();
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [opening, setOpening] = useState('');
   const [closing, setClosing] = useState('');
@@ -2391,20 +2968,20 @@ const VorabpauschaleForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Vorabpauschale"
         line="Zu versteuern, ohne dass Geld fließt — und deshalb nicht zu buchen."
       >
-        Schüttet ein Fonds weniger aus als den Basisertrag, ist die Differenz zu versteuern
-        (§ 18 Abs. 1 InvStG). Der Basisertrag sind 70 % des Basiszinses auf den Rücknahmepreis zu
+        Schüttet ein Fonds weniger aus als den Basisertrag, ist die Differenz zu versteuern (§ 18
+        Abs. 1 InvStG). Der Basisertrag sind 70 % des Basiszinses auf den Rücknahmepreis zu
         Jahresbeginn, begrenzt auf den Wertzuwachs des Jahres; im Erwerbsjahr wird um ein Zwölftel
         je vollem Monat vor dem Erwerb gekürzt. Handelsrechtlich geschieht nichts, deshalb entsteht
         keine Buchung. Festgehalten wird sie trotzdem: beim Abgang wird sie wieder abgezogen, weil
         sie über die Jahre schon versteuert wurde.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-4 gap-4">
-        <Field label="Kalenderjahr" help="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
+        <Field label="Kalenderjahr" explain="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
           <Input
             type="number"
             align="right"
@@ -2444,7 +3021,7 @@ const VorabpauschaleForm: React.FC<{
       <Field
         label="Basiszins in Prozent"
         hint="aus dem BMF-Schreiben im Bundessteuerblatt"
-        help="Der Basiszins steht nicht im Gesetz. Die Bundesbank errechnet ihn auf den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Buchfink liefert ihn deshalb nicht mit — ein mitgelieferter Wert wäre im nächsten Jahr falsch."
+        explain="Der Basiszins steht nicht im Gesetz. Die Bundesbank errechnet ihn auf den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Buchfink liefert ihn deshalb nicht mit — ein mitgelieferter Wert wäre im nächsten Jahr falsch."
         className="max-w-xs"
       >
         <Input
@@ -2482,7 +3059,8 @@ const VorabpauschaleForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={!result || result.amount <= 0}
+          disabled={!result || result.amount <= 0 || writeLock.locked}
+          title={writeLock.hint}
           onClick={record}
         >
           Festhalten
@@ -2524,7 +3102,7 @@ const MOVEMENT_LABEL: Record<string, string> = {
   subsequent_cost: 'Nachträgliche Anschaffungskosten',
   cost_reduction: 'Anschaffungskostenminderung',
   depreciation: 'Planmäßige Abschreibung',
-  special_depreciation: 'Sonderabschreibung (§ 7g Abs. 5 EStG)',
+  special_depreciation: 'Sonderabschreibung',
   impairment: 'Außerplanmäßige Abschreibung',
   write_up: 'Zuschreibung',
   maintenance: 'Erhaltungsaufwand',
@@ -2549,6 +3127,7 @@ const ImpairmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [permanent, setPermanent] = useState(true);
@@ -2578,7 +3157,7 @@ const ImpairmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur außerplanmäßigen Abschreibung"
         line="Ein Ermessensvorgang: Buchfink kann ihn erfassen, aber nicht auslösen."
       >
@@ -2587,7 +3166,7 @@ const ImpairmentForm: React.FC<{
         {isFinancial
           ? 'Bei Finanzanlagen darf auch bei einer nur vorübergehenden Wertminderung abgeschrieben werden (§ 253 Abs. 3 Satz 6 HGB); das Konto unterscheidet die beiden Fälle.'
           : 'Zulässig ist sie nur bei voraussichtlich dauernder Wertminderung (§ 253 Abs. 3 Satz 5 HGB); die Ausnahme für die nicht dauernde gilt allein für Finanzanlagen.'}
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -2634,7 +3213,13 @@ const ImpairmentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Abschreibung buchen
         </Button>
       </div>
@@ -2648,6 +3233,7 @@ const WriteUpForm: React.FC<{
   ceiling: Cents;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, ceiling, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -2674,7 +3260,7 @@ const WriteUpForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Zuschreibung"
         line="Zuschreiben ist ein Gebot, kein Wahlrecht (§ 253 Abs. 5 Satz 1 HGB)."
       >
@@ -2682,7 +3268,7 @@ const WriteUpForm: React.FC<{
         Obergrenze sind die fortgeführten Anschaffungskosten: der Buchwert, den das Anlagegut ohne
         die außerplanmäßige Abschreibung heute hätte. Buchfink rechnet diese Grenze und weist einen
         höheren Betrag ab.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Datum">
@@ -2697,7 +3283,7 @@ const WriteUpForm: React.FC<{
           }
           error={
             (parseCents(amount) ?? 0) > ceiling && ceiling > 0
-              ? `Mehr als ${formatCents(ceiling)} lässt § 253 Abs. 5 Satz 1 HGB nicht zu.`
+              ? `Mehr als ${formatCents(ceiling)} lässt das Anschaffungskostenprinzip nicht zu.`
               : undefined
           }
         >
@@ -2722,7 +3308,13 @@ const WriteUpForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={ceiling <= 0 || (parseCents(amount) ?? 0) <= 0 || (parseCents(amount) ?? 0) > ceiling}
+          disabled={
+            ceiling <= 0 ||
+            (parseCents(amount) ?? 0) <= 0 ||
+            (parseCents(amount) ?? 0) > ceiling ||
+            writeLock.locked
+          }
+          title={writeLock.hint}
           onClick={submit}
         >
           Zuschreibung buchen
@@ -2736,6 +3328,7 @@ const CostAdjustmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reduction, setReduction] = useState(false);
@@ -2776,16 +3369,16 @@ const CostAdjustmentForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zu Erweiterungen und nachträglichen Anschaffungskosten"
         line="Erweiterung oder Reparatur? Nur die Erweiterung erhöht die Anschaffungskosten."
       >
-        Aktiviert wird, was das Anlagegut erweitert oder über seinen ursprünglichen Zustand hinaus
-        wesentlich verbessert (§ 255 Abs. 2 HGB) — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
+        Aktiviert wird, was das Anlagegut erweitert oder wesentlich verbessert (§ 255 Abs. 2 HGB)
+        — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
         die es nur im Zustand hält, ist Erhaltungsaufwand und gehört sofort in die Gewinn- und
         Verlustrechnung: dafür gibt es am Anlagegut die eigene Aktion „Erhaltungsaufwand". Fracht und
         Montage zählen zu den Anschaffungskosten, Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -2820,7 +3413,7 @@ const CostAdjustmentForm: React.FC<{
               ? `${extendMonths} Monate — wirkt ab ${date.slice(0, 4)}, die gebuchten Jahre bleiben`
               : 'Jahre · 0, wenn die Erweiterung nichts daran ändert'
           }
-          help="Ein Anbau hält oft so lange wie das Gebäude. Die Verlängerung wirkt nach vorn: sie verteilt den Restbuchwert auf mehr Restmonate, ohne die bereits gebuchten Jahre anzurühren."
+          explain="Ein Anbau hält oft so lange wie das Gebäude. Die Verlängerung wirkt nach vorn: sie verteilt den Restbuchwert auf mehr Restmonate, ohne die bereits gebuchten Jahre anzurühren."
           className="max-w-xs"
         >
           <Input
@@ -2841,7 +3434,13 @@ const CostAdjustmentForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Erfassen
         </Button>
       </div>
@@ -2855,6 +3454,7 @@ const MaintenanceForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [settlement, setSettlement] = useState<Settlement>('paid');
@@ -2863,8 +3463,47 @@ const MaintenanceForm: React.FC<{
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus.
+   *
+   * Negativ formuliert und nicht angehakt, weil der Regelfall der Vorgabewert
+   * sein muss: Instandsetzung und Modernisierung zählen in den Rahmen,
+   * jährlich üblicherweise anfallende Erhaltungsarbeiten sind ausdrücklich
+   * ausgenommen (Satz 2 Nr. 1).
+   */
+  const [notModernisation, setNotModernisation] = useState(false);
+  // Die 15-%-Prüfung vor und nach der Buchung. Vorher als Vorschau, nachher
+  // als Befund samt dem Weg, der aus ihm herausführt.
+  const [check, setCheck] = useState<NearAcquisitionCheck | null>(null);
+  const [booked, setBooked] = useState<NearAcquisitionCheck | null>(null);
+  const [capitalizeReason, setCapitalizeReason] = useState('');
 
   const vendors = contacts.filter((c) => c.type === 'vendor');
+  const planned = parseCents(amount);
+
+  // Der Rahmen wird vor der Buchung gefragt, sobald Betrag und Datum stehen:
+  // wer erst nach dem Buchen erfährt, dass die 15 % gerissen sind, hat den
+  // Aufwand schon in der GuV — und die Rücknahme ist eine zweite Buchung.
+  useEffect(() => {
+    if (notModernisation || planned === null || planned <= 0 || !date) {
+      setCheck(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      Api.checkNearAcquisitionCost(asset.id, date, planned)
+        .then((result) => {
+          if (!cancelled) setCheck(result);
+        })
+        .catch(() => {
+          if (!cancelled) setCheck(null);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [asset.id, date, planned, notModernisation]);
 
   async function submit() {
     setBusy(true);
@@ -2875,7 +3514,7 @@ const MaintenanceForm: React.FC<{
         setError('Der Betrag fehlt oder ist nicht lesbar.');
         return;
       }
-      await Api.bookAssetMaintenance({
+      const result = await Api.bookAssetMaintenance({
         assetId: asset.id,
         date,
         amount: value,
@@ -2883,8 +3522,40 @@ const MaintenanceForm: React.FC<{
         paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
         contactId: settlement === 'open' ? contactId : undefined,
         note,
+        notModernisation,
       });
+      // Der Rahmen ist gerissen: die Buchung steht, und die Entscheidung über
+      // die Aktivierung ist die nächste. Der Dialog bleibt deshalb offen statt
+      // zu schließen und den Befund mitzunehmen.
+      if (result?.nearAcquisition?.exceeded) {
+        setBooked(result.nearAcquisition);
+        setAmount('');
+        setCheck(null);
+        return;
+      }
       await onDone('Erhaltungsaufwand gebucht.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Die Umbuchung des Aufwands in nachträgliche Herstellungskosten. */
+  async function capitalize() {
+    if (capitalizeReason.trim() === '') {
+      setError('Die Umbuchung verteilt einen sofort abgezogenen Aufwand — ohne Grund nicht.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await Api.capitalizeNearAcquisitionCost({
+        assetId: asset.id,
+        date,
+        reason: capitalizeReason.trim(),
+      });
+      await onDone('Als nachträgliche Herstellungskosten aktiviert.');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -2894,16 +3565,16 @@ const MaintenanceForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum Erhaltungsaufwand"
         line="Was den Zustand nur erhält, ist sofort abziehbar — es erhöht die Anschaffungskosten nicht."
       >
-        Aktiviert wird nur, was das Wirtschaftsgut erweitert oder über seinen ursprünglichen Zustand
-        hinaus wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB). Eine Reparatur, die es im Zustand
+        Aktiviert wird nur, was das Wirtschaftsgut wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB)
+        — über seinen ursprünglichen Zustand hinaus. Eine Reparatur, die es im Zustand
         hält, gehört sofort in die Gewinn- und Verlustrechnung. Die Buchung wird hier trotzdem mit
         dem Anlagegut verknüpft: wer später fragt, was die Maschine gekostet hat, sieht beides und
         kann es auseinanderhalten. Das Aufwandskonto folgt aus dem Anlagekonto.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -2951,19 +3622,118 @@ const MaintenanceForm: React.FC<{
         <Field
           label="Abgrenzung zur Erweiterung"
           hint="wird mit der Buchung festgehalten"
-          help="Die Unterscheidung ist eine Einschätzung, keine Rechnung. Ohne festgehaltene Begründung ist sie später nicht mehr nachvollziehbar."
+          explain="Die Unterscheidung ist eine Einschätzung, keine Rechnung. Ohne festgehaltene Begründung ist sie später nicht mehr nachvollziehbar."
         >
           <Input value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
       </div>
 
+      <span className="flex items-start gap-1">
+        <Checkbox
+          checked={notModernisation}
+          onCheckedChange={(checked) => setNotModernisation(Boolean(checked))}
+          label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
+          hint="bleibt außerhalb des 15-%-Rahmens"
+        />
+        <HelpPopover label="Erklärung zur üblichen Erhaltungsarbeit">
+          Jährlich üblicherweise anfallende Erhaltungsarbeiten bleiben aus dem 15-%-Rahmen der
+          ersten drei Jahre heraus (§ 6 Abs. 1 Nr. 1a Satz 2 EStG). Instandsetzung und
+          Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als
+          um den laufenden Unterhalt.
+        </HelpPopover>
+      </span>
+
+      {/* Der Rahmen des § 6 Abs. 1 Nr. 1a EStG: vor der Buchung als Vorschau,
+          nach ihr als Befund mit dem Weg heraus. */}
+      {check?.applicable && !booked && (
+        <div
+          className={cn(
+            'rounded-control border px-4 py-3',
+            check.exceeded
+              ? 'border-attention-line bg-attention-soft'
+              : 'border-line-strong bg-sunken',
+          )}
+        >
+          <h4 className={cn('text-label', check.exceeded ? 'text-attention-text' : 'text-ink')}>
+            Anschaffungsnahe Herstellungskosten
+            <HelpPopover label="Erklärung zum 15-%-Rahmen">
+              Übersteigen die Aufwendungen für Instandsetzung und Modernisierung innerhalb von drei
+              Jahren nach der Anschaffung eines Gebäudes 15 % der Anschaffungskosten ohne
+              Umsatzsteuer, gehören sie zu den Herstellungskosten (§ 6 Abs. 1 Nr. 1a EStG). Sie
+              sind dann über die Gebäude-AfA zu verteilen, nicht sofort abziehbar — und zwar
+              sämtliche, auch die bereits als Aufwand gebuchten.
+            </HelpPopover>
+          </h4>
+          <p className="text-body text-ink-muted mt-1.5">{check.note}</p>
+          <p className="text-caption text-ink-subtle mt-1">
+            <span className="num">{formatCents(check.spent)}</span> gebucht
+            {check.planned > 0 && (
+              <>
+                {' · '}
+                <span className="num">{formatCents(check.planned)}</span> geplant
+              </>
+            )}
+            {' · Rahmen '}
+            <span className="num">{formatCents(check.limit)}</span>
+            {check.periodEnd ? ` · Zeitraum bis ${formatDate(check.periodEnd)}` : ''}
+          </p>
+        </div>
+      )}
+
+      {booked && (
+        <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
+          <h4 className="text-label text-attention-text">
+            Der 15-%-Rahmen ist überschritten
+          </h4>
+          <p className="text-body text-ink-muted mt-1.5">{booked.note}</p>
+          <p className="text-caption text-ink-subtle mt-1">
+            <span className="num">{formatCents(booked.spent)}</span> gegenüber{' '}
+            <span className="num">{formatCents(booked.limit)}</span>
+          </p>
+          <Field
+            label="Grund der Aktivierung"
+            className="mt-3"
+            explain="Die Umbuchung nimmt gebuchten Aufwand zurück und aktiviert ihn. Wer sie später liest, muss wissen, worauf sie beruht."
+          >
+            <Textarea
+              rows={2}
+              value={capitalizeReason}
+              onChange={(e) => setCapitalizeReason(e.target.value)}
+              placeholder="etwa: 15-%-Grenze mit der Sanierung 2027 überschritten"
+            />
+          </Field>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => void onDone('Erhaltungsaufwand gebucht.')}>
+              Später entscheiden
+            </Button>
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={writeLock.locked || capitalizeReason.trim() === ''}
+              title={writeLock.hint}
+              onClick={capitalize}
+            >
+              Als nachträgliche Herstellungskosten aktivieren
+            </Button>
+          </div>
+        </div>
+      )}
+
       <FormError message={error} />
 
-      <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
-          Aufwand buchen
-        </Button>
-      </div>
+      {!booked && (
+        <div className="flex justify-end">
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Aufwand buchen
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -2974,6 +3744,7 @@ const AssetIncomeForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [withholding, setWithholding] = useState('');
@@ -3016,7 +3787,7 @@ const AssetIncomeForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum laufenden Ertrag"
         line="Eine Ausschüttung ist Ertrag des Jahres, kein Rückfluss der Anschaffungskosten."
       >
@@ -3026,7 +3797,7 @@ const AssetIncomeForm: React.FC<{
         Erträge aus Ausleihungen und sonstige Zinsen getrennt aus (§ 275 Abs. 2 HGB). Eine
         einbehaltene Kapitalertragsteuer mindert den Zufluss und nicht den Ertrag — sie ist eine
         Vorauszahlung auf die eigene Steuer.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Datum">
@@ -3093,7 +3864,13 @@ const AssetIncomeForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Ertrag buchen
         </Button>
       </div>
@@ -3105,6 +3882,7 @@ const CurrencyForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [rate, setRate] = useState('');
   const [valuation, setValuation] = useState<CurrencyValuation | null>(null);
@@ -3162,17 +3940,17 @@ const CurrencyForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Fremdwährungsbewertung"
         line="Umgerechnet wird zum Devisenkassamittelkurs des Abschlussstichtags (§ 256a HGB)."
       >
-        Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB): die
-        Ausnahme des § 256a Satz 2 HGB gilt nur bei einer Restlaufzeit von höchstens einem Jahr und
-        passt auf ein Anlagegut nicht, das dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener
+        Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB, Ausnahme § 256a Satz 2 HGB).
+        Die Ausnahme greift nur bis zu einem Jahr Restlaufzeit und passt auf ein Anlagegut nicht,
+        das dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener
         Kurs führt deshalb zu einer außerplanmäßigen Abschreibung, ein gestiegener höchstens zu einer
         Zuschreibung bis zu den Anschaffungskosten. Buchfink rechnet den Betrag; gebucht wird er über
         dieselben Wege wie jede andere Wertänderung.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
         <Field label="Stichtag">
@@ -3241,7 +4019,8 @@ const CurrencyForm: React.FC<{
         <Button
           variant="primary"
           loading={busy}
-          disabled={!valuation || valuation.proposedAmount <= 0}
+          disabled={!valuation || valuation.proposedAmount <= 0 || writeLock.locked}
+          title={writeLock.hint}
           onClick={book}
         >
           {valuation?.proposal === 'write_up' ? 'Kursgewinn buchen' : 'Kursverlust buchen'}
@@ -3256,6 +4035,7 @@ const TransferForm: React.FC<{
   accounts: AssetAccountInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, accounts, onDone }) => {
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [account, setAccount] = useState<string | null>(null);
   const [method, setMethod] = useState<DepreciationMethod>('linear');
@@ -3308,7 +4088,7 @@ const TransferForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zur Fertigstellung"
         line="Erst mit der Betriebsbereitschaft beginnt die Abschreibung — nicht mit der ersten Anzahlung."
       >
@@ -3317,10 +4097,10 @@ const TransferForm: React.FC<{
         endgültiges Anlagekonto umgebucht, und die AfA läuft ab diesem Monat (§ 7 Abs. 1 Satz 4
         EStG). Im Anlagenspiegel erscheint das als Umbuchung: bei der einen Position ab, bei der
         anderen zu.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Fertigstellung am" help="Ab diesem Monat wird abgeschrieben.">
+        <Field label="Fertigstellung am" explain="Ab diesem Monat wird abgeschrieben.">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Buchwert" hint={`von Konto ${asset.account}`}>
@@ -3343,11 +4123,14 @@ const TransferForm: React.FC<{
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Abschreibungsmethode">
+        <Field
+          label="Abschreibungsmethode"
+          explain="Linear verteilt gleichmäßig über die Nutzungsdauer (§ 7 Abs. 1 EStG); degressiv schreibt vom Restbuchwert ab und ist nur für Anschaffungen in den begünstigten Zeiträumen zulässig (§ 7 Abs. 2 EStG)."
+        >
           <Select
             items={[
-              { value: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)' },
-              { value: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)' },
+              { value: 'linear', label: 'Linear' },
+              { value: 'degressive', label: 'Degressiv' },
               { value: 'none', label: 'Keine planmäßige Abschreibung' },
             ]}
             value={method}
@@ -3382,7 +4165,13 @@ const TransferForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={!account} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={!account || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           Fertigstellung buchen
         </Button>
       </div>
@@ -3396,6 +4185,7 @@ const DisposalForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
+  const writeLock = usePostingLock();
   const customers = contacts.filter((c) => c.type === 'customer');
   const [request, setRequest] = useState<DisposalRequest>({
     assetId: asset.id,
@@ -3465,7 +4255,7 @@ const DisposalForm: React.FC<{
 
   return (
     <div className="space-y-4">
-      <FormHint
+      <FormExplanation
         label="Erklärung zum Abgang"
         line="Der SKR04 wählt das Erlöskonto nach dem Ergebnis, nicht nach dem Vorgang."
       >
@@ -3474,16 +4264,16 @@ const DisposalForm: React.FC<{
         Buchgewinn oder -verlust — und derselbe Verkauf steht damit einmal unter den Erträgen und
         einmal unter den Aufwendungen. Buchfink rechnet das Ergebnis deshalb zuerst und zeigt unten,
         welche Konten daraus folgen.
-      </FormHint>
+      </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
-        <Field label="Abgangsdatum" help="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
+        <Field label="Abgangsdatum" explain="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
           <Input type="date" value={request.date} onChange={(e) => set({ date: e.target.value })} />
         </Field>
         <Field
           label="Art des Abgangs"
           hint={request.kind === 'repayment' ? 'kein Umsatz, kein Erlöskonto' : undefined}
-          help={
+          explain={
             isLoan
               ? 'Eine Tilgung ist kein Verkauf: zurückgezahlt wird, was ausgeliehen wurde. Zum Buchwert entsteht dabei weder Erlös noch Buchgewinn — die Buchung ist Geld an Ausleihung.'
               : undefined
@@ -3547,7 +4337,7 @@ const DisposalForm: React.FC<{
                   ? `von ${formatUnits(asset.unitsHeld ?? 0)} · Rest ${formatUnits(preview.unitsRemaining ?? 0)}`
                   : `von ${formatUnits(asset.unitsHeld ?? 0)} im Bestand`
               }
-              help="Verkauft wird eine Tranche, kein Betrag. Den Anteil der Anschaffungskosten rechnet Buchfink daraus — samt der Abschreibungen, die im selben Verhältnis mit hinauswandern."
+              explain="Verkauft wird eine Tranche, kein Betrag. Den Anteil der Anschaffungskosten rechnet Buchfink daraus — samt der Abschreibungen, die im selben Verhältnis mit hinauswandern."
             >
               <Input
                 type="number"
@@ -3565,7 +4355,7 @@ const DisposalForm: React.FC<{
             <Field
               label="Abgehende Anschaffungskosten"
               hint={`von ${formatCents(asset.cost)}`}
-              help="Die kumulierten Abschreibungen wandern im selben Verhältnis mit hinaus."
+              explain="Die kumulierten Abschreibungen wandern im selben Verhältnis mit hinaus."
             >
               <Input
                 align="right"
@@ -3703,7 +4493,13 @@ const DisposalForm: React.FC<{
       <FormError message={error} />
 
       <div className="flex justify-end">
-        <Button variant="primary" loading={busy} disabled={Boolean(previewError)} onClick={submit}>
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={Boolean(previewError) || writeLock.locked}
+          title={writeLock.hint}
+          onClick={submit}
+        >
           {preview?.partial ? 'Teilabgang buchen' : 'Abgang buchen'}
         </Button>
       </div>

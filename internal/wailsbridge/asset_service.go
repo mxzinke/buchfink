@@ -27,7 +27,7 @@ func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, erro
 	if b.assetSvc == nil {
 		return []domain.FixedAsset{}, nil
 	}
-	return b.assetSvc.List(context.Background(), domain.AssetClass(class))
+	return emptyList(b.assetSvc.List(context.Background(), domain.AssetClass(class)))
 }
 
 // GetAssetSummary aggregates the register of one class for the head of the view.
@@ -45,7 +45,7 @@ func (b *BuchfinkBridge) GetAssetSummary(class string) (*service.AssetSummary, e
 }
 
 // GetFixedAsset returns one Anlagegut with its AfA-Plan, seinen Bewegungen und
-// den Erklärungen, die zu genau diesem Gut gehören.
+// den Erklärungen, die zu diesem Gut gehören.
 func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -59,6 +59,9 @@ func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -69,6 +72,9 @@ func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedA
 func (b *BuchfinkBridge) DeleteFixedAsset(id uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.assetSvc == nil {
 		return fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -80,6 +86,9 @@ func (b *BuchfinkBridge) DeleteFixedAsset(id uint) error {
 func (b *BuchfinkBridge) RecordAssetCostAdjustment(req service.CostAdjustmentRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -116,20 +125,31 @@ type AssetRules struct {
 	PoolUpperLimit    domain.Cents                  `json:"poolUpperLimit"`
 	PoolYears         int                           `json:"poolYears"`
 	DegressiveWindows []accounting.DegressiveWindow `json:"degressiveWindows"`
+	// ElectricVehicleWindows ist das Zeitfenster der Staffel des § 7 Abs. 2a
+	// EStG. Es steht neben dem der degressiven AfA und aus demselben Grund: die
+	// Maske soll eine Methode gar nicht erst anbieten, die das Backend gleich
+	// darauf wegen des Anschaffungsdatums zurückweist.
+	ElectricVehicleWindows []accounting.ElectricVehicleWindow `json:"electricVehicleWindows"`
 	// SpecialMaxPermille und SpecialPeriodYears sind die Grenzen der
 	// Sonderabschreibung nach § 7g Abs. 5 EStG: höchstens 40 % der
 	// Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier
 	// folgenden.
-	SpecialMaxPermille int               `json:"specialMaxPermille"`
-	SpecialPeriodYears int               `json:"specialPeriodYears"`
-	Methods            []assetMethodInfo `json:"methods"`
+	SpecialMaxPermille int `json:"specialMaxPermille"`
+	SpecialPeriodYears int `json:"specialPeriodYears"`
+	// InvestmentDeductionNote steht neben der Sonderabschreibung und sagt, was
+	// § 7g EStG sonst noch kennt und Buchfink nicht führt: den
+	// Investitionsabzugsbetrag des Absatzes 1. Er ist außerbilanziell und gehört
+	// in die Steuererklärung — ohne diesen Satz sähe die Maske aus, als kenne
+	// Buchfink die Vorschrift nur zur Hälfte.
+	InvestmentDeductionNote string            `json:"investmentDeductionNote"`
+	Methods                 []assetMethodInfo `json:"methods"`
 }
 
 type assetMethodInfo struct {
 	Method domain.DepreciationMethod `json:"method"`
 	Label  string                    `json:"label"`
 	// Classes names the Anlagenklassen the method is available for. Finanzanlagen
-	// tragen keine planmäßige Abschreibung — das steht hier und nicht als
+	// haben keine planmäßige Abschreibung — das steht hier und nicht als
 	// Sonderfall in der Maske.
 	Classes []domain.AssetClass `json:"classes"`
 	Hint    string              `json:"hint"`
@@ -153,15 +173,20 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 		domain.AssetClassIntangible, domain.AssetClassTangible, domain.AssetClassFinancial,
 	}
 	return &AssetRules{
-		FiscalYear:         year,
-		GWGImmediateLimit:  params.GWGImmediateLimit,
-		GWGRecordFrom:      params.GWGRecordThreshold,
-		PoolLowerLimit:     params.PoolLowerLimit,
-		PoolUpperLimit:     params.PoolUpperLimit,
-		PoolYears:          params.PoolYears,
-		DegressiveWindows:  accounting.DegressiveWindows(),
-		SpecialMaxPermille: accounting.SpecialMaxPermille,
-		SpecialPeriodYears: accounting.SpecialPeriodYears,
+		FiscalYear:        year,
+		GWGImmediateLimit: params.GWGImmediateLimit,
+		GWGRecordFrom:     params.GWGRecordThreshold,
+		PoolLowerLimit:    params.PoolLowerLimit,
+		PoolUpperLimit:    params.PoolUpperLimit,
+		PoolYears:         params.PoolYears,
+		DegressiveWindows: accounting.DegressiveWindows(),
+		// Aus derselben Ressource, aus der auch gerechnet wird.
+		ElectricVehicleWindows: accounting.AfARuleSet().ElectricVehicle,
+		SpecialMaxPermille:     accounting.SpecialMaxPermille,
+		SpecialPeriodYears:     accounting.SpecialPeriodYears,
+		// Aus derselben Ressource wie die Sätze: der Hinweis steht dort, wo die
+		// Regeln stehen, und nicht als zweite Fassung im Bridge-Code.
+		InvestmentDeductionNote: accounting.AfARuleSet().InvestmentDeductionNote,
 		Methods: []assetMethodInfo{
 			{
 				Method: domain.DepreciationLinear, Label: domain.DepreciationLinear.Label(),
@@ -176,6 +201,26 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 					"höchstens 30 %. Nur für bewegliche Wirtschaftsgüter und nur für Anschaffungen " +
 					"innerhalb eines der gesetzlichen Zeitfenster. Eine Sonderabschreibung nach " +
 					"§ 7g Abs. 5 EStG ist daneben zulässig.",
+			},
+			{
+				// Ohne diesen Eintrag steht die Staffel des § 7 Abs. 2a EStG zwar im
+				// Rechenkern, ist aber in keiner Maske wählbar — und ein E-Fahrzeug
+				// liefe still linear.
+				Method:  domain.DepreciationElectricVehicle,
+				Label:   domain.DepreciationElectricVehicle.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3 und 2 % der " +
+					"Anschaffungskosten. Nur für neue, rein elektrisch betriebene Fahrzeuge und nur " +
+					"für Anschaffungen nach dem 30.06.2025 und vor dem 01.01.2028. Das " +
+					"Anschaffungsjahr bekommt den vollen Satz, ohne Zeitanteil.",
+			},
+			{
+				Method:  domain.DepreciationBuildingLinear,
+				Label:   domain.DepreciationBuildingLinear.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die festen Sätze des § 7 Abs. 4 EStG für Gebäude. Welcher gilt, entscheidet " +
+					"der Stichtag: der Bauantrag beim Betriebsgebäude, die Fertigstellung beim " +
+					"Wohngebäude. Die betriebsgewöhnliche Nutzungsdauer spielt hier keine Rolle.",
 			},
 			{
 				Method: domain.DepreciationPool, Label: domain.DepreciationPool.Label(),
@@ -206,9 +251,9 @@ func (b *BuchfinkBridge) PreviewDepreciationPlan(req service.PlanRequest) ([]acc
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+		return []accounting.AfAYear{}, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
-	return b.assetSvc.PreviewPlan(context.Background(), req)
+	return emptyList(b.assetSvc.PreviewPlan(context.Background(), req))
 }
 
 // GetDepreciationRun computes the AfA of the active fiscal year without writing
@@ -217,7 +262,9 @@ func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return &service.DepreciationRun{}, nil
+		empty := &service.DepreciationRun{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.assetSvc.Run(context.Background())
 }
@@ -226,6 +273,9 @@ func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) 
 func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest) (*service.DepreciationResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -236,6 +286,9 @@ func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest
 func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -246,6 +299,9 @@ func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*do
 func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -257,6 +313,9 @@ func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.J
 func (b *BuchfinkBridge) TransferFixedAsset(req service.TransferRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -277,6 +336,9 @@ func (b *BuchfinkBridge) PreviewAssetDisposal(req service.DisposalRequest) (*ser
 func (b *BuchfinkBridge) DisposeFixedAsset(req service.DisposalRequest) (*service.DisposalResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -289,9 +351,24 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return &domain.Anlagenspiegel{}, nil
+		empty := &domain.Anlagenspiegel{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.assetSvc.Anlagenspiegel(context.Background())
+}
+
+// GetLegacySpecialDepreciations nennt die Sonderabschreibungen, die noch als
+// Buchung im Journal stehen — der Migrationshinweis der Anlagenseite.
+func (b *BuchfinkBridge) GetLegacySpecialDepreciations() (*service.LegacySpecialDepreciationNotice, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.assetSvc == nil {
+		return &service.LegacySpecialDepreciationNotice{
+			Rows: []service.LegacySpecialDepreciation{},
+		}, nil
+	}
+	return b.assetSvc.LegacySpecialDepreciations(context.Background())
 }
 
 // GetAssetAcquisitionCandidates lists bookings on Anlagekonten that no Anlagegut
@@ -302,7 +379,7 @@ func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionC
 	if b.assetSvc == nil {
 		return []service.AcquisitionCandidate{}, nil
 	}
-	return b.assetSvc.AcquisitionCandidates(context.Background())
+	return emptyList(b.assetSvc.AcquisitionCandidates(context.Background()))
 }
 
 // GetSammelposten returns the Sammelposten of a fiscal year, or nothing if none
@@ -318,9 +395,17 @@ func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, er
 
 // BookAssetMaintenance bucht Erhaltungsaufwand und verknüpft ihn mit dem
 // Anlagegut, ohne dessen Buchwert anzurühren.
-func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*domain.JournalEntry, error) {
+//
+// Zurück kommt die Buchung samt der Prüfung des 15-%-Rahmens des
+// § 6 Abs. 1 Nr. 1a EStG: bei einem Gebäude in den ersten drei Jahren
+// entscheidet sie darüber, ob der Aufwand überhaupt sofort abziehbar ist, und
+// die Maske muss sie zeigen können.
+func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*service.MaintenanceResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -332,6 +417,9 @@ func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*
 func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -364,22 +452,27 @@ func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, err
 	}
 	app := application.Get()
 	if app == nil || app.Dialog == nil {
-		return nil, nil
+		return []string{}, nil
 	}
-	return app.Dialog.OpenFile().
+	// Der Abbruch des Dialogs liefert nil; als `null` in der Oberfläche wäre
+	// daraus ein TypeError beim Lesen der Länge geworden.
+	return emptyList(app.Dialog.OpenFile().
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
 		AddFilter("Dokumente", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml;*.csv;*.txt").
 		SetTitle(title).
-		PromptForMultipleSelection()
+		PromptForMultipleSelection())
 }
 
 // AttachAssetDocument legt eine Datei zum Anlagegut ab — einen Vertrag, ein
-// Gutachten, ein Zulassungspapier. Sie wird nicht gebucht und trägt keine
+// Gutachten, ein Zulassungspapier. Sie wird nicht gebucht und hat keine
 // Belegnummer; sie gehört zum Wirtschaftsgut und nicht zum Geschäftsjahr.
 func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -390,6 +483,9 @@ func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) 
 func (b *BuchfinkBridge) RemoveAssetDocument(assetID, documentID uint) (*domain.FixedAsset, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
@@ -450,7 +546,7 @@ func (b *BuchfinkBridge) GetExpiringAssetDocuments(until string) ([]service.Expi
 	if until == "" {
 		until = fmt.Sprintf("%d-12-31", year)
 	}
-	return svc.ExpiringDocuments(context.Background(), until)
+	return emptyList(svc.ExpiringDocuments(context.Background(), until))
 }
 
 // -------------------------------------------------------------------------
@@ -466,7 +562,9 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 	settings := b.settingsSvc
 	b.mu.RUnlock()
 
-	rules := &InvestmentRules{}
+	// Leer statt nil: die Maske läuft über die Freistellungen, auch wenn die
+	// eingestellte Anlegerstellung keine ergibt.
+	rules := &InvestmentRules{Exemptions: make([]exemptionInfo, 0)}
 	for _, class := range accounting.AllFundClasses() {
 		rules.FundClasses = append(rules.FundClasses,
 			fundClassInfo{Class: class, Label: class.Label()})
@@ -573,6 +671,9 @@ func (b *BuchfinkBridge) GetInvestmentNoteForIncome(assetID uint, amount int64) 
 func (b *BuchfinkBridge) BookAssetCurrencyValuation(req service.CurrencyValuationRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.assetSvc == nil {
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}

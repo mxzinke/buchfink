@@ -36,8 +36,9 @@ func TestTaxParametersAreDated(t *testing.T) {
 	}
 }
 
-// § 27 Abs. 38 UStG kennt drei Fälle, und der mittlere hängt am Vorjahresumsatz
-// des Ausstellers — den Buchfink nicht kennt. Deshalb ein Status, kein Ja/Nein.
+// § 27 Abs. 38 UStG kennt drei Fälle, und der mittlere richtet sich nach dem
+// Vorjahresumsatz des Ausstellers — den Buchfink nicht kennt. Deshalb ein
+// Status, kein Ja/Nein.
 func TestEInvoiceTransitionFollowsTheDeadlines(t *testing.T) {
 	cases := map[string]EInvoiceTransition{
 		"2025-06-30": EInvoiceTransitionAllowed,

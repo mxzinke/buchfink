@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -83,7 +84,7 @@ func AllAssetDocumentKinds() []AssetDocumentKind {
 
 // AssetDocument is one file kept alongside an Anlagegut.
 //
-// Es ist bewusst kein Beleg. Ein Beleg trägt eine Belegnummer aus einem
+// Es ist bewusst kein Beleg. Ein Beleg hat eine Belegnummer aus einem
 // lückenlosen Kreis, gehört zu einem Geschäftsjahr, wird gebucht und ist danach
 // versiegelt, weil sein Hash in der Journalkette hängt. Ein Kaufvertrag ist
 // nichts davon: er wird nicht gebucht, er gehört zum Wirtschaftsgut und nicht
@@ -119,6 +120,22 @@ type AssetDocument struct {
 	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
 	ValidUntil   string `gorm:"size:10;index" json:"validUntil,omitempty"`
 
+	// RetentionClass und RetentionUntil halten die Aufbewahrungsfrist fest, die
+	// beim Ablegen für dieses Dokument galt.
+	//
+	// Anlagendokumente sind Organisationsunterlagen im Sinne des § 147 Abs. 1
+	// Nr. 1 AO und keine Buchungsbelege: der Kaufvertrag und die
+	// Rechnungskopie belegen die Bemessungsgrundlage der Abschreibung, und die
+	// wirkt über die ganze Nutzungsdauer fort. Die Frist ist deshalb zehn
+	// Jahre und nicht die verkürzte Belegfrist von acht.
+	//
+	// Gespeichert und nicht bei jedem Lesen gerechnet — dieselbe Erwägung wie
+	// beim Beleg: welche Frist einmal galt, ist eine Tatsache über das
+	// Dokument und keine Ableitung aus dem heutigen Recht. RetentionUntil ist
+	// der letzte Tag der Aufbewahrung; gelöscht werden darf ab dem Tag danach.
+	RetentionClass RetentionClass `gorm:"size:20;index" json:"retentionClass,omitempty"`
+	RetentionUntil string         `gorm:"size:10;index" json:"retentionUntil,omitempty"`
+
 	Note      string    `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -153,4 +170,18 @@ func (d *AssetDocument) Validate() error {
 			d.ValidUntil, d.DocumentDate)
 	}
 	return nil
+}
+
+// assetDocumentJSON ist das Dokument ohne seine eigene Marshal-Methode; siehe
+// receiptJSON zur Begründung des Umwegs.
+type assetDocumentJSON AssetDocument
+
+// MarshalJSON liefert das Dokument mit dem frühesten Löschdatum daneben —
+// aus demselben Grund wie beim Beleg: RetentionUntil ist der letzte
+// Aufbewahrungstag, gelöscht werden darf erst am Tag danach.
+func (d AssetDocument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		assetDocumentJSON
+		EarliestDeletion string `json:"earliestDeletion,omitempty"`
+	}{assetDocumentJSON(d), EarliestDeletionAfter(d.RetentionUntil)})
 }

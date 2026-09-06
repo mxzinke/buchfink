@@ -24,7 +24,7 @@ import (
 
 // FoundationStage ist die Phase der Gründung.
 //
-// Sie wird nicht gespeichert, sondern aus dem Eintragungsdatum abgeleitet. Ein
+// Sie wird aus dem Eintragungsdatum abgeleitet, nicht gespeichert. Ein
 // Status, den man unabhängig davon setzen kann, geht früher oder später mit dem
 // Datum auseinander — und dann steht in der Oberfläche etwas anderes als in der
 // Rechnung.
@@ -103,8 +103,8 @@ type Foundation struct {
 	ShareCapital Cents `gorm:"not null" json:"shareCapital"`
 
 	// FoundationCostCap ist der Gründungsaufwand, den der Gesellschaftsvertrag
-	// der Gesellschaft auferlegt — betragsmäßig, sonst trägt ihn das Registerrecht
-	// nicht.
+	// der Gesellschaft auferlegt — betragsmäßig, sonst erkennt das Registerrecht
+	// ihn nicht an.
 	//
 	// Er gehört hierher, weil er die Vorbelastungshaftung begrenzt: Aufwand, den
 	// die Satzung der Gesellschaft zuweist, ist zulässig getragen und wird den
@@ -199,7 +199,7 @@ type FoundationTask struct {
 // Die Haftung ist Richterrecht, kein Paragraf: Die Gesellschafter haften
 // anteilig für die Differenz zwischen dem Stammkapital und dem Reinvermögen im
 // Zeitpunkt der Eintragung. Solange die Eintragung fehlt, ist jede Zahl
-// vorläufig — sie wächst mit jeder Buchung weiter. Deshalb trägt das Ergebnis
+// vorläufig — sie wächst mit jeder Buchung weiter. Deshalb hat das Ergebnis
 // seinen Stichtag und sagt, ob er der endgültige ist.
 type Unterbilanz struct {
 	AsOf    string `json:"asOf"`    // YYYY-MM-DD
@@ -264,7 +264,7 @@ type FoundationDuty struct {
 	Key   string `json:"key"`
 	Title string `json:"title"`
 	// DueDate ist leer, wo das Gesetz keine Frist in Tagen nennt, sondern
-	// „unverzüglich" sagt. Dann trägt Deadline den Wortlaut. Eine erfundene
+	// „unverzüglich" sagt. Dann hat Deadline den Wortlaut. Eine erfundene
 	// Tagesfrist wäre bequemer und falsch.
 	DueDate     string `json:"dueDate"`
 	Deadline    string `json:"deadline"`

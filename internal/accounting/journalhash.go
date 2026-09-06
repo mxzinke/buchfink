@@ -59,6 +59,46 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("rate_source", e.ExchangeRateSource)
 	put("rate_date", e.ExchangeRateDate)
 	put("rule_version", e.PostingRuleVersion)
+
+	// Die Versionsweiche der kanonischen Form.
+	//
+	// Programmfassung und Bearbeiterkennung gehören zu der Buchung: UNV-06
+	// verlangt, dass sich zu jeder Aufzeichnung feststellen lässt, welche
+	// Fassung des Programms sie erzeugt hat, und UNV-04 verlangt die
+	// Bearbeiterkennung. Beides ungedeckt zu lassen hieße, ausgerechnet die
+	// Nachweisfelder nachträglich änderbar zu halten.
+	//
+	// Zusätzliche Felder in der Kanonisierung ändern aber den Hash *jeder*
+	// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung wäre
+	// mit dem nächsten Update gebrochen. Die Weiche löst das ohne
+	// Datenänderung: eine Buchung ohne AppVersion stammt aus der Zeit vor
+	// dieser Welle und wird nach der bisherigen Form gehasht; eine mit
+	// AppVersion nach der neuen. Welche Form gilt, steht an der Buchung selbst
+	// — es braucht keine gespeicherte Formatnummer, die selbst wieder
+	// änderbar wäre.
+	//
+	// JournalService.Post setzt AppVersion an jeder neuen Buchung, es gibt
+	// also keinen dritten Fall.
+	if e.AppVersion != "" {
+		put("app_version", e.AppVersion)
+		put("actor", e.Actor)
+		// Die Herkunftskennung aus einem Altsystem ist Inhalt und keine
+		// Fundstelle: sie sagt, welcher Posten der Schlussbilanz des
+		// Altsystems hier fortgeführt wird, und ist damit so zu decken wie der
+		// Buchungstext.
+		put("legacy_ref", e.LegacyRef)
+	}
+
+	// Die vereinbarte Fälligkeit, nur wo sie belegt ist. Sie ist Inhalt — die
+	// Altersstruktur und die Restlaufzeitangabe unter der Bilanz hängen an ihr
+	// (§ 268 Abs. 4 und 5 HGB) —, und sie steht wie der Vorsteueranteil und der
+	// Fremdbetrag hinter einer Belegtprüfung: ein leeres Feld heißt „folgt aus
+	// dem Zahlungsziel" und ist gleichbedeutend mit „nicht vorhanden", also
+	// hasht jede bestehende Buchung weiter wie zuvor.
+	if e.DueDate != "" {
+		put("due_date", e.DueDate)
+	}
+
 	put("created_at", e.CreatedAt.UTC().Format(time.RFC3339))
 
 	// Lines are hashed in a stable order so that a differently ordered read from
@@ -76,6 +116,26 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("line_contact", optUint(l.ContactID))
 		put("line_tax_key", l.TaxKey)
 		putInt("line_tax_base", int64(l.TaxBase))
+		// Der Vorsteuerschlüssel der gemischten Nutzung wird nur geschrieben, wo
+		// er belegt ist.
+		//
+		// Das ist keine Sparsamkeit, sondern Rückwärtskompatibilität: ein
+		// zusätzliches Feld in der Kanonisierung ändert den Hash *jeder*
+		// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung
+		// wäre mit dem nächsten Update gebrochen. Ein Anteil von null heißt
+		// „nicht einschlägig" und ist damit gleichbedeutend mit „nicht
+		// vorhanden"; jeder tatsächliche Anteil ist ungleich null und wird
+		// gedeckt.
+		if l.InputTaxShare != 0 {
+			putInt("line_input_tax_share", int64(l.InputTaxShare))
+		}
+		// Der Fremdbetrag ebenso: er steht nur an Zeilen einer
+		// Fremdwährungsbuchung, und eine Eurobuchung hasht weiter genau wie zuvor.
+		// Gedeckt sein muss er trotzdem — er ist der Betrag, auf den die Rechnung
+		// lautete, und aus dem Eurobetrag nicht wiederzugewinnen.
+		if l.ForeignAmount != 0 {
+			putInt("line_foreign_amount", int64(l.ForeignAmount))
+		}
 		put("line_text", l.Text)
 	}
 
@@ -92,6 +152,36 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("entertainment_occasion", d.Occasion)
 	} else {
 		putInt("entertainment", 0)
+	}
+
+	// Die Aufzeichnung zum Geschenk wird nur geschrieben, wo es eine gibt.
+	//
+	// Anders als bei der Bewirtung fehlt hier der Nullmarker, und das ist kein
+	// Versehen: das Feld ist neu, und ein Marker an jeder Buchung änderte den
+	// Hash jeder bestehenden. Eine Buchung ohne Geschenk hasht deshalb weiter
+	// genau wie zuvor, und eine mit ist vollständig gedeckt.
+	if len(e.Gifts) > 0 {
+		gifts := make([]domain.GiftRecord, len(e.Gifts))
+		copy(gifts, e.Gifts)
+		sort.SliceStable(gifts, func(i, j int) bool {
+			return gifts[i].RecipientKey() < gifts[j].RecipientKey()
+		})
+		putInt("gifts", int64(len(gifts)))
+		for i := range gifts {
+			g := &gifts[i]
+			put("gift_recipient", g.RecipientName)
+			put("gift_recipient_contact", optUint(g.RecipientContactID))
+			put("gift_occasion", g.Occasion)
+			put("gift_date", g.Date)
+			putInt("gift_net", int64(g.NetAmount))
+			put("gift_account", g.Account)
+			putInt("gift_fiscal_year", int64(g.FiscalYear))
+			if g.Deductible() {
+				putInt("gift_deductible", 1)
+			} else {
+				putInt("gift_deductible", 0)
+			}
+		}
 	}
 
 	return w.bytes()
@@ -112,16 +202,74 @@ func (h *HashChain) CalculateHash(e *domain.JournalEntry, prevHash string) strin
 
 // VerifyChain walks the entries in journal order and checks both the linkage to
 // the predecessor and that each entry still hashes to its stored digest.
+//
+// Die Prüfung hält beim ersten Bruch nicht an. Wer eine Zeile ändert, ändert
+// meist mehrere; ein Ergebnis, das nur die erste nennt, führt zu einer
+// Reparatur, die nach dem nächsten Lauf wieder von vorn beginnt. Nach einem
+// Bruch setzt die Erwartung auf dem tatsächlichen Eigenhash der Buchung auf,
+// damit nicht jede folgende Buchung als gebrochen gemeldet wird.
 func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityCheckResult {
-	checkedAt := time.Now().Format("02.01.2006 15:04:05")
+	result := h.verifyYear(0, entries)
+	result.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+	result.Message = chainMessage(result)
+	result.EnsureLists()
+	return result
+}
 
-	if len(entries) == 0 {
-		return domain.IntegrityCheckResult{
-			IsValid:          true,
-			Message:          "Keine Buchungen vorhanden. Die Buchhaltung ist bereit.",
-			LastVerifiedHash: domain.GenesisHash,
-			CheckedAt:        checkedAt,
+// VerifyYears prüft mehrere Geschäftsjahre, jedes für sich.
+//
+// Die Kette beginnt je Jahr neu beim Genesis-Hash — der Jahreswechsel eröffnet
+// eine neue Kette und ist kein Bruch. Eine Prüfung, die nur das aktive
+// Jahr ansieht, meldet Unversehrtheit, während in einem festgeschriebenen Jahr
+// eine Zeile verändert wurde; das ist genau der Fall, für den es die Kette gibt
+// (§ 146 Abs. 4 AO, GoBD Rz. 107).
+func (h *HashChain) VerifyYears(byYear map[int][]domain.JournalEntry) domain.IntegrityCheckResult {
+	years := make([]int, 0, len(byYear))
+	for year := range byYear {
+		years = append(years, year)
+	}
+	sort.Ints(years)
+
+	combined := domain.IntegrityCheckResult{
+		IsValid:          true,
+		LastVerifiedHash: domain.GenesisHash,
+		FiscalYears:      years,
+		Breaks:           make([]domain.IntegrityBreak, 0),
+	}
+	for _, year := range years {
+		one := h.verifyYear(year, byYear[year])
+		combined.TotalEntries += one.TotalEntries
+		combined.CheckedEntries += one.CheckedEntries
+		combined.Breaks = append(combined.Breaks, one.Breaks...)
+		if !one.IsValid {
+			combined.IsValid = false
+			if combined.FirstBrokenID == nil {
+				combined.FirstBrokenID = one.FirstBrokenID
+			}
 		}
+		if one.TotalEntries > 0 {
+			combined.LastVerifiedHash = one.LastVerifiedHash
+		}
+	}
+
+	combined.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+	combined.Message = chainMessage(combined)
+	combined.EnsureLists()
+	return combined
+}
+
+// verifyYear prüft eine Kette und sammelt jeden Bruch mit erwartetem und
+// tatsächlichem Hash.
+func (h *HashChain) verifyYear(year int, entries []domain.JournalEntry) domain.IntegrityCheckResult {
+	result := domain.IntegrityCheckResult{
+		IsValid:          true,
+		TotalEntries:     len(entries),
+		CheckedEntries:   len(entries),
+		LastVerifiedHash: domain.GenesisHash,
+		Breaks:           make([]domain.IntegrityBreak, 0),
+	}
+	if year > 0 {
+		result.FiscalYears = []int{year}
 	}
 
 	expectedPrev := domain.GenesisHash
@@ -129,46 +277,68 @@ func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityC
 		entry := &entries[i]
 
 		if entry.PreviousHash != expectedPrev {
-			id := entry.ID
-			return domain.IntegrityCheckResult{
-				IsValid:        false,
-				TotalEntries:   len(entries),
-				CheckedEntries: i,
-				FirstBrokenID:  &id,
+			result.IsValid = false
+			if result.FirstBrokenID == nil {
+				id := entry.ID
+				result.FirstBrokenID = &id
+			}
+			result.Breaks = append(result.Breaks, domain.IntegrityBreak{
+				FiscalYear:   entry.FiscalYear,
+				EntryID:      entry.ID,
+				EntryNumber:  entry.EntryNumber,
+				Reason:       domain.IntegrityBreakLinkage,
+				ExpectedHash: expectedPrev,
+				ActualHash:   entry.PreviousHash,
 				Message: fmt.Sprintf(
-					"Unstimmigkeit bei Buchung %s: Die Verkettung zur vorherigen Buchung weicht ab. Eine Buchung wurde nachträglich eingefügt oder entfernt.",
+					"Buchung %s: Die Verkettung zur vorherigen Buchung weicht ab. Eine Buchung wurde nachträglich eingefügt oder entfernt.",
 					entry.EntryNumber,
 				),
-				LastVerifiedHash: expectedPrev,
-				CheckedAt:        checkedAt,
-			}
+			})
 		}
 
-		if h.CalculateHash(entry, entry.PreviousHash) != entry.EntryHash {
-			id := entry.ID
-			return domain.IntegrityCheckResult{
-				IsValid:        false,
-				TotalEntries:   len(entries),
-				CheckedEntries: i,
-				FirstBrokenID:  &id,
+		if computed := h.CalculateHash(entry, entry.PreviousHash); computed != entry.EntryHash {
+			result.IsValid = false
+			if result.FirstBrokenID == nil {
+				id := entry.ID
+				result.FirstBrokenID = &id
+			}
+			result.Breaks = append(result.Breaks, domain.IntegrityBreak{
+				FiscalYear:   entry.FiscalYear,
+				EntryID:      entry.ID,
+				EntryNumber:  entry.EntryNumber,
+				Reason:       domain.IntegrityBreakContent,
+				ExpectedHash: computed,
+				ActualHash:   entry.EntryHash,
 				Message: fmt.Sprintf(
-					"Unstimmigkeit bei Buchung %s: Die Buchungsdaten wurden nach der Erfassung verändert.",
+					"Buchung %s: Die Buchungsdaten wurden nach der Erfassung verändert.",
 					entry.EntryNumber,
 				),
-				LastVerifiedHash: expectedPrev,
-				CheckedAt:        checkedAt,
-			}
+			})
 		}
 
+		// Weiter geht es mit dem gespeicherten Eigenhash: sonst schleppte ein
+		// einzelner Bruch sich durch den ganzen Rest des Jahres.
 		expectedPrev = entry.EntryHash
 	}
 
-	return domain.IntegrityCheckResult{
-		IsValid:          true,
-		TotalEntries:     len(entries),
-		CheckedEntries:   len(entries),
-		Message:          fmt.Sprintf("Alle %d Buchungen sind vollständig und unverändert.", len(entries)),
-		LastVerifiedHash: expectedPrev,
-		CheckedAt:        checkedAt,
+	result.LastVerifiedHash = expectedPrev
+	return result
+}
+
+// chainMessage formuliert das Ergebnis in einem Satz.
+func chainMessage(r domain.IntegrityCheckResult) string {
+	switch {
+	case r.TotalEntries == 0:
+		return "Keine Buchungen vorhanden. Die Buchhaltung ist bereit."
+	case r.IsValid && len(r.FiscalYears) > 1:
+		return fmt.Sprintf("Alle %d Buchungen aus %d Geschäftsjahren sind vollständig und unverändert.",
+			r.TotalEntries, len(r.FiscalYears))
+	case r.IsValid:
+		return fmt.Sprintf("Alle %d Buchungen sind vollständig und unverändert.", r.TotalEntries)
+	case len(r.Breaks) == 1:
+		return "Eine Unstimmigkeit gefunden: " + r.Breaks[0].Message
+	default:
+		return fmt.Sprintf("%d Unstimmigkeiten gefunden. Die erste: %s",
+			len(r.Breaks), r.Breaks[0].Message)
 	}
 }

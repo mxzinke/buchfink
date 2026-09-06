@@ -11,59 +11,19 @@
  * selbst gestartet und am Ende wieder beendet.
  */
 
-import { spawn } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { ORIGIN, ROOT, sleep, startVite } from './dev-server.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(HERE, '../..');
 const OUT = resolve(ROOT, 'website/assets/screenshots');
-const ORIGIN = 'http://127.0.0.1:9246';
 
 const VIEWPORT = { width: 1440, height: 900 };
 const SCALE = 2;
 
 // -------------------------------------------------------------------------
-
-async function startVite() {
-  // Direkt die Binärdatei statt über npx: npx bleibt als Elternprozess
-  // stehen, und ein SIGTERM an npx lässt den Server samt Port zurück.
-  const proc = spawn(
-    resolve(ROOT, 'frontend/node_modules/.bin/vite'),
-    ['--config', 'vite.screenshots.config.ts', '--clearScreen', 'false'],
-    { cwd: resolve(ROOT, 'frontend'), stdio: ['ignore', 'pipe', 'pipe'] },
-  );
-  proc.stderr.on('data', (chunk) => process.stderr.write(chunk));
-
-  await new Promise((ok, fail) => {
-    const timer = setTimeout(() => fail(new Error('Vite ist nicht gestartet.')), 90_000);
-    proc.stdout.on('data', (chunk) => {
-      const text = String(chunk);
-      process.stdout.write(text);
-      if (text.includes('ready in') || text.includes('Local:')) {
-        clearTimeout(timer);
-        ok();
-      }
-    });
-    proc.on('exit', (code) => fail(new Error(`Vite beendet mit Code ${code}.`)));
-  });
-
-  // Der erste Request löst das Bündeln aus; danach antwortet der Server schnell.
-  for (let i = 0; i < 40; i++) {
-    try {
-      const res = await fetch(ORIGIN);
-      if (res.ok) break;
-    } catch {
-      /* noch nicht bereit */
-    }
-    await sleep(500);
-  }
-  return proc;
-}
-
-const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 /** Rendert den Beispielbeleg als Bild, das die Belegvorschau anzeigt. */
 async function renderReceipt(context) {
@@ -117,17 +77,38 @@ async function main() {
 
     await page.goto(ORIGIN, { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
+    // Vor dem Arbeitsbereich steht die Mandantenwahl, und sie hat keine
+    // Navigation daneben: erst der geöffnete Mandant bringt die Seitenleiste.
+    await page.getByRole('button', { name: /öffnen$/i }).first().click();
     await page.waitForSelector('nav', { timeout: 30_000 });
 
     const nav = (label) => page.getByRole('button', { name: label, exact: true }).first();
 
     const shots = [
       {
-        file: 'uebersicht.png',
+        // Die Startseite: die Aufgabenliste mit den Kennzahlen darunter. Die
+        // frühere Seite „Übersicht" ist darin aufgegangen (Welle 7).
+        file: 'aufgaben.png',
         go: async () => {
-          await nav('Übersicht').click();
-          await page.getByText('Buchhaltungsübersicht').waitFor();
+          await nav('Aufgaben').click();
+          await page.getByRole('heading', { name: 'Aufgaben', exact: true }).waitFor();
+          await page.getByText('Zuletzt erfasst').waitFor();
           await page.getByText('B-2026-0055').waitFor();
+        },
+      },
+      {
+        // Der Monatsabschluss in drei Schritten, geöffnet aus der Aufgabenliste.
+        file: 'monatsabschluss.png',
+        go: async () => {
+          await page.getByRole('button', { name: 'Monat öffnen' }).click();
+          await page.getByRole('dialog').waitFor();
+          await page.getByText('Prüfbericht', { exact: true }).first().waitFor();
+          await page.getByText('Festschreiben', { exact: true }).first().waitFor();
+          await page.waitForTimeout(400);
+        },
+        after: async () => {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
         },
       },
       {
@@ -144,12 +125,44 @@ async function main() {
           await page.getByText('RE-2026-0119 Wartungspauschale Q3').click();
           await page.getByRole('dialog').waitFor();
           await page.getByText('Nordwind Handels GmbH').first().waitFor();
-          await page.getByRole('checkbox').first().click();
+          // Seit Welle 7 wählt der Dialog den besten Vorschlag vor; ein blinder
+          // Klick nähme den Haken wieder heraus. Erst warten, bis der Vorschlag
+          // übernommen ist, dann nur setzen, wenn der Haken fehlt.
+          await page.getByText('Übernommen', { exact: true }).waitFor();
+          const match = page.getByRole('checkbox').first();
+          if (!(await match.isChecked())) await match.click();
           await page.getByText('Zuordnung passt zum Kontoauszug').waitFor();
         },
         after: async () => {
           await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
+        },
+      },
+      {
+        // Das Mahnwesen wohnt als Reiter auf derselben Seite wie der Abgleich:
+        // beides handelt von Zahlungen.
+        file: 'mahnwesen.png',
+        go: async () => {
+          await page.getByRole('tab', { name: 'Mahnwesen' }).click();
+          await page.getByText('Mahnvorschläge').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'rechnungen.png',
+        go: async () => {
+          await nav('Rechnungen').click();
+          await page.getByText('RE-2026-0119').first().waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'anzahlungen.png',
+        go: async () => {
+          await nav('Anzahlungen').click();
+          await page.getByText('Rechnungsverbünde').waitFor();
+          await page.getByText('Lagerleitstand Billstraße, Ausbaustufe 1').first().waitFor();
+          await page.waitForTimeout(400);
         },
       },
       {
@@ -162,13 +175,27 @@ async function main() {
           await page.locator('img[alt="Beleg"]').waitFor();
           // Die Buchungsgruppe wählen, damit der Buchungssatz aus dem Backend
           // erscheint — genau der Schritt, den die Rechnung nicht vorgibt.
-          await page.getByRole('combobox').filter({ hasText: /wählen|Buchungsgruppe/i }).first()
-            .click()
-            .catch(async () => {
-              await page.locator('[role="combobox"]').nth(2).click();
-            });
+          // Die Gruppe ist ein Suchfeld (Combobox mit Platzhalter), keine Liste.
+          const group = page.getByPlaceholder('Gruppe suchen').first();
+          await group.click();
+          await group.fill('Geringwertig');
           await page.getByRole('option', { name: /Geringwertige Wirtschaftsgüter/ }).click();
           await page.waitForTimeout(700);
+        },
+      },
+      {
+        // Die Kopfdaten des Belegs (BEL-02): ohne sie nimmt das Backend die
+        // Buchung nicht an.
+        file: 'belege-kopfdaten.png',
+        go: async () => {
+          await page.getByRole('button', { name: 'Kopfdaten', exact: true }).click();
+          await page.getByRole('dialog').waitFor();
+          await page.getByText('Kopfdaten zu Beleg BE-2026-0231').waitFor();
+          await page.waitForTimeout(400);
+        },
+        after: async () => {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
         },
       },
       {
@@ -181,32 +208,54 @@ async function main() {
         },
       },
       {
+        // Die Umsatzsteuer ist seit Welle 5c eine eigene Seite und kein Reiter
+        // der Auswertungen mehr.
+        file: 'umsatzsteuer.png',
+        go: async () => {
+          await nav('Umsatzsteuer').click();
+          await page.getByText('Kennziffern des Vordrucks USt 1 A').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'fristen.png',
+        go: async () => {
+          await nav('Steuerfristen').click();
+          await page.getByText('Zeiträume festschreiben').waitFor();
+          await page.getByText('Umsatzsteuer-Voranmeldung 3. Quartal 2026').first().waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        file: 'nebenpflichten.png',
+        go: async () => {
+          await nav('Nebenpflichten').click();
+          await page.getByText('Wirtschaftsgüter im Verzeichnis').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
         file: 'guv.png',
         go: async () => {
           await nav('GuV & Bilanz').click();
           await page.getByText('Gewinn- und Verlustrechnung').waitFor();
-          await page.getByText('Vorläufiges Jahresergebnis').waitFor();
+          await page.getByText('Jahresergebnis', { exact: true }).first().waitFor();
         },
       },
       {
-        file: 'umsatzsteuer.png',
+        file: 'jahresabschluss.png',
         go: async () => {
-          await page.getByRole('tab', { name: 'Umsatzsteuer' }).click();
-          await page.getByText('Kennziffern der Voranmeldung').waitFor();
-        },
-      },
-      {
-        file: 'protokoll.png',
-        go: async () => {
-          await nav('Sicherheit & Protokoll').click();
-          await page.getByText('Zustand der Kette').waitFor();
+          await nav('Jahresabschluss').click();
+          await page.getByText('Abschlussbausteine').waitFor();
+          await page.getByText('Weg zum Abschluss').waitFor();
+          await page.waitForTimeout(400);
         },
       },
       {
         file: 'ebilanz.png',
         go: async () => {
           await nav('E-Bilanz').click();
-          await page.getByText('Zuordnung der Standardkonten').waitFor();
+          await page.getByText('Zuordnung der Konten').waitFor();
           await page.getByRole('button', { name: 'Rohdaten anzeigen' }).click();
           await page.getByText('Rohdaten', { exact: true }).waitFor();
           await page.waitForTimeout(400);
@@ -217,6 +266,36 @@ async function main() {
         go: async () => {
           await nav('Kontenübersicht').click();
           await page.getByText('Bebuchte Konten').waitFor();
+        },
+      },
+      {
+        // Die Prüfübersicht hat seit Welle 9 keinen Navigationseintrag mehr:
+        // sie hängt am Zustandsanzeiger in der Fußzeile der Navigation und
+        // wird über ihn geöffnet.
+        file: 'sicherheit.png',
+        go: async () => {
+          await page.getByRole('button', { name: /Daten unverändert|Integrität verletzt/ })
+            .first()
+            .click();
+          await page.getByText('Zustand der Kette').waitFor();
+          await page.waitForTimeout(400);
+        },
+      },
+      {
+        // Das Änderungsprotokoll steht auf derselben Seite im zweiten Reiter.
+        file: 'nachweise.png',
+        go: async () => {
+          await page.getByRole('tab', { name: 'Änderungsprotokoll' }).click();
+          await page.getByRole('heading', { name: 'Änderungsprotokoll', exact: true }).waitFor();
+          await page.waitForTimeout(600);
+        },
+      },
+      {
+        file: 'datenzugriff.png',
+        go: async () => {
+          await nav('Betriebsprüfung').click();
+          await page.getByText('Datenüberlassung').first().waitFor();
+          await page.waitForTimeout(400);
         },
       },
     ];

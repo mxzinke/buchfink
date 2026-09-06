@@ -20,8 +20,8 @@ import (
 // hier zeigt sich, ob eine Prüfung tut, was ihr Name behauptet.
 //
 // Die Dateien sind in UBL geschrieben. Dass sie damit auch die CII-Seite
-// absichern, ist der Ertrag des semantischen Modells: geprüft wird derselbe
-// Code, nur der Leser davor ist ein anderer.
+// absichern, ist der Ertrag des semantischen Modells: Buchfink prüft
+// denselben Code, nur der Leser davor ist ein anderer.
 
 // ruleSuiteDirs are the artefact's per-rule test files, one collection for
 // invoices and one for credit notes.

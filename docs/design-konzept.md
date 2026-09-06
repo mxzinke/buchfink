@@ -67,8 +67,8 @@ gleicher Ziffernbreite, mit Luft, und ohne dass Rahmen oder Icons mit ihnen
 konkurrieren.
 
 **5. Nichts verschwindet.**
-Die GoBD verlangt sichtbare Korrekturen. Das ist keine Last, sondern ein
-Gestaltungsprinzip. Stornierte Buchungen werden markiert, nicht versteckt, und
+Die GoBD verlangt sichtbare Korrekturen. Das ist ein Gestaltungsprinzip, keine
+Last. Stornierte Buchungen werden markiert, nicht versteckt, und
 nie durchgestrichen.
 
 ---
@@ -109,12 +109,12 @@ dunklen Fläche den Kontrast verlieren: `shell-positive` `#9BCFA6` (9,9:1) und
 ### 3.2 Vier Familien, vier Rollen
 
 Jede Farbfamilie hat vier Tokens mit fester Aufgabe. Das ist der Preis für
-Pastell: Ein pastelliger Ton trägt keinen Text, ein textfähiger Ton ist nicht
-pastellig. Die Trennung macht beides möglich.
+Pastell: Ein pastelliger Ton ist mit Text nicht lesbar, ein textfähiger Ton ist
+nicht pastellig. Die Trennung macht beides möglich.
 
 | Endung | Rolle | Kontrastziel |
 |---|---|---|
-| `-soft` | Fläche (Badge, Hinweis, Zeilentönung) | keins, sie trägt nur |
+| `-soft` | Fläche (Badge, Hinweis, Zeilentönung) | keins, reine Flächenfarbe |
 | `-line` | Rand dieser Fläche | sichtbar gegen Papier, rund 1,8:1 |
 | (Basis) | Marker: Punkt, Leiste, Fokusring, Diagrammlinie | 3:1 gegen Papier |
 | `-text` | Text und Icons | 4,5:1 gegen Papier und gegen `-soft` |
@@ -167,14 +167,14 @@ abgeleitet.
 
 1. **Primäraktionen sind Tinte, nicht Himmelblau.** Pro Ansicht gibt es eine
    wichtigste Aktion. Sie muss sich abheben, ohne zu leuchten. Ein blauer
-   Primärbutton in jeder Ecke macht die Marke zur Tapete, und ein Himmelblau, das
-   Weiß trägt, ist kein Himmelblau mehr.
+   Primärbutton in jeder Ecke macht die Marke zur Tapete, und ein Himmelblau,
+   auf dem Weiß lesbar ist, ist kein Himmelblau mehr.
 2. **Blau ist die Marke, kein Zustand.** Es gibt keinen blauen Info-Hinweis und
    keinen blauen Status. Hinweise stehen in Papier und Tinte.
 3. **Soll und Haben werden nie eingefärbt.** Farbe suggeriert hier eine Wertung,
    die es fachlich nicht gibt. Gefärbt wird das Ergebnis (Saldo, Gewinn, Verlust)
    und der Zustand (offen, storniert).
-4. **Farbe steht nie allein.** Jeder farbige Zustand trägt zusätzlich Text oder
+4. **Farbe steht nie allein.** Jeder farbige Zustand hat zusätzlich Text oder
    ein Icon. Für Rot-Grün-Sehschwäche, und weil Auswertungen gedruckt werden.
 5. **Fläche und Rand gehören zusammen.** `bg-positive-soft border
    border-positive-line`. Eine randlose Pastellfläche verschwindet auf Papier,
@@ -192,7 +192,7 @@ stammen weiter aus dem Logo, ihre Bedeutung ist davon unabhängig.
 
 ## 4. Typografie
 
-Manrope trägt die Oberfläche, in sechs Stufen. Was nicht in diese Skala passt,
+Manrope ist die Schrift der Oberfläche, in sechs Stufen. Was nicht in diese Skala passt,
 ist ein Layoutproblem.
 
 | Token | Größe / Zeilenhöhe | Gewicht | Einsatz |
@@ -244,7 +244,7 @@ Alles ist ein Vielfaches von 4 px. Erlaubt: 4, 8, 12, 16, 24, 32, 48, 64.
 | Label zu Feld | 4 px |
 | Zwischen Feldern | 16 px |
 
-Da Abschnitte keine Rahmen mehr haben, trägt der Abstand die Gliederung allein.
+Da Abschnitte keine Rahmen mehr haben, übernimmt der Abstand die Gliederung allein.
 Zu knapper Weißraum fällt sofort auf. Im Zweifel die nächstgrößere Stufe.
 
 Dichte, umschaltbar in den Einstellungen und pro Mandant gespeichert:
@@ -267,8 +267,8 @@ Der Abschnitt, der den Gesamteindruck entscheidet.
 
 ### 6.1 Die Seite ist die Fläche
 
-Inhalt liegt direkt auf dem Papier. Weiß ist kein Hintergrund, sondern ein
-Signal: Dort passiert etwas.
+Inhalt liegt direkt auf dem Papier. Weiß ist ein Signal, kein Hintergrund:
+Dort passiert etwas.
 
 | Fläche | Wo sie gilt |
 |---|---|
@@ -420,8 +420,8 @@ Meldung sagt, was zu tun ist. Ein deaktivierter Absenden-Button versteckt den
 Grund und ist deshalb die schlechtere Lösung.
 
 Die Buchungsgleichheit ist ein Sonderfall: Soll und Haben werden live verrechnet
-und die Differenz wird laufend angezeigt. Das ist kein Fehler, sondern eine
-Rechenhilfe, solange die Buchung nicht abgeschickt ist.
+und die Differenz wird laufend angezeigt. Das ist eine Rechenhilfe, kein Fehler,
+solange die Buchung nicht abgeschickt ist.
 
 ### 8.4 Warten
 
@@ -516,8 +516,8 @@ Bildschirmrand hinausläuft, ein Dialog, aus dem die Tabulatortaste
 herausspringt, ein Menü ohne Typeahead.
 
 Base UI liefert nur Verhalten und keine Gestalt. Die Gestalt kommt von hier, in
-Tailwind-Klassen aus den Tokens in §3. Zustände hängen an den Datenattributen
-der Bibliothek (`data-[open]`, `data-[highlighted]`, `data-[invalid]`), das
+Tailwind-Klassen aus den Tokens in §3. Zustände richten sich nach den
+Datenattributen der Bibliothek (`data-[open]`, `data-[highlighted]`, `data-[invalid]`), das
 bleibt also Tailwind ohne Zwischenschicht.
 
 Rein darstellende Bausteine bauen wir selbst, weil es dort nichts falsch zu
@@ -533,10 +533,10 @@ machen gibt.
 | `Select` | `Select.tsx` | Base UI Select |
 | `Combobox` | `Combobox.tsx` | Base UI Combobox |
 | `Checkbox`, `RadioGroup`, `Switch` | `Toggle.tsx` | Base UI |
-| `Field`, `FieldRow` | `Field.tsx` | Base UI Field |
+| `Field`, `FieldRow`, `FormGrid` | `Field.tsx` | Base UI Field |
 | `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
 | `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
-| `HelpTooltip`, `HelpPopover`, `InfoPopover` | `Help.tsx` | Base UI Tooltip, Popover |
+| `HelpPopover`, `InfoPopover` | `Help.tsx` | Base UI Popover |
 | `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
 | `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
 | `FileDrop` | `FileDrop.tsx` | eigen |
@@ -584,7 +584,7 @@ Button braucht eine Erklärung im `title`, sonst versteckt er seinen Grund. Beim
 Laden bleibt er an seiner Stelle, behält die Breite und tauscht die Beschriftung
 nicht aus.
 
-**Felder.** Pflichtfelder tragen kein Sternchen. Gekennzeichnet wird das
+**Felder.** Pflichtfelder haben kein Sternchen. Gekennzeichnet wird das
 Seltenere: optional. Der Fehlertext ersetzt den Hinweis, solange er steht.
 
 **Auswahl gegen Suche.** `Select` für kurze feste Listen, `Combobox` für alles,
@@ -667,9 +667,18 @@ abschließend.
 | Überfällig | Rosé | Rechnung, Steuerfrist |
 | Storniert | Rosé | Buchung, Rechnung |
 | Fehlerhaft | Rosé | Import, Validierung, Integritätsprüfung |
+| Aufgestellt | neutral | Jahresabschluss |
+| Festgestellt | Salbei mit Schloss-Icon | Jahresabschluss, Geschäftsjahr |
+| Offengelegt | Salbei mit Schloss-Icon | Jahresabschluss, Geschäftsjahr |
 
 Synonyme wie erledigt, fertig oder abgeschlossen für denselben Zustand sind nicht
 erlaubt.
+
+Die drei letzten Stände beschreiben nicht dasselbe wie Festgeschrieben:
+festgeschrieben ist der Zeitraum, festgestellt ist der Abschluss, und beschlossen
+haben ihn die Gesellschafter. Aufgestellt bleibt neutral, weil noch nichts
+beschlossen und nichts gesperrt ist. Ab Festgestellt zeigt das Abzeichen das
+Schloss, denn ab dort nimmt das Geschäftsjahr keine Buchung mehr an.
 
 ### 11.4 Integrität der Hash-Chain
 
@@ -679,10 +688,17 @@ Der Zustand steht dauerhaft im Fuß der Navigation, nie als Toast.
 |---|---|
 | geprüft | Raute in Salbei, "Daten unverändert", darunter der Zeitpunkt |
 | wird geprüft | rotierendes Icon in `ink-subtle`, "Prüfung läuft" |
-| gebrochen | Schild in Rosé, "Integrität verletzt", Klick öffnet das Protokoll bei der ersten abweichenden Buchung |
+| gebrochen | Schild in Rosé, "Integrität verletzt" |
 
 Ein Integritätsbruch ist der einzige Fall, in dem die Oberfläche laut werden darf:
 ein Balken in `negative-soft` über dem gesamten Inhalt, bis er quittiert ist.
+
+Die Zeile ist zugleich der Weg in die Prüfübersicht — Ketten, Belegdateien,
+Festschreibungen, Prüfläufe, Änderungsprotokoll, Systemhistorie —, die deshalb
+keinen eigenen Eintrag in der Navigation hat: die Frage „ist etwas nicht in
+Ordnung" wird hier beantwortet, und wer sie genauer wissen will, klickt auf die
+Antwort. Nachgeprüft wird auf der Seite selbst; ein Klick, der beides täte,
+machte aus einem Blick auf den Zustand einen Lauf über die ganze Buchführung.
 
 ### 11.5 Gesperrte Perioden
 
@@ -690,6 +706,12 @@ Abgeschlossene Geschäftsjahre sind schreibgeschützt. Sichtbar durch `sunken`
 statt `paper` als Grund, ein Schloss neben der Jahreszahl in der Kopfzeile und
 einen Hinweisstreifen: "Geschäftsjahr 2024 ist abgeschlossen. Buchungen sind nur
 im laufenden Jahr möglich."
+
+Ein festgestelltes Geschäftsjahr wird wie eine gesperrte Periode behandelt:
+Schloss neben der Jahreszahl, Hinweisstreifen, Bearbeitungsaktionen deaktiviert.
+Der Hinweisstreifen nennt dabei den Weg zurück, weil es ihn gibt: "Geschäftsjahr
+2024 ist festgestellt. Buchungen nimmt es erst wieder an, wenn die Feststellung
+mit Grund zurückgesetzt wird."
 
 Bearbeitungsaktionen werden deaktiviert und behalten ihre Position, damit die
 Ansicht zwischen den Jahren gleich aussieht.
@@ -713,7 +735,7 @@ dargestellt.
 
 ```
 ┌──────────────┬─────────────────────────────────────────────┐
-│              │  Kopfzeile 56 px, Geschäftsjahr, Mandant    │
+│  Mandant ⌄   │  Kopfzeile 56 px, Geschäftsjahr             │
 │  Navigation  ├─────────────────────────────────────────────┤
 │  240 px      │  Seitentitel + Primäraktion                 │
 │  dunkel      │  ─────────────────────────────────────────  │
@@ -728,6 +750,17 @@ Auswertungen, Verwaltung. Aktiver Eintrag `bg-shell-raised text-white` mit 2 px
 Leiste in `accent-light` links. Kein farbiger Hintergrund, ein dauerhaft
 sichtbarer Zustand darf nicht laut sein.
 
+**Mandantenwahl.** Sie steht am Kopf der Navigation, dort wo der Name des
+Mandanten steht: ein Auslöser, der die Liste aufklappt, mit dem Weg zu einem
+neuen Mandanten und zur Übersicht darunter. Ein Wechsel ist eine Auswahl und
+keine Reise — bis Welle 9 führte er über den Startbildschirm und zurück.
+
+**Zeigefinger.** Was man drücken kann, zeigt ihn. Tailwind setzt seit Fassung 4
+`cursor: default` auf `button`; die Regel steht deshalb einmal in der
+Basisschicht von `index.css` und nicht in jedem Baustein. Gesperrte Knöpfe
+behalten `cursor-not-allowed`, Einträge in Menü und Auswahlliste `cursor-default`
+— sie sind Listenzeilen, keine Knöpfe.
+
 **Seitenkopf.** Titel in `text-display`, darunter eine Zeile Kontext in
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
 über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf.
@@ -735,11 +768,17 @@ sichtbarer Zustand darf nicht laut sein.
 **Vollbild-Schirme.** Start, Einrichtung und Wiederherstellung stehen vor dem
 Arbeitsbereich und laufen ganz auf der dunklen Schale, mit denselben
 `shell`-Tokens wie die Navigation. Dort gibt es kein Papier, also drehen sich
-die Rollen um: Die Primäraktion trägt die hellste Fläche (`bg-paper
+die Rollen um: Die Primäraktion hat die hellste Fläche (`bg-paper
 text-shell-deep`), nicht die dunkelste. Die Klassenbündel dafür stehen in
 `components/ui/shell.ts` — `SHELL_PANEL`, `SHELL_BUTTON`, `SHELL_CONTROL`.
 Eigene Bausteine bekommen diese Schirme nicht: Auf jedem stehen ein bis zwei
-Bedienelemente, ein zweiter Bausteinsatz würde mehr kosten, als er trägt.
+Bedienelemente, ein zweiter Bausteinsatz würde mehr kosten, als er einbringt.
+
+Ein Vollbild-Schirm steht *vor* dem Arbeitsbereich und trägt deshalb keine
+Navigation daneben. Der Startschirm beantwortet genau eine Frage — mit welchem
+Mandanten wird gearbeitet —, und die Zeile des Mandanten ist die Antwort: ein
+Klick öffnet ihn. Sprungmarken in einzelne Ansichten stehen dort nicht; sie
+wären eine zweite Navigation vor der ersten.
 
 **Schmale Fenster.** Buchfink ist eine Desktop-Anwendung. Telefone sind kein
 Ziel, und es wird nichts dafür gebaut. Die Oberfläche muss lediglich ein kleines
@@ -786,10 +825,10 @@ Details hinter "Details anzeigen". Keine Stack-Traces im Klartext.
 
 ## 15. Text
 
-Buchfink erklärt, ohne zuzutexten. Wer täglich damit arbeitet, liest den
-Erklärsatz beim zwanzigsten Mal nicht mehr, sondern scrollt an ihm vorbei. Text,
-der immer sichtbar ist, obwohl man ihn selten braucht, ist deshalb kein Service,
-sondern Lärm.
+Buchfink erklärt, ohne zuzutexten. Wer täglich damit arbeitet, scrollt am
+Erklärsatz beim zwanzigsten Mal vorbei, statt ihn noch zu lesen. Text, der
+immer sichtbar ist, obwohl man ihn selten braucht, ist deshalb Lärm, kein
+Service.
 
 Die Regel: **Eine Arbeitsansicht enthält keinen Fließtext.** Was länger als ein
 Satz ist, wandert hinter ein Erklärzeichen.
@@ -799,7 +838,7 @@ Satz ist, wandert hinter ein Erklärzeichen.
 | Ort | Erlaubt |
 |---|---|
 | Seitenkopf | Titel plus eine Zeile Kontext, höchstens 60 Zeichen |
-| Feldhilfe unter dem Feld | höchstens sechs Wörter, sonst Tooltip |
+| Feldhilfe unter dem Feld | höchstens sechs Wörter, sonst Erklärzeichen |
 | Fehlermeldung | zwei Sätze: Ursache, nächster Schritt |
 | Leerzustand | Überschrift, ein Satz, eine Aktion |
 | Hinweisstreifen | ein Satz |
@@ -809,23 +848,44 @@ Alles darüber gehört in eine Erklärung nach §15.2. Wer beim Schreiben merkt,
 ein Absatz nötig wäre, hat entweder die Oberfläche zu erklärungsbedürftig gebaut
 oder schreibt gerade Dokumentation an der falschen Stelle.
 
-### 15.2 Drei Stufen der Erklärung
+### 15.2 Zwei Stufen der Erklärung
 
 Ausgelöst wird immer bewusst, nie automatisch. Es gibt keine Tour, kein
 Popover beim ersten Besuch, keinen Hinweis, der von selbst aufgeht.
 
 | Stufe | Umfang | Auslöser | Einsatz |
 |---|---|---|---|
-| Tooltip | ein Satz, kein Link, nichts Klickbares | Hover und Fokus, 400 ms Verzögerung | Was ist dieses Feld, was tut dieser Button |
-| Popover | bis drei Sätze, ein Link "Mehr dazu" erlaubt | Klick auf das Erklärzeichen | Fachbegriff, Rechenweg, warum eine Aktion gesperrt ist |
+| Erklärzeichen | ein bis drei Sätze, ein Link "Mehr dazu" erlaubt | Hover, Fokus und Klick, 300 ms Verzögerung | Was ist dieses Feld, Fachbegriff, Rechenweg, warum eine Aktion gesperrt ist |
 | Dialog | mehr, mit Beispiel oder Tabelle | Klick auf "Mehr dazu" | SKR04-Kontenlogik, GoBD-Regeln, E-Bilanz-Mapping |
 
 Das Erklärzeichen ist ein Fragezeichen in `ink-faint`, das bei Hover und Fokus
 auf `ink-muted` wechselt. Klickfeld 24 mal 24 px, auf Touch-Geräten 44. Es steht
 hinter der Beschriftung, nie davor, und ist mit der Tastatur erreichbar. Escape
-schließt.
+schließt. Es geht beim Überstreichen auf; der Klick bleibt daneben bestehen — er
+ist der Weg auf dem Touchgerät und mit der Tastatur.
 
-Ein Tooltip erklärt nur. Sobald etwas darin klickbar wäre, ist es ein Popover.
+Bis Welle 9 waren es drei Stufen: ein dunkler Tooltip für den einen Satz, ein
+helles Popover für die drei. Der Unterschied bestand nur im Code. Nach außen
+trugen beide dasselbe Fragezeichen, und welches man vor sich hatte, zeigte sich
+erst beim Anfassen: Das eine kam beim Hinschauen, das andere erst auf Klick, das
+eine war dunkel, das andere hell — und an manchem Feld standen beide
+nebeneinander, zwei Fragezeichen hinter einer Beschriftung. Geblieben ist das
+Popover: Es trägt den einen Satz genauso wie die drei und kann einen Verweis in
+die dritte Stufe enthalten, was ein Tooltip nicht kann. Ein Bedienelement ohne
+Beschriftung erklärt weiterhin sein `title`, nicht ein Erklärzeichen.
+
+Ein Ort hat genau ein Erklärzeichen. Zwei nebeneinander sind keine zwei Stufen,
+sondern zwei Fragezeichen; was zusammengehört, steht in einem Popover.
+
+„Hinter der Beschriftung" heißt: hinter dem Titel, nicht am rechten Rand. An
+einer Überschrift steht das Zeichen deshalb im Titel (`explain` an `Section` und
+`PageHeader`) und nicht im Aktionsslot daneben, wo es zwischen den Knöpfen steht
+und wie eine weitere Aktion aussieht.
+
+Das Zeichen zieht die Zeile, in der es steht, nicht auseinander: Sein Klickfeld
+ist höher als eine Beschriftung, und ohne den Ausgleich stünden zwei Felder
+nebeneinander verschieden hoch — je nachdem, ob eines von beiden eine Erklärung
+hat.
 
 ### 15.3 Wortwahl
 
@@ -835,7 +895,7 @@ Ein Tooltip erklärt nur. Sobald etwas darin klickbar wäre, ist es ein Popover.
 - Fehlermeldungen nennen Ursache und nächsten Schritt: "Die Buchung ist nicht
   ausgeglichen. Soll (1.190,00 €) und Haben (1.000,00 €) müssen übereinstimmen."
   Nicht: "Ungültige Eingabe."
-- Buttons tragen Verben: "Buchung festschreiben", nicht "OK".
+- Buttons haben Verben: "Buchung festschreiben", nicht "OK".
 - Bestätigungen benennen die Folge, siehe §8.2.
 - Kein Text, der nur beschreibt, was ohnehin zu sehen ist. Eine Tabelle mit fünf
   Spalten braucht keinen Satz darüber, der die fünf Spalten aufzählt.
@@ -884,7 +944,7 @@ zahlt man einmal, jede weitere Komponente daraus kostet wenig. Das CSS schrumpft
 von 76,5 auf 74,4 kB, weil die alten Paletten aus der Shell verschwunden sind.
 
 Zwei Dinge sind dabei über reines Umfärben hinausgegangen, beide aus dem
-Konzept: Der aktive Navigationseintrag trägt statt der bernsteinfarbenen Fläche
+Konzept: Der aktive Navigationseintrag zeigt statt der bernsteinfarbenen Fläche
 eine 2 px schmale Leiste in `accent-light` auf `shell-raised` (§12), und die
 Integritätszeile im Fuß zeigt die drei Zustände aus §11.4 samt Prüfzeitpunkt,
 mit der Raute als Marker.
@@ -938,7 +998,7 @@ Offen bleibt der Dunkelmodus (§16). Seine Bedingung ist damit erfüllt.
 - [ ] Schatten nur an Popover und Dialog
 - [ ] Jede Zahlenspalte hat `.num` und ist rechtsbündig
 - [ ] Nur Bewegungen aus der Tabelle in §7
-- [ ] Farbige Zustände tragen zusätzlich Text oder Icon
+- [ ] Farbige Zustände haben zusätzlich Text oder Icon
 - [ ] Leer-, Lade- und Fehlerzustand vorhanden
 - [ ] Mit der Tastatur bedienbar, Fokus sichtbar, Fokusrückgabe geregelt
 - [ ] Beträge und Daten über `utils/formatters.ts`

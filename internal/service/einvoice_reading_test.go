@@ -61,6 +61,10 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 	}
 
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction:   domain.DirectionIncoming,
 		ReceivedVia: domain.ReceivedViaEmail,
 		Files: []NewFile{
@@ -193,7 +197,7 @@ func TestProposalFillsWhatTheDocumentKnows(t *testing.T) {
 	})
 }
 
-// Der Kategoriecode wird gedreht: eine innergemeinschaftliche Lieferung des
+// Der Vorschlag dreht den Kategoriecode: eine innergemeinschaftliche Lieferung des
 // Lieferanten ist bei uns ein Erwerb — mit Erwerbsteuer und Vorsteuer.
 func TestProposalInvertsTheCategoryCodeForTheRecipient(t *testing.T) {
 	if testing.Short() {
@@ -282,7 +286,7 @@ func TestProposalNamesAnUnknownSupplier(t *testing.T) {
 	}
 }
 
-// Ohne strukturierten Teil kein Vorschlag — der Vorsteuerabzug hängt daran.
+// Ohne strukturierten Teil kein Vorschlag — der Vorsteuerabzug richtet sich danach.
 func TestProposalRefusesWithoutTheStructuredPart(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -297,12 +301,16 @@ func TestProposalRefusesWithoutTheStructuredPart(t *testing.T) {
 	}
 }
 
-// Ein Scan enthält keinen strukturierten Teil, und das wird gesagt statt geraten.
+// Ein Scan enthält keinen strukturierten Teil; Buchfink sagt das, statt zu raten.
 func TestExtractingFromAScanIsRefused(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{{
 			Role: domain.ReceiptRoleOriginal, FileName: "scan.png",

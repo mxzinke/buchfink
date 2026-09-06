@@ -1,0 +1,1550 @@
+# Anforderungskatalog Buchfink
+
+**Stand:** 2026-09-06
+
+Dieses Dokument führt drei Dinge zusammen: die gesetzlichen Anforderungen an eine Finanzbuchhaltung für bilanzierungspflichtige Unternehmen nach deutschem Recht, das Bewertungsraster, an dem sich eine Software messen lassen muss, und den Umsetzungsstand von Buchfink mit Fundstellen im Code. Warum Buchfink so geschnitten ist und welche Entscheidungen hinter den als `⛔` markierten Auslassungen stehen, steht in [docs/architektur.md](architektur.md), Abschnitt 2; die Reihenfolge der offenen Punkte in Abschnitt 7 desselben Dokuments. Eine erzählende Bestandsaufnahme ohne Normbezug bietet [docs/stand-der-umsetzung.md](stand-der-umsetzung.md).
+
+---
+
+## Geltungsbereich und Annahmen
+
+| Merkmal | Annahme |
+|---|---|
+| Rechtsform | Kapitalgesellschaft (GmbH, UG, AG, SE) oder haftungsbeschränkte Personengesellschaft nach § 264a HGB |
+| Buchführung | Doppelte Buchführung, Bilanzierung nach §§ 238 ff. HGB, keine Einnahmenüberschussrechnung |
+| Größe | Kleinst bis mittelgroß nach §§ 267, 267a HGB, nicht kapitalmarktorientiert |
+| Konsolidierung | Keine Konzernrechnungslegung nach §§ 290 ff. HGB |
+| Bargeschäft | Kein elektronisches Aufzeichnungssystem im Sinne des § 146a AO (siehe Abgrenzungen) |
+| Lohn | Lohnbuchhaltung nicht im Scope, Verbuchung der Lohnjournale schon |
+
+Nicht abgedeckt: Konzernabschluss, IFRS, Branchenrecht (KWG, VAG, WpIG), Nachhaltigkeitsberichterstattung, Kassenführung, Lohnabrechnung.
+
+---
+
+## Legende
+
+Die erste Spalte jeder Anforderung nennt die Verbindlichkeit der Norm:
+
+| Kennzeichen | Bedeutung |
+|---|---|
+| `MUSS` | Unbedingte gesetzliche Pflicht. Verstoß gefährdet die Ordnungsmäßigkeit der Buchführung. |
+| `MUSS*` | Pflicht nur bei Vorliegen des Sachverhalts. Wird der Sachverhalt unterstützt, gilt die Anforderung unbedingt. |
+| `SOLL` | Verwaltungsauffassung oder Prüfungserwartung. Rechtlich nicht unmittelbar erzwingbar, aber Beanstandungsrisiko in der Betriebsprüfung. |
+| `TERMIN` | Pflicht mit künftigem Stichtag. Siehe Terminplan am Ende. |
+
+Die Statustabelle je Anforderung bewertet jedes Akzeptanzkriterium gegen den Code:
+
+| Status | Bedeutung |
+|---|---|
+| ✅ | Erfüllt. Die Fundstelle nennt die Stelle im Code, an der es nachweisbar ist. |
+| 🟡 | Teilweise erfüllt. Die Fundstelle nennt den vorhandenen Teil, die Spalte Grund den fehlenden. |
+| ❌ | Fehlt. Wo eine Fundstelle steht, benennt sie die Stelle, an der die Funktion fehlt oder unvollständig aufhört. |
+| ⛔ | Außerhalb des Funktionsumfangs. Bewusste Entscheidung nach docs/architektur.md Abschnitt 2, mit Grund. |
+
+Die Spalte Welle verweist auf die Umsetzungsreihenfolge aus docs/architektur.md Abschnitt 7. Erfüllte Kriterien haben `–`, ebenso die bewusst ausgelassenen. Welle 8 hat die laufende Buchhaltung abgeschlossen; danach folgt keine weitere Welle mit neuem Zuschnitt. Ein Kriterium, das offen geblieben ist, hat `Politur`, und die Spalte Grund benennt, was dafür noch fehlt. Fundstellen sind als `Datei:Zeile` angegeben und beziehen sich auf das Repository-Wurzelverzeichnis.
+
+Die Akzeptanzkriterien sind als Prüfschritte formuliert. Jedes Kriterium ist so geschrieben, dass ein Tester oder ein Prüfer es an der laufenden Software nachvollziehen kann.
+
+---
+
+## Normenlandkarte
+
+| Modul | Kernnormen | Anforderungen |
+|---|---|---|
+| [A. Buchführungspflicht und Grundsätze](#a-buchführungspflicht-und-grundsätze) | §§ 238, 239, 244 HGB, §§ 140, 145, 146 AO | GOB-01 bis GOB-06 |
+| [B. Beleg, Journal, Konten](#b-beleg-journal-konten) | § 238 HGB, § 146 AO, GoBD Rz 61 bis 99 | BEL-01 bis BEL-09 |
+| [C. Unveränderbarkeit und Protokollierung](#c-unveränderbarkeit-und-protokollierung) | § 239 Abs. 3 HGB, § 146 Abs. 4 AO, GoBD Rz 100 bis 112 | UNV-01 bis UNV-06 |
+| [D. Aufbewahrung und Archivierung](#d-aufbewahrung-und-archivierung) | § 257 HGB, § 147 AO, § 14b UStG | ARC-01 bis ARC-08 |
+| [E. Ausgangsrechnungen und E-Rechnung](#e-ausgangsrechnungen-und-e-rechnung) | §§ 14, 14a, 14c UStG, §§ 33, 34, 34a UStDV | RECH-01 bis RECH-10 |
+| [F. Umsatzsteuer, Aufzeichnung und Meldewesen](#f-umsatzsteuer-aufzeichnung-und-meldewesen) | §§ 15, 15a, 18, 18a, 19, 20, 22 UStG | UST-01 bis UST-09 |
+| [G. Bewertung, Anlagen, Fremdwährung](#g-bewertung-anlagen-fremdwährung) | §§ 252 bis 256a HGB, §§ 5 bis 7g EStG | BEW-01 bis BEW-13 |
+| [H. Jahresabschluss, E-Bilanz, Offenlegung](#h-jahresabschluss-e-bilanz-offenlegung) | §§ 242 bis 289, 325 ff. HGB, § 5b EStG | JAB-01 bis JAB-09 |
+| [I. Betriebsprüfung und Verfahrensdokumentation](#i-betriebsprüfung-und-verfahrensdokumentation) | § 147 Abs. 6, §§ 147b, 158 AO, GoBD Rz 151 bis 177 | PRF-01 bis PRF-06 |
+| [J. Querschnitt](#j-querschnitt) | DSGVO, BGB, GoBD Rz 20, 103 | QUE-01 bis QUE-06 |
+
+Die GoBD sind kein Gesetz, sondern eine norminterpretierende Verwaltungsanweisung. Maßgeblich ist das BMF-Schreiben vom 28.11.2019 (IV A 4 - S 0316/19/10003 :001) in der Fassung der Änderungsschreiben vom 11.03.2024 und vom 14.07.2025. Die Randziffern beziehen sich durchgehend auf diese Fassung.
+
+---
+
+## Die Kette, an der alles hängt
+
+Fast jede Anforderung dieses Katalogs sichert eine Station in derselben Kette. Wer die Kette an einer Stelle unterbricht, verliert die Beweiskraft der Buchführung nach § 158 AO und damit den Schutz vor der Schätzung nach § 162 AO.
+
+```mermaid
+flowchart LR
+    A["Geschäftsvorfall"] --> B["Beleg<br/><small>§ 238 Abs. 1 S. 3 HGB<br/>GoBD Rz 61 ff.</small>"]
+    B --> C["Grundaufzeichnung<br/><small>§ 146 Abs. 1 AO<br/>GoBD Rz 45 ff.</small>"]
+    C --> D["Journal<br/><small>§ 239 Abs. 2 HGB<br/>GoBD Rz 94 ff.</small>"]
+    D --> E["Konto<br/><small>GoBD Rz 96 ff.</small>"]
+    E --> F["Bilanz und GuV<br/><small>§§ 242, 266, 275 HGB</small>"]
+    F --> G["E-Bilanz<br/><small>§ 5b EStG</small>"]
+    F --> H["Offenlegung<br/><small>§ 325 HGB</small>"]
+
+    D -.-> I["Unveränderbarkeit<br/><small>§ 239 Abs. 3 HGB<br/>§ 146 Abs. 4 AO</small>"]
+    B -.-> J["Aufbewahrung<br/><small>§ 257 HGB, § 147 AO<br/>§ 14b UStG</small>"]
+    E -.-> K["Datenzugriff Z1/Z2/Z3<br/><small>§ 147 Abs. 6 AO</small>"]
+```
+
+Die gestrichelten Kanten sind die Querschnittspflichten. Sie greifen an jeder Station und nicht nur dort, wo sie eingezeichnet sind.
+
+---
+
+## A. Buchführungspflicht und Grundsätze
+
+### GOB-01 Doppelte Buchführung und Bilanzierung `MUSS`
+
+**Norm:** §§ 238, 242 HGB, § 6 HGB in Verbindung mit § 13 Abs. 3 GmbHG und § 3 Abs. 1 AktG, § 140 AO
+
+**Bedeutung:** Kapitalgesellschaften sind Formkaufleute und damit unabhängig von Umsatz und Gewinn buchführungs- und bilanzierungspflichtig. Die Erleichterung des § 241a HGB gilt nur für Einzelkaufleute und greift hier nicht. Aus dem Handelsrecht folgt über § 140 AO die gleiche Pflicht für das Steuerrecht.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jeder Geschäftsvorfall wird als Buchungssatz mit mindestens einer Soll- und einer Habenposition erfasst, Sollsumme gleich Habensumme | ✅ | internal/domain/journal.go:215-278, :208 (`IsBalanced`, ohne Toleranz) | – |
+| Ein Buchungssatz ohne Ausgleich lässt sich nicht speichern | ✅ | internal/service/journal_service.go:96, internal/domain/journal.go:266; `Post` ist der einzige Schreibweg | – |
+| Summen- und Saldenliste zu jedem Stichtag mit übereinstimmenden Summen | ✅ | internal/service/accounting_service.go:326-330 (`GetSuSaOverviewAt`) baut die Liste aus den Verkehrszahlen bis zum Stichtag (:76-120, internal/repository/journal_gorm.go:274-293 `AccountTurnoversUntil`), statt das Jahr zu summieren und danach Zeilen auszublenden; die Differenz weist :389-400 exakt aus, die Bestandskonten haben seit dem Saldenvortrag (internal/service/closing_service.go:995-1100) ihren Eröffnungswert. Der Stichtag steht als Feld an der Liste (frontend/src/pages/AccountsPage.tsx:171-177, :366) | – |
+| Bilanz und GuV aus den Kontensalden abgeleitet, ohne Nacherfassung | ✅ | internal/accounting/statement.go:291-358 (`BuildStatement`) gliedert allein die Kontensalden und weist eine Bilanz ab, die nicht aufgeht (:354-356); die Eröffnungswerte kommen als gebuchter Saldenvortrag aus dem Vorjahr (internal/service/closing_service.go:1107-1175), nicht aus einer Nacherfassung | – |
+
+**Stand.** Die Mechanik des Buchungssatzes ist streng und lückenlos abgesichert, und der Jahreswechsel führt sie fort: der Saldenvortrag bringt die Bestandskonten ins Folgejahr, die Bilanz ist ab dem zweiten Geschäftsjahr vollständig. Seit Welle 2 entsteht sie im Backend, aus denselben Salden, nicht mehr in der Ansicht. Mit Welle 4 kommt der Stichtag dazu: die Summen- und Saldenliste lässt sich auf jeden Tag innerhalb des Jahres ziehen, und die Grenze liegt in der Abfrage. Alle vier Kriterien sind erfüllt.
+
+### GOB-02 Nachvollziehbarkeit für einen sachverständigen Dritten `MUSS`
+
+**Norm:** § 238 Abs. 1 S. 2 HGB, § 145 Abs. 1 AO, GoBD Rz 30 ff.
+
+**Bedeutung:** Die Buchführung muss einem sachverständigen Dritten in angemessener Zeit einen Überblick über Geschäftsvorfälle und Lage des Unternehmens geben. Das ist der Maßstab, an dem ein Betriebsprüfer die Software misst. Er kennt das Produkt nicht und muss trotzdem jeden Betrag bis zum Beleg zurückverfolgen können.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Drill-down von jedem Wert in Bilanz oder GuV in höchstens vier Schritten zum Buchungssatz und zum Beleg | ✅ | frontend/src/components/StatementView.tsx:116, :450-471 verlinkt jedes Konto unter einer Gliederungsposition ins Kontoblatt, frontend/src/pages/AccountsPage.tsx:105-113 öffnet es, :531-544 führt von der Kontoblattzeile zur Buchung, und seit Welle 7 hat die Journalzeile selbst den Weg zum Beleg (frontend/src/pages/JournalPage.tsx:489-491, :605-618): vier Klicks von der Bilanzposition bis zur Belegdatei. Der Knopf steht in der Zeile und nicht im aufgeklappten Buchungssatz, weil das Aufklappen ein fünfter wäre. Der Weg ist als Prüfszenario aufgeschrieben (docs/pruefszenario.md) und wird gemessen: scripts/site-screenshots/four-clicks.mjs fährt ihn an der echten Oberfläche ab und schlägt über vier Klicks fehl (Taskfile.yml:81-88) | – |
+| Drill-up vom Beleg zu den Buchungen und zu den Konten | ✅ | internal/domain/receipt.go:152, internal/repository/receipt_gorm.go:56 bilden beide Richtungen im Datenmodell ab, internal/service/audit_trail_service.go:97-184 setzt aus Beleg, Buchung, Zahlung und Bankumsatz den Prüfpfad zusammen (frontend/src/pages/ReceiptsPage.tsx:965-1163, als Ansicht, CSV und PDF). Seit Welle 8 führt der Beleg auch dorthin, wo die Buchung steht: internal/wailsbridge/welle8_service.go:89-95 (`GetEntriesForReceipt`) sucht seine Buchungen im laufenden und im vorigen Geschäftsjahr, frontend/src/pages/ReceiptsPage.tsx:1169-1250 zeigt sie unter „Buchungen zu diesem Beleg", öffnet die Buchung im Journal (:1240-1247) und jedes angesprochene Konto im Kontoblatt (:1204-1227) | – |
+| Bezeichnungen im Klartext oder als exportierbares Schlüsselverzeichnis | ✅ | internal/domain/tax.go:154, internal/accounting/chart.go:49 lösen alles im Klartext auf; seit Welle 4 geht dasselbe Verzeichnis auch als Datei hinaus und liegt jeder Datenüberlassung bei (internal/service/export_tables.go:530-714, internal/service/export_service.go:229-247, siehe GOB-04) | – |
+| Testlauf mit einer fachkundigen Person ohne Produktkenntnis | 🟡 | docs/pruefszenario.md schreibt den Beispielmandanten, die Aufgabe und die vier erwarteten Klicks auf, scripts/site-screenshots/four-clicks.mjs fährt sie an der echten Oberfläche mit den Beispieldaten der Bridge ab und zählt sie (Taskfile.yml:81-88). Gemessen wird damit der Weg; ein Durchlauf mit einer fachkundigen Person ohne Produktkenntnis ist im Repository nicht belegt | Politur |
+
+**Stand.** Der Weg führt von der Bilanzposition über das Konto und das Kontoblatt bis zur Belegdatei — vier Klicks, als Prüfszenario aufgeschrieben und von einem Playwright-Lauf an der laufenden Oberfläche gezählt. Welle 8 baut die Gegenrichtung zu Ende: der Beleg listet seine Buchungen, öffnet jede davon im Journal und jedes angesprochene Konto im Kontoblatt. Wer von der Ablage ausgeht — und das ist der übliche Weg eines Prüfers —, kommt damit ins Journal und weiter in die Konten. Offen bleibt der Durchlauf mit einer fachkundigen Person ohne Produktkenntnis: gezählt werden die Klicks, das Verständnis prüft erst ein Mensch. Politur.
+
+### GOB-03 Vollständig, richtig, zeitgerecht, geordnet `MUSS`
+
+**Norm:** § 239 Abs. 2 HGB, § 146 Abs. 1 S. 1 AO, GoBD Rz 36 ff.
+
+**Bedeutung:** Die vier Ordnungsmerkmale sind der Kern der GoB. Die Software muss Verstöße erkennbar machen, statt sie zu verdecken.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Lücken in der Nummerierung von Belegen und Buchungen im Prüfbericht | ✅ | internal/service/check_service.go:783-819 (`checkNumberGaps`, Regel `number_gap` in internal/domain/check.go:35) vergleicht je Nummernkreis den Zähler gegen die vorhandenen Nummern und nennt jede Lücke mit Kreis und Nummer; internal/repository/numberrange_gorm.go:47-70 vergibt weiterhin in der Transaktion, internal/accounting/journalhash.go:131-145 meldet entfernte Buchungen | – |
+| Nicht kontierte Belege in eigener Liste, blockieren den Periodenabschluss | ✅ | internal/service/check_service.go:619-698 (`receipt_unbooked`) führt jeden abgelegten, nicht gebuchten Beleg auf und macht ihn blockierend, sobald sein Eingang in den festzuschreibenden Zeitraum fällt; internal/wailsbridge/festschreibung_service.go:41-43, :93-103 lässt die Festschreibung nur durch, wenn der Lauf frei ist oder eine Begründung vorliegt | – |
+| Plausibilitätsprüfung vor dem Periodenabschluss | ✅ | internal/service/check_service.go:185-269 rechnet vierzehn Regeln über Buchungen, Belege, Bank, Nummernkreise, Voranmeldung, Belegnachweis, Leistungsnachweis und Festschreibungsstand (internal/domain/check.go:27-69), im Jahreslauf vier weitere; :359-371 (`EnsureCommittable`) entscheidet daraus über die Festschreibung. Seit Welle 7 hat der Bericht seinen Platz im Ablauf: er ist der erste Schritt des Monatsabschlusses und steht vor dem Festschreiben (internal/service/month_close_service.go:132-228, frontend/src/components/MonthCloseDialog.tsx:258-345), aufgerufen von der Aufgabenliste und von der Fristenseite (frontend/src/pages/TasksPage.tsx:466-480, frontend/src/pages/DeadlinesPage.tsx:715-723) | – |
+| Reproduzierbare Sortierung von Journal und Kontenblatt | ✅ | internal/repository/journal_gorm.go:32, :70-78; jede Leseabfrage ordnet nach `id asc`, Anzeige als stabile Sortierung | – |
+
+**Stand.** Seit Welle 3 steht die Kontrolle neben der Ordnung: vor jeder Festschreibung läuft ein Prüfbericht aus vierzehn Regeln, blockierende Befunde halten sie auf, und übergehen lässt sich nur mit einer Begründung, die am Lauf und im Protokoll steht. Welle 7 gibt dem Bericht seinen Platz im Monat — der Monatsabschluss beginnt mit ihm, schreibt danach fest und bestätigt zuletzt die Voranmeldung —, und dieselben Befunde stehen auf der Aufgabenliste, jeder mit dem Sprung an die Stelle, an der er zu klären ist. Alle vier Kriterien sind erfüllt.
+
+### GOB-04 Sprache, Abkürzungen, Währung `MUSS`
+
+**Norm:** § 239 Abs. 1 HGB, § 244 HGB
+
+**Bedeutung:** Handelsbücher sind in einer lebenden Sprache zu führen. Wer Abkürzungen, Ziffern oder Symbole verwendet, muss deren Bedeutung eindeutig festlegen. Der Jahresabschluss ist zwingend in deutscher Sprache und in Euro aufzustellen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Schlüsselverzeichnis aller Codes als Datei exportierbar, Teil der Verfahrensdokumentation | ✅ | internal/service/export_tables.go:530-714 (`keyDirectoryTable`) führt jeden Code aus Quelle, Buchungsart, Steuerfall, Belegart, Belegstatus, Prüfregeln und Steuerschlüssel mit Bedeutung; internal/service/export_service.go:229-247 schreibt ihn als CSV an einen gewählten Ort (Bridge: internal/wailsbridge/export_service.go:78-90), er liegt jeder Datenüberlassung als `schluesselverzeichnis.csv` bei und steht im Klartext in der Feldbeschreibung (internal/export/fielddoc.go:12, :165-174). Die Oberfläche zeigt dieselbe Tabelle (frontend/src/pages/TaxAuditPage.tsx:170-226, hinter „Schlüsselverzeichnis" bei der Datenüberlassung) | – |
+| Bilanz, GuV und Anhang in deutscher Sprache und in Euro | 🟡 | internal/service/statement_export.go:149-210 setzt Bilanz, GuV und die Angaben unter der Bilanz als PDF (`lang: "de"`, :152), :20-116 gibt dieselbe Gliederung als CSV mit Semikolon und deutsch geschriebenen Beträgen aus (:88-116); die Bezeichnungen folgen dem Gesetzeswortlaut (internal/accounting/statement.go:64-188), die E-Bilanz rechnet in Euro (internal/ebilanz/ebilanz.go:142-146). Ein Anhang entsteht nicht (JAB-03) | 2 |
+| Buchungswährung des Hauptbuchs ist Euro, Fremdwährung zusätzlich | ✅ | internal/domain/journal.go:197 führt die Währung am Buchungskopf, :112-125 seit Welle 5c den Betrag der Zeile in dieser Währung (`ForeignAmount`), :154-157 Kurs, Kursquelle und Kursdatum. Gebucht wird in Euro, die Fremdwährung steht daneben: die Umrechnung lässt sich nicht zurückrechnen, und wer später fragt, worauf die Rechnung des Lieferanten lautete, bekommt die Zahl, die auf ihr stand. internal/accounting/journalhash.go:136-137 nimmt den Betrag in die kanonische Form auf, wo er belegt ist — eine Buchung in Euro hat das Feld nicht, und die Ketten bestehender Buchhaltungen bleiben unverändert | – |
+
+**Stand.** Bilanz und Gewinn- und Verlustrechnung verlassen das Programm seit Welle 2 als PDF und als CSV, deutsch und in Euro. Das Schlüsselverzeichnis geht seit Welle 4 als Datei hinaus und liegt jeder Datenüberlassung bei — die Bedeutung jeder Abkürzung steht damit dort, wo die Abkürzung ankommt. Die Fremdwährung führt die Buchungszeile seit Welle 5c mit ihrem eigenen Betrag neben dem Eurowert, und dieser Betrag geht in die Hash-Kanonisierung ein, wo er belegt ist. Der Anhang fehlt weiterhin. Welle 2.
+
+### GOB-05 Einzelaufzeichnung `MUSS`
+
+**Norm:** § 146 Abs. 1 S. 1 AO, GoBD Rz 39 ff.
+
+**Bedeutung:** Jeder Geschäftsvorfall wird einzeln aufgezeichnet. Verdichtete Sammelbuchungen sind nur zulässig, wenn die Einzelpositionen jederzeit aus dem System heraus nachweisbar bleiben.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Sammelbuchungen verweisen auf eine gespeicherte Einzelpostenliste mit gleicher Aufbewahrungsfrist | ✅ | internal/domain/payment.go:48-65; die Allokationen der Sammelzahlung stehen in der Datenbank und gehen als eigene Tabelle in die Überlassung (internal/service/export_tables.go:229-260). Ihre Frist ist die der Buchung, zu der sie gehören: das Löschkonzept führt Journal und Hauptbuch mit zehn Jahren (internal/accounting/retention.go:168-175), und aus der Datenbank verschwinden sie erst mit dem abgelaufenen Geschäftsjahr (internal/repository/welle6_gorm.go:299-303, internal/service/retention_service.go:367-429). Kassenbuch, Lohnjournal und Stapelerfassung sind außerhalb des Funktionsumfangs | – |
+| Einzelpostenliste mit einem Klick erreichbar und maschinell auswertbar exportierbar | ✅ | frontend/src/pages/JournalPage.tsx:773-855 klappt die Einzelposten einer Sammelzahlung an der Buchung auf, mit Belegverweis und Betrag je Posten (Bridge: internal/wailsbridge/export_service.go:265-273, internal/service/payment_service.go:138-173); dieselben Zeilen gehen als Tabelle `zahlungszuordnungen` in die Datenüberlassung (internal/service/export_tables.go:229-260) | – |
+| Je Geschäftsvorfall mindestens Datum, Betrag, Steuerbetrag und -satz, Leistungsgegenstand, Partner, Belegverweis | ✅ | internal/domain/journal.go:110-145, :79-91 erfassen alles auf dem Belegweg; seit Welle 8 gilt dasselbe für die Handbuchung: internal/service/manual_entry.go:38-117 (`PostManualEntry`) verlangt den Beleg oder den Eigenbeleg und setzt den Verweis in derselben Transaktion, :174-231 (`ValidateManualTaxLines`) verlangt den Steuerfall am Kopf und je Steuerzeile Steuerschlüssel und Bemessungsgrundlage. Die beiden Ausnahmen haben ihren Grund: die Generalumkehr übernimmt die Zeilen der Ursprungsbuchung (:179-181), und der Ausschluss nach § 15 Abs. 1a UStG erklärt die fehlende Steuerzeile (:190-195, :224-231) | – |
+
+**Stand.** Der Belegweg zeichnet vollständig einzeln auf, und mit Welle 8 zeichnet der Handweg genauso auf: die Buchung verlangt ihren Beleg, den Steuerfall am Kopf und je Steuerzeile Steuerschlüssel und Bemessungsgrundlage. Die einzige Sammelbuchung, die Buchfink erzeugt, gibt ihre Einzelposten seit Welle 4 auch heraus — an der Buchung aufklappbar und als eigene Tabelle der Überlassung —, und mit Welle 6 gilt für diese Tabelle eine Frist: die Zuordnungen teilen die zehn Jahre der Buchung, zu der sie gehören. Alle drei Kriterien sind erfüllt.
+
+### GOB-06 Geschäftsjahr und Periodenabgrenzung `MUSS`
+
+**Norm:** § 240 Abs. 2 S. 2 HGB, § 252 Abs. 1 Nr. 5 HGB, § 4a EStG
+
+**Bedeutung:** Das Geschäftsjahr darf zwölf Monate nicht überschreiten. Aufwendungen und Erträge gehören in die Periode ihrer wirtschaftlichen Verursachung, unabhängig vom Zahlungszeitpunkt.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Geschäftsjahr frei definierbar, höchstens zwölf Monate, Rumpfgeschäftsjahre möglich | ✅ | internal/domain/fiscalyear.go:81-120 führt Beginn und Ende je Jahr, :161-197 weist mehr als zwölf Monate nach § 240 Abs. 2 Satz 2 HGB ab, :124-130 kennzeichnet das Rumpfjahr; internal/service/closing_service.go:213-231 setzt den Beginn des Gründungsjahres auf die Beurkundung | – |
+| Buchungsdatum getrennt vom Belegdatum, Periodenzuordnung nach Buchungsdatum | ✅ | internal/domain/journal.go:110-114, internal/service/journal_service.go:257; vier getrennte Datumsfelder | – |
+| Buchung in ein abgeschlossenes Jahr nur nach dokumentierter Wiedereröffnung, protokolliert | ✅ | internal/service/journal_service.go:489-505 (`ensureYearNotAdopted`) weist jede Buchung in ein festgestelltes Jahr ab und nennt den Weg zurück; internal/service/closing_service.go:443-474 (`ReopenFiscalYear`) verlangt einen Grund und schreibt ihn ins Protokoll. Berechtigte Rollen entfallen im Einzelplatzbetrieb | – |
+| Abgrenzungsbuchungen mit automatischer Auflösung im Folgejahr | ✅ | internal/domain/accrual.go:151-184 führt den Abgrenzungsposten mit Zeitraum, Verfahren und Auflösungsplan, internal/accounting/accrual.go:157-218 (`AccrualReleasePlanFor`) legt den Plan bei der Bildung an, internal/service/accrual_service.go:374-439 (`Book`) bucht sie auf 1900 bzw. 3900; die Auflösung stößt der Saldenvortrag an (internal/service/closing_service.go:1157-1165, internal/service/accrual_service.go:561-625 `ReleaseInto`) und die Vortragsvorschau kündigt sie vorher an (internal/service/closing_service.go:612-616, :646-652) | – |
+
+**Stand.** Das Geschäftsjahr ist eine eigene Entität mit Zeitraum, Rumpfjahrkennzeichen und Abschlussstand; die Periodenzuordnung folgt weiterhin dem Buchungsdatum, und die Wiedereröffnung ist ein dokumentierter Vorgang statt einer Lücke. Mit Welle 5 kommt die Periodenabgrenzung dazu: der Abgrenzungsposten hat seinen Zeitraum, sein Verteilungsverfahren und seinen Auflösungsplan, und die Auflösung bucht der Saldenvortrag von selbst ins Folgejahr. Alle vier Kriterien sind erfüllt.
+
+---
+
+## B. Beleg, Journal, Konten
+
+### BEL-01 Keine Buchung ohne Beleg `MUSS`
+
+**Norm:** § 238 Abs. 1 S. 3 HGB, § 145 Abs. 1 AO, GoBD Rz 61 ff.
+
+**Bedeutung:** Der Beleg verbindet den Geschäftsvorfall mit der Buchung. Fehlt er, fehlt der Nachweis, und die Buchung ist formal angreifbar. Bei fehlendem Fremdbeleg tritt ein Eigenbeleg an seine Stelle.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jede Buchung referenziert einen Beleg oder einen Eigenbeleg | ✅ | internal/service/posting_service.go:237 erzwingt die Referenz auf dem Belegweg, internal/service/manual_entry.go:48-61 seit Welle 8 auch auf dem Handweg: ohne abgelegten Beleg und ohne die Angaben eines Eigenbelegs entsteht keine Buchung, und beides zugleich wird abgewiesen. Die Ausgangsrechnung hat den Verweis seit Welle 5b nicht an der Buchung — das Dokument entsteht hinter der Transaktion aus Nummer und Buchung, ein Nachtrag bräche die Hashkette —, der Beleg wird stattdessen auf die Buchung versiegelt (internal/service/invoice_service.go:686-734). AfA, Zahlung, Saldenvortrag und Abschlussbuchung bleiben ohne eigenen Beleg: sie sind Folgebuchungen, ihr Nachweis ist die Buchung, auf die sie sich beziehen, und der Grund steht an der Regel (internal/service/check_service.go:410-421) | – |
+| Eigenbelege gekennzeichnet, mit Aussteller, Datum, Betrag, Grund und erfassender Person | ✅ | internal/service/self_issued_receipt.go:68-131 (`CreateSelfIssued`) verlangt Grund, Datum und Betrag, nimmt den Aussteller aus den Unternehmensangaben (:164-181) und die erfassende Person aus internal/actor; :209-234 setzt daraus das Dokument mit dem Satz, dass kein Fremdbeleg vorliegt, :113-129 legt es als Original unter der Belegart `self_issued` ab und lässt es die Kopfdatenprüfung durchlaufen. Scheitert die Buchung danach, wird die Datei wieder eingesammelt (:145-162). Die Oberfläche legt den Eigenbeleg für sich an oder im selben Zug mit der Handbuchung (frontend/src/components/LedgerForms.tsx:135-260) | – |
+| Buchungen ohne Belegzuordnung im Prüfbericht, verhindern die Festschreibung | ✅ | internal/service/check_service.go:307-343 (`entry_without_receipt`) meldet jede Buchung ohne Beleg als blockierenden Befund — der Nachweis zählt in beide Richtungen (:289-306), die Generalumkehr erbt ihn von der Ursprungsbuchung —, internal/wailsbridge/festschreibung_service.go:41-43, :93-103 hängt die Festschreibung daran | – |
+| Belegverweis bidirektional | ✅ | internal/domain/journal.go:129-131, internal/domain/receipt.go:152 bilden beide Richtungen im Datenmodell ab; seit Welle 8 auch die Oberfläche: die Journalzeile führt zum Beleg (frontend/src/pages/JournalPage.tsx:489-491, :605-618), der Beleg über internal/wailsbridge/welle8_service.go:89-95 (`GetEntriesForReceipt`) zu seinen Buchungen und von dort ins Journal und ins Kontoblatt (frontend/src/pages/ReceiptsPage.tsx:1169-1250) | – |
+
+**Stand.** Mit Welle 8 entsteht keine Buchung mehr ohne Beleg. Die Handbuchung verlangt entweder den abgelegten Beleg oder die Angaben eines Eigenbelegs, der in derselben Transaktion als PDF entsteht, abgelegt und auf die Buchung versiegelt wird; scheitert die Buchung danach, sammelt Buchfink die Datei wieder ein. Der Eigenbeleg hat Aussteller, Datum, Betrag, Grund und die erfassende Person und sagt auf dem Dokument, dass kein Fremdbeleg vorliegt. Der Verweis gilt in beide Richtungen und ist in der Oberfläche begehbar. AfA, Zahlung, Saldenvortrag und Abschlussbuchung bleiben Folgebuchungen ohne eigenen Beleg — ihr Nachweis ist die Buchung, auf die sie sich beziehen, und der Prüfbericht verlangt für sie keinen. Alle vier Kriterien sind erfüllt.
+
+### BEL-02 Belegangaben und eindeutige Belegnummer `MUSS`
+
+**Norm:** GoBD Rz 64, 71 bis 77
+
+**Bedeutung:** Die GoBD zählen die Mindestangaben eines Belegs auf. Die eindeutige Belegnummer ist das technische Bindeglied zwischen Papier- oder Dateiablage und Buchungssatz.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Je Beleg Nummer, Belegdatum, Aussteller oder Empfänger, Betrag mit Währung, Steuersatz und Steuerbetrag, Leistungsbeschreibung, Erfassungszeitpunkt | ✅ | internal/domain/receipt.go:196-225 führt neben Nummer, Richtung, Belegart, Eingangsdatum, Eingangsweg und Erfassungszeitpunkt seit Welle 6 auch Belegdatum, Aussteller, Brutto- und Steuerbetrag, Währung und Betreff am Beleg selbst; bei einer E-Rechnung kommen sie aus dem strukturierten Teil (internal/service/einvoice_service.go:190-212), sonst aus dem Ablagedialog (frontend/src/pages/ReceiptsPage.tsx:496-640). Der Steuersatz steht als Steuerschlüssel an der Steuerzeile der Buchung (internal/domain/journal.go:84-96), weil ein Beleg mehrere Sätze hat. Die Kopfdaten gehen in den Beleg-Hash und damit in jede Buchung, die auf ihn zeigt (internal/accounting/receipthash.go:40-61), und stehen in der Datenüberlassung (internal/service/export_tables.go:826-834) | – |
+| Belegnummer systemseitig vergeben, eindeutig, nicht nachträglich änderbar | ✅ | internal/repository/receipt_gorm.go:90-113 vergibt die Nummer in derselben Transaktion, die den Beleg schreibt, `uniqueIndex` auf der Nummer, kein Änderungsweg | – |
+| Fehlende Pflichtangaben blockieren die Freigabe und werden benannt | ✅ | internal/domain/receipt.go:429-473 (`ValidateHeader`) nennt jede fehlende Angabe einzeln und je Belegart: das Belegdatum immer, Aussteller und Betrag bei Rechnungen, den Betreff bei Eigenbeleg, Handelsbrief und sonstigem Dokument; :396-414 (`ValidateBookable`) hängt das Buchen daran, die Prüfung je Datei steht daneben (:319-392) | – |
+| Belegnummernkreis je Geschäftsjahr und Belegart konfigurierbar, ohne Doppelvergabe | ✅ | internal/domain/numberrange.go:21-26 trennt je Jahr und Art, internal/repository/numberrange_gorm.go:22-30 vergibt ohne Doppelvergabe. Die Systematik ist seit Welle 8 auch für den Belegkreis einstellbar: internal/domain/numberrange.go:60-104 kennt `{JAHR}` und `{NR:n}` mit derselben Prüfung und derselben Rückleseheuristik wie der Rechnungskreis, internal/domain/settings.go:43-45 hält die Einstellung, internal/repository/receipt_gorm.go:345-364 liest sie in derselben Transaktion, in der die Nummer vergeben wird — ein zwischendurch geändertes Format ergäbe sonst eine Nummer nach der alten Systematik mit dem Zähler der neuen —, frontend/src/pages/SettingsPage.tsx:616-625 stellt sie ein. Bestehende Nummern bleiben gültig | – |
+
+**Stand.** Die Nummernvergabe ist vorbildlich, und seit Welle 6 hat der Beleg seine Kopfdaten selbst: Belegdatum, Aussteller, Betrag, Steuer, Währung und Betreff kommen bei einer E-Rechnung aus dem strukturierten Teil und sonst aus dem Ablagedialog — dort freiwillig, vor dem Buchen Pflicht, mit einer eigenen Meldung je fehlender Angabe. Welle 8 macht die Systematik des Belegkreises einstellbar, wie sie es beim Rechnungskreis seit Welle 5b ist: das Format steht in den Einstellungen, gelesen wird es in derselben Transaktion, die die Nummer vergibt, und der Lückenbericht liest auch Nummern aus einem früher eingestellten Format zurück. Bestehende Nummern bleiben gültig. Alle vier Kriterien sind erfüllt.
+
+### BEL-03 Belegsicherung `MUSS`
+
+**Norm:** GoBD Rz 67 bis 70
+
+**Bedeutung:** Der Beleg ist gegen Verlust zu sichern, sobald er im Unternehmen eingeht. Zwischen Eingang und Sicherung darf kein Zeitraum liegen, in dem ein Beleg spurlos verschwinden kann.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Eingehender Beleg unveränderlich gespeichert, mit Zeitstempel, Quelle und Prüfsumme | ✅ | internal/receiptstore/store.go:104-120 legt die Datei unter ihrem SHA-256 ab, internal/domain/receipt.go:92, :127 führen `CreatedAt`, `ReceivedAt`, `ReceivedVia` | – |
+| Löschen ausgeschlossen, fehlerhafte Belege storniert und mit Vermerk sichtbar | ✅ | internal/service/receipt_service.go:473-487 (`Discard`) verlangt eine Begründung und hält den Beleg sichtbar; die empfangene Originaldatei lässt sich seit Welle 6 nicht mehr entfernen (:230-244, mit dem Grund aus GoBD Rz. 131), und wird eine andere Datei eines noch offenen Belegs entfernt, stehen ihr Name, ihre Rolle und ihre Prüfsumme im Änderungsprotokoll (:252-257) | – |
+| Import erst mit persistierter Prüfsumme, keine halb gespeicherten Zustände | ✅ | internal/service/receipt_service.go:98-153, internal/receiptstore/store.go:58-62; Dateien gehen atomar auf die Platte, dann läuft die Transaktion | – |
+
+**Stand.** Die Belegsicherung ist der solideste Teil des Moduls, und mit Welle 6 ist auch die letzte Lücke zu: die empfangene Originaldatei lässt sich aus einem offenen Beleg nicht mehr herausnehmen, und das Entfernen einer Darstellung oder eines Anhangs hinterlässt Name und Prüfsumme im Protokoll statt einer Zahl. Alle drei Kriterien sind erfüllt.
+
+### BEL-04 Zeitgerechte Erfassung und Festschreibungsfristen `MUSS`
+
+**Norm:** § 146 Abs. 1 AO, GoBD Rz 45 bis 52
+
+**Bedeutung:** Die Finanzverwaltung nennt konkrete Zeiträume. Unbare Geschäftsvorfälle sind innerhalb von zehn Tagen zu erfassen. Kasseneinnahmen und Kassenausgaben sind täglich festzuhalten. Waren- und Kostenrechnungen müssen innerhalb von acht Tagen kontokorrentmäßig erfasst werden. Die endgültige Verbuchung ist bis zum Ablauf des Folgemonats unbedenklich, wenn die Grundaufzeichnung vorher erfolgt ist.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Bericht über Belege, deren Eingang mehr als zehn Tage zurückliegt und die nicht erfasst sind | ✅ | internal/service/check_service.go:445-505 (`receipt_overdue`) misst den Belegeingang gegen die Frist aus internal/domain/settings.go:60-63 (`ReceiptCaptureDays`, ohne Einstellung zehn Tage nach GoBD Rz. 47) und nennt jeden liegen gebliebenen Beleg mit Nummer und Eingangstag | – |
+| Festschreibung des Vormonats erzwingen oder erinnern, Schwellenwert konfigurierbar | ✅ | internal/service/deadline_service.go:285-317 führt je Monat einen Festschreibungstermin zum Ende des Folgemonats zuzüglich der Nachfrist aus internal/domain/settings.go:64-67 (`CommitGraceDays`) und gilt als erledigt, sobald der Monat festgeschrieben ist; internal/service/check_service.go:700-731 (`commit_overdue`) mahnt denselben Tag im Prüfbericht an, internal/service/task_service.go:344-390 stellt den Termin und :227-268 den Befund als Aufgabe auf die Startseite | – |
+| Abstände zwischen Belegdatum, Erfassung und Festschreibung je Buchung gespeichert und auswertbar | ✅ | internal/domain/journal.go:218-228 führt `CommittedAt` und `FestschreibungID` an der Buchung, internal/repository/journal_gorm.go:286-306 (`MarkCommitted`) stempelt beide bei der Festschreibung über eine Spaltenauswahl an jede Buchung bis zum Stichtag, ohne den Eigenhash zu berühren (internal/wailsbridge/festschreibung_service.go:99-107). Die Abstände gehen als Spalten in den Journalexport (internal/service/export_tables.go:96-107) und als Kennzahlen in jeden Prüflauf: Median, Maximum und Zahl der Buchungen über der Frist (internal/service/check_service.go:279-337, internal/domain/check.go:108-141) | – |
+
+**Stand.** Die zehn Tage sind seit Welle 3 eine Zahl: sie stehen als `receipt_capture_days` in den Einstellungen, laufen im Prüfbericht gegen jeden liegen gebliebenen Beleg und haben in der Festschreibungsfrist des Vormonats ein Gegenstück. Mit Welle 6 kommt der dritte Abstand dazu — die Festschreibung stempelt ihren Zeitpunkt an jede Buchung, die sie erfasst, und Journalexport wie Prüflauf weisen Belegdatum, Erfassung und Festschreibung in Tagen aus, im Prüflauf als Median und Maximum über den Zeitraum. Alle drei Kriterien sind erfüllt.
+
+### BEL-05 Journalfunktion `MUSS`
+
+**Norm:** § 239 Abs. 2 HGB, § 146 Abs. 1 AO, GoBD Rz 94 bis 99
+
+**Bedeutung:** Das Journal bildet die zeitliche Ordnung ab. Es ist die Grundlage der Progressiv- und Retrogradprüfung, mit der ein Prüfer vom Beleg zum Abschluss und zurück arbeitet.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jede Buchung genau einmal, chronologisch, mit fortlaufender lückenloser Journalnummer | ✅ | internal/repository/journal_gorm.go:203-231 vergibt Nummer und Kettenkopf in einer Transaktion, `uniqueIndex` auf `EntryNumber` | – |
+| Journalnummer bei der Festschreibung vergeben und danach unveränderlich | ✅ | internal/accounting/journalhash.go:32, internal/repository/journal_gorm.go:209; die Nummer entsteht bereits bei der Erfassung und geht in den Hash ein, strenger als gefordert | – |
+| Journal für jeden Zeitraum als Bericht und als maschinell auswertbare Datei | ✅ | frontend/src/pages/JournalPage.tsx:285-315 grenzt das Journal auf ein Datumsfenster ein, über Jahresgrenzen hinweg, und gibt genau dieses Fenster als CSV aus; internal/service/export_service.go:190-224 schreibt dafür dieselbe Tabelle wie der Z3-Export (internal/service/export_tables.go:68-165, einschließlich der Hashwerte) und protokolliert den Lauf, die Buchungen liefert internal/repository/journal_gorm.go:100-115 | – |
+| Stornierungen als eigene Journalzeilen, nicht als Löschung | ✅ | internal/service/journal_service.go:133-215; die Generalumkehr ist eine neue Buchung mit eigener Nummer | – |
+
+**Stand.** Das Journal selbst erfüllt die Anforderung strenger als verlangt, und seit Welle 4 verlässt es auch das Programm: jeder Zeitraum geht als CSV hinaus, mit denselben Spalten wie die Datenüberlassung nach Z3 und mit den Hashwerten, an denen sich die Kette von außen nachrechnen lässt (UNV-01). Alle vier Kriterien sind erfüllt.
+
+### BEL-06 Kontenfunktion und Kontenrahmen `MUSS`
+
+**Norm:** § 238 HGB, GoBD Rz 96 bis 99
+
+**Bedeutung:** Die sachliche Ordnung überführt die Journalzeilen in Konten. Der Kontenrahmen selbst ist gesetzlich nicht vorgeschrieben. Vorgeschrieben ist, dass sich aus den Konten die Gliederungen nach §§ 266 und 275 HGB und die Positionen der E-Bilanz-Taxonomie ableiten lassen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Standardkontenrahmen als Vorlage, je Mandant erweiterbar | ✅ | internal/accounting/skr04.go, internal/accounting/skr04_2026.json liefern SKR04 mit 1.855 Konten; SKR03 entfällt nach der Entscheidung für einen Kontenrahmen (docs/architektur.md Abschnitt 2). Eigene Konten legt seit Welle 8 internal/service/account_service.go:84-138 (`CreateCustom`) an: die Nummer muss frei sein, und die Gliederungsposition ist Pflicht und muss in Bilanz und GuV erscheinen (:99-104) — ein Konto ohne sie erschiene weder im Abschluss noch in der E-Bilanz. :149-182 (`SetBlocked`) sperrt statt zu löschen, damit keine Buchung auf eine Nummer ohne Bezeichnung zeigt, :50-55 verwirft den zwischengespeicherten Kontenplan, damit die Änderung sofort gilt. Bridge internal/wailsbridge/welle8_service.go:148-201, Oberfläche frontend/src/pages/AccountsPage.tsx:343-450, :601-620 | – |
+| Je Konto Zuordnung zu einer Position nach §§ 266, 275 HGB und zur E-Bilanz-Taxonomie | ✅ | internal/accounting/statement_mapping.go:27-234 führt alle 206 SKR04-Positionen (internal/domain/account.go:30-34) auf eine Gliederungsposition nach §§ 266, 275 HGB; internal/accounting/statement_test.go:70-73 prüft die Tabelle gegen den Katalog. Darauf baut internal/ebilanz/taxonomy.go:68-80 mit der Ressource internal/ebilanz/taxonomy_6.9.json das Taxonomie-Element auf, lückenlos geprüft von internal/ebilanz/ebilanz.go:379-394 (`StatementCoverage`); internal/accounting/statement.go:710-721 trifft für die E-Bilanz dieselbe Entscheidung wie für die Bilanz | – |
+| Konten ohne Zuordnung werden vor dem Jahresabschluss gemeldet | ✅ | internal/ebilanz/mapping.go:52-107 stellt vor jedem Export jedes Konto mit Saldo gegen Gliederung und Taxonomie, :111-128 (`BlockingError`) benennt die ungeklärten einzeln und internal/ebilanz/ebilanz.go:118-124 bricht ab, bevor eine Datei entsteht; in der Bilanz stehen dieselben Konten unter „Nicht zugeordnet" (internal/accounting/statement.go:434-448, :553-572), gezeigt in frontend/src/components/StatementView.tsx:208-215 und frontend/src/pages/EBilanzPage.tsx:116-170 | – |
+| Summe der Kontensalden gleich Summe der Journalbuchungen, automatische Abstimmung | ✅ | internal/service/accounting_service.go:294-341, :93-119; Salden und Summen entstehen aus denselben Verkehrszahlen, `Difference` weist jede Abweichung aus | – |
+
+**Stand.** Der Kontenrahmen ist vollständig und richtig der HGB-Gliederung zugeordnet, und die E-Bilanz beruht seit Welle 2 auf denselben 206 Positionen; ein Konto ohne Zuordnung blockiert den Export namentlich. Mit Welle 8 kommt der Weg zu eigenen Konten dazu: eine freie Nummer, eine Gliederungsposition aus der Liste als Pflicht, ein Änderungsprotokoll und ein Kontenplan, der nach jeder Änderung neu gelesen wird. Wer ein Konto nicht mehr braucht, sperrt es; gelöscht wird keines, damit keine Buchung auf eine Nummer ohne Bezeichnung zeigt. Alle vier Kriterien sind erfüllt.
+
+### BEL-07 Kontokorrent und offene Posten `MUSS`
+
+**Norm:** § 238 HGB, § 240 HGB, GoBD Rz 49
+
+**Bedeutung:** Forderungen und Verbindlichkeiten sind personenbezogen zu führen. Ohne offene Posten lassen sich Bilanzausweis, Wertberichtigung und Fälligkeitsgliederung nach § 268 Abs. 4 und 5 HGB nicht belegen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Personenkonten rollen auf Sammelkonten auf, Saldo stimmt immer überein | ✅ | internal/service/accounting_service.go:87-119 verdichtet an einer Stelle auf 1200/3300, internal/service/journal_service.go:340-350 weist die direkte Buchung auf das Sammelkonto ab | – |
+| Offene-Posten-Liste je Debitor und Kreditor zu jedem Stichtag, mit Fälligkeit und Altersstruktur | ✅ | internal/service/payment_service.go:185-198 (`OpenItemsAt`) liest die zum Stichtag offenen Buchungen und die bis dahin gebuchten Ausgleiche, beide Grenzen auf dem Buchungsdatum; die ausgestellte Abschlagsrechnung ist seit Welle 5b eine zweite Quelle derselben Liste (internal/service/advance_service.go:602-637). Die Altersstruktur kam mit Welle 6: internal/accounting/aging.go:53-101 (`AgeOpenItems`) verteilt dieselbe Stichtagsliste auf die Bänder nicht fällig, 1 bis 30, 31 bis 60, 61 bis 90 und über 90 Tage (internal/domain/aging.go:6-21), gemessen gegen den Stichtag und nicht gegen heute (:103-127); frontend/src/pages/AccountsPage.tsx:646-738 zeigt sie unter der Liste. Seit Welle 7 ist dieselbe Liste die Quelle des Zuordnungsvorschlags zum Bankumsatz (internal/service/bank_suggest.go:98-186) | – |
+| Restlaufzeiten für §§ 268 Abs. 4, 5 und 285 Nr. 1 HGB auswertbar | ✅ | internal/accounting/aging.go:129-140 ordnet jeden offenen Posten nach seiner Fälligkeit einem Restlaufzeitband zu — bis ein Jahr, über eins bis fünf, über fünf (internal/domain/aging.go:26-41) —, gerechnet vom Stichtag aus (:178-196); die Bänder stehen mit Betrag und Postenzahl je Seite neben der Altersstruktur (internal/domain/aging.go:43-60, frontend/src/pages/AccountsPage.tsx:646-738) und kommen über internal/wailsbridge/nachweise_service.go:442-462 in die Oberfläche | – |
+| Teilzahlungen, Skonti, Gutschriften und Ausbuchungen je Posten dokumentiert | ✅ | internal/service/payment_service.go:490-529 hält Teilzahlung, Skonto mit Steuerkorrektur nach § 17 Abs. 1 UStG (:549-624) sowie Rundungs- und Kursdifferenzen je Allokation fest. Die Ausbuchung des uneinbringlichen Postens kam mit Welle 5b dazu: internal/service/writeoff.go:39-179 verlangt einen Grund, bucht den Forderungsverlust und berichtigt die Steuer nach § 17 Abs. 2 Nr. 1 UStG (:104-127), schließt den Posten über eine eigene Differenzart (:161-168, internal/domain/payment.go:27) und protokolliert den Vorgang. Die Gutschrift an den Kunden ist die Stornorechnung oder die Berichtigung (RECH-09); sie nimmt den Posten über die Generalumkehr zurück | – |
+
+**Stand.** Das Kontokorrent stimmt rechnerisch immer und kennt seit Welle 4 den Stichtag: die Liste zeigt, welche Posten am Bilanzstichtag offen waren, und nicht, was heute davon übrig ist. Welle 5b hat die beiden Wege ergänzt, auf denen ein Posten ohne Zahlung verschwindet — die Ausbuchung mit Grund und Steuerkorrektur und die Stornorechnung —, und die Abschlagsrechnung als zweite Quelle offener Posten hinzugefügt. Mit Welle 6 wird dieselbe Liste ausgewertet: die Altersstruktur beantwortet die Frage der Wertberichtigung, die Restlaufzeitbänder die Angaben nach §§ 268 Abs. 4 und 5 HGB unter der Bilanz. Mit Welle 7 wird sie vorgeschlagen: internal/accounting/bank_match.go:20-80 bewertet den genauen Betrag, die Rechnungsnummer im Verwendungszweck, die Namensähnlichkeit und die Datumsnähe mit Punkten und mit Gründen, internal/service/bank_suggest.go:193-246 erkennt die Sammelzahlung, deren Posten desselben Geschäftspartners zusammen den Betrag treffen, und :250-336 legt für den wiederkehrenden Umsatz ohne Posten die gelernte Buchungsgruppe vor; gebucht wird erst auf Bestätigung, und die gelernten Regeln stehen in den Einstellungen und lassen sich löschen (internal/service/bank_suggest.go:350-418). Alle vier Kriterien sind erfüllt.
+
+### BEL-08 Ersetzendes Scannen `MUSS*`
+
+**Norm:** GoBD Rz 130, 136 bis 141
+
+**Bedeutung:** Papierbelege dürfen digitalisiert und anschließend vernichtet werden, wenn das Verfahren dokumentiert ist und die bildliche wie inhaltliche Übereinstimmung sichergestellt ist. Ohne Organisationsanweisung ist das Verfahren angreifbar.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Scanprotokoll mit Zeitpunkt, Person, Gerät und Ergebnis der Qualitätssicherung | ⛔ | Buchfink erklärt das ersetzende Scannen nicht zum unterstützten Verfahren. Der Herkunftswert `scan` (internal/domain/receipt.go:165) benennt nur, woher der Beleg kam; das Papier ist weiter aufzubewahren | – |
+| Digitalisat bildlich vollständig und unverändert gespeichert | ⛔ | Wie oben. Unveränderlich ist die Datei ohnehin (internal/receiptstore/store.go), eine Vollständigkeitsprüfung über Seiten und Rückseiten wäre Teil des nicht unterstützten Verfahrens | – |
+| Fehlerprotokoll exportierbar | ⛔ | Wie oben | – |
+| Organisationsanweisung mit der Verfahrensdokumentation verknüpft | ⛔ | Wie oben; die Verfahrensdokumentation hält den Ausschluss fest (siehe PRF-03) | – |
+| Nachträgliche Bildbearbeitung des Digitalisats ausgeschlossen | ✅ | internal/service/receipt_service.go:162-166, internal/domain/receipt.go:55; nach dem Buchen ist die Dateiliste versiegelt, die Inhalte sind inhaltsadressiert und werden bei jedem Lesen gegen ihre Prüfsumme gehalten | – |
+
+**Stand.** Das `MUSS*` löst nicht aus, weil Buchfink das ersetzende Scannen nicht anbietet. Technisch wäre die Unveränderbarkeit da; was fehlt, sind Scanprotokoll und Organisationsanweisung, und deshalb bleibt der Papierbeleg aufbewahrungspflichtig. Das ist eine Entscheidung, keine Lücke.
+
+### BEL-09 Storno und Korrektur `MUSS`
+
+**Norm:** § 239 Abs. 3 HGB, GoBD Rz 58 bis 59
+
+**Bedeutung:** Eine festgeschriebene Buchung wird nicht korrigiert, sondern storniert und neu gebucht. Der ursprüngliche Inhalt muss feststellbar bleiben.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Korrektur erzeugt Stornopaar plus Neubuchung, die Ursprungsbuchung bleibt im Journal | ✅ | internal/service/journal_service.go:210-301, :257-274; die Generalumkehr ist auf den Korrekturtag datiert, einen Änderungsweg gibt es überhaupt nicht | – |
+| Storno und Neubuchung mit der Ursprungsbuchung verknüpft, in beide Richtungen navigierbar | ✅ | internal/domain/journal.go:154 verknüpft Storno und Ursprung über `ReversalOfID`, :230-244 die Neubuchung über `CorrectsEntryID` mit der Buchung, die sie ersetzt; internal/service/journal_correction.go:44-100 (`CorrectEntry`) setzt den Verweis, prüft die Neubuchung vor dem Storno und führt beides in einem Vorgang, :109-111 (`CorrectionOf`) liefert die Gegenrichtung. Das Journal zeigt beide Richtungen (frontend/src/pages/JournalPage.tsx:229-240, :469, :1319), bei einer Rechnung ebenso Stornodokument und berichtigte Rechnung (internal/domain/invoice.go:306-312, internal/service/invoice_correction.go:170-171) | – |
+| Stornogrund ist Pflichtfeld | ✅ | internal/service/journal_service.go:232-233; ohne Grund bricht `ReverseOn` ab, der Grund geht in den Hash ein. Dasselbe verlangt das Storno einer Rechnung, bevor überhaupt eine Nummer vergeben wird (internal/service/invoice_correction.go:117-196) | – |
+| Änderungen vor der Festschreibung mit Vorher- und Nachherwert, Zeitpunkt und Benutzer protokolliert | ✅ | internal/domain/audit.go:33-56 speichert je Protokolleintrag die geänderten Felder in beiden Ständen, den Zeitpunkt in UTC und die Bearbeiterkennung, internal/repository/audit_gorm.go:30-41 schreibt sie über `LogChange`. Änderungen an einer Buchung sind weiterhin überhaupt nicht möglich, insoweit ist das Kriterium strenger erfüllt; geändert werden können die Stammdaten und die Belegkopfdaten, und genau die stehen mit Vorher und Nachher im Protokoll (internal/service/receipt_service.go:305-316) | – |
+
+**Stand.** Storno und Korrektur sind streng gebaut. Auf der Rechnungsseite schließt Welle 5b die Verkettung: Stornodokument und Ursprungsrechnung zeigen aufeinander, und die berichtigte Rechnung hat Nummer und Datum der Rechnung, an deren Stelle sie tritt. Im Journal schließt Welle 6 sie: „Stornieren und neu buchen" ist ein Vorgang, die Neubuchung vermerkt die Buchung, die sie ersetzt, und beide Richtungen stehen im Journal. Alle vier Kriterien sind erfüllt.
+
+---
+
+## C. Unveränderbarkeit und Protokollierung
+
+### UNV-01 Unveränderbarkeit der Aufzeichnung `MUSS`
+
+**Norm:** § 239 Abs. 3 HGB, § 146 Abs. 4 AO, GoBD Rz 107 bis 112
+
+**Bedeutung:** Die zentrale technische Anforderung des ganzen Katalogs. Eine Eintragung darf nicht so verändert werden, dass der ursprüngliche Inhalt nicht mehr feststellbar ist. Unzulässig sind auch Änderungen, bei denen unklar bleibt, ob sie ursprünglich oder erst später vorgenommen wurden. Die GoBD nennt Software, die Buchungen spurlos entfernt, ausdrücklich als Ordnungswidrigkeitstatbestand.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Kein UPDATE oder DELETE auf festgeschriebene Buchungszeilen, technisch abgesichert | ✅ | internal/repository/journal_gorm.go:352 kennt nur `Append`, internal/accounting/journalhash.go:105 verkettet kryptografisch. Einschränkung: keine Datenbanktrigger (internal/repository/db.go:70), die Kette wirkt zusammen mit der Feldverschlüsselung (internal/repository/encryption.go) | – |
+| Manipulationstest wird erkannt und benannt, mit erwartetem und tatsächlichem Prüfwert | ✅ | internal/accounting/journalhash.go:173-236 (`verifyYear`) meldet je Bruch Geschäftsjahr, Buchung, Grund (unterbrochene Kette oder veränderter Inhalt) sowie erwarteten und tatsächlichen Hash als `domain.IntegrityBreak` (internal/domain/journal.go:432-445) und hält beim ersten Bruch nicht an (:229-231); frontend/src/pages/AuditPage.tsx:176-220 zeigt beide Hashwerte in voller Länge, weil sich nur damit außerhalb von Buchfink nachrechnen lässt, welche Seite recht hat | – |
+| Integritätsprüfung für Anwender und Prüfer aufrufbar, mit Protokoll über Ergebnis, Zeitpunkt und Umfang | ✅ | internal/service/journal_service.go:310-346, frontend/src/pages/AuditPage.tsx:61-72; der Lauf wird als `AuditActionIntegrityCheck` mit allen geprüften Geschäftsjahren protokolliert (:325-341). Geprüft wird seit Welle 4 jedes Geschäftsjahr für sich und nicht mehr nur das aktive (internal/accounting/journalhash.go:136-170) | – |
+| Export der Buchungsdaten enthält die Integritätsmerkmale | ✅ | internal/service/export_tables.go:94-97 gibt je Buchung Erfassungszeitpunkt in UTC, Vorgängerhash, Eigenhash und den Tag der Festschreibung in `journal.csv` aus; internal/export/fielddoc.go:25-89 beschreibt die kanonische Form mit Feldreihenfolge, Längenpräfixen und der Behandlung leerer Werte, sodass sich die Kette ohne Buchfink nachrechnen lässt, und internal/service/export_service.go:761-808 legt dem Prüferpaket den Nachweis über Kette und Belegdateien bei | – |
+
+**Stand.** Die Kette ist seit Welle 4 auch von außen prüfbar: die Überlassung enthält beide Hashwerte je Buchung, die Feldbeschreibung nennt das Verfahren, mit dem sie entstehen, und ein Bruch wird mit erwartetem und tatsächlichem Wert benannt, über alle Geschäftsjahre. Alle vier Kriterien sind erfüllt.
+
+### UNV-02 Festschreibung `MUSS`
+
+**Norm:** § 146 Abs. 4 AO, GoBD Rz 107
+
+**Bedeutung:** Die Festschreibung markiert den Übergang von der änderbaren Erfassung zur unveränderlichen Buchung. Ohne diesen Zeitpunkt ist die Unveränderbarkeit nicht belegbar.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Festschreibung spätestens zum Periodenabschluss, mindestens monatlich, zusätzlich manuell auslösbar | ✅ | internal/wailsbridge/festschreibung_service.go:24-85 erzwingt lückenlose Reihenfolge und lässt jederzeit von Hand festschreiben; internal/service/deadline_service.go:285-317 führt jeden Monat als Termin zum Ende des Folgemonats zuzüglich der Nachfrist. Seit Welle 8 steht der Monat als Arbeit in der Liste, bevor seine Frist läuft: internal/service/task_service.go:446-470 (`commitOpenFrom`) stellt „Monat festschreiben" ab dem 10. des Folgemonats als offene Aufgabe ein — dem Tag, an dem die Voranmeldung abgegeben ist —, :403-444 setzt sie nach Fristablauf auf überfällig, und internal/service/check_service.go:1085-1119 (`period_not_committed`) meldet jeden Monat, der zwei Monate nach seinem Ende nicht festgeschrieben ist, mit allen weiteren dahinter. Ausgelöst wird sie von einem Menschen: eine Buchhaltung, die sich selbst unveränderbar stellt, erklärte Buchungen für endgültig, die niemand angesehen hat | – |
+| Festschreibungszeitpunkt je Buchung gespeichert, im Journal und im Export sichtbar | ✅ | internal/domain/journal.go:218-228 führt `CommittedAt` und `FestschreibungID`, internal/repository/journal_gorm.go:286-306 (`MarkCommitted`) setzt beide beim Festschreiben über eine Spaltenauswahl, damit der Eigenhash unberührt bleibt: die Festschreibung stellt die Buchung fest und ändert sie nicht (internal/wailsbridge/festschreibung_service.go:99-107, die Zahl der gestempelten Buchungen steht an der Festschreibung, internal/domain/festschreibung.go:48-52). Das Journal blendet die Spalte auf Wunsch ein (frontend/src/pages/JournalPage.tsx:90-92, :449-455, :746-760), die Datenüberlassung führt Tag, Zeitpunkt in UTC und Kennung der Festschreibung (internal/service/export_tables.go:103-105) | – |
+| Rücknahme der Festschreibung ausgeschlossen | ✅ | internal/repository/festschreibung_gorm.go:19-27 kennt kein `Delete`, `CommitPeriod` weist einen zurückliegenden Stichtag ab | – |
+| Entwürfe gekennzeichnet und außerhalb von Bilanz, GuV und Meldungen | ✅ | internal/service/journal_service.go:83-123; eine Buchung entsteht erst mit `Post` und ist sofort verkettet, Rechnungsentwürfe (internal/domain/invoice.go:19) sind nicht gebucht | – |
+
+**Stand.** Die Festschreibung ist echt und unwiderruflich, und ihr Nachweis steht seit Welle 6 an der einzelnen Buchung: welcher Lauf sie festgeschrieben hat und wann. Welle 8 stellt den monatlichen Rhythmus her, ohne ihn zu erzwingen: „Monat festschreiben" steht ab dem 10. des Folgemonats als offene Aufgabe auf der Startseite, wird nach Fristablauf überfällig, und der Prüflauf meldet jeden Monat, der zwei Monate nach seinem Ende noch offen ist — alle betroffenen Monate und nicht nur den ältesten. Den Knopf drückt weiterhin ein Mensch. Alle vier Kriterien sind erfüllt.
+
+### UNV-03 Änderungsprotokoll `MUSS`
+
+**Norm:** § 146 Abs. 4 AO, GoBD Rz 58 f., 109
+
+**Bedeutung:** Protokollpflichtig sind auch Stammdaten, wenn sie das Buchungsergebnis beeinflussen. Ein nachträglich geänderter Steuerschlüssel verändert vergangene Auswertungen, wenn er nicht historisiert wird.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Änderungen an buchungsrelevanten Stammdaten mit Vorher- und Nachherwert, Zeitpunkt und Benutzer | ✅ | internal/domain/audit.go:33-56 führt `Before` und `After` als JSON der geänderten Felder — verschlüsselt, weil Stammdaten personenbezogen sind —, dazu Bearbeiterkennung, Programmfassung und den Zeitpunkt in UTC; internal/domain/audit_diff.go:24-70 (`ChangedFields`) nimmt nur auf, was sich unterscheidet, und lässt die berechneten Felder weg (internal/repository/audit_gorm.go:43-70). Über `LogChange` laufen Kontakte (internal/service/contact_service.go:129-140), Firmen- und Einzeleinstellungen (internal/service/settings_service.go:30-79), Anlagenstammdaten (internal/service/asset_service.go:3321), Geschäftsjahr (internal/service/closing_service.go:1431), Voranmeldung (internal/service/vat_return_service.go:878), Belegkopfdaten (internal/service/receipt_service.go:305-316), Sicherungsordner (internal/wailsbridge/backup_service.go:74) und Prüfermodus (internal/wailsbridge/readonly.go:342, :375) | – |
+| Zeitabhängige Stammdaten versioniert, Auswertung nutzt die damals gültige Version | ✅ | internal/accounting/tax_params.go:39-65 löst Bewirtungsanteil und Kleinbetragsgrenze über `ValidFrom` auf, internal/accounting/groessenklasse.go:39-74 die Schwellenwerte der Größenklassen nach dem Beginn des Geschäftsjahres, internal/accounting/retention.go:94-112 die Aufbewahrungsfristen nach dem Entstehungsjahr, internal/accounting/tax_params.go:260-292 den halbjährlich wechselnden Basiszinssatz nach § 247 BGB. Mit Welle 8 sind auch die Steuersätze eine datierte Tabelle statt zweier Konstanten: internal/accounting/tax_params.go:304-340 führt 19/7 % seit 2007 und 16/5 % vom 1.7. bis 31.12.2020 mit ihrer Fundstelle, :342-372 (`VatRatesFor`, `TaxRateFor`) löst sie nach dem Leistungstag auf (§ 27 Abs. 1 Satz 1 UStG). Daran hängen der Vorschlag beim Eingangsbeleg, der einen nicht zum Leistungsdatum passenden Satz benennt (internal/service/einvoice_service.go:459-486), und die Erhaltungs- und Anlagenbuchungen (internal/service/asset_service.go:1568-1578, :2585-2595); die Tabelle steht in den Einstellungen (internal/wailsbridge/welle8_service.go:213-219) | – |
+| Protokoll mit derselben Aufbewahrungsfrist, maschinell auswertbar exportierbar | ✅ | Das Protokoll geht als `aenderungsprotokoll.csv` in jede Datenüberlassung, seit Welle 6 mit Vorher, Nachher, Bearbeiter, Programmfassung, Vorgänger- und Eigenhash (internal/service/export_tables.go:743-757); seine Frist ist die der Bücher, das Löschkonzept führt Festschreibungen, Zeitstempel und Änderungsprotokoll mit zehn Jahren (internal/accounting/retention.go:183-190). Einen Weg, eine Protokollzeile zu entfernen, gibt es nicht: auch das Löschen eines abgelaufenen Geschäftsjahres lässt das Protokoll stehen (internal/repository/welle6_gorm.go:223-330) | – |
+| Protokoll selbst nicht änderbar oder löschbar | ✅ | internal/domain/audit.go:86-102 kennt nur Anhängen und Lesen, kein Ändern und kein Löschen; jeder Eintrag hängt seit Welle 6 am Hash seines Vorgängers (internal/accounting/audithash.go:32-52), gelesen und geschrieben in derselben Transaktion und unter derselben Sperre, damit zwei gleichzeitige Schreiber die Kette nicht gabeln (internal/repository/audit_gorm.go:72-172). internal/accounting/audithash.go:65-125 (`Verify`) meldet jeden Bruch mit erwartetem und tatsächlichem Wert und läuft danach weiter; die Prüfung steht in der Oberfläche (frontend/src/pages/AuditPage.tsx:767-1043) und im Prüferpaket (internal/service/export_service.go:867-899) | – |
+
+**Stand.** Mit Welle 6 sagt das Protokoll, was sich geändert hat, und schützt sich selbst: jede Stammdatenänderung speichert die geänderten Felder in beiden Ständen, die Bearbeiterkennung und die Programmfassung, und jeder Eintrag hängt am Hash seines Vorgängers. Der Nachweis läuft neben dem der Buchungen — die Kette wird in der Oberfläche und im Prüferpaket nachgerechnet, das Protokoll geht mit allen Feldern in die Datenüberlassung, und seine Frist ist die der Bücher. Welle 8 schließt die letzte zeitabhängige Größe: die Steuersätze stehen als datierte Tabelle mit Fundstelle und werden nach dem Leistungstag aufgelöst, sodass eine 2026 nacherfasste Leistung aus dem zweiten Halbjahr 2020 ihre 16 % behält. Alle vier Kriterien sind erfüllt.
+
+### UNV-04 Berechtigungen und Funktionstrennung `MUSS`
+
+**Norm:** § 146 Abs. 4 AO, GoBD Rz 100 bis 103
+
+**Bedeutung:** Das interne Kontrollsystem ist Teil der Ordnungsmäßigkeit. Wer alles darf, kann alles verdecken.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Rollen für Erfassen, Freigeben und Festschreiben, Stammdaten, Auswertung und Administration | ⛔ | Einzelplatz, ein Bearbeiter: Buchfink läuft ohne Anmeldung und ohne Benutzerkonten (internal/domain/app_config.go). Der Schutz liegt beim Betriebssystem-Konto und beim Schlüsselbund (internal/security/keyring.go) | – |
+| Berechtigungsvergabe protokolliert | ⛔ | Ohne Berechtigungen gibt es keine Vergabe | – |
+| Jede Buchung, Freigabe und Festschreibung hat die Kennung der handelnden Person | ✅ | internal/actor/actor.go:38-84 bildet die Bearbeiterkennung `<Benutzer>@<Rechner>` aus Betriebssystem-Konto und Rechnername und liefert „unbekannt", wo eine der beiden Angaben fehlt; internal/service/journal_service.go:481-496 setzt sie an jeder Buchung (internal/domain/journal.go:207-216), internal/wailsbridge/festschreibung_service.go:72-83 an jeder Festschreibung, internal/repository/audit_gorm.go:101-113 an jedem Protokolleintrag, internal/service/backup_service.go:152 an jedem Sicherungslauf. An der Buchung geht sie in die kanonische Form ein (internal/accounting/journalhash.go:82-90) und steht in der Datenüberlassung (internal/service/export_tables.go:97) | – |
+| Bericht über die aktuelle Rechtevergabe, exportierbar | ⛔ | Kein Rechtemodell, kein Bericht | – |
+
+**Stand.** Bewusst nicht gebaut: für eine Person wären Rollen und Freigabestufen Theater. An ihrer Stelle stehen zwei Dinge, die seit Welle 6 vollständig sind — die Bearbeiterkennung aus Benutzerkonto und Rechnername an jeder Buchung, Festschreibung, Sicherung und Protokollzeile, an der sich die Buchhalterin von ihrem Steuerberater unterscheidet, der dieselbe Datei auf seinem Rechner öffnet, und der schreibgeschützte Prüfermodus aus Welle 4. Die Verfahrensdokumentation beschreibt den Einzelplatzbetrieb und die Kontrolle durch Steuerberater und Abschlussprüfung (internal/procdoc/procdoc.go:250-264, :349-366). Rollen, Rechtevergabe und ihr Bericht bleiben außerhalb des Funktionsumfangs.
+
+### UNV-05 Internes Kontrollsystem `SOLL`
+
+**Norm:** GoBD Rz 100 bis 102
+
+**Bedeutung:** Die GoBD verlangen ein IKS und dessen Beschreibung als Teil der Verfahrensdokumentation. Die Software muss die Kontrollen ausführen und ihr Ergebnis nachweisen können.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Regelbasierte Prüfungen vor Freigabe und Periodenabschluss | ✅ | internal/service/journal_service.go:96-109, :309-354 prüfen beim Buchen Ausgeglichenheit, Kontoexistenz, Steuerautomatik, gesperrte Sammelkonten und die Bewirtungsaufzeichnung; vor dem Periodenabschluss laufen dreizehn weitere Regeln (internal/service/check_service.go:185-269), darunter Doppelbelege (:465-505), Doppelzahlungen (:857-885), Interimskonten (:513-551), nicht zugeordnete Bankumsätze (:749-775) und seit Welle 7 der fehlende Leistungsnachweis über der Nachweisgrenze (:714-747) | – |
+| Ergebnis jedes Kontrolllaufs mit Zeitpunkt, Prüfumfang und Befunden gespeichert | ✅ | internal/domain/check.go:65-84 ist der Prüflauf eine Entität mit Stichtag, Anlass, Zeitpunkt, gezählten Buchungen, Belegen und Bankumsätzen und allen Befunden je Regel und Bezugsobjekt (:42-58); internal/service/check_service.go:129-149 speichert ihn und protokolliert ihn, internal/repository/check_gorm.go:26-44 legt ihn mit seinen Befunden ab, frontend/src/pages/AuditPage.tsx:226-250 zeigt die Läufe im Prüfprotokoll | – |
+| Übergangene Warnungen mit Begründung und Benutzer protokolliert | ✅ | internal/service/check_service.go:359-371 (`EnsureCommittable`) lässt einen blockierenden Befund nur mit Begründung durch, :266 hängt sie an den Lauf, der etwas zu übergehen hatte, :176-177 und internal/wailsbridge/festschreibung_service.go:109-116 schreiben sie ins Änderungsprotokoll; internal/domain/check.go:111-113 speichert sie. Die Begründung hat seit Welle 6 auch die Bearbeiterkennung, weil sie über das Änderungsprotokoll läuft (internal/repository/audit_gorm.go:101-113) | – |
+
+**Stand.** Mit Welle 3 gibt es das Kontrollsystem als Sache und nicht als Absicht: vierzehn Regeln vor jeder Festschreibung, jeder Lauf mit Zeitpunkt, Prüfumfang und Befunden gespeichert, und wer einen blockierenden Befund übergeht, hinterlässt dafür eine Begründung im Protokoll. Mit Welle 7 wird es bedienbar: die Befunde des letzten Laufs stehen auf der Aufgabenliste der Startseite, jeder mit seinem Grund hinter dem Erklärzeichen und einem Knopf an die Stelle, an der er zu klären ist (internal/service/task_service.go:227-268), und der Monatsabschluss stellt den Bericht vor die Festschreibung und die Festschreibung vor die Bestätigung der Voranmeldung (internal/service/month_close_service.go:132-228).
+
+### UNV-06 Programmidentität und Versionsnachweis `MUSS`
+
+**Norm:** GoBD Rz 154, § 147 Abs. 1 Nr. 1 AO
+
+**Bedeutung:** Über die gesamte Aufbewahrungsfrist muss nachweisbar sein, welche Programmversion welche Daten erzeugt hat. Arbeitsanweisungen und Organisationsunterlagen gehören zu den aufbewahrungspflichtigen Unterlagen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jede festgeschriebene Buchung speichert die Versionskennung der erzeugenden Programmversion | ✅ | internal/domain/journal.go:207-216 führt `AppVersion` und `Actor` an der Buchung, internal/service/journal_service.go:481-496 setzt Programmfassung (internal/buildinfo/buildinfo.go:22), Bearbeiterkennung und Regelstand an jeder Buchung — auch an der von Hand erfassten, die den Regelstand vorher nicht trug. Beide gehen in die kanonische Form ein, und zwar über eine Weiche: eine Buchung ohne `AppVersion` stammt aus der Zeit davor und wird nach der bisherigen Form gehasht, eine mit nach der neuen, sodass die Ketten ausgelieferter Buchhaltungen halten (internal/accounting/journalhash.go:63-90). Die Festschreibung hat dieselben Angaben (internal/domain/festschreibung.go:41-46) | – |
+| Versionshistorie mit Datum, Version und Änderungsbeschreibung, exportierbar | ✅ | internal/changelog/changelog.go:15-20 bettet `CHANGELOG.md` in das Programm ein, damit die Historie mit ihm reist — auch dorthin, wo eine Sicherung auf einem fremden Rechner geprüft wird; :83-124 (`Entries`) zerlegt die Datei in dem Paket, das sie hält, statt in der Oberfläche, :29-53 (`Section`) rendert sie ohne ihren eigenen Titel für die Verfahrensdokumentation, und internal/changelog/changelog_test.go hält die Wege zusammen: bricht das Zerlegen, stünde in der Ansicht eine leere Liste neben einer vollen Datei. Gezeigt wird sie in der Prüfübersicht unter „Systemhistorie" (frontend/src/pages/AuditPage.tsx:1187-1411, Bridge: internal/wailsbridge/nachweise_service.go:56-65), daneben führt ein Verweis auf die Fassungen im Netz (:67-85, `OpenReleasesPage` — mit fester Adresse, damit die Oberfläche den Rechner nicht irgendwohin schicken kann). Das Prüferpaket bekommt die Datei unzerlegt neben den Buchungen, deren Fassungsnummer sie erklärt (internal/service/export_service.go:901-911) | – |
+| Update ändert festgeschriebene Daten nicht, Migrationen protokolliert | ✅ | internal/repository/migrations.go:28, :47-97 (`ApplyMigrations`) lässt `AutoMigrate` nur laufen, wenn die gespeicherte Schemaversion kleiner ist als die des Codes, und hält jeden Lauf mit Zeitpunkt, Programmfassung, Bearbeiter, Ausgangs- und Zielversion, betroffenen Tabellen und Ergebnis fest, auch den gescheiterten (:75-82); internal/repository/db.go:37-43 ruft ihn beim Öffnen. Das `DELETE FROM accounts` ist weg: internal/repository/db.go:387-412 ergänzt fehlende Konten an ihrer Nummer und protokolliert ihre Zahl, gelöscht wird keines | – |
+
+**Stand.** Mit Welle 6 ist beantwortet, welche Fassung eine Buchung erzeugt hat: sie steht an der Buchung, geht in ihren Hash ein und wird von der eingebetteten Änderungshistorie erklärt, die mit dem Programm und mit jedem Prüferpaket reist. Der Schemastand ist eine Zahl, die Schemaanpassung läuft nur bei einem Rückstand und protokolliert sich mit Fassung, Tabellen und Ergebnis, und die gefährlichste Zeile der Einrichtung — das Leeren der Kontentabelle bei wenigen Konten — ist durch das Ergänzen fehlender Konten ersetzt. Alle drei Kriterien sind erfüllt.
+
+---
+
+## D. Aufbewahrung und Archivierung
+
+### ARC-01 Aufbewahrungsfristen `MUSS`
+
+**Norm:** § 257 Abs. 4 HGB, § 147 Abs. 3 AO, § 14b Abs. 1 UStG, Art. 95 EGHGB, Art. 97 § 19a EGAO
+
+**Bedeutung:** Seit dem 1. Januar 2025 gelten drei Fristen nebeneinander. Die Verkürzung für Buchungsbelege von zehn auf acht Jahre durch das Vierte Bürokratieentlastungsgesetz wirkt auch auf Fristen zurück, die am 31.12.2024 noch liefen.
+
+| Unterlage | Frist | Norm |
+|---|---|---|
+| Handelsbücher, Inventare, Jahresabschlüsse, Lageberichte, Arbeitsanweisungen, Organisationsunterlagen | 10 Jahre | § 257 Abs. 4 HGB, § 147 Abs. 3 S. 1 AO |
+| Buchungsbelege | 8 Jahre | § 257 Abs. 4 HGB, § 147 Abs. 3 S. 1 AO |
+| Rechnungen (umsatzsteuerlich) | 8 Jahre | § 14b Abs. 1 S. 1 UStG |
+| Empfangene und Kopien abgesandter Handels- und Geschäftsbriefe, sonstige Unterlagen | 6 Jahre | § 257 Abs. 4 HGB, § 147 Abs. 3 S. 1 AO |
+| Aufzeichnungen zu OSS, IOSS und § 21a UStG | 10 Jahre | § 22 Abs. 1 S. 4 UStG |
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jedes archivierte Objekt hat eine Fristenklasse und ein daraus berechnetes frühestes Löschdatum | ✅ | internal/accounting/retention.go:121-145 (`RetentionFor`) liefert zu jeder Objektart und ihrem Entstehungsjahr Klasse, Fristende und frühestes Löschdatum; internal/service/receipt_service.go:261-284 (`applyRetention`) schreibt beides beim Ablegen an den Beleg (internal/domain/receipt.go:216-225), internal/service/asset_document_service.go:145-152 an jedes Anlagendokument (internal/domain/asset_document.go:123-137). Gespeichert und nicht bei jedem Lesen gerechnet, weil die damals geltende Frist eine Tatsache über den Beleg ist. Für Journal, Festschreibungen, Abschlüsse und Meldungen führt die Fristenübersicht die Klasse je Geschäftsjahr (internal/service/retention_service.go:148-201); Belegdetail (frontend/src/pages/ReceiptsPage.tsx:904-935) und Datenüberlassung (internal/service/export_tables.go:832-833) zeigen Klasse und Fristende | – |
+| Fristenklasse aus der Belegart abgeleitet, überschreibbar mit Protokollierung | ✅ | internal/domain/retention.go:76-90 (`RetentionKindOf`) leitet die Klasse aus der Belegart ab und internal/accounting/retention.go:45-74 ordnet sie ihrer Frist zu: Rechnung, Kontoauszug und Eigenbeleg acht Jahre, Handelsbrief und sonstiges Dokument sechs, Anlagendokument als Organisationsunterlage zehn. Seit Welle 8 lässt sie sich am einzelnen Beleg heraufsetzen: internal/service/self_issued_receipt.go:262-314 (`OverrideRetention`) verlangt einen Grund, vergleicht die Fristenden statt der Klassennamen — sonst nähme eine zweite Überschreibung die erste zurück — und weist jede Verkürzung ab, weil die gesetzliche Frist die Untergrenze ist; der Vorgang steht mit Vorher, Nachher und Grund im Änderungsprotokoll (:304-312). Wer die Belegart in den Kopfdaten ändert, ändert die Frist weiterhin mit, ebenfalls protokolliert (internal/service/receipt_service.go:286-317) | – |
+| Löschung vor Fristablauf technisch ausgeschlossen | ✅ | internal/service/retention_service.go:295-314 (`EnsureDeletable`) weist ein Geschäftsjahr ab, dessen Frist noch läuft, und nennt den Tag, an dem sie endet; dieselbe Prüfung steht vor der Löschung (:367-388), die zusätzlich die ausgeschriebene Jahreszahl als Bestätigung und einen erstellten Archivexport verlangt. Einen anderen Löschweg gibt es nicht — `Discard` hält den Beleg mit Begründung sichtbar (internal/service/receipt_service.go:473-487) | – |
+| Fristenlogik konfigurierbar ohne Codeänderung | 🟡 | Die Fristen stehen seit Welle 8 in internal/accounting/retention_rules.json, nicht mehr als Go-Literale: je Klasse Dauer, Norm und Vorgängerfrist, dazu Fassung, Quelle und der Gültigkeitsbeginn 1.1.2025, an dem das Vierte Bürokratieentlastungsgesetz die Belegfrist auf acht Jahre verkürzt hat (internal/accounting/retention_rules.go:30-68). internal/accounting/retention.go:94-145 rechnet daraus je Entstehungsjahr, sodass die Verkürzung auf laufende Fristen wirkt und abgelaufene unberührt lässt, und die Einstellungsseite zeigt die Tabelle mit ihrem Rechtsstand (internal/wailsbridge/welle8_service.go:78-83, frontend/src/pages/SettingsPage.tsx:866-880). Die Ressource ist eingebettet (internal/accounting/retention_rules.go:26): eine geänderte Frist reist mit der nächsten Auslieferung, eine Einstellung dafür gibt es nicht — dieselbe Entscheidung wie bei internal/accounting/afa_rules.json | Politur |
+
+**Stand.** Mit Welle 6 ist die Aufbewahrung eine geführte Größe: jede Objektart hat ihre Klasse, jede Klasse ihre datierte Frist, und Beleg wie Anlagendokument haben das Fristende, das beim Ablegen galt. Welle 8 nimmt die Zahlen aus dem Code in eine Ressource mit Fassung, Quelle und Gültigkeitsbeginn und macht die Klasse am einzelnen Beleg heraufsetzbar: nur nach oben, mit Grund, mit Vorher und Nachher im Protokoll, gemessen an den Fristenden statt an den Klassennamen. Offen bleibt, dass die Ressource eingebettet ist — eine geänderte Frist reist mit der nächsten Auslieferung, so wie die Abschreibungsregeln. Politur.
+
+### ARC-02 Fristbeginn und Ablaufhemmung `MUSS`
+
+**Norm:** § 257 Abs. 5 HGB, § 147 Abs. 3 S. 5 AO, §§ 169, 170 AO
+
+**Bedeutung:** Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die letzte Eintragung gemacht, das Inventar aufgestellt oder der Beleg entstanden ist. Sie endet nicht, solange die Festsetzungsfrist für die betroffene Steuer läuft. Die Regelfristen sind Mindestfristen. Eine laufende Außenprüfung oder ein Rechtsbehelf verlängert sie faktisch.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Fristbeginn auf den 31.12. des Entstehungsjahres normiert | ✅ | internal/accounting/retention.go:121-145; die Frist beginnt mit dem Schluss des Entstehungsjahres, endet am 31.12. des Jahres Entstehungsjahr zuzüglich Frist, und gelöscht werden darf ab dem 1.1. danach (§ 257 Abs. 5 HGB, § 147 Abs. 4 AO). Entstehungsjahr ist bei Buchung, Festschreibung und Abschluss das Geschäftsjahr, beim Beleg das Jahr seiner Ablage (internal/service/receipt_service.go:261-284) | – |
+| Aufbewahrungs-Hold je Geschäftsjahr, Steuerart und Belegmenge | 🟡 | internal/domain/retention.go:158-203 (`RetentionHold`) setzt die Frist eines Geschäftsjahres aus, mit Grund (Außenprüfung, Rechtsbehelf, sonstiges), Beschreibung, Zeitpunkt, Bearbeiter und der Menge der betroffenen Objekte im Zeitpunkt des Setzens; internal/service/retention_service.go:220-248 zählt sie dafür, internal/service/retention_service.go:181-201 nimmt das ausgesetzte Jahr aus den abgelaufenen heraus. Nach Steuerart lässt sich die Aussetzung weiterhin nicht schneiden, sie gilt für das ganze Jahr | Politur |
+| Setzen und Aufheben eines Holds mit Grund, Zeitpunkt und Benutzer protokolliert | ✅ | internal/service/retention_service.go:220-263; beide Vorgänge verlangen einen Grund, halten Zeitpunkt, Bearbeiterkennung und Programmfassung am Hold fest (internal/domain/retention.go:158-203) und gehen ins Änderungsprotokoll — das Setzen mit Vorher und Nachher (:242), das Aufheben mit seinem eigenen Grund (:251-263) | – |
+| Bericht über aktive Holds und betroffene Datenmengen | ✅ | internal/service/retention_service.go:266-288 liefert die Aussetzungen, die geltenden zuerst, jede mit den Zählungen ihres Jahres (internal/domain/retention.go:205-232: Buchungen, Zeilen, Belege, Belegdateien, Festschreibungen, Prüfläufe, Meldungen, Rechnungen, Bankumsätze); internal/wailsbridge/nachweise_service.go:115-166 stellt Setzen, Aufheben, Liste und die abgelaufenen Jahrgänge bereit, frontend/src/pages/BackupPage.tsx:481-1061 zeigt sie nebeneinander | – |
+
+**Stand.** Der Fristbeginn liegt seit Welle 6 auf dem Schluss des Entstehungsjahres, und die Ablaufhemmung ist ein eigener Vorgang: wer eine Außenprüfung oder einen Rechtsbehelf hat, setzt die Frist des betroffenen Jahres mit Grund aus, und solange sie ausgesetzt ist, führt die Übersicht das Jahr nicht als abgelaufen und die Löschung weist es ab. Setzen und Aufheben stehen mit Bearbeiter, Zeitpunkt und betroffener Datenmenge im Protokoll. Feiner als das Geschäftsjahr, nach Steuerart, lässt sich eine Aussetzung nicht schneiden. Politur.
+
+### ARC-03 Originalformat und maschinelle Auswertbarkeit `MUSS`
+
+**Norm:** § 147 Abs. 2 AO, GoBD Rz 131 bis 135
+
+**Bedeutung:** Elektronisch eingegangene Unterlagen sind in dem Format aufzubewahren, in dem sie eingegangen sind. Eine Umwandlung darf die maschinelle Auswertbarkeit nicht einschränken. Wer eine strukturierte Datei in ein Bild umwandelt und nur dieses aufbewahrt, verletzt die Pflicht.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Eingehende Dateien im Originalformat, zusätzlich zu jeder erzeugten Ansicht | ✅ | internal/domain/receipt.go:22-37, :251-268 erzwingen genau eine Datei in der Rolle `original`; internal/receiptstore/store.go:110-170 schreibt die Bytes unverändert | – |
+| Strukturierte Formate bleiben strukturiert erhalten | ✅ | internal/service/einvoice_service.go:90-171 legt das eingebettete XML als eigene Datei ab; internal/service/bank_service.go:64-113 (`ImportCAMT053File`) legt die CAMT.053-Datei vor dem Parsen als Beleg der Art Kontoauszug ab und hängt jeden Umsatz daran (:127), sodass sie auch dann im Archiv liegt, wenn das Parsen scheitert. Ein zweiter Import derselben Datei erzeugt über die Prüfsumme keinen zweiten Beleg (:70-84) | – |
+| Ursprünglicher Dateiname, Format, Zeitpunkt, Quelle und Prüfsumme gespeichert | ✅ | internal/domain/receipt.go:78-103, :125-128 | – |
+| Konvertate gekennzeichnet und mit dem Original verknüpft | ✅ | internal/domain/receipt.go:94-99, :184-189; `Derived` markiert jede abgeleitete Datei, `DisplayFile` bevorzugt das Original | – |
+
+**Stand.** Seit Welle 4 gilt das auch für den Bankimport: der Kontoauszug ist eine aufbewahrungspflichtige Unterlage und wird zuerst abgelegt und dann gelesen, nicht umgekehrt. Alle vier Kriterien sind erfüllt.
+
+### ARC-04 Lesbarmachung `MUSS`
+
+**Norm:** § 239 Abs. 4 HGB, § 147 Abs. 5 AO
+
+**Bedeutung:** Wer Unterlagen elektronisch aufbewahrt, muss sie auf Verlangen innerhalb angemessener Frist lesbar machen und auf eigene Kosten die dafür nötigen Hilfsmittel bereitstellen. Das gilt für die gesamte Aufbewahrungsdauer, auch nach einem Systemwechsel.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jede archivierte Unterlage am Bildschirm anzeigbar und als Datei ausgebbar | ✅ | internal/wailsbridge/app_service.go:1451-1470 löst die Anzeige mit Prüfsummenwarnung; internal/wailsbridge/export_service.go:171-200 (`SaveReceiptFileAs`) gibt jede Belegdatei unter ihrem Originalnamen heraus — als Kopie, der Beleg bleibt im Archiv — und verweigert die Ausgabe, wenn die Prüfsumme nicht mehr stimmt (frontend/src/pages/ReceiptsPage.tsx:509-527) | – |
+| Vollständiger Archivexport eines Geschäftsjahres in offenem Format mit Index und Feldbeschreibung | ✅ | internal/service/export_service.go:145-181 (`ExportArchive`) schreibt achtzehn Tabellen als CSV, dazu index.xml, die amtliche Grammatik und die Feldbeschreibung (internal/export/writer.go:146-163), und legt die Belegdateien unter Belegnummer und Originalnamen sowie die Anlagendokumente daneben (:700-757); jede geschriebene Datei steht mit Prüfsumme in export.json (internal/export/writer.go:234-252) | – |
+| Export ohne die Anwendung lesbar, belegt durch einen Test auf fremdem System | 🟡 | Der Export ist klarschriftlich und erklärt sich selbst: CSV nach RFC 4180 mit benannten Trennzeichen (internal/export/csv.go:11-25, :27-41), index.xml gegen die mitgelieferte amtliche Grammatik (internal/export/gdpdu.go:17-52) und die Feldbeschreibung mit jeder Spalte im Klartext (internal/export/fielddoc.go:97-175) — die Verschlüsselung der Datenbank steht der Lesbarkeit damit nicht mehr im Weg. Ein Einlesen auf einem fremden System ist weiterhin nicht belegt (siehe PRF-02) | Politur |
+
+**Stand.** Seit Welle 4 gibt Buchfink heraus, was es anzeigt: die einzelne Belegdatei unter ihrem Originalnamen, das Geschäftsjahr als Archivexport mit Index, Feldbeschreibung und Belegdateien. Derselbe Export erfüllt PRF-01, PRF-02 und UNV-01. Mit Welle 7 kommt der Prüfpfad als achtzehnte Tabelle dazu: eine Zeile je Beleg über Buchung, Zahlung und Bankumsatz. Offen bleibt der Nachweis, dass ein fremdes System die Überlassung liest; er entsteht mit dem Testeinlesen aus PRF-02 und ist Politur.
+
+### ARC-05 Systemwechsel und Auslagerung `MUSS`
+
+**Norm:** § 147 Abs. 6 S. 5 AO, GoBD Rz 142 bis 144
+
+**Bedeutung:** Nach einem Systemwechsel oder einer Datenauslagerung genügt es erst nach Ablauf des fünften Kalenderjahres, das auf die Umstellung folgt, nur noch einen maschinell auswertbaren Datenträger vorzuhalten. Bis dahin ist das Altsystem vorzuhalten, wenn die Daten nicht qualitativ und quantitativ gleichwertig migriert wurden.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Migrationsprotokoll mit Quelle, Ziel, Umfang je Objektart, Zeitpunkt und Abweichungen | ✅ | internal/wailsbridge/app_service.go:973-1027 (`recordMigration`) zählt nach dem Öffnen einer übernommenen Datei die Objekte je Art und die Soll- und Habensummen (internal/repository/migrations.go:174-225), rechnet die Hash-Kette nach und legt einen `MigrationRecord` mit Quelle, Ziel, Zeitpunkt, Programmfassung und Bearbeiter ab (internal/domain/migration.go:76-108); alle drei Wege — Übernahme, Öffnen einer vorhandenen Datei und Wiederherstellung — gehen durch diese eine Stelle (:961-968), damit derselbe Vorgang nicht zweimal gezählt wird. Er steht zusätzlich im Änderungsprotokoll (:1015-1026) und in der Oberfläche (frontend/src/pages/AuditPage.tsx:1187-1358) | – |
+| Abstimmung von Salden, Journalsummen und Belegzahlen vor und nach der Migration | 🟡 | internal/wailsbridge/app_service.go:985-1026 zählt Buchungen, Zeilen, Belege, Geschäftspartner, Konten, Rechnungen, Anlagegüter und Protokolleinträge, stellt Soll- und Habensumme gegeneinander und schreibt ausdrücklich ins Protokoll, wenn sie nicht übereinstimmen; die Kette wird sofort geprüft, damit eine schon beim Ankommen gebrochene Buchhaltung das sagt. Gegengeprüft wird die übernommene Datei gegen sich selbst — Zahlen aus dem Altsystem liest Buchfink nicht, die Gegenprobe bleibt die Eröffnungsbilanz gegen die Schlussbilanz des Altsystems (internal/service/opening_balance.go:104-143) | Politur |
+| Migrierte Datensätze gekennzeichnet, mit Verweis auf die Herkunft im Altsystem | ✅ | internal/domain/journal.go:246-253 führt `LegacyRef` an der Buchung; die Eröffnungsbilanz des Umsteigers schreibt das Altsystem in jede Buchung und in die Personenkonten die Kennung des übernommenen Postens (internal/service/opening_balance.go:343-424), alle mit der Herkunft Eröffnung und gegen den Beleg mit der Schlussbilanz des Altsystems, der Pflicht ist (:38-52, :159-169). Die Kennung geht in die kanonische Form (internal/accounting/journalhash.go:85-89) und als eigene Spalte in die Datenüberlassung (internal/service/export_tables.go:98) | – |
+| Zeitpunkt der Umstellung hinterlegt, Fünfjahresfrist berechenbar | ✅ | internal/wailsbridge/nachweise_service.go:265-288 (`SetSystemChangeDate`) hält den Umstellungszeitpunkt als Einstellung fest, internal/service/retention_service.go:204-217 rechnet daraus die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO und sagt, bis wann das Altsystem für den Datenzugriff verfügbar zu halten ist — und ab wann nicht mehr; der Satz steht bei den Aufbewahrungsfristen (frontend/src/pages/BackupPage.tsx:481-1061), gepflegt wird der Zeitpunkt in den Einstellungen (frontend/src/pages/SettingsPage.tsx:1171-1206) | – |
+
+**Stand.** Der Umstieg von einem Altsystem ist der wahrscheinlichste Einstieg in Buchfink und seit Welle 6 der belegte Vorgang, der er sein muss: jede Übernahme zählt, was angekommen ist, rechnet die Kette nach und legt beides als Protokolleintrag ab; die Eröffnungsbilanz des Umsteigers bucht Anfangsbestände und offene Posten gegen die Schlussbilanz des Altsystems als Beleg und hat deren Kennung an jeder Buchung; der Umstellungszeitpunkt steht in den Einstellungen, die Fünfjahresfrist auf der Fristenseite. Was Buchfink nicht leisten kann, ist die Gegenprobe gegen die Zahlen des Altsystems selbst; sie bliebe auch als Politur eine Eingabe von Hand.
+
+### ARC-06 Speicherort und Verlagerung ins Ausland `MUSS`
+
+**Norm:** § 146 Abs. 2 bis 2c AO
+
+**Bedeutung:** Elektronische Bücher sind grundsätzlich im Inland zu führen. Eine Verlagerung in einen EU-Mitgliedstaat ist der Finanzbehörde anzuzeigen und setzt den vollständigen Datenzugriff voraus. Eine Verlagerung in einen Drittstaat bedarf der Bewilligung. Verstöße können ein Verzögerungsgeld von 2.500 bis 250.000 Euro auslösen. Für Cloud-Betrieb ist das eine Architekturentscheidung und keine Betriebsdetailfrage.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Speicherort dokumentiert und für Anwender einsehbar | ✅ | frontend/src/pages/SettingsPage.tsx:945-959 zeigt den Datenordner schreibgeschützt an; Land und Anbieter entfallen, der Ort ist der Rechner der Anwenderin. Die Verfahrensdokumentation beschreibt ihn als eigenen Abschnitt (internal/procdoc/procdoc.go:250-264), und liegt er in einem bekannten Synchronisationsordner, steht seit Welle 6 der Hinweis auf § 146 Abs. 2 und 2a AO daneben — in den Einstellungen und beim Einrichten (internal/domain/datadir.go:14-53, internal/wailsbridge/nachweise_service.go:307-331) | – |
+| Verlagerung löst einen Hinweis auf die Anzeige- oder Bewilligungspflicht aus und wird protokolliert | ⛔ | Local-First: es gibt keinen Umzugsweg, und der Knopf, der einen versprach, ist mit Welle 4 aus den Einstellungen verschwunden. An seiner Stelle steht seit Welle 6 der Hinweis auf § 146 Abs. 2 und 2a AO, sobald der Datenordner in einem OneDrive-, Dropbox-, Google-Drive-, iCloud- oder Nextcloud-Ordner liegt (internal/domain/datadir.go:14-53). Er hält nichts an, weil von hier aus nicht feststellbar ist, wo ein Synchronisationsdienst die Daten tatsächlich ablegt, und benennt zugleich, dass ein solcher Ordner kein Sicherungsziel ist | – |
+| Backups und Replikate unterliegen derselben Ortsbindung, Betriebsvertrag benennt die Regionen | ⛔ | Kein Betreiber und kein Betriebsvertrag; die Ortsbindung folgt aus dem lokalen Betrieb und wird in der Verfahrensdokumentation als Inland dokumentiert | – |
+| Datenzugriff nach § 147 Abs. 6 AO aus dem Inland heraus möglich | ⛔ | Die Daten liegen als Datei auf dem Rechner des Unternehmens (internal/repository/db.go:19-46); ein Auslandsbezug entsteht nicht | – |
+
+**Stand.** Die Ortsfrage stellt sich für eine lokale Anwendung kaum, und der Speicherort ist sichtbar — in den Einstellungen und als Abschnitt der Verfahrensdokumentation. Mit Welle 6 wird die Frage auch gestellt, wo sie sich stellt: wer den Datenordner in einen Cloud-Ordner legt, liest den Hinweis auf die Bewilligungspflicht der Verlagerung. Ein Umzugsweg bleibt außerhalb des Funktionsumfangs.
+
+### ARC-07 Aufbewahrung von E-Rechnungen `MUSS`
+
+**Norm:** § 14b Abs. 1 UStG, § 14 Abs. 3 UStG, BMF-Schreiben vom 15.10.2025 Rn. 60
+
+**Bedeutung:** Bei einer E-Rechnung ist zumindest der strukturierte Teil in seiner ursprünglichen Form aufzubewahren. Echtheit der Herkunft, Unversehrtheit des Inhalts und Lesbarkeit müssen über die gesamte Frist gewährleistet bleiben.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Strukturiertes XML byteidentisch, Hybridformat vollständig einschließlich eingebettetem XML | ✅ | internal/receiptstore/store.go:110-170, internal/service/einvoice_service.go:111-155; bei einem Hybrid bleibt das PDF `original`, das herausgelöste XML kommt als `structured` hinzu | – |
+| Prüfsumme bei Eingang gebildet und bei jedem Abruf verifiziert | ✅ | internal/service/receipt_service.go:259-285; jeder Abrufweg rechnet SHA-256 über die gelesenen Bytes neu und liefert `Intact` | – |
+| Validierungsberichte mit der Rechnung gespeichert | ✅ | internal/domain/receipt.go:134-149, internal/service/einvoice_service.go:150-172; Zeitpunkt, Regelwerk, Version, Abdeckung und Befunde als JSON | – |
+| Bildansicht ergänzt das Original, ersetzt es nicht | ✅ | internal/domain/receipt.go:30-33, :266-268; die Buchung liest immer den strukturierten Teil | – |
+
+**Stand.** Der einzige Punkt des Moduls, der vollständig erfüllt ist. Der Validierungsbericht am Beleg (internal/domain/receipt.go:134) ist zugleich der Nachweis für den Vertrauensschutz nach dem BMF-Schreiben vom 15.10.2025 Rn. 35a. Seit Welle 4 wird die Unversehrtheit nicht mehr nur beim einzelnen Abruf geprüft: der Belegprüflauf rechnet die Prüfsumme jeder Beleg- und Anlagendatei über alle Geschäftsjahre neu (internal/service/file_check.go:22-44, frontend/src/pages/AuditPage.tsx:289-366) und findet den stillen Plattenfehler, bevor der Prüfer den Beleg sehen will.
+
+### ARC-08 Verfügbarkeit und Wiederherstellbarkeit `MUSS`
+
+**Norm:** § 239 Abs. 4 HGB, § 147 Abs. 5 AO, GoBD Rz 103 ff., Art. 32 Abs. 1 lit. b und c DSGVO
+
+**Bedeutung:** Aufbewahrung ohne belegte Wiederherstellbarkeit ist keine Aufbewahrung. Der Nachweis liegt beim Unternehmen, nicht beim Prüfer.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Automatisierte Sicherungen nach dokumentiertem Plan, Ergebnis je Lauf protokolliert | ✅ | internal/service/backup_service.go:147-170 schreibt Datenbank (`VACUUM INTO`), Schlüsseldatei, Belege und Dokumente als ZIP mit Prüfsumme je Datei (:173-318) und hält jeden Lauf mit Zeitpunkt, Umfang, Ergebnis und Programmfassung fest, auch den gescheiterten; internal/wailsbridge/backup_service.go:305-330 löst ihn beim Start und beim Beenden aus, sobald die letzte gelungene Sicherung älter als 24 Stunden ist (internal/service/backup_service.go:44, :134-140) | – |
+| Mindestens jährlich vollständiger Wiederherstellungstest, dokumentiert | ✅ | internal/service/backup_service.go:326-402 (`VerifyBackup`) entpackt die Sicherung in einen Temporärordner, prüft die Prüfsummen aus backup.json, öffnet die Datenbank mit dem Schlüssel der Sicherung, rechnet die Hash-Chain über alle Geschäftsjahre nach, prüft die Belegdateien und räumt den Ordner wieder ab; der Lauf steht als eigene Art im Protokoll (internal/domain/backup.go:21-24) und ist über frontend/src/pages/BackupPage.tsx:385 jederzeit auszulösen | – |
+| Nach der Wiederherstellung bestätigt die Integritätsprüfung den Bestand | ✅ | internal/wailsbridge/backup_service.go:222-245 ruft nach jeder Wiederherstellung zwingend Hash-Chain-Prüfung und Belegprüflauf über den wiederhergestellten Mandanten und schreibt das Ergebnis ins Änderungsprotokoll; wo nicht geprüft werden kann — verschlüsselt ohne Schlüssel, Mandant nicht offen —, sagt die Meldung das, statt Unversehrtheit zu behaupten (:191-220). Wiederhergestellt wird nur in einen leeren Ordner (internal/service/backup_service.go:443-461) | – |
+| Aufbewahrungsdauer der Sicherungen deckt die Fristen ab oder das Archiv ist getrennt | 🟡 | internal/wailsbridge/backup_service.go:43-57 weist einen Sicherungsordner im Datenordner ab, das Archiv liegt also getrennt, und jeder Lauf legt eine neue Datei mit Zeitstempel an, ohne eine ältere zu löschen (internal/service/backup_service.go:205-215); die Fristen der Daten selbst führt Buchfink seit Welle 6 (ARC-01), und die Betriebsdokumentation beschreibt Zielordner, Rhythmus und die letzten Läufe (internal/procdoc/procdoc.go:442-457). Wie lange eine Sicherung aufzubewahren ist und wann eine alte weichen darf, sagt das Löschkonzept weiterhin nicht (internal/accounting/retention.go:164-238) | Politur |
+
+**Stand.** Die Lücke mit dem größten Schadenspotenzial ist mit Welle 4 geschlossen: die Sicherung läuft von selbst, sobald die letzte einen Tag alt ist, sie liegt außerhalb des Datenordners, sie lässt sich versuchsweise zurückspielen, und nach einer echten Wiederherstellung prüft Buchfink Kette und Belegdateien, bevor jemand weiterbucht. Seit Welle 6 wird die Wiederherstellung außerdem gezählt und als Datenübernahme protokolliert (ARC-05), und jeder Lauf hat seine Bearbeiterkennung. Was fehlt, ist die Aufbewahrungsdauer der Sicherungsdateien selbst — für die Daten stehen die Fristen, für ihre Kopien sagt das Löschkonzept nichts. Politur.
+
+---
+
+## E. Ausgangsrechnungen und E-Rechnung
+
+### RECH-01 Rechnungspflicht und Ausstellungsfrist `MUSS`
+
+**Norm:** § 14 Abs. 2 UStG, § 14a Abs. 1 und 3 UStG
+
+**Bedeutung:** Bei Leistungen an Unternehmer und juristische Personen besteht Rechnungspflicht innerhalb von sechs Monaten nach Leistungsausführung. Bei innergemeinschaftlichen Lieferungen und bei Reverse-Charge-Leistungen im übrigen Gemeinschaftsgebiet verkürzt sich die Frist auf den fünfzehnten Tag des Folgemonats.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Offene Leistungen ohne Rechnung überwacht, Überschreitung der Sechsmonatsfrist gemeldet | ⛔ | Buchfink führt keine Aufträge und keine Leistungsobjekte; `domain.Invoice` entsteht erst beim Ausstellen (internal/domain/invoice.go:48). Ohne Auftragsobjekt ist "Leistungsdatum älter als sechs Monate ohne Rechnung" nicht erkennbar. Welle 7 hat die Rechnungsseite um den Hinweis auf § 271a BGB ergänzt (QUE-05) und um keinen zur Ausstellungsfrist: der bräuchte dasselbe fehlende Objekt | – |
+| Verkürzte Frist bis zum 15. des Folgemonats mit eigenem Warnbericht | ⛔ | Wie oben; kein Fristenmodell ohne Auftragsobjekt | – |
+| Leistungsdatum ist Pflichtfeld und Grundlage der Fristberechnung | 🟡 | internal/domain/invoice.go:486-490 erzwingt das Pflichtfeld; internal/service/invoice_service.go:193-198 setzt ein leeres Leistungsdatum weiterhin still auf das Rechnungsdatum | Politur |
+
+**Stand.** Die Fristüberwachung des § 14 Abs. 2 UStG setzt ein Objekt voraus, das Buchfink nicht führt, und Welle 7 hat daran nichts geändert: der Hinweis, der auf der Rechnungsseite dazugekommen ist, betrifft das Zahlungsziel und nicht die Ausstellungsfrist (QUE-05). Zu beheben bleibt das stille Auffüllen des Leistungsdatums in internal/service/invoice_service.go:193-198. Politur.
+
+### RECH-02 Pflichtangaben `MUSS`
+
+**Norm:** § 14 Abs. 4 UStG
+
+**Bedeutung:** Fehlt eine Pflichtangabe, ist der Vorsteuerabzug beim Empfänger gefährdet (§ 15 Abs. 1 S. 1 Nr. 1 S. 2 UStG). Die Prüfung gehört in die Software und nicht in den Kopf des Sachbearbeiters.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Jede erzeugte Rechnung enthält die zehn Pflichtangaben des § 14 Abs. 4 UStG | ✅ | internal/domain/invoice.go:482-518 (`ValidateParties`) verlangt Straße, Postleitzahl und Ort des Empfängers (:493-502) sowie Steuernummer oder USt-IdNr. des Ausstellers; die Anschrift steht strukturiert am Kontakt (internal/domain/contact.go:39-51, frontend/src/pages/ContactsPage.tsx:340-355) und wird aus dem alten Freitextfeld nachgezogen, soweit sie sich trennen lässt (internal/domain/contact.go:199-209, :217-234). Im Datensatz stehen BT-31 und BT-32 nebeneinander (internal/invoice/cii.go:247-274), im PDF die vollständige Anschrift beider Seiten (internal/invoice/zugferd.go:302-318). Die im Voraus vereinbarte Entgeltminderung ist als Zahlungsbedingung erfasst (internal/domain/invoice.go:139-146), steht als Satz auf dem Dokument (:168-187, internal/invoice/zugferd.go:169-190) und als BT-20 im XML (internal/invoice/cii.go:72-76) | – |
+| Bei Anzahlungen wird der Vereinnahmungszeitpunkt angegeben | ✅ | internal/domain/invoice.go:330 führt ihn an der Abschlagsrechnung; internal/invoice/cii.go:89-94 setzt ihn an die Stelle des Leistungszeitpunkts (BG-13), internal/invoice/zugferd.go:323-335 und :169-190 drucken ihn. Steht er beim Ausstellen noch nicht fest, bleibt die Angabe weg, statt das Rechnungsdatum als Leistungszeitpunkt auszugeben; nach der Vereinnahmung wird er am Abschlag geführt und nicht in den bereits abgelegten Datensatz nachgetragen (internal/service/advance_service.go:199-314) | – |
+| Bei Gutschriften steht die Angabe "Gutschrift" auf dem Dokument | ⛔ | Die Gutschrift des § 14 Abs. 2 Satz 2 UStG ist die Abrechnung durch den Leistungsempfänger, und die stellt Buchfink nicht aus (internal/service/invoice_correction.go:20-22). Die Rücknahme einer eigenen Rechnung ist die Stornorechnung oder die Berichtigung mit Typcode 384 (internal/domain/invoice.go:48-66, :70-79); das Wort steht dort bewusst nicht, weil ein so überschriebenes Storno beim Empfänger als sein eigener Umsatz ankäme. Im Eingang wird die Abrechnungsgutschrift erkannt und benannt (internal/einvoice/profile.go:115) | – |
+| Ohne vollständige Pflichtangaben keine Freigabe, die fehlende Angabe wird benannt | ✅ | internal/service/invoice_service.go:270-299 prüft Inhalt, Steuerfall, Steuerausweis, Kleinbetragsfall, Stammdaten beider Seiten, Zielformat und Regelwerk, und jede Meldung nennt das fehlende Feld mit seiner Norm (internal/domain/invoice.go:493-502). Die Kette läuft vollständig vor der Nummernvergabe (internal/service/invoice_service.go:176-302): eine Rechnung, die an ihren eigenen Stammdaten scheitert, zählt den Nummernkreis nicht weiter | – |
+| Gleiche Prüfung auf Eingangsrechnungen mit Beanstandungsliste | ✅ | internal/service/einvoice_service.go:171 prüft und speichert das Ergebnis am Beleg, die Belegseite stellt die beanstandeten Belege als Klärungsliste zusammen (frontend/src/pages/ReceiptsPage.tsx:443-450). Seit Welle 8 ist die Liste nach Fehlerklassen gegliedert und nennt je Befund die Norm und seine Folge für den Vorsteuerabzug: internal/service/receipt_findings.go:170-228 (`ClassifyReceiptFindings`) ordnet Formatfehler, Geschäftsregelfehler und Inhaltsfehler (internal/domain/validation_finding.go:22-57), :265-360 hält die Pflichtangaben des § 14 Abs. 4 UStG gegen Beleg und Stammdaten. Blockierend sind dieselben Befunde, die den Vorsteuerabzug anhalten — die Regel steht einmal in internal/service/receipt_content_checks.go:1-40 und kleidet sich für beide Seiten nur verschieden | – |
+
+**Stand.** Die Pflichtangaben des § 14 Abs. 4 UStG werden vollständig und vor der Nummernvergabe geprüft, und dieselbe Prüfung trifft seit Welle 8 die Eingangsrechnung mit einer Beanstandungsliste, die nach Formatfehler, Geschäftsregelfehler und Inhaltsfehler gliedert. Jeder Befund nennt seine Regel, seine Norm und in einem Satz, was er für den Vorsteuerabzug bedeutet. Die Klasse sagt, wer den Fehler beheben kann: ein Formatfehler liegt am System des Lieferanten, ein Geschäftsregelfehler an der Rechnung, ein Inhaltsfehler an den Stammdaten oder an einer fehlenden Pflichtangabe. Blockierend sind dieselben Befunde, die den Buchungsweg anhalten — die Regel steht einmal und kleidet sich für beide Seiten nur verschieden. Alle fünf Kriterien sind erfüllt.
+
+### RECH-03 Fortlaufende Rechnungsnummer `MUSS`
+
+**Norm:** § 14 Abs. 4 S. 1 Nr. 4 UStG
+
+**Bedeutung:** Die Nummer muss einmalig sein. Mehrere Nummernkreise sind zulässig, solange jede Nummer nur einmal vergeben wird und die Systematik nachvollziehbar ist.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Nummernvergabe systemseitig, transaktionssicher und auch nebenläufig lückenlos | ✅ | internal/service/invoice_service.go:536-592 vergibt die Nummer, schreibt die Rechnung und hängt die Buchung in einer Transaktion an; der Transaktionsläufer reicht sie über den Kontext an alle beteiligten Repositories weiter (internal/domain/tx.go:17-19, internal/repository/tx.go:40-47), und internal/repository/numberrange_gorm.go:22-30 serialisiert die Vergabe innerhalb dieser Klammer. Scheitert eines der drei, gibt der Rollback die Nummer zurück und nimmt die im Speicher gesetzten Schlüssel mit. Das Dokument entsteht danach, weil eine Datei keine Datenbanktransaktion zurücknehmen kann; scheitert es, bleibt die Rechnung nummeriert im Zustand "Dokument fehlt" und lässt sich nachholen (internal/service/invoice_correction.go:32-70) | – |
+| Nummernkreise je Mandant, Geschäftsjahr, Belegart oder Standort konfigurierbar, Systematik dokumentiert | ✅ | internal/domain/numberrange.go:21-26 trennt je Mandant, Jahr und Art; die Systematik des Rechnungskreises ist seit Welle 5b einstellbar (:77-104 mit den Platzhaltern für Jahr und Zähler, internal/domain/settings.go:40-42, frontend/src/pages/SettingsPage.tsx:462-483), und ein Format ohne Zähler wird abgewiesen statt stillschweigend ergänzt (internal/domain/numberrange.go:108-121). Aufgeschrieben steht sie seit Welle 6 in der Verfahrensdokumentation: Abschnitt 2.7 führt jeden Kreis mit Systematik, nächster Nummer und Geltungsbereich und beschreibt Vergabe in der Transaktion und Lückenvermerk (internal/procdoc/procdoc.go:330-341, internal/service/procdoc_service.go:381-413) | – |
+| Eine vergebene Nummer wird nie erneut vergeben, auch nicht nach Storno | ✅ | internal/domain/invoice.go:235 (`uniqueIndex`); das Storno bekommt eine eigene Nummer aus demselben Kreis, die stornierte Rechnung behält ihre und bleibt im Bestand (internal/service/invoice_correction.go:367-408, :170-171) | – |
+| Bericht über Lücken im Nummernkreis mit Grundzuordnung | ✅ | internal/domain/number_gap.go:117-156 (`BuildNumberGapReport`) stellt den Zählerstand den vergebenen Nummern gegenüber — der Zähler ist der Maßstab, weil eine gelöschte Zeile ihn nicht ändert — und nennt jede fehlende Nummer mit ihrem Grund (:18-29, :69-81). Eine abgebrochene Vergabe wird nur vermerkt, wenn der Rollback die Nummer nicht zurückgegeben hat (internal/service/invoice_service.go:625-645); die übrigen Lücken lassen sich nachträglich begründen, mit Zeitpunkt und Protokolleintrag (internal/service/invoice_correction.go:536-569). Gelesen wird der Bericht über internal/wailsbridge/invoice_service.go:78-88 und frontend/src/pages/InvoicesPage.tsx:552, und der Prüflauf meldet dieselben Lücken vor der Festschreibung (internal/service/check_service.go:636-672, :674-706) | – |
+
+**Stand.** Nummer, Rechnung und Buchung entstehen seit Welle 5b in einer Transaktion; eine gescheiterte Buchung verbraucht keine Nummer mehr, und was danach noch schiefgehen kann — die Erzeugung des Dokuments — kostet sie auch nicht, weil sie sich nachholen lässt. Was trotzdem fehlt, beantwortet der Lückenbericht: er nennt jede Nummer ohne Dokument und den Grund, den jemand dafür eingetragen hat. Die gewählte Systematik ist einstellbar, und seit Welle 6 steht sie mit Format, nächster Nummer und Geltungsbereich in der Verfahrensdokumentation. Alle vier Kriterien sind erfüllt.
+
+### RECH-04 Pflichthinweise in Sonderfällen `MUSS*`
+
+**Norm:** § 14a UStG
+
+**Bedeutung:** Bestimmte Umsätze verlangen einen wörtlichen Hinweis auf der Rechnung. Fehlt er, ist die Rechnung fehlerhaft und der Umsatz im Zweifel falsch behandelt.
+
+| Sachverhalt | Pflichtangabe | Norm |
+|---|---|---|
+| Steuerschuldnerschaft des Leistungsempfängers | "Steuerschuldnerschaft des Leistungsempfängers", kein gesonderter Steuerausweis | § 14a Abs. 5 UStG |
+| Innergemeinschaftliche Lieferung | USt-IdNr. beider Parteien, Hinweis auf Steuerbefreiung | § 14a Abs. 3 UStG |
+| Innergemeinschaftliches Dreiecksgeschäft | Hinweis auf Dreiecksgeschäft und Steuerschuldnerschaft des letzten Abnehmers | § 14a Abs. 7 UStG |
+| Reiseleistungen | "Sonderregelung für Reisebüros" | § 14a Abs. 6 UStG |
+| Differenzbesteuerung | "Gebrauchtgegenstände/Sonderregelung", "Kunstgegenstände/Sonderregelung" oder "Sammlungsstücke und Antiquitäten/Sonderregelung" | § 14a Abs. 6 UStG |
+| Gutschriftsverfahren | "Gutschrift" | § 14 Abs. 4 S. 1 Nr. 10 UStG |
+| Kleinunternehmer | Hinweis auf die Steuerbefreiung nach § 19 UStG | § 34a UStDV |
+
+Dreiecksgeschäft, Reiseleistungen, Differenzbesteuerung und Kleinunternehmer sind keine Steuerfälle von Buchfink (docs/architektur.md Abschnitt 2). Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Der Steuerschlüssel steuert den Pflichthinweis automatisch | ✅ | internal/invoice/zugferd.go:38-53 liefert den Text für Reverse Charge, innergemeinschaftliche Lieferung, Ausfuhr und Steuerbefreiung; die nach § 14a Abs. 3 UStG geforderte USt-IdNr. des Empfängers steht seit Welle 5b im Adressblock des Ausdrucks (:302-318) und als BT-48 im Datensatz (internal/invoice/cii.go:300-303). Fehlt sie in den Stammdaten, wird die Rechnung gar nicht erst ausgestellt (internal/domain/invoice.go:512-515, :522-528) | – |
+| Bei Reverse Charge und Differenzbesteuerung unterdrückt die Software den gesonderten Steuerausweis | ✅ | internal/domain/invoice.go:407-408 rechnet Steuer nur beim steuerpflichtigen Inlandsumsatz, internal/invoice/cii.go:171-174 und internal/invoice/zugferd.go:149-154 weisen sie entsprechend nicht aus. Differenzbesteuerung ist kein Steuerfall von Buchfink | – |
+| Hinweistexte mehrsprachig hinterlegt, deutscher Wortlaut maßgeblich | ⛔ | Buchfink ist in dieser Fassung deutschsprachig (README, v1 Deutsch/DACH); internal/invoice/zugferd.go:38-53 führt nur deutsche Konstanten | – |
+| Eine Rechnung mit Reverse-Charge-Schlüssel ohne Pflichthinweis lässt sich nicht freigeben | ✅ | internal/invoice/zugferd.go:38-53 (Hinweis nicht abschaltbar), internal/domain/invoice.go:512-515 verlangt die USt-IdNr. des Empfängers vor der Nummernvergabe, internal/einvoice/validate_categories.go:253 erzwingt im Datensatz zusätzlich beide USt-IdNr. | – |
+
+**Stand.** Für die unterstützten Steuerfälle sitzen die Pflichthinweise automatisch und unabschaltbar, und seit Welle 5b steht die USt-IdNr. des Empfängers dort, wo § 14a UStG sie verlangt: im Adressblock des Ausdrucks und in BG-7 des Datensatzes. Ohne sie geht eine innergemeinschaftliche Lieferung nicht hinaus.
+
+### RECH-05 Kleinbetragsrechnungen, Fahrausweise, Kleinunternehmer `MUSS*`
+
+**Norm:** §§ 33, 34, 34a UStDV
+
+**Bedeutung:** Bis 250 Euro Bruttobetrag gelten reduzierte Pflichtangaben. Diese Erleichterung greift nicht bei Fernverkäufen nach § 3c UStG, innergemeinschaftlichen Lieferungen nach § 6a UStG und Reverse-Charge-Umsätzen nach § 13b UStG.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Erleichterung greift automatisch bis 250 Euro brutto, in den Ausnahmefällen abgeschaltet | ✅ | internal/service/invoice_service.go:450-475 liest die Grenze zum Rechnungsdatum aus den Steuerparametern und weist alles darüber ab; :430-433 nennt die beiden Fälle, die § 33 Satz 2 UStDV ausschließt — innergemeinschaftliche Lieferung und Steuerschuldnerschaft des Leistungsempfängers —, die übrigen Steuerfälle bietet Buchfink als eigene Entscheidung nicht an und sagt das auch so. Die Oberfläche bietet die Option nur dort an, wo sie zulässig ist, und nimmt sie zurück, sobald der Betrag die Grenze überschreitet (frontend/src/pages/InvoicesPage.tsx:764-773) | – |
+| Betragsgrenzwert parametrisierbar | ✅ | internal/accounting/tax_params.go:29-32 und :90 halten 150 und 250 Euro datiert vor, bewusst nicht durch den Nutzer änderbar; internal/service/invoice_service.go:465-472 wertet den zum Rechnungsdatum gültigen Wert beim Ausstellen aus | – |
+| Kleinbetragsrechnung gibt die reduzierten Mindestangaben aus | ✅ | internal/domain/invoice.go:432-433 lässt den Empfänger weg — das ist der Sinn des § 33 UStDV —, internal/invoice/zugferd.go:289-297 setzt "Barverkauf" an seine Stelle, :179-187 druckt den Hinweis auf § 33 UStDV. Ohne erfassten Kunden geht die Rechnung als reines PDF hinaus, weil EN 16931 den Namen des Erwerbers verlangt (BR-07) und ein erfundener Name eine Pflichtangabe behaupten würde; die Ausnahme steht im Gesetz selbst (internal/invoice/cii.go:27-202, internal/service/invoice_service.go:817-857). Gebucht wird dann gegen Kasse oder Bank statt gegen ein Personenkonto, das es nicht gibt (internal/service/posting_service.go:755-784) | – |
+| Kleinunternehmerrechnung mit Steuernummer, USt-IdNr. oder Kleinunternehmer-Identifikationsnummer und § 19-Hinweis | ⛔ | § 19 UStG wird für den eigenen Mandanten nicht unterstützt (frontend/src/pages/SettingsPage.tsx:764); als Lieferanteneigenschaft ist der Status gepflegt und wird für die E-Rechnungspflicht ausgewertet | – |
+
+**Stand.** Die Kleinbetragsrechnung ist mit Welle 5b gebaut: die datierte Grenze entscheidet, die drei gesetzlich ausgeschlossenen Steuerfälle sind gesperrt, und der Barverkauf ohne erfassten Kunden geht als PDF hinaus, weil § 33 UStDV ihn von der E-Rechnungspflicht ausnimmt. Der Kleinunternehmer bleibt außerhalb des Funktionsumfangs.
+
+### RECH-06 E-Rechnung erzeugen `MUSS` / `TERMIN`
+
+**Norm:** § 14 Abs. 1 S. 3 bis 6 UStG, § 27 Abs. 38 UStG, Richtlinie 2014/55/EU, EN 16931, BMF-Schreiben vom 15.10.2024 und vom 15.10.2025
+
+**Bedeutung:** Eine E-Rechnung ist eine Rechnung in einem strukturierten elektronischen Format, das der EN 16931 entspricht oder eine verlustfreie Extraktion in ein solches Format erlaubt. Ein reines PDF ist keine E-Rechnung, sondern eine sonstige Rechnung. Der Zeitplan des § 27 Abs. 38 UStG bindet die Roadmap:
+
+| Zeitraum | Wer darf noch sonstige Rechnungen ausstellen |
+|---|---|
+| bis 31.12.2026 | alle Unternehmer, Papier ohne Zustimmung, anderes elektronisches Format mit Zustimmung |
+| 01.01. bis 31.12.2027 | nur Unternehmer mit Vorjahresumsatz bis 800.000 Euro; EDI nach Empfehlung 94/820/EG unabhängig vom Umsatz |
+| ab 01.01.2028 | niemand mehr im inländischen B2B |
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| XRechnung und ZUGFeRD ab 2.0.1 ohne MINIMUM und BASIC-WL, Zielprofil je Empfänger konfigurierbar | 🟡 | internal/domain/contact.go:56-64 führt das Zielformat je Empfänger, :126-135 nennt die drei wählbaren, frontend/src/pages/ContactsPage.tsx:382-393 stellt sie ein, und internal/domain/invoice.go:301 hält am ausgestellten Dokument fest, in welchem Format es entstanden ist — ein später umgestelltes Kontaktprofil darf nicht rückwirkend etwas anderes behaupten. Erzeugt werden ZUGFeRD als PDF/A-3 mit CII nach EN 16931 und die XRechnung als reine XML-Datei mit der Leitweg-ID des Empfängers, ohne die sie im Behördennetz nicht zugestellt wird (internal/service/invoice_service.go:817-857, internal/invoice/cii.go:50-52, :78-82, BR-DE-15 in internal/service/invoice_service.go:483-518). Die UBL-Ausprägung der XRechnung fehlt: internal/einvoice schreibt nur CII, und ein Profil, das Buchfink nicht erzeugen kann, wird am Kontakt abgewiesen statt still als ZUGFeRD ausgegeben (internal/domain/contact.go:155-166, internal/service/contact_service.go:100-108) | – |
+| Validierung gegen Schema und Geschäftsregeln, Bericht mit der Rechnung gespeichert | ✅ | internal/invoice/cii.go:347-374 schreibt den Datensatz, liest ihn wieder ein und hält ihn gegen EN 16931 und, bei einer XRechnung, gegen die deutsche Ausprägung; geprüft ist damit die Datei und nicht das Modell, aus dem sie entstand. internal/service/invoice_service.go:404-418 tut das vor der Nummernvergabe, sodass ein Regelverstoß keine Nummer kostet, und :750-753 legt den Bericht mit Zeitpunkt, Regelwerk, Version und Befunden am Beleg ab — in derselben Form wie beim Eingang | – |
+| Alle Pflichtangaben im strukturierten Teil, kein externer Link | ✅ | internal/invoice/cii.go:27-202 baut den Datensatz aus dem semantischen Modell und verweist auf nichts Externes; die Mengeneinheit jeder Position kommt aus der Tabelle nach UN/ECE Rec. 20 (internal/domain/unit.go:28-38, :53-76, internal/invoice/cii.go:215-237) statt fest als C62, eine unbekannte Einheit blockiert (internal/domain/invoice.go:466-469), und BT-32 steht neben BT-31 (internal/invoice/cii.go:247-274) | – |
+| Bei Hybridformaten stimmen strukturierter Teil und Bildteil überein, Abweichung wird gemeldet | ✅ | internal/service/invoice_service.go:817-857 baut beide Teile aus derselben Rechnung und derselben Einheitentabelle. Seit Welle 8 wird das Ergebnis nachgeprüft, bevor es abgelegt wird: internal/invoice/hybrid_check.go:33-80 (`VerifyEmbeddedRecord`) liest das eingebettete XML aus der erzeugten PDF/A-3 zurück und hält Rechnungsnummer, Datum, Netto, Steuer, Brutto und Positionsanzahl gegen den Datensatz, aus dem sie entstand; internal/service/invoice_service.go:896-905 ruft es vor der Ablage und bricht bei jeder Abweichung ab — bei der XRechnung gegen das XML selbst, weil dort das XML das Original ist und das PDF nur seine Darstellung | – |
+| Umsatzschwelle von 800.000 Euro des Vorjahres je Mandant geführt, steuert ab 2027 | ✅ | internal/domain/fiscalyear.go:111-119 führt den Gesamtumsatz des Vorjahres je Geschäftsjahr, frontend/src/pages/ClosingPage.tsx:279 pflegt ihn auf der Jahresabschluss-Seite; internal/accounting/tax_params.go:146-177 entscheidet damit die Ausstellerseite des § 27 Abs. 38 UStG, und internal/service/invoice_service.go:509-514 weist die sonstige Rechnung ab 2027 über der Grenze und ab 2028 ausnahmslos zurück. Ein nicht erfasster Vorjahresumsatz heißt "nicht erfasst" und nicht "kein Umsatz": die Übergangsregel gilt dann, statt eine gesetzlich zulässige Rechnung zu blockieren | – |
+| Übertragungsweg konfigurierbar, Versandzeitpunkt und Empfangsnachweis protokolliert | ⛔ | Peppol, EDI und Portal-Upload sind außerhalb des Funktionsumfangs; der Versand läuft per E-Mail außerhalb der Software. Der Vermerk darüber steht seit Welle 5b an der Rechnung (internal/domain/invoice.go:336-338) und wird mit Datum, Weg und Notiz erfasst und protokolliert (internal/service/invoice_correction.go:464-494, frontend/src/pages/InvoicesPage.tsx:506) | – |
+
+**Stand.** Der strukturierte Datensatz entsteht seit Welle 5b aus dem semantischen Modell, wird als Datei zurückgelesen und gegen EN 16931 und die deutsche Ausprägung geprüft, bevor eine Nummer vergeben wird. Welle 8 prüft dazu das erzeugte Dokument gegen sich selbst: das eingebettete XML wird aus der PDF/A-3 wieder ausgelesen und mit Nummer, Datum, Netto, Steuer, Brutto und Positionsanzahl gegen den Datensatz gehalten, aus dem beide Teile entstanden sind — eine Rechnung, deren lesbarer und deren strukturierter Teil verschiedene Beträge nennen, geht nicht hinaus. Offen bleibt die UBL-Ausprägung der XRechnung, und das ist eine Entscheidung. Politur.
+
+### RECH-07 E-Rechnung empfangen und prüfen `MUSS`
+
+**Norm:** § 14 Abs. 1 UStG, § 15 Abs. 1 UStG, BMF-Schreiben vom 15.10.2025 Rn. 6a, 6b, 35a
+
+**Bedeutung:** Die Empfangspflicht gilt seit dem 1. Januar 2025 ausnahmslos für jeden inländischen Unternehmer, unabhängig von Größe und Umsatz. Das ergänzende BMF-Schreiben unterscheidet drei Fehlerklassen mit unterschiedlichen Folgen für den Vorsteuerabzug: Formatfehler (Verstoß gegen Syntax oder Schema), Geschäftsregelfehler (Verstoß gegen die Geschäftsregeln der EN 16931) und Inhaltsfehler (Pflichtangaben nach §§ 14, 14a UStG fehlen im strukturierten Teil, Rn. 35a).
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| XRechnung und ZUGFeRD ab 2.0.1 entgegennehmen, strukturierten Teil auslesen, Buchungsvorschlag erzeugen | ✅ | internal/invoice/reader.go:32 liest CII und UBL, XML wie Hybrid-PDF; MINIMUM und BASIC WL werden begründet abgewiesen (internal/einvoice/profile.go:50), der Vorschlag dreht die Steuerkategorie auf die Empfängersicht | – |
+| Validierung mit Trennung von Formatfehlern, Geschäftsregelfehlern und Inhaltsfehlern, Ergebnis gespeichert | ✅ | internal/domain/receipt.go:139 speichert Ergebnis, Zeitpunkt, Regelwerk, Version, Umfang und Befunde; seit Welle 8 hat jeder Befund seine Klasse, seine Norm, seine Folge für den Vorsteuerabzug und die Angabe, ob er die Buchung anhält (internal/domain/validation_finding.go:60-105). internal/service/receipt_findings.go:229-263 ordnet die Regeln des Regelwerks — BR- und BR-DE-Regeln als Geschäftsregelfehler, Syntaxbefunde als Formatfehler —, :265-321 die Inhaltsfehler aus Beleg und Rechnungsdatensatz, :323-360 die gegen die Stammdaten des Ausstellers. Ein strukturierter Teil, der sich nicht lesen ließ, erreicht den Beleg jetzt als Formatfehler und nicht mehr nur als Go-Fehler (:185-199); frontend/src/pages/ReceiptsPage.tsx:1031-1130 zeigt die drei Gruppen am Beleg | – |
+| Fehlerhafte Rechnungen archiviert und in eine Klärungsliste gestellt | ✅ | internal/service/receipt_service.go:111 archiviert immer, die Ablage geht der Auswertung voraus; seit Welle 5b stellt die Belegseite die beanstandeten Belege als eigene Ansicht zusammen — frontend/src/pages/ReceiptsPage.tsx:128 nennt die beiden Fälle, Verstoß gegen das Regelwerk und ein strukturierter Teil, der sich nicht lesen ließ, und :324 führt sie mit ihrer Zahl als Filter "Zu klären". Die Buchung beendet den Befund nicht: der Vorsteuerabzug richtet sich nach der Rechnung, nicht nach der Buchung | – |
+| Zurückweisen ohne Archivierung ausgeschlossen | ✅ | internal/service/einvoice_service.go:90; der Beleg wird abgelegt, bevor irgendetwas gelesen wird, Verwerfen verlangt einen Grund | – |
+| Vorsteuerabzug erst nach fehlerfreier Prüfung oder dokumentierter Übersteuerung | ✅ | internal/service/posting_input_tax.go:92-179 (`inputTaxFindings`) liest das Prüfergebnis am Buchungsweg: ein Rechnungsdatensatz mit Fehlern hält die Buchung an, ein ungeprüfter ebenso, und wo kein strukturierter Teil vorliegt, treten die Pflichtangaben aus Beleg- und Stammdaten an seine Stelle — Name, Anschrift, Steuernummer oder USt-IdNr. des Ausstellers und Rechnungsdatum (§ 14 Abs. 4 Nr. 1 bis 3 UStG). :73-89 (`blockingError`) hält an, internal/service/posting_service.go:295 ruft es in `PostIncomingReceipt`, und die Vorschau zeigt dieselben Befunde (:436). Übersteuert wird allein mit Grund: er steht am Beleg (internal/domain/receipt.go:207-218) und im Änderungsprotokoll (internal/service/receipt_service.go:334-356) | – |
+
+**Stand.** Der Empfang ist der ausgereifteste Teil des Moduls: gelesen wird CII und UBL, als XML und als Hybrid-PDF, abgelegt wird vor jeder Auswertung, und der Vorsteuerabzug richtet sich nach der geprüften Rechnung. Welle 8 gibt dem Prüfergebnis seine Klassifikation: jeder Befund hat Klasse, Norm, Folge für den Vorsteuerabzug und die Angabe, ob er die Buchung anhält, und ein strukturierter Teil, der sich nicht lesen ließ, erreicht den Beleg jetzt als Formatfehler statt als Fehlermeldung im Vorgang. Die Klärungsliste zeigt die drei Gruppen am Beleg. Alle fünf Kriterien sind erfüllt.
+
+### RECH-08 Echtheit, Unversehrtheit, Lesbarkeit `MUSS`
+
+**Norm:** § 14 Abs. 3 UStG
+
+**Bedeutung:** Der Nachweis erfolgt durch ein innerbetriebliches Kontrollverfahren, das einen verlässlichen Prüfpfad zwischen Rechnung und Leistung herstellt. Eine qualifizierte elektronische Signatur ist seit 2011 nicht mehr erforderlich.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Abgleich jeder Eingangsrechnung gegen Bestellung, Auftrag, Vertrag oder Leistungsnachweis, Ergebnis gespeichert | ✅ | internal/domain/receipt.go:266-283 führt am Eingangsbeleg den Bestellbezug aus der E-Rechnung (BT-13) und den Leistungsnachweis mit seinem Tag — beide außerhalb des Beleg-Hashes, damit der Vermerk auch am gebuchten Beleg noch entsteht, ohne die Kette der Buchungen zu brechen; internal/service/einvoice_service.go:208-222 übernimmt die Bestellnummer aus dem strukturierten Teil, internal/service/receipt_audit_trail.go:26-100 schreibt beides mit Vorher und Nachher ins Änderungsprotokoll. Ab der Nachweisgrenze `invoice_check_threshold` (internal/domain/settings.go:81-94, Voreinstellung 1.000 Euro) ist der Vermerk Pflicht: internal/service/service_proof.go:26-140 hält den Belegweg an, solange er fehlt, die Buchungsvorschau verlangt ihn vorher, und internal/service/check_service.go:714-747 (`service_proof_missing`) meldet die Belege aus der Zeit vor der Grenze. Ein Bestellobjekt, gegen das sich die Nummer maschinell auflösen ließe, führt Buchfink weiterhin nicht; festgehalten wird der Vermerk der Person, die die Rechnung sachlich abgezeichnet hat | – |
+| Prüfpfad Rechnung, Leistung, Zahlung in beide Richtungen navigierbar und exportierbar | ✅ | internal/domain/receipt.go:151 und die offenen Posten verketten Beleg, Buchung und Zahlung und sind in der Oberfläche erreichbar; seit Welle 4 geht derselbe Pfad als Datei hinaus — belege.csv nennt je Beleg die Buchung (internal/service/export_tables.go:835-836), journal.csv Belegnummer, Beleg-Prüfsumme und Leistungszeitraum (:72-96), zahlungszuordnungen.csv die Zahlung je offenem Posten (:229-260). Seit Welle 7 steht die Kette zusätzlich in einer Zeile je Beleg: internal/service/audit_trail_service.go:97-255 setzt sie zusammen und gibt sie als CSV und als PDF aus, internal/service/export_tables.go:1030-1102 legt sie als Tabelle `pruefpfad` in jede Datenüberlassung | – |
+| Prüfsumme bei Eingang gebildet und bei jedem Abruf verifiziert | ✅ | internal/service/receipt_service.go:276; die Oberfläche zeigt einen Bruch an, statt ihn zu verschweigen | – |
+| Kontrollverfahren in der Verfahrensdokumentation beschrieben | ✅ | Seit Welle 6 beschreibt die erzeugte Verfahrensdokumentation den Belegfluss vom Eingang über Ablage, Kopfdaten, Buchung und Zahlung bis zur Festschreibung (internal/procdoc/procdoc.go:279-297) und das interne Kontrollsystem mit den Regeln, die vor der Festschreibung laufen (:492-518); die unternehmensindividuelle Anweisung dazu steht als Freitext daneben (internal/domain/procdoc.go:71-103). Seit Welle 7 steht der Leistungsnachweis mit seiner Grenze und seiner Wirkung im Regelkatalog, aus dem dieser Abschnitt entsteht (internal/service/procdoc_service.go:436-455) | – |
+
+**Stand.** Die technische Unversehrtheit ist vorbildlich gelöst, seit Welle 6 ist der Vorgang beschrieben, und mit Welle 7 hat das innerbetriebliche Kontrollverfahren nach § 14 Abs. 3 UStG seinen Nachweis: der Eingangsbeleg hat den Bestellbezug aus der E-Rechnung und den Vermerk, gegen welche Bestellung geprüft wurde, mit Tag und im Änderungsprotokoll; ab der eingestellten Nachweisgrenze hält der Belegweg die Buchung an, solange der Vermerk fehlt, und der Prüfbericht führt die Belege aus der Zeit davor. Der Prüfpfad Beleg, Buchung, Zahlung, Bankumsatz steht am Beleg, geht als CSV und als PDF hinaus und liegt jeder Datenüberlassung als Tabelle `pruefpfad` bei. Die Verfahrensdokumentation beschreibt die Regel mit. Alle vier Kriterien sind erfüllt.
+
+### RECH-09 Rechnungsberichtigung `MUSS`
+
+**Norm:** § 14 Abs. 6 UStG, § 31 Abs. 5 UStDV, § 14c UStG
+
+**Bedeutung:** Eine Rechnung wird nicht überschrieben, sondern durch ein Dokument berichtigt, das sich spezifisch und eindeutig auf die ursprüngliche Rechnung bezieht. Bei E-Rechnungen muss auch das Berichtigungsdokument den Formatanforderungen genügen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Berichtigung erzeugt ein neues Dokument mit Verweis auf Nummer und Datum der Ursprungsrechnung | ✅ | internal/service/invoice_correction.go:117-196 stellt die Stornorechnung als eigenes Dokument mit eigener Nummer aus, :266-360 zusätzlich die berichtigte Rechnung; beide haben Nummer und Datum der Ursprungsrechnung (internal/domain/invoice.go:306-312) als BG-3 im Datensatz (internal/invoice/cii.go:128-132) und als Satz auf dem Ausdruck (internal/invoice/zugferd.go:338-354). Das Storno negiert die Beträge, statt sie mit einem Hinweis stehen zu lassen (internal/service/invoice_correction.go:367-408, internal/domain/invoice.go:535-541) — das System des Empfängers bucht, was die Zahlen sagen | – |
+| Ursprungsrechnung bleibt unverändert archiviert | ✅ | internal/service/invoice_correction.go:170-171; nur der Status ändert sich und der Verweis auf das Stornodokument kommt hinzu, der versiegelte Beleg bleibt | – |
+| Berichtigungen zu E-Rechnungen im selben strukturierten Format | ✅ | internal/service/invoice_correction.go:367-408 übernimmt das Format der Ursprungsrechnung, :313-318 hält auch die berichtigte Rechnung darauf fest statt auf dem heutigen Stand des Kontakts; erzeugt und gegen dasselbe Regelwerk geprüft wird sie über denselben Weg wie jede andere (:418-456, internal/service/invoice_service.go:817-857), mit Typcode 384 (internal/domain/invoice.go:70-79) | – |
+| Storno und Neuausstellung alternativ möglich und verkettet | ✅ | internal/service/invoice_correction.go:117-196 storniert allein, :266-360 storniert und stellt die berichtigte Rechnung in einem Zug aus; die Kette zeigt in beide Richtungen — von der Korrektur auf die berichtigte Rechnung und von der stornierten auf ihr Stornodokument (internal/domain/invoice.go:306-312) —, und die Oberfläche nennt beide Enden (frontend/src/pages/InvoicesPage.tsx:438, :526). Das Storno eines Stornos wird abgewiesen (internal/service/invoice_correction.go:209-222), der bezahlte Abschlag geht nur über die Rückzahlung (internal/service/advance_service.go:395-458) | – |
+| Umsatzsteuerliche Wirkung der richtigen Periode zugeordnet und im Meldewesen nachvollziehbar | ✅ | internal/service/invoice_correction.go:367-408 datiert das Stornodokument auf den Korrekturtag, und die Steuer folgt ihm: internal/accounting/vat_period.go:53-54 ordnet die Generalumkehr einer Ausgangsrechnung über ihr Buchungsdatum dem Zeitraum der Berichtigung zu (§ 17 Abs. 1 Satz 8 UStG, für den zu hoch ausgewiesenen Betrag Abschn. 14c.1 Abs. 5 UStAE). Beleg- und Leistungsdatum der Ursprungsbuchung bleiben an ihr stehen, weil sie sagen, welcher Vorgang zurückgenommen wird (internal/service/journal_service.go:257-274); über den Voranmeldungszeitraum entscheiden sie hier nicht, und ein bereits übermittelter Ursprungszeitraum bleibt unberührt. Nachvollziehbar ist das an der Kennziffer: internal/accounting/ustva.go:187-189 sammelt je Kennziffer die Buchungen, aus denen sie entstanden ist, und die Voranmeldung klappt sie an der Zeile auf (UST-01) | – |
+
+**Stand.** Die Rechnungsberichtigung im Sinne des § 31 Abs. 5 UStDV ist mit Welle 5b gebaut: der Kunde bekommt ein Dokument, es hat den Typcode 384 und den Bezug auf die berichtigte Rechnung, es entsteht im Format der Ursprungsrechnung, und Nummer, Dokument und Generalumkehr laufen in einer Transaktion. Die Ursprungsrechnung bleibt unverändert stehen und zeigt auf ihr Storno. Teilschlussrechnungen (Typcode 876) bildet Buchfink nicht ab; sie sind eine eigene Rechnungsart des Anzahlungsverbunds, kein Fall der Berichtigung.
+
+### RECH-10 Unrichtiger und unberechtigter Steuerausweis `MUSS`
+
+**Norm:** § 14c UStG, § 22 Abs. 2 Nr. 4 UStG
+
+**Bedeutung:** Ein zu hoher oder unberechtigter Steuerausweis wird geschuldet, auch wenn er falsch war. Diese Beträge sind gesondert aufzuzeichnen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Risikokonstellationen nach § 14c UStG erkannt, Warnung vor der Freigabe | ✅ | internal/service/invoice_service.go:874-890 (`ensureNoUnlawfulTax`) weist eine Rechnung ab, deren Position einen Steuersatz hat, obwohl der Steuerfall keine Steuer entstehen lässt; internal/domain/invoice.go:451-456 hält dieselbe Regel an der Entität, internal/service/journal_service.go:446-474 auf dem Handbuchungsweg — dort auch über das Erlöskonto, wenn die Buchung keinen Steuerfall hat. Abgewiesen wird beim Ausstellen, weil die Berichtigung später die Zustimmung des Finanzamts voraussetzt (§ 14c Abs. 2 Sätze 3 bis 5 UStG) | – |
+| Eigenes Konto oder eigener Steuerschlüssel, gesonderte Auswertung | ✅ | internal/domain/skr04_accounts.go:63-69 führt Konto 3851 („In Rechnung unrichtig oder unberechtigt ausgewiesene Steuerbeträge"), internal/accounting/tax_skr04.go:28-37 den Steuerschlüssel `UST14C` — bewusst ohne Automatik, weil kein Steuerfall dahintersteht —, :25 nimmt das Konto unter die Steuerkonten, und internal/accounting/tax_skr04.go:42-50 hält es aus der Inlandsumsatzsteuer heraus | – |
+| Beträge fließen korrekt in die Umsatzsteuer-Voranmeldung ein | ✅ | internal/accounting/ustva.go:80 führt Kennziffer 69, :375-379 überträgt den Betrag ohne Bemessungsgrundlage dorthin, :111 nimmt ihn in die geschuldete Steuer der Kennziffer 83 auf | – |
+
+**Stand.** Mit Welle 3 geschlossen: Buchfink stellt eine Rechnung mit unrichtigem Steuerausweis gar nicht erst aus, und der Betrag aus einer außerhalb entstandenen Rechnung wird über Konto 3851 in Kennziffer 69 gebucht.
+
+---
+
+## F. Umsatzsteuer, Aufzeichnung und Meldewesen
+
+### UST-01 Aufzeichnungspflichten `MUSS`
+
+**Norm:** § 22 UStG
+
+**Bedeutung:** § 22 Abs. 2 UStG listet abschließend auf, was aus den Aufzeichnungen ersichtlich sein muss. Die Liste geht über das hinaus, was eine Standardbuchführung ohnehin erfasst.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Je Voranmeldungszeitraum ableitbar: Entgelte nach Steuersätzen und steuerfreien Umsätzen, § 9-Option, vereinnahmte Anzahlungen, unentgeltliche Wertabgaben, § 14c-Beträge, Vorsteuer inklusive Anzahlungen, Einfuhrumsatzsteuer, innergemeinschaftliche Erwerbe, § 13b getrennt | 🟡 | internal/accounting/ustva.go:34-86 führt den Vordruck USt 1 A vollständig, :301-396 leitet aus den Steuerschlüsseln je Kennziffer Bemessungsgrundlage und Steuer ab: Entgelte je Steuersatz (81, 86), steuerfreie Umsätze mit und ohne Vorsteuerabzug (41, 43, 48), innergemeinschaftliche Erwerbe (89, 93), § 13b als Leistungsempfänger mit beiden Beinen (46/47 und 67) und als Leistender in Kennziffer 21, Vorsteuer (66) und die Beträge nach § 14c UStG (69, :375-379); seit Welle 5c erreicht ein geteilter Vorsteuerabzug die Kennziffer 66 nur mit seinem abziehbaren Teil (internal/service/posting_service.go:1263-1268, :1282-1315), und die Berichtigung nach § 15a UStG steht in Kennziffer 64 (internal/accounting/tax_keys.go:53, internal/accounting/ustva.go:402-408). Die vereinnahmte Anzahlung kam mit Welle 5b dazu: sie bucht Entgelt und Steuer zum Zahlungstag über die Schlüssel der Inlandsumsatzsteuer in 81 und 86 (internal/service/posting_service.go:1099-1147, internal/accounting/vat_period.go:62-63), die Schlussrechnung setzt sie im Leistungszeitraum wieder ab (internal/service/posting_service.go:1227-1294), und die Vorsteuer aus einer geleisteten Anzahlung entsteht mit der Zahlung (:465-492). Es fehlen unentgeltliche Wertabgaben und die Einfuhrumsatzsteuer — Kennziffer 62 steht auf dem Blatt, aber kein Steuerschlüssel füllt sie —, und die Steuerkorrektur eines gewährten Skontos erreicht den Vordruck nicht: sie hat den Schlüssel `SKONTO_UST19` (internal/service/payment_service.go:619), den internal/accounting/ustva.go:392-393 nicht auswertet. Die Option nach § 9 UStG ist kein Steuerfall von Buchfink | 5 |
+| Bei Ist-Versteuerung werden die vereinnahmten Entgelte aufgezeichnet | ⛔ | Buchfink führt nur die Sollversteuerung; internal/service/journal_service.go:396-412 weist die Istversteuerung ausdrücklich ab, statt sie still falsch zu buchen | – |
+| Aufzeichnungen zu Konsignationslagern nach § 6b UStG und zur Vorsteuerberichtigung nach § 15a UStG gesondert | ✅ | Konsignationslager sind kein Steuerfall von Buchfink. Das Verzeichnis nach § 15a UStG führt Buchfink seit Welle 5c als eigene Aufzeichnung neben dem Journal: internal/domain/input_tax.go:21-118 führt je Wirtschaftsgut Anschaffungstag, Vorsteuer, ursprünglichen Verwendungsanteil, Zeitraum und Ende, internal/service/input_tax_service.go:249-348 schreibt den bestätigten Anteil je Jahr fort (siehe UST-07) | – |
+| Jede Position der Voranmeldung per Drill-down bis auf die einzelne Buchung auflösbar | ✅ | internal/accounting/ustva.go:187-189, :246 sammelt je Kennziffer die Buchungen, aus denen sie entstanden ist, internal/domain/vatreturn.go:68-71, :191-197 führt sie an der Zeile; frontend/src/pages/VatPage.tsx:1062, :1105-1128 klappt sie an der Kennziffernzeile auf und verlinkt jede Buchungsnummer ins Journal | – |
+
+**Stand.** Die Aufzeichnung führt seit Welle 3 zum Vordruck: jede Kennziffer sammelt die Buchungen, aus denen sie entstanden ist, und lässt sich an der Zeile bis zur einzelnen Buchung aufklappen. Mit Welle 5b sind die Anzahlungen dazugekommen — vereinnahmt zum Zahlungstag, in der Schlussrechnung wieder abgesetzt, auf der Eingangsseite mit dem Vorsteuerabzug bei Zahlung. Von der Liste des § 22 Abs. 2 UStG fehlen noch die unentgeltlichen Wertabgaben und die Einfuhrumsatzsteuer; § 14c ist mit Konto 3851 und Kennziffer 69 gebaut (RECH-10). Als Altbestand offen: der Steuerschlüssel der Skontokorrektur wird im Vordruck nicht ausgewertet. Konsignationslager und § 9 UStG bleiben Entscheidungen; das Verzeichnis nach § 15a UStG steht seit Welle 5c und meldet seine Berichtigungen in Kennziffer 64, während der geteilte Vorsteuerabzug die Kennziffer 66 nur mit seinem abziehbaren Teil erreicht.
+
+### UST-02 Soll- und Ist-Versteuerung `MUSS`
+
+**Norm:** §§ 13, 16, 20 UStG
+
+**Bedeutung:** Die Steuer entsteht bei der Sollversteuerung mit Ablauf des Voranmeldungszeitraums der Leistungsausführung, bei der Istversteuerung mit Vereinnahmung. Die Istversteuerung setzt eine Genehmigung voraus und ist bis zu einem Gesamtumsatz von 800.000 Euro im Vorjahr möglich.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Besteuerungsverfahren je Mandant einstellbar, wirkt auf die Periodenzuordnung | ⛔ | internal/domain/settings.go:54 führt das Feld, die Oberfläche bietet nur SOLL an und internal/service/journal_service.go:396-412 weist IST mit Begründung ab. Bewusste, dokumentierte Einschränkung | – |
+| Wechsel des Verfahrens zum Jahreswechsel ohne Doppelerfassung, mit Abstimmbericht | ⛔ | Folgt aus dem Vorstehenden: ohne Istversteuerung gibt es keinen Wechsel | – |
+| Bei Sollversteuerung steuert das Leistungsdatum die Periode | ✅ | internal/accounting/vat_period.go:34-102 (`VatPeriodFor`) ordnet Ausgangsumsatz und Erlös nach dem Leistungsende zu, hilfsweise nach Leistungsbeginn, Beleg- und Buchungsdatum (:66-69, § 13 Abs. 1 Nr. 1 UStG); die Vorsteuer folgt dem späteren von Leistung, Rechnung und Belegeingang (:85-94), Erwerbsteuer und § 13b dem Belegdatum (:71-83), und die Rücknahme einer Ausgangsrechnung dem Tag der Berichtigung (:53-54). internal/accounting/ustva.go:301-320 zerlegt das Journal nach dieser Regel, nicht nach dem Buchungsdatum | – |
+| Anzahlungen führen im Zeitpunkt der Vereinnahmung zur Steuerentstehung | ✅ | internal/accounting/vat_period.go:62-63 ordnet die Vereinnahmung dem Zahlungstag zu (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), auch bei Sollversteuerung und lange bevor die Leistung erbracht ist; internal/service/posting_service.go:1099-1147 bucht SOLL Zahlungsmittel an HABEN erhaltene versteuerte Anzahlungen und Umsatzsteuer (internal/accounting/advance_accounts.go:17-26), internal/service/advance_service.go:199-314 führt den Weg vom Kontoauszug bis zum Vermerk am Abschlag in einer Transaktion. Die Abschlagsrechnung selbst wird beim Ausstellen nicht gebucht (internal/domain/invoice.go:101, internal/service/advance_service.go:137-191), und die Schlussrechnung löst die vereinnahmten Anzahlungen samt ihrer Steuer wieder auf, sodass der Leistungszeitraum genau die Differenz meldet (internal/service/posting_service.go:1227-1294) | – |
+| Umsatzgrenze von 800.000 Euro überwacht und bei Überschreitung gemeldet | ⛔ | Die Grenze entscheidet allein über die Zulässigkeit der Istversteuerung, die Buchfink nicht führt | – |
+
+**Stand.** Die Sollversteuerung ist der einzige Weg und wird ehrlich erzwungen; seit Welle 3 ordnet sie die Periode nach dem Leistungsdatum zu, und die Regel steht an einer Stelle (internal/accounting/vat_period.go:34-102). Welle 5b setzt die Anzahlung daneben: sie folgt dem Geld, nicht der Leistung, und der Rechnungsverbund hält Abschläge, Vereinnahmungen und Schlussrechnung zusammen (internal/domain/invoice_group.go:152-165, :140-148). Er steht auf einer eigenen Seite "Anzahlungen" (frontend/src/pages/AdvancesPage.tsx:184) und nicht im Rechnungsdialog — der Vorgang hat einen eigenen Verlauf über Monate, und die Rechnungsliste zeigt nur einen Ausschnitt davon.
+
+### UST-03 Umsatzsteuer-Voranmeldung `MUSS`
+
+**Norm:** § 18 UStG, §§ 46 bis 48 UStDV
+
+**Bedeutung:** Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Voranmeldungszeitraums elektronisch nach amtlich vorgeschriebenem Datensatz zu übermitteln. Der Zeitraum ergibt sich aus der Steuer des Vorjahres: über 9.000 Euro monatlich, sonst vierteljährlich, bis 2.000 Euro kann das Finanzamt befreien. Die monatliche Voranmeldungspflicht für Neugründer nach § 18 Abs. 2 Satz 4 UStG ist für die Besteuerungszeiträume 2021 bis 2026 ausgesetzt (§ 18 Abs. 2 Satz 6 UStG); ab 2027 lebt sie wieder auf.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Voranmeldungszeitraum aus der Vorjahressteuer ermittelt und vorgeschlagen, überschreibbar | ✅ | internal/service/vat_period_proposal.go:58-143 (`SuggestPeriodType`) summiert die Kennziffer 83 der übermittelten Anmeldungen des Vorjahres — je Zeitraum die jüngste, damit eine Berichtigung an die Stelle der berichtigten tritt — und misst sie an den Grenzen des § 18 Abs. 2 UStG (:24-32: mehr als 9.000 € monatlich, nicht mehr als 2.000 € mögliche Befreiung). Fehlt ein Zeitraum, sagt der Vorschlag das dazu, statt eine zu niedrige Summe für eine Tatsache auszugeben (:49-52). Vorgeschlagen und nicht gesetzt: internal/accounting/gruendung.go:180 leitet den Zeitraum im Gründungsjahr ab, internal/service/vat_return_service.go:102-113 liest den eingestellten an einer Stelle für Voranmeldung, Prüflauf und Fristenliste, und die Einstellungsseite stellt den Vorschlag daneben (frontend/src/pages/SettingsPage.tsx:199-205, :278, :785-800) — ein Programm, das den Zeitraum im Januar still ändert, verschöbe die Fälligkeiten eines ganzen Jahres | – |
+| Amtlicher Datensatz, Übermittlung über ERiC oder ELSTER, alternativ ein in ELSTER importierbarer Export | 🟡 | internal/accounting/ustva.go:34-86 führt das vollständige Kennziffernblatt des Vordrucks USt 1 A, internal/service/vat_return_service.go:502-529 gibt es als CSV mit Kennziffer und Wert aus (Kennziffer 10 bei der Berichtigung, :508), frontend/src/pages/VatPage.tsx:228-231, :523 zeigt und speichert es. Buchfink bindet ERiC bewusst nicht ein: die Datei wird in Mein ELSTER übertragen, ein amtlich erzeugter Datensatz entsteht nicht | 3 |
+| Übermittlungsprotokoll mit Zeitpunkt, Transferticket und Status revisionssicher gespeichert | ✅ | internal/domain/vatreturn.go:107-146 ist die Anmeldung eine Entität und zugleich das Protokoll: Status, Übermittlungsdatum, Transferticket, Vermerk, Zahllast, Fälligkeit und die Programmversion, die das Blatt gerechnet hat. internal/domain/vatreturn.go:205-222 (`ValidateSubmission`) verlangt Datum und Transferticket und weist jede Änderung einer bestätigten Anmeldung ab; internal/service/vat_return_service.go:418-452 schreibt die Bestätigung ins Änderungsprotokoll | – |
+| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | ✅ | internal/domain/settings.go:46, :59 führen Dauerfristverlängerung und Sondervorauszahlung, internal/accounting/vat_period.go:256-269 verschiebt die Fälligkeit um einen Monat, internal/service/vat_return_service.go:308-404 schlägt ein Elftel der Vorauszahlungen des Vorjahres vor — nur dem Monatszahler (§ 47 Abs. 1 UStDV) und mit den Zeiträumen, aus denen die Summe entstand —, :591-618 rechnet sie im letzten Zeitraum des Jahres an, internal/accounting/ustva.go:226 setzt sie in Kennziffer 39; internal/service/deadline_service.go:246-264 führt den Anmeldetermin | – |
+| Korrigierte Voranmeldungen gekennzeichnet und mit der ursprünglichen Übermittlung verknüpft | ✅ | internal/service/vat_return_service.go:462-495 (`CreateCorrection`) rechnet den Zeitraum vollständig neu und verknüpft ihn über `CorrectsID` mit der übermittelten Anmeldung (internal/domain/vatreturn.go:115-117), :741-763 lässt je Zeitraum nur eine Erstanmeldung zu. Nachträge zu übermittelten Zeiträumen weist internal/accounting/ustva.go:203-219 aus, statt sie still in den laufenden Zeitraum zu ziehen | – |
+| Übermittlung erst nach Festschreibung der zugrunde liegenden Periode | ✅ | internal/service/vat_return_service.go:718-733 (`ensureCommitted`) weist die Bestätigung ab, solange der Zeitraum nicht festgeschrieben ist; :764-785 (`ensureCurrent`) verlangt zusätzlich, dass das gespeicherte Blatt dem heutigen Journalstand entspricht | – |
+
+**Stand.** Aus der Orientierungsauswertung ist mit Welle 3 eine Voranmeldung geworden: das Kennziffernblatt des Vordrucks USt 1 A, die Anmeldung als Entität mit Status, Transferticket und Fälligkeit, die Berichtigung mit Bezug auf die ursprüngliche Übermittlung und die Festschreibung als Voraussetzung der Bestätigung. Welle 8 zieht den Voranmeldungszeitraum aus den eigenen Zahlen: die Summe der Kennziffer 83 der übermittelten Anmeldungen des Vorjahres, gemessen an den Grenzen von 9.000 und 2.000 Euro, als Vorschlag beim Jahreswechsel mit dem Hinweis, wenn ein Zeitraum fehlt und die Summe deshalb zu niedrig ist. Gesetzt wird er von Hand — die Befreiung von der Abgabe ist eine Entscheidung des Finanzamts. Offen bleibt der amtliche Datensatz: Buchfink bindet ERiC nicht ein, die Kennziffern gehen als Datei nach Mein ELSTER. Welle 3.
+
+### UST-04 Zusammenfassende Meldung `MUSS*`
+
+**Norm:** § 18a UStG, § 4 Nr. 1 lit. b UStG
+
+**Bedeutung:** Wer innergemeinschaftliche Lieferungen oder Reverse-Charge-Leistungen im übrigen Gemeinschaftsgebiet ausführt, meldet diese bis zum 25. Tag nach Ablauf des Meldezeitraums. Eine unterlassene oder falsche ZM kann die Steuerbefreiung der innergemeinschaftlichen Lieferung entfallen lassen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| ZM aus den Buchungen, getrennt nach innergemeinschaftlichen Lieferungen, Dreiecksgeschäften und Leistungen nach § 3a Abs. 2 UStG | ✅ | internal/accounting/zm.go:58-107 (`ZMMovements`) zerlegt die Buchungen über die Erlöskonten in Lieferungen („L") und Leistungen an Empfänger im übrigen Gemeinschaftsgebiet („S"), nach demselben Leistungsdatum wie die Voranmeldung; :172-250 (`ZMLines`) fasst sie je USt-IdNr. und Meldeart zusammen und meldet die fehlende USt-IdNr. als Befund, der die Bestätigung verhindert. internal/service/zm_service.go:313-358 baut daraus die Meldung, :290-312 die CSV für das BZSt-Portal. Dreiecksgeschäfte sind kein Steuerfall von Buchfink; die Meldeart steht nur benannt in internal/domain/vatreturn.go:246-249 | – |
+| Meldezeitraum folgt der 50.000-Euro-Grenze, Wechsel ab dem Überschreitungsmonat | ✅ | internal/accounting/zm.go:24 (`ZMThreshold`), :125-158 (`ZMPeriodsOfYear`) meldet vierteljährlich und wechselt für das ganze Quartal auf Monate, sobald die Lieferungen im laufenden oder in einem der vier vorangegangenen Quartale 50.000 Euro übersteigen (§ 18a Abs. 1 Satz 2 UStG); internal/service/zm_service.go:547-566 liest die Umsätze über drei Geschäftsjahre, damit die Rückschau greift | – |
+| Leistungen nach § 3a Abs. 2 UStG quartalsweise, auch bei monatlicher Warenmeldung | ✅ | internal/accounting/zm.go:127-131 lässt die sonstigen Leistungen bei der Schwelle des § 18a Abs. 1 Satz 2 UStG außer Betracht, und seit Welle 8 auch bei ihrem Zeitraum: :166-194 (`ZMPeriodCovers`) nimmt sie bei monatlicher Warenmeldung in die Meldung für den letzten Monat des Kalendervierteljahres auf (§ 18a Abs. 1 Satz 3 UStG) und lässt sie damit vierteljährlich, während die Lieferungen monatlich laufen; :199-218 (`ZMPeriodFor`) sucht denselben Zeitraum für die Nachträge, :220-250 (`ZMLines`) meldet danach. Das Gesetz stellt den monatlichen Mitlauf frei; Buchfink wählt den Regelfall des Satzes 1, weil er dieselben Umsätze mit weniger Meldungen abgibt und die Frist des Quartalsmonats beide Wege deckt | – |
+| Summen der ZM stimmen mit den Kennzahlen der Voranmeldung überein, Abweichung wird angezeigt | ✅ | internal/service/zm_service.go:462-533 (`reconcile`) stellt die Meldesummen den Kennziffern 41 und 21 der jüngsten Anmeldungen desselben Zeitraums gegenüber und rechnet auch den umgekehrten Zuschnitt (monatliche ZM neben vierteljährlicher Anmeldung); internal/domain/vatreturn.go:352-367 speichert die Differenzen, frontend/src/pages/VatPage.tsx:796, :806 zeigt sie neben der Meldung | – |
+| Berichtigungen möglich und protokolliert | ✅ | internal/service/zm_service.go:258-289 (`CreateCorrection`) meldet den Zeitraum vollständig neu und verknüpft ihn mit der übermittelten Meldung (internal/domain/vatreturn.go:294-295), :204-257 (`ConfirmSubmitted`) hält Datum und Transferticket fest und schreibt beides ins Änderungsprotokoll; :359-413 weist Nachträge zu bereits übermittelten Meldezeiträumen aus | – |
+
+**Stand.** Mit Welle 3 gebaut: die Meldung entsteht je USt-IdNr. aus den Buchungen, wechselt an der 50.000-Euro-Grenze auf Monate, wird gegen die Kennziffern der Voranmeldung abgestimmt und lässt sich berichtigen. Welle 8 trennt die Zeiträume beider Meldearten: die sonstigen Leistungen nach § 3a Abs. 2 UStG gehen bei monatlicher Warenmeldung in die Meldung für den letzten Monat des Kalendervierteljahres und bleiben damit vierteljährlich, während die Lieferungen monatlich laufen. Alle fünf Kriterien sind erfüllt.
+
+### UST-05 Reverse Charge `MUSS*`
+
+**Norm:** § 13b UStG, § 14a Abs. 5 UStG, § 22 Abs. 2 Nr. 8 UStG
+
+**Bedeutung:** Bei einer wachsenden Fallgruppe schuldet der Leistungsempfänger die Steuer. Die Fälle unterscheiden sich in den Voraussetzungen erheblich, unter anderem gelten bei Mobilfunkgeräten, Tablets, Spielekonsolen, integrierten Schaltkreisen und den Gegenständen der Anlage 4 Betragsgrenzen von 5.000 Euro je wirtschaftlichem Vorgang.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Steuerschlüssel für die Fälle des § 13b Abs. 2 UStG erzeugen Steuer- und korrespondierende Vorsteuerbuchung | ✅ | internal/accounting/tax_skr04.go:103-117; zwei Legs mit den Schlüsseln `RC19_UST` und `RC19_VST` auf 3835/3837 und 1407/1408 | – |
+| Freistellungsbescheinigung mit Gültigkeitsdauer im Stammsatz, Meldung bei Ablauf | ✅ | internal/domain/contact.go:85-96 führt Nummer und letzten Gültigkeitstag der Bescheinigung nach § 48b EStG am Geschäftspartner, :121-145 (`ExemptionCertificateState`) meldet den Ablauf dreißig Tage vorher, internal/service/contact_service.go:256-292 stellt die Warnungen zusammen und nennt die Folge (15 % Steuerabzug nach § 48 EStG), internal/service/deadline_service.go:189-210 hängt sie in die Fristenliste, wo sie bis zur neuen Bescheinigung stehen bleiben. Den Steuerabzug selbst rechnet Buchfink nicht: Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG sind kein Steuerfall, und der Erklärtext sagt das an beiden Richtungen (internal/domain/tax.go:169-181) | – |
+| Betragsgrenzen von 5.000 Euro je wirtschaftlichem Vorgang geprüft | ⛔ | Die Grenze gehört zu § 13b Abs. 2 Nr. 10 und 11 UStG (Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte Schaltkreise, Metalle). Buchfink rechnet den Fall der Nummer 1 — die Leistung eines im Ausland ansässigen Unternehmers —, und der kennt keine Betragsgrenze; internal/service/posting_service.go:1056-1081 prüft deshalb Land und USt-IdNr. Der Erklärtext des Steuerfalls benennt die ungeprüfte Grenze in beiden Richtungen (internal/domain/tax.go:169-181), und internal/domain/tax_hints_test.go:11-47 hält ihn darauf fest, damit die Auslassung sichtbar bleibt | – |
+| Umsätze nach § 13b UStG getrennt aufgezeichnet und in den richtigen Kennzahlen ausgewiesen | ✅ | internal/accounting/tax_skr04.go:103-117 bucht auf eigene Konten, internal/accounting/ustva.go:59-61 führt die Kennziffern 46/47, 73/74 und 84/85 des Vordrucks, :384-385 überträgt die Steuer des Leistungsempfängers in 46/47 und :390-391 die zugehörige Vorsteuer in 67. Die Kennziffern 73/74, 84/85 und 60 bleiben leer: die Fälle dahinter sind kein Steuerfall von Buchfink, stehen aber auf dem Blatt, damit niemand sie beim Abtippen übersieht | – |
+
+**Stand.** Die Buchungslogik für die unterstützten Reverse-Charge-Fälle stimmt, und seit Welle 3 stehen beide Beine in den richtigen Kennziffern. Welle 5c setzt die Nebenbedingungen daneben: die Freistellungsbescheinigung nach § 48b EStG steht mit ihrer Frist am Geschäftspartner und läuft dreißig Tage vor dem Ablauf in die Fristenliste, damit niemand bei der nächsten Zahlung einbehalten muss, ohne es zu wissen. Die 5.000-Euro-Grenze der Nummern 10 und 11 bleibt ungeprüft und steht als benannte Auslassung im Erklärtext des Steuerfalls, von einem Test darauf festgehalten. Gerechnet wird der Fall der Nummer 1.
+
+### UST-06 Innergemeinschaftliche Lieferung und Nachweise `MUSS*`
+
+**Norm:** §§ 4 Nr. 1 lit. b, 6a, 18e UStG, §§ 17a bis 17d UStDV
+
+**Bedeutung:** Die Steuerbefreiung setzt voraus, dass der Abnehmer gegenüber dem Lieferer eine gültige USt-IdNr. eines anderen Mitgliedstaats verwendet hat. Der Belegnachweis läuft über die Gelangensvermutung des § 17a UStDV, für die entweder zwei einander nicht widersprechende Belege unabhängiger Parteien oder eine Gelangensbestätigung plus Beleg vorliegen müssen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Qualifizierte Bestätigungsabfrage beim BZSt, Ergebnis mit Zeitstempel und Abfrage-Identifikation dauerhaft gespeichert | ✅ | internal/vatid/client.go:56-110, :178-234 fragt qualifiziert an — eigene und fremde USt-IdNr., Firmenname, Ort, Postleitzahl, Straße — und liest Ergebniscode, Wortlaut, Abfrage-Identifikationsnummer und die vier Feldergebnisse aus der Antwort (:242-335). internal/domain/vatid.go:83-126 hält sie dauerhaft am Geschäftspartner, dazu die rohe Antwort (GoBD Rz. 130) und die Adresse, die geantwortet hat; internal/service/vatid_service.go:88-148 speichert jede Abfrage, auch die abgelehnte. Die Adresse des Dienstes ist eine Einstellung (:39, :63-74), damit ein Wechsel beim Bundeszentralamt keine Programmänderung ist | – |
+| Prüfung automatisiert vor jeder steuerfreien innergemeinschaftlichen Lieferung | ✅ | internal/service/invoice_service.go:921-937 (`ensureVatIDConfirmed`) hängt die Bestätigung an die beiden Steuerfälle, in denen die Nummer des Empfängers materielle Voraussetzung ist; :281-286 ruft sie hinter der Stammdatenprüfung und vor der Nummernvergabe — die letzte Frage, die noch mit einem Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen. internal/service/vatid_service.go:246-299 (`EnsureConfirmed`) nimmt eine gültige Bestätigung, solange sie nicht älter als neunzig Tage ist (internal/domain/vatid.go:128-150), und fragt sonst neu an | – |
+| Fehlender oder negativer Prüfnachweis blockiert oder erzwingt eine dokumentierte Übersteuerung | ✅ | internal/domain/invoice.go:533-537 blockiert die fehlende USt-IdNr. vor der Nummernvergabe, internal/service/vatid_service.go:292-299 die vom Bundeszentralamt nicht bestätigte, mit dem Ergebnis im Klartext. Bleibt die Auskunft aus, geht die Rechnung nur mit einem festgehaltenen Grund hinaus (:275-291, internal/domain/invoice.go:252-259), der ins Änderungsprotokoll wandert; die fehlende eigene USt-IdNr. lässt sich nicht übersteuern (:262-273), weil der Mangel in den eigenen Stammdaten liegt und in einer Minute behoben ist. Wer übersteuert hat, findet die Rechnung im nächsten Prüflauf wieder (internal/service/check_service.go:1117-1168, internal/domain/check.go:54-57) | – |
+| Belegnachweise je Lieferung zugeordnet, Software bewertet die Vermutung des § 17a UStDV | ✅ | internal/domain/supply_evidence.go:19-70 hängt jeden Nachweis an die Rechnung — Art, Aussteller, Unabhängigkeit, Datum —, internal/service/supply_evidence_service.go:115-164 legt die Datei als eigenen Beleg im Belegspeicher ab (:172-201), weil die versiegelte Rechnung nichts mehr aufnimmt. internal/accounting/supply_evidence.go:26-127 führt die Belegarten mit ihrer Gruppe, :174-268 (`AssessSupplyEvidence`) bewertet die Vermutung: zwei einander nicht widersprechende Belege der Gruppe a von unabhängigen Ausstellern oder je einer aus a und b, im Abholfall zusätzlich die Gelangensbestätigung, daneben der Weg des § 17b UStDV aus Rechnungsdoppel und Gelangensbestätigung. Ein Aussteller zählt nur einmal, und ein Beleg ohne benannten Aussteller stützt die Vermutung nicht | – |
+| Bericht über steuerfreie innergemeinschaftliche Lieferungen ohne vollständigen Belegnachweis | ✅ | internal/service/supply_evidence_service.go:362-439 (`Report`) stellt je Geschäftsjahr jede steuerfreie innergemeinschaftliche Lieferung mit ihrem Nachweisstand zusammen, nennt je Rechnung, was fehlt, und weist auf die Frist hin: geführt sein muss der Nachweis bis zur Voranmeldung des Zeitraums, in dem die Lieferung ausgeführt wurde. internal/service/check_service.go:1063-1107 macht daraus die Prüflaufregel `ic_supply_evidence_missing` (internal/domain/check.go:48-53). Gezeigt wird er auf der Seite „Nebenpflichten" (frontend/src/pages/ObligationsPage.tsx:948, frontend/src/components/Sidebar.tsx:136), neben den Nachweisen, aus denen er entsteht; die Auswertungsseite verweist dorthin (frontend/src/pages/ReportsPage.tsx:413-440) | – |
+
+**Stand.** Welle 5c baut beide Nachweise, von denen die Steuerbefreiung abhängt. Die USt-IdNr. des Abnehmers wird beim Bundeszentralamt qualifiziert bestätigt, bevor die Rechnung eine Nummer bekommt; das Ergebnis bleibt mit Code, Zeitpunkt, Abfrage-Identifikation und roher Antwort am Geschäftspartner stehen, eine Bestätigung gilt neunzig Tage, und eine abgelehnte Nummer verhindert die steuerfreie Ausstellung. Bleibt das Amt stumm, geht die Rechnung mit einem festgehaltenen Grund hinaus und kommt im nächsten Prüflauf zurück, damit die Abfrage nachgeholt wird. Der Belegnachweis steht als eigene Liste an der Rechnung, die Vermutung des § 17a UStDV wird gerechnet und begründet, und der Jahresbericht führt jede Lieferung, deren Nachweis noch nicht vollständig ist. Alle fünf Kriterien sind erfüllt.
+
+### UST-07 Vorsteuerabzug und Vorsteuerberichtigung `MUSS`
+
+**Norm:** §§ 15, 15a UStG, § 44 UStDV
+
+**Bedeutung:** Der Vorsteuerabzug setzt eine ordnungsgemäße Rechnung voraus. Ändern sich die Verhältnisse innerhalb des Berichtigungszeitraums, ist die Vorsteuer anteilig zu korrigieren: fünf Jahre bei beweglichen Wirtschaftsgütern, zehn Jahre bei Grundstücken und Gebäuden.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Vorsteuerabzug an das Vorliegen einer geprüften Rechnung gekoppelt | ✅ | internal/service/posting_input_tax.go:92-179 prüft beim Buchen eines Eingangsbelegs die Voraussetzungen des § 15 Abs. 1 Satz 1 Nr. 1 UStG, und zwar dort, wo tatsächlich Vorsteuer aus einer Rechnung gezogen wird (:187-195): der geprüfte Rechnungsdatensatz mit Fehlern und der ungeprüfte halten die Buchung an, ohne strukturierten Teil treten Name, Anschrift, Steuernummer oder USt-IdNr. des Ausstellers und das Rechnungsdatum an ihre Stelle. :73-89 hält an, internal/service/posting_service.go:295 ruft es; ohne Grund entsteht keine Buchung mit Vorsteuer, und der Grund steht am Beleg und im Protokoll (internal/domain/receipt.go:207-218, internal/service/receipt_service.go:334-356). Beim innergemeinschaftlichen Erwerb und beim Fall des § 13b UStG bleibt die Prüfung aus: dort richtet sich der Abzug nicht nach einer Rechnung nach §§ 14, 14a UStG | – |
+| Gemischt genutzte Wirtschaftsgüter haben einen Vorsteuerschlüssel mit Aufteilungsmaßstab und Begründung | ✅ | internal/service/posting_service.go:38-49 nimmt den abziehbaren Anteil je Position in Promille entgegen, internal/service/posting_input_tax.go:222-245 verlangt zu jedem Anteil unter voller Höhe seinen Maßstab (§ 15 Abs. 4 Satz 2 UStG) und schreibt ihn in den Buchungstext. Der nicht abziehbare Teil geht nach § 9b Abs. 1 EStG in den Aufwand (internal/service/posting_service.go:1282-1315), der Anteil steht an der Zeile und in der Hash-Kanonisierung (internal/domain/journal.go:98-129, internal/accounting/journalhash.go:89-90). Seit Welle 8 gilt der geteilte Abzug auch beim innergemeinschaftlichen Erwerb und beim Fall des § 13b UStG: internal/service/posting_service.go:1449-1480 (`taxLinesForShare`) rechnet die beiden Steuerzeilen aus zwei Bemessungsgrundlagen — geschuldet wird die Steuer in voller Höhe (Kennziffern 46/47 bzw. 89/93), abziehbar nur zum betrieblichen Anteil (67 bzw. 61) —, :580-600 führt die volle Grundlage neben der abziehbaren und zieht von beiden dieselbe Anzahlungsminderung ab. Vorher wies Buchfink diese Fälle ab; der zu 60 % betrieblich genutzte Wagen aus dem EU-Ausland war damit nicht zu buchen | – |
+| Verzeichnis der berichtigungspflichtigen Wirtschaftsgüter mit Anschaffungsdatum, Vorsteuerbetrag, Berichtigungszeitraum, Verwendungsanteil und Fortschreibung | ✅ | internal/domain/input_tax.go:21-118 führt je Wirtschaftsgut Bezeichnung, Konto, Anschaffungstag, Netto, Vorsteuer, ursprünglichen Anteil, Zeitraum und Ende sowie den bestätigten Anteil je Jahr; internal/service/input_tax_service.go:108-184 nimmt auf, internal/service/asset_welle5c.go:605-655 tut es bei jeder Aktivierung von selbst — ab 1.000 € Vorsteuer und bei Grundstücken und Gebäuden unabhängig davon —, und :249-358 (`Year`) schreibt das Verzeichnis Jahr für Jahr fort. Der Zeitraum läuft datumsgenau ab der erstmaligen Verwendung und endet mit dem Kalendermonat nach § 45 UStDV (internal/domain/input_tax.go:170-196), sodass Anfangs- und Schlussjahr nur mit ihren Monaten eingehen (:198-229, internal/service/input_tax_service.go:284) | – |
+| Bagatellgrenzen des § 44 UStDV angewendet | ✅ | internal/accounting/tax_params.go:57-77, :161-172 führt die drei Grenzen datiert und in der Reihenfolge des Gesetzes; internal/accounting/input_tax_correction.go:121-227 (`AssessInputTaxCorrection`) wendet sie in derselben Reihenfolge an: Absatz 1 nimmt das Wirtschaftsgut mit bis zu 1.000 € Vorsteuer ganz aus der Berichtigung, Absatz 2 erlässt das einzelne Jahr, wenn die Verwendung sich um weniger als zehn Prozentpunkte geändert hat und der Betrag bei höchstens 1.000 € liegt, und Absatz 3 verschiebt Beträge bis 6.000 € auf die Steuerberechnung für das Kalenderjahr. Jede Entscheidung nennt ihren Satz im Klartext, und ins Verzeichnis kommt das Wirtschaftsgut trotzdem (internal/service/input_tax_service.go:100-107) | – |
+| Berichtigungsbeträge fließen automatisch in Voranmeldung und Jahreserklärung | ✅ | internal/service/input_tax_service.go:483-618 (`BookYear`) bucht den Jahreslauf mit dem Steuerschlüssel `VST15A` auf die vier Konten des § 15a Abs. 1 UStG (internal/accounting/input_tax_correction.go:22-66) und erst, wenn der Verwendungsanteil jedes Wirtschaftsguts bestätigt ist; internal/accounting/tax_keys.go:53 und internal/accounting/ustva.go:402-408 übertragen ihn in Kennziffer 64, getrennt von der Vorsteuer des Zeitraums, und zwei Schutzschichten verhindern, dass ein Jahr zweimal dort landet. Geführt wird der Lauf vom Abschlussbaustein „Vorsteuerberichtigung § 15a" (internal/domain/closing_step.go:34-37, :95-98). Die Umsatzsteuer-Jahreserklärung erzeugt Buchfink nicht (internal/service/deadline_service.go:364-380); die nach § 44 Abs. 3 UStDV verschobenen Beträge stehen deshalb in der letzten Voranmeldung des Wirtschaftsjahres | – |
+
+**Stand.** Mit Welle 5c richtet sich der Vorsteuerabzug nach der Rechnung, aus der er entsteht, und das Verzeichnis nach § 15a UStG entsteht bei der Aktivierung und schreibt sich Jahr für Jahr fort. Welle 8 bringt den geteilten Abzug dorthin, wo zwei Steuerzeilen aus einer Bemessungsgrundlage entstehen: beim innergemeinschaftlichen Erwerb und beim Fall des § 13b UStG kürzt der Vorsteuerschlüssel nur die abziehbare Zeile, während die geschuldete Steuer voll entsteht. Der zu 60 % betrieblich genutzte Wagen aus dem EU-Ausland ist damit zu buchen, und die Voranmeldung meldet den Erwerb vollständig. Alle fünf Kriterien sind erfüllt.
+
+### UST-08 OSS und IOSS `MUSS*`
+
+**Norm:** §§ 18i, 18j, 18k UStG, § 16 Abs. 1c bis 1e UStG, § 3c UStG
+
+**Bedeutung:** Fernverkäufe und bestimmte B2C-Leistungen an Abnehmer in anderen Mitgliedstaaten laufen über die One-Stop-Shop-Verfahren. OSS meldet vierteljährlich, IOSS monatlich, jeweils binnen eines Monats nach Ablauf des Zeitraums. Die Aufzeichnungen sind zehn Jahre aufzubewahren.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Umsätze je Bestimmungsland mit dem dort gültigen Steuersatz, zeitabhängig versioniert | ⛔ | Fernverkäufe an Endverbraucher sind außerhalb des Funktionsumfangs; internal/domain/tax.go:25-31 kennt nur 0, 7 und 19 Prozent und weist einen fremden Satz ausdrücklich ab | – |
+| Lieferschwelle von 10.000 Euro nach § 3c Abs. 4 UStG überwacht | ⛔ | Kein B2C-Fernverkauf im Modell | – |
+| OSS- und IOSS-Meldungen im geforderten Format erzeugt und übermittelt oder exportiert | ⛔ | Wie oben | – |
+| Aufzeichnungen nach § 22 Abs. 1 S. 4 UStG zehn Jahre aufbewahrt und elektronisch bereitstellbar | ⛔ | Wie oben | – |
+
+**Stand.** Außerhalb des Funktionsumfangs. Der Ausschluss steht seit Welle 6 dort, wo er auffällt: als Hinweis bei den Steuerfällen in den Einstellungen (internal/domain/legalform.go:159-170, frontend/src/pages/SettingsPage.tsx:585-599) und als Abschnitt 1.4 der Verfahrensdokumentation (internal/procdoc/procdoc.go:265-278), sodass ein Prüfer die Lücke als Entscheidung erkennt.
+
+### UST-09 Kleinunternehmerregelung `MUSS*`
+
+**Norm:** §§ 19, 19a UStG, § 34a UStDV
+
+**Bedeutung:** Seit dem 1. Januar 2025 gilt eine Steuerbefreiung bei einem Gesamtumsatz von höchstens 25.000 Euro im Vorjahr und höchstens 100.000 Euro im laufenden Jahr. Wird die Grenze von 100.000 Euro unterjährig überschritten, entfällt die Befreiung ab genau diesem Umsatz. Für Kapitalgesellschaften ist das meist nur in der Gründungsphase relevant, gehört aber in den Funktionsumfang.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Beide Grenzen laufend überwacht, Warnung vor dem auslösenden Umsatz | ⛔ | § 19 UStG wird für den eigenen Mandanten nicht unterstützt (frontend/src/pages/SettingsPage.tsx:391, frontend/src/components/SetupAssistantScreen.tsx:571) | – |
+| Ab dem Überschreiten mit Steuer fakturieren, frühere Rechnungen unverändert | ⛔ | Wie oben | – |
+| Kleinunternehmerrechnung nach § 34a UStDV einschließlich Kleinunternehmer-Identifikationsnummer | ⛔ | internal/domain/contact.go:58 führt den Status nur als Lieferanteneigenschaft und wertet ihn für die E-Rechnungspflicht aus | – |
+| Verzicht nach § 19 Abs. 3 UStG mit fünfjähriger Bindungsfrist hinterlegbar | ⛔ | Nicht vorhanden | – |
+
+**Stand.** Außerhalb des Funktionsumfangs: Buchfink richtet sich an bilanzierende Kapitalgesellschaften mit Regelbesteuerung. Der Kleinunternehmerstatus des Lieferanten wird dagegen ausgewertet, weil er die E-Rechnungspflicht beeinflusst.
+
+---
+
+## G. Bewertung, Anlagen, Fremdwährung
+
+### BEW-01 Bewertungsgrundsätze `MUSS`
+
+**Norm:** § 252 HGB
+
+**Bedeutung:** Die sechs Grundsätze des § 252 Abs. 1 HGB steuern jede Bewertung: Bilanzidentität, Fortführung der Unternehmenstätigkeit, Einzelbewertung, Vorsicht mit Realisations- und Imparitätsprinzip, Periodenabgrenzung, Bewertungsstetigkeit. Abweichungen sind nur in begründeten Ausnahmefällen zulässig und im Anhang anzugeben.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Eröffnungsbilanzwerte entsprechen zwingend den Schlussbilanzwerten des Vorjahres, Abweichung technisch ausgeschlossen | ✅ | internal/service/closing_service.go:603-775 stellt die Vortragsvorschau je Konto aus den Schlusssalden des Vorjahres zusammen und rechnet mit :563-568 die Probe (Summe aller Vortragswerte gleich null); :1002-1015 lehnt einen Vortrag ab, dessen Werte nicht aufgehen, statt die Differenz ins neue Jahr zu übernehmen. Die Probe steht als Kennzahl in frontend/src/pages/ClosingPage.tsx:586-595 | – |
+| Bewertungsmethoden je Bilanzposition hinterlegt, fortgeschrieben, Änderung begründet mit Anhangshinweis | 🟡 | internal/domain/asset.go:414 führt eine Methode je Anlagegut, nicht je Bilanzposition; eine Methodenänderung ist ein gewöhnliches Feldupdate ohne Begründungspflicht. Seit Welle 5 lässt sich die Angabe nach § 284 Abs. 2 Nr. 1 HGB wenigstens als Anhangtext schreiben und wird ins Folgejahr übernommen (internal/domain/notes_text.go:40-43, internal/service/appropriation_service.go:489-523) — geschrieben von Hand, nicht aus den Daten abgeleitet | 2 |
+| Wertansätze je Wirtschaftsgut, Sammelbewertungen gekennzeichnet | 🟡 | internal/domain/asset.go:294-372 bewertet im Anlagevermögen streng einzeln, jede Wertänderung ist eine Bewegung, der Sammelposten ist gekennzeichnet; Sammelbewertungen nach §§ 240 Abs. 3, 4 und 256 HGB betreffen Vorräte und sind außerhalb des Funktionsumfangs | 5 |
+| Bericht über alle im Geschäftsjahr geänderten Bewertungsmethoden | ❌ | Kein solcher Bericht in internal/ oder frontend/src | 2 |
+
+**Stand.** Die Bilanzidentität ist seit dem Saldenvortrag nicht nur darstellbar, sondern erzwungen: ein Vortrag, der nicht aufgeht, wird abgelehnt. Die Einzelbewertung im Anlagevermögen ist nachweisbar. Was bleibt, ist die Stetigkeit: ohne geführte Bewertungsmethoden je Bilanzposition gibt es weder Begründungspflicht noch Änderungsbericht. Welle 2.
+
+### BEW-02 Anschaffungs- und Herstellungskosten `MUSS`
+
+**Norm:** § 255 HGB, § 6 Abs. 1 Nr. 1a EStG
+
+**Bedeutung:** § 255 HGB legt fest, welche Bestandteile in die Anschaffungs- und Herstellungskosten einfließen und wo Wahlrechte bestehen. Steuerlich kommt die Regel zu anschaffungsnahen Herstellungskosten hinzu: Instandsetzungs- und Modernisierungsaufwand innerhalb von drei Jahren nach Anschaffung eines Gebäudes gilt als Herstellungskosten, wenn er 15 Prozent der Gebäudeanschaffungskosten ohne Umsatzsteuer übersteigt.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Anschaffungsnebenkosten und nachträgliche Anschaffungskosten nachträglich zuordenbar, ändern die Abschreibungsbasis ab dem Zuordnungszeitpunkt | ✅ | internal/service/asset_service.go:729, internal/accounting/afa.go:317-327; die Basisänderung wirkt nach R 7.4 Abs. 9 EStR zu Beginn des betroffenen Jahres und rechnet die Vergangenheit nicht neu | – |
+| Anschaffungspreisminderungen reduzieren die Anschaffungskosten und sind je Wirtschaftsgut dokumentiert | ✅ | internal/domain/asset.go:206, internal/service/asset_service.go:792-799; eigene Bewegungsart mit negativem Betrag und Notiz | – |
+| Pflicht- und Wahlbestandteile der Herstellungskosten getrennt erfassbar, Wahlrechtsausübung gespeichert | ❌ | internal/domain/asset.go:404 kennt nur einen Gesamtbetrag; keine Komponentenerfassung, kein Wahlrechtsfeld | 5 |
+| Dreijahreszeitraum und 15-Prozent-Grenze für Gebäude überwacht | ✅ | internal/service/asset_welle5c.go:424-491 (`CheckNearAcquisitionCost`) summiert den Instandsetzungs- und Modernisierungsaufwand der drei Jahre nach der Anschaffung eines Gebäudes und hält ihn gegen 15 % der Anschaffungskosten netto; Grenze und Zeitraum stehen datiert in internal/accounting/tax_params.go:79-86, :170-172, Erweiterungen und übliche Erhaltungsarbeiten bleiben nach § 6 Abs. 1 Nr. 1a Satz 2 EStG außen vor (:456-464). Wird der Rahmen gerissen, aktiviert :687-824 (`CapitalizeNearAcquisitionCost`) den gesammelten Aufwand mit Pflichtbegründung als nachträgliche Herstellungskosten und schreibt die Bemessungsgrundlage fort. Gebucht wird die Umbuchung vom Aufwandskonto auf das Gebäude und nicht die Generalumkehr jeder einzelnen Aufwandsbuchung: die Aufwandsbuchungen bleiben mit ihrem Beleg stehen, und die Umbuchung nennt sie | – |
+| Handels- und steuerrechtliche Wertansätze parallel geführt, wenn sie abweichen | 🟡 | Für den einen Fall, in dem sie in Buchfink abweichen, stehen beide Werte nebeneinander: internal/domain/asset.go:461-481 führt Satz, Verteilung und Begründung der Sonderabschreibung nach § 7g Abs. 5 EStG am Anlagegut, internal/accounting/afa.go:373-396 rechnet steuerliche AfA und steuerlichen Restbuchwert neben den handelsrechtlichen, internal/service/tax_register_service.go:90-96, :187-205 stellt beide Buchwerte gegenüber. Abweichende Anschaffungs- oder Herstellungskosten selbst kennt der Datensatz nicht — dafür bleibt es bei der Einheitsbilanz | – |
+
+**Stand.** Die Fortschreibung der Bemessungsgrundlage ist klar und normbezogen gelöst, und seit Welle 5 steht neben dem handelsrechtlichen Wertansatz der steuerliche, wo § 7g Abs. 5 EStG beide trennt. Welle 5c ergänzt die anschaffungsnahen Herstellungskosten: der Instandsetzungs- und Modernisierungsaufwand der ersten drei Jahre läuft gegen die 15-Prozent-Grenze, und wird sie gerissen, wandert er mit Begründung als nachträgliche Herstellungskosten auf das Gebäude. Offen bleiben die Bestandteile der Herstellungskosten und das Wahlrecht dazu. Welle 5.
+
+### BEW-03 Anlagenbuchhaltung und Anlagenspiegel `MUSS`
+
+**Norm:** § 253 Abs. 3 HGB, § 284 Abs. 3 HGB, § 5b Abs. 1 EStG
+
+**Bedeutung:** Der Anlagenspiegel ist Pflichtbestandteil des Anhangs; kleine Kapitalgesellschaften sind nach § 288 Abs. 1 Nr. 1 HGB davon befreit. Ab dem Wirtschaftsjahr 2028 sind Anlagenspiegel und zugrunde liegendes Anlagenverzeichnis zusätzlich elektronisch mit der E-Bilanz zu übermitteln.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Je Wirtschaftsgut Bezeichnung, Inventarnummer, Datum, Kosten, Nutzungsdauer, Methode, kumulierte Abschreibungen, Buchwert, Abgangsdatum und -art | ✅ | internal/domain/asset.go:379-538; kumulierte Abschreibung und Buchwert werden aus den Bewegungen abgeleitet (internal/service/asset_service.go:2721) | – |
+| Anlagenspiegel automatisch mit allen Spalten und Vorjahresvergleich | 🟡 | internal/service/asset_service.go:2525-2632 erzeugt Anfangsbestand, Zugänge, Abgänge, Umbuchungen, Zuschreibungen, Jahres-AfA und Endbestände je Bewegungskonto; ein vollständiger Vorjahresspiegel fehlt | 2 |
+| Handelsrechtlicher und steuerrechtlicher Anlagenspiegel getrennt ausgebbar | ⛔ | Einheitsbilanz: ein Wertansatz. Die einzige zwingende steuerliche Abweichung (§ 7g Abs. 5 EStG) wird über das Wahlrechtsverzeichnis nach BEW-06 abgebildet | – |
+| Anlagenspiegel in der Struktur der E-Bilanz-Taxonomie exportierbar | 🟡 | internal/ebilanz/ebilanz.go:112-176 schreibt den Block in die Instanz, aber mit selbst gewählten Elementnamen; der Code verweist selbst darauf, dass die Form gegen die amtliche Taxonomie zu prüfen ist | 2 |
+| Anlagen im Bau und geleistete Anzahlungen als eigene Position führbar und umbuchbar | ✅ | internal/accounting/asset_accounts.go:44-48, internal/service/asset_service.go:1631-1730; Konten im Bau schreiben nicht ab, `Transfer` erzeugt paarweise Bewegungen | – |
+
+**Stand.** Der handelsrechtliche Teil ist praktisch vollständig und der stärkste Teil des Moduls. Offen sind Vorjahresspalte und die amtlichen Elementnamen der Taxonomie. Welle 2.
+
+### BEW-04 Abschreibungen `MUSS`
+
+**Norm:** § 253 Abs. 3 HGB, § 7 EStG, AfA-Tabellen der Finanzverwaltung
+
+**Bedeutung:** Handelsrechtlich richtet sich die planmäßige Abschreibung nach der betrieblichen Nutzungsdauer. Steuerlich sind die amtlichen AfA-Tabellen der Maßstab, die AfA-Tabelle AV geht auf das BMF-Schreiben vom 15.12.2000 zurück und wurde nie durch eine Gesamtfassung ersetzt. Die zeitlich befristeten Sonderregeln sind der eigentliche Aufwandstreiber in der Software.
+
+| Regel | Parameter | Norm |
+|---|---|---|
+| Lineare AfA | Anschaffungskosten geteilt durch Nutzungsdauer | § 7 Abs. 1 EStG |
+| Unterjährige Anschaffung | ein Zwölftel je vollem Monat vor dem Anschaffungsmonat | § 7 Abs. 1 S. 4 EStG |
+| Degressive AfA, bewegliche Wirtschaftsgüter | Anschaffung 01.07.2025 bis 31.12.2027, höchstens das Dreifache der linearen AfA, höchstens 30 Prozent | § 7 Abs. 2 EStG |
+| Elektrofahrzeuge | Anschaffung 07/2025 bis 12/2027, 75 Prozent im Anschaffungsjahr, danach fallende Staffel | § 7 Abs. 2a EStG |
+| Gebäude, betrieblich, Bauantrag nach 31.03.1985 | 3 Prozent linear | § 7 Abs. 4 EStG |
+| Wohngebäude, Fertigstellung nach 31.12.2022 | 3 Prozent linear | § 7 Abs. 4 EStG |
+| Wohngebäude, degressiv | 5 Prozent vom Buchwert, Baubeginn 01.10.2023 bis 30.09.2029 | § 7 Abs. 5a EStG |
+| Computerhardware und Software | Nutzungsdauer ein Jahr zulässig | BMF-Schreiben vom 22.02.2022 |
+| Sonderabschreibung | bis 40 Prozent, verteilbar auf fünf Jahre, Gewinngrenze 200.000 Euro | § 7g Abs. 5 EStG |
+| Investitionsabzugsbetrag | bis 50 Prozent der voraussichtlichen Kosten, Gewinngrenze 200.000 Euro | § 7g Abs. 1 EStG |
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Abschreibungsmethoden je Wirtschaftsgut wählbar | 🟡 | internal/domain/asset.go:98-140 kennt linear, degressiv, Sammelposten, Sofortabzug und seit Welle 5c die Staffel des § 7 Abs. 2a EStG für Elektrofahrzeuge sowie den festen Gebäudesatz des § 7 Abs. 4 EStG; internal/service/asset_welle5c.go:28-74 hält jede Methode an ihr Konto — degressiv nicht auf ein unbewegliches Wirtschaftsgut, der Gebäudesatz nur auf ein Gebäude, die Staffel nur auf ein Fahrzeug im Fenster der Vorschrift. Außerplanmäßige Abschreibung und Sonderabschreibung sind eigene Wege. Die Leistungsabschreibung nach § 7 Abs. 1 S. 6 EStG ist außerhalb des Funktionsumfangs | – |
+| Zeitlich befristete Regeln als datierte Regelsätze, Gesetzesänderung ohne Codeänderung | 🟡 | Die Sätze stehen seit Welle 5c in einer Ressource und nicht mehr als Go-Literale: internal/accounting/afa_rules.json führt Wertgrenzen, die Fenster der degressiven Abschreibung, die Staffel des § 7 Abs. 2a EStG (75, dann 10, 5, 5, 3 und 2 Prozent für Anschaffungen vom 01.07.2025 bis 31.12.2027) und die festen Gebäudesätze des § 7 Abs. 4 EStG, jeder Eintrag mit Geltungszeitraum und Fundstelle; internal/accounting/afa_rules.go:87-153 lädt sie beim Start und gibt sie unverändert an Oberfläche und Tests weiter, internal/accounting/afa.go:12-22 verweist für die Werte dorthin. Es fehlt die degressive Abschreibung für Wohngebäude nach § 7 Abs. 5a EStG. Der Investitionsabzugsbetrag nach § 7g Abs. 1 EStG wird außerbilanziell abgezogen und steht in der Ressource als benannte Auslassung. Die Datei ist eingebettet: ein neuer Satz reist mit der nächsten Auslieferung | Politur |
+| Wechsel von degressiver zu linearer Abschreibung möglich und im Anlagenstammsatz dokumentiert | 🟡 | internal/accounting/afa.go:590-612 wechselt nach § 7 Abs. 3 EStG automatisch im optimalen Jahr und vermerkt es in der Planzeile, nicht im Stammsatz; wähl- oder verschiebbar ist er weiterhin nicht | Politur |
+| Handels- und Steuerbilanz mit unterschiedlichen Nutzungsdauern und Methoden, Differenz auswertbar und in den latenten Steuern | 🟡 | Die Differenz ist seit Welle 5 auswertbar: internal/service/asset_service.go:1052-1066, :1101-1108 führt die Sonderabschreibung als steuerlichen Wert an der Bewegung, statt sie handelsrechtlich zu buchen, internal/accounting/afa.go:373-396 (`TaxAmount`, `TaxClosingBookValue`, `TaxDifference`) rechnet die steuerliche Reihe mit, internal/service/tax_register_service.go:264-352 leitet daraus über. Einheitsbilanz bleibt es trotzdem: internal/domain/asset.go:414-419 führt genau ein Methoden- und ein Nutzungsdauerfeld, und latente Steuern entfallen für die Zielgruppe (§ 274a Nr. 4 HGB, siehe BEW-11) | – |
+| Außerplanmäßige Abschreibungen und Zuschreibungen nach § 253 Abs. 5 HGB mit Begründung, Wertaufholungsgebot durch Bericht unterstützt | ✅ | internal/service/asset_service.go:1269-1273 erzwingt die Begründung bei der Abschreibung, :1353-1364 seit Welle 5c auch bei der Zuschreibung — ohne den weggefallenen Grund ist sie von einer willkürlichen Erhöhung des Buchwerts nicht zu unterscheiden —, und :1374-1383 deckelt sie auf die fortgeführten Anschaffungskosten. Den Bericht liefert internal/service/asset_welle5c.go:282-362 (`WriteUpReport`): jedes Anlagegut mit einer außerplanmäßigen Abschreibung, deren Grund weggefallen sein könnte, mit dem höchstmöglichen Zuschreibungsbetrag; :364-394 hält die Bestätigung fest, dass der Grund fortbesteht, und der Abschlussbaustein „Wertaufholung prüfen" stellt die Frage jedes Jahr (internal/domain/closing_step.go:22-25, :81-83) | – |
+| AfA-Tabellenwerte als überschreibbare Vorschlagswerte mit Begründungsfeld | 🟡 | internal/accounting/asset_accounts.go:53-72 führt Vorschlagswert, Quelle und das Kennzeichen, dass eine Abweichung zu begründen ist; :83-166 belegt neun der dreiundvierzig Konten, darunter EDV-Software und die sonstige Betriebs- und Geschäftsausstattung mit den zwölf Monaten des BMF-Schreibens vom 22.02.2022. Das Begründungsfeld steht am Anlagegut (internal/domain/asset.go:513-521), und internal/service/asset_welle5c.go:531-575 verlangt es, sobald die Nutzungsdauer vom Vorschlag dieses Schreibens abweicht — bei einem bestehenden Anlagegut nur, wenn die Nutzungsdauer sich ändert. Die übrigen Konten haben weiterhin keinen Vorschlag | Politur |
+
+**Stand.** Die gebaute Mechanik ist von hoher Qualität, und Welle 5c hebt ihren Umfang auf die Tabelle: die Sätze liegen als datierte Ressource neben dem Code, die Staffel des § 7 Abs. 2a EStG und die festen Gebäudesätze des § 7 Abs. 4 EStG rechnen mit, die zwölf Monate für Computerhardware und Software stehen als Vorschlag mit Begründungspflicht bei der Abweichung, und die degressive Abschreibung ist für unbewegliche Wirtschaftsgüter gesperrt — ein Gebäude auf 0240 lässt sich nicht mehr mit 30 Prozent abschreiben. Die Zuschreibung verlangt ihren Grund, und der Wertaufholungsbericht führt jedes Jahr die Anlagegüter vor, deren außerplanmäßige Abschreibung überholt sein könnte. Die Sonderabschreibung des § 7g Abs. 5 EStG läuft seit Welle 5 durch das Verzeichnis und die Überleitung statt durch das Journal. Offen bleiben die degressive Abschreibung für Wohngebäude nach § 7 Abs. 5a EStG, der wähl- und verschiebbare Übergang von der degressiven auf die lineare Abschreibung und die Tabellenwerte für die übrigen Anlagekonten. Alle drei sind Politur.
+
+### BEW-05 Geringwertige Wirtschaftsgüter und Sammelposten `MUSS`
+
+**Norm:** § 6 Abs. 2, Abs. 2a EStG, R 6.13 EStR
+
+**Bedeutung:** Die Wertgrenzen sind seit 2018 unverändert und wurden vom Wachstumschancengesetz entgegen dem Regierungsentwurf nicht angehoben. Sofortabschreibung bis 800 Euro netto, Aufzeichnungspflicht ab 250 Euro netto, Sammelposten für Wirtschaftsgüter von mehr als 250 bis 1.000 Euro netto mit gleichmäßiger Auflösung über fünf Wirtschaftsjahre.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Wertklasse aus dem Nettobetrag erkannt, Vorschlag Sofortabschreibung, Sammelposten oder Aktivierung | ✅ | internal/accounting/afa.go:229-292; `ClassifyAcquisition` liefert Empfehlung, zulässige Alternativen und Begründung mit Paragraf und fragt die selbständige Nutzbarkeit ab | – |
+| Alle Wertgrenzen und die Auflösungsdauer parametrisierbar und zeitabhängig versioniert | 🟡 | Die Sätze ab 2010 und ab 2018 einschließlich der Auflösungsdauer stehen seit Welle 5c in internal/accounting/afa_rules.json und werden über internal/accounting/afa_rules.go:87-112 geladen; internal/accounting/afa.go:12-22 verweist für die Werte dorthin, und derselbe Test liest die Datei. Parametrisierbar sind sie ausdrücklich nicht: die Ressource ist eingebettet und gilt als nicht editierbares Stammdatum | Politur |
+| Laufendes Verzeichnis für Wirtschaftsgüter über 250 Euro netto mit Datum und Kosten | ✅ | internal/service/asset_service.go:479; auch der Sofortabzug bleibt in der Kartei stehen, das erfüllt § 6 Abs. 2 S. 4 EStG | – |
+| Wahlrecht je Wirtschaftsjahr einheitlich ausgeübt, Bericht über Abweichungen | ✅ | internal/service/asset_welle5c.go:181-226 weist beim Speichern eines Zugangs zwischen Aufzeichnungs- und Sammelpostengrenze die zweite Wahl zurück, sobald im selben Wirtschaftsjahr die andere ausgeübt wurde, und nennt § 6 Abs. 2a Satz 5 EStG samt der bereits so behandelten Zugänge; :126-180 (`PoolConsistency`) stellt den Bericht je Wirtschaftsjahr zusammen — beide Gruppen mit ihren Zugängen und der Aussage, ob das Wahlrecht einheitlich ausgeübt ist | – |
+| Abgang aus dem Sammelposten mindert diesen nicht | ✅ | internal/service/asset_service.go:2209-2213 lehnt den Abgang unter Verweis auf § 6 Abs. 2a S. 4 EStG ab, die Auflösung läuft weiter | – |
+
+**Stand.** Nahe an erfüllt. Welle 5c schließt die Einheitlichkeit des Wahlrechts: der zweite Weg im selben Wirtschaftsjahr wird beim Speichern abgewiesen, und der Bericht zeigt je Jahr, welche Zugänge in welcher Gruppe stehen. Offen bleibt die vom Kriterium verlangte Parametrisierbarkeit der Grenzen — sie stehen in einer datierten Ressource, editierbar sind sie nicht. Politur.
+
+### BEW-06 Verzeichnis steuerlicher Wahlrechte `MUSS`
+
+**Norm:** § 5 Abs. 1 S. 2 und 3 EStG, § 60 EStDV
+
+**Bedeutung:** Wer ein steuerliches Wahlrecht abweichend vom handelsrechtlichen Wertansatz ausübt, muss die betroffenen Wirtschaftsgüter in ein besonderes, laufend zu führendes Verzeichnis aufnehmen. Ohne das Verzeichnis ist die Wahlrechtsausübung unwirksam.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Verzeichnis je Wirtschaftsgut mit Tag, Kosten, konkreter Vorschrift und vorgenommenen Abschreibungen | ✅ | internal/service/tax_register_service.go:74-96 hält je Wirtschaftsgut Inventarnummer, Tag der Anschaffung, Anschaffungskosten, die Vorschrift („§ 7g Abs. 5 EStG", :136) und die Begründung der Inanspruchnahme, :152-186 je Geschäftsjahr die handelsrechtliche und die steuerliche Abschreibung mit ihrer Differenz; internal/domain/asset.go:461-481 ist die Quelle am Anlagegut | – |
+| Eintrag entsteht automatisch, sobald handels- und steuerrechtlicher Wertansatz abweichen | ✅ | internal/service/tax_register_service.go:128-138 nimmt jedes Anlagegut auf, an dem ein Sonderabschreibungssatz steht — das ist genau der Fall, in dem die Wertansätze auseinanderfallen; internal/service/asset_service.go:1052-1066, :1101-1108 führt die Sonderabschreibung seit Welle 5 als steuerlichen Wert an der Bewegung statt als handelsrechtliche Buchung, so dass der Eintrag ohne eigenen Erfassungsschritt entsteht | – |
+| Laufend fortgeschrieben, zu jedem Stichtag als Bericht und als Datei ausgebbar | ✅ | internal/service/tax_register_service.go:111-211 stellt das Verzeichnis bis zum Ende jedes Geschäftsjahres zusammen (Bewegungen nach dem Jahr bleiben außen vor, :154-157), :227-253 (`RegisterCSV`) gibt es als CSV je Wirtschaftsgut und Jahr aus; frontend/src/pages/ClosingModulesPage.tsx:3235-3260 zeigt es und lädt die Datei herunter (:3183-3195), internal/wailsbridge/closing_steps_service.go:443-465 ist der Weg dorthin | – |
+| Gleiche Aufbewahrungsfrist wie die Bücher, Übermittlung mit der E-Bilanz | 🟡 | Die Wirkung des Verzeichnisses geht mit: internal/ebilanz/ebilanz.go:392-429 (`reconciliationFacts`) schreibt die Überleitung je Position mit handels- und steuerrechtlichem Wert in die Instanz, internal/service/ebilanz_service.go:81-87 hängt sie ein. Zwei Vorbehalte: die Elementnamen des Überleitungsmoduls stehen in internal/ebilanz/taxonomy_6.9.json:469-478 mit `verified: false` und sind vor der Übermittlung gegen die amtliche Taxonomie abzugleichen (JAB-05), und die Aufbewahrung folgt seit Welle 6 der Klasse der Bücher — zehn Jahre für Abschlüsse, Verzeichnisse und Überleitung (internal/accounting/retention.go:176-182) | Politur |
+
+**Stand.** Mit Welle 5 geschlossen, und der Weg dahin war die Umkehrung einer falschen Buchung: die Sonderabschreibung nach § 7g Abs. 5 EStG wird als steuerlicher Wert am Anlagegut geführt, nicht mehr handelsrechtlich gebucht — seit dem BilMoG ist das unzulässig. Daraus entsteht das Verzeichnis von selbst, mit Vorschrift, Kosten, Jahren und Differenz, als Ansicht und als CSV. Offen bleibt, was nicht am Verzeichnis hängt: der Abgleich der Elementnamen des Überleitungsmoduls gegen die amtliche Taxonomie vor der Übermittlung (JAB-05). Die Aufbewahrungsfrist hat Welle 6 nachgeholt; der Abgleich ist Politur.
+
+### BEW-07 Rückstellungen und Abzinsung `MUSS`
+
+**Norm:** §§ 249, 253 Abs. 1 und 2 HGB, § 6 Abs. 1 Nr. 3a EStG, Rückstellungsabzinsungsverordnung
+
+**Bedeutung:** Rückstellungen sind mit dem nach vernünftiger kaufmännischer Beurteilung notwendigen Erfüllungsbetrag anzusetzen. Bei einer Restlaufzeit über einem Jahr ist abzuzinsen: Altersversorgungsverpflichtungen mit dem Zehnjahresdurchschnitt, sonstige Rückstellungen mit dem Siebenjahresdurchschnitt des Marktzinssatzes. Die Deutsche Bundesbank veröffentlicht die Sätze monatlich. Steuerlich gilt abweichend ein fester Satz von 5,5 Prozent.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Rückstellungsarten nach § 249 HGB abbildbar | ✅ | internal/domain/provision.go:16-63 führt die zehn Arten des § 249 HGB als Aufzählung — ungewisse Verbindlichkeit, Drohverlust, unterlassene Instandhaltung, Kulanzgewährleistung, Steuern, Abschluss- und Aufbewahrungskosten, Personal, Pensionen —, internal/accounting/provision.go:20-43 (`ProvisionAccounts`) schlägt je Art Bilanz- und Aufwandskonto vor; internal/service/provision_service.go:370-456 (`BookFormation`, `BookIncrease`, `bookProvisionMovement`) bildet und bucht sie, frontend/src/pages/ClosingModulesPage.tsx:1133-1373 ist die Maske dazu | – |
+| Je Rückstellung Erfüllungsbetrag, erwartete Restlaufzeit, Abzinsungssatz und abgezinster Wert | ✅ | internal/domain/provision.go:193-210 führt Erfüllungsbetrag (§ 253 Abs. 1 Satz 2 HGB), erwarteten Erfüllungszeitpunkt, abgezinsten Wert und den verwendeten Satz am Datensatz — der Satz wird mitgeschrieben, damit die Rechnung nachvollziehbar bleibt, wenn die Zinstabelle fortgeschrieben wird; internal/accounting/provision.go:56-138 rechnet Restlaufzeit, Abzinsungspflicht und Barwert, internal/service/provision_service.go:262-301 setzt beides zusammen und zeigt es in der Vorschau (frontend/src/pages/ClosingModulesPage.tsx:1333-1354) | – |
+| Abzinsungssätze der Bundesbank pflegbar, mit Monat und Restlaufzeit als Schlüssel | ✅ | internal/domain/provision.go:300-337 führt die Sätze als eigene Tabelle mit Monat, Restlaufzeit und Mittelungsdauer als Schlüssel (sieben Jahre nach § 253 Abs. 2 Satz 1 HGB, zehn für Pensionen nach Satz 2); internal/service/provision_service.go:850-933 pflegt sie einzeln oder als CSV der Bundesbank-Veröffentlichung, :961-978 sucht den Satz des Stichtagsmonats und nennt es, wenn ein älterer genommen wurde. Fehlt der Satz, wird nicht abgezinst und ein Befund erzeugt (:766-829), der im Prüflauf steht (internal/service/check_service.go:107-126). Gepflegt wird in frontend/src/pages/ClosingModulesPage.tsx:1599-1859 | – |
+| Handels- und steuerrechtlicher Wertansatz parallel geführt | ✅ | Gebucht wird einer, ausgewiesen werden beide: internal/service/provision_service.go:192-195, :296-300 rechnet zu jeder Rückstellung den steuerlichen Wert mit 5,5 % (§ 6 Abs. 1 Nr. 3a Buchst. e EStG) neben dem handelsrechtlichen Barwert und stellt ihn in die Vorschau (frontend/src/pages/ClosingModulesPage.tsx:1347-1352); internal/service/tax_register_service.go:305-352, :354-392 führt beide Bestände zum Stichtag in der Überleitung zusammen, mit dem Ansatzverbot für Drohverluste (§ 5 Abs. 4a EStG) als eigener Zeile. Für Pensionsrückstellungen unterbleibt der Vergleich ausdrücklich: § 6a EStG verlangt eine Gutachtenrechnung, keine Abzinsung mit 5,5 % (:360-367) | – |
+| Auflösung nur bei Wegfall des Grundes, mit Begründung protokolliert | ✅ | internal/service/provision_service.go:477-482 weist eine Auflösung ohne Grund ab und nennt § 249 Abs. 2 Satz 2 HGB, :496-500 lehnt einen Betrag über dem Bestand ab, statt ihn stillschweigend zu kappen; der Grund steht an der Bewegung (internal/domain/provision.go:174-178) und geht in das Änderungsprotokoll und den Eigenbeleg der Buchung (internal/service/provision_service.go:622-661) | – |
+
+**Stand.** Mit Welle 5 vollständig gebaut, und die Abzinsung ist der Teil, an dem sich die Haltung zeigt: die Sätze der Deutschen Bundesbank stehen in einer pflegbaren Tabelle und nicht im Code, weil ein mitgeliefertes Programm einen Monat nach der Auslieferung falsch rechnete — und fehlt der Satz, erzeugt Buchfink einen Befund für den Prüflauf, statt abzuzinsen oder zu raten. Der steuerliche Wert mit 5,5 % läuft neben dem handelsrechtlichen mit und geht in die Überleitung; gebucht wird er nicht. Alle fünf Kriterien sind erfüllt.
+
+### BEW-08 Rechnungsabgrenzung `MUSS`
+
+**Norm:** § 250 HGB, § 252 Abs. 1 Nr. 5 HGB, § 5 Abs. 5 EStG
+
+**Bedeutung:** Ausgaben und Einnahmen vor dem Abschlussstichtag, die Aufwand oder Ertrag für eine bestimmte Zeit danach darstellen, sind abzugrenzen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Aktive und passive Rechnungsabgrenzungsposten als eigene Bilanzpositionen führbar | ✅ | internal/domain/accrual.go:9-64 unterscheidet aktiven Posten, passiven Posten und Disagio und legt jeder Art ihr Bilanzkonto zu (1900 bzw. 3900, internal/domain/skr04_accounts.go:19-21); internal/domain/accrual.go:151-184 führt den Posten mit Bestand und Auflösungen, internal/service/accrual_service.go:690-736 weist ihn zum Stichtag getrennt nach aktiv und passiv aus | – |
+| Abgrenzungen mit Startdatum, Enddatum und Verteilungsschlüssel, automatisch periodisch aufgelöst | ✅ | internal/domain/accrual.go:167-177 führt Beginn, Ende, Stichtag, Konto und Verfahren, :66-128 die beiden Verteilungsschlüssel (Zwölftel oder taggenau) und den Auflösungstakt; internal/accounting/accrual.go:97-141 rechnet den abgegrenzten Anteil, :157-218 den gespeicherten Auflösungsplan. Vorgeschlagen werden die Posten aus den Buchungen, deren Leistung über den Stichtag reicht (internal/service/accrual_service.go:157-267, über `ServiceDateTo`, internal/domain/journal.go:117-118), aufgelöst werden sie beim Saldenvortrag (:561-625, internal/service/closing_service.go:1157-1165) | – |
+| Bericht je Stichtag über den Bestand aller Abgrenzungen mit Restlaufzeit | ✅ | internal/service/accrual_service.go:664-736 (`Report`) stellt zu jedem Stichtag jeden gebildeten und noch nicht aufgelösten Posten mit gebildetem Betrag, bereits aufgelöstem Teil, Restbetrag und Restlaufzeit in Kalendertagen zusammen, getrennt nach aktiv und passiv; ein Posten, dessen Bildung storniert wurde, fällt heraus (:697-703). frontend/src/pages/ClosingModulesPage.tsx:1022-1070 zeigt ihn | – |
+| Disagio nach § 250 Abs. 3 HGB als eigener Fall abbildbar | ✅ | internal/domain/accrual.go:21-27 führt das Damnum als eigene Art und nicht als Spielart des aktiven Postens — die Verteilung richtet sich nach der Darlehenslaufzeit, und der Aufwand ist Zinsaufwand; internal/service/accrual_service.go:462-481 (`disagioAccount`) zwingt die Auflösung auf das Zinsaufwandskonto, internal/service/accrual_service.go:444-461 baut den Buchungssatz für Bildung und Auflösung | – |
+
+**Stand.** Mit Welle 5 gebaut, und die Vorarbeit hat sich ausgezahlt: der Vorschlag entsteht aus dem Leistungsende, das jede Buchung ohnehin hat, und ist damit keine Schätzung. Der Auflösungsplan wird bei der Bildung gespeichert und nicht bei jedem Aufruf neu gerechnet — was gebucht ist, bleibt dasselbe, auch wenn jemand später das Verteilungsverfahren umstellt —, und der Saldenvortrag bucht ihn im Folgejahr ab. Alle vier Kriterien sind erfüllt.
+
+### BEW-09 Inventar und Vorratsbewertung `MUSS`
+
+**Norm:** §§ 240, 241, 256 HGB
+
+**Bedeutung:** Zum Schluss jedes Geschäftsjahres ist ein Inventar aufzustellen. Die Vereinfachungen des § 241 HGB (Stichprobeninventur, permanente Inventur, verlegte Inventur) sind zulässig, wenn das Verfahren den GoB entspricht. Als Verbrauchsfolgeverfahren nennt § 256 HGB ausschließlich Lifo und Fifo.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Inventar zum Stichtag als Bericht, mit dem Bilanzansatz abgestimmt, Differenzen begründungspflichtig | ⛔ | Kein Lager und kein Vorratsvermögen: das Inventar selbst entsteht außerhalb von Buchfink, ein eigenes führt es nur für das Anlagevermögen. Die Ersatzmaßnahme steht seit Welle 5 und ist der Abgleich mit dem Bilanzansatz: internal/service/closing_booking_service.go:85-153 stellt je Vorratskonto Buchwert und erfassten Inventurwert gegenüber, internal/domain/inventory.go:20-69 hält Wert, Tag und Verfahren der Aufnahme (§ 241 HGB) und verlangt die Inventurliste als Beleg, internal/service/closing_booking_service.go:263-404 prüft, dass es sie gibt und dass sie nicht schon zu einer anderen Aufnahme gehört, und bucht die Differenz als Bestandsveränderung. Bewertet wird nicht — der erfasste Wert ist der bewertete | – |
+| Festwertverfahren nach § 240 Abs. 3 HGB mit Erinnerung an die Bestandsaufnahme im Dreijahresrhythmus | ⛔ | Kein Vorratsmodul | – |
+| Gruppenbewertung mit gewogenem Durchschnitt nach § 240 Abs. 4 HGB | ⛔ | Kein Vorratsmodul | – |
+| Lifo und Fifo je Bewertungsgruppe wählbar und stetig fortgeführt | ⛔ | Kein Vorratsmodul | – |
+| Strenges Niederstwertprinzip des § 253 Abs. 4 HGB zum Stichtag angewendet und dokumentiert | ⛔ | Betrifft das Umlaufvermögen; für Anlagegüter ist das gemilderte Prinzip umgesetzt (internal/service/asset_service.go:435) | – |
+| Verlegte Inventur mit Aufnahmefenster, Fortschreibung und Rückrechnung | ⛔ | Kein Vorratsmodul | – |
+
+**Stand.** Außerhalb des Funktionsumfangs. Für einen Mandanten mit Warenbestand ist das eine harte Grenze, und sie gehört sichtbar in den Einrichtungsweg und in die Verfahrensdokumentation, damit sie nicht erst beim Abschluss auffällt. Was Welle 5 ergänzt, ist der Anschluss an die Bilanz: der Inventurwert je Vorratskonto wird mit Aufnahmeverfahren und Inventurliste erfasst und als Bestandsveränderung gebucht. Die Aufnahme selbst und ihre Bewertung bleiben draußen.
+
+### BEW-10 Fremdwährung `MUSS*`
+
+**Norm:** § 244 HGB, § 256a HGB
+
+**Bedeutung:** Auf fremde Währung lautende Vermögensgegenstände und Verbindlichkeiten sind zum Devisenkassamittelkurs am Abschlussstichtag umzurechnen. Bei einer Restlaufzeit von einem Jahr oder weniger gelten Höchstwert- und Imparitätsprinzip nicht, unrealisierte Kursgewinne werden also erfolgswirksam erfasst.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Je Fremdwährungsbuchung Originalbetrag, Währung, Kurs, Kursquelle und Kursdatum, Eurobetrag daraus berechnet | ✅ | internal/domain/journal.go:112-125 führt seit Welle 5c den Fremdbetrag je Zeile, :197-200 Währung, Kurs, Quelle und Kurstag im Buchungskopf, und beides geht in die Hash-Kanonisierung ein (internal/accounting/journalhash.go:57, :96-97). Erfasst wird der Betrag, den die Rechnung nennt; den Eurobetrag rechnet internal/service/posting_currency.go:40-115 daraus — je Zeile gerundet, der Rest auf der letzten, damit die Summe der Buchung dem Rechnungsbetrag entspricht, und die Endsumme des Belegs ist die Kontrollsumme dazu (:116-157) | – |
+| Kurse aus nachvollziehbarer Quelle bezogen und historisiert gespeichert | ✅ | internal/currency/ecb.go:63-126 holt den EZB-Referenzkurs des Belegtages und gibt bei jedem Fehler einen Fehler zurück — der stille Rückfall auf 1,0 ist fort, und die Adresse des Dienstes ist eine Einstellung (:24-29). internal/service/currency_service.go:87-149 (`RateAt`) nimmt zuerst den gespeicherten Kurs, schreibt jeden geholten mit Quelle und Tag in die Historie (internal/domain/currency.go:25-45), legt den Kurs zusätzlich unter dem Tag seiner Feststellung ab und weist einen älteren ausdrücklich als Näherung aus. Ohne Kurs kommt die Aufforderung, ihn mit seiner Quelle einzutragen (:151-174) | – |
+| Stichtagsbewertung aller Fremdwährungsposten, Kursdifferenzen getrennt nach realisiert und unrealisiert | ✅ | internal/service/currency_valuation.go:51-201 bewertet jeden offenen Posten in Fremdwährung zum Stichtagskurs, :466-534 die Bankkonten in Fremdwährung dazu, und internal/service/asset_service.go:2101-2191 die Finanzanlagen wie bisher. Gebucht wird auf 6880 und 4840 (internal/accounting/asset_accounts.go:525-526) und nur der unrealisierte Teil; die realisierte Kursdifferenz entsteht beim Zahlungsausgleich und bleibt davon getrennt. Die Bewertung gilt dem Stichtag und nicht dem Posten: :277-357 (`ReverseInto`) löst sie mit dem Saldenvortrag am ersten Tag des Folgejahres wieder auf, und ein zweiter Lauf holt eine fehlende Auflösung nach. Geführt wird sie vom Abschlussbaustein „Fremdwährungsbewertung" (internal/domain/closing_step.go:27-29, :84-87) | – |
+| Sonderregel für Restlaufzeiten bis ein Jahr automatisch über die Fälligkeit | ✅ | internal/service/currency_valuation.go:397-412 (`currencyShortTerm`) misst die Restlaufzeit am Zahlungsziel des offenen Postens und liest einen Posten ohne Zahlungsziel als sofort fällig; :141-155 erfasst den Kursverlust in jedem Fall (§ 252 Abs. 1 Nr. 4 HGB), den Kursgewinn erfolgswirksam nur bei einer Restlaufzeit bis zu einem Jahr (§ 256a Satz 2 HGB) und lässt ihn sonst stehen. Jede Zeile hat den Satz, der sie begründet; an der Finanzanlage gilt dieselbe Regel wie bisher (internal/service/asset_service.go:2026-2040) | – |
+| Umrechnungskurs nach § 16 Abs. 6 UStG je Beleg neben dem handelsrechtlichen Kurs | ✅ | internal/domain/currency.go:77-91 führt die amtlichen Durchschnittskurse als eigene Tabelle je Monat und Währung, internal/service/currency_service.go:191-314 pflegt sie einzeln oder als CSV; internal/service/posting_currency.go:69-76 rechnet die Bemessungsgrundlage der Steuerzeile mit dem Durchschnittskurs, während der Aufwand am EZB-Kurs des Belegtages hängt, und :158-217 bucht die Differenz zwischen beiden als Kursaufwand oder Kursertrag auf 6880 und 4840. Fehlt der Monatskurs, bleibt es nach § 16 Abs. 6 Satz 1 UStG beim Tageskurs, und es entsteht keine Differenz | – |
+
+**Stand.** Welle 5c holt die Fremdwährung in das laufende Geschäft. Der Anwender erfasst die Beträge, die auf der Rechnung stehen, Buchfink holt den EZB-Referenzkurs des Belegtages, speichert ihn mit Quelle und Tag in der Historie und rechnet den Eurobetrag daraus; ohne Kurs entsteht keine Buchung, und geraten wird keiner mehr. Für die Umsatzsteuer läuft der amtliche Monatsdurchschnitt daneben, und die Differenz zwischen beiden Kursen steht als Kursaufwand oder Kursertrag auf 6880 und 4840. Zum Stichtag werden offene Posten und Fremdwährungskonten bewertet — der Verlust in jedem Fall, der Gewinn nach der Restlaufzeit —, und der Saldenvortrag löst die Bewertung am ersten Tag des Folgejahres wieder auf. Alle fünf Kriterien sind erfüllt.
+
+### BEW-11 Latente Steuern `MUSS*`
+
+**Norm:** § 274 HGB, § 274a Nr. 4 HGB
+
+**Bedeutung:** Bei Differenzen zwischen handels- und steuerrechtlichen Wertansätzen besteht Passivierungspflicht für Steuermehrbelastungen und ein Aktivierungswahlrecht für Steuerminderbelastungen. Kleine Kapitalgesellschaften sind nach § 274a Nr. 4 HGB befreit. Differenzen aus dem Mindeststeuergesetz bleiben außer Ansatz.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Differenz je Bilanzposition zwischen Handels- und Steuerbilanz, eingeordnet als temporär oder permanent | ⛔ | Buchfink führt eine Einheitsbilanz und richtet sich an kleine Kapitalgesellschaften, die nach § 274a Nr. 4 HGB befreit sind | – |
+| Unternehmensindividueller Steuersatz pflegbar, keine Abzinsung | ⛔ | Wie oben | – |
+| Verlustvorträge nur bis zur Fünfjahresprognose, Prognose erfassbar und dokumentiert | ⛔ | Wie oben | – |
+| Befreiung kleiner Kapitalgesellschaften über die Größenklasse steuerbar | ❌ | Eine Größenklasse nach §§ 267, 267a HGB wird nirgends geführt; sie kommt in Welle 2 und warnt ab mittelgroß (siehe JAB-02) | 2 |
+| Anhangangaben zu latenten Steuern aus den Daten abgeleitet | ⛔ | Kein Anhang-Generator für latente Steuern; ab mittelgroß verweist Buchfink an den Steuerberater | – |
+
+**Stand.** Für die Zielgruppe entfällt die Pflicht. Was gebaut werden muss, ist die Größenklasse, die diese Befreiung überhaupt erst belegt und ab mittelgroß warnt. Welle 2.
+
+### BEW-12 Nicht abziehbare Betriebsausgaben `MUSS`
+
+**Norm:** § 4 Abs. 5 und Abs. 7 EStG, § 15 Abs. 1a UStG
+
+**Bedeutung:** Bestimmte Betriebsausgaben sind einzeln und getrennt von den sonstigen Betriebsausgaben aufzuzeichnen. Fehlt die getrennte Aufzeichnung, entfällt der Abzug vollständig, auch wenn die Aufwendung dem Grunde nach abziehbar wäre. Betroffen sind unter anderem Geschenke, Bewirtung, Gästehäuser, Jagd und Fischerei sowie das häusliche Arbeitszimmer. Für Bewirtungen ab dem 1. Januar 2025 gilt das BMF-Schreiben vom 19.11.2025; danach darf die Bewirtungsrechnung digital übermittelt oder nachträglich digitalisiert und der Eigenbeleg digital erstellt werden, wenn die GoBD in der Fassung vom 14.07.2025 eingehalten und die Verfahren in der Verfahrensdokumentation beschrieben sind.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Je Kategorie nach § 4 Abs. 7 EStG ein eigenes Konto oder ein eigener Schlüssel, Vermischung ausgeschlossen | ✅ | internal/accounting/posting_groups.go:228-256 führt jede Kategorie als eigene Buchungsgruppe mit eigenen Konten: Bewirtung auf 6640 und 6644, Geschenke auf 6610 und 6620, das ausschließlich betrieblich nutzbare Geschenk auf 6625 und Gästehaus, Jagd, Fischerei und Yacht auf 6645 ohne Vorsteuerabzug (§ 15 Abs. 1a UStG). Der freie Kontoweg führt seit Welle 5c nicht mehr daran vorbei: :336-360 (`AccountsRequiringGroup`) sammelt diese Konten, internal/service/posting_input_tax.go:246-255 weist sie ab, wenn jemand sie von Hand wählt, und nennt die Gruppe — an ihr hängen die Aufzeichnungspflicht, die Freigrenze je Empfänger und der Vorsteuerausschluss. Das häusliche Arbeitszimmer trifft eine Kapitalgesellschaft nicht | – |
+| Geschenke je Empfänger und Wirtschaftsjahr kumuliert, Freigrenze von 50 Euro überwacht | ✅ | internal/service/posting_input_tax.go:342-427 (`resolveGift`) verlangt den Empfänger als Kontakt oder Namen, hält die Aufzeichnung nach § 4 Abs. 7 EStG an der Buchung (internal/domain/gift.go:21-96, in der Hash-Kette wie die Bewirtungsaufzeichnung) und misst die bisherigen Geschenke des Wirtschaftsjahres an der Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG (internal/accounting/tax_params.go:48-55, 50 € für Wirtschaftsjahre ab 2024, gemessen am ersten Tag des Wirtschaftsjahres); :428-448 liest die Summe je Empfänger aus dem Journal. Wird die Grenze gerissen, warnt Buchfink vor der Buchung und bucht das Geschenk auf das nicht abziehbare Konto ohne Vorsteuerabzug (:296-303); die früheren Geschenke desselben Empfängers bleiben stehen, bis internal/service/gift_service.go:380-532 (`RebookGiftsForRecipient`) sie mit Generalumkehr und Neubuchung umbucht | – |
+| Bewirtung automatisch in 70 Prozent abziehbar und 30 Prozent nicht abziehbar geteilt, Vorsteuer bleibt vollständig | ✅ | internal/service/posting_service.go:463-482, internal/accounting/tax_params.go:23-27; die Quote steht als datierter Parameter, der nicht abziehbare Rest wird als Differenz gebildet, die Vorsteuerbemessungsgrundlage bleibt der volle Nettobetrag | – |
+| Eigenbeleg mit Anlass und Teilnehmern erfasst und mit der Rechnung verknüpft aufbewahrt | ✅ | internal/domain/journal.go:281-320; Ort, Tag, Teilnehmer und Anlass sind Pflicht, die Aufzeichnung steht an der Buchung und ist in die Hash-Kette einbezogen | – |
+| Bericht je Kategorie mit abziehbaren und nicht abziehbaren Beträgen des Wirtschaftsjahres | ✅ | internal/service/gift_service.go:196-327 (`NonDeductibleReport`) stellt je Kategorie des § 4 Abs. 5 EStG die abziehbaren und die nicht abziehbaren Beträge des Wirtschaftsjahres zusammen — gezählt über die Konten, damit auch eine Buchung ohne Aufzeichnung erscheint und eine Generalumkehr ihre Buchung wieder herausnimmt —, dazu die Geschenke je Empfänger und die Buchungen, die nach einer Überschreitung umzubuchen sind; internal/accounting/non_deductible.go:12-59 hält die Kategorien mit Vorschrift, Konten und dem Satz, der unter der Zeile steht. Gezeigt wird er auf der Seite „Nebenpflichten" (frontend/src/pages/ObligationsPage.tsx:1323), wo auch die Geschenke je Empfänger und die Umbuchung stehen; die Auswertungsseite verweist dorthin (frontend/src/pages/ReportsPage.tsx:413-440) | – |
+
+**Stand.** Die Bewirtung war das Muster, und Welle 5c zieht die übrigen Kategorien des § 4 Abs. 7 EStG nach: jede hat ihre Buchungsgruppe mit eigenen Konten, das Geschenk verlangt seinen Empfänger, die Freigrenze läuft je Empfänger und Wirtschaftsjahr mit, und wer sie reißt, bekommt die Warnung vor der Buchung und das nicht abziehbare Konto ohne Vorsteuerabzug. Die Konten dieser Kategorien sind von Hand nicht mehr erreichbar; wer eines wählt, bekommt den Weg über die Gruppe genannt. Der Bericht führt je Kategorie und Jahr die abziehbaren und die nicht abziehbaren Beträge, nennt die Empfänger und die Buchungen, die nach einer Überschreitung umzubuchen sind, und die Umbuchung läuft als eigener, sichtbarer Vorgang aus Generalumkehr und Neubuchung. Alle fünf Kriterien sind erfüllt.
+
+### BEW-13 Schuldzinsenabzug `MUSS*`
+
+**Norm:** § 4 Abs. 4a EStG
+
+**Bedeutung:** Übersteigen Entnahmen die Summe aus Gewinn und Einlagen, sind die darauf entfallenden Schuldzinsen typisiert mit sechs Prozent der Überentnahme nicht abziehbar. Die Überentnahmen der Vorjahre wirken kumulativ fort. Für Kapitalgesellschaften ist die Norm über verdeckte Gewinnausschüttungen und Personengesellschaftsbeteiligungen mittelbar relevant.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Entnahmen und Einlagen je Wirtschaftsjahr getrennt erfasst und über die Betriebszugehörigkeit fortgeschrieben | ⛔ | Buchfink ist für Kapitalgesellschaften gebaut, die keine Entnahmen kennen. Die Rechtsformen mit Entnahmen bleiben wählbar (internal/domain/legalform.go:112-134) und zeigen seit Welle 6 den Hinweis, dass Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG in dieser Fassung nicht abgebildet sind: internal/domain/legalform.go:137-157 formuliert ihn, internal/wailsbridge/nachweise_service.go:316-320 gibt ihn zur gespeicherten Rechtsform aus, gezeigt im Einrichtungsassistenten und in den Einstellungen (frontend/src/pages/SettingsPage.tsx:434-441) | – |
+| Kumulierte Überentnahme je Stichtag berechnet und als Bericht abrufbar | ⛔ | Wie oben | – |
+| Sockelbetrag von 2.050 Euro berücksichtigt | ⛔ | Wie oben | – |
+| Zinsen für Investitionsdarlehen gesondert kennzeichenbar und ausgenommen | ⛔ | Wie oben | – |
+
+**Stand.** Außerhalb des Funktionsumfangs, und der Vorbehalt ist mit Welle 6 eingelöst: wer ein Einzelunternehmen oder eine Personenhandelsgesellschaft einrichtet, liest beim Einrichten und in den Einstellungen, dass Kapitalkonten, Entnahmen und der Schuldzinsenabzug nicht abgebildet sind, statt eine Buchführung zu bekommen, die eine ihn treffende Hinzurechnung stillschweigend übergeht.
+
+---
+
+## H. Jahresabschluss, E-Bilanz, Offenlegung
+
+### JAB-01 Aufstellung, Gliederung, Fristen `MUSS`
+
+**Norm:** §§ 242 bis 245, 264, 266, 275 HGB
+
+**Bedeutung:** Kapitalgesellschaften erweitern den Jahresabschluss um Anhang und, ab mittelgroß, um einen Lagebericht. Mittelgroße und große Kapitalgesellschaften stellen innerhalb der ersten drei Monate des Folgejahres auf, kleine innerhalb von sechs Monaten.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Bilanz in Kontoform nach § 266 HGB und GuV in Staffelform nach § 275 HGB, mit Vorjahresvergleich | ✅ | internal/accounting/statement.go:64-148 ist die Bilanz in Kontoform, :150-188 die Staffel des § 275 Abs. 2 HGB; :291-358 (`BuildStatement`) verteilt die Salden über die Positionsdaten der Konten (internal/domain/account.go:30-34), bucht ein Konto mit widersprechendem Vorzeichen auf die Gegenposition (:465-497) und weist eine Bilanz ab, die nicht aufgeht (:354-356, :363-378). internal/service/statement_service.go:178-201 lädt das Vorjahr und stellt seine Spalte nach § 265 Abs. 2 HGB daneben, frontend/src/components/StatementView.tsx:152-239 zeigt beides | – |
+| Gesamtkosten- und Umsatzkostenverfahren beide wählbar | ⛔ | Buchfink führt nur das Gesamtkostenverfahren; die SKR04-Gliederung GuV.1 bis GuV.16 entspricht ihm | – |
+| Gliederungstiefe folgt der Größenklasse | ✅ | internal/domain/statement.go:51-74 begrenzt die Ebenen je Tiefe, internal/accounting/groessenklasse.go:250-271 leitet sie aus der Klasse ab (§ 266 Abs. 1 Sätze 3 und 4 HGB), internal/service/statement_service.go:95-108 wendet sie an, wenn keine gewählt ist; die Merkmale der Größenklasse entstehen dabei immer aus der Vollgliederung (:83-93). Die Wahl steht auch in der Ansicht (frontend/src/components/StatementView.tsx:54-59) | – |
+| Pflichtangaben nach § 264 Abs. 1a HGB auf dem Abschluss | ✅ | internal/service/statement_service.go:322-360 (`header`) setzt Firma, Rechtsform, Sitz, Registergericht und Registernummer in den Kopf und benennt jede fehlende Angabe; frontend/src/components/StatementView.tsx:250-282 zeigt sie mit dem Weg in die Einstellungen (frontend/src/pages/SettingsPage.tsx:307-343), internal/service/statement_export.go:212-236 setzt sie in das PDF | – |
+| Aufstellungsfrist je Größenklasse überwacht und als Termin angezeigt | ✅ | internal/accounting/groessenklasse.go:287-323 (`StatementDeadlines`) rechnet die Frist aus Stichtag und Klasse, :332-339 nach den ersten drei oder sechs Monaten des folgenden Geschäftsjahres statt nach Stichtag plus N Monaten; internal/service/statement_service.go:367-388 hält fest, was das Geschäftsjahr als aufgestellt vermerkt, frontend/src/pages/DeadlinesPage.tsx:554-567 stellt den Termin in die Fristenliste und frontend/src/components/StatementView.tsx:739-779 an den Abschluss | – |
+
+**Stand.** Bilanz und Gewinn- und Verlustrechnung entstehen im Backend aus einer festen Gliederung, auf die alle 206 HGB-Positionen aus internal/accounting/skr04_2026.json abgebildet sind; Gliederungstiefe, Kopfangaben und Aufstellungsfrist folgen der Größenklasse, die Ausgabe erfolgt als PDF und als CSV. Die Ansicht rechnet nichts mehr nach. Offen bleibt allein das Umsatzkostenverfahren, und dessen Auslassung ist gewollt.
+
+### JAB-02 Größenklassen `MUSS`
+
+**Norm:** §§ 267, 267a HGB
+
+**Bedeutung:** Die Größenklasse steuert Gliederungstiefe, Anhangumfang, Prüfungspflicht und Offenlegungsumfang. Die monetären Schwellenwerte wurden 2024 um 25 Prozent angehoben, die Arbeitnehmerzahlen blieben unverändert. Eine Klasse wechselt erst, wenn mindestens zwei der drei Merkmale an zwei aufeinanderfolgenden Abschlussstichtagen über- oder unterschritten werden.
+
+| Klasse | Bilanzsumme | Umsatzerlöse | Arbeitnehmer |
+|---|---|---|---|
+| Kleinst (§ 267a HGB) | bis 450.000 Euro | bis 900.000 Euro | bis 10 |
+| Klein (§ 267 Abs. 1 HGB) | bis 7.500.000 Euro | bis 15.000.000 Euro | bis 50 |
+| Mittelgroß (§ 267 Abs. 2 HGB) | bis 25.000.000 Euro | bis 50.000.000 Euro | bis 250 |
+| Groß (§ 267 Abs. 3 HGB) | darüber | darüber | darüber |
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Drei Merkmale je Stichtag berechnet, Größenklasse daraus abgeleitet, Zweijahresregel des § 267 Abs. 4 HGB beachtet | ✅ | internal/accounting/groessenklasse.go:89-118 (`AssessSize`) misst Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl je Stichtag und benennt die zwei Merkmale, die die Klasse bestimmen; :158-230 (`ClassifySize`, `effectiveClass`) löst die Zweijahresregel auf, einschließlich der Neugründung nach § 267 Abs. 4 Satz 2 HGB, und internal/service/statement_service.go:228-312 beurteilt so viele Vorjahre, wie die Regel braucht. Die Bilanzsumme des § 267 Abs. 4a HGB kommt aus der Gliederung (internal/accounting/statement.go:317-342), die Arbeitnehmerzahl steht am Geschäftsjahr (internal/domain/fiscalyear.go:100-109, internal/service/closing_service.go:1357-1387, frontend/src/pages/ClosingPage.tsx:585-605) | – |
+| Schwellenwerte parametrisierbar und zeitabhängig versioniert | ✅ | internal/accounting/groessenklasse.go:39-59 führt zwei datierte Sätze — die Werte vor und nach Art. 79 Abs. 1 EGHGB —, :63-74 (`SizeThresholdsFor`) wählt sie nach dem Beginn des Geschäftsjahres und nicht nach dem Stichtag; der Satz, an dem gemessen wurde, steht in der Beurteilung (internal/domain/sizeclass.go:99-110) und neben den Merkmalen in der Ansicht (frontend/src/components/StatementView.tsx:593-658) | – |
+| Klassenwechsel angekündigt, sobald er sich am ersten Stichtag abzeichnet, mit Hinweis auf die Folgen | 🟡 | internal/accounting/groessenklasse.go:192-209 benennt den abweichenden Stichtag im Klartext und sagt, dass die Rechtsfolgen erst am zweiten übereinstimmenden eintreten; frontend/src/components/StatementView.tsx:581-591 und :661-684 zeigen den Satz und die beurteilten Stichtage. Eine Ankündigung, die den Wechsel als bevorstehend kennzeichnet, fehlt: die Tabelle „Folgen der Größenklasse" (:686-737) nennt allein die Folgen der geltenden Klasse | 2 |
+| Kapitalmarktorientierte Gesellschaften nach § 264d HGB gelten als groß, Merkmal im Mandanten setzbar | ⛔ | Kapitalmarktorientierung liegt außerhalb des Geltungsbereichs; Buchfink verweist ab mittelgroß ohnehin an den Steuerberater | – |
+
+**Stand.** Die Größenklasse wird aus den drei Merkmalen des § 267 Abs. 1 HGB berechnet, mit datierten Schwellen, der Zweijahresregel und einer Begründung, die jeden beurteilten Stichtag nennt; aus ihr folgen Gliederungstiefe, Anhang-, Lagebericht-, Prüfungs- und Offenlegungspflicht sowie beide Fristen (internal/accounting/groessenklasse.go:240-282). Offen bleibt die Ankündigung des Wechsels, bevor er eintritt. Welle 2.
+
+### JAB-03 Anhang und Lagebericht `MUSS`
+
+**Norm:** §§ 284 bis 289 HGB, §§ 274a, 288 HGB
+
+**Bedeutung:** Der Anhang erläutert Bilanzierungs- und Bewertungsmethoden und enthält den Anlagenspiegel sowie die Pflichtangaben des § 285 HGB. Kleinstkapitalgesellschaften können den Anhang weglassen, wenn sie bestimmte Angaben unter der Bilanz machen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Aus den Buchungsdaten mindestens Anlagenspiegel, Restlaufzeitengliederung, Haftungsverhältnisse, sonstige finanzielle Verpflichtungen, Beteiligungsliste, latente Steuern, Ergebnisverwendungsvorschlag | 🟡 | Aus den Daten kommen drei: internal/service/asset_service.go (`Anlagenspiegel`) den Anlagenspiegel aus der Kartei, internal/service/statement_service.go:399-450 (`maturities`) die Restlaufzeitengliederung nach § 268 Abs. 4 und 5 HGB aus den offenen Posten zum Abschlussstichtag (frontend/src/components/StatementView.tsx:524-564, internal/service/statement_export.go:180-198) und seit Welle 5 den Rückstellungsspiegel nach § 285 Nr. 12 HGB (internal/accounting/provision.go:172-217, internal/service/statement_service.go:174-201). Der Ergebnisverwendungsvorschlag steht als beschlossene Verwendung daneben (internal/domain/appropriation.go:22-58). Haftungsverhältnisse, sonstige finanzielle Verpflichtungen und Beteiligungsliste sind Freitextabschnitte und keine Auswertung (internal/domain/notes_text.go:39-63) — sie stehen in keiner Buchung; latente Steuern entfallen für die Zielgruppe (§ 274a Nr. 4 HGB, siehe BEW-11) | 5 |
+| Freitextangaben erfassbar und über den Jahreswechsel als Vorlage fortgeschrieben | ✅ | internal/domain/notes_text.go:17-99 führt sieben Abschnitte des Anhangs — Methoden, Organbezüge, Nachtragsbericht, finanzielle Verpflichtungen, Haftungsverhältnisse, Beteiligungen, Ergebnisverwendungsvorschlag — je mit Vorschrift und Erklärtext, internal/service/appropriation_service.go:445-481 liest und schreibt sie, :489-523 (`CopyNotesInto`) übernimmt sie beim Anlegen des neuen Geschäftsjahres als Vorlage, ohne eine bereits geschriebene Fassung zu überschreiben (internal/service/closing_service.go:196-206). Geschrieben wird in frontend/src/pages/ClosingModulesPage.tsx:3100-3147, gezeigt in frontend/src/pages/ReportsPage.tsx:78-116 | – |
+| Anhangumfang folgt automatisch der Größenklasse | 🟡 | internal/accounting/groessenklasse.go:250-282 entscheidet je Klasse über Anhang und Lagebericht und nennt die Norm dazu (§ 264 Abs. 1 Sätze 1 und 5, § 289 HGB), frontend/src/components/StatementView.tsx:686-737 zeigt beides. Seit Welle 5 entsteht ein Anhang (internal/service/statement_service.go:174-201, frontend/src/pages/ReportsPage.tsx:66-245), sein Umfang folgt der Größenklasse aber nicht: `notesFor` stellt dieselben Abschnitte zusammen, gleich welche Klasse gilt, und die Befreiungen der §§ 274a, 288 HGB blenden nichts aus | 5 |
+| Für Kleinstkapitalgesellschaften Angaben unter der Bilanz statt eines Anhangs | 🟡 | internal/accounting/groessenklasse.go:251-259 nimmt der Kleinstgesellschaft den Anhang unter der Bedingung des § 264 Abs. 1 Satz 5 HGB, und die Angaben unter der Bilanz stehen als eigener Abschnitt in Ansicht und PDF (frontend/src/pages/ReportsPage.tsx:279, frontend/src/components/StatementView.tsx:122-132, internal/service/statement_export.go:180-198). Sie enthalten bislang nur die Restlaufzeiten; die Haftungsverhältnisse nach § 268 Abs. 7 HGB lassen sich seit Welle 5 als Anhangtext erfassen (internal/domain/notes_text.go:53-55), stehen damit aber im Anhang und nicht unter der Bilanz, und die Vorschüsse an Organmitglieder fehlen | 5 |
+
+**Stand.** Das Muster wiederholt sich jetzt dreimal: der Anlagenspiegel als Auswertung über die Kartei, die Restlaufzeiten als Auswertung über die offenen Posten (internal/domain/payment.go:77), der Rückstellungsspiegel als Auswertung über die Rückstellungskartei — keine davon eine zweite Buchung. Mit Welle 5 gibt es den Anhang als Sache: sieben Freitextabschnitte mit ihrer Vorschrift, ins Folgejahr übernommen, dazu Rückstellungsspiegel und Überleitung zur Steuerbilanz. Offen bleibt, dass sein Umfang der Größenklasse nicht folgt und dass Haftungsverhältnisse und Beteiligungen Freitext bleiben. Welle 5.
+
+### JAB-04 Feststellung und Unterzeichnung `MUSS`
+
+**Norm:** § 245 HGB, § 42a GmbHG, §§ 172, 173 AktG
+
+**Bedeutung:** Der Jahresabschluss ist vom Kaufmann unter Angabe des Datums zu unterzeichnen. Bei der GmbH stellen die Gesellschafter fest, bei der AG in der Regel Vorstand und Aufsichtsrat. Erst der festgestellte Abschluss ist offenlegungsfähig.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Status Entwurf, aufgestellt, festgestellt, offengelegt, jeder Wechsel mit Datum, Person und Beschlussbezug protokolliert | ✅ | internal/domain/fiscalyear.go:18-72 führt die vier Stände (der Entwurf heißt "Offen"), :92-98 Datum je Schritt und den Beschlussbezug, :184-195 lässt keinen Stand ohne sein Datum zu; internal/service/closing_service.go:360-433 (`SetFiscalYearStatus`) schaltet nur einen Schritt weiter und protokolliert jeden Wechsel mit Datum und Beschluss. Die Person entfällt im Einzelplatzbetrieb | – |
+| Ab dem Status festgestellt keine Änderungen an den zugrunde liegenden Buchungen | ✅ | internal/service/journal_service.go:489-505 (`ensureYearNotAdopted`) weist jede Buchung in ein festgestelltes Jahr ab, geprüft auf dem einzigen Schreibweg (:115-117) und in der Vorprüfung mehrteiliger Vorgänge (:146-170); die Feststellung setzt ihrerseits die Jahres-Festschreibung voraus (internal/service/closing_service.go:394-405) | – |
+| Dokumentierte Rücksetzung des Status bei Änderung | ✅ | internal/service/closing_service.go:443-474 (`ReopenFiscalYear`) setzt auf "Aufgestellt" zurück, verlangt einen Grund und schreibt ihn samt Ausgangsstand ins Protokoll; die Festschreibungen bleiben unberührt | – |
+| Feststellungsbeschluss als Dokument mit dem Abschluss verknüpfbar | ❌ | internal/receiptstore/store.go speichert Eingangsbelege, Ausgangsrechnungen und Anlagendokumente; seit Welle 5 lässt sich auch der Gesellschafterbeschluss über die Ergebnisverwendung ablegen und versiegeln (internal/service/appropriation_service.go:388-416, :409-416 versiegelt ihn mit der Buchung), das ist aber ein anderer Beschluss. Für den Feststellungsbeschluss gibt es keinen Platz am Geschäftsjahr — internal/domain/fiscalyear.go:92-98 hält nur Datum und Beschlussbezug als Text | 1 |
+| Unterzeichneter Abschluss als unveränderliches Dokument archiviert | ❌ | Es entsteht kein Abschlussdokument | 1 |
+
+**Stand.** Der Abschlussstand ist als Kette aus vier Ständen geführt, mit Datum, Beschlussbezug und einer Rücksetzung, die nur mit Grund geht; ab der Feststellung nimmt das Jahr keine Buchung mehr an. Was fehlt, sind die Papiere dazu: der Feststellungsbeschluss als Dokument und der unterzeichnete Abschluss als archiviertes Dokument. Welle 1.
+
+### JAB-05 E-Bilanz `MUSS` / `TERMIN`
+
+**Norm:** § 5b EStG, § 60 EStDV, BMF-Schreiben zu den Taxonomien
+
+**Bedeutung:** Bilanz und Gewinn- und Verlustrechnung sind nach amtlich vorgeschriebenem Datensatz elektronisch zu übermitteln. Der Umfang wächst: unverdichtete Kontennachweise mit Kontensalden für Wirtschaftsjahre ab 2025, Anlagenspiegel und Anlagenverzeichnis für Wirtschaftsjahre ab 2028. Für das Wirtschaftsjahr 2026 gilt die Taxonomie 6.9 (BMF-Schreiben vom 10.06.2025). Die Taxonomie 6.10 wurde mit BMF-Schreiben vom 08.06.2026 veröffentlicht (Taxonomien vom 01.04.2026) und ist für Wirtschaftsjahre verpflichtend, die nach dem 31.12.2026 beginnen; ihre Verwendung bereits für das Wirtschaftsjahr 2026 wird nicht beanstandet, die Übermittlung in Echtfällen ist ab Mai 2027 vorgesehen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| XBRL-Datensatz nach der gültigen Taxonomie, übermittelt oder zur Übermittlung durch Dritte bereitgestellt | 🟡 | internal/ebilanz/ebilanz.go:106-168 erzeugt die Instanz mit `encoding/xml` aus derselben Gliederung wie die Bilanz; :253-289 schreibt jede Position von Bilanz und GuV mit Vorjahreskontext und die Bilanzsumme dazu, Aufwendungen positiv. Geprüft ist kein Elementname: internal/ebilanz/taxonomy_6.9.json ist durchgehend mit `verified: false` markiert, und der Vorbehalt steht in der Datei selbst (:170-177). Buchfink bindet ERiC nicht ein, die Datei wird zur Übermittlung über Mein ELSTER oder den Steuerberater bereitgestellt | 2 |
+| Taxonomieversion als austauschbare Ressource hinterlegt, Versionswechsel ohne Codeänderung | ✅ | internal/ebilanz/taxonomy.go:10-11 bindet internal/ebilanz/taxonomy_6.9.json als Ressource ein, :48-66 liest Version, Datum, Namensräume und Elemente daraus; internal/ebilanz/ebilanz.go:127-129 schreibt die Namensräume der Ressource in die Instanz und :172-177 ihre Version in den Vorbehalt — der Wechsel tauscht die Datei, nicht den Übersetzer | – |
+| Jedes Konto einer Taxonomieposition zugeordnet, nicht zugeordnete Konten mit Saldo blockieren und werden benannt | ✅ | internal/ebilanz/mapping.go:52-107 führt jedes Konto mit Saldo über seine Gliederungsposition auf ein Taxonomie-Element, :111-128 (`BlockingError`) nennt die ungeklärten mit Nummer, Name und Grund, internal/ebilanz/ebilanz.go:118-124 bricht ab, bevor eine Datei entsteht; internal/ebilanz/taxonomy.go:68-80 kennt keinen Auffangwert mehr, `bs.other` entfällt. frontend/src/pages/EBilanzPage.tsx:116-170 zeigt die Liste vor dem Export | – |
+| Unverdichtete Kontennachweise mit Kontensalden erzeugt und mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:291-309 schreibt je Konto mit Saldo Nummer, Bezeichnung, Gliederungsposition, Taxonomie-Element und Saldo unverdichtet in die Instanz (:150); die Hüllelemente `accountAuditProof` und die Felder darunter stehen in keiner Taxonomie-Ressource, sie sind wie bisher frei gebildet | 2 |
+| Ab Wirtschaftsjahr 2028 Anlagenspiegel und Anlagenverzeichnis mitübermittelt | 🟡 | internal/ebilanz/ebilanz.go:320-374 schreibt den Anlagenspiegel je Konto, je Klasse des § 266 Abs. 2 A HGB und in Summe, mit Anschaffungskosten, Abschreibungen und Buchwerten, und hängt an jede Zeile die Taxonomieposition ihres Kontos; das Anlagenverzeichnis geht nicht mit | 2 |
+| Auffangpositionen nur ersatzweise verwendet, Verwendung erscheint in einem Bericht | ✅ | internal/accounting/statement.go:667-690 zählt jede als Auffang gekennzeichnete Position der Gliederung (:88, :100, :103, :120, :132, :142, :161, :171) mit Kontenzahl und Betrag aus, internal/ebilanz/mapping.go:44-45, :66-68 nimmt die Zählung in den Zuordnungsbericht, frontend/src/pages/EBilanzPage.tsx:137-141, :221-250 zeigt sie vor dem Export | – |
+| Übermittlungsprotokoll revisionssicher gespeichert | ❌ | internal/service/ebilanz_service.go:86-92 protokolliert weiterhin nur, dass eine Datei erzeugt wurde. Das Muster steht seit Welle 3 an der Voranmeldung (internal/domain/vatreturn.go:107-146, :205-222: Entität mit Übermittlungsdatum, Transferticket und Status), für die E-Bilanz gibt es kein solches Objekt | 3 |
+
+**Stand.** Die Reihenfolge hat sich bewährt: seit die Gliederung aus JAB-01 steht, zeigt das Mapping auf Positionen statt auf Konten. Die Instanz enthält Bilanz und Gewinn- und Verlustrechnung mit Vorjahreskontext, den unverdichteten Kontennachweis und den Anlagenspiegel, und ein Konto ohne Zuordnung blockiert den Export namentlich, statt still auf einer Sammelposition zu verschwinden. Was bleibt, ist der Abgleich der Elementnamen gegen die amtliche Taxonomie 6.9 und das Protokoll der Übermittlung. Welle 2.
+
+### JAB-06 Maßgeblichkeit und Überleitung `MUSS`
+
+**Norm:** § 5 Abs. 1 EStG, § 60 Abs. 2 EStDV
+
+**Bedeutung:** Die Steuerbilanz leitet sich aus der Handelsbilanz ab. Weichen Ansätze ab, ist entweder eine eigene Steuerbilanz einzureichen oder die Handelsbilanz durch Zusätze und Anmerkungen anzupassen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Handels- und Steuerbilanz aus demselben Buchungsstamm, Abweichungen als eigene Wertansätze je Position, keine Parallelbuchhaltung | ✅ | internal/service/tax_register_service.go:264-352 (`Reconcile`) stellt je Position den handelsrechtlichen und den steuerlichen Wertansatz nebeneinander — Anlagevermögen aus § 7g Abs. 5 EStG, Rückstellungen aus der abweichenden Abzinsung, Drohverlustrückstellungen aus dem Ansatzverbot des § 5 Abs. 4a EStG —, alles aus demselben Buchungsstamm und ohne eine einzige Buchung: die steuerlichen Werte werden gerechnet, nicht geführt (internal/domain/statement.go:287-310, internal/service/tax_register_service.go:354-392). Mehr Abweichungen kennt Buchfink nicht; entstünden sie, blieben sie außen vor | – |
+| Überleitungsrechnung von der Handels- zur Steuerbilanz mit Rechtsgrundlage je Abweichung | ✅ | Jede Zeile hat ihre Vorschrift und ihre Erläuterung (internal/service/tax_register_service.go:292-350: § 7g Abs. 5 und § 5 Abs. 1 Satz 2 EStG, § 253 Abs. 2 HGB gegen § 6 Abs. 1 Nr. 3a Buchst. e EStG, § 249 Abs. 1 HGB gegen § 5 Abs. 4a EStG), dazu die Wirkung auf das Eigenkapital; sie steht im Anhang (internal/service/statement_service.go:195-198, frontend/src/pages/ReportsPage.tsx:177-242) und unter den Abschlussbausteinen (frontend/src/pages/ClosingModulesPage.tsx:3322-3385) | – |
+| Wahlweise eine vollständige Steuerbilanz ausgebbar | ⛔ | Einheitsbilanz: eine zweite Bilanz würde jede Erfassungsmaske verdoppeln | – |
+| Überleitung in der E-Bilanz-Struktur übermittelbar | 🟡 | internal/ebilanz/ebilanz.go:392-429 (`reconciliationFacts`) schreibt je Position handelsrechtlichen Wert, steuerlichen Wert, Differenz und Rechtsgrundlage als eigenen Block in die Instanz, internal/service/ebilanz_service.go:81-87 hängt ihn ein, sobald die Überleitung Zeilen hat. Die Elementnamen des Überleitungsmoduls sind nach der Systematik der Taxonomie gebildet und stehen in internal/ebilanz/taxonomy_6.9.json:469-478 mit `verified: false`; vor der Übermittlung sind sie gegen die amtliche Fassung abzugleichen (JAB-05) | 2 |
+
+**Stand.** Mit Welle 5 gibt es die Überleitung, und sie ist bewusst eine Rechnung neben der Bilanz und keine zweite Buchführung: die beiden Stellen, an denen Handels- und Steuerbilanz in Buchfink zwingend auseinanderfallen — die Sonderabschreibung nach § 7g Abs. 5 EStG und die Abzinsung der Rückstellungen mit 5,5 % samt Ansatzverbot für Drohverluste —, stehen mit Wertansatz, Differenz und Rechtsgrundlage im Anhang und gehen als eigener Block in die E-Bilanz. Einzelne Unterschiede laufen daneben weiterhin über getrennte Konten, etwa die nicht abziehbaren Betriebsausgaben (internal/service/posting_service.go:430). Eine vollständige Steuerbilanz bleibt außerhalb des Funktionsumfangs, der Abgleich der Elementnamen offen. Welle 2.
+
+### JAB-07 Offenlegung `MUSS`
+
+**Norm:** §§ 325 bis 329, 335 HGB
+
+**Bedeutung:** Seit dem Geschäftsjahr 2022 gehen die Unterlagen an das Unternehmensregister, nicht mehr an den Bundesanzeiger. Die Frist beträgt zwölf Monate nach dem Abschlussstichtag, bei kapitalmarktorientierten Gesellschaften vier Monate. Kleine Gesellschaften legen nur Bilanz und Anhang ohne GuV-bezogene Angaben offen, Kleinstgesellschaften können statt der Offenlegung die dauerhafte Hinterlegung der Bilanz wählen. Bei Verstoß setzt das Bundesamt für Justiz ein Ordnungsgeld ab 2.500 Euro fest.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Offenzulegender Umfang automatisch aus der Größenklasse | 🟡 | internal/accounting/groessenklasse.go:250-282 setzt je Klasse den Umfang und die Norm dazu (§ 325 Abs. 1, § 326 Abs. 1 und Abs. 2 HGB), :309-321 nennt ihn im Termin, frontend/src/components/StatementView.tsx:730-734 zeigt ihn. Ein auf diesen Umfang beschränkter Datensatz entsteht nicht: internal/service/statement_export.go:168-198 gibt Bilanz, Gewinn- und Verlustrechnung und die Angaben unter der Bilanz immer vollständig aus | 2 |
+| Datensatz im Format der Einreichungsplattform erzeugt, übermittelbar oder exportierbar | ❌ | Kein Export für das Unternehmensregister | 2 |
+| Zwölfmonatsfrist je Geschäftsjahr überwacht, mit Vorwarnung | ✅ | internal/accounting/groessenklasse.go:309-322 setzt den Termin für jedes Geschäftsjahr auf zwölf Monate nach dem Abschlussstichtag (§ 325 Abs. 1a Satz 1 HGB), internal/service/statement_service.go:367-388 trägt eine bereits erfolgte Offenlegung aus dem Geschäftsjahr ein, frontend/src/pages/DeadlinesPage.tsx:554-567 stellt ihn in die Fristenliste, die überfällige und in den nächsten 30 Tagen fällige Termine heraushebt (:656, :768-845) | – |
+| Hinterlegungsvariante für Kleinstgesellschaften wählbar | ❌ | internal/accounting/gruendung.go:300-302 nennt § 326 Abs. 2 HGB im Beschreibungstext, nicht als Wahl | 2 |
+| Einreichungsnachweis mit dem Abschluss archiviert | ❌ | Nicht vorhanden | 2 |
+
+**Stand.** Die Frist ist aus den Gründungspflichten in die jährliche Terminliste gewandert, und der offenzulegende Umfang folgt der Größenklasse als benannte Rechtsfolge. Der Datensatz für das Unternehmensregister, die Wahl der Hinterlegung nach § 326 Abs. 2 HGB und der Einreichungsnachweis fehlen. Welle 2.
+
+### JAB-08 Prüfungsfähigkeit `MUSS*`
+
+**Norm:** §§ 316 bis 324a HGB
+
+**Bedeutung:** Mittelgroße und große Kapitalgesellschaften sind prüfungspflichtig. Ohne Prüfung kann der Jahresabschluss nicht festgestellt werden. Die Software muss dem Prüfer arbeitsfähige Daten liefern, nicht nur Berichte.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Prüferzugang mit ausschließlich lesenden Rechten, zeitlich befristbar | ✅ | Statt Benutzerkonten, die es im Einzelplatzbetrieb nicht gibt, schaltet der Prüfermodus die ganze Anwendung schreibgeschützt: internal/wailsbridge/readonly.go:227-260 verlangt Ablaufdatum und Grund und protokolliert beides, :210-220 weist jede schreibende Bridge-Methode ab, :37-189 führt die zulässigen Methoden als abschließende Liste — ein Test ordnet jede exportierte Bridge-Methode einer der beiden Seiten zu (internal/wailsbridge/readonly_test.go) | – |
+| Alle Bewegungsdaten eines Geschäftsjahres maschinell auswertbar exportierbar, einschließlich Journal, Konten, Salden, Belegverweisen und Änderungsprotokoll | ✅ | internal/service/export_service.go:697-720 stellt achtzehn Tabellen zusammen (internal/service/export_tables.go:21-40): Journal mit Hashes, Konten mit Gliederungs- und Taxonomieposition, Salden, Kontakte, offene Posten, Anlagen und Bewegungen, Belege, Dokumente, Voranmeldungen, Festschreibungen, Prüfläufe, Zahlungszuordnungen, Bewirtungen, Änderungsprotokoll, Steuerschlüssel, Schlüsselverzeichnis und seit Welle 7 den Prüfpfad je Beleg (internal/service/export_tables.go:1030-1102); das Prüferpaket legt Belegdateien, Integritätsnachweis und Verfahrensdokumentation dazu (:155-215) | – |
+| Summen- und Saldenlisten zu jedem beliebigen Stichtag reproduzierbar, auch rückwirkend | ✅ | internal/service/accounting_service.go:326-330 und internal/repository/journal_gorm.go:274-293 summieren bis zum Stichtag; dieselbe Grenze gilt für das Kontoblatt über Jahresgrenzen hinweg (internal/service/accounting_service.go:196-200, internal/repository/journal_gorm.go:167) und für die offenen Posten (internal/service/payment_service.go:176-189). Die Listen entstehen aus den Buchungen und nicht aus einem fortgeschriebenen Saldo, sind also beliebig oft rückwirkend herstellbar | – |
+| Saldenbestätigungslauf für Debitoren und Kreditoren | ❌ | internal/service/payment_service.go:109-127 liefert die operative Liste, :185-198 dieselbe zum Stichtag; Welle 7 hat den Weg vom offenen Posten zum Anschreiben für das Mahnwesen gebaut (internal/service/dunning_service.go:146-318, :471-551), der Saldenbestätigungslauf mit Anschreiben je Geschäftspartner und festgehaltener Rückmeldung fehlt weiterhin | Politur |
+| Prüfungsvermerk und Prüfungsbericht als Dokument mit dem Abschluss verknüpfbar | ❌ | Kein Abschlussobjekt, keine Verknüpfung (siehe JAB-04) | 1 |
+
+**Stand.** Der Prüfer bekommt seit Welle 4, was er zum Arbeiten braucht: einen befristeten Nur-Lese-Zugang, die Bewegungsdaten des Jahres als Datenüberlassung und jede Auswertung auf den Stichtag, nach dem er fragt — die Stichtagsvariante der Kontenumsätze deckt SuSa, Kontoblatt und OP-Liste zugleich ab. Mit Welle 7 kommt der Prüfpfad je Beleg als achtzehnte Tabelle dazu. Offen bleiben die beiden Punkte, die von der Abschlussprüfung selbst abhängen: der Saldenbestätigungslauf, für den der Weg vom offenen Posten zum Anschreiben inzwischen im Mahnwesen steht, und der Prüfungsvermerk am Abschlussobjekt aus Welle 1. Politur.
+
+### JAB-09 Jahreswechsel und Saldenvortrag `MUSS`
+
+**Norm:** § 252 Abs. 1 Nr. 1 HGB, § 242 Abs. 1 HGB
+
+**Bedeutung:** Die Eröffnungsbilanz des Geschäftsjahres muss mit der Schlussbilanz des Vorjahres übereinstimmen. Der Vortrag darf keine Werte verändern.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Saldenvortrag als eigener Buchungsvorgang mit eigenem Belegverweis, im Journal sichtbar | ✅ | internal/service/closing_service.go:1107-1175 (`buildEntry`) bucht die Bestandskonten gegen 9000, die Personenkonten gegen 9008 und 9009 (internal/domain/skr04_accounts.go:27-29), als Buchung der Herkunft Eröffnung mit dem Belegverweis "SV JJJJ" (:1176); geschrieben wird über denselben `Post`-Weg wie jede andere Buchung und steht damit im Journal | – |
+| Vortrag wiederholbar ohne doppelte Werte, ein erneuter Lauf ersetzt den vorherigen nachvollziehbar | ✅ | internal/service/closing_service.go:995-1100 nimmt die bestehenden Vortragsbuchungen per Generalumkehr auf das Vortragsdatum zurück (internal/service/journal_service.go:203-215, `ReverseOn`) und bucht neu; ein Lauf ohne Änderung wird abgewiesen (:1019-1022), ein nicht mehr zurücknehmbarer Altvortrag ebenfalls, statt seine Werte zu verdoppeln (:1026-1034) | – |
+| Ändert sich das Vorjahr nach dem Vortrag, wird die Differenz gemeldet und ein korrigierender Vortrag angeboten | ✅ | internal/service/closing_service.go:708-738 stellt je Konto Schlusssaldo, vorgetragenen Wert und Differenz gegenüber und setzt daraus `NeedsCorrection` (:764); die Vorschau zeigt die Zeilen, der Korrekturvortrag steht als Aktion daneben (frontend/src/pages/ClosingPage.tsx:516-670) | – |
+| Personenkonten mit offenen Posten vorgetragen, nicht nur mit Saldo | ✅ | internal/service/closing_service.go:897-942 (`openItemsAt`) sammelt die zum Bilanzstichtag offenen Posten je Geschäftspartner, internal/repository/journal_gorm.go:134-141 liefert dafür die Stichtagssicht einschließlich später stornierter Rechnungen; :1133-1148 schreibt je Posten eine eigene Zeile mit Belegverweis und Kontakt. Der Vortrag selbst zählt nicht noch einmal als offener Posten (internal/service/payment_service.go:141-149) | – |
+| Vorjahresergebnis auf das Ergebnisvortragskonto gebucht, gesteuert durch den Ergebnisverwendungsbeschluss | ✅ | internal/service/closing_service.go:654-663 bringt das Jahresergebnis mit dem Vortrag zunächst unverwendet auf 2970 oder 2978 (internal/domain/skr04_accounts.go:69-77) — nachträglich verteilen dürfte es der Vortrag nicht, § 252 Abs. 1 Nr. 1 HGB verbietet die Änderung der Eröffnungsbilanz. Verteilt wird es durch den Beschluss: internal/domain/appropriation.go:22-86 hält Datum, Wortlaut, Belegverweis und die vier Beträge, internal/service/appropriation_service.go:93-223 rechnet Rücklagen, Ausschüttung samt Kapitalertragsteuer und Vortrag auf neue Rechnung und erzwingt die Pflichtrücklage der UG nach § 5a Abs. 3 GmbHG (:232-301, :332-338), :323-424 bucht ihn im Folgejahr mit dem Gesellschafterbeschluss als Beleg | – |
+
+**Stand.** Der Jahreslauf ist nicht mehr blockiert: der Vortrag bringt Bestandskonten, offene Posten und Jahresergebnis ins Folgejahr, ist wiederholbar und wird abgelehnt, wenn er nicht aufgeht. Seit Welle 5 ist die Ergebnisverwendung beschlossen und nicht mehr unterstellt: der Vortrag legt das Ergebnis unverwendet ab, der Beschluss verteilt es im Folgejahr an seinem eigenen Datum. Ein Rand bleibt: `AccountLedger.OpeningBalance` steht im Kontoblatt weiterhin hart auf 0 (internal/service/accounting_service.go:230), der Vortrag erscheint dort als erste Buchung des Jahres statt als Anfangsbestand. Welle 1.
+
+---
+
+## I. Betriebsprüfung und Verfahrensdokumentation
+
+### PRF-01 Datenzugriff Z1, Z2, Z3 `MUSS`
+
+**Norm:** § 147 Abs. 6 AO, GoBD Rz 158 bis 177
+
+**Bedeutung:** Die Finanzbehörde hat drei gleichrangige Zugriffsarten zur Wahl. Sie entscheidet, welche sie nutzt, und kann alle drei kombinieren. Die Software muss alle drei bedienen können.
+
+| Art | Bezeichnung | Was die Software leisten muss |
+|---|---|---|
+| Z1 | Unmittelbarer Zugriff | Nur-Lese-Zugang für den Prüfer am System, mit den Auswertungsmöglichkeiten, die dem Unternehmen zur Verfügung stehen |
+| Z2 | Mittelbarer Zugriff | Auswertung durch das Unternehmen nach Vorgaben des Prüfers |
+| Z3 | Datenüberlassung | Übertragung der Daten in maschinell auswertbarem Format, seit dem Änderungsschreiben vom 11.03.2024 auch über eine Datenaustauschplattform nach § 87a Abs. 1 AO |
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Prüferprofil mit Nur-Lese-Zugriff auf Buchungen, Belege, Stammdaten, Auswertungen und Änderungsprotokolle | ✅ | Ein Modus, kein Rollenmodell — im Einzelplatzbetrieb ohne Benutzerkonten ist das die Form, in der Z1 überhaupt herstellbar ist (docs/architektur.md Abschnitt 2): internal/wailsbridge/readonly.go:37-189 lässt Lesen, Auswerten, Prüfen und Ausgeben zu, :210-220 weist alles Schreibende an der Bridge ab und nicht erst in der Oberfläche. Der Modus gilt befristet und mit protokolliertem Grund (:227-260), die Oberfläche nennt beides über jeder Ansicht (frontend/src/pages/TaxAuditPage.tsx:369-437) | – |
+| Zugriff auf Geschäftsjahre und Mandanten eingrenzbar und protokolliert | 🟡 | Ein- und Ausschalten des Prüfermodus stehen mit Datum und Grund im Änderungsprotokoll (internal/wailsbridge/readonly.go:255-258, :285-288), und die Überlassung ist auf ein Geschäftsjahr begrenzt und wird mit Umfang protokolliert (internal/service/export_service.go:902-912). Der Zugriff selbst bleibt unbegrenzt: internal/wailsbridge/app_service.go:727 (`SwitchTenant`) und :1373 (`SetFiscalYear`) sind auch im Prüfermodus offen und schreiben nichts ins Protokoll; Welle 7 hat daran nichts geändert | Politur |
+| Auswertungen nach freien Kriterien filter-, sortier- und summierbar | 🟡 | Seit Welle 8 filtert das Journal nach Konto, Gegenkonto, Betrag von/bis, Steuerschlüssel, Bearbeiter, Beleg vorhanden ja/nein, Zeitraum und Volltext: internal/accounting/journal_filter.go:30-52 führt den Filter — Zeiger bei Betrag und Belegkennzeichen, damit „nicht gesetzt" und „null" bzw. „nein" auseinandergehen —, :95-146 (`FilterJournal`) wendet ihn zeilenweise an und rechnet Soll, Haben, Saldo, Zeilen- und Buchungszahl der gefilterten Menge (:77-94). Die Ausgabe geht als CSV derselben Menge hinaus und wird als Zugriff protokolliert (internal/service/journal_filter_csv.go:24-96, internal/wailsbridge/welle8_service.go:221-275), die Oberfläche zeigt Filter und Summenzeile (frontend/src/components/JournalFilterView.tsx:270-370). Die Sortierung bleibt die reproduzierbare Journalordnung nach Datum, Buchungsnummer und Position (internal/accounting/journal_filter.go:132-140); eine freie Sortierwahl gibt es nicht — sie geschieht in der Prüfsoftware am Z3-Export | Politur |
+| Vollständiger Datenexport eines Geschäftsjahres ohne Nachbearbeitung, einlesbar in Prüfsoftware | ✅ | internal/service/export_service.go:107-181; ein Aufruf schreibt Tabellen, index.xml, Grammatik, Feldbeschreibung und Metadatei in den gewählten Ordner (internal/export/writer.go:146-163), das Prüferpaket zusätzlich Belegdateien, Integritätsnachweis und Verfahrensdokumentation (:700-757, :761-808, :877-888). Nachzubearbeiten ist nichts; das Testeinlesen in eine Prüfsoftware steht aus (PRF-02) | – |
+| Bereitstellung über eine Datenaustauschplattform möglich | ⛔ | Buchfink überträgt nichts selbst: Local-First, kein Fernzugriff, keine Anbindung an einen Dienst (docs/architektur.md Abschnitt 2, ebenso PRF-05). Was der Plattformweg braucht, ist eine Datei, und die entsteht seit Welle 4 — die Überlassung liegt als Ordner mit CSV, index.xml und Prüfsummen je Datei (internal/export/writer.go:234-252) und lässt sich unverändert hochladen oder auf einem Datenträger übergeben | – |
+
+**Stand.** Mit Welle 4 sind alle drei Zugriffsarten bedienbar: Z1 als Prüfermodus mit befristetem, protokolliertem Nur-Lese-Zugang, Z2 über die Auswertungen des Programms, Z3 als vollständige Datenüberlassung nach dem Beschreibungsstandard. Welle 8 rüstet die zweite Zugriffsart aus: das Journal filtert nach Konto, Gegenkonto, Betragsbereich, Steuerschlüssel, Bearbeiter, Belegkennzeichen und Zeitraum, zeigt zur gefilterten Menge ihre Summenzeile und gibt genau diese Menge als CSV heraus, protokolliert als Zugriff. Zwei Ränder bleiben: die Sortierung ist die reproduzierbare Journalordnung und keine freie Wahl, und der Wechsel zwischen Geschäftsjahren und Mandanten bleibt auch im Prüfermodus offen und unprotokolliert. Politur.
+
+### PRF-02 Format der Datenüberlassung `MUSS`
+
+**Norm:** § 147 Abs. 6 AO, Beschreibungsstandard für die Datenüberlassung (Anlage zum GoBD-Änderungsschreiben vom 11.03.2024)
+
+**Bedeutung:** Für die Finanzbuchhaltung existiert derzeit keine verbindliche gesetzliche Schnittstelle. Faktischer Standard ist der Beschreibungsstandard für die Datenüberlassung mit einer XML-Strukturbeschreibung und den zugehörigen Datendateien. Für Besteuerungszeiträume ab dem 01.01.2025 werden EBCDIC, Lotus 123, ASCII-Druckdateien und die AS400-Konvertierung nicht mehr unterstützt.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Export erzeugt Datendateien plus eine XML-Strukturbeschreibung mit Feldnamen, Typen, Längen und fachlicher Bedeutung | ✅ | internal/export/gdpdu.go:52-79 schreibt index.xml nach dem Beschreibungsstandard: je Tabelle Dateiname, Bezeichnung, Zeitraum und Formatfestlegungen, je Spalte Name, Erläuterung und Typ (alphanumerisch, numerisch mit Nachkommastellen, Datum mit Format). Die amtliche Grammatik liegt eingebettet bei und wird mitgeschrieben (:17-44, internal/export/gdpdu-01-09-2004.dtd), die fachliche Bedeutung jeder Spalte steht zusätzlich im Klartext in feldbeschreibung.md (internal/export/fielddoc.go:97-175, gespeist aus der Erläuterung, die jedes Feld in internal/service/export_tables.go mitführt) | – |
+| Zielformate mindestens CSV oder ASCII mit definiertem Trennzeichen und XLSX, keine aufgegebenen Formate | 🟡 | internal/export/csv.go:11-25, :27-41 schreibt UTF-8 ohne BOM nach RFC 4180: Semikolon als Trennzeichen, CR LF, doppeltes Anführungszeichen, Punkt als Dezimaltrennzeichen — dieselben Festlegungen stehen maschinenlesbar in index.xml und im Klartext in der Feldbeschreibung (internal/export/fielddoc.go:112-126). Aufgegebene Formate kommen nicht vor. XLSX ist bewusst weggelassen, und der Grund steht in der Überlassung selbst (internal/export/fielddoc.go:141-145): es wäre eine zweite Fassung derselben Daten in einem Format, das Beträge und führende Nullen beim Öffnen verändert | – |
+| Umfang mindestens Journal, Kontenbeschreibung, Kontensalden, Debitoren- und Kreditorenstammdaten, offene Posten, Anlagenstammdaten und -bewegungen, Steuerschlüsselverzeichnis, Änderungsprotokoll, Belegverzeichnis | ✅ | internal/service/export_tables.go:21-40 nennt die achtzehn Tabellen, gebaut in internal/service/export_service.go:697-720: journal (:68-165), konten mit Gliederungs- und Taxonomieposition (:245-295), salden (:314-348), kontakte (:349-379), offene_posten (:380-415), anlagen (:416-460) und anlagen_bewegungen (:461-500), steuerschluessel (:501-529), schluesselverzeichnis (:530-714), aenderungsprotokoll (:716-737), belege (:738-790) — dazu dokumente, voranmeldungen, festschreibungen, pruefläufe, zahlungszuordnungen, bewirtungen und seit Welle 7 pruefpfad (:1030-1102) | – |
+| Testeinlesen in eine Prüfsoftware belegt die Verwendbarkeit | ❌ | Der Export ist gegen die mitgelieferte amtliche Grammatik gebaut und in internal/export/export_test.go sowie internal/service/export_service_test.go geprüft; ein Einlesen in IDEA oder ACL hat weiterhin nicht stattgefunden und lässt sich im Code auch nicht belegen | Politur |
+
+**Stand.** Mit Welle 4 gebaut, und der Hebel hat sich gezeigt: derselbe Export erfüllt ARC-04, UNV-01, JAB-08, QUE-06 und liefert später die Grundlage für den DATEV-Export. Mit Welle 7 kommt der Prüfpfad als achtzehnte Tabelle hinzu. Zwei Punkte bleiben, und keiner davon ist Programmierarbeit: XLSX wird bewusst nicht angeboten, und ob eine Prüfsoftware die Überlassung tatsächlich einliest, ist erst belegt, wenn es jemand versucht hat. Der zweite ist Politur.
+
+### PRF-03 Verfahrensdokumentation `MUSS`
+
+**Norm:** GoBD Rz 151 bis 155
+
+**Bedeutung:** Für jedes eingesetzte DV-System ist eine Verfahrensdokumentation zu führen. Sie besteht aus einer allgemeinen Beschreibung, einer Anwenderdokumentation, einer technischen Systemdokumentation und einer Betriebsdokumentation. Eine fehlende Verfahrensdokumentation ist nach Rz 155 nur dann ein formeller Mangel, wenn die Nachvollziehbarkeit tatsächlich beeinträchtigt ist. Auf diese Einschränkung sollte man sich nicht verlassen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Herstellerdokumentation mit allen vier Bestandteilen und dem Zusammenhang zu den gesetzlichen Anforderungen | ✅ | internal/procdoc/procdoc.go:198-204 legt die Abschnitte fest, :206-520 setzt sie: allgemeine Beschreibung mit Unternehmen, Geltungsbereich, Speicherort und Steuerfällen (:223-278), Anwenderdokumentation mit Belegfluss, Ausgangsrechnung, Bankimport, Abschluss, Eigenbelegen, Nummernkreisen und Korrekturen (:279-366), technische Systemdokumentation mit Datenmodell, Kanonisierung, Beleg-Hash, Verschlüsselung, Zeitstempel, Festschreibung, Exporten und Fristen (:367-441), Betriebsdokumentation mit Sicherung, Wiederherstellung, Integritätsprüfung, Änderungshistorie und Migrationsprotokoll (:442-491). Jeder Abschnitt nennt die Norm, auf der er beruht; die veränderlichen Angaben kommen aus der Datenbank und aus dem Code, der tatsächlich rechnet (internal/service/procdoc_service.go:266-338) | – |
+| Muster für die unternehmensindividuellen Teile | ✅ | internal/domain/procdoc.go:71-86 führt Zuständigkeiten, Belegfluss im Haus, Scannen, Freigabe und Festschreibung, Vertretung, Sicherung und Weiteres als Freitexte, :104-132 gibt die Muster vor, mit denen sie vorbelegt sind; internal/service/procdoc_service.go:90-153 liest und speichert sie mit Vorher und Nachher im Protokoll, gepflegt werden sie unter „Betriebsprüfung", wo die Fassung entsteht, die sie aufnimmt (frontend/src/pages/TaxAuditPage.tsx:627-720). Das Formular gruppiert die sieben Freitexte nach den drei Fragen, die an die Organisation gestellt werden — wer arbeitet damit, wie kommen die Belege herein, wie sind die Daten gesichert —, und sagt an jedem Abschnitt, ob er beschrieben ist oder noch im Muster steht: dafür liefert internal/wailsbridge/nachweise_service.go:324-336 (`GetOrganisationTextDefaults`) die Muster getrennt, weil `GetOrganisationTexts` beides ununterscheidbar mischt. Ein unverändertes Muster ist kein Fehler — für ein Ein-Personen-Unternehmen ist es oft die Wahrheit —, aber es soll niemandem als eigene Beschreibung durchgehen und sind aus den Einstellungen verlinkt (frontend/src/pages/SettingsPage.tsx:1189-1204). In der erzeugten Fassung stehen sie als Abschnitt 2.9 (internal/procdoc/procdoc.go:349-366) | – |
+| Versioniert, Historie über die gesamte Aufbewahrungsfrist nachvollziehbar | ✅ | internal/service/procdoc_service.go:154-223 (`Generate`) nummeriert jede Fassung (:339-347) und legt sie im Belegspeicher unter `dokumente/verfahrensdokumentation/` ab — dort, wo Sicherung, Archivexport und Prüferpaket sie mitnehmen —, mit Fassung, Zeitpunkt, Bearbeiter, Programmfassung, Regelstand, Dateiname und Prüfsumme (internal/domain/procdoc.go:15-52); das Löschkonzept führt die Fassungen zehn Jahre (internal/accounting/retention.go:191-198), und das Prüferpaket legt alle bei und nicht nur die jüngste, weil zu jedem Geschäftsjahr die damals geltende gehört (internal/service/export_service.go:983-1030). Einzeln herausgeben lässt sich jede Fassung seit Welle 9 (internal/service/procdoc_service.go:276-309 `File`, internal/wailsbridge/nachweise_service.go:250-297 `SaveProcedureDocumentationAs`): die Prüfsumme wird vor dem Schreiben verglichen, damit keine Fassung hinausgeht, die nicht mehr die ist, deren Erzeugung im Protokoll steht, und die Herausgabe selbst wird als Zugriff festgehalten | – |
+| Beschreibung des internen Kontrollsystems enthalten | ✅ | internal/procdoc/procdoc.go:203, :492-518 setzt das interne Kontrollsystem als eigenen Abschnitt: die harten Regeln des Buchungskerns und die Prüfregeln vor der Festschreibung mit Regel, Gegenstand und Wirkung, gespeist aus dem Regelkatalog des Prüfdienstes (internal/service/procdoc_service.go:436-457) | – |
+
+**Stand.** Seit Welle 6 erzeugt Buchfink die Verfahrensdokumentation aus dem laufenden System: Unternehmensdaten, Kontenrahmen, Nummernkreise mit ihrer Systematik, Regelstand, Programmfassung, Fristen und Prüfregeln kommen aus der Datenbank und aus dem Code, die Textbausteine aus dem Programm, die unternehmensindividuellen Teile aus Freitextfeldern mit Muster. Jede Fassung wird nummeriert, im Belegspeicher abgelegt und liegt jedem Prüferpaket bei — alle Fassungen, weil zu jedem Geschäftsjahr die damals geltende gehört. Sie enthält zugleich die Scope-Entscheidungen dieses Katalogs: Einzelplatzbetrieb, Speicherort Inland, kein ersetzendes Scannen, geschlossene Liste der Steuerfälle. Alle vier Kriterien sind erfüllt.
+
+### PRF-04 Beweiskraft und Schnittstellenkonformität `MUSS`
+
+**Norm:** § 158 AO, § 162 AO
+
+**Bedeutung:** § 158 Abs. 2 AO entzieht der Buchführung die Beweiskraft, wenn die Daten nicht nach den Vorgaben der einheitlichen digitalen Schnittstellen bereitgestellt werden. Die Folge ist die Schätzung nach § 162 AO. Für die Finanzbuchhaltung greift diese Variante derzeit noch nicht, weil die Verordnung nach § 147b AO fehlt. Für die Digitale Lohnschnittstelle und die DSFinV-K greift sie bereits.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Digitale Lohnschnittstelle in der jeweils aktuellen Version bedienbar, wenn Lohndaten verarbeitet werden | ⛔ | Buchfink verarbeitet keine Lohndaten; der Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros herein, die Schnittstelle trifft den Lohnabrechner | – |
+| DSFinV-K-Exporte einlesbar, Sammelbuchung auf die Einzelvorgänge zurückführbar | ⛔ | Kein Kassensystem und kein Aufzeichnungssystem nach § 146a AO | – |
+| Schnittstellenversionen konfigurierbar und mit dem Export protokolliert | ✅ | internal/export/gdpdu.go:33 führt die Fassung des Beschreibungsstandards, internal/export/writer.go:61-70 schreibt sie zusammen mit der Programmfassung in export.json, internal/export/gdpdu.go:57, :66-68 nennt beide in index.xml, und internal/service/export_service.go:902-912 hält Art, Umfang und Fassung jedes Exports im Änderungsprotokoll fest | – |
+
+**Stand.** Die beiden Sachverhalte, an die § 158 Abs. 2 AO heute anknüpft, liegen außerhalb des Funktionsumfangs. Seit Welle 4 nennt jede Datenüberlassung ihre Fassung: Beschreibungsstandard und Programmversion stehen in index.xml, in export.json und im Änderungsprotokoll. Wählbar ist die Fassung nicht, und die Taxonomieversion der E-Bilanz bleibt hartcodiert — das steht in JAB-05.
+
+### PRF-05 Zugriff bei Cloud- und Drittbetrieb `MUSS*`
+
+**Norm:** § 147 Abs. 6 AO in der Fassung des DAC7-Umsetzungsgesetzes, § 146 Abs. 2a und 2b AO
+
+**Bedeutung:** Seit 2023 trifft die Pflicht, Einsicht, Auswertung und Übertragung zu ermöglichen, ausdrücklich auch Dritte, bei denen die Daten liegen, also Rechenzentren und Cloud-Anbieter. Der Betriebsvertrag muss das abbilden.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Vertrag mit dem Betreiber verpflichtet diesen zur Mitwirkung nach § 147 Abs. 6 AO | ⛔ | Local-First: es gibt keinen Betreiber, die Daten liegen im Datenordner auf dem Rechner der Anwenderin (internal/wailsbridge/app_service.go:426-435) | – |
+| Datenzugriff unabhängig vom Speicherort aus dem Inland | ⛔ | Lokale Datei, kein Fernzugriff | – |
+| Exit-Klausel und hinterlegter Vollexport bei Kündigung oder Insolvenz des Anbieters | ⛔ | Kein Anbieter, der ausfallen könnte. Das reale Gegenstück ist der fehlende Sicherungsweg, und der steht in ARC-08 | – |
+| Speicherort dokumentiert | ⛔ | internal/domain/app_config.go:6-10 führt den Pfad je Mandant, frontend/src/pages/SettingsPage.tsx:945-959 zeigt ihn an. Die ausgewiesene Dokumentation für den Prüfer, die auch Belegordner und Schlüsselort nennt, steht seit Welle 6 als Abschnitt 1.3 der erzeugten Verfahrensdokumentation (internal/procdoc/procdoc.go:250-264) | – |
+
+**Stand.** Der Sachverhalt tritt bei einer lokalen Einzelplatzanwendung nicht ein. Offen bleibt allein die Dokumentation des Speicherorts, und die gehört in die Verfahrensdokumentation.
+
+### PRF-06 Künftige Buchführungsschnittstelle `TERMIN`
+
+**Norm:** § 147b AO, Entwurf einer Buchführungsdatenschnittstellenverordnung (DSFinVBV)
+
+**Bedeutung:** § 147b AO ermächtigt seit 2023 zu einer Rechtsverordnung über eine einheitliche digitale Schnittstelle für die Buchführung. Die Verordnung ist noch nicht erlassen; zu dem Entwurf, der im Amtsdeutsch Buchführungsdatenschnittstellenverordnung (DSFinVBV) heißt, liegt 2026 ein weiterer Diskussionsentwurf vor, zu dem die Bundessteuerberaterkammer am 09.03.2026 Stellung genommen hat. Als Format sieht der Entwurf xBRL-CSV in der Version 1.0 vor, also CSV-Dateien plus Metadaten als JSON. Nach dem Entwurf gälte die Verordnung erst für Wirtschaftsjahre, die nach einem Stichtag rund drei Jahre nach Verkündung beginnen. Für die Architektur bedeutet das: die Exportschicht sollte formatunabhängig gebaut sein.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Exportschicht trennt Datenmodell und Ausgabeformat | ✅ | internal/export/dataset.go:1-14 benennt die Trennung und setzt sie durch: `Dataset`, `Table` und `Field` (:45-78) kennen kein Format, die Erzeuger kennen keine Buchhaltung (internal/export/csv.go:34, internal/export/gdpdu.go:52, internal/export/fielddoc.go:97), und die Auswahl entsteht ausschließlich in internal/service/export_tables.go. Ein Erzeuger für xBRL-CSV tritt daneben, ohne die Auswahl anzufassen; die E-Bilanz bleibt der Altfall (internal/ebilanz/ebilanz.go:199-279) | – |
+| Internes Datenmodell hält alle Felder vor, die der Entwurf verlangt | 🟡 | internal/domain/journal.go:104-253 ist feldreich: vier getrennte Daten, Steuerschlüssel und Bemessungsgrundlage je Zeile, Währung mit Kurs und Quelle, Belegverweis, Regelversion, Herkunft, und seit Welle 6 Bearbeiterkennung, Programmfassung, Festschreibungszeitpunkt und Herkunftskennung aus einem Altsystem. Es fehlen eine Kostenstelle und eine feldbezogene Änderungshistorie der Buchung — die gibt es für Stammdaten und Belegkopfdaten (UNV-03), an der Buchung ist eine Änderung überhaupt nicht vorgesehen | Politur |
+| Entwicklungsplan enthält einen Prüfpunkt für den Zeitpunkt der Verkündung | ❌ | docs/architektur.md:112-114 nennt die Schnittstelle nach § 147b AO als künftiges Formatmodul, aber keinen Termin, zu dem der Stand der Verordnung zu prüfen wäre; der Terminplan dieses Katalogs führt sie weiterhin ohne Datum als „offen" | Politur |
+
+**Stand.** Die Architekturfolge ist mit Welle 4 gezogen: der Z3-Export ist so geschnitten, dass die Datenauswahl formatfrei bleibt, und xBRL-CSV wäre ein Erzeuger neben CSV und index.xml, kein Umbau. Offen bleiben zwei Felder im Datenmodell und der Prüfpunkt für den Tag, an dem die Verordnung verkündet wird. Beides ist Politur.
+
+---
+
+## J. Querschnitt
+
+### QUE-01 Löschpflicht und Aufbewahrungspflicht `MUSS`
+
+**Norm:** Art. 5 Abs. 1 lit. e, Art. 17 Abs. 3 lit. b DSGVO, § 257 HGB, § 147 AO
+
+**Bedeutung:** Die Löschpflicht der DSGVO entfällt, soweit die Verarbeitung zur Erfüllung einer rechtlichen Verpflichtung erforderlich ist. Handels- und steuerrechtliche Aufbewahrungsfristen gehen dem Löschanspruch also vor. Nach Fristablauf kehrt sich das Verhältnis um: dann ist zu löschen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Löschantrag geprüft und, soweit Aufbewahrungspflichten greifen, mit Normverweis zurückgestellt statt abgelehnt | ✅ | internal/accounting/retention.go:246-259 (`BlockedContactAnswer`) formuliert die Antwort an die betroffene Person mit § 257 HGB, § 147 AO, Art. 17 Abs. 3 Buchst. b und Art. 18 DSGVO und sagt die Löschung nach Fristablauf zu; internal/service/contact_service.go:226-251 sperrt den Geschäftspartner dazu und protokolliert den Vorgang mit Grund, internal/wailsbridge/nachweise_service.go:335-358 gibt Sperre und Antworttext an die Oberfläche (frontend/src/pages/ContactsPage.tsx:254-310) | – |
+| Betroffene Datensätze bis zum Fristablauf gesperrt | ✅ | internal/domain/contact.go:108-110 führt Sperre, Sperrdatum und Grund am Geschäftspartner; internal/service/contact_service.go:274-295 (`ensureNotBlocked`) weist jeden Schreibweg ab, der ihn noch verwenden würde, :265-272 nimmt ihn aus jeder Auswahl. In Buchungen, Rechnungen und Exporten bleibt er sichtbar, weil die Aufbewahrungspflicht dem Löschanspruch vorgeht, und die Liste kennzeichnet ihn als gesperrt (frontend/src/pages/ContactsPage.tsx:222-240) | – |
+| Nach Fristablauf löscht ein Verfahren oder legt einer dokumentierten Entscheidung vor, Löschung protokolliert | ✅ | internal/service/retention_service.go:272-288 führt die Geschäftsjahre, deren Frist abgelaufen ist und für die keine Aussetzung gilt; gelöscht wird nur auf ausdrückliche Anweisung: :367-429 (`ArchiveAndDelete`) verlangt die Jahreszahl als ausgeschriebene Bestätigung und einen erstellten Archivexport, löscht das Jahr in einer Transaktion (internal/repository/welle6_gorm.go:223-330) und schreibt danach ins Protokoll, was verschwunden ist — je Objektart gezählt, mit den entfernten Dateien und dem Archivpfad | – |
+| Löschkonzept ordnet jeder Datenkategorie eine Frist und eine Rechtsgrundlage zu | ✅ | internal/accounting/retention.go:164-238 (`DeletionConcept`) führt neun Datenkategorien mit Klasse, Frist, Rechtsgrundlage und dem, was nach Fristablauf geschieht — vom Journal über die Fassungen der Verfahrensdokumentation bis zu den Stammdaten der Geschäftspartner. Dieselbe Tabelle ist Abschnitt 3.8 der Verfahrensdokumentation (internal/procdoc/procdoc.go:424-441) und die Regel, nach der die Löschfunktion entscheidet; sie steht in der Oberfläche (frontend/src/pages/BackupPage.tsx:869-907) | – |
+
+**Stand.** Mit Welle 6 hat die Löschseite ihre Antwort: das Löschkonzept ordnet jeder Datenkategorie ihre Frist und ihre Rechtsgrundlage zu, ein Löschverlangen wird mit dem Normverweis zurückgestellt und der Geschäftspartner stattdessen gesperrt — in keiner Auswahl mehr wählbar, in Buchungen und Exporten weiter sichtbar —, und nach Fristablauf steht die Löschung des Geschäftsjahres als Vorgang bereit: Archivexport davor, ausgeschriebene Bestätigung, Protokoll danach. Alle vier Kriterien sind erfüllt.
+
+### QUE-02 Technische Maßnahmen und Auftragsverarbeitung `MUSS`
+
+**Norm:** Art. 28, Art. 32 DSGVO
+
+**Bedeutung:** Buchhaltungsdaten enthalten personenbezogene Daten von Mitarbeitern, Kunden und Lieferanten. Bei Cloud-Betrieb ist ein Auftragsverarbeitungsvertrag erforderlich.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Übertragung und Speicherung verschlüsselt, die Verfahren dokumentiert | 🟡 | internal/repository/encryption.go:36-58 verschlüsselt feldweise mit AES-256-GCM, Schlüssel im Betriebssystem-Schlüsselbund. Das Verfahren steht seit Welle 8 vollständig in der Verfahrensdokumentation: internal/procdoc/procdoc.go:556-575 beschreibt als Maßnahme nach Art. 32 DSGVO die Verschlüsselung mit einem Schlüssel je Mandant, die Verwahrung im Schlüsselbund, den Wiederherstellungsschlüssel, den Zugriffsschutz des Betriebssystems, die Protokollierung, die Hash-Ketten und die Sicherung. Verschlüsselt ist, was `serializer:encrypted` hat — Vorher- und Nachherwerte des Protokolls (internal/domain/audit.go:46-47), die personenbezogenen Kopfdaten des Belegs (internal/domain/receipt.go:209-214), der Leistungsnachweis (:282); Kontonummern, Beträge und Datumsangaben stehen weiter im Klartext | Politur |
+| Zugriffe auf personenbezogene Daten protokolliert und auswertbar | ✅ | internal/domain/audit.go:11-18 erfasst die Schreibvorgänge; daneben steht jeder Vorgang, bei dem personenbezogene Daten das Programm verlassen oder geöffnet werden — Journalexport und Datenüberlassung (internal/service/export_service.go:254, :1083), Sicherungslauf, Datenübernahme und der Prüfermodus mit Grund und Frist (internal/wailsbridge/readonly.go:342, :375). Welle 8 schließt die beiden offenen Wege: die Herausgabe einer einzelnen Belegdatei wird beim Schreiben protokolliert und nicht erst im Dialog (internal/wailsbridge/export_service.go:220-245), ebenso die CSV-Ausgabe des gefilterten Journals (internal/service/journal_filter_csv.go:77-95). Ausgewertet wird das über internal/domain/audit.go:75-83 (`AuditFilter.Access`), das die Ausgaben und das Ein- und Ausschalten des Prüfermodus in einer Abfrage zusammenfasst, weil „Zugriffe" eine Kategorie ist und keine Aktion; das Änderungsprotokoll der Prüfübersicht führt sie als eigenen Filter (frontend/src/pages/AuditPage.tsx:1045-1157). Welche Vorgänge als Zugriff gelten, sagt die Verfahrensdokumentation (internal/procdoc/procdoc.go:565-570) | – |
+| Auftragsverarbeitungsvertrag mit Unterauftragnehmern und Speicherorten | ⛔ | Keine Auftragsverarbeitung bei lokalem Betrieb. Einzige externe Verbindung ist der Zeitstempeldienst nach RFC 3161, an den nur ein Hash geht (internal/wailsbridge/festschreibung_service.go:57-64) | – |
+| Verzeichnis von Verarbeitungstätigkeiten für die Buchhaltung erstellbar | ✅ | internal/procdoc/procdoc.go:204-212, :523-575 setzt das Verzeichnis nach Art. 30 DSGVO als eigenen Abschnitt der Verfahrensdokumentation: den Verantwortlichen aus den Unternehmensangaben, acht Verarbeitungstätigkeiten von der Finanzbuchhaltung bis zum Zugriffsprotokoll mit Zweck, Rechtsgrundlage, betroffenen Personen, Datenkategorien, Empfängern — Finanzverwaltung, Steuerberater, Bundeszentralamt, Zeitstempeldienst — und Löschfrist, die Fristen aus den Aufbewahrungsklassen samt dem Verhältnis zu Art. 17 DSGVO und die technischen und organisatorischen Maßnahmen nach Art. 32 DSGVO. Es entsteht aus dem laufenden System und wird mit der Verfahrensdokumentation als Fassung im Belegspeicher abgelegt (internal/service/procdoc_service.go) | – |
+
+**Stand.** Die Vertraulichkeit ist der am besten ausgebaute Querschnittsteil, und mit Welle 8 hat sie ihre Rechenschaft: die Verfahrensdokumentation enthält das Verzeichnis von Verarbeitungstätigkeiten nach Art. 30 DSGVO — acht Tätigkeiten mit Zweck, Rechtsgrundlage, Datenkategorien, Empfängern und Löschfrist —, dazu die Löschfristen aus den Aufbewahrungsklassen und die Maßnahmen nach Art. 32 DSGVO. Jeder Vorgang, bei dem personenbezogene Daten das Programm verlassen, steht im Protokoll: Datenüberlassung, Prüferpaket, Prüfermodus, die Herausgabe einzelner Belegdateien und die CSV-Ausgabe des gefilterten Journals, auswertbar über den Filter „Zugriffe". Offen bleibt die Verschlüsselung über die personenbezogenen Felder hinaus — Kontonummern, Beträge und Datumsangaben stehen im Klartext. Politur.
+
+### QUE-03 Mandanten- und Buchungskreistrennung `MUSS`
+
+**Norm:** § 146 Abs. 1 AO, GoBD Rz 36 ff.
+
+**Bedeutung:** Buchführungen verschiedener Unternehmen dürfen nicht vermischt werden. Auch bei getrennten Datenbanken pro Mandant muss die Trennung im Betrieb belegbar sein.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Ein Buchungsvorgang wirkt nur innerhalb eines Mandanten, mandantenübergreifende Buchungen ausgeschlossen | ✅ | internal/repository/db.go:24 führt eine Datenbank je Mandant, internal/wailsbridge/app_service.go:135-262 verdrahtet alle Repositories auf genau diese Verbindung; es ist stets nur ein Mandant offen | – |
+| Auswertungen und Exporte mandantenscharf | ✅ | internal/wailsbridge/app_service.go:181-193; jede Auswertung liest über die Verbindung des aktiven Mandanten, eine mandantenübergreifende Auswertung gibt es nicht | – |
+| Berechtigungen je Mandant vergeben | 🟡 | internal/security/keyring.go:67 hält je Mandant einen eigenen Umschlagschlüssel, ein fehlendes Geheimnis sperrt den Mandanten; das ist mandantenscharfer Zugriffsschutz auf Betriebssystemebene, aber keine Berechtigungsvergabe, weil es keine Benutzer gibt (siehe UNV-04) | – |
+| Nummernkreise für Belege und Buchungen je Mandant unabhängig | ✅ | internal/domain/numberrange.go:36-43; die Tabelle liegt in der Mandantendatenbank, zwei Mandanten teilen keinen Zähler | – |
+
+**Stand.** Strukturell ist die Trennung solide und die stärkste Querschnittsanforderung im Bestand. Was fehlt, ist die Berechtigungsvergabe, und die entfällt mit der Entscheidung für den Einzelplatzbetrieb.
+
+### QUE-04 Zeit und Zeitstempel `MUSS`
+
+**Norm:** § 146 Abs. 1 AO, GoBD Rz 45 ff., 107 ff.
+
+**Bedeutung:** Fast jede Ordnungsanforderung hängt an einem Zeitpunkt. Eine manipulierbare oder unklare Systemzeit entwertet die Protokolle.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Alle Zeitstempel in UTC gespeichert und mit Zeitzone ausgegeben | ✅ | internal/service/journal_service.go:111 und internal/repository/journal_gorm.go:277-280 sichern den Buchungszeitstempel doppelt in UTC; seit Welle 6 gilt dasselbe für Änderungsprotokoll (internal/repository/audit_gorm.go:104), Festschreibung (internal/wailsbridge/festschreibung_service.go:70), Schema- und Migrationsprotokoll (internal/repository/migrations.go:63), Aussetzungen, Sperren, Belegänderungen und die Verfahrensdokumentation. Die Anzeige nennt die Zone dazu: frontend/src/utils/formatters.ts:185-194 und :204-213 setzen `timeZoneName` an jedem Zeitpunkt, Datumsfelder bleiben ohne | – |
+| Systemzeit aus synchronisierter Quelle, Abweichung über einer Toleranz protokolliert | ✅ | internal/service/time_drift.go:15-59 hält die Systemzeit gegen die beglaubigte Zeit des Zeitstempeldienstes — die einzige Zeitangabe im Programm, die nicht von der Uhr dieses Rechners stammt — und beschreibt jede Abweichung über fünf Minuten nach Richtung und Größe; internal/wailsbridge/festschreibung_service.go:85-93 setzt den Vergleich bei jeder Festschreibung an, hält den Hinweis an ihr fest (internal/domain/festschreibung.go:30-39) und schreibt ihn mit beiden Zeiten als eigenen Protokolleintrag (:117-128) | – |
+| Anwender können den Erfassungszeitstempel nicht setzen, Beleg- und Buchungsdatum sind getrennt | ✅ | internal/service/journal_service.go:111 überschreibt `CreatedAt` bedingungslos; vier getrennte Datumsfelder, drei davon Pflicht | – |
+| Zeitstempel in Protokollen so geschützt wie die Buchungen | ✅ | internal/repository/audit_gorm.go:96-172 setzt `PreviousHash` und `EntryHash` an jedem Eintrag, gelesen und geschrieben in derselben Transaktion; der Zeitpunkt geht in die kanonische Form ein (internal/accounting/audithash.go:32-45), ein nachträglich verstellter Zeitstempel bricht die Kette und wird mit erwartetem und tatsächlichem Wert gemeldet (:65-125) — in der Oberfläche und im Prüferpaket (internal/service/export_service.go:867-899) | – |
+
+**Stand.** Der Buchungszeitstempel war vorbildlich, seit Welle 6 ist es die ganze Zeitführung: jeder Zeitpunkt geht in UTC auf die Platte, die Anzeige nennt die Zone dazu, das Protokoll ist verkettet wie das Journal, und bei jeder Festschreibung wird die Uhr des Rechners gegen die beglaubigte Zeit gehalten — weicht sie um mehr als fünf Minuten ab, steht das mit beiden Zeiten im Protokoll und als Hinweis an der Festschreibung. Alle vier Kriterien sind erfüllt.
+
+### QUE-05 Zahlungsziele, Verzug und Mahnwesen `SOLL`
+
+**Norm:** §§ 271a, 286, 288 BGB
+
+**Bedeutung:** Verzug tritt spätestens 30 Tage nach Fälligkeit und Zugang der Rechnung ein. Der Verzugszins beträgt im Geschäftsverkehr neun Prozentpunkte über dem Basiszinssatz, gegenüber Verbrauchern fünf Prozentpunkte. Hinzu kommt im B2B eine Pauschale von 40 Euro. Zahlungsfristen über 60 Tage sind im Geschäftsverkehr nur unter engen Voraussetzungen wirksam.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Basiszinssatz als pflegbare Zeitreihe mit Gültigkeit ab 1. Januar und 1. Juli, keine Hardcodierung | ✅ | internal/accounting/tax_params.go:260-292 führt den Satz nach § 247 BGB als datierte Tabelle: Stichtag, Wert in Hundertsteln eines Prozentpunktes, Quelle der Bekanntgabe und das Kennzeichen `Provisional` für einen fortgeschriebenen Wert. internal/accounting/default_interest.go:57-110 löst den Tag auf und legt die nachgetragenen Sätze über die hinterlegten; nachgetragen werden sie über internal/service/dunning_service.go:758-812 (`BaseRates`, `SaveBaseRate`) in internal/domain/dunning.go:181-219, und die Einstellungen zeigen die Reihe mit dem Vermerk zum fortgeschriebenen Wert (frontend/src/pages/SettingsPage.tsx:1094-1160). Vor dem ersten Eintrag liefert die Auflösung einen Fehler, damit kein Zins aus einem Satz von null entsteht | – |
+| Verzugszinsen taggenau, mit unterschiedlichen Aufschlägen für Verbraucher und Unternehmer | ✅ | internal/accounting/default_interest.go:154-223 (`DefaultInterest`) rechnet abschnittsweise über die Halbjahre des Basiszinssatzes, taggenau über ein Jahr von 365 Tagen (:43-50) und je Abschnitt auf Cent gerundet, damit die Summe der im Schreiben ausgewiesenen Zeilen die Endsumme ergibt; die Zuschläge des § 288 BGB stehen als fünf Prozentpunkte gegenüber einem Verbraucher und neun im Geschäftsverkehr daneben (:19-29), der Verzug beginnt dreißig Tage nach Fälligkeit (:36-41, :111-124, § 286 Abs. 3 BGB), und welche Seite gilt, entscheidet internal/domain/contact.go:135-142 (`IsConsumer`) | – |
+| Pauschale von 40 Euro bei Unternehmerforderungen ansetzbar | ✅ | internal/accounting/default_interest.go:30-34 (`DefaultInterestLumpSum`, § 288 Abs. 5 BGB); internal/service/dunning_service.go:146-318 setzt sie je Forderung einmal an — :177 liest, für welche Posten sie schon berechnet wurde, :270-291 legt sie an den Posten — und lässt sie gegenüber einem Verbraucher weg; das Mahnschreiben weist sie als eigene Zeile aus (:618-689) | – |
+| Zahlungsziele über 60 Tage lösen einen Hinweis auf § 271a BGB aus | ✅ | internal/domain/invoice.go:167-186 (`LongPaymentTermDays`, `PaymentTermNotice`) nennt die Grenze und die Voraussetzung, unter der eine längere Frist wirksam ist; internal/wailsbridge/welle7_service.go:245-254 gibt den Satz an die Oberfläche, und der Rechnungsdialog zeigt ihn unter dem Feld, sobald die Zahl dort steht — beim Tippen und nicht erst beim Ausstellen | – |
+| Mahnstufen, Fristen und Gebühren konfigurierbar, jede Mahnung mit Datum und Inhalt archiviert | ✅ | internal/domain/dunning.go:21-80 führt die Stufen mit Tagen nach Fälligkeit und Gebühr, voreingestellt Zahlungserinnerung nach sieben, erste Mahnung nach einundzwanzig und zweite nach fünfunddreißig Tagen (:39-52); gespeichert werden sie in den Einstellungen (internal/domain/settings.go:95-97) und dort gepflegt. internal/service/dunning_service.go:402-425 hält die Stufenfolge und den Abstand zwischen zwei Schreiben ein, :471-551 legt das Schreiben als PDF im Belegspeicher unter `dokumente/mahnungen/` ab (:25-27), hält Datum, Stufe, Posten, Zinsen, Gebühr und Pauschale als `domain.DunningNotice` fest (internal/domain/dunning.go:88-160) und schreibt den Vorgang ins Änderungsprotokoll; der Verlauf je Kunde kommt über :749-754 zurück | – |
+
+**Stand.** Mit Welle 7 rechnet Buchfink den Verzug: der Basiszinssatz steht als datierte Reihe nach § 247 BGB im Programm und lässt sich nach jeder Bekanntgabe der Bundesbank nachtragen, die Zinsen laufen taggenau über die Halbjahre mit neun Prozentpunkten im Geschäftsverkehr und fünf gegenüber Verbrauchern, und die Pauschale von 40 Euro fällt je Forderung einmal an. Der Mahnlauf legt je Kunde einen Vorschlag mit Posten, Stufe, Zinsen und Gebühr vor, das Schreiben entsteht als PDF, liegt im Belegspeicher unter `dokumente/mahnungen/` und steht mit Datum, Stufe und Beträgen im Verlauf des Kunden; Gebühr und Zinsen bleiben ungebucht, weil sie erst mit der Zahlung Ertrag sind. Im Rechnungsdialog meldet ein Zahlungsziel über sechzig Tagen den Vorbehalt des § 271a BGB, solange die Zahl noch zu ändern ist. Alle fünf Kriterien sind erfüllt.
+
+### QUE-06 Auskunft und Rechenschaft `SOLL`
+
+**Norm:** § 259 BGB, § 51a GmbHG, § 42a GmbHG
+
+**Bedeutung:** Gesellschafter einer GmbH haben ein Auskunfts- und Einsichtsrecht in die Bücher. Wer rechenschaftspflichtig ist, schuldet eine geordnete Zusammenstellung der Einnahmen und Ausgaben mit Belegen.
+
+| Kriterium | Status | Fundstelle / Grund | Welle |
+|---|---|---|---|
+| Lesender Zugang für Gesellschafter oder Beiräte, Umfang einstellbar, Zugriffe protokolliert | ✅ | Derselbe Prüfermodus wie in PRF-01 und JAB-08: internal/wailsbridge/readonly.go:37-189 lässt Lesen und Auswerten zu, :210-220 weist jede Änderung ab, befristet und mit protokolliertem Grund (:227-289). Je Person einstellbar ist der Umfang nicht — im Einzelplatzbetrieb gibt es keine Person, an der er hinge (docs/architektur.md Abschnitt 2); protokolliert wird der Modus, nicht der einzelne Lesezugriff (QUE-02) | – |
+| Geordnete Zusammenstellung der Einnahmen und Ausgaben mit Belegverweisen als Bericht und als Datei | ✅ | frontend/src/pages/ReportsPage.tsx:179-267 zeigt sie am Bildschirm samt Belegnummer und Belegvorschau; als Datei geht dieselbe Aufstellung über den Journalexport eines beliebigen Zeitraums hinaus, der Belegnummer und Beleg-Prüfsumme je Buchung führt (internal/service/export_service.go:190-224, internal/service/export_tables.go:74-96), im Archivexport zusammen mit den Belegdateien selbst (internal/service/export_service.go:700-727) | – |
+| Jahresabschluss steht den Gesellschaftern in der Frist des § 42a GmbHG zur Verfügung | ❌ | Es entsteht kein Jahresabschluss und keine zugehörige Frist (siehe JAB-04) | 1 |
+
+**Stand.** Der Prüfermodus und die Dateiausgabe aus Welle 4 decken die ersten beiden Punkte mit ab: wer Einsicht verlangt, bekommt einen lesenden Zugang und eine geordnete Zusammenstellung mit Belegverweisen, ohne dass jemand daneben sitzen muss. Die Frist des § 42a GmbHG setzt weiterhin das Abschlussobjekt aus Welle 1 voraus.
+
+---
+
+## Übersicht nach Modul
+
+Gezählt werden Akzeptanzkriterien, nicht Anforderungen. 82 Anforderungen zerfallen in 349 Kriterien.
+
+| Modul | Anforderungen | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
+|---|---|---|---|---|---|---|
+| A. Buchführungspflicht und Grundsätze | GOB-01 bis GOB-06 | 20 | 2 | 0 | 0 | 22 |
+| B. Beleg, Journal, Konten | BEL-01 bis BEL-09 | 31 | 0 | 0 | 4 | 35 |
+| C. Unveränderbarkeit und Protokollierung | UNV-01 bis UNV-06 | 19 | 0 | 0 | 3 | 22 |
+| D. Aufbewahrung und Archivierung | ARC-01 bis ARC-08 | 23 | 5 | 0 | 3 | 31 |
+| E. Ausgangsrechnungen und E-Rechnung | RECH-01 bis RECH-10 | 35 | 2 | 0 | 6 | 43 |
+| F. Umsatzsteuer, Aufzeichnung und Meldewesen | UST-01 bis UST-09 | 27 | 2 | 0 | 13 | 42 |
+| G. Bewertung, Anlagen, Fremdwährung | BEW-01 bis BEW-13 | 33 | 12 | 3 | 15 | 63 |
+| H. Jahresabschluss, E-Bilanz, Offenlegung | JAB-01 bis JAB-09 | 24 | 9 | 8 | 3 | 44 |
+| I. Betriebsprüfung und Verfahrensdokumentation | PRF-01 bis PRF-06 | 10 | 4 | 2 | 7 | 23 |
+| J. Querschnitt | QUE-01 bis QUE-06 | 20 | 2 | 1 | 1 | 24 |
+| **Summe** | **82** | **242** | **38** | **14** | **55** | **349** |
+
+Mit Welle 8 ist die laufende Buchhaltung vollständig, und fünf Module rücken nach. Modul B kommt von sechsundzwanzig auf einunddreißig erfüllte Kriterien und hat weder ein teilweise noch ein fehlendes mehr: die Handbuchung verlangt ihren Beleg oder erzeugt im selben Vorgang den Eigenbeleg als Dokument mit Aussteller, Datum, Betrag, Grund und erfassender Person, der Belegverweis ist in beide Richtungen begehbar, die Systematik des Belegnummernkreises ist einstellbar, und eigene Konten entstehen mit ihrer Gliederungsposition. Modul C kommt von siebzehn auf neunzehn und hat ebenfalls keine Lücke mehr, weil „Monat festschreiben" ab dem 10. des Folgemonats auf der Aufgabenliste steht und der Prüflauf jeden zwei Monate offenen Zeitraum meldet, und weil die Steuersätze als datierte Tabelle nach dem Leistungstag aufgelöst werden. Modul E kommt von zweiunddreißig auf fünfunddreißig: die Beanstandungen einer Eingangsrechnung sind nach Formatfehler, Geschäftsregelfehler und Inhaltsfehler getrennt und nennen je Befund Norm und Folge für den Vorsteuerabzug, und das eingebettete XML einer erzeugten ZUGFeRD-PDF wird vor der Ablage gegen den Datensatz gehalten, aus dem beide Teile entstanden sind. Modul F kommt von vierundzwanzig auf siebenundzwanzig, weil der Voranmeldungszeitraum aus der Steuer des Vorjahres folgt, die sonstigen Leistungen in der Zusammenfassenden Meldung quartalsweise laufen und der Vorsteuerschlüssel beim § 13b-Umsatz und beim innergemeinschaftlichen Erwerb nur die abziehbare Zeile kürzt. Modul A kommt von siebzehn auf zwanzig und Modul J von achtzehn auf zwanzig: der Beleg führt ins Journal und ins Kontoblatt, die Handbuchung zeichnet einzeln auf wie der Belegweg, die Fremdwährung steht als eigener Betrag an der Zeile, das Verzeichnis nach Art. 30 DSGVO ist ein Abschnitt der Verfahrensdokumentation, und jede Herausgabe personenbezogener Daten steht im Protokoll und im Filter „Zugriffe". Was in diesen Modulen offen bleibt, ist benannt und ist mit „Politur" vermerkt: die Aufbewahrungsfristen liegen als eingebettete Ressource und nicht als Einstellung, die Verschlüsselung reicht über die personenbezogenen Felder nicht hinaus, das Journal kennt keine freie Sortierwahl, und der Durchlauf mit einer fachkundigen Person ohne Produktkenntnis steht aus. Die Module G, H und I bleiben unverändert: Bewertung zum Stichtag, Jahresabschluss, Offenlegung und Prüfungsfähigkeit sind bis nach der Erprobung der laufenden Buchhaltung zurückgestellt.
+
+Mit Welle 7 legt sich die Bedienung über die fertigen Funktionen, und drei Module rücken nach. Modul J kommt von dreizehn auf achtzehn erfüllte Kriterien, weil das Mahnwesen vollständig gebaut ist: der Basiszinssatz nach § 247 BGB als datierte und in den Einstellungen pflegbare Reihe, taggenaue Verzugszinsen mit den Zuschlägen des § 288 BGB, die Pauschale von 40 Euro je Forderung, konfigurierbare Mahnstufen und das Mahnschreiben als abgelegtes Dokument mit Datum, Stufe und Beträgen — dazu der Hinweis auf § 271a BGB, sobald im Rechnungsdialog ein Zahlungsziel über sechzig Tagen steht. Modul E kommt von dreißig auf zweiunddreißig, weil der Eingangsbeleg den Bestellbezug aus der E-Rechnung und den Leistungsnachweis mit seinem Tag hat, der Belegweg ab der eingestellten Nachweisgrenze ohne den Vermerk nicht bucht und die Verfahrensdokumentation diese Regel beschreibt: damit hat das innerbetriebliche Kontrollverfahren des § 14 Abs. 3 UStG seinen Nachweis. Modul A kommt von sechzehn auf siebzehn und hat kein fehlendes Kriterium mehr, weil die Journalzeile zum Beleg führt — von der Bilanzposition bis zur Belegdatei sind es vier Klicks, aufgeschrieben als Prüfszenario und von einem Playwright-Lauf an der laufenden Oberfläche gezählt. Daneben steht, was den Status nicht verschiebt, aber den Alltag ausmacht: die Aufgabenliste als Startseite aus zehn Quellen, der Monatsabschluss als Dialog in der Reihenfolge Prüfbericht, Festschreiben, Voranmeldung, der Jahresabschluss als geführter Weg mit Fortschritt aus dem Backend und zurücknehmbaren Entscheidungen, der Zuordnungsvorschlag zum Bankumsatz mit Sammelzahlung und gelernten Regeln und der Prüfpfad als achtzehnte Tabelle jeder Datenüberlassung. Nach Welle 7 folgt keine weitere: was offen geblieben ist, hat in der Spalte Welle den Vermerk „Politur" und nennt im Grund, wovon es abhängt — von einer Entscheidung, von einem Objekt, das Buchfink nicht führt, oder von einer Handlung außerhalb des Programms.
+
+Mit Welle 6 sind die Nachweispflichten erfüllt, und mit ihnen die Module, die von ihnen leben: Modul C kommt von neun auf siebzehn erfüllte Kriterien und hat kein fehlendes mehr, Modul D von vierzehn auf zweiundzwanzig und ebenfalls keines, Modul J von sechs auf dreizehn, Modul I von sechs auf zehn. Das Änderungsprotokoll sagt, was sich geändert hat, hängt in einer eigenen Hashkette und wird im Prüferpaket nachgerechnet; jede Buchung hat Bearbeiterkennung, Programmfassung und den Zeitpunkt ihrer Festschreibung, und die Kanonisierung ist versioniert, damit die Ketten ausgelieferter Buchhaltungen halten; der Beleg hat seine Kopfdaten als Pflicht vor dem Buchen und seine Aufbewahrungsfrist als gespeicherte Größe; Fristen, Aussetzungen und die Löschung eines abgelaufenen Geschäftsjahres sind ein Vorgang mit Archivexport davor, ausgeschriebener Bestätigung und Protokoll danach; die Verfahrensdokumentation entsteht aus dem laufenden System und wird als Fassung im Belegspeicher abgelegt. Mitgewachsen ist Modul B, von achtzehn auf sechsundzwanzig: Kopfdaten am Beleg, unentfernbare Originaldatei, Altersstruktur und Restlaufzeiten der offenen Posten, Storno mit verknüpfter Neubuchung und der Festschreibungszeitpunkt an der einzelnen Buchung. Die Module A und E rücken um je ein Kriterium nach, weil die Einzelpostenliste ihre Frist und der Rechnungsnummernkreis seine aufgeschriebene Systematik bekommen haben. Was in diesen Modulen offen bleibt, gehört nicht zu dieser Welle: die Steuersätze als zeitabhängige Stammdaten, die Fristentabelle als Einstellung, das Protokoll des einzelnen Lesezugriffs und das Verarbeitungsverzeichnis als eigenes Dokument. Welle 7 hat davon den Basiszinssatz als datierte und pflegbare Reihe nachgeholt; für den Rest steht jetzt „Politur".
+
+Davor hat Welle 5c das Modul bewegt, in dem der Staat mitliest: Modul F kommt von dreizehn auf vierundzwanzig erfüllte Kriterien und hat kein einziges fehlendes mehr. Der Vorsteuerabzug richtet sich jetzt nach der geprüften Rechnung, der geteilte Abzug bringt nur seinen abziehbaren Teil in die Kennziffer 66, das Verzeichnis nach § 15a UStG entsteht bei der Aktivierung und meldet seine Berichtigungen in Kennziffer 64, die USt-IdNr. des Abnehmers wird beim Bundeszentralamt bestätigt, bevor eine steuerfreie Lieferung eine Rechnungsnummer bekommt, und der Belegnachweis nach §§ 17a, 17b UStDV wird je Lieferung geführt und bewertet. Mitgewachsen ist Modul G, von zweiundzwanzig auf dreiunddreißig: die Fremdwährung ist im laufenden Buchungsstoff angekommen, die Abschreibungsregeln liegen als datierte Ressource neben dem Code, Zuschreibung und Wertaufholung haben ihren Grund und ihren Bericht, das Wahlrecht bei den geringwertigen Wirtschaftsgütern wird auf Einheitlichkeit geprüft, die anschaffungsnahen Herstellungskosten laufen gegen die Grenze des § 6 Abs. 1 Nr. 1a EStG, und die Kategorien des § 4 Abs. 7 EStG haben eigene Konten, die von Hand nicht mehr erreichbar sind. Modul E hat mit derselben Welle seine letzte Kopplung bekommen. Davor hatte Welle 5b das Modul bewegt, von dem die meisten gesetzlichen Fristen abhängen: Modul E kam von elf auf achtundzwanzig erfüllte Kriterien. Rechnungsnummer, Datensatz und Buchung entstehen in einer Transaktion, der Lückenbericht beantwortet die erste Frage jeder Betriebsprüfung, die Pflichtangaben des § 14 Abs. 4 UStG werden vollständig und vor der Nummernvergabe geprüft, Storno und Berichtigung sind eigene Dokumente mit Bezug in beide Richtungen, die XRechnung geht als geprüfter Datensatz mit Prüfbericht hinaus, und die Kleinbetragsrechnung ist der Fall, den § 33 UStDV beschreibt. Mitgewachsen sind Modul B, weil die Ausbuchung eines uneinbringlichen Postens dazugekommen ist, und Modul F, weil die Anzahlung mit der Vereinnahmung Steuer auslöst. Was in Modul E offen bleibt, sind zwei Entscheidungen — keine UBL-Ausprägung der XRechnung, kein Abgleich zwischen PDF und XML — und die Klassifikation der Prüfbefunde nach den drei Fehlerklassen des BMF-Schreibens. Davor hat Welle 5 die Bilanz bewegt: Modul G kam von zehn auf zweiundzwanzig erfüllte Kriterien, weil Rückstellungen, Rechnungsabgrenzung und das Verzeichnis der steuerlichen Wahlrechte gebaut sind, Modul H von zwanzig auf vierundzwanzig, weil Anhang, Überleitung zur Steuerbilanz und der Ergebnisverwendungsbeschluss dazugekommen sind. Welle 4 davor hat den Datenzugriff bewegt und mit ihm die Module D und I: Prüfermodus, Datenüberlassung nach dem Beschreibungsstandard, Archivexport, Sicherung, Wiederherstellungstest und Belegprüflauf. Offen blieb in Modul D, was die Aufbewahrungsfristen betraf — das hat Welle 6 nachgeholt —, und in Modul I, was sich nicht programmieren lässt: der Beleg, dass eine Prüfsoftware die Überlassung einliest. Genau danach ist die Wellenreihenfolge in docs/architektur.md Abschnitt 7 geschnitten.
+
+---
+
+## Abgrenzungen: was hier nicht gefordert ist
+
+Diese Punkte tauchen in Anforderungslisten regelmäßig auf, obwohl sie für eine reine Finanzbuchhaltung im beschriebenen Geltungsbereich nicht gelten. Sie bewusst wegzulassen spart erheblichen Aufwand.
+
+**Technische Sicherheitseinrichtung nach KassenSichV.** § 1 Abs. 1 Nr. 3 KassenSichV nimmt elektronische Buchhaltungsprogramme ausdrücklich vom Anwendungsbereich aus. TSE, Belegausgabepflicht und die Mitteilungspflicht nach § 146a Abs. 4 AO treffen elektronische Aufzeichnungssysteme für Bargeschäfte, nicht die Finanzbuchhaltung. Sobald das Produkt eine Kassenfunktion mit Bareinnahmen erhält, kippt diese Einordnung.
+
+**Qualifizierte elektronische Signatur auf Rechnungen.** Seit 2011 genügt für Echtheit und Unversehrtheit ein innerbetriebliches Kontrollverfahren (§ 14 Abs. 3 UStG). Die Signatur bleibt eine von mehreren zulässigen Optionen und ist keine Pflicht.
+
+**XBRL oder ESEF bei der handelsrechtlichen Offenlegung.** Die Pflicht zum einheitlichen elektronischen Berichtsformat nach § 328 Abs. 1 S. 4 HGB trifft nur Inlandsemittenten. XBRL ist für die E-Bilanz nach § 5b EStG erforderlich, für die Offenlegung im Unternehmensregister bei nicht kapitalmarktorientierten Gesellschaften nicht.
+
+**Nachhaltigkeitsberichterstattung.** Die CSRD-Umsetzung in deutsches Recht ist noch nicht abgeschlossen. Nach der Omnibus-I-Änderungsrichtlinie (EU) 2026/470, veröffentlicht im Amtsblatt am 26.02.2026 und in Kraft seit 18.03.2026, greift die Berichtspflicht künftig erst ab 1.000 Beschäftigten und 450 Millionen Euro Umsatz, wobei beide Schwellen kumulativ zu erfüllen sind. Mittelständische Kapitalgesellschaften fallen aus dem direkten Anwendungsbereich.
+
+**Geldwäscherechtliche Pflichten nach § 2 GwG.** Eine gewöhnliche GmbH oder AG ist keine Verpflichtete im Sinne des § 2 Abs. 1 GwG, solange sie keine der dort genannten Tätigkeiten ausübt. Davon zu trennen ist die Meldepflicht zum Transparenzregister nach § 20 GwG, die praktisch jede juristische Person trifft, aber keine Funktion der Buchhaltungssoftware ist.
+
+**Buchführungsgrenzen nach § 141 AO und § 241a HGB.** Die Grenzen von 800.000 Euro Umsatz und 80.000 Euro Gewinn spielen für Kapitalgesellschaften keine Rolle. Sie sind als Formkaufleute unabhängig davon buchführungspflichtig.
+
+### Was Buchfink zusätzlich nicht abbildet
+
+Die folgenden Auslassungen sind Produktentscheidungen aus docs/architektur.md Abschnitt 2, keine Rechtsfragen. Sie haben im Katalog den Status `⛔`.
+
+- **Einzelplatz, ein Bearbeiter.** Kein Rollenmodell, keine Benutzerkonten, keine Funktionstrennung im System (UNV-04). Der Schutz liegt beim Betriebssystem-Konto und beim Schlüsselbund; jede Buchung, jede Festschreibung und jede Protokollzeile hat seit Welle 6 als erkennbare Sammelkennung eine Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername. Wo der Katalog Benutzerkonten für Dritte verlangt (JAB-08, PRF-01, QUE-06), tritt ein schreibgeschützter Prüfermodus an ihre Stelle; er ist seit Welle 4 gebaut (internal/wailsbridge/readonly.go).
+- **Local-First, Speicherort Inland.** Kein Cloud-Betrieb, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO, und keine eigene Anbindung an eine Datenaustauschplattform — die Überlassung entsteht als Ordner, den der Anwender selbst weitergibt (ARC-06 Kriterien 2 bis 4, PRF-01 Kriterium 5, PRF-05, QUE-02 Kriterium 3). Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Datenordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen.
+- **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung und E-Bilanz entstehen als Kennziffernblatt und als Exportdatei zum Übertragen in Mein ELSTER oder zur Übermittlung durch den Steuerberater (UST-03 Kriterium 2, JAB-05 Kriterium 1). Das Übermittlungsprotokoll wird nach der Übermittlung manuell erfasst (Datum, Transferticket) und ist danach unveränderlich.
+- **Steuerfälle sind eine geschlossene Liste.** Ausgeschlossen sind Kleinunternehmer (UST-09, RECH-05 Kriterium 4), Differenzbesteuerung, Reiseleistungen und Dreiecksgeschäft (RECH-04), OSS und IOSS (UST-08), Konsignationslager (UST-01), Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG (UST-05 Kriterium 2) und die Option nach § 9 UStG. Unentgeltliche Wertabgaben kommen als Buchungsgruppe, die Einfuhrumsatzsteuer als Belegart in Welle 5 hinzu. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet.
+- **Keine Abrechnungsgutschrift.** Die Gutschrift des § 14 Abs. 2 Satz 2 UStG ist die Abrechnung durch den Leistungsempfänger; Buchfink stellt sie nicht aus (RECH-02 Kriterium 3). Die Rücknahme einer eigenen Rechnung ist die Stornorechnung, die Änderung ihres Inhalts die Berichtigung — beide mit Typcode 384 und beide ohne das Wort "Gutschrift", das beim Empfänger einen eigenen Umsatz behaupten würde. Empfangen und erkannt wird eine Abrechnungsgutschrift dagegen.
+- **Nur Sollversteuerung.** Die Istversteuerung nach § 20 UStG wird beim Buchen ausdrücklich abgewiesen, statt still falsch gebucht zu werden (UST-01 Kriterium 2, UST-02 Kriterien 1, 2 und 5).
+- **Keine Kasse, kein Lager, kein Lohn.** Kein Kassenbuch, kein Vorratsmodul, keine Lohnabrechnung (BEW-09, PRF-04 Kriterien 1 und 2). Der Vorratsbestand wird zum Stichtag als Inventurwert erfasst und als Bestandsveränderung gebucht (Welle 5); der Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros.
+- **Kein ersetzendes Scannen.** Buchfink erklärt das Verfahren nach GoBD Rz 136 ff. nicht zum unterstützten Verfahren (BEL-08). Der Herkunftswert `scan` benennt nur, woher der Beleg kam; der Papierbeleg ist weiter aufzubewahren.
+- **Kapitalgesellschaften zuerst.** Kapitalkonten, Entnahmen und der Schuldzinsenabzug nach § 4 Abs. 4a EStG sind nicht abgebildet (BEW-13). Die Rechtsformen mit Entnahmen bleiben wählbar und zeigen seit Welle 6 den Hinweis in der Oberfläche.
+- **Einheitsbilanz.** Ein Wertansatz, kein zweiter Bewertungskreis (BEW-02 Kriterium 5, BEW-03 Kriterium 3, BEW-04 Kriterium 4, BEW-07 Kriterium 4, JAB-06 Kriterium 3). Abweichende steuerliche Werte entstehen nur durch die Sonderabschreibung nach § 7g Abs. 5 EStG und werden am Anlagegut mitgeführt; daraus entstehen das Verzeichnis nach § 5 Abs. 1 S. 2 EStG (BEW-06) und die Überleitungsrechnung (JAB-06) in Welle 5. Handels- und steuerrechtlich unterschiedliche Nutzungsdauern werden nicht unterstützt. Latente Steuern entfallen für kleine Kapitalgesellschaften nach § 274a Nr. 4 HGB (BEW-11); ab mittelgroß warnt die Größenklasse aus Welle 2 und Buchfink verweist an den Steuerberater.
+- **Nur Gesamtkostenverfahren.** Das Umsatzkostenverfahren ist nicht wählbar (JAB-01 Kriterium 2); die SKR04-Gliederung GuV.1 bis GuV.16 entspricht dem Gesamtkostenverfahren.
+- **Nicht kapitalmarktorientiert.** Das Merkmal des § 264d HGB ist nicht setzbar (JAB-02 Kriterium 4).
+- **Deutsch.** Rechnungshinweise werden nicht mehrsprachig geführt (RECH-04 Kriterium 3); die erste Fassung richtet sich an den deutschsprachigen Raum.
+- **Kein Versandweg.** Peppol, EDI und Portal-Upload sind nicht Teil der Software (RECH-06 Kriterium 6); der Versand läuft per E-Mail außerhalb. Dass eine Rechnung hinausgegangen ist, wird an ihr vermerkt — Datum, Weg und Notiz, im Protokoll.
+- **Keine Leistungsabschreibung.** § 7 Abs. 1 S. 6 EStG ist nicht abgebildet (BEW-04 Kriterium 1).
+- **Keine Auftrags- und Leistungsobjekte.** Ohne sie ist "Leistung erbracht, Rechnung fehlt" nicht erkennbar (RECH-01 Kriterien 1 und 2). Die Rechnung gegen die Bestellung zu halten geschieht deshalb als Vermerk und nicht als Auflösung einer Nummer: der Leistungsnachweis am Eingangsbeleg ist ab der eingestellten Grenze Pflicht und ist das innerbetriebliche Kontrollverfahren des § 14 Abs. 3 UStG (RECH-08).
+
+---
+
+## Terminplan
+
+Pflichten mit Stichtag, sortiert nach Datum. Jeder Eintrag ist ein Releasetermin.
+
+| Datum | Pflicht | Anforderung | Norm |
+|---|---|---|---|
+| erledigt, 01.01.2025 | Empfangspflicht für E-Rechnungen für alle inländischen Unternehmer | RECH-07 | § 14 Abs. 1 UStG |
+| erledigt, 01.01.2025 | Verkürzte Aufbewahrungsfrist von acht Jahren für Buchungsbelege und Rechnungen | ARC-01 | § 257 Abs. 4 HGB, § 147 Abs. 3 AO, § 14b UStG |
+| WJ ab 01.01.2025 | Unverdichtete Kontennachweise mit Kontensalden in der E-Bilanz | JAB-05 | § 5b Abs. 1 EStG |
+| WJ ab 01.01.2026 | Taxonomie 6.9 verpflichtend | JAB-05 | BMF-Schreiben vom 10.06.2025 |
+| 31.12.2026 | Ende der allgemeinen Übergangsfrist für sonstige Rechnungen | RECH-06 | § 27 Abs. 38 Nr. 1 UStG |
+| 01.01.2027 | Sendepflicht für E-Rechnungen bei Vorjahresumsatz über 800.000 Euro | RECH-06 | § 27 Abs. 38 Nr. 2 UStG |
+| 01.01.2027 | Monatliche Voranmeldungspflicht für Neugründer lebt wieder auf | UST-03 | § 18 Abs. 2 S. 4 und 6 UStG |
+| WJ ab 01.01.2027 | Taxonomie 6.10 verpflichtend, Übermittlung in Echtfällen voraussichtlich ab Mai 2027 | JAB-05 | BMF-Schreiben vom 08.06.2026 |
+| 01.01.2028 | Sendepflicht für E-Rechnungen für alle inländischen B2B-Umsätze, Ende der EDI-Übergangsregel | RECH-06 | § 27 Abs. 38 UStG |
+| WJ ab 01.01.2028 | Anlagenspiegel und Anlagenverzeichnis in der E-Bilanz | BEW-03, JAB-05 | § 5b Abs. 1 EStG |
+| offen | Einheitliche digitale Buchführungsschnittstelle, Verordnung noch nicht erlassen | PRF-06 | § 147b AO |
+| 01.07.2030 | ViDA: strukturierte E-Rechnung und Digital Reporting für innergemeinschaftliche B2B-Umsätze, Rechnungsstellung binnen zehn Tagen | RECH-06, UST-04 | Richtlinie (EU) 2025/516 |
+
+Zum ViDA-Paket: Die Richtlinie (EU) 2025/516 wurde am 11. März 2025 beschlossen. Die deutschen Umsetzungsgesetze stehen noch aus. Die genannten Termine stammen aus der Richtlinie und der Fachliteratur und sind vor der Roadmap-Planung gegen den Richtlinientext zu prüfen.
+
+---
+
+## Rechtsstand und Quellen
+
+Der Katalog gibt den Stand vom 4. September 2026 wieder. Gesetzestexte wurden gegen gesetze-im-internet.de geprüft, Verwaltungsanweisungen gegen die Originalschreiben des Bundesfinanzministeriums.
+
+**Gesetze und Verordnungen:** HGB, EGHGB, AO, EGAO, EStG, EStDV, EStR 2012, UStG, UStDV, KassenSichV, BGB, GmbHG, AktG, GwG, DSGVO, Richtlinie 2014/55/EU, Richtlinie (EU) 2025/516, Richtlinie (EU) 2026/470.
+
+**Verwaltungsanweisungen:**
+
+- GoBD, BMF-Schreiben vom 28.11.2019 (IV A 4 - S 0316/19/10003 :001), geändert durch BMF-Schreiben vom 11.03.2024 (IV D 2 - S 0316/21/10001 :002) und vom 14.07.2025 (IV D 2 - S 0316/00128/005/088). Die zweite Änderung passt elf Randziffern an, fügt die neue Rz 185 ein und streicht in Rz 133 die Wendung "als Textdokumente".
+- E-Rechnung, BMF-Schreiben vom 15.10.2024 (III C 2 - S 7287-a/23/10001 :007), ergänzt durch BMF-Schreiben vom 15.10.2025 (III C 2 - S 7287-a/00019/007/243) mit der Unterscheidung von Format-, Geschäftsregel- und Inhaltsfehlern (Rn. 35a)
+- Kleinunternehmerregelung, BMF-Schreiben vom 18.03.2025 (III C 3 - S 7360/00027/044/105)
+- Bewirtungsaufwendungen, BMF-Schreiben vom 19.11.2025 (IV C 6), ersetzt das Schreiben vom 30.06.2021 und gilt für Bewirtungen ab dem 1. Januar 2025; für Bewirtungen bis 31.12.2024 gilt das alte Schreiben fort
+- E-Bilanz-Taxonomien 6.9, BMF-Schreiben vom 10.06.2025
+- E-Bilanz-Taxonomien 6.10 (Taxonomien vom 01.04.2026), BMF-Schreiben vom 08.06.2026
+- Mitteilungspflicht nach § 146a Abs. 4 AO, BMF-Schreiben vom 28.06.2024 (IV D 2 - S 0316-a/19/10011 :009)
+- AfA-Tabelle AV, BMF-Schreiben vom 15.12.2000 (IV D 2 - S 1551 - 188/00)
+- Nutzungsdauer von Computerhardware und Software, BMF-Schreiben vom 22.02.2022 (IV C 3 - S 2190/21/10002 :025)
+- Buchführungsdatenschnittstellenverordnung (DSFinVBV), Diskussionsentwurf des BMF, Fassung 2026 mit Stellungnahme der Bundessteuerberaterkammer vom 09.03.2026; Format xBRL-CSV Version 1.0
+
+**Punkte mit Restunsicherheit.** Diese Angaben ließen sich nicht abschließend gegen eine Primärquelle absichern und sind vor einer verbindlichen Festlegung nachzuprüfen:
+
+- Die genauen ViDA-Termine ab 2028 stammen aus Fachliteratur, nicht aus dem Richtlinientext.
+- Der Zeitpunkt des Erlasses der Verordnung nach § 147b AO ist offen; der Diskussionsentwurf 2026 legt xBRL-CSV 1.0 fest, eine Verkündung steht aus. Die Exportschicht ist deshalb formatunabhängig zu schneiden (PRF-06).
+- Der Status des Diskussionsentwurfs DSFinV-K 3.0 ist offen. Für den beschriebenen Geltungsbereich ohne Kassenfunktion ist das ohne Auswirkung.
+
+Der Katalog ersetzt keine steuerliche oder rechtliche Beratung. Vor einer Produktfreigabe sollte ein Steuerberater oder Wirtschaftsprüfer die Umsetzung der Module C, D, E und I gegenlesen, weil dort die Beanstandungsrisiken in der Betriebsprüfung konzentriert sind.

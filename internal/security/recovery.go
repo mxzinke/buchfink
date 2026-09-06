@@ -46,7 +46,7 @@ func ExportTenantRecoveryFile(dataDir, tenantID, tenantName string, vault *Vault
 		Version:    1,
 		TenantID:   tenantID,
 		TenantName: tenantName,
-		CreatedAt:  time.Now().Format(time.RFC3339),
+		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Key:        recoveryKey,
 	}
 	return json.MarshalIndent(rf, "", "  ")

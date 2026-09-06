@@ -9,12 +9,18 @@ import (
 )
 
 // businessVendor legt einen inländischen Lieferanten an. Unternehmer ist der
-// Normalfall und damit der Nullwert — genau der Fall, in dem die
+// Normalfall und damit der Nullwert — der Fall, in dem die
 // E-Rechnungspflicht greift.
 func (e *testEnv) businessVendor(t *testing.T, name string) *domain.Contact {
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: "DE",
+		// Anschrift und Steuernummer sind vollständig: der Hinweis auf die
+		// fehlende E-Rechnung ist der Gegenstand dieses Tests, und ein
+		// unvollständiger Lieferant ließe stattdessen die Rechnungsprüfung
+		// anschlagen — dann prüfte der Test etwas anderes als seinen Namen.
+		Street: "Agenturweg 5", PostalCode: "50667", City: "Köln",
+		TaxID: "217/5738/0123",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s: %v", name, err)
@@ -57,9 +63,10 @@ func TestEInvoiceNoticeAppearsForADomesticBusinessSupplier(t *testing.T) {
 	}
 }
 
-// Der Text hängt am Belegdatum: bis Ende 2026 ist die sonstige Rechnung nach
-// § 27 Abs. 38 Nr. 1 UStG noch zulässig, ab 2027 hängt es am Vorjahresumsatz des
-// Ausstellers — den Buchfink nicht kennt und deshalb auch nicht behauptet.
+// Der Text richtet sich nach dem Belegdatum: bis Ende 2026 ist die sonstige
+// Rechnung nach § 27 Abs. 38 Nr. 1 UStG noch zulässig, ab 2027 richtet es sich
+// nach dem Vorjahresumsatz des Ausstellers — den Buchfink nicht kennt und
+// deshalb auch nicht behauptet.
 func TestEInvoiceNoticeChangesWithTheDeadline(t *testing.T) {
 	env := newTestEnv(t)
 	vendor := env.businessVendor(t, "Agentur GmbH")
@@ -101,6 +108,10 @@ func TestEInvoiceNoticeStaysQuietWhereNoObligationExists(t *testing.T) {
 	t.Run("strukturierter Teil liegt vor", func(t *testing.T) {
 		vendor := env.businessVendor(t, "Agentur mit E-Rechnung")
 		filed, err := env.receipts.File(ctx, FileReceiptRequest{
+			// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+			// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+			// ValidateBookable die Buchung zurück.
+			DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 			Direction: domain.DirectionIncoming,
 			Files: []NewFile{
 				{Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf", Content: []byte(minimalPDF)},

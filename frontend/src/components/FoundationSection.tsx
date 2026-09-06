@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { BookOpen, Landmark } from 'lucide-react';
 import { FoundationPostingPreview, FoundationState } from '../types';
 import { Api } from '../services/api';
+import { useWriteLock } from './WriteLock';
 import { formatCents, formatDate, formatSide } from '../utils/formatters';
 import {
   Button,
   ConfirmDialog,
   Dialog,
-  HelpPopover,
   Section,
   Stat,
   StatRow,
@@ -36,6 +36,9 @@ interface FoundationSectionProps {
  * zurückbleibt und wer davon welchen Teil schuldet.
  */
 export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onChanged }) => {
+  // Gründungsbuchungen und die Eintragung ändern die Bücher: im Prüfermodus
+  // gesperrt (§10.4).
+  const writeLock = useWriteLock();
   const [preview, setPreview] = useState<FoundationPostingPreview | null>(null);
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,7 +66,9 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
   async function bookPostings() {
     setBusy(true);
     try {
-      const created = await Api.bookFoundationPostings();
+      // Eine Liste, die das Backend nie befüllt hat, kommt als `null` an; die
+      // Länge davon wäre ein Fehler statt einer Rückmeldung.
+      const created = (await Api.bookFoundationPostings()) ?? [];
       toast.success(
         created.length === 1
           ? 'Die Gründungsbuchung steht im Journal.'
@@ -96,19 +101,23 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
     <Section
       title="Gründung"
       context={`Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}`}
+      explain={
+        <>
+          Bleibt das Reinvermögen der Gesellschaft am Tag der Eintragung hinter dem Stammkapital
+          zurück, schulden die Gesellschafter die Differenz — anteilig nach ihren
+          Geschäftsanteilen. Gründungskosten dürfen nach § 248 Abs. 1 Nr. 1 HGB nicht aktiviert
+          werden und mindern das Reinvermögen deshalb sofort. Bis zur Eintragung haftet außerdem
+          persönlich, wer im Namen der Gesellschaft handelt (§ 11 Abs. 2 GmbHG).
+        </>
+      }
       action={
         <div className="flex items-center gap-2">
-          <HelpPopover label="Erklärung zur Unterbilanzhaftung">
-            Bleibt das Reinvermögen der Gesellschaft am Tag der Eintragung hinter dem Stammkapital
-            zurück, schulden die Gesellschafter die Differenz — anteilig nach ihren
-            Geschäftsanteilen. Gründungskosten dürfen nach § 248 Abs. 1 Nr. 1 HGB nicht aktiviert
-            werden und mindern das Reinvermögen deshalb sofort. Bis zur Eintragung haftet außerdem
-            persönlich, wer im Namen der Gesellschaft handelt (§ 11 Abs. 2 GmbHG).
-          </HelpPopover>
           {!state.postingsBooked && (
             <Button
               variant="secondary"
               icon={<BookOpen className="w-4 h-4" strokeWidth={1.5} />}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void openPreview()}
             >
               Gründung buchen
@@ -117,6 +126,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
           <Button
             variant="primary"
             icon={<Landmark className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() => setRegistering(true)}
           >
             Eintragung erfassen
@@ -193,8 +204,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             </Tr>
           </Thead>
           <Tbody>
-            {foundation.shareholders.map((holder) => {
-              const share = unterbilanz.shares.find((s) => s.shareholderId === holder.id);
+            {(foundation.shareholders ?? []).map((holder) => {
+              const share = (unterbilanz.shares ?? []).find((s) => s.shareholderId === holder.id);
               const open = holder.shareCapital - holder.paidIn;
               return (
                 <Tr key={holder.id}>
@@ -237,7 +248,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             <Button
               variant="primary"
               loading={busy}
-              disabled={(preview?.postings.length ?? 0) === 0}
+              disabled={(preview?.postings.length ?? 0) === 0 || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void bookPostings()}
             >
               Buchen
@@ -259,7 +271,7 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
           </Thead>
           <Tbody>
             {(preview?.postings ?? []).map((posting) =>
-              posting.lines.map((line, index) => (
+              (posting.lines ?? []).map((line, index) => (
                 <Tr key={`${posting.title}-${index}`}>
                   <Td className="max-w-[18rem] truncate">{index === 0 ? posting.title : ''}</Td>
                   <Td className="num text-ink-subtle">
@@ -294,7 +306,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
             <Button
               variant="primary"
               loading={busy}
-              disabled={registerDate.length !== 10 || registerNumber.trim() === ''}
+              disabled={registerDate.length !== 10 || registerNumber.trim() === '' || writeLock.locked}
+              title={writeLock.hint}
               onClick={() => void register()}
             >
               Eintragung erfassen

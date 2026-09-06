@@ -2,6 +2,8 @@ package accounting
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -20,6 +22,50 @@ var taxAccounts = map[string]bool{
 	domain.AccountUmsatzsteuer: true, domain.AccountUmsatzsteuer7: true, domain.AccountUmsatzsteuer19: true,
 	domain.AccountUmsatzsteuerIG: true, domain.AccountUmsatzsteuerIG19: true,
 	domain.AccountUmsatzsteuer13b: true, domain.AccountUmsatzsteuer13b19: true,
+	domain.AccountUmsatzsteuer14c: true,
+	// Die vier Konten der Vorsteuerberichtigung nach § 15a UStG. Sie werden nur
+	// aus dem Verzeichnis heraus bebucht, und immer mit dem Steuerschlüssel:
+	// eine Handbuchung darauf käme in der Kennziffer 64 an, ohne dass im
+	// Verzeichnis stünde, aus welchem Wirtschaftsgut sie stammt.
+	InputTaxCorrectionDeductibleMovable:   true,
+	InputTaxCorrectionRepayableMovable:    true,
+	InputTaxCorrectionDeductibleImmovable: true,
+	InputTaxCorrectionRepayableImmovable:  true,
+}
+
+// TaxKeyUnlawful ist der Steuerschlüssel der nach § 14c UStG geschuldeten
+// Beträge.
+//
+// Er entsteht nicht aus einem Steuerfall, sondern aus einem Fehler: einer
+// Rechnung, die Steuer ausweist, obwohl keine entstanden ist. Buchfink stellt
+// eine solche Rechnung nicht aus (siehe Invoice.Validate), aber der Betrag wird
+// trotzdem geschuldet, wenn die Rechnung außerhalb von Buchfink entstanden ist.
+// Für diesen Fall gibt es den Schlüssel und den Weg über eine Handbuchung auf
+// das Konto 3851 — nicht als Automatik, weil es nichts zu automatisieren gibt.
+const TaxKeyUnlawful = "UST14C"
+
+// TaxKeySkontoPrefix kennzeichnet die Steuerkorrektur einer Entgeltminderung
+// (§ 17 Abs. 1 UStG). Der Rest des Schlüssels ist der Schlüssel der Zeile, die
+// berichtigt wird — „SKONTO_UST19" mindert also die Kennziffer 81.
+//
+// Ein eigener Schlüssel statt derselben Kennung: im Journal, im Kontennachweis
+// und in der Datenüberlassung ist die Berichtigung ein eigener Vorgang und soll
+// als solcher erkennbar bleiben. Für den Vordruck läuft sie in dieselbe Zeile
+// wie der Umsatz — mit dem Vorzeichen, das aus der Buchungsseite folgt.
+const TaxKeySkontoPrefix = "SKONTO_"
+
+// IsDomesticOutputTaxKey meldet, ob ein Steuerschlüssel die Umsatzsteuer eines
+// steuerpflichtigen Inlandsumsatzes kennzeichnet (UST19, UST7).
+//
+// Der Schlüssel des § 14c gehört ausdrücklich nicht dazu: er benennt gerade den
+// Betrag, der ohne Steuerpflicht ausgewiesen wurde, und ist der einzige Weg,
+// eine solche Steuer überhaupt zu buchen.
+func IsDomesticOutputTaxKey(key string) bool {
+	if key == TaxKeyUnlawful || !strings.HasPrefix(key, "UST") {
+		return false
+	}
+	_, err := strconv.Atoi(strings.TrimPrefix(key, "UST"))
+	return err == nil
 }
 
 // SKR04TaxResolver derives the tax lines of a booking from its Steuerfall.
@@ -111,8 +157,8 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 		// keine Steuerzeile, aber der Umsatz ist steuerpflichtig — der
 		// Vorsteuerabzug des Leistenden bleibt erhalten, und in der Auswertung
 		// gehört der Betrag zu den steuerpflichtigen Umsätzen, nicht zu den
-		// steuerfreien. Diesen Unterschied trägt der Steuerfall an der Buchung,
-		// auf der Ausgangsseite zusätzlich das eigene Erlöskonto 4290.
+		// steuerfreien. Diesen Unterschied zeigt der Steuerfall an der Buchung,
+		// auf der Ausgangsseite zusätzlich am eigenen Erlöskonto 4290.
 		return nil, nil
 
 	case domain.TaxTreatmentIntraCommunitySupply,

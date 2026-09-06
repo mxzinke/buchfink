@@ -60,13 +60,16 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 				ID:        tenantID,
 				Name:      "Hauptmandant",
 				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().Format(time.RFC3339),
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
 			},
 		}
 		cfg.ActiveTenantID = tenantID
 		_ = r.Save(&cfg)
 	}
 
+	// Eine gespeicherte Datei ohne Mandantenschlüssel ergäbe einen nicht
+	// belegten Slice — und in der Oberfläche `null` statt einer leeren Liste.
+	cfg.EnsureLists()
 	return &cfg, nil
 }
 
@@ -77,14 +80,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 	}
 
 	// Sync active tenant fields with top-level fields for convenience
-	if cfg.ActiveTenantID != "" {
-		for _, t := range cfg.Tenants {
-			if t.ID == cfg.ActiveTenantID {
-				cfg.DataDir = t.DataDir
-				break
-			}
-		}
-	}
+	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

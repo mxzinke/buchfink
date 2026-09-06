@@ -8,9 +8,9 @@ package einvoice
 //
 // Die Werte sind die **Vereinigung** dessen, was die beiden Syntaxbindungen der
 // Norm zulassen. Das ist keine Bequemlichkeit, sondern folgt aus dem Aufbau:
-// die Listen hängen am semantischen Modell, die Bindungen weichen an vier
-// Stellen voneinander ab, und ein Modell, das beide Syntaxen trägt, muss beides
-// annehmen. Konkret führt UBL "SEPA" als Kennungsschema und "SS" als
+// die Listen richten sich nach dem semantischen Modell, die Bindungen weichen
+// an vier Stellen voneinander ab, und ein Modell, das beide Syntaxen abbildet,
+// muss beides annehmen. Konkret führt UBL "SEPA" als Kennungsschema und "SS" als
 // Länderkennzeichen, CII führt "AN"; eine Liste je Syntax hätte dieselbe
 // Rechnung je nach Schreibweise verworfen oder durchgelassen.
 //
@@ -21,8 +21,8 @@ package einvoice
 // rechnet um.
 //
 // Entnommen sind sie dem Validierungsartefakt der EU-Kommission, das wie
-// Buchfink unter EUPL-1.2 steht. Die Werte selbst sind Tatsachen der jeweils
-// veröffentlichenden Stelle (UN/CEFACT, ISO, CEF).
+// Buchfink unter EUPL-1.2 steht. Die Werte selbst sind Tatsachen der
+// veröffentlichenden Stellen (UN/CEFACT, ISO, CEF).
 //
 // Erzeugt aus: ConnectingEurope/eInvoicing-EN16931, cii/schematron/codelist und
 // ubl/schematron/codelist.

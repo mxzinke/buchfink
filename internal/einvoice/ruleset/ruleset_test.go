@@ -45,7 +45,7 @@ func TestDescribeSeparatesTheQuestions(t *testing.T) {
 		t.Errorf("Profil = %q", d.Profile)
 	}
 	if d.BookableAsInvoice {
-		t.Error("MINIMUM trägt keine vollständige Rechnung")
+		t.Error("MINIMUM enthält keine vollständige Rechnung")
 	}
 	if !d.FollowsEN16931 {
 		t.Error("MINIMUM folgt der Norm, es ist nur unvollständig")

@@ -1,16 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Account, FinancialSummary, CompanySettings, VatSummary } from '../types';
+import { Download, Table2 } from 'lucide-react';
+import { FinancialStatement, StatementNotes } from '../types';
 import { Api } from '../services/api';
-import { formatCents } from '../utils/formatters';
+import type { NavigateFn } from '../components/Sidebar';
+import { downloadBlob } from '../utils/download';
+import { formatCents, formatDate } from '../utils/formatters';
 import {
+  DepthChoice,
+  StatementTab,
+  StatementView,
+} from '../components/StatementView';
+import {
+  Button,
   EmptyState,
   HelpPopover,
+  Notice,
   PageHeader,
   Section,
-  Select,
   SkeletonRows,
-  Stat,
-  StatRow,
   TabPanel,
   Table,
   Tabs,
@@ -23,490 +30,425 @@ import {
 } from '../components/ui';
 
 /**
- * Auswertungen: GuV, Bilanz und Umsatzsteuer.
+ * Auswertungen: Bilanz und Gewinn- und Verlustrechnung.
  *
- * Die Zahlen kommen fertig aus dem Backend, wo an jeder Buchungszeile der
- * Steuerschlüssel und die Bemessungsgrundlage hängen. Sie hier aus
- * Kontonummern zu rekonstruieren wäre eine zweite, abweichende Wahrheit.
+ * Die Zahlen kommen fertig aus dem Backend. Bilanz und GuV entstanden bis
+ * Welle 2 hier durch Filtern nach Kontenklasse und waren damit eine zweite,
+ * abweichende Wahrheit; jetzt liest die Ansicht die Gliederung nach den
+ * §§ 266 und 275 HGB aus `GetStatement` und rechnet nichts nach.
+ *
+ * Die Umsatzsteuer stand hier bis Welle 3 als fünfter Reiter mit vier
+ * Kennziffern, gerechnet nach Buchungsdatum. Sie ist eine eigene Ansicht
+ * geworden: der Voranmeldungszeitraum folgt dem Leistungsdatum (§ 13 Abs. 1
+ * UStG), und eine Anmeldung ist eine Entität mit Übermittlungsprotokoll und
+ * keine Auswertung.
  */
 
-type Tab = 'guv' | 'bilanz' | 'ust';
+/**
+ * Der Anhang steht neben Bilanz und GuV, weil er zu ihnen gehört: § 264 Abs. 1
+ * HGB macht ihn zum dritten Bestandteil des Abschlusses. Geschrieben wird er
+ * unter „Abschlussbausteine" — hier steht er so, wie er in die Offenlegung
+ * geht.
+ */
+type Tab = StatementTab | 'anhang';
 
-const MONTH_NAMES = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-];
+/**
+ * Der Anhang: die Freitexte, der Rückstellungsspiegel und die Überleitung zur
+ * Steuerbilanz.
+ *
+ * Alle drei kommen fertig aus `GetStatement` — der Anhang entsteht mit dem
+ * Abschluss und nicht daneben. Diese Ansicht zeigt sie und rechnet nichts nach;
+ * die Zeile `total` kommt aus dem Backend, das den Spiegel summiert hat.
+ */
+const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
+  // Die Listen kommen aus dem Backend leer und nicht als null. Der Standardwert
+  // steht trotzdem hier: eine fehlende Liste nähme im Render den ganzen Baum
+  // mit, und der Anhang ist die Stelle, an der am ehesten nichts erfasst ist.
+  const texts = notes?.texts ?? [];
+  const mirror = notes?.provisionMirror;
+  const mirrorRows = mirror?.rows ?? [];
+  const reconciliation = notes?.reconciliation;
+  const reconciliationRows = reconciliation?.rows ?? [];
+  const written = texts.filter((entry) => entry.text.trim() !== '');
 
-const QUARTER_LABELS = ['Jan–Mär', 'Apr–Jun', 'Jul–Sep', 'Okt–Dez'];
+  return (
+    <>
+      <Section
+        title="Angaben im Anhang"
+        context={notes?.reference}
+        divider={false}
+        explain={
+          <>
+            Der Anhang erläutert Bilanz und Gewinn- und Verlustrechnung (§§ 284, 285 HGB).
+            Kleinstkapitalgesellschaften dürfen ihn nach § 264 Abs. 1 Satz 5 HGB weglassen, wenn sie
+            die Angaben unter der Bilanz machen. Geschrieben werden die Texte unter
+            „Abschlussbausteine"; hier stehen sie so, wie sie in die Offenlegung gehen.
+          </>
+        }
+      >
+        {written.length === 0 ? (
+          <EmptyState
+            title="Noch kein Anhangtext erfasst"
+            description="Die Abschnitte stehen unter „Abschlussbausteine“ zum Ausfüllen bereit."
+          />
+        ) : (
+          <div className="max-w-3xl">
+            {written.map((entry) => (
+              <div key={entry.section} className="mb-6">
+                <h3 className="text-label text-ink">
+                  <span className="inline-flex items-center gap-1.5">
+                    {entry.label}
+                    {entry.hint && (
+                      <HelpPopover label={`Erklärung zu ${entry.label}`}>{entry.hint}</HelpPopover>
+                    )}
+                  </span>
+                </h3>
+                <p className="text-caption text-ink-subtle mt-0.5">{entry.basis}</p>
+                {/* Der Freitext behält seine Absätze: der Anwender hat sie gesetzt. */}
+                <p className="text-body text-ink mt-2 whitespace-pre-wrap">{entry.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
-export const ReportsPage: React.FC = () => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [vatByPeriod, setVatByPeriod] = useState<Record<string, VatSummary>>({});
-  const [tab, setTab] = useState<Tab>('guv');
-  const [loading, setLoading] = useState(true);
+      <Section
+        title="Rückstellungsspiegel"
+        context="Anfangsbestand, Zuführung, Verbrauch, Auflösung, Aufzinsung, Endbestand"
+        explain={
+          <>
+            Der Spiegel zeigt je Art der Rückstellung, wie sich der Bestand im Geschäftsjahr
+            entwickelt hat. Er geht per Definition auf: Anfangsbestand plus Zuführung und Aufzinsung
+            minus Verbrauch und Auflösung ergibt den Endbestand.
+          </>
+        }
+      >
+        {mirrorRows.length === 0 ? (
+          <EmptyState
+            title="Keine Rückstellungen im Geschäftsjahr"
+            description="Ohne Rückstellung bleibt der Spiegel leer; das ist keine fehlende Angabe."
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th>Art</Th>
+                <Th className="w-20">Konto</Th>
+                <Th numeric className="w-32">Anfangsbestand</Th>
+                <Th numeric className="w-28">Zuführung</Th>
+                <Th numeric className="w-28">Verbrauch</Th>
+                <Th numeric className="w-28">Auflösung</Th>
+                <Th numeric className="w-28">Aufzinsung</Th>
+                <Th numeric className="w-32">Endbestand</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {mirrorRows.map((row) => (
+                <Tr key={`${row.kind}-${row.account}`}>
+                  <Td className="whitespace-normal">{row.label}</Td>
+                  <Td code>{row.account}</Td>
+                  <Td numeric>{formatCents(row.opening)}</Td>
+                  <Td numeric>{formatCents(row.additions)}</Td>
+                  <Td numeric>{formatCents(row.used)}</Td>
+                  <Td numeric>{formatCents(row.released)}</Td>
+                  <Td numeric>{formatCents(row.unwinding)}</Td>
+                  <Td numeric>{formatCents(row.closing)}</Td>
+                </Tr>
+              ))}
+              {mirror?.total && (
+                <Tr variant="sum">
+                  <Td>Summe</Td>
+                  <Td />
+                  <Td numeric>{formatCents(mirror.total.opening)}</Td>
+                  <Td numeric>{formatCents(mirror.total.additions)}</Td>
+                  <Td numeric>{formatCents(mirror.total.used)}</Td>
+                  <Td numeric>{formatCents(mirror.total.released)}</Td>
+                  <Td numeric>{formatCents(mirror.total.unwinding)}</Td>
+                  <Td numeric>{formatCents(mirror.total.closing)}</Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
 
-  const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
-  const [selectedMonth, setSelectedMonth] = useState<number>(1);
+      <Section
+        title="Überleitung zur Steuerbilanz"
+        context={
+          reconciliation?.cutoff
+            ? `Stichtag ${formatDate(reconciliation.cutoff)}`
+            : 'Wo Handels- und Steuerbilanz auseinanderfallen'
+        }
+        explain={
+          <>
+            § 60 Abs. 2 EStDV verlangt, die Handelsbilanz durch Zusätze oder Anmerkungen an die
+            steuerlichen Vorschriften anzupassen, wo beide auseinanderfallen. In Buchfink sind das
+            die Sonderabschreibung nach § 7g Abs. 5 EStG und die abweichende Abzinsung der
+            Rückstellungen mit 5,5 % (§ 6 Abs. 1 Nr. 3a Buchst. e EStG).
+          </>
+        }
+      >
+        {reconciliationRows.length === 0 ? (
+          <EmptyState
+            title="Keine Abweichung zwischen Handels- und Steuerbilanz"
+            description="Ohne steuerliches Wahlrecht und ohne abgezinste Rückstellung stimmen beide überein."
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th>Position</Th>
+                <Th numeric className="w-40">Handelsbilanz</Th>
+                <Th numeric className="w-40">Steuerbilanz</Th>
+                <Th numeric className="w-40">Differenz</Th>
+                <Th className="w-64">Rechtsgrundlage</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {reconciliationRows.map((row) => (
+                <Tr key={row.position}>
+                  <Td className="whitespace-normal">
+                    <span className="inline-flex items-center gap-1.5">
+                      {row.position}
+                      {row.explanation && (
+                        <HelpPopover label={`Erklärung zu ${row.position}`}>
+                          {row.explanation}
+                        </HelpPopover>
+                      )}
+                    </span>
+                  </Td>
+                  <Td numeric>{formatCents(row.commercial)}</Td>
+                  <Td numeric>{formatCents(row.tax)}</Td>
+                  <Td numeric>{formatCents(row.difference)}</Td>
+                  <Td className="text-ink-muted whitespace-normal">{row.basis}</Td>
+                </Tr>
+              ))}
+              <Tr variant="sum">
+                <Td>Wirkung auf das Eigenkapital</Td>
+                <Td />
+                <Td />
+                <Td numeric>{formatCents(reconciliation?.equityEffect ?? 0)}</Td>
+                <Td />
+              </Tr>
+            </Tbody>
+          </Table>
+        )}
+        {reconciliation?.note && (
+          <p className="text-caption text-ink-subtle mt-3">{reconciliation.note}</p>
+        )}
+      </Section>
+    </>
+  );
+};
+
+export interface ReportsPageProps {
+  /** Das Geschäftsjahr aus der Kopfzeile. Der Abschluss folgt ihm. */
+  year: number;
+  /** Weg von der Gliederungszeile über das Konto ins Kontoblatt (GOB-02). */
+  onNavigate?: NavigateFn;
+}
+
+export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) => {
+  const [tab, setTab] = useState<Tab>('bilanz');
+  const [statement, setStatement] = useState<FinancialStatement | null>(null);
+  const [depth, setDepth] = useState<DepthChoice>('auto');
+  const [loadingStatement, setLoadingStatement] = useState(true);
+  const [statementError, setStatementError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    void loadStatement();
+    // Die Tiefe ist ein Parameter des Aufbaus, kein Filter der Ansicht: eine
+    // verkürzte Bilanz wird gebaut und nicht ausgeblendet.
+  }, [year, depth]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadStatement() {
+    setLoadingStatement(true);
     try {
-      const [accs, sum, cfg] = await Promise.all([
-        Api.getAccounts(),
-        Api.getFinancialSummary(),
-        Api.getCompanySettings(),
-      ]);
-      setAccounts(accs);
-      setSummary(sum);
-      setSettings(cfg);
-
-      const year = cfg.fiscalYear || new Date().getFullYear();
-      const periods: Array<[string, string, string]> = [['year', '', '']];
-      for (let q = 1; q <= 4; q++) {
-        periods.push([`q${q}`, `${year}-${String(q * 3 - 2).padStart(2, '0')}-01`, endOfMonth(year, q * 3)]);
-      }
-      for (let m = 1; m <= 12; m++) {
-        periods.push([`m${m}`, `${year}-${String(m).padStart(2, '0')}-01`, endOfMonth(year, m)]);
-      }
-      const results = await Promise.all(periods.map(([, from, to]) => Api.getVatSummary(from, to)));
-      setVatByPeriod(Object.fromEntries(periods.map(([key], i) => [key, results[i]])));
-
-      const currentMonth = new Date().getMonth() + 1;
-      setSelectedQuarter(Math.floor((currentMonth - 1) / 3) + 1);
-      setSelectedMonth(currentMonth);
+      setStatement(await Api.getStatement(year, depth === 'auto' ? '' : depth));
+      setStatementError(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      // Ein Befund aus dem Aufstellen — etwa eine Bilanz, die nicht aufgeht —
+      // ist ein Fehler und kein Leerzustand: er gehört als Hinweisfläche über
+      // die Ansicht (§10), damit der Satz des Backends lesbar bleibt.
+      setStatement(null);
+      setStatementError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setLoadingStatement(false);
     }
   }
 
-  const currentYear = settings?.fiscalYear || new Date().getFullYear();
-  const vatPeriod = settings?.vatPeriod || 'quarter';
+  async function handleExport(kind: 'pdf' | 'csv') {
+    setExporting(kind);
+    try {
+      if (kind === 'pdf') {
+        const base64 = await Api.exportStatementPDF(year);
+        downloadBlob(
+          `jahresabschluss-${year}.pdf`,
+          new Blob([bufferFromBase64(base64)], { type: 'application/pdf' }),
+        );
+      } else {
+        const csv = await Api.exportStatementCSV(year);
+        // Das Byte-Order-Mark steht davor, damit die Tabellenkalkulation die
+        // Umlaute als UTF-8 liest und nicht als Zeichensalat.
+        downloadBlob(
+          `jahresabschluss-${year}.csv`,
+          new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }),
+        );
+      }
+      toast.success(kind === 'pdf' ? 'Abschluss als PDF gespeichert.' : 'Gliederung als CSV gespeichert.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
 
-  // Aufteilung nach SKR04 und HGB.
-  const revenueAccounts = accounts.filter(
-    (a) => (a.type === 'revenue' || a.kontenklasse === 4) && a.balance !== 0,
-  );
-  const expenseAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'expense' || a.kontenklasse === 5 || a.kontenklasse === 6 || a.kontenklasse === 7) &&
-      a.balance !== 0,
-  );
-  const assetAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'asset' || a.balanceSide === 'Aktiva' || a.kontenklasse === 0 || a.kontenklasse === 1) &&
-      a.balance !== 0,
-  );
-  const liabilityAccounts = accounts.filter(
-    (a) =>
-      (a.type === 'liability' ||
-        a.type === 'equity' ||
-        a.balanceSide === 'Passiva' ||
-        a.kontenklasse === 2 ||
-        a.kontenklasse === 3) &&
-      a.balance !== 0,
-  );
-
-  const totalAssets = assetAccounts.reduce((sum, a) => sum + a.balance, 0);
-  const totalLiabilities = liabilityAccounts.reduce((sum, a) => sum + a.balance, 0);
-
-  /** Die Zahlen der Voranmeldung auf die Feldnamen der Ansicht gebracht. */
-  const vatView = (key: string) => {
-    const v = vatByPeriod[key];
-    const groups = v?.taxableRevenue ?? [];
-    const find = (rate: number) => groups.find((g) => g.rate === rate);
-    const rev19 = find(1900);
-    const rev7 = find(700);
-    const exempt =
-      (v?.exemptRevenue ?? 0) +
-      (v?.intraCommunitySupply ?? 0) +
-      (v?.export ?? 0) +
-      (v?.reverseChargeSupply ?? 0);
-
-    return {
-      rev19Net: rev19?.net ?? 0,
-      tax19: rev19?.tax ?? 0,
-      rev7Net: rev7?.net ?? 0,
-      tax7: rev7?.tax ?? 0,
-      revExemptNet: exempt,
-      totalRevenueNet: (rev19?.net ?? 0) + (rev7?.net ?? 0) + exempt,
-      totalTax: v?.totalOwedTax ?? 0,
-      inputTax: v?.inputTax ?? 0,
-      zahllast: v?.payable ?? 0,
-    };
+  /** Bilanz, Staffel, Angaben und Größenklasse — vier Sichten auf einen Aufbau. */
+  const statementPanel = (view: StatementTab) => {
+    if (loadingStatement) return <SkeletonRows rows={10} />;
+    if (!statement) {
+      // Der Fehler steht als Hinweisfläche über den Reitern; der Leerzustand
+      // gilt allein dem Fall, dass es nichts zu zeigen gibt.
+      return statementError ? null : (
+        <EmptyState
+          title={`Kein Abschluss für ${year}`}
+          description="Das Backend hat keine Gliederung geliefert."
+        />
+      );
+    }
+    return (
+      <StatementView
+        data={statement}
+        view={view}
+        depth={depth}
+        onDepthChange={setDepth}
+        onNavigate={onNavigate}
+      />
+    );
   };
-
-  const activeVat =
-    vatPeriod === 'month'
-      ? vatView(`m${selectedMonth}`)
-      : vatPeriod === 'quarter'
-        ? vatView(`q${selectedQuarter}`)
-        : vatView('year');
-
-  const quarters = [1, 2, 3, 4].map((q) => ({
-    quarter: q,
-    label: `Q${q} · ${QUARTER_LABELS[q - 1]}`,
-    ...vatView(`q${q}`),
-  }));
-
-  const refund = activeVat.zahllast < 0;
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
         title="Auswertungen"
-        context={`Geschäftsjahr ${currentYear} · berechnet aus den erfassten Buchungen`}
+        context={`Geschäftsjahr ${year} · berechnet aus den erfassten Buchungen`}
+        action={
+          <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                icon={<Table2 className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => handleExport('csv')}
+                loading={exporting === 'csv'}
+                disabled={!statement || exporting !== null}
+              >
+                Als CSV
+              </Button>
+              <Button
+                variant="primary"
+                icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => handleExport('pdf')}
+                loading={exporting === 'pdf'}
+                disabled={!statement || exporting !== null}
+            >
+              Als PDF
+            </Button>
+          </div>
+        }
       />
 
-      <Tabs
+      {statementError && (
+        <Notice
+          className="mt-6"
+          tone="negative"
+          text={statementError}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void loadStatement()}>
+              Erneut aufstellen
+            </Button>
+          }
+        />
+      )}
+
+      <Tabs<Tab>
         items={[
-          { value: 'guv' as Tab, label: 'Gewinn & Verlust' },
-          { value: 'bilanz' as Tab, label: 'Bilanz' },
-          { value: 'ust' as Tab, label: 'Umsatzsteuer' },
+          { value: 'bilanz', label: 'Bilanz' },
+          { value: 'guv', label: 'Gewinn- und Verlustrechnung' },
+          { value: 'angaben', label: 'Angaben unter der Bilanz' },
+          { value: 'anhang', label: 'Anhang' },
+          { value: 'klasse', label: 'Größenklasse und Fristen' },
         ]}
         value={tab}
         onValueChange={setTab}
         className="mt-6"
       >
-        {/* ------------------------------------------------------------- */}
-        <TabPanel value="guv">
-          {loading ? (
+        <TabPanel value="bilanz">{statementPanel('bilanz')}</TabPanel>
+        <TabPanel value="guv">{statementPanel('guv')}</TabPanel>
+        <TabPanel value="angaben">{statementPanel('angaben')}</TabPanel>
+        <TabPanel value="anhang">
+          {loadingStatement ? (
             <SkeletonRows rows={8} />
-          ) : (
-            <Section
-              title="Gewinn- und Verlustrechnung"
-              context="Erlöse abzüglich Aufwendungen, vor Steuern"
-              divider={false}
-              action={
-                <HelpPopover label="Erklärung zur Gewinn- und Verlustrechnung">
-                  Die Aufstellung folgt dem Gesamtkostenverfahren nach § 275 HGB. Sie zeigt den
-                  Stand des laufenden Geschäftsjahres und ist kein Jahresabschluss: Abgrenzungen,
-                  Abschreibungen und Rückstellungen entstehen erst beim Abschluss.
-                </HelpPopover>
-              }
-            >
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th className="w-28">Konto</Th>
-                    <Th>Position</Th>
-                    <Th numeric className="w-44">
-                      Betrag
-                    </Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  <GroupRow label="Erlöse" />
-                  {revenueAccounts.length === 0 ? (
-                    <Tr>
-                      <Td className="text-ink-subtle" colSpan={3}>
-                        Keine Erlöse gebucht
-                      </Td>
-                    </Tr>
-                  ) : (
-                    revenueAccounts.map((account) => (
-                      <Tr key={account.number}>
-                        <Td code>{account.number}</Td>
-                        <Td>{account.name}</Td>
-                        <Td numeric>{formatCents(account.balance)}</Td>
-                      </Tr>
-                    ))
-                  )}
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Summe Erlöse</Td>
-                    <Td numeric>{formatCents(summary?.totalRevenue ?? 0)}</Td>
-                  </Tr>
-
-                  <GroupRow label="Aufwendungen" />
-                  {expenseAccounts.length === 0 ? (
-                    <Tr>
-                      <Td className="text-ink-subtle" colSpan={3}>
-                        Keine Aufwendungen gebucht
-                      </Td>
-                    </Tr>
-                  ) : (
-                    expenseAccounts.map((account) => (
-                      <Tr key={account.number}>
-                        <Td code>{account.number}</Td>
-                        <Td>{account.name}</Td>
-                        <Td numeric>{formatCents(account.balance)}</Td>
-                      </Tr>
-                    ))
-                  )}
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Summe Aufwendungen</Td>
-                    <Td numeric>{formatCents(summary?.totalExpenses ?? 0)}</Td>
-                  </Tr>
-
-                  <GroupRow label="Ergebnis" />
-                  <Tr variant="sum">
-                    <Td />
-                    <Td>Vorläufiges Jahresergebnis</Td>
-                    <Td
-                      numeric
-                      className={
-                        (summary?.netIncome ?? 0) >= 0 ? 'text-positive-text' : 'text-negative-text'
-                      }
-                    >
-                      {formatCents(summary?.netIncome ?? 0)}
-                    </Td>
-                  </Tr>
-                </Tbody>
-              </Table>
-            </Section>
+          ) : statement ? (
+            <NotesPanel notes={statement.notes} />
+          ) : statementError ? null : (
+            <EmptyState
+              title={`Kein Anhang für ${year}`}
+              description="Der Anhang entsteht mit dem Abschluss; ohne Gliederung gibt es ihn nicht."
+            />
           )}
         </TabPanel>
+        <TabPanel value="klasse">{statementPanel('klasse')}</TabPanel>
 
-        {/* ------------------------------------------------------------- */}
-        <TabPanel value="bilanz">
-          {loading ? (
-            <SkeletonRows rows={8} />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <BalanceSide
-                title="Aktiva"
-                context="Vermögen und Bankguthaben"
-                accounts={assetAccounts}
-                total={totalAssets}
-              />
-              <BalanceSide
-                title="Passiva"
-                context="Eigenkapital und Verbindlichkeiten"
-                accounts={liabilityAccounts}
-                total={totalLiabilities}
-              />
-            </div>
-          )}
-        </TabPanel>
-
-        {/* ------------------------------------------------------------- */}
-        <TabPanel value="ust">
-          {loading ? (
-            <SkeletonRows rows={8} />
-          ) : (
-            <>
-              <Section
-                title={vatPeriod === 'month' ? 'Monatliche Voranmeldung' : 'Voranmeldung je Quartal'}
-                context={`Geschäftsjahr ${currentYear}`}
-                divider={false}
-                action={
-                  vatPeriod === 'month' ? (
-                    <Select
-                      items={MONTH_NAMES.map((name, index) => ({
-                        value: index + 1,
-                        label: `${name} ${currentYear}`,
-                      }))}
-                      value={selectedMonth}
-                      onValueChange={setSelectedMonth}
-                      className="w-48"
-                    />
-                  ) : (
-                    <Select
-                      items={quarters.map((q) => ({ value: q.quarter, label: q.label }))}
-                      value={selectedQuarter}
-                      onValueChange={setSelectedQuarter}
-                      className="w-48"
-                    />
-                  )
-                }
-              >
-                <StatRow>
-                  <Stat
-                    label="Umsätze netto"
-                    value={formatCents(activeVat.totalRevenueNet)}
-                    context="im gewählten Zeitraum"
-                  />
-                  <Stat
-                    label="Umsatzsteuer"
-                    value={formatCents(activeVat.totalTax)}
-                    context="19 % und 7 % auf Erlöse"
-                  />
-                  <Stat
-                    label="Abziehbare Vorsteuer"
-                    value={formatCents(activeVat.inputTax)}
-                    context="aus Betriebsausgaben"
-                  />
-                  <Stat
-                    label={refund ? 'Erstattungsanspruch' : 'Zahllast'}
-                    value={formatCents(Math.abs(activeVat.zahllast))}
-                    context={refund ? 'Guthaben beim Finanzamt' : 'an das Finanzamt zu zahlen'}
-                    tone={refund ? 'positive' : 'neutral'}
-                  />
-                </StatRow>
-              </Section>
-
-              <Section
-                title="Kennziffern der Voranmeldung"
-                context={
-                  vatPeriod === 'month'
-                    ? `${MONTH_NAMES[selectedMonth - 1]} ${currentYear}`
-                    : `Q${selectedQuarter} ${currentYear}`
-                }
-                action={
-                  <HelpPopover label="Erklärung zu den Kennziffern">
-                    Die Kennziffern entsprechen den Feldern des amtlichen Vordrucks der
-                    Umsatzsteuer-Voranmeldung. Buchfink übermittelt nicht selbst: Die Zahlen werden in
-                    Mein ELSTER übertragen oder an die Steuerberatung übergeben.
-                  </HelpPopover>
-                }
-              >
-                <Table>
-                  <Thead>
-                    <Tr>
-                      <Th className="w-20">Kz</Th>
-                      <Th>Position</Th>
-                      <Th numeric className="w-40">
-                        Bemessung
-                      </Th>
-                      <Th numeric className="w-40">
-                        Steuer
-                      </Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    <Tr>
-                      <Td code>81</Td>
-                      <Td>Steuerpflichtige Umsätze zum Steuersatz von 19 %</Td>
-                      <Td numeric className="text-ink-muted">
-                        {formatCents(activeVat.rev19Net)}
-                      </Td>
-                      <Td numeric>{formatCents(activeVat.tax19)}</Td>
-                    </Tr>
-                    <Tr>
-                      <Td code>86</Td>
-                      <Td>Steuerpflichtige Umsätze zum Steuersatz von 7 %</Td>
-                      <Td numeric className="text-ink-muted">
-                        {formatCents(activeVat.rev7Net)}
-                      </Td>
-                      <Td numeric>{formatCents(activeVat.tax7)}</Td>
-                    </Tr>
-                    <Tr>
-                      <Td code>66</Td>
-                      <Td>Abziehbare Vorsteuerbeträge aus Rechnungen anderer Unternehmen</Td>
-                      <Td numeric className="text-ink-muted">
-                        —
-                      </Td>
-                      <Td numeric>− {formatCents(activeVat.inputTax)}</Td>
-                    </Tr>
-                    <Tr variant="sum">
-                      <Td code>83</Td>
-                      <Td>Verbleibende Umsatzsteuer-Vorauszahlung</Td>
-                      <Td />
-                      <Td numeric className={refund ? 'text-positive-text' : undefined}>
-                        {formatCents(activeVat.zahllast)}
-                      </Td>
-                    </Tr>
-                  </Tbody>
-                </Table>
-              </Section>
-
-              {vatPeriod === 'quarter' && (
-                <Section title="Jahresverlauf" context={`Alle vier Quartale des Jahres ${currentYear}`}>
-                  <Table>
-                    <Thead>
-                      <Tr>
-                        <Th>Zeitraum</Th>
-                        <Th numeric className="w-40">
-                          Umsatz netto
-                        </Th>
-                        <Th numeric className="w-40">
-                          Umsatzsteuer
-                        </Th>
-                        <Th numeric className="w-40">
-                          Vorsteuer
-                        </Th>
-                        <Th numeric className="w-44">
-                          Zahllast
-                        </Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {quarters.map((q) => (
-                        <Tr key={q.quarter} variant={q.quarter === selectedQuarter ? 'selected' : 'default'}>
-                          <Td>{q.label}</Td>
-                          <Td numeric>{formatCents(q.totalRevenueNet)}</Td>
-                          <Td numeric>{formatCents(q.totalTax)}</Td>
-                          <Td numeric>{formatCents(q.inputTax)}</Td>
-                          <Td numeric className={q.zahllast < 0 ? 'text-positive-text' : undefined}>
-                            {formatCents(q.zahllast)}
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </Section>
-              )}
-            </>
-          )}
-        </TabPanel>
       </Tabs>
+
+      {/* Zwei Auswertungen der Welle 5c stehen auf der Seite „Nebenpflichten",
+          weil sie zu Verzeichnissen gehören, die dort geführt werden. Der
+          Verweis steht hier, weil man einen Bericht unter „Auswertungen"
+          sucht. */}
+      {onNavigate && (
+        <Section
+          title="Weitere Auswertungen"
+          context="Auf der Seite „Nebenpflichten“"
+          className="mt-8"
+          explain={
+            <>
+              Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) und der
+              Belegnachweis der steuerfreien innergemeinschaftlichen Lieferungen (§§ 17a bis 17c
+              UStDV) stehen bei den Verzeichnissen, aus denen sie entstehen: dort wird der
+              Empfänger eines Geschenks erfasst und dort wird ein Nachweisbeleg abgelegt.
+            </>
+          }
+        >
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
+            >
+              Nicht abziehbare Betriebsausgaben
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'evidence' })}
+            >
+              Belegnachweis ig. Lieferungen
+            </Button>
+          </div>
+        </Section>
+      )}
     </div>
   );
 };
 
 // -------------------------------------------------------------------------
 
-/** Zwischenüberschrift in der Aufstellung. Trägt allein durch Schriftschnitt. */
-const GroupRow: React.FC<{ label: string }> = ({ label }) => (
-  <Tr>
-    <Td colSpan={3} className="text-overline uppercase text-ink-subtle">
-      {label}
-    </Td>
-  </Tr>
-);
-
-const BalanceSide: React.FC<{
-  title: string;
-  context: string;
-  accounts: Account[];
-  total: number;
-}> = ({ title, context, accounts, total }) => (
-  <Section title={title} context={context} divider={false}>
-    {accounts.length === 0 ? (
-      <EmptyState title="Keine Positionen" />
-    ) : (
-      <Table>
-        <Thead>
-          <Tr>
-            <Th className="w-24">Konto</Th>
-            <Th>Position</Th>
-            <Th numeric className="w-36">
-              Betrag
-            </Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {accounts.map((account) => (
-            <Tr key={account.number}>
-              <Td code>{account.number}</Td>
-              <Td className="max-w-[18rem] truncate" title={account.name}>
-                {account.name}
-              </Td>
-              <Td numeric>{formatCents(account.balance)}</Td>
-            </Tr>
-          ))}
-          <Tr variant="sum">
-            <Td />
-            <Td>Summe {title}</Td>
-            <Td numeric>{formatCents(total)}</Td>
-          </Tr>
-        </Tbody>
-      </Table>
-    )}
-  </Section>
-);
-
-/** Letzter Tag eines Monats als ISO-Datum. */
-function endOfMonth(year: number, month: number): string {
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+/** Base64 aus der Bridge in Bytes — das PDF kommt wie der Rechnungsexport. */
+function bufferFromBase64(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return buffer;
 }
+

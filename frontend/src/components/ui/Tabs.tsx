@@ -25,7 +25,7 @@ export interface TabsProps<T> {
  * Bilanz und GuV. Kein Ersatz für Navigation: Was in der Seitenspalte steht,
  * wird nicht zusätzlich zum Reiter.
  *
- * Der aktive Reiter trägt eine Leiste in Himmelblau, dieselbe Markierung wie
+ * Der aktive Reiter zeigt eine Leiste in Himmelblau, dieselbe Markierung wie
  * der aktive Eintrag in der Navigation (§12).
  */
 export function Tabs<T extends string | number>({

@@ -1,25 +1,29 @@
 # Buchfink – Gründung einer Kapitalgesellschaft
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01,
+GOB-06, JAB-07, UST-03, QUE-02
+
 Status: umgesetzt
 Letzte Aktualisierung: 2026-09-01
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **01.09.2026** gegen den
-> Gesetzestext auf gesetze-im-internet.de verifiziert; die Fundstellen stehen in
-> [Abschnitt 9](#9-quellen).
+> Gesetzestext auf gesetze-im-internet.de verifiziert. Eröffnungsbilanz, Offenlegung
+> und Voranmeldungszeitraum stehen im Anforderungskatalog unter GOB-01, GOB-06,
+> JAB-07 und UST-03; das Gründungsrecht führt [Abschnitt 9](#9-fundstellen).
 
 ## 1. Worum es geht
 
-Eine GmbH entsteht nicht beim Notar und nicht mit der ersten Rechnung, sondern in
-zwei Schritten. Beim Notar wird der Gesellschaftsvertrag beurkundet (§ 2 GmbHG),
+Eine GmbH entsteht in zwei Schritten – nicht beim Notar und nicht mit der ersten
+Rechnung. Beim Notar wird der Gesellschaftsvertrag beurkundet (§ 2 GmbHG),
 und von da an existiert die **Vorgesellschaft**. Als juristische Person entsteht
 die GmbH erst mit der Eintragung ins Handelsregister (§ 11 Abs. 1 GmbHG).
 Dazwischen liegen Wochen bis Monate, und in dieser Zeit ist das Unternehmen
 bereits buchführungspflichtig, zahlt Notar- und Gerichtsgebühren, mietet an und
 kauft ein.
 
-Zwei Haftungen hängen an dieser Phase, und beide überraschen Gründer
+Zwei Haftungen gehören zu dieser Phase, und beide überraschen Gründer
 regelmäßig:
 
 **Handelndenhaftung.** „Ist vor der Eintragung im Namen der Gesellschaft
@@ -150,8 +154,8 @@ Gebucht wird auf Freigabe, mit Vorschau, wie beim Abschreibungslauf. Buchungen,
 die eine Anwendung von sich aus schreibt, sind in einer GoBD-Buchhaltung die
 schlechtere Hälfte der Bequemlichkeit.
 
-Der Gründungsaufwand selbst läuft über **6825** Rechts- und Beratungskosten oder
-**6827** Abschluss- und Prüfungskosten, als gewöhnlicher Beleg. Ein eigener
+Der Gründungsaufwand selbst wird über **6825** Rechts- und Beratungskosten oder
+**6827** Abschluss- und Prüfungskosten gebucht, als gewöhnlicher Beleg. Ein eigener
 Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 
 ## 6. Fristen aus der Gründung
@@ -161,13 +165,13 @@ Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 | Anmeldung zum Handelsregister | sobald die Mindesteinlage geleistet ist | §§ 7, 8 GmbHG |
 | Fragebogen zur steuerlichen Erfassung | einen Monat nach der Gründung | § 138 Abs. 1b und Abs. 4 AO |
 | Gewerbeanmeldung bei der Gemeinde | einen Monat | § 14 GewO, § 138 Abs. 1 AO |
-| Eröffnungsbilanz auf den Beurkundungstag | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB |
+| Eröffnungsbilanz auf den Beurkundungstag | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB, Katalog GOB-01 und GOB-06 |
 | Gesetzliche Rücklage, nur UG | mit dem Jahresabschluss | § 5a Abs. 3 GmbHG |
 | Wirtschaftlich Berechtigte melden | unverzüglich nach der Eintragung | § 20 Abs. 1 GwG |
-| Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB |
+| Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB, Katalog JAB-07 |
 
-Wo das Gesetz „unverzüglich" sagt, steht kein Datum in der Liste, sondern der
-Wortlaut. Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
+Wo das Gesetz „unverzüglich" sagt, steht der Wortlaut in der Liste, kein Datum.
+Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
 Eröffnungsbilanz nennt § 242 Abs. 1 HGB ebenfalls keine Frist; der angezeigte
 Termin ist als Richtwert gekennzeichnet und stammt aus § 264 Abs. 1 Satz 4 HGB.
 
@@ -254,7 +258,7 @@ Entscheidungen"). Buchfink führt die Frist und den Nachweis; übermittelt wird
 
 **Ablage der Gründungsurkunden.** Das Dokumentenmuster gibt es bereits am
 Anlagegut (`internal/domain/asset_document.go`). Es auf den Mandanten zu heben
-ist ein eigener, sauber abgrenzbarer Schritt.
+ist ein eigener, klar abgrenzbarer Schritt.
 
 **Die Zuordnung der Unterdeckung.** Ob eine Unterdeckung aus dem Gründungsaufwand
 oder aus einem Anlaufverlust stammt, entscheidet heute der Nutzer im Kopf. Eine
@@ -262,19 +266,21 @@ Kennzeichnung am Beleg wäre möglich und ist bewusst nicht gebaut: sie verlangt
 eine Angabe bei jeder Buchung der Gründungsphase, und die meisten Gründer haben
 gar keine Satzungsklausel.
 
-## 9. Quellen
+## 9. Fundstellen
 
-Geprüft am 01.09.2026 gegen den Wortlaut auf gesetze-im-internet.de.
+Eröffnungsbilanz und Rumpfgeschäftsjahr stehen im Anforderungskatalog unter GOB-01
+und GOB-06, die Offenlegung unter JAB-07, der Voranmeldungszeitraum unter UST-03,
+die Verschlüsselung personenbezogener Felder unter QUE-02. Das Gründungsrecht selbst
+kennt der Katalog nicht; dafür gilt, geprüft am 01.09.2026 gegen den Wortlaut auf
+gesetze-im-internet.de:
 
 - § 5 GmbHG – Stammkapital, Geschäftsanteil, Sachgründungsbericht
 - § 5a GmbHG – Unternehmergesellschaft: Volleinzahlung, Sacheinlageverbot, gesetzliche Rücklage
 - § 7 GmbHG – Anmeldung, Viertelregel, Untergrenze, Sacheinlagen
 - § 11 GmbHG – Vorgesellschaft und Handelndenhaftung
 - § 7 AktG, § 36a AktG – Grundkapital und Leistung der Einlagen
-- § 242 HGB – Pflicht zur Aufstellung der Eröffnungsbilanz
 - § 248 Abs. 1 Nr. 1 HGB – Aktivierungsverbot für Gründungsaufwand
 - § 272 Abs. 1 HGB – Ausweis von gezeichnetem Kapital und ausstehenden Einlagen
-- § 325 HGB – Offenlegung
 - § 138 AO – Anzeige der Erwerbstätigkeit, Monatsfrist in Absatz 4
 - § 18 Abs. 2 UStG – Voranmeldungszeitraum, Aussetzung 2021 bis 2026 in Satz 6
 - § 20 GwG – Mitteilung an das Transparenzregister

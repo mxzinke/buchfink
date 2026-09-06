@@ -34,7 +34,10 @@ type AssetService struct {
 	// docStore hält die Dokumente am Anlagegut — Verträge, Gutachten,
 	// Zulassungen. Er ist derselbe inhaltsadressierte Speicher wie für die
 	// Belege, aber ein anderer Zweig darin; siehe asset_document_service.go.
-	docStore   *receiptstore.Store
+	docStore *receiptstore.Store
+	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
+	// keinen Eintrag an — mit ihm tut sie es von allein.
+	inputTax   inputTaxRegistrar
 	fiscalYear int
 }
 
@@ -141,8 +144,8 @@ type DepreciationDue struct {
 // DepreciationRun is the preview of the yearly AfA.
 //
 // AfA is an Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall
-// — sie entsteht deshalb nicht im Hintergrund, sondern hier, auf Ansage, mit
-// Vorschau und Freigabe.
+// — sie entsteht deshalb hier, auf Ansage, mit Vorschau und Freigabe, nicht im
+// Hintergrund.
 type DepreciationRun struct {
 	FiscalYear  int               `json:"fiscalYear"`
 	BookingDate string            `json:"bookingDate"`
@@ -152,6 +155,17 @@ type DepreciationRun struct {
 	// booked. Sie hier nachzuholen wäre falsch — die Abschreibung gehört in ihr
 	// eigenes Jahr —, aber sie zu verschweigen wäre schlimmer.
 	MissingPriorYears []int `json:"missingPriorYears,omitempty"`
+}
+
+// EnsureLists ersetzt nicht belegte Listen durch leere; die Anlagenseite liest
+// `due.length` ohne Umweg.
+func (r *DepreciationRun) EnsureLists() {
+	if r.Due == nil {
+		r.Due = make([]DepreciationDue, 0)
+	}
+	if r.MissingPriorYears == nil {
+		r.MissingPriorYears = make([]int, 0)
+	}
 }
 
 // BookDepreciationRequest books the AfA of one fiscal year.
@@ -165,8 +179,22 @@ type BookDepreciationRequest struct {
 // DepreciationResult reports what the run wrote.
 type DepreciationResult struct {
 	Entries []domain.JournalEntry `json:"entries"`
-	Total   domain.Cents          `json:"total"`
-	Skipped []string              `json:"skipped,omitempty"`
+	// Total ist die Summe der gebuchten Abschreibung. Die Sonderabschreibung
+	// nach § 7g Abs. 5 EStG zählt ausdrücklich nicht mit: sie entsteht seit dem
+	// BilMoG nur noch als steuerlicher Wert, und eine Summe „gebuchter" Beträge,
+	// die einen ungebuchten enthält, stimmte mit keinem Konto überein.
+	Total domain.Cents `json:"total"`
+	// Skipped und TaxOnly haben kein `omitempty`: ein fehlendes Feld wäre in
+	// der Ansicht `undefined` und beim Lesen der Länge derselbe Absturz wie
+	// `null`.
+	Skipped []string `json:"skipped"`
+	// TaxOnly nennt die Anlagegüter, bei denen der Lauf nur einen steuerlichen
+	// Wert festgehalten hat — die Sonderabschreibung des § 7g Abs. 5 EStG, die
+	// seit dem BilMoG nicht mehr gebucht wird. Ohne diese Zeile sähe der Lauf
+	// aus, als hätte er das Anlagegut übergangen.
+	TaxOnly []string `json:"taxOnly"`
+	// TaxOnlyTotal ist die Summe dieser nur steuerlich festgehaltenen Beträge.
+	TaxOnlyTotal domain.Cents `json:"taxOnlyTotal,omitempty"`
 }
 
 // ImpairmentRequest is an außerplanmäßige Abschreibung
@@ -275,6 +303,13 @@ type AcquisitionCandidate struct {
 	AccountName string       `json:"accountName"`
 	Amount      domain.Cents `json:"amount"`
 	ContactID   *uint        `json:"contactId,omitempty"`
+	// InputTaxAmount ist die Vorsteuer, die aus der Buchung auf diese Zeile
+	// entfällt, InputTaxPermille der Anteil, mit dem sie gezogen wurde. Beide
+	// gehen in das Anlagegut über, das aus dem Kandidaten entsteht, und aus ihm
+	// ins Verzeichnis nach § 15a UStG. Null heißt: die Buchung gibt sie nicht
+	// eindeutig her (mehrere Steuersätze etwa) — dann trägt der Anwender sie ein.
+	InputTaxAmount   domain.Cents `json:"inputTaxAmount"`
+	InputTaxPermille int          `json:"inputTaxPermille"`
 }
 
 // -------------------------------------------------------------------------
@@ -424,7 +459,9 @@ func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
 // from the same fields the booking uses, so an asset can never be shown with an
 // explanation its own data contradicts.
 func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
-	var notes []string
+	// Belegt statt nil: ein Anlagegut ohne Erläuterung geht ebenso an die
+	// Oberfläche wie eines mit, und dort wird die Liste durchlaufen.
+	notes := make([]string, 0, 4)
 
 	switch asset.Class {
 	case domain.AssetClassFinancial:
@@ -477,7 +514,7 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 			"Sofortabzug als geringwertiges Wirtschaftsgut (§ 6 Abs. 2 EStG): der Aufwand ist mit dem "+
 				"Anschaffungsjahr erledigt und entsteht über die Belegbuchung, nicht über den "+
 				"Abschreibungslauf. Das Gut bleibt trotzdem im Verzeichnis — ab 250 € verlangt "+
-				"§ 6 Abs. 2 Satz 4 EStG genau das.")
+				"§ 6 Abs. 2 Satz 4 EStG das.")
 	case domain.DepreciationNone:
 		if asset.Class == domain.AssetClassTangible {
 			notes = append(notes,
@@ -597,6 +634,12 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 	if err := s.validateValueLimits(asset, asset.AcquisitionCost); err != nil {
 		return nil, err
 	}
+	if err := s.checkPoolConsistency(ctx, asset); err != nil {
+		return nil, err
+	}
+	if err := s.checkUsefulLifeReason(ctx, asset); err != nil {
+		return nil, err
+	}
 
 	if asset.ID != 0 {
 		existing, err := s.assetRepo.FindByID(ctx, asset.ID)
@@ -639,8 +682,8 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		if err := s.syncImmediateWriteOff(ctx, asset, existing.Movements); err != nil {
 			return nil, err
 		}
-		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
-			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name))
+		s.auditChange(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name), existing, asset)
 		return s.reload(ctx, asset.ID)
 	}
 
@@ -656,6 +699,11 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 				asset.PoolYear, existing.InventoryNumber)
 		}
 	}
+
+	// Die Vorsteuer der Zugangsbuchung geht mit ins Anlagegut, wo sie der
+	// Aufrufer nicht gesetzt hat: aus ihr entsteht gleich darunter der Eintrag im
+	// Verzeichnis nach § 15a UStG. Vgl. asset_input_tax.go.
+	s.fillInputTaxFromAcquisition(ctx, asset)
 
 	number, err := s.nextInventoryNumber(ctx, asset.AcquisitionDate)
 	if err != nil {
@@ -686,9 +734,17 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		return nil, err
 	}
 
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+	// Mit der Aktivierung entsteht der Eintrag im Verzeichnis nach § 15a UStG.
+	// Genau hier ist der Zeitpunkt, den die Vorschrift meint — später gibt es
+	// den ursprünglichen Verwendungsanteil nirgends mehr her.
+	if err := s.registerInputTaxCorrection(ctx, asset); err != nil {
+		return nil, err
+	}
+
+	s.auditChange(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Anlagegut %s angelegt: %s, Konto %s, Anschaffungskosten %s € am %s",
-		asset.InventoryNumber, asset.Name, asset.Account, asset.AcquisitionCost, asset.AcquisitionDate))
+		asset.InventoryNumber, asset.Name, asset.Account, asset.AcquisitionCost, asset.AcquisitionDate),
+		nil, asset)
 
 	return s.reload(ctx, asset.ID)
 }
@@ -828,7 +884,7 @@ func (s *AssetService) Delete(ctx context.Context, id uint) error {
 	for _, m := range asset.Movements {
 		if m.JournalEntryID != nil {
 			return fmt.Errorf(
-				"%s hängt an der Buchung zu %s und kann nicht gelöscht werden. "+
+				"%s ist mit der Buchung zu %s verbunden und kann nicht gelöscht werden. "+
 					"Ein Anlagegut, das gebucht wurde, verlässt das Verzeichnis nur über einen Abgang",
 				asset.InventoryNumber, m.Date)
 		}
@@ -853,9 +909,13 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
 
+	// Leer statt nil: der Lauf ohne offene Abschreibung ist der Regelfall eines
+	// bereits gebuchten Jahres, und `due.length` liest die Ansicht ohne Umweg.
 	run := &DepreciationRun{
-		FiscalYear:  s.fiscalYear,
-		BookingDate: fiscalYearEndDate(s.fiscalYear, startMonth),
+		FiscalYear:        s.fiscalYear,
+		BookingDate:       fiscalYearEndDate(s.fiscalYear, startMonth),
+		Due:               make([]DepreciationDue, 0),
+		MissingPriorYears: make([]int, 0),
 	}
 	missing := map[int]bool{}
 
@@ -922,7 +982,9 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 			SpecialPlanned:  row.SpecialAmount,
 			SpecialBooked:   specialBooked[s.fiscalYear],
 			SpecialDue:      specialDue,
-			BookValueBefore: row.OpeningBookValue - booked[s.fiscalYear] - specialBooked[s.fiscalYear],
+			// Der Buchwert ist der handelsrechtliche: die Sonderabschreibung
+			// mindert ihn nicht mehr, sie steht daneben als steuerlicher Wert.
+			BookValueBefore: row.OpeningBookValue - booked[s.fiscalYear],
 			BookValueAfter:  row.ClosingBookValue,
 			Note:            row.Note,
 		})
@@ -973,7 +1035,10 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 		selected[id] = true
 	}
 
-	result := &DepreciationResult{}
+	result := &DepreciationResult{
+		Entries: make([]domain.JournalEntry, 0),
+		Skipped: make([]string, 0), TaxOnly: make([]string, 0),
+	}
 	for _, due := range run.Due {
 		if len(selected) > 0 && !selected[due.AssetID] {
 			continue
@@ -991,11 +1056,22 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 		if err != nil {
 			return nil, fmt.Errorf("%s (%s): %w", asset.InventoryNumber, asset.Name, err)
 		}
-		result.Entries = append(result.Entries, *entry)
-		result.Total += due.Due + due.SpecialDue
+		if entry != nil {
+			result.Entries = append(result.Entries, *entry)
+		} else {
+			// Ist nur die Sonderabschreibung offen, entsteht keine Buchung: sie
+			// wird als steuerlicher Wert festgehalten. Der Lauf hat trotzdem
+			// etwas getan, und das gehört in das Ergebnis — sonst sähe er wie
+			// ein Fehlschlag aus.
+			result.TaxOnly = append(result.TaxOnly, fmt.Sprintf(
+				"%s (%s): Sonderabschreibung nach § 7g Abs. 5 EStG von %s € nur steuerlich festgehalten",
+				due.InventoryNumber, asset.Name, due.SpecialDue))
+		}
+		result.Total += due.Due
+		result.TaxOnlyTotal += due.SpecialDue
 	}
 
-	if len(result.Entries) == 0 && len(result.Skipped) == 0 {
+	if len(result.Entries) == 0 && len(result.Skipped) == 0 && len(result.TaxOnly) == 0 {
 		return nil, fmt.Errorf("für das Geschäftsjahr %d ist keine Abschreibung offen", year)
 	}
 	s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
@@ -1005,12 +1081,20 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 
 // postDepreciation writes one AfA booking and the movements that belong to it.
 //
-// Eine Buchung, aber bis zu zwei Sollzeilen: die planmäßige AfA und die
-// Sonderabschreibung des § 7g Abs. 5 EStG laufen im SKR04 auf verschiedene
-// Aufwandskonten, weil die GuV sie getrennt ausweist. Zusammengefasst wären sie
-// nicht mehr auseinanderzuhalten — und die Kartei könnte den Plan des nächsten
-// Jahres nicht mehr gegen das Gebuchte halten. Deshalb entstehen auch zwei
-// Bewegungen zu derselben Buchung.
+// Gebucht wird nur die planmäßige AfA. Die Sonderabschreibung des § 7g Abs. 5
+// EStG entsteht daneben als reiner Steuerwert und läuft nicht mehr durchs
+// Journal.
+//
+// Der Grund ist § 254 HGB in seiner alten Fassung — genauer: sein Wegfall. Bis
+// zum BilMoG durfte die steuerliche Sonderabschreibung in der Handelsbilanz
+// mitgebucht werden („umgekehrte Maßgeblichkeit"); seit 2010 ist das unzulässig,
+// weil § 253 HGB die handelsrechtliche Bewertung abschließend regelt und keine
+// Abschreibung kennt, die nur steuerlich begründet ist. Wer sie trotzdem bucht,
+// weist einen zu niedrigen Buchwert und ein zu niedriges Eigenkapital aus.
+//
+// Der Betrag ist damit nicht verloren: er steht als TaxAmount an der Bewegung,
+// erscheint im Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und geht in die
+// Überleitungsrechnung zur Steuerbilanz ein.
 func (s *AssetService) postDepreciation(
 	ctx context.Context, asset *domain.FixedAsset, amount, specialAmount domain.Cents,
 	bookingDate string, fiscalYear int, description string,
@@ -1018,45 +1102,38 @@ func (s *AssetService) postDepreciation(
 	if amount > 0 && asset.DepreciationAccount == "" {
 		return nil, fmt.Errorf("es ist kein Aufwandskonto für die Abschreibung hinterlegt")
 	}
-	if specialAmount > 0 && asset.SpecialAccount == "" {
-		return nil, fmt.Errorf("es ist kein Aufwandskonto für die Sonderabschreibung hinterlegt")
-	}
 	if amount <= 0 && specialAmount <= 0 {
 		return nil, fmt.Errorf("es ist keine Abschreibung offen")
 	}
 
-	var lines []domain.JournalLine
+	var created *domain.JournalEntry
 	if amount > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: asset.DepreciationAccount,
-			Amount: amount, Text: asset.InventoryNumber,
-		})
-	}
-	if specialAmount > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: asset.SpecialAccount,
-			Amount: specialAmount, Text: "Sonderabschreibung " + asset.InventoryNumber,
-		})
-	}
-	lines = append(lines, domain.JournalLine{
-		Side: domain.SideCredit, Account: asset.Account,
-		Amount: amount + specialAmount, Text: asset.InventoryNumber,
-	})
-
-	entry := &domain.JournalEntry{
-		BookingDate:        bookingDate,
-		DocumentDate:       bookingDate,
-		ServiceDateFrom:    bookingDate,
-		ServiceDateTo:      bookingDate,
-		Description:        description,
-		Source:             domain.EntrySourceDepreciation,
-		DocumentNumber:     asset.InventoryNumber,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	created, err := s.journalSvc.Post(ctx, entry)
-	if err != nil {
-		return nil, err
+		lines := []domain.JournalLine{
+			{
+				Side: domain.SideDebit, Account: asset.DepreciationAccount,
+				Amount: amount, Text: asset.InventoryNumber,
+			},
+			{
+				Side: domain.SideCredit, Account: asset.Account,
+				Amount: amount, Text: asset.InventoryNumber,
+			},
+		}
+		entry := &domain.JournalEntry{
+			BookingDate:        bookingDate,
+			DocumentDate:       bookingDate,
+			ServiceDateFrom:    bookingDate,
+			ServiceDateTo:      bookingDate,
+			Description:        description,
+			Source:             domain.EntrySourceDepreciation,
+			DocumentNumber:     asset.InventoryNumber,
+			PostingRuleVersion: accounting.PostingRuleVersion,
+			Lines:              lines,
+		}
+		var err error
+		created, err = s.journalSvc.Post(ctx, entry)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	movements := make([]*domain.AssetMovement, 0, 2)
@@ -1070,22 +1147,101 @@ func (s *AssetService) postDepreciation(
 	if specialAmount > 0 {
 		movements = append(movements, &domain.AssetMovement{
 			AssetID: asset.ID, Kind: domain.AssetMovementSpecialDepreciation, Account: asset.Account,
-			Date: bookingDate, FiscalYear: fiscalYear, DepreciationAmount: specialAmount,
-			JournalEntryID: &created.ID,
+			Date: bookingDate, FiscalYear: fiscalYear, TaxAmount: specialAmount,
 			Note: fmt.Sprintf("Sonderabschreibung nach § 7g Abs. 5 EStG (%s der Anschaffungskosten, "+
-				"verteilt auf %d Jahre)", permilleLabel(asset.SpecialPermille)+" %", asset.SpecialYears),
+				"verteilt auf %d Jahre) — nur steuerlich, ohne Buchung in der Handelsbilanz",
+				permilleLabel(asset.SpecialPermille)+" %", asset.SpecialYears),
 		})
 	}
 	for _, m := range movements {
 		if err := s.assetRepo.AddMovement(ctx, m); err != nil {
 			// Die Buchung steht; nur die Kartei hat sie nicht mitbekommen. Das ehrlich
 			// zu melden ist besser, als die Buchung als gescheitert auszugeben.
+			number := "(ohne Buchung)"
+			if created != nil {
+				number = created.EntryNumber
+			}
 			return created, fmt.Errorf(
 				"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-				created.EntryNumber, err)
+				number, err)
 		}
 	}
 	return created, nil
+}
+
+// LegacySpecialDepreciation ist eine Sonderabschreibung, die noch als Buchung
+// im Journal steht.
+type LegacySpecialDepreciation struct {
+	AssetID         uint         `json:"assetId"`
+	InventoryNumber string       `json:"inventoryNumber"`
+	Name            string       `json:"name"`
+	FiscalYear      int          `json:"fiscalYear"`
+	Date            string       `json:"date"`
+	Amount          domain.Cents `json:"amount"`
+	ExpenseAccount  string       `json:"expenseAccount"`
+	EntryNumber     string       `json:"entryNumber,omitempty"`
+}
+
+// LegacySpecialDepreciationNotice ist der Migrationshinweis der Anlagenseite.
+type LegacySpecialDepreciationNotice struct {
+	Rows  []LegacySpecialDepreciation `json:"rows"`
+	Total domain.Cents                `json:"total"`
+	Note  string                      `json:"note"`
+}
+
+// LegacySpecialDepreciations sammelt die Sonderabschreibungen, die vor dieser
+// Welle in der Handelsbilanz gebucht wurden.
+//
+// Sie bleiben stehen. Das Storno-Prinzip lässt keine stille Korrektur
+// gebuchter Vorgänge zu (§ 239 Abs. 3 HGB, GoBD Rz. 58), und eine Buchung
+// nachträglich verschwinden zu lassen wäre eine stille Korrektur. Aber sie sind seit dem
+// BilMoG handelsrechtlich unzulässig (§ 254 HGB a. F. entfallen), und wer den
+// Buchwert oder das Eigenkapital erklären muss, braucht die Liste. Deshalb
+// nennt die Anlagenseite sie, statt zu schweigen.
+func (s *AssetService) LegacySpecialDepreciations(ctx context.Context) (*LegacySpecialDepreciationNotice, error) {
+	assets, err := s.assetRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
+	}
+	notice := &LegacySpecialDepreciationNotice{Rows: make([]LegacySpecialDepreciation, 0)}
+	for i := range assets {
+		asset := &assets[i]
+		for _, m := range asset.Movements {
+			if m.Kind != domain.AssetMovementSpecialDepreciation || m.DepreciationAmount <= 0 {
+				continue
+			}
+			row := LegacySpecialDepreciation{
+				AssetID: asset.ID, InventoryNumber: asset.InventoryNumber, Name: asset.Name,
+				FiscalYear: m.FiscalYear, Date: m.Date, Amount: m.DepreciationAmount,
+				ExpenseAccount: asset.SpecialAccount,
+			}
+			if m.JournalEntryID != nil {
+				if entry, err := s.journalRepo.FindByID(ctx, *m.JournalEntryID); err == nil && entry != nil {
+					row.EntryNumber = entry.EntryNumber
+				}
+			}
+			notice.Rows = append(notice.Rows, row)
+			notice.Total += m.DepreciationAmount
+		}
+	}
+	sort.Slice(notice.Rows, func(i, j int) bool {
+		if notice.Rows[i].InventoryNumber != notice.Rows[j].InventoryNumber {
+			return notice.Rows[i].InventoryNumber < notice.Rows[j].InventoryNumber
+		}
+		return notice.Rows[i].Date < notice.Rows[j].Date
+	})
+	if len(notice.Rows) > 0 {
+		notice.Note = fmt.Sprintf(
+			"%d Sonderabschreibungen nach § 7g Abs. 5 EStG über zusammen %s € stehen noch als Buchung "+
+				"im Journal. Buchfink bucht sie seit dieser Fassung nicht mehr: handelsrechtlich sind "+
+				"sie seit dem BilMoG unzulässig (§ 254 HGB a. F. entfallen), steuerlich stehen sie im "+
+				"Verzeichnis nach § 5 Abs. 1 Satz 2 EStG. Die alten Buchungen bleiben stehen — "+
+				"korrigiert wird, wenn überhaupt, mit einem Storno und nicht durch Löschen.",
+			len(notice.Rows), notice.Total)
+	} else {
+		notice.Note = "Es steht keine gebuchte Sonderabschreibung mehr im Journal."
+	}
+	return notice, nil
 }
 
 // PendingDepreciation reports the assets whose AfA for a fiscal year is still
@@ -1206,6 +1362,17 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("der Zuschreibungsbetrag muss größer als null sein")
 	}
+	if strings.TrimSpace(req.Reason) == "" {
+		// § 253 Abs. 5 Satz 1 HGB macht die Zuschreibung zum Gebot, sobald der
+		// Grund der früheren außerplanmäßigen Abschreibung weggefallen ist. Was
+		// weggefallen ist, weiß nur der Bilanzierende — und ohne seine Angabe ist
+		// die Zuschreibung von einer willkürlichen Erhöhung des Buchwerts nicht
+		// zu unterscheiden.
+		return nil, fmt.Errorf(
+			"zu einer Zuschreibung gehört ihr Grund. § 253 Abs. 5 Satz 1 HGB verlangt sie, wenn der " +
+				"Grund der früheren außerplanmäßigen Abschreibung weggefallen ist — halte fest, " +
+				"welcher das war und wodurch er entfallen ist")
+	}
 
 	revenue, err := accounting.WriteUpAccount(asset.Class, asset.Account, asset.TaxPrivileged)
 	if err != nil {
@@ -1316,17 +1483,37 @@ type MaintenanceRequest struct {
 	// ist eine Einschätzung, und ohne ihre Begründung ist sie später nicht mehr
 	// nachvollziehbar.
 	Note string `json:"note"`
+
+	// NotModernisation nimmt die Maßnahme aus dem Rahmen des § 6 Abs. 1 Nr. 1a
+	// EStG heraus — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten
+	// und die Erweiterungen des Satzes 2. Negativ formuliert, weil der Regelfall
+	// das Gegenteil ist und der Regelfall der Vorgabewert sein muss.
+	NotModernisation bool `json:"notModernisation,omitempty"`
+}
+
+// MaintenanceResult ist das Ergebnis einer Erhaltungsaufwandsbuchung.
+//
+// Die Buchung allein wäre die halbe Antwort. Die Prüfung des 15-%-Rahmens
+// (§ 6 Abs. 1 Nr. 1a EStG) entscheidet darüber, ob der eben gebuchte Aufwand
+// überhaupt sofort abziehbar ist — sie stand vorher nur im Protokoll, und wer
+// bucht, liest kein Protokoll. Jetzt kommt sie mit der Buchung zurück.
+type MaintenanceResult struct {
+	Entry *domain.JournalEntry `json:"entry"`
+	// NearAcquisition ist die Prüfung des Rahmens, nil wo sie nicht einschlägig
+	// war (kein Gebäude, außerhalb der drei Jahre, ausdrücklich keine
+	// Modernisierung).
+	NearAcquisition *NearAcquisitionCheck `json:"nearAcquisition,omitempty"`
 }
 
 // BookMaintenance writes Erhaltungsaufwand and links it to the Anlagegut.
 //
-// Der Aufwand ändert den Buchwert nicht — genau das unterscheidet ihn von den
+// Der Aufwand ändert den Buchwert nicht — das unterscheidet ihn von den
 // nachträglichen Herstellungskosten. Die Bewegung, die dabei entsteht, trägt
 // deshalb weder Anschaffungskosten noch Abschreibung: sie verbindet nur die
 // Buchung mit dem Wirtschaftsgut, an dem gearbeitet wurde. Wer später fragt,
 // was eine Maschine gekostet hat, bekommt beides zu sehen und kann es
 // auseinanderhalten.
-func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*domain.JournalEntry, error) {
+func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*MaintenanceResult, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1346,6 +1533,18 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 				"erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich verbessert, ist " +
 				"zu aktivieren (§ 255 Abs. 2 Satz 1 HGB) — die Abgrenzung ist eine Einschätzung und " +
 				"gehört an die Buchung")
+	}
+
+	// Die 15-%-Prüfung des § 6 Abs. 1 Nr. 1a EStG läuft vor der Buchung. Sie
+	// hält nicht an: ob eine Maßnahme unter die Vorschrift fällt, ist eine
+	// Beurteilung, und Buchfink trifft sie nicht. Der Hinweis steht an der
+	// Bewegung, und der Bericht führt den Fall weiter.
+	var nearAcquisition *NearAcquisitionCheck
+	if !req.NotModernisation {
+		nearAcquisition, err = s.CheckNearAcquisitionCost(ctx, asset.ID, req.Date, req.Amount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	expense := req.Account
@@ -1369,7 +1568,14 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 	}
 	rate := req.TaxRate
 	if treatment == domain.TaxTreatmentDomestic && rate == domain.TaxRateNone {
-		rate = domain.TaxRateStandard
+		// Der Regelsatz des Leistungstages und nicht die Konstante 19 %
+		// (UNV-03 K2): eine 2026 nacherfasste Erhaltungsmaßnahme vom August
+		// 2020 trägt 16 %, und ein Vorschlag von 19 % ergäbe eine Buchung, die
+		// weder zur Rechnung noch zur Voranmeldung passt.
+		rate, err = accounting.TaxRateFor(req.Date, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	legs, err := s.taxResolver.Resolve(domain.DirectionIncoming, treatment, rate, req.Amount)
 	if err != nil {
@@ -1412,21 +1618,29 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 	if err != nil {
 		return nil, err
 	}
+	out := &MaintenanceResult{Entry: created, NearAcquisition: nearAcquisition}
 
 	movement := &domain.AssetMovement{
 		AssetID: asset.ID, Kind: domain.AssetMovementMaintenance, Account: asset.Account,
 		Date: req.Date, FiscalYear: domain.GetFiscalYearForDate(req.Date, s.fiscalYearStartMonth(ctx)),
-		JournalEntryID: &created.ID,
-		Note:           fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
+		JournalEntryID:  &created.ID,
+		ExpenseAmount:   req.Amount,
+		ExpenseAccount:  expense,
+		IsModernisation: !req.NotModernisation,
+		Note:            fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
+		return out, fmt.Errorf(
 			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
 			created.EntryNumber, err)
 	}
+	if nearAcquisition != nil && nearAcquisition.Exceeded {
+		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+			"Anschaffungsnahe Herstellungskosten: %s", nearAcquisition.Note))
+	}
 	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Erhaltungsaufwand zu %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
-	return created, nil
+	return out, nil
 }
 
 // AssetIncomeRequest bucht einen laufenden Ertrag aus einer Finanzanlage.
@@ -1681,13 +1895,16 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 	}
 
 	entry := &domain.JournalEntry{
-		BookingDate:        req.Date,
-		DocumentDate:       req.Date,
-		ServiceDateFrom:    req.Date,
-		ServiceDateTo:      req.Date,
-		Description:        fmt.Sprintf("Fertigstellung %s (%s)", asset.Name, asset.InventoryNumber),
-		Source:             domain.EntrySourceManual,
-		DocumentNumber:     asset.InventoryNumber,
+		BookingDate:     req.Date,
+		DocumentDate:    req.Date,
+		ServiceDateFrom: req.Date,
+		ServiceDateTo:   req.Date,
+		Description:     fmt.Sprintf("Fertigstellung %s (%s)", asset.Name, asset.InventoryNumber),
+		Source:          domain.EntrySourceManual,
+		DocumentNumber:  asset.InventoryNumber,
+		// Die Umbuchung der fertiggestellten Anlage ist eine Umgliederung
+		// innerhalb des Anlagevermögens und kein Umsatz.
+		TaxTreatment:       domain.TaxTreatmentNotTaxable,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: req.Account, Amount: asset.BookValue,
@@ -1742,7 +1959,7 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 
 // BookCurrencyValuation writes the Umrechnungsdifferenz of a Stichtag.
 //
-// Sie läuft über eigene Konten und nicht über die der außerplanmäßigen
+// Sie bucht über eigene Konten und nicht über die der außerplanmäßigen
 // Abschreibung und der Zuschreibung: der SKR04 führt Aufwand und Ertrag aus der
 // Währungsumrechnung getrennt (6880 und 4840), und er unterscheidet dort sogar
 // die Fälle des § 256a HGB von den übrigen. Auf 7200 gebucht sähe ein
@@ -2021,7 +2238,7 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
 	}
-	preview, catchUpLines, disposalLines, err := s.buildDisposal(ctx, asset, req)
+	preview, _, disposalLines, err := s.buildDisposal(ctx, asset, req)
 	if err != nil {
 		return nil, err
 	}
@@ -2031,7 +2248,13 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	result := &DisposalResult{}
 
 	// 1. AfA bis zum Abgangsmonat nachholen.
-	if len(catchUpLines) > 0 {
+	//
+	// Auch wenn nur die Sonderabschreibung offen ist: sie erzeugt keine
+	// Buchung mehr (§ 253 HGB), aber sie gehört als steuerlicher Wert an das
+	// Anlagegut, solange es im Betriebsvermögen war. Ginge sie hier verloren,
+	// fehlte sie im Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und in der
+	// Überleitung.
+	if preview.CatchUpAmount > 0 || preview.SpecialCatchUp > 0 {
 		entry, err := s.postDepreciation(ctx, asset, preview.CatchUpAmount, preview.SpecialCatchUp,
 			req.Date, fiscalYear, fmt.Sprintf("AfA bis zum Abgang: %s", asset.Name))
 		if err != nil {
@@ -2050,10 +2273,13 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 			description = fmt.Sprintf("Tilgung %s (%s)", asset.Name, asset.InventoryNumber)
 		}
 		treatment := req.TaxTreatment
-		if req.Kind == domain.DisposalRepayment {
+		if req.Kind == domain.DisposalRepayment || treatment == "" {
 			// Eine Rückzahlung ist kein Leistungsaustausch: sie ist nicht
 			// steuerbar, nicht bloß steuerfrei. Der Unterschied steht in der
-			// Voranmeldung an verschiedenen Stellen.
+			// Voranmeldung an verschiedenen Stellen. Ein Abgang ohne Erlös —
+			// die Verschrottung — ebenso wenig: dort verlässt nichts das
+			// Unternehmen gegen Entgelt, und der Steuerfall ist deshalb „nicht
+			// steuerbar" und kein leeres Feld.
 			treatment = domain.TaxTreatmentNotTaxable
 		}
 		entry := &domain.JournalEntry{
@@ -2202,7 +2428,7 @@ func (s *AssetService) buildDisposal(
 		}
 		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok && entry.Group != "Ausleihungen" {
 			return nil, nil, nil, fmt.Errorf(
-				"%s (%s) trägt keine Ausleihung. Eine Beteiligung und ein Wertpapier werden verkauft, "+
+				"%s (%s) ist keine Ausleihung. Eine Beteiligung und ein Wertpapier werden verkauft, "+
 					"nicht getilgt", asset.Account, entry.Name)
 		}
 	}
@@ -2267,20 +2493,15 @@ func (s *AssetService) buildDisposal(
 				Text: "AfA bis zum Abgangsmonat",
 			})
 		}
-		if preview.SpecialCatchUp > 0 {
-			if asset.SpecialAccount == "" {
-				return nil, nil, nil, fmt.Errorf(
-					"es ist kein Aufwandskonto für die Sonderabschreibung hinterlegt")
-			}
+		// Die Sonderabschreibung des § 7g Abs. 5 EStG steht hier bewusst nicht:
+		// sie ist nur ein steuerlicher Wert und berührt weder Buchwert noch
+		// Aufwand der Handelsbilanz (§ 253 HGB, § 254 HGB a. F. entfallen).
+		if preview.CatchUpAmount > 0 {
 			catchUpLines = append(catchUpLines, domain.JournalLine{
-				Side: domain.SideDebit, Account: asset.SpecialAccount, Amount: preview.SpecialCatchUp,
-				Text: "Sonderabschreibung bis zum Abgang",
+				Side: domain.SideCredit, Account: asset.Account,
+				Amount: preview.CatchUpAmount, Text: "AfA bis zum Abgangsmonat",
 			})
 		}
-		catchUpLines = append(catchUpLines, domain.JournalLine{
-			Side: domain.SideCredit, Account: asset.Account,
-			Amount: preview.CatchUpAmount + preview.SpecialCatchUp, Text: "AfA bis zum Abgangsmonat",
-		})
 	}
 	preview.CatchUpLines = s.named(ctx, catchUpLines)
 
@@ -2330,8 +2551,10 @@ func (s *AssetService) buildDisposal(
 			asset.Accumulated, int64(costShare), int64(asset.Cost))
 	}
 
-	preview.BookValue = preview.CostShare - preview.DepreciationShare -
-		preview.CatchUpAmount - preview.SpecialCatchUp
+	// Die Sonderabschreibung mindert den handelsrechtlichen Buchwert nicht und
+	// darf deshalb hier nicht abgezogen werden; sonst entstünde beim Abgang ein
+	// zu hoher Buchgewinn.
+	preview.BookValue = preview.CostShare - preview.DepreciationShare - preview.CatchUpAmount
 	if preview.BookValue < 0 {
 		preview.BookValue = 0
 	}
@@ -2364,7 +2587,12 @@ func (s *AssetService) buildDisposal(
 		if treatment != domain.TaxTreatmentDomestic {
 			rate = domain.TaxRateNone
 		} else if rate == domain.TaxRateNone {
-			rate = domain.TaxRateStandard
+			// Der Regelsatz des Tages, an dem die Anlage abgeht (UNV-03 K2).
+			dateRate, err := accounting.TaxRateFor(req.Date, false)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			rate = dateRate
 		}
 		legs, err := s.taxResolver.Resolve(domain.DirectionOutgoing, treatment, rate, req.Proceeds)
 		if err != nil {
@@ -2460,7 +2688,7 @@ func (s *AssetService) buildRepayment(
 			Text: "Ausfall " + asset.InventoryNumber,
 		})
 		preview.Accounts.Explanation = "Zurückgezahlt wurde weniger als der Buchwert. Die Tilgung " +
-			"selbst ist kein Umsatz; der Ausfall läuft über die sonstigen betrieblichen " +
+			"selbst ist kein Umsatz; Buchfink bucht den Ausfall über die sonstigen betrieblichen " +
 			"Aufwendungen."
 	default:
 		preview.Accounts.Revenue = ""
@@ -2594,7 +2822,13 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 		}
 	}
 
-	spiegel := &domain.Anlagenspiegel{FiscalYear: year}
+	// Leer statt nil: ohne Anlagevermögen bleibt der Spiegel leer, und die
+	// Ansicht fasst beide Listen zusammen.
+	spiegel := &domain.Anlagenspiegel{
+		FiscalYear:  year,
+		Rows:        make([]domain.AnlagenspiegelRow, 0, len(order)),
+		ClassTotals: make([]domain.AnlagenspiegelRow, 0),
+	}
 	classTotals := map[domain.AssetClass]*domain.AnlagenspiegelRow{}
 
 	for _, account := range order {
@@ -2665,7 +2899,9 @@ func (s *AssetService) AcquisitionCandidates(ctx context.Context) ([]Acquisition
 	}
 	chart, _ := s.journalSvc.Chart(ctx)
 
-	var out []AcquisitionCandidate
+	// Belegt statt nil: der Regelfall ist das Journal ohne offenen Zugang,
+	// und die Ansicht läse dort sonst `null`.
+	out := make([]AcquisitionCandidate, 0)
 	for i := range entries {
 		entry := &entries[i]
 		if linked[entry.ID] || entry.Kind == domain.EntryKindReversal {
@@ -2684,15 +2920,20 @@ func (s *AssetService) AcquisitionCandidates(ctx context.Context) ([]Acquisition
 			if chart != nil {
 				name = chart.Name(line.Account)
 			}
+			// Die Vorsteuer wandert mit dem Kandidaten in das Anlagegut und von
+			// dort ins Verzeichnis nach § 15a UStG.
+			tax, permille, _ := acquisitionInputTax(entry, line.Account, line.Amount)
 			out = append(out, AcquisitionCandidate{
-				EntryID:     entry.ID,
-				EntryNumber: entry.EntryNumber,
-				BookingDate: entry.BookingDate,
-				Description: entry.Description,
-				Account:     line.Account,
-				AccountName: name,
-				Amount:      line.Amount,
-				ContactID:   entry.ContactID,
+				EntryID:          entry.ID,
+				EntryNumber:      entry.EntryNumber,
+				BookingDate:      entry.BookingDate,
+				Description:      entry.Description,
+				Account:          line.Account,
+				AccountName:      name,
+				Amount:           line.Amount,
+				ContactID:        entry.ContactID,
+				InputTaxAmount:   tax,
+				InputTaxPermille: permille,
 			})
 		}
 	}
@@ -2733,7 +2974,14 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 		asset.Cost += m.CostAmount
 		asset.Accumulated += m.DepreciationAmount
 		asset.UnitsHeld += m.Quantity
-		asset.Vorabpauschalen += m.TaxAmount
+		if m.Kind == domain.AssetMovementVorabpauschale {
+			// TaxAmount speichert zwei verschiedene steuerliche Werte: die
+			// Vorabpauschale des Investmentanteils und seit dieser Welle die
+			// Sonderabschreibung nach § 7g Abs. 5 EStG. Ohne die Abfrage nach
+			// der Bewegungsart erschiene eine Sonderabschreibung als bereits
+			// versteuerte Vorabpauschale.
+			asset.Vorabpauschalen += m.TaxAmount
+		}
 		if m.FiscalYear != fiscalYear {
 			continue
 		}
@@ -2779,6 +3027,13 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 
 // planFor turns an asset into the input of the AfA computation.
 func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
+	return afaPlanFor(asset, startMonth)
+}
+
+// afaPlanFor ist dieselbe Umrechnung als freie Funktion: das Verzeichnis nach
+// § 5 Abs. 1 Satz 2 EStG braucht denselben Plan, und ein zweiter Aufbau würde
+// abweichen, sobald sich eine Regel ändert.
+func afaPlanFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
 	plan := accounting.AfAPlan{
 		// Abgeschrieben wird ab der Betriebsbereitschaft. Bei einer Anlage im Bau
 		// liegt zwischen der ersten Anzahlung und ihr oft ein Jahr.
@@ -2822,6 +3077,20 @@ func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) account
 	if plan.Cost == 0 {
 		plan.Cost = asset.AcquisitionCost
 	}
+	// Der feste Satz des § 7 Abs. 4 EStG wird hier aufgelöst und nicht in der
+	// Rechnung: er richtet sich nach zwei Angaben des Anlageguts — ob das Gebäude
+	// Wohnzwecken dient (das steht im Kontenkatalog) und nach dem Stichtag —, und
+	// die kennt die Rechnung nicht.
+	if asset.Method == domain.DepreciationBuildingLinear {
+		residential := false
+		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok {
+			residential = entry.Residential
+		}
+		if rate, err := accounting.BuildingRateFor(
+			residential, asset.BuildingReferenceDate); err == nil {
+			plan.BuildingPermille = rate.Permille
+		}
+	}
 	return plan
 }
 
@@ -2831,9 +3100,9 @@ func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) account
 // The Sofortabzug is not booked by the Abschreibungslauf: der Aufwand entsteht
 // über die Belegbuchung auf 6260. Die Kartei hält ihn trotzdem als Bewegung
 // fest, sonst stünde das geringwertige Wirtschaftsgut jahrelang mit einem
-// Buchwert im Verzeichnis, den es nicht mehr hat. Die Bewegung trägt bewusst
-// keine Journalbuchung: sie gehört zur Zugangsbuchung, die schon an der
-// Zugangsbewegung hängt.
+// Buchwert im Verzeichnis, den es nicht mehr hat. Die Bewegung hat bewusst
+// keine Journalbuchung: sie gehört zur Zugangsbuchung, die schon mit der
+// Zugangsbewegung verbunden ist.
 func (s *AssetService) syncImmediateWriteOff(
 	ctx context.Context, asset *domain.FixedAsset, existing []domain.AssetMovement,
 ) error {
@@ -2964,6 +3233,9 @@ func (s *AssetService) validateAccounts(ctx context.Context, asset *domain.Fixed
 			return fmt.Errorf("Abschreibungskonto: %w", err)
 		}
 	}
+	if err := validateMethodForAccount(asset); err != nil {
+		return err
+	}
 	if asset.SpecialPermille > 0 {
 		// Die Frage, ob es die Sonderabschreibung überhaupt gibt, hängt am
 		// Anlagekonto: § 7g Abs. 5 EStG begünstigt nur bewegliche
@@ -3054,6 +3326,30 @@ func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id 
 	_ = s.auditRepo.Log(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details)
 }
 
+// auditChange protokolliert eine Änderung der Anlagenstammdaten mit dem Stand
+// davor und danach.
+//
+// Die Anlagenkartei ist Stammdatenbestand: Nutzungsdauer, Methode und
+// Anschaffungskosten bestimmen die Abschreibung jedes Jahres, und wer sie
+// ändert, ändert das Ergebnis. Ein Protokollsatz „Anlagegut 12 geändert" sagte
+// nicht, ob die Nutzungsdauer von acht auf drei Jahre gesetzt wurde (GoBD
+// Rz. 34). before darf nil sein: dann ist das Wirtschaftsgut neu.
+func (s *AssetService) auditChange(
+	ctx context.Context, action domain.AuditAction, id uint, details string,
+	before, after *domain.FixedAsset,
+) {
+	if s.auditRepo == nil {
+		return
+	}
+	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil; das Vorher
+	// eines Zugangs muss deshalb ausdrücklich nil sein.
+	var beforeAny any
+	if before != nil {
+		beforeAny = before
+	}
+	_ = s.auditRepo.LogChange(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details, beforeAny, after)
+}
+
 // bookedByYear sums the planmäßige AfA already booked per fiscal year. Only the
 // planmäßige counts here: eine außerplanmäßige Abschreibung erfüllt den Plan
 // nicht, sie mindert nur den Wert, von dem er weiterrechnet.
@@ -3067,13 +3363,20 @@ func bookedByYear(movements []domain.AssetMovement) map[int]domain.Cents {
 	return booked
 }
 
-// specialBookedByYear sums die bereits gebuchte Sonderabschreibung je
+// specialBookedByYear sums die bereits erfasste Sonderabschreibung je
 // Geschäftsjahr.
+//
+// Gelesen wird TaxAmount und nicht DepreciationAmount: die Sonderabschreibung
+// des § 7g Abs. 5 EStG ist seit dem BilMoG kein handelsrechtlicher Aufwand
+// mehr, sie steht nur noch als steuerlicher Wert an der Bewegung. Bewegungen
+// aus der Zeit davor tragen ihren Betrag noch in DepreciationAmount — sie
+// werden mitgezählt, weil ihr Jahr sonst als offen erschiene und die
+// Sonderabschreibung ein zweites Mal entstünde.
 func specialBookedByYear(movements []domain.AssetMovement) map[int]domain.Cents {
 	booked := map[int]domain.Cents{}
 	for _, m := range movements {
 		if m.Kind == domain.AssetMovementSpecialDepreciation {
-			booked[m.FiscalYear] += m.DepreciationAmount
+			booked[m.FiscalYear] += m.TaxAmount + m.DepreciationAmount
 		}
 	}
 	return booked

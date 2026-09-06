@@ -49,7 +49,7 @@ func TestOfficialExamplesProduceNoErrors(t *testing.T) {
 }
 
 // Welche Regeln der Korpus überhaupt berührt, sagt etwas über seine Aussagekraft
-// — und darüber, welche Prüfungen von ihm gar nicht bestätigt werden.
+// — und darüber, welche Prüfungen er gar nicht bestätigt.
 func TestCorpusExercisesTheChecks(t *testing.T) {
 	triggered := map[string]int{}
 	files := officialCIIFiles(t)

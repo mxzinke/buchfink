@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field as Base } from '@base-ui/react/field';
 import { cn } from './cn';
-import { HelpTooltip } from './Help';
+import { HelpPopover } from './Help';
 
 /**
  * Base UI verdrahtet Label, Beschreibung, Fehler und Bedienelement
@@ -14,8 +14,12 @@ export interface FieldProps {
   hint?: string;
   /** Ersetzt den Hinweis, solange er steht. */
   error?: string;
-  /** Ein Satz hinter dem Erklärzeichen (§15.2). */
-  help?: string;
+  /**
+   * Ein bis drei Sätze hinter dem Erklärzeichen (§15.2). Ein Feld hat davon
+   * genau eines: Zwei Fragezeichen nebeneinander sind keine zwei Stufen,
+   * sondern zwei Fragezeichen.
+   */
+  explain?: React.ReactNode;
   /** Gekennzeichnet wird das Seltenere: optional, nicht Pflicht. */
   optional?: boolean;
   disabled?: boolean;
@@ -28,7 +32,7 @@ export const Field: React.FC<FieldProps> = ({
   label,
   hint,
   error,
-  help,
+  explain,
   optional = false,
   disabled,
   name,
@@ -46,7 +50,7 @@ export const Field: React.FC<FieldProps> = ({
         {label}
         {optional && <span className="text-ink-subtle font-normal"> · optional</span>}
       </Base.Label>
-      {help && <HelpTooltip content={help} label={`Erklärung zu ${label}`} />}
+      {explain && <HelpPopover label={`Erklärung zu ${label}`}>{explain}</HelpPopover>}
     </div>
 
     {children}
@@ -64,8 +68,55 @@ export const Field: React.FC<FieldProps> = ({
   </Base.Root>
 );
 
+/**
+ * Eine Auskunft an der Stelle eines Bedienelements.
+ *
+ * Für Werte, die zum Feld gehören, aber nicht gewählt werden: das Format einer
+ * Rechnung steht am Empfänger, der Kontenrahmen am Mandanten. Früher stand
+ * dort ein gesperrtes Eingabefeld — das ist kein Bedienelement, sondern Text
+ * in Deaktiviert-Optik, und §3.1 hält `ink-faint` von Fließtext fern. Die Höhe
+ * ist die eines Bedienelements, damit die Zeile neben den Feldern nicht
+ * verspringt.
+ */
+export const FieldValue: React.FC<{ className?: string; children: React.ReactNode }> = ({
+  className,
+  children,
+}) => (
+  <p className={cn('flex h-9 items-center text-body text-ink min-w-0', className)}>{children}</p>
+);
+
 /** Mehrere Felder nebeneinander, ohne dass jede Seite ein eigenes Raster baut. */
 export const FieldRow: React.FC<{ className?: string; children: React.ReactNode }> = ({
   className,
   children,
 }) => <div className={cn('flex flex-wrap items-start gap-4', className)}>{children}</div>;
+
+export interface FormGridProps {
+  /**
+   * Eine Spalte für Werte, die die Breite brauchen — Pfade, lange Freitexte.
+   * Sonst zwei; ein einzelnes Feld steht dann in der linken Spalte und ist so
+   * breit wie die Felder darüber.
+   */
+  cols?: 1 | 2;
+  className?: string;
+  children: React.ReactNode;
+}
+
+/**
+ * Das Raster eines Formulars.
+ *
+ * Es steht hier und nicht als Klassenkette in jeder Ansicht: Sonst hat jeder
+ * Abschnitt sein eigenes Raster, und die Abschnitte einer Seite laufen
+ * auseinander — mal zwei Spalten über die volle Breite, mal eine Spalte mit
+ * `max-w-2xl`, mal ein einzelnes Feld mit `max-w-sm`. Nebeneinander gestellt
+ * sieht das aus, als wäre jede Zeile für sich entstanden.
+ *
+ * Ein Feld über beide Spalten bekommt `className="md:col-span-2"`.
+ */
+export const FormGrid: React.FC<FormGridProps> = ({ cols = 2, className, children }) => (
+  <div
+    className={cn('grid grid-cols-1 gap-x-6 gap-y-5', cols === 2 && 'md:grid-cols-2', className)}
+  >
+    {children}
+  </div>
+);

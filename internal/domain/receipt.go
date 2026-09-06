@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -59,6 +60,73 @@ const (
 	ReceiptStatusDiscarded ReceiptStatus = "discarded"
 )
 
+// ReceiptKind sagt, was für ein Dokument der Beleg ist.
+//
+// Er entscheidet über die Buchungspflicht und über sonst nichts. Ein
+// Kontoauszug ist ein Beleg — er wird abgelegt, bekommt eine Belegnummer und
+// muss zehn Jahre lesbar bleiben (§ 147 Abs. 1 Nr. 4, Abs. 3 AO) —, aber er
+// wird nicht gebucht: gebucht werden die einzelnen Umsätze daraus. Ohne diese
+// Unterscheidung meldete der Prüflauf jeden archivierten Auszug als
+// „abgelegt, aber nicht gebucht".
+type ReceiptKind string
+
+const (
+	// ReceiptKindInvoice ist eine Rechnung oder Quittung: der Regelfall, der
+	// gebucht werden muss.
+	ReceiptKindInvoice ReceiptKind = "invoice"
+	// ReceiptKindStatement ist ein Kontoauszug. Er belegt die Umsätze, die aus
+	// ihm gebucht werden, und wird selbst nicht gebucht.
+	ReceiptKindStatement ReceiptKind = "statement"
+	// ReceiptKindSelfIssued ist ein Eigenbeleg.
+	ReceiptKindSelfIssued ReceiptKind = "self_issued"
+	// ReceiptKindLetter ist ein Handelsbrief: die empfangene oder abgesandte
+	// Geschäftskorrespondenz, die einen Handelsgeschäft betrifft.
+	//
+	// Er ist von „Sonstiges" abgetrennt, weil aus ihm eine andere Frist folgt
+	// als aus einem Buchungsbeleg — sechs statt acht Jahre (§ 257 Abs. 4 HGB) —
+	// und weil er nicht zu buchen ist.
+	ReceiptKindLetter ReceiptKind = "letter"
+	// ReceiptKindOther ist alles Übrige: Verträge, Bescheide, Schriftverkehr.
+	ReceiptKindOther ReceiptKind = "other"
+)
+
+// RequiresBooking meldet, ob ein Beleg dieser Art gebucht werden muss.
+//
+// Ausgenommen ist allein der Kontoauszug: er belegt die Umsätze, die aus ihm
+// gebucht werden, und wird selbst nicht gebucht. „Sonstiges" ist nicht
+// ausgenommen — es ist die Art, die jemand wählt, der die richtige nicht findet,
+// und eine Rechnung, die dort landet, soll der Prüflauf weiterhin als ungebucht
+// melden. Sonst verschwände sie stillschweigend aus der Aufsicht.
+func (k ReceiptKind) RequiresBooking() bool {
+	// Der Handelsbrief ist neben dem Kontoauszug die zweite Art, die nicht
+	// gebucht wird: er belegt eine Abrede, keinen Geschäftsvorfall.
+	return k != ReceiptKindStatement && k != ReceiptKindLetter
+}
+
+// Label ist der Klartext für die Oberfläche und das Schlüsselverzeichnis.
+func (k ReceiptKind) Label() string {
+	switch k {
+	case ReceiptKindStatement:
+		return "Kontoauszug"
+	case ReceiptKindSelfIssued:
+		return "Eigenbeleg"
+	case ReceiptKindLetter:
+		return "Handelsbrief"
+	case ReceiptKindOther:
+		return "Sonstiges Dokument"
+	default:
+		return "Rechnung oder Quittung"
+	}
+}
+
+// AllReceiptKinds listet die Belegarten in fester Reihenfolge.
+func AllReceiptKinds() []ReceiptKind {
+	return []ReceiptKind{
+		ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+		ReceiptKindLetter, ReceiptKindOther,
+	}
+}
+
 // displayableMimeTypes are the formats the user can actually look at. A Beleg
 // whose original is not one of them needs a rendering before it may be booked.
 var displayableMimeTypes = map[string]bool{
@@ -114,6 +182,9 @@ type Receipt struct {
 	ReceiptNumber string        `gorm:"size:50;not null;uniqueIndex" json:"receiptNumber"`
 	Direction     Direction     `gorm:"size:20;not null;index" json:"direction"`
 	Status        ReceiptStatus `gorm:"size:20;not null;index" json:"status"`
+	// Kind ist die Belegart. Leer wird beim Ablegen zu ReceiptKindInvoice
+	// ergänzt; der Regelfall darf keine Eingabe verlangen.
+	Kind ReceiptKind `gorm:"size:20;not null;default:'invoice';index" json:"kind"`
 
 	Files []ReceiptFile `gorm:"foreignKey:ReceiptID;constraint:OnDelete:CASCADE" json:"files"`
 
@@ -121,6 +192,53 @@ type Receipt struct {
 	// travels into the booking, so the journal's chain pins every file at once
 	// without carrying n digests.
 	ReceiptHash string `gorm:"size:64;not null" json:"receiptHash"`
+
+	// Die Kopfdaten des Belegs (BEL-02).
+	//
+	// Ein Beleg ohne Belegdatum, Aussteller und Betrag ist eine Datei mit einer
+	// Nummer: die Belegliste ließe sich nicht lesen, der Prüfer könnte einen
+	// Beleg nicht zu einer Buchung führen, und die Vollständigkeit einer
+	// Ablage ließe sich an nichts abgleichen. Sie werden bei einer E-Rechnung
+	// aus dem strukturierten Teil vorbelegt und sonst beim Ablegen erfragt —
+	// dort freiwillig, beim Buchen Pflicht (siehe ValidateBookable).
+	//
+	// Sie gehen in den Beleg-Hash, mit einer Weiche für den Altbestand: ein
+	// Beleg ohne Belegdatum wird nach der bisherigen Form gehasht (siehe
+	// accounting.ReceiptHash). Verschlüsselt, wo personenbezogen: der Name des
+	// Ausstellers und der Betreff sind es.
+	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
+	IssuerName   string `gorm:"size:255;serializer:encrypted" json:"issuerName,omitempty"`
+	GrossAmount  Cents  `gorm:"default:0" json:"grossAmount,omitempty"`
+	TaxAmount    Cents  `gorm:"default:0" json:"taxAmount,omitempty"`
+	Currency     string `gorm:"size:3" json:"currency,omitempty"`
+	Subject      string `gorm:"size:500;serializer:encrypted" json:"subject,omitempty"`
+
+	// RetentionClass und RetentionUntil halten die Aufbewahrungsfrist fest, die
+	// beim Ablegen für diesen Beleg galt.
+	//
+	// Gespeichert und nicht bei jedem Lesen gerechnet: die Fristen ändern sich
+	// (das Vierte Bürokratieentlastungsgesetz hat die Belegfrist verkürzt), und
+	// welche Frist einmal galt, ist eine Tatsache über den Beleg und keine
+	// Ableitung aus dem heutigen Recht. RetentionUntil ist der letzte Tag der
+	// Aufbewahrung; gelöscht werden darf ab dem Tag danach.
+	RetentionClass RetentionClass `gorm:"size:20;index" json:"retentionClass,omitempty"`
+	RetentionUntil string         `gorm:"size:10;index" json:"retentionUntil,omitempty"`
+
+	// RetentionOverrideReason hält fest, dass jemand die Aufbewahrungsfrist
+	// dieses Belegs verlängert hat, und warum (ARC-01 K2).
+	//
+	// Verlängert und nicht verkürzt: die Frist des Gesetzes ist die Untergrenze,
+	// eine kürzere wäre ein Verstoß. Länger aufzubewahren steht dagegen frei und
+	// ist oft geboten — ein Beleg, der zu einem laufenden Rechtsstreit gehört,
+	// oder ein Vertrag, der über seine Belegfrist hinaus wirkt. Der Grund steht
+	// am Beleg und im Änderungsprotokoll, weil eine Frist ohne ihren Grund
+	// später nicht mehr zu beurteilen ist.
+	//
+	// Die überschriebene Klasse steht in RetentionClass, das überschriebene Ende
+	// in RetentionUntil: die Auswertungen sollen die geltende Frist lesen und
+	// nicht jede Stelle zwei Felder zusammenrechnen müssen.
+	RetentionOverrideReason string `gorm:"size:500;serializer:encrypted" json:"retentionOverrideReason,omitempty"`
+	RetentionOverrideAt     string `gorm:"size:25" json:"retentionOverrideAt,omitempty"`
 
 	// ReceivedAt and ReceivedVia record how an incoming document entered the
 	// business. Both are empty on documents Buchfink issued itself.
@@ -147,6 +265,38 @@ type Receipt struct {
 	// ValidationFindings holds the findings as JSON. They are display material,
 	// not booking data, which is why they are not part of the Beleg-Hash.
 	ValidationFindings string `gorm:"type:text;serializer:encrypted" json:"validationFindings,omitempty"`
+
+	// InputTaxOverride ist der Grund, mit dem der Anwender einen blockierenden
+	// Befund der Rechnungsprüfung übersteuert hat.
+	//
+	// Die Pflichtangaben der §§ 14, 14a UStG sind Voraussetzung des
+	// Vorsteuerabzugs; fehlt eine, weist Buchfink die Buchung mit Vorsteuer
+	// zurück. Der Weg daran vorbei bleibt offen — der Rechtsprechung nach heilt
+	// eine Rechnung rückwirkend, und ein Programm, das den Anwender daran
+	// hindert, seine eigene Einschätzung durchzusetzen, wird umgangen statt
+	// befolgt. Er ist aber nur mit Grund offen, und der Grund steht am Beleg und
+	// im Protokoll.
+	InputTaxOverride   string `gorm:"size:500;serializer:encrypted" json:"inputTaxOverride,omitempty"`
+	InputTaxOverrideAt string `gorm:"size:25" json:"inputTaxOverrideAt,omitempty"`
+
+	// Der Prüfpfad des Eingangsbelegs (RECH-08).
+	//
+	// OrderReference ist die Bestellnummer, die die E-Rechnung mitbringt
+	// (BT-13); ServiceProof ist der Vermerk, mit dem jemand die sachliche
+	// Richtigkeit bestätigt hat („geprüft gegen Bestellung 4711 vom …"). Der
+	// Vermerk ist keine Formalie: § 15 UStG lässt den Vorsteuerabzug nur für
+	// eine tatsächlich bezogene Leistung zu, und wer eine Rechnung ohne
+	// sachliche Prüfung bucht, hat für die Frage, ob die Leistung erbracht
+	// wurde, keinen Nachweis.
+	//
+	// Beide stehen bewusst nicht im Beleg-Hash: der Vermerk entsteht regelmäßig
+	// erst beim Buchen oder danach, und ein Hash, der sich dabei änderte, bräche
+	// die Kette jeder Buchung, die auf den Beleg zeigt. Was sie festhalten, ist
+	// ein Vorgang der Prüfung und keine Angabe des empfangenen Dokuments — die
+	// Unveränderbarkeit sichert das Änderungsprotokoll.
+	OrderReference string `gorm:"size:120" json:"orderReference,omitempty"`
+	ServiceProof   string `gorm:"size:1000;serializer:encrypted" json:"serviceProof,omitempty"`
+	ServiceProofAt string `gorm:"size:10" json:"serviceProofAt,omitempty"`
 
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
@@ -205,6 +355,12 @@ func (r *Receipt) ValidateStructure() error {
 	if r.Direction != DirectionIncoming && r.Direction != DirectionOutgoing {
 		return fmt.Errorf("unbekannte Belegrichtung %q", r.Direction)
 	}
+	switch r.Kind {
+	case ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+		ReceiptKindLetter, ReceiptKindOther:
+	default:
+		return fmt.Errorf("unbekannte Belegart %q", r.Kind)
+	}
 	if len(r.Files) == 0 {
 		return fmt.Errorf("ein Beleg braucht mindestens die empfangene Originaldatei")
 	}
@@ -254,10 +410,10 @@ func (r *Receipt) ValidateStructure() error {
 			counts[ReceiptRoleOriginal])
 	}
 	if counts[ReceiptRoleStructured] > 1 {
-		return fmt.Errorf("ein Beleg kann höchstens einen strukturierten Rechnungsdatensatz tragen, hat aber %d", counts[ReceiptRoleStructured])
+		return fmt.Errorf("ein Beleg kann höchstens einen strukturierten Rechnungsdatensatz haben, hat aber %d", counts[ReceiptRoleStructured])
 	}
 	if counts[ReceiptRoleRendering] > 1 {
-		return fmt.Errorf("ein Beleg kann höchstens eine erzeugte Darstellung tragen, hat aber %d", counts[ReceiptRoleRendering])
+		return fmt.Errorf("ein Beleg kann höchstens eine erzeugte Darstellung haben, hat aber %d", counts[ReceiptRoleRendering])
 	}
 
 	if original, ok := r.FileByRole(ReceiptRoleOriginal); ok && original.Derived {
@@ -289,8 +445,91 @@ func (r *Receipt) ValidateBookable() error {
 			"Beleg %s hat keine ansehbare Darstellung. Ein rein strukturierter Beleg (z. B. eine XRechnung) muss vor dem Buchen eine erzeugte Darstellung bekommen",
 			r.ReceiptNumber)
 	}
-	return nil
+	return r.ValidateHeader()
 }
+
+// ValidateHeader prüft die Kopfdaten, die zum Buchen vorliegen müssen.
+//
+// Die Pflichtfelder richten sich nach der Belegart, und zwar nicht aus Bequemlichkeit:
+// ein Kontoauszug hat keinen Aussteller im Sinne einer Rechnung und keinen
+// einzelnen Betrag, sondern einen Zeitraum und viele; ein Eigenbeleg hat keinen
+// fremden Aussteller, weil ihn das eigene Unternehmen ausgestellt hat (er
+// braucht dafür einen Betreff, der den Anlass nennt); ein sonstiges Dokument —
+// die Schlussbilanz des Altsystems, die Inventurliste, der
+// Gesellschafterbeschluss — ist überhaupt keine Rechnung: es hat keinen
+// leistenden Unternehmer und oft keinen einzelnen Betrag, und die Pflichtangabe
+// des § 14 Abs. 4 Nr. 1 UStG von ihm zu verlangen hieße, das Dokument nach einer
+// Vorschrift zu prüfen, die für es nicht gilt. Für alle gilt das Belegdatum:
+// ohne es lässt sich die zeitgerechte Erfassung nicht beurteilen.
+func (r *Receipt) ValidateHeader() error {
+	if r.DocumentDate == "" {
+		return fmt.Errorf(
+			"Beleg %s hat kein Belegdatum. Ohne es lässt sich nicht beurteilen, ob er zeitgerecht erfasst wurde (§ 146 Abs. 1 AO)",
+			r.ReceiptNumber)
+	}
+	switch r.Kind {
+	case ReceiptKindStatement:
+		// Der Kontoauszug wird nicht gebucht; er braucht nur seine Einordnung
+		// in der Zeit.
+		return nil
+	case ReceiptKindOther, ReceiptKindLetter:
+		// Sonstiges Dokument und Handelsbrief: Belegdatum und Betreff. Der
+		// Betreff tritt an die Stelle von Aussteller und Betrag — er ist das
+		// Einzige, woran sich später sagen lässt, was dieses Dokument belegt.
+		// Aussteller und Betrag bleiben erlaubt, aber freiwillig: eine Bilanz
+		// hat keinen, eine Inventurliste viele.
+		if strings.TrimSpace(r.Subject) == "" {
+			return fmt.Errorf(
+				"Beleg %s braucht einen Betreff, der sagt, was das Dokument belegt — bei einem Dokument ohne Aussteller und Betrag ist er die einzige Bezeichnung",
+				r.ReceiptNumber)
+		}
+		return nil
+	case ReceiptKindSelfIssued:
+		if strings.TrimSpace(r.Subject) == "" {
+			return fmt.Errorf(
+				"Eigenbeleg %s braucht einen Betreff, der den Anlass nennt — er ist der einzige Nachweis des Vorgangs",
+				r.ReceiptNumber)
+		}
+		if r.GrossAmount == 0 {
+			return fmt.Errorf("Eigenbeleg %s braucht einen Betrag", r.ReceiptNumber)
+		}
+		return nil
+	default:
+		if strings.TrimSpace(r.IssuerName) == "" {
+			return fmt.Errorf(
+				"Beleg %s hat keinen Aussteller. Der vollständige Name des leistenden Unternehmers ist Pflichtangabe (§ 14 Abs. 4 Nr. 1 UStG)",
+				r.ReceiptNumber)
+		}
+		if r.GrossAmount == 0 {
+			return fmt.Errorf("Beleg %s hat keinen Betrag", r.ReceiptNumber)
+		}
+		return nil
+	}
+}
+
+// receiptJSON ist der Beleg ohne seine eigene Marshal-Methode. Eine
+// Typdefinition und kein Alias: sie erbt die Felder, aber nicht die Methoden,
+// und ohne diesen Umweg riefe MarshalJSON sich selbst auf.
+type receiptJSON Receipt
+
+// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben.
+//
+// RetentionUntil ist der letzte Aufbewahrungstag (der 31.12.) und nicht das
+// Löschdatum; gelöscht werden darf erst am Tag danach. Beide Tage mitzugeben
+// ist billiger, als sich darauf zu verlassen, dass jede Stelle der Oberfläche
+// das Feld richtig beschriftet — eine Beschriftung „frühestes Löschdatum" auf
+// RetentionUntil verspräche eine Löschung einen Tag zu früh.
+func (r Receipt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		receiptJSON
+		EarliestDeletion string `json:"earliestDeletion,omitempty"`
+	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
+}
+
+// HasHeader meldet, ob der Beleg Kopfdaten hat. Das ist zugleich die Weiche
+// der Kanonisierung: ein Beleg ohne Belegdatum stammt aus der Zeit vor den
+// Kopfdaten und wird wie zuvor gehasht.
+func (r *Receipt) HasHeader() bool { return r.DocumentDate != "" }
 
 func isSHA256(s string) bool {
 	if len(s) != 64 {
@@ -315,6 +554,12 @@ type ReceiptRepository interface {
 	FindAll(ctx context.Context, fiscalYear int) ([]Receipt, error)
 	FindByStatus(ctx context.Context, fiscalYear int, status ReceiptStatus) ([]Receipt, error)
 	FindByJournalEntry(ctx context.Context, entryID uint) (*Receipt, error)
+	// FindByOriginalHash liefert den Beleg, dessen empfangene Originaldatei
+	// diese Prüfsumme hat, oder nil. Der Belegspeicher legt gleiche Inhalte
+	// nur einmal ab; hier geht es um die Frage, ob dazu schon ein Beleg
+	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
+	// Beleg erzeugen.
+	FindByOriginalHash(ctx context.Context, sha256 string) (*Receipt, error)
 	// Create allocates the Belegnummer, computes the Beleg-Hash and inserts the
 	// Beleg with its files in one transaction.
 	Create(ctx context.Context, receipt *Receipt, hash ReceiptHashFunc) error
@@ -328,6 +573,41 @@ type ReceiptRepository interface {
 	// SaveValidation records the outcome of reading and checking the structured
 	// part. It touches no file, so the Beleg-Hash is unaffected.
 	SaveValidation(ctx context.Context, receiptID uint, v ReceiptValidation) error
+	// SaveHeader schreibt die Kopfdaten eines noch nicht gebuchten Belegs und
+	// rechnet den Beleg-Hash neu. Er muss neu gerechnet werden, weil die
+	// Kopfdaten in ihm stehen — sonst hätte der Beleg einen Hash über einen
+	// Stand, den es nicht mehr gibt.
+	SaveHeader(ctx context.Context, receiptID uint, header ReceiptHeader, hash ReceiptHashFunc) (*Receipt, error)
+	// SaveInputTaxOverride hält den Grund fest, mit dem ein blockierender Befund
+	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
+	// damit den Beleg-Hash nicht.
+	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
+	// SaveRetention schreibt eine überschriebene Aufbewahrungsfrist. Sie berührt
+	// keine Datei und keine Kopfdaten und damit den Beleg-Hash nicht — die
+	// Frist ist eine Aussage über die Aufbewahrung, nicht über das Dokument.
+	SaveRetention(ctx context.Context, receiptID uint, class RetentionClass, until, reason, at string) error
+	// SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis. Beide stehen
+	// außerhalb des Beleg-Hashes (siehe die Felder), deshalb ist das Schreiben
+	// auch am gebuchten Beleg zulässig — der Prüfvermerk entsteht regelmäßig
+	// erst dann.
+	SaveAuditTrail(ctx context.Context, receiptID uint, orderReference, proof, proofAt string) error
+}
+
+// ReceiptHeader sind die Kopfdaten in der Form, in der sie geschrieben werden.
+//
+// Ein eigener Typ und nicht der Beleg selbst: das Schreiben soll genau diese
+// Felder anfassen. Ginge der ganze Beleg hinein, könnte ein Aufrufer versehentlich
+// Status, Dateiliste oder Belegnummer mitschreiben.
+type ReceiptHeader struct {
+	Kind           ReceiptKind    `json:"kind"`
+	DocumentDate   string         `json:"documentDate"`
+	IssuerName     string         `json:"issuerName"`
+	GrossAmount    Cents          `json:"grossAmount"`
+	TaxAmount      Cents          `json:"taxAmount"`
+	Currency       string         `json:"currency"`
+	Subject        string         `json:"subject"`
+	RetentionClass RetentionClass `json:"retentionClass"`
+	RetentionUntil string         `json:"retentionUntil"`
 }
 
 // ReceiptValidation is what a check of the structured part leaves behind.

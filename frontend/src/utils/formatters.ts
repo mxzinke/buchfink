@@ -77,6 +77,83 @@ export function formatTaxRate(rate: TaxRate): string {
   return `${(rate / 100).toFixed(2).replace('.', ',')} %`;
 }
 
+/**
+ * Formatiert einen Zinssatz in Millionsteln: 15000 → "1,50 %".
+ *
+ * Eigene Funktion neben {@link formatTaxRate}, weil die Skalen verschieden sind:
+ * Steuersätze stehen in Basispunkten, die Abzinsungssätze der Deutschen
+ * Bundesbank in Millionsteln. Dieselbe Funktion für beide hieße, sich die
+ * Skala beim Aufruf zu merken — und einmal falsch erinnert, steht ein
+ * hundertfach zu hoher Satz in der Rückstellung.
+ */
+export function formatRateMicros(micros: number): string {
+  if (!Number.isFinite(micros)) return '—';
+  return `${(micros / 10000).toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} %`;
+}
+
+/**
+ * Formatiert einen Devisenkurs in Millionsteln: 1087400 → "1,0874".
+ *
+ * Eigene Funktion neben {@link formatRateMicros}, obwohl beide Millionstel
+ * lesen: ein Zinssatz ist ein Prozentsatz, ein Devisenkurs ein Verhältnis. Mit
+ * derselben Funktion stünde vor dem Kurs ein Prozentzeichen, und ein Kurs von
+ * 1,0874 sähe aus wie 108,74 %.
+ */
+export function formatExchangeRate(micros: number): string {
+  if (!Number.isFinite(micros)) return '—';
+  return (micros / 1_000_000).toLocaleString('de-DE', {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 6,
+  });
+}
+
+/**
+ * Die Grenzen, innerhalb derer eine Kurseingabe als Kurs gelesen wird.
+ *
+ * Ein Devisenkurs zum Euro liegt zwischen einem Zehntausendstel und
+ * Hunderttausend Einheiten; alles darüber oder darunter ist ein Vertipper und
+ * kein Kurs. Die Grenze steht hier, weil ein von Hand erfasster Kurs gespeichert
+ * wird und danach in Buchungen weiterläuft — ein Faktor 10.000 fiele erst in
+ * der Bilanz auf.
+ */
+const RATE_MIN = 0.0001;
+const RATE_MAX = 100_000;
+
+/**
+ * Wandelt eine Kurseingabe ("1,0874") in Millionstel um.
+ *
+ * Der Punkt wird nur dort als Tausendertrennung gelesen, wo auch ein Komma
+ * steht — wie in {@link parseCents}. Sonst würde „1.0874" zu 10874 und daraus
+ * ein Kurs von 10.874 statt 1,0874: dieselbe Eingabe, viertausendfach falsch.
+ */
+export function parseExchangeRate(input: string): number | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const raw = trimmed.includes(',')
+    ? trimmed.replace(/\./g, '').replace(',', '.')
+    : trimmed.replace(/\s/g, '');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < RATE_MIN || value > RATE_MAX) return null;
+  return Math.round(value * 1_000_000);
+}
+
+/**
+ * Formatiert einen Anteil in Promille: 600 → "60,0 %".
+ *
+ * Der Vorsteuerschlüssel und der Verwendungsanteil des § 15a UStG stehen in
+ * Promille, gelesen werden sie als Prozentsatz.
+ */
+export function formatPermille(permille: number): string {
+  if (!Number.isFinite(permille)) return '—';
+  return `${(permille / 10).toLocaleString('de-DE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} %`;
+}
+
 /** Formatiert eine Menge mit drei Nachkommastellen: 1500 → "1,5". */
 export function formatQuantity(quantityMilli: number): string {
   const value = quantityMilli / 1000;
@@ -91,11 +168,108 @@ export function formatDate(dateStr: string): string {
   return Number.isNaN(parsed.getTime()) ? dateStr : new Intl.DateTimeFormat('de-DE').format(parsed);
 }
 
+/**
+ * Formatiert einen Zeitstempel mit Uhrzeit in der Zeitzone des Rechners.
+ *
+ * Das Backend schreibt Zeitpunkte in UTC. Ein Zeitstempel darf deshalb nicht
+ * wie ein Datum am „T" abgeschnitten werden: nach 22 bzw. 23 Uhr Ortszeit steht
+ * dort bereits der Folgetag, und die Ansicht zeigte einen Tag, an dem niemand
+ * gearbeitet hat.
+ *
+ * Die Zeitzone steht dabei, weil sie den Unterschied ausmacht: dieselbe Buchung
+ * zeigt auf einem Rechner in Berlin eine andere Uhrzeit als auf einem in
+ * London, und ein Protokollzeitpunkt ohne Zone lässt sich mit dem Zeitstempel
+ * einer Festschreibung oder eines Bankauszugs nicht vergleichen (QUE-04).
+ * Datumsfelder bleiben ohne — ein Belegdatum ist ein Tag, kein Zeitpunkt.
+ */
+export function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  // Die Bestandteile stehen einzeln und nicht als `dateStyle`/`timeStyle`:
+  // beide Kurzformen vertragen sich nach ECMA-402 mit keiner weiteren Option,
+  // und zusammen mit `timeZoneName` wirft der Konstruktor einen TypeError —
+  // die Ansicht, die den Zeitpunkt zeigt, bräche damit ganz ab.
+  // Der Monat zweistellig und nicht als Kurzname: die Zifferform „06.09.2026"
+  // ist die Schreibweise des Konzepts (§4.1), und daneben stünde sonst
+  // „06. Sept. 2026" als zweite.
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(parsed);
+}
+
+/**
+ * Nur die Uhrzeit eines Zeitstempels, in der Zeitzone des Rechners.
+ *
+ * Für Stellen, an denen der Tag aus dem Zusammenhang feststeht — „geprüft um"
+ * im Fuß der Navigation, wo die Prüfung aus derselben Sitzung stammt. Die
+ * Zeitzone steht auch hier dabei: das Backend schreibt UTC, und eine Uhrzeit
+ * ohne Zone ließe offen, gegen welche Uhr sie zu lesen ist (QUE-04).
+ */
+export function formatTime(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return new Intl.DateTimeFormat('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(parsed);
+}
+
+/**
+ * Der Tag eines Zeitstempels, in der Zeitzone des Rechners.
+ *
+ * Für Kennzahlen und Tabellenzellen, in denen die Uhrzeit nichts beiträgt —
+ * „Zuletzt geprüft", „Gesetzt am". `formatDate` darf dafür nicht genommen
+ * werden: es schneidet am „T" ab und zeigt damit den UTC-Tag, und nach 22 bzw.
+ * 23 Uhr Ortszeit ist das ein anderer Tag als der, an dem gearbeitet wurde —
+ * und ein anderer als der, den `formatDateTime` daneben nennt.
+ */
+export function formatDateOfTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  // Zweistellig wie formatDate: nebeneinander sollen 06.09. und 6.9. nicht
+  // wie zwei verschiedene Schreibweisen aussehen.
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
 /** Zeigt einen Leistungszeitraum an; bei Zeitpunktleistung nur ein Datum. */
 export function formatDateRange(from: string, to: string): string {
   if (!from) return '—';
   if (!to || from === to) return formatDate(from);
   return `${formatDate(from)} – ${formatDate(to)}`;
+}
+
+/**
+ * Dateigrößen in de-DE: 1.234.567 Bytes werden „1,2 MB".
+ *
+ * Gerechnet wird dezimal (1000) und nicht binär (1024): die Zahl steht neben
+ * dem, was der Dateimanager des Betriebssystems zeigt, und der rechnet auf
+ * allen drei Zielsystemen dezimal.
+ */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes < 1000) return `${bytes} B`;
+
+  const units = ['kB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1000;
+  let unit = 0;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit += 1;
+  }
+  return `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
 
 export function formatShortHash(hash: string): string {

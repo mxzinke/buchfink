@@ -1,25 +1,45 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Code, FileText, Plus, Trash2, Undo2 } from 'lucide-react';
+import { AlertCircle, FileText, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import type {
+  Account,
   Contact,
+  EInvoiceProfile,
+  EInvoiceProfileInfo,
+  EvidenceStatus,
   Invoice,
+  InvoiceSentVia,
+  InvoiceSentViaOption,
+  NumberGapReason,
+  NumberGapReasonOption,
+  NumberGapReport,
   ReceiptPreview,
   InvoiceItem,
   PostingPreview,
   TaxRate,
   TaxTreatment,
   TaxTreatmentInfo,
+  TransportKind,
+  UnitCode,
+  VatIDStatus,
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
-import { formatCents, formatDate, formatTaxRate, parseCents } from '../utils/formatters';
+import { usePostingLock } from '../components/WriteLock';
+import type { NavigateFn } from '../components/Sidebar';
+import { formatCents, formatDate, formatDateTime, formatTaxRate, parseCents } from '../utils/formatters';
 import {
   Button,
+  Checkbox,
   Dialog,
   EmptyState,
   Field,
+  FieldValue,
   HelpPopover,
   Input,
+  Menu,
+  MenuItem,
+  MenuSeparator,
+  Notice,
   PageHeader,
   Section,
   Select,
@@ -28,6 +48,7 @@ import {
   Table,
   Tbody,
   Td,
+  Textarea,
   Th,
   Thead,
   Tr,
@@ -48,8 +69,42 @@ import {
 const STATUS: Record<Invoice['status'], Status> = {
   draft: 'entwurf',
   issued: 'offen',
+  // Nummer und Buchung stehen, das Dokument fehlt: die Forderung ist offen wie
+  // bei jeder ausgestellten Rechnung. Dass das Dokument fehlt, sagt der
+  // Hinweisstreifen über der Tabelle — das Statuswort ist abschließend (§11.3).
+  issued_pending_document: 'offen',
   paid: 'ausgeglichen',
   cancelled: 'storniert',
+};
+
+/**
+ * Das Textbudget der Kontextzeile im Seitenkopf (§15.1).
+ *
+ * Die Zeile wächst mit den Daten: dreistellige Anzahlen und sechsstellige
+ * Beträge sprengen sie, und ein Umbruch im Kopf schiebt die ganze Seite nach
+ * unten. Deshalb entscheidet die Reihenfolge — die Teile stehen nach
+ * Wichtigkeit, und was nicht mehr hineinpasst, fällt weg.
+ */
+const HEADER_CONTEXT_LIMIT = 60;
+
+function headerContext(parts: (string | null)[]): string {
+  let line = '';
+  for (const part of parts) {
+    if (!part) continue;
+    const next = line ? `${line} · ${part}` : part;
+    if (next.length > HEADER_CONTEXT_LIMIT) break;
+    line = next;
+  }
+  return line;
+}
+
+/** Die Dokumentart in einem Wort — sie entscheidet über den Typcode (BT-3). */
+const KIND_LABEL: Record<Invoice['kind'], string> = {
+  invoice: 'Rechnung',
+  advance: 'Abschlag',
+  final: 'Schlussrechnung',
+  correction: 'Korrektur',
+  cancellation: 'Storno',
 };
 
 interface DraftItem {
@@ -63,15 +118,66 @@ interface DraftItem {
 const newItem = (rate: TaxRate): DraftItem => ({
   description: '',
   quantity: '1',
-  unit: 'Stück',
+  // C62 ist der Schlüssel für „Stück" nach UN/ECE Rec. 20. EN 16931 verlangt an
+  // jeder Position einen Schlüssel aus dieser Liste (BT-130); das Wort „Stück"
+  // ist dort keiner.
+  unit: 'C62',
   unitPrice: '',
   taxRate: rate,
 });
 
-export const InvoicesPage: React.FC = () => {
+/**
+ * Das Statuswort einer Zeile.
+ *
+ * Der Status allein sagt das nicht: das Stornodokument ist nach dem
+ * Ausstellen `issued` wie jede Rechnung, ist aber die Buchung, die einen
+ * offenen Posten zurücknimmt. §11.3 hat dafür das Wort „Gebucht" — „Offen"
+ * verspräche einen Zahlungseingang, den niemand erwartet.
+ */
+const statusOf = (invoice: Invoice): Status =>
+  invoice.kind === 'cancellation' && invoice.status !== 'cancelled'
+    ? 'gebucht'
+    : // Ein Status, den diese Ansicht nicht kennt, ist ein Zustand aus einer
+      // neueren Fassung des Backends — er darf die Seite nicht mitnehmen.
+      // „Offen" ist dafür die vorsichtige Auskunft: Der Vorgang ist da und
+      // nicht abgeschlossen.
+      (STATUS[invoice.status] ?? 'offen');
+
+/**
+ * Der Bezug, den §11.2 auf der Gegenbuchung verlangt: „Storno zu RE-…".
+ *
+ * Er tritt an die Stelle des Statusworts, wie §11.2 es zeigt — nicht als
+ * „Storniert": storniert ist die Ursprungsrechnung, und sie hat das Wort und
+ * die Rosé-Zeile bereits. Das Stornodokument ist die Buchung, die sie
+ * zurücknimmt; sein Zustand steht in der Farbe des Abzeichens.
+ */
+const cancellationReference = (invoice: Invoice): string | undefined =>
+  invoice.kind === 'cancellation' && invoice.correctsInvoiceNumber
+    ? `Storno zu ${invoice.correctsInvoiceNumber}`
+    : undefined;
+
+const todayISO = () => new Date().toISOString().split('T')[0];
+
+export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
+  // Ausstellen und Stornieren sind Buchungen; Ansehen und Ausgeben bleiben im
+  // Prüfermodus möglich (§10.4).
+  const writeLock = usePostingLock();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
+  const [units, setUnits] = useState<UnitCode[]>([]);
+  const [profiles, setProfiles] = useState<EInvoiceProfileInfo[]>([]);
+  // Versandwege und Lückengründe sind Wertelisten des Fachmodells und kommen
+  // wie Einheiten und Profile aus dem Backend: dieselben Wörter zweimal zu
+  // pflegen, heißt sie einmal zu ändern und einmal zu vergessen.
+  const [sentViaOptions, setSentViaOptions] = useState<InvoiceSentViaOption[]>([]);
+  const [gapReasons, setGapReasons] = useState<NumberGapReasonOption[]>([]);
+  const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
+  const [gaps, setGaps] = useState<NumberGapReport | null>(null);
+  // Der Nachweisstand je ig. Lieferung, damit die Frage „fehlt hier noch etwas?"
+  // schon in der Rechnungsliste beantwortet ist und nicht erst auf der Seite
+  // der Nebenpflichten.
+  const [evidence, setEvidence] = useState<Map<number, EvidenceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [preview, setPreview] = useState<{ invoice: Invoice; xml: string } | null>(null);
@@ -79,6 +185,9 @@ export const InvoicesPage: React.FC = () => {
     ({ invoice: Invoice } & ReceiptPreview) | null
   >(null);
   const [cancelling, setCancelling] = useState<Invoice | null>(null);
+  const [correcting, setCorrecting] = useState<Invoice | null>(null);
+  const [sending, setSending] = useState<Invoice | null>(null);
+  const [gapReason, setGapReason] = useState<{ sequence: number; number: string } | null>(null);
 
   useEffect(() => {
     void load();
@@ -87,18 +196,119 @@ export const InvoicesPage: React.FC = () => {
   async function load() {
     setLoading(true);
     try {
-      const [list, contactList, treatmentList] = await Promise.all([
-        Api.getInvoices(),
-        Api.getContacts(),
-        Api.getTaxTreatments('outgoing'),
-      ]);
+      const [list, contactList, treatmentList, unitList, profileList, accounts, vias, reasons] =
+        await Promise.all([
+          Api.getInvoices(),
+          // Die auswählbaren und nicht alle Kontakte: ein nach einem
+          // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+          // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+          Api.getSelectableContacts(),
+          Api.getTaxTreatments('outgoing'),
+          Api.getUnitCodes(),
+          Api.getEInvoiceProfiles(),
+          Api.getPaymentAccounts(),
+          Api.getInvoiceSentViaOptions(),
+          Api.getNumberGapReasons(),
+        ]);
       setInvoices(list);
       setContacts(contactList.filter((c) => c.type === 'customer'));
       setTreatments(treatmentList);
+      setUnits(unitList);
+      setProfiles(profileList);
+      setPaymentAccounts(accounts);
+      setSentViaOptions(vias);
+      setGapReasons(reasons);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+    // Der Lückenbericht hat seinen eigenen Fehlerpfad: er ist eine Auskunft
+    // über den Nummernkreis und darf die Rechnungsliste nicht mitnehmen, wenn
+    // er scheitert.
+    try {
+      setGaps(await Api.getInvoiceNumberGaps());
+    } catch {
+      setGaps(null);
+    }
+  }
+
+  // Der Nachweisstand wird je Geschäftsjahr berichtet. Geholt werden nur die
+  // Jahre, in denen es überhaupt eine ig. Lieferung gibt — meist eines, oft
+  // keines; und wie der Lückenbericht ist das eine Auskunft, die die Liste
+  // nicht mitnimmt, wenn sie scheitert.
+  useEffect(() => {
+    const years = Array.from(
+      new Set(
+        invoices
+          .filter((invoice) => invoice.taxTreatment === 'intra_community_supply')
+          .map((invoice) => Number.parseInt(invoice.date.slice(0, 4), 10))
+          .filter((year) => Number.isFinite(year) && year > 0),
+      ),
+    );
+    if (years.length === 0) {
+      setEvidence(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(years.map((year) => Api.getSupplyEvidenceReport(year)))
+      .then((reports) => {
+        if (cancelled) return;
+        const next = new Map<number, EvidenceStatus>();
+        for (const report of reports) {
+          for (const row of report?.rows ?? []) next.set(row.invoiceId, row.status);
+        }
+        setEvidence(next);
+      })
+      .catch(() => {
+        if (!cancelled) setEvidence(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [invoices]);
+
+  /** Holt ein fehlendes Dokument nach; die Nummer bleibt dieselbe. */
+  async function regenerate(invoice: Invoice) {
+    try {
+      await Api.regenerateInvoiceDocument(invoice.id);
+      toast.success(`Dokument zu ${invoice.invoiceNumber} erzeugt.`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /**
+   * Holt alle fehlenden Dokumente nach.
+   *
+   * Der Hinweisstreifen zählt die betroffenen Rechnungen; ein Knopf, der nur
+   * die erste nachholt, ließe ihn stehen und den Anwender raten, wie oft er
+   * noch drücken muss. Erzeugt wird nacheinander — jedes Dokument ist ein
+   * eigener Vorgang im Backend —, und die Meldung nennt am Ende, was entstanden
+   * ist. Bricht eines ab, bleibt der Streifen für den Rest stehen.
+   */
+  async function regenerateAll(list: Invoice[]) {
+    const done: string[] = [];
+    try {
+      for (const invoice of list) {
+        await Api.regenerateInvoiceDocument(invoice.id);
+        done.push(invoice.invoiceNumber);
+      }
+      toast.success(
+        done.length === 1
+          ? `Dokument zu ${done[0]} erzeugt.`
+          : `${done.length} Dokumente erzeugt: ${done.join(', ')}.`,
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error(
+        done.length === 0
+          ? message
+          : `${done.length} von ${list.length} Dokumenten erzeugt, dann: ${message}`,
+      );
+    } finally {
+      await load();
     }
   }
 
@@ -126,8 +336,32 @@ export const InvoicesPage: React.FC = () => {
     }
   }
 
-  const open = invoices.filter((i) => i.status === 'issued');
-  const openTotal = open.reduce((sum, i) => sum + i.grossAmount, 0);
+  // Offen ist nur, was eine Forderung hat — und das entscheidet die Art, nicht
+  // der Status.
+  //
+  // Das Stornodokument steht nach dem Ausstellen auf „ausgestellt" wie jede
+  // Rechnung, ist aber die gebuchte Rücknahme einer Forderung: gezählt zöge es
+  // sein negatives Brutto in die Summe der offenen Posten, und der Kopf zeigte
+  // nach dem ersten Storno eine Zahl, die weder Forderung noch Erlös ist.
+  //
+  // Die Abschlagsrechnung führt ihren offenen Posten im Rechnungsverbund
+  // (AdvanceItem.SettledAt) und nicht am Rechnungsstatus; ob sie vereinnahmt
+  // ist, weiß diese Seite nicht. Sie stünde hier für immer als offen und gehört
+  // auf die Anzahlungsseite, die den Stand kennt.
+  const carriesReceivable = (invoice: Invoice) =>
+    invoice.kind !== 'cancellation' && invoice.kind !== 'advance';
+  const open = invoices.filter(
+    (i) =>
+      carriesReceivable(i) && (i.status === 'issued' || i.status === 'issued_pending_document'),
+  );
+  // Die Forderung einer Schlussrechnung ist nicht ihr Brutto: Sie weist die
+  // ganze Leistung aus und setzt die vereinnahmten Anzahlungen davon ab
+  // (BT-113). Offen ist der Zahlbetrag — dieselbe Rechnung, die das Backend in
+  // `Invoice.OpenAmount()` führt und auf das Dokument schreibt. Mit dem Brutto
+  // gezählt stünde nach jeder Schlussrechnung eine zu hohe Summe im Kopf.
+  const openTotal = open.reduce((sum, i) => sum + i.grossAmount - (i.prepaidAmount ?? 0), 0);
+  const advances = invoices.filter((i) => i.kind === 'advance');
+  const pendingDocument = invoices.filter((i) => i.status === 'issued_pending_document');
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
@@ -136,27 +370,62 @@ export const InvoicesPage: React.FC = () => {
         context={
           loading
             ? undefined
-            : `${invoices.length} im Geschäftsjahr · ${open.length} offen über ${formatCents(openTotal)}`
+            : headerContext([
+                `${invoices.length} im Geschäftsjahr`,
+                `${open.length} offen über ${formatCents(openTotal)}`,
+                // Wohin die Abschläge gehören, sagt die Feldhilfe im
+                // Rechnungsdialog; hier zählt nur, dass es sie gibt.
+                advances.length > 0
+                  ? `${advances.length} ${advances.length === 1 ? 'Abschlag' : 'Abschläge'}`
+                  : null,
+              ])
+        }
+        explain={
+          <>
+            Ausstellen und Buchen sind ein Schritt. Die Rechnungsnummer wird lückenlos und
+            fortlaufend vergeben, die Forderung sofort auf das Personenkonto des Kunden gebucht.
+            Eine Rechnung, die nicht im Journal steht, kann es deshalb nicht geben.
+          </>
         }
         action={
-          <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zum Ausstellen">
-              Ausstellen und Buchen sind ein Schritt. Die Rechnungsnummer wird lückenlos und
-              fortlaufend vergeben, die Forderung sofort auf das Personenkonto des Kunden gebucht.
-              Eine Rechnung, die nicht im Journal steht, kann es deshalb nicht geben.
-            </HelpPopover>
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={contacts.length === 0}
-              title={contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined}
-              onClick={() => setShowForm(true)}
-            >
-              Neue Rechnung
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={contacts.length === 0 || writeLock.locked}
+            title={
+              writeLock.hint ??
+              (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
+            }
+            onClick={() => setShowForm(true)}
+          >
+            Neue Rechnung
+          </Button>
         }
       />
+
+      {pendingDocument.length > 0 && (
+        // Hinweisstreifen nach §6.2, Fall 4: die Rechnung ist gebucht, der
+        // Kunde hat aber nichts bekommen.
+        <Notice
+          className="mt-6"
+          text={`Zu ${pendingDocument.length} ausgestellten ${
+            pendingDocument.length === 1 ? 'Rechnung' : 'Rechnungen'
+          } fehlt das Dokument; die Nummer bleibt vergeben.`}
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void regenerateAll(pendingDocument)}
+            >
+              {pendingDocument.length === 1
+                ? `Dokument zu ${pendingDocument[0].invoiceNumber} erzeugen`
+                : `Alle ${pendingDocument.length} Dokumente erzeugen`}
+            </Button>
+          }
+        />
+      )}
 
       <Section divider={false} className="mt-8">
         {loading ? (
@@ -177,6 +446,7 @@ export const InvoicesPage: React.FC = () => {
               <Tr>
                 <Th className="w-32">Nummer</Th>
                 <Th className="w-28">Datum</Th>
+                <Th className="w-32">Art</Th>
                 <Th>Kunde</Th>
                 <Th numeric className="w-36">
                   Netto
@@ -184,8 +454,9 @@ export const InvoicesPage: React.FC = () => {
                 <Th numeric className="w-36">
                   Brutto
                 </Th>
-                <Th className="w-36">Status</Th>
-                <Th className="w-28" aria-label="Aktionen" />
+                <Th className="w-28">Versand</Th>
+                <Th className="w-48">Status</Th>
+                <Th className="w-24" aria-label="Aktionen" />
               </Tr>
             </Thead>
             <Tbody>
@@ -195,56 +466,228 @@ export const InvoicesPage: React.FC = () => {
                   variant={invoice.status === 'cancelled' ? 'storno' : 'default'}
                   className="group"
                 >
-                  <Td code>{invoice.invoiceNumber}</Td>
+                  <Td code>
+                    {invoice.invoiceNumber}
+                    {/* Beim Storno steht der Bezug im Abzeichen („Storno zu
+                        RE-…", §11.2) und wäre hier eine zweite Nennung
+                        derselben Sache. Die Berichtigung nennt ihn dagegen
+                        hier: sie hat einen eigenen Zustand, und ihr Abzeichen
+                        zeigt ihr eigenes Statuswort. */}
+                    {invoice.correctsInvoiceNumber && invoice.kind !== 'cancellation' && (
+                      <span className="block text-caption text-ink-subtle">
+                        zu {invoice.correctsInvoiceNumber}
+                      </span>
+                    )}
+                    {/* Die Kette zeigt in beide Richtungen (§11.2): das Storno
+                        nennt die Ursprungsrechnung, die Ursprungsrechnung das
+                        Dokument, das sie zurückgenommen hat. */}
+                    {invoice.cancelledByInvoiceId !== undefined && (
+                      <span className="block text-caption text-ink-subtle">
+                        storniert durch{' '}
+                        {invoices.find((i) => i.id === invoice.cancelledByInvoiceId)
+                          ?.invoiceNumber ?? '—'}
+                      </span>
+                    )}
+                  </Td>
                   <Td className="text-ink-subtle num">{formatDate(invoice.date)}</Td>
-                  <Td className="max-w-[20rem] truncate">{invoice.contactName}</Td>
+                  <Td className="text-ink-muted">{KIND_LABEL[invoice.kind] ?? 'Rechnung'}</Td>
+                  <Td className="max-w-[20rem] truncate">{invoice.contactName || 'Barverkauf'}</Td>
                   <Td numeric className="text-ink-muted">
                     {formatCents(invoice.netAmount, invoice.currency)}
                   </Td>
                   <Td numeric>{formatCents(invoice.grossAmount, invoice.currency)}</Td>
+                  <Td className="text-ink-subtle num">
+                    {invoice.sentAt ? formatDate(invoice.sentAt) : '—'}
+                  </Td>
                   <Td>
-                    <StatusBadge status={STATUS[invoice.status]} />
+                    <StatusBadge
+                      status={statusOf(invoice)}
+                      reference={cancellationReference(invoice)}
+                    />
+                    {/* Der Nachweisstand steht unter dem Statuswort und nicht
+                        an seiner Stelle: die Rechnung ist offen oder bezahlt,
+                        der Nachweis ist eine zweite, eigene Frage (§ 17a
+                        UStDV). Farbe steht nie allein (§3.4). */}
+                    {evidence.has(invoice.id) && (
+                      <span
+                        className={cn(
+                          'block text-caption',
+                          evidence.get(invoice.id)?.fulfilled
+                            ? 'text-positive-text'
+                            : 'text-attention-text',
+                        )}
+                        title={evidence.get(invoice.id)?.reason}
+                      >
+                        {evidence.get(invoice.id)?.fulfilled
+                          ? 'Nachweis vollständig'
+                          : 'Nachweis unvollständig'}
+                      </span>
+                    )}
                   </Td>
                   <Td className="pl-0">
-                    <span
-                      className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity
-                                 duration-120 ease-quiet group-hover:opacity-100 focus-within:opacity-100"
-                    >
-                      {invoice.receiptId && (
-                        <Button
-                          variant="quiet"
-                          size="sm"
-                          iconOnly
-                          title="Rechnungsdokument ansehen"
-                          aria-label={`Dokument zu ${invoice.invoiceNumber} ansehen`}
-                          onClick={() => showDocument(invoice)}
-                        >
-                          <FileText className="w-4 h-4" strokeWidth={1.5} />
-                        </Button>
-                      )}
-                      <Button
-                        variant="quiet"
-                        size="sm"
-                        iconOnly
-                        title="ZUGFeRD-XML ansehen"
-                        aria-label={`XML zu ${invoice.invoiceNumber} ansehen`}
-                        onClick={() => showZugferd(invoice)}
+                    <span className="flex items-center justify-end">
+                      <Menu
+                        trigger={
+                          <Button
+                            variant="quiet"
+                            size="sm"
+                            iconOnly
+                            title="Aktionen zu dieser Rechnung"
+                            aria-label={`Aktionen zu ${invoice.invoiceNumber}`}
+                          >
+                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+                          </Button>
+                        }
                       >
-                        <Code className="w-4 h-4" strokeWidth={1.5} />
-                      </Button>
-                      {invoice.status === 'issued' && (
-                        <Button
-                          variant="quiet"
-                          size="sm"
-                          iconOnly
-                          title="Rechnung stornieren"
-                          aria-label={`Rechnung ${invoice.invoiceNumber} stornieren`}
-                          onClick={() => setCancelling(invoice)}
-                        >
-                          <Undo2 className="w-4 h-4" strokeWidth={1.5} />
-                        </Button>
-                      )}
+                        {invoice.receiptId && (
+                          <MenuItem onClick={() => showDocument(invoice)}>
+                            Dokument ansehen
+                          </MenuItem>
+                        )}
+                        <MenuItem onClick={() => showZugferd(invoice)}>
+                          Strukturierten Datensatz ansehen
+                        </MenuItem>
+                        {/* Der Belegnachweis liegt bei den Nebenpflichten, wo
+                            auch der Bericht über die unvollständigen steht.
+                            Von hier führt der Weg dorthin, weil die Frage an
+                            der Rechnung entsteht — mit der Rechnung im Gepäck,
+                            damit dort ihre Belege aufgeschlagen sind und nicht
+                            wieder eine Liste. */}
+                        {onNavigate && invoice.taxTreatment === 'intra_community_supply' && (
+                          <MenuItem
+                            onClick={() =>
+                              onNavigate('obligations', {
+                                obligationsTab: 'evidence',
+                                invoiceId: invoice.id,
+                              })
+                            }
+                          >
+                            Belegnachweis der ig. Lieferung
+                          </MenuItem>
+                        )}
+                        {invoice.status === 'issued_pending_document' && (
+                          <MenuItem
+                            disabled={writeLock.locked}
+                            title={writeLock.hint}
+                            onClick={() => void regenerate(invoice)}
+                          >
+                            Dokument erneut erzeugen
+                          </MenuItem>
+                        )}
+                        {invoice.status !== 'cancelled' && invoice.status !== 'draft' && (
+                          // Versendet werden kann nur, was es gibt: solange das
+                          // Dokument fehlt, hat der Empfänger nichts bekommen.
+                          <MenuItem
+                            disabled={
+                              writeLock.locked || invoice.status === 'issued_pending_document'
+                            }
+                            title={
+                              invoice.status === 'issued_pending_document'
+                                ? 'Zuerst das Dokument erzeugen'
+                                : writeLock.hint
+                            }
+                            onClick={() => setSending(invoice)}
+                          >
+                            Als versendet vermerken
+                          </MenuItem>
+                        )}
+                        {invoice.kind !== 'cancellation' &&
+                          invoice.status !== 'cancelled' &&
+                          invoice.status !== 'draft' && (
+                          // Ein Storno des Stornos gibt es nicht: es negierte
+                          // die schon negierten Beträge und wäre die
+                          // Generalumkehr der Generalumkehr — die
+                          // Ursprungsrechnung stünde danach wieder im Journal,
+                          // ohne dass irgendein Dokument das sagt. Berichtigt
+                          // wird die Ursprungsrechnung (Entscheidung 3); das
+                          // Backend weist den Weg ebenfalls zurück.
+                          <>
+                            <MenuSeparator />
+                            <MenuItem
+                              disabled={writeLock.locked}
+                              title={writeLock.hint}
+                              onClick={() => setCorrecting(invoice)}
+                            >
+                              Rechnung berichtigen
+                            </MenuItem>
+                            <MenuItem
+                              disabled={writeLock.locked}
+                              title={writeLock.hint}
+                              onClick={() => setCancelling(invoice)}
+                            >
+                              Stornorechnung ausstellen
+                            </MenuItem>
+                          </>
+                        )}
+                      </Menu>
                     </span>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Section>
+
+      <Section
+        title="Nummernkreis"
+        context={
+          gaps
+            ? `${gaps.issued} Nummern vergeben · ${gaps.used} mit Dokument · ${gaps.gaps.length} ohne`
+            : 'Der Lückenbericht ließ sich nicht laden'
+        }
+        explain={
+          <>
+            § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende Nummer. Eine Lücke
+            entsteht deshalb nur, wenn eine Rechnung mitten im Schreiben abgebrochen ist oder aus
+            einem übernommenen Bestand stammt. Die Betriebsprüfung fragt nach jeder einzelnen:
+            Halten Sie den Grund hier fest, statt sich später erinnern zu müssen.
+          </>
+        }
+      >
+        {!gaps || gaps.gaps.length === 0 ? (
+          <EmptyState
+            title="Keine Lücke im Rechnungsnummernkreis"
+            description={
+              gaps
+                ? 'Jede vergebene Nummer hat ein Dokument.'
+                : 'Der Bericht steht wieder zur Verfügung, sobald das Geschäftsjahr geladen ist.'
+            }
+          />
+        ) : (
+          <Table density="kompakt">
+            <Thead>
+              <Tr>
+                <Th className="w-40">Nummer</Th>
+                <Th className="w-56">Grund</Th>
+                <Th>Vermerk</Th>
+                <Th className="w-40">Festgehalten</Th>
+                <Th className="w-32" aria-label="Aktionen" />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {gaps.gaps.map((gap) => (
+                <Tr key={gap.sequence} className="group">
+                  <Td code>{gap.number}</Td>
+                  <Td className={gap.reason === 'unknown' ? 'text-attention-text' : 'text-ink-muted'}>
+                    {gap.label}
+                  </Td>
+                  <Td className="max-w-[24rem] truncate">{gap.detail || '—'}</Td>
+                  <Td className="text-ink-subtle num">
+                    {gap.recordedAt ? formatDate(gap.recordedAt.split('T')[0]) : '—'}
+                  </Td>
+                  <Td className="pl-0">
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      disabled={writeLock.locked}
+                      title={writeLock.hint}
+                      className="opacity-0 transition-opacity duration-120 ease-quiet
+                                 group-hover:opacity-100 focus-visible:opacity-100"
+                      onClick={() => setGapReason({ sequence: gap.sequence, number: gap.number })}
+                    >
+                      Begründen
+                    </Button>
                   </Td>
                 </Tr>
               ))}
@@ -257,6 +700,9 @@ export const InvoicesPage: React.FC = () => {
         <InvoiceForm
           contacts={contacts}
           treatments={treatments}
+          units={units}
+          profiles={profiles}
+          paymentAccounts={paymentAccounts}
           onClose={() => setShowForm(false)}
           onIssued={async (number) => {
             setShowForm(false);
@@ -275,8 +721,7 @@ export const InvoicesPage: React.FC = () => {
         {documentPreview && (
           <>
             <p className="text-caption text-ink-subtle -mt-1 mb-3">
-              Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML — das archivierte Dokument, nicht eine
-              neue Darstellung.
+              {DOCUMENT_CAPTIONS[profileOf(documentPreview.invoice)]}
             </p>
             {!documentPreview.intact && (
               <div className="mb-3 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
@@ -299,7 +744,11 @@ export const InvoicesPage: React.FC = () => {
       <Dialog
         open={preview !== null}
         onOpenChange={(next) => !next && setPreview(null)}
-        title={`ZUGFeRD-XML · ${preview?.invoice.invoiceNumber ?? ''}`}
+        title={
+          preview
+            ? `${STRUCTURED_TITLES[profileOf(preview.invoice)]} · ${preview.invoice.invoiceNumber}`
+            : ''
+        }
         width="max-w-3xl"
       >
         {/* Technische Ausgabe, deshalb Monospace auf dunkler Fläche (§4.1). */}
@@ -317,6 +766,38 @@ export const InvoicesPage: React.FC = () => {
           await load();
         }}
       />
+
+      <CorrectDialog
+        invoice={correcting}
+        units={units}
+        onClose={() => setCorrecting(null)}
+        onDone={async (number) => {
+          setCorrecting(null);
+          toast.success(`Berichtigte Rechnung ${number} ausgestellt.`);
+          await load();
+        }}
+      />
+
+      <SentDialog
+        invoice={sending}
+        options={sentViaOptions}
+        onClose={() => setSending(null)}
+        onDone={async () => {
+          setSending(null);
+          await load();
+        }}
+      />
+
+      <GapReasonDialog
+        gap={gapReason}
+        reasons={gapReasons}
+        year={gaps?.fiscalYear ?? 0}
+        onClose={() => setGapReason(null)}
+        onDone={async () => {
+          setGapReason(null);
+          await load();
+        }}
+      />
     </div>
   );
 };
@@ -326,38 +807,219 @@ export const InvoicesPage: React.FC = () => {
 /** Kopf- und Zeilenraster der Positionen. Eine Definition für beide. */
 const ITEM_GRID = 'grid grid-cols-[minmax(0,1fr)_5rem_6rem_7rem_6rem_7rem_2rem] gap-2 items-center';
 
+/**
+ * Was das archivierte Dokument einer Rechnung ist, richtet sich nach dem
+ * Format, in dem sie ausgestellt wurde. „Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML" stimmt
+ * nur für ZUGFeRD: bei der XRechnung ist die XML-Datei das Original und das PDF
+ * ihre Darstellung, bei `pdf_only` gibt es überhaupt keinen strukturierten
+ * Datensatz. Eine feste Beschriftung behauptete an zwei von drei Formaten
+ * etwas Falsches.
+ */
+const DOCUMENT_CAPTIONS: Record<EInvoiceProfile, string> = {
+  zugferd_en16931:
+    'Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML — das archivierte Dokument, nicht eine neue Darstellung.',
+  xrechnung_cii: 'PDF-Darstellung zur XRechnung; Original ist die XML-Datei.',
+  pdf_only: 'PDF ohne strukturierten Datensatz.',
+};
+
+/** Der Titel des Dialogs mit dem strukturierten Datensatz, nach Format. */
+const STRUCTURED_TITLES: Record<EInvoiceProfile, string> = {
+  zugferd_en16931: 'ZUGFeRD-XML',
+  xrechnung_cii: 'XRechnung als XML',
+  pdf_only: 'Ohne strukturierten Datensatz',
+};
+
+/**
+ * Das Format eines Dokuments. Bestandsrechnungen aus der Zeit vor dem Feld
+ * haben keines; für sie gilt die Voreinstellung des Backends.
+ */
+function profileOf(invoice: Invoice): EInvoiceProfile {
+  return invoice.eInvoiceProfile ?? 'zugferd_en16931';
+}
+
 const InvoiceForm: React.FC<{
   contacts: Contact[];
   treatments: TaxTreatmentInfo[];
+  units: UnitCode[];
+  profiles: EInvoiceProfileInfo[];
+  paymentAccounts: Account[];
   onClose: () => void;
   onIssued: (invoiceNumber: string) => void;
-}> = ({ contacts, treatments, onClose, onIssued }) => {
-  const today = new Date().toISOString().split('T')[0];
+}> = ({ contacts, treatments, units, profiles, paymentAccounts, onClose, onIssued }) => {
+  const writeLock = usePostingLock();
+  const today = todayISO();
   const [contactId, setContactId] = useState(contacts[0]?.id ?? 0);
   const [date, setDate] = useState(today);
   const [serviceFrom, setServiceFrom] = useState(today);
   const [serviceTo, setServiceTo] = useState(today);
   const [treatment, setTreatment] = useState<TaxTreatment>('domestic');
   const [items, setItems] = useState<DraftItem[]>([newItem(TAX_RATE_STANDARD)]);
+  const [dueDays, setDueDays] = useState('');
+  // Der Hinweis zu einem langen Zahlungsziel kommt aus dem Fachbereich und wird
+  // hier nicht nachgebaut: die Grenze ist eine Rechtsfrage, und eine Zahl, die
+  // in der Maske ein zweites Mal stünde, wird bei der nächsten Änderung an
+  // einer der beiden Stellen vergessen. Leer heißt: unauffällig.
+  const [termNotice, setTermNotice] = useState('');
+  const [discountPermille, setDiscountPermille] = useState('');
+  const [discountDays, setDiscountDays] = useState('');
+  const [smallAmount, setSmallAmount] = useState(false);
+  const [paymentAccount, setPaymentAccount] = useState('');
+  // Wer den Gegenstand befördert hat. Leer ist der Regelfall — der Lieferer;
+  // beim Abholfall verlangt § 17a Abs. 2 UStDV zusätzlich die
+  // Gelangensbestätigung, und das entscheidet später über den Belegnachweis.
+  const [transportKind, setTransportKind] = useState<TransportKind>('');
+  // Der Grund, mit dem eine steuerfreie Lieferung ohne Bestätigung der
+  // USt-IdNr. ausgestellt wird. Ohne ihn lehnt das Backend bei ausbleibender
+  // Auskunft ab — mit ihm steht die Übersteuerung an der Rechnung.
+  const [vatIdOverrideReason, setVatIdOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  // Die Ablehnung des Ausstellens ist eine fachliche Aussage über den ganzen
+  // Vorgang und bleibt stehen, bis sie behoben ist (§10.4). Ein Toast wäre nach
+  // vier Sekunden weg, während das Formular unverändert offen steht.
+  const [failure, setFailure] = useState<string | null>(null);
+  // Der Bestätigungsstand kommt aus dem Bestand und nicht aus einer Abfrage:
+  // ihn beim Öffnen des Dialogs zu holen hieße, für jede Rechnung ans Netz zu
+  // gehen. Gefragt wird erst auf Knopfdruck — oder vom Backend beim Ausstellen.
+  const [vatIdStatus, setVatIdStatus] = useState<VatIDStatus | null>(null);
+  const [vatIdBusy, setVatIdBusy] = useState(false);
+  const [vatIdError, setVatIdError] = useState<string | null>(null);
+
+  // Eine begonnene Rechnung geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Gefragt wird nach dem, was der Anwender selbst eingetragen hat —
+  // die Vorbelegung von Datum, Kunde und leerer Position ist kein Inhalt.
+  const dirty =
+    items.some((item) => item.description.trim() !== '' || item.unitPrice.trim() !== '') ||
+    dueDays.trim() !== '' ||
+    discountPermille.trim() !== '' ||
+    discountDays.trim() !== '' ||
+    vatIdOverrideReason.trim() !== '';
 
   const contact = contacts.find((c) => c.id === contactId);
   const treatmentInfo = treatments.find((t) => t.treatment === treatment);
   const taxable = treatment === 'domestic';
+  /**
+   * Ob vor dem Ausstellen die USt-IdNr. des Empfängers bestätigt sein muss.
+   *
+   * Die beiden Steuerfälle, bei denen sie materielle Voraussetzung ist: die
+   * innergemeinschaftliche Lieferung (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die
+   * Verlagerung der Steuerschuld auf einen Empfänger im übrigen
+   * Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die Nummer des Kunden
+   * Voraussetzung von nichts, und eine Abfrage dort wäre ein Netzaufruf ohne
+   * Zweck. Ob das Bestimmungsland wirklich ein Mitgliedstaat ist, entscheidet
+   * das Backend — hier steht nur, wann die Frage überhaupt gestellt wird.
+   */
+  const needsVatIDConfirmation =
+    contactId > 0 &&
+    (treatment === 'intra_community_supply' ||
+      (treatment === 'reverse_charge_supply' &&
+        (contact?.countryCode ?? '') !== '' &&
+        contact?.countryCode !== 'DE'));
+  // § 33 Satz 2 UStDV nimmt die innergemeinschaftliche Lieferung, den
+  // Fernverkauf und die Steuerschuldnerschaft des Leistungsempfängers von der
+  // Kleinbetragsrechnung aus. Angeboten wird sie deshalb nur beim
+  // steuerpflichtigen Inlandsumsatz.
+  //
+  // Die Betragsgrenze kommt datiert aus dem Backend und reist mit der Vorschau
+  // (PostingPreview.smallAmountLimit) — dort steht auch der Bruttobetrag, gegen
+  // den sie zu vergleichen ist. Nachgerechnet wird hier nichts; die Zahl liegt
+  // an einer Stelle, und das ist die, die sie datiert kennt.
+  const smallAmountLimit = preview?.smallAmountLimit ?? 0;
+  const overSmallAmountLimit = smallAmountLimit > 0 && (preview?.gross ?? 0) > smallAmountLimit;
+  const smallAmountPossible = taxable && !overSmallAmountLimit;
+  // Der Barverkauf (Kleinbetrag ohne erfassten Empfänger) geht als reines PDF
+  // hinaus: EN 16931 verlangt den Namen des Erwerbers (BR-07), § 33 UStDV
+  // erlässt ihn, und Kleinbetragsrechnungen sind von der E-Rechnungspflicht
+  // ausgenommen. Das Backend setzt in diesem Fall pdf_only (invoice_service.go);
+  // stünde hier weiter das Profil des Standardfalls, zeigte der Dialog ein
+  // Format an, das nicht erzeugt wird.
+  const cashSale = smallAmount && contactId === 0;
+  const effectiveProfile = cashSale
+    ? 'pdf_only'
+    : contact?.eInvoiceProfile || 'zugferd_en16931';
+  const profile = profiles.find((p) => p.profile === effectiveProfile);
+  const missingLeitwegID =
+    !cashSale && contact?.eInvoiceProfile === 'xrechnung_cii' && !contact.leitwegId;
+
+  useEffect(() => {
+    if (!smallAmountPossible) setSmallAmount(false);
+  }, [smallAmountPossible]);
+
+  // „Ohne Empfänger" gibt es nur bei der Kleinbetragsrechnung (§ 33 UStDV).
+  // Fällt die Option weg, zeigte die Auswahl auf einen Eintrag, den die Liste
+  // nicht mehr führt: das Feld stünde auf dem Platzhalter, die Vorschau bliebe
+  // leer, und die Rechnung liefe bis zur Fehlermeldung des Backends.
+  useEffect(() => {
+    if (!smallAmount && contactId === 0) setContactId(contacts[0]?.id ?? 0);
+  }, [smallAmount, contactId, contacts]);
+
+  useEffect(() => {
+    if (!needsVatIDConfirmation) {
+      setVatIdStatus(null);
+      setVatIdError(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getVatIDStatus(contactId)
+      .then((status) => {
+        if (!cancelled) {
+          setVatIdStatus(status);
+          setVatIdError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setVatIdStatus(null);
+          setVatIdError(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsVatIDConfirmation, contactId]);
+
+  /** Die qualifizierte Abfrage beim Bundeszentralamt (§ 18e UStG). */
+  async function checkVatID() {
+    setVatIdBusy(true);
+    setVatIdError(null);
+    try {
+      await Api.checkVatID(contactId);
+      setVatIdStatus(await Api.getVatIDStatus(contactId));
+    } catch (e) {
+      setVatIdError(e instanceof Error ? e.message : String(e));
+      // Auch die gescheiterte Abfrage ändert den Stand nicht — er wird
+      // trotzdem neu gelesen, damit ein zwischenzeitlich gespeichertes
+      // Ergebnis nicht verloren aussieht.
+      Api.getVatIDStatus(contactId).then(setVatIdStatus).catch(() => undefined);
+    } finally {
+      setVatIdBusy(false);
+    }
+  }
 
   // Die Positionen in der Form, die das Backend erwartet. Hier wird nur
   // umgerechnet, nicht gerechnet: Mengen von drei Nachkommastellen auf Milli,
   // Preise auf Cent.
   const draft = useMemo(
     () => ({
+      // Ohne Empfänger (0) ist die Rechnung ein Barverkauf; das geht nur als
+      // Kleinbetragsrechnung (§ 33 UStDV), und dann gibt es kein Personenkonto,
+      // gegen das eine Forderung liefe. Dass die 0 nur dort entstehen kann,
+      // hält der Effekt oben fest — hier wird sie nur weitergereicht.
       contactId,
       date,
       serviceDateFrom: serviceFrom,
       serviceDateTo: serviceTo,
       taxTreatment: treatment,
       currency: 'EUR',
+      transportKind: needsVatIDConfirmation ? transportKind || undefined : undefined,
+      smallAmount,
+      paymentAccount: smallAmount && contactId === 0 ? paymentAccount : undefined,
+      terms: {
+        dueDays: Number.parseInt(dueDays, 10) || 0,
+        discountPermille: Number.parseInt(discountPermille, 10) || 0,
+        discountDays: Number.parseInt(discountDays, 10) || 0,
+      },
       items: items.map((item, index) => ({
         position: index + 1,
         description: item.description,
@@ -367,14 +1029,29 @@ const InvoiceForm: React.FC<{
         taxRate: item.taxRate,
       })) as InvoiceItem[],
     }),
-    [contactId, date, serviceFrom, serviceTo, treatment, items],
+    [
+      contactId,
+      date,
+      serviceFrom,
+      serviceTo,
+      treatment,
+      items,
+      smallAmount,
+      paymentAccount,
+      needsVatIDConfirmation,
+      transportKind,
+      dueDays,
+      discountPermille,
+      discountDays,
+    ],
   );
 
   // Netto, Steuer und Brutto kommen aus dem Backend. Diese Maske hat die
   // Steuerrechnung früher selbst nachgebaut, samt Rundung je Steuersatzgruppe —
   // eine zweite Wahrheit, die auseinanderläuft, sobald ein Steuerfall dazukommt.
   useEffect(() => {
-    const complete = contactId > 0 && draft.items.every((i) => i.description && i.unitPrice > 0);
+    const complete =
+      (contactId > 0 || smallAmount) && draft.items.every((i) => i.description && i.unitPrice > 0);
     if (!complete) {
       setPreview(null);
       setPreviewError(null);
@@ -398,19 +1075,50 @@ const InvoiceForm: React.FC<{
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [draft, contactId]);
+  }, [draft, contactId, smallAmount]);
+
+  // Das Zahlungsziel wird beim Tippen gefragt und nicht erst beim Ausstellen:
+  // wer 90 Tage vereinbart, soll es lesen, solange er die Zahl noch ändern kann.
+  // Ein Fehler bleibt still — der Hinweis ist eine Auskunft, keine Bedingung.
+  useEffect(() => {
+    const days = Number.parseInt(dueDays, 10);
+    if (!Number.isFinite(days) || days <= 0) {
+      setTermNotice('');
+      return;
+    }
+    let cancelled = false;
+    Api.getPaymentTermNotice(days)
+      .then((notice) => {
+        if (!cancelled) setTermNotice(notice ?? '');
+      })
+      .catch(() => {
+        if (!cancelled) setTermNotice('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dueDays]);
 
   function update(index: number, patch: Partial<DraftItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
   async function submit() {
+    setFailure(null);
     setBusy(true);
     try {
-      const invoice = await Api.issueInvoice(draft);
+      // Der Grund geht erst mit dem Ausstellen mit: die Vorschau rechnet
+      // denselben Buchungssatz, ob er dasteht oder nicht, und holte sich sonst
+      // bei jedem Tastendruck einen neuen.
+      const invoice = await Api.issueInvoice({
+        ...draft,
+        vatIdOverrideReason: needsVatIDConfirmation
+          ? vatIdOverrideReason.trim() || undefined
+          : undefined,
+      });
       onIssued(invoice.invoiceNumber);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -422,6 +1130,7 @@ const InvoiceForm: React.FC<{
       onOpenChange={(next) => !next && onClose()}
       title="Neue Rechnung"
       width="max-w-4xl"
+      dirty={dirty}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -430,7 +1139,18 @@ const InvoiceForm: React.FC<{
           <Button
             variant="primary"
             loading={busy}
-            disabled={!preview || preview.gross <= 0}
+            disabled={!preview || preview.gross <= 0 || writeLock.locked}
+            // Ein gesperrter Knopf ohne Erklärung verschweigt seinen Grund
+            // (§10.4): ohne Vorschau ist noch nichts gerechnet, und über null
+            // Euro gibt es keine Rechnung.
+            title={
+              writeLock.hint ??
+              (!preview
+                ? 'Die Vorschau steht noch aus; sie rechnet den Buchungssatz zur Rechnung.'
+                : preview.gross <= 0
+                  ? 'Ohne Betrag gibt es keine Rechnung — tragen Sie Menge und Einzelpreis ein.'
+                  : undefined)
+            }
             onClick={submit}
           >
             Ausstellen und buchen
@@ -438,7 +1158,22 @@ const InvoiceForm: React.FC<{
         </>
       }
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Field
+          label="Art"
+          hint="Abschlag und Schlussrechnung: Seite „Anzahlungen&quot;"
+          explain="Abschlags- und Schlussrechnung gehören in einen Rechnungsverbund: er hält den vereinbarten Gesamtbetrag, die gestellten Abschläge und die Verrechnung zusammen. Beim Abschlag entsteht die Steuer außerdem erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), es gibt also zwei Buchungszeitpunkte. Beides steht auf der Seite „Anzahlungen&quot;; hier entsteht die gewöhnliche Rechnung."
+        >
+          {/* Die Art ist hier keine Auswahl, sondern die Auskunft, welche
+              gerade entsteht: eine Abschlagsrechnung ohne Verbund wäre eine
+              Anzahlung ohne den Auftrag, auf den sie sich anrechnet — und die
+              Absetzung in der Schlussrechnung ist der teuerste Fehler des
+              Themas (§ 14c Abs. 1 UStG). Der Weg dorthin steht im
+              Hinweis, statt als dritter Eintrag in einer Liste, die zu nichts
+              führt. */}
+          <FieldValue>Rechnung</FieldValue>
+        </Field>
+
         <Field
           label="Kunde"
           hint={
@@ -450,7 +1185,13 @@ const InvoiceForm: React.FC<{
           }
         >
           <Select
-            items={contacts.map((c) => ({ value: c.id, label: `${c.name} · Debitor ${c.ledgerAccount}` }))}
+            items={[
+              ...(smallAmount ? [{ value: 0, label: 'Ohne Empfänger (Barverkauf)' }] : []),
+              ...contacts.map((c) => ({
+                value: c.id,
+                label: `${c.name} · Debitor ${c.ledgerAccount}`,
+              })),
+            ]}
             value={contactId}
             onValueChange={setContactId}
           />
@@ -459,7 +1200,7 @@ const InvoiceForm: React.FC<{
         <Field
           label="Steuerfall"
           hint={treatmentInfo?.hint}
-          help="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
+          explain="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
         >
           <Select
             items={treatments.map((t) => ({ value: t.treatment, label: t.label }))}
@@ -480,6 +1221,207 @@ const InvoiceForm: React.FC<{
           <Input type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />
         </Field>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+        <Field
+          label="Format"
+          hint={profile?.label}
+          explain={
+            <>
+              {profile?.hint}
+              {cashSale &&
+                ' Ohne erfassten Empfänger erzeugt Buchfink die Kleinbetragsrechnung als reines PDF; Kleinbetragsrechnungen sind von der E-Rechnungspflicht ausgenommen (§ 33 UStDV).'}
+              {missingLeitwegID &&
+                ' Für die XRechnung fehlt die Leitweg-ID dieses Empfängers; ohne sie weist Buchfink die Ausstellung zurück (BR-DE-15).'}
+            </>
+          }
+        >
+          {/* Das Format ist eine Eigenschaft des Empfängers und wird an ihm
+              gepflegt, nicht je Rechnung gewählt: eine Behörde nimmt XRechnung
+              und sonst nichts, und wer bei jeder Rechnung neu wählt, wählt
+              irgendwann falsch. */}
+          <FieldValue>{profile?.label ?? '—'}</FieldValue>
+        </Field>
+
+        <Field
+          label="Kleinbetragsrechnung"
+          hint={
+            !taxable
+              ? 'nur beim Inlandsumsatz'
+              : overSmallAmountLimit
+                ? `nur bis ${formatCents(smallAmountLimit)} brutto`
+                : undefined
+          }
+          explain={
+            <>
+              § 33 UStDV lässt bei kleinen Beträgen die verkürzten Angaben zu: kein Empfänger,
+              Bruttobetrag mit Steuersatz. Bei innergemeinschaftlicher Lieferung und
+              Steuerschuldnerschaft des Leistungsempfängers ist sie ausgeschlossen.
+              {smallAmountLimit > 0 &&
+                ` Die Grenze am Rechnungsdatum liegt bei ${formatCents(smallAmountLimit)} brutto.`}
+              {overSmallAmountLimit &&
+                ' Dieser Betrag liegt darüber; die Rechnung braucht die vollständigen Angaben nach § 14 Abs. 4 UStG.'}
+            </>
+          }
+        >
+          <Checkbox
+            checked={smallAmount}
+            disabled={!smallAmountPossible}
+            onCheckedChange={(checked) => setSmallAmount(Boolean(checked))}
+            label="Als Kleinbetragsrechnung ausstellen"
+          />
+        </Field>
+      </div>
+
+      {needsVatIDConfirmation && (
+        <div
+          className={cn(
+            'mt-4 rounded-control border px-4 py-3',
+            vatIdStatus?.confirmed
+              ? 'border-positive-line bg-positive-soft'
+              : 'border-attention-line bg-attention-soft',
+          )}
+        >
+          <h3
+            className={cn(
+              'text-label',
+              vatIdStatus?.confirmed ? 'text-positive-text' : 'text-attention-text',
+            )}
+          >
+            Bestätigung der USt-IdNr.
+            <HelpPopover label="Erklärung zur Bestätigungsabfrage">
+              Die Steuerbefreiung der innergemeinschaftlichen Lieferung setzt eine gültige, vom
+              Bestimmungsland erteilte USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4
+              UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
+              das Ergebnis am Kontakt fest. Eine negative Antwort hält die Rechnung an. Bleibt die
+              Antwort aus — kein Netz, Dienst gestört —, ist das kein negatives Ergebnis, aber auch
+              kein Nachweis: Buchfink stellt die Rechnung dann nur mit einem festgehaltenen Grund aus.
+            </HelpPopover>
+          </h3>
+          <p className="text-body text-ink-muted mt-1.5">
+            {vatIdStatus
+              ? vatIdStatus.note
+              : vatIdError
+                ? vatIdError
+                : 'Der Bestätigungsstand wird gelesen …'}
+          </p>
+          {vatIdStatus?.latest && (
+            <p className="text-caption text-ink-subtle mt-1">
+              Letzte Abfrage {formatDateTime(vatIdStatus.latest.checkedAt)}
+              {vatIdStatus.latest.resultCode ? ` · Ergebnis ${vatIdStatus.latest.resultCode}` : ''}
+              {vatIdStatus.latest.requestId ? ` · Abfrage-ID ${vatIdStatus.latest.requestId}` : ''}
+            </p>
+          )}
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={vatIdBusy}
+              disabled={vatIdBusy}
+              onClick={checkVatID}
+            >
+              Jetzt abfragen
+            </Button>
+            {vatIdError && vatIdStatus && (
+              <span className="text-caption text-negative-text">{vatIdError}</span>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Beförderung"
+              hint="entscheidet über den Belegnachweis"
+              explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten genügen für die Vermutung des § 17a UStDV schon zwei einander nicht widersprechende Belege. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
+            >
+              <Select
+                items={[
+                  { value: '', label: 'Lieferer oder sein Beauftragter (Regelfall)' },
+                  { value: 'customer', label: 'Abholung durch den Erwerber' },
+                ]}
+                value={transportKind}
+                onValueChange={(next) => setTransportKind(next as TransportKind)}
+              />
+            </Field>
+            {/* Auch ohne gelesenen Stand (Lesefehler, Feld noch leer) muss der Grund
+                erfassbar sein: sonst ist die Maske genau dann eine Sackgasse, wenn
+                das Backend die Übersteuerung verlangt. */}
+            {!vatIdStatus?.confirmed && (
+              <Field
+                label="Grund für die Ausstellung ohne Bestätigung"
+                optional
+                hint="ohne ihn wird abgelehnt"
+                explain="Bleibt die Auskunft des Bundeszentralamts aus, stellt Buchfink die steuerfreie Lieferung nur mit einem festgehaltenen Grund aus. Er steht an der Rechnung und im Protokoll, und der nächste Prüflauf führt die Lieferung als offen. Eine negative Auskunft lässt sich damit nicht übersteuern."
+              >
+                <Textarea
+                  rows={2}
+                  value={vatIdOverrideReason}
+                  onChange={(e) => setVatIdOverrideReason(e.target.value)}
+                  placeholder="etwa: BZSt nicht erreichbar, Bestätigung wird nachgeholt"
+                />
+              </Field>
+            )}
+          </div>
+        </div>
+      )}
+
+      {smallAmount && contactId === 0 && (
+        <Field
+          label="Zahlungsmittel"
+          hint="Leer heißt Kasse"
+          className="mt-4 max-w-sm"
+          explain="Ohne erfassten Kunden gibt es kein Personenkonto und keine Forderung: der Barverkauf ist im selben Augenblick bezahlt und wird gegen Kasse oder Bank gebucht."
+        >
+          <Select
+            items={paymentAccounts.map((a) => ({
+              value: a.number,
+              label: `${a.number} · ${a.name}`,
+            }))}
+            value={paymentAccount}
+            onValueChange={setPaymentAccount}
+            placeholder="Kasse"
+          />
+        </Field>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+        <Field
+          label="Zahlungsziel"
+          hint="Tage"
+          optional
+          explain="Die im Voraus vereinbarte Minderung des Entgelts ist Pflichtangabe (§ 14 Abs. 4 Nr. 7 UStG). Sie steht als Satz auf dem Dokument und als BT-20 im Datensatz; der Skonto selbst mindert Entgelt und Steuer erst, wenn er in Anspruch genommen wird (§ 17 Abs. 1 UStG)."
+        >
+          <Input
+            inputMode="numeric"
+            align="right"
+            placeholder="14"
+            value={dueDays}
+            onChange={(e) => setDueDays(e.target.value)}
+          />
+        </Field>
+        <Field label="Skonto" hint="Promille: 20 sind 2 %" optional>
+          <Input
+            inputMode="numeric"
+            align="right"
+            placeholder="0"
+            value={discountPermille}
+            onChange={(e) => setDiscountPermille(e.target.value)}
+          />
+        </Field>
+        <Field label="Skontofrist" hint="Tage" optional>
+          <Input
+            inputMode="numeric"
+            align="right"
+            placeholder="0"
+            value={discountDays}
+            onChange={(e) => setDiscountDays(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      {/* Der Hinweis steht unter dem Feld, das ihn auslöst, und bleibt stehen,
+          solange die Frist so lang ist (§10.4). Sein Wortlaut kommt aus dem
+          Fachbereich. */}
+      {termNotice && <Notice className="mt-4" text={termNotice} />}
 
       <div className="mt-6 pt-6 border-t border-line">
         <div className="flex items-center justify-between mb-3">
@@ -519,9 +1461,13 @@ const InvoiceForm: React.FC<{
                 onChange={(e) => update(index, { quantity: e.target.value })}
                 aria-label={`Menge der Position ${index + 1}`}
               />
-              <Input
+              {/* Die Einheit ist ein Schlüssel aus UN/ECE Rec. 20 (BT-130) und
+                  kein Freitext: „Stunde" ist dort kein zulässiger Wert, „HUR"
+                  ist es, und beim Empfänger stand bisher jede Stunde als Stück. */}
+              <Select
+                items={units.map((u) => ({ value: u.code, label: u.label }))}
                 value={item.unit}
-                onChange={(e) => update(index, { unit: e.target.value })}
+                onValueChange={(unit) => update(index, { unit })}
                 aria-label={`Einheit der Position ${index + 1}`}
               />
               <Input
@@ -540,6 +1486,7 @@ const InvoiceForm: React.FC<{
                 value={item.taxRate}
                 onValueChange={(taxRate) => update(index, { taxRate })}
                 disabled={!taxable}
+                aria-label={`Umsatzsteuersatz der Position ${index + 1}`}
               />
               {/* Menge mal Einzelpreis — dieselbe Rechnung wie InvoiceItem.TotalNet
                   im Backend. Reine Darstellung: Steuer und Rundung je Satzgruppe
@@ -600,6 +1547,8 @@ const InvoiceForm: React.FC<{
           )}
         </div>
       </div>
+
+      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };
@@ -611,14 +1560,20 @@ const CancelDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ invoice, onClose, onDone }) => {
+  const writeLock = usePostingLock();
   const [reason, setReason] = useState('');
+  // Zwei Fehlerarten, zwei Orte (§10.4): die fehlende Pflichtangabe steht am
+  // Feld, das sie meint; die Ablehnung des Backends ist eine fachliche Aussage
+  // über den ganzen Vorgang und gehört auf die Hinweisfläche über die Aktionen.
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (invoice) {
       setReason('');
       setError(null);
+      setFailure(null);
     }
   }, [invoice]);
 
@@ -627,13 +1582,20 @@ const CancelDialog: React.FC<{
       setError('Ohne Grund lässt sich die Stornierung später nicht nachvollziehen.');
       return;
     }
+    setError(null);
+    setFailure(null);
     setBusy(true);
     try {
-      await Api.cancelInvoice(invoice!.id, reason);
-      toast.success(`Rechnung ${invoice!.invoiceNumber} storniert.`);
+      // Eine Stornierung braucht ein Dokument: eine stornierte Rechnung ist
+      // beim Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen.
+      // Das Stornodokument hat eine eigene Nummer aus demselben Kreis.
+      const storno = await Api.cancelInvoiceWithDocument(invoice!.id, reason);
+      toast.success(
+        `Stornorechnung ${storno.invoiceNumber} zu ${invoice!.invoiceNumber} ausgestellt.`,
+      );
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -643,15 +1605,21 @@ const CancelDialog: React.FC<{
     <Dialog
       open={invoice !== null}
       onOpenChange={(next) => !next && onClose()}
-      title="Rechnung stornieren"
+      title="Stornorechnung ausstellen"
       width="max-w-lg"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button variant="danger" loading={busy} onClick={submit}>
-            Stornieren
+          <Button
+            variant="danger"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Stornorechnung ausstellen
           </Button>
         </>
       }
@@ -661,10 +1629,13 @@ const CancelDialog: React.FC<{
           <p className="text-body text-ink-muted">
             <span className="code-num text-ink">{invoice.invoiceNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(invoice.grossAmount, invoice.currency)}</span>{' '}
-            an {invoice.contactName} wird per Generalumkehr zurückgenommen.
+            an {invoice.contactName || 'Barverkauf'} bekommt ein Stornodokument mit eigener Nummer.
             <HelpPopover label="Erklärung zur Stornierung">
-              Forderung, Erlös und Umsatzsteuer gehen auf null zurück. Die Rechnungsnummer bleibt
-              vergeben und darf nicht neu verwendet werden — der Nummernkreis muss lückenlos bleiben.
+              Forderung, Erlös und Umsatzsteuer gehen per Generalumkehr auf null zurück. Das
+              Stornodokument hat die negierten Beträge und den Bezug auf die Ursprungsrechnung;
+              diese bleibt unverändert im Archiv. Das Wort „Gutschrift" steht bewusst nirgends: eine
+              Gutschrift nach § 14 Abs. 2 Satz 2 UStG ist die Abrechnung des Leistungsempfängers,
+              und die stellt Buchfink nicht aus.
             </HelpPopover>
           </p>
 
@@ -675,8 +1646,426 @@ const CancelDialog: React.FC<{
               placeholder="Leistung nicht erbracht"
             />
           </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
+    </Dialog>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/**
+ * Rechnung berichtigen: Storno plus neue Rechnung mit vollständigem Inhalt.
+ *
+ * Zwei Dokumente und nicht eines. Eine „Korrekturrechnung über die Differenz"
+ * wäre zulässig, lässt den Empfänger aber zwei Dokumente zusammenrechnen — und
+ * in der Praxis rechnet er falsch.
+ */
+const CorrectDialog: React.FC<{
+  invoice: Invoice | null;
+  units: UnitCode[];
+  onClose: () => void;
+  onDone: (invoiceNumber: string) => void;
+}> = ({ invoice, units, onClose, onDone }) => {
+  const writeLock = usePostingLock();
+  const [reason, setReason] = useState('');
+  const [date, setDate] = useState(todayISO());
+  const [items, setItems] = useState<DraftItem[]>([]);
+  // Pflichtangabe am Feld, Ablehnung des Backends auf der Hinweisfläche (§10.4).
+  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Die berichtigte Rechnung startet mit dem Inhalt der berichtigten: geändert
+  // wird meist eine Zeile, und wer alles neu tippt, vertippt sich woanders.
+  useEffect(() => {
+    if (!invoice) return;
+    setReason('');
+    setError(null);
+    setFailure(null);
+    setDate(todayISO());
+    setItems(
+      invoice.items.map((item) => ({
+        description: item.description,
+        quantity: String(item.quantityMilli / 1000).replace('.', ','),
+        unit: item.unit || 'C62',
+        unitPrice: formatCents(item.unitPrice, ''),
+        taxRate: item.taxRate,
+      })),
+    );
+  }, [invoice]);
+
+  function update(index: number, patch: Partial<DraftItem>) {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  async function submit() {
+    if (!reason.trim()) {
+      setError('Ohne Grund lässt sich die Berichtigung später nicht nachvollziehen.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const replacement = await Api.correctInvoice(invoice!.id, reason, {
+        contactId: invoice!.contactId,
+        date,
+        serviceDateFrom: invoice!.serviceDateFrom,
+        serviceDateTo: invoice!.serviceDateTo,
+        taxTreatment: invoice!.taxTreatment,
+        currency: invoice!.currency,
+        smallAmount: invoice!.smallAmount,
+        // Der Barverkauf behält sein Zahlungskonto, sonst fiele die berichtigte
+        // Rechnung auf die Kasse zurück, auch wenn gegen Bank gebucht war.
+        paymentAccount: invoice!.paymentAccount,
+        terms: invoice!.terms,
+        items: items.map((item, index) => ({
+          position: index + 1,
+          description: item.description,
+          quantityMilli: Math.round((Number(item.quantity.replace(',', '.')) || 0) * 1000),
+          unit: item.unit,
+          unitPrice: parseCents(item.unitPrice) ?? 0,
+          taxRate: item.taxRate,
+        })),
+      });
+      onDone(replacement.invoiceNumber);
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={invoice !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title="Rechnung berichtigen"
+      width="max-w-4xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={items.length === 0 || writeLock.locked}
+            title={
+              writeLock.hint ??
+              (items.length === 0
+                ? 'Ohne Position gäbe es nichts zu berichtigen — die Rechnung braucht mindestens eine.'
+                : undefined)
+            }
+            onClick={submit}
+          >
+            Stornieren und berichtigt ausstellen
+          </Button>
+        </>
+      }
+    >
+      {invoice && (
+        <>
+          <p className="text-body text-ink-muted">
+            <span className="code-num text-ink">{invoice.invoiceNumber}</span> wird storniert; die
+            berichtigte Rechnung verweist auf sie.
+            <HelpPopover label="Erklärung zur Berichtigung">
+              Eine ausgestellte Rechnung wird nicht geändert: GoBD Rz. 58 lässt einen erfassten
+              Geschäftsvorfall nicht mehr veränderbar sein, und § 14 Abs. 4 Nr. 4 UStG lässt keine
+              zweite Rechnung unter derselben Nummer zu. Es entstehen deshalb zwei Dokumente mit
+              eigenen Nummern. Die Steuer folgt dem Tag des Stornodokuments (§ 17 Abs. 1 UStG).
+            </HelpPopover>
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <Field label="Grund der Berichtigung" error={error ?? undefined}>
+              <Input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Falscher Steuersatz"
+              />
+            </Field>
+            <Field label="Datum der berichtigten Rechnung">
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-line">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-label text-ink-muted">Positionen der berichtigten Rechnung</h3>
+              <Button
+                variant="quiet"
+                size="sm"
+                icon={<Plus className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                onClick={() => setItems((prev) => [...prev, newItem(TAX_RATE_STANDARD)])}
+              >
+                Position hinzufügen
+              </Button>
+            </div>
+
+            <div className={cn(ITEM_GRID, 'text-caption text-ink-subtle mb-1')}>
+              <span>Bezeichnung</span>
+              <span className="text-right">Menge</span>
+              <span>Einheit</span>
+              <span className="text-right">Einzelpreis</span>
+              <span>USt</span>
+              <span className="text-right">Betrag</span>
+              <span />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {items.map((item, index) => (
+                <div key={index} className={ITEM_GRID}>
+                  <Input
+                    value={item.description}
+                    onChange={(e) => update(index, { description: e.target.value })}
+                    aria-label={`Bezeichnung der Position ${index + 1}`}
+                  />
+                  <Input
+                    align="right"
+                    inputMode="decimal"
+                    value={item.quantity}
+                    onChange={(e) => update(index, { quantity: e.target.value })}
+                    aria-label={`Menge der Position ${index + 1}`}
+                  />
+                  <Select
+                    items={units.map((u) => ({ value: u.code, label: u.label }))}
+                    value={item.unit}
+                    onValueChange={(unit) => update(index, { unit })}
+                    aria-label={`Einheit der Position ${index + 1}`}
+                  />
+                  <Input
+                    align="right"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={item.unitPrice}
+                    onChange={(e) => update(index, { unitPrice: e.target.value })}
+                    aria-label={`Einzelpreis der Position ${index + 1}`}
+                  />
+                  <Select
+                    items={[TAX_RATE_STANDARD, TAX_RATE_REDUCED, TAX_RATE_NONE].map((rate) => ({
+                      value: rate,
+                      label: formatTaxRate(rate),
+                    }))}
+                    value={item.taxRate}
+                    onValueChange={(taxRate) => update(index, { taxRate })}
+                    aria-label={`Umsatzsteuersatz der Position ${index + 1}`}
+                  />
+                  <span className="text-right num text-body text-ink">
+                    {formatCents(
+                      Math.round(
+                        (parseCents(item.unitPrice) ?? 0) *
+                          (Number(item.quantity.replace(',', '.')) || 0),
+                      ),
+                    )}
+                  </span>
+                  {items.length > 1 ? (
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      iconOnly
+                      title="Position entfernen"
+                      aria-label={`Position ${index + 1} entfernen`}
+                      onClick={() => setItems((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                    </Button>
+                  ) : (
+                    <span />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
+        </>
+      )}
+    </Dialog>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/**
+ * Der Versandvermerk. Buchfink versendet nicht selbst; wer im Streitfall den
+ * Zugang belegen muss, braucht festgehalten, wann und wie der Anwender die
+ * Rechnung versendet hat.
+ */
+const SentDialog: React.FC<{
+  invoice: Invoice | null;
+  options: InvoiceSentViaOption[];
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ invoice, options, onClose, onDone }) => {
+  const writeLock = usePostingLock();
+  const [date, setDate] = useState(todayISO());
+  const [via, setVia] = useState<InvoiceSentVia>('email');
+  const [note, setNote] = useState('');
+  // Der Vermerk hat kein Pflichtfeld: Datum und Weg sind vorbelegt. Was hier
+  // schiefgeht, kommt aus dem Backend und gehört auf die Hinweisfläche (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!invoice) return;
+    setDate(invoice.sentAt || todayISO());
+    setVia(invoice.sentVia ?? 'email');
+    setNote(invoice.sentNote ?? '');
+    setFailure(null);
+  }, [invoice]);
+
+  async function submit() {
+    setFailure(null);
+    setBusy(true);
+    try {
+      await Api.markInvoiceSent(invoice!.id, date, via, note);
+      // Kein Toast: Der Versandvermerk steht nach dem Schließen in der Zeile
+      // der Rechnung (§8.5).
+      onDone();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={invoice !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title="Als versendet vermerken"
+      width="max-w-lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Vermerken
+          </Button>
+        </>
+      }
+    >
+      {invoice && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Versendet am">
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
+            <Field
+              label="Weg"
+              explain="Buchfink verschickt nichts. Der Vermerk ist der Nachweis, dass die Rechnung den Empfänger erreicht hat — § 14 Abs. 1 UStG kennt sie als Abrechnung gegenüber dem Empfänger."
+            >
+              <Select
+                items={options.map((o) => ({ value: o.via, label: o.label }))}
+                value={via}
+                onValueChange={setVia}
+              />
+            </Field>
+          </div>
+          <Field label="Vermerk" optional className="mt-4">
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="An buchhaltung@kunde.de"
+            />
+          </Field>
+
+          {failure && <Notice tone="negative" text={failure} className="mt-6" />}
+        </>
+      )}
+    </Dialog>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/** Der Grund einer Lücke im Nummernkreis — die Frage der Betriebsprüfung. */
+const GapReasonDialog: React.FC<{
+  gap: { sequence: number; number: string } | null;
+  reasons: NumberGapReasonOption[];
+  year: number;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ gap, reasons, year, onClose, onDone }) => {
+  const writeLock = usePostingLock();
+  const [reason, setReason] = useState<NumberGapReason>('aborted');
+  const [detail, setDetail] = useState('');
+  // Der Grund kommt aus einer Auswahl mit Voreinstellung, der Vermerk ist
+  // freiwillig: es gibt keine Pflichtangabe, die am Feld fehlen könnte. Was
+  // zurückkommt, ist die Ablehnung des Backends (§10.4).
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!gap) return;
+    setReason('aborted');
+    setDetail('');
+    setFailure(null);
+  }, [gap]);
+
+  async function submit() {
+    setFailure(null);
+    setBusy(true);
+    try {
+      await Api.recordInvoiceNumberGapReason(year, gap!.sequence, reason, detail);
+      // Kein Toast: Der Grund steht danach in der Zeile des Lückenberichts
+      // (§8.5).
+      onDone();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={gap !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title={`Lücke ${gap?.number ?? ''} begründen`}
+      width="max-w-lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={submit}
+          >
+            Grund festhalten
+          </Button>
+        </>
+      }
+    >
+      <Field label="Grund">
+        <Select
+          items={reasons.map((o) => ({ value: o.reason, label: o.label }))}
+          value={reason}
+          onValueChange={setReason}
+        />
+      </Field>
+      <Field label="Vermerk" optional className="mt-4">
+        <Input
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          placeholder="Abbruch beim Erzeugen des Dokuments"
+        />
+      </Field>
+
+      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };

@@ -1,0 +1,239 @@
+package domain
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+)
+
+// CheckSeverity ist das Gewicht eines Befundes.
+//
+// Zwei Stufen, und der Unterschied ist keine Geschmacksfrage: ein blockierender
+// Befund verhindert die Festschreibung, ein Hinweis nicht. Eine dritte Stufe
+// „Info" gäbe es nur, damit etwas in der Liste steht, was niemand liest.
+type CheckSeverity string
+
+const (
+	// CheckBlocking verhindert die Festschreibung, solange er nicht behoben oder
+	// mit Begründung übergangen wird.
+	CheckBlocking CheckSeverity = "blocking"
+	// CheckWarning ist ein Hinweis: die Festschreibung geht durch.
+	CheckWarning CheckSeverity = "warning"
+)
+
+// Die Regelschlüssel der Prüfläufe. Sie stehen in der Datenbank und dürfen sich
+// deshalb nicht mehr ändern.
+const (
+	CheckRuleEntryWithoutReceipt = "entry_without_receipt"
+	CheckRuleReceiptUnbooked     = "receipt_unbooked"
+	CheckRuleReceiptOverdue      = "receipt_overdue"
+	CheckRuleBankUnmatched       = "bank_unmatched"
+	CheckRuleInterimBalance      = "interim_balance"
+	CheckRuleDuplicateReceipt    = "duplicate_receipt"
+	CheckRuleDuplicatePayment    = "duplicate_payment"
+	CheckRuleNumberGap           = "number_gap"
+	CheckRuleAccountUnmapped     = "account_unmapped"
+	CheckRuleDepreciationMissing = "depreciation_missing"
+	CheckRuleVatReturnMissing    = "vat_return_missing"
+	CheckRuleCommitOverdue       = "commit_overdue"
+	// CheckRulePeriodNotCommitted meldet einen Monat, der zwei Monate nach
+	// seinem Ende immer noch nicht festgeschrieben ist (UNV-02 K2).
+	//
+	// Er steht neben commit_overdue und ersetzt ihn nicht: commit_overdue nennt
+	// den ersten Monat, dessen Frist verstrichen ist — die laufende Arbeit —,
+	// diese Regel den Rückstand. Zwei Monate nach dem Ende ist auch die
+	// Voranmeldung mit Dauerfristverlängerung abgegeben; ein bis dahin nicht
+	// festgeschriebener Monat ist keine Verzögerung mehr, sondern eine Lücke in
+	// der Unveränderbarkeit (GoBD Rz. 107).
+	CheckRulePeriodNotCommitted = "period_not_committed"
+	// CheckRuleProvisionDiscount meldet eine Rückstellung, die nicht mit dem
+	// Satz des Stichtagsmonats abgezinst werden konnte (§ 253 Abs. 2 HGB).
+	CheckRuleProvisionDiscount = "provision_discount"
+	// CheckRuleClosingStepSkipped nennt die Bausteine des Abschlusses, die das
+	// Jahr ausdrücklich übergeht, mit ihrem Grund. Ein übersprungener Schritt
+	// ist keine Fehlbuchung, aber eine Aussage — und sie gehört in den Bericht,
+	// den der Prüfer liest, nicht nur in die Schrittliste des Anwenders.
+	CheckRuleClosingStepSkipped = "closing_step_skipped"
+	// CheckRuleSizeClassChange kündigt den Wechsel der Größenklasse an, der
+	// sich am Abschlussstichtag abzeichnet. Er ist noch keine Rechtsfolge —
+	// § 267 Abs. 4 Satz 1 HGB lässt sie erst am zweiten übereinstimmenden
+	// Stichtag eintreten —, aber Prüferbestellung und Gliederungsumstellung
+	// brauchen Vorlauf.
+	CheckRuleSizeClassChange = "size_class_change"
+	// CheckRuleICSupplyEvidenceMissing meldet eine steuerfreie
+	// innergemeinschaftliche Lieferung ohne vollständigen Belegnachweis
+	// (§§ 17a bis 17c UStDV). Der Nachweis ist bis zur Abgabe der Voranmeldung
+	// des Zeitraums zu führen, in dem die Lieferung ausgeführt wurde; fehlt er,
+	// droht die Steuerpflicht der Lieferung.
+	CheckRuleICSupplyEvidenceMissing = "ic_supply_evidence_missing"
+	// CheckRuleICSupplyUnconfirmed meldet eine steuerfreie ig. Lieferung, deren
+	// USt-IdNr. beim Ausstellen nicht bestätigt werden konnte — der Folgebefund
+	// zu jeder dokumentierten Übersteuerung.
+	CheckRuleICSupplyUnconfirmed = "ic_supply_unconfirmed"
+	// CheckRuleServiceProofMissing meldet einen Eingangsbeleg über der
+	// eingestellten Grenze (CompanySettings.InvoiceCheckThreshold), an dem der
+	// Leistungsnachweis fehlt (RECH-08).
+	//
+	// Ein Hinweis und keine Sperre: die Grenze ist eine Vorgabe des internen
+	// Kontrollsystems und keine Rechtspflicht, und der Vermerk entsteht
+	// regelmäßig erst beim oder nach dem Buchen. Er gehört trotzdem in den
+	// Prüfbericht — sonst fällt eine Rechnung über zehntausend Euro, die
+	// niemand sachlich geprüft hat, weder im Monatsabschluss noch im
+	// Prüferpaket auf.
+	CheckRuleServiceProofMissing = "service_proof_missing"
+)
+
+// CheckFinding ist ein einzelner Befund eines Prüflaufs.
+type CheckFinding struct {
+	ID         uint          `gorm:"primaryKey" json:"id"`
+	CheckRunID uint          `gorm:"index;not null" json:"checkRunId"`
+	Rule       string        `gorm:"size:40;not null;index" json:"rule"`
+	Severity   CheckSeverity `gorm:"size:20;not null;index" json:"severity"`
+
+	// ObjectType und ObjectID zeigen auf das Bezugsobjekt, damit die Oberfläche
+	// einen Knopf „hin dazu" anbieten kann. Ein Befund, den man nicht anspringen
+	// kann, ist eine Hausaufgabe ohne Adresse.
+	ObjectType string `gorm:"size:30" json:"objectType,omitempty"`
+	ObjectID   string `gorm:"size:50" json:"objectId,omitempty"`
+	ObjectName string `gorm:"size:120" json:"objectName,omitempty"`
+
+	Message   string `gorm:"size:500;not null" json:"message"`
+	Reference string `gorm:"size:120" json:"reference,omitempty"`
+}
+
+// CheckRun ist ein Prüflauf über einen Zeitraum bis zu einem Stichtag.
+//
+// Er wird gespeichert und nicht nur angezeigt: die Festschreibung richtet sich nach ihm,
+// und wenn ein blockierender Befund übergangen wurde, muss später nachvollziehbar
+// sein, welcher und mit welcher Begründung (GoBD Rz. 34 ff., IKS).
+type CheckRun struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	FiscalYear int    `gorm:"index;not null" json:"fiscalYear"`
+	CutoffDate string `gorm:"size:10;not null;index" json:"cutoffDate"`
+	// PeriodType ist der Anlass: "month", "quarter", "year" oder "" für einen
+	// Lauf ohne bevorstehende Festschreibung.
+	PeriodType string `gorm:"size:10" json:"periodType,omitempty"`
+
+	CheckedEntries  int `json:"checkedEntries"`
+	CheckedReceipts int `json:"checkedReceipts"`
+	CheckedBankTx   int `json:"checkedBankTx"`
+
+	// Timeliness sind die Abstände Belegdatum → Erfassung → Festschreibung als
+	// Kennzahlen des Laufs. Eingebettet und nicht als eigene Tabelle: sie
+	// gehören zu diesem einen Lauf und werden nie ohne ihn gelesen.
+	Timeliness CheckTimeliness `gorm:"embedded;embeddedPrefix:timeliness_" json:"timeliness"`
+
+	// OverrideReason ist die Pflichtbegründung, mit der ein blockierender Befund
+	// übergangen wurde. Leer heißt: es wurde nichts übergangen.
+	OverrideReason string `gorm:"size:500" json:"overrideReason,omitempty"`
+
+	Findings  []CheckFinding `gorm:"foreignKey:CheckRunID;constraint:OnDelete:CASCADE" json:"findings"`
+	CreatedAt time.Time      `json:"createdAt"`
+}
+
+// CheckTimeliness sind die Abstände, an denen sich die zeitgerechte Erfassung
+// und die zeitgerechte Festschreibung ablesen lassen.
+//
+// Sie stehen als Kennzahlen am Prüflauf und nicht nur als Spalten im
+// Journalexport: der Export beantwortet die Frage je Buchung, der Prüflauf die
+// Frage über den Zeitraum — „wie lange liegen Belege im Schnitt, bevor sie
+// gebucht werden" ist die Frage, die GoBD Rz. 47 stellt, und sie lässt sich an
+// einer einzelnen Zeile nicht beantworten.
+//
+// Median und nicht Mittelwert: ein einzelner nachgetragener Altbeleg mit
+// dreihundert Tagen zöge den Mittelwert so weit hoch, dass die Kennzahl über
+// den Regelfall nichts mehr sagt. Das Maximum steht daneben, damit der Ausreißer
+// trotzdem sichtbar bleibt.
+type CheckTimeliness struct {
+	// MeasuredEntries ist die Zahl der Buchungen, deren Erfassungsabstand
+	// gemessen werden konnte (Belegdatum und Erfassungszeitpunkt belegt).
+	MeasuredEntries int `json:"measuredEntries"`
+	// CaptureDaysMedian und CaptureDaysMax sind Median und Maximum der Tage
+	// zwischen Belegdatum und Erfassung.
+	CaptureDaysMedian int `json:"captureDaysMedian"`
+	CaptureDaysMax    int `json:"captureDaysMax"`
+	// CaptureLimitDays ist die Erfassungsfrist, gegen die gemessen wurde
+	// (Einstellung, Vorgabe zehn Tage nach GoBD Rz. 47); LateEntries die Zahl
+	// der Buchungen darüber.
+	CaptureLimitDays int `json:"captureLimitDays"`
+	LateEntries      int `json:"lateEntries"`
+
+	// CommittedEntries ist die Zahl der festgeschriebenen Buchungen im Lauf,
+	// CommitDaysMedian und CommitDaysMax der Abstand Erfassung →
+	// Festschreibung. OpenEntries sind die noch nicht festgeschriebenen.
+	CommittedEntries   int `json:"committedEntries"`
+	CommitDaysMedian   int `json:"commitDaysMedian"`
+	CommitDaysMax      int `json:"commitDaysMax"`
+	UncommittedEntries int `json:"uncommittedEntries"`
+}
+
+// EnsureLists ersetzt eine nicht belegte Befundliste durch eine leere.
+//
+// Der Lauf geht als JSON an die Oberfläche, und ein nil-Slice wird dort zu
+// `null`. Der Festschreibungsdialog liest `findings.length` — ausgerechnet der
+// saubere Lauf ohne Befund brächte ihn zu Fall, und die Festschreibung wäre über
+// die Oberfläche nicht mehr möglich.
+func (r *CheckRun) EnsureLists() {
+	if r.Findings == nil {
+		r.Findings = make([]CheckFinding, 0)
+	}
+}
+
+// Blocking liefert die blockierenden Befunde.
+func (r *CheckRun) Blocking() []CheckFinding {
+	out := make([]CheckFinding, 0, len(r.Findings))
+	for _, f := range r.Findings {
+		if f.Severity == CheckBlocking {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// HasBlocking meldet, ob der Lauf die Festschreibung verhindert.
+func (r *CheckRun) HasBlocking() bool { return len(r.Blocking()) > 0 }
+
+// Warnings liefert die Hinweise.
+func (r *CheckRun) Warnings() []CheckFinding {
+	out := make([]CheckFinding, 0, len(r.Findings))
+	for _, f := range r.Findings {
+		if f.Severity == CheckWarning {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// BlockingSummary fasst die blockierenden Befunde für eine Fehlermeldung
+// zusammen: die ersten drei im Wortlaut, der Rest gezählt.
+//
+// Eine Meldung, die zwanzig Befunde aufzählt, wird nicht gelesen; eine, die nur
+// „es gibt Befunde" sagt, hilft nicht weiter.
+func (r *CheckRun) BlockingSummary() string {
+	blocking := r.Blocking()
+	if len(blocking) == 0 {
+		return ""
+	}
+	shown := make([]string, 0, 3)
+	for _, f := range blocking {
+		if len(shown) == 3 {
+			break
+		}
+		shown = append(shown, f.Message)
+	}
+	out := strings.Join(shown, "; ")
+	if len(blocking) > len(shown) {
+		out += fmt.Sprintf(" und %d weitere", len(blocking)-len(shown))
+	}
+	return out
+}
+
+// CheckRunRepository persistiert die Prüfläufe.
+type CheckRunRepository interface {
+	Create(ctx context.Context, run *CheckRun) error
+	FindByFiscalYear(ctx context.Context, fiscalYear int) ([]CheckRun, error)
+	FindByID(ctx context.Context, id uint) (*CheckRun, error)
+	// Latest liefert den jüngsten Lauf eines Geschäftsjahres oder nil.
+	Latest(ctx context.Context, fiscalYear int) (*CheckRun, error)
+}

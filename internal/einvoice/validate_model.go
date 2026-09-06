@@ -68,7 +68,7 @@ func (v *validator) checkParties() {
 
 	// BR-CO-26: ohne Kennung ist der Lieferant maschinell nicht zuzuordnen.
 	if !inv.Seller.Identified() {
-		v.fail("BR-CO-26", "Der Verkäufer trägt keine Kennung: weder eine Nummer (BT-29), noch eine Registernummer (BT-30), noch eine USt-IdNr. (BT-31)")
+		v.fail("BR-CO-26", "Der Verkäufer hat keine Kennung: weder eine Nummer (BT-29), noch eine Registernummer (BT-30), noch eine USt-IdNr. (BT-31)")
 	}
 
 	// BR-62 und BR-63: eine elektronische Adresse ohne Schema ist nicht
@@ -93,7 +93,7 @@ func (v *validator) checkParties() {
 	// BR-17: ein vom Verkäufer verschiedener Zahlungsempfänger braucht einen
 	// Namen. Ohne ihn weiß der Erwerber nicht, an wen er zahlen soll.
 	if payee := inv.Payee; payee != nil && v.payeeDiffersFromSeller(payee) && payee.Name == "" {
-		v.fail("BR-17", "Der Zahlungsempfänger (BG-10) weicht vom Verkäufer ab, trägt aber keinen Namen (BT-59)")
+		v.fail("BR-17", "Der Zahlungsempfänger (BG-10) weicht vom Verkäufer ab, hat aber keinen Namen (BT-59)")
 	}
 
 	// BR-18 bis BR-20 und BR-56: der Steuervertreter ist vollständig zu nennen
@@ -165,7 +165,7 @@ func (v *validator) checkDelivery() {
 // checkPeriods covers BR-29, BR-30, BR-CO-19 and BR-CO-20.
 func (v *validator) checkPeriods() {
 	if p := v.inv.Period; p != nil {
-		// Ein Zeitraum, der allein den Schlüssel des Steuerzeitpunkts trägt,
+		// Ein Zeitraum, der allein den Schlüssel des Steuerzeitpunkts hat,
 		// ist zulässig: der Aussteller sagt damit, woran die Steuer hängt, ohne
 		// einen Zeitraum zu behaupten.
 		if !p.Start.Present() && !p.End.Present() && strings.TrimSpace(p.DescriptionCode) == "" {

@@ -13,8 +13,8 @@ func TestUnusableProfilesAreRefused(t *testing.T) {
 		}
 	}
 	// Dieselben zwei Profile werden auch unter der ZUGFeRD-Kennung ausgestellt.
-	// Ein Wächter, der nur eine Schreibweise kennt, lässt genau die Dokumente
-	// durch, die er aufhalten soll.
+	// Ein Wächter, der nur eine Schreibweise kennt, lässt die Dokumente durch,
+	// die er aufhalten soll.
 	for _, profile := range []string{
 		"urn:zugferd.de:2p0:minimum", "urn:zugferd.de:2p0:basicwl",
 		"urn:zugferd.de:2p1:minimum", "urn:zugferd.de:2p1:basicwl",
@@ -34,7 +34,7 @@ func TestUnusableProfilesAreRefused(t *testing.T) {
 }
 
 // Der Rechnungstyp entscheidet über das Vorzeichen der Buchung. Eine Gutschrift
-// trägt positive Beträge und sagt nur hier, was sie ist.
+// hat positive Beträge und sagt nur hier, was sie ist.
 func TestDocumentKindFollowsTheTypeCode(t *testing.T) {
 	cases := map[string]DocumentKind{
 		"380": KindInvoice,

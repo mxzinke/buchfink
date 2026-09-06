@@ -1,0 +1,42 @@
+{
+  "version": "2026.1",
+  "validFrom": "2025-01-01",
+  "source": "§ 257 Abs. 1 und 4 HGB, § 147 Abs. 1 und 3 AO; Viertes Bürokratieentlastungsgesetz vom 23. Oktober 2024",
+  "note": "Der Fristbeginn ist der Schluss des Kalenderjahres, in dem die letzte Eintragung gemacht oder der Beleg entstanden ist (§ 257 Abs. 5 HGB, § 147 Abs. 4 AO). Der letzte Aufbewahrungstag ist der 31.12. des Jahres Entstehungsjahr + Frist; gelöscht werden darf ab dem Tag danach.",
+  "classes": [
+    {
+      "class": "books",
+      "label": "Handelsbücher und Abschlüsse",
+      "years": 10,
+      "legalBasis": "§ 257 Abs. 1 Nr. 1, Abs. 4 HGB; § 147 Abs. 1 Nr. 1, Abs. 3 AO",
+      "kinds": [
+        "journal",
+        "festschreibung",
+        "closing",
+        "vat_return",
+        "inventory",
+        "organisation",
+        "asset_document"
+      ]
+    },
+    {
+      "class": "vouchers",
+      "label": "Buchungsbelege und Rechnungen",
+      "years": 8,
+      "legalBasis": "§ 257 Abs. 1 Nr. 4, Abs. 4 HGB; § 147 Abs. 1 Nr. 4, Abs. 3 AO",
+      "kinds": ["receipt_invoice", "receipt_statement", "receipt_self_issued"],
+      "previous": {
+        "years": 10,
+        "replacedFrom": "2025-01-01",
+        "note": "Das Vierte Bürokratieentlastungsgesetz hat die Frist zum 1.1.2025 von zehn auf acht Jahre verkürzt; die Verkürzung wirkt auf die an diesem Tag noch laufenden Fristen. War die alte Frist vorher schon abgelaufen, bleibt es bei ihr."
+      }
+    },
+    {
+      "class": "letters",
+      "label": "Handelsbriefe und sonstige Unterlagen",
+      "years": 6,
+      "legalBasis": "§ 257 Abs. 1 Nr. 2 und 3, Abs. 4 HGB; § 147 Abs. 1 Nr. 2, 3 und 5, Abs. 3 AO",
+      "kinds": ["receipt_letter", "receipt_other"]
+    }
+  ]
+}

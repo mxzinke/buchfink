@@ -12,13 +12,6 @@ export const POPUP =
   'data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-1 ' +
   'data-[ending-style]:opacity-0 data-[ending-style]:duration-120';
 
-/** Dunkle Sprechblase für die Tooltip-Stufe (§15.2). */
-export const TOOLTIP_POPUP =
-  'rounded-control bg-ink px-2.5 py-1.5 text-caption text-paper max-w-[260px] ' +
-  'transition-[opacity,transform] duration-180 ease-quiet ' +
-  'data-[starting-style]:opacity-0 data-[starting-style]:-translate-y-1 ' +
-  'data-[ending-style]:opacity-0 data-[ending-style]:duration-120';
-
 /** Eintrag in Menü, Auswahlliste und Kontosuche. */
 export const POPUP_ITEM =
   'flex items-center gap-2 px-3 h-8 text-body text-ink cursor-default select-none outline-none ' +

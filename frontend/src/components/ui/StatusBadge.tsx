@@ -17,7 +17,14 @@ export type Status =
   | 'festgeschrieben'
   | 'ueberfaellig'
   | 'storniert'
-  | 'fehlerhaft';
+  | 'fehlerhaft'
+  // Die Stände des Jahresabschlusses. Sie beschreiben nicht dieselbe Sache wie
+  // „Festgeschrieben": festgeschrieben ist der Zeitraum, festgestellt ist der
+  // Abschluss, und beschlossen haben ihn die Gesellschafter (§ 42a Abs. 2
+  // GmbHG). Ein gemeinsames Wort für beides würde den Beschluss unterschlagen.
+  | 'aufgestellt'
+  | 'festgestellt'
+  | 'offengelegt';
 
 type Tone = 'neutral' | 'attention' | 'attentionOutline' | 'positive' | 'negative';
 
@@ -52,15 +59,31 @@ const STATUS: Record<Status, { label: string; tone: Tone; lock?: boolean }> = {
   ueberfaellig: { label: 'Überfällig', tone: 'negative' },
   storniert: { label: 'Storniert', tone: 'negative' },
   fehlerhaft: { label: 'Fehlerhaft', tone: 'negative' },
+  aufgestellt: { label: 'Aufgestellt', tone: 'neutral' },
+  // Ab der Feststellung nimmt das Geschäftsjahr keine Buchung mehr auf; das
+  // Schloss steht für dieselbe Sperre wie neben der Jahreszahl (§11.5).
+  festgestellt: { label: 'Festgestellt', tone: 'positive', lock: true },
+  offengelegt: { label: 'Offengelegt', tone: 'positive', lock: true },
 };
 
 export interface StatusBadgeProps {
   status: Status;
+  /**
+   * Der Bezug einer Gegenbuchung: „Storno zu RE-2024-014" (§11.2). Er tritt an
+   * die Stelle des Statusworts.
+   *
+   * Das Vokabular des §11.3 wächst dadurch nicht: eine Gegenbuchung hat keinen
+   * eigenen Zustand, sie nennt den Vorgang, den sie zurücknimmt — die Farbe
+   * kommt weiter aus `status`. Der Bezug steht hier und nicht als
+   * nachgebautes Abzeichen in der Seite, sonst hat jede Ansicht ihre eigene
+   * Kopie desselben Musters.
+   */
+  reference?: string;
   className?: string;
 }
 
 /** Der Marker ist eine Raute, kein Punkt. Vier definierte Kanten, eine Achse. */
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, reference, className }) => {
   const { label, tone, lock } = STATUS[status];
   const style = TONE[tone];
 
@@ -78,7 +101,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       ) : (
         <span className={cn('mark-diamond', style.mark)} aria-hidden="true" />
       )}
-      {label}
+      {reference ?? label}
     </span>
   );
 };

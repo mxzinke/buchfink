@@ -37,6 +37,29 @@ func ReceiptHash(r *domain.Receipt) string {
 		w.put("sha256", f.SHA256)
 	}
 
+	// Die Kopfdaten des Belegs, mit einer Weiche für den Altbestand.
+	//
+	// Sie gehören gedeckt: Belegdatum, Aussteller und Betrag sind das, woran ein
+	// Beleg erkannt wird, und ein Beleg, dessen Betrag sich nach dem Buchen
+	// ändern lässt, belegt nichts. Zusätzliche Felder in der Kanonisierung
+	// änderten aber den Hash jedes bestehenden Belegs — und damit den
+	// ReceiptHash in jeder Buchung, die auf ihn zeigt, und damit deren
+	// Eigenhash: die Kette der gesamten Buchhaltung wäre gebrochen.
+	//
+	// Die Weiche löst das wie in der Journalkanonisierung: ein Beleg ohne
+	// Belegdatum stammt aus der Zeit vor den Kopfdaten und wird nach der
+	// bisherigen Form gehasht, ein Beleg mit Belegdatum nach der neuen. Welche
+	// Form gilt, steht am Beleg selbst.
+	if r.HasHeader() {
+		w.put("document_date", r.DocumentDate)
+		w.put("issuer", r.IssuerName)
+		w.putInt("gross", int64(r.GrossAmount))
+		w.putInt("tax", int64(r.TaxAmount))
+		w.put("currency", r.Currency)
+		w.put("subject", r.Subject)
+		w.put("kind", string(r.Kind))
+	}
+
 	sum := sha256.Sum256(w.bytes())
 	return hex.EncodeToString(sum[:])
 }

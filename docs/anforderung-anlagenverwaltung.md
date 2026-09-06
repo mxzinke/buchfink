@@ -1,5 +1,8 @@
 # Buchfink – Anlagenverwaltung
 
+Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-02,
+BEW-03, BEW-04, BEW-05, BEW-06, BEW-10, JAB-05
+
 Status: umgesetzt
 Letzte Aktualisierung: 2026-08-28
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
@@ -16,8 +19,9 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
 > gesetze-im-internet.de verifiziert — der ursprüngliche Bestand am **22.08.2026**,
 > die Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und
-> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen in
-> [Abschnitt 11](#11-quellen). Die AfA-Regeln ändern sich häufig – vor der
+> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen im
+> Anforderungskatalog unter BEW-02 bis BEW-06 und BEW-10, die übrigen in
+> [Abschnitt 11](#11-fundstellen). Die AfA-Regeln ändern sich häufig – vor der
 > Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
 
 ## 1. Die erste Frage ist nicht die AfA-Methode
@@ -95,18 +99,16 @@ negativ, bei der aufnehmenden positiv, über alle Positionen zusammen null.
 
 ## 3. Planmäßige Abschreibung
 
-| Methode | Grundlage | Anmerkung |
-|---|---|---|
-| **Linear** | § 7 Abs. 1 EStG | Standard; gleichmäßig über die betriebsgewöhnliche Nutzungsdauer |
-| **Degressiv** | § 7 Abs. 2 EStG | höchstens das Dreifache des linearen Prozentsatzes und höchstens 30 %; nur für bewegliche Wirtschaftsgüter, die nach dem 30.06.2025 und vor dem 01.01.2028 angeschafft wurden |
-| **Sonderabschreibung** | § 7g Abs. 5 EStG | bis zu 40 % der Anschaffungskosten, verteilbar auf das Anschaffungsjahr und die vier Folgejahre; Gewinn des Vorjahres höchstens 200.000 € (§ 7g Abs. 6 i. V. m. Abs. 1 Satz 2 Nr. 1 EStG) |
+Die zulässigen Methoden – linear, degressiv mit ihren Zeitfenstern und die
+Sonderabschreibung nach § 7g EStG – stehen mit Fundstellen im Anforderungskatalog
+unter BEW-04.
 
-**Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG). Eine
-im September angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
+**Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat. Eine im September
+angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
 
-Der **Übergang von degressiv auf linear** ist zulässig (§ 7 Abs. 3 EStG) und lohnt sich
-ab dem Jahr, in dem die lineare Restwert-AfA höher wäre. Die Software sollte den
-optimalen Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
+Der **Übergang von degressiv auf linear** ist zulässig und lohnt sich ab dem Jahr, in
+dem die lineare Restwert-AfA höher wäre. Die Software sollte den optimalen
+Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
 
 **Die Sonderabschreibung tritt neben die planmäßige AfA**, sie ersetzt sie nicht: § 7g
 Abs. 5 EStG lässt sie „neben den Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2"
@@ -126,7 +128,7 @@ Begünstigt sind außerdem nur **bewegliche** Wirtschaftsgüter – ein Gebäude
 Sachanlage wie eine Maschine und bekommt sie trotzdem nicht. Woran das erkennbar ist,
 weiß allein der Kontenkatalog.
 
-**Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen. Ein hinterlegter Katalog der
+**Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen (BEW-04). Ein hinterlegter Katalog der
 gängigen Fälle wäre nützlich; er ist aber kein Gesetz, sondern eine Verwaltungsanweisung
 und muss überschreibbar bleiben.
 
@@ -209,7 +211,7 @@ sonst keinen Ort — und das ist der Grund, warum sie hier stehen.
 
 **Dokumente.** Der Kaufvertrag, das Gutachten, der Fahrzeugbrief, die Police. Der Beleg
 zur Anschaffung liegt im Belegkreis, mit Belegnummer und in der Journalkette; ein Vertrag
-ist nichts davon. Er trägt keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
+ist nichts davon. Er hat keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
 gebucht — und erklärt die Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
 Ihn in das Belegmodell zu zwingen hieße, ihm eine Belegnummer zu geben, die nie in einer
 Buchung auftaucht. Der Ablageweg ist trotzdem derselbe: inhaltsadressiert unter dem
@@ -244,13 +246,13 @@ geschieht nichts, also wird nichts gebucht — festgehalten wird sie trotzdem, w
 Abgang wieder abzuziehen ist. Ohne diese Fortschreibung könnte das später niemand mehr
 rekonstruieren.
 
-**Die Höhe der Teilfreistellung hängt am Anleger, und aus der Rechtsform folgt sie nicht.**
+**Die Höhe der Teilfreistellung richtet sich nach dem Anleger, nicht nach der Rechtsform.**
 Das ist die Stelle, an der eine Ableitung still falsch rechnete:
 
 - Eine GmbH & Co. KG ist keine Körperschaft. Ihre Gesellschafter können welche sein oder
   natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem
   Gesellschafter — für die Gesellschaft als Ganzes gibt es dann keinen.
-- Auch eine Kapitalgesellschaft trägt nicht immer 80 %: für Lebens- und
+- Auch eine Kapitalgesellschaft hat nicht immer 80 %: für Lebens- und
   Krankenversicherungsunternehmen, für Institute nach § 8b Abs. 7 KStG mit Handelsbestand
   und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die erhöhten Sätze zurück.
 - Die Immobilienteilfreistellung kennt die Staffelung gar nicht: 60 % bzw. 80 % gelten für
@@ -260,14 +262,14 @@ Gefragt wird sie deshalb — aber nicht als eigene Frage. Die **Rechtsform** ste
 in den Stammdaten, und aus ihr folgt die Anlegerstellung in den allermeisten Fällen
 eindeutig: eine GmbH, eine AG, eine eG unterliegen dem KStG; ein Einzelunternehmen und
 eine freiberufliche Praxis werden von einer natürlichen Person geführt. Sie ist deshalb
-kein Freitextfeld mehr, sondern eine Auswahl, und unter ihr steht in einem Halbsatz, was
-sie für Investmentanteile bedeutet.
+eine Auswahl, kein Freitextfeld mehr, und unter ihr steht in einem Halbsatz, was sie für
+Investmentanteile bedeutet.
 
 Offen bleibt sie nur bei einer **Personengesellschaft** — dort fragt Buchfink nach, weil
 § 20 Abs. 3a InvStG auf den Gesellschafter abstellt. Und für die Ausnahmen des
 § 20 Abs. 1 Sätze 4 und 5 gibt es eine Festlegung, die die Ableitung schlägt; sie liegt
 hinter „abweichend festlegen" und ist normalerweise unsichtbar. Fehlt die Angabe, wo sie
-gebraucht wird, rechnet Buchfink nicht, sondern sagt, was zu entscheiden ist.
+gebraucht wird, sagt Buchfink, was zu entscheiden ist, statt selbst zu rechnen.
 
 Auch der **Basiszins** wird nicht mitgeliefert: er steht nicht im Gesetz. § 18 Abs. 4
 InvStG lässt ihn die Bundesbank auf den ersten Börsentag des Jahres errechnen, das
@@ -296,7 +298,7 @@ HGB). Kleine Kapitalgesellschaften sind davon befreit – die Erleichterung steh
 **§ 288 Abs. 1 Nr. 1 HGB**, nicht in § 274a HGB, der nur § 268 Abs. 4/5/6 und § 274
 betrifft.
 
-Er ist keine zusätzliche Buchung, sondern eine Auswertung – aber eine, die nur
+Er ist eine Auswertung, keine zusätzliche Buchung – aber eine, die nur
 funktioniert, wenn Zugänge, Abgänge und kumulierte AfA je Anlagegut über die Jahre
 erhalten bleiben. Das ist eine Anforderung an das Datenmodell, nicht an den Report:
 **die Anlagenkartei muss jahresübergreifend geführt werden**, während das Journal pro
@@ -308,10 +310,10 @@ Je Anlagegut: Bezeichnung, Inventarnummer, Anlagekonto, Anschaffungsdatum,
 Anschaffungskosten, Nutzungsdauer, AfA-Methode, Sonderabschreibungen, Abgangsdatum,
 Abgangsart. Dazu eine Historie der AfA-Buchungen mit Verweis auf den Journaleintrag.
 
-Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen tragen: vom
+Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen gelten: vom
 Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 
-Dazu zwei Dinge, die keine Buchung tragen. Die **Dokumente** hängen als eigene Tabelle am
+Dazu zwei Dinge, zu denen keine Buchung gehört. Die **Dokumente** hängen als eigene Tabelle am
 Anlagegut (`asset_documents`) und verweisen auf eine Datei im inhaltsadressierten
 Speicher — dieselbe Ablage wie für die Belege, ein anderer Zweig darin. Und die Bewegung
 kennt neben den beiden Wertspalten einen **steuerlichen Betrag**: die Vorabpauschale wird
@@ -364,8 +366,8 @@ Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
 - **Erhaltungsaufwand und laufende Erträge:** beide werden gebucht und mit dem
   Anlagegut verknüpft, ohne seinen Buchwert anzurühren — genau das unterscheidet
   den Erhaltungsaufwand von den nachträglichen Herstellungskosten und die
-  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen tragen null in
-  beiden Wertspalten und erscheinen deshalb nicht im Anlagenspiegel. Das
+  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen haben in
+  beiden Wertspalten den Wert null und erscheinen deshalb nicht im Anlagenspiegel. Das
   Aufwandskonto folgt aus dem Anlagekonto, das Ertragskonto aus der Art der
   Finanzanlage; die einbehaltene Kapitalertragsteuer mindert den Zufluss und
   nicht den Ertrag.
@@ -437,14 +439,14 @@ Bewusst nicht abgebildet:
   Monats- und Quartalsfestschreibungen prüfen nicht — dort ist die AfA nicht fällig.
 - Der **Zahlungsflow** fragt die Kartei über eine Schnittstelle mit zwei Methoden,
   bevor er ein Skonto bucht (`AssetRegister` in `internal/service/payment_service.go`).
-  Er soll Anlagegüter nicht verwalten können, sondern nur erkennen, dass eine
-  Rechnung eine war. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
+  Er soll nur erkennen, dass eine Rechnung eine war, und nicht Anlagegüter
+  verwalten können. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
   bisher — eine fehlende Verdrahtung darf keine Zahlung scheitern lassen.
 - Die **Dokumentenablage** ist derselbe inhaltsadressierte Speicher wie für die
   Belege (`internal/receiptstore`), unter einem eigenen Zweig `dokumente/`. Sie
   wird beim Mandantenwechsel verdrahtet; fehlt sie, nimmt die Kartei keine
   Dokumente auf und funktioniert im Übrigen weiter.
-- Die **Stammdaten** tragen die Rechtsform, aus der die Anlegerstellung für
+- Die **Stammdaten** enthalten die Rechtsform, aus der die Anlegerstellung für
   § 20 InvStG folgt (`domain.LegalFormCatalog` und
   `CompanySettings.InvestorTypeOrDerived`). Gelesen wird sie nur über diese
   eine Ableitung; ein zweiter Aufruf, der das Feld direkt nähme, verdoppelte
@@ -458,32 +460,17 @@ Bewusst nicht abgebildet:
   Kontennachweis führt, und sind vor der Übermittlung gegen die amtliche
   Taxonomie zu prüfen; die Zahlen darin stammen aus der Buchführung.
 
-## 11. Quellen
+## 11. Fundstellen
 
-Stand der Prüfung: 22.08.2026 für den ursprünglichen Bestand, 28.08.2026 für die
-Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und für das
-Investmentsteuergesetz. Volltexte über gesetze-im-internet.de.
+Die Normen zu Anschaffungs- und Herstellungskosten (BEW-02), zur
+Anlagenbuchhaltung und zum Anlagenspiegel (BEW-03, JAB-05), zu den Abschreibungen
+(BEW-04), zu geringwertigen Wirtschaftsgütern und Sammelposten (BEW-05), zum
+Verzeichnis steuerlicher Wahlrechte (BEW-06) und zur Fremdwährung (BEW-10) stehen
+mit Fundstellen im Anforderungskatalog. Was der Katalog nicht führt, steht hier —
+geprüft am 28.08.2026 gegen die Volltexte auf gesetze-im-internet.de:
 
 | Aussage im Dokument | Fundstelle | Link |
 |---|---|---|
-| GWG-Grenze 800 € (netto), Sofortabzug | § 6 Abs. 2 Satz 1 EStG | [estg/__6.html](https://www.gesetze-im-internet.de/estg/__6.html) |
-| Verzeichnispflicht ab 250 €, Entbehrlichkeit bei Ersichtlichkeit aus der Buchführung | § 6 Abs. 2 Sätze 4 und 5 EStG | dito |
-| Sammelposten 250 € bis 1.000 €, Auflösung über fünf Jahre, Wahlrecht einheitlich je Wirtschaftsjahr | § 6 Abs. 2a Sätze 1 bis 5 EStG | dito |
-| Anschaffungskosten = Anschaffungspreis + Nebenkosten − Minderungen | § 255 Abs. 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
-| Lineare AfA über die betriebsgewöhnliche Nutzungsdauer | § 7 Abs. 1 Sätze 1 und 2 EStG | [estg/__7.html](https://www.gesetze-im-internet.de/estg/__7.html) |
-| Zeitanteilige AfA ab dem Anschaffungsmonat (pro rata temporis) | § 7 Abs. 1 Satz 4 EStG | dito |
-| Degressive AfA: höchstens das Dreifache des linearen Satzes, höchstens 30 %, Anschaffung nach dem 30.06.2025 und vor dem 01.01.2028 | § 7 Abs. 2 Sätze 1 und 2 EStG | dito |
-| Übergang degressiv → linear zulässig | § 7 Abs. 3 EStG | dito |
-| Sonderabschreibung bis 40 %, im Jahr der Anschaffung und den vier folgenden, **neben** der AfA nach § 7 Abs. 1 **oder Abs. 2** | § 7g Abs. 5 EStG | [estg/__7g.html](https://www.gesetze-im-internet.de/estg/__7g.html) |
-| Nur abnutzbare **bewegliche** Wirtschaftsgüter des Anlagevermögens | § 7g Abs. 5 EStG | dito |
-| Gewinngrenze des Vorjahres und fast ausschließlich betriebliche Nutzung im Jahr der Anschaffung und im folgenden | § 7g Abs. 6 Nr. 1 und 2 EStG | dito |
-| Allgemeine Regel: neben Sonderabschreibungen AfA nach § 7 Abs. 1 oder 4 — von § 7g Abs. 5 EStG verdrängt | § 7a Abs. 4 EStG | [estg/__7a.html](https://www.gesetze-im-internet.de/estg/__7a.html) |
-| Nach Ablauf des Begünstigungszeitraums AfA „nach dem Restwert und der Restnutzungsdauer" | § 7a Abs. 9 EStG | dito |
-| Herstellungskosten sind Aufwendungen für die Erweiterung oder eine über den ursprünglichen Zustand hinausgehende wesentliche Verbesserung | § 255 Abs. 2 Satz 1 HGB | [hgb/__255.html](https://www.gesetze-im-internet.de/hgb/__255.html) |
-| Anschaffungspreisminderungen sind abzusetzen (Skonto auf eine Anlage) | § 255 Abs. 1 Satz 3 HGB | dito |
-| Vermögensgegenstände höchstens mit den Anschaffungskosten, vermindert um Abschreibungen | § 253 Abs. 1 Satz 1 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
-| Fremdwährungsposten zum Devisenkassamittelkurs am Abschlussstichtag; die Ausnahme gilt nur bei einer Restlaufzeit von höchstens einem Jahr | § 256a HGB | [hgb/__256a.html](https://www.gesetze-im-internet.de/hgb/__256a.html) |
-| Berichtigung der Bemessungsgrundlage bei Skonto | § 17 Abs. 1 UStG | [ustg_1980/__17.html](https://www.gesetze-im-internet.de/ustg_1980/__17.html) |
 | Investmenterträge sind Ausschüttungen, Vorabpauschalen und Veräußerungsgewinne | § 16 Abs. 1 InvStG | [invstg_2018/__16.html](https://www.gesetze-im-internet.de/invstg_2018/__16.html) |
 | Vorabpauschale: Basisertrag = Rücknahmepreis zu Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs | § 18 Abs. 1 InvStG | [invstg_2018/__18.html](https://www.gesetze-im-internet.de/invstg_2018/__18.html) |
 | Kürzung um ein Zwölftel je vollem Monat vor dem Erwerb; Zufluss am ersten Werktag des Folgejahres | § 18 Abs. 2 und 3 InvStG | dito |
@@ -494,8 +481,6 @@ Investmentsteuergesetz. Volltexte über gesetze-im-internet.de.
 | Immobilienfonds 60 %, Auslands-Immobilienfonds 80 %; schließt die Aktienteilfreistellung aus | § 20 Abs. 3 InvStG | dito |
 | Bei mittelbarem Halten über Personengesellschaften bestimmt der Gesellschafter den Satz | § 20 Abs. 3a InvStG | dito |
 | Aufbewahrung von Verträgen und Handelsbriefen | § 147 Abs. 1 AO | [ao_1977/__147.html](https://www.gesetze-im-internet.de/ao_1977/__147.html) |
-| Außerplanmäßige Abschreibung bei voraussichtlich dauernder Wertminderung | § 253 Abs. 3 Satz 5 HGB | [hgb/__253.html](https://www.gesetze-im-internet.de/hgb/__253.html) |
-| Anlagenspiegel als Anhangbestandteil | § 284 Abs. 3 HGB | [hgb/__284.html](https://www.gesetze-im-internet.de/hgb/__284.html) |
 | Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |
 
 **Korrektur gegenüber einer früheren Fassung dieses Dokuments:** die Befreiung

@@ -1,15 +1,15 @@
 /**
  * Die Schale (§16): dunkler Grund für Vollbild-Schirme vor dem Arbeitsbereich —
  * Start, Einrichtung, Wiederherstellung. Dort gibt es kein Papier, also drehen
- * sich die Rollen um: Die Primäraktion trägt die hellste Fläche, nicht die
+ * sich die Rollen um: Die Primäraktion hat die hellste Fläche, nicht die
  * dunkelste.
  *
  * Es sind Klassenbündel und keine Komponenten, weil auf diesen Schirmen jeweils
  * nur ein oder zwei Bedienelemente stehen und ein eigener Bausteinsatz für die
- * Schale mehr kosten würde, als er trägt.
+ * Schale mehr kosten würde, als er nützt.
  */
 
-/** Erhöhte Fläche auf der Schale. Trägt Rand und Fläche zusammen (§6.1). */
+/** Erhöhte Fläche auf der Schale. Fasst Rand und Fläche zusammen (§6.1). */
 export const SHELL_PANEL = 'rounded-overlay border border-shell-line bg-shell/90 backdrop-blur-xl';
 
 const SHELL_BUTTON_BASE =

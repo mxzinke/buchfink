@@ -109,7 +109,7 @@ Klartext.
 | `Amount`, `TaxBase` (für SQL-Summen) | Gegenpartei-IBAN und Verwendungszweck (Bank-Tx) |
 | `PreviousHash`, `EntryHash`, `ReceiptHash` | Kontakt-/Stammdaten-PII, Rechnungs-Freitext, Stornogrund |
 
-Heute tragen 31 Felder das Tag `serializer:encrypted`; die aktuelle Liste findet
+Heute haben 31 Felder das Tag `serializer:encrypted`; die aktuelle Liste findet
 sich mit `grep -rn 'serializer:encrypted' internal/domain`.
 
 Konsequenz: Beträge bleiben lesbar (nötig für `CalculateAccountSums`/`CalculateTypeSums`).

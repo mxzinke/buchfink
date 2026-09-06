@@ -21,7 +21,7 @@ func NewNumberRangeRepository(db *gorm.DB) domain.NumberRangeRepository {
 
 func (r *numberRangeRepositoryGorm) Allocate(ctx context.Context, key domain.NumberRangeKey, fiscalYear int) (int64, error) {
 	var seq int64
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var err error
 		seq, err = allocateNumber(tx, key, fiscalYear)
 		return err
@@ -31,7 +31,7 @@ func (r *numberRangeRepositoryGorm) Allocate(ctx context.Context, key domain.Num
 
 func (r *numberRangeRepositoryGorm) Peek(ctx context.Context, key domain.NumberRangeKey, fiscalYear int) (int64, error) {
 	var rec domain.NumberRange
-	err := r.db.WithContext(ctx).
+	err := dbFrom(ctx, r.db).
 		Where("key = ? AND fiscal_year = ?", key, fiscalYear).
 		First(&rec).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

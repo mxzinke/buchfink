@@ -66,7 +66,7 @@ func TestExplicitChoiceBeatsTheLegalForm(t *testing.T) {
 	}
 }
 
-// Jeder Katalogeintrag trägt eine Begründung, und jede abgeleitete
+// Jeder Katalogeintrag hat eine Begründung, und jede abgeleitete
 // Anlegerstellung ist eine gültige.
 func TestLegalFormCatalogIsComplete(t *testing.T) {
 	for _, form := range LegalFormCatalog() {

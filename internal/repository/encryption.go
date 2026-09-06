@@ -34,6 +34,39 @@ func currentVault() *security.Vault {
 	return activeVault
 }
 
+// vaultOverrideKey adressiert den an einen Kontext gebundenen Schlüsselbund.
+type vaultOverrideKey struct{}
+
+// vaultOverride ist die Hülle um den gebundenen Schlüsselbund. Sie wird
+// gebraucht, damit sich „kein Schlüsselbund gebunden" von „ausdrücklich ohne
+// Schlüsselbund lesen" unterscheiden lässt: das zweite ist der Klartextfall
+// eines Mandanten ohne Keyfile und darf nicht auf den prozessweiten Schlüssel
+// des gerade offenen Mandanten zurückfallen.
+type vaultOverride struct{ vault *security.Vault }
+
+// WithVault bindet einen Schlüsselbund an einen Kontext. Alle Lese- und
+// Schreibvorgänge, die mit diesem Kontext laufen, benutzen ihn statt des
+// prozessweiten.
+//
+// Das ist der Weg, auf dem die Sicherungsprüfung eine fremde Datenbank liest:
+// sie öffnet den Schlüsselbund aus der Sicherung selbst. Ohne ihn entschlüsselte
+// sie mit dem Schlüssel des gerade offenen Mandanten, scheiterte und meldete
+// eine heile Sicherung als beschädigt. Ein prozessweiter Wechsel wäre keine
+// Lösung: er zöge jeden gleichzeitigen Lesevorgang mit.
+func WithVault(ctx context.Context, vault *security.Vault) context.Context {
+	return context.WithValue(ctx, vaultOverrideKey{}, vaultOverride{vault: vault})
+}
+
+// vaultFor liefert den Schlüsselbund, mit dem dieser Vorgang arbeitet.
+func vaultFor(ctx context.Context) *security.Vault {
+	if ctx != nil {
+		if override, ok := ctx.Value(vaultOverrideKey{}).(vaultOverride); ok {
+			return override.vault
+		}
+	}
+	return currentVault()
+}
+
 // EncryptedSerializer transparently encrypts string fields tagged with
 // `serializer:encrypted` using the active tenant vault (AES-256-GCM). When no
 // vault is active it passes values through unchanged, so the same schema works
@@ -45,12 +78,12 @@ func currentVault() *security.Vault {
 type EncryptedSerializer struct{}
 
 // Value is called when writing to the database: it encrypts the plaintext field.
-func (EncryptedSerializer) Value(_ context.Context, _ *schema.Field, _ reflect.Value, fieldValue interface{}) (interface{}, error) {
+func (EncryptedSerializer) Value(ctx context.Context, _ *schema.Field, _ reflect.Value, fieldValue interface{}) (interface{}, error) {
 	plaintext, ok := asString(fieldValue)
 	if !ok {
 		return fieldValue, nil
 	}
-	v := currentVault()
+	v := vaultFor(ctx)
 	if v == nil {
 		return plaintext, nil
 	}
@@ -58,7 +91,7 @@ func (EncryptedSerializer) Value(_ context.Context, _ *schema.Field, _ reflect.V
 }
 
 // Scan is called when reading from the database: it decrypts back to plaintext.
-func (EncryptedSerializer) Scan(_ context.Context, field *schema.Field, dst reflect.Value, dbValue interface{}) error {
+func (EncryptedSerializer) Scan(ctx context.Context, field *schema.Field, dst reflect.Value, dbValue interface{}) error {
 	if dbValue == nil {
 		return nil
 	}
@@ -68,7 +101,7 @@ func (EncryptedSerializer) Scan(_ context.Context, field *schema.Field, dst refl
 	}
 
 	plaintext := stored
-	if v := currentVault(); v != nil && stored != "" {
+	if v := vaultFor(ctx); v != nil && stored != "" {
 		dec, err := v.DecryptString(stored)
 		if err != nil {
 			return fmt.Errorf("decrypt field %s: %w", field.Name, err)
@@ -95,3 +128,9 @@ func asString(v interface{}) (string, bool) {
 func init() {
 	schema.RegisterSerializer("encrypted", EncryptedSerializer{})
 }
+
+// VaultForTest legt offen, welchen Schlüsselbund ein Kontext bindet.
+//
+// Nur für Tests: sie sollen prüfen können, dass eine Sicherungsprüfung
+// ausdrücklich ohne Schlüssel liest, und nicht bloß, dass sie nicht abstürzt.
+func VaultForTest(ctx context.Context) *security.Vault { return vaultFor(ctx) }

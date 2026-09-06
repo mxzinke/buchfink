@@ -21,9 +21,9 @@
 //
 // Das ist der Aufbau der Norm selbst: ihre Geschäftsregeln stehen in einem
 // abstrakten Regelsatz über dem semantischen Modell, und jede Syntax liefert
-// nur die Bindungen. Ihm zu folgen hat einen handfesten Ertrag — dieselbe
-// Rechnung wird gleich beurteilt, egal in welcher Schreibweise sie ankommt, und
-// das ist nachgewiesen und nicht behauptet (siehe die Rundlauftests).
+// nur die Bindungen. Ihm zu folgen hat einen handfesten Ertrag — die Prüfung
+// beurteilt dieselbe Rechnung gleich, egal in welcher Schreibweise sie ankommt,
+// und das ist nachgewiesen und nicht behauptet (siehe die Rundlauftests).
 //
 // # Was es nicht tut
 //
@@ -49,14 +49,14 @@
 //
 // [RulesChecked], [RulesUnchecked] und [Rule] machen den Umfang abfragbar
 // statt behauptbar. Zwei Tests halten ihn ehrlich: einer schlägt fehl, wenn
-// eine Regel zugesagt wird, die es in der Norm nicht gibt, der andere, wenn
-// eine zugesagte Regel nirgends gemeldet wird.
+// Buchfink eine Regel zusagt, die es in der Norm nicht gibt, der andere, wenn
+// keine Prüfung eine zugesagte Regel meldet.
 //
 // # Abhängigkeiten
 //
-// Das Paket hängt an nichts aus dem übrigen Buchfink. Es bringt seine eigene
+// Das Paket braucht nichts aus dem übrigen Buchfink. Es bringt seine eigene
 // Zahlenschicht mit ([Amount], [Cents]), weil Beträge in einer Rechnung nicht
-// alle zweistellig sind: Einzelpreise und Steuersätze tragen legitim mehr
+// alle zweistellig sind: Einzelpreise und Steuersätze haben legitim mehr
 // Nachkommastellen, und ein Satz von 8,375 %, vorher auf zwei Stellen gerundet,
 // liegt je Position ein bis zwei Cent daneben.
 package einvoice

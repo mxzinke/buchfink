@@ -3,6 +3,9 @@ package domain
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -54,15 +57,192 @@ func FormatJournalNumber(fiscalYear int, seq int64) string {
 	return fmt.Sprintf("%d-%06d", fiscalYear, seq)
 }
 
+// DefaultReceiptNumberFormat ist die Voreinstellung des Belegnummernkreises.
+//
+// Einstellbar aus demselben Grund wie das Rechnungsnummernformat (BEL-02 K4):
+// wer seine Belege bisher „BE-2026-0001" oder „2026/AD/0017" genannt hat, führt
+// diese Systematik fort — sonst hat derselbe Beleg in der Ablage eine andere
+// Nummer als im Ordner daneben, und die Verweise der alten Buchhaltung laufen
+// ins Leere. Die gewählte Systematik gehört in die Verfahrensdokumentation und
+// steht deshalb als Einstellung und nicht im Code.
+//
+// Bestehende Nummern bleiben gültig: vergeben wird nach dem Format, das beim
+// Ablegen galt, und gelesen wird mit beiden Wegen (siehe ParseReceiptSequence).
+const DefaultReceiptNumberFormat = "ER-{JAHR}-{NR:4}"
+
 // FormatReceiptNumber renders an Eingangsbeleg number, e.g. "ER-2026-0001".
 func FormatReceiptNumber(fiscalYear int, seq int64) string {
-	return fmt.Sprintf("ER-%d-%04d", fiscalYear, seq)
+	return FormatReceiptNumberWith(DefaultReceiptNumberFormat, fiscalYear, seq)
+}
+
+// FormatReceiptNumberWith rendert eine Belegnummer aus einem eingestellten
+// Format.
+//
+// Dieselben Platzhalter und dieselbe Prüfung wie beim Rechnungsnummernkreis:
+// zwei Nummernkreise mit zwei Formatsprachen wären zwei Stellen, an denen
+// dieselbe Frage verschieden beantwortet wird.
+func FormatReceiptNumberWith(format string, fiscalYear int, seq int64) string {
+	if ValidateNumberFormat(format) != nil {
+		format = DefaultReceiptNumberFormat
+	}
+	return FormatInvoiceNumberWith(format, fiscalYear, seq)
+}
+
+// ParseReceiptSequence liest den Zähler aus einer Belegnummer zurück.
+//
+// Der Lückenbericht braucht die Umkehrung, und er braucht sie auch für Nummern
+// aus einem früher eingestellten Format — deshalb derselbe zweistufige Weg wie
+// bei der Rechnungsnummer: erst der Ausdruck aus dem heutigen Format, dann die
+// Heuristik. Eine nicht gelesene Nummer wäre im Bericht eine Lücke, die es
+// nicht gibt.
+func ParseReceiptSequence(number string, fiscalYear int, format string) (int64, bool) {
+	if strings.TrimSpace(format) == "" {
+		format = DefaultReceiptNumberFormat
+	}
+	return ParseInvoiceSequence(number, fiscalYear, format)
 }
 
 // FormatInvoiceNumber renders an Ausgangsrechnung number, e.g. "RE-2026-0001".
 func FormatInvoiceNumber(fiscalYear int, seq int64) string {
-	return fmt.Sprintf("RE-%d-%04d", fiscalYear, seq)
+	return FormatInvoiceNumberWith(DefaultInvoiceNumberFormat, fiscalYear, seq)
 }
+
+// DefaultInvoiceNumberFormat ist die Voreinstellung des Nummernkreises.
+//
+// Das Format ist einstellbar (Einstellung `invoice_number_format`), weil ein
+// Mandant mit vorhandener Buchhaltung seine Systematik fortführen muss: eine
+// neue Software, die bei RE-2026-0001 anfängt, während die alte bei 2026-0473
+// stand, produziert doppelte Nummern. Die gewählte Systematik gehört in die
+// Verfahrensdokumentation — deshalb steht sie als Einstellung und nicht im Code.
+const DefaultInvoiceNumberFormat = "RE-{JAHR}-{NR:4}"
+
+// FormatInvoiceNumberWith renders a number from a configured format.
+//
+// Zwei Platzhalter: `{JAHR}` das Geschäftsjahr, `{NR:n}` der Zähler mit n
+// führenden Nullen (`{NR}` ohne Auffüllung). Ein Format ohne `{NR}` wäre kein
+// Nummernkreis — jede Rechnung hieße gleich —, deshalb wird es abgewiesen und
+// nicht stillschweigend ergänzt.
+func FormatInvoiceNumberWith(format string, fiscalYear int, seq int64) string {
+	if err := ValidateInvoiceNumberFormat(format); err != nil {
+		format = DefaultInvoiceNumberFormat
+	}
+	out := strings.ReplaceAll(format, "{JAHR}", fmt.Sprintf("%d", fiscalYear))
+	out = numberPlaceholder.ReplaceAllStringFunc(out, func(match string) string {
+		digits := numberPlaceholder.FindStringSubmatch(match)[1]
+		if digits == "" {
+			return fmt.Sprintf("%d", seq)
+		}
+		width, err := strconv.Atoi(digits)
+		if err != nil || width <= 0 {
+			return fmt.Sprintf("%d", seq)
+		}
+		return fmt.Sprintf("%0*d", width, seq)
+	})
+	return out
+}
+
+var numberPlaceholder = regexp.MustCompile(`\{NR(?::(\d+))?\}`)
+
+// ValidateInvoiceNumberFormat rejects a format that could not produce a unique,
+// consecutive number (§ 14 Abs. 4 Nr. 4 UStG).
+func ValidateInvoiceNumberFormat(format string) error { return ValidateNumberFormat(format) }
+
+// ValidateNumberFormat ist dieselbe Prüfung ohne den Rechnungsbezug im Namen.
+//
+// Der Belegnummernkreis stellt dieselben Anforderungen wie der
+// Rechnungsnummernkreis — er stützt sie nur auf § 146 Abs. 1 AO und GoBD Rz. 36
+// statt auf § 14 Abs. 4 Nr. 4 UStG. Zwei Prüfungen daraus zu machen hieße, die
+// zweite beim nächsten Platzhalter zu vergessen.
+func ValidateNumberFormat(format string) error {
+	if strings.TrimSpace(format) == "" {
+		return fmt.Errorf("das Nummernformat ist leer")
+	}
+	if !numberPlaceholder.MatchString(format) {
+		return fmt.Errorf(
+			"im Nummernformat %q fehlt der Platzhalter {NR} für den Zähler. Ohne ihn hätte jeder Vorgang dieselbe Nummer",
+			format)
+	}
+	if len(format) > 40 {
+		return fmt.Errorf("das Nummernformat ist länger als 40 Zeichen und passt nicht in das Belegfeld")
+	}
+	return nil
+}
+
+// ParseInvoiceSequence reads the counter value back out of a formatted number.
+//
+// Der Lückenbericht braucht die Umkehrung: er vergleicht die vergebenen Nummern
+// mit dem Stand des Zählers, und dafür muss aus „RE-2026-0007" die 7 werden.
+//
+// Gelesen wird mit dem Nummernformat und nicht nach Gefühl. Vorher suchte die
+// Umkehrung „die längste Ziffernfolge, die nicht das Geschäftsjahr ist"; ein
+// Format ohne Trennzeichen zwischen den Platzhaltern — `{JAHR}{NR:4}` ist
+// zulässig — ergibt aber „20260007", also eine einzige Ziffernfolge, die nicht
+// das Jahr ist. Der Bericht las daraus den Zähler 20260007 und meldete jede
+// vergebene Nummer als Lücke.
+//
+// Nummern aus einem früher eingestellten Format passen nicht auf den heutigen
+// Ausdruck. Für sie bleibt die alte Heuristik als zweiter Weg: sie ist ungenau,
+// aber eine nicht gelesene Nummer wäre im Bericht eine Lücke, die es nicht gibt
+// — und die Betriebsprüfung fragt nach genau diesen Zeilen.
+func ParseInvoiceSequence(number string, fiscalYear int, format string) (int64, bool) {
+	if pattern := invoiceNumberPattern(format, fiscalYear); pattern != nil {
+		if match := pattern.FindStringSubmatch(number); match != nil {
+			if seq, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+				return seq, true
+			}
+		}
+	}
+	year := fmt.Sprintf("%d", fiscalYear)
+	groups := digitRun.FindAllString(number, -1)
+	for i := len(groups) - 1; i >= 0; i-- {
+		if groups[i] == year {
+			continue
+		}
+		seq, err := strconv.ParseInt(groups[i], 10, 64)
+		if err != nil {
+			continue
+		}
+		return seq, true
+	}
+	return 0, false
+}
+
+// invoiceNumberPattern baut aus dem Nummernformat den Ausdruck, der eine Nummer
+// wieder zerlegt: `{JAHR}` wird zum Geschäftsjahr, `{NR:n}` zur Fangklammer um
+// den Zähler, alles andere bleibt wörtlich. Der Zähler wird bewusst nicht auf
+// die Stellenzahl des Formats festgelegt — er läuft über sie hinaus, sobald das
+// Jahr mehr Rechnungen hat, als die Auffüllung vorsieht.
+func invoiceNumberPattern(format string, fiscalYear int) *regexp.Regexp {
+	if ValidateInvoiceNumberFormat(format) != nil {
+		format = DefaultInvoiceNumberFormat
+	}
+	var expr strings.Builder
+	expr.WriteString("^")
+	rest := strings.ReplaceAll(format, "{JAHR}", fmt.Sprintf("%d", fiscalYear))
+	for {
+		loc := numberPlaceholder.FindStringIndex(rest)
+		if loc == nil {
+			break
+		}
+		expr.WriteString(regexp.QuoteMeta(rest[:loc[0]]))
+		expr.WriteString(`(\d+)`)
+		rest = rest[loc[1]:]
+	}
+	expr.WriteString(regexp.QuoteMeta(rest))
+	expr.WriteString("$")
+	pattern, err := regexp.Compile(expr.String())
+	if err != nil {
+		return nil
+	}
+	// Mehr als eine Fangklammer hieße mehr als ein Zähler in einer Nummer; die
+	// Umkehrung wäre dann nicht eindeutig, und geraten wird hier nicht.
+	if pattern.NumSubexp() != 1 {
+		return nil
+	}
+	return pattern
+}
+
+var digitRun = regexp.MustCompile(`\d+`)
 
 // FormatLedgerAccount renders a Personenkonto number from a sequence value.
 func FormatLedgerAccount(kind ContactType, seq int64) (string, error) {

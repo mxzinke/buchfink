@@ -42,10 +42,18 @@ type Account struct {
 	RangeStart         string      `gorm:"size:10;index" json:"rangeStart"`
 	RangeEnd           string      `gorm:"size:10;index" json:"rangeEnd"`
 	IsReserved         bool        `gorm:"default:false" json:"isReserved"`
-	Description        string      `gorm:"type:text" json:"description"` // User or DATEV explanation
-	IsActive           bool        `gorm:"default:true" json:"isActive"`
-	CreatedAt          time.Time   `json:"createdAt"`
-	UpdatedAt          time.Time   `json:"updatedAt"`
+	// IsCustom markiert ein selbst angelegtes Konto (BEL-06 K2).
+	//
+	// Es steht am Konto und nicht in einer Liste daneben, weil die Herkunft
+	// eines Kontos eine Aussage über den Kontenplan ist: ein Prüfer, der die
+	// Abweichung vom Standardkontenrahmen sehen will, muss sie sehen können,
+	// und die Kontenübersicht soll ein selbst angelegtes Konto sperren dürfen,
+	// ohne ein Konto des SKR04 anzurühren.
+	IsCustom    bool      `gorm:"default:false;index" json:"isCustom"`
+	Description string    `gorm:"type:text" json:"description"` // User or DATEV explanation
+	IsActive    bool      `gorm:"default:true" json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 
 	// Dynamic calculated balances (not persisted directly in table)
 	DebitSum      Cents `gorm:"-" json:"debitSum"`
@@ -95,8 +103,13 @@ type AccountLedgerRow struct {
 
 // AccountLedger is the Kontoblatt of a single account.
 type AccountLedger struct {
-	Account        Account            `json:"account"`
-	FiscalYear     int                `json:"fiscalYear"`
+	Account    Account `json:"account"`
+	FiscalYear int     `json:"fiscalYear"`
+	// From und To sind die Grenzen des ausgewerteten Zeitraums. Leer heißt: das
+	// ganze Geschäftsjahr. Sie stehen im Ergebnis, weil ein Kontoblatt ohne
+	// seinen Zeitraum eine Zahlenreihe ohne Aussage ist.
+	From           string             `json:"from,omitempty"`
+	To             string             `json:"to,omitempty"`
 	OpeningBalance Cents              `json:"openingBalance"`
 	TotalDebit     Cents              `json:"totalDebit"`
 	TotalCredit    Cents              `json:"totalCredit"`
@@ -119,7 +132,10 @@ type SuSaClassSummary struct {
 
 // SuSaOverview represents the Summen- und Saldenliste (Soll-Haben-Übersicht).
 type SuSaOverview struct {
-	FiscalYear       int                `json:"fiscalYear"`
+	FiscalYear int `json:"fiscalYear"`
+	// Cutoff ist der Stichtag, bis zu dem summiert wurde. Leer heißt: das ganze
+	// Geschäftsjahr.
+	Cutoff           string             `json:"cutoff,omitempty"`
 	TotalDebit       Cents              `json:"totalDebit"`
 	TotalCredit      Cents              `json:"totalCredit"`
 	TotalSaldoDebit  Cents              `json:"totalSaldoDebit"`

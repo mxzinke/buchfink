@@ -27,6 +27,30 @@ type Festschreibung struct {
 	TSAGenTime      *time.Time `json:"tsaGenTime,omitempty"`
 	TimestampStatus string     `gorm:"size:20;default:'pending'" json:"timestampStatus"` // "confirmed" | "pending"
 
+	// TimeDriftNote hält fest, dass die Systemzeit beim Festschreiben von der
+	// Zeit des Zeitstempeldienstes abwich.
+	//
+	// Die beglaubigte Zeit ist die verlässliche; die Systemuhr des Rechners
+	// kann falsch gehen, und dann haben alle Buchungen und Protokolleinträge
+	// dieses Rechners eine Zeit, die es nicht gab. Der Vergleich kostet nichts
+	// — die beglaubigte Zeit kommt ohnehin zurück —, und ohne ihn fiele eine
+	// verstellte Uhr erst dem Prüfer auf. Leer heißt: keine nennenswerte
+	// Abweichung oder kein Zeitstempel.
+	TimeDriftNote string `gorm:"size:255" json:"timeDriftNote,omitempty"`
+
+	// AppVersion und Actor sagen, welche Fassung des Programms und welche
+	// Bearbeiterin festgeschrieben hat. Die Festschreibung ist der Vorgang, der
+	// die Aufzeichnungen unveränderbar stellt; wer ihn ausgelöst hat, gehört zu
+	// ihm (GoBD Rz. 34).
+	AppVersion string `gorm:"size:60" json:"appVersion,omitempty"`
+	Actor      string `gorm:"size:120" json:"actor,omitempty"`
+
+	// EntriesStamped ist die Zahl der Buchungen, die mit dieser Festschreibung
+	// ihren Festschreibungszeitpunkt bekommen haben. Sie ist kleiner als
+	// EntryCount, sobald eine frühere Festschreibung schon einen Teil des
+	// Jahres festgestellt hat.
+	EntriesStamped int `json:"entriesStamped"`
+
 	CreatedAt time.Time `json:"createdAt"`
 }
 

@@ -209,6 +209,19 @@
     color: var(--color-accent-text);
   }
 
+  /* Was man drücken kann, zeigt den Zeigefinger. Tailwind setzt seit Fassung 4
+     `cursor: default` auf Knöpfe — damit sah die Navigation aus wie Text, und
+     zwar überall dort, wo ein Knopf kein `Button` ist: Navigationseinträge,
+     Tabellenzeilen mit eigener Auslösung, das Erklärzeichen. Die Regel steht
+     deshalb hier und nicht in jedem Baustein einzeln. Gesperrte Knöpfe behalten
+     ihren eigenen Zeiger, den die Bausteine mit `disabled:cursor-not-allowed`
+     setzen. */
+  button:not(:disabled):not([aria-disabled='true']),
+  summary,
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
   /* Ein sichtbarer Fokus ist Pflicht, die Anwendung wird mit der Tastatur
      bedient. `accent` erreicht als Marker 3,3:1 auf Papier. */
   :focus-visible {

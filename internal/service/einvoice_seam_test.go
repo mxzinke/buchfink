@@ -12,8 +12,8 @@ import (
 // Der Buchungspfad kommt ohne das E-Rechnungsmodul aus.
 //
 // Kein Test in dieser Datei erzeugt oder liest ein XML. Was der Buchungspfad
-// von einer empfangenen Rechnung braucht, wird von Hand hingeschrieben — und
-// genau das ist der Sinn der Schnittstelle: die Buchungsregeln lassen sich
+// von einer empfangenen Rechnung braucht, schreiben die Tests von Hand hin —
+// das ist der Sinn der Schnittstelle: die Buchungsregeln lassen sich
 // prüfen, ohne dass ein Format im Spiel ist, und das Modul lässt sich prüfen,
 // ohne dass ein Konto im Spiel ist.
 
@@ -69,6 +69,10 @@ func (e *testEnv) filedReceipt(t *testing.T) *domain.Receipt {
 	ctx := context.Background()
 
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: e.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{
@@ -131,7 +135,7 @@ func TestProposalIsBuiltFromTheInterface(t *testing.T) {
 	}
 }
 
-// Der Steuerfall wird gedreht — auch das ohne jedes Dokument.
+// Der Test dreht den Steuerfall durch — auch das ohne jedes Dokument.
 func TestTreatmentIsDerivedFromTheCategoryAlone(t *testing.T) {
 	cases := []struct {
 		category string
@@ -170,7 +174,7 @@ func TestTreatmentIsDerivedFromTheCategoryAlone(t *testing.T) {
 	}
 }
 
-// Eine Gutschrift trägt positive Beträge und sagt nur im Rechnungstyp, was sie
+// Eine Gutschrift hat positive Beträge und sagt nur im Rechnungstyp, was sie
 // ist. Sie als Eingangsrechnung vorzuschlagen dreht das Vorzeichen der
 // Vorsteuer und eröffnet einen offenen Posten, wo einer zu schließen wäre — und
 // es sähe richtig aus.
@@ -205,6 +209,10 @@ func TestEnclosuresBecomeReceiptFiles(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{
@@ -257,6 +265,10 @@ func TestUnreadableRecordLeavesTheReceiptUnchanged(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{
@@ -277,7 +289,7 @@ func TestUnreadableRecordLeavesTheReceiptUnchanged(t *testing.T) {
 		t.Fatalf("Beleg laden: %v", err)
 	}
 	if _, ok := after.FileByRole(domain.ReceiptRoleStructured); ok {
-		t.Error("der Beleg trägt einen strukturierten Teil, obwohl das Lesen scheiterte")
+		t.Error("der Beleg hat einen strukturierten Teil, obwohl das Lesen scheiterte")
 	}
 	if len(after.Files) != 1 {
 		t.Errorf("%d Dateien am Beleg, erwartet 1", len(after.Files))

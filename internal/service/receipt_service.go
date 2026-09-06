@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -51,6 +52,21 @@ type FileReceiptRequest struct {
 	ReceivedAt  string `json:"receivedAt,omitempty"`
 	ReceivedVia string `json:"receivedVia,omitempty"`
 
+	// Kind ist die Belegart. Leer heißt Rechnung — der Regelfall darf keine
+	// Eingabe verlangen.
+	Kind domain.ReceiptKind `json:"kind,omitempty"`
+
+	// Die Kopfdaten. Beim Ablegen freiwillig, beim Buchen Pflicht: eine
+	// E-Rechnung liefert sie aus ihrem strukturierten Teil, ein Papierscan
+	// nicht, und ein Beleg, der erst nach einer Eingabe abgelegt werden dürfte,
+	// bliebe liegen — genau das, was GoBD Rz. 131 verhindern will.
+	DocumentDate string       `json:"documentDate,omitempty"`
+	IssuerName   string       `json:"issuerName,omitempty"`
+	GrossAmount  domain.Cents `json:"grossAmount,omitempty"`
+	TaxAmount    domain.Cents `json:"taxAmount,omitempty"`
+	Currency     string       `json:"currency,omitempty"`
+	Subject      string       `json:"subject,omitempty"`
+
 	Files []NewFile `json:"-"`
 }
 
@@ -73,6 +89,20 @@ type ReceiptService struct {
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
 	fiscalYear  int
+	// documents ist die Anlagenkartei, soweit der Belegprüflauf sie braucht.
+	// Optional: ohne sie prüft er die Belege und sagt es.
+	documents DocumentSource
+	// Die drei Anschlüsse des Eigenbelegs (siehe self_issued_receipt.go). Alle
+	// drei sind freiwillig, weil der Belegdienst ohne sie vollständig arbeitet:
+	// er legt ab, gibt heraus und versiegelt. Nur den Eigenbeleg erzeugt er
+	// dann nicht — und sagt es, statt eine leere Datei abzulegen.
+	renderer     DocumentRenderer
+	settingsRepo domain.SettingsRepository
+	numberRepo   domain.NumberRangeRepository
+	// contacts sind die Stammdaten der Geschäftspartner, gegen die die
+	// Klärungsliste die Pflichtangaben des Ausstellers hält (RECH-07 K2).
+	// Freiwillig: ohne sie meldet die Liste den fehlenden Kontakt als Befund.
+	contacts domain.ContactRepository
 }
 
 // NewReceiptService creates the Beleg service.
@@ -113,16 +143,29 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 		return nil, fmt.Errorf("kein Geschäftsjahr gesetzt")
 	}
 
+	kind := req.Kind
+	if kind == "" {
+		kind = domain.ReceiptKindInvoice
+	}
+
 	receipt := &domain.Receipt{
 		FiscalYear:    fiscalYear,
 		ReceiptNumber: req.ReceiptNumber,
 		Direction:     req.Direction,
+		Kind:          kind,
 		Status:        domain.ReceiptStatusFiled,
 		ReceivedAt:    req.ReceivedAt,
 		ReceivedVia:   req.ReceivedVia,
+		DocumentDate:  req.DocumentDate,
+		IssuerName:    req.IssuerName,
+		GrossAmount:   req.GrossAmount,
+		TaxAmount:     req.TaxAmount,
+		Currency:      req.Currency,
+		Subject:       req.Subject,
 	}
+	applyRetention(receipt)
 	if receipt.ReceivedAt == "" && req.Direction == domain.DirectionIncoming {
-		receipt.ReceivedAt = time.Now().Format("2006-01-02")
+		receipt.ReceivedAt = todayLocal()
 	}
 	if receipt.ReceivedVia == "" {
 		if req.Direction == domain.DirectionOutgoing {
@@ -194,10 +237,101 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 	if removed == nil {
 		return nil, fmt.Errorf("die Datei gehört nicht zu Beleg %s", receipt.ReceiptNumber)
 	}
+	// Die empfangene Originaldatei bleibt (BEL-03).
+	//
+	// GoBD Rz. 131 verlangt, eingehende Dokumente in der empfangenen Form
+	// aufzubewahren. Ein Beleg, dessen Original entfernt werden kann, hält
+	// nichts fest: was danach dasteht, ist eine von Buchfink erzeugte
+	// Darstellung oder ein Anhang, und der Nachweis, wie das Dokument
+	// angekommen ist, ist weg. Die Strukturprüfung hätte den Beleg zwar ohnehin
+	// zurückgewiesen — sie verlangt genau eine Datei in der empfangenen Form —,
+	// aber mit einer Meldung über Positionen und Rollen. Hier steht der Grund.
+	if removed.Role == domain.ReceiptRoleOriginal {
+		return nil, fmt.Errorf(
+			"die Originaldatei %s von Beleg %s lässt sich nicht entfernen: eingehende Dokumente sind in der empfangenen Form aufzubewahren (GoBD Rz. 131). "+
+				"Wenn der ganze Beleg nicht gebucht werden soll, verwirf ihn mit einer Begründung",
+			removed.FileName, receipt.ReceiptNumber)
+	}
 
 	// The content itself stays on disk: another Beleg may share it, and the store
 	// is content-addressed precisely so identical files exist once.
-	return s.replaceFiles(ctx, receipt, kept)
+	updated, err := s.replaceFiles(ctx, receipt, kept)
+	if err != nil {
+		return nil, err
+	}
+	// Name und Prüfsumme der entfernten Datei stehen im Protokoll. Ohne sie
+	// bliebe von einer entfernten Datei nichts als die Zahl der verbliebenen,
+	// und die Frage, was da war, ließe sich nicht mehr beantworten.
+	s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
+		"Aus Beleg %s wurde die Datei %s (Rolle %s, SHA256 %s) entfernt",
+		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256))
+	return updated, nil
+}
+
+// applyRetention setzt Aufbewahrungsklasse und Fristende eines Belegs.
+//
+// Beim Ablegen und nicht beim Anzeigen: welche Frist gilt, richtet sich nach dem
+// Entstehungsjahr und dem geltenden Recht, und beides ist zum Zeitpunkt der
+// Ablage bekannt. Später gerechnet käme für denselben Beleg irgendwann eine
+// andere Zahl heraus.
+func applyRetention(receipt *domain.Receipt) {
+	info := accounting.RetentionFor(domain.RetentionKindOf(receipt.Kind), retentionOriginYear(receipt))
+	receipt.RetentionClass = info.Class
+	receipt.RetentionUntil = info.RetentionEnd
+}
+
+// SaveHeader schreibt die Kopfdaten eines abgelegten Belegs nach.
+//
+// Der Weg für den Papierscan: die Datei liegt sofort im Speicher, die Kopfdaten
+// trägt jemand nach, und erst dann ist der Beleg buchbar. Die
+// Aufbewahrungsfrist wird dabei neu bestimmt, weil das Belegdatum sie
+// verschieben kann — eine ausdrücklich verlängerte Frist bleibt aber stehen.
+func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header domain.ReceiptHeader) (*domain.Receipt, error) {
+	receipt, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if header.Kind == "" {
+		header.Kind = receipt.Kind
+	}
+
+	probe := *receipt
+	probe.Kind = header.Kind
+	probe.DocumentDate = header.DocumentDate
+	applyRetention(&probe)
+	header.RetentionClass = probe.RetentionClass
+	header.RetentionUntil = probe.RetentionUntil
+	// Eine verlängerte Frist bleibt verlängert (ARC-01 K2).
+	//
+	// OverrideRetention verlängert nur nach oben; würde die Neuberechnung aus
+	// Belegart und Belegdatum sie hier überschreiben, ließe sich die
+	// Verlängerung über die Kopfdaten stillschweigend zurücknehmen — und
+	// Grund und Zeitpunkt der Verlängerung stünden dann neben einer Frist,
+	// die es nicht mehr gibt. Deshalb gilt bei einem überschriebenen Beleg
+	// das spätere der beiden Enden, und die Klasse folgt dem Ende.
+	if receipt.RetentionOverrideAt != "" && receipt.RetentionUntil > header.RetentionUntil {
+		header.RetentionClass = receipt.RetentionClass
+		header.RetentionUntil = receipt.RetentionUntil
+	}
+
+	updated, err := s.receiptRepo.SaveHeader(ctx, receiptID, header, accounting.ReceiptHash)
+	if err != nil {
+		return nil, err
+	}
+	// Vorher/Nachher und nicht nur Freitext: die Kopfdaten sind die Stammdaten
+	// des Belegs, sie gehen in den Beleg-Hash und damit in den Hash jeder
+	// Buchung, die auf ihn verweist. Wer das Belegdatum eines abgelegten Belegs
+	// ändert, verschiebt seine Aufbewahrungsfrist und die Beurteilung seiner
+	// zeitgerechten Erfassung — beides gehört mit beiden Ständen ins Protokoll
+	// (GoBD Rz. 34).
+	if s.auditRepo != nil {
+		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
+				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
+				updated.RetentionUntil, updated.RetentionClass.Label()),
+			receipt, updated)
+	}
+	return s.Get(ctx, receiptID)
 }
 
 func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Receipt, files []domain.ReceiptFile) (*domain.Receipt, error) {
@@ -215,7 +349,7 @@ func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Recei
 		return nil, err
 	}
 	s.log(ctx, domain.AuditActionUpdate, updated,
-		fmt.Sprintf("Beleg %s trägt jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
+		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
 	return s.Get(ctx, receipt.ID)
 }
 
@@ -252,6 +386,43 @@ func (s *ReceiptService) List(ctx context.Context, status domain.ReceiptStatus) 
 		return s.receiptRepo.FindAll(ctx, s.fiscalYear)
 	}
 	return s.receiptRepo.FindByStatus(ctx, s.fiscalYear, status)
+}
+
+// FindOutgoingByNumber sucht den Ausgangsbeleg zu einer Rechnungsnummer.
+//
+// Gebraucht wird er für den Reparaturweg: legt das Ablegen den Beleg an und
+// scheitert danach das Speichern der Rechnung, steht der Beleg im Speicher,
+// ohne dass die Rechnung ihn kennt. Ein zweiter Versuch dürfte dann keinen
+// zweiten Beleg mit derselben Rechnungsnummer erzeugen — es gibt einen Vorgang,
+// und zu ihm gehört ein Beleg.
+//
+// Verworfene Belege bleiben außen vor: sie sind die ausdrückliche Aussage, dass
+// dieser Beleg nicht gilt.
+func (s *ReceiptService) FindOutgoingByNumber(
+	ctx context.Context, fiscalYear int, number string,
+) (*domain.Receipt, error) {
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return nil, nil
+	}
+	if fiscalYear == 0 {
+		fiscalYear = s.fiscalYear
+	}
+	all, err := s.receiptRepo.FindAll(ctx, fiscalYear)
+	if err != nil {
+		return nil, err
+	}
+	for i := range all {
+		r := &all[i]
+		if r.Direction != domain.DirectionOutgoing || r.ReceiptNumber != number {
+			continue
+		}
+		if r.Status == domain.ReceiptStatusDiscarded {
+			continue
+		}
+		return s.Get(ctx, r.ID)
+	}
+	return nil, nil
 }
 
 // Content returns a stored file for display or for parsing, together with
@@ -300,6 +471,22 @@ func (s *ReceiptService) DisplayContent(ctx context.Context, receiptID uint) (*F
 // Seal marks a Beleg as booked. It runs after the journal write has committed and
 // is idempotent, so a crash in between can be repaired by repeating it.
 func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) error {
+	// Die Kopfdaten sind beim Buchen Pflicht, und das Versiegeln ist das
+	// Buchen: hier bekommt der Beleg seine Buchung (BEL-02).
+	//
+	// Geprüft wird ValidateHeader und nicht das vollständige ValidateBookable:
+	// die Ansehbarkeit, die dort zusätzlich verlangt wird, gilt dem Beleg, den
+	// ein Mensch vor sich hat und bucht (siehe PostingService.BookReceipt).
+	// Ein Eigenbeleg der Abschlussbuchung ist eine JSON-Datei — prüfbar, aber
+	// nicht „ansehbar" —, und ihn hier abzuweisen hieße, die Abschlussbuchung
+	// an einer Regel scheitern zu lassen, die für sie nicht gedacht ist.
+	receipt, err := s.receiptRepo.FindByID(ctx, receiptID)
+	if err != nil {
+		return fmt.Errorf("Beleg %d wurde nicht gefunden: %w", receiptID, err)
+	}
+	if err := receipt.ValidateHeader(); err != nil {
+		return err
+	}
 	if err := s.receiptRepo.Seal(ctx, receiptID, entryID); err != nil {
 		return err
 	}
@@ -313,6 +500,27 @@ func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) erro
 // was found, so that a later run under a newer rule set is comparable.
 func (s *ReceiptService) SaveValidation(ctx context.Context, receiptID uint, result domain.ReceiptValidation) error {
 	return s.receiptRepo.SaveValidation(ctx, receiptID, result)
+}
+
+// SaveInputTaxOverride hält den Grund fest, mit dem ein blockierender Befund der
+// Rechnungsprüfung übersteuert wurde.
+func (s *ReceiptService) SaveInputTaxOverride(ctx context.Context, receiptID uint, reason string) error {
+	if strings.TrimSpace(reason) == "" {
+		return fmt.Errorf("ohne Grund wird nicht übersteuert")
+	}
+	if err := s.receiptRepo.SaveInputTaxOverride(
+		ctx, receiptID, strings.TrimSpace(reason), time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return err
+	}
+	// Ins Protokoll: die Übersteuerung ist eine Entscheidung des Anwenders gegen
+	// eine Prüfung, und solche Entscheidungen gehören nachvollziehbar
+	// festgehalten (GoBD Rz. 36).
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+			"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
+				strings.TrimSpace(reason))
+	}
+	return nil
 }
 
 // Discard retires a filed Beleg. It keeps its number and stays findable.
@@ -376,4 +584,10 @@ func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, rec
 		return
 	}
 	_ = s.auditRepo.Log(ctx, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
+}
+
+// FindByOriginalHash liefert den Beleg zu einer bereits abgelegten
+// Originaldatei, oder nil.
+func (s *ReceiptService) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
+	return s.receiptRepo.FindByOriginalHash(ctx, sha256)
 }

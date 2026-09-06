@@ -64,9 +64,8 @@ func TestKositVerdictsAreMatched(t *testing.T) {
 				}
 				return
 			}
-			// Buchfink hält eine Datei für gültig, die KoSIT verwirft. Das ist
-			// keine falsche Meldung, sondern eine fehlende: der Mangel liegt in
-			// einer Regel, die hier nicht geprüft wird.
+			// Buchfink hält eine Datei für gültig, die KoSIT verwirft. Der Mangel
+			// liegt in einer Regel, die Buchfink hier nicht prüft.
 			t.Errorf("KoSIT verwirft die Datei, Buchfink findet keinen Fehler — vermutlich eine ungeprüfte Regel")
 		})
 	}

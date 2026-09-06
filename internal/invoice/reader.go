@@ -271,7 +271,7 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 	return domain.ReceiptValidation{
 		Format:   string(inv.Syntax),
 		Profile:  inv.Profile(),
-		At:       time.Now().Format("2006-01-02 15:04:05"),
+		At:       time.Now().UTC().Format(time.RFC3339),
 		Ruleset:  strings.Join(result.Rulesets, " + "),
 		Version:  einvoice.RulesetVersion,
 		Coverage: coverage(inv),

@@ -33,7 +33,7 @@ func For(inv *einvoice.Invoice) []einvoice.Ruleset {
 	var layers []einvoice.Ruleset
 
 	// Die Profilprüfung läuft für jedes Dokument, das eine ZUGFeRD-Kennung
-	// trägt — auch für XRechnung, die als ZUGFeRD-Profil ausgeliefert werden
+	// hat — auch für XRechnung, die als ZUGFeRD-Profil ausgeliefert werden
 	// kann. Ein unbekanntes Profil ist kein Grund, nicht zu prüfen: dass die
 	// Kennung unbekannt ist, ist selbst das Ergebnis.
 	layers = append(layers, zugferd.Ruleset())

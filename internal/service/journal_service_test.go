@@ -65,10 +65,20 @@ func newTestEnv(t *testing.T) *testEnv {
 	store := receiptstore.New(dataDir)
 
 	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
+	// Wie in der Anwendung (wailsbridge.initTenant): der Journaldienst kennt die
+	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
+	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es
+	// im Betrieb nicht gibt — und eine Regel, die nur dort gilt, fiele hier nie
+	// auf.
+	journal.SetReceiptRepo(receiptRepo)
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
 	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	// Wie in der Anwendung: die Klärungsliste hält die Pflichtangaben gegen die
+	// Stammdaten des Ausstellers und des eigenen Unternehmens (RECH-07 K2).
+	receipts.SetContactSource(contactRepo)
+	receipts.SetSettingsSource(settingsRepo)
 	posting.SetReceiptService(receipts)
 
 	return &testEnv{
@@ -85,6 +95,12 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
 		Address: "Lieferantenweg 3, 20095 Hamburg",
+		// Die Steuernummer gehört zu den Stammdaten eines Lieferanten, weil sie
+		// zu den Pflichtangaben seiner Rechnung gehört (§ 14 Abs. 4 Nr. 2 UStG)
+		// und sich der Vorsteuerabzug danach richtet. Ohne sie weist der Belegweg die
+		// Buchung mit Vorsteuer zurück — das ist der Sinn der Kopplung, und ein
+		// unvollständiger Lieferant im Test prüfte nur sie.
+		TaxID: "12/345/67890",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Lieferant %s konnte nicht angelegt werden: %v", name, err)
@@ -113,6 +129,9 @@ func simpleEntry(debit, credit string, amount domain.Cents) *domain.JournalEntry
 		ServiceDateTo:   "2026-03-01",
 		Description:     "Testbuchung",
 		Source:          domain.EntrySourceManual,
+		// Der Steuerfall gehört seit Welle 8 zu jeder Handbuchung
+		// (ValidatePostable prüft ihn); die Testbuchung löst keine Steuer aus.
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: debit, Amount: amount},
 			{Side: domain.SideCredit, Account: credit, Amount: amount},
@@ -364,6 +383,45 @@ func TestReverseRefusesDoubleAndChainedStorno(t *testing.T) {
 	}
 	if _, err := env.journal.Reverse(ctx, original.ID, ""); err == nil {
 		t.Error("eine Stornierung ohne Grund darf nicht möglich sein")
+	}
+}
+
+// Ein vorgegebenes Stornodatum gibt es nur für den Korrekturvortrag. Für jede
+// andere Buchung wäre es der Weg, eine Generalumkehr in einen abgelaufenen, nur
+// noch nicht festgeschriebenen Zeitraum zurückzudatieren.
+func TestReverseOnIsLimitedToOpeningEntries(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	original, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 10000))
+	if err != nil {
+		t.Fatalf("Ursprungsbuchung: %v", err)
+	}
+
+	if _, err := env.journal.ReverseOn(ctx, original.ID, "Rückdatierter Storno", "2026-01-05"); err == nil {
+		t.Fatal("eine gewöhnliche Buchung darf nicht mit vorgegebenem Datum storniert werden")
+	} else if !strings.Contains(err.Error(), "Eröffnungsbuchung") {
+		t.Errorf("die Meldung sollte die Ausnahme benennen, lautet aber: %v", err)
+	}
+	if entries, _ := env.journalRepo.FindAll(ctx, 2026); len(entries) != 1 {
+		t.Errorf("es darf keine Stornobuchung entstanden sein, es sind %d Buchungen", len(entries))
+	}
+
+	// Ohne Datumsangabe bleibt der Storno möglich.
+	if _, err := env.journal.Reverse(ctx, original.ID, "Beleg doppelt erfasst"); err != nil {
+		t.Errorf("der Storno auf „heute\" muss möglich bleiben: %v", err)
+	}
+
+	// Die Eröffnungsbuchung darf ihn führen — auf ihr beruht der Korrekturvortrag.
+	opening := simpleEntry(domain.AccountBank, domain.AccountSaldenvortraegeSachkonten, 50000)
+	opening.Source = domain.EntrySourceOpening
+	opening.DocumentNumber = "SV 2026"
+	created, err := env.journal.Post(ctx, opening)
+	if err != nil {
+		t.Fatalf("Eröffnungsbuchung: %v", err)
+	}
+	if _, err := env.journal.ReverseOn(ctx, created.ID, "Korrekturvortrag", "2026-04-01"); err != nil {
+		t.Errorf("der Korrekturvortrag braucht das vorgegebene Datum: %v", err)
 	}
 }
 

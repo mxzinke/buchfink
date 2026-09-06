@@ -128,7 +128,7 @@ func TestChainCoversTheEntertainmentRecord(t *testing.T) {
 }
 
 // Die Auswertung sieht dieselbe Vorsteuer wie bei einem gewöhnlichen Beleg über
-// denselben Nettobetrag — die Zeile auf 6644 trägt keinen Steuerschlüssel.
+// denselben Nettobetrag — die Zeile auf 6644 hat keinen Steuerschlüssel.
 func TestEntertainmentDoesNotChangeTheInputTaxFigure(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

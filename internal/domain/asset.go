@@ -85,6 +85,16 @@ func (c AssetClass) Valid() bool {
 	}
 }
 
+// AllAssetClasses listet die Anlagenklassen in fester Reihenfolge.
+//
+// Die Liste steht neben den Konstanten und nicht in der Auswertung, die sie
+// gerade braucht: das Schlüsselverzeichnis der Datenüberlassung muss jeden Code
+// nennen, den die Daten haben können, und eine von Hand gepflegte Kopie
+// verlöre beim nächsten neuen Wert den Anschluss.
+func AllAssetClasses() []AssetClass {
+	return []AssetClass{AssetClassIntangible, AssetClassTangible, AssetClassFinancial}
+}
+
 // DepreciationMethod is how the Anschaffungskosten are spread over time — or
 // that they are not spread at all.
 //
@@ -103,6 +113,22 @@ const (
 	// book value (§ 7 Abs. 2 EStG). Only for bewegliche Wirtschaftsgüter and
 	// only inside the statutory window — see accounting.AfAParametersFor.
 	DepreciationDegressive DepreciationMethod = "degressive"
+	// DepreciationElectricVehicle ist die Staffel des § 7 Abs. 2a EStG für neue,
+	// rein elektrisch betriebene Fahrzeuge: 75 % im Jahr der Anschaffung, dann
+	// 10, 5, 5, 3 und 2 % der Anschaffungskosten.
+	//
+	// Sie ist eine eigene Methode und keine Spielart der degressiven: die Sätze
+	// bemessen sich nach den Anschaffungskosten und nicht nach dem Restbuchwert,
+	// und im Anschaffungsjahr wird nicht zeitanteilig gekürzt. Mit einem Faktor
+	// auf den linearen Satz kommt man auf diese Zahlen nie.
+	DepreciationElectricVehicle DepreciationMethod = "electric_vehicle"
+	// DepreciationBuildingLinear sind die festen Sätze des § 7 Abs. 4 EStG.
+	//
+	// Gebäude folgen keiner geschätzten Nutzungsdauer, sondern einem
+	// Prozentsatz, den das Gesetz nennt — in der Regel 3 %. Als „linear mit 400
+	// Monaten" abgebildet wäre die Zahl frei wählbar, und genau das ist sie
+	// nicht.
+	DepreciationBuildingLinear DepreciationMethod = "building_linear"
 	// DepreciationPool is the Sammelposten of § 6 Abs. 2a EStG: everything of one
 	// fiscal year in one pool, dissolved by one fifth in the year it is formed
 	// and each of the following four — without regard to the actual useful life
@@ -125,6 +151,10 @@ func (m DepreciationMethod) Label() string {
 		return "Linear (§ 7 Abs. 1 EStG)"
 	case DepreciationDegressive:
 		return "Degressiv (§ 7 Abs. 2 EStG)"
+	case DepreciationElectricVehicle:
+		return "E-Fahrzeug-Staffel (§ 7 Abs. 2a EStG)"
+	case DepreciationBuildingLinear:
+		return "Gebäude mit festem Satz (§ 7 Abs. 4 EStG)"
 	case DepreciationPool:
 		return "Sammelposten (§ 6 Abs. 2a EStG)"
 	case DepreciationImmediate:
@@ -139,7 +169,23 @@ func (m DepreciationMethod) Label() string {
 // IsPlanned reports whether the method produces a recurring AfA-Buchung. Only
 // these assets appear in the yearly Abschreibungslauf.
 func (m DepreciationMethod) IsPlanned() bool {
-	return m == DepreciationLinear || m == DepreciationDegressive || m == DepreciationPool
+	switch m {
+	case DepreciationLinear, DepreciationDegressive, DepreciationPool,
+		DepreciationElectricVehicle, DepreciationBuildingLinear:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllDepreciationMethods listet die Abschreibungsverfahren in fester
+// Reihenfolge.
+func AllDepreciationMethods() []DepreciationMethod {
+	return []DepreciationMethod{
+		DepreciationLinear, DepreciationDegressive, DepreciationElectricVehicle,
+		DepreciationBuildingLinear, DepreciationPool,
+		DepreciationImmediate, DepreciationNone,
+	}
 }
 
 // AssetStatus is the lifecycle of an Anlagegut. It is derived, never stored: an
@@ -171,6 +217,11 @@ const (
 	// Über ein Erlöskonto gebucht stünde in der GuV ein Umsatz, den es nie gab.
 	DisposalRepayment DisposalKind = "repayment"
 )
+
+// AllDisposalKinds listet die Abgangsarten in fester Reihenfolge.
+func AllDisposalKinds() []DisposalKind {
+	return []DisposalKind{DisposalSale, DisposalScrapped, DisposalRepayment}
+}
 
 // Label renders the disposal kind for the UI.
 func (k DisposalKind) Label() string {
@@ -227,7 +278,7 @@ const (
 	// AssetMovementMaintenance ist Erhaltungsaufwand: eine Buchung, die zum
 	// Anlagegut gehört, seinen Wert aber nicht ändert.
 	//
-	// Sie trägt deshalb weder Anschaffungskosten noch Abschreibung — nur den
+	// Sie hat deshalb weder Anschaffungskosten noch Abschreibung — nur den
 	// Verweis auf die Buchung. Was den Zustand nur erhält, ist sofort abziehbarer
 	// Aufwand; was erweitert oder wesentlich verbessert, sind nachträgliche
 	// Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB) und damit eine andere
@@ -260,6 +311,17 @@ const (
 )
 
 // Label renders the movement kind for the UI.
+// AllAssetMovementKinds listet die Bewegungsarten in fester Reihenfolge.
+func AllAssetMovementKinds() []AssetMovementKind {
+	return []AssetMovementKind{
+		AssetMovementAcquisition, AssetMovementSubsequentCost, AssetMovementCostReduction,
+		AssetMovementDepreciation, AssetMovementImpairment, AssetMovementWriteUp,
+		AssetMovementSpecialDepreciation, AssetMovementMaintenance,
+		AssetMovementVorabpauschale, AssetMovementIncome,
+		AssetMovementDisposal, AssetMovementTransfer,
+	}
+}
+
 func (k AssetMovementKind) Label() string {
 	switch k {
 	case AssetMovementAcquisition:
@@ -334,7 +396,38 @@ type AssetMovement struct {
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
 
-	// TaxAmount trägt einen Betrag, der nur steuerlich zählt.
+	// ExpenseAmount ist der Aufwand einer Bewegung, die den Buchwert nicht
+	// ändert.
+	//
+	// Der Erhaltungsaufwand ist der Fall, für den es das Feld gibt: er gehört
+	// zum Anlagegut, ändert aber weder Anschaffungskosten noch Abschreibungen.
+	// In CostAmount stünde er falsch — dort erhöhte er den Buchwert —, und ohne
+	// ihn ließe sich der Rahmen des § 6 Abs. 1 Nr. 1a EStG nicht führen: er
+	// summiert genau diese Beträge über die ersten drei Jahre.
+	ExpenseAmount Cents `gorm:"default:0" json:"expenseAmount,omitempty"`
+
+	// ExpenseAccount ist das Aufwandskonto, auf das eine Bewegung ohne
+	// Buchwertänderung gebucht wurde.
+	//
+	// Es steht als Feld und nicht länger nur im Text der Bewegung: die
+	// Aktivierung der anschaffungsnahen Herstellungskosten bucht den gesammelten
+	// Aufwand von diesem Konto zurück, und ein aus einem Freitext gelesenes Konto
+	// ist eine Vermutung. Leer heißt: das Konto, das der Kontenkatalog für dieses
+	// Anlagegut vorsieht — so stehen die Bewegungen aus der Zeit vor diesem Feld
+	// da, und für sie bleibt der Text die Quelle.
+	ExpenseAccount string `gorm:"size:10" json:"expenseAccount,omitempty"`
+
+	// IsModernisation kennzeichnet eine Instandsetzungs- oder
+	// Modernisierungsmaßnahme im Sinne des § 6 Abs. 1 Nr. 1a EStG.
+	//
+	// Voreinstellung ist ja: der Regelfall des Erhaltungsaufwands an einem
+	// Gebäude fällt unter die Vorschrift, und die Ausnahmen — Erweiterungen und
+	// jährlich üblicherweise anfallende Erhaltungsarbeiten (Satz 2) — sind
+	// wenige und werden abgewählt. Andersherum wäre die Grenze regelmäßig zu
+	// niedrig gerechnet, und die Warnung käme nie.
+	IsModernisation bool `gorm:"default:false" json:"isModernisation,omitempty"`
+
+	// TaxAmount ist ein Betrag, der nur steuerlich zählt.
 	//
 	// Die Vorabpauschale ist der Fall, für den es das Feld gibt: sie wird
 	// versteuert, ohne dass in der Bilanz etwas geschieht. In CostAmount oder
@@ -417,6 +510,45 @@ type FixedAsset struct {
 	// not the Steuerpflichtigen — a begründete abweichende Nutzungsdauer is
 	// allowed, so this stays freely editable.
 	UsefulLifeMonths int `gorm:"not null;default:0" json:"usefulLifeMonths"`
+	// UsefulLifeReason hält fest, warum von der vorgeschlagenen Nutzungsdauer
+	// abgewichen wurde.
+	//
+	// Die AfA-Tabellen und das BMF-Schreiben zur einjährigen Nutzungsdauer
+	// digitaler Wirtschaftsgüter binden die Finanzverwaltung, nicht den
+	// Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig.
+	// „Begründet" heißt: die Begründung existiert. Ohne sie gilt die Abweichung
+	// im Zweifel als Tippfehler, nicht als Ausübung eines Wahlrechts.
+	UsefulLifeReason string `gorm:"size:500;serializer:encrypted" json:"usefulLifeReason,omitempty"`
+
+	// InputTaxAmount ist die beim Zugang angefallene Vorsteuer in voller Höhe,
+	// InputTaxPermille der Anteil, mit dem sie gezogen wurde (Null = voll).
+	//
+	// Beide stehen an der Anlage, weil das Verzeichnis nach § 15a UStG sie über
+	// zehn Jahre braucht und das Journal sie nicht hergibt: dort steht der
+	// gezogene Betrag, nicht der Anteil, zu dem er gezogen wurde. Aus ihnen legt
+	// die Anlagenbuchhaltung den Eintrag im Verzeichnis an — ein Verzeichnis, das
+	// nur füllt, wer daran denkt, ist nach § 22 Abs. 4 UStG keines.
+	InputTaxAmount   Cents `gorm:"default:0" json:"inputTaxAmount,omitempty"`
+	InputTaxPermille int   `gorm:"default:0" json:"inputTaxPermille,omitempty"`
+
+	// IsElectric kennzeichnet ein rein elektrisch betriebenes Fahrzeug. Nur für
+	// ein solches öffnet § 7 Abs. 2a EStG die Staffel.
+	IsElectric bool `gorm:"not null;default:false" json:"isElectric,omitempty"`
+	// BuildingReferenceDate ist der Stichtag des § 7 Abs. 4 EStG: der Bauantrag
+	// beim Betriebsgebäude, die Fertigstellung beim Wohngebäude. Leer heißt: es
+	// gilt das Anschaffungsdatum.
+	BuildingReferenceDate string `gorm:"size:10" json:"buildingReferenceDate,omitempty"`
+
+	// ImpairmentPersistsYear und ImpairmentPersistsNote halten die Antwort auf
+	// die Frage des Abschlussbausteins „Wertaufholung prüfen" fest: der Grund
+	// der außerplanmäßigen Abschreibung besteht in diesem Geschäftsjahr fort.
+	//
+	// § 253 Abs. 5 Satz 1 HGB macht die Zuschreibung zum Gebot, sobald der Grund
+	// weggefallen ist. Die Frage stellt sich also jedes Jahr neu, und wer sie
+	// beantwortet hat, soll sie im selben Jahr nicht noch einmal vorgelegt
+	// bekommen — im nächsten schon.
+	ImpairmentPersistsYear int    `gorm:"default:0" json:"impairmentPersistsYear,omitempty"`
+	ImpairmentPersistsNote string `gorm:"size:500;serializer:encrypted" json:"impairmentPersistsNote,omitempty"`
 	// PoolYear is the fiscal year of a Sammelposten. § 6 Abs. 2a EStG forms one
 	// pool per Wirtschaftsjahr; two years never share one.
 	PoolYear int `gorm:"index;default:0" json:"poolYear,omitempty"`
@@ -585,6 +717,41 @@ func (a *FixedAsset) Validate() error {
 				"Finanzanlagen werden nicht planmäßig abgeschrieben. Sie nutzen sich nicht ab; " +
 					"an Wert verlieren können sie nur außerplanmäßig (§ 253 Abs. 3 Satz 5 und 6 HGB)")
 		}
+	case DepreciationElectricVehicle:
+		if a.Class != AssetClassTangible {
+			return fmt.Errorf(
+				"die Staffel des § 7 Abs. 2a EStG gilt für neue, rein elektrisch betriebene Fahrzeuge " +
+					"des Sachanlagevermögens")
+		}
+		if !a.IsElectric {
+			return fmt.Errorf(
+				"§ 7 Abs. 2a EStG setzt ein rein elektrisch betriebenes Fahrzeug voraus. Trifft das zu, " +
+					"ist das Kennzeichen zu setzen; sonst bleibt es bei der linearen Abschreibung")
+		}
+		if a.DepreciationAccount == "" {
+			return fmt.Errorf("für die Abschreibung braucht es ein Aufwandskonto")
+		}
+	case DepreciationBuildingLinear:
+		if a.Class != AssetClassTangible {
+			return fmt.Errorf("die festen Sätze des § 7 Abs. 4 EStG gelten für Gebäude")
+		}
+		if a.DepreciationAccount == "" {
+			return fmt.Errorf("für die Abschreibung braucht es ein Aufwandskonto")
+		}
+		// Der Stichtag ist Pflicht und kein Zusatz.
+		//
+		// Ohne ihn blieb bisher das Anschaffungsdatum als Näherung — und die ist
+		// nicht die harmlose Richtung: ein Betriebsgebäude mit Bauantrag von 1980,
+		// das 2026 gekauft wird, bekäme daraus 3 % statt der 2 % des § 7 Abs. 4
+		// Satz 1 Nr. 2 Buchst. b EStG. Eine stille Überschreibung der AfA um die
+		// Hälfte ist schlimmer als eine Rückfrage.
+		if len(a.BuildingReferenceDate) != 10 {
+			return fmt.Errorf(
+				"zu einem Gebäude gehört sein Stichtag (erwartet JJJJ-MM-TT): der Tag des Bauantrags " +
+					"beim Betriebsgebäude, der Tag der Fertigstellung beim Wohngebäude. Nach ihm richtet " +
+					"sich der Satz des § 7 Abs. 4 EStG, und das Anschaffungsdatum ist kein Ersatz dafür — " +
+					"ein altes Gebäude, das gerade gekauft wurde, bekäme daraus den falschen Satz")
+		}
 	case DepreciationPool:
 		if a.PoolYear <= 0 {
 			return fmt.Errorf("ein Sammelposten gehört zu genau einem Wirtschaftsjahr (§ 6 Abs. 2a EStG)")
@@ -752,6 +919,11 @@ type AssetRepository interface {
 	FindMovements(ctx context.Context, assetID uint) ([]AssetMovement, error)
 	AddDocument(ctx context.Context, document *AssetDocument) error
 	FindDocument(ctx context.Context, id uint) (*AssetDocument, error)
+	// FindAllDocuments liefert alle Anlagendokumente. Der Belegprüflauf
+	// braucht sie am Stück: ein Vertrag zum Anlagegut ist genauso
+	// aufbewahrungspflichtig wie eine Rechnung, und über die Anlagegüter
+	// einzeln zu gehen hieße, die Kartei n-mal zu lesen.
+	FindAllDocuments(ctx context.Context) ([]AssetDocument, error)
 	DeleteDocument(ctx context.Context, id uint) error
 	// CountDocumentsBySHA reports how many documents share one file. Zwei
 	// Anlagegüter dürfen sich einen Rahmenvertrag teilen; gelöscht werden darf
@@ -807,4 +979,18 @@ type Anlagenspiegel struct {
 	// ClassTotals carries one subtotal per Bilanzblock, in the order of
 	// § 266 Abs. 2 A HGB.
 	ClassTotals []AnlagenspiegelRow `json:"classTotals"`
+}
+
+// EnsureLists ersetzt nicht belegte Listen durch leere.
+//
+// Der Spiegel geht als JSON an die Oberfläche, und die Ansicht läuft über beide
+// Listen. Ein nicht belegter Slice käme dort als `null` an, und `null.map`
+// nähme im Render den ganzen Baum mit.
+func (a *Anlagenspiegel) EnsureLists() {
+	if a.Rows == nil {
+		a.Rows = make([]AnlagenspiegelRow, 0)
+	}
+	if a.ClassTotals == nil {
+		a.ClassTotals = make([]AnlagenspiegelRow, 0)
+	}
 }

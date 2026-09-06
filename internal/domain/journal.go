@@ -46,10 +46,15 @@ const (
 type EntrySource string
 
 const (
-	EntrySourceManual       EntrySource = "manual"
-	EntrySourceReceipt      EntrySource = "receipt"      // Eingangsbeleg
-	EntrySourceInvoice      EntrySource = "invoice"      // Ausgangsrechnung
-	EntrySourcePayment      EntrySource = "payment"      // Zahlung / OP-Ausgleich
+	EntrySourceManual  EntrySource = "manual"
+	EntrySourceReceipt EntrySource = "receipt" // Eingangsbeleg
+	EntrySourceInvoice EntrySource = "invoice" // Ausgangsrechnung
+	EntrySourcePayment EntrySource = "payment" // Zahlung / OP-Ausgleich
+	// EntrySourceAdvance ist die Vereinnahmung einer Anzahlung. Sie ist eine
+	// eigene Quelle und keine gewöhnliche Zahlung, weil mit ihr die Steuer
+	// entsteht (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG) — eine Zahlung tut das
+	// sonst nie, und die Voranmeldung muss die beiden auseinanderhalten können.
+	EntrySourceAdvance      EntrySource = "advance"
 	EntrySourceOpening      EntrySource = "opening"      // Eröffnungsbilanz
 	EntrySourceDepreciation EntrySource = "depreciation" // AfA
 	EntrySourceClosing      EntrySource = "closing"      // Abschlussbuchung
@@ -90,8 +95,46 @@ type JournalLine struct {
 	// set on tax lines; needed to reproduce the UStVA figures from the journal.
 	TaxBase Cents `gorm:"default:0" json:"taxBase,omitempty"`
 
+	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille, wo er
+	// nicht voll ist — der Vorsteuerschlüssel der gemischten Nutzung.
+	//
+	// Null heißt „nicht einschlägig": entweder hat die Zeile keine Vorsteuer,
+	// oder sie ist voll abziehbar. Das ist der Grund, warum hier nicht 1000
+	// steht, wo alles abziehbar ist: die Kanonisierung schreibt das Feld nur,
+	// wenn es belegt ist, und damit hasht jede Buchung ohne Vorsteuerschlüssel
+	// weiter genau so wie vor dieser Welle. Eine Zahl, die überall steht, hätte
+	// die Kette jeder bestehenden Buchhaltung gebrochen.
+	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — bekommt
+	// deshalb den eigenen Wert InputTaxExcluded und nicht die Zahl null: „gar
+	// nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst dasselbe.
+	InputTaxShare int `gorm:"default:0" json:"inputTaxShare,omitempty"`
+
+	// ForeignAmount ist der Betrag dieser Zeile in der Fremdwährung des
+	// Buchungskopfes, in der kleinsten Einheit dieser Währung.
+	//
+	// Der Eurobetrag der Zeile ist das Ergebnis einer Umrechnung, und eine
+	// Umrechnung lässt sich nicht zurückrechnen: Rundung je Zeile und Ausgleich
+	// auf der letzten Zeile machen aus 1.000,00 USD und 999,99 USD denselben
+	// Eurobetrag. Wer später fragt, worauf die Rechnung des Lieferanten lautete,
+	// bekommt hier die Zahl, die auf ihr stand — nicht eine, die Buchfink aus dem
+	// Eurobetrag zurückgerechnet hat.
+	//
+	// Null heißt „keine Fremdwährung": eine Buchung in Euro hat das Feld nicht,
+	// und die Kanonisierung schreibt es nur, wo es belegt ist — die Hash-Kette
+	// jeder bestehenden Buchhaltung bleibt damit unverändert.
+	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
+
 	Text string `gorm:"size:255;serializer:encrypted" json:"text,omitempty"`
 }
+
+// InputTaxExcluded ist der Wert von JournalLine.InputTaxShare, wo der
+// Vorsteuerabzug ganz ausgeschlossen ist (§ 15 Abs. 1a UStG).
+//
+// Er ist negativ, weil das Feld null als „nicht einschlägig" liest und ein
+// Anteil von null Promille genau das nicht ist: die Vorsteuer ist da, sie ist
+// nur nicht abziehbar. Ein eigener Wert dafür hält die beiden auseinander, ohne
+// die Hash-Kette bestehender Buchungen anzurühren.
+const InputTaxExcluded = -1
 
 // JournalEntry is one complete Geschäftsvorfall (Buchungssatz) with n lines.
 //
@@ -161,6 +204,70 @@ type JournalEntry struct {
 	// historical bookings unexplainable.
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
+	// AppVersion ist die Fassung des Programms, die gebucht hat, Actor die
+	// Bearbeiterkennung (internal/actor).
+	//
+	// Beide sind Teil der kanonischen Form und damit der Hash-Kette — mit einer
+	// Weiche für den Altbestand: eine Buchung ohne AppVersion stammt aus der
+	// Zeit davor und wird nach der bisherigen Form gehasht (siehe
+	// accounting.canonicalize). Die Form ist an der Buchung selbst erkennbar,
+	// und die Kette jeder ausgelieferten Buchhaltung bleibt gültig.
+	AppVersion string `gorm:"size:60;index" json:"appVersion,omitempty"`
+	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+
+	// CommittedAt und FestschreibungID halten fest, wann und womit diese
+	// Buchung festgeschrieben wurde.
+	//
+	// Sie stehen bewusst außerhalb der kanonischen Form. Die Festschreibung
+	// ändert die Buchung nicht — sie stellt sie fest —, und ein Feld, das nach
+	// dem Schreiben gesetzt wird, könnte in der Kette gar nicht stehen: der
+	// Eigenhash ist beim Anhängen berechnet und darf sich danach nicht mehr
+	// ändern. Was die Festschreibung schützt, ist der Kettenkopf, den sie
+	// beglaubigt.
+	CommittedAt      *time.Time `gorm:"index" json:"committedAt,omitempty"`
+	FestschreibungID *uint      `gorm:"index" json:"festschreibungId,omitempty"`
+
+	// CorrectsEntryID verweist von einer Neubuchung auf die Buchung, die sie
+	// ersetzt — der Weg „stornieren und neu buchen".
+	//
+	// Die Gegenrichtung ist ReversalOfID an der Generalumkehr. Beide zusammen
+	// machen den Vorgang lesbar: die alte Buchung, ihre Umkehr und die richtige
+	// Buchung, die an ihre Stelle tritt (GoBD Rz. 58: die ursprüngliche
+	// Aufzeichnung muss feststellbar bleiben).
+	//
+	// Nicht in der kanonischen Form, und das ist eine Entscheidung: der Verweis
+	// ist eine Kennung und kein Inhalt. Genau wie ReceiptID und der frühere
+	// DocumentPath würde er beim Umzug der Daten in eine neue Datei andere Werte
+	// annehmen und die Kette jeder betroffenen Buchung brechen, ohne dass sich
+	// an der Buchung etwas geändert hätte. Was die Neubuchung inhaltlich
+	// ausmacht — Konten, Beträge, Text —, ist gedeckt.
+	CorrectsEntryID *uint `gorm:"index" json:"correctsEntryId,omitempty"`
+
+	// LegacyRef ist die Herkunftskennung aus einem Altsystem.
+	//
+	// Wer aus einer anderen Buchhaltung umsteigt, bringt Eröffnungswerte mit,
+	// die dort eine Nummer hatten. Ohne dieses Feld wäre die Verbindung zwischen
+	// der Schlussbilanz des Altsystems und der Eröffnungsbilanz in Buchfink nur
+	// über den Buchungstext herzustellen — und die Fünfjahresfrist des § 147
+	// Abs. 6 Satz 6 AO verlangt, dass die übernommenen Daten zuordenbar bleiben.
+	LegacyRef string `gorm:"size:60;index" json:"legacyRef,omitempty"`
+
+	// DueDate ist die vereinbarte Fälligkeit des offenen Postens, den diese
+	// Buchung erzeugt. Leer heißt: sie folgt aus dem Zahlungsziel des
+	// Geschäftspartners (siehe PaymentService).
+	//
+	// Sie wird nur dort gesetzt, wo sie bekannt ist und nicht aus dem
+	// Belegdatum folgt — beim Vortrag offener Posten aus einem Altsystem, wo
+	// die Fälligkeit dort vereinbart wurde und mit dem Posten übernommen wird.
+	// Ohne dieses Feld landete jeder übernommene Posten mit dem Zahlungsziel
+	// des Kontakts in der Altersstruktur, also mit einer Fälligkeit, die nie
+	// vereinbart war.
+	//
+	// Sie ist Inhalt und wird gedeckt — aber nur, wo sie belegt ist: ein
+	// zusätzliches Feld in der kanonischen Form änderte sonst den Hash jeder
+	// bestehenden Buchung (siehe canonicalize).
+	DueDate string `gorm:"size:10;index" json:"dueDate,omitempty"`
+
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`
 
 	// Entertainment carries the Aufzeichnung § 4 Abs. 5 Satz 1 Nr. 2 EStG
@@ -169,6 +276,16 @@ type JournalEntry struct {
 	// participant list stored there would be covered by no checksum at all, and a
 	// record the deduction depends on must not be silently editable.
 	Entertainment *EntertainmentDetail `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"entertainment,omitempty"`
+
+	// Gifts enthält die Aufzeichnungen des § 4 Abs. 7 EStG zu den Geschenken
+	// dieser Buchung. Sie hängen aus demselben Grund an ihr wie die
+	// Bewirtungsaufzeichnung: der Abzug richtet sich nach ihnen, und was an der
+	// Buchung hängt, deckt die Hashkette.
+	//
+	// Eine Liste und kein einzelner Datensatz: eine Lieferantenrechnung über
+	// zehn Präsentkörbe an zehn Empfänger ist ein Beleg und eine Buchung, aber
+	// zehn Aufzeichnungen — die Freigrenze läuft je Empfänger.
+	Gifts []GiftRecord `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"gifts,omitempty"`
 
 	PreviousHash string    `gorm:"size:64;not null" json:"previousHash"`
 	EntryHash    string    `gorm:"size:64;not null" json:"entryHash"`
@@ -250,7 +367,7 @@ func (e *JournalEntry) Validate() error {
 			}
 		case EntryKindReversal:
 			if l.Amount > 0 {
-				return fmt.Errorf("Zeile %d: eine Generalumkehr muss negative Beträge tragen", i+1)
+				return fmt.Errorf("Zeile %d: eine Generalumkehr muss negative Beträge haben", i+1)
 			}
 		}
 		if l.Side == SideDebit {
@@ -354,10 +471,28 @@ type JournalRepository interface {
 	// entry it cancels: whether a booking still stands cannot be answered inside
 	// a year window at all.
 	FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]JournalEntry, error)
+	// FindOpenItemCandidatesAt beantwortet dieselbe Frage zu einem Stichtag:
+	// welche Posten waren am Bilanzstichtag offen.
+	//
+	// Das ist nicht dieselbe Abfrage mit einem zusätzlichen Filter. Die
+	// operative Sicht fragt, was heute noch offen ist, und wirft deshalb jede
+	// Buchung weg, die jemals storniert wurde. Zum Stichtag zählt aber der
+	// Stand von damals: eine Rechnung aus dem Dezember, die im März storniert
+	// wurde, stand am 31.12. in der Bilanz und gehört in den Saldenvortrag —
+	// der Storno nimmt sie im neuen Jahr wieder heraus. Deshalb ist auch die
+	// Generalumkehr auf ihr Datum begrenzt.
+	FindOpenItemCandidatesAt(ctx context.Context, cutoff string) ([]JournalEntry, error)
 	FindByID(ctx context.Context, id uint) (*JournalEntry, error)
 	FindByAccount(ctx context.Context, account string, fiscalYear int) ([]JournalEntry, error)
+	// FindByAccountRange ist dasselbe Kontoblatt in einem Datumsfenster über
+	// alle Geschäftsjahre hinweg. Ein Prüfer fragt nach einem Zeitraum und
+	// nicht nach einem Geschäftsjahr; leere Grenzen heißen: alles.
+	FindByAccountRange(ctx context.Context, account, from, to string) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
+	// FindCorrectionOf liefert die Neubuchung, die eine stornierte Buchung
+	// ersetzt, oder nil. Die Gegenrichtung zu CorrectsEntryID.
+	FindCorrectionOf(ctx context.Context, entryID uint) (*JournalEntry, error)
 	// FindByReceipt returns the original booking that references a Beleg, or nil.
 	// It is what lets an unsealed Beleg be repaired: the seal is written after
 	// the journal transaction commits, so a crash in between leaves a booked
@@ -369,9 +504,28 @@ type JournalRepository interface {
 	// the numbering gapless: a rolled-back insert must not consume a number, and
 	// two concurrent writers must not read the same chain head.
 	Append(ctx context.Context, entry *JournalEntry, hash EntryHashFunc) error
+	// MarkCommitted stempelt den Festschreibungszeitpunkt an jede Buchung des
+	// Jahres mit Buchungsdatum bis einschließlich cutoff, die ihn noch nicht
+	// hat, und liefert die Zahl der gestempelten Buchungen.
+	//
+	// „Die noch keinen hat" ist die eigentliche Regel: eine frühere
+	// Festschreibung hat ihre Buchungen schon festgestellt, und eine spätere,
+	// die weiter reicht, darf deren Zeitpunkt nicht überschreiben — sonst sähe
+	// jede Buchung so aus, als wäre sie erst mit der letzten Festschreibung
+	// festgestellt worden, und der Abstand Erfassung → Festschreibung wäre
+	// nicht mehr auswertbar.
+	//
+	// Der Schreibvorgang berührt die kanonische Form nicht (siehe
+	// JournalEntry.CommittedAt) und lässt die Hash-Kette darum unangetastet.
+	MarkCommitted(ctx context.Context, fiscalYear int, cutoff string, festschreibungID uint, at time.Time) (int64, error)
 	// AccountTurnovers returns Soll/Haben sums per account number for a fiscal
 	// year in a single pass.
 	AccountTurnovers(ctx context.Context, fiscalYear int) (map[string]AccountTurnover, error)
+	// AccountTurnoversUntil sind dieselben Verkehrszahlen bis zu einem
+	// Stichtag. Die Summen- und Saldenliste zum 30.06. ist keine Jahresliste
+	// mit einem Filter darüber: sie muss die Buchungen nach dem Stichtag
+	// weglassen, bevor summiert wird. Leerer Stichtag heißt: ganzes Jahr.
+	AccountTurnoversUntil(ctx context.Context, fiscalYear int, cutoff string) (map[string]AccountTurnover, error)
 	MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]CashflowDataPoint, error)
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 	GetAvailableFiscalYears(ctx context.Context) ([]int, error)
@@ -397,13 +551,92 @@ type FinancialSummary struct {
 	CashflowHistory []CashflowDataPoint `json:"cashflowHistory"`
 }
 
+// EnsureLists ersetzt die nicht belegte Verlaufsliste durch eine leere: das
+// Diagramm der Startseite liest sie ohne Umweg, und `null.map` nähme den
+// ganzen Baum mit.
+func (f *FinancialSummary) EnsureLists() {
+	if f.CashflowHistory == nil {
+		f.CashflowHistory = make([]CashflowDataPoint, 0)
+	}
+}
+
+// IntegrityBreakReason benennt, woran eine Kette zerbrochen ist.
+type IntegrityBreakReason string
+
+const (
+	// IntegrityBreakLinkage: der Vorgängerhash der Buchung ist nicht der
+	// Eigenhash ihres Vorgängers — eine Buchung wurde eingefügt oder entfernt.
+	IntegrityBreakLinkage IntegrityBreakReason = "linkage"
+	// IntegrityBreakContent: die Buchung hasht nicht mehr auf ihren
+	// gespeicherten Eigenhash — ihre Daten wurden nachträglich verändert.
+	IntegrityBreakContent IntegrityBreakReason = "content"
+)
+
+// IntegrityBreak ist ein einzelner Bruch der Kette.
+//
+// Er nennt erwarteten und tatsächlichen Hash, weil die Angabe „Buchung 42 ist
+// gebrochen" außerhalb von Buchfink nicht nachrechenbar ist. Wer den erwarteten
+// Wert kennt, kann mit der Kanonisierung aus der Feldbeschreibung selbst
+// prüfen, welche Seite recht hat.
+type IntegrityBreak struct {
+	FiscalYear   int                  `json:"fiscalYear"`
+	EntryID      uint                 `json:"entryId"`
+	EntryNumber  string               `json:"entryNumber"`
+	Reason       IntegrityBreakReason `json:"reason"`
+	ExpectedHash string               `json:"expectedHash"`
+	ActualHash   string               `json:"actualHash"`
+	Message      string               `json:"message"`
+}
+
 // IntegrityCheckResult is the outcome of a hash chain verification.
+//
+// Geprüft wird jedes Geschäftsjahr für sich: die Kette beginnt je Jahr neu beim
+// Genesis-Hash. Eine Prüfung, die nur das aktive Jahr ansieht, meldet „alles in
+// Ordnung", während in einem abgeschlossenen Jahr eine Zeile verändert wurde.
 type IntegrityCheckResult struct {
-	IsValid          bool   `json:"isValid"`
-	TotalEntries     int    `json:"totalEntries"`
+	IsValid      bool `json:"isValid"`
+	TotalEntries int  `json:"totalEntries"`
+	// CheckedEntries ist die Zahl der nachgerechneten Buchungen und damit
+	// gleich TotalEntries: die Prüfung läuft nach einem Bruch weiter, statt an
+	// ihm abzubrechen — sonst verdeckte die erste geänderte Buchung jede
+	// spätere. Das Feld sagt also, wie viel geprüft wurde, und nicht, wo es
+	// aufgehört hat; wo die Kette bricht, steht in Breaks.
 	CheckedEntries   int    `json:"checkedEntries"`
 	FirstBrokenID    *uint  `json:"firstBrokenId,omitempty"`
 	Message          string `json:"message"`
 	LastVerifiedHash string `json:"lastVerifiedHash"`
 	CheckedAt        string `json:"checkedAt"`
+
+	// FiscalYears sind die geprüften Geschäftsjahre, aufsteigend.
+	FiscalYears []int `json:"fiscalYears"`
+	// Breaks sind alle gefundenen Brüche, nicht nur der erste. Nach einem Bruch
+	// läuft die Prüfung weiter, sonst verdeckte die erste geänderte Buchung
+	// jede spätere.
+	Breaks []IntegrityBreak `json:"breaks"`
+
+	// AuditChain ist das Ergebnis der Prüfung des Änderungsprotokolls.
+	//
+	// Es steht an derselben Stelle wie die Journalkette, weil beide dieselbe
+	// Frage beantworten: ist an den Aufzeichnungen unbemerkt etwas geändert
+	// worden. Eine Journalkette, die hält, während sich Protokolleinträge
+	// entfernen lassen, belegt nur die halbe Unveränderbarkeit — wer eine
+	// Buchung storniert und danach die Protokollzeile herausnimmt, bliebe
+	// unentdeckt. Ein Zeiger, weil die Protokollprüfung fehlen kann (ein
+	// Aufrufer ohne Protokollzugang); dann ist das Feld leer und behauptet
+	// nichts.
+	AuditChain *AuditChainResult `json:"auditChain,omitempty"`
+}
+
+// EnsureLists ersetzt nicht belegte Listen durch leere.
+//
+// Das Ergebnis geht als JSON an die Oberfläche; ein nicht belegter Slice wird
+// dort zu `null`, und `breaks.length` bräche ausgerechnet im Regelfall — der
+// unversehrten Buchführung.
+func (r *IntegrityCheckResult) EnsureLists() {
+	if r.Breaks == nil {
+		r.Breaks = make([]IntegrityBreak, 0)
+	}
+	if r.FiscalYears == nil {
+		r.FiscalYears = make([]int, 0)
+	}
 }

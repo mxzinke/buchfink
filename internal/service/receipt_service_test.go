@@ -32,6 +32,10 @@ func (e *testEnv) writeTempFile(t *testing.T, name, content string) string {
 func (e *testEnv) fileIncoming(t *testing.T, name string) *domain.Receipt {
 	t.Helper()
 	receipt, err := e.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, Path: e.writeTempFile(t, name, minimalPDF)},
@@ -49,6 +53,10 @@ func TestHybridReceiptCarriesBothParts(t *testing.T) {
 	env := newTestEnv(t)
 
 	receipt, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction:   domain.DirectionIncoming,
 		ReceivedVia: domain.ReceivedViaEmail,
 		Files: []NewFile{
@@ -88,6 +96,10 @@ func TestXRechnungIsFileableButNotBookableWithoutRendering(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, FileName: "xrechnung.xml", Content: []byte(xRechnungXML)},
@@ -131,6 +143,10 @@ func TestStructureRejectsTwoOriginals(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, Path: env.writeTempFile(t, "a.pdf", minimalPDF)},
@@ -146,6 +162,10 @@ func TestStructureRejectsTwoOriginals(t *testing.T) {
 
 	// Und ein Beleg ohne Original ebenso.
 	_, err = env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleAttachment, FileName: "eigenbeleg.txt", Content: []byte("Teilnehmer: A, B")},
@@ -264,6 +284,10 @@ func TestUnreadableSourceFileIsRejected(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, Path: filepath.Join(t.TempDir(), "gibtesnicht.pdf")},
@@ -288,6 +312,10 @@ func TestEmptyFileIsRejected(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files:     []NewFile{{Role: domain.ReceiptRoleOriginal, Path: env.writeTempFile(t, "leer.pdf", "")}},
 	})
@@ -307,8 +335,12 @@ func TestReceiptNumbersAreGaplessPerDirection(t *testing.T) {
 		}
 	}
 
-	// Ein Ausgangsbeleg trägt die Rechnungsnummer, die die Rechnung vergeben hat.
+	// Ein Ausgangsbeleg hat die Rechnungsnummer, die die Rechnung vergeben hat.
 	outgoing, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction:     domain.DirectionOutgoing,
 		ReceiptNumber: "RE-2026-0007",
 		Files: []NewFile{
@@ -319,7 +351,7 @@ func TestReceiptNumbersAreGaplessPerDirection(t *testing.T) {
 		t.Fatalf("Ausgangsbeleg konnte nicht abgelegt werden: %v", err)
 	}
 	if outgoing.ReceiptNumber != "RE-2026-0007" {
-		t.Errorf("Ausgangsbeleg soll die Rechnungsnummer tragen, hat aber %q", outgoing.ReceiptNumber)
+		t.Errorf("Ausgangsbeleg soll die Rechnungsnummer haben, hat aber %q", outgoing.ReceiptNumber)
 	}
 	if !strings.Contains(outgoing.Files[0].StoredPath, "belege/2026/ausgang/") {
 		t.Errorf("Ausgangsbelege gehören nach .../ausgang/, liegen aber unter %q", outgoing.Files[0].StoredPath)
@@ -379,7 +411,7 @@ func TestSealIsIdempotentButRefusesASecondBooking(t *testing.T) {
 	}
 }
 
-// Ein abgelegter Beleg wird nicht gelöscht, sondern verworfen — er hat eine
+// Ein abgelegter Beleg wird verworfen. Gelöscht wird er nicht — er hat eine
 // Belegnummer, und ein empfangenes Dokument darf nicht spurlos verschwinden.
 func TestDiscardKeepsTheReceiptAndRequiresAReason(t *testing.T) {
 	env := newTestEnv(t)
@@ -446,6 +478,10 @@ func TestMimeTypeComesFromTheContentNotTheName(t *testing.T) {
 	env := newTestEnv(t)
 
 	receipt, err := env.receipts.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, Path: env.writeTempFile(t, "rechnung.txt", minimalPDF)},

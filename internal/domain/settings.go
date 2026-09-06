@@ -27,10 +27,91 @@ type CompanySettings struct {
 	Street               string `json:"street"`
 	ZipCity              string `json:"zipCity"`
 	Country              string `json:"country"`
-	Currency             string `json:"currency"`
-	SKR                  string `json:"skr"`          // "SKR04"
-	VatPeriod            string `json:"vatPeriod"`    // "month", "quarter", "year"
-	TaxationType         string `json:"taxationType"` // "IST", "SOLL"
+
+	// Ansprechpartner, Telefon und E-Mail des Ausstellers.
+	//
+	// Sie sind bei einer XRechnung Pflicht (BR-DE-2 bis BR-DE-7): eine Behörde,
+	// die zu einer Rechnung nicht zurückfragen kann, weist sie zurück. Auf einer
+	// ZUGFeRD-Rechnung bleiben sie ohne Wirkung, wenn sie nicht gepflegt sind.
+	ContactName  string `json:"contactName"`
+	ContactPhone string `json:"contactPhone"`
+	ContactEmail string `json:"contactEmail"`
+
+	// InvoiceNumberFormat ist die Systematik des Rechnungsnummernkreises mit
+	// den Platzhaltern {JAHR} und {NR:n}. Leer heißt: die Voreinstellung.
+	InvoiceNumberFormat string `json:"invoiceNumberFormat"`
+	// ReceiptNumberFormat ist dieselbe Systematik für den Belegnummernkreis
+	// (BEL-02 K4). Leer heißt: die Voreinstellung „ER-{JAHR}-{NR:4}".
+	ReceiptNumberFormat string `json:"receiptNumberFormat"`
+	// Seat, RegisterCourt und RegisterNumber sind die Pflichtangaben des
+	// § 264 Abs. 1a HGB: auf jedem Jahresabschluss sind Firma, Sitz,
+	// Registergericht und Registernummer anzugeben. Sie standen bisher nur an
+	// der Gründung (domain.Foundation) und fehlten damit jedem Mandanten, der
+	// nicht über den Gründungsweg entstanden ist.
+	Seat           string `json:"seat"`
+	RegisterCourt  string `json:"registerCourt"`
+	RegisterNumber string `json:"registerNumber"`
+	Currency       string `json:"currency"`
+	SKR            string `json:"skr"`          // "SKR04"
+	VatPeriod      string `json:"vatPeriod"`    // "month", "quarter", "year"
+	TaxationType   string `json:"taxationType"` // "IST", "SOLL"
+
+	// PermanentExtension ist die Dauerfristverlängerung nach §§ 46 bis 48 UStDV:
+	// jede Voranmeldung wird einen Monat später fällig — bei monatlicher wie bei
+	// vierteljährlicher Abgabe.
+	PermanentExtension bool `json:"permanentExtension"`
+	// SpecialPrepayment ist die Sondervorauszahlung von einem Elftel der
+	// Vorauszahlungen des Vorjahres (§ 47 Abs. 1 UStDV). Sie wird in der letzten
+	// Voranmeldung des Jahres angerechnet (Kennziffer 39, § 48 Abs. 4 UStDV).
+	//
+	// Sie gilt nur bei monatlichem Voranmeldungszeitraum: § 47 Abs. 1 UStDV
+	// verlangt sie von den Unternehmern, die ihre Voranmeldungen monatlich
+	// abzugeben haben. Wer vierteljährlich voranmeldet, erhält die
+	// Dauerfristverlängerung nach § 46 UStDV ohne Sondervorauszahlung — für ihn
+	// bleibt dieses Feld ohne Wirkung, auch wenn ein Betrag darin steht.
+	//
+	// Sie steht hier als erfasster Betrag und nicht als Rechnung: maßgeblich ist,
+	// was angemeldet und gezahlt wurde, nicht was Buchfink daraus errechnet.
+	SpecialPrepayment Cents `json:"specialPrepayment"`
+	// ReceiptCaptureDays ist die Frist, nach der ein abgelegter, aber nicht
+	// gebuchter Beleg im Prüflauf auffällt. GoBD Rz. 47 nennt zehn Tage für die
+	// Erfassung unbarer Geschäftsvorfälle.
+	ReceiptCaptureDays int `json:"receiptCaptureDays"`
+	// CommitGraceDays ist die Nachfrist, nach der ein nicht festgeschriebener
+	// Vormonat auf der Aufgabenliste erscheint. Null heißt: bis zum Ende des
+	// Folgemonats.
+	CommitGraceDays int `json:"commitGraceDays"`
+	// InvoiceCheckThreshold ist der Betrag, ab dem ein Eingangsbeleg einen
+	// Leistungsnachweis haben muss (RECH-08).
+	//
+	// Eine Grenze und keine Pflicht für jeden Beleg: den Kaffeekassenbon gegen
+	// eine Bestellung zu prüfen, kostet mehr, als er wert ist. Oberhalb der
+	// Grenze ist der Vermerk das, was die sachliche Richtigkeit belegt — ohne
+	// ihn steht später nur die Rechnung da und niemand, der sie geprüft hat.
+	//
+	// Null heißt: die Voreinstellung von 1.000 Euro — nicht „kein Nachweis
+	// verlangt". Ein Formular, das dieses Feld nicht kennt, schickt eine Null,
+	// und eine Null, die die Prüfregel stumm abschaltete, wäre ein
+	// Kontrollsystem, das sich durch Unterlassen ausschalten lässt. Wer keinen
+	// Nachweis will, setzt die Grenze hoch.
+	InvoiceCheckThreshold Cents `json:"invoiceCheckThreshold"`
+	// InvoiceCheckSince ist der Tag, ab dem der Prüflauf den fehlenden
+	// Leistungsnachweis beanstandet (JJJJ-MM-TT).
+	//
+	// Eine Festlegung des internen Kontrollsystems gilt ab dem Tag, an dem sie
+	// getroffen wurde. Ohne diesen Tag meldete der erste Abschluss nach dem
+	// Setzen der Grenze jeden Altbeleg, an dem der Vermerk fehlt — für Belege
+	// aus einer Zeit, in der niemand ihn verlangt hat, und regelmäßig aus
+	// festgeschriebenen Zeiträumen. Ein Prüfbericht mit hundert Befunden, die
+	// sich nicht abarbeiten lassen, ist keiner.
+	//
+	// Gesetzt wird er selbsttätig, wenn die Grenze zum ersten Mal gespeichert
+	// wird; überschreiben lässt er sich, wer die Regel rückwirkend anwenden
+	// will, trägt ein früheres Datum ein. Leer heißt: keine Grenze nach hinten.
+	InvoiceCheckSince string `json:"invoiceCheckSince,omitempty"`
+	// DunningLevels ist die eingestellte Stufenfolge des Mahnwesens. Leer
+	// heißt: die Voreinstellung (DefaultDunningLevels).
+	DunningLevels []DunningLevel `json:"dunningLevels"`
 	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
 	// fest — und ist normalerweise leer.
 	//

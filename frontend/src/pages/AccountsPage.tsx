@@ -1,13 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
-import type { Account, AccountLedger, AccountType, SuSaOverview } from '../types';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Ban, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import type {
+  Account,
+  AccountLedger,
+  AccountType,
+  OpenItem,
+  OpenItemsAging,
+  StatementPositionOption,
+  SuSaOverview,
+} from '../types';
+import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
+import { BlockAccountDialog, CustomAccountDialog } from '../components/LedgerForms';
 import { formatCents, formatDate } from '../utils/formatters';
 import {
   Button,
   EmptyState,
+  Field,
   HelpPopover,
-  HelpTooltip,
+  Input,
+  Notice,
   PageHeader,
   SearchInput,
   Section,
@@ -22,20 +35,39 @@ import {
   Th,
   Thead,
   Tr,
+  cn,
   toast,
 } from '../components/ui';
 
 /**
- * Kontenaufstellung.
+ * Konten.
  *
- * Von 1.855 Katalogeinträgen bebucht ein Unternehmen ein paar Dutzend. Die
- * Seite zeigt deshalb zuerst die bebuchten Konten und macht den Kontenrahmen
- * erst auf Wunsch auf. Das Grundprinzip — Aktiv- und Aufwandskonten tragen
- * einen Sollsaldo, Passiv-, Kapital- und Ertragskonten einen Habensaldo —
- * steht als Erklärung an der Übersicht, nicht als Legende auf jeder Zeile.
+ * Von 1.855 Katalogeinträgen bebucht ein Unternehmen ein paar Dutzend. Das sind
+ * zwei Fragen und deshalb zwei Ansichten: Die bebuchten Konten sind das, womit
+ * gearbeitet wird — ein paar Dutzend Zeilen mit Verkehrszahlen und Saldo. Die
+ * Kontenaufstellung ist das Nachschlagewerk: die eigenen Konten und der
+ * durchsuchbare SKR04 dahinter. Bis Welle 9 standen beide untereinander auf
+ * einer Seite, und die kurze Liste ging in der langen unter.
+ *
+ * Das Grundprinzip — Aktiv- und Aufwandskonten tragen einen Sollsaldo, Passiv-,
+ * Kapital- und Ertragskonten einen Habensaldo — steht als Erklärung an der
+ * Übersicht, nicht als Legende auf jeder Zeile.
  */
 
-type Tab = 'konten' | 'susa';
+type Tab = 'bebucht' | 'aufstellung' | 'susa' | 'op';
+
+/**
+ * So viele Treffer zeigt die Suche im Kontenrahmen. „Konto" trifft ein paar
+ * hundert Zeilen; wer so sucht, sucht nicht nach einer Liste, sondern nach
+ * einem Konto — und liest die ersten Treffer. Die Grenze steht deshalb über
+ * der Trefferliste und nicht nur im Code.
+ */
+const SEARCH_LIMIT = 60;
+
+/** Der heutige Tag als ISO-Datum — die Voreinstellung des OP-Stichtags. */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const CLASS_NAMES: Record<number, string> = {
   0: 'Anlagevermögen',
@@ -77,21 +109,97 @@ const BALANCE_HELP =
   'Aktiv- und Aufwandskonten tragen ihren Saldo im Soll, Passiv-, Kapital- und Ertragskonten im ' +
   'Haben. Steht der Saldo auf der anderen Seite, weist die Zeile darauf hin.';
 
-export const AccountsPage: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('konten');
+export interface AccountsPageProps {
+  /**
+   * Kontonummer aus dem Navigationsziel. Wer aus der Bilanz auf ein Konto
+   * klickt, will das Kontoblatt sehen und nicht die Kontenliste (GOB-02).
+   */
+  initialAccount?: string;
+  onNavigate?: NavigateFn;
+}
+
+export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNavigate }) => {
+  const [tab, setTab] = useState<Tab>('bebucht');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [susa, setSusa] = useState<SuSaOverview | null>(null);
   const [ledger, setLedger] = useState<AccountLedger | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingLedger, setLoadingLedger] = useState(false);
 
+  // Der Stichtag der Summen- und Saldenliste. Leer heißt: das ganze
+  // Geschäftsjahr — das ist die Liste, auf der die Bilanz beruht. Ein Stichtag
+  // mittendrin ist die Frage des Prüfers und der Banken (JAB-08).
+  const [susaCutoff, setSusaCutoff] = useState('');
+  const [loadingSusa, setLoadingSusa] = useState(false);
+
+  // Die offenen Posten zu einem Stichtag (JAB-08). Voreinstellung ist heute:
+  // das ist die Frage des Alltags. Der Prüfer fragt nach dem Bilanzstichtag,
+  // und dafür steht das Feld — Zahlungen nach dem Stichtag zählen dann nicht,
+  // statt nur ausgeblendet zu werden.
+  const [openItems, setOpenItems] = useState<OpenItem[]>([]);
+  // Altersstruktur und Restlaufzeiten zum selben Stichtag (BEL-07). Sie kommen
+  // aus dem Backend und werden hier nicht aus der Postenliste gerechnet: die
+  // Bänder sind eine fachliche Einteilung — die Restlaufzeit ist die Angabe
+  // unter der Bilanz (§ 268 Abs. 4 und 5 HGB) —, und zwei Rechnungen über
+  // dieselben Posten liefen auseinander.
+  const [aging, setAging] = useState<OpenItemsAging | null>(null);
+  const [openItemsCutoff, setOpenItemsCutoff] = useState(today());
+  const [loadingOpenItems, setLoadingOpenItems] = useState(false);
+
+  const loadedOpenItems = useRef(false);
+
+  // Die selbst angelegten Konten und die Gliederungspositionen, unter denen
+  // ein neues Konto stehen darf (BEL-06 K2). Sie stehen in der
+  // Kontenübersicht: das eigene Konto ist ein Konto und gehört zu den anderen.
+  const [customAccounts, setCustomAccounts] = useState<Account[]>([]);
+  const [positions, setPositions] = useState<StatementPositionOption[]>([]);
+  const [customError, setCustomError] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [blockAccount, setBlockAccount] = useState<Account | null>(null);
+
   const [search, setSearch] = useState('');
-  const [showCatalog, setShowCatalog] = useState(false);
+  // Das festgestellte Geschäftsjahr und der Prüfermodus sperren das Anlegen
+  // und Sperren eines Kontos; der Knopf sagt das, statt es nach dem Ausfüllen
+  // als Fehlermeldung zu zeigen (§10.4).
+  const writeLock = useWriteLock();
   const [openClasses, setOpenClasses] = useState<Record<number, boolean>>({});
+
+  const loadCustomAccounts = useCallback(async () => {
+    try {
+      setCustomAccounts(await Api.getCustomAccounts());
+      setCustomError('');
+    } catch (e) {
+      setCustomAccounts([]);
+      setCustomError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+    void loadCustomAccounts();
+    // Die Positionsliste hat ihren eigenen Fehlerpfad: fehlt sie, bleibt die
+    // Kontenübersicht lesbar, und der Dialog nennt beim Anlegen den Grund.
+    Api.getStatementPositions()
+      .then(setPositions)
+      .catch(() => setPositions([]));
+  }, [loadCustomAccounts]);
+
+  // Die offenen Posten werden erst beim Öffnen des Reiters geholt: sie kosten
+  // eine eigene Abfrage, und die Kontenliste ist der übliche Einstieg.
+  useEffect(() => {
+    if (tab === 'op' && !loadedOpenItems.current) {
+      loadedOpenItems.current = true;
+      void loadOpenItemsAt(openItemsCutoff);
+    }
+  }, [tab]);
+
+  // Das Kontoblatt folgt dem Navigationsziel in beide Richtungen: mit
+  // Kontonummer öffnet es sich, ohne schließt es. Sonst bliebe ein Kontoblatt
+  // stehen, das über die Navigation gar nicht angesteuert wurde.
+  useEffect(() => {
+    if (initialAccount) void openLedger(initialAccount);
+    else setLedger(null);
+  }, [initialAccount]);
 
   async function load() {
     setLoading(true);
@@ -103,6 +211,35 @@ export const AccountsPage: React.FC = () => {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadOpenItemsAt(cutoff: string) {
+    setOpenItemsCutoff(cutoff);
+    setLoadingOpenItems(true);
+    try {
+      const [items, ageing] = await Promise.all([
+        Api.getOpenItemsAt(cutoff),
+        Api.getOpenItemsAging(cutoff),
+      ]);
+      setOpenItems(items);
+      setAging(ageing);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingOpenItems(false);
+    }
+  }
+
+  async function loadSusaAt(cutoff: string) {
+    setSusaCutoff(cutoff);
+    setLoadingSusa(true);
+    try {
+      setSusa(await Api.getSuSaOverviewAt(cutoff));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingSusa(false);
     }
   }
 
@@ -134,7 +271,7 @@ export const AccountsPage: React.FC = () => {
     if (!query) return [];
     return catalog
       .filter((a) => a.number.toLowerCase().includes(query) || a.name.toLowerCase().includes(query))
-      .slice(0, 60);
+      .slice(0, SEARCH_LIMIT);
   }, [catalog, search]);
 
   const catalogByClass = useMemo(() => {
@@ -153,7 +290,19 @@ export const AccountsPage: React.FC = () => {
   }, [catalog]);
 
   if (ledger) {
-    return <LedgerView ledger={ledger} loading={loadingLedger} onBack={() => setLedger(null)} />;
+    return (
+      <LedgerView
+        ledger={ledger}
+        loading={loadingLedger}
+        onBack={() => setLedger(null)}
+        onOpenEntry={
+          onNavigate && ((entryNumber: string) => onNavigate('journal', { entryNumber }))
+        }
+        onFilterAccount={
+          onNavigate && ((account: string) => onNavigate('journal', { filterAccount: account }))
+        }
+      />
+    );
   }
 
   return (
@@ -162,55 +311,184 @@ export const AccountsPage: React.FC = () => {
 
       <Tabs
         items={[
-          { value: 'konten' as Tab, label: 'Konten' },
+          { value: 'bebucht' as Tab, label: 'Bebuchte Konten' },
+          { value: 'aufstellung' as Tab, label: 'Kontenaufstellung' },
           { value: 'susa' as Tab, label: 'Summen & Salden' },
+          { value: 'op' as Tab, label: 'Offene Posten' },
         ]}
         value={tab}
         onValueChange={setTab}
         className="mt-6"
       >
-        <TabPanel value="konten">
+        {/* Zwei Fragen, zwei Ansichten: Womit ist gebucht worden? Und: Welches
+            Konto nehme ich? Bis hierher standen beide untereinander auf einer
+            Seite, und die Antwort auf die erste — ein paar Dutzend Zeilen —
+            stand über einem Kontenrahmen mit 1.600. */}
+        <TabPanel value="bebucht">
+          {loading ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <Section
+              title="Bebuchte Konten"
+              context={`${inUse.length} von ${catalog.length} bebuchbaren Konten`}
+              divider={false}
+              explain={
+                <>
+                  Der SKR04 enthält über 1.600 nutzbare Konten, ein Unternehmen bebucht davon
+                  typischerweise ein paar Dutzend. Neue Konten entstehen von selbst, sobald eine
+                  Buchungsgruppe sie zum ersten Mal verwendet. {BALANCE_HELP}
+                </>
+              }
+            >
+              {inUse.length === 0 ? (
+                <EmptyState
+                  title="Noch keine Buchungen vorhanden"
+                  description="Sobald der erste Beleg erfasst ist, erscheinen hier die Konten, die er berührt."
+                />
+              ) : (
+                <AccountTable accounts={inUse} onSelect={openLedger} showTurnover />
+              )}
+            </Section>
+          )}
+        </TabPanel>
+
+        <TabPanel value="aufstellung">
           {loading ? (
             <SkeletonRows rows={8} />
           ) : (
             <>
+              {/* Die eigenen Konten stehen vor dem Kontenrahmen: sie sind
+                  beides — selbst angelegt und Teil des Rahmens, unter dem
+                  gebucht wird (BEL-06 K2). */}
               <Section
-                title="Bebuchte Konten"
-                context={`${inUse.length} von ${catalog.length} bebuchbaren Konten`}
                 divider={false}
+                title="Eigene Konten"
+                context={`${customAccounts.length} selbst angelegt`}
+                explain={
+                  <>
+                    Ein eigenes Konto entsteht im freien Bereich des SKR04 und hat eine
+                    Gliederungsposition nach §§ 266, 275 HGB — ohne sie erschiene es weder im
+                    Abschluss noch in der E-Bilanz. Ein Konto des Kontenrahmens umzuwidmen
+                    zerstört dagegen still die Zuordnung, auf der Bilanz, GuV und E-Bilanz
+                    beruhen. Gesperrt wird statt gelöscht, sobald ein Konto bebucht ist.
+                  </>
+                }
                 action={
-                  <HelpPopover label="Erklärung zu den bebuchten Konten">
-                    Der SKR04 enthält über 1.600 nutzbare Konten, ein Unternehmen bebucht davon
-                    typischerweise ein paar Dutzend. Neue Konten entstehen von selbst, sobald eine
-                    Buchungsgruppe sie zum ersten Mal verwendet. {BALANCE_HELP}
-                  </HelpPopover>
+                  <Button
+                    variant="secondary"
+                    icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+                    disabled={writeLock.locked}
+                    title={writeLock.hint}
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    Konto anlegen
+                  </Button>
                 }
               >
-                {inUse.length === 0 ? (
+                {customError && <Notice tone="negative" text={customError} className="mb-5" />}
+                {customAccounts.length === 0 ? (
                   <EmptyState
-                    title="Noch keine Buchungen vorhanden"
-                    description="Sobald der erste Beleg erfasst ist, erscheinen hier die Konten, die er berührt."
+                    title="Kein eigenes Konto"
+                    description="Der SKR04 deckt den Regelfall ab; für eine eigene Auswertung kommt hier ein Konto dazu."
+                    action={
+                      <Button
+                        variant="secondary"
+                        disabled={writeLock.locked}
+                        title={writeLock.hint}
+                        onClick={() => setCreateOpen(true)}
+                      >
+                        Konto anlegen
+                      </Button>
+                    }
                   />
                 ) : (
-                  <AccountTable accounts={inUse} onSelect={openLedger} showTurnover />
+                  <Table>
+                    <Thead>
+                      <Tr>
+                        <Th>Nummer</Th>
+                        <Th>Bezeichnung</Th>
+                        <Th>Gliederungsposition</Th>
+                        <Th numeric>Buchungen</Th>
+                        <Th>Zustand</Th>
+                        <Th className="w-32" aria-label="Aktion" />
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {customAccounts.map((account) => (
+                        <Tr key={account.number}>
+                          <Td code>
+                            <Button variant="quiet" size="sm" onClick={() => openLedger(account.number)}>
+                              {account.number}
+                            </Button>
+                          </Td>
+                          <Td>{account.name}</Td>
+                          <Td className="text-ink-muted">{account.posten}</Td>
+                          <Td numeric>{account.bookingsCount}</Td>
+                          <Td>
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  'mark-diamond shrink-0',
+                                  account.isActive ? 'bg-positive' : 'bg-ink-faint',
+                                )}
+                                aria-hidden="true"
+                              />
+                              {account.isActive ? 'Bebuchbar' : 'Gesperrt'}
+                            </span>
+                          </Td>
+                          <Td className="text-right pl-0">
+                            {account.isActive ? (
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                icon={<Ban className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                                disabled={writeLock.locked}
+                                title={writeLock.hint}
+                                onClick={() => setBlockAccount(account)}
+                              >
+                                Sperren
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                disabled={writeLock.locked}
+                                title={writeLock.hint}
+                                onClick={async () => {
+                                  // Der Fehler bleibt als Hinweisfläche über der
+                                  // Tabelle stehen (§10.4): er nennt den Grund,
+                                  // aus dem die Sperre bleibt.
+                                  setCustomError('');
+                                  try {
+                                    await Api.setAccountBlocked(account.number, false, '');
+                                    await loadCustomAccounts();
+                                    toast.success(`Konto ${account.number} wieder frei.`);
+                                  } catch (e) {
+                                    setCustomError(e instanceof Error ? e.message : String(e));
+                                  }
+                                }}
+                              >
+                                Freigeben
+                              </Button>
+                            )}
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
                 )}
               </Section>
 
               <Section
-                title="Kontenrahmen"
-                context="Alle bebuchbaren Konten des SKR04"
-                action={
-                  <div className="flex items-center gap-2">
-                    <Button variant="quiet" onClick={() => setShowCatalog((v) => !v)}>
-                      {showCatalog ? 'Rahmen ausblenden' : 'Rahmen anzeigen'}
-                    </Button>
-                    <HelpPopover label="Erklärung zum Kontenrahmen">
-                      Bereichskonten wie 4400-4409 sind eine Kurzschreibweise für zehn nutzbare
-                      Konten, keine eigenen Konten. Kontenklasse 8 hält die DATEV im SKR04 frei und
-                      ist hier ausgeblendet, weil dort nicht gebucht werden darf. Erlöse liegen
-                      anders als im SKR03 in Klasse 4.
-                    </HelpPopover>
-                  </div>
+                title="Kontenrahmen SKR04"
+                context={`${catalog.length} bebuchbare Konten in ${catalogByClass.length} Klassen`}
+                explain={
+                  <>
+                    Bereichskonten wie 4400-4409 sind eine Kurzschreibweise für zehn nutzbare
+                    Konten, keine eigenen Konten. Kontenklasse 8 hält die DATEV im SKR04 frei und
+                    ist hier ausgeblendet, weil dort nicht gebucht werden darf. Erlöse liegen
+                    anders als im SKR03 in Klasse 4.
+                  </>
                 }
               >
                 <SearchInput
@@ -223,14 +501,24 @@ export const AccountsPage: React.FC = () => {
                 <div className="mt-4">
                   {search.trim() ? (
                     searchResults.length ? (
-                      <AccountTable accounts={searchResults} onSelect={openLedger} />
+                      <>
+                        <p className="text-caption text-ink-subtle mb-2">
+                          {searchResults.length === SEARCH_LIMIT
+                            ? `Die ersten ${SEARCH_LIMIT} Treffer — suchen Sie genauer, wenn Ihr Konto fehlt.`
+                            : `${searchResults.length} Treffer`}
+                        </p>
+                        <AccountTable accounts={searchResults} onSelect={openLedger} />
+                      </>
                     ) : (
                       <EmptyState
                         title="Kein Konto gefunden"
                         description="Erlöse liegen im SKR04 in Klasse 4, etwa 4400, nicht in Klasse 8 wie im SKR03."
                       />
                     )
-                  ) : showCatalog ? (
+                  ) : (
+                    /* Der Rahmen steht offen da und nicht hinter einem Knopf:
+                       diese Ansicht ist der Kontenrahmen. Die Klassen bleiben
+                       zugeklappt, weil 1.600 Zeilen keine Aufstellung sind. */
                     <div className="divide-y divide-line border-t border-line">
                       {catalogByClass.map(({ kontenklasse, accounts: classAccounts }) => {
                         const isOpen = openClasses[kontenklasse] ?? false;
@@ -269,7 +557,7 @@ export const AccountsPage: React.FC = () => {
                         );
                       })}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </Section>
             </>
@@ -277,9 +565,87 @@ export const AccountsPage: React.FC = () => {
         </TabPanel>
 
         <TabPanel value="susa">
-          {loading ? <SkeletonRows rows={8} /> : <SuSaView susa={susa} onSelect={openLedger} />}
+          <div className="flex flex-wrap items-end gap-4 mb-6">
+            <Field
+              label="Stichtag"
+              hint="Leer: das ganze Geschäftsjahr"
+              explain="Buchungen nach dem Stichtag bleiben außen vor, statt nur ausgeblendet zu werden."
+              className="w-52"
+            >
+              <Input
+                type="date"
+                value={susaCutoff}
+                onChange={(e) => void loadSusaAt(e.target.value)}
+              />
+            </Field>
+            {susaCutoff && (
+              <Button variant="quiet" onClick={() => void loadSusaAt('')} className="mb-1">
+                Ganzes Jahr
+              </Button>
+            )}
+          </div>
+          {loading || loadingSusa ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <SuSaView susa={susa} onSelect={openLedger} />
+          )}
+        </TabPanel>
+
+        <TabPanel value="op">
+          <div className="flex flex-wrap items-end gap-4 mb-6">
+            <Field
+              label="Stichtag"
+              hint="Voreinstellung: heute"
+              explain="Zahlungen, die nach dem Stichtag gebucht wurden, bleiben außen vor — die Liste zeigt den Stand von damals."
+              className="w-52"
+            >
+              <Input
+                type="date"
+                value={openItemsCutoff}
+                onChange={(e) => void loadOpenItemsAt(e.target.value)}
+              />
+            </Field>
+            {openItemsCutoff !== today() && (
+              <Button variant="quiet" onClick={() => void loadOpenItemsAt(today())} className="mb-1">
+                Heute
+              </Button>
+            )}
+            <div className="ml-auto mb-1">
+              <HelpPopover label="Erklärung zu den offenen Posten">
+                Ein offener Posten ist eine Rechnung, die noch nicht ausgeglichen ist. Forderungen
+                stehen auf den Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten.
+                Ausgeglichen wird über den Bankimport oder eine Zahlungsbuchung.
+              </HelpPopover>
+            </div>
+          </div>
+          {loadingOpenItems ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <OpenItemsView items={openItems} aging={aging} cutoff={openItemsCutoff} />
+          )}
         </TabPanel>
       </Tabs>
+
+      <CustomAccountDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        positions={positions}
+        onCreated={async () => {
+          await loadCustomAccounts();
+          await load();
+        }}
+      />
+      <BlockAccountDialog
+        open={blockAccount !== null}
+        onOpenChange={(next) => {
+          if (!next) setBlockAccount(null);
+        }}
+        account={blockAccount}
+        onChanged={async () => {
+          setBlockAccount(null);
+          await loadCustomAccounts();
+        }}
+      />
     </div>
   );
 };
@@ -379,10 +745,9 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
           label={
             <>
               Abweichung
-              <HelpTooltip
-                label="Erklärung zur Abweichung"
-                content="Die Prüfung ist exakt und nicht auf Cent gerundet: Jede Buchung wird schon beim Speichern auf Ausgeglichenheit geprüft."
-              />
+              <HelpPopover label="Erklärung zur Abweichung">
+                Die Prüfung ist exakt und nicht auf Cent gerundet: Jede Buchung wird schon beim Speichern auf Ausgeglichenheit geprüft.
+              </HelpPopover>
             </>
           }
           value={susa.isBalanced ? 'keine' : formatCents(susa.difference)}
@@ -414,11 +779,257 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
 
 // -------------------------------------------------------------------------
 
+/**
+ * Die offenen Posten zum Stichtag.
+ *
+ * Zwei Listen, weil es zwei Sachverhalte sind: Forderungen stehen auf den
+ * Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten. Eine gemeinsame
+ * Summe wäre eine Saldierung, die die Bilanz nicht kennt (§ 246 Abs. 2 HGB).
+ */
+const OpenItemsView: React.FC<{
+  items: OpenItem[];
+  aging: OpenItemsAging | null;
+  cutoff: string;
+}> = ({ items, aging, cutoff }) => {
+  const list = items ?? [];
+  const receivables = list.filter((item) => item.contactType === 'customer');
+  const payables = list.filter((item) => item.contactType === 'vendor');
+  const sum = (rows: OpenItem[]) => rows.reduce((total, row) => total + row.openAmount, 0);
+
+  return (
+    <>
+      <StatRow>
+        <Stat
+          label="Forderungen"
+          value={formatCents(sum(receivables))}
+          context={`${receivables.length} offene Posten`}
+        />
+        <Stat
+          label="Verbindlichkeiten"
+          value={formatCents(sum(payables))}
+          context={`${payables.length} offene Posten`}
+        />
+        <Stat
+          label="Stichtag"
+          value={cutoff ? formatDate(cutoff) : 'heute'}
+          context="Spätere Zahlungen bleiben außen vor"
+        />
+      </StatRow>
+
+      {list.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="Keine offenen Posten zum Stichtag"
+            description="Jede Rechnung bis zu diesem Tag ist ausgeglichen — oder es wurde noch keine auf Ziel gebucht."
+          />
+        </div>
+      ) : (
+        <>
+          <AgingView aging={aging} className="mt-8" />
+          <OpenItemsTable
+            title="Forderungen"
+            hint="Debitoren"
+            rows={receivables}
+            cutoff={cutoff}
+            className="mt-8"
+          />
+          <OpenItemsTable title="Verbindlichkeiten" hint="Kreditoren" rows={payables} cutoff={cutoff} />
+        </>
+      )}
+    </>
+  );
+};
+
+/**
+ * Altersstruktur und Restlaufzeiten der offenen Posten (BEL-07).
+ *
+ * Beide Gliederungen nebeneinander, weil sie verschiedene Fragen beantworten:
+ * die Altersstruktur sagt, wie lange ein Posten schon überfällig ist — das ist
+ * die Frage des Mahnwesens und der Wertberichtigung —, die Restlaufzeit sagt,
+ * wann er fällig wird, und ist die Angabe unter der Bilanz (§ 268 Abs. 4 und 5
+ * HGB). Die Zahlen kommen aus einer Auswertung, damit sie zueinander passen.
+ */
+const AgingView: React.FC<{ aging: OpenItemsAging | null; className?: string }> = ({
+  aging,
+  className,
+}) => {
+  const sides = aging?.sides ?? [];
+  if (sides.length === 0) return null;
+
+  return (
+    <Section
+      title="Altersstruktur und Restlaufzeiten"
+      context={aging?.reference}
+      className={className}
+      divider={false}
+      explain={
+        <>
+          Die Altersstruktur zählt vom Fälligkeitstag bis zum Stichtag: ein Posten in der Spalte
+          „über 90 Tage" ist seit mehr als drei Monaten fällig und stellt die Frage nach seiner
+          Werthaltigkeit. Die Restlaufzeit zählt in die andere Richtung — vom Stichtag bis zur
+          Fälligkeit — und gehört unter die Bilanz (§ 268 Abs. 4 und 5 HGB). Ein Posten ohne
+          vereinbarte Fälligkeit steht in beiden Gliederungen für sich.
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {sides.map((side) => (
+          <div key={side.side} className="min-w-0">
+            <h3 className="text-label text-ink-muted">
+              {side.label}
+              <span className="text-ink-subtle font-normal">
+                {' '}
+                · {side.items} Posten · {formatCents(side.total)}
+              </span>
+            </h3>
+
+            <Table density="kompakt" className="mt-3">
+              <Thead>
+                <Tr>
+                  <Th>Fälligkeit</Th>
+                  <Th numeric className="w-20">
+                    Posten
+                  </Th>
+                  <Th numeric className="w-36">
+                    Betrag
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {side.buckets.map((bucket) => (
+                  <Tr key={bucket.key}>
+                    <Td className="text-ink-muted">{bucket.label}</Td>
+                    <Td numeric className="num">
+                      {bucket.items}
+                    </Td>
+                    <Td numeric className="num">
+                      {formatCents(bucket.amount)}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+
+            <Table density="kompakt" className="mt-6">
+              <Thead>
+                <Tr>
+                  <Th>Restlaufzeit</Th>
+                  <Th numeric className="w-20">
+                    Posten
+                  </Th>
+                  <Th numeric className="w-36">
+                    Betrag
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {side.maturities.map((band) => (
+                  <Tr key={band.key}>
+                    <Td className="text-ink-muted">{band.label}</Td>
+                    <Td numeric className="num">
+                      {band.items}
+                    </Td>
+                    <Td numeric className="num">
+                      {formatCents(band.amount)}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+};
+
+const OpenItemsTable: React.FC<{
+  title: string;
+  hint: string;
+  rows: OpenItem[];
+  cutoff: string;
+  className?: string;
+  divider?: boolean;
+}> = ({ title, hint, rows, cutoff, className, divider }) => {
+  if (rows.length === 0) return null;
+  // Überfällig ist ein Posten, dessen Fälligkeit vor dem Stichtag lag — nicht
+  // vor heute: die Liste beschreibt den Stand zum Stichtag.
+  const reference = cutoff || today();
+
+  return (
+    <Section
+      title={title}
+      context={`${hint} · ${rows.length} Posten · offen ${formatCents(
+        rows.reduce((total, row) => total + row.openAmount, 0),
+      )}`}
+      className={className}
+      divider={divider}
+    >
+      <Table>
+        <Thead sticky>
+          <Tr>
+            <Th className="w-28">Konto</Th>
+            <Th>Kontakt</Th>
+            <Th className="w-36">Beleg</Th>
+            <Th className="w-28">Belegdatum</Th>
+            <Th className="w-28">Fällig</Th>
+            <Th numeric className="w-32">Brutto</Th>
+            <Th numeric className="w-32">Ausgeglichen</Th>
+            <Th numeric className="w-32">Offen</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((row) => {
+            const overdue = Boolean(row.dueDate) && row.dueDate < reference;
+            return (
+              <Tr key={`${row.entryId}-${row.documentNumber}`}>
+                <Td code>{row.ledgerAccount}</Td>
+                <Td className="max-w-[22rem]">
+                  <span className="block truncate">{row.contactName || '—'}</span>
+                  <span className="block code-num text-caption text-ink-subtle">
+                    {row.entryNumber}
+                  </span>
+                </Td>
+                <Td code>{row.documentNumber || '—'}</Td>
+                <Td className="text-ink-subtle num">
+                  {row.documentDate ? formatDate(row.documentDate) : '—'}
+                </Td>
+                <Td className={overdue ? 'text-negative-text num' : 'text-ink-subtle num'}>
+                  {row.dueDate ? formatDate(row.dueDate) : '—'}
+                  {overdue && <span className="block text-caption">überfällig</span>}
+                </Td>
+                <Td numeric className="text-ink-subtle">{formatCents(row.grossAmount)}</Td>
+                <Td numeric className="text-ink-subtle">
+                  {row.settledAmount ? formatCents(row.settledAmount) : '—'}
+                </Td>
+                <Td numeric className="font-medium">{formatCents(row.openAmount)}</Td>
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Section>
+  );
+};
+
+// -------------------------------------------------------------------------
+
 const LedgerView: React.FC<{
   ledger: AccountLedger;
   loading: boolean;
   onBack: () => void;
-}> = ({ ledger, loading, onBack }) => {
+  /** Weiter zur Buchung im Journal — der nächste Schritt des Drill-downs. */
+  onOpenEntry?: (entryNumber: string) => void;
+  /**
+   * Weiter in die Zeilenauswertung des Kontos (PRF-01 K3).
+   *
+   * Das Kontoblatt zeigt alle Bewegungen des Jahres; die Fragen nach
+   * Gegenkonto, Betragsband, Steuerschlüssel oder Bearbeiter beantwortet die
+   * Auswertung im Journal — mit demselben Konto vorbelegt, statt sie hier ein
+   * zweites Mal zu bauen.
+   */
+  onFilterAccount?: (account: string) => void;
+}> = ({ ledger, loading, onBack, onOpenEntry, onFilterAccount }) => {
   const account = ledger.account;
   const rows = ledger.rows ?? [];
 
@@ -439,6 +1050,13 @@ const LedgerView: React.FC<{
         context={`${TYPE_LABELS[account.type] ?? ''} · Kontenklasse ${account.kontenklasse} · ${
           account.posten || account.category
         }`}
+        action={
+          onFilterAccount && (
+            <Button variant="secondary" onClick={() => onFilterAccount(account.number)}>
+              Zeilen auswerten
+            </Button>
+          )
+        }
       />
 
       <div className="mt-6">
@@ -447,7 +1065,7 @@ const LedgerView: React.FC<{
             label={
               <>
                 Saldo
-                <HelpTooltip label="Erklärung zum Saldo" content={BALANCE_HELP} />
+                <HelpPopover label="Erklärung zum Saldo">{BALANCE_HELP}</HelpPopover>
               </>
             }
             value={formatCents(ledger.closingBalance)}
@@ -477,10 +1095,9 @@ const LedgerView: React.FC<{
                 <Th className="w-48">
                   <span className="flex items-center">
                     Gegenkonten
-                    <HelpTooltip
-                      label="Erklärung zu den Gegenkonten"
-                      content="Eine Buchung besteht aus beliebig vielen Zeilen, deshalb steht hier eine Liste und nicht ein einzelnes Gegenkonto."
-                    />
+                    <HelpPopover label="Erklärung zu den Gegenkonten">
+                      Eine Buchung besteht aus beliebig vielen Zeilen, deshalb steht hier eine Liste und nicht ein einzelnes Gegenkonto.
+                    </HelpPopover>
                   </span>
                 </Th>
                 <Th numeric className="w-32">
@@ -502,7 +1119,17 @@ const LedgerView: React.FC<{
                 >
                   <Td className="text-ink-subtle num">{formatDate(row.bookingDate)}</Td>
                   <Td code>
-                    {row.entryNumber}
+                    {onOpenEntry ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenEntry(row.entryNumber)}
+                        className="code-num text-accent-text hover:underline"
+                      >
+                        {row.entryNumber}
+                      </button>
+                    ) : (
+                      row.entryNumber
+                    )}
                     {row.kind === 'reversal' && (
                       <span className="block text-negative-text">Generalumkehr</span>
                     )}

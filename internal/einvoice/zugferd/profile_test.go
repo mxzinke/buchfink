@@ -72,7 +72,7 @@ func TestContentMustFitTheDeclaredProfile(t *testing.T) {
 		t.Error("MINIMUM muss als unvollständige Rechnung gemeldet werden")
 	}
 
-	// Anlagen kann erst EN 16931 tragen.
+	// Anlagen kann erst EN 16931 haben.
 	basic := lineInvoice()
 	basic.SpecificationID = ProfileBasic.Identifier()
 	basic.SupportingDocs = []einvoice.SupportingDocument{{Reference: "A1"}}
@@ -129,7 +129,7 @@ func TestIdentifiersRoundTrip(t *testing.T) {
 	}
 }
 
-// Eine hybride Rechnung darf neben dem Datensatz weitere Dateien tragen. Aus
+// Eine hybride Rechnung darf neben dem Datensatz weitere Dateien haben. Aus
 // der falschen zu buchen hieße, aus einem Dokument zu buchen, das nicht die
 // Rechnung ist.
 func TestInvoiceAttachmentIsToldApartFromEnclosures(t *testing.T) {
@@ -145,7 +145,7 @@ func TestInvoiceAttachmentIsToldApartFromEnclosures(t *testing.T) {
 	}
 }
 
-// Die offiziellen CII-Beispiele tragen echte Profilkennungen. Keines davon darf
+// Die offiziellen CII-Beispiele haben echte Profilkennungen. Keines davon darf
 // als unbekannt durchfallen.
 func TestOfficialExamplesDeclareKnownProfiles(t *testing.T) {
 	dir := strings.TrimSpace(os.Getenv("EN16931_CII_EXAMPLES"))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -22,7 +21,14 @@ type AccountingService struct {
 	settingsRepo domain.SettingsRepository
 	journalSvc   *JournalService
 	fiscalYear   int
+	// auditRepo protokolliert die Herausgabe von Daten (QUE-02 K2). Freiwillig
+	// wie überall: ohne ihn rechnet der Dienst weiter, nur schreibt er nichts.
+	auditRepo domain.AuditRepository
 }
+
+// SetAuditRepo hängt das Protokoll an. Gebraucht wird es für die Herausgabe der
+// gefilterten Journalmenge — ein Lesezugriff auf personenbezogene Daten.
+func (s *AccountingService) SetAuditRepo(repo domain.AuditRepository) { s.auditRepo = repo }
 
 // NewAccountingService creates the reporting service.
 func NewAccountingService(
@@ -57,12 +63,29 @@ func (s *AccountingService) GetFiscalYear() int { return s.fiscalYear }
 // GetAccounts returns the chart of accounts with the turnover booked in the
 // active fiscal year folded in.
 func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, error) {
+	return s.AccountsForYear(ctx, s.fiscalYear)
+}
+
+// AccountsForYear liefert denselben Kontenplan mit den Salden eines beliebigen
+// Geschäftsjahres.
+//
+// Die Bilanz braucht das für die Vorjahresspalte: § 265 Abs. 2 HGB verlangt zu
+// jedem Posten den Betrag des vorhergehenden Geschäftsjahres, und den kann nur
+// liefern, wer die Salden eines anderen Jahres beschaffen kann, ohne das aktive
+// Jahr umzuschalten.
+func (s *AccountingService) AccountsForYear(ctx context.Context, year int) ([]domain.Account, error) {
+	return s.AccountsForYearAt(ctx, year, "")
+}
+
+// AccountsForYearAt liefert denselben Kontenplan mit den Salden bis zu einem
+// Stichtag. Leerer Stichtag heißt: das ganze Geschäftsjahr.
+func (s *AccountingService) AccountsForYearAt(ctx context.Context, year int, cutoff string) ([]domain.Account, error) {
 	accounts, err := s.accountRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	turnovers, err := s.collectedTurnovers(ctx)
+	turnovers, err := s.collectedTurnoversAt(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +114,17 @@ func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, 
 // into 1200 and 3300 they would be missing from the balance sheet and from the
 // Summen- und Saldenliste — which would then no longer add up.
 func (s *AccountingService) collectedTurnovers(ctx context.Context) (map[string]domain.AccountTurnover, error) {
-	raw, err := s.journalRepo.AccountTurnovers(ctx, s.fiscalYear)
+	return s.collectedTurnoversFor(ctx, s.fiscalYear)
+}
+
+// collectedTurnoversFor tut dasselbe für ein bestimmtes Geschäftsjahr.
+func (s *AccountingService) collectedTurnoversFor(ctx context.Context, year int) (map[string]domain.AccountTurnover, error) {
+	return s.collectedTurnoversAt(ctx, year, "")
+}
+
+// collectedTurnoversAt tut dasselbe bis zu einem Stichtag.
+func (s *AccountingService) collectedTurnoversAt(ctx context.Context, year int, cutoff string) (map[string]domain.AccountTurnover, error) {
+	raw, err := s.journalRepo.AccountTurnoversUntil(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +190,22 @@ func (s *AccountingService) GetAccountByNumber(ctx context.Context, number strin
 // GetAccountLedger builds the Kontoblatt: every line touching the account, with
 // its counter accounts and a running balance.
 func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber string) (*domain.AccountLedger, error) {
+	return s.accountLedger(ctx, accountNumber, "", "", false)
+}
+
+// GetAccountLedgerRange ist dasselbe Kontoblatt für ein Datumsfenster über alle
+// Geschäftsjahre hinweg.
+//
+// Ein Prüfer fragt nach einem Zeitraum, nicht nach einem Geschäftsjahr: „das
+// Bankkonto von Oktober bis März" liegt über einem Jahreswechsel, und ein
+// Kontoblatt, das an Silvester aufhört, beantwortet die Frage nicht.
+func (s *AccountingService) GetAccountLedgerRange(ctx context.Context, accountNumber, from, to string) (*domain.AccountLedger, error) {
+	return s.accountLedger(ctx, accountNumber, from, to, true)
+}
+
+func (s *AccountingService) accountLedger(
+	ctx context.Context, accountNumber, from, to string, byRange bool,
+) (*domain.AccountLedger, error) {
 	chart, err := s.chart(ctx)
 	if err != nil {
 		return nil, err
@@ -167,7 +216,12 @@ func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber 
 		return nil, fmt.Errorf("Konto %s ist im SKR04 nicht vorhanden", accountNumber)
 	}
 
-	entries, err := s.journalRepo.FindByAccount(ctx, accountNumber, s.fiscalYear)
+	var entries []domain.JournalEntry
+	if byRange {
+		entries, err = s.journalRepo.FindByAccountRange(ctx, accountNumber, from, to)
+	} else {
+		entries, err = s.journalRepo.FindByAccount(ctx, accountNumber, s.fiscalYear)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("Buchungen für Konto %s konnten nicht geladen werden: %w", accountNumber, err)
 	}
@@ -227,6 +281,8 @@ func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber 
 	return &domain.AccountLedger{
 		Account:        acc,
 		FiscalYear:     s.fiscalYear,
+		From:           from,
+		To:             to,
 		OpeningBalance: 0,
 		TotalDebit:     totalDebit,
 		TotalCredit:    totalCredit,
@@ -248,7 +304,8 @@ func counterAccounts(entry *domain.JournalEntry, account string, chart *accounti
 		}
 	}
 
-	var result []domain.CounterAccount
+	// Belegt statt nil: das Kontoblatt läuft je Zeile über die Gegenkonten.
+	result := make([]domain.CounterAccount, 0, len(entry.Lines))
 	for _, l := range entry.Lines {
 		if l.Account == account || l.Side == own {
 			continue
@@ -264,7 +321,17 @@ func counterAccounts(entry *domain.JournalEntry, account string, chart *accounti
 
 // GetSuSaOverview builds the Summen- und Saldenliste grouped by Kontenklasse.
 func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOverview, error) {
-	accounts, err := s.GetAccounts(ctx)
+	return s.GetSuSaOverviewAt(ctx, "")
+}
+
+// GetSuSaOverviewAt ist dieselbe Liste zu einem Stichtag.
+//
+// Der Stichtag gehört in die Abfrage und nicht hinter sie: eine Liste, die das
+// ganze Jahr summiert und danach Zeilen ausblendet, zeigte Salden, die es zum
+// Stichtag nie gab. Ein Prüfer fragt aber nach dem Stand an einem Tag —
+// zum 30.06., zum Tag einer Übernahme, zum Ende eines Voranmeldungszeitraums.
+func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, cutoff string) (*domain.SuSaOverview, error) {
+	accounts, err := s.AccountsForYearAt(ctx, s.fiscalYear, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -332,6 +399,7 @@ func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOv
 
 	return &domain.SuSaOverview{
 		FiscalYear:       s.fiscalYear,
+		Cutoff:           cutoff,
 		TotalDebit:       totalDebit,
 		TotalCredit:      totalCredit,
 		TotalSaldoDebit:  saldoDebit,
@@ -367,6 +435,11 @@ func (s *AccountingService) GetAllEntries(ctx context.Context) ([]domain.Journal
 }
 
 func (s *AccountingService) decorate(ctx context.Context, entries []domain.JournalEntry) ([]domain.JournalEntry, error) {
+	// Leer statt nil: das leere Journal ist der Zustand jedes neuen Mandanten,
+	// und als `null` nähme `entries.map` in der Ansicht den ganzen Baum mit.
+	if entries == nil {
+		entries = make([]domain.JournalEntry, 0)
+	}
 	chart, err := s.chart(ctx)
 	if err != nil {
 		return entries, nil
@@ -432,7 +505,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 		return nil, err
 	}
 
-	return &domain.FinancialSummary{
+	summary := &domain.FinancialSummary{
 		TotalRevenue:    revenue,
 		TotalExpenses:   expenses,
 		NetIncome:       revenue - expenses,
@@ -440,7 +513,11 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 		OpenReceivables: receivables,
 		OpenPayables:    payables,
 		CashflowHistory: cashflow,
-	}, nil
+	}
+	// Ein Jahr ohne Zahlungsverkehr liefert keinen Verlauf; die Startseite
+	// liest ihn trotzdem.
+	summary.EnsureLists()
+	return summary, nil
 }
 
 // GetAvailableFiscalYears lists the years that hold bookings, plus the current
@@ -454,7 +531,7 @@ func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
 	}
 
 	years := map[int]bool{
-		domain.GetFiscalYearForDate(time.Now().Format("2006-01-02"), startMonth): true,
+		domain.GetFiscalYearForDate(todayLocal(), startMonth): true,
 	}
 	if s.fiscalYear > 0 {
 		years[s.fiscalYear] = true
@@ -484,4 +561,31 @@ func (s *AccountingService) chart(ctx context.Context) (*accounting.Chart, error
 		return nil, err
 	}
 	return accounting.NewChart(accounts), nil
+}
+
+// FilterEntries beantwortet eine eingeschränkte Frage an das Journal
+// (PRF-01 K3).
+//
+// Gefiltert wird über alle Geschäftsjahre, wenn der Filter keinen Zeitraum
+// nennt, und sonst über die Jahre, die der Zeitraum berührt. Der Grund ist die
+// Frage selbst: „alle Buchungen auf Konto 6300 über 10.000 €" ist keine Frage
+// an ein Geschäftsjahr, sondern an die Buchführung — und eine Antwort, die
+// stillschweigend beim 1. Januar aufhört, ist die falsche.
+func (s *AccountingService) FilterEntries(
+	ctx context.Context, filter accounting.JournalFilter,
+) (*accounting.JournalFilterResult, error) {
+	entries, err := s.GetAllEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]string{}
+	if accounts, err := s.accountRepo.FindAll(ctx); err == nil {
+		for i := range accounts {
+			names[accounts[i].Number] = accounts[i].Name
+		}
+	}
+	result := accounting.FilterJournal(entries, filter, func(number string) string {
+		return names[number]
+	})
+	return &result, nil
 }

@@ -1,0 +1,114 @@
+{
+  "version": "2026.1",
+  "source": "EStG in der am 01.01.2026 geltenden Fassung",
+  "note": "Die Abschreibungsregeln als Ressource statt als Go-Literale. Der Gesetzgeber ändert sie in kurzen Abständen und rückwirkend fast nie: eine neue Fassung ist ein neuer Eintrag, die alten bleiben stehen, weil ein 2021 angeschafftes Wirtschaftsgut heute noch nach dem Satz von damals abschreibt.",
+  "investmentDeductionNote": "Den Investitionsabzugsbetrag nach § 7g Abs. 1 EStG führt Buchfink nicht. Er wird außerbilanziell abgezogen und in der Steuererklärung geltend gemacht, nicht gebucht; dasselbe gilt für die Hinzurechnung im Jahr der Anschaffung (§ 7g Abs. 2 EStG). In Buchfink steht das Wirtschaftsgut deshalb mit seinen vollen Anschaffungskosten, und die Minderung der Bemessungsgrundlage nach § 7g Abs. 2 Satz 3 EStG ist ein Wahlrecht, das du in der Anlagenkartei als geminderte Anschaffungskosten mit Begründung erfassen musst. Die Sonderabschreibung nach § 7g Abs. 5 EStG rechnet Buchfink dagegen mit.",
+  "parameterSets": [
+    {
+      "validFrom": "2010-01-01",
+      "note": "§ 6 Abs. 2 und 2a EStG in der von 2010 bis 2017 geltenden Fassung.",
+      "gwgImmediateLimit": 41000,
+      "gwgRecordThreshold": 15000,
+      "poolLowerLimit": 15000,
+      "poolUpperLimit": 100000,
+      "poolYears": 5
+    },
+    {
+      "validFrom": "2018-01-01",
+      "note": "§ 6 Abs. 2 und 2a EStG in der ab 2018 geltenden Fassung.",
+      "gwgImmediateLimit": 80000,
+      "gwgRecordThreshold": 25000,
+      "poolLowerLimit": 25000,
+      "poolUpperLimit": 100000,
+      "poolYears": 5
+    }
+  ],
+  "degressiveWindows": [
+    {
+      "from": "2009-01-01",
+      "until": "2010-12-31",
+      "factorPermille": 2500,
+      "maxPermille": 250,
+      "source": "§ 7 Abs. 2 EStG in der Fassung des Gesetzes vom 21.12.2008"
+    },
+    {
+      "from": "2020-01-01",
+      "until": "2022-12-31",
+      "factorPermille": 2500,
+      "maxPermille": 250,
+      "source": "§ 7 Abs. 2 EStG in der Fassung des Zweiten Corona-Steuerhilfegesetzes"
+    },
+    {
+      "from": "2024-04-01",
+      "until": "2024-12-31",
+      "factorPermille": 2000,
+      "maxPermille": 200,
+      "source": "§ 7 Abs. 2 EStG in der Fassung des Wachstumschancengesetzes"
+    },
+    {
+      "from": "2025-07-01",
+      "until": "2027-12-31",
+      "factorPermille": 3000,
+      "maxPermille": 300,
+      "source": "§ 7 Abs. 2 Sätze 1 und 2 EStG"
+    }
+  ],
+  "electricVehicleWindows": [
+    {
+      "from": "2025-07-01",
+      "until": "2027-12-31",
+      "permillePerYear": [750, 100, 50, 50, 30, 20],
+      "source": "§ 7 Abs. 2a EStG",
+      "note": "Arithmetisch-degressive Staffel für neue, rein elektrisch betriebene Fahrzeuge, angeschafft nach dem 30.06.2025 und vor dem 01.01.2028. Im Jahr der Anschaffung wird nicht zeitanteilig gekürzt."
+    }
+  ],
+  "buildingRates": [
+    {
+      "key": "business_after_1985",
+      "residential": false,
+      "referenceFrom": "1985-04-01",
+      "permille": 30,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 1 EStG",
+      "label": "Betriebsgebäude, Bauantrag nach dem 31.03.1985: 3 % jährlich"
+    },
+    {
+      "key": "business_before_1985",
+      "residential": false,
+      "referenceFrom": "1925-01-01",
+      "permille": 20,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. b EStG",
+      "label": "Betriebsgebäude mit älterem Bauantrag: 2 % jährlich"
+    },
+    {
+      "key": "business_before_1925",
+      "residential": false,
+      "permille": 25,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. c EStG",
+      "label": "Betriebsgebäude, fertiggestellt vor dem 01.01.1925: 2,5 % jährlich",
+      "note": "Nummer 2 gilt für jedes Gebäude, das die Voraussetzungen der Nummer 1 nicht erfüllt — auch für ein Betriebsgebäude mit Bauantrag vor dem 01.04.1985. Buchstabe c knüpft an die Fertigstellung und nicht an den Bauantrag; Buchfink misst hier denselben Stichtag wie bei den übrigen Betriebsgebäuden. Bei einem Gebäude, dessen Bauantrag vor 1925 gestellt und das erst danach fertiggestellt wurde, ist deshalb der Satz der Nummer 2 Buchstabe b (2 %) von Hand zu wählen."
+    },
+    {
+      "key": "residential_after_2022",
+      "residential": true,
+      "referenceFrom": "2023-01-01",
+      "permille": 30,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. a EStG",
+      "label": "Wohngebäude, fertiggestellt nach dem 31.12.2022: 3 % jährlich"
+    },
+    {
+      "key": "residential_1925_2022",
+      "residential": true,
+      "referenceFrom": "1925-01-01",
+      "permille": 20,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. b EStG",
+      "label": "Wohngebäude, fertiggestellt nach dem 31.12.1924 und vor dem 01.01.2023: 2 % jährlich"
+    },
+    {
+      "key": "residential_before_1925",
+      "residential": true,
+      "permille": 25,
+      "source": "§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. c EStG",
+      "label": "Wohngebäude, fertiggestellt vor dem 01.01.1925: 2,5 % jährlich"
+    }
+  ]
+}

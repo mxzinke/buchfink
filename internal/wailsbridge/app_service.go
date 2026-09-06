@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/xrechnung"
@@ -26,9 +27,21 @@ import (
 	"gorm.io/gorm"
 )
 
+// Listen kommen leer und nie als nil aus der Bridge — auch dann, wenn noch kein
+// Mandant offen ist. Ein nil-Slice wird über die Wails-Laufzeit zu `null`, und
+// `null.length` oder `null.map` wirft im Render einen TypeError, der ohne
+// ErrorBoundary den ganzen Baum mitnimmt. Betroffen wäre gerade der erste
+// Bildschirm nach dem Start.
+
 // BuchfinkBridge bridges between Wails v3 frontend IPC and the decoupled Go domain services.
 type BuchfinkBridge struct {
-	mu          sync.RWMutex
+	mu sync.RWMutex
+	// backupMu serialisiert die Sicherungsläufe untereinander. Sie ist von b.mu
+	// getrennt, weil eine Sicherung Minuten dauern kann und die Bridge
+	// währenddessen bedienbar bleiben muss: zwei Läufe gleichzeitig sollen sich
+	// nicht ins Gehege kommen, aber ein Lauf soll nicht das Journal sperren.
+	backupMu sync.Mutex
+
 	appCfgRepo  domain.AppConfigRepository
 	appConfig   domain.AppConfig
 	dataDir     string
@@ -43,33 +56,97 @@ type BuchfinkBridge struct {
 	bankRepo           domain.BankRepository
 	contactRepo        domain.ContactRepository
 	invoiceRepo        domain.InvoiceRepository
+	numberGapRepo      domain.NumberGapRepository
+	invoiceGroupRepo   domain.InvoiceGroupRepository
+	vendorAdvanceRepo  domain.VendorAdvanceRepository
+	txRunner           domain.TxRunner
 	numberRepo         domain.NumberRangeRepository
 	allocationRepo     domain.PaymentAllocationRepository
 	receiptRepo        domain.ReceiptRepository
 	assetRepo          domain.AssetRepository
 	auditRepo          domain.AuditRepository
+	retentionRepo      domain.RetentionRepository
+	migrationRepo      domain.MigrationRepository
+	procDocRepo        domain.ProcedureDocumentationRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
+	fiscalYearRepo     domain.FiscalYearRepository
+	vatReturnRepo      domain.VatReturnRepository
+	zmReturnRepo       domain.ZMReturnRepository
+	checkRunRepo       domain.CheckRunRepository
+	deadlineRepo       domain.DeadlineRepository
+	backupRunRepo      domain.BackupRunRepository
+	// Welle 5a: die Abschlussbausteine.
+	// Welle 5c: die steuerlichen Nebenpflichten.
+	inputTaxRepo       domain.InputTaxCorrectionRepository
+	vatIDCheckRepo     domain.VatIDCheckRepository
+	supplyEvidenceRepo domain.SupplyEvidenceRepository
+	exchangeRateRepo   domain.ExchangeRateRepository
+
+	bankRuleRepo domain.BankRuleRepository
+	dunningRepo  domain.DunningRepository
+	baseRateRepo domain.BaseRateRepository
+
+	closingStepRepo   domain.ClosingStepRepository
+	accrualRepo       domain.AccrualRepository
+	provisionRepo     domain.ProvisionRepository
+	discountRateRepo  domain.DiscountRateRepository
+	inventoryRepo     domain.InventoryRepository
+	notesRepo         domain.NotesTextRepository
+	appropriationRepo domain.AppropriationRepository
 
 	// Services
-	journalSvc    *service.JournalService
-	postingSvc    *service.PostingService
-	receiptSvc    *service.ReceiptService
-	eInvoiceSvc   *service.EInvoiceService
-	paymentSvc    *service.PaymentService
-	vatSvc        *service.VatService
-	accountingSvc *service.AccountingService
-	bankSvc       *service.BankService
-	invoiceSvc    *service.InvoiceService
-	renderer      *invoice.Renderer
-	contactSvc    *service.ContactService
-	ebilanzSvc    *service.EBilanzService
-	assetSvc      *service.AssetService
-	auditSvc      *service.AuditService
-	settingsSvc   *service.SettingsService
-	currencySvc   *service.CurrencyService
-	foundationSvc *service.FoundationService
+	journalSvc         *service.JournalService
+	postingSvc         *service.PostingService
+	receiptSvc         *service.ReceiptService
+	eInvoiceSvc        *service.EInvoiceService
+	paymentSvc         *service.PaymentService
+	vatSvc             *service.VatService
+	accountingSvc      *service.AccountingService
+	accountSvc         *service.AccountService
+	bankSvc            *service.BankService
+	invoiceSvc         *service.InvoiceService
+	renderer           *invoice.Renderer
+	contactSvc         *service.ContactService
+	ebilanzSvc         *service.EBilanzService
+	assetSvc           *service.AssetService
+	auditSvc           *service.AuditService
+	retentionSvc       *service.RetentionService
+	procDocSvc         *service.ProcDocService
+	settingsSvc        *service.SettingsService
+	currencySvc        *service.CurrencyService
+	foundationSvc      *service.FoundationService
+	closingSvc         *service.ClosingService
+	closingSettingsSvc *service.ClosingSettingsService
+	statementSvc       *service.StatementService
+	vatReturnSvc       *service.VatReturnService
+	zmSvc              *service.ZMService
+	checkSvc           *service.CheckService
+	deadlineSvc        *service.DeadlineService
+	exportSvc          *service.ExportService
+	backupSvc          *service.BackupService
+	// Welle 5a: Abschlussassistent, Abgrenzung, Rückstellungen, die drei
+	// Bausteine ohne eigene Kartei, Ergebnisverwendung und das Verzeichnis der
+	// steuerlichen Wahlrechte.
+	closingStepsSvc   *service.ClosingStepsService
+	accrualSvc        *service.AccrualService
+	provisionSvc      *service.ProvisionService
+	closingBookingSvc *service.ClosingBookingService
+	appropriationSvc  *service.AppropriationService
+	taxRegisterSvc    *service.TaxRegisterService
+	// Welle 5c: Vorsteuerberichtigung, Bestätigungsabfrage, Belegnachweis,
+	// nicht abziehbare Betriebsausgaben.
+	inputTaxSvc       *service.InputTaxService
+	vatIDSvc          *service.VatIDService
+	supplyEvidenceSvc *service.SupplyEvidenceService
+	giftSvc           *service.GiftService
+	// Welle 7: die Bedienung — Aufgabenliste, Monatsabschluss, Mahnwesen und
+	// der Prüfpfad je Beleg.
+	taskSvc       *service.TaskService
+	monthCloseSvc *service.MonthCloseService
+	dunningSvc    *service.DunningService
+	auditTrailSvc *service.AuditTrailService
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -96,6 +173,10 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		dataDir:     cfg.DataDir,
 		currentYear: currentYear,
 	}
+	// Die Konfiguration geht mehrfach unverändert an die Oberfläche
+	// (GetAppConfig, SetBackupDir, EnableReadOnly). Ihre Listen werden deshalb
+	// einmal hier belegt und nicht an jeder Rückgabe erneut.
+	b.appConfig.EnsureLists()
 
 	// If configured, initialize DB for active tenant
 	if cfg.IsConfigured {
@@ -116,7 +197,7 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 				ID:        "default",
 				Name:      "Hauptmandant",
 				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().Format(time.RFC3339),
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
 			}
 		}
 
@@ -126,6 +207,10 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 			}
 			// Fetch any trusted timestamps that couldn't be obtained while offline.
 			go b.retryPendingTimestamps()
+			// Die fällige Sicherung läuft im Hintergrund weiter, während die
+			// Oberfläche schon da ist — und ohne die Bridge-Sperre zu halten,
+			// damit die Oberfläche währenddessen bedienbar bleibt.
+			go b.runDueBackup(false)
 		}
 	}
 
@@ -141,7 +226,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Existing databases without a keyfile fall back to clear text so legacy data
 	// keeps working.
 	if security.KeyfileExists(t.DataDir) {
-		vault, err := security.OpenTenantVault(t.DataDir, t.ID)
+		// Der Schlüssel wird unter VaultID gesucht und nicht unter der ID des
+		// Eintrags: eine wiederhergestellte Sicherung hat die Schlüsseldatei
+		// des Mandanten, aus dem sie stammt, und ihr Geheimnis liegt im
+		// Schlüsselbund unter dessen Kennung.
+		vault, err := security.OpenTenantVault(t.DataDir, t.VaultID())
 		if err != nil {
 			if errors.Is(err, security.ErrNoKeyringSecret) {
 				// New machine or lost keychain: enter locked state instead of
@@ -151,7 +240,16 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 				b.vault = nil
 				repository.SetActiveVault(nil)
 				b.appConfig.ActiveTenantID = t.ID
+				b.appConfig.DataDir = t.DataDir
 				b.dataDir = t.DataDir
+				// Auch der gesperrte Mandant wird festgehalten: eine gerade
+				// wiederhergestellte Sicherung, die beim nächsten Start wieder
+				// aus der Mandantenliste verschwunden wäre, müsste ein zweites
+				// Mal wiederhergestellt werden — mit der Wiederherstellungsdatei
+				// wäre sie hier sonst gar nicht mehr zu finden.
+				if b.appCfgRepo != nil {
+					_ = b.appCfgRepo.Save(&b.appConfig)
+				}
 				return nil
 			}
 			return fmt.Errorf("failed to unlock tenant encryption at %s: %w", t.DataDir, err)
@@ -187,6 +285,36 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.receiptRepo = repository.NewReceiptRepository(db)
 	b.assetRepo = repository.NewAssetRepository(db)
 	b.foundationRepo = repository.NewFoundationRepository(db)
+	b.fiscalYearRepo = repository.NewFiscalYearRepository(db)
+	b.vatReturnRepo = repository.NewVatReturnRepository(db)
+	b.zmReturnRepo = repository.NewZMReturnRepository(db)
+	b.checkRunRepo = repository.NewCheckRunRepository(db)
+	b.deadlineRepo = repository.NewDeadlineRepository(db)
+	b.backupRunRepo = repository.NewBackupRunRepository(db)
+	b.closingStepRepo = repository.NewClosingStepRepository(db)
+	b.accrualRepo = repository.NewAccrualRepository(db)
+	b.provisionRepo = repository.NewProvisionRepository(db)
+	b.discountRateRepo = repository.NewDiscountRateRepository(db)
+	b.inventoryRepo = repository.NewInventoryRepository(db)
+	b.notesRepo = repository.NewNotesTextRepository(db)
+	b.appropriationRepo = repository.NewAppropriationRepository(db)
+	b.numberGapRepo = repository.NewNumberGapRepository(db)
+	b.invoiceGroupRepo = repository.NewInvoiceGroupRepository(db)
+	b.vendorAdvanceRepo = repository.NewVendorAdvanceRepository(db)
+	b.inputTaxRepo = repository.NewInputTaxCorrectionRepository(db)
+	b.vatIDCheckRepo = repository.NewVatIDCheckRepository(db)
+	b.supplyEvidenceRepo = repository.NewSupplyEvidenceRepository(db)
+	b.exchangeRateRepo = repository.NewExchangeRateRepository(db)
+	// Welle 6: die Nachweise.
+	b.retentionRepo = repository.NewRetentionRepository(db)
+	b.migrationRepo = repository.NewMigrationRepository(db)
+	b.procDocRepo = repository.NewProcedureDocumentationRepository(db)
+	// Welle 7: die gelernten Bankregeln, die Mahnschreiben und die
+	// Basiszinstabelle.
+	b.bankRuleRepo = repository.NewBankRuleRepository(db)
+	b.dunningRepo = repository.NewDunningRepository(db)
+	b.baseRateRepo = repository.NewBaseRateRepository(db)
+	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
 	fiscalYear := b.currentYear
@@ -206,13 +334,54 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// produces a booking goes through it.
 	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, fiscalYear)
 	b.journalSvc.SetFestschreibungRepo(b.festschreibungRepo)
+	// Ein festgestellter Jahresabschluss nimmt keine Buchung mehr auf. Der
+	// Journaldienst muss das wissen, bevor er schreibt.
+	b.journalSvc.SetFiscalYearRepo(b.fiscalYearRepo)
+	// Kopfdaten sind beim Buchen Pflicht (BEL-02). Der Journaldienst prüft sie
+	// am Beleg, auf den eine Buchung verweist — auf jedem Weg und nicht nur im
+	// Dialog „Beleg buchen".
+	b.journalSvc.SetReceiptRepo(b.receiptRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
+	// Der Eigenbeleg entsteht als PDF über denselben Satzweg wie Rechnung und
+	// Abschluss, mit dem eigenen Unternehmen als Aussteller und der Belegnummer
+	// aus dem Nummernkreis.
+	b.receiptSvc.SetSettingsSource(b.settingsRepo)
+	b.receiptSvc.SetNumberRepo(b.numberRepo)
+	// Die Klärungsliste hält die Pflichtangaben des Ausstellers gegen die
+	// Stammdaten (RECH-07 K2); ohne die Kontakte könnte sie das nicht.
+	b.receiptSvc.SetContactSource(b.contactRepo)
 	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, invoice.NewReader(), fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
+	// Die Herausgabe der gefilterten Journalmenge ist ein Lesezugriff auf
+	// personenbezogene Daten und gehört ins Protokoll (QUE-02 K2).
+	b.accountingSvc.SetAuditRepo(b.auditRepo)
+	// Eigene Konten (BEL-06 K2): angelegt werden sie im freien Bereich des
+	// SKR04 und mit einer Gliederungsposition, sonst fehlten sie im Abschluss.
+	b.accountSvc = service.NewAccountService(b.accountRepo, b.auditRepo)
+	// Der Buchungsweg hält den Kontenplan zwischengespeichert; ohne diese
+	// Verbindung wäre ein neues Konto bis zum Neustart nicht bebuchbar und eine
+	// Sperre bis dahin wirkungslos.
+	b.accountSvc.SetChartInvalidator(b.journalSvc)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
+	// Der Kontoauszug ist selbst ein Beleg: der Import legt die CAMT-Datei ab,
+	// bevor er sie liest.
+	b.bankSvc.SetReceiptService(b.receiptSvc)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
+	// Die Ausbuchung einer Forderung gehört mit ihrer Begründung ins Protokoll.
+	b.paymentSvc.SetAuditRepo(b.auditRepo)
+	// Die Eingangsseite der Anzahlungen: ein Beleg mit dem Kennzeichen
+	// „Anzahlung" bucht auf das Konto der geleisteten Anzahlungen, und die
+	// Schlussrechnung des Lieferanten setzt sie wieder ab.
+	b.postingSvc.SetVendorAdvances(b.vendorAdvanceRepo)
+	// Buchung und Vermerk der Anzahlungen entstehen in einer Transaktion: ohne
+	// sie stünde die Schlussrechnung des Lieferanten im Journal, während die
+	// Anzahlung weiter als offen gälte.
+	b.postingSvc.SetTxRunner(b.txRunner)
+	// Der Leistungsnachweis am größeren Eingangsbeleg ist Pflicht (RECH-08). Die
+	// Grenze steht in den Einstellungen, deshalb liest der Belegweg sie dort.
+	b.postingSvc.SetSettingsSource(b.settingsRepo)
 	b.vatSvc = service.NewVatService(b.journalRepo, fiscalYear)
 	b.invoiceSvc = service.NewInvoiceService(b.invoiceRepo, b.contactRepo, b.settingsRepo, b.numberRepo, b.postingSvc, b.auditRepo)
 	// Der Renderer eines vorigen Mandanten hält eine WASM-Instanz von
@@ -223,6 +392,21 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	}
 	b.renderer = invoice.NewRenderer()
 	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
+	b.receiptSvc.SetRenderer(b.renderer)
+	// Nummernvergabe, Rechnung und Buchung entstehen in einer Transaktion; dazu
+	// kommen der Lückenbericht, der Rechnungsverbund und der Vorjahresumsatz für
+	// § 27 Abs. 38 UStG.
+	// Der Kontoauszug kommt dazu, weil der Zahlungseingang auf eine
+	// Abschlagsrechnung in der Praxis aus dem Bankimport stammt: ohne ihn bliebe
+	// der Umsatz nach der Vereinnahmung als offen stehen und würde ein zweites
+	// Mal zugeordnet.
+	b.invoiceSvc.SetRegistry(service.InvoiceRegistry{
+		Tx:          b.txRunner,
+		Gaps:        b.numberGapRepo,
+		Groups:      b.invoiceGroupRepo,
+		FiscalYears: b.fiscalYearRepo,
+		Bank:        b.bankRepo,
+	})
 	// Das WASM-Modul zu übersetzen kostet ein paar Sekunden. Die soll nicht
 	// zahlen, wer auf "Rechnung ausstellen" drückt.
 	go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(b.renderer)
@@ -238,13 +422,32 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
 	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
 	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
-	b.ebilanzSvc = service.NewEBilanzService(b.accountingSvc, b.settingsRepo, b.auditRepo)
-	// Die E-Bilanz braucht den Anlagenspiegel als Kontennachweis: die Bilanz
-	// zeigt einen Buchwert, und erst er zeigt, woraus er entstanden ist.
-	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
+	// Der Belegprüflauf geht über Belegdateien und Anlagendokumente: beide sind
+	// aufbewahrungspflichtig, und beide liegen im selben Speicher.
+	b.receiptSvc.SetDocumentSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
-	b.currencySvc = service.NewCurrencyService()
+	b.retentionSvc = service.NewRetentionService(
+		b.retentionRepo, b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir))
+	b.procDocSvc = service.NewProcDocService(
+		b.settingsRepo, b.numberRepo, b.procDocRepo, b.migrationRepo, b.auditRepo,
+		receiptstore.New(t.DataDir), fiscalYear)
+	// Die Verfahrensdokumentation entsteht als Markdown und als PDF. Gesetzt
+	// wird über denselben Typst-Weg wie Rechnung und Jahresabschluss — ein
+	// Satzprogramm im Haus genügt.
+	b.procDocSvc.SetRenderer(b.renderer)
+	b.procDocSvc.SetEnvironment(service.ProcDocEnvironment{
+		DataDir:      t.DataDir,
+		BackupDir:    b.appConfig.BackupDir,
+		BackupRhythm: b.backupRhythmLabel(),
+	})
+	// Der Kursdienst holt die Referenzkurse der EZB und führt die Historie. Er
+	// rät keinen Kurs: ohne Netz und ohne gespeicherten Kurs trägt der Anwender
+	// ihn mit seiner Quelle ein.
+	b.currencySvc = service.NewCurrencyService(
+		b.exchangeRateRepo, &settingsCurrencyFetcher{bridge: b}, b.auditRepo)
+	b.currencySvc.SetJournalRepo(b.journalRepo)
+	b.currencySvc.SetJournalService(b.journalSvc)
 	// Die Gründungsbegleitung liest das Journal und schreibt über den
 	// JournalService wie jeder andere Weg auch — eine Gründungsbuchung ist
 	// keine Buchung zweiter Klasse.
@@ -252,6 +455,266 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.foundationRepo, b.accountRepo, b.journalRepo, b.settingsRepo,
 		b.journalSvc, b.auditRepo, fiscalYear,
 	)
+
+	b.closingSvc = service.NewClosingService(
+		b.fiscalYearRepo, b.journalRepo, b.accountRepo, b.contactRepo, b.allocationRepo,
+		b.settingsRepo, b.festschreibungRepo, b.auditRepo, b.journalSvc, fiscalYear,
+	)
+	b.closingSvc.SetFoundationRepo(b.foundationRepo)
+	b.closingSettingsSvc = service.NewClosingSettingsService(b.settingsRepo, b.auditRepo)
+
+	// Die Abschlussbausteine der Welle 5a. Sie hängen allesamt am
+	// ClosingService, weil jeder von ihnen den Bilanzstichtag braucht: eine
+	// Abschlussbuchung ohne Stichtag ist keine.
+	b.accrualSvc = service.NewAccrualService(
+		b.accrualRepo, b.journalRepo, b.journalSvc, b.settingsRepo, b.auditRepo,
+		b.closingSvc, fiscalYear,
+	)
+	b.accrualSvc.SetReceiptService(b.receiptSvc)
+	// Die Auflösung eines Abgrenzungspostens gehört in das Folgejahr und wird
+	// mit dem Saldenvortrag gebucht — sonst bliebe sie bis zum nächsten
+	// Jahresabschluss liegen.
+	b.closingSvc.SetAccrualCarrier(b.accrualSvc)
+
+	b.provisionSvc = service.NewProvisionService(
+		b.provisionRepo, b.discountRateRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.provisionSvc.SetReceiptService(b.receiptSvc)
+	// Eine Eingangsrechnung, die einer Rückstellung zugeordnet wird, bucht
+	// gegen sie statt gegen den Aufwand.
+	b.postingSvc.SetProvisionConsumer(b.provisionSvc)
+
+	b.closingBookingSvc = service.NewClosingBookingService(
+		b.inventoryRepo, b.provisionRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.closingBookingSvc.SetReceiptService(b.receiptSvc)
+
+	b.appropriationSvc = service.NewAppropriationService(
+		b.appropriationRepo, b.notesRepo, b.journalRepo, b.journalSvc,
+		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.appropriationSvc.SetReceiptService(b.receiptSvc)
+	// Die Anhangtexte des Vorjahres sind die Vorlage des neuen Jahres.
+	b.closingSvc.SetNotesCopier(b.appropriationSvc)
+
+	// Welle 5c: die steuerlichen Nebenpflichten.
+	//
+	// Das Verzeichnis nach § 15a UStG hängt am Abschluss (es bucht zum
+	// Stichtag), die Bestätigungsabfrage am Rechnungsweg (sie hält eine
+	// steuerfreie Lieferung an), der Belegnachweis an den Rechnungen und die
+	// Geschenkkartei am Belegweg (sie kennt die Freigrenze).
+	b.inputTaxSvc = service.NewInputTaxService(
+		b.inputTaxRepo, b.journalSvc, b.journalRepo, b.settingsRepo,
+		b.closingSvc, b.auditRepo, fiscalYear)
+	// Die Buchung der Berichtigung und der Vermerk am Verzeichnis gehören in eine
+	// Transaktion: eine Buchung ohne Vermerk stünde beim nächsten Lauf wieder als
+	// offen da und käme ein zweites Mal in Kennziffer 64.
+	b.inputTaxSvc.SetTxRunner(b.txRunner)
+	b.vatIDSvc = service.NewVatIDService(
+		b.vatIDCheckRepo, b.contactRepo, b.settingsRepo, b.auditRepo)
+	b.invoiceSvc.SetVatIDConfirmer(b.vatIDSvc)
+	// Ein Kontakt mit einer USt-IdNr. aus einem anderen Mitgliedstaat bekommt
+	// beim Speichern den Hinweis auf die Bestätigungsanfrage — nicht blockierend.
+	b.contactSvc.SetVatIDStatusSource(b.vatIDSvc)
+	b.supplyEvidenceSvc = service.NewSupplyEvidenceService(
+		b.supplyEvidenceRepo, b.invoiceRepo, b.auditRepo, fiscalYear)
+	b.giftSvc = service.NewGiftService(
+		b.journalRepo, b.journalSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	// Storno und Neubuchung einer Umbuchung gehören in eine Transaktion: ein
+	// zurückgenommenes Geschenk ohne seine Neubuchung wäre ein Aufwand, der aus
+	// den Büchern verschwunden ist.
+	b.giftSvc.SetTxRunner(b.txRunner)
+	b.postingSvc.SetGiftRegister(b.giftSvc)
+	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen und nicht einmal
+	// beim Einrichten: ändert der Anwender ihn, rechnete die Freigrenze für
+	// Geschenke sonst bis zum Neustart mit dem alten Wirtschaftsjahr.
+	settingsRepo := b.settingsRepo
+	b.postingSvc.SetFiscalYearStartReader(func() int { return startMonthOf(settingsRepo) })
+	// Der Belegweg braucht den Kursdienst: ein Beleg in Fremdwährung wird zum
+	// EZB-Tageskurs umgerechnet, und ohne Kurs wird er nicht gebucht.
+	b.postingSvc.SetCurrencyConverter(b.currencySvc)
+	// Die Aktivierung eines Anlageguts legt den Eintrag im Verzeichnis nach
+	// § 15a UStG an.
+	b.assetSvc.SetInputTaxRegister(b.inputTaxSvc)
+	// Der Nachweisbeleg einer ig. Lieferung kann als Datei kommen; sie geht in
+	// denselben Belegspeicher wie jede andere.
+	b.supplyEvidenceSvc.SetReceiptService(b.receiptSvc)
+	// Die Stichtagsbewertung braucht die offenen Posten und die Stichtage.
+	b.currencySvc.SetOpenItemSource(b.paymentSvc)
+	b.currencySvc.SetClosingService(b.closingSvc)
+	// Die Auflösung der Bewertung gehört ins Folgejahr und wird vom
+	// Saldenvortrag gebucht — wie die Auflösung der Rechnungsabgrenzung.
+	b.closingSvc.SetCurrencyReverser(b.currencySvc)
+
+	b.taxRegisterSvc = service.NewTaxRegisterService(
+		b.assetRepo, b.provisionRepo, b.journalRepo, b.settingsRepo, b.closingSvc, fiscalYear)
+
+	b.closingStepsSvc = service.NewClosingStepsService(
+		b.closingStepRepo, b.accrualRepo, b.provisionRepo, b.inventoryRepo,
+		b.appropriationRepo, b.checkRunRepo, b.journalRepo, b.auditRepo, b.closingSvc, fiscalYear,
+	)
+	b.closingStepsSvc.SetDepreciationSource(b.assetSvc)
+	// Die beiden Bausteine der Welle 5c, deren Zustand aus einer eigenen Kartei
+	// folgt: die Wertaufholung aus der Anlagenkartei, die Vorsteuerberichtigung
+	// aus dem Verzeichnis nach § 15a UStG.
+	b.closingStepsSvc.SetWriteUpSource(b.assetSvc)
+	b.closingStepsSvc.SetInputTaxSource(b.inputTaxSvc)
+
+	// Bilanz und Gewinn- und Verlustrechnung entstehen im Backend, nicht mehr
+	// in der Ansicht. Der Dienst braucht dazu das Geschäftsjahr (Stichtag und
+	// Zeitraum), die Salden zweier Jahre, die offenen Posten für die
+	// Restlaufzeiten und den Renderer für die Ausgabe als PDF.
+	b.statementSvc = service.NewStatementService(
+		b.accountingSvc, b.closingSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	b.statementSvc.SetOpenItemSource(b.paymentSvc)
+	// Der Vorjahresumsatz eines neuen Geschäftsjahres kommt aus der GuV des
+	// Vorjahres — die Angabe, an der § 27 Abs. 38 Nr. 2 UStG hängt.
+	b.closingSvc.SetRevenueSource(b.statementSvc)
+	b.statementSvc.SetRenderer(b.renderer)
+	// Der Anhang gehört zum Abschluss: Rückstellungsspiegel, Überleitung zur
+	// Steuerbilanz und die Freitexte kommen aus ihren Diensten, erscheinen aber
+	// in derselben Struktur wie Bilanz und GuV — auf dem Schirm, im PDF und in
+	// der CSV.
+	b.statementSvc.SetNotesSources(service.NotesSources{
+		Provisions:     b.provisionSvc,
+		Reconciliation: b.taxRegisterSvc,
+		Texts:          b.appropriationSvc,
+	})
+
+	// Die E-Bilanz entsteht aus derselben Gliederung wie die Bilanz auf dem
+	// Schirm — zwei Wege zu einer Bilanz wären einer zu viel. Den
+	// Anlagenspiegel braucht sie als Kontennachweis: die Bilanz zeigt einen
+	// Buchwert, und erst er zeigt, woraus er entstanden ist.
+	b.ebilanzSvc = service.NewEBilanzService(
+		b.statementSvc, b.settingsRepo, b.auditRepo, fiscalYear)
+	b.ebilanzSvc.SetAnlagenspiegelSource(b.assetSvc)
+
+	// Die Voranmeldung entsteht aus dem Journal, dem Belegeingang und den
+	// Stammdaten der Empfänger — die drei Angaben, die über den Zeitraum und
+	// über die Kennziffer entscheiden. Die Zusammenfassende Meldung liest
+	// dieselben Buchungen und stimmt sich gegen die Kennziffern 41 und 21 ab.
+	b.vatReturnSvc = service.NewVatReturnService(
+		b.journalRepo, b.receiptRepo, b.contactRepo, b.settingsRepo,
+		b.festschreibungRepo, b.vatReturnRepo, b.auditRepo, fiscalYear,
+	)
+	b.zmSvc = service.NewZMService(
+		b.journalRepo, b.contactRepo, b.settingsRepo, b.festschreibungRepo,
+		b.zmReturnRepo, b.vatReturnRepo, b.auditRepo, fiscalYear,
+	)
+
+	// Der Prüflauf steht vor der Festschreibung. Er braucht dieselben Quellen
+	// wie die Auswertungen und zusätzlich die Anlagenkartei — die AfA ist eine
+	// Abschlussbuchung und lässt sich danach nicht nachholen.
+	b.checkSvc = service.NewCheckService(
+		b.journalRepo, b.receiptRepo, b.bankRepo, b.invoiceRepo, b.numberRepo,
+		b.settingsRepo, b.festschreibungRepo, b.vatReturnRepo, b.checkRunRepo,
+		b.auditRepo, fiscalYear,
+	)
+	b.checkSvc.SetAccountSource(b.accountingSvc)
+	b.checkSvc.SetOpenItemSource(b.paymentSvc)
+	b.checkSvc.SetDepreciationSource(b.assetSvc)
+	b.checkSvc.SetProvisionSource(b.provisionSvc)
+	b.checkSvc.SetClosingStepSource(b.closingStepsSvc)
+	// Die Ankündigung des Größenklassenwechsels (§ 267 Abs. 4 Satz 1 HGB): sie
+	// braucht dieselbe Beurteilung wie der Abschluss und nicht eine zweite.
+	b.checkSvc.SetSizeClassSource(b.statementSvc)
+	// Die beiden Regeln zur steuerfreien ig. Lieferung: der Belegnachweis nach
+	// §§ 17a ff. UStDV und die Bestätigung der USt-IdNr. nach § 18e UStG.
+	b.checkSvc.SetSupplyEvidenceSource(b.supplyEvidenceSvc)
+	b.checkSvc.SetVatIDStatusSource(b.vatIDSvc)
+
+	// Die Fristen kommen aus den Daten und nicht mehr aus dem localStorage.
+	b.deadlineSvc = service.NewDeadlineService(
+		b.vatReturnSvc, b.zmSvc, b.settingsRepo, b.festschreibungRepo,
+		b.deadlineRepo, b.auditRepo, fiscalYear,
+	)
+	b.deadlineSvc.SetStatementSource(b.statementSvc)
+	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
+	// Die Ablaufwarnung der Freistellungsbescheinigung gehört in dieselbe Liste
+	// wie jede andere Frist. Eine Warnung, die nur eine eigene Abfrage kennt,
+	// sieht niemand.
+	b.deadlineSvc.SetExemptionSource(b.contactSvc)
+	// Die Datenüberlassung liest aus allen Quellen zugleich — sie ist der eine
+	// Ort, an dem die ganze Buchführung eines Jahres zusammenkommt.
+	b.exportSvc = service.NewExportService(
+		b.journalRepo, b.accountRepo, b.contactRepo, b.receiptRepo, b.assetRepo,
+		b.allocationRepo, b.auditRepo, b.settingsRepo, b.festschreibungRepo,
+		b.vatReturnRepo, b.checkRunRepo, b.fiscalYearRepo,
+		receiptstore.New(t.DataDir), t.DataDir, fiscalYear,
+	)
+	b.exportSvc.SetTenantName(t.Name)
+	b.exportSvc.SetOpenItemSource(b.paymentSvc)
+	b.exportSvc.SetIntegritySource(integrityChecks{journal: b.journalSvc, receipts: b.receiptSvc})
+	// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG ist Bestandteil des
+	// Prüferpakets und nicht nur ein Einzelexport auf Knopfdruck.
+	b.exportSvc.SetTaxRegisterSource(b.taxRegisterSvc)
+	// Die erzeugten Fassungen der Verfahrensdokumentation gehören ins
+	// Prüferpaket (GoBD Rz. 151 ff.); sie liegen im Belegspeicher und werden
+	// über ihren Datensatz gefunden.
+	b.exportSvc.SetProcDocRepo(b.procDocRepo)
+
+	// Die Sicherung hat die Schlüsselkennung und nicht die Kennung aus der
+	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
+	// und die Wiederherstellung später das Geheimnis im Schlüsselbund suchen.
+	// Für einen Mandanten, der neben seinem Ursprung wiederhergestellt wurde,
+	// sind beide verschieden — er führt eine neue Listenkennung und behält den
+	// Schlüssel des Ursprungs. Stünde die Listenkennung in der Sicherung, fände
+	// weder „Sicherung prüfen" noch eine erneute Wiederherstellung den
+	// Schlüssel, und eine heile Sicherung käme als unlesbar zurück.
+	b.backupSvc = service.NewBackupService(
+		b.backupRunRepo, b.auditRepo, db, t.DataDir, t.VaultID(), t.Name)
+
+	// Welle 7: die Bedienung legt sich über die fertigen Funktionen.
+	//
+	// Der Zuordnungsvorschlag braucht die offenen Posten und die gelernten
+	// Regeln; gelernt wird beim Buchen eines Umsatzes ohne Beleg.
+	b.bankSvc.SetOpenItemSource(b.paymentSvc)
+	b.bankSvc.SetRuleRepo(b.bankRuleRepo)
+
+	b.dunningSvc = service.NewDunningService(
+		b.paymentSvc, b.contactRepo, b.dunningRepo, b.baseRateRepo,
+		b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir), fiscalYear,
+	)
+	b.dunningSvc.SetRenderer(b.renderer)
+	// Die Rechnungen haben das Kennzeichen, ob der Verzugshinweis an einen
+	// Verbraucher gedruckt wurde (§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB).
+	b.dunningSvc.SetInvoiceSource(b.invoiceRepo)
+
+	b.auditTrailSvc = service.NewAuditTrailService(
+		b.receiptRepo, b.journalRepo, b.allocationRepo, b.bankRepo, b.auditRepo)
+	b.auditTrailSvc.SetRenderer(b.renderer)
+
+	b.monthCloseSvc = service.NewMonthCloseService(
+		b.checkSvc, b.vatReturnSvc, b.festschreibungRepo, fiscalYear)
+	// Der Monatsdialog muss wissen, welche Monate zum aktiven Geschäftsjahr
+	// gehören: der Prüfbericht rechnet über dieses Jahr, und ein Monat aus einem
+	// anderen Jahr bekäme einen Stand aus fremden Büchern.
+	b.monthCloseSvc.SetFiscalYearSource(b.fiscalYearRepo)
+
+	// Die Aufgabenliste fragt die Dienste, die die jeweilige Sache führen. Jede
+	// Quelle darf fehlen; keine darf die Liste zu Fall bringen.
+	b.taskSvc = service.NewTaskService(b.settingsRepo, fiscalYear)
+	b.taskSvc.SetCheckSource(b.checkSvc)
+	b.taskSvc.SetDeadlineSource(b.deadlineSvc)
+	b.taskSvc.SetStatementSource(b.statementSvc)
+	b.taskSvc.SetBankSource(b.bankSvc)
+	b.taskSvc.SetReceiptSource(b.receiptSvc)
+	b.taskSvc.SetOpenItemSource(b.paymentSvc)
+	b.taskSvc.SetAssetDocumentSource(b.assetSvc)
+	b.taskSvc.SetExemptionSource(b.contactSvc)
+	b.taskSvc.SetBackupSource(b.backupSvc)
+	b.taskSvc.SetCarryForwardSource(b.closingSvc)
+	b.taskSvc.SetAppropriationSource(b.appropriationSvc)
+
+	// Bestehende Datenbanken kennen das Geschäftsjahr nur als Zahl an der
+	// Buchung. Die Entitäten dazu entstehen beim ersten Start nach der
+	// Umstellung; scheitert das, bleibt der Mandant benutzbar und die Ansicht
+	// „Jahresabschluss" legt das Jahr beim ersten Aufruf an.
+	if err := b.closingSvc.EnsureFiscalYears(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Geschäftsjahre konnten nicht angelegt werden: %v\n", err)
+	}
 
 	b.appConfig.ActiveTenantID = t.ID
 	b.appConfig.DataDir = t.DataDir
@@ -355,7 +818,7 @@ func (b *BuchfinkBridge) ExportRecoveryKey() (string, error) {
 		return "", fmt.Errorf("kein Zielordner gewählt")
 	}
 
-	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.ID, active.Name, b.vault)
+	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.VaultID(), active.Name, b.vault)
 	if err != nil {
 		return "", err
 	}
@@ -397,7 +860,7 @@ func (b *BuchfinkBridge) RecoverActiveTenantFromFile(recoveryFilePath string) er
 	if err != nil {
 		return fmt.Errorf("Recovery-Datei lesen: %w", err)
 	}
-	if _, err := security.RecoverTenantFromFile(active.DataDir, active.ID, data); err != nil {
+	if _, err := security.RecoverTenantFromFile(active.DataDir, active.VaultID(), data); err != nil {
 		return err
 	}
 	// Keychain is re-provisioned; a full init now unlocks transparently.
@@ -421,7 +884,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		}
 	}
 
-	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+	tenantID := newTenantID()
 
 	homeDir, _ := os.UserHomeDir()
 	if dataDir == "" {
@@ -450,7 +913,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		ID:        tenantID,
 		Name:      name,
 		DataDir:   dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
@@ -478,16 +941,68 @@ func (b *BuchfinkBridge) CreateTenant(
 func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindImport)
+}
 
+// newTenantID vergibt eine Kennung für einen neuen Eintrag der Mandantenliste.
+func newTenantID() string {
+	return fmt.Sprintf("tenant_%d", time.Now().UnixNano())
+}
+
+// tenantByIDLocked sucht einen Eintrag der Mandantenliste. Der Aufrufer hält b.mu.
+func (b *BuchfinkBridge) tenantByIDLocked(id string) *domain.TenantConfig {
+	for i := range b.appConfig.Tenants {
+		if b.appConfig.Tenants[i].ID == id {
+			return &b.appConfig.Tenants[i]
+		}
+	}
+	return nil
+}
+
+// registerTenantLocked meldet einen vorhandenen Datenordner als Mandanten an
+// und öffnet ihn.
+//
+// identity gibt vor, was der Aufrufer über den Ordner schon weiß: die
+// Wiederherstellung liest Kennung und Namen aus backup.json, weil der
+// Schlüsselbund das Geheimnis unter der Kennung führt, unter der die Sicherung
+// entstanden ist. Ein leeres Feld wird aus dem Ordner und den Stammdaten
+// gefüllt — das ist der Fall „vorhandene Datenbank öffnen".
+//
+// Der Aufrufer hält b.mu.
+func (b *BuchfinkBridge) registerTenantLocked(
+	dbFilePath string, identity domain.TenantConfig, kind domain.MigrationKind,
+) (*domain.TenantConfig, error) {
 	if _, err := os.Stat(dbFilePath); err != nil {
 		return nil, fmt.Errorf("database file not found: %s", dbFilePath)
 	}
 
 	dataDir := filepath.Dir(dbFilePath)
-	tenantID := fmt.Sprintf("tenant_%d", time.Now().UnixNano())
-	name := filepath.Base(dataDir)
-	if name == "data" || name == "." || name == "" {
-		name = fmt.Sprintf("Mandant (%s)", filepath.Base(dbFilePath))
+	// Absolut, wie bei CreateTenant: ein relativer Pfad bräche, sobald das
+	// Arbeitsverzeichnis wechselt.
+	if abs, err := filepath.Abs(dataDir); err == nil {
+		dataDir = abs
+	}
+
+	tenantID, keyID := identity.ID, identity.KeyID
+	if tenantID == "" {
+		tenantID = newTenantID()
+	} else if b.tenantByIDLocked(tenantID) != nil {
+		// Die Kennung ist schon vergeben — die Sicherung wird neben dem
+		// Mandanten wiederhergestellt, aus dem sie stammt. Zwei Einträge mit
+		// derselben Kennung machten die Mandantenliste mehrdeutig; der neue
+		// bekommt deshalb eine eigene und behält den Schlüssel des alten.
+		if keyID == "" {
+			keyID = tenantID
+		}
+		tenantID = newTenantID()
+	}
+
+	name := identity.Name
+	if name == "" {
+		name = filepath.Base(dataDir)
+		if name == "data" || name == "." || name == "" {
+			name = fmt.Sprintf("Mandant (%s)", filepath.Base(dbFilePath))
+		}
 	}
 
 	// An imported database keeps whatever encryption state it shipped with: if a
@@ -496,8 +1011,9 @@ func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, 
 	t := domain.TenantConfig{
 		ID:        tenantID,
 		Name:      name,
+		KeyID:     keyID,
 		DataDir:   dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
@@ -508,36 +1024,140 @@ func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, 
 		return nil, err
 	}
 
-	// Try reading company name from settings
-	if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
-		t.Name = s.CompanyName
-		for i := range b.appConfig.Tenants {
-			if b.appConfig.Tenants[i].ID == tenantID {
-				b.appConfig.Tenants[i].Name = s.CompanyName
-				break
+	// Try reading company name from settings.
+	//
+	// Nur am offenen Mandanten: bleibt er gesperrt (Schlüssel fehlt), kehrt
+	// initTenant zurück, bevor es die Dienste verdrahtet — b.settingsSvc zeigt
+	// dann auf den vorher offenen Mandanten oder ist gar nicht belegt. Der
+	// Aufruf holte sich sonst den Firmennamen des falschen Mandanten oder
+	// stürzte auf dem Startbildschirm ab, wo noch keiner offen ist.
+	if !b.locked && b.settingsSvc != nil {
+		if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
+			t.Name = s.CompanyName
+			if entry := b.tenantByIDLocked(tenantID); entry != nil {
+				entry.Name = s.CompanyName
 			}
+			_ = b.appCfgRepo.Save(&b.appConfig)
 		}
-		_ = b.appCfgRepo.Save(&b.appConfig)
 	}
+
+	// Die Übernahme wird gezählt und protokolliert (ARC-05). Eine Übernahme
+	// ohne Abstimmung ist keine Übernahme, sondern eine Hoffnung: ob alles
+	// angekommen ist, fiele sonst erst auf, wenn eine Bilanz nicht mehr aufgeht.
+	// Der Weg steht am Eintrag: Übernahme, Wiederherstellung oder das Öffnen
+	// einer vorhandenen Datei. Protokolliert wird genau hier und nur hier —
+	// jeder Weg geht durch diese Funktion, und ein zweiter Eintrag beim
+	// Aufrufer zählte denselben Vorgang doppelt.
+	b.recordMigration(kind, dbFilePath, tenantID)
 
 	return &t, nil
 }
 
+// recordMigration zählt die übernommenen Objekte, prüft die Ketten und schreibt
+// das Migrationsprotokoll.
+//
+// Sie darf an keiner Stelle den Vorgang aufhalten: die Daten sind übernommen,
+// und ein fehlgeschlagenes Protokoll wäre kein Grund, sie wieder wegzunehmen.
+// Was schiefgeht, steht im Änderungsprotokoll.
+func (b *BuchfinkBridge) recordMigration(kind domain.MigrationKind, source, target string) {
+	if b.locked || b.db == nil || b.migrationRepo == nil {
+		return
+	}
+	ctx := context.Background()
+
+	counts, err := repository.CountForMigration(ctx, b.db)
+	if err != nil {
+		if b.auditRepo != nil {
+			_ = b.auditRepo.Log(ctx, domain.AuditActionImport, "MIGRATION", target,
+				fmt.Sprintf("Die Zählung der übernommenen Daten ist fehlgeschlagen: %v", err))
+		}
+		return
+	}
+
+	rec := &domain.MigrationRecord{
+		Kind:   kind,
+		Source: source,
+		Target: target,
+		RunAt:  time.Now().UTC(),
+	}
+	rec.SetCounts(counts)
+
+	// Die Kette wird sofort geprüft: eine übernommene Buchhaltung, die schon
+	// beim Ankommen gebrochen ist, muss das sagen — sonst sieht es später aus,
+	// als sei sie hier gebrochen worden.
+	if b.journalSvc != nil {
+		if result, err := b.journalSvc.VerifyIntegrity(ctx); err == nil {
+			rec.ChainValid = result.IsValid
+			rec.ChainMessage = result.Message
+		}
+	}
+
+	if err := b.migrationRepo.CreateMigrationRecord(ctx, rec); err != nil {
+		return
+	}
+	if b.auditRepo != nil {
+		balance := "Soll und Haben stimmen überein"
+		if !counts.IsBalanced() {
+			balance = fmt.Sprintf("Soll %s € und Haben %s € stimmen NICHT überein — die Übernahme ist unvollständig",
+				counts.DebitTotal, counts.CreditTotal)
+		}
+		_ = b.auditRepo.Log(ctx, domain.AuditActionImport, "MIGRATION", target, fmt.Sprintf(
+			"Datenübernahme (%s) aus %s: %d Buchungen mit %d Zeilen, %d Belege, %d Geschäftspartner, %d Konten, %d Rechnungen, %d Anlagegüter, %d Protokolleinträge. %s. Kette: %s",
+			kind, filepath.Base(source), counts.JournalEntries, counts.JournalLines,
+			counts.Receipts, counts.Contacts, counts.Accounts, counts.Invoices,
+			counts.FixedAssets, counts.AuditEntries, balance, rec.ChainMessage))
+	}
+}
+
+// DeleteTenant entfernt einen Mandanten aus der Konfiguration und löscht sein
+// Schlüsselbund-Geheimnis. Die Daten auf der Platte bleiben liegen.
+//
+// Den gerade geprüften Mandanten nimmt sie im Prüfermodus nicht: ohne das
+// Geheimnis wären die eingefrorenen Daten bis zur Wiederherstellung aus der
+// Wiederherstellungsdatei unzugänglich — das ist während einer Außenprüfung
+// genau der Eingriff, den der Modus verhindern soll. Ein anderer Mandant darf
+// weiterhin gehen.
 func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	var newTenants []domain.TenantConfig
+	if tenantID == b.appConfig.ActiveTenantID {
+		if err := b.ensureWritable(); err != nil {
+			return err
+		}
+	}
+
+	vaultID := tenantID
+	// Belegt statt nil: die Konfiguration geht als JSON an die Oberfläche, und
+	// der letzte entfernte Mandant hinterließe sonst `null`.
+	newTenants := make([]domain.TenantConfig, 0, len(b.appConfig.Tenants))
 	for _, t := range b.appConfig.Tenants {
 		if t.ID != tenantID {
 			newTenants = append(newTenants, t)
+			continue
 		}
+		vaultID = t.VaultID()
 	}
 	b.appConfig.Tenants = newTenants
 
 	// Remove the tenant's wrapping secret from the OS keychain. The keyfile and
 	// data on disk are left untouched (deletion of user data stays explicit).
-	_ = security.DeleteTenantSecret(tenantID)
+	//
+	// Nicht jedoch, solange ein anderer Eintrag denselben Schlüssel benutzt:
+	// eine wiederhergestellte Sicherung und der Mandant, aus dem sie stammt,
+	// teilen sich das Geheimnis. Es beim Entfernen der einen zu löschen,
+	// sperrte die andere aus — der Datenverlust, den die Sicherung gerade
+	// abwenden sollte.
+	shared := false
+	for _, t := range newTenants {
+		if t.VaultID() == vaultID {
+			shared = true
+			break
+		}
+	}
+	if !shared {
+		_ = security.DeleteTenantSecret(vaultID)
+	}
 
 	if b.appConfig.ActiveTenantID == tenantID {
 		if len(newTenants) > 0 {
@@ -557,10 +1177,25 @@ func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 // SETUP & ONBOARDING ASSISTANT (FIRST LAUNCH & VAULT)
 // -------------------------------------------------------------
 
+// GetAppConfig liefert den Zustand, aus dem die Oberfläche liest.
+//
+// Die Spiegelfelder werden hier gerechnet und nicht beim letzten Speichern
+// übernommen: der Prüfermodus endet an einem Datum, und ein Zustand, der beim
+// Speichern eingefroren wurde, meldete ihn nach Ablauf weiter als aktiv,
+// während die Bridge längst wieder schreiben lässt. Die Oberfläche zeigte dann
+// ein Banner und blendete Knöpfe aus, die es gar nicht mehr auszublenden gilt.
+//
+// Gerechnet wird auf einer Kopie: die Konfiguration im Speicher bleibt, was sie
+// ist, und nur die Auskunft nach außen ist auf den heutigen Tag bezogen.
 func (b *BuchfinkBridge) GetAppConfig() domain.AppConfig {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	return b.appConfig
+
+	cfg := b.appConfig
+	cfg.Tenants = append(make([]domain.TenantConfig, 0, len(b.appConfig.Tenants)), b.appConfig.Tenants...)
+	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
+	cfg.ProgramVersion = programVersion()
+	return cfg
 }
 
 // SetupApplication handles initial setup: establishes the data directory,
@@ -578,8 +1213,15 @@ func (b *BuchfinkBridge) SetupApplication(
 }
 
 // LoadExistingDatabase loads an existing SQLite database file from disk.
+//
+// Protokolliert wird sie als „geöffnet" und nicht als „übernommen": es kommen
+// keine fremden Daten herein, es wird eine vorhandene Datei dieses Rechners
+// geöffnet. Das Migrationsprotokoll soll den Unterschied zeigen — sonst sähe
+// jede Wiederaufnahme des eigenen Mandanten aus wie ein Systemwechsel.
 func (b *BuchfinkBridge) LoadExistingDatabase(dbFilePath string) error {
-	_, err := b.ImportTenant(dbFilePath)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, err := b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindOpen)
 	return err
 }
 
@@ -621,21 +1263,39 @@ func (b *BuchfinkBridge) SelectDatabaseFileDialog(title string) (string, error) 
 // DYNAMIC FISCAL YEARS & FILTERING
 // -------------------------------------------------------------
 
+// GetAvailableFiscalYears lists the fiscal years the user can switch to: the
+// union of the recorded fiscal years and those that only appear in the journal.
+//
+// Beide Quellen, weil beide unvollständig sind. Ein neu angelegtes Geschäftsjahr
+// hat noch keine Buchung, und eine gewachsene Datenbank hat Buchungen in Jahren,
+// zu denen die Entität erst nachträglich entsteht.
 func (b *BuchfinkBridge) GetAvailableFiscalYears() []int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
 		return repository.DiscoverAvailableFiscalYears(b.dataDir)
 	}
-	return b.accountingSvc.GetAvailableFiscalYears(context.Background())
-}
 
-func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.setFiscalYearLocked(year)
-	return nil
+	years := b.accountingSvc.GetAvailableFiscalYears(context.Background())
+	if b.closingSvc == nil {
+		return years
+	}
+	known := make(map[int]bool, len(years))
+	for _, y := range years {
+		known[y] = true
+	}
+	recorded, err := b.closingSvc.FiscalYears(context.Background())
+	if err != nil {
+		return years
+	}
+	for _, fy := range recorded {
+		if fy.Year > 0 && !known[fy.Year] {
+			known[fy.Year] = true
+			years = append(years, fy.Year)
+		}
+	}
+	sort.Ints(years)
+	return years
 }
 
 // setFiscalYearLocked switches the active year across every service that
@@ -669,6 +1329,63 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.foundationSvc != nil {
 		b.foundationSvc.SetFiscalYear(year)
 	}
+	if b.statementSvc != nil {
+		b.statementSvc.SetFiscalYear(year)
+	}
+	if b.ebilanzSvc != nil {
+		b.ebilanzSvc.SetFiscalYear(year)
+	}
+	if b.closingSvc != nil {
+		b.closingSvc.SetFiscalYear(year)
+	}
+	if b.closingStepsSvc != nil {
+		b.closingStepsSvc.SetFiscalYear(year)
+	}
+	if b.accrualSvc != nil {
+		b.accrualSvc.SetFiscalYear(year)
+	}
+	if b.provisionSvc != nil {
+		b.provisionSvc.SetFiscalYear(year)
+	}
+	if b.closingBookingSvc != nil {
+		b.closingBookingSvc.SetFiscalYear(year)
+	}
+	if b.appropriationSvc != nil {
+		b.appropriationSvc.SetFiscalYear(year)
+	}
+	if b.taxRegisterSvc != nil {
+		b.taxRegisterSvc.SetFiscalYear(year)
+	}
+	if b.vatReturnSvc != nil {
+		b.vatReturnSvc.SetFiscalYear(year)
+	}
+	if b.zmSvc != nil {
+		b.zmSvc.SetFiscalYear(year)
+	}
+	if b.checkSvc != nil {
+		b.checkSvc.SetFiscalYear(year)
+	}
+	if b.deadlineSvc != nil {
+		b.deadlineSvc.SetFiscalYear(year)
+	}
+	// Auch die Datenüberlassung: ruft die Oberfläche einen Export ohne Jahr
+	// auf, nähme er sonst das Jahr vom Öffnen des Mandanten und überließe die
+	// Bücher eines anderen Jahres, als auf dem Schirm steht.
+	if b.exportSvc != nil {
+		b.exportSvc.SetFiscalYear(year)
+	}
+	// Und die Bedienung der Welle 7: die Aufgabenliste zählt die Bankumsätze
+	// und Fristen eines Jahres, der Monatsabschluss liest die Festschreibung
+	// eines Jahres, das Mahnschreiben wird in einem Jahr abgelegt.
+	if b.taskSvc != nil {
+		b.taskSvc.SetFiscalYear(year)
+	}
+	if b.monthCloseSvc != nil {
+		b.monthCloseSvc.SetFiscalYear(year)
+	}
+	if b.dunningSvc != nil {
+		b.dunningSvc.SetFiscalYear(year)
+	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
 }
@@ -695,7 +1412,13 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.settingsSvc == nil {
-		return &domain.CompanySettings{FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04", TaxationType: "SOLL"}, nil
+		// Mit den Mahnstufen der Voreinstellung: die Einstellungsseite läuft
+		// über die Liste, und `null.map` nähme im Render den Baum mit.
+		return &domain.CompanySettings{
+			FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR",
+			SKR: "SKR04", TaxationType: "SOLL",
+			DunningLevels: domain.DefaultDunningLevels(),
+		}, nil
 	}
 	return b.settingsSvc.GetCompanySettings(context.Background())
 }
@@ -703,6 +1426,9 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 func (b *BuchfinkBridge) UpdateCompanySettings(settings domain.CompanySettings) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.settingsSvc == nil {
 		return nil
 	}
@@ -727,9 +1453,9 @@ func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.Account{}, nil
 	}
-	return b.accountingSvc.GetAccounts(context.Background())
+	return emptyList(b.accountingSvc.GetAccounts(context.Background()))
 }
 
 func (b *BuchfinkBridge) GetAccountByNumber(number string) (*domain.Account, error) {
@@ -781,52 +1507,69 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.Account{}, nil
 	}
 	all, err := b.accountingSvc.GetAccounts(context.Background())
 	if err != nil {
-		return nil, err
+		return []domain.Account{}, err
 	}
 	liquid := map[string]bool{}
 	for _, a := range domain.LiquidAccounts() {
 		liquid[a] = true
 	}
-	var result []domain.Account
+	// Belegt statt nil: die Auswahl in der Maske liest die Liste ohne Umweg.
+	result := make([]domain.Account, 0, len(all))
 	for _, a := range all {
 		if liquid[a.Number] {
 			result = append(result, a)
 		}
 	}
-	return result, nil
+	return emptyList(result, nil)
 }
 
 func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.JournalEntry{}, nil
 	}
-	return b.accountingSvc.GetEntries(context.Background())
+	return emptyList(b.accountingSvc.GetEntries(context.Background()))
 }
 
 func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return nil, nil
+		return []domain.JournalEntry{}, nil
 	}
-	return b.accountingSvc.GetAllEntries(context.Background())
+	return emptyList(b.accountingSvc.GetAllEntries(context.Background()))
 }
 
 // PostJournalEntry books a manually composed Buchungssatz. The journal enforces
 // the rules; the frontend only collects the input.
+//
+// Die Quelle wird dabei auf manual normiert: sie ist die Herkunft der
+// Buchung, kein Eingabefeld, und die Auswertungen richten sich nach ihr. Ein
+// Vortrag entsteht im Saldenvortrag, eine Abschlussbuchung in den
+// Abschlussbausteinen — wer hier „opening" oder „closing" mitschickte,
+// umginge sonst den Schutz der Steuerkonten und fiele zugleich aus der
+// Umsatzsteuer-Auswertung heraus.
+//
+// Seit Welle 8 läuft der Weg über PostManualEntry: die Handbuchung verlangt
+// einen Beleg (BEL-01 K2). Die Methode bleibt für den Fall, dass der Beleg
+// schon an der Buchung steht — sie reicht ihn weiter, statt eine zweite Fassung
+// derselben Regeln zu führen.
 func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.journalSvc == nil {
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
+	if b.postingSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
-	return b.journalSvc.Post(context.Background(), &entry)
+	return b.postingSvc.PostManualEntry(
+		context.Background(), service.ManualEntryRequest{Entry: entry})
 }
 
 // PostIncomingReceipt books an Eingangsbeleg from the fachliche Gruppe, the
@@ -834,6 +1577,9 @@ func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.Jo
 func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.postingSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -844,6 +1590,9 @@ func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domai
 func (b *BuchfinkBridge) ReverseJournalEntry(entryID uint, reason string) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.journalSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -854,7 +1603,11 @@ func (b *BuchfinkBridge) VerifyIntegrity() (domain.IntegrityCheckResult, error) 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.journalSvc == nil {
-		return domain.IntegrityCheckResult{IsValid: true, Message: "Bereit"}, nil
+		// Auch der Leerlauf gibt belegte Listen zurück: die Ansicht liest
+		// `breaks.length`, und `null.length` nähme den ganzen Baum mit.
+		empty := domain.IntegrityCheckResult{IsValid: true, Message: "Bereit"}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.journalSvc.VerifyIntegrity(context.Background())
 }
@@ -863,7 +1616,9 @@ func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error)
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return &domain.FinancialSummary{}, nil
+		empty := &domain.FinancialSummary{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.accountingSvc.GetFinancialSummary(context.Background())
 }
@@ -876,9 +1631,9 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.bankSvc == nil {
-		return nil, nil
+		return []domain.BankTransaction{}, nil
 	}
-	return b.bankSvc.GetTransactions(context.Background(), b.currentYear)
+	return emptyList(b.bankSvc.GetTransactions(context.Background(), b.currentYear))
 }
 
 // ImportCAMT053XML imports a statement for one liquid account. The account is an
@@ -886,6 +1641,9 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount string) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return 0, err
+	}
 	if b.bankSvc == nil {
 		return 0, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -897,6 +1655,9 @@ func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount strin
 func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.bankSvc == nil {
 		return nil, fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -906,6 +1667,9 @@ func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount
 func (b *BuchfinkBridge) IgnoreBankTransaction(bankTxID uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.bankSvc == nil {
 		return fmt.Errorf("Bankimport ist noch nicht initialisiert")
 	}
@@ -920,14 +1684,17 @@ func (b *BuchfinkBridge) GetContacts() ([]domain.Contact, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.contactSvc == nil {
-		return nil, nil
+		return []domain.Contact{}, nil
 	}
-	return b.contactSvc.GetContacts(context.Background())
+	return emptyList(b.contactSvc.GetContacts(context.Background()))
 }
 
 func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.contactSvc == nil {
 		return nil, fmt.Errorf("Stammdaten sind noch nicht initialisiert")
 	}
@@ -940,6 +1707,9 @@ func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) 
 func (b *BuchfinkBridge) DeleteContact(id uint) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.contactSvc == nil {
 		return fmt.Errorf("Stammdaten sind noch nicht initialisiert")
 	}
@@ -950,9 +1720,9 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.invoiceSvc == nil {
-		return nil, nil
+		return []domain.Invoice{}, nil
 	}
-	return b.invoiceSvc.GetInvoices(context.Background(), b.currentYear)
+	return emptyList(b.invoiceSvc.GetInvoices(context.Background(), b.currentYear))
 }
 
 // IssueInvoice assigns the consecutive invoice number and books the receivable
@@ -960,6 +1730,9 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.invoiceSvc == nil {
 		return nil, fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
@@ -972,10 +1745,19 @@ func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, erro
 func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.invoiceSvc == nil {
 		return fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
 	}
-	return b.invoiceSvc.Cancel(context.Background(), invoiceID, reason)
+	// Der Weg ohne Stornodokument gibt es nicht mehr: eine stornierte Rechnung
+	// ist beim Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen
+	// (§ 14 Abs. 4 Nr. 4 UStG, § 17 Abs. 1 UStG). Diese Methode bleibt nur
+	// erhalten, weil die Oberfläche sie ruft; sie führt auf denselben Weg wie
+	// CancelInvoiceWithDocument.
+	_, err := b.invoiceSvc.CancelWithDocument(context.Background(), invoiceID, reason)
+	return err
 }
 
 func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string, error) {
@@ -1012,14 +1794,16 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 	}
 	app := application.Get()
 	if app == nil || app.Dialog == nil {
-		return nil, nil
+		return []string{}, nil
 	}
-	return app.Dialog.OpenFile().
+	// Der Abbruch des Dialogs liefert nil; als `null` in der Oberfläche wäre
+	// daraus ein TypeError beim Lesen der Länge geworden.
+	return emptyList(app.Dialog.OpenFile().
 		CanChooseFiles(true).
 		CanChooseDirectories(false).
 		AddFilter("Belege (PDF, Bild, XML)", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml").
 		SetTitle(title).
-		PromptForMultipleSelection()
+		PromptForMultipleSelection())
 }
 
 // FileIncomingReceipt files an incoming Beleg away without booking it. The two
@@ -1028,6 +1812,9 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, files []ReceiptFileInput) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1043,6 +1830,9 @@ func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, fil
 func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1053,6 +1843,9 @@ func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (
 func (b *BuchfinkBridge) RemoveReceiptFile(receiptID, fileID uint) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.receiptSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1067,7 +1860,7 @@ func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 	if b.receiptSvc == nil {
 		return []domain.Receipt{}, nil
 	}
-	return b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status))
+	return emptyList(b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status)))
 }
 
 // GetReceipt returns one Beleg with its files.
@@ -1087,6 +1880,9 @@ func (b *BuchfinkBridge) GetReceipt(id uint) (*domain.Receipt, error) {
 func (b *BuchfinkBridge) DiscardReceipt(id uint, reason string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.receiptSvc == nil {
 		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1179,6 +1975,9 @@ func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, er
 func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.eInvoiceSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1208,6 +2007,9 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*domain.ReceiptValidation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.eInvoiceSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1302,16 +2104,16 @@ func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	if b.ebilanzSvc == nil {
 		return "", fmt.Errorf("ebilanz service not initialized")
 	}
-	return b.ebilanzSvc.ExportXBRL(context.Background())
+	return b.ebilanzSvc.ExportXBRL(context.Background(), b.currentYear)
 }
 
 func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.auditSvc == nil {
-		return nil, nil
+		return []domain.AuditLogEntry{}, nil
 	}
-	return b.auditSvc.GetLogs(context.Background(), 200)
+	return emptyList(b.auditSvc.GetLogs(context.Background(), 200))
 }
 
 // -------------------------------------------------------------
@@ -1325,9 +2127,9 @@ func (b *BuchfinkBridge) GetOpenItems() ([]domain.OpenItem, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.paymentSvc == nil {
-		return nil, nil
+		return []domain.OpenItem{}, nil
 	}
-	return b.paymentSvc.OpenItems(context.Background())
+	return emptyList(b.paymentSvc.OpenItems(context.Background()))
 }
 
 // GetDifferenceKinds returns the payment difference kinds with their hints.
@@ -1340,6 +2142,9 @@ func (b *BuchfinkBridge) GetDifferenceKinds() []domain.DifferenceKindInfo {
 func (b *BuchfinkBridge) SettlePayment(req service.PaymentRequest) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.paymentSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1384,6 +2189,9 @@ func (b *BuchfinkBridge) GetFoundationState() (*service.FoundationState, error) 
 func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1421,10 +2229,13 @@ func (b *BuchfinkBridge) PreviewFoundationPostings() (*service.FoundationPosting
 func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	if err := b.ensureWritable(); err != nil {
+		return []domain.JournalEntry{}, err
 	}
-	return b.foundationSvc.BookPostings(context.Background())
+	if b.foundationSvc == nil {
+		return []domain.JournalEntry{}, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return emptyList(b.foundationSvc.BookPostings(context.Background()))
 }
 
 // RegisterCompany records the entry in the Handelsregister and ends the
@@ -1432,6 +2243,9 @@ func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error)
 func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Foundation, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return nil, err
+	}
 	if b.foundationSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
@@ -1443,8 +2257,58 @@ func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Fo
 func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
 	if b.foundationSvc == nil {
 		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.foundationSvc.CompleteDuty(context.Background(), key, doneOn, note)
+}
+
+// settingValue liest eine Einstellung, ohne bei einem Fehler zu stören. Die
+// Adressen der beiden Netzdienste — Bundeszentralamt und Kursdienst — sind
+// Einstellungen, damit ein Wechsel keine Programmversion verlangt; fehlt der
+// Wert, greift die Voreinstellung des jeweiligen Pakets.
+func (b *BuchfinkBridge) settingValue(key string) string {
+	if b.settingsRepo == nil {
+		return ""
+	}
+	value, err := b.settingsRepo.Get(context.Background(), key)
+	if err != nil {
+		return ""
+	}
+	return value
+}
+
+// settingsCurrencyFetcher holt den Kurs über die jeweils eingestellte Adresse.
+//
+// Er steht zwischen Kursdienst und Paket, weil die Adresse eine Einstellung ist
+// und sich ändern kann: ein einmal beim Einrichten des Mandanten gebauter
+// Client fragte bis zum Neustart die alte Stelle. Die Bestätigungsabfrage der
+// USt-IdNr. macht es seit jeher so; hier war es die Ausnahme.
+type settingsCurrencyFetcher struct{ bridge *BuchfinkBridge }
+
+func (f *settingsCurrencyFetcher) RateAt(
+	ctx context.Context, code, date string,
+) (int64, string, string, error) {
+	return currency.New(f.bridge.settingValue(service.SettingExchangeRateEndpoint)).
+		RateAt(ctx, code, date)
+}
+
+// startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.
+// Er entscheidet über das Wirtschaftsjahr, in dem die Freigrenze für Geschenke
+// läuft — bei einem abweichenden Geschäftsjahr ist das nicht das Kalenderjahr.
+func startMonthOf(repo domain.SettingsRepository) int {
+	if repo == nil {
+		return 1
+	}
+	settings, err := repo.GetCompanySettings(context.Background())
+	if err != nil || settings == nil {
+		return 1
+	}
+	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
+		return 1
+	}
+	return settings.FiscalYearStartMonth
 }

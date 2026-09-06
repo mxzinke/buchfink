@@ -44,7 +44,7 @@ func TestIssuedInvoiceBecomesASealedReceipt(t *testing.T) {
 	if receipt.Direction != domain.DirectionOutgoing {
 		t.Errorf("Richtung = %q, erwartet %q", receipt.Direction, domain.DirectionOutgoing)
 	}
-	// Der Beleg trägt die Rechnungsnummer — zwei Nummern für dasselbe Dokument
+	// Der Beleg hat die Rechnungsnummer — zwei Nummern für dasselbe Dokument
 	// wären eine zu viel.
 	if receipt.ReceiptNumber != inv.InvoiceNumber {
 		t.Errorf("Belegnummer = %q, erwartet die Rechnungsnummer %q", receipt.ReceiptNumber, inv.InvoiceNumber)
@@ -120,7 +120,7 @@ func TestIssuingWorksWithoutTheDocumentPipeline(t *testing.T) {
 }
 
 // Scheitert die Buchung, darf der eben abgelegte Ausgangsbeleg nicht als offener
-// Beleg zurückbleiben. Er trägt die Rechnungsnummer in einem eindeutigen Index:
+// Beleg zurückbleiben. Er hat die Rechnungsnummer in einem eindeutigen Index:
 // jeder weitere Versuch verbrauchte sonst die nächste Nummer, und die vergebene
 // wäre für immer belegt, ohne dass je eine Rechnung dieses Namens existierte.
 func TestFailedPostingLeavesNoOpenOutgoingReceipt(t *testing.T) {

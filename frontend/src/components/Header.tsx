@@ -1,30 +1,40 @@
-import React from 'react';
-import { Building2, Calendar, Check, ChevronDown, Menu as MenuIcon, Plus } from 'lucide-react';
-import { TenantConfig } from '../types';
-import { Button, Menu, MenuGroup, MenuItem, MenuSeparator, cn } from './ui';
+import React, { useState } from 'react';
+import { Calendar, Lock, Menu as MenuIcon, Plus } from 'lucide-react';
+import { useWriteLock } from './WriteLock';
+import { FiscalYearDialog } from './FiscalYearDialog';
+import { Button, cn } from './ui';
 
 interface HeaderProps {
   currentYear: number;
   availableYears: number[];
+  /**
+   * Geschäftsjahre ab der Feststellung. Sie nehmen keine Buchung mehr an, und
+   * das steht neben der Jahreszahl, nicht erst in der Ablehnung (§11.5).
+   */
+  closedYears?: number[];
   onYearChange: (year: number) => void;
-  tenants?: TenantConfig[];
-  activeTenant?: TenantConfig | null;
-  onSwitchTenant?: (tenantId: string) => void;
-  onOpenNewTenantModal?: () => void;
+  /**
+   * Legt ein Geschäftsjahr als Entität an und schaltet auf es um. Ohne diesen
+   * Weg entstünde ein Jahr erst mit der ersten Buchung oder mit dem
+   * Saldenvortrag — also nie, bevor man darin arbeiten will.
+   */
+  onCreateFiscalYear?: (year: number) => void;
   onToggleMobileSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentYear,
   availableYears,
+  closedYears = [],
   onYearChange,
-  tenants = [],
-  activeTenant,
-  onSwitchTenant,
-  onOpenNewTenantModal,
+  onCreateFiscalYear,
   onToggleMobileSidebar,
 }) => {
   const currentCalendarYear = new Date().getFullYear();
+  // Ein Geschäftsjahr anzulegen ist eine Änderung an den Büchern und im
+  // Prüfermodus gesperrt; das Umschalten der Ansicht bleibt möglich.
+  const writeLock = useWriteLock();
+  const [creating, setCreating] = useState(false);
 
   return (
     <header
@@ -53,13 +63,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Calendar className="w-3.5 h-3.5 shrink-0 ml-1.5 mr-0.5 text-ink-faint" strokeWidth={1.5} />
           {availableYears.map((year) => {
             const isSelected = currentYear === year;
+            const isClosed = closedYears.includes(year);
             return (
               <button
                 key={year}
                 type="button"
                 onClick={() => onYearChange(year)}
                 aria-pressed={isSelected}
-                title={`Ansicht auf Geschäftsjahr ${year} filtern`}
+                title={
+                  isClosed
+                    ? `Geschäftsjahr ${year} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`
+                    : `Ansicht auf Geschäftsjahr ${year} filtern`
+                }
                 className={cn(
                   'flex items-center gap-1.5 h-7 px-2.5 shrink-0 rounded-[4px] text-label num',
                   'transition-colors duration-120 ease-quiet',
@@ -69,6 +84,13 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               >
                 {year}
+                {isClosed && (
+                  <Lock
+                    className="w-3 h-3 shrink-0 text-ink-faint"
+                    strokeWidth={1.5}
+                    aria-label="abgeschlossen"
+                  />
+                )}
                 {year === currentCalendarYear && !isSelected && (
                   <span
                     className="mark-diamond bg-ink-faint scale-75"
@@ -78,61 +100,33 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             );
           })}
+          {onCreateFiscalYear && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              disabled={writeLock.locked}
+              title={writeLock.hint ?? 'Geschäftsjahr anlegen'}
+              aria-label="Geschäftsjahr anlegen"
+              className={cn(
+                'flex items-center h-7 px-2 shrink-0 rounded-[4px] text-ink-faint',
+                'transition-colors duration-120 ease-quiet hover:bg-sunken hover:text-ink',
+                'disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink-faint',
+              )}
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="shrink-0 window-no-drag">
-        <Menu
-          trigger={
-            <Button
-              variant="secondary"
-              size="sm"
-              title="Mandanten wechseln"
-              icon={<Building2 className="w-3.5 h-3.5 text-ink-faint" strokeWidth={1.5} />}
-            >
-              <span className="max-w-[100px] sm:max-w-[160px] truncate text-ink">
-                {activeTenant?.name || 'Mandant'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-ink-faint" strokeWidth={1.5} />
-            </Button>
-          }
-        >
-          <MenuGroup label={`Mandanten (${tenants.length})`}>
-            {tenants.map((tenant) => {
-              const isActive = tenant.id === activeTenant?.id;
-              return (
-                <MenuItem
-                  key={tenant.id}
-                  onClick={() => onSwitchTenant?.(tenant.id)}
-                  className="h-auto py-2 items-start"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate', isActive && 'font-semibold text-accent-text')}>
-                      {tenant.name}
-                    </span>
-                    <span className="block text-caption text-ink-subtle truncate">
-                      {tenant.dataDir}
-                    </span>
-                  </span>
-                  {isActive && (
-                    <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-accent-text" strokeWidth={1.5} />
-                  )}
-                </MenuItem>
-              );
-            })}
-          </MenuGroup>
-
-          {onOpenNewTenantModal && (
-            <>
-              <MenuSeparator />
-              <MenuItem onClick={onOpenNewTenantModal} className="text-accent-text font-medium">
-                <Plus className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                Neuen Mandanten anlegen …
-              </MenuItem>
-            </>
-          )}
-        </Menu>
-      </div>
+      {onCreateFiscalYear && (
+        <FiscalYearDialog
+          open={creating}
+          onOpenChange={setCreating}
+          availableYears={availableYears}
+          onCreate={onCreateFiscalYear}
+        />
+      )}
     </header>
   );
 };

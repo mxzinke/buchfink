@@ -19,7 +19,7 @@ func TestClaimedRulesExistInTheStandard(t *testing.T) {
 	}
 }
 
-// Der Prüfumfang wird gemessen, nicht behauptet.
+// Der Test misst den Prüfumfang, statt ihn zu behaupten.
 func TestCoverageIsMeasured(t *testing.T) {
 	total := len(RulesInStandard())
 	checked := len(RulesChecked())
@@ -57,7 +57,7 @@ func TestEveryClaimedRuleIsActuallyChecked(t *testing.T) {
 		for _, m := range regexp.MustCompile(`"(BR-[A-Z]*-?\d+)"`).FindAllStringSubmatch(text, -1) {
 			reported[m[1]] = true
 		}
-		// Die Kategorie-Familien werden zur Laufzeit zusammengesetzt.
+		// Der Regelaufbau setzt die Kategorie-Familien zur Laufzeit zusammen.
 		for _, m := range regexp.MustCompile(`"BR-"\s*\+\s*spec\.family\s*\+\s*"-(\d+)"`).FindAllStringSubmatch(text, -1) {
 			for _, spec := range categorySpecs {
 				reported["BR-"+spec.family+"-"+m[1]] = true

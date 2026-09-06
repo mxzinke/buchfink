@@ -50,7 +50,7 @@ func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleReq
 	if !fund.IsFund() {
 		return nil, fmt.Errorf(
 			"%s ist kein Investmentanteil. Die Vorabpauschale des § 18 InvStG gibt es nur für "+
-				"Anteile an einem Investmentfonds — eine Einzelaktie und eine Anleihe tragen keine",
+				"Anteile an einem Investmentfonds — eine Einzelaktie und eine Anleihe haben keine",
 			asset.InventoryNumber)
 	}
 	if req.Year <= 0 {

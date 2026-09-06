@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 )
@@ -29,6 +32,15 @@ import (
 // SetDocumentStore wires the file store. Ohne ihn nimmt die Kartei keine
 // Dokumente auf; sie funktioniert im Übrigen weiter.
 func (s *AssetService) SetDocumentStore(store *receiptstore.Store) { s.docStore = store }
+
+// AllDocuments liefert alle Anlagendokumente.
+//
+// Der Belegprüflauf fragt danach: die Prüfsumme eines Vertrags ist genauso zu
+// prüfen wie die einer Rechnung, und über die Anlagegüter einzeln zu gehen
+// hieße, die Kartei so oft zu lesen, wie sie Einträge hat.
+func (s *AssetService) AllDocuments(ctx context.Context) ([]domain.AssetDocument, error) {
+	return s.assetRepo.FindAllDocuments(ctx)
+}
 
 // AttachDocumentRequest legt ein Dokument zu einem Anlagegut ab.
 type AttachDocumentRequest struct {
@@ -103,6 +115,7 @@ func (s *AssetService) AttachDocument(ctx context.Context, req AttachDocumentReq
 		ValidUntil:   req.ValidUntil,
 		Note:         req.Note,
 	}
+	applyDocumentRetention(document)
 	if err := document.Validate(); err != nil {
 		return nil, err
 	}
@@ -112,6 +125,31 @@ func (s *AssetService) AttachDocument(ctx context.Context, req AttachDocumentReq
 	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Dokument zu %s abgelegt: %s (%s)", asset.InventoryNumber, document.DisplayTitle(), kind.Label()))
 	return s.reload(ctx, asset.ID)
+}
+
+// applyDocumentRetention setzt Aufbewahrungsklasse und Fristende eines
+// Anlagendokuments.
+//
+// Beim Ablegen und nicht beim Anzeigen — dieselbe Erwägung wie beim Beleg: die
+// Frist richtet sich nach dem Entstehungsjahr und dem damals geltenden Recht,
+// und später gerechnet käme für dasselbe Dokument irgendwann eine andere Zahl
+// heraus.
+//
+// Das Entstehungsjahr ist das Datum, das auf dem Dokument steht; fehlt es, das Jahr
+// der Ablage. Die Klasse ist immer die der Organisationsunterlagen (zehn
+// Jahre), unabhängig von der Dokumentart: auch das Foto einer Maschine und der
+// Wartungsbericht erklären das Wirtschaftsgut, dessen Abschreibung über die
+// Nutzungsdauer läuft.
+func applyDocumentRetention(document *domain.AssetDocument) {
+	origin := time.Now().Year()
+	if len(document.DocumentDate) >= 4 {
+		if year, err := strconv.Atoi(document.DocumentDate[:4]); err == nil && year > 1900 {
+			origin = year
+		}
+	}
+	info := accounting.RetentionFor(domain.RetentionKindAssetDocument, origin)
+	document.RetentionClass = info.Class
+	document.RetentionUntil = info.RetentionEnd
 }
 
 // RemoveDocument drops a document from an Anlagegut.
@@ -189,7 +227,9 @@ func (s *AssetService) ExpiringDocuments(ctx context.Context, until string) ([]E
 	if err != nil {
 		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
 	}
-	var out []ExpiringDocument
+	// Belegt statt nil: der Regelfall ist die Ablage ohne ablaufendes
+	// Dokument, und die Ansicht läse dort sonst `null`.
+	out := make([]ExpiringDocument, 0)
 	for i := range assets {
 		asset := &assets[i]
 		if asset.IsDisposed() {

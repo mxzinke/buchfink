@@ -16,6 +16,12 @@ package domain
 // steht so in der E-Bilanz, und ein Katalog, der die Schreibweise ändert,
 // änderte den Export mit.
 
+// LegalFormUG ist der Katalogeintrag der Unternehmergesellschaft. Er steht als
+// Konstante, weil aus ihm eine Rechtsfolge folgt: § 5a Abs. 3 GmbHG bindet die
+// Pflichtrücklage an diese Rechtsform, und ein Tippfehler im Vergleich ließe
+// sie stillschweigend entfallen.
+const LegalFormUG = "UG (haftungsbeschränkt)"
+
 // LegalFormInfo is one entry of the Rechtsform catalog.
 type LegalFormInfo struct {
 	// Name ist die gespeicherte Schreibweise.
@@ -49,7 +55,7 @@ const (
 // Kurz gehalten und nicht vollständig: er nennt die Rechtsformen, die ein
 // bilanzierendes Unternehmen üblicherweise hat. Alles andere fällt unter
 // „Sonstige", und dort wird gefragt statt geraten — eine KGaA und eine
-// ausländische Rechtsform tragen Besonderheiten, die ein Katalogeintrag
+// ausländische Rechtsform haben Besonderheiten, die ein Katalogeintrag
 // verschweigen würde.
 var legalForms = []LegalFormInfo{
 	{Name: "Einzelunternehmen", Investor: InvestorIndividualBusiness, Note: noteIndividual},
@@ -60,7 +66,7 @@ var legalForms = []LegalFormInfo{
 	{Name: "KG", Investor: InvestorUnknown, Note: notePartnership},
 	{Name: "GmbH & Co. KG", Investor: InvestorUnknown, Note: notePartnership},
 	{Name: "Partnerschaftsgesellschaft", Investor: InvestorUnknown, Note: notePartnership},
-	{Name: "UG (haftungsbeschränkt)", Investor: InvestorCorporate, Note: noteCorporate},
+	{Name: LegalFormUG, Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "GmbH", Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "AG", Investor: InvestorCorporate, Note: noteCorporate},
 	{Name: "SE", Investor: InvestorCorporate, Note: noteCorporate},
@@ -101,4 +107,72 @@ func (s *CompanySettings) InvestorTypeOrDerived() (InvestorType, string) {
 		return form.Investor, form.Note
 	}
 	return InvestorUnknown, noteUnknown
+}
+
+// withdrawalLegalForms sind die Rechtsformen, bei denen es Entnahmen und
+// Einlagen gibt.
+//
+// Das ist der Unterschied, der die Grenze des Funktionsumfangs markiert: bei
+// einer Kapitalgesellschaft ist das Vermögen der Gesellschaft von dem der
+// Gesellschafter getrennt, und eine Zahlung an den Gesellschafter ist eine
+// Ausschüttung, ein Darlehen oder eine verdeckte Gewinnausschüttung. Bei
+// Einzelunternehmen und Personengesellschaften ist sie eine Entnahme, sie läuft
+// über Kapitalkonten, und § 4 Abs. 4a EStG kann den Schuldzinsenabzug kürzen.
+// Nichts davon bildet Buchfink ab.
+var withdrawalLegalForms = map[string]bool{
+	"Einzelunternehmen":              true,
+	"Eingetragener Kaufmann (e. K.)": true,
+	"Freiberufliche Praxis":          true,
+	"GbR":                            true,
+	"OHG":                            true,
+	"KG":                             true,
+	"GmbH & Co. KG":                  true,
+	"Partnerschaftsgesellschaft":     true,
+}
+
+// HasWithdrawals meldet, ob eine Rechtsform Entnahmen und Einlagen kennt.
+func HasWithdrawals(legalForm string) bool { return withdrawalLegalForms[legalForm] }
+
+// LegalFormLimitationNote ist der Hinweis auf die Grenze des Funktionsumfangs
+// bei Rechtsformen mit Entnahmen. Leer heißt: der Hinweis trifft nicht zu.
+//
+// Er steht im Einrichtungsassistenten, in den Einstellungen und in der
+// Verfahrensdokumentation. Ihn wegzulassen wäre der schlechteste Weg: die
+// Rechtsform ist wählbar, es lässt sich damit buchen, und die Lücke fiele erst
+// beim Jahresabschluss auf — dann, wenn sich nichts mehr daran ändern lässt.
+func LegalFormLimitationNote(legalForm string) string {
+	if !HasWithdrawals(legalForm) {
+		return ""
+	}
+	// § 4 Abs. 4a EStG und nicht „Zinsschranke": die Zinsschranke steht in
+	// § 4h EStG und betrifft den Zinsüberhang eines Betriebs. § 4 Abs. 4a EStG
+	// regelt etwas anderes — den beschränkten Schuldzinsenabzug bei
+	// Überentnahmen —, und das ist die Vorschrift, die dieser Rechtsform fehlt.
+	return "Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG " +
+		"(Schuldzinsenabzug bei Überentnahmen) sind in dieser Fassung nicht abgebildet. " +
+		"Buchfink führt die Buchhaltung dieser Rechtsform, rechnet aber weder das " +
+		"Kapitalkonto fort noch prüft es den Schuldzinsenabzug. Sprechen Sie das mit " +
+		"Ihrem steuerlichen Berater ab."
+}
+
+// TaxCaseHints sind die Hinweise zu den Steuerfällen, die Buchfink nicht
+// abbildet.
+//
+// Sie stehen an den Einstellungen und in der Verfahrensdokumentation, weil eine
+// Verfahrensdokumentation, die nur sagt, was das Verfahren kann, ihre wichtigste
+// Aussage schuldig bleibt: wo es aufhört.
+func TaxCaseHints() []string {
+	return []string{
+		"Die besonderen Besteuerungsverfahren OSS und IOSS (§§ 18i bis 18k UStG) sind nicht " +
+			"abgebildet. Wer Leistungen an Privatpersonen in anderen Mitgliedstaaten erbringt und " +
+			"die Lieferschwelle überschreitet, meldet diese Umsätze außerhalb von Buchfink.",
+		"Die Kleinunternehmerregelung (§ 19 UStG) ist auf der eigenen Seite nicht abgebildet: " +
+			"Buchfink geht davon aus, dass das Unternehmen die Umsatzsteuer ausweist und " +
+			"voranmeldet. Am Geschäftspartner lässt sich die Kleinunternehmereigenschaft " +
+			"hinterlegen, weil sie für die E-Rechnungspflicht von Bedeutung ist.",
+		"Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG (Schuldzinsenabzug " +
+			"bei Überentnahmen) sind nicht abgebildet.",
+		"Die Lohnbuchhaltung, die Anlage EÜR und die Reisekostenabrechnung sind nicht Teil " +
+			"des Funktionsumfangs.",
+	}
 }

@@ -63,8 +63,17 @@ type PaymentService struct {
 	contactRepo    domain.ContactRepository
 	bankRepo       domain.BankRepository
 	assets         AssetRegister
-	fiscalYear     int
+	// auditRepo ist optional: ohne es steht die Ausbuchung nur im Protokoll des
+	// Journals. Ein Pflichtparameter im Konstruktor hätte jeden Aufrufer
+	// erfasst.
+	auditRepo  domain.AuditRepository
+	fiscalYear int
 }
+
+// SetAuditRepo koppelt das Protokoll an. Die Ausbuchung einer Forderung ist
+// eine Entscheidung über einen offenen Posten und nicht nur eine Buchung; sie
+// gehört mit ihrer Begründung ins Protokoll des Postens.
+func (s *PaymentService) SetAuditRepo(r domain.AuditRepository) { s.auditRepo = r }
 
 // SetAssetRegister couples the payment flow to the Anlagenkartei. Ohne sie
 // bucht ein Skonto wie bisher; das ist für jede Rechnung richtig, die keine
@@ -104,12 +113,8 @@ func (s *PaymentService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OpenItems lists the unsettled receivables and payables.
 //
-// TODO: stichtagsbezogene OP-Liste — „welche Posten waren am 31.12. offen".
-// Diese hier ist die operative Sicht: was ist heute noch offen, und wogegen darf
-// gebucht werden. Für den Jahresabschluss braucht es dieselbe Rechnung mit einer
-// Datumsgrenze auf Buchungsdatum der Zahlung, nicht mit einer Jahreszahl. Die
-// Bilanzposition selbst kommt aus den Salden der Personenkonten und ist davon
-// nicht betroffen.
+// Das ist die operative Sicht: was ist heute noch offen, und wogegen darf
+// gebucht werden. Der Jahresabschluss fragt anders — siehe OpenItemsAt.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
 	// Beide Abfragen sind bewusst nicht auf das Wirtschaftsjahr begrenzt — die
 	// Begründung steht an den Schnittstellen, die sie beantworten.
@@ -121,6 +126,20 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 	if err != nil {
 		return nil, err
 	}
+	return s.openItemsFrom(ctx, entries, settled)
+}
+
+// Allocations liefert die Einzelposten einer Zahlungsbuchung.
+//
+// Eine Sammelüberweisung steht im Journal als eine Zeile. Wogegen sie lief,
+// ergibt sich aus dem Journal nicht mehr — die Zuordnungen sind eigene
+// Datensätze, und ohne sie ist der Vorgang nicht in seine Bestandteile
+// zerlegbar (GoBD Rz. 36).
+func (s *PaymentService) Allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
+	allocations, err := s.allocationRepo.FindByPayment(ctx, paymentEntryID)
+	if err != nil {
+		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
+	}
 
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
@@ -131,11 +150,94 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 		byID[c.ID] = c
 	}
 
-	var items []domain.OpenItem
+	out := make([]domain.PaymentAllocationDetail, 0, len(allocations))
+	for _, a := range allocations {
+		detail := domain.PaymentAllocationDetail{PaymentAllocation: a}
+		if c, ok := byID[a.ContactID]; ok {
+			detail.ContactName = c.Name
+			detail.ContactType = c.Type
+			detail.LedgerAccount = c.LedgerAccount
+		}
+		// Der offene Posten wird einzeln gelesen und nicht über das ganze
+		// Journal gesucht: eine Zahlung gleicht selten mehr als eine Handvoll
+		// Rechnungen aus, und eine davon kann aus einem früheren Jahr stammen.
+		if item, err := s.journalRepo.FindByID(ctx, a.OpenItemEntryID); err == nil && item != nil {
+			detail.OpenItemEntryNumber = item.EntryNumber
+			detail.DocumentNumber = item.DocumentNumber
+			detail.DocumentDate = item.DocumentDate
+			detail.Description = item.Description
+		}
+		out = append(out, detail)
+	}
+	return out, nil
+}
+
+// OpenItemsAt ist dieselbe Liste zu einem Stichtag: welche Posten waren am
+// Bilanzstichtag offen.
+//
+// Der Unterschied ist nicht kosmetisch. Die operative Liste rechnet jede
+// Zahlung mit, die inzwischen gebucht wurde, und lässt einen ausgeglichenen
+// Posten ganz weg. Für die Restlaufzeitengliederung des § 268 Abs. 4 und 5 HGB
+// wäre das eine Angabe über heute, die als Angabe über den Stichtag ausgewiesen
+// wird — und sie fiele umso kleiner aus, je später jemand den Abschluss ansieht.
+// Beide Grenzen — offene Buchung und Ausgleich — liegen deshalb auf dem
+// Buchungsdatum, nicht auf dem Geschäftsjahr.
+func (s *PaymentService) OpenItemsAt(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
+	if cutoff == "" {
+		return s.OpenItems(ctx)
+	}
+	entries, err := s.journalRepo.FindOpenItemCandidatesAt(ctx, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	settled, err := s.allocationRepo.SettledByOpenItemAt(ctx, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	return s.openItemsFrom(ctx, entries, settled)
+}
+
+// openItemsFrom macht aus Buchungen und Ausgleichsständen die offene-Posten-
+// Liste. Beide Sichten teilen sich diese Regeln: welche Buchung überhaupt einen
+// Posten hat, wie der Steuerfall daraus folgt und wie sortiert wird.
+func (s *PaymentService) openItemsFrom(
+	ctx context.Context, entries []domain.JournalEntry, settled map[uint]domain.Cents,
+) ([]domain.OpenItem, error) {
+	contacts, err := s.contactRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[uint]domain.Contact, len(contacts))
+	for _, c := range contacts {
+		byID[c.ID] = c
+	}
+
+	// Leer statt nil: die leere OP-Liste ist der Regelfall eines bezahlten
+	// Monats, und `null.length` wirft in der Ansicht.
+	items := make([]domain.OpenItem, 0, len(entries))
 	for i := range entries {
 		entry := &entries[i]
 		// Payments themselves do not create open items.
 		if entry.Source == domain.EntrySourcePayment {
+			continue
+		}
+		// Und der Saldenvortrag auch nicht. Er bucht den offenen Rest des
+		// Vorjahres noch einmal auf dasselbe Personenkonto, damit die Bilanz des
+		// neuen Jahres stimmt — der Posten selbst ist aber weiterhin die
+		// Rechnung von damals, gegen die auch die Zahlung läuft. Ohne diese
+		// Zeile stünde jede Forderung nach dem Jahreswechsel zweimal in der
+		// OP-Liste, und die zweite ließe sich nie ausgleichen.
+		//
+		// Erkannt wird er an seiner Belegnummer, die der Jahresabschluss
+		// vergibt (carryForwardReference). Nicht jede Eröffnungsbuchung ist
+		// nämlich ein Vortrag: die Eröffnungsbilanz des Umsteigers hat
+		// dieselbe Quelle, und sie ist der andere Fall — zu ihr gibt es keine
+		// frühere Rechnung, die Vortragsbuchung *ist* der offene Posten. Fiele
+		// sie hier mit heraus, wäre die Offene-Posten-Liste des ersten Jahres
+		// leer, während in der Bilanz die übernommenen Forderungen stehen, und
+		// keiner von ihnen ließe sich je ausgleichen.
+		if entry.Source == domain.EntrySourceOpening &&
+			entry.DocumentNumber == carryForwardReference(entry.FiscalYear) {
 			continue
 		}
 
@@ -166,9 +268,9 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 			// der Steuerfall nicht bestimmbar.
 			treatment = ""
 		case treatment == "":
-			// Von Hand im Journal erfasste Buchungen tragen keinen Steuerfall.
-			// Trägt das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
-			// Inlandsumsatz; trägt es keine, gibt es nichts zu berichtigen.
+			// Von Hand im Journal erfasste Buchungen haben keinen Steuerfall.
+			// Hat das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
+			// Inlandsumsatz; hat es keine, gibt es nichts zu berichtigen.
 			treatment = domain.TaxTreatmentDomestic
 			if rate == domain.TaxRateNone {
 				treatment = domain.TaxTreatmentNotTaxable
@@ -176,6 +278,7 @@ func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, erro
 		}
 
 		items = append(items, domain.OpenItem{
+			Source:         domain.OpenItemSourceJournal,
 			EntryID:        entry.ID,
 			EntryNumber:    entry.EntryNumber,
 			ContactID:      contact.ID,
@@ -208,7 +311,7 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		return nil, fmt.Errorf("es wurde kein offener Posten ausgewählt")
 	}
 	if req.PaymentDate == "" {
-		req.PaymentDate = time.Now().Format("2006-01-02")
+		req.PaymentDate = todayLocal()
 	}
 
 	// A bank payment takes its account and amount from the statement, so neither
@@ -261,6 +364,18 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		}
 		if alloc.DifferenceKind == "" {
 			alloc.DifferenceKind = domain.DifferenceNone
+		}
+		// Die Ausbuchung steht in derselben Auswahl, gehört aber nicht hierher:
+		// zu ihr fließt kein Geld, und sie bucht keinen Zahlungsausgleich,
+		// sondern den Forderungsverlust samt Steuerkorrektur (§ 17 Abs. 2 Nr. 1
+		// UStG). Ohne diesen Zweig fiele sie in die Sammelmeldung „unbekannte
+		// Differenzart" — eine Auskunft, die den Anwender im Kreis schickt,
+		// weil die Art sehr wohl bekannt ist, nur an dieser Stelle nicht
+		// buchbar.
+		if alloc.DifferenceKind == domain.DifferenceWriteoff {
+			return nil, fmt.Errorf(
+				"Zuordnung %d: die Ausbuchung ist keine Zahlung. Eine uneinbringliche Forderung wird "+
+					"über „Forderung ausbuchen\" ohne Zahlungsmittel ausgebucht, mit Begründung", i+1)
 		}
 		if alloc.DifferenceKind != domain.DifferenceNone && alloc.DifferenceAmount <= 0 {
 			return nil, fmt.Errorf("Zuordnung %d: für die Differenzart %q fehlt der Betrag", i+1, alloc.DifferenceKind)
@@ -449,7 +564,7 @@ func (s *PaymentService) skontoLines(
 ) ([]domain.JournalLine, *assetCostReduction, error) {
 	if item.TaxTreatment == "" {
 		return nil, nil, fmt.Errorf(
-			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf wäre nach § 17 Abs. 1 UStG nicht sauber zu berichtigen",
+			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf ließe sich nach § 17 Abs. 1 UStG nicht zutreffend berichtigen",
 			item.DocumentNumber)
 	}
 	direction := item.Direction()
@@ -481,7 +596,7 @@ func (s *PaymentService) skontoLines(
 	// Anschaffungskosten ab; auf 5736 gebucht wäre das Skonto ein Ertrag des
 	// Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das
 	// Wirtschaftsgut nie gekostet hat. Die Steuerkorrektur nach § 17 Abs. 1 UStG
-	// bleibt davon unberührt: sie hängt am Umsatz, nicht daran, was mit dem
+	// bleibt davon unberührt: sie richtet sich nach dem Umsatz, nicht danach, was mit dem
 	// Entgelt im Anlagevermögen geschieht.
 	account, err := domain.SkontoAccount(direction, skontoRate)
 	if err != nil {
@@ -511,7 +626,7 @@ func (s *PaymentService) skontoLines(
 		// Rechnung im Soll gebucht hat, wird im Haben zurückgenommen.
 		line := taxLegLine(leg)
 		line.Side = leg.Side.Opposite()
-		line.TaxKey = "SKONTO_" + leg.Key
+		line.TaxKey = accounting.TaxKeySkontoPrefix + leg.Key
 		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
 		lines = append(lines, line)
 	}
@@ -574,6 +689,12 @@ func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
 }
 
 func dueDate(entry *domain.JournalEntry, contact domain.Contact) string {
+	// Die an der Buchung vermerkte Fälligkeit geht vor: sie wurde vereinbart,
+	// das Zahlungsziel des Kontakts ist nur die Annahme für den Fall, dass
+	// nichts vermerkt ist. Das trifft die übernommenen Posten des Umsteigers.
+	if entry.DueDate != "" {
+		return entry.DueDate
+	}
 	days := contact.PaymentTermsDays
 	if days <= 0 {
 		days = 14

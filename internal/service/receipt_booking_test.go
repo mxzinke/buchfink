@@ -33,7 +33,7 @@ func TestChainCoversTheReceiptHash(t *testing.T) {
 		t.Errorf("Beleg-Hash der Buchung = %q, am Beleg %q", entry.ReceiptHash, receipt.ReceiptHash)
 	}
 	if entry.DocumentNumber != receipt.ReceiptNumber {
-		t.Errorf("das Belegfeld muss die Belegnummer tragen: %q vs %q", entry.DocumentNumber, receipt.ReceiptNumber)
+		t.Errorf("das Belegfeld muss die Belegnummer haben: %q vs %q", entry.DocumentNumber, receipt.ReceiptNumber)
 	}
 
 	// Eine ausgetauschte Belegdatei ändert den Beleg-Hash — und damit die Kette.
@@ -197,13 +197,13 @@ func TestReversalInheritsTheReceiptReference(t *testing.T) {
 		t.Errorf("die Generalumkehr muss auf denselben Beleg zeigen")
 	}
 	if reversal.ReceiptHash != entry.ReceiptHash {
-		t.Errorf("die Generalumkehr muss denselben Beleg-Hash tragen")
+		t.Errorf("die Generalumkehr muss denselben Beleg-Hash haben")
 	}
 	if reversal.TaxTreatment != entry.TaxTreatment {
-		t.Errorf("die Generalumkehr muss denselben Steuerfall tragen")
+		t.Errorf("die Generalumkehr muss denselben Steuerfall haben")
 	}
 	if reversal.DocumentNumber != entry.DocumentNumber {
-		t.Errorf("die Generalumkehr muss dieselbe Belegnummer tragen")
+		t.Errorf("die Generalumkehr muss dieselbe Belegnummer haben")
 	}
 }
 
@@ -214,6 +214,10 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	outgoing, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction:     domain.DirectionOutgoing,
 		ReceiptNumber: "RE-2026-0001",
 		Files:         []NewFile{{Role: domain.ReceiptRoleOriginal, FileName: "r.pdf", Content: []byte(minimalPDF)}},
@@ -237,6 +241,10 @@ func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	filed, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, FileName: "xrechnung.xml", Content: []byte(xRechnungXML)},
