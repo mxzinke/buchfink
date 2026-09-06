@@ -6,11 +6,41 @@
     <title>Laufende Buchhaltung — Buchfink</title>
     <meta
       name="description"
-      content="Bank und Zahlungen, Belege, Journal, Ausgangsrechnungen und Anzahlungen in Buchfink: was das Programm tut und was die Anwenderin tut."
+      content="Bank und Zahlungen, Belege, Journal, Ausgangsrechnungen und Anzahlungen in Buchfink: was das Programm rechnet und was Sie entscheiden."
     />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
   </head>
 
   <body>
@@ -113,10 +143,13 @@
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Laufende Buchhaltung</h1>
           <p class="pagehead__lead">
-            Der Alltag beginnt beim Kontoauszug und endet im Journal. Buchfink rechnet Buchungssatz
-            und Steuer aus dem, was schon da ist: aus dem Beleg, aus der Rechnung, aus der
-            zugeordneten Zahlung. Alle Bilder stammen aus der laufenden Oberfläche mit den Daten
-            einer erfundenen Beispielfirma; ein Klick öffnet sie in voller Größe.
+            Der Alltag beginnt beim Kontoauszug und endet im Journal. Aus dem Beleg, der Rechnung
+            und der zugeordneten Zahlung rechnet Buchfink, auf welches Konto gebucht wird und wie
+            viel Steuer darin steckt.
+          </p>
+          <p class="pagehead__note">
+            Alle Bilder stammen aus der laufenden Oberfläche. Die Firmen, Namen und Beträge darin
+            sind erfunden; ein Klick öffnet ein Bild in voller Größe.
           </p>
         </div>
       </section>
@@ -129,14 +162,16 @@
               <p class="overline">Bank &amp; Zahlungen</p>
               <h2 class="feature__title">Vom Kontoauszug zur Buchung</h2>
               <p class="feature__body">
-                Buchfink liest den CAMT.053-Auszug aus dem Onlinebanking ein und stellt die
-                Umsätze ohne Zuordnung als Liste zusammen. Zu jedem Umsatz schlägt es den offenen
-                Posten vor, der nach Betrag, Verwendungszweck, Rechnungsnummer und Datumsnähe
-                passt; Sammelzahlungen und gelernte Regeln gehen in den Vorschlag ein. Die
-                Anwenderin öffnet den Umsatz, prüft den Vorschlag und bestätigt ihn. Erst dann
-                entsteht die Buchung — mit Skonto, Bankgebühr und Differenzgrund, wenn die Summe
-                nicht genau trifft.
+                Buchfink liest den CAMT.053-Auszug aus dem Onlinebanking ein und listet die
+                Umsätze ohne Zuordnung. Zu jedem schlägt es den passenden offenen Posten vor. Sie
+                prüfen den Vorschlag und bestätigen ihn; erst dann entsteht die Buchung.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-woraus-der-vorschlag-entsteht">
+                Woraus der Vorschlag entsteht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <div class="shot-stack">
               <figure class="shot">
@@ -175,11 +210,15 @@
               <h2 class="feature__title">Überfällige Forderungen anmahnen</h2>
               <p class="feature__body">
                 Buchfink führt die offenen Posten mit Fälligkeit und rechnet je Kunde die
-                Mahnstufe, die taggenauen Verzugszinsen nach § 288 BGB auf dem datierten
-                Basiszinssatz und die Pauschale von 40 Euro. Die Anwenderin wählt die Kunden aus,
-                setzt das Datum des Schreibens und lässt die Mahnschreiben erzeugen; jedes wird
-                als Dokument abgelegt und steht danach im Verlauf.
+                Mahnstufe, die Verzugszinsen und die Pauschale von 40 Euro. Sie wählen die Kunden
+                aus und lassen die Schreiben erzeugen.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-wie-die-zinsen-gerechnet">
+                Wie die Zinsen gerechnet werden
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -202,14 +241,16 @@
               <p class="overline">Belege</p>
               <h2 class="feature__title">Erst ablegen, dann buchen</h2>
               <p class="feature__body">
-                Buchfink legt einen Beleg unverändert ab und speichert ihn unter seinem eigenen
-                SHA256; gleicher Inhalt liegt nur einmal da. Steckt in der Rechnung ein Datensatz nach
-                ZUGFeRD, Factur-X oder XRechnung, liest Buchfink ihn, prüft ihn gegen das
-                Regelwerk der Norm und macht daraus einen Buchungsvorschlag. Die Anwenderin
-                ergänzt die Kopfdaten — Belegart, Belegdatum, Aussteller, Betrag — und wählt die
-                Buchungsgruppe; welches Konto zutrifft, sagt keine Rechnung. Ohne Kopfdaten nimmt
+                Buchfink legt jeden Beleg unverändert ab. Sie ergänzen Belegart, Datum, Aussteller
+                und Betrag und wählen die Buchungsgruppe. Ohne diese Angaben nimmt
                 Buchfink die Buchung nicht an.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-e-rechnung-und-doppelte">
+                E-Rechnung und doppelte Belege
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <div class="shot-stack">
               <figure class="shot">
@@ -245,14 +286,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Journal</p>
-              <h2 class="feature__title">Jede Buchung mit ihrem Weg zurück</h2>
+              <h2 class="feature__title">Jede Buchung führt zurück zu ihrem Beleg</h2>
               <p class="feature__body">
-                Das Journal führt alle Buchungen des Geschäftsjahres mit fortlaufender Nummer; jede
-                lässt sich aufklappen und zeigt Soll, Haben und die Summe. Ein Fehler wird nicht
-                überschrieben, sondern storniert; Storno und Neubuchung bleiben stehen und
-                verweisen aufeinander. Von der Buchung führt ein Klick auf ihren Beleg — derselbe
-                Weg, den die Betriebsprüfung geht.
+                Das Journal führt alle Buchungen des Geschäftsjahres mit fortlaufender Nummer.
+                Ein Fehler wird nicht überschrieben, sondern storniert. Von jeder Buchung führt
+                ein Klick auf ihren Beleg.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-das-aufklappen-zeigt">
+                Was das Aufklappen zeigt
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -273,14 +318,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Rechnungen</p>
-              <h2 class="feature__title">Ausgangsrechnungen mit Nummer und Buchung in einem Zug</h2>
+              <h2 class="feature__title">Rechnung schreiben und gleich buchen</h2>
               <p class="feature__body">
-                Buchfink prüft vor der Nummernvergabe die Pflichtangaben des § 14 Abs. 4 UStG und
-                erzeugt Rechnungsnummer, Datensatz und Buchung in einer Transaktion. Ausgegeben
-                wird ein ZUGFeRD-PDF oder eine XRechnung im CII-Profil, je nach Empfänger. Die
-                Anwenderin erfasst Kunde, Positionen und Steuerfall; Storno und Korrektur laufen
-                als eigene Dokumente mit Bezug in beide Richtungen.
+                Sie erfassen Kunde, Positionen und Steuerfall. Rechnungsnummer, Datensatz und
+                Buchung entstehen daraus in einem Zug. Ausgegeben wird ein ZUGFeRD-PDF oder eine
+                XRechnung.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-pru-fung-format-und">
+                Prüfung, Format und Korrektur
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -301,15 +350,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Anzahlungen</p>
-              <h2 class="feature__title">Abschläge und Schlussrechnung als ein Verbund</h2>
+              <h2 class="feature__title">Abschläge und Schlussrechnung bleiben zusammen</h2>
               <p class="feature__body">
-                Ein Rechnungsverbund hält den vereinbarten Gesamtbetrag, die Abschlagsrechnungen
-                und die Schlussrechnung zusammen. Buchfink rechnet, was abgerechnet, was
-                vereinnahmt und was noch offen ist; die Steuer auf einen Abschlag entsteht erst
-                mit dem Tag der Vereinnahmung. Die Anwenderin legt den Verbund an, stellt die
-                Abschläge und zum Schluss die Schlussrechnung, in der die Abschläge abgesetzt
-                werden.
+                Ein Rechnungsverbund hält den Gesamtbetrag, die Abschlagsrechnungen und die
+                Schlussrechnung zusammen. Buchfink rechnet, was abgerechnet, was vereinnahmt und
+                was noch offen ist.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-das-fu-r">
+                Was das für die Steuer heißt
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -330,14 +382,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Konten</p>
-              <h2 class="feature__title">SKR04, Kontoblatt und offene Posten</h2>
+              <h2 class="feature__title">Konten, ohne Nummern auswendig zu lernen</h2>
               <p class="feature__body">
-                Der Kontenrahmen SKR04 liegt mit 1.855 Konten bei; die Kontenübersicht zeigt, was
-                bebucht ist, und öffnet zu jedem Konto das Kontoblatt mit allen Bewegungen des
-                Jahres. Daneben stehen die offenen Posten zu einem Stichtag mit Altersstruktur und
-                Restlaufzeiten. Die Anwenderin sucht ein Konto über seinen Namen; die Nummer muss
-                sie nicht kennen.
+                Der Kontenrahmen SKR04 liegt mit 1.855 Konten bei. Die Übersicht zeigt, was
+                bebucht ist, und öffnet zu jedem Konto das Kontoblatt. Sie suchen ein Konto über
+                seinen Namen; die Nummer müssen Sie nicht kennen.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-offene-posten">
+                Offene Posten
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -383,6 +439,134 @@
           </div>
         </div>
       </section>
+
+
+      <dialog class="modal" id="dlg-woraus-der-vorschlag-entsteht" aria-labelledby="dlg-woraus-der-vorschlag-entsteht-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-woraus-der-vorschlag-entsteht-titel">Woraus der Vorschlag entsteht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Buchfink vergleicht Betrag, Verwendungszweck, Rechnungsnummer und Datumsnähe;
+          Sammelzahlungen und einmal gelernte Regeln gehen ein. Trifft die Summe nicht
+          genau, kommen Skonto, Bankgebühr und ein Differenzgrund dazu.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-wie-die-zinsen-gerechnet" aria-labelledby="dlg-wie-die-zinsen-gerechnet-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-wie-die-zinsen-gerechnet-titel">Wie die Zinsen gerechnet werden</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Taggenau nach § 288 BGB, auf dem Basiszinssatz, der zum jeweiligen Zeitraum
+          galt. Jedes Schreiben wird als Dokument abgelegt und steht danach im Verlauf
+          des Kunden.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-e-rechnung-und-doppelte" aria-labelledby="dlg-e-rechnung-und-doppelte-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-e-rechnung-und-doppelte-titel">E-Rechnung und doppelte Belege</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Der Beleg wird unter seinem SHA256 gespeichert, gleicher Inhalt liegt deshalb
+          nur einmal da. Steckt in der Rechnung ein Datensatz nach ZUGFeRD, Factur-X oder
+          XRechnung, liest Buchfink ihn, prüft ihn gegen das Regelwerk der Norm und macht
+          daraus einen Buchungsvorschlag. Welches Konto zutrifft, sagt keine Rechnung. Das
+          bleibt Ihre Entscheidung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-das-aufklappen-zeigt" aria-labelledby="dlg-was-das-aufklappen-zeigt-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-das-aufklappen-zeigt-titel">Was das Aufklappen zeigt</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Soll, Haben und die Summe der Buchung. Storno und Neubuchung bleiben beide
+          stehen und verweisen aufeinander. Denselben Weg geht die Betriebsprüfung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-pru-fung-format-und" aria-labelledby="dlg-pru-fung-format-und-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-pru-fung-format-und-titel">Prüfung, Format und Korrektur</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Vor der Nummernvergabe prüft Buchfink die Pflichtangaben des § 14 Abs. 4 UStG.
+          Das Zielformat richtet sich nach dem Empfänger; die XRechnung entsteht im
+          CII-Profil. Storno und Korrektur laufen als eigene Dokumente mit Bezug in beide
+          Richtungen.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-das-fu-r" aria-labelledby="dlg-was-das-fu-r-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-das-fu-r-titel">Was das für die Steuer heißt</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Die Steuer auf einen Abschlag entsteht erst mit dem Tag der Vereinnahmung. Sie
+          legen den Verbund an, stellen die Abschläge und zum Schluss die Schlussrechnung,
+          in der die Abschläge abgesetzt werden.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-offene-posten" aria-labelledby="dlg-offene-posten-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-offene-posten-titel">Offene Posten</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Daneben stehen die offenen Posten zu einem Stichtag, mit Altersstruktur und
+          Restlaufzeiten.
+          </p>
+        </div>
+      </dialog>
     </main>
 
     <footer class="foot">
@@ -391,8 +575,8 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
-              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
             </p>
           </div>
           <div>

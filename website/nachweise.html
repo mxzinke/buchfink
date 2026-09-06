@@ -8,6 +8,36 @@
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
   </head>
 
   <body>
@@ -110,10 +140,13 @@
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Nachweise und Sicherheit</h1>
           <p class="pagehead__lead">
-            Eine Buchführung ist ordnungsmäßig, wenn jede Änderung sichtbar bleibt. Buchfink führt
-            dafür zwei Hashketten, ein
-            Änderungsprotokoll mit Vorher und Nachher, Aufbewahrungsfristen je Beleg und einen
-            Ordner, der alles enthält, was eine Betriebsprüfung verlangt.
+            Das Finanzamt verlangt, dass jede Änderung an der Buchhaltung sichtbar bleibt.
+            Buchfink verkettet dafür jede Buchung mit der vorherigen und schreibt jede Änderung
+            mit Vorher und Nachher mit.
+          </p>
+          <p class="pagehead__note">
+            Was eine Betriebsprüfung verlangt, stellt das Programm auf Knopfdruck in einem Ordner
+            zusammen.
           </p>
         </div>
       </section>
@@ -123,15 +156,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Unveränderbarkeit</p>
-              <h2 class="feature__title">Kette, Festschreibung und Zeitstempel</h2>
+              <h2 class="feature__title">Gebucht ist gebucht</h2>
               <p class="feature__body">
-                Jede Buchung enthält den Hash ihrer Vorgängerin; Buchfink rechnet die Kette nach
-                und nennt die Buchung, an der sie bricht. Ein abgeschlossener Zeitraum wird
-                festgeschrieben, und ein unabhängiger Dienst beglaubigt den Kettenkopf mit einem
-                RFC-3161-Zeitstempel. Die Anwenderin schreibt fest und kann den Zeitstempel
-                jederzeit nachprüfen; danach nimmt der Zeitraum keine rückdatierte Buchung mehr an,
-                und eine Korrektur geschieht als Storno.
+                Jede Buchung enthält den Fingerabdruck ihrer Vorgängerin. Buchfink rechnet die
+                Kette nach und nennt die Buchung, an der sie bricht. Ein festgeschriebener
+                Zeitraum nimmt keine rückdatierte Buchung mehr an; korrigiert wird per Storno.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-der-zeitstempel-leistet">
+                Was der Zeitstempel leistet
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -156,14 +192,16 @@
               <p class="overline">Protokoll und Aufbewahrung</p>
               <h2 class="feature__title">Wer wann was geändert hat</h2>
               <p class="feature__body">
-                Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiterkennung
-                und Programmfassung fest, in einer eigenen verketteten Reihe. Daneben steht die
-                Geschichte des Systems selbst: Schemaläufe, Datenübernahmen mit Zählung und
-                Kettenprüfung, Versionshistorie. Die Aufbewahrungsfristen je Geschäftsjahr mit
-                Löschsperre stehen bei der Datensicherung, die Verfahrensdokumentation bei der
-                Betriebsprüfung. Die Anwenderin filtert das Protokoll nach Vorgang, Bereich,
-                Bearbeiter und Zeitraum und lässt die Kette nachrechnen.
+                Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiter und
+                Programmfassung fest, in einer eigenen verketteten Reihe. Sie filtern nach
+                Vorgang, Bereich, Bearbeiter und Zeitraum und lassen die Kette nachrechnen.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-noch-mitgeschrieben-wird">
+                Was noch mitgeschrieben wird
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -185,21 +223,18 @@
           <article class="feature">
             <div class="feature__text">
               <p class="overline">Sicherung und Betriebsprüfung</p>
-              <h2 class="feature__title">Prüferpaket, Z3-Export und die tägliche Sicherung</h2>
+              <h2 class="feature__title">Was die Betriebsprüfung bekommt</h2>
               <p class="feature__body">
-                Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen gewählten
-                Zielordner und protokolliert das Ergebnis; die Sicherung ist eine offene ZIP-Datei
-                mit Datenbank, Belegen, Dokumenten und Schlüsseldatei und lässt sich ohne das
-                Programm öffnen. Auf Knopfdruck entsteht das Prüferpaket in einem Ordner: der
-                Z3-Export nach dem Beschreibungsstandard mit index.xml und Feldbeschreibung, der
-                Archivexport der Belege mit Index, das Integritätsprotokoll, das
-                Schlüsselverzeichnis und die passende Fassung der Verfahrensdokumentation. Die
-                Anwenderin wählt den Zielordner und schaltet für Dritte den schreibgeschützten
-                Prüfermodus ein — mit Frist und Grund, protokolliert beim Ein- und Ausschalten.
-                Einen DATEV-Export gibt es nicht: die Kanzlei bekommt den Z3-Export, den
-                Archivexport der Belege und die CSV-Ausgabe, keinen Buchungsstapel im Format der
-                Kanzleisoftware.
+                Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen
+                zweiten Ordner Ihrer Wahl. Die Sicherung ist eine gewöhnliche ZIP-Datei. Für die
+                Betriebsprüfung entsteht auf Knopfdruck ein Ordner mit allem, was verlangt wird.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-im-pru-ferpaket">
+                Was im Prüferpaket liegt, und was nicht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -224,14 +259,17 @@
             <div>
               <p class="note__title">Ein Rechner, eine Bearbeiterin</p>
               <p class="note__body">
-                Buchfink hat keine Benutzerverwaltung und keine Funktionstrennung. An ihrer Stelle
-                stehen die Bearbeiterkennung aus Betriebssystem-Benutzer und Rechnername an jeder
-                Buchung und jeder Protokollzeile sowie der schreibgeschützte Prüfermodus für
-                Dritte. Personenbezogene und geschäftliche Datenbankfelder liegen mit AES-256-GCM
-                verschlüsselt; der Schlüssel steht im Schlüsselbund des Betriebssystems, dazu gibt
-                es eine Wiederherstellungsdatei. Die Belegdateien selbst bleiben im Original, weil
-                die GoBD den unveränderten Eingangsbeleg verlangt.
+                Buchfink hat keine Benutzerverwaltung und keine Funktionstrennung. An jeder
+                Buchung und jeder Protokollzeile steht stattdessen die Bearbeiterkennung aus
+                Betriebssystem-Benutzer und Rechnername; für Dritte gibt es den
+                schreibgeschützten Prüfermodus.
               </p>
+              <button class="reveal" type="button" data-dialog="dlg-wie-die-daten-auf">
+                Wie die Daten auf der Platte liegen
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -257,6 +295,86 @@
           </div>
         </div>
       </section>
+
+
+      <dialog class="modal" id="dlg-was-der-zeitstempel-leistet" aria-labelledby="dlg-was-der-zeitstempel-leistet-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-der-zeitstempel-leistet-titel">Was der Zeitstempel leistet</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Beim Festschreiben beglaubigt ein unabhängiger Dienst den Kettenkopf mit einem
+          Zeitstempel nach RFC 3161. Er belegt gegenüber Dritten, dass der Stand zu diesem
+          Zeitpunkt so und nicht anders aussah, und lässt sich jederzeit nachprüfen.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-noch-mitgeschrieben-wird" aria-labelledby="dlg-was-noch-mitgeschrieben-wird-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-noch-mitgeschrieben-wird-titel">Was noch mitgeschrieben wird</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Die Geschichte des Systems selbst: Schemaläufe, Datenübernahmen mit Zählung
+          und Kettenprüfung, Versionshistorie. Die Aufbewahrungsfristen je Geschäftsjahr
+          mit Löschsperre stehen bei der Datensicherung, die Verfahrensdokumentation bei
+          der Betriebsprüfung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-im-pru-ferpaket" aria-labelledby="dlg-was-im-pru-ferpaket-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-im-pru-ferpaket-titel">Was im Prüferpaket liegt, und was nicht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Der Z3-Export nach dem Beschreibungsstandard mit index.xml und
+          Feldbeschreibung, der Archivexport der Belege mit Index, das
+          Integritätsprotokoll, das Schlüsselverzeichnis und die passende Fassung der
+          Verfahrensdokumentation. Für Dritte lässt sich ein schreibgeschützter
+          Prüfermodus einschalten, mit Frist und Grund, protokolliert beim Ein- und
+          Ausschalten. Einen DATEV-Export gibt es nicht: die Kanzlei bekommt den
+          Z3-Export, den Archivexport und CSV, keinen Buchungsstapel im Format der
+          Kanzleisoftware.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-wie-die-daten-auf" aria-labelledby="dlg-wie-die-daten-auf-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-wie-die-daten-auf-titel">Wie die Daten auf der Platte liegen</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Personenbezogene und geschäftliche Datenbankfelder sind mit AES-256-GCM
+          verschlüsselt. Der Schlüssel steht im Schlüsselbund des Betriebssystems, dazu
+          gibt es eine Wiederherstellungsdatei. Die Belegdateien selbst bleiben im
+          Original, weil die GoBD den unveränderten Eingangsbeleg verlangt.
+          </p>
+        </div>
+      </dialog>
     </main>
 
     <footer class="foot">
@@ -265,8 +383,8 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
-              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
             </p>
           </div>
           <div>

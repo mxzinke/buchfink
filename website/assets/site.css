@@ -4,9 +4,11 @@
    Dieselbe Gestaltung wie die Anwendung: die Tokens aus
    docs/design-konzept.md, dieselbe Schrift, dasselbe Raster, dieselbe
    Zurückhaltung. Was hier über das Konzept hinausgeht, steht in
-   website/README.md: größere Schriftgrade für Fließtext, ein
-   Rasterhintergrund im Kopf und eine leisere Fassung des Hinweisstreifens.
-   Karten, Schatten und Farbverläufe gibt es auch hier nicht.
+   website/README.md: größere Schriftgrade für Fließtext, eine leisere
+   Fassung des Hinweisstreifens und Schatten an den drei Stellen, an denen
+   etwas über dem Papier liegt — das aufgeklappte Menü, das Bild im Kopf und
+   ein Screenshot, auf den gezeigt wird. Karten und Farbverläufe gibt es
+   nicht.
    ========================================================================= */
 
 @font-face {
@@ -77,8 +79,11 @@
   --radius-card: 10px;
   --ease-quiet: cubic-bezier(0.2, 0.7, 0.3, 1);
 
-  --page: 1120px;
-  --wide: 1400px;
+  /* Auf einem 16-Zoll-Bildschirm lief die Seite vorher fast von Kante zu
+     Kante. 1200 px ist die Grenze, ab der ein Funktionsblock nicht mehr in
+     zwei weit auseinanderliegende Hälften zerfällt. */
+  --page: 1040px;
+  --wide: 1200px;
 }
 
 *,
@@ -374,11 +379,11 @@ code {
    ------------------------------------------------------------------------- */
 
 .hero__title {
-  font-size: clamp(34px, 5vw, 52px);
-  line-height: 1.08;
+  font-size: clamp(32px, 4.4vw, 46px);
+  line-height: 1.1;
   font-weight: 600;
   letter-spacing: -0.025em;
-  max-width: 18ch;
+  max-width: 24ch;
 }
 .hero__lead {
   margin-top: 22px;
@@ -428,7 +433,7 @@ code {
    ------------------------------------------------------------------------- */
 
 .band {
-  padding-block: 104px;
+  padding-block: 88px;
   border-top: 1px solid var(--line);
 }
 /* Der Kopf einer Seite und der erste Abschnitt gehören zusammen; eine
@@ -715,8 +720,8 @@ code {
    aber bei jedem Block einen neuen Lesestart. */
 .feature {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
-  gap: 64px;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr);
+  gap: 48px;
   align-items: start;
   padding-top: 80px;
   margin-top: 80px;
@@ -724,7 +729,7 @@ code {
 }
 .feature:first-of-type {
   border-top: 0;
-  margin-top: 56px;
+  margin-top: 0;
   padding-top: 0;
 }
 /* Neben einem Bildstapel liest sich der Text mit, wenn er stehen bleibt. */
@@ -1286,6 +1291,15 @@ table.data td:first-child {
 .pagehead {
   padding-block: 72px 0;
 }
+/* Ein Nachsatz unter dem Einleitungsabsatz: leiser, kürzer, gehört noch zum
+   Kopf. */
+.pagehead__note {
+  margin-top: 14px;
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-subtle);
+}
 .pagehead__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1497,53 +1511,122 @@ table.data td:first-child {
 }
 
 /* -------------------------------------------------------------------------
-   Ausklappbare Vertiefung
+   Vertiefung im Dialog
 
    Der Grundsatz der Seite: oben steht in zwei, drei Sätzen, was eine Funktion
-   tut. Die Ausnahmen, Normen und Sonderfälle stehen dahinter — wer sie
-   braucht, klappt sie auf; wer sie nicht braucht, liest weiter.
+   tut. Ausnahmen, Normen und Sonderfälle stehen in einem Dialog dahinter. Ein
+   aufklappender Absatz schob vorher den halben Abschnitt nach unten; der
+   Dialog lässt die Seite stehen, wo sie steht.
+
+   Ohne JavaScript öffnet kein Dialog. Deshalb hängt in jeder Seite ein
+   noscript-Block, der die Inhalte stattdessen offen in den Fluss stellt.
    ------------------------------------------------------------------------- */
 
-.more {
-  margin-top: 16px;
-}
-.more > summary {
+.reveal {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
   cursor: pointer;
-  list-style: none;
+  font: inherit;
   font-size: 14px;
   font-weight: 500;
   color: var(--accent-text);
+  transition: color 120ms var(--ease-quiet);
 }
-.more > summary::-webkit-details-marker {
-  display: none;
-}
-.more > summary::after {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: translateY(-2px) rotate(45deg);
-  transition: transform 120ms var(--ease-quiet);
-}
-.more[open] > summary::after {
-  transform: translateY(1px) rotate(-135deg);
-}
-.more > summary:hover {
+.reveal:hover {
   color: var(--accent);
 }
-.more__body {
-  margin-top: 14px;
-  padding-left: 16px;
-  border-left: 1px solid var(--line);
-  max-width: 72ch;
+.reveal svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+dialog.modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(78vh, 700px);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 40px 80px -32px rgba(28, 25, 23, 0.45);
+  overflow: hidden;
+}
+dialog.modal::backdrop {
+  background: rgba(28, 25, 23, 0.34);
+  backdrop-filter: blur(2px);
+}
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 20px 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.modal__title {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.modal__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink-subtle);
+  transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
+}
+.modal__close:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.modal__close svg {
+  width: 16px;
+  height: 16px;
+}
+.modal__body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
   color: var(--ink-muted);
 }
-.more__body p + p {
-  margin-top: 12px;
+.modal__body > * + * {
+  margin-top: 14px;
+}
+.modal__body ul {
+  list-style: none;
+  padding: 0;
+}
+.modal__body li {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 8px;
+}
+.modal__body li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--ink-faint);
+}
+.modal__body strong {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 /* -------------------------------------------------------------------------
@@ -1651,4 +1734,197 @@ table.data td:first-child {
 .plain-list li strong {
   color: var(--ink);
   font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Drei Schritte nebeneinander
+
+   Der Arbeitsablauf auf der Startseite. Keine Kästen: eine Haarlinie über
+   allen dreien, die Ziffer sitzt darauf. Im schmalen Fenster stehen die
+   Schritte untereinander, die Linie wandert nach links.
+   ------------------------------------------------------------------------- */
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 40px;
+  margin-top: 48px;
+  border-top: 1px solid var(--line-strong);
+}
+.flow__step {
+  position: relative;
+  padding-top: 32px;
+}
+.flow__step::before {
+  content: counter(flow-step);
+  counter-increment: flow-step;
+  position: absolute;
+  top: -13px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 600;
+}
+.flow {
+  counter-reset: flow-step;
+}
+.flow__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.flow__body {
+  margin-top: 8px;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 820px) {
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border-top: 0;
+    border-left: 1px solid var(--line-strong);
+    padding-left: 28px;
+    margin-left: 13px;
+  }
+  .flow__step {
+    padding-top: 0;
+    padding-bottom: 32px;
+  }
+  .flow__step:last-child {
+    padding-bottom: 0;
+  }
+  .flow__step::before {
+    top: 0;
+    left: -41px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Aufgabenliste mit Zeichen
+
+   Was das Programm für den Anwender erledigt. Das Zeichen steht vor der
+   Zeile, damit die Liste beim Überfliegen Halt hat; es trägt keine eigene
+   Bedeutung und deshalb auch keine Farbe.
+   ------------------------------------------------------------------------- */
+
+.duties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0 48px;
+  margin-top: 40px;
+}
+.duty {
+  display: flex;
+  gap: 16px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+.duty svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 3px;
+  color: var(--ink-faint);
+}
+.duty__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.duty__body {
+  margin-top: 5px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Zwei Spalten: passt / passt nicht
+
+   Kein Farbsignal an den Überschriften. Die Raute vor der Zeile trägt es:
+   Salbei für das, was geht, Rosé für das, was nicht geht (§3.3).
+   ------------------------------------------------------------------------- */
+
+.fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 56px;
+  margin-top: 40px;
+}
+.fit__col {
+  padding-top: 24px;
+  border-top: 1px solid var(--line-strong);
+}
+.fit__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fit ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 14px;
+}
+.fit li {
+  position: relative;
+  padding-left: 22px;
+  margin-top: 10px;
+  color: var(--ink-muted);
+}
+.fit li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.fit--yes li::before {
+  background: var(--positive);
+}
+.fit--no li::before {
+  background: var(--negative);
+}
+.fit li strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Schaubild neben Text
+
+   Für das kleine Bild, das zeigt, wo die Daten liegen. Halb so breit wie ein
+   Funktionsblock, weil es weniger zu sagen hat.
+   ------------------------------------------------------------------------- */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: center;
+  margin-top: 48px;
+}
+.split > figure {
+  overflow-x: auto;
+}
+/* Nur das Schaubild, nicht jedes Zeichen im Textteil daneben. */
+.split > figure > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 820px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
 }

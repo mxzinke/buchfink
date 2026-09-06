@@ -47,8 +47,9 @@ Buchfink ist speziell für Unternehmen konzipiert, die zur **doppelten Buchführ
 
 Buchfink ist für Menschen ohne Buchhaltungsausbildung gebaut: die Oberfläche
 spricht in Vorgängen statt in Konten, und die Norm steht hinter dem
-Erklärzeichen, nicht in der Arbeitsansicht. Anwender gibt es noch keine — der
-Stand ist vor der ersten Erprobung.
+Erklärzeichen, nicht in der Arbeitsansicht. Buchfink ist eine Vorschau-Version:
+wenige Firmen arbeiten damit, ein volles Geschäftsjahr hat noch niemand
+abgeschlossen.
 
 Buchfink wird ohne Gewährleistung bereitgestellt (Artikel 7 und 8 der
 [EUPL-1.2](LICENSE)). Wer damit bucht, prüft die Ergebnisse selbst: für die

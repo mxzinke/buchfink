@@ -1,14 +1,14 @@
 /* Buchfink — Projektseite
  *
- * Das einzige Skript der Seite. Die Navigation funktioniert ohne es: die
- * Menüs sind <details>-Elemente und klappen von selbst auf. Was hier steht,
- * schließt ein offenes Menü wieder — beim Klick daneben, mit Escape und
- * sobald ein zweites aufgeht. */
+ * Das einzige Skript der Seite. Es tut zwei Dinge: es schließt ein offenes
+ * Menü in der Kopfleiste, und es öffnet die Dialoge, in denen die
+ * Vertiefungen stecken. Die Navigation selbst funktioniert ohne das Skript,
+ * die Dialoge nicht — für sie steht in jeder Seite ein noscript-Block, der
+ * ihren Inhalt stattdessen in den Textfluss stellt. */
 (function () {
   var menus = document.querySelectorAll('.topbar details');
-  if (!menus.length) return;
 
-  function closeAll(except) {
+  function closeMenus(except) {
     menus.forEach(function (menu) {
       if (menu !== except) menu.open = false;
     });
@@ -16,12 +16,12 @@
 
   menus.forEach(function (menu) {
     menu.addEventListener('toggle', function () {
-      if (menu.open) closeAll(menu);
+      if (menu.open) closeMenus(menu);
     });
   });
 
   document.addEventListener('click', function (event) {
-    if (!event.target.closest('.topbar details')) closeAll(null);
+    if (!event.target.closest('.topbar details')) closeMenus(null);
   });
 
   document.addEventListener('keydown', function (event) {
@@ -31,6 +31,37 @@
       menu.open = false;
       var summary = menu.querySelector('summary');
       if (summary) summary.focus();
+    });
+  });
+
+  /* Dialoge */
+
+  document.querySelectorAll('[data-dialog]').forEach(function (trigger) {
+    var dialog = document.getElementById(trigger.getAttribute('data-dialog'));
+    if (!dialog) return;
+    trigger.addEventListener('click', function () {
+      dialog.showModal();
+    });
+  });
+
+  document.querySelectorAll('dialog.modal').forEach(function (dialog) {
+    var close = dialog.querySelector('[data-close]');
+    if (close) {
+      close.addEventListener('click', function () {
+        dialog.close();
+      });
+    }
+    /* Ein Klick neben den Kasten schließt. Der Dialog hat keine Polsterung,
+       also trifft ein Klick auf ihn selbst nur den Hintergrund; sicherer ist
+       der Vergleich mit seinen Maßen. */
+    dialog.addEventListener('click', function (event) {
+      var box = dialog.getBoundingClientRect();
+      var inside =
+        box.top <= event.clientY &&
+        event.clientY <= box.bottom &&
+        box.left <= event.clientX &&
+        event.clientX <= box.right;
+      if (!inside) dialog.close();
     });
   });
 })();

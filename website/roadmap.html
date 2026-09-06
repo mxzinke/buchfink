@@ -8,6 +8,36 @@
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
   </head>
 
   <body>
@@ -108,20 +138,19 @@
       <section class="pagehead">
         <div class="wrap wrap--wide">
           <p class="overline">Roadmap</p>
-          <h1 class="pagehead__title">Was steht, und was bis v1 fehlt</h1>
+          <h1 class="pagehead__title">Unsere Roadmap</h1>
           <p class="pagehead__lead">
-            <strong>Version 1 ist eine stabile, rechtskonforme Fassung für kleine bilanzierende
-            Unternehmen, ohne Lohnbuchhaltung.</strong> Acht Umsetzungswellen sind gebaut. Mit
-            Welle 8 ist die laufende Buchhaltung vollständig: Belege, Journal, Konten,
-            Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer haben kein
-            fehlendes Kriterium mehr. Der Jahresabschluss als Dokument, die Offenlegung und die
-            Prüfung sind zurückgestellt, bis ein Geschäftsjahr laufend geführt worden ist.
+            Version 1 ist eine stabile, rechtskonforme Fassung für kleine bilanzierende
+            Unternehmen, ohne Lohnbuchhaltung. Die laufende Buchhaltung ist fertig. Was fehlt,
+            ist der Jahresabschluss als Dokument, die Offenlegung und die Erprobung im laufenden
+            Betrieb.
           </p>
-          <p class="pagehead__lead">
-            Die Zahlen stammen aus dem Anforderungskatalog, der Buchfink an 349 Akzeptanzkriterien
-            aus 82 Anforderungen misst und zu jedem die Fundstelle im Code nennt. „Außerhalb des
-            Umfangs“ heißt: bewusst ausgelassen, mit einer Grundentscheidung als Begründung.
-          </p>
+          <button class="reveal" type="button" data-dialog="dlg-woher-die-zahlen-kommen">
+            Woher die Zahlen kommen
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+            </svg>
+          </button>
 
           <dl class="hero__facts">
             <div>
@@ -149,8 +178,7 @@
           <p class="overline">Zeitleiste</p>
           <h2 class="section__title">Der Weg zur Version 1</h2>
           <p class="section__lead">
-            Oben, was gebaut ist, nach den Blöcken des Anforderungskatalogs. Darunter, was bis zur
-            Version 1 noch zu tun ist.
+            Oben steht, was gebaut ist. Darunter, was noch zu tun ist.
           </p>
 
           <div class="timeline">
@@ -192,7 +220,7 @@
   <p class="timeline__body"><span class="count">23 von 31 Kriterien erfüllt · 5 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
           <ul class="checklist">
             <li>Fristenklasse aus der Belegart, mit Fristbeginn und frühestem Löschdatum</li>
-            <li>Frist am einzelnen Beleg verlängerbar, mit Grund und Protokoll — verkürzen geht nicht</li>
+            <li>Frist am einzelnen Beleg verlängerbar, mit Grund und Protokoll. Verkürzen geht nicht</li>
             <li>Aufbewahrungs-Hold je Geschäftsjahr</li>
             <li>Archivexport der Belege mit Index</li>
             <li>Sicherung und Wiederherstellung als Vorgang, mit anschließender Integritätsprüfung</li>
@@ -283,7 +311,7 @@
         <div class="timeline__item timeline__item--open">
           <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
           <h3 class="timeline__title">Jahresabschluss und Prüfung</h3>
-          <p class="timeline__body">Neun der vierzehn offenen Kriterien betreffen zwei Objekte, die Buchfink nicht führt: den Jahresabschluss als Dokument und die Offenlegung. Wer dort ansetzt, schließt sie zusammen. Sie stehen bewusst hinten an — erst soll ein Geschäftsjahr laufend geführt worden sein.</p>
+          <p class="timeline__body">Neun der vierzehn offenen Kriterien betreffen zwei Dinge, die Buchfink nicht führt: den Jahresabschluss als Dokument und die Offenlegung. Sie stehen bewusst hinten an. Erst soll ein Geschäftsjahr laufend geführt worden sein.</p>
           <ul class="checklist checklist--open">
             <li>Feststellungsbeschluss als Dokument am Geschäftsjahr</li>
             <li>Unterzeichneter Jahresabschluss als unveränderliches Dokument</li>
@@ -309,14 +337,14 @@
           <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
           <h3 class="timeline__title">Nachweise außerhalb des Programms</h3>
           <ul class="checklist checklist--open">
-            <li>Testeinlesen der Datenüberlassung in eine Prüfsoftware — der Export ist gegen die amtliche Grammatik gebaut und getestet, ein Lauf in IDEA oder ACL hat nicht stattgefunden</li>
+            <li>Testeinlesen der Datenüberlassung in eine Prüfsoftware. Der Export ist gegen die amtliche Grammatik gebaut und getestet, ein Lauf in IDEA oder ACL hat nicht stattgefunden</li>
             <li>Prüfpunkt mit Datum für die Verordnung nach § 147b AO</li>
           </ul>
         </div>
         <div class="timeline__item timeline__item--open">
           <p class="timeline__stage">Bis v1 offen</p>
           <h3 class="timeline__title">Erprobung mit echten Anwendern</h3>
-          <p class="timeline__body">Es gibt noch keine Anwender. Bis eine Gründerin ein Geschäftsjahr durchgeführt hat, sind die gemessenen Klickwege und die Prüfläufe Aussagen über den Code und nicht über die Bedienung. Ein Durchlauf mit einer fachkundigen Person ohne Produktkenntnis steht ebenfalls aus.</p>
+          <p class="timeline__body">Bisher arbeiten wenige Anwender mit Buchfink, und keiner davon hat ein Geschäftsjahr zu Ende geführt. Bis dahin sagen die gemessenen Klickwege und die Prüfläufe etwas über den Code aus, nicht über die Bedienung.</p>
           <ul class="checklist checklist--open">
             <li>Ein vollständiges Geschäftsjahr in einem echten Betrieb</li>
             <li>Testlauf mit einer fachkundigen Person ohne Produktkenntnis</li>
@@ -331,8 +359,8 @@
           <p class="overline">Termine</p>
           <h2 class="section__title">Prüfpunkte mit Datum</h2>
           <p class="section__lead">
-            Fünf Punkte stehen von außen fest und sind zu ihrem Termin nachzuprüfen. Wo kein Datum
-            feststeht, steht „offen“ — ein erfundener Termin wäre schlechter als keiner.
+            Fünf Punkte gibt das Recht vor. Sie sind zu ihrem Termin nachzuprüfen. Wo kein Datum
+            feststeht, steht „offen“.
           </p>
 
           <div class="table-scroll">
@@ -387,7 +415,7 @@
           </div>
 
           <p class="section__lead" style="margin-top: 48px">
-            Jedes Kriterium mit Norm, Status und Fundstelle steht im
+            Jedes einzelne Kriterium mit Norm, Status und Fundstelle steht im
             <a href="https://github.com/mxzinke/buchfink/blob/master/docs/anforderungskatalog.md"
               >Anforderungskatalog</a
             >; dieselbe Sache in Vorgangssprache in
@@ -400,6 +428,30 @@
           </p>
         </div>
       </section>
+
+
+      <dialog class="modal" id="dlg-woher-die-zahlen-kommen" aria-labelledby="dlg-woher-die-zahlen-kommen-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-woher-die-zahlen-kommen-titel">Woher die Zahlen kommen</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Aus dem Anforderungskatalog, der Buchfink an 349 Akzeptanzkriterien aus 82
+          Anforderungen misst und zu jedem die Fundstelle im Code nennt. „Außerhalb des
+          Umfangs“ heißt: bewusst ausgelassen, mit einer Grundentscheidung als Begründung.
+          </p>
+          <p>
+          Acht Umsetzungswellen sind gebaut. Mit Welle 8 haben Belege, Journal, Konten,
+          Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer kein
+          fehlendes Kriterium mehr.
+          </p>
+        </div>
+      </dialog>
     </main>
 
     <footer class="foot">
@@ -408,8 +460,8 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Buchhaltung für kleine bilanzierende Unternehmen. Läuft auf dem eigenen Rechner,
-              erfüllt die GoBD, erzeugt Bilanz, GuV und E-Bilanz. Kostenlos und quelloffen.
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
             </p>
           </div>
           <div>
