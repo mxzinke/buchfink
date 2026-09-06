@@ -42,15 +42,15 @@ func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint)
 		return nil, err
 	}
 
-	// Liegt der Beleg bereits, wird kein zweiter erzeugt: er trüge dieselbe
+	// Liegt der Beleg bereits, wird kein zweiter erzeugt: er hätte dieselbe
 	// Rechnungsnummer und wäre ein zweiter Beleg zu einem Vorgang. Fehlt dann
 	// noch der letzte Schritt — Validierungsbericht, Zustand, Siegel —, wird
-	// genau der nachgeholt; das ist der Zustand, den ein Fehler hinter dem
+	// er nachgeholt; das ist der Zustand, den ein Fehler hinter dem
 	// Ablegen hinterlässt.
 	if inv.ReceiptID != nil {
 		if inv.Status != domain.InvoiceStatusPendingDocument {
 			return nil, fmt.Errorf(
-				"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites trüge dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
+				"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites hätte dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
 				inv.InvoiceNumber)
 		}
 		if err := s.finishPendingDocument(ctx, inv, contact); err != nil {
@@ -122,7 +122,7 @@ func (s *InvoiceService) finishPendingDocument(
 // Bezug auf die Ursprungsrechnung, und die Ursprungsrechnung wird als storniert
 // gekennzeichnet — mit Verweis auf das Dokument, das sie storniert.
 //
-// Das Stornodokument trägt den Tag der Korrektur, und die Umsatzsteuer folgt
+// Das Stornodokument hat den Tag der Korrektur, und die Umsatzsteuer folgt
 // ihm: die Generalumkehr wird über ihr Buchungsdatum dem laufenden
 // Voranmeldungszeitraum zugeordnet (accounting.VatPeriodFor, Zweig zur
 // Rechnungsberichtigung).
@@ -224,13 +224,13 @@ func (s *InvoiceService) CancelWithDocument(ctx context.Context, invoiceID uint,
 // ensureNotCancellation weist das Storno einer Stornorechnung zurück.
 //
 // Ein Storno des Stornos negierte die schon negierten Beträge: das zweite
-// Dokument trüge wieder die Beträge der Ursprungsrechnung, und die
+// Dokument hätte wieder die Beträge der Ursprungsrechnung, und die
 // Generalumkehr der Generalumkehr stellte die Forderung im Journal wieder her —
 // ohne dass irgendein Dokument dem Empfänger sagt, dass die stornierte Rechnung
 // wieder gelten soll. Entsteht sie doch, ist sie eine neue Rechnung mit eigener
 // Nummer und eigener Leistung, keine Rücknahme einer Rücknahme.
 //
-// Dieselbe Sperre trägt CorrectInvoice: die Berichtigung storniert zuerst und
+// Dieselbe Sperre gilt für CorrectInvoice: die Berichtigung storniert zuerst und
 // kommt hier vorbei. Berichtigt wird die Ursprungsrechnung, nicht ihr Storno.
 func ensureNotCancellation(inv *domain.Invoice) error {
 	if inv.ResolvedKind() != domain.InvoiceKindCancellation {
@@ -285,7 +285,7 @@ func (s *InvoiceService) ensureAdvanceCancellable(ctx context.Context, inv *doma
 // aus.
 //
 // Zwei Dokumente, nicht eines: die Ursprungsrechnung wird storniert, und die
-// neue Rechnung trägt den vollständigen richtigen Inhalt mit Bezug auf die
+// neue Rechnung hat den vollständigen richtigen Inhalt mit Bezug auf die
 // berichtigte. Eine „Korrekturrechnung über die Differenz" wäre die andere
 // Möglichkeit — sie ist zulässig, aber sie lässt den Empfänger zwei Dokumente
 // zusammenrechnen, und in der Praxis rechnet er falsch.
@@ -404,7 +404,7 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 	storno.CorrectsInvoiceID = &original.ID
 	storno.CorrectsInvoiceNumber = original.InvoiceNumber
 	storno.CorrectsInvoiceDate = original.Date
-	// Das Stornodokument trägt den Tag der Korrektur (§ 17 Abs. 1 Satz 8 UStG),
+	// Das Stornodokument hat den Tag der Korrektur (§ 17 Abs. 1 Satz 8 UStG),
 	// nicht den der Ursprungsrechnung.
 	storno.Date = todayLocal()
 	storno.DueDate = storno.Date
@@ -530,7 +530,7 @@ func noteSuffix(note string) string {
 //
 // Verglichen werden Zählerstand und vergebene Nummern. Der Zähler ist die
 // Instanz für die Frage, wie viele Nummern ausgegeben wurden — eine gelöschte
-// Zeile ändert ihn nicht, und genau das macht ihn zum Maßstab.
+// Zeile ändert ihn nicht, und das macht ihn zum Maßstab.
 func (s *InvoiceService) NumberGaps(ctx context.Context, fiscalYear int) (*domain.NumberGapReport, error) {
 	if fiscalYear == 0 {
 		return nil, fmt.Errorf("ohne Geschäftsjahr lässt sich kein Lückenbericht erstellen")

@@ -42,7 +42,7 @@ func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
 }
 
 // GetCarryForwardPreview zeigt den Vortragsstand ins Zieljahr: je Konto
-// Schlusssaldo des Vorjahres, bereits vorgetragener Wert und Differenz.
+// Schlusssaldo des Vorjahres, vorgetragener Wert und Differenz.
 func (b *BuchfinkBridge) GetCarryForwardPreview(toYear int) (*service.CarryForwardPreview, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

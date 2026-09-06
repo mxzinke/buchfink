@@ -19,12 +19,12 @@ import (
 // Eine Rückstellung ist die einzige Bilanzposition, die vollständig aus einer
 // Schätzung besteht: es gibt keinen Beleg über ihre Höhe, weil der Vorgang, den
 // sie abbildet, noch nicht abgeschlossen ist. Daraus folgt alles, was dieser
-// Dienst tut — jede Bewegung trägt ihre Begründung, jede Auflösung nennt den
+// Dienst tut — jede Bewegung speichert ihre Begründung, jede Auflösung nennt den
 // weggefallenen Grund, und die Abzinsung rechnet mit einem hinterlegten Satz
 // statt mit einem gefundenen.
 //
 // Die Kartei lebt über die Jahre wie die Anlagenkartei: eine Rückstellung, die
-// im Jahr 2026 gebildet und 2028 verbraucht wird, trägt drei Jahre Bewegungen,
+// im Jahr 2026 gebildet und 2028 verbraucht wird, hat Bewegungen aus drei Jahren,
 // und der Rückstellungsspiegel eines Jahres braucht sie alle.
 type ProvisionService struct {
 	provisionRepo domain.ProvisionRepository
@@ -175,7 +175,7 @@ type ProvisionPreview struct {
 	// DiscountMonth ist der Monat der Zinstabelle, mit der gerechnet wurde.
 	DiscountMonth string `json:"discountMonth,omitempty"`
 	// TaxAmount ist der steuerliche Wert nach § 6 Abs. 1 Nr. 3a Buchst. e EStG
-	// (5,5 %). Er wird nicht gebucht, sondern im Verzeichnis ausgewiesen.
+	// (5,5 %). Ausgewiesen wird er nur im Verzeichnis, gebucht wird er nicht.
 	TaxAmount   domain.Cents `json:"taxAmount"`
 	BookingDate string       `json:"bookingDate"`
 	// BookingYear ist das Geschäftsjahr des Buchungsdatums — das Jahr, in dem
@@ -519,7 +519,7 @@ func (s *ProvisionService) BookRelease(ctx context.Context, req ProvisionChangeR
 
 // BookConsumption verbraucht eine Rückstellung gegen ein Zahlungsmittelkonto.
 //
-// Der Regelfall läuft über den Belegweg — die Rechnung kommt an, wird der
+// Der Regelfall nutzt den Belegweg — die Rechnung kommt an, wird der
 // Rückstellung zugeordnet und bucht gegen sie statt gegen den Aufwand. Dieser
 // Weg hier ist der zweite: die Zahlung ohne Eingangsrechnung.
 func (s *ProvisionService) BookConsumption(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {

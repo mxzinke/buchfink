@@ -38,7 +38,7 @@ func (r *retentionRepositoryGorm) CreateHold(ctx context.Context, hold *domain.R
 	}
 	if existing != nil {
 		return fmt.Errorf(
-			"für %d ist die Aufbewahrungsfrist bereits seit dem %s ausgesetzt (%s). Hebe die bestehende Aussetzung auf, bevor du eine neue einträgst",
+			"für %d ist die Aufbewahrungsfrist bereits seit dem %s ausgesetzt (%s). Heben Sie die bestehende Aussetzung auf, bevor Sie eine neue eintragen",
 			hold.FiscalYear, existing.SetAt.Format("02.01.2006"), existing.Reason.Label())
 	}
 	return dbFrom(ctx, r.db).Create(hold).Error
@@ -108,6 +108,18 @@ func (r *procDocRepositoryGorm) FindAll(ctx context.Context) ([]domain.Procedure
 	return docs, err
 }
 
+func (r *procDocRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.ProcedureDocumentation, error) {
+	var doc domain.ProcedureDocumentation
+	err := dbFrom(ctx, r.db).First(&doc, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &doc, nil
+}
+
 func (r *procDocRepositoryGorm) CountForDay(ctx context.Context, day string) (int64, error) {
 	var count int64
 	// Gezählt wird über die Fassungsbezeichnung und nicht über den Zeitpunkt:
@@ -119,7 +131,7 @@ func (r *procDocRepositoryGorm) CountForDay(ctx context.Context, day string) (in
 	return count, err
 }
 
-// CountObjects zählt, was ein Geschäftsjahr an aufzubewahrenden Daten trägt.
+// CountObjects zählt, was ein Geschäftsjahr an aufzubewahrenden Daten hat.
 func (r *retentionRepositoryGorm) CountObjects(ctx context.Context, fiscalYear int) (domain.RetentionCounts, error) {
 	var counts domain.RetentionCounts
 	db := dbFrom(ctx, r.db)
@@ -179,7 +191,7 @@ func (r *retentionRepositoryGorm) CountObjects(ctx context.Context, fiscalYear i
 }
 
 // FiscalYearsWithObjects sammelt die Geschäftsjahre, die aufzubewahrende
-// Objekte tragen.
+// Objekte haben.
 //
 // Gefragt werden dieselben Tabellen, die CountObjects zählt. Sonst gäbe es
 // Jahre, die eine Zählung ausweisen, aber in keiner Fristenübersicht stehen —
@@ -218,8 +230,8 @@ func (r *retentionRepositoryGorm) FiscalYearsWithObjects(ctx context.Context) ([
 // ein Datensatz, der eine Vollständigkeit behauptet, die er nicht hat.
 //
 // Die Prüfung, ob überhaupt gelöscht werden darf — Frist abgelaufen, keine
-// Aussetzung, Archivexport erstellt —, steht nicht hier, sondern im
-// RetentionService. Das Repository führt aus, was entschieden wurde.
+// Aussetzung, Archivexport erstellt —, steht im RetentionService. Das
+// Repository führt aus, was entschieden wurde.
 func (r *retentionRepositoryGorm) DeleteFiscalYear(ctx context.Context, fiscalYear int) (domain.RetentionCounts, []string, error) {
 	counts, err := r.CountObjects(ctx, fiscalYear)
 	if err != nil {

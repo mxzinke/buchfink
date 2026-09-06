@@ -21,7 +21,7 @@ import (
 
 // --- Die Fälligkeit in der kanonischen Form --------------------------------
 
-// Die Eröffnungsbuchung eines Umsteigers trägt die übernommene Fälligkeit, und
+// Die Eröffnungsbuchung eines Umsteigers hat die übernommene Fälligkeit, und
 // die geht in den Eigenhash ein. Steht sie nicht in journal.csv, lässt sich der
 // Hash aus der Überlassung nicht nachrechnen — und die Zusage der
 // Feldbeschreibung, das Verfahren stehe dort vollständig, wäre für genau diese
@@ -65,7 +65,7 @@ func TestExportedOpeningBalanceLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 		prev = entry.head["Eigenhash"]
 	}
 	if withDueDate == 0 {
-		t.Fatal("keine exportierte Buchung trägt eine Fälligkeit — der Test prüft dann nicht, wofür er da ist")
+		t.Fatal("keine exportierte Buchung hat eine Fälligkeit — der Test prüft dann nicht, wofür er da ist")
 	}
 }
 
@@ -180,7 +180,7 @@ func TestExportedReceiptsCarryTheirHeaderData(t *testing.T) {
 
 // --- Die Kette des Änderungsprotokolls von außen ---------------------------
 
-// Dasselbe für das Protokoll: es trägt Vorgängerhash und Eigenhash, und wer nur
+// Dasselbe für das Protokoll: es hat Vorgängerhash und Eigenhash, und wer nur
 // aenderungsprotokoll.csv und die Feldbeschreibung hat, muss beide nachrechnen
 // können. Sonst sind die zwei Spalten eine Behauptung.
 func TestExportedAuditLogLetsAnOutsiderRecomputeTheChain(t *testing.T) {
@@ -242,14 +242,14 @@ func TestExportedAuditLogLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 		checked++
 	}
 	if checked == 0 {
-		t.Fatal("kein exportierter Protokolleintrag trägt einen Eigenhash")
+		t.Fatal("kein exportierter Protokolleintrag hat einen Eigenhash")
 	}
 }
 
 // --- Der Bericht über abgelaufene Objekte ----------------------------------
 
 // Ein Jahr unter Aussetzung ist nicht abgelaufen (§ 147 Abs. 3 Satz 5 AO). Es im
-// Bericht „abgelaufene Objekte“ zu führen lüde dazu ein, genau die Unterlagen zu
+// Bericht „abgelaufene Objekte“ zu führen lüde dazu ein, die Unterlagen zu
 // löschen, die für ein laufendes Verfahren gebraucht werden.
 func TestExpiredObjectsLeaveOutTheYearsUnderHold(t *testing.T) {
 	env, svc := newRetentionEnv(t)
@@ -276,7 +276,7 @@ func TestExpiredObjectsLeaveOutTheYearsUnderHold(t *testing.T) {
 	}
 }
 
-// Ein Jahr, das nur Belege trägt, hat dieselbe Aufbewahrungsfrist wie eines mit
+// Ein Jahr mit nur Belegen hat dieselbe Aufbewahrungsfrist wie eines mit
 // Buchungen. Fehlte es in der Übersicht, liefe seine Frist unbemerkt — und die
 // Belege blieben nach ihrem Ablauf ungefragt liegen.
 func TestRetentionOverviewSeesYearsWithReceiptsButNoBookings(t *testing.T) {
@@ -308,7 +308,7 @@ func TestRetentionOverviewSeesYearsWithReceiptsButNoBookings(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("das Jahr %d fehlt in der Fristenübersicht, obwohl es Belege trägt: %+v",
+		t.Errorf("das Jahr %d fehlt in der Fristenübersicht, obwohl es Belege hat: %+v",
 			env.fiscalYear, overview.Years)
 	}
 }

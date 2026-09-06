@@ -14,9 +14,10 @@ type NonDeductibleCategory struct {
 	Label string `json:"label"`
 	// Reference nennt die Vorschrift, aus der die Beschränkung folgt.
 	Reference string `json:"reference"`
-	// DeductibleAccount trägt den abziehbaren Teil, NonDeductibleAccount den
-	// nicht abziehbaren. Eines von beiden kann leer sein: was in keiner Höhe
-	// abziehbar ist, hat kein abziehbares Konto.
+	// DeductibleAccount nennt das Konto für den abziehbaren Teil,
+	// NonDeductibleAccount das für den nicht abziehbaren. Eines von beiden
+	// kann leer sein: was in keiner Höhe abziehbar ist, hat kein abziehbares
+	// Konto.
 	DeductibleAccount    string `json:"deductibleAccount,omitempty"`
 	NonDeductibleAccount string `json:"nonDeductibleAccount,omitempty"`
 	// Note ist der Satz, der im Bericht unter der Zeile steht.

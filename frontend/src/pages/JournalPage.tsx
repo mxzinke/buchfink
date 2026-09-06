@@ -86,7 +86,7 @@ const emptyDraft = (): DraftLine[] => [
  * Die Nachweisspalten (UNV-04, UNV-06, UNV-02).
  *
  * Sie stehen nicht von vornherein in der Tabelle: wer bucht, sucht die Buchung
- * über Beleg, Datum und Text, und drei weitere Spalten drängten genau die
+ * über Beleg, Datum und Text, und drei weitere Spalten drängten die
  * hinaus. Gebraucht werden sie, wenn jemand fragt — dann lassen sie sich
  * einblenden und bleiben, bis sie wieder stören.
  */
@@ -955,7 +955,7 @@ const PaymentAllocations: React.FC<{ entryId: number; currency: string }> = ({
 /**
  * Die Angaben, die eine Berichtigung aus der falschen Buchung mitnimmt (BEL-09).
  *
- * Die Maske erfasst Datum, Text und Zeilen — mehr trägt eine Buchung aber: den
+ * Die Maske erfasst Datum, Text und Zeilen — eine Buchung hat aber mehr: den
  * Beleg, den Geschäftspartner, den Steuerfall, die Währung, die Aufzeichnungen
  * zu Bewirtung und Geschenk. Würde die Neubuchung nur aus den Eingabefeldern
  * gebaut, entstünde aus einer Belegbuchung eine belegfreie Buchung (BEL-01: der
@@ -1140,8 +1140,8 @@ const BookingForm: React.FC<{
             next.contactId = origin.contactId;
             next.text = origin.text;
             next.inputTaxShare = origin.inputTaxShare;
-            // Bemessungsgrundlage und Fremdwährungsbetrag hängen am Betrag der
-            // Zeile. Wurde der geändert, sind sie überholt, und ein aus dem
+            // Bemessungsgrundlage und Fremdwährungsbetrag richten sich nach dem
+            // Betrag der Zeile. Wurde der geändert, sind sie überholt, und ein aus dem
             // alten Satz hochgerechneter Wert wäre eine Behauptung über einen
             // Steuersatz, den die Maske nicht kennt (Hinweis: taxWarning).
             if (origin.amount === line.cents) {
@@ -1202,8 +1202,8 @@ const BookingForm: React.FC<{
             Generalumkehr zurückgenommen; die Buchung unten tritt an ihre Stelle.
             <HelpPopover label="Erklärung zur Berichtigung">
               GoBD Rz. 58 verlangt, dass die ursprüngliche Aufzeichnung feststellbar bleibt und die
-              Korrektur als solche erkennbar ist. Deshalb wird nicht geändert, sondern storniert und
-              neu gebucht — und die Neubuchung trägt den Verweis auf die Buchung, die sie ersetzt.
+              Korrektur als solche erkennbar ist. Deshalb storniert Buchfink die Buchung und bucht sie
+              neu; die Neubuchung speichert den Verweis auf die Buchung, die sie ersetzt.
               Mitgenommen werden die Angaben, die diese Maske nicht erfasst: der Beleg mit seinem
               Hash, das Personenkonto des offenen Postens, der Steuerfall, Währung und Umrechnung
               sowie die Aufzeichnungen zu Bewirtung und Geschenk — sonst stünde die Neubuchung ohne
@@ -1230,7 +1230,7 @@ const BookingForm: React.FC<{
             onChange={(e) => setDocumentDate(e.target.value)}
           />
         </Field>
-        <Field label="Leistung von" help="Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG.">
+        <Field label="Leistung von" explain="Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG.">
           <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
         </Field>
         <Field label="Leistung bis">

@@ -1,50 +1,45 @@
 import React from 'react';
-import { Tooltip } from '@base-ui/react/tooltip';
 import { Popover } from '@base-ui/react/popover';
 import { cn } from './cn';
-import { POPUP, TOOLTIP_POPUP } from './popup';
+import { POPUP } from './popup';
 
 /**
- * Die drei Stufen der Erklärung aus §15.2. Ausgelöst wird immer bewusst, nie
- * automatisch: keine Tour, kein Popover beim ersten Besuch.
+ * Das Erklärzeichen aus §15.2 — ein Fragezeichen hinter der Beschriftung, nie
+ * davor. Ausgelöst wird bewusst: keine Tour, kein Popover beim ersten Besuch.
  *
- * Das Erklärzeichen ist ein Fragezeichen mit 24 px Klickfeld. Es steht hinter
- * der Beschriftung, nie davor.
+ * Es gibt genau eine Erklärstufe an diesem Zeichen. Bis Welle 9 gab es zwei —
+ * einen dunklen Tooltip für einen Satz und ein helles Popover für drei —, beide
+ * hinter demselben Fragezeichen und mit demselben Aussehen. Von außen war nicht
+ * zu erkennen, welche der beiden man vor sich hatte: Manche gingen beim
+ * Überstreichen auf, andere erst auf Klick, manche waren dunkel, andere hell,
+ * und in einer Reihe von Feldern standen beide nebeneinander. Ein Unterschied,
+ * der nur im Code besteht, ist keiner — er sieht aus wie ein Fehler.
+ *
+ * Geblieben ist das Popover: es trägt den einen Satz genauso wie die drei und
+ * darf einen Verweis in die dritte Stufe enthalten, den ein Tooltip nicht
+ * tragen kann.
+ *
+ * Das Klickfeld ist 24 px hoch, die Zeile darunter aber oft nur 16. Deshalb der
+ * negative Rand: Das Zeichen darf die Zeile, in der es steht, nicht auseinander
+ * ziehen — sonst stehen zwei Felder nebeneinander verschieden hoch, je nachdem,
+ * ob eines von beiden eine Erklärung hat.
  */
 const MARK =
-  'inline-flex items-center justify-center w-6 h-6 shrink-0 align-middle ' +
+  'inline-flex items-center justify-center w-6 h-6 -my-1 shrink-0 align-middle ' +
   'text-caption font-semibold leading-none text-ink-faint ' +
   'transition-colors duration-120 ease-quiet hover:text-ink-muted data-[popup-open]:text-ink-muted';
 
-/** Verzögerung, damit der Zeiger beim Überstreichen nichts auslöst. */
-const HOVER_DELAY_MS = 400;
-
-export interface HelpTooltipProps {
-  /** Ein Satz. Was länger ist, gehört ins Popover. */
-  content: string;
-  /** Beschriftung für Screenreader, etwa "Erklärung zu Einnahmen". */
-  label: string;
-  className?: string;
-}
-
-export const HelpTooltip: React.FC<HelpTooltipProps> = ({ content, label, className }) => (
-  <Tooltip.Provider delay={HOVER_DELAY_MS}>
-    <Tooltip.Root>
-      <Tooltip.Trigger aria-label={label} className={cn(MARK, className)}>
-        ?
-      </Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Positioner sideOffset={6} className="z-50">
-          <Tooltip.Popup className={TOOLTIP_POPUP}>{content}</Tooltip.Popup>
-        </Tooltip.Positioner>
-      </Tooltip.Portal>
-    </Tooltip.Root>
-  </Tooltip.Provider>
-);
+/**
+ * Das Popover geht beim Überstreichen auf, ruhig: 300 ms bis es kommt, 200 ms
+ * bis es wieder geht. Der Klick bleibt daneben bestehen — er ist der Weg mit
+ * der Tastatur und auf dem Touchgerät, wo es kein Hover gibt.
+ */
+const POPOVER_HOVER = { openOnHover: true, delay: 300, closeDelay: 200 } as const;
 
 export interface HelpPopoverProps {
-  /** Bis drei Sätze. */
+  /** Ein bis drei Sätze. Was länger ist, gehört in die dritte Stufe. */
   children: React.ReactNode;
+  /** Beschriftung für Screenreader, etwa "Erklärung zu Einnahmen". */
   label: string;
   /** Sprung in die dritte Stufe. Die Beschriftung ist immer "Mehr dazu". */
   onMore?: () => void;
@@ -58,7 +53,7 @@ export const HelpPopover: React.FC<HelpPopoverProps> = ({
   className,
 }) => (
   <Popover.Root>
-    <Popover.Trigger aria-label={label} className={cn(MARK, className)}>
+    <Popover.Trigger {...POPOVER_HOVER} aria-label={label} className={cn(MARK, className)}>
       ?
     </Popover.Trigger>
     <Popover.Portal>

@@ -59,6 +59,9 @@ async function main() {
     };
 
     await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+    // Die Mandantenwahl steht vor dem Arbeitsbereich und hat keine Navigation
+    // daneben. Der Klick zählt nicht mit: das Szenario beginnt in den Büchern.
+    await page.getByRole('button', { name: /öffnen$/i }).first().click();
     await page.waitForSelector('nav', { timeout: 30_000 });
 
     // Vorlauf: die Bilanz aufschlagen. Diese Klicks zählen nicht mit — das

@@ -94,7 +94,7 @@ func TestStatementLeavesThePriorColumnEmptyWithoutABookedPriorYear(t *testing.T)
 	}
 }
 
-// Der Kopf trägt die Pflichtangaben des § 264 Abs. 1a HGB — und benennt, was
+// Der Kopf hat die Pflichtangaben des § 264 Abs. 1a HGB — und benennt, was
 // davon fehlt.
 func TestStatementHeaderNamesTheMissingMandatoryData(t *testing.T) {
 	env := newTestEnv(t)

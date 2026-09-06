@@ -167,9 +167,9 @@ func (w *ciiWriter) party(element string, p *Party) {
 		w.close("ram:DefinedTradeContact")
 	}
 	w.address(p.Address)
-	// Auch eine elektronische Adresse, die nur ihr Schema nennt, wird
-	// geschrieben. Sie ist als Adresse wertlos — aber sie stand im Dokument,
-	// und BR-62 hat dazu etwas zu sagen.
+	// Der Writer schreibt auch eine elektronische Adresse, die nur ihr Schema
+	// nennt. Sie ist als Adresse wertlos — aber sie stand im Dokument, und
+	// BR-62 hat dazu etwas zu sagen.
 	if p.ElectronicAddress.Present() || p.ElectronicAddress.Scheme != "" {
 		w.open("ram:URIUniversalCommunication")
 		w.identifier("ram:URIID", p.ElectronicAddress)

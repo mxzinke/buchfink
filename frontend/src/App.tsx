@@ -23,8 +23,8 @@ import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
-import { NachweisePage } from './pages/NachweisePage';
-import { DataAccessPage } from './pages/DataAccessPage';
+import { BackupPage } from './pages/BackupPage';
+import { TaxAuditPage } from './pages/TaxAuditPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PostingLockProvider, WriteLockProvider } from './components/WriteLock';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
@@ -33,7 +33,7 @@ import { formatDate } from './utils/formatters';
 import { Button, Notice, toast } from './components/ui';
 
 /**
- * Ansichten, in denen im gesperrten Geschäftsjahr erfasst würde. Nur sie tragen
+ * Ansichten, in denen im gesperrten Geschäftsjahr erfasst würde. Nur sie zeigen
  * den Hinweisstreifen; eine Auswertung ist auch im abgeschlossenen Jahr das,
  * was sie sein soll (§11.5).
  */
@@ -52,7 +52,7 @@ export function App() {
   const [tenants, setTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(null);
   const [currentTab, setCurrentTab] = useState<TabType>('welcome');
-  // Ein Navigationsziel kann einen Parameter tragen: von der Bilanzzeile führt
+  // Ein Navigationsziel kann einen Parameter haben: von der Bilanzzeile führt
   // der Weg über das Konto ins Kontoblatt und von dort auf die Buchung im
   // Journal (GOB-02). Ohne Parameter landete man nur auf der Übersichtsseite
   // und müsste dort von Hand suchen, was man gerade angeklickt hat.
@@ -154,9 +154,11 @@ export function App() {
   };
 
   /**
-   * Ein Geschäftsjahr von Hand anlegen: die Entität beginnt am Tag nach dem Ende
-   * des Vorjahres, auch nach einem Rumpfgeschäftsjahr, und die Ansicht schaltet
-   * auf sie um.
+   * Ein Geschäftsjahr von Hand anlegen: das kommende beginnt am Tag nach dem
+   * Ende des Vorjahres, auch nach einem Rumpfgeschäftsjahr, das vergangene
+   * endet am Tag vor dem Beginn des bisher ersten. Die Ansicht schaltet danach
+   * auf das neue Jahr um. Richtung und Grenze wählt der Dialog in der
+   * Kopfzeile, geprüft wird beides noch einmal im Backend.
    */
   const handleCreateFiscalYear = async (year: number) => {
     try {
@@ -207,7 +209,7 @@ export function App() {
   /**
    * Wechselt die Ansicht und nimmt den Parameter des Ziels mit.
    *
-   * Trägt das Ziel ein Geschäftsjahr, wird zuerst umgeschaltet: Abschluss,
+   * Hat das Ziel ein Geschäftsjahr, wird zuerst umgeschaltet: Abschluss,
    * Bausteine, Bilanz und Umsatzsteuer folgen dem Jahr aus der Kopfzeile, und
    * eine Aufgabe zum Vorjahresabschluss landete sonst auf der Seite des
    * laufenden Jahres — mit denselben Überschriften und anderen Zahlen.
@@ -289,7 +291,6 @@ export function App() {
             onRefreshTenants={refreshTenants}
             onAddTenant={() => setIsAddingTenant(true)}
             onStartDashboard={() => setCurrentTab('tasks')}
-            onNavigate={navigate}
           />
         );
       // Die Aufgabenliste ist die Startseite (Architektur 6.1); Kennzahlen und
@@ -371,30 +372,41 @@ export function App() {
       case 'ebilanz':
         return <EBilanzPage year={currentYear} />;
       case 'audit':
-        return <AuditPage initialRule={navParams.auditRule} onNavigate={navigate} />;
-      case 'nachweise':
-        // Die Nachweise folgen dem Jahr aus der Kopfzeile: die Fristenansicht
-        // schlägt es als das Jahr vor, dessen Aufbewahrung gerade zur Frage
-        // steht. Protokoll und Verfahrensdokumentation gelten daneben für den
-        // ganzen Mandanten.
+        // Die Prüfübersicht liest den Kettenzustand von hier und prüft über
+        // dieselbe Stelle nach: der Anzeiger in der Fußzeile der Navigation
+        // und die Seite dürfen nicht Verschiedenes behaupten.
         return (
-          <NachweisePage
-            year={currentYear}
-            initialTab={navParams.nachweiseTab}
-            onNavigate={navigate}
+          <AuditPage
+            integrity={integrity}
+            isChecking={isCheckingIntegrity}
+            onRefreshIntegrity={() => void refreshIntegrity()}
+            initialRule={navParams.auditRule}
           />
         );
-      case 'dataaccess':
-        // Datenüberlassung, Prüfläufe, Sicherung und Prüfermodus. Die Seite
+      case 'backup':
+        // Sicherung und Aufbewahrung. Die Fristenansicht folgt dem Jahr aus
+        // der Kopfzeile: es ist das Jahr, dessen Aufbewahrung gerade zur Frage
+        // steht. Nach einer Wiederherstellung wird die Anwendung neu
+        // aufgesetzt — der wiederhergestellte Mandant steht sonst in keiner
+        // Liste.
+        return (
+          <BackupPage
+            year={currentYear}
+            appConfig={appConfig}
+            onAppConfigChange={setAppConfig}
+            onRestored={bootstrapApp}
+          />
+        );
+      case 'taxaudit':
+        // Prüfermodus, Datenüberlassung und Verfahrensdokumentation. Die Seite
         // ändert den Prüfermodus, deshalb reicht sie die Konfiguration zurück:
         // am Banner hängt der Zustand der ganzen Anwendung.
         return (
-          <DataAccessPage
+          <TaxAuditPage
             year={currentYear}
             availableYears={availableYears}
             appConfig={appConfig}
             onAppConfigChange={setAppConfig}
-            onRestored={bootstrapApp}
           />
         );
       case 'settings':
@@ -416,7 +428,7 @@ export function App() {
       {/* Das festgestellte Geschäftsjahr sperrt die Erfassung in jeder
           Buchungsansicht und nicht nur im Journal. Der Zustand steht deshalb
           neben dem Prüfermodus über allem; jede Erfassungsaktion liest ihn über
-          `usePostingLock` und trägt den Grund im `title` (§11.5). */}
+          `usePostingLock` und zeigt den Grund im `title` (§11.5). */}
       <PostingLockProvider closedYear={yearClosed ? currentYear : undefined}>
         <div className="flex h-screen bg-paper text-ink overflow-hidden">
           <Toaster
@@ -427,17 +439,26 @@ export function App() {
               className: 'font-sans text-body',
             }}
           />
-          {/* Grouped Sidebar Navigation */}
-          <Sidebar
-            currentTab={currentTab}
-            onSelectTab={(tab) => navigate(tab)}
-            settings={companySettings}
-            integrity={integrity}
-            onRefreshIntegrity={refreshIntegrity}
-            isCheckingIntegrity={isCheckingIntegrity}
-            isOpenMobile={isMobileSidebarOpen}
-            onCloseMobile={() => setIsMobileSidebarOpen(false)}
-          />
+          {/* Die Navigation gehört zum Arbeitsbereich und nicht vor ihn: die
+              Startansicht beantwortet nur, mit welchem Mandanten gearbeitet
+              wird, und eine Navigation daneben führte in Bücher, die noch gar
+              nicht gewählt sind. */}
+          {currentTab !== 'welcome' && (
+            <Sidebar
+              currentTab={currentTab}
+              onSelectTab={(tab) => navigate(tab)}
+              settings={companySettings}
+              integrity={integrity}
+              isCheckingIntegrity={isCheckingIntegrity}
+              tenants={tenants}
+              activeTenant={activeTenant}
+              onSwitchTenant={(id) => void handleSwitchTenant(id)}
+              onAddTenant={() => setIsAddingTenant(true)}
+              onShowTenants={() => setCurrentTab('welcome')}
+              isOpenMobile={isMobileSidebarOpen}
+              onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            />
+          )}
 
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -448,15 +469,11 @@ export function App() {
                 closedYears={closedYears}
                 onYearChange={handleYearChange}
                 onCreateFiscalYear={handleCreateFiscalYear}
-                tenants={tenants}
-                activeTenant={activeTenant}
-                onSwitchTenant={handleSwitchTenant}
-                onOpenNewTenantModal={() => setIsAddingTenant(true)}
                 onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
               />
             )}
 
-            {/* Ein abgeschlossenes Geschäftsjahr trägt einen anderen Grund: `sunken`
+            {/* Ein abgeschlossenes Geschäftsjahr hat einen anderen Grund: `sunken`
                 statt `paper`, und zwar in jeder Ansicht und nicht nur im Journal —
                 die Sperre gilt dem Jahr, nicht der Seite (§11.5). */}
             <main
@@ -473,7 +490,11 @@ export function App() {
                   <Notice
                     text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
                     action={
-                      <Button variant="secondary" size="sm" onClick={() => navigate('dataaccess')}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate('taxaudit')}
+                      >
                         Zum Prüfermodus
                       </Button>
                     }

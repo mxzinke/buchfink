@@ -45,7 +45,7 @@ func TestAppConfigEnsureListsReplacesNilWithEmpty(t *testing.T) {
 		t.Fatalf("Gegenprobe: %v", err)
 	}
 	if !strings.Contains(string(bare), `"tenants":null`) {
-		t.Errorf("die Gegenprobe trägt nicht mehr: %s", bare)
+		t.Errorf("die Gegenprobe enthält kein `null` mehr: %s", bare)
 	}
 
 	// Eine belegte Liste bleibt, wie sie ist.

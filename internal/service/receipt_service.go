@@ -270,8 +270,8 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 
 // applyRetention setzt Aufbewahrungsklasse und Fristende eines Belegs.
 //
-// Beim Ablegen und nicht beim Anzeigen: welche Frist gilt, hängt am
-// Entstehungsjahr und am geltenden Recht, und beides ist zum Zeitpunkt der
+// Beim Ablegen und nicht beim Anzeigen: welche Frist gilt, richtet sich nach dem
+// Entstehungsjahr und dem geltenden Recht, und beides ist zum Zeitpunkt der
 // Ablage bekannt. Später gerechnet käme für denselben Beleg irgendwann eine
 // andere Zahl heraus.
 func applyRetention(receipt *domain.Receipt) {
@@ -349,7 +349,7 @@ func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Recei
 		return nil, err
 	}
 	s.log(ctx, domain.AuditActionUpdate, updated,
-		fmt.Sprintf("Beleg %s trägt jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
+		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
 	return s.Get(ctx, receipt.ID)
 }
 

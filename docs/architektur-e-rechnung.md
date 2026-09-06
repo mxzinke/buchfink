@@ -18,7 +18,7 @@ das PDF/A-3 mit eingebettetem Datensatz.
 
 Die Norm selbst ist so gebaut: ihre Geschäftsregeln stehen in einem abstrakten
 Regelsatz über dem semantischen Modell, und CII und UBL liefern nur die
-Bindungen. Diesem Aufbau zu folgen kostet nichts und trägt zweierlei:
+Bindungen. Diesem Aufbau zu folgen kostet nichts und bringt zweierlei:
 
 - **Eine Rechnung wird gleich beurteilt, egal in welcher Schreibweise sie
   ankommt.** Nachgewiesen, nicht behauptet: jedes offizielle UBL-Beispiel wird
@@ -52,7 +52,7 @@ what := ruleset.Describe(inv)         // Syntax, Profil, Rechnungsart
 
 Keine Abhängigkeit zum übrigen Buchfink. Das Modul bringt seine eigene
 Zahlenschicht mit, weil Beträge in einer Rechnung nicht alle zweistellig sind:
-Einzelpreise (BT-146) und Steuersätze (BT-119) tragen legitim mehr
+Einzelpreise (BT-146) und Steuersätze (BT-119) haben legitim mehr
 Nachkommastellen, und ein Satz von 8,375 %, vorher auf zwei Stellen gerundet,
 liegt je Position ein bis zwei Cent daneben.
 
@@ -105,7 +105,7 @@ type EInvoiceReader interface {
 }
 ```
 
-`domain.IncomingInvoice` trägt die gut zwölf Felder, aus denen eine Buchung
+`domain.IncomingInvoice` hat die gut zwölf Felder, aus denen eine Buchung
 entsteht — nicht die 160 Geschäftsbegriffe der Norm. Übersetzt wird an einer
 einzigen Stelle, `internal/invoice/reader.go`. Die Richtung der Abhängigkeiten:
 
@@ -130,7 +130,7 @@ ohne dass irgendwo ein Parser läuft.
 
 ### Was dabei behoben wurde
 
-- **Der Rechnungstyp wird ausgewertet.** Eine Gutschrift trägt positive Beträge
+- **Der Rechnungstyp wird ausgewertet.** Eine Gutschrift hat positive Beträge
   und sagt nur in BT-3, was sie ist. Bisher wurde sie als Eingangsrechnung
   vorgeschlagen — mit umgekehrtem Vorzeichen der Vorsteuer und einem neuen
   offenen Posten, wo einer zu schließen wäre. Jetzt wird der Vorschlag

@@ -9,13 +9,13 @@ import (
 // Appropriation ist der Beschluss der Gesellschafter über die Verwendung des
 // Ergebnisses eines Geschäftsjahres (§ 29 GmbHG, § 42a Abs. 2 GmbHG).
 //
-// Er hängt am Geschäftsjahr, dessen Ergebnis verwendet wird, gebucht wird er
+// Er richtet sich nach dem Geschäftsjahr, dessen Ergebnis verwendet wird, gebucht wird er
 // aber im Folgejahr: der Beschluss fällt nach dem Stichtag, und § 252 Abs. 1
 // Nr. 1 HGB verbietet, die Eröffnungsbilanz nachträglich zu ändern. Deshalb
 // bringt der Saldenvortrag das Ergebnis zunächst unverwendet auf 2970 bzw.
 // 2978, und erst der Beschluss verteilt es.
 //
-// Eigene Tabelle statt weiterer Felder an FiscalYear: der Beschluss trägt
+// Eigene Tabelle statt weiterer Felder an FiscalYear: der Beschluss hat
 // Datum, Text, Belegverweis und vier Beträge, und eine Verwendung ohne Beschluss
 // gibt es nicht — ein leerer Satz Felder am Geschäftsjahr könnte das nicht
 // ausdrücken.

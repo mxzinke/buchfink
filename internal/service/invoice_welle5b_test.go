@@ -156,7 +156,7 @@ func TestFailedDocumentLeavesInvoicePendingAndRecoverable(t *testing.T) {
 		t.Error("ohne erzeugtes Dokument darf kein Beleg entstanden sein")
 	}
 
-	// Die verbrauchte Nummer trägt eine Rechnung: keine Lücke.
+	// Die verbrauchte Nummer gehört zu einer Rechnung: keine Lücke.
 	report, err := env.invoicesWired(t).NumberGaps(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Lückenbericht: %v", err)
@@ -581,7 +581,7 @@ func TestPdfOnlyIsRejectedAfterTheTransition(t *testing.T) {
 	}
 }
 
-// 2027 hängt die Übergangsregel am Vorjahresumsatz: über 800.000 € ist sie
+// 2027 richtet sich die Übergangsregel nach dem Vorjahresumsatz: über 800.000 € ist sie
 // verbraucht (§ 27 Abs. 38 Nr. 2 UStG).
 func TestPdfOnlyIn2027DependsOnPriorYearRevenue(t *testing.T) {
 	env := newTestEnv(t)
@@ -713,7 +713,7 @@ func TestCancellationCannotBeCancelledOrCorrected(t *testing.T) {
 	}
 
 	// Das Stornodokument steht auf „ausgestellt" wie jede Rechnung; die Sperre
-	// darf deshalb nicht am Status hängen, sondern an der Dokumentart.
+	// richtet sich deshalb nach der Dokumentart und nicht nach dem Status.
 	if !storno.Status.IsIssued() {
 		t.Fatalf("das Stornodokument steht auf %q, erwartet ausgestellt", storno.Status)
 	}
@@ -746,7 +746,7 @@ func TestCancellationCannotBeCancelledOrCorrected(t *testing.T) {
 		t.Errorf("die abgewiesene Berichtigung hat die Nummer %s verbraucht", replacement.InvoiceNumber)
 	}
 
-	// Der Abschlag: sein Storno trägt keine Buchung, und der Journalweg sperrt
+	// Der Abschlag: sein Storno hat keine Buchung, und der Journalweg sperrt
 	// hier nichts.
 	group := env.group(t, svc, customer.ID, 1000000)
 	advance, err := svc.IssueAdvanceInvoice(ctx, AdvanceInvoiceRequest{

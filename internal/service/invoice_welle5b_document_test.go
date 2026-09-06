@@ -155,7 +155,7 @@ func TestSmallAmountInvoiceWithoutRecipientIsPdfOnly(t *testing.T) {
 	}
 
 	// Auch nach dem Ende der Übergangsfrist bleibt sie zulässig: die Ausnahme
-	// des § 33 UStDV hängt nicht am Datum.
+	// des § 33 UStDV richtet sich nicht nach dem Datum.
 	late := smallAmountSale("2028-03-01", 10000)
 	if err := env.invoicesWiredWithDocuments(t).Issue(ctx, late); err != nil {
 		t.Errorf("die Kleinbetragsrechnung bleibt von der E-Rechnungspflicht ausgenommen: %v", err)
@@ -220,7 +220,7 @@ func TestAdvanceReceiptsAreSealedWithTheSettlement(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleReceiptUnbooked, 0, domain.CheckBlocking)
 }
 
-// Auch das Stornodokument wird versiegelt: es trägt die Generalumkehr.
+// Auch das Stornodokument wird versiegelt: es verweist auf die Generalumkehr.
 func TestCancellationDocumentIsSealedOnItsReversal(t *testing.T) {
 	if testing.Short() {
 		t.Skip("die WASM-Kompilierung ist zu langsam für -short")

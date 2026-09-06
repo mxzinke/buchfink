@@ -296,9 +296,9 @@ func RevenueAccountTreatments() map[string]domain.TaxTreatment {
 // Inlandsumsatzes — die Konten, auf denen ein Steuerausweis richtig ist.
 //
 // Sie stehen als Gegenstück zu RevenueAccountTreatments: dort die Konten, deren
-// Steuerfall keine Steuer entstehen lässt, hier die, die eine tragen. Wer über
-// § 14c UStG entscheidet, braucht beide Seiten — sonst hielte er ein Konto ohne
-// Steuerfall für ein steuerfreies.
+// Steuerfall keine Steuer entstehen lässt, hier die, bei denen eine entsteht.
+// Wer über § 14c UStG entscheidet, braucht beide Seiten — sonst hielte er ein
+// Konto ohne Steuerfall für ein steuerfreies.
 func TaxableRevenueAccounts() map[string]bool {
 	out := map[string]bool{}
 	for _, g := range postingGroups {

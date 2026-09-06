@@ -38,13 +38,13 @@ Status `SCOPE` markiert ist.
 
 | Entscheidung | Begründung | Folge |
 |---|---|---|
-| **Einzelplatz, ein Bearbeiter.** Buchfink läuft auf einem Rechner, ohne Benutzerverwaltung. | Die Zielgruppe hat keine Buchhaltungsabteilung. Rollen und Freigabestufen wären für eine Person Theater. | Jede Buchung trägt die Bearbeiterkennung (Betriebssystem-Benutzer und Rechnername). Funktionstrennung nach GoBD Rz 100 ff. wird in der Verfahrensdokumentation als „ein Bearbeiter, Kontrolle durch Steuerberater und Abschlussprüfung" beschrieben. Ein Prüfer bekommt den Datenträger (Z3), ergänzt um einen schreibgeschützten Prüfermodus (Z1). |
+| **Einzelplatz, ein Bearbeiter.** Buchfink läuft auf einem Rechner, ohne Benutzerverwaltung. | Die Zielgruppe hat keine Buchhaltungsabteilung. Rollen und Freigabestufen wären für eine Person Theater. | Jede Buchung speichert die Bearbeiterkennung (Betriebssystem-Benutzer und Rechnername). Funktionstrennung nach GoBD Rz 100 ff. wird in der Verfahrensdokumentation als „ein Bearbeiter, Kontrolle durch Steuerberater und Abschlussprüfung" beschrieben. Ein Prüfer bekommt den Datenträger (Z3), ergänzt um einen schreibgeschützten Prüfermodus (Z1). |
 | **Local-First, Speicherort Inland.** Alle Daten liegen in einem Ordner auf dem Rechner der Anwenderin. | Kein Cloud-Zwang, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO. | Sicherung und Wiederherstellung müssen Teil der Software sein. Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Ordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen. |
 | **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. | ERiC ist eine proprietäre C-Bibliothek mit eigenen Lizenzbedingungen; ihre Einbindung würde den Build und die Lizenz des Projekts verändern. | Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung und E-Bilanz entstehen als Datei bzw. als Kennziffernblatt zum Übertragen in Mein ELSTER. Das Übermittlungsprotokoll (Datum, Transferticket) wird nach der Übermittlung erfasst und ist danach unveränderlich. |
 | **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Kleine Kapitalgesellschaften stellen in der Praxis eine Einheitsbilanz auf. Zwei Bewertungskreise verdoppeln jede Erfassungsmaske. | Wo das Steuerrecht zwingend abweicht (Sonderabschreibung § 7g EStG), führt Buchfink den steuerlichen Wert am Anlagegut mit und erzeugt daraus das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern (§ 274 HGB) entfallen für kleine Gesellschaften nach § 274a HGB; ab mittelgroß verweist Buchfink an den Steuerberater. |
 | **Steuerfälle sind eine geschlossene Liste.** | Jeder Steuerfall, den die Software kennt, muss vollständig richtig sein: Buchung, Rechnungstext, Voranmeldung, Meldung. Ein halb unterstützter Fall ist gefährlicher als ein fehlender. | Unterstützt: Inland 19 %, 7 %, 0 %, steuerfrei, innergemeinschaftlicher Erwerb, innergemeinschaftliche Lieferung, Reverse Charge als Empfänger (§ 13b Abs. 2 Nr. 1 UStG) und als Leistender (§ 3a Abs. 2 UStG), Ausfuhr. Ausgeschlossen: Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS/IOSS, Konsignationslager, Dreiecksgeschäft, Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet. |
 | **Keine Kasse, kein Lager, kein Lohn.** | Bargeschäft löst die KassenSichV aus, Lager braucht Inventur, Lohn ist ein eigenes Rechtsgebiet. | Das Kassenkonto 1600 bleibt bebuchbar für Auslagen und Verauslagungen, ein Kassenbuch gibt es nicht. Vorräte werden zum Stichtag als Inventurwert erfasst und als Bestandsveränderung gebucht. Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros herein. |
-| **Kapitalgesellschaften zuerst.** | Der Gründungsweg, die Kapitalaufbringung, die Größenklassen und die Offenlegung sind für UG, GmbH und AG gebaut. Personenhandelsgesellschaften brauchen Kapitalkonten je Gesellschafter, Entnahmen und Einlagen. | Die Rechtsformen KG, OHG und e.K. bleiben wählbar, tragen aber in der Oberfläche den Hinweis „Kapitalkonten und Entnahmen sind in dieser Fassung nicht abgebildet". |
+| **Kapitalgesellschaften zuerst.** | Der Gründungsweg, die Kapitalaufbringung, die Größenklassen und die Offenlegung sind für UG, GmbH und AG gebaut. Personenhandelsgesellschaften brauchen Kapitalkonten je Gesellschafter, Entnahmen und Einlagen. | Die Rechtsformen KG, OHG und e.K. bleiben wählbar, zeigen aber in der Oberfläche den Hinweis „Kapitalkonten und Entnahmen sind in dieser Fassung nicht abgebildet". |
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
     E -. Z3-Export, Prüfermodus .-> K["Datenzugriff"]
 ```
 
-Was heute trägt und was in dieser Runde dazukommt, steht je Station im
+Was heute schon funktioniert und was in dieser Runde dazukommt, steht je Station im
 Anforderungskatalog. Die Architekturentscheidung ist, **dass jede Station aus
 den Buchungen abgeleitet wird und nichts daneben erfasst wird**: die Bilanz
 liest Kontensalden, die E-Bilanz liest die Bilanz, die Voranmeldung liest die
@@ -134,7 +134,8 @@ gehören in den Entwicklungsplan, nicht in eine Merkliste.
   nachgetragen und wirkt nur auf Zeiträume ab seinem Beginn.
 - **Taxonomie-Stand der E-Bilanz** — jährlich nach dem BMF-Schreiben.
   Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026, 6.10 ab 2027. Die Ressource
-  `internal/ebilanz/taxonomy_6.9.json` trägt durchgehend `verified: false`; vor
+  `internal/ebilanz/taxonomy_6.9.json` ist durchgehend mit `verified: false`
+  markiert; vor
   der ersten Übermittlung sind ihre Elementnamen gegen die amtliche Fassung
   abzugleichen.
 - **Jahresstand des SKR04** — jährlich. Der Kontenrahmen liegt als
@@ -181,10 +182,10 @@ erDiagram
 
 ---
 
-## 6. Bedienkonzept: der Jahreslauf als Rückgrat
+## 6. Bedienkonzept: der Jahreslauf strukturiert die Oberfläche
 
 Das Menü bleibt (Übersicht, Buchhaltung, Stammdaten, Auswertungen, Verwaltung).
-Mit Welle 7 ist die Gruppe „Übersicht" die Aufgabenliste und trägt nur noch
+Mit Welle 7 ist die Gruppe „Übersicht" die Aufgabenliste und zeigt nur noch
 diesen einen Eintrag; die beiden Abschlussvorgänge sind geführte Wege
 geworden.
 
@@ -199,13 +200,15 @@ Zwei Ansichten sind mit den Wellen 5b und 5c dazugekommen, weil ihr Vorgang
 nicht in einen Dialog passt: „Anzahlungen" führt den Rechnungsverbund mit
 Abschlägen, Vereinnahmung und Schlussrechnung, und „Nebenpflichten" bündelt
 das Verzeichnis nach § 15a UStG, die USt-IdNr.-Bestätigungen, den Belegnachweis,
-die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Mit Welle 6
-kam „Nachweise" dazu: das Änderungsprotokoll mit Vorher und Nachher, die
-Versionen und Datenübernahmen, die Aufbewahrungsfristen mit Holds und
-Löschung sowie die Verfahrensdokumentation; die Seite „Sicherheit und
-Protokoll" verweist dorthin und führt das Protokoll nicht mehr selbst. Die
-Rechnungs- und Belegdialoge verweisen auf diese Seiten, statt die Vorgänge zu
-verdoppeln.
+die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Mit Welle 6 kamen die
+Nachweise dazu — Änderungsprotokoll, Versionen und Datenübernahmen,
+Aufbewahrungsfristen, Verfahrensdokumentation —, verteilt auf drei Seiten, die
+nach der Herkunft der Daten geschnitten waren und einander gegenseitig
+verwiesen. Welle 9 schneidet die Verwaltung nach dem, was der Anwender vorhat:
+„Datensicherung" (Kopien anlegen, Fristen und Löschung), „Betriebsprüfung"
+(Prüfermodus, Datenüberlassung, Verfahrensdokumentation zum Herausgeben) und
+„Einstellungen". Die Rechnungs- und Belegdialoge verweisen auf diese Seiten,
+statt die Vorgänge zu verdoppeln.
 
 ### 6.1 Die Startseite ist eine Aufgabenliste
 
@@ -287,7 +290,7 @@ dem nächsten offenen Schritt darüber. Fachlich sind es sechs Stationen:
    bestätigen; Offenlegungsumfang aus der Größenklasse, Frist und Nachweis.
 6. **Saldenvortrag** ins neue Jahr, mit Ergebnisverwendung.
 
-Zwei Entscheidungen tragen den Weg:
+Zwei Entscheidungen bestimmen den Weg:
 
 **Der Fortschritt kommt aus dem Backend.** `ClosingSteps` liefert die Zahl der
 erledigten, der übersprungenen und der insgesamt vorhandenen Schritte
@@ -336,7 +339,7 @@ wird.
 
 ### 6.5 Das Prüferpaket
 
-Ein Knopf unter „Sicherheit & Protokoll" erzeugt in einem Ordner alles, was
+Ein Knopf unter „Betriebsprüfung" erzeugt in einem Ordner alles, was
 eine Betriebsprüfung verlangt: den Z3-Export nach dem Beschreibungsstandard
 (Datendateien plus `index.xml`), den Archivexport der Belege mit Index, das
 Integritätsprotokoll, das Schlüsselverzeichnis und die
@@ -365,7 +368,7 @@ Frage, was einen Jahreslauf blockiert.
 |---|---|---|---|
 | 1 | Geschäftsjahr als Entität, Saldenvortrag, Abschluss der Erfolgskonten, Ergebnisverwendung, Abschlussstatus | GOB-06, JAB-04, JAB-09, BEW-01 | Ohne Vortrag endet die Buchhaltung nach einem Jahr. |
 | 2 | Bilanz und GuV nach §§ 266, 275 HGB im Backend, Größenklassen, Vorjahresspalte, Ausgabe als Datei; E-Bilanz aus der Gliederung | JAB-01, JAB-02, JAB-03, JAB-05 | Erst mit der Gliederung gibt es eine Struktur, auf die E-Bilanz und Offenlegung zeigen. |
-| 3 | Umsatzsteuer-Voranmeldung mit allen Kennziffern, Dauerfristverlängerung, Übermittlungsprotokoll, Zusammenfassende Meldung, Prüfberichte vor Festschreibung | UST-01, UST-03, UST-04, GOB-03, BEL-04, UNV-05 | Die Daten hängen an den Buchungen; die Meldung ist die Pflicht mit dem kürzesten Takt. |
+| 3 | Umsatzsteuer-Voranmeldung mit allen Kennziffern, Dauerfristverlängerung, Übermittlungsprotokoll, Zusammenfassende Meldung, Prüfberichte vor Festschreibung | UST-01, UST-03, UST-04, GOB-03, BEL-04, UNV-05 | Die Daten stammen aus den Buchungen; die Meldung ist die Pflicht mit dem kürzesten Takt. |
 | 4 | Z3-Export mit Beschreibungsstandard, Archivexport, Sicherung und Wiederherstellung, Prüfermodus | PRF-01, PRF-02, ARC-04, ARC-08 | Betriebsprüfung und Datenverlust sind die beiden Ereignisse, die eine Buchhaltung beenden. |
 | 5a | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung, Verzeichnis nach § 5 EStG | BEW-07, BEW-08, BEW-09, JAB-06 | Für die Bilanz nicht verzichtbar, aber erst mit Welle 1 und 2 sinnvoll. |
 | 5b | Rechnungsnummer in einer Transaktion, Pflichtangaben, XRechnung, Storno- und Korrekturbelege, Kleinbetrag, Anzahlungen als Rechnungsverbund, Ausbuchung | RECH-02 bis RECH-09, BEL-09, UST-02 | Die Ausgangsrechnung ist der häufigste Beleg; ihre Fehler wandern in jede Meldung. |
@@ -373,9 +376,9 @@ Frage, was einen Jahreslauf blockiert.
 | 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
 | 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/pruefszenario.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
 
-Nach Welle 7 folgt keine weitere. Was offen geblieben ist, trägt im
+Nach Welle 7 folgt keine weitere. Was offen geblieben ist, hat im
 [Anforderungskatalog](anforderungskatalog.md) in der Spalte Welle den Vermerk
-„Politur" und nennt in der Spalte Grund, woran es hängt: an einer Entscheidung,
-an einem Objekt, das Buchfink nicht führt, oder an einer Handlung außerhalb des
-Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
+„Politur" und nennt in der Spalte Grund, wovon es abhängt: von einer
+Entscheidung, von einem Objekt, das Buchfink nicht führt, oder von einer
+Handlung außerhalb des Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
 steht dort mit Fundstellen.

@@ -84,7 +84,7 @@ func AllAssetDocumentKinds() []AssetDocumentKind {
 
 // AssetDocument is one file kept alongside an Anlagegut.
 //
-// Es ist bewusst kein Beleg. Ein Beleg trägt eine Belegnummer aus einem
+// Es ist bewusst kein Beleg. Ein Beleg hat eine Belegnummer aus einem
 // lückenlosen Kreis, gehört zu einem Geschäftsjahr, wird gebucht und ist danach
 // versiegelt, weil sein Hash in der Journalkette hängt. Ein Kaufvertrag ist
 // nichts davon: er wird nicht gebucht, er gehört zum Wirtschaftsgut und nicht
@@ -125,7 +125,7 @@ type AssetDocument struct {
 	//
 	// Anlagendokumente sind Organisationsunterlagen im Sinne des § 147 Abs. 1
 	// Nr. 1 AO und keine Buchungsbelege: der Kaufvertrag und die
-	// Rechnungskopie tragen die Bemessungsgrundlage der Abschreibung, und die
+	// Rechnungskopie belegen die Bemessungsgrundlage der Abschreibung, und die
 	// wirkt über die ganze Nutzungsdauer fort. Die Frist ist deshalb zehn
 	// Jahre und nicht die verkürzte Belegfrist von acht.
 	//

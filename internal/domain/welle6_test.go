@@ -35,7 +35,7 @@ func TestChangedFieldsKeepsOnlyWhatChanged(t *testing.T) {
 	// verbärge sich die eine Änderung zwischen dreißig unveränderten Feldern.
 	wantKeys := map[string]bool{"street": true, "paymentTermsDays": true}
 	if len(afterMap) != len(wantKeys) {
-		t.Errorf("Nachher trägt %d Felder (%v), erwartet %d", len(afterMap), afterMap, len(wantKeys))
+		t.Errorf("Nachher hat %d Felder (%v), erwartet %d", len(afterMap), afterMap, len(wantKeys))
 	}
 	for key := range wantKeys {
 		if _, ok := afterMap[key]; !ok {
@@ -61,7 +61,7 @@ func TestChangedFieldsOnCreateHasNoBefore(t *testing.T) {
 		t.Errorf("ein neu angelegter Datensatz hat kein Vorher, bekommen %q", beforeJSON)
 	}
 	if !strings.Contains(afterJSON, "Neu GmbH") {
-		t.Errorf("das Nachher muss den angelegten Datensatz tragen, bekommen %q", afterJSON)
+		t.Errorf("das Nachher muss den angelegten Datensatz enthalten, bekommen %q", afterJSON)
 	}
 }
 
@@ -176,7 +176,7 @@ func TestValidateBookableHasOtherRulesForStatementsAndSelfIssued(t *testing.T) {
 
 func TestOtherDocumentsNeedDateAndSubjectInsteadOfIssuerAndAmount(t *testing.T) {
 	// Die Schlussbilanz des Altsystems, die Inventurliste, der
-	// Gesellschafterbeschluss: Dokumente, die eine Buchung tragen, aber keine
+	// Gesellschafterbeschluss: Dokumente, die gebucht werden, aber keine
 	// Rechnung sind. § 14 Abs. 4 Nr. 1 UStG gilt für sie nicht — sie haben
 	// keinen leistenden Unternehmer und oft keinen einzelnen Betrag.
 	for _, kind := range []ReceiptKind{ReceiptKindOther, ReceiptKindLetter} {
@@ -213,7 +213,7 @@ func TestHasHeaderIsTheCanonicalSwitch(t *testing.T) {
 		t.Error("ein Beleg ohne Belegdatum stammt aus der Zeit vor den Kopfdaten")
 	}
 	if !bookableReceipt().HasHeader() {
-		t.Error("ein Beleg mit Belegdatum trägt Kopfdaten")
+		t.Error("ein Beleg mit Belegdatum hat Kopfdaten")
 	}
 }
 
@@ -221,7 +221,7 @@ func TestLetterIsNotBooked(t *testing.T) {
 	// Ein Handelsbrief belegt eine Abrede, keinen Geschäftsvorfall. Meldete der
 	// Prüflauf ihn als „abgelegt, aber nicht gebucht", stünde er dort für immer.
 	if ReceiptKindLetter.RequiresBooking() {
-		t.Error("ein Handelsbrief trägt keine Buchung")
+		t.Error("ein Handelsbrief wird nicht gebucht")
 	}
 	if !ReceiptKindInvoice.RequiresBooking() {
 		t.Error("eine Rechnung ist zu buchen")

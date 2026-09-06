@@ -30,7 +30,7 @@ func TestActorKeepsItsFormWhenAPartIsMissing(t *testing.T) {
 	}
 }
 
-// Die ermittelte Kennung trägt die Form, die überall dokumentiert ist.
+// Die ermittelte Kennung hat die Form, die überall dokumentiert ist.
 func TestActorIsUserAtHost(t *testing.T) {
 	got := Actor()
 	if got == "" {

@@ -70,7 +70,7 @@ func (e *testEnv) dunning(t *testing.T, renderer DocumentRenderer) *DunningServi
 	if renderer != nil {
 		svc.SetRenderer(renderer)
 	}
-	// Wie in der Anwendung: die Rechnungen tragen das Kennzeichen des
+	// Wie in der Anwendung: die Rechnungen haben das Kennzeichen des
 	// Verzugshinweises an einen Verbraucher.
 	svc.SetInvoiceSource(repository.NewInvoiceRepository(e.db))
 	return svc
@@ -397,11 +397,11 @@ func TestDunningLumpSumAppearsOnceUnderTheDefaultLevels(t *testing.T) {
 			t.Fatalf("Schreiben zum %s: %v", run.date, err)
 		}
 		if notice.LumpSumAmount != run.lumpSum {
-			t.Errorf("zum %s trägt das Schreiben %s € Pauschale, erwartet %s €",
+			t.Errorf("zum %s hat das Schreiben %s € Pauschale, erwartet %s €",
 				run.date, notice.LumpSumAmount, run.lumpSum)
 		}
 		if notice.Items[0].LumpSumAmount != run.lumpSum {
-			t.Errorf("zum %s trägt der Posten %s € Pauschale, erwartet %s €",
+			t.Errorf("zum %s hat der Posten %s € Pauschale, erwartet %s €",
 				run.date, notice.Items[0].LumpSumAmount, run.lumpSum)
 		}
 	}
@@ -570,18 +570,18 @@ func TestDunningProposalNamesTheMissingBaseRate(t *testing.T) {
 		t.Errorf("der Hinweis nennt den fehlenden Basiszinssatz nicht: %q", p.Items[0].Note)
 	}
 	if !strings.Contains(p.Note, "Basiszinssatz") {
-		t.Errorf("der Vorschlag trägt den Hinweis nicht: %q", p.Note)
+		t.Errorf("der Vorschlag enthält den Hinweis nicht: %q", p.Note)
 	}
-	// Keine Pauschale — nicht wegen der ausgefallenen Zinsen, sondern weil die
-	// Stammdaten dieses Kunden fehlen und der Lauf ihn deshalb vorsichtshalber
-	// als Verbraucher rechnet. Dass sie am Verzug hängt und nicht an der
-	// Zinsrechnung, prüft der nächste Test.
+	// Keine Pauschale: Die Stammdaten dieses Kunden fehlen, und der Lauf rechnet
+	// ihn deshalb vorsichtshalber als Verbraucher — die ausgefallenen Zinsen sind
+	// hier nicht der Grund. Dass die Pauschale sich nach dem Verzug richtet und
+	// nicht nach der Zinsrechnung, prüft der nächste Test.
 	if p.LumpSum != 0 {
 		t.Errorf("Pauschale = %s €, erwartet 0 gegenüber einem Verbraucher", p.LumpSum)
 	}
 }
 
-// Die Pauschale hängt am Verzug, nicht am Gelingen der Zinsrechnung.
+// Die Pauschale richtet sich nach dem Verzug, nicht nach dem Gelingen der Zinsrechnung.
 //
 // Fehlt der Basiszinssatz eines Halbjahres, fallen die Zinsen aus — der Verzug
 // ist trotzdem eingetreten, und § 288 Abs. 5 BGB knüpft die Pauschale allein

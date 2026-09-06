@@ -21,7 +21,7 @@ const TimeDriftTolerance = 5 * time.Minute
 //
 // Der Vergleich gehört zur Festschreibung, weil dort ohnehin eine beglaubigte
 // Zeit eintrifft — es ist die einzige Zeitangabe im ganzen Programm, die nicht
-// von der Uhr dieses Rechners stammt. Geht die Uhr falsch, tragen sämtliche
+// von der Uhr dieses Rechners stammt. Geht die Uhr falsch, haben sämtliche
 // Buchungen und Protokolleinträge einen Zeitpunkt, den es nicht gab, und die
 // zeitgerechte Erfassung (§ 146 Abs. 1 AO) ließe sich nicht mehr belegen.
 func TimeDriftNote(system, trusted time.Time, tsaName string) string {
@@ -43,7 +43,7 @@ func TimeDriftNote(system, trusted time.Time, tsaName string) string {
 	}
 	return fmt.Sprintf(
 		"Die Uhr dieses Rechners %s um %s gegenüber %s. Prüfe die Systemzeit — "+
-			"Buchungs- und Protokollzeitpunkte hängen an ihr.",
+			"Buchungs- und Protokollzeitpunkte richten sich nach ihr.",
 		direction, formatDrift(drift), name)
 }
 

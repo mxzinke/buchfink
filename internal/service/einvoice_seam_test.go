@@ -12,8 +12,8 @@ import (
 // Der Buchungspfad kommt ohne das E-Rechnungsmodul aus.
 //
 // Kein Test in dieser Datei erzeugt oder liest ein XML. Was der Buchungspfad
-// von einer empfangenen Rechnung braucht, wird von Hand hingeschrieben — und
-// genau das ist der Sinn der Schnittstelle: die Buchungsregeln lassen sich
+// von einer empfangenen Rechnung braucht, schreiben die Tests von Hand hin —
+// das ist der Sinn der Schnittstelle: die Buchungsregeln lassen sich
 // prüfen, ohne dass ein Format im Spiel ist, und das Modul lässt sich prüfen,
 // ohne dass ein Konto im Spiel ist.
 
@@ -135,7 +135,7 @@ func TestProposalIsBuiltFromTheInterface(t *testing.T) {
 	}
 }
 
-// Der Steuerfall wird gedreht — auch das ohne jedes Dokument.
+// Der Test dreht den Steuerfall durch — auch das ohne jedes Dokument.
 func TestTreatmentIsDerivedFromTheCategoryAlone(t *testing.T) {
 	cases := []struct {
 		category string
@@ -174,7 +174,7 @@ func TestTreatmentIsDerivedFromTheCategoryAlone(t *testing.T) {
 	}
 }
 
-// Eine Gutschrift trägt positive Beträge und sagt nur im Rechnungstyp, was sie
+// Eine Gutschrift hat positive Beträge und sagt nur im Rechnungstyp, was sie
 // ist. Sie als Eingangsrechnung vorzuschlagen dreht das Vorzeichen der
 // Vorsteuer und eröffnet einen offenen Posten, wo einer zu schließen wäre — und
 // es sähe richtig aus.
@@ -289,7 +289,7 @@ func TestUnreadableRecordLeavesTheReceiptUnchanged(t *testing.T) {
 		t.Fatalf("Beleg laden: %v", err)
 	}
 	if _, ok := after.FileByRole(domain.ReceiptRoleStructured); ok {
-		t.Error("der Beleg trägt einen strukturierten Teil, obwohl das Lesen scheiterte")
+		t.Error("der Beleg hat einen strukturierten Teil, obwohl das Lesen scheiterte")
 	}
 	if len(after.Files) != 1 {
 		t.Errorf("%d Dateien am Beleg, erwartet 1", len(after.Files))

@@ -3082,6 +3082,91 @@ const KEY_DIRECTORY = [
   },
 ];
 
+/**
+ * Die Verfahrensdokumentation, wie sie auf der Seite „Betriebsprüfung" steht:
+ * eine erzeugte Fassung mit PDF daneben.
+ */
+const PROCEDURE_DOCS = [
+  {
+    id: 1,
+    version: '2026-03-31.1',
+    createdAt: `${YEAR}-03-31T09:12:00Z`,
+    fiscalYear: YEAR,
+    companyName: 'Pfennig Ventures GmbH',
+    appVersion: '0.9.0',
+    ruleVersion: '2026-01-01',
+    actor: 'Anwender',
+    fileName: 'Verfahrensdokumentation_Pfennig_Ventures_GmbH_2026-03-31.1.md',
+    storedPath: 'dokumente/verfahrensdokumentation/2026-03-31.1.md',
+    sha256: '4f2c19a7b83d5e0116c7d94af5b2c8e37a1d6b90f3c25e84d7a0b1c6e9f38d2a',
+    size: 31_482,
+    pdfFileName: 'Verfahrensdokumentation_Pfennig_Ventures_GmbH_2026-03-31.1.pdf',
+    pdfStoredPath: 'dokumente/verfahrensdokumentation/2026-03-31.1.pdf',
+    pdfSha256: '9b1e7c4d3a6f8c2d5e0a3b61c74e8d1a5b2f7c0e93d6a4b8c1e7f2059d3a6b47',
+    pdfSize: 214_907,
+  },
+];
+
+/**
+ * Die Versionshistorie, wie sie aus dem Programm kommt: zerlegt in Fassungen.
+ */
+const CHANGELOG = [
+  {
+    version: 'v0.1',
+    date: '2026-09-06',
+    summary:
+      'Erste Fassung. Buchfink führt die doppelte Buchführung einer Kapitalgesellschaft vom Beleg bis zur E-Bilanz, auf dem eigenen Rechner und ohne Konto bei irgendwem.',
+    changes: [
+      'Doppelte Buchführung auf dem SKR04: den Buchungssatz und die Steuer rechnet Buchfink aus dem Beleg, der Rechnung oder der zugeordneten Zahlung.',
+      'Ausgangsrechnungen als ZUGFeRD-konformes PDF/A-3 oder als XRechnung im CII-Profil, Nummer und Buchung in einer Transaktion.',
+      'Bankauszüge im Format CAMT.053 mit Zuordnungsvorschlag zum offenen Posten; gebucht wird nach Bestätigung.',
+      'Unveränderbarkeit über Hash-Ketten, Festschreibung mit Zeitstempel nach RFC 3161 und Prüfbericht vor jeder Festschreibung.',
+      'Datenüberlassung als Z3-Export, Prüferpaket, Prüfermodus und eine Verfahrensdokumentation aus dem laufenden System.',
+    ],
+  },
+];
+
+/**
+ * Die Muster, mit denen Buchfink die Freitexte vorbelegt. Die Ansicht vergleicht
+ * sie mit den erfassten Texten und sagt, welcher Abschnitt noch im Muster steht.
+ */
+const ORGANISATION_DEFAULTS = {
+  responsibilities:
+    'Die Buchführung wird von der Inhaberin bzw. dem Inhaber des Unternehmens selbst geführt.',
+  receiptFlow:
+    'Eingehende Belege werden unmittelbar nach Eingang in Buchfink abgelegt und dort erfasst.',
+  scanning: 'Papierbelege werden in Farbe und mindestens 300 dpi als PDF erfasst.',
+  approval: 'Buchung und Freigabe liegen in einer Hand.',
+  substitution: 'Im Verhinderungsfall übernimmt der steuerliche Berater den Zugriff.',
+  backup: 'Die Sicherung läuft nach dem hinterlegten Rhythmus auf ein Ziel außerhalb des Datenordners.',
+  notes: '',
+};
+
+/** Die Freitexte der Organisationsanweisung, wie sie eingerichtet aussehen. */
+const ORGANISATION_TEXTS = {
+  responsibilities: 'Die Geschäftsführung führt die Buchführung selbst und verantwortet sie.',
+  receiptFlow:
+    'Eingangsbelege kommen per E-Mail oder auf Papier, werden am Tag des Eingangs abgelegt und wöchentlich gebucht.',
+  scanning: 'Papierbelege werden mit 300 dpi in Farbe eingescannt und als PDF abgelegt.',
+  approval: 'Gebucht und festgeschrieben wird von der Geschäftsführung nach dem Prüflauf.',
+  substitution: 'Im Verhinderungsfall übernimmt die Steuerkanzlei.',
+  backup: 'Die Sicherung läuft täglich auf ein zweites Laufwerk und wird monatlich zurückgespielt.',
+  notes: '',
+};
+
+/** Hinweise zu Rechtsform, Speicherort und Steuerfällen. */
+const COMPLIANCE_HINTS = {
+  legalFormNote: '',
+  cloudWarning: '',
+  dataDir: '/Users/anwender/Buchfink/Pfennig Ventures GmbH',
+  systemChangeDate: '',
+  systemChangeNote: '',
+  taxCaseHints: [
+    'Organschaft und Konsolidierung bildet Buchfink nicht ab.',
+    'Land- und Forstwirtschaft nach § 13a EStG ist nicht abgedeckt.',
+  ],
+};
+
 /** Die Fristen je Geschäftsjahr. Gelöscht werden darf noch keines. */
 function retentionOverview() {
   return {
@@ -3238,6 +3323,10 @@ export const bridge = {
       dataDir: TENANTS[0].dataDir,
       isConfigured: true,
       lastFiscalYear: YEAR,
+      // Passend zum jüngsten Lauf in BACKUP_RUNS: ohne beides zeigte die Seite
+      // „Noch keine Sicherung gelaufen" über einer Liste gelaufener Sicherungen.
+      backupDir: '/Users/anna/Sicherungen',
+      lastBackupAt: '2026-08-25T18:40:00Z',
     }),
   SetupApplication: unsupported('SetupApplication'),
   LoadExistingDatabase: unsupported('LoadExistingDatabase'),
@@ -3464,6 +3553,13 @@ export const bridge = {
   GetExpiredObjects: () => later([]),
   GetBackupRuns: () => later(BACKUP_RUNS),
   GetKeyDirectory: () => later(KEY_DIRECTORY),
+  // Die Seite „Betriebsprüfung" liest die Verfahrensdokumentation beim Öffnen:
+  // ohne Antwort stünde auf dem Bild für die Webseite eine Fehlermeldung.
+  GetProcedureDocumentations: () => later(PROCEDURE_DOCS, 60),
+  GetOrganisationTexts: () => later(ORGANISATION_TEXTS),
+  GetOrganisationTextDefaults: () => later(ORGANISATION_DEFAULTS),
+  GetComplianceHints: () => later(COMPLIANCE_HINTS),
+  GetChangeLog: () => later(CHANGELOG),
 
   // Vorgänge mit Folgen — Schreiben, Dialoge, Übermittlungen. In der
   // Vorschau steht dafür eine Antwort und kein Loch (siehe README).
@@ -3587,7 +3683,6 @@ export const bridge = {
   GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
   GetServiceEndpoints: unsupported('GetServiceEndpoints'),
   SaveServiceEndpoints: unsupported('SaveServiceEndpoints'),
-  GetChangeLog: unsupported('GetChangeLog'),
   GetSchemaMigrations: unsupported('GetSchemaMigrations'),
   GetMigrationRecords: unsupported('GetMigrationRecords'),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
@@ -3595,10 +3690,9 @@ export const bridge = {
   ReleaseRetentionHold: unsupported('ReleaseRetentionHold'),
   ArchiveAndDeleteFiscalYear: unsupported('ArchiveAndDeleteFiscalYear'),
   GenerateProcedureDocumentation: unsupported('GenerateProcedureDocumentation'),
-  GetProcedureDocumentations: unsupported('GetProcedureDocumentations'),
-  GetOrganisationTexts: unsupported('GetOrganisationTexts'),
   SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
-  GetComplianceHints: unsupported('GetComplianceHints'),
+  SaveProcedureDocumentationAs: unsupported('SaveProcedureDocumentationAs'),
+  OpenReleasesPage: unsupported('OpenReleasesPage'),
   BlockContact: unsupported('BlockContact'),
   SaveReceiptHeader: unsupported('SaveReceiptHeader'),
   CorrectEntry: unsupported('CorrectEntry'),

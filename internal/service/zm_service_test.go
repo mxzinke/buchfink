@@ -178,7 +178,7 @@ func TestZMWithMissingVatIDCannotBeConfirmed(t *testing.T) {
 	}
 }
 
-// Die Datei trägt die vier Spalten des BZSt-Online-Portals, die Beträge in
+// Die Datei hat die vier Spalten des BZSt-Online-Portals, die Beträge in
 // vollen Euro.
 func TestZMCSVFormat(t *testing.T) {
 	env := newTestEnv(t)
@@ -213,7 +213,7 @@ func TestZMCSVFormat(t *testing.T) {
 }
 
 // Bei Griechenland weicht das Präfix der USt-IdNr. („EL") vom Länderkennzeichen
-// des Kontakts („GR") ab. Die Datei muss „EL;123456789" tragen: nähme sie das
+// des Kontakts („GR") ab. Die Datei muss „EL;123456789" enthalten: nähme sie das
 // Kontaktland, bliebe das Präfix in der Nummer stehen („GR;EL123456789") und das
 // BZSt-Portal wiese die Zeile zurück.
 func TestZMCSVUsesTheVatIDPrefixForGreece(t *testing.T) {
@@ -462,7 +462,7 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 
 // Wer monatlich meldet und vierteljährlich voranmeldet, hat für einen ZM-Monat
 // keine Anmeldung. Abgestimmt wird dann auf der Ebene des Quartals — sonst
-// stünde in genau der Lage, für die es die Monatsmeldung gibt, immer die volle
+// stünde in der Lage, für die es die Monatsmeldung gibt, immer die volle
 // Summe als Abweichung.
 func TestZMMonthlyReconcilesAgainstTheQuarterlyVatReturn(t *testing.T) {
 	env := newTestEnv(t)

@@ -104,7 +104,7 @@ const (
 	// Barwert wächst, weil die Fälligkeit näher rückt, und § 277 Abs. 5 Satz 1
 	// HGB verlangt den Ausweis unter den Zinsen.
 	AccountZinsaufwandAbzinsung = "7362" // Zinsaufwendungen aus der Abzinsung von Rückstellungen
-	// AccountZinsaufwandLangfristig trägt die Auflösung eines Disagios: das
+	// AccountZinsaufwandLangfristig nimmt die Auflösung eines Disagios auf: das
 	// Damnum ist vorausbezahlter Zins (§ 250 Abs. 3 HGB).
 	AccountZinsaufwandLangfristig = "7320" // Zinsaufwendungen für langfristige Verbindlichkeiten
 
@@ -150,7 +150,7 @@ func ResultCarryForwardAccount(netIncome Cents) string {
 // Vortragskonten ist.
 //
 // Sie sind das Gegenkonto des Saldenvortrags und werden deshalb selbst nie
-// vorgetragen: täte man es, trüge das neue Jahr den Vortrag des alten ein
+// vorgetragen: täte man es, enthielte das neue Jahr den Vortrag des alten ein
 // zweites Mal.
 func IsCarryForwardAccount(account string) bool {
 	switch account {

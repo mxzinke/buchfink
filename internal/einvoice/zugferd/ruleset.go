@@ -59,14 +59,14 @@ func (ruleset) Check(inv *einvoice.Invoice) []einvoice.Finding {
 		out.Report(RuleProfileFollowsStandard, "",
 			"Das Profil %s ist älter als EN 16931 und folgt ihr nicht; seit dem 1. Januar 2025 ist ein solches Dokument eine sonstige Rechnung, keine E-Rechnung",
 			profile.Label())
-		// Weiter zu prüfen, welche Gruppen das Profil tragen kann, hätte hier
+		// Weiter zu prüfen, welche Gruppen das Profil haben kann, hätte hier
 		// keinen Sinn: ZUGFeRD 1 hat ein anderes Datenmodell, und die Tabelle
 		// unten beschreibt die Stufen von ZUGFeRD 2.
 		return out.Findings()
 	}
 
 	// ZF-PROFIL-03 ist ein Hinweis, kein Fehler: MINIMUM und BASIC WL sind
-	// gültige Dokumente, nur eben keine Rechnungen. Der Fehler entstünde erst
+	// gültige Dokumente, nur keine Rechnungen. Der Fehler entstünde erst
 	// beim Buchen, und darüber entscheidet nicht dieses Modul.
 	if !profile.IsInvoice() {
 		out.Report(RuleProfileIsInvoice, "",

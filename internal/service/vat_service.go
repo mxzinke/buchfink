@@ -142,7 +142,8 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 	summary.TotalOwedTax = summary.OutputTax + summary.ReverseChargeTax + summary.IntraCommunityAcquisitionTax
 	summary.Payable = summary.TotalOwedTax - summary.InputTax
 	// Ein Zeitraum ohne steuerpflichtigen Umsatz ist der Regelfall im ersten
-	// Monat einer Gesellschaft; die Ansicht läuft trotzdem über die Liste.
+	// Monat einer Gesellschaft; die Ansicht bekommt trotzdem eine leere Liste
+	// statt eines fehlenden Werts.
 	summary.EnsureLists()
 	return summary, nil
 }

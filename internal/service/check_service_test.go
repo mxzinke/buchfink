@@ -115,7 +115,7 @@ func TestCheckEntryWithoutReceipt(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	// Negativ: der gebuchte Eingangsbeleg hängt an seiner Buchung.
+	// Negativ: der gebuchte Eingangsbeleg ist mit seiner Buchung verbunden.
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 	if _, err := env.posting.PostIncomingReceipt(ctx,
 		env.receipt(t, vendor.ID, "fremdleistungen", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)); err != nil {
@@ -422,8 +422,8 @@ func TestCheckVatReturnMissingSkipsAnnualFilers(t *testing.T) {
 
 // Der Zeitpunkt des Laufs kommt aus derselben Uhr wie seine Fristen.
 //
-// Der Lauf ist eine Aussage über einen Zeitpunkt, und er trägt ihn selbst. Käme
-// er aus time.Now(), während die Regeln nach der gestellten Uhr rechnen, trüge
+// Der Lauf ist eine Aussage über einen Zeitpunkt, und er hat ihn selbst. Käme
+// er aus time.Now(), während die Regeln nach der gestellten Uhr rechnen, hätte
 // ein Lauf ein anderes Datum als seine eigenen Befunde — und das gespeicherte
 // Protokoll wäre nicht mehr nachzurechnen.
 func TestCheckRunTakesItsTimeFromTheServiceClock(t *testing.T) {
@@ -624,7 +624,7 @@ func TestCheckPreviewIsNotPersisted(t *testing.T) {
 // Eine ausgestellte Ausgangsrechnung hat einen Beleg — über den Beleg.
 //
 // Seit Nummer, Rechnung und Buchung in einer Transaktion entstehen, kommt das
-// Dokument danach: die Buchung kann den Beleg nicht mehr tragen, weil der
+// Dokument danach: die Buchung kann den Beleg nicht mehr verknüpfen, weil der
 // Beleg-Hash in ihrem Kettenhash steht und ein Nachtrag die Kette bräche. Der
 // Nachweis läuft deshalb vom Beleg zur Buchung, und der Prüflauf zählt beide
 // Richtungen. Ohne das meldete er jede Ausgangsrechnung als „Buchung ohne

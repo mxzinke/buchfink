@@ -17,7 +17,6 @@ import {
   Button,
   EmptyState,
   HelpPopover,
-  HelpTooltip,
   Notice,
   Section,
   Select,
@@ -287,10 +286,9 @@ const HeaderFacts: React.FC<{
             label={
               <>
                 Bilanzsumme
-                <HelpTooltip
-                  label="Erklärung zur Bilanzsumme"
-                  content="Summe der Posten A bis E der Aktivseite ohne die nicht eingeforderten ausstehenden Einlagen (§ 267 Abs. 4a HGB)."
-                />
+                <HelpPopover label="Erklärung zur Bilanzsumme">
+                  Summe der Posten A bis E der Aktivseite ohne die nicht eingeforderten ausstehenden Einlagen (§ 267 Abs. 4a HGB).
+                </HelpPopover>
               </>
             }
             value={formatCents(stmt.balanceSheetTotal)}
@@ -350,7 +348,7 @@ interface LineTableProps {
  * Eine Seite der Bilanz oder die Staffel der GuV.
  *
  * Jede Zeile lässt sich auf die Konten aufklappen, die in ihr stehen — auch in
- * der verkürzten Gliederung, denn dort trägt die Buchstabenzeile die Konten der
+ * der verkürzten Gliederung, denn dort enthält die Buchstabenzeile die Konten der
  * Unterposten, die sie ersetzt (GOB-02).
  */
 const LineTable: React.FC<LineTableProps> = ({
@@ -427,7 +425,9 @@ const LineTable: React.FC<LineTableProps> = ({
                         )}
                         <span className={line.level === 1 ? 'font-medium' : undefined}>{line.label}</span>
                         {line.note && (
-                          <HelpTooltip label={`Erklärung zu ${line.label}`} content={line.note} />
+                          <HelpPopover label={`Erklärung zu ${line.label}`}>
+                            {line.note}
+                          </HelpPopover>
                         )}
                       </span>
                     </span>
@@ -489,7 +489,7 @@ const AccountRow: React.FC<{
         )}
         <span className="text-caption text-ink-muted">{account.name}</span>
         {account.note && (
-          <HelpTooltip label={`Erklärung zu Konto ${account.number}`} content={account.note} />
+          <HelpPopover label={`Erklärung zu Konto ${account.number}`}>{account.note}</HelpPopover>
         )}
       </span>
     </Td>
@@ -566,7 +566,7 @@ const MaturityView: React.FC<{ rows: MaturityRow[] }> = ({ rows }) => (
         <Tr key={row.key}>
           <Td className="whitespace-normal">
             {row.label}
-            {row.note && <HelpTooltip label={`Erklärung zu ${row.label}`} content={row.note} />}
+            {row.note && <HelpPopover label={`Erklärung zu ${row.label}`}>{row.note}</HelpPopover>}
           </Td>
           <Td numeric>{formatCents(row.total)}</Td>
           <Td numeric>{formatCents(row.upToOneYear)}</Td>
@@ -600,12 +600,12 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
         title={CLASS_LABELS[sizeClass.class] ?? sizeClass.class}
         context={`Stichtag ${formatDate(sizeClass.closingDate)} · ${sizeClass.reason}`}
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zur Zweijahresregel">
+        explain={
+          <>
             Die Rechtsfolgen treten nach § 267 Abs. 4 Satz 1 HGB erst ein, wenn zwei aufeinander
             folgende Abschlussstichtage dieselbe Klasse ergeben. Bei einer Neugründung gilt schon
             der erste Stichtag (Satz 2).
-          </HelpPopover>
+          </>
         }
       >
         <Table density="kompakt">
@@ -656,10 +656,9 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
             <Tr>
               <Td>
                 Arbeitnehmer im Jahresdurchschnitt
-                <HelpTooltip
-                  label="Erklärung zur Arbeitnehmerzahl"
-                  content="Die Zahl lässt sich aus der Buchführung nicht ableiten; sie wird im Jahresabschluss erfasst."
-                />
+                <HelpPopover label="Erklärung zur Arbeitnehmerzahl">
+                  Die Zahl lässt sich aus der Buchführung nicht ableiten; sie wird im Jahresabschluss erfasst.
+                </HelpPopover>
               </Td>
               <Td numeric>{sizeClass.criteria.employees}</Td>
               <Td numeric className="text-ink-subtle">
@@ -777,10 +776,9 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
                   <Td className="whitespace-normal">
                     {deadline.title}
                     {deadline.description && (
-                      <HelpTooltip
-                        label={`Erklärung zu ${deadline.title}`}
-                        content={deadline.description}
-                      />
+                      <HelpPopover label={`Erklärung zu ${deadline.title}`}>
+                        {deadline.description}
+                      </HelpPopover>
                     )}
                   </Td>
                   <Td className="num">{formatDate(deadline.dueDate)}</Td>

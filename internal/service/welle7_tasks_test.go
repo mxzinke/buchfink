@@ -18,8 +18,8 @@ import (
 // Geprüft wird die Zusage aus Architektur 6.1: jede Quelle erzeugt genau dann
 // eine Zeile, wenn ihr Zustand es verlangt — und keine, wenn nicht. Die Quellen
 // sind deshalb Attrappen: eine Aufgabenliste, die nur mit einer vollständig
-// verdrahteten Anwendung prüfbar wäre, prüfte nicht die Liste, sondern die
-// Verdrahtung.
+// verdrahteten Anwendung prüfbar wäre, prüfte die Verdrahtung, nicht die
+// Liste.
 
 type stubCheckSource struct {
 	run *domain.CheckRun

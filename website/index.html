@@ -165,15 +165,15 @@
             <div>
               <h3 class="column__title">Keine Buchung ohne Beleg</h3>
               <p class="column__body">
-                Der Beleg wird abgelegt, wie er ankam, unter seinem eigenen SHA256. Erst danach
+                Buchfink legt den Beleg ab, wie er ankam, unter seinem eigenen SHA256. Erst danach
                 entsteht die Buchung, und der Weg von der Bilanz zurück zum Beleg ist begehbar.
               </p>
             </div>
             <div>
               <h3 class="column__title">GoBD mit Hashkette und Festschreibung</h3>
               <p class="column__body">
-                Jede Buchung trägt den Hash ihrer Vorgängerin, das Änderungsprotokoll eine zweite
-                Kette. Ein Zeitraum wird festgeschrieben und mit einem RFC-3161-Zeitstempel
+                Jede Buchung speichert den Hash ihrer Vorgängerin; das Änderungsprotokoll führt eine
+                zweite Kette. Ein Zeitraum wird festgeschrieben und mit einem RFC-3161-Zeitstempel
                 beglaubigt; korrigiert wird per Storno.
               </p>
             </div>
@@ -200,7 +200,7 @@
       <section class="band band--sunken" id="jahreslauf">
         <div class="wrap wrap--wide">
           <p class="overline">Der Jahreslauf</p>
-          <h2 class="section__title">Das Rückgrat der Bedienung</h2>
+          <h2 class="section__title">Ein Kreis aus drei Takten</h2>
           <p class="section__lead">
             Die Frage jeder Ansicht lautet: Was ist heute zu tun, und woran ist zu erkennen, dass
             es erledigt ist? Daraus entsteht ein Kreis aus drei Takten. Der tägliche füllt das
@@ -335,8 +335,8 @@
               <p class="note__body">
                 Alle Funktionen der laufenden Buchhaltung und des Jahresabschlusses sind gebaut.
                 Anwender gibt es noch keine, und die Version 1 steht aus. Wer Buchfink heute
-                einsetzt, prüft die Ergebnisse selbst und sichert seine Daten. Was trägt, wo eine
-                Funktion an ihrer Grenze endet und was fehlt, steht in
+                einsetzt, prüft die Ergebnisse selbst und sichert seine Daten. Was funktioniert,
+                welche Einschränkungen die einzelnen Funktionen haben und was fehlt, steht in
                 <a href="https://github.com/mxzinke/buchfink/blob/master/docs/stand-der-umsetzung.md"
                   >Stand der Umsetzung</a
                 >

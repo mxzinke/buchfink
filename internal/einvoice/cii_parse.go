@@ -72,8 +72,8 @@ func ciiMapHeader(inv *Invoice, doc *ciiDocument) {
 	inv.DespatchAdviceReference = trim(doc.Trade.Delivery.DespatchAdvice.IssuerAssignedID)
 	inv.ReceivingAdviceReference = trim(doc.Trade.Delivery.ReceivingAdvice.IssuerAssignedID)
 
-	// BT-17, BT-18 und BG-24 teilen sich ein Element und werden über den
-	// Typschlüssel auseinandergehalten.
+	// BT-17, BT-18 und BG-24 teilen sich ein Element; der Parser hält sie über
+	// den Typschlüssel auseinander.
 	for _, ref := range agreement.Additional {
 		switch trim(ref.TypeCode) {
 		case ciiRefTender:
@@ -278,7 +278,7 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 
 	for _, tax := range s.Taxes {
 		inv.VATBreakdown = append(inv.VATBreakdown, ciiParseTradeTax(tax))
-		// BT-7 und BT-8 hängen in CII an der Steuergruppe, im Modell am Beleg.
+		// BT-7 und BT-8 sitzen in CII bei der Steuergruppe, im Modell beim Beleg.
 		if !inv.TaxPointDate.Present() && tax.TaxPointDate.date().Present() {
 			inv.TaxPointDate = tax.TaxPointDate.date()
 		}
@@ -331,7 +331,7 @@ func ciiSplitTaxTotals(totals []ciiCurrencyAmount, invoiceCurrency, taxCurrency 
 	}
 	if !inInvoiceCurrency.Present() {
 		// Ohne passende Währungskennung ist der erste Wert der in
-		// Rechnungswährung. Die Kennung wird trotzdem mitgeführt, damit
+		// Rechnungswährung. Der Parser führt die Kennung trotzdem mit, damit
 		// BR-CL-03 sie prüfen kann.
 		inInvoiceCurrency = NewAmount(totals[0].Value)
 		if invoiceCurrencyID == "" {

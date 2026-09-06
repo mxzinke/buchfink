@@ -82,7 +82,7 @@ type CompanySettings struct {
 	// Folgemonats.
 	CommitGraceDays int `json:"commitGraceDays"`
 	// InvoiceCheckThreshold ist der Betrag, ab dem ein Eingangsbeleg einen
-	// Leistungsnachweis tragen muss (RECH-08).
+	// Leistungsnachweis haben muss (RECH-08).
 	//
 	// Eine Grenze und keine Pflicht für jeden Beleg: den Kaffeekassenbon gegen
 	// eine Bestellung zu prüfen, kostet mehr, als er wert ist. Oberhalb der

@@ -221,14 +221,14 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 		Why:       why + " Der Zugriff des Prüfers wird protokolliert (§ 147 Abs. 6 AO).",
 		Reference: "§ 147 Abs. 6 AO",
 		DueDate:   opts.ReadOnlyUntil,
-		Target:    domain.TaskTarget{Page: "dataaccess"},
+		Target:    domain.TaskTarget{Page: "taxaudit"},
 	})
 }
 
 // addCheckFindings macht aus den Befunden des Prüflaufs eine Zeile je Regel.
 //
 // Je Regel und nicht je Befund: fünfzig Belege ohne Buchung sind eine Aufgabe
-// und nicht fünfzig. Die Regel trägt den Schlüssel, damit die Oberfläche zur
+// und nicht fünfzig. Die Regel hat den Schlüssel, damit die Oberfläche zur
 // zugehörigen Stelle springen kann.
 func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskList, today string) {
 	if s.checks == nil {
@@ -523,7 +523,7 @@ func (s *TaskService) addReceipts(
 	open, late := 0, 0
 	var openAmount, lateAmount domain.Cents
 	oldest := ""
-	// Der Prüfvermerk hängt am Beleg und nicht am Prüflauf: er ist eine Angabe,
+	// Der Prüfvermerk gehört zum Beleg und nicht zum Prüflauf: er ist eine Angabe,
 	// die jemand machen muss, und keine Regel, die etwas findet.
 	missingProof := 0
 	var proofAmount domain.Cents
@@ -533,7 +533,7 @@ func (s *TaskService) addReceipts(
 	// klären", und beide zeigen den gebuchten Beleg gerade nicht, an dem der
 	// Vermerk am häufigsten fehlt. Ein Zustandsfilter führte deshalb auf eine
 	// Liste ohne den gemeinten Beleg. Sind es mehrere, führt der Weg zum
-	// ältesten; die Aufgabe bleibt stehen, bis alle einen Vermerk tragen.
+	// ältesten; die Aufgabe bleibt stehen, bis alle einen Vermerk haben.
 	var proofReceipt *domain.Receipt
 	proofReference := ""
 
@@ -613,7 +613,7 @@ func (s *TaskService) addReceipts(
 }
 
 // needsServiceProof meldet, ob ein Eingangsbeleg über der Grenze noch keinen
-// Leistungsnachweis trägt.
+// Leistungsnachweis hat.
 //
 // Dieselbe Regel, die den Beleg nicht buchen lässt (siehe service_proof.go):
 // die Aufgabenliste führt genau die Belege, an denen das Buchen scheitern würde.
@@ -759,7 +759,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			Title:     "Sicherung einrichten",
 			Why:       "Es gibt keine erfolgreiche Sicherung. Aufzeichnungen müssen über die Aufbewahrungsfrist lesbar bleiben.",
 			Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
-			Target:    domain.TaskTarget{Page: "dataaccess"},
+			Target:    domain.TaskTarget{Page: "backup"},
 		})
 		return
 	}
@@ -775,7 +775,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			lastDay),
 		Reference: "§ 147 Abs. 2 AO",
 		DueDate:   lastDay,
-		Target:    domain.TaskTarget{Page: "dataaccess"},
+		Target:    domain.TaskTarget{Page: "backup"},
 	})
 }
 
@@ -815,7 +815,7 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 			"ein Zielordner, der nicht mehr beschreibbar ist, fällt sonst erst auf, wenn die Sicherung gebraucht wird.",
 		Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
 		DueDate:   last.StartedAt.Format("2006-01-02"),
-		Target:    domain.TaskTarget{Page: "dataaccess"},
+		Target:    domain.TaskTarget{Page: "backup"},
 	})
 }
 

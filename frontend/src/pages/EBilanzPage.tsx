@@ -5,7 +5,6 @@ import type { MappingReport } from '../types';
 import { formatCents } from '../utils/formatters';
 import {
   Button,
-  HelpPopover,
   Notice,
   PageHeader,
   Section,
@@ -81,14 +80,16 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
       <PageHeader
         title="E-Bilanz"
         context={`Geschäftsjahr ${year} · Export nach amtlicher Taxonomie`}
+        explain={
+          <>
+            Bilanz und Gewinn- und Verlustrechnung sind nach amtlich vorgeschriebenem Datensatz
+            elektronisch an das Finanzamt zu übermitteln (§ 5b EStG). Buchfink erzeugt den
+            Datensatz aus der Gliederung dieses Geschäftsjahres; übermittelt wird er über das
+            Programm, das die Schnittstelle bedient.
+          </>
+        }
         action={
           <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zur E-Bilanz">
-              Bilanz und Gewinn- und Verlustrechnung sind nach amtlich vorgeschriebenem Datensatz
-              elektronisch an das Finanzamt zu übermitteln (§ 5b EStG). Buchfink erzeugt den
-              Datensatz aus der Gliederung dieses Geschäftsjahres; übermittelt wird er über das
-              Programm, das die Schnittstelle bedient.
-            </HelpPopover>
             <Button
               variant="secondary"
               icon={<Code className="w-4 h-4" strokeWidth={1.5} />}
@@ -187,11 +188,11 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
             context={`SKR04 über die Gliederung auf die Taxonomie ${report?.taxonomyVersion ?? ''}`}
             divider={Boolean(report && report.blocking.length > 0)}
             className="mt-8"
-            action={
-              <HelpPopover label="Erklärung zur E-Bilanz">
+            explain={
+              <>
                 {report?.taxonomyNote ??
-                  'Die XBRL-Datei enthält Bilanz, Gewinn- und Verlustrechnung, Kontennachweis und Anlagenspiegel. Sie lässt sich in Mein ELSTER hochladen oder an die Steuerberatung übergeben; eine Übermittlung aus Buchfink heraus gibt es bewusst nicht.'}
-              </HelpPopover>
+                'Die XBRL-Datei enthält Bilanz, Gewinn- und Verlustrechnung, Kontennachweis und Anlagenspiegel. Sie lässt sich in Mein ELSTER hochladen oder an die Steuerberatung übergeben; eine Übermittlung aus Buchfink heraus gibt es bewusst nicht.'}
+              </>
             }
           >
             <Table density="kompakt">

@@ -18,7 +18,7 @@ import (
 //
 // Die Datei ist JSON und kein PDF. Ein PDF wäre hübscher; JSON ist prüfbar: die
 // Zahlen stehen als Zahlen darin, und wer die Buchung nachrechnen will, muss
-// sie nicht aus einem Layout zurückgewinnen. Der Beleg trägt zusätzlich einen
+// sie nicht aus einem Layout zurückgewinnen. Der Beleg hat zusätzlich einen
 // erklärenden Text, damit er auch ohne Buchfink lesbar bleibt.
 
 // closingVoucher ist der Inhalt eines Abschluss-Eigenbelegs.
@@ -100,7 +100,7 @@ func selfIssuedVoucher(
 // Buchungssatz ist ausgeglichen —, und die Sollseite ist die, die ein Beleg
 // gewöhnlich nennt. Die Summe und nicht die erste Zeile: eine
 // Rückstellungsbuchung mit Aufwand und Vorsteuer hat zwei Sollzeilen, und der
-// Beleg trägt den ganzen Vorgang.
+// Beleg enthält den ganzen Vorgang.
 func voucherAmount(voucher closingVoucher) domain.Cents {
 	var sum domain.Cents
 	for _, line := range voucher.Lines {
@@ -139,7 +139,7 @@ func postWithVoucher(
 }
 
 // ensureOuterVoucherHeader prüft die Kopfdaten eines vom Anwender abgelegten
-// Belegs, bevor die Buchung geschrieben wird, die er tragen soll.
+// Belegs, bevor die Buchung geschrieben wird, die er belegen soll.
 //
 // Der Grund ist die Reihenfolge: das Versiegeln — der Schritt, der Beleg und
 // Buchung verbindet — läuft naturgemäß hinter dem Journal-Commit, denn vorher
@@ -147,8 +147,9 @@ func postWithVoucher(
 // bei einem Beleg ohne sie ein halber Vorgang zurück: die Buchung geschrieben,
 // der Nachweis unverbunden daneben, und der Prüflauf meldete das Dokument
 // dauerhaft als ungebucht. Die Inventurliste (§ 240 HGB) und das
-// Beschlussdokument gehen diesen Weg — sie hängen nicht an entry.ReceiptID, den
-// JournalService.Post ohnehin prüft, sondern kommen erst danach an die Buchung.
+// Beschlussdokument gehen diesen Weg — sie kommen erst nach dem Commit an die
+// Buchung, unabhängig von entry.ReceiptID, das JournalService.Post ohnehin
+// prüft.
 //
 // Der Name des Belegs steht in der Meldung, weil der Anwender sonst nicht wüsste,
 // welches der beiden Dokumente des Vorgangs gemeint ist.
@@ -157,7 +158,7 @@ func ensureOuterVoucherHeader(receipt *domain.Receipt, label string) error {
 		return nil
 	}
 	if err := receipt.ValidateHeader(); err != nil {
-		return fmt.Errorf("%s kann die Buchung nicht tragen: %w", label, err)
+		return fmt.Errorf("%s kann die Buchung nicht belegen: %w", label, err)
 	}
 	return nil
 }

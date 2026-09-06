@@ -20,8 +20,8 @@ import (
 // VatPeriodFor liefert das Datum, nach dem eine Journalzeile ihrem
 // Voranmeldungszeitraum zugeordnet wird.
 //
-// Der dritte Parameter ist der Belegeingang (`Receipt.ReceivedAt`). Er steht
-// nicht an der Buchung, sondern am Beleg, und ohne ihn ließe sich der
+// Der dritte Parameter ist der Belegeingang (`Receipt.ReceivedAt`). Er gehört
+// nicht zur Buchung, sondern zum Beleg, und ohne ihn ließe sich der
 // Vorsteuerfall nicht vollständig entscheiden: der Abzug setzt neben der
 // Leistung den *Besitz* der Rechnung voraus (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2
 // UStG). Ist kein Beleg erfasst, bleibt der Parameter leer und die Regel fällt
@@ -44,7 +44,7 @@ func VatPeriodFor(entry *domain.JournalEntry, line domain.JournalLine, receivedA
 	// Mehrbetrag bleibt bis zur Berichtigung der Rechnung geschuldet, und die
 	// Berichtigung wirkt im Zeitraum, in dem sie gegenüber dem Empfänger
 	// erklärt wird. Beides führt auf den Tag des Stornodokuments, den die
-	// Generalumkehr als Buchungsdatum trägt.
+	// Generalumkehr als Buchungsdatum hat.
 	//
 	// Vorher entschied hier der Leistungszeitraum der Ursprungsbuchung, und
 	// jedes Storno verlangte damit eine berichtigte Voranmeldung für einen

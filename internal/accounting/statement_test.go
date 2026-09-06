@@ -190,7 +190,7 @@ func TestBalanceSheetBalancesAndCarriesTheResult(t *testing.T) {
 func TestBuildStatementRefusesAnUnbalancedSheet(t *testing.T) {
 	accounts := accountsWith(t, map[string]domain.Cents{"1800": 10_000_000})
 	// Ein Saldo auf dem Vortragskonto der Klasse 9 gehört in keine Bilanzseite —
-	// genau der Fall, den ein unvollständiger Saldenvortrag hinterlässt.
+	// der Fall, den ein unvollständiger Saldenvortrag hinterlässt.
 	accounts = append(accounts, accountsWith(t, map[string]domain.Cents{"9000": -10_000_000})...)
 
 	_, err := BuildStatement(accounts, nil, domain.DepthFull)
@@ -416,7 +416,7 @@ func TestBalanceSheetTotalExcludesOutstandingContributions(t *testing.T) {
 }
 
 // Vollständigkeit allein sagt nichts: die Tabelle darf jede Katalogposition
-// kennen und sie trotzdem auf die falsche Zeile legen. Der SKR04-Katalog trägt
+// kennen und sie trotzdem auf die falsche Zeile legen. Der SKR04-Katalog hat
 // bei mehreren Positionen einen um eine Zeile verschobenen Namen und hgb_code —
 // deshalb prüft dieser Test den Inhalt, Konto für Konto, gegen die Zeile, in der
 // das Konto nach §§ 266, 275 HGB auszuweisen ist.

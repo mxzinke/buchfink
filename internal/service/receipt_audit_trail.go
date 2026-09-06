@@ -91,7 +91,7 @@ func (s *ReceiptService) SaveOrderReference(
 	// Ins Änderungsprotokoll, so wie der Leistungsnachweis: beide Felder stehen
 	// außerhalb des Beleg-Hashes, und was sie unveränderbar macht, ist allein
 	// das Protokoll. Ein Bestellbezug, der sich still ändern ließe, entwertete
-	// den Prüfpfad, den er tragen soll.
+	// den Prüfpfad, den er stützen soll.
 	if s.auditRepo != nil {
 		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
 			fmt.Sprintf("Bestellbezug zu Beleg %s geändert", updated.ReceiptNumber),

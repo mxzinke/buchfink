@@ -84,7 +84,7 @@ func (v *validator) checkCodeLists() {
 		where := linePos(i)
 		// Die Steuerkategorie der Position läuft in beiden Syntaxen unter
 		// BR-CL-18; die der Aufschlüsselung führt CII ebenfalls dort, UBL
-		// dagegen unter BR-CL-17. Geprüft wird dieselbe Liste, gemeldet wird
+		// dagegen unter BR-CL-17. Buchfink prüft dieselbe Liste, meldet aber
 		// unter der CII-Kennung — der Fund ist derselbe, nur sein Etikett
 		// könnte in einem UBL-Prüfbericht anders lauten.
 		v.inListAt("BR-CL-18", where, line.VAT.CategoryCode, untdid5305,

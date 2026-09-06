@@ -66,12 +66,12 @@ type Input struct {
 	RetentionRows []RetentionRow
 
 	// Teil 4: der Betrieb.
-	BackupDir      string
-	BackupRhythm   string
-	BackupRuns     []BackupRun
-	Migrations     []Migration
-	ChangelogTable string
-	CheckRules     []CheckRule
+	BackupDir        string
+	BackupRhythm     string
+	BackupRuns       []BackupRun
+	Migrations       []Migration
+	ChangelogSection string
+	CheckRules       []CheckRule
 
 	// Kopf.
 	Version          string
@@ -326,7 +326,7 @@ Ergebnisverwendung; danach die Feststellung und die Festschreibung des Jahres.
 
 ### 2.5 Eigenbelege
 
-Wo kein Fremdbeleg vorliegt, wird ein Eigenbeleg erstellt. Er trägt Datum,
+Wo kein Fremdbeleg vorliegt, wird ein Eigenbeleg erstellt. Er hat Datum,
 Betrag, Anlass und die Unterschrift bzw. die Bearbeiterkennung dessen, der ihn
 ausgestellt hat.
 
@@ -382,7 +382,7 @@ mindestens zwei Zeilen und ist in sich ausgeglichen.
 
 ### 3.2 Unveränderbarkeit: Hash-Kette und Kanonisierung
 
-Jede Buchung trägt den Hash ihres Vorgängers und einen eigenen Hash über ihren
+Jede Buchung hat den Hash ihres Vorgängers und einen eigenen Hash über ihren
 Inhalt (SHA-256). Die Kette beginnt je Geschäftsjahr beim Genesis-Hash. Gehasht
 wird eine kanonische Form: jedes Feld als Name, Bytelänge und Wert, in fester
 Reihenfolge — die Längenangabe macht die Form fälschungssicher, weil kein Wert
@@ -479,7 +479,7 @@ Prüferpakets.
 
 ### 4.4 Änderungshistorie des Programms
 
-{{.ChangelogTable}}
+{{.ChangelogSection}}
 
 ### 4.5 Migrationsprotokoll
 

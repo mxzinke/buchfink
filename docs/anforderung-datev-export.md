@@ -21,7 +21,7 @@ allein das DATEV-Format.
 > [Abschnitt 8](#8-quellen).
 >
 > Der fachliche Kern des Dokuments – die Architekturentscheidung in Abschnitt 2 –
-> hängt an keinem dieser Details.
+> ist von keinem dieser Details abhängig.
 
 ## 1. Wozu
 
@@ -47,8 +47,8 @@ HABEN 70001 Kreditor                  1.000,00
 ```
 
 Der DATEV-Buchungsstapel kennt dagegen pro Datensatz genau **ein Konto und ein
-Gegenkonto**. Die Steuer entsteht dort nicht als eigene Zeile, sondern wird über den
-**BU-Schlüssel** (Buchungsschlüssel) von der DATEV-Steuerautomatik selbst errechnet.
+Gegenkonto**. Die Steuer errechnet dort die DATEV-Steuerautomatik selbst über den
+**BU-Schlüssel** (Buchungsschlüssel), nicht als eigene Zeile.
 Dieselbe Buchung ist dort ein einziger Datensatz: Konto 5909, Gegenkonto 70001, Umsatz
 1.000,00, BU-Schlüssel für § 13b.
 
@@ -104,11 +104,11 @@ Alle drei als CSV mit Semikolon, Windows-1252, einer Kopfzeile mit Metadaten, ei
 Zeile mit Spaltenüberschriften und danach den Daten. **[unverifiziert]**
 
 Die Kopfzeile beginnt mit dem Kennzeichen `EXTF` (Export aus einem Fremdprogramm)
-und trägt Versionsnummer, Formatkategorie, Formatversion, Berater- und
+und enthält Versionsnummer, Formatkategorie, Formatversion, Berater- und
 Mandantennummer, Wirtschaftsjahresbeginn, Sachkontenlänge und Buchungszeitraum.
 **[unverifiziert]**
 
-### Buchungsstapel: die tragenden Felder
+### Buchungsstapel: die entscheidenden Felder
 
 Alle Zeilen dieser Tabelle sind **[unverifiziert]**.
 
@@ -125,7 +125,7 @@ Alle Zeilen dieser Tabelle sind **[unverifiziert]**.
 | Generalumkehr | `Kind == reversal` | dafür wurde die Generalumkehr eingeführt |
 | Festschreibung | Festschreibungsstand | |
 
-Zwei Fallen fallen hier schon auf: **das Belegdatum trägt kein Jahr**, es kommt aus dem
+Zwei Fallen fallen hier schon auf: **das Belegdatum hat kein Jahr**, es kommt aus dem
 Wirtschaftsjahr im Dateikopf – ein Export über eine Jahresgrenze hinweg geht also nicht
 in einer Datei. Und **der Umsatz hat kein Vorzeichen**; die Richtung steckt allein im
 Soll/Haben-Kennzeichen. Eine Generalumkehr mit negativem Betrag muss deshalb über das
@@ -133,7 +133,7 @@ GU-Kennzeichen abgebildet werden und nicht über ein Minus im Betrag.
 
 Beide Punkte sind nicht verifiziert, aber sie sind der Grund, warum der Export
 überhaupt Anforderungen an den Buchungskern stellt – wenn eines davon anders ist,
-ändert sich die Abbildung, nicht das Datenmodell. Der Kern trägt beide Varianten:
+ändert sich die Abbildung, nicht das Datenmodell. Der Kern bildet beide Varianten ab:
 das Belegdatum steht vollständig im Journal, und der Storno-Kind steht am Kopf.
 
 ### Personenkonten
@@ -167,8 +167,8 @@ Steuerberater; ohne sie akzeptiert DATEV den Import nicht.
 
 Ein Import aus DATEV ist **nicht** vorgesehen. Buchungen, die außerhalb entstanden
 sind, hätten keine Hash-Chain und keinen Beleg – sie würden die Unveränderbarkeitskette
-unterbrechen, die den Rest des Systems trägt. Wer beim Berater bucht, bucht dort; ein
-Rückimport wäre kein Datenaustausch, sondern eine zweite Buchhaltung.
+unterbrechen, auf der der Rest des Systems aufbaut. Wer beim Berater bucht, bucht dort;
+ein Rückimport wäre eine zweite Buchhaltung, kein Datenaustausch.
 
 ## 6. Offene Entscheidungen
 

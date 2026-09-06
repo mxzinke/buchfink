@@ -73,11 +73,10 @@ var taxKeyLabels = map[string]string{
 
 // TaxKeyCatalog listet jeden Steuerschlüssel, den Buchfink erzeugen kann.
 //
-// Er wird nicht von Hand gepflegt, sondern aus dem Steuerrechner gewonnen: für
-// jede Kombination aus Richtung, Steuerfall und Satz wird gefragt, welche
-// Steuerzeilen entstehen. Eine Liste, die daneben geführt würde, verlöre beim
-// nächsten neuen Steuerfall den Anschluss — und niemand merkte es, weil sie
-// nirgends gegen die Wirklichkeit gehalten wird.
+// Der Steuerrechner liefert ihn: TaxKeyCatalog fragt für jede Kombination aus
+// Richtung, Steuerfall und Satz, welche Steuerzeilen entstehen. Eine von Hand
+// gepflegte Liste verlöre beim nächsten neuen Steuerfall den Anschluss — und
+// niemand merkte es, weil sie nirgends gegen die Wirklichkeit gehalten wird.
 func TaxKeyCatalog() []TaxKeyInfo {
 	resolver := NewSKR04TaxResolver()
 	// Ein Musterbetrag, aus dem sich in jedem Fall eine Steuerzeile ergibt. Er

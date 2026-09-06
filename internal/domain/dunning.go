@@ -128,7 +128,7 @@ type DunningNotice struct {
 type DunningNoticeItem struct {
 	ID              uint `gorm:"primaryKey" json:"id"`
 	DunningNoticeID uint `gorm:"index;not null" json:"dunningNoticeId"`
-	// OpenItemEntryID ist die Buchung, die den offenen Posten trägt.
+	// OpenItemEntryID ist die Buchung, aus der der offene Posten stammt.
 	OpenItemEntryID uint   `gorm:"index;not null" json:"openItemEntryId"`
 	DocumentNumber  string `gorm:"size:60" json:"documentNumber"`
 	DocumentDate    string `gorm:"size:10" json:"documentDate"`
@@ -146,7 +146,7 @@ type DunningNoticeItem struct {
 	// je Forderung einmal an, und die Frage, ob sie für diese Forderung schon
 	// angesetzt wurde, lässt sich nur hier beantworten. Stünde sie allein am
 	// Schreiben, wüsste der nächste Mahnlauf bei einem Schreiben über drei
-	// Posten nicht, welcher der drei sie getragen hat.
+	// Posten nicht, welcher der drei sie schon angesetzt hat.
 	LumpSumAmount Cents `gorm:"not null;default:0" json:"lumpSumAmount"`
 	// Level ist die Stufe, die dieser Posten mit diesem Schreiben erreicht.
 	Level int `gorm:"not null" json:"level"`

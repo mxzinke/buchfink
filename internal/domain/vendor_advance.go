@@ -12,10 +12,10 @@ import (
 // Abs. 2 A I 4, A II 4, B I 4 HGB) und wird erst mit der Schlussrechnung des
 // Lieferanten in den Aufwand oder die Anschaffungskosten umgebucht.
 //
-// Umsatzsteuerlich hängt der Vorsteuerabzug an der Zahlung: § 15 Abs. 1 Satz 1
-// Nr. 1 Satz 3 UStG lässt ihn bei einer Anzahlungsrechnung erst zu, wenn die
-// Rechnung vorliegt *und* das Entgelt entrichtet ist. Deshalb wird eine
-// Anzahlungsrechnung des Lieferanten nicht bei Erhalt gebucht, sondern bei der
+// Umsatzsteuerlich richtet sich der Vorsteuerabzug nach der Zahlung: § 15
+// Abs. 1 Satz 1 Nr. 1 Satz 3 UStG lässt ihn bei einer Anzahlungsrechnung erst
+// zu, wenn die Rechnung vorliegt *und* das Entgelt entrichtet ist. Deshalb
+// bucht Buchfink eine Anzahlungsrechnung des Lieferanten erst bei der
 // Zahlung — spiegelbildlich zur eigenen Abschlagsrechnung.
 
 // VendorAdvance is a geleistete Anzahlung: one paid advance to a supplier.

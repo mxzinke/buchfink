@@ -342,7 +342,7 @@ func (s *ClosingBookingService) BookInventory(
 		if existing[i].JournalEntryID != nil && !voided {
 			return nil, fmt.Errorf(
 				"für das Konto %s ist im Geschäftsjahr %d bereits ein Inventurwert von %s € erfasst "+
-					"und gebucht. Eine Korrektur läuft über den Storno dieser Buchung",
+					"und gebucht. Eine Korrektur geschieht über den Storno dieser Buchung",
 				req.Account, year, existing[i].Amount)
 		}
 		count.ID = existing[i].ID
@@ -360,7 +360,7 @@ func (s *ClosingBookingService) BookInventory(
 			Lines:              preview.Lines,
 		}
 		// Auch die Bestandsveränderung braucht ihren Beleg (GoBD Rz. 61). Der
-		// Eigenbeleg trägt die Rechnung — Buchwert, Inventurwert, Differenz —
+		// Eigenbeleg enthält die Rechnung — Buchwert, Inventurwert, Differenz —
 		// und nennt die Inventurliste, die daneben im Belegspeicher liegt.
 		receipt, err := selfIssuedVoucher(ctx, s.receipts, year, closingVoucher{
 			Kind: "inventurwert", FiscalYear: year, Date: preview.BookingDate,
@@ -390,10 +390,10 @@ func (s *ClosingBookingService) BookInventory(
 		// die Versiegelung bliebe sie als loser, offener Beleg im Belegspeicher
 		// liegen — die Buchung wäre da, der Nachweis unverbunden daneben.
 		//
-		// Hängt sie schon an der stornierten Vorgängerbuchung, bleibt sie dort:
-		// eine Versiegelung ist keine Zuordnung, die man verschiebt, und der
+		// Ist sie schon mit der stornierten Vorgängerbuchung verbunden, bleibt sie
+		// dort: eine Versiegelung ist keine Zuordnung, die man verschiebt, und der
 		// Weg von der neuen Buchung zur Liste führt über den Eigenbeleg, der
-		// ihre Belegnummer trägt.
+		// ihre Belegnummer hat.
 		if s.receipts != nil && count.ReceiptID != nil && (sheet == nil || sheet.JournalEntryID == nil) {
 			if err := s.receipts.Seal(ctx, *count.ReceiptID, created.ID); err != nil {
 				return nil, fmt.Errorf(

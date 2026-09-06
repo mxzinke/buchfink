@@ -151,7 +151,7 @@ const ShellField: React.FC<{
  * genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und steht deshalb
  * auf dunklem Grund.
  *
- * Die Zahl der Schritte hängt an der Rechtsform: Nur eine Kapitalgesellschaft
+ * Die Zahl der Schritte richtet sich nach der Rechtsform: Nur eine Kapitalgesellschaft
  * durchläuft eine Vorgesellschaft, und nur dort gibt es eine Unterbilanzhaftung,
  * die Buchfink von Anfang an mitrechnen muss.
  */

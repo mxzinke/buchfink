@@ -35,7 +35,7 @@ const MatchDueWindowDays = 14
 
 // MatchTransaction ist der Bankumsatz, soweit die Bewertung ihn braucht.
 type MatchTransaction struct {
-	// Amount trägt das Vorzeichen des Auszugs: positiv für Geldeingang.
+	// Amount hat das Vorzeichen des Auszugs: positiv für Geldeingang.
 	Amount           domain.Cents
 	RemittanceInfo   string
 	CounterpartyName string
@@ -122,7 +122,7 @@ var legalFormTokens = map[string]bool{
 }
 
 // similarNames meldet, ob zwei Namen denselben kennzeichnenden Bestandteil
-// tragen.
+// haben.
 //
 // Kein Ähnlichkeitsmaß über Zeichenabstände: der Zahlungspartner auf dem
 // Kontoauszug ist selten falsch geschrieben, aber regelmäßig anders abgekürzt
@@ -283,7 +283,7 @@ func BankRulePartnerKey(counterpartyName string) string {
 // allein aus dem Partner ist schwächer und wird deshalb auch schwächer bewertet
 // — aber er ist besser als keiner.
 //
-// Ein Muster ohne Trenner trägt keinen Verwendungszweck; dann ist es selbst der
+// Ein Muster ohne Trenner hat keinen Verwendungszweck; dann ist es selbst der
 // Partner.
 func BankRulePartnerOf(pattern string) string {
 	if idx := strings.Index(pattern, BankRulePatternSeparator); idx >= 0 {

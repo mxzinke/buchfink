@@ -37,7 +37,7 @@ func (e *testEnv) giftReceipt(
 
 // Zwei Geschenke an denselben Empfänger: 40 € bleiben unter der Freigrenze von
 // 50 €, mit weiteren 20 € ist sie gerissen. Das zweite Geschenk geht auf das
-// nicht abziehbare Konto und ohne Vorsteuerabzug, und der Anwender wird gewarnt.
+// nicht abziehbare Konto und ohne Vorsteuerabzug, und Buchfink warnt den Anwender.
 func TestGiftsOverTheFreeLimitAreBookedWithoutDeduction(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

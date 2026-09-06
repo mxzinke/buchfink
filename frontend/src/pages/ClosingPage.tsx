@@ -25,7 +25,6 @@ import {
   EmptyState,
   Field,
   HelpPopover,
-  HelpTooltip,
   Input,
   PageHeader,
   Progress,
@@ -60,8 +59,8 @@ import {
  * Der Anker des Abschnitts „Schritte" auf dieser Seite.
  *
  * Die Feststellung ist der einzige Baustein, dessen Arbeit hier selbst liegt.
- * Sein „Öffnen" springt deshalb nicht auf eine andere Seite, sondern in den
- * Abschnitt darunter — ohne Ziel bliebe die Zeile als einzige ohne Knopf.
+ * Sein „Öffnen" springt deshalb in den Abschnitt darunter — ohne Ziel bliebe
+ * die Zeile als einzige ohne Knopf.
  */
 const STEPS_ANCHOR = 'jahresabschluss-schritte';
 
@@ -142,7 +141,7 @@ interface Hint {
  * Der Dienst lehnt in genau diesen Fällen ab und nennt dabei Ursache und
  * nächsten Schritt. Ein Knopf, der ohne Begründung grau ist, verschwiege beides
  * (§8.3), deshalb steht der Grund hier in einer Hinweisfläche über den Aktionen
- * (§6.2 Nr. 4) — mit derselben Diagnose, die auch die Ablehnung tragen würde.
+ * (§6.2 Nr. 4) — mit derselben Diagnose, die auch die Ablehnung begründen würde.
  */
 function carryForwardHints(preview: CarryForwardPreview): Hint[] {
   const hints: Hint[] = [];
@@ -178,10 +177,10 @@ function carryForwardHints(preview: CarryForwardPreview): Hint[] {
 /**
  * Die ausführliche Fassung desselben Grundes.
  *
- * Ein Hinweisstreifen trägt einen Satz Ursache und einen Satz nächsten Schritt
+ * Ein Hinweisstreifen hat einen Satz Ursache und einen Satz nächsten Schritt
  * (§15.1); die Kette der Vorträge und die Liste der betroffenen Konten gehören
- * deshalb nicht dorthin, sondern in den `title` des gesperrten Knopfes, wo sie
- * abrufbar bleiben, ohne dauerhaft in der Arbeitsansicht zu stehen (§15.2).
+ * deshalb in den `title` des gesperrten Knopfes, wo sie abrufbar bleiben, ohne
+ * dauerhaft in der Arbeitsansicht zu stehen (§15.2).
  */
 function carryForwardDetail(preview: CarryForwardPreview | null): string {
   if (!preview) return '';
@@ -189,7 +188,7 @@ function carryForwardDetail(preview: CarryForwardPreview | null): string {
   if (!preview.isBalanced) {
     return (
       `Aktiva, Passiva und das Jahresergebnis von ${formatCents(preview.netIncome)} stimmen nicht ` +
-      `zusammen; ein Vortrag würde die Differenz ins Geschäftsjahr ${preview.toYear} tragen.` +
+      `zusammen; ein Vortrag würde die Differenz ins Geschäftsjahr ${preview.toYear} mitnehmen.` +
       (preview.priorYearNotCarried
         ? ` Im Geschäftsjahr ${preview.fromYear} steht kein Saldenvortrag, obwohl es Buchungen aus ` +
           `früheren Jahren gibt.`
@@ -273,9 +272,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   const [confirmCarry, setConfirmCarry] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Die Größenklasse hängt an der Bilanzsumme und damit an einem Abschluss, der
-  // aufgeht. Sie bekommt deshalb einen eigenen Fehlerpfad: schlägt sie fehl,
-  // bleiben Schritte und Saldenvortrag benutzbar.
+  // Die Größenklasse richtet sich nach der Bilanzsumme und damit nach einem
+  // Abschluss, der aufgeht. Sie bekommt deshalb einen eigenen Fehlerpfad:
+  // schlägt sie fehl, bleiben Schritte und Saldenvortrag benutzbar.
   const [sizeClass, setSizeClass] = useState<SizeClass | null>(null);
   const [sizeClassError, setSizeClassError] = useState('');
   const [employees, setEmployees] = useState('0');
@@ -732,29 +731,29 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
               ? 'Die Anfangsbestände sind übernommen'
               : 'Anfangsbestände aus dem Altsystem übernehmen'
           }
+          explain={
+            <>
+              Wer die Buchführung aus einem anderen Programm übernimmt, braucht die
+              Anfangsbestände: Sachkonten gegen das Saldenvortragskonto 9000, jede offene
+              Forderung und Verbindlichkeit einzeln gegen 9008 und 9009. Als Beleg dient die
+              Schlussbilanz des Altsystems; sie ist zuvor als Beleg abzulegen (§ 146 Abs. 1 AO).
+              Die Herkunftskennung jeder Position bleibt an der Buchung stehen.
+            </>
+          }
           action={
-            <div className="flex items-center gap-3">
-              <HelpPopover label="Erklärung zur Eröffnungsbilanz">
-                Wer die Buchführung aus einem anderen Programm übernimmt, braucht die
-                Anfangsbestände: Sachkonten gegen das Saldenvortragskonto 9000, jede offene
-                Forderung und Verbindlichkeit einzeln gegen 9008 und 9009. Als Beleg dient die
-                Schlussbilanz des Altsystems; sie ist zuvor als Beleg abzulegen (§ 146 Abs. 1 AO).
-                Die Herkunftskennung jeder Position bleibt an der Buchung stehen.
-              </HelpPopover>
-              <Button
-                variant="secondary"
-                disabled={writeLock.locked || openingBooked}
-                title={
-                  writeLock.hint ??
-                  (openingBooked
-                    ? 'Die Eröffnungsbilanz ist gebucht. Eine Korrektur läuft über den Storno der vorhandenen Buchungen.'
-                    : undefined)
-                }
-                onClick={() => setOpeningOpen(true)}
-              >
-                Eröffnungsbilanz erfassen
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              disabled={writeLock.locked || openingBooked}
+              title={
+                writeLock.hint ??
+                (openingBooked
+                  ? 'Die Eröffnungsbilanz ist gebucht. Eine Korrektur geschieht durch den Storno der vorhandenen Buchungen.'
+                  : undefined)
+              }
+              onClick={() => setOpeningOpen(true)}
+            >
+              Eröffnungsbilanz erfassen
+            </Button>
           }
         >
           {openingBooked ? (
@@ -774,13 +773,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         id={STEPS_ANCHOR}
         title="Schritte"
         context="Von der Festschreibung bis zur Offenlegung"
-        action={
-          <HelpPopover label="Erklärung zum Jahresabschluss">
+        explain={
+          <>
             § 242 HGB verlangt zum Ende jedes Geschäftsjahres einen Abschluss; unterzeichnet wird er
             unter Angabe des Datums (§ 245 HGB). Festgestellt wird er von den Gesellschaftern
             (§ 42a Abs. 2 GmbHG). Ab der Feststellung nimmt das Geschäftsjahr keine Buchung mehr an;
             zurück geht es nur über die Rücksetzung, und die verlangt einen Grund.
-          </HelpPopover>
+          </>
         }
       >
         <Table>
@@ -816,21 +815,21 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             ? `${doneSteps} von ${totalSteps} erledigt · Stichtag ${formatDate(closingSteps.cutoff)}`
             : 'Die Arbeit, die zur Feststellung führt'
         }
+        explain={
+          <>
+            Bevor ein Abschluss aufgestellt wird, sind die Abschlussbuchungen zu machen:
+            Abschreibungen, Rechnungsabgrenzung, Rückstellungen, der Inventurwert der Vorräte, die
+            Umsatzsteuer-Verrechnung und die Steuerrückstellung. Der Stand folgt, wo möglich, aus
+            den Daten. Ein bewusst ausgelassener Baustein wird übersprungen — mit Grund, damit
+            später erkennbar bleibt, dass er nicht vergessen wurde.
+          </>
+        }
         action={
-          <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zu den Abschlussbausteinen">
-              Bevor ein Abschluss aufgestellt wird, sind die Abschlussbuchungen zu machen:
-              Abschreibungen, Rechnungsabgrenzung, Rückstellungen, der Inventurwert der Vorräte, die
-              Umsatzsteuer-Verrechnung und die Steuerrückstellung. Der Stand folgt, wo möglich, aus
-              den Daten. Ein bewusst ausgelassener Baustein wird übersprungen — mit Grund, damit
-              später erkennbar bleibt, dass er nicht vergessen wurde.
-            </HelpPopover>
-            {onNavigate && (
-              <Button variant="secondary" onClick={() => onNavigate('closingmodules')}>
-                Bausteine bearbeiten
-              </Button>
-            )}
-          </div>
+          onNavigate && (
+            <Button variant="secondary" onClick={() => onNavigate('closingmodules')}>
+              Bausteine bearbeiten
+            </Button>
+          )
         }
       >
         {closingStepsError ? (
@@ -890,13 +889,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                   <Td>
                     <span className="inline-flex items-center gap-1.5">
                       {step.label}
-                      <HelpTooltip label={`Erklärung zu ${step.label}`} content={step.hint} />
+                      <HelpPopover label={`Erklärung zu ${step.label}`}>{step.hint}</HelpPopover>
                     </span>
                   </Td>
                   <Td>
                     {/* „Übersprungen" ist kein Zustand des Statusvokabulars: es
                         beschreibt eine Entscheidung, nicht den Stand einer
-                        Buchung. Es trägt deshalb kein erfundenes Abzeichen,
+                        Buchung. Es zeigt deshalb kein erfundenes Abzeichen,
                         sondern dieselbe neutrale Form wie auf der
                         Bausteinseite — sonst sähe derselbe Schritt an zwei
                         Stellen verschieden aus. */}
@@ -953,13 +952,13 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             ? `${SIZE_LABELS[sizeClass.class] ?? sizeClass.class} · ${sizeClass.reason}`
             : 'Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl entscheiden'
         }
-        action={
-          <HelpPopover label="Erklärung zur Größenklasse">
+        explain={
+          <>
             Die §§ 267, 267a HGB ordnen eine Kapitalgesellschaft nach Bilanzsumme, Umsatzerlösen und
             Arbeitnehmerzahl ein; zwei der drei Merkmale entscheiden. Die Rechtsfolge tritt erst
             ein, wenn zwei aufeinander folgende Stichtage dieselbe Klasse ergeben (§ 267 Abs. 4
             HGB).
-          </HelpPopover>
+          </>
         }
       >
         {/* Ab der Feststellung bleibt das Feld an seinem Platz und wird
@@ -969,7 +968,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             nicht allein in die Oberfläche. */}
         <Field
           label="Arbeitnehmer im Jahresdurchschnitt"
-          help="Durchschnitt der an den vier Quartalsstichtagen Beschäftigten (§ 267 Abs. 5 HGB); Auszubildende bleiben außer Betracht."
+          explain="Durchschnitt der an den vier Quartalsstichtagen Beschäftigten (§ 267 Abs. 5 HGB); Auszubildende bleiben außer Betracht."
           hint={adopted ? 'Änderbar erst nach Rücksetzung der Feststellung' : undefined}
           disabled={adopted}
           className="max-w-sm"
@@ -997,8 +996,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         <Field
           label="Gesamtumsatz des Vorjahres"
           error={priorRevenueError || undefined}
-          help="Entscheidet über die Übergangsfrist der E-Rechnung (§ 27 Abs. 38 Nr. 2 UStG)."
-          explain="Bis 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden; ab 2028 nicht mehr. Vorbelegt ist der Wert aus der Gewinn- und Verlustrechnung des Vorjahres — der Gesamtumsatz des § 19 Abs. 3 UStG ist damit nicht identisch, deshalb ist er überschreibbar."
+          explain="Der Vorjahresumsatz entscheidet über die Übergangsfrist der E-Rechnung (§ 27 Abs. 38 Nr. 2 UStG): Bis 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden, ab 2028 nicht mehr. Vorbelegt ist der Wert aus der Gewinn- und Verlustrechnung des Vorjahres — der Gesamtumsatz des § 19 Abs. 3 UStG ist damit nicht identisch, deshalb ist er überschreibbar."
           className="mt-4 max-w-sm"
         >
           <div className="flex items-center gap-2">
@@ -1045,10 +1043,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                       <Td>
                         <span className="inline-flex items-center gap-1.5">
                           {row.label}
-                          <HelpTooltip
-                            label={`Erklärung zu ${row.label}`}
-                            content={row.explanation}
-                          />
+                          <HelpPopover label={`Erklärung zu ${row.label}`}>
+                            {row.explanation}
+                          </HelpPopover>
                         </span>
                       </Td>
                       <Td className={row.numeric ? 'num' : 'whitespace-normal'}>{row.value}</Td>
@@ -1064,24 +1061,24 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       <Section
         title="Saldenvortrag ins Folgejahr"
         context={preview ? `${preview.fromYear} → ${preview.toYear}` : `${year} → ${state.nextYear}`}
+        explain={
+          <>
+            § 252 Abs. 1 Nr. 1 HGB verlangt, dass die Eröffnungsbilanz mit der Schlussbilanz des
+            Vorjahres übereinstimmt. Vorgetragen werden die Bilanzkonten gegen 9000, die offenen
+            Posten der Debitoren gegen 9008 und der Kreditoren gegen 9009. Das Jahresergebnis geht
+            auf den Gewinn- oder Verlustvortrag; über seine Verwendung wird gesondert beschlossen.
+          </>
+        }
         action={
-          <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zum Saldenvortrag">
-              § 252 Abs. 1 Nr. 1 HGB verlangt, dass die Eröffnungsbilanz mit der Schlussbilanz des
-              Vorjahres übereinstimmt. Vorgetragen werden die Bilanzkonten gegen 9000, die offenen
-              Posten der Debitoren gegen 9008 und der Kreditoren gegen 9009. Das Jahresergebnis geht
-              auf den Gewinn- oder Verlustvortrag; über seine Verwendung wird gesondert beschlossen.
-            </HelpPopover>
-            <Button
-              variant="secondary"
-              icon={<Layers className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={carryBlocked || busy || writeLock.locked}
-              title={writeLock.hint ?? carryTitle}
-              onClick={() => setConfirmCarry(true)}
-            >
-              {carryLabel}
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            icon={<Layers className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={carryBlocked || busy || writeLock.locked}
+            title={writeLock.hint ?? carryTitle}
+            onClick={() => setConfirmCarry(true)}
+          >
+            {carryLabel}
+          </Button>
         }
       >
         {previewError && (
@@ -1110,7 +1107,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
               <StatRow>
                 {/* Der Abschnitt zeigt Ergebnis und Zielkonto nebeneinander: das
                     Jahresergebnis ist der einzige Wert der Vortragsbuchung, der
-                    nicht aus einem Schlusssaldo stammt, sondern aus der GuV. */}
+                    aus der GuV stammt statt aus einem Schlusssaldo. */}
                 <Stat
                   label="Jahresergebnis"
                   value={formatCents(preview.netIncome)}
@@ -1158,10 +1155,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                     <Th numeric>
                       <span className="inline-flex items-center gap-1.5">
                         Schlusssaldo
-                        <HelpTooltip
-                          label="Erklärung zum Schlusssaldo"
-                          content="Positive Beträge stehen im Soll, negative im Haben."
-                        />
+                        <HelpPopover label="Erklärung zum Schlusssaldo">
+                          Positive Beträge stehen im Soll, negative im Haben.
+                        </HelpPopover>
                       </span>
                     </Th>
                     <Th numeric>Vorgetragen</Th>
@@ -1174,12 +1170,12 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                       <Td code>{row.account}</Td>
                       <Td>
                         {row.name}
-                        {/* Auf dem Ergebniskonto steht unter „Schlusssaldo" nicht der
-                            Schlusssaldo des Vorjahres allein, sondern er zuzüglich des
-                            Jahresergebnisses. Ohne diesen Zusatz fände jeder, der die
-                            Zeile gegen die Summen- und Saldenliste des Vorjahres hält,
-                            eine unerklärte Abweichung — und zwar genau auf dem Konto,
-                            das die Bilanzidentität trägt. */}
+                        {/* Auf dem Ergebniskonto steht unter „Schlusssaldo" der
+                            Schlusssaldo des Vorjahres zuzüglich des Jahresergebnisses.
+                            Ohne diesen Zusatz fände jeder, der die Zeile gegen die
+                            Summen- und Saldenliste des Vorjahres hält, eine unerklärte
+                            Abweichung — und zwar genau auf dem Konto, das über die
+                            Bilanzidentität entscheidet. */}
                         {row.includesNetIncome && (
                           <span className="text-ink-muted">
                             {` · inkl. Jahresergebnis ${formatCents(preview.netIncome)}`}
@@ -1320,7 +1316,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           <Field
             label="Beschlussbezug"
             optional
-            help="Welcher Gesellschafterbeschluss den Abschluss festgestellt hat."
+            explain="Welcher Gesellschafterbeschluss den Abschluss festgestellt hat."
             className="mt-4"
           >
             <Input
@@ -1369,7 +1365,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         <Field
           label="Grund"
           error={stepReopenFieldError || undefined}
-          help="Geht ins Änderungsprotokoll und steht dort neben dem Grund des Überspringens."
+          explain="Geht ins Änderungsprotokoll und steht dort neben dem Grund des Überspringens."
         >
           <Textarea
             rows={3}
@@ -1414,7 +1410,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         <Field
           label="Grund"
           error={reopenFieldError || undefined}
-          help="Geht ins Änderungsprotokoll und bleibt dort."
+          explain="Geht ins Änderungsprotokoll und bleibt dort."
         >
           <Textarea
             rows={3}
@@ -1519,7 +1515,7 @@ const STEP_PAGES: Partial<Record<ClosingStepKey, TabType>> = {
  * Baustein und lebt dort mit seinen Eingaben, seinem Ladezustand und seiner
  * Sperre. Ihn von hier aus fernzusteuern hieße, jede dieser Ansichten ein
  * zweites Mal von außen zu öffnen — zwei Wege in denselben Dialog, von denen
- * einer irgendwann anders funktioniert. Der geführte Weg trägt hier den
+ * einer irgendwann anders funktioniert. Der geführte Weg übernimmt hier den
  * Fortschritt („n von total"), die Reihenfolge und das Zurücknehmen; die
  * Buchung selbst bleibt beim Baustein.
  */

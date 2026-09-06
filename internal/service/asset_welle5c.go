@@ -11,15 +11,15 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Anlagenthemen der Welle 5c: die Sperren, die am Anlagekonto hängen, der
-// Wertaufholungsbericht, die Einheitlichkeit des Sammelposten-Wahlrechts und die
-// anschaffungsnahen Herstellungskosten.
+// Die Anlagenthemen der Welle 5c: die Sperren, die sich nach dem Anlagekonto
+// richten, der Wertaufholungsbericht, die Einheitlichkeit des
+// Sammelposten-Wahlrechts und die anschaffungsnahen Herstellungskosten.
 
 // validateMethodForAccount hält die Abschreibungsverfahren an den Merkmalen des
 // Anlagekontos fest.
 //
-// Ob ein Wirtschaftsgut beweglich ist, steht nicht am Anlagegut, sondern im
-// Kontenkatalog — und daran hängen drei Regeln, die bisher nur zum Teil
+// Ob ein Wirtschaftsgut beweglich ist, steht im Kontenkatalog, nicht am
+// Anlagegut — und danach richten sich drei Regeln, die bisher nur zum Teil
 // durchgesetzt waren: die degressive AfA des § 7 Abs. 2 EStG gilt für bewegliche
 // Wirtschaftsgüter, die festen Sätze des § 7 Abs. 4 EStG für Gebäude, und die
 // Staffel des § 7 Abs. 2a EStG für neue Elektrofahrzeuge. Ohne diese Prüfung
@@ -32,7 +32,7 @@ func validateMethodForAccount(asset *domain.FixedAsset) error {
 	case domain.DepreciationDegressive:
 		if known && entry.Immovable {
 			return fmt.Errorf(
-				"%s (%s) trägt ein unbewegliches Wirtschaftsgut. Die degressive Abschreibung des "+
+				"%s (%s) ist ein unbewegliches Wirtschaftsgut. Die degressive Abschreibung des "+
 					"§ 7 Abs. 2 EStG gibt es nur für bewegliche Wirtschaftsgüter des Anlagevermögens — "+
 					"für Gebäude gelten die festen Sätze des § 7 Abs. 4 EStG",
 				asset.Account, entry.Name)
@@ -50,7 +50,7 @@ func validateMethodForAccount(asset *domain.FixedAsset) error {
 		}
 		if !entry.Immovable {
 			return fmt.Errorf(
-				"%s (%s) trägt kein Gebäude. Die festen Sätze des § 7 Abs. 4 EStG gelten für Gebäude; "+
+				"%s (%s) ist kein Gebäude. Die festen Sätze des § 7 Abs. 4 EStG gelten für Gebäude; "+
 					"alles andere wird linear über seine betriebsgewöhnliche Nutzungsdauer abgeschrieben",
 				asset.Account, entry.Name)
 		}
@@ -61,7 +61,7 @@ func validateMethodForAccount(asset *domain.FixedAsset) error {
 	case domain.DepreciationElectricVehicle:
 		if known && entry.Group != "Fahrzeuge" {
 			return fmt.Errorf(
-				"%s (%s) trägt kein Fahrzeug. § 7 Abs. 2a EStG gilt für neue, rein elektrisch "+
+				"%s (%s) ist kein Fahrzeug. § 7 Abs. 2a EStG gilt für neue, rein elektrisch "+
 					"betriebene Fahrzeuge — buche sie auf ein Fahrzeugkonto",
 				asset.Account, entry.Name)
 		}
@@ -565,10 +565,10 @@ func (s *AssetService) checkUsefulLifeReason(
 	}
 	return fmt.Errorf(
 		"für %s (%s) schlägt Buchfink %d Monate vor (%s). Der Vorschlag gilt der Computerhardware "+
-			"und der Software dieses Schreibens; das Konto trägt auch anderes, und dann ist genau "+
-			"das die Begründung. Du hast %d Monate eingetragen — halte fest, worauf die abweichende "+
-			"Nutzungsdauer beruht. Die Tabellen binden die Finanzverwaltung und nicht dich, aber "+
-			"eine Abweichung ohne Begründung hält keiner Prüfung stand",
+			"und der Software dieses Schreibens; auf dem Konto stehen auch andere Wirtschaftsgüter, "+
+			"und das ist der Grund für die Abweichung. Eingetragen sind %d Monate — festzuhalten ist, "+
+			"worauf diese Nutzungsdauer beruht. Die Tabellen binden nur die Finanzverwaltung; eine "+
+			"Abweichung ohne Begründung hält aber keiner Prüfung stand",
 		asset.Account, entry.Name, entry.DefaultUsefulLifeMonths, entry.UsefulLifeSource,
 		asset.UsefulLifeMonths)
 }
@@ -670,8 +670,8 @@ type CapitalizeNearAcquisitionCostRequest struct {
 //
 // § 6 Abs. 1 Nr. 1a EStG macht diesen Aufwand zu Herstellungskosten, sobald er
 // 15 % der Gebäude-Anschaffungskosten übersteigt — und zwar den ganzen, nicht
-// den übersteigenden Teil. Er ist dann nicht sofort abziehbar, sondern über die
-// Restnutzungsdauer des Gebäudes abzuschreiben.
+// den übersteigenden Teil. Er ist dann über die Restnutzungsdauer des Gebäudes
+// abzuschreiben, nicht sofort abziehbar.
 //
 // Gebucht wird eine Umbuchung SOLL Gebäude an HABEN Aufwandskonto und keine
 // Generalumkehr der ursprünglichen Belege. Das weicht bewusst von der

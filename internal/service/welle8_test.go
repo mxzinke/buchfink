@@ -160,7 +160,7 @@ func TestManualEntryCreatesItsSelfIssuedReceipt(t *testing.T) {
 		t.Errorf("Betrag des Eigenbelegs %s € — erwartet den Bruttobetrag der Buchung", receipt.GrossAmount)
 	}
 	if entry.ReceiptHash != receipt.ReceiptHash {
-		t.Error("die Buchung trägt einen anderen Beleg-Hash als der Beleg")
+		t.Error("die Buchung hat einen anderen Beleg-Hash als der Beleg")
 	}
 	if entry.DocumentNumber != receipt.ReceiptNumber {
 		t.Errorf("Belegfeld %q — erwartet die Belegnummer %q",
@@ -194,8 +194,8 @@ func TestFailedManualEntryLeavesNoSelfIssuedReceipt(t *testing.T) {
 	}
 }
 
-// Die Handbuchung trägt den Steuerfall, und eine Zeile auf einem Steuerkonto
-// trägt Schlüssel und Bemessungsgrundlage.
+// Die Handbuchung hat den Steuerfall, und eine Zeile auf einem Steuerkonto
+// hat Schlüssel und Bemessungsgrundlage.
 func TestManualEntryRequiresItsTaxDetails(t *testing.T) {
 	withoutTreatment := manualEntry()
 	withoutTreatment.TaxTreatment = ""
@@ -330,7 +330,7 @@ func TestReceiptFindingsAreGroupedByClass(t *testing.T) {
 	if len(byClass[domain.ValidationClassFormat]) == 0 {
 		t.Error("ein Befund ohne BR-Kennung ist ein Formatfehler")
 	}
-	// Der Beleg trägt kein Belegdatum: eine Pflichtangabe des § 14 Abs. 4 UStG.
+	// Der Beleg hat kein Belegdatum: eine Pflichtangabe des § 14 Abs. 4 UStG.
 	content := byClass[domain.ValidationClassContent]
 	if len(content) == 0 {
 		t.Fatal("das fehlende Rechnungsdatum ist ein Inhaltsfehler")
@@ -617,10 +617,10 @@ func TestCustomAccountCarriesItsPositionIntoTheStatement(t *testing.T) {
 	if _, err := svc.CreateCustom(ctx, CustomAccountRequest{
 		Number: "0498", Name: "Aufwand in der Anlagenklasse", HGBPosition: position,
 	}); err == nil {
-		t.Error("eine Aufwandsposition trägt kein Konto der Klasse 0")
+		t.Error("eine Aufwandsposition erlaubt kein Konto der Klasse 0")
 	}
 
-	// Gebucht wird darauf wie auf jedes andere Konto, und die Bilanz trägt es.
+	// Gebucht wird darauf wie auf jedes andere Konto, und es erscheint in der Bilanz.
 	account.DebitSum = 250_000
 	bank, err := repository.NewAccountRepository(env.db).FindByNumber(ctx, domain.AccountBank)
 	if err != nil {

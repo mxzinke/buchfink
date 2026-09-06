@@ -8,7 +8,6 @@ import {
   Button,
   ConfirmDialog,
   Dialog,
-  HelpPopover,
   Section,
   Stat,
   StatRow,
@@ -102,15 +101,17 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
     <Section
       title="Gründung"
       context={`Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}`}
+      explain={
+        <>
+          Bleibt das Reinvermögen der Gesellschaft am Tag der Eintragung hinter dem Stammkapital
+          zurück, schulden die Gesellschafter die Differenz — anteilig nach ihren
+          Geschäftsanteilen. Gründungskosten dürfen nach § 248 Abs. 1 Nr. 1 HGB nicht aktiviert
+          werden und mindern das Reinvermögen deshalb sofort. Bis zur Eintragung haftet außerdem
+          persönlich, wer im Namen der Gesellschaft handelt (§ 11 Abs. 2 GmbHG).
+        </>
+      }
       action={
         <div className="flex items-center gap-2">
-          <HelpPopover label="Erklärung zur Unterbilanzhaftung">
-            Bleibt das Reinvermögen der Gesellschaft am Tag der Eintragung hinter dem Stammkapital
-            zurück, schulden die Gesellschafter die Differenz — anteilig nach ihren
-            Geschäftsanteilen. Gründungskosten dürfen nach § 248 Abs. 1 Nr. 1 HGB nicht aktiviert
-            werden und mindern das Reinvermögen deshalb sofort. Bis zur Eintragung haftet außerdem
-            persönlich, wer im Namen der Gesellschaft handelt (§ 11 Abs. 2 GmbHG).
-          </HelpPopover>
           {!state.postingsBooked && (
             <Button
               variant="secondary"

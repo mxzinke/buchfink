@@ -211,7 +211,7 @@ sonst keinen Ort — und das ist der Grund, warum sie hier stehen.
 
 **Dokumente.** Der Kaufvertrag, das Gutachten, der Fahrzeugbrief, die Police. Der Beleg
 zur Anschaffung liegt im Belegkreis, mit Belegnummer und in der Journalkette; ein Vertrag
-ist nichts davon. Er trägt keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
+ist nichts davon. Er hat keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
 gebucht — und erklärt die Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
 Ihn in das Belegmodell zu zwingen hieße, ihm eine Belegnummer zu geben, die nie in einer
 Buchung auftaucht. Der Ablageweg ist trotzdem derselbe: inhaltsadressiert unter dem
@@ -246,13 +246,13 @@ geschieht nichts, also wird nichts gebucht — festgehalten wird sie trotzdem, w
 Abgang wieder abzuziehen ist. Ohne diese Fortschreibung könnte das später niemand mehr
 rekonstruieren.
 
-**Die Höhe der Teilfreistellung hängt am Anleger, und aus der Rechtsform folgt sie nicht.**
+**Die Höhe der Teilfreistellung richtet sich nach dem Anleger, nicht nach der Rechtsform.**
 Das ist die Stelle, an der eine Ableitung still falsch rechnete:
 
 - Eine GmbH & Co. KG ist keine Körperschaft. Ihre Gesellschafter können welche sein oder
   natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem
   Gesellschafter — für die Gesellschaft als Ganzes gibt es dann keinen.
-- Auch eine Kapitalgesellschaft trägt nicht immer 80 %: für Lebens- und
+- Auch eine Kapitalgesellschaft hat nicht immer 80 %: für Lebens- und
   Krankenversicherungsunternehmen, für Institute nach § 8b Abs. 7 KStG mit Handelsbestand
   und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die erhöhten Sätze zurück.
 - Die Immobilienteilfreistellung kennt die Staffelung gar nicht: 60 % bzw. 80 % gelten für
@@ -262,14 +262,14 @@ Gefragt wird sie deshalb — aber nicht als eigene Frage. Die **Rechtsform** ste
 in den Stammdaten, und aus ihr folgt die Anlegerstellung in den allermeisten Fällen
 eindeutig: eine GmbH, eine AG, eine eG unterliegen dem KStG; ein Einzelunternehmen und
 eine freiberufliche Praxis werden von einer natürlichen Person geführt. Sie ist deshalb
-kein Freitextfeld mehr, sondern eine Auswahl, und unter ihr steht in einem Halbsatz, was
-sie für Investmentanteile bedeutet.
+eine Auswahl, kein Freitextfeld mehr, und unter ihr steht in einem Halbsatz, was sie für
+Investmentanteile bedeutet.
 
 Offen bleibt sie nur bei einer **Personengesellschaft** — dort fragt Buchfink nach, weil
 § 20 Abs. 3a InvStG auf den Gesellschafter abstellt. Und für die Ausnahmen des
 § 20 Abs. 1 Sätze 4 und 5 gibt es eine Festlegung, die die Ableitung schlägt; sie liegt
 hinter „abweichend festlegen" und ist normalerweise unsichtbar. Fehlt die Angabe, wo sie
-gebraucht wird, rechnet Buchfink nicht, sondern sagt, was zu entscheiden ist.
+gebraucht wird, sagt Buchfink, was zu entscheiden ist, statt selbst zu rechnen.
 
 Auch der **Basiszins** wird nicht mitgeliefert: er steht nicht im Gesetz. § 18 Abs. 4
 InvStG lässt ihn die Bundesbank auf den ersten Börsentag des Jahres errechnen, das
@@ -298,7 +298,7 @@ HGB). Kleine Kapitalgesellschaften sind davon befreit – die Erleichterung steh
 **§ 288 Abs. 1 Nr. 1 HGB**, nicht in § 274a HGB, der nur § 268 Abs. 4/5/6 und § 274
 betrifft.
 
-Er ist keine zusätzliche Buchung, sondern eine Auswertung – aber eine, die nur
+Er ist eine Auswertung, keine zusätzliche Buchung – aber eine, die nur
 funktioniert, wenn Zugänge, Abgänge und kumulierte AfA je Anlagegut über die Jahre
 erhalten bleiben. Das ist eine Anforderung an das Datenmodell, nicht an den Report:
 **die Anlagenkartei muss jahresübergreifend geführt werden**, während das Journal pro
@@ -310,10 +310,10 @@ Je Anlagegut: Bezeichnung, Inventarnummer, Anlagekonto, Anschaffungsdatum,
 Anschaffungskosten, Nutzungsdauer, AfA-Methode, Sonderabschreibungen, Abgangsdatum,
 Abgangsart. Dazu eine Historie der AfA-Buchungen mit Verweis auf den Journaleintrag.
 
-Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen tragen: vom
+Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen gelten: vom
 Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
 
-Dazu zwei Dinge, die keine Buchung tragen. Die **Dokumente** hängen als eigene Tabelle am
+Dazu zwei Dinge, zu denen keine Buchung gehört. Die **Dokumente** hängen als eigene Tabelle am
 Anlagegut (`asset_documents`) und verweisen auf eine Datei im inhaltsadressierten
 Speicher — dieselbe Ablage wie für die Belege, ein anderer Zweig darin. Und die Bewegung
 kennt neben den beiden Wertspalten einen **steuerlichen Betrag**: die Vorabpauschale wird
@@ -366,8 +366,8 @@ Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
 - **Erhaltungsaufwand und laufende Erträge:** beide werden gebucht und mit dem
   Anlagegut verknüpft, ohne seinen Buchwert anzurühren — genau das unterscheidet
   den Erhaltungsaufwand von den nachträglichen Herstellungskosten und die
-  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen tragen null in
-  beiden Wertspalten und erscheinen deshalb nicht im Anlagenspiegel. Das
+  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen haben in
+  beiden Wertspalten den Wert null und erscheinen deshalb nicht im Anlagenspiegel. Das
   Aufwandskonto folgt aus dem Anlagekonto, das Ertragskonto aus der Art der
   Finanzanlage; die einbehaltene Kapitalertragsteuer mindert den Zufluss und
   nicht den Ertrag.
@@ -439,14 +439,14 @@ Bewusst nicht abgebildet:
   Monats- und Quartalsfestschreibungen prüfen nicht — dort ist die AfA nicht fällig.
 - Der **Zahlungsflow** fragt die Kartei über eine Schnittstelle mit zwei Methoden,
   bevor er ein Skonto bucht (`AssetRegister` in `internal/service/payment_service.go`).
-  Er soll Anlagegüter nicht verwalten können, sondern nur erkennen, dass eine
-  Rechnung eine war. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
+  Er soll nur erkennen, dass eine Rechnung eine war, und nicht Anlagegüter
+  verwalten können. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
   bisher — eine fehlende Verdrahtung darf keine Zahlung scheitern lassen.
 - Die **Dokumentenablage** ist derselbe inhaltsadressierte Speicher wie für die
   Belege (`internal/receiptstore`), unter einem eigenen Zweig `dokumente/`. Sie
   wird beim Mandantenwechsel verdrahtet; fehlt sie, nimmt die Kartei keine
   Dokumente auf und funktioniert im Übrigen weiter.
-- Die **Stammdaten** tragen die Rechtsform, aus der die Anlegerstellung für
+- Die **Stammdaten** enthalten die Rechtsform, aus der die Anlegerstellung für
   § 20 InvStG folgt (`domain.LegalFormCatalog` und
   `CompanySettings.InvestorTypeOrDerived`). Gelesen wird sie nur über diese
   eine Ableitung; ein zweiter Aufruf, der das Feld direkt nähme, verdoppelte

@@ -58,7 +58,7 @@ type ReceiptCheckContext struct {
 	// Company sind die eigenen Unternehmensdaten (der Leistungsempfänger).
 	Company *domain.CompanySettings
 	// Invoice ist der strukturierte Rechnungsdatensatz, soweit der Beleg einen
-	// trägt und er lesbar ist.
+	// hat und er lesbar ist.
 	Invoice *einvoice.Invoice
 }
 
@@ -223,7 +223,7 @@ func ClassifyReceiptFindings(receipt *domain.Receipt, check ReceiptCheckContext)
 
 // classifyRuleFinding ordnet einen Befund der E-Rechnungsprüfung ein.
 //
-// Formatfehler sind die, an denen das Lesen selbst gescheitert ist; sie tragen
+// Formatfehler sind die, an denen das Lesen selbst gescheitert ist; sie haben
 // keine BR-Kennung, weil eine Geschäftsregel einen lesbaren Datensatz
 // voraussetzt. Alles mit einer BR-Kennung ist ein Geschäftsregelfehler.
 func classifyRuleFinding(f einvoice.Finding) domain.ValidationFinding {
@@ -260,7 +260,7 @@ func classifyRuleFinding(f einvoice.Finding) domain.ValidationFinding {
 //
 // Geprüft wird gegen dreierlei: die Kopfdaten des Belegs, die Stammdaten
 // (Aussteller und eigenes Unternehmen) und den strukturierten Datensatz, soweit
-// der Beleg einen trägt. Der Papierscan wird von keiner BR-Regel geprüft — für
+// der Beleg einen hat. Der Papierscan wird von keiner BR-Regel geprüft — für
 // ihn ist das hier die einzige Prüfung, die es gibt.
 func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []domain.ValidationFinding {
 	out := make([]domain.ValidationFinding, 0, 4)
@@ -305,7 +305,7 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 		out = append(out, domain.ValidationFinding{
 			Class: domain.ValidationClassFormat, Rule: "format_no_structured_part",
 			Severity: string(einvoice.SeverityInfo),
-			Message: "Der Beleg trägt keinen strukturierten Rechnungsdatensatz; er ist eine " +
+			Message: "Der Beleg hat keinen strukturierten Rechnungsdatensatz; er ist eine " +
 				"sonstige Rechnung.",
 			Norm: "§ 14 Abs. 1 Satz 4, § 27 Abs. 38 UStG",
 			InputTaxEffect: "Für den Vorsteuerabzug folgt daraus nichts. Die Übergangsregel des " +
@@ -334,7 +334,7 @@ func masterDataFindings(check ReceiptCheckContext) []domain.ValidationFinding {
 				"Steuernummer oder USt-IdNr. des Ausstellers sind damit nicht gegen die " +
 				"Stammdaten geprüft.",
 			Norm: "§ 14 Abs. 4 Nr. 1 und 2 UStG",
-			InputTaxEffect: "Ob die Rechnung die Angaben zum Aussteller trägt, ist offen. " +
+			InputTaxEffect: "Ob die Rechnung die Angaben zum Aussteller hat, ist offen. " +
 				"Lege den Aussteller als Kontakt an, dann prüft Buchfink die Angaben mit.",
 			Blocking: false,
 		})

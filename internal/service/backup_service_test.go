@@ -323,7 +323,7 @@ func TestRestoreRefusesANonEmptyDirectory(t *testing.T) {
 
 // Der Wiederherstellungstest muss die Sicherung prüfen und den Temporärordner
 // danach wieder abräumen. Eine entpackte Buchführung, die liegen bleibt, ist
-// genau das, was die Verschlüsselung verhindern soll.
+// das, was die Verschlüsselung verhindern soll.
 func TestVerifyBackupSucceedsAndLeavesNothingBehind(t *testing.T) {
 	env := newBackupEnv(t)
 	env.book(t, 11900)
@@ -694,7 +694,7 @@ func TestRestoreLeavesAnEmptyDirectoryAfterAChecksumError(t *testing.T) {
 		for _, e := range entries {
 			names = append(names, e.Name())
 		}
-		t.Errorf("der Zielordner trägt nach dem Fehlschlag %d Einträge: %v", len(entries), names)
+		t.Errorf("der Zielordner hat nach dem Fehlschlag %d Einträge: %v", len(entries), names)
 	}
 
 	// Und der zweite Versuch — mit der heilen Sicherung — geht durch, weil der
@@ -704,7 +704,7 @@ func TestRestoreLeavesAnEmptyDirectoryAfterAChecksumError(t *testing.T) {
 	}
 }
 
-// Beim Beenden entscheidet nicht der Abstand, sondern ob gearbeitet wurde.
+// Beim Beenden zählt, ob gearbeitet wurde, nicht der zeitliche Abstand.
 //
 // Wer morgens sichert und den ganzen Tag bucht, verlöre sonst den Tag, weil die
 // 24 Stunden noch nicht um sind. Ein Tag ohne Änderung wird dagegen nicht ein

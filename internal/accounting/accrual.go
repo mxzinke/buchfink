@@ -34,7 +34,7 @@ type AccrualUnit struct {
 // zum 14.12.2027 dreizehn Einheiten und damit 12/13 statt 11/12 als
 // Abgrenzung.
 //
-// Die Einheiten tragen die Monatsersten ab dem Anfangsmonat als Kennung; der
+// Die Einheiten haben die Monatsersten ab dem Anfangsmonat als Kennung; der
 // über sie hinausragende Rest des Endmonats gehört rechnerisch zum
 // angefangenen Anfangsmonat. Wo diese Vereinfachung nicht genügt, gibt es das
 // taggenaue Verfahren.
@@ -218,7 +218,7 @@ func AccrualReleasePlanFor(
 }
 
 // fiscalYearFirstDay ist der erste Tag eines Geschäftsjahres. Bei abweichendem
-// Geschäftsjahr beginnt das Jahr im Kalenderjahr, das seine Jahreszahl trägt.
+// Geschäftsjahr beginnt das Jahr im Kalenderjahr mit derselben Jahreszahl.
 func fiscalYearFirstDay(fiscalYear, startMonth int) string {
 	if startMonth <= 0 || startMonth > 12 {
 		startMonth = 1

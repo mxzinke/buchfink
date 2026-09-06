@@ -154,7 +154,7 @@ func TestDeleteFiscalYearRemovesEveryObjectOfThatYear(t *testing.T) {
 	// Das laufende Jahr bleibt vollständig.
 	remaining, _ := journal.FindAll(ctx, 2026)
 	if len(remaining) != 1 {
-		t.Errorf("das laufende Jahr trägt %d Buchungen, erwartet 1", len(remaining))
+		t.Errorf("das laufende Jahr hat %d Buchungen, erwartet 1", len(remaining))
 	}
 }
 

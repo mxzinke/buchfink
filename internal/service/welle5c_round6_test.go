@@ -108,7 +108,7 @@ func TestInputTaxCorrectionPeriodRunsFromFirstUse(t *testing.T) {
 			t.Errorf("Berichtigung 2031: %s € — erwartet -608,00 €", view.TotalAmount)
 		}
 
-		// Das Zugangsjahr trägt keinen Monat: der angefangene Dezember 2026
+		// Das Zugangsjahr hat keinen Monat: der angefangene Dezember 2026
 		// bleibt nach § 45 UStDV außer Betracht, weil die Verwendung nach dem
 		// 15. begann.
 		first, err := svc.Year(ctx, 2026)

@@ -172,8 +172,8 @@ const LongPaymentTermDays = 60
 // PaymentTermNotice ist der Hinweis, den ein langes Zahlungsziel auslöst.
 //
 // Er steht im Rechnungsdialog und nicht auf der Rechnung: er richtet sich an
-// die Ausstellerin, die eine Frist einträgt, deren Wirksamkeit an einer
-// Voraussetzung hängt, die sie kennen muss. Leer heißt: unauffällig.
+// die Ausstellerin, die eine Frist einträgt, deren Wirksamkeit sich nach einer
+// Voraussetzung richtet, die sie kennen muss. Leer heißt: unauffällig.
 func PaymentTermNotice(dueDays int) string {
 	if dueDays <= LongPaymentTermDays {
 		return ""
@@ -317,7 +317,7 @@ type Invoice struct {
 	PaidAmount Cents `gorm:"-" json:"paidAmount"`
 
 	// Kind ist die Dokumentart und bestimmt BT-3. Leer heißt „Rechnung" —
-	// Bestandsdaten aus der Zeit vor dieser Welle tragen nichts.
+	// Bestandsdaten aus der Zeit vor dieser Welle enthalten nichts.
 	Kind InvoiceKind `gorm:"size:20;not null;default:'invoice';index" json:"kind"`
 
 	// Terms sind die im Voraus vereinbarten Zahlungsbedingungen
@@ -330,7 +330,7 @@ type Invoice struct {
 	SmallAmount bool `gorm:"not null;default:false" json:"smallAmount"`
 
 	// ConsumerNoticePrinted hält fest, dass diese Rechnung den Verzugshinweis
-	// des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB getragen hat.
+	// des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB enthalten hat.
 	//
 	// Gegenüber einem Verbraucher tritt der Verzug dreißig Tage nach
 	// Fälligkeit nur dann von selbst ein, wenn die Rechnung darauf besonders
@@ -372,7 +372,7 @@ type Invoice struct {
 	// Schlussrechnung die Abschlagsrechnungen, die sie absetzt.
 	//
 	// Als eigene Zeilen und nicht als Liste in einem Feld: es sind mehrere, und
-	// jede trägt Nummer *und* Datum — BT-25 ohne BT-26 ist kein Bezug, den ein
+	// jede hat Nummer *und* Datum — BT-25 ohne BT-26 ist kein Bezug, den ein
 	// Empfängersystem auflösen kann.
 	PrecedingRefs []InvoiceReference `gorm:"foreignKey:InvoiceID;constraint:OnDelete:CASCADE" json:"precedingRefs"`
 

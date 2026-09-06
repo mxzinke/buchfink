@@ -95,10 +95,10 @@ func TestCoversYearIncludesFirstAndLastYear(t *testing.T) {
 	}
 }
 
-// Der ganze Berichtigungszeitraum trägt genau 60 bzw. 120 Monate.
+// Der ganze Berichtigungszeitraum hat genau 60 bzw. 120 Monate.
 //
-// Daran hängt die Rechnung: der Anteil eines Jahres ist Vorsteuer × Monate /
-// (Zeitraum × 12). Trüge der Zeitraum einen Monat zu viel, ergäbe die Summe der
+// Die Rechnung richtet sich danach: der Anteil eines Jahres ist Vorsteuer × Monate /
+// (Zeitraum × 12). Hätte der Zeitraum einen Monat zu viel, ergäbe die Summe der
 // Jahresanteile mehr als die Vorsteuer — berichtigt würde also mehr, als je
 // abgezogen wurde.
 func TestMonthsOfTheWholePeriodAreExactlySixtyOrHundredTwenty(t *testing.T) {

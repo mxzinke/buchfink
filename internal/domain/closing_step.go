@@ -122,7 +122,7 @@ func ClosingStepDefinitionFor(key ClosingStepKey) (ClosingStepDefinition, bool) 
 
 // ClosingStep ist der gespeicherte Zustand eines Bausteins in einem Jahr.
 //
-// Eigene Tabelle statt eines JSON-Feldes am Geschäftsjahr: der Zustand trägt
+// Eigene Tabelle statt eines JSON-Feldes am Geschäftsjahr: der Zustand hat
 // Grund und Zeitpunkt, und beides wird später ausgewertet — der Prüflauf führt
 // die übersprungenen Schritte mit ihrem Grund als Hinweis auf (Regel
 // closing_step_skipped), und ein Grund, der nur in einem JSON-Klumpen steht,

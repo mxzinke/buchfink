@@ -112,18 +112,18 @@ type ReceiptRequest struct {
 
 	// ProvisionID ordnet den Beleg einer Rückstellung zu.
 	//
-	// Dann bucht Buchfink nicht gegen den Aufwand, sondern gegen das
-	// Rückstellungskonto: die Verpflichtung, für die zurückgestellt wurde, wird
-	// erfüllt, und der Aufwand ist im Vorjahr schon entstanden. Ein zweites Mal
-	// Aufwand zu buchen wäre die häufigste Art, eine Rückstellung falsch
-	// abzuwickeln. Was die Rückstellung nicht deckt, bleibt Aufwand.
+	// Dann bucht Buchfink gegen das Rückstellungskonto: die Verpflichtung, für
+	// die zurückgestellt wurde, wird erfüllt, und der Aufwand ist im Vorjahr
+	// schon entstanden. Ein zweites Mal Aufwand zu buchen wäre die häufigste
+	// Art, eine Rückstellung falsch abzuwickeln. Was die Rückstellung nicht
+	// deckt, bleibt Aufwand.
 	ProvisionID uint `json:"provisionId,omitempty"`
 
 	// AdvanceTarget kennzeichnet den Beleg als geleistete Anzahlung und sagt,
 	// wofür angezahlt wurde.
 	//
-	// Der Beleg wird dann nicht als Aufwand gebucht, sondern auf das Konto der
-	// geleisteten Anzahlungen: bezahlt ist etwas, geliefert nichts. Und er wird
+	// Der Beleg wird dann auf das Konto der geleisteten Anzahlungen gebucht:
+	// bezahlt ist etwas, geliefert nichts. Und er wird
 	// erst mit der Zahlung gebucht — der Vorsteuerabzug aus einer
 	// Anzahlungsrechnung setzt nach § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG neben
 	// der Rechnung die Entrichtung des Entgelts voraus.
@@ -250,7 +250,7 @@ type PostingService struct {
 }
 
 // SetSettingsSource koppelt die Unternehmenseinstellungen an den Belegweg. Aus
-// ihnen kommt die Grenze, ab der ein Eingangsbeleg den Leistungsnachweis trägt.
+// ihnen kommt die Grenze, ab der ein Eingangsbeleg einen Leistungsnachweis braucht.
 func (s *PostingService) SetSettingsSource(repo domain.SettingsRepository) {
 	s.settingsRepo = repo
 }
@@ -336,8 +336,8 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 		description = fmt.Sprintf("Eingangsbeleg %s, %s", receipt.ReceiptNumber, contact.Name)
 	}
 
-	// Die Quelle „advance" ist keine Etikettierung, sondern die Bedingung der
-	// Periodenzuordnung: accounting.VatPeriodFor legt die Steuer einer
+	// Die Quelle „advance" ist die Bedingung der Periodenzuordnung und keine
+	// bloße Etikettierung: accounting.VatPeriodFor legt die Steuer einer
 	// Anzahlung in den Zeitraum der Zahlung. Ohne sie entschiede der
 	// Leistungszeitraum — und geleistet ist bei einer Anzahlung noch nichts.
 	source := domain.EntrySourceReceipt
@@ -594,8 +594,8 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 			}
 		}
 		// Die geleistete Anzahlung geht nicht durch die fachlichen Gruppen: sie
-		// ist kein Aufwand, sondern ein Posten des Vermögens, und welcher,
-		// entscheidet die Verwendung und nicht die Art der Leistung.
+		// ist ein Posten des Vermögens und kein Aufwand, und welcher, entscheidet
+		// die Verwendung und nicht die Art der Leistung.
 		if req.AdvanceTarget != "" {
 			prepared = append(prepared, preparedPosition{
 				position: p, foreignNet: foreignNet, advance: true})
@@ -852,7 +852,7 @@ func (s *PostingService) recordVendorAdvance(
 		if l.Side == domain.SideDebit && l.Account == account {
 			net += l.Amount
 		}
-		// Die Gegenzeile trägt den tatsächlich gezahlten Betrag; sie ist die
+		// Die Gegenzeile hat den tatsächlich gezahlten Betrag; sie ist die
 		// einzige Zeile auf einem Zahlungsmittelkonto.
 		if l.Side == domain.SideCredit && isLiquidAccount(l.Account) {
 			gross += l.Amount
@@ -1320,12 +1320,12 @@ func (s *PostingService) expenseLines(
 // preparedPosition ist eine Belegposition, nachdem Umrechnung, Konto und
 // abziehbarer Vorsteueranteil feststehen und bevor ihre Zeilen entstehen.
 type preparedPosition struct {
-	// position trägt den Nettobetrag bereits in Euro; foreignNet den Betrag der
+	// position hat den Nettobetrag bereits in Euro; foreignNet den Betrag der
 	// Fremdwährung, aus dem er entstanden ist.
 	position   ReceiptPosition
 	foreignNet domain.Cents
 	// advance kennzeichnet die Position eines Anzahlungsbelegs. Sie geht nicht
-	// durch die fachlichen Gruppen und trägt keinen geteilten Vorsteuerabzug.
+	// durch die fachlichen Gruppen und hat keinen geteilten Vorsteuerabzug.
 	advance  bool
 	resolved resolvedPosition
 }
@@ -1377,7 +1377,7 @@ func nonDeductibleTaxByPosition(prepared []preparedPosition) []domain.Cents {
 	}
 
 	for rate, idx := range lastSplit {
-		// Was die Gruppe insgesamt trägt: die Differenz der beiden einmal
+		// Was auf die Gruppe insgesamt entfällt: die Differenz der beiden einmal
 		// gerundeten Steuerbeträge. Der Unterschied zur Summe der Vorschläge
 		// liegt auf der letzten geteilten Position.
 		total := rate.Tax(netByRate[rate]) - rate.Tax(taxableByRate[rate])
@@ -1486,7 +1486,7 @@ func (s *PostingService) taxLinesForShare(
 	return out, nil
 }
 
-// isInputTaxKey meldet, ob ein Steuerschlüssel eine Vorsteuerzeile trägt.
+// isInputTaxKey meldet, ob ein Steuerschlüssel eine Vorsteuerzeile kennzeichnet.
 //
 // Erkennbar am Schlüssel und nicht am Konto: der Schlüssel entscheidet über die
 // Kennziffer, und genau die Kennziffern der Vorsteuer (61, 66, 67) sind es, die
@@ -1629,7 +1629,7 @@ func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Co
 // Ablauf des Voranmeldungszeitraums entstehen, in dem das Teilentgelt
 // vereinnahmt worden ist, und das gilt auch bei Sollversteuerung.
 //
-// Die Buchung trägt die Quelle „advance". Daran erkennt die Periodenzuordnung
+// Die Buchung hat die Quelle „advance". Daran erkennt die Periodenzuordnung
 // den Fall (accounting.VatPeriodFor): sonst entschiede der Leistungszeitraum,
 // und der liegt bei einer Anzahlung noch in der Zukunft.
 //
@@ -1759,7 +1759,7 @@ func (s *PostingService) PostAdvanceRefund(
 // SOLL Umsatzsteuer (die Steuer der Anzahlungen). Als Forderung bleibt der
 // Restbetrag stehen.
 //
-// Die Steuerzeile der Auflösung trägt denselben Steuerschlüssel wie die der
+// Die Steuerzeile der Auflösung hat denselben Steuerschlüssel wie die der
 // Rechnung, nur auf der Gegenseite. Damit meldet die Voranmeldung des
 // Leistungszeitraums genau die Differenz — die Steuer der Anzahlungen ist im
 // Zeitraum ihrer Vereinnahmung schon angemeldet worden, und sie ein zweites Mal

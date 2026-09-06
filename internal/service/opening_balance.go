@@ -95,7 +95,7 @@ func (s *JournalService) PreviewOpeningBalance(
 //
 // Gegen die Saldenvortragskonten 9000 (Sachkonten), 9008 (Debitoren) und 9009
 // (Kreditoren): die Gegenbuchung des Vortrags ist kein Aufwand und kein Ertrag,
-// sie schließt nur die Buchung. Jede Buchung trägt EntrySourceOpening und die
+// sie schließt nur die Buchung. Jede Buchung hat EntrySourceOpening und die
 // Herkunftskennung aus dem Altsystem.
 //
 // Alles oder nichts: geprüft wird jede Buchung, bevor die erste geschrieben
@@ -149,7 +149,7 @@ func (s *JournalService) BookOpeningBalance(
 // meldete ihn dauerhaft als abgelegt, aber nicht gebucht — blockierend, sobald
 // sein Eingang vor dem Stichtag liegt, also bei jeder Festschreibung des ersten
 // Jahres —, und seine Kopfdaten ließen sich über SaveHeader weiter ändern,
-// obwohl Buchungen auf ihn verweisen und seinen Hash tragen. Versiegelt ist er
+// obwohl Buchungen auf ihn verweisen und seinen Hash haben. Versiegelt ist er
 // das, was er ist: ein gebuchter Beleg.
 //
 // Das Versiegeln ist ein zweiter Schreibvorgang nach den Buchungen und darf sie
@@ -172,13 +172,13 @@ func (s *JournalService) sealOpeningReceipt(ctx context.Context, receiptID uint,
 // ersten Geschäftsjahr zu.
 //
 // Beides gehört ins Backend und nicht nur in die Oberfläche: der Baustein wird
-// dort zwar nur im ersten Jahr angeboten, aber eine Regel, die an der Sichtbarkeit
-// eines Knopfes hängt, ist keine. Ein zweiter Aufruf bucht sonst dieselben Werte
+// dort zwar nur im ersten Jahr angeboten, aber eine Regel, die sich nach der
+// Sichtbarkeit eines Knopfes richtet, ist keine. Ein zweiter Aufruf bucht sonst dieselben Werte
 // noch einmal — die Bilanz stimmte weiterhin (jede Buchung ist für sich
 // ausgeglichen), nur eben mit doppelten Beständen, und die Offene-Posten-Liste
 // führte jede übernommene Forderung zweimal.
 //
-// Ein vorhandener Saldenvortrag zählt mit: er trägt dieselbe Quelle und dieselben
+// Ein vorhandener Saldenvortrag zählt mit: er hat dieselbe Quelle und dieselben
 // Werte. Ist er da, ist das Jahr nicht das erste, und die Bestände sind schon da.
 func (s *JournalService) ensureFirstOpeningBalance(ctx context.Context, fiscalYear int) error {
 	existing, err := s.journalRepo.FindAll(ctx, fiscalYear)
@@ -191,7 +191,7 @@ func (s *JournalService) ensureFirstOpeningBalance(ctx context.Context, fiscalYe
 		}
 		return fmt.Errorf(
 			"im Geschäftsjahr %d stehen bereits Eröffnungsbuchungen (%s). Eine zweite Eröffnungsbilanz "+
-				"verdoppelte die Bestände; eine Korrektur läuft über den Storno der vorhandenen Buchungen",
+				"verdoppelte die Bestände; eine Korrektur setzt den Storno der vorhandenen Buchungen voraus",
 			fiscalYear, existing[i].EntryNumber)
 	}
 

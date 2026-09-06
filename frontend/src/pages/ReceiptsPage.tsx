@@ -73,7 +73,6 @@ import {
   EmptyState,
   Field,
   HelpPopover,
-  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -127,7 +126,7 @@ const KIND_LABELS: Record<ReceiptKind, string> = {
   other: 'Sonstiger Beleg',
 };
 
-/** Belegart mit Standardwert: ältere Belege tragen das Feld noch nicht. */
+/** Belegart mit Standardwert: ältere Belege haben das Feld noch nicht. */
 function kindOf(receipt: Receipt): ReceiptKind {
   return receipt.kind ?? 'invoice';
 }
@@ -139,7 +138,7 @@ const KIND_ITEMS = (Object.keys(KIND_LABELS) as ReceiptKind[]).map((value) => ({
 }));
 
 /**
- * Ob der Beleg seine Kopfdaten trägt (BEL-02).
+ * Ob der Beleg seine Kopfdaten hat (BEL-02).
  *
  * Das Belegdatum ist die Weiche: das Backend hasht einen Beleg ohne es nach der
  * alten Form, und ohne es lässt sich die zeitgerechte Erfassung nicht
@@ -172,7 +171,7 @@ function earliestDeletion(retentionUntil: string | undefined): string {
  * Ob eine Belegart überhaupt gebucht wird — die Spiegelung von
  * `domain.ReceiptKind.RequiresBooking`.
  *
- * Zwei Arten tragen keine Buchung. Der Kontoauszug belegt die Umsätze, die im
+ * Zwei Arten werden nicht gebucht. Der Kontoauszug belegt die Umsätze, die im
  * Bankimport aus derselben Datei entstehen (Entscheidung 9). Der Handelsbrief
  * belegt eine Abrede und keinen Geschäftsvorfall — aus einem Angebot, einer
  * Bestellung, einer Kündigung folgt kein Buchungssatz. Beide als „noch zu
@@ -180,7 +179,7 @@ function earliestDeletion(retentionUntil: string | undefined): string {
  * falsche Buchung erledigen ließe; der Prüflauf meldet sie folgerichtig nicht.
  *
  * Die Regel steht als eigene Funktion, weil Liste und Detailansicht sie beide
- * brauchen und zwei Kopien auseinanderliefen — genau das war der Fall, als die
+ * brauchen und zwei Kopien auseinanderliefen — das war der Fall, als die
  * Liste den Handelsbrief als offen führte und der Prüflauf nicht.
  */
 function requiresBooking(kind: ReceiptKind): boolean {
@@ -208,7 +207,7 @@ type ReceiptFilter = 'all' | 'open' | 'unclear';
  *
  * Die Buchung beendet den Befund nicht: Eine Rechnung mit fehlerhaftem
  * Datensatz bleibt zu klären, auch wenn sie schon im Journal steht — der
- * Vorsteuerabzug hängt an der Rechnung und nicht an der Buchung
+ * Vorsteuerabzug richtet sich nach der Rechnung und nicht nach der Buchung
  * (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Ein verworfener Beleg fällt heraus: An ihm
  * ist nichts mehr zu klären.
  */
@@ -460,13 +459,15 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
             ? undefined
             : `${receipts.length} abgelegt · ${openCount} zu buchen · ${unclearCount} zu klären`
         }
+        explain={
+          <>
+            Belege werden zuerst abgelegt und dann gebucht. Ein Beleg kann aus mehreren Dateien
+            bestehen: Eine ZUGFeRD-Rechnung ist ein PDF mit eingebettetem XML, eine XRechnung ist
+            reines XML und braucht vor dem Buchen eine erzeugte Darstellung.
+          </>
+        }
         action={
           <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zum Ablegen und Buchen">
-              Belege werden zuerst abgelegt und dann gebucht. Ein Beleg kann aus mehreren Dateien
-              bestehen: Eine ZUGFeRD-Rechnung ist ein PDF mit eingebettetem XML, eine XRechnung ist
-              reines XML und braucht vor dem Buchen eine erzeugte Darstellung.
-            </HelpPopover>
             <Button
               variant="secondary"
               disabled={loading}
@@ -705,7 +706,7 @@ const ReceiptHeaderDialog: React.FC<{
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field
           label="Belegart"
-          help="Aus ihr folgt die Aufbewahrungsfrist: Rechnungen und Buchungsbelege acht Jahre, Handelsbriefe sechs, Bücher und Abschlüsse zehn (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO)."
+          explain="Aus ihr folgt die Aufbewahrungsfrist: Rechnungen und Buchungsbelege acht Jahre, Handelsbriefe sechs, Bücher und Abschlüsse zehn (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO)."
         >
           <Select<ReceiptKind>
             items={KIND_ITEMS}
@@ -717,7 +718,7 @@ const ReceiptHeaderDialog: React.FC<{
         <Field
           label="Belegdatum"
           hint={dateHint}
-          help="Das Datum auf dem Beleg, nicht der Tag des Eingangs. An ihm hängen die zeitgerechte Erfassung (§ 146 Abs. 1 AO) und der Beginn der Aufbewahrungsfrist."
+          explain="Das Datum auf dem Beleg, nicht der Tag des Eingangs. An ihm hängen die zeitgerechte Erfassung (§ 146 Abs. 1 AO) und der Beginn der Aufbewahrungsfrist."
         >
           <Input
             type="date"
@@ -729,7 +730,7 @@ const ReceiptHeaderDialog: React.FC<{
           label="Aussteller"
           optional={!needsIssuer}
           hint={needsIssuer ? 'zum Buchen nötig' : undefined}
-          help="Der vollständige Name des leistenden Unternehmers ist Pflichtangabe einer Rechnung (§ 14 Abs. 4 Nr. 1 UStG)."
+          explain="Der vollständige Name des leistenden Unternehmers ist Pflichtangabe einer Rechnung (§ 14 Abs. 4 Nr. 1 UStG)."
         >
           <Input value={issuerName} onChange={(e) => setIssuerName(e.target.value)} />
         </Field>
@@ -737,7 +738,7 @@ const ReceiptHeaderDialog: React.FC<{
           label="Betreff"
           optional={!needsSubject}
           hint={needsSubject ? subjectHint : undefined}
-          help="Bei Eigenbelegen, Handelsbriefen und sonstigen Dokumenten die einzige Bezeichnung dessen, was der Beleg belegt."
+          explain="Bei Eigenbelegen, Handelsbriefen und sonstigen Dokumenten die einzige Bezeichnung dessen, was der Beleg belegt."
         >
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
         </Field>
@@ -1006,7 +1007,7 @@ const ReceiptDetail: React.FC<{
   )}
 
   {/* Beanstandungen, Buchungen und Aufbewahrung stehen am Beleg und nicht in
-      einer eigenen Ansicht: wer den Beleg vor sich hat, stellt genau diese
+      einer eigenen Ansicht: wer den Beleg vor sich hat, stellt diese
       drei Fragen — was fehlt daran, was wurde daraus gebucht, wie lange ist er
       zu halten (RECH-07 K2, GOB-02 K2, ARC-01 K2). */}
   {/* Beanstandungen nur am Eingangsbeleg: eine eigene Rechnung und ein
@@ -1072,13 +1073,13 @@ const ReceiptFindingsPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
           ? `${findings.total} Befunde · ${findings.blocking} blockierend`
           : 'Der strukturierte Teil wurde nicht geprüft'
       }
-      action={
-        <HelpPopover label="Erklärung zu den Fehlerklassen">
+      explain={
+        <>
           Die Klasse sagt, wer den Fehler beheben kann und was er kostet: ein Formatfehler liegt am
           System des Lieferanten, ein Geschäftsregelfehler an der Rechnung, ein Inhaltsfehler an
           einer Pflichtangabe des § 14 Abs. 4 UStG — und der kostet den Vorsteuerabzug (§ 15
           Abs. 1 Satz 1 Nr. 1 UStG).
-        </HelpPopover>
+        </>
       }
     >
       {error && <Notice tone="negative" text={error} className="mb-5" />}
@@ -1402,7 +1403,7 @@ const AuditTrailPanel: React.FC<{
   const steps = trail?.steps ?? [];
   const required = threshold > 0 && (receipt.grossAmount ?? 0) >= threshold;
   // Zuerst der Bestellbezug aus dem Prüfpfad: er ist derselbe, der in die Datei
-  // und ins Prüferpaket geht. Der Beleg trägt ihn ebenfalls und springt ein,
+  // und ins Prüferpaket geht. Der Beleg hat ihn ebenfalls und springt ein,
   // solange die Kette noch lädt.
   const orderReference = trail?.orderReference ?? receipt.orderReference ?? '';
 
@@ -1410,14 +1411,16 @@ const AuditTrailPanel: React.FC<{
     <Section
       title="Prüfpfad"
       context={trail?.note || 'Beleg, Buchung, Zahlung und Bankumsatz in einer Kette'}
+      explain={
+        <>
+          Eine Buchführung muss sich in beide Richtungen verfolgen lassen: vom Beleg zur Buchung
+          und zurück (GoBD Rz. 36). Die Kette steht hier zusammen und geht so auch in die Datei
+          und ins Prüferpaket. Der Leistungsnachweis daneben hält fest, wer die sachliche
+          Richtigkeit bestätigt hat — ohne ihn steht später nur die Rechnung da.
+        </>
+      }
       action={
         <div className="flex items-center gap-2">
-          <HelpPopover label="Erklärung zum Prüfpfad">
-            Eine Buchführung muss sich in beide Richtungen verfolgen lassen: vom Beleg zur Buchung
-            und zurück (GoBD Rz. 36). Die Kette steht hier zusammen und geht so auch in die Datei
-            und ins Prüferpaket. Der Leistungsnachweis daneben hält fest, wer die sachliche
-            Richtigkeit bestätigt hat — ohne ihn steht später nur die Rechnung da.
-          </HelpPopover>
           <Button
             variant="quiet"
             size="sm"
@@ -1496,8 +1499,7 @@ const AuditTrailPanel: React.FC<{
               Der Vermerk hält fest, wogegen die Rechnung sachlich geprüft wurde — etwa „geprüft
               gegen Bestellung 4711 vom 3. März". Der Vorsteuerabzug setzt eine tatsächlich
               bezogene Leistung voraus (§ 15 UStG); wer ohne Prüfung bucht, hat dafür keinen
-              Nachweis. Er steht außerhalb des Beleg-Hashes und lässt sich deshalb auch am
-              gebuchten Beleg nachtragen.
+              Nachweis. Nachtragen können Sie ihn auch noch, wenn der Beleg schon gebucht ist.
             </>
           }
         >
@@ -1790,7 +1792,8 @@ const ReceiptViewer: React.FC<{
             {/* Herausgeben lässt sich jede Datei, auch die eines gebuchten oder
                 verworfenen Belegs: gerade die gebuchten sind die, die ein Prüfer
                 verlangt (Entscheidung 10). Entfernen dagegen bleibt am offenen
-                Beleg — ein gebuchter Beleg trägt seinen Hash über die Dateien. */}
+                Beleg — der Hash eines gebuchten Belegs erstreckt sich über die
+                Dateien. */}
             <Button
               variant="quiet"
               size="sm"
@@ -1917,7 +1920,7 @@ const BookingForm: React.FC<{
   // Vorschlag, ließ sich der Steuerfall daraus aber nicht ableiten, bleibt das
   // Feld leer: das Backend hat sich bewusst enthalten (gemischte Kategorien, ein
   // Code ohne deutsche Entsprechung), und „Inland" hier einzusetzen überschriebe
-  // genau diese Enthaltung. Das Backend nimmt eine Buchung ohne Steuerfall nicht an.
+  // diese Enthaltung. Das Backend nimmt eine Buchung ohne Steuerfall nicht an.
   const [treatment, setTreatment] = useState<TaxTreatment | ''>(
     proposal ? p?.taxTreatment || '' : 'domestic',
   );
@@ -1976,12 +1979,12 @@ const BookingForm: React.FC<{
   // Ein Betrag, den parseCents nicht lesen kann ("1.2.3", "250,--", auch das
   // deutsche "1.234"), fällt beim Aufbau der Anfrage unten aus den Positionen
   // heraus. Ohne diese Prüfung würde der Beleg ohne diese Position gebucht, und
-  // die Vorschau sähe dabei sauber aus. Das ist keine Fachlogik: gerechnet wird
-  // nichts, es wird nur gesagt, dass hier etwas nicht lesbar ist.
+  // die Vorschau sähe dabei vollständig aus. Das ist keine Fachlogik: gerechnet
+  // wird nichts, es wird nur gesagt, dass hier etwas nicht lesbar ist.
   const unreadableAmount = (value: string) => value.trim() !== '' && parseCents(value) === null;
   const hasUnreadableAmount = positions.some((pos) => unreadableAmount(pos.net));
 
-  // Ob die Aufzeichnung nötig ist, sagt der Katalog: die Gruppe trägt das Konto
+  // Ob die Aufzeichnung nötig ist, sagt der Katalog: die Gruppe hat das Konto
   // für den nicht abzugsfähigen Anteil. Das Backend besteht darauf.
   const needsEntertainment = positions.some(
     (pos) => groups.find((g) => g.key === pos.postingGroup)?.deductibleQuota === 'entertainment',
@@ -2011,11 +2014,12 @@ const BookingForm: React.FC<{
   /**
    * Der Anteil liegt zwischen 1 und 1000 ‰ — die Null gehört nicht dazu.
    *
-   * Ein vollständig ausgeschlossener Vorsteuerabzug ist keine Aufteilung nach
-   * § 15 Abs. 4 UStG, sondern der Ausschluss des § 15 Abs. 1a UStG. Er hängt an
-   * der Buchungsgruppe (Gästehaus, Jagd, Yacht) und nicht an einem Schlüssel;
-   * eine Null hier ginge im Backend als „nicht angegeben" durch und führte zum
-   * vollen Abzug — dem Gegenteil dessen, was sie sagen sollte.
+   * Ein vollständig ausgeschlossener Vorsteuerabzug ist der Ausschluss des
+   * § 15 Abs. 1a UStG. Eine Aufteilung nach § 15 Abs. 4 UStG ist das nicht: der
+   * Ausschluss richtet sich nach der Buchungsgruppe (Gästehaus, Jagd, Yacht)
+   * und nicht nach einem Schlüssel; eine Null hier ginge im Backend als „nicht
+   * angegeben" durch und führte zum vollen Abzug — dem Gegenteil dessen, was
+   * sie sagen sollte.
    */
   const shareOutOfRange = (value: string) => {
     const share = shareOf(value);
@@ -2051,7 +2055,7 @@ const BookingForm: React.FC<{
   // scheitert die Vorschau, oder sie kommt ohne Umrechnung zurück. Die frühere
   // Prüfung suchte das Wort „Kurs" im Fehlertext und hing damit am Wortlaut des
   // Backends — eine Umformulierung dort hätte die Vorschau zur Sackgasse
-  // gemacht, und genau die soll das Formular vermeiden.
+  // gemacht, und die soll das Formular vermeiden.
   const rateMissing =
     currency.trim() !== '' &&
     (previewError !== null || (preview !== null && !preview.conversion));
@@ -2170,7 +2174,7 @@ const BookingForm: React.FC<{
       .catch(() => setAdvanceTargets([]));
   }, []);
 
-  // Die noch nicht verrechneten Anzahlungen genau dieses Lieferanten: seine
+  // Die noch nicht verrechneten Anzahlungen dieses Lieferanten: seine
   // Schlussrechnung setzt sie ab. Ohne die Absetzung stünde die Anzahlung
   // weiter im Vermögen und die Vorsteuer würde ein zweites Mal gezogen.
   useEffect(() => {
@@ -2295,7 +2299,7 @@ const BookingForm: React.FC<{
           <Field
             label="Leistung von"
             hint="Zeitpunkt der Leistung"
-            help="Der Zeitpunkt der Lieferung oder sonstigen Leistung ist Pflichtangabe der Rechnung (§ 14 Abs. 4 Nr. 6 UStG); er entscheidet über den Zeitraum des Vorsteuerabzugs."
+            explain="Der Zeitpunkt der Lieferung oder sonstigen Leistung ist Pflichtangabe der Rechnung (§ 14 Abs. 4 Nr. 6 UStG); er entscheidet über den Zeitraum des Vorsteuerabzugs."
           >
             <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
           </Field>
@@ -2307,7 +2311,7 @@ const BookingForm: React.FC<{
         <Field
           label="Steuerfall"
           hint={treatments.find((t) => t.treatment === treatment)?.hint}
-          help="Der Steuerfall entscheidet über Aufwandskonto und Steuerzeile. Ohne ihn nimmt Buchfink die Buchung nicht an."
+          explain="Der Steuerfall entscheidet über Aufwandskonto und Steuerzeile. Ohne ihn nimmt Buchfink die Buchung nicht an."
         >
           <Select
             items={treatments.map((t) => ({ value: t.treatment, label: t.label }))}
@@ -2345,7 +2349,7 @@ const BookingForm: React.FC<{
                   ? 'Der Betrag ist nicht lesbar. Erwartet wird etwa 1234,56.'
                   : undefined
               }
-              help="Die Endsumme der Rechnung. Stimmt sie nicht mit den Positionen überein, weist das Backend die Buchung zurück — ein Tippfehler fällt hier auf und nicht in der Bilanz."
+              explain="Die Endsumme der Rechnung. Stimmt sie nicht mit den Positionen überein, weist das Backend die Buchung zurück — ein Tippfehler fällt hier auf und nicht in der Bilanz."
             >
               <Input
                 align="right"
@@ -2429,7 +2433,7 @@ const BookingForm: React.FC<{
               </div>
 
               {/* Der Empfänger gehört zur Position und nicht zum Beleg: eine
-                  Rechnung kann Geschenke an zwei Empfänger tragen, und die
+                  Rechnung kann Geschenke an zwei Empfänger enthalten, und die
                   Freigrenze läuft je Empfänger. */}
               {needsRecipient(groupOf(position.postingGroup)) && (
                 <div className={cn(NOTE, NOTE_TONE.attention)}>
@@ -2482,7 +2486,7 @@ const BookingForm: React.FC<{
 
               {/* Der Vorsteuerschlüssel steht bei der Position, weil er zu ihr
                   gehört: ein Beleg kann eine voll und eine anteilig abziehbare
-                  Leistung tragen. Er erscheint nur, wo es überhaupt Vorsteuer zu
+                  Leistung enthalten. Er erscheint nur, wo es überhaupt Vorsteuer zu
                   teilen gibt — beim steuerpflichtigen Inlandsumsatz mit
                   Steuersatz und außerhalb der Gruppen, denen § 15 Abs. 1a UStG
                   den Abzug ohnehin nimmt. */}
@@ -2525,7 +2529,7 @@ const BookingForm: React.FC<{
                             ? 'Ohne den Maßstab nimmt das Backend die Buchung nicht an.'
                             : undefined
                         }
-                        help="§ 15 Abs. 4 Satz 2 UStG lässt die Aufteilung nach einer sachgerechten Schätzung zu. Festzuhalten ist, worauf sie beruht — etwa „Kfz zu 60 % betrieblich genutzt, Fahrtenbuch 2026&quot;."
+                        explain="§ 15 Abs. 4 Satz 2 UStG lässt die Aufteilung nach einer sachgerechten Schätzung zu. Festzuhalten ist, worauf sie beruht — etwa „Kfz zu 60 % betrieblich genutzt, Fahrtenbuch 2026&quot;."
                       >
                         <Input
                           value={position.inputTaxShareReason}
@@ -2593,7 +2597,7 @@ const BookingForm: React.FC<{
             <Field
               label="Gehört zu Rückstellung"
               optional
-              help="Gebucht wird gegen die Rückstellung; nur der Mehrbetrag bleibt Aufwand."
+              explain="Gebucht wird gegen die Rückstellung; nur der Mehrbetrag bleibt Aufwand."
             >
               <Select
                 items={[
@@ -3110,7 +3114,7 @@ const ManualRateForm: React.FC<{
  * Durchschnittskurs des Monats die Bemessungsgrundlage der Umsatzsteuer
  * (§ 16 Abs. 6 UStG). Dass beide auseinandergehen, ist kein Fehler — es ist
  * Kursaufwand oder Kursertrag, und wer den Buchungssatz später liest, sucht
- * genau diese Zeile.
+ * diese Zeile.
  */
 const ConversionPanel: React.FC<{ conversion?: Conversion; date: string }> = ({
   conversion,
@@ -3139,10 +3143,9 @@ const ConversionPanel: React.FC<{ conversion?: Conversion; date: string }> = ({
           {conversion.vatRate
             ? ` · Durchschnittskurs ${conversion.vatRate.month}`
             : ' · kein Durchschnittskurs hinterlegt, es bleibt beim Tageskurs'}
-          <HelpTooltip
-            label="Erklärung zur Bemessungsgrundlage"
-            content="Für die Umsatzsteuer wird der monatliche Durchschnittskurs des Bundesministeriums der Finanzen genommen (§ 16 Abs. 6 UStG); fehlt er, bleibt es beim Tageskurs."
-          />
+          <HelpPopover label="Erklärung zur Bemessungsgrundlage">
+            Für die Umsatzsteuer wird der monatliche Durchschnittskurs des Bundesministeriums der Finanzen genommen (§ 16 Abs. 6 UStG); fehlt er, bleibt es beim Tageskurs.
+          </HelpPopover>
         </dd>
         {conversion.difference !== 0 && (
           <>

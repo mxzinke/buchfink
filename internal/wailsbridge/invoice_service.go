@@ -88,7 +88,7 @@ func (b *BuchfinkBridge) GetInvoiceNumberGaps(year int) (*domain.NumberGapReport
 }
 
 // RecordInvoiceNumberGapReason dokumentiert, warum eine Nummer keine Rechnung
-// trägt. Die Betriebsprüfung fragt danach, und eine Antwort im Kopf des
+// hat. Die Betriebsprüfung fragt danach, und eine Antwort im Kopf des
 // Geschäftsführers ist keine.
 func (b *BuchfinkBridge) RecordInvoiceNumberGapReason(year int, sequence int64, reason string, detail string) error {
 	b.mu.Lock()
@@ -248,7 +248,7 @@ func (b *BuchfinkBridge) WriteOffOpenItem(req service.WriteOffRequest) (*domain.
 }
 
 // GetUnitCodes liefert die Mengeneinheiten nach UN/ECE Rec. 20, die eine
-// Rechnungsposition tragen kann (BT-130).
+// Rechnungsposition haben kann (BT-130).
 func (b *BuchfinkBridge) GetUnitCodes() []domain.UnitCode {
 	return domain.UnitCodes()
 }

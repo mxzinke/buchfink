@@ -21,7 +21,7 @@ import (
 // zuerst ihre Buchung" ein Rat in die Sackgasse: nach dem Storno stünde die
 // Kartei weiter da, und ein zweiter Lauf wäre für immer abgewiesen.
 //
-// Gelesen wird über journalRepo.FindReversalOf: der Storno trägt den Verweis auf
+// Gelesen wird über journalRepo.FindReversalOf: der Storno hat den Verweis auf
 // die Ursprungsbuchung (ReversalOfID), und nur so lässt sich von der Kartei aus
 // feststellen, ob ihre Buchung noch steht.
 

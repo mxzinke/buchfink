@@ -143,13 +143,13 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 	// Festschreibungstabelle („nicht festgeschrieben"), einen Prüfbericht über
 	// die Buchungen des falschen Jahres und „keine Voranmeldung abzugeben",
 	// weil die Zeiträume 2026 den Dezember 2025 nicht enthalten. Drei Haken,
-	// alle drei falsch. Da der Prüfbericht (CheckService) am aktiven
-	// Geschäftsjahr hängt, ist die ehrliche Antwort die Abweisung mit dem
+	// alle drei falsch. Da sich der Prüfbericht (CheckService) nach dem aktiven
+	// Geschäftsjahr richtet, ist die ehrliche Antwort die Abweisung mit dem
 	// Hinweis, das Geschäftsjahr zu wechseln.
 	if err := s.requireActiveYear(ctx, month, label, from); err != nil {
 		return nil, err
 	}
-	// Das Kalenderjahr des Monats trägt die Voranmeldung: die Zeiträume des
+	// Das Kalenderjahr des Monats bestimmt die Voranmeldung: die Zeiträume des
 	// § 18 UStG sind Kalenderzeiträume. Im Regelfall (Geschäftsjahr =
 	// Kalenderjahr) ist es dasselbe Jahr; bei abweichendem Geschäftsjahr fragt
 	// der Januar zu Recht die Zeiträume seines Kalenderjahres ab.

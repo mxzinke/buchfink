@@ -118,7 +118,7 @@ func TestVatPeriodForFollowsTheTaxEvent(t *testing.T) {
 }
 
 // Die Generalumkehr wirkt in dem Zeitraum, dem die Ursprungsbuchung zugeordnet
-// war — sie übernimmt Beleg- und Leistungsdatum und trägt nur ihr eigenes
+// war — sie übernimmt Beleg- und Leistungsdatum und hat nur ihr eigenes
 // Buchungsdatum. Ohne diese Eigenschaft stünde die Korrektur im Monat ihrer
 // Erfassung und der ursprüngliche Umsatz bliebe im alten Monat stehen.
 //

@@ -14,14 +14,15 @@ import (
 //
 // Der Grund steht in json_lists.go: ein nicht belegter Slice wird über die
 // Brücke zu `null`, und die Masken lesen die Antworten ohne Umweg — `rows.map`,
-// `paths.length`. Betroffen ist nicht der Regelfall, sondern der Randfall, den
-// niemand von Hand ausprobiert: der noch nicht eingerichtete Dienst, der aktive
+// `paths.length`. Betroffen ist der Randfall, den niemand von Hand ausprobiert,
+// nicht der Regelfall: der noch nicht eingerichtete Dienst, der aktive
 // Prüfermodus, der Fehler beim Lesen. Genau dort steht in Go am schnellsten ein
 // `return nil, err`.
 //
-// Geprüft wird der Quelltext als Syntaxbaum und nicht der Lauf: die Randfälle
-// zur Laufzeit herbeizuführen hieße, die halbe Anwendung nachzubauen — und eine
-// neu hinzugefügte Methode fiele trotzdem durch das Netz.
+// Der Test prüft den Quelltext als Syntaxbaum und nicht den Lauf: die
+// Randfälle zur Laufzeit herbeizuführen hieße, die halbe Anwendung
+// nachzubauen — und eine neu hinzugefügte Methode fiele trotzdem durch das
+// Netz.
 func TestNoBridgeMethodReturnsANilList(t *testing.T) {
 	methods := bridgeListMethods(t)
 	if len(methods) < 50 {

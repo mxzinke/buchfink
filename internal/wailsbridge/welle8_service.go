@@ -13,7 +13,7 @@ import (
 
 // Die Bedienung der Welle 8: die laufende Buchhaltung ohne Lücken.
 //
-// Sie hängt an einem Satz: keine Buchung ohne Beleg. Daraus folgt der
+// Sie richtet sich nach einem Satz: keine Buchung ohne Beleg. Daraus folgt der
 // Eigenbeleg für die Fälle ohne Fremdbeleg, der Belegverweis in beide
 // Richtungen, die Klärungsliste der beanstandeten Rechnungen und der Filter,
 // mit dem sich eine Buchung im Journal überhaupt wiederfinden lässt.
@@ -99,7 +99,7 @@ func (b *BuchfinkBridge) GetEntriesForReceipt(receiptID uint) ([]domain.JournalE
 // und im Jahr davor.
 //
 // Auch das Vorjahr, weil eine Buchung nicht im Geschäftsjahr des Belegs liegen
-// muss: eine Dezemberrechnung wird im Januar gebucht, und ein Storno trägt das
+// muss: eine Dezemberrechnung wird im Januar gebucht, und ein Storno hat das
 // Datum seiner Erstellung. Wer nur das aktive Jahr durchsähe, zeigte am Beleg
 // „keine Buchung", während sie einen Klick weiter im Journal steht.
 func entriesForReceipt(

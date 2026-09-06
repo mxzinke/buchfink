@@ -131,10 +131,11 @@ func (s *AssetService) AttachDocument(ctx context.Context, req AttachDocumentReq
 // Anlagendokuments.
 //
 // Beim Ablegen und nicht beim Anzeigen — dieselbe Erwägung wie beim Beleg: die
-// Frist hängt am Entstehungsjahr und am damals geltenden Recht, und später
-// gerechnet käme für dasselbe Dokument irgendwann eine andere Zahl heraus.
+// Frist richtet sich nach dem Entstehungsjahr und dem damals geltenden Recht,
+// und später gerechnet käme für dasselbe Dokument irgendwann eine andere Zahl
+// heraus.
 //
-// Das Entstehungsjahr ist das Datum, das das Dokument trägt; fehlt es, das Jahr
+// Das Entstehungsjahr ist das Datum, das auf dem Dokument steht; fehlt es, das Jahr
 // der Ablage. Die Klasse ist immer die der Organisationsunterlagen (zehn
 // Jahre), unabhängig von der Dokumentart: auch das Foto einer Maschine und der
 // Wartungsbericht erklären das Wirtschaftsgut, dessen Abschreibung über die

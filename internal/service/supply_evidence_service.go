@@ -224,7 +224,7 @@ func (s *SupplyEvidenceService) saveTransport(
 // änderte nur die Bewertung der Ansicht, und wer sie umstellte und die Ansicht
 // verließ, fand nach dem Neuladen wieder den alten Wert. Ein Feld, das wie eine
 // gespeicherte Einstellung aussieht und keine ist, ist schlimmer als keines —
-// beim Abholfall hängt die Gelangensbestätigung daran.
+// beim Abholfall richtet sich die Pflicht zur Gelangensbestätigung nach diesem Feld.
 func (s *SupplyEvidenceService) SetTransport(
 	ctx context.Context, invoiceID uint, transport string,
 ) (*SupplyEvidenceView, error) {

@@ -109,7 +109,7 @@ const (
 // OpenItem is one unsettled receivable or payable.
 type OpenItem struct {
 	// Source nennt den Weg, auf dem dieser Posten auszugleichen ist. Ein
-	// Abschlag trägt keine Buchung und damit keine EntryID.
+	// Abschlag hat keine Buchung und damit keine EntryID.
 	Source OpenItemSource `json:"source"`
 	// AdvanceInvoiceID ist die Abschlagsrechnung hinter einem Posten der Quelle
 	// „Abschlag" — der Schlüssel, den SettleAdvance erwartet.

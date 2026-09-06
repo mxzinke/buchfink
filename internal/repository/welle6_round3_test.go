@@ -9,7 +9,7 @@ import (
 // Der Altbestand bekommt seine Aufbewahrungsfrist nachgetragen.
 //
 // Klasse und Löschdatum werden seit Welle 6 beim Ablegen gespeichert. Belege
-// und Anlagendokumente aus der Zeit davor trügen ohne diesen Lauf leere
+// und Anlagendokumente aus der Zeit davor hätten ohne diesen Lauf leere
 // Fristen, obwohl beide aus Belegart und Entstehungsjahr genauso zu rechnen
 // sind wie bei jedem neuen Objekt — und der Bericht über abgelaufene Objekte,
 // der über die Löschung entscheidet, sähe sie überhaupt nicht.

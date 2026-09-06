@@ -156,7 +156,7 @@ func TestBuyerVatIDOnIntraCommunitySupply(t *testing.T) {
 	}
 }
 
-// Die Stornorechnung trägt den Typschlüssel 384, negierte Beträge und den Bezug
+// Die Stornorechnung hat den Typschlüssel 384, negierte Beträge und den Bezug
 // auf die Rechnung, die sie storniert (BG-3). Ohne den Bezug kommt sie beim
 // Empfänger als unverbundene zweite Rechnung an.
 func TestCancellationCarriesTypeCodeAndReference(t *testing.T) {

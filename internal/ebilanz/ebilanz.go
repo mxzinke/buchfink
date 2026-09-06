@@ -336,7 +336,7 @@ func fixedAssetMovements(spiegel *domain.Anlagenspiegel, report *MappingReport) 
 	build := func(row domain.AnlagenspiegelRow, element, key, label string) node {
 		position := elements[row.Account]
 		if position == "" {
-			// Die Klassensummen tragen kein Konto; sie stehen unter der
+			// Die Klassensummen haben kein Konto; sie stehen unter der
 			// Sammelposition des Anlagevermögens.
 			if e, ok := ElementFor("aktiva.A"); ok {
 				position = e.Element

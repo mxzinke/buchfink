@@ -107,8 +107,8 @@ func (s *GiftService) giftEntries(ctx context.Context, fiscalYear int) ([]giftEn
 	out := make([]giftEntry, 0, 8)
 	for i := range entries {
 		entry := &entries[i]
-		// Die Generalumkehr trägt die Aufzeichnung mit — sie korrigiert die
-		// Buchung, nicht das Geschenk —, gezählt wird sie aber nicht: sonst stünde
+		// Die Generalumkehr hat die Aufzeichnung ebenfalls — sie korrigiert die
+		// Buchung, nicht das Geschenk —, giftEntries zählt sie aber nicht: sonst stünde
 		// jedes stornierte Geschenk zweimal in der Kartei, einmal mit und einmal
 		// ohne Betrag, und die Freigrenze liefe über beide.
 		if entry.Kind == domain.EntryKindReversal {
@@ -204,15 +204,15 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 		return nil, err
 	}
 
-	// 1. Die Kategorien: gezählt wird über die Konten, nicht über die
-	// Aufzeichnungen. Eine Bewirtung trägt keine Geschenkaufzeichnung, und eine
-	// Buchung aus der Zeit vor dieser Welle trägt gar keine — auf den Konten
-	// steht sie trotzdem.
+	// 1. Die Kategorien: NonDeductibleReport zählt über die Konten, nicht über
+	// die Aufzeichnungen. Eine Bewirtung hat keine Geschenkaufzeichnung, und
+	// eine Buchung aus der Zeit vor dieser Welle hat gar keine — auf den
+	// Konten steht sie trotzdem.
 	//
-	// Die Generalumkehr wird mitgezählt und nicht übergangen: sie trägt
+	// Die Generalumkehr zählt mit und bleibt nicht außen vor: sie trägt
 	// negative Beträge auf derselben Seite und stellt die Verkehrszahlen des
 	// Kontos damit auf null. Sie zu überspringen ließe eine zurückgenommene
-	// Buchung im Bericht stehen — und genau das passiert nach einer Umbuchung.
+	// Buchung im Bericht stehen — und das passiert nach einer Umbuchung.
 	sums := map[string]domain.Cents{}
 	counts := map[string]int{}
 	for i := range entries {
@@ -319,7 +319,7 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 	out.Note = fmt.Sprintf(
 		"Die Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG beträgt im Wirtschaftsjahr %d %s € netto je "+
 			"Empfänger. Sie ist eine Freigrenze und kein Freibetrag: mit dem ersten Cent darüber ist "+
-			"nicht der übersteigende Teil nicht abziehbar, sondern der gesamte Betrag.",
+			"der gesamte Betrag nicht abziehbar, nicht nur der übersteigende Teil.",
 		year, limit)
 	return out, nil
 }
@@ -440,7 +440,7 @@ func (s *GiftService) RebookGiftsForRecipient(
 			"an %s steht kein Geschenk mehr als abziehbar; es ist bereits alles umgebucht", name)
 	}
 
-	// Storno und Neubuchung tragen denselben Tag, und der ist der Tag der
+	// Storno und Neubuchung haben denselben Tag, und der ist der Tag der
 	// Korrektur.
 	//
 	// Vorher datierte die Generalumkehr auf heute und die Neubuchung auf das
@@ -450,11 +450,11 @@ func (s *GiftService) RebookGiftsForRecipient(
 	// Schleife brach mitten in der Liste ab.
 	//
 	// Ein anderer Tag als der der Korrektur steht nicht zur Wahl, und das ist
-	// keine Einschränkung dieses Bausteins: die Generalumkehr trägt den Tag
+	// keine Einschränkung dieses Bausteins: die Generalumkehr hat den Tag
 	// ihrer Erstellung (JournalService.ReverseOn lässt ein vorgegebenes Datum
 	// nur für den Saldenvortrag zu), und eine Neubuchung an einem anderen Tag
 	// wäre die Hälfte des Vorgangs in einem anderen Zeitraum — mit allem, was
-	// daran hängt: Voranmeldung, Festschreibung, Abschlussstand.
+	// davon abhängt: Voranmeldung, Festschreibung, Abschlussstand.
 	today := todayLocal()
 	date := strings.TrimSpace(req.Date)
 	if date == "" {
@@ -463,7 +463,7 @@ func (s *GiftService) RebookGiftsForRecipient(
 	if date != today {
 		return nil, fmt.Errorf(
 			"die Umbuchung wird zum %s gebucht und nicht zum %s. Sie besteht aus einer Generalumkehr "+
-				"und einer Neubuchung, und die Generalumkehr trägt immer den Tag ihrer Erstellung "+
+				"und einer Neubuchung, und die Generalumkehr hat immer den Tag ihrer Erstellung "+
 				"(§ 239 Abs. 3 HGB); ein eigenes Datum für die Neubuchung risse den Vorgang in zwei "+
 				"Zeiträume", germanDay(today), germanDay(date))
 	}
@@ -583,7 +583,7 @@ func (s *GiftService) buildRebooking(
 		}
 		if taxIdx >= 0 {
 			return nil, fmt.Errorf(
-				"die Buchung %s trägt mehrere Vorsteuerzeilen (verschiedene Steuersätze). Welcher "+
+				"die Buchung %s hat mehrere Vorsteuerzeilen (verschiedene Steuersätze). Welcher "+
 					"Anteil auf das Geschenk entfällt, ist ihr nicht mehr zu entnehmen — buche diesen "+
 					"Beleg von Hand um", entry.EntryNumber)
 		}
@@ -630,7 +630,7 @@ func (s *GiftService) buildRebooking(
 			tax := entry.Lines[taxIdx]
 			if tax.TaxBase <= 0 || record.NetAmount > tax.TaxBase {
 				return nil, fmt.Errorf(
-					"die Vorsteuerzeile der Buchung %s trägt keine Bemessungsgrundlage, aus der sich "+
+					"die Vorsteuerzeile der Buchung %s hat keine Bemessungsgrundlage, aus der sich "+
 						"der Anteil des Geschenks rechnen ließe — buche diesen Beleg von Hand um",
 					entry.EntryNumber)
 			}
@@ -641,7 +641,7 @@ func (s *GiftService) buildRebooking(
 	}
 	if len(order) == 0 {
 		return nil, fmt.Errorf(
-			"die Buchung %s trägt keine Aufzeichnung, die sich umbuchen ließe", entry.EntryNumber)
+			"die Buchung %s hat keine Aufzeichnung, die sich umbuchen ließe", entry.EntryNumber)
 	}
 	// Der Rundungsrest landet auf der letzten Zeile. Tragen die Geschenke die
 	// ganze Bemessungsgrundlage, gehört ihnen die ganze Vorsteuerzeile — sonst
@@ -710,7 +710,7 @@ func (s *GiftService) buildRebooking(
 }
 
 // deductibleInputTaxKey meldet, ob ein Steuerschlüssel eine gezogene Vorsteuer
-// trägt. Die Berichtigung nach § 15a UStG hat einen eigenen Schlüssel und ist
+// kennzeichnet. Die Berichtigung nach § 15a UStG hat einen eigenen Schlüssel und ist
 // keine Zeile eines Belegs; sie bleibt außen vor.
 func deductibleInputTaxKey(key string) bool {
 	return key == "VST19" || key == "VST7"

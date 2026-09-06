@@ -13,8 +13,8 @@ import (
 // Bisher entstanden beide im Frontend durch Filtern nach Kontenklasse. Das war
 // keine Gliederung, sondern eine Sortierung: die Kontenklasse sagt, wo ein Konto
 // im Kontenrahmen steht, nicht, unter welchem Posten es im Abschluss auszuweisen
-// ist. Zwischen beidem liegt genau das, was § 266 HGB vorschreibt — und was
-// jedes SKR04-Konto in seiner Position bereits mitbringt.
+// ist. Zwischen beidem liegt das, was § 266 HGB vorschreibt — und was jedes
+// SKR04-Konto in seiner Position mitbringt.
 //
 // Deshalb steht die Gliederung hier, im Backend, und nicht in der Ansicht: sie
 // ist eine Rechtsfrage mit einer Antwort, keine Darstellungsvariante. Die
@@ -189,7 +189,7 @@ var incomeLines = []lineDef{
 // statisticalLines nimmt die Konten der Klasse 9 auf. Sie sind weder Bilanz-
 // noch Erfolgskonten; die Vortragskonten gleichen sich nach einem
 // vollständigen Saldenvortrag auf null aus. Bleibt dort ein Saldo stehen, geht
-// die Bilanz nicht auf — und genau das soll man sehen.
+// die Bilanz nicht auf — und das soll man sehen.
 var statisticalLines = []lineDef{
 	{Key: "statistisch", Label: "Statistische Konten (nicht Bestandteil von Bilanz und Gewinn- und Verlustrechnung)", Level: 1, Section: domain.SectionStatistical},
 }
@@ -379,7 +379,7 @@ func imbalanceError(diff domain.Cents, stmt *domain.Statement) error {
 	if statistical != 0 {
 		msg += fmt.Sprintf(
 			"; auf den statistischen Konten der Klasse 9 stehen %s € — ein unvollständiger "+
-				"Saldenvortrag lässt genau diesen Rest stehen", statistical)
+				"Saldenvortrag lässt diesen Rest stehen", statistical)
 	}
 	return fmt.Errorf("%s", msg)
 }
@@ -736,8 +736,8 @@ func StatementKeyForAccount(acc domain.Account) (string, bool) {
 	return target.Key, true
 }
 
-// HasPositionTarget meldet, ob eine Gliederungsposition in Bilanz und GuV
-// getragen wird.
+// HasPositionTarget meldet, ob Bilanz und GuV eine Gliederungsposition
+// enthalten.
 //
 // Die Prüfung eines selbst angelegten Kontos hängt daran (BEL-06 K2): ein Konto
 // mit einer Position, die die Zuordnungstabelle nicht kennt, fiele aus der

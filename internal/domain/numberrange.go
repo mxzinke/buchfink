@@ -61,7 +61,7 @@ func FormatJournalNumber(fiscalYear int, seq int64) string {
 //
 // Einstellbar aus demselben Grund wie das Rechnungsnummernformat (BEL-02 K4):
 // wer seine Belege bisher „BE-2026-0001" oder „2026/AD/0017" genannt hat, führt
-// diese Systematik fort — sonst trägt derselbe Beleg in der Ablage eine andere
+// diese Systematik fort — sonst hat derselbe Beleg in der Ablage eine andere
 // Nummer als im Ordner daneben, und die Verweise der alten Buchhaltung laufen
 // ins Leere. Die gewählte Systematik gehört in die Verfahrensdokumentation und
 // steht deshalb als Einstellung und nicht im Code.
@@ -150,8 +150,8 @@ func ValidateInvoiceNumberFormat(format string) error { return ValidateNumberFor
 // ValidateNumberFormat ist dieselbe Prüfung ohne den Rechnungsbezug im Namen.
 //
 // Der Belegnummernkreis stellt dieselben Anforderungen wie der
-// Rechnungsnummernkreis — er trägt sie nur aus § 146 Abs. 1 AO und GoBD Rz. 36
-// statt aus § 14 Abs. 4 Nr. 4 UStG. Zwei Prüfungen daraus zu machen hieße, die
+// Rechnungsnummernkreis — er stützt sie nur auf § 146 Abs. 1 AO und GoBD Rz. 36
+// statt auf § 14 Abs. 4 Nr. 4 UStG. Zwei Prüfungen daraus zu machen hieße, die
 // zweite beim nächsten Platzhalter zu vergessen.
 func ValidateNumberFormat(format string) error {
 	if strings.TrimSpace(format) == "" {
@@ -159,7 +159,7 @@ func ValidateNumberFormat(format string) error {
 	}
 	if !numberPlaceholder.MatchString(format) {
 		return fmt.Errorf(
-			"im Nummernformat %q fehlt der Platzhalter {NR} für den Zähler. Ohne ihn trüge jeder Vorgang dieselbe Nummer",
+			"im Nummernformat %q fehlt der Platzhalter {NR} für den Zähler. Ohne ihn hätte jeder Vorgang dieselbe Nummer",
 			format)
 	}
 	if len(format) > 40 {
@@ -211,7 +211,7 @@ func ParseInvoiceSequence(number string, fiscalYear int, format string) (int64, 
 // wieder zerlegt: `{JAHR}` wird zum Geschäftsjahr, `{NR:n}` zur Fangklammer um
 // den Zähler, alles andere bleibt wörtlich. Der Zähler wird bewusst nicht auf
 // die Stellenzahl des Formats festgelegt — er läuft über sie hinaus, sobald das
-// Jahr mehr Rechnungen trägt, als die Auffüllung vorsieht.
+// Jahr mehr Rechnungen hat, als die Auffüllung vorsieht.
 func invoiceNumberPattern(format string, fiscalYear int) *regexp.Regexp {
 	if ValidateInvoiceNumberFormat(format) != nil {
 		format = DefaultInvoiceNumberFormat

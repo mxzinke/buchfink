@@ -105,7 +105,7 @@ func TestSupplyTransportIsPersisted(t *testing.T) {
 		t.Fatalf("Ansicht meldet %q — erwartet den Abholfall", view.Transport)
 	}
 
-	// Ohne weitere Angabe gelesen: der gespeicherte Wert trägt, nicht der
+	// Ohne weitere Angabe gelesen: der gespeicherte Wert gilt, nicht der
 	// Regelfall.
 	again, err := svc.View(ctx, invoice.ID, "")
 	if err != nil {

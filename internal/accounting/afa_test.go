@@ -432,7 +432,7 @@ func TestSpecialDepreciationRunsBesideThePlanAndThenSpreadsTheResidual(t *testin
 	// (§ 7a Abs. 9 EStG), handelsrechtlich unverändert.
 	for i := 5; i < 10; i++ {
 		if rows[i].SpecialAmount != 0 {
-			t.Errorf("%d trägt noch eine Sonderabschreibung von %s €", rows[i].FiscalYear, rows[i].SpecialAmount)
+			t.Errorf("%d hat noch eine Sonderabschreibung von %s €", rows[i].FiscalYear, rows[i].SpecialAmount)
 		}
 		if rows[i].TaxAmount != 200_000 {
 			t.Errorf("%d: steuerliche Restwertabschreibung %s € — erwartet 2.000,00 €",

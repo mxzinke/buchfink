@@ -135,7 +135,7 @@ func TestAdvanceSettlementBooksTaxInThePaymentPeriod(t *testing.T) {
 		t.Errorf("3806 im Haben = %s, erwartet 760,00", got)
 	}
 
-	// Die Steuerzeile trägt den Schlüssel — sonst fiele sie aus der
+	// Die Steuerzeile hat den Schlüssel — sonst fiele sie aus der
 	// Voranmeldung heraus — und der Zeitraum folgt der Zahlung.
 	var taxLine domain.JournalLine
 	for _, l := range entry.Lines {
@@ -144,7 +144,7 @@ func TestAdvanceSettlementBooksTaxInThePaymentPeriod(t *testing.T) {
 		}
 	}
 	if taxLine.TaxKey != "UST19" {
-		t.Fatalf("die Steuerzeile trägt den Schlüssel %q, erwartet UST19", taxLine.TaxKey)
+		t.Fatalf("die Steuerzeile hat den Schlüssel %q, erwartet UST19", taxLine.TaxKey)
 	}
 	if got := accounting.VatPeriodFor(entry, taxLine, ""); got != "2026-04-15" {
 		t.Errorf("die Steuer fällt in den Zeitraum %q, erwartet den Zahlungsmonat 2026-04-15", got)
@@ -568,7 +568,7 @@ func TestWriteOffUncollectibleReceivable(t *testing.T) {
 	if got := lineAmount(t, entry, customer.LedgerAccount, domain.SideCredit); got != 119000 {
 		t.Errorf("Ausgleich des Personenkontos = %s, erwartet 1190,00", got)
 	}
-	// Die Steuerkorrektur trägt den Steuerschlüssel: ohne ihn fiele sie aus der
+	// Die Steuerkorrektur hat den Steuerschlüssel: ohne ihn fiele sie aus der
 	// Voranmeldung heraus, und die Minderung käme nie an.
 	hasTaxKey := false
 	for _, l := range entry.Lines {
@@ -577,7 +577,7 @@ func TestWriteOffUncollectibleReceivable(t *testing.T) {
 		}
 	}
 	if !hasTaxKey {
-		t.Error("die Steuerkorrektur muss den Steuerschlüssel tragen")
+		t.Error("die Steuerkorrektur muss den Steuerschlüssel haben")
 	}
 
 	// Und der Posten ist geschlossen.

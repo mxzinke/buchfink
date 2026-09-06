@@ -312,7 +312,7 @@ func TestAuditChainDetectsRemovedEntry(t *testing.T) {
 }
 
 func TestAuditChainAcceptsUnchainedLegacyEntries(t *testing.T) {
-	// Einträge aus der Zeit vor der Kette tragen keinen Hash. Sie als gebrochen
+	// Einträge aus der Zeit vor der Kette haben keinen Hash. Sie als gebrochen
 	// zu melden wäre eine Behauptung über eine Manipulation, die es nicht gab.
 	legacy := auditEntry(1, domain.AuditActionCreate, "alter Eintrag ohne Kette")
 	chainedEntries := chained([]domain.AuditLogEntry{auditEntry(2, domain.AuditActionUpdate, "neu")})

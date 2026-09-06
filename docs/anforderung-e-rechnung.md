@@ -43,10 +43,10 @@ Konsequenz:
 
 **Buchfink konnte lange keine E-Rechnung empfangen.** Ein Beleg war ein Dateipfad
 am Journaleintrag; ein strukturierter Rechnungsdatensatz existierte im Modell
-nicht. Das war nicht eine Lücke unter mehreren, sondern die einzige, die eine
-laufende Rechtspflicht des Nutzers unerfüllt ließ. Sie ist geschlossen: der Beleg
-trägt den strukturierten Teil als eigene Datei, das XML wird aus dem Hybrid-PDF
-gezogen, und der Buchungsvorschlag entsteht daraus.
+nicht. Von den Lücken im Modell war das die einzige, die eine laufende
+Rechtspflicht des Nutzers unerfüllt ließ. Sie ist geschlossen: der Beleg
+speichert den strukturierten Teil als eigene Datei, das XML wird aus dem
+Hybrid-PDF gezogen, und der Buchungsvorschlag entsteht daraus.
 
 ## 2. Wer betroffen ist und wer nicht
 
@@ -163,14 +163,14 @@ Kanonisierung herauszulassen.
 Genau das leistet der **Beleg-Hash** aus Abschnitt 15 des Hauptkonzepts: er läuft
 über die geordnete Liste aller Belegdateien, deckt damit Original *und*
 strukturierten Teil ab und wandert als ein Wert in die Buchung. Ein
-nachträglich ausgetauschtes XML fällt auf, ohne dass die Buchung n Hashes tragen
+nachträglich ausgetauschtes XML fällt auf, ohne dass die Buchung n Hashes speichern
 muss.
 
 ## 7. Was daraus für das Datenmodell folgt
 
-**Das Belegmodell ist nicht Teil dieses Dokuments, sondern des Hauptkonzepts.**
-E-Rechnung ist kein Anbau neben dem Belegflow, sondern der Grund, warum ein Beleg
-dort aus mehreren Dateien besteht: Rollen `original`, `structured`, `rendering`
+**Das Belegmodell steht im Hauptkonzept, nicht in diesem Dokument.**
+E-Rechnung ist der Grund, warum ein Beleg im Belegflow aus mehreren Dateien
+besteht, kein Anbau daneben: Rollen `original`, `structured`, `rendering`
 und `attachment`, Hash je Datei, Beleg-Hash über die geordnete Liste, mit der
 Buchung versiegelt. Siehe
 [anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md),
@@ -285,7 +285,7 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
   Buchungsvorschau darauf hin, wenn ein inländischer, unternehmerischer
   Lieferant ohne Kleinunternehmerstatus über der Kleinbetragsgrenze des
   § 33 UStDV eine sonstige Rechnung stellt und der Beleg keinen strukturierten
-  Teil trägt. Der Text wechselt mit dem Belegdatum über die Fristen des
+  Teil hat. Der Text wechselt mit dem Belegdatum über die Fristen des
   § 27 Abs. 38 UStG; dazu kommt ein zweiter, der sich an den Lieferanten
   weitergeben lässt. **Blockiert wird nie** – ob aus der sonstigen Rechnung ein
   Vorsteuerabzug folgt, ist eine Rechtsfrage, und den Vorjahresumsatz des
@@ -299,8 +299,8 @@ Verstehen** einer E-Rechnung, nicht ein Mailserver.
 
 Die Normen, das BMF-Schreiben vom 15.10.2025 und die GoBD in der Fassung vom
 14.07.2025 stehen mit Fundstellen im Anforderungskatalog unter RECH-05, RECH-06,
-RECH-07, RECH-10, UST-07 sowie ARC-01, ARC-03 und ARC-07. Zwei Punkte trägt der
-Katalog nicht:
+RECH-07, RECH-10, UST-07 sowie ARC-01, ARC-03 und ARC-07. Zwei Punkte fehlen im
+Katalog:
 
 Die Abschnittsnummern beziehen sich auf den UStAE in der durch das
 BMF-Schreiben vom 15.10.2025 geänderten Fassung. Achtung bei der Nachprüfung: die

@@ -93,7 +93,7 @@ type VatIDCheck struct {
 	OwnVatID string `gorm:"size:50;serializer:encrypted" json:"ownVatId,omitempty"`
 
 	// CheckedAt ist der Zeitpunkt der Abfrage als RFC3339. Die Frist von 90
-	// Tagen hängt an ihm.
+	// Tagen richtet sich nach ihm.
 	CheckedAt string           `gorm:"size:25;not null;index" json:"checkedAt"`
 	Status    VatIDCheckStatus `gorm:"size:20;not null;index" json:"status"`
 	// ResultCode ist der Ergebniscode des Bundeszentralamts („evatr-0000",

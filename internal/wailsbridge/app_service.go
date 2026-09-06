@@ -227,7 +227,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// keeps working.
 	if security.KeyfileExists(t.DataDir) {
 		// Der Schlüssel wird unter VaultID gesucht und nicht unter der ID des
-		// Eintrags: eine wiederhergestellte Sicherung trägt die Schlüsseldatei
+		// Eintrags: eine wiederhergestellte Sicherung hat die Schlüsseldatei
 		// des Mandanten, aus dem sie stammt, und ihr Geheimnis liegt im
 		// Schlüsselbund unter dessen Kennung.
 		vault, err := security.OpenTenantVault(t.DataDir, t.VaultID())
@@ -655,7 +655,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// über ihren Datensatz gefunden.
 	b.exportSvc.SetProcDocRepo(b.procDocRepo)
 
-	// Die Sicherung trägt die Schlüsselkennung und nicht die Kennung aus der
+	// Die Sicherung hat die Schlüsselkennung und nicht die Kennung aus der
 	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
 	// und die Wiederherstellung später das Geheimnis im Schlüsselbund suchen.
 	// Für einen Mandanten, der neben seinem Ursprung wiederhergestellt wurde,
@@ -678,7 +678,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir), fiscalYear,
 	)
 	b.dunningSvc.SetRenderer(b.renderer)
-	// Die Rechnungen tragen das Kennzeichen, ob der Verzugshinweis an einen
+	// Die Rechnungen haben das Kennzeichen, ob der Verzugshinweis an einen
 	// Verbraucher gedruckt wurde (§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB).
 	b.dunningSvc.SetInvoiceSource(b.invoiceRepo)
 
@@ -1548,11 +1548,12 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 // PostJournalEntry books a manually composed Buchungssatz. The journal enforces
 // the rules; the frontend only collects the input.
 //
-// Die Quelle wird dabei auf manual normiert: sie ist kein Eingabefeld, sondern
-// die Herkunft der Buchung, und die Auswertungen hängen an ihr. Ein Vortrag
-// entsteht im Saldenvortrag, eine Abschlussbuchung in den Abschlussbausteinen —
-// wer hier „opening" oder „closing" mitschickte, umginge sonst den Schutz der
-// Steuerkonten und fiele zugleich aus der Umsatzsteuer-Auswertung heraus.
+// Die Quelle wird dabei auf manual normiert: sie ist die Herkunft der
+// Buchung, kein Eingabefeld, und die Auswertungen richten sich nach ihr. Ein
+// Vortrag entsteht im Saldenvortrag, eine Abschlussbuchung in den
+// Abschlussbausteinen — wer hier „opening" oder „closing" mitschickte,
+// umginge sonst den Schutz der Steuerkonten und fiele zugleich aus der
+// Umsatzsteuer-Auswertung heraus.
 //
 // Seit Welle 8 läuft der Weg über PostManualEntry: die Handbuchung verlangt
 // einen Beleg (BEL-01 K2). Die Methode bleibt für den Fall, dass der Beleg

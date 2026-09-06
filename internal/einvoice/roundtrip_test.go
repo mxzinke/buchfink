@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// Der Rundlauf: jede offizielle Rechnung wird gelesen, wieder geschrieben und
-// erneut gelesen. Was dabei verloren geht, ginge auch beim Erzeugen einer
-// eigenen Rechnung verloren — nur würde es dort niemandem auffallen.
+// Der Rundlauf: Der Test liest jede offizielle Rechnung, schreibt sie wieder
+// und liest sie erneut. Was dabei verloren geht, ginge auch beim Erzeugen
+// einer eigenen Rechnung verloren — nur würde es dort niemandem auffallen.
 func TestCIIRoundTripKeepsTheModel(t *testing.T) {
 	for _, path := range officialCIIFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {

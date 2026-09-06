@@ -121,7 +121,7 @@ func TestForeignCurrencyReceiptBooksBothRates(t *testing.T) {
 			got, accounting.CurrencyLossAccount)
 	}
 
-	// Und die Gegenzeile trägt, was tatsächlich zu zahlen ist: 1.290,15 USD zum
+	// Und die Gegenzeile zeigt, was tatsächlich zu zahlen ist: 1.290,15 USD zum
 	// Tageskurs sind 1.190,00 €.
 	settlement := entry.Lines[len(entry.Lines)-1]
 	if settlement.Amount != 119_000 {
@@ -153,7 +153,7 @@ func TestForeignCurrencyReceiptRefusedWithoutARate(t *testing.T) {
 		t.Fatal("ohne Kurs darf kein Fremdwährungsbeleg gebucht werden")
 	}
 
-	// Mit einem von Hand erfassten Kurs geht es — er trägt seine Quelle.
+	// Mit einem von Hand erfassten Kurs geht es — er speichert seine Quelle.
 	svc := env.currency(t, url)
 	env.posting.SetCurrencyConverter(svc)
 	if _, err := svc.SaveRate(ctx, domain.ExchangeRate{
@@ -555,7 +555,7 @@ func TestSupplyEvidenceReportUsesTheStoredTransportKind(t *testing.T) {
 		t.Fatalf("Bericht: %v", err)
 	}
 	if after.Incomplete != 0 {
-		t.Errorf("%d unvollständig — mit der Gelangensbestätigung trägt der Nachweis: %s",
+		t.Errorf("%d unvollständig — mit der Gelangensbestätigung zeigt der Nachweis: %s",
 			after.Incomplete, after.Rows[0].Status.Reason)
 	}
 }
@@ -770,11 +770,11 @@ func TestGiftRecipientComesFromTheContact(t *testing.T) {
 		domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 	bad.Positions[0].Gift = &GiftInput{ContactID: 9999}
 	if _, err := env.posting.PostIncomingReceipt(ctx, bad); err == nil {
-		t.Error("ein unbekannter Empfänger darf keine Aufzeichnung tragen")
+		t.Error("ein unbekannter Empfänger darf keine Aufzeichnung erzeugen")
 	}
 }
 
-// Die Generalumkehr trägt die Aufzeichnung mit — wie bei der Bewirtung. Gezählt
+// Die Generalumkehr übernimmt die Aufzeichnung mit — wie bei der Bewirtung. Gezählt
 // wird sie nicht: sonst liefe die Freigrenze über das stornierte Geschenk weiter.
 func TestReversalCarriesTheGiftRecord(t *testing.T) {
 	env := newTestEnv(t)
@@ -792,7 +792,7 @@ func TestReversalCarriesTheGiftRecord(t *testing.T) {
 		t.Fatalf("Storno: %v", err)
 	}
 	if len(reversal.Gifts) != 1 || reversal.Gifts[0].RecipientName != "Dr. Meyer" {
-		t.Errorf("die Umkehr muss die Aufzeichnung mittragen: %+v", reversal.Gifts)
+		t.Errorf("die Umkehr muss die Aufzeichnung übernehmen: %+v", reversal.Gifts)
 	}
 
 	records, err := svc.GiftsInYear(ctx, 2026)
@@ -916,7 +916,7 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 
 	confirmed, err := issue(env.customer(t, "Client SARL", "FR", "FR12345678901"), "2026-03-01", "")
 	if err != nil {
-		t.Fatalf("mit bestätigter USt-IdNr. muss die Rechnung hinausgehen: %v", err)
+		t.Fatalf("mit bestätigter USt-IdNr. muss Buchfink die Rechnung ausstellen: %v", err)
 	}
 	if confirmed.InvoiceNumber == "" {
 		t.Error("die bestätigte Lieferung bekommt ihre Nummer")
@@ -926,7 +926,7 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 	status, code = "evatr-2001", http.StatusNotFound
 	rejected, err := issue(env.customer(t, "Client Nord SARL", "FR", "FR99999999999"), "2026-03-02", "")
 	if err == nil {
-		t.Fatal("eine zurückgewiesene USt-IdNr. trägt keine steuerfreie Lieferung")
+		t.Fatal("eine zurückgewiesene USt-IdNr. ermöglicht keine steuerfreie Lieferung")
 	}
 	if !strings.Contains(err.Error(), "evatr-2001") {
 		t.Errorf("die Meldung muss den Ergebniscode nennen: %v", err)
@@ -935,19 +935,19 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 		t.Errorf("Nummer %q — die abgelehnte Rechnung darf keine verbrauchen", rejected.InvoiceNumber)
 	}
 
-	// Und ein Amt, das nicht antwortet, ist kein negatives Ergebnis: die
-	// Rechnung geht nur mit einem festgehaltenen Grund hinaus.
+	// Und ein Amt, das nicht antwortet, ist kein negatives Ergebnis: Buchfink
+	// stellt die Rechnung nur mit einem festgehaltenen Grund aus.
 	hang = true
 	blocked := env.customer(t, "Client Süd SARL", "FR", "FR11111111111")
 	if _, err := issue(blocked, "2026-03-03", ""); err == nil {
-		t.Fatal("ohne Antwort und ohne Grund geht die Rechnung nicht hinaus")
+		t.Fatal("ohne Antwort und ohne Grund stellt Buchfink die Rechnung nicht aus")
 	} else if strings.Contains(err.Error(), "nicht bestätigt") {
 		t.Errorf("eine ausgebliebene Antwort ist kein negatives Ergebnis: %v", err)
 	}
 	withReason, err := issue(blocked, "2026-03-03",
 		"Bundeszentralamt antwortet nicht, Nummer aus dem Vorjahr bestätigt")
 	if err != nil {
-		t.Fatalf("mit festgehaltenem Grund muss die Rechnung hinausgehen: %v", err)
+		t.Fatalf("mit festgehaltenem Grund muss Buchfink die Rechnung ausstellen: %v", err)
 	}
 	if withReason.InvoiceNumber == "" {
 		t.Error("die übersteuerte Lieferung bekommt ihre Nummer")

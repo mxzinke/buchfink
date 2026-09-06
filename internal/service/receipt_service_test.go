@@ -335,7 +335,7 @@ func TestReceiptNumbersAreGaplessPerDirection(t *testing.T) {
 		}
 	}
 
-	// Ein Ausgangsbeleg trägt die Rechnungsnummer, die die Rechnung vergeben hat.
+	// Ein Ausgangsbeleg hat die Rechnungsnummer, die die Rechnung vergeben hat.
 	outgoing, err := env.receipts.File(context.Background(), FileReceiptRequest{
 		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
@@ -351,7 +351,7 @@ func TestReceiptNumbersAreGaplessPerDirection(t *testing.T) {
 		t.Fatalf("Ausgangsbeleg konnte nicht abgelegt werden: %v", err)
 	}
 	if outgoing.ReceiptNumber != "RE-2026-0007" {
-		t.Errorf("Ausgangsbeleg soll die Rechnungsnummer tragen, hat aber %q", outgoing.ReceiptNumber)
+		t.Errorf("Ausgangsbeleg soll die Rechnungsnummer haben, hat aber %q", outgoing.ReceiptNumber)
 	}
 	if !strings.Contains(outgoing.Files[0].StoredPath, "belege/2026/ausgang/") {
 		t.Errorf("Ausgangsbelege gehören nach .../ausgang/, liegen aber unter %q", outgoing.Files[0].StoredPath)
@@ -411,7 +411,7 @@ func TestSealIsIdempotentButRefusesASecondBooking(t *testing.T) {
 	}
 }
 
-// Ein abgelegter Beleg wird nicht gelöscht, sondern verworfen — er hat eine
+// Ein abgelegter Beleg wird verworfen. Gelöscht wird er nicht — er hat eine
 // Belegnummer, und ein empfangenes Dokument darf nicht spurlos verschwinden.
 func TestDiscardKeepsTheReceiptAndRequiresAReason(t *testing.T) {
 	env := newTestEnv(t)

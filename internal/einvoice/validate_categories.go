@@ -226,7 +226,7 @@ func (v *validator) requireBreakdownGroup(spec categorySpec, inBreakdown map[str
 	switch count := inBreakdown[spec.code]; {
 	case count == 0:
 		v.failAt("BR-"+spec.family+"-01", where,
-			"Die Steuerkategorie %q wird verwendet, die Aufschlüsselung enthält dafür aber keine Gruppe",
+			"Die Rechnung verwendet die Steuerkategorie %q, die Aufschlüsselung enthält dafür aber keine Gruppe",
 			spec.code)
 	case count > 1 && spec.code != categoryStandard && spec.code != categoryIGIC && spec.code != categoryIPSI:
 		// Nur die Kategorien mit einem Satz größer null dürfen mehrfach
@@ -260,7 +260,7 @@ func (v *validator) checkIdentifiers(rule string, spec categorySpec) {
 		}
 	case sellerVATForbidden:
 		if sellerVAT {
-			v.fail(rule, "Bei der Steuerkategorie %q darf die Rechnung keine USt-IdNr. des Verkäufers tragen — der Umsatz ist nicht steuerbar",
+			v.fail(rule, "Bei der Steuerkategorie %q darf die Rechnung keine USt-IdNr. des Verkäufers haben — der Umsatz ist nicht steuerbar",
 				spec.code)
 		}
 	}
@@ -277,7 +277,7 @@ func (v *validator) checkIdentifiers(rule string, spec categorySpec) {
 		}
 	case buyerVATForbidden:
 		if inv.Buyer.VATIdentifier != "" {
-			v.fail(rule, "Bei der Steuerkategorie %q darf die Rechnung keine USt-IdNr. des Erwerbers tragen — der Umsatz ist nicht steuerbar",
+			v.fail(rule, "Bei der Steuerkategorie %q darf die Rechnung keine USt-IdNr. des Erwerbers haben — der Umsatz ist nicht steuerbar",
 				spec.code)
 		}
 	}

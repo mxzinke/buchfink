@@ -13,7 +13,7 @@ import (
 // aus: die der fertigen und unfertigen Erzeugnisse als Nr. 2 unmittelbar hinter
 // den Umsatzerlösen, die der Roh-, Hilfs- und Betriebsstoffe und der Waren als
 // Teil des Materialaufwands (Nr. 5). Das eine ist eine Ertrags-, das andere eine
-// Aufwandsposition — welches Gegenkonto die Buchung trägt, folgt deshalb aus dem
+// Aufwandsposition — welches Gegenkonto die Buchung bekommt, folgt deshalb aus dem
 // Bestandskonto und ist keine Wahl.
 
 // InventoryGroup fasst die Vorratskonten zu Gruppen mit gemeinsamem Gegenkonto
@@ -24,7 +24,7 @@ type InventoryGroup struct {
 	ChangeAccount string
 }
 
-// inventoryGroups sind die Bereiche der Kontenklasse 1, die Vorräte tragen.
+// inventoryGroups sind die Bereiche der Kontenklasse 1, die Vorräte ausweisen.
 // Die geleisteten Anzahlungen auf Vorräte (1180 ff.) gehören nicht dazu: sie
 // sind eine Vorleistung und kein Bestand, und ihre Veränderung ist keine
 // Bestandsveränderung.

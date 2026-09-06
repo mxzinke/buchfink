@@ -395,7 +395,7 @@ func TestProvisionReleaseNeedsItsReason(t *testing.T) {
 	}
 }
 
-// Der Regelfall des Verbrauchs läuft über den Belegweg: die Rechnung wird der
+// Der Regelfall des Verbrauchs geschieht über den Belegweg: die Rechnung wird der
 // Rückstellung zugeordnet und bucht gegen sie statt gegen den Aufwand. Was sie
 // übersteigt, bleibt Aufwand des laufenden Jahres.
 func TestProvisionConsumptionThroughTheReceiptPathLeavesTheExcessAsExpense(t *testing.T) {
@@ -1736,7 +1736,7 @@ func TestFinancialStatementCarriesTheNotes(t *testing.T) {
 		t.Fatalf("Jahresabschluss: %v", err)
 	}
 	if len(fs.Notes.ProvisionMirror.Rows) != 1 {
-		t.Fatalf("der Anhang trägt %d Zeilen im Rückstellungsspiegel — erwartet eine",
+		t.Fatalf("der Anhang hat %d Zeilen im Rückstellungsspiegel — erwartet eine",
 			len(fs.Notes.ProvisionMirror.Rows))
 	}
 	if fs.Notes.ProvisionMirror.Total.Closing != 956_317 {
@@ -1744,7 +1744,7 @@ func TestFinancialStatementCarriesTheNotes(t *testing.T) {
 			fs.Notes.ProvisionMirror.Total.Closing)
 	}
 	if len(fs.Notes.Reconciliation.Rows) == 0 {
-		t.Fatal("der Anhang trägt die Überleitungsrechnung nicht")
+		t.Fatal("der Anhang enthält die Überleitungsrechnung nicht")
 	}
 	var text string
 	for _, section := range fs.Notes.Texts {
@@ -1851,7 +1851,7 @@ func TestSettlingAProvisionReleasesTheRest(t *testing.T) {
 		t.Errorf("Bestand nach dem Erledigen %s € — erwartet null", settled.Balance())
 	}
 	if settled.SettledOn == "" {
-		t.Error("die erledigte Rückstellung trägt kein Erledigungsdatum")
+		t.Error("die erledigte Rückstellung hat kein Erledigungsdatum")
 	}
 	after := balances(t, env, 2027)
 	if after[domain.AccountErtragAufloesungRueckstellungen] != -300_000 {
@@ -2056,7 +2056,7 @@ func TestReversedTaxProvisionCanBeBookedAgain(t *testing.T) {
 	}
 	entryID := first[0].Movements[0].JournalEntryID
 	if entryID == nil {
-		t.Fatal("die Bildung trägt keine Buchung")
+		t.Fatal("die Bildung hat keine Buchung")
 	}
 	if _, err := env.journal.Reverse(ctx, *entryID, "Verlustvortrag übersehen"); err != nil {
 		t.Fatalf("Steuerrückstellung stornieren: %v", err)
@@ -2222,7 +2222,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	}
 	inventoryEntry := entryByID(t, env, *count.JournalEntryID)
 	if inventoryEntry.ReceiptID == nil || inventoryEntry.ReceiptHash == "" {
-		t.Errorf("die Bestandsveränderung trägt keinen Beleg: %+v", inventoryEntry)
+		t.Errorf("die Bestandsveränderung hat keinen Beleg: %+v", inventoryEntry)
 	}
 	sealed, err := env.receipts.Get(ctx, sheet.ID)
 	if err != nil {
@@ -2261,7 +2261,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 		t.Fatalf("erwartet eine Auflösungsbuchung, bekommen %d", len(releases))
 	}
 	if releases[0].ReceiptID == nil || releases[0].ReceiptHash == "" {
-		t.Errorf("die Auflösung trägt keinen Eigenbeleg: %+v", releases[0])
+		t.Errorf("die Auflösung hat keinen Eigenbeleg: %+v", releases[0])
 	}
 
 	// 3. Ergebnisverwendung, hier mit Beschlussdokument.
@@ -2287,7 +2287,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	}
 	entry := entryByID(t, env, *appropriation.JournalEntryID)
 	if entry.ReceiptID == nil || *entry.ReceiptID != decision.ID {
-		t.Errorf("die Ergebnisverwendung trägt nicht das Beschlussdokument: %+v", entry)
+		t.Errorf("die Ergebnisverwendung hat nicht das Beschlussdokument: %+v", entry)
 	}
 	sealedDecision, err := env.receipts.Get(ctx, decision.ID)
 	if err != nil {
@@ -2325,7 +2325,7 @@ func TestAppropriationWithoutADocumentGetsItsOwnVoucher(t *testing.T) {
 	}
 	entry := entryByID(t, env, *appropriation.JournalEntryID)
 	if entry.ReceiptID == nil || entry.ReceiptHash == "" {
-		t.Errorf("die Ergebnisverwendung trägt keinen Beleg: %+v", entry)
+		t.Errorf("die Ergebnisverwendung hat keinen Beleg: %+v", entry)
 	}
 	if entry.DocumentNumber != "EV 2026" {
 		t.Errorf("Belegnummer %q — erwartet die Kennung des Bausteins EV 2026", entry.DocumentNumber)
@@ -2401,7 +2401,7 @@ func TestMonthlyReleaseSpreadsTheAccrualOverTheYear(t *testing.T) {
 	}
 }
 
-// Das Disagio läuft über Zinsaufwand. Ohne Konto schlägt Buchfink 7320 vor, und
+// Das Disagio wird über Zinsaufwand gebucht. Ohne Konto schlägt Buchfink 7320 vor, und
 // ein Konto außerhalb der 7300er wird zurückgewiesen.
 func TestDisagioDefaultsToTheInterestAccount(t *testing.T) {
 	env := newTestEnv(t)
@@ -2519,7 +2519,7 @@ func (m *closingModules) stepState(
 }
 
 // Der Storno-Weg endet auch bei der Umsatzsteuer-Verrechnung nicht in der
-// Sackgasse. Der Storno trägt Quelle und Belegnummer der Ursprungsbuchung;
+// Sackgasse. Der Storno hat Quelle und Belegnummer der Ursprungsbuchung;
 // wird nur er ausgelassen, bliebe der Schritt „erledigt", obwohl die
 // Steuerkonten wieder ihre Salden tragen.
 func TestReversedVatSettlementReopensItsStep(t *testing.T) {

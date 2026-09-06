@@ -19,7 +19,6 @@ import {
   EmptyState,
   Field,
   HelpPopover,
-  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -211,7 +210,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
    * Die Datei setzt eine gespeicherte Anmeldung voraus: ausgegeben wird, was
    * abgelegt ist, nicht eine Rechnung, die niemand wiederfindet.
    *
-   * Mit `id` ist genau diese Anmeldung gemeint — so steht es in der Liste der
+   * Mit `id` ist diese Anmeldung gemeint — so steht es in der Liste der
    * gespeicherten Voranmeldungen. Ohne `id` ist die laufende gemeint, und dann
    * wird zuerst gespeichert: `SaveVatReturn` schreibt den offenen Entwurf auf
    * den heutigen Stand fort. Ohne diesen Schritt gäbe die Datei einen Entwurf
@@ -504,10 +503,9 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               label={
                 <>
                   Fällig am
-                  <HelpTooltip
-                    label="Erklärung zur Fälligkeit"
-                    content="Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln (§ 18 Abs. 1 UStG); eine Dauerfristverlängerung schiebt sie um einen Monat."
-                  />
+                  <HelpPopover label="Erklärung zur Fälligkeit">
+                    Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln (§ 18 Abs. 1 UStG); eine Dauerfristverlängerung schiebt sie um einen Monat.
+                  </HelpPopover>
                 </>
               }
               value={formatDate(selectedPeriod.dueDate)}
@@ -535,20 +533,20 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
       <Section
         title="Kennziffern des Vordrucks USt 1 A"
         context={vatReturn?.isCorrection ? 'Berichtigte Anmeldung · Kennziffer 10 gesetzt' : undefined}
+        explain={
+          <>
+            Der Vordruck zeigt die gebuchte Steuer; die Rundung je Rechnung macht sie zur
+            richtigen. Weicht die aus der Bemessungsgrundlage nachgerechnete Steuer davon ab,
+            steht die Differenz in der Spalte Abweichung. Bemessungsgrundlagen führt der
+            Vordruck in vollen Euro.
+          </>
+        }
         action={
-          <div className="flex items-center gap-4">
-            <Switch
-              checked={completeForm}
-              onCheckedChange={(next) => setCompleteForm(next)}
-              label="Vollständiger Vordruck"
-            />
-            <HelpPopover label="Erklärung zu den Kennziffern">
-              Der Vordruck trägt die gebuchte Steuer, nicht die aus der Bemessungsgrundlage
-              nachgerechnete: die Rundung je Rechnung ist die richtige. Weicht beides voneinander
-              ab, steht die Differenz in der Spalte Abweichung. Bemessungsgrundlagen führt der
-              Vordruck in vollen Euro.
-            </HelpPopover>
-          </div>
+          <Switch
+            checked={completeForm}
+            onCheckedChange={(next) => setCompleteForm(next)}
+            label="Vollständiger Vordruck"
+          />
         }
       >
         {loadingReturn ? (
@@ -609,13 +607,13 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
         <Section
           title="Nachträge zu übermittelten Zeiträumen"
           context={`${lateEntries.length} Buchungen in bereits übermittelten Zeiträumen`}
-          action={
-            <HelpPopover label="Erklärung zu den Nachträgen">
+          explain={
+            <>
               Diese Buchungen gehören in einen Zeitraum, dessen Voranmeldung bereits übermittelt
               ist. Buchfink schiebt sie nicht stillschweigend in den laufenden Zeitraum, denn
               § 18 Abs. 1 UStG ordnet den Umsatz dem Zeitraum zu, in dem er entstanden ist. Der
               Weg ist die berichtigte Anmeldung des ursprünglichen Zeitraums.
-            </HelpPopover>
+            </>
           }
         >
           <Table>
@@ -876,13 +874,13 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
             <Section
               title="Nachträge zu übermittelten Meldezeiträumen"
               context={`${zmLateEntries.length} meldepflichtige Umsätze in bereits übermittelten Zeiträumen`}
-              action={
-                <HelpPopover label="Erklärung zu den Nachträgen der Meldung">
+              explain={
+                <>
                   Diese Umsätze gehören in einen Meldezeitraum, dessen Zusammenfassende Meldung
-                  bereits übermittelt ist. Nachgemeldet wird nicht im laufenden Zeitraum, sondern
-                  über die berichtigte Meldung des ursprünglichen — § 18a Abs. 10 UStG verlangt sie
-                  binnen eines Monats nach Erkennen des Fehlers.
-                </HelpPopover>
+                  bereits übermittelt ist. Nachgemeldet wird über die berichtigte Meldung des
+                  ursprünglichen Zeitraums — § 18a Abs. 10 UStG verlangt sie binnen eines Monats
+                  nach Erkennen des Fehlers.
+                </>
               }
             >
               <Table>
@@ -1030,7 +1028,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
           <Field
             label="Transferticket"
             error={ticketError ?? undefined}
-            help="Es ist der Nachweis, dass die Anmeldung angekommen ist."
+            explain="Es ist der Nachweis, dass die Anmeldung angekommen ist."
           >
             <Input
               className="code-num"
@@ -1082,7 +1080,7 @@ const FigureRow: React.FC<{
 
   return (
     <>
-      {/* Die Zahllast ist die Summe des Blatts und trägt die buchhalterische
+      {/* Die Zahllast ist die Summe des Blatts und hat die buchhalterische
           Doppellinie — sie ist keine Position unter den anderen. */}
       <Tr variant={line.code === PAYABLE_CODE ? 'sum' : 'default'}>
         <Td code>
@@ -1147,7 +1145,7 @@ const FigureRow: React.FC<{
   );
 };
 
-/** Die Buchungsnummer führt ins Journal, gefiltert auf genau diese Buchung. */
+/** Die Buchungsnummer führt ins Journal, gefiltert auf diese Buchung. */
 const EntryLink: React.FC<{ entryNumber: string; onNavigate?: NavigateFn }> = ({
   entryNumber,
   onNavigate,

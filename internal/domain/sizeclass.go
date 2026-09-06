@@ -5,8 +5,8 @@ package domain
 //
 // Sie ist keine Beschreibung, sondern der Auslöser fast aller Erleichterungen
 // des Abschlusses: Gliederungstiefe, Anhang, Lagebericht, Prüfung, Frist und
-// Umfang der Offenlegung hängen daran. Deshalb wird sie berechnet und nicht
-// eingestellt.
+// Umfang der Offenlegung richten sich danach. Deshalb wird sie berechnet und
+// nicht eingestellt.
 type SizeClassKind string
 
 const (

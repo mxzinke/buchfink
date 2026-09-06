@@ -98,13 +98,13 @@ type JournalLine struct {
 	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille, wo er
 	// nicht voll ist — der Vorsteuerschlüssel der gemischten Nutzung.
 	//
-	// Null heißt „nicht einschlägig": entweder trägt die Zeile keine Vorsteuer,
+	// Null heißt „nicht einschlägig": entweder hat die Zeile keine Vorsteuer,
 	// oder sie ist voll abziehbar. Das ist der Grund, warum hier nicht 1000
 	// steht, wo alles abziehbar ist: die Kanonisierung schreibt das Feld nur,
 	// wenn es belegt ist, und damit hasht jede Buchung ohne Vorsteuerschlüssel
 	// weiter genau so wie vor dieser Welle. Eine Zahl, die überall steht, hätte
 	// die Kette jeder bestehenden Buchhaltung gebrochen.
-	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — trägt
+	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — bekommt
 	// deshalb den eigenen Wert InputTaxExcluded und nicht die Zahl null: „gar
 	// nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst dasselbe.
 	InputTaxShare int `gorm:"default:0" json:"inputTaxShare,omitempty"`
@@ -119,7 +119,7 @@ type JournalLine struct {
 	// bekommt hier die Zahl, die auf ihr stand — nicht eine, die Buchfink aus dem
 	// Eurobetrag zurückgerechnet hat.
 	//
-	// Null heißt „keine Fremdwährung": eine Buchung in Euro trägt das Feld nicht,
+	// Null heißt „keine Fremdwährung": eine Buchung in Euro hat das Feld nicht,
 	// und die Kanonisierung schreibt es nur, wo es belegt ist — die Hash-Kette
 	// jeder bestehenden Buchhaltung bleibt damit unverändert.
 	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
@@ -127,7 +127,7 @@ type JournalLine struct {
 	Text string `gorm:"size:255;serializer:encrypted" json:"text,omitempty"`
 }
 
-// InputTaxExcluded ist der Wert, den JournalLine.InputTaxShare trägt, wo der
+// InputTaxExcluded ist der Wert von JournalLine.InputTaxShare, wo der
 // Vorsteuerabzug ganz ausgeschlossen ist (§ 15 Abs. 1a UStG).
 //
 // Er ist negativ, weil das Feld null als „nicht einschlägig" liest und ein
@@ -253,7 +253,7 @@ type JournalEntry struct {
 	LegacyRef string `gorm:"size:60;index" json:"legacyRef,omitempty"`
 
 	// DueDate ist die vereinbarte Fälligkeit des offenen Postens, den diese
-	// Buchung trägt. Leer heißt: sie folgt aus dem Zahlungsziel des
+	// Buchung erzeugt. Leer heißt: sie folgt aus dem Zahlungsziel des
 	// Geschäftspartners (siehe PaymentService).
 	//
 	// Sie wird nur dort gesetzt, wo sie bekannt ist und nicht aus dem
@@ -277,10 +277,10 @@ type JournalEntry struct {
 	// record the deduction depends on must not be silently editable.
 	Entertainment *EntertainmentDetail `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"entertainment,omitempty"`
 
-	// Gifts tragen die Aufzeichnungen des § 4 Abs. 7 EStG zu den Geschenken
+	// Gifts enthält die Aufzeichnungen des § 4 Abs. 7 EStG zu den Geschenken
 	// dieser Buchung. Sie hängen aus demselben Grund an ihr wie die
-	// Bewirtungsaufzeichnung: der Abzug hängt an ihnen, und was an der Buchung
-	// hängt, deckt die Hashkette.
+	// Bewirtungsaufzeichnung: der Abzug richtet sich nach ihnen, und was an der
+	// Buchung hängt, deckt die Hashkette.
 	//
 	// Eine Liste und kein einzelner Datensatz: eine Lieferantenrechnung über
 	// zehn Präsentkörbe an zehn Empfänger ist ein Beleg und eine Buchung, aber
@@ -367,7 +367,7 @@ func (e *JournalEntry) Validate() error {
 			}
 		case EntryKindReversal:
 			if l.Amount > 0 {
-				return fmt.Errorf("Zeile %d: eine Generalumkehr muss negative Beträge tragen", i+1)
+				return fmt.Errorf("Zeile %d: eine Generalumkehr muss negative Beträge haben", i+1)
 			}
 		}
 		if l.Side == SideDebit {
@@ -506,9 +506,9 @@ type JournalRepository interface {
 	Append(ctx context.Context, entry *JournalEntry, hash EntryHashFunc) error
 	// MarkCommitted stempelt den Festschreibungszeitpunkt an jede Buchung des
 	// Jahres mit Buchungsdatum bis einschließlich cutoff, die ihn noch nicht
-	// trägt, und liefert die Zahl der gestempelten Buchungen.
+	// hat, und liefert die Zahl der gestempelten Buchungen.
 	//
-	// „Die noch keinen trägt" ist die eigentliche Regel: eine frühere
+	// „Die noch keinen hat" ist die eigentliche Regel: eine frühere
 	// Festschreibung hat ihre Buchungen schon festgestellt, und eine spätere,
 	// die weiter reicht, darf deren Zeitpunkt nicht überschreiben — sonst sähe
 	// jede Buchung so aus, als wäre sie erst mit der letzten Festschreibung

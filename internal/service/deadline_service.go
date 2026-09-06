@@ -171,7 +171,7 @@ var manualDeadlineKeys = []string{
 }
 
 // isManualDeadlineKey prüft den Schlüssel gegen die manuellen Terminarten. Die
-// Schlüssel tragen hinter der Art einen Zeitraum oder eine Kennung
+// Schlüssel haben hinter der Art einen Zeitraum oder eine Kennung
 // („sondervorauszahlung.2026"), deshalb die Präfixprüfung.
 func isManualDeadlineKey(key string) bool {
 	for _, prefix := range manualDeadlineKeys {
@@ -239,7 +239,7 @@ func (s *DeadlineService) exemptionDeadlines(ctx context.Context, year int) []do
 			Reference:  "§ 48b EStG",
 			FiscalYear: year,
 			Description: w.Note +
-				" Lass dir die neue Bescheinigung vorlegen und trage sie am Geschäftspartner ein.",
+				" Die neue Bescheinigung ist vorzulegen und am Geschäftspartner einzutragen.",
 		})
 	}
 	return out

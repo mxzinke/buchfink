@@ -37,7 +37,7 @@ func TestServiceEndpointsAreReadableAndWritable(t *testing.T) {
 		t.Errorf("die Adresse steht nach dem Speichern nicht in den Einstellungen: %+v", again)
 	}
 
-	// Unverschlüsselt geht nicht: die Abfrage trägt die USt-IdNr. und den Namen
+	// Unverschlüsselt geht nicht: die Abfrage hat die USt-IdNr. und den Namen
 	// des Geschäftspartners.
 	if _, err := b.SaveServiceEndpoints(ServiceEndpoints{
 		VatID: "http://evatr.example/abfrage",

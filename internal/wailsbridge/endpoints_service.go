@@ -100,10 +100,10 @@ func validEndpoint(value string) error {
 		return fmt.Errorf("%q ist keine vollständige Adresse (erwartet https://…)", value)
 	}
 	if parsed.Scheme != "https" {
-		// Die Abfrage trägt eine USt-IdNr. und den Namen des Geschäftspartners.
+		// Die Abfrage hat eine USt-IdNr. und den Namen des Geschäftspartners.
 		// Sie geht verschlüsselt oder gar nicht.
 		return fmt.Errorf(
-			"die Adresse %q ist nicht verschlüsselt. Die Abfrage trägt die USt-IdNr. und den Namen "+
+			"die Adresse %q ist nicht verschlüsselt. Die Abfrage hat die USt-IdNr. und den Namen "+
 				"des Geschäftspartners; sie geht über https", value)
 	}
 	return nil

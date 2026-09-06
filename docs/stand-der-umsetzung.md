@@ -3,8 +3,8 @@
 Status: laufend gepflegt
 Letzte Aktualisierung: 2026-09-06
 
-Dieses Dokument beschreibt, was Buchfink heute tut, wo eine Funktion an einer
-Grenze endet und was noch fehlt. Es ist die erzählende Gegenprobe zum
+Dieses Dokument beschreibt, was Buchfink heute tut, wo eine Funktion
+eingeschränkt ist und was noch fehlt. Es ist die erzählende Gegenprobe zum
 [Anforderungskatalog](anforderungskatalog.md): dort steht jedes Kriterium mit
 Norm, Status und Fundstelle, hier steht dasselbe in Vorgangssprache. Warum
 Buchfink so geschnitten ist, steht in [docs/architektur.md](architektur.md),
@@ -13,14 +13,14 @@ Abschnitt 2.
 Der Katalog zählt 349 Akzeptanzkriterien: 242 erfüllt, 38 teilweise, 14 fehlend,
 55 außerhalb des Funktionsumfangs. Acht Umsetzungswellen sind gebaut. Welle 8
 hat die laufende Buchhaltung abgeschlossen: Belege, Journal, Konten,
-Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer tragen
+Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer haben
 kein fehlendes Kriterium mehr. Offen bleibt der Jahresabschluss als Dokument
 mit Feststellung, Offenlegung und Prüfung — bewusst zurückgestellt, bis ein
 Geschäftsjahr laufend geführt worden ist.
 
-## 1. Was trägt
+## 1. Was funktioniert
 
-| Modul | Was trägt | Fundstelle |
+| Modul | Was funktioniert | Fundstelle |
 |---|---|---|
 | A. Buchführungspflicht und Grundsätze | Jeder Buchungssatz gleicht sich ohne Toleranz aus, `Post` ist der einzige Schreibweg ins Journal, der Saldenvortrag bringt die Bestandskonten ins Folgejahr, Bilanz und GuV entstehen allein aus Kontensalden. | `internal/domain/journal.go:325`, `internal/service/journal_service.go:97`, `internal/service/closing_service.go:1129`, `internal/accounting/statement.go:291` |
 | B. Beleg, Journal, Konten | Beleg unter seinem SHA256 abgelegt, Kopfdaten als Pflicht vor dem Buchen, Nummernkreise ohne Doppelvergabe in der Transaktion, Storno als einzige Korrektur, offene Posten mit Stichtag, Prüfbericht aus vierzehn Regeln vor jeder Festschreibung, Handbuchung nur mit Beleg oder Eigenbeleg, eigene Konten mit HGB-Position. | `internal/service/receipt_service.go:124`, `:285`, `internal/repository/numberrange_gorm.go:49`, `internal/service/journal_service.go:258`, `internal/service/payment_service.go:185`, `internal/service/check_service.go:167`, `internal/service/manual_entry.go:38`, `internal/service/self_issued_receipt.go:68`, `internal/service/account_service.go:84` |
@@ -38,9 +38,9 @@ Monatsabschluss in drei Schritten, Jahresabschluss als geführter Weg
 (`internal/service/task_service.go`, `internal/service/month_close_service.go`,
 `internal/service/closing_steps_service.go`; docs/architektur.md Abschnitt 6).
 
-## 2. Wo eine Funktion an ihrer Grenze endet
+## 2. Wo eine Funktion eingeschränkt ist
 
-38 Kriterien sind teilweise erfüllt. Jede Zeile nennt die Grenze.
+38 Kriterien sind teilweise erfüllt. Jede Zeile nennt, was fehlt.
 
 **A. Buchführungspflicht und Grundsätze**
 
@@ -72,11 +72,11 @@ Monatsabschluss in drei Schritten, Jahresabschluss als geführter Weg
 - Parallele Wertansätze: die Sonderabschreibung nach § 7g EStG steht neben dem Handelswert, abweichende Anschaffungskosten kennt der Datensatz nicht.
 - Anlagenspiegel: alle Spalten des laufenden Jahres, ein vollständiger Vorjahresspiegel fehlt.
 - Anlagenspiegel in der Taxonomie: der Block steht in der Instanz, die Elementnamen sind selbst gebildet.
-- Abschreibungsmethoden: sechs Methoden hängen an ihrem Konto, die Leistungsabschreibung ist außerhalb des Umfangs.
+- Abschreibungsmethoden: sechs Methoden sind je Konto hinterlegt, die Leistungsabschreibung ist außerhalb des Umfangs.
 - Datierte Regelsätze: Sätze und Fenster liegen als Ressource neben dem Code, die Datei ist eingebettet und reist mit der Auslieferung.
 - Methodenwechsel: der Übergang von degressiv auf linear läuft automatisch und steht in der Planzeile, nicht im Stammsatz.
 - Unterschiedliche Nutzungsdauern: die Differenz aus § 7g EStG ist auswertbar, ein zweiter Bewertungskreis entsteht nicht.
-- AfA-Tabellenwerte: neun von dreiundvierzig Konten tragen einen Vorschlag mit Begründungspflicht, die übrigen keinen.
+- AfA-Tabellenwerte: neun von dreiundvierzig Konten haben einen Vorschlag mit Begründungspflicht, die übrigen keinen.
 - Wertgrenzen: datiert und an einer Stelle, parametrisierbar ausdrücklich nicht.
 - Verzeichnis der Wahlrechte: die Überleitung geht in die Instanz, ihre Elementnamen sind ungeprüft.
 
@@ -111,7 +111,7 @@ Vierzehn Kriterien sind offen. Keines davon gehört zur laufenden Buchhaltung.
 **(a) Laufende Buchhaltung.** Kein Kriterium der Module B, C, E, F und J ist
 mehr als fehlend eingestuft. Belege, Journal, Konten, Festschreibung, Protokoll,
 Aufbewahrung, Ein- und Ausgangsrechnungen, Voranmeldung und Zusammenfassende
-Meldung tragen den Alltag vollständig. Übrig sind Ränder, die als teilweise
+Meldung decken den Alltag vollständig ab. Übrig sind Ränder, die als teilweise
 erfüllt in Abschnitt 2 stehen und keinen Vorgang blockieren: die
 Aufbewahrungsfristen liegen als eingebettete Ressource statt als Einstellung,
 das Journal kennt keine freie Sortierwahl, ein leeres Leistungsdatum wird still
@@ -123,13 +123,13 @@ Code.
 
 **(b) Jahresabschluss und Prüfung.** Diese vierzehn Kriterien sind bewusst
 zurückgestellt, bis ein Geschäftsjahr laufend geführt worden ist. Neun von
-ihnen hängen an demselben Objekt, das Buchfink noch nicht führt: dem
+ihnen richten sich nach demselben Objekt, das Buchfink noch nicht führt: dem
 Jahresabschluss als Dokument.
 
 | Was fehlt | Katalog |
 |---|---|
 | Feststellungsbeschluss als Dokument am Geschäftsjahr. Der Beschluss über die Ergebnisverwendung lässt sich ablegen, der Feststellungsbeschluss nicht. | JAB-04 |
-| Unterzeichneter Jahresabschluss als unveränderliches, archiviertes Dokument. Es entsteht kein Abschlussdokument, an dem die übrigen Nachweise hängen könnten. | JAB-04 |
+| Unterzeichneter Jahresabschluss als unveränderliches, archiviertes Dokument. Es entsteht kein Abschlussdokument, mit dem sich die übrigen Nachweise verknüpfen ließen. | JAB-04 |
 | Datensatz für die Einreichung beim Unternehmensregister. Der offenzulegende Umfang wird aus der Größenklasse gesetzt, ein darauf beschränkter Datensatz entsteht nicht. | JAB-07 |
 | Hinterlegung nach § 326 Abs. 2 HGB als Wahl für Kleinstgesellschaften. Die Norm steht bisher nur im Beschreibungstext. | JAB-07 |
 | Einreichungsnachweis der Offenlegung, archiviert am Abschluss. | JAB-07 |
@@ -179,7 +179,7 @@ Papierbeleg bleibt aufzubewahren (BEL-08).
 
 **Kapitalgesellschaften zuerst.** Kapitalkonten der Gesellschafter, Entnahmen
 und der Schuldzinsenabzug nach § 4 Abs. 4a EStG sind nicht abgebildet (BEW-13).
-KG, OHG und e.K. bleiben wählbar und tragen den Hinweis in der Oberfläche. Dazu
+KG, OHG und e.K. bleiben wählbar und zeigen den Hinweis in der Oberfläche. Dazu
 gehören das Umsatzkostenverfahren (JAB-01) und das Merkmal der
 Kapitalmarktorientierung (JAB-02), die beide nicht setzbar sind.
 
@@ -201,7 +201,7 @@ wird.
 
 Die laufende Buchhaltung ist gebaut. Was bleibt, sind die 38 teilweise
 erfüllten Kriterien und die 14 offenen, jedes mit seinem Grund im Katalog. Neun
-der offenen Punkte hängen am selben Objekt — dem Jahresabschluss als Dokument
+der offenen Punkte richten sich nach demselben Objekt — dem Jahresabschluss als Dokument
 mit Feststellung, Offenlegung und Nachweisen. Wer dort ansetzt, schließt sie
 zusammen. Sie stehen bewusst hinten an: erst soll ein Geschäftsjahr laufend
 geführt worden sein.
@@ -217,5 +217,5 @@ Prüfpunkte mit Datum, jeder mit dem Ereignis, das ihn auslöst:
 | bei Verkündung, offen | Verordnung nach § 147b AO (DSFinVBV). Der Diskussionsentwurf 2026 legt xBRL-CSV 1.0 fest. Mit der Verkündung wird der Export ein weiteres Formatmodul (PRF-06). |
 | 01.01.2027 und 01.01.2028 | Übergangsfrist der E-Rechnung auf der Ausstellerseite (§ 27 Abs. 38 UStG). Ab 2027 gilt die Sendepflicht bei einem Vorjahresumsatz über 800.000 Euro, ab 2028 für alle inländischen B2B-Umsätze (RECH-06). |
 | 01.01. und 01.07. jedes Jahres | Basiszinssatz nach § 247 BGB. Die Bundesbank gibt ihn halbjährlich bekannt; er wird als datierte Zeile in den Einstellungen nachgetragen (QUE-05). |
-| jährlich, nach dem BMF-Schreiben | Stand der E-Bilanz-Taxonomie. Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026, 6.10 ab 2027. Die Elementnamen in `internal/ebilanz/taxonomy_6.9.json` tragen `verified: false` und sind vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen (JAB-05). |
+| jährlich, nach dem BMF-Schreiben | Stand der E-Bilanz-Taxonomie. Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026, 6.10 ab 2027. Die Elementnamen in `internal/ebilanz/taxonomy_6.9.json` sind durchgehend mit `verified: false` markiert und vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen (JAB-05). |
 | jährlich | Jahresstand des SKR04. Der Kontenrahmen liegt als `internal/accounting/skr04_2026.json` bei; eine neue Fassung ist eine neue Datei (BEL-06). |

@@ -20,12 +20,11 @@ import {
   ScrollText,
   Settings,
   ShieldAlert,
-  ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
-import { CompanySettings, IntegrityCheckResult } from '../types';
-import { GermanFlag } from './GermanFlag';
+import { CompanySettings, IntegrityCheckResult, TenantConfig } from '../types';
+import { TenantSwitcher } from './TenantSwitcher';
 import { Button, cn } from './ui';
 import { formatTime } from '../utils/formatters';
 
@@ -48,8 +47,8 @@ export type TabType =
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
-  | 'nachweise'
-  | 'dataaccess'
+  | 'backup'
+  | 'taxaudit'
   | 'settings';
 
 /**
@@ -72,12 +71,6 @@ export interface NavigationParams {
    * Weg aus dem Kontoblatt in die Auswertung desselben Kontos.
    */
   filterAccount?: string;
-  /**
-   * Reiter, den die Seite „Nachweise" öffnet — Protokoll, Versionen,
-   * Aufbewahrung oder Verfahrensdokumentation. Ohne ihn landete ein Verweis
-   * auf eine bestimmte Auskunft wieder auf dem ersten Reiter.
-   */
-  nachweiseTab?: string;
   /**
    * Reiter, den die Seite „Nebenpflichten" öffnet. Aus der Schrittliste des
    * Abschlusses führt sonst kein Weg zu der Arbeit, die die Zeile benennt: der
@@ -119,9 +112,8 @@ export interface NavigationParams {
    */
   year?: number;
   /**
-   * Prüfregel, deren Befunde die Seite „Sicherheit & Protokoll" hervorhebt. Ohne
-   * sie stünde die Aufgabe „Befunde klären" vor einer Liste von Prüfläufen ohne
-   * Anker.
+   * Prüfregel, deren Befunde die Prüfübersicht hervorhebt. Ohne sie stünde die
+   * Aufgabe „Befunde klären" vor einer Liste von Prüfläufen ohne Anker.
    */
   auditRule?: string;
   /** Frist, die die Fristenansicht hervorhebt. */
@@ -135,8 +127,13 @@ interface SidebarProps {
   onSelectTab: (tab: TabType) => void;
   settings: CompanySettings | null;
   integrity: IntegrityCheckResult | null;
-  onRefreshIntegrity: () => void;
   isCheckingIntegrity: boolean;
+  /** Mandantenwahl am Kopf der Navigation, dort wo der Name des Mandanten steht. */
+  tenants: TenantConfig[];
+  activeTenant: TenantConfig | null;
+  onSwitchTenant: (tenantId: string) => void;
+  onAddTenant: () => void;
+  onShowTenants: () => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
 }
@@ -198,14 +195,16 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: 'Verwaltung',
+    // Drei Einträge nach dem, was der Anwender vorhat, und nicht nach der
+    // Herkunft der Daten: seine Daten sichern, eine Prüfung bedienen,
+    // einstellen. Was die Buchführung über sich selbst weiß — Kette,
+    // Protokoll, Prüfläufe, Systemhistorie — steht in der Prüfübersicht und
+    // hängt am Zustandsanzeiger in der Fußzeile: sie beantwortet die Frage
+    // „ist etwas nicht in Ordnung", und die stellt sich erst, wenn der
+    // Anzeiger etwas anderes sagt als „unverändert".
     items: [
-      { id: 'audit', label: 'Sicherheit & Protokoll', icon: <ShieldCheck className={icon} /> },
-      // Die Nachweise stehen neben dem Protokoll und nicht darin: das eine ist
-      // der laufende Betrieb — Kette, Festschreibung, Prüflauf —, das andere
-      // die Auskunft über das Verfahren selbst, die nur bei einer Prüfung
-      // gebraucht wird.
-      { id: 'nachweise', label: 'Nachweise', icon: <ScrollText className={icon} /> },
-      { id: 'dataaccess', label: 'Datenzugriff', icon: <Archive className={icon} /> },
+      { id: 'backup', label: 'Datensicherung', icon: <Archive className={icon} /> },
+      { id: 'taxaudit', label: 'Betriebsprüfung', icon: <ScrollText className={icon} /> },
       { id: 'settings', label: 'Einstellungen', icon: <Settings className={icon} /> },
     ],
   },
@@ -247,21 +246,36 @@ const NavItem: React.FC<{
 /**
  * Der Integritätszustand steht dauerhaft hier und nie in einem Toast (§11.4).
  * Drei Zustände, drei Formulierungen.
+ *
+ * Er ist zugleich der Weg in die Prüfübersicht — Kette, Protokoll, Prüfläufe,
+ * Systemhistorie —, die deshalb keinen eigenen Navigationseintrag hat: die
+ * Frage „ist etwas nicht in Ordnung" wird hier beantwortet, und wer sie
+ * genauer wissen will, klickt auf die Antwort. Nachgeprüft wird auf der Seite
+ * selbst; ein Klick, der beides täte, machte aus einem Blick auf den Zustand
+ * einen Lauf über die ganze Buchführung.
  */
 const IntegrityStatus: React.FC<{
   integrity: IntegrityCheckResult | null;
   isChecking: boolean;
-  onRefresh: () => void;
-}> = ({ integrity, isChecking, onRefresh }) => {
+  isActive: boolean;
+  onOpen: () => void;
+}> = ({ integrity, isChecking, isActive, onOpen }) => {
   const broken = integrity !== null && !integrity.isValid;
 
   return (
     <button
       type="button"
-      onClick={onRefresh}
-      title={integrity?.message || 'Integrität der Buchungskette prüfen'}
-      className="w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left
-                 transition-colors duration-120 ease-quiet hover:bg-shell-raised"
+      onClick={onOpen}
+      aria-current={isActive ? 'page' : undefined}
+      title={integrity?.message || 'Prüfübersicht öffnen'}
+      className={cn(
+        `w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left
+         transition-colors duration-120 ease-quiet hover:bg-shell-raised`,
+        // Die geöffnete Prüfübersicht wird hier markiert und nicht in der
+        // Liste darüber: sonst stünde der Anwender auf einer Seite, die in
+        // der Navigation nirgends hervorgehoben ist.
+        isActive && 'bg-shell-raised',
+      )}
     >
       <span className="mt-1 shrink-0">
         {isChecking ? (
@@ -295,8 +309,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   settings,
   integrity,
-  onRefreshIntegrity,
   isCheckingIntegrity,
+  tenants,
+  activeTenant,
+  onSwitchTenant,
+  onAddTenant,
+  onShowTenants,
   isOpenMobile = false,
   onCloseMobile,
 }) => {
@@ -326,31 +344,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 flex flex-col min-h-0">
           {/* Oben Platz für die Fensterknöpfe unter macOS */}
           <div className="pt-8 md:pt-9 pb-3 px-3 border-b border-shell-line flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleItemClick('welcome')}
-              className="flex items-center gap-3 flex-1 min-w-0 p-1.5 -m-1.5 rounded-control
-                         transition-colors duration-120 ease-quiet hover:bg-shell-raised window-no-drag"
-            >
-              <span className="relative shrink-0">
-                <img
-                  src="/buchfink-logo.svg"
-                  alt=""
-                  className="w-8 h-8 rounded-control bg-white/10 p-0.5 border border-white/10"
-                />
-                <span className="absolute -bottom-1 -right-1">
-                  <GermanFlag className="w-3.5 h-2.5 border border-shell" />
-                </span>
-              </span>
-              <span className="min-w-0 flex-1 text-left">
-                <span className="block text-body font-semibold text-white truncate">
-                  {settings?.companyName || 'Buchfink'}
-                </span>
-                <span className="block text-caption text-shell-text-muted truncate">
-                  Geschäftsjahr {settings?.fiscalYear || new Date().getFullYear()}
-                </span>
-              </span>
-            </button>
+            <div className="flex-1 min-w-0">
+              <TenantSwitcher
+                tenants={tenants}
+                activeTenant={activeTenant}
+                settings={settings}
+                onSwitchTenant={(id) => {
+                  onSwitchTenant(id);
+                  onCloseMobile?.();
+                }}
+                onAddTenant={onAddTenant}
+                onShowAll={onShowTenants}
+              />
+            </div>
 
             {onCloseMobile && (
               <Button
@@ -388,7 +394,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <IntegrityStatus
             integrity={integrity}
             isChecking={isCheckingIntegrity}
-            onRefresh={onRefreshIntegrity}
+            isActive={currentTab === 'audit'}
+            onOpen={() => handleItemClick('audit')}
           />
         </div>
       </aside>

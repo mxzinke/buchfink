@@ -4,7 +4,7 @@
 // jeder Aufzeichnung und jeder Änderung feststellen lässt, wer sie veranlasst
 // hat. Buchfink läuft am Einzelplatz und kennt keine Benutzerverwaltung — es
 // gibt keine Anmeldung, an der eine Kennung hinge. Was es gibt, ist das Konto
-// des Betriebssystems und der Name des Rechners, und genau das ist die
+// des Betriebssystems und der Name des Rechners, und das ist die
 // Bearbeiterkennung: sie unterscheidet die Buchhalterin von ihrem Steuerberater,
 // der dieselbe Datei auf seinem Rechner öffnet.
 //

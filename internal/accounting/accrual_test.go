@@ -37,8 +37,8 @@ func TestAccrualShareSpreadsByDays(t *testing.T) {
 	}
 }
 
-// Ein Zeitraum, der ganz im Geschäftsjahr liegt, wird nicht abgegrenzt — sonst
-// verschöbe die Abgrenzung Aufwand, der bereits am richtigen Platz steht.
+// Buchfink grenzt einen Zeitraum, der ganz im Geschäftsjahr liegt, nicht ab —
+// sonst verschöbe die Abgrenzung Aufwand, der am richtigen Platz steht.
 func TestAccrualShareIsZeroInsideTheYear(t *testing.T) {
 	share, err := AccrualShare(
 		120_000, "2026-01-01", "2026-12-31", "2026-12-31", domain.AccrualMonthly, 1)
@@ -97,7 +97,7 @@ func TestAccrualReleasePlanSpreadsOverSeveralYears(t *testing.T) {
 	}
 	// 30 Monate nach dem Stichtag: 12 + 12 + 6.
 	if plan[2].Amount >= plan[0].Amount {
-		t.Errorf("das halbe letzte Jahr trägt %s € und damit nicht weniger als ein volles (%s €)",
+		t.Errorf("das halbe letzte Jahr hat %s € und damit nicht weniger als ein volles (%s €)",
 			plan[2].Amount, plan[0].Amount)
 	}
 }

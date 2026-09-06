@@ -83,7 +83,7 @@ func TestZMLinesGroupByVatIDAndKind(t *testing.T) {
 
 	for _, l := range lines {
 		if len(l.EntryIDs) == 0 {
-			t.Errorf("Zeile %s trägt keine Buchungs-IDs — ohne sie gibt es keinen Drill-down", l.VatID)
+			t.Errorf("Zeile %s hat keine Buchungs-IDs — ohne sie gibt es keinen Drill-down", l.VatID)
 		}
 	}
 }

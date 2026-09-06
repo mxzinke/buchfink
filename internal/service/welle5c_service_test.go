@@ -220,7 +220,7 @@ func bzstServer(t *testing.T, code string, fields map[string]string) (*httptest.
 // vatIDs baut den Dienst mit der Adresse aus den Einstellungen. Der Weg über
 // die Einstellung und nicht über einen ausgetauschten Client ist Absicht: die
 // Adresse des Bundeszentralamts ist einstellbar, damit ein Wechsel keine
-// Programmversion verlangt — und genau dieser Weg wird hier mitgeprüft.
+// Programmversion verlangt — und dieser Weg wird hier mitgeprüft.
 func (e *testEnv) vatIDs(t *testing.T, endpoint string) *VatIDService {
 	t.Helper()
 	settings := repository.NewSettingsRepository(e.db)
@@ -290,7 +290,7 @@ func TestVatIDRejectionBlocksTheExemptSupply(t *testing.T) {
 
 	err := svc.EnsureConfirmed(ctx, customer, "")
 	if err == nil {
-		t.Fatal("eine nicht bestätigte USt-IdNr. trägt keine steuerfreie Lieferung")
+		t.Fatal("eine nicht bestätigte USt-IdNr. ermöglicht keine steuerfreie Lieferung")
 	}
 	if !strings.Contains(err.Error(), "§ 6a Abs. 1") {
 		t.Errorf("die Meldung muss die Vorschrift nennen: %v", err)
@@ -311,7 +311,7 @@ func TestVatIDRejectionBlocksTheExemptSupply(t *testing.T) {
 }
 
 // Ist das Bundeszentralamt nicht erreichbar, ist das kein negatives Ergebnis.
-// Die Rechnung geht dann nur mit einem festgehaltenen Grund hinaus.
+// Buchfink stellt die Rechnung dann nur mit einem festgehaltenen Grund aus.
 func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -325,7 +325,7 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 
 	err := svc.EnsureConfirmed(ctx, customer, "")
 	if err == nil {
-		t.Fatal("ohne Bestätigung und ohne Grund geht die Rechnung nicht hinaus")
+		t.Fatal("ohne Bestätigung und ohne Grund stellt Buchfink die Rechnung nicht aus")
 	}
 	if strings.Contains(err.Error(), "nicht bestätigt") {
 		t.Errorf("eine ausgebliebene Antwort ist kein negatives Ergebnis: %v", err)
@@ -333,7 +333,7 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 
 	if err := svc.EnsureConfirmed(ctx, customer,
 		"Bundeszentralamt nicht erreichbar, Nummer aus dem Vorjahr bestätigt"); err != nil {
-		t.Fatalf("mit Grund muss die Rechnung hinausgehen: %v", err)
+		t.Fatalf("mit Grund muss Buchfink die Rechnung ausstellen: %v", err)
 	}
 }
 
@@ -381,7 +381,7 @@ func TestSupplyEvidenceReportListsIncompleteSupplies(t *testing.T) {
 			report.Incomplete, len(report.Rows))
 	}
 	if !strings.Contains(report.Note, "§ 17a") {
-		t.Errorf("der Bericht muss den Fristhinweis tragen: %s", report.Note)
+		t.Errorf("der Bericht muss den Fristhinweis enthalten: %s", report.Note)
 	}
 
 	// Zwei Belege unabhängiger Aussteller: die Vermutung greift.
@@ -415,7 +415,7 @@ func TestSupplyEvidenceReportListsIncompleteSupplies(t *testing.T) {
 		t.Errorf("%d unvollständig — nach dem Nachweis darf keine offen sein", after.Incomplete)
 	}
 
-	// Ein Beleg ohne Aussteller trägt die Vermutung nicht und wird deshalb gar
+	// Ein Beleg ohne Aussteller stützt die Vermutung nicht und wird deshalb gar
 	// nicht erst angenommen.
 	if _, err := svc.Add(ctx, SupplyEvidenceRequest{
 		InvoiceID: invoice.ID, Kind: string(accounting.EvidenceCMR), Date: "2026-04-04",

@@ -14,8 +14,8 @@ import (
 
 // Die Tabellen der Datenüberlassung.
 //
-// Jede Spalte trägt ihre Erläuterung mit — nicht in einer Dokumentation
-// nebenan, sondern hier, wo auch der Wert entsteht. Die Feldbeschreibung wird
+// Jede Spalte hat ihre Erläuterung direkt bei sich — hier, wo auch der Wert
+// entsteht, und nicht in einer Dokumentation nebenan. Die Feldbeschreibung wird
 // daraus erzeugt; eine Spalte ohne Erläuterung fällt beim Lesen der
 // Tabellendefinition auf und nicht erst dem Prüfer.
 const (
@@ -203,10 +203,10 @@ func sortedLines(e *domain.JournalEntry) []domain.JournalLine {
 	return lines
 }
 
-// entertainmentTable trägt die Aufzeichnung des § 4 Abs. 5 Satz 1 Nr. 2 EStG.
+// entertainmentTable enthält die Aufzeichnung des § 4 Abs. 5 Satz 1 Nr. 2 EStG.
 //
-// Sie steht in einer eigenen Tabelle und nicht im Journal, weil sie an der
-// Buchung hängt und nicht an der Zeile: im Journal stünde sie so oft, wie die
+// Sie steht in einer eigenen Tabelle und nicht im Journal, weil sie zur
+// Buchung gehört und nicht zur Zeile: im Journal stünde sie so oft, wie die
 // Buchung Zeilen hat. Für das Nachrechnen der Hash-Chain wird sie gebraucht.
 func entertainmentTable(d *exportData) (export.Table, error) {
 	t := newTable(tableEntertainment, "bewirtungen.csv",
@@ -319,7 +319,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 //
 // Der Weg geht über die Gliederungsposition und nicht unmittelbar über die
 // SKR04-Position: die Taxonomie kennt Schlüssel wie „aktiva.B.IV", die Konten
-// tragen Schlüssel wie „bilanz.aktiva_b_iv.kassenbestand…". Dazwischen steht
+// haben Schlüssel wie „bilanz.aktiva_b_iv.kassenbestand…". Dazwischen steht
 // dieselbe Übersetzung, die auch die E-Bilanz benutzt — zwei Wege zu demselben
 // Element wären zwei Gelegenheiten, verschiedene Auskünfte zu geben.
 //
@@ -503,7 +503,7 @@ func assetMovementsTable(d *exportData) (export.Table, error) {
 		numField("AHK_Veraenderung", "Veränderung der Anschaffungs- und Herstellungskosten in Euro."),
 		numField("AfA_Veraenderung", "Veränderung der kumulierten Abschreibungen in Euro."),
 		numField("Steuerbetrag", "Betrag, der nur steuerlich zählt, etwa die Vorabpauschale, in Euro."),
-		intField("Buchung_ID", "Buchung, die die Bewegung trägt."),
+		intField("Buchung_ID", "Buchung, zu der die Bewegung gehört."),
 		alphaField("Begruendung", "Begründung, bei außerplanmäßigen Vorgängen Pflicht."),
 	)
 	for i := range d.assets {
@@ -836,7 +836,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Status", "Stand des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegstatus“."),
 		dateField("Eingang", "Tag, an dem der Beleg eingegangen ist."),
 		alphaField("Eingangsweg", "Weg, auf dem der Beleg eingegangen ist."),
-		dateField("Belegdatum", "Datum, das der Beleg selbst trägt (Rechnungsdatum). Leer bei Belegen aus der Zeit vor den Kopfdaten; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Den Beleg-Hash nachrechnen“)."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst hat (Rechnungsdatum). Leer bei Belegen aus der Zeit vor den Kopfdaten; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Den Beleg-Hash nachrechnen“)."),
 		alphaField("Aussteller", "Name des Ausstellers, wie er auf dem Beleg steht."),
 		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
 		numField("Steuerbetrag", "Darin enthaltene Umsatzsteuer in Euro."),
@@ -946,7 +946,7 @@ func vatReturnsTable(d *exportData) (export.Table, error) {
 				// Der Vordruck kennt über hundert Kennziffern; die leeren
 				// gehören auf das Blatt, aber nicht in die Datenüberlassung —
 				// dort blähten sie die Tabelle um das Zwanzigfache auf, ohne
-				// eine Auskunft zu tragen.
+				// eine Auskunft zu geben.
 				continue
 			}
 			if err := t.AddRow(
@@ -1045,14 +1045,14 @@ func checkRunsTable(d *exportData) (export.Table, error) {
 // Die einzelnen Verbindungen stehen schon in belege.csv, journal.csv und
 // zahlungszuordnungen.csv — der Prüfer müsste sie über drei Dateien
 // zusammensuchen. GoBD Rz. 36 verlangt die progressive und die retrograde
-// Prüfbarkeit; diese Tabelle ist genau das, in einer Zeile je Beleg, mit dem
+// Prüfbarkeit; diese Tabelle leistet das, in einer Zeile je Beleg, mit dem
 // Bestellbezug und dem Leistungsnachweis daneben (RECH-08).
 func auditTrailTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAuditTrail, "pruefpfad.csv",
 		"Der Weg vom Beleg über die Buchung und die Zahlung bis zum Bankumsatz. Eine Zeile je Beleg und zugeordneter Zahlung; ein Beleg ohne Zahlung steht mit leeren Zahlungsspalten.",
 		intField("Beleg_ID", "Interne Kennung des Belegs."),
 		alphaField("Belegnummer", "Nummer, unter der der Beleg geführt wird."),
-		dateField("Belegdatum", "Datum, das der Beleg selbst trägt."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst hat."),
 		alphaField("Aussteller", "Name des Ausstellers."),
 		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
 		alphaField("Bestellbezug", "Bestellnummer aus der E-Rechnung (BT-13), soweit vorhanden."),

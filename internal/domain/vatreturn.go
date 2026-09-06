@@ -43,7 +43,7 @@ const (
 // Bemessungsgrundlage und Steuerbetrag stehen in einer Zeile, weil sie im
 // Vordruck in einer Zeile stehen — teils unter derselben Kennziffer (81, 86,
 // 89), teils unter zweien (35/36, 46/47). TaxCode benennt die zweite; ist sie
-// leer, trägt die Zeile ihren Steuerbetrag unter der eigenen Kennziffer.
+// leer, steht der Steuerbetrag der Zeile unter der eigenen Kennziffer.
 type VatReturnLine struct {
 	Code      string `json:"code"`
 	Label     string `json:"label"`
@@ -59,7 +59,7 @@ type VatReturnLine struct {
 	Tax     Cents  `json:"tax"`
 
 	// ExpectedTax ist die aus der Bemessungsgrundlage errechnete Steuer. Der
-	// Vordruck trägt die *gebuchte* Steuer, nicht die nachgerechnete: die
+	// Vordruck zeigt die *gebuchte* Steuer, nicht die nachgerechnete: die
 	// Rundung je Rechnung ist die richtige, und eine Nachrechnung über den
 	// Monatsumsatz weicht regelmäßig um Cent ab. Damit die Abweichung nicht
 	// unbemerkt bleibt, steht sie daneben.
@@ -264,7 +264,7 @@ type ZMLine struct {
 
 	ContactID   uint   `gorm:"index" json:"contactId"`
 	ContactName string `gorm:"-" json:"contactName,omitempty"`
-	// EntryIDs trägt den Drill-down wie bei der Voranmeldung.
+	// EntryIDs liefert den Drill-down wie bei der Voranmeldung.
 	EntryIDsJSON string `gorm:"type:text" json:"-"`
 	EntryIDs     []uint `gorm:"-" json:"entryIds,omitempty"`
 }
@@ -329,7 +329,7 @@ type ZMReturn struct {
 
 // EnsureLists ersetzt nicht belegte Listen durch leere — aus demselben Grund wie
 // bei der Voranmeldung: die Oberfläche darf für „nichts zu melden" kein `null`
-// lesen. Die Listen tragen deshalb auch kein `omitempty`: ein fehlendes Feld
+// lesen. Die Listen haben deshalb auch kein `omitempty`: ein fehlendes Feld
 // wäre in der Ansicht `undefined` und damit derselbe Absturz.
 func (r *ZMReturn) EnsureLists() {
 	if r.Lines == nil {

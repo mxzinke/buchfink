@@ -30,7 +30,7 @@ func deadlineByKey(list []domain.Deadline, key string) (domain.Deadline, bool) {
 	return domain.Deadline{}, false
 }
 
-// Die Fristen kommen aus dem Backend und tragen ihre Norm. Vorher rechnete die
+// Die Fristen kommen aus dem Backend und haben ihre Norm. Vorher rechnete die
 // Ansicht sie selbst.
 func TestDeadlinesPerPeriodType(t *testing.T) {
 	env := newTestEnv(t)

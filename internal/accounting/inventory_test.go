@@ -9,7 +9,7 @@ import (
 // § 275 Abs. 2 HGB weist die Bestandsveränderung an zwei Stellen aus: die der
 // Erzeugnisse als Nr. 2 hinter den Umsatzerlösen, die der Roh-, Hilfs- und
 // Betriebsstoffe und der Waren im Materialaufwand (Nr. 5). Welches Gegenkonto
-// die Buchung trägt, folgt deshalb aus dem Bestandskonto.
+// die Buchung bekommt, folgt deshalb aus dem Bestandskonto.
 func TestInventoryChangeAccountFollowsTheStockAccount(t *testing.T) {
 	cases := map[string]string{
 		"1000": domain.AccountBestandRHBWaren,  // Roh-, Hilfs- und Betriebsstoffe
@@ -41,7 +41,7 @@ func TestInventoryAccountsStopBeforeThePrepayments(t *testing.T) {
 	}
 }
 
-// Jede Gruppe trägt eine Bezeichnung — die Oberfläche zeigt sie statt der
+// Jede Gruppe hat eine Bezeichnung — die Oberfläche zeigt sie statt der
 // Kontonummer, weil „1140" niemandem sagt, dass es um Waren geht.
 func TestInventoryGroupsAreLabelled(t *testing.T) {
 	for _, group := range InventoryGroups() {

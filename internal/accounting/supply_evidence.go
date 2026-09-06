@@ -262,7 +262,7 @@ func AssessSupplyEvidence(transport TransportKind, items []EvidenceItem) Evidenc
 		"Der Belegnachweis ist nicht geführt. Vorliegen %d unabhängige Beförderungsbelege und %d "+
 			"unabhängige Belege der Gruppe b; die Vermutung des § 17a Abs. 1 UStDV setzt zwei "+
 			"Beförderungsbelege oder einen Beförderungsbeleg und einen Beleg der Gruppe b voraus, "+
-			"jeweils von voneinander unabhängigen Ausstellern.",
+			"von voneinander unabhängigen Ausstellern.",
 		status.GroupACount, status.GroupBCount)
 	return status
 }

@@ -176,7 +176,7 @@ export function formatDate(dateStr: string): string {
  * dort bereits der Folgetag, und die Ansicht zeigte einen Tag, an dem niemand
  * gearbeitet hat.
  *
- * Die Zeitzone steht dabei, weil sie den Unterschied trägt: dieselbe Buchung
+ * Die Zeitzone steht dabei, weil sie den Unterschied ausmacht: dieselbe Buchung
  * zeigt auf einem Rechner in Berlin eine andere Uhrzeit als auf einem in
  * London, und ein Protokollzeitpunkt ohne Zone lässt sich mit dem Zeitstempel
  * einer Festschreibung oder eines Bankauszugs nicht vergleichen (QUE-04).

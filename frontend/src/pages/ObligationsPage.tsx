@@ -47,7 +47,6 @@ import {
   FieldRow,
   FieldValue,
   HelpPopover,
-  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -326,12 +325,14 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
         context={`Buchungstag ${formatDate(view?.bookingDate ?? '')}`}
         className="mt-8"
         divider={false}
+        explain={
+          <>
+            {view?.note ||
+            'Ändert sich die Verwendung eines Wirtschaftsguts innerhalb des Berichtigungszeitraums, ist der Vorsteuerabzug anteilig zu berichtigen (§ 15a UStG). Die Bagatellgrenzen des § 44 UStDV nimmt Buchfink dabei selbst an.'}
+          </>
+        }
         action={
           <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zur Vorsteuerberichtigung">
-              {view?.note ||
-                'Ändert sich die Verwendung eines Wirtschaftsguts innerhalb des Berichtigungszeitraums, ist der Vorsteuerabzug anteilig zu berichtigen (§ 15a UStG). Die Bagatellgrenzen des § 44 UStDV nimmt Buchfink dabei selbst an.'}
-            </HelpPopover>
             <Button
               variant="secondary"
               icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
@@ -755,11 +756,11 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
         title="Bestätigungsanfrage"
         context="Qualifizierte Abfrage beim Bundeszentralamt für Steuern"
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zur Bestätigungsanfrage">
+        explain={
+          <>
             {status?.note ||
-              'Eine steuerfreie innergemeinschaftliche Lieferung setzt eine im Zeitpunkt der Lieferung gültige USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Buchfink hebt jede Antwort samt Abfrage-Identifikationsnummer auf; sie ist der Beleg gegenüber der Finanzverwaltung.'}
-          </HelpPopover>
+            'Eine steuerfreie innergemeinschaftliche Lieferung setzt eine im Zeitpunkt der Lieferung gültige USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Buchfink hebt jede Antwort samt Abfrage-Identifikationsnummer auf; sie ist der Beleg gegenüber der Finanzverwaltung.'}
+          </>
         }
       >
         {withVatId.length === 0 ? (
@@ -881,13 +882,13 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
       <Section
         title="Freistellungsbescheinigungen"
         context={`${warnings.length} laufen ab oder sind abgelaufen`}
-        action={
-          <HelpPopover label="Erklärung zur Freistellungsbescheinigung">
+        explain={
+          <>
             Wer eine Bauleistung bezieht, hat nach § 48 EStG 15 % der Gegenleistung einzubehalten
             — es sei denn, der Leistende legt eine gültige Freistellungsbescheinigung nach § 48b
             EStG vor. Den Steuerabzug selbst rechnet Buchfink nicht; die Bescheinigung wird
             geführt und ihre Frist überwacht.
-          </HelpPopover>
+          </>
         }
       >
         {warnings.length === 0 ? (
@@ -1020,8 +1021,8 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
     if (initialInvoiceId) void open(initialInvoiceId);
   }, [initialInvoiceId, open]);
 
-  // Die Beförderungsart wird gespeichert und nicht nur angezeigt: an ihr hängt
-  // die Bewertung des Nachweises, und beim Abholfall die Gelangensbestätigung.
+  // Die Beförderungsart wird gespeichert und nicht nur angezeigt: nach ihr richtet
+  // sich die Bewertung des Nachweises, und beim Abholfall auch die Gelangensbestätigung.
   // Eine Auswahl, die nach dem Neuladen wieder auf dem alten Wert stünde, sähe
   // aus wie eine Einstellung und wäre keine.
   async function setTransport(transport: TransportKind) {
@@ -1113,10 +1114,9 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
           label={
             <>
               Ohne vollständigen Nachweis
-              <HelpTooltip
-                label="Erklärung zum Belegnachweis"
-                content="Die Steuerfreiheit der innergemeinschaftlichen Lieferung setzt den Beleg- und Buchnachweis voraus (§§ 17a ff. UStDV); ohne ihn ist der Umsatz steuerpflichtig."
-              />
+              <HelpPopover label="Erklärung zum Belegnachweis">
+                Die Steuerfreiheit der innergemeinschaftlichen Lieferung setzt den Beleg- und Buchnachweis voraus (§§ 17a ff. UStDV); ohne ihn ist der Umsatz steuerpflichtig.
+              </HelpPopover>
             </>
           }
           value={String(report?.incomplete ?? 0)}
@@ -1137,11 +1137,11 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
         context="Eine Zeile öffnet die Belege dieser Lieferung"
         className="mt-8"
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zum Belegnachweis">
+        explain={
+          <>
             {report?.note ||
-              'Die Steuerbefreiung setzt den Belegnachweis voraus. Die Vermutung des § 17a UStDV greift bei zwei einander nicht widersprechenden Belegen aus Gruppe a von zwei unabhängigen Parteien oder bei einem Beleg aus a und einem aus b; im Abholfall kommt die Gelangensbestätigung hinzu.'}
-          </HelpPopover>
+            'Die Steuerbefreiung setzt den Belegnachweis voraus. Die Vermutung des § 17a UStDV greift bei zwei einander nicht widersprechenden Belegen aus Gruppe a von zwei unabhängigen Parteien oder bei einem Beleg aus a und einem aus b; im Abholfall kommt die Gelangensbestätigung hinzu.'}
+          </>
         }
       >
         {rows.length === 0 ? (
@@ -1201,10 +1201,10 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
         <Section
           title={`Belege zu ${view.invoiceNumber}`}
           context={`${view.contactName} · ${formatDate(view.date)}`}
-          action={
-            <HelpPopover label="Bewertung des Nachweises">
+          explain={
+            <>
               {`${view.status.reason}${view.status.basis ? ` (${view.status.basis})` : ''}`}
-            </HelpPopover>
+            </>
           }
         >
           <FieldRow className="mb-5">
@@ -1212,7 +1212,7 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
               label="Beförderung"
               className="w-72"
               hint="Der Abholfall braucht die Gelangensbestätigung"
-              help="Die Auswahl wird an der Rechnung gespeichert; sie entscheidet über die Bewertung des Nachweises nach § 17a UStDV."
+              explain="Die Auswahl wird an der Rechnung gespeichert; sie entscheidet über die Bewertung des Nachweises nach § 17a UStDV."
             >
               <Select<TransportKind>
                 value={view.transport || 'supplier'}
@@ -1421,10 +1421,9 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
           label={
             <>
               Nicht abziehbar
-              <HelpTooltip
-                label="Erklärung zum nicht abziehbaren Aufwand"
-                content="Geschenke über der Freigrenze, 30 % der Bewirtung und die übrigen Fälle des § 4 Abs. 5 EStG mindern den Gewinn nicht."
-              />
+              <HelpPopover label="Erklärung zum nicht abziehbaren Aufwand">
+                Geschenke über der Freigrenze, 30 % der Bewirtung und die übrigen Fälle des § 4 Abs. 5 EStG mindern den Gewinn nicht.
+              </HelpPopover>
             </>
           }
           value={formatCents(
@@ -1497,17 +1496,17 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
       <Section
         title="Geschenke je Empfänger"
         context="Die Freigrenze läuft je Empfänger und Wirtschaftsjahr"
-        action={
-          <HelpPopover label="Erklärung zur Freigrenze">
+        explain={
+          <>
             {report?.note ||
-              'Eine Freigrenze ist kein Freibetrag: Wird sie überschritten, sind sämtliche Geschenke an diesen Empfänger nicht abziehbar, und mit ihnen entfällt der Vorsteuerabzug (§ 15 Abs. 1a UStG).'}
-          </HelpPopover>
+            'Eine Freigrenze ist kein Freibetrag: Wird sie überschritten, sind sämtliche Geschenke an diesen Empfänger nicht abziehbar, und mit ihnen entfällt der Vorsteuerabzug (§ 15 Abs. 1a UStG).'}
+          </>
         }
       >
         {recipients.length === 0 ? (
           <EmptyState
             title="Kein Geschenk erfasst"
-            description="Jedes Geschenk trägt seinen Empfänger; ohne ihn wird nicht gebucht."
+            description="Zu jedem Geschenk gehört ein Empfänger; ohne ihn wird nicht gebucht."
           />
         ) : (
           <Table density="kompakt">
@@ -1752,7 +1751,7 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
   if (loading) return <SkeletonRows rows={8} />;
 
   const items = valuation?.items ?? [];
-  // Eine gebuchte Bewertung trägt ihre Buchungsnummer; ein zweiter Lauf wird vom
+  // Eine gebuchte Bewertung hat ihre Buchungsnummer; ein zweiter Lauf wird vom
   // Backend abgewiesen.
   const booked = Boolean(valuation?.entryNumber);
 
@@ -1764,12 +1763,12 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
         title="Tageskurs"
         context="Referenzkurs der Europäischen Zentralbank"
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zum Kurs">
+        explain={
+          <>
             Buchfink rät keinen Kurs. Liegt für den Tag keiner vor und ist der Kursdienst nicht
             erreichbar, wird der Kurs von Hand erfasst — mit seiner Quelle, weil er über den
             Aufwand entscheidet.
-          </HelpPopover>
+          </>
         }
       >
         <FieldRow className="items-end">
@@ -1870,13 +1869,13 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
       <Section
         title="Umsatzsteuer-Umrechnungskurse"
         context="Monatliche Durchschnittskurse des BMF"
-        action={
-          <HelpPopover label="Erklärung zum Umsatzsteuerkurs">
+        explain={
+          <>
             Für die Umsatzsteuer gilt der monatliche Durchschnittskurs, den das
             Bundesministerium der Finanzen veröffentlicht (§ 16 Abs. 6 UStG). Liegt er vor,
             rechnet Buchfink die Bemessungsgrundlage damit; der Aufwand bleibt beim Tageskurs,
             und die Differenz ist Kursaufwand oder Kursertrag.
-          </HelpPopover>
+          </>
         }
       >
         <FieldRow className="mb-5 items-end">
@@ -1939,30 +1938,30 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
       <Section
         title="Stichtagsbewertung"
         context={`Stichtag ${formatDate(valuation?.cutoff ?? '')} · Auflösung ${formatDate(valuation?.reversalDate ?? '')}`}
+        explain={
+          <>
+            {valuation?.note ||
+            'Posten in Fremdwährung werden zum Devisenkassamittelkurs des Stichtags bewertet. Bei einer Restlaufzeit bis zu einem Jahr wirken Gewinn und Verlust erfolgswirksam (§ 256a Satz 2 HGB), darüber nur der Verlust. Die Bewertung wird am ersten Tag des Folgejahres wieder aufgelöst.'}
+          </>
+        }
         action={
-          <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zur Stichtagsbewertung">
-              {valuation?.note ||
-                'Posten in Fremdwährung werden zum Devisenkassamittelkurs des Stichtags bewertet. Bei einer Restlaufzeit bis zu einem Jahr wirken Gewinn und Verlust erfolgswirksam (§ 256a Satz 2 HGB), darüber nur der Verlust. Die Bewertung wird am ersten Tag des Folgejahres wieder aufgelöst.'}
-            </HelpPopover>
-            <Button
-              variant="primary"
-              onClick={bookValuation}
-              loading={busy}
-              disabled={lock.locked || busy || booked || items.length === 0}
-              title={
-                lock.locked
-                  ? lock.hint
-                  : booked
-                    ? 'bereits gebucht — Storno über das Journal'
-                    : items.length === 0
-                      ? 'Nichts zu bewerten'
-                      : undefined
-              }
-            >
-              Bewertung buchen
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            onClick={bookValuation}
+            loading={busy}
+            disabled={lock.locked || busy || booked || items.length === 0}
+            title={
+              lock.locked
+                ? lock.hint
+                : booked
+                  ? 'bereits gebucht — Storno über das Journal'
+                  : items.length === 0
+                    ? 'Nichts zu bewerten'
+                    : undefined
+            }
+          >
+            Bewertung buchen
+          </Button>
         }
       >
         <StatRow className="mb-5">
@@ -2091,7 +2090,7 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
       setConfirming(0);
       setNote('');
       // Kein Toast: der geschlossene Dialog ist die Rückmeldung, die Zeile
-      // trägt den Stand danach selbst (Gestaltungskonzept 8.5).
+      // zeigt den Stand danach selbst (Gestaltungskonzept 8.5).
     } catch (e) {
       setError(message(e));
     } finally {
@@ -2126,11 +2125,11 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
         title="Wertaufholung"
         context={`Geschäftsjahr ${year} · Zuschreibung bis zu den fortgeführten Kosten`}
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zur Wertaufholung">
+        explain={
+          <>
             {writeUps?.note ||
-              'Ist der Grund einer außerplanmäßigen Abschreibung weggefallen, ist zuzuschreiben — bis höchstens zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot und kein Wahlrecht; besteht der Grund fort, wird das festgehalten.'}
-          </HelpPopover>
+            'Ist der Grund einer außerplanmäßigen Abschreibung weggefallen, ist zuzuschreiben — bis höchstens zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot und kein Wahlrecht; besteht der Grund fort, wird das festgehalten.'}
+          </>
         }
       >
         {candidates.length === 0 ? (
@@ -2207,11 +2206,11 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
       <Section
         title="Sammelposten und Sofortabzug"
         context={`Zugänge zwischen ${formatCents(pool?.lowerLimit ?? 0)} und ${formatCents(pool?.upperLimit ?? 0)}`}
-        action={
-          <HelpPopover label="Erklärung zur Einheitlichkeit">
+        explain={
+          <>
             {pool?.note ||
-              'Wird für ein Wirtschaftsjahr ein Sammelposten gebildet, gilt das Wahlrecht für alle Zugänge dieses Jahres in diesem Wertbereich einheitlich (§ 6 Abs. 2a Satz 5 EStG). Beides nebeneinander ist unzulässig.'}
-          </HelpPopover>
+            'Wird für ein Wirtschaftsjahr ein Sammelposten gebildet, gilt das Wahlrecht für alle Zugänge dieses Jahres in diesem Wertbereich einheitlich (§ 6 Abs. 2a Satz 5 EStG). Beides nebeneinander ist unzulässig.'}
+          </>
         }
       >
         {pooled.length === 0 && immediate.length === 0 ? (
@@ -2252,10 +2251,10 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
       <Section
         title="Abschreibungsregeln"
         context={rules ? `Stand ${rules.version} · ${rules.source}` : 'aus der Ressource'}
-        action={
-          <HelpPopover label="Erklärung zu den Regelsätzen">
+        explain={
+          <>
             {rules?.investmentDeductionNote || rules?.note || 'Die Sätze stehen als Ressource neben dem Programm.'}
-          </HelpPopover>
+          </>
         }
       >
         <Table density="kompakt">
@@ -2398,12 +2397,12 @@ const EndpointSection: React.FC<{ field: 'vatId' | 'exchangeRate'; title: string
     <Section
       title={title}
       context="Leer heißt: die Voreinstellung gilt"
-      action={
-        <HelpPopover label="Erklärung zur Adresse">
+      explain={
+        <>
           Wechselt die Stelle ihre Schnittstelle, soll das keine neue Programmfassung nötig
-          machen. Die Abfrage trägt die USt-IdNr. und den Namen des Geschäftspartners; sie geht
+          machen. Die Abfrage enthält die USt-IdNr. und den Namen des Geschäftspartners; sie geht
           über https oder gar nicht.
-        </HelpPopover>
+        </>
       }
     >
       {error && <Notice tone="negative" text={error} className="mb-4" />}

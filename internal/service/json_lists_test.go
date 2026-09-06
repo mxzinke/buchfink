@@ -17,8 +17,8 @@ import (
 // `lateEntries.length`, `findings.length`. Ein nicht belegter Go-Slice wird in
 // JSON zu `null`, und `null.length` wirft im Render einen TypeError; ohne
 // ErrorBoundary nimmt das den ganzen Baum mit. Betroffen wäre jeweils der
-// Regelfall: der Zeitraum ohne Nachtrag, die Meldung ohne Befund, der saubere
-// Prüflauf. Die Zusage wird deshalb an der Ausgabe geprüft und nicht an den
+// Regelfall: der Zeitraum ohne Nachtrag, die Meldung ohne Befund, der Prüflauf
+// ohne Befund. Die Zusage wird deshalb an der Ausgabe geprüft und nicht an den
 // Feldern.
 func assertNoNullLists(t *testing.T, label string, v any, keys ...string) {
 	t.Helper()
@@ -91,7 +91,7 @@ func TestZMReturnMarshalsEmptyListsNotNull(t *testing.T) {
 	assertNoNullLists(t, "Zusammenfassende Meldung (gespeichert)", saved, "lines", "lateEntries", "findings")
 }
 
-// Der saubere Prüflauf — genau der Fall, in dem der Festschreibungsdialog
+// Der Prüflauf ohne Befund — der Fall, in dem der Festschreibungsdialog
 // `findings.length` liest.
 func TestCheckRunMarshalsEmptyFindingsNotNull(t *testing.T) {
 	env := newTestEnv(t)
@@ -139,8 +139,8 @@ func TestDeadlineListMarshalsEmptyNotNull(t *testing.T) {
 	}
 }
 
-// Die Entitäten sagen die leeren Listen selbst zu — an ihnen hängt die Zusage,
-// nicht an den Stellen, die sie erzeugen.
+// Die Entitäten sagen die leeren Listen selbst zu — die Zusage richtet sich
+// nach ihnen, nicht nach den Stellen, die sie erzeugen.
 func TestEnsureListsReplacesNilWithEmpty(t *testing.T) {
 	var vat domain.VatReturn
 	vat.EnsureLists()
@@ -170,7 +170,7 @@ func TestEnsureListsReplacesNilWithEmpty(t *testing.T) {
 // Die Zusage gilt für alles, was als JSON an die Oberfläche geht: ein nil-Slice
 // wird dort zu `null`, und `null.length` oder `null.map` nimmt im Render den
 // ganzen Baum mit. Geprüft wird über die Struktur und nicht über einzelne
-// Feldnamen — die Bausteine des Abschlusses tragen zu viele Listen, als dass
+// Feldnamen — die Bausteine des Abschlusses haben zu viele Listen, als dass
 // eine Aufzählung vollständig bliebe.
 //
 // Ausgenommen sind Felder mit `omitempty`: sie stehen bei nil gar nicht in der
@@ -220,7 +220,7 @@ func walkForNilSlices(t *testing.T, path string, v reflect.Value) {
 }
 
 // Die Auswertungen des leeren Mandanten. Er ist der Zustand nach der
-// Einrichtung — und genau der Bildschirm, den ein neuer Anwender zuerst sieht.
+// Einrichtung — und der Bildschirm, den ein neuer Anwender zuerst sieht.
 func TestServiceOutputsHaveNoNilLists(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -363,7 +363,7 @@ func TestAssetListsAreEmptyNotNull(t *testing.T) {
 	}
 	assertNoNilSlices(t, "AfA-Vorschau ohne Anschaffungskosten", plan)
 
-	// Ein Anlagegut, dessen Klasse keine Erläuterung trägt, liefert trotzdem
+	// Ein Anlagegut, dessen Klasse keine Erläuterung hat, liefert trotzdem
 	// eine Liste — die Ansicht läuft über sie.
 	asset := env.machine(t, svc)
 	detail, err := svc.Get(ctx, asset.ID)

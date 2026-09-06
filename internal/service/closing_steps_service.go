@@ -210,9 +210,10 @@ func (s *ClosingStepsService) Steps(ctx context.Context, year int) (*ClosingStep
 // Zwei Sperren, in der Reihenfolge, in der sie eintreten: die Jahres-
 // Festschreibung macht die Buchungen des Jahres unveränderlich (§ 146 Abs. 4
 // AO), und die Feststellung schließt den Abschluss ab (§ 42a Abs. 1 GmbHG).
-// Danach ist der Weg zurück nicht das Zurücknehmen einer Entscheidung, sondern
-// die Rücksetzung der Feststellung beziehungsweise der Storno der Buchung —
-// beides gibt es an anderer Stelle und mit Grund im Protokoll.
+// Danach führt der Weg zurück über die Rücksetzung der Feststellung
+// beziehungsweise den Storno der Buchung — beides gibt es an anderer Stelle
+// und mit Grund im Protokoll. Eine Entscheidung selbst nimmt danach niemand
+// mehr direkt zurück.
 func (s *ClosingStepsService) reopenState(
 	ctx context.Context, year int, fy *domain.FiscalYear,
 ) (bool, string) {
@@ -480,7 +481,7 @@ func (s *ClosingStepsService) liveProvisions(ctx context.Context, year int) ([]d
 // hasClosingReference meldet, ob im Jahr eine nicht stornierte Abschlussbuchung
 // mit dieser Belegnummer steht.
 //
-// Zwei Buchungen tragen die Belegnummer: die Verrechnung selbst und ihre
+// Zwei Buchungen haben die Belegnummer: die Verrechnung selbst und ihre
 // Generalumkehr, denn der Storno übernimmt Quelle und Belegnummer der
 // Ursprungsbuchung. Die Umkehr auszulassen genügt deshalb nicht — gefragt ist,
 // ob die Ursprungsbuchung noch steht. Ohne diese zweite Frage bliebe der

@@ -53,7 +53,7 @@ var ignoredAuditFields = []string{
 	"bookValue",    // Buchwert eines Anlageguts, gerechnet
 	"depreciation", //
 	// Die Bewegungen eines Anlageguts gehören den Buchungen und nicht der
-	// Stammdatenmaske: der gelesene Stand trägt sie, der übergebene nicht, und
+	// Stammdatenmaske: der gelesene Stand hat sie, der übergebene nicht, und
 	// sie erschienen sonst bei jedem Speichern als Änderung, die niemand
 	// vorgenommen hat.
 	"movements",
@@ -100,7 +100,7 @@ func (r *auditRepositoryGorm) append(
 ) error {
 	entry := domain.AuditLogEntry{
 		// UTC: eine Ortszeit ohne Zone ist in der Nacht der Zeitumstellung
-		// mehrdeutig, und die Reihenfolge des Protokolls hängt an ihr.
+		// mehrdeutig, und die Reihenfolge des Protokolls richtet sich nach ihr.
 		Timestamp:  time.Now().UTC(),
 		Action:     action,
 		EntityType: entityType,
@@ -134,7 +134,7 @@ func (r *auditRepositoryGorm) append(
 	db := dbFrom(ctx, r.db)
 	// Läuft schon eine Transaktion — etwa die einer Buchung —, wird sie
 	// benutzt: eine eigene daneben hielte fest, was der Aufrufer gleich
-	// zurückrollt, und die Kette trüge einen Eintrag über einen Vorgang, den es
+	// zurückrollt, und die Kette hätte einen Eintrag über einen Vorgang, den es
 	// nicht gegeben hat.
 	//
 	// Und dann ohne die Sperre: der Aufrufer schreibt bereits in dieser

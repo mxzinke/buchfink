@@ -82,8 +82,8 @@ const STATUS: Record<Invoice['status'], Status> = {
  *
  * Die Zeile wächst mit den Daten: dreistellige Anzahlen und sechsstellige
  * Beträge sprengen sie, und ein Umbruch im Kopf schiebt die ganze Seite nach
- * unten. Deshalb entscheidet nicht der Platz, sondern die Reihenfolge — die
- * Teile stehen nach Wichtigkeit, und was nicht mehr hineinpasst, fällt weg.
+ * unten. Deshalb entscheidet die Reihenfolge — die Teile stehen nach
+ * Wichtigkeit, und was nicht mehr hineinpasst, fällt weg.
  */
 const HEADER_CONTEXT_LIMIT = 60;
 
@@ -129,9 +129,9 @@ const newItem = (rate: TaxRate): DraftItem => ({
 /**
  * Das Statuswort einer Zeile.
  *
- * Der Status allein trüge es nicht: das Stornodokument ist nach dem Ausstellen
- * `issued` wie jede Rechnung, aber es ist kein offener Posten, sondern die
- * Buchung, die einen zurücknimmt. §11.3 hat dafür das Wort „Gebucht" — „Offen"
+ * Der Status allein sagt das nicht: das Stornodokument ist nach dem
+ * Ausstellen `issued` wie jede Rechnung, ist aber die Buchung, die einen
+ * offenen Posten zurücknimmt. §11.3 hat dafür das Wort „Gebucht" — „Offen"
  * verspräche einen Zahlungseingang, den niemand erwartet.
  */
 const statusOf = (invoice: Invoice): Status =>
@@ -147,7 +147,7 @@ const statusOf = (invoice: Invoice): Status =>
  * Der Bezug, den §11.2 auf der Gegenbuchung verlangt: „Storno zu RE-…".
  *
  * Er tritt an die Stelle des Statusworts, wie §11.2 es zeigt — nicht als
- * „Storniert": storniert ist die Ursprungsrechnung, und sie trägt das Wort und
+ * „Storniert": storniert ist die Ursprungsrechnung, und sie hat das Wort und
  * die Rosé-Zeile bereits. Das Stornodokument ist die Buchung, die sie
  * zurücknimmt; sein Zustand steht in der Farbe des Abzeichens.
  */
@@ -336,7 +336,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
     }
   }
 
-  // Offen ist nur, was eine Forderung trägt — und das entscheidet die Art, nicht
+  // Offen ist nur, was eine Forderung hat — und das entscheidet die Art, nicht
   // der Status.
   //
   // Das Stornodokument steht nach dem Ausstellen auf „ausgestellt" wie jede
@@ -380,26 +380,26 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                   : null,
               ])
         }
+        explain={
+          <>
+            Ausstellen und Buchen sind ein Schritt. Die Rechnungsnummer wird lückenlos und
+            fortlaufend vergeben, die Forderung sofort auf das Personenkonto des Kunden gebucht.
+            Eine Rechnung, die nicht im Journal steht, kann es deshalb nicht geben.
+          </>
+        }
         action={
-          <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zum Ausstellen">
-              Ausstellen und Buchen sind ein Schritt. Die Rechnungsnummer wird lückenlos und
-              fortlaufend vergeben, die Forderung sofort auf das Personenkonto des Kunden gebucht.
-              Eine Rechnung, die nicht im Journal steht, kann es deshalb nicht geben.
-            </HelpPopover>
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={contacts.length === 0 || writeLock.locked}
-              title={
-                writeLock.hint ??
-                (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
-              }
-              onClick={() => setShowForm(true)}
-            >
-              Neue Rechnung
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={contacts.length === 0 || writeLock.locked}
+            title={
+              writeLock.hint ??
+              (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
+            }
+            onClick={() => setShowForm(true)}
+          >
+            Neue Rechnung
+          </Button>
         }
       />
 
@@ -471,8 +471,8 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                     {/* Beim Storno steht der Bezug im Abzeichen („Storno zu
                         RE-…", §11.2) und wäre hier eine zweite Nennung
                         derselben Sache. Die Berichtigung nennt ihn dagegen
-                        hier: sie hat einen eigenen Zustand und trägt im
-                        Abzeichen ihr eigenes Statuswort. */}
+                        hier: sie hat einen eigenen Zustand, und ihr Abzeichen
+                        zeigt ihr eigenes Statuswort. */}
                     {invoice.correctsInvoiceNumber && invoice.kind !== 'cancellation' && (
                       <span className="block text-caption text-ink-subtle">
                         zu {invoice.correctsInvoiceNumber}
@@ -636,13 +636,13 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             ? `${gaps.issued} Nummern vergeben · ${gaps.used} mit Dokument · ${gaps.gaps.length} ohne`
             : 'Der Lückenbericht ließ sich nicht laden'
         }
-        action={
-          <HelpPopover label="Erklärung zum Lückenbericht">
-            § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende Nummer. Nummer, Rechnung
-            und Buchung entstehen in einer Transaktion; eine Lücke bleibt daher nur nach einem
-            Abbruch oder aus übernommenen Beständen. Die Betriebsprüfung fragt nach jeder einzelnen
-            — deshalb wird der Grund festgehalten und nicht erinnert.
-          </HelpPopover>
+        explain={
+          <>
+            § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende Nummer. Eine Lücke
+            entsteht deshalb nur, wenn eine Rechnung mitten im Schreiben abgebrochen ist oder aus
+            einem übernommenen Bestand stammt. Die Betriebsprüfung fragt nach jeder einzelnen:
+            Halten Sie den Grund hier fest, statt sich später erinnern zu müssen.
+          </>
         }
       >
         {!gaps || gaps.gaps.length === 0 ? (
@@ -650,7 +650,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             title="Keine Lücke im Rechnungsnummernkreis"
             description={
               gaps
-                ? 'Jede vergebene Nummer trägt ein Dokument.'
+                ? 'Jede vergebene Nummer hat ein Dokument.'
                 : 'Der Bericht steht wieder zur Verfügung, sobald das Geschäftsjahr geladen ist.'
             }
           />
@@ -808,8 +808,8 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 const ITEM_GRID = 'grid grid-cols-[minmax(0,1fr)_5rem_6rem_7rem_6rem_7rem_2rem] gap-2 items-center';
 
 /**
- * Was das archivierte Dokument einer Rechnung ist, hängt am Format, in dem sie
- * ausgestellt wurde. „Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML" stimmt
+ * Was das archivierte Dokument einer Rechnung ist, richtet sich nach dem
+ * Format, in dem sie ausgestellt wurde. „Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML" stimmt
  * nur für ZUGFeRD: bei der XRechnung ist die XML-Datei das Original und das PDF
  * ihre Darstellung, bei `pdf_only` gibt es überhaupt keinen strukturierten
  * Datensatz. Eine feste Beschriftung behauptete an zwei von drei Formaten
@@ -831,7 +831,7 @@ const STRUCTURED_TITLES: Record<EInvoiceProfile, string> = {
 
 /**
  * Das Format eines Dokuments. Bestandsrechnungen aus der Zeit vor dem Feld
- * tragen keines; für sie gilt die Voreinstellung des Backends.
+ * haben keines; für sie gilt die Voreinstellung des Backends.
  */
 function profileOf(invoice: Invoice): EInvoiceProfile {
   return invoice.eInvoiceProfile ?? 'zugferd_en16931';
@@ -1166,9 +1166,9 @@ const InvoiceForm: React.FC<{
         >
           {/* Die Art ist hier keine Auswahl, sondern die Auskunft, welche
               gerade entsteht: eine Abschlagsrechnung ohne Verbund wäre eine
-              Anzahlung ohne den Auftrag, auf den sie sich anrechnet — und
-              genau die Absetzung in der Schlussrechnung ist der teuerste
-              Fehler des Themas (§ 14c Abs. 1 UStG). Der Weg dorthin steht im
+              Anzahlung ohne den Auftrag, auf den sie sich anrechnet — und die
+              Absetzung in der Schlussrechnung ist der teuerste Fehler des
+              Themas (§ 14c Abs. 1 UStG). Der Weg dorthin steht im
               Hinweis, statt als dritter Eintrag in einer Liste, die zu nichts
               führt. */}
           <FieldValue>Rechnung</FieldValue>
@@ -1200,7 +1200,7 @@ const InvoiceForm: React.FC<{
         <Field
           label="Steuerfall"
           hint={treatmentInfo?.hint}
-          help="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
+          explain="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
         >
           <Select
             items={treatments.map((t) => ({ value: t.treatment, label: t.label }))}
@@ -1230,7 +1230,7 @@ const InvoiceForm: React.FC<{
             <>
               {profile?.hint}
               {cashSale &&
-                ' Ohne erfassten Empfänger geht die Kleinbetragsrechnung als reines PDF hinaus; Kleinbetragsrechnungen sind von der E-Rechnungspflicht ausgenommen (§ 33 UStDV).'}
+                ' Ohne erfassten Empfänger erzeugt Buchfink die Kleinbetragsrechnung als reines PDF; Kleinbetragsrechnungen sind von der E-Rechnungspflicht ausgenommen (§ 33 UStDV).'}
               {missingLeitwegID &&
                 ' Für die XRechnung fehlt die Leitweg-ID dieses Empfängers; ohne sie weist Buchfink die Ausstellung zurück (BR-DE-15).'}
             </>
@@ -1295,7 +1295,7 @@ const InvoiceForm: React.FC<{
               UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
               das Ergebnis am Kontakt fest. Eine negative Antwort hält die Rechnung an. Bleibt die
               Antwort aus — kein Netz, Dienst gestört —, ist das kein negatives Ergebnis, aber auch
-              kein Nachweis: die Rechnung geht dann nur mit einem festgehaltenen Grund hinaus.
+              kein Nachweis: Buchfink stellt die Rechnung dann nur mit einem festgehaltenen Grund aus.
             </HelpPopover>
           </h3>
           <p className="text-body text-ink-muted mt-1.5">
@@ -1331,7 +1331,7 @@ const InvoiceForm: React.FC<{
             <Field
               label="Beförderung"
               hint="entscheidet über den Belegnachweis"
-              explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten trägt die Vermutung des § 17a UStDV schon mit zwei einander nicht widersprechenden Belegen. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
+              explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten genügen für die Vermutung des § 17a UStDV schon zwei einander nicht widersprechende Belege. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
             >
               <Select
                 items={[
@@ -1586,9 +1586,9 @@ const CancelDialog: React.FC<{
     setFailure(null);
     setBusy(true);
     try {
-      // Storniert wird mit Dokument: eine stornierte Rechnung ist beim
-      // Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen. Das
-      // Stornodokument trägt eine eigene Nummer aus demselben Kreis.
+      // Eine Stornierung braucht ein Dokument: eine stornierte Rechnung ist
+      // beim Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen.
+      // Das Stornodokument hat eine eigene Nummer aus demselben Kreis.
       const storno = await Api.cancelInvoiceWithDocument(invoice!.id, reason);
       toast.success(
         `Stornorechnung ${storno.invoiceNumber} zu ${invoice!.invoiceNumber} ausgestellt.`,
@@ -1632,7 +1632,7 @@ const CancelDialog: React.FC<{
             an {invoice.contactName || 'Barverkauf'} bekommt ein Stornodokument mit eigener Nummer.
             <HelpPopover label="Erklärung zur Stornierung">
               Forderung, Erlös und Umsatzsteuer gehen per Generalumkehr auf null zurück. Das
-              Stornodokument trägt die negierten Beträge und den Bezug auf die Ursprungsrechnung;
+              Stornodokument hat die negierten Beträge und den Bezug auf die Ursprungsrechnung;
               diese bleibt unverändert im Archiv. Das Wort „Gutschrift" steht bewusst nirgends: eine
               Gutschrift nach § 14 Abs. 2 Satz 2 UStG ist die Abrechnung des Leistungsempfängers,
               und die stellt Buchfink nicht aus.
@@ -1890,8 +1890,8 @@ const CorrectDialog: React.FC<{
 
 /**
  * Der Versandvermerk. Buchfink versendet nicht selbst; wer im Streitfall den
- * Zugang belegen muss, braucht festgehalten, wann und wie die Rechnung
- * hinausgegangen ist.
+ * Zugang belegen muss, braucht festgehalten, wann und wie der Anwender die
+ * Rechnung versendet hat.
  */
 const SentDialog: React.FC<{
   invoice: Invoice | null;

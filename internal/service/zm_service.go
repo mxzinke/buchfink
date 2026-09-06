@@ -15,7 +15,7 @@ import (
 //
 // Wie bei der Voranmeldung übermittelt Buchfink nicht selbst: es erzeugt die
 // Datei im Format des BZSt-Online-Portals, der Anwender lädt sie dort hoch und
-// bestätigt die Übermittlung. Und wie dort hängt die Bestätigung an der
+// bestätigt die Übermittlung. Und wie dort richtet sich die Bestätigung nach der
 // Festschreibung: eine übermittelte Meldung muss sich auf einen unveränderlichen
 // Stand stützen, sonst entfernt sie sich nach der Bestätigung stillschweigend
 // vom Journal. Dazu kommen die Stammdaten — eine Meldung ohne USt-IdNr. des
@@ -625,7 +625,7 @@ func alignServicesToQuarter(
 		return
 	}
 	// Der letzte Monat eines Quartals endet mit dem Quartal; jeder andere Monat
-	// trägt in der ZM keine sonstige Leistung.
+	// hat in der ZM keine sonstige Leistung.
 	if quarter.To != period.To {
 		out.ServicesVat = 0
 		return

@@ -12,10 +12,10 @@ interface RecoveryScreenProps {
 /**
  * Erscheint, wenn die Daten des Mandanten verschlüsselt sind, der Schlüssel im
  * Schlüsselbund dieses Rechners aber fehlt — neuer Computer, verlorener
- * Schlüsselbund, übertragene Daten. Entsperrt wird mit der Recovery-Datei, die
- * getrennt vom Datenbackup liegen sollte.
+ * Schlüsselbund, übertragene Daten. Der Anwender entsperrt mit der
+ * Recovery-Datei, die getrennt vom Datenbackup liegen sollte.
  *
- * Der Schirm gehört zur Schale (§16) und trägt genau eine Aktion.
+ * Der Schirm gehört zur Schale (§16) und hat genau eine Aktion.
  */
 export const RecoveryScreen: React.FC<RecoveryScreenProps> = ({ activeTenant, onRecovered }) => {
   const [recovering, setRecovering] = useState(false);

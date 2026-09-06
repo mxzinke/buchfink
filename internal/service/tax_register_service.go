@@ -166,7 +166,7 @@ func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElecti
 				byYear[m.FiscalYear] = &TaxElectionYear{FiscalYear: m.FiscalYear}
 				entry = byYear[m.FiscalYear]
 			}
-			// Alte Bewegungen tragen die Sonderabschreibung noch als gebuchte
+			// Alte Bewegungen haben die Sonderabschreibung noch als gebuchte
 			// Abschreibung; sie zählt handelsrechtlich dort, wo sie steht.
 			entry.Commercial += m.DepreciationAmount
 		}
@@ -358,8 +358,8 @@ func (s *TaxRegisterService) taxValueOf(p *domain.Provision, cutoff string, bala
 		return balance
 	}
 	if p.Kind == domain.ProvisionPension {
-		// Für Pensionsrückstellungen gilt nicht § 6 Abs. 1 Nr. 3a EStG, sondern
-		// § 6a EStG: Teilwert nach versicherungsmathematischen Grundsätzen,
+		// Für Pensionsrückstellungen gilt § 6a EStG und nicht § 6 Abs. 1 Nr. 3a
+		// EStG: Teilwert nach versicherungsmathematischen Grundsätzen,
 		// abgezinst mit 6 %. Diese Rechnung führt Buchfink nicht — sie käme aus
 		// einem Gutachten. Mit 5,5 % gerechnet stünde in der Überleitung eine
 		// Differenz, die es so nicht gibt.

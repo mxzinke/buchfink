@@ -36,7 +36,7 @@ func VerifyEmbeddedRecord(data []byte, inv *domain.Invoice) error {
 	}
 	if len(data) == 0 {
 		return fmt.Errorf(
-			"die erzeugte Rechnung %s trägt keinen Rechnungsdatensatz. Ein Hybridformat ohne "+
+			"die erzeugte Rechnung %s hat keinen Rechnungsdatensatz. Ein Hybridformat ohne "+
 				"eingebettetes XML ist keine E-Rechnung (§ 14 Abs. 1 Satz 3 UStG)", inv.InvoiceNumber)
 	}
 	read, err := NewReader().Read(data)

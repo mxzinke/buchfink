@@ -2,8 +2,8 @@ package einvoice
 
 import "testing"
 
-// Nachkommastellen zählt die Schreibweise, nicht den Wert. Genau das braucht
-// die BR-DEC-Familie: 1000.000 ist derselbe Wert wie 1000.00 und trotzdem ein
+// Nachkommastellen zählt die Schreibweise, nicht den Wert. Das braucht die
+// BR-DEC-Familie: 1000.000 ist derselbe Wert wie 1000.00 und trotzdem ein
 // Verstoß.
 func TestDecimalsCountsWhatWasWritten(t *testing.T) {
 	cases := []struct {
@@ -64,8 +64,8 @@ func TestAbsentIsNotZero(t *testing.T) {
 	}
 }
 
-// Der Vergleich läuft über den Wert, nicht über die Schreibweise — sonst würde
-// eine Position mit "19" nicht zur Steuergruppe mit "19.00" gezählt.
+// Equal vergleicht den Wert, nicht die Schreibweise — sonst würde eine Position
+// mit "19" nicht zur Steuergruppe mit "19.00" gezählt.
 func TestEqualComparesValues(t *testing.T) {
 	if !NewAmount("19").Equal(NewAmount("19.00")) {
 		t.Error("19 und 19.00 sind derselbe Satz")
@@ -95,7 +95,7 @@ func TestMulPercentKeepsFractionalRates(t *testing.T) {
 	}
 }
 
-// Kaufmännisch gerundet wird vom Betrag weg, in beide Richtungen gleich.
+// MulPercent rundet kaufmännisch vom Betrag weg, in beide Richtungen gleich.
 func TestRoundingIsCommercial(t *testing.T) {
 	cases := []struct {
 		base    Cents
@@ -147,7 +147,7 @@ func TestCentsFormatsGerman(t *testing.T) {
 // big.Rat.SetString nimmt weit mehr an, als XML erlaubt: Exponenten, Brüche,
 // Hexadezimalzahlen, Unterstriche. Keine dieser Formen hat einen Punkt, also
 // zählt Decimals() null Nachkommastellen — und ein Betrag wie "1460505e-3"
-// käme als Zehntelcent durch die BR-DEC-Prüfung, die genau ihn abfangen soll.
+// käme als Zehntelcent durch die BR-DEC-Prüfung, die ihn abfangen soll.
 func TestOnlyDecimalLiteralsAreAmounts(t *testing.T) {
 	for _, raw := range []string{"1e3", "1E3", "3/2", "0x10", "0b101", "0o17", "1_000", "1460505e-3", "abc", "1.2.3", "", " ", "-", "+"} {
 		if _, ok := NewAmount(raw).Rat(); ok {

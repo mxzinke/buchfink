@@ -4,6 +4,7 @@ import { Api } from '../services/api';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
+import { targetLabel } from '../utils/findings';
 import type {
   FinancialSummary,
   JournalEntry,
@@ -16,7 +17,6 @@ import {
   Button,
   EmptyState,
   HelpPopover,
-  HelpTooltip,
   PageHeader,
   Section,
   SkeletonRows,
@@ -86,20 +86,20 @@ const TARGET_TABS: TabType[] = [
   'assets',
   'audit',
   'advances',
+  'backup',
   'bank',
   'closing',
   'closingmodules',
   'contacts',
-  'dataaccess',
   'deadlines',
   'ebilanz',
   'invoices',
   'journal',
-  'nachweise',
   'obligations',
   'receipts',
   'reports',
   'settings',
+  'taxaudit',
   'vat',
 ];
 
@@ -266,14 +266,14 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
             context={group.context}
             divider={index > 0}
             className={index === 0 ? 'mt-8' : undefined}
-            action={
+            explain={
               index === 0 ? (
-                <HelpPopover label="Erklärung zur Aufgabenliste">
+                <>
                   Die Liste entsteht aus den Daten: Befunde der Prüfläufe, Fristen, Bankumsätze ohne
                   Zuordnung, Belege ohne Buchung, überfällige Forderungen, ablaufende Bescheinigungen
                   und die Sicherung. Was erledigt ist, verschwindet von selbst — abgehakt wird hier
                   nichts. Warum eine Zeile dasteht, steht hinter dem Fragezeichen daneben.
-                </HelpPopover>
+                </>
               ) : undefined
             }
           >
@@ -298,14 +298,16 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
                           />
                           <span className="truncate">{task.title}</span>
                           {/* Der Grund gehört hinter das Erklärzeichen und nicht
-                              in die Zeile: eine Tabellenzelle trägt keinen
+                              in die Zeile: eine Tabellenzelle hat keinen
                               Erklärtext (§15.1). */}
                           {task.reference ? (
                             <HelpPopover label={`Erklärung zu ${task.title}`}>
                               {task.why} {task.reference}
                             </HelpPopover>
                           ) : (
-                            <HelpTooltip label={`Erklärung zu ${task.title}`} content={task.why} />
+                            <HelpPopover label={`Erklärung zu ${task.title}`}>
+                              {task.why}
+                            </HelpPopover>
                           )}
                         </span>
                       </Td>
@@ -317,7 +319,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
                             size="sm"
                             onClick={() => onNavigate(tab, targetParams(task))}
                           >
-                            Hin dazu
+                            {targetLabel(tab)}
                           </Button>
                         )}
                       </Td>
@@ -385,10 +387,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
               label={
                 <>
                   Bankguthaben
-                  <HelpTooltip
-                    label="Erklärung zum Bankguthaben"
-                    content="Aktueller Gesamtsaldo auf dem Geschäftskonto."
-                  />
+                  <HelpPopover label="Erklärung zum Bankguthaben">
+                    Aktueller Gesamtsaldo auf dem Geschäftskonto.
+                  </HelpPopover>
                 </>
               }
               value={formatCents(summary.bankBalance)}

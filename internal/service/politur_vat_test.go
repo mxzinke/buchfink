@@ -11,7 +11,7 @@ import (
 // Ein überholter Entwurf der Zusammenfassenden Meldung wird nicht bestätigt.
 //
 // Dieselbe Regel wie bei der Voranmeldung: bestätigt wird, was übermittelt
-// wurde. Hat sich das Journal seit dem Speichern bewegt, trüge die gespeicherte
+// wurde. Hat sich das Journal seit dem Speichern bewegt, hätte die gespeicherte
 // Meldung ein Transferticket für Zahlen, die so nie beim Bundeszentralamt
 // ankamen.
 func TestZMConfirmationRejectsAnOutdatedDraft(t *testing.T) {
@@ -173,7 +173,7 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 //
 // § 17 Abs. 1 UStG verlangt die Berichtigung, sobald sich das Entgelt geändert
 // hat — für den Zeitraum, in dem die Änderung eingetreten ist (Satz 8). Die
-// Korrektur trägt im Journal einen eigenen Schlüssel; im Vordruck läuft sie in
+// Korrektur hat im Journal einen eigenen Schlüssel; im Vordruck läuft sie in
 // dieselbe Kennziffer 81 wie der Umsatz, den sie mindert.
 func TestSkontoReducesTheStandardRateFigures(t *testing.T) {
 	env := newTestEnv(t)

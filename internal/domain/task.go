@@ -32,7 +32,7 @@ const TaskLookaheadDays = 30
 // Die Schlüssel der Aufgaben. Sie stehen in der Oberfläche als Anker und dürfen
 // sich deshalb nicht mehr ändern.
 //
-// Die Befunde des Prüflaufs tragen keinen eigenen Schlüssel je Regel: sie
+// Die Befunde des Prüflaufs haben keinen eigenen Schlüssel je Regel: sie
 // stehen unter TaskKeyCheckFindings, um die Regel ergänzt
 // („check_findings.ic_supply_evidence_missing"). Damit bekommen die
 // ausstehende Bestätigung der USt-IdNr. und der fehlende Belegnachweis ihre

@@ -18,11 +18,11 @@ import (
 // sich darauf, dass der Leser den Datensatz aus dem Anhang holt (siehe
 // invoice_service.renderDocument). Bisher prüfte nur der Weg mit dem XML als
 // Eingabe — der Weg PDF → XML → Vergleich war der einzige, den die Tests nicht
-// gingen, und genau er läuft in der Anwendung.
+// gingen, und er läuft in der Anwendung.
 //
 // Das PDF entsteht hier ohne Typst: gebraucht wird kein gesetztes Dokument,
-// sondern ein PDF mit einem Anhang namens factur-x.xml. Genau daran hängt die
-// Rückgewinnung des Datensatzes.
+// sondern ein PDF mit einem Anhang namens factur-x.xml. Ohne diesen Anhang
+// lässt sich der Datensatz nicht zurückgewinnen.
 func attachXML(t *testing.T, xml string) []byte {
 	t.Helper()
 	conf := model.NewDefaultConfiguration()

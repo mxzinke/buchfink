@@ -51,8 +51,8 @@ const DiscountScale = 1_000_000
 // § 253 Abs. 2 Satz 1 HGB verlangt den „ihrer Restlaufzeit entsprechenden
 // durchschnittlichen Marktzinssatz", und die Bundesbank veröffentlicht ihn je
 // vollem Jahr. Aufgerundet wird, weil die Tabelle keinen Satz für 2,4 Jahre
-// kennt und die längere Laufzeit den vorsichtigeren — weil höheren — Satz
-// trägt.
+// kennt und für die längere Laufzeit der vorsichtigere — weil höhere — Satz
+// gilt.
 func RemainingYears(cutoff, due string) (int, error) {
 	from, err := time.Parse("2006-01-02", cutoff)
 	if err != nil {
@@ -80,8 +80,8 @@ func RemainingYears(cutoff, due string) (int, error) {
 		years++
 	}
 	// Ein angefangenes Jahr zählt voll: die Tabelle der Bundesbank kennt keinen
-	// Satz für 2,4 Jahre, und die längere Laufzeit trägt den vorsichtigeren —
-	// weil höheren — Satz.
+	// Satz für 2,4 Jahre, und für die längere Laufzeit gilt der
+	// vorsichtigere — weil höhere — Satz.
 	if anchor.Before(to) {
 		years++
 	}
@@ -126,7 +126,7 @@ func PresentValue(amount domain.Cents, years int, rateMicros int64) domain.Cents
 // Fehlt er, meldet die Funktion das und rät nicht. Ein interpolierter oder aus
 // dem Nachbarjahr geliehener Satz sähe aus wie ein echter, und der Unterschied
 // zwischen „abgezinst mit 1,49 %" und „nicht abgezinst, weil kein Satz
-// hinterlegt ist" ist genau das, was der Anwender wissen muss.
+// hinterlegt ist" ist, was der Anwender wissen muss.
 // DiscountAverageFor nennt die Mittelungsdauer, mit der eine Rückstellungsart
 // abzuzinsen ist.
 //
@@ -160,7 +160,7 @@ func DiscountRateFor(rates []domain.DiscountRate, years, average int) (domain.Di
 }
 
 // ProvisionMirrorRow und ProvisionMirror stehen in internal/domain, damit der
-// Jahresabschluss den Spiegel als Teil des Anhangs tragen kann, ohne dass
+// Jahresabschluss den Spiegel als Teil des Anhangs aufnehmen kann, ohne dass
 // domain dieses Paket importieren müsste. Gebaut wird er hier — die Rechnung
 // gehört zur Auswertung, nicht zum Datenmodell.
 type (

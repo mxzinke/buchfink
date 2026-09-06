@@ -27,6 +27,7 @@ import {
   Checkbox,
   Field,
   FieldValue,
+  FormGrid,
   HelpPopover,
   Input,
   Notice,
@@ -178,8 +179,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Synchronisationsordner liegt, ist Recht bzw. Umgebung — beides gehört an
   // eine Stelle und nicht in eine zweite Liste hier (BEW-13, UST-08, ARC-06).
   const [hints, setHints] = useState<ComplianceHints | null>(null);
-  // Die Freitexte der Organisationsanweisung. Gepflegt werden sie unter
-  // Nachweise; hier steht, ob und wie viel davon hinterlegt ist — ein Feld, das
+  // Der Umstellungszeitpunkt aus einem Altsystem. Er wird hier gepflegt und
+  // nicht in einer Übersicht: er ist eine Angabe über dieses Unternehmen wie
+  // Rechtsform und Geschäftsjahresbeginn, und eine Übersicht, die nur berichtet
+  // was in Ordnung ist, ist der falsche Ort für ein Eingabefeld.
+  const [systemChangeDate, setSystemChangeDate] = useState('');
+  // Die Freitexte der Organisationsanweisung. Gepflegt werden sie bei der
+  // Betriebsprüfung, wo die Verfahrensdokumentation entsteht, die sie
+  // aufnimmt; hier steht, ob und wie viel davon hinterlegt ist — ein Feld, das
   // nur wiederholt, was sein Label sagt, ist keine Auskunft (§15.3).
   const [orgTexts, setOrgTexts] = useState<OrganisationTexts | null>(null);
   // Die gespeicherte Rechtsform, gegen die der Hinweis gilt. Ein Hinweis zur
@@ -190,7 +197,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Feldes in Cent umgerechnet (§8.3).
   const [prepaymentText, setPrepaymentText] = useState('');
   // Die Erfassungsfrist ebenso: ein leeres Zahlenfeld ist kein Wert, und die 0
-  // wäre hier keine Antwort, sondern eine Lücke.
+  // wäre hier eine Lücke, nicht eine Antwort.
   const [captureDaysText, setCaptureDaysText] = useState('10');
   // Die Nachfrist zur Festschreibung ebenso; hier ist die 0 allerdings eine
   // Antwort: keine Nachfrist über das Ende des Folgemonats hinaus.
@@ -216,8 +223,8 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [tradeTaxError, setTradeTaxError] = useState('');
   const [thresholdText, setThresholdText] = useState('');
   // Die Grenze des Leistungsnachweises ebenfalls als Text: eine gelöschte
-  // Ziffer ist keine 0 — und eine 0 hieße hier nicht „kein Nachweis", sondern
-  // die Voreinstellung (§8.3).
+  // Ziffer ist keine 0 — und eine 0 bedeutet hier die Voreinstellung, nicht
+  // „kein Nachweis" (§8.3).
   const [checkThresholdText, setCheckThresholdText] = useState('');
   // Die Basiszinssätze und die gelernten Bankregeln stehen in eigenen Diensten
   // und nicht in den Stammdaten: sie werden sofort gespeichert bzw. gelöscht
@@ -248,7 +255,9 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       try {
         // Nebenauskunft: fehlen die Hinweise, bleiben die Einstellungen
         // bedienbar — sie ändern nichts an dem, was hier gespeichert wird.
-        setHints(await Api.getComplianceHints());
+        const loaded = await Api.getComplianceHints();
+        setHints(loaded);
+        setSystemChangeDate(loaded?.systemChangeDate ?? '');
       } catch {
         setHints(null);
       }
@@ -285,8 +294,8 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         setRetentionRules(null);
       }
       try {
-        // Basiszins und gelernte Regeln ebenso: sie hängen an eigenen
-        // Diensten, und ohne sie bleiben die Stammdaten bedienbar.
+        // Basiszins und gelernte Regeln ebenso: sie werden in eigenen
+        // Diensten gespeichert, und ohne sie bleiben die Stammdaten bedienbar.
         const [rates, rules] = await Promise.all([Api.getBaseRates(), Api.getBankRules()]);
         setBaseRates(rates);
         setBankRules(rules);
@@ -337,9 +346,9 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   /**
    * Trägt einen bekanntgegebenen Basiszinssatz nach.
    *
-   * Sofort und nicht über den Knopf im Seitenkopf: der Satz hängt an einem
-   * eigenen Dienst, und ein Wert, der bis zum nächsten „Speichern" nur in der
-   * Maske stünde, wäre für die Zinsrechnung nicht da.
+   * Sofort und nicht über den Knopf im Seitenkopf: der Satz wird über einen
+   * eigenen Dienst gespeichert, und ein Wert, der bis zum nächsten
+   * „Speichern" nur in der Maske stünde, wäre für die Zinsrechnung nicht da.
    */
   async function saveRate() {
     const percent = parsePercent(rateText);
@@ -396,11 +405,21 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       // „Speichern" zu suchen; der Dienst prüft die Grenzen und meldet sich mit
       // seinem eigenen Satz, wenn ihm ein Wert nicht passt.
       applyClosing(await Api.saveClosingSettings(closing));
-      // Der Hinweis zur Rechtsform hängt an der gespeicherten Rechtsform; nach
-      // dem Speichern gilt eine neue, also wird er neu geholt.
+      // Nur wenn er sich geändert hat: der Umstellungszeitpunkt liegt in einem
+      // eigenen Schlüssel und schreibt bei jedem Setzen einen Protokolleintrag.
+      // Ihn bei jedem Speichern der Einstellungen mitzuschreiben füllte das
+      // Änderungsprotokoll mit Einträgen über eine Änderung, die niemand
+      // vorgenommen hat.
+      if (systemChangeDate !== (hints?.systemChangeDate ?? '')) {
+        await Api.setSystemChangeDate(systemChangeDate);
+      }
+      // Der Hinweis zur Rechtsform richtet sich nach der gespeicherten
+      // Rechtsform; nach dem Speichern gilt eine neue, also wird er neu geholt.
       setSavedLegalForm(settings.legalForm || '');
       try {
-        setHints(await Api.getComplianceHints());
+        const loaded = await Api.getComplianceHints();
+        setHints(loaded);
+        setSystemChangeDate(loaded?.systemChangeDate ?? '');
       } catch {
         // Der Hinweis ist Beiwerk; das Speichern ist gelungen.
       }
@@ -477,14 +496,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       />
 
       <Section title="Unternehmen" divider={false} className="mt-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field label="Firmen- oder Inhabername">
             <Input value={settings.companyName} onChange={(e) => patch({ companyName: e.target.value })} />
           </Field>
           <Field
             label="Rechtsform"
             hint={derivedInvestor?.label}
-            help={derivedInvestor?.note}
+            explain={derivedInvestor?.note}
           >
             <Select
               items={legalFormItems}
@@ -516,47 +535,49 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field label="Zuständiges Finanzamt" className="md:col-span-2">
             <Input value={settings.taxOffice} onChange={(e) => patch({ taxOffice: e.target.value })} />
           </Field>
-        </div>
 
-        {/*
-          Die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform. Sichtbar
-          wird sie nur, wo diese sie nicht hergibt — bei einer
-          Personengesellschaft — oder wo jemand sie ausdrücklich anders
-          festlegen will. Als eigenes Pflichtfeld stünde hier sonst eine
-          Rechtsfrage, die die meisten nie beantworten müssten.
-        */}
-        {(needsInvestorChoice || showInvestorChoice) && (
-          <Field
-            label="Anlegerstellung für Investmentanteile"
-            optional={!needsInvestorChoice}
-            hint="nur für die Teilfreistellung"
-            help="Der Satz hängt am Anleger. Bei einer Personengesellschaft bestimmt ihn der einzelne Gesellschafter (§ 20 Abs. 3a InvStG). Und auch eine Körperschaft trägt nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
-            className="mt-4 max-w-2xl"
-          >
-            <Select
-              items={[
-                {
-                  value: DERIVE,
-                  label: needsInvestorChoice ? 'Noch nicht festgelegt' : 'Aus der Rechtsform',
-                },
-                ...INVESTOR_TYPES,
-              ]}
-              value={settings.investorOverride || DERIVE}
-              onValueChange={(next) =>
-                patch({
-                  investorOverride: (next === DERIVE
-                    ? ''
-                    : next) as CompanySettings['investorOverride'],
-                })
-              }
-            />
-          </Field>
-        )}
+          {/*
+            Die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
+            Sichtbar wird sie nur, wo diese sie nicht hergibt — bei einer
+            Personengesellschaft — oder wo jemand sie ausdrücklich anders
+            festlegen will. Als eigenes Pflichtfeld stünde hier sonst eine
+            Rechtsfrage, die die meisten nie beantworten müssten. Sie steht im
+            Raster der übrigen Felder und nicht darunter: ein Feld, das seine
+            eigene Breite mitbringt, sieht aus wie ein Nachtrag.
+          */}
+          {(needsInvestorChoice || showInvestorChoice) && (
+            <Field
+              label="Anlegerstellung für Investmentanteile"
+              optional={!needsInvestorChoice}
+              hint="nur für die Teilfreistellung"
+              explain="Der Satz richtet sich nach dem Anleger. Bei einer Personengesellschaft bestimmt ihn der einzelne Gesellschafter (§ 20 Abs. 3a InvStG). Und auch eine Körperschaft hat nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
+            >
+              <Select
+                items={[
+                  {
+                    value: DERIVE,
+                    label: needsInvestorChoice ? 'Noch nicht festgelegt' : 'Aus der Rechtsform',
+                  },
+                  ...INVESTOR_TYPES,
+                ]}
+                value={settings.investorOverride || DERIVE}
+                onValueChange={(next) =>
+                  patch({
+                    investorOverride: (next === DERIVE
+                      ? ''
+                      : next) as CompanySettings['investorOverride'],
+                  })
+                }
+              />
+            </Field>
+          )}
+        </FormGrid>
+
         {!needsInvestorChoice && !showInvestorChoice && (
           <Button
             variant="quiet"
             size="sm"
-            className="mt-4 -ml-3"
+            className="mt-4 -ml-2.5"
             onClick={() => setShowInvestorChoice(true)}
           >
             Anlegerstellung für Investmentanteile abweichend festlegen
@@ -565,16 +586,16 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
         {/* Die Grenze des Funktionsumfangs bei Rechtsformen mit Entnahmen
             (BEW-13). Sie steht als Hinweisfläche und nicht hinter dem
-            Erklärzeichen: sie betrifft nicht das Feld daneben, sondern das,
-            was Buchfink für diesen Mandanten nicht rechnet — und das soll
-            niemand erst beim Jahresabschluss erfahren. */}
+            Erklärzeichen: sie erklärt, was Buchfink für diesen Mandanten
+            nicht rechnet, und nicht das Feld daneben — das soll niemand
+            erst beim Jahresabschluss erfahren. */}
         {hints?.legalFormNote && settings.legalForm === savedLegalForm && (
           <Notice className="mt-5" text={hints.legalFormNote} />
         )}
       </Section>
 
       <Section title="Anschrift">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field label="Straße und Hausnummer" className="md:col-span-2">
             <Input value={settings.street} onChange={(e) => patch({ street: e.target.value })} />
           </Field>
@@ -584,22 +605,22 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field label="Land">
             <Input value={settings.country} onChange={(e) => patch({ country: e.target.value })} />
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
       <Section
         title="Rechnungsstellung"
-        action={
-          <HelpPopover label="Erklärung zur Rechnungsstellung">
+        explain={
+          <>
             Die Systematik des Nummernkreises gehört in die Verfahrensdokumentation und steht
             deshalb als Einstellung: Ein Mandant mit vorhandener Buchhaltung führt seine Systematik
             fort. Ansprechpartner, Telefon und E-Mail sind bei einer XRechnung Pflichtangaben
             (BR-DE-2 bis BR-DE-7) — eine Behörde, die nicht zurückfragen kann, weist die Rechnung
             zurück.
-          </HelpPopover>
+          </>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field
             label="Nummernformat"
             hint="{JAHR} und {NR:4}"
@@ -643,22 +664,22 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => patch({ contactEmail: e.target.value })}
             />
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
-      {/* Ohne diese drei Angaben trägt der Jahresabschluss den Kopf nicht, den
+      {/* Ohne diese drei Angaben fehlt dem Jahresabschluss der Kopf, den
           § 264 Abs. 1a HGB verlangt. Sie standen bisher nur im Gründungsweg. */}
       <Section
         title="Registereintragung"
-        action={
-          <HelpPopover label="Erklärung zur Registereintragung">
+        explain={
+          <>
             Auf jedem Jahresabschluss einer Kapitalgesellschaft sind Firma, Sitz, Registergericht
             und Registernummer anzugeben (§ 264 Abs. 1a HGB). Buchfink setzt sie in den Kopf von
             Bilanz, Gewinn- und Verlustrechnung und E-Bilanz.
-          </HelpPopover>
+          </>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field label="Sitz der Gesellschaft">
             <Input
               value={settings.seat}
@@ -680,17 +701,17 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               placeholder="HRB 123456"
             />
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
       <Section
         title="Geschäftsjahr"
-        action={
-          <HelpPopover label="Erklärung zur Jahreszuordnung">
-            Belege, Rechnungen und Zahlungen tragen ein Datum, daraus ergibt sich das Geschäftsjahr
+        explain={
+          <>
+            Belege, Rechnungen und Zahlungen haben ein Datum, daraus ergibt sich das Geschäftsjahr
             von selbst. Im Grenzbereich zum Jahreswechsel lässt sich die Zuordnung einer Buchung im
             Journal übersteuern.
-          </HelpPopover>
+          </>
         }
       >
         <RadioGroup
@@ -712,13 +733,15 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         />
 
         {deviating && (
-          <Field label="Beginn des Wirtschaftsjahres" className="mt-4 max-w-sm">
-            <Select
-              items={MONTHS}
-              value={startMonth}
-              onValueChange={(month) => patch({ fiscalYearStartMonth: month })}
-            />
-          </Field>
+          <FormGrid className="mt-5">
+            <Field label="Beginn des Wirtschaftsjahres">
+              <Select
+                items={MONTHS}
+                value={startMonth}
+                onValueChange={(month) => patch({ fiscalYearStartMonth: month })}
+              />
+            </Field>
+          </FormGrid>
         )}
       </Section>
 
@@ -728,23 +751,22 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           dieselbe Aufzählung in der Verfahrensdokumentation steht. */}
       <Section
         title="Umsatzsteuer"
-        action={
+        explain={
           (hints?.taxCaseHints ?? []).length > 0 && (
-            <HelpPopover label="Erklärung zu den Grenzen des Funktionsumfangs">
+            <>
               <span className="block">Buchfink bildet diese Steuerfälle nicht ab:</span>
               <ul className="mt-2 flex flex-col gap-2">
                 {(hints?.taxCaseHints ?? []).map((hint) => (
                   <li key={hint}>{hint}</li>
                 ))}
               </ul>
-            </HelpPopover>
+            </>
           )
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field
             label="Voranmeldezeitraum"
-            help="Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall."
             hint={
               vatProposal
                 ? `Vorschlag aus ${vatProposal.basedOnYear}: ${
@@ -753,16 +775,21 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                   }`
                 : undefined
             }
+            // Der allgemeine Satz und die Herleitung des Vorschlags stehen
+            // hinter demselben Fragezeichen: Zwei nebeneinander sahen aus wie
+            // ein Fehler, und wer die Frage stellt, will beides wissen.
             explain={
               vatProposal
-                ? `${vatProposal.reference} Die Steuer des Vorjahres betrug ${formatCents(
+                ? `Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall. ${
+                    vatProposal.reference
+                  } Die Steuer des Vorjahres betrug ${formatCents(
                     vatProposal.priorYearTax,
                   )} (Kennziffer 83).${
                     vatProposal.complete
                       ? ''
                       : ` Für ${vatProposal.missingPeriods} Zeiträume des Vorjahres liegt keine übermittelte Anmeldung vor; der Vorschlag ist deshalb unvollständig.`
                   }`
-                : undefined
+                : 'Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall.'
             }
           >
             <Select
@@ -774,11 +801,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Besteuerungsart"
             hint="nach vereinbarten Entgelten"
-            help="Buchfink rechnet nach § 16 Abs. 1 Satz 1 UStG. Bei Istversteuerung entstünde die Steuer erst mit der Vereinnahmung, die Buchungen sähen anders aus — der Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln."
+            explain="Buchfink rechnet nach § 16 Abs. 1 Satz 1 UStG. Bei Istversteuerung entstünde die Steuer erst mit der Vereinnahmung, die Buchungen sähen anders aus — der Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln."
           >
             <Select items={[{ value: 'SOLL', label: 'Sollversteuerung' }]} value="SOLL" disabled />
           </Field>
-        </div>
+        </FormGrid>
 
         {/* Der Vorschlag wird nicht stillschweigend übernommen: der Zeitraum
             wird vom Finanzamt festgesetzt, und die Befreiung von der Abgabe ist
@@ -786,7 +813,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             dem Anwender (UST-03 K1). */}
         {vatProposal?.changes && (
           <Notice
-            className="mt-4"
+            className="mt-5"
             text={
               vatProposal.note ||
               `Aus der Steuer des Jahres ${vatProposal.basedOnYear} folgt ein anderer Voranmeldungszeitraum als der eingestellte.`
@@ -806,7 +833,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         )}
 
         <Checkbox
-          className="mt-4"
+          className="mt-5"
           checked={settings.permanentExtension}
           onCheckedChange={(next) => patch({ permanentExtension: Boolean(next) })}
           label={
@@ -824,42 +851,43 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         />
 
         {settings.permanentExtension && (
-          <Field
-            label="Angemeldete Sondervorauszahlung"
-            className="mt-4 max-w-sm"
-            hint={
-              suggestion && suggestion.amount > 0
-                ? `Vorschlag aus ${suggestion.basedOnYear}: ${formatCents(suggestion.amount)}`
-                : 'ein Elftel der Vorauszahlungen des Vorjahres'
-            }
-            explain={suggestion?.note}
-          >
-            <div className="flex gap-2">
-              <Input
-                align="right"
-                value={prepaymentText}
-                onChange={(e) => setPrepaymentText(e.target.value)}
-                onBlur={() => {
-                  const cents = parseCents(prepaymentText);
-                  patch({ specialPrepayment: cents ?? 0 });
-                  setPrepaymentText(cents ? formatCentsPlain(cents) : '');
-                }}
-                placeholder="0,00"
-              />
-              {suggestion && suggestion.amount > 0 && (
-                <Button
-                  variant="secondary"
-                  className="shrink-0"
-                  onClick={() => {
-                    patch({ specialPrepayment: suggestion.amount });
-                    setPrepaymentText(formatCentsPlain(suggestion.amount));
+          <FormGrid className="mt-5">
+            <Field
+              label="Angemeldete Sondervorauszahlung"
+              hint={
+                suggestion && suggestion.amount > 0
+                  ? `Vorschlag aus ${suggestion.basedOnYear}: ${formatCents(suggestion.amount)}`
+                  : 'ein Elftel der Vorauszahlungen des Vorjahres'
+              }
+              explain={suggestion?.note}
+            >
+              <div className="flex gap-2">
+                <Input
+                  align="right"
+                  value={prepaymentText}
+                  onChange={(e) => setPrepaymentText(e.target.value)}
+                  onBlur={() => {
+                    const cents = parseCents(prepaymentText);
+                    patch({ specialPrepayment: cents ?? 0 });
+                    setPrepaymentText(cents ? formatCentsPlain(cents) : '');
                   }}
-                >
-                  Vorschlag übernehmen
-                </Button>
-              )}
-            </div>
-          </Field>
+                  placeholder="0,00"
+                />
+                {suggestion && suggestion.amount > 0 && (
+                  <Button
+                    variant="secondary"
+                    className="shrink-0"
+                    onClick={() => {
+                      patch({ specialPrepayment: suggestion.amount });
+                      setPrepaymentText(formatCentsPlain(suggestion.amount));
+                    }}
+                  >
+                    Vorschlag übernehmen
+                  </Button>
+                )}
+              </div>
+            </Field>
+          </FormGrid>
         )}
       </Section>
 
@@ -873,13 +901,13 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             ? `${retentionRules.source} · gültig ab ${formatDate(retentionRules.validFrom)}`
             : 'Gesetzesstand'
         }
-        action={
-          <HelpPopover label="Erklärung zu den Aufbewahrungsfristen">
+        explain={
+          <>
             Die Fristen kommen aus einer datierten Tabelle und nicht aus dem Programmcode: ändert
             der Gesetzgeber sie, gilt die neue Frist ab ihrem Stichtag, und die alte bleibt für die
             Unterlagen davor stehen. Am einzelnen Beleg lässt sich die Frist verlängern, nie
             verkürzen.
-          </HelpPopover>
+          </>
         }
       >
         {retentionRules === null ? (
@@ -914,17 +942,17 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
       <Section
         title="Prüfläufe"
-        action={
-          <HelpPopover label="Erklärung zu den Schwellenwerten">
+        explain={
+          <>
             Der Prüflauf vor der Festschreibung meldet abgelegte, aber nicht gebuchte Belege. Die
             GoBD nennt in Rz. 47 zehn Tage für die Erfassung unbarer Geschäftsvorfälle; wer anders
             arbeitet, setzt hier seinen eigenen Wert. Die Nachfrist zur Festschreibung entscheidet
             daneben, ab wann ein nicht festgeschriebener Monat als überfällig gilt — in der
             Fristenliste wie im Prüfbericht.
-          </HelpPopover>
+          </>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field label="Belege spätestens erfassen nach" hint="Tage nach Eingang · GoBD Rz. 47">
             {/* Der Wert wird als Text geführt und erst beim Verlassen des Feldes
                 normalisiert (§8.3). Vorher zeigte das Feld die Voreinstellung
@@ -963,7 +991,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               }}
             />
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
 
@@ -976,21 +1004,21 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       <Section
         title="Jahresabschluss"
         context="Steuert die Abschlussbausteine"
-        action={
-          <HelpPopover label="Erklärung zu den Abschluss-Einstellungen">
+        explain={
+          <>
             Der Hebesatz geht in die Steuerrückstellung ein, die Abgrenzungsmethode in jeden
             Abgrenzungsposten und die Vorschlagsschwelle allein in die Vorschlagsliste. Alle drei
             gelten für den ganzen Mandanten und über alle Geschäftsjahre; die Änderung wird
             protokolliert.
-          </HelpPopover>
+          </>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field
             label="Gewerbesteuer-Hebesatz"
             hint="Prozent der Gemeinde"
             error={tradeTaxError || undefined}
-            help="Der Hebesatz der Gemeinde, in der die Betriebsstätte liegt. Er steht im Gewerbesteuermessbescheid und auf der Website der Gemeinde; mindestens 200 % (§ 16 Abs. 4 Satz 2 GewStG)."
+            explain="Der Hebesatz der Gemeinde, in der die Betriebsstätte liegt. Er steht im Gewerbesteuermessbescheid und auf der Website der Gemeinde; mindestens 200 % (§ 16 Abs. 4 Satz 2 GewStG)."
           >
             <Input
               type="number"
@@ -1025,7 +1053,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           </Field>
           <Field
             label="Abgrenzungsmethode"
-            help="Monatsgenau verteilt nach Zwölfteln, taggenau nach Kalendertagen. Beides ist zulässig; § 252 Abs. 1 Nr. 6 HGB verlangt nur, dass es dabei bleibt — die Wahl gilt deshalb für alle Posten."
+            explain="Monatsgenau verteilt nach Zwölfteln, taggenau nach Kalendertagen. Beides ist zulässig; § 252 Abs. 1 Nr. 6 HGB verlangt nur, dass es dabei bleibt — die Wahl gilt deshalb für alle Posten."
           >
             <Select
               items={ACCRUAL_METHODS}
@@ -1038,7 +1066,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Vorschlagsschwelle der Abgrenzung"
             hint="unterhalb nur Anzeige"
-            help="Nur für die Vorschlagsliste: Handelsrechtlich gibt es keine Grenze, jeder Posten ist abzugrenzen (§ 250 HGB). Die 800 Euro sind das steuerliche Wahlrecht des § 6 Abs. 2 EStG, das die Finanzverwaltung auch für die Abgrenzung zulässt — wer es nicht nutzen will, trägt hier 0,00 ein."
+            explain="Nur für die Vorschlagsliste: Handelsrechtlich gibt es keine Grenze, jeder Posten ist abzugrenzen (§ 250 HGB). Die 800 Euro sind das steuerliche Wahlrecht des § 6 Abs. 2 EStG, das die Finanzverwaltung auch für die Abgrenzung zulässt — wer es nicht nutzen will, trägt hier 0,00 ein."
           >
             <Input
               align="right"
@@ -1055,7 +1083,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           </Field>
           <Field
             label="Auflösung im Folgejahr"
-            help="Der Saldenvortrag bucht die Auflösung mit. Einmal je Jahr hält die Zahl der Abschlussbuchungen klein; monatlich braucht, wer unterjährig auswertet — sonst trägt der Januar den gesamten Vorjahresaufwand."
+            explain="Der Saldenvortrag bucht die Auflösung mit. Einmal je Jahr hält die Zahl der Abschlussbuchungen klein; monatlich braucht, wer unterjährig auswertet — sonst trägt der Januar den gesamten Vorjahresaufwand."
           >
             <Select
               items={ACCRUAL_RELEASES}
@@ -1065,11 +1093,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               }
             />
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
       <Section title="Bankverbindung">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGrid>
           <Field label="Bankname">
             <Input value={settings.bankName} onChange={(e) => patch({ bankName: e.target.value })} />
           </Field>
@@ -1089,11 +1117,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           </Field>
           <Field
             label="Kontenrahmen"
-            help="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
+            explain="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
           >
             <FieldValue>SKR04 · Bilanz und GuV</FieldValue>
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
       {/* Die Adressen der Netzdienste und die Umsatzsteuer-Umrechnungskurse
@@ -1104,145 +1132,126 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       <Section
         title="Netzdienste und Umrechnungskurse"
         context="Auf der Seite „Nebenpflichten“: BZSt, Kursdienst, USt-Durchschnittskurse"
-        action={
-          <HelpPopover label="Erklärung zum Ort dieser Einstellungen">
+        explain={
+          <>
             Die Adressen der beiden Netzdienste und die monatlichen
             Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG stehen bei der Kurshistorie und
             beim Verlauf der Bestätigungsabfragen: eine geänderte Adresse und ein nachgetragener
             Kurs sind dort sofort an den Daten zu sehen, die sie betreffen.
-          </HelpPopover>
+          </>
         }
       >
-        <div className="flex flex-col gap-4 max-w-2xl">
-          {onNavigate && (
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onNavigate('obligations', { obligationsTab: 'currency' })}
-              >
-                Kurse und Endpunkte öffnen
-              </Button>
-              <Button
-                variant="quiet"
-                size="sm"
-                onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
-              >
-                Bestätigung der USt-IdNr.
-              </Button>
-            </div>
-          )}
-        </div>
+        {/* Zwei Wege, zwei Knöpfe: der eine führt auf die Kurse, der andere auf
+            den Verlauf der Bestätigungsabfragen. Beide sehen gleich aus, weil
+            beide dasselbe tun — eine Seite aufschlagen. */}
+        {onNavigate && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'currency' })}
+            >
+              Kurse und Endpunkte
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
+            >
+              Bestätigung der USt-IdNr.
+            </Button>
+          </div>
+        )}
       </Section>
 
-      {/* Umstellungszeitpunkt und Organisationsanweisung stehen hier als
-          Auskunft und werden unter „Nachweise" gepflegt. Zwei Masken für
-          denselben Wert liefen auseinander, sobald jemand die eine benutzt und
-          die andere offen hat; die Seite, die die Verfahrensdokumentation
-          erzeugt, ist die richtige Stelle dafür (ARC-05, PRF-03). */}
-      <Section
-        title="Verfahren und Umstellung"
-        context="Zu pflegen unter Nachweise"
-      >
-        {/* Zwei Verweise und nicht einer: der Umstellungszeitpunkt wird im
-            Reiter „Versionen & Übernahmen" gepflegt, die Freitexte im Reiter
-            „Verfahrensdokumentation". Ein gemeinsamer Knopf setzte den Leser
-            in jedem zweiten Fall auf dem falschen Reiter ab. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Der Umstellungszeitpunkt ist eine Angabe über dieses Unternehmen und
+          steht deshalb hier, bei Rechtsform und Geschäftsjahr. Die
+          Organisationsanweisung ist ein halbes Dutzend Absätze Fließtext: sie
+          steht dort, wo die Verfahrensdokumentation entsteht, die sie aufnimmt
+          (ARC-05, PRF-03), und hier nur als Auskunft darüber, ob sie
+          hinterlegt ist. */}
+      <Section title="Verfahren und Umstellung" context="Herkunft der Daten und Organisation">
+        <FormGrid>
           <Field
             label="Umstellungszeitpunkt aus einem Altsystem"
-            hint={hints?.systemChangeDate ? undefined : 'nicht hinterlegt'}
-            help={
+            optional
+            hint={systemChangeDate ? undefined : 'nicht hinterlegt'}
+            explain={
               hints?.systemChangeNote ||
               'Wer die Buchführung aus einem anderen System übernimmt, hält den Umstellungszeitpunkt fest. Ab ihm läuft die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO: so lange muss das Altsystem für den Datenzugriff verfügbar bleiben.'
             }
           >
-            <span className="flex items-center gap-3 min-w-0">
-              <FieldValue className="num">
-                {hints?.systemChangeDate ? formatDate(hints.systemChangeDate) : '—'}
-              </FieldValue>
-              {onNavigate && (
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  onClick={() => onNavigate('nachweise', { nachweiseTab: 'versionen' })}
-                >
-                  Pflegen
-                </Button>
-              )}
-            </span>
+            <Input
+              type="date"
+              value={systemChangeDate}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onChange={(e) => setSystemChangeDate(e.target.value)}
+            />
           </Field>
           <Field
             label="Organisationsanweisung"
             hint={orgFilledCount > 0 ? undefined : 'nicht hinterlegt'}
-            help="Wer scannt, wer prüft, wer freigibt und wie vertreten wird: die Teile der Verfahrensdokumentation, die nur das Unternehmen kennt. Buchfink gibt Muster vor."
+            explain="Wer scannt, wer prüft, wer freigibt und wie vertreten wird: die Teile der Verfahrensdokumentation, die nur das Unternehmen kennt. Buchfink gibt Muster vor."
           >
             <span className="flex items-center gap-3 min-w-0">
               <FieldValue className="truncate">
                 {orgFilledCount > 0 ? organisationPreview : '—'}
               </FieldValue>
               {onNavigate && (
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  onClick={() => onNavigate('nachweise', { nachweiseTab: 'verfahren' })}
-                >
+                <Button variant="quiet" size="sm" onClick={() => onNavigate('taxaudit')}>
                   Pflegen
                 </Button>
               )}
             </span>
           </Field>
-        </div>
+        </FormGrid>
       </Section>
 
       {/*
         Rechnungsprüfung und Mahnwesen (RECH-08, QUE-05). Beide Einstellungen
         steuern Vorgänge und keine Buchung: die eine sagt, ab welchem Betrag ein
-        Eingangsbeleg einen Prüfvermerk tragen soll, die andere, wann welche
+        Eingangsbeleg einen Prüfvermerk braucht, die andere, wann welche
         Mahnung vorgeschlagen wird.
       */}
       <Section
         title="Rechnungsprüfung und Mahnwesen"
         context="Leistungsnachweis und Mahnstufen"
-        action={
-          <HelpPopover label="Erklärung zur Rechnungsprüfung">
+        explain={
+          <>
             Der Vorsteuerabzug setzt eine tatsächlich bezogene Leistung voraus (§ 15 UStG); der
             Leistungsnachweis am Beleg hält fest, wer das bestätigt hat. Die Mahnstufen sind eine
             Vereinbarung des Unternehmens mit sich selbst — das Gesetz kennt keine „erste Mahnung".
             Die Gebühr ist ein Vorschlag und nur ersatzfähig, soweit sie tatsächlich entstandener
             Verzugsschaden ist.
-          </HelpPopover>
+          </>
         }
       >
-        <Field
-          label="Leistungsnachweis ab"
-          hint="Bruttobetrag des Eingangsbelegs"
-          className="max-w-sm"
-        >
-          <Input
-            align="right"
-            value={checkThresholdText}
-            onChange={(e) => setCheckThresholdText(e.target.value)}
-            onBlur={() => {
-              const value = parseCents(checkThresholdText);
-              // Eine Null ist hier keine Abschaltung, sondern ein leeres Feld:
-              // wer keinen Nachweis verlangt, setzt die Grenze hoch. Das
-              // Backend behandelt die Null ebenso.
-              if (value !== null && value > 0) {
-                patch({ invoiceCheckThreshold: value });
-                setCheckThresholdText(formatCentsPlain(value));
-              } else {
-                setCheckThresholdText(
-                  settings.invoiceCheckThreshold
-                    ? formatCentsPlain(settings.invoiceCheckThreshold)
-                    : '',
-                );
-              }
-            }}
-          />
-        </Field>
+        <FormGrid>
+          <Field label="Leistungsnachweis ab" hint="Bruttobetrag des Eingangsbelegs">
+            <Input
+              align="right"
+              value={checkThresholdText}
+              onChange={(e) => setCheckThresholdText(e.target.value)}
+              onBlur={() => {
+                const value = parseCents(checkThresholdText);
+                // Eine Null ist hier ein leeres Feld, keine Abschaltung: wer
+                // keinen Nachweis verlangt, setzt die Grenze hoch. Das
+                // Backend behandelt die Null ebenso.
+                if (value !== null && value > 0) {
+                  patch({ invoiceCheckThreshold: value });
+                  setCheckThresholdText(formatCentsPlain(value));
+                } else {
+                  setCheckThresholdText(
+                    settings.invoiceCheckThreshold
+                      ? formatCentsPlain(settings.invoiceCheckThreshold)
+                      : '',
+                  );
+                }
+              }}
+            />
+          </Field>
+        </FormGrid>
 
-        <div className="mt-6">
+        <div className="mt-8">
           <DunningLevelsTable
             levels={settings.dunningLevels ?? []}
             onChange={(levels) => patch({ dunningLevels: levels })}
@@ -1253,14 +1262,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       <Section
         title="Basiszinssatz"
         context="Grundlage der Verzugszinsen"
-        action={
-          <HelpPopover label="Erklärung zum Basiszinssatz">
+        explain={
+          <>
             Die Deutsche Bundesbank setzt den Basiszinssatz zum 1. Januar und zum 1. Juli neu fest
             und gibt ihn im Bundesanzeiger bekannt (§ 247 BGB). Die Verzugszinsen liegen neun
             Prozentpunkte darüber, gegenüber einem Verbraucher fünf (§ 288 BGB). Ein Wert, der als
             „zu prüfen" steht, ist fortgeschrieben und nicht bekanntgegeben — er ist gegen die
             Bekanntgabe abzugleichen.
-          </HelpPopover>
+          </>
         }
       >
         {baseRates.length === 0 ? (
@@ -1320,14 +1329,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       <Section
         title="Gelernte Bankregeln"
         context="Muster wiederkehrender Umsätze"
-        action={
-          <HelpPopover label="Erklärung zu den gelernten Regeln">
+        explain={
+          <>
             Miete, Kontoführungsentgelt und Gehalt kommen jeden Monat wieder und haben keinen
             offenen Posten. Buchfink merkt sich, wogegen ein solcher Umsatz zuletzt gebucht wurde,
             und schlägt es beim nächsten Mal vor. Gebucht wird davon nichts von selbst: Eine Regel,
             die selbst bucht, würde aus einem einmaligen Griff eine Gewohnheit machen, die niemand
             mehr prüft.
-          </HelpPopover>
+          </>
         }
       >
         {bankRules.length === 0 ? (
@@ -1382,7 +1391,9 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       </Section>
 
       <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
-        <div className="flex flex-col gap-4 max-w-2xl">
+        {/* Eine Spalte über die volle Breite: hier stehen Pfade, und ein Pfad
+            in einem halben Feld ist ein abgeschnittener Pfad. */}
+        <FormGrid cols={1}>
           {/* Der Datenordner in einem Synchronisationsordner: § 146 Abs. 2, 2a
               AO. Der Satz kommt aus dem Backend, weil nur dort bekannt ist,
               welche Pfadbestandteile als Cloud-Ordner gelten (ARC-06). */}
@@ -1392,7 +1403,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               und ein Knopf, der nur die Anzeige ändert, verspräche das (ARC-06). */}
           <Field
             label="Ordner für Buchungsdaten und Belege"
-            help="Der Ordner steht beim Anlegen des Mandanten fest und lässt sich hier nicht umziehen."
+            explain="Der Ordner steht beim Anlegen des Mandanten fest und lässt sich hier nicht umziehen."
           >
             <Input className="code-num" value={appConfig?.dataDir || ''} readOnly />
           </Field>
@@ -1400,7 +1411,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Sicherungsordner"
             hint="Einzurichten unter Datenzugriff"
-            help="Ohne Sicherungsordner schreibt Buchfink keine Sicherung — weder von Hand noch beim Beenden."
+            explain="Ohne Sicherungsordner schreibt Buchfink keine Sicherung — weder von Hand noch beim Beenden."
           >
             <Input
               className="code-num"
@@ -1410,11 +1421,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             />
           </Field>
 
-          <Field label="Programmversion" help="Sie steht in jedem Export und in jeder Sicherung.">
+          <Field label="Programmversion" explain="Sie steht in jedem Export und in jeder Sicherung.">
             <Input className="code-num" value={appConfig?.programVersion || 'dev'} readOnly />
           </Field>
 
-          <Field label="Schlüssel im Schlüsselbund des Betriebssystems" help={keychainHint()}>
+          <Field label="Schlüssel im Schlüsselbund des Betriebssystems" explain={keychainHint()}>
             <p className="flex items-center gap-2 text-body text-ink-muted">
               <span className="mark-diamond bg-positive" aria-hidden="true" />
               Dienst <span className="code-num text-ink">org.buchfink.app</span> · Konto{' '}
@@ -1447,7 +1458,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               Recovery-Schlüssel exportieren
             </Button>
           </div>
-        </div>
+        </FormGrid>
       </Section>
     </form>
   );
@@ -1533,7 +1544,7 @@ const DunningLevelsTable: React.FC<{
     ]);
   };
 
-  /** Entfernt eine Stufe. Die Entwürfe rutschen mit — sie hängen am Index. */
+  /** Entfernt eine Stufe. Die Entwürfe werden geleert: Ihr Schlüssel ist der Index, und der verschiebt sich nach dem Entfernen. */
   const remove = (index: number) => {
     setDrafts({});
     onChange(levels.filter((_, i) => i !== index));

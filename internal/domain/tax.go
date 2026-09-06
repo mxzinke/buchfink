@@ -167,7 +167,7 @@ func AllTaxTreatments() []TaxTreatment {
 // Der Text steht an beiden Richtungen, weil die Frage in beiden dieselbe ist.
 const (
 	reverseChargeHint = "Leistung eines im Ausland ansässigen Unternehmers (§ 13b Abs. 2 Nr. 1 UStG, " +
-		"ohne Betragsgrenze): Du schuldest die Steuer und ziehst sie zugleich als Vorsteuer. " +
+		"ohne Betragsgrenze): Der Leistungsempfänger schuldet die Steuer und zieht sie zugleich als Vorsteuer ab. " +
 		"Buchfink bildet nur diesen Fall ab. Für Mobilfunkgeräte, Tablets, Spielekonsolen, " +
 		"integrierte Schaltkreise und Metalle (§ 13b Abs. 2 Nr. 10 und 11 UStG) gilt eine Grenze " +
 		"von 5.000 € je wirtschaftlichem Vorgang, die Buchfink nicht prüft; Bauleistungen " +

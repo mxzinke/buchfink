@@ -63,8 +63,8 @@ type AssetAccount struct {
 	// UsefulLifeReasonRequired sagt, dass eine Abweichung vom Vorschlag dieses
 	// Kontos zu begründen ist.
 	//
-	// Das Feld wird nicht von Hand gesetzt, sondern aus UsefulLifeSource
-	// abgeleitet (siehe init unten): die Regel hängt am Wahlrecht des
+	// Das Feld wird aus UsefulLifeSource abgeleitet (siehe init unten) und nicht
+	// von Hand gesetzt: die Regel richtet sich nach dem Wahlrecht des
 	// BMF-Schreibens vom 22.02.2022, und sie soll an genau einer Stelle stehen.
 	// Es steht trotzdem im JSON, weil die Maske die Regel kennen muss, bevor sie
 	// speichert — sonst bietet sie ein Feld an, das das Backend gleich darauf
@@ -75,7 +75,7 @@ type AssetAccount struct {
 // UsefulLifeSourceDigital ist die Fundstelle des Vorschlags von zwölf Monaten
 // für Computerhardware und Software.
 //
-// Sie steht als Konstante, weil an ihr eine Regel hängt: nur wo Buchfink diesen
+// Sie steht als Konstante, weil sich eine Regel nach ihr richtet: nur wo Buchfink diesen
 // Vorschlag macht, verlangt er bei einer Abweichung eine Begründung. Das
 // BMF-Schreiben eröffnet ein Wahlrecht — die AfA-Tabellen daneben nennen
 // Erfahrungswerte, und eine Begründungspflicht für jeden Erfahrungswert ginge
@@ -444,7 +444,7 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 	entry, known := LookupAssetAccount(account)
 	if known && entry.Immovable {
 		return "", fmt.Errorf(
-			"%s (%s) trägt ein unbewegliches Wirtschaftsgut. § 7g Abs. 5 EStG begünstigt nur "+
+			"%s (%s) ist ein Konto für unbewegliche Wirtschaftsgüter. § 7g Abs. 5 EStG begünstigt nur "+
 				"bewegliche — für Gebäude gelten die festen Sätze des § 7 Abs. 4 EStG",
 			account, entry.Name)
 	}
@@ -528,7 +528,7 @@ const (
 
 // WithholdingTaxAccount trägt die einbehaltene Kapitalertragsteuer.
 //
-// Sie ist kein Aufwand des Beteiligungsertrags, sondern eine Vorauszahlung auf
-// die eigene Steuer — sie mindert den Zufluss, nicht den Ertrag. Der Ertrag
+// Sie ist eine Vorauszahlung auf die eigene Steuer, kein Aufwand des
+// Beteiligungsertrags — sie mindert den Zufluss, nicht den Ertrag. Der Ertrag
 // steht deshalb brutto in der GuV, und die einbehaltene Steuer daneben.
 const WithholdingTaxAccount = "7630"

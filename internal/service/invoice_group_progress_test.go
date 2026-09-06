@@ -62,7 +62,7 @@ func TestInvoiceGroupsCarryTheirProgress(t *testing.T) {
 		t.Errorf("offen = %s, erwartet 6.000,00", got.OpenNet)
 	}
 	// Das mitgelieferte Feld und die Rechnung auf dem geladenen Verbund dürfen
-	// nicht auseinanderfallen: sonst wäre genau die zweite Wahrheit entstanden,
+	// nicht auseinanderfallen: sonst wäre die zweite Wahrheit entstanden,
 	// die das Feld beseitigen soll.
 	if want := groups[0].ComputeProgress(); got != want {
 		t.Errorf("mitgeliefert %+v, gerechnet %+v", got, want)

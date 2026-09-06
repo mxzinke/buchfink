@@ -17,7 +17,7 @@ func PDFFileName(company, version string) string {
 // Das ist die ganze Absicht: gäbe es neben der Markdown-Vorlage eine
 // Typst-Vorlage, wären es zwei Fassungen desselben Dokuments, die
 // auseinanderlaufen — und die Frage, welche gilt, wäre nicht mehr zu
-// beantworten. So ist das PDF der Satz genau des Textes, der auch als Markdown
+// beantworten. So ist das PDF der Satz des Textes, der auch als Markdown
 // im Belegspeicher liegt; beide sind aus einer Quelle.
 //
 // Der Umfang der Übersetzung ist der Umfang der Vorlage: Überschriften,
@@ -65,7 +65,7 @@ func Typst(markdown, title string, date time.Time) string {
 			b.WriteString(strings.Repeat("=", level) + " " + inlineTypst(text) + "\n")
 
 		case strings.HasPrefix(trimmed, "- "):
-			// Die Einrückung bleibt erhalten: sie trägt in Typst wie in
+			// Die Einrückung bleibt erhalten: sie bestimmt in Typst wie in
 			// Markdown die Schachtelung der Aufzählung.
 			indent := line[:len(line)-len(strings.TrimLeft(line, " "))]
 			b.WriteString(indent + "- " + inlineTypst(strings.TrimPrefix(trimmed, "- ")) + "\n")
@@ -90,7 +90,7 @@ func Typst(markdown, title string, date time.Time) string {
 }
 
 // writeTypstTable setzt eine Markdown-Tabelle. Die Trennzeile aus Strichen
-// entfällt — sie ist eine Markdown-Eigenheit und trägt keinen Inhalt.
+// entfällt — sie ist eine Markdown-Eigenheit und hat keinen Inhalt.
 func writeTypstTable(b *strings.Builder, rows []string) {
 	cells := make([][]string, 0, len(rows))
 	for _, row := range rows {

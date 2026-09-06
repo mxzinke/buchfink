@@ -5,7 +5,7 @@ import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 // Wohin ein Befund führt, steht an einer Stelle: Fristenliste, Monatsabschluss
 // und Aufgabenliste brauchen dieselbe Zuordnung.
-import { findingParams, findingTarget } from '../utils/findings';
+import { findingParams, findingTarget, targetLabel } from '../utils/findings';
 import { monthOptions, previousMonth } from '../utils/months';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatDate } from '../utils/formatters';
@@ -78,7 +78,7 @@ function isManual(key: string): boolean {
   return key.startsWith('ust.jahreserklaerung');
 }
 
-/** Die Gründungspflichten tragen ihr Erledigungsdatum am Vorgang selbst. */
+/** Das Erledigungsdatum einer Gründungspflicht steht am Vorgang selbst. */
 function dutyKeyOf(key: string): string | null {
   return key.startsWith('gruendung.') ? key.slice('gruendung.'.length) : null;
 }
@@ -87,7 +87,7 @@ type Filter = 'all' | 'open' | 'overdue' | 'done';
 
 interface CommittablePeriod {
   /**
-   * `year` trägt der letzte Zeitraum des Geschäftsjahres: er schreibt zugleich
+   * Der letzte Zeitraum des Geschäftsjahres hat den Typ `year`: er schreibt zugleich
    * das Jahr fest, und der Prüfbericht davor nimmt die Regeln des Abschlusses
    * hinzu (Abschreibung, Gliederungszuordnung).
    */
@@ -362,20 +362,22 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
       <PageHeader
         title={`Steuerfristen ${currentYear}`}
         context="Voranmeldungen, Meldungen und Festschreibung"
+        explain={
+          <>
+            Die Termine und ihr Stand kommen aus den Daten: eine übermittelte Voranmeldung ist
+            abgegeben, ein festgeschriebener Monat ist festgeschrieben. Bei Überweisung an das
+            Finanzamt gilt die Zahlungsschonfrist von drei Tagen nach § 240 Abs. 3 AO; fällt ein
+            Fälligkeitstag auf ein Wochenende, verschiebt er sich auf den nächsten Werktag.
+          </>
+        }
         action={
           <div className="flex items-center gap-2">
             {/* Der Monatsabschluss führt die drei Schritte zusammen, deren
-                Fristen hier einzeln stehen: Prüfbericht, Festschreibung,
-                Voranmeldung (Architektur 6.2). */}
+              Fristen hier einzeln stehen: Prüfbericht, Festschreibung,
+              Voranmeldung (Architektur 6.2). */}
             <Button variant="secondary" onClick={() => setMonthCloseOpen(true)}>
               Monatsabschluss
             </Button>
-            <HelpPopover label="Erklärung zu den Steuerfristen">
-              Die Termine und ihr Stand kommen aus den Daten: eine übermittelte Voranmeldung ist
-              abgegeben, ein festgeschriebener Monat ist festgeschrieben. Bei Überweisung an das
-              Finanzamt gilt die Zahlungsschonfrist von drei Tagen nach § 240 Abs. 3 AO; fällt ein
-              Fälligkeitstag auf ein Wochenende, verschiebt er sich auf den nächsten Werktag.
-            </HelpPopover>
           </div>
         }
       />
@@ -405,13 +407,13 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
       <Section
         title="Zeiträume festschreiben"
         context="Abschluss passend zum Rhythmus der Voranmeldung"
-        action={
-          <HelpPopover label="Erklärung zur Festschreibung">
+        explain={
+          <>
             Vor der Festschreibung läuft der Prüfbericht: er nennt, was danach nicht mehr zu ändern
             wäre. Ein festgeschriebener Zeitraum nimmt keine rückdatierten Buchungen mehr an,
             Korrekturen laufen ab dann über den Storno. Zusätzlich beglaubigt ein unabhängiger
             Zeitstempeldienst den Stand — übertragen wird dabei nur eine Prüfsumme.
-          </HelpPopover>
+          </>
         }
       >
         {periods.length === 0 ? (
@@ -503,7 +505,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
               {filtered.map((item) => {
                 const diff = item.dueDate ? daysUntil(item.dueDate) : null;
                 const dutyKey = dutyKeyOf(item.key);
-                // Die aus der Aufgabenliste gemeinte Frist trägt den Grund der
+                // Die aus der Aufgabenliste gemeinte Frist ist der Grund der
                 // Hinweisfläche: sie ist gefunden, nicht ausgewählt — deshalb
                 // keine Markierung, die nach Bedienung aussieht.
                 const marked = Boolean(initialKey) && item.key === initialKey;
@@ -683,7 +685,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                           onNavigate(target, findingParams(finding));
                         }}
                       >
-                        Hin dazu
+                        {targetLabel(findingTarget(finding.objectType))}
                       </Button>
                     )}
                   </li>

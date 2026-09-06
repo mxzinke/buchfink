@@ -91,7 +91,7 @@ const ROW: Record<RowVariant, string> = {
     '[&>td:first-child]:before:h-4 [&>td:first-child]:before:w-0.5 ' +
     '[&>td:first-child]:before:-translate-y-1/2 [&>td:first-child]:before:rounded-full ' +
     '[&>td:first-child]:before:bg-negative',
-  // Buchhalterische Doppellinie. Sie trägt allein, ohne Füllung.
+  // Buchhalterische Doppellinie. Sie genügt allein, ohne Füllung.
   sum: '[&>td]:rule-total [&>td]:font-semibold [&>td]:border-b-0',
 };
 

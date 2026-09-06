@@ -24,7 +24,7 @@ type BankService struct {
 	auditRepo  domain.AuditRepository
 	receipts   *ReceiptService
 
-	// openItems und ruleRepo tragen den Zuordnungsvorschlag (siehe
+	// openItems und ruleRepo liefern den Zuordnungsvorschlag (siehe
 	// bank_suggest.go). Beide dürfen fehlen: ohne sie importiert und bucht der
 	// Dienst wie zuvor, nur ohne Vorschlag.
 	openItems LiveOpenItemSource
@@ -64,7 +64,7 @@ func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAcco
 //
 // Die Reihenfolge ist der Punkt: erst der Beleg, dann die Buchungsgrundlage.
 // Scheitert das Parsen, liegt die empfangene Datei trotzdem im Archiv — und
-// genau das verlangt die Belegsicherung. Der Auszug bekommt die Belegart
+// das verlangt die Belegsicherung. Der Auszug bekommt die Belegart
 // „Kontoauszug" und wird deshalb vom Prüflauf nicht als ungebucht gemeldet.
 func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount string) (int, error) {
 	if path == "" {

@@ -278,7 +278,7 @@ func TestOutgoingIntraCommunitySupply(t *testing.T) {
 	})
 }
 
-// Die Stammdaten müssen den Steuerfall tragen: ohne USt-IdNr. keine
+// Die Stammdaten müssen zum Steuerfall passen: ohne USt-IdNr. keine
 // innergemeinschaftliche Lieferung (§ 6a Abs. 1 Nr. 4 UStG).
 func TestTaxTreatmentIsValidatedAgainstMasterData(t *testing.T) {
 	env := newTestEnv(t)

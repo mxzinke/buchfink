@@ -31,7 +31,7 @@ type Festschreibung struct {
 	// Zeit des Zeitstempeldienstes abwich.
 	//
 	// Die beglaubigte Zeit ist die verlässliche; die Systemuhr des Rechners
-	// kann falsch gehen, und dann tragen alle Buchungen und Protokolleinträge
+	// kann falsch gehen, und dann haben alle Buchungen und Protokolleinträge
 	// dieses Rechners eine Zeit, die es nicht gab. Der Vergleich kostet nichts
 	// — die beglaubigte Zeit kommt ohnehin zurück —, und ohne ihn fiele eine
 	// verstellte Uhr erst dem Prüfer auf. Leer heißt: keine nennenswerte

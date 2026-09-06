@@ -23,7 +23,7 @@ import (
 // mit den Werten beurteilbar bleiben, die damals galten.
 
 // SizeClass ist das Ergebnis der Einordnung. Der Typ liegt in domain, damit
-// FinancialStatement ihn tragen kann, ohne dass domain dieses Paket importiert.
+// FinancialStatement ihn haben kann, ohne dass domain dieses Paket importiert.
 type SizeClass = domain.SizeClass
 
 // SizeThresholds ist ein datierter Satz Schwellenwerte.
@@ -266,7 +266,7 @@ func consequencesOf(o domain.SizeObligations) string {
 // Wirksam ist die Klasse des jüngsten Stichtagspaares, das übereinstimmt; gibt
 // es keines, bleibt es bei der Beurteilung des ältesten bekannten Stichtags.
 // Die zweite Rückgabe ist dessen Platz in der Kette, die dritte sagt, ob ein
-// übereinstimmendes Paar die Klasse trägt.
+// übereinstimmendes Paar die Klasse bestimmt.
 func effectiveClass(history []domain.SizeAssessment) (domain.SizeClassKind, int, bool) {
 	// Das jüngste Paar zählt: es überschreibt jede ältere Einordnung. Deshalb
 	// von hinten, und nicht von vorn.

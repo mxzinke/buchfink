@@ -17,7 +17,7 @@ import (
 // Die Zuordnung Steuerfall → Kennziffer kann sich ändern — der amtliche Vordruck
 // ändert sich fast jedes Jahr. Ohne die Fassung, die gerechnet hat, ließe sich
 // eine alte Anmeldung später nicht mehr nachvollziehen. Sie kommt deshalb aus
-// dem Bau (internal/buildinfo) und trägt den Regelstand mit; ein fester Name
+// dem Bau (internal/buildinfo) und enthält den Regelstand; ein fester Name
 // änderte sich nie und sagte damit nichts.
 func ProgramVersion() string {
 	return buildinfo.Program(accounting.PostingRuleVersion)
@@ -164,7 +164,7 @@ func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodSt
 // Draft rechnet das Kennziffernblatt eines Zeitraums neu, ohne es zu speichern.
 //
 // Liegt für den Zeitraum bereits eine berichtigte Anmeldung als Entwurf vor,
-// trägt auch das neu gerechnete Blatt die Kennziffer 10. Ohne diese Übernahme
+// hat auch das neu gerechnete Blatt die Kennziffer 10. Ohne diese Übernahme
 // wäre die Berichtigung auf dem Blatt von einer Erstanmeldung nicht zu
 // unterscheiden — dabei ist Kennziffer 10 genau das Merkmal, an dem das
 // Finanzamt erkennt, dass die Anmeldung eine frühere ersetzt (§ 153 AO).
@@ -544,7 +544,7 @@ func (s *VatReturnService) ExportCSV(ctx context.Context, id uint) (string, erro
 	}
 	for _, line := range rec.Figures {
 		if line.HasBase && line.Base != 0 {
-			// Bemessungsgrundlagen trägt der Vordruck in vollen Euro.
+			// Bemessungsgrundlagen führt der Vordruck in vollen Euro.
 			fmt.Fprintf(&b, "%s;%d\n", line.Code, int64(line.Base)/100)
 		}
 		if line.HasTax && (line.Tax != 0 || line.Code == accounting.VatCodePayable) {
@@ -767,7 +767,7 @@ func (s *VatReturnService) ensureCommitted(ctx context.Context, rec *domain.VatR
 
 // ensureFirstOrCorrection lässt für einen Zeitraum nur eine Erstanmeldung zu.
 //
-// Jede weitere Anmeldung desselben Zeitraums ist eine Berichtigung und trägt die
+// Jede weitere Anmeldung desselben Zeitraums ist eine Berichtigung und hat die
 // Kennziffer 10. Zwei Originalanmeldungen für einen Zeitraum wären für das
 // Finanzamt zwei Erklärungen, von denen keine die andere ersetzt — und im
 // Übermittlungsprotokoll zwei Wahrheiten über denselben Monat.

@@ -232,7 +232,7 @@ type RetentionCounts struct {
 	ClearedReferences int `json:"clearedReferences"`
 }
 
-// IsEmpty meldet, ob das Jahr überhaupt Daten trägt.
+// IsEmpty meldet, ob das Jahr überhaupt Daten hat.
 func (c RetentionCounts) IsEmpty() bool {
 	return c.JournalEntries == 0 && c.Receipts == 0 &&
 		c.Festschreibungen == 0 && c.CheckRuns == 0 && c.VatReturns == 0 &&
@@ -242,17 +242,17 @@ func (c RetentionCounts) IsEmpty() bool {
 }
 
 // RetentionRepository persistiert die Aussetzungen und beantwortet, was ein
-// Geschäftsjahr an aufzubewahrenden Daten trägt.
+// Geschäftsjahr an aufzubewahrenden Daten hat.
 type RetentionRepository interface {
 	CreateHold(ctx context.Context, hold *RetentionHold) error
 	ReleaseHold(ctx context.Context, id uint, releasedBy, reason string, at time.Time) error
 	FindHolds(ctx context.Context) ([]RetentionHold, error)
 	// FindActiveHold liefert die geltende Aussetzung eines Jahres oder nil.
 	FindActiveHold(ctx context.Context, fiscalYear int) (*RetentionHold, error)
-	// CountObjects zählt, was ein Geschäftsjahr trägt.
+	// CountObjects zählt, was ein Geschäftsjahr enthält.
 	CountObjects(ctx context.Context, fiscalYear int) (RetentionCounts, error)
 	// FiscalYearsWithObjects nennt aufsteigend jedes Geschäftsjahr, das
-	// überhaupt aufzubewahrende Objekte trägt.
+	// überhaupt aufzubewahrende Objekte hat.
 	//
 	// Nicht nur die Jahre mit Buchungen: ein Jahr, in dem Belege abgelegt und
 	// Handelsbriefe verwahrt, aber (noch) keine Buchungen erfasst wurden, hat

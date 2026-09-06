@@ -11,7 +11,7 @@
 //
 // # Warum das Profil zählt
 //
-// Zwei der Profile tragen keine vollständige Rechnung. MINIMUM hat weder
+// Zwei der Profile haben keine vollständige Rechnung. MINIMUM hat weder
 // Positionen noch Steueraufschlüsselung, BASIC WL keine Positionen; nach
 // UStAE 14.1 Abs. 14 Satz 4 sind sie deshalb keine E-Rechnung im Sinne des
 // Gesetzes. Wer daraus Vorsteuer zieht, zieht sie aus einem Dokument, das
@@ -28,7 +28,7 @@
 // Validierungsartefakt drückt dieselben Beschränkungen als
 // XML-Kardinalitätsregeln aus (FX-SCH-A-*, bis zu 943 je Profil); die gehören
 // zur CII-Syntax und lassen sich am semantischen Modell nicht nachbilden. Die
-// Profiltabelle unten ist maschinell aus eben diesen Regeln abgeleitet.
+// Profiltabelle unten ist maschinell aus diesen Regeln abgeleitet.
 //
 // Abgeleitet aus: ZUGFeRD/mustangproject, validator/schematron/ZF_250
 // (Apache-2.0).

@@ -10,7 +10,7 @@ import (
 
 // Das Zielformat des Empfängers und der Beleg, der zur Rechnung gehört.
 
-// Ein unbekanntes E-Rechnungsformat wird nicht gespeichert.
+// Buchfink speichert ein unbekanntes E-Rechnungsformat nicht.
 //
 // Vorher wurde nur das leere Feld belegt. Ein Format aus der Fachplanung, das
 // Buchfink nicht erzeugt („xrechnung_ubl"), stand danach am Kontakt und wirkte
@@ -73,7 +73,7 @@ func TestIssueRejectsUnknownEInvoiceProfile(t *testing.T) {
 
 // Liegt der Beleg schon, entsteht kein zweiter.
 //
-// Der Verweis auf den Beleg wird gespeichert, sobald er abgelegt ist — vor
+// Buchfink speichert den Verweis auf den Beleg, sobald er abgelegt ist — vor
 // allem, was danach noch scheitern kann. Bleibt die Rechnung trotzdem auf
 // „Dokument fehlt" stehen, holt „Dokument erneut erzeugen" den letzten Schritt
 // nach, statt einen zweiten Beleg unter derselben Rechnungsnummer anzulegen.

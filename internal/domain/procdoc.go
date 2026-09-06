@@ -27,9 +27,9 @@ type ProcedureDocumentation struct {
 	// StoredPath ist der Ort der Datei im Belegspeicher, relativ zum
 	// Datenordner (dokumente/verfahrensdokumentation/<Prüfsumme>.md).
 	//
-	// Der Pfad und kein Belegverweis: die Fassung ist kein Beleg — sie trägt
-	// keine Belegnummer, wird nicht gebucht und hängt an keinem
-	// Geschäftsvorfall. Ohne den Pfad wäre sie erzeugt und nicht wiederzufinden;
+	// Der Pfad und kein Belegverweis: die Fassung ist kein Beleg — sie hat
+	// keine Belegnummer, wird nicht gebucht und ist keinem
+	// Geschäftsvorfall zugeordnet. Ohne den Pfad wäre sie erzeugt und nicht wiederzufinden;
 	// das Prüferpaket legt sie über ihn bei.
 	StoredPath string `gorm:"size:500" json:"storedPath,omitempty"`
 	// FileName, SHA256 und Size beschreiben die abgelegte Datei. Die Prüfsumme
@@ -44,7 +44,7 @@ type ProcedureDocumentation struct {
 	// maschinenlesbare Fassung, aus der auch das PDF gesetzt wird, das PDF die
 	// Form, die ein Prüfer in die Hand nimmt. Leer heißt: der Satz war nicht
 	// möglich (kein Renderer verdrahtet) — die Fassung gilt trotzdem, weil das
-	// Markdown die Aussage trägt.
+	// Markdown die Aussage enthält.
 	PDFFileName   string `gorm:"size:255" json:"pdfFileName,omitempty"`
 	PDFStoredPath string `gorm:"size:500" json:"pdfStoredPath,omitempty"`
 	PDFSHA256     string `gorm:"size:64" json:"pdfSha256,omitempty"`
@@ -55,6 +55,11 @@ type ProcedureDocumentation struct {
 type ProcedureDocumentationRepository interface {
 	Create(ctx context.Context, doc *ProcedureDocumentation) error
 	FindAll(ctx context.Context) ([]ProcedureDocumentation, error)
+	// FindByID liefert eine einzelne Fassung; nil heißt: es gibt sie nicht.
+	// Gebraucht für die Herausgabe: wer eine Fassung an den Prüfer gibt, gibt
+	// eine bestimmte heraus, und zu jedem Geschäftsjahr gilt die, die damals
+	// galt.
+	FindByID(ctx context.Context, id uint) (*ProcedureDocumentation, error)
 	// CountForDay zählt die Fassungen eines Tages. Die Fassungsbezeichnung
 	// hängt daran: zwei Fassungen an einem Tag dürfen nicht gleich heißen.
 	CountForDay(ctx context.Context, day string) (int64, error)
@@ -95,9 +100,9 @@ const (
 	SettingOrgBackup           = "org_backup"
 	SettingOrgNotes            = "org_notes"
 	// SettingSystemChangeDate ist der Umstellungszeitpunkt bei der Übernahme
-	// aus einem Altsystem. An ihm hängt die Fünfjahresfrist des § 147 Abs. 6
-	// Satz 6 AO: so lange muss das Altsystem für den Datenzugriff verfügbar
-	// bleiben.
+	// aus einem Altsystem. Nach ihm richtet sich die Fünfjahresfrist des § 147
+	// Abs. 6 Satz 6 AO: so lange muss das Altsystem für den Datenzugriff
+	// verfügbar bleiben.
 	SettingSystemChangeDate = "system_change_date"
 )
 

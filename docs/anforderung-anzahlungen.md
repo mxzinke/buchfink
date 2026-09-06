@@ -169,7 +169,7 @@ Designentscheidung nötig (siehe unten).
 ## 6. Abhängigkeiten
 
 - Der **Rechnungsflow** bekommt einen zweiten Buchungszeitpunkt (Zahlung statt
-  Ausstellung) und muss das im Modell tragen.
+  Ausstellung) und muss das im Modell abbilden.
 - Die **OPOS-Logik** muss den Anzahlungsfall abbilden, ohne ihre Ableitung aus dem
   Journal aufzugeben.
 - **ZUGFeRD** kennt eigene Dokumenttypen für Anzahlungs- und Schlussrechnung; die
@@ -182,14 +182,14 @@ Designentscheidung nötig (siehe unten).
 ## 7. Anmerkungen zu den Fundstellen
 
 Die Normen und ihre Fundstellen stehen im Anforderungskatalog unter UST-02,
-RECH-02, RECH-03 und RECH-10. Zwei Punkte trägt der Katalog nicht:
+RECH-02, RECH-03 und RECH-10. Zwei Punkte fehlen im Katalog:
 
 **Präzisierung zur Entstehung der Steuer:** § 13 Abs. 1 Nr. 1 Buchst. a Satz 4
-UStG lässt die Steuer nicht taggenau mit dem Geldeingang entstehen, sondern „mit
-Ablauf des Voranmeldungszeitraums, in dem das Entgelt oder das Teilentgelt
-vereinnahmt worden ist". Für die Kontierung macht das keinen Unterschied – die
-Buchung trägt das Zahlungsdatum und fällt damit in den richtigen Zeitraum –, für
-den Text der UStVA-Auswertung aber schon.
+UStG lässt die Steuer „mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt
+oder das Teilentgelt vereinnahmt worden ist" entstehen – nicht taggenau mit dem
+Geldeingang. Für die Kontierung macht das keinen Unterschied – die Buchung hat
+das Zahlungsdatum und fällt damit in den richtigen Zeitraum –, für den Text der
+UStVA-Auswertung aber schon.
 
 **Korrektur gegenüber einer früheren Fassung dieses Dokuments:** dort war der
 Stetigkeitsbruch beim Wechsel des Anzahlungs-Ausweises auf § 246 Abs. 3 HGB

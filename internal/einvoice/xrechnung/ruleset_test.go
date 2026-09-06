@@ -288,7 +288,7 @@ func TestCleanVehicleRulesAreOptional(t *testing.T) {
 	}
 }
 
-// Was nicht geprüft wird, wird benannt. Schweigen über eine Lücke ist schlimmer
+// Buchfink benennt, was es nicht prüft. Schweigen über eine Lücke ist schlimmer
 // als die Lücke.
 func TestUncheckedRulesAreNamedWithAReason(t *testing.T) {
 	checked := map[string]bool{}

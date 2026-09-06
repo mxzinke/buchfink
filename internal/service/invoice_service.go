@@ -351,7 +351,7 @@ var otherWayForKind = map[domain.InvoiceKind]string{
 // Abschlagsrechnung ohne offenen Posten und ohne Verbund ausstellen — nie
 // vereinnahmbar, nie absetzbar, nicht in der OP-Liste —, und mit `Kind = final`
 // samt PrepaidAmount ein Dokument, das BT-113 und einen geminderten Zahlbetrag
-// trägt, während die volle Forderung ohne Auflösung der Anzahlungen gebucht
+// hat, während die volle Forderung ohne Auflösung der Anzahlungen gebucht
 // wird: Dokument und Buchung sagten Verschiedenes, und die Steuer wäre zweimal
 // ausgewiesen (§ 14c Abs. 1 UStG). Mit `Kind = correction` schließlich stünde
 // ein Bezug auf eine Rechnung auf dem Dokument, die niemand storniert hat.
@@ -446,7 +446,7 @@ func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contac
 // des Leistungsempfängers (§ 13b UStG). Der Fernverkauf fehlt hier, weil er in
 // Buchfink kein eigener Steuerfall ist; die beiden anderen sind es. Der Grund
 // der Ausnahme ist derselbe: mit den verkürzten Angaben fehlten gerade die
-// Angaben, an denen die Rechtsfolge hängt — die USt-IdNr. des Empfängers und
+// Angaben, nach denen sich die Rechtsfolge richtet — die USt-IdNr. des Empfängers und
 // der Hinweis auf die Steuerschuldnerschaft.
 var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
 	domain.TaxTreatmentIntraCommunitySupply: "die innergemeinschaftliche Lieferung (§ 6a UStG)",
@@ -637,7 +637,7 @@ func resetAfterRollback(inv *domain.Invoice, allocated int64) {
 }
 
 // recordNumberGap vermerkt eine Nummer, die verbraucht wurde, ohne dass eine
-// Rechnung sie trägt.
+// Rechnung sie hat.
 //
 // Geprüft wird, ob sie das wirklich ist: hat der Rollback den Zähler
 // zurückgesetzt, gibt es keine Lücke und nichts zu vermerken. Der Vermerk
@@ -698,7 +698,7 @@ func (s *InvoiceService) numberFormat(ctx context.Context) string {
 // The Beleg carries the PDF as the received form and the XML as the structured
 // part on a hybrid document; bei einer XRechnung ist das XML das Original und
 // das PDF die erzeugte Darstellung. Beide Rollen zählen: das PDF ist, was der
-// Empfänger liest, das XML ist, woran sein Vorsteuerabzug hängt.
+// Empfänger liest, das XML ist, wonach sich sein Vorsteuerabzug richtet.
 //
 // GoBD Rz. 76 Abs. 2 would allow skipping the archived PDF entirely, since
 // Buchfink can reproduce an identical Mehrstück from the data at any time. It is
@@ -758,7 +758,7 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 	// von beiden, gab es den Beleg mit der Rechnungsnummer bereits, während die
 	// Rechnung ihn nicht kannte — und „Dokument erneut erzeugen" legte einen
 	// zweiten Beleg unter derselben Nummer an. Ein zweiter Beleg zu einem
-	// Vorgang ist genau das, was die Belegablage nicht haben darf.
+	// Vorgang ist das, was die Belegablage nicht haben darf.
 	inv.ReceiptID = &receipt.ID
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
 		return err
@@ -816,10 +816,10 @@ func (s *InvoiceService) completeDocument(
 	// Die Verbindung zwischen Buchung und Beleg läuft jetzt vom Beleg zur
 	// Buchung und nicht mehr umgekehrt.
 	//
-	// Das ist kein Verzicht, sondern die Folge der Reihenfolge: der Beleg-Hash
+	// Die Reihenfolge erzwingt das: der Beleg-Hash
 	// steht im Buchungshash und damit in der Kette (accounting.EntryHash), und
 	// ein nachträglicher Eintrag an der Buchung bräche sie. Da das Dokument
-	// hinter der Transaktion entsteht, kann die Buchung ihn nicht mehr tragen.
+	// hinter der Transaktion entsteht, kann die Buchung ihn nicht mehr aufnehmen.
 	// Der Nachweis bleibt vollständig: der Beleg wird auf die Buchung
 	// versiegelt, und der Prüflauf zählt beide Richtungen (siehe
 	// entriesWithReceipt).
@@ -924,7 +924,7 @@ func (s *InvoiceService) renderDocument(
 }
 
 // ensureNoUnlawfulTax weist eine Rechnung zurück, deren Positionen einen
-// Steuersatz tragen, obwohl der Steuerfall keine Steuer entstehen lässt.
+// Steuersatz haben, obwohl der Steuerfall keine Steuer entstehen lässt.
 //
 // Zurückgewiesen und nicht stillschweigend berichtigt: Buchfink nahm den Satz
 // bisher selbst aus der Position, und heraus kam eine Rechnung ohne Steuer,

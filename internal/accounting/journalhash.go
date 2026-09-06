@@ -218,8 +218,8 @@ func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityC
 
 // VerifyYears prüft mehrere Geschäftsjahre, jedes für sich.
 //
-// Die Kette beginnt je Jahr neu beim Genesis-Hash — der Jahreswechsel ist kein
-// Bruch, sondern der Anfang einer neuen Kette. Eine Prüfung, die nur das aktive
+// Die Kette beginnt je Jahr neu beim Genesis-Hash — der Jahreswechsel eröffnet
+// eine neue Kette und ist kein Bruch. Eine Prüfung, die nur das aktive
 // Jahr ansieht, meldet Unversehrtheit, während in einem festgeschriebenen Jahr
 // eine Zeile verändert wurde; das ist genau der Fall, für den es die Kette gibt
 // (§ 146 Abs. 4 AO, GoBD Rz. 107).

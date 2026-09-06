@@ -19,7 +19,6 @@ import {
   EmptyState,
   Field,
   HelpPopover,
-  HelpTooltip,
   Input,
   Notice,
   PageHeader,
@@ -41,16 +40,29 @@ import {
 } from '../components/ui';
 
 /**
- * Kontenaufstellung.
+ * Konten.
  *
- * Von 1.855 Katalogeinträgen bebucht ein Unternehmen ein paar Dutzend. Die
- * Seite zeigt deshalb zuerst die bebuchten Konten und macht den Kontenrahmen
- * erst auf Wunsch auf. Das Grundprinzip — Aktiv- und Aufwandskonten tragen
- * einen Sollsaldo, Passiv-, Kapital- und Ertragskonten einen Habensaldo —
- * steht als Erklärung an der Übersicht, nicht als Legende auf jeder Zeile.
+ * Von 1.855 Katalogeinträgen bebucht ein Unternehmen ein paar Dutzend. Das sind
+ * zwei Fragen und deshalb zwei Ansichten: Die bebuchten Konten sind das, womit
+ * gearbeitet wird — ein paar Dutzend Zeilen mit Verkehrszahlen und Saldo. Die
+ * Kontenaufstellung ist das Nachschlagewerk: die eigenen Konten und der
+ * durchsuchbare SKR04 dahinter. Bis Welle 9 standen beide untereinander auf
+ * einer Seite, und die kurze Liste ging in der langen unter.
+ *
+ * Das Grundprinzip — Aktiv- und Aufwandskonten tragen einen Sollsaldo, Passiv-,
+ * Kapital- und Ertragskonten einen Habensaldo — steht als Erklärung an der
+ * Übersicht, nicht als Legende auf jeder Zeile.
  */
 
-type Tab = 'konten' | 'susa' | 'op';
+type Tab = 'bebucht' | 'aufstellung' | 'susa' | 'op';
+
+/**
+ * So viele Treffer zeigt die Suche im Kontenrahmen. „Konto" trifft ein paar
+ * hundert Zeilen; wer so sucht, sucht nicht nach einer Liste, sondern nach
+ * einem Konto — und liest die ersten Treffer. Die Grenze steht deshalb über
+ * der Trefferliste und nicht nur im Code.
+ */
+const SEARCH_LIMIT = 60;
 
 /** Der heutige Tag als ISO-Datum — die Voreinstellung des OP-Stichtags. */
 function today(): string {
@@ -107,7 +119,7 @@ export interface AccountsPageProps {
 }
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNavigate }) => {
-  const [tab, setTab] = useState<Tab>('konten');
+  const [tab, setTab] = useState<Tab>('bebucht');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [susa, setSusa] = useState<SuSaOverview | null>(null);
   const [ledger, setLedger] = useState<AccountLedger | null>(null);
@@ -115,7 +127,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
   const [loadingLedger, setLoadingLedger] = useState(false);
 
   // Der Stichtag der Summen- und Saldenliste. Leer heißt: das ganze
-  // Geschäftsjahr — das ist die Liste, die eine Bilanz trägt. Ein Stichtag
+  // Geschäftsjahr — das ist die Liste, auf der die Bilanz beruht. Ein Stichtag
   // mittendrin ist die Frage des Prüfers und der Banken (JAB-08).
   const [susaCutoff, setSusaCutoff] = useState('');
   const [loadingSusa, setLoadingSusa] = useState(false);
@@ -146,7 +158,6 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
   const [blockAccount, setBlockAccount] = useState<Account | null>(null);
 
   const [search, setSearch] = useState('');
-  const [showCatalog, setShowCatalog] = useState(false);
   // Das festgestellte Geschäftsjahr und der Prüfermodus sperren das Anlegen
   // und Sperren eines Kontos; der Knopf sagt das, statt es nach dem Ausfüllen
   // als Fehlermeldung zu zeigen (§10.4).
@@ -260,7 +271,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
     if (!query) return [];
     return catalog
       .filter((a) => a.number.toLowerCase().includes(query) || a.name.toLowerCase().includes(query))
-      .slice(0, 60);
+      .slice(0, SEARCH_LIMIT);
   }, [catalog, search]);
 
   const catalogByClass = useMemo(() => {
@@ -300,7 +311,8 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
 
       <Tabs
         items={[
-          { value: 'konten' as Tab, label: 'Konten' },
+          { value: 'bebucht' as Tab, label: 'Bebuchte Konten' },
+          { value: 'aufstellung' as Tab, label: 'Kontenaufstellung' },
           { value: 'susa' as Tab, label: 'Summen & Salden' },
           { value: 'op' as Tab, label: 'Offene Posten' },
         ]}
@@ -308,58 +320,69 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
         onValueChange={setTab}
         className="mt-6"
       >
-        <TabPanel value="konten">
+        {/* Zwei Fragen, zwei Ansichten: Womit ist gebucht worden? Und: Welches
+            Konto nehme ich? Bis hierher standen beide untereinander auf einer
+            Seite, und die Antwort auf die erste — ein paar Dutzend Zeilen —
+            stand über einem Kontenrahmen mit 1.600. */}
+        <TabPanel value="bebucht">
+          {loading ? (
+            <SkeletonRows rows={8} />
+          ) : (
+            <Section
+              title="Bebuchte Konten"
+              context={`${inUse.length} von ${catalog.length} bebuchbaren Konten`}
+              divider={false}
+              explain={
+                <>
+                  Der SKR04 enthält über 1.600 nutzbare Konten, ein Unternehmen bebucht davon
+                  typischerweise ein paar Dutzend. Neue Konten entstehen von selbst, sobald eine
+                  Buchungsgruppe sie zum ersten Mal verwendet. {BALANCE_HELP}
+                </>
+              }
+            >
+              {inUse.length === 0 ? (
+                <EmptyState
+                  title="Noch keine Buchungen vorhanden"
+                  description="Sobald der erste Beleg erfasst ist, erscheinen hier die Konten, die er berührt."
+                />
+              ) : (
+                <AccountTable accounts={inUse} onSelect={openLedger} showTurnover />
+              )}
+            </Section>
+          )}
+        </TabPanel>
+
+        <TabPanel value="aufstellung">
           {loading ? (
             <SkeletonRows rows={8} />
           ) : (
             <>
+              {/* Die eigenen Konten stehen vor dem Kontenrahmen: sie sind
+                  beides — selbst angelegt und Teil des Rahmens, unter dem
+                  gebucht wird (BEL-06 K2). */}
               <Section
-                title="Bebuchte Konten"
-                context={`${inUse.length} von ${catalog.length} bebuchbaren Konten`}
                 divider={false}
-                action={
-                  <HelpPopover label="Erklärung zu den bebuchten Konten">
-                    Der SKR04 enthält über 1.600 nutzbare Konten, ein Unternehmen bebucht davon
-                    typischerweise ein paar Dutzend. Neue Konten entstehen von selbst, sobald eine
-                    Buchungsgruppe sie zum ersten Mal verwendet. {BALANCE_HELP}
-                  </HelpPopover>
-                }
-              >
-                {inUse.length === 0 ? (
-                  <EmptyState
-                    title="Noch keine Buchungen vorhanden"
-                    description="Sobald der erste Beleg erfasst ist, erscheinen hier die Konten, die er berührt."
-                  />
-                ) : (
-                  <AccountTable accounts={inUse} onSelect={openLedger} showTurnover />
-                )}
-              </Section>
-
-              {/* Die eigenen Konten stehen zwischen den bebuchten und dem
-                  Kontenrahmen: sie sind beides — selbst angelegt und Teil des
-                  Rahmens, unter dem gebucht wird (BEL-06 K2). */}
-              <Section
                 title="Eigene Konten"
                 context={`${customAccounts.length} selbst angelegt`}
+                explain={
+                  <>
+                    Ein eigenes Konto entsteht im freien Bereich des SKR04 und hat eine
+                    Gliederungsposition nach §§ 266, 275 HGB — ohne sie erschiene es weder im
+                    Abschluss noch in der E-Bilanz. Ein Konto des Kontenrahmens umzuwidmen
+                    zerstört dagegen still die Zuordnung, auf der Bilanz, GuV und E-Bilanz
+                    beruhen. Gesperrt wird statt gelöscht, sobald ein Konto bebucht ist.
+                  </>
+                }
                 action={
-                  <div className="flex items-center gap-2">
-                    <HelpPopover label="Erklärung zu eigenen Konten">
-                      Ein eigenes Konto entsteht im freien Bereich des SKR04 und trägt eine
-                      Gliederungsposition nach §§ 266, 275 HGB — ohne sie erschiene es weder im
-                      Abschluss noch in der E-Bilanz. Ein Konto des Kontenrahmens umzuwidmen
-                      zerstört dagegen still die Zuordnung, auf der Bilanz, GuV und E-Bilanz
-                      beruhen. Gesperrt wird statt gelöscht, sobald ein Konto bebucht ist.
-                    </HelpPopover>
-                    <Button
-                      variant="secondary"
-                      icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-                      disabled={writeLock.locked}
-                      title={writeLock.hint}
-                      onClick={() => setCreateOpen(true)}
-                    >
-                      Konto anlegen
-                    </Button>
-                  </div>
+                  <Button
+                    variant="secondary"
+                    icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+                    disabled={writeLock.locked}
+                    title={writeLock.hint}
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    Konto anlegen
+                  </Button>
                 }
               >
                 {customError && <Notice tone="negative" text={customError} className="mb-5" />}
@@ -457,20 +480,15 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
               </Section>
 
               <Section
-                title="Kontenrahmen"
-                context="Alle bebuchbaren Konten des SKR04"
-                action={
-                  <div className="flex items-center gap-2">
-                    <Button variant="quiet" onClick={() => setShowCatalog((v) => !v)}>
-                      {showCatalog ? 'Rahmen ausblenden' : 'Rahmen anzeigen'}
-                    </Button>
-                    <HelpPopover label="Erklärung zum Kontenrahmen">
-                      Bereichskonten wie 4400-4409 sind eine Kurzschreibweise für zehn nutzbare
-                      Konten, keine eigenen Konten. Kontenklasse 8 hält die DATEV im SKR04 frei und
-                      ist hier ausgeblendet, weil dort nicht gebucht werden darf. Erlöse liegen
-                      anders als im SKR03 in Klasse 4.
-                    </HelpPopover>
-                  </div>
+                title="Kontenrahmen SKR04"
+                context={`${catalog.length} bebuchbare Konten in ${catalogByClass.length} Klassen`}
+                explain={
+                  <>
+                    Bereichskonten wie 4400-4409 sind eine Kurzschreibweise für zehn nutzbare
+                    Konten, keine eigenen Konten. Kontenklasse 8 hält die DATEV im SKR04 frei und
+                    ist hier ausgeblendet, weil dort nicht gebucht werden darf. Erlöse liegen
+                    anders als im SKR03 in Klasse 4.
+                  </>
                 }
               >
                 <SearchInput
@@ -483,14 +501,24 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
                 <div className="mt-4">
                   {search.trim() ? (
                     searchResults.length ? (
-                      <AccountTable accounts={searchResults} onSelect={openLedger} />
+                      <>
+                        <p className="text-caption text-ink-subtle mb-2">
+                          {searchResults.length === SEARCH_LIMIT
+                            ? `Die ersten ${SEARCH_LIMIT} Treffer — suchen Sie genauer, wenn Ihr Konto fehlt.`
+                            : `${searchResults.length} Treffer`}
+                        </p>
+                        <AccountTable accounts={searchResults} onSelect={openLedger} />
+                      </>
                     ) : (
                       <EmptyState
                         title="Kein Konto gefunden"
                         description="Erlöse liegen im SKR04 in Klasse 4, etwa 4400, nicht in Klasse 8 wie im SKR03."
                       />
                     )
-                  ) : showCatalog ? (
+                  ) : (
+                    /* Der Rahmen steht offen da und nicht hinter einem Knopf:
+                       diese Ansicht ist der Kontenrahmen. Die Klassen bleiben
+                       zugeklappt, weil 1.600 Zeilen keine Aufstellung sind. */
                     <div className="divide-y divide-line border-t border-line">
                       {catalogByClass.map(({ kontenklasse, accounts: classAccounts }) => {
                         const isOpen = openClasses[kontenklasse] ?? false;
@@ -529,7 +557,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
                         );
                       })}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </Section>
             </>
@@ -541,7 +569,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
             <Field
               label="Stichtag"
               hint="Leer: das ganze Geschäftsjahr"
-              help="Buchungen nach dem Stichtag bleiben außen vor, statt nur ausgeblendet zu werden."
+              explain="Buchungen nach dem Stichtag bleiben außen vor, statt nur ausgeblendet zu werden."
               className="w-52"
             >
               <Input
@@ -568,7 +596,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
             <Field
               label="Stichtag"
               hint="Voreinstellung: heute"
-              help="Zahlungen, die nach dem Stichtag gebucht wurden, bleiben außen vor — die Liste zeigt den Stand von damals."
+              explain="Zahlungen, die nach dem Stichtag gebucht wurden, bleiben außen vor — die Liste zeigt den Stand von damals."
               className="w-52"
             >
               <Input
@@ -717,10 +745,9 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
           label={
             <>
               Abweichung
-              <HelpTooltip
-                label="Erklärung zur Abweichung"
-                content="Die Prüfung ist exakt und nicht auf Cent gerundet: Jede Buchung wird schon beim Speichern auf Ausgeglichenheit geprüft."
-              />
+              <HelpPopover label="Erklärung zur Abweichung">
+                Die Prüfung ist exakt und nicht auf Cent gerundet: Jede Buchung wird schon beim Speichern auf Ausgeglichenheit geprüft.
+              </HelpPopover>
             </>
           }
           value={susa.isBalanced ? 'keine' : formatCents(susa.difference)}
@@ -835,14 +862,14 @@ const AgingView: React.FC<{ aging: OpenItemsAging | null; className?: string }> 
       context={aging?.reference}
       className={className}
       divider={false}
-      action={
-        <HelpPopover label="Erklärung zur Altersstruktur">
+      explain={
+        <>
           Die Altersstruktur zählt vom Fälligkeitstag bis zum Stichtag: ein Posten in der Spalte
           „über 90 Tage" ist seit mehr als drei Monaten fällig und stellt die Frage nach seiner
           Werthaltigkeit. Die Restlaufzeit zählt in die andere Richtung — vom Stichtag bis zur
           Fälligkeit — und gehört unter die Bilanz (§ 268 Abs. 4 und 5 HGB). Ein Posten ohne
           vereinbarte Fälligkeit steht in beiden Gliederungen für sich.
-        </HelpPopover>
+        </>
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1038,7 +1065,7 @@ const LedgerView: React.FC<{
             label={
               <>
                 Saldo
-                <HelpTooltip label="Erklärung zum Saldo" content={BALANCE_HELP} />
+                <HelpPopover label="Erklärung zum Saldo">{BALANCE_HELP}</HelpPopover>
               </>
             }
             value={formatCents(ledger.closingBalance)}
@@ -1068,10 +1095,9 @@ const LedgerView: React.FC<{
                 <Th className="w-48">
                   <span className="flex items-center">
                     Gegenkonten
-                    <HelpTooltip
-                      label="Erklärung zu den Gegenkonten"
-                      content="Eine Buchung besteht aus beliebig vielen Zeilen, deshalb steht hier eine Liste und nicht ein einzelnes Gegenkonto."
-                    />
+                    <HelpPopover label="Erklärung zu den Gegenkonten">
+                      Eine Buchung besteht aus beliebig vielen Zeilen, deshalb steht hier eine Liste und nicht ein einzelnes Gegenkonto.
+                    </HelpPopover>
                   </span>
                 </Th>
                 <Th numeric className="w-32">

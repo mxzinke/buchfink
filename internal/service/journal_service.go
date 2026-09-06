@@ -228,7 +228,7 @@ func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.
 //
 // Die Kopfdatenprüfung gehört ausdrücklich dazu: ohne sie bestünde eine
 // Neubuchung auf einen Beleg ohne Kopfdaten die Vorprüfung, der Storno würde
-// geschrieben, und erst Post scheiterte — also genau der halb ausgeführte
+// geschrieben, und erst Post scheiterte — also der halb ausgeführte
 // Vorgang, den diese Methode verhindern soll. Was Post abweist, muss sie
 // abweisen, sonst prüft sie etwas anderes als das, was danach geschieht.
 func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.JournalEntry) error {
@@ -263,7 +263,7 @@ func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.Jou
 	// anderen Weg mit Source „manual" hereinkäme, liefe sonst an der
 	// Umsatzsteuer-Auswertung vorbei — ohne Schlüssel keine Kennziffer, ohne
 	// Bemessungsgrundlage keine Zeile 81. Die programmseitigen Buchungen
-	// tragen eine andere Quelle oder den Steuerfall; die Generalumkehr nimmt
+	// haben eine andere Quelle oder den Steuerfall; die Generalumkehr nimmt
 	// ValidateManualTaxLines selbst aus.
 	if probe.Source == domain.EntrySourceManual {
 		if err := ValidateManualTaxLines(&probe); err != nil {
@@ -307,7 +307,7 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 //
 // Und das vorgegebene Datum bleibt auf Eröffnungsbuchungen beschränkt: für jede
 // andere Buchung wäre es ein Weg, eine Korrektur in einen abgelaufenen, nur noch
-// nicht festgeschriebenen Zeitraum zurückzudatieren — genau das, was der Storno
+// nicht festgeschriebenen Zeitraum zurückzudatieren — das, was der Storno
 // auf „heute" verhindert.
 func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, date string) (*domain.JournalEntry, error) {
 	original, err := s.journalRepo.FindByID(ctx, entryID)
@@ -320,7 +320,7 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 	if date != "" && original.Source != domain.EntrySourceOpening {
 		return nil, fmt.Errorf(
 			"Buchung %s ist keine Eröffnungsbuchung; eine Generalumkehr mit vorgegebenem Datum gibt es "+
-				"nur für den Saldenvortrag. Storniere die Buchung ohne Datumsangabe – die Korrektur trägt "+
+				"nur für den Saldenvortrag. Storniere die Buchung ohne Datumsangabe – die Korrektur hat "+
 				"dann den Tag ihrer Erstellung", original.EntryNumber)
 	}
 	// Und auch beim Saldenvortrag ist das Datum nicht frei: die Rücknahme
@@ -405,7 +405,7 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 	// zur Aufwendung, und die Umkehr ist eine Buchung über dieselbe Aufwendung.
 	// Sie ohne den Empfänger zu schreiben hieße, eine Buchung zu hinterlassen,
 	// die aus sich heraus nicht mehr erklärt, was sie zurücknimmt. Gezählt wird
-	// sie deshalb trotzdem nicht — die Freigrenze läuft über die Normalbuchungen.
+	// sie deshalb trotzdem nicht — die Freigrenze richtet sich nach den Normalbuchungen.
 	for _, g := range original.Gifts {
 		var recipient *uint
 		if g.RecipientContactID != nil {
@@ -614,8 +614,8 @@ func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
 // Rücknahme vorhandener nicht verhindern.
 //
 // Fehlt der Steuerfall an der Buchung, entscheiden die Erlöskonten. Eine
-// Handbuchung trägt ihn nicht zwingend — sie kommt ohne Buchungsgruppe zustande
-// —, und ohne diese Ableitung stünde genau der Fall offen, den die Regel
+// Handbuchung hat ihn nicht zwingend — sie kommt ohne Buchungsgruppe zustande
+// —, und ohne diese Ableitung stünde der Fall offen, den die Regel
 // verhindern soll: Konto 4125 und eine UST19-Zeile in einer Buchung, gemeldet in
 // Kennziffer 41 *und* in 81.
 func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error {
@@ -652,7 +652,7 @@ func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error
 // ab.
 //
 // Abgeleitet wird nur, wenn *jede* Erlöszeile der Buchung einen Steuerfall ohne
-// Steuerpflicht trägt. Eine Buchung, die daneben einen steuerpflichtigen
+// Steuerpflicht hat. Eine Buchung, die daneben einen steuerpflichtigen
 // Inlandsumsatz enthält, darf Umsatzsteuer ausweisen — sie gehört dann zu diesem
 // Erlös, und ein Verbot träfe die richtige Buchung.
 func revenueTreatmentOf(e *domain.JournalEntry) domain.TaxTreatment {
@@ -696,14 +696,14 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 		// wie die abziehbare Vorsteuer sind Bilanzkonten und tragen zum
 		// Bilanzstichtag einen Bestand, der ins neue Jahr gehört (§ 252 Abs. 1
 		// Nr. 1 HGB). Vorgetragen wird der Saldo, nicht ein Umsatz — die Zeile
-		// trägt deshalb bewusst keinen Steuerschlüssel, und die
+		// hat deshalb bewusst keinen Steuerschlüssel, und die
 		// Umsatzsteuer-Auswertung lässt Eröffnungsbuchungen aus.
 		//
 		// Die zweite Ausnahme ist die Umsatzsteuer-Jahresverrechnung: sie stellt
 		// die Steuerkonten zum Bilanzstichtag auf null und bringt den Saldo auf
 		// die Verbindlichkeit bzw. Forderung, die der Jahreserklärung
 		// entspricht. Auch sie bucht keinen Umsatz, sondern einen Bestand —
-		// deshalb trägt sie keinen Steuerschlüssel, und die Auswertungen lassen
+		// deshalb hat sie keinen Steuerschlüssel, und die Auswertungen lassen
 		// Abschlussbuchungen genauso aus wie den Vortrag.
 		//
 		// Die Ausnahme gilt ausdrücklich nur für diese eine Buchung und nur für
@@ -739,7 +739,7 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 // isVatSettlementReference erkennt die Belegnummer einer Jahresverrechnung.
 //
 // Geprüft wird die Form und nicht das Jahr des Eintrags: die Generalumkehr einer
-// Verrechnung trägt deren Belegnummer, liegt aber im Geschäftsjahr ihrer
+// Verrechnung hat deren Belegnummer, liegt aber im Geschäftsjahr ihrer
 // Erstellung. Mit einem Vergleich auf das Jahr des Eintrags ließe sich eine
 // Verrechnung nicht mehr stornieren.
 func isVatSettlementReference(documentNumber string) bool {
@@ -821,7 +821,7 @@ func (s *JournalService) ensurePeriodOpen(ctx context.Context, e *domain.Journal
 // nur nein zu sagen: die Rücksetzung ist möglich, sie ist nur eine Entscheidung
 // und kein Nebeneffekt einer Buchung.
 //
-// Die Generalumkehr ist nicht ausgenommen. Sie trägt das Datum ihrer eigenen
+// Die Generalumkehr ist nicht ausgenommen. Sie hat das Datum ihrer eigenen
 // Erstellung und landet damit im laufenden Jahr; nur eine ausdrücklich in das
 // festgestellte Jahr datierte Korrektur fällt hierunter, und die soll auffallen.
 func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.JournalEntry) error {

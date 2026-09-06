@@ -227,13 +227,14 @@ export interface JournalEntry {
   correctsEntryId?: number;
   /** Die Herkunftskennung aus einem Altsystem, bei Eröffnungswerten belegt. */
   legacyRef?: string;
-  /** Die vereinbarte Fälligkeit des offenen Postens, den diese Buchung trägt. */
+  /** Die vereinbarte Fälligkeit des offenen Postens dieser Buchung. */
   dueDate?: string;
   lines: JournalLine[];
   /**
-   * Die Aufzeichnung nach § 4 Abs. 5 Satz 1 Nr. 2 EStG zur Bewirtung. Sie hängt
-   * an der Buchung und nicht am Beleg, weil der Abzug an ihr hängt — und eine
-   * Buchung, die eine Bewirtungsbuchung ersetzt, muss sie mitnehmen.
+   * Die Aufzeichnung nach § 4 Abs. 5 Satz 1 Nr. 2 EStG zur Bewirtung. Sie
+   * gehört zur Buchung und nicht zum Beleg, weil sich der Abzug nach ihr
+   * richtet — und eine Buchung, die eine Bewirtungsbuchung ersetzt, muss sie
+   * mitnehmen.
    */
   entertainment?: EntertainmentDetail;
   /** Die Aufzeichnung nach § 4 Abs. 7 EStG zu einem Geschenk. */
@@ -409,8 +410,8 @@ export interface ReceiptRequest {
   /**
    * Kennzeichnet den Beleg als geleistete Anzahlung und sagt, wofür angezahlt
    * wurde. Gebucht wird dann auf das Konto der geleisteten Anzahlungen statt
-   * auf den Aufwand; die Vorsteuer hängt an der Zahlung (§ 15 Abs. 1 Satz 1
-   * Nr. 1 Satz 3 UStG).
+   * auf den Aufwand; die Vorsteuer richtet sich nach der Zahlung (§ 15 Abs. 1
+   * Satz 1 Nr. 1 Satz 3 UStG).
    */
   advanceTarget?: AdvanceTarget;
   /**
@@ -510,8 +511,8 @@ export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
  * abgelegt, aber nicht gebucht — gebucht werden die Umsätze daraus.
  */
 /**
- * Die Belegart. `letter` ist der Handelsbrief: er trägt keine Buchung und hat
- * eine kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
+ * Die Belegart. `letter` ist der Handelsbrief: er hat keine Buchung und eine
+ * kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
  */
 export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'letter' | 'other';
 
@@ -548,7 +549,7 @@ export interface Receipt {
   /**
    * Die Kopfdaten (BEL-02). Beim Ablegen freiwillig, beim Buchen Pflicht — mit
    * anderen Pflichtfeldern je Belegart, siehe `Receipt.ValidateHeader` im
-   * Backend. Ein Altbeleg trägt sie nicht; jede Anzeige braucht deshalb einen
+   * Backend. Ein Altbeleg hat sie nicht; jede Anzeige braucht deshalb einen
    * Standardwert.
    */
   documentDate?: string;
@@ -1031,7 +1032,7 @@ export interface NumberGapReport {
   fiscalYear: number;
   /** So viele Nummern hat der Zähler ausgegeben. */
   issued: number;
-  /** So viele davon tragen ein Dokument. */
+  /** So viele davon haben ein Dokument. */
   used: number;
   gaps: NumberGapEntry[];
 }
@@ -1240,7 +1241,7 @@ export interface IntegrityCheckResult {
   message: string;
   lastVerifiedHash: string;
   checkedAt: string;
-  /** Die geprüften Geschäftsjahre, aufsteigend. Jedes trägt eine eigene Kette. */
+  /** Die geprüften Geschäftsjahre, aufsteigend. Jedes hat eine eigene Kette. */
   fiscalYears: number[];
   /** Alle Brüche, nicht nur der erste. Leer heißt: unversehrt. */
   breaks: IntegrityBreak[];
@@ -1308,7 +1309,7 @@ export interface CompanySettings {
   /** Nach so vielen Tagen fällt ein abgelegter, ungebuchter Beleg auf. */
   receiptCaptureDays: number;
   /**
-   * Der Betrag, ab dem ein Eingangsbeleg einen Leistungsnachweis tragen muss.
+   * Der Betrag, ab dem ein Eingangsbeleg einen Leistungsnachweis haben muss.
    * Null heißt die Voreinstellung von 1.000 Euro, nicht „kein Nachweis".
    */
   invoiceCheckThreshold: Cents;
@@ -1746,7 +1747,7 @@ export interface AssetDetail {
   movements: AssetMovement[];
   /** Höchstbetrag einer Zuschreibung (§ 253 Abs. 5 Satz 1 HGB), vom Backend gerechnet. */
   writeUpCeiling: Cents;
-  /** Die Sätze, die zu genau diesem Anlagegut gehören — vom Backend gerechnet. */
+  /** Die Sätze, die zu diesem Anlagegut gehören — vom Backend gerechnet. */
   notes: string[];
 }
 
@@ -1795,7 +1796,7 @@ export interface AcquisitionAdvice {
 /**
  * Ein Zeitfenster, in dem die degressive AfA zulässig ist. Die Schlüssel sind
  * kleingeschrieben, seit die Regeln aus der Ressource `afa_rules.json` kommen
- * und das Go-Struct dieselben JSON-Namen trägt wie die Datei.
+ * und das Go-Struct dieselben JSON-Namen hat wie die Datei.
  */
 export interface DegressiveWindow {
   from: string;
@@ -2203,10 +2204,10 @@ export interface FoundationState {
 // -------------------------------------------------------------
 
 /**
- * Die vier Stände sind keine Abstufungen derselben Sache, sondern Vorgänge mit
- * verschiedenen Beteiligten: Aufstellung durch die Geschäftsführung (§ 242,
- * § 264 Abs. 1 HGB), Feststellung durch die Gesellschafter (§ 42a Abs. 2
- * GmbHG), Offenlegung gegenüber dem Bundesanzeiger (§ 325 HGB).
+ * Die vier Stände sind Vorgänge mit verschiedenen Beteiligten: Aufstellung
+ * durch die Geschäftsführung (§ 242, § 264 Abs. 1 HGB), Feststellung durch
+ * die Gesellschafter (§ 42a Abs. 2 GmbHG), Offenlegung gegenüber dem
+ * Bundesanzeiger (§ 325 HGB).
  */
 export type FiscalYearStatus = 'open' | 'prepared' | 'adopted' | 'disclosed';
 
@@ -2232,9 +2233,9 @@ export interface FiscalYear {
    */
   averageEmployees: number;
   /**
-   * Der Gesamtumsatz des vorangegangenen Kalenderjahres. An ihm hängt die
-   * Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 € darf 2027 noch
-   * eine sonstige Rechnung ausgestellt werden. Null heißt „nicht erfasst".
+   * Der Gesamtumsatz des vorangegangenen Kalenderjahres. Die Übergangsfrist
+   * des § 27 Abs. 38 Nr. 2 UStG richtet sich nach ihm: bis 800.000 € darf 2027
+   * noch eine sonstige Rechnung ausgestellt werden. Null heißt „nicht erfasst".
    */
   priorYearRevenue: Cents;
   createdAt: string;
@@ -2294,7 +2295,7 @@ export interface CarryForwardPreview {
   needsCorrection: boolean;
   /** Vortragswerte ohne zurücknehmbare Buchung: ein Lauf würde sie verdoppeln. */
   irreversible?: boolean;
-  /** Das Vorjahr selbst trägt keinen Saldenvortrag, obwohl es einen bräuchte. */
+  /** Das Vorjahr selbst hat keinen Saldenvortrag, obwohl es einen bräuchte. */
   priorYearNotCarried?: boolean;
   /** Zahl der Buchungen, die ein Lauf erzeugt; höchstens drei. */
   entries: number;
@@ -3005,9 +3006,9 @@ export type AccrualReleaseCycle = 'yearly' | 'monthly';
  * Die Einstellungen, die die Abschlussbausteine steuern
  * (internal/service/closing_settings.go).
  *
- * Sie stehen getrennt von `CompanySettings`, weil sie nicht den Rechtsträger
- * beschreiben, sondern die Buchführung: der Hebesatz gehört zur Gemeinde, die
- * Abgrenzungsmethode zur Art, wie abgegrenzt wird.
+ * Sie stehen getrennt von `CompanySettings`, weil sie die Buchführung
+ * beschreiben: der Hebesatz gehört zur Gemeinde, die Abgrenzungsmethode zur
+ * Art, wie abgegrenzt wird.
  */
 export interface ClosingSettings {
   /** Hebesatz der Gemeinde in Prozent (400 = 400 %), § 16 GewStG. */
@@ -3029,7 +3030,7 @@ export interface AccrualRelease {
 }
 
 /**
- * Eine Auflösung aus der Vorschau. Sie trägt keine Kennung, weil sie noch
+ * Eine Auflösung aus der Vorschau. Sie hat keine Kennung, weil sie noch
  * nicht existiert — deshalb ein eigener Typ und nicht `AccrualRelease` mit
  * optionalen Feldern, die in der Vorschau nie gesetzt sind.
  */
@@ -3667,8 +3668,9 @@ export interface SaveInputTaxUsageRequest {
 }
 
 /**
- * Das Ergebnis einer Bestätigungsanfrage. „unavailable" ist kein negatives
- * Ergebnis, sondern gar keins — die beiden dürfen nicht dasselbe bedeuten.
+ * Das Ergebnis einer Bestätigungsanfrage. „unavailable" ist ein fehlender
+ * Befund, kein negatives Ergebnis — die beiden dürfen nicht dasselbe
+ * bedeuten.
  */
 export type VatIDCheckStatus = 'valid' | 'invalid' | 'unavailable';
 
@@ -3687,7 +3689,7 @@ export interface VatIDCheck {
   vatId: string;
   /** Die eigene USt-IdNr.; ohne sie ist die Abfrage keine qualifizierte. */
   ownVatId?: string;
-  /** Zeitpunkt der Abfrage als RFC3339; an ihm hängt die Frist. */
+  /** Zeitpunkt der Abfrage als RFC3339; die Frist richtet sich danach. */
   checkedAt: string;
   status: VatIDCheckStatus;
   resultCode?: string;
@@ -3734,7 +3736,7 @@ export type EvidenceKind =
 
 /**
  * Die Systematik des Art. 45a MwStVO: „a" sind Beförderungsbelege, „b" die
- * sonstigen Belege, "" trägt die Vermutung nicht.
+ * sonstigen Belege, für "" gilt die Vermutung nicht.
  */
 export type EvidenceGroup = 'a' | 'b' | '';
 
@@ -3748,7 +3750,7 @@ export interface EvidenceKindInfo {
   hint?: string;
 }
 
-/** Ob der Belegnachweis trägt, und woran es sonst liegt. */
+/** Ob der Belegnachweis genügt, und woran es sonst liegt. */
 export interface EvidenceStatus {
   fulfilled: boolean;
   /** Die Vorschrift, auf die sich das Ergebnis stützt. */
@@ -4106,7 +4108,7 @@ export interface ServiceEndpoints {
 
 /**
  * Die Aufbewahrungsklasse eines Objekts. Drei Klassen statt einer Frist je
- * Objektart, weil § 257 Abs. 4 HGB und § 147 Abs. 3 AO genau diese Staffelung
+ * Objektart, weil § 257 Abs. 4 HGB und § 147 Abs. 3 AO diese Staffelung
  * kennen. Leer heißt: keine Frist zugeordnet.
  */
 export type RetentionClass = 'books' | 'vouchers' | 'letters' | '';
@@ -4116,8 +4118,8 @@ export type RetentionClass = 'books' | 'vouchers' | 'letters' | '';
  *
  * Sie stehen hier und nicht je Seite: die Belegliste, die Fristenübersicht und
  * das Löschkonzept benennen dieselbe Klasse, und drei Fassungen desselben Worts
- * laufen auseinander. Die Jahreszahl steht nicht dabei — sie hängt am
- * Entstehungsjahr und kommt aus dem Backend.
+ * laufen auseinander. Die Jahreszahl steht nicht dabei — sie richtet sich nach
+ * dem Entstehungsjahr und kommt aus dem Backend.
  */
 export const RETENTION_CLASS_LABELS: Record<RetentionClass, string> = {
   books: 'Handelsbücher und Abschlüsse',
@@ -4224,6 +4226,21 @@ export interface DeleteResult {
   filesKept: number;
   archivePath: string;
   message: string;
+}
+
+/**
+ * Eine Zeile der Versionshistorie (UNV-06).
+ *
+ * Sie kommt zerlegt aus dem Backend: die Historie liegt dort als Markdown-Datei
+ * im Programm, und das Format einer Datei kennt das Paket, das sie hält.
+ */
+export interface ChangelogEntry {
+  /** Die Bezeichnung der Fassung, „v0.1". */
+  version: string;
+  date: string;
+  /** Wofür die Fassung steht; kann leer sein. */
+  summary: string;
+  changes: string[];
 }
 
 /** Ein Lauf der Schemaanpassung (UNV-06). */
@@ -4456,7 +4473,7 @@ export type TaskGroup = 'overdue' | 'open' | 'upcoming';
  * Das Navigationsziel einer Aufgabe (`domain.TaskTarget`).
  *
  * Seite und Parameter getrennt: das Backend kennt den Router der Oberfläche
- * nicht und liefert deshalb keinen fertigen Weg, sondern seine Bestandteile.
+ * nicht und liefert deshalb seine Bestandteile statt eines fertigen Wegs.
  */
 export interface TaskTarget {
   page: string;
@@ -4728,8 +4745,8 @@ export type ValidationFindingClass = 'format' | 'business_rule' | 'content';
  *
  * Sie stehen hier und nicht in der Ansicht: das Backend liefert dieselbe
  * Beschriftung mit (`ValidationFindingGroup.label`), und zwei Fassungen
- * desselben Worts laufen auseinander. Diese Tabelle trägt die Reihenfolge und
- * springt ein, wo eine Gruppe ohne Beschriftung ankommt.
+ * desselben Worts laufen auseinander. Diese Tabelle legt die Reihenfolge fest
+ * und springt ein, wo eine Gruppe ohne Beschriftung ankommt.
  */
 export const VALIDATION_FINDING_CLASS_LABELS: Record<ValidationFindingClass, string> = {
   format: 'Formatfehler',
@@ -4744,7 +4761,7 @@ export const VALIDATION_FINDING_CLASS_LABELS: Record<ValidationFindingClass, str
  * Er heißt nicht `ValidationFinding`: dieser Name gehört dem Befund der
  * EN-16931-Prüfung weiter oben, der nur die Regelverstöße des strukturierten
  * Teils kennt. Der Befund hier führt beide Töpfe zusammen — Regelverstöße und
- * Pflichtangaben — und trägt deshalb Klasse, Norm und Folge für den
+ * Pflichtangaben — und hat deshalb Klasse, Norm und Folge für den
  * Vorsteuerabzug.
  */
 export interface ReceiptFinding {

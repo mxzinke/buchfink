@@ -56,7 +56,7 @@ func NewVatIDService(
 // einen httptest-Server vor die Schnittstelle.
 func (s *VatIDService) SetClientFactory(f func(endpoint string) *vatid.Client) { s.newClient = f }
 
-// SetClock ersetzt die Uhr. Nur für Tests — die Frist von 90 Tagen hängt an ihr.
+// SetClock ersetzt die Uhr. Nur für Tests — die Frist von 90 Tagen richtet sich nach ihr.
 func (s *VatIDService) SetClock(now func() time.Time) { s.now = now }
 
 // Endpoint liefert die eingestellte Adresse des Bundeszentralamts.

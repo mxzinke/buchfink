@@ -41,6 +41,7 @@ import type {
   CapitalizeNearAcquisitionCostRequest,
   CarryForwardPreview,
   Cents,
+  ChangelogEntry,
   CheckRun,
   ClosingSettings,
   ClosingState,
@@ -755,14 +756,14 @@ export const Api = {
     call(() => Bridge.GetInvoiceNumberGaps(year) as Promise<NumberGapReport>).then((report) =>
       report ? { ...report, gaps: list(report.gaps) } : report,
     ),
-  /** Dokumentiert, warum eine Nummer keine Rechnung trägt. */
+  /** Dokumentiert, warum zu einer Nummer keine Rechnung gehört. */
   recordInvoiceNumberGapReason: (
     year: number,
     sequence: number,
     reason: NumberGapReason,
     detail = '',
   ): Promise<void> => call(() => Bridge.RecordInvoiceNumberGapReason(year, sequence, reason, detail)),
-  /** Die Mengeneinheiten nach UN/ECE Rec. 20, die eine Position tragen kann. */
+  /** Die Mengeneinheiten nach UN/ECE Rec. 20, die eine Position haben kann. */
   getUnitCodes: (): Promise<UnitCode[]> =>
     call(() => Bridge.GetUnitCodes() as Promise<UnitCode[]>).then(list),
   /** Die Zielformate, in denen eine Rechnung ausgestellt werden kann. */
@@ -1744,7 +1745,11 @@ export const Api = {
   getAuditLogsFiltered: (limit = 200, filter: AuditFilter = {}): Promise<AuditLogEntry[]> =>
     call(() => Bridge.GetAuditLogsFiltered(limit, filter) as Promise<AuditLogEntry[]>).then(list),
   /** Die Versionshistorie des Programms als Markdown (UNV-06). */
-  getChangeLog: (): Promise<string> => call(() => Bridge.GetChangeLog()),
+  /** Die Versionshistorie als Zeilen, die neueste zuerst. */
+  getChangeLog: (): Promise<ChangelogEntry[]> =>
+    call(() => Bridge.GetChangeLog() as Promise<ChangelogEntry[]>).then(list),
+  /** Öffnet die Fassungsübersicht des Projekts im Browser. */
+  openReleasesPage: (): Promise<void> => call(() => Bridge.OpenReleasesPage()),
   /** Das Protokoll der Schemaänderungen. */
   getSchemaMigrations: (): Promise<SchemaMigration[]> =>
     call(() => Bridge.GetSchemaMigrations() as Promise<SchemaMigration[]>).then(list),
@@ -1798,9 +1803,21 @@ export const Api = {
   /** Die abgelegten Fassungen, neueste zuerst. */
   getProcedureDocumentations: (): Promise<ProcedureDocumentation[]> =>
     call(() => Bridge.GetProcedureDocumentations() as Promise<ProcedureDocumentation[]>).then(list),
+  /**
+   * Schreibt eine abgelegte Fassung an einen gewählten Ort; leer heißt: der
+   * Dialog wurde abgebrochen. Die Herausgabe steht danach im Protokoll.
+   */
+  saveProcedureDocumentationAs: (id: number, wantPdf: boolean): Promise<string> =>
+    call(() => Bridge.SaveProcedureDocumentationAs(id, wantPdf)),
   /** Die Freitexte der Organisationsanweisung, mit Mustern wo nichts erfasst ist. */
   getOrganisationTexts: (): Promise<OrganisationTexts> =>
     call(() => Bridge.GetOrganisationTexts() as Promise<OrganisationTexts>),
+  /**
+   * Die Muster selbst. Daran erkennt die Ansicht, welcher Abschnitt beschrieben
+   * und welcher nur vorbelegt ist — die Texte allein sagen es nicht.
+   */
+  getOrganisationTextDefaults: (): Promise<OrganisationTexts> =>
+    call(() => Bridge.GetOrganisationTextDefaults() as Promise<OrganisationTexts>),
   saveOrganisationTexts: (texts: OrganisationTexts): Promise<void> =>
     call(() => Bridge.SaveOrganisationTexts(texts as any)),
   /** Die Hinweise zu Rechtsform, Speicherort und Steuerfällen (BEW-13, UST-08). */

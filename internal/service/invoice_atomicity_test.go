@@ -16,7 +16,7 @@ import (
 // Der Fall ist vorgesehen (Status „Dokument fehlt", Knopf „Dokument erneut
 // erzeugen"), und deshalb muss alles, was zur Rechnung gehört, vor ihm liegen.
 // Was dahinter liegt, fehlt nach dem Fehlschlag dauerhaft — und ein
-// Wiederholungsversuch stellte es nicht her, sondern buchte ein zweites Mal.
+// Wiederholungsversuch buchte ein zweites Mal, statt es herzustellen.
 
 // Die Abschlagsrechnung behält ihren offenen Posten, auch wenn das Dokument
 // scheitert.
@@ -407,7 +407,7 @@ func TestRulesetViolationPreventsIssuing(t *testing.T) {
 // ersetzt.
 //
 // `RE-{JAHR}` ohne Zähler wäre ein Nummernkreis, in dem jede Rechnung dieselbe
-// Nummer trüge (§ 14 Abs. 4 Nr. 4 UStG). Es durch die Voreinstellung zu
+// Nummer hätte (§ 14 Abs. 4 Nr. 4 UStG). Es durch die Voreinstellung zu
 // ersetzen ließe den Anwender glauben, sein Format sei gespeichert.
 func TestInvalidInvoiceNumberFormatIsRejected(t *testing.T) {
 	env := newTestEnv(t)

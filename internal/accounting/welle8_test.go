@@ -10,7 +10,7 @@ import (
 //
 // Die Senkung des Zweiten Corona-Steuerhilfegesetzes galt für Umsätze vom
 // 1. Juli bis zum 31. Dezember 2020. Eine im Jahr 2026 nacherfasste Rechnung
-// über eine Leistung aus dieser Zeit trägt 16 %, und ein Programm, das dort
+// über eine Leistung aus dieser Zeit hat 16 %, und ein Programm, das dort
 // 19 % vorschlägt, führt auf eine Buchung, die weder zur Rechnung noch zur
 // Voranmeldung passt.
 func TestTaxRateFollowsTheServiceDate(t *testing.T) {

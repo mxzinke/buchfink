@@ -64,7 +64,7 @@ func JournalFilterCSV(result *accounting.JournalFilterResult) string {
 // FilterEntriesCSV gibt die gefilterte Journalmenge als CSV heraus und
 // protokolliert die Herausgabe (QUE-02 K2).
 //
-// Protokolliert, weil die Zeilen personenbezogene Daten tragen: die
+// Protokolliert, weil die Zeilen personenbezogene Daten enthalten: die
 // Bearbeiterkennung jeder Buchung und die Buchungstexte, in denen Namen stehen.
 // Wer eine solche Menge aus dem Programm herausträgt, führt eine
 // Datenüberlassung durch — dieselbe Sache, die der Z3-Export und das

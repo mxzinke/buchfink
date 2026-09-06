@@ -67,9 +67,9 @@ type ElectricVehicleWindow struct {
 // BuildingRate ist ein fester AfA-Satz des § 7 Abs. 4 EStG.
 //
 // Gebäude folgen nicht den AfA-Tabellen und keiner geschätzten Nutzungsdauer,
-// sondern festen Prozentsätzen. Welcher gilt, hängt an zwei Merkmalen: ob das
-// Gebäude Wohnzwecken dient und an einem Stichtag — dem Bauantrag beim
-// Betriebsgebäude, der Fertigstellung beim Wohngebäude.
+// sondern festen Prozentsätzen. Welcher gilt, richtet sich nach zwei
+// Merkmalen: ob das Gebäude Wohnzwecken dient und nach einem Stichtag — dem
+// Bauantrag beim Betriebsgebäude, der Fertigstellung beim Wohngebäude.
 type BuildingRate struct {
 	Key         string `json:"key"`
 	Residential bool   `json:"residential"`
@@ -80,7 +80,7 @@ type BuildingRate struct {
 	Permille      int64  `json:"permille"`
 	Source        string `json:"source"`
 	Label         string `json:"label"`
-	// Note benennt die Vereinfachung, wo der Eintrag eine trägt.
+	// Note benennt die Vereinfachung, wo der Eintrag eine hat.
 	Note string `json:"note,omitempty"`
 }
 
@@ -149,9 +149,9 @@ func BuildingRateFor(residential bool, referenceDate string) (BuildingRate, erro
 
 // electricVehicleSchedule rechnet die Staffel des § 7 Abs. 2a EStG aus.
 //
-// Der letzte Jahresbetrag wird nicht gerechnet, sondern als Rest genommen: sechs
-// gerundete Prozentsätze summieren sich sonst an den Anschaffungskosten vorbei,
-// und ein Fahrzeug bliebe mit ein paar Cent Restbuchwert stehen.
+// Der letzte Jahresbetrag ergibt sich als Rest: sechs gerundete Prozentsätze
+// summieren sich sonst an den Anschaffungskosten vorbei, und ein Fahrzeug
+// bliebe mit ein paar Cent Restbuchwert stehen.
 func electricVehicleSchedule(cost domain.Cents, window ElectricVehicleWindow) []domain.Cents {
 	out := make([]domain.Cents, 0, len(window.PermillePerYear))
 	remaining := cost

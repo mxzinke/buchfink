@@ -16,8 +16,8 @@ import (
 // „abziehbar" eine Behauptung.
 //
 // Wie die Bewirtungsaufzeichnung hängt sie an der Buchung und nicht am Beleg:
-// der Beleg-Hash deckt eine Dateiliste ab, und eine Aufzeichnung, an der der
-// Abzug hängt, darf nicht ungedeckt daneben liegen.
+// der Beleg-Hash deckt eine Dateiliste ab, und eine Aufzeichnung, nach der sich
+// der Abzug richtet, darf nicht ungedeckt daneben liegen.
 type GiftRecord struct {
 	ID      uint `gorm:"primaryKey" json:"id"`
 	EntryID uint `gorm:"index;not null" json:"entryId"`

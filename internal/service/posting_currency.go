@@ -54,7 +54,7 @@ func (f *fxContext) toEuro(foreign domain.Cents) domain.Cents {
 //
 // Das Ergebnis ist eine Ableitung und keine Eingabe — es steht deshalb nur an
 // den Zeilen, deren Fremdbetrag sich nicht aus dem Beleg selbst ergibt: an den
-// Steuerzeilen und an der Gegenzeile. Die Positionszeilen tragen den Betrag, den
+// Steuerzeilen und an der Gegenzeile. Die Positionszeilen haben den Betrag, den
 // der Anwender erfasst hat.
 func (f *fxContext) toForeign(euro domain.Cents) domain.Cents {
 	return domain.MulRound(euro, f.rateMicros(), domain.RateScale)
@@ -73,7 +73,7 @@ func (f *fxContext) vatBase(euroAtDailyRate domain.Cents) domain.Cents {
 	return domain.MulRound(euroAtDailyRate, f.rateMicros(), f.conv.VatRate.RateMicros)
 }
 
-// head trägt Kurs, Quelle und Kurstag in den Buchungskopf.
+// head schreibt Kurs, Quelle und Kurstag in den Buchungskopf.
 func (f *fxContext) head(entry *domain.JournalEntry) {
 	entry.Currency = f.currency
 	entry.ExchangeRateMicros = f.rateMicros()
@@ -183,7 +183,7 @@ func (s *PostingService) taxLinesInCurrency(
 	}
 
 	// Die Gegenzeile ergibt sich aus dem, was die Buchung zum Ausgleich braucht.
-	// Zu zahlen ist aber der Betrag zum Tageskurs — die Zeile hier trägt genau
+	// Zu zahlen ist aber der Betrag zum Tageskurs — die Zeile hier hat genau
 	// den Unterschied, damit die Gegenzeile stimmt und die Steuer trotzdem die
 	// des Durchschnittskurses bleibt.
 	difference := signedSum(atDailyRate) - signedSum(booked)

@@ -14,12 +14,11 @@ import (
 
 // Der Prüfpfad eines Belegs (RECH-08).
 //
-// Die Frage einer Betriebsprüfung lautet nicht „gibt es den Beleg", sondern
-// „führt der Beleg zur Buchung, die Buchung zur Zahlung und die Zahlung zum
-// Kontoauszug". Jede dieser Verbindungen steht in Buchfink schon in den Daten —
-// sie stand nur nirgends zusammen. Der Prüfpfad ist genau diese Kette, in einer
-// Ansicht und in einer Datei (GoBD Rz. 36: progressive und retrograde
-// Prüfbarkeit).
+// Eine Betriebsprüfung fragt, ob der Beleg zur Buchung führt, die Buchung zur
+// Zahlung und die Zahlung zum Kontoauszug — nicht bloß, ob es den Beleg gibt.
+// Jede dieser Verbindungen steht in Buchfink schon in den Daten — sie stand
+// nur nirgends zusammen. Der Prüfpfad ist diese Kette, in einer Ansicht und in
+// einer Datei (GoBD Rz. 36: progressive und retrograde Prüfbarkeit).
 
 // AuditTrailStage benennt die Stufe der Kette.
 type AuditTrailStage string

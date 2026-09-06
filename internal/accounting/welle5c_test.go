@@ -391,7 +391,7 @@ func TestBuildingScheduleUsesTheStatutoryRate(t *testing.T) {
 	if rows[1].Amount != 3_000_000 {
 		t.Errorf("zweites Jahr: %s € — erwartet 30.000,00 € (3 %% von 1.000.000 €)", rows[1].Amount)
 	}
-	// Kein Übergang: jedes volle Jahr trägt denselben Betrag, bis der Restwert
+	// Kein Übergang: jedes volle Jahr hat denselben Betrag, bis der Restwert
 	// aufgebraucht ist.
 	if rows[10].Amount != 3_000_000 {
 		t.Errorf("elftes Jahr: %s € — der feste Satz läuft unverändert weiter", rows[10].Amount)

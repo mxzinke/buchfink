@@ -69,7 +69,7 @@ func TestInputTaxCorrectionCanBeBookedAgainAfterAReversal(t *testing.T) {
 			view.TotalAmount)
 	}
 
-	// Der Anteil lässt sich wieder ändern: genau das war der Rat der Meldung.
+	// Der Anteil lässt sich wieder ändern: das war der Rat der Meldung.
 	if _, err := svc.SaveUsage(ctx, SaveInputTaxUsageRequest{
 		CorrectionID: correction.ID, FiscalYear: 2028, Permille: 500,
 		Reason: "Fahrtenbuch berichtigt: nur noch 50 % abziehbare Verwendung",
@@ -101,7 +101,7 @@ func TestInputTaxCorrectionCanBeBookedAgainAfterAReversal(t *testing.T) {
 		}
 	}
 	if taxLine == nil || taxLine.Amount != 76_000 {
-		t.Fatalf("die neue Buchung trägt keine Zeile mit %s über 760,00 €: %+v",
+		t.Fatalf("die neue Buchung hat keine Zeile mit %s über 760,00 €: %+v",
 			accounting.TaxKeyInputTaxCorrection, second.Lines)
 	}
 }
@@ -307,7 +307,7 @@ func TestGiftOverTheLimitKeepsTheAcquisitionTax(t *testing.T) {
 // Umbuchung der Geschenke: ein Vorgang, ein Tag
 // -------------------------------------------------------------------------
 
-// Storno und Neubuchung tragen denselben Tag. Vorher datierte die Umkehr auf
+// Storno und Neubuchung haben denselben Tag. Vorher datierte die Umkehr auf
 // heute und die Neubuchung auf das Datum der ursprünglichen Buchung; lag das in
 // einer festgeschriebenen Periode, ging die Umkehr durch und die Neubuchung
 // nicht — der Aufwand war danach ganz aus den Büchern.
@@ -391,7 +391,7 @@ func TestGiftRebookingStaysOutOfACommittedPeriod(t *testing.T) {
 }
 
 // entryByNumberAnyYear sucht eine Buchung über alle Geschäftsjahre. Eine
-// Korrektur trägt den Tag ihrer Erstellung und liegt deshalb nicht zwingend im
+// Korrektur hat den Tag ihrer Erstellung und liegt deshalb nicht zwingend im
 // Jahr der Buchung, die sie korrigiert.
 func (e *testEnv) entryByNumberAnyYear(t *testing.T, number string) *domain.JournalEntry {
 	t.Helper()

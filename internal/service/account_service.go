@@ -88,7 +88,7 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 		return nil, fmt.Errorf("ein Konto braucht eine Bezeichnung")
 	}
 	// Die Position wird vor der Nummer aufgelöst: ob eine Nummer der Klasse 0
-	// zulässig ist, hängt an ihr (siehe ensureFreeNumber).
+	// zulässig ist, richtet sich nach ihr (siehe ensureFreeNumber).
 	position, err := positionByID(strings.TrimSpace(req.HGBPosition))
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 		return nil, fmt.Errorf(
 			"die Position %q ist in der Gliederung von Bilanz und GuV nicht hinterlegt. Ein Konto "+
 				"unter ihr erschiene weder im Abschluss noch in der E-Bilanz — wähle eine Position, "+
-				"die Buchfink trägt", position.Name)
+				"die Buchfink abbildet", position.Name)
 	}
 
 	if key := strings.TrimSpace(req.TaxKeyDefault); key != "" {
@@ -196,7 +196,7 @@ func (s *AccountService) CustomAccounts(ctx context.Context) ([]domain.Account, 
 }
 
 // AvailablePositions liefert die Gliederungspositionen, unter denen ein eigenes
-// Konto stehen darf: die, die Bilanz und GuV tatsächlich tragen.
+// Konto stehen darf: die, die tatsächlich in Bilanz und GuV einfließen.
 func (s *AccountService) AvailablePositions() ([]domain.StatementPositionOption, error) {
 	cat, err := accounting.GetSKR04Catalog()
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *AccountService) ensureFreeNumber(
 		return fmt.Errorf("die Kontonummer %q besteht nicht aus Ziffern", number)
 	}
 	// Die Klasse 9 (Vortrags- und statistische Konten) bleibt gesperrt: sie
-	// trägt den Saldenvortrag und die statistischen Konten, deren Nummern die
+	// enthält den Saldenvortrag und die statistischen Konten, deren Nummern die
 	// Auswertungen kennen. Ein eigenes Konto dort träfe früher oder später auf
 	// eine Nummer, die Buchfink selbst braucht.
 	//

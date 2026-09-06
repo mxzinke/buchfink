@@ -44,9 +44,10 @@ func TestAssetAccountsExistInSKR04(t *testing.T) {
 	}
 }
 
-// Die Konten für außerplanmäßige Abschreibung, Zuschreibung und Abgang werden
-// nicht eingegeben, sondern aus Klasse und Ergebnis abgeleitet. Damit hängt
-// alles an dieser Ableitung — sie wird deshalb über jede Kombination geprüft.
+// Buchfink leitet die Konten für außerplanmäßige Abschreibung, Zuschreibung
+// und Abgang aus Klasse und Ergebnis ab, statt sie einzugeben. Damit hängt
+// alles von dieser Ableitung ab — der Test prüft sie deshalb über jede
+// Kombination.
 func TestDerivedAssetAccountsExistInSKR04(t *testing.T) {
 	chart := chartForTest(t)
 	classes := []domain.AssetClass{
@@ -158,13 +159,13 @@ func TestGoodwillCannotBeWrittenUp(t *testing.T) {
 	}
 }
 
-// Die Begründungspflicht wird abgeleitet und nicht gepflegt: genau die Konten
-// mit dem Vorschlag aus dem BMF-Schreiben vom 22.02.2022 tragen sie.
+// Buchfink leitet die Begründungspflicht ab, statt sie zu pflegen: genau die
+// Konten mit dem Vorschlag aus dem BMF-Schreiben vom 22.02.2022 haben sie.
 //
-// Der Test hält die Ableitung fest, weil an ihr zwei Seiten hängen: die Maske
+// Der Test hält die Ableitung fest, weil zwei Seiten davon abhängen: die Maske
 // blendet das Begründungsfeld danach ein, und der Dienst verlangt es danach.
 // Liefen sie auseinander, verlangte das Backend eine Angabe, für die es kein
-// Feld gibt — genau die Sackgasse, die zu vermeiden war.
+// Feld gibt — die Sackgasse, die zu vermeiden war.
 func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
 	var flagged, digital []string
 	for _, a := range AssetAccounts("") {
@@ -176,7 +177,7 @@ func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
 		}
 	}
 	if len(digital) == 0 {
-		t.Fatal("kein Konto trägt den Vorschlag des BMF-Schreibens — der Test prüfte nichts")
+		t.Fatal("kein Konto hat den Vorschlag des BMF-Schreibens — der Test prüfte nichts")
 	}
 	if len(flagged) != len(digital) {
 		t.Fatalf("gekennzeichnet %v, Vorschlag an %v — die Ableitung stimmt nicht", flagged, digital)
@@ -194,7 +195,7 @@ func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
 		t.Fatal("das Fahrzeugkonto 0520 fehlt im Katalog")
 	}
 	if car.DefaultUsefulLifeMonths == 0 {
-		t.Fatal("0520 trägt keinen Vorschlag — der Test prüfte nichts")
+		t.Fatal("0520 hat keinen Vorschlag — der Test prüfte nichts")
 	}
 	if car.UsefulLifeReasonRequired {
 		t.Error("für einen Erfahrungswert der AfA-Tabelle wird keine Begründung verlangt")

@@ -14,7 +14,7 @@ import (
 
 // incompleteVendor ist ein Lieferant ohne Steuernummer und ohne USt-IdNr. — der
 // Fall, in dem die Rechnung eine Pflichtangabe des § 14 Abs. 4 UStG nicht
-// tragen kann.
+// haben kann.
 func (e *testEnv) incompleteVendor(t *testing.T, name string) *domain.Contact {
 	t.Helper()
 	c := &domain.Contact{
@@ -137,7 +137,7 @@ func TestInputTaxRefusedForAnInvalidEInvoice(t *testing.T) {
 	}
 }
 
-// Eine sonstige Rechnung ohne Steuernummer des Ausstellers trägt eine
+// Eine sonstige Rechnung ohne Steuernummer des Ausstellers hat eine
 // Pflichtangabe nicht (§ 14 Abs. 4 Nr. 2 UStG).
 func TestInputTaxRefusedWithoutTheIssuersTaxNumber(t *testing.T) {
 	env := newTestEnv(t)

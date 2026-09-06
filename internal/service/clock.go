@@ -14,11 +14,11 @@ import "time"
 // AO beurteilt die zeitgerechte Erfassung nach genau diesen Tagen, und die
 // Fristen des Steuerrechts laufen nach deutschem Kalender.
 //
-// In UTC gerechnet trüge ein Beleg, den jemand in Deutschland um 00:30 Uhr
-// ablegt, den Vortag; im Sommer wäre die Grenze 02:00 Uhr. Der Prüflauf
-// verglich ihn dann mit einem Stichtag, der einen Tag danebenliegt, und eine
-// Zahlung vom Monatsersten fiele in den Vormonat und damit in einen bereits
-// festgeschriebenen Zeitraum. Die Ortszeit ist hier also nicht die
-// unaufgeräumte, sondern die richtige Antwort — sie steht hier an einer
-// Stelle, damit sie eine Entscheidung bleibt und nicht als Versehen aussieht.
+// In UTC gerechnet hätte ein Beleg, den jemand in Deutschland um 00:30 Uhr
+// ablegt, den Vortag als Datum; im Sommer wäre die Grenze 02:00 Uhr. Der
+// Prüflauf verglich ihn dann mit einem Stichtag, der einen Tag danebenliegt,
+// und eine Zahlung vom Monatsersten fiele in den Vormonat und damit in einen
+// bereits festgeschriebenen Zeitraum. Die Ortszeit ist hier also die richtige
+// Antwort, nicht die unaufgeräumte — sie steht hier an einer Stelle, damit sie
+// eine Entscheidung bleibt und nicht als Versehen aussieht.
 func todayLocal() string { return time.Now().Format("2006-01-02") }

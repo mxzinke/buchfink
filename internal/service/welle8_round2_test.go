@@ -387,7 +387,7 @@ func TestPostRejectsAManualEntryWithoutATaxCase(t *testing.T) {
 		t.Fatalf("mit Steuerfall ist die Buchung buchbar: %v", err)
 	}
 
-	// Eine Buchung aus dem Abschluss bleibt ausgenommen: sie trägt eine andere
+	// Eine Buchung aus dem Abschluss bleibt ausgenommen: sie hat eine andere
 	// Quelle (Entscheidung 1, „Ausnahme: Source ≠ manual").
 	closing := simpleEntry("6815", domain.AccountBank, 10000)
 	closing.Source = domain.EntrySourceClosing

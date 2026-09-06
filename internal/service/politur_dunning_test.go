@@ -80,8 +80,8 @@ func TestDunningNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
 	}
 }
 
-// Die Rechnung an einen Verbraucher trägt den Hinweis, und das Kennzeichen
-// steht danach an ihr.
+// Die Rechnung an einen Verbraucher hat den Hinweis, und das Kennzeichen ist
+// danach an ihr gesetzt.
 //
 // Beides gehört zusammen: der Satz auf dem Dokument ist die Voraussetzung des
 // Verzugseintritts, und das Kennzeichen ist das, woran das Mahnwesen ihn später

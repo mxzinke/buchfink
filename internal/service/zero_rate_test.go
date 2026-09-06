@@ -122,7 +122,7 @@ func TestDomesticWithoutRateIsRejected(t *testing.T) {
 	}
 }
 
-// Die Gruppen, die keine Vorsteuer tragen, schlagen den Steuerfall vor, statt
+// Die Gruppen, die keine Vorsteuer haben, schlagen den Steuerfall vor, statt
 // ihn hinter einem Satz von null zu verstecken.
 func TestGroupsWithoutInputTaxProposeATreatment(t *testing.T) {
 	env := newTestEnv(t)
@@ -134,7 +134,7 @@ func TestGroupsWithoutInputTaxProposeATreatment(t *testing.T) {
 		t.Fatalf("Gruppe laden: %v", err)
 	}
 	if group.Treatment() == domain.TaxTreatmentDomestic {
-		t.Fatal("die Gruppe Miete darf nicht den steuerpflichtigen Inlandsfall vorschlagen — sie trägt keine Vorsteuer")
+		t.Fatal("die Gruppe Miete darf nicht den steuerpflichtigen Inlandsfall vorschlagen — sie hat keine Vorsteuer")
 	}
 
 	// Und mit dem vorgeschlagenen Steuerfall lässt sie sich buchen.

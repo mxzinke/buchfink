@@ -60,7 +60,7 @@ const (
 	ReceiptStatusDiscarded ReceiptStatus = "discarded"
 )
 
-// ReceiptKind sagt, was für ein Dokument der Beleg trägt.
+// ReceiptKind sagt, was für ein Dokument der Beleg ist.
 //
 // Er entscheidet über die Buchungspflicht und über sonst nichts. Ein
 // Kontoauszug ist ein Beleg — er wird abgelegt, bekommt eine Belegnummer und
@@ -75,7 +75,7 @@ const (
 	// gebucht werden muss.
 	ReceiptKindInvoice ReceiptKind = "invoice"
 	// ReceiptKindStatement ist ein Kontoauszug. Er belegt die Umsätze, die aus
-	// ihm gebucht werden, und trägt selbst keine Buchung.
+	// ihm gebucht werden, und wird selbst nicht gebucht.
 	ReceiptKindStatement ReceiptKind = "statement"
 	// ReceiptKindSelfIssued ist ein Eigenbeleg.
 	ReceiptKindSelfIssued ReceiptKind = "self_issued"
@@ -93,13 +93,13 @@ const (
 // RequiresBooking meldet, ob ein Beleg dieser Art gebucht werden muss.
 //
 // Ausgenommen ist allein der Kontoauszug: er belegt die Umsätze, die aus ihm
-// gebucht werden, und trägt selbst keine Buchung. „Sonstiges" ist nicht
+// gebucht werden, und wird selbst nicht gebucht. „Sonstiges" ist nicht
 // ausgenommen — es ist die Art, die jemand wählt, der die richtige nicht findet,
 // und eine Rechnung, die dort landet, soll der Prüflauf weiterhin als ungebucht
 // melden. Sonst verschwände sie stillschweigend aus der Aufsicht.
 func (k ReceiptKind) RequiresBooking() bool {
-	// Der Handelsbrief ist neben dem Kontoauszug die zweite Art, die keine
-	// Buchung trägt: er belegt eine Abrede, keinen Geschäftsvorfall.
+	// Der Handelsbrief ist neben dem Kontoauszug die zweite Art, die nicht
+	// gebucht wird: er belegt eine Abrede, keinen Geschäftsvorfall.
 	return k != ReceiptKindStatement && k != ReceiptKindLetter
 }
 
@@ -410,10 +410,10 @@ func (r *Receipt) ValidateStructure() error {
 			counts[ReceiptRoleOriginal])
 	}
 	if counts[ReceiptRoleStructured] > 1 {
-		return fmt.Errorf("ein Beleg kann höchstens einen strukturierten Rechnungsdatensatz tragen, hat aber %d", counts[ReceiptRoleStructured])
+		return fmt.Errorf("ein Beleg kann höchstens einen strukturierten Rechnungsdatensatz haben, hat aber %d", counts[ReceiptRoleStructured])
 	}
 	if counts[ReceiptRoleRendering] > 1 {
-		return fmt.Errorf("ein Beleg kann höchstens eine erzeugte Darstellung tragen, hat aber %d", counts[ReceiptRoleRendering])
+		return fmt.Errorf("ein Beleg kann höchstens eine erzeugte Darstellung haben, hat aber %d", counts[ReceiptRoleRendering])
 	}
 
 	if original, ok := r.FileByRole(ReceiptRoleOriginal); ok && original.Derived {
@@ -450,7 +450,7 @@ func (r *Receipt) ValidateBookable() error {
 
 // ValidateHeader prüft die Kopfdaten, die zum Buchen vorliegen müssen.
 //
-// Die Pflichtfelder hängen an der Belegart, und zwar nicht aus Bequemlichkeit:
+// Die Pflichtfelder richten sich nach der Belegart, und zwar nicht aus Bequemlichkeit:
 // ein Kontoauszug hat keinen Aussteller im Sinne einer Rechnung und keinen
 // einzelnen Betrag, sondern einen Zeitraum und viele; ein Eigenbeleg hat keinen
 // fremden Aussteller, weil ihn das eigene Unternehmen ausgestellt hat (er
@@ -526,7 +526,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
 }
 
-// HasHeader meldet, ob der Beleg Kopfdaten trägt. Das ist zugleich die Weiche
+// HasHeader meldet, ob der Beleg Kopfdaten hat. Das ist zugleich die Weiche
 // der Kanonisierung: ein Beleg ohne Belegdatum stammt aus der Zeit vor den
 // Kopfdaten und wird wie zuvor gehasht.
 func (r *Receipt) HasHeader() bool { return r.DocumentDate != "" }
@@ -555,7 +555,7 @@ type ReceiptRepository interface {
 	FindByStatus(ctx context.Context, fiscalYear int, status ReceiptStatus) ([]Receipt, error)
 	FindByJournalEntry(ctx context.Context, entryID uint) (*Receipt, error)
 	// FindByOriginalHash liefert den Beleg, dessen empfangene Originaldatei
-	// diese Prüfsumme trägt, oder nil. Der Belegspeicher legt gleiche Inhalte
+	// diese Prüfsumme hat, oder nil. Der Belegspeicher legt gleiche Inhalte
 	// nur einmal ab; hier geht es um die Frage, ob dazu schon ein Beleg
 	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
 	// Beleg erzeugen.
@@ -575,7 +575,7 @@ type ReceiptRepository interface {
 	SaveValidation(ctx context.Context, receiptID uint, v ReceiptValidation) error
 	// SaveHeader schreibt die Kopfdaten eines noch nicht gebuchten Belegs und
 	// rechnet den Beleg-Hash neu. Er muss neu gerechnet werden, weil die
-	// Kopfdaten in ihm stehen — sonst trüge der Beleg einen Hash über einen
+	// Kopfdaten in ihm stehen — sonst hätte der Beleg einen Hash über einen
 	// Stand, den es nicht mehr gibt.
 	SaveHeader(ctx context.Context, receiptID uint, header ReceiptHeader, hash ReceiptHashFunc) (*Receipt, error)
 	// SaveInputTaxOverride hält den Grund fest, mit dem ein blockierender Befund

@@ -21,7 +21,7 @@ import (
 // zu elf Zwölfteln Aufwand des nächsten Jahres.
 //
 // Wie überall schreibt der Dienst nicht selbst ins Journal: jede Buchung geht
-// durch den JournalService und trägt damit Nummer, Hash und Periodenprüfung wie
+// durch den JournalService und hat damit Nummer, Hash und Periodenprüfung wie
 // jede andere.
 type AccrualService struct {
 	accrualRepo  domain.AccrualRepository
@@ -355,7 +355,7 @@ func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*Accr
 		})
 	}
 
-	// Der Posten trägt seinen Plan schon; ohne EnsureLists käme er als `null`
+	// Der Posten hat seinen Plan schon; ohne EnsureLists käme er als `null`
 	// in der Vorschau an, wenn der Plan leer bleibt.
 	accrual.EnsureLists()
 	if plan == nil {

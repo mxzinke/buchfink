@@ -113,14 +113,14 @@ Das ist der kleinste der offenen Punkte; im Kern hängt alles an einer Frage.
 
 - Der **Festschreibungs-Workflow** ruft die Prüfung vor der Jahressperre auf – dieselbe
   Stelle wie die AfA-Prüfung. Beide sollten dort gemeinsam erscheinen.
-- Die Abgrenzung greift auf den **Leistungszeitraum** zu, der bereits an jeder Buchung
+- Die Abgrenzung greift auf den **Leistungszeitraum** zu, der an jeder Buchung
   steht. Es sind keine Modelländerungen am Journal nötig.
-- Ein **Jahreswechsel-Ablauf** muss die Auflösungen ins neue Jahr tragen.
+- Ein **Jahreswechsel-Ablauf** muss die Auflösungen ins neue Jahr übernehmen.
 
 ## 8. Anmerkungen zu den Fundstellen
 
 Die Normen und ihre Fundstellen stehen im Anforderungskatalog unter BEW-08 und
-GOB-06. Zwei Punkte trägt der Katalog nicht:
+GOB-06. Zwei Punkte fehlen im Katalog:
 
 **Zur Formulierung „Handelsrechtlich gibt es keine Bagatellgrenze":** das ist eine
 Aussage über das Fehlen einer Norm, nicht über eine Norm. § 250 HGB kennt keine

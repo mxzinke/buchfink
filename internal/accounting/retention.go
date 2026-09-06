@@ -12,8 +12,8 @@ import (
 // hat die Frist für Buchungsbelege und Rechnungen zum 1.1.2025 von zehn auf acht
 // Jahre verkürzt (§ 257 Abs. 4 HGB, § 147 Abs. 3 Satz 1 AO). Eine Konstante „8"
 // wäre für einen Beleg aus 2012 falsch, eine Konstante „10" für einen aus 2025 —
-// die Frist hängt am Entstehungsjahr, und deshalb rechnet sie eine Funktion aus
-// und keine Zahl im Code.
+// die Frist richtet sich nach dem Entstehungsjahr, und deshalb rechnet sie
+// eine Funktion aus und keine Zahl im Code.
 //
 // Die Verkürzung wirkt auf laufende Fristen: für Unterlagen, deren zehnjährige
 // Frist am 1.1.2025 noch nicht abgelaufen war, gilt die kürzere. Nur wo die

@@ -178,8 +178,8 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	// Bei einer E-Rechnung stehen Belegdatum, Aussteller und Betrag im
 	// Datensatz; sie danach von Hand abzufragen wäre eine Eingabe, deren
 	// Ergebnis schon vorliegt — und jede Eingabe ist eine Gelegenheit, etwas
-	// anderes einzutragen, als auf der Rechnung steht. Übernommen wird nur,
-	// was noch leer ist: eine bereits erfasste Angabe wird nicht überschrieben.
+	// anderes einzutragen, als auf der Rechnung steht. Buchfink übernimmt nur,
+	// was noch leer ist: eine bereits erfasste Angabe überschreibt es nicht.
 	if readErr == nil {
 		if err := s.prefillHeader(ctx, receiptID, read); err != nil {
 			return nil, err
@@ -215,7 +215,7 @@ func (s *EInvoiceService) prefillHeader(ctx context.Context, receiptID uint, rea
 	// Die Bestellnummer (BT-13) gehört zum Prüfpfad und nicht zu den Kopfdaten:
 	// sie steht außerhalb des Beleg-Hashes und wird deshalb getrennt
 	// geschrieben. Sie kommt aus dem strukturierten Teil und muss nicht von
-	// Hand abgetippt werden — genau dafür ist sie im Datensatz.
+	// Hand abgetippt werden — dafür ist sie im Datensatz.
 	if reference := strings.TrimSpace(read.OrderReference); reference != "" {
 		if _, err := s.receiptSvc.SaveOrderReference(ctx, receiptID, reference); err != nil {
 			return err
@@ -286,7 +286,7 @@ func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint)
 	structured, ok := receipt.FileByRole(domain.ReceiptRoleStructured)
 	if !ok {
 		return nil, nil, fmt.Errorf(
-			"Beleg %s trägt keinen strukturierten Rechnungsdatensatz. Der Vorsteuerabzug ist nur aus diesem Teil möglich (UStAE 14c.1 Abs. 4a Satz 4)",
+			"Beleg %s hat keinen strukturierten Rechnungsdatensatz. Der Vorsteuerabzug ist nur aus diesem Teil möglich (UStAE 14c.1 Abs. 4a Satz 4)",
 			receipt.ReceiptNumber)
 	}
 	content, err := s.receiptSvc.Content(ctx, receiptID, structured.ID)
@@ -307,11 +307,11 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		return nil, err
 	}
 
-	// Was keine gewöhnliche Rechnung ist, wird nicht als eine vorgeschlagen.
+	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist.
 	// Eine Gutschrift mindert Aufwand und Vorsteuer und ist gegen die
 	// ursprüngliche Rechnung zu verrechnen; sie als Eingangsrechnung zu buchen
 	// dreht das Vorzeichen und eröffnet einen offenen Posten, wo einer zu
-	// schließen wäre. Das sähe richtig aus, und genau das ist das Problem.
+	// schließen wäre. Das sähe richtig aus, und darin liegt das Problem.
 	if !read.Kind.Bookable() {
 		return nil, fmt.Errorf(
 			"Beleg %s ist eine %s (Rechnungstyp aus dem Datensatz). Buchfink schlägt dafür noch keine Buchung vor — Vorzeichen und Zeitpunkt sind andere als bei einer Eingangsrechnung",
@@ -461,7 +461,7 @@ func isXML(mimeType string, data []byte) bool {
 //
 // Ein Hinweis und keine Sperre: die Sätze gelten datiert (19/7 % seit 2007,
 // 16/5 % vom 1.7. bis 31.12.2020), und eine Rechnung über eine Leistung aus dem
-// zweiten Halbjahr 2020 trägt richtigerweise 16 %. Falsch ist erst die
+// zweiten Halbjahr 2020 hat richtigerweise 16 %. Falsch ist erst die
 // Kombination — und die sieht Buchfink, weil beides im Datensatz steht. Ob der
 // Lieferant sich geirrt hat oder das Leistungsdatum ein anderes ist, entscheidet
 // der Anwender; deshalb steht der Satz als Vermerk am Vorschlag.
@@ -479,7 +479,7 @@ func vatRateMismatchNote(serviceDate string, positions []ReceiptPosition) string
 		}
 		return fmt.Sprintf(
 			"Der Steuersatz %s passt nicht zum Leistungsdatum %s: an diesem Tag galten %s und %s "+
-				"(%s). Prüfe Satz und Leistungsdatum, bevor du buchst.",
+				"(%s). Prüfe Satz und Leistungsdatum vor dem Buchen.",
 			p.TaxRate.Label(), serviceDate, period.Standard.Label(), period.Reduced.Label(),
 			period.Source)
 	}

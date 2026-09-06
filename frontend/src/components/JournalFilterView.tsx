@@ -10,7 +10,6 @@ import {
   EmptyState,
   Field,
   FieldRow,
-  HelpPopover,
   Input,
   Notice,
   Section,
@@ -202,7 +201,7 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
           <Field
             label="Gegenkonto"
             className="flex-1"
-            help="Konto auf der anderen Seite derselben Buchung"
+            explain="Konto auf der anderen Seite derselben Buchung"
           >
             <Combobox
               items={accountOptions}
@@ -278,12 +277,12 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
             ? `Soll ${formatCents(result.totalDebit)} · Haben ${formatCents(result.totalCredit)}`
             : undefined
         }
-        action={
-          <HelpPopover label="Erklärung zur Summenzeile">
+        explain={
+          <>
             Gefiltert wird über Zeilen und nicht über Buchungen: „Konto 6300" ist eine Eigenschaft
             der Zeile. Die Summe unten summiert deshalb Soll und Haben der gefilterten Zeilen. Sie
             ist nicht notwendig null — ein Filter schneidet Buchungen an, und das soll er.
-          </HelpPopover>
+          </>
         }
       >
         {error && <Notice tone="negative" text={error} className="mb-5" />}

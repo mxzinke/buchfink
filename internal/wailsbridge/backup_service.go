@@ -16,8 +16,8 @@ import (
 //
 // Die Aufbewahrungspflicht des § 147 Abs. 1 AO läuft zehn Jahre. Eine
 // Festplatte hält das selten aus, und niemand merkt den Verlust, bevor er
-// zählt. Die Sicherung ist deshalb nicht ein Zubehör der Anwendung, sondern
-// Teil der Ordnungsmäßigkeit (GoBD Rz. 103).
+// zählt. Die Sicherung ist deshalb Teil der Ordnungsmäßigkeit (GoBD Rz. 103),
+// kein Zubehör der Anwendung.
 
 // GetBackupRuns liefert die letzten Sicherungs- und Prüfläufe.
 func (b *BuchfinkBridge) GetBackupRuns() ([]domain.BackupRun, error) {
@@ -316,8 +316,8 @@ func (b *BuchfinkBridge) SelectBackupFileDialog(title string) (string, error) {
 // abwartet, hätte es nie gegeben. Der Lauf beim Start bleibt als Auffangnetz
 // für den Fall, dass die Anwendung abstürzt oder der Rechner ausgeht.
 func (b *BuchfinkBridge) ServiceShutdown() error {
-	// Beim Beenden entscheidet nicht der Abstand, sondern ob überhaupt
-	// gearbeitet wurde: wer morgens sichert und den ganzen Tag bucht, verlöre
+	// Beim Beenden zählt, ob überhaupt gearbeitet wurde, nicht der Abstand:
+	// wer morgens sichert und den ganzen Tag bucht, verlöre
 	// sonst den Tag, weil die 24 Stunden noch nicht um sind. Ein Tag ohne
 	// Änderung wird dagegen nicht ein zweites Mal gesichert.
 	b.runDueBackup(true)

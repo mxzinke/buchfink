@@ -117,8 +117,8 @@ func (s *RetentionService) Overview(ctx context.Context, today string) (*Retenti
 	}
 
 	// Gefragt wird nach Jahren mit aufzubewahrenden Objekten und nicht nach
-	// Jahren mit Buchungen: ein Jahr, das nur Belege oder Handelsbriefe trägt,
-	// hat dieselbe Frist und muss in der Übersicht stehen.
+	// Jahren mit Buchungen: ein Jahr mit nur Belegen oder Handelsbriefen hat
+	// dieselbe Frist und muss in der Übersicht stehen.
 	years, err := s.retentionRepo.FiscalYearsWithObjects(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("die Geschäftsjahre konnten nicht gelesen werden: %w", err)
@@ -156,7 +156,7 @@ func (s *RetentionService) yearRow(ctx context.Context, year int, today string) 
 
 	// Die Klassen eines Jahres: Bücher (Journal, Abschlüsse, Festschreibungen),
 	// Belege und Handelsbriefe. Alle drei stehen da, auch wo das Jahr keine
-	// Objekte der Klasse trägt — die Frist ist eine Eigenschaft des Jahres und
+	// Objekte der Klasse hat — die Frist ist eine Eigenschaft des Jahres und
 	// keine Zählung.
 	for _, kind := range []domain.RetentionKind{
 		domain.RetentionKindJournal,
@@ -335,7 +335,7 @@ func (s *RetentionService) EnsureDeleteAllowed(
 // löschen.
 type DeleteRequest struct {
 	FiscalYear int `json:"fiscalYear"`
-	// Confirmation muss die Jahreszahl als Text tragen. Eine Bestätigung, die
+	// Confirmation muss die Jahreszahl als Text haben. Eine Bestätigung, die
 	// sich mit einem Klick geben lässt, ist bei einem unumkehrbaren Vorgang
 	// keine.
 	Confirmation string `json:"confirmation"`

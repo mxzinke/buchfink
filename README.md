@@ -5,13 +5,13 @@
 <h1 align="center">Buchfink</h1>
 
 <p align="center">
-  <strong>Moderne Open-Source-Buchhaltungssoftware für bilanzierende Unternehmen</strong><br />
+  <strong>Open-Source-Buchhaltungssoftware für bilanzierende Unternehmen</strong><br />
   Native Desktop-App &bull; Doppelte Buchführung &bull; SKR04 &bull; Bilanz & GuV &bull; GoBD-konform ab v1 &bull; E-Bilanz (XBRL) &bull; Local-First
 </p>
 
 <p align="center">
-  <em>In Entwicklung, vor der ersten Erprobung. Was heute trägt, wo eine Funktion an
-  ihrer Grenze endet und was noch fehlt, steht in
+  <em>In Entwicklung, vor der ersten Erprobung. Was heute funktioniert, welche
+  Einschränkungen die einzelnen Funktionen haben und was noch fehlt, steht in
   <a href="./docs/stand-der-umsetzung.md">docs/stand-der-umsetzung.md</a>, jedes
   Kriterium mit Norm und Fundstelle in
   <a href="./docs/anforderungskatalog.md">docs/anforderungskatalog.md</a>.</em>
@@ -39,7 +39,7 @@
 
 **Buchfink** ist eine native Desktop-Buchhaltungssoftware für die **doppelte kaufmännische Buchführung und Bilanzierung** nach dem deutschen Kontenrahmen **SKR04**. Sie richtet sich an bilanzierende Unternehmen, die eine schlanke, GoBD-konforme Lösung ohne Cloud-Zwang oder Abo-Modell suchen.
 
-### 🎯 Zielgruppe & Voraussetzungen
+### Zielgruppe & Voraussetzungen
 Buchfink ist speziell für Unternehmen konzipiert, die zur **doppelten Buchführung und Bilanzierung** (Erstellung von Bilanz, Gewinn- und Verlustrechnung sowie E-Bilanz) verpflichtet sind oder freiwillig bilanzieren:
 - **Kapitalgesellschaften:** z. B. UG (haftungsbeschränkt), GmbH, AG – auch schon in Gründung, von der Beurkundung bis zur Eintragung
 - **Personenhandelsgesellschaften:** z. B. GmbH & Co. KG, KG, OHG
@@ -55,7 +55,7 @@ Buchfink wird ohne Gewährleistung bereitgestellt (Artikel 7 und 8 der
 Richtigkeit der Buchführung, der Voranmeldung und des Abschlusses haftet das
 Unternehmen, das sie abgibt.
 
-### ⚠️ Wichtiger Hinweis: Nicht geeignet für EÜR (Einnahmen-Überschuss-Rechnung)
+### Wichtiger Hinweis: Nicht geeignet für EÜR (Einnahmen-Überschuss-Rechnung)
 Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunternehmer geeignet**, die lediglich eine einfache **Einnahmen-Überschuss-Rechnung (EÜR nach § 4 Abs. 3 EStG)** durchführen.
 - Buchfink unterstützt **keine EÜR**.
 - Die Software basiert vollständig auf dem geschlossenen System der doppelten Buchführung mit Soll und Haben, Bestandskonten (Aktiva/Passiva), Erfolgskonten (Aufwand/Ertrag), Bilanzierung und der amtlichen E-Bilanz-Taxonomie.
@@ -66,7 +66,7 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
 
 - **Local-First:** Alle Daten verbleiben auf dem eigenen Rechner in einer standardisierten SQLite-Datei je Mandant.
 - **GoBD-konform ab v1:** Lückenlose Nachvollziehbarkeit durch kryptografische Hash-Chains, unveränderliche Belegablage, Festschreibung mit Zeitstempel und ein verkettetes Änderungsprotokoll. Für die Betriebsprüfung entsteht der Z3-Export nach dem Beschreibungsstandard.
-- **Der Jahreslauf ist das Rückgrat:** Die Aufgabenliste ist die Startseite und sagt, was heute zu tun ist. Der Monatsabschluss läuft in drei Schritten (Prüfbericht, Festschreiben, Voranmeldung), der Jahresabschluss als geführter Weg durch die Abschlussbausteine. Siehe [docs/architektur.md](./docs/architektur.md), Abschnitt 6.
+- **Der Jahreslauf prägt die Bedienung:** Die Aufgabenliste ist die Startseite und sagt, was heute zu tun ist. Der Monatsabschluss läuft in drei Schritten (Prüfbericht, Festschreiben, Voranmeldung), der Jahresabschluss als geführter Weg durch die Abschlussbausteine. Siehe [docs/architektur.md](./docs/architektur.md), Abschnitt 6.
 - **Automatisierungsfokus:** Der Alltag beginnt beim Kontoauszug: eine Zahlung wird ihrem offenen Posten oder einem Beleg zugeordnet, den Buchungssatz und die Steuer rechnet Buchfink daraus. Den passenden Posten schlägt Buchfink vor, gebucht wird erst nach Bestätigung.
 - **E-Rechnung:** Eingehende ZUGFeRD-, Factur-X- und XRechnung-Dateien werden erkannt, gelesen und gegen das Regelwerk geprüft. Ausgestellt wird als ZUGFeRD-PDF oder als XRechnung im CII-Profil.
 - **Verschlüsselt abgelegt:** Personenbezogene und geschäftliche Datenbankfelder liegen mit AES-256-GCM verschlüsselt, der Schlüssel im Schlüsselbund des Betriebssystems.
@@ -129,20 +129,20 @@ Buchfink ist **nicht für kleine Selbstständige, Freiberufler oder Kleinunterne
    - Geschenke und die weiteren Kategorien des § 4 Abs. 5 und 7 EStG auf eigenen Konten, Bewirtungsanteil als datierter Parameter.
 14. **E-Bilanz-Export (XBRL)**
    - Die Instanz entsteht aus derselben Gliederung wie die Bilanz: Bilanz- und GuV-Positionen mit Vorjahreskontext, unverdichteter Kontennachweis, Anlagenspiegel und Überleitungsrechnung.
-   - Die Taxonomie liegt als Ressource neben dem Code (`internal/ebilanz/taxonomy_6.9.json`). Ihre Elementnamen sind nach der Systematik gebildet und tragen `verified: false`; vor der ersten Übermittlung sind sie gegen die amtliche Fassung abzugleichen.
+   - Die Taxonomie liegt als Ressource neben dem Code (`internal/ebilanz/taxonomy_6.9.json`). Ihre Elementnamen sind nach der Systematik gebildet und haben durchgehend den Wert `verified: false`; vor der ersten Übermittlung sind sie gegen die amtliche Fassung abzugleichen.
 15. **Fremdwährung**
-   - Kurs, Kursquelle und Kursdatum hängen an der Buchung und gehen in die Hash-Chain ein; Finanzanlagen werden nach § 256a HGB zum Stichtag bewertet.
+   - Kurs, Kursquelle und Kursdatum gehören zur Buchung und gehen in die Hash-Chain ein; Finanzanlagen werden nach § 256a HGB zum Stichtag bewertet.
    - Die EZB-Referenzkurse werden abgerufen und lassen sich von Hand nachtragen.
 16. **Festschreibung, Änderungsprotokoll & Integrität**
    - Live-Prüfung der Hash-Chain in der Oberfläche.
-   - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf; der Zeitpunkt steht an der einzelnen Buchung.
+   - Festschreibung je Monat, Quartal oder Jahr, beglaubigt durch einen RFC-3161-Zeitstempel über den Kettenkopf; jede Buchung speichert den Zeitpunkt ihrer Festschreibung.
    - Änderungsprotokoll mit Vorher und Nachher in einer eigenen Hashkette, dazu Bearbeiterkennung, Programmfassung und Zeit in UTC an jeder Buchung.
 17. **Aufbewahrung, Sicherung und Datenzugriff**
    - Aufbewahrungsfrist je Beleg aus seiner Art, mit Fristbeginn, frühestem Löschdatum und Aussetzung je Geschäftsjahr; die Löschung eines abgelaufenen Jahres ist ein Vorgang mit Archivexport davor und Protokoll danach.
    - Z3-Export nach dem Beschreibungsstandard (Datendateien, `index.xml`, Feldbeschreibung, Schlüsselverzeichnis, Prüfpfad), Archivexport der Belege mit Index, Prüferpaket in einem Ordner.
    - Schreibgeschützter Prüfermodus mit Frist und Grund, protokolliert beim Ein- und Ausschalten.
    - Sicherung als offene ZIP-Datei mit Datenbank, Belegen, Dokumenten und Schlüsseldatei, Wiederherstellung mit anschließender Integritätsprüfung.
-   - Verfahrensdokumentation aus dem laufenden System, als Fassung im Belegspeicher abgelegt.
+   - Verfahrensdokumentation aus dem laufenden System, als Fassung im Belegspeicher abgelegt und einzeln herausgebbar; die Herausgabe steht im Änderungsprotokoll.
 18. **Gründung einer Kapitalgesellschaft**
    - Erfassung im Einrichtungsassistenten: Beurkundungsdatum, Stammkapital, Gesellschafter und der Gründungsaufwand laut Satzung. Aus dem Beurkundungsdatum folgen Rumpfgeschäftsjahr und Voranmeldungszeitraum.
    - Prüfung der Kapitalaufbringung vor der Anmeldung zum Handelsregister: Viertelregel je Geschäftsanteil und Untergrenze nach § 7 Abs. 2 GmbHG, Volleinzahlung und Sacheinlageverbot der UG nach § 5a Abs. 2 GmbHG, § 36a AktG bei der AG.
@@ -188,7 +188,7 @@ buchfink-data/                        # Datenordner eines Mandanten
 
 Leitidee: **Stilles Kontor** – die Oberfläche ist Werkzeug, keine Bühne. Das vollständige Konzept steht in [`docs/design-konzept.md`](./docs/design-konzept.md), die Bausteine in [`frontend/src/components/ui/`](./frontend/src/components/ui).
 
-- **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) in sechs Stufen – modern, klar lesbar und neutral. Beträge in tabellarischen Ziffern, damit Spalten untereinander stehen.
+- **Typografie:** [Manrope](https://fonts.google.com/specimen/Manrope) in sechs Stufen – klar lesbar und neutral. Beträge in tabellarischen Ziffern, damit Spalten untereinander stehen.
 - **Farbwelt:** Warmes Papier und Tinte als Grundfläche, dazu vier pastellige Familien: Himmelblau als Marke, Bernstein für offen, Salbei für geprüft, Rosé für Storno. Jede Familie hat vier Rollen (Fläche, Rand, Marker, Text), damit Pastell die Kontrastvorgaben hält.
 - **Flach statt gekachelt:** Inhalt liegt direkt auf dem Papier. Abschnitte trennen Überschrift, Abstand und Haarlinie, keine Karten. Eine eigene Fläche bekommt nur, was vom Blatt gelöst ist: Datentabellen, Overlays, Belegvorschau.
 - **Bewegung:** sechs erlaubte Übergänge, 120 bis 180 ms. Zahlen animieren nie.
@@ -319,7 +319,7 @@ Oberfläche mit Beispieldaten; wie das läuft, steht in
 
 Die Tabelle gibt die Grundentscheidungen aus [docs/architektur.md](./docs/architektur.md),
 Abschnitt 2, wieder. Jede wirkt auf den Anforderungskatalog, wo die betroffenen
-Kriterien den Status `⛔` tragen.
+Kriterien den Status `⛔` haben.
 
 | Thema | Entscheidung in Buchfink |
 |---|---|
@@ -329,8 +329,8 @@ Kriterien den Status `⛔` tragen.
 | **Kontenrahmen** | SKR04 als Einheitsbilanz: ein Kontenrahmen, ein Wertansatz. Abweichende steuerliche Werte entstehen nur aus der Sonderabschreibung nach § 7g Abs. 5 EStG und werden am Anlagegut mitgeführt; daraus entstehen das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern entfallen für kleine Kapitalgesellschaften nach § 274a Nr. 4 HGB. |
 | **Steuerfälle** | Geschlossene Liste. Unterstützt: Inland 19 %, 7 %, 0 %, steuerfrei, innergemeinschaftlicher Erwerb und Lieferung, Reverse Charge als Empfänger und als Leistender, Ausfuhr. Ausgeschlossen: Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS/IOSS, Dreiecksgeschäft, Konsignationslager, Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet. |
 | **GoBD** | Unveränderbarkeit, Hash-Chains, Storno-Prinzip, Festschreibung mit Zeitstempel und ein verkettetes Änderungsprotokoll sind ab Tag 1 gebaut. Der Datenexport für die Betriebsprüfung (Z3) entsteht nach dem Beschreibungsstandard mit `index.xml`, Feldbeschreibung und Schlüsselverzeichnis; ein Testeinlesen in eine Prüfsoftware steht aus. |
-| **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, aus derselben Gliederung wie die Bilanz, inklusive Kontennachweis, Anlagenspiegel und Überleitung. Die Taxonomie-Ressource `internal/ebilanz/taxonomy_6.9.json` trägt durchgehend `verified: false` — ihre Elementnamen sind vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); die Einreichung läuft über Mein ELSTER oder den Steuerberater, das Übermittlungsprotokoll wird danach von Hand erfasst. |
-| **Rechtsformen** | Kapitalgesellschaften zuerst. Gründungsweg, Kapitalaufbringung, Größenklassen und Offenlegung sind für UG, GmbH und AG gebaut. KG, OHG und e.K. bleiben wählbar und tragen in der Oberfläche den Hinweis, dass Kapitalkonten und Entnahmen in dieser Fassung nicht abgebildet sind. |
+| **E-Bilanz / ERiC** | Buchfink erzeugt die XBRL-Datei selbst, aus derselben Gliederung wie die Bilanz, inklusive Kontennachweis, Anlagenspiegel und Überleitung. Die Taxonomie-Ressource `internal/ebilanz/taxonomy_6.9.json` hat durchgehend den Wert `verified: false` — ihre Elementnamen sind vor der ersten Übermittlung gegen die amtliche Fassung abzugleichen. Direkte ERiC-Übermittlung ist bewusst out-of-scope (proprietäre C-Bibliothek); die Einreichung geschieht in Mein ELSTER oder über den Steuerberater, das Übermittlungsprotokoll wird danach von Hand erfasst. |
+| **Rechtsformen** | Kapitalgesellschaften zuerst. Gründungsweg, Kapitalaufbringung, Größenklassen und Offenlegung sind für UG, GmbH und AG gebaut. KG, OHG und e.K. bleiben wählbar und zeigen in der Oberfläche den Hinweis, dass Kapitalkonten und Entnahmen in dieser Fassung nicht abgebildet sind. |
 | **Out-of-Scope (v1)** | Einnahmen-Überschuss-Rechnung (EÜR), Kassenbuch, Lagerverwaltung, Lohnabrechnung (der Lohn kommt als Sammelbuchung aus dem Lohnjournal, die Vorräte als Inventurwert zum Stichtag), ersetzendes Scannen, Versandwege wie Peppol oder EDI, mehrsprachige UI. |
 | **DATEV-Export** | Nicht vorhanden. Buchfink schreibt keinen Buchungsstapel und keine Belegbilder im Format der Kanzleisoftware. Für die Übergabe an den Steuerberater stehen der Z3-Export nach dem Beschreibungsstandard, der Archivexport der Belege und die CSV-Ausgabe von Journal, Konten und Auswertungen. |
 | **Gewährleistung** | Keine. Buchfink wird nach Artikel 7 und 8 der EUPL-1.2 „so, wie es ist“ und ohne Gewährleistung bereitgestellt; für die Richtigkeit der Buchführung und der Meldungen haftet das Unternehmen, das sie abgibt. |
@@ -341,32 +341,35 @@ Kriterien den Status `⛔` tragen.
 
 Der [Anforderungskatalog](./docs/anforderungskatalog.md) misst Buchfink an 349
 Akzeptanzkriterien aus 82 Anforderungen und nennt zu jedem die Fundstelle im
-Code. Sieben Umsetzungswellen sind gebaut; nach Welle 7 folgt keine weitere.
+Code. Acht Umsetzungswellen sind gebaut. Mit der achten ist die laufende
+Buchhaltung vollständig: die Module A bis F und J haben kein fehlendes Kriterium
+mehr.
 
 | Modul | ✅ erfüllt | 🟡 teilweise | ❌ fehlt | ⛔ außerhalb | Kriterien |
 |---|---|---|---|---|---|
-| A. Buchführungspflicht und Grundsätze | 17 | 5 | 0 | 0 | 22 |
-| B. Beleg, Journal, Konten | 26 | 4 | 1 | 4 | 35 |
-| C. Unveränderbarkeit und Protokollierung | 17 | 2 | 0 | 3 | 22 |
-| D. Aufbewahrung und Archivierung | 22 | 6 | 0 | 3 | 31 |
-| E. Ausgangsrechnungen und E-Rechnung | 32 | 5 | 0 | 6 | 43 |
-| F. Umsatzsteuer, Aufzeichnung und Meldewesen | 24 | 5 | 0 | 13 | 42 |
+| A. Buchführungspflicht und Grundsätze | 20 | 2 | 0 | 0 | 22 |
+| B. Beleg, Journal, Konten | 31 | 0 | 0 | 4 | 35 |
+| C. Unveränderbarkeit und Protokollierung | 19 | 0 | 0 | 3 | 22 |
+| D. Aufbewahrung und Archivierung | 23 | 5 | 0 | 3 | 31 |
+| E. Ausgangsrechnungen und E-Rechnung | 35 | 2 | 0 | 6 | 43 |
+| F. Umsatzsteuer, Aufzeichnung und Meldewesen | 27 | 2 | 0 | 13 | 42 |
 | G. Bewertung, Anlagen, Fremdwährung | 33 | 12 | 3 | 15 | 63 |
 | H. Jahresabschluss, E-Bilanz, Offenlegung | 24 | 9 | 8 | 3 | 44 |
 | I. Betriebsprüfung und Verfahrensdokumentation | 10 | 4 | 2 | 7 | 23 |
-| J. Querschnitt | 18 | 4 | 1 | 1 | 24 |
-| **Summe** | **223** | **56** | **15** | **55** | **349** |
+| J. Querschnitt | 20 | 2 | 1 | 1 | 24 |
+| **Summe** | **242** | **38** | **14** | **55** | **349** |
 
-Die fünfzehn offenen Punkte in Kurzform:
+Die vierzehn offenen Punkte betreffen den Jahresabschluss und die Prüfung. Sie
+sind bis nach der Erprobung der laufenden Buchhaltung zurückgestellt:
 
-- **Der Jahresabschluss als Dokument.** Feststellungsbeschluss, unterzeichneter Abschluss und Prüfungsvermerk lassen sich nirgends anhängen; daran hängt auch die Frist des § 42a GmbHG gegenüber den Gesellschaftern.
-- **Offenlegung.** Kein Datensatz für das Unternehmensregister, keine Hinterlegung nach § 326 Abs. 2 HGB als Wahl, kein Einreichungsnachweis. Für die E-Bilanz fehlt das Übermittlungsprotokoll, das an der Voranmeldung schon steht.
-- **Bewertung.** Kein Bericht über geänderte Bewertungsmethoden, keine getrennte Erfassung der Pflicht- und Wahlbestandteile der Herstellungskosten, die Befreiung von den latenten Steuern hängt nicht an der Größenklasse.
-- **Belege und Abstimmung.** Kein Erfassungsweg für Eigenbelege, kein Saldenbestätigungslauf für Debitoren und Kreditoren.
+- **Der Jahresabschluss als Dokument.** Feststellungsbeschluss, unterzeichneter Abschluss und Prüfungsvermerk lassen sich nirgends anhängen; davon betroffen ist auch die Frist des § 42a GmbHG gegenüber den Gesellschaftern.
+- **Offenlegung.** Kein Datensatz für das Unternehmensregister, keine Hinterlegung nach § 326 Abs. 2 HGB als Wahl, kein Einreichungsnachweis. Für die E-Bilanz fehlt das Übermittlungsprotokoll, das die Voranmeldung schon hat.
+- **Bewertung.** Kein Bericht über geänderte Bewertungsmethoden, keine getrennte Erfassung der Pflicht- und Wahlbestandteile der Herstellungskosten, die Befreiung von den latenten Steuern ist nicht an die Größenklasse gebunden.
+- **Abstimmung.** Kein Saldenbestätigungslauf für Debitoren und Kreditoren, kein Prüfungsvermerk am Abschluss.
 - **Nachweise außerhalb des Programms.** Ein Testeinlesen der Datenüberlassung in eine Prüfsoftware hat nicht stattgefunden; der Prüfpunkt zur Verordnung nach § 147b AO steht seit dieser Fassung in [docs/architektur.md](./docs/architektur.md), Abschnitt 4.
 
-Wo eine Funktion an ihrer Grenze endet und was bewusst außerhalb des Umfangs
-liegt, steht mit Fundstellen in
+Welche Einschränkungen die einzelnen Funktionen haben und was bewusst außerhalb
+des Umfangs liegt, steht mit Fundstellen in
 [docs/stand-der-umsetzung.md](./docs/stand-der-umsetzung.md); die Entscheidungen
 dahinter in [docs/architektur.md](./docs/architektur.md), Abschnitt 2, und die
 Wellen in Abschnitt 7.
@@ -397,8 +400,8 @@ Lizenziert unter der EUPL
 Buchfink steht unter der **[Open-Source-Lizenz für die Europäische Union
 v1.2](LICENSE)** (EUPL-1.2). Die [`LICENSE`](LICENSE) enthält den amtlichen
 deutschen und den amtlichen englischen Wortlaut. Nach Artikel 13 der Lizenz
-haben alle Sprachfassungen denselben Rang; du kannst dich auf die Fassung
-deiner Wahl berufen.
+haben alle Sprachfassungen denselben Rang; man kann sich auf die Fassung der
+eigenen Wahl berufen.
 
 Was das praktisch bedeutet:
 

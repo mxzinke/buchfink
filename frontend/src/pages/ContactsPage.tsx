@@ -30,8 +30,8 @@ import {
 } from '../components/ui';
 
 export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
-  // Ein Kontakt trägt sein Personenkonto: ihn anzulegen ist eine Änderung an
-  // den Stammdaten und im Prüfermodus gesperrt (§10.4).
+  // Zu jedem Kontakt gehört ein Personenkonto: ihn anzulegen ist eine Änderung
+  // an den Stammdaten und im Prüfermodus gesperrt (§10.4).
   const writeLock = useWriteLock();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,7 +289,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           // Der Hinweis zur Bestätigungsabfrage kommt aus dem Backend und wird
           // nicht gespeichert. Ihn hier zu verwerfen hieße, das Speichern eines
           // Kontakts mit einer USt-IdNr. aus einem anderen Mitgliedstaat still
-          // zu quittieren — und genau dieser Hinweis ist der Anlass, die
+          // zu quittieren — und dieser Hinweis ist der Anlass, die
           // Bestätigung zu holen, bevor die erste Rechnung ansteht.
           setVatIdNotice(saved.vatIdNotice ?? null);
           await loadContacts();
@@ -317,7 +317,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         <Field
           label="Grund der Sperre"
           hint="Bleibt im Änderungsprotokoll stehen"
-          help={
+          explain={
             'Die Sperre nimmt den Kontakt aus allen Auswahlen. Seine Daten bleiben in Buchungen, ' +
             'Rechnungen und Exporten stehen: die Aufbewahrungspflicht geht dem Löschanspruch vor ' +
             '(Art. 17 Abs. 3 Buchst. b DSGVO, § 257 HGB, § 147 AO). Nach dem Speichern zeigt ' +
@@ -505,7 +505,11 @@ const ContactForm: React.FC<{
         <Field
           label="Art"
           hint={isNew ? undefined : 'nicht änderbar'}
-          help={isNew ? undefined : 'Das Personenkonto hängt an der Art und wird nie umgehängt.'}
+          explain={
+            isNew
+              ? undefined
+              : 'Das Personenkonto richtet sich nach der Art. Es bleibt danach unverändert, damit die gebuchten Posten ihr Konto behalten.'
+          }
         >
           <Select
             items={[
@@ -570,7 +574,7 @@ const ContactForm: React.FC<{
         label="Übernommene Anschrift"
         className="mt-4"
         optional
-        help="Die alte einzeilige Fassung. Sie bleibt als Nachweis stehen."
+        explain="Die alte einzeilige Fassung. Sie bleibt als Nachweis stehen."
       >
         <Textarea
           rows={2}
@@ -624,7 +628,7 @@ const ContactForm: React.FC<{
         <Field
           label="USt-IdNr."
           optional
-          help={
+          explain={
             needVatID.length > 0
               ? `Nötig für: ${needVatID.join(', ')}.`
               : undefined

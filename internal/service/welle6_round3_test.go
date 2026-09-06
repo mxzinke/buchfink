@@ -32,7 +32,7 @@ func legacyEntryOnHeaderlessReceipt(
 		}},
 	})
 	if receipt.HasHeader() {
-		t.Fatal("der Altbeleg des Falls darf keine Kopfdaten tragen")
+		t.Fatal("der Altbeleg des Falls darf keine Kopfdaten haben")
 	}
 
 	env.journal.SetReceiptRepo(nil)
@@ -75,10 +75,10 @@ func TestReversalAndCorrectionSurviveALegacyReceiptWithoutHeader(t *testing.T) {
 		t.Fatalf("die Altbuchung muss sich stornieren lassen: %v", err)
 	}
 	if reversal.ReceiptID == nil || *reversal.ReceiptID != receipt.ID {
-		t.Error("die Generalumkehr trägt den Beleg der Ursprungsbuchung")
+		t.Error("die Generalumkehr übernimmt den Beleg der Ursprungsbuchung")
 	}
 
-	// Und derselbe Beleg trägt auch die Neubuchung des Korrekturvorgangs: sie
+	// Und derselbe Beleg gilt auch für die Neubuchung des Korrekturvorgangs: sie
 	// belegt denselben Geschäftsvorfall.
 	toCorrect, legacyReceipt := legacyEntryOnHeaderlessReceipt(t, env, "alt-korrektur.pdf", "Altbuchung Korrektur")
 	result, err := env.journal.CorrectEntry(ctx, toCorrect.ID, "falscher Betrag", &domain.JournalEntry{
@@ -164,7 +164,7 @@ func TestCorrectEntryDoesNotReverseWhenTheNewReceiptHasNoHeader(t *testing.T) {
 // Die Schlussbilanz des Altsystems ist nach der Eröffnungsbilanz ein gebuchter
 // Beleg.
 //
-// Zweierlei hängt daran: ihr Hash steht in jeder Eröffnungsbuchung — sonst
+// Zweierlei folgt daraus: ihr Hash steht in jeder Eröffnungsbuchung — sonst
 // verwiese ausgerechnet die Buchung, deren Werte aus einem fremden System
 // stammen, nur über eine Nummer auf ein austauschbares Dokument —, und sie ist
 // versiegelt, sodass ihre Kopfdaten feststehen und der Prüflauf sie nicht
@@ -205,7 +205,7 @@ func TestOpeningBalanceSealsTheClosingReceiptAndCarriesItsHash(t *testing.T) {
 	}
 	for _, entry := range preview.Entries {
 		if entry.ReceiptHash != closing.ReceiptHash {
-			t.Errorf("Vorschau: Buchung %q trägt den Beleg-Hash %q, erwartet %q",
+			t.Errorf("Vorschau: Buchung %q hat den Beleg-Hash %q, erwartet %q",
 				entry.Description, entry.ReceiptHash, closing.ReceiptHash)
 		}
 	}
@@ -219,7 +219,7 @@ func TestOpeningBalanceSealsTheClosingReceiptAndCarriesItsHash(t *testing.T) {
 	}
 	for _, entry := range booked.Entries {
 		if entry.ReceiptHash != closing.ReceiptHash {
-			t.Errorf("Buchung %s trägt den Beleg-Hash %q, erwartet %q",
+			t.Errorf("Buchung %s hat den Beleg-Hash %q, erwartet %q",
 				entry.EntryNumber, entry.ReceiptHash, closing.ReceiptHash)
 		}
 	}
@@ -248,7 +248,7 @@ func TestOpeningBalanceSealsTheClosingReceiptAndCarriesItsHash(t *testing.T) {
 // Ein Anlagendokument ist eine Organisationsunterlage und wird zehn Jahre
 // aufbewahrt.
 //
-// Der Kaufvertrag und die Rechnungskopie tragen die Bemessungsgrundlage der
+// Der Kaufvertrag und die Rechnungskopie belegen die Bemessungsgrundlage der
 // Abschreibung, und die wirkt über die ganze Nutzungsdauer fort — die verkürzte
 // Belegfrist von acht Jahren passt für sie nicht. Ohne gespeicherte Klasse
 // stünde in der Kartei nichts, und der Bericht über abgelaufene Objekte sähe

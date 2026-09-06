@@ -49,9 +49,9 @@ type TaxParameters struct {
 	// nicht Arbeitnehmer sind (§ 4 Abs. 5 Satz 1 Nr. 1 EStG), je Empfänger und
 	// Wirtschaftsjahr, netto.
 	//
-	// Es ist eine Freigrenze und kein Freibetrag: wird sie überschritten, ist
-	// nicht der übersteigende Teil nicht abziehbar, sondern der ganze Betrag —
-	// und mit ihm nach § 15 Abs. 1a UStG auch die Vorsteuer.
+	// Es ist eine Freigrenze und kein Freibetrag: wird sie überschritten, wird
+	// der ganze Betrag nicht abziehbar, nicht nur der übersteigende Teil — und
+	// mit ihm nach § 15 Abs. 1a UStG auch die Vorsteuer.
 	GiftDeductibleLimit domain.Cents
 
 	// Die drei Bagatellgrenzen des § 44 UStDV zur Vorsteuerberichtigung nach
@@ -272,7 +272,7 @@ type BaseRatePeriod struct {
 //
 // Sie ist die Startbelegung der pflegbaren Tabelle und nicht die Wahrheit für
 // alle Zeit: der nächste Termin liegt immer in der Zukunft. Was hier steht, ist
-// bekanntgegeben; fortgeschriebene Werte tragen Provisional und erscheinen in
+// bekanntgegeben; fortgeschriebene Werte setzen Provisional und erscheinen in
 // den Einstellungen als „zu prüfen".
 //
 // Quelle: Deutsche Bundesbank, Basiszinssatz nach § 247 BGB
@@ -357,7 +357,7 @@ func VatRatesFor(date string) (VatRatePeriod, error) {
 //
 // Ein eigener Aufruf statt einer Konstante überall dort, wo der Satz aus dem
 // Datum folgt: eine im Jahr 2026 nacherfasste Rechnung über eine Leistung vom
-// August 2020 trägt 16 %, und ein Programm, das dort 19 % vorschlägt, führt zu
+// August 2020 hat 16 %, und ein Programm, das dort 19 % vorschlägt, führt zu
 // einer Buchung, die weder zur Rechnung noch zur Voranmeldung passt.
 func TaxRateFor(date string, reduced bool) (domain.TaxRate, error) {
 	period, err := VatRatesFor(date)

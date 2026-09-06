@@ -10,7 +10,7 @@ import (
 
 // Die Ausbuchung eines uneinbringlichen Postens.
 //
-// Sie läuft nicht über Settle, und das ist kein Zufall: Settle ist der
+// Sie nutzt nicht Settle, und das ist kein Zufall: Settle ist der
 // Zahlungsweg und verlangt ein Zahlungsmittel und einen Betrag, der bewegt
 // wurde. Bei einer Ausbuchung fließt nichts. Sie über ein Zahlungsmittelkonto
 // mit dem Betrag null zu schleusen hieße, eine Zahlung zu behaupten, die es
@@ -30,7 +30,7 @@ type WriteOffRequest struct {
 	Date   string       `json:"date"`
 	// Reason ist Pflicht. Eine Ausbuchung ohne Begründung ist von einer
 	// vergessenen Forderung nicht zu unterscheiden, und die Betriebsprüfung
-	// fragt nach genau dieser Unterscheidung.
+	// fragt nach dieser Unterscheidung.
 	Reason string `json:"reason"`
 }
 
@@ -75,8 +75,8 @@ func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffReque
 	}
 	if item.TaxTreatment == "" {
 		return nil, fmt.Errorf(
-			"der Steuerfall von %s lässt sich nicht bestimmen; ohne ihn wäre die Steuerkorrektur nach "+
-				"§ 17 Abs. 2 Nr. 1 UStG nicht sauber zu buchen", item.DocumentNumber)
+			"der Steuerfall von %s lässt sich nicht bestimmen; ohne ihn lässt sich die Steuerkorrektur nach "+
+				"§ 17 Abs. 2 Nr. 1 UStG nicht zutreffend buchen", item.DocumentNumber)
 	}
 
 	// Nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer im offenen

@@ -53,8 +53,8 @@ import {
  * (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG).
  *
  * Die zweite Hälfte des Themas ist die Eingangsseite: eine geleistete Anzahlung
- * ist kein Aufwand, sondern ein eigener Bilanzposten, und ihre Vorsteuer hängt
- * an der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG).
+ * ist kein Aufwand, sondern ein eigener Bilanzposten, und ihre Vorsteuer richtet
+ * sich nach der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG).
  */
 
 /**
@@ -190,28 +190,28 @@ export const AdvancesPage: React.FC = () => {
             ? undefined
             : `${groups.length} Verbünde · ${openGroups.length} ohne Schlussrechnung`
         }
+        explain={
+          <>
+            Eine Abschlagsrechnung wird beim Ausstellen nicht gebucht: Die Umsatzsteuer entsteht
+            erst mit der Vereinnahmung. Sie steht bis dahin als offener Posten der Quelle
+            „Abschlag" in Bank &amp; Zahlungen. Die Schlussrechnung setzt alle vereinnahmten
+            Anzahlungen ab — wer das vergisst, weist die Steuer zweimal aus und schuldet den
+            Mehrbetrag (§ 14c Abs. 1 UStG).
+          </>
+        }
         action={
-          <div className="flex items-center gap-2">
-            <HelpPopover label="Erklärung zur Abschlagsrechnung">
-              Eine Abschlagsrechnung wird beim Ausstellen nicht gebucht: Die Umsatzsteuer entsteht
-              erst mit der Vereinnahmung. Sie steht bis dahin als offener Posten der Quelle
-              „Abschlag" in Bank &amp; Zahlungen. Die Schlussrechnung setzt alle vereinnahmten
-              Anzahlungen ab — wer das vergisst, weist die Steuer zweimal aus und schuldet den
-              Mehrbetrag (§ 14c Abs. 1 UStG).
-            </HelpPopover>
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={contacts.length === 0 || writeLock.locked}
-              title={
-                writeLock.hint ??
-                (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
-              }
-              onClick={() => setCreatingGroup(true)}
-            >
-              Neuer Verbund
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={contacts.length === 0 || writeLock.locked}
+            title={
+              writeLock.hint ??
+              (contacts.length === 0 ? 'Zuerst einen Kunden in den Stammdaten anlegen' : undefined)
+            }
+            onClick={() => setCreatingGroup(true)}
+          >
+            Neuer Verbund
+          </Button>
         }
       />
 
@@ -473,13 +473,13 @@ export const AdvancesPage: React.FC = () => {
             ? undefined
             : `${vendorAdvances.length} noch nicht durch eine Schlussrechnung verrechnet`
         }
-        action={
-          <HelpPopover label="Erklärung zur geleisteten Anzahlung">
+        explain={
+          <>
             Bezahlt ist etwas, geliefert nichts: Die geleistete Anzahlung ist kein Aufwand, sondern
             ein eigener Posten im Vermögen (§ 266 Abs. 2 A I 4, A II 4, B I 4 HGB). Erfasst wird sie
             im Belegweg mit dem Kennzeichen „Anzahlung"; die Schlussrechnung des Lieferanten setzt
             sie dort wieder ab.
-          </HelpPopover>
+          </>
         }
       >
         {loading ? (
@@ -794,7 +794,7 @@ const AdvanceDialog: React.FC<{
             {group.title} · noch nicht abgerechnet{' '}
             <span className="num text-ink">{formatCents(remaining)}</span>
             <HelpPopover label="Erklärung zur Abschlagsrechnung">
-              Die Abschlagsrechnung trägt den Typcode 386 und wird beim Ausstellen nicht gebucht.
+              Die Abschlagsrechnung hat den Typcode 386 und wird beim Ausstellen nicht gebucht.
               Sie erscheint als offener Posten der Quelle „Abschlag"; mit dem Zahlungseingang bucht
               Buchfink gegen die erhaltenen Anzahlungen und die Umsatzsteuer.
             </HelpPopover>

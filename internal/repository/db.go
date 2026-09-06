@@ -257,7 +257,7 @@ func migrateExchangeRateTable(db *gorm.DB) error {
 // ihre Bestandteile.
 //
 // § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des Empfängers,
-// und EN 16931 verlangt sie in Feldern. Bestandsdaten tragen sie als eine
+// und EN 16931 verlangt sie in Feldern. Bestandsdaten haben sie als eine
 // Zeile; ohne diesen Lauf ließe sich zu keinem übernommenen Kunden mehr eine
 // Rechnung ausstellen.
 //
@@ -317,9 +317,9 @@ func BackfillReceiptKinds(db *gorm.DB) error {
 // Auskunft.
 //
 // Gelesen wird über eine schmale Auswahl und nicht über den Datensatz: die
-// Belegtabelle trägt verschlüsselte Spalten (Aussteller, Betreff, Dateipfade),
-// und die Frist hängt an keiner von ihnen. So braucht der Lauf den Schlüssel
-// nicht.
+// Belegtabelle hat verschlüsselte Spalten (Aussteller, Betreff, Dateipfade),
+// und die Frist richtet sich nach keiner von ihnen. So braucht der Lauf den
+// Schlüssel nicht.
 func BackfillRetention(db *gorm.DB) error {
 	type receiptRow struct {
 		ID           uint

@@ -16,7 +16,7 @@ import (
 // rawInMemoryDB öffnet eine leere Datenbank ohne Schema.
 //
 // InitInMemoryDB migriert bereits; die Migrationstests brauchen aber genau den
-// Zustand davor — eine Datei, die noch keine Schemaversion trägt.
+// Zustand davor — eine Datei, die noch keine Schemaversion hat.
 func rawInMemoryDB() (*gorm.DB, error) {
 	return gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -110,7 +110,7 @@ func TestAuditLogStoresUTCActorAndVersion(t *testing.T) {
 	entry := entries[0]
 
 	// UTC: eine Ortszeit ohne Zone ist in der Nacht der Zeitumstellung
-	// mehrdeutig, und die Reihenfolge des Protokolls hängt an ihr.
+	// mehrdeutig, und die Reihenfolge des Protokolls richtet sich nach ihr.
 	if _, offset := entry.Timestamp.Zone(); offset != 0 {
 		t.Errorf("der Zeitstempel steht nicht in UTC (Versatz %d Sekunden)", offset)
 	}
@@ -142,10 +142,10 @@ func TestLogChangeStoresOnlyChangedFields(t *testing.T) {
 	entries, _ := repo.FindAll(ctx, 1)
 	entry := entries[0]
 	if !strings.Contains(entry.Before, "Hauptstraße 1") {
-		t.Errorf("das Vorher trägt die alte Anschrift nicht: %q", entry.Before)
+		t.Errorf("das Vorher enthält die alte Anschrift nicht: %q", entry.Before)
 	}
 	if !strings.Contains(entry.After, "Nebenstraße 5") {
-		t.Errorf("das Nachher trägt die neue Anschrift nicht: %q", entry.After)
+		t.Errorf("das Nachher enthält die neue Anschrift nicht: %q", entry.After)
 	}
 	if strings.Contains(entry.After, "Meier GmbH") {
 		t.Errorf("der unveränderte Name gehört nicht ins Protokoll: %q", entry.After)
@@ -309,7 +309,7 @@ func TestMarkCommittedStampsOnlyEntriesUpToTheCutoff(t *testing.T) {
 
 	committed, _ := repo.FindByID(ctx, march.ID)
 	if committed.CommittedAt == nil {
-		t.Fatal("die Buchung vor dem Stichtag muss einen Festschreibungszeitpunkt tragen")
+		t.Fatal("die Buchung vor dem Stichtag muss einen Festschreibungszeitpunkt haben")
 	}
 	if !committed.CommittedAt.UTC().Equal(stampedAt) {
 		t.Errorf("Festschreibungszeitpunkt %s, erwartet %s", committed.CommittedAt.UTC(), stampedAt)
@@ -492,7 +492,7 @@ func TestDeleteFiscalYearRemovesOnlyThatYear(t *testing.T) {
 
 	remaining2015, _ := journal.FindAll(ctx, 2015)
 	if len(remaining2015) != 0 {
-		t.Errorf("das gelöschte Jahr trägt noch %d Buchungen", len(remaining2015))
+		t.Errorf("das gelöschte Jahr hat noch %d Buchungen", len(remaining2015))
 	}
 	remaining2026, _ := journal.FindAll(ctx, 2026)
 	if len(remaining2026) != 1 {

@@ -152,7 +152,7 @@ func ublParseParty(p *ublParty) Party {
 	}
 	for _, id := range p.PartyIdentification {
 		// Ein Eintrag, der nur das Schema nennt, wird mitgenommen. Er ist zwar
-		// als Kennung wertlos, aber genau das soll die Codelistenprüfung sagen
+		// als Kennung wertlos, aber das soll die Codelistenprüfung sagen
 		// dürfen — wer ihn hier wegwirft, macht aus einem meldbaren Mangel ein
 		// Feld, das es nie gab.
 		if id.ID.trimmed() == "" && trim(id.ID.SchemeID) == "" {
@@ -316,7 +316,7 @@ func ublMapTotals(inv *Invoice, doc *ublDocument) {
 		}
 	}
 
-	// UBL trägt den Steuergesamtbetrag je Währung in einem eigenen TaxTotal.
+	// UBL speichert den Steuergesamtbetrag je Währung in einem eigenen TaxTotal.
 	// Die Aufschlüsselung steht nur in dem der Rechnungswährung; das andere
 	// nennt allein den umgerechneten Betrag (BT-111).
 	wantCurrency := strings.ToUpper(trim(inv.Currency))

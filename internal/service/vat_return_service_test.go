@@ -487,7 +487,7 @@ func TestLateEntryLeadsToCorrection(t *testing.T) {
 	}
 }
 
-// Nach dem Anlegen der Berichtigung trägt auch das neu gerechnete Blatt die
+// Nach dem Anlegen der Berichtigung hat auch das neu gerechnete Blatt die
 // Kennziffer 10.
 //
 // Die Ansicht zeigt immer den Entwurf aus Draft. Übernähme er die Berichtigung
@@ -518,7 +518,7 @@ func TestDraftCarriesCorrectionMark(t *testing.T) {
 		t.Fatalf("Januar-Entwurf: %v", err)
 	}
 	if before.IsCorrection {
-		t.Error("ohne angelegte Berichtigung trägt das Blatt keine Kennziffer 10")
+		t.Error("ohne angelegte Berichtigung hat das Blatt keine Kennziffer 10")
 	}
 
 	correction, err := svc.CreateCorrection(ctx, "2026-01")
@@ -531,7 +531,7 @@ func TestDraftCarriesCorrectionMark(t *testing.T) {
 		t.Fatalf("Januar-Entwurf nach der Berichtigung: %v", err)
 	}
 	if !after.IsCorrection {
-		t.Error("nach der Berichtigung trägt das Blatt die Kennziffer 10")
+		t.Error("nach der Berichtigung hat das Blatt die Kennziffer 10")
 	}
 	if after.CorrectsID == nil || *after.CorrectsID != january.ID {
 		t.Errorf("das Blatt muss auf die berichtigte Anmeldung %d verweisen, erhalten %+v", january.ID, after.CorrectsID)
@@ -609,7 +609,7 @@ func TestCorrectionNeedsASubmittedReturn(t *testing.T) {
 	}
 }
 
-// Die Datei trägt Kennziffer und Wert — nur die Zeilen mit Inhalt, weil eine
+// Die Datei hat Kennziffer und Wert — nur die Zeilen mit Inhalt, weil eine
 // getippte Null in ELSTER eine Angabe ist und keine Auslassung.
 func TestVatReturnCSVCarriesCodeAndValue(t *testing.T) {
 	env := newTestEnv(t)
@@ -1011,7 +1011,7 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	// Inlandsumsatz (4400), gehört der Steuerausweis zu ihm. Die Ableitung darf
 	// die richtige Buchung nicht treffen.
 	mixed := *entry
-	// Der Steuerfall des Inlandsumsatzes: er trägt den Steuerausweis.
+	// Der Steuerfall des Inlandsumsatzes: er hat den Steuerausweis.
 	mixed.TaxTreatment = domain.TaxTreatmentDomestic
 	mixed.Lines = []domain.JournalLine{
 		{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 219000},
@@ -1041,8 +1041,8 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	}
 }
 
-// Die Programmversion an der Anmeldung kommt aus dem Bau und trägt den
-// Regelstand mit. Eine feste Bezeichnung änderte sich nie und beantwortete die
+// Die Programmversion an der Anmeldung kommt aus dem Bau und enthält den
+// Regelstand. Eine feste Bezeichnung änderte sich nie und beantwortete die
 // Frage nicht, welcher Stand eine alte Anmeldung gerechnet hat.
 func TestVatReturnCarriesProgramAndRuleVersion(t *testing.T) {
 	env := newTestEnv(t)

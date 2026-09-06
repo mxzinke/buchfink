@@ -47,7 +47,7 @@ func UnitCodes() []UnitCode {
 // ResolveUnitCode turns what stands in a position into a Rec. 20 key.
 //
 // Both spellings are accepted: the key itself and the German label. The label
-// path is not convenience — Rechnungen aus der Zeit vor dieser Welle tragen
+// path is not convenience — Rechnungen aus der Zeit vor dieser Welle haben
 // „Stück" oder „Stunde" im Feld, und ohne die Rückübersetzung würde jede alte
 // Rechnung beim erneuten Erzeugen ihres Dokuments zu Stück.
 func ResolveUnitCode(unit string) (string, bool) {

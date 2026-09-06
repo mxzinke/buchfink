@@ -80,7 +80,7 @@ func fakeTSA(t *testing.T, genTime time.Time, name string) {
 }
 
 // Weicht die beglaubigte Zeit über die Toleranz von der Systemzeit ab, entsteht
-// ein eigener Protokolleintrag mit beiden Zeiten, und die Festschreibung trägt
+// ein eigener Protokolleintrag mit beiden Zeiten, und die Festschreibung hat
 // den Hinweis.
 //
 // Der Hinweis allein genügt nicht: er steht dort, wo ohnehin schon jemand
@@ -101,7 +101,7 @@ func TestCommitPeriodLogsTimeDriftBeyondTolerance(t *testing.T) {
 		t.Fatalf("Festschreibung: %v", err)
 	}
 	if rec.TimeDriftNote == "" {
-		t.Fatal("die Festschreibung trägt keinen Hinweis auf die Zeitabweichung")
+		t.Fatal("die Festschreibung hat keinen Hinweis auf die Zeitabweichung")
 	}
 	if !strings.Contains(rec.TimeDriftNote, "geht nach") {
 		t.Errorf("der Hinweis muss die Richtung nennen: %q", rec.TimeDriftNote)
@@ -147,7 +147,7 @@ func TestCommitPeriodStaysSilentWithinTolerance(t *testing.T) {
 	}
 }
 
-// Nach der Festschreibung tragen alle Buchungen bis zum Stichtag ihren
+// Nach der Festschreibung haben alle Buchungen bis zum Stichtag ihren
 // Festschreibungszeitpunkt und den Verweis auf die Festschreibung; die
 // Buchungen danach nicht.
 func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
@@ -171,7 +171,7 @@ func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
 		t.Fatalf("Buchung lesen: %v", err)
 	}
 	if stamped.CommittedAt == nil {
-		t.Error("die Buchung bis zum Stichtag trägt keinen Festschreibungszeitpunkt")
+		t.Error("die Buchung bis zum Stichtag hat keinen Festschreibungszeitpunkt")
 	}
 	if stamped.FestschreibungID == nil || *stamped.FestschreibungID != rec.ID {
 		t.Errorf("die Buchung verweist nicht auf die Festschreibung %d: %v",
@@ -211,10 +211,10 @@ func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
 	firstAbs, _ := filepath.Abs(first)
 	secondAbs, _ := filepath.Abs(second)
 	if before["backupDir"] != firstAbs {
-		t.Errorf("das Vorher trägt den alten Ordner nicht: %v", before)
+		t.Errorf("das Vorher hat den alten Ordner nicht: %v", before)
 	}
 	if after["backupDir"] != secondAbs {
-		t.Errorf("das Nachher trägt den neuen Ordner nicht: %v", after)
+		t.Errorf("das Nachher hat den neuen Ordner nicht: %v", after)
 	}
 }
 
@@ -235,10 +235,10 @@ func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
 	}
 	after := auditFields(t, entries[0].After)
 	if after["readOnlyUntil"] != until {
-		t.Errorf("das Nachher trägt das Enddatum nicht: %v", after)
+		t.Errorf("das Nachher hat das Enddatum nicht: %v", after)
 	}
 	if after["readOnlyReason"] != "Außenprüfung 2020 bis 2023" {
-		t.Errorf("das Nachher trägt den Grund nicht: %v", after)
+		t.Errorf("das Nachher hat den Grund nicht: %v", after)
 	}
 
 	if _, err := b.DisableReadOnly("Prüfung abgeschlossen"); err != nil {
@@ -247,11 +247,11 @@ func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
 	entries, _ = b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{EntityType: "READ_ONLY"})
 	before := auditFields(t, entries[0].Before)
 	if before["readOnlyUntil"] != until {
-		t.Errorf("das Vorher des Abschaltens trägt das Enddatum nicht: %v", before)
+		t.Errorf("das Vorher des Abschaltens hat das Enddatum nicht: %v", before)
 	}
 }
 
-// Das Prüferpaket der Bridge trägt die Fassungen der Verfahrensdokumentation:
+// Das Prüferpaket der Bridge hat die Fassungen der Verfahrensdokumentation:
 // die Verdrahtung muss sie an den Export reichen.
 func TestBridgeAuditPackageCarriesTheGeneratedProcedureDocumentation(t *testing.T) {
 	b := wiredBridge(t)

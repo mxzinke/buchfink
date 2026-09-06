@@ -75,8 +75,8 @@ type BackupRunRepository interface {
 	// FindRecent liefert die jüngsten Läufe, neueste zuerst.
 	FindRecent(ctx context.Context, limit int) ([]BackupRun, error)
 	// LatestSuccessful liefert die jüngste erfolgreiche Sicherung (keinen
-	// Prüflauf) oder nil. Daran hängt der Hinweis „letzte Sicherung vor n
-	// Tagen".
+	// Prüflauf) oder nil. Danach richtet sich der Hinweis „letzte Sicherung vor
+	// n Tagen".
 	LatestSuccessful(ctx context.Context) (*BackupRun, error)
 }
 
@@ -96,7 +96,7 @@ type FileCheckIssue struct {
 
 // FileCheckResult ist das Ergebnis eines Belegprüflaufs über alle Dateien.
 //
-// Die Hash-Chain sichert die Buchungen, nicht die Dateien: sie trägt nur den
+// Die Hash-Chain sichert die Buchungen, nicht die Dateien: sie enthält nur den
 // Beleg-Hash. Ob die Datei auf der Platte noch die ist, die gebucht wurde,
 // beantwortet erst der Vergleich mit ihrer Prüfsumme (GoBD Rz. 110).
 type FileCheckResult struct {

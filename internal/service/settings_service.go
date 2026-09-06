@@ -78,8 +78,8 @@ func (s *SettingsService) SetValue(ctx context.Context, key, value, description 
 	return nil
 }
 
-// GetValue liest eine einzelne Einstellung. Ein fehlender Schlüssel ist kein
-// Fehler, sondern der leere Wert: die Einstellungen sind nicht alle vorbelegt.
+// GetValue liest eine einzelne Einstellung. Ein fehlender Schlüssel liefert
+// den leeren Wert: die Einstellungen sind nicht alle vorbelegt.
 func (s *SettingsService) GetValue(ctx context.Context, key string) string {
 	value, err := s.settingsRepo.Get(ctx, key)
 	if err != nil {

@@ -40,10 +40,10 @@ type CheckService struct {
 	depreciation PendingDepreciationSource
 	provisions   ProvisionFindingSource
 	closingSteps SkippedClosingStepSource
-	// sizeClass trägt die Ankündigung des Größenklassenwechsels. Ohne sie läuft
+	// sizeClass liefert die Ankündigung des Größenklassenwechsels. Ohne sie läuft
 	// der Prüflauf wie zuvor, nur ohne diese Regel.
 	sizeClass SizeClassSource
-	// supplyEvidence und vatIDs tragen die beiden Regeln zur steuerfreien
+	// supplyEvidence und vatIDs liefern die beiden Regeln zur steuerfreien
 	// innergemeinschaftlichen Lieferung: der Belegnachweis und die Bestätigung
 	// der USt-IdNr. Ohne sie läuft der Prüflauf wie zuvor, nur ohne diese Regeln.
 	supplyEvidence SupplyEvidenceSource
@@ -425,7 +425,7 @@ func expectsReceipt(source domain.EntrySource) bool {
 //
 // Der Nachweis zählt in beide Richtungen. Der Regelfall ist die Buchung mit
 // ReceiptID; der Ausgangsbeleg einer Rechnung wird aber erst nach der Buchung
-// versiegelt und trägt seitdem deren Nummer. Für Bestände aus der Zeit vor
+// versiegelt und hat seitdem deren Nummer. Für Bestände aus der Zeit vor
 // dieser Prüfung ist das die einzige Verbindung — und ein Beleg, der auf die
 // Buchung zeigt, ist ein Beleg zu ihr.
 func entriesWithReceipt(receipts []domain.Receipt) map[uint]bool {
@@ -446,7 +446,7 @@ func (s *CheckService) checkEntriesWithoutReceipt(entries []domain.JournalEntry,
 		if !expectsReceipt(e.Source) || e.ReceiptID != nil || withReceipt[e.ID] {
 			continue
 		}
-		// Die Generalumkehr trägt den Beleg der Ursprungsbuchung; hat die
+		// Die Generalumkehr hat den Beleg der Ursprungsbuchung; hat die
 		// keinen, ist der Befund dort schon gemeldet.
 		if e.Kind == domain.EntryKindReversal {
 			continue
@@ -471,7 +471,7 @@ func (s *CheckService) checkEntriesWithoutReceipt(entries []domain.JournalEntry,
 // keine zweite Leistung, das ist dieselbe Rechnung ein zweites Mal erfasst — und
 // mit ihr ein zweiter Vorsteuerabzug.
 //
-// Verglichen werden nur Buchungen. domain.Receipt trägt weder Belegnummer des
+// Verglichen werden nur Buchungen. domain.Receipt hat weder Belegnummer des
 // Ausstellers noch Geschäftspartner — zwei Bilder desselben Belegs sind an der
 // Ablage nicht als Dubletten zu erkennen. Der doppelt erfasste Beleg fällt
 // deshalb erst auf, wenn er gebucht ist; das ist auch der Zeitpunkt, an dem er
@@ -611,7 +611,7 @@ func (s *CheckService) pendingByDesign(ctx context.Context) map[uint]string {
 		switch inv.ResolvedKind() {
 		case domain.InvoiceKindAdvance:
 			out[*inv.ReceiptID] = fmt.Sprintf(
-				"trägt die Abschlagsrechnung %s. Sie wird erst mit der Vereinnahmung gebucht "+
+				"gehört zur Abschlagsrechnung %s. Sie wird erst mit der Vereinnahmung gebucht "+
 					"(§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG); bis dahin steht sie als offener Posten",
 				inv.InvoiceNumber)
 		case domain.InvoiceKindCancellation:
@@ -656,8 +656,8 @@ func (s *CheckService) checkReceipts(
 		if !r.Kind.RequiresBooking() {
 			continue
 		}
-		// Maßgeblich ist der Belegeingang, hilfsweise das Ablagedatum. Ein
-		// Belegdatum trägt domain.Receipt nicht; es steht erst an der Buchung —
+		// Maßgeblich ist der Belegeingang, hilfsweise das Ablagedatum.
+		// domain.Receipt hat kein Belegdatum; das steht erst an der Buchung —
 		// und die gibt es hier gerade nicht.
 		relevant := r.ReceivedAt
 		if relevant == "" {
@@ -1005,7 +1005,7 @@ func (s *CheckService) checkCommitOverdue(ctx context.Context, cutoff string, cf
 			continue
 		}
 		// Der Folgemonat muss abgelaufen sein, sonst wäre die Festschreibung
-		// nicht überfällig, sondern bloß noch nicht dran.
+		// bloß noch nicht dran, nicht überfällig.
 		deadline := CommitDueDate(p, cfg)
 		if cutoff <= deadline {
 			continue

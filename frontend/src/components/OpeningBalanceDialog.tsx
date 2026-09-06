@@ -343,7 +343,7 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
             <Field
               label="Altsystem"
               optional
-              help="Der Name des Programms, aus dem übernommen wird. Er steht später an jeder Eröffnungsbuchung."
+              explain="Der Name des Programms, aus dem übernommen wird. Er steht später an jeder Eröffnungsbuchung."
             >
               <Input
                 value={legacySystem}
@@ -351,12 +351,12 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
                 placeholder="Vorheriges Buchhaltungsprogramm"
               />
             </Field>
-            <Field label="Buchungstag" help="Voreingestellt der erste Tag des Geschäftsjahres.">
+            <Field label="Buchungstag" explain="Voreingestellt der erste Tag des Geschäftsjahres.">
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             <Field
               label="Beleg der Schlussbilanz"
-              help="Pflicht: eine Eröffnungsbilanz ohne Beleg wäre eine Behauptung über Zahlen aus einem anderen System (§ 146 Abs. 1 AO). Die Schlussbilanz des Altsystems ist zuvor als Beleg abzulegen."
+              explain="Pflicht: eine Eröffnungsbilanz ohne Beleg wäre eine Behauptung über Zahlen aus einem anderen System (§ 146 Abs. 1 AO). Die Schlussbilanz des Altsystems ist zuvor als Beleg abzulegen."
             >
               <Select<number>
                 items={
@@ -377,7 +377,7 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
                 Sachkonten
                 <HelpPopover label="Erklärung zu den Sachkonten">
                   Jeder Bestand der Schlussbilanz wird mit seinem Saldo erfasst: Aktivkonten im
-                  Soll, Passiv- und Kapitalkonten im Haben. Die Gegenbuchung läuft über das
+                  Soll, Passiv- und Kapitalkonten im Haben. Die Gegenbuchung erfolgt auf dem
                   Saldenvortragskonto 9000 und ist weder Aufwand noch Ertrag.
                 </HelpPopover>
               </span>

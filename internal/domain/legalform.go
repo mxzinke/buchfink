@@ -55,7 +55,7 @@ const (
 // Kurz gehalten und nicht vollständig: er nennt die Rechtsformen, die ein
 // bilanzierendes Unternehmen üblicherweise hat. Alles andere fällt unter
 // „Sonstige", und dort wird gefragt statt geraten — eine KGaA und eine
-// ausländische Rechtsform tragen Besonderheiten, die ein Katalogeintrag
+// ausländische Rechtsform haben Besonderheiten, die ein Katalogeintrag
 // verschweigen würde.
 var legalForms = []LegalFormInfo{
 	{Name: "Einzelunternehmen", Investor: InvestorIndividualBusiness, Note: noteIndividual},

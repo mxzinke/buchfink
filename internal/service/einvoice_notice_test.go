@@ -9,7 +9,7 @@ import (
 )
 
 // businessVendor legt einen inländischen Lieferanten an. Unternehmer ist der
-// Normalfall und damit der Nullwert — genau der Fall, in dem die
+// Normalfall und damit der Nullwert — der Fall, in dem die
 // E-Rechnungspflicht greift.
 func (e *testEnv) businessVendor(t *testing.T, name string) *domain.Contact {
 	t.Helper()
@@ -63,9 +63,10 @@ func TestEInvoiceNoticeAppearsForADomesticBusinessSupplier(t *testing.T) {
 	}
 }
 
-// Der Text hängt am Belegdatum: bis Ende 2026 ist die sonstige Rechnung nach
-// § 27 Abs. 38 Nr. 1 UStG noch zulässig, ab 2027 hängt es am Vorjahresumsatz des
-// Ausstellers — den Buchfink nicht kennt und deshalb auch nicht behauptet.
+// Der Text richtet sich nach dem Belegdatum: bis Ende 2026 ist die sonstige
+// Rechnung nach § 27 Abs. 38 Nr. 1 UStG noch zulässig, ab 2027 richtet es sich
+// nach dem Vorjahresumsatz des Ausstellers — den Buchfink nicht kennt und
+// deshalb auch nicht behauptet.
 func TestEInvoiceNoticeChangesWithTheDeadline(t *testing.T) {
 	env := newTestEnv(t)
 	vendor := env.businessVendor(t, "Agentur GmbH")

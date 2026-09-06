@@ -14,7 +14,7 @@ import (
 // Gesellschaftern (§ 42a Abs. 2 GmbHG), die Offenlegung geschieht gegenüber
 // dem Bundesanzeiger (§ 325 HGB). Sie in einem Feld „abgeschlossen ja/nein"
 // zusammenzufassen hieße, den Beschluss der Gesellschafter zu unterschlagen –
-// und genau an ihm hängt, ab wann nicht mehr gebucht werden darf.
+// und genau danach richtet sich, ab wann nicht mehr gebucht werden darf.
 type FiscalYearStatus string
 
 const (

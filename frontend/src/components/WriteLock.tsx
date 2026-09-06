@@ -8,13 +8,13 @@ import { formatDate } from '../utils/formatters';
  * bis dahin aktiv bleibt, verspricht etwas, das die Anwendung nicht hält: der
  * Anwender füllt ein Formular aus und erfährt den Grund erst in der
  * Fehlermeldung des Absendens. Deshalb sind die schreibenden Knöpfe schon in
- * der Oberfläche gesperrt und tragen die Erklärung im `title` (§10.4).
+ * der Oberfläche gesperrt und zeigen die Erklärung im `title` (§10.4).
  *
  * Ein Kontext statt einer Kette von Eigenschaften: schreibende Knöpfe stehen
  * bis in die Formulardialoge der Anlagenverwaltung hinein, und jede
  * Zwischenstation, die die Angabe nur durchreicht, wäre eine Stelle, an der sie
  * beim nächsten Dialog vergessen wird. Die Sperre gilt der ganzen Anwendung und
- * nicht einer Ansicht — genau das bildet der Kontext ab.
+ * nicht einer Ansicht — das bildet der Kontext ab.
  */
 
 export interface WriteLock {
@@ -77,7 +77,7 @@ export function useWriteLock(): WriteLock {
  * Geltungsbereich hat: der Prüfermodus sperrt jede Änderung der Anwendung, das
  * festgestellte Jahr nur die Erfassung in diesem Jahr. Getrennt gehalten,
  * gemeinsam gelesen — die Buchungsansichten fragen über `usePostingLock` beide
- * zugleich ab und tragen den Grund im `title` des gesperrten Knopfes (§10.4).
+ * zugleich ab und zeigen den Grund im `title` des gesperrten Knopfes (§10.4).
  */
 const PostingLockContext = createContext<number | undefined>(undefined);
 

@@ -21,7 +21,7 @@ import (
 // später nicht von einer unterscheiden, die etwas verändert hat (ARC-05, GoBD
 // Rz. 34).
 //
-//	1–5  Wellen 1 bis 5c (rückwirkend vergeben; Dateien aus dieser Zeit tragen
+//	1–5  Wellen 1 bis 5c (rückwirkend vergeben; Dateien aus dieser Zeit haben
 //	     keine Versionszeile und werden mit 0 gelesen)
 //	6    Welle 6: Änderungsprotokoll mit Kette, Aufbewahrungsfristen,
 //	     Belegkopfdaten, Migrationsprotokoll
@@ -92,7 +92,7 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 		"Schema von Version %d auf %d gebracht.", current, SchemaVersion)
 	if current == 0 {
 		record.Message = fmt.Sprintf(
-			"Schema auf Version %d gebracht. Die Datei trug noch keine Versionsangabe — "+
+			"Schema auf Version %d gebracht. Die Datei hatte noch keine Versionsangabe — "+
 				"entweder ist sie neu oder sie stammt aus der Zeit vor dem Migrationsprotokoll.",
 			SchemaVersion)
 	}

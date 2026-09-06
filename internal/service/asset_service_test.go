@@ -437,7 +437,7 @@ func TestAnlagenspiegelShowsTheDevelopmentOfEachPosition(t *testing.T) {
 }
 
 // Der Zugang wird über den Beleg gebucht. Was dabei auf einem Anlagekonto
-// landet, gehört anschließend ins Verzeichnis — und genau das zeigt die Liste
+// landet, gehört anschließend ins Verzeichnis — und das zeigt die Liste
 // der Zugangskandidaten.
 func TestAcquisitionCandidatesFindUnregisteredBookings(t *testing.T) {
 	env := newTestEnv(t)
@@ -1475,7 +1475,7 @@ func TestLegacySpecialDepreciationsAreListed(t *testing.T) {
 	}
 }
 
-// § 7g Abs. 6 EStG hängt an Sachverhalten, die keine Software kennt. Ohne
+// § 7g Abs. 6 EStG richtet sich nach Sachverhalten, die keine Software kennt. Ohne
 // festgehaltene Begründung entsteht die Sonderabschreibung nicht — wie bei der
 // außerplanmäßigen Abschreibung ist der Grund Pflicht.
 func TestSpecialDepreciationNeedsItsGrounds(t *testing.T) {
@@ -2009,7 +2009,7 @@ func TestSkontoOnAnOrdinaryInvoiceIsUnchanged(t *testing.T) {
 	}
 }
 
-// Ein Vertrag zum Anlagegut ist kein Beleg: er trägt keine Belegnummer, gehört
+// Ein Vertrag zum Anlagegut ist kein Beleg: er hat keine Belegnummer, gehört
 // zu keinem Geschäftsjahr und wird nicht gebucht. Abgelegt wird er trotzdem auf
 // demselben Weg — inhaltsadressiert und dedupliziert.
 func TestAssetDocumentsAreKeptAlongsideTheAsset(t *testing.T) {
@@ -2235,8 +2235,8 @@ func TestShortMaturityLiftsTheAcquisitionCostCeiling(t *testing.T) {
 	}
 }
 
-// Der Kursverlust läuft über die Konten der Währungsumrechnung, nicht über die
-// der außerplanmäßigen Abschreibung: sonst sähe er aus wie eine Wertminderung
+// Der Kursverlust wird über die Konten der Währungsumrechnung gebucht, nicht über
+// die der außerplanmäßigen Abschreibung: sonst sähe er aus wie eine Wertminderung
 // des Papiers selbst.
 func TestCurrencyValuationBooksOnItsOwnAccounts(t *testing.T) {
 	env := newTestEnv(t)
@@ -2424,7 +2424,7 @@ func TestSingleSecurityHasNoInvestmentNote(t *testing.T) {
 		AssetID: asset.ID, Year: 2025, OpeningPrice: 10_000_00, ClosingPrice: 11_000_00,
 		BasisPoints: 253,
 	}); err == nil {
-		t.Error("eine Einzelanleihe trägt keine Vorabpauschale")
+		t.Error("eine Einzelanleihe hat keine Vorabpauschale")
 	}
 	preview, err := svc.PreviewDisposal(ctx, DisposalRequest{
 		AssetID: asset.ID, Date: "2026-09-30", Kind: domain.DisposalSale,

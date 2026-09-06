@@ -77,6 +77,9 @@ async function main() {
 
     await page.goto(ORIGIN, { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
+    // Vor dem Arbeitsbereich steht die Mandantenwahl, und sie hat keine
+    // Navigation daneben: erst der geöffnete Mandant bringt die Seitenleiste.
+    await page.getByRole('button', { name: /öffnen$/i }).first().click();
     await page.waitForSelector('nav', { timeout: 30_000 });
 
     const nav = (label) => page.getByRole('button', { name: label, exact: true }).first();
@@ -266,28 +269,31 @@ async function main() {
         },
       },
       {
-        // „Sicherheit & Protokoll" zeigt seit Welle 6 den Zustand der Kette und
-        // verweist für das Protokoll auf „Nachweise".
+        // Die Prüfübersicht hat seit Welle 9 keinen Navigationseintrag mehr:
+        // sie hängt am Zustandsanzeiger in der Fußzeile der Navigation und
+        // wird über ihn geöffnet.
         file: 'sicherheit.png',
         go: async () => {
-          await nav('Sicherheit & Protokoll').click();
+          await page.getByRole('button', { name: /Daten unverändert|Integrität verletzt/ })
+            .first()
+            .click();
           await page.getByText('Zustand der Kette').waitFor();
           await page.waitForTimeout(400);
         },
       },
       {
+        // Das Änderungsprotokoll steht auf derselben Seite im zweiten Reiter.
         file: 'nachweise.png',
         go: async () => {
-          await nav('Nachweise').click();
-          await page.getByRole('heading', { name: 'Nachweise', exact: true }).waitFor();
-          await page.getByText('Änderungsprotokoll').first().waitFor();
+          await page.getByRole('tab', { name: 'Änderungsprotokoll' }).click();
+          await page.getByRole('heading', { name: 'Änderungsprotokoll', exact: true }).waitFor();
           await page.waitForTimeout(600);
         },
       },
       {
         file: 'datenzugriff.png',
         go: async () => {
-          await nav('Datenzugriff').click();
+          await nav('Betriebsprüfung').click();
           await page.getByText('Datenüberlassung').first().waitFor();
           await page.waitForTimeout(400);
         },

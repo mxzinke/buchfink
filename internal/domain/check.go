@@ -104,7 +104,7 @@ type CheckFinding struct {
 
 // CheckRun ist ein Prüflauf über einen Zeitraum bis zu einem Stichtag.
 //
-// Er wird gespeichert und nicht nur angezeigt: die Festschreibung hängt an ihm,
+// Er wird gespeichert und nicht nur angezeigt: die Festschreibung richtet sich nach ihm,
 // und wenn ein blockierender Befund übergangen wurde, muss später nachvollziehbar
 // sein, welcher und mit welcher Begründung (GoBD Rz. 34 ff., IKS).
 type CheckRun struct {

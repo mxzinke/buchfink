@@ -144,8 +144,8 @@ type DepreciationDue struct {
 // DepreciationRun is the preview of the yearly AfA.
 //
 // AfA is an Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall
-// — sie entsteht deshalb nicht im Hintergrund, sondern hier, auf Ansage, mit
-// Vorschau und Freigabe.
+// — sie entsteht deshalb hier, auf Ansage, mit Vorschau und Freigabe, nicht im
+// Hintergrund.
 type DepreciationRun struct {
 	FiscalYear  int               `json:"fiscalYear"`
 	BookingDate string            `json:"bookingDate"`
@@ -184,7 +184,7 @@ type DepreciationResult struct {
 	// BilMoG nur noch als steuerlicher Wert, und eine Summe „gebuchter" Beträge,
 	// die einen ungebuchten enthält, stimmte mit keinem Konto überein.
 	Total domain.Cents `json:"total"`
-	// Skipped und TaxOnly tragen kein `omitempty`: ein fehlendes Feld wäre in
+	// Skipped und TaxOnly haben kein `omitempty`: ein fehlendes Feld wäre in
 	// der Ansicht `undefined` und beim Lesen der Länge derselbe Absturz wie
 	// `null`.
 	Skipped []string `json:"skipped"`
@@ -514,7 +514,7 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 			"Sofortabzug als geringwertiges Wirtschaftsgut (§ 6 Abs. 2 EStG): der Aufwand ist mit dem "+
 				"Anschaffungsjahr erledigt und entsteht über die Belegbuchung, nicht über den "+
 				"Abschreibungslauf. Das Gut bleibt trotzdem im Verzeichnis — ab 250 € verlangt "+
-				"§ 6 Abs. 2 Satz 4 EStG genau das.")
+				"§ 6 Abs. 2 Satz 4 EStG das.")
 	case domain.DepreciationNone:
 		if asset.Class == domain.AssetClassTangible {
 			notes = append(notes,
@@ -884,7 +884,7 @@ func (s *AssetService) Delete(ctx context.Context, id uint) error {
 	for _, m := range asset.Movements {
 		if m.JournalEntryID != nil {
 			return fmt.Errorf(
-				"%s hängt an der Buchung zu %s und kann nicht gelöscht werden. "+
+				"%s ist mit der Buchung zu %s verbunden und kann nicht gelöscht werden. "+
 					"Ein Anlagegut, das gebucht wurde, verlässt das Verzeichnis nur über einen Abgang",
 				asset.InventoryNumber, m.Date)
 		}
@@ -1194,7 +1194,7 @@ type LegacySpecialDepreciationNotice struct {
 //
 // Sie bleiben stehen. Das Storno-Prinzip lässt keine stille Korrektur
 // gebuchter Vorgänge zu (§ 239 Abs. 3 HGB, GoBD Rz. 58), und eine Buchung
-// nachträglich verschwinden zu lassen wäre genau das. Aber sie sind seit dem
+// nachträglich verschwinden zu lassen wäre eine stille Korrektur. Aber sie sind seit dem
 // BilMoG handelsrechtlich unzulässig (§ 254 HGB a. F. entfallen), und wer den
 // Buchwert oder das Eigenkapital erklären muss, braucht die Liste. Deshalb
 // nennt die Anlagenseite sie, statt zu schweigen.
@@ -1507,7 +1507,7 @@ type MaintenanceResult struct {
 
 // BookMaintenance writes Erhaltungsaufwand and links it to the Anlagegut.
 //
-// Der Aufwand ändert den Buchwert nicht — genau das unterscheidet ihn von den
+// Der Aufwand ändert den Buchwert nicht — das unterscheidet ihn von den
 // nachträglichen Herstellungskosten. Die Bewegung, die dabei entsteht, trägt
 // deshalb weder Anschaffungskosten noch Abschreibung: sie verbindet nur die
 // Buchung mit dem Wirtschaftsgut, an dem gearbeitet wurde. Wer später fragt,
@@ -1959,7 +1959,7 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 
 // BookCurrencyValuation writes the Umrechnungsdifferenz of a Stichtag.
 //
-// Sie läuft über eigene Konten und nicht über die der außerplanmäßigen
+// Sie bucht über eigene Konten und nicht über die der außerplanmäßigen
 // Abschreibung und der Zuschreibung: der SKR04 führt Aufwand und Ertrag aus der
 // Währungsumrechnung getrennt (6880 und 4840), und er unterscheidet dort sogar
 // die Fälle des § 256a HGB von den übrigen. Auf 7200 gebucht sähe ein
@@ -2428,7 +2428,7 @@ func (s *AssetService) buildDisposal(
 		}
 		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok && entry.Group != "Ausleihungen" {
 			return nil, nil, nil, fmt.Errorf(
-				"%s (%s) trägt keine Ausleihung. Eine Beteiligung und ein Wertpapier werden verkauft, "+
+				"%s (%s) ist keine Ausleihung. Eine Beteiligung und ein Wertpapier werden verkauft, "+
 					"nicht getilgt", asset.Account, entry.Name)
 		}
 	}
@@ -2688,7 +2688,7 @@ func (s *AssetService) buildRepayment(
 			Text: "Ausfall " + asset.InventoryNumber,
 		})
 		preview.Accounts.Explanation = "Zurückgezahlt wurde weniger als der Buchwert. Die Tilgung " +
-			"selbst ist kein Umsatz; der Ausfall läuft über die sonstigen betrieblichen " +
+			"selbst ist kein Umsatz; Buchfink bucht den Ausfall über die sonstigen betrieblichen " +
 			"Aufwendungen."
 	default:
 		preview.Accounts.Revenue = ""
@@ -2823,7 +2823,7 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 	}
 
 	// Leer statt nil: ohne Anlagevermögen bleibt der Spiegel leer, und die
-	// Ansicht läuft über beide Listen.
+	// Ansicht fasst beide Listen zusammen.
 	spiegel := &domain.Anlagenspiegel{
 		FiscalYear:  year,
 		Rows:        make([]domain.AnlagenspiegelRow, 0, len(order)),
@@ -2975,7 +2975,7 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 		asset.Accumulated += m.DepreciationAmount
 		asset.UnitsHeld += m.Quantity
 		if m.Kind == domain.AssetMovementVorabpauschale {
-			// TaxAmount trägt zwei verschiedene steuerliche Werte: die
+			// TaxAmount speichert zwei verschiedene steuerliche Werte: die
 			// Vorabpauschale des Investmentanteils und seit dieser Welle die
 			// Sonderabschreibung nach § 7g Abs. 5 EStG. Ohne die Abfrage nach
 			// der Bewegungsart erschiene eine Sonderabschreibung als bereits
@@ -3078,9 +3078,9 @@ func afaPlanFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
 		plan.Cost = asset.AcquisitionCost
 	}
 	// Der feste Satz des § 7 Abs. 4 EStG wird hier aufgelöst und nicht in der
-	// Rechnung: er hängt an zwei Angaben des Anlageguts — ob das Gebäude
-	// Wohnzwecken dient (das steht im Kontenkatalog) und am Stichtag —, und die
-	// kennt die Rechnung nicht.
+	// Rechnung: er richtet sich nach zwei Angaben des Anlageguts — ob das Gebäude
+	// Wohnzwecken dient (das steht im Kontenkatalog) und nach dem Stichtag —, und
+	// die kennt die Rechnung nicht.
 	if asset.Method == domain.DepreciationBuildingLinear {
 		residential := false
 		if entry, ok := accounting.LookupAssetAccount(asset.Account); ok {
@@ -3100,9 +3100,9 @@ func afaPlanFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
 // The Sofortabzug is not booked by the Abschreibungslauf: der Aufwand entsteht
 // über die Belegbuchung auf 6260. Die Kartei hält ihn trotzdem als Bewegung
 // fest, sonst stünde das geringwertige Wirtschaftsgut jahrelang mit einem
-// Buchwert im Verzeichnis, den es nicht mehr hat. Die Bewegung trägt bewusst
-// keine Journalbuchung: sie gehört zur Zugangsbuchung, die schon an der
-// Zugangsbewegung hängt.
+// Buchwert im Verzeichnis, den es nicht mehr hat. Die Bewegung hat bewusst
+// keine Journalbuchung: sie gehört zur Zugangsbuchung, die schon mit der
+// Zugangsbewegung verbunden ist.
 func (s *AssetService) syncImmediateWriteOff(
 	ctx context.Context, asset *domain.FixedAsset, existing []domain.AssetMovement,
 ) error {

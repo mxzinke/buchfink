@@ -39,8 +39,8 @@ func TestNeedsDiscountingStartsAfterOneYear(t *testing.T) {
 }
 
 // Die Restlaufzeit wird auf volle Jahre aufgerundet: die Tabelle der Bundesbank
-// kennt keinen Satz für 2,4 Jahre, und die längere Laufzeit trägt den
-// vorsichtigeren Satz.
+// kennt keinen Satz für 2,4 Jahre, und für die längere Laufzeit gilt der
+// vorsichtigere Satz.
 func TestRemainingYearsRoundsUp(t *testing.T) {
 	cases := map[string]int{
 		"2026-12-31": 0,

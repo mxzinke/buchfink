@@ -59,7 +59,7 @@ func validInvoice() *Invoice {
 	}
 }
 
-// Der Ausgangspunkt muss sauber sein, sonst prüfen die Tests darunter nichts.
+// Der Ausgangspunkt darf keine Funde melden, sonst prüfen die Tests darunter nichts.
 func TestValidInvoiceHasNoFindings(t *testing.T) {
 	for _, f := range Validate(validInvoice()).Findings {
 		t.Errorf("%s %s: %s", f.Rule, f.Where, f.Message)
@@ -91,7 +91,7 @@ func mustNotReport(t *testing.T, rule string, change func(*Invoice)) {
 	}
 }
 
-// Die BR-DEC-Familie: kein Betrag der Rechnung trägt mehr als zwei
+// Die BR-DEC-Familie: kein Betrag der Rechnung hat mehr als zwei
 // Nachkommastellen. Ein dritter bedeutet einen Betrag, den kein Konto halten
 // kann — und jede Summenregel danach würde ihn stillschweigend überspringen.
 func TestDecimalLimitsAreEnforced(t *testing.T) {

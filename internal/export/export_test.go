@@ -51,7 +51,7 @@ func sampleDataset() *Dataset {
 // --- CSV -------------------------------------------------------------------
 
 // Eine CSV, die sich nicht wieder einlesen lässt, ist keine Datenüberlassung.
-// Geprüft wird deshalb nicht die Schreibweise, sondern der Rundlauf: was
+// Geprüft wird deshalb der Rundlauf, nicht die Schreibweise: was
 // hineingegeben wurde, muss Feld für Feld wieder herauskommen.
 func TestRenderCSVRoundTrips(t *testing.T) {
 	table := sampleDataset().Tables[0]
@@ -160,7 +160,7 @@ func TestIndexXMLNamesTheSupplierLocation(t *testing.T) {
 		t.Errorf("die Programmfassung steht nicht im Comment: %q", text(supplier[0], "Comment"))
 	}
 
-	// Ohne hinterlegten Sitz bleibt das Element nicht leer, sondern sagt es.
+	// Ohne hinterlegten Sitz enthält das Element einen Hinweis, statt leer zu bleiben.
 	d.SupplierLocation = ""
 	empty := parseTree(t, string(RenderIndexXML(d)))
 	if got := text(findAll(empty, "DataSupplier")[0], "Location"); got == "" {
@@ -308,7 +308,7 @@ func TestIndexXMLDescribesEveryColumn(t *testing.T) {
 
 // Die Feldbeschreibung muss jede Spalte jeder Tabelle im Klartext nennen. Der
 // Test vergleicht die Feldlisten, nicht eine Stichprobe: eine vergessene Spalte
-// ist genau die, nach der später gefragt wird.
+// ist die, nach der später gefragt wird.
 func TestFieldDocNamesEveryColumn(t *testing.T) {
 	d := sampleDataset()
 	doc := string(RenderFieldDoc(d))
@@ -493,7 +493,7 @@ func text(n *node, name string) string {
 var (
 	elementDecl = regexp.MustCompile(`(?s)<!ELEMENT\s+(\w+)\s+\((.*?)\)>`)
 	// Ein leeres Element wird ohne Klammern deklariert. Ohne diese zweite
-	// Zeile hielte der Test <UTF8/> für undeklariert und beanstandete genau
+	// Zeile hielte der Test <UTF8/> für undeklariert und beanstandete
 	// die Angabe, die die Kodierung nennt.
 	emptyElementDecl = regexp.MustCompile(`<!ELEMENT\s+(\w+)\s+EMPTY\s*>`)
 )

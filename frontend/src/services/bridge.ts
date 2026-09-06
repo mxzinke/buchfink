@@ -428,7 +428,7 @@ export const bridge = {
   VerifyAuditChain: <T>() => invoke<T>('VerifyAuditChain'),
   GetAuditLogsFiltered: <T>(limit: number, filter: unknown) =>
     invoke<T>('GetAuditLogsFiltered', limit, filter),
-  GetChangeLog: () => invoke<string>('GetChangeLog'),
+  GetChangeLog: <T>() => invoke<T>('GetChangeLog'),
   GetSchemaMigrations: <T>() => invoke<T>('GetSchemaMigrations'),
   GetMigrationRecords: <T>() => invoke<T>('GetMigrationRecords'),
   SetSystemChangeDate: (date: string) => invoke<void>('SetSystemChangeDate', date),
@@ -447,6 +447,10 @@ export const bridge = {
   // Verfahrensdokumentation und Hinweise zum Funktionsumfang
   GenerateProcedureDocumentation: <T>() => invoke<T>('GenerateProcedureDocumentation'),
   GetProcedureDocumentations: <T>() => invoke<T>('GetProcedureDocumentations'),
+  GetOrganisationTextDefaults: <T>() => invoke<T>('GetOrganisationTextDefaults'),
+  OpenReleasesPage: () => invoke<void>('OpenReleasesPage'),
+  SaveProcedureDocumentationAs: (id: number, wantPdf: boolean) =>
+    invoke<string>('SaveProcedureDocumentationAs', id, wantPdf),
   GetOrganisationTexts: <T>() => invoke<T>('GetOrganisationTexts'),
   SaveOrganisationTexts: (texts: unknown) => invoke<void>('SaveOrganisationTexts', texts),
   GetComplianceHints: <T>() => invoke<T>('GetComplianceHints'),

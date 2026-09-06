@@ -74,7 +74,7 @@ func TestIncomingAdvanceBooksAssetAndInputTaxOnPayment(t *testing.T) {
 		}
 	}
 	if taxLine.TaxKey == "" {
-		t.Fatal("die Vorsteuerzeile muss den Steuerschlüssel tragen")
+		t.Fatal("die Vorsteuerzeile muss den Steuerschlüssel haben")
 	}
 	if got := accounting.VatPeriodFor(entry, taxLine, ""); got != req.BookingDate {
 		t.Errorf("die Vorsteuer fällt in den Zeitraum %q, erwartet den Zahlungstag %q", got, req.BookingDate)

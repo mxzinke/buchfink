@@ -16,7 +16,7 @@ import (
 
 // --- Prüferpaket: Protokollkette, Versionshistorie, Verfahrensdokumentation --
 
-// Das Prüferpaket muss die drei Nachweise tragen, die die Buchführung
+// Das Prüferpaket muss die drei Nachweise enthalten, die die Buchführung
 // erklären: die Kette des Änderungsprotokolls, die Versionshistorie des
 // Programms und die erzeugte Verfahrensdokumentation. Ohne sie ist es ein
 // Archivexport mit einem anderen Namen.
@@ -71,7 +71,7 @@ func TestAuditPackageCarriesAuditChainChangelogAndProcedureDoc(t *testing.T) {
 		t.Fatalf("die Verfahrensdokumentation fehlt im Prüferpaket: %v", err)
 	}
 	if !strings.Contains(string(content), "Verfahrensdokumentation") {
-		t.Error("die beigelegte Fassung trägt nicht den erzeugten Text")
+		t.Error("die beigelegte Fassung enthält nicht den erzeugten Text")
 	}
 	for _, note := range result.Notes {
 		if strings.Contains(note, "Verfahrensdokumentation liegt nicht") ||
@@ -83,7 +83,7 @@ func TestAuditPackageCarriesAuditChainChangelogAndProcedureDoc(t *testing.T) {
 	// Die Bearbeiterkennung gehört ans Paket selbst und nicht nur an den
 	// Protokolleintrag daneben.
 	if strings.TrimSpace(result.Actor) == "" {
-		t.Error("das Exportergebnis trägt keine Bearbeiterkennung")
+		t.Error("das Exportergebnis hat keine Bearbeiterkennung")
 	}
 	if !strings.Contains(string(report), "Bearbeiter:") {
 		t.Errorf("der Nachweis nennt den Bearbeiter nicht:\n%s", report)
@@ -208,10 +208,10 @@ func TestSaveContactLogsOnlyTheChangedFields(t *testing.T) {
 	after := fields(t, entry.After)
 
 	if before["street"] != "Alte Straße 1" {
-		t.Errorf("das Vorher trägt die alte Straße nicht: %v", before)
+		t.Errorf("das Vorher hat die alte Straße nicht: %v", before)
 	}
 	if after["street"] != "Neue Straße 7" {
-		t.Errorf("das Nachher trägt die neue Straße nicht: %v", after)
+		t.Errorf("das Nachher hat die neue Straße nicht: %v", after)
 	}
 	// Der unveränderte Name gehört nicht ins Protokoll: er verbärge die eine
 	// Änderung zwischen den unveränderten Feldern.
@@ -304,7 +304,7 @@ func TestFiscalYearStatusLogsBeforeAndAfter(t *testing.T) {
 		t.Errorf("die neue Arbeitnehmerzahl fehlt im Protokoll: %v", after)
 	}
 	if _, ok := before["averageEmployees"]; ok && before["averageEmployees"] == float64(7) {
-		t.Errorf("das Vorher trägt schon den neuen Wert: %v", before)
+		t.Errorf("das Vorher hat schon den neuen Wert: %v", before)
 	}
 	if _, ok := after["year"]; ok {
 		t.Errorf("das unveränderte Jahr steht im Protokoll: %v", after)
@@ -350,14 +350,14 @@ func TestOutgoingInvoiceReceiptCarriesHeaderData(t *testing.T) {
 		t.Errorf("Betreff %q nennt die Rechnungsnummer nicht", receipt.Subject)
 	}
 	if !receipt.HasHeader() {
-		t.Error("der Beleg trägt keine Kopfdaten und würde nach der Altform gehasht")
+		t.Error("der Beleg hat keine Kopfdaten und würde nach der Altform gehasht")
 	}
 	if err := receipt.ValidateHeader(); err != nil {
 		t.Errorf("der gebuchte Beleg muss die Kopfdatenprüfung bestehen: %v", err)
 	}
 }
 
-// Der Eigenbeleg einer Abschlussbuchung trägt Belegdatum, Betreff und Betrag.
+// Der Eigenbeleg einer Abschlussbuchung hat Belegdatum, Betreff und Betrag.
 func TestClosingSelfIssuedVoucherCarriesHeaderData(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -390,7 +390,7 @@ func TestClosingSelfIssuedVoucherCarriesHeaderData(t *testing.T) {
 }
 
 // Der Journaldienst ist der einzige Schreibweg: er weist eine Buchung ab, deren
-// Beleg keine Kopfdaten trägt — auf jedem Weg und nicht nur im Dialog.
+// Beleg keine Kopfdaten hat — auf jedem Weg und nicht nur im Dialog.
 func TestPostRejectsAnEntryWhoseReceiptHasNoHeader(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -400,7 +400,7 @@ func TestPostRejectsAnEntryWhoseReceiptHasNoHeader(t *testing.T) {
 	// nicht erfasst hat.
 	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
 	if receipt.HasHeader() {
-		t.Fatal("der Beleg des Falls darf keine Kopfdaten tragen")
+		t.Fatal("der Beleg des Falls darf keine Kopfdaten haben")
 	}
 
 	entry := &domain.JournalEntry{
@@ -530,7 +530,7 @@ func TestCheckRunReportsCaptureAndCommitmentIntervals(t *testing.T) {
 
 // Zeitpunkte, die gespeichert werden, stehen in UTC. Eine Ortszeit ohne Zone ist
 // in der Nacht der Zeitumstellung mehrdeutig, und die Reihenfolge der
-// Aufzeichnungen hängt an ihr.
+// Aufzeichnungen richtet sich nach ihr.
 func TestPersistedTimestampsAreUTC(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -549,7 +549,7 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 		t.Fatalf("Sicherungslauf lesen: %v", err)
 	}
 	if _, offset := runs[0].StartedAt.Zone(); offset != 0 {
-		t.Errorf("der Startzeitpunkt des Sicherungslaufs trägt den Zonenversatz %d", offset)
+		t.Errorf("der Startzeitpunkt des Sicherungslaufs hat den Zonenversatz %d", offset)
 	}
 
 	// Voranmeldung.
@@ -562,7 +562,7 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 		t.Fatalf("Voranmeldung schreiben: %v", err)
 	}
 	if _, offset := rec.CreatedAt.Zone(); offset != 0 {
-		t.Errorf("der Zeitpunkt der Voranmeldung trägt den Zonenversatz %d", offset)
+		t.Errorf("der Zeitpunkt der Voranmeldung hat den Zonenversatz %d", offset)
 	}
 
 	// Prüflauf.
@@ -572,7 +572,7 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 		t.Fatalf("Prüflauf schreiben: %v", err)
 	}
 	if _, offset := checkRun.CreatedAt.Zone(); offset != 0 {
-		t.Errorf("der Zeitpunkt des Prüflaufs trägt den Zonenversatz %d", offset)
+		t.Errorf("der Zeitpunkt des Prüflaufs hat den Zonenversatz %d", offset)
 	}
 
 	// Einstellung.
@@ -585,11 +585,11 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 		t.Fatalf("Einstellung lesen: %v", err)
 	}
 	if _, offset := item.UpdatedAt.Zone(); offset != 0 {
-		t.Errorf("der Zeitpunkt der Einstellung trägt den Zonenversatz %d", offset)
+		t.Errorf("der Zeitpunkt der Einstellung hat den Zonenversatz %d", offset)
 	}
 
 	// Zeitpunkte, die als Zeichenkette gespeichert oder ausgegeben werden,
-	// tragen ihre Zone mit: eine Ortszeit ohne Zonenangabe ist außerhalb des
+	// führen ihre Zone mit: eine Ortszeit ohne Zonenangabe ist außerhalb des
 	// Rechners, auf dem sie entstand, nicht mehr eindeutig.
 	utcString := func(label, value string) {
 		t.Helper()
@@ -599,7 +599,7 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 			return
 		}
 		if _, offset := parsed.Zone(); offset != 0 {
-			t.Errorf("%s: %q trägt den Zonenversatz %d", label, value, offset)
+			t.Errorf("%s: %q hat den Zonenversatz %d", label, value, offset)
 		}
 	}
 
@@ -630,7 +630,7 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 
 // --- Fehlende SKR04-Konten werden auch in einer vollen Datei ergänzt -------
 
-// Der frühere Schwellwert von hundert Konten war genau die Bedingung, unter der
+// Der frühere Schwellwert von hundert Konten war die Bedingung, unter der
 // ein neuer SKR04-Stand nicht mehr in eine bestehende Datei kam.
 func TestSeedAddsMissingAccountsEvenInAFullChart(t *testing.T) {
 	env := newTestEnv(t)

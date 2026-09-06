@@ -113,7 +113,7 @@ export function selfIssuedRequest(draft: SelfIssuedDraft): SelfIssuedReceiptRequ
   };
 }
 
-/** Trägt der Entwurf eine begonnene Eingabe? */
+/** Hat der Entwurf eine begonnene Eingabe? */
 function selfIssuedTouched(draft: SelfIssuedDraft): boolean {
   return (
     draft.reason.trim() !== '' || draft.grossAmount.trim() !== '' || draft.taxAmount.trim() !== ''
@@ -485,7 +485,7 @@ export const ManualEntryDialog: React.FC<ManualEntryDialogProps> = ({
             <>
               Der Leistungszeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG, und der
               Steuersatz folgt ihm: eine heute nacherfasste Leistung aus dem zweiten Halbjahr 2020
-              trägt 16 Prozent.
+              hat 16 Prozent.
             </>
           }
         >

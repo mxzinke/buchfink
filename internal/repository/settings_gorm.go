@@ -59,7 +59,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		// Eingangs als überfällig.
 		ReceiptCaptureDays: 10,
 		// Tausend Euro sind die Voreinstellung, ab der ein Eingangsbeleg einen
-		// Leistungsnachweis tragen soll (RECH-08). Sie ist eine Vorgabe des
+		// Leistungsnachweis haben soll (RECH-08). Sie ist eine Vorgabe des
 		// internen Kontrollsystems und keine Rechtspflicht — deshalb
 		// einstellbar.
 		InvoiceCheckThreshold: 100_000,
@@ -178,7 +178,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 // Ein leeres Feld heißt „nicht festgelegt" und bekommt die Voreinstellung. Ein
 // ausgefülltes, aber untaugliches Format wird abgewiesen und nicht ersetzt:
 // wer `RE-{JAHR}` einträgt, hat einen Nummernkreis gemeint, in dem jede
-// Rechnung dieselbe Nummer trüge — das stillschweigend durch die Voreinstellung
+// Rechnung dieselbe Nummer hätte — das stillschweigend durch die Voreinstellung
 // zu ersetzen ließe ihn glauben, sein Format sei gespeichert
 // (siehe domain.ValidateInvoiceNumberFormat).
 func numberFormatOrDefault(format string) (string, error) {
@@ -239,8 +239,8 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	// schaltete ein Formular, das das Feld nicht kennt, die Regel stumm ab.
 	//
 	// Und deshalb wird die Grenze dann gar nicht geschrieben: ein gepflegter
-	// Wert bliebe sonst nicht stehen, sondern fiele auf die Voreinstellung
-	// zurück — ein Formular, das ein Feld nicht kennt, darf es nicht ändern.
+	// Wert fiele sonst auf die Voreinstellung zurück — ein Formular, das ein
+	// Feld nicht kennt, darf es nicht ändern.
 	// Dasselbe gilt für die Mahnstufen.
 	writeCheckThreshold := s.InvoiceCheckThreshold > 0
 	writeLevels := len(s.DunningLevels) > 0

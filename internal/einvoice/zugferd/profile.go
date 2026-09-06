@@ -205,7 +205,7 @@ func ProfileOf(inv *einvoice.Invoice) Profile {
 	if strings.HasPrefix(lower, "urn:ferd:") {
 		return ProfileZUGFeRD1
 	}
-	// Die Kennung trägt den Profilnamen hinter dem letzten Doppelpunkt. Das ist
+	// Die Kennung hat den Profilnamen hinter dem letzten Doppelpunkt. Das ist
 	// die letzte Auskunft, die ein unbekanntes Dokument noch hergibt.
 	for suffix, profile := range map[string]Profile{
 		"minimum": ProfileMinimum, "basicwl": ProfileBasicWL, "basic": ProfileBasic,

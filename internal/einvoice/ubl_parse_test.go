@@ -16,9 +16,9 @@ func officialUBLFiles(t *testing.T) []string {
 }
 
 // Die offiziellen UBL-Beispiele müssen lesbar sein und dieselbe Prüfung
-// bestehen wie die CII-Beispiele. Genau das ist der Sinn eines semantischen
-// Modells: eine Rechnung wird nach ihrem Inhalt beurteilt, nicht nach ihrer
-// Schreibweise.
+// bestehen wie die CII-Beispiele. Das ist der Sinn eines semantischen
+// Modells: Buchfink beurteilt eine Rechnung nach ihrem Inhalt, nicht nach
+// ihrer Schreibweise.
 func TestOfficialUBLExamplesParseAndValidate(t *testing.T) {
 	for _, path := range officialUBLFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {

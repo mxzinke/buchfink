@@ -103,8 +103,8 @@ func TestClosingEntryMayNotWriteTaxAccountsOutsideTheSettlement(t *testing.T) {
 		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
 	}
 
-	// Die Belegnummer allein trägt die Ausnahme nicht: eine Handbuchung mit der
-	// Belegnummer der Verrechnung bleibt eine Handbuchung.
+	// Die Belegnummer allein genügt nicht für die Ausnahme: eine Handbuchung mit
+	// der Belegnummer der Verrechnung bleibt eine Handbuchung.
 	entry.DocumentNumber = VatSettlementReference(2026)
 	entry.Source = domain.EntrySourceManual
 	if _, err := env.journal.Post(ctx, entry); err == nil {
@@ -165,7 +165,7 @@ func TestReversedProvisionCannotBeReleasedOrConsumed(t *testing.T) {
 	}
 	entryID := provision.Movements[0].JournalEntryID
 	if entryID == nil {
-		t.Fatal("die Bildung trägt keine Buchung")
+		t.Fatal("die Bildung hat keine Buchung")
 	}
 	if _, err := env.journal.Reverse(ctx, *entryID, "doppelt erfasst"); err != nil {
 		t.Fatalf("Bildung stornieren: %v", err)
@@ -347,7 +347,7 @@ func TestClosingModulesReturnEmptyListsNotNull(t *testing.T) {
 		t.Fatalf("Gegenprobe: %v", err)
 	}
 	if !strings.Contains(string(raw), `"rows":null`) {
-		t.Errorf("die Gegenprobe trägt nicht mehr: %s", raw)
+		t.Errorf("die Gegenprobe enthält nicht mehr: %s", raw)
 	}
 }
 
@@ -374,7 +374,7 @@ func TestClosingPreviewsReturnEmptyListsNotNull(t *testing.T) {
 	assertNoNilSlices(t, "Vorschau Ergebnisverwendung", appropriation)
 
 	// Der Vortrag bucht die Auflösung der Rechnungsabgrenzung mit; die Vorschau
-	// nennt sie, und die Ansicht läuft über die Liste.
+	// nennt sie, und die Ansicht entsteht aus der Liste.
 	carry, err := m.closing.CarryForwardState(ctx, 2027)
 	if err != nil {
 		t.Fatalf("Vortragsvorschau: %v", err)

@@ -125,7 +125,7 @@ func TestSaveHeaderRecomputesTheReceiptHash(t *testing.T) {
 	// scheitern (GoBD Rz. 131), das Buchen schon.
 	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
 	if receipt.HasHeader() {
-		t.Fatal("ein Beleg ohne Kopfdaten darf keine tragen")
+		t.Fatal("ein Beleg ohne Kopfdaten darf keine haben")
 	}
 	if err := receipt.ValidateBookable(); err == nil {
 		t.Error("ohne Kopfdaten darf nicht gebucht werden")
@@ -224,13 +224,13 @@ func TestPostStampsVersionAndActor(t *testing.T) {
 		t.Fatalf("die Buchung ist fehlgeschlagen: %v", err)
 	}
 	if entry.AppVersion == "" {
-		t.Error("jede Buchung trägt die Programmfassung (UNV-06)")
+		t.Error("jede Buchung hat die Programmfassung (UNV-06)")
 	}
 	if entry.Actor == "" {
-		t.Error("jede Buchung trägt die Bearbeiterkennung (UNV-04)")
+		t.Error("jede Buchung hat die Bearbeiterkennung (UNV-04)")
 	}
 	if entry.PostingRuleVersion == "" {
-		t.Error("auch eine von Hand erfasste Buchung trägt den Regelstand")
+		t.Error("auch eine von Hand erfasste Buchung hat den Regelstand")
 	}
 }
 
@@ -300,11 +300,11 @@ func TestOpeningBalanceBooksAccountsAndOpenItems(t *testing.T) {
 	var receivable *domain.JournalEntry
 	for _, entry := range booked.Entries {
 		if entry.Source != domain.EntrySourceOpening {
-			t.Errorf("Buchung %s trägt die Quelle %q, erwartet %q",
+			t.Errorf("Buchung %s hat die Quelle %q, erwartet %q",
 				entry.EntryNumber, entry.Source, domain.EntrySourceOpening)
 		}
 		if entry.LegacyRef == "" {
-			t.Errorf("Buchung %s trägt keine Herkunftskennung aus dem Altsystem", entry.EntryNumber)
+			t.Errorf("Buchung %s hat keine Herkunftskennung aus dem Altsystem", entry.EntryNumber)
 		}
 		if entry.ContactID != nil && *entry.ContactID == customer.ID {
 			receivable = entry
@@ -510,7 +510,7 @@ func TestArchiveAndDeleteDemandsConfirmationAndArchive(t *testing.T) {
 
 	remaining, _ := env.journalRepo.FindAll(ctx, 2010)
 	if len(remaining) != 0 {
-		t.Errorf("das Geschäftsjahr trägt noch %d Buchungen", len(remaining))
+		t.Errorf("das Geschäftsjahr hat noch %d Buchungen", len(remaining))
 	}
 
 	// Was von dem Jahr bleibt, ist der Protokolleintrag.
@@ -540,7 +540,7 @@ func TestBlockedContactStaysOutOfSelections(t *testing.T) {
 		t.Fatalf("das Sperren ist fehlgeschlagen: %v", err)
 	}
 	if !blocked.Blocked || blocked.BlockedAt == "" {
-		t.Error("der gesperrte Kontakt muss die Sperre mit Datum tragen")
+		t.Error("der gesperrte Kontakt muss die Sperre mit Datum haben")
 	}
 	if !strings.Contains(answer, "Art. 17 Abs. 3 Buchst. b DSGVO") {
 		t.Errorf("die Antwort an die betroffene Person muss die Norm nennen: %q", answer)
@@ -634,7 +634,7 @@ func TestProcedureDocumentationCoversAllParts(t *testing.T) {
 		"Generalumkehr",                  // Storno-Prinzip
 		"RFC 3161",                       // Zeitstempel
 		"Änderungshistorie",              // CHANGELOG
-		"Welle 6",                        // Eintrag der Historie
+		"v0.1",                           // Eintrag der Historie
 	} {
 		if !strings.Contains(result.Markdown, needle) {
 			t.Errorf("die Verfahrensdokumentation nennt %q nicht", needle)
@@ -715,7 +715,7 @@ func TestOrganisationTextsComeWithSamplesAndAreLogged(t *testing.T) {
 		t.Fatalf("%d Protokolleinträge, erwartet 1", len(entries))
 	}
 	if !strings.Contains(entries[0].After, "Der Steuerberater scannt monatlich.") {
-		t.Errorf("das Nachher muss den neuen Text tragen: %q", entries[0].After)
+		t.Errorf("das Nachher muss den neuen Text enthalten: %q", entries[0].After)
 	}
 
 	result, err := svc.Generate(ctx, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))

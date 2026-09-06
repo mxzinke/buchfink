@@ -172,15 +172,15 @@ func filterMatchesEntry(entry *domain.JournalEntry, f JournalFilter) bool {
 	return true
 }
 
-// filterMatchesLine prüft die Bedingungen, die an der einzelnen Zeile hängen.
+// filterMatchesLine prüft die Bedingungen, die sich auf die einzelne Zeile beziehen.
 func filterMatchesLine(entry *domain.JournalEntry, l domain.JournalLine, f JournalFilter) bool {
 	if f.Account != "" && l.Account != f.Account {
 		return false
 	}
 	// Das Gegenkonto ist ein Konto derselben Buchung auf der anderen Seite. Die
-	// Zeile, die es selbst trägt, gehört nicht ins Ergebnis, wenn zugleich nach
-	// einem Konto gefiltert wird — sonst stünde dieselbe Buchung zweimal in der
-	// Liste, einmal von jeder Seite.
+	// Zeile, die selbst dieses Konto hat, gehört nicht ins Ergebnis, wenn
+	// zugleich nach einem Konto gefiltert wird — sonst stünde dieselbe Buchung
+	// zweimal in der Liste, einmal von jeder Seite.
 	if f.Account != "" && f.CounterAccount != "" && l.Account == f.CounterAccount {
 		return false
 	}

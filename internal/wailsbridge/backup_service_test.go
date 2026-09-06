@@ -17,8 +17,8 @@ import (
 // Die Wiederherstellung an der Bridge.
 //
 // Der Regelfall ist ein verschlüsselter Mandant: jeder über CreateTenant
-// angelegte hat eine Schlüsseldatei, die in der Sicherung liegt. Geprüft wird
-// deshalb genau das, was dabei schiefgehen kann — dass der wiederhergestellte
+// angelegte hat eine Schlüsseldatei, die in der Sicherung liegt. Der Test
+// prüft deshalb, was dabei schiefgehen kann — dass der wiederhergestellte
 // Ordner unter einer neuen Kennung angemeldet wird und der Schlüssel damit
 // unauffindbar ist, und dass die vorgeschriebene Prüfung nach der
 // Wiederherstellung auf den Büchern des vorher offenen Mandanten läuft und
@@ -166,7 +166,7 @@ func TestRestoreFromBackupWithoutOpenTenant(t *testing.T) {
 		t.Fatalf("Wiederherstellung ohne offenen Mandanten: %v", err)
 	}
 	if restored == nil || restored.VaultID() != origin.ID {
-		t.Fatalf("der wiederhergestellte Mandant trägt nicht die Kennung der Sicherung: %+v", restored)
+		t.Fatalf("der wiederhergestellte Mandant hat nicht die Kennung der Sicherung: %+v", restored)
 	}
 	if fresh.IsLocked() {
 		t.Error("der wiederhergestellte Mandant ist gesperrt, obwohl sein Schlüssel auf diesem Rechner liegt")
@@ -225,7 +225,7 @@ func firstDescription(entries []domain.JournalEntry) string {
 // sichern, prüfen, noch einmal wiederherstellen.
 //
 // Ein neben seinem Ursprung wiederhergestellter Mandant führt eine neue
-// Listenkennung und behält den Schlüssel des Ursprungs. Trüge seine Sicherung
+// Listenkennung und behält den Schlüssel des Ursprungs. Hätte seine Sicherung
 // die Listenkennung, suchte der Prüflauf das Geheimnis unter einer Kennung, zu
 // der keines im Schlüsselbund liegt: eine heile Sicherung käme als unlesbar
 // zurück, und die Wiederherstellung daraus ließe den Mandanten gesperrt.
@@ -238,7 +238,7 @@ func TestBackupOfARestoredTenantStaysVerifiableAndRestorable(t *testing.T) {
 		t.Fatalf("Wiederherstellung neben dem Ursprung: %v", err)
 	}
 	if restored.ID == origin.ID {
-		t.Fatal("der wiederhergestellte Mandant trägt dieselbe Listenkennung wie sein Ursprung")
+		t.Fatal("der wiederhergestellte Mandant hat dieselbe Listenkennung wie sein Ursprung")
 	}
 	if restored.VaultID() != origin.ID {
 		t.Fatalf("der wiederhergestellte Mandant sucht seinen Schlüssel unter %q statt unter %q",

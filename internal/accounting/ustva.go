@@ -157,8 +157,8 @@ type vatMovement struct {
 //
 // Zugeordnet wird nach VatPeriodFor und damit nach dem Entstehen der Steuer,
 // nicht nach dem Buchungsdatum. Was in einen bereits übermittelten Zeitraum
-// gehört, landet nicht heimlich in diesem, sondern in der Liste der Nachträge —
-// der Anwender entscheidet dann über eine Berichtigung.
+// gehört, landet in der Liste der Nachträge — der Anwender entscheidet dann
+// über eine Berichtigung.
 func BuildVatReturn(period VatPeriod, src VatReturnSource) *domain.VatReturn {
 	movements := vatMovements(src)
 
@@ -318,7 +318,7 @@ func vatMovements(src VatReturnSource) []vatMovement {
 		// Voranmeldungszeitraums. Mit einer Ausnahme: die Vorsteuerberichtigung
 		// nach § 15a UStG ist eine Abschlussbuchung *und* gehört in die
 		// Anmeldung. Sie wird deshalb nicht am Kopf der Buchung ausgesondert,
-		// sondern Zeile für Zeile — ihre Zeilen tragen den Steuerschlüssel, alle
+		// sondern Zeile für Zeile — ihre Zeilen haben den Steuerschlüssel, alle
 		// anderen einer Abschlussbuchung nicht.
 		closing := entry.Source == domain.EntrySourceClosing
 		receivedAt := ""
@@ -415,7 +415,7 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			case TaxKeyInputTaxCorrection:
 				// Die Berichtigung hat keine Bemessungsgrundlage im Vordruck: sie
 				// ist ein Steuerbetrag, der eine frühere Grundlage nachträglich
-				// anders bewertet. Die Seite trägt die Richtung — die
+				// anders bewertet. Die Seite bestimmt die Richtung — die
 				// zurückzuzahlende Vorsteuer steht im Haben und mindert damit die
 				// abziehbaren Beträge der Kennziffer 64.
 				m.code, m.tax = VatCodeInputTaxCorrection, debit

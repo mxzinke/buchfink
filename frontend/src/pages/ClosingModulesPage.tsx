@@ -50,7 +50,6 @@ import {
   EmptyState,
   Field,
   HelpPopover,
-  HelpTooltip,
   Input,
   Menu,
   MenuGroup,
@@ -440,13 +439,13 @@ const StepsTab: React.FC<
       <Section
         title="Bausteine des Abschlusses"
         context="In fachlicher Reihenfolge: jeder Schritt setzt den vorigen voraus"
-        action={
-          <HelpPopover label="Erklärung zur Reihenfolge">
+        explain={
+          <>
             Die Reihenfolge ist fachlich und nicht kosmetisch: Die Abgrenzung nimmt Aufwand aus dem
             Jahr heraus, die Rückstellung bringt welchen hinein, und erst danach steht das Ergebnis,
             aus dem die Steuerrückstellung gerechnet wird. Der Zustand folgt, wo möglich, aus den
             Daten; nur das Überspringen ist eine Angabe des Anwenders und verlangt einen Grund.
-          </HelpPopover>
+          </>
         }
       >
         <BackendError message={error} />
@@ -471,7 +470,7 @@ const StepsTab: React.FC<
                 <Td>
                   <span className="inline-flex items-center gap-1.5">
                     {step.label}
-                    <HelpTooltip label={`Erklärung zu ${step.label}`} content={step.hint} />
+                    <HelpPopover label={`Erklärung zu ${step.label}`}>{step.hint}</HelpPopover>
                   </span>
                 </Td>
                 <Td>
@@ -605,7 +604,7 @@ const StepsTab: React.FC<
         <Field
           label="Grund"
           error={fieldError || undefined}
-          help={
+          explain={
             stepMode === 'skip'
               ? 'Bleibt am Schritt festgehalten und steht neben ihm in der Liste.'
               : 'Steht im Protokoll neben dem Grund, mit dem der Schritt übergangen wurde.'
@@ -825,7 +824,7 @@ const AccrualDialog: React.FC<
         </Field>
         <Field
           label={draft.kind === 'passive' ? 'Ertragskonto' : 'Aufwandskonto'}
-          help="Das Konto, das der Posten entlastet und im Folgejahr wieder belastet."
+          explain="Das Konto, das der Posten entlastet und im Folgejahr wieder belastet."
         >
           <Combobox
             items={accountOptions}
@@ -855,7 +854,7 @@ const AccrualDialog: React.FC<
           label="Abzugrenzender Betrag"
           optional
           hint="leer heißt: nach dem Verfahren rechnen"
-          help="Nur nötig, wenn sich die Leistung nicht gleichmäßig über die Zeit verteilt."
+          explain="Nur nötig, wenn sich die Leistung nicht gleichmäßig über die Zeit verteilt."
         >
           <Input
             align="right"
@@ -881,7 +880,7 @@ const AccrualDialog: React.FC<
               <Stat
                 label="Gesamtbetrag"
                 value={formatCents(preview.accrual.totalAmount)}
-                context="Was die Rechnung insgesamt trägt"
+                context="Gesamtbetrag der Rechnung"
               />
               <Stat
                 label="Auflösungen"
@@ -999,28 +998,25 @@ const AccrualsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) => 
       <Section
         title="Vorschläge"
         context={proposal ? `Stichtag ${formatDate(proposal.cutoff)}` : undefined}
+        explain={
+          // Der Erklärtext kommt aus dem Vorschlag: dieselbe Schwelle, die der
+          // Dienst angewendet hat, und keine zweite Fassung, die auseinanderläuft.
+          proposal?.note ||
+          '§ 250 Abs. 1 HGB verlangt die Abgrenzung ohne Rücksicht auf die Höhe; die Vorschlagsschwelle ist allein ein steuerliches Wahlrecht.'
+        }
         action={
-          <div className="flex items-center gap-3">
-            {/* Der Erklärtext kommt aus dem Vorschlag: dieselbe Schwelle, die
-                der Dienst angewendet hat, und keine zweite Fassung, die
-                auseinanderläuft. */}
-            <HelpPopover label="Erklärung zur Rechnungsabgrenzung">
-              {proposal?.note ||
-                '§ 250 Abs. 1 HGB verlangt die Abgrenzung ohne Rücksicht auf die Höhe; die Vorschlagsschwelle ist allein ein steuerliches Wahlrecht.'}
-            </HelpPopover>
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={writeLock.locked}
-              title={writeLock.hint}
-              onClick={() => {
-                setDraft(EMPTY_ACCRUAL);
-                setDialogOpen(true);
-              }}
-            >
-              Abgrenzung bilden
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => {
+              setDraft(EMPTY_ACCRUAL);
+              setDialogOpen(true);
+            }}
+          >
+            Abgrenzung bilden
+          </Button>
         }
       >
         <BackendError message={error} />
@@ -1246,8 +1242,8 @@ function accountOptionsOf(accounts: Account[]) {
 
 /**
  * Bildung einer Rückstellung. Abzinsung, Konten und Buchungssatz kommen aus der
- * Vorschau: Ob abgezinst wird, hängt an der Restlaufzeit und am Satz der
- * Deutschen Bundesbank, und beides gehört nicht in eine Maske.
+ * Vorschau: Ob abgezinst wird, richtet sich nach der Restlaufzeit und dem
+ * Satz der Deutschen Bundesbank, und beides gehört nicht in eine Maske.
  */
 const ProvisionFormDialog: React.FC<
   AccountsProps & {
@@ -1388,7 +1384,7 @@ const ProvisionFormDialog: React.FC<
         </Field>
         <Field
           label="Erfüllungsbetrag"
-          help="Der Betrag, der nach vernünftiger kaufmännischer Beurteilung nötig ist."
+          explain="Der Betrag, der nach vernünftiger kaufmännischer Beurteilung nötig ist."
         >
           <Input
             align="right"
@@ -1400,7 +1396,7 @@ const ProvisionFormDialog: React.FC<
         </Field>
         <Field
           label="Erwartete Erfüllung"
-          help="Ab mehr als einem Jahr Restlaufzeit wird abgezinst (§ 253 Abs. 2 HGB)."
+          explain="Ab mehr als einem Jahr Restlaufzeit wird abgezinst (§ 253 Abs. 2 HGB)."
         >
           <Input
             type="date"
@@ -1435,7 +1431,7 @@ const ProvisionFormDialog: React.FC<
       <Field
         label="Begründung"
         className="mt-4"
-        help="Eine Rückstellung ist eine Schätzung; ohne Grundlage ist sie eine Zahl ohne Herkunft."
+        explain="Eine Rückstellung ist eine Schätzung; ohne Grundlage ist sie eine Zahl ohne Herkunft."
       >
         <Textarea
           rows={3}
@@ -1468,10 +1464,9 @@ const ProvisionFormDialog: React.FC<
                 label={
                   <>
                     Steuerlicher Wert
-                    <HelpTooltip
-                      label="Erklärung zum steuerlichen Wert"
-                      content="Steuerlich wird mit 5,5 % abgezinst (§ 6 Abs. 1 Nr. 3a EStG); der Wert steht zum Vergleich und wird nicht gebucht."
-                    />
+                    <HelpPopover label="Erklärung zum steuerlichen Wert">
+                      Steuerlich wird mit 5,5 % abgezinst (§ 6 Abs. 1 Nr. 3a EStG); der Wert steht zum Vergleich und wird nicht gebucht.
+                    </HelpPopover>
                   </>
                 }
                 value={formatCents(preview.taxAmount)}
@@ -1664,7 +1659,7 @@ const ProvisionChangeDialog: React.FC<
         )}
       </div>
 
-      <Field label="Begründung" className="mt-4" help={ACTION_HINTS[action]}>
+      <Field label="Begründung" className="mt-4" explain={ACTION_HINTS[action]}>
         <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
       </Field>
 
@@ -1799,8 +1794,8 @@ const DiscountRatesSection: React.FC = () => {
     const percent = Number.parseFloat(newRate.replace(',', '.'));
     const target = month || importMonth;
     if (!target) {
-      // Der Monat wird oben gewählt oder unten eingetragen; gemeldet wird er
-      // dort, wo er einzutragen ist.
+      // Der Monat lässt sich oben wählen oder unten eintragen; der Hinweis
+      // erscheint dort, wo die Eingabe fehlt.
       setImportMonthError('Zum Satz gehört der Monat seiner Veröffentlichung (JJJJ-MM).');
       return;
     }
@@ -1836,13 +1831,13 @@ const DiscountRatesSection: React.FC = () => {
     <Section
       title="Abzinsungssätze der Deutschen Bundesbank"
       context="Ohne Satz zinst Buchfink nicht ab und erzeugt einen Befund"
-      action={
-        <HelpPopover label="Erklärung zu den Abzinsungssätzen">
+      explain={
+        <>
           § 253 Abs. 2 HGB verlangt die Abzinsung mit dem durchschnittlichen Marktzinssatz der
           vergangenen sieben Geschäftsjahre; für Altersversorgungsverpflichtungen sind es zehn. Die
           Sätze veröffentlicht die Deutsche Bundesbank monatlich. Erwartet werden zwei Spalten:
           Restlaufzeit in Jahren und Satz in Prozent.
-        </HelpPopover>
+        </>
       }
     >
       <BackendError message={error} />
@@ -1912,7 +1907,7 @@ const DiscountRatesSection: React.FC = () => {
         <Field
           label="Pfad der CSV-Datei"
           className="flex-1 min-w-64"
-          help="Die Veröffentlichung der Bundesbank mit Restlaufzeit und Satz."
+          explain="Die Veröffentlichung der Bundesbank mit Restlaufzeit und Satz."
           error={pathError || undefined}
         >
           <Input
@@ -2030,24 +2025,24 @@ const ProvisionsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) =
         title="Rückstellungen"
         context={`Geschäftsjahr ${year}`}
         divider={false}
+        explain={
+          <>
+            § 249 Abs. 1 HGB verlangt Rückstellungen für ungewisse Verbindlichkeiten und drohende
+            Verluste; Abs. 2 verbietet alle übrigen. Bewertet wird mit dem Erfüllungsbetrag
+            (§ 253 Abs. 1 Satz 2 HGB), bei mehr als einem Jahr Restlaufzeit abgezinst
+            (§ 253 Abs. 2 HGB). Aufgelöst wird nur, soweit der Grund entfällt.
+          </>
+        }
         action={
-          <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zu den Rückstellungen">
-              § 249 Abs. 1 HGB verlangt Rückstellungen für ungewisse Verbindlichkeiten und drohende
-              Verluste; Abs. 2 verbietet alle übrigen. Bewertet wird mit dem Erfüllungsbetrag
-              (§ 253 Abs. 1 Satz 2 HGB), bei mehr als einem Jahr Restlaufzeit abgezinst
-              (§ 253 Abs. 2 HGB). Aufgelöst wird nur, soweit der Grund entfällt.
-            </HelpPopover>
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              disabled={writeLock.locked}
-              title={writeLock.hint}
-              onClick={() => setFormOpen(true)}
-            >
-              Rückstellung bilden
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
+            onClick={() => setFormOpen(true)}
+          >
+            Rückstellung bilden
+          </Button>
         }
       >
         <BackendError message={error} />
@@ -2137,12 +2132,12 @@ const ProvisionsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) =
       <Section
         title="Rückstellungsspiegel"
         context="Anfangsbestand, Zuführung, Verbrauch, Auflösung, Aufzinsung, Endbestand"
-        action={
-          <HelpPopover label="Erklärung zum Rückstellungsspiegel">
+        explain={
+          <>
             Der Spiegel ist Bestandteil des Anhangs. Er geht per Definition auf: Endbestand ist
             Anfangsbestand zuzüglich Zuführung und Aufzinsung, abzüglich Verbrauch und Auflösung.
             Ohne die einzelnen Spalten ließe sich die Entwicklung aus dem Endbestand nicht ablesen.
-          </HelpPopover>
+          </>
         }
       >
         {!mirror || mirror.rows.length === 0 ? (
@@ -2339,7 +2334,7 @@ const InventoryDialog: React.FC<{
       <div className="grid grid-cols-2 gap-4">
         <Field
           label="Inventurwert zum Stichtag"
-          help="Der bewertete Wert: Verbrauchsfolge und Niederstwert berücksichtigt der Anwender."
+          explain="Der bewertete Wert: Verbrauchsfolge und Niederstwert berücksichtigt der Anwender."
         >
           <Input
             align="right"
@@ -2354,7 +2349,7 @@ const InventoryDialog: React.FC<{
         </Field>
         <Field
           label="Aufnahmeverfahren"
-          help="§ 241 HGB lässt mehrere zu: Stichtags-, permanente oder Stichprobeninventur."
+          explain="§ 241 HGB lässt mehrere zu: Stichtags-, permanente oder Stichprobeninventur."
         >
           <Input
             value={method}
@@ -2362,7 +2357,7 @@ const InventoryDialog: React.FC<{
             placeholder="Stichtagsinventur"
           />
         </Field>
-        <Field label="Inventurliste" help="Die Aufnahme selbst ist der Beleg und deshalb Pflicht.">
+        <Field label="Inventurliste" explain="Die Aufnahme selbst ist der Beleg und deshalb Pflicht.">
           {/* Der Belegspeicher wächst über die Jahre; eine Liste, die man
               durchsuchen muss, ist eine Combobox und kein Auswahlfeld (§10.4).
               Gesucht wird über Belegnummer und Datum — die Beschriftung ist der
@@ -2445,11 +2440,11 @@ const InventoryTab: React.FC<TabProps> = ({ year }) => {
         title="Vorräte"
         context={overview ? `Stichtag ${formatDate(overview.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zur Inventur">
+        explain={
+          <>
             {overview?.note ||
-              '§ 240 HGB verlangt zum Ende jedes Geschäftsjahres eine Bestandsaufnahme. Buchfink bewertet nicht; der erfasste Wert ist der bewertete Wert.'}
-          </HelpPopover>
+            '§ 240 HGB verlangt zum Ende jedes Geschäftsjahres eine Bestandsaufnahme. Buchfink bewertet nicht; der erfasste Wert ist der bewertete Wert.'}
+          </>
         }
       >
         <BackendError message={error} />
@@ -2569,14 +2564,16 @@ const VatSettlementTab: React.FC<TabProps> = ({ year }) => {
         title="Umsatzsteuer-Verrechnung"
         context={settlement ? `Stichtag ${formatDate(settlement.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
+        explain={
+          <>
+            Zum Bilanzstichtag stehen Vorsteuer, Umsatzsteuer und die geleisteten Vorauszahlungen
+            nebeneinander. Die Verrechnung führt sie zu einem Saldo zusammen: einer Zahllast auf
+            dem Konto der Umsatzsteuer des Vorjahres oder einer Forderung. Das Ergebnis entspricht
+            der Umsatzsteuer-Jahreserklärung.
+          </>
+        }
         action={
           <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zur Umsatzsteuer-Verrechnung">
-              Zum Bilanzstichtag stehen Vorsteuer, Umsatzsteuer und die geleisteten Vorauszahlungen
-              nebeneinander. Die Verrechnung führt sie zu einem Saldo zusammen: einer Zahllast auf
-              dem Konto der Umsatzsteuer des Vorjahres oder einer Forderung. Das Ergebnis entspricht
-              der Umsatzsteuer-Jahreserklärung.
-            </HelpPopover>
             {/* Kein Rückfragedialog: die Verrechnung ist eine gewöhnliche
                 Buchung und per Generalumkehr zurückzunehmen. Die Vorschau
                 darüber ist die Ankündigung, dieser Knopf die Freigabe (§8.2);
@@ -2737,14 +2734,16 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
         title="Steuerrückstellung"
         context={preview ? `Stichtag ${formatDate(preview.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
+        explain={
+          <>
+            Körperschaftsteuer 15 % (§ 23 Abs. 1 KStG), Solidaritätszuschlag 5,5 % darauf (§ 4
+            SolZG) und Gewerbesteuer aus Messzahl 3,5 % (§ 11 Abs. 2 GewStG) mal dem Hebesatz der
+            Gemeinde. Verlustvorträge, Hinzurechnungen und Kürzungen kennt Buchfink nicht — die
+            Beträge sind deshalb änderbar.
+          </>
+        }
         action={
           <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zur Steuerrückstellung">
-              Körperschaftsteuer 15 % (§ 23 Abs. 1 KStG), Solidaritätszuschlag 5,5 % darauf (§ 4
-              SolZG) und Gewerbesteuer aus Messzahl 3,5 % (§ 11 Abs. 2 GewStG) mal dem Hebesatz der
-              Gemeinde. Verlustvorträge, Hinzurechnungen und Kürzungen kennt Buchfink nicht — die
-              Beträge sind deshalb änderbar.
-            </HelpPopover>
             {/* Wie bei der Verrechnung: die Rückstellung ist umkehrbar, die
                 Vorschau darüber ist die Ankündigung und dieser Knopf die
                 Freigabe (§8.2). */}
@@ -2813,10 +2812,9 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
                     <Td>
                       <span className="inline-flex items-center gap-1.5">
                         {row.label}
-                        <HelpTooltip
-                          label={`Erklärung zu ${row.label}`}
-                          content={row.explanation}
-                        />
+                        <HelpPopover label={`Erklärung zu ${row.label}`}>
+                          {row.explanation}
+                        </HelpPopover>
                       </span>
                     </Td>
                     <Td numeric>{formatCents(row.amount)}</Td>
@@ -2858,7 +2856,7 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
               label="Begründung"
               optional
               className="mt-4"
-              help="Leer heißt: die Erklärung der Rechnung wird festgehalten."
+              explain="Leer heißt: die Erklärung der Rechnung wird festgehalten."
             >
               <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
             </Field>
@@ -3006,15 +3004,17 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
         title={`Ergebnisverwendung ${usedYear}`}
         context={`Beschlossen und gebucht im Geschäftsjahr ${year}`}
         divider={false}
+        explain={
+          <>
+            Über die Verwendung des Ergebnisses beschließen die Gesellschafter (§ 29 GmbHG, § 42a
+            Abs. 2 GmbHG). Der Saldenvortrag bringt das Ergebnis zunächst unverwendet auf das
+            Vortragskonto; erst der Beschluss verteilt es. Die Unternehmergesellschaft muss ein
+            Viertel des Jahresüberschusses in die gesetzliche Rücklage einstellen, solange das
+            Stammkapital unter 25.000 Euro liegt (§ 5a Abs. 3 GmbHG).
+          </>
+        }
         action={
           <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zur Ergebnisverwendung">
-              Über die Verwendung des Ergebnisses beschließen die Gesellschafter (§ 29 GmbHG, § 42a
-              Abs. 2 GmbHG). Der Saldenvortrag bringt das Ergebnis zunächst unverwendet auf das
-              Vortragskonto; erst der Beschluss verteilt es. Die Unternehmergesellschaft muss ein
-              Viertel des Jahresüberschusses in die gesetzliche Rücklage einstellen, solange das
-              Stammkapital unter 25.000 Euro liegt (§ 5a Abs. 3 GmbHG).
-            </HelpPopover>
             {/* Der Beschluss ist umkehrbar; die Vorschau des Buchungssatzes
                 unter den Feldern ist die Ankündigung (§8.2). */}
             <Button
@@ -3066,10 +3066,9 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
             label={
               <>
                 Pflichtrücklage
-                <HelpTooltip
-                  label="Erklärung zur Pflichtrücklage"
-                  content="Die Unternehmergesellschaft stellt ein Viertel des Jahresüberschusses in eine gesetzliche Rücklage ein (§ 5a Abs. 3 GmbHG)."
-                />
+                <HelpPopover label="Erklärung zur Pflichtrücklage">
+                  Die Unternehmergesellschaft stellt ein Viertel des Jahresüberschusses in eine gesetzliche Rücklage ein (§ 5a Abs. 3 GmbHG).
+                </HelpPopover>
               </>
             }
             value={formatCents(preview?.requiredLegalReserve ?? 0)}
@@ -3083,7 +3082,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
         </StatRow>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Datum des Beschlusses" help="Er wird an seinem eigenen Datum gebucht.">
+          <Field label="Datum des Beschlusses" explain="Er wird an seinem eigenen Datum gebucht.">
             <Input
               type="date"
               value={decisionDate}
@@ -3117,7 +3116,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
           </Field>
           <Field
             label="Ausschüttung"
-            help="Brutto; Kapitalertragsteuer und Solidaritätszuschlag werden einbehalten."
+            explain="Brutto; Kapitalertragsteuer und Solidaritätszuschlag werden einbehalten."
           >
             <Input
               align="right"
@@ -3130,7 +3129,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
           <Field
             label="Beschlussdokument"
             optional
-            help="Das Protokoll der Gesellschafterversammlung, falls es als Beleg abgelegt ist. § 42a GmbHG verlangt keine Form; der Beschluss gilt auch ohne Dokument."
+            explain="Das Protokoll der Gesellschafterversammlung, falls es als Beleg abgelegt ist. § 42a GmbHG verlangt keine Form; der Beschluss gilt auch ohne Dokument."
           >
             <Combobox
               items={receipts.map((receipt) => ({
@@ -3161,10 +3160,9 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
                       label={
                         <>
                           Kapitalertragsteuer
-                          <HelpTooltip
-                            label="Erklärung zur Kapitalertragsteuer"
-                            content="Auf die Ausschüttung sind 25 % einzubehalten und abzuführen (§ 43a Abs. 1 Satz 1 Nr. 1 EStG), dazu der Solidaritätszuschlag."
-                          />
+                          <HelpPopover label="Erklärung zur Kapitalertragsteuer">
+                            Auf die Ausschüttung sind 25 % einzubehalten und abzuführen (§ 43a Abs. 1 Satz 1 Nr. 1 EStG), dazu der Solidaritätszuschlag.
+                          </HelpPopover>
                         </>
                       }
                       value={formatCents(preview.appropriation.withholdingTax)}
@@ -3229,7 +3227,7 @@ const NotesSectionEditor: React.FC<{
 
   return (
     <div className="mb-6">
-      <Field label={entry.label} hint={entry.basis} help={entry.hint}>
+      <Field label={entry.label} hint={entry.basis} explain={entry.hint}>
         <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <div className="mt-2 flex justify-end">
@@ -3305,13 +3303,13 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
         title="Anhang"
         context="Was kein Programm errechnen kann, steht als Freitext"
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zum Anhang">
+        explain={
+          <>
             Der Anhang erläutert Bilanz und Gewinn- und Verlustrechnung (§ 284 HGB). Die Texte
             werden beim Anlegen des Folgejahres als Vorlage übernommen: Bilanzierungs- und
             Bewertungsmethoden ändern sich selten, und ein leeres Feld verführt dazu, sie zu
             vergessen. Kleinstkapitalgesellschaften dürfen ihn nach § 264 Abs. 1 Satz 5 HGB weglassen.
-          </HelpPopover>
+          </>
         }
       >
         <BackendError message={error} />
@@ -3337,26 +3335,26 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
       <Section
         title="Verzeichnis steuerlicher Wahlrechte"
         context={register ? `Geschäftsjahr ${register.fiscalYear}` : undefined}
+        explain={
+          <>
+            Wer ein steuerliches Wahlrecht abweichend von der Handelsbilanz ausübt, muss die
+            betroffenen Wirtschaftsgüter in ein laufend zu führendes Verzeichnis aufnehmen. In
+            Buchfink entsteht ein solcher Wert allein aus der Sonderabschreibung nach § 7g Abs. 5
+            EStG; sie wird seit dem Wegfall der umgekehrten Maßgeblichkeit am Anlagegut geführt
+            und nicht mehr gebucht.
+          </>
+        }
         action={
-          <div className="flex items-center gap-3">
-            <HelpPopover label="Erklärung zum Verzeichnis">
-              Wer ein steuerliches Wahlrecht abweichend von der Handelsbilanz ausübt, muss die
-              betroffenen Wirtschaftsgüter in ein laufend zu führendes Verzeichnis aufnehmen. In
-              Buchfink entsteht ein solcher Wert allein aus der Sonderabschreibung nach § 7g Abs. 5
-              EStG; sie wird seit dem Wegfall der umgekehrten Maßgeblichkeit nicht mehr gebucht,
-              sondern am Anlagegut geführt.
-            </HelpPopover>
-            <Button
-              variant="secondary"
-              icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
-              loading={exporting}
-              disabled={!register || register.rows.length === 0}
-              title={register && register.rows.length === 0 ? 'Das Verzeichnis ist leer' : undefined}
-              onClick={() => void exportRegister()}
-            >
-              Als CSV speichern
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+            loading={exporting}
+            disabled={!register || register.rows.length === 0}
+            title={register && register.rows.length === 0 ? 'Das Verzeichnis ist leer' : undefined}
+            onClick={() => void exportRegister()}
+          >
+            Als CSV speichern
+          </Button>
         }
       >
         {legacy && legacy.rows.length > 0 && (
@@ -3424,13 +3422,13 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
       <Section
         title="Überleitung zur Steuerbilanz"
         context={reconciliation ? `Stichtag ${formatDate(reconciliation.cutoff)}` : undefined}
-        action={
-          <HelpPopover label="Erklärung zur Überleitung">
+        explain={
+          <>
             § 60 Abs. 2 EStDV verlangt, die Handelsbilanz durch Zusätze oder Anmerkungen an die
             steuerlichen Vorschriften anzupassen, wo beide auseinanderfallen. In Buchfink sind das
             die Sonderabschreibung nach § 7g Abs. 5 EStG und die abweichende Abzinsung der
             Rückstellungen mit 5,5 % (§ 6 Abs. 1 Nr. 3a Buchst. e EStG).
-          </HelpPopover>
+          </>
         }
       >
         {!reconciliation || reconciliation.rows.length === 0 ? (
@@ -3462,10 +3460,9 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
                     <span className="inline-flex items-center gap-1.5">
                       {row.position}
                       {row.explanation && (
-                        <HelpTooltip
-                          label={`Erklärung zu ${row.position}`}
-                          content={row.explanation}
-                        />
+                        <HelpPopover label={`Erklärung zu ${row.position}`}>
+                          {row.explanation}
+                        </HelpPopover>
                       )}
                     </span>
                   </Td>

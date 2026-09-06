@@ -22,7 +22,7 @@ import (
 // Das Verzeichnis ist keine Auswertung, sondern eine Kartei. Aus dem Journal
 // allein ist es nicht zu gewinnen: dort steht der gezogene Betrag, aber nicht
 // der Anteil, zu dem er gezogen wurde, und schon gar nicht der Anteil des
-// dritten Jahres. § 22 Abs. 4 UStG verlangt genau diese Aufzeichnungen.
+// dritten Jahres. § 22 Abs. 4 UStG verlangt diese Aufzeichnungen.
 type InputTaxService struct {
 	repo         domain.InputTaxCorrectionRepository
 	journalSvc   *JournalService
@@ -421,7 +421,7 @@ func (s *InputTaxService) SaveUsage(
 		return nil, fmt.Errorf("der Verwendungsanteil liegt zwischen 0 und 100 %%")
 	}
 	if usage, ok := correction.UsageFor(year); ok {
-		// Gefragt wird nicht nach dem Vermerk, sondern nach dem Journal: eine per
+		// Maßgeblich ist das Journal, nicht der Vermerk: eine per
 		// Generalumkehr zurückgenommene Berichtigung ist keine gebuchte, und wer
 		// dem Rat der Meldung gefolgt ist, muss den Anteil danach ändern können.
 		stands, err := s.usageStands(ctx, newReversalIndex(s.journalRepo), usage)
@@ -695,7 +695,7 @@ func (s *InputTaxService) standingCorrectionEntry(
 		return nil, err
 	}
 	// Gefragt wird je Buchung und nicht über eine Liste der Generalumkehren des
-	// Jahres: die Umkehr trägt den Tag ihrer Erstellung und liegt deshalb
+	// Jahres: die Umkehr hat den Tag ihrer Erstellung und liegt deshalb
 	// regelmäßig in einem späteren Geschäftsjahr als die Buchung, die sie
 	// zurücknimmt.
 	index := newReversalIndex(s.journalRepo)

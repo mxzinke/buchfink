@@ -51,7 +51,7 @@ func TestReceiptNumberFormat(t *testing.T) {
 
 	// Ein Format ohne Zähler ist kein Nummernkreis.
 	if err := ValidateNumberFormat("BE-{JAHR}"); err == nil {
-		t.Error("ohne {NR} trüge jeder Beleg dieselbe Nummer")
+		t.Error("ohne {NR} hätte jeder Beleg dieselbe Nummer")
 	}
 	if err := ValidateNumberFormat(""); err == nil {
 		t.Error("ein leeres Format ist keines")

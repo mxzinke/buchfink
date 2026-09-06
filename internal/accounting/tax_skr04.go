@@ -55,7 +55,7 @@ const TaxKeyUnlawful = "UST14C"
 const TaxKeySkontoPrefix = "SKONTO_"
 
 // IsDomesticOutputTaxKey meldet, ob ein Steuerschlüssel die Umsatzsteuer eines
-// steuerpflichtigen Inlandsumsatzes trägt (UST19, UST7).
+// steuerpflichtigen Inlandsumsatzes kennzeichnet (UST19, UST7).
 //
 // Der Schlüssel des § 14c gehört ausdrücklich nicht dazu: er benennt gerade den
 // Betrag, der ohne Steuerpflicht ausgewiesen wurde, und ist der einzige Weg,
@@ -157,8 +157,8 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 		// keine Steuerzeile, aber der Umsatz ist steuerpflichtig — der
 		// Vorsteuerabzug des Leistenden bleibt erhalten, und in der Auswertung
 		// gehört der Betrag zu den steuerpflichtigen Umsätzen, nicht zu den
-		// steuerfreien. Diesen Unterschied trägt der Steuerfall an der Buchung,
-		// auf der Ausgangsseite zusätzlich das eigene Erlöskonto 4290.
+		// steuerfreien. Diesen Unterschied zeigt der Steuerfall an der Buchung,
+		// auf der Ausgangsseite zusätzlich am eigenen Erlöskonto 4290.
 		return nil, nil
 
 	case domain.TaxTreatmentIntraCommunitySupply,

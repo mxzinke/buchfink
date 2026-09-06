@@ -97,8 +97,8 @@ const (
 	SectionStatistical StatementSection = "statistisch"
 )
 
-// StatementAccount ist ein Konto unter einer Gliederungsposition. Es trägt den
-// Weg vom Posten zurück zum Kontoblatt (GOB-02: Drill-down).
+// StatementAccount ist ein Konto unter einer Gliederungsposition. Es liefert
+// den Weg vom Posten zurück zum Kontoblatt (GOB-02: Drill-down).
 type StatementAccount struct {
 	Number     string `json:"number"`
 	Name       string `json:"name"`
@@ -116,8 +116,9 @@ type StatementAccount struct {
 
 // StatementLine ist eine Gliederungsposition mit ihrem Wert.
 type StatementLine struct {
-	// Key ist der stabile Schlüssel, z. B. "aktiva.A.II.3". An ihm hängen die
-	// Zuordnungstabelle und die Taxonomie-Zuordnung der E-Bilanz.
+	// Key ist der stabile Schlüssel, z. B. "aktiva.A.II.3". Die
+	// Zuordnungstabelle und die Taxonomie-Zuordnung der E-Bilanz richten sich
+	// nach ihm.
 	Key string `json:"key"`
 	// Ordinal ist die Ordnungszahl des Gesetzes ("A.", "II.", "3.", "a)").
 	Ordinal string           `json:"ordinal"`
@@ -135,7 +136,7 @@ type StatementLine struct {
 	// Zuordnungsbericht zählt, wie viel dort landet.
 	IsFallback bool `json:"isFallback"`
 	// Omitted kennzeichnet einen Posten, den § 265 Abs. 8 HGB entfallen lässt:
-	// er trägt in beiden Jahren keinen Betrag, und unter ihm steht auch nichts.
+	// er hat in beiden Jahren keinen Betrag, und unter ihm steht auch nichts.
 	//
 	// Die Entscheidung fällt hier und nicht in der Ansicht. Träfe die Ansicht
 	// sie selbst, zeigte der Bildschirm andere Zeilen als PDF und CSV — und
@@ -349,7 +350,7 @@ type FinancialStatement struct {
 // StatementPositionOption ist eine wählbare Gliederungsposition.
 //
 // Die Auswahl beim Anlegen eines eigenen Kontos braucht sie (BEL-06 K2): der
-// vollständige Katalogeintrag trägt Kontenlisten und Zählwerte, die dort nur
+// vollständige Katalogeintrag enthält Kontenlisten und Zählwerte, die dort nur
 // stören, und die Oberfläche soll eine Liste zum Auswählen bekommen und keine
 // zum Durchsuchen.
 type StatementPositionOption struct {

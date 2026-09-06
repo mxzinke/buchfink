@@ -51,7 +51,7 @@ func receiptNeedsServiceProof(receipt *domain.Receipt, threshold domain.Cents) b
 // „Pflichtfeld" wäre eine Behauptung ohne Maß.
 func serviceProofMissingMessage(receipt *domain.Receipt, threshold domain.Cents) string {
 	return fmt.Sprintf(
-		"Beleg %s über %s € trägt keinen Leistungsnachweis. Ab %s € verlangt die eigene Vorgabe "+
+		"Beleg %s über %s € hat keinen Leistungsnachweis. Ab %s € verlangt die eigene Vorgabe "+
 			"den Vermerk, gegen welche Bestellung geprüft wurde",
 		receipt.ReceiptNumber, receipt.GrossAmount, threshold)
 }
@@ -102,7 +102,7 @@ func (s *PostingService) saveServiceProof(
 // Geprüft wird vor der Transaktion, geschrieben wird in ihr. Deshalb zählt hier
 // auch der Vermerk, den die Maske mit der Buchung mitschickt: er steht noch
 // nicht am Beleg, ist aber Teil desselben Vorgangs. Ob er ein gültiges Datum
-// trägt, entscheidet der Belegdienst beim Schreiben.
+// hat, entscheidet der Belegdienst beim Schreiben.
 func (s *PostingService) requireServiceProof(
 	ctx context.Context, receipt *domain.Receipt, req ReceiptRequest,
 ) error {

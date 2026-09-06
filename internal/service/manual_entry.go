@@ -15,13 +15,13 @@ import (
 // leichtesten zu unterlaufen war: die von Hand erfasste Buchung nahm jeden
 // Buchungssatz an, auch ohne einen Beleg dahinter. Das ist der Mangel, den
 // § 146 Abs. 1 AO und GoBD Rz. 61 meinen, und er fällt in einer Prüfung sofort
-// auf — jede Buchung ohne Belegverweis steht im Prüflauf und im Bericht.
+// auf — der Prüflauf und der Bericht melden jede Buchung ohne Belegverweis.
 //
 // Ab jetzt verlangt der Handbuchungsweg einen Beleg, und er bietet den zweiten
 // Weg gleich mit an: gibt es keinen fremden, entsteht im selben Vorgang ein
 // Eigenbeleg. Beides in einer Transaktion, denn die Alternative wäre die
 // schlechteste von allen — ein Eigenbeleg im Speicher, dessen Buchung
-// gescheitert ist, also genau der ungebuchte Beleg, den der Prüflauf meldet.
+// gescheitert ist, also der ungebuchte Beleg, den der Prüflauf meldet.
 
 // ManualEntryRequest ist die Eingabe des Handbuchungswegs.
 type ManualEntryRequest struct {
@@ -100,7 +100,7 @@ func (s *PostingService) PostManualEntry(
 		created = posted
 		// Das Versiegeln gehört in dieselbe Klammer: ein Beleg, der als offen
 		// zurückbliebe, nähme später eine weitere Datei auf und änderte damit
-		// seinen Hash — den die geschriebene Buchung schon trägt.
+		// seinen Hash — den die geschriebene Buchung schon hat.
 		if s.receiptSvc != nil {
 			if err := s.receiptSvc.Seal(ctx, receipt.ID, posted.ID); err != nil {
 				return err
@@ -145,7 +145,7 @@ func (s *PostingService) manualReceipt(
 	}
 	if receipt.Status == domain.ReceiptStatusDiscarded {
 		return nil, fmt.Errorf(
-			"Beleg %s wurde verworfen und trägt keine Buchung", receipt.ReceiptNumber)
+			"Beleg %s wurde verworfen und hat keine Buchung", receipt.ReceiptNumber)
 	}
 	return receipt, nil
 }
@@ -209,21 +209,21 @@ func ValidateManualTaxLines(entry *domain.JournalEntry) error {
 		// nicht gibt, hieße sie erfinden.
 		if l.TaxBase == 0 && l.TaxKey != accounting.TaxKeyUnlawful {
 			return fmt.Errorf(
-				"Zeile %d trägt den Steuerschlüssel %s, aber keine Bemessungsgrundlage. Die "+
+				"Zeile %d hat den Steuerschlüssel %s, aber keine Bemessungsgrundlage. Die "+
 					"Voranmeldung meldet den Umsatz und die Steuer daraus — ohne die "+
 					"Bemessungsgrundlage fehlte der Umsatz", i+1, l.TaxKey)
 		}
 		if accounting.IsDomesticOutputTaxKey(l.TaxKey) || l.TaxKey == "VST19" ||
 			l.TaxKey == "VST7" || l.TaxKey == accounting.TaxKeyUnlawful {
 			// Die unrichtig ausgewiesene Steuer zählt mit: sie wird nach
-			// § 14c Abs. 1 UStG geschuldet, und eine Buchung, die sie trägt,
+			// § 14c Abs. 1 UStG geschuldet, und eine Buchung, die sie hat,
 			// weist die Steuer aus — auch wenn sie es nicht dürfte.
 			hasDomesticTax = true
 		}
 	}
 	if entry.TaxTreatment == domain.TaxTreatmentDomestic && !hasDomesticTax && !inputTaxExcluded {
 		return fmt.Errorf(
-			"die Buchung trägt den Steuerfall „steuerpflichtiger Inlandsumsatz\", aber keine " +
+			"die Buchung hat den Steuerfall „steuerpflichtiger Inlandsumsatz\", aber keine " +
 				"Steuerzeile. Ein steuerpflichtiger Umsatz löst Umsatzsteuer oder Vorsteuer aus; " +
 				"fällt keine an, ist der Steuerfall ein anderer — steuerfrei, nicht steuerbar oder " +
 				"Nullsteuersatz nach § 12 Abs. 3 UStG")

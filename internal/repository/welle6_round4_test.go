@@ -56,7 +56,7 @@ func TestFiscalYearsWithObjectsSeesMoreThanTheJournal(t *testing.T) {
 
 	welle6Entry(t, journal, "2026-01-10")
 
-	// 2015 trägt nur einen Beleg, 2018 nur eine Voranmeldung.
+	// 2015 hat nur einen Beleg, 2018 nur eine Voranmeldung.
 	receipt := &domain.Receipt{
 		ReceiptNumber: "ER-2015-0001", FiscalYear: 2015,
 		Direction: domain.DirectionIncoming, Kind: domain.ReceiptKindLetter,

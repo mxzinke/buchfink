@@ -12,7 +12,7 @@ import (
 // Die Ausgangsrechnung braucht sie: Nummer vergeben, Rechnung speichern und
 // Buchung anhängen müssen zusammen gelingen oder zusammen ausbleiben. Vorher
 // vergab `Issue` die Nummer in einer eigenen Transaktion und buchte danach —
-// scheiterte die Buchung, war die Nummer verbraucht und keine Rechnung trug
+// scheiterte die Buchung, war die Nummer verbraucht und keine Rechnung hatte
 // sie. Genau die Lücke, die § 14 Abs. 4 Nr. 4 UStG und die GoBD nicht
 // vorsehen.
 //

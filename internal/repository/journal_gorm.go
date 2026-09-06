@@ -112,7 +112,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fisc
 	q := notReversed(r.preloaded(ctx), "journal_entries").
 		// Zahlungen begründen selbst keinen offenen Posten.
 		Where("source <> ?", domain.EntrySourcePayment).
-		// Und nur eine Buchung mit einem Personenkonto trägt überhaupt einen.
+		// Und nur eine Buchung mit einem Personenkonto hat überhaupt einen.
 		// Die Vorauswahl ist absichtlich loser als domain.IsLedgerAccount: sie
 		// darf nie strenger sein als die Regel, die anschließend im Go-Code
 		// entscheidet, sonst fiele ein Posten stillschweigend heraus.

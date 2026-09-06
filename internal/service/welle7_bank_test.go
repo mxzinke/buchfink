@@ -193,7 +193,7 @@ func TestLearnedRuleIsSuggestedForARecurringTransaction(t *testing.T) {
 		t.Errorf("der Vorschlag stammt nicht aus der Regel: %+v", rule)
 	}
 
-	// Ein Umsatz in der Gegenrichtung trägt dieselbe Beschreibung und ist
+	// Ein Umsatz in der Gegenrichtung hat dieselbe Beschreibung und ist
 	// trotzdem ein anderer Vorgang.
 	refund := env.bankLine(t, "2026-04-02", 50_000, "Hausverwaltung Meier GmbH", "Miete Buero Rueckzahlung")
 	back, err := svc.Suggest(ctx, refund)
@@ -391,7 +391,7 @@ func TestLearnedRuleSurvivesWrittenMonthNames(t *testing.T) {
 	}
 
 	// Derselbe Empfänger, ein anderer Verwendungszweck: der Rückfall über den
-	// Zahlungspartner trägt den Vorschlag, aber schwächer bewertet.
+	// Zahlungspartner liefert den Vorschlag, aber schwächer bewertet.
 	other := env.bankLine(t, "2026-04-15", -35_000, "Hausverwaltung Meier GmbH", "Nebenkostenabrechnung")
 	fallback, err := svc.Suggest(ctx, other)
 	if err != nil {
@@ -487,7 +487,7 @@ func (e *testEnv) fileWithAmount(
 //
 // Beide Felder stehen außerhalb des Beleg-Hashes; was sie unveränderbar macht,
 // ist allein das Protokoll. Ein Bestellbezug, der sich still ändern ließe,
-// entwertete den Prüfpfad, den er tragen soll.
+// entwertete den Prüfpfad, den er stützen soll.
 func TestOrderReferenceIsLogged(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

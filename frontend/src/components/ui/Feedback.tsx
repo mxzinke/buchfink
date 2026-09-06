@@ -22,7 +22,7 @@ export interface NoticeProps {
  * Befund bleibt stehen, bis er behoben ist.
  *
  * Sie steht als Baustein hier und nicht als Klassenkette in einer Seite: sonst
- * trägt jede Seite ihre eigene Kopie desselben Musters, und die Kopien laufen
+ * hat jede Seite ihre eigene Kopie desselben Musters, und die Kopien laufen
  * auseinander.
  */
 export const Notice: React.FC<NoticeProps> = ({ tone = 'attention', text, action, className }) => {

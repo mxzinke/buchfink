@@ -26,8 +26,8 @@ Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 ## 1. Leitgedanke
 
 Ein Abstraktionslayer, der dem Nutzer verständlich ist: er denkt in **Belegen** und
-**Rechnungen**, die Software übersetzt über Backend-Logik und saubere Auswahl in die
-korrekten **SOLL/HABEN-Buchungen**. Beide Seiten sind sauber getrennt, aber
+**Rechnungen**, die Software übersetzt über Backend-Logik in die
+korrekten **SOLL/HABEN-Buchungen**. Beide Seiten sind klar getrennt, aber
 deterministisch verbunden.
 
 **Kein „vorbereiten, nicht buchen".** Jeder erfasste Beleg wird sofort gebucht. Ob
@@ -35,7 +35,7 @@ dabei Geld fließt, entscheidet die Kontenseite: ist noch nicht bezahlt, entsteh
 Verbindlichkeit bzw. Forderung auf dem Personenkonto des Geschäftspartners. Die
 Zahlung ist ein späterer, separater Geschäftsvorfall.
 
-Das ist keine Bequemlichkeitsentscheidung, sondern folgt aus der GoBD: unbare
+Das folgt aus der GoBD, keine Bequemlichkeitsentscheidung: unbare
 Geschäftsvorfälle sind zeitnah festzuhalten, bare Kassenvorgänge täglich. Ein
 Datensatz, der schon erfasst ist, darf nicht mehr editierbar sein. Konsequenz für die
 UI: es gibt keinen gebuchten Beleg, den man nachträglich ändern kann. Eine Korrektur
@@ -55,8 +55,8 @@ Buchungskern weist jede Buchung ab, solange sie nicht auf Sollversteuerung steht
 statt sie stillschweigend falsch zu behandeln. Die Einstellung war lange nur ein
 Feld, das niemand prüfte; das ist der gefährlichere Zustand von beiden.
 
-**E-Rechnung ist keine Scope-Grenze, sondern eine Pflicht, die seit dem
-01.01.2025 gilt** und von den Übergangsregelungen des § 27 Abs. 38 UStG nicht
+**E-Rechnung ist eine Pflicht, die seit dem 01.01.2025 gilt, keine
+Scope-Grenze** und von den Übergangsregelungen des § 27 Abs. 38 UStG nicht
 erfasst ist – die gelten nur für das Ausstellen. Der Empfang strukturierter
 Eingangsrechnungen ist inzwischen umgesetzt: ZUGFeRD, Factur-X und XRechnung
 werden erkannt, CII und UBL gelesen und gegen das Regelwerk geprüft
@@ -66,7 +66,7 @@ XRechnung fehlt; siehe [anforderung-e-rechnung.md](anforderung-e-rechnung.md).
 **Steuern und Auswertungen bleiben außen vor.** USt-Voranmeldung, USt-Erklärung, ZM
 und der Jahresabschluss (Saldenvortrag, GuV-Abrechnung, Bilanzierung) sind nicht Teil
 des Beleg- und Zahlungsflows. Sie brauchen eigene Eingabemasken und eigene Logik. Der
-Buchungskern liefert die Grundlage dafür – jede Buchung trägt Steuerschlüssel,
+Buchungskern liefert die Grundlage dafür – jede Buchung hat Steuerschlüssel,
 Bemessungsgrundlage und Steuerfall –, die Auswertung selbst wird später ergänzt.
 
 **Weiter außen vor in v1:** Warenbestand und Inventur, Lohnbuchhaltung, EÜR,
@@ -129,14 +129,14 @@ Hetzner einkauft, hat ihn ständig. Der Vorgang erzeugt vier Zeilen, und an den
 Lieferanten geht nur der Nettobetrag – die Steuer schuldet man selbst und zieht sie im
 selben Atemzug als Vorsteuer ab.
 
-Die Stammdaten müssen den Steuerfall tragen. Ohne USt-IdNr. des Empfängers lehnt
+Die Stammdaten müssen den Steuerfall abbilden. Ohne USt-IdNr. des Empfängers lehnt
 Buchfink eine innergemeinschaftliche Lieferung ab (§ 6a Abs. 1 Nr. 4 UStG); ein
 deutscher Kunde kann keine bekommen, ein EU-Kunde keine Ausfuhrlieferung.
 
 ## 6. Kontierung: fachliche Gruppe → SKR04
 
 Der Nutzer wählt eine Gruppe, das Backend mappt deterministisch. Keine Lernfunktion,
-keine Heuristik. Das Konto hängt an Gruppe **plus Steuerfall plus Steuersatz**:
+keine Heuristik. Das Konto richtet sich nach Gruppe **plus Steuerfall plus Steuersatz**:
 
 ```
 Gruppe „Fremdleistungen"
@@ -185,8 +185,8 @@ Beleg erfassen ──► sofort buchen ──► bezahlt?
 | Eingangsbeleg, sofort bezahlt | SOLL Aufwand + SOLL Vorsteuer · HABEN Kasse/Bank/Karte |
 | Ausgangsrechnung | SOLL Debitorenkonto · HABEN Erlös + HABEN Umsatzsteuer |
 
-Der Gegenbetrag ergibt sich aus dem Ausgleich der übrigen Zeilen. Das trägt jeden
-Steuerfall ohne Sonderfall: bei einer Inlandsrechnung sind es netto plus Vorsteuer,
+Der Gegenbetrag ergibt sich aus dem Ausgleich der übrigen Zeilen. Das deckt jeden
+Steuerfall ohne Sonderfall ab: bei einer Inlandsrechnung sind es netto plus Vorsteuer,
 bei Reverse Charge nur netto, weil sich Vorsteuer- und Umsatzsteuerzeile aufheben.
 
 ### 7.2 Zahlung zuordnen
@@ -244,7 +244,7 @@ Jahresabschluss und ist dort vermerkt.
 ### 7.3 Zahlungsdifferenzen
 
 Der Zahlbetrag stimmt aus mehreren Gründen nicht mit dem Belegbetrag überein. Ohne
-saubere Behandlung bleiben offene Posten mit drei Cent ewig stehen, und irgendwann
+klare Behandlung bleiben offene Posten mit drei Cent ewig stehen, und irgendwann
 räumt jemand sie mit einer Falschbuchung weg.
 
 | Differenz | Behandlung |
@@ -259,8 +259,8 @@ Beispiel Skonto: 2 % auf 1.190,00 € brutto sind 23,80 € – 20,00 € netto 
 Steuer. Nur den Nettoteil zu buchen ließe die Vorsteuer um 3,80 € zu hoch stehen.
 
 Die Steuerkorrektur folgt dem **Steuerfall der ursprünglichen Buchung**, nicht dem
-Steuersatz allein. Das ist kein Detail, sondern der Unterschied zwischen richtig und
-plausibel:
+Steuersatz allein. Das ist der Unterschied zwischen richtig und plausibel, kein
+Detail:
 
 - Nur beim **steuerpflichtigen Inlandsumsatz** steckt die Steuer im offenen Betrag.
   Dort wird das Skonto in Entgelt und Steuer zerlegt (§ 17 Abs. 1 Satz 1 und 2 UStG).
@@ -299,9 +299,9 @@ Personenkonto aus den DATEV-Bereichen, und der offene Posten entsteht dort:
 | 10000–69999 | Debitoren (Kunden) | 9008 |
 | 70000–99999 | Kreditoren (Lieferanten) | 9009 |
 
-1200 (Forderungen aus LuL) und 3300 (Verbindlichkeiten aus LuL) sind keine
-Buchungsziele, sondern **Bilanzpositionen**. Das ist keine Designentscheidung, sondern
-§ 266 HGB: die Bilanz zeigt eine Zeile „Forderungen aus Lieferungen und Leistungen",
+1200 (Forderungen aus LuL) und 3300 (Verbindlichkeiten aus LuL) sind
+**Bilanzpositionen**, keine Buchungsziele. Das folgt aus § 266 HGB, nicht aus
+einer Designentscheidung: die Bilanz zeigt eine Zeile „Forderungen aus Lieferungen und Leistungen",
 nicht vierhundert Kundenzeilen. Der Betrag dieser Zeile entsteht durch Verdichtung der
 Personenkonten.
 
@@ -311,7 +311,7 @@ eine direkt gebuchte Forderung stünde in der Bilanz, aber in keiner OPOS-Liste,
 Differenz fiele erst auf, wenn jemand nachrechnet, warum das Kundenkonto nicht zur
 Bilanzposition passt.
 
-In der Kontenübersicht ist die Verdichtung sichtbar gemacht – 3300 trägt den Hinweis,
+In der Kontenübersicht ist die Verdichtung sichtbar gemacht – 3300 zeigt den Hinweis,
 aus wie vielen Personenkonten der Betrag stammt. Nummern werden nie wiederverwendet;
 eine alte Buchung muss zuordenbar bleiben. Echte Nummernkreise sind außerdem
 Voraussetzung für einen späteren DATEV-Export an den Steuerberater.
@@ -509,9 +509,9 @@ erzeugen. Bei monatlicher oder quartalsweiser Festschreibung wird nicht geprüft
 > Anforderungen im Anforderungskatalog unter UST-02 und RECH-10.
 
 Bei Anzahlungen entsteht die Umsatzsteuer mit der Vereinnahmung – auch bei
-Sollversteuerung. Das ist kein Detail, sondern ein eigener Buchungsweg: die erhaltene
-Anzahlung läuft über **3272** Erhaltene, versteuerte Anzahlungen 19 % USt, die
-geleistete über das Anzahlungskonto der jeweiligen Bilanzposition (etwa **1180**
+Sollversteuerung. Das ist ein eigener Buchungsweg, kein Detail: die erhaltene
+Anzahlung wird über **3272** Erhaltene, versteuerte Anzahlungen 19 % USt gebucht,
+die geleistete über das Anzahlungskonto der jeweiligen Bilanzposition (etwa **1180**
 Geleistete Anzahlungen auf Vorräte), und die Schlussrechnung setzt die Anzahlungen
 ab; nur die Differenz wird zum offenen Posten.
 
@@ -539,10 +539,11 @@ Beide Grenzen sind wie die AfA-Wertgrenzen nach Gültigkeitszeitraum geschlüsse
 die Geschenkegrenze lag bis einschließlich der vor dem 01.01.2024 beginnenden
 Wirtschaftsjahre bei 35 €, die Kleinbetragsgrenze des § 33 UStDV bis 2016 bei
 150 €. Ein fest verdrahteter Wert bucht ein nachbearbeitetes Altjahr still falsch.
-Sie stehen dabei **nicht** in editierbaren Stammdaten, sondern in einer datierten
-Tabelle im Code (`internal/accounting/tax_params.go`), die `PostingRuleVersion`
-mitabdeckt: diese Werte ändert der Gesetzgeber, nicht der Nutzer, und editierbar zu
-machen, was nicht zur Wahl steht, lädt zum Falschbuchen ein.
+Sie stehen dabei in einer datierten Tabelle im Code
+(`internal/accounting/tax_params.go`), die `PostingRuleVersion` mitabdeckt,
+**nicht** in editierbaren Stammdaten: diese Werte ändert der Gesetzgeber, nicht
+der Nutzer, und editierbar zu machen, was nicht zur Wahl steht, lädt zum
+Falschbuchen ein.
 
 Die Bewirtung hat zusätzlich eine **Aufzeichnungspflicht**, die keine Buchung ist:
 Ort, Tag, Teilnehmer und Anlass der Bewirtung sowie die Höhe der Aufwendungen sind
@@ -550,11 +551,11 @@ schriftlich festzuhalten; bei einer Gaststätte genügen Anlass und Teilnehmer, 
 Rechnung ist beizufügen (§ 4 Abs. 5 Satz 1 Nr. 2 Sätze 2 und 3 EStG). Ohne sie ist
 der Abzug auch für die 70 % verloren.
 
-Die Angaben hängen an der **Buchung**, nicht am Beleg. Das ist eine bewusste
+Die Angaben stehen an der **Buchung**, nicht am Beleg. Das ist eine bewusste
 Abweichung von der naheliegenden Ablage: der Beleg-Hash deckt ausschließlich die
 Dateiliste ab (siehe Abschnitt 15), eine Teilnehmerliste am Beleg wäre also von
-keiner Prüfsumme gedeckt und nachträglich änderbar. Eine Aufzeichnung, an der der
-Betriebsausgabenabzug hängt, gehört unter die Hash-Chain.
+keiner Prüfsumme gedeckt und nachträglich änderbar. Eine Aufzeichnung, von der der
+Betriebsausgabenabzug abhängt, gehört unter die Hash-Chain.
 
 ## 14. Eröffnungsbilanz & Stammkapital
 
@@ -622,7 +623,7 @@ Randdokument: eine ZUGFeRD-Rechnung ist ein PDF **mit eingebettetem XML**, eine
 XRechnung ist ein XML **ganz ohne** PDF, ein gescannter Papierbeleg ist ein Bild,
 und ein Bewirtungsbeleg besteht aus Rechnung plus Eigenbeleg mit Teilnehmern.
 
-Das heutige Modell trägt das nicht. Am Journaleintrag hängt genau ein
+Das heutige Modell bildet das nicht ab. Am Journaleintrag hängt genau ein
 `DocumentHash` und ein `DocumentPath` – ein Beleg, eine Datei. Für den
 Hybridfall müsste man sich entscheiden, welche Hälfte man sichert, und läge in
 beide Richtungen falsch: sichert man das PDF, fehlt der Teil, aus dem der
@@ -648,7 +649,7 @@ Die Rolle je Datei ist die tragende Angabe:
 | **rendering** | eine von Buchfink erzeugte menschenlesbare Darstellung, wenn das Original keine hat |
 | **attachment** | Eigenbeleg, Teilnehmerliste, Lieferschein, Zahlungsnachweis |
 
-Das ist keine Formalie, sondern folgt direkt aus der GoBD: eingehende Belege sind
+Das folgt direkt aus der GoBD, keine Formalie: eingehende Belege sind
 in dem Format aufzubewahren, in dem sie empfangen wurden (Rz. 131), und der
 strukturierte Datenteil darf nicht durch eine Formatumwandlung verloren gehen
 (Rz. 125, Beispiel 10). „Original" und „strukturierter Teil" sind deshalb zwei
@@ -775,8 +776,8 @@ abgelegten Beleg wird abgewiesen. Liegt kein Dokument des Lieferanten vor, gehö
 ein Eigenbeleg abgelegt. Ein optionaler Verweis hätte das freihändig getippte
 Belegfeld wieder eingeführt, das dieses Modell gerade ersetzt.
 
-Die Belegnummer kommt damit auch nicht mehr aus der Eingabe, sondern aus dem
-Beleg. Beim Ausgangsbeleg ist sie die Rechnungsnummer, die die Rechnung ohnehin
+Die Belegnummer kommt damit aus dem Beleg, nicht mehr aus der Eingabe.
+Beim Ausgangsbeleg ist sie die Rechnungsnummer, die die Rechnung ohnehin
 schon aus ihrem Nummernkreis gezogen hat – zwei Nummern für dasselbe Dokument
 wären eine zu viel.
 
@@ -795,7 +796,7 @@ Nachbearbeitung, in der das Factur-X-Extension-Schema von Hand zu schreiben wär
 Die Beziehung ist `alternative`: PDF und XML sind zwei Darstellungen derselben
 Rechnung, und für die Profile BASIC und EN 16931 ist alles andere in Deutschland
 nicht rechtsgültig. Typst besteht dabei selbst darauf, dass eine eingebettete
-Datei Dateityp und Beschreibung trägt – genau die Prüfung, die ZUGFeRD braucht.
+Datei Dateityp und Beschreibung hat – genau die Prüfung, die ZUGFeRD braucht.
 
 GoBD Rz. 76 Abs. 2 erlaubte, auf das archivierte PDF ganz zu verzichten, solange
 sich jederzeit ein inhaltlich identisches Mehrstück erzeugen lässt. Es wird
@@ -868,9 +869,9 @@ bleibt erhalten, und der SKR04 hat dafür ein eigenes Erlöskonto (**4290** Erl�
 Der Fall ist als **eigener Steuerfall** umgesetzt, nicht als Steuersatz. Das war
 die Alternative zu einem Eingriff in `TaxRate`, wo `0` weiterhin „kein Steuersatz"
 bedeutet – die Doppelbelegung, an der der Fall früher scheiterte, löst sich damit
-auf, statt sie mit einem Sentinel in die Steuerarithmetik zu tragen.
+auf, statt sie mit einem Sentinel in die Steuerarithmetik einzubringen.
 
-Zwei Konsequenzen hängen daran:
+Zwei Konsequenzen folgen daraus:
 
 - **Ein steuerpflichtiger Inlandsumsatz ohne Steuersatz wird abgewiesen.** Er hat
   19 % oder 7 %; fällt keine Steuer an, ist zu sagen warum. Die Buchungsgruppen,
@@ -892,7 +893,7 @@ Journal und offene Posten unter BEL-01 bis BEL-09, Unveränderbarkeit und
 Festschreibung unter UNV-01 und UNV-02, Rechnung und E-Rechnung unter RECH-02,
 RECH-03, RECH-06 und RECH-07, die Umsatzsteuer unter UST-01, UST-02 und UST-05,
 Rechnungsabgrenzung und nicht abziehbare Betriebsausgaben unter BEW-08 und BEW-12.
-Was der Katalog nicht trägt, steht hier:
+Was im Katalog fehlt, steht hier:
 
 Zum § 13b-Fall ist eine Präzisierung nötig, die im Code umgesetzt ist: die
 Steuerschuldnerschaft folgt in den beiden für Buchfink relevanten Fällen aus

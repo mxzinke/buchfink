@@ -96,7 +96,7 @@ func (s *CurrencyService) buildValuation(
 		}
 		if entry.ExchangeRateMicros <= 0 {
 			return nil, nil, fmt.Errorf(
-				"die Buchung %s lautet auf %s, trägt aber keinen Umrechnungskurs. Ohne ihn lässt sich "+
+				"die Buchung %s lautet auf %s, hat aber keinen Umrechnungskurs. Ohne ihn lässt sich "+
 					"der Fremdwährungsbetrag des offenen Postens nicht bestimmen",
 				entry.EntryNumber, entry.Currency)
 		}
@@ -235,7 +235,7 @@ func (s *CurrencyService) BookCurrencyValuation(ctx context.Context, year int) (
 	if len(existing) > 0 {
 		return nil, fmt.Errorf(
 			"die Fremdwährungsbewertung des Geschäftsjahres %d ist mit der Buchung %s bereits "+
-				"gebucht. Nimm sie zurück, bevor du sie neu rechnest",
+				"gebucht. Nimm sie zurück, bevor sie neu gerechnet wird",
 			year, existing[0].EntryNumber)
 	}
 
@@ -346,10 +346,10 @@ func (s *CurrencyService) ReverseInto(ctx context.Context, toYear int) ([]domain
 // standingValuationEntries sind die Bewertungsbuchungen eines Jahres, die noch
 // stehen — die stornierten sind heraus.
 //
-// Gefragt wird über FindReversalOf und nicht über die Generalumkehren desselben
-// Geschäftsjahres: der Storno trägt den Tag seiner Erstellung, und die
-// Generalumkehr einer Bewertung zum 31.12. liegt fast immer im Folgejahr. Wer
-// nur das Jahr der Bewertung durchsähe, fände sie nie.
+// standingValuationEntries fragt über FindReversalOf und nicht über die
+// Generalumkehren desselben Geschäftsjahres: der Storno hat den Tag seiner
+// Erstellung, und die Generalumkehr einer Bewertung zum 31.12. liegt fast
+// immer im Folgejahr. Wer nur das Jahr der Bewertung durchsähe, fände sie nie.
 //
 // Ohne diese Frage wäre der Weg zurück eine Sackgasse: BookCurrencyValuation
 // wies mit „bereits gebucht — nimm sie zurück" ab, die Schrittliste meldete
@@ -525,11 +525,11 @@ func (s *CurrencyService) bankValuation(
 // foreignBankBalances rechnet je Zahlungsmittelkonto und Währung zusammen, was
 // bis zum Stichtag darauf gebucht wurde.
 //
-// Gezählt werden die Fremdwährungsbuchungen aller Geschäftsjahre bis zum
-// Stichtag — der Fremdwährungsbestand eines Kontos ist die Summe seiner
-// Bewegungen und beginnt nicht mit dem Geschäftsjahr neu. Zwei Arten von
-// Buchungen bleiben draußen: die Eröffnungsbuchungen, weil sie in Euro
-// wiederholen, was die Bewegungen darunter schon tragen, und die Bewertungen
+// foreignBankBalances zählt die Fremdwährungsbuchungen aller Geschäftsjahre
+// bis zum Stichtag — der Fremdwährungsbestand eines Kontos ist die Summe
+// seiner Bewegungen und beginnt nicht mit dem Geschäftsjahr neu. Zwei Arten
+// von Buchungen bleiben draußen: die Eröffnungsbuchungen, weil sie in Euro
+// wiederholen, was die Bewegungen darunter schon ausweisen, und die Bewertungen
 // selbst samt ihren Auflösungen — sie ändern den Eurobuchwert und nicht den
 // Bestand, und wer sie mitzählte, bewertete die Bewertung des Vorjahres.
 func (s *CurrencyService) foreignBankBalances(

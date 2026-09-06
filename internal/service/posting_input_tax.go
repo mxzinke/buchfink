@@ -52,7 +52,7 @@ const (
 
 // incomingLines ist das Ergebnis der Zeilenbildung eines Eingangsbelegs.
 //
-// Sie trägt mehr als die Zeilen, weil beim Bilden mehr entsteht als sie: die
+// Sie enthält mehr als die Zeilen, weil beim Bilden mehr entsteht als sie: die
 // Aufzeichnungen zu den Geschenken, die Warnungen der Freigrenze und die
 // Befunde der Rechnungsprüfung. Die Vorschau zeigt alles davon, die Buchung
 // wertet die Befunde aus — und beide laufen durch dieselbe Rechnung, damit sie
@@ -113,7 +113,7 @@ func (s *PostingService) inputTaxFindings(
 				Detail: fmt.Sprintf(
 					"Der Rechnungsdatensatz des Belegs %s hat %d Fehler aus der Prüfung nach EN 16931. "+
 						"Solange sie bestehen, ist nicht belegt, dass die Rechnung alle Pflichtangaben "+
-						"der §§ 14, 14a UStG trägt.",
+						"der §§ 14, 14a UStG hat.",
 					receipt.ReceiptNumber, receipt.ValidationErrors),
 			})
 		case receipt.ValidatedAt == "":
@@ -127,11 +127,11 @@ func (s *PostingService) inputTaxFindings(
 				Detail: fmt.Sprintf(
 					"die Prüfung des Rechnungsdatensatzes von Beleg %s nach EN 16931. Ohne sie ist "+
 						"nicht festgestellt, ob die Rechnung die Pflichtangaben der §§ 14, 14a UStG "+
-						"trägt — lies den Beleg erneut ein oder buche mit einem Grund.",
+						"hat — lies den Beleg erneut ein oder buche mit einem Grund.",
 					receipt.ReceiptNumber),
 			})
 		default:
-			// Ein geprüfter Datensatz ohne Fehler trägt die Pflichtangaben in
+			// Ein geprüfter Datensatz ohne Fehler hat die Pflichtangaben in
 			// Feldern; die Stammdatenprüfung darunter wäre dann eine zweite,
 			// gröbere Prüfung derselben Frage.
 			return out, nil
@@ -194,7 +194,7 @@ type resolvedPosition struct {
 }
 
 // resolvePosition entscheidet, auf welches Konto eine Position geht und wie viel
-// Vorsteuer sie trägt.
+// Vorsteuer sie hat.
 func (s *PostingService) resolvePosition(
 	ctx context.Context, req ReceiptRequest, p ReceiptPosition, giftTotals map[string]domain.Cents,
 ) (resolvedPosition, error) {

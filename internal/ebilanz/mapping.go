@@ -77,7 +77,7 @@ func BuildMappingReport(fiscalYear int, stmt *domain.Statement, accounts []domai
 		switch {
 		case !known:
 			row.Finding = fmt.Sprintf(
-				"Das Konto trägt die SKR04-Position %q, die die Gliederung nicht kennt.", acc.PositionID)
+				"Das Konto hat die SKR04-Position %q, die die Gliederung nicht kennt.", acc.PositionID)
 		default:
 			row.PositionKey = key
 			row.PositionLabel = accounting.LineLabel(key)

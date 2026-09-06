@@ -10,11 +10,11 @@
  * StatusBadge, EmptyState.
  *
  * Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist (§6.2), steht sie an
- * genau dieser Stelle im Code und nicht als Baustein, der sich unbemerkt
+ * dieser Stelle im Code und nicht als Baustein, der sich unbemerkt
  * vermehrt.
  */
 export { cn } from './cn';
-export { BACKDROP, POPUP, POPUP_ITEM, TOOLTIP_POPUP } from './popup';
+export { BACKDROP, POPUP, POPUP_ITEM } from './popup';
 
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
@@ -31,13 +31,18 @@ export {
   type SkeletonRowsProps,
 } from './Feedback';
 export { FileDrop, type FileDropProps } from './FileDrop';
-export { Field, FieldRow, FieldValue, type FieldProps } from './Field';
+export {
+  Field,
+  FieldRow,
+  FieldValue,
+  FormGrid,
+  type FieldProps,
+  type FormGridProps,
+} from './Field';
 export {
   HelpPopover,
-  HelpTooltip,
   InfoPopover,
   type HelpPopoverProps,
-  type HelpTooltipProps,
   type InfoPopoverProps,
 } from './Help';
 export {

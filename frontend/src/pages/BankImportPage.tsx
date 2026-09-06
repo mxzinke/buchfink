@@ -216,12 +216,12 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
               context={loading ? undefined : `${unmatched.length} von ${transactions.length} noch nicht zugeordnet`}
               divider={false}
               className="mt-8"
-              action={
-                <HelpPopover label="Erklärung zur Kontierung">
+              explain={
+                <>
                   Buchfink schlägt bewusst kein Gegenkonto vor. Aus dem Verwendungszweck ein Aufwandskonto
-                  zu raten wäre eine unprüfbare Vermutung an genau der Stelle, an der die Kontierung
+                  zu raten wäre eine unprüfbare Vermutung an der Stelle, an der die Kontierung
                   entschieden wird — und für diese Entscheidung haftet das Unternehmen.
-                </HelpPopover>
+                </>
               }
             >
               {loading ? (
@@ -288,14 +288,14 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
             <Section
               title="Offene Posten"
               context={loading ? undefined : `${openItems.length} nicht ausgeglichen`}
-              action={
-                <HelpPopover label="Erklärung zur Ausbuchung">
+              explain={
+                <>
                   Eine uneinbringliche Forderung wird nicht über den Zahlungsausgleich geschlossen: Es
                   fließt kein Geld, und eine Zahlung über null wäre eine Behauptung. Sie wird als
                   Forderungsverlust gebucht, die Umsatzsteuer wird dabei berichtigt
                   (§ 17 Abs. 2 Nr. 1 UStG). Ein Abschlag steht hier ohne Buchung — er wird über den
                   Kontoauszug oder unter Anzahlungen vereinnahmt.
-                </HelpPopover>
+                </>
               }
             >
               {loading ? (
@@ -689,7 +689,7 @@ const AssignDialog: React.FC<{
             {suggestions.suggestions.map((suggestion, index) => (
               <li
                 // Zwei Vorschläge derselben Art können dieselbe Beschriftung
-                // tragen — zwei Rechnungen über denselben Betrag desselben
+                // haben — zwei Rechnungen über denselben Betrag desselben
                 // Kunden. Der Index hält sie auseinander.
                 key={`${suggestion.kind}-${suggestion.label}-${index}`}
                 className="flex items-start gap-3 py-2 border-t border-line first:border-t-0"
@@ -785,7 +785,7 @@ const AssignDialog: React.FC<{
                           </Field>
                           <Field
                             label="Differenz"
-                            help={`Skonto wird brutto erfasst. Buchfink teilt den Betrag in Entgelt und Steuer und korrigiert die Steuer nach § 17 UStG mit ${
+                            explain={`Skonto wird brutto erfasst. Buchfink teilt den Betrag in Entgelt und Steuer und korrigiert die Steuer nach § 17 UStG mit ${
                               item.taxRate ? `${item.taxRate / 100} %` : 'dem Satz des Belegs'
                             }.`}
                           >
@@ -851,7 +851,7 @@ const AssignDialog: React.FC<{
             <Field
               label="Gegenkonto"
               hint="Für Zinsen, Entgelte oder Umbuchungen"
-              help="Die Bankseite kommt aus dem Kontoauszug, die Richtung kann nicht vertippt werden. Buchfink prüft, ob das Gegenkonto im SKR04 existiert und bebucht werden darf."
+              explain="Die Bankseite kommt aus dem Kontoauszug, die Richtung kann nicht vertippt werden. Buchfink prüft, ob das Gegenkonto im SKR04 existiert und bebucht werden darf."
             >
               <Combobox
                 items={postable.map((a) => ({
@@ -1033,7 +1033,7 @@ const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onC
   // Protokoll: im Prüfermodus gesperrt, die Vorschläge bleiben lesbar (§10.4).
   const writeLock = usePostingLock();
   const [proposals, setProposals] = useState<DunningProposal[]>([]);
-  // Zwei Listen mit einem Zweck: `notices` ist der ganze Verlauf und trägt die
+  // Zwei Listen mit einem Zweck: `notices` ist der ganze Verlauf und speist die
   // Kundenauswahl, `history` ist das, was die Tabelle zeigt. Ohne die erste
   // schrumpfte die Auswahl mit ihrem eigenen Filter, und man käme aus einem
   // gewählten Kunden nicht mehr heraus.
@@ -1141,15 +1141,15 @@ const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onC
         }
         divider={false}
         className="mt-8"
-        action={
-          <HelpPopover label="Erklärung zum Mahnwesen">
+        explain={
+          <>
             Verzug tritt spätestens dreißig Tage nach Fälligkeit und Zugang der Rechnung ein
             (§ 286 Abs. 3 BGB); von da an laufen Verzugszinsen von neun Prozentpunkten über dem
             Basiszinssatz, gegenüber einem Verbraucher von fünf (§ 288 BGB). Gegenüber einem
             Unternehmer kommt die Pauschale von 40 Euro dazu (§ 288 Abs. 5 BGB), einmal je
             Forderung. Zinsen und Gebühren werden nicht gebucht: Ertrag sind sie erst mit der
             Zahlung.
-          </HelpPopover>
+          </>
         }
       >
         {failure && <Notice tone="negative" text={failure} className="mb-5" />}

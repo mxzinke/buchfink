@@ -24,7 +24,7 @@ const FieldDocFileName = "feldbeschreibung.md"
 // Zeilen und die Behandlung leerer Werte.
 const canonicalFormDoc = `## Die Hash-Chain nachrechnen
 
-Jede Buchung trägt einen Vorgängerhash und einen Eigenhash. Der Eigenhash ist
+Jede Buchung hat einen Vorgängerhash und einen Eigenhash. Der Eigenhash ist
 der SHA-256 über eine kanonische Form der Buchung; der Vorgängerhash ist der
 Eigenhash der vorhergehenden Buchung desselben Geschäftsjahres. Die erste
 Buchung eines Geschäftsjahres hat als Vorgängerhash 64 Nullen.
@@ -75,8 +75,8 @@ weitere Felder; ist sie leer, folgen sie nicht:
 26. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
 
 Das ist die Versionsweiche der kanonischen Form. Buchungen aus der Zeit vor der
-Aufzeichnung von Programmfassung und Bearbeiterkennung tragen die Spalte leer
-und werden nach der bisherigen Form gehasht; alle neueren tragen sie und werden
+Aufzeichnung von Programmfassung und Bearbeiterkennung haben die Spalte leer
+und werden nach der bisherigen Form gehasht; alle neueren haben sie und werden
 nach der erweiterten Form gehasht. Welche Form gilt, steht damit an der Buchung
 selbst. Ohne diese Weiche hätte die Erweiterung den Eigenhash jeder bereits
 gebuchten Buchung verändert und die Kette jeder bestehenden Buchhaltung
@@ -164,7 +164,7 @@ Felder; ist sie leer, folgen sie nicht:
     kind          (Belegart)
 
 Das ist die Versionsweiche des Beleg-Hashes, dieselbe Bauart wie die der
-Buchung: Belege aus der Zeit vor den Kopfdaten tragen kein Belegdatum und werden
+Buchung: Belege aus der Zeit vor den Kopfdaten haben kein Belegdatum und werden
 nach der bisherigen Form gehasht. Ohne die Weiche hätte die Aufnahme der
 Kopfdaten den Hash jedes bestehenden Belegs verändert — und mit ihm den Wert
 ` + "`receipt_hash`" + ` in jeder Buchung, die auf ihn zeigt, und damit deren
@@ -180,15 +180,15 @@ Beleg-Hash.
 
 // auditChainDoc beschreibt die Kanonisierung des Änderungsprotokolls.
 //
-// Das Protokoll ist selbst ein Nachweis und trägt seit dieser Fassung eine
+// Das Protokoll ist selbst ein Nachweis und hat seit dieser Fassung eine
 // eigene Kette. Sie im Prüferpaket ungeklärt zu lassen hieße, die Spalten
 // Vorgaengerhash und Eigenhash mitzuliefern und den Prüfer auf ihr Wort
 // festzulegen.
 const auditChainDoc = `## Die Kette des Änderungsprotokolls nachrechnen
 
 Die Einträge in ` + "`aenderungsprotokoll.csv`" + ` sind untereinander verkettet
-wie die Buchungen: jeder Eintrag trägt den Eigenhash seines Vorgängers, der
-erste verkettete Eintrag trägt 64 Nullen. Ein entfernter Eintrag bricht die
+wie die Buchungen: jeder Eintrag hat den Eigenhash seines Vorgängers, der
+erste verkettete Eintrag hat 64 Nullen. Ein entfernter Eintrag bricht die
 Kette.
 
 Die Schreibweise der Felder ist dieselbe wie bei der Buchung. Sie folgen in
@@ -208,7 +208,7 @@ genau dieser Reihenfolge (in Klammern die Spalte):
 
 Vorher und Nachher gehen als Klartext ein, genau so, wie sie in der Spalte
 stehen: als JSON-Objekt der geänderten Felder. In der Datenbank liegen sie
-verschlüsselt, weil sie personenbezogene Angaben tragen können; gehasht wird der
+verschlüsselt, weil sie personenbezogene Angaben enthalten können; gehasht wird der
 entschlüsselte Text, sonst hinge der Nachweis am Schlüssel und nicht am Inhalt.
 
 Die Protokoll_ID ist nicht Bestandteil der kanonischen Form. Sie wird beim
@@ -216,9 +216,9 @@ Schreiben vergeben, und eine Übernahme der Daten in eine neue Datei vergäbe
 andere; was den Eintrag ausmacht, ist sein Inhalt und seine Stellung in der
 Kette.
 
-Einträge aus der Zeit vor der Verkettung tragen keinen Eigenhash. Sie stehen mit
+Einträge aus der Zeit vor der Verkettung haben keinen Eigenhash. Sie stehen mit
 leeren Hash-Spalten in der Datei und gehören nicht zur Kette; die Kette beginnt
-beim ersten Eintrag, der einen Eigenhash trägt.
+beim ersten Eintrag, der einen Eigenhash hat.
 
 Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
 Eigenhash des Eintrags.
@@ -245,7 +245,7 @@ func RenderFieldDoc(d *Dataset) []byte {
 
 	b.WriteString(`## Aufbau der Dateien
 
-Jede Tabelle liegt als eigene CSV-Datei. Die erste Zeile trägt die
+Jede Tabelle liegt als eigene CSV-Datei. Die erste Zeile enthält die
 Spaltennamen, danach folgen die Daten.
 
 | Festlegung | Wert |

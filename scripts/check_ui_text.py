@@ -28,14 +28,15 @@ from pathlib import Path
 # Der Umkreis, in dem die Erklärkomponente stehen muss.
 CONTEXT_LINES = 3
 
-# Die Marken, die eine zweite Erklärstufe kennzeichnen: die Namen der
-# Erklärkomponenten (HelpPopover, HelpTooltip, InfoPopover, FormExplanation) und
-# die Bezeichner, die eine zweite Stufe aufmachen. `help=` ist das Feld-Prop,
-# `explain` ist `explain=`, die zweite Stufe des Feldes, die selbst einen
-# HelpPopover rendert (siehe frontend/src/components/ui/Field.tsx);
-# `explanation` ist das Feld `explanation:` der Erklärtabellen und die Funktion
-# `explanations()`, die sie aufbaut. Der Vergleich läuft ohne Rücksicht
-# auf Groß- und Kleinschreibung.
+# Die Marken, die eine Erklärstufe kennzeichnen: die Namen der
+# Erklärkomponenten (HelpPopover, InfoPopover, FormExplanation) und die
+# Bezeichner, die eine Erklärung aufmachen. `explain=` ist das Prop an Feld,
+# Abschnitt und Seitenkopf, das einen HelpPopover rendert (siehe
+# frontend/src/components/ui/Field.tsx und Section.tsx); `explanation` ist das
+# Feld `explanation:` der Erklärtabellen und die Funktion `explanations()`, die
+# sie aufbaut. `help=` steht weiterhin dabei: einzelne Ansichten reichen eine
+# Erklärung unter diesem Namen an eine eigene Komponente weiter. Der Vergleich
+# läuft ohne Rücksicht auf Groß- und Kleinschreibung.
 #
 # Bewusst keine deutschen Wortfragmente: „erklär" träfe auch sichtbaren Text —
 # ein Absatz mit dem Wort „erklärt" schaltete dann eine Norm daneben frei,
@@ -47,7 +48,6 @@ CONTEXT_LINES = 3
 # damit Arbeitsansicht, nicht Erklärstufe.
 HELP_MARKERS = (
     "helppopover",
-    "helptooltip",
     "infopopover",
     "formexplanation",
     "help=",

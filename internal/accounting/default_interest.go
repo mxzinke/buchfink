@@ -131,12 +131,12 @@ func DefaultInterestStart(dueDate string) (string, error) {
 // (§ 286 Abs. 1 BGB), und bis dahin laufen weder Zinsen noch die Pauschale.
 //
 // Der Hinweis ist ein Merkmal des Dokuments und keine Einstellung: für eine
-// Rechnung, die ihn nie getragen hat, macht keine spätere Änderung ihn
+// Rechnung, die ihn nie gehabt hat, macht keine spätere Änderung ihn
 // nachträglich wahr. Deshalb der zweite Parameter.
 func DefaultInterestStartFor(dueDate string, isConsumer, noticePrinted bool) (string, error) {
 	if isConsumer && !noticePrinted {
 		return "", fmt.Errorf(
-			"die Rechnung trägt den Hinweis auf den Verzug nach dreißig Tagen nicht; gegenüber " +
+			"die Rechnung enthält den Hinweis auf den Verzug nach dreißig Tagen nicht; gegenüber " +
 				"einem Verbraucher tritt der Verzug dann nicht von selbst ein (§ 286 Abs. 3 Satz 1 " +
 				"Halbsatz 2 BGB), sondern erst mit einer Mahnung")
 	}

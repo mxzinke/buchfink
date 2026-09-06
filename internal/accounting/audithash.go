@@ -16,7 +16,7 @@ import (
 // ungeschützt in einer Tabelle: wer eine Buchung ändert, entfernt danach die
 // Protokollzeile, und der Nachweis war der Nachweis von nichts. Die Kette
 // schließt diese Lücke mit demselben Mittel wie das Journal — jeder Eintrag
-// trägt den Hash seines Vorgängers, und ein entfernter Eintrag bricht sie.
+// hat den Hash seines Vorgängers, und ein entfernter Eintrag bricht sie.
 type AuditChain struct{}
 
 // NewAuditChain liefert die Kettenimplementierung des Protokolls.
@@ -61,7 +61,7 @@ func (c *AuditChain) CalculateHash(e *domain.AuditLogEntry, prevHash string) str
 // Einträge ohne Eigenhash sind Altbestand aus der Zeit vor der Kette. Sie
 // werden gezählt, aber nicht als Bruch gemeldet: sie wurden nie verkettet, und
 // eine Meldung „gebrochen" wäre eine Behauptung über eine Manipulation, die es
-// nicht gab. Die Kette beginnt beim ersten Eintrag, der einen Hash trägt.
+// nicht gab. Die Kette beginnt beim ersten Eintrag, der einen Hash hat.
 func (c *AuditChain) Verify(entries []domain.AuditLogEntry) domain.AuditChainResult {
 	result := domain.AuditChainResult{
 		IsValid:          true,
@@ -130,7 +130,7 @@ func auditChainMessage(r domain.AuditChainResult) string {
 		return "Das Änderungsprotokoll enthält noch keine verketteten Einträge."
 	case r.IsValid && r.CheckedEntries < r.TotalEntries:
 		return fmt.Sprintf(
-			"Alle %d verketteten Protokolleinträge sind unverändert. %d ältere Einträge stammen aus der Zeit vor der Verkettung und tragen keinen Hash.",
+			"Alle %d verketteten Protokolleinträge sind unverändert. %d ältere Einträge stammen aus der Zeit vor der Verkettung und haben keinen Hash.",
 			r.CheckedEntries, r.TotalEntries-r.CheckedEntries)
 	case r.IsValid:
 		return fmt.Sprintf("Alle %d Protokolleinträge sind vollständig und unverändert.", r.CheckedEntries)

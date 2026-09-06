@@ -89,7 +89,7 @@ func (c AssetClass) Valid() bool {
 //
 // Die Liste steht neben den Konstanten und nicht in der Auswertung, die sie
 // gerade braucht: das Schlüsselverzeichnis der Datenüberlassung muss jeden Code
-// nennen, den die Daten tragen können, und eine von Hand gepflegte Kopie
+// nennen, den die Daten haben können, und eine von Hand gepflegte Kopie
 // verlöre beim nächsten neuen Wert den Anschluss.
 func AllAssetClasses() []AssetClass {
 	return []AssetClass{AssetClassIntangible, AssetClassTangible, AssetClassFinancial}
@@ -278,7 +278,7 @@ const (
 	// AssetMovementMaintenance ist Erhaltungsaufwand: eine Buchung, die zum
 	// Anlagegut gehört, seinen Wert aber nicht ändert.
 	//
-	// Sie trägt deshalb weder Anschaffungskosten noch Abschreibung — nur den
+	// Sie hat deshalb weder Anschaffungskosten noch Abschreibung — nur den
 	// Verweis auf die Buchung. Was den Zustand nur erhält, ist sofort abziehbarer
 	// Aufwand; was erweitert oder wesentlich verbessert, sind nachträgliche
 	// Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB) und damit eine andere
@@ -427,7 +427,7 @@ type AssetMovement struct {
 	// niedrig gerechnet, und die Warnung käme nie.
 	IsModernisation bool `gorm:"default:false" json:"isModernisation,omitempty"`
 
-	// TaxAmount trägt einen Betrag, der nur steuerlich zählt.
+	// TaxAmount ist ein Betrag, der nur steuerlich zählt.
 	//
 	// Die Vorabpauschale ist der Fall, für den es das Feld gibt: sie wird
 	// versteuert, ohne dass in der Bilanz etwas geschieht. In CostAmount oder
@@ -516,8 +516,8 @@ type FixedAsset struct {
 	// Die AfA-Tabellen und das BMF-Schreiben zur einjährigen Nutzungsdauer
 	// digitaler Wirtschaftsgüter binden die Finanzverwaltung, nicht den
 	// Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig.
-	// „Begründet" heißt: die Begründung existiert. Ohne sie ist die Abweichung
-	// im Zweifel nicht die Ausübung eines Wahlrechts, sondern ein Tippfehler.
+	// „Begründet" heißt: die Begründung existiert. Ohne sie gilt die Abweichung
+	// im Zweifel als Tippfehler, nicht als Ausübung eines Wahlrechts.
 	UsefulLifeReason string `gorm:"size:500;serializer:encrypted" json:"usefulLifeReason,omitempty"`
 
 	// InputTaxAmount ist die beim Zugang angefallene Vorsteuer in voller Höhe,
@@ -748,8 +748,8 @@ func (a *FixedAsset) Validate() error {
 		if len(a.BuildingReferenceDate) != 10 {
 			return fmt.Errorf(
 				"zu einem Gebäude gehört sein Stichtag (erwartet JJJJ-MM-TT): der Tag des Bauantrags " +
-					"beim Betriebsgebäude, der Tag der Fertigstellung beim Wohngebäude. An ihm hängt " +
-					"der Satz des § 7 Abs. 4 EStG, und das Anschaffungsdatum ist kein Ersatz dafür — " +
+					"beim Betriebsgebäude, der Tag der Fertigstellung beim Wohngebäude. Nach ihm richtet " +
+					"sich der Satz des § 7 Abs. 4 EStG, und das Anschaffungsdatum ist kein Ersatz dafür — " +
 					"ein altes Gebäude, das gerade gekauft wurde, bekäme daraus den falschen Satz")
 		}
 	case DepreciationPool:

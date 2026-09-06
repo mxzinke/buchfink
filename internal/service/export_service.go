@@ -163,7 +163,7 @@ func (s *ExportService) exportPackage(
 		return nil, err
 	}
 
-	// Beim Archiv trägt jede Belegdatei ihren Pfad im Export. Er muss vor dem
+	// Beim Archiv hat jede Belegdatei ihren Pfad im Export. Er muss vor dem
 	// Bau der Tabelle feststehen, weil er in belege.csv als Spalte steht: eine
 	// Datei, die beiliegt, aber in der Tabelle nicht auffindbar ist, hilft
 	// niemandem.
@@ -395,7 +395,7 @@ func (d *exportData) indexEntries() {
 // empfangene Rechnung liegt im Archiv als „rechnung.pdf" und nicht als
 // „original-rechnung.pdf", damit der Prüfer sie unter dem Namen findet, unter
 // dem sie eingegangen ist (GoBD Rz. 131). Rendering, strukturierter Datensatz
-// und Anlagen tragen ihre Rolle vorn, weil sie sonst gleich hießen wie das
+// und Anlagen haben ihre Rolle vorn, weil sie sonst gleich hießen wie das
 // Original, aus dem sie entstanden sind.
 func (d *exportData) planReceiptFilePaths() {
 	d.receiptFilePaths = make(map[uint]string)
@@ -411,7 +411,7 @@ func (d *exportData) planReceiptFilePaths() {
 			if f.Role != domain.ReceiptRoleOriginal {
 				name = export.SafeName(fmt.Sprintf("%s-%s", f.Role, f.FileName))
 			}
-			// Zwei Originale desselben Belegs dürfen denselben Namen tragen —
+			// Zwei Originale desselben Belegs dürfen denselben Namen haben —
 			// zwei Scans „scan.pdf" etwa. Die Position entscheidet dann, und
 			// sie ist innerhalb eines Belegs eindeutig.
 			if taken[name] {
@@ -905,7 +905,7 @@ const changelogFileName = "CHANGELOG.md"
 //
 // Sie ist im Programm eingebettet und reist deshalb mit: UNV-06 verlangt, dass
 // sich zu jeder Programmfassung feststellen lässt, was sie geändert hat — und
-// die Buchungen dieses Pakets tragen ihre Programmfassung. Ohne die Historie
+// die Buchungen dieses Pakets haben ihre Programmfassung. Ohne die Historie
 // daneben wäre die Fassungsnummer eine Zeichenkette ohne Bedeutung.
 func (s *ExportService) writeChangelog(b *export.Builder) error {
 	return b.WriteFile(changelogFileName, []byte(changelog.Markdown()))
@@ -1038,7 +1038,7 @@ func (s *ExportService) copyProcessDocumentation(ctx context.Context, b *export.
 		}
 		// Der PDF-Satz derselben Fassung geht mit: er ist die Form, die ein
 		// Prüfer öffnet, ohne ein Werkzeug für Markdown zu haben. Fehlt er,
-		// bleibt es beim Markdown — das trägt die Aussage.
+		// bleibt es beim Markdown — das enthält die Aussage.
 		if doc.PDFStoredPath != "" {
 			pdfName := export.SafeName(doc.PDFFileName)
 			if pdfName == "" {

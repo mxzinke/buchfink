@@ -14,7 +14,7 @@ type TenantConfig struct {
 	//
 	// Getrennt wird beides erst, wenn eine wiederhergestellte Sicherung neben
 	// dem Mandanten steht, aus dem sie stammt: zwei Einträge der Mandantenliste
-	// dürfen nicht dieselbe ID tragen (die Liste würde mehrdeutig), teilen sich
+	// dürfen nicht dieselbe ID haben (die Liste würde mehrdeutig), teilen sich
 	// aber denselben Schlüssel — die Sicherung bringt die Schlüsseldatei des
 	// Ursprungsmandanten mit, und das Geheimnis dazu liegt im Schlüsselbund
 	// unter dessen Kennung.

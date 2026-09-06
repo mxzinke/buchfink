@@ -70,8 +70,8 @@ func (s *Store) Put(fiscalYear int, direction domain.Direction, originalName str
 // PutDocument stores a file that is not a Beleg.
 //
 // Ein Vertrag, ein Gutachten, ein Zulassungspapier gehören zu einem Anlagegut,
-// aber nicht in den Belegkreis: sie tragen keine Belegnummer, sie werden nicht
-// gebucht, und sie hängen an keinem Geschäftsjahr — ein Kaufvertrag erklärt die
+// aber nicht in den Belegkreis: sie haben keine Belegnummer, sie werden nicht
+// gebucht, und sie sind keinem Geschäftsjahr zugeordnet — ein Kaufvertrag erklärt die
 // Anschaffung noch, wenn das Wirtschaftsgut zehn Jahre im Bestand ist. Der
 // Ablageweg ist trotzdem derselbe: inhaltsadressiert, dedupliziert, mit
 // atomarem Umbenennen. Zwei Speicher für zwei Dateiarten wären zwei Stellen,

@@ -15,8 +15,8 @@ import (
 // anzumelden, unter 2.000 € kann das Finanzamt von der Abgabe befreien. Die
 // Beträge gelten seit dem 1.1.2025 (vorher 7.500 € und 1.000 €).
 //
-// Buchfink schlägt den Zeitraum vor und stellt ihn nicht um. Das ist keine
-// Vorsicht, sondern die Rechtslage: die Umstellung folgt aus dem Gesetz, aber
+// Buchfink schlägt den Zeitraum vor und stellt ihn nicht um. Das folgt aus der
+// Rechtslage, nicht aus Vorsicht: die Umstellung folgt aus dem Gesetz, aber
 // die Befreiung von der Abgabe ist eine Entscheidung des Finanzamts, und ein
 // Programm, das den Zeitraum im Januar still ändert, ändert die Fälligkeiten
 // eines ganzen Jahres, ohne dass jemand davon erfährt.

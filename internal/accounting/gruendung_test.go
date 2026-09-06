@@ -191,7 +191,7 @@ func TestFoundationDutiesDependOnTheStage(t *testing.T) {
 		}
 		if d.Key == DutyFragebogen {
 			if !d.IsDone || d.DoneOn != "2026-10-01" {
-				t.Error("der erledigte Fragebogen trägt sein Datum nicht")
+				t.Error("der erledigte Fragebogen hat sein Datum nicht")
 			}
 		}
 	}

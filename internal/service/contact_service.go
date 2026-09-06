@@ -86,7 +86,7 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	if c.ID == 0 {
 		action = domain.AuditActionCreate
 	} else {
-		// Der Stand vor der Änderung wird gelesen, bevor geschrieben wird —
+		// SaveContact liest den Stand vor der Änderung, bevor es schreibt —
 		// danach ist er weg. Ein Fehler beim Lesen hält das Speichern nicht auf:
 		// ein Protokolleintrag ohne Vorher ist schlechter als einer mit, aber
 		// ein verweigertes Speichern wäre am schlechtesten.
@@ -112,13 +112,13 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	// fällt auf der Kontaktseite als unvollständig auf — eine geratene Straße
 	// wäre schlechter als eine fehlende.
 	c.MigrateAddress()
-	// Ohne Zielformat gilt der Regelfall. Ein leeres Feld wäre kein „kein
-	// Format", sondern ein Kontakt, an den sich keine Rechnung stellen ließe.
+	// Ohne Zielformat gilt der Regelfall. Ein leeres Feld bedeutete einen
+	// Kontakt, an den sich keine Rechnung stellen ließe — nicht „kein Format".
 	if c.EInvoiceProfile == "" {
 		c.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
 	}
-	// Ein unbekanntes Zielformat wird abgewiesen und nicht gespeichert. Vorher
-	// wurde nur das leere Feld belegt: ein Tippfehler oder ein Format aus der
+	// SaveContact weist ein unbekanntes Zielformat ab, statt es zu speichern.
+	// Vorher wurde nur das leere Feld belegt: ein Tippfehler oder ein Format aus der
 	// Fachplanung, das Buchfink nicht erzeugt („xrechnung_ubl"), stand danach am
 	// Kontakt und wirkte beim Ausstellen still wie ZUGFeRD — der Empfänger bekam
 	// ein anderes Dokument, als an ihm hinterlegt war.
@@ -131,9 +131,9 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	}
 
 	if s.auditRepo != nil {
-		// LogChange und nicht Log: „Kontakt 12 geändert" sagt nicht, was
-		// geändert wurde, und genau das verlangt GoBD Rz. 34. Vorher und
-		// Nachher tragen nur die Felder, die sich unterscheiden.
+		// LogChange und nicht Log: „Kontakt 12 geändert" sagt nicht, was sich
+		// geändert hat — GoBD Rz. 34 verlangt diese Angabe. Vorher und
+		// Nachher enthalten nur die Felder, die sich unterscheiden.
 		_ = s.auditRepo.LogChange(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
 			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type),
 			before, c)
@@ -163,7 +163,7 @@ func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) str
 		}
 	}
 	return fmt.Sprintf(
-		"%s trägt die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
+		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
 			"bestätigen (§ 18e UStG) — beim Ausstellen einer steuerfreien innergemeinschaftlichen "+
 			"Lieferung ist die gültige Nummer materielle Voraussetzung der Befreiung "+
 			"(§ 6a Abs. 1 Satz 1 Nr. 4 UStG).", c.Name, c.VatID)
@@ -215,14 +215,15 @@ func (s *ContactService) allocateLedgerAccount(ctx context.Context, kind domain.
 
 // BlockContact sperrt einen Geschäftspartner nach einem Löschverlangen.
 //
-// Gelöscht wird nicht: die Buchungen, in denen er steht, sind aufzubewahren
-// (§ 257 HGB, § 147 AO), und Art. 17 Abs. 3 Buchst. b DSGVO nimmt genau diese
-// Verarbeitung vom Löschanspruch aus. Was bleibt, ist die Einschränkung der
-// Verarbeitung nach Art. 18 DSGVO — der Kontakt verschwindet aus jeder Auswahl
-// und bleibt in Buchungen und Exporten sichtbar.
+// BlockContact löscht nicht: die Buchungen, in denen er steht, sind
+// aufzubewahren (§ 257 HGB, § 147 AO), und Art. 17 Abs. 3 Buchst. b DSGVO
+// nimmt diese Verarbeitung vom Löschanspruch aus. Was bleibt, ist die
+// Einschränkung der Verarbeitung nach Art. 18 DSGVO — der Kontakt
+// verschwindet aus jeder Auswahl und bleibt in Buchungen und Exporten
+// sichtbar.
 //
-// Zurückgegeben wird die Antwort an die betroffene Person, mit den Normen, auf
-// die sie sich stützt.
+// BlockContact gibt die Antwort an die betroffene Person zurück, mit den
+// Normen, auf die sie sich stützt.
 func (s *ContactService) BlockContact(ctx context.Context, id uint, reason string) (*domain.Contact, string, error) {
 	contact, err := s.contactRepo.FindByID(ctx, id)
 	if err != nil {
@@ -277,11 +278,11 @@ func (s *ContactService) SelectableContacts(ctx context.Context) ([]domain.Conta
 // Die Sperre folgt einem Löschverlangen (Art. 17 DSGVO), dem die
 // Aufbewahrungspflicht entgegensteht (§ 257 HGB, § 147 AO): die vorhandenen
 // Daten bleiben, neue kommen keine hinzu. Sie nur aus den Auswahllisten zu
-// nehmen genügt dafür nicht — eine Regel, die an der Oberfläche hängt, gilt für
+// nehmen genügt dafür nicht — eine Regel, die an der Oberfläche sitzt, gilt für
 // jeden Weg daneben nicht.
 //
-// Ausgeglichen werden darf weiter: eine offene Rechnung eines gesperrten
-// Kontakts muss bezahlt und gebucht werden können, sonst schlösse die Sperre den
+// Bezahlen und Buchen bleiben möglich: eine offene Rechnung eines gesperrten
+// Kontakts muss sich weiter ausgleichen lassen, sonst schlösse die Sperre den
 // Vorgang ein, den sie beenden soll.
 func ensureNotBlocked(contact *domain.Contact) error {
 	if contact == nil || !contact.Blocked {
@@ -332,9 +333,9 @@ func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
 //
 // Wer eine Bauleistung bezieht, hat nach § 48 EStG 15 % der Gegenleistung
 // einzubehalten — es sei denn, der Leistende legt eine gültige Bescheinigung
-// vor. Der Bauabzug selbst ist nicht Teil von Buchfink; die Frist wird trotzdem
-// überwacht, weil eine abgelaufene Bescheinigung sonst erst auffällt, wenn die
-// Haftung schon entstanden ist.
+// vor. Der Bauabzug selbst ist nicht Teil von Buchfink; Buchfink überwacht die
+// Frist trotzdem, weil eine abgelaufene Bescheinigung sonst erst auffällt,
+// wenn die Haftung schon entstanden ist.
 type ExemptionCertificateWarning struct {
 	ContactID  uint   `json:"contactId"`
 	Name       string `json:"name"`
@@ -348,9 +349,9 @@ type ExemptionCertificateWarning struct {
 // ExemptionCertificateWarnings liefert die Bescheinigungen, die in den nächsten
 // 30 Tagen ablaufen oder abgelaufen sind.
 //
-// today wird übergeben und nicht aus der Uhr genommen: eine Frist, die sich beim
-// Testen nicht setzen lässt, ist eine Frist, die nicht geprüft wird. Leer heißt:
-// heute.
+// ExemptionCertificateWarnings bekommt today als Parameter, nicht von der
+// Uhr: eine Frist, die sich beim Testen nicht setzen lässt, ist eine Frist,
+// die niemand prüft. Leer heißt: heute.
 func (s *ContactService) ExemptionCertificateWarnings(
 	ctx context.Context, today string,
 ) ([]ExemptionCertificateWarning, error) {

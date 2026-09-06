@@ -20,7 +20,7 @@ func TestBothSyntaxesLandOnTheSameDate(t *testing.T) {
 	}
 }
 
-// Ein unlesbares Datum verschwindet nicht — es wird als das gemeldet, was
+// Ein unlesbares Datum verschwindet nicht — String() gibt es so zurück, wie es
 // ankam. Sonst stünde in der Meldung ein leeres Feld statt der Ursache.
 func TestUnreadableDateKeepsWhatArrived(t *testing.T) {
 	cases := []Date{

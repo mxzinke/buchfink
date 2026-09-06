@@ -75,7 +75,7 @@ export interface StatusBadgeProps {
    * Das Vokabular des §11.3 wächst dadurch nicht: eine Gegenbuchung hat keinen
    * eigenen Zustand, sie nennt den Vorgang, den sie zurücknimmt — die Farbe
    * kommt weiter aus `status`. Der Bezug steht hier und nicht als
-   * nachgebautes Abzeichen in der Seite, sonst trägt jede Ansicht ihre eigene
+   * nachgebautes Abzeichen in der Seite, sonst hat jede Ansicht ihre eigene
    * Kopie desselben Musters.
    */
   reference?: string;

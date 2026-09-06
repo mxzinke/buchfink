@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -250,9 +251,9 @@ func TestCarryForwardBooksLossToVerlustvortrag(t *testing.T) {
 	})
 }
 
-// Auf dem Ergebniskonto steht in der Spalte „Schlusssaldo" nicht der Schlusssaldo
-// des Vorjahres, sondern er zuzüglich des Jahresergebnisses. Genau dafür trägt
-// die Zeile IncludesNetIncome: die Ansicht kann den Zusatz nur benennen, wenn
+// Auf dem Ergebniskonto steht in der Spalte „Schlusssaldo" der Schlusssaldo
+// des Vorjahres zuzüglich des Jahresergebnisses. Dafür hat die Zeile
+// IncludesNetIncome: die Ansicht kann den Zusatz nur benennen, wenn
 // die Vorschau ihn ausweist — und nur auf dieser einen Zeile.
 func TestCarryForwardMarksTheRowThatCarriesTheNetIncome(t *testing.T) {
 	env := newTestEnv(t)
@@ -288,7 +289,7 @@ func TestCarryForwardMarksTheRowThatCarriesTheNetIncome(t *testing.T) {
 		t.Error("die Zeile des Ergebniskontos weist das Jahresergebnis nicht aus")
 	}
 	// Der Schlusssaldo des Kontos im Vorjahr ist -5.000,00 (Haben); mit dem
-	// Jahresergebnis von 6.000,00 im Haben trägt die Zeile -11.000,00.
+	// Jahresergebnis von 6.000,00 im Haben beträgt die Zeile -11.000,00.
 	if row.ClosingBalance != -1100000 {
 		t.Errorf("Zeile des Ergebniskontos = %s €, erwartet -11.000,00 (Saldo -5.000,00 zuzüglich Ergebnis)",
 			row.ClosingBalance)
@@ -304,7 +305,7 @@ func TestCarryForwardMarksTheRowThatCarriesTheNetIncome(t *testing.T) {
 	}
 }
 
-// Ohne Jahresergebnis trägt keine Zeile den Zusatz: ein Hinweis auf ein Ergebnis
+// Ohne Jahresergebnis hat keine Zeile den Zusatz: ein Hinweis auf ein Ergebnis
 // von null wäre eine Aussage über nichts.
 func TestCarryForwardMarksNoRowWithoutNetIncome(t *testing.T) {
 	env := newTestEnv(t)
@@ -547,7 +548,7 @@ func TestCorrectionBehindACommittedPeriod(t *testing.T) {
 }
 
 // Wurde die Vortragsbuchung außerhalb des Zieljahres storniert — der Storno aus
-// der Buchungsansicht trägt den Tag seiner Erstellung —, dann wirkt die
+// der Buchungsansicht hat den Tag seiner Erstellung —, dann wirkt die
 // Generalumkehr im Jahr ihres Datums, und die vorgetragenen Werte stehen im
 // Zieljahr weiter. Ein erneuter Lauf darf sie deshalb nicht ein zweites Mal
 // buchen: die Eröffnungsbilanz wäre doppelt so hoch wie die Schlussbilanz.
@@ -563,7 +564,7 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 		t.Fatalf("Saldenvortrag: %v", err)
 	}
 
-	// Der Storno aus der Buchungsansicht trägt den Tag seiner Erstellung: wird
+	// Der Storno aus der Buchungsansicht hat den Tag seiner Erstellung: wird
 	// er in einem späteren Kalenderjahr ausgelöst, steht er in einem anderen
 	// Geschäftsjahr als die Vortragsbuchung. Mit vorgegebenem Datum lässt sich
 	// dieser Stand nicht mehr herstellen (ReverseOn hält die Umkehr im Jahr der
@@ -618,8 +619,8 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 	}
 
 	// Und eine Nachbuchung im Vorjahr macht daraus keinen Korrekturvortrag: der
-	// alte Vortrag lässt sich nicht mehr zurücknehmen, also wird abgelehnt statt
-	// verdoppelt.
+	// alte Vortrag lässt sich nicht mehr zurücknehmen, also lehnt der
+	// Saldenvortrag ab, statt zu verdoppeln.
 	if _, err := env.journal.Post(ctx, datedEntry("2026-11-01", domain.AccountBank, "4400", 500000)); err != nil {
 		t.Fatalf("Nachbuchung: %v", err)
 	}
@@ -733,8 +734,8 @@ func TestCarryForwardWritesNothingWhenOnePostingFails(t *testing.T) {
 	}
 }
 
-// Gehen Aktiva, Passiva und Jahresergebnis nicht zusammen, wird der Vortrag
-// abgelehnt statt den Fehler ins neue Jahr zu tragen.
+// Gehen Aktiva, Passiva und Jahresergebnis nicht zusammen, weist der
+// Saldenvortrag ab, statt den Fehler ins neue Jahr zu tragen.
 func TestCarryForwardRefusesAnUnbalancedYear(t *testing.T) {
 	env := newTestEnv(t)
 	closing := env.closing(t)
@@ -838,7 +839,7 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 	}
 	for text := range ledgerTexts {
 		if !strings.Contains(text, "vom 01.03.2026") {
-			t.Errorf("die Vortragszeile muss Belegnummer und Belegdatum tragen, lautet aber %q", text)
+			t.Errorf("die Vortragszeile muss Belegnummer und Belegdatum enthalten, lautet aber %q", text)
 		}
 	}
 
@@ -888,7 +889,7 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 // Eine Eröffnungsbuchung auf ein Personenkonto begründet keinen offenen Posten.
 //
 // Der Posten ist und bleibt die Rechnung, aus der er entstanden ist; gegen sie
-// läuft die Zahlung, und an ihr hängen Fälligkeit und Belegnummer. Zählte der
+// läuft die Zahlung, und zu ihr gehören Fälligkeit und Belegnummer. Zählte der
 // Vortrag noch einmal mit, stünde jede Forderung nach dem Jahreswechsel doppelt
 // in der OP-Liste — einmal als Rechnung und einmal als ihr eigener Vortrag.
 func TestOpenItemsIgnoreOpeningEntries(t *testing.T) {
@@ -1281,6 +1282,63 @@ func TestCreateFiscalYearFollowsThePreviousPeriod(t *testing.T) {
 	}
 }
 
+// Das vorangestellte Jahr endet am Tag vor dem Beginn des bisher ersten.
+//
+// Der Fall ist die Übernahme aus einem Altsystem: die Eröffnungswerte gehören
+// in das Jahr davor, und ohne dieses Jahr gäbe es für sie keinen Zeitraum.
+// Gerechnet wird vom Ende zurück und nicht aus dem Kalender: nach einem
+// Rumpfgeschäftsjahr entstünde sonst eine Überschneidung.
+func TestCreateFiscalYearPrependsThePriorPeriod(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	foundations := repository.NewFoundationRepository(env.db)
+	if err := foundations.Save(ctx, &domain.Foundation{
+		NotarizedOn: "2026-03-15", ShareCapital: 2500000,
+	}); err != nil {
+		t.Fatalf("Gründung: %v", err)
+	}
+	closing.SetFoundationRepo(foundations)
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+
+	fy, err := closing.CreateFiscalYear(ctx, 2025)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2025 anlegen: %v", err)
+	}
+	if fy.EndDate != "2026-03-14" {
+		t.Errorf("das vorangestellte Jahr endet am %s, erwartet den Tag vor dem 15.03.2026", fy.EndDate)
+	}
+	if fy.StartDate != "2025-03-15" {
+		t.Errorf("das vorangestellte Jahr beginnt am %s, erwartet zwölf Monate vor seinem Ende", fy.StartDate)
+	}
+
+	// Zwei Jahre zurück auf einmal ließe 2024 ohne Anschluss.
+	if _, err := closing.CreateFiscalYear(ctx, 2023); err == nil {
+		t.Error("ein Sprung auf 2023 lässt 2024 ohne Geschäftsjahr")
+	}
+}
+
+// Weiter als ein Jahr im Voraus lässt sich kein Geschäftsjahr anlegen.
+//
+// Ein Jahr Vorlauf ist der Anwendungsfall des Jahreswechsels; alles darüber ist
+// ein Vertipper, der ein leeres Geschäftsjahr hinterlässt, das sich nicht mehr
+// entfernen lässt.
+func TestCreateFiscalYearRefusesTheDistantFuture(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	limit := time.Now().Year() + MaxFiscalYearsAhead
+	if _, err := closing.CreateFiscalYear(ctx, limit+1); err == nil {
+		t.Errorf("das Geschäftsjahr %d liegt zu weit voraus und wurde trotzdem angelegt", limit+1)
+	} else if !strings.Contains(err.Error(), strconv.Itoa(limit)) {
+		t.Errorf("die Meldung muss die Grenze %d nennen, lautet aber: %v", limit, err)
+	}
+}
+
 // Der Abschlussstand fasst zusammen, was die Ansicht braucht.
 func TestClosingStateReportsCommitmentAndCarryForward(t *testing.T) {
 	env := newTestEnv(t)
@@ -1419,9 +1477,9 @@ func TestAverageEmployeesRefusedAfterAdoption(t *testing.T) {
 // Der Vorjahresumsatz wird aus der GuV des Vorjahres vorbelegt und lässt sich
 // über den Dienstweg setzen.
 //
-// An ihm hängt die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 €
-// darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz
-// hinausgehen. Ohne Vorbelegung und ohne Setzweg bliebe der Wert null — „nicht
+// Die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet sich nach ihm: bis
+// 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten
+// Datensatz hinausgehen. Ohne Vorbelegung und ohne Setzweg bliebe der Wert null — „nicht
 // erfasst" —, und die Regel käme nie zum Zug.
 func TestPriorYearRevenueIsPrefilledAndSettable(t *testing.T) {
 	env := newTestEnv(t)

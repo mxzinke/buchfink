@@ -455,7 +455,7 @@ func TestPostingsAreOfferedOnceAndUseTheOpeningSource(t *testing.T) {
 	}
 	for _, e := range created {
 		if e.Source != domain.EntrySourceOpening {
-			t.Errorf("Buchung %s trägt die Quelle %q, erwartet opening", e.EntryNumber, e.Source)
+			t.Errorf("Buchung %s hat die Quelle %q, erwartet opening", e.EntryNumber, e.Source)
 		}
 	}
 

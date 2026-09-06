@@ -199,7 +199,7 @@ func (s *PaymentService) OpenItemsAt(ctx context.Context, cutoff string) ([]doma
 
 // openItemsFrom macht aus Buchungen und Ausgleichsständen die offene-Posten-
 // Liste. Beide Sichten teilen sich diese Regeln: welche Buchung überhaupt einen
-// Posten trägt, wie der Steuerfall daraus folgt und wie sortiert wird.
+// Posten hat, wie der Steuerfall daraus folgt und wie sortiert wird.
 func (s *PaymentService) openItemsFrom(
 	ctx context.Context, entries []domain.JournalEntry, settled map[uint]domain.Cents,
 ) ([]domain.OpenItem, error) {
@@ -230,7 +230,7 @@ func (s *PaymentService) openItemsFrom(
 		//
 		// Erkannt wird er an seiner Belegnummer, die der Jahresabschluss
 		// vergibt (carryForwardReference). Nicht jede Eröffnungsbuchung ist
-		// nämlich ein Vortrag: die Eröffnungsbilanz des Umsteigers trägt
+		// nämlich ein Vortrag: die Eröffnungsbilanz des Umsteigers hat
 		// dieselbe Quelle, und sie ist der andere Fall — zu ihr gibt es keine
 		// frühere Rechnung, die Vortragsbuchung *ist* der offene Posten. Fiele
 		// sie hier mit heraus, wäre die Offene-Posten-Liste des ersten Jahres
@@ -268,9 +268,9 @@ func (s *PaymentService) openItemsFrom(
 			// der Steuerfall nicht bestimmbar.
 			treatment = ""
 		case treatment == "":
-			// Von Hand im Journal erfasste Buchungen tragen keinen Steuerfall.
-			// Trägt das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
-			// Inlandsumsatz; trägt es keine, gibt es nichts zu berichtigen.
+			// Von Hand im Journal erfasste Buchungen haben keinen Steuerfall.
+			// Hat das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
+			// Inlandsumsatz; hat es keine, gibt es nichts zu berichtigen.
 			treatment = domain.TaxTreatmentDomestic
 			if rate == domain.TaxRateNone {
 				treatment = domain.TaxTreatmentNotTaxable
@@ -564,7 +564,7 @@ func (s *PaymentService) skontoLines(
 ) ([]domain.JournalLine, *assetCostReduction, error) {
 	if item.TaxTreatment == "" {
 		return nil, nil, fmt.Errorf(
-			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf wäre nach § 17 Abs. 1 UStG nicht sauber zu berichtigen",
+			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf ließe sich nach § 17 Abs. 1 UStG nicht zutreffend berichtigen",
 			item.DocumentNumber)
 	}
 	direction := item.Direction()
@@ -596,7 +596,7 @@ func (s *PaymentService) skontoLines(
 	// Anschaffungskosten ab; auf 5736 gebucht wäre das Skonto ein Ertrag des
 	// Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das
 	// Wirtschaftsgut nie gekostet hat. Die Steuerkorrektur nach § 17 Abs. 1 UStG
-	// bleibt davon unberührt: sie hängt am Umsatz, nicht daran, was mit dem
+	// bleibt davon unberührt: sie richtet sich nach dem Umsatz, nicht danach, was mit dem
 	// Entgelt im Anlagevermögen geschieht.
 	account, err := domain.SkontoAccount(direction, skontoRate)
 	if err != nil {

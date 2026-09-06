@@ -553,7 +553,7 @@ func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalE
 	}
 	if preview.AlreadyBooked {
 		return nil, fmt.Errorf(
-			"die Gründungsbuchungen stehen bereits im Journal. Eine Korrektur läuft über den Storno")
+			"die Gründungsbuchungen stehen bereits im Journal. Eine Korrektur geschieht über den Storno")
 	}
 	if len(preview.Postings) == 0 {
 		return nil, fmt.Errorf("es gibt nichts zu buchen")
@@ -718,7 +718,7 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		return
 	}
 	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll.
-	// Jeder andere Weg in die Einstellungen läuft über den SettingsService und
+	// Jeder andere Weg in die Einstellungen geschieht über den SettingsService und
 	// hinterlässt dort einen Eintrag; bliebe dieser eine Weg stumm, stünden im
 	// Kopf des Jahresabschlusses eines Tages Angaben, die niemand gemacht hat.
 	if s.auditRepo != nil {

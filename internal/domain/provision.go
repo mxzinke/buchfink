@@ -290,7 +290,7 @@ type ProvisionMirrorRow struct {
 
 // ProvisionMirror ist der Rückstellungsspiegel eines Geschäftsjahres. Er ist
 // Bestandteil des Anhangs (§ 285 HGB) und steht deshalb hier und nicht in der
-// Auswertung: der Jahresabschluss trägt ihn mit.
+// Auswertung: der Jahresabschluss enthält ihn.
 type ProvisionMirror struct {
 	FiscalYear int                  `json:"fiscalYear"`
 	Rows       []ProvisionMirrorRow `json:"rows"`

@@ -29,7 +29,7 @@ const (
 	FieldNumeric      FieldType = "numeric"
 	// FieldInteger ist eine numerische Spalte ohne Nachkommastellen: Kennungen,
 	// Zähler, Jahreszahlen und die Cent-Spalten, die den ganzzahligen Wert
-	// tragen, der in die Hash-Chain eingeht.
+	// enthalten, der in die Hash-Chain eingeht.
 	//
 	// Der Beschreibungsstandard kennt nur „Numeric" mit einer Genauigkeit; die
 	// Genauigkeit ist der Unterschied. Mit Accuracy 2 beschrieben, läse eine
@@ -50,7 +50,7 @@ const amountAccuracy = 2
 //
 // Description ist Pflicht und keine Zier: eine Spalte namens „Betrag", zu der
 // nirgends steht, ob sie brutto oder netto, Soll oder Haben ist, macht die
-// Überlassung wertlos. Die Feldbeschreibung wird aus genau diesem Feld erzeugt.
+// Überlassung wertlos. Die Feldbeschreibung wird aus diesem Feld erzeugt.
 type Field struct {
 	Name        string
 	Type        FieldType
@@ -63,8 +63,8 @@ type Table struct {
 	// Name ist der fachliche Name, der in index.xml steht.
 	Name string
 	// FileName ist der Dateiname im Zielordner. Er ist nicht aus dem Namen
-	// abgeleitet, weil ein Tabellenname Umlaute tragen darf und ein Dateiname
-	// über Betriebssysteme hinweg besser keine trägt.
+	// abgeleitet, weil ein Tabellenname Umlaute haben darf und ein Dateiname
+	// über Betriebssysteme hinweg besser keine hat.
 	FileName    string
 	Description string
 	Fields      []Field

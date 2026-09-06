@@ -11,9 +11,9 @@ import (
 
 // Der Belegprüflauf.
 //
-// Die Hash-Chain sichert die Buchungen und trägt vom Beleg nur dessen
+// Die Hash-Chain sichert die Buchungen und enthält vom Beleg nur dessen
 // Prüfsumme. Ob die Datei auf der Platte noch die ist, die gebucht wurde, sagt
-// sie nicht — dazu muss die Datei gelesen und neu gehasht werden. Genau das
+// sie nicht — dazu muss die Datei gelesen und neu gehasht werden. Das
 // verlangt die Aufbewahrung: unveränderte, jederzeit lesbare Wiedergabe über
 // zehn Jahre (§ 147 Abs. 1, Abs. 2 Nr. 1 AO, GoBD Rz. 110). Ein stiller
 // Plattenfehler fällt sonst erst auf, wenn der Prüfer den Beleg sehen will.

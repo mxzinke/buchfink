@@ -54,7 +54,7 @@ func TestInventorySheetWithoutHeaderLeavesNoBooking(t *testing.T) {
 		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: sheet.ID,
 	})
 	if err == nil {
-		t.Fatal("eine Inventurliste ohne Kopfdaten darf die Buchung nicht tragen")
+		t.Fatal("eine Inventurliste ohne Kopfdaten darf die Buchung nicht stützen")
 	}
 	if !strings.Contains(err.Error(), "Inventurliste") {
 		t.Errorf("die Meldung muss sagen, welches Dokument fehlt: %v", err)
@@ -127,7 +127,7 @@ func TestAppropriationDecisionWithoutHeaderLeavesNoBooking(t *testing.T) {
 		ReceiptID: decision.ID,
 	})
 	if err == nil {
-		t.Fatal("ein Beschlussdokument ohne Kopfdaten darf die Buchung nicht tragen")
+		t.Fatal("ein Beschlussdokument ohne Kopfdaten darf die Buchung nicht stützen")
 	}
 	if !strings.Contains(err.Error(), "Beschlussdokument") {
 		t.Errorf("die Meldung muss sagen, welches Dokument fehlt: %v", err)
@@ -332,7 +332,7 @@ func TestOpeningOpenItemKeepsItsAgreedDueDate(t *testing.T) {
 }
 
 // Zweimal erfasst hieße doppelte Bestände. Die Sperre gehört ins Backend: eine
-// Regel, die an der Sichtbarkeit eines Knopfes hängt, ist keine.
+// Regel, die sich nach der Sichtbarkeit eines Knopfes richtet, ist keine.
 func TestOpeningBalanceIsBookedOnlyOnceAndOnlyInTheFirstYear(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -399,8 +399,8 @@ func fileClosingStatement(t *testing.T, env *testEnv) *domain.Receipt {
 
 // --- Gesperrter Geschäftspartner an den Schreibwegen -----------------------
 
-// Die Sperre wirkt nicht nur in den Auswahllisten: sie hängt sonst daran, dass
-// jede Maske die gefilterte Liste verwendet, und ein Weg daneben — ein
+// Die Sperre wirkt nicht nur in den Auswahllisten: sie verlässt sich sonst
+// darauf, dass jede Maske die gefilterte Liste verwendet, und ein Weg daneben — ein
 // Eröffnungsposten, ein Belegbuchen mit bekannter Kennung — führte die Sperre
 // vor.
 func TestBlockedContactIsRefusedOnTheWritePaths(t *testing.T) {

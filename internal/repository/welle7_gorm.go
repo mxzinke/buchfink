@@ -145,8 +145,8 @@ func (r *dunningRepositoryGorm) LevelByOpenItem(ctx context.Context) (map[uint]i
 // Abs. 5 BGB schon einmal angesetzt wurde.
 //
 // Gelesen wird der Posten und nicht das Schreiben: ein Schreiben über drei
-// Rechnungen trägt die Pauschale nur für die, bei denen der Verzug eingetreten
-// war, und der nächste Lauf muss die übrigen noch ansetzen können.
+// Rechnungen enthält die Pauschale nur für die, bei denen der Verzug
+// eingetreten war, und der nächste Lauf muss die übrigen noch ansetzen können.
 func (r *dunningRepositoryGorm) LumpSumChargedByOpenItem(ctx context.Context) (map[uint]bool, error) {
 	var items []domain.DunningNoticeItem
 	if err := dbFrom(ctx, r.db).Where("lump_sum_amount > 0").Find(&items).Error; err != nil {

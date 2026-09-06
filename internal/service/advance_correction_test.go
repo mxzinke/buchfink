@@ -226,7 +226,7 @@ func TestAdvanceSettlementFromBankTransactionMarksItMatched(t *testing.T) {
 		t.Fatal(err)
 	}
 	if entry.BankTxID == nil || *entry.BankTxID != txID {
-		t.Errorf("die Buchung trägt den Bankumsatz %v, erwartet %d", entry.BankTxID, txID)
+		t.Errorf("die Buchung hat den Bankumsatz %v, erwartet %d", entry.BankTxID, txID)
 	}
 	if got := env.bankTx(t, txID).MatchStatus; got != domain.MatchStatusMatched {
 		t.Errorf("der Bankumsatz steht auf %q, erwartet %q", got, domain.MatchStatusMatched)
@@ -252,7 +252,7 @@ func TestAdvanceSettlementFromBankTransactionMarksItMatched(t *testing.T) {
 // Der Vereinnahmungszeitpunkt wird nicht nachträglich auf die ausgestellte
 // Abschlagsrechnung geschrieben.
 //
-// Ihr Dokument liegt als Beleg im Archiv und trägt den Wert nicht; stünde er am
+// Ihr Dokument liegt als Beleg im Archiv und enthält den Wert nicht; stünde er am
 // Datensatz, ergäbe ein erneutes Rendern ein anderes XML als das abgelegte, und
 // nach einer Rückzahlung bliebe er auf dem Stornodokument stehen. Geführt wird
 // er am Abschlag.
@@ -281,8 +281,8 @@ func TestSettleAdvanceLeavesTheIssuedDocumentUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stored.PaymentReceivedAt != "" {
-		t.Errorf("die Rechnung trägt nachträglich den Vereinnahmungszeitpunkt %q; das Dokument im Beleg "+
-			"trägt ihn nicht", stored.PaymentReceivedAt)
+		t.Errorf("die Rechnung speichert nachträglich den Vereinnahmungszeitpunkt %q; das Dokument im Beleg "+
+			"speichert ihn nicht", stored.PaymentReceivedAt)
 	}
 	if advance.SettledAt != "2026-04-15" {
 		t.Errorf("der Vereinnahmungszeitpunkt gehört an den Abschlag, dort steht %q", advance.SettledAt)
@@ -352,7 +352,7 @@ func TestOpenItemsNameTheirSource(t *testing.T) {
 		t.Errorf("Quelle der Forderung = %q, erwartet %q", items[0].Source, domain.OpenItemSourceJournal)
 	}
 	if items[0].AdvanceInvoiceID != 0 {
-		t.Errorf("ein Posten aus dem Journal gehört zu keiner Abschlagsrechnung, trägt aber %d",
+		t.Errorf("ein Posten aus dem Journal gehört zu keiner Abschlagsrechnung, verweist aber auf %d",
 			items[0].AdvanceInvoiceID)
 	}
 }

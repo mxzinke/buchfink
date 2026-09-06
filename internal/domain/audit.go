@@ -43,7 +43,7 @@ type AuditLogEntry struct {
 	// Datensatz wäre die andere Übertreibung — er verbärge die eine geänderte
 	// Zeile zwischen dreißig unveränderten.
 	//
-	// Verschlüsselt, weil Stammdaten personenbezogene Daten tragen: Name,
+	// Verschlüsselt, weil Stammdaten personenbezogene Daten enthalten: Name,
 	// Anschrift, Bankverbindung eines Geschäftspartners stünden sonst im
 	// Protokoll im Klartext, während sie in ihrer eigenen Tabelle verschlüsselt
 	// liegen.

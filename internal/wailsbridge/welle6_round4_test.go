@@ -70,7 +70,7 @@ func TestArchiveIsNotWrittenWhenTheConfirmationIsWrong(t *testing.T) {
 	}
 }
 
-// Die Antworten der Nachweisseite tragen leere Listen, keine `null`. Sie werden
+// Die Antworten der Nachweisseite haben leere Listen, keine `null`. Sie werden
 // im Regelfall gelesen, bevor irgendetwas erfasst wurde.
 func TestNachweiseAnswersCarryEmptyListsNotNull(t *testing.T) {
 	b := wiredBridge(t)
@@ -80,7 +80,7 @@ func TestNachweiseAnswersCarryEmptyListsNotNull(t *testing.T) {
 		t.Fatalf("Fristenübersicht: %v", err)
 	}
 	if overview.Years == nil || overview.Concept == nil {
-		t.Errorf("die Fristenübersicht trägt eine nicht belegte Liste: %+v", overview)
+		t.Errorf("die Fristenübersicht hat eine nicht belegte Liste: %+v", overview)
 	}
 
 	chain, err := b.VerifyAuditChain()
@@ -100,7 +100,7 @@ func TestNachweiseAnswersCarryEmptyListsNotNull(t *testing.T) {
 	}
 	for _, side := range aging.Sides {
 		if side.Buckets == nil || side.Maturities == nil {
-			t.Errorf("die Seite %q trägt eine nicht belegte Liste", side.Side)
+			t.Errorf("die Seite %q hat eine nicht belegte Liste", side.Side)
 		}
 	}
 

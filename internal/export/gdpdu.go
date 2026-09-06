@@ -11,7 +11,7 @@ import (
 // mitgeliefert wird. Die index.xml nennt ihn im DOCTYPE.
 //
 // Name und Inhalt sind der amtlichen Fassung entnommen: Prüfsoftware erwartet
-// genau diesen Namen, und eine Datei, die den amtlichen Namen trägt, muss auch
+// genau diesen Namen, und eine Datei, die den amtlichen Namen hat, muss auch
 // den amtlichen Text führen — sonst prüfte der Prüfer gegen eine Grammatik, die
 // niemand vereinbart hat.
 const DTDFileName = "gdpdu-01-09-2004.dtd"
@@ -102,7 +102,7 @@ func writeTable(b *bytes.Buffer, d *Dataset, t *Table) {
 	//
 	// Ohne die Angabe wiederum läse eine Prüfsoftware die CSV-Dateien als ANSI,
 	// und jeder Umlaut in Kontoname, Buchungstext oder Anschrift käme falsch
-	// an. Die Dateien tragen keine BOM — die Angabe steht deshalb hier und
+	// an. Die Dateien haben keine BOM — die Angabe steht deshalb hier und
 	// nirgends sonst.
 	b.WriteString("      <UTF8/>\n")
 	// Beide Trennzeichen oder keines: das Inhaltsmodell fasst sie zu einer
@@ -133,7 +133,7 @@ func writeColumn(b *bytes.Buffer, f Field) {
 	case FieldNumeric:
 		fmt.Fprintf(b, "          <Numeric><Accuracy>%d</Accuracy></Numeric>\n", amountAccuracy)
 	case FieldInteger:
-		// Genauigkeit null statt zwei: die Spalte trägt eine Kennung, einen
+		// Genauigkeit null statt zwei: die Spalte enthält eine Kennung, einen
 		// Zähler, eine Jahreszahl oder einen Cent-Betrag als ganze Zahl. Mit
 		// Accuracy 2 beschrieben, teilte die Prüfsoftware sie durch hundert.
 		b.WriteString("          <Numeric><Accuracy>0</Accuracy></Numeric>\n")

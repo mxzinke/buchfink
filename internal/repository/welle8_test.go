@@ -78,6 +78,6 @@ func TestReceiptNumberFollowsTheConfiguredFormat(t *testing.T) {
 		ReceiptNumberFormat: "BE-{JAHR}",
 	})
 	if err == nil {
-		t.Error("ein Format ohne Zähler trüge jedem Beleg dieselbe Nummer")
+		t.Error("ein Format ohne Zähler gäbe jedem Beleg dieselbe Nummer")
 	}
 }

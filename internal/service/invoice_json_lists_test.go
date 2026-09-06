@@ -71,7 +71,7 @@ func TestInvoiceOutputsHaveNoNilLists(t *testing.T) {
 	assertNoNullLists(t, "Lückenbericht", report, "gaps")
 
 	// Storno und Berichtigung: beide Dokumente gehen als JSON zurück an die
-	// Oberfläche, und beide tragen Positionen und Bezüge.
+	// Oberfläche, und beide haben Positionen und Bezüge.
 	storno, err := svc.CancelWithDocument(ctx, inv.ID, "Leistung nicht erbracht")
 	if err != nil {
 		t.Fatalf("stornieren: %v", err)

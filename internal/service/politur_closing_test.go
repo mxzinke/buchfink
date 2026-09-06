@@ -242,7 +242,7 @@ func TestServiceProofFindingStartsAtTheDayTheThresholdWasSet(t *testing.T) {
 // Buchung ein, nachträglich gesetzt wäre er nicht mehr gedeckt. Scheitert die
 // Buchung danach, läge im Belegspeicher ein Beleg, der auf nichts verweist: der
 // Prüflauf meldete ihn dauerhaft als ungebucht, und niemand wüsste, wozu er
-// gehört. Gelöscht wird er nicht — die GoBD kennen kein Löschen, sondern das
+// gehört. Buchfink löscht ihn nicht — die GoBD kennen kein Löschen, sondern das
 // Verwerfen mit Grund.
 func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 	env := newTestEnv(t)
@@ -276,7 +276,7 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 			len(after), len(before), after)
 	}
 
-	// Der Beleg ist nicht verschwunden, sondern verworfen — mit Grund.
+	// Der Beleg bleibt erhalten; sein Status wechselt auf verworfen — mit Grund.
 	all, err := env.receipts.List(ctx, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)

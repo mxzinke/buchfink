@@ -91,7 +91,7 @@ func (s *ReceiptService) CreateSelfIssued(
 
 	markdown := selfIssuedMarkdown(req, issuer, created, number, reason)
 	// Der Ident macht zwei Läufe desselben Belegs byteweise vergleichbar; er
-	// darf deshalb nicht die Uhrzeit tragen.
+	// darf deshalb nicht die Uhrzeit enthalten.
 	pdf, err := s.renderer.RenderDocumentPDF(ctx,
 		procdoc.Typst(markdown, "Eigenbeleg", parseDayOrNow(req.DocumentDate)),
 		"eigenbeleg-"+req.DocumentDate+"-"+created)
@@ -250,8 +250,8 @@ func parseDayOrNow(iso string) time.Time {
 
 // RetentionOverride verlängert die Aufbewahrungsfrist eines Belegs (ARC-01 K2).
 //
-// Nur nach oben: die gesetzliche Frist ist die Untergrenze, und eine kürzere
-// wäre nicht eine Einstellung, sondern ein Verstoß gegen § 257 HGB und § 147 AO.
+// Nur nach oben: die gesetzliche Frist ist die Untergrenze; eine kürzere
+// wäre ein Verstoß gegen § 257 HGB und § 147 AO.
 // Nach oben steht sie frei und ist oft geboten — ein Beleg, der zu einem
 // laufenden Verfahren gehört, oder ein Vertrag, der über seine Belegfrist hinaus
 // wirkt.

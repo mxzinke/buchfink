@@ -37,7 +37,7 @@ type ProcDocResult struct {
 	Document domain.ProcedureDocumentation `json:"document"`
 	// PDFNote sagt, warum kein PDF entstanden ist; leer heißt: es ist
 	// entstanden. Ein Satzfehler hält die Fassung nicht auf — das Markdown
-	// trägt die Aussage —, aber er wird auch nicht verschwiegen.
+	// enthält die Aussage —, aber er wird auch nicht verschwiegen.
 	PDFNote string `json:"pdfNote,omitempty"`
 	// Markdown ist der erzeugte Text. Er geht mit zurück, damit die Oberfläche
 	// ihn anzeigen kann, ohne die abgelegte Datei erneut zu lesen.
@@ -149,7 +149,7 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 // zwei Fassungen desselben Dokuments, die auseinanderlaufen.
 //
 // Scheitert der Satz, gilt die Fassung trotzdem: der Nachweis nach GoBD Rz. 151
-// hängt am Inhalt und nicht am Layout. Der Grund steht dann in PDFNote und im
+// richtet sich nach dem Inhalt und nicht nach dem Layout. Der Grund steht dann in PDFNote und im
 // Protokoll, statt die Erzeugung an einer Formfrage scheitern zu lassen.
 func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocResult, error) {
 	if now.IsZero() {
@@ -257,6 +257,57 @@ func (s *ProcDocService) renderPDF(
 	return ""
 }
 
+// ProcDocFile ist eine abgelegte Fassung, gelesen und auf ihre Prüfsumme
+// geprüft.
+type ProcDocFile struct {
+	FileName string
+	Data     []byte
+}
+
+// File liest eine abgelegte Fassung aus dem Belegspeicher.
+//
+// `wantPDF` wählt das gesetzte PDF; ist keines entstanden, sagt der Fehler das,
+// statt stillschweigend das Markdown zu liefern — wer ein PDF weitergeben will,
+// soll nicht eine Textdatei mit fremder Endung in der Hand halten.
+//
+// Die Prüfsumme wird vor dem Lesen verglichen: eine Fassung, die nicht mehr die
+// ist, deren Erzeugung im Protokoll steht, wird nicht herausgegeben. Sie taugte
+// als Nachweis nicht mehr, und der Prüfer erführe es nicht.
+func (s *ProcDocService) File(ctx context.Context, id uint, wantPDF bool) (*ProcDocFile, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("ohne Belegspeicher liegt keine Fassung zum Herausgeben bereit")
+	}
+	doc, err := s.procDocRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("die Fassung konnte nicht gelesen werden: %w", err)
+	}
+	if doc == nil {
+		return nil, fmt.Errorf("diese Fassung der Verfahrensdokumentation ist nicht bekannt")
+	}
+
+	relPath, name, sum := doc.StoredPath, doc.FileName, doc.SHA256
+	if wantPDF {
+		if doc.PDFStoredPath == "" {
+			return nil, fmt.Errorf(
+				"zur Fassung %s ist kein PDF entstanden; sie liegt als Markdown vor", doc.Version)
+		}
+		relPath, name, sum = doc.PDFStoredPath, doc.PDFFileName, doc.PDFSHA256
+	}
+	if relPath == "" {
+		return nil, fmt.Errorf("die Fassung %s ist nicht als Datei abgelegt", doc.Version)
+	}
+	if err := s.store.Verify(relPath, sum); err != nil {
+		return nil, fmt.Errorf(
+			"%s stimmt nicht mehr mit der Prüfsumme aus dem Protokoll überein und wird deshalb nicht herausgegeben: %w",
+			name, err)
+	}
+	data, err := s.store.Read(relPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s konnte nicht gelesen werden: %w", name, err)
+	}
+	return &ProcDocFile{FileName: name, Data: data}, nil
+}
+
 // Documentations liefert die abgelegten Fassungen, die neueste zuerst.
 func (s *ProcDocService) Documentations(ctx context.Context) ([]domain.ProcedureDocumentation, error) {
 	return s.procDocRepo.FindAll(ctx)
@@ -307,7 +358,7 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 		ExportFormats:    exportFormats(),
 		BackupDir:        s.env.BackupDir,
 		BackupRhythm:     s.env.BackupRhythm,
-		ChangelogTable:   changelog.Markdown(),
+		ChangelogSection: changelog.Section(),
 		CheckRules:       checkRuleCatalog(),
 		Version:          version,
 		CreatedAt:        now,

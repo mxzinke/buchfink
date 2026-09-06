@@ -396,7 +396,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	}
 	// Der Temporärordner geht in jedem Fall wieder weg — auch wenn die Prüfung
 	// scheitert. Eine entpackte Buchführung, die irgendwo liegen bleibt, ist
-	// genau das, was die Verschlüsselung verhindern soll.
+	// das, was die Verschlüsselung verhindern soll.
 	defer os.RemoveAll(tmpDir)
 
 	meta, count, err := extractBackup(zipPath, tmpDir)
@@ -703,7 +703,7 @@ func (s *BackupService) verificationContext(
 	}
 	if tenantID == "" {
 		return nil, fmt.Errorf(
-			"die Sicherung trägt eine Wiederherstellungsdatei, aber %s nennt keinen Mandanten — "+
+			"die Sicherung enthält eine Wiederherstellungsdatei, aber %s nennt keinen Mandanten — "+
 				"ohne ihn lässt sich der Schlüssel nicht zuordnen", BackupMetaFileName)
 	}
 	open := s.openVault

@@ -361,8 +361,8 @@ func (s *StatementService) sizeClassFrom(ctx context.Context, year int, stmt *do
 // aus einer zweiten Kontenauswahl: die Erlösschmälerungen sind nach § 277
 // Abs. 1 HGB abzusetzen, und wer sie in einer eigenen Summe vergisst, meldet
 // einen zu hohen Umsatz. Ein Jahr ohne Buchungen oder mit einer Bilanz, die
-// nicht aufgeht, liefert null — das ist kein Fehler, sondern die Auskunft, dass
-// sich nichts ableiten lässt.
+// nicht aufgeht, liefert null. Das ist die Auskunft, dass sich nichts ableiten
+// lässt, kein Fehler.
 func (s *StatementService) RevenueOf(ctx context.Context, year int) (domain.Cents, error) {
 	if year <= 0 {
 		return 0, nil

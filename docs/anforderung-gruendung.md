@@ -15,15 +15,15 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 ## 1. Worum es geht
 
-Eine GmbH entsteht nicht beim Notar und nicht mit der ersten Rechnung, sondern in
-zwei Schritten. Beim Notar wird der Gesellschaftsvertrag beurkundet (§ 2 GmbHG),
+Eine GmbH entsteht in zwei Schritten – nicht beim Notar und nicht mit der ersten
+Rechnung. Beim Notar wird der Gesellschaftsvertrag beurkundet (§ 2 GmbHG),
 und von da an existiert die **Vorgesellschaft**. Als juristische Person entsteht
 die GmbH erst mit der Eintragung ins Handelsregister (§ 11 Abs. 1 GmbHG).
 Dazwischen liegen Wochen bis Monate, und in dieser Zeit ist das Unternehmen
 bereits buchführungspflichtig, zahlt Notar- und Gerichtsgebühren, mietet an und
 kauft ein.
 
-Zwei Haftungen hängen an dieser Phase, und beide überraschen Gründer
+Zwei Haftungen gehören zu dieser Phase, und beide überraschen Gründer
 regelmäßig:
 
 **Handelndenhaftung.** „Ist vor der Eintragung im Namen der Gesellschaft
@@ -154,8 +154,8 @@ Gebucht wird auf Freigabe, mit Vorschau, wie beim Abschreibungslauf. Buchungen,
 die eine Anwendung von sich aus schreibt, sind in einer GoBD-Buchhaltung die
 schlechtere Hälfte der Bequemlichkeit.
 
-Der Gründungsaufwand selbst läuft über **6825** Rechts- und Beratungskosten oder
-**6827** Abschluss- und Prüfungskosten, als gewöhnlicher Beleg. Ein eigener
+Der Gründungsaufwand selbst wird über **6825** Rechts- und Beratungskosten oder
+**6827** Abschluss- und Prüfungskosten gebucht, als gewöhnlicher Beleg. Ein eigener
 Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 
 ## 6. Fristen aus der Gründung
@@ -170,8 +170,8 @@ Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 | Wirtschaftlich Berechtigte melden | unverzüglich nach der Eintragung | § 20 Abs. 1 GwG |
 | Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB, Katalog JAB-07 |
 
-Wo das Gesetz „unverzüglich" sagt, steht kein Datum in der Liste, sondern der
-Wortlaut. Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
+Wo das Gesetz „unverzüglich" sagt, steht der Wortlaut in der Liste, kein Datum.
+Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
 Eröffnungsbilanz nennt § 242 Abs. 1 HGB ebenfalls keine Frist; der angezeigte
 Termin ist als Richtwert gekennzeichnet und stammt aus § 264 Abs. 1 Satz 4 HGB.
 
@@ -258,7 +258,7 @@ Entscheidungen"). Buchfink führt die Frist und den Nachweis; übermittelt wird
 
 **Ablage der Gründungsurkunden.** Das Dokumentenmuster gibt es bereits am
 Anlagegut (`internal/domain/asset_document.go`). Es auf den Mandanten zu heben
-ist ein eigener, sauber abgrenzbarer Schritt.
+ist ein eigener, klar abgrenzbarer Schritt.
 
 **Die Zuordnung der Unterdeckung.** Ob eine Unterdeckung aus dem Gründungsaufwand
 oder aus einem Anlaufverlust stammt, entscheidet heute der Nutzer im Kopf. Eine

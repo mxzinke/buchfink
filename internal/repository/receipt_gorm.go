@@ -311,7 +311,7 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 			return err
 		}
 		if receipt.Status == domain.ReceiptStatusSealed {
-			return fmt.Errorf("Beleg %s ist gebucht. Eine Korrektur läuft über Storno der Buchung, nicht über den Beleg",
+			return fmt.Errorf("Beleg %s ist gebucht. Eine Korrektur geschieht durch Storno der Buchung, nicht am Beleg",
 				receipt.ReceiptNumber)
 		}
 		return tx.Model(&domain.Receipt{}).Where("id = ?", receiptID).

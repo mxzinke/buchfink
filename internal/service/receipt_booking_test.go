@@ -33,7 +33,7 @@ func TestChainCoversTheReceiptHash(t *testing.T) {
 		t.Errorf("Beleg-Hash der Buchung = %q, am Beleg %q", entry.ReceiptHash, receipt.ReceiptHash)
 	}
 	if entry.DocumentNumber != receipt.ReceiptNumber {
-		t.Errorf("das Belegfeld muss die Belegnummer tragen: %q vs %q", entry.DocumentNumber, receipt.ReceiptNumber)
+		t.Errorf("das Belegfeld muss die Belegnummer haben: %q vs %q", entry.DocumentNumber, receipt.ReceiptNumber)
 	}
 
 	// Eine ausgetauschte Belegdatei ändert den Beleg-Hash — und damit die Kette.
@@ -197,13 +197,13 @@ func TestReversalInheritsTheReceiptReference(t *testing.T) {
 		t.Errorf("die Generalumkehr muss auf denselben Beleg zeigen")
 	}
 	if reversal.ReceiptHash != entry.ReceiptHash {
-		t.Errorf("die Generalumkehr muss denselben Beleg-Hash tragen")
+		t.Errorf("die Generalumkehr muss denselben Beleg-Hash haben")
 	}
 	if reversal.TaxTreatment != entry.TaxTreatment {
-		t.Errorf("die Generalumkehr muss denselben Steuerfall tragen")
+		t.Errorf("die Generalumkehr muss denselben Steuerfall haben")
 	}
 	if reversal.DocumentNumber != entry.DocumentNumber {
-		t.Errorf("die Generalumkehr muss dieselbe Belegnummer tragen")
+		t.Errorf("die Generalumkehr muss dieselbe Belegnummer haben")
 	}
 }
 

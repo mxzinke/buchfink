@@ -13,7 +13,7 @@ import (
 // Berichtigungszeitraums, ist der Abzug für jedes betroffene Jahr anteilig zu
 // berichtigen. Das ist keine Buchung, die sich aus dem Journal ergibt: sie
 // braucht den ursprünglichen Anteil, den heutigen Anteil und den Zeitraum — drei
-// Angaben, die nur ein eigenes Verzeichnis über die Jahre trägt.
+// Angaben, die nur ein eigenes Verzeichnis über die Jahre führt.
 
 // TaxKeyInputTaxCorrection ist der Steuerschlüssel der Berichtigung. Er läuft in
 // die Kennziffer 64 des Vordrucks USt 1 A und in keine andere: die berichtigte

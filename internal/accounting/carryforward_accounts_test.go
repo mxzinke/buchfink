@@ -53,7 +53,7 @@ func TestResultAccountsAreEquityOnTheBalanceSheet(t *testing.T) {
 			t.Errorf("Konto %s ist %q, erwartet Eigenkapital", number, acc.Type)
 		}
 		if acc.HGBCode != "Passiva.A.IV" {
-			t.Errorf("Konto %s trägt die HGB-Position %q, erwartet „Passiva.A.IV\" (Gewinn-/Verlustvortrag)",
+			t.Errorf("Konto %s hat die HGB-Position %q, erwartet „Passiva.A.IV\" (Gewinn-/Verlustvortrag)",
 				number, acc.HGBCode)
 		}
 	}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Api } from '../services/api';
 import { useWriteLock } from './WriteLock';
 import { downloadCSV } from '../utils/download';
-import { findingParams, findingTarget } from '../utils/findings';
+import { findingParams, findingTarget, targetLabel } from '../utils/findings';
 import { formatCents, formatDate } from '../utils/formatters';
 import type { MonthCloseState, MonthCloseStep, VatReturn } from '../types';
 import type { NavigateFn } from './Sidebar';
@@ -37,8 +37,8 @@ import {
  * Der Dialog rechnet nichts nach: Stand, Reihenfolge und Kennziffern kommen aus
  * dem Backend (`GetMonthCloseState`, `GetVatReturn`). Alle drei Schritte werden
  * hier ausgeführt — Prüfbericht lesen, festschreiben, Übermittlung bestätigen.
- * Das Kennziffernblatt steht dabei von Anfang an sichtbar da: übertragen wird es
- * in Mein ELSTER, und wer es erst nach der Festschreibung sähe, hätte
+ * Das Kennziffernblatt steht dabei von Anfang an sichtbar da: der Anwender
+ * überträgt es in Mein ELSTER, und wer es erst nach der Festschreibung sähe, hätte
  * festgeschrieben, ohne zu wissen, was er meldet.
  *
  * Die Umsatzsteuerseite bleibt der Ort für alles Weitere — Entwürfe,
@@ -369,7 +369,7 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
                           className="shrink-0 -my-1"
                           onClick={() => jumpTo(finding.objectType, findingParams(finding))}
                         >
-                          Hin dazu
+                          {targetLabel(findingTarget(finding.objectType))}
                         </Button>
                       )}
                     </li>

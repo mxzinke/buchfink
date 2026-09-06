@@ -261,7 +261,7 @@ func TestDeadlinesNeedAClosingDate(t *testing.T) {
 	}
 }
 
-// Der Klassenwechsel wird angekündigt, sobald er sich abzeichnet.
+// Buchfink kündigt den Klassenwechsel an, sobald er sich abzeichnet.
 //
 // § 267 Abs. 4 Satz 1 HGB lässt die Rechtsfolgen erst am zweiten
 // übereinstimmenden Stichtag eintreten. Wer erst dann erfährt, dass er

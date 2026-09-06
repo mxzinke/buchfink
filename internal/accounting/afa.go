@@ -87,8 +87,8 @@ type DegressiveWindow struct {
 
 // degressiveWindows lists the periods Buchfink computes a degressive AfA for.
 //
-// Die Fenster sind nicht historisch interessant, sondern Rechenvoraussetzung:
-// die Anlagenkartei wird über die Jahre geführt, und ein 2021 angeschafftes
+// Die Fenster sind eine Rechenvoraussetzung: die Anlagenkartei wird über die
+// Jahre geführt, und ein 2021 angeschafftes
 // Wirtschaftsgut schreibt heute noch nach dem Satz ab, der damals galt. Ohne die
 // alten Fassungen wäre sein Plan nicht mehr rechenbar — und ein Plan, den die
 // Software verweigert, obwohl das Gesetz ihn eröffnet hat, ist so falsch wie
@@ -285,8 +285,8 @@ type AfAPlan struct {
 
 	// BuildingPermille ist der feste Jahressatz des § 7 Abs. 4 EStG in Promille
 	// der Anschaffungskosten. Er wird vom Aufrufer aus BuildingRateFor
-	// aufgelöst — die Regel hängt an Wohnzweck und Stichtag, und beides steht am
-	// Anlagegut und nicht am Plan.
+	// aufgelöst — die Regel richtet sich nach Wohnzweck und Stichtag, und beides
+	// steht am Anlagegut und nicht am Plan.
 	BuildingPermille int64
 }
 
@@ -480,7 +480,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 	var addedNote string
 
 	// Die Sonderabschreibung des § 7g Abs. 5 EStG läuft neben dem Plan her: sie
-	// ändert die planmäßige AfA nicht, sondern kommt hinzu — „neben den
+	// kommt zur planmäßigen AfA hinzu, ohne sie zu ändern — „neben den
 	// Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2". Erst mit dem
 	// Ende des Begünstigungszeitraums greift § 7a Abs. 9 EStG und verteilt den
 	// verbliebenen Restwert auf die Restnutzungsdauer.

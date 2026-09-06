@@ -65,7 +65,7 @@ func TestIssueRejectsInvoiceKindsOfOtherWays(t *testing.T) {
 	}
 }
 
-// Die Schlussrechnung ist der teuerste der Fälle: mit PrepaidAmount trüge das
+// Die Schlussrechnung ist der teuerste der Fälle: mit PrepaidAmount hätte das
 // Dokument BT-113 und einen geminderten Zahlbetrag, gebucht würde die volle
 // Forderung ohne Auflösung der Anzahlungskonten.
 func TestIssueRejectsFinalInvoiceWithPrepaidAmount(t *testing.T) {
@@ -91,7 +91,7 @@ func TestIssueRejectsFinalInvoiceWithPrepaidAmount(t *testing.T) {
 }
 
 // Die Angaben der anderen Arten werden verworfen und nicht mitgespeichert: eine
-// gewöhnliche Rechnung trägt keinen Verbund, keine abgesetzte Anzahlung und
+// gewöhnliche Rechnung hat keinen Verbund, keine abgesetzte Anzahlung und
 // keinen Bezug auf eine Rechnung, die niemand storniert hat.
 func TestIssueDropsFieldsOfOtherInvoiceKinds(t *testing.T) {
 	env := newTestEnv(t)
@@ -130,7 +130,7 @@ func TestIssueDropsFieldsOfOtherInvoiceKinds(t *testing.T) {
 	}
 }
 
-// Die berichtigte Schlussrechnung geht weiterhin durch: sie trägt die Art
+// Die berichtigte Schlussrechnung geht weiterhin durch: sie hat die Art
 // „Rechnungskorrektur" und den Weg der Schlussrechnung, weil sie dieselben
 // Anzahlungen absetzen muss wie die stornierte.
 func TestCorrectedFinalInvoiceStillDeductsTheAdvances(t *testing.T) {

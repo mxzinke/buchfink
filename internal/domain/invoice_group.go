@@ -117,7 +117,7 @@ type GroupProgress struct {
 // ComputeProgress sums the advances of the group.
 //
 // Sie heißt nicht Progress, weil das Feld gleichen Namens den zuletzt gelesenen
-// Stand für die Oberfläche trägt; gerechnet wird hier und nur hier.
+// Stand für die Oberfläche hält; gerechnet wird hier und nur hier.
 func (g *InvoiceGroup) ComputeProgress() GroupProgress {
 	p := GroupProgress{AgreedNet: g.TotalNet, Closed: g.Closed}
 	for i := range g.Advances {

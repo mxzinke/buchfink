@@ -227,7 +227,7 @@ func TestBankRulePatternIgnoresTheChangingParts(t *testing.T) {
 
 	other := BankRulePattern("Stadtwerke", "Abschlag Strom 03/2026", false)
 	if other == first {
-		t.Error("zwei verschiedene Vorgänge dürfen nicht dasselbe Muster tragen")
+		t.Error("zwei verschiedene Vorgänge dürfen nicht dasselbe Muster haben")
 	}
 }
 
@@ -268,7 +268,7 @@ func TestBankRulePatternIgnoresWrittenMonthNames(t *testing.T) {
 	// die gelernte Regel des Ausgangs nicht überschreiben.
 	incoming := BankRulePattern("Hausverwaltung Meier GmbH", "Miete Büro März 2026", true)
 	if incoming == march {
-		t.Errorf("Geldeingang und Geldausgang tragen dasselbe Muster: %q", march)
+		t.Errorf("Geldeingang und Geldausgang haben dasselbe Muster: %q", march)
 	}
 	if BankRulePartnerOf(incoming) != BankRulePartnerKey("Hausverwaltung Meier GmbH") {
 		t.Errorf("die Richtung verstellt den Partnerteil: %q", BankRulePartnerOf(incoming))

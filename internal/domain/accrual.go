@@ -21,9 +21,9 @@ const (
 	// AccrualDisagio ist das Wahlrecht des § 250 Abs. 3 HGB: der Unterschied
 	// zwischen Erfüllungs- und Ausgabebetrag einer Verbindlichkeit darf aktiviert
 	// und über die Laufzeit verteilt werden. Es ist eine eigene Art und keine
-	// Spielart des aktiven Postens, weil die Verteilung an der Laufzeit des
-	// Darlehens hängt und der Aufwand Zinsaufwand ist, nicht der ursprüngliche
-	// Aufwand.
+	// Spielart des aktiven Postens, weil die Verteilung sich nach der Laufzeit
+	// des Darlehens richtet und der Aufwand Zinsaufwand ist, nicht der
+	// ursprüngliche Aufwand.
 	AccrualDisagio AccrualKind = "disagio"
 )
 
@@ -107,7 +107,7 @@ const (
 	// Bilanz und GuV des Jahres genügt das, und es hält die Zahl der
 	// Abschlussbuchungen klein.
 	AccrualReleaseYearly AccrualReleaseSchedule = "yearly"
-	// AccrualReleaseMonthly löst monatlich auf, jeweils am Monatsersten. Wer
+	// AccrualReleaseMonthly löst monatlich auf, am Monatsersten. Wer
 	// unterjährig auswertet — BWA, Zwischenabschluss —, braucht das: sonst
 	// trägt der Januar den ganzen Vorjahresaufwand, und jeder Monatsvergleich
 	// ist verzerrt.

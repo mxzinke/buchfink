@@ -32,7 +32,7 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 	}
 
 	var b strings.Builder
-	// Die Kopfzeilen tragen die Pflichtangaben mit: eine Gliederung ohne die
+	// Die Kopfzeilen enthalten die Pflichtangaben: eine Gliederung ohne die
 	// Firma, zu der sie gehört, ist ein Zahlenblock.
 	writeRow(&b, "Jahresabschluss", fs.Header.CompanyName, fs.Header.LegalForm, "", "", "", "")
 	writeRow(&b, "Sitz", fs.Header.Seat, fs.Header.RegisterCourt, fs.Header.RegisterNumber, "", "", "")
@@ -50,7 +50,7 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 	} {
 		for _, line := range group {
 			// Die leeren Posten des § 265 Abs. 8 HGB bleiben in der Tabelle
-			// stehen und tragen den Merker: die CSV ist der Datenexport, und
+			// stehen und haben den Merker: die CSV ist der Datenexport, und
 			// wer eine Zahl sucht, soll die Zeile finden, auch wenn sie null
 			// ist. Welche Zeilen das Dokument weglässt, sagt die Spalte —
 			// dieselbe Regel wie in Ansicht und PDF, nur nicht angewendet.

@@ -288,9 +288,9 @@ func TestPaymentTermsNote(t *testing.T) {
 	}
 }
 
-// Die Invarianten des Rechnungsverbunds. Sie sind die Konstruktion, an der
-// § 14c hängt: eine Schlussrechnung ohne Verrechnung weist die Steuer zweimal
-// aus.
+// Die Invarianten des Rechnungsverbunds. Sie sind die Konstruktion, nach der
+// sich § 14c richtet: eine Schlussrechnung ohne Verrechnung weist die Steuer
+// zweimal aus.
 func TestInvoiceGroupInvariants(t *testing.T) {
 	group := &InvoiceGroup{
 		Title: "Umbau", TotalNet: 1000000, TaxRate: TaxRateStandard,

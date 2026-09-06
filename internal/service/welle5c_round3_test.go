@@ -154,7 +154,7 @@ func TestRebookingKeepsTheRecordsOfTheOtherRecipients(t *testing.T) {
 			rebooked.DebitTotal(), rebooked.CreditTotal())
 	}
 	if len(rebooked.Gifts) != 2 {
-		t.Fatalf("die Neubuchung trägt %d Aufzeichnungen — erwartet beide Empfänger: %+v",
+		t.Fatalf("die Neubuchung hat %d Aufzeichnungen — erwartet beide Empfänger: %+v",
 			len(rebooked.Gifts), rebooked.Gifts)
 	}
 	for _, g := range rebooked.Gifts {
@@ -369,7 +369,7 @@ func TestAcquisitionCandidateCarriesTheInputTaxIntoTheRegister(t *testing.T) {
 		t.Fatalf("Aktivierung: %v", err)
 	}
 	if asset.InputTaxAmount != 760_000 {
-		t.Errorf("das Anlagegut trägt %s € Vorsteuer — erwartet 7.600,00 € aus der Zugangsbuchung",
+		t.Errorf("das Anlagegut hat %s € Vorsteuer — erwartet 7.600,00 € aus der Zugangsbuchung",
 			asset.InputTaxAmount)
 	}
 
@@ -435,7 +435,7 @@ func TestAcquisitionCandidateCarriesTheInputTaxShare(t *testing.T) {
 		t.Fatalf("Aktivierung: %v", err)
 	}
 	if asset.InputTaxAmount != 760_000 || asset.InputTaxPermille != 600 {
-		t.Fatalf("das Anlagegut trägt %s € zu %d ‰", asset.InputTaxAmount, asset.InputTaxPermille)
+		t.Fatalf("das Anlagegut hat %s € zu %d ‰", asset.InputTaxAmount, asset.InputTaxPermille)
 	}
 	view, err := register.Year(ctx, 2026)
 	if err != nil {

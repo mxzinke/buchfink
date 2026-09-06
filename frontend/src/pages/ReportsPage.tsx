@@ -14,7 +14,6 @@ import {
   Button,
   EmptyState,
   HelpPopover,
-  HelpTooltip,
   Notice,
   PageHeader,
   Section,
@@ -59,8 +58,7 @@ type Tab = StatementTab | 'anhang';
  *
  * Alle drei kommen fertig aus `GetStatement` — der Anhang entsteht mit dem
  * Abschluss und nicht daneben. Diese Ansicht zeigt sie und rechnet nichts nach;
- * insbesondere summiert sie den Spiegel nicht selbst, sondern nimmt die Zeile
- * `total`, die das Backend gerechnet hat.
+ * die Zeile `total` kommt aus dem Backend, das den Spiegel summiert hat.
  */
 const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
   // Die Listen kommen aus dem Backend leer und nicht als null. Der Standardwert
@@ -79,13 +77,13 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
         title="Angaben im Anhang"
         context={notes?.reference}
         divider={false}
-        action={
-          <HelpPopover label="Erklärung zum Anhang">
+        explain={
+          <>
             Der Anhang erläutert Bilanz und Gewinn- und Verlustrechnung (§§ 284, 285 HGB).
             Kleinstkapitalgesellschaften dürfen ihn nach § 264 Abs. 1 Satz 5 HGB weglassen, wenn sie
             die Angaben unter der Bilanz machen. Geschrieben werden die Texte unter
             „Abschlussbausteine"; hier stehen sie so, wie sie in die Offenlegung gehen.
-          </HelpPopover>
+          </>
         }
       >
         {written.length === 0 ? (
@@ -101,7 +99,7 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
                   <span className="inline-flex items-center gap-1.5">
                     {entry.label}
                     {entry.hint && (
-                      <HelpTooltip label={`Erklärung zu ${entry.label}`} content={entry.hint} />
+                      <HelpPopover label={`Erklärung zu ${entry.label}`}>{entry.hint}</HelpPopover>
                     )}
                   </span>
                 </h3>
@@ -117,12 +115,12 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
       <Section
         title="Rückstellungsspiegel"
         context="Anfangsbestand, Zuführung, Verbrauch, Auflösung, Aufzinsung, Endbestand"
-        action={
-          <HelpPopover label="Erklärung zum Rückstellungsspiegel">
+        explain={
+          <>
             Der Spiegel zeigt je Art der Rückstellung, wie sich der Bestand im Geschäftsjahr
             entwickelt hat. Er geht per Definition auf: Anfangsbestand plus Zuführung und Aufzinsung
             minus Verbrauch und Auflösung ergibt den Endbestand.
-          </HelpPopover>
+          </>
         }
       >
         {mirrorRows.length === 0 ? (
@@ -181,13 +179,13 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
             ? `Stichtag ${formatDate(reconciliation.cutoff)}`
             : 'Wo Handels- und Steuerbilanz auseinanderfallen'
         }
-        action={
-          <HelpPopover label="Erklärung zur Überleitung">
+        explain={
+          <>
             § 60 Abs. 2 EStDV verlangt, die Handelsbilanz durch Zusätze oder Anmerkungen an die
             steuerlichen Vorschriften anzupassen, wo beide auseinanderfallen. In Buchfink sind das
             die Sonderabschreibung nach § 7g Abs. 5 EStG und die abweichende Abzinsung der
             Rückstellungen mit 5,5 % (§ 6 Abs. 1 Nr. 3a Buchst. e EStG).
-          </HelpPopover>
+          </>
         }
       >
         {reconciliationRows.length === 0 ? (
@@ -213,10 +211,9 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
                     <span className="inline-flex items-center gap-1.5">
                       {row.position}
                       {row.explanation && (
-                        <HelpTooltip
-                          label={`Erklärung zu ${row.position}`}
-                          content={row.explanation}
-                        />
+                        <HelpPopover label={`Erklärung zu ${row.position}`}>
+                          {row.explanation}
+                        </HelpPopover>
                       )}
                     </span>
                   </Td>
@@ -413,13 +410,13 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
           title="Weitere Auswertungen"
           context="Auf der Seite „Nebenpflichten“"
           className="mt-8"
-          action={
-            <HelpPopover label="Erklärung zum Ort dieser Auswertungen">
+          explain={
+            <>
               Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) und der
               Belegnachweis der steuerfreien innergemeinschaftlichen Lieferungen (§§ 17a bis 17c
               UStDV) stehen bei den Verzeichnissen, aus denen sie entstehen: dort wird der
               Empfänger eines Geschenks erfasst und dort wird ein Nachweisbeleg abgelegt.
-            </HelpPopover>
+            </>
           }
         >
           <div className="flex gap-2">

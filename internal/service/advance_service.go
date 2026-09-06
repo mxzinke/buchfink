@@ -300,7 +300,7 @@ func (s *InvoiceService) SettleAdvance(ctx context.Context, req SettleAdvanceReq
 	// geschrieben.
 	//
 	// Er stünde sonst am Datensatz einer Rechnung, deren Dokument längst als
-	// Beleg abgelegt ist und ihn nicht trägt: ein erneutes Rendern ergäbe ein
+	// Beleg abgelegt ist und ihn nicht hat: ein erneutes Rendern ergäbe ein
 	// anderes XML als das archivierte, und nach einer Rückzahlung bliebe er
 	// stehen und erschiene auf dem Stornodokument. § 14 Abs. 4 Nr. 6 UStG
 	// verlangt die Angabe ohnehin nur, wenn sie beim Ausstellen feststeht —
@@ -544,7 +544,7 @@ func (s *InvoiceService) IssueFinalInvoice(ctx context.Context, req FinalInvoice
 func (s *InvoiceService) issueFinal(
 	ctx context.Context, inv *domain.Invoice, advances []domain.AdvanceItem, within func(context.Context) error,
 ) error {
-	// Die berichtigte Schlussrechnung trägt die Art „Rechnungskorrektur"
+	// Die berichtigte Schlussrechnung hat die Art „Rechnungskorrektur"
 	// (Typcode 384) und geht trotzdem hier entlang: sie muss dieselben
 	// Anzahlungen absetzen wie die stornierte.
 	contact, err := s.prepareForIssue(ctx, inv, domain.InvoiceKindFinal, domain.InvoiceKindCorrection)
@@ -711,7 +711,7 @@ func (s *InvoiceService) reopenFinalGroup(ctx context.Context, inv *domain.Invoi
 // geöffneten Verbunds aus.
 //
 // Sie geht denselben Weg wie die erste (issueFinal) und setzt dieselben
-// Anzahlungen ab; sie trägt nur zusätzlich den Bezug auf die berichtigte
+// Anzahlungen ab; sie hat nur zusätzlich den Bezug auf die berichtigte
 // Rechnung (BG-3) und den Typcode 384.
 func (s *InvoiceService) issueFinalReplacement(
 	ctx context.Context, replacement *domain.Invoice, original *domain.Invoice,
@@ -781,7 +781,7 @@ func (s *InvoiceService) replacementGroupOf(
 //
 // Sie geht denselben Weg wie die erste (IssueAdvanceInvoice): keine Buchung —
 // die Steuer entsteht mit der Vereinnahmung —, dafür der offene Posten der
-// Quelle „Abschlag" innerhalb der Nummernklammer. Sie trägt zusätzlich den
+// Quelle „Abschlag" innerhalb der Nummernklammer. Sie hat zusätzlich den
 // Bezug auf die stornierte Rechnung (BG-3), den CorrectInvoice gesetzt hat.
 //
 // Der Steuersatz kommt aus dem Verbund und muss zu den Positionen passen. Er

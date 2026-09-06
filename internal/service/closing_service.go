@@ -34,16 +34,16 @@ type ClosingService struct {
 	auditRepo          domain.AuditRepository
 	journalSvc         *JournalService
 	// accruals und notes sind die Kopplungen dieser Welle: die Auflösung der
-	// Rechnungsabgrenzung hängt am Saldenvortrag, die Anhangtexte hängen an der
-	// Jahresanlage. Beide sind optional — ohne sie arbeitet der Abschluss wie
-	// zuvor.
+	// Rechnungsabgrenzung richtet sich nach dem Saldenvortrag, die Anhangtexte
+	// richten sich nach der Jahresanlage. Beide sind optional — ohne sie
+	// arbeitet der Abschluss wie zuvor.
 	accruals AccrualCarrier
 	notes    NotesCopier
 	// currency ist die Fremdwährungsbewertung. Ihre Auflösung gehört wie die der
 	// Abgrenzung in das Folgejahr und wird vom Saldenvortrag gebucht.
 	currency CurrencyReverser
 	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
-	// an dem die Übergangsfrist des § 27 Abs. 38 UStG hängt.
+	// nach dem sich die Übergangsfrist des § 27 Abs. 38 UStG richtet.
 	revenue    RevenueSource
 	fiscalYear int
 }
@@ -100,8 +100,8 @@ func (s *ClosingService) SetAccrualCarrier(c AccrualCarrier) { s.accruals = c }
 // Saldenvortrag braucht.
 //
 // Die Stichtagsbewertung gilt dem Stichtag und nicht dem Posten: sie wird am
-// ersten Tag des Folgejahres wieder aufgelöst. Diese Auflösung hängt aus
-// demselben Grund am Vortrag wie die der Abgrenzung — der Vortrag ist der
+// ersten Tag des Folgejahres wieder aufgelöst. Diese Auflösung richtet sich
+// aus demselben Grund nach dem Vortrag wie die der Abgrenzung — der Vortrag ist der
 // Vorgang, der das neue Jahr eröffnet.
 type CurrencyReverser interface {
 	ReverseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error)
@@ -196,8 +196,22 @@ func (s *ClosingService) EnsureFiscalYears(ctx context.Context) error {
 	return nil
 }
 
-// CreateFiscalYear legt das Folgejahr an: es beginnt am Tag nach dem Ende des
-// Vorjahres und dauert zwölf Monate.
+// MaxFiscalYearsAhead ist der Vorlauf, den ein Geschäftsjahr haben darf.
+//
+// Ein Jahr im Voraus ist der Anwendungsfall: zum Jahreswechsel wird im neuen
+// Jahr gebucht, bevor das alte festgestellt ist. Alles darüber ist kein
+// Vorhaben, sondern ein Vertipper — und er hinterlässt ein leeres
+// Geschäftsjahr, das sich nicht mehr entfernen lässt, weil das Protokoll es
+// festhält und der Saldenvortrag daran anschließt.
+const MaxFiscalYearsAhead = 1
+
+// CreateFiscalYear legt ein Geschäftsjahr an, das an die vorhandenen anschließt.
+//
+// Nach vorn ist das das Folgejahr des zuletzt erfassten: es beginnt am Tag nach
+// dessen Ende und dauert zwölf Monate. Nach hinten ist es das Jahr vor dem
+// bisher ersten: es endet am Tag vor dessen Beginn. Der Weg nach hinten ist der
+// Fall der Übernahme aus einem Altsystem — die Eröffnungswerte gehören in das
+// Jahr davor, und ohne dieses Jahr gäbe es für sie keinen Zeitraum.
 func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	if year <= 0 {
 		return nil, fmt.Errorf("das Geschäftsjahr braucht eine Jahreszahl")
@@ -209,10 +223,15 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	if existing != nil {
 		return existing, nil
 	}
-	// Nur das Folgejahr des zuletzt erfassten Jahres. Ein Sprung ließe eine
-	// Lücke, in der Buchungen zu keinem Geschäftsjahr gehören: die Bücher wären
-	// nicht mehr lückenlos (§ 239 Abs. 2 HGB), und der Saldenvortrag fände
-	// keinen Anschluss.
+	if limit := time.Now().Year() + MaxFiscalYearsAhead; year > limit {
+		return nil, fmt.Errorf(
+			"das Geschäftsjahr %d liegt zu weit in der Zukunft; anlegen lässt sich höchstens %d",
+			year, limit)
+	}
+	// Nur unmittelbar vor oder nach den vorhandenen Jahren. Ein Sprung ließe
+	// eine Lücke, in der Buchungen zu keinem Geschäftsjahr gehören: die Bücher
+	// wären nicht mehr lückenlos (§ 239 Abs. 2 HGB), und der Saldenvortrag
+	// fände keinen Anschluss.
 	if err := s.assertConsecutive(ctx, year); err != nil {
 		return nil, err
 	}
@@ -225,6 +244,13 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	if prev, err := s.fiscalYearRepo.FindByYear(ctx, year-1); err == nil && prev != nil {
 		start := nextDay(prev.EndDate)
 		fy = domain.NewFiscalYear(year, start, lastDayOfTwelveMonths(start))
+	} else if next, err := s.fiscalYearRepo.FindByYear(ctx, year+1); err == nil && next != nil {
+		// Das vorangestellte Jahr endet am Tag vor dem Beginn des bisher
+		// ersten. Sein Beginn wird von diesem Ende zurückgerechnet und nicht
+		// aus dem Kalender abgeleitet: bei einem abweichenden Geschäftsjahr
+		// oder nach einem Rumpfjahr entstünde sonst eine Überschneidung.
+		end := previousDay(next.StartDate)
+		fy = domain.NewFiscalYear(year, firstDayOfTwelveMonths(end), end)
 	}
 	if err := fy.Validate(); err != nil {
 		return nil, err
@@ -234,8 +260,8 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	}
 	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
 		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, fy.StartDate, fy.EndDate, shortSuffix(fy)))
-	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, an der
-	// die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG hängt.
+	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, nach der
+	// sich die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet.
 	s.prefillPriorYearRevenue(ctx, fy)
 	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Die
 	// Bilanzierungs- und Bewertungsmethoden ändern sich selten, und ein leerer
@@ -254,9 +280,9 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 // assertConsecutive weist eine Jahreszahl ab, die eine Lücke ließe.
 //
 // Das erste Jahr ist frei wählbar — vorher gibt es nichts, woran es anschließen
-// müsste. Danach kommt nur das Folgejahr des zuletzt erfassten Jahres in
-// Betracht; ein früheres Jahr ist ohnehin schon angelegt, sonst gäbe es die
-// Buchungen darin nicht.
+// müsste. Danach kommen zwei Jahre in Betracht: das Folgejahr des zuletzt
+// erfassten und das Jahr vor dem bisher ersten. Alles dazwischen ist schon
+// angelegt, alles darüber hinaus ließe eine Lücke.
 func (s *ClosingService) assertConsecutive(ctx context.Context, year int) error {
 	all, err := s.fiscalYearRepo.FindAll(ctx)
 	if err != nil {
@@ -265,19 +291,23 @@ func (s *ClosingService) assertConsecutive(ctx context.Context, year int) error 
 	if len(all) == 0 {
 		return nil
 	}
-	last := all[0].Year
+	first, last := all[0].Year, all[0].Year
 	for _, fy := range all {
 		if fy.Year > last {
 			last = fy.Year
 		}
+		if fy.Year < first {
+			first = fy.Year
+		}
 	}
-	if year == last+1 {
+	if year == last+1 || year == first-1 {
 		return nil
 	}
 	return fmt.Errorf(
-		"das Geschäftsjahr %d schließt nicht an das zuletzt erfasste Jahr %d an; anlegen lässt "+
-			"sich nur %d — sonst bliebe eine Lücke, in der Buchungen zu keinem Geschäftsjahr gehören",
-		year, last, last+1)
+		"das Geschäftsjahr %d schließt nicht an die erfassten Jahre %d bis %d an; anlegen lassen "+
+			"sich nur %d und %d — sonst bliebe eine Lücke, in der Buchungen zu keinem "+
+			"Geschäftsjahr gehören",
+		year, first, last, first-1, last+1)
 }
 
 // YearOf liefert das Geschäftsjahr und legt es an, falls es noch fehlt.
@@ -1079,11 +1109,12 @@ func (s *ClosingService) openItemsAt(ctx context.Context, cutoff string) ([]carr
 
 // carriedSoFar liest, was im Zieljahr schon vorgetragen ist.
 //
-// Gezählt wird über alle Vortragsbuchungen des Jahres einschließlich ihrer
-// Generalumkehr: deren negative Beträge heben die stornierte Buchung genau auf,
-// und damit steht in der Summe, was tatsächlich auf den Konten liegt. Die
-// zweite Rückgabe sind die Buchungen, die ein Korrekturvortrag zurücknehmen
-// müsste — Stornos und bereits stornierte Buchungen gehören nicht dazu.
+// carriedSoFar zählt über alle Vortragsbuchungen des Jahres einschließlich
+// ihrer Generalumkehr: deren negative Beträge heben die stornierte Buchung
+// genau auf, und damit steht in der Summe, was tatsächlich auf den Konten
+// liegt. Die zweite Rückgabe sind die Buchungen, die ein Korrekturvortrag
+// zurücknehmen müsste — Stornos und bereits stornierte Buchungen gehören
+// nicht dazu.
 func (s *ClosingService) carriedSoFar(ctx context.Context, toYear int) (map[string]domain.Cents, []domain.JournalEntry, error) {
 	entries, err := s.journalRepo.FindAll(ctx, toYear)
 	if err != nil {
@@ -1453,8 +1484,8 @@ func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, y
 // auditChange protokolliert eine Änderung am Geschäftsjahr mit dem Stand davor
 // und danach.
 //
-// Das Geschäftsjahr ist Stammdatenbestand: an seinem Abschlussstand hängt, ob
-// noch gebucht werden darf, an der Arbeitnehmerzahl die Größenklasse und damit
+// Das Geschäftsjahr ist Stammdatenbestand: sein Abschlussstand bestimmt, ob
+// noch gebucht werden darf, die Arbeitnehmerzahl die Größenklasse und damit
 // die Gliederungstiefe des Abschlusses. Wer den Stand ändert, ändert also, was
 // das Programm zulässt und wie es ausweist — und das gehört mit beiden Ständen
 // ins Protokoll (GoBD Rz. 34).
@@ -1520,6 +1551,25 @@ func lastDayOfTwelveMonths(start string) string {
 	return t.AddDate(0, 12, 0).AddDate(0, 0, -1).Format("2006-01-02")
 }
 
+// previousDay liefert den Vortag eines Datums im Format JJJJ-MM-TT.
+func previousDay(date string) string {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return date
+	}
+	return t.AddDate(0, 0, -1).Format("2006-01-02")
+}
+
+// firstDayOfTwelveMonths liefert den ersten Tag eines vollen Geschäftsjahres,
+// das am gegebenen Tag endet — die Gegenrichtung zu lastDayOfTwelveMonths.
+func firstDayOfTwelveMonths(end string) string {
+	t, err := time.Parse("2006-01-02", end)
+	if err != nil {
+		return end
+	}
+	return t.AddDate(0, 0, 1).AddDate(0, -12, 0).Format("2006-01-02")
+}
+
 func germanDate(date string) string {
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
@@ -1545,8 +1595,8 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 	if err != nil {
 		return nil, err
 	}
-	// Ab der Feststellung steht der Abschluss. An der Arbeitnehmerzahl hängt
-	// über die Größenklasse die Gliederungstiefe und der Umfang der
+	// Ab der Feststellung steht der Abschluss. Die Arbeitnehmerzahl bestimmt
+	// über die Größenklasse die Gliederungstiefe und den Umfang der
 	// Offenlegung — sie danach zu ändern hieße, einen festgestellten Abschluss
 	// nachträglich anders auszuweisen.
 	if fy.IsAdopted() {
@@ -1572,9 +1622,9 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 
 // SetPriorYearRevenue hält den Gesamtumsatz des Vorjahres fest.
 //
-// An ihm hängt die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 €
-// darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz
-// ausgestellt werden. Vorbelegt wird er aus der Gewinn- und Verlustrechnung des
+// Die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet sich nach ihm: bis
+// 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten
+// Datensatz ausgestellt werden. Vorbelegt wird er aus der Gewinn- und Verlustrechnung des
 // Vorjahres — überschreibbar, weil der Gesamtumsatz des § 19 Abs. 3 UStG nicht
 // dasselbe ist wie die Umsatzerlöse des § 275 HGB: steuerfreie Umsätze,
 // Geschäftsveräußerungen und die unentgeltlichen Wertabgaben gehen

@@ -47,7 +47,7 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 // filledBooks legt einen kleinen, aber vollständigen Bestand an: zwei
 // Eingangsrechnungen mit Beleg und Personenkonto (eine offen, eine bezahlt),
 // eine Handbuchung, ein Anlagegut samt Zugang und Abschreibungslauf und eine
-// gespeicherte Voranmeldung. Damit trägt jede Tabelle des Exports etwas —
+// gespeicherte Voranmeldung. Damit enthält jede Tabelle des Exports etwas —
 // eine Tabelle, die nur leer geprüft wird, ist nicht geprüft.
 func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
 	t.Helper()
@@ -208,7 +208,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 		}
 	}
 	if belegte == 0 {
-		t.Fatal("die gespeicherte Voranmeldung trägt keine belegte Kennziffer — die Fixture prüft dann nichts")
+		t.Fatal("die gespeicherte Voranmeldung hat keine belegte Kennziffer — die Fixture prüft dann nichts")
 	}
 	if byName["voranmeldungen"].Rows != belegte {
 		t.Errorf("voranmeldungen.csv hat %d Zeilen, erwartet %d belegte Kennziffern",
@@ -222,7 +222,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 		t.Error("das Schlüsselverzeichnis ist leer")
 	}
 
-	// Die Bewegungen tragen Vorzeichen: der Zugang erhöht die AHK, die
+	// Die Bewegungen haben Vorzeichen: der Zugang erhöht die AHK, die
 	// Abschreibung erhöht die kumulierte AfA. Vertauschte Spalten machten aus
 	// einem Anlagenspiegel eine Zahlenreihe ohne Aussage.
 	movements := readCSV(t, filepath.Join(dir, "anlagen_bewegungen.csv"))
@@ -251,7 +251,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 		}
 	}
 	if !seen[string(domain.AssetMovementAcquisition)] || !seen[string(domain.AssetMovementDepreciation)] {
-		t.Errorf("anlagen_bewegungen.csv enthält nicht Zugang und AfA, sondern %v", seen)
+		t.Errorf("anlagen_bewegungen.csv enthält %v statt Zugang und AfA", seen)
 	}
 
 	// Die Voranmeldung führt nur belegte Kennziffern und nennt den Zeitraum.
@@ -265,7 +265,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 			t.Errorf("voranmeldungen.csv nennt den Zeitraum %q, erwartet %q", row[period], fixture.vatReturn.PeriodKey)
 		}
 		if row[code] == "" {
-			t.Error("eine Zeile der Voranmeldung trägt keine Kennziffer")
+			t.Error("eine Zeile der Voranmeldung hat keine Kennziffer")
 		}
 		if row[base] == "0.00" && row[tax] == "0.00" {
 			t.Errorf("die Kennziffer %s steht mit lauter Nullen in der Datei", row[code])
@@ -291,7 +291,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	}
 }
 
-// Die Kontentabelle trägt das Element der HGB-Taxonomie. Ohne es müsste ein
+// Die Kontentabelle hat das Element der HGB-Taxonomie. Ohne es müsste ein
 // Prüfer die Zuordnung zur E-Bilanz erraten, obwohl Buchfink sie kennt.
 func TestExportedAccountsCarryTheTaxonomyElement(t *testing.T) {
 	env := newTestEnv(t)
@@ -329,7 +329,7 @@ func TestExportedAccountsCarryTheTaxonomyElement(t *testing.T) {
 		if row[number] == "1800" {
 			checked++
 			if row[element] == "" {
-				t.Error("das Bankkonto 1800 trägt kein Taxonomie-Element")
+				t.Error("das Bankkonto 1800 hat kein Taxonomie-Element")
 			}
 		}
 	}
@@ -502,7 +502,7 @@ func TestExportArchiveCarriesTheReceiptFiles(t *testing.T) {
 		}
 	}
 	if len(paths) == 0 {
-		t.Fatal("kein Beleg trägt eine Originaldatei — der Test prüft dann nichts")
+		t.Fatal("kein Beleg hat eine Originaldatei — der Test prüft dann nichts")
 	}
 
 	// Und belege.csv muss den Pfad nennen, sonst findet ihn niemand wieder.
@@ -604,7 +604,7 @@ func TestExportArchiveCarriesTheAssetDocuments(t *testing.T) {
 	}
 }
 
-// Das Prüferpaket trägt den Nachweis der Unversehrtheit. Ohne ihn ist es ein
+// Das Prüferpaket hat den Nachweis der Unversehrtheit. Ohne ihn ist es ein
 // Archivexport mit einem anderen Namen.
 func TestExportAuditPackageCarriesTheIntegrityReport(t *testing.T) {
 	env := newTestEnv(t)
@@ -931,8 +931,8 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 	put("rate_date", h["Kursdatum"])
 	put("rule_version", h["Regelversion"])
 	// Die Versionsweiche, wie die Feldbeschreibung sie beschreibt: eine
-	// Buchung mit belegter Programmfassung trägt drei weitere Felder, eine ohne
-	// trägt sie nicht.
+	// Buchung mit belegter Programmfassung hat drei weitere Felder, eine ohne
+	// hat sie nicht.
 	if h["Programmfassung"] != "" {
 		put("app_version", h["Programmfassung"])
 		put("actor", h["Bearbeiter"])
@@ -998,7 +998,7 @@ func findMeal(rows [][]string, entryID string) map[string]string {
 // Januar bezahlt (§ 252 Abs. 1 Nr. 5 HGB). Die Überlassung eines Jahres darf
 // deshalb weder die Zuordnungen fremder Jahre mitliefern noch die Buchungsnummer
 // der Gegenseite verschweigen — sonst ist die Zahlung nicht mehr aufzulösen,
-// und das ist genau das, wofür die Einzelpostenliste da ist (GoBD Rz. 36).
+// und dafür ist die Einzelpostenliste da (GoBD Rz. 36).
 func TestExportedAllocationsStayWithinTheYearAndNameBothSides(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

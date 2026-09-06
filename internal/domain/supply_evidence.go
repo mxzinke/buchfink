@@ -9,8 +9,8 @@ import (
 
 // Der Belegnachweis der innergemeinschaftlichen Lieferung.
 //
-// Die Belege hängen an der Rechnung und nicht am Beleg der Rechnung: der
-// Beleg-Hash deckt eine feste Dateiliste ab und wird beim Buchen versiegelt,
+// Die Belege sind der Rechnung zugeordnet und nicht dem Beleg der Rechnung:
+// der Beleg-Hash deckt eine feste Dateiliste ab und wird beim Buchen versiegelt,
 // während ein Frachtbrief regelmäßig erst Tage später eintrifft. Ein Nachweis,
 // der nur vor dem Buchen abgelegt werden kann, ist keiner — es ist der Normalfall,
 // dass die Rechnung vor dem Frachtbrief da ist.
@@ -31,8 +31,8 @@ type SupplyEvidence struct {
 	// Die Datenbankvorgabe ist bewusst `false` und nicht `true`: GORM lässt bei
 	// einem Feld mit `default:true` den Nullwert aus dem INSERT heraus, und ein
 	// abhängiger Aussteller käme dann als unabhängiger in der Spalte an. Die
-	// Vermutung des § 17a UStDV hinge damit an einem Beleg, der sie nicht
-	// trägt. Die Maske schlägt „unabhängig" vor; gespeichert wird, was dort
+	// Vermutung des § 17a UStDV beruhte damit auf einem Beleg, der sie nicht
+	// stützt. Die Maske schlägt „unabhängig" vor; gespeichert wird, was dort
 	// steht.
 	Independent bool `gorm:"not null;default:false" json:"independent"`
 
@@ -49,7 +49,7 @@ type SupplyEvidence struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// Validate prüft, was ein Nachweisbeleg tragen muss.
+// Validate prüft, was ein Nachweisbeleg braucht.
 func (e *SupplyEvidence) Validate() error {
 	if e.InvoiceID == 0 {
 		return fmt.Errorf("der Nachweis gehört zu einer Rechnung")

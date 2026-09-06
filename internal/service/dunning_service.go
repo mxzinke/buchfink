@@ -144,17 +144,17 @@ func NewDunningService(
 // ohne PDF; der Vorgang bleibt trotzdem verzeichnet.
 func (s *DunningService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
-// SetInvoiceSource hängt die Rechnungen an: sie tragen das Kennzeichen, ob der
+// SetInvoiceSource hängt die Rechnungen an: sie haben das Kennzeichen, ob der
 // Verzugshinweis an den Verbraucher gedruckt wurde.
 func (s *DunningService) SetInvoiceSource(r domain.InvoiceRepository) { s.invoiceRepo = r }
 
 // consumerNoticePrinted meldet, ob die Rechnung hinter einem offenen Posten den
-// Verzugshinweis getragen hat.
+// Verzugshinweis aufwies.
 //
-// Beantwortet wird die Frage nur für die Rechnungen, die Buchfink selbst
-// ausgestellt hat: dort steht das Kennzeichen am Datensatz, und eine
-// Bestandsrechnung aus der Zeit vor dem Hinweis trägt es zu Recht nicht. Ein
-// von Hand gebuchter Posten — die Rechnung wurde außerhalb geschrieben — ist
+// consumerNoticePrinted beantwortet die Frage nur für die Rechnungen, die
+// Buchfink selbst ausgestellt hat: dort steht das Kennzeichen am Datensatz,
+// und eine Bestandsrechnung aus der Zeit vor dem Hinweis hat es zu Recht
+// nicht. Ein von Hand gebuchter Posten — die Rechnung wurde außerhalb geschrieben — ist
 // kein „ohne Hinweis": Buchfink kennt das Dokument nicht und darf über seinen
 // Text nichts behaupten. Für ihn bleibt es beim Verzug nach dreißig Tagen, und
 // der Hinweis unter dem Vorschlag sagt, worauf er beruht.
@@ -269,7 +269,7 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 		// Gegenüber einem Verbraucher tritt der Verzug nach dreißig Tagen nur
 		// ein, wenn die Rechnung darauf hingewiesen hat (§ 286 Abs. 3 Satz 1
 		// Halbsatz 2 BGB). Der Hinweis steht an der Rechnung und nicht in einer
-		// Einstellung: für eine Rechnung, die ihn nie getragen hat, macht keine
+		// Einstellung: für eine Rechnung ohne diesen Hinweis macht keine
 		// spätere Änderung ihn nachträglich wahr.
 		noticePrinted := true
 		if proposal.IsConsumer {
@@ -284,7 +284,7 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 				"Zu %s ist der Verzugsbeginn nicht bestimmbar: %v", documentOf(item), err)
 		} else {
 			row.DefaultFrom = from
-			// Der Verzug hängt am Kalender, nicht am Gelingen der Zinsrechnung:
+			// Der Verzug richtet sich nach dem Kalender, nicht nach dem Gelingen der Zinsrechnung:
 			// „from" ist der erste Tag, für den Zinsen laufen, also auch der
 			// Tag, an dem der Verzug eingetreten ist (§ 286 Abs. 3 BGB).
 			inDefault := from <= today
@@ -309,19 +309,20 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 			// mit der ersten Mahnstufe: die voreingestellte Zahlungserinnerung
 			// geht sieben Tage nach Fälligkeit heraus, der Verzug tritt erst
 			// nach dreißig Tagen ein (§ 286 Abs. 3 BGB). Wer die Pauschale an
-			// das erste Schreiben hängte, setzte sie im Regelfall nie an. Dass
+			// das erste Schreiben knüpfte, setzte sie im Regelfall nie an. Dass
 			// sie sich im nächsten Schreiben nicht wiederholt, sichert der
 			// Blick in die schon ergangenen Schreiben und nicht die Stufe.
 			//
-			// Sie hängt auch nicht an den gerechneten Zinstagen: ein fehlender
-			// Basiszinssatz lässt die Zinsen ausfallen, den Verzug aber nicht.
-			// Wer die Pauschale daran hängte, ließe sie stillschweigend
-			// wegfallen — und der Hinweis nennte nur die fehlenden Zinsen.
+			// Sie richtet sich auch nicht nach den gerechneten Zinstagen: ein
+			// fehlender Basiszinssatz lässt die Zinsen ausfallen, den Verzug
+			// aber nicht. Wer die Pauschale daran knüpfte, ließe sie
+			// stillschweigend wegfallen — und der Hinweis nennte nur die
+			// fehlenden Zinsen.
 			if !proposal.IsConsumer && inDefault && !lumpSumCharged[item.EntryID] {
 				row.LumpSum = accounting.DefaultInterestLumpSum
 				if err != nil {
-					row.Note += " Die Pauschale von 40 € ist trotzdem angesetzt: sie hängt am " +
-						"Verzug und nicht an der Zinsrechnung."
+					row.Note += " Die Pauschale von 40 € ist trotzdem angesetzt: sie richtet sich nach " +
+						"dem Verzug und nicht nach der Zinsrechnung."
 				}
 			}
 		}
@@ -371,7 +372,7 @@ func documentOf(item *domain.OpenItem) string {
 
 // dunningNote ist der Satz, der unter dem Vorschlag steht.
 //
-// Er trägt auch, was beim Rechnen schiefging: ein Vorschlag, dessen Zinsen an
+// Er sagt auch, was beim Rechnen schiefging: ein Vorschlag, dessen Zinsen an
 // einem fehlenden Basiszinssatz gescheitert sind, sieht sonst aus wie einer ohne
 // Verzug — und die Forderung ginge zu niedrig heraus.
 func dunningNote(p *DunningProposal, extra []string) string {
@@ -430,12 +431,12 @@ func dunningNote(p *DunningProposal, extra []string) string {
 
 // nextDunningLevel liefert die Stufe, die ein Posten mit diesem Lauf erreicht.
 //
-// Zwei Bedingungen, und beide sind nötig. Die Folge wird eingehalten: aus der
-// Zahlungserinnerung wird die erste Mahnung und aus ihr die zweite — auch dann,
-// wenn der Posten schon so lange offen ist, dass die dritte Stufe fällig wäre.
-// Wer eine Stufe überspringt, mahnt einen Kunden, der noch keine Erinnerung
-// bekommen hat, mit einer zweiten Mahnung. Und der Abstand zwischen zwei
-// Schreiben wird gewahrt: er ist der Abstand, den die Stufenfolge vorsieht
+// Zwei Bedingungen, und beide sind nötig. nextDunningLevel hält die Folge
+// ein: aus der Zahlungserinnerung wird die erste Mahnung und aus ihr die
+// zweite — auch dann, wenn der Posten schon so lange offen ist, dass die
+// dritte Stufe fällig wäre. Wer eine Stufe überspringt, mahnt einen Kunden,
+// der noch keine Erinnerung bekommen hat, mit einer zweiten Mahnung. Und es
+// wahrt den Abstand zwischen zwei Schreiben: er ist der Abstand, den die Stufenfolge vorsieht
 // (21 nach 7 Tagen heißt vierzehn Tage dazwischen). Ohne ihn stünde ein lange
 // offener Posten am selben Tag dreimal im Vorschlag und wäre nach drei Klicks
 // bei der zweiten Mahnung — ohne dass der Kunde je Zeit zu zahlen hatte.
@@ -571,7 +572,7 @@ func (s *DunningService) Create(ctx context.Context, req DunningRequest) (*domai
 		// Das PDF liegt schon im Belegspeicher, der Datensatz ist nicht
 		// entstanden: ohne das Aufräumen bliebe eine Datei unter
 		// dokumente/mahnungen/ liegen, zu der es kein Schreiben, keinen Empfänger
-		// und keinen Protokolleintrag gibt — genau die Art Fundstück, die im
+		// und keinen Protokolleintrag gibt — die Art Fundstück, die im
 		// Prüfermodus niemand mehr erklären kann.
 		removeDocument()
 		return nil, fmt.Errorf("das Mahnschreiben konnte nicht abgelegt werden: %w", err)
@@ -734,7 +735,7 @@ func dunningMarkdown(
 // bankDetailsBlock ist die Zahlungsangabe unter dem Schreiben; leer, solange
 // keine IBAN hinterlegt ist.
 //
-// Die IBAN trägt den Block: ohne sie ist mit Bankname und BIC allein nichts
+// Der Block richtet sich nach der IBAN: ohne sie ist mit Bankname und BIC allein nichts
 // überwiesen. Der Verwendungszweck nennt die gemahnten Belege — er ist es, der
 // die eingehende Zahlung den Posten wieder zuordnet, und ohne ihn landet sie im
 // Bankimport als unbekannter Eingang.

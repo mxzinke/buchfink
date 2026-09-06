@@ -69,9 +69,9 @@ func TestOfficialExamplesParse(t *testing.T) {
 	}
 }
 
-// Was der Korpus an Feldern trägt, wird auch gelesen. Der Test zählt, wie oft
-// jedes Feld belegt ist, und hält fest, welche überhaupt vorkommen — sonst
-// bliebe unbemerkt, dass eine ganze Gruppe nie ankommt.
+// Jedes Feld, das der Korpus liefert, liest der Parser auch. Der Test zählt,
+// wie oft jedes Feld belegt ist, und hält fest, welche überhaupt vorkommen —
+// sonst bliebe unbemerkt, dass eine ganze Gruppe nie ankommt.
 func TestCorpusFillsTheModelBroadly(t *testing.T) {
 	seen := map[string]int{}
 	note := func(name string, ok bool) {
@@ -138,13 +138,12 @@ func TestCorpusFillsTheModelBroadly(t *testing.T) {
 		t.Logf("  %-38s %d Vorkommen", name, seen[name])
 	}
 
-	// Positionsfelder werden je Position gezählt, Kopffelder je Datei — die
+	// Der Test zählt Positionsfelder je Position und Kopffelder je Datei — die
 	// Zahl sagt, wie oft der Korpus das Feld überhaupt vorführt.
 	//
 	// Die Gruppen, die der Buchungsflow heute nicht anfasst, sind der Grund für
 	// dieses Modul. Kommen sie im Korpus vor und landen nicht im Modell, ist der
-	// Leser unvollständig — und genau das würde erst bei einem echten Beleg
-	// auffallen.
+	// Leser unvollständig — und das würde erst bei einem echten Beleg auffallen.
 	for _, required := range []string{
 		"BG-16 Zahlungsanweisung",
 		"BG-20 Nachlässe",

@@ -16,7 +16,7 @@ import (
 // Objekt.
 //
 // before darf nil sein — dann ist das Objekt neu, „vorher" ist leer, und
-// „nachher" trägt jedes belegte Feld.
+// „nachher" enthält jedes belegte Feld.
 //
 // ignore nennt Felder, die nicht ins Protokoll gehören: berechnete Werte, die
 // nicht gespeichert werden (ein Kontostand, ein Hinweistext), würden sonst als

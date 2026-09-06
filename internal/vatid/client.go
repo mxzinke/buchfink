@@ -152,8 +152,8 @@ func New(endpoint string) *Client {
 // Endpoint liefert die Adresse, an die dieser Client fragt.
 func (c *Client) Endpoint() string { return c.endpoint }
 
-// SetClock ersetzt die Uhr. Nur für Tests: ein Ergebnis trägt seinen Zeitpunkt,
-// und die Frist von 90 Tagen hängt an ihm.
+// SetClock ersetzt die Uhr. Nur für Tests: ein Ergebnis hat seinen Zeitpunkt,
+// und die Frist von 90 Tagen richtet sich danach.
 func (c *Client) SetClock(now func() time.Time) { c.now = now }
 
 // SetTimeout ändert die Frist, nach der die Abfrage abgebrochen wird.

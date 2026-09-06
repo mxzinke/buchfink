@@ -81,7 +81,7 @@ func TestVatCodeForEveryTaxKeyAndTreatment(t *testing.T) {
 				t.Errorf("Kz %s Steuer = %s, erwartet %s", tc.wantCode, line.Tax, tc.wantTax)
 			}
 			if len(line.EntryIDs) != 1 || line.EntryIDs[0] != 1 {
-				t.Errorf("Kz %s trägt die Buchungen %v, erwartet [1] — ohne sie gibt es keinen Drill-down",
+				t.Errorf("Kz %s hat die Buchungen %v, erwartet [1] — ohne sie gibt es keinen Drill-down",
 					tc.wantCode, line.EntryIDs)
 			}
 		})
@@ -129,7 +129,7 @@ func TestBasesAreTruncatedToWholeEuros(t *testing.T) {
 		t.Errorf("Steuer = %s, erwartet 190,09 — gebucht wird die Steuer der Rechnung", line.Tax)
 	}
 	// Die rechnerische Steuer folgt der ungerundeten Grundlage: 19 % von
-	// 1.000,49 sind 190,09, und genau das ist gebucht. Die Abrundung des Blattes
+	// 1.000,49 sind 190,09, und das ist gebucht. Die Abrundung des Blattes
 	// darf keine Abweichung erzeugen, sonst schlüge die Anzeige bei jeder
 	// krummen Rechnung aus und niemand sähe die echte mehr.
 	if line.ExpectedTax != 19009 {

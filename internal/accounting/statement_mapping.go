@@ -11,7 +11,7 @@ package accounting
 //
 // Die Zuordnung folgt der Gliederung der Kapitalgesellschaft. Positionen der
 // Personenhandelsgesellschaft und der Genossenschaft landen auf der Zeile, die
-// ihnen wirtschaftlich entspricht, und tragen dazu einen Hinweis; ohne ihn
+// ihnen wirtschaftlich entspricht, und erhalten dazu einen Hinweis; ohne ihn
 // stünde ein Kapitalkonto der KG kommentarlos unter dem gezeichneten Kapital.
 //
 // Maßgeblich ist der Inhalt der Konten, nicht der Name der Katalogposition.

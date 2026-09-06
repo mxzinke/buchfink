@@ -10,7 +10,7 @@ import (
 // Trennzeichen nur die erzeugende Software kennt, ist keine Datenüberlassung.
 const (
 	// ColumnDelimiter ist das Semikolon. Das Komma scheidet aus, sobald ein
-	// Feld einen Betrag oder einen deutschen Text trägt.
+	// Feld einen Betrag oder einen deutschen Text enthält.
 	ColumnDelimiter = ";"
 	// RecordDelimiter ist CR LF nach RFC 4180.
 	RecordDelimiter = "\r\n"

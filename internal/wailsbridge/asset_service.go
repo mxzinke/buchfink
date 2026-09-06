@@ -45,7 +45,7 @@ func (b *BuchfinkBridge) GetAssetSummary(class string) (*service.AssetSummary, e
 }
 
 // GetFixedAsset returns one Anlagegut with its AfA-Plan, seinen Bewegungen und
-// den Erklärungen, die zu genau diesem Gut gehören.
+// den Erklärungen, die zu diesem Gut gehören.
 func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -149,7 +149,7 @@ type assetMethodInfo struct {
 	Method domain.DepreciationMethod `json:"method"`
 	Label  string                    `json:"label"`
 	// Classes names the Anlagenklassen the method is available for. Finanzanlagen
-	// tragen keine planmäßige Abschreibung — das steht hier und nicht als
+	// haben keine planmäßige Abschreibung — das steht hier und nicht als
 	// Sonderfall in der Maske.
 	Classes []domain.AssetClass `json:"classes"`
 	Hint    string              `json:"hint"`
@@ -465,7 +465,7 @@ func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, err
 }
 
 // AttachAssetDocument legt eine Datei zum Anlagegut ab — einen Vertrag, ein
-// Gutachten, ein Zulassungspapier. Sie wird nicht gebucht und trägt keine
+// Gutachten, ein Zulassungspapier. Sie wird nicht gebucht und hat keine
 // Belegnummer; sie gehört zum Wirtschaftsgut und nicht zum Geschäftsjahr.
 func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) (*domain.FixedAsset, error) {
 	b.mu.Lock()
