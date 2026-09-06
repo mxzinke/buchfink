@@ -82,7 +82,6 @@ func (o *RetentionOverview) EnsureLists() {
 // Löschung nur auf ausdrückliche Anweisung aus.
 type RetentionService struct {
 	retentionRepo domain.RetentionRepository
-	journalRepo   domain.JournalRepository
 	settingsRepo  domain.SettingsRepository
 	auditRepo     domain.AuditRepository
 	store         *receiptstore.Store
@@ -91,14 +90,12 @@ type RetentionService struct {
 // NewRetentionService verdrahtet die Fristenverwaltung.
 func NewRetentionService(
 	retentionRepo domain.RetentionRepository,
-	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	store *receiptstore.Store,
 ) *RetentionService {
 	return &RetentionService{
 		retentionRepo: retentionRepo,
-		journalRepo:   journalRepo,
 		settingsRepo:  settingsRepo,
 		auditRepo:     auditRepo,
 		store:         store,
@@ -119,7 +116,10 @@ func (s *RetentionService) Overview(ctx context.Context, today string) (*Retenti
 		Concept: accounting.DeletionConcept(),
 	}
 
-	years, err := s.journalRepo.GetAvailableFiscalYears(ctx)
+	// Gefragt wird nach Jahren mit aufzubewahrenden Objekten und nicht nach
+	// Jahren mit Buchungen: ein Jahr, das nur Belege oder Handelsbriefe trägt,
+	// hat dieselbe Frist und muss in der Übersicht stehen.
+	years, err := s.retentionRepo.FiscalYearsWithObjects(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("die Geschäftsjahre konnten nicht gelesen werden: %w", err)
 	}
@@ -276,7 +276,11 @@ func (s *RetentionService) ExpiredYears(ctx context.Context, today string) ([]Re
 	}
 	out := make([]RetentionYear, 0)
 	for _, year := range overview.Years {
-		if year.Expired {
+		// Deletable und nicht Expired: ein Jahr, dessen Frist ausgesetzt ist,
+		// ist nicht abgelaufen (§ 147 Abs. 3 Satz 5 AO). Es in diesem Bericht
+		// zu führen hieße, zum Löschen von Unterlagen einzuladen, die gerade
+		// für ein laufendes Verfahren gebraucht werden.
+		if year.Deletable {
 			out = append(out, year)
 		}
 	}
@@ -307,6 +311,24 @@ func (s *RetentionService) EnsureDeletable(ctx context.Context, year int, today 
 			year, row.Hold.SetAt.Format("02.01.2006"), row.Hold.Reason.Label())
 	}
 	return nil
+}
+
+// EnsureDeleteAllowed prüft alles, was sich ohne Nebenwirkung prüfen lässt:
+// die ausgeschriebene Bestätigung und die Fristlage.
+//
+// Sie steht getrennt, weil der Archivexport vor der Löschung läuft und
+// Dateien auf der Platte hinterlässt. Eine falsch getippte Bestätigung soll
+// nicht erst nach dem Archiv auffallen — sonst bliebe ein vollständiger
+// Archivexport eines Jahres liegen, das niemand löschen wollte.
+func (s *RetentionService) EnsureDeleteAllowed(
+	ctx context.Context, year int, confirmation, today string,
+) error {
+	if strings.TrimSpace(confirmation) != fmt.Sprintf("%d", year) {
+		return fmt.Errorf(
+			"zum Löschen des Geschäftsjahres %d ist die Jahreszahl als Bestätigung einzugeben. Der Vorgang lässt sich nicht rückgängig machen",
+			year)
+	}
+	return s.EnsureDeletable(ctx, year, today)
 }
 
 // DeleteRequest ist der Auftrag, ein Geschäftsjahr zu archivieren und zu

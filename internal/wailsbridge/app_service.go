@@ -390,7 +390,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.retentionSvc = service.NewRetentionService(
-		b.retentionRepo, b.journalRepo, b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir))
+		b.retentionRepo, b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir))
 	b.procDocSvc = service.NewProcDocService(
 		b.settingsRepo, b.numberRepo, b.procDocRepo, b.migrationRepo, b.auditRepo,
 		receiptstore.New(t.DataDir), fiscalYear)

@@ -175,10 +175,12 @@ func (b *BuchfinkBridge) ArchiveAndDeleteFiscalYear(year int, confirmation strin
 	}
 	ctx := context.Background()
 
-	// Erst die Fristprüfung, dann das Archiv: ein Archivexport für ein Jahr,
-	// das gar nicht gelöscht werden darf, wäre vergeudete Zeit und eine Datei,
-	// die niemand angefordert hat.
-	if err := b.retentionSvc.EnsureDeletable(ctx, year, ""); err != nil {
+	// Erst Bestätigung und Fristprüfung, dann das Archiv: ein Archivexport für
+	// ein Jahr, das gar nicht gelöscht werden darf oder dessen Bestätigung
+	// falsch getippt ist, wäre vergeudete Zeit und eine Datei, die niemand
+	// angefordert hat — und zwar ein vollständiger Abzug der Buchführung eines
+	// Jahres, der ungefragt auf der Platte liegen bliebe.
+	if err := b.retentionSvc.EnsureDeleteAllowed(ctx, year, confirmation, ""); err != nil {
 		return nil, err
 	}
 
@@ -404,7 +406,9 @@ func (b *BuchfinkBridge) GetCorrectionOf(entryID uint) (*domain.JournalEntry, er
 	if b.journalSvc == nil {
 		return nil, nil
 	}
-	return b.journalSvc.CorrectionOf(context.Background(), entryID)
+	entry, err := b.journalSvc.CorrectionOf(context.Background(), entryID)
+	entry.EnsureLists()
+	return entry, err
 }
 
 // PreviewOpeningBalance zeigt die Eröffnungsbuchungen des Umsteigers, ohne sie
@@ -451,6 +455,9 @@ func (b *BuchfinkBridge) GetOpenItemsAging(cutoff string) (*domain.OpenItemsAgin
 		return nil, err
 	}
 	aging := accounting.AgeOpenItems(items, cutoff)
+	// Die Zusicherung steht hier und nicht nur bei der leeren Antwort: eine
+	// Liste, die an einer Stelle `null` sein darf, ist keine Zusicherung.
+	aging.EnsureLists()
 	return &aging, nil
 }
 

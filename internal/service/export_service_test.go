@@ -938,6 +938,11 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 		put("actor", h["Bearbeiter"])
 		put("legacy_ref", h["Herkunft_Altsystem"])
 	}
+	// Die zweite Weiche: die vereinbarte Fälligkeit wird nur geschrieben, wo die
+	// Spalte belegt ist.
+	if h["Faelligkeit"] != "" {
+		put("due_date", h["Faelligkeit"])
+	}
 	put("created_at", h["Erfassungszeitpunkt_UTC"])
 
 	put("lines", strconv.Itoa(len(entry.lines)))

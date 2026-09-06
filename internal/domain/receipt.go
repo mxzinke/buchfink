@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -469,6 +470,25 @@ func (r *Receipt) ValidateHeader() error {
 		}
 		return nil
 	}
+}
+
+// receiptJSON ist der Beleg ohne seine eigene Marshal-Methode. Eine
+// Typdefinition und kein Alias: sie erbt die Felder, aber nicht die Methoden,
+// und ohne diesen Umweg riefe MarshalJSON sich selbst auf.
+type receiptJSON Receipt
+
+// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben.
+//
+// RetentionUntil ist der letzte Aufbewahrungstag (der 31.12.) und nicht das
+// Löschdatum; gelöscht werden darf erst am Tag danach. Beide Tage mitzugeben
+// ist billiger, als sich darauf zu verlassen, dass jede Stelle der Oberfläche
+// das Feld richtig beschriftet — eine Beschriftung „frühestes Löschdatum" auf
+// RetentionUntil verspräche eine Löschung einen Tag zu früh.
+func (r Receipt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		receiptJSON
+		EarliestDeletion string `json:"earliestDeletion,omitempty"`
+	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
 }
 
 // HasHeader meldet, ob der Beleg Kopfdaten trägt. Das ist zugleich die Weiche

@@ -27,6 +27,7 @@ import {
 import { CompanySettings, IntegrityCheckResult } from '../types';
 import { GermanFlag } from './GermanFlag';
 import { Button, cn } from './ui';
+import { formatTime } from '../utils/formatters';
 
 export type TabType =
   | 'welcome'
@@ -194,13 +195,6 @@ const NavItem: React.FC<{
   </button>
 );
 
-/** Zeigt nur die Uhrzeit, das Datum steht ohnehin im Kontext des Arbeitstags. */
-function formatCheckedAt(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(date);
-}
-
 /**
  * Der Integritätszustand steht dauerhaft hier und nie in einem Toast (§11.4).
  * Drei Zustände, drei Formulierungen.
@@ -235,7 +229,11 @@ const IntegrityStatus: React.FC<{
         </span>
         {integrity?.checkedAt && !isChecking && (
           <span className="block text-caption text-shell-text-muted num">
-            Geprüft um {formatCheckedAt(integrity.checkedAt)} Uhr
+            {/* Die Uhrzeit mit Zeitzone und aus formatters.ts: eine eigene
+                Formatierung an dieser Stelle wäre die einzige Zeitangabe der
+                Anwendung ohne Zone (QUE-04, Entscheidung 8). Das Datum steht
+                im Zusammenhang des Arbeitstags. */}
+            Geprüft um {formatTime(integrity.checkedAt)}
           </span>
         )}
       </span>

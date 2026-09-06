@@ -77,6 +77,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		dateField("Leistungsbeginn", "Beginn der Leistung (§ 14 Abs. 4 Nr. 6 UStG)."),
 		dateField("Leistungsende", "Ende der Leistung; gleich dem Beginn bei einer Zeitpunktleistung."),
 		dateField("Valuta", "Wertstellung; nur bei Zahlungsbuchungen belegt."),
+		dateField("Faelligkeit", "Vereinbarte Fälligkeit des offenen Postens, den die Buchung begründet; leer, wo keine vereinbart ist. Ist die Spalte belegt, geht sie in die kanonische Form ein (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
 		alphaField("Buchungstext", "Beschreibung des Geschäftsvorfalls."),
 		alphaField("Quelle", "Teil des Systems, der die Buchung erzeugt hat; siehe Schlüsselverzeichnis, Kategorie „Quelle“."),
 		alphaField("Buchungsart", "normal oder reversal (Generalumkehr); siehe Schlüsselverzeichnis."),
@@ -84,7 +85,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		numField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
 		alphaField("Storno_Grund", "Begründung der Generalumkehr."),
 		alphaField("Belegnummer", "Belegfeld: Nummer des Belegs, unter der er abgelegt ist."),
-		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste des Belegs."),
+		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste des Belegs und — bei Belegen mit Belegdatum — dessen Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		numField("Kontakt_ID", "Geschäftspartner der Buchung; verweist auf kontakte.Kontakt_ID."),
 		numField("Bankumsatz_ID", "Interne Kennung des zugeordneten Bankumsatzes."),
 		alphaField("Waehrung", "Währung des Belegs nach ISO 4217."),
@@ -131,6 +132,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.ServiceDateFrom,
 				e.ServiceDateTo,
 				e.ValueDate,
+				e.DueDate,
 				e.Description,
 				string(e.Source),
 				string(e.Kind),
@@ -605,6 +607,14 @@ func keyDirectoryTable() (export.Table, error) {
 			return t, err
 		}
 	}
+	// Die Aufbewahrungsklassen: sie stehen in belege.csv als Code, und ohne
+	// ihre Bedeutung im Verzeichnis wäre „vouchers" für den Prüfer eine Zeichenkette.
+	for _, c := range domain.AllRetentionClasses() {
+		if err := add("Aufbewahrungsklasse", string(c), c.Label(),
+			accounting.LegalBasisForClass(c)); err != nil {
+			return t, err
+		}
+	}
 	for _, v := range []struct{ key, label string }{
 		{domain.ReceivedViaUpload, "Datei vom Rechner abgelegt"},
 		{domain.ReceivedViaEmail, "Per E-Mail empfangen"},
@@ -734,7 +744,7 @@ func auditLogTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAuditLog, "aenderungsprotokoll.csv",
 		"Das Änderungsprotokoll: wer wann was getan hat, und was sich dabei geändert hat (GoBD Rz. 34 ff.). Die Einträge sind untereinander verkettet; ein entfernter Eintrag bricht die Kette.",
 		numField("Protokoll_ID", "Fortlaufende Kennung."),
-		alphaField("Zeitpunkt", "Zeitpunkt des Vorgangs nach RFC 3339 in UTC."),
+		alphaField("Zeitpunkt", "Zeitpunkt des Vorgangs nach RFC 3339 in UTC, mit Bruchteilen der Sekunde, soweit vorhanden. Genau dieser Text geht in die kanonische Form des Eintrags ein; siehe Abschnitt „Die Kette des Änderungsprotokolls nachrechnen“."),
 		alphaField("Art", "Art des Vorgangs; siehe Schlüsselverzeichnis, Kategorie „Protokollart“."),
 		alphaField("Objektart", "Betroffene Art von Objekt."),
 		alphaField("Objekt_ID", "Kennung des betroffenen Objekts."),
@@ -749,7 +759,11 @@ func auditLogTable(d *exportData) (export.Table, error) {
 	for i := range d.auditLog {
 		a := &d.auditLog[i]
 		if err := t.AddRow(
-			export.Uint(a.ID), a.Timestamp.UTC().Format(time.RFC3339),
+			// RFC3339Nano und nicht RFC3339: die Kanonisierung des Eintrags
+			// hasht den Zeitpunkt mit Bruchteilen der Sekunde. Eine auf
+			// Sekunden gekürzte Spalte machte den Eigenhash aus der Datei
+			// unnachrechenbar — und damit die Kette zu einer Behauptung.
+			export.Uint(a.ID), a.Timestamp.UTC().Format(time.RFC3339Nano),
 			string(a.Action), a.EntityType, a.EntityID, a.Details,
 			a.Before, a.After, a.Actor, a.AppVersion,
 			a.PreviousHash, a.EntryHash,
@@ -809,7 +823,15 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Status", "Stand des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegstatus“."),
 		dateField("Eingang", "Tag, an dem der Beleg eingegangen ist."),
 		alphaField("Eingangsweg", "Weg, auf dem der Beleg eingegangen ist."),
-		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst trägt (Rechnungsdatum). Leer bei Belegen aus der Zeit vor den Kopfdaten; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Den Beleg-Hash nachrechnen“)."),
+		alphaField("Aussteller", "Name des Ausstellers, wie er auf dem Beleg steht."),
+		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
+		numField("Steuerbetrag", "Darin enthaltene Umsatzsteuer in Euro."),
+		alphaField("Waehrung", "Währung des Belegs nach ISO 4217."),
+		alphaField("Betreff", "Gegenstand der Leistung, wie er auf dem Beleg steht."),
+		alphaField("Aufbewahrungsklasse", "Klasse, aus der sich die Frist ergibt; siehe Schlüsselverzeichnis, Kategorie „Aufbewahrungsklasse“."),
+		dateField("Aufbewahrung_bis", "Letzter Tag der Aufbewahrungsfrist. Gelöscht werden darf frühestens am Folgetag."),
+		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und — bei Belegen mit Belegdatum — die Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		numField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
 		numField("Datei_Position", "Reihenfolge der Datei innerhalb des Belegs."),
@@ -832,7 +854,12 @@ func receiptsTable(d *exportData) (export.Table, error) {
 			if err := t.AddRow(
 				export.Uint(r.ID), r.ReceiptNumber, export.Int(r.FiscalYear),
 				string(r.Direction), string(r.Kind), string(r.Status),
-				r.ReceivedAt, r.ReceivedVia, r.ReceiptHash,
+				r.ReceivedAt, r.ReceivedVia,
+				r.DocumentDate, r.IssuerName,
+				export.Amount(r.GrossAmount), export.Amount(r.TaxAmount),
+				r.Currency, r.Subject,
+				string(r.RetentionClass), r.RetentionUntil,
+				r.ReceiptHash,
 				export.OptUint(r.JournalEntryID), entryNumber,
 				export.Int(f.Position), string(f.Role), f.FileName, f.MimeType,
 				export.Int64(f.Size), f.SHA256, export.Bool(f.Derived),

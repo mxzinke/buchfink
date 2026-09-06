@@ -389,7 +389,6 @@ func newRetentionEnv(t *testing.T) (*testEnv, *RetentionService) {
 	env := newTestEnv(t)
 	svc := NewRetentionService(
 		repository.NewRetentionRepository(env.db),
-		env.journalRepo,
 		repository.NewSettingsRepository(env.db),
 		repository.NewAuditRepository(env.db),
 		env.store,

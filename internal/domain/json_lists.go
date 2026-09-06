@@ -88,3 +88,21 @@ func (s *VatSummary) EnsureLists() {
 		s.TaxableRevenue = make([]VatFigure, 0)
 	}
 }
+
+// EnsureLists ersetzt die nicht belegten Listen einer Buchung durch leere.
+//
+// Die Zeilen sind an einer geschriebenen Buchung immer belegt; die
+// Geschenkaufzeichnungen sind es fast nie. Beide werden hier gleich behandelt,
+// weil die Maske sie gleich liest — und weil eine Zusicherung, die nur für den
+// erwarteten Fall gilt, keine ist.
+func (e *JournalEntry) EnsureLists() {
+	if e == nil {
+		return
+	}
+	if e.Lines == nil {
+		e.Lines = make([]JournalLine, 0)
+	}
+	if e.Gifts == nil {
+		e.Gifts = make([]GiftRecord, 0)
+	}
+}

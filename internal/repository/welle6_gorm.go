@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -177,6 +178,39 @@ func (r *retentionRepositoryGorm) CountObjects(ctx context.Context, fiscalYear i
 	return counts, nil
 }
 
+// FiscalYearsWithObjects sammelt die Geschäftsjahre, die aufzubewahrende
+// Objekte tragen.
+//
+// Gefragt werden dieselben Tabellen, die CountObjects zählt. Sonst gäbe es
+// Jahre, die eine Zählung ausweisen, aber in keiner Fristenübersicht stehen —
+// oder umgekehrt eine leere Zeile in der Übersicht.
+func (r *retentionRepositoryGorm) FiscalYearsWithObjects(ctx context.Context) ([]int, error) {
+	db := dbFrom(ctx, r.db)
+	seen := map[int]bool{}
+	for _, model := range []any{
+		&domain.JournalEntry{}, &domain.Receipt{}, &domain.Festschreibung{},
+		&domain.CheckRun{}, &domain.VatReturn{}, &domain.Invoice{},
+		&domain.BankTransaction{}, &domain.AssetMovement{}, &domain.Accrual{},
+		&domain.Provision{}, &domain.InventoryCount{}, &domain.ZMReturn{},
+		&domain.InputTaxUsage{}, &domain.NumberGap{},
+	} {
+		var years []int
+		if err := db.Model(model).Where("fiscal_year > 0").
+			Distinct("fiscal_year").Pluck("fiscal_year", &years).Error; err != nil {
+			return nil, fmt.Errorf("die Geschäftsjahre mit aufzubewahrenden Objekten ließen sich nicht bestimmen: %w", err)
+		}
+		for _, year := range years {
+			seen[year] = true
+		}
+	}
+	out := make([]int, 0, len(seen))
+	for year := range seen {
+		out = append(out, year)
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
 // DeleteFiscalYear löscht die Daten eines Geschäftsjahres.
 //
 // In einer Transaktion, weil eine halb gelöschte Buchführung schlimmer ist als
@@ -299,6 +333,11 @@ func (r *retentionRepositoryGorm) DeleteFiscalYear(ctx context.Context, fiscalYe
 			{&domain.CheckRun{}, "fiscal_year = ?", []any{fiscalYear}},
 			{&domain.Festschreibung{}, "fiscal_year = ?", []any{fiscalYear}},
 			{&domain.VatReturn{}, "fiscal_year = ?", []any{fiscalYear}},
+			// Zuletzt der Jahresdatensatz selbst. Bliebe er stehen, führte die
+			// Jahresliste das gelöschte Jahr weiter mit seinem Abschlussstand
+			// „festgestellt" — eine Aussage über einen Abschluss, dessen Daten
+			// es nicht mehr gibt.
+			{&domain.FiscalYear{}, "year = ?", []any{fiscalYear}},
 		}
 		for _, d := range deletes {
 			if err := tx.Where(d.where, d.args...).Delete(d.model).Error; err != nil {

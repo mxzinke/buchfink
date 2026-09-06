@@ -242,21 +242,20 @@ const ProtocolPanel: React.FC = () => {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
 
+  // Nur die gefilterten Einträge: die Kettenprüfung rechnet das gesamte
+  // Protokoll nach und hängt am Filter nicht — sie beim Anwenden jedes Filters
+  // mitlaufen zu lassen, macht jede Filteränderung so langsam wie das ganze
+  // Protokoll lang ist. Sie läuft einmal beim Öffnen und auf Knopfdruck.
   const load = useCallback(async (active: AuditFilter) => {
     setLoading(true);
     setError('');
     try {
-      const [logs, result] = await Promise.all([
-        Api.getAuditLogsFiltered(500, active),
-        Api.verifyAuditChain(),
-      ]);
+      const logs = await Api.getAuditLogsFiltered(500, active);
       setEntries(logs);
-      setChain(result);
       setSeenTypes((known) => union(known, logs.map((entry) => entry.entityType)));
       setSeenActors((known) => union(known, logs.map((entry) => entry.actor ?? '')));
     } catch (e) {
       setEntries([]);
-      setChain(null);
       setError(message(e));
     } finally {
       setLoading(false);
@@ -265,6 +264,14 @@ const ProtocolPanel: React.FC = () => {
 
   useEffect(() => {
     void load({});
+    // Der Zustand der Kette beim Öffnen der Seite. Schlägt er fehl, bleibt die
+    // Liste trotzdem stehen: das Protokoll zu lesen ist auch dann möglich.
+    Api.verifyAuditChain()
+      .then(setChain)
+      .catch((e) => {
+        setChain(null);
+        setError(message(e));
+      });
   }, [load]);
 
   const filtered =
@@ -1045,7 +1052,15 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
             <Button
               variant="secondary"
               disabled={lock.locked || years.length === 0}
-              title={lock.hint}
+              // Ein gesperrter Knopf ohne Erklärung versteckt seinen Grund
+              // (§10.4): der Prüfermodus ist der eine, ein Mandant ohne
+              // Geschäftsjahr mit Daten der andere.
+              title={
+                lock.hint ??
+                (years.length === 0
+                  ? 'Es gibt noch kein Geschäftsjahr mit Daten, dessen Frist ausgesetzt werden könnte.'
+                  : undefined)
+              }
               onClick={() => {
                 setHoldYear(suggestedYear);
                 setHoldReason('audit');
@@ -1124,7 +1139,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
                           ? undefined
                           : row.hold
                             ? `Die Frist ist seit dem ${formatDateOfTimestamp(row.hold.setAt)} ausgesetzt (${holdReasonLabel(row.hold.reason)}).`
-                            : `Aufzubewahren bis ${formatDate(row.earliestDeletion)}.`)
+                            : `Löschbar ab ${formatDate(row.earliestDeletion)}.`)
                       }
                       onClick={() => {
                         setDeleting(row);
@@ -1582,6 +1597,7 @@ const ProcDocPanel: React.FC = () => {
                   Größe
                 </Th>
                 <Th className="w-40">Prüfsumme</Th>
+                <Th>Ablage im Datenordner</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -1601,6 +1617,17 @@ const ProcDocPanel: React.FC = () => {
                     {formatBytes(doc.size)}
                   </Td>
                   <Td className="code-num text-ink-subtle">{formatShortHash(doc.sha256)}</Td>
+                  {/* Der Pfad und nicht nur der Dateiname: ohne ihn ist eine
+                      frühere Fassung erzeugt und nicht wiederzufinden — und zu
+                      jedem Geschäftsjahr gilt die Fassung, die damals galt
+                      (GoBD Rz. 151). Herausgeben lässt sie sich über das
+                      Prüferpaket, lesen im Datenordner. */}
+                  <Td className="whitespace-normal break-all text-caption text-ink-subtle">
+                    {doc.storedPath || doc.fileName}
+                    {doc.pdfStoredPath && (
+                      <span className="mt-0.5 block">{doc.pdfStoredPath}</span>
+                    )}
+                  </Td>
                 </Tr>
               ))}
             </Tbody>

@@ -67,6 +67,9 @@ func (p *OpeningBalancePreview) EnsureLists() {
 	if p.Entries == nil {
 		p.Entries = make([]*domain.JournalEntry, 0)
 	}
+	for _, entry := range p.Entries {
+		entry.EnsureLists()
+	}
 	if p.Messages == nil {
 		p.Messages = make([]string, 0)
 	}

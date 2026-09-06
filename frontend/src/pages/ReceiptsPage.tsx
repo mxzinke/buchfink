@@ -902,7 +902,8 @@ const ReceiptDetail: React.FC<{
  * Jahresübersicht.
  */
 const ReceiptHeaderFacts: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
-  const deletable = earliestDeletion(receipt.retentionUntil);
+  // Das Backend liefert das Löschdatum; die lokale Rechnung bleibt nur als Rückfall für Läufe älterer Fassungen.
+  const deletable = receipt.earliestDeletion ?? earliestDeletion(receipt.retentionUntil);
   const facts: { label: string; value: string; code?: boolean }[] = [
     { label: 'Belegart', value: KIND_LABELS[kindOf(receipt)] },
     {

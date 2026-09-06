@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Clock, Lock, ShieldCheck } from 'lucide-react';
-import { AuditLogEntry, CheckRun, Festschreibung, IntegrityCheckResult } from '../types';
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  FileClock,
+  Lock,
+  ShieldCheck,
+} from 'lucide-react';
+import { CheckRun, CheckTimeliness, Festschreibung, IntegrityCheckResult } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { formatDate, formatDateTime } from '../utils/formatters';
@@ -32,8 +40,36 @@ export interface AuditPageProps {
   onNavigate?: NavigateFn;
 }
 
+/** „1 Tag“ und nicht „1 Tage“: die Kennzahl steht in einem Satz. */
+function days(count: number): string {
+  return count === 1 ? '1 Tag' : `${count} Tage`;
+}
+
+/**
+ * Die Abstände Belegdatum → Erfassung → Festschreibung als ein Satz
+ * (Entscheidung 4). Sie beantworten die Frage der GoBD Rz. 47 — „wie lange
+ * liegen Belege, bevor sie gebucht werden" —, die an einer einzelnen
+ * Journalzeile nicht zu beantworten ist.
+ */
+function timelinessLines(t: CheckTimeliness): string[] {
+  const lines: string[] = [];
+  lines.push(
+    t.measuredEntries === 0
+      ? 'Erfassung: nicht messbar, keine Buchung trug ein Belegdatum'
+      : `Erfassung: Median ${days(t.captureDaysMedian)}, höchstens ${days(t.captureDaysMax)}, ` +
+          `${t.lateEntries} über der Frist von ${days(t.captureLimitDays)} ` +
+          `(${t.measuredEntries} gemessen)`,
+  );
+  lines.push(
+    t.committedEntries === 0
+      ? `Festschreibung: noch keine Buchung festgeschrieben, ${t.uncommittedEntries} offen`
+      : `Festschreibung: Median ${days(t.commitDaysMedian)}, höchstens ${days(t.commitDaysMax)}, ` +
+          `${t.uncommittedEntries} offen (${t.committedEntries} festgeschrieben)`,
+  );
+  return lines;
+}
+
 export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
   const [commitments, setCommitments] = useState<Festschreibung[]>([]);
   // Die Prüfläufe gehören hierher und nicht in die Fristenansicht: dort werden
@@ -52,14 +88,12 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
   async function loadData() {
     setLoading(true);
     try {
-      const [logList, result, festschreibungen, runs] = await Promise.all([
-        Api.getAuditLogs(),
+      const [result, festschreibungen, runs] = await Promise.all([
         Api.verifyIntegrity(),
         Api.getFestschreibungen(),
         // Jahr 0 heißt: das aktive Geschäftsjahr.
         Api.getCheckRuns(0),
       ]);
-      setLogs(logList);
       setIntegrity(result);
       setCommitments(festschreibungen);
       setCheckRuns(runs);
@@ -350,8 +384,15 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                 </Thead>
                 <Tbody>
                   {checkRuns.map((run) => {
-                    const blocking = run.findings.filter((f) => f.severity === 'blocking');
-                    const warnings = run.findings.filter((f) => f.severity === 'warning');
+                    // Der Standardwert doppelt die Normalisierung in api.ts:
+                    // eine fehlende Befundliste aus dem Backend bräche schon
+                    // beim ersten `filter` die ganze Tabelle.
+                    const findings = run.findings ?? [];
+                    const blocking = findings.filter((f) => f.severity === 'blocking');
+                    const warnings = findings.filter((f) => f.severity === 'warning');
+                    // Aufklappbar ist ein Lauf auch ohne Befund: die Abstände
+                    // Belegdatum → Erfassung → Festschreibung stehen dort.
+                    const details = run.timeliness ? timelinessLines(run.timeliness) : [];
                     const open = expandedRun === run.id;
                     return (
                       <React.Fragment key={run.id}>
@@ -361,7 +402,12 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                               type="button"
                               onClick={() => setExpandedRun(open ? null : run.id)}
                               aria-expanded={open}
-                              disabled={run.findings.length === 0}
+                              disabled={findings.length === 0 && details.length === 0}
+                              title={
+                                findings.length === 0 && details.length === 0
+                                  ? 'Zu diesem Lauf sind weder Befunde noch Kennzahlen gespeichert.'
+                                  : undefined
+                              }
                               className="inline-flex items-center gap-1 text-ink-muted
                                          hover:text-ink transition-colors duration-120 ease-quiet
                                          disabled:text-ink-faint"
@@ -390,8 +436,21 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                             {run.overrideReason || '—'}
                           </Td>
                         </Tr>
+                        {open && details.length > 0 && (
+                          <Tr>
+                            <Td />
+                            <Td className="text-ink-subtle">Abstände</Td>
+                            <Td colSpan={3} className="whitespace-normal text-ink-muted">
+                              {details.map((line) => (
+                                <span key={line} className="block">
+                                  {line}
+                                </span>
+                              ))}
+                            </Td>
+                          </Tr>
+                        )}
                         {open &&
-                          run.findings.map((finding) => (
+                          findings.map((finding) => (
                             <Tr key={finding.id}>
                               <Td />
                               <Td
@@ -419,49 +478,29 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
             )}
           </Section>
 
-          {/* Die jüngsten Vorgänge und nicht das ganze Protokoll: Vorher und
-              Nachher, der Filter und die Prüfung der Protokollkette stehen auf
-              der Seite „Nachweise". Zwei vollständige Protokolltabellen wären
-              dieselbe Auskunft an zwei Stellen. */}
+          {/* Das Protokoll steht nur an einer Stelle: auf der Seite
+              „Nachweise", mit Vorher und Nachher, Filter und Kettenprüfung.
+              Eine zweite, kürzere Tabelle hier wäre dieselbe Auskunft an zwei
+              Stellen — und die kürzere ist die, der man am ehesten glaubt,
+              vollständig zu sein. Der Zustand der Protokollkette bleibt oben
+              als Kennzahl, weil er zum Ergebnis der Integritätsprüfung
+              gehört. */}
           <Section
             title="Änderungsprotokoll"
-            context="Die jüngsten Vorgänge"
-            action={
-              onNavigate && (
-                <Button variant="quiet" onClick={() => onNavigate('nachweise')}>
-                  Vollständiges Protokoll
-                </Button>
-              )
-            }
+            context="Jede Änderung an Stammdaten, Einstellungen und Buchungen mit Vorher und Nachher"
           >
-            {logs.length === 0 ? (
-              <EmptyState title="Noch keine Einträge" />
-            ) : (
-              <Table density="kompakt">
-                <Thead sticky>
-                  <Tr>
-                    <Th className="w-44">Zeitpunkt</Th>
-                    <Th className="w-32">Aktion</Th>
-                    <Th className="w-36">Bereich</Th>
-                    <Th>Beschreibung</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {logs.slice(0, 25).map((entry) => (
-                    <Tr key={entry.id}>
-                      <Td className="text-ink-subtle num">{formatDateTime(entry.timestamp)}</Td>
-                      <Td>
-                        <span className="inline-flex items-center h-5 px-2 rounded-control border border-line-strong text-caption text-ink-muted">
-                          {entry.action}
-                        </span>
-                      </Td>
-                      <Td className="text-ink-muted">{entry.entityType}</Td>
-                      <Td className="whitespace-normal">{entry.details}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            )}
+            <EmptyState
+              icon={<FileClock className="w-6 h-6" strokeWidth={1.5} />}
+              title="Das Protokoll steht unter „Nachweise“"
+              description="Dort stehen alle Einträge mit Vorher und Nachher, der Filter nach Bereich, Bearbeiter und Zeitraum und die Prüfung der Protokollkette."
+              action={
+                onNavigate && (
+                  <Button variant="primary" onClick={() => onNavigate('nachweise')}>
+                    Protokoll öffnen
+                  </Button>
+                )
+              }
+            />
           </Section>
         </>
       )}

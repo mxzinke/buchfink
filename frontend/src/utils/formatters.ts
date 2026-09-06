@@ -194,6 +194,25 @@ export function formatDateTime(iso: string): string {
 }
 
 /**
+ * Nur die Uhrzeit eines Zeitstempels, in der Zeitzone des Rechners.
+ *
+ * Für Stellen, an denen der Tag aus dem Zusammenhang feststeht — „geprüft um"
+ * im Fuß der Navigation, wo die Prüfung aus derselben Sitzung stammt. Die
+ * Zeitzone steht auch hier dabei: das Backend schreibt UTC, und eine Uhrzeit
+ * ohne Zone ließe offen, gegen welche Uhr sie zu lesen ist (QUE-04).
+ */
+export function formatTime(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return new Intl.DateTimeFormat('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(parsed);
+}
+
+/**
  * Der Tag eines Zeitstempels, in der Zeitzone des Rechners.
  *
  * Für Kennzahlen und Tabellenzellen, in denen die Uhrzeit nichts beiträgt —

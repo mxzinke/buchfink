@@ -17,6 +17,16 @@ type CorrectionResult struct {
 	Message     string               `json:"message"`
 }
 
+// EnsureLists ersetzt die nicht belegten Listen der drei Buchungen durch leere.
+func (r *CorrectionResult) EnsureLists() {
+	if r == nil {
+		return
+	}
+	r.Original.EnsureLists()
+	r.Reversal.EnsureLists()
+	r.Replacement.EnsureLists()
+}
+
 // CorrectEntry storniert eine Buchung und bucht sie richtig neu.
 //
 // Der Vorgang, den GoBD Rz. 58 meint: die ursprüngliche Aufzeichnung bleibt
@@ -79,12 +89,14 @@ func (s *JournalService) CorrectEntry(
 		"Buchung %s ersetzt die stornierte Buchung %s (Storno %s, Grund: %s)",
 		created.EntryNumber, original.EntryNumber, reversal.EntryNumber, reason))
 
-	return &CorrectionResult{
+	result := &CorrectionResult{
 		Original: original, Reversal: reversal, Replacement: created,
 		Message: fmt.Sprintf(
 			"Buchung %s wurde mit %s storniert und als %s neu gebucht. Alle drei bleiben im Journal sichtbar und verweisen aufeinander.",
 			original.EntryNumber, reversal.EntryNumber, created.EntryNumber),
-	}, nil
+	}
+	result.EnsureLists()
+	return result, nil
 }
 
 // CorrectionOf liefert die Neubuchung, die eine stornierte Buchung ersetzt,

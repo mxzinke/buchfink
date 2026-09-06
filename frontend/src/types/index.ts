@@ -549,6 +549,8 @@ export interface Receipt {
    */
   retentionClass?: RetentionClass;
   retentionUntil?: string;
+  /** Erster Tag, an dem der Beleg gelöscht werden darf — aus dem Backend, nicht nachgerechnet. */
+  earliestDeletion?: string;
 
   // E-Rechnung: leer bei einem Scan oder einer gewöhnlichen PDF-Rechnung.
   detectedFormat?: string;
@@ -2741,6 +2743,28 @@ export interface CheckFinding {
   reference?: string;
 }
 
+/**
+ * Die Abstände Belegdatum → Erfassung → Festschreibung als Kennzahlen eines
+ * Prüflaufs (Entscheidung 4, GoBD Rz. 47). Spiegelt `domain.CheckTimeliness`.
+ *
+ * Median und nicht Mittelwert: ein einzelner nachgetragener Altbeleg zöge den
+ * Mittelwert so weit hoch, dass die Kennzahl über den Regelfall nichts mehr
+ * sagt; das Maximum steht daneben, damit der Ausreißer sichtbar bleibt.
+ */
+export interface CheckTimeliness {
+  /** Buchungen, deren Erfassungsabstand gemessen werden konnte. */
+  measuredEntries: number;
+  captureDaysMedian: number;
+  captureDaysMax: number;
+  /** Die Erfassungsfrist, gegen die gemessen wurde (Vorgabe zehn Tage). */
+  captureLimitDays: number;
+  lateEntries: number;
+  committedEntries: number;
+  commitDaysMedian: number;
+  commitDaysMax: number;
+  uncommittedEntries: number;
+}
+
 /** Ein Prüflauf über einen Zeitraum bis zu einem Stichtag (GoBD Rz. 34 ff.). */
 export interface CheckRun {
   id: number;
@@ -2750,6 +2774,12 @@ export interface CheckRun {
   checkedEntries: number;
   checkedReceipts: number;
   checkedBankTx: number;
+  /**
+   * Optional, obwohl das Backend die Kennzahlen immer mitschickt: Läufe aus
+   * einer Fassung vor Welle 6 haben das Feld nicht, und die Ansicht darf daran
+   * nicht scheitern.
+   */
+  timeliness?: CheckTimeliness;
   /** Die Begründung, mit der blockierende Befunde übergangen wurden. */
   overrideReason?: string;
   findings: CheckFinding[];
@@ -4252,6 +4282,7 @@ export interface ReceiptHeader {
   subject: string;
   retentionClass: RetentionClass;
   retentionUntil: string;
+  earliestDeletion?: string;
 }
 
 /** Das Ergebnis von „stornieren und neu buchen" (BEL-09, GoBD Rz. 58). */

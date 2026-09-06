@@ -82,9 +82,19 @@ selbst. Ohne diese Weiche hätte die Erweiterung den Eigenhash jeder bereits
 gebuchten Buchung verändert und die Kette jeder bestehenden Buchhaltung
 gebrochen.
 
-Danach in beiden Fällen:
+Ist die Spalte ` + "`Faelligkeit`" + ` belegt, folgt an dieser Stelle ein
+weiteres Feld; ist sie leer, folgt es nicht:
 
-27. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+27. ` + "`due_date`" + ` (Faelligkeit)
+
+Auch das ist eine Weiche derselben Art: die vereinbarte Fälligkeit steht nur an
+den Buchungen, die einen offenen Posten begründen, und eine leere Spalte heißt
+„keine vereinbart". Sie wird deshalb nur geschrieben, wo sie belegt ist — jede
+Buchung ohne Fälligkeit hasht so wie vor der Einführung des Feldes.
+
+Danach in allen Fällen:
+
+28. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
 
 Nicht Bestandteil der kanonischen Form sind die Spalten
 ` + "`Festschreibungszeitpunkt_UTC`, `Festschreibung_ID`" + ` und
@@ -110,6 +120,108 @@ und sonst nichts.
 
 Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
 Eigenhash.
+`
+
+// receiptHashDoc beschreibt die Kanonisierung des Beleg-Hashes.
+//
+// Er steht in zwei Tabellen — in ` + "`belege`" + ` als Prüfsumme des Belegs
+// und in ` + "`journal`" + ` als das eine Feld, mit dem die Buchung ihren Beleg
+// deckt. Ohne diesen Abschnitt ließe sich der Eigenhash einer Buchung mit Beleg
+// zwar nachrechnen, der Wert ` + "`receipt_hash`" + ` darin aber nicht prüfen:
+// er wäre eine Zahl, die man glauben müsste.
+const receiptHashDoc = `## Den Beleg-Hash nachrechnen
+
+Die Spalte ` + "`Beleg_SHA256`" + ` deckt einen ganzen Beleg mit einem Wert: die
+geordnete Liste seiner Dateien und — bei Belegen mit Kopfdaten — die Kopfdaten
+selbst. Derselbe Wert steht an jeder Buchung, die auf den Beleg gebucht wurde,
+und geht dort in die kanonische Form ein.
+
+Die Schreibweise der Felder ist dieselbe wie bei der Buchung
+(` + "`<Name>:<Länge>:<Wert>\n`" + `). Zuerst
+
+    files:<Anzahl der Dateien des Belegs>
+
+und danach für jede Datei — aufsteigend nach der Spalte Datei_Position sortiert —
+die drei Felder
+
+    role, name, sha256
+
+aus den Spalten Rolle, Dateiname und Datei_SHA256. Die Anzahl steht vorn, damit
+eine gekürzte Dateiliste nicht wie eine hashen kann, die immer schon so kurz war.
+Nicht gedeckt sind die Spalten Abgeleitet und Pfad_im_Export: die erste hält die
+Herkunft fest und nicht den Inhalt, die zweite ist eine Fundstelle — dieselbe
+Überlegung, aus der die Buchung ihren Ablagepfad nicht deckt.
+
+Ist die Spalte ` + "`Belegdatum`" + ` belegt, folgen danach sieben weitere
+Felder; ist sie leer, folgen sie nicht:
+
+    document_date (Belegdatum)
+    issuer        (Aussteller)
+    gross         (Bruttobetrag, in ganzzahligen Cent)
+    tax           (Steuerbetrag, in ganzzahligen Cent)
+    currency      (Waehrung)
+    subject       (Betreff)
+    kind          (Belegart)
+
+Das ist die Versionsweiche des Beleg-Hashes, dieselbe Bauart wie die der
+Buchung: Belege aus der Zeit vor den Kopfdaten tragen kein Belegdatum und werden
+nach der bisherigen Form gehasht. Ohne die Weiche hätte die Aufnahme der
+Kopfdaten den Hash jedes bestehenden Belegs verändert — und mit ihm den Wert
+` + "`receipt_hash`" + ` in jeder Buchung, die auf ihn zeigt, und damit deren
+Eigenhash und die ganze Kette.
+
+Die Beträge stehen in dieser Form als ganzzahlige Cent, nicht als Eurobetrag mit
+zwei Nachkommastellen wie in den Spalten Bruttobetrag und Steuerbetrag: 1234,56
+Euro geht als ` + "`gross:6:123456`" + ` ein.
+
+Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
+Beleg-Hash.
+`
+
+// auditChainDoc beschreibt die Kanonisierung des Änderungsprotokolls.
+//
+// Das Protokoll ist selbst ein Nachweis und trägt seit dieser Fassung eine
+// eigene Kette. Sie im Prüferpaket ungeklärt zu lassen hieße, die Spalten
+// Vorgaengerhash und Eigenhash mitzuliefern und den Prüfer auf ihr Wort
+// festzulegen.
+const auditChainDoc = `## Die Kette des Änderungsprotokolls nachrechnen
+
+Die Einträge in ` + "`aenderungsprotokoll.csv`" + ` sind untereinander verkettet
+wie die Buchungen: jeder Eintrag trägt den Eigenhash seines Vorgängers, der
+erste verkettete Eintrag trägt 64 Nullen. Ein entfernter Eintrag bricht die
+Kette.
+
+Die Schreibweise der Felder ist dieselbe wie bei der Buchung. Sie folgen in
+genau dieser Reihenfolge (in Klammern die Spalte):
+
+ 1. ` + "`prev`" + ` (Vorgaengerhash)
+ 2. ` + "`timestamp`" + ` (Zeitpunkt, Format RFC 3339 in UTC mit Bruchteilen der
+    Sekunde, soweit vorhanden — geschrieben wie in der Spalte)
+ 3. ` + "`action`" + ` (Art)
+ 4. ` + "`entity_type`" + ` (Objektart)
+ 5. ` + "`entity_id`" + ` (Objekt_ID)
+ 6. ` + "`details`" + ` (Einzelheiten)
+ 7. ` + "`before`" + ` (Vorher)
+ 8. ` + "`after`" + ` (Nachher)
+ 9. ` + "`actor`" + ` (Bearbeiter)
+10. ` + "`app_version`" + ` (Programmfassung)
+
+Vorher und Nachher gehen als Klartext ein, genau so, wie sie in der Spalte
+stehen: als JSON-Objekt der geänderten Felder. In der Datenbank liegen sie
+verschlüsselt, weil sie personenbezogene Angaben tragen können; gehasht wird der
+entschlüsselte Text, sonst hinge der Nachweis am Schlüssel und nicht am Inhalt.
+
+Die Protokoll_ID ist nicht Bestandteil der kanonischen Form. Sie wird beim
+Schreiben vergeben, und eine Übernahme der Daten in eine neue Datei vergäbe
+andere; was den Eintrag ausmacht, ist sein Inhalt und seine Stellung in der
+Kette.
+
+Einträge aus der Zeit vor der Verkettung tragen keinen Eigenhash. Sie stehen mit
+leeren Hash-Spalten in der Datei und gehören nicht zur Kette; die Kette beginnt
+beim ersten Eintrag, der einen Eigenhash trägt.
+
+Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
+Eigenhash des Eintrags.
 `
 
 // RenderFieldDoc erzeugt die Feldbeschreibung.
@@ -196,6 +308,10 @@ Format, das Beträge und führende Nullen beim Öffnen verändert.
 	}
 
 	b.WriteString(canonicalFormDoc)
+	b.WriteString("\n")
+	b.WriteString(receiptHashDoc)
+	b.WriteString("\n")
+	b.WriteString(auditChainDoc)
 	return b.Bytes()
 }
 

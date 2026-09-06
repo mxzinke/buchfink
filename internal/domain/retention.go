@@ -251,6 +251,15 @@ type RetentionRepository interface {
 	FindActiveHold(ctx context.Context, fiscalYear int) (*RetentionHold, error)
 	// CountObjects zählt, was ein Geschäftsjahr trägt.
 	CountObjects(ctx context.Context, fiscalYear int) (RetentionCounts, error)
+	// FiscalYearsWithObjects nennt aufsteigend jedes Geschäftsjahr, das
+	// überhaupt aufzubewahrende Objekte trägt.
+	//
+	// Nicht nur die Jahre mit Buchungen: ein Jahr, in dem Belege abgelegt und
+	// Handelsbriefe verwahrt, aber (noch) keine Buchungen erfasst wurden, hat
+	// eine Aufbewahrungsfrist wie jedes andere. Fehlte es in der Übersicht,
+	// liefe seine Frist unbemerkt, und der Bericht über abgelaufene Objekte
+	// verschwiege genau die Objekte, für die er da ist.
+	FiscalYearsWithObjects(ctx context.Context) ([]int, error)
 	// DeleteFiscalYear löscht die Daten eines Geschäftsjahres in einer
 	// Transaktion und liefert die gelöschten Zahlen sowie die Ablagepfade der
 	// Belegdateien, auf die danach kein Beleg mehr zeigt.
@@ -260,4 +269,24 @@ type RetentionRepository interface {
 	// Belegen gehören, und die Entscheidung, eine Datei von der Platte zu
 	// nehmen, gehört in die Schicht, die den Speicher kennt.
 	DeleteFiscalYear(ctx context.Context, fiscalYear int) (RetentionCounts, []string, error)
+}
+
+// EarliestDeletionAfter liefert den ersten Tag, an dem gelöscht werden darf,
+// aus dem letzten Aufbewahrungstag.
+//
+// Die beiden Tage liegen genau einen Tag auseinander, und die Verwechslung ist
+// die naheliegendste in diesem ganzen Bereich: „aufzubewahren bis 31.12.2033"
+// und „löschbar ab 01.01.2034" sind dieselbe Frist, aber „löschbar ab
+// 31.12.2033" wäre eine Löschung einen Tag zu früh. Statt sich darauf zu
+// verlassen, dass jede Anzeige richtig beschriftet, wird der zweite Tag
+// mitgeliefert.
+//
+// Leerer oder unlesbarer Eingabewert ergibt einen leeren Ausgabewert: ein
+// erfundenes Datum wäre eine Aussage über eine Frist, die niemand bestimmt hat.
+func EarliestDeletionAfter(retentionUntil string) string {
+	day, err := time.Parse("2006-01-02", retentionUntil)
+	if err != nil {
+		return ""
+	}
+	return day.AddDate(0, 0, 1).Format("2006-01-02")
 }

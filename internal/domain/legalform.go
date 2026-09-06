@@ -144,10 +144,15 @@ func LegalFormLimitationNote(legalForm string) string {
 	if !HasWithdrawals(legalForm) {
 		return ""
 	}
-	return "Kapitalkonten, Entnahmen und Einlagen sowie die Zinsschranke für Überentnahmen " +
-		"(§ 4 Abs. 4a EStG) sind in dieser Fassung nicht abgebildet. Buchfink führt die " +
-		"Buchhaltung dieser Rechtsform, rechnet aber weder das Kapitalkonto fort noch prüft " +
-		"es den Schuldzinsenabzug. Sprich das mit deinem steuerlichen Berater ab."
+	// § 4 Abs. 4a EStG und nicht „Zinsschranke": die Zinsschranke steht in
+	// § 4h EStG und betrifft den Zinsüberhang eines Betriebs. § 4 Abs. 4a EStG
+	// regelt etwas anderes — den beschränkten Schuldzinsenabzug bei
+	// Überentnahmen —, und das ist die Vorschrift, die dieser Rechtsform fehlt.
+	return "Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG " +
+		"(Schuldzinsenabzug bei Überentnahmen) sind in dieser Fassung nicht abgebildet. " +
+		"Buchfink führt die Buchhaltung dieser Rechtsform, rechnet aber weder das " +
+		"Kapitalkonto fort noch prüft es den Schuldzinsenabzug. Sprechen Sie das mit " +
+		"Ihrem steuerlichen Berater ab."
 }
 
 // TaxCaseHints sind die Hinweise zu den Steuerfällen, die Buchfink nicht
@@ -158,14 +163,15 @@ func LegalFormLimitationNote(legalForm string) string {
 // Aussage schuldig bleibt: wo es aufhört.
 func TaxCaseHints() []string {
 	return []string{
-		"Der besondere Besteuerungsverfahren OSS und IOSS (§§ 18i bis 18k UStG) sind nicht " +
+		"Die besonderen Besteuerungsverfahren OSS und IOSS (§§ 18i bis 18k UStG) sind nicht " +
 			"abgebildet. Wer Leistungen an Privatpersonen in anderen Mitgliedstaaten erbringt und " +
 			"die Lieferschwelle überschreitet, meldet diese Umsätze außerhalb von Buchfink.",
 		"Die Kleinunternehmerregelung (§ 19 UStG) ist auf der eigenen Seite nicht abgebildet: " +
 			"Buchfink geht davon aus, dass das Unternehmen die Umsatzsteuer ausweist und " +
 			"voranmeldet. Am Geschäftspartner lässt sich die Kleinunternehmereigenschaft " +
 			"hinterlegen, weil sie für die E-Rechnungspflicht von Bedeutung ist.",
-		"Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG sind nicht abgebildet.",
+		"Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG (Schuldzinsenabzug " +
+			"bei Überentnahmen) sind nicht abgebildet.",
 		"Die Lohnbuchhaltung, die Anlage EÜR und die Reisekostenabrechnung sind nicht Teil " +
 			"des Funktionsumfangs.",
 	}

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -169,4 +170,18 @@ func (d *AssetDocument) Validate() error {
 			d.ValidUntil, d.DocumentDate)
 	}
 	return nil
+}
+
+// assetDocumentJSON ist das Dokument ohne seine eigene Marshal-Methode; siehe
+// receiptJSON zur Begründung des Umwegs.
+type assetDocumentJSON AssetDocument
+
+// MarshalJSON liefert das Dokument mit dem frühesten Löschdatum daneben —
+// aus demselben Grund wie beim Beleg: RetentionUntil ist der letzte
+// Aufbewahrungstag, gelöscht werden darf erst am Tag danach.
+func (d AssetDocument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		assetDocumentJSON
+		EarliestDeletion string `json:"earliestDeletion,omitempty"`
+	}{assetDocumentJSON(d), EarliestDeletionAfter(d.RetentionUntil)})
 }

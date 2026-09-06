@@ -72,6 +72,24 @@ func classOf(kind domain.RetentionKind) (domain.RetentionClass, string) {
 	}
 }
 
+// LegalBasisForClass nennt die Fundstelle einer Aufbewahrungsklasse.
+//
+// Das Schlüsselverzeichnis der Datenüberlassung braucht sie ohne eine
+// Objektart: dort steht die Klasse als Code, und der Prüfer soll die Norm
+// daneben lesen können, ohne sich erst eine passende Objektart zu suchen.
+func LegalBasisForClass(class domain.RetentionClass) string {
+	switch class {
+	case domain.RetentionClassBooks:
+		return legalBasisBooks
+	case domain.RetentionClassVouchers:
+		return legalBasisVouchers
+	case domain.RetentionClassLetters:
+		return legalBasisLetters
+	default:
+		return ""
+	}
+}
+
 // yearsFor liefert die Frist in Jahren für eine Klasse und ein Entstehungsjahr.
 func yearsFor(class domain.RetentionClass, originYear int) int {
 	switch class {
