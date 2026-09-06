@@ -204,14 +204,14 @@ code {
 .topbar__inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   height: 60px;
 }
 .wordmark {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: auto;
   font-size: 17px;
   font-weight: 600;
   color: var(--ink);
@@ -225,23 +225,148 @@ code {
 .topnav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 13px;
 }
-.topnav a {
+.topnav > a,
+.topnav summary {
   color: var(--ink-muted);
   border: 0;
   padding: 6px 10px;
   border-radius: var(--radius-control);
   transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
 }
-.topnav a:hover {
+.topnav > a:hover,
+.topnav summary:hover {
   background: var(--sunken);
   color: var(--ink);
 }
-.topnav a[aria-current='page'] {
+.topnav > a[aria-current='page'] {
   color: var(--ink);
   font-weight: 500;
+}
+.topbar__end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Die vier Funktionsseiten liegen hinter einem Eintrag: sieben gleich laute
+   Einträge nebeneinander sagen nicht, was zusammengehört. */
+.dropdown {
+  position: relative;
+}
+.dropdown > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+.dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+.dropdown > summary svg {
+  width: 11px;
+  height: 11px;
+  transition: transform 120ms var(--ease-quiet);
+}
+.dropdown[open] > summary {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.dropdown[open] > summary svg {
+  transform: rotate(180deg);
+}
+.dropdown--current > summary {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Ein aufgeklapptes Menü schwebt über der Seite — der eine Fall, in dem das
+   Konzept einen Schatten vorsieht (§6.2). */
+.menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 296px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 16px 40px -20px rgba(28, 25, 23, 0.3), 0 2px 6px -3px rgba(28, 25, 23, 0.12);
+}
+.menu a {
+  display: block;
+  border: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+}
+.menu a:hover {
+  background: var(--sunken);
+}
+.menu a[aria-current='page'] {
+  background: var(--sunken);
+}
+.menu__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.menu__hint {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-subtle);
+}
+.menu__group {
+  padding: 12px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+.menu__group:first-child {
+  padding-top: 6px;
+}
+
+/* Im schmalen Fenster steht dieselbe Gliederung untereinander statt in einer
+   Reihe: sieben umbrechende Einträge waren dort eine Wand. */
+.drawer {
+  display: none;
+  position: relative;
+}
+.drawer > summary {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+}
+.drawer > summary::-webkit-details-marker {
+  display: none;
+}
+.drawer > summary svg {
+  width: 18px;
+  height: 18px;
+}
+.drawer[open] > summary {
+  background: var(--sunken);
+}
+.drawer .menu {
+  left: auto;
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
 }
 
 /* -------------------------------------------------------------------------
@@ -249,18 +374,24 @@ code {
    ------------------------------------------------------------------------- */
 
 .hero__title {
-  font-size: clamp(32px, 4.6vw, 46px);
-  line-height: 1.12;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.08;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  max-width: 20ch;
+  letter-spacing: -0.025em;
+  max-width: 18ch;
 }
 .hero__lead {
-  margin-top: 20px;
-  max-width: 62ch;
-  font-size: 17px;
-  line-height: 28px;
+  margin-top: 22px;
+  max-width: 58ch;
+  font-size: 18px;
+  line-height: 30px;
   color: var(--ink-muted);
+}
+.hero__lead--small {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-subtle);
 }
 
 .section__title {
@@ -300,6 +431,13 @@ code {
   padding-block: 104px;
   border-top: 1px solid var(--line);
 }
+/* Der Kopf einer Seite und der erste Abschnitt gehören zusammen; eine
+   Haarlinie dazwischen schnitt den Einleitungssatz vom Inhalt ab. */
+.hero + .band,
+.pagehead + .band {
+  border-top: 0;
+  padding-top: 72px;
+}
 .band--plain {
   border-top: 0;
 }
@@ -330,41 +468,33 @@ code {
    Hero
    ------------------------------------------------------------------------- */
 
+/* Der Kopf der Startseite steht mittig: ein Satz, was Buchfink ist, und zwei
+   Wege weiter. Kennzeichnungen stehen darunter, nicht darüber — sie sind die
+   Fußnote zum Titel und nicht sein Vorspann. */
 .hero {
-  padding-top: 96px;
+  padding-top: 88px;
   padding-bottom: 80px;
-  position: relative;
-  overflow: hidden;
+  text-align: center;
 }
-/* Der einzige dekorative Hintergrund der Seite: ein Millimeterraster wie auf
-   Buchhaltungspapier, so leise, dass es erst beim zweiten Blick auffällt. */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 0%, transparent 75%);
-  opacity: 0.5;
-  pointer-events: none;
-}
-.hero > * {
-  position: relative;
+.hero .hero__title,
+.hero .hero__lead {
+  margin-inline: auto;
 }
 
 .badges {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-top: 36px;
 }
 
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 36px;
 }
 .hero__facts {
   display: grid;
@@ -597,6 +727,13 @@ code {
   margin-top: 56px;
   padding-top: 0;
 }
+/* Neben einem Bildstapel liest sich der Text mit, wenn er stehen bleibt. */
+@media (min-width: 901px) {
+  .feature__text {
+    position: sticky;
+    top: 92px;
+  }
+}
 .feature__title {
   font-size: 23px;
   line-height: 32px;
@@ -635,16 +772,64 @@ code {
    Kopf fiele damit weg. */
 figure.shot {
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card);
+  border-radius: 12px;
   overflow: hidden;
   background: var(--surface);
+  transition: border-color 160ms var(--ease-quiet), box-shadow 160ms var(--ease-quiet),
+    transform 160ms var(--ease-quiet);
+}
+/* Beim Zeigen hebt sich das Bild an — es wird zum schwebenden Element und
+   darf dann den Schatten tragen, den §6.2 dafür vorsieht. */
+figure.shot:hover {
+  border-color: var(--ink-faint);
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px -28px rgba(28, 25, 23, 0.4);
 }
 figure.shot a {
   display: block;
   border: 0;
+  position: relative;
 }
 figure.shot img {
   width: 100%;
+}
+
+/* Die Aufnahmen zeigen ein Programmfenster ohne seinen Rahmen. Die Leiste
+   darüber gibt ihn zurück: ohne sie schwimmt der Bildinhalt im Blatt. */
+.shot__chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding-inline: 14px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.shot__chrome span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+/* Der Hinweis, dass das Bild sich öffnen lässt, erscheint erst beim Zeigen. */
+figure.shot a::after {
+  content: 'In voller Größe';
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  color: var(--paper);
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-quiet);
+}
+figure.shot a:hover::after,
+figure.shot a:focus-visible::after {
+  opacity: 1;
 }
 figure.shot figcaption {
   padding: 10px 14px;
@@ -659,8 +844,15 @@ figure.shot figcaption {
   gap: 28px;
 }
 
+/* Das Bild im Kopf trägt die Seite: breiter als der Text, angehoben und mit
+   Schatten, weil es über dem Papier liegt. */
 .hero__shot {
-  margin-top: 72px;
+  margin-top: 64px;
+  border-radius: 14px;
+  box-shadow: 0 40px 80px -48px rgba(28, 25, 23, 0.5), 0 2px 10px -6px rgba(28, 25, 23, 0.12);
+}
+.hero__shot figcaption {
+  text-align: center;
 }
 
 /* -------------------------------------------------------------------------
@@ -1037,6 +1229,15 @@ table.data td:first-child {
   }
 }
 
+@media (max-width: 900px) {
+  .topnav {
+    display: none;
+  }
+  .drawer {
+    display: block;
+  }
+}
+
 @media (max-width: 640px) {
   .wrap {
     padding-inline: 16px;
@@ -1044,7 +1245,24 @@ table.data td:first-child {
   .band {
     padding-block: 64px;
   }
-  .topnav a:not(.btn) {
+  .hero {
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+  .hero + .band,
+  .pagehead + .band {
+    padding-top: 48px;
+  }
+}
+
+/* Ganz schmal trägt die Schaltfläche nur noch ihr Zeichen. */
+@media (max-width: 420px) {
+  .btn--github {
+    padding-inline: 0;
+    width: 40px;
+    justify-content: center;
+  }
+  .btn--github span {
     display: none;
   }
 }
@@ -1067,6 +1285,12 @@ table.data td:first-child {
 
 .pagehead {
   padding-block: 72px 0;
+}
+.pagehead__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
 }
 .pagehead__title {
   font-size: clamp(32px, 4.2vw, 46px);
@@ -1221,29 +1445,9 @@ table.data td:first-child {
 
 /* -------------------------------------------------------------------------
    Nachtrag für schmale Fenster
-
-   Die Navigation verschwindet auf dem Telefon nicht mehr: mit sieben Seiten
-   wäre die Seite dort ohne Weg zu den anderen.
    ------------------------------------------------------------------------- */
 
 @media (max-width: 640px) {
-  .topbar__inner {
-    flex-wrap: wrap;
-    /* Die feste Höhe von 60 px trägt die umgebrochene Navigation nicht; der
-       Kopf wächst hier mit seinem Inhalt. */
-    height: auto;
-    min-height: 60px;
-    padding-block: 10px;
-    gap: 8px 16px;
-  }
-  .topnav {
-    flex-wrap: wrap;
-    gap: 8px 14px;
-  }
-  .topnav a:not(.btn) {
-    display: inline;
-    font-size: 13px;
-  }
   .timeline {
     padding-left: 20px;
   }
@@ -1290,4 +1494,161 @@ table.data td:first-child {
   .columns--drei > *:last-child {
     border-bottom: 0;
   }
+}
+
+/* -------------------------------------------------------------------------
+   Ausklappbare Vertiefung
+
+   Der Grundsatz der Seite: oben steht in zwei, drei Sätzen, was eine Funktion
+   tut. Die Ausnahmen, Normen und Sonderfälle stehen dahinter — wer sie
+   braucht, klappt sie auf; wer sie nicht braucht, liest weiter.
+   ------------------------------------------------------------------------- */
+
+.more {
+  margin-top: 16px;
+}
+.more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-text);
+}
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+.more > summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 120ms var(--ease-quiet);
+}
+.more[open] > summary::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+.more > summary:hover {
+  color: var(--accent);
+}
+.more__body {
+  margin-top: 14px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+  max-width: 72ch;
+  color: var(--ink-muted);
+}
+.more__body p + p {
+  margin-top: 12px;
+}
+
+/* -------------------------------------------------------------------------
+   Betriebssystem-Reiter der Installationsseite
+
+   Drei Wege, von denen nur einer zutrifft. Die Auswahl läuft über verdeckte
+   Optionsfelder und kommt ohne Skript aus — die Seite hat keinen Bauschritt,
+   und ein Reiter, der ohne JavaScript nichts zeigt, wäre schlechter als eine
+   lange Liste.
+   ------------------------------------------------------------------------- */
+
+.ostabs {
+  margin-top: 28px;
+}
+.ostabs > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.ostabs__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.ostabs__bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-quiet), border-color 120ms var(--ease-quiet),
+    color 120ms var(--ease-quiet);
+}
+.ostabs__bar label:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.ostabs__bar label svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.ostabs__panel {
+  display: none;
+  padding-top: 8px;
+}
+#os-mac:checked ~ .ostabs__bar label[for='os-mac'],
+#os-win:checked ~ .ostabs__bar label[for='os-win'],
+#os-linux:checked ~ .ostabs__bar label[for='os-linux'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+#os-mac:focus-visible ~ .ostabs__bar label[for='os-mac'],
+#os-win:focus-visible ~ .ostabs__bar label[for='os-win'],
+#os-linux:focus-visible ~ .ostabs__bar label[for='os-linux'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#os-mac:checked ~ #panel-mac,
+#os-win:checked ~ #panel-win,
+#os-linux:checked ~ #panel-linux {
+  display: block;
+}
+
+/* Eine Zeile zum Abtippen: derselbe dunkle Grund wie ein Codeblock, aber
+   ohne Kopfleiste, weil ein einzelner Befehl keine Beschriftung braucht. */
+.cmd {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--shell-line);
+  background: var(--shell);
+  color: var(--shell-text);
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 22px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Eine geordnete Liste, die aussieht wie die Schritte darüber. */
+.plain-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 14px;
+  max-width: 72ch;
+}
+.plain-list li {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+.plain-list li strong {
+  color: var(--ink);
+  font-weight: 500;
 }
