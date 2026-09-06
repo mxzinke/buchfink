@@ -157,6 +157,17 @@ type DepreciationRun struct {
 	MissingPriorYears []int `json:"missingPriorYears,omitempty"`
 }
 
+// EnsureLists ersetzt nicht belegte Listen durch leere; die Anlagenseite liest
+// `due.length` ohne Umweg.
+func (r *DepreciationRun) EnsureLists() {
+	if r.Due == nil {
+		r.Due = make([]DepreciationDue, 0)
+	}
+	if r.MissingPriorYears == nil {
+		r.MissingPriorYears = make([]int, 0)
+	}
+}
+
 // BookDepreciationRequest books the AfA of one fiscal year.
 type BookDepreciationRequest struct {
 	FiscalYear  int    `json:"fiscalYear"`
@@ -1557,7 +1568,14 @@ func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceReque
 	}
 	rate := req.TaxRate
 	if treatment == domain.TaxTreatmentDomestic && rate == domain.TaxRateNone {
-		rate = domain.TaxRateStandard
+		// Der Regelsatz des Leistungstages und nicht die Konstante 19 %
+		// (UNV-03 K2): eine 2026 nacherfasste Erhaltungsmaßnahme vom August
+		// 2020 trägt 16 %, und ein Vorschlag von 19 % ergäbe eine Buchung, die
+		// weder zur Rechnung noch zur Voranmeldung passt.
+		rate, err = accounting.TaxRateFor(req.Date, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	legs, err := s.taxResolver.Resolve(domain.DirectionIncoming, treatment, rate, req.Amount)
 	if err != nil {
@@ -1877,13 +1895,16 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 	}
 
 	entry := &domain.JournalEntry{
-		BookingDate:        req.Date,
-		DocumentDate:       req.Date,
-		ServiceDateFrom:    req.Date,
-		ServiceDateTo:      req.Date,
-		Description:        fmt.Sprintf("Fertigstellung %s (%s)", asset.Name, asset.InventoryNumber),
-		Source:             domain.EntrySourceManual,
-		DocumentNumber:     asset.InventoryNumber,
+		BookingDate:     req.Date,
+		DocumentDate:    req.Date,
+		ServiceDateFrom: req.Date,
+		ServiceDateTo:   req.Date,
+		Description:     fmt.Sprintf("Fertigstellung %s (%s)", asset.Name, asset.InventoryNumber),
+		Source:          domain.EntrySourceManual,
+		DocumentNumber:  asset.InventoryNumber,
+		// Die Umbuchung der fertiggestellten Anlage ist eine Umgliederung
+		// innerhalb des Anlagevermögens und kein Umsatz.
+		TaxTreatment:       domain.TaxTreatmentNotTaxable,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: req.Account, Amount: asset.BookValue,
@@ -2252,10 +2273,13 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 			description = fmt.Sprintf("Tilgung %s (%s)", asset.Name, asset.InventoryNumber)
 		}
 		treatment := req.TaxTreatment
-		if req.Kind == domain.DisposalRepayment {
+		if req.Kind == domain.DisposalRepayment || treatment == "" {
 			// Eine Rückzahlung ist kein Leistungsaustausch: sie ist nicht
 			// steuerbar, nicht bloß steuerfrei. Der Unterschied steht in der
-			// Voranmeldung an verschiedenen Stellen.
+			// Voranmeldung an verschiedenen Stellen. Ein Abgang ohne Erlös —
+			// die Verschrottung — ebenso wenig: dort verlässt nichts das
+			// Unternehmen gegen Entgelt, und der Steuerfall ist deshalb „nicht
+			// steuerbar" und kein leeres Feld.
 			treatment = domain.TaxTreatmentNotTaxable
 		}
 		entry := &domain.JournalEntry{
@@ -2563,7 +2587,12 @@ func (s *AssetService) buildDisposal(
 		if treatment != domain.TaxTreatmentDomestic {
 			rate = domain.TaxRateNone
 		} else if rate == domain.TaxRateNone {
-			rate = domain.TaxRateStandard
+			// Der Regelsatz des Tages, an dem die Anlage abgeht (UNV-03 K2).
+			dateRate, err := accounting.TaxRateFor(req.Date, false)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			rate = dateRate
 		}
 		legs, err := s.taxResolver.Resolve(domain.DirectionOutgoing, treatment, rate, req.Proceeds)
 		if err != nil {

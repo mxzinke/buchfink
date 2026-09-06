@@ -104,6 +104,7 @@ type BuchfinkBridge struct {
 	paymentSvc         *service.PaymentService
 	vatSvc             *service.VatService
 	accountingSvc      *service.AccountingService
+	accountSvc         *service.AccountService
 	bankSvc            *service.BankService
 	invoiceSvc         *service.InvoiceService
 	renderer           *invoice.Renderer
@@ -343,8 +344,26 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
+	// Der Eigenbeleg entsteht als PDF über denselben Satzweg wie Rechnung und
+	// Abschluss, mit dem eigenen Unternehmen als Aussteller und der Belegnummer
+	// aus dem Nummernkreis.
+	b.receiptSvc.SetSettingsSource(b.settingsRepo)
+	b.receiptSvc.SetNumberRepo(b.numberRepo)
+	// Die Klärungsliste hält die Pflichtangaben des Ausstellers gegen die
+	// Stammdaten (RECH-07 K2); ohne die Kontakte könnte sie das nicht.
+	b.receiptSvc.SetContactSource(b.contactRepo)
 	b.eInvoiceSvc = service.NewEInvoiceService(b.receiptSvc, b.contactRepo, invoice.NewReader(), fiscalYear)
 	b.accountingSvc = service.NewAccountingService(b.accountRepo, b.journalRepo, b.contactRepo, b.settingsRepo, b.journalSvc, fiscalYear)
+	// Die Herausgabe der gefilterten Journalmenge ist ein Lesezugriff auf
+	// personenbezogene Daten und gehört ins Protokoll (QUE-02 K2).
+	b.accountingSvc.SetAuditRepo(b.auditRepo)
+	// Eigene Konten (BEL-06 K2): angelegt werden sie im freien Bereich des
+	// SKR04 und mit einer Gliederungsposition, sonst fehlten sie im Abschluss.
+	b.accountSvc = service.NewAccountService(b.accountRepo, b.auditRepo)
+	// Der Buchungsweg hält den Kontenplan zwischengespeichert; ohne diese
+	// Verbindung wäre ein neues Konto bis zum Neustart nicht bebuchbar und eine
+	// Sperre bis dahin wirkungslos.
+	b.accountSvc.SetChartInvalidator(b.journalSvc)
 	b.bankSvc = service.NewBankService(b.bankRepo, b.journalSvc, b.auditRepo)
 	// Der Kontoauszug ist selbst ein Beleg: der Import legt die CAMT-Datei ab,
 	// bevor er sie liest.
@@ -373,6 +392,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	}
 	b.renderer = invoice.NewRenderer()
 	b.invoiceSvc.SetDocumentPipeline(b.receiptSvc, b.renderer)
+	b.receiptSvc.SetRenderer(b.renderer)
 	// Nummernvergabe, Rechnung und Buchung entstehen in einer Transaktion; dazu
 	// kommen der Lückenbericht, der Rechnungsverbund und der Vorjahresumsatz für
 	// § 27 Abs. 38 UStG.
@@ -1392,7 +1412,13 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.settingsSvc == nil {
-		return &domain.CompanySettings{FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04", TaxationType: "SOLL"}, nil
+		// Mit den Mahnstufen der Voreinstellung: die Einstellungsseite läuft
+		// über die Liste, und `null.map` nähme im Render den Baum mit.
+		return &domain.CompanySettings{
+			FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR",
+			SKR: "SKR04", TaxationType: "SOLL",
+			DunningLevels: domain.DefaultDunningLevels(),
+		}, nil
 	}
 	return b.settingsSvc.GetCompanySettings(context.Background())
 }
@@ -1527,17 +1553,22 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 // entsteht im Saldenvortrag, eine Abschlussbuchung in den Abschlussbausteinen —
 // wer hier „opening" oder „closing" mitschickte, umginge sonst den Schutz der
 // Steuerkonten und fiele zugleich aus der Umsatzsteuer-Auswertung heraus.
+//
+// Seit Welle 8 läuft der Weg über PostManualEntry: die Handbuchung verlangt
+// einen Beleg (BEL-01 K2). Die Methode bleibt für den Fall, dass der Beleg
+// schon an der Buchung steht — sie reicht ihn weiter, statt eine zweite Fassung
+// derselben Regeln zu führen.
 func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
 		return nil, err
 	}
-	if b.journalSvc == nil {
+	if b.postingSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
-	entry.Source = domain.EntrySourceManual
-	return b.journalSvc.Post(context.Background(), &entry)
+	return b.postingSvc.PostManualEntry(
+		context.Background(), service.ManualEntryRequest{Entry: entry})
 }
 
 // PostIncomingReceipt books an Eingangsbeleg from the fachliche Gruppe, the
@@ -1584,7 +1615,9 @@ func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error)
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.accountingSvc == nil {
-		return &domain.FinancialSummary{}, nil
+		empty := &domain.FinancialSummary{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.accountingSvc.GetFinancialSummary(context.Background())
 }

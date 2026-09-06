@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 )
@@ -357,6 +358,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 	for _, p := range read.Positions {
 		positions = append(positions, ReceiptPosition{Net: p.Net, TaxRate: p.TaxRate, Text: p.Text})
 	}
+	if note := vatRateMismatchNote(serviceDate, positions); note != "" {
+		proposal.Notes = append(proposal.Notes, note)
+	}
 
 	proposal.Request = ReceiptRequest{
 		ReceiptID:       receipt.ID,
@@ -450,4 +454,34 @@ func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.Inv
 
 func isXML(mimeType string, data []byte) bool {
 	return strings.Contains(mimeType, "xml") || invoice.LooksLikeXML(data)
+}
+
+// vatRateMismatchNote meldet einen Steuersatz, der nicht zum Leistungsdatum
+// passt (UNV-03 K2).
+//
+// Ein Hinweis und keine Sperre: die Sätze gelten datiert (19/7 % seit 2007,
+// 16/5 % vom 1.7. bis 31.12.2020), und eine Rechnung über eine Leistung aus dem
+// zweiten Halbjahr 2020 trägt richtigerweise 16 %. Falsch ist erst die
+// Kombination — und die sieht Buchfink, weil beides im Datensatz steht. Ob der
+// Lieferant sich geirrt hat oder das Leistungsdatum ein anderes ist, entscheidet
+// der Anwender; deshalb steht der Satz als Vermerk am Vorschlag.
+func vatRateMismatchNote(serviceDate string, positions []ReceiptPosition) string {
+	period, err := accounting.VatRatesFor(serviceDate)
+	if err != nil {
+		return ""
+	}
+	for _, p := range positions {
+		switch p.TaxRate {
+		case domain.TaxRateNone:
+			continue
+		case period.Standard, period.Reduced:
+			continue
+		}
+		return fmt.Sprintf(
+			"Der Steuersatz %s passt nicht zum Leistungsdatum %s: an diesem Tag galten %s und %s "+
+				"(%s). Prüfe Satz und Leistungsdatum, bevor du buchst.",
+			p.TaxRate.Label(), serviceDate, period.Standard.Label(), period.Reduced.Label(),
+			period.Source)
+	}
+	return ""
 }

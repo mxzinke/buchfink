@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
@@ -208,10 +209,35 @@ func (b *BuchfinkBridge) SaveReceiptFileAs(receiptID, fileID uint) (string, erro
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := os.WriteFile(path, content.Data, 0o600); err != nil {
-		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	if err := b.writeReceiptFileTo(receiptID, content, path); err != nil {
+		return "", err
 	}
 	return path, nil
+}
+
+// writeReceiptFileTo schreibt die Belegdatei und protokolliert die Herausgabe.
+//
+// Getrennt vom Dialog, weil die Herausgabe die Handlung ist, die ins Protokoll
+// gehört (QUE-02 K2): die Verfahrensdokumentation sagt zu, dass die „Herausgabe
+// einzelner Dateien" als Zugriff festgehalten wird, und eine Zusage, die nur im
+// Dialogweg steht, lässt sich nicht prüfen.
+func (b *BuchfinkBridge) writeReceiptFileTo(
+	receiptID uint, content *service.FileContent, path string,
+) error {
+	if err := os.WriteFile(path, content.Data, 0o600); err != nil {
+		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	}
+	b.mu.RLock()
+	auditRepo := b.auditRepo
+	b.mu.RUnlock()
+	if auditRepo == nil {
+		return nil
+	}
+	_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "RECEIPT",
+		strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
+			"Belegdatei %s aus Beleg %d nach %s herausgegeben",
+			content.FileName, receiptID, path))
+	return nil
 }
 
 // -------------------------------------------------------------

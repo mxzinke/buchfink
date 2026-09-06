@@ -188,6 +188,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     contactPhone: '',
     contactEmail: '',
     invoiceNumberFormat: '',
+    // Leer heißt: die Voreinstellung des Belegnummernkreises (BEL-02).
+    receiptNumberFormat: '',
     // Die Pflichtangaben des § 264 Abs. 1a HGB stehen erst nach der Eintragung
     // fest; der Gründungsweg trägt sie später nach.
     seat: '',

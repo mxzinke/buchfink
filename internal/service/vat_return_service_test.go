@@ -764,7 +764,7 @@ func TestManualUnlawfulTaxLandsInCode69(t *testing.T) {
 		BookingDate: "2026-02-20", DocumentDate: "2026-02-20",
 		ServiceDateFrom: "2026-02-20", ServiceDateTo: "2026-02-20",
 		Description: "Unrichtig ausgewiesene Steuer nach § 14c UStG",
-		Source:      domain.EntrySourceManual,
+		Source:      domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
 			{
@@ -796,7 +796,7 @@ func TestUnlawfulTaxAccountNeedsItsTaxKey(t *testing.T) {
 	entry := &domain.JournalEntry{
 		BookingDate: "2026-02-20", DocumentDate: "2026-02-20",
 		ServiceDateFrom: "2026-02-20", ServiceDateTo: "2026-02-20",
-		Description: "Buchung ohne Steuerschlüssel", Source: domain.EntrySourceManual,
+		Description: "Buchung ohne Steuerschlüssel", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
 			{Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer14c, Amount: 19000},
@@ -1011,14 +1011,15 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	// Inlandsumsatz (4400), gehört der Steuerausweis zu ihm. Die Ableitung darf
 	// die richtige Buchung nicht treffen.
 	mixed := *entry
-	mixed.TaxTreatment = ""
+	// Der Steuerfall des Inlandsumsatzes: er trägt den Steuerausweis.
+	mixed.TaxTreatment = domain.TaxTreatmentDomestic
 	mixed.Lines = []domain.JournalLine{
 		{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 219000},
 		{Side: domain.SideCredit, Account: "4400", Amount: 100000},
 		{Side: domain.SideCredit, Account: "4125", Amount: 100000},
 		{
 			Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 19000,
-			TaxKey: "UST19",
+			TaxKey: "UST19", TaxBase: 100000,
 		},
 	}
 	if _, err := env.journal.Post(ctx, &mixed); err != nil {
@@ -1027,7 +1028,7 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 
 	// Der Weg für den Betrag, der trotzdem geschuldet wird, bleibt offen: der
 	// Steuerschlüssel UST14C auf dem eigenen Konto (Kennziffer 69).
-	entry.TaxTreatment = ""
+	entry.TaxTreatment = domain.TaxTreatmentDomestic
 	entry.Lines = []domain.JournalLine{
 		{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
 		{

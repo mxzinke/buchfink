@@ -50,7 +50,7 @@ func (e *testEnv) book(t *testing.T, date, text, debit, credit string, amount do
 	t.Helper()
 	_, err := e.journal.Post(context.Background(), &domain.JournalEntry{
 		BookingDate: date, DocumentDate: date, ServiceDateFrom: date, ServiceDateTo: date,
-		Description: text, Source: domain.EntrySourceManual,
+		Description: text, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: debit, Amount: amount},
 			{Side: domain.SideCredit, Account: credit, Amount: amount},

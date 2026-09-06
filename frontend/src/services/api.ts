@@ -49,6 +49,7 @@ import type {
   ComplianceHints,
   Contact,
   CorrectionResult,
+  CustomAccountRequest,
   CurrencyValuation,
   Deadline,
   DunningNotice,
@@ -101,10 +102,13 @@ import type {
   InvoiceSentVia,
   InvoiceSentViaOption,
   JournalEntry,
+  JournalFilter,
+  JournalFilterResult,
   KeyDirectoryEntry,
   LegacySpecialDepreciationNotice,
   LegalFormInfo,
   MaintenanceResult,
+  ManualEntryRequest,
   MappingReport,
   MigrationRecord,
   MonthCloseState,
@@ -136,6 +140,7 @@ import type {
   RebookGiftsRequest,
   Receipt,
   ReceiptFileInput,
+  ReceiptFindings,
   ReceiptHeader,
   ReceiptPreview,
   ReceiptRequest,
@@ -144,11 +149,14 @@ import type {
   RefundAdvanceRequest,
   RegisterInputTaxRequest,
   RetentionHold,
+  RetentionClass,
   RetentionHoldReason,
   RetentionOverview,
   RetentionYear,
+  RetentionRules,
   SaveInputTaxUsageRequest,
   SchemaMigration,
+  SelfIssuedReceiptRequest,
   ServiceEndpoints,
   SettleAdvanceRequest,
   Settlement,
@@ -156,6 +164,7 @@ import type {
   SKR04Catalog,
   SpecialPrepaymentSuggestion,
   StatementDepth,
+  StatementPositionOption,
   SupplyEvidenceReport,
   SupplyEvidenceRequest,
   SupplyEvidenceView,
@@ -177,7 +186,9 @@ import type {
   VatIDCheck,
   VatIDStatus,
   VatPeriodStatus,
+  VatPeriodProposal,
   VatRateImport,
+  VatRatePeriod,
   VatReturn,
   VatSettlement,
   VatSummary,
@@ -1935,4 +1946,96 @@ export const Api = {
    */
   getPaymentTermNotice: (dueDays: number): Promise<string> =>
     call(() => Bridge.GetPaymentTermNotice(dueDays)),
+
+  // --- Welle 8: keine Buchung ohne Beleg ---------------------------------
+
+  /**
+   * Bucht einen von Hand erfassten Buchungssatz mit seinem Beleg (BEL-01).
+   *
+   * Entweder `receiptId` oder `selfIssued`: gibt es keinen fremden Beleg,
+   * entsteht der Eigenbeleg im selben Vorgang. Welche der beiden Angaben fehlt
+   * oder doppelt ist, sagt das Backend — die Maske baut die Regel nicht nach.
+   */
+  postManualEntry: (request: ManualEntryRequest): Promise<JournalEntry> =>
+    call(() => Bridge.PostManualEntry(request as any) as Promise<JournalEntry>),
+  /** Erzeugt einen Eigenbeleg mit PDF und Kopfdaten und legt ihn ab. */
+  createSelfIssuedReceipt: (request: SelfIssuedReceiptRequest): Promise<Receipt> =>
+    call(() => Bridge.CreateSelfIssuedReceipt(request as any) as Promise<Receipt>),
+  /** Verlängert die Aufbewahrungsfrist eines Belegs; nur nach oben (ARC-01). */
+  overrideReceiptRetention: (
+    receiptId: number,
+    retentionClass: RetentionClass,
+    reason: string,
+  ): Promise<Receipt> =>
+    call(
+      () => Bridge.OverrideReceiptRetention(receiptId, retentionClass, reason) as Promise<Receipt>,
+    ),
+  /** Die Fristentabelle mit Quelle und Rechtsstand. Anzeige, keine Einstellung. */
+  getRetentionRules: (): Promise<RetentionRules> =>
+    call(() => Bridge.GetRetentionRules() as Promise<RetentionRules>).then((rules) =>
+      rules
+        ? {
+            ...rules,
+            classes: list(rules.classes).map((entry) => ({ ...entry, kinds: list(entry.kinds) })),
+          }
+        : rules,
+    ),
+  /** Die Buchungen zu einem Beleg — der Weg von der Ablage ins Journal (GOB-02). */
+  getEntriesForReceipt: (receiptId: number): Promise<JournalEntry[]> =>
+    call(() => Bridge.GetEntriesForReceipt(receiptId) as Promise<JournalEntry[]>).then((entries) =>
+      list(entries).map((entry) => ({ ...entry, lines: list(entry.lines) })),
+    ),
+  /** Die Beanstandungsliste eines Belegs, nach Fehlerklassen getrennt (RECH-02). */
+  getReceiptFindings: (receiptId: number): Promise<ReceiptFindings> =>
+    call(() => Bridge.GetReceiptFindings(receiptId) as Promise<ReceiptFindings>).then((findings) =>
+      findings
+        ? {
+            ...findings,
+            groups: list(findings.groups).map((group) => ({
+              ...group,
+              findings: list(group.findings),
+            })),
+          }
+        : findings,
+    ),
+  /** Legt ein eigenes Konto im freien Bereich des SKR04 an (BEL-06). */
+  createCustomAccount: (request: CustomAccountRequest): Promise<Account> =>
+    call(() => Bridge.CreateCustomAccount(request as any) as Promise<Account>),
+  /**
+   * Sperrt ein eigenes Konto für neue Buchungen oder gibt es wieder frei.
+   * Gesperrt statt gelöscht: die Buchungen zeigen auf die Nummer.
+   */
+  setAccountBlocked: (number: string, blocked: boolean, reason: string): Promise<Account> =>
+    call(() => Bridge.SetAccountBlocked(number, blocked, reason) as Promise<Account>),
+  /** Die selbst angelegten Konten. */
+  getCustomAccounts: (): Promise<Account[]> =>
+    call(() => Bridge.GetCustomAccounts() as Promise<Account[]>).then(list),
+  /** Die Gliederungspositionen, unter denen ein eigenes Konto stehen darf. */
+  getStatementPositions: (): Promise<StatementPositionOption[]> =>
+    call(() => Bridge.GetStatementPositions() as Promise<StatementPositionOption[]>).then(list),
+  /** Der Voranmeldungszeitraum, der sich aus der Steuer des Vorjahres ergibt. */
+  getVatPeriodProposal: (year: number): Promise<VatPeriodProposal> =>
+    call(() => Bridge.GetVatPeriodProposal(year) as Promise<VatPeriodProposal>),
+  /** Die datierte Tabelle der Umsatzsteuersätze. */
+  getVatRatePeriods: (): Promise<VatRatePeriod[]> =>
+    call(() => Bridge.GetVatRatePeriods() as Promise<VatRatePeriod[]>).then(list),
+  /** Die gefilterte Menge der Journalzeilen mit ihrer Summenzeile (PRF-01). */
+  getFilteredJournal: (filter: JournalFilter): Promise<JournalFilterResult> =>
+    call(() => Bridge.GetFilteredJournal(filter as any) as Promise<JournalFilterResult>).then(
+      (result) => (result ? { ...result, rows: list(result.rows) } : result),
+    ),
+  /** Dieselbe Menge als CSV-Text; die Herausgabe steht im Protokoll. */
+  getFilteredJournalCSV: (filter: JournalFilter): Promise<string> =>
+    call(() => Bridge.GetFilteredJournalCSV(filter as any)),
+  /** Schreibt dieselbe Menge in eine gewählte Datei; leerer Pfad heißt: abgebrochen. */
+  saveFilteredJournalCSV: (filter: JournalFilter, path: string): Promise<string> =>
+    call(() => Bridge.SaveFilteredJournalCSV(filter as any, path)),
+  /**
+   * Fragt den Zielpfad einer Ausgabe ab; leerer Pfad heißt: abgebrochen.
+   *
+   * Der Dienst schreibt erst danach: ein Dienst, der den Ort selbst wählte,
+   * schriebe irgendwohin. Deshalb hier der Dialog und dort das Schreiben.
+   */
+  selectSaveFilePath: (title: string, suggestedName: string): Promise<string> =>
+    call(() => Bridge.SelectSaveFileDialog(title, suggestedName)),
 };

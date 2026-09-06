@@ -46,7 +46,7 @@ func postSimpleEntry(t *testing.T, b *BuchfinkBridge, bookingDate, description s
 	entry := &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: bookingDate, DocumentDate: bookingDate,
 		ServiceDateFrom: bookingDate, ServiceDateTo: bookingDate,
-		Description: description, Source: domain.EntrySourceManual,
+		Description: description, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Kind: domain.EntryKindNormal, Currency: "EUR", ExchangeRateMicros: 1_000_000,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},

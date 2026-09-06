@@ -57,9 +57,49 @@ func FormatJournalNumber(fiscalYear int, seq int64) string {
 	return fmt.Sprintf("%d-%06d", fiscalYear, seq)
 }
 
+// DefaultReceiptNumberFormat ist die Voreinstellung des Belegnummernkreises.
+//
+// Einstellbar aus demselben Grund wie das Rechnungsnummernformat (BEL-02 K4):
+// wer seine Belege bisher „BE-2026-0001" oder „2026/AD/0017" genannt hat, führt
+// diese Systematik fort — sonst trägt derselbe Beleg in der Ablage eine andere
+// Nummer als im Ordner daneben, und die Verweise der alten Buchhaltung laufen
+// ins Leere. Die gewählte Systematik gehört in die Verfahrensdokumentation und
+// steht deshalb als Einstellung und nicht im Code.
+//
+// Bestehende Nummern bleiben gültig: vergeben wird nach dem Format, das beim
+// Ablegen galt, und gelesen wird mit beiden Wegen (siehe ParseReceiptSequence).
+const DefaultReceiptNumberFormat = "ER-{JAHR}-{NR:4}"
+
 // FormatReceiptNumber renders an Eingangsbeleg number, e.g. "ER-2026-0001".
 func FormatReceiptNumber(fiscalYear int, seq int64) string {
-	return fmt.Sprintf("ER-%d-%04d", fiscalYear, seq)
+	return FormatReceiptNumberWith(DefaultReceiptNumberFormat, fiscalYear, seq)
+}
+
+// FormatReceiptNumberWith rendert eine Belegnummer aus einem eingestellten
+// Format.
+//
+// Dieselben Platzhalter und dieselbe Prüfung wie beim Rechnungsnummernkreis:
+// zwei Nummernkreise mit zwei Formatsprachen wären zwei Stellen, an denen
+// dieselbe Frage verschieden beantwortet wird.
+func FormatReceiptNumberWith(format string, fiscalYear int, seq int64) string {
+	if ValidateNumberFormat(format) != nil {
+		format = DefaultReceiptNumberFormat
+	}
+	return FormatInvoiceNumberWith(format, fiscalYear, seq)
+}
+
+// ParseReceiptSequence liest den Zähler aus einer Belegnummer zurück.
+//
+// Der Lückenbericht braucht die Umkehrung, und er braucht sie auch für Nummern
+// aus einem früher eingestellten Format — deshalb derselbe zweistufige Weg wie
+// bei der Rechnungsnummer: erst der Ausdruck aus dem heutigen Format, dann die
+// Heuristik. Eine nicht gelesene Nummer wäre im Bericht eine Lücke, die es
+// nicht gibt.
+func ParseReceiptSequence(number string, fiscalYear int, format string) (int64, bool) {
+	if strings.TrimSpace(format) == "" {
+		format = DefaultReceiptNumberFormat
+	}
+	return ParseInvoiceSequence(number, fiscalYear, format)
 }
 
 // FormatInvoiceNumber renders an Ausgangsrechnung number, e.g. "RE-2026-0001".
@@ -105,13 +145,21 @@ var numberPlaceholder = regexp.MustCompile(`\{NR(?::(\d+))?\}`)
 
 // ValidateInvoiceNumberFormat rejects a format that could not produce a unique,
 // consecutive number (§ 14 Abs. 4 Nr. 4 UStG).
-func ValidateInvoiceNumberFormat(format string) error {
+func ValidateInvoiceNumberFormat(format string) error { return ValidateNumberFormat(format) }
+
+// ValidateNumberFormat ist dieselbe Prüfung ohne den Rechnungsbezug im Namen.
+//
+// Der Belegnummernkreis stellt dieselben Anforderungen wie der
+// Rechnungsnummernkreis — er trägt sie nur aus § 146 Abs. 1 AO und GoBD Rz. 36
+// statt aus § 14 Abs. 4 Nr. 4 UStG. Zwei Prüfungen daraus zu machen hieße, die
+// zweite beim nächsten Platzhalter zu vergessen.
+func ValidateNumberFormat(format string) error {
 	if strings.TrimSpace(format) == "" {
 		return fmt.Errorf("das Nummernformat ist leer")
 	}
 	if !numberPlaceholder.MatchString(format) {
 		return fmt.Errorf(
-			"im Nummernformat %q fehlt der Platzhalter {NR} für den Zähler. Ohne ihn trüge jede Rechnung dieselbe Nummer",
+			"im Nummernformat %q fehlt der Platzhalter {NR} für den Zähler. Ohne ihn trüge jeder Vorgang dieselbe Nummer",
 			format)
 	}
 	if len(format) > 40 {

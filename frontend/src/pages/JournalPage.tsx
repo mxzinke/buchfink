@@ -15,11 +15,14 @@ import type {
   JournalEntry,
   JournalLine,
   PaymentAllocationDetail,
+  Receipt,
   Side,
 } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { usePostingLock } from '../components/WriteLock';
+import { ManualEntryDialog } from '../components/LedgerForms';
+import { JournalFilterView } from '../components/JournalFilterView';
 import {
   formatCents,
   formatCentsPlain,
@@ -46,7 +49,9 @@ import {
   Select,
   SkeletonRows,
   StatusBadge,
+  TabPanel,
   Table,
+  Tabs,
   Tbody,
   Td,
   Th,
@@ -113,6 +118,12 @@ export interface JournalPageProps {
    */
   initialSearch?: string;
   /**
+   * Konto aus dem Navigationsziel: die Seite öffnet damit den Reiter „Zeilen
+   * auswerten" mit vorbelegtem Kontofilter. So führt der Weg aus dem
+   * Kontoblatt in die Auswertung desselben Kontos (PRF-01 K3).
+   */
+  initialFilterAccount?: string;
+  /**
    * Weg von der Buchung zu ihrem Beleg (GOB-02). Er schließt die Kette
    * Bilanzposition → Konto → Buchung → Beleg: ohne ihn endete der Weg hier, und
    * der Beleg wäre in der Belegliste erneut zu suchen.
@@ -120,13 +131,24 @@ export interface JournalPageProps {
   onNavigate?: NavigateFn;
 }
 
-export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavigate }) => {
+export const JournalPage: React.FC<JournalPageProps> = ({
+  initialSearch,
+  initialFilterAccount,
+  onNavigate,
+}) => {
   // Zwei Sperren mit demselben Ergebnis: das festgestellte Geschäftsjahr und
   // der Prüfermodus. Beide gehören in den title des Knopfes, damit der Grund
   // nicht in der Fehlermeldung des ersten Versuchs steht (§10.4).
   const writeLock = usePostingLock();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  // Die abgelegten Belege für die Handbuchung: sie verlangt seit Welle 8 einen
+  // Beleg, und der wird hier ausgewählt und nicht abgetippt (BEL-01 K2).
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  // Die beiden Sichten auf dasselbe Journal: die Liste der Buchungen und die
+  // Auswertung über ihre Zeilen (PRF-01 K3). Getrennt, weil die eine Buchungen
+  // zeigt und die andere Zeilen — eine Tabelle für beides zeigte keines gut.
+  const [tab, setTab] = useState<'entries' | 'filter'>(initialFilterAccount ? 'filter' : 'entries');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [integrityError, setIntegrityError] = useState<string | null>(null);
@@ -163,6 +185,12 @@ export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavig
     setSearch(initialSearch ?? '');
   }, [initialSearch]);
 
+  // Kommt der Aufruf aus dem Kontoblatt, steht die Auswertung vorn: die Frage
+  // war „welche Zeilen dieses Kontos", und die beantwortet die Liste nicht.
+  useEffect(() => {
+    if (initialFilterAccount) setTab('filter');
+  }, [initialFilterAccount]);
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -174,6 +202,11 @@ export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavig
       ]);
       setEntries(entryList);
       setAccounts(accountList);
+      // Die Belegliste ist ein eigener Fehlerpfad: fehlt sie, bleibt das
+      // Journal lesbar, und die Handbuchung sagt beim Buchen, was fehlt.
+      Api.getReceipts('')
+        .then((list) => setReceipts(list ?? []))
+        .catch(() => setReceipts([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -257,6 +290,20 @@ export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavig
     );
   }, [entries, search, from, to]);
 
+  /**
+   * Der Sprung vom Beleg zeigt die Buchung aufgeklappt (GOB-02 K2).
+   *
+   * Wer vom Beleg kommt, will den Buchungssatz mit seinen Konten sehen und
+   * nicht eine Zeile, die er erst noch aufklappen muss. Bleibt die Suche
+   * mehrdeutig, wird nichts aufgeklappt — dann ist die Buchung nicht bestimmt.
+   */
+  useEffect(() => {
+    const query = (initialSearch ?? '').trim().toLowerCase();
+    if (!query) return;
+    const hits = entries.filter((entry) => entry.entryNumber.toLowerCase() === query);
+    if (hits.length === 1) setExpanded({ [hits[0].id]: true });
+  }, [initialSearch, entries]);
+
   /** Das Journal des gewählten Zeitraums als CSV — dieselbe Tabelle wie im Z3-Export. */
   async function exportCsv() {
     setExportingCsv(true);
@@ -318,182 +365,216 @@ export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavig
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Belegnummer, Buchungstext oder Konto"
-          className="max-w-md"
-        />
-        <Input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          aria-label="Buchungen ab"
-          title="Buchungen ab diesem Buchungsdatum"
-          className="w-40"
-        />
-        <Input
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          aria-label="Buchungen bis"
-          title="Buchungen bis zu diesem Buchungsdatum"
-          className="w-40"
-        />
-        <Button
-          variant="secondary"
-          loading={exportingCsv}
-          onClick={() => void exportCsv()}
-          icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
-        >
-          Als CSV
-        </Button>
-        <Button
-          variant="secondary"
-          loading={checking}
-          onClick={runIntegrityCheck}
-          icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.5} />}
-        >
-          Integrität prüfen
-        </Button>
-        {/* Bearbeiter, Programmfassung und Festschreibungszeitpunkt sind
-            Nachweise und keine Arbeitsangaben: sie stehen zur Verfügung, wenn
-            jemand danach fragt, und drängen sonst die Spalten hinaus, über die
-            eine Buchung gesucht wird. */}
-        <Menu
-          trigger={
-            <Button
-              variant="secondary"
-              icon={<Columns3 className="w-4 h-4" strokeWidth={1.5} />}
-            >
-              Spalten
-            </Button>
-          }
-        >
-          <MenuGroup label="Nachweise einblenden">
-            {PROOF_COLUMNS.map((column) => (
-              <MenuCheckItem
-                key={column.key}
-                checked={proofColumns.includes(column.key)}
-                closeOnClick={false}
-                onCheckedChange={(checked) =>
-                  setProofColumns((prev) =>
-                    checked
-                      ? [...prev, column.key]
-                      : prev.filter((entry) => entry !== column.key),
-                  )
-                }
-              >
-                {column.label}
-              </MenuCheckItem>
-            ))}
-          </MenuGroup>
-        </Menu>
-      </div>
-
-      <div className="mt-5">
-        {loading ? (
-          <SkeletonRows rows={8} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            variant={entries.length === 0 ? 'leer' : 'gefiltert'}
-            title={
-              entries.length === 0
-                ? 'Noch keine Buchungen erfasst'
-                : 'Keine Buchung passt zur Suche'
-            }
-            description={
-              entries.length === 0
-                ? 'Buchungen entstehen aus dem Abgleich von Bankumsätzen mit Belegen oder direkt hier im Journal.'
-                : undefined
-            }
-            action={
-              entries.length === 0 ? (
-                <Button
-                  variant="primary"
-                  disabled={writeLock.locked}
-                  title={writeLock.hint}
-                  onClick={() => setShowForm(true)}
-                >
-                  Neue Buchung
-                </Button>
-              ) : (
-                <Button variant="secondary" onClick={() => setSearch('')}>
-                  Suche zurücksetzen
-                </Button>
-              )
-            }
+      <Tabs
+        className="mt-6"
+        items={[
+          { value: 'entries' as const, label: 'Buchungen' },
+          { value: 'filter' as const, label: 'Zeilen auswerten' },
+        ]}
+        value={tab}
+        onValueChange={setTab}
+      >
+        <TabPanel value="entries">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <SearchInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Belegnummer, Buchungstext oder Konto"
+            className="max-w-md"
           />
-        ) : (
-          <Table>
-            <Thead sticky>
-              <Tr>
-                <Th className="w-8" aria-label="Aufklappen" />
-                <Th>Beleg</Th>
-                <Th>Datum</Th>
-                <Th>Buchungstext</Th>
-                <Th>Konten · Soll → Haben</Th>
-                <Th numeric>Betrag</Th>
-                {proofColumns.includes('actor') && <Th className="w-44">Bearbeiter</Th>}
-                {proofColumns.includes('appVersion') && <Th className="w-28">Fassung</Th>}
-                {proofColumns.includes('committedAt') && (
-                  <Th className="w-52">Festgeschrieben am</Th>
-                )}
-                <Th>Status</Th>
-                <Th className="w-10" aria-label="Aktionen" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {filtered.map((entry) => (
-                <EntryRows
-                  key={entry.id}
-                  entry={entry}
-                  accountNames={accountNames}
-                  originNumber={
-                    entry.reversalOfId ? entryNumbers.get(entry.reversalOfId) : undefined
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            aria-label="Buchungen ab"
+            title="Buchungen ab diesem Buchungsdatum"
+            className="w-40"
+          />
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            aria-label="Buchungen bis"
+            title="Buchungen bis zu diesem Buchungsdatum"
+            className="w-40"
+          />
+          <Button
+            variant="secondary"
+            loading={exportingCsv}
+            onClick={() => void exportCsv()}
+            icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
+          >
+            Als CSV
+          </Button>
+          <Button
+            variant="secondary"
+            loading={checking}
+            onClick={runIntegrityCheck}
+            icon={<ShieldCheck className="w-4 h-4" strokeWidth={1.5} />}
+          >
+            Integrität prüfen
+          </Button>
+          {/* Bearbeiter, Programmfassung und Festschreibungszeitpunkt sind
+              Nachweise und keine Arbeitsangaben: sie stehen zur Verfügung, wenn
+              jemand danach fragt, und drängen sonst die Spalten hinaus, über die
+              eine Buchung gesucht wird. */}
+          <Menu
+            trigger={
+              <Button
+                variant="secondary"
+                icon={<Columns3 className="w-4 h-4" strokeWidth={1.5} />}
+              >
+                Spalten
+              </Button>
+            }
+          >
+            <MenuGroup label="Nachweise einblenden">
+              {PROOF_COLUMNS.map((column) => (
+                <MenuCheckItem
+                  key={column.key}
+                  checked={proofColumns.includes(column.key)}
+                  closeOnClick={false}
+                  onCheckedChange={(checked) =>
+                    setProofColumns((prev) =>
+                      checked
+                        ? [...prev, column.key]
+                        : prev.filter((entry) => entry !== column.key),
+                    )
                   }
-                  isReversed={reversedIds.has(entry.id)}
-                  correctsNumber={
-                    entry.correctsEntryId ? entryNumbers.get(entry.correctsEntryId) : undefined
-                  }
-                  correctedByNumber={correctedBy.get(entry.id)}
-                  proofColumns={proofColumns}
-                  expanded={expanded[entry.id] ?? false}
-                  onToggle={() =>
-                    setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))
-                  }
-                  onReverse={() => setReversing(entry)}
-                  onOpenReceipt={
-                    onNavigate &&
-                    ((receiptId: number) => onNavigate('receipts', { receiptId }))
-                  }
-                />
+                >
+                  {column.label}
+                </MenuCheckItem>
               ))}
-            </Tbody>
-          </Table>
-        )}
-      </div>
+            </MenuGroup>
+          </Menu>
+        </div>
 
+        <div className="mt-5">
+          {loading ? (
+            <SkeletonRows rows={8} />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              variant={entries.length === 0 ? 'leer' : 'gefiltert'}
+              title={
+                entries.length === 0
+                  ? 'Noch keine Buchungen erfasst'
+                  : 'Keine Buchung passt zur Suche'
+              }
+              description={
+                entries.length === 0
+                  ? 'Buchungen entstehen aus dem Abgleich von Bankumsätzen mit Belegen oder direkt hier im Journal.'
+                  : undefined
+              }
+              action={
+                entries.length === 0 ? (
+                  <Button
+                    variant="primary"
+                    disabled={writeLock.locked}
+                    title={writeLock.hint}
+                    onClick={() => setShowForm(true)}
+                  >
+                    Neue Buchung
+                  </Button>
+                ) : (
+                  <Button variant="secondary" onClick={() => setSearch('')}>
+                    Suche zurücksetzen
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <Table>
+              <Thead sticky>
+                <Tr>
+                  <Th className="w-8" aria-label="Aufklappen" />
+                  <Th>Beleg</Th>
+                  <Th>Datum</Th>
+                  <Th>Buchungstext</Th>
+                  <Th>Konten · Soll → Haben</Th>
+                  <Th numeric>Betrag</Th>
+                  {proofColumns.includes('actor') && <Th className="w-44">Bearbeiter</Th>}
+                  {proofColumns.includes('appVersion') && <Th className="w-28">Fassung</Th>}
+                  {proofColumns.includes('committedAt') && (
+                    <Th className="w-52">Festgeschrieben am</Th>
+                  )}
+                  <Th>Status</Th>
+                  <Th className="w-10" aria-label="Aktionen" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {filtered.map((entry) => (
+                  <EntryRows
+                    key={entry.id}
+                    entry={entry}
+                    accountNames={accountNames}
+                    originNumber={
+                      entry.reversalOfId ? entryNumbers.get(entry.reversalOfId) : undefined
+                    }
+                    isReversed={reversedIds.has(entry.id)}
+                    correctsNumber={
+                      entry.correctsEntryId ? entryNumbers.get(entry.correctsEntryId) : undefined
+                    }
+                    correctedByNumber={correctedBy.get(entry.id)}
+                    proofColumns={proofColumns}
+                    expanded={expanded[entry.id] ?? false}
+                    onToggle={() =>
+                      setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))
+                    }
+                    onReverse={() => setReversing(entry)}
+                    onOpenReceipt={
+                      onNavigate &&
+                      ((receiptId: number) => onNavigate('receipts', { receiptId }))
+                    }
+                  />
+                ))}
+              </Tbody>
+            </Table>
+          )}
+        </div>
+        </TabPanel>
+
+        {/* Die Auswertung über die Zeilen: Konto, Gegenkonto, Betragsband,
+            Steuerschlüssel, Bearbeiter, Beleg ja/nein — mit Summenzeile und
+            CSV der gefilterten Menge (PRF-01 K3). */}
+        <TabPanel value="filter">
+          {tab === 'filter' && (
+            <JournalFilterView
+              accounts={accounts}
+              year={fiscalYear}
+              initialAccount={initialFilterAccount}
+              onNavigate={onNavigate}
+            />
+          )}
+        </TabPanel>
+      </Tabs>
+
+      {/* Die Handbuchung verlangt ihren Beleg: einen abgelegten oder einen
+          Eigenbeleg, der in derselben Transaktion entsteht (BEL-01 K2). */}
+      <ManualEntryDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        accounts={accounts}
+        receipts={receipts}
+        onPosted={async () => {
+          setShowForm(false);
+          await load();
+        }}
+      />
+
+      {/* Die Berichtigung läuft weiter über Storno und Neubuchung in einem
+          Zug: sie übernimmt den Beleg der falschen Buchung (BEL-09). */}
       <BookingForm
-        open={showForm || correcting !== null}
+        open={correcting !== null}
         accounts={accounts}
         correction={correcting}
         onOpenChange={(next) => {
           if (next) return;
-          setShowForm(false);
           setCorrecting(null);
         }}
         onSaved={async () => {
-          const wasCorrection = correcting !== null;
-          setShowForm(false);
           setCorrecting(null);
           await load();
-          toast.success(
-            wasCorrection
-              ? 'Storno und Neubuchung gebucht und verknüpft.'
-              : 'Buchung festgeschrieben.',
-          );
+          toast.success('Storno und Neubuchung gebucht und verknüpft.');
         }}
       />
 
@@ -1072,13 +1153,14 @@ const BookingForm: React.FC<{
           return next;
         }) as JournalLine[],
       };
-      if (correction) {
-        // Storno und Neubuchung in einem Aufruf: liefe die Neubuchung nach dem
-        // Storno ins Leere, stünde der Geschäftsvorfall ohne Buchung da.
-        await Api.correctEntry(correction.entry.id, correction.reason, request);
-      } else {
-        await Api.postJournalEntry(request);
+      if (!correction) {
+        // Diese Maske berichtigt nur. Eine neue Buchung entsteht über die
+        // Handbuchung mit Beleg — ohne Beleg weist das Backend sie ab.
+        return;
       }
+      // Storno und Neubuchung in einem Aufruf: liefe die Neubuchung nach dem
+      // Storno ins Leere, stünde der Geschäftsvorfall ohne Buchung da.
+      await Api.correctEntry(correction.entry.id, correction.reason, request);
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1091,7 +1173,7 @@ const BookingForm: React.FC<{
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={correction ? `Buchung ${correction.entry.entryNumber} berichtigen` : 'Neue Buchung'}
+      title={correction ? `Buchung ${correction.entry.entryNumber} berichtigen` : 'Buchung berichtigen'}
       width="max-w-3xl"
       footer={
         <>
@@ -1105,7 +1187,7 @@ const BookingForm: React.FC<{
             title={writeLock.hint}
             onClick={submit}
           >
-            {correction ? 'Stornieren und neu buchen' : 'Buchen'}
+            Stornieren und neu buchen
           </Button>
         </>
       }

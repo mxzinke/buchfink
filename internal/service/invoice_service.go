@@ -891,6 +891,19 @@ func (s *InvoiceService) renderDocument(
 	if err != nil {
 		return nil, "", validation, err
 	}
+	// Der Abgleich des Hybridformats (RECH-06 K4): der Datensatz wird aus dem
+	// erzeugten Dokument zurückgelesen und gegen die Rechnung gehalten, aus der
+	// er entstanden ist. Vor der Ablage, weil eine Rechnung, deren lesbarer und
+	// deren strukturierter Teil verschiedene Beträge nennen, nicht hinausgehen
+	// darf. Bei der XRechnung ist das XML selbst das Original — geprüft wird
+	// dann dieses und nicht das PDF, das nur seine Darstellung ist.
+	source := pdf
+	if profile == domain.EInvoiceProfileXRechnungCII {
+		source = []byte(xml)
+	}
+	if err := invoice.VerifyEmbeddedRecord(source, inv); err != nil {
+		return nil, "", validation, err
+	}
 
 	if profile == domain.EInvoiceProfileXRechnungCII {
 		// Bei der XRechnung ist das XML das Original: es ist die Rechnung, und

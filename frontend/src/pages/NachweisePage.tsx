@@ -189,6 +189,24 @@ function actionLabel(action: string): string {
 }
 
 /**
+ * Dieselben Vorgangsarten im Filter, mit einem anderen Namen für EXPORT.
+ *
+ * Ein Lesezugriff auf personenbezogene Daten — Datenüberlassung, Prüferpaket,
+ * Herausgabe einzelner Dateien — wird als Ausgabe protokolliert. Das Ein- und
+ * Ausschalten des Prüfermodus steht dagegen als Änderung am Bereich READ_ONLY
+ * und ist über den Bereichsfilter zu finden.
+ * In der Zeile heißt das „Ausgegeben"; gesucht wird danach aber unter dem
+ * Namen, den Art. 30 DSGVO und die Verfahrensdokumentation dafür verwenden:
+ * Zugriffe (QUE-02 K2).
+ */
+const FILTER_ACTION_LABELS: Record<string, string> = {
+  ...ACTION_LABELS,
+};
+
+/** Der Wert im Vorgangsfilter, der nicht auf eine Vorgangsart, sondern auf AuditFilter.access abbildet. */
+const ACCESS_FILTER = 'access';
+
+/**
  * Die geänderten Felder aus dem Protokoll.
  *
  * Der Eintrag trägt sie als JSON-Text, weil er verschlüsselt gespeichert wird
@@ -277,6 +295,7 @@ const ProtocolPanel: React.FC = () => {
 
   const filtered =
     filter.action !== undefined ||
+    filter.access !== undefined ||
     filter.entityType !== undefined ||
     filter.actor !== undefined ||
     filter.from !== undefined ||
@@ -540,14 +559,27 @@ const ProtocolFilter: React.FC<{
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
       <div className="w-44">
-        <Field label="Vorgang">
+        <Field
+          label="Vorgang"
+          help={
+            '„Zugriffe“ sind die Lesezugriffe auf personenbezogene Daten: Datenüberlassung, ' +
+            'Prüferpaket, die Herausgabe einzelner Dateien und der Prüfermodus.'
+          }
+        >
           <Select<string>
             items={[
               { value: '', label: 'Alle' },
-              ...Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
+              { value: ACCESS_FILTER, label: 'Zugriffe' },
+              ...Object.entries(FILTER_ACTION_LABELS).map(([value, label]) => ({ value, label })),
             ]}
-            value={draft.action ?? ''}
-            onValueChange={(value) => setDraft({ ...draft, action: value || undefined })}
+            value={draft.access ? ACCESS_FILTER : (draft.action ?? '')}
+            onValueChange={(value) =>
+              setDraft({
+                ...draft,
+                access: value === ACCESS_FILTER ? true : undefined,
+                action: value && value !== ACCESS_FILTER ? value : undefined,
+              })
+            }
             aria-label="Vorgang"
           />
         </Field>
@@ -602,6 +634,7 @@ const ProtocolFilter: React.FC<{
           onClick={() =>
             onApply({
               action: trimmed(draft.action),
+              access: draft.access ? true : undefined,
               entityType: trimmed(draft.entityType),
               actor: trimmed(draft.actor),
               from: trimmed(draft.from),

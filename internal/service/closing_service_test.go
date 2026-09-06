@@ -40,6 +40,7 @@ func datedEntry(date, debit, credit string, amount domain.Cents) *domain.Journal
 		ServiceDateTo:   date,
 		Description:     "Testbuchung " + date,
 		Source:          domain.EntrySourceManual,
+		TaxTreatment:    domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: debit, Amount: amount},
 			{Side: domain.SideCredit, Account: credit, Amount: amount},

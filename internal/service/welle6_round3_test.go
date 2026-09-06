@@ -38,7 +38,7 @@ func legacyEntryOnHeaderlessReceipt(
 	env.journal.SetReceiptRepo(nil)
 	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-02-01", DocumentDate: "2026-02-01",
-		Description: description, Source: domain.EntrySourceManual,
+		Description: description, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Currency: "EUR", ExchangeRateMicros: 1_000_000,
 		ReceiptID: &receipt.ID, ReceiptHash: receipt.ReceiptHash,
 		Lines: []domain.JournalLine{
@@ -84,7 +84,8 @@ func TestReversalAndCorrectionSurviveALegacyReceiptWithoutHeader(t *testing.T) {
 	result, err := env.journal.CorrectEntry(ctx, toCorrect.ID, "falscher Betrag", &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-04-01", DocumentDate: "2026-02-01",
 		Description: "Altbuchung richtig", Source: domain.EntrySourceManual,
-		Currency: "EUR", ExchangeRateMicros: 1_000_000,
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Currency:     "EUR", ExchangeRateMicros: 1_000_000,
 		ReceiptID: &legacyReceipt.ID, ReceiptHash: legacyReceipt.ReceiptHash,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 12000},
@@ -112,7 +113,7 @@ func TestCorrectEntryDoesNotReverseWhenTheNewReceiptHasNoHeader(t *testing.T) {
 
 	original, err := env.journal.Post(ctx, &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-02-01", DocumentDate: "2026-02-01",
-		Description: "Bürobedarf", Source: domain.EntrySourceManual,
+		Description: "Bürobedarf", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Currency: "EUR", ExchangeRateMicros: 1_000_000,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},
@@ -130,7 +131,8 @@ func TestCorrectEntryDoesNotReverseWhenTheNewReceiptHasNoHeader(t *testing.T) {
 	_, err = env.journal.CorrectEntry(ctx, original.ID, "falsches Konto", &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-04-01", DocumentDate: "2026-02-01",
 		Description: "Bürobedarf richtig", Source: domain.EntrySourceManual,
-		Currency: "EUR", ExchangeRateMicros: 1_000_000,
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Currency:     "EUR", ExchangeRateMicros: 1_000_000,
 		ReceiptID: &receipt.ID, ReceiptHash: receipt.ReceiptHash,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6820", Amount: 10000},

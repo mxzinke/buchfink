@@ -75,6 +75,10 @@ func newTestEnv(t *testing.T) *testEnv {
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
 	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	// Wie in der Anwendung: die Klärungsliste hält die Pflichtangaben gegen die
+	// Stammdaten des Ausstellers und des eigenen Unternehmens (RECH-07 K2).
+	receipts.SetContactSource(contactRepo)
+	receipts.SetSettingsSource(settingsRepo)
 	posting.SetReceiptService(receipts)
 
 	return &testEnv{
@@ -125,6 +129,9 @@ func simpleEntry(debit, credit string, amount domain.Cents) *domain.JournalEntry
 		ServiceDateTo:   "2026-03-01",
 		Description:     "Testbuchung",
 		Source:          domain.EntrySourceManual,
+		// Der Steuerfall gehört seit Welle 8 zu jeder Handbuchung
+		// (ValidatePostable prüft ihn); die Testbuchung löst keine Steuer aus.
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: debit, Amount: amount},
 			{Side: domain.SideCredit, Account: credit, Amount: amount},

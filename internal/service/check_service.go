@@ -246,6 +246,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkOverpaidItems(ctx, req.CutoffDate)...)
 	findings = append(findings, s.checkVatReturns(ctx, req.CutoffDate, reference, cfg)...)
 	findings = append(findings, s.checkCommitOverdue(ctx, req.CutoffDate, cfg)...)
+	findings = append(findings, s.checkPeriodsNotCommitted(ctx, req.CutoffDate, cfg)...)
 	findings = append(findings, s.checkSupplyEvidence(ctx)...)
 	findings = append(findings, s.checkUnconfirmedSupplies(ctx)...)
 	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
@@ -812,15 +813,22 @@ func (s *CheckService) checkNumberGaps(ctx context.Context) []domain.CheckFindin
 	if s.receiptRepo != nil {
 		receipts, err := s.receiptRepo.FindAll(ctx, s.fiscalYear)
 		if err == nil {
+			// Gelesen wird mit dem eingestellten Belegnummernformat (BEL-02 K4).
+			// Mit dem festen Präfix „ER-" fand der Bericht in einem Mandanten
+			// mit eigener Systematik keine einzige vergebene Nummer und meldete
+			// deshalb jede als Lücke.
+			format := receiptNumberFormatOf(s.companySettingsOrNil(ctx))
 			used := map[int64]bool{}
-			prefix := fmt.Sprintf("ER-%d-", s.fiscalYear)
 			for i := range receipts {
-				if seq, ok := trailingNumber(receipts[i].ReceiptNumber, prefix); ok {
+				if seq, ok := domain.ParseReceiptSequence(
+					receipts[i].ReceiptNumber, s.fiscalYear, format); ok {
 					used[seq] = true
 				}
 			}
 			out = append(out, s.gapFinding(ctx, domain.NumberRangeReceipt, used, "Belegnummern",
-				func(seq int64) string { return domain.FormatReceiptNumber(s.fiscalYear, seq) })...)
+				func(seq int64) string {
+					return domain.FormatReceiptNumberWith(format, s.fiscalYear, seq)
+				})...)
 		}
 	}
 
@@ -839,6 +847,27 @@ func (s *CheckService) checkNumberGaps(ctx context.Context) []domain.CheckFindin
 		}
 	}
 	return out
+}
+
+// receiptNumberFormatOf liefert die eingestellte Systematik oder die
+// Voreinstellung. Sie steht hier, weil Bericht und Vergabe dasselbe Format
+// lesen müssen — sonst meldet der Bericht Lücken, die die Vergabe nie erzeugt
+// hat.
+func receiptNumberFormatOf(cfg *domain.CompanySettings) string {
+	if cfg == nil || domain.ValidateNumberFormat(cfg.ReceiptNumberFormat) != nil {
+		return domain.DefaultReceiptNumberFormat
+	}
+	return cfg.ReceiptNumberFormat
+}
+
+// companySettingsOrNil liefert die Einstellungen oder nil; ein Lesefehler darf
+// den Prüflauf nicht anhalten.
+func (s *CheckService) companySettingsOrNil(ctx context.Context) *domain.CompanySettings {
+	cfg, err := s.companySettings(ctx)
+	if err != nil {
+		return nil
+	}
+	return cfg
 }
 
 func (s *CheckService) gapFinding(
@@ -977,8 +1006,14 @@ func (s *CheckService) checkCommitOverdue(ctx context.Context, cutoff string, cf
 		}
 		// Der Folgemonat muss abgelaufen sein, sonst wäre die Festschreibung
 		// nicht überfällig, sondern bloß noch nicht dran.
-		deadline := addDays(endOfNextMonth(p.To), cfg.CommitGraceDays)
+		deadline := CommitDueDate(p, cfg)
 		if cutoff <= deadline {
+			continue
+		}
+		// Was die schärfere Regel schon meldet, wird hier nicht ein zweites Mal
+		// gemeldet: zwei Befunde über denselben Monat sind zweimal dieselbe
+		// Arbeit in der Aufgabenliste.
+		if cutoff > commitReportDate(p, cfg) {
 			continue
 		}
 		return []domain.CheckFinding{{
@@ -994,6 +1029,93 @@ func (s *CheckService) checkCommitOverdue(ctx context.Context, cutoff string, cf
 		}}
 	}
 	return nil
+}
+
+// CommitDueDate ist der Tag, bis zu dem ein Monat festzuschreiben ist.
+//
+// Das Ende des Folgemonats, verlängert um die Nachfrist aus den Einstellungen —
+// und um einen weiteren Monat, wenn eine Dauerfristverlängerung besteht. Die
+// Festschreibung folgt der Abgabe der Voranmeldung: wer bis zum 10. des
+// übernächsten Monats anmelden darf (§§ 46 ff. UStDV), schreibt den Monat
+// sinnvollerweise erst dann fest, weil er bis dahin noch buchen können muss.
+//
+// Prüflauf und Fristenliste rechnen mit dieser einen Funktion. Stünde die
+// Rechnung an beiden Stellen, meldete die eine irgendwann einen Rückstand, den
+// die andere nicht kennt.
+func CommitDueDate(p accounting.VatPeriod, cfg *domain.CompanySettings) string {
+	due := endOfNextMonth(p.To)
+	if cfg != nil && cfg.PermanentExtension {
+		due = endOfNextMonth(due)
+	}
+	grace := 0
+	if cfg != nil && cfg.CommitGraceDays > 0 {
+		grace = cfg.CommitGraceDays
+	}
+	return addDays(due, grace)
+}
+
+// secondMonthEnd ist das Ende des übernächsten Monats nach einem Tag.
+func secondMonthEnd(iso string) string { return endOfNextMonth(endOfNextMonth(iso)) }
+
+// commitReportDate ist der Tag, ab dem ein nicht festgeschriebener Monat als
+// Rückstand gemeldet wird.
+//
+// Das Ende des übernächsten Monats, frühestens aber der Tag, an dem die
+// Fristenliste ihn führt (CommitDueDate). Mit Dauerfristverlängerung und
+// Nachfrist liegt die Frist hinter dem übernächsten Monatsende — meldete der
+// Prüflauf den Monat schon davor, widerspräche er der eigenen Fristenliste,
+// und der schärfere Befund verdrängte den milderen, noch bevor überhaupt
+// etwas fällig war.
+func commitReportDate(p accounting.VatPeriod, cfg *domain.CompanySettings) string {
+	limit := secondMonthEnd(p.To)
+	if due := CommitDueDate(p, cfg); due > limit {
+		return due
+	}
+	return limit
+}
+
+// checkPeriodsNotCommitted meldet jeden Monat, der zwei Monate nach seinem Ende
+// nicht festgeschrieben ist (UNV-02 K2).
+//
+// Zwei Monate, weil dann auch die Voranmeldung mit Dauerfristverlängerung
+// abgegeben ist: bis dahin gibt es einen Grund, den Monat offen zu lassen, und
+// danach keinen mehr. Gemeldet werden alle betroffenen Monate und nicht nur der
+// erste — der Rückstand ist die Zahl der offenen Monate, und wer nur den
+// ältesten sieht, hält ihn für einen Einzelfall.
+func (s *CheckService) checkPeriodsNotCommitted(
+	ctx context.Context, cutoff string, cfg *domain.CompanySettings,
+) []domain.CheckFinding {
+	if s.festschreibungRepo == nil {
+		return nil
+	}
+	committed, err := s.festschreibungRepo.LatestCutoff(ctx, s.fiscalYear)
+	if err != nil {
+		return nil
+	}
+	out := make([]domain.CheckFinding, 0, 2)
+	for _, p := range accounting.VatPeriodsOfYear(s.fiscalYear, domain.VatPeriodMonth) {
+		if committed >= p.To {
+			continue
+		}
+		limit := commitReportDate(p, cfg)
+		if cutoff <= limit {
+			continue
+		}
+		out = append(out, domain.CheckFinding{
+			Rule:       domain.CheckRulePeriodNotCommitted,
+			Severity:   domain.CheckWarning,
+			ObjectType: "PERIOD",
+			ObjectID:   p.Key,
+			ObjectName: p.Label,
+			Message: fmt.Sprintf(
+				"%s ist seit dem %s nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums "+
+					"ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten "+
+					"die Buchungen unveränderbar gestellt sein",
+				p.Label, limit),
+			Reference: "GoBD Rz. 107, § 146 Abs. 4 AO",
+		})
+	}
+	return out
 }
 
 // checkAccountMapping meldet bebuchte Konten ohne Gliederungsposition. Vor der

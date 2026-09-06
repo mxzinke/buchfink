@@ -13,8 +13,11 @@ import {
   InvestorType,
   LegalFormInfo,
   OrganisationTexts,
+  RetentionRules,
   SpecialPrepaymentSuggestion,
+  VatPeriodProposal,
 } from '../types';
+import { RETENTION_CLASS_LABELS } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import type { NavigateFn } from '../components/Sidebar';
@@ -193,6 +196,12 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Antwort: keine Nachfrist über das Ende des Folgemonats hinaus.
   const [graceDaysText, setGraceDaysText] = useState('0');
   const [suggestion, setSuggestion] = useState<SpecialPrepaymentSuggestion | null>(null);
+  // Der Voranmeldungszeitraum, der sich aus der Steuer des Vorjahres ergibt
+  // (§ 18 Abs. 2 UStG), und die Fristentabelle mit ihrem Rechtsstand. Beides
+  // kommt aus dem Backend: ein Vorschlag und eine Frist sind Rechtsfolgen und
+  // keine Wahl der Oberfläche.
+  const [vatProposal, setVatProposal] = useState<VatPeriodProposal | null>(null);
+  const [retentionRules, setRetentionRules] = useState<RetentionRules | null>(null);
   // Die Einstellungen der Abschlussbausteine stehen in eigenen Schlüsseln und
   // werden über einen eigenen Dienst gespeichert; sie hängen deshalb neben den
   // Stammdaten und nicht in ihnen.
@@ -262,6 +271,18 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         setSuggestion(await Api.getSpecialPrepaymentSuggestion(s.fiscalYear || 0));
       } catch {
         setSuggestion(null);
+      }
+      try {
+        // Nebenauskunft: fehlt der Vorschlag — etwa weil das Vorjahr noch
+        // nicht angemeldet ist —, bleibt der Zeitraum von Hand wählbar.
+        setVatProposal(await Api.getVatPeriodProposal(s.fiscalYear || 0));
+      } catch {
+        setVatProposal(null);
+      }
+      try {
+        setRetentionRules(await Api.getRetentionRules());
+      } catch {
+        setRetentionRules(null);
       }
       try {
         // Basiszins und gelernte Regeln ebenso: sie hängen an eigenen
@@ -591,6 +612,18 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => patch({ invoiceNumberFormat: e.target.value })}
             />
           </Field>
+          <Field
+            label="Belegnummernformat"
+            hint="{JAHR} und {NR:4}"
+            explain="Dieselben zwei Platzhalter für den Belegnummernkreis: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Leer heißt ER-{JAHR}-{NR:4}. Bestehende Belegnummern bleiben gültig (BEL-02)."
+          >
+            <Input
+              className="code-num"
+              placeholder="ER-{JAHR}-{NR:4}"
+              value={settings.receiptNumberFormat}
+              onChange={(e) => patch({ receiptNumberFormat: e.target.value })}
+            />
+          </Field>
           <Field label="Ansprechpartner" hint="bei XRechnung Pflicht">
             <Input
               value={settings.contactName}
@@ -712,6 +745,25 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Voranmeldezeitraum"
             help="Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall."
+            hint={
+              vatProposal
+                ? `Vorschlag aus ${vatProposal.basedOnYear}: ${
+                    VAT_PERIODS.find((item) => item.value === vatProposal.proposed)?.label ??
+                    vatProposal.proposed
+                  }`
+                : undefined
+            }
+            explain={
+              vatProposal
+                ? `${vatProposal.reference} Die Steuer des Vorjahres betrug ${formatCents(
+                    vatProposal.priorYearTax,
+                  )} (Kennziffer 83).${
+                    vatProposal.complete
+                      ? ''
+                      : ` Für ${vatProposal.missingPeriods} Zeiträume des Vorjahres liegt keine übermittelte Anmeldung vor; der Vorschlag ist deshalb unvollständig.`
+                  }`
+                : undefined
+            }
           >
             <Select
               items={VAT_PERIODS}
@@ -727,6 +779,31 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             <Select items={[{ value: 'SOLL', label: 'Sollversteuerung' }]} value="SOLL" disabled />
           </Field>
         </div>
+
+        {/* Der Vorschlag wird nicht stillschweigend übernommen: der Zeitraum
+            wird vom Finanzamt festgesetzt, und die Befreiung von der Abgabe ist
+            dessen Entscheidung. Buchfink nennt ihn und überlässt die Umstellung
+            dem Anwender (UST-03 K1). */}
+        {vatProposal?.changes && (
+          <Notice
+            className="mt-4"
+            text={
+              vatProposal.note ||
+              `Aus der Steuer des Jahres ${vatProposal.basedOnYear} folgt ein anderer Voranmeldungszeitraum als der eingestellte.`
+            }
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  patch({ vatPeriod: vatProposal.proposed as CompanySettings['vatPeriod'] })
+                }
+              >
+                Vorschlag übernehmen
+              </Button>
+            }
+          />
+        )}
 
         <Checkbox
           className="mt-4"
@@ -783,6 +860,55 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               )}
             </div>
           </Field>
+        )}
+      </Section>
+
+      {/* Anzeige und keine Einstellung: eine Aufbewahrungsfrist ist keine Wahl
+          des Anwenders (ARC-01 K4). Sie steht hier, weil die Einstellungen der
+          Ort ist, an dem nachgesehen wird, was gilt. */}
+      <Section
+        title="Aufbewahrungsfristen"
+        context={
+          retentionRules
+            ? `${retentionRules.source} · gültig ab ${formatDate(retentionRules.validFrom)}`
+            : 'Gesetzesstand'
+        }
+        action={
+          <HelpPopover label="Erklärung zu den Aufbewahrungsfristen">
+            Die Fristen kommen aus einer datierten Tabelle und nicht aus dem Programmcode: ändert
+            der Gesetzgeber sie, gilt die neue Frist ab ihrem Stichtag, und die alte bleibt für die
+            Unterlagen davor stehen. Am einzelnen Beleg lässt sich die Frist verlängern, nie
+            verkürzen.
+          </HelpPopover>
+        }
+      >
+        {retentionRules === null ? (
+          <SkeletonRows rows={3} />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Klasse</Th>
+                <Th numeric>Jahre</Th>
+                <Th>Grundlage</Th>
+                <Th>Vorige Frist</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {(retentionRules.classes ?? []).map((entry) => (
+                <Tr key={entry.class}>
+                  <Td>{entry.label || RETENTION_CLASS_LABELS[entry.class]}</Td>
+                  <Td numeric>{entry.years}</Td>
+                  <Td className="text-ink-muted">{entry.legalBasis}</Td>
+                  <Td className="text-ink-subtle num">
+                    {entry.previous
+                      ? `${entry.previous.years} Jahre bis ${formatDate(entry.previous.replacedFrom)}`
+                      : '—'}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
         )}
       </Section>
 

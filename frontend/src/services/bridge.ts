@@ -484,6 +484,31 @@ export const bridge = {
     invoke<T>('SaveServiceProof', receiptId, text, date),
   GetPaymentTermNotice: (dueDays: number) => invoke<string>('GetPaymentTermNotice', dueDays),
 
+  // Die Bedienung der Welle 8: Handbuchung mit Beleg, Eigenbeleg,
+  // Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter.
+  // Jede Signatur ist gegen internal/wailsbridge/welle8_service.go geprüft —
+  // Anzahl und Reihenfolge der Argumente —, weil `invoke` untypisiert ist und
+  // eine vertauschte Reihenfolge erst zur Laufzeit auffiele.
+  PostManualEntry: <T>(request: unknown) => invoke<T>('PostManualEntry', request),
+  CreateSelfIssuedReceipt: <T>(request: unknown) =>
+    invoke<T>('CreateSelfIssuedReceipt', request),
+  OverrideReceiptRetention: <T>(receiptId: number, retentionClass: string, reason: string) =>
+    invoke<T>('OverrideReceiptRetention', receiptId, retentionClass, reason),
+  GetRetentionRules: <T>() => invoke<T>('GetRetentionRules'),
+  GetEntriesForReceipt: <T>(receiptId: number) => invoke<T>('GetEntriesForReceipt', receiptId),
+  GetReceiptFindings: <T>(receiptId: number) => invoke<T>('GetReceiptFindings', receiptId),
+  CreateCustomAccount: <T>(request: unknown) => invoke<T>('CreateCustomAccount', request),
+  SetAccountBlocked: <T>(number: string, blocked: boolean, reason: string) =>
+    invoke<T>('SetAccountBlocked', number, blocked, reason),
+  GetCustomAccounts: <T>() => invoke<T>('GetCustomAccounts'),
+  GetStatementPositions: <T>() => invoke<T>('GetStatementPositions'),
+  GetVatPeriodProposal: <T>(year: number) => invoke<T>('GetVatPeriodProposal', year),
+  GetVatRatePeriods: <T>() => invoke<T>('GetVatRatePeriods'),
+  GetFilteredJournal: <T>(filter: unknown) => invoke<T>('GetFilteredJournal', filter),
+  GetFilteredJournalCSV: (filter: unknown) => invoke<string>('GetFilteredJournalCSV', filter),
+  SaveFilteredJournalCSV: (filter: unknown, path: string) =>
+    invoke<string>('SaveFilteredJournalCSV', filter, path),
+
   // Prüfermodus
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
   DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),

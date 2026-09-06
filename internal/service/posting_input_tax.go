@@ -140,31 +140,11 @@ func (s *PostingService) inputTaxFindings(
 
 	// (b) Die sonstige Rechnung. Was Buchfink von ihr weiß, steht in den
 	// Kopfdaten des Belegs und in den Stammdaten des Ausstellers.
-	if strings.TrimSpace(contact.Name) == "" {
+	// Dieselbe Prüfung, die die Klärungsliste als Inhaltsfehler zeigt (siehe
+	// receipt_content_checks.go). Zwei Fassungen davon gingen auseinander.
+	for _, d := range issuerMasterDataDefects(contact) {
 		out = append(out, InputTaxFinding{
-			Code:   findingSupplierName,
-			Title:  "Der Name des Ausstellers fehlt",
-			Detail: "der vollständige Name des leistenden Unternehmers (§ 14 Abs. 4 Nr. 1 UStG).",
-		})
-	}
-	if !contact.HasCompleteAddress() {
-		out = append(out, InputTaxFinding{
-			Code:    findingIssuerAddress,
-			Title:   "Die Anschrift des Ausstellers ist unvollständig",
-			Fixable: true,
-			Detail: fmt.Sprintf(
-				"die vollständige Anschrift von %s — Straße, Postleitzahl und Ort "+
-					"(§ 14 Abs. 4 Nr. 1 UStG).", contact.Name),
-		})
-	}
-	if strings.TrimSpace(contact.TaxID) == "" && strings.TrimSpace(contact.VatID) == "" {
-		out = append(out, InputTaxFinding{
-			Code:    findingIssuerTaxNumber,
-			Title:   "Steuernummer oder USt-IdNr. des Ausstellers fehlt",
-			Fixable: true,
-			Detail: fmt.Sprintf(
-				"die vom Finanzamt erteilte Steuernummer oder die USt-IdNr. von %s "+
-					"(§ 14 Abs. 4 Nr. 2 UStG).", contact.Name),
+			Code: d.Code, Title: d.Title, Detail: d.Detail, Fixable: d.Fixable,
 		})
 	}
 	if len(req.DocumentDate) != 10 {
@@ -230,13 +210,13 @@ func (s *PostingService) resolvePosition(
 					"die Aufteilung nach einer sachgerechten Schätzung zu — halte fest, worauf sie " +
 					"beruht, etwa „Kfz zu 60 %% betrieblich genutzt, Fahrtenbuch 2026\"")
 		}
-		if p.InputTaxShare < 1000 && req.TaxTreatment != domain.TaxTreatmentDomestic {
-			return out, fmt.Errorf(
-				"ein geteilter Vorsteuerabzug ist in Buchfink nur beim steuerpflichtigen Inlandsumsatz "+
-					"abgebildet. Beim Steuerfall %q entstehen zwei Steuerzeilen, deren Aufteilung "+
-					"Buchfink nicht rechnet — buche den abziehbaren und den nicht abziehbaren Teil "+
-					"getrennt", req.TaxTreatment)
-		}
+		// Der geteilte Abzug gilt auch beim § 13b-Umsatz und beim
+		// innergemeinschaftlichen Erwerb (UST-07 K2). Dort entstehen zwei
+		// Steuerzeilen aus derselben Bemessungsgrundlage, und der Schlüssel
+		// wirkt nur auf die Vorsteuerzeile — die geschuldete Steuer bleibt voll
+		// (siehe taxLinesForShare). Vorher wies Buchfink den Fall ab; der
+		// betrieblich zu 60 % genutzte Wagen aus dem EU-Ausland war damit nicht
+		// zu buchen, obwohl das Gesetz beide Seiten klar trennt.
 		out.permille = int64(p.InputTaxShare)
 		if out.permille < 1000 {
 			out.note = fmt.Sprintf("Vorsteuer zu %s abziehbar: %s",
@@ -271,9 +251,6 @@ func (s *PostingService) resolvePosition(
 	// und 7 EStG gibt es keinen Vorsteuerabzug. Die Steuer gehört dann zum
 	// Aufwand.
 	if group.InputTaxExcluded {
-		if err := ensureExclusionIsBookable(req.TaxTreatment, group.Label); err != nil {
-			return out, err
-		}
 		out.permille = 0
 		out.note = appendText(out.note,
 			"Kein Vorsteuerabzug (§ 15 Abs. 1a UStG); die Umsatzsteuer gehört zum Aufwand")
@@ -289,9 +266,6 @@ func (s *PostingService) resolvePosition(
 			out.warnings = append(out.warnings, *warning)
 		}
 		if gift != nil && gift.NonDeductible {
-			if err := ensureExclusionIsBookable(req.TaxTreatment, group.Label); err != nil {
-				return out, err
-			}
 			out.account = group.NonDeductibleAccount
 			out.permille = 0
 			out.hasGroup = false
@@ -303,33 +277,12 @@ func (s *PostingService) resolvePosition(
 	return out, nil
 }
 
-// ensureExclusionIsBookable weist den Vorsteuerausschluss dort ab, wo Buchfink
-// ihn nicht abbilden kann: beim innergemeinschaftlichen Erwerb und beim Reverse
-// Charge.
-//
-// § 15 Abs. 1a UStG nimmt den *Abzug*, nicht die *Steuerschuld*. Bei diesen
-// beiden Steuerfällen entstehen zwei Zeilen aus derselben Bemessungsgrundlage —
-// die geschuldete Erwerbsteuer bzw. die Steuer nach § 13b UStG (Kennziffer 89
-// bzw. 84) und die Vorsteuer daraus. Buchfink rechnet beide aus einer einzigen
-// Bemessungsgrundlage; wird sie für den Ausschluss auf null gesetzt, fällt mit
-// der Vorsteuerzeile auch die Steuerschuld weg, und das Finanzamt bekäme eine
-// Voranmeldung, in der ein steuerpflichtiger Erwerb schlicht fehlt.
-//
-// Abgewiesen statt halb gebucht: dieselbe Entscheidung wie beim
-// Vorsteuerschlüssel, und aus demselben Grund.
-func ensureExclusionIsBookable(treatment domain.TaxTreatment, label string) error {
-	switch treatment {
-	case domain.TaxTreatmentIntraCommunityAcquisition, domain.TaxTreatmentReverseCharge:
-		return fmt.Errorf(
-			"%q schließt den Vorsteuerabzug aus (§ 15 Abs. 1a UStG). Beim Steuerfall %q schuldest du "+
-				"die Steuer trotzdem — § 15 Abs. 1a UStG nimmt den Abzug, nicht die Steuerschuld —, und "+
-				"diese Aufteilung rechnet Buchfink nicht. Buche den Vorgang mit dem Steuerfall des "+
-				"Inlandsumsatzes, wenn dir der Lieferant Steuer ausgewiesen hat, oder die geschuldete "+
-				"Steuer getrennt", label, treatment)
-	default:
-		return nil
-	}
-}
+// Der Vorsteuerausschluss des § 15 Abs. 1a UStG ist seit Welle 8 auch beim
+// § 13b-Umsatz und beim innergemeinschaftlichen Erwerb buchbar: die geschuldete
+// Steuer entsteht auf die volle Bemessungsgrundlage, die Vorsteuerzeile
+// entfällt (siehe taxLinesForShare). Die Vorschrift nimmt den Abzug und nicht
+// die Steuerschuld — vorher wies Buchfink den Fall ab, weil es beides nur
+// gemeinsam rechnen konnte.
 
 // resolveGift baut die Aufzeichnung zu einem Geschenk und entscheidet über die
 // Freigrenze.

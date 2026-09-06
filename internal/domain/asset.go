@@ -980,3 +980,17 @@ type Anlagenspiegel struct {
 	// § 266 Abs. 2 A HGB.
 	ClassTotals []AnlagenspiegelRow `json:"classTotals"`
 }
+
+// EnsureLists ersetzt nicht belegte Listen durch leere.
+//
+// Der Spiegel geht als JSON an die Oberfläche, und die Ansicht läuft über beide
+// Listen. Ein nicht belegter Slice käme dort als `null` an, und `null.map`
+// nähme im Render den ganzen Baum mit.
+func (a *Anlagenspiegel) EnsureLists() {
+	if a.Rows == nil {
+		a.Rows = make([]AnlagenspiegelRow, 0)
+	}
+	if a.ClassTotals == nil {
+		a.ClassTotals = make([]AnlagenspiegelRow, 0)
+	}
+}

@@ -163,6 +163,54 @@ func ZMPeriodsOfYear(year int, movements []ZMMovement) []VatPeriod {
 	return out
 }
 
+// ZMPeriodCovers meldet, ob ein Umsatz in den Meldezeitraum gehört (UST-04 K3).
+//
+// Bei den Lieferungen ist das die Datumsfrage und sonst nichts. Bei den
+// sonstigen Leistungen nach § 3a Abs. 2 UStG kommt § 18a Abs. 1 Satz 3 UStG
+// dazu: wer wegen der Lieferungen monatlich meldet, nimmt die sonstigen
+// Leistungen in die Meldung für den *letzten Monat des Kalendervierteljahres*
+// auf. Sie bleiben damit vierteljährlich, während die Waren monatlich laufen.
+//
+// Buchfink meldet sie so und nicht monatlich mit. Das Gesetz stellt es frei
+// („kann"), aber eine Wahl, die niemand trifft, ist keine Wahl: die
+// vierteljährliche Meldung ist der Regelfall des Satzes 1, und wer sie monatlich
+// abgäbe, müsste in jedem Monat eine Meldung abgeben, in dem er nur sonstige
+// Leistungen erbracht hat — mehr Meldungen für denselben Inhalt. Die Frist des
+// letzten Quartalsmonats deckt beide Wege ab.
+func ZMPeriodCovers(period VatPeriod, m ZMMovement) bool {
+	if m.Kind != domain.ZMKindService || period.Type != domain.VatPeriodMonth {
+		return m.Date >= period.From && m.Date <= period.To
+	}
+	// Der letzte Monat eines Quartals endet mit dem Quartal: Monatsende und
+	// Quartalsende fallen zusammen. Das ist die Prüfung — sie kommt ohne
+	// Monatsarithmetik aus und stimmt für jeden Jahresanfang.
+	quarter, err := VatPeriodOf(period.To, domain.VatPeriodQuarter)
+	if err != nil {
+		return m.Date >= period.From && m.Date <= period.To
+	}
+	if quarter.To != period.To {
+		return false
+	}
+	return m.Date >= quarter.From && m.Date <= quarter.To
+}
+
+// ZMPeriodFor liefert den Meldezeitraum, in dem ein Umsatz zu melden ist.
+//
+// Das Gegenstück zu ZMPeriodCovers: dort wird ein Zeitraum gefragt, hier wird
+// er gesucht. Gebraucht wird das für die Nachträge — wer eine sonstige Leistung
+// aus dem Januar dem Januar zuordnet, während sie nach § 18a Abs. 1 Satz 3 UStG
+// in die Märzmeldung gehört, hält sie in der Märzmeldung für einen Nachtrag zum
+// Januar und meldet sie damit zweimal. Die Zuordnung folgt deshalb derselben
+// Regel wie die Meldung selbst und nicht dem bloßen Datum.
+func ZMPeriodFor(periods []VatPeriod, m ZMMovement) (VatPeriod, bool) {
+	for _, p := range periods {
+		if ZMPeriodCovers(p, m) {
+			return p, true
+		}
+	}
+	return VatPeriod{}, false
+}
+
 // ZMLines fasst die Umsätze eines Zeitraums je USt-IdNr. und Meldeart zusammen
 // und meldet die Befunde, die eine Übermittlung verhindern.
 //
@@ -180,7 +228,7 @@ func ZMLines(period VatPeriod, movements []ZMMovement, recipient func(uint) ZMRe
 	reported := map[uint]bool{}
 
 	for _, m := range movements {
-		if m.Date < period.From || m.Date > period.To {
+		if !ZMPeriodCovers(period, m) {
 			continue
 		}
 		info := ZMRecipient{}

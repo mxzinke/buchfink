@@ -201,6 +201,15 @@ const (
 	HeadingTechnical  = "## 3. Technische Systemdokumentation"
 	HeadingOperations = "## 4. Betriebsdokumentation"
 	HeadingControls   = "## 5. Internes Kontrollsystem"
+	// HeadingPrivacy ist das Verzeichnis von Verarbeitungstätigkeiten nach
+	// Art. 30 DSGVO (QUE-02 K1).
+	//
+	// Es steht in der Verfahrensdokumentation und nicht in einem Dokument
+	// daneben, weil es dieselben Angaben braucht: welche Daten wo liegen, wie
+	// lange sie aufbewahrt werden, wer sie bekommt und wie sie geschützt sind.
+	// Zweimal geführt liefe es auseinander — und die geschriebene Fassung wäre
+	// die, die nicht gilt.
+	HeadingPrivacy = "## 6. Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO)"
 )
 
 const documentTemplate = `# Verfahrensdokumentation
@@ -515,4 +524,56 @@ Buchungskerns und den Prüfläufen vor der Festschreibung.
 Ein blockierender Befund verhindert die Festschreibung. Er lässt sich mit einer
 Begründung übergehen; die Begründung steht am Prüflauf und im
 Änderungsprotokoll.
+
+` + HeadingPrivacy + `
+
+Verantwortlicher im Sinne des Art. 4 Nr. 7 DSGVO ist {{orNone .CompanyName}},
+{{orNone .Street}}, {{orNone .ZipCity}}. Die Verarbeitung findet auf den
+Rechnern des Unternehmens statt; Buchfink überträgt keine Buchführungsdaten an
+den Hersteller.
+
+### 6.1 Verarbeitungstätigkeiten
+
+| Tätigkeit | Zweck | Rechtsgrundlage | Kategorien betroffener Personen | Kategorien von Daten | Empfänger | Löschfrist |
+| --- | --- | --- | --- | --- | --- | --- |
+| Finanzbuchhaltung | Erfüllung der Buchführungs- und Aufzeichnungspflichten | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. §§ 238, 257 HGB, §§ 140 ff. AO | Kunden, Lieferanten, Gesellschafter | Name, Anschrift, Steuernummer, USt-IdNr., Bankverbindung, Umsätze | Finanzverwaltung, Steuerberater | Handelsbücher 10 Jahre, Buchungsbelege 8 Jahre |
+| Rechnungsstellung | Erfüllung des Vertrags und der Rechnungspflichten | Art. 6 Abs. 1 Buchst. b und c DSGVO i. V. m. §§ 14, 14a UStG | Kunden | Name, Anschrift, USt-IdNr., Leistungs- und Zahlungsdaten | Kunden, Finanzverwaltung | 8 Jahre |
+| Umsatzsteuer-Voranmeldung und Zusammenfassende Meldung | Erfüllung steuerlicher Erklärungspflichten | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18 UStG, § 18a UStG | Kunden im übrigen Gemeinschaftsgebiet | USt-IdNr., Umsatzsummen | Finanzverwaltung, Bundeszentralamt für Steuern | 10 Jahre |
+| Bestätigungsabfrage der USt-IdNr. | Nachweis der Voraussetzungen der Steuerbefreiung | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18e UStG, § 6a UStG | Kunden im übrigen Gemeinschaftsgebiet | Name, Anschrift, USt-IdNr. | Bundeszentralamt für Steuern | 10 Jahre |
+| Mahnwesen | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
+| Beglaubigung der Festschreibung | Nachweis der Unveränderbarkeit | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 Abs. 4 AO | keine unmittelbar | ausschließlich Hashwerte, keine personenbezogenen Inhalte | Zeitstempeldienst ({{orNone .TSAName}}) | 10 Jahre |
+| Datenüberlassung an die Betriebsprüfung | Erfüllung der Mitwirkungspflicht | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 147 Abs. 6 AO | Kunden, Lieferanten | Buchungs-, Beleg- und Stammdaten des Prüfungszeitraums | Finanzverwaltung | mit der Aufbewahrungsfrist der überlassenen Daten |
+| Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Zeitpunkt, Vorgang | keine | 10 Jahre |
+
+### 6.2 Löschfristen
+
+Die Fristen folgen den Aufbewahrungsklassen aus Abschnitt 3.8. Ein
+Löschverlangen nach Art. 17 DSGVO greift währenddessen nicht, soweit die
+Aufbewahrung einer rechtlichen Verpflichtung dient (Art. 17 Abs. 3 Buchst. b
+DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt und
+nach Fristablauf mit dem Geschäftsjahr gelöscht.
+
+### 6.3 Technische und organisatorische Maßnahmen (Art. 32 DSGVO)
+
+- **Verschlüsselung:** personenbezogene und geschäftsgeheime Felder liegen
+  feldweise verschlüsselt in der Datenbank (AES-256-GCM, ein Schlüssel je
+  Mandant). Der Schlüssel liegt im Schlüsselbund des Betriebssystems und
+  verlässt den Rechner nicht; für den Verlustfall gibt es einen
+  Wiederherstellungsschlüssel, der ausgedruckt und getrennt verwahrt wird.
+- **Zugriffsschutz:** die Daten liegen im Datenordner des angemeldeten
+  Benutzers; der Schutz vor fremdem Zugriff ist der des Betriebssystems
+  (Benutzerkonto, Gerätesperre, Festplattenverschlüsselung).
+- **Protokollierung:** jede Änderung an Buchungen, Belegen und Stammdaten steht
+  mit Vorher/Nachher im Änderungsprotokoll, das seinerseits durch eine
+  Hash-Kette gesichert ist. Lesezugriffe auf personenbezogene Daten —
+  Datenüberlassung, Prüferpaket, Prüfermodus, Herausgabe einzelner Dateien —
+  werden als Zugriff protokolliert und sind im Protokollfilter „Zugriffe"
+  auswertbar.
+- **Unveränderbarkeit:** Journal und Protokoll sind über Hash-Ketten gesichert,
+  die Festschreibung wird mit einem qualifizierten Zeitstempel beglaubigt.
+- **Verfügbarkeit:** die Sicherung schreibt eine in sich stimmige Kopie der
+  Datenbank und der Belegdateien; die Wiederherstellung wird geprüft.
+- **Auftragsverarbeitung:** Buchfink verarbeitet keine Daten im Auftrag. Wird
+  der Steuerberater oder ein Zeitstempeldienst eingebunden, ist die Beziehung
+  gesondert zu regeln.
 `

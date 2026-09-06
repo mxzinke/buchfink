@@ -90,6 +90,16 @@ func (s *JournalService) Chart(ctx context.Context) (*accounting.Chart, error) {
 	return s.chart, nil
 }
 
+// InvalidateChart verwirft den zwischengespeicherten Kontenplan.
+//
+// Der Cache hält den Kontenplan für die Laufzeit des Programms fest, weil jede
+// Buchung ihn braucht. Er ist damit aber auch der Grund, warum ein neu
+// angelegtes oder gesperrtes eigenes Konto (BEL-06 K2) im laufenden Betrieb
+// nicht ankäme: die Buchung auf das neue Konto scheiterte als „im SKR04 nicht
+// vorhanden", die Sperre eines Kontos griffe erst nach dem Neustart. Wer den
+// Kontenplan ändert, sagt es deshalb hier.
+func (s *JournalService) InvalidateChart() { s.chart = nil }
+
 // TaxResolver exposes the SKR04 tax resolution used by the posting rules.
 func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver }
 
@@ -120,6 +130,13 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	}
 	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
 		return nil, err
+	}
+	// Dieselbe Pflichtprüfung wie in ValidatePostable: Post ist der einzige
+	// Schreibweg, und eine Invariante, die nur die Vorprüfung kennt, ist keine.
+	if entry.Source == domain.EntrySourceManual {
+		if err := ValidateManualTaxLines(entry); err != nil {
+			return nil, err
+		}
 	}
 	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
 	// ist immer auch festgeschrieben, und von den beiden Meldungen ist die über
@@ -237,6 +254,21 @@ func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.Jou
 	}
 	if err := s.ensureLawfulTaxDisclosure(&probe); err != nil {
 		return err
+	}
+	// Steuerfall, Steuerschlüssel und Bemessungsgrundlage sind an einer
+	// Handbuchung Pflicht (Welle 8, Entscheidung 1).
+	//
+	// Hier und nicht nur im Vorbau PostManualEntry: die Regel gilt für die
+	// Aufzeichnung und nicht für eine Maske. Eine Buchung, die über einen
+	// anderen Weg mit Source „manual" hereinkäme, liefe sonst an der
+	// Umsatzsteuer-Auswertung vorbei — ohne Schlüssel keine Kennziffer, ohne
+	// Bemessungsgrundlage keine Zeile 81. Die programmseitigen Buchungen
+	// tragen eine andere Quelle oder den Steuerfall; die Generalumkehr nimmt
+	// ValidateManualTaxLines selbst aus.
+	if probe.Source == domain.EntrySourceManual {
+		if err := ValidateManualTaxLines(&probe); err != nil {
+			return err
+		}
 	}
 	if err := s.ensureYearNotAdopted(ctx, &probe); err != nil {
 		return err

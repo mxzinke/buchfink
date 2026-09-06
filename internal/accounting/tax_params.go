@@ -300,3 +300,79 @@ func DefaultBaseRates() []BaseRatePeriod {
 	copy(out, defaultBaseRates)
 	return out
 }
+
+// VatRatePeriod ist das Paar aus Regel- und ermäßigtem Steuersatz, das ab
+// einem Stichtag gilt.
+//
+// Datiert, weil die Sätze sich geändert haben: das Zweite Corona-Steuer-
+// hilfegesetz hat sie für die Umsätze vom 1. Juli bis zum 31. Dezember 2020 auf
+// 16 % und 5 % gesenkt (§ 28 Abs. 1 und 2 UStG a. F.), danach galten wieder
+// 19 % und 7 %. Maßgebend ist der Zeitpunkt der Leistung und nicht der der
+// Rechnung oder der Zahlung (§ 27 Abs. 1 Satz 1 UStG) — deshalb nimmt
+// TaxRateFor ein Datum und keinen Bescheid.
+type VatRatePeriod struct {
+	ValidFrom string         `json:"validFrom"`
+	Standard  domain.TaxRate `json:"standard"`
+	Reduced   domain.TaxRate `json:"reduced"`
+	Source    string         `json:"source"`
+}
+
+// vatRatePeriods sind die Sätze, aufsteigend nach Stichtag.
+//
+// Die Reihe beginnt 2007, weil Buchfink keine Buchung vor der Anhebung auf 19 %
+// führt: die Aufbewahrungsfrist der Belege aus der Zeit davor ist abgelaufen,
+// und ein Satz, den niemand mehr braucht, wäre eine Zahl, die nur beim nächsten
+// Lesen Fragen aufwirft.
+var vatRatePeriods = []VatRatePeriod{
+	{
+		ValidFrom: "2007-01-01", Standard: domain.TaxRateStandard, Reduced: domain.TaxRateReduced,
+		Source: "§ 12 Abs. 1 und 2 UStG i. d. F. des Haushaltsbegleitgesetzes 2006",
+	},
+	{
+		ValidFrom: "2020-07-01", Standard: 1600, Reduced: 500,
+		Source: "§ 28 Abs. 1 und 2 UStG i. d. F. des Zweiten Corona-Steuerhilfegesetzes",
+	},
+	{
+		ValidFrom: "2021-01-01", Standard: domain.TaxRateStandard, Reduced: domain.TaxRateReduced,
+		Source: "§ 12 Abs. 1 und 2 UStG (Auslaufen der befristeten Senkung)",
+	},
+}
+
+// VatRatesFor liefert die am Leistungstag geltenden Steuersätze.
+func VatRatesFor(date string) (VatRatePeriod, error) {
+	if len(date) < 10 {
+		return VatRatePeriod{}, fmt.Errorf("ohne Leistungsdatum lässt sich der Steuersatz nicht bestimmen")
+	}
+	idx := sort.Search(len(vatRatePeriods), func(i int) bool {
+		return vatRatePeriods[i].ValidFrom > date
+	})
+	if idx == 0 {
+		return VatRatePeriod{}, fmt.Errorf(
+			"für den %s ist kein Steuersatz hinterlegt; Buchfink führt die Sätze ab dem 1.1.2007", date)
+	}
+	return vatRatePeriods[idx-1], nil
+}
+
+// TaxRateFor liefert den Regelsatz oder den ermäßigten Satz eines Tages.
+//
+// Ein eigener Aufruf statt einer Konstante überall dort, wo der Satz aus dem
+// Datum folgt: eine im Jahr 2026 nacherfasste Rechnung über eine Leistung vom
+// August 2020 trägt 16 %, und ein Programm, das dort 19 % vorschlägt, führt zu
+// einer Buchung, die weder zur Rechnung noch zur Voranmeldung passt.
+func TaxRateFor(date string, reduced bool) (domain.TaxRate, error) {
+	period, err := VatRatesFor(date)
+	if err != nil {
+		return 0, err
+	}
+	if reduced {
+		return period.Reduced, nil
+	}
+	return period.Standard, nil
+}
+
+// VatRatePeriods liefert die Tabelle als Kopie für Anzeige und Prüfung.
+func VatRatePeriods() []VatRatePeriod {
+	out := make([]VatRatePeriod, len(vatRatePeriods))
+	copy(out, vatRatePeriods)
+	return out
+}

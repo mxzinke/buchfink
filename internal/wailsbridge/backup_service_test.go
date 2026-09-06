@@ -46,7 +46,7 @@ func backupBridge(t *testing.T) (*BuchfinkBridge, *domain.TenantConfig, string) 
 	if !security.KeyfileExists(tenant.DataDir) {
 		t.Fatal("der angelegte Mandant hat keine Schlüsseldatei — der Regelfall ist nicht abgebildet")
 	}
-	if _, err := b.PostJournalEntry(manualEntry()); err != nil {
+	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("Buchung anlegen: %v", err)
 	}
 

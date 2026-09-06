@@ -383,6 +383,11 @@ func (s *ProcDocService) numberRanges(ctx context.Context, settings *domain.Comp
 	if invoiceFormat == "" {
 		invoiceFormat = domain.DefaultInvoiceNumberFormat
 	}
+	// Die Belegnummer folgt derselben Einstellung wie die Rechnungsnummer
+	// (BEL-02 K4). Eine feste Zeichenkette hier beschriebe eine Systematik, die
+	// das Programm gar nicht vergibt — und die Verfahrensdokumentation ist der
+	// Ort, an dem die tatsächliche Systematik stehen muss.
+	receiptFormat := receiptNumberFormatOf(settings)
 	ranges := []struct {
 		name   string
 		key    domain.NumberRangeKey
@@ -391,7 +396,7 @@ func (s *ProcDocService) numberRanges(ctx context.Context, settings *domain.Comp
 		scope  string
 	}{
 		{"Buchungsnummer", domain.NumberRangeJournal, "{JAHR}-{NR:6}", year, "je Geschäftsjahr"},
-		{"Eingangsbeleg", domain.NumberRangeReceipt, "ER-{JAHR}-{NR:4}", year, "je Geschäftsjahr"},
+		{"Eingangsbeleg", domain.NumberRangeReceipt, receiptFormat, year, "je Geschäftsjahr"},
 		{"Ausgangsrechnung", domain.NumberRangeInvoice, invoiceFormat, year, "je Geschäftsjahr"},
 		{"Debitorenkonto", domain.NumberRangeDebitor, "10000–69999", 0, "jahresübergreifend"},
 		{"Kreditorenkonto", domain.NumberRangeCreditor, "70000–99999", 0, "jahresübergreifend"},
@@ -447,6 +452,8 @@ func checkRuleCatalog() []procdoc.CheckRule {
 		{Key: domain.CheckRuleDepreciationMissing, Severity: "Blockierend", Purpose: "Fällige Abschreibung noch nicht gebucht."},
 		{Key: domain.CheckRuleVatReturnMissing, Severity: "Blockierend", Purpose: "Voranmeldung des Zeitraums fehlt."},
 		{Key: domain.CheckRuleCommitOverdue, Severity: "Hinweis", Purpose: "Zeitraum überfällig festzuschreiben."},
+		{Key: domain.CheckRulePeriodNotCommitted, Severity: "Hinweis",
+			Purpose: "Monat zwei Monate nach seinem Ende noch nicht festgeschrieben."},
 		{Key: domain.CheckRuleProvisionDiscount, Severity: "Hinweis", Purpose: "Rückstellung ohne Abzinsungssatz des Stichtagsmonats (§ 253 Abs. 2 HGB)."},
 		{Key: domain.CheckRuleClosingStepSkipped, Severity: "Hinweis", Purpose: "Übersprungener Abschlussbaustein mit seinem Grund."},
 		{Key: domain.CheckRuleSizeClassChange, Severity: "Hinweis", Purpose: "Größenklassenwechsel, der sich abzeichnet (§ 267 Abs. 4 Satz 1 HGB)."},

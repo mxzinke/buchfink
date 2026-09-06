@@ -736,6 +736,18 @@ func StatementKeyForAccount(acc domain.Account) (string, bool) {
 	return target.Key, true
 }
 
+// HasPositionTarget meldet, ob eine Gliederungsposition in Bilanz und GuV
+// getragen wird.
+//
+// Die Prüfung eines selbst angelegten Kontos hängt daran (BEL-06 K2): ein Konto
+// mit einer Position, die die Zuordnungstabelle nicht kennt, fiele aus der
+// Bilanz und aus der E-Bilanz heraus — sichtbar erst im Abschluss, und dann als
+// Differenz ohne Fundstelle.
+func HasPositionTarget(positionID string) bool {
+	_, ok := positionTargets[positionID]
+	return ok
+}
+
 // PositionCount is the number of SKR04 positions the mapping table covers. It
 // exists for the test that guards completeness against the catalog.
 func PositionCount() int { return len(positionTargets) }

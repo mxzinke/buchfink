@@ -204,6 +204,14 @@ func (r *auditRepositoryGorm) FindFiltered(ctx context.Context, limit int, filte
 	if filter.Actor != "" {
 		query = query.Where("actor = ?", filter.Actor)
 	}
+	// „Zugriffe" ist eine Kategorie und keine Aktion: die Herausgabe von Daten
+	// steht als EXPORT, der Prüfermodus als Änderung an der Entität READ_ONLY.
+	// Beide Formen in einer Bedingung, damit die Oberfläche eine Abfrage
+	// stellt und nicht zwei Listen mischen muss.
+	if filter.Access {
+		query = query.Where("action = ? OR entity_type = ?",
+			domain.AuditActionExport, domain.AuditEntityReadOnly)
+	}
 	// Die Grenzen sind Tage und werden auf UTC-Zeitpunkte gebracht: die Spalte
 	// hält Zeitpunkte, und ein Vergleich gegen „2026-03-01" träfe sonst nur
 	// Mitternacht.

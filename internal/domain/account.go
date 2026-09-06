@@ -42,10 +42,18 @@ type Account struct {
 	RangeStart         string      `gorm:"size:10;index" json:"rangeStart"`
 	RangeEnd           string      `gorm:"size:10;index" json:"rangeEnd"`
 	IsReserved         bool        `gorm:"default:false" json:"isReserved"`
-	Description        string      `gorm:"type:text" json:"description"` // User or DATEV explanation
-	IsActive           bool        `gorm:"default:true" json:"isActive"`
-	CreatedAt          time.Time   `json:"createdAt"`
-	UpdatedAt          time.Time   `json:"updatedAt"`
+	// IsCustom markiert ein selbst angelegtes Konto (BEL-06 K2).
+	//
+	// Es steht am Konto und nicht in einer Liste daneben, weil die Herkunft
+	// eines Kontos eine Aussage über den Kontenplan ist: ein Prüfer, der die
+	// Abweichung vom Standardkontenrahmen sehen will, muss sie sehen können,
+	// und die Kontenübersicht soll ein selbst angelegtes Konto sperren dürfen,
+	// ohne ein Konto des SKR04 anzurühren.
+	IsCustom    bool      `gorm:"default:false;index" json:"isCustom"`
+	Description string    `gorm:"type:text" json:"description"` // User or DATEV explanation
+	IsActive    bool      `gorm:"default:true" json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 
 	// Dynamic calculated balances (not persisted directly in table)
 	DebitSum      Cents `gorm:"-" json:"debitSum"`

@@ -405,7 +405,7 @@ func TestPostRejectsAnEntryWhoseReceiptHasNoHeader(t *testing.T) {
 
 	entry := &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-03-01", DocumentDate: "2026-03-01",
-		Description: "Wareneingang", Source: domain.EntrySourceManual,
+		Description: "Wareneingang", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Currency: "EUR", ExchangeRateMicros: 1_000_000,
 		ReceiptID: &receipt.ID, ReceiptHash: receipt.ReceiptHash,
 		Lines: []domain.JournalLine{
@@ -477,7 +477,7 @@ func TestCheckRunReportsCaptureAndCommitmentIntervals(t *testing.T) {
 		entry := &domain.JournalEntry{
 			FiscalYear: 2026, BookingDate: "2026-03-31", DocumentDate: documentDate,
 			ServiceDateFrom: documentDate, ServiceDateTo: documentDate,
-			Description: "Wareneingang", Source: domain.EntrySourceManual,
+			Description: "Wareneingang", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 			Kind: domain.EntryKindNormal, Currency: "EUR", ExchangeRateMicros: 1_000_000,
 			CreatedAt: created,
 			Lines: []domain.JournalLine{

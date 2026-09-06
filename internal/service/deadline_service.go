@@ -360,11 +360,11 @@ func (s *DeadlineService) prepaymentDeadline(ctx context.Context, year int, cfg 
 // commitDeadlines sind die Festschreibungen der Monate. Erledigt ist, was
 // festgeschrieben ist — das steht in den Daten und nicht in einem Haken.
 //
-// Die Frist ist das Ende des Folgemonats, verlängert um die Nachfrist aus den
-// Einstellungen (`commit_grace_days`). Sie muss dieselbe sein, die der Prüflauf
-// unter `commit_overdue` anlegt: stünde hier ein anderer Tag, meldete die
-// Fristenliste einen Monat als offen, den der Prüfbericht noch nicht anmahnt —
-// oder umgekehrt.
+// Die Frist rechnet CommitDueDate (siehe check_service.go): Ende des
+// Folgemonats, die Nachfrist aus den Einstellungen und der weitere Monat der
+// Dauerfristverlängerung. Sie muss dieselbe sein, die der Prüflauf unter
+// `commit_overdue` anlegt — stünde hier ein anderer Tag, meldete die
+// Fristenliste einen Monat als offen, den der Prüfbericht noch nicht anmahnt.
 func (s *DeadlineService) commitDeadlines(ctx context.Context, year int, cfg *domain.CompanySettings) []domain.Deadline {
 	if s.festschreibungRepo == nil {
 		return nil
@@ -373,16 +373,12 @@ func (s *DeadlineService) commitDeadlines(ctx context.Context, year int, cfg *do
 	if err != nil {
 		return nil
 	}
-	grace := 0
-	if cfg != nil && cfg.CommitGraceDays > 0 {
-		grace = cfg.CommitGraceDays
-	}
 	out := make([]domain.Deadline, 0, 12)
 	for _, p := range accounting.VatPeriodsOfYear(year, domain.VatPeriodMonth) {
 		d := domain.Deadline{
 			Key:        fmt.Sprintf("%s.%s", DeadlineKeyCommit, p.Key),
 			Title:      fmt.Sprintf("%s festschreiben", p.Label),
-			DueDate:    addDays(endOfNextMonth(p.To), grace),
+			DueDate:    CommitDueDate(p, cfg),
 			Period:     p.Label,
 			Reference:  "GoBD Rz. 107",
 			FiscalYear: year,

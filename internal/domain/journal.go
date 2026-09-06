@@ -551,6 +551,15 @@ type FinancialSummary struct {
 	CashflowHistory []CashflowDataPoint `json:"cashflowHistory"`
 }
 
+// EnsureLists ersetzt die nicht belegte Verlaufsliste durch eine leere: das
+// Diagramm der Startseite liest sie ohne Umweg, und `null.map` nähme den
+// ganzen Baum mit.
+func (f *FinancialSummary) EnsureLists() {
+	if f.CashflowHistory == nil {
+		f.CashflowHistory = make([]CashflowDataPoint, 0)
+	}
+}
+
 // IntegrityBreakReason benennt, woran eine Kette zerbrochen ist.
 type IntegrityBreakReason string
 

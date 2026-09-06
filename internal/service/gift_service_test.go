@@ -240,3 +240,16 @@ func categoryRow(t *testing.T, report *NonDeductibleReport, key string) NonDeduc
 	t.Fatalf("die Kategorie %q fehlt im Bericht", key)
 	return NonDeductibleCategoryRow{}
 }
+
+// creditOn ist das Gegenstück zu debitOn: die Summe der Habenzeilen auf einem
+// Konto. Die geschuldete Steuer eines § 13b-Umsatzes steht dort, und ohne diese
+// Funktion prüfte der Test nur die Hälfte der Buchung.
+func creditOn(entry *domain.JournalEntry, account string) domain.Cents {
+	var total domain.Cents
+	for _, l := range entry.Lines {
+		if l.Side == domain.SideCredit && l.Account == account {
+			total += l.Amount
+		}
+	}
+	return total
+}

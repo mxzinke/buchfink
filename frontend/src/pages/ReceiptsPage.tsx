@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Download,
   FileCode,
+  FilePlus,
   FileText,
   Paperclip,
   Plus,
@@ -21,12 +22,14 @@ import type {
   EInvoiceProposal,
   EntertainmentDetail,
   InputTaxFinding,
+  JournalEntry,
   PostingGroup,
   PostingPreview,
   PostingWarning,
   Provision,
   Receipt,
   ReceiptFileInput,
+  ReceiptFindings,
   ReceiptFileRole,
   ReceiptHeader,
   ReceiptKind,
@@ -41,17 +44,22 @@ import type {
 import {
   LIMIT_GIFT_PER_RECIPIENT,
   RETENTION_CLASS_LABELS,
+  VALIDATION_FINDING_CLASS_LABELS,
   TAX_RATE_NONE,
   TAX_RATE_REDUCED,
   TAX_RATE_STANDARD,
 } from '../types';
+import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
-import { usePostingLock } from '../components/WriteLock';
+import { usePostingLock, useWriteLock } from '../components/WriteLock';
+import { RetentionDialog, SelfIssuedDialog } from '../components/LedgerForms';
 import {
   formatCents,
   formatDate,
+  formatDateOfTimestamp,
   formatDateTime,
   formatCentsPlain,
+  formatSide,
   formatExchangeRate,
   formatPermille,
   parseCents,
@@ -72,11 +80,15 @@ import {
   Section,
   Select,
   SkeletonRows,
+  Stat,
+  StatRow,
   StatusBadge,
   Table,
   Tbody,
   Td,
   Textarea,
+  Th,
+  Thead,
   Tr,
   cn,
   toast,
@@ -289,11 +301,18 @@ export interface ReceiptsPageProps {
    * Belegliste, und der Beleg wäre dort erneut zu suchen.
    */
   initialReceiptId?: number;
+  /**
+   * Der Weg vom Beleg zur Buchung und zum Kontoblatt (GOB-02 K2, BEL-01 K3).
+   * Ohne ihn endete die Kette am Beleg, und die Buchung wäre im Journal erneut
+   * zu suchen.
+   */
+  onNavigate?: NavigateFn;
 }
 
 export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
   initialStatus,
   initialReceiptId,
+  onNavigate,
 }) => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -311,6 +330,9 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
   // Der Beleg, dessen Kopfdaten gerade erfasst werden. Der Dialog folgt dem
   // Ablegen und lässt sich am offenen Beleg erneut öffnen (BEL-02).
   const [headerFor, setHeaderFor] = useState<Receipt | null>(null);
+  // Der Eigenbeleg für den Vorgang ohne Fremdbeleg (BEL-01 K2, GOB-05 K1). Er
+  // gehört an die Belegablage: er ist ein Beleg und entsteht nicht im Journal.
+  const [selfIssuedOpen, setSelfIssuedOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -454,6 +476,15 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
               Aktualisieren
             </Button>
             <Button
+              variant="secondary"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setSelfIssuedOpen(true)}
+              icon={<FilePlus className="w-4 h-4" strokeWidth={1.5} />}
+            >
+              Eigenbeleg erstellen
+            </Button>
+            <Button
               variant="primary"
               loading={filing}
               disabled={writeLock.locked}
@@ -505,6 +536,7 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
               await load();
             }}
             onEditHeader={() => setHeaderFor(selected)}
+            onNavigate={onNavigate}
             onBooked={async (entryNumber) => {
               toast.success(`Beleg gebucht als ${entryNumber}.`);
               setSelected(null);
@@ -519,6 +551,15 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
           />
         )}
       </div>
+
+      <SelfIssuedDialog
+        open={selfIssuedOpen}
+        onOpenChange={setSelfIssuedOpen}
+        onCreated={async (receipt) => {
+          await load();
+          setSelected(receipt);
+        }}
+      />
 
       <ReceiptHeaderDialog
         receipt={headerFor}
@@ -854,6 +895,7 @@ const ReceiptDetail: React.FC<{
   onEditHeader: () => void;
   proposal: EInvoiceProposal | null;
   proposalError: string | null;
+  onNavigate?: NavigateFn;
 }> = ({
   receipt,
   vendors,
@@ -866,6 +908,7 @@ const ReceiptDetail: React.FC<{
   onChanged,
   onBooked,
   onEditHeader,
+  onNavigate,
 }) => (
   <>
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
@@ -961,8 +1004,316 @@ const ReceiptDetail: React.FC<{
   {receipt.direction === 'incoming' && receipt.status !== 'discarded' && (
     <AuditTrailPanel receipt={receipt} onChanged={onChanged} />
   )}
+
+  {/* Beanstandungen, Buchungen und Aufbewahrung stehen am Beleg und nicht in
+      einer eigenen Ansicht: wer den Beleg vor sich hat, stellt genau diese
+      drei Fragen — was fehlt daran, was wurde daraus gebucht, wie lange ist er
+      zu halten (RECH-07 K2, GOB-02 K2, ARC-01 K2). */}
+  {/* Beanstandungen nur am Eingangsbeleg: eine eigene Rechnung und ein
+      Eigenbeleg haben keinen strukturierten Teil, den eine Prüfung gegen die
+      Rechnungspflichten beanstanden könnte — „nicht geprüft" führte dort in
+      die Irre (RECH-07 K2). */}
+  {(receipt.direction === 'incoming' || receipt.validatedAt) && receipt.status !== 'discarded' && (
+    <ReceiptFindingsPanel receipt={receipt} />
+  )}
+  {receipt.status !== 'discarded' && (
+    <ReceiptEntriesPanel receipt={receipt} onNavigate={onNavigate} />
+  )}
+  {receipt.status !== 'discarded' && (
+    <RetentionSection receipt={receipt} onChanged={onChanged} />
+  )}
   </>
 );
+
+// -------------------------------------------------------------------------
+
+/**
+ * Die Beanstandungen eines Belegs nach Fehlerklassen (RECH-02 K5, RECH-07 K2).
+ *
+ * Getrennt nach Formatfehler, Geschäftsregelfehler und Inhaltsfehler, weil die
+ * Klasse sagt, wer den Fehler beheben kann und was er kostet. Klassifiziert
+ * wird im Backend: eine zweite Einteilung in der Maske wäre die, die bei der
+ * nächsten Regeländerung stehen bleibt.
+ */
+const ReceiptFindingsPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
+  const [findings, setFindings] = useState<ReceiptFindings | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Api.getReceiptFindings(receipt.id)
+      .then((result) => {
+        if (cancelled) return;
+        setFindings(result);
+        setError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setFindings(null);
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [receipt.id, receipt.validatedAt]);
+
+  const groups = (findings?.groups ?? []).filter((group) => (group.findings ?? []).length > 0);
+
+  return (
+    <Section
+      title="Beanstandungen"
+      context={
+        findings?.checked
+          ? `${findings.total} Befunde · ${findings.blocking} blockierend`
+          : 'Der strukturierte Teil wurde nicht geprüft'
+      }
+      action={
+        <HelpPopover label="Erklärung zu den Fehlerklassen">
+          Die Klasse sagt, wer den Fehler beheben kann und was er kostet: ein Formatfehler liegt am
+          System des Lieferanten, ein Geschäftsregelfehler an der Rechnung, ein Inhaltsfehler an
+          einer Pflichtangabe des § 14 Abs. 4 UStG — und der kostet den Vorsteuerabzug (§ 15
+          Abs. 1 Satz 1 Nr. 1 UStG).
+        </HelpPopover>
+      }
+    >
+      {error && <Notice tone="negative" text={error} className="mb-5" />}
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : groups.length === 0 ? (
+        <EmptyState
+          title="Keine Beanstandung"
+          description="Die Prüfung hat an diesem Beleg nichts gefunden."
+        />
+      ) : (
+        groups.map((group) => (
+          <div key={group.class} className="mt-6 first:mt-0">
+            <h3 className="text-label text-ink-muted mb-2">
+              {`${group.label || VALIDATION_FINDING_CLASS_LABELS[group.class]} · ${group.findings.length}`}
+            </h3>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th className="w-40">Regel</Th>
+                  <Th>Befund</Th>
+                  <Th className="w-48">Norm</Th>
+                  <Th className="w-64">Folge für den Vorsteuerabzug</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {group.findings.map((finding, index) => (
+                  <Tr key={`${finding.rule}-${index}`}>
+                    <Td code>
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            'mark-diamond shrink-0',
+                            finding.blocking ? 'bg-negative' : 'bg-attention',
+                          )}
+                          aria-hidden="true"
+                        />
+                        {finding.rule}
+                      </span>
+                    </Td>
+                    <Td>
+                      {finding.message}
+                      {finding.where ? ` (${finding.where})` : ''}
+                    </Td>
+                    <Td className="text-ink-subtle">{finding.norm || '—'}</Td>
+                    <Td className="text-ink-muted">{finding.inputTaxEffect || '—'}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
+        ))
+      )}
+    </Section>
+  );
+};
+
+/**
+ * Die Buchungen zu diesem Beleg (GOB-02 K2, BEL-01 K3).
+ *
+ * Der Weg zurück: das Journal zeigt seit jeher den Beleg, der Beleg zeigte die
+ * Buchung nicht. Ein Prüfer, der von der Ablage ausgeht — und das ist der
+ * übliche Weg —, kam damit nicht ins Journal.
+ */
+const ReceiptEntriesPanel: React.FC<{
+  receipt: Receipt;
+  onNavigate?: NavigateFn;
+}> = ({ receipt, onNavigate }) => {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Api.getEntriesForReceipt(receipt.id)
+      .then((list) => {
+        if (cancelled) return;
+        setEntries(list ?? []);
+        setError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setEntries([]);
+        setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [receipt.id, receipt.journalEntryId]);
+
+  return (
+    <Section
+      title="Buchungen zu diesem Beleg"
+      context="Der Weg zurück ins Journal und ins Kontoblatt"
+    >
+      {error && <Notice tone="negative" text={error} className="mb-5" />}
+      {entries.length === 0 ? (
+        <EmptyState
+          title="Noch nicht gebucht"
+          description="Zu diesem Beleg steht keine Buchung im Journal."
+        />
+      ) : (
+        <Table>
+          <Thead>
+            <Tr>
+              <Th>Buchung</Th>
+              <Th>Datum</Th>
+              <Th>Buchungstext</Th>
+              <Th>Konten</Th>
+              <Th numeric>Betrag</Th>
+              <Th className="w-28" aria-label="Ziel" />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {entries.map((entry) => {
+              const lines = entry.lines ?? [];
+              const gross = lines
+                .filter((line) => line.side === 'S')
+                .reduce((sum, line) => sum + line.amount, 0);
+              return (
+                <Tr key={entry.id} variant={entry.kind === 'reversal' ? 'storno' : 'default'}>
+                  <Td code>{entry.entryNumber}</Td>
+                  <Td className="text-ink-subtle num">{formatDate(entry.bookingDate)}</Td>
+                  <Td className="max-w-[20rem] truncate" title={entry.description}>
+                    {entry.description}
+                  </Td>
+                  <Td>
+                    {/* Nummer und Bezeichnung zusammen (§11.1): die Nummer allein
+                        sagt nicht, welches Konto angesprochen wurde. */}
+                    <span className="flex flex-wrap gap-x-3 gap-y-1">
+                      {lines.map((line) => (
+                        <span
+                          key={`${entry.id}-${line.position}`}
+                          className="flex items-baseline gap-1"
+                        >
+                          {onNavigate ? (
+                            <Button
+                              variant="quiet"
+                              size="sm"
+                              className="code-num"
+                              title={`${formatSide(line.side)} ${line.account}`}
+                              onClick={() => onNavigate('accounts', { account: line.account })}
+                            >
+                              {line.account}
+                            </Button>
+                          ) : (
+                            <span className="code-num">{line.account}</span>
+                          )}
+                          {line.accountName && (
+                            <span className="text-ink-muted truncate max-w-[10rem]">
+                              {line.accountName}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                  </Td>
+                  <Td numeric>{formatCents(gross, entry.currency)}</Td>
+                  <Td className="text-right pl-0">
+                    {onNavigate && (
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        onClick={() => onNavigate('journal', { entryNumber: entry.entryNumber })}
+                      >
+                        Im Journal
+                      </Button>
+                    )}
+                  </Td>
+                </Tr>
+              );
+            })}
+          </Tbody>
+        </Table>
+      )}
+    </Section>
+  );
+};
+
+/**
+ * Die Aufbewahrung des Belegs und ihre Verlängerung (ARC-01 K2).
+ *
+ * Nur nach oben: die gesetzliche Frist ist die Untergrenze. Geprüft wird das im
+ * Backend; hier steht, was gilt und wer es wann verlängert hat.
+ */
+const RetentionSection: React.FC<{
+  receipt: Receipt;
+  onChanged: (updated: Receipt) => Promise<void>;
+}> = ({ receipt, onChanged }) => {
+  const lock = useWriteLock();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Section
+      title="Aufbewahrung"
+      context={`Frist bis ${formatDate(receipt.retentionUntil ?? '')}`}
+      action={
+        <Button
+          variant="secondary"
+          disabled={lock.locked}
+          title={lock.hint}
+          onClick={() => setOpen(true)}
+        >
+          Frist verlängern
+        </Button>
+      }
+    >
+      <StatRow>
+        <Stat
+          label="Klasse"
+          value={RETENTION_CLASS_LABELS[receipt.retentionClass ?? '']}
+          /* Der Termin kommt aus dem Backend, sobald er dort steht: es kennt
+             Hold und verlängerte Frist, die lokale Hilfe rechnet nur nach. */
+          context={`Löschung frühestens ${formatDate(
+            receipt.earliestDeletion ?? earliestDeletion(receipt.retentionUntil),
+          )}`}
+        />
+        <Stat
+          label="Verlängert"
+          value={
+            receipt.retentionOverrideAt ? formatDateOfTimestamp(receipt.retentionOverrideAt) : '—'
+          }
+          context={receipt.retentionOverrideReason || 'Gesetzliche Frist'}
+        />
+      </StatRow>
+      <RetentionDialog
+        open={open}
+        onOpenChange={setOpen}
+        receipt={receipt}
+        onChanged={(next) => {
+          void onChanged(next);
+        }}
+      />
+    </Section>
+  );
+};
 
 // -------------------------------------------------------------------------
 
@@ -2486,13 +2837,15 @@ const ValidationPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
           ? ' · alle 223 Geschäftsregeln der Norm'
           : ' · Teilprüfung, die Extension-Regeln bleiben offen'}
       </p>
-      {[...errors, ...rest].map((f, i) => (
-        <p key={i} className="text-caption text-ink-muted mt-1">
-          <span className="code-num text-ink-subtle">{f.rule}</span>{' '}
-          {f.where ? <span className="text-ink-subtle">{f.where}: </span> : null}
-          {f.message}
+      {/* Die einzelnen Befunde stehen unten unter „Beanstandungen", nach
+          Fehlerklassen getrennt und mit Norm und Folge für den Vorsteuerabzug.
+          Zweimal dieselbe Liste hieße zweimal derselbe Befund — und die obere
+          wüsste nichts von den Pflichtangaben, die erst dort dazukommen. */}
+      {rest.length + errors.length > 0 && (
+        <p className="text-caption text-ink-muted mt-1">
+          Die einzelnen Befunde stehen unter „Beanstandungen".
         </p>
-      ))}
+      )}
     </div>
   );
 };

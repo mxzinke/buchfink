@@ -455,10 +455,16 @@ func (s *ZMService) lateEntries(
 		if m.Date < yearFrom || m.Date > yearTo {
 			continue
 		}
-		if m.Date >= period.From && m.Date <= period.To {
+		if accounting.ZMPeriodCovers(period, m) {
 			continue
 		}
-		p, ok := periodContaining(periods, m.Date)
+		// Zugeordnet wird über dieselbe Regel, nach der gemeldet wird: eine
+		// sonstige Leistung nach § 3a Abs. 2 UStG gehört bei monatlicher
+		// Meldung in den letzten Quartalsmonat (§ 18a Abs. 1 Satz 3 UStG) und
+		// nicht in den Monat ihres Datums. Über das bloße Datum zugeordnet
+		// stünde sie in der Märzmeldung in den Zeilen *und* als Nachtrag zum
+		// Januar — wer dem Nachtrag folgte, meldete sie zweimal.
+		p, ok := accounting.ZMPeriodFor(periods, m)
 		if !ok || !submitted[p.Key] || reported[p.Key][m.EntryID] {
 			continue
 		}
@@ -515,16 +521,6 @@ func (s *ZMService) submittedPeriods(ctx context.Context, year int) (map[string]
 	return submitted, reported, nil
 }
 
-// periodContaining sucht den Meldezeitraum, in den ein Datum fällt.
-func periodContaining(periods []accounting.VatPeriod, date string) (accounting.VatPeriod, bool) {
-	for _, p := range periods {
-		if date >= p.From && date <= p.To {
-			return p, true
-		}
-	}
-	return accounting.VatPeriod{}, false
-}
-
 // reconcile stellt die Summen der Meldung den Kennziffern 41 und 21 der
 // Voranmeldungen desselben Zeitraums gegenüber.
 //
@@ -570,6 +566,7 @@ func (s *ZMService) reconcile(
 		out.ServicesVat += r.Base(accounting.VatCodeEUServices)
 	}
 	if found {
+		alignServicesToQuarter(out, period, latest)
 		return out
 	}
 
@@ -605,6 +602,42 @@ func (s *ZMService) reconcile(
 		break
 	}
 	return out
+}
+
+// alignServicesToQuarter stellt die sonstigen Leistungen einer monatlichen
+// Meldung auf das Kalendervierteljahr um (§ 18a Abs. 1 Satz 3 UStG).
+//
+// Gemeldet werden sie im letzten Monat des Quartals (siehe ZMPeriodCovers),
+// vorangemeldet dagegen in dem Monat, in dem sie erbracht wurden. Verglichen
+// man Monat gegen Monat, stünde dieselbe Leistung zweimal als Abweichung: im
+// Januar fehlte sie in der ZM, im März in der Voranmeldung. Gegenübergestellt
+// wird deshalb die ZM des Quartalsendmonats der Summe der Kennziffer 21 aller
+// Voranmeldungen des Quartals; in den übrigen Monaten steht auf beiden Seiten
+// nichts.
+func alignServicesToQuarter(
+	out *domain.ZMReconciliation, period accounting.VatPeriod, latest map[string]*domain.VatReturn,
+) {
+	if period.Type != domain.VatPeriodMonth {
+		return
+	}
+	quarter, err := accounting.VatPeriodOf(period.To, domain.VatPeriodQuarter)
+	if err != nil {
+		return
+	}
+	// Der letzte Monat eines Quartals endet mit dem Quartal; jeder andere Monat
+	// trägt in der ZM keine sonstige Leistung.
+	if quarter.To != period.To {
+		out.ServicesVat = 0
+		return
+	}
+	var services domain.Cents
+	for _, r := range latest {
+		if r.PeriodFrom < quarter.From || r.PeriodTo > quarter.To {
+			continue
+		}
+		services += r.Base(accounting.VatCodeEUServices)
+	}
+	out.ServicesVat = services
 }
 
 // movements liest die meldepflichtigen Umsätze des Jahres und der vier

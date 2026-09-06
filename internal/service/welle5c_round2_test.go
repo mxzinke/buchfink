@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -213,30 +212,49 @@ func TestCurrencyValuationCanBeBookedAgainAfterAReversal(t *testing.T) {
 // Vorsteuerausschluss und eigene Steuerschuld
 // -------------------------------------------------------------------------
 
-// § 15 Abs. 1a UStG nimmt den Abzug, nicht die Steuerschuld. Beim
-// innergemeinschaftlichen Erwerb und beim Reverse Charge entstehen beide aus
-// derselben Bemessungsgrundlage; wird sie für den Ausschluss auf null gesetzt,
-// fällt mit der Vorsteuerzeile auch die geschuldete Steuer weg, und die
-// Voranmeldung meldet einen steuerpflichtigen Erwerb schlicht nicht.
-func TestExcludedInputTaxIsRefusedWhereTheTaxIsOwed(t *testing.T) {
+// § 15 Abs. 1a UStG nimmt den Abzug, nicht die Steuerschuld.
+//
+// Beim innergemeinschaftlichen Erwerb und beim Reverse Charge entstehen beide
+// aus derselben Bemessungsgrundlage. Buchfink wies den Fall bis Welle 8 ab,
+// weil es nur eine Bemessungsgrundlage führte; seither trägt die geschuldete
+// Steuer die volle und die Vorsteuer die abziehbare (siehe taxLinesForShare).
+// Geprüft wird deshalb das Ergebnis: die Erwerb- bzw. § 13b-Steuer steht in
+// voller Höhe, eine Vorsteuerzeile entsteht nicht, und die nicht abziehbare
+// Steuer gehört zum Aufwand (§ 9b Abs. 1 EStG).
+func TestExcludedInputTaxKeepsTheOwedTax(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	env.gifts(t)
 	vendor := env.vendor(t, "Yacht Charter SARL", "FR", "FR12345678901")
 
-	for _, treatment := range []domain.TaxTreatment{
-		domain.TaxTreatmentIntraCommunityAcquisition,
-		domain.TaxTreatmentReverseCharge,
-	} {
+	cases := []struct {
+		treatment domain.TaxTreatment
+		owed      string
+		input     string
+	}{
+		{domain.TaxTreatmentIntraCommunityAcquisition,
+			domain.AccountUmsatzsteuerIG19, domain.AccountVorsteuerIG19},
+		{domain.TaxTreatmentReverseCharge,
+			domain.AccountUmsatzsteuer13b19, domain.AccountVorsteuer13b19},
+	}
+	for _, c := range cases {
 		req := env.receipt(t, vendor.ID, "repraesentation", 100_000,
-			domain.TaxRateStandard, treatment)
-		_, err := env.posting.PostIncomingReceipt(ctx, req)
-		if err == nil {
-			t.Fatalf("%s: ein Vorsteuerausschluss darf die geschuldete Steuer nicht "+
-				"verschwinden lassen", treatment)
+			domain.TaxRateStandard, c.treatment)
+		entry, err := env.posting.PostIncomingReceipt(ctx, req)
+		if err != nil {
+			t.Fatalf("%s: %v", c.treatment, err)
 		}
-		if !strings.Contains(err.Error(), "§ 15 Abs. 1a UStG") {
-			t.Errorf("%s: die Meldung muss die Vorschrift nennen: %v", treatment, err)
+		if got := creditOn(entry, c.owed); got != 19_000 {
+			t.Errorf("%s: geschuldete Steuer %s € — erwartet 190,00 € auf die volle "+
+				"Bemessungsgrundlage", c.treatment, got)
+		}
+		if got := debitOn(entry, c.input); got != 0 {
+			t.Errorf("%s: Vorsteuer %s € — § 15 Abs. 1a UStG schließt den Abzug aus",
+				c.treatment, got)
+		}
+		if got := debitOn(entry, "6645"); got != 119_000 {
+			t.Errorf("%s: Aufwand %s € — erwartet 1.190,00 €, die nicht abziehbare "+
+				"Steuer gehört dazu (§ 9b Abs. 1 EStG)", c.treatment, got)
 		}
 	}
 
@@ -256,9 +274,9 @@ func TestExcludedInputTaxIsRefusedWhereTheTaxIsOwed(t *testing.T) {
 	}
 }
 
-// Dasselbe für das Geschenk über der Freigrenze: auch dort fällt der
-// Vorsteuerabzug weg, und auch dort bleibt die Erwerbsteuer geschuldet.
-func TestGiftOverTheLimitIsRefusedOnAnIntraCommunityAcquisition(t *testing.T) {
+// Dasselbe für das Geschenk über der Freigrenze: der Vorsteuerabzug fällt weg,
+// die Erwerbsteuer bleibt geschuldet.
+func TestGiftOverTheLimitKeepsTheAcquisitionTax(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	env.gifts(t)
@@ -272,11 +290,16 @@ func TestGiftOverTheLimitIsRefusedOnAnIntraCommunityAcquisition(t *testing.T) {
 
 	over := env.giftReceipt(t, vendor.ID, "Dr. Meyer", 2_000)
 	over.TaxTreatment = domain.TaxTreatmentIntraCommunityAcquisition
-	if _, err := env.posting.PostIncomingReceipt(ctx, over); err == nil {
-		t.Fatal("ein Geschenk über der Freigrenze beim ig. Erwerb darf nicht die " +
-			"Erwerbsteuer entfallen lassen")
-	} else if !strings.Contains(err.Error(), "Steuerschuld") {
-		t.Errorf("die Meldung muss die fortbestehende Steuerschuld nennen: %v", err)
+	entry, err := env.posting.PostIncomingReceipt(ctx, over)
+	if err != nil {
+		t.Fatalf("Geschenk über der Freigrenze beim ig. Erwerb: %v", err)
+	}
+	if got := creditOn(entry, domain.AccountUmsatzsteuerIG19); got != 380 {
+		t.Errorf("Erwerbsteuer %s € — erwartet 3,80 € auf 20,00 € Bemessungsgrundlage", got)
+	}
+	if got := debitOn(entry, domain.AccountVorsteuerIG19); got != 0 {
+		t.Errorf("Vorsteuer %s € — über der Freigrenze gibt es keinen Abzug "+
+			"(§ 15 Abs. 1a UStG)", got)
 	}
 }
 

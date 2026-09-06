@@ -40,6 +40,9 @@ type CompanySettings struct {
 	// InvoiceNumberFormat ist die Systematik des Rechnungsnummernkreises mit
 	// den Platzhaltern {JAHR} und {NR:n}. Leer heißt: die Voreinstellung.
 	InvoiceNumberFormat string `json:"invoiceNumberFormat"`
+	// ReceiptNumberFormat ist dieselbe Systematik für den Belegnummernkreis
+	// (BEL-02 K4). Leer heißt: die Voreinstellung „ER-{JAHR}-{NR:4}".
+	ReceiptNumberFormat string `json:"receiptNumberFormat"`
 	// Seat, RegisterCourt und RegisterNumber sind die Pflichtangaben des
 	// § 264 Abs. 1a HGB: auf jedem Jahresabschluss sind Firma, Sitz,
 	// Registergericht und Registernummer anzugeben. Sie standen bisher nur an

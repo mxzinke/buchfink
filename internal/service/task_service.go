@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -170,8 +173,11 @@ func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.Task
 	}
 
 	s.addReadOnly(list, opts)
-	s.addCheckFindings(ctx, list, today)
+	// Die Fristen zuerst: die Zeile „Januar 2026 festschreiben" entsteht dort,
+	// und die Befunde des Prüflaufs zur Festschreibung desselben Monats sind
+	// dann dieselbe Arbeit ein zweites Mal (siehe addCheckFindings).
 	s.addDeadlines(ctx, list, today, horizon)
+	s.addCheckFindings(ctx, list, today)
 	s.addBank(ctx, list)
 	s.addReceipts(ctx, list, today, cfg)
 	s.addOverdueReceivables(ctx, list, today)
@@ -253,6 +259,15 @@ func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskLis
 			rule == domain.CheckRuleReceiptOverdue || rule == domain.CheckRuleServiceProofMissing {
 			continue
 		}
+		// Die Festschreibung eines Monats steht schon als Fristzeile in der
+		// Liste („Januar 2026 festschreiben", aus commitDeadlines). Die beiden
+		// Prüfregeln dazu meinen dieselbe Arbeit; als eigene Zeile stünde sie
+		// zweimal da, einmal mit Monat und einmal ohne.
+		if rule == domain.CheckRulePeriodNotCommitted || rule == domain.CheckRuleCommitOverdue {
+			if hasCommitDeadline(list) {
+				continue
+			}
+		}
 		group := domain.TaskGroupOpen
 		if blocking[rule] {
 			group = domain.TaskGroupOverdue
@@ -265,6 +280,20 @@ func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskLis
 			Target: domain.TaskTarget{Page: "audit", Params: map[string]string{"rule": rule}},
 		})
 	}
+}
+
+// hasCommitDeadline meldet, ob die Fristzeile einer Monatsfestschreibung schon
+// in der Liste steht.
+func hasCommitDeadline(list *domain.TaskList) bool {
+	prefix := domain.TaskKeyDeadline + "." + DeadlineKeyCommit + "."
+	for _, group := range [][]domain.Task{list.Overdue, list.Open, list.Upcoming} {
+		for _, task := range group {
+			if strings.HasPrefix(task.Key, prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // checkRuleTask übersetzt eine Prüfregel in Vorgangssprache.
@@ -309,6 +338,12 @@ func checkRuleTask(rule string) (title, why, reference string) {
 		return "Zeitraum festschreiben",
 			"Buchungen sind bis zum Ablauf des Folgemonats unveränderbar zu stellen.",
 			"GoBD Rz. 107"
+	case domain.CheckRulePeriodNotCommitted:
+		return "Monat festschreiben",
+			"Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit " +
+				"Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar " +
+				"gestellt sein.",
+			"GoBD Rz. 107, § 146 Abs. 4 AO"
 	case domain.CheckRuleProvisionDiscount:
 		return "Abzinsung der Rückstellungen prüfen",
 			"Ohne den Satz des Stichtagsmonats ist die Rückstellung nicht bewertet.",
@@ -367,7 +402,18 @@ func (s *TaskService) addDeadlines(ctx context.Context, list *domain.TaskList, t
 	}
 	seen := map[string]bool{}
 	for _, deadline := range deadlines {
-		if deadline.IsDone || deadline.DueDate == "" || deadline.DueDate > horizon {
+		if deadline.IsDone || deadline.DueDate == "" {
+			continue
+		}
+		// Die Festschreibung eines Monats ist schon vor ihrer Frist Arbeit
+		// (UNV-02 K2): ab dem 10. des Folgemonats ist die Voranmeldung
+		// abgegeben, und von da an gibt es keinen Grund mehr, den Monat offen
+		// zu lassen. Sie steht deshalb ab diesem Tag als offene Aufgabe in der
+		// Liste — auch dann, wenn ihre Frist mit Dauerfristverlängerung weiter
+		// als der Vorlauf entfernt liegt.
+		openFrom := commitOpenFrom(deadline.Key)
+		visible := openFrom != "" && today >= openFrom
+		if deadline.DueDate > horizon && !visible {
 			continue
 		}
 		// Zwei Jahre können denselben Termin führen (ein Jahresschlüssel steht
@@ -378,6 +424,9 @@ func (s *TaskService) addDeadlines(ctx context.Context, list *domain.TaskList, t
 		}
 		seen[deadline.Key] = true
 		group := domain.TaskGroupUpcoming
+		if visible {
+			group = domain.TaskGroupOpen
+		}
 		if deadline.DueDate < today {
 			group = domain.TaskGroupOverdue
 		}
@@ -392,6 +441,31 @@ func (s *TaskService) addDeadlines(ctx context.Context, list *domain.TaskList, t
 			},
 		})
 	}
+}
+
+// commitOpenFrom ist der Tag, ab dem die Festschreibung eines Monats als offene
+// Aufgabe geführt wird: der 10. des Folgemonats (UNV-02 K2).
+//
+// Der 10. und nicht der Monatserste: bis zum 10. ist die Voranmeldung des
+// Monats abzugeben (§ 18 Abs. 1 Satz 1 UStG), und bis dahin wird an dem Monat
+// noch gebucht. Für jede andere Frist ergibt sich nichts — die Funktion liefert
+// dann den leeren Tag, und die Frist bleibt eine Frist.
+func commitOpenFrom(key string) string {
+	rest, ok := strings.CutPrefix(key, DeadlineKeyCommit+".")
+	if !ok {
+		return ""
+	}
+	p, err := accounting.ParseVatPeriodKey(rest)
+	if err != nil {
+		return ""
+	}
+	last, err := time.Parse("2006-01-02", p.To)
+	if err != nil {
+		return ""
+	}
+	// Der letzte Tag des Zeitraums plus ein Tag ist der Monatserste des
+	// Folgemonats; plus neun weitere ist sein zehnter.
+	return last.AddDate(0, 0, 10).Format("2006-01-02")
 }
 
 // addBank meldet die Bankumsätze ohne Zuordnung.

@@ -186,9 +186,19 @@ export function formatDateTime(iso: string): string {
   if (!iso) return '—';
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
+  // Die Bestandteile stehen einzeln und nicht als `dateStyle`/`timeStyle`:
+  // beide Kurzformen vertragen sich nach ECMA-402 mit keiner weiteren Option,
+  // und zusammen mit `timeZoneName` wirft der Konstruktor einen TypeError —
+  // die Ansicht, die den Zeitpunkt zeigt, bräche damit ganz ab.
+  // Der Monat zweistellig und nicht als Kurzname: die Zifferform „06.09.2026"
+  // ist die Schreibweise des Konzepts (§4.1), und daneben stünde sonst
+  // „06. Sept. 2026" als zweite.
   return new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
     timeZoneName: 'short',
   }).format(parsed);
 }

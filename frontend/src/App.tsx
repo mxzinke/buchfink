@@ -37,7 +37,14 @@ import { Button, Notice, toast } from './components/ui';
  * den Hinweisstreifen; eine Auswertung ist auch im abgeschlossenen Jahr das,
  * was sie sein soll (§11.5).
  */
-const POSTING_TABS: TabType[] = ['journal', 'bank', 'receipts', 'invoices', 'advances', 'assets'];
+const POSTING_TABS: TabType[] = [
+  'journal',
+  'bank',
+  'receipts',
+  'invoices',
+  'advances',
+  'assets',
+];
 
 export function App() {
   const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
@@ -292,7 +299,13 @@ export function App() {
       case 'accounts':
         return <AccountsPage initialAccount={navParams.account} onNavigate={navigate} />;
       case 'journal':
-        return <JournalPage initialSearch={navParams.entryNumber} onNavigate={navigate} />;
+        return (
+          <JournalPage
+            initialSearch={navParams.entryNumber}
+            initialFilterAccount={navParams.filterAccount}
+            onNavigate={navigate}
+          />
+        );
       case 'assets':
         return <AssetsPage />;
       case 'bank':
@@ -302,6 +315,7 @@ export function App() {
           <ReceiptsPage
             initialStatus={navParams.receiptStatus}
             initialReceiptId={navParams.receiptId}
+            onNavigate={navigate}
           />
         );
       case 'invoices':

@@ -65,6 +65,14 @@ export interface NavigationParams {
   /** Buchungsnummer, auf die das Journal filtert. */
   entryNumber?: string;
   /**
+   * Konto, mit dem das Journal die Zeilenauswertung öffnet (PRF-01 K3).
+   *
+   * Getrennt von `entryNumber`: das eine sucht eine Buchung in der Liste, das
+   * andere öffnet den Reiter „Zeilen auswerten" mit vorbelegtem Konto — der
+   * Weg aus dem Kontoblatt in die Auswertung desselben Kontos.
+   */
+  filterAccount?: string;
+  /**
    * Reiter, den die Seite „Nachweise" öffnet — Protokoll, Versionen,
    * Aufbewahrung oder Verfahrensdokumentation. Ohne ihn landete ein Verweis
    * auf eine bestimmte Auskunft wieder auf dem ersten Reiter.

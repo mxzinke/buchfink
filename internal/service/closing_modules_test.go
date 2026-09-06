@@ -98,7 +98,7 @@ func (e *testEnv) taxableProfit(t *testing.T) {
 	entry := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Jahresergebnis", Source: domain.EntrySourceManual,
+		Description: "Jahresergebnis", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 10_000_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 10_000_000},
@@ -134,8 +134,9 @@ func TestAccrualIsFormedAndReleasedWithTheCarryForward(t *testing.T) {
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Betriebshaftpflicht 12/2026 bis 11/2027",
-		Source:      domain.EntrySourceManual,
+		Description:  "Betriebshaftpflicht 12/2026 bis 11/2027",
+		Source:       domain.EntrySourceManual,
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -214,7 +215,7 @@ func TestAccrualProposalMarksButKeepsSmallAmounts(t *testing.T) {
 	small := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Fachzeitschrift", Source: domain.EntrySourceManual,
+		Description: "Fachzeitschrift", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 12_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 12_000},
@@ -472,7 +473,7 @@ func TestInventoryChangeCarriesTheRightSign(t *testing.T) {
 	stock := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual,
+		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
@@ -541,7 +542,7 @@ func TestVatSettlementZeroesTheTaxAccounts(t *testing.T) {
 	purchase := &domain.JournalEntry{
 		BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
 		ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
-		Description: "Wareneinkauf", Source: domain.EntrySourceManual,
+		Description: "Wareneinkauf", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6300", Amount: 100_000},
 			{Side: domain.SideDebit, Account: domain.AccountVorsteuer19, Amount: 19_000,
@@ -552,7 +553,7 @@ func TestVatSettlementZeroesTheTaxAccounts(t *testing.T) {
 	sale := &domain.JournalEntry{
 		BookingDate: "2026-04-10", DocumentDate: "2026-04-10",
 		ServiceDateFrom: "2026-04-10", ServiceDateTo: "2026-04-10",
-		Description: "Erlös", Source: domain.EntrySourceManual,
+		Description: "Erlös", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 238_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 200_000},
@@ -564,6 +565,8 @@ func TestVatSettlementZeroesTheTaxAccounts(t *testing.T) {
 		BookingDate: "2026-05-10", DocumentDate: "2026-05-10",
 		ServiceDateFrom: "2026-05-10", ServiceDateTo: "2026-05-10",
 		Description: "Umsatzsteuer-Vorauszahlung", Source: domain.EntrySourceManual,
+		// Die Vorauszahlung ist kein Umsatz: sie zahlt die angemeldete Steuer.
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountUmsatzsteuerVorauszahlungen, Amount: 10_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 10_000},
@@ -626,7 +629,7 @@ func TestVatSettlementBooksARefundAsReceivable(t *testing.T) {
 	purchase := &domain.JournalEntry{
 		BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
 		ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
-		Description: "Große Anschaffung", Source: domain.EntrySourceManual,
+		Description: "Große Anschaffung", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6300", Amount: 100_000},
 			{Side: domain.SideDebit, Account: domain.AccountVorsteuer19, Amount: 19_000,
@@ -662,7 +665,7 @@ func TestTaxProvisionIsComputedAndBooked(t *testing.T) {
 	result := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Jahresergebnis", Source: domain.EntrySourceManual,
+		Description: "Jahresergebnis", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 10_000_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 10_100_000},
@@ -727,7 +730,7 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	result := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Erlös", Source: domain.EntrySourceManual,
+		Description: "Erlös", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 400_000},
@@ -1278,7 +1281,7 @@ func TestTaxProvisionDoesNotCloseTheProvisionStep(t *testing.T) {
 	profit := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Erlös", Source: domain.EntrySourceManual,
+		Description: "Erlös", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 10_000_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 10_000_000},
@@ -1321,7 +1324,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 	result := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Jahresergebnis", Source: domain.EntrySourceManual,
+		Description: "Jahresergebnis", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 10_000_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 10_000_000},
@@ -1334,7 +1337,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 	prepayment := &domain.JournalEntry{
 		BookingDate: "2026-09-10", DocumentDate: "2026-09-10",
 		ServiceDateFrom: "2026-09-10", ServiceDateTo: "2026-09-10",
-		Description: "Körperschaftsteuer-Vorauszahlung", Source: domain.EntrySourceManual,
+		Description: "Körperschaftsteuer-Vorauszahlung", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountKoerperschaftsteuer, Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
@@ -1396,7 +1399,7 @@ func TestAccrualIsBookedOnlyOncePerSourceEntry(t *testing.T) {
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual,
+		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -1480,7 +1483,7 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	profit := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Erlös 2026", Source: domain.EntrySourceManual,
+		Description: "Erlös 2026", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 100_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 100_000},
@@ -1867,7 +1870,7 @@ func TestAppropriationStepNeedsCarryForwardAndDecision(t *testing.T) {
 	profit := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Erlös", Source: domain.EntrySourceManual,
+		Description: "Erlös", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 400_000},
@@ -1934,7 +1937,7 @@ func TestReversedAccrualIsNeitherReleasedNorReported(t *testing.T) {
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual,
+		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -2012,7 +2015,7 @@ func TestAccrualProposalSkipsReversedEntries(t *testing.T) {
 	invoice := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Wartungsvertrag", Source: domain.EntrySourceManual,
+		Description: "Wartungsvertrag", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -2096,7 +2099,7 @@ func TestReversedInventoryCountCanBeBookedAgain(t *testing.T) {
 	stock := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual,
+		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
@@ -2200,7 +2203,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	stock := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual,
+		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
@@ -2233,7 +2236,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual,
+		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -2344,7 +2347,7 @@ func TestMonthlyReleaseSpreadsTheAccrualOverTheYear(t *testing.T) {
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
-		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual,
+		Description: "Betriebshaftpflicht", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6400", Amount: 120_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 120_000},
@@ -2469,7 +2472,7 @@ func (e *testEnv) vatTurnover(t *testing.T) {
 		{
 			BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
 			ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
-			Description: "Wareneinkauf", Source: domain.EntrySourceManual,
+			Description: "Wareneinkauf", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 			Lines: []domain.JournalLine{
 				{Side: domain.SideDebit, Account: "6300", Amount: 100_000},
 				{Side: domain.SideDebit, Account: domain.AccountVorsteuer19, Amount: 19_000,
@@ -2481,6 +2484,7 @@ func (e *testEnv) vatTurnover(t *testing.T) {
 			BookingDate: "2026-04-10", DocumentDate: "2026-04-10",
 			ServiceDateFrom: "2026-04-10", ServiceDateTo: "2026-04-10",
 			Description: "Erlös", Source: domain.EntrySourceManual,
+			TaxTreatment: domain.TaxTreatmentDomestic,
 			Lines: []domain.JournalLine{
 				{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 238_000},
 				{Side: domain.SideCredit, Account: "4400", Amount: 200_000},

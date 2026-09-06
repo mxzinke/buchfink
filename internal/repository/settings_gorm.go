@@ -112,6 +112,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.ContactEmail = it.Value
 		case "invoice_number_format":
 			settings.InvoiceNumberFormat = it.Value
+		case "receipt_number_format":
+			settings.ReceiptNumberFormat = it.Value
 		case "seat":
 			settings.Seat = it.Value
 		case "register_court":
@@ -189,6 +191,17 @@ func numberFormatOrDefault(format string) (string, error) {
 	return format, nil
 }
 
+// receiptFormatOrDefault prüft die Systematik des Belegnummernkreises.
+func receiptFormatOrDefault(format string) (string, error) {
+	if strings.TrimSpace(format) == "" {
+		return domain.DefaultReceiptNumberFormat, nil
+	}
+	if err := domain.ValidateNumberFormat(format); err != nil {
+		return "", err
+	}
+	return format, nil
+}
+
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
 	vatPeriod := s.VatPeriod
 	if vatPeriod == "" {
@@ -211,6 +224,13 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		graceDays = 0
 	}
 	numberFormat, err := numberFormatOrDefault(s.InvoiceNumberFormat)
+	if err != nil {
+		return err
+	}
+	// Der Belegnummernkreis wird nach derselben Regel geprüft wie der
+	// Rechnungsnummernkreis: ein untaugliches Format wird abgewiesen und nicht
+	// stillschweigend durch die Voreinstellung ersetzt.
+	receiptFormat, err := receiptFormatOrDefault(s.ReceiptNumberFormat)
 	if err != nil {
 		return err
 	}
@@ -247,6 +267,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"contact_phone":           s.ContactPhone,
 		"contact_email":           s.ContactEmail,
 		"invoice_number_format":   numberFormat,
+		"receipt_number_format":   receiptFormat,
 		"seat":                    s.Seat,
 		"register_court":          s.RegisterCourt,
 		"register_number":         s.RegisterNumber,

@@ -116,6 +116,12 @@ export interface Account {
   rangeStart: string;
   rangeEnd: string;
   isReserved: boolean;
+  /**
+   * Selbst angelegt statt aus dem SKR04 (BEL-06). Nur ein solches Konto lässt
+   * sich sperren; ein Konto des Kontenrahmens fehlte sonst dort, wo eine
+   * Auswertung es erwartet.
+   */
+  isCustom?: boolean;
   description: string;
   isActive: boolean;
   debitSum: Cents;
@@ -559,6 +565,14 @@ export interface Receipt {
   retentionUntil?: string;
   /** Erster Tag, an dem der Beleg gelöscht werden darf — aus dem Backend, nicht nachgerechnet. */
   earliestDeletion?: string;
+  /**
+   * Der Grund, mit dem jemand die Aufbewahrungsfrist dieses Belegs verlängert
+   * hat, samt Zeitpunkt (ARC-01). Verlängert und nie verkürzt: die gesetzliche
+   * Frist ist die Untergrenze. Die geltende Frist steht weiterhin in
+   * `retentionClass` und `retentionUntil`.
+   */
+  retentionOverrideReason?: string;
+  retentionOverrideAt?: string;
 
   // E-Rechnung: leer bei einem Scan oder einer gewöhnlichen PDF-Rechnung.
   detectedFormat?: string;
@@ -1265,6 +1279,11 @@ export interface CompanySettings {
    */
   invoiceNumberFormat: string;
   /**
+   * Dieselbe Systematik für den Belegnummernkreis (BEL-02). Leer heißt: die
+   * Voreinstellung ER-{JAHR}-{NR:4}. Bestehende Nummern bleiben gültig.
+   */
+  receiptNumberFormat: string;
+  /**
    * Sitz, Registergericht und Registernummer sind die Pflichtangaben des
    * § 264 Abs. 1a HGB auf jedem Jahresabschluss. Sie standen bisher nur an der
    * Gründung und fehlten damit jedem Mandanten ohne Gründungsweg.
@@ -1347,6 +1366,8 @@ export interface AuditFilter {
   /** Tagesgrenzen im Format JJJJ-MM-TT, beide einschließlich. */
   from?: string;
   to?: string;
+  /** Nur die Lesezugriffe auf personenbezogene Daten (Ausgabe, Prüferpaket, Prüfermodus). */
+  access?: boolean;
 }
 
 /** Ein einzelner Bruch der Protokollkette. */
@@ -4685,4 +4706,235 @@ export interface AuditTrail {
   steps: AuditTrailStep[];
   /** Wo die Kette abbricht — etwa: gebucht, aber nicht bezahlt. */
   note: string;
+}
+
+// -------------------------------------------------------------------------
+// Welle 8: laufende Buchhaltung — Handbuchung mit Beleg, Eigenbeleg,
+// Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter
+// -------------------------------------------------------------------------
+
+/**
+ * Die Fehlerklasse eines Befunds an einer Eingangsrechnung
+ * (`domain.ValidationFindingClass`).
+ *
+ * Die Klasse ist keine Sortierhilfe: sie sagt, wer den Fehler beheben kann und
+ * was er kostet. Ein Formatfehler liegt am System des Lieferanten, ein
+ * Geschäftsregelfehler an der Rechnung, ein Inhaltsfehler am Vorsteuerabzug.
+ */
+export type ValidationFindingClass = 'format' | 'business_rule' | 'content';
+
+/**
+ * Die Klassen in Klartext, in der Reihenfolge vom Formalen zum Teuren.
+ *
+ * Sie stehen hier und nicht in der Ansicht: das Backend liefert dieselbe
+ * Beschriftung mit (`ValidationFindingGroup.label`), und zwei Fassungen
+ * desselben Worts laufen auseinander. Diese Tabelle trägt die Reihenfolge und
+ * springt ein, wo eine Gruppe ohne Beschriftung ankommt.
+ */
+export const VALIDATION_FINDING_CLASS_LABELS: Record<ValidationFindingClass, string> = {
+  format: 'Formatfehler',
+  business_rule: 'Geschäftsregelfehler',
+  content: 'Inhaltsfehler',
+};
+
+/**
+ * Ein klassifizierter Befund an einer Eingangsrechnung
+ * (`domain.ValidationFinding`).
+ *
+ * Er heißt nicht `ValidationFinding`: dieser Name gehört dem Befund der
+ * EN-16931-Prüfung weiter oben, der nur die Regelverstöße des strukturierten
+ * Teils kennt. Der Befund hier führt beide Töpfe zusammen — Regelverstöße und
+ * Pflichtangaben — und trägt deshalb Klasse, Norm und Folge für den
+ * Vorsteuerabzug.
+ */
+export interface ReceiptFinding {
+  class: ValidationFindingClass;
+  /** Kennung der Regel, etwa „BR-DE-15" oder „input_tax_issuer_address". */
+  rule: string;
+  /** „fatal", „warning" oder „information" — die Einstufung des Regelwerks. */
+  severity: string;
+  /** Die Stelle im Dokument, etwa „Position 3". Leer heißt: das ganze Dokument. */
+  where?: string;
+  message: string;
+  /** Die Vorschrift oder Norm, aus der die Regel stammt. */
+  norm?: string;
+  /** Was der Befund für den Vorsteuerabzug bedeutet, in einem Satz. */
+  inputTaxEffect: string;
+  /** Hält der Befund die Buchung mit Vorsteuer an? */
+  blocking: boolean;
+}
+
+/** Die Befunde einer Klasse (`domain.ValidationFindingGroup`). */
+export interface ReceiptFindingGroup {
+  class: ValidationFindingClass;
+  label: string;
+  findings: ReceiptFinding[];
+}
+
+/** Die Beanstandungsliste eines Belegs (`domain.ReceiptFindings`). */
+export interface ReceiptFindings {
+  receiptId: number;
+  receiptNumber: string;
+  /**
+   * Wurde der strukturierte Teil überhaupt geprüft? Ohne diese Unterscheidung
+   * sähe ein ungeprüfter Beleg aus wie ein fehlerfreier.
+   */
+  checked: boolean;
+  groups: ReceiptFindingGroup[];
+  total: number;
+  blocking: number;
+}
+
+/** Die Eingabe für einen Eigenbeleg (`service.SelfIssuedReceiptRequest`). */
+export interface SelfIssuedReceiptRequest {
+  /** Der Tag des Vorgangs, nicht der Tag der Erfassung. */
+  documentDate: string;
+  grossAmount: Cents;
+  taxAmount: Cents;
+  currency?: string;
+  /** Pflicht: der Grund ist der ganze Inhalt des Dokuments. */
+  reason: string;
+  direction?: Direction;
+  /** 0 oder weggelassen heißt: das aktive Geschäftsjahr. */
+  fiscalYear?: number;
+}
+
+/**
+ * Die Eingabe des Handbuchungswegs (`service.ManualEntryRequest`).
+ *
+ * Entweder `receiptId` oder `selfIssued` — nie beides und nie keines von
+ * beiden: zu einer Buchung gehört genau ein Beleg.
+ */
+export interface ManualEntryRequest {
+  entry: Partial<JournalEntry>;
+  receiptId?: number;
+  selfIssued?: SelfIssuedReceiptRequest;
+}
+
+/** Die Eingabe für ein eigenes Konto (`service.CustomAccountRequest`). */
+export interface CustomAccountRequest {
+  number: string;
+  name: string;
+  /** Die Gliederungsposition (position_id) aus `getStatementPositions`. Pflicht. */
+  hgbPosition: string;
+  /** Vorschlag für die Steuerzeile; ohne Automatik. */
+  taxKeyDefault: string;
+  description: string;
+}
+
+/** Eine wählbare Gliederungsposition (`domain.StatementPositionOption`). */
+export interface StatementPositionOption {
+  id: string;
+  name: string;
+  statementType: string;
+  balanceSide: string;
+  hgbCode: string;
+  accountType: string;
+}
+
+/** Eine abgelöste Aufbewahrungsfrist (`accounting.RetentionPreviousTerm`). */
+export interface RetentionPreviousTerm {
+  years: number;
+  replacedFrom: string;
+  note: string;
+}
+
+/** Die Frist einer Aufbewahrungsklasse (`accounting.RetentionClassRules`). */
+export interface RetentionClassRules {
+  class: RetentionClass;
+  label: string;
+  years: number;
+  legalBasis: string;
+  /** Die Objektarten, die in diese Klasse fallen. */
+  kinds: string[];
+  previous?: RetentionPreviousTerm;
+}
+
+/**
+ * Die Fristentabelle mit ihrem Rechtsstand (`accounting.RetentionRules`).
+ * Anzeige, keine Einstellung: eine Frist ist keine Wahl des Anwenders.
+ */
+export interface RetentionRules {
+  version: string;
+  validFrom: string;
+  source: string;
+  note: string;
+  classes: RetentionClassRules[];
+}
+
+/** Ein datiertes Paar aus Regel- und ermäßigtem Steuersatz (`accounting.VatRatePeriod`). */
+export interface VatRatePeriod {
+  validFrom: string;
+  standard: TaxRate;
+  reduced: TaxRate;
+  source: string;
+}
+
+/** Der Vorschlag für den Voranmeldungszeitraum (`service.VatPeriodProposal`). */
+export interface VatPeriodProposal {
+  year: number;
+  basedOnYear: number;
+  /** Die Summe der Kennziffer 83 des Vorjahres. */
+  priorYearTax: Cents;
+  current: VatPeriodType;
+  proposed: VatPeriodType;
+  /** Weicht der Vorschlag vom eingestellten Zeitraum ab? */
+  changes: boolean;
+  /** Liegt für jeden Zeitraum des Vorjahres eine übermittelte Anmeldung vor? */
+  complete: boolean;
+  missingPeriods: number;
+  reference: string;
+  note: string;
+}
+
+/**
+ * Die Einschränkungen der Journalansicht (`accounting.JournalFilter`).
+ *
+ * Alle Felder sind freiwillig. `amountFrom`, `amountTo` und `hasReceipt`
+ * unterscheiden „nicht gesetzt" von „null" bzw. „nein": ein Betragsfilter „von
+ * 0 €" ist etwas anderes als kein Betragsfilter.
+ */
+export interface JournalFilter {
+  from?: string;
+  to?: string;
+  account?: string;
+  counterAccount?: string;
+  amountFrom?: Cents;
+  amountTo?: Cents;
+  taxKey?: string;
+  actor?: string;
+  hasReceipt?: boolean;
+  text?: string;
+}
+
+/** Eine gefilterte Journalzeile mit dem Kopf ihrer Buchung (`accounting.JournalFilterRow`). */
+export interface JournalFilterRow {
+  entryId: number;
+  entryNumber: string;
+  bookingDate: string;
+  documentDate: string;
+  documentNumber?: string;
+  description: string;
+  kind: EntryKind;
+  actor?: string;
+  receiptId?: number;
+  position: number;
+  account: string;
+  accountName?: string;
+  side: Side;
+  amount: Cents;
+  taxKey?: string;
+  taxBase?: Cents;
+  text?: string;
+}
+
+/** Die gefilterte Menge mit ihrer Summenzeile (`accounting.JournalFilterResult`). */
+export interface JournalFilterResult {
+  rows: JournalFilterRow[];
+  rowCount: number;
+  entryCount: number;
+  totalDebit: Cents;
+  totalCredit: Cents;
+  /** Soll minus Haben der gefilterten Menge; nicht notwendig null. */
+  balance: Cents;
 }

@@ -43,7 +43,24 @@ var readOnlyAllowed = map[string]bool{
 	// beide auf den nur lesenden Kursdienst um und stehen deshalb hier. Ein
 	// Prüfer muss die Stichtagsbewertung eines abgeschlossenen Jahres ansehen
 	// können — die Kurse dazu stehen dann längst in der Historie.
-	"GetAfaRules":                     true,
+	"GetAfaRules": true,
+	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung. Sie lesen
+	// und rechnen; GetReceiptFindings liest den Beleg über ReceiptService.Get,
+	// der ein fehlendes Siegel repariert — eine Reparatur an den eigenen Daten
+	// und keine Änderung der Buchführung, die der Prüfer sieht; sie steht im
+	// Änderungsprotokoll wie jede andere. GetFilteredJournalCSV und
+	// SaveFilteredJournalCSV geben Journalzeilen heraus und protokollieren das
+	// als Zugriff (QUE-02 K2); auch sie nehmen deshalb die Schreibsperre.
+	"GetEntriesForReceipt":            true,
+	"GetReceiptFindings":              true,
+	"GetRetentionRules":               true,
+	"GetVatRatePeriods":               true,
+	"GetVatPeriodProposal":            true,
+	"GetCustomAccounts":               true,
+	"GetStatementPositions":           true,
+	"GetFilteredJournal":              true,
+	"GetFilteredJournalCSV":           true,
+	"SaveFilteredJournalCSV":          true,
 	"GetExchangeRate":                 true,
 	"GetExchangeRates":                true,
 	"PreviewCurrencyValuation":        true,
@@ -355,7 +372,7 @@ func (b *BuchfinkBridge) EnableReadOnly(until, reason string) (domain.AppConfig,
 		// Prüfermodus schaltet die Schreibwege des Programms ab, und wann er
 		// galt und wie lange, ist Teil des Nachweises über den Zeitraum, in
 		// dem der Prüfer gesehen hat, was er gesehen hat.
-		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
+		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, domain.AuditEntityReadOnly, tenant.ID,
 			fmt.Sprintf("Prüfermodus eingeschaltet bis %s. Grund: %s", until, reason),
 			map[string]string{"readOnlyUntil": previousUntil, "readOnlyReason": previousReason},
 			map[string]string{"readOnlyUntil": until, "readOnlyReason": reason})
@@ -388,7 +405,7 @@ func (b *BuchfinkBridge) DisableReadOnly(reason string) (domain.AppConfig, error
 	}
 
 	if b.auditRepo != nil {
-		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
+		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, domain.AuditEntityReadOnly, tenant.ID,
 			fmt.Sprintf("Prüfermodus beendet (war bis %s). Grund: %s", was, reason),
 			map[string]string{"readOnlyUntil": was, "readOnlyReason": wasReason},
 			map[string]string{"readOnlyUntil": "", "readOnlyReason": ""})

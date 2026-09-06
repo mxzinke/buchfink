@@ -573,6 +573,11 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	// dafür müssen alle Positionen der Gruppe bekannt sein
 	// (siehe nonDeductibleTaxByPosition).
 	netByRate := map[domain.TaxRate]domain.Cents{}
+	// owedByRate ist die volle Bemessungsgrundlage. Sie geht auseinander mit
+	// netByRate, sobald ein Vorsteuerschlüssel greift: beim § 13b-Umsatz und
+	// beim innergemeinschaftlichen Erwerb kürzt der abziehbare Anteil nur die
+	// Vorsteuerzeile, während die geschuldete Steuer voll entsteht (UST-07 K2).
+	owedByRate := map[domain.TaxRate]domain.Cents{}
 	needsEntertainmentRecord := false
 	prepared := make([]preparedPosition, 0, len(req.Positions))
 	for i, p := range req.Positions {
@@ -625,6 +630,7 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 				ForeignAmount: pp.foreignNet, Text: text,
 			})
 			netByRate[pp.position.TaxRate] += pp.position.Net
+			owedByRate[pp.position.TaxRate] += pp.position.Net
 			continue
 		}
 		positionLines, quota, taxableNet, err := s.expenseLines(
@@ -644,6 +650,7 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 		// ein Vorsteuerschlüssel oder ein Ausschluss nach § 15 Abs. 1a UStG
 		// mindert sie.
 		netByRate[pp.position.TaxRate] += taxableNet
+		owedByRate[pp.position.TaxRate] += pp.position.Net
 	}
 
 	if needsEntertainmentRecord {
@@ -660,15 +667,29 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	// deren Bemessungsgrundlage mindern: die Vorsteuer auf den angezahlten Teil
 	// ist mit der Zahlung schon gezogen worden, und ein zweites Mal gäbe es sie
 	// nicht.
+	// Die abgesetzte Anzahlung mindert beide Bemessungsgrundlagen: die
+	// geschuldete Steuer entsteht auf den angezahlten Teil schon mit der
+	// Zahlung, nicht ein zweites Mal mit der Schlussrechnung. Abgezogen wird
+	// deshalb dieselbe Minderung, die advanceDeductionLines an netByRate
+	// vornimmt — sonst stünde die volle Bemessungsgrundlage weiter in der
+	// geschuldeten Steuer.
+	beforeDeduction := make(map[domain.TaxRate]domain.Cents, len(netByRate))
+	for rate, value := range netByRate {
+		beforeDeduction[rate] = value
+	}
 	deductions, err := s.advanceDeductionLines(ctx, req, netByRate)
 	if err != nil {
 		return nil, err
 	}
 	lines = append(lines, deductions...)
+	for rate, before := range beforeDeduction {
+		owedByRate[rate] -= before - netByRate[rate]
+	}
 
 	// 3. Steuerzeilen, einmal je Steuersatzgruppe gerundet. In Fremdwährung
 	// kommt die Kursdifferenz zwischen Tages- und Umsatzsteuerkurs hinzu.
-	taxLines, err := s.taxLinesInCurrency(domain.DirectionIncoming, req.TaxTreatment, netByRate, fx)
+	taxLines, err := s.taxLinesForShare(
+		domain.DirectionIncoming, req.TaxTreatment, netByRate, owedByRate, fx)
 	if err != nil {
 		return nil, err
 	}
@@ -1408,6 +1429,85 @@ func (s *PostingService) taxLines(dir domain.Direction, treatment domain.TaxTrea
 		}
 	}
 	return lines, nil
+}
+
+// taxLinesForShare baut die Steuerzeilen mit zwei Bemessungsgrundlagen
+// (UST-07 K2).
+//
+// Beim steuerpflichtigen Inlandsumsatz fallen die beiden zusammen: es gibt eine
+// Steuerzeile, und der Vorsteuerschlüssel mindert sie. Beim § 13b-Umsatz und
+// beim innergemeinschaftlichen Erwerb entstehen zwei Zeilen aus derselben
+// Bemessungsgrundlage, und der Schlüssel wirkt nur auf eine davon: die
+// geschuldete Steuer schuldet der Leistungsempfänger in voller Höhe (§ 13b
+// Abs. 5 UStG, § 1a UStG — Kennziffern 46/47 bzw. 89/93), abziehbar ist sie nur
+// zum betrieblichen Anteil (§ 15 Abs. 1 Satz 1 Nr. 3 und 4, Abs. 4 UStG —
+// Kennziffern 67 bzw. 61). Wer beide Zeilen kürzte, meldete einen Erwerb, den es
+// nicht gab; wer keine kürzte, zöge Vorsteuer, die ihm nicht zusteht.
+//
+// Der nicht abziehbare Teil ist damit endgültig Aufwand (§ 9b Abs. 1 EStG); er
+// steht schon in den Aufwandszeilen (siehe nonDeductibleTaxByPosition).
+func (s *PostingService) taxLinesForShare(
+	dir domain.Direction, treatment domain.TaxTreatment,
+	deductibleByRate, owedByRate map[domain.TaxRate]domain.Cents, fx *fxContext,
+) ([]domain.JournalLine, error) {
+	owed, err := s.taxLinesInCurrency(dir, treatment, owedByRate, fx)
+	if err != nil {
+		return nil, err
+	}
+	if sameBases(deductibleByRate, owedByRate) {
+		return owed, nil
+	}
+	reduced, err := s.taxLinesInCurrency(dir, treatment, deductibleByRate, fx)
+	if err != nil {
+		return nil, err
+	}
+	byKey := make(map[string]domain.JournalLine, len(reduced))
+	for _, l := range reduced {
+		if l.TaxKey != "" {
+			byKey[l.TaxKey] = l
+		}
+	}
+
+	out := make([]domain.JournalLine, 0, len(owed))
+	for _, l := range owed {
+		if !isInputTaxKey(l.TaxKey) {
+			out = append(out, l)
+			continue
+		}
+		match, ok := byKey[l.TaxKey]
+		if !ok || match.Amount == 0 {
+			// Kein abziehbarer Anteil: die Vorsteuerzeile entfällt ganz. Eine
+			// Zeile über null wäre ein Steuerkonto ohne Betrag im Journal.
+			continue
+		}
+		l.Amount, l.TaxBase, l.ForeignAmount = match.Amount, match.TaxBase, match.ForeignAmount
+		out = append(out, l)
+	}
+	return out, nil
+}
+
+// isInputTaxKey meldet, ob ein Steuerschlüssel eine Vorsteuerzeile trägt.
+//
+// Erkennbar am Schlüssel und nicht am Konto: der Schlüssel entscheidet über die
+// Kennziffer, und genau die Kennziffern der Vorsteuer (61, 66, 67) sind es, die
+// der Vorsteuerschlüssel kürzt.
+func isInputTaxKey(key string) bool {
+	return strings.HasPrefix(key, "VST") || strings.HasSuffix(key, "_VST")
+}
+
+// sameBases meldet, ob zwei Bemessungsgrundlagen übereinstimmen.
+func sameBases(a, b map[domain.TaxRate]domain.Cents) bool {
+	for rate, value := range a {
+		if b[rate] != value {
+			return false
+		}
+	}
+	for rate, value := range b {
+		if a[rate] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // taxLegLine turns a Steuerbein into the journal line that carries it.

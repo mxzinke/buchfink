@@ -17,6 +17,10 @@ const (
 	AuditActionExport         AuditAction = "EXPORT"
 )
 
+// AuditEntityReadOnly ist die Entität der Prüfermodus-Einträge. Sie steht als
+// Konstante, weil der Zugriffsfilter sie kennen muss (siehe AuditFilter.Access).
+const AuditEntityReadOnly = "READ_ONLY"
+
 // AuditLogEntry represents an immutable entry in the GoBD compliance audit trail.
 type AuditLogEntry struct {
 	ID uint `gorm:"primaryKey" json:"id"`
@@ -68,6 +72,15 @@ type AuditFilter struct {
 	EntityType string      `json:"entityType,omitempty"`
 	EntityID   string      `json:"entityId,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
+	// Access schränkt auf die Lesezugriffe auf personenbezogene Daten ein
+	// (QUE-02 K2): Datenüberlassung, Prüferpaket, Herausgabe einzelner Dateien
+	// — sie stehen als EXPORT — und das Ein- und Ausschalten des Prüfermodus,
+	// das als Änderung an der Entität READ_ONLY protokolliert wird. Beides in
+	// einer Abfrage, weil „Zugriffe" eine Kategorie ist und keine Aktion: über
+	// Action allein ließe sie sich nicht abbilden, und zwei Abfragen in der
+	// Oberfläche zusammenzuführen hieße, die Reihenfolge des Protokolls dort
+	// neu zu erfinden.
+	Access bool `json:"access,omitempty"`
 	// From und To sind Tagesgrenzen im Format YYYY-MM-DD, beide einschließlich.
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
@@ -76,7 +89,7 @@ type AuditFilter struct {
 // IsEmpty meldet, ob der Filter nichts einschränkt.
 func (f AuditFilter) IsEmpty() bool {
 	return f.Action == "" && f.EntityType == "" && f.EntityID == "" &&
-		f.Actor == "" && f.From == "" && f.To == ""
+		f.Actor == "" && f.From == "" && f.To == "" && !f.Access
 }
 
 // AuditEntryHashFunc verkettet einen Protokolleintrag mit seinem Vorgänger.

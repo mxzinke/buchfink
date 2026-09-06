@@ -345,3 +345,18 @@ type FinancialStatement struct {
 	Notes      StatementNotes  `json:"notes"`
 	Deadlines  []Deadline      `json:"deadlines"`
 }
+
+// StatementPositionOption ist eine wählbare Gliederungsposition.
+//
+// Die Auswahl beim Anlegen eines eigenen Kontos braucht sie (BEL-06 K2): der
+// vollständige Katalogeintrag trägt Kontenlisten und Zählwerte, die dort nur
+// stören, und die Oberfläche soll eine Liste zum Auswählen bekommen und keine
+// zum Durchsuchen.
+type StatementPositionOption struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	StatementType string `json:"statementType"`
+	BalanceSide   string `json:"balanceSide"`
+	HGBCode       string `json:"hgbCode"`
+	AccountType   string `json:"accountType"`
+}

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +92,17 @@ type ReceiptService struct {
 	// documents ist die Anlagenkartei, soweit der Belegprüflauf sie braucht.
 	// Optional: ohne sie prüft er die Belege und sagt es.
 	documents DocumentSource
+	// Die drei Anschlüsse des Eigenbelegs (siehe self_issued_receipt.go). Alle
+	// drei sind freiwillig, weil der Belegdienst ohne sie vollständig arbeitet:
+	// er legt ab, gibt heraus und versiegelt. Nur den Eigenbeleg erzeugt er
+	// dann nicht — und sagt es, statt eine leere Datei abzulegen.
+	renderer     DocumentRenderer
+	settingsRepo domain.SettingsRepository
+	numberRepo   domain.NumberRangeRepository
+	// contacts sind die Stammdaten der Geschäftspartner, gegen die die
+	// Klärungsliste die Pflichtangaben des Ausstellers hält (RECH-07 K2).
+	// Freiwillig: ohne sie meldet die Liste den fehlenden Kontakt als Befund.
+	contacts domain.ContactRepository
 }
 
 // NewReceiptService creates the Beleg service.
@@ -265,13 +275,7 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 // Ablage bekannt. Später gerechnet käme für denselben Beleg irgendwann eine
 // andere Zahl heraus.
 func applyRetention(receipt *domain.Receipt) {
-	origin := receipt.FiscalYear
-	if receipt.DocumentDate != "" && len(receipt.DocumentDate) >= 4 {
-		if year, err := strconv.Atoi(receipt.DocumentDate[:4]); err == nil && year > 1900 {
-			origin = year
-		}
-	}
-	info := accounting.RetentionFor(domain.RetentionKindOf(receipt.Kind), origin)
+	info := accounting.RetentionFor(domain.RetentionKindOf(receipt.Kind), retentionOriginYear(receipt))
 	receipt.RetentionClass = info.Class
 	receipt.RetentionUntil = info.RetentionEnd
 }
@@ -281,7 +285,7 @@ func applyRetention(receipt *domain.Receipt) {
 // Der Weg für den Papierscan: die Datei liegt sofort im Speicher, die Kopfdaten
 // trägt jemand nach, und erst dann ist der Beleg buchbar. Die
 // Aufbewahrungsfrist wird dabei neu bestimmt, weil das Belegdatum sie
-// verschieben kann.
+// verschieben kann — eine ausdrücklich verlängerte Frist bleibt aber stehen.
 func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header domain.ReceiptHeader) (*domain.Receipt, error) {
 	receipt, err := s.Get(ctx, receiptID)
 	if err != nil {
@@ -297,6 +301,18 @@ func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header 
 	applyRetention(&probe)
 	header.RetentionClass = probe.RetentionClass
 	header.RetentionUntil = probe.RetentionUntil
+	// Eine verlängerte Frist bleibt verlängert (ARC-01 K2).
+	//
+	// OverrideRetention verlängert nur nach oben; würde die Neuberechnung aus
+	// Belegart und Belegdatum sie hier überschreiben, ließe sich die
+	// Verlängerung über die Kopfdaten stillschweigend zurücknehmen — und
+	// Grund und Zeitpunkt der Verlängerung stünden dann neben einer Frist,
+	// die es nicht mehr gibt. Deshalb gilt bei einem überschriebenen Beleg
+	// das spätere der beiden Enden, und die Klasse folgt dem Ende.
+	if receipt.RetentionOverrideAt != "" && receipt.RetentionUntil > header.RetentionUntil {
+		header.RetentionClass = receipt.RetentionClass
+		header.RetentionUntil = receipt.RetentionUntil
+	}
 
 	updated, err := s.receiptRepo.SaveHeader(ctx, receiptID, header, accounting.ReceiptHash)
 	if err != nil {
@@ -310,8 +326,9 @@ func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header 
 	// (GoBD Rz. 34).
 	if s.auditRepo != nil {
 		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €",
-				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount),
+			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
+				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
+				updated.RetentionUntil, updated.RetentionClass.Label()),
 			receipt, updated)
 	}
 	return s.Get(ctx, receiptID)

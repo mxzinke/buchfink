@@ -224,6 +224,22 @@ type Receipt struct {
 	RetentionClass RetentionClass `gorm:"size:20;index" json:"retentionClass,omitempty"`
 	RetentionUntil string         `gorm:"size:10;index" json:"retentionUntil,omitempty"`
 
+	// RetentionOverrideReason hält fest, dass jemand die Aufbewahrungsfrist
+	// dieses Belegs verlängert hat, und warum (ARC-01 K2).
+	//
+	// Verlängert und nicht verkürzt: die Frist des Gesetzes ist die Untergrenze,
+	// eine kürzere wäre ein Verstoß. Länger aufzubewahren steht dagegen frei und
+	// ist oft geboten — ein Beleg, der zu einem laufenden Rechtsstreit gehört,
+	// oder ein Vertrag, der über seine Belegfrist hinaus wirkt. Der Grund steht
+	// am Beleg und im Änderungsprotokoll, weil eine Frist ohne ihren Grund
+	// später nicht mehr zu beurteilen ist.
+	//
+	// Die überschriebene Klasse steht in RetentionClass, das überschriebene Ende
+	// in RetentionUntil: die Auswertungen sollen die geltende Frist lesen und
+	// nicht jede Stelle zwei Felder zusammenrechnen müssen.
+	RetentionOverrideReason string `gorm:"size:500;serializer:encrypted" json:"retentionOverrideReason,omitempty"`
+	RetentionOverrideAt     string `gorm:"size:25" json:"retentionOverrideAt,omitempty"`
+
 	// ReceivedAt and ReceivedVia record how an incoming document entered the
 	// business. Both are empty on documents Buchfink issued itself.
 	ReceivedAt  string `gorm:"size:10" json:"receivedAt,omitempty"`
@@ -566,6 +582,10 @@ type ReceiptRepository interface {
 	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
 	// damit den Beleg-Hash nicht.
 	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
+	// SaveRetention schreibt eine überschriebene Aufbewahrungsfrist. Sie berührt
+	// keine Datei und keine Kopfdaten und damit den Beleg-Hash nicht — die
+	// Frist ist eine Aussage über die Aufbewahrung, nicht über das Dokument.
+	SaveRetention(ctx context.Context, receiptID uint, class RetentionClass, until, reason, at string) error
 	// SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis. Beide stehen
 	// außerhalb des Beleg-Hashes (siehe die Felder), deshalb ist das Schreiben
 	// auch am gebuchten Beleg zulässig — der Prüfvermerk entsteht regelmäßig

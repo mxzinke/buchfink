@@ -28,7 +28,7 @@ func TestInventorySheetWithoutHeaderLeavesNoBooking(t *testing.T) {
 	stock := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
 		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual,
+		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},

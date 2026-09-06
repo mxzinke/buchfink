@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Ban, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import type {
   Account,
   AccountLedger,
   AccountType,
   OpenItem,
   OpenItemsAging,
+  StatementPositionOption,
   SuSaOverview,
 } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
+import { useWriteLock } from '../components/WriteLock';
+import { BlockAccountDialog, CustomAccountDialog } from '../components/LedgerForms';
 import { formatCents, formatDate } from '../utils/formatters';
 import {
   Button,
@@ -18,6 +21,7 @@ import {
   HelpPopover,
   HelpTooltip,
   Input,
+  Notice,
   PageHeader,
   SearchInput,
   Section,
@@ -32,6 +36,7 @@ import {
   Th,
   Thead,
   Tr,
+  cn,
   toast,
 } from '../components/ui';
 
@@ -131,13 +136,42 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
 
   const loadedOpenItems = useRef(false);
 
+  // Die selbst angelegten Konten und die Gliederungspositionen, unter denen
+  // ein neues Konto stehen darf (BEL-06 K2). Sie stehen in der
+  // Kontenübersicht: das eigene Konto ist ein Konto und gehört zu den anderen.
+  const [customAccounts, setCustomAccounts] = useState<Account[]>([]);
+  const [positions, setPositions] = useState<StatementPositionOption[]>([]);
+  const [customError, setCustomError] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [blockAccount, setBlockAccount] = useState<Account | null>(null);
+
   const [search, setSearch] = useState('');
   const [showCatalog, setShowCatalog] = useState(false);
+  // Das festgestellte Geschäftsjahr und der Prüfermodus sperren das Anlegen
+  // und Sperren eines Kontos; der Knopf sagt das, statt es nach dem Ausfüllen
+  // als Fehlermeldung zu zeigen (§10.4).
+  const writeLock = useWriteLock();
   const [openClasses, setOpenClasses] = useState<Record<number, boolean>>({});
+
+  const loadCustomAccounts = useCallback(async () => {
+    try {
+      setCustomAccounts(await Api.getCustomAccounts());
+      setCustomError('');
+    } catch (e) {
+      setCustomAccounts([]);
+      setCustomError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+    void loadCustomAccounts();
+    // Die Positionsliste hat ihren eigenen Fehlerpfad: fehlt sie, bleibt die
+    // Kontenübersicht lesbar, und der Dialog nennt beim Anlegen den Grund.
+    Api.getStatementPositions()
+      .then(setPositions)
+      .catch(() => setPositions([]));
+  }, [loadCustomAccounts]);
 
   // Die offenen Posten werden erst beim Öffnen des Reiters geholt: sie kosten
   // eine eigene Abfrage, und die Kontenliste ist der übliche Einstieg.
@@ -253,6 +287,9 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
         onOpenEntry={
           onNavigate && ((entryNumber: string) => onNavigate('journal', { entryNumber }))
         }
+        onFilterAccount={
+          onNavigate && ((account: string) => onNavigate('journal', { filterAccount: account }))
+        }
       />
     );
   }
@@ -295,6 +332,127 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
                   />
                 ) : (
                   <AccountTable accounts={inUse} onSelect={openLedger} showTurnover />
+                )}
+              </Section>
+
+              {/* Die eigenen Konten stehen zwischen den bebuchten und dem
+                  Kontenrahmen: sie sind beides — selbst angelegt und Teil des
+                  Rahmens, unter dem gebucht wird (BEL-06 K2). */}
+              <Section
+                title="Eigene Konten"
+                context={`${customAccounts.length} selbst angelegt`}
+                action={
+                  <div className="flex items-center gap-2">
+                    <HelpPopover label="Erklärung zu eigenen Konten">
+                      Ein eigenes Konto entsteht im freien Bereich des SKR04 und trägt eine
+                      Gliederungsposition nach §§ 266, 275 HGB — ohne sie erschiene es weder im
+                      Abschluss noch in der E-Bilanz. Ein Konto des Kontenrahmens umzuwidmen
+                      zerstört dagegen still die Zuordnung, auf der Bilanz, GuV und E-Bilanz
+                      beruhen. Gesperrt wird statt gelöscht, sobald ein Konto bebucht ist.
+                    </HelpPopover>
+                    <Button
+                      variant="secondary"
+                      icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
+                      disabled={writeLock.locked}
+                      title={writeLock.hint}
+                      onClick={() => setCreateOpen(true)}
+                    >
+                      Konto anlegen
+                    </Button>
+                  </div>
+                }
+              >
+                {customError && <Notice tone="negative" text={customError} className="mb-5" />}
+                {customAccounts.length === 0 ? (
+                  <EmptyState
+                    title="Kein eigenes Konto"
+                    description="Der SKR04 deckt den Regelfall ab; für eine eigene Auswertung kommt hier ein Konto dazu."
+                    action={
+                      <Button
+                        variant="secondary"
+                        disabled={writeLock.locked}
+                        title={writeLock.hint}
+                        onClick={() => setCreateOpen(true)}
+                      >
+                        Konto anlegen
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <Table>
+                    <Thead>
+                      <Tr>
+                        <Th>Nummer</Th>
+                        <Th>Bezeichnung</Th>
+                        <Th>Gliederungsposition</Th>
+                        <Th numeric>Buchungen</Th>
+                        <Th>Zustand</Th>
+                        <Th className="w-32" aria-label="Aktion" />
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {customAccounts.map((account) => (
+                        <Tr key={account.number}>
+                          <Td code>
+                            <Button variant="quiet" size="sm" onClick={() => openLedger(account.number)}>
+                              {account.number}
+                            </Button>
+                          </Td>
+                          <Td>{account.name}</Td>
+                          <Td className="text-ink-muted">{account.posten}</Td>
+                          <Td numeric>{account.bookingsCount}</Td>
+                          <Td>
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  'mark-diamond shrink-0',
+                                  account.isActive ? 'bg-positive' : 'bg-ink-faint',
+                                )}
+                                aria-hidden="true"
+                              />
+                              {account.isActive ? 'Bebuchbar' : 'Gesperrt'}
+                            </span>
+                          </Td>
+                          <Td className="text-right pl-0">
+                            {account.isActive ? (
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                icon={<Ban className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                                disabled={writeLock.locked}
+                                title={writeLock.hint}
+                                onClick={() => setBlockAccount(account)}
+                              >
+                                Sperren
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                disabled={writeLock.locked}
+                                title={writeLock.hint}
+                                onClick={async () => {
+                                  // Der Fehler bleibt als Hinweisfläche über der
+                                  // Tabelle stehen (§10.4): er nennt den Grund,
+                                  // aus dem die Sperre bleibt.
+                                  setCustomError('');
+                                  try {
+                                    await Api.setAccountBlocked(account.number, false, '');
+                                    await loadCustomAccounts();
+                                    toast.success(`Konto ${account.number} wieder frei.`);
+                                  } catch (e) {
+                                    setCustomError(e instanceof Error ? e.message : String(e));
+                                  }
+                                }}
+                              >
+                                Freigeben
+                              </Button>
+                            )}
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
                 )}
               </Section>
 
@@ -439,6 +597,27 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
           )}
         </TabPanel>
       </Tabs>
+
+      <CustomAccountDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        positions={positions}
+        onCreated={async () => {
+          await loadCustomAccounts();
+          await load();
+        }}
+      />
+      <BlockAccountDialog
+        open={blockAccount !== null}
+        onOpenChange={(next) => {
+          if (!next) setBlockAccount(null);
+        }}
+        account={blockAccount}
+        onChanged={async () => {
+          setBlockAccount(null);
+          await loadCustomAccounts();
+        }}
+      />
     </div>
   );
 };
@@ -814,7 +993,16 @@ const LedgerView: React.FC<{
   onBack: () => void;
   /** Weiter zur Buchung im Journal — der nächste Schritt des Drill-downs. */
   onOpenEntry?: (entryNumber: string) => void;
-}> = ({ ledger, loading, onBack, onOpenEntry }) => {
+  /**
+   * Weiter in die Zeilenauswertung des Kontos (PRF-01 K3).
+   *
+   * Das Kontoblatt zeigt alle Bewegungen des Jahres; die Fragen nach
+   * Gegenkonto, Betragsband, Steuerschlüssel oder Bearbeiter beantwortet die
+   * Auswertung im Journal — mit demselben Konto vorbelegt, statt sie hier ein
+   * zweites Mal zu bauen.
+   */
+  onFilterAccount?: (account: string) => void;
+}> = ({ ledger, loading, onBack, onOpenEntry, onFilterAccount }) => {
   const account = ledger.account;
   const rows = ledger.rows ?? [];
 
@@ -835,6 +1023,13 @@ const LedgerView: React.FC<{
         context={`${TYPE_LABELS[account.type] ?? ''} · Kontenklasse ${account.kontenklasse} · ${
           account.posten || account.category
         }`}
+        action={
+          onFilterAccount && (
+            <Button variant="secondary" onClick={() => onFilterAccount(account.number)}>
+              Zeilen auswerten
+            </Button>
+          )
+        }
       />
 
       <div className="mt-6">

@@ -41,7 +41,7 @@ func (e *testEnv) openReceivable(
 	entry, err := e.journal.Post(context.Background(), &domain.JournalEntry{
 		FiscalYear: e.fiscalYear, BookingDate: documentDate, DocumentDate: documentDate,
 		ServiceDateFrom: documentDate, ServiceDateTo: documentDate,
-		Description: "Ausgangsrechnung " + number, Source: domain.EntrySourceManual,
+		Description: "Ausgangsrechnung " + number, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		DocumentNumber: number, DueDate: dueDate, ContactID: &contactID,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: customer.LedgerAccount, Amount: gross},

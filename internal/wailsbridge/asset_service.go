@@ -262,7 +262,9 @@ func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return &service.DepreciationRun{}, nil
+		empty := &service.DepreciationRun{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.assetSvc.Run(context.Background())
 }
@@ -349,7 +351,9 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return &domain.Anlagenspiegel{}, nil
+		empty := &domain.Anlagenspiegel{}
+		empty.EnsureLists()
+		return empty, nil
 	}
 	return b.assetSvc.Anlagenspiegel(context.Background())
 }
@@ -558,7 +562,9 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 	settings := b.settingsSvc
 	b.mu.RUnlock()
 
-	rules := &InvestmentRules{}
+	// Leer statt nil: die Maske läuft über die Freistellungen, auch wenn die
+	// eingestellte Anlegerstellung keine ergibt.
+	rules := &InvestmentRules{Exemptions: make([]exemptionInfo, 0)}
 	for _, class := range accounting.AllFundClasses() {
 		rules.FundClasses = append(rules.FundClasses,
 			fundClassInfo{Class: class, Label: class.Label()})

@@ -21,7 +21,14 @@ type AccountingService struct {
 	settingsRepo domain.SettingsRepository
 	journalSvc   *JournalService
 	fiscalYear   int
+	// auditRepo protokolliert die Herausgabe von Daten (QUE-02 K2). Freiwillig
+	// wie überall: ohne ihn rechnet der Dienst weiter, nur schreibt er nichts.
+	auditRepo domain.AuditRepository
 }
+
+// SetAuditRepo hängt das Protokoll an. Gebraucht wird es für die Herausgabe der
+// gefilterten Journalmenge — ein Lesezugriff auf personenbezogene Daten.
+func (s *AccountingService) SetAuditRepo(repo domain.AuditRepository) { s.auditRepo = repo }
 
 // NewAccountingService creates the reporting service.
 func NewAccountingService(
@@ -498,7 +505,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 		return nil, err
 	}
 
-	return &domain.FinancialSummary{
+	summary := &domain.FinancialSummary{
 		TotalRevenue:    revenue,
 		TotalExpenses:   expenses,
 		NetIncome:       revenue - expenses,
@@ -506,7 +513,11 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 		OpenReceivables: receivables,
 		OpenPayables:    payables,
 		CashflowHistory: cashflow,
-	}, nil
+	}
+	// Ein Jahr ohne Zahlungsverkehr liefert keinen Verlauf; die Startseite
+	// liest ihn trotzdem.
+	summary.EnsureLists()
+	return summary, nil
 }
 
 // GetAvailableFiscalYears lists the years that hold bookings, plus the current
@@ -550,4 +561,31 @@ func (s *AccountingService) chart(ctx context.Context) (*accounting.Chart, error
 		return nil, err
 	}
 	return accounting.NewChart(accounts), nil
+}
+
+// FilterEntries beantwortet eine eingeschränkte Frage an das Journal
+// (PRF-01 K3).
+//
+// Gefiltert wird über alle Geschäftsjahre, wenn der Filter keinen Zeitraum
+// nennt, und sonst über die Jahre, die der Zeitraum berührt. Der Grund ist die
+// Frage selbst: „alle Buchungen auf Konto 6300 über 10.000 €" ist keine Frage
+// an ein Geschäftsjahr, sondern an die Buchführung — und eine Antwort, die
+// stillschweigend beim 1. Januar aufhört, ist die falsche.
+func (s *AccountingService) FilterEntries(
+	ctx context.Context, filter accounting.JournalFilter,
+) (*accounting.JournalFilterResult, error) {
+	entries, err := s.GetAllEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]string{}
+	if accounts, err := s.accountRepo.FindAll(ctx); err == nil {
+		for i := range accounts {
+			names[accounts[i].Number] = accounts[i].Name
+		}
+	}
+	result := accounting.FilterJournal(entries, filter, func(number string) string {
+		return names[number]
+	})
+	return &result, nil
 }

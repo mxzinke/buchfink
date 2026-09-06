@@ -37,6 +37,16 @@ const (
 	CheckRuleDepreciationMissing = "depreciation_missing"
 	CheckRuleVatReturnMissing    = "vat_return_missing"
 	CheckRuleCommitOverdue       = "commit_overdue"
+	// CheckRulePeriodNotCommitted meldet einen Monat, der zwei Monate nach
+	// seinem Ende immer noch nicht festgeschrieben ist (UNV-02 K2).
+	//
+	// Er steht neben commit_overdue und ersetzt ihn nicht: commit_overdue nennt
+	// den ersten Monat, dessen Frist verstrichen ist — die laufende Arbeit —,
+	// diese Regel den Rückstand. Zwei Monate nach dem Ende ist auch die
+	// Voranmeldung mit Dauerfristverlängerung abgegeben; ein bis dahin nicht
+	// festgeschriebener Monat ist keine Verzögerung mehr, sondern eine Lücke in
+	// der Unveränderbarkeit (GoBD Rz. 107).
+	CheckRulePeriodNotCommitted = "period_not_committed"
 	// CheckRuleProvisionDiscount meldet eine Rückstellung, die nicht mit dem
 	// Satz des Stichtagsmonats abgezinst werden konnte (§ 253 Abs. 2 HGB).
 	CheckRuleProvisionDiscount = "provision_discount"

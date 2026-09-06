@@ -13,6 +13,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -56,7 +57,41 @@ func testBridge(t *testing.T) *BuchfinkBridge {
 	b.settingsRepo = repository.NewSettingsRepository(db)
 	b.journalSvc = service.NewJournalService(
 		b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, 2026)
+	// Die Handbuchung verlangt seit Welle 8 einen Beleg (BEL-01 K2). Die
+	// Prüfermodus-Prüfung geht über sie, also gehören Belegablage und Belegweg
+	// in diese Testbridge — ohne sie prüfte der Test die Sperre an einer
+	// Methode, die aus einem anderen Grund abweist.
+	b.receiptRepo = repository.NewReceiptRepository(db)
+	b.numberRepo = repository.NewNumberRangeRepository(db)
+	b.receiptSvc = service.NewReceiptService(
+		b.receiptRepo, b.journalRepo, receiptstore.New(dataDir), b.auditRepo, 2026)
+	b.journalSvc.SetReceiptRepo(b.receiptRepo)
+	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
+	b.postingSvc.SetReceiptService(b.receiptSvc)
 	return b
+}
+
+// manualEntryRequest legt einen Beleg an und liefert die Handbuchung darauf.
+//
+// Seit Welle 8 gibt es keine Buchung ohne Beleg; ein Test, der eine Buchung
+// braucht, braucht deshalb auch einen Beleg. Abgelegt wird er über denselben
+// Weg wie im Betrieb — eine von Hand geschriebene Zeile in der Belegtabelle
+// prüfte etwas anderes als das, was läuft.
+func manualEntryRequest(t *testing.T, b *BuchfinkBridge) service.ManualEntryRequest {
+	t.Helper()
+	receipt, err := b.receiptSvc.File(context.Background(), service.FileReceiptRequest{
+		Direction: domain.DirectionIncoming, FiscalYear: 2026,
+		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
+		IssuerName: "Büromarkt GmbH", GrossAmount: 10000,
+		Files: []service.NewFile{{
+			Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf",
+			Content: []byte("%PDF-1.4 Testbeleg"),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Beleg ablegen: %v", err)
+	}
+	return service.ManualEntryRequest{Entry: manualEntry(), ReceiptID: receipt.ID}
 }
 
 func manualEntry() domain.JournalEntry {
@@ -64,6 +99,10 @@ func manualEntry() domain.JournalEntry {
 		BookingDate: "2026-03-01", DocumentDate: "2026-03-01",
 		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
 		Description: "Testbuchung", Source: domain.EntrySourceManual,
+		// Der Steuerfall gehört seit Welle 8 an jede Handbuchung: die
+		// Anschaffung geringwertiger Wirtschaftsgüter gegen Bank ist hier kein
+		// steuerbarer Umsatz, und genau das sagt er.
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6815", Amount: 10000},
 			{Side: domain.SideCredit, Account: "1800", Amount: 10000},
@@ -77,7 +116,7 @@ func manualEntry() domain.JournalEntry {
 func TestReadOnlyModeRefusesWritingMethods(t *testing.T) {
 	b := testBridge(t)
 
-	if _, err := b.PostJournalEntry(manualEntry()); err != nil {
+	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("ohne Prüfermodus muss die Buchung durchgehen: %v", err)
 	}
 
@@ -119,7 +158,7 @@ func TestReadOnlyModeExpires(t *testing.T) {
 	tenant.ReadOnlyUntil = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	tenant.ReadOnlyReason = "abgelaufene Prüfung"
 
-	if _, err := b.PostJournalEntry(manualEntry()); err != nil {
+	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
 		t.Errorf("nach dem Ablaufdatum muss wieder gebucht werden können: %v", err)
 	}
 }
@@ -340,7 +379,7 @@ func TestGetAppConfigReportsTheCurrentState(t *testing.T) {
 	if cfg.ReadOnly {
 		t.Error("GetAppConfig meldet den Prüfermodus, obwohl er abgelaufen ist")
 	}
-	if _, err := b.PostJournalEntry(manualEntry()); err != nil {
+	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
 		t.Errorf("die Bridge lässt nicht buchen, obwohl der Modus abgelaufen ist: %v", err)
 	}
 

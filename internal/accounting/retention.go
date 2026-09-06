@@ -20,27 +20,27 @@ import (
 // alte Frist vorher schon abgelaufen war, bleibt es bei ihr — dort ist die
 // Aufbewahrung ohnehin beendet, und eine rückwirkend verlängerte Frist wäre die
 // falsche Auskunft.
-const (
-	// retentionYearsBooks ist die Frist der Handelsbücher und Abschlüsse.
-	retentionYearsBooks = 10
-	// retentionYearsVouchersFrom2025 ist die verkürzte Belegfrist.
-	retentionYearsVouchersFrom2025 = 8
-	// retentionYearsVouchersBefore ist die Belegfrist vor dem Vierten
-	// Bürokratieentlastungsgesetz.
-	retentionYearsVouchersBefore = 10
-	// retentionYearsLetters ist die Frist der Handelsbriefe und der sonstigen
-	// Unterlagen.
-	retentionYearsLetters = 6
-	// beg4EffectiveYear ist das Jahr, in dem die verkürzte Belegfrist in Kraft
-	// getreten ist.
-	beg4EffectiveYear = 2025
-)
+// Die Zahlen selbst stehen seit Welle 8 in retention_rules.json (ARC-01 K4);
+// dieser Teil rechnet nur noch mit ihnen.
 
-const (
-	legalBasisBooks    = "§ 257 Abs. 1 Nr. 1, Abs. 4 HGB; § 147 Abs. 1 Nr. 1, Abs. 3 AO"
-	legalBasisVouchers = "§ 257 Abs. 1 Nr. 4, Abs. 4 HGB; § 147 Abs. 1 Nr. 4, Abs. 3 AO"
-	legalBasisLetters  = "§ 257 Abs. 1 Nr. 2 und 3, Abs. 4 HGB; § 147 Abs. 1 Nr. 2, 3 und 5, Abs. 3 AO"
-)
+// yearsOfClass und legalBasisOf lesen die Frist und ihre Fundstelle aus der
+// Ressource. Eine fehlende Klasse ergibt null Jahre und keinen erfundenen Wert:
+// eine Frist, die niemand hinterlegt hat, ist keine Frist.
+func yearsOfClass(class domain.RetentionClass) int {
+	rules, ok := rulesForClass(class)
+	if !ok {
+		return 0
+	}
+	return rules.Years
+}
+
+func legalBasisOf(class domain.RetentionClass) string {
+	rules, ok := rulesForClass(class)
+	if !ok {
+		return ""
+	}
+	return rules.LegalBasis
+}
 
 // classOf ordnet einer Objektart ihre Aufbewahrungsklasse zu.
 //
@@ -48,28 +48,11 @@ const (
 // Löschbericht und Verfahrensdokumentation dreimal stünde und irgendwann
 // dreimal verschieden.
 func classOf(kind domain.RetentionKind) (domain.RetentionClass, string) {
-	switch kind {
-	case domain.RetentionKindJournal,
-		domain.RetentionKindFestschreibung,
-		domain.RetentionKindClosing,
-		domain.RetentionKindVatReturn,
-		domain.RetentionKindInventory,
-		domain.RetentionKindOrganisation,
-		// Anlagendokumente sind Organisationsunterlagen: der Anschaffungsbeleg
-		// eines Anlageguts trägt die Bemessungsgrundlage der Abschreibung, und
-		// die wirkt über die ganze Nutzungsdauer fort.
-		domain.RetentionKindAssetDocument:
-		return domain.RetentionClassBooks, legalBasisBooks
-	case domain.RetentionKindReceiptInvoice,
-		domain.RetentionKindReceiptStatement,
-		domain.RetentionKindReceiptSelfIssue:
-		return domain.RetentionClassVouchers, legalBasisVouchers
-	case domain.RetentionKindReceiptLetter,
-		domain.RetentionKindReceiptOther:
-		return domain.RetentionClassLetters, legalBasisLetters
-	default:
+	rules, ok := classForKind(kind)
+	if !ok {
 		return domain.RetentionClassNone, ""
 	}
+	return rules.Class, rules.LegalBasis
 }
 
 // LegalBasisForClass nennt die Fundstelle einer Aufbewahrungsklasse.
@@ -78,37 +61,27 @@ func classOf(kind domain.RetentionKind) (domain.RetentionClass, string) {
 // Objektart: dort steht die Klasse als Code, und der Prüfer soll die Norm
 // daneben lesen können, ohne sich erst eine passende Objektart zu suchen.
 func LegalBasisForClass(class domain.RetentionClass) string {
-	switch class {
-	case domain.RetentionClassBooks:
-		return legalBasisBooks
-	case domain.RetentionClassVouchers:
-		return legalBasisVouchers
-	case domain.RetentionClassLetters:
-		return legalBasisLetters
-	default:
-		return ""
-	}
+	return legalBasisOf(class)
 }
 
 // yearsFor liefert die Frist in Jahren für eine Klasse und ein Entstehungsjahr.
+//
+// Das Entstehungsjahr entscheidet, weil eine Fristverkürzung nicht rückwirkt,
+// wo die alte Frist am Tag der Ablösung schon abgelaufen war: für einen Beleg
+// aus 2013 endete die Zehnjahresfrist am 31.12.2023, und die seit dem 1.1.2025
+// geltenden acht Jahre wären dort die falsche Auskunft über einen längst
+// beendeten Vorgang.
 func yearsFor(class domain.RetentionClass, originYear int) int {
-	switch class {
-	case domain.RetentionClassBooks:
-		return retentionYearsBooks
-	case domain.RetentionClassLetters:
-		return retentionYearsLetters
-	case domain.RetentionClassVouchers:
-		// Die alte Zehnjahresfrist lief bis zum 31.12. des Jahres
-		// originYear+10. War sie beim Inkrafttreten am 1.1.2025 schon abgelaufen
-		// — also originYear+10 < 2025 —, bleibt es bei ihr; sonst greift die
-		// verkürzte.
-		if originYear+retentionYearsVouchersBefore < beg4EffectiveYear {
-			return retentionYearsVouchersBefore
-		}
-		return retentionYearsVouchersFrom2025
-	default:
+	rules, ok := rulesForClass(class)
+	if !ok {
 		return 0
 	}
+	if prev := rules.Previous; prev != nil {
+		if replaced := yearOf(prev.ReplacedFrom); replaced > 0 && originYear+prev.Years < replaced {
+			return prev.Years
+		}
+	}
+	return rules.Years
 }
 
 // RetentionFor liefert Klasse und frühestes Löschdatum eines Objekts.
@@ -138,8 +111,12 @@ func RetentionFor(kind domain.RetentionKind, originYear int) domain.RetentionInf
 	info.Note = fmt.Sprintf(
 		"Die Frist beginnt mit dem Schluss des Jahres %d und läuft %d Jahre bis zum %s; gelöscht werden darf ab dem %s.",
 		originYear, years, info.RetentionEnd, info.EarliestDeletion)
-	if class == domain.RetentionClassVouchers && years == retentionYearsVouchersFrom2025 {
-		info.Note += " Die Frist für Buchungsbelege und Rechnungen ist mit dem Vierten Bürokratieentlastungsgesetz von zehn auf acht Jahre verkürzt worden; die Verkürzung wirkt auf am 1.1.2025 noch laufende Fristen."
+	// Der Hinweis auf die Verkürzung steht dort, wo sie gegriffen hat: an einem
+	// Beleg, dessen Frist kürzer ist als die vorige. Sein Text kommt aus der
+	// Ressource, damit die Anzeige nicht etwas anderes behauptet als die
+	// Tabelle, nach der gerechnet wurde.
+	if rules, ok := rulesForClass(class); ok && rules.Previous != nil && years == rules.Years {
+		info.Note += " " + rules.Previous.Note
 	}
 	return info
 }
@@ -166,69 +143,69 @@ func DeletionConcept() []DeletionConceptRow {
 		{
 			Category:   "Journal, Hauptbuch, Summen- und Saldenlisten",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note: "Die Buchungen sind Handelsbücher. Sie werden nicht einzeln gelöscht, " +
 				"sondern nur mit dem ganzen Geschäftsjahr und erst nach Fristablauf.",
 		},
 		{
 			Category:   "Jahresabschlüsse, Eröffnungsbilanz, Inventare, Anhang",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note:       "Aufzubewahren im Original bzw. in der festgestellten Fassung.",
 		},
 		{
 			Category:   "Festschreibungen, Zeitstempel, Änderungsprotokoll",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note: "Organisationsunterlagen zum Verständnis der Bücher. Sie werden zusammen " +
 				"mit dem Geschäftsjahr aufbewahrt, auf das sie sich beziehen.",
 		},
 		{
 			Category:   "Verfahrensdokumentation und ihre Fassungen",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note: "Jede Fassung wird über die Frist der Jahre aufbewahrt, in denen sie " +
 				"gegolten hat (GoBD Rz. 151).",
 		},
 		{
 			Category:   "Umsatzsteuer-Voranmeldungen, Zusammenfassende Meldungen",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note:       "Steuererklärungen und die Aufzeichnungen, aus denen sie abgeleitet sind.",
 		},
 		{
 			Category:   "Anlagenverzeichnis und Anlagendokumente",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note: "Der Anschaffungsbeleg trägt die Bemessungsgrundlage der Abschreibung und " +
 				"wirkt über die gesamte Nutzungsdauer fort.",
 		},
 		{
 			Category:   "Eingangs- und Ausgangsrechnungen, Buchungsbelege, Kontoauszüge, Eigenbelege",
 			Class:      domain.RetentionClassVouchers,
-			Years:      retentionYearsVouchersFrom2025,
-			LegalBasis: legalBasisVouchers,
+			Years:      yearsOfClass(domain.RetentionClassVouchers),
+			LegalBasis: legalBasisOf(domain.RetentionClassVouchers),
 			Note: "Acht Jahre für Belege, deren Frist am 1.1.2025 noch lief; für früher " +
 				"abgelaufene bleibt es bei zehn Jahren.",
 		},
 		{
 			Category:   "Handelsbriefe und sonstige für die Besteuerung bedeutsame Unterlagen",
 			Class:      domain.RetentionClassLetters,
-			Years:      retentionYearsLetters,
-			LegalBasis: legalBasisLetters,
+			Years:      yearsOfClass(domain.RetentionClassLetters),
+			LegalBasis: legalBasisOf(domain.RetentionClassLetters),
 			Note:       "Verträge, Schriftwechsel, Bescheide.",
 		},
 		{
 			Category:   "Stammdaten von Geschäftspartnern",
 			Class:      domain.RetentionClassBooks,
-			Years:      retentionYearsBooks,
-			LegalBasis: legalBasisBooks,
+			Years:      yearsOfClass(domain.RetentionClassBooks),
+			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
 			Note: "Sie sind Bestandteil der Buchungen und werden mit ihnen aufbewahrt. Ein " +
 				"Löschverlangen nach Art. 17 DSGVO greift währenddessen nicht (Art. 17 Abs. 3 " +
 				"Buchst. b DSGVO); der Kontakt wird stattdessen gesperrt und ist für neue " +
@@ -256,4 +233,30 @@ func BlockedContactAnswer(name string) string {
 			"sie stehen in keiner Auswahl mehr zur Verfügung und werden nach Ablauf der "+
 			"Aufbewahrungsfrist gelöscht. Die Verarbeitung beschränkt sich bis dahin auf die "+
 			"Aufbewahrung (Art. 18 DSGVO).", name)
+}
+
+// RetentionForClass liefert die Frist einer ausdrücklich gewählten Klasse.
+//
+// Der Gegenstück zu RetentionFor: dort folgt die Klasse aus der Objektart, hier
+// gibt sie jemand vor. Gebraucht wird das für die Verlängerung der Frist am
+// einzelnen Beleg (ARC-01 K2) — sie ist eine Entscheidung des Unternehmers und
+// keine Ableitung aus der Belegart.
+func RetentionForClass(class domain.RetentionClass, originYear int) domain.RetentionInfo {
+	info := domain.RetentionInfo{
+		Class:      class,
+		OriginYear: originYear,
+		LegalBasis: legalBasisOf(class),
+	}
+	years := yearsFor(class, originYear)
+	if years <= 0 || originYear <= 0 {
+		info.Note = "Für diese Klasse ist keine Aufbewahrungsfrist hinterlegt."
+		return info
+	}
+	info.Years = years
+	info.RetentionEnd = fmt.Sprintf("%d-12-31", originYear+years)
+	info.EarliestDeletion = fmt.Sprintf("%d-01-01", originYear+years+1)
+	info.Note = fmt.Sprintf(
+		"Die Frist beginnt mit dem Schluss des Jahres %d und läuft %d Jahre bis zum %s; gelöscht werden darf ab dem %s.",
+		originYear, years, info.RetentionEnd, info.EarliestDeletion)
+	return info
 }

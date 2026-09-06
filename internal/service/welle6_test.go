@@ -405,7 +405,7 @@ func postInYear(t *testing.T, env *testEnv, year int) {
 	entry := &domain.JournalEntry{
 		FiscalYear: year, BookingDate: date, DocumentDate: date,
 		ServiceDateFrom: date, ServiceDateTo: date,
-		Description: "Altbuchung", Source: domain.EntrySourceManual,
+		Description: "Altbuchung", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Kind: domain.EntryKindNormal, Currency: "EUR", ExchangeRateMicros: 1_000_000,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},

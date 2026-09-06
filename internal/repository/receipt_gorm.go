@@ -105,7 +105,8 @@ func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Rece
 			if err != nil {
 				return err
 			}
-			receipt.ReceiptNumber = domain.FormatReceiptNumber(receipt.FiscalYear, seq)
+			receipt.ReceiptNumber = domain.FormatReceiptNumberWith(
+				receiptNumberFormat(tx), receipt.FiscalYear, seq)
 		}
 
 		for i := range receipt.Files {
@@ -266,6 +267,25 @@ func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 		Select("InputTaxOverride", "InputTaxOverrideAt").Updates(&receipt).Error
 }
 
+// SaveRetention schreibt die überschriebene Aufbewahrungsfrist an den Beleg.
+//
+// Auch sie geht über den Datensatz und eine Spaltenauswahl: der Grund liegt
+// verschlüsselt in seiner Spalte, und GORM wendet den Feld-Serializer nur auf
+// dem Struct-Weg an. Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen —
+// die Frist steht außerhalb des Beleg-Hashes, und gerade der gebuchte Beleg ist
+// der, dessen Aufbewahrung ein Rechtsstreit verlängert.
+func (r *receiptRepositoryGorm) SaveRetention(
+	ctx context.Context, receiptID uint, class domain.RetentionClass, until, reason, at string,
+) error {
+	receipt := domain.Receipt{
+		ID: receiptID, RetentionClass: class, RetentionUntil: until,
+		RetentionOverrideReason: reason, RetentionOverrideAt: at,
+	}
+	return dbFrom(ctx, r.db).Model(&receipt).
+		Select("RetentionClass", "RetentionUntil", "RetentionOverrideReason", "RetentionOverrideAt").
+		Updates(&receipt).Error
+}
+
 // SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis an den Beleg.
 //
 // Über den Datensatz und eine Spaltenauswahl wie die Übersteuerung: der
@@ -321,6 +341,26 @@ func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID ui
 			"validation_findings": v.Findings,
 			"updated_at":          time.Now().UTC(),
 		}).Error
+}
+
+// receiptNumberFormat liest die eingestellte Systematik des Belegnummernkreises
+// (BEL-02 K4).
+//
+// Gelesen wird in derselben Transaktion, in der die Nummer vergeben wird: das
+// Format entscheidet über die Nummer, und eine zwischen Lesen und Vergeben
+// geänderte Einstellung ergäbe sonst eine Nummer nach dem alten Format mit
+// einem Zähler des neuen. Ein fehlender oder untauglicher Eintrag ergibt die
+// Voreinstellung — ein Beleg darf an einer Einstellung nicht scheitern, er ist
+// aufzubewahren, sobald er da ist (GoBD Rz. 131).
+func receiptNumberFormat(tx *gorm.DB) string {
+	var item domain.SettingItem
+	if err := tx.Where("key = ?", "receipt_number_format").First(&item).Error; err != nil {
+		return domain.DefaultReceiptNumberFormat
+	}
+	if domain.ValidateNumberFormat(item.Value) != nil {
+		return domain.DefaultReceiptNumberFormat
+	}
+	return item.Value
 }
 
 // numberRangeFor picks the counter a Beleg draws its number from. Incoming

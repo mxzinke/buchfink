@@ -280,9 +280,11 @@ func TestRebookingRefusesWhenTheGiftLineIsNotIdentifiable(t *testing.T) {
 	entry := &domain.JournalEntry{
 		BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
 		ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
-		Description:  "Geschenk ohne passende Zeile",
-		Source:       domain.EntrySourceManual,
-		TaxTreatment: domain.TaxTreatmentDomestic,
+		Description: "Geschenk ohne passende Zeile",
+		Source:      domain.EntrySourceManual,
+		// Ohne Steuerzeile ist der Steuerfall nicht der Inlandsumsatz: die
+		// Buchung erfasst den Bruttobetrag des Geschenks (§ 15 Abs. 1a UStG).
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		ContactID:    &vendor.ID,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: "6610", Amount: 9_000},
