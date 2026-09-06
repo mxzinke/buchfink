@@ -4,9 +4,11 @@
    Dieselbe Gestaltung wie die Anwendung: die Tokens aus
    docs/design-konzept.md, dieselbe Schrift, dasselbe Raster, dieselbe
    Zurückhaltung. Was hier über das Konzept hinausgeht, steht in
-   website/README.md: größere Schriftgrade für Fließtext, ein
-   Rasterhintergrund im Kopf und eine leisere Fassung des Hinweisstreifens.
-   Karten, Schatten und Farbverläufe gibt es auch hier nicht.
+   website/README.md: größere Schriftgrade für Fließtext, eine leisere
+   Fassung des Hinweisstreifens und Schatten an den drei Stellen, an denen
+   etwas über dem Papier liegt — das aufgeklappte Menü, das Bild im Kopf und
+   ein Screenshot, auf den gezeigt wird. Karten und Farbverläufe gibt es
+   nicht.
    ========================================================================= */
 
 @font-face {
@@ -77,8 +79,11 @@
   --radius-card: 10px;
   --ease-quiet: cubic-bezier(0.2, 0.7, 0.3, 1);
 
-  --page: 1120px;
-  --wide: 1400px;
+  /* Auf einem 16-Zoll-Bildschirm lief die Seite vorher fast von Kante zu
+     Kante. 1200 px ist die Grenze, ab der ein Funktionsblock nicht mehr in
+     zwei weit auseinanderliegende Hälften zerfällt. */
+  --page: 1040px;
+  --wide: 1200px;
 }
 
 *,
@@ -204,14 +209,14 @@ code {
 .topbar__inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   height: 60px;
 }
 .wordmark {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: auto;
   font-size: 17px;
   font-weight: 600;
   color: var(--ink);
@@ -225,23 +230,148 @@ code {
 .topnav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 13px;
 }
-.topnav a {
+.topnav > a,
+.topnav summary {
   color: var(--ink-muted);
   border: 0;
   padding: 6px 10px;
   border-radius: var(--radius-control);
   transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
 }
-.topnav a:hover {
+.topnav > a:hover,
+.topnav summary:hover {
   background: var(--sunken);
   color: var(--ink);
 }
-.topnav a[aria-current='page'] {
+.topnav > a[aria-current='page'] {
   color: var(--ink);
   font-weight: 500;
+}
+.topbar__end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Die vier Funktionsseiten liegen hinter einem Eintrag: sieben gleich laute
+   Einträge nebeneinander sagen nicht, was zusammengehört. */
+.dropdown {
+  position: relative;
+}
+.dropdown > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+.dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+.dropdown > summary svg {
+  width: 11px;
+  height: 11px;
+  transition: transform 120ms var(--ease-quiet);
+}
+.dropdown[open] > summary {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.dropdown[open] > summary svg {
+  transform: rotate(180deg);
+}
+.dropdown--current > summary {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Ein aufgeklapptes Menü schwebt über der Seite — der eine Fall, in dem das
+   Konzept einen Schatten vorsieht (§6.2). */
+.menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 296px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 16px 40px -20px rgba(28, 25, 23, 0.3), 0 2px 6px -3px rgba(28, 25, 23, 0.12);
+}
+.menu a {
+  display: block;
+  border: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+}
+.menu a:hover {
+  background: var(--sunken);
+}
+.menu a[aria-current='page'] {
+  background: var(--sunken);
+}
+.menu__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.menu__hint {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-subtle);
+}
+.menu__group {
+  padding: 12px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+.menu__group:first-child {
+  padding-top: 6px;
+}
+
+/* Im schmalen Fenster steht dieselbe Gliederung untereinander statt in einer
+   Reihe: sieben umbrechende Einträge waren dort eine Wand. */
+.drawer {
+  display: none;
+  position: relative;
+}
+.drawer > summary {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+}
+.drawer > summary::-webkit-details-marker {
+  display: none;
+}
+.drawer > summary svg {
+  width: 18px;
+  height: 18px;
+}
+.drawer[open] > summary {
+  background: var(--sunken);
+}
+.drawer .menu {
+  left: auto;
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
 }
 
 /* -------------------------------------------------------------------------
@@ -249,18 +379,24 @@ code {
    ------------------------------------------------------------------------- */
 
 .hero__title {
-  font-size: clamp(32px, 4.6vw, 46px);
-  line-height: 1.12;
+  font-size: clamp(32px, 4.4vw, 46px);
+  line-height: 1.1;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  max-width: 20ch;
+  letter-spacing: -0.025em;
+  max-width: 24ch;
 }
 .hero__lead {
-  margin-top: 20px;
-  max-width: 62ch;
-  font-size: 17px;
-  line-height: 28px;
+  margin-top: 22px;
+  max-width: 58ch;
+  font-size: 18px;
+  line-height: 30px;
   color: var(--ink-muted);
+}
+.hero__lead--small {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-subtle);
 }
 
 .section__title {
@@ -297,8 +433,15 @@ code {
    ------------------------------------------------------------------------- */
 
 .band {
-  padding-block: 104px;
+  padding-block: 88px;
   border-top: 1px solid var(--line);
+}
+/* Der Kopf einer Seite und der erste Abschnitt gehören zusammen; eine
+   Haarlinie dazwischen schnitt den Einleitungssatz vom Inhalt ab. */
+.hero + .band,
+.pagehead + .band {
+  border-top: 0;
+  padding-top: 72px;
 }
 .band--plain {
   border-top: 0;
@@ -330,41 +473,33 @@ code {
    Hero
    ------------------------------------------------------------------------- */
 
+/* Der Kopf der Startseite steht mittig: ein Satz, was Buchfink ist, und zwei
+   Wege weiter. Kennzeichnungen stehen darunter, nicht darüber — sie sind die
+   Fußnote zum Titel und nicht sein Vorspann. */
 .hero {
-  padding-top: 96px;
+  padding-top: 88px;
   padding-bottom: 80px;
-  position: relative;
-  overflow: hidden;
+  text-align: center;
 }
-/* Der einzige dekorative Hintergrund der Seite: ein Millimeterraster wie auf
-   Buchhaltungspapier, so leise, dass es erst beim zweiten Blick auffällt. */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 0%, transparent 75%);
-  opacity: 0.5;
-  pointer-events: none;
-}
-.hero > * {
-  position: relative;
+.hero .hero__title,
+.hero .hero__lead {
+  margin-inline: auto;
 }
 
 .badges {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-top: 36px;
 }
 
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 36px;
 }
 .hero__facts {
   display: grid;
@@ -585,8 +720,8 @@ code {
    aber bei jedem Block einen neuen Lesestart. */
 .feature {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
-  gap: 64px;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr);
+  gap: 48px;
   align-items: start;
   padding-top: 80px;
   margin-top: 80px;
@@ -594,8 +729,15 @@ code {
 }
 .feature:first-of-type {
   border-top: 0;
-  margin-top: 56px;
+  margin-top: 0;
   padding-top: 0;
+}
+/* Neben einem Bildstapel liest sich der Text mit, wenn er stehen bleibt. */
+@media (min-width: 901px) {
+  .feature__text {
+    position: sticky;
+    top: 92px;
+  }
 }
 .feature__title {
   font-size: 23px;
@@ -635,16 +777,64 @@ code {
    Kopf fiele damit weg. */
 figure.shot {
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card);
+  border-radius: 12px;
   overflow: hidden;
   background: var(--surface);
+  transition: border-color 160ms var(--ease-quiet), box-shadow 160ms var(--ease-quiet),
+    transform 160ms var(--ease-quiet);
+}
+/* Beim Zeigen hebt sich das Bild an — es wird zum schwebenden Element und
+   darf dann den Schatten tragen, den §6.2 dafür vorsieht. */
+figure.shot:hover {
+  border-color: var(--ink-faint);
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px -28px rgba(28, 25, 23, 0.4);
 }
 figure.shot a {
   display: block;
   border: 0;
+  position: relative;
 }
 figure.shot img {
   width: 100%;
+}
+
+/* Die Aufnahmen zeigen ein Programmfenster ohne seinen Rahmen. Die Leiste
+   darüber gibt ihn zurück: ohne sie schwimmt der Bildinhalt im Blatt. */
+.shot__chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding-inline: 14px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.shot__chrome span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+/* Der Hinweis, dass das Bild sich öffnen lässt, erscheint erst beim Zeigen. */
+figure.shot a::after {
+  content: 'In voller Größe';
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  color: var(--paper);
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-quiet);
+}
+figure.shot a:hover::after,
+figure.shot a:focus-visible::after {
+  opacity: 1;
 }
 figure.shot figcaption {
   padding: 10px 14px;
@@ -659,8 +849,15 @@ figure.shot figcaption {
   gap: 28px;
 }
 
+/* Das Bild im Kopf trägt die Seite: breiter als der Text, angehoben und mit
+   Schatten, weil es über dem Papier liegt. */
 .hero__shot {
-  margin-top: 72px;
+  margin-top: 64px;
+  border-radius: 14px;
+  box-shadow: 0 40px 80px -48px rgba(28, 25, 23, 0.5), 0 2px 10px -6px rgba(28, 25, 23, 0.12);
+}
+.hero__shot figcaption {
+  text-align: center;
 }
 
 /* -------------------------------------------------------------------------
@@ -1037,6 +1234,15 @@ table.data td:first-child {
   }
 }
 
+@media (max-width: 900px) {
+  .topnav {
+    display: none;
+  }
+  .drawer {
+    display: block;
+  }
+}
+
 @media (max-width: 640px) {
   .wrap {
     padding-inline: 16px;
@@ -1044,7 +1250,24 @@ table.data td:first-child {
   .band {
     padding-block: 64px;
   }
-  .topnav a:not(.btn) {
+  .hero {
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+  .hero + .band,
+  .pagehead + .band {
+    padding-top: 48px;
+  }
+}
+
+/* Ganz schmal trägt die Schaltfläche nur noch ihr Zeichen. */
+@media (max-width: 420px) {
+  .btn--github {
+    padding-inline: 0;
+    width: 40px;
+    justify-content: center;
+  }
+  .btn--github span {
     display: none;
   }
 }
@@ -1055,5 +1278,653 @@ table.data td:first-child {
   }
   * {
     transition-duration: 0ms !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Kopf einer Unterseite
+
+   Kein zweiter Held: die Unterseiten tragen Titel und einen Absatz, damit der
+   Leser weiß, worauf er gestoßen ist, und dann beginnt der Inhalt.
+   ------------------------------------------------------------------------- */
+
+.pagehead {
+  padding-block: 72px 0;
+}
+/* Ein Nachsatz unter dem Einleitungsabsatz: leiser, kürzer, gehört noch zum
+   Kopf. */
+.pagehead__note {
+  margin-top: 14px;
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 26px;
+  color: var(--ink-subtle);
+}
+.pagehead__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.pagehead__title {
+  font-size: clamp(32px, 4.2vw, 46px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 12px 0 0;
+}
+.pagehead__lead {
+  margin-top: 20px;
+  max-width: 68ch;
+  font-size: 17px;
+  line-height: 30px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Verweise auf die Unterseiten
+
+   Keine Karten (§6.2): eine Haarlinie über jedem Eintrag, mehr braucht eine
+   Liste von Wegen nicht.
+   ------------------------------------------------------------------------- */
+
+.links {
+  display: grid;
+  gap: 0 40px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 32px;
+}
+.links > * {
+  padding-block: 20px;
+  border-top: 1px solid var(--line);
+}
+.link__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.link__title a {
+  border-bottom: 0;
+  color: var(--ink);
+}
+.link__title a:hover {
+  color: var(--accent-text);
+}
+.link__body {
+  margin-top: 6px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Zeitleiste der Roadmap
+
+   Senkrecht, weil sie in der Zeit gelesen wird und nicht im Raum. Die Linie
+   ist die Haarlinie der Seite; der Punkt sitzt darauf.
+   ------------------------------------------------------------------------- */
+
+.timeline {
+  margin-top: 40px;
+  padding-left: 28px;
+  border-left: 1px solid var(--line-strong);
+}
+.timeline__item {
+  position: relative;
+  padding-bottom: 44px;
+}
+.timeline__item:last-child {
+  padding-bottom: 0;
+}
+.timeline__item::before {
+  content: '';
+  position: absolute;
+  left: -33px;
+  top: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--control-border);
+}
+.timeline__item--done::before {
+  background: var(--positive);
+  border-color: var(--positive);
+}
+.timeline__item--open::before {
+  background: var(--attention);
+  border-color: var(--attention);
+}
+.timeline__stage {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+.timeline__title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 6px 0 0;
+}
+.timeline__body {
+  margin-top: 8px;
+  max-width: 72ch;
+  color: var(--ink-muted);
+}
+
+/* Abgehakte Punkte mit den Zahlen des Anforderungskatalogs */
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  max-width: 78ch;
+}
+.checklist li {
+  position: relative;
+  padding-left: 26px;
+  margin-top: 10px;
+  color: var(--ink-muted);
+}
+.checklist li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 12px;
+  height: 7px;
+  border-left: 1.5px solid var(--positive);
+  border-bottom: 1.5px solid var(--positive);
+  transform: rotate(-45deg);
+}
+.checklist--open li::before {
+  border: 0;
+  top: 10px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  transform: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--attention);
+}
+.checklist strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.checklist .count {
+  color: var(--ink-subtle);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------------------
+   Nachtrag für schmale Fenster
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .timeline {
+    padding-left: 20px;
+  }
+  .timeline__item::before {
+    left: -25px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Sechs Spalten in zwei Reihen
+
+   `auto-fit` verteilt sechs Einträge auf fünf und einen. Wo die Zahl der
+   Einträge feststeht, steht auch die Zahl der Spalten fest.
+   ------------------------------------------------------------------------- */
+
+.columns--drei {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.columns--drei > * {
+  border-right: 1px solid var(--line);
+  padding-left: 36px;
+}
+.columns--drei > *:nth-child(3n) {
+  border-right: 0;
+  padding-right: 0;
+}
+.columns--drei > *:nth-child(3n + 1) {
+  padding-left: 0;
+}
+.columns--drei > *:nth-child(n + 4) {
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .columns--drei {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .columns--drei > * {
+    border-right: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 24px 0;
+  }
+  .columns--drei > *:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Vertiefung im Dialog
+
+   Der Grundsatz der Seite: oben steht in zwei, drei Sätzen, was eine Funktion
+   tut. Ausnahmen, Normen und Sonderfälle stehen in einem Dialog dahinter. Ein
+   aufklappender Absatz schob vorher den halben Abschnitt nach unten; der
+   Dialog lässt die Seite stehen, wo sie steht.
+
+   Ohne JavaScript öffnet kein Dialog. Deshalb hängt in jeder Seite ein
+   noscript-Block, der die Inhalte stattdessen offen in den Fluss stellt.
+   ------------------------------------------------------------------------- */
+
+.reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-text);
+  transition: color 120ms var(--ease-quiet);
+}
+.reveal:hover {
+  color: var(--accent);
+}
+.reveal svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+dialog.modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(78vh, 700px);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 40px 80px -32px rgba(28, 25, 23, 0.45);
+  overflow: hidden;
+}
+dialog.modal::backdrop {
+  background: rgba(28, 25, 23, 0.34);
+  backdrop-filter: blur(2px);
+}
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 20px 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.modal__title {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.modal__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink-subtle);
+  transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
+}
+.modal__close:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.modal__close svg {
+  width: 16px;
+  height: 16px;
+}
+.modal__body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+  color: var(--ink-muted);
+}
+.modal__body > * + * {
+  margin-top: 14px;
+}
+.modal__body ul {
+  list-style: none;
+  padding: 0;
+}
+.modal__body li {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 8px;
+}
+.modal__body li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--ink-faint);
+}
+.modal__body strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Betriebssystem-Reiter der Installationsseite
+
+   Drei Wege, von denen nur einer zutrifft. Die Auswahl läuft über verdeckte
+   Optionsfelder und kommt ohne Skript aus — die Seite hat keinen Bauschritt,
+   und ein Reiter, der ohne JavaScript nichts zeigt, wäre schlechter als eine
+   lange Liste.
+   ------------------------------------------------------------------------- */
+
+.ostabs {
+  margin-top: 28px;
+}
+.ostabs > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.ostabs__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.ostabs__bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-quiet), border-color 120ms var(--ease-quiet),
+    color 120ms var(--ease-quiet);
+}
+.ostabs__bar label:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.ostabs__bar label svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.ostabs__panel {
+  display: none;
+  padding-top: 8px;
+}
+#os-mac:checked ~ .ostabs__bar label[for='os-mac'],
+#os-win:checked ~ .ostabs__bar label[for='os-win'],
+#os-linux:checked ~ .ostabs__bar label[for='os-linux'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+#os-mac:focus-visible ~ .ostabs__bar label[for='os-mac'],
+#os-win:focus-visible ~ .ostabs__bar label[for='os-win'],
+#os-linux:focus-visible ~ .ostabs__bar label[for='os-linux'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#os-mac:checked ~ #panel-mac,
+#os-win:checked ~ #panel-win,
+#os-linux:checked ~ #panel-linux {
+  display: block;
+}
+
+/* Eine Zeile zum Abtippen: derselbe dunkle Grund wie ein Codeblock, aber
+   ohne Kopfleiste, weil ein einzelner Befehl keine Beschriftung braucht. */
+.cmd {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--shell-line);
+  background: var(--shell);
+  color: var(--shell-text);
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 22px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Eine geordnete Liste, die aussieht wie die Schritte darüber. */
+.plain-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 14px;
+  max-width: 72ch;
+}
+.plain-list li {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+.plain-list li strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Drei Schritte nebeneinander
+
+   Der Arbeitsablauf auf der Startseite. Keine Kästen: eine Haarlinie über
+   allen dreien, die Ziffer sitzt darauf. Im schmalen Fenster stehen die
+   Schritte untereinander, die Linie wandert nach links.
+   ------------------------------------------------------------------------- */
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 40px;
+  margin-top: 48px;
+  border-top: 1px solid var(--line-strong);
+}
+.flow__step {
+  position: relative;
+  padding-top: 32px;
+}
+.flow__step::before {
+  content: counter(flow-step);
+  counter-increment: flow-step;
+  position: absolute;
+  top: -13px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 600;
+}
+.flow {
+  counter-reset: flow-step;
+}
+.flow__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.flow__body {
+  margin-top: 8px;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 820px) {
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border-top: 0;
+    border-left: 1px solid var(--line-strong);
+    padding-left: 28px;
+    margin-left: 13px;
+  }
+  .flow__step {
+    padding-top: 0;
+    padding-bottom: 32px;
+  }
+  .flow__step:last-child {
+    padding-bottom: 0;
+  }
+  .flow__step::before {
+    top: 0;
+    left: -41px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Aufgabenliste mit Zeichen
+
+   Was das Programm für den Anwender erledigt. Das Zeichen steht vor der
+   Zeile, damit die Liste beim Überfliegen Halt hat; es trägt keine eigene
+   Bedeutung und deshalb auch keine Farbe.
+   ------------------------------------------------------------------------- */
+
+.duties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0 48px;
+  margin-top: 40px;
+}
+.duty {
+  display: flex;
+  gap: 16px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+.duty svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 3px;
+  color: var(--ink-faint);
+}
+.duty__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.duty__body {
+  margin-top: 5px;
+  font-size: 15px;
+  line-height: 25px;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Zwei Spalten: passt / passt nicht
+
+   Kein Farbsignal an den Überschriften. Die Raute vor der Zeile trägt es:
+   Salbei für das, was geht, Rosé für das, was nicht geht (§3.3).
+   ------------------------------------------------------------------------- */
+
+.fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 56px;
+  margin-top: 40px;
+}
+.fit__col {
+  padding-top: 24px;
+  border-top: 1px solid var(--line-strong);
+}
+.fit__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fit ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 14px;
+}
+.fit li {
+  position: relative;
+  padding-left: 22px;
+  margin-top: 10px;
+  color: var(--ink-muted);
+}
+.fit li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.fit--yes li::before {
+  background: var(--positive);
+}
+.fit--no li::before {
+  background: var(--negative);
+}
+.fit li strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------
+   Schaubild neben Text
+
+   Für das kleine Bild, das zeigt, wo die Daten liegen. Halb so breit wie ein
+   Funktionsblock, weil es weniger zu sagen hat.
+   ------------------------------------------------------------------------- */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: center;
+  margin-top: 48px;
+}
+.split > figure {
+  overflow-x: auto;
+}
+/* Nur das Schaubild, nicht jedes Zeichen im Textteil daneben. */
+.split > figure > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 820px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
   }
 }

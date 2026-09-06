@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nachweise und Sicherheit — Buchfink</title>
+    <meta name="description" content="Hashkette, Festschreibung mit Zeitstempel, Änderungsprotokoll, Aufbewahrungsfristen, Sicherung, Prüferpaket und Verfahrensdokumentation in Buchfink." />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <details class="dropdown dropdown--current">
+            <summary>
+              Funktionen
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="menu">
+              <a href="buchhaltung.html">
+                <span class="menu__name">Laufende Buchhaltung</span>
+                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
+              </a>
+              <a href="umsatzsteuer.html">
+                <span class="menu__name">Umsatzsteuer</span>
+                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
+              </a>
+              <a href="abschluss.html">
+                <span class="menu__name">Abschluss</span>
+                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
+              </a>
+              <a href="nachweise.html" aria-current="page">
+                <span class="menu__name">Nachweise</span>
+                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
+              </a>
+            </div>
+          </details>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+        </nav>
+
+        <div class="topbar__end">
+          <a class="btn btn--secondary btn--github" href="https://github.com/mxzinke/buchfink">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+              />
+            </svg>
+            <span>GitHub</span>
+          </a>
+
+          <details class="drawer">
+            <summary aria-label="Menü öffnen" title="Menü">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </summary>
+            <div class="menu">
+              <a href="index.html">
+                <span class="menu__name">Start</span>
+              </a>
+              <p class="menu__group">Funktionen</p>
+              <a href="buchhaltung.html">
+                <span class="menu__name">Laufende Buchhaltung</span>
+                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
+              </a>
+              <a href="umsatzsteuer.html">
+                <span class="menu__name">Umsatzsteuer</span>
+                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
+              </a>
+              <a href="abschluss.html">
+                <span class="menu__name">Abschluss</span>
+                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
+              </a>
+              <a href="nachweise.html" aria-current="page">
+                <span class="menu__name">Nachweise</span>
+                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
+              </a>
+              <p class="menu__group">Projekt</p>
+              <a href="roadmap.html">
+                <span class="menu__name">Roadmap</span>
+                <span class="menu__hint">Was steht, was bis zur Version 1 fehlt</span>
+              </a>
+              <a href="installation.html">
+                <span class="menu__name">Installation</span>
+                <span class="menu__hint">Buchfink auf dem eigenen Rechner bauen</span>
+              </a>
+            </div>
+          </details>
+        </div>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Nachweise und Sicherheit</h1>
+          <p class="pagehead__lead">
+            Das Finanzamt verlangt, dass jede Änderung an der Buchhaltung sichtbar bleibt.
+            Buchfink verkettet dafür jede Buchung mit der vorherigen und schreibt jede Änderung
+            mit Vorher und Nachher mit.
+          </p>
+          <p class="pagehead__note">
+            Was eine Betriebsprüfung verlangt, stellt das Programm auf Knopfdruck in einem Ordner
+            zusammen.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Unveränderbarkeit</p>
+              <h2 class="feature__title">Gebucht ist gebucht</h2>
+              <p class="feature__body">
+                Jede Buchung enthält den Fingerabdruck ihrer Vorgängerin. Buchfink rechnet die
+                Kette nach und nennt die Buchung, an der sie bricht. Ein festgeschriebener
+                Zeitraum nimmt keine rückdatierte Buchung mehr an; korrigiert wird per Storno.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-der-zeitstempel-leistet">
+                Was der Zeitstempel leistet
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/sicherheit.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/sicherheit.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Prüfübersicht“ mit dem Zustand der Hashkette, dem Prüflauf über die Belegdateien, den festgeschriebenen Zeiträumen samt Zeitstempel und den Prüfläufen."
+                />
+              </a>
+              <figcaption>
+                Die Seite hat keinen Eintrag in der Navigation: sie hängt am Zustandsanzeiger unten
+                links, der die Antwort ohnehin dauerhaft zeigt.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Protokoll und Aufbewahrung</p>
+              <h2 class="feature__title">Wer wann was geändert hat</h2>
+              <p class="feature__body">
+                Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiter und
+                Programmfassung fest, in einer eigenen verketteten Reihe. Sie filtern nach
+                Vorgang, Bereich, Bearbeiter und Zeitraum und lassen die Kette nachrechnen.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-noch-mitgeschrieben-wird">
+                Was noch mitgeschrieben wird
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/nachweise.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/nachweise.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Reiter „Änderungsprotokoll“ der Prüfübersicht: Zeitpunkt, Vorgang, Bereich, Beschreibung, Bearbeiter und Programmfassung."
+                />
+              </a>
+              <figcaption>
+                Drei Reiter: Prüfungen, Änderungsprotokoll, Systemhistorie.
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Sicherung und Betriebsprüfung</p>
+              <h2 class="feature__title">Was die Betriebsprüfung bekommt</h2>
+              <p class="feature__body">
+                Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen
+                zweiten Ordner Ihrer Wahl. Die Sicherung ist eine gewöhnliche ZIP-Datei. Für die
+                Betriebsprüfung entsteht auf Knopfdruck ein Ordner mit allem, was verlangt wird.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-im-pru-ferpaket">
+                Was im Prüferpaket liegt, und was nicht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/datenzugriff.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/datenzugriff.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Betriebsprüfung“ mit Prüfermodus, der Datenüberlassung als Z3-Export und der Verfahrensdokumentation zum Herunterladen."
+                />
+              </a>
+              <figcaption>Wiederherstellen und danach die Integrität prüfen gehört zum Vorgang.</figcaption>
+            </figure>
+          </article>
+
+          <div class="note" style="margin-top: 56px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v4h1" />
+            </svg>
+            <div>
+              <p class="note__title">Ein Rechner, eine Bearbeiterin</p>
+              <p class="note__body">
+                Buchfink hat keine Benutzerverwaltung und keine Funktionstrennung. An jeder
+                Buchung und jeder Protokollzeile steht stattdessen die Bearbeiterkennung aus
+                Betriebssystem-Benutzer und Rechnername; für Dritte gibt es den
+                schreibgeschützten Prüfermodus.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-wie-die-daten-auf">
+                Wie die Daten auf der Platte liegen
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Angrenzende Seiten</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="abschluss.html">Abschluss</a></p>
+              <p class="link__body">Der Prüfbericht läuft vor jeder Festschreibung.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="installation.html">Installation</a></p>
+              <p class="link__body">Wo der Datenordner liegt und wie er gesichert wird.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="roadmap.html">Roadmap</a></p>
+              <p class="link__body">Was in Betriebsprüfung und Aufbewahrung noch offen ist.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <dialog class="modal" id="dlg-was-der-zeitstempel-leistet" aria-labelledby="dlg-was-der-zeitstempel-leistet-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-der-zeitstempel-leistet-titel">Was der Zeitstempel leistet</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Beim Festschreiben beglaubigt ein unabhängiger Dienst den Kettenkopf mit einem
+          Zeitstempel nach RFC 3161. Er belegt gegenüber Dritten, dass der Stand zu diesem
+          Zeitpunkt so und nicht anders aussah, und lässt sich jederzeit nachprüfen.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-noch-mitgeschrieben-wird" aria-labelledby="dlg-was-noch-mitgeschrieben-wird-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-noch-mitgeschrieben-wird-titel">Was noch mitgeschrieben wird</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Die Geschichte des Systems selbst: Schemaläufe, Datenübernahmen mit Zählung
+          und Kettenprüfung, Versionshistorie. Die Aufbewahrungsfristen je Geschäftsjahr
+          mit Löschsperre stehen bei der Datensicherung, die Verfahrensdokumentation bei
+          der Betriebsprüfung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-im-pru-ferpaket" aria-labelledby="dlg-was-im-pru-ferpaket-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-im-pru-ferpaket-titel">Was im Prüferpaket liegt, und was nicht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Der Z3-Export nach dem Beschreibungsstandard mit index.xml und
+          Feldbeschreibung, der Archivexport der Belege mit Index, das
+          Integritätsprotokoll, das Schlüsselverzeichnis und die passende Fassung der
+          Verfahrensdokumentation. Für Dritte lässt sich ein schreibgeschützter
+          Prüfermodus einschalten, mit Frist und Grund, protokolliert beim Ein- und
+          Ausschalten. Einen DATEV-Export gibt es nicht: die Kanzlei bekommt den
+          Z3-Export, den Archivexport und CSV, keinen Buchungsstapel im Format der
+          Kanzleisoftware.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-wie-die-daten-auf" aria-labelledby="dlg-wie-die-daten-auf-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-wie-die-daten-auf-titel">Wie die Daten auf der Platte liegen</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Personenbezogene und geschäftliche Datenbankfelder sind mit AES-256-GCM
+          verschlüsselt. Der Schlüssel steht im Schlüsselbund des Betriebssystems, dazu
+          gibt es eine Wiederherstellungsdatei. Die Belegdateien selbst bleiben im
+          Original, weil die GoBD den unveränderten Eingangsbeleg verlangt.
+          </p>
+        </div>
+      </dialog>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+            <p>
+              Bereitgestellt ohne Gewährleistung (Artikel 7 und 8 der Lizenz): für die Richtigkeit
+              der Buchführung und der Meldungen haftet das Unternehmen, das sie abgibt.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+    <script src="assets/site.js"></script>
+  </body>
+</html>

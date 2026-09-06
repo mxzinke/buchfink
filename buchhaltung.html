@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Laufende Buchhaltung — Buchfink</title>
+    <meta
+      name="description"
+      content="Bank und Zahlungen, Belege, Journal, Ausgangsrechnungen und Anzahlungen in Buchfink: was das Programm rechnet und was Sie entscheiden."
+    />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <noscript>
+      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
+           Seite, mit Überschrift, statt zu fehlen. -->
+      <style>
+        .reveal,
+        .modal__close {
+          display: none;
+        }
+        dialog.modal {
+          display: block;
+          position: static;
+          width: auto;
+          max-width: var(--page);
+          max-height: none;
+          margin: 24px auto 0;
+          padding-inline: 16px;
+          box-shadow: none;
+          border: 0;
+          border-top: 1px solid var(--line);
+          border-radius: 0;
+        }
+        .modal__head {
+          border-bottom: 0;
+          padding: 20px 8px 0;
+        }
+        .modal__body {
+          padding: 12px 8px 0;
+        }
+      </style>
+    </noscript>
+  </head>
+
+  <body>
+    <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+    <header class="topbar">
+      <div class="wrap wrap--wide topbar__inner">
+        <a class="wordmark" href="index.html">
+          <img src="assets/buchfink-logo.svg" alt="" />
+          Buchfink
+        </a>
+
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a href="index.html">Start</a>
+          <details class="dropdown dropdown--current">
+            <summary>
+              Funktionen
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="menu">
+              <a href="buchhaltung.html" aria-current="page">
+                <span class="menu__name">Laufende Buchhaltung</span>
+                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
+              </a>
+              <a href="umsatzsteuer.html">
+                <span class="menu__name">Umsatzsteuer</span>
+                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
+              </a>
+              <a href="abschluss.html">
+                <span class="menu__name">Abschluss</span>
+                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
+              </a>
+              <a href="nachweise.html">
+                <span class="menu__name">Nachweise</span>
+                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
+              </a>
+            </div>
+          </details>
+          <a href="roadmap.html">Roadmap</a>
+          <a href="installation.html">Installation</a>
+        </nav>
+
+        <div class="topbar__end">
+          <a class="btn btn--secondary btn--github" href="https://github.com/mxzinke/buchfink">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+              />
+            </svg>
+            <span>GitHub</span>
+          </a>
+
+          <details class="drawer">
+            <summary aria-label="Menü öffnen" title="Menü">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </summary>
+            <div class="menu">
+              <a href="index.html">
+                <span class="menu__name">Start</span>
+              </a>
+              <p class="menu__group">Funktionen</p>
+              <a href="buchhaltung.html" aria-current="page">
+                <span class="menu__name">Laufende Buchhaltung</span>
+                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
+              </a>
+              <a href="umsatzsteuer.html">
+                <span class="menu__name">Umsatzsteuer</span>
+                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
+              </a>
+              <a href="abschluss.html">
+                <span class="menu__name">Abschluss</span>
+                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
+              </a>
+              <a href="nachweise.html">
+                <span class="menu__name">Nachweise</span>
+                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
+              </a>
+              <p class="menu__group">Projekt</p>
+              <a href="roadmap.html">
+                <span class="menu__name">Roadmap</span>
+                <span class="menu__hint">Was steht, was bis zur Version 1 fehlt</span>
+              </a>
+              <a href="installation.html">
+                <span class="menu__name">Installation</span>
+                <span class="menu__hint">Buchfink auf dem eigenen Rechner bauen</span>
+              </a>
+            </div>
+          </details>
+        </div>
+      </div>
+    </header>
+
+    <main id="inhalt">
+      <section class="pagehead">
+        <div class="wrap wrap--wide">
+          <p class="overline">Funktionen</p>
+          <h1 class="pagehead__title">Laufende Buchhaltung</h1>
+          <p class="pagehead__lead">
+            Der Alltag beginnt beim Kontoauszug und endet im Journal. Aus dem Beleg, der Rechnung
+            und der zugeordneten Zahlung rechnet Buchfink, auf welches Konto gebucht wird und wie
+            viel Steuer darin steckt.
+          </p>
+          <p class="pagehead__note">
+            Alle Bilder stammen aus der laufenden Oberfläche. Die Firmen, Namen und Beträge darin
+            sind erfunden; ein Klick öffnet ein Bild in voller Größe.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="wrap wrap--wide">
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Bank &amp; Zahlungen</p>
+              <h2 class="feature__title">Vom Kontoauszug zur Buchung</h2>
+              <p class="feature__body">
+                Buchfink liest den CAMT.053-Auszug aus dem Onlinebanking ein und listet die
+                Umsätze ohne Zuordnung. Zu jedem schlägt es den passenden offenen Posten vor. Sie
+                prüfen den Vorschlag und bestätigen ihn; erst dann entsteht die Buchung.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-woraus-der-vorschlag-entsteht">
+                Woraus der Vorschlag entsteht
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <div class="shot-stack">
+              <figure class="shot">
+                <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+                <a href="assets/screenshots/bank.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/bank.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Seite „Bank und Zahlungen“ mit der Liste offener Bankumsätze: Datum, Zahlungspartner, Verwendungszweck und Betrag."
+                  />
+                </a>
+                <figcaption>Die Umsätze, die noch keiner Buchung zugeordnet sind.</figcaption>
+              </figure>
+              <figure class="shot">
+                <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+                <a href="assets/screenshots/bank-zuordnung.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/bank-zuordnung.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Dialog zum Zuordnen eines Bankumsatzes mit vorgewähltem Vorschlag und dem Hinweis, dass die Zuordnung zum Kontoauszug passt."
+                  />
+                </a>
+                <figcaption>Der beste Vorschlag ist vorgewählt; bestätigt wird von Hand.</figcaption>
+              </figure>
+            </div>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Mahnwesen</p>
+              <h2 class="feature__title">Überfällige Forderungen anmahnen</h2>
+              <p class="feature__body">
+                Buchfink führt die offenen Posten mit Fälligkeit und rechnet je Kunde die
+                Mahnstufe, die Verzugszinsen und die Pauschale von 40 Euro. Sie wählen die Kunden
+                aus und lassen die Schreiben erzeugen.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-wie-die-zinsen-gerechnet">
+                Wie die Zinsen gerechnet werden
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/mahnwesen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/mahnwesen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Reiter „Mahnwesen“ mit Mahnvorschlägen je Kunde, Mahnstufe, Forderung, Zinsen, Gebühr und dem Verlauf der erzeugten Schreiben."
+                />
+              </a>
+              <figcaption>Mahnwesen und Zahlungsabgleich wohnen auf derselben Seite.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Belege</p>
+              <h2 class="feature__title">Erst ablegen, dann buchen</h2>
+              <p class="feature__body">
+                Buchfink legt jeden Beleg unverändert ab. Sie ergänzen Belegart, Datum, Aussteller
+                und Betrag und wählen die Buchungsgruppe. Ohne diese Angaben nimmt
+                Buchfink die Buchung nicht an.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-e-rechnung-und-doppelte">
+                E-Rechnung und doppelte Belege
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <div class="shot-stack">
+              <figure class="shot">
+                <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+                <a href="assets/screenshots/belege.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/belege.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Belegansicht mit der Belegliste links, der Belegvorschau in der Mitte und dem Buchungsformular mit gerechnetem Buchungssatz rechts."
+                  />
+                </a>
+                <figcaption>Die Rechnung bleibt sichtbar, während gebucht wird.</figcaption>
+              </figure>
+              <figure class="shot">
+                <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+                <a href="assets/screenshots/belege-kopfdaten.png" title="Bild in voller Größe öffnen">
+                  <img
+                    src="assets/screenshots/belege-kopfdaten.png"
+                    width="2880"
+                    height="1800"
+                    loading="lazy"
+                    alt="Dialog „Kopfdaten zu Beleg“ mit Belegart, Belegdatum, Aussteller, Betreff, Bruttobetrag und Steuerbetrag."
+                  />
+                </a>
+                <figcaption>Aus der Belegart folgt die Aufbewahrungsfrist.</figcaption>
+              </figure>
+            </div>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Journal</p>
+              <h2 class="feature__title">Jede Buchung führt zurück zu ihrem Beleg</h2>
+              <p class="feature__body">
+                Das Journal führt alle Buchungen des Geschäftsjahres mit fortlaufender Nummer.
+                Ein Fehler wird nicht überschrieben, sondern storniert. Von jeder Buchung führt
+                ein Klick auf ihren Beleg.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-das-aufklappen-zeigt">
+                Was das Aufklappen zeigt
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/journal.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/journal.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Journal mit fortlaufenden Buchungsnummern, einer markierten Generalumkehr und einem aufgeklappten Buchungssatz mit Soll und Haben."
+                />
+              </a>
+              <figcaption>Storno und Neubuchung stehen nebeneinander.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Rechnungen</p>
+              <h2 class="feature__title">Rechnung schreiben und gleich buchen</h2>
+              <p class="feature__body">
+                Sie erfassen Kunde, Positionen und Steuerfall. Rechnungsnummer, Datensatz und
+                Buchung entstehen daraus in einem Zug. Ausgegeben wird ein ZUGFeRD-PDF oder eine
+                XRechnung.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-pru-fung-format-und">
+                Prüfung, Format und Korrektur
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/rechnungen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/rechnungen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Rechnungsliste mit Nummer, Datum, Kunde, Betrag und Zahlungsstand der ausgestellten Ausgangsrechnungen."
+                />
+              </a>
+              <figcaption>Nummernlücken meldet der Prüfbericht.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Anzahlungen</p>
+              <h2 class="feature__title">Abschläge und Schlussrechnung bleiben zusammen</h2>
+              <p class="feature__body">
+                Ein Rechnungsverbund hält den Gesamtbetrag, die Abschlagsrechnungen und die
+                Schlussrechnung zusammen. Buchfink rechnet, was abgerechnet, was vereinnahmt und
+                was noch offen ist.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-was-das-fu-r">
+                Was das für die Steuer heißt
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/anzahlungen.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/anzahlungen.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Seite „Anzahlungen“ mit einem Rechnungsverbund: vereinbarter Betrag, abgerechnet, vereinnahmt und Stand."
+                />
+              </a>
+              <figcaption>Ein Verbund je Auftrag, mit seinem Stand.</figcaption>
+            </figure>
+          </article>
+
+          <!-- ----------------------------------------------------------- -->
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Konten</p>
+              <h2 class="feature__title">Konten, ohne Nummern auswendig zu lernen</h2>
+              <p class="feature__body">
+                Der Kontenrahmen SKR04 liegt mit 1.855 Konten bei. Die Übersicht zeigt, was
+                bebucht ist, und öffnet zu jedem Konto das Kontoblatt. Sie suchen ein Konto über
+                seinen Namen; die Nummer müssen Sie nicht kennen.
+              </p>
+              <button class="reveal" type="button" data-dialog="dlg-offene-posten">
+                Offene Posten
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/konten.png" title="Bild in voller Größe öffnen">
+                <img
+                  src="assets/screenshots/konten.png"
+                  width="2880"
+                  height="1800"
+                  loading="lazy"
+                  alt="Kontenübersicht mit den bebuchten Konten des SKR04, ihren Soll- und Habensummen und dem Saldo."
+                />
+              </a>
+              <figcaption>Bebuchte Konten zuerst, der ganze Rahmen daneben.</figcaption>
+            </figure>
+          </article>
+        </div>
+      </section>
+
+      <section class="band band--sunken">
+        <div class="wrap wrap--wide">
+          <p class="overline">Weiter</p>
+          <h2 class="section__title">Was aus diesen Buchungen entsteht</h2>
+          <div class="links">
+            <div>
+              <p class="link__title"><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></p>
+              <p class="link__body">
+                Aus den Steuerzeilen der Buchungen entstehen Voranmeldung und Zusammenfassende
+                Meldung.
+              </p>
+            </div>
+            <div>
+              <p class="link__title"><a href="abschluss.html">Abschluss</a></p>
+              <p class="link__body">
+                Monatsabschluss, Abschlussbausteine, Bilanz und GuV, E-Bilanz.
+              </p>
+            </div>
+            <div>
+              <p class="link__title"><a href="nachweise.html">Nachweise und Sicherheit</a></p>
+              <p class="link__body">
+                Hashkette, Festschreibung, Protokoll, Aufbewahrung und das Prüferpaket.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <dialog class="modal" id="dlg-woraus-der-vorschlag-entsteht" aria-labelledby="dlg-woraus-der-vorschlag-entsteht-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-woraus-der-vorschlag-entsteht-titel">Woraus der Vorschlag entsteht</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Buchfink vergleicht Betrag, Verwendungszweck, Rechnungsnummer und Datumsnähe;
+          Sammelzahlungen und einmal gelernte Regeln gehen ein. Trifft die Summe nicht
+          genau, kommen Skonto, Bankgebühr und ein Differenzgrund dazu.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-wie-die-zinsen-gerechnet" aria-labelledby="dlg-wie-die-zinsen-gerechnet-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-wie-die-zinsen-gerechnet-titel">Wie die Zinsen gerechnet werden</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Taggenau nach § 288 BGB, auf dem Basiszinssatz, der zum jeweiligen Zeitraum
+          galt. Jedes Schreiben wird als Dokument abgelegt und steht danach im Verlauf
+          des Kunden.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-e-rechnung-und-doppelte" aria-labelledby="dlg-e-rechnung-und-doppelte-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-e-rechnung-und-doppelte-titel">E-Rechnung und doppelte Belege</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Der Beleg wird unter seinem SHA256 gespeichert, gleicher Inhalt liegt deshalb
+          nur einmal da. Steckt in der Rechnung ein Datensatz nach ZUGFeRD, Factur-X oder
+          XRechnung, liest Buchfink ihn, prüft ihn gegen das Regelwerk der Norm und macht
+          daraus einen Buchungsvorschlag. Welches Konto zutrifft, sagt keine Rechnung. Das
+          bleibt Ihre Entscheidung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-das-aufklappen-zeigt" aria-labelledby="dlg-was-das-aufklappen-zeigt-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-das-aufklappen-zeigt-titel">Was das Aufklappen zeigt</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Soll, Haben und die Summe der Buchung. Storno und Neubuchung bleiben beide
+          stehen und verweisen aufeinander. Denselben Weg geht die Betriebsprüfung.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-pru-fung-format-und" aria-labelledby="dlg-pru-fung-format-und-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-pru-fung-format-und-titel">Prüfung, Format und Korrektur</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Vor der Nummernvergabe prüft Buchfink die Pflichtangaben des § 14 Abs. 4 UStG.
+          Das Zielformat richtet sich nach dem Empfänger; die XRechnung entsteht im
+          CII-Profil. Storno und Korrektur laufen als eigene Dokumente mit Bezug in beide
+          Richtungen.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-was-das-fu-r" aria-labelledby="dlg-was-das-fu-r-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-was-das-fu-r-titel">Was das für die Steuer heißt</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Die Steuer auf einen Abschlag entsteht erst mit dem Tag der Vereinnahmung. Sie
+          legen den Verbund an, stellen die Abschläge und zum Schluss die Schlussrechnung,
+          in der die Abschläge abgesetzt werden.
+          </p>
+        </div>
+      </dialog>
+
+      <dialog class="modal" id="dlg-offene-posten" aria-labelledby="dlg-offene-posten-titel">
+        <div class="modal__head">
+          <h3 class="modal__title" id="dlg-offene-posten-titel">Offene Posten</h3>
+          <button class="modal__close" type="button" data-close aria-label="Schließen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+          Daneben stehen die offenen Posten zu einem Stichtag, mit Altersstruktur und
+          Restlaufzeiten.
+          </p>
+        </div>
+      </dialog>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="foot__grid">
+          <div>
+            <p class="foot__title">Buchfink</p>
+            <p>
+              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
+              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
+            </p>
+          </div>
+          <div>
+            <p class="foot__title">Seiten</p>
+            <ul>
+              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
+              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
+              <li><a href="abschluss.html">Abschluss</a></li>
+              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="installation.html">Installation</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Projekt</p>
+            <ul>
+              <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="foot__title">Lizenz</p>
+            <p>
+              <a href="https://github.com/mxzinke/buchfink/blob/master/LICENSE">EUPL-1.2</a>. Nutzen
+              und anpassen ohne Auflage; wer eine veränderte Fassung weitergibt, gibt sie unter
+              derselben Lizenz weiter. Name und Logo sind von der Lizenz nicht erfasst.
+            </p>
+            <p>
+              Bereitgestellt ohne Gewährleistung (Artikel 7 und 8 der Lizenz): für die Richtigkeit
+              der Buchführung und der Meldungen haftet das Unternehmen, das sie abgibt.
+            </p>
+          </div>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Maximilian Pfennig</span>
+          <span>
+            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            sind Kennzeichen der DATEV eG.
+          </span>
+        </div>
+      </div>
+    </footer>
+    <script src="assets/site.js"></script>
+  </body>
+</html>
