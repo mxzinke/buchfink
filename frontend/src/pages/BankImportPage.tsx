@@ -13,7 +13,7 @@ import type {
   OpenItem,
 } from '../types';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -100,7 +100,7 @@ export interface BankImportPageProps {
 export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) => {
   // Einlesen und Zuordnen sind schreibende Schritte und im Prüfermodus
   // gesperrt; die Liste bleibt lesbar (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
@@ -180,7 +180,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
         title="Bank & Zahlungen"
-        context="Kontoauszüge einlesen und Zahlungen den offenen Posten zuordnen"
+        context="Kontoauszüge einlesen, Zahlungen offenen Posten zuordnen"
         action={
           <div className="flex items-center gap-2">
             <Select
@@ -410,7 +410,7 @@ const AssignDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ tx, accounts, openItems, differenceKinds, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [mode, setMode] = useState<'open_item' | 'direct'>('open_item');
   const [busy, setBusy] = useState<'submit' | 'ignore' | null>(null);
   // Der Dialog bleibt nach einer Ablehnung offen; der Grund gehört deshalb auf
@@ -646,7 +646,17 @@ const AssignDialog: React.FC<{
             variant="primary"
             loading={busy === 'submit'}
             disabled={!canSubmit || writeLock.locked}
-            title={writeLock.hint ?? advanceMismatch ?? undefined}
+            // Gesperrt heißt: es fehlt die Zuordnung. Ohne Erklärung im
+            // `title` bliebe offen, was noch zu tun ist (§10.4).
+            title={
+              writeLock.hint ??
+              advanceMismatch ??
+              (canSubmit
+                ? undefined
+                : mode === 'open_item'
+                  ? 'Wählen Sie den offenen Posten, den dieser Umsatz ausgleicht.'
+                  : 'Wählen Sie das Gegenkonto, auf das gebucht wird.')
+            }
             onClick={submit}
           >
             Buchen
@@ -884,7 +894,7 @@ const WriteOffDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ item, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
@@ -1021,7 +1031,7 @@ const WriteOffDialog: React.FC<{
 const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onChanged }) => {
   // Ein Mahnschreiben entsteht als Dokument im Belegspeicher und steht im
   // Protokoll: im Prüfermodus gesperrt, die Vorschläge bleiben lesbar (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [proposals, setProposals] = useState<DunningProposal[]>([]);
   // Zwei Listen mit einem Zweck: `notices` ist der ganze Verlauf und trägt die
   // Kundenauswahl, `history` ist das, was die Tabelle zeigt. Ohne die erste

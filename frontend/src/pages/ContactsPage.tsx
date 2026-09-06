@@ -468,6 +468,11 @@ const ContactForm: React.FC<{
     }
   }
 
+  // Eine begonnene Eingabe geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Verglichen wird mit dem Stand beim Öffnen: wer nur gelesen hat,
+  // wird nicht gefragt.
+  const dirty = JSON.stringify(draft) !== JSON.stringify(contact ?? {});
+
   // Steuerfälle, die ohne USt-IdNr. des Partners nicht gehen. Die Meldung dazu
   // kommt beim Buchen aus dem Backend, hier steht nur der Hinweis vorweg.
   const needVatID = treatments.filter((t) => t.requiresVatId).map((t) => t.label);
@@ -478,6 +483,7 @@ const ContactForm: React.FC<{
       onOpenChange={(next) => !next && onClose()}
       title={isNew ? 'Neuer Kontakt' : draft.name || 'Kontakt bearbeiten'}
       width="max-w-2xl"
+      dirty={dirty}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>

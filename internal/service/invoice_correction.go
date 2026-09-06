@@ -61,6 +61,32 @@ func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint)
 		return inv, nil
 	}
 
+	// Der Beleg kann liegen, ohne dass die Rechnung ihn kennt: das Ablegen ist
+	// gelungen, das Speichern des Verweises danach nicht. Ein zweiter Lauf über
+	// attachDocument legte dann einen zweiten Ausgangsbeleg mit derselben
+	// Rechnungsnummer an — zwei Belege zu einem Vorgang. Gesucht wird deshalb
+	// zuerst der vorhandene, und wenn es ihn gibt, wird nur der Rest nachgeholt.
+	if s.receiptSvc != nil {
+		existing, err := s.receiptSvc.FindOutgoingByNumber(ctx, inv.FiscalYear, inv.InvoiceNumber)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			id := existing.ID
+			inv.ReceiptID = &id
+			if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+				return nil, err
+			}
+			if err := s.finishPendingDocument(ctx, inv, contact); err != nil {
+				return nil, err
+			}
+			s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
+				"Der bereits abgelegte Beleg %s wurde Rechnung %s zugeordnet und abgeschlossen",
+				existing.ReceiptNumber, inv.InvoiceNumber))
+			return inv, nil
+		}
+	}
+
 	if err := s.attachDocument(ctx, inv, contact); err != nil {
 		return nil, err
 	}

@@ -209,6 +209,13 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	if existing != nil {
 		return existing, nil
 	}
+	// Nur das Folgejahr des zuletzt erfassten Jahres. Ein Sprung ließe eine
+	// Lücke, in der Buchungen zu keinem Geschäftsjahr gehören: die Bücher wären
+	// nicht mehr lückenlos (§ 239 Abs. 2 HGB), und der Saldenvortrag fände
+	// keinen Anschluss.
+	if err := s.assertConsecutive(ctx, year); err != nil {
+		return nil, err
+	}
 
 	fy := s.derive(ctx, year)
 	// Das Vorjahr entscheidet über den Beginn: nach einem Rumpfgeschäftsjahr
@@ -242,6 +249,35 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 		}
 	}
 	return fy, nil
+}
+
+// assertConsecutive weist eine Jahreszahl ab, die eine Lücke ließe.
+//
+// Das erste Jahr ist frei wählbar — vorher gibt es nichts, woran es anschließen
+// müsste. Danach kommt nur das Folgejahr des zuletzt erfassten Jahres in
+// Betracht; ein früheres Jahr ist ohnehin schon angelegt, sonst gäbe es die
+// Buchungen darin nicht.
+func (s *ClosingService) assertConsecutive(ctx context.Context, year int) error {
+	all, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	last := all[0].Year
+	for _, fy := range all {
+		if fy.Year > last {
+			last = fy.Year
+		}
+	}
+	if year == last+1 {
+		return nil
+	}
+	return fmt.Errorf(
+		"das Geschäftsjahr %d schließt nicht an das zuletzt erfasste Jahr %d an; anlegen lässt "+
+			"sich nur %d — sonst bliebe eine Lücke, in der Buchungen zu keinem Geschäftsjahr gehören",
+		year, last, last+1)
 }
 
 // YearOf liefert das Geschäftsjahr und legt es an, falls es noch fehlt.
@@ -355,8 +391,12 @@ type ClosingState struct {
 }
 
 // ClosingStateFor stellt den Abschlussstand eines Jahres zusammen.
+//
+// Der Abschlussstand ist eine Auskunft: das Ansehen darf kein Geschäftsjahr
+// anlegen. Wer 2030 in der Jahresauswahl antippt, fände es sonst danach als
+// angelegtes Jahr wieder — deshalb der Lesepfad ohne Anlage.
 func (s *ClosingService) ClosingStateFor(ctx context.Context, year int) (*ClosingState, error) {
-	fy, err := s.YearOf(ctx, year)
+	fy, err := s.yearOrDerived(ctx, year)
 	if err != nil {
 		return nil, err
 	}

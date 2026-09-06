@@ -92,6 +92,20 @@ type CompanySettings struct {
 	// Kontrollsystem, das sich durch Unterlassen ausschalten lässt. Wer keinen
 	// Nachweis will, setzt die Grenze hoch.
 	InvoiceCheckThreshold Cents `json:"invoiceCheckThreshold"`
+	// InvoiceCheckSince ist der Tag, ab dem der Prüflauf den fehlenden
+	// Leistungsnachweis beanstandet (JJJJ-MM-TT).
+	//
+	// Eine Festlegung des internen Kontrollsystems gilt ab dem Tag, an dem sie
+	// getroffen wurde. Ohne diesen Tag meldete der erste Abschluss nach dem
+	// Setzen der Grenze jeden Altbeleg, an dem der Vermerk fehlt — für Belege
+	// aus einer Zeit, in der niemand ihn verlangt hat, und regelmäßig aus
+	// festgeschriebenen Zeiträumen. Ein Prüfbericht mit hundert Befunden, die
+	// sich nicht abarbeiten lassen, ist keiner.
+	//
+	// Gesetzt wird er selbsttätig, wenn die Grenze zum ersten Mal gespeichert
+	// wird; überschreiben lässt er sich, wer die Regel rückwirkend anwenden
+	// will, trägt ein früheres Datum ein. Leer heißt: keine Grenze nach hinten.
+	InvoiceCheckSince string `json:"invoiceCheckSince,omitempty"`
 	// DunningLevels ist die eingestellte Stufenfolge des Mahnwesens. Leer
 	// heißt: die Voreinstellung (DefaultDunningLevels).
 	DunningLevels []DunningLevel `json:"dunningLevels"`

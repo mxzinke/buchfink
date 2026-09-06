@@ -30,6 +30,7 @@ import {
   JournalLine,
   LegacySpecialDepreciationNotice,
   NearAcquisitionCheck,
+  PoolConsistencyReport,
   TaxElectionRegister,
   Vorabpauschale,
   Settlement,
@@ -37,7 +38,7 @@ import {
 } from '../types';
 import { RATE_SCALE, UNIT_SCALE } from '../types';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import { downloadCSV } from '../utils/download';
 import { formatCents, formatCentsPlain, formatDate, formatUnits, parseCents } from '../utils/formatters';
 import {
@@ -393,7 +394,7 @@ function explanations(rules: AssetRules | null, year: number): Record<Topic, Exp
 }
 
 export const AssetsPage: React.FC = () => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [tab, setTab] = useState<Tab>('tangible');
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<FixedAsset[]>([]);
@@ -624,7 +625,7 @@ const RegisterTab: React.FC<{
   onOpen: (id: number) => void;
   onCreate: (prefill: Partial<FixedAsset>) => void;
 }> = ({ assetClass, assets, explanation, onExplain, year, candidates, onOpen, onCreate }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const inStock = assets.filter((a) => a.status !== 'disposed');
   const disposed = assets.filter((a) => a.status === 'disposed');
 
@@ -782,7 +783,7 @@ const DepreciationTab: React.FC<{
   onExplain: () => void;
   onBooked: () => Promise<void>;
 }> = ({ run, year, explanation, onExplain, onBooked }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [selected, setSelected] = useState<number[]>([]);
   const [bookingDate, setBookingDate] = useState(run?.bookingDate ?? `${year}-12-31`);
   const [busy, setBusy] = useState(false);
@@ -1325,7 +1326,7 @@ const AssetFormDialog: React.FC<{
   onClose: () => void;
   onSaved: (asset: FixedAsset) => Promise<void>;
 }> = ({ draft, accounts, rules, investment, candidates, contacts, year, onClose, onSaved }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [asset, setAsset] = useState<Partial<FixedAsset>>(draft ?? {});
   // Beträge stehen als Text im Formular und werden erst beim Speichern gelesen.
   // Ein Feld, das bei jedem Tastendruck neu formatiert, lässt sich nicht tippen.
@@ -1430,6 +1431,34 @@ const AssetFormDialog: React.FC<{
     asset.specialYears,
     year,
   ]);
+
+  /**
+   * Der Stand des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG im Wirtschaftsjahr.
+   *
+   * Sofortabzug und Sammelposten sind dieselbe Wahl; sie gilt einheitlich für
+   * alle Zugänge des Jahres zwischen den Grenzen. Das Backend weist einen
+   * Zugang zurück, der sie bricht — gefragt wird deshalb schon in der Maske,
+   * sonst erführe der Anwender die Regel erst, wenn das Formular ausgefüllt
+   * ist. Der Bericht kommt aus dem Dienst und wird hier nicht nachgerechnet:
+   * die Grenzen sind datiert und stehen in den Abschreibungsregeln.
+   */
+  const [poolReport, setPoolReport] = useState<PoolConsistencyReport | null>(null);
+
+  useEffect(() => {
+    if (asset.method !== 'immediate' && asset.method !== 'pool') {
+      setPoolReport(null);
+      return;
+    }
+    let cancelled = false;
+    Api.getPoolConsistencyReport(year)
+      .then((report) => {
+        if (!cancelled) setPoolReport(report);
+      })
+      .catch(() => setPoolReport(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [asset.method, year]);
 
   // Es gibt genau einen Sammelposten je Wirtschaftsjahr. Besteht er schon, wird
   // das Gut dort eingestellt statt ein zweiter Posten angelegt.
@@ -1542,6 +1571,34 @@ const AssetFormDialog: React.FC<{
     return undefined;
   }
 
+  /**
+   * Der Satz, der vor dem Speichern auf den Bruch des Wahlrechts hinweist.
+   *
+   * Leer, solange der Betrag außerhalb der Grenzen liegt oder das Jahr die
+   * andere Behandlung noch nicht kennt — dann ist nichts einheitlich zu halten.
+   */
+  const poolConflict = (() => {
+    if (!poolReport || cost === null || cost <= 0) return '';
+    const { lowerLimit, upperLimit } = poolReport;
+    if (upperLimit <= 0 || cost <= lowerLimit || cost > upperLimit) return '';
+    const range = `zwischen ${formatCents(lowerLimit)} und ${formatCents(upperLimit)}`;
+    if (asset.method === 'immediate' && poolReport.pooled.length > 0) {
+      return (
+        `Im Wirtschaftsjahr ${poolReport.fiscalYear} stehen ${poolReport.pooled.length} Zugänge ` +
+        `im Sammelposten, und die Wahl gilt einheitlich für alle Zugänge ${range} — der ` +
+        `Sofortabzug wird beim Speichern zurückgewiesen.`
+      );
+    }
+    if (asset.method === 'pool' && poolReport.immediate.length > 0) {
+      return (
+        `Im Wirtschaftsjahr ${poolReport.fiscalYear} sind ${poolReport.immediate.length} Zugänge ` +
+        `sofort abgezogen, und die Wahl gilt einheitlich für alle Zugänge ${range} — der ` +
+        `Sammelposten wird beim Speichern zurückgewiesen.`
+      );
+    }
+    return '';
+  })();
+
   const currentOption: AcquisitionOption =
     asset.method === 'immediate' ? 'immediate' : asset.method === 'pool' ? 'pool' : 'activate';
 
@@ -1646,12 +1703,21 @@ const AssetFormDialog: React.FC<{
     }
   }
 
+  // Eine begonnene Eingabe geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Die Betragsfelder stehen als Text neben dem Entwurf und gehören
+  // deshalb eigens in den Vergleich.
+  const dirty =
+    JSON.stringify(asset) !== JSON.stringify(draft ?? {}) ||
+    costText !== (draft?.acquisitionCost ? formatCentsPlain(draft.acquisitionCost) : '') ||
+    foreignText !== (draft?.foreignCost ? formatCentsPlain(draft.foreignCost) : '');
+
   return (
     <Dialog
       open={draft !== null}
       onOpenChange={(next) => !next && onClose()}
       title={isNew ? 'Anlagegut erfassen' : `${asset.inventoryNumber ?? ''} bearbeiten`}
       width="max-w-3xl"
+      dirty={dirty}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -1844,6 +1910,22 @@ const AssetFormDialog: React.FC<{
           <Input value={asset.depreciationAccount ?? ''} disabled />
         </Field>
       </div>
+
+      {poolConflict && (
+        <div className="mt-4">
+          <Notice>
+            {poolConflict}
+            {/* Die Norm steht in der zweiten Erklärstufe und nicht im
+                Hinweisstreifen (Architektur 6.4). */}
+            <HelpPopover label="Erklärung zum Wahlrecht des Sammelpostens">
+              § 6 Abs. 2a Satz 5 EStG lässt den Sammelposten nur zu, wenn er für alle
+              Wirtschaftsgüter eines Wirtschaftsjahres innerhalb der Wertgrenzen gebildet wird. Wer
+              eines davon sofort abzieht, übt das Wahlrecht uneinheitlich aus; die Prüfung greift
+              deshalb schon beim Erfassen und nicht erst im Abschluss.
+            </HelpPopover>
+          </Notice>
+        </div>
+      )}
 
       {usefulLifeDeviates && (
         <Field
@@ -2203,7 +2285,7 @@ const AssetDetailDialog: React.FC<{
   onEdit,
   onChanged,
 }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [action, setAction] = useState<DetailAction>(null);
   const [loading, setLoading] = useState(false);
@@ -2566,7 +2648,7 @@ const DocumentSection: React.FC<{
   asset: FixedAsset;
   onChanged: () => Promise<void>;
 }> = ({ asset, onChanged }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const documents = asset.documents ?? [];
   const [busy, setBusy] = useState<number | null>(null);
   const today = new Date().toISOString().slice(0, 10);
@@ -2683,7 +2765,7 @@ const DocumentForm: React.FC<{
   kinds: AssetDocumentKindInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, kinds, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [kind, setKind] = useState<AssetDocumentKind>('contract');
   const [paths, setPaths] = useState<string[]>([]);
   const [title, setTitle] = useState('');
@@ -2824,7 +2906,7 @@ const VorabpauschaleForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [opening, setOpening] = useState('');
   const [closing, setClosing] = useState('');
@@ -3046,7 +3128,7 @@ const ImpairmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [permanent, setPermanent] = useState(true);
@@ -3152,7 +3234,7 @@ const WriteUpForm: React.FC<{
   ceiling: Cents;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, ceiling, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -3247,7 +3329,7 @@ const CostAdjustmentForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [reduction, setReduction] = useState(false);
@@ -3373,7 +3455,7 @@ const MaintenanceForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [settlement, setSettlement] = useState<Settlement>('paid');
@@ -3663,7 +3745,7 @@ const AssetIncomeForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [withholding, setWithholding] = useState('');
@@ -3801,7 +3883,7 @@ const CurrencyForm: React.FC<{
   asset: FixedAsset;
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [rate, setRate] = useState('');
   const [valuation, setValuation] = useState<CurrencyValuation | null>(null);
@@ -3954,7 +4036,7 @@ const TransferForm: React.FC<{
   accounts: AssetAccountInfo[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, accounts, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [account, setAccount] = useState<string | null>(null);
   const [method, setMethod] = useState<DepreciationMethod>('linear');
@@ -4104,7 +4186,7 @@ const DisposalForm: React.FC<{
   paymentAccounts: Account[];
   onDone: (message: string) => Promise<void>;
 }> = ({ asset, contacts, paymentAccounts, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const customers = contacts.filter((c) => c.type === 'customer');
   const [request, setRequest] = useState<DisposalRequest>({
     assetId: asset.id,

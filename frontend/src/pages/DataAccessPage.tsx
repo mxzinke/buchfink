@@ -127,6 +127,17 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   const [backupBusy, setBackupBusy] = useState<'' | 'create' | 'verify' | 'restore' | 'dir'>('');
 
+  // Ein Fehler aus dem Backend gehört als Hinweisfläche über die Aktionen des
+  // Abschnitts und nicht in einen Toast (§10.4): Export, Sicherung und
+  // Prüflauf laufen lange, und wer daneben weiterliest, hätte den Toast nach
+  // vier Sekunden verpasst — samt Pfad und Grund, an denen sich der Fehler
+  // beheben lässt. Je Abschnitt einer, damit der Streifen bei der Aktion steht,
+  // die ihn ausgelöst hat.
+  const [loadError, setLoadError] = useState('');
+  const [exportError, setExportError] = useState('');
+  const [checkError, setCheckError] = useState('');
+  const [backupError, setBackupError] = useState('');
+
   const [readOnlyUntil, setReadOnlyUntil] = useState('');
   const [readOnlyReason, setReadOnlyReason] = useState('');
   const [readOnlyError, setReadOnlyError] = useState('');
@@ -145,19 +156,20 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function loadData() {
     setLoading(true);
+    setLoadError('');
     try {
       const [runs, keys] = await Promise.all([Api.getBackupRuns(), Api.getKeyDirectory()]);
       setBackupRuns(runs);
       setKeyDirectory(keys);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      setLoadError(messageOf(e));
     } finally {
       setLoading(false);
     }
   }
 
-  function report(e: unknown) {
-    toast.error(e instanceof Error ? e.message : String(e));
+  function messageOf(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
   }
 
   // --- Datenüberlassung ---------------------------------------------------
@@ -177,6 +189,7 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
       setRunningExport(kind);
       setExportResult(null);
+      setExportError('');
       const result =
         kind === 'z3'
           ? await Api.exportZ3(exportYear, target)
@@ -186,18 +199,19 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
       setExportResult(result);
       toast.success(`${EXPORT_LABELS[kind]} in ${result.dir} geschrieben.`);
     } catch (e) {
-      report(e);
+      setExportError(messageOf(e));
     } finally {
       setRunningExport('');
     }
   }
 
   async function saveKeyDirectory() {
+    setExportError('');
     try {
       const path = await Api.exportKeyDirectory();
       if (path) toast.success(`Schlüsselverzeichnis gespeichert: ${path}`);
     } catch (e) {
-      report(e);
+      setExportError(messageOf(e));
     }
   }
 
@@ -205,12 +219,13 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function checkFiles() {
     setCheckingFiles(true);
+    setCheckError('');
     try {
       const result = await Api.verifyReceiptFiles();
       setFileCheck(result);
       if (result.isValid) toast.success(`${result.checked} Dateien unverändert.`);
     } catch (e) {
-      report(e);
+      setCheckError(messageOf(e));
     } finally {
       setCheckingFiles(false);
     }
@@ -220,6 +235,7 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function pickBackupDir() {
     setBackupBusy('dir');
+    setBackupError('');
     try {
       const selected = await Api.selectBackupDir(
         'Ordner für die Sicherung wählen (am besten ein anderes Laufwerk)',
@@ -228,7 +244,7 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
       onAppConfigChange(await Api.setBackupDir(selected));
       toast.success('Sicherungsordner gesetzt.');
     } catch (e) {
-      report(e);
+      setBackupError(messageOf(e));
     } finally {
       setBackupBusy('');
     }
@@ -236,12 +252,13 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function createBackup() {
     setBackupBusy('create');
+    setBackupError('');
     try {
       const run = await Api.createBackup();
       setBackupRuns(await Api.getBackupRuns());
       toast.success(`Sicherung geschrieben: ${run.fileCount} Dateien, ${formatBytes(run.bytes)}.`);
     } catch (e) {
-      report(e);
+      setBackupError(messageOf(e));
     } finally {
       setBackupBusy('');
     }
@@ -249,15 +266,16 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function verifyBackup() {
     setBackupBusy('verify');
+    setBackupError('');
     try {
       const path = await Api.selectBackupFile('Sicherung zum Prüfen auswählen');
       if (!path) return;
       const run = await Api.verifyBackup(path);
       setBackupRuns(await Api.getBackupRuns());
       if (run.success) toast.success(run.message || 'Die Sicherung ist zurückspielbar.');
-      else toast.error(run.message || 'Die Sicherung ist nicht zurückspielbar.');
+      else setBackupError(run.message || 'Die Sicherung ist nicht zurückspielbar.');
     } catch (e) {
-      report(e);
+      setBackupError(messageOf(e));
     } finally {
       setBackupBusy('');
     }
@@ -265,6 +283,7 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
 
   async function restoreBackup() {
     setBackupBusy('restore');
+    setBackupError('');
     try {
       const path = await Api.selectBackupFile('Sicherung zum Wiederherstellen auswählen');
       if (!path) return;
@@ -274,7 +293,7 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
       await onRestored();
       toast.success(`${tenant.name} wiederhergestellt und geprüft.`);
     } catch (e) {
-      report(e);
+      setBackupError(messageOf(e));
     } finally {
       setBackupBusy('');
     }
@@ -335,6 +354,8 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
           </Button>
         }
       />
+
+      {loadError && <Notice tone="negative" className="mt-6" text={loadError} />}
 
       {/* Der Streifen „Prüfermodus bis …" steht in App.tsx über jeder Ansicht:
           gesperrt ist die Anwendung und nicht diese Seite. Hier steht nur, was
@@ -422,6 +443,8 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
           </HelpPopover>
         }
       >
+        {exportError && <Notice tone="negative" className="mb-5" text={exportError} />}
+
         <FieldRow className="max-w-3xl">
           <Field label="Geschäftsjahr" className="w-44">
             <Select
@@ -529,6 +552,8 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
           </Button>
         }
       >
+        {checkError && <Notice tone="negative" className="mb-5" text={checkError} />}
+
         {!fileCheck ? (
           <EmptyState
             title="Noch nicht geprüft"
@@ -605,6 +630,8 @@ export const DataAccessPage: React.FC<DataAccessPageProps> = ({
           </HelpPopover>
         }
       >
+        {backupError && <Notice tone="negative" className="mb-5" text={backupError} />}
+
         {!backupDir && (
           <Notice
             className="mb-5"

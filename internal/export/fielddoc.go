@@ -319,6 +319,8 @@ func typeLabel(t FieldType) string {
 	switch t {
 	case FieldNumeric:
 		return "numerisch"
+	case FieldInteger:
+		return "numerisch, ganzzahlig"
 	case FieldDate:
 		return "Datum"
 	default:

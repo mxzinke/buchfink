@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -66,6 +67,10 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		// nicht hier: die Reihenfolge und ihre Begründung gehören zusammen.
 		DunningLevels: domain.DefaultDunningLevels(),
 	}
+
+	// Der Tag, ab dem der fehlende Leistungsnachweis beanstandet wird. Er kann
+	// aus zwei Quellen kommen; der ausdrückliche Eintrag geht vor.
+	checkSince, thresholdSavedOn := "", ""
 
 	for _, it := range items {
 		switch it.Key {
@@ -136,6 +141,14 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			if v, err := strconv.ParseInt(it.Value, 10, 64); err == nil && v >= 0 {
 				settings.InvoiceCheckThreshold = domain.Cents(v)
 			}
+			// Der Rückfall für Bestände aus der Zeit vor dem eigenen Schlüssel:
+			// der Tag, an dem die Grenze zuletzt gespeichert wurde. Er ist nicht
+			// so genau wie der eigene Eintrag, aber besser als kein Datum —
+			// ohne eines beanstandete der Prüflauf jeden Altbeleg rückwirkend.
+			// Ein vorhandener invoice_check_since sticht ihn (siehe unten).
+			thresholdSavedOn = it.UpdatedAt.Format("2006-01-02")
+		case "invoice_check_since":
+			checkSince = it.Value
 		case "dunning_levels":
 			// Ein unlesbarer Eintrag bleibt ohne Wirkung: dann gilt die
 			// Voreinstellung weiter. Die Mahnstufen ganz fallen zu lassen,
@@ -149,6 +162,10 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 	if settings.FiscalYearStartMonth <= 0 || settings.FiscalYearStartMonth > 12 {
 		settings.FiscalYearStartMonth = 1
+	}
+	settings.InvoiceCheckSince = checkSince
+	if settings.InvoiceCheckSince == "" {
+		settings.InvoiceCheckSince = thresholdSavedOn
 	}
 
 	return settings, nil
@@ -252,6 +269,29 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	// die nur ändert, wer sie mitschickt.
 	if writeCheckThreshold {
 		kv["invoice_check_threshold"] = strconv.FormatInt(int64(s.InvoiceCheckThreshold), 10)
+		// Der Tag, ab dem der Prüflauf den fehlenden Leistungsnachweis
+		// beanstandet. Er wird einmal gesetzt und danach nicht mehr verschoben:
+		// eine Festlegung des Kontrollsystems gilt ab dem Tag, an dem sie
+		// getroffen wurde, und jede spätere Änderung der Grenze macht die
+		// Belege davor nicht nachträglich mangelhaft. Ein ausdrücklich
+		// mitgeschicktes Datum sticht — wer rückwirkend prüfen will, trägt es
+		// ein.
+		since := strings.TrimSpace(s.InvoiceCheckSince)
+		if since == "" {
+			// Ein fehlender Eintrag ist kein Fehler: er ist der Normalfall beim
+			// ersten Speichern der Grenze, und genau dann wird der Tag gesetzt.
+			var item domain.SettingItem
+			if err := dbFrom(ctx, r.db).Where("key = ?", "invoice_check_since").
+				First(&item).Error; err == nil {
+				since = strings.TrimSpace(item.Value)
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		if since == "" {
+			since = time.Now().Format("2006-01-02")
+		}
+		kv["invoice_check_since"] = since
 	}
 	if writeLevels {
 		kv["dunning_levels"] = string(levels)

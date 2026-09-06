@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -233,5 +234,41 @@ func TestDefaultEndpoint(t *testing.T) {
 	}
 	if got := New("https://example.test/evatr").Endpoint(); got != "https://example.test/evatr" {
 		t.Errorf("Endpunkt %q — die Einstellung muss durchschlagen", got)
+	}
+}
+
+// Antwortet das Bundeszentralamt nicht, bricht die Abfrage nach der Frist ab —
+// und der Abbruch ist „keine Auskunft" und nie „ungültig".
+//
+// Die Frist ist injizierbar (SetTimeout), damit dieser Durchlauf nicht die
+// zehn Sekunden der Voreinstellung real abwartet. Eine Frist ist nichts, was
+// eine Prüfung in Echtzeit erleben muss.
+func TestCheckTreatsATimeoutAsNoAnswer(t *testing.T) {
+	blocked := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-blocked
+	}))
+	defer func() {
+		close(blocked)
+		server.Close()
+	}()
+
+	client := New(server.URL)
+	client.SetTimeout(50 * time.Millisecond)
+
+	start := time.Now()
+	result, err := client.Check(context.Background(), Request{
+		OwnVatID: "DE123456789", VatID: "ATU12345678",
+	})
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatalf("ohne Antwort gibt es keine Auskunft, erhalten: %+v", result)
+	}
+	if result != nil && result.Status == domain.VatIDInvalid {
+		t.Error("ein Ausfall des Amtes macht eine Nummer nicht ungültig")
+	}
+	if elapsed > 5*time.Second {
+		t.Errorf("die Abfrage wartete %s; die gesetzte Frist von 50 ms greift nicht", elapsed)
 	}
 }

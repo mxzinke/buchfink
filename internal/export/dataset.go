@@ -27,7 +27,16 @@ type FieldType string
 const (
 	FieldAlphaNumeric FieldType = "alphanumeric"
 	FieldNumeric      FieldType = "numeric"
-	FieldDate         FieldType = "date"
+	// FieldInteger ist eine numerische Spalte ohne Nachkommastellen: Kennungen,
+	// Zähler, Jahreszahlen und die Cent-Spalten, die den ganzzahligen Wert
+	// tragen, der in die Hash-Chain eingeht.
+	//
+	// Der Beschreibungsstandard kennt nur „Numeric" mit einer Genauigkeit; die
+	// Genauigkeit ist der Unterschied. Mit Accuracy 2 beschrieben, läse eine
+	// Prüfsoftware die Buchungskennung 4711 als 47,11 — und dieselbe Zahl in
+	// zwei Spalten desselben Datensatzes verschieden.
+	FieldInteger FieldType = "integer"
+	FieldDate    FieldType = "date"
 )
 
 // DateFormat ist das Datumsformat aller Datumsspalten. ISO 8601, weil es sich

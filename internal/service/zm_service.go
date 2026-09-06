@@ -101,6 +101,12 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 		cutoff, _ = s.festschreibungRepo.LatestCutoff(ctx, year)
 	}
 
+	recipients, err := s.recipients(ctx)
+	if err != nil {
+		return nil, err
+	}
+	lookup := func(id uint) accounting.ZMRecipient { return recipients[id] }
+
 	today := todayLocal()
 	out := make([]ZMPeriodStatus, 0, len(periods))
 	for _, p := range periods {
@@ -110,10 +116,15 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 			Status:    domain.VatReturnDraft,
 			Committed: cutoff != "" && cutoff >= p.To,
 		}
-		for _, m := range movements {
-			if m.Date >= p.From && m.Date <= p.To {
-				st.Total += m.Amount
-			}
+		// Die Summe ist die Summe der Meldezeilen und nicht die aller Umsätze
+		// des Zeitraums: ein Umsatz an einen Geschäftspartner ohne USt-IdNr.
+		// lässt sich nicht melden (§ 18a Abs. 7 UStG) und steht deshalb in
+		// keiner Zeile. Zählte er hier mit, zeigte die Übersicht eine Summe, die
+		// in der Meldung selbst nirgends steht — und der Zeitraum sähe
+		// überfällig aus, obwohl es nichts zu melden gibt.
+		lines, _ := accounting.ZMLines(p, movements, lookup)
+		for _, line := range lines {
+			st.Total += line.Amount
 		}
 		if r := latest[p.Key]; r != nil {
 			st.Status = r.Status
@@ -238,6 +249,12 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 			"die Zusammenfassende Meldung %s ist unvollständig und kann nicht als übermittelt bestätigt werden: %s",
 			rec.PeriodKey, strings.Join(current.Findings, "; "))
 	}
+	// Und wie bei der Voranmeldung: bestätigt wird, was übermittelt wurde. Ist
+	// der gespeicherte Entwurf inzwischen überholt, stünde in Buchfink eine
+	// Meldung mit Transferticket, die so nie beim Bundeszentralamt ankam.
+	if err := ensureZMCurrent(rec, current); err != nil {
+		return nil, err
+	}
 
 	rec.Status = domain.VatReturnSubmitted
 	rec.SubmittedAt = date
@@ -276,12 +293,68 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 	// Die Berichtigung meldet den Zeitraum vollständig neu; was vorher ein
 	// Nachtrag zu *diesem* Zeitraum war, steht jetzt an seinem Platz.
 	fresh.LateEntries = make([]domain.ZMLateEntry, 0)
+
+	// Ein zweiter Aufruf schreibt den bestehenden Berichtigungsentwurf fort und
+	// legt keinen zweiten an. Sonst stünden zwei Entwürfe zu demselben Zeitraum
+	// nebeneinander, und welcher von beiden übermittelt wurde, ließe sich
+	// hinterher nicht mehr sagen — der Anwender ruft die Berichtigung aber
+	// genau dann noch einmal auf, wenn er zwischendurch nachgebucht hat.
+	if open, err := s.openDraft(ctx, period.Key); err != nil {
+		return nil, err
+	} else if open != nil {
+		before := *open
+		fresh.ID = open.ID
+		fresh.CreatedAt = open.CreatedAt
+		if err := s.zmRepo.Update(ctx, fresh); err != nil {
+			return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
+		}
+		s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+			"Berichtigte Zusammenfassende Meldung %s fortgeschrieben (berichtigt Meldung %d, "+
+				"bisher %s €, jetzt %s €)",
+			fresh.PeriodKey, submitted.ID,
+			before.TotalSupplies+before.TotalServices, fresh.TotalSupplies+fresh.TotalServices))
+		return fresh, nil
+	}
+
 	if err := s.zmRepo.Create(ctx, fresh); err != nil {
 		return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 	}
 	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID))
 	return fresh, nil
+}
+
+// ensureZMCurrent weist einen Entwurf ab, der nicht mehr zum Journal passt.
+//
+// Das Gegenstück zu VatReturnService.ensureCurrent. Bestätigt wird, was
+// übermittelt wurde: hat sich der Bestand seit dem Speichern des Entwurfs
+// geändert, ist die gespeicherte Meldung nicht die abgegebene, und Buchfink
+// trüge ein Transferticket an einer Meldung, die es so nie gab.
+func ensureZMCurrent(rec, fresh *domain.ZMReturn) error {
+	if rec.TotalSupplies == fresh.TotalSupplies && rec.TotalServices == fresh.TotalServices &&
+		sameZMLines(rec.Lines, fresh.Lines) {
+		return nil
+	}
+	return fmt.Errorf(
+		"der gespeicherte Entwurf der Zusammenfassenden Meldung %s stimmt nicht mehr mit dem Journal "+
+			"überein (im Entwurf %s €, aus dem Journal %s €). Speichere ihn neu und bestätige dann die "+
+			"Übermittlung — bestätigt wird, was übermittelt wurde",
+		rec.PeriodKey, rec.TotalSupplies+rec.TotalServices, fresh.TotalSupplies+fresh.TotalServices)
+}
+
+// sameZMLines vergleicht zwei Meldungen in dem, was übermittelt wird:
+// USt-IdNr., Meldeart und Betrag. Der Drill-down bleibt außen vor — er ändert
+// sich schon, wenn eine Buchung eine andere Nummer bekommt.
+func sameZMLines(a, b []domain.ZMLine) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].VatID != b[i].VatID || a[i].Kind != b[i].Kind || a[i].Amount != b[i].Amount {
+			return false
+		}
+	}
+	return true
 }
 
 // ExportCSV liefert die Meldung im Spaltenformat des BZSt-Online-Portals:

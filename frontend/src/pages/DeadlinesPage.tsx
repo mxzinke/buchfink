@@ -264,7 +264,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
     return periods.filter((p) => p.cutoff <= todayIso);
   };
 
-  const committedCutoffs = new Set(festschreibungen.map((f) => f.cutoffDate));
   const latestCommittedCutoff = festschreibungen.reduce((max, f) => (f.cutoffDate > max ? f.cutoffDate : max), '');
 
   /**
@@ -432,11 +431,14 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
             </Thead>
             <Tbody>
               {periods.map((period) => {
-                const committed = committedCutoffs.has(period.cutoff);
+                // Festgeschrieben ist ein Zeitraum auch dann, wenn eine
+                // spätere Festschreibung ihn einschließt: das Quartal deckt
+                // seine Monate, der Jahresabschluss das ganze Jahr. Der
+                // Vergleich mit dem letzten Stichtag bildet das ab; die Suche
+                // nach genau diesem Stichtag zeigte den Monat im
+                // festgeschriebenen Quartal weiter als offen an.
+                const committed = latestCommittedCutoff !== '' && period.cutoff <= latestCommittedCutoff;
                 const busy = checking === period.cutoff;
-                // Festgeschrieben wird der Reihe nach. Ein Zeitraum mit Lücke
-                // davor wäre kein Abschluss.
-                const isNext = !committed && period.cutoff > latestCommittedCutoff;
                 return (
                   <Tr key={period.cutoff}>
                     <Td>{period.label}</Td>
@@ -449,11 +451,8 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                           variant="secondary"
                           size="sm"
                           loading={busy}
-                          disabled={!isNext || checking !== null || writeLock.locked}
-                          title={
-                            writeLock.hint ??
-                            (!isNext ? 'Frühere Zeiträume zuerst festschreiben' : undefined)
-                          }
+                          disabled={checking !== null || writeLock.locked}
+                          title={writeLock.hint}
                           onClick={() => void openCommitDialog(period)}
                           icon={<Lock className="w-3.5 h-3.5" strokeWidth={1.5} />}
                         >

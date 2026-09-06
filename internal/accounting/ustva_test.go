@@ -270,6 +270,15 @@ func TestCorrectionRestatesTheWholePeriod(t *testing.T) {
 
 // Die Generalumkehr nimmt den Umsatz in dem Zeitraum zurück, in dem er stand —
 // nicht in dem, in dem storniert wurde.
+//
+// Geltungsbereich: die manuelle Buchung (hier) und der Eingangsbeleg. Sie
+// nehmen eine Buchung zurück, die es so nicht gab; der Zeitraum bleibt deshalb
+// der der Ursprungsbuchung, und die Anmeldung dieses Zeitraums ist zu
+// berichtigen.
+//
+// Die Rücknahme einer Ausgangsrechnung geht den anderen Weg: sie berichtigt
+// eine Rechnung gegenüber dem Empfänger und wirkt im Zeitraum der Berichtigung
+// (§ 17 Abs. 1 Satz 8 UStG) — siehe VatPeriodFor, Zweig EntrySourceInvoice.
 func TestReversalNetsOutInTheOriginalPeriod(t *testing.T) {
 	original := march(1, "2026-000001", creditLine(domain.AccountUmsatzsteuer19, 19000, "UST19", 100000))
 	reversal := domain.JournalEntry{

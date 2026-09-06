@@ -329,6 +329,18 @@ type Invoice struct {
 	// nicht nötig.
 	SmallAmount bool `gorm:"not null;default:false" json:"smallAmount"`
 
+	// ConsumerNoticePrinted hält fest, dass diese Rechnung den Verzugshinweis
+	// des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB getragen hat.
+	//
+	// Gegenüber einem Verbraucher tritt der Verzug dreißig Tage nach
+	// Fälligkeit nur dann von selbst ein, wenn die Rechnung darauf besonders
+	// hingewiesen hat. Das Kennzeichen steht an der Rechnung und nicht an den
+	// Einstellungen: es ist eine Aussage über dieses Dokument, und für die
+	// Rechnungen aus der Zeit vor dem Hinweis wäre jede spätere Einstellung
+	// eine Behauptung über einen Text, der dort nie stand. Das Mahnwesen liest
+	// es, bevor es Verzugszinsen ansetzt.
+	ConsumerNoticePrinted bool `gorm:"not null;default:false" json:"consumerNoticePrinted"`
+
 	// PaymentAccount ist das Zahlungsmittelkonto einer Rechnung ohne
 	// Empfänger.
 	//

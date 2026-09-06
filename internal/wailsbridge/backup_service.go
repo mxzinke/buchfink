@@ -135,15 +135,20 @@ func (b *BuchfinkBridge) runBackup(kind domain.BackupKind) (*domain.BackupRun, e
 // VerifyBackup ist der Wiederherstellungstest: eine vorhandene Sicherung wird
 // in einen Temporärordner entpackt, geprüft und wieder abgeräumt.
 func (b *BuchfinkBridge) VerifyBackup(zipPath string) (*domain.BackupRun, error) {
+	// Nur das Einsammeln unter der Sperre: der Wiederherstellungstest entpackt
+	// die ganze Sicherung und rechnet die Hash-Chain nach. Über diese Zeit die
+	// Lesesperre zu halten hieße, dass währenddessen niemand buchen kann.
 	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.backupSvc == nil {
+	svc := b.backupSvc
+	b.mu.RUnlock()
+
+	if svc == nil {
 		return nil, fmt.Errorf("die Sicherung ist noch nicht initialisiert")
 	}
 	if zipPath == "" {
 		return nil, fmt.Errorf("keine Sicherungsdatei gewählt")
 	}
-	return b.backupSvc.VerifyBackup(context.Background(), zipPath)
+	return svc.VerifyBackup(context.Background(), zipPath)
 }
 
 // RestoreFromBackup entpackt eine Sicherung in einen leeren Ordner und meldet
@@ -311,17 +316,25 @@ func (b *BuchfinkBridge) SelectBackupFileDialog(title string) (string, error) {
 // abwartet, hätte es nie gegeben. Der Lauf beim Start bleibt als Auffangnetz
 // für den Fall, dass die Anwendung abstürzt oder der Rechner ausgeht.
 func (b *BuchfinkBridge) ServiceShutdown() error {
-	b.runDueBackup()
+	// Beim Beenden entscheidet nicht der Abstand, sondern ob überhaupt
+	// gearbeitet wurde: wer morgens sichert und den ganzen Tag bucht, verlöre
+	// sonst den Tag, weil die 24 Stunden noch nicht um sind. Ein Tag ohne
+	// Änderung wird dagegen nicht ein zweites Mal gesichert.
+	b.runDueBackup(true)
 	return nil
 }
 
-// runDueBackup sichert, wenn die letzte Sicherung älter als einen Tag ist.
+// runDueBackup sichert, wenn eine Sicherung fällig ist.
 //
 // Zweimal gerufen: beim Beenden über ServiceShutdown und beim Start. Der Start
 // ist der Auffangfall — wer die Anwendung abwürgt, bekommt sonst nie eine
-// Sicherung. Doppelt sichert sie deshalb nicht: IsDue fragt den letzten
-// gelungenen Lauf, und unmittelbar nach einem ist keiner fällig.
-func (b *BuchfinkBridge) runDueBackup() {
+// Sicherung; dort entscheidet allein der Abstand von 24 Stunden, denn ein
+// Programmstart ist noch keine Arbeit. Beim Beenden zählt zusätzlich, ob sich
+// seit der letzten Sicherung etwas geändert hat.
+//
+// Doppelt sichert sie nicht: IsDue fragt den letzten gelungenen Lauf, und
+// HasChangesSince den jüngsten Protokolleintrag, der keine Sicherung ist.
+func (b *BuchfinkBridge) runDueBackup(onShutdown bool) {
 	b.mu.RLock()
 	svc := b.backupSvc
 	hasTarget := false
@@ -333,7 +346,16 @@ func (b *BuchfinkBridge) runDueBackup() {
 	if svc == nil || !hasTarget {
 		return
 	}
-	if !svc.IsDue(context.Background(), time.Now()) {
+	ctx := context.Background()
+	due := svc.IsDue(ctx, time.Now())
+	if !due && onShutdown {
+		last, err := svc.LastSuccessful(ctx)
+		if err != nil {
+			last = nil
+		}
+		due = svc.HasChangesSince(ctx, last)
+	}
+	if !due {
 		return
 	}
 	if _, err := b.runBackup(domain.BackupKindAutomatic); err != nil {

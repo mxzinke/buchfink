@@ -209,7 +209,7 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 			// Die fällige Sicherung läuft im Hintergrund weiter, während die
 			// Oberfläche schon da ist — und ohne die Bridge-Sperre zu halten,
 			// damit die Oberfläche währenddessen bedienbar bleibt.
-			go b.runDueBackup()
+			go b.runDueBackup(false)
 		}
 	}
 
@@ -597,6 +597,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.checkSvc.SetDepreciationSource(b.assetSvc)
 	b.checkSvc.SetProvisionSource(b.provisionSvc)
 	b.checkSvc.SetClosingStepSource(b.closingStepsSvc)
+	// Die Ankündigung des Größenklassenwechsels (§ 267 Abs. 4 Satz 1 HGB): sie
+	// braucht dieselbe Beurteilung wie der Abschluss und nicht eine zweite.
+	b.checkSvc.SetSizeClassSource(b.statementSvc)
 	// Die beiden Regeln zur steuerfreien ig. Lieferung: der Belegnachweis nach
 	// §§ 17a ff. UStDV und die Bestätigung der USt-IdNr. nach § 18e UStG.
 	b.checkSvc.SetSupplyEvidenceSource(b.supplyEvidenceSvc)
@@ -655,6 +658,9 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir), fiscalYear,
 	)
 	b.dunningSvc.SetRenderer(b.renderer)
+	// Die Rechnungen tragen das Kennzeichen, ob der Verzugshinweis an einen
+	// Verbraucher gedruckt wurde (§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB).
+	b.dunningSvc.SetInvoiceSource(b.invoiceRepo)
 
 	b.auditTrailSvc = service.NewAuditTrailService(
 		b.receiptRepo, b.journalRepo, b.allocationRepo, b.bankRepo, b.auditRepo)

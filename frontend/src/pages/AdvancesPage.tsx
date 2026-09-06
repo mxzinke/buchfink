@@ -11,7 +11,7 @@ import type {
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import { formatCents, formatDate, formatTaxRate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -111,7 +111,7 @@ function refundBlockedReason(advance: AdvanceItem): string | undefined {
 export const AdvancesPage: React.FC = () => {
   // Abschlag, Vereinnahmung und Schlussrechnung sind Buchungen; im Prüfermodus
   // bleibt die Ansicht lesbar (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [groups, setGroups] = useState<InvoiceGroup[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
@@ -591,7 +591,7 @@ const GroupDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ open, contacts, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [contactId, setContactId] = useState(0);
   const [title, setTitle] = useState('');
   const [totalNet, setTotalNet] = useState('');
@@ -717,7 +717,7 @@ const AdvanceDialog: React.FC<{
   onClose: () => void;
   onDone: (invoiceNumber: string) => void;
 }> = ({ group, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(todayISO());
   const [description, setDescription] = useState('');
   const [net, setNet] = useState('');
@@ -862,7 +862,7 @@ const FinalDialog: React.FC<{
   onClose: () => void;
   onDone: (invoiceNumber: string) => void;
 }> = ({ group, units, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(todayISO());
   const [serviceFrom, setServiceFrom] = useState(todayISO());
   const [serviceTo, setServiceTo] = useState(todayISO());
@@ -948,7 +948,12 @@ const FinalDialog: React.FC<{
             variant="primary"
             loading={busy}
             disabled={items.length === 0 || writeLock.locked}
-            title={writeLock.hint}
+            title={
+              writeLock.hint ??
+              (items.length === 0
+                ? 'Die Schlussrechnung braucht mindestens eine Position der Gesamtleistung.'
+                : undefined)
+            }
             onClick={submit}
           >
             Ausstellen und buchen
@@ -1112,7 +1117,7 @@ const SettleDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ advance, paymentAccounts, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(todayISO());
   const [account, setAccount] = useState('');
   // Datum und Zahlungsmittel sind vorbelegt; es gibt keine Pflichtangabe, die
@@ -1214,7 +1219,7 @@ const RefundDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ advance, paymentAccounts, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(todayISO());
   const [account, setAccount] = useState('');
   const [reason, setReason] = useState('');

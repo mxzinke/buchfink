@@ -19,7 +19,7 @@ import type {
 } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import {
   formatCents,
   formatCentsPlain,
@@ -107,14 +107,6 @@ function accountPath(entry: JournalEntry): string {
 
 export interface JournalPageProps {
   /**
-   * Das angezeigte Geschäftsjahr, sofern es festgestellt oder offengelegt ist.
-   * Es nimmt keine Buchung mehr an; die Erfassung bleibt an ihrem Platz und
-   * wird deaktiviert, damit die Ansicht zwischen den Jahren gleich aussieht
-   * (§11.5). Grund und Hinweisstreifen der Sperre stehen zentral in App.tsx,
-   * damit jede Erfassungsansicht sie zeigt und keine sie vergisst.
-   */
-  closedYear?: number;
-  /**
    * Buchungsnummer aus dem Navigationsziel. Sie steht als Suchbegriff im Feld
    * und nicht als versteckter Filter: der Weg vom Kontoblatt zur Buchung
    * (GOB-02) endet in einer Liste, die man weiter durchsuchen können muss.
@@ -128,15 +120,11 @@ export interface JournalPageProps {
   onNavigate?: NavigateFn;
 }
 
-export const JournalPage: React.FC<JournalPageProps> = ({
-  closedYear,
-  initialSearch,
-  onNavigate,
-}) => {
+export const JournalPage: React.FC<JournalPageProps> = ({ initialSearch, onNavigate }) => {
   // Zwei Sperren mit demselben Ergebnis: das festgestellte Geschäftsjahr und
   // der Prüfermodus. Beide gehören in den title des Knopfes, damit der Grund
   // nicht in der Fehlermeldung des ersten Versuchs steht (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,16 +273,6 @@ export const JournalPage: React.FC<JournalPageProps> = ({
 
   const fiscalYear = entries[0]?.fiscalYear;
 
-  // Der Grund der Sperre steht im title des deaktivierten Knopfes, sonst
-  // verschwiege er ihn (§10.4).
-  const lockedReason =
-    writeLock.hint ??
-    (closedYear
-      ? `Das Geschäftsjahr ${closedYear} ist festgestellt. Buchungen nimmt es erst wieder an, ` +
-        `wenn die Feststellung mit Grund zurückgesetzt wird.`
-      : undefined);
-  const postingLocked = writeLock.locked || Boolean(closedYear);
-
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader
@@ -312,8 +290,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({
           <Button
             variant="primary"
             icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-            disabled={postingLocked}
-            title={lockedReason}
+            disabled={writeLock.locked}
+            title={writeLock.hint}
             onClick={() => setShowForm(true)}
           >
             Neue Buchung
@@ -434,8 +412,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({
               entries.length === 0 ? (
                 <Button
                   variant="primary"
-                  disabled={postingLocked}
-                  title={lockedReason}
+                  disabled={writeLock.locked}
+                  title={writeLock.hint}
                   onClick={() => setShowForm(true)}
                 >
                   Neue Buchung
@@ -573,7 +551,7 @@ const EntryRows: React.FC<{
   onReverse,
   onOpenReceipt,
 }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const isReversal = entry.kind === 'reversal';
   const storno = isReversal || isReversed;
   // Die Zahl der Spalten der Zeile, damit die aufgeklappte Zeile darunter
@@ -957,7 +935,7 @@ const BookingForm: React.FC<{
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }> = ({ open, accounts, correction, onOpenChange, onSaved }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const today = new Date().toISOString().split('T')[0];
   const [bookingDate, setBookingDate] = useState(today);
   const [documentDate, setDocumentDate] = useState(today);
@@ -1295,7 +1273,7 @@ const ReverseDialog: React.FC<{
   /** Gibt den Grund an die Maske weiter, die die richtige Buchung erfasst. */
   onCorrect: (reason: string) => void;
 }> = ({ entry, onClose, onDone, onCorrect }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

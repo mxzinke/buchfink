@@ -135,6 +135,14 @@ const ACCRUAL_RELEASES = [
   { value: 'monthly', label: 'Monatlich · für unterjährige Auswertungen' },
 ];
 
+/**
+ * Die Grenzen des Gewerbesteuer-Hebesatzes, die `ClosingSettingsService`
+ * durchsetzt: mindestens 200 % nach § 16 Abs. 4 Satz 2 GewStG, nach oben die
+ * Plausibilitätsgrenze des Dienstes.
+ */
+const TRADE_TAX_MIN = 200;
+const TRADE_TAX_MAX = 1000;
+
 /** Die Voreinstellungen des Dienstes, bis er geantwortet hat. */
 const DEFAULT_CLOSING_SETTINGS: ClosingSettings = {
   tradeTaxRatePercent: 400,
@@ -192,6 +200,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Hebesatz und Schwelle werden als Text geführt und erst beim Verlassen des
   // Feldes umgerechnet (§8.3): eine gelöschte Ziffer ist keine 0.
   const [tradeTaxText, setTradeTaxText] = useState('400');
+  // Der Dienst weist einen Hebesatz außerhalb von 200 bis 1000 % ab (§ 16
+  // Abs. 4 Satz 2 GewStG). Die Grenze steht deshalb schon am Feld: sonst
+  // erführe der Anwender sie erst als Fehlermeldung des Speicherns, nachdem er
+  // die ganze Seite ausgefüllt hat (§8.3).
+  const [tradeTaxError, setTradeTaxError] = useState('');
   const [thresholdText, setThresholdText] = useState('');
   // Die Grenze des Leistungsnachweises ebenfalls als Text: eine gelöschte
   // Ziffer ist keine 0 — und eine 0 hieße hier nicht „kein Nachweis", sondern
@@ -282,6 +295,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   function applyClosing(values: ClosingSettings) {
     setClosing(values);
     setTradeTaxText(String(values.tradeTaxRatePercent));
+    setTradeTaxError('');
     setThresholdText(values.accrualThreshold ? formatCentsPlain(values.accrualThreshold) : '0,00');
   }
 
@@ -350,6 +364,9 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
     // Auch die Eingabetaste in einem Feld löst das Formular aus; der gesperrte
     // Knopf allein hielte den Prüfermodus deshalb nicht.
     if (!settings || saving || writeLock.locked) return;
+    // Ein Hebesatz außerhalb der Grenzen wurde nicht übernommen; gespeichert
+    // würde sonst der alte Wert, während der neue im Feld steht.
+    if (tradeTaxError) return;
     setSaving(true);
     try {
       await Api.updateCompanySettings(settings);
@@ -846,21 +863,37 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field
             label="Gewerbesteuer-Hebesatz"
             hint="Prozent der Gemeinde"
+            error={tradeTaxError || undefined}
             help="Der Hebesatz der Gemeinde, in der die Betriebsstätte liegt. Er steht im Gewerbesteuermessbescheid und auf der Website der Gemeinde; mindestens 200 % (§ 16 Abs. 4 Satz 2 GewStG)."
           >
             <Input
               type="number"
-              min={200}
-              max={1000}
+              min={TRADE_TAX_MIN}
+              max={TRADE_TAX_MAX}
               align="right"
               value={tradeTaxText}
-              onChange={(e) => setTradeTaxText(e.target.value)}
+              onChange={(e) => {
+                setTradeTaxText(e.target.value);
+                setTradeTaxError('');
+              }}
               onBlur={() => {
-                const percent = Number(tradeTaxText);
-                const value =
-                  Number.isFinite(percent) && percent > 0 ? Math.trunc(percent) : closing.tradeTaxRatePercent;
-                setClosing({ ...closing, tradeTaxRatePercent: value });
-                setTradeTaxText(String(value));
+                const percent = Math.trunc(Number(tradeTaxText));
+                // Ein Wert außerhalb der Grenzen bleibt im Feld stehen: ihn
+                // stillschweigend auf den alten zurückzusetzen verschwiege,
+                // dass die Eingabe nicht angekommen ist.
+                if (
+                  !Number.isFinite(percent) ||
+                  percent < TRADE_TAX_MIN ||
+                  percent > TRADE_TAX_MAX
+                ) {
+                  setTradeTaxError(
+                    `Der Hebesatz liegt zwischen ${TRADE_TAX_MIN} % und ${TRADE_TAX_MAX} % (§ 16 Abs. 4 Satz 2 GewStG).`,
+                  );
+                  return;
+                }
+                setTradeTaxError('');
+                setClosing({ ...closing, tradeTaxRatePercent: percent });
+                setTradeTaxText(String(percent));
               }}
             />
           </Field>

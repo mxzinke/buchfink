@@ -130,6 +130,24 @@ func GeneratePlainTypstTemplate(inv *domain.Invoice, seller *domain.CompanySetti
 	return typstTemplate(inv, seller, buyer, false)
 }
 
+// ConsumerDefaultNotice ist der Hinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB.
+//
+// Er steht als Konstante, weil zwei Stellen ihn brauchen: die Rechnungsvorlage
+// druckt ihn, und der Test hält fest, dass er auf dem Dokument steht. Ein Satz,
+// den nur die Vorlage kennt, ließe sich nicht prüfen.
+const ConsumerDefaultNotice = "Zahlungsverzug: Kommen Sie der Zahlung nicht spätestens 30 Tage nach " +
+	"Fälligkeit und Zugang dieser Rechnung nach, geraten Sie auch ohne Mahnung in Verzug " +
+	"(§ 286 Abs. 3 BGB)."
+
+// consumerNoticeRequired meldet, ob die Rechnung an einen Verbraucher geht.
+//
+// Ohne Empfänger — die Kleinbetragsrechnung über den Ladentisch — ist der
+// Hinweis nicht anzubringen: sie wird bar bezahlt, und ein Verzug entsteht
+// nicht.
+func consumerNoticeRequired(buyer *domain.Contact) bool {
+	return buyer != nil && buyer.IsConsumer()
+}
+
 func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain.Contact, attach bool) string {
 	var rows strings.Builder
 	for i := range inv.Items {
@@ -188,6 +206,16 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 	}
 	if inv.ResolvedKind() == domain.InvoiceKindAdvance && inv.PaymentReceivedAt != "" {
 		notes = append(notes, "Zeitpunkt der Vereinnahmung: "+domain.GermanDate(inv.PaymentReceivedAt))
+	}
+	// Der Verzugshinweis an einen Verbraucher.
+	//
+	// § 286 Abs. 3 Satz 1 BGB lässt den Verzug dreißig Tage nach Fälligkeit und
+	// Zugang der Rechnung von selbst eintreten — gegenüber einem Verbraucher
+	// aber nur, wenn die Rechnung auf diese Folge besonders hingewiesen hat
+	// (Halbsatz 2). Ohne den Satz auf dem Dokument gibt es keinen Verzug ohne
+	// Mahnung, und jede Zinsforderung darauf wäre unbegründet.
+	if consumerNoticeRequired(buyer) {
+		notes = append(notes, ConsumerDefaultNotice)
 	}
 	var note string
 	for _, n := range notes {

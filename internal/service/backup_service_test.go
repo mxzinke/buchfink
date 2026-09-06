@@ -650,3 +650,96 @@ func tempDirNames(t *testing.T) map[string]bool {
 	}
 	return names
 }
+
+// Scheitert die Wiederherstellung, bleibt der Zielordner leer.
+//
+// Sonst stünde dort eine halbe Buchführung: die Dateien vor dem
+// Prüfsummenfehler, ohne die dahinter. Der Ordner sähe aus wie ein Mandant, und
+// der zweite Versuch fände ihn nicht mehr leer.
+func TestRestoreLeavesAnEmptyDirectoryAfterAChecksumError(t *testing.T) {
+	env := newBackupEnv(t)
+	env.book(t, 11900)
+	env.receiptFile(t, "beleg.pdf", "%PDF-1.4 Beleg")
+
+	run, err := env.backups.CreateBackup(context.Background(), t.TempDir(), domain.BackupKindManual)
+	if err != nil {
+		t.Fatalf("Sicherung: %v", err)
+	}
+
+	tampered := filepath.Join(t.TempDir(), "manipuliert.zip")
+	if changed := rewriteZip(t, run.Target, tampered, func(name string, data []byte) []byte {
+		if strings.HasPrefix(name, "belege/") {
+			return []byte("%PDF-1.4 etwas ganz anderes")
+		}
+		return data
+	}); changed == "" {
+		t.Fatal("in der Sicherung war keine Belegdatei zu ändern")
+	}
+
+	target := t.TempDir()
+	restored, err := env.backups.RestoreFromBackup(context.Background(), tampered, target)
+	if err == nil {
+		t.Fatal("eine beschädigte Sicherung darf nicht wiederhergestellt werden")
+	}
+	if restored.Success {
+		t.Error("der Lauf ist als gelungen vermerkt")
+	}
+
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		t.Fatalf("Zielordner: %v", err)
+	}
+	if len(entries) != 0 {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("der Zielordner trägt nach dem Fehlschlag %d Einträge: %v", len(entries), names)
+	}
+
+	// Und der zweite Versuch — mit der heilen Sicherung — geht durch, weil der
+	// Ordner leer geblieben ist.
+	if _, err := env.backups.RestoreFromBackup(context.Background(), run.Target, target); err != nil {
+		t.Fatalf("die Wiederherstellung in den aufgeräumten Ordner muss durchgehen: %v", err)
+	}
+}
+
+// Beim Beenden entscheidet nicht der Abstand, sondern ob gearbeitet wurde.
+//
+// Wer morgens sichert und den ganzen Tag bucht, verlöre sonst den Tag, weil die
+// 24 Stunden noch nicht um sind. Ein Tag ohne Änderung wird dagegen nicht ein
+// zweites Mal gesichert — die Sicherung selbst zählt nicht als Änderung.
+func TestHasChangesSinceIgnoresTheBackupItself(t *testing.T) {
+	env := newBackupEnv(t)
+	ctx := context.Background()
+	env.book(t, 11900)
+
+	run, err := env.backups.CreateBackup(ctx, t.TempDir(), domain.BackupKindManual)
+	if err != nil {
+		t.Fatalf("Sicherung: %v", err)
+	}
+	last, err := env.backups.LastSuccessful(ctx)
+	if err != nil || last == nil {
+		t.Fatalf("letzte Sicherung: %v", err)
+	}
+
+	// Unmittelbar nach der Sicherung ist nichts geschehen — der eigene
+	// Protokolleintrag des Laufs zählt nicht.
+	if env.backups.HasChangesSince(ctx, last) {
+		t.Error("nach der Sicherung darf keine Änderung gemeldet werden")
+	}
+	// Und ohne vorherige Sicherung gibt es nichts, woran sich das Gegenteil
+	// zeigen ließe.
+	if !env.backups.HasChangesSince(ctx, nil) {
+		t.Error("ohne vorherige Sicherung muss gesichert werden")
+	}
+
+	// Eine Buchung danach ist eine Änderung, obwohl die 24 Stunden nicht um sind.
+	env.book(t, 4200)
+	if env.backups.IsDue(ctx, run.StartedAt.Add(time.Hour)) {
+		t.Error("eine Stunde nach der Sicherung ist der Abstand noch nicht erreicht")
+	}
+	if !env.backups.HasChangesSince(ctx, last) {
+		t.Error("die Buchung nach der Sicherung muss als Änderung gelten")
+	}
+}

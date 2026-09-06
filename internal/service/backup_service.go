@@ -140,6 +140,52 @@ func (s *BackupService) IsDue(ctx context.Context, now time.Time) bool {
 	return now.Sub(last.StartedAt) >= AutoBackupInterval
 }
 
+// backupAuditEntityType ist der Eintragstyp der Sicherungsläufe im Protokoll.
+// Er wird beim Zählen der Änderungen übergangen: eine Sicherung ist keine
+// Änderung am Bestand, und ohne diese Ausnahme wäre nach jeder Sicherung sofort
+// wieder eine fällig.
+const backupAuditEntityType = "BACKUP"
+
+// auditLookback ist die Zahl der Protokolleinträge, die HasChangesSince
+// zurückliest. Gesucht wird der jüngste Eintrag, der keine Sicherung ist;
+// mehrere Sicherungsläufe hintereinander sind selten, und eine Zahl statt des
+// ganzen Protokolls hält den Aufruf beim Beenden kurz.
+const auditLookback = 50
+
+// HasChangesSince meldet, ob seit der letzten gelungenen Sicherung am Bestand
+// gearbeitet wurde.
+//
+// Gefragt wird das Änderungsprotokoll: jede Buchung, jeder Beleg, jede
+// Stammdatenänderung steht dort (GoBD Rz. 34), und was dort nicht steht, hat
+// den Bestand nicht verändert. Ohne diese Frage hinge die Sicherung beim
+// Beenden allein am Abstand von 24 Stunden — wer morgens sichert und den ganzen
+// Tag bucht, verlöre den Tag.
+//
+// Ohne Protokoll und ohne vorherige Sicherung ist die Antwort ja: dann gibt es
+// nichts, woran sich das Gegenteil zeigen ließe.
+func (s *BackupService) HasChangesSince(ctx context.Context, last *domain.BackupRun) bool {
+	if last == nil {
+		return true
+	}
+	if s.auditRepo == nil {
+		return false
+	}
+	entries, err := s.auditRepo.FindAll(ctx, auditLookback)
+	if err != nil {
+		// Ein Fehler beim Lesen ist kein „nichts geändert": im Zweifel wird
+		// gesichert. Eine Sicherung zu viel kostet Platz, eine zu wenig die
+		// Arbeit eines Tages.
+		return true
+	}
+	for _, entry := range entries {
+		if entry.EntityType == backupAuditEntityType {
+			continue
+		}
+		return entry.Timestamp.After(last.StartedAt)
+	}
+	return false
+}
+
 // CreateBackup schreibt eine Sicherung in den Zielordner und liefert den Lauf.
 //
 // Der Lauf wird auch dann festgehalten, wenn die Sicherung scheitert. Eine
@@ -439,6 +485,18 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 		run.Bytes = meta.Bytes
 	}
 	if err != nil {
+		// Der Zielordner bleibt leer, wenn die Wiederherstellung scheitert.
+		//
+		// Sonst stünde dort eine halbe Buchführung: die Dateien, die vor dem
+		// Prüfsummenfehler geschrieben wurden, ohne die dahinter. Ein zweiter
+		// Versuch fände den Ordner nicht mehr leer und verlangte einen neuen
+		// (ensureEmptyDir), und der Bestand daneben sähe aus wie ein Mandant.
+		// Ein Ordner mit halben Büchern ist gefährlicher als keiner.
+		if removeErr := clearDir(targetDir); removeErr != nil {
+			err = fmt.Errorf(
+				"%w. Außerdem ließ sich der halb entpackte Zielordner nicht aufräumen: %v", err, removeErr)
+		}
+		run.FileCount = 0
 		run.Message = err.Error()
 		s.record(ctx, run)
 		return run, err
@@ -448,6 +506,27 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 	run.Message = fmt.Sprintf("%d Dateien nach %s wiederhergestellt", count, targetDir)
 	s.record(ctx, run)
 	return run, nil
+}
+
+// clearDir räumt den Inhalt eines Ordners weg und lässt ihn selbst stehen.
+//
+// Der Ordner selbst bleibt, weil ihn der Anwender ausgewählt hat und weil
+// ensureEmptyDir ihn ohnehin wieder anlegen würde; entfernt wird, was die
+// gescheiterte Wiederherstellung hineingeschrieben hat.
+func clearDir(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureEmptyDir besteht auf einem leeren oder noch nicht vorhandenen Ordner.

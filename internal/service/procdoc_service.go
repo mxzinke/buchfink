@@ -449,6 +449,7 @@ func checkRuleCatalog() []procdoc.CheckRule {
 		{Key: domain.CheckRuleCommitOverdue, Severity: "Hinweis", Purpose: "Zeitraum überfällig festzuschreiben."},
 		{Key: domain.CheckRuleProvisionDiscount, Severity: "Hinweis", Purpose: "Rückstellung ohne Abzinsungssatz des Stichtagsmonats (§ 253 Abs. 2 HGB)."},
 		{Key: domain.CheckRuleClosingStepSkipped, Severity: "Hinweis", Purpose: "Übersprungener Abschlussbaustein mit seinem Grund."},
+		{Key: domain.CheckRuleSizeClassChange, Severity: "Hinweis", Purpose: "Größenklassenwechsel, der sich abzeichnet (§ 267 Abs. 4 Satz 1 HGB)."},
 		{Key: domain.CheckRuleICSupplyEvidenceMissing, Severity: "Blockierend", Purpose: "Innergemeinschaftliche Lieferung ohne Belegnachweis (§§ 17a bis 17c UStDV)."},
 		{Key: domain.CheckRuleICSupplyUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
 		{Key: domain.CheckRuleServiceProofMissing, Severity: "Hinweis", Purpose: "Eingangsbeleg über der eingestellten Grenze ohne Leistungsnachweis (RECH-08); beim Buchen ist der Vermerk Pflicht, der Befund findet die Belege aus der Zeit davor. Der erste Abschluss nach dem Setzen der Grenze meldet deshalb auch gebuchte und festgeschriebene Altbelege — sie sind nachzuvermerken, der Vermerk steht außerhalb des Beleg-Hashes."},

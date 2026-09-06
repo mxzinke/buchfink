@@ -342,3 +342,40 @@ func TestZMDeadlineOnlyWithIntraCommunityTurnover(t *testing.T) {
 		t.Errorf("Norm = %q", zm.Reference)
 	}
 }
+
+// Von Hand abgehakt wird nur, was Buchfink nicht aus den Daten ablesen kann.
+//
+// Bei der Voranmeldung, der Zusammenfassenden Meldung, der Festschreibung und
+// dem Abschluss steht die Erledigung im Bestand. Ein Haken daneben wäre eine
+// Selbstauskunft gegen die eigenen Daten — und wirkungslos dazu, weil die
+// Fristenliste ihn nur an einem Termin übernimmt, den die Daten als offen
+// ausweisen.
+func TestMarkDoneOnlyAcceptsManualDeadlines(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.deadlines(t)
+	ctx := context.Background()
+
+	derived := []string{
+		"ustva.2026-Q1",
+		"zm.2026-Q1",
+		"festschreibung.2026-01",
+		"abschluss.aufstellung",
+		"gruendung.handelsregister",
+	}
+	for _, key := range derived {
+		if err := svc.MarkDone(ctx, key, "2026-05-04"); err == nil {
+			t.Errorf("der Termin %q ergibt sich aus den Daten und darf nicht abhakbar sein", key)
+		}
+	}
+
+	// Gegenprobe: die drei manuellen Arten gehen durch.
+	for _, key := range []string{
+		"sondervorauszahlung.2026",
+		"ust.jahreserklaerung.2026",
+		"freistellungsbescheinigung.7",
+	} {
+		if err := svc.MarkDone(ctx, key, "2026-05-04"); err != nil {
+			t.Errorf("der Termin %q muss sich abhaken lassen: %v", key, err)
+		}
+	}
+}

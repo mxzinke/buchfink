@@ -371,6 +371,43 @@ func (s *ReceiptService) List(ctx context.Context, status domain.ReceiptStatus) 
 	return s.receiptRepo.FindByStatus(ctx, s.fiscalYear, status)
 }
 
+// FindOutgoingByNumber sucht den Ausgangsbeleg zu einer Rechnungsnummer.
+//
+// Gebraucht wird er für den Reparaturweg: legt das Ablegen den Beleg an und
+// scheitert danach das Speichern der Rechnung, steht der Beleg im Speicher,
+// ohne dass die Rechnung ihn kennt. Ein zweiter Versuch dürfte dann keinen
+// zweiten Beleg mit derselben Rechnungsnummer erzeugen — es gibt einen Vorgang,
+// und zu ihm gehört ein Beleg.
+//
+// Verworfene Belege bleiben außen vor: sie sind die ausdrückliche Aussage, dass
+// dieser Beleg nicht gilt.
+func (s *ReceiptService) FindOutgoingByNumber(
+	ctx context.Context, fiscalYear int, number string,
+) (*domain.Receipt, error) {
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return nil, nil
+	}
+	if fiscalYear == 0 {
+		fiscalYear = s.fiscalYear
+	}
+	all, err := s.receiptRepo.FindAll(ctx, fiscalYear)
+	if err != nil {
+		return nil, err
+	}
+	for i := range all {
+		r := &all[i]
+		if r.Direction != domain.DirectionOutgoing || r.ReceiptNumber != number {
+			continue
+		}
+		if r.Status == domain.ReceiptStatusDiscarded {
+			continue
+		}
+		return s.Get(ctx, r.ID)
+	}
+	return nil, nil
+}
+
 // Content returns a stored file for display or for parsing, together with
 // whether it still matches its recorded digest.
 func (s *ReceiptService) Content(ctx context.Context, receiptID, fileID uint) (*FileContent, error) {

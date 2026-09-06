@@ -40,6 +40,9 @@ type CheckService struct {
 	depreciation PendingDepreciationSource
 	provisions   ProvisionFindingSource
 	closingSteps SkippedClosingStepSource
+	// sizeClass trägt die Ankündigung des Größenklassenwechsels. Ohne sie läuft
+	// der Prüflauf wie zuvor, nur ohne diese Regel.
+	sizeClass SizeClassSource
 	// supplyEvidence und vatIDs tragen die beiden Regeln zur steuerfreien
 	// innergemeinschaftlichen Lieferung: der Belegnachweis und die Bestätigung
 	// der USt-IdNr. Ohne sie läuft der Prüflauf wie zuvor, nur ohne diese Regeln.
@@ -76,6 +79,12 @@ type ProvisionFindingSource interface {
 // ausdrücklich übergeht.
 type SkippedClosingStepSource interface {
 	SkippedSteps(ctx context.Context, fiscalYear int) ([]SkippedClosingStep, error)
+}
+
+// SizeClassSource liefert die Größenklasse eines Geschäftsjahres. Der Prüflauf
+// braucht sie für die Ankündigung des Klassenwechsels.
+type SizeClassSource interface {
+	SizeClassFor(ctx context.Context, year int) (*domain.SizeClass, error)
 }
 
 // NewCheckService wires the Prüflauf.
@@ -123,6 +132,9 @@ func (s *CheckService) SetProvisionSource(src ProvisionFindingSource) { s.provis
 // SetClosingStepSource wires den Abschlussassistenten (Regel
 // closing_step_skipped).
 func (s *CheckService) SetClosingStepSource(src SkippedClosingStepSource) { s.closingSteps = src }
+
+// SetSizeClassSource wires die Größenklasse (Regel size_class_change).
+func (s *CheckService) SetSizeClassSource(src SizeClassSource) { s.sizeClass = src }
 
 // SetFiscalYear updates the active fiscal year.
 func (s *CheckService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -243,6 +255,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 		findings = append(findings, s.checkDepreciation(ctx)...)
 		findings = append(findings, s.checkProvisionDiscounting(ctx)...)
 		findings = append(findings, s.checkSkippedClosingSteps(ctx)...)
+		findings = append(findings, s.checkSizeClassChange(ctx)...)
 	}
 
 	sort.SliceStable(findings, func(i, j int) bool {
@@ -707,16 +720,23 @@ func (s *CheckService) checkReceipts(
 //
 // Hier ein Hinweis, im Buchungsweg eine Sperre: der Belegweg lässt einen Beleg
 // über der Grenze ohne Vermerk erst gar nicht durch (siehe service_proof.go).
-// Was der Prüflauf findet, sind deshalb die Belege aus der Zeit vor der Grenze
-// und die, an denen der Vermerk nach dem Buchen wieder entfernt wurde — sie
-// nachträglich zu melden ist der Sinn dieses Befundes; die Festschreibung eines
-// abgeschlossenen Monats daran scheitern zu lassen wäre keiner.
+// Was der Prüflauf findet, sind deshalb die Belege, an denen der Vermerk nach
+// dem Buchen wieder entfernt wurde — sie nachträglich zu melden ist der Sinn
+// dieses Befundes; die Festschreibung eines abgeschlossenen Monats daran
+// scheitern zu lassen wäre keiner.
+//
+// Belege aus der Zeit vor der Festlegung bleiben außen vor
+// (CompanySettings.InvoiceCheckSince). Eine Regel des internen Kontrollsystems
+// gilt ab dem Tag, an dem sie getroffen wurde; rückwirkend angewandt meldete
+// der erste Abschluss nach dem Setzen der Grenze hundert Altbelege aus
+// festgeschriebenen Zeiträumen, an denen sich nichts mehr prüfen lässt.
 func (s *CheckService) checkServiceProof(
 	receipts []domain.Receipt, cutoff string, cfg *domain.CompanySettings,
 ) []domain.CheckFinding {
 	if cfg == nil || cfg.InvoiceCheckThreshold <= 0 {
 		return nil
 	}
+	since := strings.TrimSpace(cfg.InvoiceCheckSince)
 	var out []domain.CheckFinding
 	for i := range receipts {
 		r := &receipts[i]
@@ -731,6 +751,9 @@ func (s *CheckService) checkServiceProof(
 			relevant = r.CreatedAt.Format("2006-01-02")
 		}
 		if relevant > cutoff {
+			continue
+		}
+		if since != "" && relevant < since {
 			continue
 		}
 		out = append(out, domain.CheckFinding{
@@ -1099,6 +1122,37 @@ func (s *CheckService) checkSkippedClosingSteps(ctx context.Context) []domain.Ch
 		})
 	}
 	return out
+}
+
+// checkSizeClassChange kündigt den Wechsel der Größenklasse an.
+//
+// Die Klasse wechselt erst, wenn zwei aufeinanderfolgende Stichtage sie
+// ergeben (§ 267 Abs. 4 Satz 1 HGB). Genau deshalb steht der Hinweis hier: wer
+// erst am zweiten Stichtag erfährt, dass er prüfungspflichtig wird, hat für die
+// Bestellung eines Abschlussprüfers keine Zeit mehr. Gemeldet wird ab dem
+// zweiten Stichtag, der die abweichende Klasse ergibt — der einzelne Ausreißer
+// ist keine Ankündigung, sondern ein gutes oder schlechtes Jahr.
+func (s *CheckService) checkSizeClassChange(ctx context.Context) []domain.CheckFinding {
+	if s.sizeClass == nil {
+		return nil
+	}
+	class, err := s.sizeClass.SizeClassFor(ctx, s.fiscalYear)
+	if err != nil || class == nil || class.PendingChange == nil {
+		return nil
+	}
+	change := class.PendingChange
+	if change.Occurrences < 2 {
+		return nil
+	}
+	return []domain.CheckFinding{{
+		Rule:       domain.CheckRuleSizeClassChange,
+		Severity:   domain.CheckWarning,
+		ObjectType: "FISCAL_YEAR",
+		ObjectID:   strconv.Itoa(s.fiscalYear),
+		ObjectName: fmt.Sprintf("Geschäftsjahr %d", s.fiscalYear),
+		Message:    change.Note,
+		Reference:  "§ 267 Abs. 4 Satz 1 HGB",
+	}}
 }
 
 // clock ist der Ausführungszeitpunkt des Laufs; ohne gesetzte Uhr die Systemzeit.

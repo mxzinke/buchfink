@@ -295,7 +295,7 @@ interface AccountsProps {
  * erfundenes Abzeichen, sondern die neutrale Form desselben Musters — Raute und
  * Wort, ohne Farbe, weil hier nichts gut und nichts schlecht ist.
  */
-const SkippedMark: React.FC = () => (
+export const SkippedMark: React.FC = () => (
   <span
     className={cn(
       'inline-flex items-center gap-1.5 h-5 px-2 rounded-control border border-line-strong',
@@ -2611,7 +2611,7 @@ const VatSettlementTab: React.FC<TabProps> = ({ year }) => {
                 Ansicht, weil er auch dann gilt, wenn niemand den Knopf drückt. */}
             <Notice
               className="mb-6"
-              text={`Gebucht wird zum ${formatDate(settlement.bookingDate)}. Ein zweiter Lauf ist gesperrt; zurück geht es nur über eine Generalumkehr.`}
+              text={`Gebucht wird zum ${formatDate(settlement.bookingDate)}; ein zweiter Lauf ist gesperrt und geht nur über eine Generalumkehr zurück.`}
             />
 
             <StatRow className="mb-6">
@@ -2869,16 +2869,16 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
                 <Notice
                   className="mb-3"
                   text={
-                    `Der Buchungssatz zeigt den Vorschlag über ${formatCents(preview.incomeProvision + preview.tradeProvision)}. ` +
-                    `Gebucht werden die Beträge aus den Feldern: ${formatCents(chosenIncome + chosenTrade)} ` +
-                    `zum ${formatDate(preview.cutoff)}, aufgeteilt in Körperschaftsteuer und Soli ` +
-                    `(${formatCents(chosenIncome)}) und Gewerbesteuer (${formatCents(chosenTrade)}).`
+                    `Gebucht werden zum ${formatDate(preview.cutoff)} die Beträge aus den Feldern — ` +
+                    `${formatCents(chosenIncome)} Körperschaftsteuer und Soli, ` +
+                    `${formatCents(chosenTrade)} Gewerbesteuer — und nicht der Vorschlag über ` +
+                    `${formatCents(preview.incomeProvision + preview.tradeProvision)}, den der Buchungssatz zeigt.`
                   }
                 />
               ) : (
                 <Notice
                   className="mb-3"
-                  text={`Gebucht wird zum ${formatDate(preview.cutoff)}. Ein zweiter Lauf ist gesperrt; zurück geht es nur über eine Generalumkehr.`}
+                  text={`Gebucht wird zum ${formatDate(preview.cutoff)}; ein zweiter Lauf ist gesperrt und geht nur über eine Generalumkehr zurück.`}
                 />
               )}
               <PostingLines lines={preview.lines} />
@@ -3038,9 +3038,9 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
         <Notice
           className="mb-6"
           text={
-            `Dieser Reiter zeigt die Verwendung des Ergebnisses ${usedYear}, weil der Beschluss im ` +
-            `Geschäftsjahr ${year} der Kopfzeile gefasst und gebucht wird. Für das Ergebnis ${year} ` +
-            `stellen Sie die Kopfzeile auf ${year + 1}.`
+            `Der Reiter zeigt die Verwendung des Ergebnisses ${usedYear}, weil der Beschluss im ` +
+            `Geschäftsjahr ${year} der Kopfzeile gefasst und gebucht wird — für das Ergebnis ` +
+            `${year} steht die Kopfzeile auf ${year + 1}.`
           }
         />
 

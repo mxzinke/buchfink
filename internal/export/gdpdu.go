@@ -132,6 +132,11 @@ func writeColumn(b *bytes.Buffer, f Field) {
 	switch f.Type {
 	case FieldNumeric:
 		fmt.Fprintf(b, "          <Numeric><Accuracy>%d</Accuracy></Numeric>\n", amountAccuracy)
+	case FieldInteger:
+		// Genauigkeit null statt zwei: die Spalte trägt eine Kennung, einen
+		// Zähler, eine Jahreszahl oder einen Cent-Betrag als ganze Zahl. Mit
+		// Accuracy 2 beschrieben, teilte die Prüfsoftware sie durch hundert.
+		b.WriteString("          <Numeric><Accuracy>0</Accuracy></Numeric>\n")
 	case FieldDate:
 		fmt.Fprintf(b, "          <Date><Format>%s</Format></Date>\n", DateFormat)
 	default:

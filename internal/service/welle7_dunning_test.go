@@ -70,6 +70,9 @@ func (e *testEnv) dunning(t *testing.T, renderer DocumentRenderer) *DunningServi
 	if renderer != nil {
 		svc.SetRenderer(renderer)
 	}
+	// Wie in der Anwendung: die Rechnungen tragen das Kennzeichen des
+	// Verzugshinweises an einen Verbraucher.
+	svc.SetInvoiceSource(repository.NewInvoiceRepository(e.db))
 	return svc
 }
 

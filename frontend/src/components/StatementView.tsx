@@ -365,6 +365,7 @@ const LineTable: React.FC<LineTableProps> = ({
   onOpenAccount,
 }) => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const toggle = (key: string) => setOpen((state) => ({ ...state, [key]: !state[key] }));
 
   return (
     <div>
@@ -389,7 +390,24 @@ const LineTable: React.FC<LineTableProps> = ({
               <React.Fragment key={line.key}>
                 <Tr
                   variant={line.isSubtotal ? 'sum' : 'default'}
-                  onClick={expandable ? () => setOpen((s) => ({ ...s, [line.key]: !isOpen })) : undefined}
+                  onClick={expandable ? () => toggle(line.key) : undefined}
+                  // Der Weg von der Bilanzposition zum Konto darf nicht an der
+                  // Maus hängen (§8.6): die Zeile nimmt den Fokus und öffnet
+                  // sich mit Enter oder Leertaste. Die Rolle bleibt `row` —
+                  // eine Zeile als `button` auszugeben nähme der Tabelle ihre
+                  // Struktur; `aria-expanded` sagt an der Zeile dasselbe.
+                  tabIndex={expandable ? 0 : undefined}
+                  aria-expanded={expandable ? isOpen : undefined}
+                  onKeyDown={
+                    expandable
+                      ? (event) => {
+                          if (event.key !== 'Enter' && event.key !== ' ') return;
+                          // Die Leertaste rollt sonst die Seite weiter.
+                          event.preventDefault();
+                          toggle(line.key);
+                        }
+                      : undefined
+                  }
                   className={expandable ? 'cursor-pointer' : undefined}
                 >
                   <Td className={cn('whitespace-normal', INDENT[line.level] ?? 'pl-4')}>

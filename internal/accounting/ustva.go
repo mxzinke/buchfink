@@ -3,6 +3,7 @@ package accounting
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -342,7 +343,19 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			date := VatPeriodFor(entry, line, receivedAt)
 			m := vatMovement{entryIndex: i, date: date}
 
-			switch line.TaxKey {
+			// Die Skonto-Steuerkorrektur läuft in dieselbe Kennziffer wie der
+			// Umsatz, den sie mindert.
+			//
+			// § 17 Abs. 1 UStG verlangt die Berichtigung der Steuer *und* der
+			// Bemessungsgrundlage, sobald sich das Entgelt geändert hat — und
+			// zwar für den Zeitraum, in dem die Änderung eingetreten ist
+			// (Satz 8). Der eigene Schlüssel unterscheidet die Korrektur im
+			// Journal von der ursprünglichen Steuerzeile; für den Vordruck ist
+			// sie dieselbe Zeile mit umgekehrtem Vorzeichen, das aus der Seite
+			// der Buchung kommt.
+			key := strings.TrimPrefix(line.TaxKey, TaxKeySkontoPrefix)
+
+			switch key {
 			case "":
 				treatment := treatments[line.Account]
 				if treatment == "" {

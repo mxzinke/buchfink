@@ -114,7 +114,12 @@ type DunningService struct {
 	auditRepo    domain.AuditRepository
 	store        *receiptstore.Store
 	renderer     DocumentRenderer
-	fiscalYear   int
+	// invoiceRepo beantwortet die eine Frage, die das Mahnwesen an die
+	// Rechnung stellt: hat sie gegenüber einem Verbraucher auf den Verzug nach
+	// dreißig Tagen hingewiesen (§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB)? Ohne die
+	// Quelle rechnet der Lauf wie zuvor.
+	invoiceRepo domain.InvoiceRepository
+	fiscalYear  int
 }
 
 // NewDunningService wires the Mahnlauf.
@@ -138,6 +143,31 @@ func NewDunningService(
 // SetRenderer hängt den Dokumentensetzer an. Ohne ihn entsteht das Schreiben
 // ohne PDF; der Vorgang bleibt trotzdem verzeichnet.
 func (s *DunningService) SetRenderer(r DocumentRenderer) { s.renderer = r }
+
+// SetInvoiceSource hängt die Rechnungen an: sie tragen das Kennzeichen, ob der
+// Verzugshinweis an den Verbraucher gedruckt wurde.
+func (s *DunningService) SetInvoiceSource(r domain.InvoiceRepository) { s.invoiceRepo = r }
+
+// consumerNoticePrinted meldet, ob die Rechnung hinter einem offenen Posten den
+// Verzugshinweis getragen hat.
+//
+// Beantwortet wird die Frage nur für die Rechnungen, die Buchfink selbst
+// ausgestellt hat: dort steht das Kennzeichen am Datensatz, und eine
+// Bestandsrechnung aus der Zeit vor dem Hinweis trägt es zu Recht nicht. Ein
+// von Hand gebuchter Posten — die Rechnung wurde außerhalb geschrieben — ist
+// kein „ohne Hinweis": Buchfink kennt das Dokument nicht und darf über seinen
+// Text nichts behaupten. Für ihn bleibt es beim Verzug nach dreißig Tagen, und
+// der Hinweis unter dem Vorschlag sagt, worauf er beruht.
+func (s *DunningService) consumerNoticePrinted(ctx context.Context, documentNumber string) bool {
+	if s.invoiceRepo == nil || strings.TrimSpace(documentNumber) == "" {
+		return true
+	}
+	inv, err := s.invoiceRepo.FindByNumber(ctx, documentNumber)
+	if err != nil || inv == nil {
+		return true
+	}
+	return inv.ConsumerNoticePrinted
+}
 
 // SetFiscalYear updates the active fiscal year.
 func (s *DunningService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -236,7 +266,18 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 			OpenAmount: item.OpenAmount, DaysOverdue: overdue,
 			Level: level.Level, PreviousLevel: previous,
 		}
-		if from, err := accounting.DefaultInterestStart(item.DueDate); err != nil {
+		// Gegenüber einem Verbraucher tritt der Verzug nach dreißig Tagen nur
+		// ein, wenn die Rechnung darauf hingewiesen hat (§ 286 Abs. 3 Satz 1
+		// Halbsatz 2 BGB). Der Hinweis steht an der Rechnung und nicht in einer
+		// Einstellung: für eine Rechnung, die ihn nie getragen hat, macht keine
+		// spätere Änderung ihn nachträglich wahr.
+		noticePrinted := true
+		if proposal.IsConsumer {
+			noticePrinted = s.consumerNoticePrinted(ctx, item.DocumentNumber)
+		}
+		if from, err := accounting.DefaultInterestStartFor(
+			item.DueDate, proposal.IsConsumer, noticePrinted,
+		); err != nil {
 			// Ohne Verzugsbeginn keine Zinsen — und keine Pauschale, denn beide
 			// setzen den Verzug voraus. Gesagt wird es trotzdem.
 			row.Note = fmt.Sprintf(
@@ -343,14 +384,16 @@ func dunningNote(p *DunningProposal, extra []string) string {
 				"keine Pauschale (§ 288 Abs. 1 und 5 BGB).")
 		// Der Verzug ohne Mahnung tritt gegenüber einem Verbraucher nur ein,
 		// wenn die Rechnung auf diese Folge hingewiesen hat (§ 286 Abs. 3 Satz 1
-		// Halbsatz 2 BGB). Ob sie das getan hat, weiß Buchfink nicht — der
-		// Hinweis steht auf dem Rechnungsformular. Verschwiegen forderte das
-		// Schreiben Zinsen, die noch gar nicht laufen.
+		// Halbsatz 2 BGB). Für die eigenen Rechnungen weiß Buchfink es und
+		// rechnet danach; für einen von Hand gebuchten Posten kennt es das
+		// Dokument nicht. Verschwiegen forderte das Schreiben in diesem Fall
+		// Zinsen, die noch gar nicht laufen.
 		parts = append(parts,
 			"Gegenüber einem Verbraucher setzen die Zinsen voraus, dass die Rechnung auf den "+
 				"Verzugseintritt dreißig Tage nach Fälligkeit hingewiesen hat "+
 				"(§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB) — fehlt der Hinweis, beginnt der Verzug "+
-				"erst mit der Mahnung.")
+				"erst mit der Mahnung. Bei den in Buchfink ausgestellten Rechnungen ist das "+
+				"berücksichtigt; bei einem von Hand gebuchten Posten prüfe den Text der Rechnung.")
 	} else {
 		parts = append(parts,
 			"Der Kunde ist kein Verbraucher: Verzugszinsen neun Prozentpunkte über dem Basiszinssatz, "+

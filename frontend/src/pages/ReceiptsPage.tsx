@@ -46,7 +46,7 @@ import {
   TAX_RATE_STANDARD,
 } from '../types';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import {
   formatCents,
   formatDate,
@@ -427,7 +427,7 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
   }, [receipts, filter]);
   // Der Prüfermodus sperrt jede Erfassung; der Knopf sagt das, statt es dem
   // Anwender nach dem Dateidialog als Fehlermeldung zu zeigen (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
 
   return (
     <div className="max-w-[1440px] mx-auto px-8 py-8">
@@ -625,10 +625,23 @@ const ReceiptHeaderDialog: React.FC<{
     }
   }
 
+  // Eine begonnene Eingabe geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Verglichen wird mit dem Stand, den der Beleg beim Öffnen trug.
+  const dirty =
+    receipt !== null &&
+    (kind !== kindOf(receipt) ||
+      documentDate !== (receipt.documentDate ?? '') ||
+      issuerName !== (receipt.issuerName ?? '') ||
+      subject !== (receipt.subject ?? '') ||
+      gross !== (receipt.grossAmount ? formatCentsPlain(receipt.grossAmount) : '') ||
+      tax !== (receipt.taxAmount ? formatCentsPlain(receipt.taxAmount) : '') ||
+      currency !== (receipt.currency || 'EUR'));
+
   return (
     <Dialog
       open={receipt !== null}
       onOpenChange={(open) => !open && onClose()}
+      dirty={dirty}
       title={`Kopfdaten zu Beleg ${receipt?.receiptNumber ?? ''}`}
       width="max-w-2xl"
       footer={
@@ -969,7 +982,7 @@ const AuditTrailPanel: React.FC<{
   // Der Vermerk wird an den Beleg geschrieben und steht im Protokoll: im
   // Prüfermodus gesperrt, der Prüfpfad selbst bleibt lesbar und ausgebbar
   // (§10.4) — er ist die Antwort auf die Frage, die eine Prüfung stellt.
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [trail, setTrail] = useState<AuditTrail | null>(null);
   const [threshold, setThreshold] = useState<Cents>(0);
   const [proof, setProof] = useState(receipt.serviceProof ?? '');
@@ -1227,7 +1240,7 @@ const ReceiptViewer: React.FC<{
   onChanged: (updated: Receipt) => Promise<void>;
   onEditHeader: () => void;
 }> = ({ receipt, onChanged, onEditHeader }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [preview, setPreview] = useState<{ dataUrl: string; mimeType: string; intact: boolean } | null>(
     null,
   );
@@ -1541,7 +1554,7 @@ const BookingForm: React.FC<{
   proposal: EInvoiceProposal | null;
   onBooked: (entryNumber: string) => Promise<void>;
 }> = ({ receipt, vendors, contacts, groups, treatments, paymentAccounts, proposal, onBooked }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const today = receipt.receivedAt || new Date().toISOString().split('T')[0];
   const p = proposal?.request;
   const [contactId, setContactId] = useState(p?.contactId || vendors[0]?.id || 0);
@@ -2657,7 +2670,7 @@ const ManualRateForm: React.FC<{
   date: string;
   onSaved: () => void;
 }> = ({ currency, date, onSaved }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [rate, setRate] = useState('');
   const [source, setSource] = useState('');
   const [busy, setBusy] = useState(false);

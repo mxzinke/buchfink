@@ -492,6 +492,27 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 	// Nachtrag war, ist jetzt Teil der Anmeldung — eine Nachtragsliste an ihr
 	// wäre die Doppelzählung derselben Buchung.
 	fresh.LateEntries = nil
+
+	// Ein zweiter Aufruf schreibt den bestehenden Berichtigungsentwurf fort und
+	// legt keinen zweiten an. Der Anwender ruft die Berichtigung genau dann noch
+	// einmal auf, wenn er zwischendurch nachgebucht hat; zwei Entwürfe zu
+	// demselben Zeitraum ließen hinterher nicht mehr erkennen, welcher der
+	// übermittelte ist.
+	if open, err := s.openDraft(ctx, period.Key); err != nil {
+		return nil, err
+	} else if open != nil {
+		before := *open
+		fresh.ID = open.ID
+		fresh.CreatedAt = open.CreatedAt
+		if err := s.returnRepo.Update(ctx, fresh); err != nil {
+			return nil, fmt.Errorf("die Berichtigung konnte nicht gespeichert werden: %w", err)
+		}
+		s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+			"Berichtigte Voranmeldung %s fortgeschrieben (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
+			fresh.PeriodKey, submitted.ID, fresh.Payable, before.Payable), &before, fresh)
+		return fresh, nil
+	}
+
 	if err := s.returnRepo.Create(ctx, fresh); err != nil {
 		return nil, fmt.Errorf("die Berichtigung konnte nicht gespeichert werden: %w", err)
 	}

@@ -1120,3 +1120,59 @@ func TestExportJournalCSVCarriesTheCommitmentDate(t *testing.T) {
 		t.Error("keine Buchung des ersten Quartals im Zeitraumexport — der Test prüft nichts")
 	}
 }
+
+// Die Spalten der Überlassung nennen die Genauigkeit, die zu ihrem Inhalt
+// passt: Kennungen, Zähler, Jahreszahlen und die Cent-Spalten ganzzahlig, die
+// Beträge in Euro mit zwei Nachkommastellen.
+//
+// Sonst läse eine Prüfsoftware die Buchungskennung 4711 als 47,11 — und den
+// Cent-Betrag, der in die Hash-Chain eingeht, als Eurobetrag.
+func TestExportTablesDeclareIntegerColumnsWithoutDecimals(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	svc := env.exports(t)
+	data, err := svc.collect(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Datenauswahl: %v", err)
+	}
+	set, err := svc.buildDataset(data)
+	if err != nil {
+		t.Fatalf("Tabellen: %v", err)
+	}
+
+	integers := map[string]bool{}
+	decimals := map[string]bool{}
+	for _, table := range set.Tables {
+		for _, f := range table.Fields {
+			switch f.Type {
+			case export.FieldInteger:
+				integers[f.Name] = true
+			case export.FieldNumeric:
+				decimals[f.Name] = true
+			}
+		}
+	}
+
+	for _, name := range []string{
+		"Buchung_ID", "Geschaeftsjahr", "Zeilennummer", "Betrag_Cent",
+		"Bemessungsgrundlage_Cent", "Kontakt_ID", "Tage_Beleg_bis_Erfassung",
+	} {
+		if !integers[name] {
+			t.Errorf("die Spalte %s muss ganzzahlig beschrieben sein", name)
+		}
+		if decimals[name] {
+			t.Errorf("die Spalte %s wird zugleich mit Nachkommastellen beschrieben", name)
+		}
+	}
+	for _, name := range []string{"Betrag", "Bemessungsgrundlage", "Schlusssaldo"} {
+		if !decimals[name] {
+			t.Errorf("die Betragsspalte %s muss zwei Nachkommastellen führen", name)
+		}
+		if integers[name] {
+			t.Errorf("die Betragsspalte %s wird zugleich ganzzahlig beschrieben", name)
+		}
+	}
+}

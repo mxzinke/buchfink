@@ -260,3 +260,64 @@ func TestDeadlinesNeedAClosingDate(t *testing.T) {
 		t.Errorf("ohne Stichtag entstehen %d Termine, erwartet keine", len(got))
 	}
 }
+
+// Der Klassenwechsel wird angekündigt, sobald er sich abzeichnet.
+//
+// § 267 Abs. 4 Satz 1 HGB lässt die Rechtsfolgen erst am zweiten
+// übereinstimmenden Stichtag eintreten. Wer erst dann erfährt, dass er
+// prüfungspflichtig wird, hat für die Bestellung eines Abschlussprüfers keine
+// Zeit mehr — die Ankündigung gehört deshalb an den abweichenden Stichtag.
+func TestClassifySizeAnnouncesThePendingChange(t *testing.T) {
+	small := domain.SizeCriteria{BalanceSheetTotal: 500_000_000, Revenue: 1_000_000_000, Employees: 20}
+	medium := domain.SizeCriteria{BalanceSheetTotal: 2_000_000_000, Revenue: 4_000_000_000, Employees: 120}
+
+	first := assess(t, 2024, "2024-12-31", "2024-01-01", small)
+	second := assess(t, 2025, "2025-12-31", "2025-01-01", small)
+	third := assess(t, 2026, "2026-12-31", "2026-01-01", medium)
+	if first.Class != domain.SizeSmall || third.Class != domain.SizeMedium {
+		t.Fatalf("die Ausgangslage stimmt nicht: %s / %s", first.Class, third.Class)
+	}
+
+	// Ein einzelner abweichender Stichtag: die Klasse bleibt, der Wechsel wird
+	// angekündigt und ist zum ersten Mal aufgetreten.
+	once := ClassifySize([]domain.SizeAssessment{first, second, third}, false)
+	if once.Class != domain.SizeSmall {
+		t.Errorf("nach einem abweichenden Stichtag gilt %s, erwartet die kleine Kapitalgesellschaft", once.Class)
+	}
+	if once.PendingChange == nil {
+		t.Fatal("der abweichende Stichtag muss den Wechsel ankündigen")
+	}
+	if once.PendingChange.From != domain.SizeSmall || once.PendingChange.To != domain.SizeMedium {
+		t.Errorf("die Ankündigung lautet %s → %s, erwartet klein → mittelgroß",
+			once.PendingChange.From, once.PendingChange.To)
+	}
+	if once.PendingChange.Occurrences != 1 {
+		t.Errorf("die Ankündigung zählt %d abweichende Stichtage, erwartet 1", once.PendingChange.Occurrences)
+	}
+	if !strings.Contains(once.PendingChange.Note, "Prüfungspflicht") {
+		t.Errorf("die Ankündigung muss die Folgen benennen, lautet aber: %q", once.PendingChange.Note)
+	}
+
+	// Zum zweiten Mal, ohne dass zwei abweichende Stichtage aufeinanderfolgen:
+	// die Klasse bleibt weiterhin, der Wechsel ist aber wahrscheinlich genug,
+	// um ihn im Prüflauf zu nennen.
+	fourth := assess(t, 2027, "2027-12-31", "2027-01-01", small)
+	fifth := assess(t, 2028, "2028-12-31", "2028-01-01", medium)
+	twice := ClassifySize([]domain.SizeAssessment{first, second, third, fourth, fifth}, false)
+	if twice.Class != domain.SizeSmall {
+		t.Errorf("ohne zwei aufeinanderfolgende Stichtage bleibt es bei %s", twice.Class)
+	}
+	if twice.PendingChange == nil || twice.PendingChange.Occurrences != 2 {
+		t.Errorf("die Ankündigung muss den zweiten abweichenden Stichtag zählen: %+v", twice.PendingChange)
+	}
+
+	// Und sobald der Wechsel eingetreten ist, gibt es nichts mehr anzukündigen.
+	sixth := assess(t, 2029, "2029-12-31", "2029-01-01", medium)
+	changed := ClassifySize([]domain.SizeAssessment{first, second, third, fourth, fifth, sixth}, false)
+	if changed.Class != domain.SizeMedium {
+		t.Errorf("nach zwei aufeinanderfolgenden Stichtagen gilt %s, erwartet mittelgroß", changed.Class)
+	}
+	if changed.PendingChange != nil {
+		t.Errorf("der eingetretene Wechsel darf nicht mehr angekündigt werden: %+v", changed.PendingChange)
+	}
+}

@@ -23,35 +23,50 @@ import (
 // programVersion ist die Fassung, die in jeden Export und jede Sicherung geht.
 func programVersion() string { return buildinfo.Version }
 
-// ExportZ3 schreibt die Datenüberlassung eines Geschäftsjahres in einen Ordner.
-func (b *BuchfinkBridge) ExportZ3(year int, targetDir string) (*export.Result, error) {
+// exportService ist der Schnappschuss des Exportdienstes.
+//
+// Die Sperre schützt die Verdrahtung der Dienste und nicht ihre Laufzeit. Ein
+// Export über ein ganzes Geschäftsjahr mit Belegdateien läuft Sekunden bis
+// Minuten; wird die Lesesperre die ganze Zeit gehalten, wartet jede schreibende
+// Bridge-Methode auf sie — der Anwender kann während des Exports nicht buchen,
+// und der Mandantenwechsel steht ebenfalls. Eingesammelt wird deshalb unter der
+// Sperre, gearbeitet wird ohne (dasselbe Vorgehen wie bei der Sicherung).
+func (b *BuchfinkBridge) exportService() (*service.ExportService, error) {
 	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
+	svc := b.exportSvc
+	b.mu.RUnlock()
+	if svc == nil {
 		return nil, fmt.Errorf("der Export ist noch nicht initialisiert")
 	}
-	return b.exportSvc.ExportZ3(context.Background(), year, targetDir)
+	return svc, nil
+}
+
+// ExportZ3 schreibt die Datenüberlassung eines Geschäftsjahres in einen Ordner.
+func (b *BuchfinkBridge) ExportZ3(year int, targetDir string) (*export.Result, error) {
+	svc, err := b.exportService()
+	if err != nil {
+		return nil, err
+	}
+	return svc.ExportZ3(context.Background(), year, targetDir)
 }
 
 // ExportArchive schreibt die Datenüberlassung samt Belegdateien.
 func (b *BuchfinkBridge) ExportArchive(year int, targetDir string) (*export.Result, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
-		return nil, fmt.Errorf("der Export ist noch nicht initialisiert")
+	svc, err := b.exportService()
+	if err != nil {
+		return nil, err
 	}
-	return b.exportSvc.ExportArchive(context.Background(), year, targetDir)
+	return svc.ExportArchive(context.Background(), year, targetDir)
 }
 
 // ExportAuditPackage schreibt das Prüferpaket: Archiv, Integritätsnachweis und
 // Verfahrensdokumentation in einem Ordner.
 func (b *BuchfinkBridge) ExportAuditPackage(year int, targetDir string) (*export.Result, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
-		return nil, fmt.Errorf("der Export ist noch nicht initialisiert")
+	svc, err := b.exportService()
+	if err != nil {
+		return nil, err
 	}
-	return b.exportSvc.ExportAuditPackage(context.Background(), year, targetDir)
+	return svc.ExportAuditPackage(context.Background(), year, targetDir)
 }
 
 // ExportJournalCSV schreibt das Journal eines Zeitraums als CSV und liefert den

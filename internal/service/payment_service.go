@@ -626,7 +626,7 @@ func (s *PaymentService) skontoLines(
 		// Rechnung im Soll gebucht hat, wird im Haben zurückgenommen.
 		line := taxLegLine(leg)
 		line.Side = leg.Side.Opposite()
-		line.TaxKey = "SKONTO_" + leg.Key
+		line.TaxKey = accounting.TaxKeySkontoPrefix + leg.Key
 		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
 		lines = append(lines, line)
 	}

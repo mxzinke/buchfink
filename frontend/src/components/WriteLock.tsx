@@ -68,3 +68,50 @@ export const WriteLockProvider: React.FC<WriteLockProviderProps> = ({
 export function useWriteLock(): WriteLock {
   return useContext(WriteLockContext);
 }
+
+/**
+ * Die zweite Sperre mit demselben Ergebnis: das festgestellte oder offengelegte
+ * Geschäftsjahr (§11.5).
+ *
+ * Sie steht neben dem Prüfermodus und nicht in ihm, weil sie einen anderen
+ * Geltungsbereich hat: der Prüfermodus sperrt jede Änderung der Anwendung, das
+ * festgestellte Jahr nur die Erfassung in diesem Jahr. Getrennt gehalten,
+ * gemeinsam gelesen — die Buchungsansichten fragen über `usePostingLock` beide
+ * zugleich ab und tragen den Grund im `title` des gesperrten Knopfes (§10.4).
+ */
+const PostingLockContext = createContext<number | undefined>(undefined);
+
+export interface PostingLockProviderProps {
+  /** Das angezeigte Geschäftsjahr, sofern es festgestellt oder offengelegt ist. */
+  closedYear?: number;
+  children: React.ReactNode;
+}
+
+export const PostingLockProvider: React.FC<PostingLockProviderProps> = ({
+  closedYear,
+  children,
+}) => (
+  <PostingLockContext.Provider value={closedYear}>{children}</PostingLockContext.Provider>
+);
+
+/**
+ * Der Zustand für eine erfassende Bedienung in einer Buchungsansicht.
+ *
+ * Gleiche Form wie `useWriteLock`, damit die Ansichten dasselbe Muster
+ * behalten: `disabled={locked || busy}` und `title={hint}`. Der Prüfermodus
+ * geht vor, weil er die weitere Sperre ist.
+ */
+export function usePostingLock(): WriteLock {
+  const writeLock = useContext(WriteLockContext);
+  const closedYear = useContext(PostingLockContext);
+  return useMemo<WriteLock>(() => {
+    if (writeLock.locked) return writeLock;
+    if (closedYear === undefined) return OPEN;
+    return {
+      locked: true,
+      hint:
+        `Das Geschäftsjahr ${closedYear} ist festgestellt. Buchungen nimmt es erst wieder an, ` +
+        `wenn die Feststellung mit Grund zurückgesetzt wird.`,
+    };
+  }, [writeLock, closedYear]);
+}

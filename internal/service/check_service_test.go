@@ -694,3 +694,28 @@ func TestCheckOverrideReasonOnlyWithBlockingFindings(t *testing.T) {
 		}
 	}
 }
+
+// Ohne Belegspeicher gibt es nichts zu beanstanden.
+//
+// Der Lauf meldet dann einen eigenen Zustand und keinen Befund: mit IsValid
+// false stünde ein Datenordner ohne Belege in derselben Anzeige wie ein
+// beschädigter Bestand, und der Anwender suchte nach einem Schaden, den es
+// nicht gibt.
+func TestReceiptFileCheckWithoutAStoreIsNoFinding(t *testing.T) {
+	result := checkReceiptFiles(nil, nil, nil)
+	if !result.NoStore {
+		t.Error("der Lauf muss den Zustand „kein Belegspeicher“ melden")
+	}
+	if !result.IsValid {
+		t.Error("ohne Belegspeicher gibt es nichts zu beanstanden")
+	}
+	if len(result.Issues) != 0 {
+		t.Errorf("der Lauf meldet %d Befunde: %+v", len(result.Issues), result.Issues)
+	}
+	if result.Checked != 0 {
+		t.Errorf("der Lauf zählt %d geprüfte Dateien", result.Checked)
+	}
+	if !strings.Contains(result.Message, "kein Belegspeicher") {
+		t.Errorf("die Meldung nennt den Grund nicht: %q", result.Message)
+	}
+}

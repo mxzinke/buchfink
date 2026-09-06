@@ -44,6 +44,16 @@ var taxAccounts = map[string]bool{
 // das Konto 3851 — nicht als Automatik, weil es nichts zu automatisieren gibt.
 const TaxKeyUnlawful = "UST14C"
 
+// TaxKeySkontoPrefix kennzeichnet die Steuerkorrektur einer Entgeltminderung
+// (§ 17 Abs. 1 UStG). Der Rest des Schlüssels ist der Schlüssel der Zeile, die
+// berichtigt wird — „SKONTO_UST19" mindert also die Kennziffer 81.
+//
+// Ein eigener Schlüssel statt derselben Kennung: im Journal, im Kontennachweis
+// und in der Datenüberlassung ist die Berichtigung ein eigener Vorgang und soll
+// als solcher erkennbar bleiben. Für den Vordruck läuft sie in dieselbe Zeile
+// wie der Umsatz — mit dem Vorzeichen, das aus der Buchungsseite folgt.
+const TaxKeySkontoPrefix = "SKONTO_"
+
 // IsDomesticOutputTaxKey meldet, ob ein Steuerschlüssel die Umsatzsteuer eines
 // steuerpflichtigen Inlandsumsatzes trägt (UST19, UST7).
 //

@@ -94,3 +94,97 @@ func TestCoversYearIncludesFirstAndLastYear(t *testing.T) {
 		}
 	}
 }
+
+// Der ganze Berichtigungszeitraum trägt genau 60 bzw. 120 Monate.
+//
+// Daran hängt die Rechnung: der Anteil eines Jahres ist Vorsteuer × Monate /
+// (Zeitraum × 12). Trüge der Zeitraum einen Monat zu viel, ergäbe die Summe der
+// Jahresanteile mehr als die Vorsteuer — berichtigt würde also mehr, als je
+// abgezogen wurde.
+func TestMonthsOfTheWholePeriodAreExactlySixtyOrHundredTwenty(t *testing.T) {
+	cases := []struct {
+		acquisition string
+		years       int
+		firstYear   int
+		lastYear    int
+	}{
+		// Beginn vor dem 16.: der Zugangsmonat zählt voll.
+		{"2026-01-15", 5, 2026, 2031},
+		{"2026-07-01", 5, 2026, 2031},
+		{"2026-01-02", 5, 2026, 2031},
+		// Beginn nach dem 15.: der angefangene Monat bleibt außer Betracht.
+		{"2026-12-20", 5, 2026, 2032},
+		{"2026-06-17", 10, 2026, 2037},
+		{"2026-06-16", 10, 2026, 2037},
+	}
+
+	for _, c := range cases {
+		end, err := CorrectionPeriodEndDate(c.acquisition, c.years)
+		if err != nil {
+			t.Fatalf("%s: %v", c.acquisition, err)
+		}
+		correction := &InputTaxCorrection{
+			AcquisitionDate:       c.acquisition,
+			CorrectionPeriodYears: c.years,
+			PeriodEnd:             end,
+		}
+		total := 0
+		for year := c.firstYear; year <= c.lastYear; year++ {
+			months := correction.MonthsInWindow(
+				fmtYear(year)+"-01-01", fmtYear(year)+"-12-31")
+			if months < 0 || months > 12 {
+				t.Errorf("%s: das Jahr %d trägt %d Monate", c.acquisition, year, months)
+			}
+			total += months
+		}
+		if want := c.years * 12; total != want {
+			t.Errorf("%s (%d Jahre, Ende %s): der Zeitraum trägt %d Monate, erwartet %d",
+				c.acquisition, c.years, end, total, want)
+		}
+	}
+}
+
+func fmtYear(year int) string {
+	return string(rune('0'+year/1000)) + string(rune('0'+year/100%10)) +
+		string(rune('0'+year/10%10)) + string(rune('0'+year%10))
+}
+
+// Ein Altbestand ohne gespeichertes Ende des Zeitraums fällt nicht ein Jahr zu
+// früh aus der Berichtigung.
+//
+// LastFiscalYear stammt bei ihm aus der Zeit, in der Buchfink den Zeitraum in
+// vollen Wirtschaftsjahren führte: er endete bis zu ein Jahr zu früh. Das letzte
+// Jahr des Zeitraums muss deshalb aus dem abgeleiteten Ende kommen — sonst
+// bliebe es lautlos unberichtigt.
+func TestCoversYearUsesTheDerivedPeriodEndForLegacyEntries(t *testing.T) {
+	legacy := &InputTaxCorrection{
+		AcquisitionDate:       "2026-07-01",
+		CorrectionPeriodYears: 5,
+		FirstFiscalYear:       2026,
+		// Der alte Stand: fünf volle Wirtschaftsjahre, Ende 2030.
+		LastFiscalYear: 2030,
+	}
+	if !legacy.CoversYear(2031) {
+		t.Errorf("der Zeitraum endet am %s und deckt 2031; gemeldet wird das Gegenteil",
+			legacy.PeriodEndDate())
+	}
+	if legacy.CoversYear(2032) {
+		t.Error("2032 liegt nach dem Zeitraum")
+	}
+	if legacy.CoversYear(2025) {
+		t.Error("2025 liegt vor dem Zugang")
+	}
+
+	// Ein Eintrag mit gespeichertem Ende bleibt, wie er ist: einen laufenden
+	// Zeitraum nachträglich zu verschieben wäre die Änderung eines Bestands.
+	stored := &InputTaxCorrection{
+		AcquisitionDate:       "2026-07-01",
+		CorrectionPeriodYears: 5,
+		PeriodEnd:             "2031-06-30",
+		FirstFiscalYear:       2026,
+		LastFiscalYear:        2031,
+	}
+	if !stored.CoversYear(2031) || stored.CoversYear(2032) {
+		t.Error("der gespeicherte Zeitraum reicht bis 2031 und nicht weiter")
+	}
+}

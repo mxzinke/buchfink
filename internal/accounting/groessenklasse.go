@@ -211,7 +211,54 @@ func ClassifySize(history []domain.SizeAssessment, isFirstYear bool) domain.Size
 	}
 
 	result.Obligations = ObligationsFor(result.Class)
+	result.PendingChange = pendingChange(result, history)
 	return result
+}
+
+// pendingChange kündigt den Wechsel an, der sich am Stichtag abzeichnet.
+//
+// § 267 Abs. 4 Satz 1 HGB lässt die Rechtsfolgen erst am zweiten
+// übereinstimmenden Stichtag eintreten. Genau deshalb gehört die Ankündigung
+// schon an den ersten: die Bestellung eines Abschlussprüfers, die tiefere
+// Gliederung und die kürzere Aufstellungsfrist lassen sich nicht in dem Monat
+// vorbereiten, in dem sie zum ersten Mal gelten. Ergibt derselbe abweichende
+// Befund zum zweiten Mal, ist der Wechsel wahrscheinlich genug, um ihn im
+// Prüflauf des Abschlusses zu nennen.
+func pendingChange(result domain.SizeClass, history []domain.SizeAssessment) *domain.SizeClassChange {
+	current := history[len(history)-1]
+	if current.Class == result.Class {
+		return nil
+	}
+	occurrences := 0
+	for _, a := range history {
+		if a.Class == current.Class {
+			occurrences++
+		}
+	}
+	return &domain.SizeClassChange{
+		From: result.Class, To: current.Class, Occurrences: occurrences,
+		Note: fmt.Sprintf(
+			"Der Abschlussstichtag %s ergibt %s; wirksam bleibt %s, weil die Rechtsfolgen erst an "+
+				"zwei aufeinanderfolgenden Stichtagen eintreten (§ 267 Abs. 4 Satz 1 HGB). Ergibt der "+
+				"nächste Stichtag erneut %s, gilt ab dann: %s.",
+			germanDate(current.ClosingDate), current.Class.Label(), result.Class.Label(),
+			current.Class.Label(), consequencesOf(ObligationsFor(current.Class))),
+	}
+}
+
+// consequencesOf fasst die Folgen einer Klasse in einem Halbsatz zusammen.
+func consequencesOf(o domain.SizeObligations) string {
+	parts := []string{fmt.Sprintf("Gliederung %s", o.Depth.Label())}
+	if o.AuditRequired {
+		parts = append(parts, "Prüfungspflicht durch einen Abschlussprüfer")
+	} else {
+		parts = append(parts, "keine Prüfungspflicht")
+	}
+	if o.ManagementReport {
+		parts = append(parts, "Lagebericht")
+	}
+	parts = append(parts, fmt.Sprintf("Aufstellung binnen %d Monaten", o.PreparationMonths))
+	return strings.Join(parts, ", ")
 }
 
 // effectiveClass löst die Kette des § 267 Abs. 4 Satz 1 HGB auf.

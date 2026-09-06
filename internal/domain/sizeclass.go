@@ -149,6 +149,29 @@ type SizeClass struct {
 	IsFirstYear bool `json:"isFirstYear"`
 	// Reason begründet die Klasse in einem Satz, einschließlich der
 	// Zweijahresregel.
-	Reason      string          `json:"reason"`
-	Obligations SizeObligations `json:"obligations"`
+	Reason string `json:"reason"`
+	// PendingChange kündigt einen Wechsel an, der sich abzeichnet: der
+	// Stichtag ergibt eine andere Klasse als die geltende, die Rechtsfolgen
+	// treten aber erst am zweiten übereinstimmenden Stichtag ein (§ 267 Abs. 4
+	// Satz 1 HGB). Nil, solange sich nichts abzeichnet.
+	PendingChange *SizeClassChange `json:"pendingChange,omitempty"`
+	Obligations   SizeObligations  `json:"obligations"`
+}
+
+// SizeClassChange ist der Wechsel der Größenklasse, der sich abzeichnet.
+//
+// Er steht am Ergebnis, weil er eine Ankündigung ist und keine Rechtsfolge: an
+// der Gliederungstiefe, der Prüfungspflicht und den Fristen ändert sich noch
+// nichts. Wer aber erst am zweiten Stichtag davon erfährt, hat keine Zeit mehr,
+// einen Abschlussprüfer zu bestellen.
+type SizeClassChange struct {
+	// From ist die geltende Klasse, To die, die dieser Stichtag ergibt.
+	From SizeClassKind `json:"from"`
+	To   SizeClassKind `json:"to"`
+	// Occurrences ist die Zahl der Stichtage in der betrachteten Kette, die
+	// bereits die abweichende Klasse ergeben haben — beim zweiten Mal ist der
+	// Wechsel wahrscheinlich genug, um ihn vorzubereiten.
+	Occurrences int `json:"occurrences"`
+	// Note sagt in einem Satz, was der Wechsel bedeutet.
+	Note string `json:"note"`
 }

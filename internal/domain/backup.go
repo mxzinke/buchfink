@@ -100,14 +100,21 @@ type FileCheckIssue struct {
 // Beleg-Hash. Ob die Datei auf der Platte noch die ist, die gebucht wurde,
 // beantwortet erst der Vergleich mit ihrer Prüfsumme (GoBD Rz. 110).
 type FileCheckResult struct {
-	Checked   int              `json:"checked"`
-	Intact    int              `json:"intact"`
-	Damaged   int              `json:"damaged"`
-	Missing   int              `json:"missing"`
-	Issues    []FileCheckIssue `json:"issues"`
-	IsValid   bool             `json:"isValid"`
-	Message   string           `json:"message"`
-	CheckedAt string           `json:"checkedAt"`
+	Checked int              `json:"checked"`
+	Intact  int              `json:"intact"`
+	Damaged int              `json:"damaged"`
+	Missing int              `json:"missing"`
+	Issues  []FileCheckIssue `json:"issues"`
+	IsValid bool             `json:"isValid"`
+	// NoStore meldet den eigenen Zustand „kein Belegspeicher eingerichtet".
+	//
+	// Er ist keine Beanstandung: geprüft wurde nichts, weil es nichts zu prüfen
+	// gab. Ohne dieses Feld liefe er mit einem beschädigten Bestand in
+	// dieselbe Anzeige — der Anwender läse „zu beanstanden", wo nur ein
+	// Datenordner ohne Belege steht.
+	NoStore   bool   `json:"noStore,omitempty"`
+	Message   string `json:"message"`
+	CheckedAt string `json:"checkedAt"`
 }
 
 // EnsureLists ersetzt eine nicht belegte Befundliste durch eine leere.

@@ -47,6 +47,18 @@ func numField(name, description string) export.Field {
 	return export.Field{Name: name, Type: export.FieldNumeric, Description: description}
 }
 
+// intField ist die numerische Spalte ohne Nachkommastellen: Kennungen, Zähler,
+// Jahreszahlen, Tage und die Cent-Spalten.
+//
+// Die Trennung von numField ist keine Formsache. Der Beschreibungsstandard
+// nennt zu jeder numerischen Spalte eine Genauigkeit, und eine
+// Prüfsoftware teilt danach: mit zwei Nachkommastellen beschrieben, läse sie
+// die Buchungskennung 4711 als 47,11 und den Cent-Betrag 119000 als 1.190,00 —
+// derselbe Wert stünde dann in zwei Spalten desselben Datensatzes verschieden.
+func intField(name, description string) export.Field {
+	return export.Field{Name: name, Type: export.FieldInteger, Description: description}
+}
+
 func dateField(name, description string) export.Field {
 	return export.Field{Name: name, Type: export.FieldDate, Description: description}
 }
@@ -71,8 +83,8 @@ func journalTable(d *exportData) (export.Table, error) {
 	t := newTable(tableJournal, "journal.csv",
 		"Alle Buchungen des Geschäftsjahres, eine Zeile je Buchungszeile. Die Kopfdaten wiederholen sich über die Zeilen einer Buchung.",
 		alphaField("Buchungsnummer", "Fortlaufende, lückenlose Nummer der Buchung im Geschäftsjahr."),
-		numField("Buchung_ID", "Interne Kennung der Buchung; Verknüpfungsschlüssel der übrigen Tabellen."),
-		numField("Geschaeftsjahr", "Geschäftsjahr, dem die Buchung zugeordnet ist."),
+		intField("Buchung_ID", "Interne Kennung der Buchung; Verknüpfungsschlüssel der übrigen Tabellen."),
+		intField("Geschaeftsjahr", "Geschäftsjahr, dem die Buchung zugeordnet ist."),
 		dateField("Buchungsdatum", "Tag, der über die Periode entscheidet."),
 		dateField("Belegdatum", "Datum des zugrunde liegenden Belegs (Rechnungsdatum)."),
 		dateField("Leistungsbeginn", "Beginn der Leistung (§ 14 Abs. 4 Nr. 6 UStG)."),
@@ -83,39 +95,39 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Quelle", "Teil des Systems, der die Buchung erzeugt hat; siehe Schlüsselverzeichnis, Kategorie „Quelle“."),
 		alphaField("Buchungsart", "normal oder reversal (Generalumkehr); siehe Schlüsselverzeichnis."),
 		alphaField("Steuerfall", "Umsatzsteuerlicher Sachverhalt; siehe Schlüsselverzeichnis, Kategorie „Steuerfall“."),
-		numField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
+		intField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
 		alphaField("Storno_Grund", "Begründung der Generalumkehr."),
 		alphaField("Belegnummer", "Belegfeld: Nummer des Belegs, unter der er abgelegt ist."),
 		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste des Belegs und — bei Belegen mit Belegdatum — dessen Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
-		numField("Kontakt_ID", "Geschäftspartner der Buchung; verweist auf kontakte.Kontakt_ID."),
-		numField("Bankumsatz_ID", "Interne Kennung des zugeordneten Bankumsatzes."),
+		intField("Kontakt_ID", "Geschäftspartner der Buchung; verweist auf kontakte.Kontakt_ID."),
+		intField("Bankumsatz_ID", "Interne Kennung des zugeordneten Bankumsatzes."),
 		alphaField("Waehrung", "Währung des Belegs nach ISO 4217."),
-		numField("Kurs_Millionstel", "Umrechnungskurs in Millionsteln; 1000000 bedeutet Euro."),
+		intField("Kurs_Millionstel", "Umrechnungskurs in Millionsteln; 1000000 bedeutet Euro."),
 		alphaField("Kursquelle", "Herkunft des Kurses."),
 		dateField("Kursdatum", "Tag, für den der Kurs gilt."),
 		alphaField("Regelversion", "Fassung der Kontierungsregeln, nach der gebucht wurde."),
 		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat. Leer bei Buchungen aus der Zeit vor dieser Angabe; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
 		alphaField("Herkunft_Altsystem", "Kennung, unter der der Vorgang im Altsystem geführt wurde; nur bei übernommenen Eröffnungswerten belegt."),
-		numField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
+		intField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
 		alphaField("Erfassungszeitpunkt_UTC", "Zeitpunkt der Erfassung nach RFC 3339 in UTC; Bestandteil der Hash-Chain."),
 		alphaField("Vorgaengerhash", "Eigenhash der vorhergehenden Buchung desselben Geschäftsjahres."),
 		alphaField("Eigenhash", "SHA-256 über die kanonische Form der Buchung; siehe Abschnitt „Die Hash-Chain nachrechnen“."),
 		dateField("Festgeschrieben_am", "Tag der Festschreibung des Zeitraums, in den die Buchung fällt; leer, solange sie nicht festgeschrieben ist."),
 		alphaField("Festschreibungszeitpunkt_UTC", "Zeitpunkt, zu dem diese Buchung festgeschrieben wurde, nach RFC 3339 in UTC. Er steht an der Buchung selbst und ist nicht Bestandteil der Hash-Chain: die Festschreibung ändert die Buchung nicht, sie stellt sie fest."),
-		numField("Festschreibung_ID", "Kennung der Festschreibung, die diese Buchung festgestellt hat."),
-		numField("Tage_Beleg_bis_Erfassung", "Tage zwischen Belegdatum und Erfassung. GoBD Rz. 47 nennt zehn Tage für die Erfassung unbarer Geschäftsvorfälle."),
-		numField("Tage_Erfassung_bis_Festschreibung", "Tage zwischen Erfassung und Festschreibung; leer, solange die Buchung nicht festgeschrieben ist."),
-		numField("Zeilennummer", "Position der Zeile innerhalb der Buchung."),
+		intField("Festschreibung_ID", "Kennung der Festschreibung, die diese Buchung festgestellt hat."),
+		intField("Tage_Beleg_bis_Erfassung", "Tage zwischen Belegdatum und Erfassung. GoBD Rz. 47 nennt zehn Tage für die Erfassung unbarer Geschäftsvorfälle."),
+		intField("Tage_Erfassung_bis_Festschreibung", "Tage zwischen Erfassung und Festschreibung; leer, solange die Buchung nicht festgeschrieben ist."),
+		intField("Zeilennummer", "Position der Zeile innerhalb der Buchung."),
 		alphaField("Seite", "S für Soll, H für Haben."),
 		alphaField("Konto", "Sachkonto (vier Stellen) oder Personenkonto (fünf Stellen)."),
 		alphaField("Kontoname", "Bezeichnung des Kontos zum Zeitpunkt des Exports."),
 		numField("Betrag", "Betrag der Zeile in Euro. Bei einer Generalumkehr negativ."),
-		numField("Betrag_Cent", "Derselbe Betrag in ganzzahligen Cent; dieser Wert geht in die Hash-Chain ein."),
+		intField("Betrag_Cent", "Derselbe Betrag in ganzzahligen Cent; dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Steuerschluessel", "Schlüssel der Steuerzeile; siehe Tabelle steuerschluessel."),
 		numField("Bemessungsgrundlage", "Entgelt, aus dem die Steuer dieser Zeile gerechnet wurde, in Euro."),
-		numField("Bemessungsgrundlage_Cent", "Dieselbe Bemessungsgrundlage in Cent; dieser Wert geht in die Hash-Chain ein."),
-		numField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten."),
+		intField("Bemessungsgrundlage_Cent", "Dieselbe Bemessungsgrundlage in Cent; dieser Wert geht in die Hash-Chain ein."),
+		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten."),
 		alphaField("Zeilentext", "Text der einzelnen Zeile."),
 	)
 
@@ -199,7 +211,7 @@ func sortedLines(e *domain.JournalEntry) []domain.JournalLine {
 func entertainmentTable(d *exportData) (export.Table, error) {
 	t := newTable(tableEntertainment, "bewirtungen.csv",
 		"Aufzeichnungen zu Bewirtungsaufwendungen (§ 4 Abs. 5 Satz 1 Nr. 2 EStG). Sie sind Bestandteil der kanonischen Form der Buchung.",
-		numField("Buchung_ID", "Buchung, zu der die Aufzeichnung gehört."),
+		intField("Buchung_ID", "Buchung, zu der die Aufzeichnung gehört."),
 		alphaField("Buchungsnummer", "Nummer derselben Buchung."),
 		alphaField("Ort", "Ort der Bewirtung."),
 		dateField("Tag", "Tag der Bewirtung."),
@@ -230,13 +242,13 @@ func entertainmentTable(d *exportData) (export.Table, error) {
 func allocationsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAllocations, "zahlungszuordnungen.csv",
 		"Zuordnung von Zahlungen zu offenen Posten. Eine Zahlung kann mehrere Posten ausgleichen und ein Posten durch mehrere Zahlungen ausgeglichen werden.",
-		numField("Zuordnung_ID", "Interne Kennung der Zuordnung."),
-		numField("Posten_Buchung_ID", "Buchung, die den offenen Posten begründet hat."),
+		intField("Zuordnung_ID", "Interne Kennung der Zuordnung."),
+		intField("Posten_Buchung_ID", "Buchung, die den offenen Posten begründet hat."),
 		alphaField("Posten_Buchungsnummer", "Nummer dieser Buchung."),
-		numField("Zahlung_Buchung_ID", "Buchung der Zahlung."),
+		intField("Zahlung_Buchung_ID", "Buchung der Zahlung."),
 		alphaField("Zahlung_Buchungsnummer", "Nummer der Zahlungsbuchung."),
-		numField("Bankumsatz_ID", "Zugeordneter Bankumsatz, sofern vorhanden."),
-		numField("Kontakt_ID", "Geschäftspartner des Postens."),
+		intField("Bankumsatz_ID", "Zugeordneter Bankumsatz, sofern vorhanden."),
+		intField("Kontakt_ID", "Geschäftspartner des Postens."),
 		numField("Ausgleichsbetrag", "Betrag, um den der offene Posten sinkt, in Euro."),
 		numField("Zahlbetrag", "Betrag, der tatsächlich über das Geldkonto geflossen ist, in Euro."),
 		alphaField("Differenzart", "Grund der Abweichung; siehe Schlüsselverzeichnis, Kategorie „Differenzart“."),
@@ -268,7 +280,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 		alphaField("Konto", "Kontonummer."),
 		alphaField("Name", "Bezeichnung des Kontos."),
 		alphaField("Typ", "Kontoart; siehe Schlüsselverzeichnis, Kategorie „Kontoart“."),
-		numField("Kontenklasse", "Klasse 0 bis 9 des Kontenrahmens."),
+		intField("Kontenklasse", "Klasse 0 bis 9 des Kontenrahmens."),
 		alphaField("Kontenklasse_Name", "Bezeichnung der Kontenklasse."),
 		alphaField("Kategorie", "Grobe Zuordnung, etwa „Umlaufvermögen“."),
 		alphaField("Unterkategorie", "Feinere Zuordnung innerhalb der Kategorie."),
@@ -279,7 +291,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 		alphaField("Bilanzseite", "Aktiva, Passiva, GuV oder Statistisch."),
 		alphaField("Abschlussart", "Bilanz, GuV oder Statistisch."),
 		numField("Steuersatz", "Hinterlegter Steuersatz in Prozent; 0.00, wo keiner hinterlegt ist."),
-		numField("Aktiv", "1, wenn das Konto bebucht werden darf, sonst 0."),
+		intField("Aktiv", "1, wenn das Konto bebucht werden darf, sonst 0."),
 	)
 	for _, a := range d.accounts {
 		if a.IsRange {
@@ -341,7 +353,7 @@ func balancesTable(d *exportData) (export.Table, error) {
 		numField("Soll", "Summe der Sollbuchungen ohne Vortrag, in Euro."),
 		numField("Haben", "Summe der Habenbuchungen ohne Vortrag, in Euro."),
 		numField("Schlusssaldo", "Anfangsbestand zuzüglich Soll abzüglich Haben, in Euro. Ein Habensaldo ist negativ."),
-		numField("Buchungen", "Anzahl der Buchungszeilen auf diesem Konto."),
+		intField("Buchungen", "Anzahl der Buchungszeilen auf diesem Konto."),
 	)
 
 	accounts := make([]string, 0, len(d.balances))
@@ -369,7 +381,7 @@ func balancesTable(d *exportData) (export.Table, error) {
 func contactsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableContacts, "kontakte.csv",
 		"Debitoren und Kreditoren mit ihren Personenkonten. Personenbezogene Angaben stehen im Klartext, wie es § 147 Abs. 6 AO für die Datenüberlassung verlangt.",
-		numField("Kontakt_ID", "Interne Kennung; Verknüpfungsschlüssel des Journals."),
+		intField("Kontakt_ID", "Interne Kennung; Verknüpfungsschlüssel des Journals."),
 		alphaField("Personenkonto", "Debitoren- (10000–69999) oder Kreditorenkonto (70000–99999)."),
 		alphaField("Art", "customer für Debitoren, vendor für Kreditoren; siehe Schlüsselverzeichnis."),
 		alphaField("Name", "Name des Geschäftspartners."),
@@ -380,7 +392,7 @@ func contactsTable(d *exportData) (export.Table, error) {
 		alphaField("Steuernummer", "Steuernummer des Geschäftspartners."),
 		alphaField("Email", "Kontaktadresse."),
 		alphaField("IBAN", "Bankverbindung."),
-		numField("Zahlungsziel_Tage", "Vereinbartes Zahlungsziel in Tagen."),
+		intField("Zahlungsziel_Tage", "Vereinbartes Zahlungsziel in Tagen."),
 		alphaField("Sammelkonto", "Konto, auf dem die Posten dieses Partners in der Bilanz zusammengefasst werden."),
 	)
 	for i := range d.contacts {
@@ -401,9 +413,9 @@ func openItemsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableOpenItems, "offene_posten.csv",
 		"Forderungen und Verbindlichkeiten, die zum Stichtag noch offen waren.",
 		dateField("Stichtag", "Tag, zu dem die Posten ermittelt wurden."),
-		numField("Buchung_ID", "Buchung, die den Posten begründet."),
+		intField("Buchung_ID", "Buchung, die den Posten begründet."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
-		numField("Kontakt_ID", "Geschäftspartner."),
+		intField("Kontakt_ID", "Geschäftspartner."),
 		alphaField("Kontakt_Name", "Name des Geschäftspartners."),
 		alphaField("Personenkonto", "Konto, auf dem der Posten steht."),
 		alphaField("Belegnummer", "Belegfeld der zugrunde liegenden Rechnung."),
@@ -436,7 +448,7 @@ func openItemsTable(d *exportData) (export.Table, error) {
 func assetsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAssets, "anlagen.csv",
 		"Die Anlagenkartei: Stammdaten der Wirtschaftsgüter des Anlagevermögens.",
-		numField("Anlage_ID", "Interne Kennung."),
+		intField("Anlage_ID", "Interne Kennung."),
 		alphaField("Inventarnummer", "Nummer, unter der das Wirtschaftsgut geführt wird."),
 		alphaField("Bezeichnung", "Name des Wirtschaftsguts."),
 		alphaField("Beschreibung", "Ergänzende Beschreibung."),
@@ -447,16 +459,16 @@ func assetsTable(d *exportData) (export.Table, error) {
 		dateField("Betriebsbereit_ab", "Tag, ab dem abgeschrieben wird; leer bedeutet: ab der Anschaffung."),
 		numField("Anschaffungskosten", "Zugangswert in Euro."),
 		alphaField("AfA_Methode", "Abschreibungsverfahren; siehe Schlüsselverzeichnis."),
-		numField("Nutzungsdauer_Monate", "Betriebsgewöhnliche Nutzungsdauer in Monaten."),
-		numField("Sammelposten_Jahr", "Wirtschaftsjahr des Sammelpostens nach § 6 Abs. 2a EStG; 0 sonst."),
-		numField("Sonder_AfA_Promille", "In Anspruch genommene Sonderabschreibung nach § 7g Abs. 5 EStG in Promille."),
-		numField("Sonder_AfA_Jahre", "Zahl der Jahre, auf die die Sonderabschreibung verteilt wird."),
-		numField("Kontakt_ID", "Lieferant des Wirtschaftsguts."),
-		numField("Zugangsbuchung_ID", "Buchung des Zugangs."),
+		intField("Nutzungsdauer_Monate", "Betriebsgewöhnliche Nutzungsdauer in Monaten."),
+		intField("Sammelposten_Jahr", "Wirtschaftsjahr des Sammelpostens nach § 6 Abs. 2a EStG; 0 sonst."),
+		intField("Sonder_AfA_Promille", "In Anspruch genommene Sonderabschreibung nach § 7g Abs. 5 EStG in Promille."),
+		intField("Sonder_AfA_Jahre", "Zahl der Jahre, auf die die Sonderabschreibung verteilt wird."),
+		intField("Kontakt_ID", "Lieferant des Wirtschaftsguts."),
+		intField("Zugangsbuchung_ID", "Buchung des Zugangs."),
 		dateField("Abgangsdatum", "Tag des Abgangs; leer, solange das Gut im Bestand ist."),
 		alphaField("Abgangsart", "Art des Abgangs; siehe Schlüsselverzeichnis."),
 		numField("Abgangserloes", "Erlös aus dem Abgang in Euro."),
-		numField("Abgangsbuchung_ID", "Buchung des Abgangs."),
+		intField("Abgangsbuchung_ID", "Buchung des Abgangs."),
 		alphaField("Notizen", "Freitext zum Wirtschaftsgut."),
 	)
 	for i := range d.assets {
@@ -481,17 +493,17 @@ func assetsTable(d *exportData) (export.Table, error) {
 func assetMovementsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAssetMovements, "anlagen_bewegungen.csv",
 		"Zugänge, Abschreibungen, Zuschreibungen und Abgänge je Wirtschaftsgut. Aus ihnen ergibt sich der Anlagenspiegel.",
-		numField("Bewegung_ID", "Interne Kennung."),
-		numField("Anlage_ID", "Wirtschaftsgut, zu dem die Bewegung gehört."),
+		intField("Bewegung_ID", "Interne Kennung."),
+		intField("Anlage_ID", "Wirtschaftsgut, zu dem die Bewegung gehört."),
 		alphaField("Inventarnummer", "Nummer desselben Wirtschaftsguts."),
 		alphaField("Art", "Bewegungsart; siehe Schlüsselverzeichnis, Kategorie „Anlagenbewegung“."),
 		dateField("Datum", "Tag der Bewegung."),
-		numField("Geschaeftsjahr", "Geschäftsjahr, in dem die Bewegung ausgewiesen wird."),
+		intField("Geschaeftsjahr", "Geschäftsjahr, in dem die Bewegung ausgewiesen wird."),
 		alphaField("Konto", "Anlagekonto, dem die Bewegung zugeordnet ist."),
 		numField("AHK_Veraenderung", "Veränderung der Anschaffungs- und Herstellungskosten in Euro."),
 		numField("AfA_Veraenderung", "Veränderung der kumulierten Abschreibungen in Euro."),
 		numField("Steuerbetrag", "Betrag, der nur steuerlich zählt, etwa die Vorabpauschale, in Euro."),
-		numField("Buchung_ID", "Buchung, die die Bewegung trägt."),
+		intField("Buchung_ID", "Buchung, die die Bewegung trägt."),
 		alphaField("Begruendung", "Begründung, bei außerplanmäßigen Vorgängen Pflicht."),
 	)
 	for i := range d.assets {
@@ -744,7 +756,7 @@ func keyDirectoryTable() (export.Table, error) {
 func auditLogTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAuditLog, "aenderungsprotokoll.csv",
 		"Das Änderungsprotokoll: wer wann was getan hat, und was sich dabei geändert hat (GoBD Rz. 34 ff.). Die Einträge sind untereinander verkettet; ein entfernter Eintrag bricht die Kette.",
-		numField("Protokoll_ID", "Fortlaufende Kennung."),
+		intField("Protokoll_ID", "Fortlaufende Kennung."),
 		alphaField("Zeitpunkt", "Zeitpunkt des Vorgangs nach RFC 3339 in UTC, mit Bruchteilen der Sekunde, soweit vorhanden. Genau dieser Text geht in die kanonische Form des Eintrags ein; siehe Abschnitt „Die Kette des Änderungsprotokolls nachrechnen“."),
 		alphaField("Art", "Art des Vorgangs; siehe Schlüsselverzeichnis, Kategorie „Protokollart“."),
 		alphaField("Objektart", "Betroffene Art von Objekt."),
@@ -816,9 +828,9 @@ func daysToCommitment(e *domain.JournalEntry) string {
 func receiptsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableReceipts, "belege.csv",
 		"Die abgelegten Belege mit ihren Dateien. Eine Zeile je Datei; die Spalte Pfad_im_Export ist nur im Archivexport belegt.",
-		numField("Beleg_ID", "Interne Kennung des Belegs."),
+		intField("Beleg_ID", "Interne Kennung des Belegs."),
 		alphaField("Belegnummer", "Nummer, unter der der Beleg geführt wird."),
-		numField("Geschaeftsjahr", "Geschäftsjahr des Belegs."),
+		intField("Geschaeftsjahr", "Geschäftsjahr des Belegs."),
 		alphaField("Richtung", "incoming für Eingangs-, outgoing für Ausgangsbelege."),
 		alphaField("Belegart", "Art des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegart“."),
 		alphaField("Status", "Stand des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegstatus“."),
@@ -833,15 +845,15 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Aufbewahrungsklasse", "Klasse, aus der sich die Frist ergibt; siehe Schlüsselverzeichnis, Kategorie „Aufbewahrungsklasse“."),
 		dateField("Aufbewahrung_bis", "Letzter Tag der Aufbewahrungsfrist. Gelöscht werden darf frühestens am Folgetag."),
 		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und — bei Belegen mit Belegdatum — die Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
-		numField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
+		intField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
-		numField("Datei_Position", "Reihenfolge der Datei innerhalb des Belegs."),
+		intField("Datei_Position", "Reihenfolge der Datei innerhalb des Belegs."),
 		alphaField("Rolle", "Rolle der Datei; siehe Schlüsselverzeichnis, Kategorie „Belegrolle“."),
 		alphaField("Dateiname", "Name, unter dem die Datei empfangen wurde."),
 		alphaField("Dateityp", "MIME-Typ der Datei."),
-		numField("Groesse_Bytes", "Größe der Datei in Bytes."),
+		intField("Groesse_Bytes", "Größe der Datei in Bytes."),
 		alphaField("Datei_SHA256", "Prüfsumme des Dateiinhalts."),
-		numField("Abgeleitet", "1, wenn Buchfink die Datei aus einer anderen erzeugt hat, sonst 0."),
+		intField("Abgeleitet", "1, wenn Buchfink die Datei aus einer anderen erzeugt hat, sonst 0."),
 		alphaField("Pfad_im_Export", "Pfad der Datei innerhalb dieses Exports; leer, wenn keine Dateien beiliegen."),
 	)
 	for i := range d.receipts {
@@ -882,13 +894,13 @@ func receiptsTable(d *exportData) (export.Table, error) {
 func documentsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableDocuments, "dokumente.csv",
 		"Verträge, Gutachten und Zulassungen zu den Wirtschaftsgütern des Anlagevermögens. Die Spalte Pfad_im_Export ist nur im Archivexport belegt.",
-		numField("Dokument_ID", "Interne Kennung des Dokuments."),
-		numField("Anlage_ID", "Wirtschaftsgut, zu dem das Dokument gehört."),
+		intField("Dokument_ID", "Interne Kennung des Dokuments."),
+		intField("Anlage_ID", "Wirtschaftsgut, zu dem das Dokument gehört."),
 		alphaField("Inventarnummer", "Nummer desselben Wirtschaftsguts."),
 		alphaField("Art", "Art des Dokuments; siehe Schlüsselverzeichnis, Kategorie „Anlagendokument“."),
 		alphaField("Dateiname", "Name, unter dem die Datei abgelegt wurde."),
 		alphaField("Dateityp", "MIME-Typ der Datei."),
-		numField("Groesse_Bytes", "Größe der Datei in Bytes."),
+		intField("Groesse_Bytes", "Größe der Datei in Bytes."),
 		alphaField("SHA256", "Prüfsumme des Dateiinhalts."),
 		dateField("Gueltig_bis", "Tag, bis zu dem das Dokument gilt; leer, wo keine Frist besteht."),
 		alphaField("Notiz", "Freitext zum Dokument."),
@@ -912,12 +924,12 @@ func documentsTable(d *exportData) (export.Table, error) {
 func vatReturnsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableVatReturns, "voranmeldungen.csv",
 		"Die Umsatzsteuer-Voranmeldungen des Geschäftsjahres, eine Zeile je Kennziffer mit einem Wert.",
-		numField("Anmeldung_ID", "Interne Kennung der Anmeldung."),
+		intField("Anmeldung_ID", "Interne Kennung der Anmeldung."),
 		alphaField("Zeitraum", "Schlüssel des Zeitraums, etwa 2026-03 oder 2026-Q1."),
 		alphaField("Zeitraumart", "month, quarter oder year."),
 		dateField("Von", "Erster Tag des Zeitraums."),
 		dateField("Bis", "Letzter Tag des Zeitraums."),
-		numField("Berichtigung", "1, wenn es sich um eine berichtigte Anmeldung handelt (Kennziffer 10), sonst 0."),
+		intField("Berichtigung", "1, wenn es sich um eine berichtigte Anmeldung handelt (Kennziffer 10), sonst 0."),
 		alphaField("Status", "Stand der Anmeldung."),
 		dateField("Uebermittelt_am", "Tag der Übermittlung."),
 		alphaField("Transferticket", "Ticket der Übermittlung."),
@@ -954,13 +966,13 @@ func vatReturnsTable(d *exportData) (export.Table, error) {
 func commitsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableCommits, "festschreibungen.csv",
 		"Die Festschreibungen: bis zu welchem Tag der Zeitraum geschlossen ist und welcher Kettenkopf dabei festgehalten wurde.",
-		numField("Festschreibung_ID", "Interne Kennung."),
-		numField("Geschaeftsjahr", "Geschäftsjahr der Festschreibung."),
+		intField("Festschreibung_ID", "Interne Kennung."),
+		intField("Geschaeftsjahr", "Geschäftsjahr der Festschreibung."),
 		alphaField("Zeitraumart", "month, quarter oder year."),
 		alphaField("Zeitraum", "Bezeichnung des Zeitraums."),
 		dateField("Stichtag", "Letzter Tag, der festgeschrieben ist."),
 		alphaField("Kettenkopf", "Eigenhash der letzten Buchung zum Zeitpunkt der Festschreibung."),
-		numField("Buchungen", "Zahl der zu diesem Zeitpunkt erfassten Buchungen."),
+		intField("Buchungen", "Zahl der zu diesem Zeitpunkt erfassten Buchungen."),
 		alphaField("Zeitstempel_Status", "confirmed, wenn ein qualifizierter Zeitstempel vorliegt."),
 		alphaField("Zeitstempel_Dienst", "Name des Zeitstempeldienstes."),
 		alphaField("Zeitstempel_Zeit", "Zeitpunkt des Zeitstempels nach RFC 3339."),
@@ -987,13 +999,13 @@ func commitsTable(d *exportData) (export.Table, error) {
 func checkRunsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableCheckRuns, "prueflaeufe.csv",
 		"Die Prüfläufe vor den Festschreibungen mit ihren Befunden (internes Kontrollsystem, GoBD Rz. 100 ff.).",
-		numField("Lauf_ID", "Interne Kennung des Laufs."),
-		numField("Geschaeftsjahr", "Geschäftsjahr des Laufs."),
+		intField("Lauf_ID", "Interne Kennung des Laufs."),
+		intField("Geschaeftsjahr", "Geschäftsjahr des Laufs."),
 		dateField("Stichtag", "Tag, bis zu dem geprüft wurde."),
 		alphaField("Zeitraumart", "Anlass des Laufs: month, quarter, year oder leer."),
-		numField("Geprueft_Buchungen", "Zahl der geprüften Buchungen."),
-		numField("Geprueft_Belege", "Zahl der geprüften Belege."),
-		numField("Geprueft_Bankumsaetze", "Zahl der geprüften Bankumsätze."),
+		intField("Geprueft_Buchungen", "Zahl der geprüften Buchungen."),
+		intField("Geprueft_Belege", "Zahl der geprüften Belege."),
+		intField("Geprueft_Bankumsaetze", "Zahl der geprüften Bankumsätze."),
 		alphaField("Uebergehungsgrund", "Begründung, mit der ein blockierender Befund übergangen wurde."),
 		alphaField("Erstellt_am", "Zeitpunkt des Laufs nach RFC 3339."),
 		alphaField("Regel", "Schlüssel der verletzten Regel."),
@@ -1038,7 +1050,7 @@ func checkRunsTable(d *exportData) (export.Table, error) {
 func auditTrailTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAuditTrail, "pruefpfad.csv",
 		"Der Weg vom Beleg über die Buchung und die Zahlung bis zum Bankumsatz. Eine Zeile je Beleg und zugeordneter Zahlung; ein Beleg ohne Zahlung steht mit leeren Zahlungsspalten.",
-		numField("Beleg_ID", "Interne Kennung des Belegs."),
+		intField("Beleg_ID", "Interne Kennung des Belegs."),
 		alphaField("Belegnummer", "Nummer, unter der der Beleg geführt wird."),
 		dateField("Belegdatum", "Datum, das der Beleg selbst trägt."),
 		alphaField("Aussteller", "Name des Ausstellers."),
@@ -1046,13 +1058,13 @@ func auditTrailTable(d *exportData) (export.Table, error) {
 		alphaField("Bestellbezug", "Bestellnummer aus der E-Rechnung (BT-13), soweit vorhanden."),
 		alphaField("Leistungsnachweis", "Vermerk über die sachliche Prüfung."),
 		dateField("Leistungsnachweis_am", "Tag, an dem der Vermerk erfasst wurde."),
-		numField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
+		intField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
 		dateField("Buchungsdatum", "Datum der Buchung."),
-		numField("Zahlung_Buchung_ID", "Buchung der Zahlung, sofern zugeordnet."),
+		intField("Zahlung_Buchung_ID", "Buchung der Zahlung, sofern zugeordnet."),
 		alphaField("Zahlung_Buchungsnummer", "Nummer der Zahlungsbuchung."),
 		numField("Ausgleichsbetrag", "Betrag, um den der offene Posten sank, in Euro."),
-		numField("Bankumsatz_ID", "Zugeordneter Bankumsatz, sofern vorhanden."),
+		intField("Bankumsatz_ID", "Zugeordneter Bankumsatz, sofern vorhanden."),
 	)
 
 	// Die Zuordnungen je Posten einmal gruppieren statt je Beleg zu suchen: die

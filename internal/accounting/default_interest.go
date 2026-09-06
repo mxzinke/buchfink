@@ -122,6 +122,27 @@ func DefaultInterestStart(dueDate string) (string, error) {
 	return due.AddDate(0, 0, DefaultGraceDays+1).Format("2006-01-02"), nil
 }
 
+// DefaultInterestStartFor ist derselbe Tag, aber mit der Einschränkung des
+// § 286 Abs. 3 Satz 1 Halbsatz 2 BGB.
+//
+// Gegenüber einem Verbraucher tritt der Verzug nach dreißig Tagen nur ein, wenn
+// die Rechnung auf diese Folge besonders hingewiesen hat. Fehlt der Hinweis,
+// gibt es keinen Verzug von selbst — er entsteht dann erst mit einer Mahnung
+// (§ 286 Abs. 1 BGB), und bis dahin laufen weder Zinsen noch die Pauschale.
+//
+// Der Hinweis ist ein Merkmal des Dokuments und keine Einstellung: für eine
+// Rechnung, die ihn nie getragen hat, macht keine spätere Änderung ihn
+// nachträglich wahr. Deshalb der zweite Parameter.
+func DefaultInterestStartFor(dueDate string, isConsumer, noticePrinted bool) (string, error) {
+	if isConsumer && !noticePrinted {
+		return "", fmt.Errorf(
+			"die Rechnung trägt den Hinweis auf den Verzug nach dreißig Tagen nicht; gegenüber " +
+				"einem Verbraucher tritt der Verzug dann nicht von selbst ein (§ 286 Abs. 3 Satz 1 " +
+				"Halbsatz 2 BGB), sondern erst mit einer Mahnung")
+	}
+	return DefaultInterestStart(dueDate)
+}
+
 // InterestSegment ist ein Abschnitt der Zinsrechnung mit einem Satz.
 type InterestSegment struct {
 	From string `json:"from"`

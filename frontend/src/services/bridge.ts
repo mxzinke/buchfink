@@ -98,8 +98,6 @@ export const bridge = {
 
   // Bank & Zahlungen
   GetBankTransactions: <T>() => invoke<T>('GetBankTransactions'),
-  ImportCAMT053XML: (xmlContent: string, ledgerAccount: string) =>
-    invoke<number>('ImportCAMT053XML', xmlContent, ledgerAccount),
   BookBankTransactionDirect: <T>(bankTxId: number, counterAccount: string, description: string) =>
     invoke<T>('BookBankTransactionDirect', bankTxId, counterAccount, description),
   IgnoreBankTransaction: (bankTxId: number) => invoke<void>('IgnoreBankTransaction', bankTxId),

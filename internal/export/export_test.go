@@ -294,7 +294,8 @@ func TestIndexXMLDescribesEveryColumn(t *testing.T) {
 				t.Errorf("Tabelle %s Spalte %d: %q statt %q", want.Name, j, got, field.Name)
 			}
 			wantType := map[FieldType]string{
-				FieldNumeric: "Numeric", FieldDate: "Date", FieldAlphaNumeric: "AlphaNumeric",
+				FieldNumeric: "Numeric", FieldInteger: "Numeric",
+				FieldDate: "Date", FieldAlphaNumeric: "AlphaNumeric",
 			}[field.Type]
 			if len(findAll(column, wantType)) != 1 {
 				t.Errorf("Tabelle %s Spalte %s: der Typ %s fehlt", want.Name, field.Name, wantType)
@@ -540,5 +541,45 @@ func validateAgainstDTD(t *testing.T, models map[string]*regexp.Regexp, n *node)
 	}
 	for _, c := range n.children {
 		validateAgainstDTD(t, models, c)
+	}
+}
+
+// Die Genauigkeit einer numerischen Spalte muss zu ihrem Inhalt passen.
+//
+// Der Beschreibungsstandard nennt zu jeder numerischen Spalte eine
+// Nachkommastellenzahl, und die Prüfsoftware teilt danach. Eine Kennung, ein
+// Zähler, eine Jahreszahl oder ein Cent-Betrag mit Accuracy 2 beschrieben käme
+// dort durch hundert geteilt an — und derselbe Wert stünde in zwei Spalten
+// desselben Datensatzes verschieden.
+func TestNumericAccuracyFollowsTheColumnKind(t *testing.T) {
+	d := sampleDataset()
+	d.Tables[0].Fields = []Field{
+		{Name: "Buchung_ID", Type: FieldInteger, Description: "Kennung"},
+		{Name: "Betrag", Type: FieldNumeric, Description: "Betrag in Euro"},
+		{Name: "Betrag_Cent", Type: FieldInteger, Description: "Derselbe Betrag in Cent"},
+		{Name: "Buchungstext", Type: FieldAlphaNumeric, Description: "Beschreibung"},
+	}
+	d.Tables[0].Rows = [][]string{{"1", "119.00", "11900", "Miete"}}
+
+	xml := string(RenderIndexXML(d))
+	want := map[string]string{
+		"Buchung_ID":   "<Numeric><Accuracy>0</Accuracy></Numeric>",
+		"Betrag":       "<Numeric><Accuracy>2</Accuracy></Numeric>",
+		"Betrag_Cent":  "<Numeric><Accuracy>0</Accuracy></Numeric>",
+		"Buchungstext": "<AlphaNumeric/>",
+	}
+	for _, block := range strings.Split(xml, "<VariableColumn>")[1:] {
+		for name, accuracy := range want {
+			if !strings.Contains(block, "<Name>"+name+"</Name>") {
+				continue
+			}
+			if !strings.Contains(block, accuracy) {
+				t.Errorf("die Spalte %s wird beschrieben als:\n%s\nerwartet %s", name, block, accuracy)
+			}
+			delete(want, name)
+		}
+	}
+	if len(want) > 0 {
+		t.Errorf("die Beschreibungsdatei nennt %d Spalten nicht: %v", len(want), want)
 	}
 }

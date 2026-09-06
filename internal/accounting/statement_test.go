@@ -657,3 +657,51 @@ func TestGroupWithOffsettingChildrenStays(t *testing.T) {
 		}
 	}
 }
+
+// Ein Auffangkonto ohne Saldo im aufgestellten Jahr gehört nicht in den
+// Zuordnungsbericht.
+//
+// Der Bericht ist eine Arbeitsliste: er sagt, welche Beträge in den „sonstigen"
+// Posten liegen und feiner zugeordnet werden sollten. Ein Konto, das nur im
+// Vorjahr etwas trug, gibt dafür nichts her — es zu melden schickte den
+// Anwender auf die Suche nach einer Buchung, die es im Jahr nicht gibt.
+func TestFallbackPositionsIgnoreAccountsWithoutBalance(t *testing.T) {
+	prior := accountsWith(t, map[string]domain.Cents{
+		"1400": 500_000,
+		"1800": -500_000,
+	})
+	// Im laufenden Jahr steht auf dem Auffangkonto 1400 nichts mehr.
+	current := accountsWith(t, map[string]domain.Cents{
+		"1400": 0,
+		"1600": -300_000,
+		"1800": 300_000,
+	})
+
+	stmt, err := BuildStatement(current, prior, domain.DepthFull)
+	if err != nil {
+		t.Fatalf("Bilanz: %v", err)
+	}
+	for _, fallback := range stmt.Assignment.Fallbacks {
+		if fallback.Key == "aktiva.B.II.4" {
+			t.Errorf("die Auffangposition wird ohne Saldo im laufenden Jahr gemeldet: %+v", fallback)
+		}
+	}
+
+	// Gegenprobe: mit Saldo im laufenden Jahr steht sie weiterhin im Bericht.
+	withBalance, err := BuildStatement(accountsWith(t, map[string]domain.Cents{
+		"1400": 500_000,
+		"1800": -500_000,
+	}), prior, domain.DepthFull)
+	if err != nil {
+		t.Fatalf("Bilanz mit Saldo: %v", err)
+	}
+	found := false
+	for _, fallback := range withBalance.Assignment.Fallbacks {
+		if fallback.Key == "aktiva.B.II.4" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("mit Saldo im laufenden Jahr muss die Auffangposition gemeldet werden")
+	}
+}

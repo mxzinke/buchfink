@@ -562,8 +562,30 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 		t.Fatalf("Saldenvortrag: %v", err)
 	}
 
+	// Der Storno aus der Buchungsansicht trägt den Tag seiner Erstellung: wird
+	// er in einem späteren Kalenderjahr ausgelöst, steht er in einem anderen
+	// Geschäftsjahr als die Vortragsbuchung. Mit vorgegebenem Datum lässt sich
+	// dieser Stand nicht mehr herstellen (ReverseOn hält die Umkehr im Jahr der
+	// Ursprungsbuchung), deshalb wird er hier von Hand gebucht — die Frage ist,
+	// wie der Saldenvortrag mit einem solchen Altbestand umgeht.
 	sv := openingEntry(t, env, 2027)
-	if _, err := env.journal.ReverseOn(ctx, sv.ID, "Storno aus der Buchungsansicht", "2028-03-01"); err != nil {
+	reversal := &domain.JournalEntry{
+		FiscalYear: 2028, BookingDate: "2028-03-01", DocumentDate: sv.DocumentDate,
+		Description:    "Storno zu " + sv.EntryNumber,
+		Source:         sv.Source,
+		DocumentNumber: sv.DocumentNumber,
+		Kind:           domain.EntryKindReversal,
+		ReversalOfID:   &sv.ID,
+		ReversalReason: "Storno aus der Buchungsansicht",
+	}
+	for _, l := range sv.Lines {
+		reversal.Lines = append(reversal.Lines, domain.JournalLine{
+			Position: l.Position, Side: l.Side, Account: l.Account,
+			ContactID: l.ContactID, Amount: -l.Amount, TaxKey: l.TaxKey,
+			TaxBase: -l.TaxBase, Text: l.Text,
+		})
+	}
+	if _, err := env.journal.Post(ctx, reversal); err != nil {
 		t.Fatalf("Storno im Folgejahr: %v", err)
 	}
 
@@ -757,13 +779,17 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+	// Zwei Posten auf demselben Personenkonto: erst an ihnen zeigt sich, dass
+	// je offenem Posten eine Zeile entsteht und nicht eine je Konto. Mit nur
+	// einem Posten fielen beide Regeln zusammen.
+	second := env.openPayable(t, vendor.ID, 200000, domain.TaxRateStandard)
 
 	before, err := payments.OpenItems(ctx)
 	if err != nil {
 		t.Fatalf("offene Posten vor dem Vortrag: %v", err)
 	}
-	if len(before) != 1 {
-		t.Fatalf("erwartet 1 offener Posten, erhalten %d", len(before))
+	if len(before) != 2 {
+		t.Fatalf("erwartet 2 offene Posten, erhalten %d", len(before))
 	}
 
 	preview, err := closing.CarryForwardState(ctx, 2027)
@@ -777,8 +803,8 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 	if row == nil {
 		t.Fatalf("die Vorschau kennt das Kreditorenkonto %s nicht", vendor.LedgerAccount)
 	}
-	if row.Kind != CarryForwardKreditor || row.OpenItems != 1 || row.ClosingBalance != -119000 {
-		t.Errorf("Kreditorenzeile = %+v, erwartet einen offenen Posten über 1.190,00 im Haben", row)
+	if row.Kind != CarryForwardKreditor || row.OpenItems != 2 || row.ClosingBalance != -357000 {
+		t.Errorf("Kreditorenzeile = %+v, erwartet zwei offene Posten über zusammen 3.570,00 im Haben", row)
 	}
 
 	created, err := closing.CarryForward(ctx, 2027)
@@ -790,21 +816,29 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 	}
 
 	kreditoren := created[1]
+	// Je offenem Posten eine Zeile auf dem Personenkonto, dagegen ein
+	// Sammelposten auf dem Vortragskonto.
 	assertLines(t, &kreditoren, []bookedLine{
 		{domain.SideCredit, vendor.LedgerAccount, 119000},
-		{domain.SideDebit, domain.AccountSaldenvortraegeKreditoren, 119000},
+		{domain.SideCredit, vendor.LedgerAccount, 238000},
+		{domain.SideDebit, domain.AccountSaldenvortraegeKreditoren, 357000},
 	})
-	var ledgerText string
+	ledgerTexts := map[string]bool{}
 	for _, line := range kreditoren.Lines {
 		if line.Account == vendor.LedgerAccount {
 			if line.ContactID == nil || *line.ContactID != vendor.ID {
 				t.Errorf("die Vortragszeile muss auf den Geschäftspartner verweisen: %+v", line)
 			}
-			ledgerText = line.Text
+			ledgerTexts[line.Text] = true
 		}
 	}
-	if !strings.Contains(ledgerText, "vom 01.03.2026") {
-		t.Errorf("die Vortragszeile muss Belegnummer und Belegdatum tragen, lautet aber %q", ledgerText)
+	if len(ledgerTexts) != 2 {
+		t.Errorf("die beiden Vortragszeilen müssen sich im Text unterscheiden: %v", ledgerTexts)
+	}
+	for text := range ledgerTexts {
+		if !strings.Contains(text, "vom 01.03.2026") {
+			t.Errorf("die Vortragszeile muss Belegnummer und Belegdatum tragen, lautet aber %q", text)
+		}
 	}
 
 	// Die OP-Liste des neuen Jahres zeigt denselben Posten, nicht zwei.
@@ -813,21 +847,32 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("offene Posten nach dem Vortrag: %v", err)
 	}
-	if len(after) != 1 {
-		t.Fatalf("nach dem Vortrag muss es weiterhin genau einen offenen Posten geben, es sind %d", len(after))
+	if len(after) != 2 {
+		t.Fatalf("nach dem Vortrag muss es weiterhin genau zwei offene Posten geben, es sind %d", len(after))
 	}
-	if after[0].EntryID != invoice.ID {
-		t.Errorf("der offene Posten muss die Rechnung von 2026 bleiben, ist aber Buchung %d", after[0].EntryID)
+	openBefore := map[uint]domain.Cents{}
+	for _, item := range before {
+		openBefore[item.EntryID] = item.OpenAmount
 	}
-	if after[0].OpenAmount != before[0].OpenAmount {
-		t.Errorf("offener Betrag = %s €, vor dem Vortrag %s €", after[0].OpenAmount, before[0].OpenAmount)
+	for _, item := range after {
+		want, ok := openBefore[item.EntryID]
+		if !ok {
+			t.Errorf("der offene Posten aus Buchung %d stand vor dem Vortrag nicht in der Liste", item.EntryID)
+			continue
+		}
+		if item.OpenAmount != want {
+			t.Errorf("offener Betrag der Buchung %d = %s €, vor dem Vortrag %s €", item.EntryID, item.OpenAmount, want)
+		}
 	}
 
-	// Und die Zahlung im neuen Jahr gleicht ihn aus.
+	// Und die Zahlungen im neuen Jahr gleichen beide aus.
 	if _, err := payments.Settle(ctx, PaymentRequest{
 		PaymentAccount: domain.AccountBank,
 		PaymentDate:    "2027-02-15",
-		Allocations:    []AllocationRequest{{OpenItemEntryID: invoice.ID, SettledAmount: 119000}},
+		Allocations: []AllocationRequest{
+			{OpenItemEntryID: invoice.ID, SettledAmount: 119000},
+			{OpenItemEntryID: second.ID, SettledAmount: 238000},
+		},
 	}); err != nil {
 		t.Fatalf("Zahlung im neuen Jahr: %v", err)
 	}
@@ -1137,17 +1182,18 @@ func TestEnsureFiscalYearsCreatesEntitiesForBookedYears(t *testing.T) {
 	}
 }
 
-// Ein Geschäftsjahr, das nebenbei entsteht — der Blick auf den Abschlussstand
-// legt es an —, gehört genauso ins Protokoll wie eines aus der Jahresanlage
-// (Entscheidung 8: alle Aktionen mit EntityType FISCAL_YEAR).
+// Ein Geschäftsjahr, das nebenbei entsteht — eine Angabe am Jahr wird
+// gespeichert, bevor es jemand angelegt hat —, gehört genauso ins Protokoll wie
+// eines aus der Jahresanlage (Entscheidung 8: alle Aktionen mit EntityType
+// FISCAL_YEAR).
 func TestFiscalYearCreatedOnTheFlyIsLogged(t *testing.T) {
 	env := newTestEnv(t)
 	closing := env.closing(t)
 	ctx := context.Background()
 	auditRepo := repository.NewAuditRepository(env.db)
 
-	if _, err := closing.ClosingStateFor(ctx, 2026); err != nil {
-		t.Fatalf("Abschlussstand: %v", err)
+	if _, err := closing.SetAverageEmployees(ctx, 2026, 7); err != nil {
+		t.Fatalf("Arbeitnehmerzahl: %v", err)
 	}
 
 	logs, err := auditRepo.FindAll(ctx, 100)
@@ -1261,13 +1307,14 @@ func TestClosingStateReportsCommitmentAndCarryForward(t *testing.T) {
 		t.Errorf("nächster Schritt = %q (möglich: %v), erwartet die Aufstellung", state.NextStatus, state.CanAdopt)
 	}
 
-	// Das Ansehen darf kein Geschäftsjahr anlegen: sonst stünde das Folgejahr
-	// in der Auswahl, ohne dass es jemand eröffnet hätte.
+	// Das Ansehen darf kein Geschäftsjahr anlegen: sonst stünden das
+	// angesehene Jahr und sein Folgejahr in der Auswahl, ohne dass sie jemand
+	// eröffnet hätte.
 	years, err := closing.FiscalYears(ctx)
 	if err != nil {
 		t.Fatalf("Geschäftsjahre: %v", err)
 	}
-	if len(years) != 1 || years[0].Year != 2026 {
+	if len(years) != 0 {
 		t.Errorf("nach dem Blick auf den Abschlussstand sind %d Geschäftsjahre erfasst: %+v", len(years), years)
 	}
 

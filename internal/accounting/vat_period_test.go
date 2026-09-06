@@ -121,23 +121,37 @@ func TestVatPeriodForFollowsTheTaxEvent(t *testing.T) {
 // war — sie übernimmt Beleg- und Leistungsdatum und trägt nur ihr eigenes
 // Buchungsdatum. Ohne diese Eigenschaft stünde die Korrektur im Monat ihrer
 // Erfassung und der ursprüngliche Umsatz bliebe im alten Monat stehen.
+//
+// Geltungsbereich: die Rücknahme einer Buchung, die keine Ausgangsrechnung ist
+// — also die manuelle Buchung und der Eingangsbeleg. Sie berichtigt keine
+// Rechnung gegenüber einem Empfänger, sondern nimmt eine Buchung zurück, die es
+// so nicht gab; der Umsatz gehört deshalb weiterhin in seinen Zeitraum.
+//
+// Für die Ausgangsrechnung gilt das Gegenteil (Source EntrySourceInvoice): dort
+// wirkt die Berichtigung im Zeitraum, in dem sie eingetreten ist (§ 17 Abs. 1
+// Satz 8 UStG, Abschn. 14c.1 Abs. 5 UStAE) — siehe
+// TestVatPeriodOfInvoiceReversalIsTheCorrectionDate.
 func TestVatPeriodForReversalKeepsTheOriginalPeriod(t *testing.T) {
 	original := &domain.JournalEntry{
 		BookingDate: "2026-03-15", DocumentDate: "2026-03-10",
 		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-05",
+		Source: domain.EntrySourceManual,
 	}
-	reversal := &domain.JournalEntry{
-		Kind:        domain.EntryKindReversal,
-		BookingDate: "2026-07-20", // Datum der Korrektur
-		// Generalumkehr übernimmt die Daten der Ursprungsbuchung.
-		DocumentDate:    original.DocumentDate,
-		ServiceDateFrom: original.ServiceDateFrom, ServiceDateTo: original.ServiceDateTo,
-	}
-
 	line := domain.JournalLine{TaxKey: "UST19"}
-	if got := VatPeriodFor(reversal, line, ""); got != VatPeriodFor(original, line, "") {
-		t.Errorf("die Generalumkehr wirkt zum %s, die Ursprungsbuchung zum %s — beide gehören in denselben Zeitraum",
-			got, VatPeriodFor(original, line, ""))
+
+	for _, source := range []domain.EntrySource{domain.EntrySourceManual, domain.EntrySourceReceipt} {
+		reversal := &domain.JournalEntry{
+			Kind:        domain.EntryKindReversal,
+			Source:      source,
+			BookingDate: "2026-07-20", // Datum der Korrektur
+			// Generalumkehr übernimmt die Daten der Ursprungsbuchung.
+			DocumentDate:    original.DocumentDate,
+			ServiceDateFrom: original.ServiceDateFrom, ServiceDateTo: original.ServiceDateTo,
+		}
+		if got := VatPeriodFor(reversal, line, ""); got != VatPeriodFor(original, line, "") {
+			t.Errorf("die Generalumkehr einer Buchung aus %q wirkt zum %s, die Ursprungsbuchung zum %s — "+
+				"beide gehören in denselben Zeitraum", source, got, VatPeriodFor(original, line, ""))
+		}
 	}
 }
 

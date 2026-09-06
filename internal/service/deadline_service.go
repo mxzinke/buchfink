@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -153,10 +154,45 @@ func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Dea
 	return out, nil
 }
 
+// manualDeadlineKeys sind die Terminarten, deren Erledigung Buchfink nicht aus
+// den eigenen Daten ablesen kann.
+//
+// Bei allen anderen steht die Erledigung im Bestand: die übermittelte
+// Voranmeldung, die abgegebene Zusammenfassende Meldung, die Festschreibung des
+// Zeitraums, die Gründungspflicht mit ihrem Nachweis, die aufgestellte und die
+// offengelegte Bilanz. Ein Haken daneben wäre eine Selbstauskunft gegen den
+// eigenen Bestand — die Fristenliste ließe ihn ohnehin nicht durch (Deadlines
+// übernimmt den Haken nur an einem Termin, den die Daten als offen ausweisen),
+// und das Abhaken einer solchen Frist wäre damit eine Handlung ohne Wirkung.
+var manualDeadlineKeys = []string{
+	DeadlineKeyPrepayment,
+	DeadlineKeyAnnualVat,
+	DeadlineKeyExemption,
+}
+
+// isManualDeadlineKey prüft den Schlüssel gegen die manuellen Terminarten. Die
+// Schlüssel tragen hinter der Art einen Zeitraum oder eine Kennung
+// („sondervorauszahlung.2026"), deshalb die Präfixprüfung.
+func isManualDeadlineKey(key string) bool {
+	for _, prefix := range manualDeadlineKeys {
+		if key == prefix || strings.HasPrefix(key, prefix+".") {
+			return true
+		}
+	}
+	return false
+}
+
 // MarkDone setzt den Haken an einem Termin, der sich nicht aus den Daten ergibt.
 func (s *DeadlineService) MarkDone(ctx context.Context, key, date string) error {
 	if key == "" {
 		return fmt.Errorf("zum Abhaken gehört der Termin")
+	}
+	if !isManualDeadlineKey(key) {
+		return fmt.Errorf(
+			"der Termin %q ergibt sich aus den Daten und wird nicht von Hand abgehakt: erledigt ist "+
+				"er, sobald die zugehörige Meldung übermittelt, der Zeitraum festgeschrieben oder der "+
+				"Abschluss aufgestellt ist. Von Hand abhaken lassen sich nur %s",
+			key, strings.Join(manualDeadlineKeys, ", "))
 	}
 	if date == "" {
 		date = todayLocal()

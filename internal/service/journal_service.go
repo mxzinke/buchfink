@@ -291,6 +291,19 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 				"nur für den Saldenvortrag. Storniere die Buchung ohne Datumsangabe – die Korrektur trägt "+
 				"dann den Tag ihrer Erstellung", original.EntryNumber)
 	}
+	// Und auch beim Saldenvortrag ist das Datum nicht frei: die Rücknahme
+	// gehört in das Geschäftsjahr der Ursprungsbuchung. Landete sie in einem
+	// anderen Jahr, stünde der Vortrag im einen Jahr doppelt und im anderen
+	// eine Umkehr ohne Gegenstück — die Eröffnungsbilanz beider Jahre wäre
+	// falsch.
+	if date != "" {
+		if target := domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)); target != original.FiscalYear {
+			return nil, fmt.Errorf(
+				"das Korrekturdatum %s fällt in das Geschäftsjahr %d; die Generalumkehr zur "+
+					"Eröffnungsbuchung %s gehört in das Geschäftsjahr %d",
+				date, target, original.EntryNumber, original.FiscalYear)
+		}
+	}
 
 	existing, err := s.journalRepo.FindReversalOf(ctx, entryID)
 	if err != nil {

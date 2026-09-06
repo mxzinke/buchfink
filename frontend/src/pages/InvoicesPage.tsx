@@ -3,6 +3,7 @@ import { AlertCircle, FileText, MoreHorizontal, Plus, Trash2 } from 'lucide-reac
 import type {
   Account,
   Contact,
+  EInvoiceProfile,
   EInvoiceProfileInfo,
   EvidenceStatus,
   Invoice,
@@ -23,7 +24,7 @@ import type {
 } from '../types';
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
-import { useWriteLock } from '../components/WriteLock';
+import { usePostingLock } from '../components/WriteLock';
 import type { NavigateFn } from '../components/Sidebar';
 import { formatCents, formatDate, formatDateTime, formatTaxRate, parseCents } from '../utils/formatters';
 import {
@@ -160,7 +161,7 @@ const todayISO = () => new Date().toISOString().split('T')[0];
 export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
   // Ausstellen und Stornieren sind Buchungen; Ansehen und Ausgeben bleiben im
   // Prüfermodus möglich (§10.4).
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
@@ -720,8 +721,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         {documentPreview && (
           <>
             <p className="text-caption text-ink-subtle -mt-1 mb-3">
-              Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML — das archivierte Dokument, nicht eine
-              neue Darstellung.
+              {DOCUMENT_CAPTIONS[profileOf(documentPreview.invoice)]}
             </p>
             {!documentPreview.intact && (
               <div className="mb-3 flex items-start gap-2.5 rounded-control border border-negative-line bg-negative-soft px-4 py-3">
@@ -744,7 +744,11 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       <Dialog
         open={preview !== null}
         onOpenChange={(next) => !next && setPreview(null)}
-        title={`ZUGFeRD-XML · ${preview?.invoice.invoiceNumber ?? ''}`}
+        title={
+          preview
+            ? `${STRUCTURED_TITLES[profileOf(preview.invoice)]} · ${preview.invoice.invoiceNumber}`
+            : ''
+        }
         width="max-w-3xl"
       >
         {/* Technische Ausgabe, deshalb Monospace auf dunkler Fläche (§4.1). */}
@@ -803,6 +807,36 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 /** Kopf- und Zeilenraster der Positionen. Eine Definition für beide. */
 const ITEM_GRID = 'grid grid-cols-[minmax(0,1fr)_5rem_6rem_7rem_6rem_7rem_2rem] gap-2 items-center';
 
+/**
+ * Was das archivierte Dokument einer Rechnung ist, hängt am Format, in dem sie
+ * ausgestellt wurde. „Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML" stimmt
+ * nur für ZUGFeRD: bei der XRechnung ist die XML-Datei das Original und das PDF
+ * ihre Darstellung, bei `pdf_only` gibt es überhaupt keinen strukturierten
+ * Datensatz. Eine feste Beschriftung behauptete an zwei von drei Formaten
+ * etwas Falsches.
+ */
+const DOCUMENT_CAPTIONS: Record<EInvoiceProfile, string> = {
+  zugferd_en16931:
+    'Hybrides PDF/A-3 mit eingebettetem ZUGFeRD-XML — das archivierte Dokument, nicht eine neue Darstellung.',
+  xrechnung_cii: 'PDF-Darstellung zur XRechnung; Original ist die XML-Datei.',
+  pdf_only: 'PDF ohne strukturierten Datensatz.',
+};
+
+/** Der Titel des Dialogs mit dem strukturierten Datensatz, nach Format. */
+const STRUCTURED_TITLES: Record<EInvoiceProfile, string> = {
+  zugferd_en16931: 'ZUGFeRD-XML',
+  xrechnung_cii: 'XRechnung als XML',
+  pdf_only: 'Ohne strukturierten Datensatz',
+};
+
+/**
+ * Das Format eines Dokuments. Bestandsrechnungen aus der Zeit vor dem Feld
+ * tragen keines; für sie gilt die Voreinstellung des Backends.
+ */
+function profileOf(invoice: Invoice): EInvoiceProfile {
+  return invoice.eInvoiceProfile ?? 'zugferd_en16931';
+}
+
 const InvoiceForm: React.FC<{
   contacts: Contact[];
   treatments: TaxTreatmentInfo[];
@@ -812,7 +846,7 @@ const InvoiceForm: React.FC<{
   onClose: () => void;
   onIssued: (invoiceNumber: string) => void;
 }> = ({ contacts, treatments, units, profiles, paymentAccounts, onClose, onIssued }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const today = todayISO();
   const [contactId, setContactId] = useState(contacts[0]?.id ?? 0);
   const [date, setDate] = useState(today);
@@ -851,6 +885,16 @@ const InvoiceForm: React.FC<{
   const [vatIdStatus, setVatIdStatus] = useState<VatIDStatus | null>(null);
   const [vatIdBusy, setVatIdBusy] = useState(false);
   const [vatIdError, setVatIdError] = useState<string | null>(null);
+
+  // Eine begonnene Rechnung geht beim Schließen nicht ohne Rückfrage verloren
+  // (§8.7). Gefragt wird nach dem, was der Anwender selbst eingetragen hat —
+  // die Vorbelegung von Datum, Kunde und leerer Position ist kein Inhalt.
+  const dirty =
+    items.some((item) => item.description.trim() !== '' || item.unitPrice.trim() !== '') ||
+    dueDays.trim() !== '' ||
+    discountPermille.trim() !== '' ||
+    discountDays.trim() !== '' ||
+    vatIdOverrideReason.trim() !== '';
 
   const contact = contacts.find((c) => c.id === contactId);
   const treatmentInfo = treatments.find((t) => t.treatment === treatment);
@@ -1086,6 +1130,7 @@ const InvoiceForm: React.FC<{
       onOpenChange={(next) => !next && onClose()}
       title="Neue Rechnung"
       width="max-w-4xl"
+      dirty={dirty}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -1095,7 +1140,17 @@ const InvoiceForm: React.FC<{
             variant="primary"
             loading={busy}
             disabled={!preview || preview.gross <= 0 || writeLock.locked}
-            title={writeLock.hint}
+            // Ein gesperrter Knopf ohne Erklärung verschweigt seinen Grund
+            // (§10.4): ohne Vorschau ist noch nichts gerechnet, und über null
+            // Euro gibt es keine Rechnung.
+            title={
+              writeLock.hint ??
+              (!preview
+                ? 'Die Vorschau steht noch aus; sie rechnet den Buchungssatz zur Rechnung.'
+                : preview.gross <= 0
+                  ? 'Ohne Betrag gibt es keine Rechnung — tragen Sie Menge und Einzelpreis ein.'
+                  : undefined)
+            }
             onClick={submit}
           >
             Ausstellen und buchen
@@ -1505,7 +1560,7 @@ const CancelDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ invoice, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [reason, setReason] = useState('');
   // Zwei Fehlerarten, zwei Orte (§10.4): die fehlende Pflichtangabe steht am
   // Feld, das sie meint; die Ablehnung des Backends ist eine fachliche Aussage
@@ -1614,7 +1669,7 @@ const CorrectDialog: React.FC<{
   onClose: () => void;
   onDone: (invoiceNumber: string) => void;
 }> = ({ invoice, units, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [reason, setReason] = useState('');
   const [date, setDate] = useState(todayISO());
   const [items, setItems] = useState<DraftItem[]>([]);
@@ -1697,7 +1752,12 @@ const CorrectDialog: React.FC<{
             variant="primary"
             loading={busy}
             disabled={items.length === 0 || writeLock.locked}
-            title={writeLock.hint}
+            title={
+              writeLock.hint ??
+              (items.length === 0
+                ? 'Ohne Position gäbe es nichts zu berichtigen — die Rechnung braucht mindestens eine.'
+                : undefined)
+            }
             onClick={submit}
           >
             Stornieren und berichtigt ausstellen
@@ -1839,7 +1899,7 @@ const SentDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ invoice, options, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [date, setDate] = useState(todayISO());
   const [via, setVia] = useState<InvoiceSentVia>('email');
   const [note, setNote] = useState('');
@@ -1936,7 +1996,7 @@ const GapReasonDialog: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ gap, reasons, year, onClose, onDone }) => {
-  const writeLock = useWriteLock();
+  const writeLock = usePostingLock();
   const [reason, setReason] = useState<NumberGapReason>('aborted');
   const [detail, setDetail] = useState('');
   // Der Grund kommt aus einer Auswahl mit Voreinstellung, der Vermerk ist

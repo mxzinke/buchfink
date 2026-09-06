@@ -16,7 +16,7 @@ import { useWriteLock } from '../components/WriteLock';
 import { OpeningBalanceDialog } from '../components/OpeningBalanceDialog';
 // Die Zuordnung Baustein → Reiter steht dort, wo die Reiter stehen. Eine zweite
 // Kopie hier liefe auseinander, sobald ein Baustein dazukommt.
-import { STEP_OBLIGATIONS, STEP_TABS } from './ClosingModulesPage';
+import { SkippedMark, STEP_OBLIGATIONS, STEP_TABS } from './ClosingModulesPage';
 import { formatCents, formatDate, formatDateTime, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -283,6 +283,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   // Der Vorjahresumsatz entscheidet über die Übergangsfrist des § 27 Abs. 38
   // Nr. 2 UStG. Er steht am Geschäftsjahr, weil er für dieses Jahr gilt.
   const [priorRevenue, setPriorRevenue] = useState('');
+  // Ein unleserlicher Betrag ist ein Fehler der Eingabe: er steht am Feld und
+  // nicht als Toast, der nach vier Sekunden weg ist (§10.4).
+  const [priorRevenueError, setPriorRevenueError] = useState('');
   const [savingRevenue, setSavingRevenue] = useState(false);
 
   // Die Bausteine des Abschlusses — Abgrenzung, Rückstellungen, Inventurwert,
@@ -405,15 +408,16 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   async function savePriorRevenue() {
     const amount = parseCents(priorRevenue);
     if (amount === null || amount < 0) {
-      toast.error('Der Vorjahresumsatz ist ein Betrag ab null. Bitte korrigieren Sie die Eingabe.');
+      setPriorRevenueError('Erwartet wird ein Betrag ab null, etwa 800.000,00.');
       return;
     }
+    setPriorRevenueError('');
     setSavingRevenue(true);
     try {
       await Api.setPriorYearRevenue(year, amount);
       await load();
     } catch (e) {
-      toast.error(message(e));
+      setPriorRevenueError(message(e));
     } finally {
       setSavingRevenue(false);
     }
@@ -892,10 +896,12 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                   <Td>
                     {/* „Übersprungen" ist kein Zustand des Statusvokabulars: es
                         beschreibt eine Entscheidung, nicht den Stand einer
-                        Buchung. Es bekommt deshalb Klartext statt eines
-                        erfundenen Abzeichens. */}
+                        Buchung. Es trägt deshalb kein erfundenes Abzeichen,
+                        sondern dieselbe neutrale Form wie auf der
+                        Bausteinseite — sonst sähe derselbe Schritt an zwei
+                        Stellen verschieden aus. */}
                     {step.state === 'skipped' ? (
-                      <span className="text-ink-subtle">Übersprungen</span>
+                      <SkippedMark />
                     ) : (
                       <StatusBadge status={step.state === 'done' ? 'gebucht' : 'offen'} />
                     )}
@@ -990,6 +996,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
 
         <Field
           label="Gesamtumsatz des Vorjahres"
+          error={priorRevenueError || undefined}
           help="Entscheidet über die Übergangsfrist der E-Rechnung (§ 27 Abs. 38 Nr. 2 UStG)."
           explain="Bis 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden; ab 2028 nicht mehr. Vorbelegt ist der Wert aus der Gewinn- und Verlustrechnung des Vorjahres — der Gesamtumsatz des § 19 Abs. 3 UStG ist damit nicht identisch, deshalb ist er überschreibbar."
           className="mt-4 max-w-sm"
@@ -1000,7 +1007,10 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
               inputMode="decimal"
               align="right"
               placeholder="0,00"
-              onChange={(e) => setPriorRevenue(e.target.value)}
+              onChange={(e) => {
+                setPriorRevenue(e.target.value);
+                setPriorRevenueError('');
+              }}
             />
             <Button
               variant="secondary"

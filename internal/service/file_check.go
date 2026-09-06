@@ -65,7 +65,12 @@ func checkReceiptFiles(
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if store == nil {
-		result.Message = "Es ist kein Belegspeicher eingerichtet."
+		// Kein Belegspeicher ist kein Befund: geprüft wurde nichts, weil es
+		// nichts zu prüfen gab. Mit IsValid false gemeldet stünde der Lauf in
+		// derselben Anzeige wie ein beschädigter Bestand.
+		result.NoStore = true
+		result.IsValid = true
+		result.Message = "Es ist kein Belegspeicher eingerichtet; es wurden keine Dateien geprüft."
 		return result
 	}
 

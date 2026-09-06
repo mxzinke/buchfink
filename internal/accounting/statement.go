@@ -682,16 +682,24 @@ func (b *builder) finish() domain.AssignmentReport {
 		if !def.Fallback {
 			continue
 		}
-		entries := b.accounts[def.Key]
-		if len(entries) == 0 {
+		// Nur Konten mit Saldo im aufgestellten Jahr. Ein Auffangkonto, das
+		// allein wegen eines Vorjahreswertes in der Gliederung steht, ist
+		// nichts, was der Anwender heute zuordnen könnte — es zu melden hieße,
+		// ihn auf eine Buchung anzusetzen, die es im Jahr nicht gibt.
+		var sum domain.Cents
+		count := 0
+		for _, entry := range b.accounts[def.Key] {
+			if entry.Amount == 0 {
+				continue
+			}
+			sum += entry.Amount
+			count++
+		}
+		if count == 0 {
 			continue
 		}
-		var sum domain.Cents
-		for _, entry := range entries {
-			sum += entry.Amount
-		}
 		report.Fallbacks = append(report.Fallbacks, domain.FallbackCount{
-			Key: def.Key, Label: def.Label, Accounts: len(entries), Amount: sum,
+			Key: def.Key, Label: def.Label, Accounts: count, Amount: sum,
 		})
 	}
 	return report

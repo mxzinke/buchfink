@@ -45,6 +45,12 @@ const (
 	// ist keine Fehlbuchung, aber eine Aussage — und sie gehört in den Bericht,
 	// den der Prüfer liest, nicht nur in die Schrittliste des Anwenders.
 	CheckRuleClosingStepSkipped = "closing_step_skipped"
+	// CheckRuleSizeClassChange kündigt den Wechsel der Größenklasse an, der
+	// sich am Abschlussstichtag abzeichnet. Er ist noch keine Rechtsfolge —
+	// § 267 Abs. 4 Satz 1 HGB lässt sie erst am zweiten übereinstimmenden
+	// Stichtag eintreten —, aber Prüferbestellung und Gliederungsumstellung
+	// brauchen Vorlauf.
+	CheckRuleSizeClassChange = "size_class_change"
 	// CheckRuleICSupplyEvidenceMissing meldet eine steuerfreie
 	// innergemeinschaftliche Lieferung ohne vollständigen Belegnachweis
 	// (§§ 17a bis 17c UStDV). Der Nachweis ist bis zur Abgabe der Voranmeldung

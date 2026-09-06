@@ -74,6 +74,10 @@ func TestInputTaxCorrectionPeriodRunsFromFirstUse(t *testing.T) {
 	// Zugang am 20.12.: der Zeitraum endet am 19.12.2031, und weil das nach dem
 	// 15. liegt, zählt der Dezember 2031 nach § 45 UStDV voll. 2031 geht
 	// deshalb mit zwölf Monaten ein — und war vorher gar nicht berichtigbar.
+	//
+	// Dieselbe Rundung am Anfang: die Verwendung beginnt nach dem 15., also
+	// bleibt der Dezember 2026 unberücksichtigt. Sonst trüge der Zeitraum 61
+	// Monate, und die Summe der Jahresanteile überstiege die Vorsteuer.
 	t.Run("Zugang im Dezember", func(t *testing.T) {
 		env := newTestEnv(t)
 		ctx := context.Background()
@@ -104,13 +108,16 @@ func TestInputTaxCorrectionPeriodRunsFromFirstUse(t *testing.T) {
 			t.Errorf("Berichtigung 2031: %s € — erwartet -608,00 €", view.TotalAmount)
 		}
 
-		// Das Zugangsjahr trägt nur den Dezember.
+		// Das Zugangsjahr trägt keinen Monat: der angefangene Dezember 2026
+		// bleibt nach § 45 UStDV außer Betracht, weil die Verwendung nach dem
+		// 15. begann.
 		first, err := svc.Year(ctx, 2026)
 		if err != nil {
 			t.Fatalf("Verzeichnis 2026: %v", err)
 		}
-		if first.Rows[0].MonthsInYear != 1 {
-			t.Errorf("%d Monate in 2026 — erwartet einen (Dezember)", first.Rows[0].MonthsInYear)
+		if first.Rows[0].MonthsInYear != 0 {
+			t.Errorf("%d Monate in 2026 — erwartet keinen: der Zeitraum beginnt am 20.12. und der "+
+				"angefangene Monat bleibt unberücksichtigt", first.Rows[0].MonthsInYear)
 		}
 	})
 

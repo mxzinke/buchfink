@@ -317,6 +317,11 @@ func checkRuleTask(rule string) (title, why, reference string) {
 		return "Übersprungene Abschlussschritte begründen",
 			"Ein übergangener Baustein des Abschlusses ist eine Aussage, und sie gehört in den Bericht.",
 			""
+	case domain.CheckRuleSizeClassChange:
+		return "Größenklassenwechsel vorbereiten",
+			"Prüferbestellung, Gliederungstiefe und Aufstellungsfrist ändern sich, sobald der zweite " +
+				"Stichtag dieselbe Klasse ergibt — das lässt sich nicht in dem Monat vorbereiten, in dem es gilt.",
+			"§ 267 Abs. 4 Satz 1 HGB"
 	case domain.CheckRuleICSupplyEvidenceMissing:
 		return "Belegnachweis der Auslandslieferungen führen",
 			"Ohne den Nachweis der Warenbewegung ist die steuerfreie Lieferung ins EU-Ausland steuerpflichtig.",

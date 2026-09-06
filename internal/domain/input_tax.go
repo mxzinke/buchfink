@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -139,7 +140,32 @@ func (c *InputTaxCorrection) Open() bool { return c.ClosedReason == "" }
 // § 15a UStG (UStAE 15a.2 Abs. 2). Und das letzte Jahr gehört ebenfalls dazu:
 // der Zeitraum läuft ab der erstmaligen Verwendung, nicht ab dem Jahresbeginn.
 func (c *InputTaxCorrection) CoversYear(fiscalYear int) bool {
-	return fiscalYear >= c.FirstFiscalYear && fiscalYear <= c.LastFiscalYear
+	return fiscalYear >= c.FirstFiscalYear && fiscalYear <= c.lastYearOfPeriod()
+}
+
+// lastYearOfPeriod ist das letzte Jahr des Berichtigungszeitraums.
+//
+// Gespeichert steht es in LastFiscalYear. Für einen Altbestand ohne PeriodEnd
+// stammt dieser Wert aber aus der Zeit, in der Buchfink den Zeitraum in vollen
+// Wirtschaftsjahren führte — er endete dann bis zu ein Jahr zu früh, und das
+// letzte Jahr fiele lautlos aus der Berichtigung. Für diese Einträge entscheidet
+// deshalb das abgeleitete Ende (PeriodEndDate), und zwar nur nach oben: einen
+// gespeicherten Zeitraum zu verkürzen wäre eine Änderung an einem laufenden
+// Wirtschaftsgut.
+func (c *InputTaxCorrection) lastYearOfPeriod() int {
+	last := c.LastFiscalYear
+	if len(c.PeriodEnd) == 10 {
+		return last
+	}
+	end := c.PeriodEndDate()
+	if len(end) != 10 {
+		return last
+	}
+	year, err := strconv.Atoi(end[:4])
+	if err != nil || year <= last {
+		return last
+	}
+	return year
 }
 
 // PeriodEndDate liefert das gespeicherte Ende des Berichtigungszeitraums.
@@ -192,17 +218,33 @@ func CorrectionPeriodEndDate(acquisitionDate string, periodYears int) (string, e
 // MonthsInWindow zählt die Kalendermonate des Berichtigungszeitraums, die in
 // ein Zeitfenster fallen — regelmäßig ein Geschäftsjahr.
 //
-// Gezählt wird in ganzen Monaten und nicht in Tagen: § 45 UStDV macht aus dem
-// Zeitraum eine Folge ganzer Kalendermonate, und der Monat der erstmaligen
-// Verwendung zählt dabei voll mit.
+// Gezählt wird in ganzen Monaten und nicht in Tagen: UStAE 15a.3 Abs. 3 rechnet
+// den Berichtigungszeitraum in vollen Monaten, und § 45 UStDV lässt den
+// angefangenen Monat außer Betracht, in dem das Wirtschaftsgut nicht mehr als
+// 15 Tage verwendet wird. Das Ende ist deshalb ein Monatsende
+// (CorrectionPeriodEndDate), und der Zeitraum ist genau 60 bzw. 120 Monate
+// lang.
+//
+// Der Anfang wird aus dem Ende zurückgerechnet und nicht aus dem
+// Anschaffungsdatum gelesen. Der Grund ist diese Länge: bei einem Zugang mitten
+// im Monat sind Zugangs- und Schlussmonat je angefangen und ergeben zusammen
+// einen ganzen — gezählt wird er einmal. Gelesen aus dem Anschaffungsdatum
+// zählte der Zugangsmonat je nach Rundung ein Mal zu viel oder zu wenig, und
+// die Summe der Jahresanteile ergäbe nicht mehr die Vorsteuer mal der
+// Anteilsdifferenz. Bei einem Zugang nach dem 15. bleibt der Zugangsmonat damit
+// unberücksichtigt, weil das Ende dann in den angefangenen Schlussmonat
+// hineinreicht.
 func (c *InputTaxCorrection) MonthsInWindow(from, to string) int {
+	periodTo, err := monthOrdinal(c.PeriodEndDate())
+	if err != nil {
+		return 0
+	}
 	periodFrom, err := monthOrdinal(c.AcquisitionDate)
 	if err != nil {
 		return 0
 	}
-	periodTo, err := monthOrdinal(c.PeriodEndDate())
-	if err != nil {
-		return 0
+	if c.CorrectionPeriodYears > 0 {
+		periodFrom = periodTo - int64(c.CorrectionPeriodYears)*12 + 1
 	}
 	windowFrom, err := monthOrdinal(from)
 	if err != nil {
