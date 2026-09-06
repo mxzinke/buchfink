@@ -8,10 +8,13 @@ Komponenten stammen von Dritten, werden mit der Anwendung ausgeliefert und
 bleiben unter ihren eigenen Lizenzbedingungen. Diese Bedingungen gelten
 zusätzlich zur EUPL und werden von ihr nicht verdrängt.
 
-Die Lizenzen der Go-Module und npm-Pakete sind durchgehend permissiv (MIT, BSD,
-ISC) und damit mit der EUPL vereinbar: Ihre Bedingungen erschöpfen sich darin,
-Urheberrechtshinweis und Lizenztext weiterzugeben. Genau dazu dient dieses
-Dokument. Für die mitgelieferten Assets gelten engere eigene Bedingungen; sie
+Die Lizenzen der Go-Module und npm-Pakete sind permissiv (MIT, BSD, ISC,
+Apache-2.0) und damit mit der EUPL vereinbar: Keine von ihnen verlangt, den
+eigenen Quelltext offenzulegen. Was sie verlangen, ist die Weitergabe von
+Urheberrechtshinweis und Lizenztext — genau dazu dient dieses Dokument. Die
+Apache-Lizenz verlangt zusätzlich, den Inhalt einer mitgelieferten
+NOTICE-Datei weiterzureichen; er steht weiter unten in einem eigenen
+Abschnitt. Für die mitgelieferten Assets gelten engere eigene Bedingungen; sie
 stehen beim jeweiligen Eintrag.
 
 Erfasst ist, was tatsächlich ausgeliefert wird — also die in die Binärdatei
@@ -94,14 +97,16 @@ nicht gelistet.
 
 | Komponente | Version | Lizenz | Urheberrechtshinweis |
 |---|---|---|---|
-| `Manrope (Schriftfamilie)` | in frontend/public/Manrope-*.ttf | OFL-1.1 | Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope) |
+| `Manrope (Schriftfamilie)` | in frontend/public/ und internal/invoice/fonts/ | OFL-1.1 | Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope) |
 | `eInvoicing-EN16931 (Pruefmaterial)` | internal/einvoice/testdata/en16931/ | EUPL-1.2 | European Commission / ConnectingEurope (https://github.com/ConnectingEurope/eInvoicing-EN16931) |
 | `validator-configuration-xrechnung (Pruefmaterial)` | internal/einvoice/xrechnung/testdata/kosit/ | Apache-2.0 | Koordinierungsstelle fuer IT-Standards (KoSIT) (https://github.com/itplr-kosit/validator-configuration-xrechnung) |
+| `Typst (WebAssembly-Kompilat)` | in github.com/varunbpatil/typst-go-wasm v0.3.0 | Apache-2.0 | Typst-Projekt (https://github.com/typst/typst) |
 | `Startbildschirm-Foto` | frontend/public/bg-startupscreen_unsplash-steven-kamenar.jpg | Unsplash License | Steven Kamenar (via Unsplash) |
 
-- **Manrope (Schriftfamilie):** Lizenztext liegt neben den Schriftdateien: `frontend/public/Manrope-OFL.txt`.
+- **Manrope (Schriftfamilie):** Zweimal eingebettet: in das Frontend-Bundle und in die Rechnungs-PDFs, weil ein erzeugtes PDF jede benutzte Glyphe enthalten muss. Lizenztexte liegen neben den Schriftdateien: `frontend/public/Manrope-OFL.txt` und `internal/invoice/fonts/LICENSE.txt`.
 - **eInvoicing-EN16931 (Pruefmaterial):** Beispielrechnungen und Regeldateien des Validierungsartefakts. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/testdata/en16931/LICENSE.txt`.
 - **validator-configuration-xrechnung (Pruefmaterial):** Testinstanzen mit den von KoSIT zugesicherten Urteilen. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/xrechnung/testdata/kosit/LICENSE`.
+- **Typst (WebAssembly-Kompilat):** Der Satz der Rechnungs- und Dokumenten-PDFs läuft als WebAssembly im eigenen Prozess: kein fremdes Programm, nichts zu installieren. Das Kompilat steckt als `typst_compiler.wasm` in dem Go-Modul, das es einbettet (oben gelistet, MIT für die Hülle), und wird darüber ausgeliefert. Es bringt keine eigene Lizenzdatei mit; es gilt der Apache-2.0-Text, der bei den übrigen Apache-Komponenten steht. Die Rubik-Schriften des Moduls bettet nur dessen eigener Test ein; sie landen nicht im Auslieferungsstand.
 - **Startbildschirm-Foto:** Die Unsplash-Lizenz erlaubt kostenlose kommerzielle Nutzung und Bearbeitung, untersagt aber den Weitervertrieb als eigenstaendiges Bildangebot. Sie ist keine Open-Source-Lizenz und deckt das Foto separat vom uebrigen Werk ab.
 
 ---
@@ -124,11 +129,44 @@ sie selbst.
 
 | Werkzeug | Lizenz | Rolle |
 |---|---|---|
-| Typst | Apache-2.0 | Layout-Engine für Rechnungs-PDFs. Buchfink erzeugt Typst-Markup; das Binary wird nicht mitgeliefert und derzeit auch nicht aufgerufen. |
 | Tailwind CSS | MIT | Build-Werkzeug. Der Quellcode von Tailwind wird nicht ausgeliefert, wohl aber das erzeugte Stylesheet einschließlich der Preflight-Regeln. Der Hinweis auf die MIT-Lizenz steht als Kommentar im erzeugten CSS und bleibt dort erhalten. |
 
 Externe Programme, die lediglich als eigenständiger Prozess aufgerufen werden,
 gehen keine Verbindung mit dem Werk im Sinne der EUPL-Copyleft-Klausel ein.
+
+---
+
+## Hinweisdateien (NOTICE)
+
+Die Apache-Lizenz verlangt in Abschnitt 4 (d), den Inhalt einer mitgelieferten
+NOTICE-Datei weiterzureichen. Der Lizenztext allein genügt dafür nicht: er ist
+bei allen Apache-Komponenten derselbe, die Hinweisdatei ist es nicht. Hier steht
+sie im Wortlaut, für jede ausgelieferte Komponente, die eine mitbringt.
+
+### `github.com/tetratelabs/wazero v1.11.0`
+
+```text
+wazero
+Copyright 2020-2023 wazero authors
+```
+
+### `go.yaml.in/yaml/v3 v3.0.5`
+
+```text
+Copyright 2011-2016 Canonical Ltd.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
 ---
 
@@ -214,7 +252,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 4. `Manrope (Schriftfamilie) in frontend/public/Manrope-*.ttf`
+### 4. `Manrope (Schriftfamilie) in frontend/public/ und internal/invoice/fonts/`
 
 ```text
 Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope)
@@ -1192,7 +1230,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 25. `github.com/tetratelabs/wazero v1.11.0`
+### 25. `Typst (WebAssembly-Kompilat) in github.com/varunbpatil/typst-go-wasm v0.3.0`, `github.com/tetratelabs/wazero v1.11.0`
 
 ```text
 Apache License

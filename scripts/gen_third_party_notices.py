@@ -28,12 +28,15 @@ GOOS_TARGETS = ("linux", "darwin", "windows")
 ASSETS = [
     {
         "name": "Manrope (Schriftfamilie)",
-        "version": "in frontend/public/Manrope-*.ttf",
+        "version": "in frontend/public/ und internal/invoice/fonts/",
         "license": "OFL-1.1",
         "copyright": "Copyright 2019 The Manrope Project Authors "
                      "(https://github.com/sharanda/manrope)",
-        "note": "Lizenztext liegt neben den Schriftdateien: "
-                "`frontend/public/Manrope-OFL.txt`.",
+        "note": "Zweimal eingebettet: in das Frontend-Bundle und in die "
+                "Rechnungs-PDFs, weil ein erzeugtes PDF jede benutzte Glyphe "
+                "enthalten muss. Lizenztexte liegen neben den Schriftdateien: "
+                "`frontend/public/Manrope-OFL.txt` und "
+                "`internal/invoice/fonts/LICENSE.txt`.",
         "license_file": "frontend/public/Manrope-OFL.txt",
     },
     {
@@ -57,6 +60,24 @@ ASSETS = [
                 "Sie werden nur von Tests gelesen und landen nicht im Binary. "
                 "Lizenztext: `internal/einvoice/xrechnung/testdata/kosit/LICENSE`.",
         "license_file": "internal/einvoice/xrechnung/testdata/kosit/LICENSE",
+    },
+    {
+        "name": "Typst (WebAssembly-Kompilat)",
+        "version": "in github.com/varunbpatil/typst-go-wasm v0.3.0",
+        "license": "Apache-2.0",
+        "copyright": "Typst-Projekt (https://github.com/typst/typst)",
+        "note": "Der Satz der Rechnungs- und Dokumenten-PDFs läuft als "
+                "WebAssembly im eigenen Prozess: kein fremdes Programm, "
+                "nichts zu installieren. Das Kompilat steckt als "
+                "`typst_compiler.wasm` in dem Go-Modul, das es einbettet "
+                "(oben gelistet, MIT für die Hülle), und wird darüber "
+                "ausgeliefert. Es bringt keine eigene Lizenzdatei mit; es "
+                "gilt der Apache-2.0-Text, der bei den übrigen "
+                "Apache-Komponenten steht. Die Rubik-Schriften des Moduls "
+                "bettet nur dessen eigener Test ein; sie landen nicht im "
+                "Auslieferungsstand.",
+        "license_file": None,
+        "text_from": "github.com/tetratelabs/wazero",
     },
     {
         "name": "Startbildschirm-Foto",
@@ -184,8 +205,24 @@ def collect_go():
             "license": detect_license(text),
             "copyright": " / ".join(copyright_lines(text)) or "—",
             "text": text,
+            "notice": read_notice(directory),
         })
     return items
+
+
+def read_notice(directory):
+    """Der Inhalt einer NOTICE-Datei, falls die Komponente eine mitbringt.
+
+    Die Apache-Lizenz verlangt in Abschnitt 4 (d), den Inhalt einer
+    mitgelieferten NOTICE-Datei weiterzureichen — in der Dokumentation der
+    Verteilung genügt. Der Lizenztext allein reicht dafür nicht: er ist bei
+    allen Apache-Komponenten derselbe, die NOTICE ist es nicht.
+    """
+    for name in ("NOTICE", "NOTICE.txt", "NOTICE.md"):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path):
+            return open(path, encoding="utf-8", errors="replace").read().strip()
+    return None
 
 
 def collect_npm():
@@ -266,6 +303,12 @@ def main():
         if asset["license_file"]:
             p = os.path.join(ROOT, asset["license_file"])
             asset["text"] = open(p, encoding="utf-8", errors="replace").read().strip()
+        elif asset.get("text_from") in by_name:
+            # Ein Kompilat bringt keine Lizenzdatei mit. Der Text ist bei jeder
+            # Apache-Komponente derselbe; er wird deshalb von einem Modul
+            # übernommen, das ihn mitliefert, und landet über die
+            # Zusammenfassung gleicher Texte in einem Block mit ihr.
+            asset["text"] = by_name[asset["text_from"]]["text"]
         else:
             asset["text"] = None
 
@@ -283,6 +326,12 @@ def main():
                  "\n".join(f"- **{a['name']}:** {a['note']}" for a in ASSETS))
     parts.append(SKR04_NOTE)
     parts.append(EXTERNAL)
+
+    notices = [i for i in go_items if i.get("notice")]
+    if notices:
+        parts.append(NOTICE_INTRO + "\n\n" + "\n\n".join(
+            f"### `{i['name']} {i['version']}`\n\n```text\n{i['notice']}\n```"
+            for i in notices))
 
     texts = ["## Lizenztexte\n\nIdentische Lizenztexte sind zusammengefasst; "
              "davor steht jeweils, für welche Komponenten sie gelten."]
@@ -306,10 +355,13 @@ Komponenten stammen von Dritten, werden mit der Anwendung ausgeliefert und
 bleiben unter ihren eigenen Lizenzbedingungen. Diese Bedingungen gelten
 zusätzlich zur EUPL und werden von ihr nicht verdrängt.
 
-Die Lizenzen der Go-Module und npm-Pakete sind durchgehend permissiv (MIT, BSD,
-ISC) und damit mit der EUPL vereinbar: Ihre Bedingungen erschöpfen sich darin,
-Urheberrechtshinweis und Lizenztext weiterzugeben. Genau dazu dient dieses
-Dokument. Für die mitgelieferten Assets gelten engere eigene Bedingungen; sie
+Die Lizenzen der Go-Module und npm-Pakete sind permissiv (MIT, BSD, ISC,
+Apache-2.0) und damit mit der EUPL vereinbar: Keine von ihnen verlangt, den
+eigenen Quelltext offenzulegen. Was sie verlangen, ist die Weitergabe von
+Urheberrechtshinweis und Lizenztext — genau dazu dient dieses Dokument. Die
+Apache-Lizenz verlangt zusätzlich, den Inhalt einer mitgelieferten
+NOTICE-Datei weiterzureichen; er steht weiter unten in einem eigenen
+Abschnitt. Für die mitgelieferten Assets gelten engere eigene Bedingungen; sie
 stehen beim jeweiligen Eintrag.
 
 Erfasst ist, was tatsächlich ausgeliefert wird — also die in die Binärdatei
@@ -318,6 +370,13 @@ hinweg), die in das Frontend-Bundle kompilierten npm-Pakete und die
 mitgelieferten Assets. Reine Build-Werkzeuge wie Vite, TypeScript, Tailwind CSS
 oder das Wails-CLI landen nicht im Auslieferungsstand und sind hier deshalb
 nicht gelistet."""
+
+NOTICE_INTRO = """## Hinweisdateien (NOTICE)
+
+Die Apache-Lizenz verlangt in Abschnitt 4 (d), den Inhalt einer mitgelieferten
+NOTICE-Datei weiterzureichen. Der Lizenztext allein genügt dafür nicht: er ist
+bei allen Apache-Komponenten derselbe, die Hinweisdatei ist es nicht. Hier steht
+sie im Wortlaut, für jede ausgelieferte Komponente, die eine mitbringt."""
 
 SKR04_NOTE = """## Kontenrahmen SKR 04
 
@@ -335,7 +394,6 @@ EXTERNAL = """## Externe Werkzeuge (nicht mitgeliefert)
 
 | Werkzeug | Lizenz | Rolle |
 |---|---|---|
-| Typst | Apache-2.0 | Layout-Engine für Rechnungs-PDFs. Buchfink erzeugt Typst-Markup; das Binary wird nicht mitgeliefert und derzeit auch nicht aufgerufen. |
 | Tailwind CSS | MIT | Build-Werkzeug. Der Quellcode von Tailwind wird nicht ausgeliefert, wohl aber das erzeugte Stylesheet einschließlich der Preflight-Regeln. Der Hinweis auf die MIT-Lizenz steht als Kommentar im erzeugten CSS und bleibt dort erhalten. |
 
 Externe Programme, die lediglich als eigenständiger Prozess aufgerufen werden,
