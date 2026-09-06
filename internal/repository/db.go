@@ -15,6 +15,22 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// nowUTC ist die Uhr, aus der GORM `CreatedAt` und `UpdatedAt` füllt.
+//
+// Sie muss gesetzt werden, weil GORM sonst `time.Now()` in Ortszeit nimmt. Der
+// SQLite-Treiber schreibt den Zonenversatz mit und liest ihn zurück, sodass ein
+// Zeitpunkt in derselben Zone wieder herauskommt, in der er entstand — und wer
+// daraus ein Datum bildet, bekommt vor Mitternacht UTC den falschen Tag. Das
+// traf das Datum, ab dem der Leistungsnachweis verlangt wird
+// (settings_gorm.go): abends gesetzt, stand dort der Folgetag.
+//
+// Gespeichert wird deshalb überall UTC. Angezeigt wird weiterhin in Ortszeit;
+// das ist Sache der Oberfläche und nicht der Ablage (docs/architektur.md,
+// Zeitpunkte).
+func nowUTC() time.Time {
+	return time.Now().UTC()
+}
+
 // InitTenantDB initializes a GORM SQLite database for a tenant.
 // Master data (accounts, contacts, settings) is overarching, and bookings exist within fiscal years.
 func InitTenantDB(dataDir string) (*gorm.DB, error) {
@@ -28,7 +44,8 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)", dbPath)
 
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger:  logger.Default.LogMode(logger.Warn),
+		NowFunc: nowUTC,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to sqlite db at %s: %w", dbPath, err)
@@ -58,7 +75,8 @@ func InitDB(dataDir string, year int) (*gorm.DB, error) {
 // InitInMemoryDB initializes an ephemeral SQLite database for unit and integration testing.
 func InitInMemoryDB() (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger:  logger.Default.LogMode(logger.Silent),
+		NowFunc: nowUTC,
 	})
 	if err != nil {
 		return nil, err
@@ -83,7 +101,8 @@ func OpenReadOnlyDB(dbPath string) (*gorm.DB, error) {
 	}
 	dsn := fmt.Sprintf("file:%s?mode=ro&_pragma=busy_timeout(5000)", dbPath)
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger:  logger.Default.LogMode(logger.Silent),
+		NowFunc: nowUTC,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("die Datenbank konnte nicht schreibgeschützt geöffnet werden: %w", err)

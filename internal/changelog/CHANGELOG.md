@@ -10,7 +10,7 @@ Das Format ist Teil der Schnittstelle: `internal/changelog` liest die
 Zusammenfassung und jeden Strichpunkt als Änderung. Der Text einer Fassung ist
 zugleich der Text ihrer Veröffentlichung.
 
-## v0.1 — 2026-09-06
+## v0.1 — 2026-09-07
 
 Erste Fassung. Buchfink führt die doppelte Buchführung einer Kapitalgesellschaft
 vom Beleg bis zur E-Bilanz, auf dem eigenen Rechner und ohne Konto bei
