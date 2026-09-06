@@ -25,9 +25,9 @@ Es gibt keine Preisseite. Dass Buchfink kostenlos, quelloffen und ohne Cloud
 ist, steht als ein Satz auf der Startseite; eine eigene Seite dafür hätte
 denselben Satz auf zehn Absätze verteilt.
 
-Alle sieben Seiten tragen dieselbe Navigation. Sie steht in jeder Datei als
+Alle sieben Seiten haben dieselbe Navigation. Sie steht in jeder Datei als
 Markup, weil es keinen Build-Schritt gibt: Wer einen Eintrag ändert, ändert ihn
-siebenmal. Der Kopf der aktuellen Seite trägt `aria-current="page"`.
+siebenmal. Der Kopf der aktuellen Seite hat `aria-current="page"`.
 
 ## Veröffentlichen
 
@@ -71,7 +71,7 @@ task pages:preview        # http://127.0.0.1:8000
 ### Adresse
 
 `buchfink.github.io` steht nicht zur Verfügung: Eine solche Adresse gehört zum
-GitHub-Konto gleichen Namens, und das Konto `Buchfink` ist bereits vergeben.
+GitHub-Konto gleichen Namens, und das Konto `Buchfink` ist vergeben.
 Was bleibt, ist die Projektadresse `mxzinke.github.io/buchfink/` — oder eine
 eigene Domain, die sich unter **Settings → Pages → Custom domain** eintragen
 lässt und dann als `CNAME`-Datei in diesem Verzeichnis landet.
@@ -99,7 +99,7 @@ Browser andere Anforderungen hat als eine Arbeitsansicht:
 - **Leiserer Hinweisstreifen.** In der Anwendung ist ein Hinweis pastellig
   ausgefüllt, weil er den Lesefluss unterbrechen soll. Auf einer Seite, die man
   einmal von oben nach unten liest, zieht dieselbe Fläche den Blick vom Inhalt
-  weg. Hier trägt deshalb nur die senkrechte Leiste die Farbe der Familie; die
+  weg. Deshalb hat hier nur die senkrechte Leiste die Farbe der Familie; die
   Bedeutung bleibt ablesbar, ohne dass der Abschnitt leuchtet.
 
 Zwei Regeln des Konzepts sind für die Seite besonders wichtig und werden streng
@@ -122,8 +122,8 @@ Build. Sie benutzen dieselben Farbwerte wie der Rest der Seite; da SVG keine
 CSS-Variablen erbt, stehen die Werte dort als Hex-Literale. Wer eine Farbe
 ändert, ändert sie an beiden Stellen.
 
-Jedes Diagramm trägt `<title>` und `<desc>` und ist über `aria-labelledby`
-damit verbunden, damit es auch vorgelesen brauchbar bleibt. Die Zeitleiste der
+Jedes Diagramm hat ein `<title>`- und ein `<desc>`-Element, verbunden über
+`aria-labelledby`, damit es auch vorgelesen brauchbar bleibt. Die Zeitleiste der
 Roadmap ist kein SVG, sondern eine Liste mit einer Haarlinie als Rand
 (`.timeline` in `assets/site.css`).
 

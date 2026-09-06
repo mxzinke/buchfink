@@ -38,8 +38,8 @@
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Nachweise und Sicherheit</h1>
           <p class="pagehead__lead">
-            Eine Buchführung wird nicht dadurch ordnungsmäßig, dass niemand sie ändert, sondern
-            dadurch, dass eine Änderung sichtbar bliebe. Buchfink führt dafür zwei Hashketten, ein
+            Eine Buchführung ist ordnungsmäßig, wenn jede Änderung sichtbar bleibt. Buchfink führt
+            dafür zwei Hashketten, ein
             Änderungsprotokoll mit Vorher und Nachher, Aufbewahrungsfristen je Beleg und einen
             Ordner, der alles enthält, was eine Betriebsprüfung verlangt.
           </p>
@@ -58,7 +58,7 @@
                 festgeschrieben, und ein unabhängiger Dienst beglaubigt den Kettenkopf mit einem
                 RFC-3161-Zeitstempel. Die Anwenderin schreibt fest und kann den Zeitstempel
                 jederzeit nachprüfen; danach nimmt der Zeitraum keine rückdatierte Buchung mehr an,
-                und eine Korrektur läuft über den Storno.
+                und eine Korrektur geschieht als Storno.
               </p>
             </div>
             <figure class="shot">
@@ -68,11 +68,12 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="Seite „Sicherheit und Protokoll“ mit dem Zustand der Hashkette, den festgeschriebenen Zeiträumen samt Zeitstempel und den Prüfläufen."
+                  alt="Seite „Prüfübersicht“ mit dem Zustand der Hashkette, dem Prüflauf über die Belegdateien, den festgeschriebenen Zeiträumen samt Zeitstempel und den Prüfläufen."
                 />
               </a>
               <figcaption>
-                Das Änderungsprotokoll selbst steht unter „Nachweise“; diese Seite verweist darauf.
+                Die Seite hat keinen Eintrag in der Navigation: sie hängt am Zustandsanzeiger unten
+                links, der die Antwort ohnehin dauerhaft zeigt.
               </figcaption>
             </figure>
           </article>
@@ -83,12 +84,12 @@
               <h2 class="feature__title">Wer wann was geändert hat</h2>
               <p class="feature__body">
                 Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiterkennung
-                und Programmfassung fest, in einer eigenen verketteten Reihe. Auf denselben Reitern
-                stehen die Versionen und Datenübernahmen, die Aufbewahrungsfristen je Geschäftsjahr
-                mit Löschsperre und die Verfahrensdokumentation, die Buchfink aus dem laufenden
-                System erzeugt und als Fassung im Belegspeicher ablegt. Die Anwenderin filtert das
-                Protokoll nach Vorgang, Bereich, Bearbeiter und Zeitraum und lässt die Kette
-                nachrechnen.
+                und Programmfassung fest, in einer eigenen verketteten Reihe. Daneben steht die
+                Geschichte des Systems selbst: Schemaläufe, Datenübernahmen mit Zählung und
+                Kettenprüfung, Versionshistorie. Die Aufbewahrungsfristen je Geschäftsjahr mit
+                Löschsperre stehen bei der Datensicherung, die Verfahrensdokumentation bei der
+                Betriebsprüfung. Die Anwenderin filtert das Protokoll nach Vorgang, Bereich,
+                Bearbeiter und Zeitraum und lässt die Kette nachrechnen.
               </p>
             </div>
             <figure class="shot">
@@ -98,12 +99,11 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="Seite „Nachweise“ mit dem Zustand der Protokollkette und dem Änderungsprotokoll: Zeitpunkt, Vorgang, Bereich, Beschreibung, Bearbeiter und Programmfassung."
+                  alt="Reiter „Änderungsprotokoll“ der Prüfübersicht: Zeitpunkt, Vorgang, Bereich, Beschreibung, Bearbeiter und Programmfassung."
                 />
               </a>
               <figcaption>
-                Vier Reiter: Änderungsprotokoll, Versionen und Übernahmen, Aufbewahrung,
-                Verfahrensdokumentation.
+                Drei Reiter: Prüfungen, Änderungsprotokoll, Systemhistorie.
               </figcaption>
             </figure>
           </article>
@@ -134,7 +134,7 @@
                   width="2880"
                   height="1800"
                   loading="lazy"
-                  alt="Seite „Datenzugriff und Sicherung“ mit Prüfermodus, Datenüberlassung als Z3-Export, Belegprüflauf, den Sicherungsläufen und dem Schlüsselverzeichnis."
+                  alt="Seite „Betriebsprüfung“ mit Prüfermodus, der Datenüberlassung als Z3-Export und der Verfahrensdokumentation zum Herunterladen."
                 />
               </a>
               <figcaption>Wiederherstellen und danach die Integrität prüfen gehört zum Vorgang.</figcaption>
