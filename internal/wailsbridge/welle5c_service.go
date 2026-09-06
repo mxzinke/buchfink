@@ -467,5 +467,5 @@ func (b *BuchfinkBridge) GetExemptionCertificateWarnings(
 	if b.contactSvc == nil {
 		return []service.ExemptionCertificateWarning{}, nil
 	}
-	return b.contactSvc.ExemptionCertificateWarnings(context.Background(), today)
+	return emptyList(b.contactSvc.ExemptionCertificateWarnings(context.Background(), today))
 }

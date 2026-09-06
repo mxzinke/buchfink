@@ -1500,7 +1500,19 @@ const STEP_PAGES: Partial<Record<ClosingStepKey, TabType>> = {
   disclosure: 'ebilanz',
 };
 
-/** Ziel eines Bausteins: eine andere Seite oder ein Abschnitt dieser Seite. */
+/**
+ * Ziel eines Bausteins: eine andere Seite oder ein Abschnitt dieser Seite.
+ *
+ * „Öffnen" springt an die Stelle, an der der Baustein wohnt, und öffnet nicht
+ * selbst dessen Dialog. Das ist bewusst so: der Dialog mit Vorschau in
+ * Vorgangssprache und aufklappbarem Buchungssatz (Regel 11.1) gehört dem
+ * Baustein und lebt dort mit seinen Eingaben, seinem Ladezustand und seiner
+ * Sperre. Ihn von hier aus fernzusteuern hieße, jede dieser Ansichten ein
+ * zweites Mal von außen zu öffnen — zwei Wege in denselben Dialog, von denen
+ * einer irgendwann anders funktioniert. Der geführte Weg trägt hier den
+ * Fortschritt („n von total"), die Reihenfolge und das Zurücknehmen; die
+ * Buchung selbst bleibt beim Baustein.
+ */
 type StepTarget =
   | { kind: 'page'; tab: TabType; params: NavigationParams }
   | { kind: 'anchor'; anchor: string };

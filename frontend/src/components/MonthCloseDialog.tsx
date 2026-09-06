@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Api } from '../services/api';
 import { useWriteLock } from './WriteLock';
 import { downloadCSV } from '../utils/download';
@@ -67,6 +67,16 @@ export interface MonthCloseDialogProps {
   /** Nach der Festschreibung: die aufrufende Ansicht lädt ihren Stand neu. */
   onChanged?: () => void | Promise<void>;
   onNavigate?: NavigateFn;
+  /**
+   * Ein bereits geladener Stand desselben Monats.
+   *
+   * `GetMonthCloseState` enthält einen vollständigen Prüflauf. Wer den Dialog
+   * aus einer Ansicht öffnet, die den Stand schon zeigt, würde ihn sonst beim
+   * Öffnen ein zweites Mal rechnen lassen. Übernommen wird er nur beim Öffnen
+   * und nur, wenn er denselben Monat meint; nach jeder Aktion lädt der Dialog
+   * selbst neu.
+   */
+  initialState?: MonthCloseState | null;
 }
 
 /** Die Marke vor einem Schritt: erledigt, blockiert, offen oder entfallen. */
@@ -85,6 +95,7 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
   onClose,
   onChanged,
   onNavigate,
+  initialState,
 }) => {
   // Festschreiben ändert die Bücher: im Prüfermodus gesperrt, der Stand bleibt
   // lesbar (§10.4).
@@ -105,41 +116,51 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
   const [confirmTicket, setConfirmTicket] = useState('');
   const [ticketError, setTicketError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const next = await Api.getMonthCloseState(month);
-      setState(next);
-      // Das Blatt gehört zum Zeitraum und nicht zum Monat: wer vierteljährlich
-      // meldet, sieht es am Quartalsende. Ohne Zeitraum gibt es nichts zu laden.
-      if (next.vatApplies && next.vatPeriodKey) {
-        try {
-          setVatReturn(await Api.getVatReturn(next.vatPeriodKey));
-          setVatError('');
-        } catch (e) {
-          // Ein Blatt, das sich nicht rechnen lässt, hält den Prüfbericht und
-          // die Festschreibung nicht auf: der Fehler steht am dritten Schritt.
+  const load = useCallback(
+    async (known?: MonthCloseState) => {
+      setLoading(true);
+      setError('');
+      try {
+        const next = known ?? (await Api.getMonthCloseState(month));
+        setState(next);
+        // Das Blatt gehört zum Zeitraum und nicht zum Monat: wer vierteljährlich
+        // meldet, sieht es am Quartalsende. Ohne Zeitraum gibt es nichts zu laden.
+        if (next.vatApplies && next.vatPeriodKey) {
+          try {
+            setVatReturn(await Api.getVatReturn(next.vatPeriodKey));
+            setVatError('');
+          } catch (e) {
+            // Ein Blatt, das sich nicht rechnen lässt, hält den Prüfbericht und
+            // die Festschreibung nicht auf: der Fehler steht am dritten Schritt.
+            setVatReturn(null);
+            setVatError(e instanceof Error ? e.message : String(e));
+          }
+        } else {
           setVatReturn(null);
-          setVatError(e instanceof Error ? e.message : String(e));
+          setVatError('');
         }
-      } else {
+      } catch (e) {
+        setState(null);
         setVatReturn(null);
-        setVatError('');
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      setState(null);
-      setVatReturn(null);
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [month]);
+    },
+    [month],
+  );
+
+  // Der mitgegebene Stand wird über eine Referenz gelesen: sonst hinge das
+  // Öffnen an seiner Identität, und jedes Neuladen der aufrufenden Ansicht
+  // stieße hier einen weiteren Prüflauf an.
+  const initialRef = useRef(initialState);
+  initialRef.current = initialState;
 
   useEffect(() => {
     if (!open) return;
-    void load();
-  }, [open, load]);
+    const seed = initialRef.current?.month === month ? initialRef.current : undefined;
+    void load(seed ?? undefined);
+  }, [open, month, load]);
 
   async function commit() {
     if (!state) return;

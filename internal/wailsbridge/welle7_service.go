@@ -124,10 +124,10 @@ func (b *BuchfinkBridge) CreateDunningNotices(req service.DunningRunRequest) ([]
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []domain.DunningNotice{}, err
 	}
 	if b.dunningSvc == nil {
-		return nil, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
+		return []domain.DunningNotice{}, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
 	}
 	notices, err := b.dunningSvc.CreateMany(context.Background(), req)
 	if notices == nil {
@@ -168,10 +168,10 @@ func (b *BuchfinkBridge) SaveBaseRate(validFrom string, basisPoints int) ([]doma
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []domain.BaseRate{}, err
 	}
 	if b.dunningSvc == nil {
-		return nil, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
+		return []domain.BaseRate{}, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
 	}
 	return emptyList(b.dunningSvc.SaveBaseRate(context.Background(), validFrom, basisPoints))
 }

@@ -727,3 +727,67 @@ func TestBookingTakesTheServiceProofWithTheRequest(t *testing.T) {
 		t.Errorf("der abgewiesene Beleg darf nicht gebucht sein: %+v", unbooked)
 	}
 }
+
+// Eine gescheiterte Buchung hinterlässt keinen Leistungsnachweis.
+//
+// Der Vermerk und die Buchung sind ein Vorgang. Stünde der Vermerk vor der
+// Transaktion am Beleg, bliebe er samt Protokolleintrag stehen, wenn die
+// Buchung danach scheitert — hier am festgeschriebenen Zeitraum. Der Beleg
+// behauptete dann eine Prüfung gegen die Bestellung, zu der es keine Buchung
+// gibt, und beim zweiten Versuch verlangte niemand mehr den Vermerk: die
+// Buchungssperre sieht ihn ja am Beleg.
+func TestAbortedBookingLeavesNoServiceProof(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.posting.SetSettingsSource(repository.NewSettingsRepository(env.db))
+	env.posting.SetTxRunner(repository.NewTxRunner(env.db))
+	env.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(env.db))
+
+	if err := repository.NewFestschreibungRepository(env.db).Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: "month", PeriodLabel: "März 2026",
+		CutoffDate: "2026-03-31", ChainHead: "kettenkopf",
+	}); err != nil {
+		t.Fatalf("Festschreibung anlegen: %v", err)
+	}
+
+	vendor := env.vendor(t, "Grossauftrag GmbH", "DE", "")
+	large := env.fileWithAmount(t, "gross-abbruch.pdf", 595_000, "2026-03-02")
+
+	// Gezählt wird ab hier: Lieferant und Beleg stehen, und was das Protokoll
+	// danach aufnimmt, gehört zum abgebrochenen Buchungsversuch.
+	auditRepo := repository.NewAuditRepository(env.db)
+	before, err := auditRepo.Count(ctx)
+	if err != nil {
+		t.Fatalf("Protokoll zählen: %v", err)
+	}
+	if _, err := env.posting.PostIncomingReceipt(ctx, ReceiptRequest{
+		ContactID: vendor.ID, ReceiptID: large.ID,
+		BookingDate: "2026-03-10", DocumentDate: "2026-03-02",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-31",
+		Description: "Fremdleistung", TaxTreatment: domain.TaxTreatmentDomestic,
+		Positions:      []ReceiptPosition{{PostingGroup: "fremdleistungen", Net: 500_000, TaxRate: domain.TaxRateStandard}},
+		Settlement:     SettlementOpen,
+		ServiceProof:   "geprüft gegen Bestellung 4714 vom 28.02.2026",
+		ServiceProofAt: "2026-03-09",
+	}); err == nil {
+		t.Fatal("eine Buchung in einen festgeschriebenen Zeitraum muss abgewiesen werden")
+	}
+
+	after, err := env.receipts.Get(ctx, large.ID)
+	if err != nil {
+		t.Fatalf("Beleg lesen: %v", err)
+	}
+	if after.ServiceProof != "" || after.ServiceProofAt != "" {
+		t.Errorf("der Vermerk steht am Beleg, obwohl keine Buchung entstand: %+v", after)
+	}
+	if after.JournalEntryID != nil {
+		t.Errorf("der abgewiesene Beleg darf nicht gebucht sein: %+v", after)
+	}
+	count, err := auditRepo.Count(ctx)
+	if err != nil {
+		t.Fatalf("Protokoll zählen: %v", err)
+	}
+	if count != before {
+		t.Errorf("das Änderungsprotokoll hat %d Einträge mehr, erwartet keinen", count-before)
+	}
+}

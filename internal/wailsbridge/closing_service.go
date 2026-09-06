@@ -58,10 +58,10 @@ func (b *BuchfinkBridge) CarryForward(toYear int) ([]domain.JournalEntry, error)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []domain.JournalEntry{}, err
 	}
 	if b.closingSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
+		return []domain.JournalEntry{}, fmt.Errorf("kein aktiver Mandant")
 	}
 	return emptyList(b.closingSvc.CarryForward(context.Background(), toYear))
 }

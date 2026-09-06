@@ -243,6 +243,10 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 				"Zu %s ist der Verzugsbeginn nicht bestimmbar: %v", documentOf(item), err)
 		} else {
 			row.DefaultFrom = from
+			// Der Verzug hängt am Kalender, nicht am Gelingen der Zinsrechnung:
+			// „from" ist der erste Tag, für den Zinsen laufen, also auch der
+			// Tag, an dem der Verzug eingetreten ist (§ 286 Abs. 3 BGB).
+			inDefault := from <= today
 			interest, err := accounting.DefaultInterest(
 				item.OpenAmount, from, today, proposal.IsConsumer, rates)
 			if err != nil {
@@ -267,8 +271,17 @@ func (s *DunningService) Proposals(ctx context.Context, today string) ([]Dunning
 			// das erste Schreiben hängte, setzte sie im Regelfall nie an. Dass
 			// sie sich im nächsten Schreiben nicht wiederholt, sichert der
 			// Blick in die schon ergangenen Schreiben und nicht die Stufe.
-			if !proposal.IsConsumer && row.InterestDays > 0 && !lumpSumCharged[item.EntryID] {
+			//
+			// Sie hängt auch nicht an den gerechneten Zinstagen: ein fehlender
+			// Basiszinssatz lässt die Zinsen ausfallen, den Verzug aber nicht.
+			// Wer die Pauschale daran hängte, ließe sie stillschweigend
+			// wegfallen — und der Hinweis nennte nur die fehlenden Zinsen.
+			if !proposal.IsConsumer && inDefault && !lumpSumCharged[item.EntryID] {
 				row.LumpSum = accounting.DefaultInterestLumpSum
+				if err != nil {
+					row.Note += " Die Pauschale von 40 € ist trotzdem angesetzt: sie hängt am " +
+						"Verzug und nicht an der Zinsrechnung."
+				}
 			}
 		}
 

@@ -251,7 +251,7 @@ func (b *BuchfinkBridge) PreviewDepreciationPlan(req service.PlanRequest) ([]acc
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+		return []accounting.AfAYear{}, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
 	return emptyList(b.assetSvc.PreviewPlan(context.Background(), req))
 }

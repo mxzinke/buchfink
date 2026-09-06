@@ -156,8 +156,10 @@ type ReceiptRequest struct {
 	// (SaveServiceProof, dann Buchen) und die zweite Hälfte des Vorgangs an der
 	// Oberfläche zusammenhalten — mit dem Ergebnis, dass ein abgebrochener
 	// Vorgang einen Vermerk hinterlässt, aber keine Buchung. Geschrieben wird
-	// der Vermerk trotzdem über den Belegdienst, damit er dieselbe Prüfung und
-	// denselben Protokolleintrag bekommt wie der nachgetragene.
+	// der Vermerk über den Belegdienst, damit er dieselbe Prüfung und denselben
+	// Protokolleintrag bekommt wie der nachgetragene, und innerhalb der
+	// Transaktion der Buchung: eine gescheiterte Buchung lässt keinen Vermerk
+	// zurück.
 	ServiceProof   string `json:"serviceProof,omitempty"`
 	ServiceProofAt string `json:"serviceProofAt,omitempty"`
 }
@@ -319,17 +321,12 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 	if err := built.blockingError(req); err != nil {
 		return nil, err
 	}
-	// Ein mitgeschickter Leistungsnachweis wird zuerst geschrieben — über den
-	// Belegdienst, damit er dieselbe Prüfung und denselben Protokolleintrag
-	// bekommt wie der nachgetragene. Erst danach wird geprüft, ob er fehlt.
-	if err := s.saveServiceProof(ctx, built, req); err != nil {
-		return nil, err
-	}
 	// Der Leistungsnachweis ist ab der eingestellten Grenze Pflicht (RECH-08):
-	// geprüft wird vor dem Schreiben, weil ein gebuchter Beleg den Vermerk zwar
+	// geprüft wird vor der Buchung, weil ein gebuchter Beleg den Vermerk zwar
 	// noch aufnimmt, die Prüfung gegen die Bestellung dann aber niemand mehr
-	// vornimmt.
-	if err := s.requireServiceProof(ctx, built.receipt); err != nil {
+	// vornimmt. Geprüft wird gegen den Beleg *und* gegen den mitgeschickten
+	// Vermerk; geschrieben wird der mitgeschickte erst in der Transaktion.
+	if err := s.requireServiceProof(ctx, built.receipt, req); err != nil {
 		return nil, err
 	}
 	lines, contact, receipt := built.lines, built.contact, built.receipt
@@ -384,6 +381,15 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 	// zweites Mal ab.
 	var created *domain.JournalEntry
 	if err := s.runInTx(ctx, func(ctx context.Context) error {
+		// Der mitgeschickte Leistungsnachweis steht in derselben Klammer wie
+		// die Buchung: scheitert sie — festgeschriebener Zeitraum, ein Fehler
+		// im Journal, der Anzahlungsvermerk —, dann darf am Beleg kein Vermerk
+		// zurückbleiben. Er behauptete sonst samt Protokolleintrag eine
+		// Prüfung, zu der es keine Buchung gibt, und niemand käme darauf, ihn
+		// vor dem zweiten Versuch noch einmal anzusehen.
+		if err := s.saveServiceProof(ctx, built, req); err != nil {
+			return err
+		}
 		posted, err := s.journalSvc.Post(ctx, entry)
 		if err != nil {
 			return err

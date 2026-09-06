@@ -28,15 +28,32 @@ from pathlib import Path
 # Der Umkreis, in dem die Erklärkomponente stehen muss.
 CONTEXT_LINES = 3
 
-# Die Marken, die eine zweite Erklärstufe kennzeichnen. „help" deckt
-# HelpPopover, HelpTooltip und das Feld-Prop `help=` ab; `explain=` ist die
-# zweite Stufe des Feldes und rendert selbst einen HelpPopover (siehe
-# frontend/src/components/ui/Field.tsx). Der Vergleich läuft ohne Rücksicht auf
-# Groß- und Kleinschreibung.
+# Die Marken, die eine zweite Erklärstufe kennzeichnen: die Namen der
+# Erklärkomponenten (HelpPopover, HelpTooltip, InfoPopover, FormExplanation) und
+# die Bezeichner, die eine zweite Stufe aufmachen. `help=` ist das Feld-Prop,
+# `explain` ist `explain=`, die zweite Stufe des Feldes, die selbst einen
+# HelpPopover rendert (siehe frontend/src/components/ui/Field.tsx);
+# `explanation` ist das Feld `explanation:` der Erklärtabellen und die Funktion
+# `explanations()`, die sie aufbaut. Der Vergleich läuft ohne Rücksicht
+# auf Groß- und Kleinschreibung.
 #
-# `hint=` steht bewusst nicht dabei: der Hinweis ist unmittelbar sichtbar und
+# Bewusst keine deutschen Wortfragmente: „erklär" träfe auch sichtbaren Text —
+# ein Absatz mit dem Wort „erklärt" schaltete dann eine Norm daneben frei,
+# obwohl er selbst in der Arbeitsansicht steht. Geprüft wird deshalb nur, was im
+# Code eine Erklärstufe *ist*, nicht was von ihr spricht; die Marken sind
+# englische Bezeichner und stehen in keinem sichtbaren Text dieser Oberfläche.
+#
+# `hint=` steht ebenfalls nicht dabei: der Hinweis ist unmittelbar sichtbar und
 # damit Arbeitsansicht, nicht Erklärstufe.
-HELP_MARKERS = ("help", "explain", "explanation", "erklär")
+HELP_MARKERS = (
+    "helppopover",
+    "helptooltip",
+    "infopopover",
+    "formexplanation",
+    "help=",
+    "explain",
+    "explanation",
+)
 
 # Eigenschaften, die unmittelbar sichtbaren Text tragen: der Hinweis unter einem
 # Feld und der Kontext unter einer Abschnittsüberschrift. Steht in einer solchen
@@ -90,6 +107,28 @@ def indent_of(line: str) -> int:
     return len(line) - len(line.lstrip())
 
 
+def opening_tag(lines: list[str], index: int) -> str:
+    """Der ganze Kopf des Elements, das in dieser Zeile beginnt oder endet.
+
+    Ein JSX-Kopf steht selten auf einer Zeile: der Name oben, die Eigenschaften
+    darunter, das schließende „>" wieder auf der Höhe des Namens. Wer nur die
+    Zeile mit dem „>" liest, sieht den Namen der Komponente nicht — und damit
+    nicht, ob hier eine Erklärstufe aufgeht. Deshalb wird von ihr aus nach oben
+    bis zum „<" gelesen und der Kopf als ein Text zurückgegeben.
+    """
+    text = lines[index]
+    if not text.lstrip().startswith("<"):
+        for i in range(index - 1, -1, -1):
+            if not lines[i].strip():
+                continue
+            text = lines[i] + " " + text
+            if lines[i].lstrip().startswith("<"):
+                break
+            if indent_of(lines[i]) < indent_of(lines[index]):
+                break
+    return text
+
+
 def in_explanation_block(lines: list[str], index: int) -> bool:
     """Meldet, ob die Zeile in einem Erklärblock steht.
 
@@ -98,7 +137,8 @@ def in_explanation_block(lines: list[str], index: int) -> bool:
     Blocks und der Paragraph vierzig Zeilen darunter. Deshalb wird zusätzlich
     nach außen gelesen — Zeile für Zeile zurück, und jede Zeile, die den Block
     öffnet (geringere Einrückung als alles bisher Gesehene), wird auf die Marke
-    geprüft. Trägt eine davon sie, ist der Paragraph in der Erklärstufe.
+    geprüft; bei einem JSX-Element samt seinem mehrzeiligen Kopf. Trägt einer
+    davon die Marke, ist der Paragraph in der Erklärstufe.
     """
     limit = indent_of(lines[index])
     for i in range(index - 1, -1, -1):
@@ -109,7 +149,7 @@ def in_explanation_block(lines: list[str], index: int) -> bool:
         if current >= limit:
             continue
         limit = current
-        if any(marker in line.lower() for marker in HELP_MARKERS):
+        if any(marker in opening_tag(lines, i).lower() for marker in HELP_MARKERS):
             return True
         if current == 0:
             break
@@ -127,8 +167,8 @@ def violations(path: Path) -> list[tuple[int, str]]:
             found.append((index + 1, lines[index].strip()))
             continue
         # Geprüft wird gegen den kommentarfreien Text und nicht gegen die
-        # Originalzeilen: ein Kommentar, der zufällig „Erklär…" oder „help"
-        # enthält, steht in keiner Ansicht — er dürfte die Prüfung für eine
+        # Originalzeilen: ein Kommentar, der zufällig eine Erklärkomponente
+        # nennt, steht in keiner Ansicht — er dürfte die Prüfung für eine
         # sichtbare Norm daneben nicht freischalten.
         start = max(0, index - CONTEXT_LINES)
         end = min(len(code), index + CONTEXT_LINES + 1)

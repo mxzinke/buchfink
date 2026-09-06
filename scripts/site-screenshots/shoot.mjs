@@ -83,10 +83,15 @@ async function main() {
 
     const shots = [
       {
+        // Die frühere Seite „Übersicht" ist in der Aufgabenliste aufgegangen
+        // (Welle 7, Entscheidung 1): Kennzahlen und zuletzt erfasste Vorgänge
+        // stehen dort unter der Liste. Der Dateiname bleibt, die Website
+        // verweist auf ihn.
         file: 'uebersicht.png',
         go: async () => {
-          await nav('Übersicht').click();
-          await page.getByText('Buchhaltungsübersicht').waitFor();
+          await nav('Aufgaben').click();
+          await page.getByRole('heading', { name: 'Aufgaben', exact: true }).waitFor();
+          await page.getByText('Zuletzt erfasst').waitFor();
           await page.getByText('B-2026-0055').waitFor();
         },
       },
@@ -104,7 +109,12 @@ async function main() {
           await page.getByText('RE-2026-0119 Wartungspauschale Q3').click();
           await page.getByRole('dialog').waitFor();
           await page.getByText('Nordwind Handels GmbH').first().waitFor();
-          await page.getByRole('checkbox').first().click();
+          // Seit Welle 7 wählt der Dialog den besten Vorschlag vor; ein blinder
+          // Klick nähme den Haken wieder heraus. Erst warten, bis der Vorschlag
+          // übernommen ist, dann nur setzen, wenn der Haken fehlt.
+          await page.getByText('Übernommen', { exact: true }).waitFor();
+          const match = page.getByRole('checkbox').first();
+          if (!(await match.isChecked())) await match.click();
           await page.getByText('Zuordnung passt zum Kontoauszug').waitFor();
         },
         after: async () => {
@@ -122,11 +132,10 @@ async function main() {
           await page.locator('img[alt="Beleg"]').waitFor();
           // Die Buchungsgruppe wählen, damit der Buchungssatz aus dem Backend
           // erscheint — genau der Schritt, den die Rechnung nicht vorgibt.
-          await page.getByRole('combobox').filter({ hasText: /wählen|Buchungsgruppe/i }).first()
-            .click()
-            .catch(async () => {
-              await page.locator('[role="combobox"]').nth(2).click();
-            });
+          // Die Gruppe ist ein Suchfeld (Combobox mit Platzhalter), keine Liste.
+          const group = page.getByPlaceholder('Gruppe suchen').first();
+          await group.click();
+          await group.fill('Geringwertig');
           await page.getByRole('option', { name: /Geringwertige Wirtschaftsgüter/ }).click();
           await page.waitForTimeout(700);
         },
@@ -145,7 +154,7 @@ async function main() {
         go: async () => {
           await nav('GuV & Bilanz').click();
           await page.getByText('Gewinn- und Verlustrechnung').waitFor();
-          await page.getByText('Vorläufiges Jahresergebnis').waitFor();
+          await page.getByText('Jahresergebnis', { exact: true }).first().waitFor();
         },
       },
       {

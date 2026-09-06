@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck } from 'lucide-react';
+import { FileText, Landmark } from 'lucide-react';
 import { Api } from '../services/api';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
-import type { FinancialSummary, MonthCloseState, Task, TaskList } from '../types';
+import type {
+  FinancialSummary,
+  JournalEntry,
+  MonthCloseState,
+  Task,
+  TaskList,
+} from '../types';
 import type { NavigateFn, NavigationParams, TabType } from '../components/Sidebar';
 import {
   Button,
@@ -16,6 +22,7 @@ import {
   SkeletonRows,
   Stat,
   StatRow,
+  StatusBadge,
   Table,
   Tbody,
   Td,
@@ -33,6 +40,11 @@ import {
  * `GetTasks`. Wer keine Buchhalterin ist, weiß nach dem Start nicht, was heute
  * dran ist — und ein Bankguthaben beantwortet das nicht. Die Kennzahlen stehen
  * deshalb darunter und nicht darüber.
+ *
+ * Die frühere Seite „Übersicht" ist in diese aufgegangen (Architektur 6.1): sie
+ * beantwortete dieselbe Frage ein zweites Mal und stand als zweiter Eintrag in
+ * derselben Navigationsgruppe. Ihr Kennzahlenblock und die zuletzt erfassten
+ * Vorgänge stehen jetzt hier unter der Liste — eine Startseite, nicht zwei.
  */
 
 interface TasksPageProps {
@@ -140,6 +152,7 @@ function taskContext(task: Task): string {
 export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   const [tasks, setTasks] = useState<TaskList | null>(null);
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
+  const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
   const [monthState, setMonthState] = useState<MonthCloseState | null>(null);
   const [month, setMonth] = useState(() => previousMonth(new Date()));
   // Warum es für den Monat keinen Stand gibt, sagt das Backend. Der Satz bleibt
@@ -170,6 +183,11 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
     Api.getFinancialSummary()
       .then(setSummary)
       .catch(() => setSummary(null));
+    // Ebenso die zuletzt erfassten Vorgänge. Die Liste kommt ungefiltert aus
+    // dem Backend; genommen werden die letzten acht, das jüngste zuerst.
+    Api.getJournalEntries()
+      .then((entries) => setRecentEntries((entries ?? []).slice(-8).reverse()))
+      .catch(() => setRecentEntries([]));
   }, []);
 
   const loadMonth = useCallback(async () => {
@@ -207,13 +225,25 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           tasks ? `Stand ${formatDate(tasks.today)} · ${total} offen` : 'Was heute zu tun ist'
         }
         action={
-          <Button
-            variant="secondary"
-            icon={<CalendarCheck className="w-4 h-4" strokeWidth={1.5} />}
-            onClick={() => setMonthOpen(true)}
-          >
-            Monatsabschluss
-          </Button>
+          /* Genau eine Primäraktion je Ansicht (§10.4). Den Monatsabschluss
+             öffnet der Abschnitt weiter unten, der auch seinen Stand zeigt —
+             ein zweiter Knopf dafür stünde hier ohne den Monat, den er meint. */
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              icon={<Landmark className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={() => onNavigate('bank')}
+            >
+              Bankumsätze abgleichen
+            </Button>
+            <Button
+              variant="primary"
+              icon={<FileText className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={() => onNavigate('invoices')}
+            >
+              Neue Rechnung
+            </Button>
+          </div>
         }
       />
 
@@ -384,9 +414,59 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
         </Section>
       )}
 
+      {recentEntries.length > 0 && (
+        <Section
+          title="Zuletzt erfasst"
+          context="Die acht zuletzt gebuchten Vorgänge"
+          action={
+            <Button variant="quiet" onClick={() => onNavigate('journal')}>
+              Zum Journal
+            </Button>
+          }
+        >
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Beleg</Th>
+                <Th>Datum</Th>
+                <Th>Buchungstext</Th>
+                <Th>Konten</Th>
+                <Th numeric>Betrag</Th>
+                <Th>Status</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {recentEntries.map((entry) => {
+                const lines = entry.lines ?? [];
+                const gross = lines
+                  .filter((line) => line.side === 'S')
+                  .reduce((sum, line) => sum + line.amount, 0);
+                const isReversal = entry.kind === 'reversal';
+
+                return (
+                  <Tr key={entry.id} variant={isReversal ? 'storno' : 'default'}>
+                    <Td code>{entry.entryNumber}</Td>
+                    <Td className="text-ink-subtle num">{formatDate(entry.bookingDate)}</Td>
+                    <Td className="max-w-[24rem] truncate" title={entry.description}>
+                      {entry.description}
+                    </Td>
+                    <Td code>{lines.map((line) => line.account).join(' · ')}</Td>
+                    <Td numeric>{formatCents(gross, entry.currency)}</Td>
+                    <Td>
+                      <StatusBadge status={isReversal ? 'storniert' : 'gebucht'} />
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </Tbody>
+          </Table>
+        </Section>
+      )}
+
       <MonthCloseDialog
         open={monthOpen}
         month={month}
+        initialState={monthState}
         onMonthChange={setMonth}
         months={months}
         onClose={() => setMonthOpen(false)}

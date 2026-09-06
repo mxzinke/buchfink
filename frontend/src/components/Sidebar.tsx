@@ -10,7 +10,6 @@ import {
   FileText,
   HandCoins,
   Landmark,
-  LayoutDashboard,
   ListChecks,
   ListOrdered,
   ListTodo,
@@ -33,7 +32,6 @@ import { formatTime } from '../utils/formatters';
 export type TabType =
   | 'welcome'
   | 'tasks'
-  | 'dashboard'
   | 'bank'
   | 'receipts'
   | 'invoices'
@@ -145,13 +143,13 @@ const icon = 'w-4 h-4 shrink-0';
 const GROUPS: NavGroup[] = [
   {
     label: 'Übersicht',
-    // Die Aufgabenliste steht an erster Stelle und die Kennzahlen darunter
+    // Die Aufgabenliste ist die Startseite und der einzige Eintrag dieser Gruppe
     // (Architektur 6.1): wer keine Buchhalterin ist, weiß nach dem Start nicht,
-    // was heute dran ist — und ein Bankguthaben beantwortet das nicht.
-    items: [
-      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className={icon} /> },
-      { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard className={icon} /> },
-    ],
+    // was heute dran ist — und ein Bankguthaben beantwortet das nicht. Die
+    // Kennzahlen und die zuletzt erfassten Vorgänge stehen auf derselben Seite
+    // unter der Liste; eine zweite Seite daneben beantwortete dieselbe Frage
+    // ein zweites Mal und wäre irgendwann die veraltete von beiden.
+    items: [{ id: 'tasks', label: 'Aufgaben', icon: <ListTodo className={icon} /> }],
   },
   {
     label: 'Buchhaltung',

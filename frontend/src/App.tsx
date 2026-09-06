@@ -7,7 +7,6 @@ import { StartupScreen } from './components/StartupScreen';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
 import { RecoveryScreen } from './components/RecoveryScreen';
 import { TasksPage } from './pages/TasksPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { JournalPage } from './pages/JournalPage';
 import { AssetsPage } from './pages/AssetsPage';
@@ -286,12 +285,10 @@ export function App() {
             onNavigate={navigate}
           />
         );
-      // Die Aufgabenliste ist die Startseite (Architektur 6.1); die
-      // Kennzahlenübersicht steht daneben und beantwortet eine andere Frage.
+      // Die Aufgabenliste ist die Startseite (Architektur 6.1); Kennzahlen und
+      // zuletzt erfasste Vorgänge stehen auf ihr unter der Liste.
       case 'tasks':
         return <TasksPage onNavigate={navigate} />;
-      case 'dashboard':
-        return <DashboardPage onNavigate={navigate} />;
       case 'accounts':
         return <AccountsPage initialAccount={navParams.account} onNavigate={navigate} />;
       case 'journal':

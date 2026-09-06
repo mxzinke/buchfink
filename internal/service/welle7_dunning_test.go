@@ -569,10 +569,88 @@ func TestDunningProposalNamesTheMissingBaseRate(t *testing.T) {
 	if !strings.Contains(p.Note, "Basiszinssatz") {
 		t.Errorf("der Vorschlag trägt den Hinweis nicht: %q", p.Note)
 	}
-	// Ohne gerechnete Zinsen keine Pauschale — sie setzt den Verzug voraus, und
-	// der ist hier nicht gerechnet.
+	// Keine Pauschale — nicht wegen der ausgefallenen Zinsen, sondern weil die
+	// Stammdaten dieses Kunden fehlen und der Lauf ihn deshalb vorsichtshalber
+	// als Verbraucher rechnet. Dass sie am Verzug hängt und nicht an der
+	// Zinsrechnung, prüft der nächste Test.
 	if p.LumpSum != 0 {
-		t.Errorf("Pauschale = %s €, erwartet 0 ohne gerechneten Verzug", p.LumpSum)
+		t.Errorf("Pauschale = %s €, erwartet 0 gegenüber einem Verbraucher", p.LumpSum)
+	}
+}
+
+// Die Pauschale hängt am Verzug, nicht am Gelingen der Zinsrechnung.
+//
+// Fehlt der Basiszinssatz eines Halbjahres, fallen die Zinsen aus — der Verzug
+// ist trotzdem eingetreten, und § 288 Abs. 5 BGB knüpft die Pauschale allein
+// daran. Sie mit den Zinsen wegfallen zu lassen, hieße: eine Forderung geht um
+// 40 € zu niedrig heraus, und der Hinweis spräche nur von Zinsen.
+func TestDunningLumpSumSurvivesTheMissingBaseRate(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Altfall GmbH", "DE", "")
+	svc := NewDunningService(
+		stubLiveOpenItems{{
+			EntryID: 4711, EntryNumber: "2015-0001",
+			ContactID: customer.ID, ContactName: customer.Name,
+			ContactType: domain.ContactTypeCustomer, DocumentNumber: "RE-2015-0001",
+			DocumentDate: "2015-01-02", DueDate: "2015-01-31",
+			GrossAmount: 1_000_000, OpenAmount: 1_000_000,
+		}},
+		env.contactRepo,
+		repository.NewDunningRepository(env.db),
+		repository.NewBaseRateRepository(env.db),
+		repository.NewSettingsRepository(env.db),
+		repository.NewAuditRepository(env.db),
+		env.store, env.fiscalYear,
+	)
+
+	proposals, err := svc.Proposals(ctx, "2015-06-01")
+	if err != nil {
+		t.Fatalf("Mahnvorschläge: %v", err)
+	}
+	if len(proposals) != 1 {
+		t.Fatalf("erwartet einen Vorschlag, erhalten %d", len(proposals))
+	}
+	p := proposals[0]
+	if p.Interest != 0 {
+		t.Fatalf("erwartet null Zinsen ohne Basiszinssatz, erhalten %s €", p.Interest)
+	}
+	if p.LumpSum != 4000 {
+		t.Errorf("Pauschale = %s €, erwartet 40,00 trotz fehlender Zinsrechnung", p.LumpSum)
+	}
+	if p.Total != 1_000_000+4000 {
+		t.Errorf("Gesamtbetrag = %s €, erwartet Hauptforderung und Pauschale", p.Total)
+	}
+	note := p.Items[0].Note
+	if !strings.Contains(note, "Basiszinssatz") || !strings.Contains(note, "Pauschale") {
+		t.Errorf("der Hinweis nennt nicht beides — fehlende Zinsen und angesetzte Pauschale: %q", note)
+	}
+}
+
+// Vor dem Verzugsbeginn gibt es keine Pauschale.
+//
+// Die Zahlungserinnerung geht sieben Tage nach Fälligkeit heraus, der Verzug
+// tritt erst nach dreißig Tagen ein (§ 286 Abs. 3 BGB). Zwischen beiden Tagen
+// steht ein Vorschlag ohne Zinsen und ohne Pauschale.
+func TestDunningLumpSumWaitsForTheDefaultToBegin(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Fruehmahnung GmbH", "DE", "")
+	env.openReceivable(t, customer, 1_000_000, "2026-01-17", "2026-01-31", "RE-2026-0007")
+
+	proposals, err := env.dunning(t, nil).Proposals(ctx, "2026-02-10")
+	if err != nil {
+		t.Fatalf("Mahnvorschläge: %v", err)
+	}
+	if len(proposals) != 1 {
+		t.Fatalf("erwartet einen Vorschlag, erhalten %d", len(proposals))
+	}
+	p := proposals[0]
+	if p.LumpSum != 0 {
+		t.Errorf("Pauschale = %s €, erwartet 0 vor dem Verzugsbeginn", p.LumpSum)
+	}
+	if p.Interest != 0 {
+		t.Errorf("Zinsen = %s €, erwartet 0 vor dem Verzugsbeginn", p.Interest)
 	}
 }
 

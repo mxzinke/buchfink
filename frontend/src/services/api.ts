@@ -1898,7 +1898,7 @@ export const Api = {
     ),
   /** Erzeugt die Mahnschreiben der ausgewählten Kunden und legt sie ab. */
   createDunningNotices: (request: DunningRunRequest): Promise<DunningNotice[]> =>
-    call(() => Bridge.CreateDunningNotices(request as any) as Promise<DunningNotice[]>).then(
+    call(() => Bridge.CreateDunningNotices(request) as Promise<DunningNotice[]>).then(
       (notices) => list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
     ),
   /** Die Schreiben eines Kunden, das jüngste zuerst; 0 heißt: alle. */

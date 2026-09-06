@@ -1479,7 +1479,7 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	}
 	all, err := b.accountingSvc.GetAccounts(context.Background())
 	if err != nil {
-		return nil, err
+		return []domain.Account{}, err
 	}
 	liquid := map[string]bool{}
 	for _, a := range domain.LiquidAccounts() {
@@ -2190,10 +2190,10 @@ func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []domain.JournalEntry{}, err
 	}
 	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+		return []domain.JournalEntry{}, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return emptyList(b.foundationSvc.BookPostings(context.Background()))
 }

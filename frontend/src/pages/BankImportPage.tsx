@@ -190,8 +190,12 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
               placeholder="Bankkonto"
               className="w-56"
             />
+            {/* Genau eine Primäraktion je Ansicht (§10.4): im Abgleich ist das
+                Einlesen der Hauptweg, im Mahnwesen das Erzeugen der Schreiben.
+                Der Kopf tritt dort deshalb zurück — sonst stünden zwei
+                hervorgehobene Knöpfe gleichzeitig auf dem Schirm. */}
             <Button
-              variant="primary"
+              variant={view === 'mahnwesen' ? 'secondary' : 'primary'}
               icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
               loading={importing}
               disabled={writeLock.locked}

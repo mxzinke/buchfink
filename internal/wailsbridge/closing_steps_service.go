@@ -378,10 +378,10 @@ func (b *BuchfinkBridge) BookTaxProvision(req service.TaxProvisionRequest) ([]do
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []domain.Provision{}, err
 	}
 	if b.closingBookingSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
+		return []domain.Provision{}, fmt.Errorf("kein aktiver Mandant")
 	}
 	return emptyList(b.closingBookingSvc.BookTaxProvision(context.Background(), req))
 }
@@ -442,10 +442,10 @@ func (b *BuchfinkBridge) SaveNotesText(year int, section, text string) ([]servic
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if err := b.ensureWritable(); err != nil {
-		return nil, err
+		return []service.NotesTextView{}, err
 	}
 	if b.appropriationSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
+		return []service.NotesTextView{}, fmt.Errorf("kein aktiver Mandant")
 	}
 	return emptyList(b.appropriationSvc.SaveNotesText(
 		context.Background(), year, domain.NotesSection(section), text))

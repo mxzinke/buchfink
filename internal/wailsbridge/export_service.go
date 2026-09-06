@@ -254,7 +254,7 @@ func (b *BuchfinkBridge) GetOpenItemsAt(cutoff string) ([]domain.OpenItem, error
 	}
 	items, err := b.paymentSvc.OpenItemsAt(context.Background(), cutoff)
 	if err != nil {
-		return nil, err
+		return make([]domain.OpenItem, 0), err
 	}
 	if items == nil {
 		items = make([]domain.OpenItem, 0)

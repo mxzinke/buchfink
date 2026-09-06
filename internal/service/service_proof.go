@@ -72,11 +72,13 @@ func (s *PostingService) invoiceCheckThreshold(ctx context.Context) domain.Cents
 // saveServiceProof schreibt einen mit der Buchung mitgeschickten Vermerk an den
 // Beleg.
 //
-// Er wird vor der Prüfung geschrieben und über den Belegdienst: dort steht die
-// Prüfung des Datums, dort entsteht der Protokolleintrag, und dort bleibt der
-// Beleg-Hash unangetastet. Ein leeres Feld ändert nichts — der nachgetragene
-// Vermerk läuft weiter über SaveServiceProof, und eine Buchung ohne Angabe darf
-// einen schon erfassten Vermerk nicht löschen.
+// Geschrieben wird über den Belegdienst: dort steht die Prüfung des Datums, dort
+// entsteht der Protokolleintrag, und dort bleibt der Beleg-Hash unangetastet.
+// Gerufen wird der Weg innerhalb der Transaktion der Buchung — ein Vorgang, der
+// danach scheitert, hinterlässt sonst einen Vermerk ohne Buchung. Ein leeres
+// Feld ändert nichts — der nachgetragene Vermerk läuft weiter über
+// SaveServiceProof, und eine Buchung ohne Angabe darf einen schon erfassten
+// Vermerk nicht löschen.
 func (s *PostingService) saveServiceProof(
 	ctx context.Context, built *incomingLines, req ReceiptRequest,
 ) error {
@@ -96,7 +98,17 @@ func (s *PostingService) saveServiceProof(
 }
 
 // requireServiceProof hält die Buchung an, solange der Vermerk fehlt.
-func (s *PostingService) requireServiceProof(ctx context.Context, receipt *domain.Receipt) error {
+//
+// Geprüft wird vor der Transaktion, geschrieben wird in ihr. Deshalb zählt hier
+// auch der Vermerk, den die Maske mit der Buchung mitschickt: er steht noch
+// nicht am Beleg, ist aber Teil desselben Vorgangs. Ob er ein gültiges Datum
+// trägt, entscheidet der Belegdienst beim Schreiben.
+func (s *PostingService) requireServiceProof(
+	ctx context.Context, receipt *domain.Receipt, req ReceiptRequest,
+) error {
+	if strings.TrimSpace(req.ServiceProof) != "" {
+		return nil
+	}
 	threshold := s.invoiceCheckThreshold(ctx)
 	if !receiptNeedsServiceProof(receipt, threshold) {
 		return nil
