@@ -134,6 +134,12 @@ type VatReturn struct {
 	// nachvollziehen: die Zuordnung Steuerfall → Kennziffer kann sich ändern.
 	ProgramVersion string `gorm:"size:40" json:"programVersion,omitempty"`
 
+	// Actor ist die Bearbeiterkennung, unter der das Blatt zuletzt gerechnet
+	// oder bestätigt wurde (UNV-04). Sie steht an der Anmeldung selbst: die
+	// Bestätigung einer Voranmeldung ist die Erklärung eines Menschen gegenüber
+	// dem Finanzamt, und wer sie abgegeben hat, gehört an die Erklärung.
+	Actor string `gorm:"size:120" json:"actor,omitempty"`
+
 	// FiguresJSON und LateEntriesJSON sind die Speicherform der beiden Listen.
 	// Die Kennziffern eines Vordrucks sind kein Datenmodell, sondern ein
 	// Formular: als Spalten wäre jede Änderung des Vordrucks eine Migration.

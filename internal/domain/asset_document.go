@@ -119,6 +119,22 @@ type AssetDocument struct {
 	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
 	ValidUntil   string `gorm:"size:10;index" json:"validUntil,omitempty"`
 
+	// RetentionClass und RetentionUntil halten die Aufbewahrungsfrist fest, die
+	// beim Ablegen für dieses Dokument galt.
+	//
+	// Anlagendokumente sind Organisationsunterlagen im Sinne des § 147 Abs. 1
+	// Nr. 1 AO und keine Buchungsbelege: der Kaufvertrag und die
+	// Rechnungskopie tragen die Bemessungsgrundlage der Abschreibung, und die
+	// wirkt über die ganze Nutzungsdauer fort. Die Frist ist deshalb zehn
+	// Jahre und nicht die verkürzte Belegfrist von acht.
+	//
+	// Gespeichert und nicht bei jedem Lesen gerechnet — dieselbe Erwägung wie
+	// beim Beleg: welche Frist einmal galt, ist eine Tatsache über das
+	// Dokument und keine Ableitung aus dem heutigen Recht. RetentionUntil ist
+	// der letzte Tag der Aufbewahrung; gelöscht werden darf ab dem Tag danach.
+	RetentionClass RetentionClass `gorm:"size:20;index" json:"retentionClass,omitempty"`
+	RetentionUntil string         `gorm:"size:10;index" json:"retentionUntil,omitempty"`
+
 	Note      string    `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }

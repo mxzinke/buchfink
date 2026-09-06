@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
-import type { Account, AccountLedger, AccountType, OpenItem, SuSaOverview } from '../types';
+import type {
+  Account,
+  AccountLedger,
+  AccountType,
+  OpenItem,
+  OpenItemsAging,
+  SuSaOverview,
+} from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
 import { formatCents, formatDate } from '../utils/formatters';
@@ -113,6 +120,12 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
   // und dafür steht das Feld — Zahlungen nach dem Stichtag zählen dann nicht,
   // statt nur ausgeblendet zu werden.
   const [openItems, setOpenItems] = useState<OpenItem[]>([]);
+  // Altersstruktur und Restlaufzeiten zum selben Stichtag (BEL-07). Sie kommen
+  // aus dem Backend und werden hier nicht aus der Postenliste gerechnet: die
+  // Bänder sind eine fachliche Einteilung — die Restlaufzeit ist die Angabe
+  // unter der Bilanz (§ 268 Abs. 4 und 5 HGB) —, und zwei Rechnungen über
+  // dieselben Posten liefen auseinander.
+  const [aging, setAging] = useState<OpenItemsAging | null>(null);
   const [openItemsCutoff, setOpenItemsCutoff] = useState(today());
   const [loadingOpenItems, setLoadingOpenItems] = useState(false);
 
@@ -160,7 +173,12 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
     setOpenItemsCutoff(cutoff);
     setLoadingOpenItems(true);
     try {
-      setOpenItems(await Api.getOpenItemsAt(cutoff));
+      const [items, ageing] = await Promise.all([
+        Api.getOpenItemsAt(cutoff),
+        Api.getOpenItemsAging(cutoff),
+      ]);
+      setOpenItems(items);
+      setAging(ageing);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -417,7 +435,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
           {loadingOpenItems ? (
             <SkeletonRows rows={8} />
           ) : (
-            <OpenItemsView items={openItems} cutoff={openItemsCutoff} />
+            <OpenItemsView items={openItems} aging={aging} cutoff={openItemsCutoff} />
           )}
         </TabPanel>
       </Tabs>
@@ -562,7 +580,11 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
  * Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten. Eine gemeinsame
  * Summe wäre eine Saldierung, die die Bilanz nicht kennt (§ 246 Abs. 2 HGB).
  */
-const OpenItemsView: React.FC<{ items: OpenItem[]; cutoff: string }> = ({ items, cutoff }) => {
+const OpenItemsView: React.FC<{
+  items: OpenItem[];
+  aging: OpenItemsAging | null;
+  cutoff: string;
+}> = ({ items, aging, cutoff }) => {
   const list = items ?? [];
   const receivables = list.filter((item) => item.contactType === 'customer');
   const payables = list.filter((item) => item.contactType === 'vendor');
@@ -597,18 +619,121 @@ const OpenItemsView: React.FC<{ items: OpenItem[]; cutoff: string }> = ({ items,
         </div>
       ) : (
         <>
+          <AgingView aging={aging} className="mt-8" />
           <OpenItemsTable
             title="Forderungen"
             hint="Debitoren"
             rows={receivables}
             cutoff={cutoff}
             className="mt-8"
-            divider={false}
           />
           <OpenItemsTable title="Verbindlichkeiten" hint="Kreditoren" rows={payables} cutoff={cutoff} />
         </>
       )}
     </>
+  );
+};
+
+/**
+ * Altersstruktur und Restlaufzeiten der offenen Posten (BEL-07).
+ *
+ * Beide Gliederungen nebeneinander, weil sie verschiedene Fragen beantworten:
+ * die Altersstruktur sagt, wie lange ein Posten schon überfällig ist — das ist
+ * die Frage des Mahnwesens und der Wertberichtigung —, die Restlaufzeit sagt,
+ * wann er fällig wird, und ist die Angabe unter der Bilanz (§ 268 Abs. 4 und 5
+ * HGB). Die Zahlen kommen aus einer Auswertung, damit sie zueinander passen.
+ */
+const AgingView: React.FC<{ aging: OpenItemsAging | null; className?: string }> = ({
+  aging,
+  className,
+}) => {
+  const sides = aging?.sides ?? [];
+  if (sides.length === 0) return null;
+
+  return (
+    <Section
+      title="Altersstruktur und Restlaufzeiten"
+      context={aging?.reference}
+      className={className}
+      divider={false}
+      action={
+        <HelpPopover label="Erklärung zur Altersstruktur">
+          Die Altersstruktur zählt vom Fälligkeitstag bis zum Stichtag: ein Posten in der Spalte
+          „über 90 Tage" ist seit mehr als drei Monaten fällig und stellt die Frage nach seiner
+          Werthaltigkeit. Die Restlaufzeit zählt in die andere Richtung — vom Stichtag bis zur
+          Fälligkeit — und gehört unter die Bilanz (§ 268 Abs. 4 und 5 HGB). Ein Posten ohne
+          vereinbarte Fälligkeit steht in beiden Gliederungen für sich.
+        </HelpPopover>
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {sides.map((side) => (
+          <div key={side.side} className="min-w-0">
+            <h3 className="text-label text-ink-muted">
+              {side.label}
+              <span className="text-ink-subtle font-normal">
+                {' '}
+                · {side.items} Posten · {formatCents(side.total)}
+              </span>
+            </h3>
+
+            <Table density="kompakt" className="mt-3">
+              <Thead>
+                <Tr>
+                  <Th>Fälligkeit</Th>
+                  <Th numeric className="w-20">
+                    Posten
+                  </Th>
+                  <Th numeric className="w-36">
+                    Betrag
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {side.buckets.map((bucket) => (
+                  <Tr key={bucket.key}>
+                    <Td className="text-ink-muted">{bucket.label}</Td>
+                    <Td numeric className="num">
+                      {bucket.items}
+                    </Td>
+                    <Td numeric className="num">
+                      {formatCents(bucket.amount)}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+
+            <Table density="kompakt" className="mt-6">
+              <Thead>
+                <Tr>
+                  <Th>Restlaufzeit</Th>
+                  <Th numeric className="w-20">
+                    Posten
+                  </Th>
+                  <Th numeric className="w-36">
+                    Betrag
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {side.maturities.map((band) => (
+                  <Tr key={band.key}>
+                    <Td className="text-ink-muted">{band.label}</Td>
+                    <Td numeric className="num">
+                      {band.items}
+                    </Td>
+                    <Td numeric className="num">
+                      {formatCents(band.amount)}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 };
 

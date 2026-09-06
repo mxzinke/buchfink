@@ -66,7 +66,31 @@ Tabelle ` + "`journal`" + `, aus der der Wert stammt):
 21. ` + "`rate_source`" + ` (Kursquelle)
 22. ` + "`rate_date`" + ` (Kursdatum)
 23. ` + "`rule_version`" + ` (Regelversion)
-24. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+
+Ist die Spalte ` + "`Programmfassung`" + ` belegt, folgen an dieser Stelle drei
+weitere Felder; ist sie leer, folgen sie nicht:
+
+24. ` + "`app_version`" + ` (Programmfassung)
+25. ` + "`actor`" + ` (Bearbeiter)
+26. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
+
+Das ist die Versionsweiche der kanonischen Form. Buchungen aus der Zeit vor der
+Aufzeichnung von Programmfassung und Bearbeiterkennung tragen die Spalte leer
+und werden nach der bisherigen Form gehasht; alle neueren tragen sie und werden
+nach der erweiterten Form gehasht. Welche Form gilt, steht damit an der Buchung
+selbst. Ohne diese Weiche hätte die Erweiterung den Eigenhash jeder bereits
+gebuchten Buchung verändert und die Kette jeder bestehenden Buchhaltung
+gebrochen.
+
+Danach in beiden Fällen:
+
+27. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+
+Nicht Bestandteil der kanonischen Form sind die Spalten
+` + "`Festschreibungszeitpunkt_UTC`, `Festschreibung_ID`" + ` und
+` + "`Korrigierte_Buchung_ID`" + `: die ersten beiden werden nach dem Schreiben
+der Buchung gesetzt — die Festschreibung ändert die Buchung nicht, sie stellt
+sie fest —, die dritte ist eine Fundstelle und kein Inhalt.
 
 Danach folgt ` + "`lines`" + ` mit der Anzahl der Zeilen der Buchung und für jede
 Zeile — aufsteigend nach Zeilennummer sortiert — die acht Felder

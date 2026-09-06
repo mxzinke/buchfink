@@ -200,6 +200,19 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 	return &entry, nil
 }
 
+// FindCorrectionOf liefert die Buchung, die auf entryID als korrigierte zeigt.
+func (r *journalRepositoryGorm) FindCorrectionOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
+	var entry domain.JournalEntry
+	err := r.preloaded(ctx).Where("corrects_entry_id = ?", entryID).Order("id asc").First(&entry).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &entry, nil
+}
+
 func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
 	q := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").Order("id desc")
@@ -268,6 +281,28 @@ func (r *journalRepositoryGorm) Append(ctx context.Context, entry *domain.Journa
 
 		return tx.Create(entry).Error
 	})
+}
+
+// MarkCommitted stempelt den Festschreibungszeitpunkt an die Buchungen bis zum
+// Stichtag.
+//
+// Geschrieben wird über eine Spaltenauswahl und nicht über den Datensatz: die
+// Buchung darf sich sonst in nichts ändern. Ihr Eigenhash ist beim Anhängen
+// berechnet, und ein Update, das versehentlich ein weiteres Feld mitschriebe,
+// bräche die Kette der gesamten Buchhaltung.
+func (r *journalRepositoryGorm) MarkCommitted(
+	ctx context.Context, fiscalYear int, cutoff string, festschreibungID uint, at time.Time,
+) (int64, error) {
+	stamped := at.UTC()
+	tx := dbFrom(ctx, r.db).Model(&domain.JournalEntry{}).
+		Where("fiscal_year = ?", fiscalYear).
+		Where("booking_date <= ?", cutoff).
+		Where("committed_at IS NULL").
+		Updates(map[string]any{
+			"committed_at":      stamped,
+			"festschreibung_id": festschreibungID,
+		})
+	return tx.RowsAffected, tx.Error
 }
 
 func (r *journalRepositoryGorm) AccountTurnovers(ctx context.Context, fiscalYear int) (map[string]domain.AccountTurnover, error) {

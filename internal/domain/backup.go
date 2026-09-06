@@ -52,6 +52,12 @@ type BackupRun struct {
 	// sich später nicht sagen, welches Schema in der Sicherung liegt.
 	ProgramVersion string `gorm:"size:40" json:"programVersion,omitempty"`
 
+	// Actor ist die Bearbeiterkennung, unter der der Lauf stattfand (UNV-04).
+	// Am Lauf und nicht nur am Protokolleintrag daneben: die Liste der Läufe
+	// ist das, was in der Betriebsdokumentation und in der Aufgabenliste
+	// gelesen wird, und die Frage „wer hat zuletzt gesichert" gehört dorthin.
+	Actor string `gorm:"size:120" json:"actor,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt"`
 }
 

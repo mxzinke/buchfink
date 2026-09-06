@@ -17,6 +17,7 @@ import {
   Percent,
   Receipt,
   Scale,
+  ScrollText,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -46,6 +47,7 @@ export type TabType =
   | 'deadlines'
   | 'ebilanz'
   | 'audit'
+  | 'nachweise'
   | 'dataaccess'
   | 'settings';
 
@@ -61,6 +63,12 @@ export interface NavigationParams {
   account?: string;
   /** Buchungsnummer, auf die das Journal filtert. */
   entryNumber?: string;
+  /**
+   * Reiter, den die Seite „Nachweise" öffnet — Protokoll, Versionen,
+   * Aufbewahrung oder Verfahrensdokumentation. Ohne ihn landete ein Verweis
+   * auf eine bestimmte Auskunft wieder auf dem ersten Reiter.
+   */
+  nachweiseTab?: string;
   /**
    * Reiter, den die Seite „Nebenpflichten" öffnet. Aus der Schrittliste des
    * Abschlusses führt sonst kein Weg zu der Arbeit, die die Zeile benennt: der
@@ -142,6 +150,11 @@ const GROUPS: NavGroup[] = [
     label: 'Verwaltung',
     items: [
       { id: 'audit', label: 'Sicherheit & Protokoll', icon: <ShieldCheck className={icon} /> },
+      // Die Nachweise stehen neben dem Protokoll und nicht darin: das eine ist
+      // der laufende Betrieb — Kette, Festschreibung, Prüflauf —, das andere
+      // die Auskunft über das Verfahren selbst, die nur bei einer Prüfung
+      // gebraucht wird.
+      { id: 'nachweise', label: 'Nachweise', icon: <ScrollText className={icon} /> },
       { id: 'dataaccess', label: 'Datenzugriff', icon: <Archive className={icon} /> },
       { id: 'settings', label: 'Einstellungen', icon: <Settings className={icon} /> },
     ],

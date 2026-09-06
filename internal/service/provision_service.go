@@ -1015,7 +1015,7 @@ func (s *ProvisionService) dateOr(ctx context.Context, date string) string {
 	if fy, err := s.closingSvc.PeriodOf(ctx, s.fiscalYear); err == nil {
 		return fy.EndDate
 	}
-	return time.Now().Format("2006-01-02")
+	return todayLocal()
 }
 
 func (s *ProvisionService) fiscalYearStartMonth(ctx context.Context) int {

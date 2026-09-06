@@ -74,7 +74,9 @@ type Dataset struct {
 	To               string
 	CreatedAt        string
 	ProgramVersion   string
-	Tables           []Table
+	// Actor ist die Bearbeiterkennung, unter der überlassen wurde (UNV-04).
+	Actor  string
+	Tables []Table
 }
 
 // TableByName sucht eine Tabelle. Sie wird gebraucht, wo eine Auswertung eine

@@ -107,6 +107,10 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 		t.Fatalf("Testdatei schreiben: %v", err)
 	}
 	receipt, err := svc.File(context.Background(), FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files:     []NewFile{{Role: domain.ReceiptRoleOriginal, Path: path}},
 	})

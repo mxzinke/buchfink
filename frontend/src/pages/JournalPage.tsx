@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  Columns3,
   FileDown,
   Plus,
   ShieldCheck,
@@ -20,8 +21,10 @@ import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import {
   formatCents,
+  formatCentsPlain,
   formatDate,
   formatDateRange,
+  formatDateTime,
   formatShortHash,
   parseCents,
 } from '../utils/formatters';
@@ -33,6 +36,10 @@ import {
   Field,
   HelpPopover,
   Input,
+  Menu,
+  MenuCheckItem,
+  MenuGroup,
+  Notice,
   PageHeader,
   SearchInput,
   Select,
@@ -67,6 +74,22 @@ interface DraftLine {
 const emptyDraft = (): DraftLine[] => [
   { side: 'S', account: '', amount: '' },
   { side: 'H', account: '', amount: '' },
+];
+
+/**
+ * Die Nachweisspalten (UNV-04, UNV-06, UNV-02).
+ *
+ * Sie stehen nicht von vornherein in der Tabelle: wer bucht, sucht die Buchung
+ * über Beleg, Datum und Text, und drei weitere Spalten drängten genau die
+ * hinaus. Gebraucht werden sie, wenn jemand fragt — dann lassen sie sich
+ * einblenden und bleiben, bis sie wieder stören.
+ */
+type ProofColumn = 'actor' | 'appVersion' | 'committedAt';
+
+const PROOF_COLUMNS: { key: ProofColumn; label: string }[] = [
+  { key: 'actor', label: 'Bearbeiter' },
+  { key: 'appVersion', label: 'Programmfassung' },
+  { key: 'committedAt', label: 'Festgeschrieben am' },
 ];
 
 /** Bruttobetrag einer Buchung, gemessen an der Sollseite. */
@@ -121,6 +144,14 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
 
   const [showForm, setShowForm] = useState(false);
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
+  // Die eingeblendeten Nachweisspalten; leer ist der Regelfall.
+  const [proofColumns, setProofColumns] = useState<ProofColumn[]>([]);
+  // Die Berichtigung: die stornierte Buchung und der Grund, mit dem storniert
+  // wurde. Beides zusammen, weil das Backend beides in einem Zug ausführt —
+  // eine halb ausgeführte Korrektur wäre schlimmer als keine (BEL-09).
+  const [correcting, setCorrecting] = useState<{ entry: JournalEntry; reason: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     void load();
@@ -191,6 +222,22 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
   const entryNumbers = useMemo(() => {
     const map = new Map<number, string>();
     for (const entry of entries) map.set(entry.id, entry.entryNumber);
+    return map;
+  }, [entries]);
+
+  /**
+   * Die Gegenrichtung zu `correctsEntryId`: zu welcher Buchung es eine
+   * Neubuchung gibt (BEL-09).
+   *
+   * Sie wird hier aus der geladenen Liste gebildet und nicht am Backend
+   * erfragt: die Verknüpfung steht an der Neubuchung, und wer im Journal auf
+   * die stornierte Buchung sieht, soll sie ohne zweiten Aufruf finden.
+   */
+  const correctedBy = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const entry of entries) {
+      if (entry.correctsEntryId) map.set(entry.correctsEntryId, entry.entryNumber);
+    }
     return map;
   }, [entries]);
 
@@ -321,6 +368,39 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
         >
           Integrität prüfen
         </Button>
+        {/* Bearbeiter, Programmfassung und Festschreibungszeitpunkt sind
+            Nachweise und keine Arbeitsangaben: sie stehen zur Verfügung, wenn
+            jemand danach fragt, und drängen sonst die Spalten hinaus, über die
+            eine Buchung gesucht wird. */}
+        <Menu
+          trigger={
+            <Button
+              variant="secondary"
+              icon={<Columns3 className="w-4 h-4" strokeWidth={1.5} />}
+            >
+              Spalten
+            </Button>
+          }
+        >
+          <MenuGroup label="Nachweise einblenden">
+            {PROOF_COLUMNS.map((column) => (
+              <MenuCheckItem
+                key={column.key}
+                checked={proofColumns.includes(column.key)}
+                closeOnClick={false}
+                onCheckedChange={(checked) =>
+                  setProofColumns((prev) =>
+                    checked
+                      ? [...prev, column.key]
+                      : prev.filter((entry) => entry !== column.key),
+                  )
+                }
+              >
+                {column.label}
+              </MenuCheckItem>
+            ))}
+          </MenuGroup>
+        </Menu>
       </div>
 
       <div className="mt-5">
@@ -366,6 +446,11 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
                 <Th>Buchungstext</Th>
                 <Th>Konten · Soll → Haben</Th>
                 <Th numeric>Betrag</Th>
+                {proofColumns.includes('actor') && <Th className="w-44">Bearbeiter</Th>}
+                {proofColumns.includes('appVersion') && <Th className="w-28">Fassung</Th>}
+                {proofColumns.includes('committedAt') && (
+                  <Th className="w-52">Festgeschrieben am</Th>
+                )}
                 <Th>Status</Th>
                 <Th className="w-10" aria-label="Aktionen" />
               </Tr>
@@ -380,6 +465,11 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
                     entry.reversalOfId ? entryNumbers.get(entry.reversalOfId) : undefined
                   }
                   isReversed={reversedIds.has(entry.id)}
+                  correctsNumber={
+                    entry.correctsEntryId ? entryNumbers.get(entry.correctsEntryId) : undefined
+                  }
+                  correctedByNumber={correctedBy.get(entry.id)}
+                  proofColumns={proofColumns}
                   expanded={expanded[entry.id] ?? false}
                   onToggle={() =>
                     setExpanded((prev) => ({ ...prev, [entry.id]: !prev[entry.id] }))
@@ -393,19 +483,36 @@ export const JournalPage: React.FC<JournalPageProps> = ({ closedYear, initialSea
       </div>
 
       <BookingForm
-        open={showForm}
+        open={showForm || correcting !== null}
         accounts={accounts}
-        onOpenChange={setShowForm}
-        onSaved={async () => {
+        correction={correcting}
+        onOpenChange={(next) => {
+          if (next) return;
           setShowForm(false);
+          setCorrecting(null);
+        }}
+        onSaved={async () => {
+          const wasCorrection = correcting !== null;
+          setShowForm(false);
+          setCorrecting(null);
           await load();
-          toast.success('Buchung festgeschrieben.');
+          toast.success(
+            wasCorrection
+              ? 'Storno und Neubuchung gebucht und verknüpft.'
+              : 'Buchung festgeschrieben.',
+          );
         }}
       />
 
       <ReverseDialog
         entry={reversing}
         onClose={() => setReversing(null)}
+        onCorrect={(reason) => {
+          // Erst die Maske für die richtige Buchung; storniert wird zusammen
+          // mit ihr, damit nicht die eine ohne die andere im Journal steht.
+          if (reversing) setCorrecting({ entry: reversing, reason });
+          setReversing(null);
+        }}
         onDone={async () => {
           setReversing(null);
           await load();
@@ -428,14 +535,32 @@ const EntryRows: React.FC<{
   entry: JournalEntry;
   accountNames: Map<string, string>;
   originNumber?: string;
+  /** Die Buchung, die diese hier berichtigt, und die Gegenrichtung dazu. */
+  correctsNumber?: string;
+  correctedByNumber?: string;
+  proofColumns: ProofColumn[];
   isReversed: boolean;
   expanded: boolean;
   onToggle: () => void;
   onReverse: () => void;
-}> = ({ entry, accountNames, originNumber, isReversed, expanded, onToggle, onReverse }) => {
+}> = ({
+  entry,
+  accountNames,
+  originNumber,
+  correctsNumber,
+  correctedByNumber,
+  proofColumns,
+  isReversed,
+  expanded,
+  onToggle,
+  onReverse,
+}) => {
   const writeLock = useWriteLock();
   const isReversal = entry.kind === 'reversal';
   const storno = isReversal || isReversed;
+  // Die Zahl der Spalten der Zeile, damit die aufgeklappte Zeile darunter
+  // durchgehend bleibt: acht feste plus die eingeblendeten Nachweise.
+  const columnCount = 8 + proofColumns.length;
 
   return (
     <>
@@ -463,6 +588,19 @@ const EntryRows: React.FC<{
         </Td>
         <Td code>{accountPath(entry)}</Td>
         <Td numeric>{formatCents(grossOf(entry), entry.currency)}</Td>
+        {proofColumns.includes('actor') && (
+          <Td className="text-ink-subtle truncate" title={entry.actor}>
+            {entry.actor || '—'}
+          </Td>
+        )}
+        {proofColumns.includes('appVersion') && (
+          <Td className="text-ink-subtle num">{entry.appVersion || '—'}</Td>
+        )}
+        {proofColumns.includes('committedAt') && (
+          <Td className="text-ink-subtle num">
+            {entry.committedAt ? formatDateTime(entry.committedAt) : 'noch offen'}
+          </Td>
+        )}
         <Td>
           <StatusBadge status={storno ? 'storniert' : 'gebucht'} />
         </Td>
@@ -487,11 +625,13 @@ const EntryRows: React.FC<{
 
       {expanded && (
         <Tr className={cn(storno && '[&>td]:bg-negative-soft/40')}>
-          <Td colSpan={8} className="whitespace-normal py-4">
+          <Td colSpan={columnCount} className="whitespace-normal py-4">
             <EntryDetail
               entry={entry}
               accountNames={accountNames}
               originNumber={originNumber}
+              correctsNumber={correctsNumber}
+              correctedByNumber={correctedByNumber}
             />
           </Td>
         </Tr>
@@ -505,7 +645,9 @@ const EntryDetail: React.FC<{
   entry: JournalEntry;
   accountNames: Map<string, string>;
   originNumber?: string;
-}> = ({ entry, accountNames, originNumber }) => {
+  correctsNumber?: string;
+  correctedByNumber?: string;
+}> = ({ entry, accountNames, originNumber, correctsNumber, correctedByNumber }) => {
   const debit = entry.lines.filter((l) => l.side === 'S').reduce((s, l) => s + l.amount, 0);
   const credit = entry.lines.filter((l) => l.side === 'H').reduce((s, l) => s + l.amount, 0);
 
@@ -575,6 +717,43 @@ const EntryDetail: React.FC<{
           <div className="flex gap-1.5">
             <dt>Grund</dt>
             <dd className="text-ink-muted">{entry.reversalReason}</dd>
+          </div>
+        )}
+        {/* Beide Richtungen der Berichtigung (BEL-09, GoBD Rz. 58): an der
+            Neubuchung, welche falsche sie ersetzt, und an der falschen, welche
+            richtige an ihre Stelle getreten ist. Eine Richtung allein ließe
+            den, der auf die falsche Buchung sieht, ohne Antwort. */}
+        {correctsNumber && (
+          <div className="flex gap-1.5">
+            <dt>Berichtigt</dt>
+            <dd className="code-num text-ink-muted">{correctsNumber}</dd>
+          </div>
+        )}
+        {correctedByNumber && (
+          <div className="flex gap-1.5">
+            <dt>Berichtigt durch</dt>
+            <dd className="code-num text-ink-muted">{correctedByNumber}</dd>
+          </div>
+        )}
+        {entry.legacyRef && (
+          <div className="flex gap-1.5">
+            <dt>Altsystem</dt>
+            <dd className="code-num text-ink-muted">{entry.legacyRef}</dd>
+          </div>
+        )}
+        {entry.actor && (
+          <div className="flex gap-1.5">
+            <dt>Bearbeiter</dt>
+            <dd className="text-ink-muted">
+              {entry.actor}
+              {entry.appVersion ? ` · Fassung ${entry.appVersion}` : ''}
+            </dd>
+          </div>
+        )}
+        {entry.committedAt && (
+          <div className="flex gap-1.5">
+            <dt>Festgeschrieben</dt>
+            <dd className="text-ink-muted num">{formatDateTime(entry.committedAt)}</dd>
           </div>
         )}
         <div className="flex gap-1.5">
@@ -678,6 +857,48 @@ const PaymentAllocations: React.FC<{ entryId: number; currency: string }> = ({
 // -------------------------------------------------------------------------
 
 /**
+ * Die Angaben, die eine Berichtigung aus der falschen Buchung mitnimmt (BEL-09).
+ *
+ * Die Maske erfasst Datum, Text und Zeilen — mehr trägt eine Buchung aber: den
+ * Beleg, den Geschäftspartner, den Steuerfall, die Währung, die Aufzeichnungen
+ * zu Bewirtung und Geschenk. Würde die Neubuchung nur aus den Eingabefeldern
+ * gebaut, entstünde aus einer Belegbuchung eine belegfreie Buchung (BEL-01: der
+ * Beleg bliebe an der stornierten Buchung versiegelt), der offene Posten fiele
+ * aus der OP-Liste (die verlangt den Geschäftspartner am Buchungskopf), und aus
+ * einer Fremdwährungsbuchung würde stillschweigend eine in Euro.
+ *
+ * Berichtigt wird ein Konto oder ein Betrag — nicht, woher der Vorgang kommt.
+ * Was die Maske nicht erfasst, gilt deshalb weiter.
+ */
+function carriedFromOrigin(origin: JournalEntry): Partial<JournalEntry> {
+  return {
+    // Die Quelle bleibt: eine berichtigte Belegbuchung ist weiter eine
+    // Belegbuchung, und die Auswertungen, die nach der Quelle filtern (offene
+    // Posten, Zahlungen), sähen sie sonst nicht mehr.
+    source: origin.source,
+    receiptId: origin.receiptId,
+    receiptHash: origin.receiptHash,
+    contactId: origin.contactId,
+    taxTreatment: origin.taxTreatment,
+    bankTxId: origin.bankTxId,
+    valueDate: origin.valueDate,
+    currency: origin.currency,
+    exchangeRateMicros: origin.exchangeRateMicros,
+    exchangeRateSource: origin.exchangeRateSource,
+    exchangeRateDate: origin.exchangeRateDate,
+    dueDate: origin.dueDate,
+    legacyRef: origin.legacyRef,
+    // Die Aufzeichnungen beschreiben den Vorgang und nicht die Buchung: die
+    // Bewirtung hat stattgefunden, das Geschenk ist übergeben. Die
+    // Generalumkehr nimmt sie aus demselben Grund mit (JournalService.Reverse).
+    // Ohne Kennungen, damit sie als neue Datensätze an der Neubuchung
+    // entstehen und nicht die der stornierten Buchung verschieben.
+    entertainment: origin.entertainment ? { ...origin.entertainment } : undefined,
+    gifts: origin.gifts?.map((gift) => ({ ...gift, id: 0, entryId: 0 })),
+  };
+}
+
+/**
  * Erfassung eines Buchungssatzes mit beliebig vielen Zeilen.
  *
  * Die Differenz zwischen Soll und Haben läuft mit. Das ist eine Rechenhilfe und
@@ -687,9 +908,18 @@ const PaymentAllocations: React.FC<{ entryId: number; currency: string }> = ({
 const BookingForm: React.FC<{
   open: boolean;
   accounts: Account[];
+  /**
+   * Die zu berichtigende Buchung samt Stornogrund (BEL-09).
+   *
+   * Gesetzt heißt: dieselbe Maske erfasst die richtige Buchung, und das
+   * Backend storniert und bucht in einem Zug. Die Felder kommen aus der
+   * falschen Buchung — berichtigt wird meist ein Konto oder ein Betrag, nicht
+   * der ganze Vorgang.
+   */
+  correction?: { entry: JournalEntry; reason: string } | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
-}> = ({ open, accounts, onOpenChange, onSaved }) => {
+}> = ({ open, accounts, correction, onOpenChange, onSaved }) => {
   const writeLock = useWriteLock();
   const today = new Date().toISOString().split('T')[0];
   const [bookingDate, setBookingDate] = useState(today);
@@ -702,10 +932,69 @@ const BookingForm: React.FC<{
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Übernimmt die Werte der falschen Buchung, sobald die Maske zur Berichtigung
+  // aufgeht — und setzt sie zurück, wenn sie für eine neue Buchung aufgeht.
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    if (!correction) {
+      setBookingDate(today);
+      setDocumentDate(today);
+      setServiceFrom(today);
+      setServiceTo(today);
+      setDescription('');
+      setDocumentNumber('');
+      setLines(emptyDraft());
+      return;
+    }
+    const origin = correction.entry;
+    // Das Buchungsdatum bleibt das der falschen Buchung: die richtige gehört
+    // in dieselbe Periode. Verschiebt sie sich, weist das Backend sie zurück,
+    // wenn die Periode festgeschrieben ist.
+    setBookingDate(origin.bookingDate);
+    setDocumentDate(origin.documentDate);
+    setServiceFrom(origin.serviceDateFrom || origin.documentDate);
+    setServiceTo(origin.serviceDateTo || origin.documentDate);
+    setDescription(origin.description);
+    setDocumentNumber(origin.documentNumber ?? '');
+    setLines(
+      origin.lines.map((line) => ({
+        side: line.side,
+        account: line.account,
+        amount: formatCentsPlain(line.amount),
+      })),
+    );
+    // today ändert sich innerhalb einer Sitzung nicht; die Abhängigkeit wäre
+    // nur Zierde und ließe die Maske bei jedem Rendern zurückspringen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, correction]);
+
   const parsed = lines.map((line) => ({ ...line, cents: parseCents(line.amount) ?? 0 }));
   const debitTotal = parsed.filter((l) => l.side === 'S').reduce((s, l) => s + l.cents, 0);
   const creditTotal = parsed.filter((l) => l.side === 'H').reduce((s, l) => s + l.cents, 0);
   const balanced = debitTotal === creditTotal && debitTotal > 0;
+
+  /**
+   * Die Zeilen, deren Steuerangaben die Berichtigung nicht mitnehmen kann.
+   *
+   * Der Steuerschlüssel und die Bemessungsgrundlage einer Zeile gehören zu
+   * ihrem Betrag. Wird der Betrag oder das Konto geändert, passen sie nicht
+   * mehr, und diese Maske kennt den Steuersatz nicht, aus dem sie sich neu
+   * ergäben. Statt sie stillschweigend fallen zu lassen, wird gesagt, was
+   * fehlen wird — die Voranmeldung liest die Bemessungsgrundlage aus der Zeile.
+   */
+  const droppedTaxLines = correction
+    ? parsed
+        .map((line, index) => ({ line, origin: correction.entry.lines[index], index }))
+        .filter(
+          ({ line, origin }) =>
+            origin?.taxKey &&
+            (origin.side !== line.side ||
+              origin.account !== line.account.trim() ||
+              origin.amount !== line.cents),
+        )
+        .map(({ index }) => index + 1)
+    : [];
 
   const options = useMemo(
     () =>
@@ -729,21 +1018,52 @@ const BookingForm: React.FC<{
     setError(null);
     setSaving(true);
     try {
-      await Api.postJournalEntry({
+      const request: Partial<JournalEntry> = {
+        // Was die Berichtigung aus der falschen Buchung mitnimmt, steht zuerst:
+        // die Eingaben der Maske gehen darüber, wo beide dasselbe Feld meinen.
+        ...(correction ? carriedFromOrigin(correction.entry) : { source: 'manual' }),
         bookingDate,
         documentDate,
         serviceDateFrom: serviceFrom,
         serviceDateTo: serviceTo,
         description,
         documentNumber,
-        source: 'manual',
-        lines: parsed.map((line, index) => ({
-          position: index + 1,
-          side: line.side,
-          account: line.account.trim(),
-          amount: line.cents,
-        })) as JournalLine[],
-      });
+        lines: parsed.map((line, index) => {
+          const account = line.account.trim();
+          const next: Partial<JournalLine> = {
+            position: index + 1,
+            side: line.side,
+            account,
+            amount: line.cents,
+          };
+          const origin = correction?.entry.lines[index];
+          // Die Zeilenangaben, die die Maske nicht erfasst — Personenkonto,
+          // Steuerschlüssel, Vorsteuerschlüssel, Zeilentext —, gelten weiter,
+          // solange die Zeile dieselbe geblieben ist.
+          if (origin && origin.side === line.side && origin.account === account) {
+            next.contactId = origin.contactId;
+            next.text = origin.text;
+            next.inputTaxShare = origin.inputTaxShare;
+            // Bemessungsgrundlage und Fremdwährungsbetrag hängen am Betrag der
+            // Zeile. Wurde der geändert, sind sie überholt, und ein aus dem
+            // alten Satz hochgerechneter Wert wäre eine Behauptung über einen
+            // Steuersatz, den die Maske nicht kennt (Hinweis: taxWarning).
+            if (origin.amount === line.cents) {
+              next.taxKey = origin.taxKey;
+              next.taxBase = origin.taxBase;
+              next.foreignAmount = origin.foreignAmount;
+            }
+          }
+          return next;
+        }) as JournalLine[],
+      };
+      if (correction) {
+        // Storno und Neubuchung in einem Aufruf: liefe die Neubuchung nach dem
+        // Storno ins Leere, stünde der Geschäftsvorfall ohne Buchung da.
+        await Api.correctEntry(correction.entry.id, correction.reason, request);
+      } else {
+        await Api.postJournalEntry(request);
+      }
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -756,7 +1076,7 @@ const BookingForm: React.FC<{
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Neue Buchung"
+      title={correction ? `Buchung ${correction.entry.entryNumber} berichtigen` : 'Neue Buchung'}
       width="max-w-3xl"
       footer={
         <>
@@ -770,11 +1090,38 @@ const BookingForm: React.FC<{
             title={writeLock.hint}
             onClick={submit}
           >
-            Buchen
+            {correction ? 'Stornieren und neu buchen' : 'Buchen'}
           </Button>
         </>
       }
     >
+      {correction && (
+        <>
+          <p className="mb-5 text-body text-ink-muted">
+            {/* Ein Satz (§15.1). Was mitgenommen wird und warum überhaupt
+                storniert statt geändert wird, steht im Erklärzeichen und
+                braucht daneben keine zweite Fassung. */}
+            <span className="code-num text-ink">{correction.entry.entryNumber}</span> wird per
+            Generalumkehr zurückgenommen; die Buchung unten tritt an ihre Stelle.
+            <HelpPopover label="Erklärung zur Berichtigung">
+              GoBD Rz. 58 verlangt, dass die ursprüngliche Aufzeichnung feststellbar bleibt und die
+              Korrektur als solche erkennbar ist. Deshalb wird nicht geändert, sondern storniert und
+              neu gebucht — und die Neubuchung trägt den Verweis auf die Buchung, die sie ersetzt.
+              Mitgenommen werden die Angaben, die diese Maske nicht erfasst: der Beleg mit seinem
+              Hash, das Personenkonto des offenen Postens, der Steuerfall, Währung und Umrechnung
+              sowie die Aufzeichnungen zu Bewirtung und Geschenk — sonst stünde die Neubuchung ohne
+              Beleg da und der offene Posten verschwände aus der Liste.
+            </HelpPopover>
+          </p>
+          {droppedTaxLines.length > 0 && (
+            <Notice
+              className="mb-5"
+              text={`Zeile ${droppedTaxLines.join(', ')} wurde geändert; Steuerschlüssel und Bemessungsgrundlage der ursprünglichen Zeile werden nicht übernommen. Berichtigen Sie eine steuerwirksame Buchung besser über den Beleg oder die Rechnung, aus der sie entstanden ist.`}
+            />
+          )}
+        </>
+      )}
+
       <div className="grid grid-cols-4 gap-4">
         <Field label="Buchungsdatum" hint="Bestimmt die Periode">
           <Input type="date" value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} />
@@ -908,7 +1255,9 @@ const ReverseDialog: React.FC<{
   entry: JournalEntry | null;
   onClose: () => void;
   onDone: () => void;
-}> = ({ entry, onClose, onDone }) => {
+  /** Gibt den Grund an die Maske weiter, die die richtige Buchung erfasst. */
+  onCorrect: (reason: string) => void;
+}> = ({ entry, onClose, onDone, onCorrect }) => {
   const writeLock = useWriteLock();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -949,6 +1298,26 @@ const ReverseDialog: React.FC<{
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
+          {/* Der zweite Weg (BEL-09): wer weiß, wie richtig gebucht wird, soll
+              nicht erst stornieren und danach eine neue Buchung suchen — die
+              Verknüpfung entstünde dabei nicht. */}
+          <Button
+            variant="secondary"
+            disabled={writeLock.locked}
+            title={
+              writeLock.hint ??
+              'Storniert und erfasst die richtige Buchung; beide bleiben verknüpft.'
+            }
+            onClick={() => {
+              if (!reason.trim()) {
+                setError('Ohne Grund lässt sich die Berichtigung später nicht nachvollziehen.');
+                return;
+              }
+              onCorrect(reason.trim());
+            }}
+          >
+            Stornieren und neu buchen
+          </Button>
           <Button
             variant="danger"
             loading={busy}
@@ -956,7 +1325,7 @@ const ReverseDialog: React.FC<{
             title={writeLock.hint}
             onClick={submit}
           >
-            Stornieren
+            Nur stornieren
           </Button>
         </>
       }

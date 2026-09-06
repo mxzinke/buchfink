@@ -463,6 +463,9 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	if contact.Type != domain.ContactTypeVendor {
 		return nil, fmt.Errorf("%s ist als Kunde angelegt und kann keinen Eingangsbeleg stellen", contact.Name)
 	}
+	if err := ensureNotBlocked(contact); err != nil {
+		return nil, err
+	}
 	if err := validateIncomingTreatment(req.TaxTreatment, contact); err != nil {
 		return nil, err
 	}

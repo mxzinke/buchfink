@@ -5,15 +5,17 @@ import {
   AccrualReleaseCycle,
   ClosingSettings,
   CompanySettings,
+  ComplianceHints,
   AppConfig,
   InvestorType,
   LegalFormInfo,
+  OrganisationTexts,
   SpecialPrepaymentSuggestion,
 } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import type { NavigateFn } from '../components/Sidebar';
-import { formatCents, formatCentsPlain, parseCents } from '../utils/formatters';
+import { formatCents, formatCentsPlain, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -21,6 +23,7 @@ import {
   FieldValue,
   HelpPopover,
   Input,
+  Notice,
   PageHeader,
   RadioGroup,
   Section,
@@ -137,6 +140,19 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [exporting, setExporting] = useState(false);
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
   const [showInvestorChoice, setShowInvestorChoice] = useState(false);
+  // Die Hinweise zu Rechtsform, Speicherort und Steuerfällen kommen aus dem
+  // Backend: welche Rechtsform Entnahmen kennt und welcher Pfad in einem
+  // Synchronisationsordner liegt, ist Recht bzw. Umgebung — beides gehört an
+  // eine Stelle und nicht in eine zweite Liste hier (BEW-13, UST-08, ARC-06).
+  const [hints, setHints] = useState<ComplianceHints | null>(null);
+  // Die Freitexte der Organisationsanweisung. Gepflegt werden sie unter
+  // Nachweise; hier steht, ob und wie viel davon hinterlegt ist — ein Feld, das
+  // nur wiederholt, was sein Label sagt, ist keine Auskunft (§15.3).
+  const [orgTexts, setOrgTexts] = useState<OrganisationTexts | null>(null);
+  // Die gespeicherte Rechtsform, gegen die der Hinweis gilt. Ein Hinweis zur
+  // eben erst ausgewählten, noch nicht gespeicherten Rechtsform stammte aus
+  // dem Backend und beschriebe den falschen Stand.
+  const [savedLegalForm, setSavedLegalForm] = useState('');
   // Die Sondervorauszahlung wird als Text erfasst und erst beim Verlassen des
   // Feldes in Cent umgerechnet (§8.3).
   const [prepaymentText, setPrepaymentText] = useState('');
@@ -171,6 +187,21 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       setSettings(s);
       setAppConfig(cfg);
       setLegalForms(forms ?? []);
+      setSavedLegalForm(s.legalForm || '');
+      try {
+        // Nebenauskunft: fehlen die Hinweise, bleiben die Einstellungen
+        // bedienbar — sie ändern nichts an dem, was hier gespeichert wird.
+        setHints(await Api.getComplianceHints());
+      } catch {
+        setHints(null);
+      }
+      try {
+        // Ebenfalls Nebenauskunft: fehlen die Freitexte, bleibt die Seite
+        // bedienbar.
+        setOrgTexts(await Api.getOrganisationTexts());
+      } catch {
+        setOrgTexts(null);
+      }
       setPrepaymentText(s.specialPrepayment ? formatCentsPlain(s.specialPrepayment) : '');
       setCaptureDaysText(String(s.receiptCaptureDays > 0 ? s.receiptCaptureDays : 10));
       setGraceDaysText(String(s.commitGraceDays > 0 ? s.commitGraceDays : 0));
@@ -233,6 +264,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       // „Speichern" zu suchen; der Dienst prüft die Grenzen und meldet sich mit
       // seinem eigenen Satz, wenn ihm ein Wert nicht passt.
       applyClosing(await Api.saveClosingSettings(closing));
+      // Der Hinweis zur Rechtsform hängt an der gespeicherten Rechtsform; nach
+      // dem Speichern gilt eine neue, also wird er neu geholt.
+      setSavedLegalForm(settings.legalForm || '');
+      try {
+        setHints(await Api.getComplianceHints());
+      } catch {
+        // Der Hinweis ist Beiwerk; das Speichern ist gelungen.
+      }
       toast.success('Einstellungen gespeichert.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -277,6 +316,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const identifierMissing = !settings.taxNumber && !settings.vatId;
   const startMonth = settings.fiscalYearStartMonth || 1;
   const deviating = startMonth !== 1;
+
+  // Wie viel von der Organisationsanweisung hinterlegt ist, und der Anfang des
+  // ersten belegten Textes. Der Zähler beantwortet die Frage, wegen der jemand
+  // hier hinsieht — ist etwas hinterlegt? —, und die ersten Zeichen sagen, was.
+  const organisationValues = Object.values(orgTexts ?? {}).map((text) => text.trim());
+  const orgFilledCount = organisationValues.filter((text) => text !== '').length;
+  const firstOrganisationText = organisationValues.find((text) => text !== '') ?? '';
+  const organisationPreview = `${orgFilledCount} von ${organisationValues.length} Feldern · ${firstOrganisationText}`;
 
   return (
     <form onSubmit={save} className="max-w-[900px] mx-auto px-8 py-8">
@@ -382,6 +429,15 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           >
             Anlegerstellung für Investmentanteile abweichend festlegen
           </Button>
+        )}
+
+        {/* Die Grenze des Funktionsumfangs bei Rechtsformen mit Entnahmen
+            (BEW-13). Sie steht als Hinweisfläche und nicht hinter dem
+            Erklärzeichen: sie betrifft nicht das Feld daneben, sondern das,
+            was Buchfink für diesen Mandanten nicht rechnet — und das soll
+            niemand erst beim Jahresabschluss erfahren. */}
+        {hints?.legalFormNote && settings.legalForm === savedLegalForm && (
+          <Notice className="mt-5" text={hints.legalFormNote} />
         )}
       </Section>
 
@@ -522,7 +578,25 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         )}
       </Section>
 
-      <Section title="Umsatzsteuer">
+      {/* Die Steuerfälle außerhalb des Funktionsumfangs — OSS/IOSS und die
+          Kleinunternehmerregelung — stehen hinter dem Erklärzeichen und nicht
+          als Absatz auf der Seite (UST-08). Sie kommen aus dem Backend, weil
+          dieselbe Aufzählung in der Verfahrensdokumentation steht. */}
+      <Section
+        title="Umsatzsteuer"
+        action={
+          (hints?.taxCaseHints ?? []).length > 0 && (
+            <HelpPopover label="Erklärung zu den Grenzen des Funktionsumfangs">
+              <span className="block">Buchfink bildet diese Steuerfälle nicht ab:</span>
+              <ul className="mt-2 flex flex-col gap-2">
+                {(hints?.taxCaseHints ?? []).map((hint) => (
+                  <li key={hint}>{hint}</li>
+                ))}
+              </ul>
+            </HelpPopover>
+          )
+        }
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Voranmeldezeitraum"
@@ -808,8 +882,73 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </div>
       </Section>
 
+      {/* Umstellungszeitpunkt und Organisationsanweisung stehen hier als
+          Auskunft und werden unter „Nachweise" gepflegt. Zwei Masken für
+          denselben Wert liefen auseinander, sobald jemand die eine benutzt und
+          die andere offen hat; die Seite, die die Verfahrensdokumentation
+          erzeugt, ist die richtige Stelle dafür (ARC-05, PRF-03). */}
+      <Section
+        title="Verfahren und Umstellung"
+        context="Zu pflegen unter Nachweise"
+      >
+        {/* Zwei Verweise und nicht einer: der Umstellungszeitpunkt wird im
+            Reiter „Versionen & Übernahmen" gepflegt, die Freitexte im Reiter
+            „Verfahrensdokumentation". Ein gemeinsamer Knopf setzte den Leser
+            in jedem zweiten Fall auf dem falschen Reiter ab. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field
+            label="Umstellungszeitpunkt aus einem Altsystem"
+            hint={hints?.systemChangeDate ? undefined : 'nicht hinterlegt'}
+            help={
+              hints?.systemChangeNote ||
+              'Wer die Buchführung aus einem anderen System übernimmt, hält den Umstellungszeitpunkt fest. Ab ihm läuft die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO: so lange muss das Altsystem für den Datenzugriff verfügbar bleiben.'
+            }
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <FieldValue className="num">
+                {hints?.systemChangeDate ? formatDate(hints.systemChangeDate) : '—'}
+              </FieldValue>
+              {onNavigate && (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={() => onNavigate('nachweise', { nachweiseTab: 'versionen' })}
+                >
+                  Pflegen
+                </Button>
+              )}
+            </span>
+          </Field>
+          <Field
+            label="Organisationsanweisung"
+            hint={orgFilledCount > 0 ? undefined : 'nicht hinterlegt'}
+            help="Wer scannt, wer prüft, wer freigibt und wie vertreten wird: die Teile der Verfahrensdokumentation, die nur das Unternehmen kennt. Buchfink gibt Muster vor."
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <FieldValue className="truncate">
+                {orgFilledCount > 0 ? organisationPreview : '—'}
+              </FieldValue>
+              {onNavigate && (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={() => onNavigate('nachweise', { nachweiseTab: 'verfahren' })}
+                >
+                  Pflegen
+                </Button>
+              )}
+            </span>
+          </Field>
+        </div>
+      </Section>
+
       <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
         <div className="flex flex-col gap-4 max-w-2xl">
+          {/* Der Datenordner in einem Synchronisationsordner: § 146 Abs. 2, 2a
+              AO. Der Satz kommt aus dem Backend, weil nur dort bekannt ist,
+              welche Pfadbestandteile als Cloud-Ordner gelten (ARC-06). */}
+          {hints?.cloudWarning && <Notice tone="negative" text={hints.cloudWarning} />}
+
           {/* Kein Knopf zum Wählen: Buchfink zieht einen Datenordner nicht um,
               und ein Knopf, der nur die Anzeige ändert, verspräche das (ARC-06). */}
           <Field

@@ -676,7 +676,10 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
       setLoading(true);
       try {
         const [list, expiring] = await Promise.all([
-          Api.getContacts(),
+          // Die auswählbaren und nicht alle Kontakte: ein nach einem
+          // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+          // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+          Api.getSelectableContacts(),
           Api.getExemptionCertificateWarnings(today()),
         ]);
         setContacts(list);

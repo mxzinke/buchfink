@@ -65,6 +65,12 @@ func newTestEnv(t *testing.T) *testEnv {
 	store := receiptstore.New(dataDir)
 
 	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
+	// Wie in der Anwendung (wailsbridge.initTenant): der Journaldienst kennt die
+	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
+	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es
+	// im Betrieb nicht gibt — und eine Regel, die nur dort gilt, fiele hier nie
+	// auf.
+	journal.SetReceiptRepo(receiptRepo)
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)

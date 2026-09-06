@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -91,10 +92,18 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Kursquelle", "Herkunft des Kurses."),
 		dateField("Kursdatum", "Tag, für den der Kurs gilt."),
 		alphaField("Regelversion", "Fassung der Kontierungsregeln, nach der gebucht wurde."),
+		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat. Leer bei Buchungen aus der Zeit vor dieser Angabe; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
+		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Herkunft_Altsystem", "Kennung, unter der der Vorgang im Altsystem geführt wurde; nur bei übernommenen Eröffnungswerten belegt."),
+		numField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
 		alphaField("Erfassungszeitpunkt_UTC", "Zeitpunkt der Erfassung nach RFC 3339 in UTC; Bestandteil der Hash-Chain."),
 		alphaField("Vorgaengerhash", "Eigenhash der vorhergehenden Buchung desselben Geschäftsjahres."),
 		alphaField("Eigenhash", "SHA-256 über die kanonische Form der Buchung; siehe Abschnitt „Die Hash-Chain nachrechnen“."),
 		dateField("Festgeschrieben_am", "Tag der Festschreibung des Zeitraums, in den die Buchung fällt; leer, solange sie nicht festgeschrieben ist."),
+		alphaField("Festschreibungszeitpunkt_UTC", "Zeitpunkt, zu dem diese Buchung festgeschrieben wurde, nach RFC 3339 in UTC. Er steht an der Buchung selbst und ist nicht Bestandteil der Hash-Chain: die Festschreibung ändert die Buchung nicht, sie stellt sie fest."),
+		numField("Festschreibung_ID", "Kennung der Festschreibung, die diese Buchung festgestellt hat."),
+		numField("Tage_Beleg_bis_Erfassung", "Tage zwischen Belegdatum und Erfassung. GoBD Rz. 47 nennt zehn Tage für die Erfassung unbarer Geschäftsvorfälle."),
+		numField("Tage_Erfassung_bis_Festschreibung", "Tage zwischen Erfassung und Festschreibung; leer, solange die Buchung nicht festgeschrieben ist."),
 		numField("Zeilennummer", "Position der Zeile innerhalb der Buchung."),
 		alphaField("Seite", "S für Soll, H für Haben."),
 		alphaField("Konto", "Sachkonto (vier Stellen) oder Personenkonto (fünf Stellen)."),
@@ -137,10 +146,18 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.ExchangeRateSource,
 				e.ExchangeRateDate,
 				e.PostingRuleVersion,
+				e.AppVersion,
+				e.Actor,
+				e.LegacyRef,
+				export.OptUint(e.CorrectsEntryID),
 				e.CreatedAt.UTC().Format(time.RFC3339),
 				e.PreviousHash,
 				e.EntryHash,
 				committed,
+				committedAt(e),
+				export.OptUint(e.FestschreibungID),
+				daysBetweenISO(e.DocumentDate, e.CreatedAt.UTC().Format("2006-01-02")),
+				daysToCommitment(e),
 				export.Int(l.Position),
 				string(l.Side),
 				l.Account,
@@ -715,24 +732,70 @@ func keyDirectoryTable() (export.Table, error) {
 
 func auditLogTable(d *exportData) (export.Table, error) {
 	t := newTable(tableAuditLog, "aenderungsprotokoll.csv",
-		"Das Änderungsprotokoll: wer wann was getan hat (GoBD Rz. 34 ff.).",
+		"Das Änderungsprotokoll: wer wann was getan hat, und was sich dabei geändert hat (GoBD Rz. 34 ff.). Die Einträge sind untereinander verkettet; ein entfernter Eintrag bricht die Kette.",
 		numField("Protokoll_ID", "Fortlaufende Kennung."),
-		alphaField("Zeitpunkt", "Zeitpunkt des Vorgangs nach RFC 3339."),
+		alphaField("Zeitpunkt", "Zeitpunkt des Vorgangs nach RFC 3339 in UTC."),
 		alphaField("Art", "Art des Vorgangs; siehe Schlüsselverzeichnis, Kategorie „Protokollart“."),
 		alphaField("Objektart", "Betroffene Art von Objekt."),
 		alphaField("Objekt_ID", "Kennung des betroffenen Objekts."),
 		alphaField("Einzelheiten", "Beschreibung des Vorgangs."),
+		alphaField("Vorher", "Die geänderten Felder in ihrem bisherigen Stand als JSON-Objekt; leer, wenn der Vorgang nichts geändert hat oder das Objekt neu ist."),
+		alphaField("Nachher", "Dieselben Felder in ihrem neuen Stand als JSON-Objekt."),
+		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Programmfassung", "Fassung des Programms, die den Vorgang ausgeführt hat."),
+		alphaField("Vorgaengerhash", "Eigenhash des vorhergehenden Protokolleintrags."),
+		alphaField("Eigenhash", "SHA-256 über die kanonische Form des Eintrags."),
 	)
 	for i := range d.auditLog {
 		a := &d.auditLog[i]
 		if err := t.AddRow(
 			export.Uint(a.ID), a.Timestamp.UTC().Format(time.RFC3339),
 			string(a.Action), a.EntityType, a.EntityID, a.Details,
+			a.Before, a.After, a.Actor, a.AppVersion,
+			a.PreviousHash, a.EntryHash,
 		); err != nil {
 			return t, err
 		}
 	}
 	return t, nil
+}
+
+// committedAt ist der Festschreibungszeitpunkt der Buchung, leer wenn sie noch
+// nicht festgeschrieben ist.
+func committedAt(e *domain.JournalEntry) string {
+	if e.CommittedAt == nil {
+		return ""
+	}
+	return e.CommittedAt.UTC().Format(time.RFC3339)
+}
+
+// daysBetweenISO zählt die Tage zwischen zwei ISO-Daten. Leer, wo eines von
+// beiden fehlt: eine erfundene Null wäre eine Aussage über eine Frist, die
+// niemand gemessen hat.
+func daysBetweenISO(from, to string) string {
+	a, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		return ""
+	}
+	b, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		return ""
+	}
+	return strconv.Itoa(int(b.Sub(a).Hours() / 24))
+}
+
+// daysToCommitment misst den Abstand zwischen Erfassung und Festschreibung.
+//
+// Er ist die Kennzahl, an der sich die zeitgerechte Festschreibung ablesen
+// lässt: ein Zeitraum, der erst Monate später festgeschrieben wird, war so
+// lange änderbar.
+func daysToCommitment(e *domain.JournalEntry) string {
+	if e.CommittedAt == nil {
+		return ""
+	}
+	return daysBetweenISO(
+		e.CreatedAt.UTC().Format("2006-01-02"),
+		e.CommittedAt.UTC().Format("2006-01-02"))
 }
 
 func receiptsTable(d *exportData) (export.Table, error) {

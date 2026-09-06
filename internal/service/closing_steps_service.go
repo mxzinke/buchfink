@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -453,7 +452,7 @@ func (s *ClosingStepsService) SetStep(
 	}
 	step := &domain.ClosingStep{
 		Year: year, Key: key, State: state, Reason: reason,
-		ChangedOn: time.Now().Format("2006-01-02"),
+		ChangedOn: todayLocal(),
 	}
 	if err := step.Validate(); err != nil {
 		return nil, err

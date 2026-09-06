@@ -309,6 +309,14 @@ func (s *ClosingBookingService) BookInventory(
 						"braucht ihre eigene Liste", sheet.ReceiptNumber, *sheet.JournalEntryID)
 			}
 		}
+		// Vor dem Schreiben und nicht erst beim Versiegeln: die Liste bekommt
+		// die Buchung, und ein Beleg ohne Kopfdaten ließe eine geschriebene
+		// Buchung mit unverbundenem Nachweis zurück.
+		if sheet != nil && sheet.JournalEntryID == nil {
+			if err := ensureOuterVoucherHeader(sheet, "die Inventurliste"); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Ein zweiter Inventurwert für dasselbe Konto und Jahr: ist der erste

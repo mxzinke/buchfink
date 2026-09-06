@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -294,7 +293,7 @@ func (s *FoundationService) Unterbilanz(ctx context.Context, f *domain.Foundatio
 	asOf := f.RegisteredOn
 	final := true
 	if asOf == "" {
-		asOf = time.Now().Format("2006-01-02")
+		asOf = todayLocal()
 		final = false
 	}
 

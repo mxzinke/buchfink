@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Lock, Plus } from 'lucide-react';
 import { Contact, ContactType, EInvoiceProfileInfo, TaxTreatmentInfo, VatIDStatus } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import type { NavigateFn } from '../components/Sidebar';
-import { formatCents, formatDateTime } from '../utils/formatters';
+import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -42,10 +42,43 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   // Toast: er nennt eine Arbeit, die noch aussteht, und die verschwindet nicht
   // nach vier Sekunden (§11.4).
   const [vatIdNotice, setVatIdNotice] = useState<string | null>(null);
+  // Der Kontakt, der nach einem Löschverlangen gesperrt werden soll, und der
+  // Grund dazu. Die Sperre ist keine Löschung: der Kontakt bleibt in Buchungen
+  // und Exporten stehen, weil die Aufbewahrungspflicht dem Löschanspruch
+  // vorgeht (Art. 17 Abs. 3 Buchst. b DSGVO, § 257 HGB, § 147 AO).
+  const [blocking, setBlocking] = useState<Contact | null>(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
+  // Der Antworttext an die betroffene Person. Er steht als Notice und nicht als
+  // Toast: er ist das Ergebnis, das weiterverwendet wird — abgeschrieben oder
+  // kopiert —, und darf nicht nach vier Sekunden verschwinden (§11.4).
+  const [blockAnswer, setBlockAnswer] = useState<string | null>(null);
 
   useEffect(() => {
     void loadContacts();
   }, []);
+
+  async function blockContact() {
+    if (!blocking) return;
+    if (blockReason.trim() === '') {
+      setBlockError('Zur Sperre gehört der Grund; er steht später im Änderungsprotokoll.');
+      return;
+    }
+    setBlockBusy(true);
+    setBlockError(null);
+    try {
+      const result = await Api.blockContact(blocking.id, blockReason.trim());
+      setBlocking(null);
+      setBlockReason('');
+      setBlockAnswer(result.answer);
+      await loadContacts();
+    } catch (e) {
+      setBlockError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBlockBusy(false);
+    }
+  }
 
   async function loadContacts() {
     setLoading(true);
@@ -113,6 +146,18 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         />
       )}
 
+      {blockAnswer && (
+        <Notice
+          className="mt-6"
+          text={blockAnswer}
+          action={
+            <Button variant="quiet" size="sm" onClick={() => setBlockAnswer(null)}>
+              Verstanden
+            </Button>
+          }
+        />
+      )}
+
       <div className="mt-6">
         <SearchInput
           value={search}
@@ -163,7 +208,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                 <Th>E-Mail</Th>
                 <Th>IBAN</Th>
                 <Th numeric>Offener Betrag</Th>
-                <Th className="w-24" aria-label="Aktionen" />
+                <Th className="w-44" aria-label="Aktionen" />
               </Tr>
             </Thead>
             <Tbody>
@@ -174,6 +219,22 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                     {contact.company && contact.company !== contact.name && (
                       <span className="text-ink-subtle"> · {contact.company}</span>
                     )}
+                    {/* Der gesperrte Kontakt bleibt in der Liste stehen und
+                        wird gekennzeichnet: er ist aus den Auswahlen
+                        verschwunden, und wer ihn hier sucht, soll erfahren,
+                        warum er ihn nirgends mehr wählen kann. */}
+                    {/* Als Text und nicht als Status-Abzeichen: „Gesperrt" ist
+                        kein Zustand aus §11.3, und „Storniert" hieße dort eine
+                        zurückgenommene Buchung — der Kontakt ist weder
+                        storniert noch zurückgenommen, er ist nur nicht mehr
+                        wählbar. */}
+                    {contact.blocked && (
+                      <span className="ml-2 text-caption text-negative-text whitespace-nowrap">
+                        {contact.blockedAt
+                          ? `Gesperrt seit ${formatDate(contact.blockedAt)}`
+                          : 'Gesperrt'}
+                      </span>
+                    )}
                   </Td>
                   <Td className="text-ink-muted">
                     {contact.type === 'customer' ? 'Kunde' : 'Lieferant'}
@@ -183,15 +244,33 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                   <Td code>{contact.iban || '—'}</Td>
                   <Td numeric>{formatCents(contact.openAmount)}</Td>
                   <Td className="pl-0">
-                    <Button
-                      variant="quiet"
-                      size="sm"
-                      onClick={() => setEditing(contact)}
-                      className="opacity-0 transition-opacity duration-120 ease-quiet
-                                 group-hover:opacity-100 focus-visible:opacity-100"
+                    <div
+                      className="flex justify-end gap-1 opacity-0 transition-opacity duration-120
+                                 ease-quiet group-hover:opacity-100 focus-within:opacity-100"
                     >
-                      Bearbeiten
-                    </Button>
+                      <Button variant="quiet" size="sm" onClick={() => setEditing(contact)}>
+                        Bearbeiten
+                      </Button>
+                      {!contact.blocked && (
+                        <Button
+                          variant="quiet"
+                          size="sm"
+                          disabled={writeLock.locked}
+                          title={
+                            writeLock.hint ??
+                            'Nach einem Löschverlangen: der Kontakt verschwindet aus allen Auswahlen und bleibt in Buchungen stehen.'
+                          }
+                          icon={<Lock className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                          onClick={() => {
+                            setBlocking(contact);
+                            setBlockReason('');
+                            setBlockError(null);
+                          }}
+                        >
+                          Sperren
+                        </Button>
+                      )}
+                    </div>
                   </Td>
                 </Tr>
               ))}
@@ -216,6 +295,43 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           await loadContacts();
         }}
       />
+
+      <Dialog
+        open={blocking !== null}
+        onOpenChange={(open) => !open && setBlocking(null)}
+        title={`${blocking?.name ?? 'Kontakt'} sperren`}
+        width="max-w-lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setBlocking(null)}>
+              Abbrechen
+            </Button>
+            <Button variant="primary" loading={blockBusy} onClick={() => void blockContact()}>
+              Sperren
+            </Button>
+          </>
+        }
+      >
+        {/* Der Fehler steht über der Aktion und nicht daneben (§11.4). */}
+        {blockError && <Notice tone="negative" text={blockError} className="mb-4" />}
+        <Field
+          label="Grund der Sperre"
+          hint="Bleibt im Änderungsprotokoll stehen"
+          help={
+            'Die Sperre nimmt den Kontakt aus allen Auswahlen. Seine Daten bleiben in Buchungen, ' +
+            'Rechnungen und Exporten stehen: die Aufbewahrungspflicht geht dem Löschanspruch vor ' +
+            '(Art. 17 Abs. 3 Buchst. b DSGVO, § 257 HGB, § 147 AO). Nach dem Speichern zeigt ' +
+            'Buchfink die Antwort, die der betroffenen Person zusteht.'
+          }
+        >
+          <Textarea
+            rows={3}
+            value={blockReason}
+            onChange={(e) => setBlockReason(e.target.value)}
+            placeholder="Löschverlangen vom …"
+          />
+        </Field>
+      </Dialog>
     </div>
   );
 };

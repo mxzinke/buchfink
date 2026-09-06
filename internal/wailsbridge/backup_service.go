@@ -56,14 +56,24 @@ func (b *BuchfinkBridge) SetBackupDir(dir string) (domain.AppConfig, error) {
 		}
 	}
 
+	// Der bisherige Ordner, festgehalten bevor er überschrieben wird: das
+	// Protokoll soll den Wechsel zeigen und nicht nur das Ziel.
+	previous := tenant.BackupDir
+
 	tenant.BackupDir = dir
 	b.appConfig.SyncActiveTenant(time.Now().Format("2006-01-02"))
 	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
 		return b.appConfig, err
 	}
 	if b.auditRepo != nil {
-		_ = b.auditRepo.Log(context.Background(), domain.AuditActionUpdate, "BACKUP_DIR", tenant.ID,
-			fmt.Sprintf("Sicherungsordner gesetzt: %s", orDefault(dir, "(keiner)")))
+		// Vorher/Nachher als Feldkarte wie bei den Einstellungen
+		// (SettingsService.SetValue): wohin gesichert wird, ist eine
+		// Einstellung des Mandanten, und ein von einem Netzlaufwerk auf einen
+		// Ordner im Datenverzeichnis umgestelltes Ziel ist genau die Änderung,
+		// die später jemand sucht.
+		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, "BACKUP_DIR", tenant.ID,
+			fmt.Sprintf("Sicherungsordner gesetzt: %s", orDefault(dir, "(keiner)")),
+			map[string]string{"backupDir": previous}, map[string]string{"backupDir": dir})
 	}
 	return b.appConfig, nil
 }
@@ -175,9 +185,12 @@ func (b *BuchfinkBridge) RestoreFromBackup(zipPath, targetDir string) (*domain.T
 
 	dbPath := filepath.Join(targetDir, "buchfink.sqlite")
 	b.mu.Lock()
+	// Die Wiederherstellung ist selbst der Weg, auf dem die Daten hereinkommen:
+	// registerTenantLocked schreibt den Protokolleintrag mit dieser Art, und
+	// ein zweiter Eintrag hier zählte denselben Vorgang ein zweites Mal.
 	tenant, err := b.registerTenantLocked(dbPath, domain.TenantConfig{
 		ID: meta.TenantID, Name: meta.TenantName,
-	})
+	}, domain.MigrationKindRestore)
 	locked := b.locked
 	openDir, activeID := b.dataDir, b.appConfig.ActiveTenantID
 	journal, receipts, audit := b.journalSvc, b.receiptSvc, b.auditRepo

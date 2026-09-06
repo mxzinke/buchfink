@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -81,8 +82,17 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	}
 
 	action := domain.AuditActionUpdate
+	var before *domain.Contact
 	if c.ID == 0 {
 		action = domain.AuditActionCreate
+	} else {
+		// Der Stand vor der Änderung wird gelesen, bevor geschrieben wird —
+		// danach ist er weg. Ein Fehler beim Lesen hält das Speichern nicht auf:
+		// ein Protokolleintrag ohne Vorher ist schlechter als einer mit, aber
+		// ein verweigertes Speichern wäre am schlechtesten.
+		if prev, err := s.contactRepo.FindByID(ctx, c.ID); err == nil {
+			before = prev
+		}
 	}
 
 	if c.LedgerAccount == "" {
@@ -121,8 +131,12 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	}
 
 	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
-			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type))
+		// LogChange und nicht Log: „Kontakt 12 geändert" sagt nicht, was
+		// geändert wurde, und genau das verlangt GoBD Rz. 34. Vorher und
+		// Nachher tragen nur die Felder, die sich unterscheiden.
+		_ = s.auditRepo.LogChange(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
+			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type),
+			before, c)
 	}
 	c.VatIDNotice = s.vatIDNotice(ctx, c)
 	return nil
@@ -199,6 +213,90 @@ func (s *ContactService) allocateLedgerAccount(ctx context.Context, kind domain.
 	return "", fmt.Errorf("es konnte kein freies Personenkonto vergeben werden")
 }
 
+// BlockContact sperrt einen Geschäftspartner nach einem Löschverlangen.
+//
+// Gelöscht wird nicht: die Buchungen, in denen er steht, sind aufzubewahren
+// (§ 257 HGB, § 147 AO), und Art. 17 Abs. 3 Buchst. b DSGVO nimmt genau diese
+// Verarbeitung vom Löschanspruch aus. Was bleibt, ist die Einschränkung der
+// Verarbeitung nach Art. 18 DSGVO — der Kontakt verschwindet aus jeder Auswahl
+// und bleibt in Buchungen und Exporten sichtbar.
+//
+// Zurückgegeben wird die Antwort an die betroffene Person, mit den Normen, auf
+// die sie sich stützt.
+func (s *ContactService) BlockContact(ctx context.Context, id uint, reason string) (*domain.Contact, string, error) {
+	contact, err := s.contactRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, "", fmt.Errorf("Geschäftspartner nicht gefunden: %w", err)
+	}
+	if strings.TrimSpace(reason) == "" {
+		return nil, "", fmt.Errorf("zum Sperren gehört ein Grund — sonst lässt sich später nicht beurteilen, ob die Sperre noch gilt")
+	}
+	if contact.Blocked {
+		return contact, accounting.BlockedContactAnswer(contact.Name), nil
+	}
+
+	before := *contact
+	contact.Blocked = true
+	contact.BlockedAt = time.Now().UTC().Format("2006-01-02")
+	contact.BlockedReason = strings.TrimSpace(reason)
+	if err := s.contactRepo.Save(ctx, contact); err != nil {
+		return nil, "", err
+	}
+	if s.auditRepo != nil {
+		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
+			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gesperrt: %s",
+				contact.Name, contact.LedgerAccount, contact.BlockedReason),
+			&before, contact)
+	}
+	return contact, accounting.BlockedContactAnswer(contact.Name), nil
+}
+
+// SelectableContacts sind die Geschäftspartner, die sich noch auswählen lassen.
+//
+// Gesperrte fehlen hier und nur hier: aus der Kontaktliste verschwinden sie
+// nicht — wer die Sperre aufheben oder die Antwort noch einmal lesen will, muss
+// sie finden können —, aber in einer Rechnung oder einer Buchung dürfen sie
+// nicht mehr auftauchen.
+func (s *ContactService) SelectableContacts(ctx context.Context) ([]domain.Contact, error) {
+	contacts, err := s.GetContacts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Contact, 0, len(contacts))
+	for i := range contacts {
+		if !contacts[i].Blocked {
+			out = append(out, contacts[i])
+		}
+	}
+	return out, nil
+}
+
+// ensureNotBlocked weist einen gesperrten Geschäftspartner an den Schreibwegen
+// zurück, an denen ein neues Geschäft beginnt.
+//
+// Die Sperre folgt einem Löschverlangen (Art. 17 DSGVO), dem die
+// Aufbewahrungspflicht entgegensteht (§ 257 HGB, § 147 AO): die vorhandenen
+// Daten bleiben, neue kommen keine hinzu. Sie nur aus den Auswahllisten zu
+// nehmen genügt dafür nicht — eine Regel, die an der Oberfläche hängt, gilt für
+// jeden Weg daneben nicht.
+//
+// Ausgeglichen werden darf weiter: eine offene Rechnung eines gesperrten
+// Kontakts muss bezahlt und gebucht werden können, sonst schlösse die Sperre den
+// Vorgang ein, den sie beenden soll.
+func ensureNotBlocked(contact *domain.Contact) error {
+	if contact == nil || !contact.Blocked {
+		return nil
+	}
+	reason := ""
+	if contact.BlockedAt != "" {
+		reason = fmt.Sprintf(" (gesperrt am %s)", domain.GermanDate(contact.BlockedAt))
+	}
+	return fmt.Errorf(
+		"%s ist gesperrt%s und nimmt keine neuen Geschäftsvorfälle mehr auf. Vorhandene Buchungen "+
+			"bleiben; soll wieder mit ihm gearbeitet werden, ist die Sperre in den Stammdaten aufzuheben",
+		contact.Name, reason)
+}
+
 // DeleteContact removes a business partner that carries no bookings.
 func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
 	contact, err := s.contactRepo.FindByID(ctx, id)
@@ -257,7 +355,7 @@ func (s *ContactService) ExemptionCertificateWarnings(
 	ctx context.Context, today string,
 ) ([]ExemptionCertificateWarning, error) {
 	if today == "" {
-		today = time.Now().Format("2006-01-02")
+		today = todayLocal()
 	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {

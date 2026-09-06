@@ -395,6 +395,12 @@ func (s *AppropriationService) BookAppropriation(
 					"das Beschlussdokument zum Beleg %d wurde im Belegspeicher nicht gefunden: %w",
 					*appropriation.ReceiptID, err)
 			}
+			// Vor dem Schreiben: das Beschlussdokument trägt die Buchung und
+			// wird hinter ihr versiegelt — ohne Kopfdaten bliebe sonst eine
+			// geschriebene Buchung mit unverbundenem Beschluss zurück.
+			if err := ensureOuterVoucherHeader(decision, "das Beschlussdokument"); err != nil {
+				return nil, err
+			}
 			attachVoucher(entry, decision)
 			entry.DocumentNumber = reference
 		}

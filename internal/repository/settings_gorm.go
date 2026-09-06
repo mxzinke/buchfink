@@ -31,9 +31,11 @@ func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, e
 
 func (r *settingsRepositoryGorm) Set(ctx context.Context, key string, value string) error {
 	item := domain.SettingItem{
-		Key:       key,
-		Value:     value,
-		UpdatedAt: time.Now(),
+		Key:   key,
+		Value: value,
+		// UTC: der Zeitpunkt wird gespeichert und später verglichen; eine
+		// Ortszeit ohne Zone ist in der Nacht der Zeitumstellung mehrdeutig.
+		UpdatedAt: time.Now().UTC(),
 	}
 	return dbFrom(ctx, r.db).Save(&item).Error
 }
@@ -215,7 +217,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		item := domain.SettingItem{
 			Key:       k,
 			Value:     v,
-			UpdatedAt: time.Now(),
+			UpdatedAt: time.Now().UTC(),
 		}
 		if err := dbFrom(ctx, r.db).Save(&item).Error; err != nil {
 			return err

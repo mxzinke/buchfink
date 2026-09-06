@@ -58,7 +58,9 @@ func (r *vatReturnRepositoryGorm) Create(ctx context.Context, rec *domain.VatRet
 		return err
 	}
 	if rec.CreatedAt.IsZero() {
-		rec.CreatedAt = time.Now()
+		// UTC wie überall in den Persistenzpfaden: die Ortszeit ohne Zone ist
+		// in der Nacht der Zeitumstellung mehrdeutig.
+		rec.CreatedAt = time.Now().UTC()
 	}
 	return dbFrom(ctx, r.db).Create(rec).Error
 }
@@ -145,7 +147,7 @@ func decodeZMLines(rec *domain.ZMReturn) {
 func (r *zmReturnRepositoryGorm) Create(ctx context.Context, rec *domain.ZMReturn) error {
 	encodeZMLines(rec)
 	if rec.CreatedAt.IsZero() {
-		rec.CreatedAt = time.Now()
+		rec.CreatedAt = time.Now().UTC()
 	}
 	return dbFrom(ctx, r.db).Create(rec).Error
 }
@@ -224,7 +226,7 @@ func (r *deadlineRepositoryGorm) FindAll(ctx context.Context) ([]domain.Deadline
 }
 
 func (r *deadlineRepositoryGorm) Mark(ctx context.Context, key, doneOn string) error {
-	rec := domain.DeadlineDone{Key: key, DoneOn: doneOn, UpdatedAt: time.Now()}
+	rec := domain.DeadlineDone{Key: key, DoneOn: doneOn, UpdatedAt: time.Now().UTC()}
 	return dbFrom(ctx, r.db).
 		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "key"}}, UpdateAll: true}).
 		Create(&rec).Error

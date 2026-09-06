@@ -227,7 +227,17 @@ func (s *PaymentService) openItemsFrom(
 		// Rechnung von damals, gegen die auch die Zahlung läuft. Ohne diese
 		// Zeile stünde jede Forderung nach dem Jahreswechsel zweimal in der
 		// OP-Liste, und die zweite ließe sich nie ausgleichen.
-		if entry.Source == domain.EntrySourceOpening {
+		//
+		// Erkannt wird er an seiner Belegnummer, die der Jahresabschluss
+		// vergibt (carryForwardReference). Nicht jede Eröffnungsbuchung ist
+		// nämlich ein Vortrag: die Eröffnungsbilanz des Umsteigers trägt
+		// dieselbe Quelle, und sie ist der andere Fall — zu ihr gibt es keine
+		// frühere Rechnung, die Vortragsbuchung *ist* der offene Posten. Fiele
+		// sie hier mit heraus, wäre die Offene-Posten-Liste des ersten Jahres
+		// leer, während in der Bilanz die übernommenen Forderungen stehen, und
+		// keiner von ihnen ließe sich je ausgleichen.
+		if entry.Source == domain.EntrySourceOpening &&
+			entry.DocumentNumber == carryForwardReference(entry.FiscalYear) {
 			continue
 		}
 
@@ -301,7 +311,7 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		return nil, fmt.Errorf("es wurde kein offener Posten ausgewählt")
 	}
 	if req.PaymentDate == "" {
-		req.PaymentDate = time.Now().Format("2006-01-02")
+		req.PaymentDate = todayLocal()
 	}
 
 	// A bank payment takes its account and amount from the statement, so neither
@@ -679,6 +689,12 @@ func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
 }
 
 func dueDate(entry *domain.JournalEntry, contact domain.Contact) string {
+	// Die an der Buchung vermerkte Fälligkeit geht vor: sie wurde vereinbart,
+	// das Zahlungsziel des Kontakts ist nur die Annahme für den Fall, dass
+	// nichts vermerkt ist. Das trifft die übernommenen Posten des Umsteigers.
+	if entry.DueDate != "" {
+		return entry.DueDate
+	}
 	days := contact.PaymentTermsDays
 	if days <= 0 {
 		days = 14

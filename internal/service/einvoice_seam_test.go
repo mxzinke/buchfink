@@ -69,6 +69,10 @@ func (e *testEnv) filedReceipt(t *testing.T) *domain.Receipt {
 	ctx := context.Background()
 
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: e.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{
@@ -205,6 +209,10 @@ func TestEnclosuresBecomeReceiptFiles(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{
@@ -257,6 +265,10 @@ func TestUnreadableRecordLeavesTheReceiptUnchanged(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
 		ReceivedAt: "2026-05-05", ReceivedVia: "E-Mail",
 		Files: []NewFile{

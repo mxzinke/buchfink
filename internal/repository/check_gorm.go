@@ -25,7 +25,7 @@ func NewCheckRunRepository(db *gorm.DB) domain.CheckRunRepository {
 // Befundes wird am selben Lauf nachgetragen, weil sie zu ihm gehört.
 func (r *checkRunRepositoryGorm) Create(ctx context.Context, run *domain.CheckRun) error {
 	if run.CreatedAt.IsZero() {
-		run.CreatedAt = time.Now()
+		run.CreatedAt = time.Now().UTC()
 	}
 	return dbFrom(ctx, r.db).Create(run).Error
 }

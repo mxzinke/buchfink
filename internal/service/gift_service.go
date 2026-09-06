@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -456,7 +455,7 @@ func (s *GiftService) RebookGiftsForRecipient(
 	// nur für den Saldenvortrag zu), und eine Neubuchung an einem anderen Tag
 	// wäre die Hälfte des Vorgangs in einem anderen Zeitraum — mit allem, was
 	// daran hängt: Voranmeldung, Festschreibung, Abschlussstand.
-	today := time.Now().Format("2006-01-02")
+	today := todayLocal()
 	date := strings.TrimSpace(req.Date)
 	if date == "" {
 		date = today

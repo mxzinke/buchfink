@@ -23,6 +23,7 @@ import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
 import { EBilanzPage } from './pages/EBilanzPage';
 import { AuditPage } from './pages/AuditPage';
+import { NachweisePage } from './pages/NachweisePage';
 import { DataAccessPage } from './pages/DataAccessPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { WriteLockProvider } from './components/WriteLock';
@@ -336,6 +337,18 @@ export function App() {
         return <EBilanzPage year={currentYear} />;
       case 'audit':
         return <AuditPage onNavigate={navigate} />;
+      case 'nachweise':
+        // Die Nachweise folgen dem Jahr aus der Kopfzeile: die Fristenansicht
+        // schlägt es als das Jahr vor, dessen Aufbewahrung gerade zur Frage
+        // steht. Protokoll und Verfahrensdokumentation gelten daneben für den
+        // ganzen Mandanten.
+        return (
+          <NachweisePage
+            year={currentYear}
+            initialTab={navParams.nachweiseTab}
+            onNavigate={navigate}
+          />
+        );
       case 'dataaccess':
         // Datenüberlassung, Prüfläufe, Sicherung und Prüfermodus. Die Seite
         // ändert den Prüfermodus, deshalb reicht sie die Konfiguration zurück:

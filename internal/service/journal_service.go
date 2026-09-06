@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -25,6 +27,9 @@ type JournalService struct {
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	fiscalYearRepo     domain.FiscalYearRepository
+	// receiptRepo ist der Beleg, auf den eine Buchung verweist. Optional:
+	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
+	receiptRepo domain.ReceiptRepository
 
 	hashChain   *accounting.HashChain
 	taxResolver domain.TaxResolver
@@ -61,6 +66,10 @@ func (s *JournalService) SetFestschreibungRepo(r domain.FestschreibungRepository
 
 // SetFiscalYearRepo wires the Abschlussstand of the fiscal years. Optional.
 func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fiscalYearRepo = r }
+
+// SetReceiptRepo hängt die Belegablage an. Mit ihr prüft Post die Kopfdaten des
+// Belegs, auf den eine Buchung verweist. Optional.
+func (s *JournalService) SetReceiptRepo(r domain.ReceiptRepository) { s.receiptRepo = r }
 
 // SetFiscalYear updates the active fiscal year filter.
 func (s *JournalService) SetFiscalYear(year int) { s.fiscalYear = year }
@@ -122,6 +131,9 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	if err := s.ensurePeriodOpen(ctx, entry); err != nil {
 		return nil, err
 	}
+	if err := s.ensureReceiptHeader(ctx, entry); err != nil {
+		return nil, err
+	}
 
 	entry.CreatedAt = time.Now().UTC()
 
@@ -137,6 +149,55 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	return entry, nil
 }
 
+// ensureReceiptHeader verlangt die Kopfdaten des Belegs, auf den die Buchung
+// verweist.
+//
+// Die Kopfdaten sind beim Ablegen freiwillig und beim Buchen Pflicht (BEL-02).
+// „Beim Buchen" heißt: hier — Post ist der einzige Schreibweg ins Journal, und
+// eine Regel, die nur im Dialog „Beleg buchen" gilt, ließe jeden anderen Weg
+// (Abschlussbuchung, Anlagenzugang, Zahlungsausgleich) an ihr vorbei.
+//
+// Geprüft wird ValidateHeader und nicht ValidateBookable: die dort zusätzlich
+// verlangte Ansehbarkeit gilt dem Beleg, den ein Mensch vor sich hat, und
+// nicht dem maschinell erzeugten Eigenbeleg einer Abschlussbuchung.
+//
+// Ein Verweis auf einen Beleg, den es nicht gibt, hält die Buchung nicht auf:
+// er ist ein anderer Fehler als ein fehlendes Belegdatum, und ihn hier zu
+// melden, verdeckte ihn.
+//
+// Zwei Fälle sind ausgenommen, und beide aus demselben Grund: die Kopfdatenpflicht
+// gilt dem Buchen eines noch offenen Belegs und darf keine Buchung sperren, die
+// sich nicht mehr in Ordnung bringen lässt.
+func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.JournalEntry) error {
+	if s.receiptRepo == nil || entry.ReceiptID == nil {
+		return nil
+	}
+	// Die Generalumkehr läuft durch — dieselbe Erwägung wie bei der
+	// Istversteuerung weiter oben in Post. Der Storno kopiert den Beleg der
+	// Ursprungsbuchung; hinge er an den Kopfdaten, ließe sich eine Altbuchung
+	// auf einen Beleg ohne Kopfdaten nicht mehr zurücknehmen, obwohl gerade der
+	// Storno der Weg ist, den GoBD Rz. 58 für die Korrektur vorsieht. Eine
+	// Regel über künftige Aufzeichnungen darf die Korrektur vorhandener nicht
+	// verhindern.
+	if entry.Kind == domain.EntryKindReversal {
+		return nil
+	}
+	receipt, err := s.receiptRepo.FindByID(ctx, *entry.ReceiptID)
+	if err != nil || receipt == nil {
+		return nil
+	}
+	// Ein Beleg, der nicht mehr offen ist, ist bereits gebucht (versiegelt) oder
+	// verworfen. Beim Versiegeln sind die Kopfdaten geprüft worden
+	// (ReceiptService.Seal); lagen damals keine vor — Altbestand aus der Zeit
+	// vor BEL-02 —, lassen sie sich auch nicht mehr nachtragen, weil SaveHeader
+	// den offenen Beleg verlangt. Jede weitere Buchung auf denselben Beleg hier
+	// abzuweisen, sperrte den Altbestand ein, ohne einen Weg heraus zu lassen.
+	if receipt.Status != domain.ReceiptStatusFiled {
+		return nil
+	}
+	return receipt.ValidateHeader()
+}
+
 // ValidatePostable prüft eine Buchung, ohne sie zu schreiben.
 //
 // Gedacht für Vorgänge, die aus mehreren Buchungen bestehen und nicht zur Hälfte
@@ -144,9 +205,15 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 // Saldenvortrag zurücknimmt und dann den neuen bucht. Scheiterte dort die zweite
 // Buchung, stünde das Zieljahr mit zurückgenommenem Altvortrag und halbem
 // Neuvortrag da, also mit einer Eröffnungsbilanz, die es so nie gab. Geprüft
-// wird deshalb vorher, was sich vorher prüfen lässt: Konten, Abschlussstand und
-// Periodensperre. Die Buchung selbst bleibt unverändert; gearbeitet wird auf
-// einer Kopie.
+// wird deshalb vorher, was sich vorher prüfen lässt: Konten, Abschlussstand,
+// Periodensperre und die Kopfdaten des Belegs. Die Buchung selbst bleibt
+// unverändert; gearbeitet wird auf einer Kopie.
+//
+// Die Kopfdatenprüfung gehört ausdrücklich dazu: ohne sie bestünde eine
+// Neubuchung auf einen Beleg ohne Kopfdaten die Vorprüfung, der Storno würde
+// geschrieben, und erst Post scheiterte — also genau der halb ausgeführte
+// Vorgang, den diese Methode verhindern soll. Was Post abweist, muss sie
+// abweisen, sonst prüft sie etwas anderes als das, was danach geschieht.
 func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.JournalEntry) error {
 	probe := *entry
 	probe.Lines = append([]domain.JournalLine(nil), entry.Lines...)
@@ -174,7 +241,10 @@ func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.Jou
 	if err := s.ensureYearNotAdopted(ctx, &probe); err != nil {
 		return err
 	}
-	return s.ensurePeriodOpen(ctx, &probe)
+	if err := s.ensurePeriodOpen(ctx, &probe); err != nil {
+		return err
+	}
+	return s.ensureReceiptHeader(ctx, &probe)
 }
 
 // Reverse cancels a booking by Generalumkehr: the same accounts on the same
@@ -237,7 +307,7 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 	// the original period: that is what keeps a committed period untouched.
 	today := date
 	if today == "" {
-		today = time.Now().Format("2006-01-02")
+		today = todayLocal()
 	}
 
 	lines := make([]domain.JournalLine, 0, len(original.Lines))
@@ -348,6 +418,28 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 	}
 
 	result := s.hashChain.VerifyYears(byYear)
+
+	// Die Protokollkette gehört in dieselbe Antwort wie die Journalkette.
+	//
+	// Beide beantworten die Frage nach der Unveränderbarkeit, und sie ist erst
+	// beantwortet, wenn beide halten: wer eine Buchung ändert und danach den
+	// Protokolleintrag darüber entfernt, hinterließe in einer Prüfung, die nur
+	// das Journal nachrechnet, keine Spur. Ein gebrochenes Protokoll macht das
+	// Gesamtergebnis deshalb ungültig.
+	if s.auditRepo != nil {
+		entries, err := s.auditRepo.FindAllAscending(ctx)
+		if err != nil {
+			return domain.IntegrityCheckResult{}, fmt.Errorf(
+				"das Änderungsprotokoll konnte nicht gelesen werden: %w", err)
+		}
+		chain := accounting.NewAuditChain().Verify(entries)
+		result.AuditChain = &chain
+		if !chain.IsValid {
+			result.IsValid = false
+			result.Message += " " + chain.Message
+		}
+	}
+
 	if s.auditRepo != nil {
 		// Die Jahre mit Komma und nicht als Go-Wert einer Liste: „GJ_[2025
 		// 2026]" steht so im Änderungsprotokoll und in aenderungsprotokoll.csv
@@ -372,7 +464,7 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 
 func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEntry) {
 	if e.BookingDate == "" {
-		e.BookingDate = time.Now().Format("2006-01-02")
+		e.BookingDate = todayLocal()
 	}
 	if e.DocumentDate == "" {
 		e.DocumentDate = e.BookingDate
@@ -385,6 +477,22 @@ func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEnt
 	}
 	if e.Kind == "" {
 		e.Kind = domain.EntryKindNormal
+	}
+	// Programmfassung, Bearbeiterkennung und Regelstand stehen an jeder
+	// Buchung, ohne dass ein Aufrufer daran denken muss.
+	//
+	// Vorher setzten nur die automatischen Wege den Regelstand; eine von Hand
+	// erfasste Buchung trug ihn nicht, und ausgerechnet die, über die am
+	// meisten gestritten wird, ließ sich nicht mehr erklären (UNV-06). Die drei
+	// Felder gehören zu jeder Aufzeichnung und nicht zu einem Erfassungsweg.
+	if e.PostingRuleVersion == "" {
+		e.PostingRuleVersion = accounting.PostingRuleVersion
+	}
+	if e.AppVersion == "" {
+		e.AppVersion = buildinfo.Version
+	}
+	if e.Actor == "" {
+		e.Actor = actor.Actor()
 	}
 	if e.Source == "" {
 		e.Source = domain.EntrySourceManual

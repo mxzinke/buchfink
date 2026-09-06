@@ -214,6 +214,10 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	outgoing, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction:     domain.DirectionOutgoing,
 		ReceiptNumber: "RE-2026-0001",
 		Files:         []NewFile{{Role: domain.ReceiptRoleOriginal, FileName: "r.pdf", Content: []byte(minimalPDF)}},
@@ -237,6 +241,10 @@ func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	filed, err := env.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, FileName: "xrechnung.xml", Content: []byte(xRechnungXML)},

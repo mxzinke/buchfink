@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -102,7 +101,7 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 		cutoff, _ = s.festschreibungRepo.LatestCutoff(ctx, year)
 	}
 
-	today := time.Now().Format("2006-01-02")
+	today := todayLocal()
 	out := make([]ZMPeriodStatus, 0, len(periods))
 	for _, p := range periods {
 		st := ZMPeriodStatus{

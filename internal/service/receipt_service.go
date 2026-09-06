@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,6 +56,17 @@ type FileReceiptRequest struct {
 	// Kind ist die Belegart. Leer heißt Rechnung — der Regelfall darf keine
 	// Eingabe verlangen.
 	Kind domain.ReceiptKind `json:"kind,omitempty"`
+
+	// Die Kopfdaten. Beim Ablegen freiwillig, beim Buchen Pflicht: eine
+	// E-Rechnung liefert sie aus ihrem strukturierten Teil, ein Papierscan
+	// nicht, und ein Beleg, der erst nach einer Eingabe abgelegt werden dürfte,
+	// bliebe liegen — genau das, was GoBD Rz. 131 verhindern will.
+	DocumentDate string       `json:"documentDate,omitempty"`
+	IssuerName   string       `json:"issuerName,omitempty"`
+	GrossAmount  domain.Cents `json:"grossAmount,omitempty"`
+	TaxAmount    domain.Cents `json:"taxAmount,omitempty"`
+	Currency     string       `json:"currency,omitempty"`
+	Subject      string       `json:"subject,omitempty"`
 
 	Files []NewFile `json:"-"`
 }
@@ -134,9 +146,16 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 		Status:        domain.ReceiptStatusFiled,
 		ReceivedAt:    req.ReceivedAt,
 		ReceivedVia:   req.ReceivedVia,
+		DocumentDate:  req.DocumentDate,
+		IssuerName:    req.IssuerName,
+		GrossAmount:   req.GrossAmount,
+		TaxAmount:     req.TaxAmount,
+		Currency:      req.Currency,
+		Subject:       req.Subject,
 	}
+	applyRetention(receipt)
 	if receipt.ReceivedAt == "" && req.Direction == domain.DirectionIncoming {
-		receipt.ReceivedAt = time.Now().Format("2006-01-02")
+		receipt.ReceivedAt = todayLocal()
 	}
 	if receipt.ReceivedVia == "" {
 		if req.Direction == domain.DirectionOutgoing {
@@ -208,10 +227,94 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 	if removed == nil {
 		return nil, fmt.Errorf("die Datei gehört nicht zu Beleg %s", receipt.ReceiptNumber)
 	}
+	// Die empfangene Originaldatei bleibt (BEL-03).
+	//
+	// GoBD Rz. 131 verlangt, eingehende Dokumente in der empfangenen Form
+	// aufzubewahren. Ein Beleg, dessen Original entfernt werden kann, hält
+	// nichts fest: was danach dasteht, ist eine von Buchfink erzeugte
+	// Darstellung oder ein Anhang, und der Nachweis, wie das Dokument
+	// angekommen ist, ist weg. Die Strukturprüfung hätte den Beleg zwar ohnehin
+	// zurückgewiesen — sie verlangt genau eine Datei in der empfangenen Form —,
+	// aber mit einer Meldung über Positionen und Rollen. Hier steht der Grund.
+	if removed.Role == domain.ReceiptRoleOriginal {
+		return nil, fmt.Errorf(
+			"die Originaldatei %s von Beleg %s lässt sich nicht entfernen: eingehende Dokumente sind in der empfangenen Form aufzubewahren (GoBD Rz. 131). "+
+				"Wenn der ganze Beleg nicht gebucht werden soll, verwirf ihn mit einer Begründung",
+			removed.FileName, receipt.ReceiptNumber)
+	}
 
 	// The content itself stays on disk: another Beleg may share it, and the store
 	// is content-addressed precisely so identical files exist once.
-	return s.replaceFiles(ctx, receipt, kept)
+	updated, err := s.replaceFiles(ctx, receipt, kept)
+	if err != nil {
+		return nil, err
+	}
+	// Name und Prüfsumme der entfernten Datei stehen im Protokoll. Ohne sie
+	// bliebe von einer entfernten Datei nichts als die Zahl der verbliebenen,
+	// und die Frage, was da war, ließe sich nicht mehr beantworten.
+	s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
+		"Aus Beleg %s wurde die Datei %s (Rolle %s, SHA256 %s) entfernt",
+		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256))
+	return updated, nil
+}
+
+// applyRetention setzt Aufbewahrungsklasse und Fristende eines Belegs.
+//
+// Beim Ablegen und nicht beim Anzeigen: welche Frist gilt, hängt am
+// Entstehungsjahr und am geltenden Recht, und beides ist zum Zeitpunkt der
+// Ablage bekannt. Später gerechnet käme für denselben Beleg irgendwann eine
+// andere Zahl heraus.
+func applyRetention(receipt *domain.Receipt) {
+	origin := receipt.FiscalYear
+	if receipt.DocumentDate != "" && len(receipt.DocumentDate) >= 4 {
+		if year, err := strconv.Atoi(receipt.DocumentDate[:4]); err == nil && year > 1900 {
+			origin = year
+		}
+	}
+	info := accounting.RetentionFor(domain.RetentionKindOf(receipt.Kind), origin)
+	receipt.RetentionClass = info.Class
+	receipt.RetentionUntil = info.RetentionEnd
+}
+
+// SaveHeader schreibt die Kopfdaten eines abgelegten Belegs nach.
+//
+// Der Weg für den Papierscan: die Datei liegt sofort im Speicher, die Kopfdaten
+// trägt jemand nach, und erst dann ist der Beleg buchbar. Die
+// Aufbewahrungsfrist wird dabei neu bestimmt, weil das Belegdatum sie
+// verschieben kann.
+func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header domain.ReceiptHeader) (*domain.Receipt, error) {
+	receipt, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if header.Kind == "" {
+		header.Kind = receipt.Kind
+	}
+
+	probe := *receipt
+	probe.Kind = header.Kind
+	probe.DocumentDate = header.DocumentDate
+	applyRetention(&probe)
+	header.RetentionClass = probe.RetentionClass
+	header.RetentionUntil = probe.RetentionUntil
+
+	updated, err := s.receiptRepo.SaveHeader(ctx, receiptID, header, accounting.ReceiptHash)
+	if err != nil {
+		return nil, err
+	}
+	// Vorher/Nachher und nicht nur Freitext: die Kopfdaten sind die Stammdaten
+	// des Belegs, sie gehen in den Beleg-Hash und damit in den Hash jeder
+	// Buchung, die auf ihn verweist. Wer das Belegdatum eines abgelegten Belegs
+	// ändert, verschiebt seine Aufbewahrungsfrist und die Beurteilung seiner
+	// zeitgerechten Erfassung — beides gehört mit beiden Ständen ins Protokoll
+	// (GoBD Rz. 34).
+	if s.auditRepo != nil {
+		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €",
+				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount),
+			receipt, updated)
+	}
+	return s.Get(ctx, receiptID)
 }
 
 func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Receipt, files []domain.ReceiptFile) (*domain.Receipt, error) {
@@ -314,6 +417,22 @@ func (s *ReceiptService) DisplayContent(ctx context.Context, receiptID uint) (*F
 // Seal marks a Beleg as booked. It runs after the journal write has committed and
 // is idempotent, so a crash in between can be repaired by repeating it.
 func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) error {
+	// Die Kopfdaten sind beim Buchen Pflicht, und das Versiegeln ist das
+	// Buchen: hier bekommt der Beleg seine Buchung (BEL-02).
+	//
+	// Geprüft wird ValidateHeader und nicht das vollständige ValidateBookable:
+	// die Ansehbarkeit, die dort zusätzlich verlangt wird, gilt dem Beleg, den
+	// ein Mensch vor sich hat und bucht (siehe PostingService.BookReceipt).
+	// Ein Eigenbeleg der Abschlussbuchung ist eine JSON-Datei — prüfbar, aber
+	// nicht „ansehbar" —, und ihn hier abzuweisen hieße, die Abschlussbuchung
+	// an einer Regel scheitern zu lassen, die für sie nicht gedacht ist.
+	receipt, err := s.receiptRepo.FindByID(ctx, receiptID)
+	if err != nil {
+		return fmt.Errorf("Beleg %d wurde nicht gefunden: %w", receiptID, err)
+	}
+	if err := receipt.ValidateHeader(); err != nil {
+		return err
+	}
 	if err := s.receiptRepo.Seal(ctx, receiptID, entryID); err != nil {
 		return err
 	}

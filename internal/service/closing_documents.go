@@ -65,12 +65,22 @@ func selfIssuedVoucher(
 	if err != nil {
 		return nil, fmt.Errorf("der Eigenbeleg konnte nicht erzeugt werden: %w", err)
 	}
+	// Die Kopfdaten des Eigenbelegs: Belegdatum, Betreff und Betrag. Sie sind
+	// beim Buchen Pflicht (BEL-02, Receipt.ValidateHeader), und der Eigenbeleg
+	// kennt sie alle — das Buchungsdatum der Abschlussbuchung ist sein
+	// Belegdatum, die Bezeichnung nennt den Anlass, und der Betrag steht im
+	// Buchungssatz. Ein Aussteller wird nicht gesetzt: den Eigenbeleg hat das
+	// eigene Unternehmen ausgestellt.
 	receipt, err := filer.File(ctx, FileReceiptRequest{
-		Direction:   domain.DirectionIncoming,
-		FiscalYear:  fiscalYear,
-		Kind:        domain.ReceiptKindSelfIssued,
-		ReceivedAt:  voucher.Date,
-		ReceivedVia: domain.ReceivedViaSelfIssued,
+		Direction:    domain.DirectionIncoming,
+		FiscalYear:   fiscalYear,
+		Kind:         domain.ReceiptKindSelfIssued,
+		ReceivedAt:   voucher.Date,
+		ReceivedVia:  domain.ReceivedViaSelfIssued,
+		DocumentDate: voucher.Date,
+		Subject:      voucher.Description,
+		GrossAmount:  voucherAmount(voucher),
+		Currency:     "EUR",
 		Files: []NewFile{{
 			Role:     domain.ReceiptRoleOriginal,
 			Content:  content,
@@ -81,6 +91,24 @@ func selfIssuedVoucher(
 		return nil, fmt.Errorf("der Eigenbeleg zur Abschlussbuchung konnte nicht abgelegt werden: %w", err)
 	}
 	return receipt, nil
+}
+
+// voucherAmount ist der Betrag des Eigenbelegs: die Summe der Sollseite des
+// Buchungssatzes.
+//
+// Die Sollseite und nicht die Habenseite: beide sind gleich groß — der
+// Buchungssatz ist ausgeglichen —, und die Sollseite ist die, die ein Beleg
+// gewöhnlich nennt. Die Summe und nicht die erste Zeile: eine
+// Rückstellungsbuchung mit Aufwand und Vorsteuer hat zwei Sollzeilen, und der
+// Beleg trägt den ganzen Vorgang.
+func voucherAmount(voucher closingVoucher) domain.Cents {
+	var sum domain.Cents
+	for _, line := range voucher.Lines {
+		if line.Side == domain.SideDebit {
+			sum += line.Amount
+		}
+	}
+	return sum
 }
 
 // postWithVoucher schreibt die Buchung und räumt den Eigenbeleg auf, wenn sie
@@ -108,6 +136,30 @@ func postWithVoucher(
 		_ = filer.Seal(ctx, receipt.ID, created.ID)
 	}
 	return created, nil
+}
+
+// ensureOuterVoucherHeader prüft die Kopfdaten eines vom Anwender abgelegten
+// Belegs, bevor die Buchung geschrieben wird, die er tragen soll.
+//
+// Der Grund ist die Reihenfolge: das Versiegeln — der Schritt, der Beleg und
+// Buchung verbindet — läuft naturgemäß hinter dem Journal-Commit, denn vorher
+// gibt es keine Buchungsnummer. Prüfte erst das Versiegeln die Kopfdaten, bliebe
+// bei einem Beleg ohne sie ein halber Vorgang zurück: die Buchung geschrieben,
+// der Nachweis unverbunden daneben, und der Prüflauf meldete das Dokument
+// dauerhaft als ungebucht. Die Inventurliste (§ 240 HGB) und das
+// Beschlussdokument gehen diesen Weg — sie hängen nicht an entry.ReceiptID, den
+// JournalService.Post ohnehin prüft, sondern kommen erst danach an die Buchung.
+//
+// Der Name des Belegs steht in der Meldung, weil der Anwender sonst nicht wüsste,
+// welches der beiden Dokumente des Vorgangs gemeint ist.
+func ensureOuterVoucherHeader(receipt *domain.Receipt, label string) error {
+	if receipt == nil {
+		return nil
+	}
+	if err := receipt.ValidateHeader(); err != nil {
+		return fmt.Errorf("%s kann die Buchung nicht tragen: %w", label, err)
+	}
+	return nil
 }
 
 // attachVoucher trägt den Belegverweis in die Buchung ein, bevor sie geschrieben

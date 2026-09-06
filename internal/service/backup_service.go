@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/receiptstore"
@@ -147,12 +148,13 @@ func (s *BackupService) IsDue(ctx context.Context, now time.Time) bool {
 func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind domain.BackupKind) (*domain.BackupRun, error) {
 	run := &domain.BackupRun{
 		Kind:           kind,
-		StartedAt:      time.Now(),
+		StartedAt:      time.Now().UTC(),
+		Actor:          actor.Actor(),
 		ProgramVersion: buildinfo.Version,
 	}
 
 	path, meta, err := s.writeArchive(targetDir)
-	run.FinishedAt = time.Now()
+	run.FinishedAt = time.Now().UTC()
 	run.Target = path
 	if err != nil {
 		run.Success = false
@@ -195,6 +197,13 @@ func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, err
 		return "", nil, err
 	}
 
+	// Der Stempel im Dateinamen steht in Ortszeit, der Zeitpunkt im Beipackzettel
+	// (BackupMeta.CreatedAt) und im Protokoll in UTC.
+	//
+	// Der Dateiname wird von einem Menschen gelesen, der im Zielordner nach der
+	// Sicherung von gestern Abend sucht; eine Sicherung um 23:30 Uhr, die
+	// „20260906-2130" hieße, fände er dort nicht. Verglichen und sortiert wird
+	// nach dem Zeitpunkt im Beipackzettel, und der ist eindeutig.
 	stamp := time.Now().Format("20060102-150405")
 	name := fmt.Sprintf("buchfink-%s-%s.zip", safeSlug(s.tenantName, s.tenantID), stamp)
 	zipPath := filepath.Join(targetDir, name)
@@ -206,7 +215,7 @@ func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, err
 	writer := zip.NewWriter(out)
 
 	meta := &BackupMeta{
-		CreatedAt:      time.Now().Format(time.RFC3339),
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339),
 		TenantID:       s.tenantID,
 		TenantName:     s.tenantName,
 		ProgramVersion: buildinfo.Version,
@@ -326,14 +335,15 @@ func addFileToZip(w *zip.Writer, rel, absolute string) (*BackupFileInfo, error) 
 func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*domain.BackupRun, error) {
 	run := &domain.BackupRun{
 		Kind:           domain.BackupKindVerify,
-		StartedAt:      time.Now(),
+		StartedAt:      time.Now().UTC(),
+		Actor:          actor.Actor(),
 		Target:         zipPath,
 		ProgramVersion: buildinfo.Version,
 	}
 
 	tmpDir, err := os.MkdirTemp("", "buchfink-verify-*")
 	if err != nil {
-		run.FinishedAt = time.Now()
+		run.FinishedAt = time.Now().UTC()
 		run.Message = fmt.Sprintf("es konnte kein Arbeitsordner angelegt werden: %v", err)
 		s.record(ctx, run)
 		return run, err
@@ -344,7 +354,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	defer os.RemoveAll(tmpDir)
 
 	meta, count, err := extractBackup(zipPath, tmpDir)
-	run.FinishedAt = time.Now()
+	run.FinishedAt = time.Now().UTC()
 	if err != nil {
 		run.Message = err.Error()
 		s.record(ctx, run)
@@ -385,7 +395,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 		problems = append(problems, files.Message)
 	}
 
-	run.FinishedAt = time.Now()
+	run.FinishedAt = time.Now().UTC()
 	if len(problems) > 0 {
 		run.Success = false
 		run.Message = strings.Join(problems, " ")
@@ -409,20 +419,21 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDir string) (*domain.BackupRun, error) {
 	run := &domain.BackupRun{
 		Kind:           domain.BackupKindRestore,
-		StartedAt:      time.Now(),
+		StartedAt:      time.Now().UTC(),
+		Actor:          actor.Actor(),
 		Target:         zipPath,
 		ProgramVersion: buildinfo.Version,
 	}
 
 	if err := ensureEmptyDir(targetDir); err != nil {
-		run.FinishedAt = time.Now()
+		run.FinishedAt = time.Now().UTC()
 		run.Message = err.Error()
 		s.record(ctx, run)
 		return run, err
 	}
 
 	meta, count, err := extractBackup(zipPath, targetDir)
-	run.FinishedAt = time.Now()
+	run.FinishedAt = time.Now().UTC()
 	run.FileCount = count
 	if meta != nil {
 		run.Bytes = meta.Bytes

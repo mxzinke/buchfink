@@ -349,3 +349,57 @@ func TestSetFiscalYearReachesTheExportService(t *testing.T) {
 		t.Errorf("der Export ohne Jahresangabe überlässt das Geschäftsjahr %d statt 2027", result.FiscalYear)
 	}
 }
+
+// Ein Vorgang, ein Protokolleintrag.
+//
+// Die Wiederherstellung schrieb zwei: einen beim Anmelden des Mandanten mit der
+// Art „Übernahme" und einen danach mit der Art „Wiederherstellung". Das
+// Migrationsprotokoll zählte damit jede Wiederherstellung doppelt und einmal
+// unter dem falschen Namen — und die Frage „woher stammt dieser Bestand" hatte
+// zwei Antworten.
+func TestRestoreWritesExactlyOneMigrationRecord(t *testing.T) {
+	b, _, zipPath := backupBridge(t)
+
+	if _, err := b.RestoreFromBackup(zipPath, filepath.Join(t.TempDir(), "wiederhergestellt")); err != nil {
+		t.Fatalf("Wiederherstellung: %v", err)
+	}
+
+	records, err := b.GetMigrationRecords()
+	if err != nil {
+		t.Fatalf("Migrationsprotokoll lesen: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("%d Protokolleinträge für eine Wiederherstellung, erwartet 1: %+v", len(records), records)
+	}
+	if records[0].Kind != domain.MigrationKindRestore {
+		t.Errorf("Art %q, erwartet %q", records[0].Kind, domain.MigrationKindRestore)
+	}
+}
+
+// Und das Öffnen einer vorhandenen Datei ist eine Öffnung und keine Übernahme.
+//
+// Geöffnet wird eine unverschlüsselte Datei: eine verschlüsselte bliebe unter
+// einer neuen Mandantenkennung ohne Schlüssel und damit gesperrt — dann gäbe es
+// nichts zu zählen und nichts zu protokollieren.
+func TestLoadingAnExistingDatabaseIsRecordedAsOpened(t *testing.T) {
+	b, _, _ := backupBridge(t)
+
+	plainDir := filepath.Join(t.TempDir(), "vorhanden")
+	if _, err := repository.InitTenantDB(plainDir); err != nil {
+		t.Fatalf("vorhandene Datei anlegen: %v", err)
+	}
+	if err := b.LoadExistingDatabase(filepath.Join(plainDir, "buchfink.sqlite")); err != nil {
+		t.Fatalf("vorhandene Datei öffnen: %v", err)
+	}
+
+	records, err := b.GetMigrationRecords()
+	if err != nil {
+		t.Fatalf("Migrationsprotokoll lesen: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("%d Protokolleinträge für eine Öffnung, erwartet 1: %+v", len(records), records)
+	}
+	if records[0].Kind != domain.MigrationKindOpen {
+		t.Errorf("Art %q, erwartet %q", records[0].Kind, domain.MigrationKindOpen)
+	}
+}

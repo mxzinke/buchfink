@@ -424,6 +424,44 @@ export const bridge = {
   GetServiceEndpoints: <T>() => invoke<T>('GetServiceEndpoints'),
   SaveServiceEndpoints: <T>(endpoints: unknown) => invoke<T>('SaveServiceEndpoints', endpoints),
 
+  // Nachweise: Änderungsprotokoll, Versionen, Migrationen
+  VerifyAuditChain: <T>() => invoke<T>('VerifyAuditChain'),
+  GetAuditLogsFiltered: <T>(limit: number, filter: unknown) =>
+    invoke<T>('GetAuditLogsFiltered', limit, filter),
+  GetChangeLog: () => invoke<string>('GetChangeLog'),
+  GetSchemaMigrations: <T>() => invoke<T>('GetSchemaMigrations'),
+  GetMigrationRecords: <T>() => invoke<T>('GetMigrationRecords'),
+  SetSystemChangeDate: (date: string) => invoke<void>('SetSystemChangeDate', date),
+
+  // Aufbewahrung: Fristen, Aussetzung, Löschung
+  GetRetentionOverview: <T>(year: number) => invoke<T>('GetRetentionOverview', year),
+  GetRetentionHolds: <T>() => invoke<T>('GetRetentionHolds'),
+  SetRetentionHold: <T>(year: number, reason: string, description: string) =>
+    invoke<T>('SetRetentionHold', year, reason, description),
+  ReleaseRetentionHold: (id: number, reason: string) =>
+    invoke<void>('ReleaseRetentionHold', id, reason),
+  GetExpiredObjects: <T>() => invoke<T>('GetExpiredObjects'),
+  ArchiveAndDeleteFiscalYear: <T>(year: number, confirmation: string) =>
+    invoke<T>('ArchiveAndDeleteFiscalYear', year, confirmation),
+
+  // Verfahrensdokumentation und Hinweise zum Funktionsumfang
+  GenerateProcedureDocumentation: <T>() => invoke<T>('GenerateProcedureDocumentation'),
+  GetProcedureDocumentations: <T>() => invoke<T>('GetProcedureDocumentations'),
+  GetOrganisationTexts: <T>() => invoke<T>('GetOrganisationTexts'),
+  SaveOrganisationTexts: (texts: unknown) => invoke<void>('SaveOrganisationTexts', texts),
+  GetComplianceHints: <T>() => invoke<T>('GetComplianceHints'),
+
+  // Kontakte, Belege, Journal und offene Posten der Welle 6
+  BlockContact: <T>(id: number, reason: string) => invoke<T>('BlockContact', id, reason),
+  GetSelectableContacts: <T>() => invoke<T>('GetSelectableContacts'),
+  SaveReceiptHeader: <T>(receiptId: number, header: unknown) =>
+    invoke<T>('SaveReceiptHeader', receiptId, header),
+  CorrectEntry: <T>(entryId: number, reason: string, newEntry: unknown) =>
+    invoke<T>('CorrectEntry', entryId, reason, newEntry),
+  PreviewOpeningBalance: <T>(request: unknown) => invoke<T>('PreviewOpeningBalance', request),
+  BookOpeningBalance: <T>(request: unknown) => invoke<T>('BookOpeningBalance', request),
+  GetOpenItemsAging: <T>(cutoff: string) => invoke<T>('GetOpenItemsAging', cutoff),
+
   // Prüfermodus
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
   DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),

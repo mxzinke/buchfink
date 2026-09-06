@@ -65,6 +65,9 @@ type BuchfinkBridge struct {
 	receiptRepo        domain.ReceiptRepository
 	assetRepo          domain.AssetRepository
 	auditRepo          domain.AuditRepository
+	retentionRepo      domain.RetentionRepository
+	migrationRepo      domain.MigrationRepository
+	procDocRepo        domain.ProcedureDocumentationRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
@@ -104,6 +107,8 @@ type BuchfinkBridge struct {
 	ebilanzSvc         *service.EBilanzService
 	assetSvc           *service.AssetService
 	auditSvc           *service.AuditService
+	retentionSvc       *service.RetentionService
+	procDocSvc         *service.ProcDocService
 	settingsSvc        *service.SettingsService
 	currencySvc        *service.CurrencyService
 	foundationSvc      *service.FoundationService
@@ -181,7 +186,7 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 				ID:        "default",
 				Name:      "Hauptmandant",
 				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().Format(time.RFC3339),
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
 			}
 		}
 
@@ -289,6 +294,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.vatIDCheckRepo = repository.NewVatIDCheckRepository(db)
 	b.supplyEvidenceRepo = repository.NewSupplyEvidenceRepository(db)
 	b.exchangeRateRepo = repository.NewExchangeRateRepository(db)
+	// Welle 6: die Nachweise.
+	b.retentionRepo = repository.NewRetentionRepository(db)
+	b.migrationRepo = repository.NewMigrationRepository(db)
+	b.procDocRepo = repository.NewProcedureDocumentationRepository(db)
 	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
@@ -312,6 +321,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Ein festgestellter Jahresabschluss nimmt keine Buchung mehr auf. Der
 	// Journaldienst muss das wissen, bevor er schreibt.
 	b.journalSvc.SetFiscalYearRepo(b.fiscalYearRepo)
+	// Kopfdaten sind beim Buchen Pflicht (BEL-02). Der Journaldienst prüft sie
+	// am Beleg, auf den eine Buchung verweist — auf jedem Weg und nicht nur im
+	// Dialog „Beleg buchen".
+	b.journalSvc.SetReceiptRepo(b.receiptRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
@@ -376,6 +389,20 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.receiptSvc.SetDocumentSource(b.assetSvc)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
+	b.retentionSvc = service.NewRetentionService(
+		b.retentionRepo, b.journalRepo, b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir))
+	b.procDocSvc = service.NewProcDocService(
+		b.settingsRepo, b.numberRepo, b.procDocRepo, b.migrationRepo, b.auditRepo,
+		receiptstore.New(t.DataDir), fiscalYear)
+	// Die Verfahrensdokumentation entsteht als Markdown und als PDF. Gesetzt
+	// wird über denselben Typst-Weg wie Rechnung und Jahresabschluss — ein
+	// Satzprogramm im Haus genügt.
+	b.procDocSvc.SetRenderer(b.renderer)
+	b.procDocSvc.SetEnvironment(service.ProcDocEnvironment{
+		DataDir:      t.DataDir,
+		BackupDir:    b.appConfig.BackupDir,
+		BackupRhythm: b.backupRhythmLabel(),
+	})
 	// Der Kursdienst holt die Referenzkurse der EZB und führt die Historie. Er
 	// rät keinen Kurs: ohne Netz und ohne gespeicherten Kurs trägt der Anwender
 	// ihn mit seiner Quelle ein.
@@ -582,6 +609,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG ist Bestandteil des
 	// Prüferpakets und nicht nur ein Einzelexport auf Knopfdruck.
 	b.exportSvc.SetTaxRegisterSource(b.taxRegisterSvc)
+	// Die erzeugten Fassungen der Verfahrensdokumentation gehören ins
+	// Prüferpaket (GoBD Rz. 151 ff.); sie liegen im Belegspeicher und werden
+	// über ihren Datensatz gefunden.
+	b.exportSvc.SetProcDocRepo(b.procDocRepo)
 
 	// Die Sicherung trägt die Schlüsselkennung und nicht die Kennung aus der
 	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
@@ -799,7 +830,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		ID:        tenantID,
 		Name:      name,
 		DataDir:   dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
@@ -827,7 +858,7 @@ func (b *BuchfinkBridge) CreateTenant(
 func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{})
+	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindImport)
 }
 
 // newTenantID vergibt eine Kennung für einen neuen Eintrag der Mandantenliste.
@@ -855,7 +886,9 @@ func (b *BuchfinkBridge) tenantByIDLocked(id string) *domain.TenantConfig {
 // gefüllt — das ist der Fall „vorhandene Datenbank öffnen".
 //
 // Der Aufrufer hält b.mu.
-func (b *BuchfinkBridge) registerTenantLocked(dbFilePath string, identity domain.TenantConfig) (*domain.TenantConfig, error) {
+func (b *BuchfinkBridge) registerTenantLocked(
+	dbFilePath string, identity domain.TenantConfig, kind domain.MigrationKind,
+) (*domain.TenantConfig, error) {
 	if _, err := os.Stat(dbFilePath); err != nil {
 		return nil, fmt.Errorf("database file not found: %s", dbFilePath)
 	}
@@ -897,7 +930,7 @@ func (b *BuchfinkBridge) registerTenantLocked(dbFilePath string, identity domain
 		Name:      name,
 		KeyID:     keyID,
 		DataDir:   dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
@@ -925,7 +958,72 @@ func (b *BuchfinkBridge) registerTenantLocked(dbFilePath string, identity domain
 		}
 	}
 
+	// Die Übernahme wird gezählt und protokolliert (ARC-05). Eine Übernahme
+	// ohne Abstimmung ist keine Übernahme, sondern eine Hoffnung: ob alles
+	// angekommen ist, fiele sonst erst auf, wenn eine Bilanz nicht mehr aufgeht.
+	// Der Weg steht am Eintrag: Übernahme, Wiederherstellung oder das Öffnen
+	// einer vorhandenen Datei. Protokolliert wird genau hier und nur hier —
+	// jeder Weg geht durch diese Funktion, und ein zweiter Eintrag beim
+	// Aufrufer zählte denselben Vorgang doppelt.
+	b.recordMigration(kind, dbFilePath, tenantID)
+
 	return &t, nil
+}
+
+// recordMigration zählt die übernommenen Objekte, prüft die Ketten und schreibt
+// das Migrationsprotokoll.
+//
+// Sie darf an keiner Stelle den Vorgang aufhalten: die Daten sind übernommen,
+// und ein fehlgeschlagenes Protokoll wäre kein Grund, sie wieder wegzunehmen.
+// Was schiefgeht, steht im Änderungsprotokoll.
+func (b *BuchfinkBridge) recordMigration(kind domain.MigrationKind, source, target string) {
+	if b.locked || b.db == nil || b.migrationRepo == nil {
+		return
+	}
+	ctx := context.Background()
+
+	counts, err := repository.CountForMigration(ctx, b.db)
+	if err != nil {
+		if b.auditRepo != nil {
+			_ = b.auditRepo.Log(ctx, domain.AuditActionImport, "MIGRATION", target,
+				fmt.Sprintf("Die Zählung der übernommenen Daten ist fehlgeschlagen: %v", err))
+		}
+		return
+	}
+
+	rec := &domain.MigrationRecord{
+		Kind:   kind,
+		Source: source,
+		Target: target,
+		RunAt:  time.Now().UTC(),
+	}
+	rec.SetCounts(counts)
+
+	// Die Kette wird sofort geprüft: eine übernommene Buchhaltung, die schon
+	// beim Ankommen gebrochen ist, muss das sagen — sonst sieht es später aus,
+	// als sei sie hier gebrochen worden.
+	if b.journalSvc != nil {
+		if result, err := b.journalSvc.VerifyIntegrity(ctx); err == nil {
+			rec.ChainValid = result.IsValid
+			rec.ChainMessage = result.Message
+		}
+	}
+
+	if err := b.migrationRepo.CreateMigrationRecord(ctx, rec); err != nil {
+		return
+	}
+	if b.auditRepo != nil {
+		balance := "Soll und Haben stimmen überein"
+		if !counts.IsBalanced() {
+			balance = fmt.Sprintf("Soll %s € und Haben %s € stimmen NICHT überein — die Übernahme ist unvollständig",
+				counts.DebitTotal, counts.CreditTotal)
+		}
+		_ = b.auditRepo.Log(ctx, domain.AuditActionImport, "MIGRATION", target, fmt.Sprintf(
+			"Datenübernahme (%s) aus %s: %d Buchungen mit %d Zeilen, %d Belege, %d Geschäftspartner, %d Konten, %d Rechnungen, %d Anlagegüter, %d Protokolleinträge. %s. Kette: %s",
+			kind, filepath.Base(source), counts.JournalEntries, counts.JournalLines,
+			counts.Receipts, counts.Contacts, counts.Accounts, counts.Invoices,
+			counts.FixedAssets, counts.AuditEntries, balance, rec.ChainMessage))
+	}
 }
 
 // DeleteTenant entfernt einen Mandanten aus der Konfiguration und löscht sein
@@ -1032,8 +1130,15 @@ func (b *BuchfinkBridge) SetupApplication(
 }
 
 // LoadExistingDatabase loads an existing SQLite database file from disk.
+//
+// Protokolliert wird sie als „geöffnet" und nicht als „übernommen": es kommen
+// keine fremden Daten herein, es wird eine vorhandene Datei dieses Rechners
+// geöffnet. Das Migrationsprotokoll soll den Unterschied zeigen — sonst sähe
+// jede Wiederaufnahme des eigenen Mandanten aus wie ein Systemwechsel.
 func (b *BuchfinkBridge) LoadExistingDatabase(dbFilePath string) error {
-	_, err := b.ImportTenant(dbFilePath)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, err := b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindOpen)
 	return err
 }
 

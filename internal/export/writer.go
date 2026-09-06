@@ -68,6 +68,10 @@ type Result struct {
 	CreatedAt       string `json:"createdAt"`
 	ProgramVersion  string `json:"programVersion"`
 	StandardVersion string `json:"standardVersion"`
+	// Actor ist die Bearbeiterkennung, unter der überlassen wurde. Sie steht im
+	// Manifest und nicht nur im Änderungsprotokoll daneben: wer ein Paket in
+	// der Hand hält, soll ihm ansehen, wer es gezogen hat (UNV-04).
+	Actor string `json:"actor,omitempty"`
 
 	Tables []TableInfo `json:"tables"`
 	Files  []FileInfo  `json:"files"`
@@ -125,6 +129,7 @@ func NewBuilder(dir string, kind Kind, d *Dataset) (*Builder, error) {
 			To:              d.To,
 			CreatedAt:       d.CreatedAt,
 			ProgramVersion:  d.ProgramVersion,
+			Actor:           d.Actor,
 			StandardVersion: StandardVersion,
 			Tables:          make([]TableInfo, 0, len(d.Tables)),
 			Files:           make([]FileInfo, 0, len(d.Tables)+4),

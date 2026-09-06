@@ -671,8 +671,8 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		if err := s.syncImmediateWriteOff(ctx, asset, existing.Movements); err != nil {
 			return nil, err
 		}
-		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
-			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name))
+		s.auditChange(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name), existing, asset)
 		return s.reload(ctx, asset.ID)
 	}
 
@@ -730,9 +730,10 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		return nil, err
 	}
 
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+	s.auditChange(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Anlagegut %s angelegt: %s, Konto %s, Anschaffungskosten %s € am %s",
-		asset.InventoryNumber, asset.Name, asset.Account, asset.AcquisitionCost, asset.AcquisitionDate))
+		asset.InventoryNumber, asset.Name, asset.Account, asset.AcquisitionCost, asset.AcquisitionDate),
+		nil, asset)
 
 	return s.reload(ctx, asset.ID)
 }
@@ -3294,6 +3295,30 @@ func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id 
 		return
 	}
 	_ = s.auditRepo.Log(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details)
+}
+
+// auditChange protokolliert eine Änderung der Anlagenstammdaten mit dem Stand
+// davor und danach.
+//
+// Die Anlagenkartei ist Stammdatenbestand: Nutzungsdauer, Methode und
+// Anschaffungskosten bestimmen die Abschreibung jedes Jahres, und wer sie
+// ändert, ändert das Ergebnis. Ein Protokollsatz „Anlagegut 12 geändert" sagte
+// nicht, ob die Nutzungsdauer von acht auf drei Jahre gesetzt wurde (GoBD
+// Rz. 34). before darf nil sein: dann ist das Wirtschaftsgut neu.
+func (s *AssetService) auditChange(
+	ctx context.Context, action domain.AuditAction, id uint, details string,
+	before, after *domain.FixedAsset,
+) {
+	if s.auditRepo == nil {
+		return
+	}
+	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil; das Vorher
+	// eines Zugangs muss deshalb ausdrücklich nil sein.
+	var beforeAny any
+	if before != nil {
+		beforeAny = before
+	}
+	_ = s.auditRepo.LogChange(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details, beforeAny, after)
 }
 
 // bookedByYear sums the planmäßige AfA already booked per fiscal year. Only the

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -43,7 +42,7 @@ func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffReque
 				"ob sie uneinbringlich im Sinne des § 17 Abs. 2 Nr. 1 UStG ist")
 	}
 	if req.Date == "" {
-		req.Date = time.Now().Format("2006-01-02")
+		req.Date = todayLocal()
 	}
 
 	openItems, err := s.OpenItems(ctx)

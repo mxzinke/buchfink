@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/changelog"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/export"
 	"github.com/buchfink/buchfink/internal/receiptstore"
@@ -65,6 +67,10 @@ type ExportService struct {
 	checkRunRepo   domain.CheckRunRepository
 	fiscalYearRepo domain.FiscalYearRepository
 
+	// procDocRepo liefert die erzeugten Fassungen der Verfahrensdokumentation.
+	// Optional: ein Export ohne sie vermerkt ihr Fehlen, statt zu scheitern.
+	procDocRepo domain.ProcedureDocumentationRepository
+
 	store    *receiptstore.Store
 	dataDir  string
 	tenant   string
@@ -110,6 +116,12 @@ func (s *ExportService) SetIntegritySource(src ExportIntegritySource) { s.checks
 
 // SetTaxRegisterSource hängt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG an.
 func (s *ExportService) SetTaxRegisterSource(src ExportTaxRegisterSource) { s.register = src }
+
+// SetProcDocRepo hängt die Fassungen der Verfahrensdokumentation an. Aus ihnen
+// legt das Prüferpaket die Dokumentation bei (GoBD Rz. 151 ff.).
+func (s *ExportService) SetProcDocRepo(r domain.ProcedureDocumentationRepository) {
+	s.procDocRepo = r
+}
 
 // SetTenantName setzt den Mandantennamen für die Metadaten.
 func (s *ExportService) SetTenantName(name string) { s.tenant = name }
@@ -190,7 +202,10 @@ func (s *ExportService) exportPackage(
 		if err := s.writeTaxElectionRegister(ctx, builder, year); err != nil {
 			return nil, err
 		}
-		s.copyProcessDocumentation(builder)
+		if err := s.writeChangelog(builder); err != nil {
+			return nil, err
+		}
+		s.copyProcessDocumentation(ctx, builder)
 	}
 
 	result, err := builder.Finish()
@@ -318,6 +333,11 @@ type exportData struct {
 	supplierLocation string
 	programVersion   string
 	createdAt        string
+	// actor ist die Bearbeiterkennung, unter der überlassen wurde. Sie gehört
+	// an den Export und nicht nur an den Protokolleintrag daneben: wer ein
+	// Prüferpaket in der Hand hält, soll ihm ansehen, wer es gezogen hat
+	// (UNV-04).
+	actor string
 }
 
 func (d *exportData) accountName(number string) string {
@@ -459,7 +479,10 @@ func (s *ExportService) baseData(ctx context.Context) (*exportData, error) {
 		tenantName:        name,
 		supplierLocation:  location,
 		programVersion:    buildinfo.Version,
-		createdAt:         time.Now().Format(time.RFC3339),
+		// UTC: der Zeitpunkt steht in der Beschreibungsdatei und im Manifest
+		// und wird dort gegen andere Zeitpunkte gehalten.
+		createdAt: time.Now().UTC().Format(time.RFC3339),
+		actor:     actor.Actor(),
 	}, nil
 }
 
@@ -687,6 +710,7 @@ func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 		To:               d.to,
 		CreatedAt:        d.createdAt,
 		ProgramVersion:   d.programVersion,
+		Actor:            d.actor,
 		Tables:           make([]export.Table, 0, len(builders)+2),
 	}
 	for _, build := range builders {
@@ -779,26 +803,29 @@ func (s *ExportService) copyAssetDocuments(b *export.Builder, d *exportData) err
 // Er gehört ins Prüferpaket und nicht nur auf den Bildschirm: die Aussage
 // „die Kette ist ungebrochen" ist Teil dessen, was überlassen wird.
 func (s *ExportService) writeIntegrityReport(ctx context.Context, b *export.Builder) error {
-	if s.checks == nil {
-		b.Note("Der Integritätsnachweis fehlt: die Prüfung war nicht verfügbar.")
-		return nil
-	}
-
-	chain, err := s.checks.VerifyIntegrity(ctx)
-	if err != nil {
-		return fmt.Errorf("die Integritätsprüfung ist fehlgeschlagen: %w", err)
-	}
-	files, err := s.checks.VerifyReceiptFiles(ctx)
-	if err != nil {
-		return fmt.Errorf("der Belegprüflauf ist fehlgeschlagen: %w", err)
-	}
-
 	report := fmt.Sprintf(`Nachweis der Unversehrtheit
 ===========================
 
-Mandant:  %s
-Geprüft:  %s
-Programm: Buchfink %s
+Mandant:      %s
+Programm:     Buchfink %s
+Bearbeiter:   %s
+`, s.tenantLabel(ctx), buildinfo.Version, actor.Actor())
+
+	if s.checks == nil {
+		b.Note("Der Integritätsnachweis der Journalkette fehlt: die Prüfung war nicht verfügbar.")
+		report += "\nHash-Chain über alle Geschäftsjahre\n" +
+			"-----------------------------------\nDie Prüfung war beim Erzeugen des Pakets nicht verfügbar.\n"
+	} else {
+		chain, err := s.checks.VerifyIntegrity(ctx)
+		if err != nil {
+			return fmt.Errorf("die Integritätsprüfung ist fehlgeschlagen: %w", err)
+		}
+		files, err := s.checks.VerifyReceiptFiles(ctx)
+		if err != nil {
+			return fmt.Errorf("der Belegprüflauf ist fehlgeschlagen: %w", err)
+		}
+		report += fmt.Sprintf(`
+Geprüft:      %s
 
 Hash-Chain über alle Geschäftsjahre
 -----------------------------------
@@ -806,7 +833,6 @@ Geprüfte Geschäftsjahre: %v
 Geprüfte Buchungen:      %d
 Ergebnis:                %s
 %s
-
 Belegdateien
 ------------
 Geprüfte Dateien: %d
@@ -814,17 +840,74 @@ Unversehrt:       %d
 Beschädigt:       %d
 Fehlend:          %d
 Ergebnis:         %s
-%s
+%s`,
+			chain.CheckedAt,
+			chain.FiscalYears, chain.TotalEntries, chain.Message,
+			formatBreaks(chain.Breaks),
+			files.Checked, files.Intact, files.Damaged, files.Missing, files.Message,
+			formatFileIssues(files.Issues),
+		)
+	}
+
+	report += s.auditChainSection(ctx, b)
+	report += `
 Das Verfahren, mit dem sich die Hash-Chain aus den Dateien dieses Exports
 nachrechnen lässt, steht in feldbeschreibung.md.
-`,
-		s.tenantLabel(ctx), chain.CheckedAt, buildinfo.Version,
-		chain.FiscalYears, chain.TotalEntries, chain.Message,
-		formatBreaks(chain.Breaks),
-		files.Checked, files.Intact, files.Damaged, files.Missing, files.Message,
-		formatFileIssues(files.Issues),
-	)
+`
 	return b.WriteFile("integritaet.txt", []byte(report))
+}
+
+// auditChainSection rechnet die Kette des Änderungsprotokolls nach und bringt
+// das Ergebnis in den Nachweis.
+//
+// Das Protokoll gehört in denselben Nachweis wie das Journal: eine Buchführung,
+// deren Buchungen nachweislich unverändert sind, während sich die
+// Protokolleinträge über ihre Änderungen entfernen ließen, belegt nur die halbe
+// Unveränderbarkeit (GoBD Rz. 34).
+func (s *ExportService) auditChainSection(ctx context.Context, b *export.Builder) string {
+	if s.auditRepo == nil {
+		b.Note("Die Prüfung der Protokollkette fehlt: das Änderungsprotokoll war nicht verfügbar.")
+		return "\nÄnderungsprotokoll\n------------------\n" +
+			"Das Protokoll war beim Erzeugen des Pakets nicht verfügbar.\n"
+	}
+	entries, err := s.auditRepo.FindAllAscending(ctx)
+	if err != nil {
+		b.Note("Die Protokollkette konnte nicht geprüft werden: %v", err)
+		return fmt.Sprintf("\nÄnderungsprotokoll\n------------------\nDie Kette konnte nicht geprüft werden: %v\n", err)
+	}
+
+	result := accounting.NewAuditChain().Verify(entries)
+	section := fmt.Sprintf(`
+Änderungsprotokoll
+------------------
+Einträge insgesamt:  %d
+Davon verkettet:     %d
+Ergebnis:            %s
+Letzter Kettenwert:  %s
+`, result.TotalEntries, result.CheckedEntries, result.Message, result.LastVerifiedHash)
+
+	for _, br := range result.Breaks {
+		section += fmt.Sprintf(
+			"\nProtokolleintrag %d\n  Grund:       %s\n  Erwartet:    %s\n  Tatsächlich: %s\n  %s\n",
+			br.EntryID, br.Reason, br.ExpectedHash, br.ActualHash, br.Message)
+	}
+	if !result.IsValid {
+		b.Note("Die Kette des Änderungsprotokolls ist gebrochen: %s", result.Message)
+	}
+	return section
+}
+
+// changelogFileName ist der Name der Versionshistorie im Prüferpaket.
+const changelogFileName = "CHANGELOG.md"
+
+// writeChangelog legt die Versionshistorie bei.
+//
+// Sie ist im Programm eingebettet und reist deshalb mit: UNV-06 verlangt, dass
+// sich zu jeder Programmfassung feststellen lässt, was sie geändert hat — und
+// die Buchungen dieses Pakets tragen ihre Programmfassung. Ohne die Historie
+// daneben wäre die Fassungsnummer eine Zeichenkette ohne Bedeutung.
+func (s *ExportService) writeChangelog(b *export.Builder) error {
+	return b.WriteFile(changelogFileName, []byte(changelog.Markdown()))
 }
 
 // taxRegisterFileName ist der Name des Verzeichnisses im Prüferpaket.
@@ -895,37 +978,85 @@ func formatFileIssues(issues []domain.FileCheckIssue) string {
 	return out
 }
 
-// processDocFileName ist der Name, unter dem die Verfahrensdokumentation im
-// Datenordner des Mandanten liegt.
-//
-// Nur dort und nicht unter docs/: in der gepackten Anwendung gibt es keinen
-// Projektordner, und der Pfad relativ zum Arbeitsverzeichnis griff allein im
-// Entwicklungs-Checkout — wo er dann eine Projektdatei in ein Prüferpaket
-// kopierte, die den Betrieb des Mandanten gar nicht beschreibt.
-//
-// Die Spezifikation nennt docs/verfahrensdokumentation.md. Die Abweichung ist
-// gewollt und gehört in die Planung von Welle 6: die Verfahrensdokumentation
-// muss dort in den Datenordner des Mandanten geschrieben (oder als eingebettete
-// Vorlage ausgeliefert und beim Anlegen des Mandanten dorthin kopiert) werden,
-// sonst liegt sie keinem Prüferpaket bei.
-const processDocFileName = "verfahrensdokumentation.md"
+// processDocDir ist der Ordner, unter dem die Fassungen der
+// Verfahrensdokumentation im Prüferpaket liegen.
+const processDocDir = "verfahrensdokumentation"
 
-// copyProcessDocumentation legt die Verfahrensdokumentation bei, sofern sie
-// vorliegt.
+// copyProcessDocumentation legt die erzeugten Fassungen der
+// Verfahrensdokumentation bei.
 //
-// Fehlt sie, wird das vermerkt und nicht verschwiegen: die GoBD verlangen sie
-// (Rz. 151 ff.), und ein Prüferpaket, das ohne Hinweis ohne sie ankommt, sieht
-// vollständig aus.
-func (s *ExportService) copyProcessDocumentation(b *export.Builder) {
-	if s.dataDir != "" {
-		path := filepath.Join(s.dataDir, processDocFileName)
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			if _, err := b.CopyFile(processDocFileName, path); err == nil {
-				return
+// Alle Fassungen und nicht nur die jüngste: GoBD Rz. 151 verlangt zu jedem
+// Geschäftsjahr die Verfahrensdokumentation, die *damals* gegolten hat. Wer nur
+// den heutigen Stand überlässt, behauptet, das Verfahren sei immer dieses
+// gewesen.
+//
+// Gelesen wird aus dem Belegspeicher (Zweig dokumente/verfahrensdokumentation/)
+// und nicht aus einer Datei im Datenordner: dort legt ProcDocService jede
+// Fassung ab, und eine statisch erwartete Datei daneben wäre in einer
+// ausgelieferten Anwendung nie vorhanden.
+//
+// Fehlt die Dokumentation, wird das vermerkt und nicht verschwiegen: ein
+// Prüferpaket, das ohne Hinweis ohne sie ankommt, sieht vollständig aus.
+func (s *ExportService) copyProcessDocumentation(ctx context.Context, b *export.Builder) {
+	if s.procDocRepo == nil {
+		b.Note("Die Verfahrensdokumentation liegt nicht bei: die Fassungen waren nicht verfügbar (GoBD Rz. 151 ff.).")
+		return
+	}
+	docs, err := s.procDocRepo.FindAll(ctx)
+	if err != nil {
+		b.Note("Die Verfahrensdokumentation konnte nicht gelesen werden: %v", err)
+		return
+	}
+	if len(docs) == 0 {
+		b.Note("Es wurde noch keine Verfahrensdokumentation erzeugt; sie liegt dem Paket deshalb nicht bei (GoBD Rz. 151 ff.). " +
+			"Sie lässt sich unter „Nachweise“ erzeugen.")
+		return
+	}
+
+	copied := 0
+	for i := range docs {
+		doc := &docs[i]
+		if doc.StoredPath == "" {
+			b.Note("Die Fassung %s der Verfahrensdokumentation ist ohne Ablageort vermerkt und konnte nicht beigelegt werden.", doc.Version)
+			continue
+		}
+		name := export.SafeName(doc.FileName)
+		if name == "" {
+			name = export.SafeName(doc.Version) + ".md"
+		}
+		rel := processDocDir + "/" + name
+		source := filepath.Join(s.dataDir, filepath.FromSlash(doc.StoredPath))
+		sum, err := b.CopyFile(rel, source)
+		if err != nil {
+			b.Note("Die Fassung %s der Verfahrensdokumentation konnte nicht beigelegt werden: %v", doc.Version, err)
+			continue
+		}
+		if doc.SHA256 != "" && sum != doc.SHA256 {
+			b.Note("Verfahrensdokumentation %s: die Prüfsumme weicht von der abgelegten ab (erwartet %s, gefunden %s).",
+				doc.Version, doc.SHA256, sum)
+		}
+		// Der PDF-Satz derselben Fassung geht mit: er ist die Form, die ein
+		// Prüfer öffnet, ohne ein Werkzeug für Markdown zu haben. Fehlt er,
+		// bleibt es beim Markdown — das trägt die Aussage.
+		if doc.PDFStoredPath != "" {
+			pdfName := export.SafeName(doc.PDFFileName)
+			if pdfName == "" {
+				pdfName = export.SafeName(doc.Version) + ".pdf"
+			}
+			pdfSum, err := b.CopyFile(processDocDir+"/"+pdfName,
+				filepath.Join(s.dataDir, filepath.FromSlash(doc.PDFStoredPath)))
+			if err != nil {
+				b.Note("Die Fassung %s der Verfahrensdokumentation liegt nur als Markdown bei: %v", doc.Version, err)
+			} else if doc.PDFSHA256 != "" && pdfSum != doc.PDFSHA256 {
+				b.Note("Verfahrensdokumentation %s (PDF): die Prüfsumme weicht von der abgelegten ab (erwartet %s, gefunden %s).",
+					doc.Version, doc.PDFSHA256, pdfSum)
 			}
 		}
+		copied++
 	}
-	b.Note("Die Verfahrensdokumentation liegt nicht vor und konnte deshalb nicht beigelegt werden (GoBD Rz. 151 ff.). Erwartet wird sie als %s im Datenordner.", processDocFileName)
+	if copied == 0 {
+		b.Note("Keine der %d vermerkten Fassungen der Verfahrensdokumentation konnte beigelegt werden (GoBD Rz. 151 ff.).", len(docs))
+	}
 }
 
 // companyLocation macht aus den Unternehmensdaten den Sitz, wie ihn die

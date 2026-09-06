@@ -62,7 +62,7 @@ func checkReceiptFiles(
 ) *domain.FileCheckResult {
 	result := &domain.FileCheckResult{
 		Issues:    make([]domain.FileCheckIssue, 0),
-		CheckedAt: time.Now().Format("02.01.2006 15:04:05"),
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if store == nil {
 		result.Message = "Es ist kein Belegspeicher eingerichtet."

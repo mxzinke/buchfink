@@ -427,7 +427,10 @@ export const AssetsPage: React.FC = () => {
         Api.getAnlagenspiegel(),
         Api.getAssetAcquisitionCandidates(),
         Api.getAssetAccounts(''),
-        Api.getContacts(),
+        // Die auswählbaren und nicht alle Kontakte: ein nach einem
+        // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+        // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+        Api.getSelectableContacts(),
         Api.getPaymentAccounts(),
         Api.getInvestmentRules(),
         Api.getAssetDocumentKinds(),

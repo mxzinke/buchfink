@@ -59,6 +59,46 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("rate_source", e.ExchangeRateSource)
 	put("rate_date", e.ExchangeRateDate)
 	put("rule_version", e.PostingRuleVersion)
+
+	// Die Versionsweiche der kanonischen Form.
+	//
+	// Programmfassung und Bearbeiterkennung gehören zu der Buchung: UNV-06
+	// verlangt, dass sich zu jeder Aufzeichnung feststellen lässt, welche
+	// Fassung des Programms sie erzeugt hat, und UNV-04 verlangt die
+	// Bearbeiterkennung. Beides ungedeckt zu lassen hieße, ausgerechnet die
+	// Nachweisfelder nachträglich änderbar zu halten.
+	//
+	// Zusätzliche Felder in der Kanonisierung ändern aber den Hash *jeder*
+	// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung wäre
+	// mit dem nächsten Update gebrochen. Die Weiche löst das ohne
+	// Datenänderung: eine Buchung ohne AppVersion stammt aus der Zeit vor
+	// dieser Welle und wird nach der bisherigen Form gehasht; eine mit
+	// AppVersion nach der neuen. Welche Form gilt, steht an der Buchung selbst
+	// — es braucht keine gespeicherte Formatnummer, die selbst wieder
+	// änderbar wäre.
+	//
+	// JournalService.Post setzt AppVersion an jeder neuen Buchung, es gibt
+	// also keinen dritten Fall.
+	if e.AppVersion != "" {
+		put("app_version", e.AppVersion)
+		put("actor", e.Actor)
+		// Die Herkunftskennung aus einem Altsystem ist Inhalt und keine
+		// Fundstelle: sie sagt, welcher Posten der Schlussbilanz des
+		// Altsystems hier fortgeführt wird, und ist damit so zu decken wie der
+		// Buchungstext.
+		put("legacy_ref", e.LegacyRef)
+	}
+
+	// Die vereinbarte Fälligkeit, nur wo sie belegt ist. Sie ist Inhalt — die
+	// Altersstruktur und die Restlaufzeitangabe unter der Bilanz hängen an ihr
+	// (§ 268 Abs. 4 und 5 HGB) —, und sie steht wie der Vorsteueranteil und der
+	// Fremdbetrag hinter einer Belegtprüfung: ein leeres Feld heißt „folgt aus
+	// dem Zahlungsziel" und ist gleichbedeutend mit „nicht vorhanden", also
+	// hasht jede bestehende Buchung weiter wie zuvor.
+	if e.DueDate != "" {
+		put("due_date", e.DueDate)
+	}
+
 	put("created_at", e.CreatedAt.UTC().Format(time.RFC3339))
 
 	// Lines are hashed in a stable order so that a differently ordered read from
@@ -170,7 +210,7 @@ func (h *HashChain) CalculateHash(e *domain.JournalEntry, prevHash string) strin
 // damit nicht jede folgende Buchung als gebrochen gemeldet wird.
 func (h *HashChain) VerifyChain(entries []domain.JournalEntry) domain.IntegrityCheckResult {
 	result := h.verifyYear(0, entries)
-	result.CheckedAt = time.Now().Format("02.01.2006 15:04:05")
+	result.CheckedAt = time.Now().UTC().Format(time.RFC3339)
 	result.Message = chainMessage(result)
 	result.EnsureLists()
 	return result
@@ -212,7 +252,7 @@ func (h *HashChain) VerifyYears(byYear map[int][]domain.JournalEntry) domain.Int
 		}
 	}
 
-	combined.CheckedAt = time.Now().Format("02.01.2006 15:04:05")
+	combined.CheckedAt = time.Now().UTC().Format(time.RFC3339)
 	combined.Message = chainMessage(combined)
 	combined.EnsureLists()
 	return combined

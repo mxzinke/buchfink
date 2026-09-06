@@ -213,7 +213,7 @@ func (b *BuchfinkBridge) VerifyReceiptFiles() (*domain.FileCheckResult, error) {
 			Issues:    make([]domain.FileCheckIssue, 0),
 			IsValid:   true,
 			Message:   "Die Belegablage ist noch nicht initialisiert.",
-			CheckedAt: time.Now().Format("02.01.2006 15:04:05"),
+			CheckedAt: time.Now().UTC().Format(time.RFC3339),
 		}, nil
 	}
 	return b.receiptSvc.VerifyReceiptFiles(context.Background())

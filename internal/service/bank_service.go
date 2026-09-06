@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -86,12 +85,23 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 		}
 	}
 	if s.receipts != nil && statementID == nil {
+		// Das Belegdatum des Kontoauszugs ist der Tag des Imports.
+		//
+		// Der Auszug selbst nennt einen Zeitraum und nicht einen Tag, und der
+		// Zeitraum steht erst nach dem Parsen fest — der Beleg entsteht aber
+		// davor, damit die empfangene Datei auch dann im Archiv liegt, wenn das
+		// Parsen scheitert. Der Importtag ist die Angabe, die zu diesem
+		// Zeitpunkt zutrifft; ohne sie wäre der Auszug ein Beleg ohne Datum und
+		// damit nicht zuzuordnen (BEL-02).
+		today := todayLocal()
 		receipt, err := s.receipts.File(ctx, FileReceiptRequest{
-			Direction:   domain.DirectionIncoming,
-			Kind:        domain.ReceiptKindStatement,
-			ReceivedAt:  time.Now().Format("2006-01-02"),
-			ReceivedVia: domain.ReceivedViaUpload,
-			Files:       []NewFile{{Role: domain.ReceiptRoleOriginal, Path: path}},
+			Direction:    domain.DirectionIncoming,
+			Kind:         domain.ReceiptKindStatement,
+			ReceivedAt:   today,
+			ReceivedVia:  domain.ReceivedViaUpload,
+			DocumentDate: today,
+			Subject:      fmt.Sprintf("Kontoauszug %s, importiert am %s", ledgerAccount, today),
+			Files:        []NewFile{{Role: domain.ReceiptRoleOriginal, Path: path}},
 		})
 		if err != nil {
 			return 0, fmt.Errorf("der Kontoauszug konnte nicht abgelegt werden: %w", err)

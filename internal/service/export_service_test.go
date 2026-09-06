@@ -632,7 +632,7 @@ func TestExportAuditPackageCarriesTheIntegrityReport(t *testing.T) {
 	// Der Nachweis muss den Mandanten nennen, dessen Bücher geprüft wurden. Ein
 	// Ordnerpfad an dieser Stelle nennt den falschen Betrieb — und der Nachweis
 	// wäre einem anderen Prüferpaket nicht mehr zuzuordnen.
-	if !strings.Contains(string(report), "Mandant:  Pfennig Ventures GmbH") {
+	if !strings.Contains(string(report), "Pfennig Ventures GmbH") {
 		t.Errorf("der Nachweis nennt nicht den Mandanten:\n%s", report)
 	}
 	if strings.Contains(string(report), dir) {
@@ -640,11 +640,17 @@ func TestExportAuditPackageCarriesTheIntegrityReport(t *testing.T) {
 	}
 
 	// Die fehlende Verfahrensdokumentation muss als Hinweis erscheinen und nicht
-	// stillschweigend fehlen.
-	if _, err := os.Stat(filepath.Join(dir, "verfahrensdokumentation.md")); err != nil {
-		if len(result.Notes) == 0 {
-			t.Error("die fehlende Verfahrensdokumentation wurde nicht vermerkt")
+	// stillschweigend fehlen. Sie liegt im Belegspeicher unter
+	// dokumente/verfahrensdokumentation/ und wird über ihren Datensatz gefunden;
+	// hier ist keine erzeugt worden.
+	noted := false
+	for _, note := range result.Notes {
+		if strings.Contains(note, "Verfahrensdokumentation") {
+			noted = true
 		}
+	}
+	if !noted {
+		t.Errorf("die fehlende Verfahrensdokumentation wurde nicht vermerkt: %v", result.Notes)
 	}
 }
 
@@ -924,6 +930,14 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 	put("rate_source", h["Kursquelle"])
 	put("rate_date", h["Kursdatum"])
 	put("rule_version", h["Regelversion"])
+	// Die Versionsweiche, wie die Feldbeschreibung sie beschreibt: eine
+	// Buchung mit belegter Programmfassung trägt drei weitere Felder, eine ohne
+	// trägt sie nicht.
+	if h["Programmfassung"] != "" {
+		put("app_version", h["Programmfassung"])
+		put("actor", h["Bearbeiter"])
+		put("legacy_ref", h["Herkunft_Altsystem"])
+	}
 	put("created_at", h["Erfassungszeitpunkt_UTC"])
 
 	put("lines", strconv.Itoa(len(entry.lines)))

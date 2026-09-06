@@ -198,7 +198,10 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       const [list, contactList, treatmentList, unitList, profileList, accounts, vias, reasons] =
         await Promise.all([
           Api.getInvoices(),
-          Api.getContacts(),
+          // Die auswählbaren und nicht alle Kontakte: ein nach einem
+          // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+          // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+          Api.getSelectableContacts(),
           Api.getTaxTreatments('outgoing'),
           Api.getUnitCodes(),
           Api.getEInvoiceProfiles(),

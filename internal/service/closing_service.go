@@ -444,6 +444,8 @@ func (s *ClosingService) SetFiscalYearStatus(
 	if err != nil {
 		return nil, err
 	}
+	// Der Stand vor dem Schritt, festgehalten bevor er überschrieben wird.
+	before := *fy
 	if !status.Valid() || status == domain.FiscalYearOpen {
 		return nil, fmt.Errorf(
 			"unbekannter Abschlussstand %q; ein Jahr wird über die Rücksetzung wieder geöffnet", status)
@@ -509,7 +511,7 @@ func (s *ClosingService) SetFiscalYearStatus(
 	if n := strings.TrimSpace(note); n != "" {
 		details += " (" + n + ")"
 	}
-	s.audit(ctx, domain.AuditActionUpdate, year, details)
+	s.auditChange(ctx, domain.AuditActionUpdate, year, details, &before, fy)
 	return fy, nil
 }
 
@@ -535,6 +537,7 @@ func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason 
 	}
 
 	previous := fy.Status
+	before := *fy
 	fy.Status = domain.FiscalYearPrepared
 	fy.AdoptedOn = ""
 	fy.AdoptionNote = ""
@@ -547,9 +550,9 @@ func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason 
 		return nil, fmt.Errorf("die Rücksetzung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Geschäftsjahr %d von %q auf %q zurückgesetzt (Grund: %s)",
-		year, previous.Label(), domain.FiscalYearPrepared.Label(), strings.TrimSpace(reason)))
+		year, previous.Label(), domain.FiscalYearPrepared.Label(), strings.TrimSpace(reason)), &before, fy)
 	return fy, nil
 }
 
@@ -1407,6 +1410,27 @@ func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, y
 	_ = s.auditRepo.Log(ctx, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details)
 }
 
+// auditChange protokolliert eine Änderung am Geschäftsjahr mit dem Stand davor
+// und danach.
+//
+// Das Geschäftsjahr ist Stammdatenbestand: an seinem Abschlussstand hängt, ob
+// noch gebucht werden darf, an der Arbeitnehmerzahl die Größenklasse und damit
+// die Gliederungstiefe des Abschlusses. Wer den Stand ändert, ändert also, was
+// das Programm zulässt und wie es ausweist — und das gehört mit beiden Ständen
+// ins Protokoll (GoBD Rz. 34).
+func (s *ClosingService) auditChange(
+	ctx context.Context, action domain.AuditAction, year int, details string, before, after *domain.FiscalYear,
+) {
+	if s.auditRepo == nil {
+		return
+	}
+	var beforeAny any
+	if before != nil {
+		beforeAny = before
+	}
+	_ = s.auditRepo.LogChange(ctx, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details, beforeAny, after)
+}
+
 // documentReference benennt einen offenen Posten so, wie er im Kontoblatt des
 // neuen Jahres wiederzufinden sein muss: Belegnummer und Belegdatum.
 func documentReference(entry *domain.JournalEntry) string {
@@ -1495,13 +1519,14 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 		return fy, nil
 	}
 	previous := fy.AverageEmployees
+	before := *fy
 	fy.AverageEmployees = count
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Durchschnittliche Arbeitnehmerzahl des Geschäftsjahres %d von %d auf %d gesetzt (§ 267 Abs. 5 HGB)",
-		year, previous, count))
+		year, previous, count), &before, fy)
 	return fy, nil
 }
 

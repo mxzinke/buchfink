@@ -159,7 +159,7 @@ func (s *DeadlineService) MarkDone(ctx context.Context, key, date string) error 
 		return fmt.Errorf("zum Abhaken gehört der Termin")
 	}
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = todayLocal()
 	}
 	if s.deadlineRepo == nil {
 		return fmt.Errorf("kein aktiver Mandant")

@@ -165,6 +165,14 @@ func (s *CheckService) Run(ctx context.Context, req CheckRequest) (*domain.Check
 	if s.auditRepo != nil {
 		details := fmt.Sprintf("Prüflauf bis %s: %d Befunde (%d blockierend) über %d Buchungen, %d Belege, %d Bankumsätze",
 			run.CutoffDate, len(run.Findings), len(run.Blocking()), run.CheckedEntries, run.CheckedReceipts, run.CheckedBankTx)
+		// Die Abstände gehören in denselben Satz: sie sind die Aussage des Laufs
+		// über die zeitgerechte Erfassung, und im Protokoll gelesen wird der Satz.
+		t := run.Timeliness
+		details += fmt.Sprintf(
+			". Belegdatum bis Erfassung: Median %d Tage, längstens %d Tage, %d über der Frist von %d Tagen; "+
+				"Erfassung bis Festschreibung: Median %d Tage, längstens %d Tage (%d festgeschrieben, %d offen)",
+			t.CaptureDaysMedian, t.CaptureDaysMax, t.LateEntries, t.CaptureLimitDays,
+			t.CommitDaysMedian, t.CommitDaysMax, t.CommittedEntries, t.UncommittedEntries)
 		if run.OverrideReason != "" {
 			details += fmt.Sprintf(". Blockierende Befunde übergangen mit der Begründung: %s", run.OverrideReason)
 		}
@@ -247,6 +255,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	})
 	run.Findings = findings
 	run.EnsureLists()
+	run.Timeliness = timelinessOf(upToCutoff, captureLimit(cfg))
 
 	// Die Begründung gehört an den Lauf, der etwas zu übergehen hatte. Steht sie
 	// an einem Lauf ohne blockierende Befunde, behauptet das Protokoll ein
@@ -256,6 +265,87 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 		run.OverrideReason = strings.TrimSpace(req.OverrideReason)
 	}
 	return run, nil
+}
+
+// captureLimit ist die Erfassungsfrist in Tagen: die Einstellung, sonst die
+// zehn Tage, die GoBD Rz. 47 für unbare Geschäftsvorfälle nennt.
+func captureLimit(cfg *domain.CompanySettings) int {
+	if cfg != nil && cfg.ReceiptCaptureDays > 0 {
+		return cfg.ReceiptCaptureDays
+	}
+	return 10
+}
+
+// timelinessOf rechnet die Abstände Belegdatum → Erfassung → Festschreibung
+// über die Buchungen eines Laufs.
+//
+// Gemessen wird nur, was sich messen lässt: eine Buchung ohne Belegdatum oder
+// ohne Erfassungszeitpunkt geht nicht in den Median ein. Eine erfundene Null
+// wäre eine Aussage über eine Frist, die niemand gemessen hat — und sie zöge
+// den Median genau dorthin, wo er nichts mehr aussagt.
+func timelinessOf(entries []domain.JournalEntry, limitDays int) domain.CheckTimeliness {
+	result := domain.CheckTimeliness{CaptureLimitDays: limitDays}
+
+	capture := make([]int, 0, len(entries))
+	commit := make([]int, 0, len(entries))
+	for i := range entries {
+		e := &entries[i]
+		if days, ok := daysBetweenEntryDates(e.DocumentDate, e.CreatedAt); ok {
+			capture = append(capture, days)
+			if days > limitDays {
+				result.LateEntries++
+			}
+		}
+		if e.CommittedAt == nil {
+			result.UncommittedEntries++
+			continue
+		}
+		result.CommittedEntries++
+		if days, ok := daysBetweenTimes(e.CreatedAt, *e.CommittedAt); ok {
+			commit = append(commit, days)
+		}
+	}
+
+	result.MeasuredEntries = len(capture)
+	result.CaptureDaysMedian, result.CaptureDaysMax = medianAndMax(capture)
+	result.CommitDaysMedian, result.CommitDaysMax = medianAndMax(commit)
+	return result
+}
+
+// daysBetweenEntryDates zählt die Tage zwischen einem ISO-Belegdatum und einem
+// Zeitpunkt. Der Zeitpunkt wird in UTC auf seinen Tag gebracht, damit die Zahl
+// nicht von der Stunde abhängt, zu der gebucht wurde.
+func daysBetweenEntryDates(documentDate string, createdAt time.Time) (int, bool) {
+	if documentDate == "" || createdAt.IsZero() {
+		return 0, false
+	}
+	from, err := time.Parse("2006-01-02", documentDate)
+	if err != nil {
+		return 0, false
+	}
+	to := createdAt.UTC().Truncate(24 * time.Hour)
+	return int(to.Sub(from).Hours() / 24), true
+}
+
+func daysBetweenTimes(from, to time.Time) (int, bool) {
+	if from.IsZero() || to.IsZero() {
+		return 0, false
+	}
+	a := from.UTC().Truncate(24 * time.Hour)
+	b := to.UTC().Truncate(24 * time.Hour)
+	return int(b.Sub(a).Hours() / 24), true
+}
+
+// medianAndMax liefert Median und Maximum. Bei gerader Anzahl das untere der
+// beiden mittleren Elemente: die Kennzahl ist eine Zahl von Tagen, und ein
+// halber Tag wäre eine Genauigkeit, die die Messung nicht hergibt.
+func medianAndMax(values []int) (median, max int) {
+	if len(values) == 0 {
+		return 0, 0
+	}
+	sorted := append([]int(nil), values...)
+	sort.Ints(sorted)
+	return sorted[(len(sorted)-1)/2], sorted[len(sorted)-1]
 }
 
 // EnsureCommittable führt den Prüflauf aus und entscheidet, ob festgeschrieben

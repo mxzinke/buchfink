@@ -60,7 +60,7 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 				ID:        tenantID,
 				Name:      "Hauptmandant",
 				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().Format(time.RFC3339),
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
 			},
 		}
 		cfg.ActiveTenantID = tenantID

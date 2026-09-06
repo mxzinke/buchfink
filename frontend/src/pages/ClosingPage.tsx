@@ -11,6 +11,7 @@ import {
 import { Api } from '../services/api';
 import type { NavigateFn } from '../components/Sidebar';
 import { useWriteLock } from '../components/WriteLock';
+import { OpeningBalanceDialog } from '../components/OpeningBalanceDialog';
 import { formatCents, formatDate, formatDateTime, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -267,6 +268,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   const [closingSteps, setClosingSteps] = useState<ClosingSteps | null>(null);
   const [closingStepsError, setClosingStepsError] = useState('');
 
+  // Die Eröffnungsbilanz des Umsteigers (ARC-05). Der Baustein steht nur im
+  // ersten Geschäftsjahr und nur, solange keine Eröffnungsbuchungen da sind:
+  // eine zweite verdoppelte die Bestände. Die Regel selbst hält das Backend —
+  // eine Regel, die an der Sichtbarkeit eines Knopfes hängt, ist keine.
+  const [isFirstYear, setIsFirstYear] = useState(false);
+  const [openingBooked, setOpeningBooked] = useState(false);
+  const [openingOpen, setOpeningOpen] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -302,6 +311,30 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         // Ansicht wegen einer Teilfrage leeren.
         setPreview(null);
         setPreviewError(message(e));
+      }
+      try {
+        // Ob dieses Jahr das erste ist, sagt die Liste der Geschäftsjahre. Die
+        // Buchungen werden nur in diesem Fall geholt — sonst wäre es eine
+        // Abfrage über alle Jahre für eine Frage, die sich nicht mehr stellt.
+        const years = await Api.getFiscalYears();
+        const earliest = years.reduce(
+          (min, entry) => (min === 0 || entry.year < min ? entry.year : min),
+          0,
+        );
+        const first = earliest === year;
+        setIsFirstYear(first);
+        setOpeningBooked(
+          first
+            ? (await Api.getAllJournalEntries()).some(
+                (entry) => entry.fiscalYear === year && entry.source === 'opening',
+              )
+            : false,
+        );
+      } catch {
+        // Ohne Antwort bleibt der Baustein aus: ihn anzubieten, ohne zu wissen,
+        // ob schon Eröffnungsbuchungen stehen, führte zu doppelten Beständen.
+        setIsFirstYear(false);
+        setOpeningBooked(false);
       }
     } catch (e) {
       setState(null);
@@ -602,6 +635,57 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           />
         </StatRow>
       </div>
+
+      {/* Der Umsteiger: im ersten Geschäftsjahr fehlen die Anfangsbestände,
+          weil es kein Vorjahr gibt, aus dem vorgetragen werden könnte. Sie
+          kommen aus der Schlussbilanz des Altsystems (ARC-05). Nach der
+          Buchung verschwindet der Baustein — eine zweite Eröffnungsbilanz
+          verdoppelte die Bestände. */}
+      {isFirstYear && (
+        <Section
+          title="Eröffnungsbilanz des Umsteigers"
+          context={
+            openingBooked
+              ? 'Die Anfangsbestände sind übernommen'
+              : 'Anfangsbestände aus dem Altsystem übernehmen'
+          }
+          action={
+            <div className="flex items-center gap-3">
+              <HelpPopover label="Erklärung zur Eröffnungsbilanz">
+                Wer die Buchführung aus einem anderen Programm übernimmt, braucht die
+                Anfangsbestände: Sachkonten gegen das Saldenvortragskonto 9000, jede offene
+                Forderung und Verbindlichkeit einzeln gegen 9008 und 9009. Als Beleg dient die
+                Schlussbilanz des Altsystems; sie ist zuvor als Beleg abzulegen (§ 146 Abs. 1 AO).
+                Die Herkunftskennung jeder Position bleibt an der Buchung stehen.
+              </HelpPopover>
+              <Button
+                variant="secondary"
+                disabled={writeLock.locked || openingBooked}
+                title={
+                  writeLock.hint ??
+                  (openingBooked
+                    ? 'Die Eröffnungsbilanz ist gebucht. Eine Korrektur läuft über den Storno der vorhandenen Buchungen.'
+                    : undefined)
+                }
+                onClick={() => setOpeningOpen(true)}
+              >
+                Eröffnungsbilanz erfassen
+              </Button>
+            </div>
+          }
+        >
+          {openingBooked ? (
+            <p className="text-body text-ink-muted">
+              Die Anfangsbestände stehen im Journal als Buchungen der Herkunft „Eröffnungsbilanz".
+            </p>
+          ) : (
+            <EmptyState
+              title="Noch keine Anfangsbestände übernommen"
+              description="Ohne sie beginnt das erste Geschäftsjahr bei null — die Bilanz zeigte dann weder Bank noch Forderungen aus der Zeit davor."
+            />
+          )}
+        </Section>
+      )}
 
       <Section
         title="Schritte"
@@ -1212,6 +1296,23 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         }
         confirmLabel={carryLabel}
         onConfirm={() => void runCarryForward()}
+      />
+
+      <OpeningBalanceDialog
+        open={openingOpen}
+        fiscalYear={year}
+        startDate={fy.startDate}
+        onOpenChange={setOpeningOpen}
+        onNavigate={onNavigate}
+        onBooked={async (result) => {
+          setOpeningOpen(false);
+          await load();
+          toast.success(
+            `Eröffnungsbilanz gebucht: ${result.entries.length} Buchungen über ${formatCents(
+              result.debitTotal,
+            )}.`,
+          );
+        }}
       />
     </div>
   );

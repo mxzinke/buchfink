@@ -175,12 +175,44 @@ export function formatDate(dateStr: string): string {
  * wie ein Datum am „T" abgeschnitten werden: nach 22 bzw. 23 Uhr Ortszeit steht
  * dort bereits der Folgetag, und die Ansicht zeigte einen Tag, an dem niemand
  * gearbeitet hat.
+ *
+ * Die Zeitzone steht dabei, weil sie den Unterschied trägt: dieselbe Buchung
+ * zeigt auf einem Rechner in Berlin eine andere Uhrzeit als auf einem in
+ * London, und ein Protokollzeitpunkt ohne Zone lässt sich mit dem Zeitstempel
+ * einer Festschreibung oder eines Bankauszugs nicht vergleichen (QUE-04).
+ * Datumsfelder bleiben ohne — ein Belegdatum ist ein Tag, kein Zeitpunkt.
  */
 export function formatDateTime(iso: string): string {
   if (!iso) return '—';
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
-  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
+  return new Intl.DateTimeFormat('de-DE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZoneName: 'short',
+  }).format(parsed);
+}
+
+/**
+ * Der Tag eines Zeitstempels, in der Zeitzone des Rechners.
+ *
+ * Für Kennzahlen und Tabellenzellen, in denen die Uhrzeit nichts beiträgt —
+ * „Zuletzt geprüft", „Gesetzt am". `formatDate` darf dafür nicht genommen
+ * werden: es schneidet am „T" ab und zeigt damit den UTC-Tag, und nach 22 bzw.
+ * 23 Uhr Ortszeit ist das ein anderer Tag als der, an dem gearbeitet wurde —
+ * und ein anderer als der, den `formatDateTime` daneben nennt.
+ */
+export function formatDateOfTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  // Zweistellig wie formatDate: nebeneinander sollen 06.09. und 6.9. nicht
+  // wie zwei verschiedene Schreibweisen aussehen.
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
 }
 
 /** Zeigt einen Leistungszeitraum an; bei Zeitpunktleistung nur ein Datum. */

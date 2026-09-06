@@ -26,6 +26,7 @@ import type {
   Receipt,
   ReceiptFileInput,
   ReceiptFileRole,
+  ReceiptHeader,
   ReceiptKind,
   ReceiptRequest,
   Settlement,
@@ -37,6 +38,7 @@ import type {
 } from '../types';
 import {
   LIMIT_GIFT_PER_RECIPIENT,
+  RETENTION_CLASS_LABELS,
   TAX_RATE_NONE,
   TAX_RATE_REDUCED,
   TAX_RATE_STANDARD,
@@ -47,6 +49,7 @@ import {
   formatCents,
   formatDate,
   formatDateTime,
+  formatCentsPlain,
   formatExchangeRate,
   formatPermille,
   parseCents,
@@ -61,6 +64,7 @@ import {
   Field,
   HelpPopover,
   Input,
+  Notice,
   PageHeader,
   Section,
   Select,
@@ -104,6 +108,7 @@ const KIND_LABELS: Record<ReceiptKind, string> = {
   invoice: 'Rechnung',
   statement: 'Kontoauszug',
   self_issued: 'Eigenbeleg',
+  letter: 'Handelsbrief',
   other: 'Sonstiger Beleg',
 };
 
@@ -112,16 +117,67 @@ function kindOf(receipt: Receipt): ReceiptKind {
   return receipt.kind ?? 'invoice';
 }
 
+/** Die Belegarten zur Auswahl, in der Reihenfolge von KIND_LABELS. */
+const KIND_ITEMS = (Object.keys(KIND_LABELS) as ReceiptKind[]).map((value) => ({
+  value,
+  label: KIND_LABELS[value],
+}));
+
 /**
- * Ob dieser Beleg noch zu buchen ist.
+ * Ob der Beleg seine Kopfdaten trägt (BEL-02).
  *
- * Ein Kontoauszug ist ein Beleg ohne Buchungspflicht: Er wird aufbewahrt, seine
- * Umsätze entstehen aber im Bankimport und nicht an diesem Beleg. Als „noch zu
- * buchen" gezählt bliebe nach jedem Auszug eine Aufgabe stehen, die niemand
- * erledigen kann (Entscheidung 9).
+ * Das Belegdatum ist die Weiche: das Backend hasht einen Beleg ohne es nach der
+ * alten Form, und ohne es lässt sich die zeitgerechte Erfassung nicht
+ * beurteilen (§ 146 Abs. 1 AO). Welche Felder darüber hinaus zum Buchen nötig
+ * sind, entscheidet das Backend je Belegart — nachgebaut wird die Regel hier
+ * nicht.
+ */
+function hasHeader(receipt: Receipt): boolean {
+  return Boolean(receipt.documentDate);
+}
+
+/**
+ * Der erste Tag, an dem der Beleg gelöscht werden darf.
+ *
+ * Das Backend rechnet die Frist und speichert ihren letzten Tag am Beleg; hier
+ * wird nur der Folgetag gebildet, damit die Ansicht „aufzubewahren bis" und
+ * „löschbar ab" nicht verwechselt. Ein aktiver Hold auf dem Geschäftsjahr hebt
+ * das Datum auf — er steht auf der Seite „Nachweise", weil er das ganze Jahr
+ * betrifft und nicht diesen einen Beleg.
+ */
+function earliestDeletion(retentionUntil: string | undefined): string {
+  if (!retentionUntil) return '';
+  const parsed = new Date(`${retentionUntil}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
+}
+
+/**
+ * Ob eine Belegart überhaupt gebucht wird — die Spiegelung von
+ * `domain.ReceiptKind.RequiresBooking`.
+ *
+ * Zwei Arten tragen keine Buchung. Der Kontoauszug belegt die Umsätze, die im
+ * Bankimport aus derselben Datei entstehen (Entscheidung 9). Der Handelsbrief
+ * belegt eine Abrede und keinen Geschäftsvorfall — aus einem Angebot, einer
+ * Bestellung, einer Kündigung folgt kein Buchungssatz. Beide als „noch zu
+ * buchen" zu zählen ließe eine Aufgabe stehen, die sich nur durch eine fachlich
+ * falsche Buchung erledigen ließe; der Prüflauf meldet sie folgerichtig nicht.
+ *
+ * Die Regel steht als eigene Funktion, weil Liste und Detailansicht sie beide
+ * brauchen und zwei Kopien auseinanderliefen — genau das war der Fall, als die
+ * Liste den Handelsbrief als offen führte und der Prüflauf nicht.
+ */
+function requiresBooking(kind: ReceiptKind): boolean {
+  return kind !== 'statement' && kind !== 'letter';
+}
+
+/**
+ * Ob dieser Beleg noch zu buchen ist: abgelegt und von einer Art, die gebucht
+ * wird.
  */
 function needsBooking(receipt: Receipt): boolean {
-  return receipt.status === 'filed' && kindOf(receipt) !== 'statement';
+  return receipt.status === 'filed' && requiresBooking(kindOf(receipt));
 }
 
 /** Welche Belege die Liste zeigt. */
@@ -221,13 +277,19 @@ export const ReceiptsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filing, setFiling] = useState(false);
   const [filter, setFilter] = useState<ReceiptFilter>('all');
+  // Der Beleg, dessen Kopfdaten gerade erfasst werden. Der Dialog folgt dem
+  // Ablegen und lässt sich am offenen Beleg erneut öffnen (BEL-02).
+  const [headerFor, setHeaderFor] = useState<Receipt | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [list, contactList, groupList, treatmentList, accounts] = await Promise.all([
         Api.getReceipts(''),
-        Api.getContacts(),
+        // Die auswählbaren und nicht alle Kontakte: ein nach einem
+        // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+        // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+        Api.getSelectableContacts(),
         Api.getPostingGroups('incoming'),
         Api.getTaxTreatments('incoming'),
         Api.getPaymentAccounts(),
@@ -299,6 +361,10 @@ export const ReceiptsPage: React.FC = () => {
       toast.success(`Beleg ${receipt.receiptNumber} abgelegt.`);
       await load();
       setSelected(receipt);
+      // Die Kopfdaten unmittelbar danach: bei einer E-Rechnung stehen sie
+      // schon im Dialog und sind nur zu bestätigen, sonst liegt der Beleg
+      // gerade vor. Wer sie später erfassen will, schließt den Dialog.
+      setHeaderFor(receipt);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -395,6 +461,7 @@ export const ReceiptsPage: React.FC = () => {
               setSelected(updated);
               await load();
             }}
+            onEditHeader={() => setHeaderFor(selected)}
             onBooked={async (entryNumber) => {
               toast.success(`Beleg gebucht als ${entryNumber}.`);
               setSelected(null);
@@ -409,7 +476,211 @@ export const ReceiptsPage: React.FC = () => {
           />
         )}
       </div>
+
+      <ReceiptHeaderDialog
+        receipt={headerFor}
+        onClose={() => setHeaderFor(null)}
+        onSaved={async (updated) => {
+          setHeaderFor(null);
+          setSelected(updated);
+          await load();
+        }}
+      />
     </div>
+  );
+};
+
+// -------------------------------------------------------------------------
+
+/**
+ * Die Kopfdaten eines Belegs (BEL-02).
+ *
+ * Sie werden beim Ablegen abgefragt und nicht erst beim Buchen: Belegdatum,
+ * Aussteller und Betrag stehen auf dem Papier, das gerade in der Hand liegt,
+ * und wer sie erst Wochen später sucht, sucht sie zweimal. Freiwillig bleiben
+ * sie trotzdem — ein Beleg muss sich sofort ablegen lassen (GoBD Rz. 47);
+ * Pflicht werden sie beim Buchen, und das prüft das Backend.
+ *
+ * Bei einer E-Rechnung sind die Felder schon belegt: sie kommen aus dem
+ * strukturierten Teil und werden hier nur bestätigt.
+ */
+const ReceiptHeaderDialog: React.FC<{
+  receipt: Receipt | null;
+  onClose: () => void;
+  onSaved: (updated: Receipt) => Promise<void>;
+}> = ({ receipt, onClose, onSaved }) => {
+  const [kind, setKind] = useState<ReceiptKind>('invoice');
+  const [documentDate, setDocumentDate] = useState('');
+  const [issuerName, setIssuerName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [gross, setGross] = useState('');
+  const [tax, setTax] = useState('');
+  const [currency, setCurrency] = useState('EUR');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!receipt) return;
+    setKind(kindOf(receipt));
+    setDocumentDate(receipt.documentDate ?? '');
+    setIssuerName(receipt.issuerName ?? '');
+    setSubject(receipt.subject ?? '');
+    setGross(receipt.grossAmount ? formatCentsPlain(receipt.grossAmount) : '');
+    setTax(receipt.taxAmount ? formatCentsPlain(receipt.taxAmount) : '');
+    setCurrency(receipt.currency || 'EUR');
+    setError(null);
+  }, [receipt]);
+
+  // Ein Betrag, den parseCents nicht lesen kann, darf nicht als 0 durchgehen:
+  // 0 € ist an einem Eigenbeleg eine Aussage und keine leere Eingabe.
+  const unreadable = (value: string) => value.trim() !== '' && parseCents(value) === null;
+  const amountsUnreadable = unreadable(gross) || unreadable(tax);
+
+  // Was die jeweilige Belegart zum Buchen braucht. Der Satz steht am Feld und
+  // nicht erst in der Fehlermeldung des Buchungsformulars.
+  const needsIssuer = kind === 'invoice';
+  const needsSubject = kind === 'self_issued' || kind === 'letter' || kind === 'other';
+  const needsAmount = kind === 'invoice' || kind === 'self_issued';
+  // Kontoauszug und Handelsbrief werden nicht gebucht (requiresBooking). „Zum
+  // Buchen nötig" verspräche ihnen einen Schritt, den es für sie nicht gibt;
+  // Pflicht bleiben die Angaben trotzdem: der Betreff ist bei einem
+  // Handelsbrief das Einzige, woran sich später sagen lässt, was das Schreiben
+  // belegt, und das Belegdatum bestimmt bei jeder Belegart das Jahr, mit dem
+  // die Aufbewahrungsfrist beginnt.
+  const bookable = requiresBooking(kind);
+  const subjectHint = bookable ? 'zum Buchen nötig' : 'Pflichtangabe';
+  const dateHint = bookable ? 'zum Buchen nötig' : 'Pflichtangabe';
+
+  async function save() {
+    if (!receipt) return;
+    if (amountsUnreadable) {
+      setError('Der Betrag ist nicht lesbar. Erwartet wird eine Zahl wie 1234,56.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const header: ReceiptHeader = {
+        kind,
+        documentDate,
+        issuerName: issuerName.trim(),
+        grossAmount: parseCents(gross) ?? 0,
+        taxAmount: parseCents(tax) ?? 0,
+        currency: currency.trim() || 'EUR',
+        subject: subject.trim(),
+        // Klasse und Fristende rechnet das Backend aus Belegart und
+        // Belegdatum. Sie hier zu füllen hieße, die Fristentabelle des
+        // § 257 HGB ein zweites Mal zu führen.
+        retentionClass: '',
+        retentionUntil: '',
+      };
+      await onSaved(await Api.saveReceiptHeader(receipt.id, header));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={receipt !== null}
+      onOpenChange={(open) => !open && onClose()}
+      title={`Kopfdaten zu Beleg ${receipt?.receiptNumber ?? ''}`}
+      width="max-w-2xl"
+      footer={
+        <>
+          {/* „Später" und nicht „Abbrechen": der Beleg ist bereits abgelegt,
+              hier wird nichts zurückgenommen. */}
+          <Button variant="secondary" onClick={onClose}>
+            Später erfassen
+          </Button>
+          <Button variant="primary" loading={busy} onClick={() => void save()}>
+            Kopfdaten speichern
+          </Button>
+        </>
+      }
+    >
+      {/* Der Fehler des Backends steht über den Feldern und nicht als Toast:
+          er nennt eine Eingabe, die zu ändern ist (§11.4). */}
+      {error && <Notice tone="negative" text={error} className="mb-4" />}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field
+          label="Belegart"
+          help="Aus ihr folgt die Aufbewahrungsfrist: Rechnungen und Buchungsbelege acht Jahre, Handelsbriefe sechs, Bücher und Abschlüsse zehn (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO)."
+        >
+          <Select<ReceiptKind>
+            items={KIND_ITEMS}
+            value={kind}
+            onValueChange={(next) => setKind(next)}
+            aria-label="Belegart"
+          />
+        </Field>
+        <Field
+          label="Belegdatum"
+          hint={dateHint}
+          help="Das Datum auf dem Beleg, nicht der Tag des Eingangs. An ihm hängen die zeitgerechte Erfassung (§ 146 Abs. 1 AO) und der Beginn der Aufbewahrungsfrist."
+        >
+          <Input
+            type="date"
+            value={documentDate}
+            onChange={(e) => setDocumentDate(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Aussteller"
+          optional={!needsIssuer}
+          hint={needsIssuer ? 'zum Buchen nötig' : undefined}
+          help="Der vollständige Name des leistenden Unternehmers ist Pflichtangabe einer Rechnung (§ 14 Abs. 4 Nr. 1 UStG)."
+        >
+          <Input value={issuerName} onChange={(e) => setIssuerName(e.target.value)} />
+        </Field>
+        <Field
+          label="Betreff"
+          optional={!needsSubject}
+          hint={needsSubject ? subjectHint : undefined}
+          help="Bei Eigenbelegen, Handelsbriefen und sonstigen Dokumenten die einzige Bezeichnung dessen, was der Beleg belegt."
+        >
+          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+        </Field>
+        <Field
+          label="Bruttobetrag"
+          optional={!needsAmount}
+          hint={needsAmount ? 'zum Buchen nötig' : undefined}
+          error={unreadable(gross) ? 'Nicht lesbar — erwartet wird 1234,56' : undefined}
+        >
+          <Input
+            className="num text-right"
+            inputMode="decimal"
+            value={gross}
+            onChange={(e) => setGross(e.target.value)}
+            placeholder="0,00"
+          />
+        </Field>
+        <Field
+          label="Steuerbetrag"
+          optional
+          error={unreadable(tax) ? 'Nicht lesbar — erwartet wird 1234,56' : undefined}
+        >
+          <Input
+            className="num text-right"
+            inputMode="decimal"
+            value={tax}
+            onChange={(e) => setTax(e.target.value)}
+            placeholder="0,00"
+          />
+        </Field>
+        <Field label="Währung" optional>
+          <Input
+            className="code-num"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+            placeholder="EUR"
+          />
+        </Field>
+      </div>
+    </Dialog>
   );
 };
 
@@ -470,8 +741,11 @@ const ReceiptList: React.FC<{
                 <span className="code-num text-caption text-ink">{receipt.receiptNumber}</span>
                 <StatusBadge status={STATUS[receipt.status]} />
               </span>
+              {/* Aussteller und Betrag stehen vor dem Dateinamen: wer einen
+                  Beleg sucht, sucht die Rechnung von jemandem über etwas und
+                  nicht „scan_0042.pdf". Ohne Kopfdaten bleibt der Dateiname. */}
               <span className="block text-caption text-ink-muted truncate mt-1">
-                {original?.fileName ?? '—'}
+                {receipt.issuerName || receipt.subject || original?.fileName || '—'}
               </span>
               {/* Die Belegart nur, wenn sie nicht der Regelfall ist: an jeder
                   Rechnung „Rechnung" zu schreiben, sagt nichts (§3.4). */}
@@ -481,9 +755,18 @@ const ReceiptList: React.FC<{
                 </span>
               )}
               <span className="flex items-center gap-2 text-caption text-ink-subtle mt-0.5">
+                {/* Das Belegdatum, solange es da ist: es ist die Ordnung, in
+                    der ein Beleg gesucht wird. Sonst der Eingangstag. */}
                 <span className="num">
-                  {receipt.receivedAt ? formatDate(receipt.receivedAt) : '—'}
+                  {receipt.documentDate
+                    ? formatDate(receipt.documentDate)
+                    : receipt.receivedAt
+                      ? formatDate(receipt.receivedAt)
+                      : '—'}
                 </span>
+                {Boolean(receipt.grossAmount) && (
+                  <span className="num">{formatCents(receipt.grossAmount ?? 0)}</span>
+                )}
                 {receipt.files.length > 1 && (
                   <span className="inline-flex items-center gap-1">
                     <Paperclip className="w-3 h-3" strokeWidth={1.5} />
@@ -511,6 +794,8 @@ const ReceiptDetail: React.FC<{
   paymentAccounts: Account[];
   onChanged: (updated: Receipt) => Promise<void>;
   onBooked: (entryNumber: string) => Promise<void>;
+  /** Öffnet den Dialog der Kopfdaten für diesen Beleg. */
+  onEditHeader: () => void;
   proposal: EInvoiceProposal | null;
   proposalError: string | null;
 }> = ({
@@ -524,23 +809,41 @@ const ReceiptDetail: React.FC<{
   proposalError,
   onChanged,
   onBooked,
+  onEditHeader,
 }) => (
   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-    <ReceiptViewer receipt={receipt} onChanged={onChanged} />
+    <ReceiptViewer receipt={receipt} onChanged={onChanged} onEditHeader={onEditHeader} />
 
-    {receipt.status === 'filed' && kindOf(receipt) === 'statement' ? (
-      // Ein Kontoauszug wird aufbewahrt, nicht gebucht: die Umsätze entstehen
-      // im Bankimport aus derselben Datei (Entscheidung 9). Ein Buchungsformular
-      // hier führte zu einer zweiten, doppelten Buchung.
+    {receipt.status === 'filed' && !requiresBooking(kindOf(receipt)) ? (
+      // Kontoauszug und Handelsbrief werden aufbewahrt, nicht gebucht: die
+      // Umsätze des Auszugs entstehen im Bankimport aus derselben Datei
+      // (Entscheidung 9), und der Handelsbrief belegt eine Abrede und keinen
+      // Geschäftsvorfall. Ein Buchungsformular hier führte im einen Fall zu
+      // einer zweiten, doppelten Buchung und im anderen zu einer erfundenen.
       <div>
-        <h2 className="text-heading text-ink">Kontoauszug</h2>
+        <h2 className="text-heading text-ink">{KIND_LABELS[kindOf(receipt)]}</h2>
         <p className="text-body text-ink-muted mt-2">
-          Dieser Beleg ist ein Kontoauszug und wird nicht gebucht. Seine Umsätze sind über den
-          Bankimport eingelesen und werden dort zugeordnet und gebucht.
+          {kindOf(receipt) === 'statement'
+            ? 'Dieser Beleg ist ein Kontoauszug und wird nicht gebucht. Seine Umsätze sind über den Bankimport eingelesen und werden dort zugeordnet und gebucht.'
+            : 'Dieser Beleg ist ein Handelsbrief und wird nicht gebucht: Er belegt eine Abrede, keinen Geschäftsvorfall. Aufzubewahren ist er trotzdem — sechs Jahre nach § 257 Abs. 4 HGB, § 147 Abs. 3 AO.'}
         </p>
       </div>
     ) : receipt.status === 'filed' ? (
       <div>
+        {/* Ohne Kopfdaten weist das Backend die Buchung zurück (BEL-02). Der
+            Hinweis steht über dem Formular und nicht in der Fehlermeldung nach
+            dem Ausfüllen: sonst ist die Arbeit schon getan. */}
+        {!hasHeader(receipt) && (
+          <Notice
+            className="mb-5"
+            text="Zu diesem Beleg fehlen die Kopfdaten. Ohne Belegdatum und die Angaben seiner Belegart lässt er sich nicht buchen."
+            action={
+              <Button variant="secondary" size="sm" onClick={onEditHeader}>
+                Kopfdaten erfassen
+              </Button>
+            }
+          />
+        )}
         <ProposalRefusal message={proposalError} />
         <BookingForm
           key={proposal ? `proposal-${receipt.id}` : `blank-${receipt.id}`}
@@ -590,10 +893,68 @@ const ReceiptDetail: React.FC<{
 
 // -------------------------------------------------------------------------
 
+/**
+ * Die Kopfdaten und die Aufbewahrungsfrist am Beleg (BEL-02, ARC-01).
+ *
+ * Eine Auskunftszeile und kein Formular: geändert werden die Werte im Dialog.
+ * Die Frist steht dabei, weil sie an diesem Beleg hängt und nirgends sonst zu
+ * finden wäre — ein Prüfer fragt sie am einzelnen Beleg, nicht in einer
+ * Jahresübersicht.
+ */
+const ReceiptHeaderFacts: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
+  const deletable = earliestDeletion(receipt.retentionUntil);
+  const facts: { label: string; value: string; code?: boolean }[] = [
+    { label: 'Belegart', value: KIND_LABELS[kindOf(receipt)] },
+    {
+      label: 'Belegdatum',
+      value: receipt.documentDate ? formatDate(receipt.documentDate) : 'nicht erfasst',
+      code: true,
+    },
+    { label: 'Aussteller', value: receipt.issuerName || '—' },
+    ...(receipt.subject ? [{ label: 'Betreff', value: receipt.subject }] : []),
+    ...(receipt.grossAmount
+      ? [
+          {
+            label: 'Betrag',
+            value: `${formatCents(receipt.grossAmount)}${
+              receipt.taxAmount ? ` · davon ${formatCents(receipt.taxAmount)} Steuer` : ''
+            }`,
+            code: true,
+          },
+        ]
+      : []),
+    {
+      label: 'Aufbewahrung',
+      value: receipt.retentionUntil
+        ? `${RETENTION_CLASS_LABELS[receipt.retentionClass ?? '']} · bis ${formatDate(
+            receipt.retentionUntil,
+          )}`
+        : 'ohne Belegdatum nicht bestimmt',
+    },
+    ...(deletable ? [{ label: 'Löschbar ab', value: formatDate(deletable), code: true }] : []),
+  ];
+
+  return (
+    <dl className="mt-3 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-4 gap-y-1">
+      {facts.map((fact) => (
+        <React.Fragment key={fact.label}>
+          <dt className="text-caption text-ink-subtle">{fact.label}</dt>
+          <dd className={cn('text-caption text-ink-muted min-w-0 break-words', fact.code && 'num')}>
+            {fact.value}
+          </dd>
+        </React.Fragment>
+      ))}
+    </dl>
+  );
+};
+
+// -------------------------------------------------------------------------
+
 const ReceiptViewer: React.FC<{
   receipt: Receipt;
   onChanged: (updated: Receipt) => Promise<void>;
-}> = ({ receipt, onChanged }) => {
+  onEditHeader: () => void;
+}> = ({ receipt, onChanged, onEditHeader }) => {
   const writeLock = useWriteLock();
   const [preview, setPreview] = useState<{ dataUrl: string; mimeType: string; intact: boolean } | null>(
     null,
@@ -715,17 +1076,30 @@ const ReceiptViewer: React.FC<{
           </p>
         </div>
         {open && (
-          <Button
-            variant="quiet"
-            size="sm"
-            disabled={busy || writeLock.locked}
-            title={writeLock.hint}
-            onClick={() => setDiscarding(true)}
-          >
-            Verwerfen
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={busy || writeLock.locked}
+              title={writeLock.hint}
+              onClick={onEditHeader}
+            >
+              Kopfdaten
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={busy || writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setDiscarding(true)}
+            >
+              Verwerfen
+            </Button>
+          </div>
         )}
       </div>
+
+      <ReceiptHeaderFacts receipt={receipt} />
 
       {/* Der Beleg ist ein Fremdkörper in der Oberfläche und bekommt deshalb
           eine eigene Fläche (§6.2, Fall 3). */}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -521,7 +520,7 @@ func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
 	}
 
 	years := map[int]bool{
-		domain.GetFiscalYearForDate(time.Now().Format("2006-01-02"), startMonth): true,
+		domain.GetFiscalYearForDate(todayLocal(), startMonth): true,
 	}
 	if s.fiscalYear > 0 {
 		years[s.fiscalYear] = true

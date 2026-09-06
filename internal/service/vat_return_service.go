@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -139,7 +139,7 @@ func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodSt
 	if s.festschreibungRepo != nil {
 		cutoff, _ = s.festschreibungRepo.LatestCutoff(ctx, year)
 	}
-	today := time.Now().Format("2006-01-02")
+	today := todayLocal()
 
 	out := make([]VatPeriodStatus, 0, len(periods))
 	for _, p := range periods {
@@ -240,8 +240,9 @@ func (s *VatReturnService) Save(ctx context.Context, periodKey string) (*domain.
 		return nil, fmt.Errorf("die Voranmeldung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
-		"Umsatzsteuer-Voranmeldung %s als Entwurf gespeichert (Zahllast %s €)", fresh.PeriodKey, fresh.Payable))
+	s.auditChange(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
+		"Umsatzsteuer-Voranmeldung %s als Entwurf gespeichert (Zahllast %s €)", fresh.PeriodKey, fresh.Payable),
+		existing, fresh)
 	return fresh, nil
 }
 
@@ -433,10 +434,17 @@ func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, 
 		return nil, err
 	}
 
+	// Der Stand vor der Bestätigung wird festgehalten, bevor er überschrieben
+	// wird: das Protokoll soll den Wechsel Entwurf → übermittelt zeigen.
+	before := *rec
+
 	rec.Status = domain.VatReturnSubmitted
 	rec.SubmittedAt = date
 	rec.TransferTicket = strings.TrimSpace(ticket)
 	rec.SubmissionNote = note
+	// Die Bestätigung ist der Vorgang, an dem die Bearbeiterkennung hängt: sie
+	// ist die Erklärung gegenüber dem Finanzamt (UNV-04).
+	rec.Actor = actor.Actor()
 	if err := s.returnRepo.Update(ctx, rec); err != nil {
 		return nil, fmt.Errorf("die Bestätigung konnte nicht gespeichert werden: %w", err)
 	}
@@ -446,9 +454,9 @@ func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, 
 	// daneben gibt nur aus. Stünden beide unter EXPORT, wären sie im Protokoll
 	// nur am Text zu unterscheiden — und wer nach dem Weg einer Anmeldung sucht,
 	// filtert nach der Aktion.
-	s.audit(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
+	s.auditChange(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
 		"Umsatzsteuer-Voranmeldung %s am %s übermittelt (Transferticket %s, Zahllast %s €)",
-		rec.PeriodKey, date, rec.TransferTicket, rec.Payable))
+		rec.PeriodKey, date, rec.TransferTicket, rec.Payable), &before, rec)
 	return rec, nil
 }
 
@@ -488,9 +496,12 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 		return nil, fmt.Errorf("die Berichtigung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+	// Vorher ist die berichtigte Anmeldung: die Berichtigung ersetzt sie
+	// vollständig, und was sich zwischen beiden unterscheidet, ist der Inhalt
+	// der Berichtigung.
+	s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 		"Berichtigte Voranmeldung %s angelegt (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
-		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable))
+		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable), submitted, fresh)
 	return fresh, nil
 }
 
@@ -582,6 +593,7 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	ret := accounting.BuildVatReturn(period, source)
 	ret.DueDate = accounting.VatDueDate(period, cfg.PermanentExtension)
 	ret.ProgramVersion = ProgramVersion()
+	ret.Actor = actor.Actor()
 	return ret, nil
 }
 
@@ -840,4 +852,28 @@ func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction,
 		return
 	}
 	_ = s.auditRepo.Log(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details)
+}
+
+// auditChange protokolliert eine Voranmeldung mit ihrem Stand davor und danach.
+//
+// Die Voranmeldung ist eine Erklärung gegenüber dem Finanzamt, und was sich an
+// ihr zwischen zwei Ständen geändert hat — eine andere Zahllast, ein Wechsel
+// von Entwurf auf übermittelt —, ist genau die Frage, die ein Prüfer stellt
+// (GoBD Rz. 34). Der Freitext daneben bleibt, weil er den Vorgang benennt; das
+// Vorher/Nachher sagt, woran er sich zeigt. before darf nil sein: dann ist die
+// Anmeldung neu.
+func (s *VatReturnService) auditChange(
+	ctx context.Context, action domain.AuditAction, id uint, details string, before, after *domain.VatReturn,
+) {
+	if s.auditRepo == nil {
+		return
+	}
+	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil — das Vorher
+	// eines neuen Datensatzes muss deshalb ausdrücklich als nil übergeben
+	// werden, sonst stünde im Protokoll das leere Objekt als „vorher".
+	var beforeAny any
+	if before != nil {
+		beforeAny = before
+	}
+	_ = s.auditRepo.LogChange(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details, beforeAny, after)
 }

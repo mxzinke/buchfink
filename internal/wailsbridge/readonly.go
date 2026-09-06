@@ -198,6 +198,25 @@ var readOnlyAllowed = map[string]bool{
 	"GenerateInvoiceZUGFeRD":       true,
 	"SaveReceiptFileAs":            true,
 
+	// Die Nachweise der Welle 6. Sie lesen: Protokoll, Fristen, Historie,
+	// Migrationen und die Altersstruktur. Gerade im Prüfermodus sind sie das,
+	// wonach gefragt wird.
+	"GetAuditLogsFiltered":       true,
+	"GetChangeLog":               true,
+	"GetComplianceHints":         true,
+	"GetCorrectionOf":            true,
+	"GetExpiredObjects":          true,
+	"GetMigrationRecords":        true,
+	"GetOpenItemsAging":          true,
+	"GetOrganisationTexts":       true,
+	"GetProcedureDocumentations": true,
+	"GetRetentionHolds":          true,
+	"GetRetentionOverview":       true,
+	"GetSchemaMigrations":        true,
+	"GetSelectableContacts":      true,
+	"PreviewOpeningBalance":      true,
+	"VerifyAuditChain":           true,
+
 	// Prüfen
 	"VerifyBackup":         true,
 	"VerifyFestschreibung": true,
@@ -306,6 +325,8 @@ func (b *BuchfinkBridge) EnableReadOnly(until, reason string) (domain.AppConfig,
 	if tenant == nil {
 		return b.appConfig, fmt.Errorf("kein aktiver Mandant gefunden")
 	}
+	previousUntil, previousReason := tenant.ReadOnlyUntil, tenant.ReadOnlyReason
+
 	tenant.ReadOnlyUntil = until
 	tenant.ReadOnlyReason = reason
 	b.appConfig.SyncActiveTenant(time.Now().Format("2006-01-02"))
@@ -314,8 +335,14 @@ func (b *BuchfinkBridge) EnableReadOnly(until, reason string) (domain.AppConfig,
 	}
 
 	if b.auditRepo != nil {
-		_ = b.auditRepo.Log(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
-			fmt.Sprintf("Prüfermodus eingeschaltet bis %s. Grund: %s", until, reason))
+		// Vorher/Nachher als Feldkarte wie bei den Einstellungen: der
+		// Prüfermodus schaltet die Schreibwege des Programms ab, und wann er
+		// galt und wie lange, ist Teil des Nachweises über den Zeitraum, in
+		// dem der Prüfer gesehen hat, was er gesehen hat.
+		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
+			fmt.Sprintf("Prüfermodus eingeschaltet bis %s. Grund: %s", until, reason),
+			map[string]string{"readOnlyUntil": previousUntil, "readOnlyReason": previousReason},
+			map[string]string{"readOnlyUntil": until, "readOnlyReason": reason})
 	}
 	return b.appConfig, nil
 }
@@ -336,6 +363,7 @@ func (b *BuchfinkBridge) DisableReadOnly(reason string) (domain.AppConfig, error
 	}
 
 	was := tenant.ReadOnlyUntil
+	wasReason := tenant.ReadOnlyReason
 	tenant.ReadOnlyUntil = ""
 	tenant.ReadOnlyReason = ""
 	b.appConfig.SyncActiveTenant(time.Now().Format("2006-01-02"))
@@ -344,8 +372,10 @@ func (b *BuchfinkBridge) DisableReadOnly(reason string) (domain.AppConfig, error
 	}
 
 	if b.auditRepo != nil {
-		_ = b.auditRepo.Log(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
-			fmt.Sprintf("Prüfermodus beendet (war bis %s). Grund: %s", was, reason))
+		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, "READ_ONLY", tenant.ID,
+			fmt.Sprintf("Prüfermodus beendet (war bis %s). Grund: %s", was, reason),
+			map[string]string{"readOnlyUntil": was, "readOnlyReason": wasReason},
+			map[string]string{"readOnlyUntil": "", "readOnlyReason": ""})
 	}
 	return b.appConfig, nil
 }

@@ -3,7 +3,7 @@ import { AlertCircle, ChevronDown, ChevronRight, Clock, Lock, ShieldCheck } from
 import { AuditLogEntry, CheckRun, Festschreibung, IntegrityCheckResult } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
 import { Api } from '../services/api';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatDateTime } from '../utils/formatters';
 import {
   Button,
   EmptyState,
@@ -22,12 +22,6 @@ import {
   cn,
   toast,
 } from '../components/ui';
-
-function formatMoment(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(date);
-}
 
 export interface AuditPageProps {
   /**
@@ -148,7 +142,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                 <Stat
                   label="Zustand der Kette"
                   value={broken ? 'Verletzt' : 'Unverändert'}
-                  context={`Geprüft am ${formatMoment(integrity.checkedAt)}`}
+                  context={`Geprüft am ${formatDateTime(integrity.checkedAt)}`}
                   tone={broken ? 'negative' : 'positive'}
                 />
                 <Stat
@@ -158,6 +152,33 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                     integrity.fiscalYears.length > 0
                       ? `Geschäftsjahre ${integrity.fiscalYears.join(', ')}`
                       : 'Hash-Kette vollständig durchlaufen'
+                  }
+                />
+                {/* Die Protokollkette hängt am selben Prüflauf: eine
+                    Journalkette, die hält, während sich Protokolleinträge
+                    entfernen ließen, beantwortet die Frage nur halb (UNV-03).
+                    Fehlt das Ergebnis, steht hier ein Strich statt einer
+                    Behauptung. */}
+                <Stat
+                  label="Änderungsprotokoll"
+                  value={
+                    integrity.auditChain
+                      ? integrity.auditChain.isValid
+                        ? 'Unverändert'
+                        : 'Verletzt'
+                      : '—'
+                  }
+                  context={
+                    integrity.auditChain
+                      ? `${integrity.auditChain.checkedEntries} Einträge nachgerechnet`
+                      : 'nicht mitgeprüft'
+                  }
+                  tone={
+                    integrity.auditChain
+                      ? integrity.auditChain.isValid
+                        ? 'positive'
+                        : 'negative'
+                      : 'neutral'
                   }
                 />
                 <Stat
@@ -268,9 +289,16 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                           <span className="flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
                             {confirmed
-                              ? `${formatMoment(fs.tsaGenTime!)} · ${fs.tsaName}`
+                              ? `${formatDateTime(fs.tsaGenTime!)} · ${fs.tsaName}`
                               : 'Ausstehend, wird nachgeholt'}
                           </span>
+                          {/* Die beglaubigte Zeit steht hier, um mit der
+                              Systemzeit verglichen zu werden (Entscheidung 8).
+                              Wich sie beim Festschreiben ab, ist das der
+                              einzige Ort, an dem der Befund später auffällt. */}
+                          {fs.timeDriftNote && (
+                            <span className="mt-1 flex text-attention-text">{fs.timeDriftNote}</span>
+                          )}
                         </Td>
                         <Td className="pl-0">
                           <Button
@@ -343,7 +371,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                               ) : (
                                 <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
                               )}
-                              {formatMoment(run.createdAt)}
+                              {formatDateTime(run.createdAt)}
                             </button>
                           </Td>
                           <Td className="text-ink-subtle num">{formatDate(run.cutoffDate)}</Td>
@@ -391,7 +419,21 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
             )}
           </Section>
 
-          <Section title="Änderungsprotokoll" context="Chronologischer Verlauf aller Vorgänge">
+          {/* Die jüngsten Vorgänge und nicht das ganze Protokoll: Vorher und
+              Nachher, der Filter und die Prüfung der Protokollkette stehen auf
+              der Seite „Nachweise". Zwei vollständige Protokolltabellen wären
+              dieselbe Auskunft an zwei Stellen. */}
+          <Section
+            title="Änderungsprotokoll"
+            context="Die jüngsten Vorgänge"
+            action={
+              onNavigate && (
+                <Button variant="quiet" onClick={() => onNavigate('nachweise')}>
+                  Vollständiges Protokoll
+                </Button>
+              )
+            }
+          >
             {logs.length === 0 ? (
               <EmptyState title="Noch keine Einträge" />
             ) : (
@@ -405,9 +447,9 @@ export const AuditPage: React.FC<AuditPageProps> = ({ onNavigate }) => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {logs.map((entry) => (
+                  {logs.slice(0, 25).map((entry) => (
                     <Tr key={entry.id}>
-                      <Td className="text-ink-subtle num">{formatMoment(entry.timestamp)}</Td>
+                      <Td className="text-ink-subtle num">{formatDateTime(entry.timestamp)}</Td>
                       <Td>
                         <span className="inline-flex items-center h-5 px-2 rounded-control border border-line-strong text-caption text-ink-muted">
                           {entry.action}

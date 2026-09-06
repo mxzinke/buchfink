@@ -204,6 +204,70 @@ type JournalEntry struct {
 	// historical bookings unexplainable.
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
+	// AppVersion ist die Fassung des Programms, die gebucht hat, Actor die
+	// Bearbeiterkennung (internal/actor).
+	//
+	// Beide sind Teil der kanonischen Form und damit der Hash-Kette — mit einer
+	// Weiche für den Altbestand: eine Buchung ohne AppVersion stammt aus der
+	// Zeit davor und wird nach der bisherigen Form gehasht (siehe
+	// accounting.canonicalize). Die Form ist an der Buchung selbst erkennbar,
+	// und die Kette jeder ausgelieferten Buchhaltung bleibt gültig.
+	AppVersion string `gorm:"size:60;index" json:"appVersion,omitempty"`
+	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+
+	// CommittedAt und FestschreibungID halten fest, wann und womit diese
+	// Buchung festgeschrieben wurde.
+	//
+	// Sie stehen bewusst außerhalb der kanonischen Form. Die Festschreibung
+	// ändert die Buchung nicht — sie stellt sie fest —, und ein Feld, das nach
+	// dem Schreiben gesetzt wird, könnte in der Kette gar nicht stehen: der
+	// Eigenhash ist beim Anhängen berechnet und darf sich danach nicht mehr
+	// ändern. Was die Festschreibung schützt, ist der Kettenkopf, den sie
+	// beglaubigt.
+	CommittedAt      *time.Time `gorm:"index" json:"committedAt,omitempty"`
+	FestschreibungID *uint      `gorm:"index" json:"festschreibungId,omitempty"`
+
+	// CorrectsEntryID verweist von einer Neubuchung auf die Buchung, die sie
+	// ersetzt — der Weg „stornieren und neu buchen".
+	//
+	// Die Gegenrichtung ist ReversalOfID an der Generalumkehr. Beide zusammen
+	// machen den Vorgang lesbar: die alte Buchung, ihre Umkehr und die richtige
+	// Buchung, die an ihre Stelle tritt (GoBD Rz. 58: die ursprüngliche
+	// Aufzeichnung muss feststellbar bleiben).
+	//
+	// Nicht in der kanonischen Form, und das ist eine Entscheidung: der Verweis
+	// ist eine Kennung und kein Inhalt. Genau wie ReceiptID und der frühere
+	// DocumentPath würde er beim Umzug der Daten in eine neue Datei andere Werte
+	// annehmen und die Kette jeder betroffenen Buchung brechen, ohne dass sich
+	// an der Buchung etwas geändert hätte. Was die Neubuchung inhaltlich
+	// ausmacht — Konten, Beträge, Text —, ist gedeckt.
+	CorrectsEntryID *uint `gorm:"index" json:"correctsEntryId,omitempty"`
+
+	// LegacyRef ist die Herkunftskennung aus einem Altsystem.
+	//
+	// Wer aus einer anderen Buchhaltung umsteigt, bringt Eröffnungswerte mit,
+	// die dort eine Nummer hatten. Ohne dieses Feld wäre die Verbindung zwischen
+	// der Schlussbilanz des Altsystems und der Eröffnungsbilanz in Buchfink nur
+	// über den Buchungstext herzustellen — und die Fünfjahresfrist des § 147
+	// Abs. 6 Satz 6 AO verlangt, dass die übernommenen Daten zuordenbar bleiben.
+	LegacyRef string `gorm:"size:60;index" json:"legacyRef,omitempty"`
+
+	// DueDate ist die vereinbarte Fälligkeit des offenen Postens, den diese
+	// Buchung trägt. Leer heißt: sie folgt aus dem Zahlungsziel des
+	// Geschäftspartners (siehe PaymentService).
+	//
+	// Sie wird nur dort gesetzt, wo sie bekannt ist und nicht aus dem
+	// Belegdatum folgt — beim Vortrag offener Posten aus einem Altsystem, wo
+	// die Fälligkeit dort vereinbart wurde und mit dem Posten übernommen wird.
+	// Ohne dieses Feld landete jeder übernommene Posten mit dem Zahlungsziel
+	// des Kontakts in der Altersstruktur, also mit einer Fälligkeit, die nie
+	// vereinbart war.
+	//
+	// Sie ist Inhalt und wird gedeckt — aber nur, wo sie belegt ist: ein
+	// zusätzliches Feld in der kanonischen Form änderte sonst den Hash jeder
+	// bestehenden Buchung (siehe canonicalize).
+	DueDate string `gorm:"size:10;index" json:"dueDate,omitempty"`
+
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`
 
 	// Entertainment carries the Aufzeichnung § 4 Abs. 5 Satz 1 Nr. 2 EStG
@@ -426,6 +490,9 @@ type JournalRepository interface {
 	FindByAccountRange(ctx context.Context, account, from, to string) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
+	// FindCorrectionOf liefert die Neubuchung, die eine stornierte Buchung
+	// ersetzt, oder nil. Die Gegenrichtung zu CorrectsEntryID.
+	FindCorrectionOf(ctx context.Context, entryID uint) (*JournalEntry, error)
 	// FindByReceipt returns the original booking that references a Beleg, or nil.
 	// It is what lets an unsealed Beleg be repaired: the seal is written after
 	// the journal transaction commits, so a crash in between leaves a booked
@@ -437,6 +504,20 @@ type JournalRepository interface {
 	// the numbering gapless: a rolled-back insert must not consume a number, and
 	// two concurrent writers must not read the same chain head.
 	Append(ctx context.Context, entry *JournalEntry, hash EntryHashFunc) error
+	// MarkCommitted stempelt den Festschreibungszeitpunkt an jede Buchung des
+	// Jahres mit Buchungsdatum bis einschließlich cutoff, die ihn noch nicht
+	// trägt, und liefert die Zahl der gestempelten Buchungen.
+	//
+	// „Die noch keinen trägt" ist die eigentliche Regel: eine frühere
+	// Festschreibung hat ihre Buchungen schon festgestellt, und eine spätere,
+	// die weiter reicht, darf deren Zeitpunkt nicht überschreiben — sonst sähe
+	// jede Buchung so aus, als wäre sie erst mit der letzten Festschreibung
+	// festgestellt worden, und der Abstand Erfassung → Festschreibung wäre
+	// nicht mehr auswertbar.
+	//
+	// Der Schreibvorgang berührt die kanonische Form nicht (siehe
+	// JournalEntry.CommittedAt) und lässt die Hash-Kette darum unangetastet.
+	MarkCommitted(ctx context.Context, fiscalYear int, cutoff string, festschreibungID uint, at time.Time) (int64, error)
 	// AccountTurnovers returns Soll/Haben sums per account number for a fiscal
 	// year in a single pass.
 	AccountTurnovers(ctx context.Context, fiscalYear int) (map[string]AccountTurnover, error)
@@ -523,6 +604,18 @@ type IntegrityCheckResult struct {
 	// läuft die Prüfung weiter, sonst verdeckte die erste geänderte Buchung
 	// jede spätere.
 	Breaks []IntegrityBreak `json:"breaks"`
+
+	// AuditChain ist das Ergebnis der Prüfung des Änderungsprotokolls.
+	//
+	// Es steht an derselben Stelle wie die Journalkette, weil beide dieselbe
+	// Frage beantworten: ist an den Aufzeichnungen unbemerkt etwas geändert
+	// worden. Eine Journalkette, die hält, während sich Protokolleinträge
+	// entfernen lassen, belegt nur die halbe Unveränderbarkeit — wer eine
+	// Buchung storniert und danach die Protokollzeile herausnimmt, bliebe
+	// unentdeckt. Ein Zeiger, weil die Protokollprüfung fehlen kann (ein
+	// Aufrufer ohne Protokollzugang); dann ist das Feld leer und behauptet
+	// nichts.
+	AuditChain *AuditChainResult `json:"auditChain,omitempty"`
 }
 
 // EnsureLists ersetzt nicht belegte Listen durch leere.

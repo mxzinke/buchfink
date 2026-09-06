@@ -33,6 +33,10 @@ func (e *testEnv) structuredReceipt(t *testing.T, validationErrors int) *domain.
 	t.Helper()
 	ctx := context.Background()
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
+		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
+		// ValidateBookable die Buchung zurück.
+		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming, FiscalYear: e.fiscalYear,
 		Files: []NewFile{
 			{Role: domain.ReceiptRoleOriginal, Path: e.writeTempFile(t, "rechnung.pdf", minimalPDF)},

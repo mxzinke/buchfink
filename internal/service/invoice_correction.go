@@ -320,7 +320,7 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 		replacement.ContactID = original.ContactID
 	}
 	if replacement.Date == "" {
-		replacement.Date = time.Now().Format("2006-01-02")
+		replacement.Date = todayLocal()
 	}
 
 	// Die berichtigte Abschlagsrechnung entsteht im Verbund und ohne Buchung —
@@ -380,7 +380,7 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 	storno.CorrectsInvoiceDate = original.Date
 	// Das Stornodokument trägt den Tag der Korrektur (§ 17 Abs. 1 Satz 8 UStG),
 	// nicht den der Ursprungsrechnung.
-	storno.Date = time.Now().Format("2006-01-02")
+	storno.Date = todayLocal()
 	storno.DueDate = storno.Date
 	// Ohne Zahlungsbedingungen: „Zahlbar innerhalb von 14 Tagen, bei Zahlung bis
 	// … 2 % Skonto" auf einem Dokument mit negativen Beträgen fordert eine
@@ -470,7 +470,7 @@ func (s *InvoiceService) MarkSent(ctx context.Context, invoiceID uint, date stri
 		return nil, fmt.Errorf("Rechnung %s ist nicht ausgestellt und kann nicht versendet worden sein", inv.InvoiceNumber)
 	}
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = todayLocal()
 	}
 	// Der Vermerk ist der Nachweis des Zugangs; ein Datum, das keines ist, wäre
 	// keiner. Vorher wanderte jeder Text unverändert in das Feld und stand
@@ -550,7 +550,7 @@ func (s *InvoiceService) RecordNumberGapReason(ctx context.Context, fiscalYear i
 		Number:     number,
 		Reason:     reason,
 		Detail:     detail,
-		RecordedAt: time.Now().Format(time.RFC3339),
+		RecordedAt: time.Now().UTC().Format(time.RFC3339),
 	}); err != nil {
 		return err
 	}

@@ -95,6 +95,20 @@ type Contact struct {
 	// ExemptionCertificateValidUntil ist der letzte Tag der Gültigkeit.
 	ExemptionCertificateValidUntil string `gorm:"size:10;index" json:"exemptionCertificateValidUntil,omitempty"`
 
+	// Die Sperre nach einem Löschverlangen (Art. 17, 18 DSGVO).
+	//
+	// Ein Geschäftspartner, der die Löschung seiner Daten verlangt, kann sie
+	// nicht bekommen, solange die Buchungen aufzubewahren sind: Art. 17 Abs. 3
+	// Buchst. b DSGVO nimmt die Verarbeitung aus, die zur Erfüllung einer
+	// rechtlichen Verpflichtung erforderlich ist, und § 257 HGB und § 147 AO
+	// sind solche. Was geht, ist die Einschränkung der Verarbeitung (Art. 18
+	// DSGVO): der Kontakt steht in keiner Auswahl mehr, bleibt aber in
+	// Buchungen und Exporten sichtbar — ihn dort zu entfernen hieße, die
+	// Buchführung unvollständig zu machen.
+	Blocked       bool   `gorm:"not null;default:false;index" json:"blocked"`
+	BlockedAt     string `gorm:"size:10" json:"blockedAt,omitempty"`
+	BlockedReason string `gorm:"size:500;serializer:encrypted" json:"blockedReason,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 

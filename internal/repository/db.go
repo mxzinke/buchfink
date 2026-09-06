@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -33,16 +34,12 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to sqlite db at %s: %w", dbPath, err)
 	}
 
-	if err := AutoMigrate(db); err != nil {
+	// Die Schemaanpassung läuft nur, wenn der Code neuer ist als die Datei, und
+	// sie protokolliert sich (siehe ApplyMigrations). Vorher lief sie bei jedem
+	// Start und hinterließ keine Spur — für die Verfahrensdokumentation ist das
+	// die Lücke, die ARC-05 meint.
+	if _, err := ApplyMigrations(context.Background(), db); err != nil {
 		return nil, fmt.Errorf("failed to run database automigrations: %w", err)
-	}
-
-	if err := BackfillReceiptKinds(db); err != nil {
-		return nil, fmt.Errorf("failed to backfill receipt kinds: %w", err)
-	}
-
-	if err := BackfillContactAddresses(db); err != nil {
-		return nil, fmt.Errorf("failed to backfill contact addresses: %w", err)
 	}
 
 	currentYear := time.Now().Year()
@@ -67,10 +64,7 @@ func InitInMemoryDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if err := AutoMigrate(db); err != nil {
-		return nil, err
-	}
-	if err := BackfillReceiptKinds(db); err != nil {
+	if _, err := ApplyMigrations(context.Background(), db); err != nil {
 		return nil, err
 	}
 
@@ -185,6 +179,13 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.VatIDCheck{},
 		&domain.SupplyEvidence{},
 		&domain.VatExchangeRate{},
+		// Welle 6: die Nachweise. Die Aussetzung der Aufbewahrungsfrist und die
+		// beiden Protokolle stehen am Ende — sie verweisen auf nichts und
+		// nichts verweist auf sie.
+		&domain.RetentionHold{},
+		&domain.SchemaMigration{},
+		&domain.MigrationRecord{},
+		&domain.ProcedureDocumentation{},
 	)
 }
 
@@ -298,25 +299,116 @@ func BackfillReceiptKinds(db *gorm.DB) error {
 		Update("kind", domain.ReceiptKindInvoice).Error
 }
 
-// SeedDefaultsIfEmpty populates initial SKR04 chart of accounts and default company settings if database is newly created.
-func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
-	var count int64
-	if err := db.WithContext(ctx).Model(&domain.Account{}).Count(&count).Error; err != nil {
+// BackfillRetention trägt Aufbewahrungsklasse und Fristende an Belegen und
+// Anlagendokumenten nach, die vor Welle 6 abgelegt wurden.
+//
+// Ohne den Lauf stünden in der Belegliste für den ganzen Altbestand leere
+// Fristen, obwohl sie aus Belegart und Entstehungsjahr genauso zu rechnen sind
+// wie bei jedem neu abgelegten Beleg — und der Bericht über abgelaufene
+// Objekte, der über die Löschung entscheidet, sähe die alten Belege überhaupt
+// nicht. Ein leeres Feld hieße dort „keine Frist", und das ist die falsche
+// Auskunft.
+//
+// Gelesen wird über eine schmale Auswahl und nicht über den Datensatz: die
+// Belegtabelle trägt verschlüsselte Spalten (Aussteller, Betreff, Dateipfade),
+// und die Frist hängt an keiner von ihnen. So braucht der Lauf den Schlüssel
+// nicht.
+func BackfillRetention(db *gorm.DB) error {
+	type receiptRow struct {
+		ID           uint
+		Kind         string
+		FiscalYear   int
+		DocumentDate string
+	}
+	var receipts []receiptRow
+	if err := db.Model(&domain.Receipt{}).
+		Select("id", "kind", "fiscal_year", "document_date").
+		Where("retention_class IS NULL OR retention_class = ''").
+		Scan(&receipts).Error; err != nil {
 		return err
 	}
-
-	if count < 100 {
-		if count > 0 {
-			_ = db.WithContext(ctx).Exec("DELETE FROM accounts").Error
+	for _, row := range receipts {
+		info := accounting.RetentionFor(
+			domain.RetentionKindOf(domain.ReceiptKind(row.Kind)),
+			retentionOriginYear(row.DocumentDate, row.FiscalYear))
+		if info.Class == domain.RetentionClassNone {
+			continue
 		}
-
-		// 1. Seed complete SKR04 2026 Accounts
-		defaultAccounts := accounting.DefaultSKR04Accounts()
-		if len(defaultAccounts) > 0 {
-			if err := db.WithContext(ctx).CreateInBatches(&defaultAccounts, 100).Error; err != nil {
-				return fmt.Errorf("failed to seed SKR04 accounts: %w", err)
-			}
+		if err := db.Model(&domain.Receipt{}).Where("id = ?", row.ID).
+			Updates(map[string]any{
+				"retention_class": info.Class,
+				"retention_until": info.RetentionEnd,
+			}).Error; err != nil {
+			return err
 		}
+	}
+
+	type documentRow struct {
+		ID           uint
+		DocumentDate string
+		CreatedAt    time.Time
+	}
+	var documents []documentRow
+	if err := db.Model(&domain.AssetDocument{}).
+		Select("id", "document_date", "created_at").
+		Where("retention_class IS NULL OR retention_class = ''").
+		Scan(&documents).Error; err != nil {
+		return err
+	}
+	for _, row := range documents {
+		info := accounting.RetentionFor(domain.RetentionKindAssetDocument,
+			retentionOriginYear(row.DocumentDate, row.CreatedAt.Year()))
+		if info.Class == domain.RetentionClassNone {
+			continue
+		}
+		if err := db.Model(&domain.AssetDocument{}).Where("id = ?", row.ID).
+			Updates(map[string]any{
+				"retention_class": info.Class,
+				"retention_until": info.RetentionEnd,
+			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// retentionOriginYear liefert das Entstehungsjahr: das Jahr des Dokumentdatums,
+// hilfsweise das mitgegebene Ersatzjahr (Geschäftsjahr bzw. Ablagejahr).
+func retentionOriginYear(documentDate string, fallback int) int {
+	if len(documentDate) >= 4 {
+		if year, err := strconv.Atoi(documentDate[:4]); err == nil && year > 1900 {
+			return year
+		}
+	}
+	return fallback
+}
+
+// SeedDefaultsIfEmpty populates initial SKR04 chart of accounts and default company settings if database is newly created.
+func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
+	// Fehlende Konten werden ergänzt, vorhandene nie gelöscht.
+	//
+	// Vorher stand hier `DELETE FROM accounts`, sobald weniger als hundert
+	// Konten dastanden. Das ist die gefährlichste Zeile, die eine Buchhaltung
+	// haben kann: ein Kontenplan, den jemand bewusst gekürzt hat, wurde beim
+	// nächsten Start weggeworfen, und mit ihm jede Änderung an einem
+	// Kontonamen. Buchungen verweisen über die Kontonummer, also überlebte die
+	// Buchung ihr Konto — bis zur nächsten Auswertung, die das Konto nicht mehr
+	// fand.
+	//
+	// Ergänzt wird deshalb, was fehlt, und zwar an der Kontonummer erkannt —
+	// und ohne Schwellwert. Der frühere Schwellwert von hundert Konten stammte
+	// aus der Zeit, in der die Tabelle geleert und neu gefüllt wurde; für das
+	// Ergänzen ist er falsch: er ist genau die Bedingung, unter der ein neuer
+	// SKR04-Stand nicht in eine bestehende, vollständige Datei käme. Der Lauf
+	// ist ein Vergleich der Kontonummern und billig genug, um ihn bei jedem
+	// Öffnen zu machen.
+	added, err := seedMissingAccounts(ctx, db)
+	if err != nil {
+		return err
+	}
+	if added > 0 {
+		_ = NewAuditRepository(db).Log(ctx, domain.AuditActionImport, "ACCOUNT", "SKR04",
+			fmt.Sprintf("%d fehlende Konten aus dem Kontenrahmen SKR04 ergänzt; vorhandene Konten wurden nicht verändert.", added))
 	}
 
 	// 2. Seed Default Company Settings
@@ -368,4 +460,39 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 	}
 
 	return nil
+}
+
+// seedMissingAccounts ergänzt die Konten des Kontenrahmens, die in der Datei
+// fehlen, und liefert ihre Zahl.
+//
+// Verglichen wird über die Kontonummer: sie ist der eindeutige Schlüssel des
+// Kontenplans und das, worüber eine Buchung auf ihr Konto zeigt.
+func seedMissingAccounts(ctx context.Context, db *gorm.DB) (int, error) {
+	defaults := accounting.DefaultSKR04Accounts()
+	if len(defaults) == 0 {
+		return 0, nil
+	}
+
+	var existing []string
+	if err := db.WithContext(ctx).Model(&domain.Account{}).Pluck("number", &existing).Error; err != nil {
+		return 0, fmt.Errorf("der vorhandene Kontenplan ließ sich nicht lesen: %w", err)
+	}
+	known := make(map[string]bool, len(existing))
+	for _, number := range existing {
+		known[number] = true
+	}
+
+	missing := make([]domain.Account, 0, len(defaults))
+	for i := range defaults {
+		if !known[defaults[i].Number] {
+			missing = append(missing, defaults[i])
+		}
+	}
+	if len(missing) == 0 {
+		return 0, nil
+	}
+	if err := db.WithContext(ctx).CreateInBatches(&missing, 100).Error; err != nil {
+		return 0, fmt.Errorf("failed to seed SKR04 accounts: %w", err)
+	}
+	return len(missing), nil
 }

@@ -92,12 +92,53 @@ type CheckRun struct {
 	CheckedReceipts int `json:"checkedReceipts"`
 	CheckedBankTx   int `json:"checkedBankTx"`
 
+	// Timeliness sind die Abstände Belegdatum → Erfassung → Festschreibung als
+	// Kennzahlen des Laufs. Eingebettet und nicht als eigene Tabelle: sie
+	// gehören zu diesem einen Lauf und werden nie ohne ihn gelesen.
+	Timeliness CheckTimeliness `gorm:"embedded;embeddedPrefix:timeliness_" json:"timeliness"`
+
 	// OverrideReason ist die Pflichtbegründung, mit der ein blockierender Befund
 	// übergangen wurde. Leer heißt: es wurde nichts übergangen.
 	OverrideReason string `gorm:"size:500" json:"overrideReason,omitempty"`
 
 	Findings  []CheckFinding `gorm:"foreignKey:CheckRunID;constraint:OnDelete:CASCADE" json:"findings"`
 	CreatedAt time.Time      `json:"createdAt"`
+}
+
+// CheckTimeliness sind die Abstände, an denen sich die zeitgerechte Erfassung
+// und die zeitgerechte Festschreibung ablesen lassen.
+//
+// Sie stehen als Kennzahlen am Prüflauf und nicht nur als Spalten im
+// Journalexport: der Export beantwortet die Frage je Buchung, der Prüflauf die
+// Frage über den Zeitraum — „wie lange liegen Belege im Schnitt, bevor sie
+// gebucht werden" ist die Frage, die GoBD Rz. 47 stellt, und sie lässt sich an
+// einer einzelnen Zeile nicht beantworten.
+//
+// Median und nicht Mittelwert: ein einzelner nachgetragener Altbeleg mit
+// dreihundert Tagen zöge den Mittelwert so weit hoch, dass die Kennzahl über
+// den Regelfall nichts mehr sagt. Das Maximum steht daneben, damit der Ausreißer
+// trotzdem sichtbar bleibt.
+type CheckTimeliness struct {
+	// MeasuredEntries ist die Zahl der Buchungen, deren Erfassungsabstand
+	// gemessen werden konnte (Belegdatum und Erfassungszeitpunkt belegt).
+	MeasuredEntries int `json:"measuredEntries"`
+	// CaptureDaysMedian und CaptureDaysMax sind Median und Maximum der Tage
+	// zwischen Belegdatum und Erfassung.
+	CaptureDaysMedian int `json:"captureDaysMedian"`
+	CaptureDaysMax    int `json:"captureDaysMax"`
+	// CaptureLimitDays ist die Erfassungsfrist, gegen die gemessen wurde
+	// (Einstellung, Vorgabe zehn Tage nach GoBD Rz. 47); LateEntries die Zahl
+	// der Buchungen darüber.
+	CaptureLimitDays int `json:"captureLimitDays"`
+	LateEntries      int `json:"lateEntries"`
+
+	// CommittedEntries ist die Zahl der festgeschriebenen Buchungen im Lauf,
+	// CommitDaysMedian und CommitDaysMax der Abstand Erfassung →
+	// Festschreibung. OpenEntries sind die noch nicht festgeschriebenen.
+	CommittedEntries   int `json:"committedEntries"`
+	CommitDaysMedian   int `json:"commitDaysMedian"`
+	CommitDaysMax      int `json:"commitDaysMax"`
+	UncommittedEntries int `json:"uncommittedEntries"`
 }
 
 // EnsureLists ersetzt eine nicht belegte Befundliste durch eine leere.

@@ -201,7 +201,35 @@ export interface JournalEntry {
   exchangeRateSource?: string;
   exchangeRateDate?: string;
   postingRuleVersion?: string;
+  /**
+   * Programmfassung und Bearbeiterkennung der Buchung (UNV-04, UNV-06). Leer
+   * an jeder Buchung aus der Zeit davor; die Kette hasht sie dann nach der
+   * bisherigen Form.
+   */
+  appVersion?: string;
+  actor?: string;
+  /**
+   * Wann und mit welcher Festschreibung diese Buchung festgeschrieben wurde.
+   * Leer heißt: noch nicht festgeschrieben.
+   */
+  committedAt?: string;
+  festschreibungId?: number;
+  /**
+   * Die Buchung, die diese hier ersetzt — der Weg „stornieren und neu buchen".
+   * Die Gegenrichtung ist `reversalOfId` an der Generalumkehr.
+   */
+  correctsEntryId?: number;
+  /** Die Herkunftskennung aus einem Altsystem, bei Eröffnungswerten belegt. */
+  legacyRef?: string;
+  /** Die vereinbarte Fälligkeit des offenen Postens, den diese Buchung trägt. */
+  dueDate?: string;
   lines: JournalLine[];
+  /**
+   * Die Aufzeichnung nach § 4 Abs. 5 Satz 1 Nr. 2 EStG zur Bewirtung. Sie hängt
+   * an der Buchung und nicht am Beleg, weil der Abzug an ihr hängt — und eine
+   * Buchung, die eine Bewirtungsbuchung ersetzt, muss sie mitnehmen.
+   */
+  entertainment?: EntertainmentDetail;
   /** Die Aufzeichnung nach § 4 Abs. 7 EStG zu einem Geschenk. */
   gifts?: GiftRecord[];
   previousHash: string;
@@ -467,7 +495,11 @@ export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
  * Die Belegart entscheidet über die Buchungspflicht: ein Kontoauszug wird
  * abgelegt, aber nicht gebucht — gebucht werden die Umsätze daraus.
  */
-export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'other';
+/**
+ * Die Belegart. `letter` ist der Handelsbrief: er trägt keine Buchung und hat
+ * eine kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
+ */
+export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'letter' | 'other';
 
 export interface ReceiptFile {
   id: number;
@@ -498,6 +530,25 @@ export interface Receipt {
   receivedVia?: string;
   journalEntryId?: number;
   discardReason?: string;
+
+  /**
+   * Die Kopfdaten (BEL-02). Beim Ablegen freiwillig, beim Buchen Pflicht — mit
+   * anderen Pflichtfeldern je Belegart, siehe `Receipt.ValidateHeader` im
+   * Backend. Ein Altbeleg trägt sie nicht; jede Anzeige braucht deshalb einen
+   * Standardwert.
+   */
+  documentDate?: string;
+  issuerName?: string;
+  grossAmount?: Cents;
+  taxAmount?: Cents;
+  currency?: string;
+  subject?: string;
+  /**
+   * Die Aufbewahrungsfrist, die beim Ablegen für diesen Beleg galt.
+   * `retentionUntil` ist der letzte Tag der Aufbewahrung.
+   */
+  retentionClass?: RetentionClass;
+  retentionUntil?: string;
 
   // E-Rechnung: leer bei einem Scan oder einer gewöhnlichen PDF-Rechnung.
   detectedFormat?: string;
@@ -752,6 +803,15 @@ export interface Contact {
    * Nicht gespeichert und nicht blockierend.
    */
   vatIdNotice?: string;
+  /**
+   * Gesperrt nach einem Löschverlangen: der Geschäftspartner steht in keiner
+   * Auswahl mehr, bleibt aber in Buchungen und Exporten sichtbar — die
+   * Aufbewahrungspflicht geht dem Löschanspruch vor (Art. 17 Abs. 3 Buchst. b
+   * DSGVO, § 257 HGB, § 147 AO).
+   */
+  blocked: boolean;
+  blockedAt?: string;
+  blockedReason?: string;
   createdAt: string;
 }
 
@@ -1148,6 +1208,11 @@ export interface IntegrityCheckResult {
   fiscalYears: number[];
   /** Alle Brüche, nicht nur der erste. Leer heißt: unversehrt. */
   breaks: IntegrityBreak[];
+  /**
+   * Das Ergebnis der Prüfung des Änderungsprotokolls. Fehlt, wenn der Aufrufer
+   * keinen Protokollzugang hat — dann behauptet das Feld nichts.
+   */
+  auditChain?: AuditChainResult;
 }
 
 export interface CompanySettings {
@@ -1225,13 +1290,58 @@ export interface LegalFormInfo {
 
 export interface AuditLogEntry {
   id: number;
+  /** In UTC geschrieben; die Anzeige rechnet über `formatDateTime` um. */
   timestamp: string;
   action: string;
   entityType: string;
   entityId: string;
   details: string;
+  /**
+   * Die geänderten Felder als JSON-Objekt, und zwar nur die geänderten
+   * (GoBD Rz. 34). Ein leeres `before` heißt: neu angelegt.
+   */
+  before?: string;
+  after?: string;
+  /** Bearbeiterkennung und Programmfassung des Vorgangs (UNV-04, UNV-06). */
+  actor?: string;
+  appVersion?: string;
   previousHash?: string;
   entryHash?: string;
+}
+
+/** Schränkt die Protokollabfrage ein. Leere Felder heißen: alles. */
+export interface AuditFilter {
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  actor?: string;
+  /** Tagesgrenzen im Format JJJJ-MM-TT, beide einschließlich. */
+  from?: string;
+  to?: string;
+}
+
+/** Ein einzelner Bruch der Protokollkette. */
+export interface AuditChainBreak {
+  entryId: number;
+  reason: IntegrityBreakReason;
+  expectedHash: string;
+  actualHash: string;
+  message: string;
+}
+
+/**
+ * Das Ergebnis der Prüfung des Änderungsprotokolls. Anders als das Journal ist
+ * das Protokoll eine einzige Kette über alle Geschäftsjahre.
+ */
+export interface AuditChainResult {
+  isValid: boolean;
+  totalEntries: number;
+  checkedEntries: number;
+  firstBrokenId?: number;
+  breaks: AuditChainBreak[];
+  lastVerifiedHash: string;
+  checkedAt: string;
+  message: string;
 }
 
 export interface Festschreibung {
@@ -1245,6 +1355,15 @@ export interface Festschreibung {
   tsaName: string;
   tsaGenTime?: string;
   timestampStatus: string;
+  /**
+   * Hält fest, dass die Systemzeit beim Festschreiben von der beglaubigten Zeit
+   * abwich. Leer heißt: keine nennenswerte Abweichung oder kein Zeitstempel.
+   */
+  timeDriftNote?: string;
+  appVersion?: string;
+  actor?: string;
+  /** Buchungen, die mit dieser Festschreibung ihren Zeitpunkt bekommen haben. */
+  entriesStamped: number;
   createdAt: string;
 }
 
@@ -3886,4 +4005,343 @@ export interface ServiceEndpoints {
   vatIdDefault: string;
   exchangeRateEndpoint: string;
   exchangeRateDefault: string;
+}
+
+// -------------------------------------------------------------------------
+// Nachweise (Welle 6): Änderungsprotokoll, Versionen, Aufbewahrung,
+// Verfahrensdokumentation, Datenübernahme, Altersstruktur
+// -------------------------------------------------------------------------
+
+/**
+ * Die Aufbewahrungsklasse eines Objekts. Drei Klassen statt einer Frist je
+ * Objektart, weil § 257 Abs. 4 HGB und § 147 Abs. 3 AO genau diese Staffelung
+ * kennen. Leer heißt: keine Frist zugeordnet.
+ */
+export type RetentionClass = 'books' | 'vouchers' | 'letters' | '';
+
+/**
+ * Die Aufbewahrungsklassen in Klartext.
+ *
+ * Sie stehen hier und nicht je Seite: die Belegliste, die Fristenübersicht und
+ * das Löschkonzept benennen dieselbe Klasse, und drei Fassungen desselben Worts
+ * laufen auseinander. Die Jahreszahl steht nicht dabei — sie hängt am
+ * Entstehungsjahr und kommt aus dem Backend.
+ */
+export const RETENTION_CLASS_LABELS: Record<RetentionClass, string> = {
+  books: 'Handelsbücher und Abschlüsse',
+  vouchers: 'Buchungsbelege und Rechnungen',
+  letters: 'Handelsbriefe und sonstige Unterlagen',
+  '': 'Ohne Aufbewahrungsklasse',
+};
+
+/** Der Grund, aus dem eine Frist ausgesetzt ist (§ 147 Abs. 3 Satz 5 AO). */
+export type RetentionHoldReason = 'audit' | 'appeal' | 'other';
+
+/** Die Objekte eines Geschäftsjahres, auf die sich Frist und Löschung beziehen. */
+export interface RetentionCounts {
+  journalEntries: number;
+  journalLines: number;
+  receipts: number;
+  receiptFiles: number;
+  festschreibungen: number;
+  checkRuns: number;
+  vatReturns: number;
+  invoices: number;
+  bankTransactions: number;
+  assetMovements: number;
+  accruals: number;
+  provisions: number;
+  inventoryCounts: number;
+  zmReturns: number;
+  inputTaxUsages: number;
+  numberGaps: number;
+  /** Verweise überdauernder Objekte, die beim Löschen genullt wurden. */
+  clearedReferences: number;
+}
+
+/** Die Frist einer Aufbewahrungsklasse innerhalb eines Geschäftsjahres. */
+export interface RetentionClassRow {
+  class: RetentionClass;
+  label: string;
+  years: number;
+  /** Letzter Tag der Aufbewahrung; gelöscht werden darf ab dem Tag danach. */
+  retentionEnd: string;
+  earliestDeletion: string;
+  legalBasis: string;
+}
+
+/**
+ * Eine Aussetzung der Aufbewahrungsfrist. Sie wird nie gelöscht: dass eine
+ * Frist einmal ausgesetzt war, gehört zur Geschichte der Daten.
+ */
+export interface RetentionHold {
+  id: number;
+  fiscalYear: number;
+  reason: RetentionHoldReason;
+  description: string;
+  setAt: string;
+  setBy: string;
+  /** Leer, solange der Hold gilt. */
+  releasedAt?: string;
+  releasedBy?: string;
+  releaseReason?: string;
+  appVersion?: string;
+  /** Worauf der Hold beim Setzen wirkte, in einem Satz. */
+  affectedNote?: string;
+}
+
+/** Die Fristenlage eines Geschäftsjahres. */
+export interface RetentionYear {
+  fiscalYear: number;
+  counts: RetentionCounts;
+  /** Ein Jahr hat mehrere Fristen — eine Zeile je Klasse. */
+  classes: RetentionClassRow[];
+  /** Das Maximum über alle Klassen: das Löschen trifft das ganze Jahr. */
+  earliestDeletion: string;
+  expired: boolean;
+  hold?: RetentionHold;
+  deletable: boolean;
+  note: string;
+}
+
+/** Eine Zeile des Löschkonzepts: Datenkategorie, Frist, Rechtsgrundlage. */
+export interface DeletionConceptRow {
+  category: string;
+  class: RetentionClass;
+  years: number;
+  legalBasis: string;
+  note: string;
+}
+
+/** Die Fristenübersicht über alle Geschäftsjahre. */
+export interface RetentionOverview {
+  today: string;
+  years: RetentionYear[];
+  concept: DeletionConceptRow[];
+  /** Umstellungszeitpunkt und die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO. */
+  systemChangeDate?: string;
+  systemChangeNote?: string;
+}
+
+/** Das Ergebnis der Löschung eines Geschäftsjahres. */
+export interface DeleteResult {
+  fiscalYear: number;
+  deleted: RetentionCounts;
+  filesRemoved: number;
+  /** Dateien, die bleiben, weil andere Belege auf sie zeigen. */
+  filesKept: number;
+  archivePath: string;
+  message: string;
+}
+
+/** Ein Lauf der Schemaanpassung (UNV-06). */
+export interface SchemaMigration {
+  id: number;
+  runAt: string;
+  appVersion: string;
+  /** 0 heißt: eine neue oder eine noch nicht protokollierte Datei. */
+  fromVersion: number;
+  toVersion: number;
+  /** Die betroffenen Tabellen, durch Komma getrennt. */
+  tables: string;
+  /** „ok" oder „fehlgeschlagen". */
+  result: string;
+  message: string;
+  actor?: string;
+}
+
+/** Auf welchem Weg Daten in diese Installation gekommen sind. */
+export type MigrationKind = 'import' | 'restore' | 'open';
+
+/** Das Protokoll einer Datenübernahme mit ihren Zählungen (ARC-05). */
+export interface MigrationRecord {
+  id: number;
+  kind: MigrationKind;
+  source: string;
+  target: string;
+  runAt: string;
+  appVersion: string;
+  actor: string;
+  journalEntries: number;
+  journalLines: number;
+  receipts: number;
+  contacts: number;
+  accounts: number;
+  invoices: number;
+  fixedAssets: number;
+  auditEntries: number;
+  debitTotal: Cents;
+  creditTotal: Cents;
+  /** Die Kettenprüfung unmittelbar nach der Übernahme. */
+  chainValid: boolean;
+  chainMessage: string;
+}
+
+/** Eine abgelegte Fassung der Verfahrensdokumentation (PRF-03). */
+export interface ProcedureDocumentation {
+  id: number;
+  /** Die fortlaufende Fassungsbezeichnung, z. B. „2026-09-05-1". */
+  version: string;
+  createdAt: string;
+  fiscalYear: number;
+  companyName: string;
+  appVersion: string;
+  ruleVersion: string;
+  actor: string;
+  storedPath?: string;
+  fileName: string;
+  sha256: string;
+  size: number;
+  /** Leer, wenn der PDF-Satz nicht möglich war; das Markdown gilt trotzdem. */
+  pdfFileName?: string;
+  pdfStoredPath?: string;
+  pdfSha256?: string;
+  pdfSize?: number;
+}
+
+/** Die erzeugte Fassung mit ihrem Text. */
+export interface ProcDocResult {
+  document: ProcedureDocumentation;
+  /** Sagt, warum kein PDF entstanden ist; leer heißt: es ist entstanden. */
+  pdfNote?: string;
+  markdown: string;
+  message: string;
+}
+
+/**
+ * Die unternehmensindividuellen Teile der Verfahrensdokumentation. Sie sind
+ * Freitext, weil nur das Unternehmen weiß, wer scannt, prüft und vertritt.
+ */
+export interface OrganisationTexts {
+  responsibilities: string;
+  receiptFlow: string;
+  scanning: string;
+  approval: string;
+  substitution: string;
+  backup: string;
+  notes: string;
+}
+
+/** Die Hinweise zu Rechtsform, Speicherort und Steuerfällen. */
+export interface ComplianceHints {
+  /** Kapitalkonten und Entnahmen; leer bei Kapitalgesellschaften. */
+  legalFormNote: string;
+  /** Belegt, wenn der Datenordner in einem Synchronisationsordner liegt. */
+  cloudWarning: string;
+  dataDir: string;
+  taxCaseHints: string[];
+  systemChangeDate: string;
+  systemChangeNote: string;
+}
+
+/** Das Ergebnis einer Sperre nach einem Löschverlangen. */
+export interface BlockContactResult {
+  contact: Contact;
+  /** Der Antworttext an die betroffene Person, mit den Normen dazu. */
+  answer: string;
+}
+
+/** Die Kopfdaten in der Form, in der sie geschrieben werden. */
+export interface ReceiptHeader {
+  kind: ReceiptKind;
+  documentDate: string;
+  issuerName: string;
+  grossAmount: Cents;
+  taxAmount: Cents;
+  currency: string;
+  subject: string;
+  retentionClass: RetentionClass;
+  retentionUntil: string;
+}
+
+/** Das Ergebnis von „stornieren und neu buchen" (BEL-09, GoBD Rz. 58). */
+export interface CorrectionResult {
+  original: JournalEntry;
+  reversal: JournalEntry;
+  replacement: JournalEntry;
+  message: string;
+}
+
+/** Ein Sachkonto der Eröffnungsbilanz des Umsteigers mit seinem Wert. */
+export interface OpeningBalanceLine {
+  account: string;
+  side: Side;
+  amount: Cents;
+  /** Die Kennung, unter der der Posten im Altsystem geführt wurde. */
+  legacyRef?: string;
+}
+
+/** Ein offener Posten des Umsteigers, einzeln übernommen. */
+export interface OpenOpeningItem {
+  contactId: number;
+  amount: Cents;
+  documentNumber: string;
+  documentDate: string;
+  dueDate?: string;
+  legacyRef?: string;
+}
+
+/** Die Eröffnungsbilanz des Umsteigers (ARC-05). */
+export interface OpeningBalanceRequest {
+  fiscalYear: number;
+  /** Leer heißt: der erste Tag des Geschäftsjahres. */
+  date?: string;
+  /** Pflicht: die Schlussbilanz des Altsystems als Beleg. */
+  receiptId?: number;
+  legacySystem?: string;
+  accounts: OpeningBalanceLine[];
+  receivables: OpenOpeningItem[];
+  payables: OpenOpeningItem[];
+}
+
+/** Die Vorschau auf die Eröffnungsbuchungen; sie zeigt, was gebucht würde. */
+export interface OpeningBalancePreview {
+  fiscalYear: number;
+  date: string;
+  entries: JournalEntry[];
+  debitTotal: Cents;
+  creditTotal: Cents;
+  balanced: boolean;
+  messages: string[];
+}
+
+/** Ein Band der Altersstruktur. */
+export type AgingBucketKey = 'not_due' | '1_30' | '31_60' | '61_90' | 'over_90' | 'no_due_date';
+
+export interface AgingBucket {
+  key: AgingBucketKey;
+  label: string;
+  amount: Cents;
+  items: number;
+}
+
+/** Ein Band der Restlaufzeit (§ 268 Abs. 4 und 5 HGB). */
+export type MaturityBandKey = 'up_to_1y' | '1_to_5y' | 'over_5y' | 'undated';
+
+export interface MaturityBand {
+  key: MaturityBandKey;
+  label: string;
+  amount: Cents;
+  items: number;
+}
+
+/** Eine Seite der Auswertung: Forderungen oder Verbindlichkeiten. */
+export interface OpenItemsAgingSide {
+  /** „receivables" oder „payables". */
+  side: string;
+  label: string;
+  total: Cents;
+  items: number;
+  buckets: AgingBucket[];
+  maturities: MaturityBand[];
+}
+
+/**
+ * Altersstruktur und Restlaufzeiten der offenen Posten zum Stichtag (BEL-07).
+ * Beide aus derselben Grundlage, damit sie nicht auseinanderlaufen.
+ */
+export interface OpenItemsAging {
+  cutoff: string;
+  sides: OpenItemsAgingSide[];
+  reference: string;
 }

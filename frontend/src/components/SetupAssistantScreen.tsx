@@ -51,6 +51,64 @@ const LEGAL_FORMS = [
   'Sonstige',
 ];
 
+/**
+ * Die Rechtsformen, die Entnahmen und Einlagen kennen (BEW-13).
+ *
+ * Die Liste steht hier neben LEGAL_FORMS, weil der Assistent noch keinen
+ * Mandanten hat: `GetComplianceHints` liest die gespeicherte Rechtsform, und
+ * gespeichert ist an dieser Stelle noch nichts. Sie spiegelt
+ * `withdrawalLegalForms` in internal/domain/legalform.go; der ausführliche
+ * Hinweis kommt danach in den Einstellungen aus dem Backend.
+ */
+const WITHDRAWAL_LEGAL_FORMS = new Set([
+  'Einzelunternehmen',
+  'Eingetragener Kaufmann (e. K.)',
+  'Freiberufliche Praxis',
+  'GbR',
+  'OHG',
+  'KG',
+  'GmbH & Co. KG',
+  'Partnerschaftsgesellschaft',
+]);
+
+/**
+ * Die Pfadbestandteile bekannter Synchronisationsordner (Entscheidung 15,
+ * ARC-06).
+ *
+ * Sie stehen hier aus demselben Grund wie WITHDRAWAL_LEGAL_FORMS: der Hinweis
+ * aus dem Backend (`GetComplianceHints` → `domain.CloudFolderWarning`) prüft
+ * den gespeicherten Datenordner, und gespeichert ist an dieser Stelle noch
+ * nichts. Gerade hier zählt er aber am meisten — der Ordner wird in diesem
+ * Schritt gewählt, und einen Umzug des Datenordners gibt es in dieser Fassung
+ * nicht; der Hinweis in den Einstellungen käme also zu spät. Die Liste
+ * spiegelt `cloudFolderMarkers` in internal/domain/datadir.go.
+ */
+const CLOUD_FOLDER_MARKERS: Array<{ needle: string; name: string }> = [
+  { needle: 'onedrive', name: 'OneDrive' },
+  { needle: 'dropbox', name: 'Dropbox' },
+  { needle: 'google drive', name: 'Google Drive' },
+  { needle: 'googledrive', name: 'Google Drive' },
+  { needle: 'gdrive', name: 'Google Drive' },
+  { needle: 'icloud', name: 'iCloud' },
+  { needle: 'nextcloud', name: 'Nextcloud' },
+  { needle: 'owncloud', name: 'ownCloud' },
+  { needle: 'magentacloud', name: 'MagentaCLOUD' },
+];
+
+/**
+ * Der Name des Synchronisationsdienstes im Pfad; leer heißt unauffällig.
+ *
+ * Erkannt wird am Namen und nicht am Dateisystem — die Anbieter legen ihre
+ * Ordner unter diesen Namen an, und der Assistent kann den Dienst nicht fragen.
+ */
+function cloudFolderName(path: string): string {
+  const lowered = path.replace(/\\/g, '/').toLowerCase();
+  for (const marker of CLOUD_FOLDER_MARKERS) {
+    if (lowered.includes(marker.needle)) return marker.name;
+  }
+  return '';
+}
+
 /** Eine Zeile der Gesellschafterliste, solange sie in der Maske steht. */
 interface ShareholderDraft {
   name: string;
@@ -197,6 +255,11 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const stepCount = stepTitles.length;
   const currentTitle = stepTitles[step - 1] ?? '';
   const isFoundingStep = isCapitalCompany && step === 4;
+
+  // Der gewählte Datenordner wird bei jeder Änderung geprüft — getippt wie
+  // ausgewählt. Der Hinweis hält nichts an; er stellt die Frage, die sich
+  // sonst niemand stellt (§ 146 Abs. 2, 2a AO).
+  const cloudFolder = cloudFolderName(dataDir);
 
   async function pickDataDirectory() {
     try {
@@ -478,6 +541,31 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         </button>
                       </span>
                     </ShellField>
+                    {/* Ein Satz auf der Fläche, der Rest hinter dem Erklärzeichen
+                        (§15.1): der Hinweis steht dauerhaft, solange der Pfad in
+                        den Ordner zeigt, und ein Absatz Fließtext an dieser
+                        Stelle wird nicht gelesen. */}
+                    {cloudFolder && (
+                      <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3">
+                        <span className="flex items-center text-label text-shell-text">
+                          Der Datenordner liegt in einem {cloudFolder}-Ordner (§ 146 Abs. 2a AO)
+                          <HelpPopover
+                            label="Erklärung zum Synchronisationsordner"
+                            className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                          >
+                            Bücher sind grundsätzlich im Inland zu führen; die Verlagerung
+                            elektronischer Bücher ins Ausland bedarf der Bewilligung des Finanzamts,
+                            und wo ein Synchronisationsdienst die Daten tatsächlich speichert, lässt
+                            sich von hier aus nicht feststellen. Ein Synchronisationsordner ist
+                            außerdem kein Sicherungsziel — er spiegelt auch das Löschen. Ein Umzug
+                            des Datenordners ist in dieser Fassung nicht vorgesehen.
+                          </HelpPopover>
+                        </span>
+                        <span className="block text-body text-shell-text-muted mt-1">
+                          Besser einen gewöhnlichen Ordner wählen und getrennt sichern.
+                        </span>
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -543,6 +631,19 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         />
                       </ShellField>
                     </div>
+
+                    {/* Die Grenze des Funktionsumfangs, bevor die Rechtsform
+                        feststeht: Buchfink führt die Buchhaltung dieser
+                        Rechtsformen, rechnet aber die Kapitalkonten nicht fort.
+                        Wer das erst beim Jahresabschluss erfährt, kann nichts
+                        mehr daran ändern. */}
+                    {WITHDRAWAL_LEGAL_FORMS.has(settings.legalForm) && (
+                      <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3 text-body text-shell-text-muted">
+                        Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG sind in dieser
+                        Fassung nicht abgebildet. Buchen lässt sich damit; die Fortschreibung des
+                        Kapitalkontos und der Schuldzinsenabzug gehören zum steuerlichen Berater.
+                      </p>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <ShellField label="Steuernummer">

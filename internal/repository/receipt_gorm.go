@@ -119,6 +119,61 @@ func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Rece
 	})
 }
 
+// SaveHeader schreibt die Kopfdaten und rechnet den Beleg-Hash neu.
+//
+// Geschrieben wird über den Datensatz und eine Spaltenauswahl, nicht über eine
+// Map: GORM wendet den Feld-Serializer nur auf dem Struct-Weg an, und ein
+// Map-Update legte Aussteller und Betreff im Klartext in Spalten, die als
+// `serializer:encrypted` deklariert sind — beim nächsten Lesen scheiterte die
+// Entschlüsselung, und der Beleg wäre aus der Liste verschwunden.
+func (r *receiptRepositoryGorm) SaveHeader(
+	ctx context.Context, receiptID uint, header domain.ReceiptHeader, hash domain.ReceiptHashFunc,
+) (*domain.Receipt, error) {
+	var updated domain.Receipt
+	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		var receipt domain.Receipt
+		if err := tx.Preload("Files").First(&receipt, receiptID).Error; err != nil {
+			return err
+		}
+		// Ein gebuchter Beleg ist versiegelt: seine Kopfdaten stehen im
+		// Beleg-Hash, der Beleg-Hash in der Buchung und die Buchung in der
+		// Kette. Eine Änderung hier bräche sie.
+		if receipt.Status != domain.ReceiptStatusFiled {
+			return fmt.Errorf("Beleg %s ist %s — seine Kopfdaten lassen sich nicht mehr ändern",
+				receipt.ReceiptNumber, statusLabel(receipt.Status))
+		}
+
+		if header.Kind != "" {
+			receipt.Kind = header.Kind
+		}
+		receipt.DocumentDate = header.DocumentDate
+		receipt.IssuerName = header.IssuerName
+		receipt.GrossAmount = header.GrossAmount
+		receipt.TaxAmount = header.TaxAmount
+		receipt.Currency = header.Currency
+		receipt.Subject = header.Subject
+		receipt.RetentionClass = header.RetentionClass
+		receipt.RetentionUntil = header.RetentionUntil
+		receipt.ReceiptHash = hash(&receipt)
+		receipt.UpdatedAt = time.Now().UTC()
+
+		if err := tx.Model(&receipt).Select(
+			"Kind", "DocumentDate", "IssuerName", "GrossAmount", "TaxAmount",
+			"Currency", "Subject", "RetentionClass", "RetentionUntil",
+			"ReceiptHash", "UpdatedAt",
+		).Updates(&receipt).Error; err != nil {
+			return err
+		}
+
+		updated = receipt
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &updated, nil
+}
+
 // ReplaceFiles swaps the file list of an unsealed Beleg and recomputes the
 // Beleg-Hash.
 //
@@ -154,7 +209,7 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 		receipt.Files = files
 		receipt.ReceiptHash = hash(&receipt)
 		if err := tx.Model(&domain.Receipt{}).Where("id = ?", receiptID).
-			Updates(map[string]any{"receipt_hash": receipt.ReceiptHash, "updated_at": time.Now()}).Error; err != nil {
+			Updates(map[string]any{"receipt_hash": receipt.ReceiptHash, "updated_at": time.Now().UTC()}).Error; err != nil {
 			return err
 		}
 
@@ -192,7 +247,7 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 			Updates(map[string]any{
 				"status":           domain.ReceiptStatusSealed,
 				"journal_entry_id": entryID,
-				"updated_at":       time.Now(),
+				"updated_at":       time.Now().UTC(),
 			}).Error
 	})
 }
@@ -227,7 +282,7 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 			Updates(map[string]any{
 				"status":         domain.ReceiptStatusDiscarded,
 				"discard_reason": reason,
-				"updated_at":     time.Now(),
+				"updated_at":     time.Now().UTC(),
 			}).Error
 	})
 }
@@ -248,7 +303,7 @@ func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID ui
 			"validation_coverage": v.Coverage,
 			"validation_errors":   v.Errors,
 			"validation_findings": v.Findings,
-			"updated_at":          time.Now(),
+			"updated_at":          time.Now().UTC(),
 		}).Error
 }
 

@@ -135,7 +135,10 @@ export const AdvancesPage: React.FC = () => {
     try {
       const [groupList, contactList, accounts, unitList, vendorList] = await Promise.all([
         Api.getInvoiceGroups(),
-        Api.getContacts(),
+        // Die auswählbaren und nicht alle Kontakte: ein nach einem
+        // Löschverlangen gesperrter Geschäftspartner darf in keiner Auswahl
+        // mehr auftauchen, bleibt aber in bestehenden Buchungen stehen.
+        Api.getSelectableContacts(),
         Api.getPaymentAccounts(),
         Api.getUnitCodes(),
         Api.getOpenVendorAdvances(),

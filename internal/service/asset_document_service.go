@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 )
@@ -112,6 +115,7 @@ func (s *AssetService) AttachDocument(ctx context.Context, req AttachDocumentReq
 		ValidUntil:   req.ValidUntil,
 		Note:         req.Note,
 	}
+	applyDocumentRetention(document)
 	if err := document.Validate(); err != nil {
 		return nil, err
 	}
@@ -121,6 +125,30 @@ func (s *AssetService) AttachDocument(ctx context.Context, req AttachDocumentReq
 	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Dokument zu %s abgelegt: %s (%s)", asset.InventoryNumber, document.DisplayTitle(), kind.Label()))
 	return s.reload(ctx, asset.ID)
+}
+
+// applyDocumentRetention setzt Aufbewahrungsklasse und Fristende eines
+// Anlagendokuments.
+//
+// Beim Ablegen und nicht beim Anzeigen — dieselbe Erwägung wie beim Beleg: die
+// Frist hängt am Entstehungsjahr und am damals geltenden Recht, und später
+// gerechnet käme für dasselbe Dokument irgendwann eine andere Zahl heraus.
+//
+// Das Entstehungsjahr ist das Datum, das das Dokument trägt; fehlt es, das Jahr
+// der Ablage. Die Klasse ist immer die der Organisationsunterlagen (zehn
+// Jahre), unabhängig von der Dokumentart: auch das Foto einer Maschine und der
+// Wartungsbericht erklären das Wirtschaftsgut, dessen Abschreibung über die
+// Nutzungsdauer läuft.
+func applyDocumentRetention(document *domain.AssetDocument) {
+	origin := time.Now().Year()
+	if len(document.DocumentDate) >= 4 {
+		if year, err := strconv.Atoi(document.DocumentDate[:4]); err == nil && year > 1900 {
+			origin = year
+		}
+	}
+	info := accounting.RetentionFor(domain.RetentionKindAssetDocument, origin)
+	document.RetentionClass = info.Class
+	document.RetentionUntil = info.RetentionEnd
 }
 
 // RemoveDocument drops a document from an Anlagegut.

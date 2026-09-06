@@ -171,7 +171,55 @@ func (s *EInvoiceService) ExtractStructuredPart(ctx context.Context, receiptID u
 	if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
 		return nil, err
 	}
+
+	// Die Kopfdaten kommen aus dem strukturierten Teil (BEL-02).
+	//
+	// Bei einer E-Rechnung stehen Belegdatum, Aussteller und Betrag im
+	// Datensatz; sie danach von Hand abzufragen wäre eine Eingabe, deren
+	// Ergebnis schon vorliegt — und jede Eingabe ist eine Gelegenheit, etwas
+	// anderes einzutragen, als auf der Rechnung steht. Übernommen wird nur,
+	// was noch leer ist: eine bereits erfasste Angabe wird nicht überschrieben.
+	if readErr == nil {
+		if err := s.prefillHeader(ctx, receiptID, read); err != nil {
+			return nil, err
+		}
+	}
 	return s.receiptSvc.Get(ctx, updated.ID)
+}
+
+// prefillHeader übernimmt die Kopfdaten aus dem gelesenen Rechnungsdatensatz.
+func (s *EInvoiceService) prefillHeader(ctx context.Context, receiptID uint, read *domain.IncomingInvoice) error {
+	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	if err != nil {
+		return err
+	}
+	header := domain.ReceiptHeader{
+		Kind:         receipt.Kind,
+		DocumentDate: firstNonEmpty(receipt.DocumentDate, read.IssueDate),
+		IssuerName:   firstNonEmpty(receipt.IssuerName, read.Supplier.Name),
+		GrossAmount:  receipt.GrossAmount,
+		TaxAmount:    receipt.TaxAmount,
+		Currency:     firstNonEmpty(receipt.Currency, read.Currency),
+		Subject:      firstNonEmpty(receipt.Subject, read.Number),
+	}
+	if header.GrossAmount == 0 {
+		header.GrossAmount = read.GrossAmount
+	}
+	if header.TaxAmount == 0 {
+		header.TaxAmount = read.TaxAmount
+	}
+	_, err = s.receiptSvc.SaveHeader(ctx, receiptID, header)
+	return err
+}
+
+// firstNonEmpty liefert den ersten belegten Wert.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // attachEnclosures files the documents the invoice carried inside itself (BG-24).

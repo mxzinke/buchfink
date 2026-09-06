@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -187,7 +188,7 @@ func (s *InvoiceService) prepareForIssue(
 	// zurück, und dort wird sie ohne Umweg gelesen.
 	inv.EnsureLists()
 	if inv.Date == "" {
-		inv.Date = time.Now().Format("2006-01-02")
+		inv.Date = todayLocal()
 	}
 	if inv.ServiceDateFrom == "" {
 		inv.ServiceDateFrom = inv.Date
@@ -214,6 +215,9 @@ func (s *InvoiceService) prepareForIssue(
 		}
 		if contact.Type != domain.ContactTypeCustomer {
 			return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
+		}
+		if err := ensureNotBlocked(contact); err != nil {
+			return nil, err
 		}
 		inv.ContactName = contact.Name
 		if inv.EInvoiceProfile == "" {
@@ -650,7 +654,7 @@ func (s *InvoiceService) recordNumberGap(ctx context.Context, inv *domain.Invoic
 		Number:     inv.InvoiceNumber,
 		Reason:     domain.NumberGapAborted,
 		Detail:     cause.Error(),
-		RecordedAt: time.Now().Format(time.RFC3339),
+		RecordedAt: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -714,12 +718,24 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 	}
 	inv.ZUGFeRDXML = xml
 
+	// Die Kopfdaten stehen an der Rechnung und werden mitgegeben: Belegdatum,
+	// Aussteller, Betrag und Steuer sind hier bekannt, und ein Ausgangsbeleg,
+	// der sie nicht trüge, wäre in der Belegliste eine Zeile ohne Datum und
+	// ohne Betrag — und beim Versiegeln nicht buchbar (BEL-02, siehe
+	// Receipt.ValidateHeader). Aussteller ist das eigene Unternehmen: die
+	// Ausgangsrechnung hat es ausgestellt.
 	receipt, err := s.receiptSvc.File(ctx, FileReceiptRequest{
 		Direction:     domain.DirectionOutgoing,
 		FiscalYear:    inv.FiscalYear,
 		ReceiptNumber: inv.InvoiceNumber,
 		ReceivedAt:    inv.Date,
 		ReceivedVia:   domain.ReceivedViaSelfIssued,
+		DocumentDate:  inv.Date,
+		IssuerName:    strings.TrimSpace(seller.CompanyName),
+		GrossAmount:   inv.GrossAmount,
+		TaxAmount:     inv.TaxAmount,
+		Currency:      inv.Currency,
+		Subject:       invoiceSubject(inv),
 		Files:         files,
 	})
 	if err != nil {
@@ -741,6 +757,27 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 		return err
 	}
 	return s.completeDocument(ctx, inv, receipt.ID, validation)
+}
+
+// invoiceSubject ist der Betreff, unter dem die Ausgangsrechnung in der
+// Belegliste steht.
+//
+// Die Rechnungsnummer mit ihrer Dokumentart und nicht die erste Position: der
+// Betreff soll den Beleg wiederfinden lassen, und eine Gutschrift, die wie eine
+// Rechnung heißt, wäre in der Liste die falsche Auskunft.
+func invoiceSubject(inv *domain.Invoice) string {
+	label := "Ausgangsrechnung"
+	switch inv.ResolvedKind() {
+	case domain.InvoiceKindAdvance:
+		label = "Abschlagsrechnung"
+	case domain.InvoiceKindFinal:
+		label = "Schlussrechnung"
+	case domain.InvoiceKindCorrection:
+		label = "Rechnungskorrektur"
+	case domain.InvoiceKindCancellation:
+		label = "Stornorechnung"
+	}
+	return fmt.Sprintf("%s %s", label, inv.InvoiceNumber)
 }
 
 // completeDocument bringt eine Rechnung mit abgelegtem Beleg zu Ende:

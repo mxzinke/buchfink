@@ -28,9 +28,12 @@ import type {
   AssetRules,
   AssetScheduleYear,
   AssetSummary,
+  AuditChainResult,
+  AuditFilter,
   AuditLogEntry,
   BackupRun,
   BankTransaction,
+  BlockContactResult,
   CapitalizeNearAcquisitionCostRequest,
   CarryForwardPreview,
   Cents,
@@ -39,9 +42,12 @@ import type {
   ClosingState,
   ClosingSteps,
   CompanySettings,
+  ComplianceHints,
   Contact,
+  CorrectionResult,
   CurrencyValuation,
   Deadline,
+  DeleteResult,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -93,6 +99,7 @@ import type {
   LegalFormInfo,
   MaintenanceResult,
   MappingReport,
+  MigrationRecord,
   NearAcquisitionCheck,
   NonDeductibleCategory,
   NonDeductibleReport,
@@ -101,12 +108,18 @@ import type {
   NumberGapReason,
   NumberGapReasonOption,
   NumberGapReport,
+  OpeningBalancePreview,
+  OpeningBalanceRequest,
   OpenItem,
+  OpenItemsAging,
+  OrganisationTexts,
   PaymentAllocationDetail,
   PaymentRequest,
   PoolConsistencyReport,
   PostingGroup,
   PostingPreview,
+  ProcDocResult,
+  ProcedureDocumentation,
   Provision,
   ProvisionChangeRequest,
   ProvisionMirror,
@@ -115,13 +128,19 @@ import type {
   RebookGiftsRequest,
   Receipt,
   ReceiptFileInput,
+  ReceiptHeader,
   ReceiptPreview,
   ReceiptRequest,
   ReceiptStatus,
   Reconciliation,
   RefundAdvanceRequest,
   RegisterInputTaxRequest,
+  RetentionHold,
+  RetentionHoldReason,
+  RetentionOverview,
+  RetentionYear,
   SaveInputTaxUsageRequest,
+  SchemaMigration,
   ServiceEndpoints,
   SettleAdvanceRequest,
   Settlement,
@@ -232,10 +251,23 @@ function normalizeCheckRun(run: CheckRun): CheckRun {
   return { ...run, findings: list(run.findings) };
 }
 
+/** Die Kette des Änderungsprotokolls: ohne Bruch ist die Liste leer. */
+function normalizeAuditChain(result: AuditChainResult): AuditChainResult {
+  if (!result) return result;
+  return { ...result, breaks: list(result.breaks) };
+}
+
 /** Dasselbe für die Prüfläufe über Kette und Dateien: kein Befund ist der Regelfall. */
 function normalizeIntegrity(result: IntegrityCheckResult): IntegrityCheckResult {
   if (!result) return result;
-  return { ...result, breaks: list(result.breaks), fiscalYears: list(result.fiscalYears) };
+  return {
+    ...result,
+    breaks: list(result.breaks),
+    fiscalYears: list(result.fiscalYears),
+    // Die Protokollkette hängt seit Welle 6 am selben Ergebnis. Sie kann
+    // fehlen — dann bleibt das Feld leer und behauptet nichts.
+    auditChain: result.auditChain ? normalizeAuditChain(result.auditChain) : undefined,
+  };
 }
 
 function normalizeFileCheck(result: FileCheckResult): FileCheckResult {
@@ -413,6 +445,43 @@ function normalizePostingPreview(preview: PostingPreview): PostingPreview {
     warnings: list(preview.warnings),
     inputTaxFindings: list(preview.inputTaxFindings),
   };
+}
+
+/**
+ * Die Fristenübersicht: ein Geschäftsjahr ohne Daten hat keine Klassenzeile,
+ * und ein Mandant ohne Buchung hat kein Jahr. Beides ist der Regelfall am ersten
+ * Tag und darf die Ansicht nicht mitreißen.
+ */
+function normalizeRetentionOverview(overview: RetentionOverview): RetentionOverview {
+  if (!overview) return overview;
+  return {
+    ...overview,
+    concept: list(overview.concept),
+    years: list(overview.years).map(normalizeRetentionYear),
+  };
+}
+
+function normalizeRetentionYear(year: RetentionYear): RetentionYear {
+  return { ...year, classes: list(year.classes) };
+}
+
+/** Altersstruktur und Restlaufzeiten: ohne offenen Posten sind beide leer. */
+function normalizeOpenItemsAging(aging: OpenItemsAging): OpenItemsAging {
+  if (!aging) return aging;
+  return {
+    ...aging,
+    sides: list(aging.sides).map((side) => ({
+      ...side,
+      buckets: list(side.buckets),
+      maturities: list(side.maturities),
+    })),
+  };
+}
+
+/** Die Eröffnungsbuchungen des Umsteigers samt ihren Hinweisen. */
+function normalizeOpeningBalance(preview: OpeningBalancePreview): OpeningBalancePreview {
+  if (!preview) return preview;
+  return { ...preview, entries: list(preview.entries), messages: list(preview.messages) };
 }
 
 const catalog = skr04CatalogData as unknown as SKR04Catalog;
@@ -1621,6 +1690,122 @@ export const Api = {
   /** Schreibt sie fort. Ein leerer Wert setzt die Voreinstellung wieder in Kraft. */
   saveServiceEndpoints: (endpoints: ServiceEndpoints): Promise<ServiceEndpoints> =>
     call(() => Bridge.SaveServiceEndpoints(endpoints as any) as Promise<ServiceEndpoints>),
+
+  // --- Änderungsprotokoll, Versionen und Datenübernahme ------------------
+
+  /** Rechnet die Kette des Änderungsprotokolls nach (UNV-03, QUE-04). */
+  verifyAuditChain: (): Promise<AuditChainResult> =>
+    call(() => Bridge.VerifyAuditChain() as Promise<AuditChainResult>).then(normalizeAuditChain),
+  /**
+   * Das Protokoll mit Vorher/Nachher, eingeschränkt durch den Filter.
+   *
+   * Neben `getAuditLogs` und nicht statt dessen: die Übersicht braucht die
+   * jüngsten Einträge ohne Frage, die Suche einen Filter.
+   */
+  getAuditLogsFiltered: (limit = 200, filter: AuditFilter = {}): Promise<AuditLogEntry[]> =>
+    call(() => Bridge.GetAuditLogsFiltered(limit, filter) as Promise<AuditLogEntry[]>).then(list),
+  /** Die Versionshistorie des Programms als Markdown (UNV-06). */
+  getChangeLog: (): Promise<string> => call(() => Bridge.GetChangeLog()),
+  /** Das Protokoll der Schemaänderungen. */
+  getSchemaMigrations: (): Promise<SchemaMigration[]> =>
+    call(() => Bridge.GetSchemaMigrations() as Promise<SchemaMigration[]>).then(list),
+  /** Das Protokoll der Datenübernahmen mit ihren Zählungen (ARC-05). */
+  getMigrationRecords: (): Promise<MigrationRecord[]> =>
+    call(() => Bridge.GetMigrationRecords() as Promise<MigrationRecord[]>).then(list),
+  /**
+   * Hält den Umstellungszeitpunkt der Übernahme aus einem Altsystem fest.
+   * An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO.
+   */
+  setSystemChangeDate: (date: string): Promise<void> =>
+    call(() => Bridge.SetSystemChangeDate(date)),
+
+  // --- Aufbewahrung ------------------------------------------------------
+
+  /** Die Fristenübersicht; Jahr 0 heißt: alle Geschäftsjahre. */
+  getRetentionOverview: (year = 0): Promise<RetentionOverview> =>
+    call(() => Bridge.GetRetentionOverview(year) as Promise<RetentionOverview>).then(
+      normalizeRetentionOverview,
+    ),
+  /** Alle Aussetzungen, die geltenden zuerst. */
+  getRetentionHolds: (): Promise<RetentionHold[]> =>
+    call(() => Bridge.GetRetentionHolds() as Promise<RetentionHold[]>).then(list),
+  /** Setzt die Frist eines Geschäftsjahres aus; bei „other" ist der Text Pflicht. */
+  setRetentionHold: (
+    year: number,
+    reason: RetentionHoldReason,
+    description: string,
+  ): Promise<RetentionHold> =>
+    call(() => Bridge.SetRetentionHold(year, reason, description) as Promise<RetentionHold>),
+  /** Hebt eine Aussetzung auf. Sie bleibt danach im Protokoll stehen. */
+  releaseRetentionHold: (id: number, reason: string): Promise<void> =>
+    call(() => Bridge.ReleaseRetentionHold(id, reason)),
+  /** Die Geschäftsjahre, deren Aufbewahrungsfrist abgelaufen ist. */
+  getExpiredObjects: (): Promise<RetentionYear[]> =>
+    call(() => Bridge.GetExpiredObjects() as Promise<RetentionYear[]>).then((years) =>
+      list(years).map(normalizeRetentionYear),
+    ),
+  /**
+   * Archiviert ein Geschäftsjahr und löscht es. Unumkehrbar: die Bestätigung
+   * ist die ausgeschriebene Jahreszahl, das Archiv entsteht vorher im Backend.
+   */
+  archiveAndDeleteFiscalYear: (year: number, confirmation: string): Promise<DeleteResult> =>
+    call(() => Bridge.ArchiveAndDeleteFiscalYear(year, confirmation) as Promise<DeleteResult>),
+
+  // --- Verfahrensdokumentation (PRF-03) ----------------------------------
+
+  /** Erzeugt eine neue Fassung und legt sie im Belegspeicher ab. */
+  generateProcedureDocumentation: (): Promise<ProcDocResult> =>
+    call(() => Bridge.GenerateProcedureDocumentation() as Promise<ProcDocResult>),
+  /** Die abgelegten Fassungen, neueste zuerst. */
+  getProcedureDocumentations: (): Promise<ProcedureDocumentation[]> =>
+    call(() => Bridge.GetProcedureDocumentations() as Promise<ProcedureDocumentation[]>).then(list),
+  /** Die Freitexte der Organisationsanweisung, mit Mustern wo nichts erfasst ist. */
+  getOrganisationTexts: (): Promise<OrganisationTexts> =>
+    call(() => Bridge.GetOrganisationTexts() as Promise<OrganisationTexts>),
+  saveOrganisationTexts: (texts: OrganisationTexts): Promise<void> =>
+    call(() => Bridge.SaveOrganisationTexts(texts as any)),
+  /** Die Hinweise zu Rechtsform, Speicherort und Steuerfällen (BEW-13, UST-08). */
+  getComplianceHints: (): Promise<ComplianceHints> =>
+    call(() => Bridge.GetComplianceHints() as Promise<ComplianceHints>).then((hints) =>
+      hints ? { ...hints, taxCaseHints: list(hints.taxCaseHints) } : hints,
+    ),
+
+  // --- Kontakte, Belege, Journal und offene Posten der Welle 6 -----------
+
+  /**
+   * Sperrt einen Geschäftspartner nach einem Löschverlangen und liefert die
+   * Antwort an die betroffene Person gleich mit.
+   */
+  blockContact: (id: number, reason: string): Promise<BlockContactResult> =>
+    call(() => Bridge.BlockContact(id, reason) as Promise<BlockContactResult>),
+  /** Die Geschäftspartner, die sich noch auswählen lassen — gesperrte fehlen. */
+  getSelectableContacts: (): Promise<Contact[]> =>
+    call(() => Bridge.GetSelectableContacts() as Promise<Contact[]>).then(list),
+  /** Schreibt die Kopfdaten eines abgelegten Belegs nach (BEL-02). */
+  saveReceiptHeader: (receiptId: number, header: ReceiptHeader): Promise<Receipt> =>
+    call(() => Bridge.SaveReceiptHeader(receiptId, header as any) as Promise<Receipt>),
+  /** Storniert eine Buchung und bucht sie richtig neu, verknüpft (BEL-09). */
+  correctEntry: (
+    entryId: number,
+    reason: string,
+    newEntry: Partial<JournalEntry>,
+  ): Promise<CorrectionResult> =>
+    call(() => Bridge.CorrectEntry(entryId, reason, newEntry as any) as Promise<CorrectionResult>),
+  /** Die Eröffnungsbuchungen des Umsteigers, ohne sie zu schreiben. */
+  previewOpeningBalance: (request: OpeningBalanceRequest): Promise<OpeningBalancePreview> =>
+    call(
+      () => Bridge.PreviewOpeningBalance(request as any) as Promise<OpeningBalancePreview>,
+    ).then(normalizeOpeningBalance),
+  /** Bucht die Eröffnungsbilanz — alles oder nichts. */
+  bookOpeningBalance: (request: OpeningBalanceRequest): Promise<OpeningBalancePreview> =>
+    call(() => Bridge.BookOpeningBalance(request as any) as Promise<OpeningBalancePreview>).then(
+      normalizeOpeningBalance,
+    ),
+  /** Altersstruktur und Restlaufzeiten zum Stichtag; leer heißt heute (BEL-07). */
+  getOpenItemsAging: (cutoff = ''): Promise<OpenItemsAging> =>
+    call(() => Bridge.GetOpenItemsAging(cutoff) as Promise<OpenItemsAging>).then(
+      normalizeOpenItemsAging,
+    ),
 
   // --- Prüfermodus -------------------------------------------------------
 
