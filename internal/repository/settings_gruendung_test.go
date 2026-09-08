@@ -18,6 +18,8 @@ func TestCompanySettingsDeriveInGruendungFromTheFoundation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	settings := NewSettingsRepository(db)
 	if err := settings.UpdateCompanySettings(ctx, &domain.CompanySettings{

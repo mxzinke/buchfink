@@ -26,7 +26,23 @@ type FoundationService struct {
 	// yearAligner zieht den Beginn des Gründungsjahres auf die Beurkundung nach.
 	// Optional: ohne ihn bleibt die Gründung erfasst und der Zeitraum, wie er war.
 	yearAligner FoundingYearAligner
+	// statements, documents und renderer tragen die Eröffnungsbilanz: die
+	// Gliederung auf den Beurkundungstag, ihre Ablage und ihren Satz. Jede darf
+	// fehlen; dann fehlt der Eröffnungsbilanz eine Stufe und sie sagt, welche.
+	statements StatementAtSource
+	documents  *DocumentService
+	renderer   DocumentRenderer
 }
+
+// Die Schlüssel der Gründungspflichten, wie sie in der Ablage und in der
+// Fristenliste erscheinen. Sie stehen im Fachbereich (accounting.Duty…) und hier
+// als Kopie, weil der Dienst sie an die Dokumentenablage weitergibt und ein
+// Import des Fachbereichs an dieser Stelle nur diese eine Zeichenkette brächte.
+const (
+	DutyKeyEroeffnungsbilanz = "eroeffnungsbilanz"
+	DutyKeyHandelsregister   = "handelsregister"
+	DutyKeyFragebogen        = "fragebogen"
+)
 
 // NewFoundationService creates the Gründungsbegleitung.
 func NewFoundationService(

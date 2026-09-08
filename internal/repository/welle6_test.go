@@ -29,6 +29,8 @@ func welle6DB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("Testdatenbank konnte nicht angelegt werden: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	return db
 }
 

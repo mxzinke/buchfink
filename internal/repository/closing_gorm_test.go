@@ -17,6 +17,8 @@ func TestFindLatestUpToOnEmptyTableReturnsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	repo := NewDiscountRateRepository(db)
 
 	rates, err := repo.FindLatestUpTo(context.Background(), "2026-12")
@@ -38,6 +40,8 @@ func TestFindLatestUpToPicksTheYoungestMonthBeforeTheCutoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	repo := NewDiscountRateRepository(db)
 	ctx := context.Background()
 

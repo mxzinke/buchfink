@@ -188,12 +188,14 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 // Ein Lesefehler heißt „nicht in Gründung": ohne Zusatz auszugeben ist der
 // mildere Fehler — er behauptet nichts über den Stand des Registers.
 func (r *settingsRepositoryGorm) inGruendung(ctx context.Context) bool {
-	var f domain.Foundation
-	err := dbFrom(ctx, r.db).Select("registered_on").First(&f).Error
-	if err != nil {
+	// `Find` und nicht `First`: eine fehlende Gründungszeile ist der Regelfall
+	// jedes Mandanten, der nicht gerade gegründet hat. `First` meldete sie als
+	// „record not found" ins Protokoll — bei jedem Lesen der Unternehmensdaten.
+	var found []domain.Foundation
+	if err := dbFrom(ctx, r.db).Select("registered_on").Limit(1).Find(&found).Error; err != nil {
 		return false
 	}
-	return f.RegisteredOn == ""
+	return len(found) == 1 && found[0].RegisteredOn == ""
 }
 
 // numberFormatOrDefault prüft die Systematik des Rechnungsnummernkreises.
