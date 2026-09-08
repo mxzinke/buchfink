@@ -220,50 +220,81 @@ const (
 // FoundationDuties returns the obligations arising from this founding, with
 // their due dates and whether they are done.
 //
-// Die Fristen hängen an zwei Daten: der Beurkundung und der Eintragung. Was erst
-// nach der Eintragung zu tun ist, erscheint erst dann — eine Frist, die auf ein
-// noch nicht eingetretenes Ereignis zeigt, ist keine.
+// Jede Pflicht hängt an dem Ereignis, das sie auslöst — der Beurkundung, der
+// Eintragung oder dem Abschlussstichtag. Ist das Ereignis noch nicht
+// eingetreten, steht die Pflicht als wartend in der Liste: sie bekommt kein
+// erfundenes Datum, verschwindet aber auch nicht. Wer gerade gegründet hat, soll
+// sehen, was nach der Eintragung auf ihn zukommt, ohne dafür überfällig zu sein.
 func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[string]string) []domain.FoundationDuty {
 	if f == nil || f.NotarizedOn == "" {
 		return nil
 	}
 
+	// Die beiden Ankerdaten. Das zweite ist leer, solange die Gesellschaft
+	// Vorgesellschaft ist.
+	beurkundung, eintragung := f.NotarizedOn, f.RegisteredOn
+
 	duties := []domain.FoundationDuty{
 		{
 			Key:       DutyHandelsregister,
 			Title:     "Anmeldung zum Handelsregister",
+			Anchor:    domain.AnchorBeurkundung,
 			Deadline:  "sobald die Mindesteinlage geleistet ist",
 			Reference: "§§ 7, 8 GmbHG",
 			Description: "Die Anmeldung nimmt der Notar vor. Sie darf erst erfolgen, wenn die " +
 				"Mindesteinlage auf dem Geschäftskonto steht — " + rules.Reference + ".",
 		},
 		{
-			Key:       DutyFragebogen,
-			Title:     "Fragebogen zur steuerlichen Erfassung",
-			DueDate:   addMonths(f.NotarizedOn, 1),
-			Deadline:  "innerhalb eines Monats",
+			Key:      DutyFragebogen,
+			Title:    "Fragebogen zur steuerlichen Erfassung",
+			Anchor:   domain.AnchorBeurkundung,
+			DueDate:  addMonths(beurkundung, 1),
+			Deadline: "innerhalb eines Monats nach der Beurkundung",
+			// Die Vorgesellschaft ist bereits Körperschaftsteuersubjekt; anzuzeigen
+			// ist die Aufnahme der Tätigkeit, nicht die Eintragung. Die Frist an
+			// die Eintragung zu hängen wäre auch praktisch verkehrt: ohne
+			// Steuernummer keine Rechnung mit Steuerausweis.
 			Reference: "§ 138 Abs. 1b und Abs. 4 AO",
 			Description: "Elektronisch über Mein ELSTER an das Finanzamt. Daraus folgt die " +
-				"Steuernummer, ohne die keine Rechnung mit Steuerausweis möglich ist.",
-		},
-		{
-			Key:       DutyGewerbeanmeldung,
-			Title:     "Gewerbeanmeldung bei der Gemeinde",
-			DueDate:   addMonths(f.NotarizedOn, 1),
-			Deadline:  "innerhalb eines Monats",
-			Reference: "§ 14 GewO, § 138 Abs. 1 AO",
-			Description: "Die Gemeinde unterrichtet das Finanzamt von sich aus; die Anzeige " +
-				"ersetzt den Fragebogen aber nicht.",
+				"Steuernummer, ohne die keine Rechnung mit Steuerausweis möglich ist. " +
+				"Anzuzeigen ist die Aufnahme der Tätigkeit — die beginnt mit der Beurkundung, " +
+				"nicht erst mit der Eintragung.",
 		},
 		{
 			Key:       DutyEroeffnungsbilanz,
 			Title:     "Eröffnungsbilanz aufstellen",
-			DueDate:   addMonths(f.NotarizedOn, 6),
+			Anchor:    domain.AnchorBeurkundung,
+			DueDate:   addMonths(beurkundung, 6),
 			Deadline:  "im ordnungsmäßigen Geschäftsgang",
 			Reference: "§ 242 Abs. 1 HGB",
 			Description: "Aufzustellen zu Beginn des Handelsgewerbes, also auf den Tag der " +
 				"Beurkundung. Das Gesetz nennt keine Tagesfrist; der angezeigte Termin ist " +
 				"der Richtwert einer kleinen Kapitalgesellschaft nach § 264 Abs. 1 Satz 4 HGB.",
+		},
+		{
+			Key:      DutyGewerbeanmeldung,
+			Title:    "Gewerbeanmeldung bei der Gemeinde",
+			Anchor:   domain.AnchorEintragung,
+			DueDate:  addMonths(eintragung, 1),
+			Deadline: "innerhalb eines Monats nach der Eintragung",
+			// Anders als beim Fragebogen: das Gewerbeamt führt die Gesellschaft
+			// unter ihrer Registernummer und verlangt den Registerauszug. Vor der
+			// Eintragung ist die Anmeldung praktisch nicht zu erledigen. Das ist
+			// eine Wertung und keine Ableitung aus § 14 GewO, der auf die Aufnahme
+			// des Betriebs abstellt.
+			Reference: "§ 14 GewO, § 138 Abs. 1 AO",
+			Description: "Die Gemeinde unterrichtet das Finanzamt von sich aus; die Anzeige " +
+				"ersetzt den Fragebogen aber nicht. Das Gewerbeamt führt die Gesellschaft unter " +
+				"ihrer Registernummer — vor der Eintragung liegt sie nicht vor.",
+		},
+		{
+			Key:       DutyTransparenzregister,
+			Title:     "Wirtschaftlich Berechtigte melden",
+			Anchor:    domain.AnchorEintragung,
+			Deadline:  "unverzüglich nach der Eintragung",
+			Reference: "§ 20 Abs. 1 GwG",
+			Description: "Die Mitteilung an das Transparenzregister ist seit 2022 für jede " +
+				"Gesellschaft Pflicht; die frühere Mitteilungsfiktion gibt es nicht mehr.",
 		},
 	}
 
@@ -271,7 +302,8 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 		duties = append(duties, domain.FoundationDuty{
 			Key:       DutyRuecklage,
 			Title:     "Gesetzliche Rücklage einstellen",
-			DueDate:   fiscalYearEndAfter(f.NotarizedOn),
+			Anchor:    domain.AnchorAbschlussstichtag,
+			DueDate:   fiscalYearEndAfter(beurkundung),
 			Deadline:  "mit dem Jahresabschluss",
 			Reference: "§ 5a Abs. 3 GmbHG",
 			Description: "Ein Viertel des um einen Verlustvortrag aus dem Vorjahr geminderten " +
@@ -281,32 +313,32 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 		})
 	}
 
-	if f.IsRegistered() {
-		duties = append(duties,
-			domain.FoundationDuty{
-				Key:       DutyTransparenzregister,
-				Title:     "Wirtschaftlich Berechtigte melden",
-				Deadline:  "unverzüglich nach der Eintragung",
-				Reference: "§ 20 Abs. 1 GwG",
-				Description: "Die Mitteilung an das Transparenzregister ist seit 2022 für jede " +
-					"Gesellschaft Pflicht; die frühere Mitteilungsfiktion gibt es nicht mehr.",
-			},
-			domain.FoundationDuty{
-				Key:       DutyOffenlegung,
-				Title:     "Ersten Jahresabschluss offenlegen",
-				DueDate:   addMonths(fiscalYearEndAfter(f.NotarizedOn), 12),
-				Deadline:  "zwölf Monate nach dem Abschlussstichtag",
-				Reference: "§ 325 Abs. 1a HGB",
-				Description: "Übermittlung an das Unternehmensregister. Kleinstkapital" +
-					"gesellschaften können stattdessen die Bilanz hinterlegen (§ 326 Abs. 2 HGB).",
-			},
-		)
-	}
+	duties = append(duties, domain.FoundationDuty{
+		Key:       DutyOffenlegung,
+		Title:     "Ersten Jahresabschluss offenlegen",
+		Anchor:    domain.AnchorAbschlussstichtag,
+		DueDate:   addMonths(fiscalYearEndAfter(beurkundung), 12),
+		Deadline:  "zwölf Monate nach dem Abschlussstichtag",
+		Reference: "§ 325 Abs. 1a HGB",
+		Description: "Übermittlung an das Unternehmensregister. Kleinstkapital" +
+			"gesellschaften können stattdessen die Bilanz hinterlegen (§ 326 Abs. 2 HGB).",
+	})
 
 	for i := range duties {
+		// Eine Pflicht, deren auslösendes Ereignis noch aussteht, wartet. Sie
+		// behält kein Datum aus einem leeren Anker: `addMonths("")` liefert den
+		// leeren String, und ein leeres Datum wäre von „unverzüglich" nicht zu
+		// unterscheiden.
+		if duties[i].Anchor == domain.AnchorEintragung && eintragung == "" {
+			duties[i].IsPending = true
+			duties[i].DueDate = ""
+		}
 		if day, ok := done[duties[i].Key]; ok {
 			duties[i].DoneOn = day
 			duties[i].IsDone = true
+			// Erledigt ist erledigt: das nachgewiesene Datum schlägt jede
+			// Erwartung darüber, wann das Ereignis eintritt.
+			duties[i].IsPending = false
 		}
 	}
 	return duties

@@ -2153,12 +2153,18 @@ export interface AnmeldungCheck {
 }
 
 /** Eine Pflicht aus der Gründung, mit Frist und Erledigung. */
+/** Das Ereignis, aus dem die Frist einer Gründungspflicht läuft. */
+export type FoundationAnchor = 'beurkundung' | 'eintragung' | 'abschlussstichtag';
+
 export interface FoundationDuty {
   key: string;
   title: string;
   /** Leer, wo das Gesetz „unverzüglich" sagt statt einer Tagesfrist. */
   dueDate: string;
   deadline: string;
+  anchor: FoundationAnchor;
+  /** Das auslösende Ereignis steht noch aus: kein Datum, nicht überfällig. */
+  isPending: boolean;
   reference: string;
   description: string;
   doneOn: string;
@@ -2458,6 +2464,12 @@ export interface Deadline {
   fiscalYear: number;
   isDone: boolean;
   doneOn?: string;
+  /**
+   * Das Ereignis, aus dem die Frist erst noch läuft — etwa „die Eintragung ins
+   * Handelsregister". Leer heißt: die Frist läuft, und ein fehlendes `dueDate`
+   * bedeutet dann, dass das Gesetz keine Tagesfrist nennt.
+   */
+  waitingFor?: string;
 }
 
 /** Die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des Abschlusses. */

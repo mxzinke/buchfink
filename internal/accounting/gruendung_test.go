@@ -162,6 +162,9 @@ func TestAddMonthsClampsToEndOfMonth(t *testing.T) {
 	}
 }
 
+// Jede Pflicht hängt an dem Ereignis, das sie auslöst. Was die Eintragung
+// voraussetzt, steht schon vorher in der Liste — als wartender Posten ohne
+// Datum, damit der Gründer sieht, was noch kommt, ohne dafür überfällig zu sein.
 func TestFoundationDutiesDependOnTheStage(t *testing.T) {
 	rules, _ := FoundationRulesFor("GmbH")
 	f := &domain.Foundation{NotarizedOn: "2026-09-15", ShareCapital: 2_500_000}
@@ -171,32 +174,79 @@ func TestFoundationDutiesDependOnTheStage(t *testing.T) {
 	for _, d := range open {
 		keys[d.Key] = d
 	}
-	if _, ok := keys[DutyFragebogen]; !ok {
-		t.Error("der Fragebogen fehlt in der Vorgesellschaft")
+
+	// Die Vorgesellschaft ist bereits Körperschaftsteuersubjekt: der Fragebogen
+	// läuft ab der Beurkundung, nicht ab der Eintragung.
+	fragebogen, ok := keys[DutyFragebogen]
+	if !ok {
+		t.Fatal("der Fragebogen fehlt in der Vorgesellschaft")
 	}
-	if keys[DutyFragebogen].DueDate != "2026-10-15" {
-		t.Errorf("Fragebogen fällig am %q, erwartet 2026-10-15", keys[DutyFragebogen].DueDate)
+	if fragebogen.Anchor != domain.AnchorBeurkundung {
+		t.Errorf("Fragebogen hängt an %q, erwartet die Beurkundung", fragebogen.Anchor)
 	}
-	// Was die Eintragung voraussetzt, darf vorher nicht als Frist dastehen.
-	if _, ok := keys[DutyTransparenzregister]; ok {
-		t.Error("das Transparenzregister erscheint erst nach der Eintragung")
+	if fragebogen.DueDate != "2026-10-15" || fragebogen.IsPending {
+		t.Errorf("Fragebogen fällig am %q (wartend: %v), erwartet 2026-10-15 und nicht wartend",
+			fragebogen.DueDate, fragebogen.IsPending)
+	}
+
+	// Was die Eintragung voraussetzt, wartet auf sie — mit Anker, ohne Datum.
+	for _, key := range []string{DutyTransparenzregister, DutyGewerbeanmeldung} {
+		duty, ok := keys[key]
+		if !ok {
+			t.Errorf("%s fehlt in der Liste; wartende Pflichten gehören hinein", key)
+			continue
+		}
+		if duty.Anchor != domain.AnchorEintragung {
+			t.Errorf("%s hängt an %q, erwartet die Eintragung", key, duty.Anchor)
+		}
+		if !duty.IsPending {
+			t.Errorf("%s muss vor der Eintragung warten", key)
+		}
+		if duty.DueDate != "" {
+			t.Errorf("%s hat vor der Eintragung das Datum %q; erfunden wird keins", key, duty.DueDate)
+		}
 	}
 
 	f.RegisteredOn = "2026-10-20"
 	after := FoundationDuties(f, rules, map[string]string{DutyFragebogen: "2026-10-01"})
-	found := false
+	seen := map[string]domain.FoundationDuty{}
 	for _, d := range after {
-		if d.Key == DutyTransparenzregister {
-			found = true
-		}
-		if d.Key == DutyFragebogen {
-			if !d.IsDone || d.DoneOn != "2026-10-01" {
-				t.Error("der erledigte Fragebogen hat sein Datum nicht")
-			}
-		}
+		seen[d.Key] = d
 	}
-	if !found {
-		t.Error("das Transparenzregister fehlt nach der Eintragung")
+	if transparenz := seen[DutyTransparenzregister]; transparenz.IsPending {
+		t.Error("nach der Eintragung wartet das Transparenzregister nicht mehr")
+	}
+	// § 20 GwG sagt „unverzüglich" — daraus wird kein Tagesdatum.
+	if got := seen[DutyTransparenzregister].DueDate; got != "" {
+		t.Errorf("das Transparenzregister hat das Datum %q; § 20 GwG nennt keine Tagesfrist", got)
+	}
+	gewerbe := seen[DutyGewerbeanmeldung]
+	if gewerbe.IsPending || gewerbe.DueDate != "2026-11-20" {
+		t.Errorf("Gewerbeanmeldung fällig am %q (wartend: %v), erwartet 2026-11-20 einen Monat nach der Eintragung",
+			gewerbe.DueDate, gewerbe.IsPending)
+	}
+	if fb := seen[DutyFragebogen]; !fb.IsDone || fb.DoneOn != "2026-10-01" {
+		t.Error("der erledigte Fragebogen hat sein Datum nicht")
+	}
+}
+
+// Eine erledigte Pflicht wartet nicht mehr, auch wenn ihr Anker fehlt: das
+// nachgewiesene Datum schlägt jede Erwartung darüber, wann etwas eintritt.
+func TestFoundationDutiesDoneBeatsPending(t *testing.T) {
+	rules, _ := FoundationRulesFor("GmbH")
+	f := &domain.Foundation{NotarizedOn: "2026-09-15", ShareCapital: 2_500_000}
+
+	duties := FoundationDuties(f, rules, map[string]string{DutyGewerbeanmeldung: "2026-09-20"})
+	for _, d := range duties {
+		if d.Key != DutyGewerbeanmeldung {
+			continue
+		}
+		if d.IsPending {
+			t.Error("eine erledigte Pflicht wartet nicht mehr")
+		}
+		if !d.IsDone || d.DoneOn != "2026-09-20" {
+			t.Errorf("Erledigung = %v am %q, erwartet den 2026-09-20", d.IsDone, d.DoneOn)
+		}
 	}
 }
 

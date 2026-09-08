@@ -23,7 +23,9 @@ type FoundationService struct {
 	settingsRepo   domain.SettingsRepository
 	journalSvc     *JournalService
 	auditRepo      domain.AuditRepository
-	fiscalYear     int
+	// yearAligner zieht den Beginn des Gründungsjahres auf die Beurkundung nach.
+	// Optional: ohne ihn bleibt die Gründung erfasst und der Zeitraum, wie er war.
+	yearAligner FoundingYearAligner
 }
 
 // NewFoundationService creates the Gründungsbegleitung.
@@ -34,7 +36,6 @@ func NewFoundationService(
 	settingsRepo domain.SettingsRepository,
 	journalSvc *JournalService,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *FoundationService {
 	return &FoundationService{
 		foundationRepo: foundationRepo,
@@ -43,12 +44,20 @@ func NewFoundationService(
 		settingsRepo:   settingsRepo,
 		journalSvc:     journalSvc,
 		auditRepo:      auditRepo,
-		fiscalYear:     fiscalYear,
 	}
 }
 
-// SetFiscalYear updates the active fiscal year.
-func (s *FoundationService) SetFiscalYear(year int) { s.fiscalYear = year }
+// FoundingYearAligner setzt den Beginn des Gründungsjahres auf die Beurkundung.
+//
+// Ein Ausschnitt und kein Verweis auf den Abschlussdienst: gebraucht wird die
+// eine Wirkung, nicht die Fähigkeit, einen Abschluss aufzustellen.
+type FoundingYearAligner interface {
+	AlignFoundingYear(ctx context.Context) error
+}
+
+// SetFoundingYearAligner koppelt das Geschäftsjahr an die Gründung. Ohne sie
+// wird die Gründung erfasst und der Zeitraum bleibt, wie er war.
+func (s *FoundationService) SetFoundingYearAligner(a FoundingYearAligner) { s.yearAligner = a }
 
 // FoundationState is everything the Gründungsansicht needs, in one call.
 //
@@ -161,6 +170,18 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Gründung erfasst: Beurkundung %s, Stammkapital %s €, %d Gesellschafter",
 		f.NotarizedOn, f.ShareCapital, len(f.Shareholders)))
+
+	// Aus der Beurkundung folgt der Beginn des ersten Geschäftsjahres: eine
+	// Gesellschaft, die im März entstanden ist, hat kein Geschäftsjahr, das im
+	// Januar begonnen hätte. Scheitert das — weil der Zeitraum schon
+	// festgeschrieben oder bebucht ist —, bleibt die Gründung trotzdem
+	// gespeichert: sie ist die Tatsache, das Geschäftsjahr die Folge daraus.
+	if s.yearAligner != nil {
+		if err := s.yearAligner.AlignFoundingYear(ctx); err != nil {
+			s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+				"Der Beginn des Gründungsjahres konnte nicht auf die Beurkundung gesetzt werden: %v", err))
+		}
+	}
 	return f, nil
 }
 
@@ -337,12 +358,17 @@ func (s *FoundationService) Unterbilanz(ctx context.Context, f *domain.Foundatio
 
 // netAssetsUntil sums assets and debts from the journal up to a cutoff date.
 //
-// Der fehlende Saldenvortrag stört hier nicht: Eine Gründung liegt im ersten
-// Geschäftsjahr, und dort sind Bewegung und Bestand dasselbe. Auf ein Folgejahr
-// angewandt wäre die Rechnung falsch — die Vorbelastungshaftung endet aber mit
-// der Eintragung, und die liegt in aller Regel im Gründungsjahr.
+// Über alle Geschäftsjahre, nicht über das aktive: Die Vorbelastungshaftung hängt
+// an ihrem Stichtag und nicht an einem Geschäftsjahr. Beurkundung im November,
+// Eintragung im Februar ist der Regelfall — das Handelsregister braucht Wochen.
+// Auf das aktive Jahr eingeschränkt zählte die Rechnung im Februar nur die
+// Buchungen des neuen Jahres, und weil die Zeichnung des Stammkapitals im alten
+// steht, wiese sie näherungsweise das volle Stammkapital als Unterbilanz aus.
+//
+// Der fehlende Saldenvortrag stört dabei nicht: Bis zur Eintragung sind Bewegung
+// und Bestand dasselbe, denn vor der Beurkundung gab es keine Buchung.
 func (s *FoundationService) netAssetsUntil(ctx context.Context, until string) (domain.Cents, domain.Cents, error) {
-	entries, err := s.journalRepo.FindByBookingDateRange(ctx, s.fiscalYear, "", until)
+	entries, err := s.journalRepo.FindByBookingDateRange(ctx, 0, "", until)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -581,8 +607,13 @@ func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalE
 }
 
 // postingsBooked reports whether Gezeichnetes Kapital has already been booked.
+//
+// Über alle Jahre, aus demselben Grund wie die Unterbilanz: Die Zeichnung wird
+// einmal gebucht, am Tag der Beurkundung. Auf das aktive Geschäftsjahr
+// eingeschränkt meldete die Prüfung im Folgejahr „noch nicht gebucht" und böte
+// die Zeichnung ein zweites Mal an.
 func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
-	entries, err := s.journalRepo.FindByAccount(ctx, domain.AccountGezeichnetesKapital, s.fiscalYear)
+	entries, err := s.journalRepo.FindByAccount(ctx, domain.AccountGezeichnetesKapital, 0)
 	if err != nil {
 		return false, err
 	}

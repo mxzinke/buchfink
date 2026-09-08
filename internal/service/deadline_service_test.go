@@ -379,3 +379,90 @@ func TestMarkDoneOnlyAcceptsManualDeadlines(t *testing.T) {
 		}
 	}
 }
+
+// Eine Gründungspflicht ohne Tagesfrist gehört trotzdem in die Liste.
+//
+// Bis hierher übersprang der Fristendienst jede Pflicht ohne `DueDate`. Genau
+// zwei haben keins — die Anmeldung zum Handelsregister („sobald die
+// Mindesteinlage geleistet ist") und die Meldung an das Transparenzregister
+// („unverzüglich", § 20 Abs. 1 GwG) —, und beide verschwanden dadurch still aus
+// der Oberfläche.
+func TestFoundationDeadlinesIncludeDutiesWithoutADayLimit(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.deadlines(t)
+	foundations := env.foundations(t)
+	svc.SetFoundationSource(foundations)
+	ctx := context.Background()
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	list, err := svc.Deadlines(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Fristen: %v", err)
+	}
+
+	anmeldung, ok := deadlineByKey(list, "gruendung.handelsregister")
+	if !ok {
+		t.Fatal("die Anmeldung zum Handelsregister fehlt in der Fristenliste")
+	}
+	if anmeldung.DueDate != "" {
+		t.Errorf("die Anmeldung hat das Datum %q; §§ 7, 8 GmbHG nennen keins", anmeldung.DueDate)
+	}
+	if anmeldung.WaitingFor != "" {
+		t.Errorf("die Anmeldung wartet auf %q, sie ist aber ab der Beurkundung zu tun", anmeldung.WaitingFor)
+	}
+
+	transparenz, ok := deadlineByKey(list, "gruendung.transparenzregister")
+	if !ok {
+		t.Fatal("die Meldung an das Transparenzregister fehlt in der Fristenliste")
+	}
+	if transparenz.WaitingFor == "" {
+		t.Error("vor der Eintragung wartet die Meldung an das Transparenzregister auf sie")
+	}
+	if transparenz.DueDate != "" {
+		t.Errorf("die Meldung hat das Datum %q; § 20 GwG nennt keine Tagesfrist", transparenz.DueDate)
+	}
+}
+
+// Mit der Eintragung bekommen die wartenden Pflichten ihr Datum.
+func TestFoundationDeadlinesStartWithTheRegistration(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.deadlines(t)
+	foundations := env.foundations(t)
+	svc.SetFoundationSource(foundations)
+	ctx := context.Background()
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	before, err := svc.Deadlines(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Fristen: %v", err)
+	}
+	gewerbe, ok := deadlineByKey(before, "gruendung.gewerbeanmeldung")
+	if !ok || gewerbe.WaitingFor == "" || gewerbe.DueDate != "" {
+		t.Fatalf("vor der Eintragung wartet die Gewerbeanmeldung ohne Datum, erhalten %+v", gewerbe)
+	}
+
+	if _, err := foundations.Register(ctx, "2026-05-04", "Amtsgericht München", "HRB 123456"); err != nil {
+		t.Fatalf("Eintragung: %v", err)
+	}
+
+	after, err := svc.Deadlines(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Fristen nach der Eintragung: %v", err)
+	}
+	gewerbe, ok = deadlineByKey(after, "gruendung.gewerbeanmeldung")
+	if !ok {
+		t.Fatal("die Gewerbeanmeldung fehlt nach der Eintragung")
+	}
+	if gewerbe.WaitingFor != "" {
+		t.Errorf("die Gewerbeanmeldung wartet noch auf %q", gewerbe.WaitingFor)
+	}
+	if gewerbe.DueDate != "2026-06-04" {
+		t.Errorf("Gewerbeanmeldung fällig am %q, erwartet einen Monat nach der Eintragung", gewerbe.DueDate)
+	}
+}

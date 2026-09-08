@@ -264,6 +264,12 @@ type Deadline struct {
 	FiscalYear  int    `json:"fiscalYear"`
 	IsDone      bool   `json:"isDone"`
 	DoneOn      string `json:"doneOn,omitempty"`
+	// WaitingFor benennt das Ereignis, aus dem die Frist erst noch läuft — etwa
+	// „die Eintragung ins Handelsregister". Leer heißt: die Frist läuft bereits,
+	// und ein fehlendes DueDate bedeutet dann, dass das Gesetz keine Tagesfrist
+	// nennt („unverzüglich"). Ohne diese Unterscheidung sähen beide Fälle in der
+	// Liste gleich aus, obwohl der eine zu tun ist und der andere noch nicht.
+	WaitingFor string `json:"waitingFor,omitempty"`
 }
 
 // StatementHeader sind die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des

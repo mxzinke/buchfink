@@ -19,7 +19,6 @@ func (e *testEnv) foundations(t *testing.T) *FoundationService {
 		repository.NewSettingsRepository(e.db),
 		e.journal,
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 

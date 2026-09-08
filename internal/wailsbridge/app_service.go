@@ -453,7 +453,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// keine Buchung zweiter Klasse.
 	b.foundationSvc = service.NewFoundationService(
 		b.foundationRepo, b.accountRepo, b.journalRepo, b.settingsRepo,
-		b.journalSvc, b.auditRepo, fiscalYear,
+		b.journalSvc, b.auditRepo,
 	)
 
 	b.closingSvc = service.NewClosingService(
@@ -461,6 +461,11 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.festschreibungRepo, b.auditRepo, b.journalSvc, fiscalYear,
 	)
 	b.closingSvc.SetFoundationRepo(b.foundationRepo)
+	// Die Gegenrichtung: wird die Gründung erfasst, zieht der Beginn des
+	// Gründungsjahres auf die Beurkundung nach. Ohne diese Kopplung stünde das
+	// Jahr als volles Kalenderjahr in den Büchern — der Einrichtungsassistent
+	// legt den Mandanten an, bevor er nach der Gründung fragt.
+	b.foundationSvc.SetFoundingYearAligner(b.closingSvc)
 	b.closingSettingsSvc = service.NewClosingSettingsService(b.settingsRepo, b.auditRepo)
 
 	// Die Abschlussbausteine der Welle 5a. Sie hängen allesamt am
@@ -1326,9 +1331,9 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	if b.assetSvc != nil {
 		b.assetSvc.SetFiscalYear(year)
 	}
-	if b.foundationSvc != nil {
-		b.foundationSvc.SetFiscalYear(year)
-	}
+	// Die Gründungsbegleitung folgt dem Geschäftsjahr nicht: die Unterbilanz
+	// hängt an ihrem Stichtag, und die Zeichnung des Stammkapitals wird einmal
+	// gebucht, im Gründungsjahr.
 	if b.statementSvc != nil {
 		b.statementSvc.SetFiscalYear(year)
 	}
