@@ -320,6 +320,102 @@ hinter den Zusatz: „Muster Ventures i. G. GmbH" ist keine Firma.
 Bereits erzeugte Rechnungen und Belege bleiben, wie sie abgelegt sind. Neu
 gerechnet wird nur die Vorschau, und dort ist der aktuelle Stand der richtige.
 
+## 6d. Der geführte Weg
+
+Die Pflichten stehen nicht nur als Liste, sondern als Weg: nummeriert in der
+Reihenfolge des Tuns, mit Fortschritt und dem Satz, was als Nächstes ansteht.
+Er folgt dem geführten Weg des Jahresabschlusses (architektur.md, Abschnitt 6.3):
+die Schritte kommen aus dem Backend, gezählt wird dort, und jeder Schritt öffnet
+seine Arbeit da, wo sie wohnt.
+
+Was ihn davon unterscheidet, ist der Anlass. Wer zum ersten Mal gründet, weiß
+nicht, wohin er sich wenden soll. Jede Pflicht trägt deshalb drei Angaben, die
+in keinem Paragrafen stehen:
+
+| Feld | Inhalt |
+|---|---|
+| `Where` | Der Ort: beim Notar, über Mein ELSTER, beim Gewerbeamt, auf transparenzregister.de |
+| `Todo` | Die Handgriffe, einzeln und in ihrer Reihenfolge |
+| `Provides` | Was Buchfink dazu beisteuert — leer, wo es nichts beisteuern kann |
+
+Die Seite hat keinen Eintrag in der Navigation. Der Weg ist eine Phase und kein
+Ort; erreicht wird er über den Hinweisstreifen der Startseite, über den
+Gründungsabschnitt der Fristenseite und aus dem Einrichtungsassistenten. Wer dort
+eine Gründung erfasst hat, landet auf dem Weg statt in der Aufgabenliste — die
+ist am ersten Tag leer.
+
+`FoundationGuide` trägt den Stand: `Total`, `Done`, `Open` und `Waiting`.
+Wartende Schritte zählen nicht als offen, denn zu tun ist an ihnen gerade nichts.
+
+## 6e. Die Eröffnungsbilanz
+
+Sie steht auf den Tag der Beurkundung (§ 242 Abs. 1 HGB) und nicht auf den der
+Eintragung: mit ihm beginnt das Handelsgewerbe. Sie ist der eine
+Gründungsvorgang, den Buchfink vollständig aus den eigenen Zahlen kann — an
+diesem Tag stehen in den Büchern die Zeichnung des Stammkapitals und, soweit
+schon geflossen, die Einlage.
+
+`StatementService.StatementAt` baut die Gliederung dafür auf einen Stichtag
+statt auf ein Geschäftsjahr: über alle Jahre bis zu diesem Tag, weil eine
+Beurkundung im November und ein aktives Geschäftsjahr im Januar auseinander
+liegen können, und ohne Vorjahresspalte, weil es vor dem ersten Tag des
+Unternehmens kein Vorjahr gibt.
+
+Drei Ausgaben:
+
+- **Zahlenwerk** in der Ansicht, mit Aktiva, Passiva und der Frage, ob beides
+  übereinstimmt. Tut es das nicht, fehlt eine Buchung — die Ansicht sagt welche
+  und führt dorthin.
+- **PDF**, abgelegt in der Dokumentenablage unter seiner Prüfsumme. Abgelegt und
+  nicht nur heruntergeladen: die Eröffnungsbilanz ist eine Unterlage nach § 147
+  Abs. 1 Nr. 1 AO und wird zehn Jahre gebraucht.
+- **E-Bilanz** als XBRL-Instanz. Die Eröffnungsbilanz ist eine Bilanz im Sinne
+  des § 5b Abs. 1 EStG und damit elektronisch zu übermitteln; die Instanz nennt
+  die Bilanzart, hat keine Gewinn- und Verlustrechnung und kein Vorjahr, und ihr
+  Berichtszeitraum ist der eine Tag, an dem das Handelsgewerbe beginnt. Der
+  Elementname der Bilanzart trägt denselben Vorbehalt wie die übrigen: vor der
+  Übermittlung gegen die amtliche Taxonomie auf esteuer.de abgleichen.
+
+Eine Bilanz, die nicht aufgeht, wird nicht abgelegt. Nach Registergericht und
+-nummer wird vor der Eintragung nicht gefragt: sie können dann noch nicht
+vorliegen.
+
+## 6f. Das Datenblatt zum Fragebogen
+
+Der Fragebogen wird über Mein ELSTER übermittelt; ERiC bleibt außerhalb des
+Funktionsumfangs. Buchfink stellt zusammen, was es kennt — Firma, Sitz,
+Rechtsform, Beurkundung, Stammkapital, Gesellschafter, Bankverbindung,
+Voranmeldungszeitraum — und nennt ausdrücklich, was der Fragebogen außerdem
+verlangt und in keinem Konto steht: voraussichtliche Umsätze, Betriebseröffnung,
+Beschäftigte, Kleinunternehmerregelung, Empfangsvollmacht, Lastschriftmandat.
+
+Ohne diese Liste läse sich das Datenblatt wie eine vollständige Antwort. Die
+Steuernummer steht nicht darin: sie ist das Ergebnis des Fragebogens und nicht
+seine Angabe.
+
+## 6g. Die Dokumentenablage
+
+Sie steht neben dem Beleg und neben dem Anlagendokument, weil sie eine dritte
+Sache ist. Ein Beleg gehört zu einer Buchung und einem Geschäftsjahr, ein
+Anlagendokument zu einem Wirtschaftsgut. Der Gesellschaftsvertrag gehört zu
+keinem von beidem — er gehört zum Unternehmen und gilt, solange es das
+Unternehmen gibt.
+
+Der Ablageweg ist derselbe wie überall: die Datei liegt unter ihrem eigenen
+SHA256, unverschlüsselt, nur Pfad und Dateiname sind in der Datenbank
+verschlüsselt, und herausgegeben wird sie erst, nachdem die Prüfsumme stimmt.
+Aufbewahrt wird zehn Jahre (§ 147 Abs. 1 Nr. 1 AO, Organisationsunterlagen).
+
+Ein Dokument kann über `DutyKey` an einer Gründungspflicht hängen, ohne ihr zu
+gehören: der Registerauszug erscheint als Nachweis am Schritt und bleibt in der
+Ablage, wenn die Gründung längst vorbei ist. Die Ablage ist freiwillig — ein
+Schritt gilt mit seinem Datum als erledigt und nicht erst mit einer Datei.
+
+Damit ist die offene Entscheidung „Ablage der Gründungsurkunden" aus Abschnitt 8
+erledigt. Die Ablage ist von Anfang an auf den Mandanten gehoben und nicht auf
+die Gründung: sie nimmt später den Mietvertrag und den Versicherungsschein
+genauso auf.
+
 ## 7. Datenmodell
 
 ```
@@ -359,6 +455,11 @@ Die Fundstellen im Code:
 | Erfassung | `frontend/src/components/SetupAssistantScreen.tsx` |
 | Laufende Begleitung | `frontend/src/components/FoundationSection.tsx`, `frontend/src/pages/DeadlinesPage.tsx` |
 | Hinweis und Erklärung | `frontend/src/components/GruendungHelp.tsx`, `frontend/src/pages/TasksPage.tsx` |
+| Der geführte Weg | `frontend/src/pages/GruendungPage.tsx` |
+| Eröffnungsbilanz | `internal/service/foundation_opening.go`, `internal/service/statement_service.go` (`StatementAt`) |
+| E-Bilanz der Eröffnungsbilanz | `internal/service/ebilanz_service.go` (`ExportOpeningXBRL`), `internal/ebilanz/ebilanz.go` |
+| Datenblatt zum Fragebogen | `internal/service/foundation_fragebogen.go` |
+| Dokumentenablage | `internal/domain/document.go`, `internal/service/document_service.go` |
 
 ## 8. Offene Entscheidungen
 
@@ -386,9 +487,10 @@ Pflicht als Frist und bucht sie nicht.
 Entscheidungen"). Buchfink führt die Frist und den Nachweis; übermittelt wird
 über Mein ELSTER.
 
-**Ablage der Gründungsurkunden.** Das Dokumentenmuster gibt es bereits am
-Anlagegut (`internal/domain/asset_document.go`). Es auf den Mandanten zu heben
-ist ein eigener, klar abgrenzbarer Schritt.
+**Eine Ansicht für die Dokumentenablage.** Die Ablage selbst steht (Abschnitt
+6g) und nimmt die Gründungsurkunden auf; erreichbar ist sie bisher nur über den
+Gründungsweg. Eine eigene Ansicht „Unterlagen", die alles zeigt und den
+Mietvertrag genauso aufnimmt, ist der nächste Schritt.
 
 **Die Zuordnung der Unterdeckung.** Ob eine Unterdeckung aus dem Gründungsaufwand
 oder aus einem Anlaufverlust stammt, entscheidet heute der Nutzer im Kopf. Eine
@@ -424,6 +526,8 @@ gesetze-im-internet.de:
 - § 18 Abs. 2 UStG – Voranmeldungszeitraum, Aussetzung 2021 bis 2026 in Satz 6
 - § 20 GwG – Mitteilung an das Transparenzregister
 - § 14 GewO – Gewerbeanmeldung
+- § 5b Abs. 1 EStG – elektronische Übermittlung der Bilanz; die Eröffnungsbilanz ist eine
+- § 147 Abs. 1 Nr. 1 AO – Aufbewahrung der Organisationsunterlagen, zehn Jahre
 
 Die Unterbilanzhaftung (Vorbelastungshaftung) ist Richterrecht des BGH und steht
 in keinem Paragrafen. Sie ist ständige Rechtsprechung; die Rechnung folgt der
