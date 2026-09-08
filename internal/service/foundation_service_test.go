@@ -576,3 +576,49 @@ func TestSaveFoundationReplacesShareholderList(t *testing.T) {
 		t.Errorf("Gesellschafter %q", state.Foundation.Shareholders[0].Name)
 	}
 }
+
+// Die Unterbilanz hängt an ihrem Stichtag und nicht an einem Geschäftsjahr.
+//
+// Beurkundung im einen Jahr, Eintragung im nächsten ist der Regelfall — das
+// Handelsregister braucht Wochen, und eine Beurkundung im November wird selten
+// vor Februar eingetragen. Auf das aktive Geschäftsjahr eingeschränkt zählte die
+// Rechnung am Stichtag nur die Buchungen des neuen Jahres; weil die Zeichnung
+// des Stammkapitals im alten steht, wies sie näherungsweise das volle
+// Stammkapital als Unterbilanz aus. Aus demselben Grund meldete die Prüfung
+// „schon gebucht?" ein Nein und bot die Zeichnung ein zweites Mal an.
+func TestUnterbilanzSpansTheTurnOfTheYear(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.foundations(t)
+	ctx := context.Background()
+
+	env.saveFoundation(t, svc, gmbhFoundation()) // Beurkundung 15.01.2026
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+	env.book(t, "2026-01-20", "Notarkosten Gründung", "6825", "1800", 300_000)
+
+	// Eingetragen erst im Folgejahr. Der Stichtag liegt damit in 2027, die
+	// Buchungen liegen in 2026.
+	if _, err := svc.Register(ctx, "2027-02-15", "Amtsgericht München", "HRB 123456"); err != nil {
+		t.Fatalf("Eintragung: %v", err)
+	}
+
+	state, err := svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	u := state.Unterbilanz
+	if u.AsOf != "2027-02-15" || !u.IsFinal {
+		t.Errorf("Stichtag %q (endgültig: %v), erwartet den Eintragungstag", u.AsOf, u.IsFinal)
+	}
+	if u.NetAssets != 2_200_000 {
+		t.Errorf("Reinvermögen %s €, erwartet 22.000,00 — die Buchungen des Gründungsjahres zählen mit",
+			u.NetAssets)
+	}
+	if u.Amount != 300_000 {
+		t.Errorf("Haftung %s €, erwartet 3.000,00", u.Amount)
+	}
+	if !state.PostingsBooked {
+		t.Error("die Zeichnung des Stammkapitals steht im Journal, auch wenn sie im Vorjahr gebucht wurde")
+	}
+}

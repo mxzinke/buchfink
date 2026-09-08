@@ -3,6 +3,7 @@ import { BookOpen, Landmark } from 'lucide-react';
 import { FoundationPostingPreview, FoundationState } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from './WriteLock';
+import { GruendungExplain, GruendungHelpDialog } from './GruendungHelp';
 import { formatCents, formatDate, formatSide } from '../utils/formatters';
 import {
   Button,
@@ -33,7 +34,14 @@ interface FoundationSectionProps {
  * wieder — er ist kein zweiter Dauerplatz in der Anwendung, sondern eine Phase.
  * Was er zeigt, ist die eine Zahl, die zwischen Beurkundung und Eintragung
  * niemand im Blick hat: um wie viel das Reinvermögen hinter dem Stammkapital
- * zurückbleibt und wer davon welchen Teil schuldet.
+ * zurückbleibt.
+ *
+ * Die Aufteilung dieser Zahl auf die einzelnen Gesellschafter rechnet das
+ * Backend weiter und weist sie hier nicht aus. Sie ist eine Aussage über
+ * Personen, sie hängt an einer Zahl, die bis zur Eintragung vorläufig ist, und
+ * für den nächsten Schritt — Einlage leisten, anmelden, eintragen — ändert sie
+ * nichts. Die Gesellschafterzeile zeigt deshalb die Kapitalaufbringung: was
+ * übernommen, was geleistet und was offen ist.
  */
 export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onChanged }) => {
   // Gründungsbuchungen und die Eintragung ändern die Bücher: im Prüfermodus
@@ -42,6 +50,7 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
   const [preview, setPreview] = useState<FoundationPostingPreview | null>(null);
   const [registering, setRegistering] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [help, setHelp] = useState(false);
 
   const [registerDate, setRegisterDate] = useState('');
   const [registerCourt, setRegisterCourt] = useState('');
@@ -101,15 +110,8 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
     <Section
       title="Gründung"
       context={`Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}`}
-      explain={
-        <>
-          Bleibt das Reinvermögen der Gesellschaft am Tag der Eintragung hinter dem Stammkapital
-          zurück, schulden die Gesellschafter die Differenz — anteilig nach ihren
-          Geschäftsanteilen. Gründungskosten dürfen nach § 248 Abs. 1 Nr. 1 HGB nicht aktiviert
-          werden und mindern das Reinvermögen deshalb sofort. Bis zur Eintragung haftet außerdem
-          persönlich, wer im Namen der Gesellschaft handelt (§ 11 Abs. 2 GmbHG).
-        </>
-      }
+      explain={<GruendungExplain />}
+      onMore={() => setHelp(true)}
       action={
         <div className="flex items-center gap-2">
           {!state.postingsBooked && (
@@ -198,14 +200,10 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
               <Th numeric className="w-36">
                 Offen
               </Th>
-              <Th numeric className="w-40">
-                Anteilige Haftung
-              </Th>
             </Tr>
           </Thead>
           <Tbody>
             {(foundation.shareholders ?? []).map((holder) => {
-              const share = (unterbilanz.shares ?? []).find((s) => s.shareholderId === holder.id);
               const open = holder.shareCapital - holder.paidIn;
               return (
                 <Tr key={holder.id}>
@@ -218,9 +216,6 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
                   <Td numeric className={cn(open > 0 && 'text-attention-text')}>
                     {formatCents(open)}
                   </Td>
-                  <Td numeric className={cn((share?.amount ?? 0) > 0 && 'text-negative-text')}>
-                    {formatCents(share?.amount ?? 0)}
-                  </Td>
                 </Tr>
               );
             })}
@@ -230,11 +225,12 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
               <Td numeric>{formatCents(foundation.shareCapital)}</Td>
               <Td numeric>{formatCents(paidIn)}</Td>
               <Td numeric>{formatCents(foundation.shareCapital - paidIn)}</Td>
-              <Td numeric>{formatCents(unterbilanz.amount)}</Td>
             </Tr>
           </Tbody>
         </Table>
       </div>
+
+      <GruendungHelpDialog open={help} onClose={() => setHelp(false)} />
 
       <Dialog
         open={preview !== null}
