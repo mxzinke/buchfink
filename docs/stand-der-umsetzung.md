@@ -1,7 +1,7 @@
 # Buchfink – Stand der Umsetzung
 
 Status: laufend gepflegt
-Letzte Aktualisierung: 2026-09-06
+Letzte Aktualisierung: 2026-09-08
 
 Dieses Dokument beschreibt, was Buchfink heute tut, wo eine Funktion
 eingeschränkt ist und was noch fehlt. Es ist die erzählende Gegenprobe zum
@@ -22,7 +22,7 @@ Geschäftsjahr laufend geführt worden ist.
 
 | Modul | Was funktioniert | Fundstelle |
 |---|---|---|
-| A. Buchführungspflicht und Grundsätze | Jeder Buchungssatz gleicht sich ohne Toleranz aus, `Post` ist der einzige Schreibweg ins Journal, der Saldenvortrag bringt die Bestandskonten ins Folgejahr, Bilanz und GuV entstehen allein aus Kontensalden. | `internal/domain/journal.go:325`, `internal/service/journal_service.go:97`, `internal/service/closing_service.go:1129`, `internal/accounting/statement.go:291` |
+| A. Buchführungspflicht und Grundsätze | Jeder Buchungssatz gleicht sich ohne Toleranz aus, `Post` ist der einzige Schreibweg ins Journal, der Saldenvortrag bringt die Bestandskonten ins Folgejahr, Bilanz und GuV entstehen allein aus Kontensalden, das Gründungsjahr beginnt mit der Beurkundung und ist ein Rumpfgeschäftsjahr. | `internal/domain/journal.go:325`, `internal/service/journal_service.go:97`, `internal/service/closing_service.go:1129`, `:1641`, `internal/accounting/statement.go:291` |
 | B. Beleg, Journal, Konten | Beleg unter seinem SHA256 abgelegt, Kopfdaten als Pflicht vor dem Buchen, Nummernkreise ohne Doppelvergabe in der Transaktion, Storno als einzige Korrektur, offene Posten mit Stichtag, Prüfbericht aus vierzehn Regeln vor jeder Festschreibung, Handbuchung nur mit Beleg oder Eigenbeleg, eigene Konten mit HGB-Position. | `internal/service/receipt_service.go:124`, `:285`, `internal/repository/numberrange_gorm.go:49`, `internal/service/journal_service.go:258`, `internal/service/payment_service.go:185`, `internal/service/check_service.go:167`, `internal/service/manual_entry.go:38`, `internal/service/self_issued_receipt.go:68`, `internal/service/account_service.go:84` |
 | C. Unveränderbarkeit und Protokollierung | Hashkette über das Journal, zweite Kette über das Änderungsprotokoll mit Vorher und Nachher, Bearbeiterkennung und Programmfassung an jeder Buchung, Festschreibung mit RFC-3161-Zeitstempel, „Monat festschreiben" als Aufgabe ab dem 10. des Folgemonats, Steuersätze als datierte Tabelle. | `internal/accounting/journalhash.go:198`, `internal/accounting/audithash.go:65`, `internal/actor/actor.go:38`, `internal/buildinfo/buildinfo.go:29`, `internal/timestamp/tsa.go`, `internal/service/task_service.go:446`, `internal/accounting/tax_params.go:326` |
 | D. Aufbewahrung und Archivierung | Fristenklasse aus der Belegart mit Fristbeginn und frühestem Löschdatum, Aussetzung je Geschäftsjahr, Archivexport mit Index, Sicherung und Wiederherstellung als Vorgang. | `internal/accounting/retention.go:121`, `internal/domain/retention.go:158`, `internal/service/retention_service.go:220`, `internal/service/export_service.go:145`, `internal/service/backup_service.go:419` |
@@ -46,6 +46,7 @@ Monatsabschluss in drei Schritten, Jahresabschluss als geführter Weg
 
 - Testlauf mit einer fachkundigen Person: gemessen wird der Klickweg, nicht das Verständnis.
 - Anhang in deutscher Sprache: Bilanz und GuV gehen als PDF und CSV hinaus, ein Anhang aus den Daten entsteht nicht.
+- Zeitraum eines bestehenden Geschäftsjahres: der Beginn des Gründungsjahres zieht auf die Beurkundung nach, sobald die Gründung erfasst wird. Wer vor dieser Welle gegründet hat, führt weiterhin das volle Kalenderjahr — von Hand richtigstellen lässt sich der Zeitraum nicht.
 
 **D. Aufbewahrung und Archivierung**
 

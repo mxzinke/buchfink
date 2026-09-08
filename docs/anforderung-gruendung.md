@@ -4,7 +4,7 @@ Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01,
 GOB-06, JAB-07, UST-03, QUE-02
 
 Status: umgesetzt
-Letzte Aktualisierung: 2026-09-01
+Letzte Aktualisierung: 2026-09-08
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
@@ -122,10 +122,16 @@ aus einem Anlaufverlust stammt. Diese Zuordnung kann nur der Gründer treffen.
 Unterdeckung, gedeckter Anteil und verbleibende Haftung stehen deshalb als drei
 Zahlen nebeneinander, statt zu einer verschmolzen zu werden.
 
+Gerechnet wird über alle Geschäftsjahre bis zum Stichtag, nicht über das gerade
+aktive. Beurkundung im November, Eintragung im Februar ist der Regelfall — das
+Handelsregister braucht Wochen. Auf das aktive Jahr eingeschränkt zählte die
+Rechnung im Februar nur die Buchungen des neuen Jahres, und weil die Zeichnung
+des Stammkapitals im alten steht, wies sie näherungsweise das volle Stammkapital
+als Unterbilanz aus.
+
 Der fehlende Saldenvortrag (siehe [stand-der-umsetzung.md](stand-der-umsetzung.md),
-Abschnitt 3) stört hier nicht: Die Gründung liegt im ersten Geschäftsjahr, und
-dort sind Bewegung und Bestand dasselbe. Auf ein Folgejahr angewandt wäre die
-Rechnung falsch, aber die Vorbelastungshaftung endet mit der Eintragung.
+Abschnitt 3) stört dabei nicht: Bis zur Eintragung sind Bewegung und Bestand
+dasselbe, denn vor der Beurkundung gab es keine Buchung.
 
 ## 5. Buchungen
 
@@ -160,23 +166,47 @@ Erfassungsweg wäre nur eine zweite Art, dasselbe zu tun.
 
 ## 6. Fristen aus der Gründung
 
-| Pflicht | Frist | Fundstelle |
-|---|---|---|
-| Anmeldung zum Handelsregister | sobald die Mindesteinlage geleistet ist | §§ 7, 8 GmbHG |
-| Fragebogen zur steuerlichen Erfassung | einen Monat nach der Gründung | § 138 Abs. 1b und Abs. 4 AO |
-| Gewerbeanmeldung bei der Gemeinde | einen Monat | § 14 GewO, § 138 Abs. 1 AO |
-| Eröffnungsbilanz auf den Beurkundungstag | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB, Katalog GOB-01 und GOB-06 |
-| Gesetzliche Rücklage, nur UG | mit dem Jahresabschluss | § 5a Abs. 3 GmbHG |
-| Wirtschaftlich Berechtigte melden | unverzüglich nach der Eintragung | § 20 Abs. 1 GwG |
-| Ersten Jahresabschluss offenlegen | zwölf Monate nach dem Abschlussstichtag | § 325 Abs. 1a HGB, Katalog JAB-07 |
+Jede Pflicht hängt an dem Ereignis, das sie auslöst. Ein einheitlicher Anker
+wäre für die eine Hälfte zu früh und für die andere zu spät.
+
+| Pflicht | Anker | Frist | Fundstelle |
+|---|---|---|---|
+| Anmeldung zum Handelsregister | Beurkundung | sobald die Mindesteinlage geleistet ist | §§ 7, 8 GmbHG |
+| Fragebogen zur steuerlichen Erfassung | Beurkundung | einen Monat | § 138 Abs. 1b und Abs. 4 AO |
+| Eröffnungsbilanz auf den Beurkundungstag | Beurkundung | im ordnungsmäßigen Geschäftsgang | § 242 Abs. 1 HGB, Katalog GOB-01 und GOB-06 |
+| Gewerbeanmeldung bei der Gemeinde | Eintragung | einen Monat | § 14 GewO, § 138 Abs. 1 AO |
+| Wirtschaftlich Berechtigte melden | Eintragung | unverzüglich | § 20 Abs. 1 GwG |
+| Gesetzliche Rücklage, nur UG | Abschlussstichtag | mit dem Jahresabschluss | § 5a Abs. 3 GmbHG |
+| Ersten Jahresabschluss offenlegen | Abschlussstichtag | zwölf Monate | § 325 Abs. 1a HGB, Katalog JAB-07 |
+
+Zwei Anker sind erklärungsbedürftig, weil man beide für die Eintragung halten
+könnte.
+
+**Der Fragebogen hängt an der Beurkundung.** Die Vorgesellschaft ist mit der
+späteren GmbH dasselbe Rechtssubjekt: sie ist bereits buchführungspflichtig und
+bereits Körperschaftsteuersubjekt. Anzuzeigen ist nach § 138 Abs. 1b AO die
+Aufnahme der Tätigkeit, und die beginnt beim Notar. Die Frist an die Eintragung
+zu hängen wäre auch praktisch verkehrt: aus dem Fragebogen folgt die
+Steuernummer, und ohne sie gibt es keine Rechnung mit Steuerausweis — der
+Gründer wartete auf das Register, um überhaupt abrechnen zu können.
+
+**Die Gewerbeanmeldung hängt an der Eintragung.** Das ist eine Wertung und keine
+Ableitung: § 14 GewO stellt auf die Aufnahme des Betriebs ab, die schon vorher
+liegen kann. Das Gewerbeamt führt die Gesellschaft aber unter ihrer
+Registernummer und verlangt den Registerauszug; vor der Eintragung ist die
+Anmeldung nicht zu erledigen. Buchfink setzt die Frist deshalb dorthin, wo sie
+erfüllbar wird, und sagt das am Vorgang.
 
 Wo das Gesetz „unverzüglich" sagt, steht der Wortlaut in der Liste, kein Datum.
 Eine erfundene Tagesfrist wäre bequemer und falsch. Bei der
 Eröffnungsbilanz nennt § 242 Abs. 1 HGB ebenfalls keine Frist; der angezeigte
 Termin ist als Richtwert gekennzeichnet und stammt aus § 264 Abs. 1 Satz 4 HGB.
 
-Was die Eintragung voraussetzt, erscheint erst nach ihr. Eine Frist, die auf ein
-noch nicht eingetretenes Ereignis zeigt, ist keine.
+Was die Eintragung voraussetzt, steht schon vorher in der Liste — als wartender
+Posten ohne Datum. Der Gründer soll sehen, was auf ihn zukommt, ohne dafür
+überfällig zu sein. Bis Welle 9 fiel eine Pflicht ohne Tagesdatum ganz aus der
+Fristenliste heraus, und das traf genau die beiden, die keins haben: die
+Anmeldung zum Handelsregister und die Meldung an das Transparenzregister.
 
 Erledigt wird eine Gründungspflicht mit ihrem Datum in der Datenbank, nicht mit
 einem Haken im `localStorage`. Dass der Fragebogen am 12. Oktober übermittelt
@@ -197,6 +227,99 @@ die monatliche Pflicht wieder auf.
 die Regel ein Stichjahr hat: Ein fest getippter Hinweis war seit 2021 falsch und
 wäre es ab 2027 wieder.
 
+## 6a. Das erste Geschäftsjahr
+
+Aus der Beurkundung folgt der Beginn des ersten Geschäftsjahres: eine
+Gesellschaft, die im März entstanden ist, hat kein Geschäftsjahr, das im Januar
+begonnen hätte — der Zeitraum davor gehörte zu einem Unternehmen, das es noch
+nicht gab. Das Gründungsjahr ist deshalb ein Rumpfgeschäftsjahr (§ 8b EStDV,
+Katalog GOB-06).
+
+`ClosingService.derive` konnte das schon immer, kam im Einrichtungsassistenten
+aber zu spät: der Mandant entsteht mit `CreateTenant`, und dabei legt
+`EnsureFiscalYears` das laufende Jahr an — die Gründung wird erst danach erfasst.
+Das Geschäftsjahr stand dann als volles Kalenderjahr in der Datenbank, und zwar
+dauerhaft, denn vorhandene Einträge rührt der Lauf nicht mehr an.
+
+`AlignFoundingYear` zieht den Beginn nach, sobald die Gründung gespeichert wird,
+und nur solange nichts daran hängt:
+
+| Bedingung | Warum |
+|---|---|
+| Der Abschluss ist nicht festgestellt | Der Zeitraum ist Teil des festgestellten Abschlusses |
+| Kein Zeitraum ist festgeschrieben | Ein festgeschriebener Zeitraum behält seinen Beginn |
+| Keine Buchung liegt vor dem Beurkundungstag | Sie läge danach außerhalb ihres Geschäftsjahres |
+
+Scheitert eine Bedingung, bleibt das Jahr, wie es ist, und der Grund steht im
+Änderungsprotokoll. Die Gründung ist trotzdem gespeichert: sie ist die Tatsache,
+das Geschäftsjahr die Folge daraus.
+
+Beim Start wird nichts angeglichen. Ein bestehender Mandant, der sein
+Geschäftsjahr bereits geführt hat, wird nicht umgeschrieben — eine Migration, die
+den Zeitraum einer laufenden Buchführung verschiebt, wäre ein stiller Eingriff in
+den Abschluss.
+
+## 6b. Der Zustand in der Oberfläche
+
+Die Vorgesellschaft ist die Lage des ganzen Unternehmens und nicht die einer
+Ansicht. Sie steht deshalb als Hinweisstreifen über der Aufgabenliste — ein Satz
+mit dem Beurkundungsdatum, dem Zusatz „i. G." und der Handelndenhaftung — und
+verschwindet mit der Eintragung von selbst.
+
+Die Erklärung dazu liegt in `frontend/src/components/GruendungHelp.tsx` und wird
+von beiden Stellen benutzt, dem Streifen und dem Gründungsabschnitt der
+Fristenseite. Die drei Stufen folgen dem Entwurfskonzept §15.2: ein Satz auf der
+Fläche, ein bis drei Sätze im Popover, die Rechnung mit ihrem Beispiel im Dialog
+hinter „Mehr dazu".
+
+Die anteilige Haftung je Gesellschafter wird gerechnet und nicht ausgewiesen. Sie
+ist eine Aussage über Personen, sie hängt an einer Zahl, die bis zur Eintragung
+vorläufig ist, und für den nächsten Schritt — Einlage leisten, anmelden,
+eintragen — ändert sie nichts. Die Gesellschafterzeile zeigt stattdessen die
+Kapitalaufbringung. `UnterbilanzShare` bleibt in der Schnittstelle; ausgeblendet
+ist die Darstellung, nicht die Rechnung.
+
+## 6c. Der Firmenzusatz „i. G."
+
+Bis zur Eintragung ist die Gesellschaft noch keine juristische Person, die
+Haftungsbeschränkung greift nicht, und wer mit ihr abschließt, soll das am Namen
+erkennen. Sie führt deshalb den Zusatz „i. G.".
+
+Er wird abgeleitet und nirgends gespeichert: `CompanySettings.InGruendung` setzt
+die Stammdaten-Abfrage aus der Gründungszeile, `CompanySettings.FirmName()` hängt
+den Zusatz an. Mit der Eintragung fällt er von selbst weg. Ein gespeichertes
+Kennzeichen ginge irgendwann mit dem Eintragungsdatum auseinander — derselbe
+Grund, aus dem `Foundation.Stage()` abgeleitet ist.
+
+Der Zustand wird beim Lesen der Unternehmensdaten gesetzt und nicht von jedem
+Ausgabeweg einzeln erfragt: den Firmennamen brauchen Rechnung, E-Rechnung,
+E-Bilanz, Abschlusskopf, Mahnschreiben und Eigenbeleg, und jedem von ihnen die
+Gründung durchzureichen hieße, sieben Dienste um eine Abhängigkeit zu erweitern,
+die sie nur weitergeben.
+
+| Weg | Feld |
+|---|---|
+| Rechnungs-PDF | Dokumententitel und Absenderzeile |
+| ZUGFeRD und XRechnung | BT-27 Verkäufername, BT-85 Kontoinhaber |
+| E-Bilanz | `de-gcd:genInfo.company.id.name` |
+| Bilanz und GuV | Firma im Kopf, § 264 Abs. 1a Nr. 1 HGB |
+| Mahnschreiben | Briefkopf und Kontoinhaber |
+| Eigenbeleg | Aussteller |
+| Z3-Export | Datenlieferant |
+| Verfahrensdokumentation | Unternehmen |
+
+Roh bleibt der Name, wo er Eingabe oder Schlüssel ist: im Eingabefeld der
+Einstellungen, im Mandantennamen der Anwendungskonfiguration und im
+Änderungsprotokoll. Der Mandantenname liegt in einer JSON-Datei — ein dort
+eingebrannter Zusatz verschwände mit der Eintragung nicht mehr.
+
+Im Bilanzkopf wird die Firma an einer Stelle zusammengesetzt und als eigenes Feld
+neben dem erfassten Namen geführt. Sonst hängte `headerTitle` die Rechtsform
+hinter den Zusatz: „Muster Ventures i. G. GmbH" ist keine Firma.
+
+Bereits erzeugte Rechnungen und Belege bleiben, wie sie abgelegt sind. Neu
+gerechnet wird nur die Vorschau, und dort ist der aktuelle Stand der richtige.
+
 ## 7. Datenmodell
 
 ```
@@ -209,6 +332,10 @@ Foundation                 höchstens eine je Mandant
 └── shareholders[]         Name (verschlüsselt), Anteil, geleistet, Bar/Sache
 
 FoundationTask             erledigte Pflicht: Schlüssel, Datum, Notiz
+
+FoundationDuty             abgeleitet, nicht gespeichert
+├── anchor                 beurkundung | eintragung | abschlussstichtag
+└── isPending              das auslösende Ereignis steht noch aus
 ```
 
 Die Phase ist abgeleitet, nicht gespeichert. Ein Status, den man unabhängig vom
@@ -226,9 +353,12 @@ Die Fundstellen im Code:
 | Regeln je Rechtsform, Fristen, § 18 UStG | `internal/accounting/gruendung.go` |
 | Persistenz | `internal/repository/foundation_gorm.go` |
 | Unterbilanz, Anmeldungsbefund, Buchungen, Eintragung | `internal/service/foundation_service.go` |
+| Rumpfjahr aus der Beurkundung | `internal/service/closing_service.go`, `AlignFoundingYear` |
+| Firmenzusatz „i. G." | `internal/domain/settings.go`, `FirmName`; `internal/repository/settings_gorm.go` |
 | Bridge | `internal/wailsbridge/app_service.go`, Abschnitt „Gründung" |
 | Erfassung | `frontend/src/components/SetupAssistantScreen.tsx` |
 | Laufende Begleitung | `frontend/src/components/FoundationSection.tsx`, `frontend/src/pages/DeadlinesPage.tsx` |
+| Hinweis und Erklärung | `frontend/src/components/GruendungHelp.tsx`, `frontend/src/pages/TasksPage.tsx` |
 
 ## 8. Offene Entscheidungen
 
@@ -265,6 +395,15 @@ oder aus einem Anlaufverlust stammt, entscheidet heute der Nutzer im Kopf. Eine
 Kennzeichnung am Beleg wäre möglich und ist bewusst nicht gebaut: sie verlangte
 eine Angabe bei jeder Buchung der Gründungsphase, und die meisten Gründer haben
 gar keine Satzungsklausel.
+
+**Die Haftung je Gesellschafter.** Sie wird gerechnet und vorerst nicht
+ausgewiesen (Abschnitt 6b). Wieder einzublenden ist sie eine Frage von wenigen
+Zeilen — die Zahlen stehen in der Schnittstelle.
+
+**Das Geschäftsjahr eines Bestandsmandanten.** Wer vor dieser Welle gegründet
+hat, führt sein Gründungsjahr weiterhin als volles Kalenderjahr. Beim Start wird
+nichts umgeschrieben (Abschnitt 6a); den Zeitraum von Hand richtigzustellen gibt
+es noch keinen Weg.
 
 ## 9. Fundstellen
 
