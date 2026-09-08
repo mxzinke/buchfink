@@ -422,6 +422,10 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
 	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
 	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
+	// Die Geschäftsjahre als Entitäten: der Abschreibungsplan verteilt monatsgenau
+	// (§ 7 Abs. 1 Satz 4 EStG), und ein Rumpfjahr trägt weniger als zwölf Monate.
+	// Ohne diese Quelle rechnete er jedes Jahr als volles.
+	b.assetSvc.SetFiscalYearRepo(b.fiscalYearRepo)
 	// Der Belegprüflauf geht über Belegdateien und Anlagendokumente: beide sind
 	// aufbewahrungspflichtig, und beide liegen im selben Speicher.
 	b.receiptSvc.SetDocumentSource(b.assetSvc)

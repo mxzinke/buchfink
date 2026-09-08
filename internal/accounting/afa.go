@@ -247,8 +247,24 @@ type AfAPlan struct {
 	Cost             domain.Cents
 	UsefulLifeMonths int
 	Method           domain.DepreciationMethod
-	// FiscalYearStartMonth is 1 for a calendar fiscal year.
+	// FiscalYearStartMonth is 1 for a calendar fiscal year. Er ist der
+	// Rückfallweg: wo Periods das Jahr nicht kennt, wird der Zeitraum aus ihm
+	// abgeleitet.
 	FiscalYearStartMonth int
+	// Periods sind die tatsächlichen Zeiträume der Geschäftsjahre, nach
+	// Jahreszahl.
+	//
+	// Sie stehen hier, weil ein Geschäftsjahr nicht immer zwölf Monate hat: das
+	// Gründungsjahr beginnt mit der Beurkundung, und eine Umstellung des
+	// Geschäftsjahres erzeugt ein Rumpfjahr mitten in der Nutzungsdauer. Aus dem
+	// Beginnmonat allein ließe sich beides nicht ablesen — der Plan verteilte
+	// dann zwölf Monate auf ein Jahr, das sechs hat, und schriebe doppelt so
+	// viel ab, wie das Jahr trägt.
+	//
+	// Fehlt ein Jahr, gilt der abgeleitete Zeitraum. Der Plan läuft über die
+	// Nutzungsdauer und damit über Jahre, die noch niemand angelegt hat; für die
+	// gibt es keinen Zeitraum, den man nachschlagen könnte.
+	Periods map[int]FiscalPeriod
 	// PoolYear is the fiscal year a Sammelposten was formed in.
 	PoolYear int
 	// DisposalDate truncates the plan. AfA runs up to and including the month of
@@ -288,6 +304,34 @@ type AfAPlan struct {
 	// aufgelöst — die Regel richtet sich nach Wohnzweck und Stichtag, und beides
 	// steht am Anlagegut und nicht am Plan.
 	BuildingPermille int64
+}
+
+// FiscalPeriod ist der Zeitraum eines Geschäftsjahres, beide Tage
+// einschließlich — so, wie er in der Geschäftsjahr-Entität steht.
+type FiscalPeriod struct {
+	Start string // JJJJ-MM-TT
+	End   string // JJJJ-MM-TT, einschließlich
+}
+
+// window liefert den Zeitraum eines Geschäftsjahres als halboffenes
+// Monatsintervall: erster Tag des Anfangsmonats bis erster Tag des Monats nach
+// dem Ende.
+//
+// Auf Monate gerundet, weil die AfA in Monaten rechnet: § 7 Abs. 1 Satz 4 EStG
+// kennt keinen halben Monat, und ein Rumpfjahr, das am 15. März beginnt, trägt
+// den März ganz. Ein unlesbarer Zeitraum fällt auf die Ableitung zurück, statt
+// den Plan scheitern zu lassen — die Abschreibung eines Anlageguts hängt nicht
+// daran, dass ein Datumsfeld gepflegt ist.
+func (p AfAPlan) window(year, startMonth int) (time.Time, time.Time) {
+	if period, ok := p.Periods[year]; ok {
+		start, errStart := monthStart(period.Start)
+		end, errEnd := monthStart(period.End)
+		if errStart == nil && errEnd == nil && !end.Before(start) {
+			return start, end.AddDate(0, 1, 0)
+		}
+	}
+	start := time.Date(year, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
+	return start, start.AddDate(1, 0, 0)
 }
 
 // Die Sonderabschreibung des § 7g Abs. 5 EStG in Zahlen.
@@ -541,8 +585,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 					"Die handelsrechtliche Abschreibung bleibt davon unberührt.")
 		}
 
-		fyStart := time.Date(year, time.Month(start), 1, 0, 0, 0, 0, time.UTC)
-		fyEnd := fyStart.AddDate(1, 0, 0)
+		fyStart, fyEnd := plan.window(year, start)
 		months := overlapMonths(afaStart, afaEnd, fyStart, fyEnd)
 		if months <= 0 {
 			if !fyStart.Before(afaEnd) {

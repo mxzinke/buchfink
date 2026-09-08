@@ -117,6 +117,10 @@ func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElecti
 		return nil, err
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
+	// Die tatsächlichen Zeiträume: ein Rumpfjahr trägt weniger als zwölf Monate,
+	// und die steuerliche Spalte des Verzeichnisses käme sonst auf einen anderen
+	// Betrag als der Abschreibungslauf.
+	periods := s.fiscalPeriods(ctx)
 	register := &TaxElectionRegister{
 		FiscalYear: year, Rows: make([]TaxElectionRow, 0),
 		Note: "Wer die Sonderabschreibung nach § 7g Abs. 5 EStG in Anspruch nimmt, muss das " +
@@ -143,7 +147,7 @@ func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElecti
 		// Die handelsrechtliche Spalte bleibt dagegen das, was in den Büchern
 		// steht — das Verzeichnis stellt beide nebeneinander.
 		planByYear := map[int]accounting.AfAYear{}
-		if rows, err := accounting.BuildAfASchedule(afaPlanFor(asset, startMonth)); err == nil {
+		if rows, err := accounting.BuildAfASchedule(afaPlanFor(asset, startMonth, periods)); err == nil {
 			for _, r := range rows {
 				planByYear[r.FiscalYear] = r
 			}
@@ -389,4 +393,22 @@ func (s *TaxRegisterService) taxValueOf(p *domain.Provision, cutoff string, bala
 		return balance
 	}
 	return value
+}
+
+// fiscalPeriods liest die Zeiträume der angelegten Geschäftsjahre für den
+// Abschreibungsplan. Fehlt der Abschlussdienst, leitet der Plan sie aus dem
+// Beginnmonat ab.
+func (s *TaxRegisterService) fiscalPeriods(ctx context.Context) map[int]accounting.FiscalPeriod {
+	if s.closingSvc == nil {
+		return nil
+	}
+	years, err := s.closingSvc.FiscalYears(ctx)
+	if err != nil || len(years) == 0 {
+		return nil
+	}
+	out := make(map[int]accounting.FiscalPeriod, len(years))
+	for _, fy := range years {
+		out[fy.Year] = accounting.FiscalPeriod{Start: fy.StartDate, End: fy.EndDate}
+	}
+	return out
 }

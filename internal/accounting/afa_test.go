@@ -568,3 +568,120 @@ func TestSpecialDepreciationAlongsideDegressive(t *testing.T) {
 		t.Errorf("Summe der steuerlichen Abschreibungen %s € — erwartet die vollen Anschaffungskosten", tax)
 	}
 }
+
+// Ein Rumpfgeschäftsjahr trägt nur seine Monate.
+//
+// Der Plan baute jedes Geschäftsjahr als volle zwölf Monate ab dem Beginnmonat.
+// Für das Gründungsjahr fiel das nicht auf — vor der Beurkundung kann nichts
+// angeschafft werden, und § 7 Abs. 1 Satz 4 EStG rechnet ohnehin ab dem
+// Anschaffungsmonat. Bei einer Umstellung des Geschäftsjahres mitten in der
+// Nutzungsdauer schrieb er doppelt so viel ab, wie das Jahr trägt.
+func TestAfAScheduleRespectsAShortFiscalYear(t *testing.T) {
+	// 12.000 € auf zehn Jahre, angeschafft im Januar 2026. 2027 wird das
+	// Geschäftsjahr umgestellt: ein Rumpfjahr vom 01.01. bis zum 30.06.
+	plan := AfAPlan{
+		AcquisitionDate:      "2026-01-10",
+		Cost:                 1_200_000,
+		UsefulLifeMonths:     120,
+		Method:               domain.DepreciationLinear,
+		FiscalYearStartMonth: 1,
+		Periods: map[int]FiscalPeriod{
+			2026: {Start: "2026-01-01", End: "2026-12-31"},
+			2027: {Start: "2027-01-01", End: "2027-06-30"},
+		},
+	}
+
+	rows, err := BuildAfASchedule(plan)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	byYear := map[int]AfAYear{}
+	for _, r := range rows {
+		byYear[r.FiscalYear] = r
+	}
+
+	if got := byYear[2026].Months; got != 12 {
+		t.Errorf("2026 = %d Monate, erwartet 12", got)
+	}
+	if got := byYear[2027].Months; got != 6 {
+		t.Errorf("2027 = %d Monate, erwartet 6 — das Rumpfjahr endet am 30.06.", got)
+	}
+	// 1.200 € im vollen Jahr, die Hälfte im Rumpfjahr.
+	if got := byYear[2026].Amount; got != 120_000 {
+		t.Errorf("2026 = %s €, erwartet 1.200,00", got)
+	}
+	if got := byYear[2027].Amount; got != 60_000 {
+		t.Errorf("2027 = %s €, erwartet 600,00 — das halbe Jahr trägt den halben Betrag", got)
+	}
+}
+
+// Das Gründungsjahr beginnt mitten im Monat. Gerechnet wird trotzdem in ganzen
+// Monaten: § 7 Abs. 1 Satz 4 EStG kennt keinen halben.
+func TestAfAScheduleCountsTheFoundingMonthInFull(t *testing.T) {
+	plan := AfAPlan{
+		AcquisitionDate:      "2026-03-20",
+		Cost:                 1_200_000,
+		UsefulLifeMonths:     120,
+		Method:               domain.DepreciationLinear,
+		FiscalYearStartMonth: 1,
+		Periods: map[int]FiscalPeriod{
+			2026: {Start: "2026-03-15", End: "2026-12-31"},
+		},
+	}
+
+	rows, err := BuildAfASchedule(plan)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("der Plan ist leer")
+	}
+	if rows[0].FiscalYear != 2026 || rows[0].Months != 10 {
+		t.Errorf("Gründungsjahr = %d mit %d Monaten, erwartet 2026 mit 10 (März bis Dezember)",
+			rows[0].FiscalYear, rows[0].Months)
+	}
+}
+
+// Ohne Zeitraum bleibt es bei der Ableitung aus dem Beginnmonat: der Plan läuft
+// über Jahre, die noch niemand angelegt hat.
+func TestAfAScheduleFallsBackToTheDerivedPeriod(t *testing.T) {
+	withPeriods := AfAPlan{
+		AcquisitionDate:      "2026-01-10",
+		Cost:                 1_200_000,
+		UsefulLifeMonths:     120,
+		Method:               domain.DepreciationLinear,
+		FiscalYearStartMonth: 1,
+		Periods:              map[int]FiscalPeriod{2026: {Start: "2026-01-01", End: "2026-12-31"}},
+	}
+	without := withPeriods
+	without.Periods = nil
+
+	a, err := BuildAfASchedule(withPeriods)
+	if err != nil {
+		t.Fatalf("Plan mit Zeitraum: %v", err)
+	}
+	b, err := BuildAfASchedule(without)
+	if err != nil {
+		t.Fatalf("Plan ohne Zeitraum: %v", err)
+	}
+	if len(a) != len(b) {
+		t.Fatalf("%d gegen %d Jahre — ein volles Kalenderjahr ändert nichts", len(a), len(b))
+	}
+	for i := range a {
+		if a[i].Months != b[i].Months || a[i].Amount != b[i].Amount {
+			t.Errorf("Jahr %d weicht ab: %d Monate / %s € gegen %d Monate / %s €",
+				a[i].FiscalYear, a[i].Months, a[i].Amount, b[i].Months, b[i].Amount)
+		}
+	}
+
+	// Ein unlesbarer Zeitraum darf den Plan nicht scheitern lassen.
+	broken := withPeriods
+	broken.Periods = map[int]FiscalPeriod{2026: {Start: "unfug", End: ""}}
+	c, err := BuildAfASchedule(broken)
+	if err != nil {
+		t.Fatalf("Plan mit unlesbarem Zeitraum: %v", err)
+	}
+	if len(c) != len(b) || c[0].Amount != b[0].Amount {
+		t.Error("ein unlesbarer Zeitraum muss auf die Ableitung zurückfallen")
+	}
+}
