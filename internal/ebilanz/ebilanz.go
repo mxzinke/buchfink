@@ -94,6 +94,36 @@ type InstanceInput struct {
 	EndDate        string
 	PriorStartDate string
 	PriorEndDate   string
+
+	// Kind ist die Bilanzart. Leer heißt Jahresabschluss.
+	//
+	// Die Eröffnungsbilanz ist eine Bilanz im Sinne des § 5b Abs. 1 EStG und
+	// damit ebenfalls elektronisch zu übermitteln. Sie unterscheidet sich vom
+	// Jahresabschluss in dreierlei: sie steht auf einen Stichtag statt auf ein
+	// Geschäftsjahr, sie hat keine Gewinn- und Verlustrechnung — bis zum ersten
+	// Tag ist nichts erwirtschaftet —, und sie hat kein Vorjahr. Ohne die
+	// Angabe der Art läse das Finanzamt sie als Jahresabschluss eines Jahres,
+	// das noch läuft.
+	Kind StatementKind
+}
+
+// StatementKind ist die Art des übermittelten Abschlusses.
+type StatementKind string
+
+const (
+	// KindJahresabschluss ist der Regelfall.
+	KindJahresabschluss StatementKind = "Jahresabschluss"
+	// KindEroeffnungsbilanz ist die Bilanz auf den Beginn des Handelsgewerbes
+	// (§ 242 Abs. 1 HGB).
+	KindEroeffnungsbilanz StatementKind = "Eröffnungsbilanz"
+)
+
+// Label liefert die Art, wie sie in die Instanz geht.
+func (k StatementKind) Label() string {
+	if k == "" {
+		return string(KindJahresabschluss)
+	}
+	return string(k)
 }
 
 const (
@@ -135,6 +165,10 @@ func GenerateEBilanzXBRL(in InstanceInput) (string, *MappingReport, error) {
 	}
 
 	identifier := in.Settings.TaxNumber
+	// Der Zeitraumkontext bleibt auch bei der Eröffnungsbilanz stehen: die
+	// Angaben über das Unternehmen hängen an ihm, und ein Bericht ohne
+	// Berichtszeitraum wäre keiner. Er umfasst dann den einen Tag, auf den die
+	// Bilanz steht.
 	root.Children = append(root.Children,
 		instantContext(contextInstant, identifier, in.EndDate),
 		durationContext(contextDuration, identifier, in.StartDate, in.EndDate),
@@ -254,6 +288,10 @@ func companyData(in InstanceInput) []node {
 		text("de-gcd:genInfo.report.period.fiscalYearEnd", contextDuration, in.EndDate),
 		text("de-gcd:genInfo.report.accountingStandard", contextDuration, "HGB / Steuerrecht"),
 		text("de-gcd:genInfo.report.accountScheme", contextDuration, "SKR04"),
+		// Die Bilanzart. Der Elementname ist wie alle anderen nach der Systematik
+		// der Taxonomie gebildet und trägt denselben Vorbehalt: vor der
+		// Übermittlung gegen die amtliche Fassung auf esteuer.de abgleichen.
+		text("de-gcd:genInfo.report.id.statementType", contextDuration, in.Kind.Label()),
 	)
 }
 

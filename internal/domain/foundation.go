@@ -302,6 +302,21 @@ type FoundationDuty struct {
 	Deadline string `json:"deadline"`
 	// Anchor ist das Ereignis, aus dem die Frist läuft.
 	Anchor FoundationAnchor `json:"anchor"`
+	// Order ist der Platz im Gründungsweg. Er folgt der Reihenfolge, in der die
+	// Schritte zu tun sind, und nicht der Fälligkeit: die Anmeldung steht vor
+	// dem Fragebogen, obwohl der ein Datum hat und sie keins.
+	Order int `json:"order"`
+	// Where ist der Ort, an dem die Pflicht erfüllt wird — beim Notar, über Mein
+	// ELSTER, bei der Gemeinde. Wer zum ersten Mal gründet, weiß das nicht, und
+	// es steht in keinem Paragrafen.
+	Where string `json:"where"`
+	// Todo sind die Handgriffe, in der Reihenfolge, in der sie zu tun sind.
+	// Jeder ein Satz.
+	Todo []string `json:"todo"`
+	// Provides sagt, was Buchfink dafür bereitstellt — leer, wo es nichts
+	// beisteuern kann. Es ist der Unterschied zwischen einer Anleitung und einer
+	// Hilfe.
+	Provides string `json:"provides,omitempty"`
 	// IsPending sagt, dass dieses Ereignis noch nicht eingetreten ist. Die
 	// Pflicht steht dann schon in der Liste — der Gründer soll wissen, was noch
 	// kommt —, hat aber kein Datum und kann nicht überfällig sein.
@@ -310,6 +325,11 @@ type FoundationDuty struct {
 	Description string `json:"description"`
 	DoneOn      string `json:"doneOn"`
 	IsDone      bool   `json:"isDone"`
+	// Proof sind die abgelegten Nachweise zu dieser Pflicht — der
+	// Registerauszug, der Gewerbeschein, die Bestätigung des
+	// Transparenzregisters. Sie liegen in der Dokumentenablage des Unternehmens
+	// und sind hier nur verknüpft.
+	Proof []Document `json:"proof,omitempty"`
 }
 
 // FoundationRepository persists the Gründung of a tenant.

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/domain"
+
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -136,5 +138,120 @@ func TestFileOpeningBalanceRefusesAnUnbalancedSheet(t *testing.T) {
 
 	if _, err := svc.FileOpeningBalance(ctx); err == nil {
 		t.Fatal("eine Bilanz, die nicht aufgeht, darf nicht abgelegt werden")
+	}
+}
+
+// Der Gründungsweg zählt seinen Fortschritt selbst und nennt den nächsten
+// Schritt. Wartende Schritte zählen nicht als offen: zu tun ist an ihnen gerade
+// nichts.
+func TestFoundationGuideCountsProgressAndNamesTheNextStep(t *testing.T) {
+	env := newTestEnv(t)
+	svc, _ := openingEnv(t, env)
+	ctx := context.Background()
+	env.saveFoundation(t, svc, gmbhFoundation())
+
+	state, err := svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	guide := state.Guide
+	if guide.Total != len(state.Duties) || guide.Total == 0 {
+		t.Fatalf("der Weg zählt %d von %d Schritten", guide.Total, len(state.Duties))
+	}
+	if guide.Done+guide.Open+guide.Waiting != guide.Total {
+		t.Errorf("die Zählung geht nicht auf: %d erledigt, %d offen, %d wartend von %d",
+			guide.Done, guide.Open, guide.Waiting, guide.Total)
+	}
+	// Vor der Eintragung warten Gewerbeanmeldung und Transparenzregister.
+	if guide.Waiting < 2 {
+		t.Errorf("%d wartende Schritte, erwartet mindestens zwei vor der Eintragung", guide.Waiting)
+	}
+	// Der erste offene Schritt ist die Anmeldung zum Handelsregister.
+	if guide.NextKey != "handelsregister" {
+		t.Errorf("nächster Schritt %q, erwartet die Anmeldung zum Handelsregister", guide.NextKey)
+	}
+	if guide.NextTitle == "" {
+		t.Error("der nächste Schritt hat keinen Titel")
+	}
+
+	// Erledigt verschiebt den nächsten Schritt.
+	if err := svc.CompleteDuty(ctx, "handelsregister", "2026-02-01", ""); err != nil {
+		t.Fatalf("Pflicht quittieren: %v", err)
+	}
+	state, err = svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	if state.Guide.Done != 1 {
+		t.Errorf("%d erledigt, erwartet 1", state.Guide.Done)
+	}
+	if state.Guide.NextKey == "handelsregister" {
+		t.Error("der erledigte Schritt darf nicht mehr der nächste sein")
+	}
+}
+
+// Jeder Schritt sagt, wo er zu erledigen ist und was zu tun ist. Ohne das wäre
+// die Liste eine Aufzählung von Pflichten und keine Anleitung.
+func TestFoundationDutiesCarryInstructions(t *testing.T) {
+	env := newTestEnv(t)
+	svc, _ := openingEnv(t, env)
+	ctx := context.Background()
+	env.saveFoundation(t, svc, gmbhFoundation())
+
+	state, err := svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	for _, duty := range state.Duties {
+		if duty.Order == 0 {
+			t.Errorf("%s hat keinen Platz im Weg", duty.Key)
+		}
+		if strings.TrimSpace(duty.Where) == "" {
+			t.Errorf("%s sagt nicht, wo es zu erledigen ist", duty.Key)
+		}
+		if len(duty.Todo) == 0 {
+			t.Errorf("%s nennt keine Handgriffe", duty.Key)
+		}
+	}
+	// Die Reihenfolge ist die des Weges und nicht die der Fälligkeit.
+	for i := 1; i < len(state.Duties); i++ {
+		if state.Duties[i-1].Order > state.Duties[i].Order {
+			t.Errorf("die Schritte stehen nicht in ihrer Reihenfolge: %d vor %d",
+				state.Duties[i-1].Order, state.Duties[i].Order)
+		}
+	}
+}
+
+// Ein abgelegter Nachweis hängt an seinem Schritt.
+func TestFoundationDutyCarriesItsProof(t *testing.T) {
+	env := newTestEnv(t)
+	svc, documents := openingEnv(t, env)
+	ctx := context.Background()
+	env.saveFoundation(t, svc, gmbhFoundation())
+
+	if _, err := documents.Attach(ctx, DocumentRequest{
+		Kind:     domain.DocHandelsregister,
+		Title:    "Eintragungsnachricht",
+		DutyKey:  "handelsregister",
+		FileName: "auszug.pdf",
+		Content:  []byte("%PDF-1.4 Auszug"),
+	}); err != nil {
+		t.Fatalf("Nachweis ablegen: %v", err)
+	}
+
+	state, err := svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	for _, duty := range state.Duties {
+		if duty.Key != "handelsregister" {
+			if len(duty.Proof) != 0 {
+				t.Errorf("%s trägt einen fremden Nachweis", duty.Key)
+			}
+			continue
+		}
+		if len(duty.Proof) != 1 || duty.Proof[0].Title != "Eintragungsnachricht" {
+			t.Errorf("der Nachweis hängt nicht am Schritt: %+v", duty.Proof)
+		}
 	}
 }

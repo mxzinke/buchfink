@@ -62,6 +62,27 @@ func sampleInput(t *testing.T, accounts []domain.Account) InstanceInput {
 	}
 }
 
+// openingInput ist eine Eröffnungsbilanz: Bank und ausstehende Einlage gegen das
+// gezeichnete Kapital, auf den Tag der Beurkundung, ohne Vorjahr.
+func openingInput(t *testing.T) InstanceInput {
+	t.Helper()
+	accounts := accountsWith(t, map[string]domain.Cents{
+		"1800": 1_250_000,  // Bank: die geleistete Einlage
+		"1298": 1_250_000,  // Ausstehende Einlagen, eingefordert
+		"2900": -2_500_000, // Gezeichnetes Kapital
+	})
+	stmt, err := accounting.BuildStatement(accounts, nil, domain.DepthFull)
+	if err != nil {
+		t.Fatalf("Bilanz: %v", err)
+	}
+	return InstanceInput{
+		Settings: minimalSettings(), Statement: stmt, Accounts: accounts,
+		FiscalYear: 2026,
+		StartDate:  "2026-03-15", EndDate: "2026-03-15",
+		Kind: KindEroeffnungsbilanz,
+	}
+}
+
 // Die Instanz muss wohlgeformtes XML sein, die Bilanzsumme, das Jahresergebnis,
 // beide Kontexte und den Kontennachweis enthalten.
 func TestInstanceCarriesTheStatement(t *testing.T) {
@@ -373,5 +394,61 @@ func TestInstanceCarriesTheReconciliation(t *testing.T) {
 	// steht seit dieser Fassung auch im Kommentar der Datei.
 	if strings.Contains(without, "<de-gaap-ci:hbst") {
 		t.Error("ohne Differenzen darf kein Überleitungsblock in der Instanz stehen")
+	}
+}
+
+// Die Eröffnungsbilanz nennt ihre Art.
+//
+// Sie ist eine Bilanz im Sinne des § 5b Abs. 1 EStG und damit elektronisch zu
+// übermitteln. Ohne die Angabe der Art läse das Finanzamt sie als
+// Jahresabschluss eines Jahres, das noch läuft.
+func TestOpeningBalanceInstanceNamesItsKind(t *testing.T) {
+	in := openingInput(t)
+	xbrl, _, err := GenerateEBilanzXBRL(in)
+	if err != nil {
+		t.Fatalf("Instanz: %v", err)
+	}
+	if !strings.Contains(xbrl, "Eröffnungsbilanz") {
+		t.Error("die Instanz nennt die Bilanzart nicht")
+	}
+	if !strings.Contains(xbrl, "genInfo.report.id.statementType") {
+		t.Error("das Element der Bilanzart fehlt")
+	}
+	// Der Stichtag steht als Beginn und als Ende: der Berichtszeitraum der
+	// Eröffnungsbilanz ist der eine Tag, an dem das Handelsgewerbe beginnt.
+	if !strings.Contains(xbrl, "<xbrli:startDate>2026-03-15</xbrli:startDate>") ||
+		!strings.Contains(xbrl, "<xbrli:endDate>2026-03-15</xbrli:endDate>") {
+		t.Error("der Berichtszeitraum steht nicht auf dem Stichtag")
+	}
+	// Ohne Vorjahr gibt es keinen zweiten Kontext.
+	if strings.Contains(xbrl, contextInstantPrior) {
+		t.Error("die Eröffnungsbilanz hat kein Vorjahr")
+	}
+}
+
+// Der Jahresabschluss nennt seine Art ebenso — sonst wäre die Angabe eine
+// Ausnahme statt einer Aussage.
+func TestYearInstanceNamesItsKind(t *testing.T) {
+	in := openingInput(t)
+	in.Kind = KindJahresabschluss
+	in.StartDate, in.EndDate = "2026-01-01", "2026-12-31"
+
+	xbrl, _, err := GenerateEBilanzXBRL(in)
+	if err != nil {
+		t.Fatalf("Instanz: %v", err)
+	}
+	if !strings.Contains(xbrl, "Jahresabschluss") {
+		t.Error("die Instanz nennt die Bilanzart nicht")
+	}
+}
+
+// Eine leere Art ist ein Jahresabschluss: der Regelfall braucht keine Angabe.
+func TestStatementKindDefaultsToJahresabschluss(t *testing.T) {
+	var empty StatementKind
+	if empty.Label() != "Jahresabschluss" {
+		t.Errorf("leere Bilanzart = %q, erwartet den Jahresabschluss", empty.Label())
+	}
+	if KindEroeffnungsbilanz.Label() != "Eröffnungsbilanz" {
+		t.Errorf("Eröffnungsbilanz = %q", KindEroeffnungsbilanz.Label())
 	}
 }

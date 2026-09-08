@@ -239,17 +239,37 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Key:       DutyHandelsregister,
 			Title:     "Anmeldung zum Handelsregister",
 			Anchor:    domain.AnchorBeurkundung,
+			Order:     1,
+			Where:     "Beim Notar, der auch beurkundet hat",
 			Deadline:  "sobald die Mindesteinlage geleistet ist",
 			Reference: "§§ 7, 8 GmbHG",
 			Description: "Die Anmeldung nimmt der Notar vor. Sie darf erst erfolgen, wenn die " +
 				"Mindesteinlage auf dem Geschäftskonto steht — " + rules.Reference + ".",
+			Todo: []string{
+				"Geschäftskonto auf den Namen der Gesellschaft eröffnen.",
+				"Die Einlagen der Gesellschafter darauf einzahlen.",
+				"Dem Notar den Kontoauszug über die Einzahlung vorlegen.",
+				"Der Notar meldet an; das Gericht trägt ein und schickt die Eintragungsnachricht.",
+			},
+			Provides: "Buchfink prüft, ob die Einlage für die Anmeldung reicht — je Geschäftsanteil " +
+				"und in der Summe.",
 		},
 		{
 			Key:      DutyFragebogen,
 			Title:    "Fragebogen zur steuerlichen Erfassung",
 			Anchor:   domain.AnchorBeurkundung,
+			Order:    2,
+			Where:    "Mein ELSTER, elektronisch an das Finanzamt",
 			DueDate:  addMonths(beurkundung, 1),
 			Deadline: "innerhalb eines Monats nach der Beurkundung",
+			Todo: []string{
+				"Bei Mein ELSTER anmelden oder ein Benutzerkonto anlegen.",
+				"Formular „Fragebogen zur steuerlichen Erfassung“ für eine Kapitalgesellschaft wählen.",
+				"Die Angaben aus dem Datenblatt übertragen und die offenen Felder ergänzen.",
+				"Nach der Übermittlung das Protokoll hier ablegen; die Steuernummer kommt per Post.",
+			},
+			Provides: "Buchfink stellt ein Datenblatt mit allen Angaben zusammen, die es kennt, und " +
+				"nennt die, die nur Sie machen können.",
 			// Die Vorgesellschaft ist bereits Körperschaftsteuersubjekt; anzuzeigen
 			// ist die Aufnahme der Tätigkeit, nicht die Eintragung. Die Frist an
 			// die Eintragung zu hängen wäre auch praktisch verkehrt: ohne
@@ -264,9 +284,19 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Key:       DutyEroeffnungsbilanz,
 			Title:     "Eröffnungsbilanz aufstellen",
 			Anchor:    domain.AnchorBeurkundung,
+			Order:     3,
+			Where:     "In Buchfink; die Übermittlung läuft über Mein ELSTER",
 			DueDate:   addMonths(beurkundung, 6),
 			Deadline:  "im ordnungsmäßigen Geschäftsgang",
 			Reference: "§ 242 Abs. 1 HGB",
+			Todo: []string{
+				"Die Gründungsbuchungen freigeben, falls noch nicht geschehen.",
+				"Die Eröffnungsbilanz aufstellen und prüfen, ob sie aufgeht.",
+				"Sie als PDF ablegen — sie gehört zehn Jahre aufbewahrt.",
+				"Die E-Bilanz dazu erzeugen und über Mein ELSTER übermitteln (§ 5b Abs. 1 EStG).",
+			},
+			Provides: "Buchfink stellt sie aus den Buchungen auf, setzt sie als PDF und erzeugt die " +
+				"XBRL-Instanz dazu.",
 			Description: "Aufzustellen zu Beginn des Handelsgewerbes, also auf den Tag der " +
 				"Beurkundung. Das Gesetz nennt keine Tagesfrist; der angezeigte Termin ist " +
 				"der Richtwert einer kleinen Kapitalgesellschaft nach § 264 Abs. 1 Satz 4 HGB.",
@@ -275,8 +305,16 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Key:      DutyGewerbeanmeldung,
 			Title:    "Gewerbeanmeldung bei der Gemeinde",
 			Anchor:   domain.AnchorEintragung,
+			Order:    4,
+			Where:    "Gewerbeamt der Gemeinde, in der die Gesellschaft ihren Sitz hat",
 			DueDate:  addMonths(eintragung, 1),
 			Deadline: "innerhalb eines Monats nach der Eintragung",
+			Todo: []string{
+				"Handelsregisterauszug bereithalten — das Gewerbeamt führt die Gesellschaft unter der HRB-Nummer.",
+				"Formular GewA 1 ausfüllen, viele Gemeinden nehmen es online entgegen.",
+				"Ausweis des Geschäftsführers und, je nach Tätigkeit, die Erlaubnis beilegen.",
+				"Den Gewerbeschein hier ablegen.",
+			},
 			// Anders als beim Fragebogen: das Gewerbeamt führt die Gesellschaft
 			// unter ihrer Registernummer und verlangt den Registerauszug. Vor der
 			// Eintragung ist die Anmeldung praktisch nicht zu erledigen. Das ist
@@ -291,8 +329,18 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Key:       DutyTransparenzregister,
 			Title:     "Wirtschaftlich Berechtigte melden",
 			Anchor:    domain.AnchorEintragung,
+			Order:     5,
+			Where:     "transparenzregister.de",
 			Deadline:  "unverzüglich nach der Eintragung",
 			Reference: "§ 20 Abs. 1 GwG",
+			Todo: []string{
+				"Wirtschaftlich Berechtigte bestimmen: wer mehr als 25 % der Anteile oder Stimmrechte hält.",
+				"Hält niemand mehr als 25 %, gelten die gesetzlichen Vertreter als fiktiv Berechtigte.",
+				"Auf transparenzregister.de ein Konto anlegen und die Meldung abgeben.",
+				"Die Bestätigung hier ablegen.",
+			},
+			Provides: "Buchfink kennt die Geschäftsanteile aus der Gründung — wer über 25 % liegt, " +
+				"steht in der Gesellschafterliste.",
 			Description: "Die Mitteilung an das Transparenzregister ist seit 2022 für jede " +
 				"Gesellschaft Pflicht; die frühere Mitteilungsfiktion gibt es nicht mehr.",
 		},
@@ -303,9 +351,16 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Key:       DutyRuecklage,
 			Title:     "Gesetzliche Rücklage einstellen",
 			Anchor:    domain.AnchorAbschlussstichtag,
+			Order:     6,
+			Where:     "Im Jahresabschluss, in Buchfink",
 			DueDate:   fiscalYearEndAfter(beurkundung),
 			Deadline:  "mit dem Jahresabschluss",
 			Reference: "§ 5a Abs. 3 GmbHG",
+			Todo: []string{
+				"Den Jahresabschluss aufstellen.",
+				"Ein Viertel des um einen Verlustvortrag geminderten Jahresüberschusses auf Konto 2930 buchen.",
+				"Das gilt, bis das Stammkapital 25.000 € erreicht hat.",
+			},
 			Description: "Ein Viertel des um einen Verlustvortrag aus dem Vorjahr geminderten " +
 				"Jahresüberschusses gehört in die gesetzliche Rücklage (Konto 2930), bis das " +
 				"Stammkapital 25.000 € erreicht. Buchfink führt die Pflicht, bucht sie aber " +
@@ -317,9 +372,16 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 		Key:       DutyOffenlegung,
 		Title:     "Ersten Jahresabschluss offenlegen",
 		Anchor:    domain.AnchorAbschlussstichtag,
+		Order:     7,
+		Where:     "Unternehmensregister, publikations-plattform.de",
 		DueDate:   addMonths(fiscalYearEndAfter(beurkundung), 12),
 		Deadline:  "zwölf Monate nach dem Abschlussstichtag",
 		Reference: "§ 325 Abs. 1a HGB",
+		Todo: []string{
+			"Den Jahresabschluss feststellen lassen.",
+			"Beim Unternehmensregister anmelden und die Daten übermitteln.",
+			"Kleinstkapitalgesellschaften können die Bilanz stattdessen hinterlegen (§ 326 Abs. 2 HGB).",
+		},
 		Description: "Übermittlung an das Unternehmensregister. Kleinstkapital" +
 			"gesellschaften können stattdessen die Bilanz hinterlegen (§ 326 Abs. 2 HGB).",
 	})

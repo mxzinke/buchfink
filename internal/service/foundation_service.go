@@ -100,6 +100,28 @@ type FoundationState struct {
 
 	// PostingsBooked sagt, ob die Gründungsbuchungen schon im Journal stehen.
 	PostingsBooked bool `json:"postingsBooked"`
+
+	// Guide ist der Fortschritt durch die Gründung: wie viele Schritte erledigt
+	// sind und welcher als Nächstes ansteht.
+	Guide FoundationGuide `json:"guide"`
+}
+
+// FoundationGuide ist der Stand des Gründungswegs.
+//
+// Gerechnet und nicht von der Ansicht gezählt — derselbe Grund wie beim
+// geführten Weg des Jahresabschlusses: zwei Zählungen desselben Fortschritts
+// gehen auseinander, sobald eine Regel sich ändert.
+type FoundationGuide struct {
+	Total int `json:"total"`
+	Done  int `json:"done"`
+	// Waiting sind die Schritte, deren auslösendes Ereignis noch aussteht. Sie
+	// zählen nicht als offen: zu tun ist an ihnen gerade nichts.
+	Waiting int `json:"waiting"`
+	Open    int `json:"open"`
+	// NextKey ist der Schlüssel des Schrittes, der als Nächstes ansteht — der
+	// erste offene in der Reihenfolge des Weges. Leer heißt: nichts offen.
+	NextKey   string `json:"nextKey,omitempty"`
+	NextTitle string `json:"nextTitle,omitempty"`
 }
 
 // GetState assembles the Gründungsansicht.
@@ -150,6 +172,10 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		done[t.Key] = t.DoneOn
 	}
 	state.Duties = accounting.FoundationDuties(f, rules, done)
+	if s.documents != nil {
+		attachDutyProof(ctx, s.documents, state.Duties)
+	}
+	state.Guide = summarizeGuide(state.Duties)
 
 	booked, err := s.postingsBooked(ctx)
 	if err != nil {
@@ -798,4 +824,37 @@ func isDigits(value string) bool {
 		}
 	}
 	return true
+}
+
+// summarizeGuide zählt den Fortschritt durch die Gründung.
+func summarizeGuide(duties []domain.FoundationDuty) FoundationGuide {
+	guide := FoundationGuide{Total: len(duties)}
+	for _, duty := range duties {
+		switch {
+		case duty.IsDone:
+			guide.Done++
+		case duty.IsPending:
+			guide.Waiting++
+		default:
+			guide.Open++
+			// Der erste offene in der Reihenfolge des Weges. Die Liste kommt
+			// bereits geordnet aus dem Fachbereich.
+			if guide.NextKey == "" {
+				guide.NextKey = duty.Key
+				guide.NextTitle = duty.Title
+			}
+		}
+	}
+	return guide
+}
+
+// attachDutyProof hängt die abgelegten Nachweise an ihre Pflicht.
+func attachDutyProof(ctx context.Context, documents *DocumentService, duties []domain.FoundationDuty) {
+	for i := range duties {
+		proof, err := documents.ForDuty(ctx, duties[i].Key)
+		if err != nil {
+			continue
+		}
+		duties[i].Proof = proof
+	}
 }
