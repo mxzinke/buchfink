@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Landmark } from 'lucide-react';
+import { BookOpen, Landmark, ListChecks } from 'lucide-react';
 import { FoundationPostingPreview, FoundationState } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from './WriteLock';
@@ -25,6 +25,8 @@ import {
 interface FoundationSectionProps {
   state: FoundationState;
   onChanged: () => void | Promise<void>;
+  /** Öffnet den Gründungsweg — die Schritte mit ihren Anleitungen. */
+  onOpenGuide: () => void;
 }
 
 /**
@@ -43,7 +45,11 @@ interface FoundationSectionProps {
  * nichts. Die Gesellschafterzeile zeigt deshalb die Kapitalaufbringung: was
  * übernommen, was geleistet und was offen ist.
  */
-export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onChanged }) => {
+export const FoundationSection: React.FC<FoundationSectionProps> = ({
+  state,
+  onChanged,
+  onOpenGuide,
+}) => {
   // Gründungsbuchungen und die Eintragung ändern die Bücher: im Prüfermodus
   // gesperrt (§10.4).
   const writeLock = useWriteLock();
@@ -109,11 +115,21 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({ state, onC
   return (
     <Section
       title="Gründung"
-      context={`Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}`}
+      context={
+        `Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}` +
+        (state.guide?.total ? ` · ${state.guide.done} von ${state.guide.total} Schritten erledigt` : '')
+      }
       explain={<GruendungExplain />}
       onMore={() => setHelp(true)}
       action={
         <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            icon={<ListChecks className="w-4 h-4" strokeWidth={1.5} />}
+            onClick={onOpenGuide}
+          >
+            Gründungsweg
+          </Button>
           {!state.postingsBooked && (
             <Button
               variant="secondary"

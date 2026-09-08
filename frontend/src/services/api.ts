@@ -88,6 +88,11 @@ import type {
   FoundationPostingPreview,
   FoundationRules,
   FoundationState,
+  FragebogenSheet,
+  CompanyDocument,
+  DocumentKindOption,
+  DocumentRequest,
+  OpeningBalanceSheet,
   GiftRebooking,
   InputTaxCorrection,
   InputTaxCorrectionYear,
@@ -1483,6 +1488,42 @@ export const Api = {
   /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
   completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
     call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
+
+  /** Die Eröffnungsbilanz auf den Beurkundungstag, ohne sie abzulegen. */
+  getOpeningBalance: (): Promise<OpeningBalanceSheet> =>
+    call(() => Bridge.GetOpeningBalance() as Promise<OpeningBalanceSheet>),
+  /** Setzt die Eröffnungsbilanz und legt sie in der Dokumentenablage ab. */
+  fileOpeningBalance: (): Promise<CompanyDocument> =>
+    call(() => Bridge.FileOpeningBalance() as Promise<CompanyDocument>),
+  /** Die E-Bilanz der Eröffnungsbilanz als XBRL-Instanz (§ 5b Abs. 1 EStG). */
+  exportOpeningBalanceXBRL: (): Promise<string> =>
+    call(() => Bridge.ExportOpeningBalanceXBRL()),
+  /** Das Datenblatt zum Fragebogen zur steuerlichen Erfassung. */
+  getFragebogenSheet: (): Promise<FragebogenSheet> =>
+    call(() => Bridge.GetFragebogenSheet() as Promise<FragebogenSheet>),
+  /** Setzt das Datenblatt und legt es ab. */
+  fileFragebogenSheet: (): Promise<CompanyDocument> =>
+    call(() => Bridge.FileFragebogenSheet() as Promise<CompanyDocument>),
+
+  // --- Dokumentenablage des Unternehmens ---------------------------------
+
+  /** Die Unterlagen des Unternehmens, das jüngste Dokument zuerst. */
+  getDocuments: (): Promise<CompanyDocument[]> =>
+    call(() => Bridge.GetDocuments() as Promise<CompanyDocument[]>).then((list) => list ?? []),
+  /** Der Katalog der Dokumentarten für die Auswahl. */
+  getDocumentKinds: (): Promise<DocumentKindOption[]> =>
+    call(() => Bridge.GetDocumentKinds() as Promise<DocumentKindOption[]>).then((l) => l ?? []),
+  /** Eine Unterlage zur Anzeige — erst, nachdem die Prüfsumme stimmt. */
+  getDocumentContent: (id: number): Promise<ReceiptPreview> =>
+    call(() => Bridge.GetDocumentContent(id) as Promise<ReceiptPreview>),
+  /** Dateiauswahl für eine Unterlage. Leere Liste heißt: abgebrochen. */
+  selectDocuments: (): Promise<string[]> =>
+    call(() => Bridge.SelectDocumentsDialog() as Promise<string[]>).then((l) => l ?? []),
+  /** Legt eine Unterlage in der Ablage des Unternehmens ab. */
+  attachDocument: (request: DocumentRequest): Promise<CompanyDocument> =>
+    call(() => Bridge.AttachDocument(request) as Promise<CompanyDocument>),
+  /** Entfernt eine Unterlage aus der Ablage. */
+  removeDocument: (id: number): Promise<void> => call(() => Bridge.RemoveDocument(id)),
 
   // --- Datenüberlassung nach § 147 Abs. 6 AO -----------------------------
 

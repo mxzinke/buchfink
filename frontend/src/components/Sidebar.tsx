@@ -42,6 +42,10 @@ export type TabType =
   | 'reports'
   | 'closing'
   | 'closingmodules'
+  // Der Gründungsweg hat keinen Eintrag in der Navigation: er ist eine Phase
+  // und kein Ort. Erreicht wird er über den Hinweis auf der Startseite, über
+  // den Gründungsabschnitt der Fristenseite und aus dem Einrichtungsassistenten.
+  | 'gruendung'
   | 'vat'
   | 'obligations'
   | 'deadlines'

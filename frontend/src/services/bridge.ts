@@ -322,6 +322,19 @@ export const bridge = {
     invoke<T>('RegisterCompany', date, court, number),
   CompleteFoundationDuty: (key: string, doneOn: string, note: string) =>
     invoke<void>('CompleteFoundationDuty', key, doneOn, note),
+  GetOpeningBalance: <T>() => invoke<T>('GetOpeningBalance'),
+  FileOpeningBalance: <T>() => invoke<T>('FileOpeningBalance'),
+  ExportOpeningBalanceXBRL: () => invoke<string>('ExportOpeningBalanceXBRL'),
+  GetFragebogenSheet: <T>() => invoke<T>('GetFragebogenSheet'),
+  FileFragebogenSheet: <T>() => invoke<T>('FileFragebogenSheet'),
+
+  // Dokumentenablage des Unternehmens
+  GetDocuments: <T>() => invoke<T>('GetDocuments'),
+  GetDocumentKinds: <T>() => invoke<T>('GetDocumentKinds'),
+  GetDocumentContent: <T>(id: number) => invoke<T>('GetDocumentContent', id),
+  SelectDocumentsDialog: <T>() => invoke<T>('SelectDocumentsDialog'),
+  AttachDocument: <T>(request: unknown) => invoke<T>('AttachDocument', request),
+  RemoveDocument: (id: number) => invoke<void>('RemoveDocument', id),
 
   // Datenüberlassung nach § 147 Abs. 6 AO
   ExportZ3: <T>(year: number, targetDir: string) => invoke<T>('ExportZ3', year, targetDir),

@@ -274,14 +274,18 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
                 <span>
                   {`Ihre Gesellschaft ist seit dem ${formatDate(
                     foundation!.foundation!.notarizedOn,
-                  )} in Gründung — bis zur Eintragung ins Handelsregister führt sie den Zusatz i. G. und die Handelnden haften persönlich.`}
+                  )} in Gründung${
+                    foundation!.guide?.nextTitle
+                      ? ` — als Nächstes steht an: ${foundation!.guide.nextTitle}`
+                      : ' — bis zur Eintragung haften die Handelnden persönlich'
+                  }.`}
                 </span>
                 <GruendungHelpMark onMore={() => setGruendungHelp(true)} />
               </span>
             }
             action={
-              <Button variant="secondary" size="sm" onClick={() => onNavigate('deadlines')}>
-                Zur Gründung
+              <Button variant="secondary" size="sm" onClick={() => onNavigate('gruendung')}>
+                Zum Gründungsweg
               </Button>
             }
           />

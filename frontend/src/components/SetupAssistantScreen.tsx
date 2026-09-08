@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { TabType } from './Sidebar';
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,7 +19,11 @@ import { GermanFlag } from './GermanFlag';
 import { HelpPopover, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
 interface SetupAssistantScreenProps {
-  onSetupCompleted: () => void;
+  /**
+   * Ruft die Einrichtung ab. Das Ziel sagt, wohin es danach geht — nach einer
+   * erfassten Gründung auf den Gründungsweg.
+   */
+  onSetupCompleted: (target?: TabType) => void;
   onCancel?: () => void;
   isAdditionalTenant?: boolean;
 }
@@ -358,7 +363,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
       // Die Gründung erst danach: sie gehört in die Datenbank des Mandanten,
       // den der Aufruf oben gerade angelegt hat.
+      let founded = false;
       if (isCapitalCompany && isFoundingCase && notarizedOn.length === 10) {
+        founded = true;
         await Api.saveFoundation({
           notarizedOn,
           registeredOn: registeredOn.length === 10 ? registeredOn : '',
@@ -376,7 +383,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
           })),
         });
       }
-      onSetupCompleted();
+      // Wer gerade gegründet hat, landet auf dem Gründungsweg: dort steht, was
+      // als Nächstes zu tun ist. Die Aufgabenliste ist am ersten Tag leer.
+      onSetupCompleted(founded ? 'gruendung' : 'tasks');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

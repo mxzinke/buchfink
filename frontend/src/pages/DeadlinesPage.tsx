@@ -401,7 +401,11 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
       </div>
 
       {foundation?.applies && foundation.hasFoundation && foundation.stage === 'vorgesellschaft' && (
-        <FoundationSection state={foundation} onChanged={loadAll} />
+        <FoundationSection
+          state={foundation}
+          onChanged={loadAll}
+          onOpenGuide={() => onNavigate?.('gruendung')}
+        />
       )}
 
       <Section

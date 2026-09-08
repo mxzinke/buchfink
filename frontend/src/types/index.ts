@@ -2171,10 +2171,101 @@ export interface FoundationDuty {
   anchor: FoundationAnchor;
   /** Das auslösende Ereignis steht noch aus: kein Datum, nicht überfällig. */
   isPending: boolean;
+  /** Der Platz im Gründungsweg — die Reihenfolge des Tuns, nicht der Fälligkeit. */
+  order: number;
+  /** Wo die Pflicht erfüllt wird: beim Notar, über Mein ELSTER, bei der Gemeinde. */
+  where: string;
+  /** Die Handgriffe, in der Reihenfolge, in der sie zu tun sind. */
+  todo: string[];
+  /** Was Buchfink dazu beisteuert. Leer, wo es nichts beisteuern kann. */
+  provides?: string;
   reference: string;
   description: string;
   doneOn: string;
   isDone: boolean;
+  /** Die abgelegten Nachweise zu dieser Pflicht. */
+  proof?: CompanyDocument[];
+}
+
+/** Der Stand des Gründungswegs. Gerechnet im Backend, nicht in der Ansicht. */
+export interface FoundationGuide {
+  total: number;
+  done: number;
+  /** Schritte, deren auslösendes Ereignis noch aussteht. Nicht offen. */
+  waiting: number;
+  open: number;
+  nextKey?: string;
+  nextTitle?: string;
+}
+
+/** Eine Unterlage des Unternehmens: Urkunde, Auszug, Vertrag, Bescheid. */
+export interface CompanyDocument {
+  id: number;
+  kind: string;
+  title?: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  storedPath: string;
+  documentDate?: string;
+  validUntil?: string;
+  /** Verknüpfung mit einer Gründungspflicht, wenn die Unterlage ihr Nachweis ist. */
+  dutyKey?: string;
+  /** Gesetzt, wenn Buchfink das Dokument selbst erzeugt hat. */
+  generatedBy?: string;
+  retentionClass?: string;
+  retentionUntil?: string;
+  earliestDeletion?: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface DocumentKindOption {
+  value: string;
+  label: string;
+}
+
+/** Eine abzulegende Unterlage. */
+export interface DocumentRequest {
+  kind: string;
+  title?: string;
+  documentDate?: string;
+  validUntil?: string;
+  note?: string;
+  dutyKey?: string;
+  path?: string;
+  fileName?: string;
+}
+
+/** Die Eröffnungsbilanz auf den Beurkundungstag (§ 242 Abs. 1 HGB). */
+export interface OpeningBalanceSheet {
+  asOf: string;
+  header: StatementHeader;
+  statement: Statement;
+  /** Gehen Aktiva und Passiva auseinander, fehlt eine Buchung. */
+  balances: boolean;
+  assets: Cents;
+  equity: Cents;
+  findings: string[];
+  documentId?: number;
+  filedOn?: string;
+}
+
+/** Das Datenblatt zum Fragebogen zur steuerlichen Erfassung. */
+export interface FragebogenSheet {
+  rows: FragebogenRow[];
+  /** Was der Fragebogen verlangt und in keinem Konto steht. */
+  open: string[];
+  documentId?: number;
+  filedOn?: string;
+}
+
+export interface FragebogenRow {
+  section: string;
+  label: string;
+  value: string;
+  missing: boolean;
 }
 
 /** Ein Buchungsvorschlag der Gründung, vor der Freigabe. */
@@ -2208,6 +2299,7 @@ export interface FoundationState {
   unterbilanz?: Unterbilanz;
   duties: FoundationDuty[];
   postingsBooked: boolean;
+  guide: FoundationGuide;
 }
 
 // -------------------------------------------------------------

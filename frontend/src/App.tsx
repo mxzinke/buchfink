@@ -18,6 +18,7 @@ import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
 import { ClosingModulesPage } from './pages/ClosingModulesPage';
+import { GruendungPage } from './pages/GruendungPage';
 import { VatPage } from './pages/VatPage';
 import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
@@ -232,10 +233,15 @@ export function App() {
     await loadActiveFiscalYearData();
   };
 
-  const handleSetupCompleted = async () => {
+  /**
+   * Nach der Einrichtung. Wer eine Gründung erfasst hat, landet auf dem
+   * Gründungsweg und nicht in der leeren Aufgabenliste: dort steht, was als
+   * Nächstes zu tun ist, und die Liste ist am ersten Tag ohnehin leer.
+   */
+  const handleSetupCompleted = async (target: TabType = 'tasks') => {
     setIsAddingTenant(false);
     await bootstrapApp();
-    setCurrentTab('tasks');
+    setCurrentTab(target);
   };
 
   // Loading Screen while reading initial config
@@ -352,6 +358,10 @@ export function App() {
             onNavigate={navigate}
           />
         );
+      case 'gruendung':
+        // Der Gründungsweg. Ohne Eintrag in der Navigation und ohne Jahr: er
+        // hängt an der Gründung und nicht am Geschäftsjahr der Kopfzeile.
+        return <GruendungPage onNavigate={navigate} />;
       case 'vat':
         // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
         // Kopfzeile; die Kennziffern entstehen im Backend.
