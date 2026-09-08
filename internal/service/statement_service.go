@@ -437,8 +437,9 @@ func (s *StatementService) header(ctx context.Context, year int, stmt *domain.St
 	}
 
 	header := domain.StatementHeader{
-		CompanyName: settings.CompanyName, LegalForm: settings.LegalForm,
-		Seat: settings.Seat, RegisterCourt: settings.RegisterCourt,
+		CompanyName: settings.CompanyName, FirmName: firmNameWithLegalForm(settings),
+		LegalForm: settings.LegalForm,
+		Seat:      settings.Seat, RegisterCourt: settings.RegisterCourt,
 		RegisterNumber: settings.RegisterNumber,
 		FiscalYear:     year, StartDate: fy.StartDate, ClosingDate: fy.EndDate,
 		IsShortYear: fy.IsShort,
@@ -569,4 +570,24 @@ func addMonthsISO(iso string, months int) string {
 		day = last
 	}
 	return time.Date(target.Year(), target.Month(), day, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
+}
+
+// firmNameWithLegalForm ist die Firma für den Kopf des Abschlusses.
+//
+// Der Name, ergänzt um die Rechtsform, wo sie im Namen fehlt — viele erfassen
+// „Muster Ventures" und wählen die Rechtsform daneben, andere schreiben sie in
+// den Namen. Der Zusatz „i. G." steht dabei ganz hinten und nicht zwischen
+// Name und Rechtsform: „Muster Ventures i. G. GmbH" wäre keine Firma.
+func firmNameWithLegalForm(settings *domain.CompanySettings) string {
+	name := strings.TrimSpace(settings.CompanyName)
+	if name == "" {
+		return ""
+	}
+	if form := strings.TrimSpace(settings.LegalForm); form != "" && !strings.Contains(name, form) {
+		name += " " + form
+	}
+	if settings.InGruendung {
+		name += " i. G."
+	}
+	return name
 }

@@ -233,7 +233,9 @@ func durationContext(id, identifier, start, end string) node {
 func companyData(in InstanceInput) []node {
 	s := in.Settings
 	nodes := []node{
-		text("de-gcd:genInfo.company.id.name", contextDuration, s.CompanyName),
+		// Die Firma, unter der das Unternehmen auftritt: bis zur Eintragung mit
+		// dem Zusatz „i. G.".
+		text("de-gcd:genInfo.company.id.name", contextDuration, s.FirmName()),
 		text("de-gcd:genInfo.company.id.legalForm", contextDuration, s.LegalForm),
 		text("de-gcd:genInfo.company.id.taxNumber", contextDuration, s.TaxNumber),
 		text("de-gcd:genInfo.company.id.vatId", contextDuration, s.VatID),

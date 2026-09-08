@@ -323,3 +323,33 @@ func TestSmallAmountInvoiceWithoutContact(t *testing.T) {
 		t.Error("der Hinweis auf die Ausnahme von der E-Rechnungspflicht fehlt im Dokument")
 	}
 }
+
+// Bis zur Eintragung trägt der Verkäufername den Zusatz „i. G.".
+//
+// BT-27 ist die Firma, unter der das Unternehmen auftritt. Die Vorgesellschaft
+// ist noch keine juristische Person, die Haftungsbeschränkung greift noch nicht,
+// und wer die Rechnung bekommt, soll das am Namen erkennen. Der Zusatz steht
+// nirgends in der Datenbank: er wird aus der Gründung abgeleitet und fällt mit
+// der Eintragung von selbst weg.
+func TestFirmNameCarriesTheGruendungSuffix(t *testing.T) {
+	seller := testSeller()
+	seller.InGruendung = true
+
+	xml := renderFor(t, testInvoice(), seller, testBuyer(), domain.EInvoiceProfileZUGFeRD)
+	if !strings.Contains(xml, "Pfennig Ventures GmbH i. G.") {
+		t.Error("der Verkäufername im Datensatz führt den Zusatz i. G. nicht")
+	}
+
+	// Auch der Kontoinhaber der Zahlungsanweisung (BT-85): es ist dieselbe
+	// Firma, und zwei Namen auf einer Rechnung sind eine Rückfrage.
+	if strings.Count(xml, "Pfennig Ventures GmbH i. G.") < 2 {
+		t.Error("der Kontoinhaber führt den Zusatz nicht")
+	}
+
+	// Mit der Eintragung fällt der Zusatz weg.
+	seller.InGruendung = false
+	after := renderFor(t, testInvoice(), seller, testBuyer(), domain.EInvoiceProfileZUGFeRD)
+	if strings.Contains(after, "i. G.") {
+		t.Error("nach der Eintragung darf der Zusatz nicht mehr im Datensatz stehen")
+	}
+}

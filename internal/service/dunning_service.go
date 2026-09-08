@@ -663,8 +663,8 @@ func dunningMarkdown(
 	notice *domain.DunningNotice, proposal *DunningProposal, cfg *domain.CompanySettings,
 ) string {
 	var b strings.Builder
-	if cfg != nil && strings.TrimSpace(cfg.CompanyName) != "" {
-		fmt.Fprintf(&b, "%s\n\n", strings.TrimSpace(cfg.CompanyName))
+	if cfg != nil && cfg.FirmName() != "" {
+		fmt.Fprintf(&b, "%s\n\n", cfg.FirmName())
 	}
 	fmt.Fprintf(&b, "# %s\n\n", notice.LevelLabel)
 	fmt.Fprintf(&b, "%s\n\n", notice.ContactName)
@@ -745,7 +745,7 @@ func bankDetailsBlock(cfg *domain.CompanySettings, notice *domain.DunningNotice)
 	}
 	var b strings.Builder
 	b.WriteString("**Bankverbindung**\n\n")
-	if holder := strings.TrimSpace(cfg.CompanyName); holder != "" {
+	if holder := cfg.FirmName(); holder != "" {
 		fmt.Fprintf(&b, "Kontoinhaber: %s\n\n", holder)
 	}
 	if bank := strings.TrimSpace(cfg.BankName); bank != "" {

@@ -169,8 +169,31 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	if settings.InvoiceCheckSince == "" {
 		settings.InvoiceCheckSince = thresholdSavedOn
 	}
+	settings.InGruendung = r.inGruendung(ctx)
 
 	return settings, nil
+}
+
+// inGruendung liest aus der Gründung, ob die Gesellschaft noch Vorgesellschaft
+// ist: beurkundet, aber nicht eingetragen.
+//
+// Der Zustand steht hier und nicht in den Schlüssel-Wert-Zeilen, weil er eine
+// Tatsache ist und keine Einstellung — er folgt aus dem Eintragungsdatum. Und er
+// wird beim Lesen der Unternehmensdaten gesetzt und nicht von jedem
+// Ausgabeweg einzeln erfragt: den Firmennamen brauchen Rechnung, E-Rechnung,
+// E-Bilanz, Abschlusskopf, Mahnschreiben und Eigenbeleg, und jedem von ihnen die
+// Gründung durchzureichen hieße, sieben Dienste um eine Abhängigkeit zu
+// erweitern, die sie nur weitergeben.
+//
+// Ein Lesefehler heißt „nicht in Gründung": ohne Zusatz auszugeben ist der
+// mildere Fehler — er behauptet nichts über den Stand des Registers.
+func (r *settingsRepositoryGorm) inGruendung(ctx context.Context) bool {
+	var f domain.Foundation
+	err := dbFrom(ctx, r.db).Select("registered_on").First(&f).Error
+	if err != nil {
+		return false
+	}
+	return f.RegisteredOn == ""
 }
 
 // numberFormatOrDefault prüft die Systematik des Rechnungsnummernkreises.

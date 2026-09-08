@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -129,6 +130,40 @@ type CompanySettings struct {
 	// Gelesen wird es über InvestorTypeOrDerived, nie direkt: sonst stünde an
 	// jeder Aufrufstelle noch einmal, was die Ableitung ist.
 	InvestorOverride InvestorType `json:"investorOverride"`
+
+	// InGruendung sagt, dass die Gesellschaft beurkundet, aber noch nicht
+	// eingetragen ist — sie ist Vorgesellschaft.
+	//
+	// Abgeleitet und nicht gespeichert: das Feld wird beim Lesen der
+	// Unternehmensdaten aus der Gründung gesetzt (repository/settings_gorm.go).
+	// Ein Kennzeichen, das man unabhängig vom Eintragungsdatum setzen kann, geht
+	// irgendwann mit ihm auseinander — derselbe Grund, aus dem
+	// Foundation.Stage() abgeleitet ist.
+	//
+	// Gelesen wird es über FirmName, nie direkt.
+	InGruendung bool `gorm:"-" json:"inGruendung"`
+}
+
+// FirmName ist der Name, unter dem das Unternehmen nach außen auftritt.
+//
+// Bis zur Eintragung ins Handelsregister ist das der Name mit dem Zusatz
+// „i. G.": Die Vorgesellschaft ist noch keine juristische Person, die
+// Haftungsbeschränkung greift noch nicht, und wer mit ihr abschließt, soll das
+// am Namen erkennen. Mit der Eintragung fällt der Zusatz weg — von selbst, weil
+// er nirgends gespeichert ist.
+//
+// Jede Ausgabe nach außen liest den Namen hierüber: Rechnung, E-Rechnung,
+// E-Bilanz, Abschlusskopf, Mahnschreiben, Eigenbeleg. Roh bleibt CompanyName
+// dort, wo er Eingabe oder Schlüssel ist — im Einstellungsfeld, im
+// Mandantennamen und im Änderungsprotokoll.
+func (s *CompanySettings) FirmName() string {
+	name := strings.TrimSpace(s.CompanyName)
+	if name == "" || !s.InGruendung {
+		return name
+	}
+	// Mit schmalem Leerraum wäre der Zusatz typografisch schöner und in einer
+	// Registerabfrage oder einem Rechnungsdatensatz nicht mehr zu finden.
+	return name + " i. G."
 }
 
 // InvestorType ist die Anlegerstellung, an der § 20 InvStG die Höhe der

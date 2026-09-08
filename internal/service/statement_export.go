@@ -34,7 +34,7 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 	var b strings.Builder
 	// Die Kopfzeilen enthalten die Pflichtangaben: eine Gliederung ohne die
 	// Firma, zu der sie gehört, ist ein Zahlenblock.
-	writeRow(&b, "Jahresabschluss", fs.Header.CompanyName, fs.Header.LegalForm, "", "", "", "")
+	writeRow(&b, "Jahresabschluss", fs.Header.FirmName, fs.Header.LegalForm, "", "", "", "")
 	writeRow(&b, "Sitz", fs.Header.Seat, fs.Header.RegisterCourt, fs.Header.RegisterNumber, "", "", "")
 	writeRow(&b, "Geschäftsjahr", fmt.Sprintf("%d", fs.Header.FiscalYear),
 		fs.Header.StartDate, fs.Header.ClosingDate, "", "", "")
@@ -189,7 +189,7 @@ func statementTypst(fs *domain.FinancialStatement) string {
 	// gleich sein, sonst wäre das „inhaltlich identische Mehrstück" der GoBD
 	// Rz. 76 Abs. 2 vom Zufall des Druckzeitpunkts abhängig.
 	fmt.Fprintf(&b, "#set document(title: %s, date: %s)\n\n",
-		typstString(fmt.Sprintf("Jahresabschluss %d — %s", fs.Header.FiscalYear, fs.Header.CompanyName)),
+		typstString(fmt.Sprintf("Jahresabschluss %d — %s", fs.Header.FiscalYear, fs.Header.FirmName)),
 		typstDate(fs.Header.ClosingDate))
 
 	fmt.Fprintf(&b, "#text(size: 14pt, weight: \"bold\")[%s]\n\n", typstText(headerTitle(fs.Header)))
@@ -312,14 +312,13 @@ func writeTypstNotes(b *strings.Builder, fs *domain.FinancialStatement) {
 }
 
 func headerTitle(h domain.StatementHeader) string {
-	name := h.CompanyName
-	if name == "" {
-		name = "(Firma nicht erfasst)"
+	// Die Firma steht fertig im Kopf: Name, Rechtsform und der Zusatz „i. G."
+	// sind dort zusammengesetzt, wo der Kopf entsteht. Hier ein zweites Mal zu
+	// ergänzen hieße, die Reihenfolge ein zweites Mal festzulegen.
+	if h.FirmName == "" {
+		return "(Firma nicht erfasst)"
 	}
-	if h.LegalForm != "" && !strings.Contains(name, h.LegalForm) {
-		name += " " + h.LegalForm
-	}
-	return name
+	return h.FirmName
 }
 
 func headerSubtitle(fs *domain.FinancialStatement) string {

@@ -1253,7 +1253,13 @@ export interface IntegrityCheckResult {
 }
 
 export interface CompanySettings {
+  /** Der erfasste Name. Das Eingabefeld führt ihn roh. */
   companyName: string;
+  /**
+   * Beurkundet, aber noch nicht eingetragen. Abgeleitet aus der Gründung und
+   * nirgends gespeichert.
+   */
+  inGruendung?: boolean;
   legalForm: string;
   fiscalYear: number;
   fiscalYearStartMonth: number;
@@ -2474,7 +2480,13 @@ export interface Deadline {
 
 /** Die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des Abschlusses. */
 export interface StatementHeader {
+  /** Der erfasste Name. */
   companyName: string;
+  /**
+   * Die Firma, unter der das Unternehmen auftritt: um die Rechtsform ergänzt,
+   * wo sie im Namen fehlt, und bis zur Eintragung um „i. G.".
+   */
+  firmName: string;
   legalForm: string;
   seat: string;
   registerCourt: string;

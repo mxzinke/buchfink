@@ -256,7 +256,7 @@ const HeaderFacts: React.FC<{
   return (
     <>
       <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4">
-        <Fact label="Firma" value={header.companyName} context={header.legalForm} />
+        <Fact label="Firma" value={header.firmName || header.companyName} context={header.legalForm} />
         <Fact label="Sitz" value={header.seat} />
         <Fact label="Registergericht und -nummer" value={register} />
         <Fact

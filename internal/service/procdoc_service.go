@@ -332,7 +332,7 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 	from, to := fiscalYearBounds(year, settings.FiscalYearStartMonth)
 
 	input := procdoc.Input{
-		CompanyName:      settings.CompanyName,
+		CompanyName:      settings.FirmName(),
 		LegalForm:        settings.LegalForm,
 		Street:           settings.Street,
 		ZipCity:          settings.ZipCity,

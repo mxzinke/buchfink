@@ -275,7 +275,15 @@ type Deadline struct {
 // StatementHeader sind die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des
 // Abschlusses: Firma, Sitz, Registergericht und Registernummer.
 type StatementHeader struct {
+	// CompanyName ist der erfasste Name, FirmName die Firma, unter der das
+	// Unternehmen auftritt: um die Rechtsform ergänzt, wo sie im Namen fehlt,
+	// und bis zur Eintragung um „i. G.".
+	//
+	// Beide, weil beide gebraucht werden: der Kopf des Abschlusses nennt die
+	// Firma (§ 264 Abs. 1a Nr. 1 HGB), die Prüfung auf fehlende Pflichtangaben
+	// den erfassten Namen.
 	CompanyName    string `json:"companyName"`
+	FirmName       string `json:"firmName"`
 	LegalForm      string `json:"legalForm"`
 	Seat           string `json:"seat"`
 	RegisterCourt  string `json:"registerCourt"`
