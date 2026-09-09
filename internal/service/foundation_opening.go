@@ -178,6 +178,7 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 		Title:        title,
 		DocumentDate: sheet.AsOf,
 		DutyKey:      DutyKeyEroeffnungsbilanz,
+		GeneratedBy:  "eroeffnungsbilanz",
 		FileName:     "Eroeffnungsbilanz_" + sheet.AsOf + ".pdf",
 		Content:      pdf,
 	})

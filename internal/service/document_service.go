@@ -52,6 +52,10 @@ type DocumentRequest struct {
 	// DutyKey verbindet die Unterlage mit einer Gründungspflicht, wenn sie ihr
 	// Nachweis ist. Leer bei jeder anderen.
 	DutyKey string `json:"dutyKey"`
+	// GeneratedBy hält fest, dass Buchfink die Unterlage selbst erzeugt hat.
+	// Leer bei allem, was von außen kommt — und von außen kommt alles, was die
+	// Oberfläche ablegt.
+	GeneratedBy string `json:"-"`
 	// Path ist der Weg zu einer Datei auf der Platte — der Weg des
 	// Dateidialogs. Content ist der Inhalt selbst, für erzeugte Dokumente.
 	Path     string `json:"path"`
@@ -100,6 +104,7 @@ func (s *DocumentService) Attach(ctx context.Context, req DocumentRequest) (*dom
 		DocumentDate: strings.TrimSpace(req.DocumentDate),
 		ValidUntil:   strings.TrimSpace(req.ValidUntil),
 		DutyKey:      strings.TrimSpace(req.DutyKey),
+		GeneratedBy:  strings.TrimSpace(req.GeneratedBy),
 		Note:         strings.TrimSpace(req.Note),
 	}
 	applyCompanyRetention(doc)

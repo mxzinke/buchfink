@@ -19,6 +19,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
 import { ClosingModulesPage } from './pages/ClosingModulesPage';
 import { GruendungPage } from './pages/GruendungPage';
+import { DokumentePage } from './pages/DokumentePage';
 import { VatPage } from './pages/VatPage';
 import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
@@ -358,6 +359,10 @@ export function App() {
             onNavigate={navigate}
           />
         );
+      case 'dokumente':
+        // Die Unterlagen des Unternehmens. Ohne Jahr: sie gehören zum
+        // Unternehmen und nicht zu einem Geschäftsjahr.
+        return <DokumentePage />;
       case 'gruendung':
         // Der Gründungsweg. Ohne Eintrag in der Navigation und ohne Jahr: er
         // hängt an der Gründung und nicht am Geschäftsjahr der Kopfzeile.

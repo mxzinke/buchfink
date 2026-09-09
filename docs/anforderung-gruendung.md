@@ -411,6 +411,14 @@ gehören: der Registerauszug erscheint als Nachweis am Schritt und bleibt in der
 Ablage, wenn die Gründung längst vorbei ist. Die Ablage ist freiwillig — ein
 Schritt gilt mit seinem Datum als erledigt und nicht erst mit einer Datei.
 
+Gezeigt wird sie unter „Unterlagen" in der Verwaltung: eine Liste aus Art,
+Bezeichnung, Datum, Größe und Aufbewahrungsfrist, das jüngste Dokument zuerst.
+Bewusst eine Liste und keine Verwaltung — was fehlt, fehlt, weil es bei zwei
+Dutzend Unterlagen nichts zu suchen gibt. Was Buchfink selbst erzeugt hat, ist
+gekennzeichnet: eine Eröffnungsbilanz lässt sich jederzeit neu herstellen, ein
+Registerauszug nicht, und wer beide für gleich unersetzlich hält, sichert das
+Falsche.
+
 Damit ist die offene Entscheidung „Ablage der Gründungsurkunden" aus Abschnitt 8
 erledigt. Die Ablage ist von Anfang an auf den Mandanten gehoben und nicht auf
 die Gründung: sie nimmt später den Mietvertrag und den Versicherungsschein
@@ -487,10 +495,10 @@ Pflicht als Frist und bucht sie nicht.
 Entscheidungen"). Buchfink führt die Frist und den Nachweis; übermittelt wird
 über Mein ELSTER.
 
-**Eine Ansicht für die Dokumentenablage.** Die Ablage selbst steht (Abschnitt
-6g) und nimmt die Gründungsurkunden auf; erreichbar ist sie bisher nur über den
-Gründungsweg. Eine eigene Ansicht „Unterlagen", die alles zeigt und den
-Mietvertrag genauso aufnimmt, ist der nächste Schritt.
+**Was die Dokumentenablage noch nicht kann.** Die Ansicht „Unterlagen" steht
+(Abschnitt 6g) und zeigt die Ablage als Liste. Sie hat keine Suche, keine Ordner
+und keine Versionen — bei zwei Dutzend Unterlagen gibt es nichts zu suchen. Wenn
+dort einmal jeder Miet- und Versicherungsvertrag liegt, wird sich das ändern.
 
 **Die Zuordnung der Unterdeckung.** Ob eine Unterdeckung aus dem Gründungsaufwand
 oder aus einem Anlaufverlust stammt, entscheidet heute der Nutzer im Kopf. Eine

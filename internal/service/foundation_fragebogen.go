@@ -160,6 +160,7 @@ func (s *FoundationService) FileFragebogen(ctx context.Context) (*domain.Documen
 		Title:        title,
 		DocumentDate: today,
 		DutyKey:      DutyKeyFragebogen,
+		GeneratedBy:  "fragebogen",
 		FileName:     "Fragebogen_Datenblatt_" + today + ".pdf",
 		Content:      pdf,
 		Note: "Zusammenstellung der Angaben aus Buchfink. Übermittelt wird der Fragebogen " +

@@ -36,6 +36,9 @@ func openingEnv(t *testing.T, env *testEnv) (*FoundationService, *DocumentServic
 	svc := env.foundations(t)
 	svc.SetStatementSource(env.statements(t))
 	svc.SetDocumentStore(documents)
+	// Der echte Satz: die Eröffnungsbilanz und das Datenblatt entstehen als PDF,
+	// und ein Attrappen-Renderer prüfte nur die Verkabelung.
+	svc.SetRenderer(sharedRenderer())
 	return svc, documents
 }
 
@@ -252,6 +255,104 @@ func TestFoundationDutyCarriesItsProof(t *testing.T) {
 		}
 		if len(duty.Proof) != 1 || duty.Proof[0].Title != "Eintragungsnachricht" {
 			t.Errorf("der Nachweis hängt nicht am Schritt: %+v", duty.Proof)
+		}
+	}
+}
+
+// Ein selbst erzeugtes Dokument sagt, dass es selbst erzeugt wurde.
+//
+// Der Unterschied zählt in der Ablage: eine Eröffnungsbilanz lässt sich
+// jederzeit neu herstellen, ein Registerauszug nicht. Wer beide für gleich
+// unersetzlich hält, sichert das Falsche.
+func TestGeneratedDocumentsAreMarkedAsSuch(t *testing.T) {
+	env := newTestEnv(t)
+	svc, documents := openingEnv(t, env)
+	ctx := context.Background()
+
+	// Was von außen kommt, trägt die Marke nicht.
+	uploaded, err := documents.Attach(ctx, DocumentRequest{
+		Kind:     domain.DocHandelsregister,
+		Title:    "Eintragungsnachricht",
+		FileName: "auszug.pdf",
+		Content:  []byte("%PDF-1.4 Auszug"),
+	})
+	if err != nil {
+		t.Fatalf("Unterlage ablegen: %v", err)
+	}
+	if uploaded.GeneratedBy != "" {
+		t.Errorf("eine hochgeladene Unterlage trägt %q als Erzeuger", uploaded.GeneratedBy)
+	}
+
+	env.saveFoundation(t, svc, gmbhFoundation())
+	filed, err := svc.FileFragebogen(ctx)
+	if err != nil {
+		t.Fatalf("Datenblatt: %v", err)
+	}
+	if filed.GeneratedBy != "fragebogen" {
+		t.Errorf("Erzeuger %q, erwartet „fragebogen“", filed.GeneratedBy)
+	}
+}
+
+// Die Eröffnungsbilanz entsteht als PDF und liegt danach in der Ablage — unter
+// ihrer Prüfsumme, mit ihrer Aufbewahrungsfrist, und die Pflicht ist quittiert.
+func TestFileOpeningBalanceProducesAFiledDocument(t *testing.T) {
+	env := newTestEnv(t)
+	svc, documents := openingEnv(t, env)
+	ctx := context.Background()
+
+	env.saveFoundation(t, svc, gmbhFoundation())
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+
+	doc, err := svc.FileOpeningBalance(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz ablegen: %v", err)
+	}
+	if doc.Kind != domain.DocEroeffnungsbilanz {
+		t.Errorf("Dokumentart %q", doc.Kind)
+	}
+	if doc.GeneratedBy != "eroeffnungsbilanz" {
+		t.Errorf("Erzeuger %q, erwartet „eroeffnungsbilanz“", doc.GeneratedBy)
+	}
+	if doc.DocumentDate != "2026-01-15" {
+		t.Errorf("Datum %q, erwartet den Beurkundungstag", doc.DocumentDate)
+	}
+	if len(doc.SHA256) != 64 || doc.Size == 0 {
+		t.Errorf("Prüfsumme %q, Größe %d — die Datei ist nicht abgelegt", doc.SHA256, doc.Size)
+	}
+	// Organisationsunterlagen: zehn Jahre ab dem Schluss des Jahres (§ 147 Abs. 1
+	// Nr. 1 AO).
+	if doc.RetentionUntil != "2036-12-31" {
+		t.Errorf("Aufbewahrung bis %q, erwartet 2036-12-31", doc.RetentionUntil)
+	}
+
+	// Herausgegeben wird sie erst, nachdem die Prüfsumme stimmt.
+	back, data, err := documents.Content(ctx, doc.ID)
+	if err != nil {
+		t.Fatalf("Unterlage lesen: %v", err)
+	}
+	if back.ID != doc.ID || len(data) == 0 {
+		t.Error("die abgelegte Datei kommt nicht zurück")
+	}
+	if !strings.HasPrefix(string(data[:4]), "%PDF") {
+		t.Errorf("die abgelegte Datei ist kein PDF: %q", data[:4])
+	}
+
+	// Die Pflicht gilt mit der Aufstellung als erledigt.
+	state, err := svc.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	for _, duty := range state.Duties {
+		if duty.Key != DutyKeyEroeffnungsbilanz {
+			continue
+		}
+		if !duty.IsDone {
+			t.Error("die aufgestellte Eröffnungsbilanz quittiert ihre Pflicht nicht")
+		}
+		if len(duty.Proof) != 1 {
+			t.Errorf("%d Nachweise am Schritt, erwartet den einen", len(duty.Proof))
 		}
 	}
 }
