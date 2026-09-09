@@ -401,7 +401,11 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
       </div>
 
       {foundation?.applies && foundation.hasFoundation && foundation.stage === 'vorgesellschaft' && (
-        <FoundationSection state={foundation} onChanged={loadAll} />
+        <FoundationSection
+          state={foundation}
+          onChanged={loadAll}
+          onOpenGuide={() => onNavigate?.('gruendung')}
+        />
       )}
 
       <Section
@@ -529,12 +533,19 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                     </Td>
                     <Td className="text-ink-muted">{categoryOf(item.key)}</Td>
                     <Td className={cn(item.dueDate ? 'num text-ink-subtle' : 'text-ink-subtle')}>
-                      {item.dueDate ? formatDate(item.dueDate) : (item.period || '—')}
+                      {item.dueDate ? formatDate(item.dueDate) : item.waitingFor ? 'noch offen' : item.period || '—'}
                     </Td>
                     <Td>
                       {item.isDone ? (
                         <span className="text-caption text-ink-subtle">
                           {item.doneOn ? `Erledigt am ${formatDate(item.doneOn)}` : 'Erledigt'}
+                        </span>
+                      ) : item.waitingFor ? (
+                        /* Die Frist läuft noch gar nicht: das auslösende
+                           Ereignis steht aus. Ohne diesen Zustand sähe die
+                           Pflicht aus wie eine, die zu tun ist. */
+                        <span className="text-caption text-ink-subtle">
+                          Wartet auf {item.waitingFor}
                         </span>
                       ) : diff === null ? (
                         <span className="text-caption text-ink-subtle">Offen</span>

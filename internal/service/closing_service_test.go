@@ -1526,3 +1526,214 @@ func TestPriorYearRevenueIsPrefilledAndSettable(t *testing.T) {
 		t.Error("ein negativer Vorjahresumsatz darf nicht angenommen werden")
 	}
 }
+
+// -------------------------------------------------------------
+// Das Gründungsjahr folgt der Beurkundung
+// -------------------------------------------------------------
+
+// alignEnv verdrahtet Abschluss und Gründung so, wie es die Anwendung tut:
+// die Gründung zieht den Beginn ihres Geschäftsjahres nach.
+func alignEnv(t *testing.T, e *testEnv) (*ClosingService, *FoundationService) {
+	t.Helper()
+	closing := e.closing(t)
+	foundations := e.foundations(t)
+	closing.SetFoundationRepo(repository.NewFoundationRepository(e.db))
+	foundations.SetFoundingYearAligner(closing)
+	return closing, foundations
+}
+
+// Der Einrichtungsassistent legt den Mandanten an, bevor er nach der Gründung
+// fragt: `EnsureFiscalYears` läuft in `CreateTenant`, `SaveFoundation` erst
+// danach. Ohne die Angleichung bliebe das Gründungsjahr das volle Kalenderjahr,
+// und zwar dauerhaft — `EnsureFiscalYears` rührt vorhandene Einträge nicht an.
+func TestSaveFoundationPullsTheFoundingYearToTheNotarization(t *testing.T) {
+	env := newTestEnv(t)
+	closing, foundations := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	before, err := closing.FiscalYears(ctx)
+	if err != nil || len(before) != 1 || before[0].StartDate != "2026-01-01" {
+		t.Fatalf("Ausgangslage: erwartet das volle Kalenderjahr, erhalten %+v (%v)", before, err)
+	}
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	if fy.StartDate != "2026-03-15" || fy.EndDate != "2026-12-31" {
+		t.Errorf("Gründungsjahr = %s bis %s, erwartet 2026-03-15 bis 2026-12-31", fy.StartDate, fy.EndDate)
+	}
+	if !fy.IsShort {
+		t.Error("das Gründungsjahr ist ein Rumpfgeschäftsjahr")
+	}
+}
+
+// Der Abschlussstand des Jahres bleibt, was er war: angeglichen wird der
+// Zeitraum, nicht das Jahr.
+func TestAlignFoundingYearKeepsTheRestOfTheYear(t *testing.T) {
+	env := newTestEnv(t)
+	closing, foundations := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	if _, err := closing.SetAverageEmployees(ctx, 2026, 7); err != nil {
+		t.Fatalf("Arbeitnehmerzahl: %v", err)
+	}
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	if fy.AverageEmployees != 7 {
+		t.Errorf("Arbeitnehmerzahl = %d, erwartet 7", fy.AverageEmployees)
+	}
+	if fy.StartDate != "2026-03-15" {
+		t.Errorf("Beginn = %s, erwartet 2026-03-15", fy.StartDate)
+	}
+}
+
+// Ein zweiter Lauf ändert nichts und schreibt nichts ins Protokoll: sonst stünde
+// bei jedem Speichern der Gründung dieselbe Zeile ein weiteres Mal darin.
+func TestAlignFoundingYearIsIdempotent(t *testing.T) {
+	env := newTestEnv(t)
+	closing, foundations := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	auditRepo := repository.NewAuditRepository(env.db)
+	count := func() int {
+		logs, err := auditRepo.FindAll(ctx, 500)
+		if err != nil {
+			t.Fatalf("Protokoll: %v", err)
+		}
+		n := 0
+		for _, log := range logs {
+			if log.EntityType == "FISCAL_YEAR" && strings.Contains(log.Details, "Beurkundungstag") {
+				n++
+			}
+		}
+		return n
+	}
+	if got := count(); got != 1 {
+		t.Fatalf("nach der ersten Angleichung stehen %d Protokollzeilen darüber im Buch, erwartet 1", got)
+	}
+
+	if err := closing.AlignFoundingYear(ctx); err != nil {
+		t.Fatalf("zweiter Lauf: %v", err)
+	}
+	if got := count(); got != 1 {
+		t.Errorf("der zweite Lauf hat protokolliert: %d Zeilen statt 1", got)
+	}
+}
+
+// Ein festgeschriebener Zeitraum behält seinen Beginn. Die Gründung wird
+// trotzdem gespeichert — sie ist die Tatsache, das Geschäftsjahr die Folge.
+func TestAlignFoundingYearRefusesACommittedPeriod(t *testing.T) {
+	env := newTestEnv(t)
+	closing, foundations := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	festschreibung := repository.NewFestschreibungRepository(env.db)
+	if err := festschreibung.Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: "month", PeriodLabel: "Januar 2026",
+		CutoffDate: "2026-01-31", ChainHead: "leer", EntryCount: 0,
+	}); err != nil {
+		t.Fatalf("Festschreibung: %v", err)
+	}
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	if fy.StartDate != "2026-01-01" {
+		t.Errorf("Beginn = %s, erwartet den unveränderten 2026-01-01", fy.StartDate)
+	}
+	if saved, err := repository.NewFoundationRepository(env.db).Get(ctx); err != nil || saved == nil {
+		t.Errorf("die Gründung muss trotzdem gespeichert sein (%v)", err)
+	}
+}
+
+// Eine Buchung vor der Beurkundung läge nach der Umstellung außerhalb ihres
+// Geschäftsjahres. Dann bleibt der Zeitraum, wie er ist.
+func TestAlignFoundingYearRefusesEntriesBeforeTheNotarization(t *testing.T) {
+	env := newTestEnv(t)
+	closing, foundations := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	env.book(t, "2026-02-10", "Buchung vor der Beurkundung", "1800", "2900", 100_000)
+
+	f := gmbhFoundation()
+	f.NotarizedOn = "2026-03-15"
+	env.saveFoundation(t, foundations, f)
+
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	if fy.StartDate != "2026-01-01" {
+		t.Errorf("Beginn = %s, erwartet den unveränderten 2026-01-01", fy.StartDate)
+	}
+}
+
+// Ein festgestellter Abschluss behält seinen Zeitraum.
+func TestAlignFoundingYearRefusesAnAdoptedYear(t *testing.T) {
+	env := newTestEnv(t)
+	closing, _ := alignEnv(t, env)
+	ctx := context.Background()
+
+	if err := closing.EnsureFiscalYears(ctx); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	fy, err := closing.YearOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	fy.Status = domain.FiscalYearAdopted
+	if err := repository.NewFiscalYearRepository(env.db).Save(ctx, fy); err != nil {
+		t.Fatalf("Abschlussstand: %v", err)
+	}
+
+	foundations := repository.NewFoundationRepository(env.db)
+	if err := foundations.Save(ctx, &domain.Foundation{
+		NotarizedOn: "2026-03-15", ShareCapital: 2_500_000,
+	}); err != nil {
+		t.Fatalf("Gründung: %v", err)
+	}
+
+	err = closing.AlignFoundingYear(ctx)
+	if err == nil {
+		t.Fatal("ein festgestelltes Geschäftsjahr muss die Angleichung abweisen")
+	}
+	if !strings.Contains(err.Error(), "festgestellt") {
+		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
+	}
+}

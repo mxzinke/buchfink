@@ -264,12 +264,26 @@ type Deadline struct {
 	FiscalYear  int    `json:"fiscalYear"`
 	IsDone      bool   `json:"isDone"`
 	DoneOn      string `json:"doneOn,omitempty"`
+	// WaitingFor benennt das Ereignis, aus dem die Frist erst noch läuft — etwa
+	// „die Eintragung ins Handelsregister". Leer heißt: die Frist läuft bereits,
+	// und ein fehlendes DueDate bedeutet dann, dass das Gesetz keine Tagesfrist
+	// nennt („unverzüglich"). Ohne diese Unterscheidung sähen beide Fälle in der
+	// Liste gleich aus, obwohl der eine zu tun ist und der andere noch nicht.
+	WaitingFor string `json:"waitingFor,omitempty"`
 }
 
 // StatementHeader sind die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des
 // Abschlusses: Firma, Sitz, Registergericht und Registernummer.
 type StatementHeader struct {
+	// CompanyName ist der erfasste Name, FirmName die Firma, unter der das
+	// Unternehmen auftritt: um die Rechtsform ergänzt, wo sie im Namen fehlt,
+	// und bis zur Eintragung um „i. G.".
+	//
+	// Beide, weil beide gebraucht werden: der Kopf des Abschlusses nennt die
+	// Firma (§ 264 Abs. 1a Nr. 1 HGB), die Prüfung auf fehlende Pflichtangaben
+	// den erfassten Namen.
 	CompanyName    string `json:"companyName"`
+	FirmName       string `json:"firmName"`
 	LegalForm      string `json:"legalForm"`
 	Seat           string `json:"seat"`
 	RegisterCourt  string `json:"registerCourt"`

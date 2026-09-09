@@ -101,6 +101,60 @@ func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, erro
 	return xbrl, nil
 }
 
+// ExportOpeningXBRL erzeugt die Instanz der Eröffnungsbilanz.
+//
+// Sie steht auf einen Stichtag statt auf ein Geschäftsjahr, hat keine Gewinn-
+// und Verlustrechnung — bis zum ersten Tag ist nichts erwirtschaftet — und kein
+// Vorjahr. Übermittelt wird sie trotzdem: die Eröffnungsbilanz ist eine Bilanz
+// im Sinne des § 5b Abs. 1 EStG.
+//
+// Weder Anlagenspiegel noch Überleitungsrechnung: am Tag der Beurkundung gibt es
+// kein Anlagevermögen, das sich bewegt hätte, und keine Abweichung zwischen
+// Handels- und Steuerbilanz, die überzuleiten wäre.
+func (s *EBilanzService) ExportOpeningXBRL(ctx context.Context, cutoff string) (string, error) {
+	if len(cutoff) != 10 {
+		return "", fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if s.statementSvc == nil {
+		return "", fmt.Errorf("die Gliederung ist nicht verfügbar")
+	}
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return "", fmt.Errorf("die Unternehmensdaten konnten nicht gelesen werden: %w", err)
+	}
+	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
+	if err != nil {
+		return "", err
+	}
+	accounts, err := s.statementSvc.AccountsAt(ctx, cutoff)
+	if err != nil {
+		return "", err
+	}
+
+	in := ebilanz.InstanceInput{
+		Settings: settings, Statement: stmt, Accounts: accounts,
+		FiscalYear: stmt.FiscalYear,
+		// Beide Daten auf den Stichtag: der Berichtszeitraum der Eröffnungsbilanz
+		// ist der eine Tag, an dem das Handelsgewerbe beginnt.
+		StartDate: cutoff, EndDate: cutoff,
+		Kind: ebilanz.KindEroeffnungsbilanz,
+	}
+
+	xbrl, _, err := ebilanz.GenerateEBilanzXBRL(in)
+	if err != nil {
+		return "", err
+	}
+
+	_ = s.auditRepo.Log(
+		ctx,
+		domain.AuditActionExport,
+		"EBILANZ",
+		cutoff,
+		fmt.Sprintf("Eröffnungsbilanz auf den %s als XBRL-Instanz erzeugt (§ 5b Abs. 1 EStG)", cutoff),
+	)
+	return xbrl, nil
+}
+
 // input beschafft alles, was in die Instanz eingeht.
 func (s *EBilanzService) input(ctx context.Context, year int) (ebilanz.InstanceInput, error) {
 	if year <= 0 {
@@ -129,6 +183,7 @@ func (s *EBilanzService) input(ctx context.Context, year int) (ebilanz.InstanceI
 	in := ebilanz.InstanceInput{
 		Settings: settings, Statement: stmt, Accounts: accounts, FiscalYear: year,
 		StartDate: fmt.Sprintf("%d-01-01", year), EndDate: fmt.Sprintf("%d-12-31", year),
+		Kind: ebilanz.KindJahresabschluss,
 	}
 	if fy, err := s.statementSvc.period(ctx, year); err == nil {
 		in.StartDate, in.EndDate = fy.StartDate, fy.EndDate

@@ -2479,3 +2479,63 @@ func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
 			preview.Investment.Exemption.Permille)
 	}
 }
+
+// Der Abschreibungslauf verteilt auf die Monate, die das Geschäftsjahr hat.
+//
+// Bis hierher baute der Plan jedes Geschäftsjahr als volle zwölf Monate ab dem
+// Beginnmonat. Ein Rumpfjahr aus einer Umstellung mitten in der Nutzungsdauer
+// trug damit den vollen Jahresbetrag — und wer die Zahl aus der Vorschau in den
+// Abschluss übernahm, schrieb doppelt so viel ab, wie das Jahr hergibt
+// (§ 7 Abs. 1 Satz 4 EStG).
+func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	fiscalYears := repository.NewFiscalYearRepository(env.db)
+	// 2026 voll, 2027 als Rumpfjahr bis zum 30.06. — die Umstellung des
+	// Geschäftsjahres.
+	for _, fy := range []*domain.FiscalYear{
+		domain.NewFiscalYear(2026, "2026-01-01", "2026-12-31"),
+		domain.NewFiscalYear(2027, "2027-01-01", "2027-06-30"),
+	} {
+		if err := fiscalYears.Save(ctx, fy); err != nil {
+			t.Fatalf("Geschäftsjahr %d: %v", fy.Year, err)
+		}
+	}
+	svc.SetFiscalYearRepo(fiscalYears)
+
+	// 12.000 € über 48 Monate sind 3.000 € im vollen Jahr.
+	asset := env.machine(t, svc)
+
+	detail, err := svc.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	byYear := map[int]AssetScheduleYear{}
+	for _, row := range detail.Schedule {
+		byYear[row.FiscalYear] = row
+	}
+	if got := byYear[2026].Amount; got != 300_000 {
+		t.Errorf("2026 = %s €, erwartet 3.000,00 im vollen Jahr", got)
+	}
+	if got := byYear[2027].Months; got != 6 {
+		t.Errorf("2027 = %d Monate, erwartet 6 — das Rumpfjahr endet am 30.06.", got)
+	}
+	if got := byYear[2027].Amount; got != 150_000 {
+		t.Errorf("2027 = %s €, erwartet 1.500,00 — das halbe Jahr trägt den halben Betrag", got)
+	}
+
+	// Ohne die Quelle bleibt es bei der Ableitung: das Rumpfjahr sähe aus wie ein
+	// volles. Genau das war der Fehler.
+	plain := env.assets(t)
+	plainDetail, err := plain.Get(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht ohne Geschäftsjahre: %v", err)
+	}
+	for _, row := range plainDetail.Schedule {
+		if row.FiscalYear == 2027 && row.Months != 12 {
+			t.Errorf("ohne Geschäftsjahresquelle = %d Monate, erwartet die Ableitung mit 12", row.Months)
+		}
+	}
+}

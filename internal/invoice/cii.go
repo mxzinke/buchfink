@@ -150,7 +150,7 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 			TypeCode: "30", // Überweisung (UNTDID 4461)
 			CreditTransfer: []einvoice.CreditTransfer{{
 				AccountID:   seller.IBAN,
-				AccountName: seller.CompanyName,
+				AccountName: seller.FirmName(),
 				ProviderID:  seller.BIC,
 			}},
 			RemittanceInfo: inv.InvoiceNumber,
@@ -247,7 +247,9 @@ func ciiLine(inv *domain.Invoice, item *domain.InvoiceItem, category string) (ei
 func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 	postCode, city := splitZipCity(seller.ZipCity)
 	party := einvoice.Party{
-		Name:            seller.CompanyName,
+		// BT-27 ist die Firma, unter der das Unternehmen auftritt — bis zur
+		// Eintragung mit dem Zusatz „i. G.".
+		Name:            seller.FirmName(),
 		VATIdentifier:   seller.VatID,
 		TaxRegistration: seller.TaxNumber,
 		Address: &einvoice.Address{

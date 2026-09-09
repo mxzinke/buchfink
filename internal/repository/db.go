@@ -89,6 +89,25 @@ func InitInMemoryDB() (*gorm.DB, error) {
 	return db, nil
 }
 
+// CloseDB gibt die Verbindungen einer Datenbank frei.
+//
+// Für die Tests: eine Datenbank im Arbeitsspeicher lebt, solange ihre
+// Verbindung offen ist, und `database/sql` hält den Pool bis zum Ende des
+// Prozesses. Ein Testlauf über einige hundert Fälle hielte damit einige hundert
+// Datenbanken zugleich — bis SQLite keinen Speicher mehr bekommt und die Fälle,
+// die zuletzt laufen, an einer Meldung scheitern, die mit ihnen nichts zu tun
+// hat.
+func CloseDB(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
+
 // OpenReadOnlyDB öffnet eine vorhandene Datenbankdatei, ohne sie zu verändern.
 //
 // Der Wiederherstellungstest braucht das: er prüft eine Sicherung und darf sie
@@ -160,6 +179,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.FixedAsset{},
 		&domain.AssetMovement{},
 		&domain.AssetDocument{},
+		&domain.Document{},
 		&domain.Foundation{},
 		&domain.Shareholder{},
 		&domain.FoundationTask{},

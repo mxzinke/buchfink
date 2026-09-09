@@ -35,6 +35,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	if err != nil {
 		t.Fatalf("Testdatenbank konnte nicht angelegt werden: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = repository.CloseDB(db) })
 	if err := repository.SeedDefaultsIfEmpty(context.Background(), db, 2026); err != nil {
 		t.Fatalf("SKR04-Kontenplan konnte nicht geladen werden: %v", err)
 	}

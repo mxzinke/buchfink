@@ -10,8 +10,14 @@ export interface NoticeProps {
    * benutzbar. `negative` (Rosé) heißt: das Backend hat abgelehnt (§10).
    */
   tone?: 'attention' | 'negative';
-  /** Ein Satz (§15.1). Was länger ist, gehört hinter ein Erklärzeichen. */
-  text: string;
+  /**
+   * Ein Satz (§15.1). Was länger ist, gehört hinter ein Erklärzeichen.
+   *
+   * `ReactNode` und nicht `string`, damit genau dieses Erklärzeichen hinter dem
+   * Satz stehen kann: §15.2 verlangt es hinter der Beschriftung und nicht am
+   * rechten Rand — der gehört der Aktion.
+   */
+  text: React.ReactNode;
   /** Die eine Aktion, die weiterhilft — etwa „Erneut aufstellen". */
   action?: React.ReactNode;
   className?: string;

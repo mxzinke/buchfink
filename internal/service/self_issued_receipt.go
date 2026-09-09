@@ -166,10 +166,12 @@ func (s *ReceiptService) issuerName(ctx context.Context) string {
 		return "Eigenes Unternehmen"
 	}
 	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || strings.TrimSpace(cfg.CompanyName) == "" {
+	if err != nil || cfg == nil || cfg.FirmName() == "" {
 		return "Eigenes Unternehmen"
 	}
-	return cfg.CompanyName
+	// Die Firma, unter der das Unternehmen auftritt: der Eigenbeleg nennt seinen
+	// Aussteller so, wie ihn ein Dritter auf einer Rechnung läse.
+	return cfg.FirmName()
 }
 
 // nextSelfIssuedLabel nennt die Belegnummer, die der Beleg bekommen wird.

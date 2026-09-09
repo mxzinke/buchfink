@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FileText, Landmark } from 'lucide-react';
 import { Api } from '../services/api';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
+import { GruendungHelpDialog, GruendungHelpMark } from '../components/GruendungHelp';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
 import { targetLabel } from '../utils/findings';
 import type {
   FinancialSummary,
+  FoundationState,
   JournalEntry,
   MonthCloseState,
   Task,
@@ -17,6 +19,7 @@ import {
   Button,
   EmptyState,
   HelpPopover,
+  Notice,
   PageHeader,
   Section,
   SkeletonRows,
@@ -160,6 +163,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   const [monthError, setMonthError] = useState('');
   const [monthOpen, setMonthOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [foundation, setFoundation] = useState<FoundationState | null>(null);
+  const [gruendungHelp, setGruendungHelp] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -188,6 +193,11 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
     Api.getJournalEntries()
       .then((entries) => setRecentEntries((entries ?? []).slice(-8).reverse()))
       .catch(() => setRecentEntries([]));
+    // Der Gründungsstand ebenso. Er entscheidet über den Hinweisstreifen, und
+    // ohne ihn steht die Seite da wie zuvor.
+    Api.getFoundationState()
+      .then(setFoundation)
+      .catch(() => setFoundation(null));
   }, []);
 
   const loadMonth = useCallback(async () => {
@@ -216,6 +226,15 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   // Zeitraums und keine Bezeichnung. Genommen wird der Name aus der Auswahl,
   // damit beide dasselbe sagen.
   const monthLabel = months.find((option) => option.value === month)?.label ?? month;
+
+  // Der Zustand zwischen Beurkundung und Eintragung. Dieselbe Bedingung wie am
+  // Gründungsabschnitt der Fristenseite: er endet mit der Eintragung, und der
+  // Streifen endet mit ihm.
+  const inGruendung =
+    foundation?.applies === true &&
+    foundation.hasFoundation &&
+    foundation.stage === 'vorgesellschaft' &&
+    Boolean(foundation.foundation?.notarizedOn);
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
@@ -246,6 +265,32 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           </div>
         }
       />
+
+      {inGruendung && (
+        <div className="mt-8">
+          <Notice
+            text={
+              <span className="flex items-center">
+                <span>
+                  {`Ihre Gesellschaft ist seit dem ${formatDate(
+                    foundation!.foundation!.notarizedOn,
+                  )} in Gründung${
+                    foundation!.guide?.nextTitle
+                      ? ` — als Nächstes steht an: ${foundation!.guide.nextTitle}`
+                      : ' — bis zur Eintragung haften die Handelnden persönlich'
+                  }.`}
+                </span>
+                <GruendungHelpMark onMore={() => setGruendungHelp(true)} />
+              </span>
+            }
+            action={
+              <Button variant="secondary" size="sm" onClick={() => onNavigate('gruendung')}>
+                Zum Gründungsweg
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       {loading ? (
         <div className="mt-8">
@@ -463,6 +508,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           </Table>
         </Section>
       )}
+
+      <GruendungHelpDialog open={gruendungHelp} onClose={() => setGruendungHelp(false)} />
 
       <MonthCloseDialog
         open={monthOpen}

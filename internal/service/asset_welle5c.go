@@ -287,6 +287,8 @@ func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpRep
 	out.EnsureLists()
 
 	startMonth := s.fiscalYearStartMonth(ctx)
+	// Einmal für den ganzen Bericht, nicht je Anlagegut.
+	periods := s.fiscalPeriods(ctx)
 	assets, err := s.assetRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
@@ -315,7 +317,7 @@ func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpRep
 			continue
 		}
 
-		s.enrich(asset, year, startMonth)
+		s.enrich(asset, year, startMonth, periods)
 		ceiling, err := s.writeUpCeiling(ctx, asset, year, startMonth)
 		if err != nil {
 			return nil, err

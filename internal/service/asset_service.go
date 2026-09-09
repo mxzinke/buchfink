@@ -37,8 +37,40 @@ type AssetService struct {
 	docStore *receiptstore.Store
 	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
 	// keinen Eintrag an — mit ihm tut sie es von allein.
-	inputTax   inputTaxRegistrar
-	fiscalYear int
+	inputTax inputTaxRegistrar
+	// fiscalYearRepo liefert die tatsächlichen Zeiträume der Geschäftsjahre. Der
+	// Abschreibungsplan braucht sie, weil ein Rumpfjahr weniger als zwölf Monate
+	// trägt; ohne die Quelle rechnet er mit dem abgeleiteten vollen Jahr.
+	fiscalYearRepo domain.FiscalYearRepository
+	fiscalYear     int
+}
+
+// SetFiscalYearRepo koppelt die Geschäftsjahre an den Abschreibungsplan.
+//
+// Optional, wie jede andere Quelle: fehlt sie, leitet der Plan den Zeitraum aus
+// dem Beginnmonat ab — richtig für jedes volle Jahr und für das Gründungsjahr,
+// falsch nur dort, wo eine Umstellung ein Rumpfjahr mitten in die Nutzungsdauer
+// legt.
+func (s *AssetService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fiscalYearRepo = r }
+
+// fiscalPeriods liest die Zeiträume der angelegten Geschäftsjahre.
+//
+// Einmal je Plan und nicht je Jahr: der Plan läuft über die Nutzungsdauer, und
+// eine Abfrage je Jahr wären bei zehn Jahren zehn Abfragen für eine Tabelle mit
+// einer Handvoll Zeilen.
+func (s *AssetService) fiscalPeriods(ctx context.Context) map[int]accounting.FiscalPeriod {
+	if s.fiscalYearRepo == nil {
+		return nil
+	}
+	years, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil || len(years) == 0 {
+		return nil
+	}
+	out := make(map[int]accounting.FiscalPeriod, len(years))
+	for _, fy := range years {
+		out[fy.Year] = accounting.FiscalPeriod{Start: fy.StartDate, End: fy.EndDate}
+	}
+	return out
 }
 
 // NewAssetService wires the Anlagenbuchhaltung.
@@ -333,9 +365,12 @@ func (s *AssetService) List(ctx context.Context, class domain.AssetClass) ([]dom
 	}
 
 	startMonth := s.fiscalYearStartMonth(ctx)
+	// Einmal für die ganze Liste: der Zeitraum je Geschäftsjahr ändert sich
+	// zwischen zwei Anlagegütern nicht.
+	periods := s.fiscalPeriods(ctx)
 	chart, _ := s.journalSvc.Chart(ctx)
 	for i := range assets {
-		s.enrich(&assets[i], s.fiscalYear, startMonth)
+		s.enrich(&assets[i], s.fiscalYear, startMonth, periods)
 		if chart != nil {
 			assets[i].AccountName = chart.Name(assets[i].Account)
 		}
@@ -355,7 +390,7 @@ func (s *AssetService) Pool(ctx context.Context, fiscalYear int) (*domain.FixedA
 		return nil, err
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(pool, s.fiscalYear, startMonth)
+	s.enrich(pool, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
 	return pool, nil
 }
 
@@ -394,12 +429,12 @@ func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", id, err)
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, s.fiscalYear, startMonth)
+	s.enrich(asset, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
 	if chart, err := s.journalSvc.Chart(ctx); err == nil {
 		asset.AccountName = chart.Name(asset.Account)
 	}
 
-	rows, err := accounting.BuildAfASchedule(s.planFor(asset, startMonth))
+	rows, err := accounting.BuildAfASchedule(s.planWithPeriods(ctx, asset, startMonth))
 	if err != nil {
 		return nil, err
 	}
@@ -582,6 +617,9 @@ type PlanRequest struct {
 // nachrechnen.
 func (s *AssetService) PreviewPlan(ctx context.Context, req PlanRequest) ([]accounting.AfAYear, error) {
 	return accounting.BuildAfASchedule(accounting.AfAPlan{
+		// Dieselben Zeiträume wie im Lauf danach: eine Vorschau, die ein Rumpfjahr
+		// als volles Jahr rechnet, verspricht einen Betrag, den der Lauf nicht hält.
+		Periods:              s.fiscalPeriods(ctx),
 		AcquisitionDate:      req.AcquisitionDate,
 		Cost:                 req.Cost,
 		UsefulLifeMonths:     req.UsefulLifeMonths,
@@ -823,7 +861,7 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 			return nil, err
 		}
 		startMonth := s.fiscalYearStartMonth(ctx)
-		s.enrich(asset, domain.GetFiscalYearForDate(date, startMonth), startMonth)
+		s.enrich(asset, domain.GetFiscalYearForDate(date, startMonth), startMonth, s.fiscalPeriods(ctx))
 		if asset.Cost+req.Amount > params.GWGImmediateLimit {
 			return nil, fmt.Errorf(
 				"mit diesem Zugang kostet %s zusammen %s € und überschreitet die Grenze des "+
@@ -924,7 +962,7 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 		if !asset.Method.IsPlanned() {
 			continue
 		}
-		rows, err := accounting.BuildAfASchedule(s.planFor(asset, startMonth))
+		rows, err := accounting.BuildAfASchedule(s.planWithPeriods(ctx, asset, startMonth))
 		if err != nil {
 			// Ein einzelner nicht rechenbarer Plan darf den ganzen Lauf nicht
 			// blockieren; er wird als Zeile ohne Betrag mit der Begründung gezeigt.
@@ -1288,7 +1326,7 @@ func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest
 	}
 
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth)
+	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth, s.fiscalPeriods(ctx))
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("der Abschreibungsbetrag muss größer als null sein")
 	}
@@ -1381,7 +1419,7 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 
 	startMonth := s.fiscalYearStartMonth(ctx)
 	fiscalYear := domain.GetFiscalYearForDate(req.Date, startMonth)
-	s.enrich(asset, fiscalYear, startMonth)
+	s.enrich(asset, fiscalYear, startMonth, s.fiscalPeriods(ctx))
 
 	ceiling, err := s.writeUpCeiling(ctx, asset, fiscalYear, startMonth)
 	if err != nil {
@@ -1439,7 +1477,7 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 func (s *AssetService) writeUpCeiling(
 	ctx context.Context, asset *domain.FixedAsset, fiscalYear, startMonth int,
 ) (domain.Cents, error) {
-	plan := s.planFor(asset, startMonth)
+	plan := s.planWithPeriods(ctx, asset, startMonth)
 	plan.ImpairmentsByYear = nil // genau darum geht es: der Wert ohne die außerplanmäßige Abschreibung
 
 	rows, err := accounting.BuildAfASchedule(plan)
@@ -1888,7 +1926,7 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 
 	startMonth := s.fiscalYearStartMonth(ctx)
 	fiscalYear := domain.GetFiscalYearForDate(req.Date, startMonth)
-	s.enrich(asset, fiscalYear, startMonth)
+	s.enrich(asset, fiscalYear, startMonth, s.fiscalPeriods(ctx))
 	if asset.Cost <= 0 {
 		return nil, fmt.Errorf("auf %s liegen keine Anschaffungskosten, die umzubuchen wären",
 			asset.InventoryNumber)
@@ -2139,7 +2177,7 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 	}
 
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth)
+	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth, s.fiscalPeriods(ctx))
 
 	out := &CurrencyValuation{
 		Currency:      asset.Currency,
@@ -2316,7 +2354,7 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	if err != nil {
 		return nil, err
 	}
-	s.enrich(fresh, fiscalYear, startMonth)
+	s.enrich(fresh, fiscalYear, startMonth, s.fiscalPeriods(ctx))
 
 	// Die Anteile werden am frischen Stand gerechnet, nicht an dem der Vorschau:
 	// zwischen beiden liegt die eben gebuchte AfA bis zum Abgangsmonat, und die
@@ -2458,7 +2496,7 @@ func (s *AssetService) buildDisposal(
 	preview := &DisposalPreview{}
 
 	// AfA bis einschließlich des Abgangsmonats.
-	plan := s.planFor(asset, startMonth)
+	plan := s.planWithPeriods(ctx, asset, startMonth)
 	plan.DisposalDate = req.Date
 	rows, err := accounting.BuildAfASchedule(plan)
 	if err != nil {
@@ -2505,7 +2543,7 @@ func (s *AssetService) buildDisposal(
 	}
 	preview.CatchUpLines = s.named(ctx, catchUpLines)
 
-	s.enrich(asset, fiscalYear, startMonth)
+	s.enrich(asset, fiscalYear, startMonth, s.fiscalPeriods(ctx))
 
 	// Beim Teilabgang wandern die Anschaffungskosten und die darauf entfallende
 	// Abschreibung im selben Verhältnis hinaus.
@@ -2959,7 +2997,9 @@ func isFixedAssetAccount(account string) bool {
 // -------------------------------------------------------------------------
 
 // enrich fills the derived figures of an asset as of one fiscal year.
-func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth int) {
+func (s *AssetService) enrich(
+	asset *domain.FixedAsset, fiscalYear, startMonth int, periods map[int]accounting.FiscalPeriod,
+) {
 	asset.Cost, asset.Accumulated, asset.YearAmount = 0, 0, 0
 	// Planmäßige AfA und Sonderabschreibung werden getrennt gezählt und erst für
 	// die Anzeige addiert: der Plan vergleicht jede von beiden mit ihrem eigenen
@@ -2997,7 +3037,7 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 
 	asset.DueAmount, asset.SpecialDue = 0, 0
 	if asset.Method.IsPlanned() && !disposedBefore(asset, fiscalYear) {
-		if rows, err := accounting.BuildAfASchedule(s.planFor(asset, startMonth)); err == nil {
+		if rows, err := accounting.BuildAfASchedule(afaPlanFor(asset, startMonth, periods)); err == nil {
 			if due := accounting.ScheduleAmountFor(rows, fiscalYear) - plannedYearAmount; due > 0 {
 				asset.DueAmount = due
 			}
@@ -3026,15 +3066,22 @@ func (s *AssetService) enrich(asset *domain.FixedAsset, fiscalYear, startMonth i
 }
 
 // planFor turns an asset into the input of the AfA computation.
-func (s *AssetService) planFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
-	return afaPlanFor(asset, startMonth)
+// planWithPeriods baut den Abschreibungsplan mit den tatsächlichen Zeiträumen
+// der Geschäftsjahre.
+func (s *AssetService) planWithPeriods(
+	ctx context.Context, asset *domain.FixedAsset, startMonth int,
+) accounting.AfAPlan {
+	return afaPlanFor(asset, startMonth, s.fiscalPeriods(ctx))
 }
 
 // afaPlanFor ist dieselbe Umrechnung als freie Funktion: das Verzeichnis nach
 // § 5 Abs. 1 Satz 2 EStG braucht denselben Plan, und ein zweiter Aufbau würde
 // abweichen, sobald sich eine Regel ändert.
-func afaPlanFor(asset *domain.FixedAsset, startMonth int) accounting.AfAPlan {
+func afaPlanFor(
+	asset *domain.FixedAsset, startMonth int, periods map[int]accounting.FiscalPeriod,
+) accounting.AfAPlan {
 	plan := accounting.AfAPlan{
+		Periods: periods,
 		// Abgeschrieben wird ab der Betriebsbereitschaft. Bei einer Anlage im Bau
 		// liegt zwischen der ersten Anzahlung und ihr oft ein Jahr.
 		AcquisitionDate:      asset.DepreciationStart(),
@@ -3274,7 +3321,7 @@ func (s *AssetService) reload(ctx context.Context, id uint) (*domain.FixedAsset,
 		return nil, err
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, s.fiscalYear, startMonth)
+	s.enrich(asset, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
 	if chart, err := s.journalSvc.Chart(ctx); err == nil {
 		asset.AccountName = chart.Name(asset.Account)
 	}

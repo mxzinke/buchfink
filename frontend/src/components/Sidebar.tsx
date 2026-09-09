@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Archive,
+  FolderOpen,
   BookCheck,
   BookOpen,
   Building2,
@@ -42,6 +43,11 @@ export type TabType =
   | 'reports'
   | 'closing'
   | 'closingmodules'
+  // Der Gründungsweg hat keinen Eintrag in der Navigation: er ist eine Phase
+  // und kein Ort. Erreicht wird er über den Hinweis auf der Startseite, über
+  // den Gründungsabschnitt der Fristenseite und aus dem Einrichtungsassistenten.
+  | 'gruendung'
+  | 'dokumente'
   | 'vat'
   | 'obligations'
   | 'deadlines'
@@ -203,6 +209,9 @@ const GROUPS: NavGroup[] = [
     // „ist etwas nicht in Ordnung", und die stellt sich erst, wenn der
     // Anzeiger etwas anderes sagt als „unverändert".
     items: [
+      // Die Unterlagen stehen vor der Sicherung: sie sind das, was man sucht,
+      // die Sicherung das, was man einrichtet und dann vergisst.
+      { id: 'dokumente', label: 'Unterlagen', icon: <FolderOpen className={icon} /> },
       { id: 'backup', label: 'Datensicherung', icon: <Archive className={icon} /> },
       { id: 'taxaudit', label: 'Betriebsprüfung', icon: <ScrollText className={icon} /> },
       { id: 'settings', label: 'Einstellungen', icon: <Settings className={icon} /> },

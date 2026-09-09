@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -738,7 +737,7 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 		ReceivedAt:    inv.Date,
 		ReceivedVia:   domain.ReceivedViaSelfIssued,
 		DocumentDate:  inv.Date,
-		IssuerName:    strings.TrimSpace(seller.CompanyName),
+		IssuerName:    seller.FirmName(),
 		GrossAmount:   inv.GrossAmount,
 		TaxAmount:     inv.TaxAmount,
 		Currency:      inv.Currency,

@@ -295,10 +295,10 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 		typstEscape(inv.ResolvedKind().Label()), typstEscape(inv.InvoiceNumber),
 		// %q inside a Typst string literal: the markup escaping of typstEscape
 		// would land as visible backslashes in the PDF metadata.
-		seller.CompanyName,
+		seller.FirmName(),
 		docDate,
 		embed,
-		typstEscape(seller.CompanyName), typstEscape(seller.Street), typstEscape(seller.ZipCity),
+		typstEscape(seller.FirmName()), typstEscape(seller.Street), typstEscape(seller.ZipCity),
 		typstEscape(buyerName(inv, buyer)), buyerAddressBlock(inv, buyer),
 		typstEscape(heading),
 		typstEscape(inv.InvoiceNumber), domain.GermanDate(inv.Date),

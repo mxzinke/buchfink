@@ -279,6 +279,53 @@ func (s *StatementService) statement(ctx context.Context, year int, depth domain
 	return stmt, nil
 }
 
+// StatementAt baut die Gliederung auf einen Stichtag statt auf ein
+// Geschäftsjahr.
+//
+// Der Fall ist die Eröffnungsbilanz: sie steht auf den Tag der Beurkundung
+// (§ 242 Abs. 1 HGB) und nicht auf den Schluss eines Geschäftsjahres. Gelesen
+// wird über alle Jahre bis zu diesem Tag — die Jahresgrenze fällt weg, weil eine
+// Beurkundung im November und ein aktives Geschäftsjahr im Januar auseinander
+// liegen können.
+//
+// Ohne Vorjahresspalte: § 265 Abs. 2 HGB verlangt sie zu jedem Posten, aber vor
+// dem ersten Tag des Unternehmens gibt es kein Vorjahr, über das sich etwas
+// sagen ließe.
+func (s *StatementService) StatementAt(
+	ctx context.Context, cutoff string, depth domain.StatementDepth,
+) (*domain.Statement, error) {
+	if len(cutoff) != 10 {
+		return nil, fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if depth == "" {
+		depth = domain.DepthFull
+	}
+	accounts, err := s.accountingSvc.AccountsForYearAt(ctx, 0, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := accounting.BuildStatement(accounts, nil, depth)
+	if err != nil {
+		return nil, err
+	}
+	// Das Geschäftsjahr, in das der Stichtag fällt: die Gliederung trägt es als
+	// Kennung, gerechnet wird über den Stichtag.
+	startMonth := 1
+	if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil &&
+		cfg.FiscalYearStartMonth >= 1 && cfg.FiscalYearStartMonth <= 12 {
+		startMonth = cfg.FiscalYearStartMonth
+	}
+	stmt.FiscalYear = domain.GetFiscalYearForDate(cutoff, startMonth)
+	stmt.PriorYear = stmt.FiscalYear - 1
+	return stmt, nil
+}
+
+// AccountsAt liefert den Kontenplan mit den Salden zu einem Stichtag, über alle
+// Geschäftsjahre hinweg.
+func (s *StatementService) AccountsAt(ctx context.Context, cutoff string) ([]domain.Account, error) {
+	return s.accountingSvc.AccountsForYearAt(ctx, 0, cutoff)
+}
+
 func hasAnyBalance(accounts []domain.Account) bool {
 	for _, acc := range accounts {
 		if acc.DebitSum != 0 || acc.CreditSum != 0 {
@@ -425,6 +472,15 @@ func (s *StatementService) period(ctx context.Context, year int) (*domain.Fiscal
 	return s.closingSvc.PeriodOf(ctx, year)
 }
 
+// Header sind die Pflichtangaben des § 264 Abs. 1a HGB, ohne eine Gliederung
+// daneben.
+//
+// Die Eröffnungsbilanz braucht sie: sie hat einen eigenen Stichtag und keine
+// Vorjahresspalte, füllt ihren Kopf aber aus denselben Unternehmensdaten.
+func (s *StatementService) Header(ctx context.Context, year int) (domain.StatementHeader, error) {
+	return s.header(ctx, year, &domain.Statement{})
+}
+
 // header sind die Pflichtangaben des § 264 Abs. 1a HGB.
 func (s *StatementService) header(ctx context.Context, year int, stmt *domain.Statement) (domain.StatementHeader, error) {
 	fy, err := s.period(ctx, year)
@@ -437,8 +493,9 @@ func (s *StatementService) header(ctx context.Context, year int, stmt *domain.St
 	}
 
 	header := domain.StatementHeader{
-		CompanyName: settings.CompanyName, LegalForm: settings.LegalForm,
-		Seat: settings.Seat, RegisterCourt: settings.RegisterCourt,
+		CompanyName: settings.CompanyName, FirmName: firmNameWithLegalForm(settings),
+		LegalForm: settings.LegalForm,
+		Seat:      settings.Seat, RegisterCourt: settings.RegisterCourt,
 		RegisterNumber: settings.RegisterNumber,
 		FiscalYear:     year, StartDate: fy.StartDate, ClosingDate: fy.EndDate,
 		IsShortYear: fy.IsShort,
@@ -569,4 +626,24 @@ func addMonthsISO(iso string, months int) string {
 		day = last
 	}
 	return time.Date(target.Year(), target.Month(), day, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
+}
+
+// firmNameWithLegalForm ist die Firma für den Kopf des Abschlusses.
+//
+// Der Name, ergänzt um die Rechtsform, wo sie im Namen fehlt — viele erfassen
+// „Muster Ventures" und wählen die Rechtsform daneben, andere schreiben sie in
+// den Namen. Der Zusatz „i. G." steht dabei ganz hinten und nicht zwischen
+// Name und Rechtsform: „Muster Ventures i. G. GmbH" wäre keine Firma.
+func firmNameWithLegalForm(settings *domain.CompanySettings) string {
+	name := strings.TrimSpace(settings.CompanyName)
+	if name == "" {
+		return ""
+	}
+	if form := strings.TrimSpace(settings.LegalForm); form != "" && !strings.Contains(name, form) {
+		name += " " + form
+	}
+	if settings.InGruendung {
+		name += " i. G."
+	}
+	return name
 }

@@ -461,7 +461,7 @@ func (s *ExportService) baseData(ctx context.Context) (*exportData, error) {
 	if s.settingsRepo != nil {
 		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil {
 			if name == "" {
-				name = cfg.CompanyName
+				name = cfg.FirmName()
 			}
 			location = companyLocation(cfg)
 		}
@@ -945,8 +945,8 @@ func (s *ExportService) tenantLabel(ctx context.Context) string {
 	}
 	if s.settingsRepo != nil {
 		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil &&
-			strings.TrimSpace(cfg.CompanyName) != "" {
-			return cfg.CompanyName
+			cfg.FirmName() != "" {
+			return cfg.FirmName()
 		}
 	}
 	return "(Mandantenname nicht hinterlegt)"

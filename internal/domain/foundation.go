@@ -258,6 +258,38 @@ type ShareholderCheck struct {
 	IsSatisfied    bool             `json:"isSatisfied"`
 }
 
+// FoundationAnchor ist das Ereignis, aus dem die Frist einer Gründungspflicht
+// läuft.
+//
+// Nicht alles hängt an der Eintragung. Die Vorgesellschaft ist mit der späteren
+// GmbH dasselbe Rechtssubjekt — sie ist bereits buchführungspflichtig und
+// bereits Körperschaftsteuersubjekt. Der Fragebogen zur steuerlichen Erfassung
+// und die Eröffnungsbilanz laufen deshalb ab der Beurkundung, die Meldung an das
+// Transparenzregister erst ab der Eintragung. Ein einheitlicher Anker wäre für
+// die eine Hälfte der Pflichten zu früh und für die andere zu spät.
+type FoundationAnchor string
+
+const (
+	// AnchorBeurkundung ist der Tag der notariellen Beurkundung (§ 2 GmbHG).
+	AnchorBeurkundung FoundationAnchor = "beurkundung"
+	// AnchorEintragung ist der Tag der Eintragung ins Handelsregister.
+	AnchorEintragung FoundationAnchor = "eintragung"
+	// AnchorAbschlussstichtag ist das Ende des Geschäftsjahres.
+	AnchorAbschlussstichtag FoundationAnchor = "abschlussstichtag"
+)
+
+// Label benennt das Ereignis für die Oberfläche.
+func (a FoundationAnchor) Label() string {
+	switch a {
+	case AnchorEintragung:
+		return "die Eintragung ins Handelsregister"
+	case AnchorAbschlussstichtag:
+		return "den Abschlussstichtag"
+	default:
+		return "die Beurkundung"
+	}
+}
+
 // FoundationDuty is one obligation arising from the founding, with the day it is
 // due and whether it has been fulfilled.
 type FoundationDuty struct {
@@ -266,12 +298,38 @@ type FoundationDuty struct {
 	// DueDate ist leer, wo das Gesetz keine Frist in Tagen nennt, sondern
 	// „unverzüglich" sagt. Dann hat Deadline den Wortlaut. Eine erfundene
 	// Tagesfrist wäre bequemer und falsch.
-	DueDate     string `json:"dueDate"`
-	Deadline    string `json:"deadline"`
+	DueDate  string `json:"dueDate"`
+	Deadline string `json:"deadline"`
+	// Anchor ist das Ereignis, aus dem die Frist läuft.
+	Anchor FoundationAnchor `json:"anchor"`
+	// Order ist der Platz im Gründungsweg. Er folgt der Reihenfolge, in der die
+	// Schritte zu tun sind, und nicht der Fälligkeit: die Anmeldung steht vor
+	// dem Fragebogen, obwohl der ein Datum hat und sie keins.
+	Order int `json:"order"`
+	// Where ist der Ort, an dem die Pflicht erfüllt wird — beim Notar, über Mein
+	// ELSTER, bei der Gemeinde. Wer zum ersten Mal gründet, weiß das nicht, und
+	// es steht in keinem Paragrafen.
+	Where string `json:"where"`
+	// Todo sind die Handgriffe, in der Reihenfolge, in der sie zu tun sind.
+	// Jeder ein Satz.
+	Todo []string `json:"todo"`
+	// Provides sagt, was Buchfink dafür bereitstellt — leer, wo es nichts
+	// beisteuern kann. Es ist der Unterschied zwischen einer Anleitung und einer
+	// Hilfe.
+	Provides string `json:"provides,omitempty"`
+	// IsPending sagt, dass dieses Ereignis noch nicht eingetreten ist. Die
+	// Pflicht steht dann schon in der Liste — der Gründer soll wissen, was noch
+	// kommt —, hat aber kein Datum und kann nicht überfällig sein.
+	IsPending   bool   `json:"isPending"`
 	Reference   string `json:"reference"`
 	Description string `json:"description"`
 	DoneOn      string `json:"doneOn"`
 	IsDone      bool   `json:"isDone"`
+	// Proof sind die abgelegten Nachweise zu dieser Pflicht — der
+	// Registerauszug, der Gewerbeschein, die Bestätigung des
+	// Transparenzregisters. Sie liegen in der Dokumentenablage des Unternehmens
+	// und sind hier nur verknüpft.
+	Proof []Document `json:"proof,omitempty"`
 }
 
 // FoundationRepository persists the Gründung of a tenant.

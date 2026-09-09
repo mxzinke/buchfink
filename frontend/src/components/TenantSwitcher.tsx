@@ -22,6 +22,20 @@ export interface TenantSwitcherProps {
  * Mandantenwechsel ist aber keine Reise, sondern eine Auswahl — und eine
  * Auswahl gehört an die Stelle, an der der gewählte Wert steht.
  */
+/**
+ * Die Firma, unter der das Unternehmen auftritt.
+ *
+ * Bis zur Eintragung ins Handelsregister mit dem Zusatz „i. G." — der Zustand
+ * kommt abgeleitet aus dem Backend und steht nirgends in der Datenbank. Die
+ * Kopfzeile zeigt ihn, weil sie den ganzen Tag im Blick ist: wer den Zusatz
+ * dort sieht, vergisst nicht, dass die Haftungsbeschränkung noch nicht greift.
+ */
+function firmNameOf(settings?: CompanySettings | null): string {
+  const name = settings?.companyName?.trim();
+  if (!name) return '';
+  return settings?.inGruendung ? `${name} i. G.` : name;
+}
+
 export const TenantSwitcher: React.FC<TenantSwitcherProps> = ({
   tenants,
   activeTenant,
@@ -37,7 +51,7 @@ export const TenantSwitcher: React.FC<TenantSwitcherProps> = ({
       <button
         type="button"
         title="Mandant wechseln"
-        aria-label={`Mandant ${settings?.companyName || activeTenant?.name || 'Buchfink'} wechseln`}
+        aria-label={`Mandant ${firmNameOf(settings) || activeTenant?.name || 'Buchfink'} wechseln`}
         className="flex items-center gap-3 w-full min-w-0 p-1.5 -m-1.5 rounded-control text-left
                    transition-colors duration-120 ease-quiet hover:bg-shell-raised window-no-drag"
       >
@@ -53,7 +67,7 @@ export const TenantSwitcher: React.FC<TenantSwitcherProps> = ({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-body font-semibold text-white truncate">
-            {settings?.companyName || activeTenant?.name || 'Buchfink'}
+            {firmNameOf(settings) || activeTenant?.name || 'Buchfink'}
           </span>
           <span className="block text-caption text-shell-text-muted truncate">
             Geschäftsjahr {settings?.fiscalYear || new Date().getFullYear()}

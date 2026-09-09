@@ -16,6 +16,8 @@ func TestBankRuleIsUpdatedInsteadOfDuplicated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	repo := NewBankRuleRepository(db)
 
@@ -65,6 +67,8 @@ func TestBaseRateIsReplacedPerValidFrom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	repo := NewBaseRateRepository(db)
 
@@ -92,6 +96,8 @@ func TestDunningNoticeKeepsItsItems(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	repo := NewDunningRepository(db)
 
@@ -147,6 +153,8 @@ func TestSettingsKeepDunningLevelsAndCheckThreshold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	repo := NewSettingsRepository(db)
 
@@ -203,6 +211,8 @@ func TestSettingsDoNotResetMaintainedValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	ctx := context.Background()
 	repo := NewSettingsRepository(db)
 

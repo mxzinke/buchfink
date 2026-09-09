@@ -21,6 +21,8 @@ func TestEntryReadsSurviveTheParameterLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 
 	const n = 33000 // knapp über SQLITE_MAX_VARIABLE_NUMBER
 	entries := make([]domain.JournalEntry, 0, n)
@@ -77,6 +79,8 @@ func TestAccountAndContactReadsStayChronological(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Testdatenbank: %v", err)
 	}
+	// Die Datenbank im Arbeitsspeicher lebt, solange ihre Verbindung offen ist.
+	t.Cleanup(func() { _ = CloseDB(db) })
 	contact := uint(7)
 	// Bewusst in umgekehrter zeitlicher Reihenfolge angelegt.
 	for i, date := range []string{"2026-09-01", "2026-03-01", "2026-06-01"} {

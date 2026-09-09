@@ -1620,6 +1620,106 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 	return fy, nil
 }
 
+// AlignFoundingYear setzt den Beginn des Gründungsjahres auf den Tag der
+// Beurkundung.
+//
+// `derive` kann das schon (:365), kommt im Einrichtungsassistenten aber zu spät:
+// der Mandant entsteht mit `CreateTenant`, und dabei legt `EnsureFiscalYears`
+// das laufende Jahr an — die Gründung wird erst danach erfasst. Das
+// Geschäftsjahr stünde sonst dauerhaft als volles Kalenderjahr in den Büchern,
+// obwohl die Gesellschaft erst im März entstanden ist, und der Zeitraum davor
+// gehörte zu einem Unternehmen, das es noch nicht gab.
+//
+// Angeglichen wird nur, solange nichts daran hängt. Ein Zeitraum ist keine
+// Angabe, die man nachträglich verschiebt: an ihm hängen die Festschreibung, der
+// Abschluss und jede Buchung, die ihm zugeordnet ist. Deshalb die vier
+// Bedingungen unten, und deshalb kein Aufruf aus `EnsureFiscalYears`: ein
+// bestehender Mandant wird beim Start nicht umgeschrieben.
+//
+// Ein bereits richtiges Jahr ist ein Nichtstun — ohne Protokolleintrag, sonst
+// stünde bei jedem Speichern der Gründung dieselbe Zeile ein weiteres Mal darin.
+func (s *ClosingService) AlignFoundingYear(ctx context.Context) error {
+	if s.foundationRepo == nil {
+		return nil
+	}
+	f, err := s.foundationRepo.Get(ctx)
+	if err != nil || f == nil || len(f.NotarizedOn) != 10 {
+		// Kein Gründungsfall: nichts anzugleichen. Ein Lesefehler ist hier kein
+		// Grund, das Speichern der Gründung scheitern zu lassen.
+		return nil
+	}
+
+	year := domain.GetFiscalYearForDate(f.NotarizedOn, s.fiscalYearStartMonth(ctx))
+	fy, err := s.fiscalYearRepo.FindByYear(ctx, year)
+	if err != nil {
+		return err
+	}
+	if fy == nil {
+		// Noch kein Geschäftsjahr angelegt: dann entsteht es später über
+		// `derive`, und das kennt die Beurkundung bereits.
+		return nil
+	}
+	if fy.StartDate == f.NotarizedOn {
+		return nil
+	}
+	// Die Beurkundung muss in das Jahr fallen, dessen Beginn sie setzen soll.
+	// Liegt sie davor, ist das Unternehmen älter als dieses Geschäftsjahr, und
+	// der Beginn hat mit ihr nichts zu tun.
+	if f.NotarizedOn <= fy.StartDate || f.NotarizedOn > fy.EndDate {
+		return nil
+	}
+
+	if fy.IsAdopted() {
+		return fmt.Errorf(
+			"das Geschäftsjahr %d ist %s. Sein Beginn ist Teil des festgestellten Abschlusses und "+
+				"lässt sich nicht mehr auf den Beurkundungstag setzen",
+			year, fy.Status.Label())
+	}
+	if s.festschreibungRepo != nil {
+		cutoff, err := s.festschreibungRepo.LatestCutoff(ctx, year)
+		if err != nil {
+			return fmt.Errorf("der Festschreibungsstand des Geschäftsjahres %d konnte nicht gelesen werden: %w", year, err)
+		}
+		if cutoff != "" {
+			return fmt.Errorf(
+				"das Geschäftsjahr %d ist bis zum %s festgeschrieben. Ein festgeschriebener Zeitraum "+
+					"behält seinen Beginn",
+				year, germanDate(cutoff))
+		}
+	}
+	// Eine Buchung vor der Beurkundung wäre nach der Angleichung außerhalb ihres
+	// Geschäftsjahres — sie gehörte dann zu keinem Zeitraum mehr.
+	before, err := s.journalRepo.FindByBookingDateRange(ctx, year, "", previousDay(f.NotarizedOn))
+	if err != nil {
+		return fmt.Errorf("die Buchungen des Geschäftsjahres %d konnten nicht gelesen werden: %w", year, err)
+	}
+	if len(before) > 0 {
+		return fmt.Errorf(
+			"im Geschäftsjahr %d stehen %d Buchungen vor dem Beurkundungstag %s. Sie lägen nach der "+
+				"Umstellung außerhalb ihres Geschäftsjahres — prüfen Sie, ob das Beurkundungsdatum stimmt",
+			year, len(before), germanDate(f.NotarizedOn))
+	}
+
+	previous := fy.StartDate
+	snapshot := *fy
+	aligned := domain.NewFiscalYear(year, f.NotarizedOn, fy.EndDate)
+	if err := aligned.Validate(); err != nil {
+		return err
+	}
+	// Nur der Zeitraum wandert. Abschlussstand, Arbeitnehmerzahl, Vorjahresumsatz
+	// und der Zeitpunkt des Saldenvortrags gehören dem Jahr und nicht seinem
+	// Beginn.
+	fy.StartDate = aligned.StartDate
+	fy.IsShort = aligned.IsShort
+	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
+		return err
+	}
+	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+		"Beginn des Geschäftsjahres %d von %s auf den Beurkundungstag %s gesetzt%s",
+		year, germanDate(previous), germanDate(f.NotarizedOn), shortSuffix(fy)), &snapshot, fy)
+	return nil
+}
+
 // SetPriorYearRevenue hält den Gesamtumsatz des Vorjahres fest.
 //
 // Die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet sich nach ihm: bis

@@ -1928,6 +1928,9 @@ const SIZE_CLASS = {
 const STATEMENT = {
   header: {
     companyName: SETTINGS.companyName,
+    // Die Firma des Bilanzkopfes: der Name mit der Rechtsform, hier ohne den
+    // Zusatz „i. G." — die Gesellschaft ist eingetragen.
+    firmName: SETTINGS.companyName,
     legalForm: SETTINGS.legalForm,
     seat: SETTINGS.zipCity,
     registerCourt: 'Amtsgericht Hamburg',
