@@ -7,7 +7,7 @@
     <meta name="description" content="Hashkette, Festschreibung mit Zeitstempel, Änderungsprotokoll, Aufbewahrungsfristen, Sicherung, Prüferpaket und Verfahrensdokumentation in Buchfink." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css" />
+    <link rel="stylesheet" href="assets/site.css?v=5f2c7f4ea0d8" />
     <noscript>
       <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
            Seite, mit Überschrift, statt zu fehlen. -->
@@ -139,11 +139,7 @@
         <div class="wrap wrap--wide">
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Nachweise und Sicherheit</h1>
-          <p class="pagehead__lead">
-            Das Finanzamt verlangt, dass jede Änderung an der Buchhaltung sichtbar bleibt.
-            Buchfink verkettet dafür jede Buchung mit der vorherigen und schreibt jede Änderung
-            mit Vorher und Nachher mit.
-          </p>
+          <p class="pagehead__lead">Finden Sie Ihre Belege wieder und behalten Sie den Überblick über Änderungen. Buchfink hilft Ihnen, die eigene Buchhaltung nachvollziehbar zu führen und zu sichern.</p>
           <p class="pagehead__note">
             Was eine Betriebsprüfung verlangt, stellt das Programm auf Knopfdruck in einem Ordner
             zusammen.
@@ -157,13 +153,9 @@
             <div class="feature__text">
               <p class="overline">Unveränderbarkeit</p>
               <h2 class="feature__title">Gebucht ist gebucht</h2>
-              <p class="feature__body">
-                Jede Buchung enthält den Fingerabdruck ihrer Vorgängerin. Buchfink rechnet die
-                Kette nach und nennt die Buchung, an der sie bricht. Ein festgeschriebener
-                Zeitraum nimmt keine rückdatierte Buchung mehr an; korrigiert wird per Storno.
-              </p>
+              <p class="feature__body">Buchfink prüft, ob gespeicherte Buchungen verändert wurden. Abgeschlossene Zeiträume sind für weitere rückdatierte Buchungen gesperrt. Korrekturen bleiben durch Stornierung und Neubuchung nachvollziehbar.</p>
               <button class="reveal" type="button" data-dialog="dlg-was-der-zeitstempel-leistet">
-                Was der Zeitstempel leistet
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -191,13 +183,9 @@
             <div class="feature__text">
               <p class="overline">Protokoll und Aufbewahrung</p>
               <h2 class="feature__title">Wer wann was geändert hat</h2>
-              <p class="feature__body">
-                Das Änderungsprotokoll hält jeden Vorgang mit Vorher und Nachher, Bearbeiter und
-                Programmfassung fest, in einer eigenen verketteten Reihe. Sie filtern nach
-                Vorgang, Bereich, Bearbeiter und Zeitraum und lassen die Kette nachrechnen.
-              </p>
+              <p class="feature__body">Das Änderungsprotokoll zeigt, wer welche Daten geändert hat. Sie können gezielt nach einem Vorgang, einem Zeitraum oder einem Bearbeiter suchen.</p>
               <button class="reveal" type="button" data-dialog="dlg-was-noch-mitgeschrieben-wird">
-                Was noch mitgeschrieben wird
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -224,13 +212,9 @@
             <div class="feature__text">
               <p class="overline">Sicherung und Betriebsprüfung</p>
               <h2 class="feature__title">Was die Betriebsprüfung bekommt</h2>
-              <p class="feature__body">
-                Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen
-                zweiten Ordner Ihrer Wahl. Die Sicherung ist eine gewöhnliche ZIP-Datei. Für die
-                Betriebsprüfung entsteht auf Knopfdruck ein Ordner mit allem, was verlangt wird.
-              </p>
+              <p class="feature__body">Wählen Sie einen Sicherungsordner. Buchfink erstellt dort Sicherungen Ihrer Buchhaltung und kann sie wiederherstellen. Für eine Betriebsprüfung können Sie Buchungsdaten, Belege und die Beschreibung Ihrer Arbeitsabläufe zusammenstellen.</p>
               <button class="reveal" type="button" data-dialog="dlg-was-im-pru-ferpaket">
-                Was im Prüferpaket liegt, und was nicht
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -258,14 +242,9 @@
             </svg>
             <div>
               <p class="note__title">Ein Rechner, eine Bearbeiterin</p>
-              <p class="note__body">
-                Buchfink hat keine Benutzerverwaltung und keine Funktionstrennung. An jeder
-                Buchung und jeder Protokollzeile steht stattdessen die Bearbeiterkennung aus
-                Betriebssystem-Benutzer und Rechnername; für Dritte gibt es den
-                schreibgeschützten Prüfermodus.
-              </p>
+              <p class="note__body">Buchfink ist für die Arbeit einer Person an einem Rechner ausgelegt. Für eine Prüfung können Sie einen Lesemodus einschalten. Währenddessen lassen sich Daten ansehen und exportieren, aber nicht bearbeiten.</p>
               <button class="reveal" type="button" data-dialog="dlg-wie-die-daten-auf">
-                Wie die Daten auf der Platte liegen
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -371,7 +350,8 @@
           Personenbezogene und geschäftliche Datenbankfelder sind mit AES-256-GCM
           verschlüsselt. Der Schlüssel steht im Schlüsselbund des Betriebssystems, dazu
           gibt es eine Wiederherstellungsdatei. Die Belegdateien selbst bleiben im
-          Original, weil die GoBD den unveränderten Eingangsbeleg verlangt.
+          Original und sind nicht verschlüsselt. Die Feldverschlüsselung schützt nicht
+          den gesamten Datenordner.
           </p>
         </div>
       </dialog>

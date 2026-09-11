@@ -22,13 +22,14 @@ website/
     └── screenshots/    # aus der laufenden Oberfläche, siehe unten
 ```
 
-Es gibt keine Preisseite. Dass Buchfink kostenlos, quelloffen und ohne Cloud
-ist, steht als ein Satz auf der Startseite; eine eigene Seite dafür hätte
-denselben Satz auf zehn Absätze verteilt.
-
 Alle sieben Seiten haben dieselbe Navigation. Sie steht in jeder Datei als
 Markup, weil es keinen Build-Schritt gibt: Wer einen Eintrag ändert, ändert ihn
 siebenmal. Der Eintrag der aktuellen Seite trägt `aria-current="page"`.
+
+Der Stylesheet-Link enthält eine Versionskennung, damit Browser nach Änderungen
+die neue CSS-Datei laden. Bei Änderungen an `assets/site.css` wird `?v=…` in allen
+sieben HTML-Dateien auf die ersten zwölf Zeichen ihres SHA-256-Hashs aktualisiert.
+Den Hash liefert `shasum -a 256 website/assets/site.css` im Projektverzeichnis.
 
 Die Navigation ist gruppiert: Start, ein Klappmenü **Funktionen** mit den vier
 Funktionsseiten, dann Roadmap und Installation, rechts die Schaltfläche zu
@@ -134,26 +135,17 @@ nach dem Aufbau des Programms: Was mache ich damit jeden Tag? Welche Frist
 nimmt es mir ab? Passt es zu meiner Rechtsform? Wo liegen meine Zahlen? Die
 Startseite geht diese Fragen der Reihe nach durch.
 
-Sechs Regeln, die dabei gelten:
+Die Startseite erklärt Selbstständigkeit, Unabhängigkeit und Mitwirkung.
+Einfache Jahresabschlüsse und eine lokale MCP-Anbindung sind als Ziele
+gekennzeichnet, solange sie nicht vollständig implementiert sind. Die Roadmap
+enthält keine kopierte Kriterienstatistik; diese wird im Anforderungskatalog
+gepflegt.
 
-- **Kurze Sätze, eine Aussage je Satz.** Wer beim Lesen zurückspringen muss,
-  liest einen Satz, der geteilt gehört.
-- **Keine Gedankenstriche.** Punkt oder Komma. Ein Strich verdeckt meist, dass
-  zwei Sätze in einem stecken. Ausnahme ist der Seitentitel im `<title>`.
-- **Der Fachbegriff kommt nach der Sache.** Erst „was einmal gebucht ist, bleibt
-  sichtbar“, dann das Wort GoBD.
-- **Zahlen statt Eindruck.** Nicht „läuft schnell“, sondern „dauert 10 bis 20
-  Minuten“. Nicht „datenschutzfreundlich“, sondern „geht an drei Stellen ins
-  Netz, sonst nie“.
-- **Ein Satz, der auch auf einer fremden Seite stehen könnte, sagt nichts.** Er
-  gehört gestrichen.
-- **Was das Programm nicht kann, steht genauso da wie das, was es kann.**
-
-Oben steht in zwei, drei Sätzen, was eine Funktion tut. Ausnahmen, Normen und
-Sonderfälle stehen in einem Dialog dahinter (siehe unten).
-
-Wer die Seite ändert, kann sich an derselben Prüfliste orientieren, die am Ende
-des Design-Konzepts steht.
+Funktionsseiten erklären zuerst, was Anwender erledigen können. Details und
+Rechtsgrundlagen stehen in Dialogen hinter „Mehr erfahren“. Normverweise werden
+als Links zum Gesetzestext geschrieben. Technische Einschränkungen, die über
+die Nutzbarkeit entscheiden, etwa eine ungeprüfte E-Bilanz, bleiben sichtbar.
+Die gemeinsamen Regeln stehen in [Schreibweise](../docs/schreibweise.md).
 
 ## Vertiefungen im Dialog
 
@@ -171,19 +163,6 @@ stellt und die Schaltflächen ausblendet.
 
 Ein neuer Dialog braucht drei Dinge: eine eindeutige `id`, dieselbe `id` im
 `data-dialog` der Schaltfläche und ein `aria-labelledby` auf seinen Titel.
-
-## Diagramme
-
-Die Schaubilder sind handgeschriebenes SVG direkt im HTML: auf `index.html` der
-Jahreslauf in drei Takten und der Kasten, der zeigt, wo die Daten liegen. Kein Werkzeug, keine Bibliothek, kein
-Build. Sie benutzen dieselben Farbwerte wie der Rest der Seite; da SVG keine
-CSS-Variablen erbt, stehen die Werte dort als Hex-Literale. Wer eine Farbe
-ändert, ändert sie an beiden Stellen.
-
-Jedes Diagramm hat ein `<title>`- und ein `<desc>`-Element, verbunden über
-`aria-labelledby`, damit es auch vorgelesen brauchbar bleibt. Die Zeitleiste der
-Roadmap ist kein SVG, sondern eine Liste mit einer Haarlinie als Rand
-(`.timeline` in `assets/site.css`).
 
 ## Screenshots
 

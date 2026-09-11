@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Roadmap — Buchfink</title>
-    <meta name="description" content="Was in Buchfink gebaut ist, was bis zur Version 1 offen bleibt und welche Prüfpunkte ein Datum haben." />
+    <meta name="description" content="Was Buchfink bereits kann und was geplant ist: selbstständige Buchhaltung, einfache Jahresabschlüsse, lokale Chatbot-Anbindung und gemeinschaftliche Entwicklung." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css" />
+    <link rel="stylesheet" href="assets/site.css?v=5f2c7f4ea0d8" />
     <noscript>
       <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
            Seite, mit Überschrift, statt zu fehlen. -->
@@ -138,320 +138,60 @@
       <section class="pagehead">
         <div class="wrap wrap--wide">
           <p class="overline">Roadmap</p>
-          <h1 class="pagehead__title">Unsere Roadmap</h1>
-          <p class="pagehead__lead">
-            Version 1 ist eine stabile, rechtskonforme Fassung für kleine bilanzierende
-            Unternehmen, ohne Lohnbuchhaltung. Die laufende Buchhaltung ist fertig. Was fehlt,
-            ist der Jahresabschluss als Dokument, die Offenlegung und die Erprobung im laufenden
-            Betrieb.
-          </p>
-          <button class="reveal" type="button" data-dialog="dlg-woher-die-zahlen-kommen">
-            Woher die Zahlen kommen
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M5 12h14m0 0-5-5m5 5-5 5" />
-            </svg>
-          </button>
-
-          <dl class="hero__facts">
-            <div>
-              <dt class="fact__value">242</dt>
-              <dd class="fact__label">Kriterien erfüllt</dd>
-            </div>
-            <div>
-              <dt class="fact__value">38</dt>
-              <dd class="fact__label">teilweise erfüllt, jedes mit seiner Grenze</dd>
-            </div>
-            <div>
-              <dt class="fact__value">14</dt>
-              <dd class="fact__label">fehlend</dd>
-            </div>
-            <div>
-              <dt class="fact__value">55</dt>
-              <dd class="fact__label">außerhalb des Umfangs</dd>
-            </div>
-          </dl>
+          <h1 class="pagehead__title">Gemeinsam zur selbstständigen Buchhaltung</h1>
+          <p class="pagehead__lead">Buchfink soll kleinen Unternehmen ermöglichen, ihre Buchhaltung und einfache Jahresabschlüsse selbst zu erledigen. Wir entwickeln die Software offen und mit dem Ziel, die gesetzlichen Anforderungen für die unterstützten Fälle zu erfüllen.</p>
+          <p class="pagehead__lead">Die aktuelle Vorschau enthält bereits viele Abläufe. Vollständige fachliche Prüfung, Erprobung und Teile der Einreichung stehen noch aus. Es gibt keinen verbindlichen Termin für Version 1.</p>
         </div>
       </section>
-
       <section class="band">
         <div class="wrap wrap--wide">
-          <p class="overline">Zeitleiste</p>
-          <h2 class="section__title">Der Weg zur Version 1</h2>
-          <p class="section__lead">
-            Oben steht, was gebaut ist. Darunter, was noch zu tun ist.
-          </p>
-
           <div class="timeline">
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Laufende Buchhaltung</h3>
-          <p class="timeline__body">Buchführungspflicht und Grundsätze sowie Beleg, Journal und Konten.</p>
-  <p class="timeline__body"><span class="count">51 von 57 Kriterien erfüllt · 2 teilweise · 0 fehlend · 4 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Jeder Buchungssatz gleicht sich ohne Toleranz aus; es gibt einen einzigen Schreibweg ins Journal</li>
-            <li>Der Beleg liegt unter seinem SHA256, die Kopfdaten sind Pflicht vor dem Buchen</li>
-            <li>Nummernkreise ohne Doppelvergabe, Storno als einzige Korrektur</li>
-            <li>Offene Posten zu jedem Stichtag mit Altersstruktur und Restlaufzeiten</li>
-            <li>Prüfbericht aus vierzehn Regeln vor jeder Festschreibung</li>
-            <li>Von der Bilanzposition zum Beleg in vier Klicks, gemessen an der laufenden Oberfläche</li>
-            <li>Keine Buchung ohne Beleg: die Handbuchung verlangt ihn oder erzeugt den Eigenbeleg als Dokument im selben Vorgang</li>
-            <li>Der Beleg führt zurück ins Journal und ins Kontoblatt</li>
-            <li>Belegnummernformat einstellbar, eigene Konten mit HGB-Position anlegbar und sperrbar</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Unveränderbarkeit und Protokoll</h3>
-          <p class="timeline__body">Hashketten, Bearbeiterkennung und Festschreibung.</p>
-  <p class="timeline__body"><span class="count">19 von 22 Kriterien erfüllt · 0 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Hashkette über das Journal, zweite Kette über das Änderungsprotokoll</li>
-            <li>Vorher und Nachher an jeder Stammdatenänderung</li>
-            <li>Bearbeiterkennung und Programmfassung an jeder Buchung</li>
-            <li>Festschreibung je Monat, Quartal oder Jahr mit RFC-3161-Zeitstempel</li>
-            <li>„Monat festschreiben“ ab dem 10. des Folgemonats auf der Aufgabenliste, danach überfällig</li>
-            <li>Steuersätze als datierte Tabelle, aufgelöst nach dem Leistungstag</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Aufbewahrung</h3>
-          <p class="timeline__body">Fristen, Holds, Archivexport und Sicherung.</p>
-  <p class="timeline__body"><span class="count">23 von 31 Kriterien erfüllt · 5 teilweise · 0 fehlend · 3 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Fristenklasse aus der Belegart, mit Fristbeginn und frühestem Löschdatum</li>
-            <li>Frist am einzelnen Beleg verlängerbar, mit Grund und Protokoll. Verkürzen geht nicht</li>
-            <li>Aufbewahrungs-Hold je Geschäftsjahr</li>
-            <li>Archivexport der Belege mit Index</li>
-            <li>Sicherung und Wiederherstellung als Vorgang, mit anschließender Integritätsprüfung</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Rechnungen</h3>
-          <p class="timeline__body">Ausgangsrechnungen, E-Rechnung und Anzahlungen.</p>
-  <p class="timeline__body"><span class="count">35 von 43 Kriterien erfüllt · 2 teilweise · 0 fehlend · 6 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Rechnungsnummer, Datensatz und Buchung in einer Transaktion</li>
-            <li>Pflichtangaben des § 14 Abs. 4 UStG vor der Nummernvergabe geprüft</li>
-            <li>ZUGFeRD und XRechnung im CII-Profil, Zielformat je Empfänger</li>
-            <li>Storno und Berichtigung als eigene Dokumente, Anzahlungen als Rechnungsverbund</li>
-            <li>Empfang mit Prüfung gegen das Regelwerk der Norm</li>
-            <li>Beanstandungen nach Formatfehler, Geschäftsregelfehler und Inhaltsfehler, je Befund mit Norm und Folge für den Vorsteuerabzug</li>
-            <li>Das eingebettete XML wird vor der Ablage gegen den Datensatz gehalten, aus dem das PDF entstand</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Umsatzsteuer</h3>
-          <p class="timeline__body">Voranmeldung, Meldungen und Nebenpflichten.</p>
-  <p class="timeline__body"><span class="count">27 von 42 Kriterien erfüllt · 2 teilweise · 0 fehlend · 13 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Alle Kennziffern des Vordrucks USt 1 A aus den Steuerzeilen, mit Drill-down zur Buchung</li>
-            <li>Berichtigung, Dauerfristverlängerung und Übermittlungsprotokoll</li>
-            <li>Zusammenfassende Meldung nach § 18a UStG</li>
-            <li>Verzeichnis der Vorsteuerberichtigung nach § 15a UStG</li>
-            <li>Qualifizierte Bestätigung der USt-IdNr. beim Bundeszentralamt, Belegnachweis je Lieferung</li>
-            <li>Voranmeldungszeitraum aus der Steuer des Vorjahres vorgeschlagen, überschreibbar</li>
-            <li>Geteilter Vorsteuerabzug auch beim innergemeinschaftlichen Erwerb und beim Fall des § 13b UStG</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Bewertung und Anlagen</h3>
-          <p class="timeline__body">Anlagevermögen, Abschlussbausteine und Fremdwährung.</p>
-  <p class="timeline__body"><span class="count">33 von 63 Kriterien erfüllt · 12 teilweise · 3 fehlend · 15 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>AfA-Sätze und Wertgrenzen als datierte Ressource neben dem Code</li>
-            <li>Anlagenspiegel aus der jahresübergreifenden Kartei</li>
-            <li>Rückstellungen mit Abzinsung, Rechnungsabgrenzung mit monatlicher Auflösung</li>
-            <li>Inventurwert der Vorräte als Bestandsveränderung</li>
-            <li>Kurse mit EZB-Abruf, Bewertung nach § 256a HGB</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Jahresabschluss</h3>
-          <p class="timeline__body">Bilanz, GuV, E-Bilanz und der geführte Weg.</p>
-  <p class="timeline__body"><span class="count">24 von 44 Kriterien erfüllt · 9 teilweise · 8 fehlend · 3 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Bilanz und GuV nach §§ 266, 275 HGB mit Vorjahresspalte, als PDF und CSV</li>
-            <li>Größenklasse aus zwei aufeinanderfolgenden Stichtagen</li>
-            <li>E-Bilanz aus derselben Gliederung, mit Kontennachweis und Anlagenspiegel</li>
-            <li>Geführter Weg durch vierzehn Abschlussbausteine, Fortschritt aus dem Backend</li>
-            <li>Ergebnisverwendung mit Gesellschafterbeschluss, Saldenvortrag ins Folgejahr</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Betriebsprüfung</h3>
-          <p class="timeline__body">Datenüberlassung, Prüfermodus und Verfahrensdokumentation.</p>
-  <p class="timeline__body"><span class="count">10 von 23 Kriterien erfüllt · 4 teilweise · 2 fehlend · 7 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Z3-Export nach dem Beschreibungsstandard mit index.xml und Feldbeschreibung</li>
-            <li>Prüferpaket in einem Ordner</li>
-            <li>Schreibgeschützter Prüfermodus mit Frist und Grund, protokolliert</li>
-            <li>Journal filterbar nach Konto, Gegenkonto, Betrag, Steuerschlüssel, Bearbeiter und Beleg, mit Summenzeile und CSV der gefilterten Menge</li>
-            <li>Verfahrensdokumentation aus dem laufenden System</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--done">
-          <p class="timeline__stage">Gebaut</p>
-          <h3 class="timeline__title">Datenschutz und Mahnwesen</h3>
-          <p class="timeline__body">Der Querschnitt über alle Module.</p>
-  <p class="timeline__body"><span class="count">20 von 24 Kriterien erfüllt · 2 teilweise · 1 fehlend · 1 außerhalb des Umfangs</span></p>
-          <ul class="checklist">
-            <li>Feldverschlüsselung mit AES-256-GCM, Schlüssel je Mandant im Schlüsselbund</li>
-            <li>Mahnwesen mit Basiszinssatz, taggenauen Verzugszinsen und der Pauschale von 40 Euro</li>
-            <li>Prüfpfad vom Beleg zu Buchung, Zahlung und Bankumsatz</li>
-            <li>Verzeichnis von Verarbeitungstätigkeiten nach Art. 30 DSGVO in der Verfahrensdokumentation</li>
-            <li>Jede Herausgabe personenbezogener Daten im Protokoll, auswertbar über den Filter „Zugriffe“</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
-          <h3 class="timeline__title">Jahresabschluss und Prüfung</h3>
-          <p class="timeline__body">Neun der vierzehn offenen Kriterien betreffen zwei Dinge, die Buchfink nicht führt: den Jahresabschluss als Dokument und die Offenlegung. Sie stehen bewusst hinten an. Erst soll ein Geschäftsjahr laufend geführt worden sein.</p>
-          <ul class="checklist checklist--open">
-            <li>Feststellungsbeschluss als Dokument am Geschäftsjahr</li>
-            <li>Unterzeichneter Jahresabschluss als unveränderliches Dokument</li>
-            <li>Prüfungsvermerk und Prüfungsbericht am Abschluss</li>
-            <li>Bereitstellung an die Gesellschafter in der Frist des § 42a GmbHG</li>
-            <li>Übermittlungsprotokoll der E-Bilanz</li>
-            <li>Datensatz für die Einreichung beim Unternehmensregister</li>
-            <li>Hinterlegung nach § 326 Abs. 2 HGB als Wahl</li>
-            <li>Einreichungsnachweis der Offenlegung</li>
-            <li>Saldenbestätigungslauf für Debitoren und Kreditoren mit Anschreiben und Rückmeldung</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
-          <h3 class="timeline__title">Bewertung zum Stichtag</h3>
-          <ul class="checklist checklist--open">
-            <li>Bericht über die im Geschäftsjahr geänderten Bewertungsmethoden</li>
-            <li>Getrennte Erfassung der Pflicht- und Wahlbestandteile der Herstellungskosten</li>
-            <li>Befreiung von den latenten Steuern an die Größenklasse gebunden</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Zurückgestellt bis nach der Erprobung</p>
-          <h3 class="timeline__title">Nachweise außerhalb des Programms</h3>
-          <ul class="checklist checklist--open">
-            <li>Testeinlesen der Datenüberlassung in eine Prüfsoftware. Der Export ist gegen die amtliche Grammatik gebaut und getestet, ein Lauf in IDEA oder ACL hat nicht stattgefunden</li>
-            <li>Prüfpunkt mit Datum für die Verordnung nach § 147b AO</li>
-          </ul>
-        </div>
-        <div class="timeline__item timeline__item--open">
-          <p class="timeline__stage">Bis v1 offen</p>
-          <h3 class="timeline__title">Erprobung mit echten Anwendern</h3>
-          <p class="timeline__body">Bisher arbeiten wenige Anwender mit Buchfink, und keiner davon hat ein Geschäftsjahr zu Ende geführt. Bis dahin sagen die gemessenen Klickwege und die Prüfläufe etwas über den Code aus, nicht über die Bedienung.</p>
-          <ul class="checklist checklist--open">
-            <li>Ein vollständiges Geschäftsjahr in einem echten Betrieb</li>
-            <li>Testlauf mit einer fachkundigen Person ohne Produktkenntnis</li>
-          </ul>
-        </div>
+            <div class="timeline__item timeline__item--done">
+              <p class="timeline__stage">In der Vorschau</p>
+              <h2 class="timeline__title">Den Buchhaltungsalltag bearbeiten</h2>
+              <p class="timeline__body">Belege erfassen, Bankzahlungen zuordnen, Rechnungen schreiben und offene Beträge verfolgen. Auch Umsatzsteuer-Voranmeldung und Abschlussvorbereitung sind implementiert.</p>
+              <p class="timeline__body">Welche Fälle unterstützt werden und wo Grenzen bestehen, beschreibt der <a href="https://github.com/mxzinke/buchfink/blob/master/docs/stand-der-umsetzung.md">aktuelle Umsetzungsstand</a>.</p>
+            </div>
+            <div class="timeline__item">
+              <p class="timeline__stage">Offen</p>
+              <h2 class="timeline__title">Einfache Jahresabschlüsse vollständig begleiten</h2>
+              <p class="timeline__body">Bilanz und Gewinn- und Verlustrechnung sind vorhanden. Als Nächstes braucht es einen vollständigen Ablauf für den bestätigten Abschluss und seine Einreichung.</p>
+              <ul class="checklist">
+                <li>Die E-Bilanz-Datei gegen das amtliche Format prüfen und den Übermittlungsweg erproben</li>
+                <li>Unterzeichneten Abschluss, Gesellschafterbeschluss und Nachweise zusammenhalten</li>
+                <li>Offenlegung und Hinterlegung mit dem passenden Umfang vorbereiten</li>
+                <li>Abschlussangaben an die Größe des Unternehmens anpassen</li>
+              </ul>
+            </div>
+            <div class="timeline__item">
+              <p class="timeline__stage">Fortlaufend</p>
+              <h2 class="timeline__title">Mit kleinen Unternehmen erproben</h2>
+              <p class="timeline__body">Menschen ohne Buchhaltungsausbildung sollen mit Buchfink zurechtkommen. Dafür brauchen wir Rückmeldungen aus dem Alltag und fachliche Prüfungen vollständiger Geschäftsjahre.</p>
+              <p class="timeline__body">Die Hilfe erklärt kurz am Fragezeichen. Über „Mehr erfahren“ öffnen sich die Hintergründe und Quellen. Wo das noch nicht verständlich genug ist, hilft eine konkrete Rückmeldung.</p>
+            </div>
+            <div class="timeline__item">
+              <p class="timeline__stage">Geplant</p>
+              <h2 class="timeline__title">Den Chatbot Ihrer Wahl anbinden</h2>
+              <p class="timeline__body">Ein lokaler MCP-Server soll die Verbindung zu einem selbst gewählten Chatbot ermöglichen. Diese Schnittstelle ist noch nicht vorhanden. Welche Funktionen sie anbietet und wie Zugriffe freigegeben werden, ist noch zu entwerfen.</p>
+            </div>
+            <div class="timeline__item">
+              <p class="timeline__stage">Geplant</p>
+              <h2 class="timeline__title">Ohne Entwicklungswerkzeuge installieren</h2>
+              <p class="timeline__body">Fertige, signierte Installationsdateien sollen den Einstieg erleichtern. Derzeit wird die Vorschau aus dem Quellcode gebaut.</p>
+            </div>
           </div>
         </div>
       </section>
-
       <section class="band band--sunken">
         <div class="wrap wrap--wide">
-          <p class="overline">Termine</p>
-          <h2 class="section__title">Prüfpunkte mit Datum</h2>
-          <p class="section__lead">
-            Fünf Punkte gibt das Recht vor. Sie sind zu ihrem Termin nachzuprüfen. Wo kein Datum
-            feststeht, steht „offen“.
-          </p>
-
-          <div class="table-scroll">
-            <table class="data">
-              <thead>
-                <tr>
-                  <th scope="col">Wann</th>
-                  <th scope="col">Was zu prüfen ist</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>bei Verkündung, offen</td>
-                  <td>
-                    Verordnung nach § 147b AO (DSFinVBV). Der Diskussionsentwurf 2026 legt
-                    xBRL-CSV 1.0 fest. Mit der Verkündung wird der Export ein weiteres Formatmodul.
-                  </td>
-                </tr>
-                <tr>
-                  <td>01.01.2027 und 01.01.2028</td>
-                  <td>
-                    Übergangsfrist der E-Rechnung auf der Ausstellerseite (§ 27 Abs. 38 UStG). Ab
-                    2027 gilt die Sendepflicht bei einem Vorjahresumsatz über 800.000 Euro, ab 2028
-                    für alle inländischen B2B-Umsätze.
-                  </td>
-                </tr>
-                <tr>
-                  <td>01.01. und 01.07. jedes Jahres</td>
-                  <td>
-                    Basiszinssatz nach § 247 BGB. Die Bundesbank gibt ihn halbjährlich bekannt; er
-                    wird als datierte Zeile nachgetragen und wirkt nur auf Zeiträume ab seinem
-                    Beginn.
-                  </td>
-                </tr>
-                <tr>
-                  <td>jährlich, nach dem BMF-Schreiben</td>
-                  <td>
-                    Stand der E-Bilanz-Taxonomie. Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026,
-                    6.10 ab 2027. Die Elementnamen sind vor der ersten Übermittlung gegen die
-                    amtliche Fassung abzugleichen.
-                  </td>
-                </tr>
-                <tr>
-                  <td>jährlich</td>
-                  <td>
-                    Jahresstand des SKR04. Der Kontenrahmen liegt als Ressource bei; eine neue
-                    Fassung ist eine neue Datei.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <h2 class="section__title">Jeder kann mitwirken</h2>
+          <p class="section__lead">Melden Sie unverständliche Stellen, beschreiben Sie fehlende Geschäftsvorgänge oder prüfen Sie die Ergebnisse anhand eigener Beispiele. Auch verständliche Texte und fachliche Erfahrung bringen das Projekt weiter.</p>
+          <div class="section__actions">
+            <a class="btn btn--primary" href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a>
+            <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/blob/master/docs/roadmap.md">Technische und fachliche Planung</a>
           </div>
-
-          <p class="section__lead" style="margin-top: 48px">
-            Jedes einzelne Kriterium mit Norm, Status und Fundstelle steht im
-            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/anforderungskatalog.md"
-              >Anforderungskatalog</a
-            >; dieselbe Sache in Vorgangssprache in
-            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/stand-der-umsetzung.md"
-              >Stand der Umsetzung</a
-            >. Die Entscheidungen dahinter stehen in
-            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/architektur.md"
-              >Architektur und Bedienkonzept</a
-            >.
-          </p>
         </div>
       </section>
-
-
-      <dialog class="modal" id="dlg-woher-die-zahlen-kommen" aria-labelledby="dlg-woher-die-zahlen-kommen-titel">
-        <div class="modal__head">
-          <h3 class="modal__title" id="dlg-woher-die-zahlen-kommen-titel">Woher die Zahlen kommen</h3>
-          <button class="modal__close" type="button" data-close aria-label="Schließen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="m6 6 12 12M18 6 6 18" />
-            </svg>
-          </button>
-        </div>
-        <div class="modal__body">
-          <p>
-          Aus dem Anforderungskatalog, der Buchfink an 349 Akzeptanzkriterien aus 82
-          Anforderungen misst und zu jedem die Fundstelle im Code nennt. „Außerhalb des
-          Umfangs“ heißt: bewusst ausgelassen, mit einer Grundentscheidung als Begründung.
-          </p>
-          <p>
-          Acht Umsetzungswellen sind gebaut. Mit Welle 8 haben Belege, Journal, Konten,
-          Festschreibung, Protokoll, Aufbewahrung, Rechnungen und Umsatzsteuer kein
-          fehlendes Kriterium mehr.
-          </p>
-        </div>
-      </dialog>
     </main>
 
     <footer class="foot">

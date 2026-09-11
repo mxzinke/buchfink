@@ -10,7 +10,7 @@
     />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css" />
+    <link rel="stylesheet" href="assets/site.css?v=5f2c7f4ea0d8" />
     <noscript>
       <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
            Seite, mit Überschrift, statt zu fehlen. -->
@@ -142,11 +142,7 @@
         <div class="wrap wrap--wide">
           <p class="overline">Funktionen</p>
           <h1 class="pagehead__title">Laufende Buchhaltung</h1>
-          <p class="pagehead__lead">
-            Der Alltag beginnt beim Kontoauszug und endet im Journal. Aus dem Beleg, der Rechnung
-            und der zugeordneten Zahlung rechnet Buchfink, auf welches Konto gebucht wird und wie
-            viel Steuer darin steckt.
-          </p>
+          <p class="pagehead__lead">Erledigen Sie Ihre laufende Buchhaltung selbst: Rechnungen ablegen, Zahlungen zuordnen und offene Beträge prüfen. Buchfink berechnet die Buchungen aus Ihren Angaben.</p>
           <p class="pagehead__note">
             Alle Bilder stammen aus der laufenden Oberfläche. Die Firmen, Namen und Beträge darin
             sind erfunden; ein Klick öffnet ein Bild in voller Größe.
@@ -161,13 +157,9 @@
             <div class="feature__text">
               <p class="overline">Bank &amp; Zahlungen</p>
               <h2 class="feature__title">Vom Kontoauszug zur Buchung</h2>
-              <p class="feature__body">
-                Buchfink liest den CAMT.053-Auszug aus dem Onlinebanking ein und listet die
-                Umsätze ohne Zuordnung. Zu jedem schlägt es den passenden offenen Posten vor. Sie
-                prüfen den Vorschlag und bestätigen ihn; erst dann entsteht die Buchung.
-              </p>
+              <p class="feature__body">Lesen Sie den Kontoauszug im Format CAMT.053 ein. Buchfink schlägt passende offene Rechnungen vor. Sie prüfen die Zuordnung und bestätigen die Buchung.</p>
               <button class="reveal" type="button" data-dialog="dlg-woraus-der-vorschlag-entsteht">
-                Woraus der Vorschlag entsteht
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -208,13 +200,9 @@
             <div class="feature__text">
               <p class="overline">Mahnwesen</p>
               <h2 class="feature__title">Überfällige Forderungen anmahnen</h2>
-              <p class="feature__body">
-                Buchfink führt die offenen Posten mit Fälligkeit und rechnet je Kunde die
-                Mahnstufe, die Verzugszinsen und die Pauschale von 40 Euro. Sie wählen die Kunden
-                aus und lassen die Schreiben erzeugen.
-              </p>
+              <p class="feature__body">Behalten Sie unbezahlte Rechnungen im Blick. Buchfink schlägt Mahnungen vor und berechnet die hinterlegten Zinsen und Pauschalen. Sie wählen aus, für wen ein Schreiben erstellt wird.</p>
               <button class="reveal" type="button" data-dialog="dlg-wie-die-zinsen-gerechnet">
-                Wie die Zinsen gerechnet werden
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -240,13 +228,9 @@
             <div class="feature__text">
               <p class="overline">Belege</p>
               <h2 class="feature__title">Erst ablegen, dann buchen</h2>
-              <p class="feature__body">
-                Buchfink legt jeden Beleg unverändert ab. Sie ergänzen Belegart, Datum, Aussteller
-                und Betrag und wählen die Buchungsgruppe. Ohne diese Angaben nimmt
-                Buchfink die Buchung nicht an.
-              </p>
+              <p class="feature__body">Legen Sie Ihre Belege ab und ergänzen Sie die nötigen Angaben. Bei E-Rechnungen übernimmt Buchfink die Daten aus dem strukturierten Rechnungsteil. Die Originaldatei bleibt erhalten.</p>
               <button class="reveal" type="button" data-dialog="dlg-e-rechnung-und-doppelte">
-                E-Rechnung und doppelte Belege
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -287,13 +271,9 @@
             <div class="feature__text">
               <p class="overline">Journal</p>
               <h2 class="feature__title">Jede Buchung führt zurück zu ihrem Beleg</h2>
-              <p class="feature__body">
-                Das Journal führt alle Buchungen des Geschäftsjahres mit fortlaufender Nummer.
-                Ein Fehler wird nicht überschrieben, sondern storniert. Von jeder Buchung führt
-                ein Klick auf ihren Beleg.
-              </p>
+              <p class="feature__body">Im Journal finden Sie Ihre Buchungen und die zugehörigen Belege wieder. Korrekturen bleiben nachvollziehbar, weil die ursprüngliche Buchung erhalten bleibt.</p>
               <button class="reveal" type="button" data-dialog="dlg-was-das-aufklappen-zeigt">
-                Was das Aufklappen zeigt
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -319,13 +299,9 @@
             <div class="feature__text">
               <p class="overline">Rechnungen</p>
               <h2 class="feature__title">Rechnung schreiben und gleich buchen</h2>
-              <p class="feature__body">
-                Sie erfassen Kunde, Positionen und Steuerfall. Rechnungsnummer, Datensatz und
-                Buchung entstehen daraus in einem Zug. Ausgegeben wird ein ZUGFeRD-PDF oder eine
-                XRechnung.
-              </p>
+              <p class="feature__body">Erfassen Sie Kunde, Leistungen und Preise. Buchfink erstellt daraus die Rechnung und erfasst den offenen Kundenbetrag. Als Dateiformat stehen ZUGFeRD und XRechnung zur Verfügung.</p>
               <button class="reveal" type="button" data-dialog="dlg-pru-fung-format-und">
-                Prüfung, Format und Korrektur
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -351,13 +327,9 @@
             <div class="feature__text">
               <p class="overline">Anzahlungen</p>
               <h2 class="feature__title">Abschläge und Schlussrechnung bleiben zusammen</h2>
-              <p class="feature__body">
-                Ein Rechnungsverbund hält den Gesamtbetrag, die Abschlagsrechnungen und die
-                Schlussrechnung zusammen. Buchfink rechnet, was abgerechnet, was vereinnahmt und
-                was noch offen ist.
-              </p>
+              <p class="feature__body">Behalten Sie Anzahlungen und den noch offenen Betrag eines Auftrags im Blick. Die Schlussrechnung berücksichtigt bereits erhaltene Zahlungen.</p>
               <button class="reveal" type="button" data-dialog="dlg-was-das-fu-r">
-                Was das für die Steuer heißt
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -383,13 +355,9 @@
             <div class="feature__text">
               <p class="overline">Konten</p>
               <h2 class="feature__title">Konten, ohne Nummern auswendig zu lernen</h2>
-              <p class="feature__body">
-                Der Kontenrahmen SKR04 liegt mit 1.855 Konten bei. Die Übersicht zeigt, was
-                bebucht ist, und öffnet zu jedem Konto das Kontoblatt. Sie suchen ein Konto über
-                seinen Namen; die Nummer müssen Sie nicht kennen.
-              </p>
+              <p class="feature__body">Finden Sie Konten über ihren Namen und sehen Sie, welche Beträge darauf gebucht wurden. Die Kontonummer müssen Sie dafür nicht auswendig kennen.</p>
               <button class="reveal" type="button" data-dialog="dlg-offene-posten">
-                Offene Posten
+                Mehr erfahren
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14m0 0-5-5m5 5-5 5" />
                 </svg>
@@ -470,7 +438,7 @@
         </div>
         <div class="modal__body">
           <p>
-          Taggenau nach § 288 BGB, auf dem Basiszinssatz, der zum jeweiligen Zeitraum
+          Taggenau nach <a href="https://www.gesetze-im-internet.de/bgb/__288.html" target="_blank" rel="noopener noreferrer">§ 288 BGB</a>, auf dem Basiszinssatz, der zum jeweiligen Zeitraum
           galt. Jedes Schreiben wird als Dokument abgelegt und steht danach im Verlauf
           des Kunden.
           </p>
@@ -525,7 +493,7 @@
         </div>
         <div class="modal__body">
           <p>
-          Vor der Nummernvergabe prüft Buchfink die Pflichtangaben des § 14 Abs. 4 UStG.
+          Vor der Nummernvergabe prüft Buchfink die Pflichtangaben des <a href="https://www.gesetze-im-internet.de/ustg_1980/__14.html" target="_blank" rel="noopener noreferrer">§ 14 Abs. 4 UStG</a>.
           Das Zielformat richtet sich nach dem Empfänger; die XRechnung entsteht im
           CII-Profil. Storno und Korrektur laufen als eigene Dokumente mit Bezug in beide
           Richtungen.
