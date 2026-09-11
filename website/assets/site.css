@@ -384,6 +384,7 @@ code {
   font-weight: 600;
   letter-spacing: -0.025em;
   max-width: 24ch;
+  text-wrap: balance;
 }
 .hero__lead {
   margin-top: 22px;
@@ -391,6 +392,7 @@ code {
   font-size: 18px;
   line-height: 30px;
   color: var(--ink-muted);
+  text-wrap: balance;
 }
 .hero__lead--small {
   margin-top: 14px;
@@ -404,6 +406,10 @@ code {
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.overline + .section__title {
+  margin-top: 12px;
 }
 .section__lead {
   margin-top: 16px;
@@ -501,6 +507,21 @@ code {
   gap: 12px;
   margin-top: 36px;
 }
+.section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.section__actions .btn {
+  justify-content: center;
+  max-width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding-block: 9px;
+  line-height: 20px;
+  white-space: normal;
+  text-align: center;
+}
 .hero__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -524,6 +545,12 @@ code {
 /* -------------------------------------------------------------------------
    Schaltflächen (§3.4: Primäraktion ist Tinte, nicht Himmelblau)
    ------------------------------------------------------------------------- */
+
+.section__actions,
+.pagehead__actions,
+.reveal {
+  margin-top: 32px;
+}
 
 .btn {
   display: inline-flex;
@@ -1304,7 +1331,6 @@ table.data td:first-child {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 28px;
 }
 .pagehead__title {
   font-size: clamp(32px, 4.2vw, 46px);
@@ -1312,6 +1338,7 @@ table.data td:first-child {
   font-weight: 600;
   letter-spacing: -0.02em;
   margin: 12px 0 0;
+  text-wrap: balance;
 }
 .pagehead__lead {
   margin-top: 20px;
@@ -1331,8 +1358,11 @@ table.data td:first-child {
 .links {
   display: grid;
   gap: 0 40px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   margin-top: 32px;
+}
+.links--paired {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .links > * {
   padding-block: 20px;
@@ -1367,6 +1397,9 @@ table.data td:first-child {
   margin-top: 40px;
   padding-left: 28px;
   border-left: 1px solid var(--line-strong);
+}
+.timeline:first-child {
+  margin-top: 0;
 }
 .timeline__item {
   position: relative;
@@ -1462,6 +1495,12 @@ table.data td:first-child {
    ------------------------------------------------------------------------- */
 
 @media (max-width: 640px) {
+  .pagehead {
+    padding-top: 48px;
+  }
+  .links--paired {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .timeline {
     padding-left: 20px;
   }
@@ -1526,7 +1565,6 @@ table.data td:first-child {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
   padding: 0;
   border: 0;
   background: none;
@@ -1854,9 +1892,12 @@ dialog.modal::backdrop {
 
 .fit {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 0 56px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 32px 56px;
   margin-top: 40px;
+}
+.fit + .section__lead {
+  margin-top: 32px;
 }
 .fit__col {
   padding-top: 24px;

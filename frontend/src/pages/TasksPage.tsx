@@ -18,7 +18,7 @@ import type { NavigateFn, NavigationParams, TabType } from '../components/Sideba
 import {
   Button,
   EmptyState,
-  HelpPopover,
+  Help,
   Notice,
   PageHeader,
   Section,
@@ -305,7 +305,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
         </div>
       ) : (
         GROUPS.filter((group) => (tasks?.[group.key] ?? []).length > 0).map((group, index) => (
-          <Section
+          <Section helpSummary="Die Liste zeigt offene Aufgaben aus Ihrer Buchhaltung und aktualisiert sich mit Ihrer Arbeit."
             key={group.key}
             title={group.title}
             context={group.context}
@@ -346,13 +346,13 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
                               in die Zeile: eine Tabellenzelle hat keinen
                               Erklärtext (§15.1). */}
                           {task.reference ? (
-                            <HelpPopover label={`Erklärung zu ${task.title}`}>
+                            <Help summary="Hier erfahren Sie, warum diese Aufgabe ansteht und was zu erledigen ist." label={`Erklärung zu ${task.title}`}>
                               {task.why} {task.reference}
-                            </HelpPopover>
+                            </Help>
                           ) : (
-                            <HelpPopover label={`Erklärung zu ${task.title}`}>
+                            <Help summary="Hier erfahren Sie, warum diese Aufgabe ansteht und was zu erledigen ist." label={`Erklärung zu ${task.title}`}>
                               {task.why}
-                            </HelpPopover>
+                            </Help>
                           )}
                         </span>
                       </Td>
@@ -432,9 +432,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
               label={
                 <>
                   Bankguthaben
-                  <HelpPopover label="Erklärung zum Bankguthaben">
+                  <Help summary="Der Betrag zeigt den gebuchten Stand Ihres Geschäftskontos." label="Erklärung zum Bankguthaben">
                     Aktueller Gesamtsaldo auf dem Geschäftskonto.
-                  </HelpPopover>
+                  </Help>
                 </>
               }
               value={formatCents(summary.bankBalance)}

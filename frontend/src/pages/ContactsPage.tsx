@@ -11,7 +11,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -314,7 +314,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       >
         {/* Der Fehler steht über der Aktion und nicht daneben (§11.4). */}
         {blockError && <Notice tone="negative" text={blockError} className="mb-4" />}
-        <Field
+        <Field helpSummary="Ein gesperrter Kontakt ist nicht mehr auswählbar. Bisherige Buchungen bleiben erhalten."
           label="Grund der Sperre"
           hint="Bleibt im Änderungsprotokoll stehen"
           explain={
@@ -502,7 +502,7 @@ const ContactForm: React.FC<{
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Wählen Sie, ob es sich um einen Kunden oder Lieferanten handelt."
           label="Art"
           hint={isNew ? undefined : 'nicht änderbar'}
           explain={
@@ -570,7 +570,7 @@ const ContactForm: React.FC<{
         />
       )}
 
-      <Field
+      <Field helpSummary="Die ursprüngliche Anschrift bleibt als Nachweis erhalten."
         label="Übernommene Anschrift"
         className="mt-4"
         optional
@@ -584,7 +584,7 @@ const ContactForm: React.FC<{
       </Field>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <Field
+        <Field helpSummary="Wählen Sie das Rechnungsformat, das Ihr Geschäftspartner erhalten soll."
           label="E-Rechnungsformat"
           hint={profileInfo?.hint ? undefined : 'für Ausgangsrechnungen'}
           explain={profileInfo?.hint}
@@ -595,7 +595,7 @@ const ContactForm: React.FC<{
             onValueChange={(profile) => set({ eInvoiceProfile: profile })}
           />
         </Field>
-        <Field
+        <Field helpSummary="Öffentliche Auftraggeber teilen Ihnen diese Kennung für die Zuordnung ihrer Rechnung mit."
           label="Leitweg-ID"
           optional={draft.eInvoiceProfile !== 'xrechnung_cii'}
           hint={draft.eInvoiceProfile === 'xrechnung_cii' ? 'bei XRechnung Pflicht' : undefined}
@@ -625,7 +625,7 @@ const ContactForm: React.FC<{
         <Field label="Steuernummer" optional>
           <Input value={draft.taxId ?? ''} onChange={(e) => set({ taxId: e.target.value })} />
         </Field>
-        <Field
+        <Field helpSummary="Die Umsatzsteuer-ID wird insbesondere für bestimmte Geschäfte mit Unternehmen im EU-Ausland benötigt."
           label="USt-IdNr."
           optional
           explain={
@@ -657,13 +657,13 @@ const ContactForm: React.FC<{
             )}
           >
             Bestätigung beim Bundeszentralamt
-            <HelpPopover label="Erklärung zur Bestätigungsabfrage">
+            <Help summary="Prüfen Sie die Umsatzsteuer-ID Ihres Geschäftspartners beim Bundeszentralamt für Steuern." label="Erklärung zur Bestätigungsabfrage">
               § 18e UStG lässt die Bestätigung einer ausländischen USt-IdNr. beim Bundeszentralamt
               für Steuern zu. Für eine steuerfreie innergemeinschaftliche Lieferung ist eine
               gültige, vom Bestimmungsland erteilte Nummer des Abnehmers materielle Voraussetzung
               (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Die Antwort wird dauerhaft festgehalten — sie ist
               der Beleg gegenüber der Finanzverwaltung.
-            </HelpPopover>
+            </Help>
           </h3>
           <p className="text-body text-ink-muted mt-1.5">
             {vatIdStatus ? vatIdStatus.note : 'Der Stand wird gelesen …'}
@@ -707,7 +707,7 @@ const ContactForm: React.FC<{
           Steuerabzug bei Bauleistungen nicht — die Bescheinigung wird trotzdem
           geführt, weil ihr Ablauf sonst niemandem auffällt. */}
       <div className="grid grid-cols-2 gap-4 mt-4">
-        <Field
+        <Field helpSummary="Hinterlegen Sie die Bescheinigung Ihres Bauunternehmens und beachten Sie ihre Gültigkeit."
           label="Freistellungsbescheinigung"
           optional
           hint="Nummer der Bescheinigung"
@@ -771,20 +771,20 @@ const ContactForm: React.FC<{
             label="Kleinunternehmer"
             hint="Rechnungen ohne Umsatzsteuer"
           />
-          <HelpPopover label="Erklärung zum Kleinunternehmer">
+          <Help summary="Ein Kleinunternehmer als Lieferant stellt Rechnungen grundsätzlich ohne Umsatzsteuer aus." label="Erklärung zum Kleinunternehmer">
             Wer die Umsatzgrenzen des § 19 UStG einhält, weist in seinen Rechnungen keine
             Umsatzsteuer aus. Für die Rechnung an ihn gilt daneben § 34a UStDV: er darf immer eine
             sonstige Rechnung ausstellen, unabhängig vom Betrag.
-          </HelpPopover>
+          </Help>
         </span>
       </div>
 
       <div className="mt-4">
-        <HelpPopover label="Erklärung zum Personenkonto">
+        <Help summary="Buchfink vergibt für jeden Kunden oder Lieferanten ein eigenes Buchhaltungskonto." label="Erklärung zum Personenkonto">
           Das Personenkonto vergibt Buchfink beim Anlegen aus den DATEV-Nummernkreisen: 10000 bis
           69999 für Debitoren, 70000 bis 99999 für Kreditoren. Eine einmal vergebene Nummer wird nie
           wiederverwendet.
-        </HelpPopover>
+        </Help>
       </div>
 
       {error && (

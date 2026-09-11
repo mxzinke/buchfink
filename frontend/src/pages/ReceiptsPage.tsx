@@ -72,7 +72,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -406,9 +406,7 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
     };
   }, [selected]);
 
-  // TODO: Drag & Drop über den Wails-Drop-Handler. Er liefert wie der Dialog
-  // Pfade, sodass mehrere Megabyte große Scans nicht über die IPC-Grenze
-  // müssen. Heute führt der einzige Weg über den Knopf.
+  // Der Dateidialog liefert lokale Pfade; die Belegdateien bleiben beim Backend.
   async function fileReceipt() {
     setFiling(true);
     try {
@@ -452,7 +450,7 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
 
   return (
     <div className="max-w-[1440px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Legen Sie Rechnungen und andere Belege ab, prüfen Sie die Angaben und buchen Sie den Vorgang."
         title="Belege"
         context={
           loading
@@ -704,7 +702,7 @@ const ReceiptHeaderDialog: React.FC<{
       {error && <Notice tone="negative" text={error} className="mb-4" />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Die Art der Unterlage bestimmt ihre Mindestaufbewahrungsfrist."
           label="Belegart"
           explain="Aus ihr folgt die Aufbewahrungsfrist: Rechnungen und Buchungsbelege acht Jahre, Handelsbriefe sechs, Bücher und Abschlüsse zehn (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO)."
         >
@@ -715,7 +713,7 @@ const ReceiptHeaderDialog: React.FC<{
             aria-label="Belegart"
           />
         </Field>
-        <Field
+        <Field helpSummary="Tragen Sie das Datum ein, das auf dem Beleg steht."
           label="Belegdatum"
           hint={dateHint}
           explain="Das Datum auf dem Beleg, nicht der Tag des Eingangs. An ihm hängen die zeitgerechte Erfassung (§ 146 Abs. 1 AO) und der Beginn der Aufbewahrungsfrist."
@@ -726,7 +724,7 @@ const ReceiptHeaderDialog: React.FC<{
             onChange={(e) => setDocumentDate(e.target.value)}
           />
         </Field>
-        <Field
+        <Field helpSummary="Tragen Sie den vollständigen Namen des Rechnungsausstellers ein."
           label="Aussteller"
           optional={!needsIssuer}
           hint={needsIssuer ? 'zum Buchen nötig' : undefined}
@@ -734,7 +732,7 @@ const ReceiptHeaderDialog: React.FC<{
         >
           <Input value={issuerName} onChange={(e) => setIssuerName(e.target.value)} />
         </Field>
-        <Field
+        <Field helpSummary="Beschreiben Sie kurz, worum es in dieser Unterlage geht."
           label="Betreff"
           optional={!needsSubject}
           hint={needsSubject ? subjectHint : undefined}
@@ -924,11 +922,11 @@ const ReceiptDetail: React.FC<{
       <div>
         <h2 className="flex items-center gap-1.5 text-heading text-ink">
           {KIND_LABELS[kindOf(receipt)]}
-          <HelpPopover label={`Erklärung zu ${KIND_LABELS[kindOf(receipt)]}`}>
+          <Help summary="Die Belegart bestimmt, ob und wie der Vorgang gebucht werden kann." label={`Erklärung zu ${KIND_LABELS[kindOf(receipt)]}`}>
             {kindOf(receipt) === 'statement'
               ? 'Der Kontoauszug ist ein Beleg ohne eigene Buchung: seine Umsätze sind über den Bankimport aus derselben Datei eingelesen und werden dort zugeordnet. Eine Buchung an dieser Stelle wäre die zweite zum selben Vorgang.'
               : 'Ein Handelsbrief belegt eine Abrede und keinen Geschäftsvorfall; gebucht wird er deshalb nicht. Aufzubewahren ist er trotzdem sechs Jahre (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO).'}
-          </HelpPopover>
+          </Help>
         </h2>
         <p className="text-body text-ink-muted mt-2">
           {kindOf(receipt) === 'statement'
@@ -1066,7 +1064,7 @@ const ReceiptFindingsPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
   const groups = (findings?.groups ?? []).filter((group) => (group.findings ?? []).length > 0);
 
   return (
-    <Section
+    <Section helpSummary="Hier sehen Sie, welche Angaben oder Dateien vor der Buchung zu klären sind."
       title="Beanstandungen"
       context={
         findings?.checked
@@ -1101,7 +1099,7 @@ const ReceiptFindingsPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
                 <Tr>
                   <Th className="w-40">Regel</Th>
                   <Th>Befund</Th>
-                  <Th className="w-48">Norm</Th>
+                  <Th className="w-48">Details</Th>
                   <Th className="w-64">Folge für den Vorsteuerabzug</Th>
                 </Tr>
               </Thead>
@@ -1124,7 +1122,7 @@ const ReceiptFindingsPanel: React.FC<{ receipt: Receipt }> = ({ receipt }) => {
                       {finding.message}
                       {finding.where ? ` (${finding.where})` : ''}
                     </Td>
-                    <Td className="text-ink-subtle">{finding.norm || '—'}</Td>
+                    <Td className="text-ink-subtle"><Help summary="Hier erfahren Sie, welche Anforderung bei der Rechnungsprüfung berücksichtigt wird." label="Hintergrund zu dieser Angabe">{finding.norm || '—'}</Help></Td>
                     <Td className="text-ink-muted">{finding.inputTaxEffect || '—'}</Td>
                   </Tr>
                 ))}
@@ -1408,9 +1406,9 @@ const AuditTrailPanel: React.FC<{
   const orderReference = trail?.orderReference ?? receipt.orderReference ?? '';
 
   return (
-    <Section
+    <Section helpSummary="Verfolgen Sie den Zusammenhang zwischen Beleg, Buchung und Zahlung."
       title="Prüfpfad"
-      context={trail?.note || 'Beleg, Buchung, Zahlung und Bankumsatz in einer Kette'}
+      context="Beleg, Buchung und Zahlung nachverfolgen"
       explain={
         <>
           Eine Buchführung muss sich in beide Richtungen verfolgen lassen: vom Beleg zur Buchung
@@ -1476,7 +1474,7 @@ const AuditTrailPanel: React.FC<{
           genau bei den großen Belegen, bei denen der Pflichthinweis vorgeht.
           Schreibgeschützt: geändert wird er mit dem Beleg, nicht hier. */}
       <div className="mt-6 max-w-md">
-        <Field
+        <Field helpSummary="Die Bestellnummer hilft, die Rechnung Ihrer Bestellung zuzuordnen."
           label="Bestellbezug"
           explain={
             <>
@@ -1491,7 +1489,7 @@ const AuditTrailPanel: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_12rem] gap-4 mt-6 items-start">
-        <Field
+        <Field helpSummary="Halten Sie fest, wie Sie den Erhalt der berechneten Lieferung oder Leistung geprüft haben."
           label="Leistungsnachweis"
           hint={required ? `Pflicht ab ${formatCents(threshold)}` : undefined}
           explain={
@@ -2296,7 +2294,7 @@ const BookingForm: React.FC<{
           <Field label="Buchungsdatum" hint="bestimmt die Periode">
             <Input type="date" value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} />
           </Field>
-          <Field
+          <Field helpSummary="Tragen Sie den Beginn der Lieferung oder Leistung ein."
             label="Leistung von"
             hint="Zeitpunkt der Leistung"
             explain="Der Zeitpunkt der Lieferung oder sonstigen Leistung ist Pflichtangabe der Rechnung (§ 14 Abs. 4 Nr. 6 UStG); er entscheidet über den Zeitraum des Vorsteuerabzugs."
@@ -2308,7 +2306,7 @@ const BookingForm: React.FC<{
           </Field>
         </div>
 
-        <Field
+        <Field helpSummary="Wählen Sie die Art des Umsatzes für die Berechnung der Steuer."
           label="Steuerfall"
           hint={treatments.find((t) => t.treatment === treatment)?.hint}
           explain="Der Steuerfall entscheidet über Aufwandskonto und Steuerzeile. Ohne ihn nimmt Buchfink die Buchung nicht an."
@@ -2325,7 +2323,7 @@ const BookingForm: React.FC<{
             er ausfüllen müsste. Steht eine Währung, sind die Positionsbeträge
             die der Rechnung, und Buchfink rechnet um; geraten wird kein Kurs. */}
         <div className="grid grid-cols-2 gap-4">
-          <Field
+          <Field helpSummary="Erfassen Sie Beträge in der Rechnungswährung. Buchfink rechnet sie in Euro um."
             label="Währung"
             optional
             hint="ISO 4217, leer für Euro"
@@ -2340,7 +2338,7 @@ const BookingForm: React.FC<{
             />
           </Field>
           {currency.trim() !== '' && (
-            <Field
+            <Field helpSummary="Die Summe der Positionen muss mit dem Rechnungsbetrag übereinstimmen."
               label={`Endsumme in ${currency}`}
               optional
               hint="Kontrollsumme zu den Positionen"
@@ -2439,13 +2437,13 @@ const BookingForm: React.FC<{
                 <div className={cn(NOTE, NOTE_TONE.attention)}>
                   <h4 className="text-label text-attention-text">
                     Empfänger des Geschenks
-                    <HelpPopover label="Erklärung zur Aufzeichnung des Empfängers">
+                    <Help summary="Geben Sie an, wer das Geschenk erhalten hat, damit der Steuerabzug geprüft werden kann." label="Erklärung zur Aufzeichnung des Empfängers">
                       § 4 Abs. 7 EStG lässt den Abzug nur zu, wenn die Aufwendung einzeln und
                       getrennt aufgezeichnet ist. Ohne den Empfänger ließe sich außerdem die
                       Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG je Empfänger und Wirtschaftsjahr
                       nicht führen — und mit ihrer Überschreitung entfällt der Abzug für sämtliche
                       Geschenke an diesen Empfänger, nach § 15 Abs. 1a UStG auch der Vorsteuerabzug.
-                    </HelpPopover>
+                    </Help>
                   </h4>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Field label="Aus der Kartei" optional>
@@ -2494,7 +2492,7 @@ const BookingForm: React.FC<{
                 position.taxRate !== TAX_RATE_NONE &&
                 !groupOf(position.postingGroup)?.inputTaxExcluded && (
                 <div className="grid grid-cols-[9rem_minmax(0,1fr)] gap-3">
-                  <Field
+                  <Field helpSummary="Geben Sie den abziehbaren Anteil der Vorsteuer an. 600 Promille entsprechen 60 Prozent."
                     label="Vorsteuer ‰"
                     optional
                     hint={
@@ -2521,7 +2519,7 @@ const BookingForm: React.FC<{
                   </Field>
                   {shareOf(position.inputTaxShare) !== null &&
                     (shareOf(position.inputTaxShare) as number) < 1000 && (
-                      <Field
+                      <Field helpSummary="Beschreiben Sie, wie Sie den abziehbaren Anteil ermittelt haben."
                         label="Maßstab der Aufteilung"
                         hint="Pflicht unter 1000 ‰"
                         error={
@@ -2567,7 +2565,7 @@ const BookingForm: React.FC<{
               />
             </Field>
           )}
-          <Field
+          <Field helpSummary="Kennzeichnen Sie eine Zahlung für eine Lieferung oder Leistung, die noch aussteht."
             label="Anzahlung"
             optional
             explain="Eine geleistete Anzahlung ist kein Aufwand: Sie steht als eigener Posten im Vermögen (§ 266 Abs. 2 HGB) und wird erst mit der Schlussrechnung des Lieferanten umgebucht. Der Vorsteuerabzug setzt neben der Rechnung die Zahlung voraus (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG) — der Beleg wird deshalb als bezahlt erfasst."
@@ -2594,7 +2592,7 @@ const BookingForm: React.FC<{
             />
           </Field>
           {provisions.length > 0 && (
-            <Field
+            <Field helpSummary="Ordnen Sie die Rechnung einer zuvor erfassten Rückstellung zu."
               label="Gehört zu Rückstellung"
               optional
               explain="Gebucht wird gegen die Rückstellung; nur der Mehrbetrag bleibt Aufwand."
@@ -2619,12 +2617,12 @@ const BookingForm: React.FC<{
           <div>
             <h4 className="text-label text-ink-muted">
               Gehört zu Anzahlung
-              <HelpPopover label="Erklärung zur Absetzung der Anzahlung">
+              <Help summary="Bereits geleistete Anzahlungen werden bei der Schlussrechnung berücksichtigt." label="Erklärung zur Absetzung der Anzahlung">
                 Die Schlussrechnung des Lieferanten weist den Gesamtbetrag aus, die Vorsteuer auf
                 den angezahlten Teil ist aber schon gezogen. Die abgesetzte Anzahlung wird deshalb
                 vom Konto der geleisteten Anzahlungen aufgelöst; ohne die Angabe stünde sie weiter
                 im Vermögen.
-              </HelpPopover>
+              </Help>
             </h4>
             <div className="mt-3 flex flex-col gap-2">
               {openAdvances.map((advance) => (
@@ -2649,10 +2647,10 @@ const BookingForm: React.FC<{
           <div className={cn(NOTE, NOTE_TONE.attention)}>
             <h4 className="text-label text-attention-text">
               Aufzeichnung zur Bewirtung
-              <HelpPopover label="Erklärung zur Bewirtungsaufzeichnung">
+              <Help summary="Erfassen Sie Ort, Datum, Teilnehmer und geschäftlichen Anlass der Bewirtung." label="Erklärung zur Bewirtungsaufzeichnung">
                 § 4 Abs. 5 Satz 1 Nr. 2 EStG verlangt Ort, Tag, Teilnehmer und Anlass. Ohne diese
                 Angaben ist der Abzug auch für die abziehbaren 70 % verloren.
-              </HelpPopover>
+              </Help>
             </h4>
             <div className="mt-3 flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
@@ -2703,11 +2701,11 @@ const BookingForm: React.FC<{
           <p className={cn(NOTE, NOTE_TONE.negative, 'text-body text-negative-text')}>
             <span className="inline-flex items-center gap-1.5">
               Zu einem Geschenk gehört der Empfänger — aus der Kartei oder als Name.
-              <HelpPopover label="Erklärung zum Empfänger eines Geschenks">
+              <Help summary="Erfassen Sie den Namen der Person, die das Geschenk erhalten hat." label="Erklärung zum Empfänger eines Geschenks">
                 Geschenke an Geschäftsfreunde sind nur abziehbar, wenn sie einzeln und getrennt
                 aufgezeichnet sind; dazu gehört der Name des Empfängers (§ 4 Abs. 7 EStG). Ohne ihn
                 ist der Aufwand nicht abziehbar, auch wenn die Grenze eingehalten ist.
-              </HelpPopover>
+              </Help>
             </span>
           </p>
         )}
@@ -2725,7 +2723,7 @@ const BookingForm: React.FC<{
             und das geschieht vor dem Buchen oder gar nicht (RECH-08). */}
         {proofRequired && (
           <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_12rem] gap-4">
-            <Field
+            <Field helpSummary="Bestätigen Sie, dass die berechnete Lieferung oder Leistung tatsächlich erbracht wurde."
               label="Leistungsnachweis"
               hint="wogegen geprüft wurde"
               error={proofOpen ? 'Ohne diesen Vermerk wird der Beleg nicht gebucht.' : undefined}
@@ -2996,7 +2994,7 @@ const InputTaxFindings: React.FC<{
           </li>
         ))}
       </ul>
-      <Field
+      <Field helpSummary="Begründen Sie, warum Sie die Buchung trotz der Beanstandung fortsetzen."
         label="Grund der Übersteuerung"
         className="mt-3"
         hint={reason.trim() === '' ? 'Pflicht, solange ein Befund offen ist' : undefined}
@@ -3065,12 +3063,12 @@ const ManualRateForm: React.FC<{
     <div className={cn(NOTE, NOTE_TONE.attention)}>
       <h3 className="text-label text-attention-text">
         Kurs für {currency} am {formatDate(date)} von Hand erfassen
-        <HelpPopover label="Erklärung zum Kurs von Hand">
+        <Help summary="Fehlt ein automatisch abrufbarer Wechselkurs, tragen Sie ihn mit seiner Quelle ein." label="Erklärung zum Kurs von Hand">
           Buchfink holt den Referenzkurs der Europäischen Zentralbank zum Belegdatum. Ist der
           Kursdienst nicht erreichbar oder gibt es für den Tag keinen Kurs, wird keiner geraten —
           der Beleg bleibt dann liegen, bis ein Kurs mit seiner Quelle erfasst ist. Der erfasste
           Kurs bleibt als „von Hand" erkennbar.
-        </HelpPopover>
+        </Help>
       </h3>
       <div className="mt-3 grid grid-cols-[10rem_minmax(0,1fr)_auto] gap-3 items-end">
         <Field
@@ -3143,9 +3141,9 @@ const ConversionPanel: React.FC<{ conversion?: Conversion; date: string }> = ({
           {conversion.vatRate
             ? ` · Durchschnittskurs ${conversion.vatRate.month}`
             : ' · kein Durchschnittskurs hinterlegt, es bleibt beim Tageskurs'}
-          <HelpPopover label="Erklärung zur Bemessungsgrundlage">
+          <Help summary="Für die Umsatzsteuer kann ein anderer Umrechnungskurs als für den Aufwand gelten." label="Erklärung zur Bemessungsgrundlage">
             Für die Umsatzsteuer wird der monatliche Durchschnittskurs des Bundesministeriums der Finanzen genommen (§ 16 Abs. 6 UStG); fehlt er, bleibt es beim Tageskurs.
-          </HelpPopover>
+          </Help>
         </dd>
         {conversion.difference !== 0 && (
           <>

@@ -16,7 +16,7 @@ import { CompanySettings, ContributionKind, FoundationRules } from '../types';
 import { Api } from '../services/api';
 import { formatCents, parseCents } from '../utils/formatters';
 import { GermanFlag } from './GermanFlag';
-import { HelpPopover, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
+import { Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
 interface SetupAssistantScreenProps {
   /**
@@ -457,7 +457,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
               <h2 className="text-heading text-white">Willkommen bei Buchfink</h2>
               <p className="flex items-center text-caption text-shell-text-muted mt-1">
                 Für Unternehmen mit doppelter Buchführung
-                <HelpPopover
+                <Help summary="Buchfink richtet sich vor allem an kleine GmbHs und UGs, die eine Bilanz erstellen."
                   label="Erklärung zum Anwendungsbereich"
                   className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                 >
@@ -465,7 +465,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   Bilanzierung verpflichtet sind — UG, GmbH, AG, bilanzierende Kaufleute. Für die
                   Einnahmen-Überschuss-Rechnung kleiner Selbstständiger und Freiberufler ist es
                   nicht geeignet.
-                </HelpPopover>
+                </Help>
               </p>
 
               <div className="mt-5 divide-y divide-shell-line border-t border-shell-line">
@@ -565,18 +565,18 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     {cloudFolder && (
                       <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3">
                         <span className="flex items-center text-label text-shell-text">
-                          Der Datenordner liegt in einem {cloudFolder}-Ordner (§ 146 Abs. 2a AO)
-                          <HelpPopover
+                          Der Datenordner liegt in einem {cloudFolder}-Ordner
+                          <Help summary="Ein Synchronisationsdienst kann Ihre Buchhaltungsdaten auch im Ausland speichern."
                             label="Erklärung zum Synchronisationsordner"
                             className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                           >
-                            Bücher sind grundsätzlich im Inland zu führen; die Verlagerung
-                            elektronischer Bücher ins Ausland bedarf der Bewilligung des Finanzamts,
-                            und wo ein Synchronisationsdienst die Daten tatsächlich speichert, lässt
-                            sich von hier aus nicht feststellen. Ein Synchronisationsordner ist
+                            Für elektronische Bücher im Ausland gelten besondere Voraussetzungen.
+                            § 146 Abs. 2a AO regelt die Speicherung in einem EU-Mitgliedstaat;
+                            Abs. 2b betrifft Drittstaaten. Prüfen Sie den Speicherort und die
+                            Bedingungen Ihres Dienstes. Ein Synchronisationsordner ist
                             außerdem kein Sicherungsziel — er spiegelt auch das Löschen. Ein Umzug
                             des Datenordners ist in dieser Fassung nicht vorgesehen.
-                          </HelpPopover>
+                          </Help>
                         </span>
                         <span className="block text-body text-shell-text-muted mt-1">
                           Besser einen gewöhnlichen Ordner wählen und getrennt sichern.
@@ -596,7 +596,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     <p className="rounded-control border border-attention/50 bg-attention/15 px-4 py-3">
                       <span className="flex items-center text-label text-attention-line">
                         Recovery-Schlüssel gleich danach exportieren
-                        <HelpPopover
+                        <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf."
                           label="Erklärung zum Recovery-Schlüssel"
                           className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                         >
@@ -604,7 +604,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                           verschlüsselten Daten sind ohne Recovery-Datei unwiederbringlich — auch
                           aus einem Backup. Die Datei gehört an einen anderen Ort als das
                           Datenbackup.
-                        </HelpPopover>
+                        </Help>
                       </span>
                       <span className="block text-body text-shell-text-muted mt-1">
                         In den Einstellungen unter Speicherort und Schlüssel.
@@ -656,9 +656,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         mehr daran ändern. */}
                     {WITHDRAWAL_LEGAL_FORMS.has(settings.legalForm) && (
                       <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3 text-body text-shell-text-muted">
-                        Kapitalkonten, Entnahmen und Einlagen sowie § 4 Abs. 4a EStG sind in dieser
-                        Fassung nicht abgebildet. Buchen lässt sich damit; die Fortschreibung des
-                        Kapitalkontos und der Schuldzinsenabzug gehören zum steuerlichen Berater.
+                        Die Buchhaltung dieser Rechtsform ist nur eingeschränkt unterstützt.
+                        Insbesondere fehlen vollständige Kapitalkonten, Entnahmen und Einlagen.
                       </p>
                     )}
 
@@ -699,14 +698,14 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                     <p className="flex items-center text-caption text-shell-text-muted">
                       Gebucht wird nach vereinbarten Entgelten
-                      <HelpPopover
+                      <Help summary="Buchfink unterstützt die Besteuerung nach erbrachter Leistung, auch vor der Zahlung."
                         label="Erklärung zur Besteuerungsart"
                         className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                       >
                         Sollversteuerung nach § 16 Abs. 1 Satz 1 UStG: Eine Rechnung wird mit ihrem
                         Datum gebucht, die Zahlung ist ein späterer, eigener Vorgang. Istversteuerung
                         und die Kleinunternehmerregelung nach § 19 UStG unterstützt Buchfink nicht.
-                      </HelpPopover>
+                      </Help>
                     </p>
                   </div>
                 )}
@@ -717,7 +716,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       <>
                         <p className="flex items-center text-body text-shell-text-muted">
                           Wo steht die {settings.legalForm} heute?
-                          <HelpPopover
+                          <Help summary="Bis zur Eintragung können für die Gründer persönliche Haftungsrisiken bestehen."
                             label="Erklärung zur Vorgesellschaft"
                             className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                           >
@@ -727,7 +726,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                             haftet persönlich (§ 11 Abs. 2 GmbHG), und bleibt das Reinvermögen am
                             Tag der Eintragung hinter dem Stammkapital zurück, schulden die
                             Gesellschafter die Differenz.
-                          </HelpPopover>
+                          </Help>
                         </p>
 
                         <div className="divide-y divide-shell-line border-t border-shell-line">
@@ -811,12 +810,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                           <p className="flex items-center text-caption text-shell-text-muted">
                             Voranmeldung{' '}
                             {settings.vatPeriod === 'month' ? 'monatlich' : 'vierteljährlich'}
-                            <HelpPopover
+                            <Help summary="Hier sehen Sie, wie oft Ihr neu gegründetes Unternehmen Umsatzsteuer melden soll."
                               label="Erklärung zum Voranmeldezeitraum bei Neugründung"
                               className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                             >
                               {vatReason}
-                            </HelpPopover>
+                            </Help>
                           </p>
                         )}
 
@@ -824,14 +823,14 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                           <div className="flex items-center justify-between gap-4 pb-2 border-b border-shell-line">
                             <span className="flex items-center text-label text-shell-text-muted">
                               Gesellschafter
-                              <HelpPopover
+                              <Help summary="Alle Geschäftsanteile zusammen müssen das vereinbarte Stammkapital ergeben."
                                 label="Erklärung zu den Geschäftsanteilen"
                                 className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                               >
                                 Die Summe der übernommenen Geschäftsanteile muss dem Stammkapital
                                 entsprechen (§ 5 Abs. 3 Satz 2 GmbHG). Nach ihr richtet sich später
                                 auch, wer welchen Teil einer Unterbilanz trägt.
-                              </HelpPopover>
+                              </Help>
                             </span>
                             <button
                               type="button"
@@ -1134,7 +1133,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             <span>
               <span className="block text-label text-white">Unveränderbar</span>
               <span className="block text-caption text-shell-text-muted mt-0.5">
-                Eine Hashkette schützt die Buchungen lückenlos, wie es die GoBD verlangen.
+                Buchfink prüft, ob gespeicherte Buchungen nachträglich verändert wurden.
               </span>
             </span>
           </p>

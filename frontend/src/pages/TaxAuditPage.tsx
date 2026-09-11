@@ -110,7 +110,7 @@ function message(error: unknown): string {
 /**
  * Die dritte Erklärstufe (§15.2). Wer alle paar Jahre einen Prüferbrief auf dem
  * Tisch hat, muss wissen, welchen der drei Umfänge er nehmen soll; das passt
- * nicht in drei Sätze und gehört deshalb hinter „Mehr dazu" statt in die
+ * nicht in drei Sätze und gehört deshalb hinter „Mehr erfahren" statt in die
  * Ansicht.
  */
 const ExportHelpDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => (
@@ -397,7 +397,7 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
           {/* Der Streifen „Prüfermodus bis …" steht in App.tsx über jeder
               Ansicht: gesperrt ist die Anwendung und nicht diese Seite. Hier
               steht nur, was zum Schalten nötig ist. */}
-          <Section
+          <Section helpSummary="Im Prüfermodus lassen sich Daten ansehen und ausgeben, aber nicht ändern."
             title="Prüfermodus"
             divider={false}
             context={
@@ -466,7 +466,7 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
             )}
           </Section>
 
-          <Section
+          <Section helpSummary="Stellen Sie Buchungsdaten und Belege für die Betriebsprüfung zusammen."
             title="Datenüberlassung"
             context="Die Daten eines Jahres für den Betriebsprüfer"
             explain={
@@ -859,7 +859,7 @@ const ProcDocPanel: React.FC = () => {
         <Stat label="Speicherort" value="Lokaler Datenordner" context={hints?.dataDir ?? '—'} />
       </StatRow>
 
-      <Section
+      <Section helpSummary="Diese Dokumentation beschreibt, wie Sie Ihre Buchhaltung mit Buchfink führen."
         title="Aktuelle Fassung"
         context={
           latest
@@ -945,7 +945,7 @@ const ProcDocPanel: React.FC = () => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Ergänzen Sie die Abläufe und Zuständigkeiten in Ihrem Unternehmen."
         title="Ihre Angaben zur Organisation"
         context={
           templateCount === 0
@@ -985,7 +985,7 @@ const ProcDocPanel: React.FC = () => {
                 <p className="text-caption text-ink-subtle mt-0.5 mb-4">{group.context}</p>
                 <div className="space-y-5">
                   {group.fields.map((field) => (
-                    <Field
+                    <Field helpSummary="Beschreiben Sie, wie dieser Teil der Buchhaltung in Ihrem Unternehmen organisiert ist."
                       key={field.key}
                       label={field.label}
                       // Der Hinweis sagt den Stand, nicht die Frage: wonach
@@ -1010,7 +1010,7 @@ const ProcDocPanel: React.FC = () => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, welche Aufgaben Buchfink in dieser Version nicht abdeckt."
         title="Grenzen des Funktionsumfangs"
         context="Steuerfälle, die Buchfink nicht abbildet"
         explain={

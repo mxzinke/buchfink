@@ -7,9 +7,9 @@
 // range. Content addressing decouples the two, and identical files happen to end
 // up stored once.
 //
-// Second, Belegdateien are *not* encrypted. GoBD requires incoming documents to
-// be kept unchanged in the form they were received. Only the path and the file
-// name are encrypted, and those live in the database.
+// Second, Belegdateien are not encrypted in this store. It preserves and checks
+// the original bytes. Database encryption covers the path and file name; it
+// does not cover the file content. Preserving originals does not prohibit encryption.
 package receiptstore
 
 import (

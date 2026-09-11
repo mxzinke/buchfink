@@ -6,8 +6,9 @@ type HashChainService interface {
 	VerifyChain(entries []JournalEntry) IntegrityCheckResult
 }
 
-// EBilanzExporter defines the contract for generating official E-Bilanz XBRL instance files.
+// EBilanzExporter defines the contract for generating E-Bilanz XBRL instance files.
+// The implementation uses an unverified taxonomy; export does not imply validity.
 type EBilanzExporter interface {
 	ExportXBRL(settings *CompanySettings, accounts []Account, summary *FinancialSummary) (string, error)
-	// TODO: Add support for XBRL Taxonomie 6.8 & Ergänzungsbilanzen / Sonderbilanzen
+	// Supplementary and special balance sheets are not supported.
 }

@@ -77,15 +77,16 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Die E-Bilanz ist die elektronische Bilanz fürs Finanzamt. Buchfinks Export ist noch ungeprüft."
         title="E-Bilanz"
-        context={`Geschäftsjahr ${year} · Export nach amtlicher Taxonomie`}
+        context={`Geschäftsjahr ${year} · Export noch ungeprüft`}
         explain={
           <>
             Bilanz und Gewinn- und Verlustrechnung sind nach amtlich vorgeschriebenem Datensatz
             elektronisch an das Finanzamt zu übermitteln (§ 5b EStG). Buchfink erzeugt den
-            Datensatz aus der Gliederung dieses Geschäftsjahres; übermittelt wird er über das
-            Programm, das die Schnittstelle bedient.
+            vorläufigen Datensatz aus den Buchungen dieses Geschäftsjahres.
+            Die Zuordnung zum amtlichen Format ist noch ungeprüft. Vor einer Einreichung
+            müssen Format und Inhalt geprüft und mit einem geeigneten Programm übermittelt werden.
           </>
         }
         action={
@@ -183,7 +184,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
             </Section>
           )}
 
-          <Section
+          <Section helpSummary="Hier sehen Sie, wie die Konten dem elektronischen Bilanzformat zugeordnet werden."
             title="Zuordnung der Konten"
             context={`SKR04 über die Gliederung auf die Taxonomie ${report?.taxonomyVersion ?? ''}`}
             divider={Boolean(report && report.blocking.length > 0)}
@@ -191,7 +192,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
             explain={
               <>
                 {report?.taxonomyNote ??
-                'Die XBRL-Datei enthält Bilanz, Gewinn- und Verlustrechnung, Kontennachweis und Anlagenspiegel. Sie lässt sich in Mein ELSTER hochladen oder an die Steuerberatung übergeben; eine Übermittlung aus Buchfink heraus gibt es bewusst nicht.'}
+                'Die Datei enthält Bilanz, Gewinn- und Verlustrechnung, Kontennachweis und Anlagenspiegel. Die Zuordnung ist ungeprüft. Buchfink übermittelt sie nicht an das Finanzamt.'}
               </>
             }
           >

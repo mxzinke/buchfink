@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from './cn';
-import { HelpPopover } from './Help';
+import { Help } from './Help';
 
 /**
  * Erklärzeichen an einer Überschrift.
@@ -13,13 +13,15 @@ import { HelpPopover } from './Help';
 const TitleHelp: React.FC<{
   title?: string;
   explain?: React.ReactNode;
+  /** Ein kurzer Satz für den Tooltip. */
+  helpSummary?: string;
   onMore?: () => void;
-}> = ({ title, explain, onMore }) => {
+}> = ({ title, explain, helpSummary, onMore }) => {
   if (!explain) return null;
   return (
-    <HelpPopover label={`Erklärung zu ${title ?? 'diesem Abschnitt'}`} onMore={onMore}>
+    <Help summary={helpSummary!} label={`Erklärung zu ${title ?? 'diesem Abschnitt'}`} onMore={onMore}>
       {explain}
-    </HelpPopover>
+    </Help>
   );
 };
 
@@ -27,9 +29,11 @@ export interface PageHeaderProps {
   title: string;
   /** Eine Zeile, höchstens 60 Zeichen (§15.1). */
   context?: string;
-  /** Ein bis drei Sätze hinter dem Erklärzeichen am Titel (§15.2). */
+  /** Ausführliche Erklärung im Detaildialog. */
   explain?: React.ReactNode;
-  /** Öffnet die dritte Stufe: „Mehr dazu" im Popover (§15.2). */
+  /** Ein kurzer Satz für den Tooltip. */
+  helpSummary?: string;
+  /** Öffnet einen eigenen Dialog über „Mehr erfahren“. */
   onMore?: () => void;
   action?: React.ReactNode;
   className?: string;
@@ -41,6 +45,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   context,
   explain,
+  helpSummary,
   onMore,
   action,
   className,
@@ -49,9 +54,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     className={cn('flex items-start justify-between gap-4 pb-4 border-b border-line', className)}
   >
     <div className="min-w-0">
-      <h1 className="flex items-center text-display text-ink">
+      <h1 aria-label={title} className="flex flex-wrap items-center text-display text-ink">
         {title}
-        <TitleHelp title={title} explain={explain} onMore={onMore} />
+        <TitleHelp title={title} explain={explain} helpSummary={helpSummary} onMore={onMore} />
       </h1>
       {context && <p className="text-caption text-ink-subtle mt-1 truncate">{context}</p>}
     </div>
@@ -64,9 +69,11 @@ export interface SectionProps {
   id?: string;
   title?: string;
   context?: string;
-  /** Ein bis drei Sätze hinter dem Erklärzeichen am Titel (§15.2). */
+  /** Ausführliche Erklärung im Detaildialog. */
   explain?: React.ReactNode;
-  /** Öffnet die dritte Stufe: „Mehr dazu" im Popover (§15.2). */
+  /** Ein kurzer Satz für den Tooltip. */
+  helpSummary?: string;
+  /** Öffnet einen eigenen Dialog über „Mehr erfahren“. */
   onMore?: () => void;
   action?: React.ReactNode;
   /** Der erste Abschnitt einer Ansicht braucht keine Linie, er steht schon
@@ -82,6 +89,7 @@ export const Section: React.FC<SectionProps> = ({
   title,
   context,
   explain,
+  helpSummary,
   onMore,
   action,
   divider = true,
@@ -93,9 +101,9 @@ export const Section: React.FC<SectionProps> = ({
       <div className="flex items-start justify-between gap-4 mb-5">
         <div className="min-w-0">
           {title && (
-            <h2 className="flex items-center text-heading text-ink">
+            <h2 aria-label={title} className="flex flex-wrap items-center text-heading text-ink">
               {title}
-              <TitleHelp title={title} explain={explain} onMore={onMore} />
+              <TitleHelp title={title} explain={explain} helpSummary={helpSummary} onMore={onMore} />
             </h2>
           )}
           {context && <p className="text-caption text-ink-subtle mt-1">{context}</p>}

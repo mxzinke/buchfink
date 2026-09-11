@@ -16,7 +16,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Notice,
   PageHeader,
   Section,
@@ -359,7 +359,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Hier sehen Sie, wann Ihre Steueranmeldungen und Zahlungen fällig sind."
         title={`Steuerfristen ${currentYear}`}
         context="Voranmeldungen, Meldungen und Festschreibung"
         explain={
@@ -408,7 +408,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
         />
       )}
 
-      <Section
+      <Section helpSummary="Prüfen und schließen Sie vergangene Zeiträume ab."
         title="Zeiträume festschreiben"
         context="Abschluss passend zum Rhythmus der Voranmeldung"
         explain={
@@ -526,9 +526,9 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                         </span>
                         {/* Beschreibung und Norm sind zwei Sätze — das ist ein
                             Popover und kein Tooltip (§15.2). */}
-                        <HelpPopover label={`Erklärung zu ${item.title}`}>
+                        <Help summary="Hier erfahren Sie, wann diese Aufgabe fällig ist und welcher Nachweis nötig ist." label={`Erklärung zu ${item.title}`}>
                           {`${item.description} Frist: ${item.period} (${item.reference}).`}
-                        </HelpPopover>
+                        </Help>
                       </span>
                     </Td>
                     <Td className="text-ink-muted">{categoryOf(item.key)}</Td>

@@ -34,6 +34,7 @@ import {
   EmptyState,
   Field,
   Input,
+  Help,
   Notice,
   PageHeader,
   Section,
@@ -341,7 +342,7 @@ const ChecksPanel: React.FC<{
         </StatRow>
       )}
 
-      <Section
+      <Section helpSummary="Die Prüfung zeigt, ob alle abgelegten Dateien vorhanden und unverändert sind."
         title="Belege prüfen"
         context="Sind alle Belege noch da und unverändert?"
         explain={
@@ -429,7 +430,7 @@ const ChecksPanel: React.FC<{
           sich außerhalb von Buchfink nachrechnen, welche Seite recht hat
           (UNV-01). */}
       {integrity && integrity.breaks.length > 0 && (
-        <Section
+        <Section helpSummary="Hier sehen Sie Buchungen, deren gespeicherter Prüfwert nicht mehr stimmt."
           title="Abweichende Buchungen"
           context="Erwarteter und tatsächlicher Hash je Bruch der Kette"
           explain={
@@ -476,7 +477,7 @@ const ChecksPanel: React.FC<{
         </Section>
       )}
 
-      <Section
+      <Section helpSummary="Abgeschlossene Zeiträume sind für weitere rückdatierte Buchungen gesperrt."
         title="Festgeschriebene Zeiträume"
         context="Abgeschlossen und von einem Zeitstempeldienst beglaubigt"
         explain={
@@ -553,7 +554,7 @@ const ChecksPanel: React.FC<{
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Vor dem Abschluss zeigt Buchfink offene Fragen und Fehler in Ihrer Buchhaltung."
         title="Prüfläufe"
         context="Der Bericht, der vor jeder Festschreibung läuft"
         explain={
@@ -671,7 +672,7 @@ const ChecksPanel: React.FC<{
                           <Td colSpan={3} className="whitespace-normal text-ink-muted">
                             {finding.message}
                             {finding.reference && (
-                              <span className="text-caption text-ink-subtle"> · {finding.reference}</span>
+                              <Help summary="Hier erfahren Sie, auf welcher Anforderung dieser Prüfhinweis beruht." label="Hintergrund zum Prüfhinweis">{finding.reference}</Help>
                             )}
                           </Td>
                         </Tr>
@@ -883,7 +884,7 @@ const ProtocolPanel: React.FC = () => {
         </Section>
       )}
 
-      <Section
+      <Section helpSummary="Hier können Sie nachvollziehen, wer welche Daten geändert hat."
         title="Änderungsprotokoll"
         divider={breaks.length > 0}
         context={
@@ -1063,7 +1064,7 @@ const ProtocolFilter: React.FC<{
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
       <div className="w-44">
-        <Field
+        <Field helpSummary="Filtern Sie die Liste nach der Art des protokollierten Vorgangs."
           label="Vorgang"
           explain={
             '„Zugriffe“ sind die Lesezugriffe auf personenbezogene Daten: Datenüberlassung, ' +
@@ -1238,7 +1239,7 @@ const HistoryPanel: React.FC = () => {
     <>
       {error && <Notice tone="negative" text={error} className="mb-6" />}
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, ob die Anpassung Ihrer Datenbank an die Programmversion gelungen ist."
         title="Schemaänderungen"
         divider={false}
         context="Jeder Lauf mit Programmfassung und betroffenen Tabellen"
@@ -1287,7 +1288,7 @@ const HistoryPanel: React.FC = () => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, welche Daten übernommen wurden und ob die Summen übereinstimmen."
         title="Datenübernahmen"
         context="Zählungen und Kettenprüfung zum Zeitpunkt der Übernahme"
         explain={
@@ -1353,7 +1354,7 @@ const HistoryPanel: React.FC = () => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, was sich zwischen den Programmversionen geändert hat."
         title="Versionshistorie"
         context="Jede Fassung des Programms mit Datum und Änderung"
         explain={

@@ -34,7 +34,7 @@ import {
   EmptyState,
   Field,
   FieldValue,
-  HelpPopover,
+  Help,
   Input,
   Menu,
   MenuItem,
@@ -365,7 +365,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Buchfink erstellt Ihre Rechnung und erfasst zugleich den offenen Kundenbetrag."
         title="Ausgangsrechnungen"
         context={
           loading
@@ -629,7 +629,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Jede ausgestellte Rechnung erhält eine eigene fortlaufende Nummer."
         title="Nummernkreis"
         context={
           gaps
@@ -1159,7 +1159,7 @@ const InvoiceForm: React.FC<{
       }
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Field
+        <Field helpSummary="Wählen Sie, ob Sie eine Rechnung, eine Anzahlung oder eine Schlussabrechnung erstellen."
           label="Art"
           hint="Abschlag und Schlussrechnung: Seite „Anzahlungen&quot;"
           explain="Abschlags- und Schlussrechnung gehören in einen Rechnungsverbund: er hält den vereinbarten Gesamtbetrag, die gestellten Abschläge und die Verrechnung zusammen. Beim Abschlag entsteht die Steuer außerdem erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), es gibt also zwei Buchungszeitpunkte. Beides steht auf der Seite „Anzahlungen&quot;; hier entsteht die gewöhnliche Rechnung."
@@ -1197,7 +1197,7 @@ const InvoiceForm: React.FC<{
           />
         </Field>
 
-        <Field
+        <Field helpSummary="Die Art des Umsatzes bestimmt, wie Buchfink die Steuer berechnet."
           label="Steuerfall"
           hint={treatmentInfo?.hint}
           explain="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
@@ -1223,7 +1223,7 @@ const InvoiceForm: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-        <Field
+        <Field helpSummary="Wählen Sie das Dateiformat, das Ihr Kunde benötigt."
           label="Format"
           hint={profile?.label}
           explain={
@@ -1243,7 +1243,7 @@ const InvoiceForm: React.FC<{
           <FieldValue>{profile?.label ?? '—'}</FieldValue>
         </Field>
 
-        <Field
+        <Field helpSummary="Für bestimmte kleine Rechnungsbeträge genügen weniger Angaben."
           label="Kleinbetragsrechnung"
           hint={
             !taxable
@@ -1289,14 +1289,14 @@ const InvoiceForm: React.FC<{
             )}
           >
             Bestätigung der USt-IdNr.
-            <HelpPopover label="Erklärung zur Bestätigungsabfrage">
+            <Help summary="Prüfen Sie die Umsatzsteuer-ID, bevor Sie eine steuerfreie Lieferung ins EU-Ausland abrechnen." label="Erklärung zur Bestätigungsabfrage">
               Die Steuerbefreiung der innergemeinschaftlichen Lieferung setzt eine gültige, vom
               Bestimmungsland erteilte USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4
               UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
               das Ergebnis am Kontakt fest. Eine negative Antwort hält die Rechnung an. Bleibt die
               Antwort aus — kein Netz, Dienst gestört —, ist das kein negatives Ergebnis, aber auch
               kein Nachweis: Buchfink stellt die Rechnung dann nur mit einem festgehaltenen Grund aus.
-            </HelpPopover>
+            </Help>
           </h3>
           <p className="text-body text-ink-muted mt-1.5">
             {vatIdStatus
@@ -1328,7 +1328,7 @@ const InvoiceForm: React.FC<{
           </div>
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
+            <Field helpSummary="Geben Sie an, wer die Ware zum Kunden transportiert."
               label="Beförderung"
               hint="entscheidet über den Belegnachweis"
               explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten genügen für die Vermutung des § 17a UStDV schon zwei einander nicht widersprechende Belege. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
@@ -1346,7 +1346,7 @@ const InvoiceForm: React.FC<{
                 erfassbar sein: sonst ist die Maske genau dann eine Sackgasse, wenn
                 das Backend die Übersteuerung verlangt. */}
             {!vatIdStatus?.confirmed && (
-              <Field
+              <Field helpSummary="Begründen Sie, warum Sie trotz fehlender Bestätigung eine steuerfreie Rechnung ausstellen."
                 label="Grund für die Ausstellung ohne Bestätigung"
                 optional
                 hint="ohne ihn wird abgelehnt"
@@ -1365,7 +1365,7 @@ const InvoiceForm: React.FC<{
       )}
 
       {smallAmount && contactId === 0 && (
-        <Field
+        <Field helpSummary="Geben Sie an, wie die bereits bezahlte Rechnung beglichen wurde."
           label="Zahlungsmittel"
           hint="Leer heißt Kasse"
           className="mt-4 max-w-sm"
@@ -1384,7 +1384,7 @@ const InvoiceForm: React.FC<{
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-        <Field
+        <Field helpSummary="Erfassen Sie die vereinbarte Zahlungsfrist und einen möglichen Skontoabzug."
           label="Zahlungsziel"
           hint="Tage"
           optional
@@ -1630,13 +1630,13 @@ const CancelDialog: React.FC<{
             <span className="code-num text-ink">{invoice.invoiceNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(invoice.grossAmount, invoice.currency)}</span>{' '}
             an {invoice.contactName || 'Barverkauf'} bekommt ein Stornodokument mit eigener Nummer.
-            <HelpPopover label="Erklärung zur Stornierung">
+            <Help summary="Eine Stornierung hebt die Rechnung auf. Das Original bleibt als Nachweis erhalten." label="Erklärung zur Stornierung">
               Forderung, Erlös und Umsatzsteuer gehen per Generalumkehr auf null zurück. Das
               Stornodokument hat die negierten Beträge und den Bezug auf die Ursprungsrechnung;
               diese bleibt unverändert im Archiv. Das Wort „Gutschrift" steht bewusst nirgends: eine
               Gutschrift nach § 14 Abs. 2 Satz 2 UStG ist die Abrechnung des Leistungsempfängers,
               und die stellt Buchfink nicht aus.
-            </HelpPopover>
+            </Help>
           </p>
 
           <Field label="Grund der Stornierung" className="mt-4" error={error ?? undefined}>
@@ -1770,12 +1770,12 @@ const CorrectDialog: React.FC<{
           <p className="text-body text-ink-muted">
             <span className="code-num text-ink">{invoice.invoiceNumber}</span> wird storniert; die
             berichtigte Rechnung verweist auf sie.
-            <HelpPopover label="Erklärung zur Berichtigung">
+            <Help summary="Für eine Korrektur erstellt Buchfink eigene Dokumente mit Bezug zur ursprünglichen Rechnung." label="Erklärung zur Berichtigung">
               Eine ausgestellte Rechnung wird nicht geändert: GoBD Rz. 58 lässt einen erfassten
               Geschäftsvorfall nicht mehr veränderbar sein, und § 14 Abs. 4 Nr. 4 UStG lässt keine
               zweite Rechnung unter derselben Nummer zu. Es entstehen deshalb zwei Dokumente mit
               eigenen Nummern. Die Steuer folgt dem Tag des Stornodokuments (§ 17 Abs. 1 UStG).
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -1960,7 +1960,7 @@ const SentDialog: React.FC<{
             <Field label="Versendet am">
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
-            <Field
+            <Field helpSummary="Halten Sie fest, wie Sie die Rechnung an den Kunden geschickt haben."
               label="Weg"
               explain="Buchfink verschickt nichts. Der Vermerk ist der Nachweis, dass die Rechnung den Empfänger erreicht hat — § 14 Abs. 1 UStG kennt sie als Abrechnung gegenüber dem Empfänger."
             >

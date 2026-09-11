@@ -2,7 +2,7 @@
 
 Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), PRF-02, PRF-06
 
-Status: Anforderung, noch nicht implementiert
+Status: offener Entwurf, nicht implementiert, keine Umsetzungszusage
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
@@ -25,14 +25,13 @@ allein das DATEV-Format.
 
 ## 1. Wozu
 
-Der Steuerberater arbeitet mit DATEV. Solange Buchfink seine Daten nicht in dessen
-Format liefert, bleibt die Mandantenbuchhaltung eine Insel: entweder tippt jemand ab,
-oder das Unternehmen bucht doch wieder beim Berater. Der Export ist damit weniger ein
-Feature als die Bedingung dafür, dass die Software im Alltag benutzbar ist.
+Ein DATEV-Export könnte die Zusammenarbeit mit Kanzleien erleichtern, die
+Buchungen in diesem Format übernehmen. Buchfinks Kernziel bleibt die
+selbstständige Buchhaltung. Ein Kanzleiexport ist dafür keine Voraussetzung.
 
-Anders als die übrigen offenen Punkte braucht dieser hier **keine buchhalterische
-Entscheidung**: das Format ist von DATEV vorgegeben. Es gibt genau eine
-Architekturfrage, und die steht im nächsten Abschnitt.
+Derzeit stehen allgemeine Daten- und Belegexporte zur Verfügung. Sie sind kein
+DATEV-Buchungsstapel. Die folgenden Überlegungen sind ein Entwurf und beschreiben
+keine vorhandene Schnittstelle.
 
 ## 2. Die eigentliche Frage: n Zeilen gegen Konto und Gegenkonto
 

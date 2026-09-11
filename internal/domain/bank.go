@@ -51,8 +51,7 @@ type BankTransaction struct {
 	// computed on read. A statement line can settle several open items.
 	MatchedAmount Cents `gorm:"-" json:"matchedAmount"`
 
-	// TODO: Add support for CAMT.052 (intraday) and CAMT.054 (credit/debit notifications)
-	// TODO: Add support for MT940 legacy format parser
+	// The bank import supports CAMT.053; CAMT.052, CAMT.054 and MT940 are not parsed.
 }
 
 // BankRepository defines persistence operations for bank transactions.
@@ -67,5 +66,5 @@ type BankRepository interface {
 // BankParser defines the contract for bank statement file parsers.
 type BankParser interface {
 	Parse(r io.Reader) ([]BankTransaction, error)
-	// TODO: Add support for bank statement validation rules according to ISO 20022 schemas
+	// Parsing does not perform ISO 20022 schema validation.
 }

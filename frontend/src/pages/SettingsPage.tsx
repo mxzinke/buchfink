@@ -28,7 +28,7 @@ import {
   Field,
   FieldValue,
   FormGrid,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -500,7 +500,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <Field label="Firmen- oder Inhabername">
             <Input value={settings.companyName} onChange={(e) => patch({ companyName: e.target.value })} />
           </Field>
-          <Field
+          <Field helpSummary="Die Rechtsform beeinflusst, wie Ihr Unternehmen steuerlich behandelt wird."
             label="Rechtsform"
             hint={derivedInvestor?.label}
             explain={derivedInvestor?.note}
@@ -511,7 +511,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onValueChange={(next) => patch({ legalForm: String(next) })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Geben Sie Ihre Steuernummer oder Umsatzsteuer-ID für die Rechnungsstellung an."
             label="Steuernummer"
             hint={identifierMissing ? 'für Rechnungen nötig' : undefined}
             explain="§ 14 Abs. 4 Nr. 2 UStG verlangt auf jeder Rechnung die Steuernummer oder die USt-IdNr. des Ausstellers. Buchfink schreibt die USt-IdNr., wenn sie vorliegt (BT-31), sonst die Steuernummer (BT-32); ohne beide wird keine Rechnung ausgestellt."
@@ -546,7 +546,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             eigene Breite mitbringt, sieht aus wie ein Nachtrag.
           */}
           {(needsInvestorChoice || showInvestorChoice) && (
-            <Field
+            <Field helpSummary="Die Art des Anlegers bestimmt den steuerfreien Anteil von Fondserträgen."
               label="Anlegerstellung für Investmentanteile"
               optional={!needsInvestorChoice}
               hint="nur für die Teilfreistellung"
@@ -608,7 +608,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </FormGrid>
       </Section>
 
-      <Section
+      <Section helpSummary="Legen Sie Rechnungsnummern und Kontaktdaten für Ihre Rechnungen fest."
         title="Rechnungsstellung"
         explain={
           <>
@@ -621,7 +621,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         }
       >
         <FormGrid>
-          <Field
+          <Field helpSummary="Legen Sie fest, wie Jahr und laufende Nummer in Ihrer Rechnungsnummer erscheinen."
             label="Nummernformat"
             hint="{JAHR} und {NR:4}"
             explain="Zwei Platzhalter: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Ohne {NR} trüge jede Rechnung dieselbe Nummer; ein solches Format weist Buchfink zurück (§ 14 Abs. 4 Nr. 4 UStG). Leer heißt RE-{JAHR}-{NR:4}."
@@ -633,7 +633,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => patch({ invoiceNumberFormat: e.target.value })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Legen Sie fest, wie Buchfink Ihre eingehenden Belege nummeriert."
             label="Belegnummernformat"
             hint="{JAHR} und {NR:4}"
             explain="Dieselben zwei Platzhalter für den Belegnummernkreis: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Leer heißt ER-{JAHR}-{NR:4}. Bestehende Belegnummern bleiben gültig (BEL-02)."
@@ -669,7 +669,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
       {/* Ohne diese drei Angaben fehlt dem Jahresabschluss der Kopf, den
           § 264 Abs. 1a HGB verlangt. Sie standen bisher nur im Gründungsweg. */}
-      <Section
+      <Section helpSummary="Diese Registerangaben erscheinen im Kopf Ihres Jahresabschlusses."
         title="Registereintragung"
         explain={
           <>
@@ -704,7 +704,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </FormGrid>
       </Section>
 
-      <Section
+      <Section helpSummary="Buchfink ordnet Ihre Vorgänge anhand ihres Datums einem Geschäftsjahr zu."
         title="Geschäftsjahr"
         explain={
           <>
@@ -749,7 +749,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           Kleinunternehmerregelung — stehen hinter dem Erklärzeichen und nicht
           als Absatz auf der Seite (UST-08). Sie kommen aus dem Backend, weil
           dieselbe Aufzählung in der Verfahrensdokumentation steht. */}
-      <Section
+      <Section helpSummary="Hier sehen Sie die unterstützten Steuerfälle und Grenzen der Umsatzsteuerfunktionen."
         title="Umsatzsteuer"
         explain={
           (hints?.taxCaseHints ?? []).length > 0 && (
@@ -765,7 +765,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         }
       >
         <FormGrid>
-          <Field
+          <Field helpSummary="Wählen Sie, ob Sie Ihre Umsatzsteuer monatlich oder vierteljährlich melden."
             label="Voranmeldezeitraum"
             hint={
               vatProposal
@@ -798,7 +798,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onValueChange={(period) => patch({ vatPeriod: period as CompanySettings['vatPeriod'] })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Buchfink unterstützt die Besteuerung nach erbrachter Leistung, auch vor der Zahlung."
             label="Besteuerungsart"
             hint="nach vereinbarten Entgelten"
             explain="Buchfink rechnet nach § 16 Abs. 1 Satz 1 UStG. Bei Istversteuerung entstünde die Steuer erst mit der Vereinnahmung, die Buchungen sähen anders aus — der Buchungskern weist sie deshalb ab, statt sie stillschweigend falsch zu behandeln."
@@ -839,12 +839,12 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           label={
             <span className="flex items-center">
               Dauerfristverlängerung
-              <HelpPopover label="Erklärung zur Dauerfristverlängerung">
+              <Help summary="Eine genehmigte Dauerfristverlängerung gibt Ihnen einen Monat mehr Zeit für die Voranmeldung." label="Erklärung zur Dauerfristverlängerung">
                 Mit der Dauerfristverlängerung wird jede Voranmeldung einen Monat später fällig
                 (§§ 46 bis 48 UStDV). Wer monatlich anmeldet, hat dafür bis zum 10. Februar eine
                 Sondervorauszahlung von einem Elftel der Vorauszahlungen des Vorjahres anzumelden
                 und zu zahlen; angerechnet wird sie in der letzten Voranmeldung des Jahres.
-              </HelpPopover>
+              </Help>
             </span>
           }
           hint="verschiebt jede Fälligkeit um einen Monat"
@@ -852,7 +852,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
         {settings.permanentExtension && (
           <FormGrid className="mt-5">
-            <Field
+            <Field helpSummary="Tragen Sie die Sondervorauszahlung ein, die Sie beim Finanzamt angemeldet haben."
               label="Angemeldete Sondervorauszahlung"
               hint={
                 suggestion && suggestion.amount > 0
@@ -894,7 +894,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       {/* Anzeige und keine Einstellung: eine Aufbewahrungsfrist ist keine Wahl
           des Anwenders (ARC-01 K4). Sie steht hier, weil die Einstellungen der
           Ort ist, an dem nachgesehen wird, was gilt. */}
-      <Section
+      <Section helpSummary="Hier sehen Sie, wie lange Sie die verschiedenen Unterlagen mindestens aufbewahren müssen."
         title="Aufbewahrungsfristen"
         context={
           retentionRules
@@ -940,7 +940,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Legen Sie fest, wann Buchfink auf noch nicht erfasste Belege hinweisen soll."
         title="Prüfläufe"
         explain={
           <>
@@ -953,7 +953,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         }
       >
         <FormGrid>
-          <Field label="Belege spätestens erfassen nach" hint="Tage nach Eingang · GoBD Rz. 47">
+          <Field label="Belege spätestens erfassen nach" hint="Tage nach Eingang">
             {/* Der Wert wird als Text geführt und erst beim Verlassen des Feldes
                 normalisiert (§8.3). Vorher zeigte das Feld die Voreinstellung
                 an, während im Zustand die 0 stand — angezeigter und
@@ -1001,7 +1001,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         jede Installation mit 400 % Hebesatz, monatsgenauer Abgrenzung und 800
         Euro Schwelle, als wäre das gewählt worden.
       */}
-      <Section
+      <Section helpSummary="Diese Einstellungen beeinflussen die Berechnungen Ihres Jahresabschlusses."
         title="Jahresabschluss"
         context="Steuert die Abschlussbausteine"
         explain={
@@ -1014,7 +1014,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         }
       >
         <FormGrid>
-          <Field
+          <Field helpSummary="Tragen Sie den Gewerbesteuer-Hebesatz Ihrer Gemeinde ein."
             label="Gewerbesteuer-Hebesatz"
             hint="Prozent der Gemeinde"
             error={tradeTaxError || undefined}
@@ -1041,7 +1041,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                   percent > TRADE_TAX_MAX
                 ) {
                   setTradeTaxError(
-                    `Der Hebesatz liegt zwischen ${TRADE_TAX_MIN} % und ${TRADE_TAX_MAX} % (§ 16 Abs. 4 Satz 2 GewStG).`,
+                    `Buchfink unterstützt Hebesätze zwischen ${TRADE_TAX_MIN} % und ${TRADE_TAX_MAX} %.`,
                   );
                   return;
                 }
@@ -1051,7 +1051,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               }}
             />
           </Field>
-          <Field
+          <Field helpSummary="Wählen Sie, ob Buchfink zeitliche Abgrenzungen nach Monaten oder Tagen verteilt."
             label="Abgrenzungsmethode"
             explain="Monatsgenau verteilt nach Zwölfteln, taggenau nach Kalendertagen. Beides ist zulässig; § 252 Abs. 1 Nr. 6 HGB verlangt nur, dass es dabei bleibt — die Wahl gilt deshalb für alle Posten."
           >
@@ -1063,7 +1063,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               }
             />
           </Field>
-          <Field
+          <Field helpSummary="Ab diesem Betrag schlägt Buchfink eine zeitliche Abgrenzung vor."
             label="Vorschlagsschwelle der Abgrenzung"
             hint="unterhalb nur Anzeige"
             explain="Nur für die Vorschlagsliste: Handelsrechtlich gibt es keine Grenze, jeder Posten ist abzugrenzen (§ 250 HGB). Die 800 Euro sind das steuerliche Wahlrecht des § 6 Abs. 2 EStG, das die Finanzverwaltung auch für die Abgrenzung zulässt — wer es nicht nutzen will, trägt hier 0,00 ein."
@@ -1081,7 +1081,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => setThresholdText(e.target.value)}
             />
           </Field>
-          <Field
+          <Field helpSummary="Wählen Sie, ob vorgetragene Abgrenzungen monatlich oder einmal im Jahr aufgelöst werden."
             label="Auflösung im Folgejahr"
             explain="Der Saldenvortrag bucht die Auflösung mit. Einmal je Jahr hält die Zahl der Abschlussbuchungen klein; monatlich braucht, wer unterjährig auswertet — sonst trägt der Januar den gesamten Vorjahresaufwand."
           >
@@ -1115,7 +1115,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => patch({ bic: e.target.value })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Buchfink verwendet den Kontenrahmen SKR04 für die doppelte Buchführung."
             label="Kontenrahmen"
             explain="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
           >
@@ -1129,7 +1129,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           der Verlauf der Bestätigungsabfragen liegen, zu denen sie gehören.
           Der Verweis steht hier, weil sie Einstellungen sind und niemand sie
           zuerst unter „Nebenpflichten" sucht. */}
-      <Section
+      <Section helpSummary="Hier finden Sie externe Abfragedienste und die gespeicherten Umrechnungskurse."
         title="Netzdienste und Umrechnungskurse"
         context="Auf der Seite „Nebenpflichten“: BZSt, Kursdienst, USt-Durchschnittskurse"
         explain={
@@ -1170,7 +1170,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           hinterlegt ist. */}
       <Section title="Verfahren und Umstellung" context="Herkunft der Daten und Organisation">
         <FormGrid>
-          <Field
+          <Field helpSummary="Halten Sie fest, wann Sie von Ihrem bisherigen Buchhaltungsprogramm umgestiegen sind."
             label="Umstellungszeitpunkt aus einem Altsystem"
             optional
             hint={systemChangeDate ? undefined : 'nicht hinterlegt'}
@@ -1187,7 +1187,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => setSystemChangeDate(e.target.value)}
             />
           </Field>
-          <Field
+          <Field helpSummary="Beschreiben Sie, wer in Ihrem Unternehmen Belege erfasst, prüft und freigibt."
             label="Organisationsanweisung"
             hint={orgFilledCount > 0 ? undefined : 'nicht hinterlegt'}
             explain="Wer scannt, wer prüft, wer freigibt und wie vertreten wird: die Teile der Verfahrensdokumentation, die nur das Unternehmen kennt. Buchfink gibt Muster vor."
@@ -1212,7 +1212,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         Eingangsbeleg einen Prüfvermerk braucht, die andere, wann welche
         Mahnung vorgeschlagen wird.
       */}
-      <Section
+      <Section helpSummary="Legen Sie fest, wann eine Leistungsprüfung nötig ist und wie Sie offene Rechnungen anmahnen."
         title="Rechnungsprüfung und Mahnwesen"
         context="Leistungsnachweis und Mahnstufen"
         explain={
@@ -1259,7 +1259,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </div>
       </Section>
 
-      <Section
+      <Section helpSummary="Der veröffentlichte Basiszinssatz ist die Grundlage für die Berechnung von Verzugszinsen."
         title="Basiszinssatz"
         context="Grundlage der Verzugszinsen"
         explain={
@@ -1326,7 +1326,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         </div>
       </Section>
 
-      <Section
+      <Section helpSummary="Buchfink merkt sich bestätigte Zuordnungen für wiederkehrende Bankumsätze."
         title="Gelernte Bankregeln"
         context="Muster wiederkehrender Umsätze"
         explain={
@@ -1401,14 +1401,14 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
 
           {/* Kein Knopf zum Wählen: Buchfink zieht einen Datenordner nicht um,
               und ein Knopf, der nur die Anzeige ändert, verspräche das (ARC-06). */}
-          <Field
+          <Field helpSummary="Hier liegen die Buchhaltungsdaten und Belege Ihres Unternehmens."
             label="Ordner für Buchungsdaten und Belege"
             explain="Der Ordner steht beim Anlegen des Mandanten fest und lässt sich hier nicht umziehen."
           >
             <Input className="code-num" value={appConfig?.dataDir || ''} readOnly />
           </Field>
 
-          <Field
+          <Field helpSummary="Wählen Sie einen Zielordner, damit Buchfink Sicherungen erstellen kann."
             label="Sicherungsordner"
             hint="Einzurichten unter Datenzugriff"
             explain="Ohne Sicherungsordner schreibt Buchfink keine Sicherung — weder von Hand noch beim Beenden."
@@ -1421,11 +1421,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             />
           </Field>
 
-          <Field label="Programmversion" explain="Sie steht in jedem Export und in jeder Sicherung.">
+          <Field helpSummary="Die Programmversion hilft, Exporte und Sicherungen dem verwendeten Stand zuzuordnen." label="Programmversion" explain="Sie steht in jedem Export und in jeder Sicherung.">
             <Input className="code-num" value={appConfig?.programVersion || 'dev'} readOnly />
           </Field>
 
-          <Field label="Schlüssel im Schlüsselbund des Betriebssystems" explain={keychainHint()}>
+          <Field helpSummary="Hier sehen Sie, ob der Schlüssel für Ihre Daten auf diesem Rechner verfügbar ist." label="Schlüssel im Schlüsselbund des Betriebssystems" explain={keychainHint()}>
             <p className="flex items-center gap-2 text-body text-ink-muted">
               <span className="mark-diamond bg-positive" aria-hidden="true" />
               Dienst <span className="code-num text-ink">org.buchfink.app</span> · Konto{' '}
@@ -1438,11 +1438,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
             <h3 className="flex items-center text-label text-attention-text">
               Recovery-Schlüssel getrennt sichern
-              <HelpPopover label="Erklärung zum Recovery-Schlüssel">
+              <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf." label="Erklärung zum Recovery-Schlüssel">
                 Geht dieser Rechner verloren, ist der Schlüsselbund weg und die verschlüsselten
                 Daten sind ohne Recovery-Datei unwiederbringlich. Die Datei gehört an einen anderen
                 Ort als das Datenbackup — ein Backup, das beide enthält, schützt vor nichts.
-              </HelpPopover>
+              </Help>
             </h3>
             <p className="text-body text-ink-muted mt-1">
               Ohne diese Datei sind die Daten verloren, wenn der Rechner abhandenkommt.

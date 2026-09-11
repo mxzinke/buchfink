@@ -24,7 +24,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   PageHeader,
   Progress,
@@ -724,7 +724,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           Buchung verschwindet der Baustein — eine zweite Eröffnungsbilanz
           verdoppelte die Bestände. */}
       {isFirstYear && (
-        <Section
+        <Section helpSummary="Übernehmen Sie Ihre Anfangsbestände aus dem bisherigen Buchhaltungsprogramm."
           title="Eröffnungsbilanz des Umsteigers"
           context={
             openingBooked
@@ -769,7 +769,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         </Section>
       )}
 
-      <Section
+      <Section helpSummary="Hier halten Sie fest, wie weit die Erstellung und Bestätigung Ihres Abschlusses ist."
         id={STEPS_ANCHOR}
         title="Schritte"
         context="Von der Festschreibung bis zur Offenlegung"
@@ -808,7 +808,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         </Table>
       </Section>
 
-      <Section
+      <Section helpSummary="Erledigen Sie die nötigen Abschlussbuchungen, bevor Sie die Bilanz aufstellen."
         title="Abschlussbausteine"
         context={
           closingSteps
@@ -889,7 +889,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                   <Td>
                     <span className="inline-flex items-center gap-1.5">
                       {step.label}
-                      <HelpPopover label={`Erklärung zu ${step.label}`}>{step.hint}</HelpPopover>
+                      <Help summary="Hier erfahren Sie, was bei diesem Abschlussschritt zu erledigen ist." label={`Erklärung zu ${step.label}`}>{step.hint}</Help>
                     </span>
                   </Td>
                   <Td>
@@ -945,11 +945,11 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Die Unternehmensgröße bestimmt den Umfang der Abschlussunterlagen."
         title="Größenklasse"
         context={
           sizeClass
-            ? `${SIZE_LABELS[sizeClass.class] ?? sizeClass.class} · ${sizeClass.reason}`
+            ? `${SIZE_LABELS[sizeClass.class] ?? sizeClass.class}`
             : 'Bilanzsumme, Umsatzerlöse und Arbeitnehmerzahl entscheiden'
         }
         explain={
@@ -966,7 +966,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             Gliederungstiefe, und die eines festgestellten Abschlusses steht.
             Der Service weist die Änderung ebenfalls ab — die Sperre gehört
             nicht allein in die Oberfläche. */}
-        <Field
+        <Field helpSummary="Geben Sie die durchschnittliche Zahl der Beschäftigten ohne Auszubildende an."
           label="Arbeitnehmer im Jahresdurchschnitt"
           explain="Durchschnitt der an den vier Quartalsstichtagen Beschäftigten (§ 267 Abs. 5 HGB); Auszubildende bleiben außer Betracht."
           hint={adopted ? 'Änderbar erst nach Rücksetzung der Feststellung' : undefined}
@@ -993,7 +993,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           </div>
         </Field>
 
-        <Field
+        <Field helpSummary="Der Umsatz des Vorjahres kann bestimmen, ab wann Sie E-Rechnungen ausstellen müssen."
           label="Gesamtumsatz des Vorjahres"
           error={priorRevenueError || undefined}
           explain="Der Vorjahresumsatz entscheidet über die Übergangsfrist der E-Rechnung (§ 27 Abs. 38 Nr. 2 UStG): Bis 800.000 € darf im Jahr 2027 noch eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden, ab 2028 nicht mehr. Vorbelegt ist der Wert aus der Gewinn- und Verlustrechnung des Vorjahres — der Gesamtumsatz des § 19 Abs. 3 UStG ist damit nicht identisch, deshalb ist er überschreibbar."
@@ -1043,9 +1043,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                       <Td>
                         <span className="inline-flex items-center gap-1.5">
                           {row.label}
-                          <HelpPopover label={`Erklärung zu ${row.label}`}>
+                          <Help summary="Hier erfahren Sie, wie dieser Betrag für den Abschluss berechnet wird." label={`Erklärung zu ${row.label}`}>
                             {row.explanation}
-                          </HelpPopover>
+                          </Help>
                         </span>
                       </Td>
                       <Td className={row.numeric ? 'num' : 'whitespace-normal'}>{row.value}</Td>
@@ -1058,7 +1058,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Übernehmen Sie die Endbestände als Anfangsbestände ins nächste Geschäftsjahr."
         title="Saldenvortrag ins Folgejahr"
         context={preview ? `${preview.fromYear} → ${preview.toYear}` : `${year} → ${state.nextYear}`}
         explain={
@@ -1155,9 +1155,9 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                     <Th numeric>
                       <span className="inline-flex items-center gap-1.5">
                         Schlusssaldo
-                        <HelpPopover label="Erklärung zum Schlusssaldo">
+                        <Help summary="Der Betrag zeigt den Stand des Kontos zum Jahresende." label="Erklärung zum Schlusssaldo">
                           Positive Beträge stehen im Soll, negative im Haben.
-                        </HelpPopover>
+                        </Help>
                       </span>
                     </Th>
                     <Th numeric>Vorgetragen</Th>
@@ -1229,12 +1229,12 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                 </h3>
                 <p className="flex items-center gap-1.5 text-body text-ink-muted mb-3">
                   {`Der Vortrag bucht diese ${preview.accrualReleases.length === 1 ? 'Auflösung' : `${preview.accrualReleases.length} Auflösungen`} im Geschäftsjahr ${preview.toYear} mit.`}
-                  <HelpPopover label="Erklärung zur Auflösung der Rechnungsabgrenzung">
+                  <Help summary="Bereits zeitlich abgegrenzte Beträge werden im passenden Folgezeitraum berücksichtigt." label="Erklärung zur Auflösung der Rechnungsabgrenzung">
                     Der abgegrenzte Betrag geht an seinem eigenen Datum auf das Aufwands- oder
                     Ertragskonto zurück, zu dem er gehört. Die Abgrenzung selbst folgt aus § 250
                     HGB: Ausgaben vor dem Stichtag, die Aufwand einer bestimmten Zeit danach sind,
                     stehen bis dahin in der Bilanz.
-                  </HelpPopover>
+                  </Help>
                 </p>
                 <Table density="kompakt">
                   <Thead>
@@ -1313,7 +1313,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         </Field>
 
         {stepStatus === 'adopted' && (
-          <Field
+          <Field helpSummary="Geben Sie an, mit welchem Beschluss die Gesellschafter den Abschluss bestätigt haben."
             label="Beschlussbezug"
             optional
             explain="Welcher Gesellschafterbeschluss den Abschluss festgestellt hat."
@@ -1362,7 +1362,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             {`Übersprungen wurde der Schritt mit: ${stepReopen.reason}`}
           </p>
         )}
-        <Field
+        <Field helpSummary="Begründen Sie, warum Sie den übersprungenen Schritt wieder aufnehmen."
           label="Grund"
           error={stepReopenFieldError || undefined}
           explain="Geht ins Änderungsprotokoll und steht dort neben dem Grund des Überspringens."
@@ -1407,7 +1407,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           </>
         }
       >
-        <Field
+        <Field helpSummary="Halten Sie den Grund für diese Änderung fest."
           label="Grund"
           error={reopenFieldError || undefined}
           explain="Geht ins Änderungsprotokoll und bleibt dort."

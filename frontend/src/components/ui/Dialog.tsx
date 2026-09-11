@@ -4,6 +4,7 @@ import { AlertDialog as BaseAlert } from '@base-ui/react/alert-dialog';
 import { X } from 'lucide-react';
 import { cn } from './cn';
 import { Button } from './Button';
+import { legalText } from './LegalText';
 import { BACKDROP, POPUP } from './popup';
 
 const PANEL =
@@ -72,7 +73,7 @@ export const Dialog: React.FC<DialogProps> = ({
             />
           </div>
 
-          <div className="px-6 py-5">{children}</div>
+          <div className="px-6 py-5">{legalText(children)}</div>
 
           {footer && (
             <div className="flex flex-wrap justify-end gap-2 px-6 py-4 border-t border-line">

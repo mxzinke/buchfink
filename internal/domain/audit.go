@@ -59,7 +59,7 @@ type AuditLogEntry struct {
 	PreviousHash string `gorm:"size:64" json:"previousHash,omitempty"`
 	EntryHash    string `gorm:"size:64" json:"entryHash,omitempty"`
 
-	// TODO: Add cryptographic signature per audit entry (e.g. Ed25519) if required for extended certifications
+	// Entries are hash-linked; they do not have individual cryptographic signatures.
 }
 
 // AuditFilter schränkt die Protokollabfrage ein. Leere Felder heißen: alles.

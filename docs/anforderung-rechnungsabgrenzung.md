@@ -2,13 +2,18 @@
 
 Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-08, GOB-06
 
-Status: Anforderung, noch nicht implementiert
+Status: Fachkonzept; Abgrenzung und Auflösung implementiert
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Die gesetzlichen Anforderungen samt Fundstellen stehen im
 > Anforderungskatalog unter BEW-08 und GOB-06.
+
+> Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
+> überholt. Maßgebliche Implementierung: `internal/service/accrual_service.go` und `internal/accounting/accrual.go`.
+> Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
 
 ## 1. Worum es geht
 

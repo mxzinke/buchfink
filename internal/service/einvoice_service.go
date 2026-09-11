@@ -399,9 +399,8 @@ func resolveTreatment(read *domain.IncomingInvoice) (domain.TaxTreatment, string
 		// Buchfink führt den Steuerfall je Beleg, nicht je Position. Eine
 		// Rechnung, die beides mischt, ist von Hand zu teilen.
 		//
-		// TODO: Steuerfall je Position führen. Eine Rechnung mit steuerpflichtigen
-		// und steuerfreien Positionen ist zulässig und kommt vor; sie zu teilen
-		// erzeugt zwei Belege für ein Dokument.
+		// Der Steuerfall gilt je Beleg. Gemischte Kategorien lassen deshalb keine
+		// eindeutige automatische Zuordnung zu.
 		return "", fmt.Sprintf(
 			"Die Rechnung mischt die Steuerkategorien %s. Buchfink führt den Steuerfall je Beleg — bitte von Hand wählen oder den Beleg aufteilen.",
 			strings.Join(read.TaxCategories, ", "))

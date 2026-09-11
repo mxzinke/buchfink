@@ -4,7 +4,7 @@ Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01 bis
 GOB-06, BEL-01 bis BEL-09, UNV-01, UNV-02, RECH-02, RECH-03, RECH-06, RECH-07,
 UST-01, UST-02, UST-05, BEW-08, BEW-12
 
-Status: Konzept, Buchungskern implementiert
+Status: Fachkonzept; Belegweg und Handbuchung implementiert
 Letzte Aktualisierung: 2026-08-22 (Belegkern und Steuerfall umgesetzt)
 Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 
@@ -22,6 +22,11 @@ Kontenrahmen: DATEV SKR04 2026 (Art.-Nr. 11175)
 > und im SKR03 *Verbindlichkeiten aus LuL*, 8400 gibt es im SKR04 gar nicht, 4930
 > sind *Erträge aus der Auflösung von Rückstellungen* statt Bürobedarf. Der
 > Buchungskern lehnt Konten der Klasse 8 daher mit einem expliziten Hinweis ab.
+
+> Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
+> überholt. Maßgebliche Implementierung: `internal/service/posting_service.go`, `manual_entry.go` und `self_issued_receipt.go`.
+> Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
 
 ## 1. Leitgedanke
 

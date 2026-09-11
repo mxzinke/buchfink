@@ -125,8 +125,7 @@ type Contact struct {
 	// ändert und jeder Aufrufer ihn bekommt, ohne danach zu fragen.
 	VatIDNotice string `gorm:"-" json:"vatIdNotice,omitempty"`
 
-	// TODO: Add support for partner-specific default revenue/expense accounts
-	// TODO: Add support for SEPA direct debit mandates (SEPA-Lastschriftmandate)
+	// Partner-specific default accounts and SEPA direct debit mandates are not stored.
 }
 
 // IsBusiness reports whether the partner is an Unternehmer.

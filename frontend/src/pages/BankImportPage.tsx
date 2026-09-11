@@ -22,7 +22,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Menu,
   MenuItem,
@@ -211,16 +211,16 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
       <div className="mt-6">
         <Tabs items={BANK_VIEWS} value={view} onValueChange={(next) => setView(next as BankView)}>
           <TabPanel value="abgleich">
-            <Section
+            <Section helpSummary="Ordnen Sie jede Zahlung einer Rechnung oder einem passenden Buchungsvorgang zu."
               title="Offene Bankumsätze"
               context={loading ? undefined : `${unmatched.length} von ${transactions.length} noch nicht zugeordnet`}
               divider={false}
               className="mt-8"
               explain={
                 <>
-                  Buchfink schlägt bewusst kein Gegenkonto vor. Aus dem Verwendungszweck ein Aufwandskonto
-                  zu raten wäre eine unprüfbare Vermutung an der Stelle, an der die Kontierung
-                  entschieden wird — und für diese Entscheidung haftet das Unternehmen.
+                  Buchfink sucht zu Zahlungen passende offene Rechnungen. Für wiederkehrende
+                  Umsätze berücksichtigt es zuvor bestätigte Zuordnungen. Prüfen Sie den
+                  Vorschlag und wählen Sie bei Bedarf einen anderen Buchungsvorgang.
                 </>
               }
             >
@@ -285,7 +285,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
               )}
             </Section>
 
-            <Section
+            <Section helpSummary="Hier sehen Sie unbezahlte Rechnungen und können Zahlungsausfälle erfassen."
               title="Offene Posten"
               context={loading ? undefined : `${openItems.length} nicht ausgeglichen`}
               explain={
@@ -677,13 +677,13 @@ const AssignDialog: React.FC<{
         <div className="mb-5">
           <div className="flex items-center justify-between gap-4 mb-2">
             <h3 className="text-label text-ink-muted">Vorschlag</h3>
-            <HelpPopover label="Erklärung zum Vorschlag">
+            <Help summary="Buchfink sucht passende Rechnungen und berücksichtigt zuvor bestätigte Zuordnungen." label="Erklärung zum Vorschlag">
               Buchfink vergleicht Betrag, Rechnungsnummer im Verwendungszweck, Namen und
               Fälligkeit und erkennt Sammelzahlungen, deren Posten zusammen den Betrag treffen.
               Wiederkehrende Umsätze ohne offenen Posten schlägt er nach der zuletzt bestätigten
               Zuordnung vor. Gebucht wird nichts davon von selbst — die Merkmale stehen dabei,
               damit der Vorschlag prüfbar bleibt.
-            </HelpPopover>
+            </Help>
           </div>
           <ul className="flex flex-col">
             {suggestions.suggestions.map((suggestion, index) => (
@@ -783,7 +783,7 @@ const AssignDialog: React.FC<{
                               }
                             />
                           </Field>
-                          <Field
+                          <Field helpSummary="Erfassen Sie den Zahlungsunterschied einschließlich Steuer und wählen Sie den Grund."
                             label="Differenz"
                             explain={`Skonto wird brutto erfasst. Buchfink teilt den Betrag in Entgelt und Steuer und korrigiert die Steuer nach § 17 UStG mit ${
                               item.taxRate ? `${item.taxRate / 100} %` : 'dem Satz des Belegs'
@@ -848,7 +848,7 @@ const AssignDialog: React.FC<{
 
         <TabPanel value="direct">
           <div className="flex flex-col gap-4 max-w-md">
-            <Field
+            <Field helpSummary="Wählen Sie, wofür diese Zahlung in Ihrer Buchhaltung steht."
               label="Gegenkonto"
               hint="Für Zinsen, Entgelte oder Umbuchungen"
               explain="Die Bankseite kommt aus dem Kontoauszug, die Richtung kann nicht vertippt werden. Buchfink prüft, ob das Gegenkonto im SKR04 existiert und bebucht werden darf."
@@ -981,12 +981,12 @@ const WriteOffDialog: React.FC<{
             <span className="code-num text-ink">{item.documentNumber || item.entryNumber}</span> ·{' '}
             {item.contactName} · offen{' '}
             <span className="num text-ink">{formatCents(item.openAmount)}</span>
-            <HelpPopover label="Erklärung zur Ausbuchung">
+            <Help summary="Erfassen Sie eine unbezahlbare Kundenrechnung als Verlust und begründen Sie den Ausfall." label="Erklärung zur Ausbuchung">
               Gebucht werden der Forderungsverlust als Aufwand und die Steuerkorrektur nach § 17
               Abs. 2 Nr. 1 UStG gegen das Personenkonto. Der Zeitraum ist der der
               Uneinbringlichkeit, nicht der der Rechnung. Die Begründung steht im Protokoll: eine
               Ausbuchung ohne sie ist von einer vergessenen Forderung nicht zu unterscheiden.
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -1134,7 +1134,7 @@ const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onC
 
   return (
     <>
-      <Section
+      <Section helpSummary="Hier sehen Sie überfällige Rechnungen, für die eine Mahnung infrage kommt."
         title="Mahnvorschläge"
         context={
           loading ? undefined : `${proposals.length} Kunden mit überfälligen Forderungen`
@@ -1227,9 +1227,9 @@ const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onC
                             eine leere Fläche öffnet, ist ein Versprechen ohne
                             Inhalt. */}
                         {proposal.note ? (
-                          <HelpPopover label={`Erklärung zu ${proposal.contactName}`}>
+                          <Help summary="Hier erfahren Sie, warum diese Mahnung vorgeschlagen wird." label={`Erklärung zu ${proposal.contactName}`}>
                             {proposal.note}
-                          </HelpPopover>
+                          </Help>
                         ) : null}
                       </span>
                     </Td>

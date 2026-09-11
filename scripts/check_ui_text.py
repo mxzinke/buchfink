@@ -3,7 +3,7 @@
 
 Die Regel: eine Arbeitsansicht spricht die Sprache des Vorgangs. Ein Titel
 „Belege buchen" sagt, was zu tun ist; ein Titel „§ 146 Abs. 1 AO" sagt, warum es
-zu tun ist — und das gehört in die zweite Erklärstufe, nicht auf den Knopf. Wer
+zu tun ist — und das gehört in die Detaildialog, nicht auf den Knopf. Wer
 keine Buchhaltung gelernt hat, liest einen Paragraphen als Fehlermeldung.
 
 Die Heuristik ist bewusst grob: jede Zeile in frontend/src/pages, die ein „§" in
@@ -29,9 +29,9 @@ from pathlib import Path
 CONTEXT_LINES = 3
 
 # Die Marken, die eine Erklärstufe kennzeichnen: die Namen der
-# Erklärkomponenten (HelpPopover, InfoPopover, FormExplanation) und die
+# Erklärkomponenten (Help, InfoPopover, FormExplanation) und die
 # Bezeichner, die eine Erklärung aufmachen. `explain=` ist das Prop an Feld,
-# Abschnitt und Seitenkopf, das einen HelpPopover rendert (siehe
+# Abschnitt und Seitenkopf, das einen Help rendert (siehe
 # frontend/src/components/ui/Field.tsx und Section.tsx); `explanation` ist das
 # Feld `explanation:` der Erklärtabellen und die Funktion `explanations()`, die
 # sie aufbaut. `help=` steht weiterhin dabei: einzelne Ansichten reichen eine
@@ -47,7 +47,9 @@ CONTEXT_LINES = 3
 # `hint=` steht ebenfalls nicht dabei: der Hinweis ist unmittelbar sichtbar und
 # damit Arbeitsansicht, nicht Erklärstufe.
 HELP_MARKERS = (
-    "helppopover",
+    "<help ",
+    "<help>",
+    "dialog",
     "infopopover",
     "formexplanation",
     "help=",
@@ -199,7 +201,7 @@ def main() -> int:
               "noch ein Erklärblock darüber — oder die Norm steht in einer "
               f"unmittelbar sichtbaren Eigenschaft ({', '.join(VISIBLE_PROPS)}).")
         print("Arbeitsansichten sprechen die Sprache des Vorgangs; die Norm gehört in die "
-              "zweite Erklärstufe (Architektur 6.4).")
+              "Detaildialog (Architektur 6.4).")
         return 1
 
     print("Sprache der Arbeitsansichten: keine Norm außerhalb der Erklärstufen.")

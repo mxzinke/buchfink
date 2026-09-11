@@ -113,7 +113,7 @@ export const FoundationSection: React.FC<FoundationSectionProps> = ({
   }
 
   return (
-    <Section
+    <Section helpSummary="Buchfink begleitet die Schritte von der Gründung bis zur Eintragung."
       title="Gründung"
       context={
         `Vorgesellschaft seit ${formatDate(foundation.notarizedOn)}` +

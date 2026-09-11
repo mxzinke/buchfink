@@ -38,7 +38,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Menu,
   MenuCheckItem,
@@ -1200,7 +1200,7 @@ const BookingForm: React.FC<{
                 braucht daneben keine zweite Fassung. */}
             <span className="code-num text-ink">{correction.entry.entryNumber}</span> wird per
             Generalumkehr zurückgenommen; die Buchung unten tritt an ihre Stelle.
-            <HelpPopover label="Erklärung zur Berichtigung">
+            <Help summary="Buchfink hebt die ursprüngliche Buchung auf und erfasst Ihre Korrektur neu." label="Erklärung zur Berichtigung">
               GoBD Rz. 58 verlangt, dass die ursprüngliche Aufzeichnung feststellbar bleibt und die
               Korrektur als solche erkennbar ist. Deshalb storniert Buchfink die Buchung und bucht sie
               neu; die Neubuchung speichert den Verweis auf die Buchung, die sie ersetzt.
@@ -1208,7 +1208,7 @@ const BookingForm: React.FC<{
               Hash, das Personenkonto des offenen Postens, der Steuerfall, Währung und Umrechnung
               sowie die Aufzeichnungen zu Bewirtung und Geschenk — sonst stünde die Neubuchung ohne
               Beleg da und der offene Posten verschwände aus der Liste.
-            </HelpPopover>
+            </Help>
           </p>
           {droppedTaxLines.length > 0 && (
             <Notice
@@ -1230,7 +1230,7 @@ const BookingForm: React.FC<{
             onChange={(e) => setDocumentDate(e.target.value)}
           />
         </Field>
-        <Field label="Leistung von" explain="Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG.">
+        <Field helpSummary="Tragen Sie ein, wann die Lieferung oder Leistung begonnen hat." label="Leistung von" explain="Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG.">
           <Input type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />
         </Field>
         <Field label="Leistung bis">
@@ -1259,11 +1259,11 @@ const BookingForm: React.FC<{
         <div className="flex items-center justify-between gap-4 mb-3">
           <span className="flex items-center text-label text-ink-muted">
             Buchungszeilen
-            <HelpPopover label="Erklärung zu Buchungszeilen">
+            <Help summary="Die Zeilen zeigen, wie der Betrag auf die beteiligten Konten verteilt wird." label="Erklärung zu Buchungszeilen">
               Ein Beleg mit Vorsteuer hat drei Zeilen: Aufwand und Vorsteuer im Soll, die
               Verbindlichkeit im Haben. Bei Reverse Charge sind es vier. Die Summe der Sollzeilen
               muss der Summe der Habenzeilen entsprechen.
-            </HelpPopover>
+            </Help>
           </span>
           <Button
             variant="quiet"
@@ -1433,12 +1433,12 @@ const ReverseDialog: React.FC<{
             <span className="code-num text-ink">{entry.entryNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(grossOf(entry), entry.currency)}</span> wird
             per Generalumkehr zurückgebucht.
-            <HelpPopover label="Erklärung zur Generalumkehr">
+            <Help summary="Die Stornierung hebt die Beträge auf. Die ursprüngliche Buchung bleibt nachvollziehbar." label="Erklärung zur Generalumkehr">
               Storniert wird mit denselben Konten auf denselben Seiten und negiertem Betrag. Die
               Umsätze der betroffenen Konten gehen dadurch auf null zurück, statt sich wie bei einer
               spiegelverkehrten Gegenbuchung zu verdoppeln. Die Stornobuchung wird auf heute datiert,
               die ursprüngliche Buchung bleibt im Journal sichtbar.
-            </HelpPopover>
+            </Help>
           </p>
 
           <Field label="Grund der Stornierung" className="mt-4" error={error ?? undefined}>

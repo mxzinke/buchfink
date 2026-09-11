@@ -22,7 +22,7 @@ import {
   Dialog,
   Field,
   FieldRow,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   Select,
@@ -179,7 +179,7 @@ export const SelfIssuedFields: React.FC<SelfIssuedFieldsProps> = ({ value, onCha
         />
       </Field>
     </FieldRow>
-    <Field
+    <Field helpSummary="Beschreiben Sie die Ausgabe oder Einnahme und warum Ihnen der Beleg fehlt."
       label="Grund"
       className="mt-4"
       hint="Was belegt dieser Beleg?"
@@ -479,7 +479,7 @@ export const ManualEntryDialog: React.FC<ManualEntryDialogProps> = ({
             onChange={(e) => setDocumentDate(e.target.value)}
           />
         </Field>
-        <Field
+        <Field helpSummary="Geben Sie an, wann die Ware geliefert oder die Leistung erbracht wurde."
           label="Leistungsdatum"
           explain={
             <>
@@ -497,7 +497,7 @@ export const ManualEntryDialog: React.FC<ManualEntryDialogProps> = ({
         <Field label="Buchungstext" className="flex-1">
           <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        <Field
+        <Field helpSummary="Wählen Sie, welche Art von Umsatz vorliegt. Daraus berechnet Buchfink die Steuer."
           label="Steuerfall"
           explain={
             <>
@@ -619,11 +619,11 @@ export const ManualEntryDialog: React.FC<ManualEntryDialogProps> = ({
       <div className="mt-6">
         <div className="flex items-center mb-2">
           <h3 className="text-label text-ink-muted">Beleg</h3>
-          <HelpPopover label="Erklärung zum Belegzwang">
+          <Help summary="Wählen Sie einen Beleg oder erstellen Sie einen eigenen Nachweis." label="Erklärung zum Belegzwang">
             Zu jeder Buchung gehört ein Beleg (§ 146 Abs. 1 AO, GoBD Rz. 61). Wähle den abgelegten
             Beleg zu diesem Vorgang — oder erstelle einen Eigenbeleg, wenn es keinen fremden gibt.
             Beleg und Buchung entstehen dann in einem Vorgang.
-          </HelpPopover>
+          </Help>
         </div>
         {/* Der Weg ist eine Auswahl und kein Knopfpaar: zwei Primärknöpfe neben
             dem Buchen ließen offen, welcher die Aktion des Dialogs ist (§10.4). */}
@@ -722,7 +722,7 @@ export const RetentionDialog: React.FC<RetentionDialogProps> = ({
       }
     >
       {error && <Notice tone="negative" text={error} className="mb-5" />}
-      <Field
+      <Field helpSummary="Sie können Unterlagen länger aufbewahren als vorgeschrieben."
         label="Aufbewahrungsklasse"
         explain={
           <>
@@ -840,7 +840,7 @@ export const CustomAccountDialog: React.FC<CustomAccountDialogProps> = ({
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
         </Field>
       </FieldRow>
-      <Field
+      <Field helpSummary="Die Auswahl bestimmt, wo dieses Konto im Jahresabschluss erscheint."
         label="Gliederungsposition"
         className="mt-4"
         explain={

@@ -40,9 +40,9 @@ export {
   type FormGridProps,
 } from './Field';
 export {
-  HelpPopover,
+  Help,
   InfoPopover,
-  type HelpPopoverProps,
+  type HelpProps,
   type InfoPopoverProps,
 } from './Help';
 export {

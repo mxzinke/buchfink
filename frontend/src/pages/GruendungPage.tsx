@@ -192,7 +192,7 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Halten Sie die Schritte Ihrer Unternehmensgründung und die zugehörigen Nachweise fest."
         title="Gründung"
         context={
           registered
@@ -348,7 +348,7 @@ const StepSection: React.FC<StepSectionProps> = ({
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <Section
+    <Section helpSummary="Hier erfahren Sie, was für diesen Gründungsschritt zu erledigen ist."
       title={`${duty.order}. ${duty.title}`}
       context={duty.where}
       divider={index > 0}

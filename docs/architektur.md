@@ -1,7 +1,7 @@
 # Buchfink – Architektur und Bedienkonzept
 
 Status: verbindlich für die Produktionsreife
-Letzte Aktualisierung: 2026-09-06
+Letzte Aktualisierung: 2026-09-11
 
 Dieses Dokument beschreibt, wie Buchfink gebaut ist und wie es sich anfühlen
 soll, wenn jemand ohne Buchhaltungskenntnis damit die Bücher einer kleinen
@@ -15,18 +15,20 @@ und welche Entscheidungen dahinterstehen.
 
 ## 1. Wer Buchfink bedient
 
-Die Person am Rechner ist Gründerin oder Geschäftsführer einer UG oder GmbH.
-Sie hat ein Bankkonto, stellt Rechnungen, bekommt Rechnungen, hat vielleicht
-ein paar Anlagegüter und muss viermal im Jahr eine Umsatzsteuer-Voranmeldung
-abgeben. Sie kennt die Wörter Soll und Haben, weiß aber nicht, was sie
-bedeuten, und will das auch nicht lernen. Sie will drei Dinge: nichts
-vergessen, nichts falsch machen, und am Jahresende einen Abschluss haben, den
-ein Steuerberater oder das Finanzamt ohne Rückfrage annimmt.
+Buchfink richtet sich an kleine Unternehmen, Gründer und Holdings, vor allem
+an kleine GmbHs und UGs. Sie wollen ihre Buchhaltung selbst erledigen und ihre
+Daten behalten. Die Bedienung setzt weder Buchhaltungs- noch Rechtskenntnisse
+voraus. Sie soll helfen, Vorgänge zu verstehen und die nötigen Schritte selbst
+zu erledigen.
 
-Daraus folgt die Leitfrage für jede Funktion: **Was muss die Person heute
-tun, und woran erkennt sie, dass es erledigt ist?** Buchhaltungsobjekte
-(Konten, Buchungssätze, Steuerschlüssel) bleiben vorhanden und sichtbar, aber
-sie sind die zweite Ebene. Die erste Ebene ist eine Aufgabenliste.
+Ziel ist eine gesetzeskonforme, gemeinsam entwickelte Software, mit der auch
+einfache Jahresabschlüsse selbst erstellt werden können. Steuerberatung bleibt
+für die steuerliche Gestaltung und konkrete Fragen verfügbar. Dieser
+vollständige Abschlussweg ist noch nicht erreicht; siehe
+[Umsetzungsstand](stand-der-umsetzung.md) und [Roadmap](roadmap.md).
+
+Jede Ansicht beantwortet: Was ist jetzt zu tun, welche Angaben brauche ich und
+woran erkenne ich, dass der Schritt erledigt ist?
 
 ---
 
@@ -40,8 +42,8 @@ Status `SCOPE` markiert ist.
 |---|---|---|
 | **Einzelplatz, ein Bearbeiter.** Buchfink läuft auf einem Rechner, ohne Benutzerverwaltung. | Die Zielgruppe hat keine Buchhaltungsabteilung. Rollen und Freigabestufen wären für eine Person Theater. | Jede Buchung speichert die Bearbeiterkennung (Betriebssystem-Benutzer und Rechnername). Funktionstrennung nach GoBD Rz 100 ff. wird in der Verfahrensdokumentation als „ein Bearbeiter, Kontrolle durch Steuerberater und Abschlussprüfung" beschrieben. Ein Prüfer bekommt den Datenträger (Z3), ergänzt um einen schreibgeschützten Prüfermodus (Z1). |
 | **Local-First, Speicherort Inland.** Alle Daten liegen in einem Ordner auf dem Rechner der Anwenderin. | Kein Cloud-Zwang, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO. | Sicherung und Wiederherstellung müssen Teil der Software sein. Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Ordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen. |
-| **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. | ERiC ist eine proprietäre C-Bibliothek mit eigenen Lizenzbedingungen; ihre Einbindung würde den Build und die Lizenz des Projekts verändern. | Umsatzsteuer-Voranmeldung, Zusammenfassende Meldung und E-Bilanz entstehen als Datei bzw. als Kennziffernblatt zum Übertragen in Mein ELSTER. Das Übermittlungsprotokoll (Datum, Transferticket) wird nach der Übermittlung erfasst und ist danach unveränderlich. |
-| **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Kleine Kapitalgesellschaften stellen in der Praxis eine Einheitsbilanz auf. Zwei Bewertungskreise verdoppeln jede Erfassungsmaske. | Wo das Steuerrecht zwingend abweicht (Sonderabschreibung § 7g EStG), führt Buchfink den steuerlichen Wert am Anlagegut mit und erzeugt daraus das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern (§ 274 HGB) entfallen für kleine Gesellschaften nach § 274a HGB; ab mittelgroß verweist Buchfink an den Steuerberater. |
+| **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. | ERiC ist eine proprietäre C-Bibliothek mit eigenen Lizenzbedingungen; ihre Einbindung würde den Build und die Lizenz des Projekts verändern. | Voranmeldung und Zusammenfassende Meldung werden extern übermittelt; deren Nachweise lassen sich erfassen. Die E-Bilanz-Datei ist ungeprüft und kein zugesicherter Upload für Mein ELSTER. Ein entsprechender E-Bilanz-Übermittlungsnachweis fehlt noch. |
+| **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Kleine Kapitalgesellschaften stellen in der Praxis eine Einheitsbilanz auf. Zwei Bewertungskreise verdoppeln jede Erfassungsmaske. | Wo das Steuerrecht zwingend abweicht (Sonderabschreibung § 7g EStG), führt Buchfink den steuerlichen Wert am Anlagegut mit und erzeugt daraus das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern (§ 274 HGB) entfallen für kleine Gesellschaften nach § 274a HGB; die Bindung dieser Befreiung an die Größenklasse ist noch nicht vollständig implementiert. |
 | **Steuerfälle sind eine geschlossene Liste.** | Jeder Steuerfall, den die Software kennt, muss vollständig richtig sein: Buchung, Rechnungstext, Voranmeldung, Meldung. Ein halb unterstützter Fall ist gefährlicher als ein fehlender. | Unterstützt: Inland 19 %, 7 %, 0 %, steuerfrei, innergemeinschaftlicher Erwerb, innergemeinschaftliche Lieferung, Reverse Charge als Empfänger (§ 13b Abs. 2 Nr. 1 UStG) und als Leistender (§ 3a Abs. 2 UStG), Ausfuhr. Ausgeschlossen: Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS/IOSS, Konsignationslager, Dreiecksgeschäft, Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet. |
 | **Keine Kasse, kein Lager, kein Lohn.** | Bargeschäft löst die KassenSichV aus, Lager braucht Inventur, Lohn ist ein eigenes Rechtsgebiet. | Das Kassenkonto 1600 bleibt bebuchbar für Auslagen und Verauslagungen, ein Kassenbuch gibt es nicht. Vorräte werden zum Stichtag als Inventurwert erfasst und als Bestandsveränderung gebucht. Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros herein. |
 | **Kapitalgesellschaften zuerst.** | Der Gründungsweg, die Kapitalaufbringung, die Größenklassen und die Offenlegung sind für UG, GmbH und AG gebaut. Personenhandelsgesellschaften brauchen Kapitalkonten je Gesellschafter, Entnahmen und Einlagen. | Die Rechtsformen KG, OHG und e.K. bleiben wählbar, zeigen aber in der Oberfläche den Hinweis „Kapitalkonten und Entnahmen sind in dieser Fassung nicht abgebildet". |
@@ -325,17 +327,14 @@ Die Oberfläche spricht in Vorgängen, nicht in Konten. Ein Bankumsatz ist
 eine Abgrenzung ist „Kosten, die ins nächste Jahr gehören". Der Buchungssatz
 mit Soll und Haben steht in der Vorschau jedes Vorgangs und im Journal, damit
 der Steuerberater ihn sieht und die Anwenderin ihn lernen kann, wenn sie will.
-Das Design-Konzept regelt die drei Stufen der Erklärung (Tooltip, Popover,
-Dialog); jede gesetzliche Prüfung nennt in der zweiten Stufe die Norm.
+Das [Designkonzept](design-konzept.md) trennt kurze Tooltips am Fragezeichen
+von Detaildialogen hinter „Mehr erfahren“. Fachliche Details und verlinkte
+Rechtsgrundlagen stehen im Dialog. Handlungsrelevante Fehler und
+Einschränkungen bleiben in der Arbeitsansicht sichtbar, in einfacher Sprache.
 
-Geprüft wird das: `scripts/check_ui_text.py` (in `task check` über das Ziel
-`check:text`) liest die Seiten unter frontend/src/pages und meldet jeden
-Paragraphen, der in einer Arbeitsansicht steht und nicht in ihrem Umkreis eine
-Erklärkomponente hat. Hinweistexte unter einem Feld und der Kontext unter einer
-Abschnittsüberschrift zählen dabei als Arbeitsansicht, auch wenn drei Zeilen
-weiter ein Erklärzeichen sitzt. Die Heuristik ist grob, weil eine genaue
-Prüfung den Text verstehen müsste; sie hält die Norm dort, wo sie erklärt
-wird.
+`task check:text` prüft die Hilfestellen auf kurze Erklärungen sowie statische
+Gesetzesverweise in Beschriftungen. Die Prüfung ersetzt keine redaktionelle
+Durchsicht dynamischer Backend-Texte.
 
 ### 6.5 Das Prüferpaket
 
@@ -376,9 +375,15 @@ Frage, was einen Jahreslauf blockiert.
 | 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
 | 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/pruefszenario.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
 
-Nach Welle 7 folgt keine weitere. Was offen geblieben ist, hat im
+Die Wellen sind eine historische Einteilung und keine aktuelle Roadmap. Was offen geblieben ist, hat im
 [Anforderungskatalog](anforderungskatalog.md) in der Spalte Welle den Vermerk
 „Politur" und nennt in der Spalte Grund, wovon es abhängt: von einer
 Entscheidung, von einem Objekt, das Buchfink nicht führt, oder von einer
 Handlung außerhalb des Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
 steht dort mit Fundstellen.
+
+## 8. Geplante Schnittstellen
+
+Ein lokaler MCP-Server zur Anbindung des Chatbots der Wahl ist geplant.
+Es gibt dafür noch keine Implementierung oder festgelegte Berechtigungsarchitektur.
+Der Entwurf wird auf der [Roadmap](roadmap.md) geführt.

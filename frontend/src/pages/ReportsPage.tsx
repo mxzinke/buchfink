@@ -13,7 +13,7 @@ import {
 import {
   Button,
   EmptyState,
-  HelpPopover,
+  Help,
   Notice,
   PageHeader,
   Section,
@@ -73,9 +73,9 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Ergänzen Sie die Erläuterungen zu den Zahlen Ihres Jahresabschlusses."
         title="Angaben im Anhang"
-        context={notes?.reference}
+        context="Ergänzende Angaben zum Jahresabschluss"
         divider={false}
         explain={
           <>
@@ -99,11 +99,10 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
                   <span className="inline-flex items-center gap-1.5">
                     {entry.label}
                     {entry.hint && (
-                      <HelpPopover label={`Erklärung zu ${entry.label}`}>{entry.hint}</HelpPopover>
+                      <Help summary="Hier erfahren Sie, welche ergänzende Angabe zum Jahresabschluss nötig ist." label={`Erklärung zu ${entry.label}`}>{entry.hint} {entry.basis}</Help>
                     )}
                   </span>
                 </h3>
-                <p className="text-caption text-ink-subtle mt-0.5">{entry.basis}</p>
                 {/* Der Freitext behält seine Absätze: der Anwender hat sie gesetzt. */}
                 <p className="text-body text-ink mt-2 whitespace-pre-wrap">{entry.text}</p>
               </div>
@@ -112,7 +111,7 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie Anfangsbestand, Veränderungen und Endbestand Ihrer Rückstellungen."
         title="Rückstellungsspiegel"
         context="Anfangsbestand, Zuführung, Verbrauch, Auflösung, Aufzinsung, Endbestand"
         explain={
@@ -172,7 +171,7 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier werden die Bilanzwerte an abweichende steuerliche Regeln angepasst."
         title="Überleitung zur Steuerbilanz"
         context={
           reconciliation?.cutoff
@@ -201,7 +200,7 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
                 <Th numeric className="w-40">Handelsbilanz</Th>
                 <Th numeric className="w-40">Steuerbilanz</Th>
                 <Th numeric className="w-40">Differenz</Th>
-                <Th className="w-64">Rechtsgrundlage</Th>
+                <Th className="w-64">Details</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -211,16 +210,16 @@ const NotesPanel: React.FC<{ notes: StatementNotes }> = ({ notes }) => {
                     <span className="inline-flex items-center gap-1.5">
                       {row.position}
                       {row.explanation && (
-                        <HelpPopover label={`Erklärung zu ${row.position}`}>
+                        <Help summary="Hier erfahren Sie, warum dieser Wert steuerlich anders behandelt wird." label={`Erklärung zu ${row.position}`}>
                           {row.explanation}
-                        </HelpPopover>
+                        </Help>
                       )}
                     </span>
                   </Td>
                   <Td numeric>{formatCents(row.commercial)}</Td>
                   <Td numeric>{formatCents(row.tax)}</Td>
                   <Td numeric>{formatCents(row.difference)}</Td>
-                  <Td className="text-ink-muted whitespace-normal">{row.basis}</Td>
+                  <Td className="text-ink-muted whitespace-normal"><Help summary="Bei dieser Position unterscheiden sich die Werte der Bilanz und der steuerlichen Berechnung." label="Hintergrund zu dieser Angabe">{row.basis}</Help></Td>
                 </Tr>
               ))}
               <Tr variant="sum">
@@ -406,7 +405,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
           Verweis steht hier, weil man einen Bericht unter „Auswertungen"
           sucht. */}
       {onNavigate && (
-        <Section
+        <Section helpSummary="Weitere steuerliche Auswertungen finden Sie bei den zugehörigen Aufzeichnungen."
           title="Weitere Auswertungen"
           context="Auf der Seite „Nebenpflichten“"
           className="mt-8"

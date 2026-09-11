@@ -113,7 +113,7 @@ export const DocumentAttachDialog: React.FC<DocumentAttachDialogProps> = ({
       }
     >
       <FormGrid>
-        <Field
+        <Field helpSummary="Die Originaldatei bleibt unverändert erhalten."
           label="Datei"
           explain="Die Datei wird unter ihrer Prüfsumme abgelegt und bleibt unverändert."
         >
@@ -142,7 +142,7 @@ export const DocumentAttachDialog: React.FC<DocumentAttachDialogProps> = ({
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
 
-        <Field label="Datum des Dokuments" explain="Aus ihm folgt der Beginn der Aufbewahrungsfrist.">
+        <Field helpSummary="Dieses Datum hilft zu bestimmen, wie lange Sie die Unterlage aufbewahren müssen." label="Datum des Dokuments" explain="Aus ihm folgt der Beginn der Aufbewahrungsfrist.">
           <Input
             type="date"
             value={documentDate}

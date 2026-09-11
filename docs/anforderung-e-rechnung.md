@@ -3,7 +3,7 @@
 Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), RECH-05,
 RECH-06, RECH-07, RECH-10, UST-07, ARC-01, ARC-07
 
-Status: Empfang umgesetzt; Validierung siehe Abschnitt 8
+Status: Fachkonzept; Empfang und Ausstellung implementiert, mit Validierungsgrenzen
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
@@ -12,6 +12,11 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > obligatorischen E-Rechnung und die GoBD in der Fassung vom 14.07.2025. Die
 > gesetzlichen Anforderungen samt Fundstellen stehen im Anforderungskatalog unter
 > RECH-05, RECH-06, RECH-07 und ARC-01/ARC-07.
+
+> Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
+> überholt. Maßgebliche Implementierung: `internal/einvoice/`, `internal/invoice/` und `internal/service/invoice_service.go`.
+> Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
 
 ## 1. Warum dieses Dokument anders ist als die anderen
 

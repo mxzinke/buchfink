@@ -18,7 +18,7 @@ import {
   Button,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -328,7 +328,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
           {loading ? (
             <SkeletonRows rows={8} />
           ) : (
-            <Section
+            <Section helpSummary="Hier sehen Sie die Konten, auf denen Ihr Unternehmen bereits gebucht hat."
               title="Bebuchte Konten"
               context={`${inUse.length} von ${catalog.length} bebuchbaren Konten`}
               divider={false}
@@ -360,7 +360,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
               {/* Die eigenen Konten stehen vor dem Kontenrahmen: sie sind
                   beides — selbst angelegt und Teil des Rahmens, unter dem
                   gebucht wird (BEL-06 K2). */}
-              <Section
+              <Section helpSummary="Eigene Konten helfen Ihnen, bestimmte Einnahmen oder Ausgaben getrennt auszuwerten."
                 divider={false}
                 title="Eigene Konten"
                 context={`${customAccounts.length} selbst angelegt`}
@@ -479,7 +479,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
                 )}
               </Section>
 
-              <Section
+              <Section helpSummary="Der Kontenrahmen enthält die verfügbaren Konten für Ihre Buchhaltung."
                 title="Kontenrahmen SKR04"
                 context={`${catalog.length} bebuchbare Konten in ${catalogByClass.length} Klassen`}
                 explain={
@@ -566,7 +566,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
 
         <TabPanel value="susa">
           <div className="flex flex-wrap items-end gap-4 mb-6">
-            <Field
+            <Field helpSummary="Die Auswertung berücksichtigt nur Buchungen bis zu diesem Datum."
               label="Stichtag"
               hint="Leer: das ganze Geschäftsjahr"
               explain="Buchungen nach dem Stichtag bleiben außen vor, statt nur ausgeblendet zu werden."
@@ -593,7 +593,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
 
         <TabPanel value="op">
           <div className="flex flex-wrap items-end gap-4 mb-6">
-            <Field
+            <Field helpSummary="Die Liste zeigt, welche Rechnungen an diesem Datum noch offen waren."
               label="Stichtag"
               hint="Voreinstellung: heute"
               explain="Zahlungen, die nach dem Stichtag gebucht wurden, bleiben außen vor — die Liste zeigt den Stand von damals."
@@ -611,11 +611,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
               </Button>
             )}
             <div className="ml-auto mb-1">
-              <HelpPopover label="Erklärung zu den offenen Posten">
+              <Help summary="Offene Posten sind Rechnungen, die noch nicht vollständig bezahlt sind." label="Erklärung zu den offenen Posten">
                 Ein offener Posten ist eine Rechnung, die noch nicht ausgeglichen ist. Forderungen
                 stehen auf den Debitorenkonten, Verbindlichkeiten auf den Kreditorenkonten.
                 Ausgeglichen wird über den Bankimport oder eine Zahlungsbuchung.
-              </HelpPopover>
+              </Help>
             </div>
           </div>
           {loadingOpenItems ? (
@@ -745,9 +745,9 @@ const SuSaView: React.FC<{ susa: SuSaOverview | null; onSelect: (n: string) => v
           label={
             <>
               Abweichung
-              <HelpPopover label="Erklärung zur Abweichung">
+              <Help summary="Jede Buchung muss auf beiden Seiten denselben Gesamtbetrag haben." label="Erklärung zur Abweichung">
                 Die Prüfung ist exakt und nicht auf Cent gerundet: Jede Buchung wird schon beim Speichern auf Ausgeglichenheit geprüft.
-              </HelpPopover>
+              </Help>
             </>
           }
           value={susa.isBalanced ? 'keine' : formatCents(susa.difference)}
@@ -857,9 +857,9 @@ const AgingView: React.FC<{ aging: OpenItemsAging | null; className?: string }> 
   if (sides.length === 0) return null;
 
   return (
-    <Section
+    <Section helpSummary="Hier sehen Sie, wie lange Rechnungen überfällig sind oder noch Zeit zur Zahlung bleibt."
       title="Altersstruktur und Restlaufzeiten"
-      context={aging?.reference}
+      context="Überfällige Rechnungen und verbleibende Zahlungsfristen"
       className={className}
       divider={false}
       explain={
@@ -1065,7 +1065,7 @@ const LedgerView: React.FC<{
             label={
               <>
                 Saldo
-                <HelpPopover label="Erklärung zum Saldo">{BALANCE_HELP}</HelpPopover>
+                <Help summary="Der Saldo ist der Betrag, der auf einem Konto nach allen Buchungen verbleibt." label="Erklärung zum Saldo">{BALANCE_HELP}</Help>
               </>
             }
             value={formatCents(ledger.closingBalance)}
@@ -1095,9 +1095,9 @@ const LedgerView: React.FC<{
                 <Th className="w-48">
                   <span className="flex items-center">
                     Gegenkonten
-                    <HelpPopover label="Erklärung zu den Gegenkonten">
+                    <Help summary="Hier sehen Sie die weiteren Konten, die zu dieser Buchung gehören." label="Erklärung zu den Gegenkonten">
                       Eine Buchung besteht aus beliebig vielen Zeilen, deshalb steht hier eine Liste und nicht ein einzelnes Gegenkonto.
-                    </HelpPopover>
+                    </Help>
                   </span>
                 </Th>
                 <Th numeric className="w-32">

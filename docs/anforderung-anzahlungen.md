@@ -3,13 +3,18 @@
 Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), UST-02,
 RECH-02, RECH-03, RECH-10, BEL-07
 
-Status: Anforderung, noch nicht implementiert
+Status: Fachkonzept; Rechnungsverbund und Zahlungswege implementiert
 Letzte Aktualisierung: 2026-08-22
 Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Die gesetzlichen Anforderungen samt Fundstellen stehen im
 > Anforderungskatalog unter UST-02, RECH-02, RECH-03 und RECH-10.
+
+> Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
+> überholt. Maßgebliche Implementierung: `internal/service/advance_service.go` und `posting_service.go`.
+> Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
 
 ## 1. Warum das kein normaler Rechnungsfall ist
 

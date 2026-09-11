@@ -16,7 +16,7 @@ import { formatCents, formatDate } from '../utils/formatters';
 import {
   Button,
   EmptyState,
-  HelpPopover,
+  Help,
   Notice,
   Section,
   Select,
@@ -122,7 +122,9 @@ export const StatementView: React.FC<StatementViewProps> = ({
     return (
       <Section
         title="Restlaufzeiten"
-        context={`Stichtag ${formatDate(data.maturities.closingDate)} · ${data.maturities.reference}`}
+        context={`Stichtag ${formatDate(data.maturities.closingDate)}`}
+        helpSummary="Hier sehen Sie, wann offene Rechnungen und andere Beträge fällig werden."
+        explain={data.maturities.reference}
         divider={false}
       >
         <MaturityView rows={data.maturities.rows} />
@@ -216,7 +218,9 @@ export const StatementView: React.FC<StatementViewProps> = ({
       ) : (
         <Section
           title={`Gewinn- und Verlustrechnung ${stmt.fiscalYear}`}
-          context="Staffelform, Gesamtkostenverfahren nach § 275 Abs. 2 HGB"
+          context="Erträge und Aufwendungen des Geschäftsjahres"
+          helpSummary="Die Gewinn- und Verlustrechnung zeigt, wie Ihr Jahresergebnis entsteht."
+          explain="Die Ausgabe verwendet das Gesamtkostenverfahren nach § 275 Abs. 2 HGB."
           action={depthSelect}
         >
           {income.length === 0 ? (
@@ -269,7 +273,7 @@ const HeaderFacts: React.FC<{
       {header.missing.length > 0 && (
         <Notice
           className="mt-6"
-          text={`Pflichtangaben nach ${header.reference} fehlen: ${header.missing.join(', ')}.`}
+          text={`Bitte ergänzen Sie diese Angaben: ${header.missing.join(', ')}.`}
           action={
             onOpenSettings && (
               <Button variant="secondary" size="sm" onClick={onOpenSettings}>
@@ -286,9 +290,9 @@ const HeaderFacts: React.FC<{
             label={
               <>
                 Bilanzsumme
-                <HelpPopover label="Erklärung zur Bilanzsumme">
+                <Help summary="Die Bilanzsumme fasst das ausgewiesene Vermögen Ihres Unternehmens zusammen." label="Erklärung zur Bilanzsumme">
                   Summe der Posten A bis E der Aktivseite ohne die nicht eingeforderten ausstehenden Einlagen (§ 267 Abs. 4a HGB).
-                </HelpPopover>
+                </Help>
               </>
             }
             value={formatCents(stmt.balanceSheetTotal)}
@@ -304,7 +308,7 @@ const HeaderFacts: React.FC<{
             label={
               <>
                 Größenklasse
-                <HelpPopover label="Erklärung zur Größenklasse">{sizeClass.reason}</HelpPopover>
+                <Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang seines Jahresabschlusses." label="Erklärung zur Größenklasse">{sizeClass.reason}</Help>
               </>
             }
             value={CLASS_LABELS[sizeClass.class] ?? sizeClass.class}
@@ -425,9 +429,9 @@ const LineTable: React.FC<LineTableProps> = ({
                         )}
                         <span className={line.level === 1 ? 'font-medium' : undefined}>{line.label}</span>
                         {line.note && (
-                          <HelpPopover label={`Erklärung zu ${line.label}`}>
+                          <Help summary="Hier erfahren Sie, wie sich dieser Betrag im Abschluss zusammensetzt." label={`Erklärung zu ${line.label}`}>
                             {line.note}
-                          </HelpPopover>
+                          </Help>
                         )}
                       </span>
                     </span>
@@ -489,7 +493,7 @@ const AccountRow: React.FC<{
         )}
         <span className="text-caption text-ink-muted">{account.name}</span>
         {account.note && (
-          <HelpPopover label={`Erklärung zu Konto ${account.number}`}>{account.note}</HelpPopover>
+          <Help summary="Hier erfahren Sie, wie dieses Konto im Abschluss berücksichtigt wird." label={`Erklärung zu Konto ${account.number}`}>{account.note}</Help>
         )}
       </span>
     </Td>
@@ -566,7 +570,7 @@ const MaturityView: React.FC<{ rows: MaturityRow[] }> = ({ rows }) => (
         <Tr key={row.key}>
           <Td className="whitespace-normal">
             {row.label}
-            {row.note && <HelpPopover label={`Erklärung zu ${row.label}`}>{row.note}</HelpPopover>}
+            {row.note && <Help summary="Hier erfahren Sie, was diese Angabe für Ihren Abschluss bedeutet." label={`Erklärung zu ${row.label}`}>{row.note}</Help>}
           </Td>
           <Td numeric>{formatCents(row.total)}</Td>
           <Td numeric>{formatCents(row.upToOneYear)}</Td>
@@ -596,9 +600,9 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
 
   return (
     <>
-      <Section
+      <Section helpSummary="Die Größenklasse bestimmt, welche Angaben und Unterlagen zum Abschluss gehören."
         title={CLASS_LABELS[sizeClass.class] ?? sizeClass.class}
-        context={`Stichtag ${formatDate(sizeClass.closingDate)} · ${sizeClass.reason}`}
+        context={`Stichtag ${formatDate(sizeClass.closingDate)}`}
         divider={false}
         explain={
           <>
@@ -656,9 +660,9 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
             <Tr>
               <Td>
                 Arbeitnehmer im Jahresdurchschnitt
-                <HelpPopover label="Erklärung zur Arbeitnehmerzahl">
+                <Help summary="Tragen Sie die durchschnittliche Zahl Ihrer Beschäftigten im Jahresabschluss ein." label="Erklärung zur Arbeitnehmerzahl">
                   Die Zahl lässt sich aus der Buchführung nicht ableiten; sie wird im Jahresabschluss erfasst.
-                </HelpPopover>
+                </Help>
               </Td>
               <Td numeric>{sizeClass.criteria.employees}</Td>
               <Td numeric className="text-ink-subtle">
@@ -706,48 +710,44 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
             <Tr>
               <Th>Pflicht</Th>
               <Th className="w-80">Umfang</Th>
-              <Th className="w-64">Norm</Th>
+              <Th className="w-64">Details</Th>
             </Tr>
           </Thead>
           <Tbody>
             <Tr>
               <Td>Gliederungstiefe</Td>
               <Td className="whitespace-normal">{DEPTH_LABELS[o.depth]}</Td>
-              <Td className="text-ink-muted whitespace-normal">{o.depthReference}</Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.depthReference}</Help></Td>
             </Tr>
             <Tr>
               <Td>Anhang</Td>
               <Td>{YES_NO(o.notesRequired)}</Td>
-              <Td className="text-ink-muted whitespace-normal">{o.notesReference}</Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.notesReference}</Help></Td>
             </Tr>
             <Tr>
               <Td>Lagebericht</Td>
               <Td>{YES_NO(o.managementReport)}</Td>
-              <Td className="text-ink-muted whitespace-normal">
-                {o.managementReportReference || '§ 264 Abs. 1 Satz 4 HGB'}
-              </Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.managementReportReference || '§ 264 Abs. 1 Satz 4 HGB'}</Help></Td>
             </Tr>
             <Tr>
               <Td>Prüfung</Td>
               <Td>{YES_NO(o.auditRequired)}</Td>
-              <Td className="text-ink-muted whitespace-normal">
-                {o.auditReference || '§ 316 Abs. 1 Satz 1 HGB'}
-              </Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.auditReference || '§ 316 Abs. 1 Satz 1 HGB'}</Help></Td>
             </Tr>
             <Tr>
               <Td>Aufstellungsfrist</Td>
               <Td>{`${o.preparationMonths} Monate`}</Td>
-              <Td className="text-ink-muted whitespace-normal">{o.preparationReference}</Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.preparationReference}</Help></Td>
             </Tr>
             <Tr>
               <Td>Offenlegungsfrist</Td>
               <Td>{`${o.disclosureMonths} Monate`}</Td>
-              <Td className="text-ink-muted whitespace-normal">{o.disclosureReference}</Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.disclosureReference}</Help></Td>
             </Tr>
             <Tr>
               <Td>Offenlegungsumfang</Td>
               <Td className="whitespace-normal">{o.disclosureScope}</Td>
-              <Td className="text-ink-muted whitespace-normal">{o.disclosureScopeReference}</Td>
+              <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{o.disclosureScopeReference}</Help></Td>
             </Tr>
           </Tbody>
         </Table>
@@ -766,7 +766,7 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
                 <Th>Termin</Th>
                 <Th className="w-32">Fällig</Th>
                 <Th className="w-56">Zeitraum</Th>
-                <Th className="w-56">Norm</Th>
+                <Th className="w-56">Details</Th>
                 <Th className="w-40">Stand</Th>
               </Tr>
             </Thead>
@@ -776,14 +776,14 @@ const SizeClassView: React.FC<{ sizeClass: SizeClass; deadlines: Deadline[] }> =
                   <Td className="whitespace-normal">
                     {deadline.title}
                     {deadline.description && (
-                      <HelpPopover label={`Erklärung zu ${deadline.title}`}>
+                      <Help summary="Hier erfahren Sie, wann diese Aufgabe fällig ist und was Sie erledigen müssen." label={`Erklärung zu ${deadline.title}`}>
                         {deadline.description}
-                      </HelpPopover>
+                      </Help>
                     )}
                   </Td>
                   <Td className="num">{formatDate(deadline.dueDate)}</Td>
                   <Td className="text-ink-muted whitespace-normal">{deadline.period}</Td>
-                  <Td className="text-ink-muted whitespace-normal">{deadline.reference}</Td>
+                  <Td className="text-ink-muted whitespace-normal"><Help summary="Die Größe Ihres Unternehmens bestimmt den Umfang und die Fristen des Abschlusses." label="Hintergrund zu dieser Angabe">{deadline.reference}</Help></Td>
                   <Td className={deadline.isDone ? 'text-positive-text' : 'text-ink-subtle'}>
                     {deadline.isDone ? `Erledigt am ${formatDate(deadline.doneOn ?? '')}` : 'Offen'}
                   </Td>

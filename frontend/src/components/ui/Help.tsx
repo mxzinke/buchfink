@@ -1,80 +1,83 @@
-import React from 'react';
+import React, { useState, useId } from 'react';
 import { Popover } from '@base-ui/react/popover';
+import { Tooltip } from '@base-ui/react/tooltip';
 import { cn } from './cn';
 import { POPUP } from './popup';
+import { Dialog } from './Dialog';
 
-/**
- * Das Erklärzeichen aus §15.2 — ein Fragezeichen hinter der Beschriftung, nie
- * davor. Ausgelöst wird bewusst: keine Tour, kein Popover beim ersten Besuch.
- *
- * Es gibt genau eine Erklärstufe an diesem Zeichen. Bis Welle 9 gab es zwei —
- * einen dunklen Tooltip für einen Satz und ein helles Popover für drei —, beide
- * hinter demselben Fragezeichen und mit demselben Aussehen. Von außen war nicht
- * zu erkennen, welche der beiden man vor sich hatte: Manche gingen beim
- * Überstreichen auf, andere erst auf Klick, manche waren dunkel, andere hell,
- * und in einer Reihe von Feldern standen beide nebeneinander. Ein Unterschied,
- * der nur im Code besteht, ist keiner — er sieht aus wie ein Fehler.
- *
- * Geblieben ist das Popover: es trägt den einen Satz genauso wie die drei und
- * darf einen Verweis in die dritte Stufe enthalten, den ein Tooltip nicht
- * tragen kann.
- *
- * Das Klickfeld ist 24 px hoch, die Zeile darunter aber oft nur 16. Deshalb der
- * negative Rand: Das Zeichen darf die Zeile, in der es steht, nicht auseinander
- * ziehen — sonst stehen zwei Felder nebeneinander verschieden hoch, je nachdem,
- * ob eines von beiden eine Erklärung hat.
- */
 const MARK =
   'inline-flex items-center justify-center w-6 h-6 -my-1 shrink-0 align-middle ' +
-  'text-caption font-semibold leading-none text-ink-faint ' +
-  'transition-colors duration-120 ease-quiet hover:text-ink-muted data-[popup-open]:text-ink-muted';
+  'text-caption font-semibold leading-none text-ink-subtle ' +
+  'transition-colors duration-120 ease-quiet hover:text-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent';
 
-/**
- * Das Popover geht beim Überstreichen auf, ruhig: 300 ms bis es kommt, 200 ms
- * bis es wieder geht. Der Klick bleibt daneben bestehen — er ist der Weg mit
- * der Tastatur und auf dem Touchgerät, wo es kein Hover gibt.
- */
-const POPOVER_HOVER = { openOnHover: true, delay: 300, closeDelay: 200 } as const;
-
-export interface HelpPopoverProps {
-  /** Ein bis drei Sätze. Was länger ist, gehört in die dritte Stufe. */
-  children: React.ReactNode;
-  /** Beschriftung für Screenreader, etwa "Erklärung zu Einnahmen". */
+export interface HelpProps {
+  /** Kurze Erklärung ohne Fachjargon, Quellen oder Bedienelemente. */
+  summary: string;
+  /** Ausführliche Erklärung für den Dialog. Normen werden dort verlinkt. */
+  children?: React.ReactNode;
   label: string;
-  /** Sprung in die dritte Stufe. Die Beschriftung ist immer "Mehr dazu". */
+  /** Öffnet einen eigenen Detaildialog, etwa mit einer Berechnungstabelle. */
   onMore?: () => void;
   className?: string;
 }
 
-export const HelpPopover: React.FC<HelpPopoverProps> = ({
-  children,
-  label,
-  onMore,
-  className,
-}) => (
-  <Popover.Root>
-    <Popover.Trigger {...POPOVER_HOVER} aria-label={label} className={cn(MARK, className)}>
-      ?
-    </Popover.Trigger>
-    <Popover.Portal>
-      <Popover.Positioner sideOffset={6} className="z-50">
-        <Popover.Popup className={cn(POPUP, 'p-4 max-w-[340px] text-left')}>
-          <Popover.Description className="text-body text-ink-muted">
-            {children}
-          </Popover.Description>
-          {onMore && (
-            <Popover.Close
-              onClick={onMore}
-              className="mt-3 text-label font-semibold text-accent-text hover:text-accent transition-colors duration-120 ease-quiet"
-            >
-              Mehr dazu
-            </Popover.Close>
-          )}
-        </Popover.Popup>
-      </Popover.Positioner>
-    </Popover.Portal>
-  </Popover.Root>
-);
+/** Das Fragezeichen erklärt kurz; der getrennte Button öffnet die Details. */
+export const Help: React.FC<HelpProps> = ({ summary, children, label, onMore, className }) => {
+  const tooltipId = useId();
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const hasDetails = Boolean(children || onMore);
+
+  return (
+    <span className={cn('inline-flex items-center shrink-0 align-middle', className)}>
+      <Tooltip.Root open={tooltipOpen} onOpenChange={setTooltipOpen}>
+        <Tooltip.Trigger
+          aria-label={label}
+          aria-describedby={tooltipOpen ? tooltipId : undefined}
+          className={MARK}
+          delay={300}
+          closeDelay={200}
+          closeOnClick={false}
+          onFocus={() => setTooltipOpen(true)}
+          onBlur={() => setTooltipOpen(false)}
+          onClick={() => setTooltipOpen(true)}
+        >
+          ?
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Positioner sideOffset={6} className="z-50">
+            <Tooltip.Popup id={tooltipId} role="tooltip" className={cn(POPUP, 'px-3 py-2 max-w-[300px] text-left text-body font-normal text-ink-muted')}>
+              {summary}
+            </Tooltip.Popup>
+          </Tooltip.Positioner>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+      {hasDetails && (
+        <button
+          type="button"
+          className="ml-1 text-caption font-normal text-ink-subtle underline underline-offset-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          aria-label={`Mehr erfahren: ${label}`}
+          aria-haspopup="dialog"
+          onClick={() => {
+            setTooltipOpen(false);
+            if (onMore) onMore();
+            else setDetailsOpen(true);
+          }}
+        >
+          Mehr erfahren
+        </button>
+      )}
+      {!onMore && hasDetails && (
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen} title={label}>
+          <div className="text-body font-normal text-ink-muted space-y-3">
+            <p>{summary}</p>
+            <div>{children}</div>
+          </div>
+        </Dialog>
+      )}
+    </span>
+  );
+};
 
 export interface InfoPopoverProps {
   trigger: React.ReactNode;

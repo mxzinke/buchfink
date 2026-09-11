@@ -536,7 +536,7 @@ machen gibt.
 | `Field`, `FieldRow`, `FormGrid` | `Field.tsx` | Base UI Field |
 | `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
 | `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
-| `HelpPopover`, `InfoPopover` | `Help.tsx` | Base UI Popover |
+| `Help`, `InfoPopover` | `Help.tsx` | Base UI Tooltip, Dialog und Popover |
 | `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
 | `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
 | `FileDrop` | `FileDrop.tsx` | eigen |
@@ -831,7 +831,7 @@ immer sichtbar ist, obwohl man ihn selten braucht, ist deshalb Lärm, kein
 Service.
 
 Die Regel: **Eine Arbeitsansicht enthält keinen Fließtext.** Was länger als ein
-Satz ist, wandert hinter ein Erklärzeichen.
+Satz ist, gehört in den Detaildialog hinter „Mehr erfahren“.
 
 ### 15.1 Textbudget
 
@@ -848,44 +848,34 @@ Alles darüber gehört in eine Erklärung nach §15.2. Wer beim Schreiben merkt,
 ein Absatz nötig wäre, hat entweder die Oberfläche zu erklärungsbedürftig gebaut
 oder schreibt gerade Dokumentation an der falschen Stelle.
 
-### 15.2 Zwei Stufen der Erklärung
+### 15.2 Tooltip und Detaildialog
 
-Ausgelöst wird immer bewusst, nie automatisch. Es gibt keine Tour, kein
-Popover beim ersten Besuch, keinen Hinweis, der von selbst aufgeht.
+Die Zielgruppe hat keine Ausbildung in Buchhaltung, Steuerrecht oder Technik.
+Die Arbeitsansicht nennt die Aufgabe und die nötigen Angaben. Ein Fehler bleibt
+sichtbar und erklärt, wie er behoben werden kann.
 
-| Stufe | Umfang | Auslöser | Einsatz |
-|---|---|---|---|
-| Erklärzeichen | ein bis drei Sätze, ein Link "Mehr dazu" erlaubt | Hover, Fokus und Klick, 300 ms Verzögerung | Was ist dieses Feld, Fachbegriff, Rechenweg, warum eine Aktion gesperrt ist |
-| Dialog | mehr, mit Beispiel oder Tabelle | Klick auf "Mehr dazu" | SKR04-Kontenlogik, GoBD-Regeln, E-Bilanz-Mapping |
+| Ort | Inhalt | Auslöser |
+|---|---|---|
+| Fragezeichen | Ein kurzer Satz in einfachen Worten, ohne Normen oder Links | Hover, Tastaturfokus oder Klick |
+| Detaildialog | Verständliche Hintergründe, Beispiele und verlinkte Rechtsgrundlagen | Dezenter Button „Mehr erfahren“ neben dem Fragezeichen |
 
-Das Erklärzeichen ist ein Fragezeichen in `ink-faint`, das bei Hover und Fokus
-auf `ink-muted` wechselt. Klickfeld 24 mal 24 px, auf Touch-Geräten 44. Es steht
-hinter der Beschriftung, nie davor, und ist mit der Tastatur erreichbar. Escape
-schließt. Es geht beim Überstreichen auf; der Klick bleibt daneben bestehen — er
-ist der Weg auf dem Touchgerät und mit der Tastatur.
+Jedes Fragezeichen verwendet `Help`. Der Tooltip enthält keine interaktiven
+Elemente. Der getrennte Button öffnet einen Dialog; Escape schließt ihn und
+gibt den Fokus zurück. Das funktioniert auch innerhalb eines Eingabedialogs.
+Eine begonnene Eingabe bleibt dabei erhalten.
 
-Bis Welle 9 waren es drei Stufen: ein dunkler Tooltip für den einen Satz, ein
-helles Popover für die drei. Der Unterschied bestand nur im Code. Nach außen
-trugen beide dasselbe Fragezeichen, und welches man vor sich hatte, zeigte sich
-erst beim Anfassen: Das eine kam beim Hinschauen, das andere erst auf Klick, das
-eine war dunkel, das andere hell — und an manchem Feld standen beide
-nebeneinander, zwei Fragezeichen hinter einer Beschriftung. Geblieben ist das
-Popover: Es trägt den einen Satz genauso wie die drei und kann einen Verweis in
-die dritte Stufe enthalten, was ein Tooltip nicht kann. Ein Bedienelement ohne
-Beschriftung erklärt weiterhin sein `title`, nicht ein Erklärzeichen.
+`summary` ist der Kurztext. `children` enthält die Details; `onMore` öffnet bei
+Bedarf einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
+und `PageHeader` reichen `helpSummary` und `explain` an dieselbe Hilfe weiter.
+Das Zeichen steht hinter der Beschriftung. Zusammengehörige Inhalte haben ein
+Fragezeichen, das Layout darf bei langen Beschriftungen umbrechen.
 
-Ein Ort hat genau ein Erklärzeichen. Zwei nebeneinander sind keine zwei Stufen,
-sondern zwei Fragezeichen; was zusammengehört, steht in einem Popover.
-
-„Hinter der Beschriftung" heißt: hinter dem Titel, nicht am rechten Rand. An
-einer Überschrift steht das Zeichen deshalb im Titel (`explain` an `Section` und
-`PageHeader`) und nicht im Aktionsslot daneben, wo es zwischen den Knöpfen steht
-und wie eine weitere Aktion aussieht.
-
-Das Zeichen zieht die Zeile, in der es steht, nicht auseinander: Sein Klickfeld
-ist höher als eine Beschriftung, und ohne den Ausgleich stünden zwei Felder
-nebeneinander verschieden hoch — je nachdem, ob eines von beiden eine Erklärung
-hat.
+`LegalText.tsx` verlinkt erkannte Gesetzesverweise in Dialogen mit Gesetze im
+Internet, GoBD mit dem amtlichen Handbuch und DSGVO-Verweise mit EUR-Lex.
+Bei mehreren Paragraphen führt der Link zum zuerst genannten Paragraphen;
+weitere können über das Inhaltsverzeichnis der Quelle erreicht werden.
+Rechtsprechung und andere Fachquellen werden ausdrücklich verlinkt. Ein Link
+belegt nur den zugehörigen Sachverhalt, keine allgemeine Gesetzeskonformität.
 
 ### 15.3 Wortwahl
 

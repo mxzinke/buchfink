@@ -19,7 +19,7 @@ import {
   Combobox,
   Dialog,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   Select,
@@ -340,7 +340,7 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Field
+            <Field helpSummary="Geben Sie den Namen Ihres bisherigen Buchhaltungsprogramms an."
               label="Altsystem"
               optional
               explain="Der Name des Programms, aus dem übernommen wird. Er steht später an jeder Eröffnungsbuchung."
@@ -351,10 +351,10 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
                 placeholder="Vorheriges Buchhaltungsprogramm"
               />
             </Field>
-            <Field label="Buchungstag" explain="Voreingestellt der erste Tag des Geschäftsjahres.">
+            <Field helpSummary="Die Anfangsbestände werden normalerweise am ersten Tag des Geschäftsjahres gebucht." label="Buchungstag" explain="Voreingestellt der erste Tag des Geschäftsjahres.">
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
-            <Field
+            <Field helpSummary="Legen Sie die Schlussbilanz aus Ihrem bisherigen Programm als Beleg ab."
               label="Beleg der Schlussbilanz"
               explain="Pflicht: eine Eröffnungsbilanz ohne Beleg wäre eine Behauptung über Zahlen aus einem anderen System (§ 146 Abs. 1 AO). Die Schlussbilanz des Altsystems ist zuvor als Beleg abzulegen."
             >
@@ -375,11 +375,11 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
             <div className="flex items-center justify-between gap-4 mb-3">
               <span className="flex items-center text-label text-ink-muted">
                 Sachkonten
-                <HelpPopover label="Erklärung zu den Sachkonten">
+                <Help summary="Übernehmen Sie die Bestände aus der Schlussbilanz Ihres bisherigen Programms." label="Erklärung zu den Sachkonten">
                   Jeder Bestand der Schlussbilanz wird mit seinem Saldo erfasst: Aktivkonten im
                   Soll, Passiv- und Kapitalkonten im Haben. Die Gegenbuchung erfolgt auf dem
                   Saldenvortragskonto 9000 und ist weder Aufwand noch Ertrag.
-                </HelpPopover>
+                </Help>
               </span>
               <Button
                 variant="quiet"
@@ -572,7 +572,7 @@ const OpenItemDraftTable: React.FC<{
       <div className="flex items-center justify-between gap-4 mb-3">
         <span className="flex items-center text-label text-ink-muted">
           {title}
-          <HelpPopover label={`Erklärung zu ${title}`}>{help}</HelpPopover>
+          <Help summary="Erfassen Sie jede beim Umstieg noch unbezahlte Rechnung einzeln." label={`Erklärung zu ${title}`}>{help}</Help>
         </span>
         <Button variant="quiet" size="sm" onClick={onAdd}>
           Posten hinzufügen

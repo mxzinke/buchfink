@@ -18,7 +18,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Menu,
   MenuItem,
@@ -183,7 +183,7 @@ export const AdvancesPage: React.FC = () => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Verwalten Sie Teilzahlungen vor der Lieferung und rechnen Sie sie am Ende gemeinsam ab."
         title="Anzahlungen"
         context={
           loading
@@ -466,7 +466,7 @@ export const AdvancesPage: React.FC = () => {
         </Section>
       )}
 
-      <Section
+      <Section helpSummary="Hier sehen Sie Zahlungen für Waren oder Leistungen, die Sie noch nicht erhalten haben."
         title="Geleistete Anzahlungen"
         context={
           loading
@@ -679,7 +679,7 @@ const GroupDialog: React.FC<{
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-        <Field
+        <Field helpSummary="Geben Sie den Gesamtpreis ein, den Sie mit Ihrem Kunden vereinbart haben."
           label="Vereinbarter Gesamtbetrag"
           hint="netto"
           explain="Er ist die Obergrenze der Abschläge und die Bemessungsgrundlage der Schlussrechnung. Buchfink weist einen Abschlag zurück, der die Summe darüber hebt."
@@ -793,11 +793,11 @@ const AdvanceDialog: React.FC<{
           <p className="text-body text-ink-muted">
             {group.title} · noch nicht abgerechnet{' '}
             <span className="num text-ink">{formatCents(remaining)}</span>
-            <HelpPopover label="Erklärung zur Abschlagsrechnung">
+            <Help summary="Mit einer Abschlagsrechnung fordern Sie eine Teilzahlung vor der fertigen Leistung an." label="Erklärung zur Abschlagsrechnung">
               Die Abschlagsrechnung hat den Typcode 386 und wird beim Ausstellen nicht gebucht.
               Sie erscheint als offener Posten der Quelle „Abschlag"; mit dem Zahlungseingang bucht
               Buchfink gegen die erhaltenen Anzahlungen und die Umsatzsteuer.
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -827,7 +827,7 @@ const AdvanceDialog: React.FC<{
             />
           </Field>
 
-          <Field
+          <Field helpSummary="Geben Sie das Datum an, an dem Sie die Zahlung erhalten haben, falls es schon feststeht."
             label="Vereinnahmt am"
             optional
             className="mt-4 max-w-sm"
@@ -967,13 +967,13 @@ const FinalDialog: React.FC<{
             {group.title} · abzusetzen{' '}
             <span className="num text-ink">{formatCents(prepaid)}</span> aus {deducted.length}{' '}
             {deducted.length === 1 ? 'Anzahlung' : 'Anzahlungen'}
-            <HelpPopover label="Erklärung zur Schlussrechnung">
+            <Help summary="Die Schlussrechnung zieht bereits erhaltene Anzahlungen vom Gesamtpreis ab." label="Erklärung zur Schlussrechnung">
               Die Schlussrechnung rechnet über die gesamte Leistung ab und setzt die vereinnahmten
               Anzahlungen ab (BT-113, § 14 Abs. 5 Satz 2 UStG). Gebucht wird der Gesamtbetrag gegen
               Erlös und Umsatzsteuer, dazu die Auflösung der erhaltenen Anzahlungen samt ihrer
               Steuer; als Forderung bleibt der Restbetrag. Ein noch offener Abschlag muss vorher
               vereinnahmt oder storniert sein.
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4">
@@ -1180,12 +1180,12 @@ const SettleDialog: React.FC<{
           <p className="text-body text-ink-muted">
             <span className="code-num text-ink">{advance.invoiceNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(advance.grossAmount)}</span>
-            <HelpPopover label="Erklärung zur Vereinnahmung">
+            <Help summary="Erfassen Sie, wann und wie viel Geld Ihr Kunde angezahlt hat." label="Erklärung zur Vereinnahmung">
               Mit der Zahlung entsteht die Umsatzsteuer. Gebucht wird das Zahlungsmittel gegen die
               erhaltenen, versteuerten Anzahlungen und die Umsatzsteuer; der Voranmeldungszeitraum
               folgt dem Zahlungsdatum. Kommt das Geld über den Kontoauszug, gehört die Zuordnung in
               Bank &amp; Zahlungen — dann stammen Konto und Datum aus dem Auszug.
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -1293,12 +1293,12 @@ const RefundDialog: React.FC<{
           <p className="text-body text-ink-muted">
             <span className="code-num text-ink">{advance.invoiceNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(advance.grossAmount)}</span>
-            <HelpPopover label="Erklärung zur Rückzahlung">
+            <Help summary="Erfassen Sie die Rückzahlung, bevor Sie eine bereits bezahlte Anzahlung stornieren." label="Erklärung zur Rückzahlung">
               Die Steuer einer Anzahlung entsteht mit der Vereinnahmung. Sie zu berichtigen setzt
               nach § 17 Abs. 2 Nr. 2 UStG voraus, dass das Entgelt zurückgezahlt worden ist —
               deshalb steht die Rückzahlung vor dem Storno einer bezahlten Abschlagsrechnung.
               Gebucht wird sie im Zeitraum der Rückzahlung.
-            </HelpPopover>
+            </Help>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">

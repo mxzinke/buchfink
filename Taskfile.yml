@@ -71,6 +71,7 @@ tasks:
     # wo sie erklärt wird.
     cmds:
       - python3 scripts/check_ui_text.py
+      - node scripts/check_help.mjs
 
   check:steps:
     summary: Checks that every Abschlussbaustein has a target in the geführter Weg

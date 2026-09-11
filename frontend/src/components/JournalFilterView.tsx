@@ -198,7 +198,7 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
               placeholder="Alle Konten"
             />
           </Field>
-          <Field
+          <Field helpSummary="Hier wählen Sie, wofür der Betrag auf der anderen Seite der Buchung steht."
             label="Gegenkonto"
             className="flex-1"
             explain="Konto auf der anderen Seite derselben Buchung"
@@ -270,7 +270,7 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
         </FieldRow>
       </Section>
 
-      <Section
+      <Section helpSummary="Die Summe berücksichtigt nur die Zeilen, die zu Ihrem Filter passen."
         title="Gefundene Zeilen"
         context={
           result

@@ -50,10 +50,8 @@ type IncomingInvoice struct {
 	// correction to what it corrects and a Schlussrechnung to its
 	// Anzahlungsrechnungen.
 	//
-	// TODO: Rechnungsverbund — die genannten Nummern gegen die abgelegten Belege
-	// auflösen und den Bezug speichern, statt ihn nur anzuzeigen. Ohne das bleibt
-	// die Verrechnung einer Korrektur oder einer Anzahlung Handarbeit; siehe
-	// docs/anforderung-anzahlungen.md.
+	// Eingelesene Vorgängernummern werden angezeigt, aber hier nicht automatisch
+	// gegen vorhandene Belege aufgelöst. Der Rechnungsverbund wird separat geführt.
 	BuyerReference    string   `json:"buyerReference,omitempty"`
 	OrderReference    string   `json:"orderReference,omitempty"`
 	PrecedingInvoices []string `json:"precedingInvoices,omitempty"`
@@ -93,11 +91,9 @@ const (
 // booking for any of them would put the sign or the period wrong, and it would
 // look right.
 //
-// TODO: eigene Buchungswege für Gutschrift (Minderung von Aufwand und Vorsteuer,
-// verrechnet gegen die ursprüngliche Rechnung), Rechnungskorrektur und
-// Anzahlungsrechnung (§ 14 Abs. 5 UStG — steuerwirksam erst mit der Zahlung, in
-// der Schlussrechnung wieder abzusetzen). Kein Sonderfall im vorhandenen Weg:
-// jede von ihnen ist ein anderer Geschäftsvorfall.
+// Dieser automatische Vorschlagsweg nimmt nur gewöhnliche Rechnungen an.
+// Anzahlungen brauchen insbesondere den Zahlungszeitpunkt nach § 14 Abs. 5 UStG;
+// dafür bestehen eigene Erfassungswege außerhalb dieses Vorschlags.
 func (k EInvoiceKind) Bookable() bool { return k == EInvoiceKindInvoice }
 
 // Label returns a German name.
@@ -191,8 +187,7 @@ func TaxTreatmentForIncomingCategory(categoryCode string) (TaxTreatment, error) 
 		// Buchfink bildet den Fall nicht ab, und ihn als "steuerfrei" zu buchen
 		// wäre falsch.
 		//
-		// TODO: Einfuhr abbilden — Einfuhrumsatzsteuer aus dem Zollbescheid als
-		// eigener Beleg, verknüpft mit dieser Rechnung.
+		// Einfuhrumsatzsteuer aus einem verknüpften Zollbescheid wird hier nicht erfasst.
 		return "", fmt.Errorf("der Kategoriecode G steht für eine Ausfuhr des Lieferanten. Für den Empfänger ist das eine Einfuhr, die Buchfink noch nicht abbildet — die Einfuhrumsatzsteuer steht im Zollbescheid, nicht in dieser Rechnung")
 	case "L", "M":
 		// IGIC und IPSI sind spanische Sondergebietsteuern. Sie kommen in

@@ -14,6 +14,7 @@ npm --prefix frontend install            # einmalig
 npm --prefix scripts/site-screenshots install
 node scripts/site-screenshots/shoot.mjs        # die Bilder
 node scripts/site-screenshots/four-clicks.mjs  # der Klickweg (task check:clicks)
+node scripts/site-screenshots/help.mjs         # Tooltips, Dialoge, Quellenlinks
 ```
 
 Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
@@ -72,3 +73,7 @@ darauf, dass der Weg Buchung → Beleg im Journal überhaupt besteht.
 
 Playwright braucht einen Chromium-Build. Ist keiner vorhanden, holt ihn
 `npx playwright install chromium`.
+
+`help.mjs` prüft Hover und Tastaturfokus am Fragezeichen, die Trennung von
+Kurztext und Details, Quellenlinks, Escape, Fokusrückgabe sowie eine Hilfe
+innerhalb eines geöffneten Dialogs.

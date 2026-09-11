@@ -48,7 +48,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   PageHeader,
   RadioGroup,
@@ -112,8 +112,8 @@ function classOfAccount(account: string): AssetClass | null {
 
 /**
  * Erklärungen verteilen sich auf die drei Stufen aus §15.2: eine Zeile Kontext
- * in der Ansicht, bis zu drei Sätze im Popover, alles Weitere im Dialog hinter
- * „Mehr dazu".
+ * in der Ansicht, ein kurzer Tooltip, die Details im Dialog hinter
+ * „Mehr erfahren".
  *
  * Eine Arbeitsansicht enthält keinen Fließtext. Wer täglich damit arbeitet,
  * scrollt am Erklärsatz beim zwanzigsten Mal nur noch vorbei — und die
@@ -124,7 +124,7 @@ interface Explanation {
   title: string;
   /** Eine Zeile, die in der Ansicht stehen bleibt. */
   line: string;
-  /** Bis drei Sätze im Popover. */
+  /** Ergänzende Beschreibung des Themas. */
   short: React.ReactNode;
   /** Der lange Text, nur auf Klick. */
   full: React.ReactNode;
@@ -136,9 +136,9 @@ const ExplainLine: React.FC<{ explanation: Explanation; onMore: () => void }> = 
 }) => (
   <div className="flex items-center gap-1 text-caption text-ink-subtle">
     <span>{explanation.line}</span>
-    <HelpPopover label={`Erklärung zu ${explanation.title}`} onMore={onMore}>
+    <Help summary="Hier erfahren Sie, wie diese Einstellung den Wert und die Abschreibung beeinflusst." label={`Erklärung zu ${explanation.title}`} onMore={onMore}>
       {explanation.short}
-    </HelpPopover>
+    </Help>
   </div>
 );
 
@@ -161,10 +161,9 @@ const ExplainDialog: React.FC<{ explanation: Explanation | null; onClose: () => 
   </Dialog>
 );
 
-/** In den Masken bleibt es bei zwei Stufen — ein Dialog im Dialog hilft niemandem. */
+/** Formularhilfe öffnet ihre Details auch innerhalb eines Eingabedialogs. */
 /**
- * Die zweite Erklärstufe an einer Maske: eine Zeile Kontext und dahinter das
- * Erklärzeichen mit dem Ausführlichen (§15.2).
+ * Formularhilfe mit kurzer Erklärung und einem getrennten Detaildialog (§15.2).
  *
  * Der Name sagt, was es ist — eine Erklärung und kein `hint`: der Hinweis am
  * Feld ist unmittelbar sichtbar und hat deshalb keine Norm, diese Fläche
@@ -177,7 +176,7 @@ const FormExplanation: React.FC<{ label: string; line: string; children: React.R
 }) => (
   <div className="flex items-center gap-1 text-caption text-ink-subtle">
     <span>{line}</span>
-    <HelpPopover label={label}>{children}</HelpPopover>
+    <Help summary="Hier erfahren Sie, welche Angaben zu diesem Anlagegut nötig sind." label={label}>{children}</Help>
   </div>
 );
 
@@ -853,7 +852,7 @@ const DepreciationTab: React.FC<{
       ) : (
         <>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <Field
+            <Field helpSummary="Wählen Sie ein Datum in dem Jahr, für das Sie die Abschreibung buchen."
               label="Buchungsdatum"
               hint="Bilanzstichtag des Geschäftsjahres"
               className="w-48"
@@ -1126,9 +1125,9 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
     <div className="space-y-6">
       {error && <Notice tone="negative">{error}</Notice>}
 
-      <Section
+      <Section helpSummary="Hier sehen Sie steuerliche Abschreibungen, die vom Wert in der Bilanz abweichen."
         title="Verzeichnis steuerlicher Wahlrechte"
-        context={register?.note || `Geschäftsjahr ${year} · Bestandteil des Prüferpakets`}
+        context={`Geschäftsjahr ${year} · Steuerliche Abschreibungen`}
         divider={false}
         explain={
           <>
@@ -1253,9 +1252,9 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
       </Section>
 
       {legacyRows.length > 0 && (
-        <Section
+        <Section helpSummary="Hier sehen Sie Sonderabschreibungen, die mit einer früheren Programmversion gebucht wurden."
           title="Sonderabschreibungen aus früheren Jahren"
-          context={legacy?.note || 'Sie stehen als Buchung im Journal und bleiben dort'}
+          context="Früher gebuchte Sonderabschreibungen"
           explain={
             <>
               Bis zu dieser Fassung hat Buchfink die Sonderabschreibung nach § 7g Abs. 5 EStG im
@@ -1737,7 +1736,7 @@ const AssetFormDialog: React.FC<{
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Wählen Sie, ob es um Sachen, Rechte oder Finanzanlagen geht."
           label="Anlagenklasse"
           explain="Die drei Blöcke des Anlagevermögens nach § 266 Abs. 2 A HGB. Sie entscheiden über Konten und Bewertung."
         >
@@ -1763,7 +1762,7 @@ const AssetFormDialog: React.FC<{
         <Input value={asset.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
       </Field>
 
-      <Field
+      <Field helpSummary="Wählen Sie das Konto, auf dem der Wert dieses Anlageguts geführt wird."
         label="Anlagekonto"
         className="mt-4"
         hint={selectedAccount?.hint}
@@ -1783,14 +1782,14 @@ const AssetFormDialog: React.FC<{
       </Field>
 
       <div className="grid grid-cols-3 gap-4 mt-4">
-        <Field label="Anschaffungsdatum" explain="Die AfA läuft monatsgenau ab diesem Monat.">
+        <Field helpSummary="Ab diesem Monat beginnt die Abschreibung." label="Anschaffungsdatum" explain="Die AfA läuft monatsgenau ab diesem Monat.">
           <Input
             type="date"
             value={asset.acquisitionDate ?? ''}
             onChange={(e) => set({ acquisitionDate: e.target.value })}
           />
         </Field>
-        <Field
+        <Field helpSummary="Erfassen Sie den Kaufpreis mit Nebenkosten und ziehen Sie Rabatte ab."
           label="Anschaffungskosten"
           hint="netto, ohne Vorsteuer"
           error={costError}
@@ -1804,7 +1803,7 @@ const AssetFormDialog: React.FC<{
             onChange={(e) => setCostText(e.target.value)}
           />
         </Field>
-        <Field
+        <Field helpSummary="Übernehmen Sie die Angaben aus der bereits erfassten Anschaffungsbuchung."
           label="Zugangsbuchung"
           optional
           explain="Die gewählte Buchung füllt Konto, Betrag, Datum und Lieferant — sie weiß das alles bereits."
@@ -1876,7 +1875,7 @@ const AssetFormDialog: React.FC<{
           />
         </Field>
         {needsUsefulLife && (
-          <Field
+          <Field helpSummary="Geben Sie an, wie viele Jahre Sie das Anlagegut voraussichtlich nutzen."
             label="Nutzungsdauer in Jahren"
             hint={
               asset.usefulLifeMonths
@@ -1918,18 +1917,18 @@ const AssetFormDialog: React.FC<{
             {poolConflict}
             {/* Die Norm steht in der zweiten Erklärstufe und nicht im
                 Hinweisstreifen (Architektur 6.4). */}
-            <HelpPopover label="Erklärung zum Wahlrecht des Sammelpostens">
+            <Help summary="Für Anschaffungen im selben Wertbereich müssen Sie die Methode im Jahr einheitlich wählen." label="Erklärung zum Wahlrecht des Sammelpostens">
               § 6 Abs. 2a Satz 5 EStG lässt den Sammelposten nur zu, wenn er für alle
               Wirtschaftsgüter eines Wirtschaftsjahres innerhalb der Wertgrenzen gebildet wird. Wer
               eines davon sofort abzieht, übt das Wahlrecht uneinheitlich aus; die Prüfung greift
               deshalb schon beim Erfassen und nicht erst im Abschluss.
-            </HelpPopover>
+            </Help>
           </Notice>
         </div>
       )}
 
       {usefulLifeDeviates && (
-        <Field
+        <Field helpSummary="Begründen Sie, warum Sie eine andere Nutzungsdauer als vorgeschlagen verwenden."
           label="Begründung der abweichenden Nutzungsdauer"
           className="mt-4"
           hint={`Vorschlag: ${selectedAccount?.defaultUsefulLifeMonths} Monate`}
@@ -1954,16 +1953,16 @@ const AssetFormDialog: React.FC<{
                 label="Rein elektrisch betrieben"
                 hint="Voraussetzung der Staffel 75, 10, 5, 5, 3 und 2 %"
               />
-              <HelpPopover label="Erklärung zur Staffel für Elektrofahrzeuge">
+              <Help summary="Für bestimmte Elektrofahrzeuge verteilt sich die Abschreibung nach festen Jahressätzen." label="Erklärung zur Staffel für Elektrofahrzeuge">
                 Für rein elektrisch betriebene Fahrzeuge, die in einem der begünstigten Zeiträume
                 angeschafft wurden, gilt eine feste Staffel von 75, 10, 5, 5, 3 und 2 % der
                 Anschaffungskosten (§ 7 Abs. 2a EStG) statt der linearen oder degressiven
                 Abschreibung.
-              </HelpPopover>
+              </Help>
             </span>
           )}
           {needsBuildingDate && (
-            <Field
+            <Field helpSummary="Bei Gebäuden entscheidet der Bauantrag oder die Fertigstellung über den Abschreibungssatz."
               label="Stichtag des Gebäudes"
               hint="Bauantrag oder Fertigstellung"
               explain="§ 7 Abs. 4 EStG macht den Satz an diesem Tag fest: beim Betriebsgebäude am Bauantrag, beim Wohngebäude an der Fertigstellung. Das Anschaffungsdatum ist kein Ersatz — ein altes Gebäude, das gerade gekauft wurde, bekäme daraus den falschen Satz."
@@ -1992,16 +1991,16 @@ const AssetFormDialog: React.FC<{
             label="Sonderabschreibung in Anspruch nehmen"
             hint="Bis 40 % zusätzlich zur Absetzung für Abnutzung"
           />
-          <HelpPopover label="Erklärung zur Sonderabschreibung">
+          <Help summary="Unter bestimmten Voraussetzungen ist eine zusätzliche steuerliche Abschreibung möglich." label="Erklärung zur Sonderabschreibung">
             Kleine und mittlere Betriebe dürfen für ein bewegliches Wirtschaftsgut bis zu 40 % der
             Anschaffungskosten zusätzlich abschreiben, verteilbar auf das Anschaffungsjahr und die
             vier folgenden (§ 7g Abs. 5 EStG). Sie ist ein steuerliches Wahlrecht: Buchfink führt sie
             am Anlagegut und im Verzeichnis, statt sie zu buchen.
-          </HelpPopover>
+          </Help>
           {usesSpecial && (
             <>
               <div className="grid grid-cols-3 gap-4">
-                <Field
+                <Field helpSummary="Der Prozentsatz bezieht sich auf die ursprünglichen Anschaffungskosten."
                   label="Satz in Prozent"
                   hint={`höchstens ${(rules?.specialMaxPermille ?? 400) / 10} %`}
                   explain="Der Satz bemisst sich an den Anschaffungskosten, nicht am Restbuchwert. Die planmäßige AfA läuft daneben unverändert weiter — § 7g Abs. 5 EStG lässt die Sonderabschreibung neben der linearen wie neben der degressiven zu."
@@ -2016,7 +2015,7 @@ const AssetFormDialog: React.FC<{
                     onChange={(e) => set({ specialPermille: Math.round(Number(e.target.value) * 10) })}
                   />
                 </Field>
-                <Field
+                <Field helpSummary="Wählen Sie, über wie viele Jahre Sie die zusätzliche Abschreibung verteilen."
                   label="Verteilt auf Jahre"
                   hint={`eins bis ${rules?.specialPeriodYears ?? 5}`}
                   explain="Die Verteilung über den Begünstigungszeitraum ist ein Wahlrecht. Danach verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer."
@@ -2038,10 +2037,10 @@ const AssetFormDialog: React.FC<{
                   />
                 </Field>
               </div>
-              <Field
-                label="Voraussetzungen nach § 7g Abs. 6 EStG"
+              <Field helpSummary="Halten Sie fest, warum Ihr Unternehmen die zusätzliche Abschreibung nutzen darf."
+                label="Voraussetzungen der Sonderabschreibung"
                 hint="Gewinn des Vorjahres höchstens 200.000 €, fast ausschließlich betriebliche Nutzung"
-                explain="Zwei Sachverhalte, die Buchfink nicht kennen kann. Festzuhalten ist, worauf sich die Inanspruchnahme stützt — die Angabe steht später bei der Buchung."
+                explain="Halten Sie fest, wie die Voraussetzungen der Sonderabschreibung nach § 7g Abs. 6 EStG erfüllt sind. Die Angabe dokumentiert die Grundlage Ihrer Entscheidung."
               >
                 <Textarea
                   rows={2}
@@ -2063,7 +2062,7 @@ const AssetFormDialog: React.FC<{
               onChange={(e) => set({ identifier: e.target.value })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Geben Sie an, wie viel Prozent des anderen Unternehmens Ihnen gehören."
             label="Beteiligungsquote"
             optional
             hint="in Prozent"
@@ -2086,15 +2085,15 @@ const AssetFormDialog: React.FC<{
                 label="Anteil an einer Kapitalgesellschaft"
                 hint="Gewinn und Verlust über eigene Konten"
               />
-              <HelpPopover label="Erklärung zum Anteil an einer Kapitalgesellschaft">
+              <Help summary="Gewinne aus dem Verkauf von Unternehmensanteilen werden je nach Eigentümer unterschiedlich besteuert." label="Erklärung zum Anteil an einer Kapitalgesellschaft">
                 Der Gewinn aus der Veräußerung ist bei einer Kapitalgesellschaft im Ergebnis zu 95 %
                 steuerfrei (§ 8b Abs. 2 KStG), bei einer natürlichen Person im Betriebsvermögen zu
                 40 % (§ 3 Nr. 40 EStG). Damit die Rechnung später stimmt, laufen Gewinn und Verlust
                 über eigene Konten.
-              </HelpPopover>
+              </Help>
             </span>
           </div>
-          <Field
+          <Field helpSummary="Mit der Stückzahl kann Buchfink den Wert eines teilweise verkauften Bestands berechnen."
             label="Stückzahl"
             optional
             hint="Anteile, Stücke, Nominale"
@@ -2111,7 +2110,7 @@ const AssetFormDialog: React.FC<{
               }
             />
           </Field>
-          <Field
+          <Field helpSummary="Wählen Sie die Währung, in der das Wertpapier gehandelt wird."
             label="Notierungswährung"
             optional
             hint="ISO-Code, leer heißt Euro"
@@ -2124,7 +2123,7 @@ const AssetFormDialog: React.FC<{
               onChange={(e) => set({ currency: e.target.value.toUpperCase() })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Die Fondsart bestimmt, welcher Teil von Erträgen steuerfrei bleiben kann."
             label="Fondsart"
             optional
             hint="entscheidet über die Teilfreistellung"
@@ -2138,7 +2137,7 @@ const AssetFormDialog: React.FC<{
               onValueChange={(next) => set({ fundClass: next as FundClass })}
             />
           </Field>
-          <Field
+          <Field helpSummary="Das Rückzahlungsdatum beeinflusst die Bewertung von Beträgen in fremder Währung."
             label="Fälligkeit"
             optional
             hint="bei einer Ausleihung"
@@ -2188,9 +2187,9 @@ const AssetFormDialog: React.FC<{
           <p className="flex items-center gap-1.5 text-body text-attention-text">
             Für {asset.poolYear || year} besteht bereits der Sammelposten {pool.inventoryNumber} über{' '}
             {formatCents(pool.cost)} — je Wirtschaftsjahr gibt es genau einen.
-            <HelpPopover label="Erklärung zum Sammelposten">
+            <Help summary="Bestimmte kleinere Anschaffungen lassen sich gemeinsam über fünf Jahre abschreiben." label="Erklärung zum Sammelposten">
               Der Sammelposten des § 6 Abs. 2a EStG fasst alle Wirtschaftsgüter eines Wirtschaftsjahres zwischen 250 und 1.000 Euro zusammen und wird über fünf Jahre aufgelöst.
-            </HelpPopover>
+            </Help>
           </p>
           <Button
             variant="secondary"
@@ -2532,9 +2531,9 @@ const AssetOverview: React.FC<{
           <span className="inline-flex items-center gap-1.5">
             Notiert in {asset.currency}: {formatCentsPlain(asset.foreignCost)} {asset.currency} zu
             Anschaffungskosten von {formatCents(asset.acquisitionCost)}.
-            <HelpPopover label="Erklärung zur Umrechnung">
+            <Help summary="Buchfink rechnet den Wert zum Abschlussdatum in Euro um." label="Erklärung zur Umrechnung">
               Zum Abschlussstichtag ist zum Devisenkassamittelkurs umzurechnen (§ 256a HGB), nach oben begrenzt durch die Anschaffungskosten.
-            </HelpPopover>
+            </Help>
           </span>
         </div>
       ) : null}
@@ -2863,7 +2862,7 @@ const DocumentForm: React.FC<{
             onChange={(e) => setDocumentDate(e.target.value)}
           />
         </Field>
-        <Field
+        <Field helpSummary="Mit diesem Datum kann Buchfink Sie auf auslaufende Unterlagen hinweisen."
           label="Läuft ab am"
           optional
           hint="Police, Frist, Fälligkeit"
@@ -2981,7 +2980,7 @@ const VorabpauschaleForm: React.FC<{
       </FormExplanation>
 
       <div className="grid grid-cols-4 gap-4">
-        <Field label="Kalenderjahr" explain="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
+        <Field helpSummary="Diese Berechnung bezieht sich immer auf das Kalenderjahr." label="Kalenderjahr" explain="§ 18 InvStG rechnet nach Kalenderjahren, auch bei einem abweichenden Wirtschaftsjahr.">
           <Input
             type="number"
             align="right"
@@ -3018,7 +3017,7 @@ const VorabpauschaleForm: React.FC<{
         </Field>
       </div>
 
-      <Field
+      <Field helpSummary="Tragen Sie den veröffentlichten Basiszins für die Berechnung der Fondsbesteuerung ein."
         label="Basiszins in Prozent"
         hint="aus dem BMF-Schreiben im Bundessteuerblatt"
         explain="Der Basiszins steht nicht im Gesetz. Die Bundesbank errechnet ihn auf den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Buchfink liefert ihn deshalb nicht mit — ein mitgelieferter Wert wäre im nächsten Jahr falsch."
@@ -3049,7 +3048,7 @@ const VorabpauschaleForm: React.FC<{
             />
             <Stat label="Gilt als zugeflossen" value={formatDate(result.accruedOn)} />
           </StatRow>
-          <p className="text-body text-ink-muted">{result.explanation}</p>
+          <Help summary="Die Berechnung ermittelt einen steuerlichen Betrag für Ihre Fondsanteile." label="Berechnung der Vorabpauschale">{result.explanation}</Help>
         </Section>
       )}
 
@@ -3093,7 +3092,7 @@ const InvestmentNote: React.FC<{ note: InvestmentTaxNote }> = ({ note }) => (
         Zu versteuern <span className="num text-ink">{formatCents(note.taxableAmount)}</span>
       </span>
     </div>
-    <p className="text-caption text-ink-subtle">{note.explanation}</p>
+    <Help summary="Ein Teil dieser Erträge kann von der Steuer befreit sein." label="Berechnung der Teilfreistellung">{note.explanation}</Help>
   </div>
 );
 
@@ -3262,7 +3261,7 @@ const WriteUpForm: React.FC<{
     <div className="space-y-4">
       <FormExplanation
         label="Erklärung zur Zuschreibung"
-        line="Zuschreiben ist ein Gebot, kein Wahlrecht (§ 253 Abs. 5 Satz 1 HGB)."
+        line="Prüfen Sie, ob der Grund der Wertminderung noch besteht."
       >
         Fällt der Grund für eine frühere außerplanmäßige Abschreibung weg, ist zuzuschreiben. Die
         Obergrenze sind die fortgeführten Anschaffungskosten: der Buchwert, den das Anlagegut ohne
@@ -3406,7 +3405,7 @@ const CostAdjustmentForm: React.FC<{
       </div>
 
       {!reduction && canExtend && (
-        <Field
+        <Field helpSummary="Eine längere Nutzungsdauer verteilt den verbleibenden Wert auf mehr Jahre."
           label="Nutzungsdauer verlängert sich um"
           hint={
             extendMonths > 0
@@ -3619,7 +3618,7 @@ const MaintenanceForm: React.FC<{
             />
           </Field>
         )}
-        <Field
+        <Field helpSummary="Begründen Sie, ob die Arbeiten den bisherigen Zustand erhalten oder das Gebäude erweitern."
           label="Abgrenzung zur Erweiterung"
           hint="wird mit der Buchung festgehalten"
           explain="Die Unterscheidung ist eine Einschätzung, keine Rechnung. Ohne festgehaltene Begründung ist sie später nicht mehr nachvollziehbar."
@@ -3635,12 +3634,12 @@ const MaintenanceForm: React.FC<{
           label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
           hint="bleibt außerhalb des 15-%-Rahmens"
         />
-        <HelpPopover label="Erklärung zur üblichen Erhaltungsarbeit">
+        <Help summary="Regelmäßig anfallende Erhaltungsarbeiten werden hier gesondert behandelt." label="Erklärung zur üblichen Erhaltungsarbeit">
           Jährlich üblicherweise anfallende Erhaltungsarbeiten bleiben aus dem 15-%-Rahmen der
           ersten drei Jahre heraus (§ 6 Abs. 1 Nr. 1a Satz 2 EStG). Instandsetzung und
           Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als
           um den laufenden Unterhalt.
-        </HelpPopover>
+        </Help>
       </span>
 
       {/* Der Rahmen des § 6 Abs. 1 Nr. 1a EStG: vor der Buchung als Vorschau,
@@ -3656,13 +3655,13 @@ const MaintenanceForm: React.FC<{
         >
           <h4 className={cn('text-label', check.exceeded ? 'text-attention-text' : 'text-ink')}>
             Anschaffungsnahe Herstellungskosten
-            <HelpPopover label="Erklärung zum 15-%-Rahmen">
+            <Help summary="Größere Renovierungen kurz nach dem Kauf können zu den Gebäudekosten gehören." label="Erklärung zum 15-%-Rahmen">
               Übersteigen die Aufwendungen für Instandsetzung und Modernisierung innerhalb von drei
               Jahren nach der Anschaffung eines Gebäudes 15 % der Anschaffungskosten ohne
               Umsatzsteuer, gehören sie zu den Herstellungskosten (§ 6 Abs. 1 Nr. 1a EStG). Sie
               sind dann über die Gebäude-AfA zu verteilen, nicht sofort abziehbar — und zwar
               sämtliche, auch die bereits als Aufwand gebuchten.
-            </HelpPopover>
+            </Help>
           </h4>
           <p className="text-body text-ink-muted mt-1.5">{check.note}</p>
           <p className="text-caption text-ink-subtle mt-1">
@@ -3690,7 +3689,7 @@ const MaintenanceForm: React.FC<{
             <span className="num">{formatCents(booked.spent)}</span> gegenüber{' '}
             <span className="num">{formatCents(booked.limit)}</span>
           </p>
-          <Field
+          <Field helpSummary="Begründen Sie, warum die Ausgabe zum Wert des Anlageguts hinzugerechnet wird."
             label="Grund der Aktivierung"
             className="mt-3"
             explain="Die Umbuchung nimmt gebuchten Aufwand zurück und aktiviert ihn. Wer sie später liest, muss wissen, worauf sie beruht."
@@ -3942,7 +3941,7 @@ const CurrencyForm: React.FC<{
     <div className="space-y-4">
       <FormExplanation
         label="Erklärung zur Fremdwährungsbewertung"
-        line="Umgerechnet wird zum Devisenkassamittelkurs des Abschlussstichtags (§ 256a HGB)."
+        line="Prüfen Sie den Euro-Wert zum Abschlussdatum."
       >
         Nach oben begrenzt das Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB, Ausnahme § 256a Satz 2 HGB).
         Die Ausnahme greift nur bis zu einem Jahr Restlaufzeit und passt auf ein Anlagegut nicht,
@@ -4002,13 +4001,12 @@ const CurrencyForm: React.FC<{
               value={formatCents(valuation.proposedAmount)}
             />
           </StatRow>
-          <p className="text-body text-ink-muted">{valuation.explanation}</p>
+          <Help summary="Der Wechselkurs zum Abschlussdatum verändert den Wert in Euro." label="Berechnung des Währungswerts">{valuation.explanation}</Help>
           {valuation.shortTerm && (
-            <p className="mt-2 text-caption text-ink-subtle">
-              Die Restlaufzeit beträgt höchstens ein Jahr: § 256a Satz 2 HGB nimmt den Posten damit
-              vom Anschaffungskostenprinzip aus — anders als bei einer Beteiligung ohne Fälligkeit
-              schlägt ein gestiegener Kurs hier voll durch.
-            </p>
+            <Help summary="Bei kurzfristigen Beträgen werden auch Kursgewinne berücksichtigt." label="Bewertung kurzfristiger Fremdwährungsbeträge">
+              Bei höchstens einem Jahr Restlaufzeit berücksichtigt die Bewertung auch Kursgewinne
+              über den ursprünglichen Anschaffungskosten (§ 256a Satz 2 HGB).
+            </Help>
           )}
         </Section>
       )}
@@ -4100,7 +4098,7 @@ const TransferForm: React.FC<{
       </FormExplanation>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Fertigstellung am" explain="Ab diesem Monat wird abgeschrieben.">
+        <Field helpSummary="Ab diesem Monat ist die Anlage fertig und wird abgeschrieben." label="Fertigstellung am" explain="Ab diesem Monat wird abgeschrieben.">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Buchwert" hint={`von Konto ${asset.account}`}>
@@ -4123,7 +4121,7 @@ const TransferForm: React.FC<{
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Die Methode bestimmt, wie sich die Kosten auf die Nutzungsjahre verteilen."
           label="Abschreibungsmethode"
           explain="Linear verteilt gleichmäßig über die Nutzungsdauer (§ 7 Abs. 1 EStG); degressiv schreibt vom Restbuchwert ab und ist nur für Anschaffungen in den begünstigten Zeiträumen zulässig (§ 7 Abs. 2 EStG)."
         >
@@ -4267,10 +4265,10 @@ const DisposalForm: React.FC<{
       </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
-        <Field label="Abgangsdatum" explain="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
+        <Field helpSummary="Bis einschließlich dieses Monats wird die Abschreibung berücksichtigt." label="Abgangsdatum" explain="Im Abgangsmonat wird noch abgeschrieben, danach nicht mehr.">
           <Input type="date" value={request.date} onChange={(e) => set({ date: e.target.value })} />
         </Field>
-        <Field
+        <Field helpSummary="Bei einem Darlehen erfassen Sie hier die Rückzahlung des ausgeliehenen Geldes."
           label="Art des Abgangs"
           hint={request.kind === 'repayment' ? 'kein Umsatz, kein Erlöskonto' : undefined}
           explain={
@@ -4330,7 +4328,7 @@ const DisposalForm: React.FC<{
             />
           </div>
           {partial && tracksUnits ? (
-            <Field
+            <Field helpSummary="Geben Sie an, wie viele Stücke Sie aus dem Bestand verkaufen oder entfernen."
               label="Abgehende Stückzahl"
               hint={
                 preview?.quantityShare
@@ -4352,7 +4350,7 @@ const DisposalForm: React.FC<{
               />
             </Field>
           ) : partial ? (
-            <Field
+            <Field helpSummary="Geben Sie die ursprünglichen Kosten des verkauften oder entfernten Anteils an."
               label="Abgehende Anschaffungskosten"
               hint={`von ${formatCents(asset.cost)}`}
               explain="Die kumulierten Abschreibungen wandern im selben Verhältnis mit hinaus."
@@ -4469,7 +4467,7 @@ const DisposalForm: React.FC<{
             <Stat label="Zahlbetrag" value={formatCents(preview.gross)} context={`darin ${formatCents(preview.tax)} USt`} />
           </StatRow>
 
-          <p className="text-caption text-ink-subtle mb-4">{preview.accounts.explanation}</p>
+          <Help summary="Hier sehen Sie, wie der Abgang auf die beteiligten Konten verteilt wird." label="Buchung des Anlagenabgangs">{preview.accounts.explanation}</Help>
 
           {preview.investment && (
             <div className="mb-4">

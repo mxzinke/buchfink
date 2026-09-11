@@ -46,7 +46,7 @@ import {
   Field,
   FieldRow,
   FieldValue,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -320,7 +320,7 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
         />
       </StatRow>
 
-      <Section
+      <Section helpSummary="Bei einer geänderten Nutzung kann sich die zuvor abgezogene Vorsteuer ändern."
         title="Wirtschaftsgüter im Verzeichnis"
         context={`Buchungstag ${formatDate(view?.bookingDate ?? '')}`}
         className="mt-8"
@@ -443,9 +443,9 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
                     <Td>
                       <div className="flex items-center gap-1">
                         <StatusBadge status={status} />
-                        <HelpPopover label={`Bewertung ${row.correction.label}`}>
+                        <Help summary="Hier erfahren Sie, warum für diesen Gegenstand eine Steuerkorrektur anfällt." label={`Bewertung ${row.correction.label}`}>
                           {row.assessment.reason}
-                        </HelpPopover>
+                        </Help>
                         {!row.correction.closedReason && (
                           <Button
                             variant="quiet"
@@ -491,7 +491,7 @@ const InputTaxPanel: React.FC<{ year: number }> = ({ year }) => {
           </>
         }
       >
-        <Field
+        <Field helpSummary="Begründen Sie, warum dieser Eintrag nicht weiter auf Steuerkorrekturen geprüft werden soll."
           label="Grund"
           hint="Abgang, Entnahme oder Fehleintrag"
           explain="Ein abgeschlossener Eintrag wird in den Folgejahren nicht mehr berichtigt. Der Grund bleibt im Verzeichnis stehen, damit später erkennbar ist, warum der Zeitraum vorzeitig endete."
@@ -587,7 +587,7 @@ const RegisterInputTaxDialog: React.FC<{
     >
       {error && <Notice tone="negative" text={error} className="mb-4" />}
       <div className="space-y-4">
-        <Field
+        <Field helpSummary="Erfassen Sie Vorgänge, bei denen später eine Vorsteuerkorrektur nötig werden kann."
           label="Bezeichnung"
           explain="Aktivierte Anlagegüter nimmt Buchfink selbst auf. Von Hand kommt hier hinein, was kein Anlagegut ist und trotzdem ins Verzeichnis gehört — eine Großreparatur an einem Gebäude etwa (§ 15a Abs. 3 UStG)."
         >
@@ -632,11 +632,11 @@ const RegisterInputTaxDialog: React.FC<{
             checked={immovable}
             onCheckedChange={(checked) => setImmovable(Boolean(checked))}
           />
-          <HelpPopover label="Erklärung zum Berichtigungszeitraum">
+          <Help summary="Bei geänderter Nutzung wird die Vorsteuer über mehrere Jahre überprüft." label="Erklärung zum Berichtigungszeitraum">
             Der Zeitraum, in dem sich die Vorsteuer bei geänderter Verwendung berichtigt, beträgt
             fünf Jahre; bei Grundstücken und Gebäuden zehn (§ 15a UStG). Er beginnt mit der
             erstmaligen Verwendung.
-          </HelpPopover>
+          </Help>
         </span>
       </div>
     </Dialog>
@@ -752,7 +752,7 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
     <>
       {error && <Notice tone="negative" text={error} className="mb-6" />}
 
-      <Section
+      <Section helpSummary="Hier sehen Sie die Prüfung der Umsatzsteuer-ID und die gespeicherten Antworten."
         title="Bestätigungsanfrage"
         context="Qualifizierte Abfrage beim Bundeszentralamt für Steuern"
         divider={false}
@@ -879,7 +879,7 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Prüfen Sie, ob für bezogene Bauleistungen eine gültige Freistellungsbescheinigung vorliegt."
         title="Freistellungsbescheinigungen"
         context={`${warnings.length} laufen ab oder sind abgelaufen`}
         explain={
@@ -1114,9 +1114,9 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
           label={
             <>
               Ohne vollständigen Nachweis
-              <HelpPopover label="Erklärung zum Belegnachweis">
+              <Help summary="Halten Sie fest, mit welchen Unterlagen Sie die Lieferung ins EU-Ausland nachweisen." label="Erklärung zum Belegnachweis">
                 Die Steuerfreiheit der innergemeinschaftlichen Lieferung setzt den Beleg- und Buchnachweis voraus (§§ 17a ff. UStDV); ohne ihn ist der Umsatz steuerpflichtig.
-              </HelpPopover>
+              </Help>
             </>
           }
           value={String(report?.incomplete ?? 0)}
@@ -1132,7 +1132,7 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
         />
       </StatRow>
 
-      <Section
+      <Section helpSummary="Hier sammeln Sie Nachweise für steuerfreie Warenlieferungen an Unternehmen im EU-Ausland."
         title="Innergemeinschaftliche Lieferungen"
         context="Eine Zeile öffnet die Belege dieser Lieferung"
         className="mt-8"
@@ -1185,9 +1185,9 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
                   <Td>
                     <div className="flex items-center gap-1">
                       <EvidenceMark status={row.status} />
-                      <HelpPopover label={`Bewertung ${row.invoiceNumber}`}>
+                      <Help summary="Hier erfahren Sie, ob die hinterlegten Liefernachweise ausreichen." label={`Bewertung ${row.invoiceNumber}`}>
                         {row.status.reason}
-                      </HelpPopover>
+                      </Help>
                     </div>
                   </Td>
                 </Tr>
@@ -1198,7 +1198,7 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
       </Section>
 
       {view && (
-        <Section
+        <Section helpSummary="Hier sehen Sie die Nachweise und offenen Fragen zu dieser Lieferung."
           title={`Belege zu ${view.invoiceNumber}`}
           context={`${view.contactName} · ${formatDate(view.date)}`}
           explain={
@@ -1208,7 +1208,7 @@ const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
           }
         >
           <FieldRow className="mb-5">
-            <Field
+            <Field helpSummary="Geben Sie an, wer die Ware zum Kunden transportiert hat."
               label="Beförderung"
               className="w-72"
               hint="Der Abholfall braucht die Gelangensbestätigung"
@@ -1421,9 +1421,9 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
           label={
             <>
               Nicht abziehbar
-              <HelpPopover label="Erklärung zum nicht abziehbaren Aufwand">
+              <Help summary="Manche betriebliche Ausgaben dürfen den steuerlichen Gewinn nicht oder nur teilweise mindern." label="Erklärung zum nicht abziehbaren Aufwand">
                 Geschenke über der Freigrenze, 30 % der Bewirtung und die übrigen Fälle des § 4 Abs. 5 EStG mindern den Gewinn nicht.
-              </HelpPopover>
+              </Help>
             </>
           }
           value={formatCents(
@@ -1476,12 +1476,12 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
                   <Td>
                     <div className="flex items-center gap-1">
                       {category.label}
-                      <HelpPopover label={`Erklärung zu ${category.label}`}>
+                      <Help summary="Hier erfahren Sie, wie diese Ausgaben steuerlich behandelt werden." label={`Erklärung zu ${category.label}`}>
                         {category.note}
-                      </HelpPopover>
+                      </Help>
                     </div>
                   </Td>
-                  <Td className="text-ink-muted">{category.reference}</Td>
+                  <Td className="text-ink-muted"><Help summary="Diese Vorgaben bestimmen, welcher Teil Ihrer Ausgaben steuerlich abziehbar ist." label="Hintergrund zu dieser Angabe">{category.reference}</Help></Td>
                   <Td numeric>{formatCents(category.deductibleAmount)}</Td>
                   <Td numeric>{formatCents(category.nonDeductibleAmount)}</Td>
                   <Td numeric>{formatCents(category.total)}</Td>
@@ -1493,7 +1493,7 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Die Gesamtsumme der Geschenke je Person entscheidet über den möglichen Steuerabzug."
         title="Geschenke je Empfänger"
         context="Die Freigrenze läuft je Empfänger und Wirtschaftsjahr"
         explain={
@@ -1529,9 +1529,9 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
                   <Td>
                     <div className="flex items-center gap-1">
                       {row.recipientName}
-                      <HelpPopover label={`Geschenke an ${row.recipientName}`}>
+                      <Help summary="Hier erfahren Sie, wie die Geschenke an diese Person steuerlich behandelt werden." label={`Geschenke an ${row.recipientName}`}>
                         {row.note}
-                      </HelpPopover>
+                      </Help>
                     </div>
                   </Td>
                   <Td numeric>{formatCents(row.total)}</Td>
@@ -1611,7 +1611,7 @@ const NonDeductiblePanel: React.FC<{ year: number }> = ({ year }) => {
                 </FieldValue>
               </Field>
             </FieldRow>
-            <Field
+            <Field helpSummary="Begründen Sie, warum Sie die steuerliche Behandlung dieser Geschenke korrigieren."
               label="Grund"
               explain="Die Umbuchung nimmt jede abziehbar gebuchte Zuwendung an diesen Empfänger zurück und bucht sie auf das nicht abziehbare Konto — mit ihr entfällt der Vorsteuerabzug. Storno und Neubuchung stehen danach beide im Journal."
             >
@@ -1759,7 +1759,7 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
     <>
       {error && <Notice tone="negative" text={error} className="mb-6" />}
 
-      <Section
+      <Section helpSummary="Erfassen Sie den Wechselkurs für den Tag des Vorgangs und seine Quelle."
         title="Tageskurs"
         context="Referenzkurs der Europäischen Zentralbank"
         divider={false}
@@ -1866,7 +1866,7 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
         </div>
       </Section>
 
-      <Section
+      <Section helpSummary="Für die Umsatzsteuer gibt es eigene monatlich veröffentlichte Umrechnungskurse."
         title="Umsatzsteuer-Umrechnungskurse"
         context="Monatliche Durchschnittskurse des BMF"
         explain={
@@ -1879,7 +1879,7 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
         }
       >
         <FieldRow className="mb-5 items-end">
-          <Field
+          <Field helpSummary="Wählen Sie die Datei mit den monatlichen Umrechnungskursen."
             label="CSV-Datei"
             className="w-[28rem]"
             hint="Monat, Währung, Kurs"
@@ -1935,7 +1935,7 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Prüfen Sie den Euro-Wert noch offener Fremdwährungsbeträge zum Jahresende."
         title="Stichtagsbewertung"
         context={`Stichtag ${formatDate(valuation?.cutoff ?? '')} · Auflösung ${formatDate(valuation?.reversalDate ?? '')}`}
         explain={
@@ -2017,9 +2017,9 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
                   <Td className="whitespace-normal">
                     <div className="flex items-center gap-1">
                       {item.description}
-                      <HelpPopover label={`Bewertung ${item.entryNumber || item.account}`}>
+                      <Help summary="Hier erfahren Sie, wie der Wert zum Abschlussdatum berechnet wurde." label={`Bewertung ${item.entryNumber || item.account}`}>
                         {item.reason}
-                      </HelpPopover>
+                      </Help>
                     </div>
                   </Td>
                   <Td code>{item.currency}</Td>
@@ -2121,7 +2121,7 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
         />
       )}
 
-      <Section
+      <Section helpSummary="Ist der Grund für eine frühere Wertminderung entfallen, muss der Wert erneut geprüft werden."
         title="Wertaufholung"
         context={`Geschäftsjahr ${year} · Zuschreibung bis zu den fortgeführten Kosten`}
         divider={false}
@@ -2162,14 +2162,14 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
                   <Td className="whitespace-normal">
                     <div className="flex items-center gap-1">
                       {candidate.name}
-                      <HelpPopover label={`Abwertungen ${candidate.name}`}>
+                      <Help summary="Hier sehen Sie die bisher erfassten Wertminderungen dieses Anlageguts." label={`Abwertungen ${candidate.name}`}>
                         {candidate.impairments
                           .map(
                             (impairment) =>
                               `${formatDate(impairment.date)}: ${formatCents(impairment.amount)} — ${impairment.reason}`,
                           )
                           .join(' · ') || candidate.note}
-                      </HelpPopover>
+                      </Help>
                     </div>
                   </Td>
                   <Td numeric>{formatCents(candidate.bookValue)}</Td>
@@ -2203,7 +2203,7 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Wählen Sie für kleinere Anschaffungen im selben Wertbereich eine einheitliche Behandlung."
         title="Sammelposten und Sofortabzug"
         context={`Zugänge zwischen ${formatCents(pool?.lowerLimit ?? 0)} und ${formatCents(pool?.upperLimit ?? 0)}`}
         explain={
@@ -2248,7 +2248,7 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie die berücksichtigten Abschreibungsmethoden und ihre Voraussetzungen."
         title="Abschreibungsregeln"
         context={rules ? `Stand ${rules.version} · ${rules.source}` : 'aus der Ressource'}
         explain={
@@ -2322,7 +2322,7 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
           </>
         }
       >
-        <Field
+        <Field helpSummary="Begründen Sie, warum die bisherige Wertminderung weiterhin besteht."
           label="Begründung"
           explain="Die Bestätigung tritt an die Stelle der Zuschreibung. Sie gilt für dieses Geschäftsjahr; im nächsten wird die Frage erneut gestellt, weil sich der Grund bis dahin erledigt haben kann."
         >
@@ -2394,7 +2394,7 @@ const EndpointSection: React.FC<{ field: 'vatId' | 'exchangeRate'; title: string
     field === 'vatId' ? endpoints?.vatIdDefault ?? '' : endpoints?.exchangeRateDefault ?? '';
 
   return (
-    <Section
+    <Section helpSummary="Hier stellen Sie die Adresse des Dienstes für die externe Abfrage ein."
       title={title}
       context="Leer heißt: die Voreinstellung gilt"
       explain={

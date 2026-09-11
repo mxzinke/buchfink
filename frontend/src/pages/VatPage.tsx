@@ -18,7 +18,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -503,9 +503,9 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               label={
                 <>
                   Fällig am
-                  <HelpPopover label="Erklärung zur Fälligkeit">
+                  <Help summary="Die Voranmeldung ist üblicherweise am zehnten Tag nach Ende des Meldezeitraums fällig." label="Erklärung zur Fälligkeit">
                     Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln (§ 18 Abs. 1 UStG); eine Dauerfristverlängerung schiebt sie um einen Monat.
-                  </HelpPopover>
+                  </Help>
                 </>
               }
               value={formatDate(selectedPeriod.dueDate)}
@@ -530,7 +530,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie die Beträge zum Übertragen in das Formular der Umsatzsteuer-Voranmeldung."
         title="Kennziffern des Vordrucks USt 1 A"
         context={vatReturn?.isCorrection ? 'Berichtigte Anmeldung · Kennziffer 10 gesetzt' : undefined}
         explain={
@@ -604,7 +604,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
       </Section>
 
       {lateEntries.length > 0 && (
-        <Section
+        <Section helpSummary="Diese Buchungen können eine Berichtigung einer bereits abgegebenen Voranmeldung erfordern."
           title="Nachträge zu übermittelten Zeiträumen"
           context={`${lateEntries.length} Buchungen in bereits übermittelten Zeiträumen`}
           explain={
@@ -871,7 +871,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
           </Section>
 
           {zmLateEntries.length > 0 && (
-            <Section
+            <Section helpSummary="Diese Umsätze können eine Berichtigung einer bereits abgegebenen Zusammenfassenden Meldung erfordern."
               title="Nachträge zu übermittelten Meldezeiträumen"
               context={`${zmLateEntries.length} meldepflichtige Umsätze in bereits übermittelten Zeiträumen`}
               explain={
@@ -1025,7 +1025,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               onChange={(e) => setConfirmDate(e.target.value)}
             />
           </Field>
-          <Field
+          <Field helpSummary="Tragen Sie die Bestätigungsnummer ein, die Sie nach der Übermittlung erhalten haben."
             label="Transferticket"
             error={ticketError ?? undefined}
             explain="Es ist der Nachweis, dass die Anmeldung angekommen ist."

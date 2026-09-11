@@ -93,7 +93,7 @@ export const DokumentePage: React.FC = () => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
-      <PageHeader
+      <PageHeader helpSummary="Bewahren Sie hier Verträge, Bescheide und andere Unterlagen Ihres Unternehmens auf."
         title="Unterlagen"
         context={
           documents.length === 1 ? '1 Unterlage' : `${documents.length} Unterlagen des Unternehmens`
@@ -118,7 +118,7 @@ export const DokumentePage: React.FC = () => {
         }
       />
 
-      <Section
+      <Section helpSummary="Bewahren Sie weiterhin benötigte Unterlagen auch nach Ablauf der Mindestfrist auf."
         title="Ablage"
         context="Das jüngste Dokument zuerst"
         className="mt-8"

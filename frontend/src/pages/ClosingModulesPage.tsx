@@ -49,7 +49,7 @@ import {
   Dialog,
   EmptyState,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Menu,
   MenuGroup,
@@ -436,7 +436,7 @@ const StepsTab: React.FC<
         <Stat label="Geschäftsjahr" value={String(steps.fiscalYear)} context="Folgt der Kopfzeile" />
       </StatRow>
 
-      <Section
+      <Section helpSummary="Bearbeiten Sie die Abschlussaufgaben in der vorgegebenen Reihenfolge."
         title="Bausteine des Abschlusses"
         context="In fachlicher Reihenfolge: jeder Schritt setzt den vorigen voraus"
         explain={
@@ -470,7 +470,7 @@ const StepsTab: React.FC<
                 <Td>
                   <span className="inline-flex items-center gap-1.5">
                     {step.label}
-                    <HelpPopover label={`Erklärung zu ${step.label}`}>{step.hint}</HelpPopover>
+                    <Help summary="Hier erfahren Sie, was bei diesem Abschlussschritt zu erledigen ist." label={`Erklärung zu ${step.label}`}>{step.hint}</Help>
                   </span>
                 </Td>
                 <Td>
@@ -601,7 +601,7 @@ const StepsTab: React.FC<
           </>
         }
       >
-        <Field
+        <Field helpSummary="Halten Sie fest, warum Sie den Schritt überspringen oder wieder aufnehmen."
           label="Grund"
           error={fieldError || undefined}
           explain={
@@ -786,7 +786,7 @@ const AccrualDialog: React.FC<
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Ordnen Sie Einnahmen oder Ausgaben dem Zeitraum zu, zu dem sie gehören."
           label="Art"
           explain={
             <>
@@ -822,7 +822,7 @@ const AccrualDialog: React.FC<
             onChange={(e) => setDraft((prev) => ({ ...prev, total: e.target.value }))}
           />
         </Field>
-        <Field
+        <Field helpSummary="Wählen Sie das Konto, auf dem die Einnahme oder Ausgabe gebucht wurde."
           label={draft.kind === 'passive' ? 'Ertragskonto' : 'Aufwandskonto'}
           explain="Das Konto, das der Posten entlastet und im Folgejahr wieder belastet."
         >
@@ -850,7 +850,7 @@ const AccrualDialog: React.FC<
             onChange={(e) => setDraft((prev) => ({ ...prev, end: e.target.value }))}
           />
         </Field>
-        <Field
+        <Field helpSummary="Geben Sie hier einen abweichenden Betrag für den späteren Zeitraum ein."
           label="Abzugrenzender Betrag"
           optional
           hint="leer heißt: nach dem Verfahren rechnen"
@@ -995,7 +995,7 @@ const AccrualsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) => 
         />
       </StatRow>
 
-      <Section
+      <Section helpSummary="Buchfink zeigt Ausgaben, die möglicherweise teilweise ins nächste Jahr gehören."
         title="Vorschläge"
         context={proposal ? `Stichtag ${formatDate(proposal.cutoff)}` : undefined}
         explain={
@@ -1356,7 +1356,7 @@ const ProvisionFormDialog: React.FC<
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Wählen Sie den Anlass für eine erwartete Verpflichtung, deren Betrag noch unsicher ist."
           label="Wofür wird zurückgestellt"
           explain={
             <>
@@ -1382,7 +1382,7 @@ const ProvisionFormDialog: React.FC<
             placeholder="Jahresabschluss 2026"
           />
         </Field>
-        <Field
+        <Field helpSummary="Schätzen Sie, wie viel Geld zur Erfüllung der Verpflichtung nötig sein wird."
           label="Erfüllungsbetrag"
           explain="Der Betrag, der nach vernünftiger kaufmännischer Beurteilung nötig ist."
         >
@@ -1394,7 +1394,7 @@ const ProvisionFormDialog: React.FC<
             onChange={(e) => setDraft((prev) => ({ ...prev, amount: e.target.value }))}
           />
         </Field>
-        <Field
+        <Field helpSummary="Geben Sie an, wann Sie die Verpflichtung voraussichtlich erfüllen müssen."
           label="Erwartete Erfüllung"
           explain="Ab mehr als einem Jahr Restlaufzeit wird abgezinst (§ 253 Abs. 2 HGB)."
         >
@@ -1428,7 +1428,7 @@ const ProvisionFormDialog: React.FC<
         </Field>
       </div>
 
-      <Field
+      <Field helpSummary="Beschreiben Sie, worauf Ihre Schätzung beruht."
         label="Begründung"
         className="mt-4"
         explain="Eine Rückstellung ist eine Schätzung; ohne Grundlage ist sie eine Zahl ohne Herkunft."
@@ -1464,9 +1464,9 @@ const ProvisionFormDialog: React.FC<
                 label={
                   <>
                     Steuerlicher Wert
-                    <HelpPopover label="Erklärung zum steuerlichen Wert">
+                    <Help summary="Der steuerliche Vergleichswert kann vom Wert in Ihrer Bilanz abweichen." label="Erklärung zum steuerlichen Wert">
                       Steuerlich wird mit 5,5 % abgezinst (§ 6 Abs. 1 Nr. 3a EStG); der Wert steht zum Vergleich und wird nicht gebucht.
-                    </HelpPopover>
+                    </Help>
                   </>
                 }
                 value={formatCents(preview.taxAmount)}
@@ -1659,7 +1659,7 @@ const ProvisionChangeDialog: React.FC<
         )}
       </div>
 
-      <Field label="Begründung" className="mt-4" explain={ACTION_HINTS[action]}>
+      <Field helpSummary="Begründen Sie, warum sich die erwartete Verpflichtung ändert." label="Begründung" className="mt-4" explain={ACTION_HINTS[action]}>
         <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
       </Field>
 
@@ -1828,7 +1828,7 @@ const DiscountRatesSection: React.FC = () => {
   }
 
   return (
-    <Section
+    <Section helpSummary="Für länger laufende Verpflichtungen wird ein veröffentlichter Zinssatz berücksichtigt."
       title="Abzinsungssätze der Deutschen Bundesbank"
       context="Ohne Satz zinst Buchfink nicht ab und erzeugt einen Befund"
       explain={
@@ -1904,7 +1904,7 @@ const DiscountRatesSection: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap items-end gap-4 mb-5">
-        <Field
+        <Field helpSummary="Wählen Sie die Datei mit den veröffentlichten Zinssätzen."
           label="Pfad der CSV-Datei"
           className="flex-1 min-w-64"
           explain="Die Veröffentlichung der Bundesbank mit Restlaufzeit und Satz."
@@ -2021,7 +2021,7 @@ const ProvisionsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) =
 
   return (
     <>
-      <Section
+      <Section helpSummary="Rückstellungen berücksichtigen erwartete Verpflichtungen, deren Höhe oder Zeitpunkt noch unsicher ist."
         title="Rückstellungen"
         context={`Geschäftsjahr ${year}`}
         divider={false}
@@ -2129,7 +2129,7 @@ const ProvisionsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) =
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, wie sich Ihre Rückstellungen im Laufe des Jahres verändert haben."
         title="Rückstellungsspiegel"
         context="Anfangsbestand, Zuführung, Verbrauch, Auflösung, Aufzinsung, Endbestand"
         explain={
@@ -2332,7 +2332,7 @@ const InventoryDialog: React.FC<{
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <Field
+        <Field helpSummary="Tragen Sie den bewerteten Bestand Ihrer Vorräte zum Abschlussdatum ein."
           label="Inventurwert zum Stichtag"
           explain="Der bewertete Wert: Verbrauchsfolge und Niederstwert berücksichtigt der Anwender."
         >
@@ -2347,7 +2347,7 @@ const InventoryDialog: React.FC<{
         <Field label="Tag der Aufnahme">
           <Input type="date" value={countedOn} onChange={(e) => setCountedOn(e.target.value)} />
         </Field>
-        <Field
+        <Field helpSummary="Wählen Sie, wie Sie Ihren Bestand ermittelt haben."
           label="Aufnahmeverfahren"
           explain="§ 241 HGB lässt mehrere zu: Stichtags-, permanente oder Stichprobeninventur."
         >
@@ -2357,7 +2357,7 @@ const InventoryDialog: React.FC<{
             placeholder="Stichtagsinventur"
           />
         </Field>
-        <Field label="Inventurliste" explain="Die Aufnahme selbst ist der Beleg und deshalb Pflicht.">
+        <Field helpSummary="Hinterlegen Sie die Liste, mit der Sie Ihren Bestand nachweisen." label="Inventurliste" explain="Die Aufnahme selbst ist der Beleg und deshalb Pflicht.">
           {/* Der Belegspeicher wächst über die Jahre; eine Liste, die man
               durchsuchen muss, ist eine Combobox und kein Auswahlfeld (§10.4).
               Gesucht wird über Belegnummer und Datum — die Beschriftung ist der
@@ -2436,7 +2436,7 @@ const InventoryTab: React.FC<TabProps> = ({ year }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Übernehmen Sie den Wert Ihrer gezählten und bewerteten Vorräte in den Abschluss."
         title="Vorräte"
         context={overview ? `Stichtag ${formatDate(overview.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
@@ -2560,7 +2560,7 @@ const VatSettlementTab: React.FC<TabProps> = ({ year }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Buchfink fasst Umsatzsteuer, Vorsteuer und Vorauszahlungen zu einem offenen Betrag zusammen."
         title="Umsatzsteuer-Verrechnung"
         context={settlement ? `Stichtag ${formatDate(settlement.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
@@ -2730,7 +2730,7 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Buchfink schätzt aus dem Ergebnis die noch zu berücksichtigenden Unternehmenssteuern."
         title="Steuerrückstellung"
         context={preview ? `Stichtag ${formatDate(preview.cutoff)}` : `Geschäftsjahr ${year}`}
         divider={false}
@@ -2812,9 +2812,9 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
                     <Td>
                       <span className="inline-flex items-center gap-1.5">
                         {row.label}
-                        <HelpPopover label={`Erklärung zu ${row.label}`}>
+                        <Help summary="Hier erfahren Sie, wie dieser Teil der Steuerberechnung zustande kommt." label={`Erklärung zu ${row.label}`}>
                           {row.explanation}
-                        </HelpPopover>
+                        </Help>
                       </span>
                     </Td>
                     <Td numeric>{formatCents(row.amount)}</Td>
@@ -2852,7 +2852,7 @@ const TaxProvisionTab: React.FC<TabProps> = ({ year }) => {
               </Field>
             </div>
 
-            <Field
+            <Field helpSummary="Halten Sie ergänzende Gründe für den berechneten Steuerbetrag fest."
               label="Begründung"
               optional
               className="mt-4"
@@ -3000,7 +3000,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Erfassen Sie, wie die Gesellschafter den Gewinn verwenden wollen."
         title={`Ergebnisverwendung ${usedYear}`}
         context={`Beschlossen und gebucht im Geschäftsjahr ${year}`}
         divider={false}
@@ -3066,9 +3066,9 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
             label={
               <>
                 Pflichtrücklage
-                <HelpPopover label="Erklärung zur Pflichtrücklage">
+                <Help summary="Eine UG muss grundsätzlich einen Teil ihres Gewinns im Unternehmen zurücklegen." label="Erklärung zur Pflichtrücklage">
                   Die Unternehmergesellschaft stellt ein Viertel des Jahresüberschusses in eine gesetzliche Rücklage ein (§ 5a Abs. 3 GmbHG).
-                </HelpPopover>
+                </Help>
               </>
             }
             value={formatCents(preview?.requiredLegalReserve ?? 0)}
@@ -3082,7 +3082,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
         </StatRow>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Datum des Beschlusses" explain="Er wird an seinem eigenen Datum gebucht.">
+          <Field helpSummary="Tragen Sie das Datum ein, an dem die Gesellschafter entschieden haben." label="Datum des Beschlusses" explain="Er wird an seinem eigenen Datum gebucht.">
             <Input
               type="date"
               value={decisionDate}
@@ -3114,7 +3114,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
               onChange={(e) => setOtherReserves(e.target.value)}
             />
           </Field>
-          <Field
+          <Field helpSummary="Geben Sie den Ausschüttungsbetrag vor Abzug der einzubehaltenden Steuern ein."
             label="Ausschüttung"
             explain="Brutto; Kapitalertragsteuer und Solidaritätszuschlag werden einbehalten."
           >
@@ -3126,7 +3126,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
               onChange={(e) => setDistribution(e.target.value)}
             />
           </Field>
-          <Field
+          <Field helpSummary="Sie können das Protokoll des Gesellschafterbeschlusses als Nachweis hinterlegen."
             label="Beschlussdokument"
             optional
             explain="Das Protokoll der Gesellschafterversammlung, falls es als Beleg abgelegt ist. § 42a GmbHG verlangt keine Form; der Beschluss gilt auch ohne Dokument."
@@ -3160,9 +3160,9 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
                       label={
                         <>
                           Kapitalertragsteuer
-                          <HelpPopover label="Erklärung zur Kapitalertragsteuer">
+                          <Help summary="Bei einer Ausschüttung sind grundsätzlich Steuern einzubehalten und abzuführen." label="Erklärung zur Kapitalertragsteuer">
                             Auf die Ausschüttung sind 25 % einzubehalten und abzuführen (§ 43a Abs. 1 Satz 1 Nr. 1 EStG), dazu der Solidaritätszuschlag.
-                          </HelpPopover>
+                          </Help>
                         </>
                       }
                       value={formatCents(preview.appropriation.withholdingTax)}
@@ -3227,7 +3227,7 @@ const NotesSectionEditor: React.FC<{
 
   return (
     <div className="mb-6">
-      <Field label={entry.label} hint={entry.basis} explain={entry.hint}>
+      <Field helpSummary="Ergänzen Sie die Erläuterung, die zu dieser Angabe im Jahresabschluss gehört." label={entry.label} explain={<>{entry.hint} {entry.basis}</>}>
         <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <div className="mt-2 flex justify-end">
@@ -3299,7 +3299,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
 
   return (
     <>
-      <Section
+      <Section helpSummary="Der Anhang erläutert die Zahlen und Bewertungsmethoden Ihres Jahresabschlusses."
         title="Anhang"
         context="Was kein Programm errechnen kann, steht als Freitext"
         divider={false}
@@ -3332,7 +3332,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier werden steuerliche Wahlmöglichkeiten mit abweichenden Bilanzwerten dokumentiert."
         title="Verzeichnis steuerlicher Wahlrechte"
         context={register ? `Geschäftsjahr ${register.fiscalYear}` : undefined}
         explain={
@@ -3419,7 +3419,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Die Überleitung erklärt Unterschiede zwischen den Werten der Bilanz und den steuerlichen Werten."
         title="Überleitung zur Steuerbilanz"
         context={reconciliation ? `Stichtag ${formatDate(reconciliation.cutoff)}` : undefined}
         explain={
@@ -3450,7 +3450,7 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
                 <Th numeric className="w-40">
                   Differenz
                 </Th>
-                <Th className="w-64">Rechtsgrundlage</Th>
+                <Th className="w-64">Details</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -3460,16 +3460,16 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
                     <span className="inline-flex items-center gap-1.5">
                       {row.position}
                       {row.explanation && (
-                        <HelpPopover label={`Erklärung zu ${row.position}`}>
+                        <Help summary="Hier erfahren Sie, warum dieser Wert für die Steuerberechnung angepasst wird." label={`Erklärung zu ${row.position}`}>
                           {row.explanation}
-                        </HelpPopover>
+                        </Help>
                       )}
                     </span>
                   </Td>
                   <Td numeric>{formatCents(row.commercial)}</Td>
                   <Td numeric>{formatCents(row.tax)}</Td>
                   <Td numeric>{formatCents(row.difference)}</Td>
-                  <Td className="text-ink-muted whitespace-normal">{row.basis}</Td>
+                  <Td className="text-ink-muted whitespace-normal"><Help summary="Bei dieser Position unterscheiden sich die Werte der Bilanz und der steuerlichen Berechnung." label="Hintergrund zu dieser Angabe">{row.basis}</Help></Td>
                 </Tr>
               ))}
               <Tr variant="sum">

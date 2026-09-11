@@ -26,7 +26,7 @@ entstanden, die rechte nennt den Vorgang.
 
 `tragen` bleibt richtig, wo es aus der Buchhaltung kommt: ein Konto trägt seinen
 Saldo im Soll, ein Gesellschafter trägt einen Verlust. `stehen` bleibt richtig
-für einen Ort: der Betrag steht in Zeile 12, die Norm steht im Erklärzeichen.
+für einen Ort: der Betrag steht in Zeile 12, die Norm steht im Detaildialog.
 
 ## Satzbau
 
@@ -84,11 +84,12 @@ Sie beschreibt nicht, wie Buchfink es intern löst.
 Dateinamen, Formate, Datenstrukturen und der Grund für eine Bauweise gehören in
 den Quelltext oder in `docs/`, nicht vor den Anwender. Wo der Anwender das
 Format wirklich braucht — weil er einen Ordner übergibt oder eine Datei sucht —,
-steht es im Dialog hinter „Mehr dazu" und nicht im Popover.
+steht es im Dialog hinter „Mehr erfahren" und nicht im Tooltip.
 
-Die Stufen aus §15.2 des Designkonzepts: eine Zeile Kontext in der Ansicht, ein
-bis drei Sätze im Erklärzeichen, alles Weitere im Dialog. Wer in drei Sätzen
-nicht fertig wird, hat entweder zu viel erklärt oder das Falsche.
+Die Stufen aus Abschnitt 15.2 des Designkonzepts: knapper Kontext in der
+Ansicht, ein kurzer Satz am Fragezeichen, Details im Dialog hinter
+„Mehr erfahren“. Der Tooltip erklärt den Begriff oder die Handlung in einfachen
+Worten. Gesetze werden im Dialog verständlich eingeordnet und direkt verlinkt.
 
 ## Wörter, die nichts sagen
 
@@ -107,5 +108,20 @@ könnte, sagt über Buchfink nichts. Streiche ihn.
 ## Anrede und Ton
 
 Sie-Form oder anredefrei, nie Du. Keine Ausrufezeichen. Keine Emoji in
-Überschriften und Listen. Zahlen und Normen statt Steigerungen: „vier Klicks"
-statt „sehr schnell", „§ 288 Abs. 5 BGB" statt „gesetzlich vorgeschrieben".
+Überschriften und Listen. Konkrete Aussagen statt Steigerungen. Normen gehören in die fachlichen Details,
+nicht in die Arbeitsansicht oder den Tooltip.
+
+## Ist-Zustand und Ziele
+
+Webseite und README erklären zuerst den Nutzen für kleine Unternehmen, Gründer
+und Holdings. Die Nutzeroberfläche ist auch für Menschen ohne
+Buchhaltungskenntnisse gemacht. Die Implementierung dieser Verständlichkeit
+wird nicht durch Beispiele aus Kontonummern und internen Datenstrukturen beworben.
+
+Gesetzeskonformität und selbstständige einfache Jahresabschlüsse sind
+Projektziele, solange ihre vollständige Umsetzung und Prüfung ausstehen.
+Geplante Funktionen, etwa MCP, sind als geplant zu kennzeichnen.
+
+Codekommentare beschreiben die vorhandene Implementierung, ihre Grenzen und
+fachliche Gründe. Rechtsgrundlagen bleiben erhalten. Zukunftspläne und
+Entwicklungserzählungen gehören in die Roadmap oder den Änderungsverlauf.

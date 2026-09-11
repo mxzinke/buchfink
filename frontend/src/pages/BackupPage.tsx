@@ -36,7 +36,7 @@ import {
   EmptyState,
   Field,
   FieldRow,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -131,7 +131,7 @@ const Verdict: React.FC<{ text: string; tone?: keyof typeof VERDICT_TONE }> = ({
 /**
  * Die dritte Erklärstufe (§15.2). Wer eine Sicherung zurückspielen will, hat
  * gerade keinen guten Tag; das passt nicht in drei Sätze und gehört deshalb
- * hinter „Mehr dazu" statt in die Ansicht.
+ * hinter „Mehr erfahren" statt in die Ansicht.
  */
 const BackupHelpDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => (
   <Dialog
@@ -316,7 +316,7 @@ export const BackupPage: React.FC<BackupPageProps> = ({
         ]}
       >
         <TabPanel value="sicherung">
-          <Section
+          <Section helpSummary="Eine Sicherung enthält Ihre Buchhaltung und Unterlagen zur Wiederherstellung."
             title="Sicherung"
             divider={false}
             context={
@@ -327,7 +327,7 @@ export const BackupPage: React.FC<BackupPageProps> = ({
             explain={
               <>
                 Eine Sicherung ist eine Kopie von allem in einer Datei: Buchungen, Belege und der
-                Schlüssel dazu. Sie läuft beim Beenden von selbst, höchstens einmal am Tag. Weil der
+                Schlüssel dazu. Buchfink sichert beim Start, wenn die letzte Sicherung mindestens einen Tag zurückliegt. Beim Beenden sichert es außerdem Änderungen seit der letzten Sicherung. Weil der
                 Schlüssel mit darin liegt, gehört sie so gut verwahrt wie die Daten selbst.
               </>
             }
@@ -622,9 +622,9 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
           label={
             <>
               Fristen ausgesetzt
-              <HelpPopover label="Erklärung zur ausgesetzten Frist">
+              <Help summary="Unterlagen zu noch offenen Steuerfragen müssen möglicherweise länger aufbewahrt werden." label="Erklärung zur ausgesetzten Frist">
                 Die Aufbewahrungsfrist läuft nicht ab, solange die Unterlagen für eine noch offene Festsetzung von Bedeutung sind (§ 147 Abs. 3 Satz 5 AO).
-              </HelpPopover>
+              </Help>
             </>
           }
           value={String(activeHolds.length)}
@@ -661,7 +661,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
         />
       )}
 
-      <Section
+      <Section helpSummary="Hier sehen Sie, bis wann die Unterlagen eines Geschäftsjahres aufzubewahren sind."
         title="Fristen je Geschäftsjahr"
         context="Es gilt die längste Frist des Jahres, weil das Löschen das ganze Jahr trifft"
         explain={
@@ -857,7 +857,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
         )}
       </Section>
 
-      <Section
+      <Section helpSummary="Hier erfahren Sie, wann Buchfink das Löschen alter Unterlagen erlaubt."
         title="Löschkonzept"
         context="Datenkategorie, Frist und Rechtsgrundlage"
         explain={
@@ -879,7 +879,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
                 <Th numeric className="w-20">
                   Jahre
                 </Th>
-                <Th>Rechtsgrundlage</Th>
+                <Th>Details</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -890,7 +890,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
                   <Td numeric className="num">
                     {row.years}
                   </Td>
-                  <Td className="whitespace-normal text-ink-subtle">{row.legalBasis}</Td>
+                  <Td className="whitespace-normal text-ink-subtle"><Help summary="Diese Regeln bestimmen, wie lange Sie die Unterlagen mindestens aufbewahren müssen." label="Hintergrund zu dieser Angabe">{row.legalBasis}</Help></Td>
                 </Tr>
               ))}
             </Tbody>
@@ -926,7 +926,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
               aria-label="Geschäftsjahr"
             />
           </Field>
-          <Field label="Grund" explain="Die Frist läuft nicht ab, solange der Grund besteht.">
+          <Field helpSummary="Geben Sie an, warum die Unterlagen länger aufbewahrt werden müssen." label="Grund" explain="Die Frist läuft nicht ab, solange der Grund besteht.">
             <Select<RetentionHoldReason>
               items={HOLD_REASONS}
               value={holdReason}
@@ -1019,7 +1019,7 @@ const RetentionPanel: React.FC<{ year: number }> = ({ year }) => {
           tone="negative"
           text={`${deleting?.counts.journalEntries ?? 0} Buchungen, ${deleting?.counts.receipts ?? 0} Belege und ${deleting?.counts.invoices ?? 0} Rechnungen dieses Jahres werden nach dem Archivexport gelöscht.`}
         />
-        <Field
+        <Field helpSummary="Bestätigen Sie die Löschung ausdrücklich. Sie lässt sich nicht rückgängig machen."
           label="Bestätigung"
           className="mt-4"
           hint="Die Jahreszahl eingeben"

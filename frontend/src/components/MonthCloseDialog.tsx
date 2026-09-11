@@ -10,7 +10,7 @@ import {
   Button,
   Dialog,
   Field,
-  HelpPopover,
+  Help,
   Input,
   Notice,
   Select,
@@ -295,13 +295,13 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
           ) : (
             <p className="text-body text-ink">{state?.label ?? month}</p>
           )}
-          <HelpPopover label="Erklärung zum Monatsabschluss">
+          <Help summary="Prüfen Sie den Monat, schließen Sie ihn ab und übertragen Sie dann die Voranmeldung." label="Erklärung zum Monatsabschluss">
             Die Reihenfolge ist keine Gewohnheit: Ein Zeitraum, der gemeldet wird, muss vorher
             unveränderbar sein — sonst weicht die Buchführung später von der Meldung ab (§ 146
             Abs. 4 AO, GoBD Rz. 107). Das Kennziffernblatt der Voranmeldung ist vorher schon
             sichtbar; bestätigt wird sie erst nach der Festschreibung, mit dem Transferticket aus
             ELSTER.
-          </HelpPopover>
+          </Help>
         </div>
 
         {error && <Notice tone="negative" text={error} />}

@@ -268,9 +268,9 @@ verschwindet mit der Eintragung von selbst.
 
 Die Erklärung dazu liegt in `frontend/src/components/GruendungHelp.tsx` und wird
 von beiden Stellen benutzt, dem Streifen und dem Gründungsabschnitt der
-Fristenseite. Die drei Stufen folgen dem Entwurfskonzept §15.2: ein Satz auf der
-Fläche, ein bis drei Sätze im Popover, die Rechnung mit ihrem Beispiel im Dialog
-hinter „Mehr dazu".
+Fristenseite. Die Hilfe folgt Abschnitt 15.2 des Designkonzepts: kurzer Kontext in der
+Ansicht, ein einfacher Satz im Tooltip am Fragezeichen und die Berechnung mit
+Beispiel und Quellen im Dialog hinter „Mehr erfahren".
 
 Die anteilige Haftung je Gesellschafter wird gerechnet und nicht ausgewiesen. Sie
 ist eine Aussage über Personen, sie hängt an einer Zahl, die bis zur Eintragung

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Field as Base } from '@base-ui/react/field';
 import { cn } from './cn';
-import { HelpPopover } from './Help';
+import { Help } from './Help';
 
 /**
  * Base UI verdrahtet Label, Beschreibung, Fehler und Bedienelement
@@ -14,12 +14,10 @@ export interface FieldProps {
   hint?: string;
   /** Ersetzt den Hinweis, solange er steht. */
   error?: string;
-  /**
-   * Ein bis drei Sätze hinter dem Erklärzeichen (§15.2). Ein Feld hat davon
-   * genau eines: Zwei Fragezeichen nebeneinander sind keine zwei Stufen,
-   * sondern zwei Fragezeichen.
-   */
+  /** Ausführliche Erklärung im Dialog hinter „Mehr erfahren“. */
   explain?: React.ReactNode;
+  /** Ein kurzer Satz für den Tooltip. */
+  helpSummary?: string;
   /** Gekennzeichnet wird das Seltenere: optional, nicht Pflicht. */
   optional?: boolean;
   disabled?: boolean;
@@ -33,6 +31,7 @@ export const Field: React.FC<FieldProps> = ({
   hint,
   error,
   explain,
+  helpSummary,
   optional = false,
   disabled,
   name,
@@ -50,7 +49,7 @@ export const Field: React.FC<FieldProps> = ({
         {label}
         {optional && <span className="text-ink-subtle font-normal"> · optional</span>}
       </Base.Label>
-      {explain && <HelpPopover label={`Erklärung zu ${label}`}>{explain}</HelpPopover>}
+      {explain && <Help summary={helpSummary!} label={`Erklärung zu ${label}`}>{explain}</Help>}
     </div>
 
     {children}

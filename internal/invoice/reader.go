@@ -287,8 +287,7 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 // model does not carry, and saying "geprüft" without that caveat would be the
 // one failure worse than the gap.
 //
-// TODO: sobald die Extension- und Syntaxregeln geprüft werden (siehe
-// xrechnung.UncheckedRules), fällt die Unterscheidung weg.
+// xrechnung.UncheckedRules benennt die nicht geprüften Extension- und Syntaxregeln.
 func coverage(inv *einvoice.Invoice) string {
 	if inv.IsXRechnung() {
 		return "partial"

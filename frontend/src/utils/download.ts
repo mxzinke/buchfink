@@ -1,11 +1,4 @@
-/**
- * Dateien speichern.
- *
- * Buchfink gibt Dateien über einen Anker aus, den es selbst anlegt und gleich
- * wieder entfernt. Der Weg stand bis Welle 3 zweimal im Code — einmal für den
- * Jahresabschluss, einmal für die Umsatzsteuer —, und zwei Fassungen desselben
- * Wegs laufen früher oder später auseinander.
- */
+/** Speichert erzeugte Dateien über einen temporären Download-Link. */
 
 /** Speichert einen Blob unter dem angegebenen Namen. */
 export function downloadBlob(name: string, blob: Blob): void {
