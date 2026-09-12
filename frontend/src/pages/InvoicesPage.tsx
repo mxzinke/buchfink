@@ -9,9 +9,6 @@ import type {
   Invoice,
   InvoiceSentVia,
   InvoiceSentViaOption,
-  NumberGapReason,
-  NumberGapReasonOption,
-  NumberGapReport,
   ReceiptPreview,
   InvoiceItem,
   PostingPreview,
@@ -167,13 +164,9 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
   const [units, setUnits] = useState<UnitCode[]>([]);
   const [profiles, setProfiles] = useState<EInvoiceProfileInfo[]>([]);
-  // Versandwege und Lückengründe sind Wertelisten des Fachmodells und kommen
-  // wie Einheiten und Profile aus dem Backend: dieselben Wörter zweimal zu
-  // pflegen, heißt sie einmal zu ändern und einmal zu vergessen.
+  // Die Versandwege kommen wie Einheiten und Profile aus dem Backend.
   const [sentViaOptions, setSentViaOptions] = useState<InvoiceSentViaOption[]>([]);
-  const [gapReasons, setGapReasons] = useState<NumberGapReasonOption[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
-  const [gaps, setGaps] = useState<NumberGapReport | null>(null);
   // Der Nachweisstand je ig. Lieferung, damit die Frage „fehlt hier noch etwas?"
   // schon in der Rechnungsliste beantwortet ist und nicht erst auf der Seite
   // der Nebenpflichten.
@@ -187,7 +180,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [cancelling, setCancelling] = useState<Invoice | null>(null);
   const [correcting, setCorrecting] = useState<Invoice | null>(null);
   const [sending, setSending] = useState<Invoice | null>(null);
-  const [gapReason, setGapReason] = useState<{ sequence: number; number: string } | null>(null);
 
   useEffect(() => {
     void load();
@@ -196,7 +188,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   async function load() {
     setLoading(true);
     try {
-      const [list, contactList, treatmentList, unitList, profileList, accounts, vias, reasons] =
+      const [list, contactList, treatmentList, unitList, profileList, accounts, vias] =
         await Promise.all([
           Api.getInvoices(),
           // Die auswählbaren und nicht alle Kontakte: ein nach einem
@@ -208,7 +200,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           Api.getEInvoiceProfiles(),
           Api.getPaymentAccounts(),
           Api.getInvoiceSentViaOptions(),
-          Api.getNumberGapReasons(),
         ]);
       setInvoices(list);
       setContacts(contactList.filter((c) => c.type === 'customer'));
@@ -217,26 +208,16 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       setProfiles(profileList);
       setPaymentAccounts(accounts);
       setSentViaOptions(vias);
-      setGapReasons(reasons);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-    // Der Lückenbericht hat seinen eigenen Fehlerpfad: er ist eine Auskunft
-    // über den Nummernkreis und darf die Rechnungsliste nicht mitnehmen, wenn
-    // er scheitert.
-    try {
-      setGaps(await Api.getInvoiceNumberGaps());
-    } catch {
-      setGaps(null);
-    }
   }
 
   // Der Nachweisstand wird je Geschäftsjahr berichtet. Geholt werden nur die
   // Jahre, in denen es überhaupt eine ig. Lieferung gibt — meist eines, oft
-  // keines; und wie der Lückenbericht ist das eine Auskunft, die die Liste
-  // nicht mitnimmt, wenn sie scheitert.
+  // keines. Scheitert diese Auskunft, bleibt die Rechnungsliste bedienbar.
   useEffect(() => {
     const years = Array.from(
       new Set(
@@ -629,73 +610,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         )}
       </Section>
 
-      <Section helpSummary="Jede ausgestellte Rechnung erhält eine eigene fortlaufende Nummer."
-        title="Nummernkreis"
-        context={
-          gaps
-            ? `${gaps.issued} Nummern vergeben · ${gaps.used} mit Dokument · ${gaps.gaps.length} ohne`
-            : 'Der Lückenbericht ließ sich nicht laden'
-        }
-        explain={
-          <>
-            § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende Nummer. Eine Lücke
-            entsteht deshalb nur, wenn eine Rechnung mitten im Schreiben abgebrochen ist oder aus
-            einem übernommenen Bestand stammt. Die Betriebsprüfung fragt nach jeder einzelnen:
-            Halten Sie den Grund hier fest, statt sich später erinnern zu müssen.
-          </>
-        }
-      >
-        {!gaps || gaps.gaps.length === 0 ? (
-          <EmptyState
-            title="Keine Lücke im Rechnungsnummernkreis"
-            description={
-              gaps
-                ? 'Jede vergebene Nummer hat ein Dokument.'
-                : 'Der Bericht steht wieder zur Verfügung, sobald das Geschäftsjahr geladen ist.'
-            }
-          />
-        ) : (
-          <Table density="kompakt">
-            <Thead>
-              <Tr>
-                <Th className="w-40">Nummer</Th>
-                <Th className="w-56">Grund</Th>
-                <Th>Vermerk</Th>
-                <Th className="w-40">Festgehalten</Th>
-                <Th className="w-32" aria-label="Aktionen" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {gaps.gaps.map((gap) => (
-                <Tr key={gap.sequence} className="group">
-                  <Td code>{gap.number}</Td>
-                  <Td className={gap.reason === 'unknown' ? 'text-attention-text' : 'text-ink-muted'}>
-                    {gap.label}
-                  </Td>
-                  <Td className="max-w-[24rem] truncate">{gap.detail || '—'}</Td>
-                  <Td className="text-ink-subtle num">
-                    {gap.recordedAt ? formatDate(gap.recordedAt.split('T')[0]) : '—'}
-                  </Td>
-                  <Td className="pl-0">
-                    <Button
-                      variant="quiet"
-                      size="sm"
-                      disabled={writeLock.locked}
-                      title={writeLock.hint}
-                      className="opacity-0 transition-opacity duration-120 ease-quiet
-                                 group-hover:opacity-100 focus-visible:opacity-100"
-                      onClick={() => setGapReason({ sequence: gap.sequence, number: gap.number })}
-                    >
-                      Begründen
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        )}
-      </Section>
-
       {showForm && (
         <InvoiceForm
           contacts={contacts}
@@ -784,17 +698,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         onClose={() => setSending(null)}
         onDone={async () => {
           setSending(null);
-          await load();
-        }}
-      />
-
-      <GapReasonDialog
-        gap={gapReason}
-        reasons={gapReasons}
-        year={gaps?.fiscalYear ?? 0}
-        onClose={() => setGapReason(null)}
-        onDone={async () => {
-          setGapReason(null);
           await load();
         }}
       />
@@ -1984,90 +1887,6 @@ const SentDialog: React.FC<{
           {failure && <Notice tone="negative" text={failure} className="mt-6" />}
         </>
       )}
-    </Dialog>
-  );
-};
-
-// -------------------------------------------------------------------------
-
-/** Der Grund einer Lücke im Nummernkreis — die Frage der Betriebsprüfung. */
-const GapReasonDialog: React.FC<{
-  gap: { sequence: number; number: string } | null;
-  reasons: NumberGapReasonOption[];
-  year: number;
-  onClose: () => void;
-  onDone: () => void;
-}> = ({ gap, reasons, year, onClose, onDone }) => {
-  const writeLock = usePostingLock();
-  const [reason, setReason] = useState<NumberGapReason>('aborted');
-  const [detail, setDetail] = useState('');
-  // Der Grund kommt aus einer Auswahl mit Voreinstellung, der Vermerk ist
-  // freiwillig: es gibt keine Pflichtangabe, die am Feld fehlen könnte. Was
-  // zurückkommt, ist die Ablehnung des Backends (§10.4).
-  const [failure, setFailure] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!gap) return;
-    setReason('aborted');
-    setDetail('');
-    setFailure(null);
-  }, [gap]);
-
-  async function submit() {
-    setFailure(null);
-    setBusy(true);
-    try {
-      await Api.recordInvoiceNumberGapReason(year, gap!.sequence, reason, detail);
-      // Kein Toast: Der Grund steht danach in der Zeile des Lückenberichts
-      // (§8.5).
-      onDone();
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Dialog
-      open={gap !== null}
-      onOpenChange={(next) => !next && onClose()}
-      title={`Lücke ${gap?.number ?? ''} begründen`}
-      width="max-w-lg"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Abbrechen
-          </Button>
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={writeLock.locked}
-            title={writeLock.hint}
-            onClick={submit}
-          >
-            Grund festhalten
-          </Button>
-        </>
-      }
-    >
-      <Field label="Grund">
-        <Select
-          items={reasons.map((o) => ({ value: o.reason, label: o.label }))}
-          value={reason}
-          onValueChange={setReason}
-        />
-      </Field>
-      <Field label="Vermerk" optional className="mt-4">
-        <Input
-          value={detail}
-          onChange={(e) => setDetail(e.target.value)}
-          placeholder="Abbruch beim Erzeugen des Dokuments"
-        />
-      </Field>
-
-      {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );
 };

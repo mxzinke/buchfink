@@ -425,7 +425,7 @@ export function App() {
           />
         );
       case 'settings':
-        return <SettingsPage onNavigate={navigate} />;
+        return <SettingsPage year={currentYear} onNavigate={navigate} />;
       default:
         return <TasksPage onNavigate={navigate} />;
     }

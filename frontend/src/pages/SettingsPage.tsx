@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Shield } from 'lucide-react';
+import { ChevronDown, Save, Shield } from 'lucide-react';
+import { InvoiceNumberRange } from '../components/InvoiceNumberRange';
 import {
   AccrualMethod,
   AccrualReleaseCycle,
@@ -163,7 +164,7 @@ function keychainHint(): string {
   return 'Im Secret Service, etwa dem GNOME-Schlüsselbund, unter diesem Dienst und Konto.';
 }
 
-export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
+export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> = ({ year, onNavigate }) => {
   // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
   // im Prüfermodus gesperrt. Der Schlüsselexport bleibt möglich (§10.4).
   const writeLock = useWriteLock();
@@ -174,6 +175,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [exporting, setExporting] = useState(false);
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
   const [showInvestorChoice, setShowInvestorChoice] = useState(false);
+  const [showNumberRanges, setShowNumberRanges] = useState(false);
   // Die Hinweise zu Rechtsform, Speicherort und Steuerfällen kommen aus dem
   // Backend: welche Rechtsform Entnahmen kennt und welcher Pfad in einem
   // Synchronisationsordner liegt, ist Recht bzw. Umgebung — beides gehört an
@@ -621,30 +623,6 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
         }
       >
         <FormGrid>
-          <Field helpSummary="Legen Sie fest, wie Jahr und laufende Nummer in Ihrer Rechnungsnummer erscheinen."
-            label="Nummernformat"
-            hint="{JAHR} und {NR:4}"
-            explain="Zwei Platzhalter: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Ohne {NR} trüge jede Rechnung dieselbe Nummer; ein solches Format weist Buchfink zurück (§ 14 Abs. 4 Nr. 4 UStG). Leer heißt RE-{JAHR}-{NR:4}."
-          >
-            <Input
-              className="code-num"
-              placeholder="RE-{JAHR}-{NR:4}"
-              value={settings.invoiceNumberFormat}
-              onChange={(e) => patch({ invoiceNumberFormat: e.target.value })}
-            />
-          </Field>
-          <Field helpSummary="Legen Sie fest, wie Buchfink Ihre eingehenden Belege nummeriert."
-            label="Belegnummernformat"
-            hint="{JAHR} und {NR:4}"
-            explain="Dieselben zwei Platzhalter für den Belegnummernkreis: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Leer heißt ER-{JAHR}-{NR:4}. Bestehende Belegnummern bleiben gültig (BEL-02)."
-          >
-            <Input
-              className="code-num"
-              placeholder="ER-{JAHR}-{NR:4}"
-              value={settings.receiptNumberFormat}
-              onChange={(e) => patch({ receiptNumberFormat: e.target.value })}
-            />
-          </Field>
           <Field label="Ansprechpartner" hint="bei XRechnung Pflicht">
             <Input
               value={settings.contactName}
@@ -665,6 +643,52 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
             />
           </Field>
         </FormGrid>
+        <Button
+          variant="quiet"
+          size="sm"
+          className="mt-4 -ml-2.5"
+          aria-expanded={showNumberRanges}
+          aria-controls="invoice-number-ranges"
+          onClick={() => setShowNumberRanges((open) => !open)}
+        >
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-120 ${showNumberRanges ? 'rotate-180' : ''}`}
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
+          Nummernkreise
+        </Button>
+        {showNumberRanges && (
+          <div id="invoice-number-ranges" className="mt-5 space-y-6">
+            <FormGrid>
+              <Field helpSummary="Legen Sie fest, wie Jahr und laufende Nummer in Ihrer Rechnungsnummer erscheinen."
+                label="Rechnungsnummernformat"
+                hint="{JAHR} und {NR:4}"
+                explain="Zwei Platzhalter: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Ohne {NR} trüge jede Rechnung dieselbe Nummer; ein solches Format weist Buchfink zurück (§ 14 Abs. 4 Nr. 4 UStG). Leer heißt RE-{JAHR}-{NR:4}."
+              >
+                <Input
+                  className="code-num"
+                  placeholder="RE-{JAHR}-{NR:4}"
+                  value={settings.invoiceNumberFormat}
+                  onChange={(e) => patch({ invoiceNumberFormat: e.target.value })}
+                />
+              </Field>
+              <Field helpSummary="Legen Sie fest, wie Buchfink Ihre eingehenden Belege nummeriert."
+                label="Belegnummernformat"
+                hint="{JAHR} und {NR:4}"
+                explain="Dieselben zwei Platzhalter für den Belegnummernkreis: {JAHR} für das Geschäftsjahr, {NR:4} für den Zähler mit vier Stellen. Leer heißt ER-{JAHR}-{NR:4}. Bestehende Belegnummern bleiben gültig (BEL-02)."
+              >
+                <Input
+                  className="code-num"
+                  placeholder="ER-{JAHR}-{NR:4}"
+                  value={settings.receiptNumberFormat}
+                  onChange={(e) => patch({ receiptNumberFormat: e.target.value })}
+                />
+              </Field>
+            </FormGrid>
+            <InvoiceNumberRange key={year} year={year} />
+          </div>
+        )}
       </Section>
 
       {/* Ohne diese drei Angaben fehlt dem Jahresabschluss der Kopf, den
