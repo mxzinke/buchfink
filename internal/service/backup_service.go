@@ -451,7 +451,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 
 	run.Success = true
 	run.Message = fmt.Sprintf(
-		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Belegdateien unversehrt.",
+		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Beleg- und Dokumentdateien unversehrt.",
 		count, chain.TotalEntries, files.Checked)
 	s.record(ctx, run)
 	return run, nil
@@ -766,7 +766,11 @@ func verifyReceiptFilesAt(ctx context.Context, dataDir string) (*domain.FileChec
 	if err != nil {
 		return nil, err
 	}
-	return checkReceiptFiles(receipts, documents, receiptstore.New(dataDir)), nil
+	companyDocuments, err := repository.NewDocumentRepository(db).FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return checkReceiptFiles(receipts, documents, receiptstore.New(dataDir), companyDocuments), nil
 }
 
 func closeDB(db *gorm.DB) {

@@ -68,6 +68,10 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 		Seller:          sellerParty(seller),
 		Buyer:           buyerParty(inv, buyer),
 	}
+	if profile == domain.EInvoiceProfileXRechnungCII {
+		// XRechnung 3.0, BT-23: default when the recipient specifies no process.
+		doc.BusinessProcess = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
+	}
 
 	// BT-20: die im Voraus vereinbarte Zahlungsbedingung. Sie ist
 	// Pflichtangabe, soweit eine Entgeltminderung vereinbart wurde
@@ -104,7 +108,7 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 		if doc.Delivery == nil {
 			doc.Delivery = &einvoice.Delivery{}
 		}
-		doc.Delivery.Name = buyer.Name
+		doc.Delivery.Name = buyer.LegalName()
 		doc.Delivery.Address = &einvoice.Address{
 			LineOne:     street,
 			PostCode:    postCode,
@@ -262,6 +266,10 @@ func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 	if seller.VatID == "" && seller.RegisterNumber != "" {
 		party.LegalRegistration = einvoice.Identifier{Value: seller.RegisterNumber}
 	}
+	if seller.SellerIdentifier != "" {
+		party.Identifiers = []einvoice.Identifier{{Value: seller.SellerIdentifier}}
+	}
+	party.AdditionalLegalInfo = seller.BusinessLetterDetails()
 	if seller.ContactName != "" || seller.ContactPhone != "" || seller.ContactEmail != "" {
 		party.Contact = &einvoice.Contact{
 			Name:  seller.ContactName,
@@ -291,13 +299,16 @@ func buyerParty(inv *domain.Invoice, buyer *domain.Contact) einvoice.Party {
 	}
 	street, postCode, city := buyer.PostalAddress()
 	party := einvoice.Party{
-		Name: buyer.Name,
+		Name: buyer.LegalName(),
 		Address: &einvoice.Address{
 			LineOne:     street,
 			PostCode:    postCode,
 			City:        city,
 			CountryCode: countryOrDE(buyer.CountryCode),
 		},
+	}
+	if buyer.Company != "" && buyer.Name != "" && buyer.Name != buyer.Company {
+		party.Contact = &einvoice.Contact{Name: buyer.Name}
 	}
 	// BT-48: die USt-IdNr. des Erwerbers. Sie gehört auf jede Rechnung, auf der
 	// sie erfasst ist, und ist Pflicht bei innergemeinschaftlicher Lieferung und

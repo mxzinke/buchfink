@@ -271,7 +271,7 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 			InputTaxEffect: effectContent, Blocking: true,
 		}
 	}
-	if receipt.Direction != domain.DirectionIncoming {
+	if receipt.Direction != domain.DirectionIncoming || !receipt.Kind.RequiresBooking() {
 		return out
 	}
 	if receipt.DocumentDate == "" {

@@ -154,7 +154,7 @@ func (s *PaymentService) Allocations(ctx context.Context, paymentEntryID uint) (
 	for _, a := range allocations {
 		detail := domain.PaymentAllocationDetail{PaymentAllocation: a}
 		if c, ok := byID[a.ContactID]; ok {
-			detail.ContactName = c.Name
+			detail.ContactName = c.LegalName()
 			detail.ContactType = c.Type
 			detail.LedgerAccount = c.LedgerAccount
 		}
@@ -282,7 +282,7 @@ func (s *PaymentService) openItemsFrom(
 			EntryID:        entry.ID,
 			EntryNumber:    entry.EntryNumber,
 			ContactID:      contact.ID,
-			ContactName:    contact.Name,
+			ContactName:    contact.LegalName(),
 			ContactType:    contact.Type,
 			LedgerAccount:  line.Account,
 			DocumentNumber: entry.DocumentNumber,

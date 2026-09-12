@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,6 +24,9 @@ type BankService struct {
 	journalSvc *JournalService
 	auditRepo  domain.AuditRepository
 	receipts   *ReceiptService
+	accounts   domain.BankAccountRepository
+	settings   domain.SettingsRepository
+	txRunner   domain.TxRunner
 
 	// openItems und ruleRepo liefern den Zuordnungsvorschlag (siehe
 	// bank_suggest.go). Beide dürfen fehlen: ohne sie importiert und bucht der
@@ -56,7 +60,14 @@ func (s *BankService) GetTransactions(ctx context.Context, fiscalYear int) ([]do
 
 // ImportCAMT053 parses an ISO 20022 CAMT.053 statement and stores its lines.
 func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAccount string) (int, error) {
-	return s.importCAMT053(ctx, r, ledgerAccount, nil)
+	if s.receipts == nil {
+		return s.importCAMT053(ctx, r, ledgerAccount, nil)
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return 0, err
+	}
+	return s.importCAMTBytes(ctx, data, "Kontoauszug.xml", ledgerAccount)
 }
 
 // ImportCAMT053File legt die Datei zuerst als Beleg ab und importiert dann die
@@ -71,16 +82,22 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 		return 0, fmt.Errorf("kein Pfad zur Kontoauszugsdatei angegeben")
 	}
 
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("Kontoauszug lesen: %w", err)
+	}
+	return s.importCAMTBytes(ctx, data, filepath.Base(path), ledgerAccount)
+}
+
+func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
 	var statementID *uint
 	if s.receipts != nil {
 		// Derselbe Auszug ein zweites Mal: der Belegspeicher würde die Datei
 		// nur einmal ablegen, der Beleg selbst entstünde aber erneut — mit
 		// neuer Belegnummer und ohne Umsätze, weil der Import Dubletten
 		// abweist. Ein Kontoauszug ist ein Beleg, nicht einer je Importlauf.
-		digest, err := fileSHA256(path)
-		if err != nil {
-			return 0, fmt.Errorf("die Datei %s konnte nicht gelesen werden: %w", filepath.Base(path), err)
-		}
+		sum := sha256.Sum256(data)
+		digest := hex.EncodeToString(sum[:])
 		existing, err := s.receipts.FindByOriginalHash(ctx, digest)
 		if err != nil {
 			return 0, fmt.Errorf("die Belegablage konnte nicht geprüft werden: %w", err)
@@ -106,8 +123,8 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 			ReceivedAt:   today,
 			ReceivedVia:  domain.ReceivedViaUpload,
 			DocumentDate: today,
-			Subject:      fmt.Sprintf("Kontoauszug %s, importiert am %s", ledgerAccount, today),
-			Files:        []NewFile{{Role: domain.ReceiptRoleOriginal, Path: path}},
+			Subject:      fmt.Sprintf("Kontoauszug %s, importiert am %s", filename, today),
+			Files:        []NewFile{{Role: domain.ReceiptRoleOriginal, Content: data, FileName: filename}},
 		})
 		if err != nil {
 			return 0, fmt.Errorf("der Kontoauszug konnte nicht abgelegt werden: %w", err)
@@ -116,30 +133,21 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 		statementID = &id
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, fmt.Errorf("die Datei %s konnte nicht gelesen werden: %w", filepath.Base(path), err)
-	}
-	defer file.Close()
-
-	return s.importCAMT053(ctx, file, ledgerAccount, statementID)
+	return s.importCAMT053(ctx, bytes.NewReader(data), ledgerAccount, statementID)
 }
 
 func (s *BankService) importCAMT053(
 	ctx context.Context, r io.Reader, ledgerAccount string, statementID *uint,
 ) (int, error) {
-	if ledgerAccount == "" {
-		ledgerAccount = domain.AccountBank
-	}
-
 	parsed, err := bank.ParseCAMT053(r)
 	if err != nil {
 		return 0, err
 	}
 
+	if err := s.routeTransactions(ctx, parsed, ledgerAccount); err != nil {
+		return 0, err
+	}
 	for i := range parsed {
-		parsed[i].FiscalYear = domain.GetFiscalYearForDate(parsed[i].BookingDate, 1)
-		parsed[i].LedgerAccount = ledgerAccount
 		parsed[i].StatementReceiptID = statementID
 	}
 

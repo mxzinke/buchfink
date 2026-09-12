@@ -511,7 +511,7 @@ const OpeningBalancePanel: React.FC<{
         className="mt-5"
         text={finding}
         action={
-          finding.includes('Zeichnung des Stammkapitals') ? (
+          ['Zeichnung des Stammkapitals', 'Gründungsbuchungen vervollständigen', 'Einzahlung vervollständigen'].some((text) => finding.includes(text)) ? (
             <Button variant="secondary" size="sm" onClick={() => onNavigate('deadlines')}>
               Gründung buchen
             </Button>
@@ -533,12 +533,12 @@ const OpeningBalancePanel: React.FC<{
         size="sm"
         icon={<FilePlus2 className="w-4 h-4" strokeWidth={1.5} />}
         loading={busy}
-        disabled={locked || !sheet.balances}
+        disabled={locked || !sheet.balances || sheet.findings.length > 0}
         title={
           locked
             ? lockHint
-            : !sheet.balances
-              ? 'Eine Bilanz, die nicht aufgeht, wird nicht abgelegt.'
+            : !sheet.balances || sheet.findings.length > 0
+              ? 'Bitte zuerst die oben genannten fehlenden Angaben und Buchungen ergänzen.'
               : undefined
         }
         onClick={onFile}

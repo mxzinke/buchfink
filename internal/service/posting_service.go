@@ -170,7 +170,8 @@ type ReceiptRequest struct {
 // computation in the frontend is a second truth that drifts the moment a
 // Steuerfall is added — and the one in the frontend is the one nobody tests.
 type PostingPreview struct {
-	Lines []domain.JournalLine `json:"lines"`
+	IssuingFindings []string             `json:"issuingFindings,omitempty"`
+	Lines           []domain.JournalLine `json:"lines"`
 	// Net is the sum of the expense or revenue lines, Gross what is actually
 	// paid or received, and Tax the difference between them. Under Reverse
 	// Charge the two coincide and Tax is zero, which is exactly right: the

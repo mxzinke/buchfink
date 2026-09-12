@@ -39,6 +39,22 @@ func TestParseCentsRejectsSubCentPrecision(t *testing.T) {
 	}
 }
 
+func TestParseCentsRejectsMalformedOrOverflowingAmounts(t *testing.T) {
+	for _, in := range []string{"-", "+", ".", ",", "12.34,56", "1,234.56", "1.-2", "--1", "+−1", "-−1", "92233720368547758.08", "-92233720368547758.09"} {
+		if got, err := ParseCents(in); err == nil {
+			t.Errorf("ParseCents(%q) accepted %d cents", in, int64(got))
+		}
+	}
+}
+
+func TestParseCentsPreservesIntegerLimitsAndCopiedMinus(t *testing.T) {
+	for in, want := range map[string]Cents{"92233720368547758.07": 9223372036854775807, "-92233720368547758.08": -9223372036854775808, "−42,50 €": -4250} {
+		if got, err := ParseCents(in); err != nil || got != want {
+			t.Errorf("ParseCents(%q) = %d, %v; want %d", in, int64(got), err, int64(want))
+		}
+	}
+}
+
 func TestCentsFormatting(t *testing.T) {
 	cases := []struct {
 		in            Cents

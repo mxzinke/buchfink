@@ -41,7 +41,7 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	dbPath := filepath.Join(dataDir, "buchfink.sqlite")
 
 	// DSN with WAL mode and busy timeout for concurrent safety
-	dsn := fmt.Sprintf("%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)", dbPath)
+	dsn := fmt.Sprintf("%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)&_pragma=secure_delete(ON)", dbPath)
 
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger:  logger.Default.LogMode(logger.Warn),
@@ -56,11 +56,13 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	// Start und hinterließ keine Spur — für die Verfahrensdokumentation ist das
 	// die Lücke, die ARC-05 meint.
 	if _, err := ApplyMigrations(context.Background(), db); err != nil {
+		_ = CloseDB(db)
 		return nil, fmt.Errorf("failed to run database automigrations: %w", err)
 	}
 
 	currentYear := time.Now().Year()
 	if err := SeedDefaultsIfEmpty(context.Background(), db, currentYear); err != nil {
+		_ = CloseDB(db)
 		return nil, fmt.Errorf("failed to seed initial SKR04 data: %w", err)
 	}
 
@@ -167,6 +169,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.NumberRange{},
 		&domain.PaymentAllocation{},
 		&domain.BankTransaction{},
+		&domain.BankAccount{},
 		&domain.Contact{},
 		&domain.Invoice{},
 		&domain.InvoiceItem{},

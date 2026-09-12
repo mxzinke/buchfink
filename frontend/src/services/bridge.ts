@@ -36,6 +36,10 @@ export const bridge = {
   DeleteTenant: (tenantId: string) => invoke<void>('DeleteTenant', tenantId),
   IsLocked: () => invoke<boolean>('IsLocked'),
 
+  GetBankAccounts: <T>() => invoke<T>('GetBankAccounts'),
+  PreviewBankStatement: <T>(path: string) => invoke<T>('PreviewBankStatement', path),
+  ConfigureBankAccounts: (accounts: unknown) => invoke<void>('ConfigureBankAccounts', accounts),
+
   // Einrichtung
   GetAppConfig: <T>() => invoke<T>('GetAppConfig'),
   SetupApplication: (dataDir: string, settings: unknown) =>
@@ -215,6 +219,7 @@ export const bridge = {
   // Jahresabschluss
   GetFiscalYears: <T>() => invoke<T>('GetFiscalYears'),
   CreateFiscalYear: (year: number) => invoke<void>('CreateFiscalYear', year),
+  BookLegalReserve: <T>(year: number) => invoke<T>('BookLegalReserve', year),
   GetClosingState: <T>(year: number) => invoke<T>('GetClosingState', year),
   GetCarryForwardPreview: <T>(toYear: number) => invoke<T>('GetCarryForwardPreview', toYear),
   CarryForward: <T>(toYear: number) => invoke<T>('CarryForward', toYear),

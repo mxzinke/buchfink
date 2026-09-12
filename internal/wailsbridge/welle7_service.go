@@ -40,6 +40,10 @@ func (b *BuchfinkBridge) GetTasks() (*domain.TaskList, error) {
 	if err != nil {
 		return nil, err
 	}
+	if tenant := b.activeTenantLocked(); tenant != nil && b.vault != nil && tenant.RecoveryExportedAt == "" {
+		list.Add(domain.Task{Key: "recovery_key_missing", Title: "Wiederherstellungsschlüssel sichern", Why: "Bei Verlust des Rechners reicht die Datensicherung allein nicht zum Entschlüsseln. Sichern Sie den Schlüssel getrennt.", Target: domain.TaskTarget{Page: "settings"}})
+		list.Sort()
+	}
 	list.EnsureLists()
 	return list, nil
 }

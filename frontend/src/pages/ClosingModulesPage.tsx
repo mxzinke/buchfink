@@ -477,7 +477,7 @@ const StepsTab: React.FC<
                   {step.state === 'skipped' ? (
                     <SkippedMark />
                   ) : (
-                    <StatusBadge status={step.state === 'done' ? 'gebucht' : 'offen'} />
+                    <StatusBadge status={step.state === 'done' ? 'erledigt' : 'offen'} />
                   )}
                 </Td>
                 <Td className="text-ink-muted whitespace-normal">
@@ -3065,14 +3065,14 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
           <Stat
             label={
               <>
-                Pflichtrücklage
+                Rücklage im Abschluss
                 <Help summary="Eine UG muss grundsätzlich einen Teil ihres Gewinns im Unternehmen zurücklegen." label="Erklärung zur Pflichtrücklage">
-                  Die Unternehmergesellschaft stellt ein Viertel des Jahresüberschusses in eine gesetzliche Rücklage ein (§ 5a Abs. 3 GmbHG).
+                  Die UG bildet die Pflichtzuführung bereits im Abschluss des Gewinnjahres. Dieser Betrag ist vom verwendbaren Ergebnis abgezogen und wird hier nicht erneut gebucht.
                 </Help>
               </>
             }
-            value={formatCents(preview?.requiredLegalReserve ?? 0)}
-            context="Ein Viertel des Überschusses"
+            value={formatCents(preview?.reservedInClosing ?? 0)}
+            context={`Bereits im Abschluss ${usedYear} gebucht`}
           />
           <Stat
             label="Vortrag auf neue Rechnung"
@@ -3096,7 +3096,7 @@ const AppropriationTab: React.FC<TabProps> = ({ year }) => {
               placeholder="Gesellschafterbeschluss vom …"
             />
           </Field>
-          <Field label="Gesetzliche Rücklage">
+          <Field helpSummary="Geben Sie an, ob zusätzlich zur Pflichtzuführung ein weiterer Betrag in der Rücklage bleiben soll." label="Zusätzliche Zuführung zur gesetzlichen Rücklage" explain="Freiwilliger Betrag über die bereits gebildete Pflichtzuführung hinaus.">
             <Input
               align="right"
               inputMode="decimal"

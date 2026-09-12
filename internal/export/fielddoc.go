@@ -269,7 +269,12 @@ maschinenlesbar nach dem Beschreibungsstandard für die Datenüberlassung; die
 zugehörige Grammatik liegt als ` + "`" + DTDFileName + "`" + ` bei. Es ist der
 amtliche Text des Beschreibungsstandards für die Datenträgerüberlassung
 (Bundesministerium der Finanzen, Stand 01.09.2004), unverändert übernommen;
-` + "`" + IndexFileName + "`" + ` ist gegen ihn gültig. Die Datei liegt bei,
+Das Inhaltsmodell des Elements Media ist im Original nichtdeterministisch.
+Für XML-Werkzeuge liegt deshalb zusätzlich die sprachlich gleichwertige,
+deterministische Prüffassung unter validierung/gdpdu-deterministisch.dtd bei.
+Sie ändert nur die Gruppierung optionaler Command- und Table-Folgen.
+Prüfung: xmllint --noout --dtdvalid validierung/gdpdu-deterministisch.dtd index.xml.
+Eine Abnahme durch konkrete Prüfsoftware ist damit nicht behauptet. Die amtliche Datei liegt bei,
 damit sich die Überlassung auch dann noch prüfen lässt, wenn die Grammatik
 nirgends mehr im Netz steht — die Aufbewahrungsfrist läuft zehn Jahre
 (§ 147 Abs. 1 i. V. m. Abs. 3 AO).

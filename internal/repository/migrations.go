@@ -29,7 +29,9 @@ import (
 //	     Bankregeln, Bestellbezug und Leistungsnachweis am Beleg
 //	8    Welle 8: überschriebene Aufbewahrungsfrist am Beleg, Kennzeichen des
 //	     selbst angelegten Kontos
-const SchemaVersion = 8
+//	9    Bankkonten, zusätzliche Feldverschlüsselung und Offenlegungsnachweis
+//	10   Beschreibungstexte im Änderungsprotokoll verschlüsseln
+const SchemaVersion = 10
 
 // migratedTables benennt die Tabellen, die dieser Stand anlegt oder ändert.
 // Sie steht im Protokoll, damit sich später beantworten lässt, was ein Lauf
@@ -39,7 +41,7 @@ var migratedTables = []string{
 	"festschreibungen", "asset_documents", "retention_holds", "schema_migrations",
 	"migration_records",
 	"bank_rules", "base_rates", "dunning_notices", "dunning_notice_items",
-	"accounts",
+	"accounts", "bank_transactions", "invoice_items", "bank_accounts", "fiscal_years",
 }
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert
@@ -74,9 +76,20 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 		Actor:       actor.Actor(),
 	}
 
-	migrateErr := AutoMigrate(db)
+	// Enable before table rebuilds and backfills, which can otherwise leave
+	// plaintext in freed SQLite pages.
+	migrateErr := db.Exec("PRAGMA secure_delete = ON").Error
+	if migrateErr == nil {
+		migrateErr = AutoMigrate(db)
+	}
+	if migrateErr == nil {
+		migrateErr = BackfillAddedEncryption(db)
+	}
 	if migrateErr == nil {
 		migrateErr = runBackfills(db)
+	}
+	if migrateErr == nil && vaultFor(db.Statement.Context) != nil {
+		migrateErr = compactEncryptedMigration(db)
 	}
 	if migrateErr != nil {
 		record.Result = domain.SchemaMigrationResultFailed

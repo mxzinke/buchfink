@@ -29,7 +29,8 @@ type TenantConfig struct {
 	// Aufgabenliste sollen sagen können, wann zuletzt gesichert wurde, ohne
 	// dafür die Läufe aus der Mandantendatenbank zu lesen. Ob eine Sicherung
 	// fällig ist, entscheidet BackupService.IsDue aus den Läufen selbst.
-	LastBackupAt string `json:"lastBackupAt,omitempty"`
+	LastBackupAt       string `json:"lastBackupAt,omitempty"`
+	RecoveryExportedAt string `json:"recoveryExportedAt,omitempty"`
 
 	// ReadOnlyUntil ist der letzte Tag des Prüfermodus (YYYY-MM-DD). Solange er
 	// nicht vergangen ist, weist die Bridge jede schreibende Methode ab.

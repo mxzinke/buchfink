@@ -54,6 +54,8 @@ type Keyfile struct {
 	Salt       []byte        `json:"salt"`       // Argon2id salt (primary slot)
 	WrappedDEK []byte        `json:"wrappedDek"` // DEK wrapped under the keychain-derived KEK
 	Recovery   *recoverySlot `json:"recovery,omitempty"`
+	// Re-exporting a backup must not invalidate previously stored recovery files.
+	PreviousRecovery []recoverySlot `json:"previousRecovery,omitempty"`
 }
 
 // recoverySlot wraps the DEK under a random 256-bit recovery key (no passphrase
@@ -271,6 +273,9 @@ func (v *Vault) addRecoverySlot(kf *Keyfile) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("wrap dek: %w", err)
 	}
+	if kf.Recovery != nil {
+		kf.PreviousRecovery = append(kf.PreviousRecovery, *kf.Recovery)
+	}
 	kf.Recovery = &recoverySlot{WrappedDEK: wrapped}
 	return recoveryKey, nil
 }
@@ -285,11 +290,12 @@ func openRecoverySlot(kf *Keyfile, recoveryKey []byte) (*Vault, error) {
 	if err != nil {
 		return nil, ErrBadRecoveryKey
 	}
-	dek, err := open(gcm, kf.Recovery.WrappedDEK)
-	if err != nil {
-		return nil, ErrBadRecoveryKey
+	for _, slot := range append([]recoverySlot{*kf.Recovery}, kf.PreviousRecovery...) {
+		if dek, err := open(gcm, slot.WrappedDEK); err == nil {
+			return newVault(dek)
+		}
 	}
-	return newVault(dek)
+	return nil, ErrBadRecoveryKey
 }
 
 // SaveKeyfile writes the keyfile as JSON with 0600 permissions.
@@ -302,8 +308,23 @@ func SaveKeyfile(dataDir string, kf *Keyfile) error {
 		return fmt.Errorf("marshal keyfile: %w", err)
 	}
 	path := filepath.Join(dataDir, KeyfileName)
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	file, err := os.CreateTemp(dataDir, ".buchfink-key-*")
+	if err != nil {
+		return fmt.Errorf("create keyfile: %w", err)
+	}
+	defer os.Remove(file.Name())
+	if _, err = file.Write(data); err == nil {
+		err = file.Sync()
+	}
+	closeErr := file.Close()
+	if err != nil {
 		return fmt.Errorf("write keyfile: %w", err)
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := os.Rename(file.Name(), path); err != nil {
+		return fmt.Errorf("replace keyfile: %w", err)
 	}
 	return nil
 }

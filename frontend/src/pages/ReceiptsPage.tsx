@@ -835,7 +835,7 @@ const ReceiptList: React.FC<{
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-2">
                 <span className="code-num text-caption text-ink">{receipt.receiptNumber}</span>
-                <StatusBadge status={STATUS[receipt.status]} />
+                <StatusBadge status={receipt.status === 'filed' && !requiresBooking(kindOf(receipt)) ? 'abgelegt' : STATUS[receipt.status]} />
               </span>
               {/* Aussteller und Betrag stehen vor dem Dateinamen: wer einen
                   Beleg sucht, sucht die Rechnung von jemandem über etwas und
@@ -1000,7 +1000,7 @@ const ReceiptDetail: React.FC<{
       Spalten: er ist die Kette über den Beleg hinaus — Buchung, Zahlung,
       Bankumsatz — und keine Angabe des Dokuments. Ein verworfener Beleg hat
       keine. */}
-  {receipt.direction === 'incoming' && receipt.status !== 'discarded' && (
+  {receipt.direction === 'incoming' && requiresBooking(kindOf(receipt)) && receipt.status !== 'discarded' && (
     <AuditTrailPanel receipt={receipt} onChanged={onChanged} />
   )}
 
@@ -1012,7 +1012,7 @@ const ReceiptDetail: React.FC<{
       Eigenbeleg haben keinen strukturierten Teil, den eine Prüfung gegen die
       Rechnungspflichten beanstanden könnte — „nicht geprüft" führte dort in
       die Irre (RECH-07 K2). */}
-  {(receipt.direction === 'incoming' || receipt.validatedAt) && receipt.status !== 'discarded' && (
+  {requiresBooking(kindOf(receipt)) && (receipt.direction === 'incoming' || receipt.validatedAt) && receipt.status !== 'discarded' && (
     <ReceiptFindingsPanel receipt={receipt} />
   )}
   {receipt.status !== 'discarded' && (
@@ -1740,7 +1740,9 @@ const ReceiptViewer: React.FC<{
       {/* Der Beleg ist ein Fremdkörper in der Oberfläche und bekommt deshalb
           eine eigene Fläche (§6.2, Fall 3). */}
       <div className="mt-4 rounded-card border border-line bg-sunken min-h-[20rem] flex items-center justify-center p-4">
-        {previewError ? (
+        {previewError && kindOf(receipt) === 'statement' ? (
+          <p className="text-body text-ink-muted max-w-sm">Dieser Kontoauszug ist eine XML-Datei. Die Umsätze finden Sie unter Bank &amp; Zahlungen. Die unveränderte Originaldatei können Sie unten speichern.</p>
+        ) : previewError ? (
           <div className="text-center max-w-sm">
             <AlertTriangle className="w-6 h-6 mx-auto text-attention" strokeWidth={1.5} />
             <p className="text-body text-ink-muted mt-3">{previewError}</p>
@@ -1822,7 +1824,7 @@ const ReceiptViewer: React.FC<{
 
       {open && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {!receipt.files.some((f) => f.role === 'structured') && (
+          {requiresBooking(kindOf(receipt)) && !receipt.files.some((f) => f.role === 'structured') && (
             <Button
               variant="secondary"
               size="sm"

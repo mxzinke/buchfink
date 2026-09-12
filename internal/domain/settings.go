@@ -15,19 +15,22 @@ type SettingItem struct {
 
 // CompanySettings holds metadata for the business and fiscal year.
 type CompanySettings struct {
-	CompanyName          string `json:"companyName"`
-	LegalForm            string `json:"legalForm"`            // e.g. "GmbH", "UG (haftungsbeschränkt)", "Einzelunternehmen"
-	FiscalYear           int    `json:"fiscalYear"`           // Active fiscal year (e.g. 2026)
-	FiscalYearStartMonth int    `json:"fiscalYearStartMonth"` // 1 = Jan (Kalenderjahr), 7 = Jul (abweichendes Geschäftsjahr), etc.
-	TaxNumber            string `json:"taxNumber"`            // Steuernummer
-	VatID                string `json:"vatId"`                // USt-IdNr.
-	TaxOffice            string `json:"taxOffice"`            // Finanzamt
-	IBAN                 string `json:"iban"`
-	BIC                  string `json:"bic"`
-	BankName             string `json:"bankName"`
-	Street               string `json:"street"`
-	ZipCity              string `json:"zipCity"`
-	Country              string `json:"country"`
+	ManagingDirectors     string `json:"managingDirectors"`
+	SupervisoryBoardChair string `json:"supervisoryBoardChair"`
+	SellerIdentifier      string `json:"sellerIdentifier"`
+	CompanyName           string `json:"companyName"`
+	LegalForm             string `json:"legalForm"`            // e.g. "GmbH", "UG (haftungsbeschränkt)", "Einzelunternehmen"
+	FiscalYear            int    `json:"fiscalYear"`           // Active fiscal year (e.g. 2026)
+	FiscalYearStartMonth  int    `json:"fiscalYearStartMonth"` // 1 = Jan (Kalenderjahr), 7 = Jul (abweichendes Geschäftsjahr), etc.
+	TaxNumber             string `json:"taxNumber"`            // Steuernummer
+	VatID                 string `json:"vatId"`                // USt-IdNr.
+	TaxOffice             string `json:"taxOffice"`            // Finanzamt
+	IBAN                  string `json:"iban"`
+	BIC                   string `json:"bic"`
+	BankName              string `json:"bankName"`
+	Street                string `json:"street"`
+	ZipCity               string `json:"zipCity"`
+	Country               string `json:"country"`
 
 	// Ansprechpartner, Telefon und E-Mail des Ausstellers.
 	//
@@ -257,4 +260,53 @@ type SettingsRepository interface {
 	Set(ctx context.Context, key string, value string) error
 	GetCompanySettings(ctx context.Context) (*CompanySettings, error)
 	UpdateCompanySettings(ctx context.Context, settings *CompanySettings) error
+}
+
+// BusinessLetterDetails is printed on outgoing business correspondence.
+func (s *CompanySettings) BusinessLetterDetails() string {
+	parts := []string{s.FirmName()}
+	if s.Seat != "" {
+		parts = append(parts, "Sitz: "+s.Seat)
+	}
+	if s.RegisterCourt != "" || s.RegisterNumber != "" {
+		parts = append(parts, strings.TrimSpace(s.RegisterCourt+" "+s.RegisterNumber))
+	}
+	if s.ManagingDirectors != "" {
+		parts = append(parts, "Geschäftsführung: "+s.ManagingDirectors)
+	}
+	if s.SupervisoryBoardChair != "" {
+		parts = append(parts, "Aufsichtsratsvorsitz: "+s.SupervisoryBoardChair)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// InvoiceSellerFindings lists missing issuer data before invoice issuance.
+func (s *CompanySettings) InvoiceSellerFindings(structured bool) []string {
+	missing := []string{}
+	if strings.TrimSpace(s.CompanyName) == "" {
+		missing = append(missing, "Firmenname")
+	}
+	if strings.TrimSpace(s.Street) == "" || strings.TrimSpace(s.ZipCity) == "" {
+		missing = append(missing, "vollständige Geschäftsanschrift")
+	}
+	if s.LegalForm == "GmbH" || s.LegalForm == LegalFormUG || strings.EqualFold(s.LegalForm, "Unternehmergesellschaft (haftungsbeschränkt)") {
+		if strings.TrimSpace(s.ManagingDirectors) == "" {
+			missing = append(missing, "alle Geschäftsführer mit ausgeschriebenem Vor- und Nachnamen")
+		}
+		if strings.TrimSpace(s.Seat) == "" {
+			missing = append(missing, "Sitz der Gesellschaft")
+		}
+		if !s.InGruendung {
+			if strings.TrimSpace(s.RegisterCourt) == "" {
+				missing = append(missing, "Registergericht")
+			}
+			if strings.TrimSpace(s.RegisterNumber) == "" {
+				missing = append(missing, "Registernummer")
+			}
+		}
+	}
+	if structured && strings.TrimSpace(s.VatID) == "" && strings.TrimSpace(s.RegisterNumber) == "" && strings.TrimSpace(s.SellerIdentifier) == "" {
+		missing = append(missing, "Verkäuferkennung für die E-Rechnung (alternativ USt-ID oder Registernummer)")
+	}
+	return missing
 }

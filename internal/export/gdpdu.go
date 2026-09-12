@@ -173,3 +173,9 @@ func orUnknownLocation(location string) string {
 	}
 	return location
 }
+
+// ValidationDTD is an equivalent deterministic grammar for standard XML tools.
+// The original official DTD and the export's DOCTYPE remain unchanged.
+func ValidationDTD() []byte {
+	return bytes.Replace(DTD(), []byte("<!ELEMENT Media (Name, Command*, Table*, Command*, AcceptNoTables?)>"), []byte("<!-- Buchfink validation copy: equivalent deterministic Media model. -->\r\n<!ELEMENT Media (Name, Command*, (Table+, Command*)?, AcceptNoTables?)>"), 1)
+}

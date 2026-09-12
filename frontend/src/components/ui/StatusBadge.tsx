@@ -3,16 +3,17 @@ import { Lock } from 'lucide-react';
 import { cn } from './cn';
 
 /**
- * Das Status-Vokabular aus §11.3, abschließend. Ein Wort pro Zustand, in der
- * ganzen Anwendung dasselbe. Synonyme wie erledigt oder fertig gibt es nicht,
- * und weil die Beschriftung hier im Typ steckt, kann auch keins entstehen.
+ * Gemeinsame Beschriftungen für fachliche Zustände. Ein erledigter Prüfschritt
+ * kann ohne Buchung auskommen und bekommt deshalb einen eigenen Status.
  */
 export type Status =
   | 'entwurf'
+  | 'abgelegt'
   | 'offen'
   | 'teilweiseAusgeglichen'
   | 'zugeordnet'
   | 'gebucht'
+  | 'erledigt'
   | 'ausgeglichen'
   | 'festgeschrieben'
   | 'ueberfaellig'
@@ -50,10 +51,12 @@ const TONE: Record<Tone, { badge: string; mark: string }> = {
 
 const STATUS: Record<Status, { label: string; tone: Tone; lock?: boolean }> = {
   entwurf: { label: 'Entwurf', tone: 'neutral' },
+  abgelegt: { label: 'Abgelegt', tone: 'neutral' },
   offen: { label: 'Offen', tone: 'attention' },
   teilweiseAusgeglichen: { label: 'Teilweise ausgeglichen', tone: 'attentionOutline' },
   zugeordnet: { label: 'Zugeordnet', tone: 'neutral' },
   gebucht: { label: 'Gebucht', tone: 'positive' },
+  erledigt: { label: 'Erledigt', tone: 'positive' },
   ausgeglichen: { label: 'Ausgeglichen', tone: 'positive' },
   festgeschrieben: { label: 'Festgeschrieben', tone: 'positive', lock: true },
   ueberfaellig: { label: 'Überfällig', tone: 'negative' },

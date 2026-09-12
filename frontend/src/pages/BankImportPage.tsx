@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Ban, Landmark, MoreHorizontal, Upload } from 'lucide-react';
 import type {
   Account,
+  BankAccount,
   AllocationRequest,
   BankSuggestion,
   BankSuggestions,
@@ -106,7 +107,9 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
   const [openItems, setOpenItems] = useState<OpenItem[]>([]);
   const [differenceKinds, setDifferenceKinds] = useState<DifferenceKindInfo[]>([]);
-  const [importAccount, setImportAccount] = useState('1800');
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [importDraft, setImportDraft] = useState<{ path: string; count: number; accounts: BankAccount[] } | null>(null);
+  const [importError, setImportError] = useState('');
   const [active, setActive] = useState<BankTransaction | null>(null);
   const [writingOff, setWritingOff] = useState<OpenItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,15 +130,17 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
   async function load() {
     setLoading(true);
     try {
-      const [txs, accs, payAccs, items, advances, kinds] = await Promise.all([
+      const [txs, accs, payAccs, items, advances, kinds, banks] = await Promise.all([
         Api.getBankTransactions(),
         Api.getAccounts(),
         Api.getPaymentAccounts(),
         Api.getOpenItems(),
         Api.getOpenAdvances(),
         Api.getDifferenceKinds(),
+        Api.getBankAccounts(),
       ]);
       setTransactions(txs);
+      setBankAccounts(banks);
       setAccounts(accs);
       setPaymentAccounts(payAccs);
       // Die offenen Posten haben zwei Quellen: die gewöhnliche Buchung auf dem
@@ -164,9 +169,16 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
       const path = await Api.selectStatementFile();
       // Ein abgebrochener Dateidialog ist keine Fehlermeldung wert.
       if (!path) return;
-      const count = await Api.importCAMTFile(path, importAccount);
-      toast.success(`${count} Umsätze eingelesen, der Auszug ist als Beleg abgelegt.`);
-      await load();
+      const preview = await Api.previewBankStatement(path);
+      const occupied = new Set(bankAccounts.map((a) => a.ledgerAccount));
+      for (const a of preview.accounts) if (a.ledgerAccount) occupied.add(a.ledgerAccount);
+      const accounts = preview.accounts.map((a) => {
+        const ledgerAccount = a.ledgerAccount || ['1800', '1810', '1820', '1830', '1840', '1850'].find((n) => !occupied.has(n)) || '';
+        occupied.add(ledgerAccount);
+        return { ...a, ledgerAccount, name: a.name || '' };
+      });
+      setImportError('');
+      setImportDraft({ path, count: preview.transactions, accounts });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -183,13 +195,6 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
         context="Kontoauszüge einlesen, Zahlungen offenen Posten zuordnen"
         action={
           <div className="flex items-center gap-2">
-            <Select
-              items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} · ${a.name}` }))}
-              value={importAccount}
-              onValueChange={setImportAccount}
-              placeholder="Bankkonto"
-              className="w-56"
-            />
             {/* Genau eine Primäraktion je Ansicht (§10.4): im Abgleich ist das
                 Einlesen der Hauptweg, im Mahnwesen das Erzeugen der Schreiben.
                 Der Kopf tritt dort deshalb zurück — sonst stünden zwei
@@ -208,6 +213,38 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
         }
       />
 
+      {importDraft && <Dialog open onOpenChange={(open) => { if (!open && !importing) setImportDraft(null); }}
+        title="Kontoauszug importieren"
+        footer={<>
+          <Button variant="secondary" disabled={importing} onClick={() => setImportDraft(null)}>Abbrechen</Button>
+          <Button loading={importing} disabled={writeLock.locked || importDraft.accounts.some((a) => !a.name.trim() || !a.ledgerAccount)}
+            onClick={() => { void (async () => {
+              setImporting(true); setImportError('');
+              try {
+                await Api.configureBankAccounts(importDraft.accounts);
+                const count = await Api.importCAMTFile(importDraft.path, '');
+                toast.success(`${count} ${count === 1 ? 'Umsatz' : 'Umsätze'} übernommen. Die Originaldatei ist im Belegarchiv gesichert.`);
+                setImportDraft(null); await load();
+              } catch (e) { setImportError(e instanceof Error ? e.message : String(e)); }
+              finally { setImporting(false); }
+            })(); }}>Auszug ablegen und Umsätze übernehmen</Button>
+        </>}>
+        <div className="flex flex-col gap-5">
+          <p className="text-body text-ink-muted">{importDraft.count} Umsätze. Prüfen Sie die Kontozuordnung.</p>
+          <Notice text="Jedes Geschäftskonto erhält eine eigene Zuordnung. Buchfink erkennt es bei späteren Importen an der IBAN wieder. Das erste Konto wird auch für Zahlungen auf Ihren Rechnungen verwendet; diese Auswahl können Sie in den Einstellungen ändern." />
+          {importDraft.accounts.map((a, index) => <div key={a.iban} className="flex flex-col gap-3">
+            <p className="text-body code-num">{a.iban} · {a.currency}</p>
+            <Field label="Name des Geschäftskontos" hint="Zum Beispiel Geschäftskonto oder Steuerrücklage">
+              <Input value={a.name} onChange={(e) => setImportDraft((prev) => prev && ({ ...prev, accounts: prev.accounts.map((item, i) => i === index ? { ...item, name: e.target.value } : item) }))} />
+            </Field>
+            <Field label="Zuordnung in der Buchhaltung" hint="Für jedes Bankkonto ein eigenes Konto wählen.">
+              <Select value={a.ledgerAccount} items={paymentAccounts.filter((item) => ['1800', '1810', '1820', '1830', '1840', '1850'].includes(item.number)).map((item) => ({ value: item.number, label: `${item.number} · ${item.name}` }))}
+                onValueChange={(value) => setImportDraft((prev) => prev && ({ ...prev, accounts: prev.accounts.map((item, i) => i === index ? { ...item, ledgerAccount: value } : item) }))} />
+            </Field>
+          </div>)}
+          {importError && <Notice tone="negative" text={importError} />}
+        </div>
+      </Dialog>}
       <div className="mt-6">
         <Tabs items={BANK_VIEWS} value={view} onValueChange={(next) => setView(next as BankView)}>
           <TabPanel value="abgleich">
@@ -238,6 +275,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
                     <Tr>
                       <Th className="w-10" aria-label="Richtung" />
                       <Th className="w-28">Datum</Th>
+                      <Th>Bankkonto</Th>
                       <Th>Zahlungspartner</Th>
                       <Th>Verwendungszweck</Th>
                       <Th numeric className="w-36">
@@ -260,6 +298,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
                             <span className="sr-only">{incoming ? 'Eingang' : 'Ausgang'}</span>
                           </Td>
                           <Td className="text-ink-subtle num">{formatDate(tx.bookingDate)}</Td>
+                          <Td className="text-ink-muted" title={tx.accountIban}>{bankAccounts.find((a) => a.iban === tx.accountIban)?.name || tx.ledgerAccount}</Td>
                           <Td className="max-w-[16rem] truncate">{tx.counterpartyName || '—'}</Td>
                           <Td className="max-w-[24rem] truncate text-ink-muted" title={tx.remittanceInfo}>
                             {tx.remittanceInfo}
@@ -459,7 +498,7 @@ const AssignDialog: React.FC<{
     if (a.differenceKind === 'none') return sum + a.settledAmount;
     return sum + a.settledAmount - a.differenceAmount;
   }, 0);
-  const statementAmount = Math.abs(tx.amount);
+  const statementAmount = Math.max(0, Math.abs(tx.amount) - (tx.matchedAmount || 0));
   const matches = cashTotal === statementAmount && allocations.length > 0;
 
   /**
@@ -506,15 +545,13 @@ const AssignDialog: React.FC<{
       return;
     }
     setAdvance(null);
-    setSelected(
-      Object.fromEntries(
-        items.map((item) => [
-          item.entryId,
-          { amount: formatCents(item.openAmount, ''), kind: 'none' as DifferenceKind, diff: '' },
-        ]),
-      ),
-    );
-  }, []);
+    let remaining = Math.max(0, Math.abs(tx.amount) - (tx.matchedAmount || 0));
+    setSelected(Object.fromEntries(items.map((item) => {
+      const amount = Math.min(Math.abs(item.openAmount), remaining);
+      remaining -= amount;
+      return [item.entryId, { amount: formatCents(amount, ''), kind: 'none' as DifferenceKind, diff: '' }];
+    })));
+  }, [tx.amount, tx.matchedAmount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -553,7 +590,7 @@ const AssignDialog: React.FC<{
       }
       return {
         ...prev,
-        [item.entryId]: { amount: formatCents(item.openAmount, ''), kind: 'none', diff: '' },
+        [item.entryId]: { amount: formatCents(Math.min(Math.abs(item.openAmount), Math.max(0, statementAmount - cashTotal)), ''), kind: 'none', diff: '' },
       };
     });
   }
@@ -836,7 +873,9 @@ const AssignDialog: React.FC<{
                   {matches && <span className="mark-diamond bg-positive" aria-hidden="true" />}
                   {matches
                     ? 'Zuordnung passt zum Kontoauszug'
-                    : `Noch ${formatCents(statementAmount - cashTotal)} offen`}
+                    : cashTotal > statementAmount
+                      ? `${formatCents(cashTotal - statementAmount)} zu viel zugeordnet`
+                      : `Noch ${formatCents(statementAmount - cashTotal)} offen`}
                 </span>
                 <span className="num">
                   {formatCents(cashTotal)} von {formatCents(statementAmount)}

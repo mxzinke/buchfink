@@ -29,12 +29,9 @@ var cloudFolderMarkers = []struct {
 // CloudFolderWarning meldet, wenn der Datenordner in einem
 // Synchronisationsordner liegt. Leer heißt: unauffällig.
 //
-// Der Hinweis hält nichts an, und das ist Absicht: § 146 Abs. 2 AO verlangt die
-// Führung der Bücher im Inland, § 146 Abs. 2a AO lässt die Verlagerung ins
-// Ausland nur mit Bewilligung des Finanzamts zu — und wo ein
-// Synchronisationsdienst die Daten tatsächlich ablegt, weiß Buchfink nicht.
-// Was es weiß, ist, dass die Frage sich stellt. Sie zu stellen ist besser, als
-// sie stillschweigend mit „wird schon passen" zu beantworten.
+// EU-Speicherung setzt nach § 146 Abs. 2a AO vollständigen Datenzugriff voraus.
+// Für Drittstaaten verlangt Abs. 2b eine Bewilligung. Den tatsächlichen
+// Speicherort eines Synchronisationsdienstes kann die Pfadprüfung nicht ermitteln.
 func CloudFolderWarning(path string) string {
 	lowered := strings.ToLower(strings.ReplaceAll(path, "\\", "/"))
 	for _, marker := range cloudFolderMarkers {
@@ -42,9 +39,10 @@ func CloudFolderWarning(path string) string {
 			continue
 		}
 		return fmt.Sprintf(
-			"Der Datenordner liegt in einem %s-Ordner. Buchführung ist grundsätzlich im Inland zu "+
-				"führen; die Verlagerung elektronischer Bücher ins Ausland bedarf der Bewilligung des "+
-				"Finanzamts (§ 146 Abs. 2, 2a AO). Wo ein Synchronisationsdienst die Daten tatsächlich "+
+			"Der Datenordner liegt in einem %s-Ordner. Elektronische Bücher dürfen in anderen "+
+				"EU-Mitgliedstaaten gespeichert werden, wenn der gesetzliche Datenzugriff vollständig möglich bleibt "+
+				"(§ 146 Abs. 2a AO). Für die Speicherung in Drittstaaten ist eine Bewilligung des Finanzamts "+
+				"nach § 146 Abs. 2b AO nötig. Wo ein Synchronisationsdienst die Daten tatsächlich "+
 				"speichert, lässt sich von hier aus nicht feststellen. Ein Synchronisationsordner ist "+
 				"außerdem kein Sicherungsziel: er spiegelt auch das Löschen. Lege die Daten in einen "+
 				"gewöhnlichen Ordner und sichere sie getrennt.", marker.name)

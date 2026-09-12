@@ -664,6 +664,9 @@ func (s *ClosingBookingService) PreviewTaxProvision(
 			// die Herkunft der Buchung, nicht über den Saldo.
 			continue
 		}
+		if accounting.IsResultAppropriation(acc) {
+			continue
+		}
 		switch acc.Type {
 		case domain.AccountTypeRevenue:
 			profit += -balance

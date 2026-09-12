@@ -1,6 +1,6 @@
 # Speicherung, Verschlüsselung und Integritätsprüfung
 
-Abgleich: 11. September 2026. Dieses Dokument beschreibt die vorhandene
+Abgleich: 12. September 2026. Dieses Dokument beschreibt die vorhandene
 Implementierung. Es ist keine Sicherheitszertifizierung.
 
 ## Daten je Unternehmen
@@ -12,11 +12,32 @@ Der schreibgeschützte Prüfermodus sperrt Änderungen in der Anwendung.
 
 ## Verschlüsselte Datenbankfelder
 
-`internal/repository/encryption.go` verschlüsselt die entsprechend markierten
-Datenbankfelder mit AES-256-GCM über einen GORM-Serializer. Dazu gehören
-personenbezogene und geschäftliche Texte. Es handelt sich um Feldverschlüsselung,
-nicht um eine Verschlüsselung der gesamten SQLite-Datei. Weitere Felder,
-Tabellenstruktur und Dateimetadaten bleiben sichtbar.
+`internal/repository/encryption.go` verschlüsselt markierte Datenbankfelder
+mit AES-256-GCM über GORM-Serializer. Dazu gehören Buchungstexte,
+Verwendungszwecke, Kontaktadressen, E-Mail-Adressen und Vorher-/Nachher-Werte
+im Änderungsprotokoll. Seit den Schemafassungen 9 und 10 kommen hinzu:
+
+- Kontaktnamen und Namen von Bank-Zahlungspartnern;
+- Beschreibungen der Rechnungspositionen;
+- Kontobezeichnungen und Kontobeschreibungen, die auch Partnernamen enthalten;
+- Beschreibungstexte des Änderungsprotokolls, die solche Namen wiederholen.
+
+Neue Werte dieser Felder tragen die Kennzeichnung `buchfink:enc:2:`. Beim Öffnen
+eines älteren Bestands verschlüsselt eine Migration die bisherigen Klartexte.
+Sie verändert weder fachliche Werte und Zeitangaben noch die bestehenden
+Hashketten. `secure_delete`, `VACUUM` und ein abschließender WAL-Checkpoint
+bereinigen die alten Seiten der aktiven SQLite-Dateien. Ein Fehler bei Migration
+oder Bereinigung verhindert die erfolgreiche Initialisierung.
+
+Alte Sicherungen können mit ihren bisherigen Klartextfeldern lesend geprüft
+werden. Markierte verschlüsselte Werte werden ohne passenden Schlüssel oder
+bei einer beschädigten Hülle abgewiesen. Die Migration schützt keine bereits
+vorher angelegten Sicherungen, Dateisystem-Snapshots oder Kopien nachträglich.
+
+Es handelt sich um Feldverschlüsselung. Die gesamte SQLite-Datei ist nicht
+verschlüsselt. Tabellenstruktur, Beträge, Datumsangaben, Kontonummern,
+Ereignisarten, Bearbeiterkennungen und weitere Metadaten bleiben sichtbar.
+Auch die eigenen Unternehmensstammdaten sind nicht vollständig verschlüsselt.
 
 Ein zufälliger Datenschlüssel gehört zum Unternehmen. Die Datei
 `buchfink.keyfile.json` enthält ihn in verschlüsselter Form. Ein Geheimnis zum
@@ -46,12 +67,29 @@ benötigt, wenn der Eintrag im Betriebssystem-Schlüsselbund verloren geht.
 `RecoverTenantFromFile` entsperrt den Datenschlüssel und richtet einen neuen
 Schlüsselbund-Eintrag ein, siehe `internal/security/recovery.go`.
 
+Der Einrichtungsassistent fordert direkt zur Schlüsselsicherung auf. Ein Aufschub
+muss ausdrücklich bestätigt werden; die Aufgabenliste erinnert weiter daran.
+Der Export verlangt einen Zielordner außerhalb des Unternehmensordners. Er
+schreibt die Datei atomar mit Dateirechten `0600` und merkt den erfolgreichen
+Export erst nach dem Schreiben und Speichern der Konfiguration vor.
+
+Mehrere exportierte Wiederherstellungsdateien bleiben gültig: Die Schlüsseldatei
+bewahrt die zugehörigen verschlüsselten Datenschlüssel auf. Ein erneuter Export
+ist deshalb kein Widerruf eines früheren Schlüssels. Eine neuere
+Wiederherstellungsdatei kann eine ältere Sicherung, die vor ihrer Erstellung
+entstand, unter Umständen nicht öffnen. Passende Sicherung und
+Wiederherstellungsdatei gemeinsam erproben und ältere Schlüssel aufbewahren.
+
 Die Wiederherstellungsdatei ist getrennt vom Rechner und der Datensicherung
 aufzubewahren. Die Sicherung enthält die verschlüsselte Schlüsseldatei aus dem
 Datenordner; sie ersetzt die externe Wiederherstellungsdatei nicht.
 
 `internal/service/backup_service.go` erstellt ZIP-Sicherungen mit Datenbank,
-Belegen, Dokumenten, Schlüsseldatei und Prüfwerten. Ein Sicherungsziel muss
+Belegen, Dokumenten, Schlüsseldatei und Prüfwerten. Das ZIP selbst und seine
+Originaldokumente sind nicht verschlüsselt. Die Datenbank behält ihre
+Feldverschlüsselung. Die Wiederherstellungsprüfung umfasst Prüfsummen,
+Buchungs- und Protokollketten sowie Belege, Anlagen- und Unternehmensdokumente.
+Ein Sicherungsziel muss
 konfiguriert sein. Beim Start wird nach dem Abstand von 24 Stunden gesichert;
 beim Beenden wird zusätzlich geprüft, ob sich seit der letzten Sicherung etwas
 geändert hat. Es gibt keinen fortlaufenden täglichen Zeitgeber. Die Aufrufe

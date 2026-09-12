@@ -288,14 +288,17 @@ var readOnlyAllowed = map[string]bool{
 	// Mandanten: ein zweiter Mandant darf angelegt, eine Sicherung darf
 	// wiederhergestellt und der Schlüssel darf gesichert werden, während hier
 	// eine Prüfung läuft.
-	"CreateTenant":                true,
-	"ExportRecoveryKey":           true,
-	"ImportTenant":                true,
-	"LoadExistingDatabase":        true,
-	"RecoverActiveTenantFromFile": true,
-	"RestoreFromBackup":           true,
-	"SetupApplication":            true,
-	"SwitchTenant":                true,
+	"CreateTenant":                 true,
+	"GetBankAccounts":              true,
+	"PreviewBankStatement":         true,
+	"ExportRecoveryKeyToDirectory": true,
+	"ExportRecoveryKey":            true,
+	"ImportTenant":                 true,
+	"LoadExistingDatabase":         true,
+	"RecoverActiveTenantFromFile":  true,
+	"RestoreFromBackup":            true,
+	"SetupApplication":             true,
+	"SwitchTenant":                 true,
 
 	// Ansichtseinstellungen. Das gewählte Geschäftsjahr ist ein Filter der
 	// Oberfläche und keine Buchführungsangabe.

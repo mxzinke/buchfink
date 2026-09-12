@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -19,6 +20,9 @@ type Cents int64
 
 // ErrInvalidAmount is returned when a string cannot be parsed as a monetary amount.
 var ErrInvalidAmount = errors.New("ungültiger Betrag")
+
+var plainAmount = regexp.MustCompile(`^[0-9]*(\.[0-9]{0,2})?$`)
+var germanAmount = regexp.MustCompile(`^([0-9]*|[0-9]{1,3}(\.[0-9]{3})+),[0-9]{0,2}$`)
 
 // Euros returns the amount as a float. Only for display and for interfaces that
 // cannot carry integers (JSON to the frontend, XBRL, ZUGFeRD). Never use the
@@ -104,6 +108,9 @@ func ParseCents(s string) (Cents, error) {
 	}
 
 	neg := false
+	if strings.HasPrefix(raw, "−") {
+		raw = "-" + strings.TrimPrefix(raw, "−")
+	}
 	switch raw[0] {
 	case '-':
 		neg = true
@@ -111,14 +118,20 @@ func ParseCents(s string) (Cents, error) {
 	case '+':
 		raw = raw[1:]
 	}
+	if !strings.ContainsAny(raw, "0123456789") {
+		return 0, ErrInvalidAmount
+	}
 
 	// German notation uses "." as thousands separator and "," as decimal mark.
 	// Plain notation uses "." as decimal mark and no grouping.
 	if strings.Contains(raw, ",") {
+		if !germanAmount.MatchString(raw) {
+			return 0, ErrInvalidAmount
+		}
 		raw = strings.ReplaceAll(raw, ".", "")
 		raw = strings.Replace(raw, ",", ".", 1)
 	}
-	if strings.Count(raw, ".") > 1 {
+	if !plainAmount.MatchString(raw) {
 		return 0, ErrInvalidAmount
 	}
 
@@ -136,20 +149,15 @@ func ParseCents(s string) (Cents, error) {
 		frac = "00"
 	}
 
-	w, err := strconv.ParseInt(whole, 10, 64)
-	if err != nil {
-		return 0, ErrInvalidAmount
-	}
-	f, err := strconv.ParseInt(frac, 10, 64)
-	if err != nil {
-		return 0, ErrInvalidAmount
-	}
-
-	total := Cents(w*100 + f)
+	value := whole + frac
 	if neg {
-		total = -total
+		value = "-" + value
 	}
-	return total, nil
+	total, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, ErrInvalidAmount
+	}
+	return Cents(total), nil
 }
 
 // SumCents adds up amounts. Exact by construction — no tolerance needed.

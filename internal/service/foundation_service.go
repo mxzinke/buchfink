@@ -753,7 +753,7 @@ func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction
 }
 
 // adoptRegisterSettings trägt Registergericht und Registernummer in die
-// Unternehmensdaten nach, soweit sie dort noch fehlen.
+// Unternehmensdaten nach. Die ausdrücklich erfasste Eintragung ist maßgeblich.
 //
 // Scheitert das Schreiben, bleibt die Eintragung gültig: die Gründung ist die
 // Tatsache, die Einstellung nur ihre Wiederholung.
@@ -766,11 +766,11 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		return
 	}
 	changed := false
-	if settings.RegisterCourt == "" && f.RegisterCourt != "" {
+	if f.RegisterCourt != "" && settings.RegisterCourt != f.RegisterCourt {
 		settings.RegisterCourt = f.RegisterCourt
 		changed = true
 	}
-	if settings.RegisterNumber == "" && f.RegisterNumber != "" {
+	if f.RegisterNumber != "" && settings.RegisterNumber != f.RegisterNumber {
 		settings.RegisterNumber = f.RegisterNumber
 		changed = true
 	}

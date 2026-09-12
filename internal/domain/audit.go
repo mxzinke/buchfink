@@ -32,7 +32,7 @@ type AuditLogEntry struct {
 	Action     AuditAction `gorm:"size:30;not null;index" json:"action"`
 	EntityType string      `gorm:"size:50;not null;index" json:"entityType"` // "BOOKING", "ACCOUNT", "BANK_TX", "INVOICE", "SETTINGS"
 	EntityID   string      `gorm:"size:50;not null" json:"entityId"`
-	Details    string      `gorm:"type:text;not null" json:"details"`
+	Details    string      `gorm:"type:text;not null;serializer:encrypted_v2" json:"details"`
 
 	// Before und After sind die geänderten Felder als JSON-Objekt, und zwar nur
 	// die geänderten.

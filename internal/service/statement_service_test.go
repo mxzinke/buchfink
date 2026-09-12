@@ -98,6 +98,9 @@ func TestStatementLeavesThePriorColumnEmptyWithoutABookedPriorYear(t *testing.T)
 // davon fehlt.
 func TestStatementHeaderNamesTheMissingMandatoryData(t *testing.T) {
 	env := newTestEnv(t)
+	for _, key := range []string{"seat", "register_court", "register_number"} {
+		env.setSetting(t, key, "")
+	}
 	ctx := context.Background()
 	env.post(t, "2026-06-01", "1800", "4400", 1_000_000)
 

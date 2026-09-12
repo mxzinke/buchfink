@@ -54,18 +54,19 @@ type ExportTaxRegisterSource interface {
 // einer Überlassung gehört festgehalten, weil später niemand mehr sagen kann,
 // was der Prüfer bekommen hat.
 type ExportService struct {
-	journalRepo    domain.JournalRepository
-	accountRepo    domain.AccountRepository
-	contactRepo    domain.ContactRepository
-	receiptRepo    domain.ReceiptRepository
-	assetRepo      domain.AssetRepository
-	allocationRepo domain.PaymentAllocationRepository
-	auditRepo      domain.AuditRepository
-	settingsRepo   domain.SettingsRepository
-	commitRepo     domain.FestschreibungRepository
-	vatReturnRepo  domain.VatReturnRepository
-	checkRunRepo   domain.CheckRunRepository
-	fiscalYearRepo domain.FiscalYearRepository
+	companyDocuments domain.DocumentRepository
+	journalRepo      domain.JournalRepository
+	accountRepo      domain.AccountRepository
+	contactRepo      domain.ContactRepository
+	receiptRepo      domain.ReceiptRepository
+	assetRepo        domain.AssetRepository
+	allocationRepo   domain.PaymentAllocationRepository
+	auditRepo        domain.AuditRepository
+	settingsRepo     domain.SettingsRepository
+	commitRepo       domain.FestschreibungRepository
+	vatReturnRepo    domain.VatReturnRepository
+	checkRunRepo     domain.CheckRunRepository
+	fiscalYearRepo   domain.FiscalYearRepository
 
 	// procDocRepo liefert die erzeugten Fassungen der Verfahrensdokumentation.
 	// Optional: ein Export ohne sie vermerkt ihr Fehlen, statt zu scheitern.
@@ -112,6 +113,10 @@ func NewExportService(
 func (s *ExportService) SetOpenItemSource(src ExportOpenItemSource) { s.openItem = src }
 
 // SetIntegritySource hängt die beiden Prüfläufe an.
+func (s *ExportService) SetCompanyDocuments(repo domain.DocumentRepository) {
+	s.companyDocuments = repo
+}
+
 func (s *ExportService) SetIntegritySource(src ExportIntegritySource) { s.checks = src }
 
 // SetTaxRegisterSource hängt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG an.
@@ -301,8 +306,10 @@ type balanceRow struct {
 // Auswertungen aus verschiedenen Lesezeitpunkten könnten einen Stand zeigen,
 // den es so nie gab.
 type exportData struct {
-	year     int
-	from, to string
+	companyDocuments     []domain.Document
+	companyDocumentPaths map[uint]string
+	year                 int
+	from, to             string
 
 	entries     []domain.JournalEntry
 	entryNames  map[uint]string
@@ -426,6 +433,10 @@ func (d *exportData) planReceiptFilePaths() {
 // planDocumentFilePaths legt fest, wohin jedes Anlagendokument kommt:
 // dokumente/<Inventarnummer>/<Dateiname>.
 func (d *exportData) planDocumentFilePaths() {
+	d.companyDocumentPaths = make(map[uint]string)
+	for _, doc := range d.companyDocuments {
+		d.companyDocumentPaths[doc.ID] = fmt.Sprintf("dokumente/unternehmen/%d-%s", doc.ID, export.SafeName(doc.FileName))
+	}
 	d.documentFilePaths = make(map[uint]string)
 	taken := map[string]bool{}
 	for i := range d.documents {
@@ -504,6 +515,11 @@ func (s *ExportService) collect(ctx context.Context, year int) (*exportData, err
 
 	if d.receipts, err = s.receiptRepo.FindAll(ctx, year); err != nil {
 		return nil, fmt.Errorf("die Belege konnten nicht gelesen werden: %w", err)
+	}
+	if s.companyDocuments != nil {
+		if d.companyDocuments, err = s.companyDocuments.FindAll(ctx); err != nil {
+			return nil, fmt.Errorf("Unternehmensdokumente lesen: %w", err)
+		}
 	}
 	if s.assetRepo != nil {
 		if d.assets, err = s.assetRepo.FindAll(ctx); err != nil {
@@ -699,7 +715,7 @@ func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 		journalTable, entertainmentTable, allocationsTable,
 		accountsTable, balancesTable, contactsTable, openItemsTable,
 		assetsTable, assetMovementsTable,
-		receiptsTable, documentsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
+		receiptsTable, documentsTable, companyDocumentsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
 		auditTrailTable,
 	}
 
@@ -777,6 +793,18 @@ func (s *ExportService) copyAssetDocuments(b *export.Builder, d *exportData) err
 	if s.store == nil {
 		return nil
 	}
+	for _, doc := range d.companyDocuments {
+		rel := d.companyDocumentPaths[doc.ID]
+		source := filepath.Join(s.dataDir, filepath.FromSlash(doc.StoredPath))
+		sum, err := b.CopyFile(rel, source)
+		if err != nil {
+			return fmt.Errorf("Unternehmensdokument %s konnte nicht exportiert werden: %w", doc.FileName, err)
+		}
+		if sum != doc.SHA256 {
+			return fmt.Errorf("Unternehmensdokument %s stimmt nicht mit seiner archivierten Prüfsumme überein", doc.FileName)
+		}
+		b.CountDocumentFile()
+	}
 	for i := range d.documents {
 		doc := &d.documents[i]
 		rel, ok := d.documentFilePaths[doc.ID]
@@ -834,8 +862,8 @@ Geprüfte Geschäftsjahre: %v
 Geprüfte Buchungen:      %d
 Ergebnis:                %s
 %s
-Belegdateien
-------------
+Belegdateien, Anlagen- und Unternehmensdokumente
+----------------------------------------------
 Geprüfte Dateien: %d
 Unversehrt:       %d
 Beschädigt:       %d
@@ -1010,7 +1038,7 @@ func (s *ExportService) copyProcessDocumentation(ctx context.Context, b *export.
 	}
 	if len(docs) == 0 {
 		b.Note("Es wurde noch keine Verfahrensdokumentation erzeugt; sie liegt dem Paket deshalb nicht bei (GoBD Rz. 151 ff.). " +
-			"Sie lässt sich unter „Nachweise“ erzeugen.")
+			"Sie lässt sich unter „Betriebsprüfung → Verfahrensdokumentation“ erzeugen.")
 		return
 	}
 

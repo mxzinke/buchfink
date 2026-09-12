@@ -15,8 +15,8 @@ import (
 // Beides gehört zusammen, weil beides eine Willenserklärung ist und keine
 // Rechnung: der Beschluss der Gesellschafter über das Ergebnis (§ 29 GmbHG) und
 // die Angaben im Anhang, die aus keiner Buchung folgen. Buchfink rechnet hier
-// nur, was zwingend ist — die Pflichtrücklage der UG und die Kapitalertragsteuer
-// auf die Ausschüttung —, und hält den Rest fest, wie er beschlossen wurde.
+// die Kapitalertragsteuer auf die Ausschüttung und hält den Beschluss fest.
+// Die Pflichtrücklage der UG entsteht bereits im Abschluss des Gewinnjahres.
 type AppropriationService struct {
 	appropriationRepo domain.AppropriationRepository
 	notesRepo         domain.NotesTextRepository
@@ -76,10 +76,10 @@ type AppropriationPreview struct {
 	// neben NetIncome, weil beide auseinanderfallen: NetIncome ist der Saldo des
 	// Vortragskontos und enthält auch, was frühere Jahre nicht verwendet haben.
 	YearResult domain.Cents `json:"yearResult"`
-	// RequiredLegalReserve ist die Pflichtrücklage der UG (§ 5a Abs. 3 GmbHG);
-	// null bei jeder anderen Rechtsform und bei der UG, deren Stammkapital
-	// 25.000 Euro erreicht hat.
+	// RequiredLegalReserve remains zero for existing API clients. The mandatory
+	// allocation is already included in ReservedInClosing and in the carryforward.
 	RequiredLegalReserve domain.Cents `json:"requiredLegalReserve"`
+	ReservedInClosing    domain.Cents `json:"reservedInClosing"`
 	Explanation          string       `json:"explanation"`
 	Warnings             []string     `json:"warnings"`
 }
@@ -141,7 +141,16 @@ func (s *AppropriationService) PreviewAppropriation(
 		BookingDate: bookingDate, Lines: make([]domain.JournalLine, 0, 4),
 		Warnings: make([]string, 0),
 	}
-	preview.RequiredLegalReserve = s.requiredLegalReserve(ctx, netIncome, yearResult, turnovers)
+	reserve, err := s.closingSvc.LegalReserve(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	// The mandatory amount was reserved before the year was closed. The
+	// shareholders distribute only the remaining carryforward.
+	if reserve.Applies && reserve.Difference != 0 {
+		preview.Warnings = append(preview.Warnings, fmt.Sprintf("Im Abschluss %d fehlt die gesetzliche Rücklage. Bitte zuerst den Jahresabschluss berichtigen; eine Buchung im Folgejahr heilt den Abschluss nicht.", year))
+	}
+	preview.ReservedInClosing = reserve.Booked
 
 	appropriation := domain.Appropriation{
 		Year: year, DecisionDate: bookingDate, Text: req.Text, NetIncome: netIncome,
@@ -167,16 +176,6 @@ func (s *AppropriationService) PreviewAppropriation(
 	if err := appropriation.Validate(); err != nil {
 		return nil, err
 	}
-	// Die Pflichtrücklage wird vorgeschlagen und nicht erzwungen: die Vorschau
-	// ist das leere Formular, das der Anwender vor sich hat, und sie ist der
-	// einzige Weg, den Pflichtbetrag überhaupt zu erfahren. Bräche sie ab,
-	// bekäme er beim ersten Aufruf eine Fehlermeldung statt der Zahl, die er
-	// eintragen soll. Zurückgewiesen wird erst der Beschluss selbst
-	// (BookAppropriation).
-	if warning := legalReserveWarning(preview.RequiredLegalReserve, appropriation.LegalReserve); warning != "" {
-		preview.Warnings = append(preview.Warnings, warning)
-	}
-
 	// Einstellung in Rücklagen: das Ergebnis verlässt den Vortrag und wird
 	// gebundenes Eigenkapital.
 	if appropriation.LegalReserve > 0 {
@@ -212,52 +211,16 @@ func (s *AppropriationService) PreviewAppropriation(
 				Amount: withheld, Text: "Kapitalertragsteuer und Solidaritätszuschlag",
 			})
 			preview.Warnings = append(preview.Warnings,
-				"Die einbehaltene Kapitalertragsteuer ist bis zum zehnten Tag nach dem Zufluss "+
-					"anzumelden und abzuführen (§ 44 Abs. 1 Satz 5 EStG). Buchfink erstellt die "+
-					"Steueranmeldung nicht.")
+				"Bei einer Gewinnausschüttung ist die einbehaltene Kapitalertragsteuer im Zeitpunkt "+
+					"des Zuflusses anzumelden und abzuführen (§ 44 Abs. 1 Satz 5, § 45a Abs. 1 EStG). "+
+					"Maßgeblich ist grundsätzlich der im Beschluss bestimmte Auszahlungstag; fehlt er, "+
+					"gilt grundsätzlich der Tag nach dem Beschluss (§ 44 Abs. 2 EStG). "+
+					"Buchfink erstellt die Steueranmeldung nicht.")
 		}
 	}
 	preview.Appropriation = appropriation
 	preview.Explanation = appropriationExplanation(&appropriation)
 	return preview, nil
-}
-
-// requiredLegalReserve rechnet die Pflichtrücklage der UG.
-//
-// § 5a Abs. 3 Satz 1 GmbHG verlangt „ein Viertel des um einen Verlustvortrag
-// aus dem Vorjahr geminderten Jahresüberschusses". Beides steht nicht auf dem
-// Vortragskonto: dort liegt zusätzlich, was frühere Jahre nicht verwendet
-// haben. Wer daraus rechnete, verlangte bei einem Gewinnvortrag von 3.000 € und
-// einem Jahresüberschuss von 1.000 € eine Rücklage von 1.000 € statt 250 €.
-func (s *AppropriationService) requiredLegalReserve(
-	ctx context.Context, netIncome, yearResult domain.Cents,
-	turnovers map[string]domain.AccountTurnover,
-) domain.Cents {
-	if yearResult <= 0 || s.settingsRepo == nil {
-		return 0
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || !isEntrepreneurialCompany(settings.LegalForm) {
-		return 0
-	}
-	// § 5a Abs. 3 Satz 1 GmbHG bindet die Pflicht an das Stammkapital: sie
-	// entfällt, sobald es 25.000 Euro erreicht — dann ist aus der UG eine GmbH
-	// geworden, auch wenn die Firma noch anders lautet.
-	capital := turnovers[domain.AccountGezeichnetesKapital]
-	if capital.Credit-capital.Debit >= 2500000 {
-		return 0
-	}
-	// Was auf dem Vortragskonto über den Jahresüberschuss hinaus steht, stammt
-	// aus früheren Jahren; ist es negativ, ist es der Verlustvortrag, der den
-	// Jahresüberschuss mindert.
-	base := yearResult
-	if carried := netIncome - yearResult; carried < 0 {
-		base += carried
-	}
-	if base <= 0 {
-		return 0
-	}
-	return domain.MulRound(base, 1, 4)
 }
 
 // isEntrepreneurialCompany meldet, ob die Rechtsform eine Unternehmergesellschaft
@@ -283,20 +246,6 @@ func isEntrepreneurialCompany(legalForm string) bool {
 		}
 	}
 	return false
-}
-
-// legalReserveWarning nennt die Pflichtrücklage der UG, wenn der Beschluss
-// weniger einstellt, als § 5a Abs. 3 GmbHG verlangt. Leerer Text heißt: alles
-// in Ordnung.
-func legalReserveWarning(required, planned domain.Cents) string {
-	if required <= planned {
-		return ""
-	}
-	return fmt.Sprintf(
-		"§ 5a Abs. 3 GmbHG verlangt bei der UG (haftungsbeschränkt) eine Rücklage von einem Viertel "+
-			"des Jahresüberschusses, hier %s €. Vorgesehen sind bisher %s €. Der Beschluss lässt "+
-			"sich so nicht buchen.",
-		required, planned)
 }
 
 func appropriationExplanation(a *domain.Appropriation) string {
@@ -328,13 +277,8 @@ func (s *AppropriationService) BookAppropriation(
 	if err != nil {
 		return nil, err
 	}
-	// Hier — und erst hier — wird die Pflichtrücklage der UG erzwungen. Die
-	// Vorschau nennt sie und warnt; gebucht wird ein Beschluss, der sie
-	// unterschreitet, nicht: § 5a Abs. 3 Satz 1 GmbHG lässt der Gesellschaft
-	// insoweit kein Wahlrecht.
-	if warning := legalReserveWarning(
-		preview.RequiredLegalReserve, preview.Appropriation.LegalReserve); warning != "" {
-		return nil, fmt.Errorf("%s", warning)
+	if err := s.closingSvc.EnsureLegalReserve(ctx, preview.Year); err != nil {
+		return nil, err
 	}
 	// Ein zweiter Beschluss zum selben Jahr überschriebe den ersten, während
 	// seine Buchung stehen bliebe: aus einer Ausschüttung würden zwei, aus einer
@@ -473,6 +417,13 @@ func (s *AppropriationService) SaveNotesText(
 ) ([]NotesTextView, error) {
 	if year == 0 {
 		year = s.fiscalYear
+	}
+	fy, err := s.closingSvc.YearOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if fy.IsAdopted() {
+		return nil, fmt.Errorf("der Abschluss %d ist festgestellt. Öffnen Sie das Jahr mit Begründung erneut, bevor Sie seine Abschlussangaben ändern", year)
 	}
 	entry := &domain.NotesText{Year: year, Section: section, Text: text}
 	if err := entry.Validate(); err != nil {

@@ -251,19 +251,23 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const [vatReason, setVatReason] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [tenantCreated, setTenantCreated] = useState(false);
+  const [setupReady, setSetupReady] = useState(false);
+  const [recoveryPath, setRecoveryPath] = useState('');
+  const [skipRecovery, setSkipRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
 
   // Die Schritte des Neuanlage-Wegs. Der Gründungsschritt steht zwischen
-  // Stammdaten und Bankverbindung, weil er die Rechtsform aus dem Schritt davor
+  // Stammdaten und Schlüsselsicherung, weil er die Rechtsform aus dem Schritt davor
   // braucht — und weil aus dem Beurkundungsdatum das Rumpfgeschäftsjahr folgt.
   const stepTitles = [
     'Speicherort',
     'Verschlüsselung',
     'Unternehmen und Steuern',
     ...(isCapitalCompany ? ['Gründung'] : []),
-    'Bankverbindung',
+    'Schlüssel sichern',
   ];
   const stepCount = stepTitles.length;
   const currentTitle = stepTitles[step - 1] ?? '';
@@ -356,16 +360,14 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     setSubmitting(true);
     setError(null);
     try {
-      // Die Verschlüsselung entsteht im Hintergrund über den Schlüsselbund des
-      // Betriebssystems. Der Recovery-Schlüssel wird danach in den
-      // Einstellungen exportiert.
-      await Api.setupApplication(dataDir, settings);
+      if (!tenantCreated) {
+        await Api.setupApplication(dataDir, settings);
+        setTenantCreated(true);
+      }
 
       // Die Gründung erst danach: sie gehört in die Datenbank des Mandanten,
       // den der Aufruf oben gerade angelegt hat.
-      let founded = false;
       if (isCapitalCompany && isFoundingCase && notarizedOn.length === 10) {
-        founded = true;
         await Api.saveFoundation({
           notarizedOn,
           registeredOn: registeredOn.length === 10 ? registeredOn : '',
@@ -385,7 +387,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       }
       // Wer gerade gegründet hat, landet auf dem Gründungsweg: dort steht, was
       // als Nächstes zu tun ist. Die Aufgabenliste ist am ersten Tag leer.
-      onSetupCompleted(founded ? 'gruendung' : 'tasks');
+      setSetupReady(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -438,7 +440,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             </span>
           </div>
 
-          {isAdditionalTenant && onCancel && (
+          {isAdditionalTenant && onCancel && !tenantCreated && (
             <button type="button" onClick={onCancel} className={SHELL_BUTTON.quiet}>
               Abbrechen
             </button>
@@ -589,13 +591,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 {step === 2 && (
                   <div className="flex flex-col gap-4">
                     <p className="text-body text-shell-text-muted">
-                      Buchungstexte, Verwendungszwecke und Kontaktdaten werden mit AES-256
-                      verschlüsselt. Der Schlüssel liegt im Schlüsselbund des Betriebssystems, ein
+                      Buchungstexte, Kontakte, Rechnungspositionen und Verwendungszwecke werden mit AES-256
+                      verschlüsselt. Die Belegdateien selbst bleiben unverschlüsselt. Der Schlüssel liegt im Schlüsselbund des Betriebssystems, ein
                       Passwort ist nicht zu merken.
                     </p>
                     <p className="rounded-control border border-attention/50 bg-attention/15 px-4 py-3">
                       <span className="flex items-center text-label text-attention-line">
-                        Recovery-Schlüssel gleich danach exportieren
+                        Wiederherstellungsschlüssel am Ende sichern
                         <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf."
                           label="Erklärung zum Recovery-Schlüssel"
                           className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
@@ -607,7 +609,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         </Help>
                       </span>
                       <span className="block text-body text-shell-text-muted mt-1">
-                        In den Einstellungen unter Speicherort und Schlüssel.
+                        Der letzte Einrichtungsschritt führt Sie direkt zur Schlüsselsicherung.
                       </span>
                     </p>
                   </div>
@@ -1005,31 +1007,28 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                 {step === stepCount && (
                   <div className="flex flex-col gap-4">
-                    <ShellField
-                      label="IBAN des Geschäftskontos"
-                      hint="Wird mit dem Bankkonto 1800 verknüpft."
-                    >
-                      <input
-                        type="text"
-                        placeholder="DE89 3704 0044 0532 0130 00"
-                        value={settings.iban}
-                        onChange={(e) => patch({ iban: e.target.value })}
-                        className={cn(SHELL_CONTROL, 'code-num')}
-                      />
-                    </ShellField>
-                    <ShellField label="Bankname">
-                      <input
-                        type="text"
-                        placeholder="Sparkasse, Volksbank, Qonto"
-                        value={settings.bankName}
-                        onChange={(e) => patch({ bankName: e.target.value })}
-                        className={SHELL_CONTROL}
-                      />
-                    </ShellField>
-                    <p className="text-caption text-shell-text-muted">
-                      Der Kontenrahmen SKR04 bringt alle gängigen Konten für Erlöse, Aufwendungen,
-                      Steuern und Bankverkehr mit.
+                    <p className="text-body text-shell-text-muted">
+                      {setupReady ? 'Ihre Buchhaltung ist angelegt. Sichern Sie jetzt den Wiederherstellungsschlüssel.' : 'Nach dem Anlegen sichern Sie hier direkt Ihren Wiederherstellungsschlüssel.'}
+                      {' '}Mit dieser Datei können Sie die verschlüsselten Daten auch auf einem neuen Rechner öffnen.
+                      Bewahren Sie sie getrennt von Rechner und Datensicherung auf.
                     </p>
+                    {setupReady ? <>
+                      <button type="button" className={SHELL_BUTTON.primary} disabled={submitting}
+                        onClick={() => { void (async () => {
+                          setSubmitting(true); setError(null);
+                          try { const path = await Api.exportRecoveryKey(); if (path) setRecoveryPath(path); }
+                          catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+                          finally { setSubmitting(false); }
+                        })(); }}>
+                        <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
+                        {submitting ? 'Schlüssel wird gesichert …' : 'Wiederherstellungsschlüssel sichern'}
+                      </button>
+                      {recoveryPath ? <p className="text-body text-shell-text break-all">Schlüssel gesichert: {recoveryPath}</p> :
+                        <label className="flex items-start gap-3 text-body text-shell-text-muted">
+                          <input type="checkbox" checked={skipRecovery} onChange={(e) => setSkipRecovery(e.target.checked)} />
+                          Ich sichere den Schlüssel später. Mir ist bewusst, dass ich ohne ihn bei Verlust dieses Rechners auch meine verschlüsselten Daten verlieren kann.
+                        </label>}
+                    </> : <p className="text-body text-shell-text-muted">Bankkonten richten Sie beim ersten Import eines Kontoauszugs ein.</p>}
                   </div>
                 )}
               </div>
@@ -1046,6 +1045,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     else setSetupChoice(null);
                   }}
                   className={SHELL_BUTTON.quiet}
+                  disabled={submitting || (tenantCreated && (setupReady || step <= 4))}
                 >
                   <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
                   Zurück
@@ -1067,12 +1067,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 ) : (
                   <button
                     type="button"
-                    disabled={submitting}
-                    onClick={() => void finish()}
+                    disabled={submitting || (setupReady && !recoveryPath && !skipRecovery)}
+                    onClick={() => setupReady ? onSetupCompleted(isCapitalCompany && isFoundingCase ? 'gruendung' : 'tasks') : void finish()}
                     className={SHELL_BUTTON.primary}
                   >
                     <Check className="w-4 h-4" strokeWidth={1.5} />
-                    {submitting ? 'Wird eingerichtet …' : 'Buchhaltung anlegen'}
+                    {submitting ? 'Wird eingerichtet …' : setupReady ? 'Buchhaltung öffnen' : tenantCreated ? 'Einrichtung abschließen' : 'Buchhaltung anlegen'}
                   </button>
                 )}
               </div>
@@ -1131,7 +1131,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
           <p className="flex items-start gap-2.5">
             <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-shell-positive" strokeWidth={1.5} />
             <span>
-              <span className="block text-label text-white">Unveränderbar</span>
+              <span className="block text-label text-white">Änderungsprüfung</span>
               <span className="block text-caption text-shell-text-muted mt-0.5">
                 Buchfink prüft, ob gespeicherte Buchungen nachträglich verändert wurden.
               </span>
@@ -1151,7 +1151,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             <span>
               <span className="block text-label text-white">Auswertungen</span>
               <span className="block text-caption text-shell-text-muted mt-0.5">
-                GuV, Bilanz und E-Bilanz für Finanzamt und Steuerberatung.
+                GuV und Bilanz. Die E-Bilanz ist vorläufig und noch ungeprüft.
               </span>
             </span>
           </p>

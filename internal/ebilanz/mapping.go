@@ -62,9 +62,22 @@ func BuildMappingReport(fiscalYear int, stmt *domain.Statement, accounts []domai
 		TaxonomyDate:    tax.Date,
 		TaxonomyNote:    tax.Note,
 		CanExport:       true,
+		Rows:            []MappingRow{},
+		Blocking:        []MappingRow{},
+		Fallbacks:       []domain.FallbackCount{},
 	}
 	if stmt != nil {
-		report.Fallbacks = stmt.Assignment.Fallbacks
+		report.Fallbacks = append(report.Fallbacks, stmt.Assignment.Fallbacks...)
+		if line := stmt.Line("passiva.A.bilanzgewinn"); line != nil {
+			if _, mapped := ElementFor(line.Key); !mapped {
+				row := MappingRow{Account: "Ergebnisverwendung", Name: line.Label, Balance: line.Amount,
+					PositionKey: line.Key, PositionLabel: line.Label,
+					Finding: "Die Taxonomiezuordnung nach teilweiser Ergebnisverwendung ist noch nicht geprüft. Übergeben Sie Bilanz und Kontennachweis an eine geeignete E-Bilanz-Software."}
+				report.Rows = append(report.Rows, row)
+				report.Blocking = append(report.Blocking, row)
+				report.CanExport = false
+			}
+		}
 	}
 
 	for _, acc := range accounting.AccountsWithBalance(accounts) {

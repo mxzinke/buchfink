@@ -164,6 +164,9 @@ func (b *Builder) WriteDataset(d *Dataset) error {
 	if err := b.WriteFile(DTDFileName, DTD()); err != nil {
 		return err
 	}
+	if err := b.WriteFile("validierung/gdpdu-deterministisch.dtd", ValidationDTD()); err != nil {
+		return err
+	}
 	return b.WriteFile(FieldDocFileName, RenderFieldDoc(d))
 }
 

@@ -242,6 +242,25 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 `
 	}
 
+	var footerLines []string
+	for _, fields := range [][]struct{ label, value string }{
+		{{"Bankverbindung", seller.BankName}, {"IBAN", seller.IBAN}, {"BIC", seller.BIC}},
+		{{"Steuernummer", seller.TaxNumber}, {"USt-IdNr.", seller.VatID}},
+	} {
+		var parts []string
+		for _, field := range fields {
+			if value := strings.TrimSpace(field.value); value != "" {
+				parts = append(parts, field.label+": "+value)
+			}
+		}
+		if len(parts) > 0 {
+			footerLines = append(footerLines, typstEscape(strings.Join(parts, " · ")))
+		}
+	}
+	if details := seller.BusinessLetterDetails(); details != "" {
+		footerLines = append(footerLines, typstEscape(details))
+	}
+
 	return fmt.Sprintf(`#set document(title: "%s %s", author: %q, date: %s)
 %s#set page(paper: "a4", margin: (x: 2cm, y: 2.5cm))
 #set text(font: "Manrope", size: 10pt, fill: rgb("#1c1917"))
@@ -281,6 +300,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
     #grid(
       columns: (1fr, auto),
       row-gutter: 0.3cm,
+      column-gutter: 0.3cm,
 %s    )
   ]
 ]%s
@@ -288,8 +308,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 #v(2cm)
 #line(length: 100%%, stroke: 0.5pt + rgb("#e7e5e4"))
 #text(size: 8pt, fill: rgb("#78716c"))[
-  Bankverbindung: %s · IBAN: %s · BIC: %s\
-  Steuernummer: %s · USt-IdNr.: %s
+  %s
 ]
 `,
 		typstEscape(inv.ResolvedKind().Label()), typstEscape(inv.InvoiceNumber),
@@ -307,8 +326,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 		rows.String(),
 		totals.String(),
 		note,
-		typstEscape(seller.BankName), typstEscape(seller.IBAN), typstEscape(seller.BIC),
-		typstEscape(seller.TaxNumber), typstEscape(seller.VatID),
+		strings.Join(footerLines, "\\\n  "),
 	)
 }
 
@@ -316,7 +334,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 // Barverkauf of a Kleinbetragsrechnung — it says so instead of leaving a gap.
 func buyerName(inv *domain.Invoice, buyer *domain.Contact) string {
 	if buyer != nil && buyer.Name != "" {
-		return buyer.Name
+		return buyer.LegalName()
 	}
 	if inv.ContactName != "" {
 		return inv.ContactName
@@ -333,6 +351,9 @@ func buyerAddressBlock(inv *domain.Invoice, buyer *domain.Contact) string {
 	}
 	street, postalCode, city := buyer.PostalAddress()
 	var b strings.Builder
+	if buyer.Company != "" && buyer.Name != "" && buyer.Name != buyer.Company {
+		b.WriteString(typstEscape("z. Hd. "+buyer.Name) + " \\\n    ")
+	}
 	if street != "" {
 		b.WriteString(typstEscape(street) + " \\\n    ")
 	}

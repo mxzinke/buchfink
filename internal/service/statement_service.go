@@ -155,6 +155,27 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		Notes:      s.notesFor(ctx, year),
 		Deadlines:  s.deadlinesFor(ctx, year, header.ClosingDate, sizeClass),
 	}
+	out.Notes.Missing = []string{}
+	required := map[domain.NotesSection]bool{domain.NotesSectionContingent: true, domain.NotesSectionBoardLoans: true, domain.NotesSectionAdditional: true}
+	if sizeClass.Obligations.NotesRequired {
+		required[domain.NotesSectionMethods] = true
+	}
+	values := map[domain.NotesSection]domain.NotesSectionText{}
+	for _, text := range out.Notes.Texts {
+		values[text.Section] = text
+	}
+	for _, def := range domain.AllNotesSections() {
+		if !required[def.Section] {
+			continue
+		}
+		text := values[def.Section]
+		if strings.TrimSpace(text.Text) == "" {
+			out.Notes.Missing = append(out.Notes.Missing, def.Label)
+		}
+		if !sizeClass.Obligations.NotesRequired && strings.TrimSpace(text.Text) != "" {
+			out.Notes.BelowBalance = append(out.Notes.BelowBalance, text)
+		}
+	}
 	// Ohne Bilanzstichtag nennt die Größenklasse keine Frist; die Ansicht läuft
 	// trotzdem über die Liste.
 	out.EnsureLists()
@@ -500,6 +521,7 @@ func (s *StatementService) header(ctx context.Context, year int, stmt *domain.St
 		FiscalYear:     year, StartDate: fy.StartDate, ClosingDate: fy.EndDate,
 		IsShortYear: fy.IsShort,
 		Reference:   "§ 264 Abs. 1a HGB",
+		Missing:     []string{},
 	}
 	if stmt.HasPrior {
 		header.PriorYear = stmt.PriorYear

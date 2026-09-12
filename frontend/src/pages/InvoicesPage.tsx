@@ -1139,7 +1139,7 @@ const InvoiceForm: React.FC<{
           <Button
             variant="primary"
             loading={busy}
-            disabled={!preview || preview.gross <= 0 || writeLock.locked}
+            disabled={!preview || preview.gross <= 0 || writeLock.locked || (preview.issuingFindings?.length ?? 0) > 0}
             // Ein gesperrter Knopf ohne Erklärung verschweigt seinen Grund
             // (§10.4): ohne Vorschau ist noch nichts gerechnet, und über null
             // Euro gibt es keine Rechnung.
@@ -1548,6 +1548,8 @@ const InvoiceForm: React.FC<{
         </div>
       </div>
 
+      {(preview?.issuingFindings?.length ?? 0) > 0 && <Notice tone="attention"
+        text={`Vor dem Ausstellen in Einstellungen bzw. Kontakten ergänzen: ${preview!.issuingFindings!.join('; ')}`} className="mb-4" />}
       {failure && <Notice tone="negative" text={failure} className="mt-6" />}
     </Dialog>
   );

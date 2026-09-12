@@ -69,6 +69,7 @@ export interface TenantConfig {
   /** Zielordner der Sicherung. Leer heißt: keine Sicherung eingerichtet. */
   backupDir?: string;
   lastBackupAt?: string;
+  recoveryExportedAt?: string;
   /** Letzter Tag des Prüfermodus (JJJJ-MM-TT). Leer heißt: aus. */
   readOnlyUntil?: string;
   readOnlyReason?: string;
@@ -444,6 +445,7 @@ export interface ReceiptRequest {
  * läuft, sobald ein Steuerfall dazukommt.
  */
 export interface PostingPreview {
+  issuingFindings?: string[];
   lines: JournalLine[];
   /** Summe der Aufwands- bzw. Ertragszeilen. */
   net: Cents;
@@ -1253,6 +1255,9 @@ export interface IntegrityCheckResult {
 }
 
 export interface CompanySettings {
+  managingDirectors?: string;
+  supervisoryBoardChair?: string;
+  sellerIdentifier?: string;
   /** Der erfasste Name. Das Eingabefeld führt ihn roh. */
   companyName: string;
   /**
@@ -2328,6 +2333,7 @@ export interface FiscalYear {
   disclosedOn?: string;
   /** Welcher Gesellschafterbeschluss den Abschluss festgestellt hat. */
   adoptionNote?: string;
+  disclosureNote?: string;
   /** Zeitpunkt des letzten Saldenvortrags in dieses Jahr. */
   carriedForwardAt?: string;
   /**
@@ -2347,6 +2353,7 @@ export interface FiscalYear {
 
 /** Alles, was die Abschlussansicht eines Jahres braucht — in einem Aufruf. */
 export interface ClosingState {
+  legalReserve?: { applies: boolean; year: number; date: string; netIncome: number; lossCarryForward: number; required: number; booked: number; difference: number };
   year: number;
   fiscalYear: FiscalYear;
   /** Erträge minus Aufwendungen der GuV-Konten; abgeleitet, nicht gebucht. */
@@ -2386,6 +2393,7 @@ export interface CarryForwardRow {
 
 /** Der Stand des Saldenvortrags in ein Geschäftsjahr. */
 export interface CarryForwardPreview {
+  resultToCarry: Cents;
   fromYear: number;
   toYear: number;
   /** Erster Tag des neuen Jahres, sonst der erste nicht festgeschriebene Tag. */
@@ -3566,7 +3574,8 @@ export interface AppropriationPreview {
   bookingDate: string;
   /** Der Jahresüberschuss des verwendeten Jahres, ohne frühere Vorträge. */
   yearResult: Cents;
-  /** Die Pflichtrücklage der UG (§ 5a Abs. 3 GmbHG); sonst null. */
+  /** Bereits im Abschluss des Gewinnjahres gebuchte Pflichtzuführung. */
+  reservedInClosing: Cents;
   requiredLegalReserve: Cents;
   explanation: string;
   warnings: string[];
@@ -3574,6 +3583,8 @@ export interface AppropriationPreview {
 
 /** Ein Abschnitt des Anhangs. */
 export type NotesSection =
+  | 'board_loans'
+  | 'additional'
   | 'methods'
   | 'board'
   | 'subsequent'
@@ -3618,6 +3629,8 @@ export interface Reconciliation {
 
 /** Der Anhang: Freitexte, Rückstellungsspiegel, Überleitung. */
 export interface StatementNotes {
+  belowBalance?: NotesSectionText[];
+  missing?: string[];
   texts: NotesSectionText[];
   provisionMirror: ProvisionMirror;
   reconciliation: Reconciliation;
@@ -5070,4 +5083,15 @@ export interface JournalFilterResult {
   totalCredit: Cents;
   /** Soll minus Haben der gefilterten Menge; nicht notwendig null. */
   balance: Cents;
+}
+
+export interface BankAccount {
+  iban: string;
+  name: string;
+  ledgerAccount: string;
+  currency: string;
+}
+export interface BankImportPreview {
+  accounts: BankAccount[];
+  transactions: number;
 }

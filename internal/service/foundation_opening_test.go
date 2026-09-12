@@ -130,14 +130,26 @@ func TestOpeningBalanceDoesNotAskForTheRegisterBeforeRegistration(t *testing.T) 
 }
 
 // Eine Bilanz, die nicht aufgeht, wird nicht abgelegt.
+type unbalancedOpeningSource struct{ StatementAtSource }
+
+func (s unbalancedOpeningSource) StatementAt(ctx context.Context, cutoff string, depth domain.StatementDepth) (*domain.Statement, error) {
+	stmt, err := s.StatementAtSource.StatementAt(ctx, cutoff, depth)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Assets = []domain.StatementLine{{Level: 1, Amount: 100_000}}
+	stmt.Liabilities = []domain.StatementLine{}
+	return stmt, nil
+}
+
 func TestFileOpeningBalanceRefusesAnUnbalancedSheet(t *testing.T) {
 	env := newTestEnv(t)
 	svc, _ := openingEnv(t, env)
 	ctx := context.Background()
 	env.saveFoundation(t, svc, gmbhFoundation())
-	// Eine einseitige Buchung lässt sich nicht erzeugen; stattdessen wird gegen
-	// ein Erfolgskonto gebucht: das steht in keiner der beiden Bilanzseiten.
-	env.book(t, "2026-01-15", "Aufwand am Gründungstag", "6825", "1800", 100_000)
+	// Eine Aufwandsbuchung bleibt über das Jahresergebnis bilanziell
+	// ausgeglichen. Nur ein tatsächlich unausgeglichener Bericht prüft die Sperre.
+	svc.SetStatementSource(unbalancedOpeningSource{env.statements(t)})
 
 	if _, err := svc.FileOpeningBalance(ctx); err == nil {
 		t.Fatal("eine Bilanz, die nicht aufgeht, darf nicht abgelegt werden")

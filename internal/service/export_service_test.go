@@ -40,6 +40,7 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 		e.fiscalYear,
 	)
 	svc.SetTenantName("Pfennig Ventures GmbH")
+	svc.SetCompanyDocuments(repository.NewDocumentRepository(e.db))
 	svc.SetOpenItemSource(e.payments(t))
 	return svc
 }

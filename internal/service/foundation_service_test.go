@@ -343,6 +343,9 @@ func TestRegisterEndsTheVorgesellschaft(t *testing.T) {
 // Anschrift, aber ohne die Postleitzahl: der Sitz ist die Gemeinde.
 func TestRegisterAdoptsTheRegisterDataIntoTheCompanySettings(t *testing.T) {
 	env := newTestEnv(t)
+	for _, key := range []string{"seat", "register_court", "register_number"} {
+		env.setSetting(t, key, "")
+	}
 	ctx := context.Background()
 	svc := env.foundations(t)
 	env.saveFoundation(t, svc, gmbhFoundation())
@@ -386,9 +389,9 @@ func TestRegisterAdoptsTheRegisterDataIntoTheCompanySettings(t *testing.T) {
 	}
 }
 
-// Was in den Einstellungen steht, hat jemand dort gewollt: die Eintragung
-// überschreibt nichts.
-func TestRegisterLeavesExistingCompanySettingsAlone(t *testing.T) {
+// Registerdaten aus der bestätigten Eintragung ersetzen vorläufige Angaben;
+// ein ausdrücklich gepflegter Sitz bleibt erhalten.
+func TestRegisterUpdatesProvisionalRegisterData(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	settings := repository.NewSettingsRepository(env.db)
@@ -413,9 +416,9 @@ func TestRegisterLeavesExistingCompanySettingsAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unternehmensdaten: %v", err)
 	}
-	if after.RegisterCourt != "Amtsgericht Traunstein" || after.RegisterNumber != "HRB 999" ||
+	if after.RegisterCourt != "Amtsgericht München" || after.RegisterNumber != "HRB 123456" ||
 		after.Seat != "Grünwald" {
-		t.Errorf("die Eintragung hat die Einstellungen überschrieben: %q, %q, %q",
+		t.Errorf("Registerdaten oder ausdrücklich gepflegter Sitz falsch: %q, %q, %q",
 			after.RegisterCourt, after.RegisterNumber, after.Seat)
 	}
 }

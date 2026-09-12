@@ -338,7 +338,9 @@ type NotesSectionText struct {
 // als auf dem Bildschirm — und welche Angaben ein Abschluss enthält, ist eine
 // Frage der Rechnungslegung und keine der Darstellung.
 type StatementNotes struct {
-	Texts []NotesSectionText `json:"texts"`
+	BelowBalance []NotesSectionText `json:"belowBalance,omitempty"`
+	Missing      []string           `json:"missing,omitempty"`
+	Texts        []NotesSectionText `json:"texts"`
 	// ProvisionMirror ist der Rückstellungsspiegel; leer, wenn keine
 	// Rückstellungen bestehen.
 	ProvisionMirror ProvisionMirror `json:"provisionMirror"`

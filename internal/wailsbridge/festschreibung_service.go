@@ -137,6 +137,17 @@ func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate, overr
 // Prüfläufe sich nicht speichern lassen, soll nicht ohne jede Prüfung
 // festschreiben können.
 func (b *BuchfinkBridge) runPreCommitChecks(ctx context.Context, periodType, cutoffDate, overrideReason string) error {
+	if b.closingSvc != nil {
+		fy, err := b.closingSvc.PeriodOf(ctx, b.currentYear)
+		if err != nil {
+			return err
+		}
+		if periodType == "year" || cutoffDate >= fy.EndDate {
+			if err := b.closingSvc.EnsureLegalReserve(ctx, b.currentYear); err != nil {
+				return err
+			}
+		}
+	}
 	if b.checkSvc == nil {
 		return b.ensureDepreciationBooked(ctx, periodType)
 	}

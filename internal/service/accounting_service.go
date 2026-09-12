@@ -476,6 +476,9 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 
 	var revenue, expenses domain.Cents
 	for _, a := range accounts {
+		if accounting.IsResultAppropriation(a) {
+			continue
+		}
 		switch a.Type {
 		case domain.AccountTypeRevenue:
 			revenue += a.Balance

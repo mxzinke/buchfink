@@ -20,20 +20,20 @@ const (
 // Account represents a ledger account in SKR04 according to official DATEV BilRUG standard.
 type Account struct {
 	ID                 uint        `gorm:"primaryKey" json:"id"`
-	Number             string      `gorm:"size:20;uniqueIndex;not null" json:"number"` // e.g. "1800", "4400-4409"
-	Name               string      `gorm:"size:255;not null" json:"name"`              // e.g. "Bank", "Erlöse 19 % USt"
-	Type               AccountType `gorm:"size:30;not null" json:"type"`               // "asset", "liability", "equity", "revenue", "expense", "statistical"
-	Category           string      `gorm:"size:100;not null" json:"category"`          // e.g. "Anlagevermögen", "Umlaufvermögen", "Betriebliche Erträge"
-	Subcategory        string      `gorm:"size:100" json:"subcategory"`                // e.g. "Liquide Mittel", "Sachanlagen", "Umsatzerlöse"
-	Kontenklasse       int         `gorm:"default:0;index" json:"kontenklasse"`        // 0 bis 9
-	KontenklasseName   string      `gorm:"size:100" json:"kontenklasseName"`           // e.g. "Klasse 1: Umlaufvermögenskonten"
-	PositionID         string      `gorm:"size:150;index" json:"positionId"`           // e.g. "bilanz.aktiva_b_iv.kassenbestand_bundesbankguthaben_guth"
-	Posten             string      `gorm:"size:255" json:"posten"`                     // e.g. "Kassenbestand, Guthaben bei Kreditinstituten..."
-	BalanceSide        string      `gorm:"size:50" json:"balanceSide"`                 // "Aktiva", "Passiva", "GuV", "Statistisch"
-	HGBCode            string      `gorm:"size:50" json:"hgbCode"`                     // e.g. "Aktiva.B.IV", "GuV.1"
-	StatementType      string      `gorm:"size:50" json:"statementType"`               // "Bilanz", "GuV", "Statistisch"
-	TaxRate            float64     `gorm:"default:0.0" json:"taxRate"`                 // e.g. 0.19 for 19% VAT
-	Hauptfunktion      string      `gorm:"size:20" json:"hauptfunktion"`               // "AM", "AV", "F", "R", "S"
+	Number             string      `gorm:"size:20;uniqueIndex;not null" json:"number"`             // e.g. "1800", "4400-4409"
+	Name               string      `gorm:"type:text;not null;serializer:encrypted_v2" json:"name"` // e.g. "Bank", "Erlöse 19 % USt"
+	Type               AccountType `gorm:"size:30;not null" json:"type"`                           // "asset", "liability", "equity", "revenue", "expense", "statistical"
+	Category           string      `gorm:"size:100;not null" json:"category"`                      // e.g. "Anlagevermögen", "Umlaufvermögen", "Betriebliche Erträge"
+	Subcategory        string      `gorm:"size:100" json:"subcategory"`                            // e.g. "Liquide Mittel", "Sachanlagen", "Umsatzerlöse"
+	Kontenklasse       int         `gorm:"default:0;index" json:"kontenklasse"`                    // 0 bis 9
+	KontenklasseName   string      `gorm:"size:100" json:"kontenklasseName"`                       // e.g. "Klasse 1: Umlaufvermögenskonten"
+	PositionID         string      `gorm:"size:150;index" json:"positionId"`                       // e.g. "bilanz.aktiva_b_iv.kassenbestand_bundesbankguthaben_guth"
+	Posten             string      `gorm:"size:255" json:"posten"`                                 // e.g. "Kassenbestand, Guthaben bei Kreditinstituten..."
+	BalanceSide        string      `gorm:"size:50" json:"balanceSide"`                             // "Aktiva", "Passiva", "GuV", "Statistisch"
+	HGBCode            string      `gorm:"size:50" json:"hgbCode"`                                 // e.g. "Aktiva.B.IV", "GuV.1"
+	StatementType      string      `gorm:"size:50" json:"statementType"`                           // "Bilanz", "GuV", "Statistisch"
+	TaxRate            float64     `gorm:"default:0.0" json:"taxRate"`                             // e.g. 0.19 for 19% VAT
+	Hauptfunktion      string      `gorm:"size:20" json:"hauptfunktion"`                           // "AM", "AV", "F", "R", "S"
 	HauptfunktionDesc  string      `gorm:"size:255" json:"hauptfunktionDesc"`
 	Zusatzfunktion     string      `gorm:"size:20" json:"zusatzfunktion"` // "KU", "M", "V"
 	ZusatzfunktionDesc string      `gorm:"size:255" json:"zusatzfunktionDesc"`
@@ -50,7 +50,7 @@ type Account struct {
 	// und die Kontenübersicht soll ein selbst angelegtes Konto sperren dürfen,
 	// ohne ein Konto des SKR04 anzurühren.
 	IsCustom    bool      `gorm:"default:false;index" json:"isCustom"`
-	Description string    `gorm:"type:text" json:"description"` // User or DATEV explanation
+	Description string    `gorm:"type:text;serializer:encrypted_v2" json:"description"` // User or DATEV explanation
 	IsActive    bool      `gorm:"default:true" json:"isActive"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

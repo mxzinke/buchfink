@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/buchfink/buchfink/internal/security"
+	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
@@ -134,3 +136,113 @@ func init() {
 // Nur für Tests: sie sollen prüfen können, dass eine Sicherungsprüfung
 // ausdrücklich ohne Schlüssel liest, und nicht bloß, dass sie nicht abstürzt.
 func VaultForTest(ctx context.Context) *security.Vault { return vaultFor(ctx) }
+
+// AddedEncryptedSerializer marks fields added to encryption in schemas 9 and 10.
+// Legacy plaintext remains readable in old, read-only backup databases. New
+// values have an authenticated envelope; malformed envelopes fail closed.
+const addedEncryptionPrefix = "buchfink:enc:2:"
+
+type AddedEncryptedSerializer struct{}
+
+func (AddedEncryptedSerializer) Value(ctx context.Context, _ *schema.Field, _ reflect.Value, value interface{}) (interface{}, error) {
+	plain, ok := asString(value)
+	if !ok {
+		return value, nil
+	}
+	if v := vaultFor(ctx); v != nil && plain != "" {
+		encrypted, err := v.EncryptString(plain)
+		if err != nil {
+			return nil, err
+		}
+		return addedEncryptionPrefix + encrypted, nil
+	}
+	return plain, nil
+}
+func (AddedEncryptedSerializer) Scan(ctx context.Context, field *schema.Field, dst reflect.Value, value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	stored, ok := asString(value)
+	if !ok {
+		return fmt.Errorf("invalid encrypted value for %s", field.Name)
+	}
+	plain := stored
+	if strings.HasPrefix(stored, addedEncryptionPrefix) {
+		v := vaultFor(ctx)
+		if v == nil {
+			return fmt.Errorf("field %s requires the recovery key", field.Name)
+		}
+		var err error
+		plain, err = v.DecryptString(strings.TrimPrefix(stored, addedEncryptionPrefix))
+		if err != nil {
+			return fmt.Errorf("decrypt field %s: %w", field.Name, err)
+		}
+	}
+	field.ReflectValueOf(ctx, dst).SetString(plain)
+	return nil
+}
+func init() { schema.RegisterSerializer("encrypted_v2", AddedEncryptedSerializer{}) }
+
+// BackfillAddedEncryption changes only the storage representation. It never
+// changes journal, receipt or audit hashes and leaves timestamps untouched.
+func BackfillAddedEncryption(db *gorm.DB) error {
+	v := vaultFor(db.Statement.Context)
+	if v == nil {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, group := range []struct {
+			table   string
+			columns []string
+		}{
+			{"contacts", []string{"name"}}, {"bank_transactions", []string{"counterparty_name"}},
+			{"invoice_items", []string{"description"}}, {"accounts", []string{"name", "description"}},
+			{"audit_log_entries", []string{"details"}},
+		} {
+			for _, column := range group.columns {
+				var rows []struct {
+					ID    uint
+					Value string
+				}
+				if err := tx.Table(group.table).Select("id, " + column + " AS value").Find(&rows).Error; err != nil {
+					return err
+				}
+				for _, row := range rows {
+					if row.Value == "" {
+						continue
+					}
+					if strings.HasPrefix(row.Value, addedEncryptionPrefix) {
+						if _, err := v.DecryptString(strings.TrimPrefix(row.Value, addedEncryptionPrefix)); err != nil {
+							return err
+						}
+						continue
+					}
+					encrypted, err := v.EncryptString(row.Value)
+					if err != nil {
+						return err
+					}
+					if err := tx.Table(group.table).Where("id = ?", row.ID).UpdateColumn(column, addedEncryptionPrefix+encrypted).Error; err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// Remove old page contents from the active database and truncate its WAL.
+// Backups and filesystem snapshots made before migration remain unchanged.
+func compactEncryptedMigration(db *gorm.DB) error {
+	if err := db.Exec("VACUUM").Error; err != nil {
+		return fmt.Errorf("encrypted migration: compact database: %w", err)
+	}
+	var checkpoint struct{ Busy, Log, Checkpointed int }
+	if err := db.Raw("PRAGMA wal_checkpoint(TRUNCATE)").Scan(&checkpoint).Error; err != nil {
+		return fmt.Errorf("encrypted migration: truncate WAL: %w", err)
+	}
+	if checkpoint.Busy != 0 {
+		return fmt.Errorf("encrypted migration: WAL is still in use; close other connections and reopen the company")
+	}
+	return nil
+}

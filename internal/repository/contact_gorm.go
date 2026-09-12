@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"sort"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
@@ -19,7 +21,8 @@ func NewContactRepository(db *gorm.DB) domain.ContactRepository {
 
 func (r *contactRepositoryGorm) FindAll(ctx context.Context) ([]domain.Contact, error) {
 	var contacts []domain.Contact
-	err := dbFrom(ctx, r.db).Order("name asc").Find(&contacts).Error
+	err := dbFrom(ctx, r.db).Find(&contacts).Error
+	sort.SliceStable(contacts, func(i, j int) bool { return strings.ToLower(contacts[i].Name) < strings.ToLower(contacts[j].Name) })
 	return contacts, err
 }
 

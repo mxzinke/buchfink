@@ -322,6 +322,7 @@ func BuildStatement(current, prior []domain.Account, depth domain.StatementDepth
 	b.ownPrior["passiva.A.V"] += stmt.NetIncomePrior
 
 	balanceSheet := b.lines(balanceLines, depth.MaxBalanceLevel())
+	balanceSheet = combineAppropriatedResult(balanceSheet)
 	for _, line := range balanceSheet {
 		switch line.Section {
 		case domain.SectionAssets:
@@ -751,3 +752,41 @@ func HasPositionTarget(positionID string) bool {
 // PositionCount is the number of SKR04 positions the mapping table covers. It
 // exists for the test that guards completeness against the catalog.
 func PositionCount() int { return len(positionTargets) }
+
+// A balance sheet after partial appropriation shows the balance-sheet result
+// instead of separate annual result and carryforward (§ 268 Abs. 1 HGB).
+func combineAppropriatedResult(lines []domain.StatementLine) []domain.StatementLine {
+	var allocation, allocationPrior, total, prior, carry, carryPrior domain.Cents
+	var accounts []domain.StatementAccount
+	for _, line := range lines {
+		switch line.Key {
+		case "passiva.A.VI":
+			allocation, allocationPrior = line.Amount, line.PriorAmount
+		case "passiva.A.IV":
+			carry, carryPrior = line.Amount, line.PriorAmount
+		}
+		if line.Key == "passiva.A.IV" || line.Key == "passiva.A.V" || line.Key == "passiva.A.VI" {
+			total += line.Amount
+			prior += line.PriorAmount
+			accounts = append(accounts, line.Accounts...)
+		}
+	}
+	if allocation == 0 && allocationPrior == 0 {
+		return lines
+	}
+	out := make([]domain.StatementLine, 0, len(lines))
+	for _, line := range lines {
+		switch line.Key {
+		case "passiva.A.IV":
+			line.Key, line.Label = "passiva.A.bilanzgewinn", "Bilanzgewinn/Bilanzverlust"
+			line.Amount, line.PriorAmount, line.Accounts = total, prior, accounts
+			line.Omitted = total == 0 && prior == 0
+			line.Note = fmt.Sprintf("Nach teilweiser Ergebnisverwendung (§ 268 Abs. 1 HGB). Enthaltener Gewinn-/Verlustvortrag: %s €; Vorjahr: %s €.", carry, carryPrior)
+			out = append(out, line)
+		case "passiva.A.V", "passiva.A.VI":
+		default:
+			out = append(out, line)
+		}
+	}
+	return out
+}

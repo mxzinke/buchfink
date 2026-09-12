@@ -49,7 +49,12 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
     setXbrlContent('');
     try {
       const mapping = await Api.getEBilanzMappingReport(year);
-      setReport(mapping);
+      setReport({
+        ...mapping,
+        rows: mapping.rows ?? [],
+        blocking: mapping.blocking ?? [],
+        fallbacks: mapping.fallbacks ?? [],
+      });
       // Ohne vollständige Zuordnung wird gar nicht erst erzeugt: der Aufruf
       // schlüge mit derselben Begründung fehl, die schon im Bericht steht.
       if (mapping.canExport) {

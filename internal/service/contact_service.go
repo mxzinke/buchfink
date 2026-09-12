@@ -77,6 +77,11 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	if c.Type != domain.ContactTypeCustomer && c.Type != domain.ContactTypeVendor {
 		return fmt.Errorf("Kontakttyp muss Kunde (Debitor) oder Lieferant (Kreditor) sein")
 	}
+	c.Name = strings.TrimSpace(c.Name)
+	c.Company = strings.TrimSpace(c.Company)
+	if c.Name == "" {
+		c.Name = c.Company
+	}
 	if c.Name == "" {
 		return fmt.Errorf("Name des Geschäftspartners fehlt")
 	}

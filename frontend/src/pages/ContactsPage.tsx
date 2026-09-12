@@ -452,7 +452,7 @@ const ContactForm: React.FC<{
   }
 
   async function submit() {
-    if (!draft.name?.trim()) {
+    if (!draft.name?.trim() && !draft.company?.trim()) {
       setError('Ohne Namen lässt sich der Kontakt nicht zuordnen.');
       return;
     }
@@ -526,12 +526,12 @@ const ContactForm: React.FC<{
         </Field>
       </div>
 
-      <Field label="Name" className="mt-4">
+      <Field label="Ansprechpartner oder Name" hint="Bei Unternehmen kann hier eine Kontaktperson stehen. Ohne Firma ist dies der Rechnungsempfänger." className="mt-4">
         <Input value={draft.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
       </Field>
 
       <div className="grid grid-cols-2 gap-4 mt-4">
-        <Field label="Firma" optional>
+        <Field label="Rechtlicher Firmenname" hint="Wird als Rechnungsempfänger verwendet. Einschließlich Rechtsform angeben." optional>
           <Input value={draft.company ?? ''} onChange={(e) => set({ company: e.target.value })} />
         </Field>
         <Field label="E-Mail" optional>

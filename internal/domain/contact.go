@@ -29,7 +29,7 @@ type Contact struct {
 	// LedgerAccount is the Personenkonto, e.g. "10001" or "70023".
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 
-	Name    string `gorm:"size:255;not null;index" json:"name"`
+	Name    string `gorm:"type:text;not null;serializer:encrypted_v2" json:"name"`
 	Company string `gorm:"size:255;serializer:encrypted" json:"company"`
 	Email   string `gorm:"size:255;serializer:encrypted" json:"email"`
 	// Address is the unstructured address as it was captured before Welle 5b.
@@ -357,4 +357,12 @@ type ContactRepository interface {
 	Save(ctx context.Context, contact *Contact) error
 	Delete(ctx context.Context, id uint) error
 	Count(ctx context.Context) (int64, error)
+}
+
+// LegalName is the invoice recipient; Name may be the company's contact person.
+func (c *Contact) LegalName() string {
+	if company := strings.TrimSpace(c.Company); company != "" {
+		return company
+	}
+	return strings.TrimSpace(c.Name)
 }

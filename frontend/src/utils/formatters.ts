@@ -53,7 +53,7 @@ export function parseCents(input: string): Cents | null {
 
   let sign = 1;
   let body = raw;
-  if (body.startsWith('-')) {
+  if (body.startsWith('-') || body.startsWith('−')) {
     sign = -1;
     body = body.slice(1);
   } else if (body.startsWith('+')) {
@@ -62,13 +62,14 @@ export function parseCents(input: string): Cents | null {
 
   // Deutsche Schreibweise: Punkt gruppiert, Komma trennt die Nachkommastellen.
   if (body.includes(',')) {
+    if (!/^(\d*|\d{1,3}(\.\d{3})+),\d{0,2}$/.test(body)) return null;
     body = body.replace(/\./g, '').replace(',', '.');
   }
-  if (!/^\d*(\.\d{0,2})?$/.test(body)) return null;
+  if (!/\d/.test(body) || !/^\d*(\.\d{0,2})?$/.test(body)) return null;
 
   const [whole, fraction = ''] = body.split('.');
   const cents = Number(whole || '0') * 100 + Number(fraction.padEnd(2, '0') || '0');
-  return Number.isFinite(cents) ? sign * cents : null;
+  return Number.isSafeInteger(cents) ? sign * cents : null;
 }
 
 /** Formatiert einen Steuersatz in Basispunkten: 1900 → "19 %". */

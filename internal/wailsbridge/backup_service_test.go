@@ -1,7 +1,6 @@
 package wailsbridge
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,13 +77,15 @@ func auditTypesAt(t *testing.T, dataDir string) map[string]bool {
 		}
 	}()
 
-	entries, err := repository.NewAuditRepository(db).FindAll(context.Background(), 0)
-	if err != nil {
+	// Die Testprobe braucht nur die unverschlüsselte Ereignisart.
+	// Beschreibungstexte sind ohne Schlüssel absichtlich nicht lesbar.
+	var entries []string
+	if err := db.Table("audit_log_entries").Pluck("entity_type", &entries).Error; err != nil {
 		t.Fatalf("Protokoll in %s lesen: %v", dataDir, err)
 	}
 	types := make(map[string]bool, len(entries))
 	for _, e := range entries {
-		types[e.EntityType] = true
+		types[e] = true
 	}
 	return types
 }

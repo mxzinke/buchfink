@@ -121,13 +121,15 @@ export const StatementView: React.FC<StatementViewProps> = ({
   if (view === 'angaben') {
     return (
       <Section
-        title="Restlaufzeiten"
+        title="Angaben unter der Bilanz"
         context={`Stichtag ${formatDate(data.maturities.closingDate)}`}
-        helpSummary="Hier sehen Sie, wann offene Rechnungen und andere Beträge fällig werden."
+        helpSummary="Restlaufzeiten und ergänzende Angaben gehören zum Abschluss. Bei einer Kleinstgesellschaft können vollständige Angaben unter der Bilanz den Anhang ersetzen."
         explain={data.maturities.reference}
         divider={false}
       >
         <MaturityView rows={data.maturities.rows} />
+        {(data.notes.belowBalance ?? []).map((text) => <div key={text.section} className="mt-5"><h3 className="text-label">{text.label}</h3><p className="text-body text-ink-muted whitespace-pre-wrap mt-2">{text.text}</p></div>)}
+        {(data.notes.missing?.length ?? 0) > 0 && <Notice tone="attention" className="mt-5" text={`Im Abschluss fehlen noch Angaben: ${data.notes.missing!.join('; ')}. Bitte unter Abschlussbausteine → Anhang ergänzen.`} />}
       </Section>
     );
   }
@@ -256,6 +258,7 @@ const HeaderFacts: React.FC<{
 }> = ({ statement, onOpenSettings }) => {
   const { header, statement: stmt, sizeClass } = statement;
   const register = [header.registerCourt, header.registerNumber].filter(Boolean).join(' ');
+  const missing = header.missing ?? [];
 
   return (
     <>
@@ -270,10 +273,10 @@ const HeaderFacts: React.FC<{
         />
       </dl>
 
-      {header.missing.length > 0 && (
+      {missing.length > 0 && (
         <Notice
           className="mt-6"
-          text={`Bitte ergänzen Sie diese Angaben: ${header.missing.join(', ')}.`}
+          text={`Bitte ergänzen Sie diese Angaben: ${missing.join(', ')}.`}
           action={
             onOpenSettings && (
               <Button variant="secondary" size="sm" onClick={onOpenSettings}>

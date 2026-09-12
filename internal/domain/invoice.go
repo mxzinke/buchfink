@@ -235,7 +235,7 @@ type InvoiceItem struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	InvoiceID   uint   `gorm:"index;not null" json:"invoiceId"`
 	Position    int    `gorm:"not null" json:"position"`
-	Description string `gorm:"size:500;not null" json:"description"`
+	Description string `gorm:"type:text;not null;serializer:encrypted_v2" json:"description"`
 	// QuantityMilli holds the quantity with three decimal places (1500 = 1,5).
 	// An integer keeps 0,1 h × 3 exact, which a float quantity would not.
 	QuantityMilli int64   `gorm:"not null" json:"quantityMilli"`

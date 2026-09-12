@@ -1,5 +1,7 @@
 package accounting
 
+import "github.com/buchfink/buchfink/internal/domain"
+
 // positionTargets ordnet jede der 206 Positionen des SKR04 einer
 // Gliederungsposition nach §§ 266, 275 HGB zu.
 //
@@ -231,4 +233,10 @@ var positionTargets = map[string]positionTarget{
 	"statistisch.statistisch_investitionsabzug7g.gutschrift_auf_verbindlichkeitskonten_od":      {Key: "statistisch"},
 	"statistisch.statistisch_investitionsabzug7g.gutschrift_auf_kapitalkonten_oder_ergebn":      {Key: "statistisch"},
 	"statistisch.statistisch_investitionsabzug7g.":                                              {Key: "statistisch"},
+}
+
+// IsResultAppropriation distinguishes allocation of profit from expense.
+func IsResultAppropriation(account domain.Account) bool {
+	target, ok := positionTargets[account.PositionID]
+	return ok && target.Key == "passiva.A.VI"
 }

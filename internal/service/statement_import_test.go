@@ -192,9 +192,7 @@ func TestUnbookedCheckStillReportsOtherReceipts(t *testing.T) {
 	}
 }
 
-// Der alte Weg über den Dateiinhalt bleibt nutzbar — und legt dann eben keine
-// Datei ab. Ohne diese Prüfung könnte die Umstellung ihn stillschweigend
-// zerbrechen.
+// Auch beim Inhalt-Import bleibt die unveränderte CAMT-Datei als Nachweis erhalten.
 func TestImportCAMT053FromContentStillWorks(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -211,8 +209,12 @@ func TestImportCAMT053FromContentStillWorks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
-	if len(receipts) != 0 {
-		t.Errorf("der Import über den Inhalt kann keine Datei ablegen, hat aber %d Belege erzeugt", len(receipts))
+	if len(receipts) != 1 || receipts[0].Kind != domain.ReceiptKindStatement {
+		t.Fatalf("Originalauszug fehlt: %+v", receipts)
+	}
+	original, err := os.ReadFile(filepath.Join(env.dataDir, receipts[0].Files[0].StoredPath))
+	if err != nil || string(original) != sampleCAMT {
+		t.Fatalf("Original wurde verändert oder fehlt: %v", err)
 	}
 }
 

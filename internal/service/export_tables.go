@@ -1112,3 +1112,23 @@ func auditTrailTable(d *exportData) (export.Table, error) {
 	}
 	return t, nil
 }
+
+func companyDocumentsTable(d *exportData) (export.Table, error) {
+	t := newTable("unternehmensdokumente", "unternehmensdokumente.csv",
+		"Unterlagen des Unternehmens aus allen Jahren, einschließlich Gründung, Eröffnungsbilanz und Pflichtnachweisen.",
+		intField("Dokument_ID", "Kennung in der Unternehmensablage."),
+		alphaField("Art", "Art der Unternehmensunterlage."), alphaField("Titel", "Dokumenttitel."),
+		dateField("Dokumentdatum", "Datum oder Stichtag des Dokuments."), dateField("Gueltig_bis", "Gültigkeit, falls befristet."),
+		alphaField("Pflichtbezug", "Schlüssel der zugehörigen Pflicht."), alphaField("Erzeugt_durch", "Erzeugende Buchfink-Funktion oder leer bei Fremddokumenten."),
+		alphaField("Dateiname", "Originaler Dateiname."), alphaField("Dateityp", "MIME-Typ."), intField("Groesse_Bytes", "Dateigröße."),
+		alphaField("SHA256", "Archivierte Prüfsumme."), alphaField("Pfad_im_Export", "Dateipfad im Paket."),
+		alphaField("Aufbewahrungsklasse", "Bei Ablage ermittelte Aufbewahrungsklasse."), dateField("Aufbewahren_bis", "Ende der Aufbewahrungsfrist."),
+		alphaField("Abgelegt_am", "Tatsächlicher Ablagezeitpunkt in UTC."), alphaField("Notiz", "Ergänzende Angaben."),
+	)
+	for _, doc := range d.companyDocuments {
+		if err := t.AddRow(export.Uint(doc.ID), string(doc.Kind), doc.Title, doc.DocumentDate, doc.ValidUntil, doc.DutyKey, doc.GeneratedBy, doc.FileName, doc.MimeType, export.Int64(doc.Size), doc.SHA256, d.companyDocumentPaths[doc.ID], string(doc.RetentionClass), doc.RetentionUntil, doc.CreatedAt.UTC().Format(time.RFC3339), doc.Note); err != nil {
+			return t, err
+		}
+	}
+	return t, nil
+}

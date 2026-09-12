@@ -333,7 +333,7 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
     setExporting(true);
     try {
       const path = await Api.exportRecoveryKey();
-      if (path) toast.success(`Recovery-Schlüssel gespeichert: ${path}`);
+      if (path) { toast.success(`Wiederherstellungsschlüssel gespeichert: ${path}`); setAppConfig(await Api.getAppConfig()); }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       // Der abgebrochene Ordnerdialog ist kein Fehler, den jemand lesen muss.
@@ -686,6 +686,15 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               onChange={(e) => patch({ seat: e.target.value })}
               placeholder="Ort laut Satzung"
             />
+          </Field>
+          <Field label="Geschäftsführung" hint="Alle Geschäftsführer mit ausgeschriebenem Vor- und Nachnamen; bei GmbH und UG Pflicht auf Rechnungen.">
+            <Input value={settings.managingDirectors || ''} onChange={(e) => patch({ managingDirectors: e.target.value })} placeholder="Mara Beispiel, Timo Muster" />
+          </Field>
+          <Field label="Aufsichtsratsvorsitz" optional hint="Ausfüllen, wenn ein Aufsichtsrat mit Vorsitz besteht.">
+            <Input value={settings.supervisoryBoardChair || ''} onChange={(e) => patch({ supervisoryBoardChair: e.target.value })} />
+          </Field>
+          <Field label="Verkäuferkennung für E-Rechnungen" optional hint="Erforderlich, wenn weder USt-ID noch Registernummer vorhanden ist. Verwenden Sie eine feste, mit Ihren Kunden abgestimmte Kennung.">
+            <Input value={settings.sellerIdentifier || ''} onChange={(e) => patch({ sellerIdentifier: e.target.value })} placeholder="Zum Beispiel Ihre Lieferantennummer" />
           </Field>
           <Field label="Registergericht">
             <Input
@@ -1441,11 +1450,11 @@ export const SettingsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
               <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf." label="Erklärung zum Recovery-Schlüssel">
                 Geht dieser Rechner verloren, ist der Schlüsselbund weg und die verschlüsselten
                 Daten sind ohne Recovery-Datei unwiederbringlich. Die Datei gehört an einen anderen
-                Ort als das Datenbackup — ein Backup, das beide enthält, schützt vor nichts.
+                Ort als die Datensicherung, damit der Besitz der Sicherung allein keinen Zugriff auf die verschlüsselten Daten ermöglicht.
               </Help>
             </h3>
             <p className="text-body text-ink-muted mt-1">
-              Ohne diese Datei sind die Daten verloren, wenn der Rechner abhandenkommt.
+              {appConfig?.tenants.find((t) => t.id === appConfig.activeTenantId)?.recoveryExportedAt ? 'Ein Wiederherstellungsschlüssel wurde bereits exportiert. Bewahren Sie die Datei getrennt und sicher auf.' : 'Noch keine Schlüsselsicherung vermerkt. Ohne diese Datei sind die verschlüsselten Daten bei Verlust des Rechners nicht wiederherstellbar.'}
             </p>
             <Button
               variant="secondary"

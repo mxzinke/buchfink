@@ -35,7 +35,14 @@ func (s *ReceiptService) VerifyReceiptFiles(ctx context.Context) (*domain.FileCh
 		}
 	}
 
-	result := checkReceiptFiles(receipts, documents, s.store)
+	var companyDocuments []domain.Document
+	if s.companyDocuments != nil {
+		companyDocuments, err = s.companyDocuments.FindAll(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Unternehmensdokumente lesen: %w", err)
+		}
+	}
+	result := checkReceiptFiles(receipts, documents, s.store, companyDocuments)
 	if s.auditRepo != nil {
 		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "RECEIPT_FILES", "",
 			result.Message)
@@ -53,12 +60,15 @@ type DocumentSource interface {
 // er nur die Belege — ein Vertrag zum Anlagegut ist aber genauso
 // aufbewahrungspflichtig.
 func (s *ReceiptService) SetDocumentSource(src DocumentSource) { s.documents = src }
+func (s *ReceiptService) SetCompanyDocuments(repo domain.DocumentRepository) {
+	s.companyDocuments = repo
+}
 
 // checkReceiptFiles ist der eigentliche Lauf. Er steht getrennt vom Dienst,
 // weil ihn der Wiederherstellungstest auf einem entpackten Datenordner braucht,
 // zu dem es keine Dienste gibt.
 func checkReceiptFiles(
-	receipts []domain.Receipt, documents []domain.AssetDocument, store *receiptstore.Store,
+	receipts []domain.Receipt, documents []domain.AssetDocument, store *receiptstore.Store, companyDocuments ...[]domain.Document,
 ) *domain.FileCheckResult {
 	result := &domain.FileCheckResult{
 		Issues:    make([]domain.FileCheckIssue, 0),
@@ -109,6 +119,11 @@ func checkReceiptFiles(
 		check("document", "", d.FileName, d.StoredPath, d.SHA256)
 	}
 
+	for _, group := range companyDocuments {
+		for _, doc := range group {
+			check("company_document", "", doc.FileName, doc.StoredPath, doc.SHA256)
+		}
+	}
 	result.IsValid = result.Damaged == 0 && result.Missing == 0
 	switch {
 	case result.Checked == 0:

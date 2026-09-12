@@ -47,6 +47,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	settings := repository.NewSettingsRepository(db)
 	if err := settings.UpdateCompanySettings(context.Background(), &domain.CompanySettings{
 		CompanyName: "Pfennig Ventures GmbH", LegalForm: "GmbH",
+		ManagingDirectors: "Mara Beispiel", Seat: "München", RegisterCourt: "Amtsgericht München", RegisterNumber: "HRB 123456",
 		Street: "Hauptstraße 1", ZipCity: "80331 München", Country: "Deutschland",
 		TaxNumber: "143/815/08151", VatID: "DE123456789",
 		FiscalYear: 2026, FiscalYearStartMonth: 1, Currency: "EUR", SKR: "SKR04",

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -371,6 +372,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Der Kontoauszug ist selbst ein Beleg: der Import legt die CAMT-Datei ab,
 	// bevor er sie liest.
 	b.bankSvc.SetReceiptService(b.receiptSvc)
+	b.bankSvc.SetAccountRegistry(repository.NewBankAccountRepository(db), b.settingsRepo, b.txRunner)
 	b.paymentSvc = service.NewPaymentService(b.journalSvc, b.journalRepo, b.allocationRepo, b.contactRepo, b.bankRepo, fiscalYear)
 	// Die Ausbuchung einer Forderung gehört mit ihrer Begründung ins Protokoll.
 	b.paymentSvc.SetAuditRepo(b.auditRepo)
@@ -432,6 +434,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Der Belegprüflauf geht über Belegdateien und Anlagendokumente: beide sind
 	// aufbewahrungspflichtig, und beide liegen im selben Speicher.
 	b.receiptSvc.SetDocumentSource(b.assetSvc)
+	b.receiptSvc.SetCompanyDocuments(b.documentRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
 	b.retentionSvc = service.NewRetentionService(
@@ -517,6 +520,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
 	)
 	b.appropriationSvc.SetReceiptService(b.receiptSvc)
+	b.closingSvc.SetReservePosting(b.receiptSvc, b.txRunner)
 	// Die Anhangtexte des Vorjahres sind die Vorlage des neuen Jahres.
 	b.closingSvc.SetNotesCopier(b.appropriationSvc)
 
@@ -603,6 +607,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Steuerbilanz und die Freitexte kommen aus ihren Diensten, erscheinen aber
 	// in derselben Struktur wie Bilanz und GuV — auf dem Schirm, im PDF und in
 	// der CSV.
+	b.closingSvc.SetStatementSource(b.statementSvc)
 	b.statementSvc.SetNotesSources(service.NotesSources{
 		Provisions:     b.provisionSvc,
 		Reconciliation: b.taxRegisterSvc,
@@ -671,6 +676,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		receiptstore.New(t.DataDir), t.DataDir, fiscalYear,
 	)
 	b.exportSvc.SetTenantName(t.Name)
+	b.exportSvc.SetCompanyDocuments(b.documentRepo)
 	b.exportSvc.SetOpenItemSource(b.paymentSvc)
 	b.exportSvc.SetIntegritySource(integrityChecks{journal: b.journalSvc, receipts: b.receiptSvc})
 	// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG ist Bestandteil des
@@ -841,16 +847,69 @@ func (b *BuchfinkBridge) ExportRecoveryKey() (string, error) {
 		targetDir = dir
 	}
 	if targetDir == "" {
-		return "", fmt.Errorf("kein Zielordner gewählt")
+		return "", nil
 	}
+	return b.exportRecoveryKeyLocked(targetDir)
+}
 
+// ExportRecoveryKeyToDirectory uses the same export as the native picker.
+func (b *BuchfinkBridge) ExportRecoveryKeyToDirectory(targetDir string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.exportRecoveryKeyLocked(targetDir)
+}
+
+func (b *BuchfinkBridge) exportRecoveryKeyLocked(targetDir string) (string, error) {
+	active := b.activeTenantLocked()
+	if active == nil || b.vault == nil {
+		return "", fmt.Errorf("kein entsperrter Mandant aktiv")
+	}
+	if targetDir == "" {
+		return "", fmt.Errorf("bitte einen Ordner für den Wiederherstellungsschlüssel wählen")
+	}
+	dir, err := filepath.EvalSymlinks(targetDir)
+	if err != nil {
+		return "", err
+	}
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	dataDir, err := filepath.EvalSymlinks(active.DataDir)
+	if err != nil {
+		return "", err
+	}
+	if rel, err := filepath.Rel(dataDir, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("bitte den Wiederherstellungsschlüssel außerhalb des Buchhaltungsordners sichern")
+	}
 	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.VaultID(), active.Name, b.vault)
 	if err != nil {
 		return "", err
 	}
-	fullPath := filepath.Join(targetDir, fmt.Sprintf("buchfink-recovery-%s.json", active.ID))
-	if err := os.WriteFile(fullPath, data, 0600); err != nil {
-		return "", fmt.Errorf("Recovery-Datei schreiben: %w", err)
+	file, err := os.CreateTemp(dir, ".buchfink-recovery-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(file.Name())
+	if _, err = file.Write(data); err == nil {
+		err = file.Sync()
+	}
+	closeErr := file.Close()
+	if err != nil {
+		return "", err
+	}
+	if closeErr != nil {
+		return "", closeErr
+	}
+	fullPath := filepath.Join(dir, fmt.Sprintf("buchfink-recovery-%s.json", active.ID))
+	if err := os.Rename(file.Name(), fullPath); err != nil {
+		return "", fmt.Errorf("Wiederherstellungsschlüssel speichern: %w", err)
+	}
+	before := active.RecoveryExportedAt
+	active.RecoveryExportedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
+		active.RecoveryExportedAt = before
+		return "", fmt.Errorf("Schlüssel unter %s gesichert, aber der Sicherungsvermerk konnte nicht gespeichert werden: %w", fullPath, err)
 	}
 	return fullPath, nil
 }
@@ -923,44 +982,85 @@ func (b *BuchfinkBridge) CreateTenant(
 		dataDir = abs
 	}
 
-	// Provision transparent field encryption: generates the envelope keyfile in
-	// the data dir and stores the wrapping secret in the OS keychain. initTenant
-	// then opens it. Fails closed — no tenant without encryption provisioned.
-	if _, err := security.CreateTenantVault(dataDir, tenantID); err != nil {
-		return nil, fmt.Errorf("failed to provision tenant encryption: %w", err)
+	// Provisioning replaces the keyfile. Reject occupied directories before
+	// touching the keychain, database, or active tenant configuration.
+	entries, err := os.ReadDir(dataDir)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("der Datenordner kann nicht gelesen werden: %w", err)
+	}
+	if len(entries) != 0 {
+		return nil, fmt.Errorf("der Datenordner ist nicht leer. Wählen Sie einen neuen, leeren Ordner oder öffnen Sie die vorhandene Buchhaltung")
 	}
 
 	fiscalYear := settings.FiscalYear
 	if fiscalYear == 0 {
 		fiscalYear = time.Now().Year()
 	}
-
-	t := domain.TenantConfig{
-		ID:        tenantID,
-		Name:      name,
-		DataDir:   dataDir,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	if fiscalYear < 1900 || fiscalYear > time.Now().Year()+1 {
+		return nil, fmt.Errorf("bitte ein Geschäftsjahr zwischen 1900 und %d wählen", time.Now().Year()+1)
 	}
-
-	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
-	b.appConfig.ActiveTenantID = tenantID
-	b.appConfig.IsConfigured = true
-	b.appConfig.LastFiscalYear = fiscalYear
-
-	if err := b.initTenant(&t); err != nil {
-		return nil, fmt.Errorf("failed to init tenant DB: %w", err)
-	}
-
-	// Update company profile in new database
 	if settings.CompanyName == "" {
 		settings.CompanyName = name
 	}
 	settings.FiscalYear = fiscalYear
-	if err := b.settingsSvc.UpdateCompanySettings(context.Background(), &settings); err != nil {
-		return nil, fmt.Errorf("failed to save initial company settings: %w", err)
+	previous := b.appConfig
+	previous.Tenants = append([]domain.TenantConfig(nil), b.appConfig.Tenants...)
+	previousYear, previousVault := b.currentYear, b.vault
+	complete := false
+	defer func() {
+		if complete {
+			return
+		}
+		_ = repository.CloseDB(b.db)
+		b.appConfig, b.currentYear, b.vault = previous, previousYear, previousVault
+		repository.SetActiveVault(previousVault)
+		if active := previous.ActiveTenant(); active != nil {
+			_ = b.initTenant(active)
+		} else {
+			b.db = nil
+			b.dataDir = previous.DataDir
+			b.locked = false
+		}
+		// This method exclusively provisioned this formerly empty directory.
+		_ = os.RemoveAll(dataDir)
+		_ = security.DeleteTenantSecret(tenantID)
+		_ = b.appCfgRepo.Save(&b.appConfig)
+	}()
+	vault, err := security.CreateTenantVault(dataDir, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("Verschlüsselung einrichten: %w", err)
 	}
-
-	_ = b.appCfgRepo.Save(&b.appConfig)
+	repository.SetActiveVault(vault)
+	// Seed the requested profile before any service or fiscal-year entity is
+	// created. Opening a database seeds the current calendar year by default.
+	db, err := repository.InitTenantDB(dataDir)
+	if err != nil {
+		return nil, err
+	}
+	initialSettings := service.NewSettingsService(repository.NewSettingsRepository(db), repository.NewAuditRepository(db))
+	err = initialSettings.UpdateCompanySettings(repository.WithVault(context.Background(), vault), &settings)
+	closeErr := repository.CloseDB(db)
+	if err != nil {
+		return nil, fmt.Errorf("Unternehmensdaten speichern: %w", err)
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	t := domain.TenantConfig{ID: tenantID, Name: name, DataDir: dataDir, CreatedAt: time.Now().UTC().Format(time.RFC3339)}
+	b.appConfig.Tenants = append(b.appConfig.Tenants, t)
+	b.appConfig.ActiveTenantID = tenantID
+	b.appConfig.IsConfigured = true
+	b.currentYear = fiscalYear
+	if err := b.initTenant(&t); err != nil {
+		return nil, fmt.Errorf("Buchhaltung einrichten: %w", err)
+	}
+	if err := b.closingSvc.EnsureFiscalYears(context.Background()); err != nil {
+		return nil, err
+	}
+	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
+		return nil, fmt.Errorf("Einrichtung speichern: %w", err)
+	}
+	complete = true
 	return &t, nil
 }
 

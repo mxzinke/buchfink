@@ -108,7 +108,14 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 		if strings.TrimSpace(text.Text) == "" {
 			continue
 		}
-		writeRow(&b, "anhang", string(text.Section), text.Basis, text.Label, "1", text.Text, "", "")
+		section := "anhang"
+		for _, below := range fs.Notes.BelowBalance {
+			if below.Section == text.Section {
+				section = "angaben_unter_der_bilanz"
+				break
+			}
+		}
+		writeRow(&b, section, string(text.Section), text.Basis, text.Label, "1", text.Text, "", "")
 	}
 
 	s.logExport(ctx, year, "CSV")
@@ -203,6 +210,15 @@ func statementTypst(fs *domain.FinancialStatement) string {
 	writeTypstTable(&b, fs.Statement.Liabilities, fs.Statement.HasPrior, fs.Header, "Summe Passiva",
 		fs.Statement.TotalLiabilities, fs.Statement.TotalLiabilitiesPrior)
 
+	if len(fs.Notes.BelowBalance) > 0 {
+		b.WriteString("\n== Ergänzende Angaben unter der Bilanz\n\n")
+		for _, text := range fs.Notes.BelowBalance {
+			fmt.Fprintf(&b, "*%s*\n\n%s\n\n", typstText(text.Label), typstText(text.Text))
+		}
+	}
+	if len(fs.Notes.Missing) > 0 {
+		fmt.Fprintf(&b, "\n*Entwurf: Pflichtangaben fehlen:* %s\n\n", typstText(strings.Join(fs.Notes.Missing, "; ")))
+	}
 	b.WriteString("\n#pagebreak()\n= Gewinn- und Verlustrechnung\n\n")
 	writeTypstTable(&b, fs.Statement.Income, fs.Statement.HasPrior, fs.Header, "",
 		0, 0)
@@ -252,7 +268,14 @@ func writeTypstNotes(b *strings.Builder, fs *domain.FinancialStatement) {
 	reconciliation := fs.Notes.Reconciliation
 	texts := make([]domain.NotesSectionText, 0, len(fs.Notes.Texts))
 	for _, text := range fs.Notes.Texts {
-		if strings.TrimSpace(text.Text) != "" {
+		alreadyShown := false
+		for _, below := range fs.Notes.BelowBalance {
+			if below.Section == text.Section {
+				alreadyShown = true
+				break
+			}
+		}
+		if strings.TrimSpace(text.Text) != "" && !alreadyShown {
 			texts = append(texts, text)
 		}
 	}

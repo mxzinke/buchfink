@@ -1,6 +1,6 @@
 # Stand der Umsetzung
 
-Abgleich mit dem Repository: 11. September 2026.
+Abgleich mit dem Repository: 12. September 2026, nach Bug Hunt und Nachbesserungen.
 
 Diese Seite beschreibt die implementierten Funktionen und bekannte Grenzen.
 Sie ist keine Freigabe für den produktiven Einsatz. Ziele stehen getrennt auf
@@ -28,16 +28,16 @@ werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
 |---|---|---|
 | Belege und Unterlagen ablegen | Originaldateien bleiben erhalten. E-Rechnungen werden ausgelesen und geprüft; andere Belege brauchen manuell erfasste Angaben. | `internal/service/receipt_service.go`, `internal/service/document_service.go`, `internal/einvoice/` |
 | Buchen und korrigieren | Der Buchungskern prüft ausgeglichene Buchungen. Belegbuchung und Handbuchung sind vorhanden; eine Handbuchung verlangt einen Beleg oder Eigenbeleg. Korrekturen erfolgen durch Storno und Neubuchung. | `internal/service/journal_service.go`, `manual_entry.go`, `self_issued_receipt.go` |
-| Bank und offene Rechnungen | CAMT.053-Import, Zuordnungsvorschläge, Teilzahlungen, Sammelzahlungen, Skonto und Zahlungsausfälle. Skonto korrigiert auch die Beträge der Voranmeldung. | `internal/bank/`, `internal/service/bank_service.go`, `payment_service.go`, `internal/accounting/ustva.go` |
+| Bank und offene Rechnungen | CAMT.053-Import mit Originalnachweis und mehreren Euro-Bankkonten, Kontoeinrichtung beim ersten Import, Zuordnungsvorschläge, Teilzahlungen, Sammelzahlungen, Skonto und Zahlungsausfälle. CAMT-Sammeleinträge mit mehreren Einzeltransaktionen werden abgewiesen. Skonto korrigiert auch die Beträge der Voranmeldung. | `internal/bank/`, `internal/service/bank_service.go`, `payment_service.go`, `internal/accounting/ustva.go` |
 | Rechnungen schreiben | Rechnungsnummer und Buchung entstehen zusammen. ZUGFeRD und XRechnung im CII-Format, Berichtigungen und Stornorechnungen sind vorhanden. | `internal/service/invoice_service.go`, `invoice_correction.go`, `internal/invoice/` |
 | Anzahlungen | Rechnungsverbund mit Abschlägen, Zahlungseingängen und Schlussrechnung; geleistete Anzahlungen auf der Eingangsseite. | `internal/service/advance_service.go`, `posting_service.go` |
 | Mahnen | Vorschläge aus überfälligen Posten, Mahnstufen und Berechnung von Zinsen und Pauschalen; Schreiben als Dokument. | `internal/service/dunning_service.go`, `internal/accounting/default_interest.go` |
 | Umsatzsteuer | Voranmeldung mit Rückverfolgung zur Buchung, Berichtigung, Dauerfristverlängerung und Zusammenfassende Meldung. Übermittlungsdaten werden nach einer externen Abgabe von Hand erfasst. | `internal/service/vat_return_service.go`, `internal/accounting/ustva.go`, `zm.go` |
 | Steuerliche Nachweise | Verzeichnis für Vorsteuerberichtigungen, Bestätigung von Umsatzsteuer-IDs und Liefernachweise. | `internal/service/input_tax_service.go`, `supply_evidence_service.go`, `internal/vatid/` |
 | Anlagen | Anlagenkartei, Abschreibungen, Bewegungen, Abgänge und Anlagenspiegel. Steuerliche Sonderabschreibungen werden neben dem Handelswert geführt. | `internal/service/asset_service.go`, `internal/accounting/afa.go`, `afa_rules.json` |
-| Abschluss vorbereiten | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung und Ergebnisverwendung. | `internal/service/accrual_service.go`, `provision_service.go`, `appropriation_service.go`, `closing_steps_service.go` |
+| Abschluss vorbereiten | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung, gesetzliche UG-Rücklage im Abschlussjahr und anschließende Ergebnisverwendung. | `internal/service/accrual_service.go`, `provision_service.go`, `appropriation_service.go`, `closing_steps_service.go` |
 | Auswerten | Journal, Konten, Bilanz und Gewinn- und Verlustrechnung mit Vorjahr. Anhangtexte, Rückstellungsspiegel und Überleitung werden zusammengestellt und als Teil der Ausgaben berücksichtigt. | `internal/service/statement_service.go`, `statement_export.go`, `internal/accounting/statement.go` |
-| E-Bilanz exportieren | Vorläufige XBRL-Datei aus der Bilanzgliederung. Die Taxonomie-Zuordnung ist ungeprüft. | `internal/ebilanz/ebilanz.go`, `taxonomy_6.9.json` |
+| E-Bilanz exportieren | Vorläufige XBRL-Datei aus der Bilanzgliederung. Die Taxonomie-Zuordnung ist ungeprüft; fehlende Zuordnungen nach teilweiser Ergebnisverwendung verhindern den Export. | `internal/ebilanz/ebilanz.go`, `taxonomy_6.9.json` |
 | Geschäftsjahr wechseln | Jahresanlage, Saldenvortrag mit offenen Posten, Übernahme von Anhangtexten als Vorlage. | `internal/service/closing_service.go` |
 | Gründung begleiten | Gründungsangaben, Kapitalaufbringung, Aufgaben und Nachweise, Eröffnungsbilanz. | `internal/service/foundation_opening.go`, `frontend/src/pages/GruendungPage.tsx` |
 | Änderungen nachvollziehen | Verkettete Prüfwerte für Journal und Änderungsprotokoll, Prüfläufe und Festschreibung mit externem Zeitstempel. | `internal/accounting/journalhash.go`, `audithash.go`, `internal/service/check_service.go`, `internal/timestamp/` |
@@ -57,9 +57,11 @@ genannte Verzeichnis derselben Zelle.
 - Buchfink übermittelt keine Meldungen selbst an die Finanzverwaltung.
   Das Kennziffernblatt für die Umsatzsteuer kann in Mein ELSTER übertragen werden.
   Ein beliebiger XBRL-Upload für die E-Bilanz in Mein ELSTER wird nicht zugesichert.
-- Ein Anhang entsteht aus Freitexten und berechneten Tabellen. Sein Umfang folgt
-  noch nicht automatisch der Größenklasse. Fehlende Quelldaten können zu leeren
-  Abschnitten führen, ohne die Ausgabe zu verhindern, siehe `StatementService.notesFor`.
+- Anhang und Ersatzangaben entstehen aus Freitexten und berechneten Tabellen.
+  Kleinstgesellschaften erhalten die abgefragten Ersatzangaben unter der Bilanz;
+  fehlende Pflichtabschnitte verhindern die Aufstellung. Ob alle Sachverhalte
+  vollständig und richtig erklärt sind, wird nicht automatisch festgestellt.
+  Weitere rechtsform- und größenabhängige Anhangpflichten bleiben unvollständig.
 - Die Größenklasse wird berechnet. Die Befreiung von latenten Steuern wird noch
   nicht vollständig über diese Klasse gesteuert.
 - Unterzeichneter Abschluss, Feststellungsbeschluss und Prüfungsvermerk sind noch
@@ -89,8 +91,10 @@ genannte Verzeichnis derselben Zelle.
 
 - Es gibt keine Benutzerverwaltung oder Rollenverteilung. Der Prüfermodus
   sperrt Änderungen; er ersetzt keine Mehrbenutzerberechtigungen.
-- Datenbankfelder mit personenbezogenem oder geschäftlichem Inhalt sind
-  verschlüsselt. Die Datenbank als Ganzes und die Originalbelegdateien sind es nicht.
+- Ausgewählte Datenbankfelder sind verschlüsselt, einschließlich Kontakt- und
+  Zahlungspartnernamen, Positionsbeschreibungen und Protokolltexten mit
+  Bestandsmigration. Die Datenbank als Ganzes, Metadaten und Originaldateien sind
+  es nicht. Einzelheiten stehen im [Sicherheitskonzept](security-concept.md).
 - Sicherungen enthalten Datenbank, Belege, Dokumente und die Schlüsseldatei.
   Sie benötigen ein gewähltes Sicherungsziel. Automatische Sicherungen laufen
   beim Start nach 24 Stunden und beim Beenden zusätzlich bei Änderungen. Die Wiederherstellungsdatei ist
@@ -109,7 +113,15 @@ Arbeitsschritte verstehen. Dafür bleiben fachliche Prüfung und Erprobung mit
 der Zielgruppe nötig. Die [Dokumentationsprüfung](dokumentationspruefung-2026-09-11.md)
 nennt die überprüften Widersprüche und die Grenzen dieses Abgleichs.
 
-Die aktuelle Testsuite scheitert an einer vorbestehenden Erwartung zur
-Eröffnungsbilanz (`TestFileOpeningBalanceRefusesAnUnbalancedSheet`). Der
-[Prüfbericht](dokumentationspruefung-2026-09-11.md) dokumentiert die Gegenprobe
-am unveränderten Ausgangsstand.
+Der [Bug-Hunt-Bericht vom 12. September 2026](bug-hunt-2026-09-12.md) dokumentiert
+die durchgespielten Abläufe, Videos, die Checkliste der Korrekturen und verbleibende
+Grenzen. Die reproduzierten Fehler bei Bankimport, Rechnungsempfänger,
+Eröffnungsbilanz, UG-Rücklage, Unternehmensdokumenten und Einrichtung eines
+Vorjahres sind behoben. Die Abnahmeproben sind reguläre Regressionstests.
+
+Die erzeugten Rechnungsbeispiele wurden zusätzlich mit CII-Schema,
+EN-16931-Regeln, KoSIT-XRechnung-Konfiguration und veraPDF geprüft. Erfolgreiche
+Beispiele ersetzen keine Zertifizierung aller unterstützten Rechnungsfälle.
+Die Prüfung einer alten Testbuchhaltung belegt die Verschlüsselungsmigration
+bei erhaltener Buchungs- und Protokollkette. Eine neue Sicherung wurde in einen
+separaten Ordner wiederhergestellt und erneut geprüft.

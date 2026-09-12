@@ -349,7 +349,8 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           0,
         );
         const first = earliest === year;
-        setIsFirstYear(first);
+        const foundation = await Api.getFoundationState();
+        setIsFirstYear(first && !foundation?.foundation);
         setOpeningBooked(
           first
             ? (await Api.getAllJournalEntries()).some(
@@ -585,6 +586,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       status: state.hasYearCommitment ? 'festgeschrieben' : 'offen',
       date: state.hasYearCommitment ? state.committedUntil ?? '' : '',
       note: '',
+      action: !state.hasYearCommitment && onNavigate ? <Button variant="secondary" size="sm" onClick={() => onNavigate('deadlines')}>Zur Festschreibung</Button> : undefined,
     },
     {
       key: 'prepared',
@@ -616,10 +618,10 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
     },
     {
       key: 'disclosed',
-      title: 'Offengelegt',
+      title: 'Offenlegung vermerkt',
       status: fy.disclosedOn ? 'offengelegt' : 'offen',
       date: fy.disclosedOn ?? '',
-      note: '',
+      note: fy.disclosureNote ?? '',
     },
   ];
 
@@ -682,6 +684,14 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         }
       />
 
+      {state.legalReserve?.applies && <Section title="Gesetzliche UG-Rücklage" className="mt-6"
+        context={`Für den Abschluss ${year}; die Rücklage wird vor der Festschreibung gebildet.`}>
+        <p className="text-body text-ink-muted">Jahresüberschuss {formatCents(state.legalReserve.netIncome)}, Verlustvortrag {formatCents(state.legalReserve.lossCarryForward)}. Davon ein Viertel: {formatCents(state.legalReserve.required)}. Bereits zugeführt: {formatCents(state.legalReserve.booked)}.</p>
+        {state.legalReserve.difference !== 0 ? <Button className="mt-3" disabled={writeLock.locked || state.hasYearCommitment} title={writeLock.hint || (state.hasYearCommitment ? 'Der Abschluss ist festgeschrieben. Für eine Berichtigung muss zuerst der Abschluss geöffnet werden.' : undefined)}
+          onClick={() => { void (async () => { try { await Api.bookLegalReserve(year); toast.success('Gesetzliche Rücklage im Abschlussjahr gebucht.'); await load(); } catch (e) { toast.error(message(e)); } })(); }}>
+          Rücklage um {formatCents(state.legalReserve.difference)} anpassen
+        </Button> : <p className="text-body text-positive-text mt-2">Die erforderliche Rücklage ist berücksichtigt.</p>}
+      </Section>}
       <div className="mt-6">
         <StatRow>
           <Stat
@@ -822,6 +832,8 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
             Umsatzsteuer-Verrechnung und die Steuerrückstellung. Der Stand folgt, wo möglich, aus
             den Daten. Ein bewusst ausgelassener Baustein wird übersprungen — mit Grund, damit
             später erkennbar bleibt, dass er nicht vergessen wurde.
+            Wenn Sie beispielsweise keine Vorräte und keine Fremdwährungsposten haben,
+            überspringen Sie diese Prüfungen mit genau dieser Begründung.
           </>
         }
         action={
@@ -902,7 +914,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                     {step.state === 'skipped' ? (
                       <SkippedMark />
                     ) : (
-                      <StatusBadge status={step.state === 'done' ? 'gebucht' : 'offen'} />
+                      <StatusBadge status={step.state === 'done' ? 'erledigt' : 'offen'} />
                     )}
                   </Td>
                   <Td className="text-ink-muted whitespace-normal">
@@ -1178,7 +1190,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
                             Bilanzidentität entscheidet. */}
                         {row.includesNetIncome && (
                           <span className="text-ink-muted">
-                            {` · inkl. Jahresergebnis ${formatCents(preview.netIncome)}`}
+                            {` · inkl. verbleibendem Jahresergebnis ${formatCents(preview.resultToCarry)}`}
                           </span>
                         )}
                         {/* Ein Personenkonto wird je offenem Posten vorgetragen und
@@ -1312,17 +1324,17 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
           />
         </Field>
 
-        {stepStatus === 'adopted' && (
-          <Field helpSummary="Geben Sie an, mit welchem Beschluss die Gesellschafter den Abschluss bestätigt haben."
-            label="Beschlussbezug"
-            optional
-            explain="Welcher Gesellschafterbeschluss den Abschluss festgestellt hat."
+        {(stepStatus === 'adopted' || stepStatus === 'disclosed') && (
+          <Field helpSummary={stepStatus === 'disclosed' ? 'Tragen Sie die Referenz des externen Übermittlungsnachweises ein.' : 'Geben Sie an, mit welchem Beschluss die Gesellschafter den Abschluss bestätigt haben.'}
+            label={stepStatus === 'disclosed' ? 'Übermittlungsnachweis oder Auftragsnummer' : 'Beschlussbezug'}
+            optional={stepStatus !== 'disclosed'}
+            explain={stepStatus === 'disclosed' ? 'Tragen Sie die Referenz Ihres externen Übermittlungsnachweises ein. Dieser lokale Vermerk löst keine Offenlegung aus.' : 'Welcher Gesellschafterbeschluss den Abschluss festgestellt hat.'}
             className="mt-4"
           >
             <Input
               value={stepNote}
               onChange={(e) => setStepNote(e.target.value)}
-              placeholder="Gesellschafterbeschluss vom …"
+              placeholder={stepStatus === 'disclosed' ? 'Auftragsnummer beim Unternehmensregister …' : 'Gesellschafterbeschluss vom …'}
             />
           </Field>
         )}
@@ -1436,7 +1448,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         title={carryLabel}
         description={
           preview
-            ? `${preview.entries} Buchungen zum ${formatDate(preview.bookingDate)} im Geschäftsjahr ${preview.toYear}.` +
+            ? `${preview.entries} ${preview.entries === 1 ? 'Buchung' : 'Buchungen'} zum ${formatDate(preview.bookingDate)} im Geschäftsjahr ${preview.toYear}.` +
               // Die Auflösungen der Abgrenzung sind eigene Buchungen mit
               // eigenem Datum; sie in `entries` unterzuschlagen hieße, die
               // Freigabe über ihren Umfang zu täuschen.
@@ -1572,7 +1584,7 @@ function sizeClassRows(
     },
     {
       label: 'Anhang',
-      value: obligations.notesRequired ? 'Ja' : 'Nein',
+      value: obligations.notesRequired ? 'Ja' : 'Entfällt bei vollständigen Ersatzangaben',
       explanation: `Rechtsgrundlage: ${obligations.notesReference}`,
     },
     {

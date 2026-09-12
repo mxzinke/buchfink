@@ -23,6 +23,9 @@ import (
 // Geschrieben wird wie überall über den JournalService: ein Saldenvortrag ist
 // eine Buchung wie jede andere, mit Nummer, Hash und Festschreibungsprüfung.
 type ClosingService struct {
+	statementSource    *StatementService
+	reserveReceipts    closingReceiptFiler
+	reserveTx          domain.TxRunner
 	fiscalYearRepo     domain.FiscalYearRepository
 	journalRepo        domain.JournalRepository
 	accountRepo        domain.AccountRepository
@@ -392,8 +395,9 @@ func (s *ClosingService) fiscalYearStartMonth(ctx context.Context) int {
 
 // ClosingState ist alles, was die Abschlussansicht eines Jahres braucht.
 type ClosingState struct {
-	Year       int               `json:"year"`
-	FiscalYear domain.FiscalYear `json:"fiscalYear"`
+	LegalReserve *LegalReserveState `json:"legalReserve,omitempty"`
+	Year         int                `json:"year"`
+	FiscalYear   domain.FiscalYear  `json:"fiscalYear"`
 	// NetIncome ist das Jahresergebnis: Erträge minus Aufwendungen der
 	// GuV-Konten. Eine abgeleitete Größe, keine gebuchte — bei SKR04 werden die
 	// Erfolgskonten nicht über ein Abschlusskonto geschlossen.
@@ -457,6 +461,18 @@ func (s *ClosingService) ClosingStateFor(ctx context.Context, year int) (*Closin
 	}
 
 	state.NextStatus, state.CanAdopt, state.Blocker = s.nextStep(fy, state.HasYearCommitment)
+	state.LegalReserve, err = s.LegalReserve(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.EnsureLegalReserve(ctx, year); err != nil {
+		state.CanAdopt, state.Blocker = false, err.Error()
+	}
+	if state.CanAdopt {
+		if err := s.ensureStatementReady(ctx, year); err != nil {
+			state.CanAdopt, state.Blocker = false, err.Error()
+		}
+	}
 	return state, nil
 }
 
@@ -540,6 +556,12 @@ func (s *ClosingService) SetFiscalYearStatus(
 				"aufstellen, bevor das Jahr vorbei ist", date, fy.EndDate)
 	}
 
+	if err := s.EnsureLegalReserve(ctx, year); err != nil {
+		return nil, err
+	}
+	if err := s.ensureStatementReady(ctx, year); err != nil {
+		return nil, err
+	}
 	switch status {
 	case domain.FiscalYearPrepared:
 		fy.PreparedOn = date
@@ -566,6 +588,10 @@ func (s *ClosingService) SetFiscalYearStatus(
 			return nil, fmt.Errorf(
 				"die Offenlegung am %s läge vor der Feststellung am %s", date, fy.AdoptedOn)
 		}
+		if strings.TrimSpace(note) == "" {
+			return nil, fmt.Errorf("bitte den Übermittlungsnachweis oder die Auftragsnummer zur Offenlegung angeben; Buchfink übermittelt den Abschluss nicht selbst")
+		}
+		fy.DisclosureNote = strings.TrimSpace(note)
 		fy.DisclosedOn = date
 	}
 	fy.Status = status
@@ -612,6 +638,7 @@ func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason 
 	fy.AdoptedOn = ""
 	fy.AdoptionNote = ""
 	fy.DisclosedOn = ""
+	fy.DisclosureNote = ""
 
 	if err := fy.Validate(); err != nil {
 		return nil, err
@@ -690,6 +717,7 @@ type CarryForwardPreview struct {
 	// NetIncome ist das Jahresergebnis des Vorjahres, ResultAccount das Konto,
 	// auf das es gebracht wird.
 	NetIncome         domain.Cents `json:"netIncome"`
+	ResultToCarry     domain.Cents `json:"resultToCarry"`
 	ResultAccount     string       `json:"resultAccount"`
 	ResultAccountName string       `json:"resultAccountName"`
 
@@ -816,10 +844,16 @@ func (s *ClosingService) plan(ctx context.Context, toYear int) (*carryForwardPla
 	}
 
 	netIncome := netIncomeOf(turnovers, chart)
-	resultAccount := domain.ResultCarryForwardAccount(netIncome)
-	if netIncome != 0 {
+	resultToCarry := netIncome
+	for number, turnover := range turnovers {
+		if account, ok := chart.Lookup(number); ok && accounting.IsResultAppropriation(account) {
+			resultToCarry += turnover.Credit - turnover.Debit
+		}
+	}
+	resultAccount := domain.ResultCarryForwardAccount(resultToCarry)
+	if resultToCarry != 0 {
 		// Ein Gewinn steht im Haben, in Soll-Richtung also negativ.
-		targets[resultAccount] += -netIncome
+		targets[resultAccount] += -resultToCarry
 		kinds[resultAccount] = CarryForwardSachkonto
 		if _, ok := names[resultAccount]; !ok {
 			names[resultAccount] = chart.Name(resultAccount)
@@ -918,6 +952,7 @@ func (s *ClosingService) plan(ctx context.Context, toYear int) (*carryForwardPla
 		Deferred:          deferred,
 		Rows:              rows,
 		NetIncome:         netIncome,
+		ResultToCarry:     resultToCarry,
 		ResultAccount:     resultAccount,
 		ResultAccountName: chart.Name(resultAccount),
 		// Gemessen wird an den Summen: sonst gälte ein Zieljahr als
@@ -1440,7 +1475,7 @@ func netIncomeOf(turnovers map[string]domain.AccountTurnover, chart *accounting.
 			continue
 		}
 		acc, ok := chart.Lookup(number)
-		if !ok || acc.StatementType != "GuV" {
+		if !ok || acc.StatementType != "GuV" || accounting.IsResultAppropriation(acc) {
 			continue
 		}
 		result += t.Credit - t.Debit
@@ -1821,4 +1856,29 @@ func (s *ClosingService) EarliestFiscalYear(ctx context.Context) (int, error) {
 		}
 	}
 	return earliest, nil
+}
+
+func (s *ClosingService) SetStatementSource(source *StatementService) { s.statementSource = source }
+func (s *ClosingService) ensureStatementReady(ctx context.Context, year int) error {
+	if s.statementSource == nil {
+		return nil
+	}
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return err
+	}
+	if _, applies := accounting.FoundationRulesFor(settings.LegalForm); !applies {
+		return nil
+	}
+	fs, err := s.statementSource.Build(ctx, year, domain.DepthFull)
+	if err != nil {
+		return err
+	}
+	if len(fs.Header.Missing) > 0 {
+		return fmt.Errorf("für den Abschluss fehlen Unternehmensangaben: %s", strings.Join(fs.Header.Missing, ", "))
+	}
+	if len(fs.Notes.Missing) > 0 {
+		return fmt.Errorf("bitte unter Abschlussbausteine → Anhang ergänzen: %s. Wenn nichts anzugeben ist, halten Sie dies ausdrücklich fest", strings.Join(fs.Notes.Missing, ", "))
+	}
+	return nil
 }

@@ -33,6 +33,8 @@ import type {
   AuditFilter,
   AuditLogEntry,
   BackupRun,
+  BankAccount,
+  BankImportPreview,
   BaseRate,
   BankRule,
   BankSuggestions,
@@ -671,6 +673,9 @@ export const Api = {
 
   // --- Bank & Zahlungen --------------------------------------------------
 
+  getBankAccounts: (): Promise<BankAccount[]> => call(() => Bridge.GetBankAccounts() as Promise<BankAccount[]>).then(list),
+  previewBankStatement: (path: string): Promise<BankImportPreview> => call(() => Bridge.PreviewBankStatement(path) as Promise<BankImportPreview>),
+  configureBankAccounts: (accounts: BankAccount[]): Promise<void> => call(() => Bridge.ConfigureBankAccounts(accounts)),
   getBankTransactions: (): Promise<BankTransaction[]> =>
     call(() => Bridge.GetBankTransactions() as Promise<BankTransaction[]>).then(list),
   /**
@@ -1122,6 +1127,7 @@ export const Api = {
   getFiscalYears: (): Promise<FiscalYear[]> => call(() => Bridge.GetFiscalYears() as Promise<FiscalYear[]>),
   /** Legt das Geschäftsjahr an und schaltet auf es um. */
   createFiscalYear: (year: number): Promise<void> => call(() => Bridge.CreateFiscalYear(year)),
+  bookLegalReserve: (year: number): Promise<JournalEntry> => call(() => Bridge.BookLegalReserve(year) as Promise<JournalEntry>),
   getClosingState: (year: number): Promise<ClosingState> =>
     call(() => Bridge.GetClosingState(year) as Promise<ClosingState>),
   /**

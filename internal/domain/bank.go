@@ -25,9 +25,10 @@ type BankTransaction struct {
 	// Amount is positive for money coming in and negative for money going out.
 	Amount           Cents       `gorm:"not null" json:"amount"`
 	Currency         string      `gorm:"size:3;default:'EUR'" json:"currency"`
-	CounterpartyName string      `gorm:"size:255;index" json:"counterpartyName"`
+	CounterpartyName string      `gorm:"type:text;serializer:encrypted_v2" json:"counterpartyName"`
 	CounterpartyIBAN string      `gorm:"size:34;serializer:encrypted" json:"counterpartyIban"`
 	RemittanceInfo   string      `gorm:"type:text;serializer:encrypted" json:"remittanceInfo"` // Verwendungszweck
+	BankReference    string      `gorm:"size:255;index" json:"bankReference"`
 	EndToEndID       string      `gorm:"size:100;index" json:"endToEndId"`
 	MatchStatus      MatchStatus `gorm:"size:20;default:'unmatched';index" json:"matchStatus"`
 	// LedgerAccount is the own liquid account this statement belongs to, e.g.

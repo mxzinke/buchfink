@@ -285,7 +285,7 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 			Title:     "Eröffnungsbilanz aufstellen",
 			Anchor:    domain.AnchorBeurkundung,
 			Order:     3,
-			Where:     "In Buchfink; die Übermittlung läuft über Mein ELSTER",
+			Where:     "In Buchfink aufstellen; über geeignete E-Bilanz-Software übermitteln",
 			DueDate:   addMonths(beurkundung, 6),
 			Deadline:  "im ordnungsmäßigen Geschäftsgang",
 			Reference: "§ 242 Abs. 1 HGB",
@@ -293,10 +293,10 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 				"Die Gründungsbuchungen freigeben, falls noch nicht geschehen.",
 				"Die Eröffnungsbilanz aufstellen und prüfen, ob sie aufgeht.",
 				"Sie als PDF ablegen — sie gehört zehn Jahre aufbewahrt.",
-				"Die E-Bilanz dazu erzeugen und über Mein ELSTER übermitteln (§ 5b Abs. 1 EStG).",
+				"Die Zahlen in geeignete E-Bilanz-Software übernehmen, dort amtlich validieren und übermitteln (§ 5b Abs. 1 EStG). Buchfink bietet keine direkte Übermittlung.",
 			},
 			Provides: "Buchfink stellt sie aus den Buchungen auf, setzt sie als PDF und erzeugt die " +
-				"XBRL-Instanz dazu.",
+				"XBRL-Arbeitsdatei dazu. Diese ist noch nicht amtlich validiert.",
 			Description: "Aufzustellen zu Beginn des Handelsgewerbes, also auf den Tag der " +
 				"Beurkundung. Das Gesetz nennt keine Tagesfrist; der angezeigte Termin ist " +
 				"der Richtwert einer kleinen Kapitalgesellschaft nach § 264 Abs. 1 Satz 4 HGB.",

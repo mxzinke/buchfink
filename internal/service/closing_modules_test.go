@@ -28,6 +28,7 @@ type closingModules struct {
 func (e *testEnv) closingModules(t *testing.T) *closingModules {
 	t.Helper()
 	closing := e.closing(t)
+	closing.SetReservePosting(e.receipts, repository.NewTxRunner(e.db))
 
 	accrualRepo := repository.NewAccrualRepository(e.db)
 	provisionRepo := repository.NewProvisionRepository(e.db)
@@ -740,8 +741,16 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 		t.Fatalf("Ergebnis buchen: %v", err)
 	}
 
-	// Das Folgejahr trägt das Ergebnis auf dem Vortragskonto und das
-	// Stammkapital von 1.000 €.
+	// A later shareholder decision must never repair a missing prior-year reserve.
+	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
+		DecisionDate: "2027-05-20", Text: "Beschluss",
+	}); err == nil {
+		t.Fatal("Beschluss ohne Rücklage im Gewinnjahr akzeptiert")
+	}
+	if _, err := m.closing.BookLegalReserve(ctx, 2026); err != nil {
+		t.Fatal(err)
+	}
+	// The opening balance carries the already formed reserve separately.
 	opening := &domain.JournalEntry{
 		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
 		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
@@ -749,49 +758,21 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 500_000},
 			{Side: domain.SideCredit, Account: domain.AccountGezeichnetesKapital, Amount: 100_000},
-			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 400_000},
+			{Side: domain.SideCredit, Account: domain.AccountGesetzlicheRuecklage, Amount: 100_000},
+			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 300_000},
 		},
 	}
 	if _, err := env.journal.Post(ctx, opening); err != nil {
-		t.Fatalf("Vortrag buchen: %v", err)
+		t.Fatal(err)
 	}
-
-	// Die Vorschau ist das leere Formular: sie nennt den Pflichtbetrag und warnt,
-	// statt abzubrechen. Bräche sie ab, erführe niemand, was einzustellen ist.
-	empty, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20",
-	})
-	if err != nil {
-		t.Fatalf("Vorschau mit leerem Formular: %v", err)
-	}
-	if empty.RequiredLegalReserve != 100_000 {
-		t.Errorf("Pflichtrücklage der leeren Vorschau %s € — erwartet 1.000,00 €",
-			empty.RequiredLegalReserve)
-	}
-	if !containsSubstring(empty.Warnings, "§ 5a Abs. 3 GmbHG") {
-		t.Errorf("die leere Vorschau muss auf die Pflichtrücklage hinweisen, hat aber %v",
-			empty.Warnings)
-	}
-
-	// Gebucht wird ein Beschluss unter der Pflichtrücklage dagegen nicht.
-	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20", LegalReserve: 50_000, Text: "Beschluss",
-	}); err == nil {
-		t.Fatal("eine zu kleine Pflichtrücklage muss zurückgewiesen werden")
-	}
-
 	preview, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20", LegalReserve: 100_000, Distribution: 200_000,
+		DecisionDate: "2027-05-20", Distribution: 200_000,
 	})
 	if err != nil {
-		t.Fatalf("Vorschau: %v", err)
+		t.Fatal(err)
 	}
-	if containsSubstring(preview.Warnings, "§ 5a Abs. 3 GmbHG") {
-		t.Errorf("eine ausreichende Rücklage darf nicht mehr gemahnt werden: %v", preview.Warnings)
-	}
-	if preview.RequiredLegalReserve != 100_000 {
-		t.Errorf("Pflichtrücklage %s € — erwartet ein Viertel von 4.000,00 €",
-			preview.RequiredLegalReserve)
+	if preview.RequiredLegalReserve != 0 || preview.ReservedInClosing != 100_000 {
+		t.Fatalf("Rücklage wird nochmals verlangt oder nicht angezeigt: %+v", preview)
 	}
 	// 25 % Kapitalertragsteuer auf 2.000,00 € und 5,5 % Solidaritätszuschlag
 	// darauf.
@@ -808,7 +789,7 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	}
 
 	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20", LegalReserve: 100_000, Distribution: 200_000,
+		DecisionDate: "2027-05-20", Distribution: 200_000,
 		Text: "Gesellschafterbeschluss vom 20.05.2027",
 	}); err != nil {
 		t.Fatalf("Beschluss buchen: %v", err)
@@ -1519,9 +1500,15 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	if preview.NetIncome != 400_000 {
 		t.Errorf("verwendbares Ergebnis %s € — erwartet 4.000,00 € vom Vortragskonto", preview.NetIncome)
 	}
-	if preview.RequiredLegalReserve != 25_000 {
-		t.Errorf("Pflichtrücklage %s € — erwartet ein Viertel von 1.000,00 €",
-			preview.RequiredLegalReserve)
+	reserve, err := m.closing.LegalReserve(ctx, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reserve.Required != 25_000 {
+		t.Errorf("Pflichtrücklage %s €, erwartet 250,00 €", reserve.Required)
+	}
+	if preview.RequiredLegalReserve != 0 || !containsSubstring(preview.Warnings, "Im Abschluss 2026 fehlt") {
+		t.Fatalf("Fehlende Rücklage muss im Abschluss nachgeholt werden: %+v", preview)
 	}
 }
 

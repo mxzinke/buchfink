@@ -541,7 +541,7 @@ func TestVerifyBackupChecksAssetDocumentsToo(t *testing.T) {
 	}
 	// Zwei Dateien: die Belegdatei und das Anlagendokument. Ohne das Dokument
 	// stünde hier eine 1 — und der Vertrag wäre ungeprüft.
-	if !strings.Contains(verify.Message, "2 Belegdateien") {
+	if !strings.Contains(verify.Message, "2 Beleg- und Dokumentdateien") {
 		t.Errorf("das Anlagendokument wurde nicht mitgeprüft: %s", verify.Message)
 	}
 }

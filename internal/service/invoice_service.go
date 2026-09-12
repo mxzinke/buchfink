@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -218,7 +219,7 @@ func (s *InvoiceService) prepareForIssue(
 		if err := ensureNotBlocked(contact); err != nil {
 			return nil, err
 		}
-		inv.ContactName = contact.Name
+		inv.ContactName = contact.LegalName()
 		if inv.EInvoiceProfile == "" {
 			inv.EInvoiceProfile = contact.ResolvedEInvoiceProfile()
 		}
@@ -309,6 +310,9 @@ func (s *InvoiceService) prepareForIssue(
 	seller, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
+	}
+	if missing := seller.InvoiceSellerFindings(inv.EInvoiceProfile != domain.EInvoiceProfilePDFOnly); len(missing) > 0 {
+		return nil, fmt.Errorf("bitte vor dem Ausstellen in den Einstellungen ergänzen: %s", strings.Join(missing, "; "))
 	}
 	if err := inv.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
 		return nil, err
@@ -1067,6 +1071,19 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 	}
 	if err != nil {
 		return nil, err
+	}
+	seller, settingsErr := s.settingsRepo.GetCompanySettings(ctx)
+	if settingsErr != nil {
+		return nil, settingsErr
+	}
+	profile := draft.EInvoiceProfile
+	if profile == "" && contact != nil {
+		profile = contact.ResolvedEInvoiceProfile()
+	}
+	structured := profile != domain.EInvoiceProfilePDFOnly && !(draft.SmallAmount && contact == nil)
+	preview.IssuingFindings = seller.InvoiceSellerFindings(structured)
+	if err := draft.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
+		preview.IssuingFindings = append(preview.IssuingFindings, err.Error())
 	}
 	// Die Grenze der Kleinbetragsrechnung reist mit der Vorschau, damit die
 	// Maske die Option sperren kann, statt sie anzubieten und den Anwender bis

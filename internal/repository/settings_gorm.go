@@ -74,6 +74,12 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 	for _, it := range items {
 		switch it.Key {
+		case "managing_directors":
+			settings.ManagingDirectors = it.Value
+		case "supervisory_board_chair":
+			settings.SupervisoryBoardChair = it.Value
+		case "seller_identifier":
+			settings.SellerIdentifier = it.Value
 		case "company_name":
 			settings.CompanyName = it.Value
 		case "legal_form":
@@ -275,6 +281,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	}
 
 	kv := map[string]string{
+		"managing_directors":      s.ManagingDirectors,
+		"supervisory_board_chair": s.SupervisoryBoardChair,
+		"seller_identifier":       s.SellerIdentifier,
 		"company_name":            s.CompanyName,
 		"legal_form":              s.LegalForm,
 		"fiscal_year":             fmt.Sprintf("%d", s.FiscalYear),

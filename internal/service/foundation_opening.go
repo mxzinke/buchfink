@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
@@ -98,6 +99,8 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 			out.Findings = append(out.Findings, fmt.Sprintf(
 				"Die Pflichtangabe %q fehlt in den Unternehmensdaten (§ 264 Abs. 1a HGB).", missing))
 		}
+	} else {
+		return nil, fmt.Errorf("Unternehmensangaben für die Eröffnungsbilanz lesen: %w", err)
 	}
 
 	out.Assets = sumStatement(stmt.Assets)
@@ -116,13 +119,60 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 			germanDate(f.NotarizedOn)))
 	}
 
+	entries, err := s.journalRepo.FindByAccount(ctx, domain.AccountGezeichnetesKapital, 0)
+	if err != nil {
+		return nil, err
+	}
+	var capital domain.Cents
+	for _, entry := range entries {
+		if entry.BookingDate <= f.NotarizedOn {
+			for _, line := range entry.Lines {
+				if line.Account == domain.AccountGezeichnetesKapital {
+					if line.Side == domain.SideCredit {
+						capital += line.Amount
+					} else {
+						capital -= line.Amount
+					}
+				}
+			}
+		}
+	}
+	if capital != f.ShareCapital {
+		out.Findings = append(out.Findings, fmt.Sprintf("Das gezeichnete Kapital zum Stichtag beträgt %s €; laut Gründung sind %s € zu buchen. Bitte die Gründungsbuchungen vervollständigen.", capital, f.ShareCapital))
+	}
+	// The contribution form records money already paid at the opening date.
+	// A balanced capital subscription alone must not hide a missing payment.
+	contributions, err := s.journalRepo.FindByAccount(ctx, domain.AccountAusstehendeEinlagenGeford, 0)
+	if err != nil {
+		return nil, err
+	}
+	contributed := capital
+	for _, entry := range contributions {
+		if entry.BookingDate > f.NotarizedOn {
+			continue
+		}
+		for _, line := range entry.Lines {
+			if line.Account != domain.AccountAusstehendeEinlagenGeford {
+				continue
+			}
+			if line.Side == domain.SideCredit {
+				contributed += line.Amount
+			} else {
+				contributed -= line.Amount
+			}
+		}
+	}
+	if contributed < f.PaidInCapital() {
+		out.Findings = append(out.Findings, fmt.Sprintf("Laut Gründung wurden %s € eingezahlt; davon sind zum Stichtag nur %s € als Einlage gebucht. Bitte die Einzahlung vervollständigen.", f.PaidInCapital(), contributed))
+	}
+
 	if s.documents != nil {
 		if filed, err := s.documents.ForDuty(ctx, DutyKeyEroeffnungsbilanz); err == nil && len(filed) > 0 {
 			// Die zuletzt abgelegte Fassung. Eine neue ersetzt die alte nicht:
 			// beide bleiben in der Ablage, und welche gilt, sagt ihr Datum.
 			latest := filed[len(filed)-1]
 			out.DocumentID = latest.ID
-			out.FiledOn = latest.CreatedAt.Format("2006-01-02")
+			out.FiledOn = latest.CreatedAt.In(time.Local).Format("2006-01-02")
 		}
 	}
 	return out, nil
@@ -158,6 +208,9 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 			"die Eröffnungsbilanz geht nicht auf: Aktiva %s €, Passiva %s €. Eine Bilanz, die nicht "+
 				"aufgeht, ist keine", sheet.Assets, sheet.Equity)
 	}
+	if len(sheet.Findings) > 0 {
+		return nil, fmt.Errorf("die Eröffnungsbilanz ist noch unvollständig: %s", strings.Join(sheet.Findings, " "))
+	}
 	if s.documents == nil {
 		return nil, fmt.Errorf("die Dokumentenablage ist nicht verfügbar")
 	}
@@ -187,8 +240,10 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 	}
 	// Die Pflicht ist mit der Aufstellung erledigt. Sie danach noch als offen zu
 	// führen wäre eine Nachfrage nach etwas, das in der Ablage liegt.
-	_ = s.CompleteDuty(ctx, DutyKeyEroeffnungsbilanz, sheet.AsOf,
-		"Aufgestellt und abgelegt: "+doc.FileName)
+	if err := s.CompleteDuty(ctx, DutyKeyEroeffnungsbilanz, todayLocal(),
+		"Aufgestellt und abgelegt: "+doc.FileName); err != nil {
+		return doc, fmt.Errorf("Dokument abgelegt, aber Erledigungsvermerk nicht gespeichert: %w", err)
+	}
 	s.audit(ctx, domain.AuditActionCreate, doc.ID, fmt.Sprintf(
 		"Eröffnungsbilanz auf den %s aufgestellt und abgelegt (§ 242 Abs. 1 HGB)", sheet.AsOf))
 	return doc, nil
@@ -211,6 +266,7 @@ func openingBalanceMarkdown(sheet *OpeningBalanceSheet) string {
 
 	b.WriteString("| Angabe | Inhalt |\n| --- | --- |\n")
 	fmt.Fprintf(&b, "| Stichtag | %s |\n", germanDate(sheet.AsOf))
+	fmt.Fprintf(&b, "| Aufgestellt am | %s |\n", germanDate(todayLocal()))
 	if h.Seat != "" {
 		fmt.Fprintf(&b, "| Sitz | %s |\n", h.Seat)
 	}
