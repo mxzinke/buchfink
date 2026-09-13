@@ -22,7 +22,7 @@ Unicode true
 ## !define INFO_PROJECTNAME    "my-project" # Default "buchfink"
 ## !define INFO_COMPANYNAME    "Buchfink Open Source" # Default "Buchfink Open Source"
 ## !define INFO_PRODUCTNAME    "Buchfink" # Default "Buchfink"
-## !define INFO_PRODUCTVERSION "0.1.0"     # Default "0.1.0"
+## !define INFO_PRODUCTVERSION "0.2.0"     # Default "0.2.0"
 ## !define INFO_COPYRIGHT      "Copyright (c) 2026 Maximilian Pfennig - Licensed under the EUPL-1.2" # Default "Copyright (c) 2026 Maximilian Pfennig - Licensed under the EUPL-1.2"
 ###
 ## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"

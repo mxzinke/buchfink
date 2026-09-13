@@ -10,6 +10,54 @@ Das Format ist Teil der Schnittstelle: `internal/changelog` liest die
 Zusammenfassung und jeden Strichpunkt als Änderung. Der Text einer Fassung ist
 zugleich der Text ihrer Veröffentlichung.
 
+## v0.2 — 2026-09-13
+
+Diese Vorabversion verbessert Einrichtung, Bankimport und Jahresabschluss.
+Sie enthält die Korrekturen aus den Prüfungen mit kleinen
+Dienstleistungsunternehmen. Die Veröffentlichung enthält den Quellcode;
+zum Starten werden weiterhin Entwicklungswerkzeuge benötigt.
+
+- Ein eigener Gründungsweg führt durch Aufgaben und Nachweise.
+  Unternehmensunterlagen lassen sich ablegen und im Prüferpaket ausgeben.
+  Eröffnungsbilanzen werden auf Vollständigkeit und Übereinstimmung mit den
+  Gründungsbuchungen geprüft.
+- Das Onboarding fordert zur Sicherung des Wiederherstellungsschlüssels auf.
+  Ein abgebrochener Export zählt nicht als Sicherung; erneuter Export macht
+  ältere Wiederherstellungsdateien nicht ungültig. Belegte Datenordner werden
+  vor der Schlüsselanlage abgewiesen, und das gewählte Geschäftsjahr bleibt aktiv.
+- Bankkonten werden beim ersten CAMT-Import eingerichtet. Mehrere Euro-Konten
+  werden getrennt zugeordnet. Originaldateien werden als Nachweis abgelegt,
+  Wiederholungsimporte erkannt und ungültige Beträge oder Buchungsdaten
+  abgewiesen. Nicht unterstützte Sammeleinträge erzeugen eine Fehlermeldung.
+- Betragseingaben erkennen ungültige Tausendergruppen und Überläufe.
+  Teilzahlungen schlagen höchstens den verfügbaren Zahlungsbetrag vor.
+  Kontoauszüge erhalten keine Aufforderung zur Prüfung von Rechnungsangaben.
+- Rechnungen enthalten die vollständige Empfängerfirma sowie ergänzte
+  Verkäufer- und Registerangaben. XRechnungen erhalten die fehlende
+  Geschäftsprozesskennung. Die geprüften ZUGFeRD- und XRechnungsbeispiele
+  bestanden unabhängige Formatprüfungen.
+- Die gesetzliche UG-Rücklage wird im Abschlussjahr berücksichtigt.
+  Bilanzgewinn und Vortrag verwenden das verbleibende Ergebnis.
+  Kleinstgesellschaften werden vor der Aufstellung nach Ersatzangaben gefragt;
+  ein Offenlegungsvermerk verlangt einen Nachweisbezug.
+- Kontakt- und Zahlungspartnernamen, Rechnungspositionen, Kontobezeichnungen
+  und Protokolltexte werden verschlüsselt. Die Migration auf Datenbankschema 10
+  erhält Buchungen und Hashketten. Sicherung und Wiederherstellung wurden mit
+  einem migrierten Datenbestand geprüft. Vor dem Upgrade eine Sicherung und
+  den Wiederherstellungsschlüssel getrennt aufbewahren.
+- Leere Auswertungen führen nicht mehr zu den reproduzierten Abstürzen in
+  Bilanz und E-Bilanz. Unvollständige E-Bilanz-Zuordnungen nach teilweiser
+  Ergebnisverwendung verhindern den Export.
+- Kurze Tooltips und Detaildialoge mit Quellenlinks erklären die Bedienung.
+  Nummernformate und Lückenprüfung liegen standardmäßig eingeklappt unter
+  Einstellungen → Rechnungsstellung → Nummernkreise.
+- Dokumentation wird nach Thema gepflegt. Umsetzungsstand, bekannte Grenzen,
+  Prüfszenarien und Roadmap ersetzen separate Berichte je Arbeitsschritt.
+- Die E-Bilanz-Zuordnung bleibt ungeprüft; eine amtliche Übermittlung und
+  vollständige Abschlussunterlagen sind weiterhin nicht abgedeckt.
+  Originaldateien und Sicherungsarchive sind nicht verschlüsselt.
+  Diese Vorabversion ist keine Freigabe für den produktiven Einsatz.
+
 ## v0.1 — 2026-09-07
 
 Erste Fassung. Buchfink führt die doppelte Buchführung einer Kapitalgesellschaft

@@ -1,6 +1,6 @@
 {
   "fixed": {
-    "file_version": "0.1.0"
+    "file_version": "0.2.0"
   },
   "info": {
     "0000": {
@@ -9,7 +9,7 @@
       "FileDescription": "Buchfink Desktop Application",
       "LegalCopyright": "Copyright (c) 2026 Maximilian Pfennig - Licensed under the EUPL-1.2",
       "ProductName": "Buchfink",
-      "ProductVersion": "0.1.0"
+      "ProductVersion": "0.2.0"
     }
   }
 }
