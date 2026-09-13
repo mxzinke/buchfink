@@ -26,6 +26,7 @@ import { formatCents, formatCentsPlain, formatDate, parseCents } from '../utils/
 import {
   Button,
   Checkbox,
+  ConfirmDialog,
   Field,
   FieldValue,
   FormGrid,
@@ -164,7 +165,11 @@ function keychainHint(): string {
   return 'Im Secret Service, etwa dem GNOME-Schlüsselbund, unter diesem Dienst und Konto.';
 }
 
-export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> = ({ year, onNavigate }) => {
+export const SettingsPage: React.FC<{
+  year: number;
+  onNavigate?: NavigateFn;
+  onTenantDeleted: () => Promise<void>;
+}> = ({ year, onNavigate, onTenantDeleted }) => {
   // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
   // im Prüfermodus gesperrt. Der Schlüsselexport bleibt möglich (§10.4).
   const writeLock = useWriteLock();
@@ -173,6 +178,8 @@ export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> =
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [confirmDeleteTenant, setConfirmDeleteTenant] = useState(false);
+  const [deletingTenant, setDeletingTenant] = useState(false);
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
   const [showInvestorChoice, setShowInvestorChoice] = useState(false);
   const [showNumberRanges, setShowNumberRanges] = useState(false);
@@ -331,6 +338,20 @@ export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> =
     setThresholdText(values.accrualThreshold ? formatCentsPlain(values.accrualThreshold) : '0,00');
   }
 
+  async function deleteTenant() {
+    if (!appConfig?.activeTenantId || deletingTenant || saving || exporting || writeLock.locked) return;
+    setDeletingTenant(true);
+    try {
+      await Api.deleteTenant(appConfig.activeTenantId);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      setDeletingTenant(false);
+      return;
+    }
+    toast.success('Mandant aus der Liste entfernt. Die Dateien bleiben im Datenordner.');
+    await onTenantDeleted();
+  }
+
   async function exportRecovery() {
     setExporting(true);
     try {
@@ -395,7 +416,7 @@ export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> =
     e.preventDefault();
     // Auch die Eingabetaste in einem Feld löst das Formular aus; der gesperrte
     // Knopf allein hielte den Prüfermodus deshalb nicht.
-    if (!settings || saving || writeLock.locked) return;
+    if (!settings || saving || deletingTenant || writeLock.locked) return;
     // Ein Hebesatz außerhalb der Grenzen wurde nicht übernommen; gespeichert
     // würde sonst der alte Wert, während der neue im Feld steht.
     if (tradeTaxError) return;
@@ -1493,6 +1514,40 @@ export const SettingsPage: React.FC<{ year: number; onNavigate?: NavigateFn }> =
           </div>
         </FormGrid>
       </Section>
+      <Section title="Mandantenverwaltung">
+        <details>
+          <summary className="cursor-pointer text-body text-ink-muted">
+            Mandant entfernen
+          </summary>
+          <div className="mt-4 space-y-3">
+            <p className="text-body text-ink-muted">
+              Der aktuelle Mandant wird aus der Liste entfernt. Seine Buchhaltungsdaten,
+              Belege und Sicherungen bleiben auf der Festplatte. Der Schlüssel im
+              Schlüsselbund wird gelöscht, sofern kein anderer Mandant ihn verwendet.
+              Für einen späteren Zugriff benötigen Sie dann den Wiederherstellungsschlüssel.
+              Exportieren Sie ihn vorher unter „Speicherort und Schlüssel“.
+            </p>
+            <Button
+              variant="danger"
+              loading={deletingTenant}
+              disabled={writeLock.locked || saving || exporting || !appConfig?.activeTenantId}
+              title={writeLock.hint}
+              onClick={() => setConfirmDeleteTenant(true)}
+            >
+              Mandant entfernen …
+            </Button>
+          </div>
+        </details>
+      </Section>
+      <ConfirmDialog
+        open={confirmDeleteTenant}
+        onOpenChange={setConfirmDeleteTenant}
+        title={`Mandant „${appConfig?.tenants.find((tenant) => tenant.id === appConfig.activeTenantId)?.name || settings.companyName}“ entfernen?`}
+        description="Der Mandant wird aus der Liste entfernt. Seine Dateien bleiben auf der Festplatte. Sein Schlüssel wird gelöscht, sofern kein anderer Mandant ihn verwendet. Ohne Wiederherstellungsschlüssel können Sie dann nicht mehr auf die verschlüsselten Daten zugreifen."
+        confirmLabel="Mandant entfernen"
+        destructive
+        onConfirm={() => void deleteTenant()}
+      />
     </form>
   );
 };

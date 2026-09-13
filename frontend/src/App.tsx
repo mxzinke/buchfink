@@ -425,7 +425,21 @@ export function App() {
           />
         );
       case 'settings':
-        return <SettingsPage year={currentYear} onNavigate={navigate} />;
+        return (
+          <SettingsPage
+            key={activeTenant?.id}
+            year={currentYear}
+            onNavigate={navigate}
+            onTenantDeleted={async () => {
+              setCompanySettings(null);
+              setIntegrity(null);
+              setFiscalYears([]);
+              setNavParams({});
+              setCurrentTab('welcome');
+              await bootstrapApp();
+            }}
+          />
+        );
       default:
         return <TasksPage onNavigate={navigate} />;
     }
