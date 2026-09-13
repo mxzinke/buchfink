@@ -1,6 +1,6 @@
 # Anforderungskatalog Buchfink
 
-**Stand:** 2026-09-11, gezielter Abgleich; siehe [Prüfbericht](dokumentationspruefung-2026-09-11.md)
+**Stand:** 2026-09-11, gezielter Abgleich. Aktuelle Funktionen und bekannte Grenzen stehen im [Umsetzungsstand](stand-der-umsetzung.md).
 
 Dieses Dokument führt drei Dinge zusammen: die gesetzlichen Anforderungen an eine Finanzbuchhaltung für bilanzierungspflichtige Unternehmen nach deutschem Recht, das Bewertungsraster, an dem sich eine Software messen lassen muss, und den Umsetzungsstand von Buchfink mit Fundstellen im Code. Warum Buchfink so geschnitten ist und welche Entscheidungen hinter den als `⛔` markierten Auslassungen stehen, steht in [docs/architektur.md](architektur.md), Abschnitt 2; die Reihenfolge der offenen Punkte in Abschnitt 7 desselben Dokuments. Eine erzählende Bestandsaufnahme ohne Normbezug bietet [docs/stand-der-umsetzung.md](stand-der-umsetzung.md).
 

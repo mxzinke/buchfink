@@ -1,6 +1,6 @@
 # Buchfink isoliert prüfen
 
-Diese Hilfen entstanden bei der [Prüfung vom 12. September 2026](../../docs/bug-hunt-2026-09-12.md).
+Diese Hilfen führen die [Prüfszenarien](../../docs/pruefszenario.md) mit isolierten Beispieldaten aus.
 Sie verwenden die echte Wails-Bridge, die echten Dienste, SQLite und den
 Betriebssystem-Schlüsselbund. Der Server lauscht ausschließlich auf 127.0.0.1:9250.
 

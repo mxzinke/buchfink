@@ -1,6 +1,6 @@
 # Ziele und nächste Schritte
 
-Stand: 11. September 2026. Diese Seite beschreibt geplante Arbeit.
+Stand: 13. September 2026. Diese Seite beschreibt geplante Arbeit.
 Was bereits implementiert ist, steht im [Umsetzungsstand](stand-der-umsetzung.md).
 
 Buchfink soll kleinen Unternehmen, Gründern und Holdings ermöglichen, ihre
@@ -36,6 +36,15 @@ Fragezeichen erklären einen Begriff oder die nächste Handlung in einem kurzen
 Tooltip. Über „Mehr erfahren“ lassen sich verständliche Details mit verlinkten
 Rechtsgrundlagen öffnen. Rückmeldungen aus der Nutzung sollen zeigen, welche
 Begriffe und Schritte weiterhin unklar sind.
+
+## Dokumente und Sicherungen verschlüsseln
+
+Die vorhandene Feldverschlüsselung soll um den Schutz von Originaldateien und
+Sicherungsarchiven ergänzt werden. Außerdem fehlt ein Verfahren zum Widerruf
+verlorener Wiederherstellungsschlüssel. Alte Sicherungen und
+Dateisystem-Snapshots werden durch eine Migration der aktuellen Datenbank nicht
+nachträglich geschützt. Den bestehenden Schutz beschreibt das
+[Sicherheitskonzept](security-concept.md).
 
 ## Lokale Anbindung an Chatbots
 

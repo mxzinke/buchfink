@@ -1,6 +1,6 @@
 # Stand der Umsetzung
 
-Abgleich mit dem Repository: 12. September 2026, nach Bug Hunt und Nachbesserungen.
+Abgleich mit dem Repository: 13. September 2026, Vorabversion v0.2.
 
 Diese Seite beschreibt die implementierten Funktionen und bekannte Grenzen.
 Sie ist keine Freigabe für den produktiven Einsatz. Ziele stehen getrennt auf
@@ -26,6 +26,7 @@ werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
 
 | Vorgang | Aktuelles Verhalten | Code |
 |---|---|---|
+| Unternehmen einrichten | Gründung oder Übernahme bestehender Buchhaltung, Auswahl des ersten Geschäftsjahres und Aufforderung zur Schlüsselsicherung. Bankkonten werden beim ersten Import eingerichtet. | `frontend/src/components/SetupAssistantScreen.tsx`, `internal/wailsbridge/recovery_onboarding_test.go` |
 | Belege und Unterlagen ablegen | Originaldateien bleiben erhalten. E-Rechnungen werden ausgelesen und geprüft; andere Belege brauchen manuell erfasste Angaben. | `internal/service/receipt_service.go`, `internal/service/document_service.go`, `internal/einvoice/` |
 | Buchen und korrigieren | Der Buchungskern prüft ausgeglichene Buchungen. Belegbuchung und Handbuchung sind vorhanden; eine Handbuchung verlangt einen Beleg oder Eigenbeleg. Korrekturen erfolgen durch Storno und Neubuchung. | `internal/service/journal_service.go`, `manual_entry.go`, `self_issued_receipt.go` |
 | Bank und offene Rechnungen | CAMT.053-Import mit Originalnachweis und mehreren Euro-Bankkonten, Kontoeinrichtung beim ersten Import, Zuordnungsvorschläge, Teilzahlungen, Sammelzahlungen, Skonto und Zahlungsausfälle. CAMT-Sammeleinträge mit mehreren Einzeltransaktionen werden abgewiesen. Skonto korrigiert auch die Beträge der Voranmeldung. | `internal/bank/`, `internal/service/bank_service.go`, `payment_service.go`, `internal/accounting/ustva.go` |
@@ -43,6 +44,7 @@ werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
 | Änderungen nachvollziehen | Verkettete Prüfwerte für Journal und Änderungsprotokoll, Prüfläufe und Festschreibung mit externem Zeitstempel. | `internal/accounting/journalhash.go`, `audithash.go`, `internal/service/check_service.go`, `internal/timestamp/` |
 | Sichern und herausgeben | Sicherung, Wiederherstellung, Belegarchiv, Datenexport für Prüfungen und Verfahrensdokumentation. | `internal/service/backup_service.go`, `export_service.go`, `internal/export/`, `internal/procdoc/` |
 | Hilfe lesen | Kurzer Tooltip am Fragezeichen. „Mehr erfahren“ öffnet einen Detaildialog; erkannte Gesetzesverweise sind verlinkt. | `frontend/src/components/ui/Help.tsx`, `LegalText.tsx` |
+| Nummernkreise verwalten | Rechnungs- und Belegnummernformat sowie Lückenprüfung mit Begründungen stehen unter Einstellungen → Rechnungsstellung → Nummernkreise, standardmäßig eingeklappt. | `frontend/src/pages/SettingsPage.tsx`, `frontend/src/components/InvoiceNumberRange.tsx` |
 
 Dateinamen ohne Verzeichnis in einer Tabellenzelle beziehen sich auf das zuletzt
 genannte Verzeichnis derselben Zelle.
@@ -73,6 +75,10 @@ genannte Verzeichnis derselben Zelle.
 
 ### Laufende Buchhaltung
 
+- Der Bankimport unterstützt Euro-Konten und einzeln darstellbare gebuchte
+  CAMT.053-Umsätze. Fremdwährungen und Sammeleinträge mit mehreren
+  Einzeltransaktionen werden abgewiesen. Ohne belastbare Bankreferenz bleibt
+  bei vollständig identischen Zahlungen ein Abgleich mit dem Kontoauszug nötig.
 - Die unterstützten Steuerfälle sind begrenzt. Unter anderem fehlen eigene
   Kleinunternehmerbesteuerung, Istversteuerung, OSS/IOSS, Differenzbesteuerung
   und weitere Sonderfälle. Ein vorhandenes Feld im Meldeformular bedeutet
@@ -110,14 +116,10 @@ genannte Verzeichnis derselben Zelle.
 Code und automatisierte Tests belegen einzelne Abläufe. Sie belegen weder die
 vollständige Gesetzeskonformität noch, dass Menschen ohne Vorkenntnisse alle
 Arbeitsschritte verstehen. Dafür bleiben fachliche Prüfung und Erprobung mit
-der Zielgruppe nötig. Die [Dokumentationsprüfung](dokumentationspruefung-2026-09-11.md)
-nennt die überprüften Widersprüche und die Grenzen dieses Abgleichs.
-
-Der [Bug-Hunt-Bericht vom 12. September 2026](bug-hunt-2026-09-12.md) dokumentiert
-die durchgespielten Abläufe, Videos, die Checkliste der Korrekturen und verbleibende
-Grenzen. Die reproduzierten Fehler bei Bankimport, Rechnungsempfänger,
-Eröffnungsbilanz, UG-Rücklage, Unternehmensdokumenten und Einrichtung eines
-Vorjahres sind behoben. Die Abnahmeproben sind reguläre Regressionstests.
+der Zielgruppe nötig. Wiederholbare Abläufe und die Reichweite der bisherigen
+Prüfungen stehen in den [Prüfszenarien](pruefszenario.md). Die
+[Änderungshistorie](../internal/changelog/CHANGELOG.md) nennt behobene Fehler
+je Version. Die Abnahmeproben sind reguläre Regressionstests.
 
 Die erzeugten Rechnungsbeispiele wurden zusätzlich mit CII-Schema,
 EN-16931-Regeln, KoSIT-XRechnung-Konfiguration und veraPDF geprüft. Erfolgreiche
