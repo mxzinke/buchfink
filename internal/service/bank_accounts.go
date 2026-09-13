@@ -6,7 +6,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"unicode"
 
 	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -32,7 +31,7 @@ func (s *BankService) Accounts(ctx context.Context) ([]domain.BankAccount, error
 		return nil, err
 	}
 	for _, tx := range history {
-		iban := normalizedIBAN(tx.AccountIBAN)
+		iban := domain.NormalizeIBAN(tx.AccountIBAN)
 		if iban == "" || tx.LedgerAccount == "" {
 			continue
 		}
@@ -86,31 +85,6 @@ func (s *BankService) PreviewFile(ctx context.Context, path string) (*BankImport
 	}
 	return out, nil
 }
-func normalizedIBAN(iban string) string {
-	return strings.ToUpper(strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
-		}
-		return r
-	}, iban))
-}
-func validBankIBAN(iban string) bool {
-	if len(iban) < 15 || len(iban) > 34 || iban[0] < 'A' || iban[0] > 'Z' || iban[1] < 'A' || iban[1] > 'Z' || iban[2] < '0' || iban[2] > '9' || iban[3] < '0' || iban[3] > '9' {
-		return false
-	}
-	n := 0
-	for _, c := range iban[4:] + iban[:4] {
-		switch {
-		case c >= '0' && c <= '9':
-			n = (n*10 + int(c-'0')) % 97
-		case c >= 'A' && c <= 'Z':
-			n = (n*100 + int(c-'A') + 10) % 97
-		default:
-			return false
-		}
-	}
-	return n == 1
-}
 
 // ConfigureAccounts keeps every IBAN on one ledger account. Reassigning booked
 // history requires an explicit accounting correction, not a settings edit.
@@ -145,11 +119,20 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			}
 		}
 		seen := map[string]bool{}
+		hasInvoiceAccount := false
+		for _, k := range known {
+			hasInvoiceAccount = hasInvoiceAccount || k.IsInvoiceAccount
+		}
 		for _, input := range accounts {
-			input.IBAN = normalizedIBAN(input.IBAN)
+			input.IBAN = domain.NormalizeIBAN(input.IBAN)
 			input.Name = strings.TrimSpace(input.Name)
-			if !validBankIBAN(input.IBAN) {
+			input.BIC = strings.ToUpper(strings.Join(strings.Fields(input.BIC), ""))
+			input.BankName = strings.TrimSpace(input.BankName)
+			if !domain.ValidIBAN(input.IBAN) {
 				return fmt.Errorf("ungültige IBAN: %s", input.IBAN)
+			}
+			if input.BIC != "" && !domain.ValidBIC(input.BIC) {
+				return fmt.Errorf("ungültige BIC: %s", input.BIC)
 			}
 			if input.Name == "" {
 				return fmt.Errorf("bitte dem Bankkonto %s einen Namen geben", input.IBAN)
@@ -164,7 +147,7 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			if input.Currency != "EUR" {
 				return fmt.Errorf("der Bankimport unterstützt derzeit Euro-Konten. Ein Konto in %s benötigt eine gesonderte Währungsumrechnung", input.Currency)
 			}
-			if input.LedgerAccount != "1800" && input.LedgerAccount != "1810" && input.LedgerAccount != "1820" && input.LedgerAccount != "1830" && input.LedgerAccount != "1840" && input.LedgerAccount != "1850" {
+			if !isBankLedgerAccount(input.LedgerAccount) {
 				return fmt.Errorf("bitte für das Bankkonto eines der Konten 1800 bis 1850 wählen")
 			}
 			if old, ok := byIBAN[input.IBAN]; ok && old.LedgerAccount != input.LedgerAccount {
@@ -173,25 +156,16 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			if other := byLedger[input.LedgerAccount]; other != "" && other != input.IBAN {
 				return fmt.Errorf("Konto %s gehört bereits zu IBAN %s; bitte ein eigenes Konto wählen", input.LedgerAccount, other)
 			}
+			// Das Rechnungskonto wechselt nur über SetInvoiceAccount. Ein
+			// Importdialog, der die Markierung nicht kennt, nimmt sie nicht weg.
+			input.IsInvoiceAccount = byIBAN[input.IBAN].IsInvoiceAccount
+			if !hasInvoiceAccount {
+				input.IsInvoiceAccount, hasInvoiceAccount = true, true
+			}
 			if err := s.accounts.Save(ctx, &input); err != nil {
 				return err
 			}
 			byIBAN[input.IBAN], byLedger[input.LedgerAccount] = input, input.IBAN
-		}
-		// The first account supplies invoice payment details until explicitly changed
-		// in company settings. Additional imports never replace that choice.
-		if s.settings != nil && len(accounts) > 0 {
-			settings, err := s.settings.GetCompanySettings(ctx)
-			if err != nil {
-				return err
-			}
-			if settings != nil && strings.TrimSpace(settings.IBAN) == "" {
-				settings.IBAN = normalizedIBAN(accounts[0].IBAN)
-				settings.BankName = strings.TrimSpace(accounts[0].Name)
-				if err := s.settings.UpdateCompanySettings(ctx, settings); err != nil {
-					return err
-				}
-			}
 		}
 		if s.auditRepo != nil {
 			return s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_ACCOUNT", "", fmt.Sprintf("%d Bankkonten eingerichtet oder bestätigt", len(accounts)))
@@ -199,6 +173,53 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 		return nil
 	})
 }
+
+// SetInvoiceAccount legt das Bankkonto fest, dessen Verbindung auf Rechnungen
+// steht, und nimmt die Markierung von jedem anderen.
+func (s *BankService) SetInvoiceAccount(ctx context.Context, iban string) error {
+	if s.accounts == nil || s.txRunner == nil {
+		return fmt.Errorf("Bankkontoeinrichtung ist nicht verfügbar")
+	}
+	iban = domain.NormalizeIBAN(iban)
+	return s.txRunner.RunInTx(ctx, func(ctx context.Context) error {
+		accounts, err := s.Accounts(ctx)
+		if err != nil {
+			return err
+		}
+		var chosen *domain.BankAccount
+		for i := range accounts {
+			account := &accounts[i]
+			selected := account.IBAN == iban
+			if selected {
+				chosen = account
+			}
+			if account.IsInvoiceAccount == selected {
+				continue
+			}
+			account.IsInvoiceAccount = selected
+			if err := s.accounts.Save(ctx, account); err != nil {
+				return err
+			}
+		}
+		if chosen == nil {
+			return fmt.Errorf("das Bankkonto %s ist nicht eingerichtet", iban)
+		}
+		if s.auditRepo != nil {
+			return s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_ACCOUNT", iban,
+				fmt.Sprintf("%s (%s) ist das Konto für Rechnungen", chosen.Name, iban))
+		}
+		return nil
+	})
+}
+
+func isBankLedgerAccount(number string) bool {
+	switch number {
+	case "1800", "1810", "1820", "1830", "1840", "1850":
+		return true
+	}
+	return false
+}
+
 func (s *BankService) routeTransactions(ctx context.Context, parsed []domain.BankTransaction, ledger string) error {
 	startMonth := 1
 	if s.settings != nil {

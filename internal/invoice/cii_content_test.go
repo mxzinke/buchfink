@@ -18,8 +18,9 @@ func testSeller() *domain.CompanySettings {
 	return &domain.CompanySettings{
 		CompanyName: "Pfennig Ventures GmbH",
 		Street:      "Hauptstraße 1",
-		ZipCity:     "80331 München",
-		Country:     "Deutschland",
+		PostalCode:  "80331",
+		City:        "München",
+		CountryCode: "DE",
 		TaxNumber:   "143/815/08151",
 		VatID:       "DE123456789",
 		IBAN:        "DE02120300000000202051",

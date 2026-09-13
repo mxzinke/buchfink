@@ -88,3 +88,38 @@ func TestFirmNameLeavesAnEmptyNameEmpty(t *testing.T) {
 		t.Errorf("Firma = %q, erwartet leer", got)
 	}
 }
+
+func TestCompanySettingsKeepRegistrationWithoutFoundation(t *testing.T) {
+	db, err := InitInMemoryDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = CloseDB(db) })
+	ctx := context.Background()
+	repo := NewSettingsRepository(db)
+	settings := &domain.CompanySettings{
+		CompanyName: "Bestand GmbH", LegalForm: "GmbH", FiscalYear: 2026,
+		RegisteredOn: "2018-05-14", RegisterCourt: "Amtsgericht München", RegisterNumber: "HRB 12345",
+	}
+	if err := repo.UpdateCompanySettings(ctx, settings); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := repo.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.RegisteredOn != settings.RegisteredOn || saved.RegisterCourt != settings.RegisterCourt || saved.RegisterNumber != settings.RegisterNumber {
+		t.Fatalf("Registerangaben wurden nicht übernommen: %+v", saved)
+	}
+	saved.RegisteredOn = ""
+	if err := repo.UpdateCompanySettings(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := repo.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.RegisteredOn != "" {
+		t.Fatalf("Eintragungsdatum wurde nicht gelöscht: %s", cleared.RegisteredOn)
+	}
+}

@@ -65,3 +65,69 @@ func TestBankAccountsConfigureAtomicallyAndRouteMultiAccountStatements(t *testin
 		t.Fatalf("invoice bank replaced: %+v %v", settings, err)
 	}
 }
+
+// withInvoiceAccount richtet das Bankkonto ein, dessen Verbindung auf
+// Rechnungen steht.
+func (e *testEnv) withInvoiceAccount(t *testing.T, iban, bic, bankName string) {
+	t.Helper()
+	account := domain.BankAccount{
+		IBAN: iban, Name: "Geschäftskonto", LedgerAccount: "1800", Currency: "EUR",
+		BIC: bic, BankName: bankName, IsInvoiceAccount: true,
+	}
+	if err := repository.NewBankAccountRepository(e.db).Save(context.Background(), &account); err != nil {
+		t.Fatalf("Bankkonto für Rechnungen einrichten: %v", err)
+	}
+}
+
+func TestInvoiceAccountIsChosenExplicitlyAndSurvivesImports(t *testing.T) {
+	e := newTestEnv(t)
+	svc := e.banking(t)
+	ctx := context.Background()
+	registry := repository.NewBankAccountRepository(e.db)
+	settings := repository.NewSettingsRepository(e.db)
+	svc.SetAccountRegistry(registry, settings, repository.NewTxRunner(e.db))
+
+	accounts := []domain.BankAccount{
+		{IBAN: "DE89 3704 0044 0532 0130 00", Name: "Geschäftskonto", LedgerAccount: "1800", BIC: "cobadeffxxx", BankName: "Commerzbank"},
+		{IBAN: "DE02120300000000202051", Name: "Steuerrücklage", LedgerAccount: "1810"},
+	}
+	if err := svc.ConfigureAccounts(ctx, accounts); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil || cfg.IBAN != "DE89370400440532013000" || cfg.BIC != "COBADEFFXXX" || cfg.BankName != "Commerzbank" {
+		t.Fatalf("das erste Konto steht nicht auf Rechnungen: %+v %v", cfg, err)
+	}
+
+	if err := svc.SetInvoiceAccount(ctx, "DE02120300000000202051"); err != nil {
+		t.Fatal(err)
+	}
+	// Ein erneuter Import desselben Kontos nimmt die Auswahl nicht zurück.
+	if err := svc.ConfigureAccounts(ctx, accounts[:1]); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := registry.FindAll(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flagged := 0
+	for _, account := range stored {
+		if account.IsInvoiceAccount {
+			flagged++
+			if account.IBAN != "DE02120300000000202051" {
+				t.Errorf("falsches Konto für Rechnungen: %+v", account)
+			}
+		}
+	}
+	if flagged != 1 {
+		t.Errorf("%d Konten für Rechnungen markiert, erwartet eins", flagged)
+	}
+
+	if err := svc.SetInvoiceAccount(ctx, "DE75512108001245126199"); err == nil {
+		t.Error("unbekanntes Konto als Rechnungskonto angenommen")
+	}
+	bad := []domain.BankAccount{{IBAN: "DE75512108001245126199", Name: "Neu", LedgerAccount: "1820", BIC: "KEINBIC"}}
+	if err := svc.ConfigureAccounts(ctx, bad); err == nil {
+		t.Error("ungültige BIC angenommen")
+	}
+}

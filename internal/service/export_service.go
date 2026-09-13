@@ -1092,7 +1092,7 @@ func (s *ExportService) copyProcessDocumentation(ctx context.Context, b *export.
 // Beschreibungsdatei im Element Location erwartet.
 func companyLocation(cfg *domain.CompanySettings) string {
 	parts := make([]string, 0, 3)
-	for _, part := range []string{cfg.Street, cfg.ZipCity, cfg.Country} {
+	for _, part := range []string{cfg.Street, cfg.PostalLine(), domain.CountryName(cfg.ResolvedCountryCode())} {
 		if strings.TrimSpace(part) != "" {
 			parts = append(parts, strings.TrimSpace(part))
 		}

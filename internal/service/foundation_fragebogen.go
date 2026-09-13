@@ -70,7 +70,11 @@ func (s *FoundationService) Fragebogen(ctx context.Context) (*FragebogenSheet, e
 	add(unternehmen, "Firma", cfg.FirmName())
 	add(unternehmen, "Rechtsform", cfg.LegalForm)
 	add(unternehmen, "Sitz", cfg.Seat)
-	add(unternehmen, "Anschrift", strings.TrimSpace(cfg.Street+", "+cfg.ZipCity))
+	add(unternehmen, "Straße und Hausnummer", cfg.Street)
+	if strings.TrimSpace(cfg.AddressAddition) != "" {
+		add(unternehmen, "Anschriftenzusatz", cfg.AddressAddition)
+	}
+	add(unternehmen, "Postleitzahl und Ort", cfg.PostalLine())
 	if f.IsRegistered() {
 		add(unternehmen, "Registergericht", f.RegisterCourt)
 		add(unternehmen, "Registernummer", f.RegisterNumber)

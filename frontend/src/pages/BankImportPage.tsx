@@ -15,6 +15,7 @@ import type {
 } from '../types';
 import { Api } from '../services/api';
 import { usePostingLock } from '../components/WriteLock';
+import { BankAccountsPanel } from '../components/BankAccountsPanel';
 import { formatCents, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -81,16 +82,24 @@ function writeOffBlockedReason(item: OpenItem, lockHint?: string): string | unde
  * Mahnwesen. Beide handeln von Zahlungen, die eine von den eingegangenen, die
  * andere von den ausgebliebenen.
  */
-type BankView = 'abgleich' | 'mahnwesen';
+type BankView = 'abgleich' | 'mahnwesen' | 'konten';
 
 const BANK_VIEWS: { value: BankView; label: string }[] = [
   { value: 'abgleich', label: 'Abgleich' },
   { value: 'mahnwesen', label: 'Mahnwesen' },
+  { value: 'konten', label: 'Bankkonten' },
 ];
+
+function viewFor(initialView?: string): BankView {
+  if (initialView === 'dunning') return 'mahnwesen';
+  if (initialView === 'accounts') return 'konten';
+  return 'abgleich';
+}
 
 export interface BankImportPageProps {
   /**
-   * Die Ansicht, mit der die Seite öffnet: „dunning" schlägt das Mahnwesen auf.
+   * Die Ansicht, mit der die Seite öffnet: „dunning" schlägt das Mahnwesen auf,
+   * „accounts" die Bankkonten.
    * Abgleich und Mahnwesen wohnen auf derselben Seite — beides ist Zahlung —,
    * und eine Aufgabe, die das Mahnwesen meint, landete sonst auf dem
    * Kontoauszug.
@@ -114,13 +123,13 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
   const [writingOff, setWritingOff] = useState<OpenItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
-  const [view, setView] = useState<BankView>(initialView === 'dunning' ? 'mahnwesen' : 'abgleich');
+  const [view, setView] = useState<BankView>(viewFor(initialView));
 
   // Ein zweiter Weg auf diese Seite bringt eine andere Ansicht mit, ohne dass
   // die Seite neu entsteht; ohne diesen Abgleich bliebe die des ersten Besuchs
   // stehen.
   useEffect(() => {
-    if (initialView === 'dunning') setView('mahnwesen');
+    if (initialView) setView(viewFor(initialView));
   }, [initialView]);
 
   useEffect(() => {
@@ -231,7 +240,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
         </>}>
         <div className="flex flex-col gap-5">
           <p className="text-body text-ink-muted">{importDraft.count} Umsätze. Prüfen Sie die Kontozuordnung.</p>
-          <Notice text="Jedes Geschäftskonto erhält eine eigene Zuordnung. Buchfink erkennt es bei späteren Importen an der IBAN wieder. Das erste Konto wird auch für Zahlungen auf Ihren Rechnungen verwendet; diese Auswahl können Sie in den Einstellungen ändern." />
+          <Notice text="Jedes Geschäftskonto erhält eine eigene Zuordnung. Buchfink erkennt es bei späteren Importen an der IBAN wieder. Das erste Konto steht auch auf Ihren Rechnungen; das können Sie unter Bankkonten ändern." />
           {importDraft.accounts.map((a, index) => <div key={a.iban} className="flex flex-col gap-3">
             <p className="text-body code-num">{a.iban} · {a.currency}</p>
             <Field label="Name des Geschäftskontos" hint="Zum Beispiel Geschäftskonto oder Steuerrücklage">
@@ -409,6 +418,14 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
 
           <TabPanel value="mahnwesen">
             {view === 'mahnwesen' && <DunningPanel onChanged={load} />}
+          </TabPanel>
+
+          <TabPanel value="konten">
+            <BankAccountsPanel
+              accounts={bankAccounts}
+              paymentAccounts={paymentAccounts}
+              onChanged={load}
+            />
           </TabPanel>
         </Tabs>
       </div>

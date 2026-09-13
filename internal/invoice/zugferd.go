@@ -268,7 +268,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 #grid(
   columns: (1fr, 1fr),
   [
-    #text(size: 8pt, fill: rgb("#78716c"))[%s · %s · %s]\
+    #text(size: 8pt, fill: rgb("#78716c"))[%s]\
     #v(0.5cm)
     *#text(size: 11pt)[%s]*\
     %s
@@ -317,7 +317,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 		seller.FirmName(),
 		docDate,
 		embed,
-		typstEscape(seller.FirmName()), typstEscape(seller.Street), typstEscape(seller.ZipCity),
+		typstEscape(strings.Join(append([]string{seller.FirmName()}, seller.AddressLines()...), " · ")),
 		typstEscape(buyerName(inv, buyer)), buyerAddressBlock(inv, buyer),
 		typstEscape(heading),
 		typstEscape(inv.InvoiceNumber), domain.GermanDate(inv.Date),

@@ -625,3 +625,37 @@ func TestUnterbilanzSpansTheTurnOfTheYear(t *testing.T) {
 		t.Error("die Zeichnung des Stammkapitals steht im Journal, auch wenn sie im Vorjahr gebucht wurde")
 	}
 }
+
+func TestFoundationFillsCompanyProfileWithoutOverridingIt(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.foundations(t)
+	ctx := context.Background()
+	settings := repository.NewSettingsRepository(env.db)
+
+	f := env.saveFoundation(t, svc, gmbhFoundation())
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.FoundedOn != "2026-01-15" || cfg.ShareCapital != 2_500_000 || len(cfg.Shareholders) != 2 {
+		t.Fatalf("Gründung nicht in die Stammdaten übernommen: %+v", cfg)
+	}
+
+	// Eine Korrektur der Gründung folgt, solange die Stammdaten ihr gleichen.
+	f.NotarizedOn = "2026-01-16"
+	env.saveFoundation(t, svc, f)
+	if cfg, _ = settings.GetCompanySettings(ctx); cfg.FoundedOn != "2026-01-16" {
+		t.Fatalf("korrigierte Beurkundung nicht übernommen: %q", cfg.FoundedOn)
+	}
+
+	// Was in den Stammdaten abweichend gepflegt ist, bleibt.
+	cfg.Shareholders = []domain.CompanyShareholder{{Name: "Anna Bauer", ShareCapital: 2_500_000}}
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f.Shareholders[0].PaidIn = 1_500_000
+	env.saveFoundation(t, svc, f)
+	if cfg, _ = settings.GetCompanySettings(ctx); len(cfg.Shareholders) != 1 {
+		t.Fatalf("gepflegte Gesellschafterliste überschrieben: %+v", cfg.Shareholders)
+	}
+}

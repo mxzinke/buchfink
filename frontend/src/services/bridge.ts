@@ -39,6 +39,7 @@ export const bridge = {
   GetBankAccounts: <T>() => invoke<T>('GetBankAccounts'),
   PreviewBankStatement: <T>(path: string) => invoke<T>('PreviewBankStatement', path),
   ConfigureBankAccounts: (accounts: unknown) => invoke<void>('ConfigureBankAccounts', accounts),
+  SetInvoiceBankAccount: (iban: string) => invoke<void>('SetInvoiceBankAccount', iban),
 
   // Einrichtung
   GetAppConfig: <T>() => invoke<T>('GetAppConfig'),
@@ -320,6 +321,7 @@ export const bridge = {
   GetFoundationState: <T>() => invoke<T>('GetFoundationState'),
   SaveFoundation: <T>(foundation: unknown) => invoke<T>('SaveFoundation', foundation),
   GetFoundationRules: <T>() => invoke<T>('GetFoundationRules'),
+  GetCountries: <T>() => invoke<T>('GetCountries'),
   GetRecommendedVatPeriod: <T>(foundingYear: number) =>
     invoke<T>('GetRecommendedVatPeriod', foundingYear),
   PreviewFoundationPostings: <T>() => invoke<T>('PreviewFoundationPostings'),

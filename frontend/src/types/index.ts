@@ -1255,6 +1255,7 @@ export interface IntegrityCheckResult {
 }
 
 export interface CompanySettings {
+  employees?: string;
   managingDirectors?: string;
   supervisoryBoardChair?: string;
   sellerIdentifier?: string;
@@ -1271,12 +1272,29 @@ export interface CompanySettings {
   taxNumber: string;
   vatId: string;
   taxOffice: string;
+  /**
+   * Zahlungsverbindung auf Rechnungen. Abgeleitet aus dem Bankkonto, das im
+   * Bankbereich als Konto für Rechnungen festgelegt ist; nur lesbar.
+   */
   iban: string;
   bic: string;
   bankName: string;
+  /** Straße und Hausnummer oder Postfach. */
   street: string;
-  zipCity: string;
-  country: string;
+  /** Zusatz wie „c/o" oder „Gebäude B". */
+  addressAddition: string;
+  postalCode: string;
+  city: string;
+  /** ISO 3166-1 Alpha-2, leer heißt DE. */
+  countryCode: string;
+  /** Tag der Gründung; bei Kapitalgesellschaften die Beurkundung. */
+  foundedOn: string;
+  notary: string;
+  /** Urkundenrollennummer des Gesellschaftsvertrags. */
+  deedNumber: string;
+  /** Aktuelles Stamm- oder Grundkapital. */
+  shareCapital: Cents;
+  shareholders: CompanyShareholder[];
   /**
    * Ansprechpartner, Telefon und E-Mail des Ausstellers. Bei einer XRechnung
    * Pflicht (BR-DE-2 bis BR-DE-7): eine Behörde, die zu einer Rechnung nicht
@@ -1303,6 +1321,7 @@ export interface CompanySettings {
   seat: string;
   registerCourt: string;
   registerNumber: string;
+  registeredOn?: string;
   currency: string;
   skr: string;
   vatPeriod: string;
@@ -5103,6 +5122,22 @@ export interface BankAccount {
   name: string;
   ledgerAccount: string;
   currency: string;
+  bic?: string;
+  bankName?: string;
+  /** Das Konto, dessen Verbindung auf Rechnungen und Mahnschreiben steht. */
+  isInvoiceAccount?: boolean;
+}
+
+export interface Country {
+  code: string;
+  name: string;
+}
+
+/** Ein Gesellschafter der aktuellen Gesellschafterliste. */
+export interface CompanyShareholder {
+  id?: number;
+  name: string;
+  shareCapital: Cents;
 }
 export interface BankImportPreview {
   accounts: BankAccount[];

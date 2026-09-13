@@ -36,13 +36,11 @@ func (e *testEnv) withSellerContact(t *testing.T) {
 	cfg.ContactName = "Marlene Pfennig"
 	cfg.ContactPhone = "+49 89 1234567"
 	cfg.ContactEmail = "rechnung@pfennig.example"
-	// BG-16: ohne Zahlungsanweisung weist die XRechnung die Rechnung zurück.
-	cfg.BankName = "Stadtsparkasse München"
-	cfg.IBAN = "DE02701500000000594937"
-	cfg.BIC = "SSKMDEMM"
 	if err := settings.UpdateCompanySettings(context.Background(), cfg); err != nil {
 		t.Fatalf("Unternehmensdaten setzen: %v", err)
 	}
+	// BG-16: ohne Zahlungsanweisung weist die XRechnung die Rechnung zurück.
+	e.withInvoiceAccount(t, "DE02701500000000594937", "SSKMDEMM", "Stadtsparkasse München")
 }
 
 // Die XRechnung: XML als Original und strukturierter Teil, PDF als Darstellung,

@@ -249,7 +249,6 @@ func ciiLine(inv *domain.Invoice, item *domain.InvoiceItem, category string) (ei
 // nicht. Wo keine USt-IdNr. vorliegt, tritt deshalb die Registernummer als
 // BT-30 ein.
 func sellerParty(seller *domain.CompanySettings) einvoice.Party {
-	postCode, city := splitZipCity(seller.ZipCity)
 	party := einvoice.Party{
 		// BT-27 ist die Firma, unter der das Unternehmen auftritt — bis zur
 		// Eintragung mit dem Zusatz „i. G.".
@@ -258,9 +257,10 @@ func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 		TaxRegistration: seller.TaxNumber,
 		Address: &einvoice.Address{
 			LineOne:     seller.Street,
-			PostCode:    postCode,
-			City:        city,
-			CountryCode: "DE",
+			LineTwo:     seller.AddressAddition,
+			PostCode:    seller.PostalCode,
+			City:        seller.City,
+			CountryCode: seller.ResolvedCountryCode(),
 		},
 	}
 	if seller.VatID == "" && seller.RegisterNumber != "" {
@@ -318,31 +318,6 @@ func buyerParty(inv *domain.Invoice, buyer *domain.Contact) einvoice.Party {
 		party.ElectronicAddress = einvoice.Identifier{Value: buyer.Email, Scheme: "EM"}
 	}
 	return party
-}
-
-// splitZipCity reads "80331 München" into its two halves. The company address
-// is stored as one line; EN 16931 wants BT-38 and BT-37 apart.
-func splitZipCity(zipCity string) (postCode, city string) {
-	fields := strings.Fields(strings.TrimSpace(zipCity))
-	if len(fields) < 2 {
-		return "", strings.TrimSpace(zipCity)
-	}
-	if isDigits(fields[0]) {
-		return fields[0], strings.Join(fields[1:], " ")
-	}
-	return "", strings.TrimSpace(zipCity)
-}
-
-func isDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 func amount(c domain.Cents) einvoice.Amount {

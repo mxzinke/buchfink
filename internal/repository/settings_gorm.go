@@ -49,6 +49,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	}
 
 	settings := &domain.CompanySettings{
+		Employees:            "unknown",
+		CountryCode:          domain.DefaultCountryCode,
 		FiscalYearStartMonth: 1,
 		Currency:             "EUR",
 		SKR:                  "SKR04",
@@ -74,6 +76,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 	for _, it := range items {
 		switch it.Key {
+		case "employees":
+			settings.Employees = it.Value
 		case "managing_directors":
 			settings.ManagingDirectors = it.Value
 		case "supervisory_board_chair":
@@ -98,18 +102,25 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.VatID = it.Value
 		case "tax_office":
 			settings.TaxOffice = it.Value
-		case "iban":
-			settings.IBAN = it.Value
-		case "bic":
-			settings.BIC = it.Value
-		case "bank_name":
-			settings.BankName = it.Value
 		case "street":
 			settings.Street = it.Value
-		case "zip_city":
-			settings.ZipCity = it.Value
-		case "country":
-			settings.Country = it.Value
+		case "address_addition":
+			settings.AddressAddition = it.Value
+		case "postal_code":
+			settings.PostalCode = it.Value
+		case "city":
+			settings.City = it.Value
+		case "country_code":
+			settings.CountryCode = it.Value
+		case "founded_on":
+			settings.FoundedOn = it.Value
+		case "notary":
+			settings.Notary = it.Value
+		case "deed_number":
+			settings.DeedNumber = it.Value
+		case "share_capital":
+			v, _ := strconv.ParseInt(it.Value, 10, 64)
+			settings.ShareCapital = domain.Cents(v)
 		case "contact_name":
 			settings.ContactName = it.Value
 		case "contact_phone":
@@ -126,6 +137,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.RegisterCourt = it.Value
 		case "register_number":
 			settings.RegisterNumber = it.Value
+		case "registered_on":
+			settings.RegisteredOn = it.Value
 		case "vat_period":
 			settings.VatPeriod = it.Value
 		case "taxation_type":
@@ -176,8 +189,29 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		settings.InvoiceCheckSince = thresholdSavedOn
 	}
 	settings.InGruendung = r.inGruendung(ctx)
+	shareholders := []domain.CompanyShareholder{}
+	if err := dbFrom(ctx, r.db).Order("position").Find(&shareholders).Error; err != nil {
+		return nil, fmt.Errorf("die Gesellschafterliste ließ sich nicht lesen: %w", err)
+	}
+	settings.Shareholders = shareholders
+	r.applyInvoiceAccount(ctx, settings)
 
 	return settings, nil
+}
+
+// applyInvoiceAccount setzt die Zahlungsverbindung aus dem Bankkonto, das als
+// Konto für Rechnungen markiert ist. Wie InGruendung beim Lesen gesetzt, weil
+// Rechnung, E-Rechnung, Mahnschreiben und Fragebogen sie hier lesen. Ein
+// Lesefehler lässt die Verbindung leer: eine Rechnung ohne Zahlungsanweisung
+// ist gültig, eine mit falscher nicht.
+func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settings *domain.CompanySettings) {
+	var accounts []domain.BankAccount
+	if err := dbFrom(ctx, r.db).Where("is_invoice_account = ?", true).Limit(1).Find(&accounts).Error; err != nil || len(accounts) == 0 {
+		return
+	}
+	settings.IBAN = accounts[0].IBAN
+	settings.BIC = accounts[0].BIC
+	settings.BankName = accounts[0].BankName
 }
 
 // inGruendung liest aus der Gründung, ob die Gesellschaft noch Vorgesellschaft
@@ -234,6 +268,22 @@ func receiptFormatOrDefault(format string) (string, error) {
 }
 
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
+	employees := s.Employees
+	if employees == "" {
+		employees = "unknown"
+	}
+	if employees != "unknown" && employees != "none" && employees != "yes" {
+		return fmt.Errorf("ungültige Angabe zur Beschäftigung")
+	}
+
+	if err := s.ValidateProfile(); err != nil {
+		return err
+	}
+	countryCode := strings.ToUpper(strings.TrimSpace(s.CountryCode))
+	if countryCode == "" {
+		countryCode = domain.DefaultCountryCode
+	}
+
 	vatPeriod := s.VatPeriod
 	if vatPeriod == "" {
 		vatPeriod = "quarter"
@@ -281,6 +331,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	}
 
 	kv := map[string]string{
+		"employees":               employees,
 		"managing_directors":      s.ManagingDirectors,
 		"supervisory_board_chair": s.SupervisoryBoardChair,
 		"seller_identifier":       s.SellerIdentifier,
@@ -291,12 +342,15 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"tax_number":              s.TaxNumber,
 		"vat_id":                  s.VatID,
 		"tax_office":              s.TaxOffice,
-		"iban":                    s.IBAN,
-		"bic":                     s.BIC,
-		"bank_name":               s.BankName,
-		"street":                  s.Street,
-		"zip_city":                s.ZipCity,
-		"country":                 s.Country,
+		"street":                  strings.TrimSpace(s.Street),
+		"address_addition":        strings.TrimSpace(s.AddressAddition),
+		"postal_code":             strings.TrimSpace(s.PostalCode),
+		"city":                    strings.TrimSpace(s.City),
+		"country_code":            countryCode,
+		"founded_on":              s.FoundedOn,
+		"notary":                  strings.TrimSpace(s.Notary),
+		"deed_number":             strings.TrimSpace(s.DeedNumber),
+		"share_capital":           strconv.FormatInt(int64(s.ShareCapital), 10),
 		"contact_name":            s.ContactName,
 		"contact_phone":           s.ContactPhone,
 		"contact_email":           s.ContactEmail,
@@ -305,6 +359,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"seat":                    s.Seat,
 		"register_court":          s.RegisterCourt,
 		"register_number":         s.RegisterNumber,
+		"registered_on":           s.RegisteredOn,
 		"vat_period":              vatPeriod,
 		"taxation_type":           taxationType,
 		// Leer bleibt leer: die Anlegerstellung folgt dann aus der Rechtsform.
@@ -362,6 +417,29 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 			return err
 		}
 	}
-
+	// Ohne mitgeschickte Liste bleibt die gespeicherte: ein Aufrufer, der die
+	// Gesellschafter nicht kennt, löscht sie nicht. Eine leere Liste leert sie.
+	if s.Shareholders != nil {
+		return r.replaceShareholders(ctx, s.Shareholders)
+	}
 	return nil
+}
+
+func (r *settingsRepositoryGorm) replaceShareholders(ctx context.Context, shareholders []domain.CompanyShareholder) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&domain.CompanyShareholder{}).Error; err != nil {
+			return err
+		}
+		for i, sh := range shareholders {
+			row := domain.CompanyShareholder{
+				Position:     i,
+				Name:         strings.TrimSpace(sh.Name),
+				ShareCapital: sh.ShareCapital,
+			}
+			if err := tx.Create(&row).Error; err != nil {
+				return fmt.Errorf("die Gesellschafterliste ließ sich nicht speichern: %w", err)
+			}
+		}
+		return nil
+	})
 }

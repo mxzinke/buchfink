@@ -15,6 +15,8 @@ type SettingItem struct {
 
 // CompanySettings holds metadata for the business and fiscal year.
 type CompanySettings struct {
+	Employees string `json:"employees"` // "unknown", "none", "yes"
+
 	ManagingDirectors     string `json:"managingDirectors"`
 	SupervisoryBoardChair string `json:"supervisoryBoardChair"`
 	SellerIdentifier      string `json:"sellerIdentifier"`
@@ -25,12 +27,36 @@ type CompanySettings struct {
 	TaxNumber             string `json:"taxNumber"`            // Steuernummer
 	VatID                 string `json:"vatId"`                // USt-IdNr.
 	TaxOffice             string `json:"taxOffice"`            // Finanzamt
-	IBAN                  string `json:"iban"`
-	BIC                   string `json:"bic"`
-	BankName              string `json:"bankName"`
-	Street                string `json:"street"`
-	ZipCity               string `json:"zipCity"`
-	Country               string `json:"country"`
+
+	// Die Geschäftsanschrift in ihren Bestandteilen, wie EN 16931 sie verlangt
+	// (BT-35 bis BT-40). Street trägt Straße und Hausnummer oder ein Postfach,
+	// AddressAddition einen Zusatz wie „c/o" oder „Gebäude B".
+	Street          string `json:"street"`
+	AddressAddition string `json:"addressAddition"`
+	PostalCode      string `json:"postalCode"`
+	City            string `json:"city"`
+	CountryCode     string `json:"countryCode"` // ISO 3166-1 Alpha-2
+
+	// FoundedOn ist der Tag der Gründung (JJJJ-MM-TT): bei einer
+	// Kapitalgesellschaft die notarielle Beurkundung des Gesellschaftsvertrags,
+	// sonst der Beginn der Tätigkeit.
+	FoundedOn string `json:"foundedOn"`
+	// Notary und DeedNumber bezeichnen die Urkunde des Gesellschaftsvertrags.
+	Notary     string `json:"notary"`
+	DeedNumber string `json:"deedNumber"` // Urkundenrollennummer
+	// ShareCapital und Shareholders sind der aktuelle Stand von Stamm- oder
+	// Grundkapital und Gesellschafterliste. Den Stand bei Beurkundung, mit den
+	// geleisteten Einlagen, hält die Gründung (Foundation).
+	ShareCapital Cents                `json:"shareCapital"`
+	Shareholders []CompanyShareholder `json:"shareholders"`
+
+	// IBAN, BIC und BankName sind die Zahlungsverbindung auf Rechnungen und
+	// Mahnschreiben. Sie werden beim Lesen aus dem Bankkonto gesetzt, das als
+	// Konto für Rechnungen festgelegt ist (BankAccount.IsInvoiceAccount), und
+	// nicht mit den Unternehmensdaten gespeichert.
+	IBAN     string `json:"iban"`
+	BIC      string `json:"bic"`
+	BankName string `json:"bankName"`
 
 	// Ansprechpartner, Telefon und E-Mail des Ausstellers.
 	//
@@ -55,9 +81,10 @@ type CompanySettings struct {
 	Seat           string `json:"seat"`
 	RegisterCourt  string `json:"registerCourt"`
 	RegisterNumber string `json:"registerNumber"`
+	RegisteredOn   string `json:"registeredOn"`
 	Currency       string `json:"currency"`
 	SKR            string `json:"skr"`          // "SKR04"
-	VatPeriod      string `json:"vatPeriod"`    // "month", "quarter", "year"
+	VatPeriod      string `json:"vatPeriod"`    // "month", "quarter", "year", "unknown", "none"
 	TaxationType   string `json:"taxationType"` // "IST", "SOLL"
 
 	// PermanentExtension ist die Dauerfristverlängerung nach §§ 46 bis 48 UStDV:
@@ -286,7 +313,7 @@ func (s *CompanySettings) InvoiceSellerFindings(structured bool) []string {
 	if strings.TrimSpace(s.CompanyName) == "" {
 		missing = append(missing, "Firmenname")
 	}
-	if strings.TrimSpace(s.Street) == "" || strings.TrimSpace(s.ZipCity) == "" {
+	if !s.HasCompleteAddress() {
 		missing = append(missing, "vollständige Geschäftsanschrift")
 	}
 	if s.LegalForm == "GmbH" || s.LegalForm == LegalFormUG || strings.EqualFold(s.LegalForm, "Unternehmergesellschaft (haftungsbeschränkt)") {

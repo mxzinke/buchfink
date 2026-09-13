@@ -79,7 +79,7 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 
 func supplierSettings(name, vatID string) *domain.CompanySettings {
 	return &domain.CompanySettings{
-		CompanyName: name, Street: "Lieferantenweg 3", ZipCity: "20095 Hamburg",
+		CompanyName: name, Street: "Lieferantenweg 3", PostalCode: "20095", City: "Hamburg",
 		VatID: vatID, TaxNumber: "22/333/44444",
 	}
 }

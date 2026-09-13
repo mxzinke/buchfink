@@ -16,7 +16,7 @@ import (
 func TestProcDocCarriesTheArticle30Register(t *testing.T) {
 	markdown, err := Render(Input{
 		CompanyName: "Pfennig Ventures GmbH", LegalForm: "GmbH", FiscalYear: 2026,
-		Street: "Hauptstraße 1", ZipCity: "80331 München",
+		Street: "Hauptstraße 1", PostalLine: "80331 München",
 		AppVersion: "1.0.0", RuleVersion: "2026.1", Version: "2026-09-05-1",
 		CreatedAt: time.Date(2026, 9, 5, 8, 0, 0, 0, time.UTC), Actor: "anna@rechner",
 		TSAName: "Bundesdruckerei D-TRUST",

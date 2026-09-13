@@ -31,7 +31,7 @@ func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact)
 	inv.Recalculate()
 
 	seller := &domain.CompanySettings{
-		CompanyName: "Pfennig Ventures GmbH", Street: "Hauptstraße 1", ZipCity: "80331 München",
+		CompanyName: "Pfennig Ventures GmbH", Street: "Hauptstraße 1", PostalCode: "80331", City: "München",
 		TaxNumber: "143/815/08151", VatID: "DE123456789",
 		BankName: "Sparkasse", IBAN: "DE02120300000000202051", BIC: "BYLADEM1001",
 	}

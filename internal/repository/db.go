@@ -185,6 +185,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.Document{},
 		&domain.Foundation{},
 		&domain.Shareholder{},
+		&domain.CompanyShareholder{},
 		&domain.FoundationTask{},
 		&domain.VatReturn{},
 		&domain.ZMReturn{},
@@ -471,12 +472,10 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 			{Key: "tax_number", Value: ""},
 			{Key: "vat_id", Value: ""},
 			{Key: "tax_office", Value: ""},
-			{Key: "iban", Value: ""},
-			{Key: "bic", Value: ""},
-			{Key: "bank_name", Value: ""},
 			{Key: "street", Value: ""},
-			{Key: "zip_city", Value: ""},
-			{Key: "country", Value: "Deutschland"},
+			{Key: "postal_code", Value: ""},
+			{Key: "city", Value: ""},
+			{Key: "country_code", Value: domain.DefaultCountryCode},
 			// Sitz, Registergericht und Registernummer sind Pflichtangaben des
 			// § 264 Abs. 1a HGB im Kopf des Jahresabschlusses.
 			{Key: "seat", Value: ""},

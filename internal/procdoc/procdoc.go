@@ -30,7 +30,7 @@ type Input struct {
 	CompanyName    string
 	LegalForm      string
 	Street         string
-	ZipCity        string
+	PostalLine     string
 	Country        string
 	TaxNumber      string
 	VatID          string
@@ -235,7 +235,7 @@ Geschäftsjahr die Dokumentation vorliegt, die damals gegolten hat
 | --- | --- |
 | Firma | {{orNone .CompanyName}} |
 | Rechtsform | {{orNone .LegalForm}} |
-| Anschrift | {{orNone .Street}}, {{orNone .ZipCity}}, {{orNone .Country}} |
+| Anschrift | {{orNone .Street}}, {{orNone .PostalLine}}, {{orNone .Country}} |
 | Steuernummer | {{orNone .TaxNumber}} |
 | USt-IdNr. | {{orNone .VatID}} |
 | Finanzamt | {{orNone .TaxOffice}} |
@@ -528,7 +528,7 @@ Begründung übergehen; die Begründung steht am Prüflauf und im
 ` + HeadingPrivacy + `
 
 Verantwortlicher im Sinne des Art. 4 Nr. 7 DSGVO ist {{orNone .CompanyName}},
-{{orNone .Street}}, {{orNone .ZipCity}}. Die Verarbeitung findet auf den
+{{orNone .Street}}, {{orNone .PostalLine}}. Die Verarbeitung findet auf den
 Rechnern des Unternehmens statt; Buchfink überträgt keine Buchführungsdaten an
 den Hersteller.
 

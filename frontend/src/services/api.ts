@@ -34,6 +34,7 @@ import type {
   AuditLogEntry,
   BackupRun,
   BankAccount,
+  Country,
   BankImportPreview,
   BaseRate,
   BankRule,
@@ -677,6 +678,7 @@ export const Api = {
   getBankAccounts: (): Promise<BankAccount[]> => call(() => Bridge.GetBankAccounts() as Promise<BankAccount[]>).then(list),
   previewBankStatement: (path: string): Promise<BankImportPreview> => call(() => Bridge.PreviewBankStatement(path) as Promise<BankImportPreview>),
   configureBankAccounts: (accounts: BankAccount[]): Promise<void> => call(() => Bridge.ConfigureBankAccounts(accounts)),
+  setInvoiceBankAccount: (iban: string): Promise<void> => call(() => Bridge.SetInvoiceBankAccount(iban)),
   getBankTransactions: (): Promise<BankTransaction[]> =>
     call(() => Bridge.GetBankTransactions() as Promise<BankTransaction[]>).then(list),
   /**
@@ -1478,6 +1480,8 @@ export const Api = {
   /** Die Kapitalaufbringungsregeln der Rechtsformen, die der Gründungsweg abdeckt. */
   getFoundationRules: (): Promise<FoundationRules[]> =>
     call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),
+  /** Die Länder, die für die Geschäftsanschrift wählbar sind. */
+  getCountries: (): Promise<Country[]> => call(() => Bridge.GetCountries() as Promise<Country[]>).then(list),
   /**
    * Voranmeldungszeitraum einer Gründung in diesem Jahr, mit Begründung.
    * § 18 Abs. 2 UStG hat dafür ein Stichjahr — deshalb wird gefragt statt geraten.

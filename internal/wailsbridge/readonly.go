@@ -117,6 +117,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetFixedAsset":                   true,
 	"GetFixedAssets":                  true,
 	"GetFoundationRules":              true,
+	"GetCountries":                    true,
 	"GetFoundationState":              true,
 	"GetFragebogenSheet":              true,
 	"GetOpeningBalance":               true,

@@ -1542,8 +1542,9 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 		// über die Liste, und `null.map` nähme im Render den Baum mit.
 		return &domain.CompanySettings{
 			FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR",
-			SKR: "SKR04", TaxationType: "SOLL",
+			SKR: "SKR04", TaxationType: "SOLL", CountryCode: domain.DefaultCountryCode,
 			DunningLevels: domain.DefaultDunningLevels(),
+			Shareholders:  []domain.CompanyShareholder{},
 		}, nil
 	}
 	return b.settingsSvc.GetCompanySettings(context.Background())
@@ -2329,6 +2330,11 @@ func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation
 // Rechtsformnamen zu vergleichen.
 func (b *BuchfinkBridge) GetFoundationRules() []accounting.FoundationRules {
 	return accounting.FoundationLegalForms()
+}
+
+// GetCountries lists the countries selectable for the company address.
+func (b *BuchfinkBridge) GetCountries() []domain.Country {
+	return domain.Countries()
 }
 
 // GetRecommendedVatPeriod is the Voranmeldungszeitraum a company founded in this

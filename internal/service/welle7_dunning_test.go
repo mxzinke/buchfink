@@ -453,17 +453,7 @@ func TestDunningLumpSumStaysAwayFromConsumersAfterDefault(t *testing.T) {
 func TestDunningNoticeCarriesTheBankDetails(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
-	settings := repository.NewSettingsRepository(env.db)
-	cfg, err := settings.GetCompanySettings(ctx)
-	if err != nil {
-		t.Fatalf("Unternehmensdaten lesen: %v", err)
-	}
-	cfg.IBAN = "DE02120300000000202051"
-	cfg.BIC = "BYLADEM1001"
-	cfg.BankName = "Musterbank München"
-	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
-		t.Fatalf("Bankverbindung speichern: %v", err)
-	}
+	env.withInvoiceAccount(t, "DE02120300000000202051", "BYLADEM1001", "Musterbank München")
 
 	renderer := &stubRenderer{}
 	svc := env.dunning(t, renderer)

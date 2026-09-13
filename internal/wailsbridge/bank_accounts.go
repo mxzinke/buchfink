@@ -34,3 +34,16 @@ func (b *BuchfinkBridge) ConfigureBankAccounts(accounts []domain.BankAccount) er
 	}
 	return b.bankSvc.ConfigureAccounts(context.Background(), accounts)
 }
+
+// SetInvoiceBankAccount legt das Konto für Rechnungen fest.
+func (b *BuchfinkBridge) SetInvoiceBankAccount(iban string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
+	if b.bankSvc == nil {
+		return fmt.Errorf("Bankimport ist noch nicht eingerichtet")
+	}
+	return b.bankSvc.SetInvoiceAccount(context.Background(), iban)
+}

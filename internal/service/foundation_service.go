@@ -203,7 +203,8 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 		return nil, err
 	}
 
-	if existing, err := s.foundationRepo.Get(ctx); err == nil && existing != nil {
+	existing, err := s.foundationRepo.Get(ctx)
+	if err == nil && existing != nil {
 		f.ID = existing.ID
 	}
 	if err := s.foundationRepo.Save(ctx, f); err != nil {
@@ -212,6 +213,7 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Gründung erfasst: Beurkundung %s, Stammkapital %s €, %d Gesellschafter",
 		f.NotarizedOn, f.ShareCapital, len(f.Shareholders)))
+	s.adoptFoundingSettings(ctx, existing, f)
 
 	// Aus der Beurkundung folgt der Beginn des ersten Geschäftsjahres: eine
 	// Gesellschaft, die im März entstanden ist, hat kein Geschäftsjahr, das im
@@ -752,6 +754,69 @@ func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction
 	_ = s.auditRepo.Log(ctx, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
 }
 
+// adoptFoundingSettings trägt Gründungsdatum, Stammkapital und Gesellschafter in
+// die Stammdaten ein, solange dort nichts steht oder noch der vorige Stand der
+// Gründung. Was jemand in den Stammdaten davon abweichend gepflegt hat, bleibt.
+func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous, f *domain.Foundation) {
+	if s.settingsRepo == nil {
+		return
+	}
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || settings == nil {
+		return
+	}
+	var before domain.Foundation
+	if previous != nil {
+		before = *previous
+	}
+	changed := false
+	if (settings.FoundedOn == "" || settings.FoundedOn == before.NotarizedOn) && settings.FoundedOn != f.NotarizedOn {
+		settings.FoundedOn = f.NotarizedOn
+		changed = true
+	}
+	if (settings.ShareCapital == 0 || settings.ShareCapital == before.ShareCapital) && settings.ShareCapital != f.ShareCapital {
+		settings.ShareCapital = f.ShareCapital
+		changed = true
+	}
+	current := companyShareholders(f.Shareholders)
+	if (len(settings.Shareholders) == 0 || sameShareholders(settings.Shareholders, companyShareholders(before.Shareholders))) &&
+		!sameShareholders(settings.Shareholders, current) {
+		settings.Shareholders = current
+		changed = true
+	}
+	if !changed {
+		return
+	}
+	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
+		return
+	}
+	if s.auditRepo != nil {
+		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+			"Aus der Gründung übernommen: Gründungsdatum %s, Stammkapital %s €, %d Gesellschafter",
+			settings.FoundedOn, settings.ShareCapital, len(settings.Shareholders)))
+	}
+}
+
+func companyShareholders(shareholders []domain.Shareholder) []domain.CompanyShareholder {
+	out := make([]domain.CompanyShareholder, 0, len(shareholders))
+	for _, sh := range shareholders {
+		out = append(out, domain.CompanyShareholder{Name: strings.TrimSpace(sh.Name), ShareCapital: sh.ShareCapital})
+	}
+	return out
+}
+
+func sameShareholders(a, b []domain.CompanyShareholder) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if strings.TrimSpace(a[i].Name) != strings.TrimSpace(b[i].Name) || a[i].ShareCapital != b[i].ShareCapital {
+			return false
+		}
+	}
+	return true
+}
+
 // adoptRegisterSettings trägt Registergericht und Registernummer in die
 // Unternehmensdaten nach. Die ausdrücklich erfasste Eintragung ist maßgeblich.
 //
@@ -766,6 +831,10 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		return
 	}
 	changed := false
+	if settings.RegisteredOn != f.RegisteredOn {
+		settings.RegisteredOn = f.RegisteredOn
+		changed = true
+	}
 	if f.RegisterCourt != "" && settings.RegisterCourt != f.RegisterCourt {
 		settings.RegisterCourt = f.RegisterCourt
 		changed = true
@@ -774,13 +843,10 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		settings.RegisterNumber = f.RegisterNumber
 		changed = true
 	}
-	// Der Sitz steht in den Gründungsdaten nicht eigens; die Anschrift der
-	// Einstellungen ist die nächste Tatsache, aus der er folgt. Übernommen wird
-	// aber nur der Ort, nicht die Postleitzahl: der Sitz des § 264 Abs. 1a Nr. 2
-	// HGB ist die Gemeinde, und „80331 München" im Bilanzkopf und in
-	// de-gcd:genInfo.company.id.location.city wäre keine Angabe des Sitzes,
-	// sondern eine halbe Anschrift.
-	if seat := cityOf(settings.ZipCity); settings.Seat == "" && seat != "" {
+	// Der Sitz steht in den Gründungsdaten nicht eigens; der Ort der Anschrift
+	// ist die nächste Tatsache, aus der er folgt. Der Sitz des § 264 Abs. 1a
+	// Nr. 2 HGB ist die Gemeinde, deshalb ohne Postleitzahl.
+	if seat := strings.TrimSpace(settings.City); settings.Seat == "" && seat != "" {
 		settings.Seat = seat
 		changed = true
 	}
@@ -799,31 +865,6 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 			"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
 			settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
 	}
-}
-
-// cityOf schneidet die führende Postleitzahl aus einer Zeile „PLZ Ort".
-//
-// Ohne erkennbare Postleitzahl bleibt die Zeile, wie sie ist: sie enthält dann
-// schon den Ort allein, und eine weitere Vermutung darüber, welches Wort der
-// Ort ist, wäre geraten.
-func cityOf(zipCity string) string {
-	fields := strings.Fields(zipCity)
-	if len(fields) > 1 && isDigits(fields[0]) {
-		fields = fields[1:]
-	}
-	return strings.Join(fields, " ")
-}
-
-func isDigits(value string) bool {
-	if value == "" {
-		return false
-	}
-	for _, r := range value {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // summarizeGuide zählt den Fortschritt durch die Gründung.

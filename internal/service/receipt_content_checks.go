@@ -89,7 +89,7 @@ func recipientMasterDataDefects(company *domain.CompanySettings) []masterDataDef
 	if strings.TrimSpace(company.Street) == "" {
 		missing = append(missing, "die Straße")
 	}
-	if strings.TrimSpace(company.ZipCity) == "" {
+	if strings.TrimSpace(company.PostalCode) == "" || strings.TrimSpace(company.City) == "" {
 		missing = append(missing, "Postleitzahl und Ort")
 	}
 	if len(missing) == 0 {

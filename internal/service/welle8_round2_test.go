@@ -108,7 +108,7 @@ func TestContentFindingsCheckMasterData(t *testing.T) {
 			PostalCode: "20095", City: "Hamburg", TaxID: "12/345/67890",
 		},
 		Company: &domain.CompanySettings{
-			CompanyName: "Pfennig Ventures GmbH", Street: "Hauptstraße 1", ZipCity: "80331 München",
+			CompanyName: "Pfennig Ventures GmbH", Street: "Hauptstraße 1", PostalCode: "80331", City: "München",
 		},
 	})
 	for rule := range rulesOf(complete, domain.ValidationClassContent) {

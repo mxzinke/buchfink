@@ -184,8 +184,15 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     bic: '',
     bankName: '',
     street: '',
-    zipCity: '',
-    country: 'Deutschland',
+    addressAddition: '',
+    postalCode: '',
+    city: '',
+    countryCode: 'DE',
+    foundedOn: '',
+    notary: '',
+    deedNumber: '',
+    shareCapital: 0,
+    shareholders: [],
     // Ansprechpartner und Nummernformat werden in den Einstellungen gepflegt.
     // Sie hier abzufragen verlängerte die Einrichtung um Angaben, die erst die
     // erste Rechnung braucht — und das Nummernformat hat eine Voreinstellung.

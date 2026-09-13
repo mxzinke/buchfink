@@ -31,7 +31,9 @@ import (
 //	     selbst angelegten Kontos
 //	9    Bankkonten, zusätzliche Feldverschlüsselung und Offenlegungsnachweis
 //	10   Beschreibungstexte im Änderungsprotokoll verschlüsseln
-const SchemaVersion = 10
+//	11   Gegliederte Anschrift, Gründungsdaten und Gesellschafterliste in den
+//	     Stammdaten, Konto für Rechnungen am Bankkonto
+const SchemaVersion = 11
 
 // migratedTables benennt die Tabellen, die dieser Stand anlegt oder ändert.
 // Sie steht im Protokoll, damit sich später beantworten lässt, was ein Lauf
@@ -42,6 +44,7 @@ var migratedTables = []string{
 	"migration_records",
 	"bank_rules", "base_rates", "dunning_notices", "dunning_notice_items",
 	"accounts", "bank_transactions", "invoice_items", "bank_accounts", "fiscal_years",
+	"setting_items", "company_shareholders",
 }
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert
@@ -144,6 +147,9 @@ func runBackfills(db *gorm.DB) error {
 	}
 	if err := BackfillRetention(db); err != nil {
 		return fmt.Errorf("die Aufbewahrungsfristen ließen sich nicht nachtragen: %w", err)
+	}
+	if err := BackfillCompanyProfile(db); err != nil {
+		return fmt.Errorf("die Stammdaten ließen sich nicht überführen: %w", err)
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, Save, Shield } from 'lucide-react';
 import { InvoiceNumberRange } from '../components/InvoiceNumberRange';
+import { CompanyCapitalSection } from '../components/CompanyCapitalSection';
 import {
   AccrualMethod,
   AccrualReleaseCycle,
@@ -10,7 +11,9 @@ import {
   CompanySettings,
   ComplianceHints,
   AppConfig,
+  Country,
   DunningLevel,
+  FoundationRules,
   InvestorType,
   LegalFormInfo,
   OrganisationTexts,
@@ -245,6 +248,11 @@ export const SettingsPage: React.FC<{
   const [rateError, setRateError] = useState('');
   const [savingRate, setSavingRate] = useState(false);
 
+  // Die Rechtsformen mit Stamm- oder Grundkapital und die Länder der Anschrift
+  // kommen aus dem Backend, das beides auch prüft.
+  const [capitalRules, setCapitalRules] = useState<FoundationRules[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+
   useEffect(() => {
     void loadSettings();
   }, []);
@@ -252,11 +260,15 @@ export const SettingsPage: React.FC<{
   async function loadSettings() {
     setLoading(true);
     try {
-      const [s, cfg, forms] = await Promise.all([
+      const [s, cfg, forms, rules, countryList] = await Promise.all([
         Api.getCompanySettings(),
         Api.getAppConfig(),
         Api.getLegalForms(),
+        Api.getFoundationRules(),
+        Api.getCountries(),
       ]);
+      setCapitalRules(rules ?? []);
+      setCountries(countryList);
       setSettings(s);
       setAppConfig(cfg);
       setLegalForms(forms ?? []);
@@ -483,7 +495,9 @@ export const SettingsPage: React.FC<{
   // Gefragt wird nur, wo die Rechtsform die Anlegerstellung offen lässt.
   const needsInvestorChoice = Boolean(selectedForm) && !selectedForm?.investor;
 
-  const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
+  const patch = (next: Partial<CompanySettings>) =>
+    setSettings((prev) => (prev ? { ...prev, ...next } : prev));
+  const capitalRule = capitalRules.find((rule) => rule.legalForm === settings.legalForm);
   // Ohne Steuernummer und ohne USt-IdNr. lässt sich keine Rechnung ausstellen
   // (§ 14 Abs. 4 Nr. 2 UStG). Der Hinweis steht am Feld und nicht erst in der
   // Fehlermeldung des Rechnungsdialogs.
@@ -534,6 +548,17 @@ export const SettingsPage: React.FC<{
               onValueChange={(next) => patch({ legalForm: String(next) })}
             />
           </Field>
+          <Field
+            label="Gründungsdatum"
+            optional
+            hint={capitalRule ? 'Tag der notariellen Beurkundung' : 'Beginn der Tätigkeit'}
+          >
+            <Input
+              type="date"
+              value={settings.foundedOn}
+              onChange={(e) => patch({ foundedOn: e.target.value })}
+            />
+          </Field>
           <Field helpSummary="Geben Sie Ihre Steuernummer oder Umsatzsteuer-ID für die Rechnungsstellung an."
             label="Steuernummer"
             hint={identifierMissing ? 'für Rechnungen nötig' : undefined}
@@ -555,7 +580,7 @@ export const SettingsPage: React.FC<{
               onChange={(e) => patch({ vatId: e.target.value })}
             />
           </Field>
-          <Field label="Zuständiges Finanzamt" className="md:col-span-2">
+          <Field label="Zuständiges Finanzamt">
             <Input value={settings.taxOffice} onChange={(e) => patch({ taxOffice: e.target.value })} />
           </Field>
 
@@ -617,19 +642,68 @@ export const SettingsPage: React.FC<{
         )}
       </Section>
 
-      <Section title="Anschrift">
+      <Section title="Beschäftigte" context="Arbeitgeberpflichten">
         <FormGrid>
-          <Field label="Straße und Hausnummer" className="md:col-span-2">
-            <Input value={settings.street} onChange={(e) => patch({ street: e.target.value })} />
-          </Field>
-          <Field label="PLZ und Ort">
-            <Input value={settings.zipCity} onChange={(e) => patch({ zipCity: e.target.value })} />
-          </Field>
-          <Field label="Land">
-            <Input value={settings.country} onChange={(e) => patch({ country: e.target.value })} />
+          <Field label="Beschäftigung" helpSummary="Ohne Beschäftigte entfallen die Arbeitgeberaufgaben im Gründungshelfer."
+            explain="Diese Angabe steuert die Aufgaben zu Betriebsnummer, Sozialversicherung, Lohnabrechnung und Arbeitsschutz. Ändern Sie sie, sobald Sie Beschäftigte einstellen oder eine Einstellung planen.">
+            <Select value={settings.employees || 'unknown'} disabled={writeLock.locked}
+              onValueChange={(value) => patch({ employees: value })} items={[
+                { value: 'unknown', label: 'Noch nicht geklärt' },
+                { value: 'none', label: 'Keine Beschäftigten' },
+                { value: 'yes', label: 'Beschäftigte vorhanden oder geplant' },
+              ]} />
           </Field>
         </FormGrid>
       </Section>
+
+      <Section
+        helpSummary="Diese Anschrift steht auf Ihren Rechnungen und Unterlagen."
+        title="Anschrift"
+        explain="§ 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des leistenden Unternehmers. Ein Postfach genügt als Anschrift. Die E-Rechnung führt Straße, Zusatz, Postleitzahl, Ort und Land in getrennten Feldern (BT-35 bis BT-40)."
+      >
+        <FormGrid>
+          <Field label="Straße und Hausnummer" hint="oder Postfach" className="md:col-span-2">
+            <Input
+              placeholder="Musterstraße 12a"
+              value={settings.street}
+              onChange={(e) => patch({ street: e.target.value })}
+            />
+          </Field>
+          <Field label="Adresszusatz" optional className="md:col-span-2">
+            <Input
+              placeholder="c/o, Gebäude oder Etage"
+              value={settings.addressAddition}
+              onChange={(e) => patch({ addressAddition: e.target.value })}
+            />
+          </Field>
+          <Field label="Postleitzahl">
+            <Input
+              className="code-num"
+              value={settings.postalCode}
+              onChange={(e) => patch({ postalCode: e.target.value })}
+            />
+          </Field>
+          <Field label="Ort">
+            <Input value={settings.city} onChange={(e) => patch({ city: e.target.value })} />
+          </Field>
+          <Field label="Land">
+            <Select
+              items={countries.map((country) => ({ value: country.code, label: country.name }))}
+              value={settings.countryCode || 'DE'}
+              onValueChange={(code) => patch({ countryCode: String(code) })}
+            />
+          </Field>
+        </FormGrid>
+      </Section>
+
+      {capitalRule && (
+        <CompanyCapitalSection
+          key={capitalRule.legalForm}
+          settings={settings}
+          rules={capitalRule}
+          patch={patch}
+        />
+      )}
 
       <Section helpSummary="Legen Sie Rechnungsnummern und Kontaktdaten für Ihre Rechnungen fest."
         title="Rechnungsstellung"
@@ -662,6 +736,23 @@ export const SettingsPage: React.FC<{
               value={settings.contactEmail}
               onChange={(e) => patch({ contactEmail: e.target.value })}
             />
+          </Field>
+          <Field
+            label="Bankverbindung auf Rechnungen"
+            hint={settings.iban ? settings.bankName || undefined : 'kein Konto festgelegt'}
+          >
+            <div className="flex items-center gap-3">
+              <FieldValue className="code-num">{settings.iban || '—'}</FieldValue>
+              {onNavigate && (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={() => onNavigate('bank', { bankView: 'accounts' })}
+                >
+                  Bankkonten
+                </Button>
+              )}
+            </div>
           </Field>
         </FormGrid>
         <Button
@@ -755,6 +846,13 @@ export const SettingsPage: React.FC<{
               placeholder="HRB 123456"
             />
           </Field>
+          <Field label="Tag der Eintragung" optional>
+            <Input
+              type="date"
+              value={settings.registeredOn ?? ''}
+              onChange={(e) => patch({ registeredOn: e.target.value })}
+            />
+          </Field>
         </FormGrid>
       </Section>
 
@@ -786,8 +884,8 @@ export const SettingsPage: React.FC<{
           inline
         />
 
-        {deviating && (
-          <FormGrid className="mt-5">
+        <FormGrid className="mt-5">
+          {deviating && (
             <Field label="Beginn des Wirtschaftsjahres">
               <Select
                 items={MONTHS}
@@ -795,8 +893,14 @@ export const SettingsPage: React.FC<{
                 onValueChange={(month) => patch({ fiscalYearStartMonth: month })}
               />
             </Field>
-          </FormGrid>
-        )}
+          )}
+          <Field helpSummary="Buchfink verwendet den Kontenrahmen SKR04 für die doppelte Buchführung."
+            label="Kontenrahmen"
+            explain="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
+          >
+            <FieldValue>SKR04 · Bilanz und GuV</FieldValue>
+          </Field>
+        </FormGrid>
       </Section>
 
       {/* Die Steuerfälle außerhalb des Funktionsumfangs — OSS/IOSS und die
@@ -1146,34 +1250,6 @@ export const SettingsPage: React.FC<{
                 setClosing({ ...closing, accrualRelease: next as AccrualReleaseCycle })
               }
             />
-          </Field>
-        </FormGrid>
-      </Section>
-
-      <Section title="Bankverbindung">
-        <FormGrid>
-          <Field label="Bankname">
-            <Input value={settings.bankName} onChange={(e) => patch({ bankName: e.target.value })} />
-          </Field>
-          <Field label="IBAN">
-            <Input
-              className="code-num"
-              value={settings.iban}
-              onChange={(e) => patch({ iban: e.target.value })}
-            />
-          </Field>
-          <Field label="BIC">
-            <Input
-              className="code-num"
-              value={settings.bic}
-              onChange={(e) => patch({ bic: e.target.value })}
-            />
-          </Field>
-          <Field helpSummary="Buchfink verwendet den Kontenrahmen SKR04 für die doppelte Buchführung."
-            label="Kontenrahmen"
-            explain="Buchfink richtet sich an bilanzierende Gesellschaften und bucht im SKR04. Die Kleinunternehmerregelung nach § 19 UStG wird nicht unterstützt; ein Kleinunternehmer als Lieferant ist dagegen ein normaler Fall und wird am Kontakt hinterlegt."
-          >
-            <FieldValue>SKR04 · Bilanz und GuV</FieldValue>
           </Field>
         </FormGrid>
       </Section>
