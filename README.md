@@ -89,7 +89,7 @@ lässt und dann als `CNAME`-Datei in diesem Verzeichnis landet.
 ## Gestaltung
 
 Die Seite benutzt dieselben Tokens wie die Anwendung — die Farbwerte, Radien,
-Abstände und Bewegungsregeln aus [`docs/design-konzept.md`](../docs/design-konzept.md)
+Abstände und Bewegungsregeln aus [visuellen Grundlagen](../docs/gestaltung/grundlagen.md)
 stehen als CSS-Variablen am Anfang von `assets/site.css`. Auch die Regeln
 gelten weiter: keine Karten, Abschnitte durch Überschrift, Abstand und
 Haarlinie getrennt, Schatten nur an schwebenden Elementen, Primäraktion in
@@ -145,7 +145,7 @@ Funktionsseiten erklären zuerst, was Anwender erledigen können. Details und
 Rechtsgrundlagen stehen in Dialogen hinter „Mehr erfahren“. Normverweise werden
 als Links zum Gesetzestext geschrieben. Technische Einschränkungen, die über
 die Nutzbarkeit entscheiden, etwa eine ungeprüfte E-Bilanz, bleiben sichtbar.
-Die gemeinsamen Regeln stehen in [Schreibweise](../docs/schreibweise.md).
+Die gemeinsamen Regeln stehen in [Schreibweise](../docs/gestaltung/schreibweise.md).
 
 ## Vertiefungen im Dialog
 
