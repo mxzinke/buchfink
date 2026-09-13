@@ -2251,7 +2251,14 @@ export interface DocumentKindOption {
 }
 
 /** Eine abzulegende Unterlage. */
+export interface DocumentFileInfo {
+  name: string;
+  size: number;
+  lastModified: number;
+}
+
 export interface DocumentRequest {
+  contentBase64?: string;
   kind: string;
   title?: string;
   documentDate?: string;

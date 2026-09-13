@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -58,9 +59,10 @@ type DocumentRequest struct {
 	GeneratedBy string `json:"-"`
 	// Path ist der Weg zu einer Datei auf der Platte — der Weg des
 	// Dateidialogs. Content ist der Inhalt selbst, für erzeugte Dokumente.
-	Path     string `json:"path"`
-	FileName string `json:"fileName"`
-	Content  []byte `json:"-"`
+	Path          string `json:"path"`
+	FileName      string `json:"fileName"`
+	Content       []byte `json:"-"`
+	ContentBase64 string `json:"contentBase64,omitempty"`
 }
 
 // List liefert die Ablage.
@@ -86,6 +88,21 @@ func (s *DocumentService) Attach(ctx context.Context, req DocumentRequest) (*dom
 	}
 	if !req.Kind.Valid() {
 		return nil, fmt.Errorf("unbekannte Dokumentart %q", req.Kind)
+	}
+
+	if req.ContentBase64 != "" {
+		const maxUploadBytes = 20 << 20
+		if len(req.ContentBase64) > base64.StdEncoding.EncodedLen(maxUploadBytes) {
+			return nil, fmt.Errorf("die Datei darf höchstens 20 MB groß sein")
+		}
+		content, err := base64.StdEncoding.DecodeString(req.ContentBase64)
+		if err != nil {
+			return nil, fmt.Errorf("die hochgeladene Datei konnte nicht gelesen werden")
+		}
+		if len(content) == 0 || len(content) > maxUploadBytes {
+			return nil, fmt.Errorf("die Datei ist leer oder größer als 20 MB")
+		}
+		req.Content = content
 	}
 
 	stored, name, err := s.put(req)

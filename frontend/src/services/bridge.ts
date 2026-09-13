@@ -342,6 +342,7 @@ export const bridge = {
   GetDocumentKinds: <T>() => invoke<T>('GetDocumentKinds'),
   GetDocumentContent: <T>(id: number) => invoke<T>('GetDocumentContent', id),
   SelectDocumentsDialog: <T>() => invoke<T>('SelectDocumentsDialog'),
+  GetDocumentFileInfo: (path: string) => invoke('GetDocumentFileInfo', path),
   AttachDocument: <T>(request: unknown) => invoke<T>('AttachDocument', request),
   RemoveDocument: (id: number) => invoke<void>('RemoveDocument', id),
 

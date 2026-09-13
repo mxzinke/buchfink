@@ -96,6 +96,7 @@ import type {
   CompanyDocument,
   DocumentKindOption,
   DocumentRequest,
+  DocumentFileInfo,
   OpeningBalanceSheet,
   GiftRebooking,
   InputTaxCorrection,
@@ -1536,6 +1537,9 @@ export const Api = {
   selectDocuments: (): Promise<string[]> =>
     call(() => Bridge.SelectDocumentsDialog() as Promise<string[]>).then((l) => l ?? []),
   /** Legt eine Unterlage in der Ablage des Unternehmens ab. */
+  getDocumentFileInfo: (path: string): Promise<DocumentFileInfo> =>
+    call(() => Bridge.GetDocumentFileInfo(path) as Promise<DocumentFileInfo>),
+
   attachDocument: (request: DocumentRequest): Promise<CompanyDocument> =>
     call(() => Bridge.AttachDocument(request) as Promise<CompanyDocument>),
   /** Entfernt eine Unterlage aus der Ablage. */
