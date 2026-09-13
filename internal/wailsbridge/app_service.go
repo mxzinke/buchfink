@@ -978,20 +978,11 @@ func (b *BuchfinkBridge) CreateTenant(
 		dataDir = filepath.Join(homeDir, ".buchfink", "tenants", tenantID, "data")
 	}
 
-	// Persist absolute paths so tenant locations are stable regardless of the
-	// process working directory (relative paths would break e.g. in dev mode).
-	if abs, err := filepath.Abs(dataDir); err == nil {
-		dataDir = abs
-	}
-
-	// Provisioning replaces the keyfile. Reject occupied directories before
-	// touching the keychain, database, or active tenant configuration.
-	entries, err := os.ReadDir(dataDir)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("der Datenordner kann nicht gelesen werden: %w", err)
-	}
-	if len(entries) != 0 {
-		return nil, fmt.Errorf("der Datenordner ist nicht leer. Wählen Sie einen neuen, leeren Ordner oder öffnen Sie die vorhandene Buchhaltung")
+	// Vor der Schlüsselanlage erneut prüfen: Seit der Ordnerauswahl können Dateien hinzugekommen sein.
+	var err error
+	dataDir, err = checkedTenantDirectory(dataDir)
+	if err != nil {
+		return nil, err
 	}
 
 	fiscalYear := settings.FiscalYear

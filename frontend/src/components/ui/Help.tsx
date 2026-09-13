@@ -1,6 +1,5 @@
-import React, { useState, useId } from 'react';
+import React, { useState } from 'react';
 import { Popover } from '@base-ui/react/popover';
-import { Tooltip } from '@base-ui/react/tooltip';
 import { cn } from './cn';
 import { POPUP } from './popup';
 import { Dialog } from './Dialog';
@@ -21,52 +20,47 @@ export interface HelpProps {
   className?: string;
 }
 
-/** Das Fragezeichen erklärt kurz; der getrennte Button öffnet die Details. */
+/** Das Popover erklärt kurz und bietet bei Bedarf einen Detaildialog an. */
 export const Help: React.FC<HelpProps> = ({ summary, children, label, onMore, className }) => {
-  const tooltipId = useId();
-  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails = Boolean(children || onMore);
 
   return (
     <span className={cn('inline-flex items-center shrink-0 align-middle', className)}>
-      <Tooltip.Root open={tooltipOpen} onOpenChange={setTooltipOpen}>
-        <Tooltip.Trigger
+      <Popover.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <Popover.Trigger
           aria-label={label}
-          aria-describedby={tooltipOpen ? tooltipId : undefined}
           className={MARK}
+          openOnHover
           delay={300}
           closeDelay={200}
-          closeOnClick={false}
-          onFocus={() => setTooltipOpen(true)}
-          onBlur={() => setTooltipOpen(false)}
-          onClick={() => setTooltipOpen(true)}
         >
           ?
-        </Tooltip.Trigger>
-        <Tooltip.Portal>
-          <Tooltip.Positioner sideOffset={6} className="z-50">
-            <Tooltip.Popup id={tooltipId} role="tooltip" className={cn(POPUP, 'px-3 py-2 max-w-[300px] text-left text-body font-normal text-ink-muted')}>
-              {summary}
-            </Tooltip.Popup>
-          </Tooltip.Positioner>
-        </Tooltip.Portal>
-      </Tooltip.Root>
-      {hasDetails && (
-        <button
-          type="button"
-          className="ml-1 text-caption font-normal text-ink-subtle underline underline-offset-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-          aria-label={`Mehr erfahren: ${label}`}
-          aria-haspopup="dialog"
-          onClick={() => {
-            setTooltipOpen(false);
-            if (onMore) onMore();
-            else setDetailsOpen(true);
-          }}
-        >
-          Mehr erfahren
-        </button>
-      )}
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Positioner sideOffset={6} className="z-50">
+            <Popover.Popup aria-label={label} className={cn(POPUP, 'px-3 py-2 max-w-[300px] text-left text-body font-normal text-ink-muted')}>
+              <p>{summary}</p>
+              {hasDetails && (
+                <button
+                  type="button"
+                  className="mt-2 text-caption font-normal text-ink-subtle underline underline-offset-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  aria-label={`Mehr erfahren: ${label}`}
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    if (onMore) onMore();
+                    else setDetailsOpen(true);
+                  }}
+                >
+                  Mehr erfahren
+                </button>
+              )}
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
       {!onMore && hasDetails && (
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen} title={label}>
           <div className="text-body font-normal text-ink-muted space-y-3">

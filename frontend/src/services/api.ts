@@ -545,6 +545,9 @@ export const Api = {
   // --- Einrichtung -------------------------------------------------------
 
   getAppConfig: (): Promise<AppConfig> => call(() => Bridge.GetAppConfig() as Promise<AppConfig>),
+  validateTenantDirectory: (dataDir: string): Promise<void> =>
+    call(() => Bridge.ValidateTenantDirectory(dataDir)),
+
   setupApplication: (dataDir: string, settings: CompanySettings): Promise<void> =>
     call(() => Bridge.SetupApplication(dataDir, settings as any) as Promise<void>),
   loadExistingDatabase: (dbFilePath: string): Promise<void> =>

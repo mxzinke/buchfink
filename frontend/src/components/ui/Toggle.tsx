@@ -20,11 +20,19 @@ export interface CheckboxProps extends React.ComponentProps<typeof BaseCheckbox.
   label: React.ReactNode;
   /** Ein kurzer Zusatz unter der Beschriftung. */
   hint?: string;
+  tone?: 'default' | 'shell';
 }
 
-export const Checkbox: React.FC<CheckboxProps> = ({ label, hint, className, ...props }) => (
-  <label className={cn(ROW, className)}>
-    <BaseCheckbox.Root className={cn(BOX, 'mt-0.5')} {...props}>
+export const Checkbox: React.FC<CheckboxProps> = ({ label, hint, tone = 'default', className, ...props }) => (
+  <label className={cn(ROW, tone === 'shell' && 'text-shell-text-muted', className)}>
+    <BaseCheckbox.Root
+      className={cn(
+        BOX,
+        'mt-0.5 data-[disabled]:data-[checked]:text-ink-muted data-[disabled]:data-[indeterminate]:text-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        tone === 'shell' && 'border-shell-text-muted bg-shell-deep focus-visible:outline-accent-light',
+      )}
+      {...props}
+    >
       <BaseCheckbox.Indicator className="grid place-items-center data-[unchecked]:hidden">
         {props.indeterminate ? (
           <Minus className="w-3 h-3" strokeWidth={2} />
@@ -35,7 +43,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({ label, hint, className, ...p
     </BaseCheckbox.Root>
     <span className="min-w-0">
       <span className="block">{label}</span>
-      {hint && <span className="block text-caption text-ink-subtle">{hint}</span>}
+      {hint && <span className={cn('block text-caption text-ink-subtle', tone === 'shell' && 'text-shell-text-muted')}>{hint}</span>}
     </span>
   </label>
 );

@@ -127,6 +127,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetDocuments":                   true,
 	"GetDocumentKinds":               true,
 	"GetDocumentContent":             true,
+	"ValidateTenantDirectory":        true,
 	"GetInvestmentNoteForIncome":     true,
 	"GetAdvanceTargets":              true,
 	"GetInvoiceGroups":               true,

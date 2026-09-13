@@ -16,7 +16,7 @@ import { CompanySettings, ContributionKind, FoundationRules } from '../types';
 import { Api } from '../services/api';
 import { formatCents, parseCents } from '../utils/formatters';
 import { GermanFlag } from './GermanFlag';
-import { Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
+import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
 interface SetupAssistantScreenProps {
   /**
@@ -156,9 +156,6 @@ const ShellField: React.FC<{
  * genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und steht deshalb
  * auf dunklem Grund.
  *
- * Die Zahl der Schritte richtet sich nach der Rechtsform: Nur eine Kapitalgesellschaft
- * durchläuft eine Vorgesellschaft, und nur dort gibt es eine Unterbilanzhaftung,
- * die Buchfink von Anfang an mitrechnen muss.
  */
 export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   onSetupCompleted,
@@ -209,7 +206,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     registerNumber: '',
     currency: 'EUR',
     skr: 'SKR04',
-    vatPeriod: 'quarter',
+    vatPeriod: 'unknown',
     taxationType: 'SOLL',
     // Die Dauerfristverlängerung wird beantragt, nicht vorausgesetzt; die
     // Schwellenwerte der Prüfläufe stehen auf ihren Voreinstellungen
@@ -247,7 +244,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const rules = foundationRules.find((r) => r.legalForm === settings.legalForm) ?? null;
   const isCapitalCompany = rules !== null;
 
-  const [isFoundingCase, setIsFoundingCase] = useState<boolean | null>(null);
+  const [notRegistered, setNotRegistered] = useState(false);
+  const [captureFoundation, setCaptureFoundation] = useState(false);
+  const isFoundingCase = notRegistered || captureFoundation;
   const [notarizedOn, setNotarizedOn] = useState('');
   const [registeredOn, setRegisteredOn] = useState('');
   const [registerCourt, setRegisterCourt] = useState('');
@@ -266,29 +265,45 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
 
-  // Die Schritte des Neuanlage-Wegs. Der Gründungsschritt steht zwischen
-  // Stammdaten und Schlüsselsicherung, weil er die Rechtsform aus dem Schritt davor
-  // braucht — und weil aus dem Beurkundungsdatum das Rumpfgeschäftsjahr folgt.
   const stepTitles = [
     'Speicherort',
-    'Verschlüsselung',
-    'Unternehmen und Steuern',
-    ...(isCapitalCompany ? ['Gründung'] : []),
+    isCapitalCompany ? 'Unternehmen und Gründung' : 'Unternehmen',
+    'Steuern',
     'Schlüssel sichern',
   ];
   const stepCount = stepTitles.length;
   const currentTitle = stepTitles[step - 1] ?? '';
-  const isFoundingStep = isCapitalCompany && step === 4;
+  const isFoundingStep = isCapitalCompany && step === 2;
+  const isNewCompany = isCapitalCompany && isFoundingCase === true;
+  const firstYearDate = isCapitalCompany ? (isNewCompany ? notarizedOn : registeredOn) : '';
+  const fiscalYear = firstYearDate.length === 10 ? Number(firstYearDate.slice(0, 4)) : settings.fiscalYear;
 
-  // Der gewählte Datenordner wird bei jeder Änderung geprüft — getippt wie
-  // ausgewählt. Der Hinweis hält nichts an; er stellt die Frage, die sich
-  // sonst niemand stellt (§ 146 Abs. 2, 2a AO).
   const cloudFolder = cloudFolderName(dataDir);
+  const [directorySelection, setDirectorySelection] = useState(0);
+  const [directoryCheck, setDirectoryCheck] = useState<{ path: string; error: string | null } | null>(null);
+  const directoryChecked = directoryCheck?.path === dataDir;
+  const directoryError = directoryChecked ? directoryCheck.error : null;
+  const directoryValid = directoryChecked && !directoryError;
+
+  useEffect(() => {
+    if (setupChoice !== 'new' || step !== 1 || tenantCreated) return;
+    let active = true;
+    setDirectoryCheck(null);
+    Api.validateTenantDirectory(dataDir).then(
+      () => { if (active) setDirectoryCheck({ path: dataDir, error: null }); },
+      (e) => { if (active) setDirectoryCheck({ path: dataDir, error: e instanceof Error ? e.message : String(e) }); },
+    );
+    return () => { active = false; };
+  }, [dataDir, directorySelection, setupChoice, step, tenantCreated]);
 
   async function pickDataDirectory() {
     try {
       const selected = await Api.selectDirectoryDialog('Buchfink Datenordner auswählen');
-      if (selected) setDataDir(selected);
+      if (selected) {
+        setDataDir(selected);
+        setDirectoryCheck(null);
+        setDirectorySelection((value) => value + 1);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -303,28 +318,18 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     }
   }
 
-  /**
-   * Aus dem Beurkundungsdatum folgen zwei Angaben, die sonst zu raten wären:
-   * das Rumpfgeschäftsjahr und der Voranmeldungszeitraum. Den zweiten
-   * beantwortet das Backend, weil § 18 Abs. 2 UStG dafür ein Stichjahr hat.
-   */
+  // Der Hinweis zum Meldezeitraum kommt aus dem Backend; die Auswahl bleibt beim Anwender.
   async function applyFoundingDate(date: string) {
     setNotarizedOn(date);
     if (date.length !== 10) return;
     const year = Number(date.slice(0, 4));
     if (!Number.isFinite(year) || year < 1900) return;
 
-    setSettings((prev) => ({ ...prev, fiscalYear: year }));
     try {
       const recommendation = await Api.getRecommendedVatPeriod(year);
-      setSettings((prev) => ({
-        ...prev,
-        fiscalYear: year,
-        vatPeriod: recommendation.period as CompanySettings['vatPeriod'],
-      }));
       setVatReason(recommendation.reason);
     } catch {
-      // Ohne Antwort bleibt die Auswahl aus Schritt 3 stehen.
+      // Die Auswahl bleibt ohne Empfehlung offen.
     }
   }
 
@@ -352,12 +357,17 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   })();
 
   const capitalMatches = capitalTarget > 0 && subscribedCapital === capitalTarget;
-  const foundingComplete =
-    isFoundingCase === false ||
-    (isFoundingCase === true &&
+  const today = new Date().toLocaleDateString('en-CA');
+  const registrationComplete = notRegistered || (
+    /^\d{4}-\d{2}-\d{2}$/.test(registeredOn) && registeredOn <= today
+  );
+  const foundingComplete = registrationComplete && (
+    !isFoundingCase ||
+    (isFoundingCase &&
       notarizedOn.length === 10 &&
+      (notRegistered || notarizedOn <= registeredOn) &&
       capitalMatches &&
-      shareholders.every((s) => s.name.trim() !== '' && (parseCents(s.shareCapital) ?? 0) > 0));
+      shareholders.every((s) => s.name.trim() !== '' && (parseCents(s.shareCapital) ?? 0) > 0)));
 
   function patchShareholder(index: number, next: Partial<ShareholderDraft>) {
     setShareholders((prev) => prev.map((s, i) => (i === index ? { ...s, ...next } : s)));
@@ -368,7 +378,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     setError(null);
     try {
       if (!tenantCreated) {
-        await Api.setupApplication(dataDir, settings);
+        await Api.setupApplication(dataDir, {
+          ...settings,
+          fiscalYear,
+          registeredOn: isCapitalCompany && !notRegistered ? registeredOn : '',
+          registerCourt: isCapitalCompany && !notRegistered ? registerCourt.trim() : '',
+          registerNumber: isCapitalCompany && !notRegistered ? registerNumber.trim() : '',
+        });
         setTenantCreated(true);
       }
 
@@ -377,9 +393,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       if (isCapitalCompany && isFoundingCase && notarizedOn.length === 10) {
         await Api.saveFoundation({
           notarizedOn,
-          registeredOn: registeredOn.length === 10 ? registeredOn : '',
-          registerCourt: registerCourt.trim(),
-          registerNumber: registerNumber.trim(),
+          registeredOn: notRegistered ? '' : registeredOn,
+          registerCourt: notRegistered ? '' : registerCourt.trim(),
+          registerNumber: notRegistered ? '' : registerNumber.trim(),
           shareCapital: capitalTarget,
           foundationCostCap: parseCents(foundationCostCap) ?? 0,
           shareholders: shareholders.map((s) => ({
@@ -418,7 +434,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-y-auto bg-shell-deep text-shell-text">
+    <div className="relative h-dvh overflow-hidden bg-shell-deep text-shell-text">
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none"
         style={{ backgroundImage: "url('/bg-startupscreen_unsplash-steven-kamenar.jpg')" }}
@@ -426,7 +442,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       <div className="absolute inset-0 bg-shell-deep/85 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-shell-deep to-transparent pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-2xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center gap-6">
+      <div className="relative z-10 h-full overflow-y-auto">
+      <div className="w-full min-h-full max-w-2xl mx-auto px-6 py-12 flex flex-col justify-center gap-6">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="relative shrink-0">
@@ -554,6 +571,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         <input
                           type="text"
                           value={dataDir}
+                          aria-invalid={Boolean(directoryError)}
+                          aria-describedby="setup-directory-status"
                           onChange={(e) => setDataDir(e.target.value)}
                           className={cn(SHELL_CONTROL, 'code-num')}
                         />
@@ -567,6 +586,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         </button>
                       </span>
                     </ShellField>
+                    <p id="setup-directory-status" role={directoryError ? 'alert' : 'status'}
+                      className={cn('text-caption', directoryError ? 'text-shell-negative' : 'text-shell-text-muted')}>
+                      {directoryError || (!directoryChecked ? 'Ordner wird geprüft …' : '')}
+                    </p>
                     {/* Ein Satz auf der Fläche, der Rest hinter dem Erklärzeichen
                         (§15.1): der Hinweis steht dauerhaft, solange der Pfad in
                         den Ordner zeigt, und ein Absatz Fließtext an dieser
@@ -597,33 +620,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
                 {step === 2 && (
                   <div className="flex flex-col gap-4">
-                    <p className="text-body text-shell-text-muted">
-                      Buchungstexte, Kontakte, Rechnungspositionen und Verwendungszwecke werden mit AES-256
-                      verschlüsselt. Die Belegdateien selbst bleiben unverschlüsselt. Der Schlüssel liegt im Schlüsselbund des Betriebssystems, ein
-                      Passwort ist nicht zu merken.
-                    </p>
-                    <p className="rounded-control border border-attention/50 bg-attention/15 px-4 py-3">
-                      <span className="flex items-center text-label text-attention-line">
-                        Wiederherstellungsschlüssel am Ende sichern
-                        <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf."
-                          label="Erklärung zum Recovery-Schlüssel"
-                          className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                        >
-                          Geht dieser Rechner verloren, ist der Schlüsselbund weg und die
-                          verschlüsselten Daten sind ohne Recovery-Datei unwiederbringlich — auch
-                          aus einem Backup. Die Datei gehört an einen anderen Ort als das
-                          Datenbackup.
-                        </Help>
-                      </span>
-                      <span className="block text-body text-shell-text-muted mt-1">
-                        Der letzte Einrichtungsschritt führt Sie direkt zur Schlüsselsicherung.
-                      </span>
-                    </p>
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="flex flex-col gap-4">
                     <ShellField label="Firmen- oder Inhabername">
                       <input
                         type="text"
@@ -638,7 +634,14 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       <ShellField label="Rechtsform">
                         <select
                           value={settings.legalForm}
-                          onChange={(e) => patch({ legalForm: e.target.value })}
+                          onChange={(e) => {
+                            patch({ legalForm: e.target.value });
+                            setNotRegistered(false);
+                            setCaptureFoundation(false);
+                            setRegisteredOn('');
+                            setRegisterCourt('');
+                            setRegisterNumber('');
+                          }}
                           className={SHELL_CONTROL}
                         >
                           {LEGAL_FORMS.map((form) => (
@@ -647,14 +650,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                             </option>
                           ))}
                         </select>
-                      </ShellField>
-                      <ShellField label="Erstes Geschäftsjahr">
-                        <input
-                          type="number"
-                          value={settings.fiscalYear}
-                          onChange={(e) => patch({ fiscalYear: Number(e.target.value) })}
-                          className={cn(SHELL_CONTROL, 'num')}
-                        />
                       </ShellField>
                     </div>
 
@@ -670,123 +665,53 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       </p>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <ShellField label="Steuernummer">
-                        <input
-                          type="text"
-                          placeholder="12/345/67890"
-                          value={settings.taxNumber}
-                          onChange={(e) => patch({ taxNumber: e.target.value })}
-                          className={cn(SHELL_CONTROL, 'code-num')}
-                        />
-                      </ShellField>
-                      <ShellField label="USt-IdNr. · optional">
-                        <input
-                          type="text"
-                          placeholder="DE123456789"
-                          value={settings.vatId}
-                          onChange={(e) => patch({ vatId: e.target.value })}
-                          className={cn(SHELL_CONTROL, 'code-num')}
-                        />
-                      </ShellField>
-                    </div>
-
-                    <ShellField label="USt-Voranmeldezeitraum">
-                      <select
-                        value={settings.vatPeriod || 'quarter'}
-                        onChange={(e) =>
-                          patch({ vatPeriod: e.target.value as CompanySettings['vatPeriod'] })
-                        }
-                        className={SHELL_CONTROL}
-                      >
-                        <option value="quarter">Vierteljährlich</option>
-                        <option value="month">Monatlich</option>
-                        <option value="year">Jährlich, nur die Jahreserklärung</option>
-                      </select>
-                    </ShellField>
-
-                    <p className="flex items-center text-caption text-shell-text-muted">
-                      Gebucht wird nach vereinbarten Entgelten
-                      <Help summary="Buchfink unterstützt die Besteuerung nach erbrachter Leistung, auch vor der Zahlung."
-                        label="Erklärung zur Besteuerungsart"
-                        className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                      >
-                        Sollversteuerung nach § 16 Abs. 1 Satz 1 UStG: Eine Rechnung wird mit ihrem
-                        Datum gebucht, die Zahlung ist ein späterer, eigener Vorgang. Istversteuerung
-                        und die Kleinunternehmerregelung nach § 19 UStG unterstützt Buchfink nicht.
-                      </Help>
-                    </p>
                   </div>
                 )}
 
                 {isFoundingStep && (
-                  <div className="flex flex-col gap-4">
-                    {isFoundingCase === null ? (
+                  <div className="mt-4 flex flex-col gap-4">
+                    <ShellField label="Datum der Handelsregistereintragung">
+                      <input
+                        type="date"
+                        value={notRegistered ? '' : registeredOn}
+                        max={today}
+                        disabled={notRegistered}
+                        onChange={(e) => setRegisteredOn(e.target.value)}
+                        className={cn(SHELL_CONTROL, 'num')}
+                      />
+                    </ShellField>
+                    {(notRegistered || !registeredOn) && (
+                    <Checkbox
+                      tone="shell"
+                      label="Noch nicht im Handelsregister eingetragen"
+                      checked={notRegistered}
+                      onCheckedChange={(checked) => {
+                        setNotRegistered(checked);
+                        setCaptureFoundation(false);
+                      }}
+                    />
+                    )}
+                    {!notRegistered && registrationComplete && (
                       <>
-                        <p className="flex items-center text-body text-shell-text-muted">
-                          Wo steht die {settings.legalForm} heute?
-                          <Help summary="Bis zur Eintragung können für die Gründer persönliche Haftungsrisiken bestehen."
-                            label="Erklärung zur Vorgesellschaft"
-                            className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                          >
-                            Zwischen der notariellen Beurkundung und der Eintragung besteht die
-                            Vorgesellschaft. Sie ist bereits buchführungspflichtig, die
-                            Haftungsbeschränkung greift aber noch nicht: Wer in ihrem Namen handelt,
-                            haftet persönlich (§ 11 Abs. 2 GmbHG), und bleibt das Reinvermögen am
-                            Tag der Eintragung hinter dem Stammkapital zurück, schulden die
-                            Gesellschafter die Differenz.
-                          </Help>
-                        </p>
-
-                        <div className="divide-y divide-shell-line border-t border-shell-line">
-                          <button
-                            type="button"
-                            onClick={() => setIsFoundingCase(true)}
-                            className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
-                          >
-                            <Scale className="w-5 h-5 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-body text-white">
-                                Gerade gegründet oder in Gründung
-                              </span>
-                              <span className="block text-caption text-shell-text-muted mt-0.5">
-                                Buchfink führt die Fristen und rechnet die Unterbilanz mit.
-                              </span>
-                            </span>
-                            <ArrowRight
-                              className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
-                                         duration-120 ease-quiet group-hover:translate-x-0.5"
-                              strokeWidth={1.5}
-                            />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setIsFoundingCase(false)}
-                            className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
-                          >
-                            <Check className="w-5 h-5 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-body text-white">
-                                Länger im Handelsregister eingetragen
-                              </span>
-                              <span className="block text-caption text-shell-text-muted mt-0.5">
-                                Kein Gründungsfall, dieser Schritt entfällt.
-                              </span>
-                            </span>
-                            <ArrowRight
-                              className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
-                                         duration-120 ease-quiet group-hover:translate-x-0.5"
-                              strokeWidth={1.5}
-                            />
-                          </button>
+                        <div className="grid grid-cols-2 gap-4">
+                          <ShellField label="Registergericht · optional">
+                            <input type="text" placeholder="Amtsgericht ..." value={registerCourt}
+                              onChange={(e) => setRegisterCourt(e.target.value)} className={SHELL_CONTROL} />
+                          </ShellField>
+                          <ShellField label="Registernummer · optional">
+                            <input type="text" placeholder="HRB 12345" value={registerNumber}
+                              onChange={(e) => setRegisterNumber(e.target.value)} className={SHELL_CONTROL} />
+                          </ShellField>
                         </div>
+                        <Checkbox
+                          tone="shell"
+                          label="Gründung mit Buchfink erfassen"
+                          checked={captureFoundation}
+                          onCheckedChange={setCaptureFoundation}
+                        />
                       </>
-                    ) : isFoundingCase === false ? (
-                      <p className="text-body text-shell-text-muted">
-                        Kein Gründungsfall. Der Gründungsabschnitt der Steuerfristen bleibt leer.
-                      </p>
-                    ) : (
+                    )}
+                    {isFoundingCase && (
                       <>
                         <div className="grid grid-cols-2 gap-4">
                           <ShellField
@@ -796,6 +721,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                             <input
                               type="date"
                               value={notarizedOn}
+                              max={notRegistered ? today : registeredOn || today}
                               onChange={(e) => void applyFoundingDate(e.target.value)}
                               className={cn(SHELL_CONTROL, 'num')}
                             />
@@ -815,18 +741,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                           </ShellField>
                         </div>
 
-                        {vatReason && (
-                          <p className="flex items-center text-caption text-shell-text-muted">
-                            Voranmeldung{' '}
-                            {settings.vatPeriod === 'month' ? 'monatlich' : 'vierteljährlich'}
-                            <Help summary="Hier sehen Sie, wie oft Ihr neu gegründetes Unternehmen Umsatzsteuer melden soll."
-                              label="Erklärung zum Voranmeldezeitraum bei Neugründung"
-                              className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                            >
-                              {vatReason}
-                            </Help>
-                          </p>
-                        )}
 
                         <div>
                           <div className="flex items-center justify-between gap-4 pb-2 border-b border-shell-line">
@@ -975,45 +889,105 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                               className={cn(SHELL_CONTROL, 'num')}
                             />
                           </ShellField>
-                          <ShellField label="Eintragung im Handelsregister · falls schon erfolgt">
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div className="flex flex-col gap-4">
+                    {isNewCompany ? (
+                      <p className="text-body text-shell-text-muted">
+                        Steuernummer und USt-IdNr. können Sie später in den Einstellungen ergänzen.
+                      </p>
+                    ) : (
+                      <>
+                        {!isCapitalCompany && (
+                        <ShellField label="Erstes Geschäftsjahr">
+                          <input
+                            type="number"
+                            value={settings.fiscalYear}
+                            onChange={(e) => patch({ fiscalYear: Number(e.target.value) })}
+                            className={cn(SHELL_CONTROL, 'num')}
+                          />
+                        </ShellField>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <ShellField label="Steuernummer · optional">
                             <input
-                              type="date"
-                              value={registeredOn}
-                              onChange={(e) => setRegisteredOn(e.target.value)}
-                              className={cn(SHELL_CONTROL, 'num')}
+                              type="text"
+                              placeholder="12/345/67890"
+                              value={settings.taxNumber}
+                              onChange={(e) => patch({ taxNumber: e.target.value })}
+                              className={cn(SHELL_CONTROL, 'code-num')}
+                            />
+                          </ShellField>
+                          <ShellField label="USt-IdNr. · optional">
+                            <input
+                              type="text"
+                              placeholder="DE123456789"
+                              value={settings.vatId}
+                              onChange={(e) => patch({ vatId: e.target.value })}
+                              className={cn(SHELL_CONTROL, 'code-num')}
                             />
                           </ShellField>
                         </div>
-
-                        {registeredOn.length === 10 && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <ShellField label="Registergericht">
-                              <input
-                                type="text"
-                                placeholder="Amtsgericht München"
-                                value={registerCourt}
-                                onChange={(e) => setRegisterCourt(e.target.value)}
-                                className={SHELL_CONTROL}
-                              />
-                            </ShellField>
-                            <ShellField label="Registernummer">
-                              <input
-                                type="text"
-                                placeholder="HRB 123456"
-                                value={registerNumber}
-                                onChange={(e) => setRegisterNumber(e.target.value)}
-                                className={cn(SHELL_CONTROL, 'code-num')}
-                              />
-                            </ShellField>
-                          </div>
-                        )}
                       </>
+                    )}
+
+                    <div className="flex items-center gap-1 text-label text-shell-text-muted">
+                      <label htmlFor="setup-vat-period">Umsatzsteuererklärungen</label>
+                      <Help
+                        label="Erklärung zu Umsatzsteuererklärungen"
+                        summary="Wenn Ihre Meldepflicht noch nicht geklärt ist, können Sie die Auswahl später in den Einstellungen ergänzen."
+                      >
+                        <p>Eine reine Finanzholding, die nur Beteiligungen hält und keine entgeltlichen Leistungen erbringt, kann umsatzsteuerlich außerhalb des Unternehmensbereichs liegen. Eine Holding mit entgeltlichen Leistungen ist anders zu beurteilen.</p>
+                        <p>„Keine regelmäßigen Umsatzsteuererklärungen“ steuert die Terminplanung. Die Auswahl legt weder Steuerbefreiungen noch den Vorsteuerabzug fest. Besondere Erklärungspflichten, etwa bei Reverse Charge, müssen gesondert geprüft werden.</p>
+                        {isNewCompany && vatReason && <p>{vatReason}</p>}
+                      </Help>
+                    </div>
+                    <select
+                      id="setup-vat-period"
+                      value={settings.vatPeriod}
+                      onChange={(e) => patch({ vatPeriod: e.target.value })}
+                      className={SHELL_CONTROL}
+                    >
+                      <option value="unknown">Noch nicht geklärt</option>
+                      <option value="month">Monatliche Voranmeldungen</option>
+                      <option value="quarter">Vierteljährliche Voranmeldungen</option>
+                      <option value="year">Nur die Jahreserklärung</option>
+                      <option value="none">Keine regelmäßigen Umsatzsteuererklärungen</option>
+                    </select>
+                    {settings.vatPeriod === 'unknown' && (
+                      <p className="text-caption text-shell-text-muted">
+                        Klären Sie die Meldepflicht mit dem Finanzamt oder Ihrer Steuerberatung.
+                        Bis dahin plant Buchfink keine regelmäßigen Umsatzsteuertermine.
+                      </p>
+                    )}
+
+                    {!['unknown', 'none'].includes(settings.vatPeriod) && (
+                    <p className="flex items-center text-caption text-shell-text-muted">
+                      Gebucht wird nach vereinbarten Entgelten
+                      <Help summary="Buchfink unterstützt die Besteuerung nach erbrachter Leistung, auch vor der Zahlung."
+                        label="Erklärung zur Besteuerungsart"
+                        className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
+                      >
+                        Sollversteuerung nach § 16 Abs. 1 Satz 1 UStG: Eine Rechnung wird mit ihrem
+                        Datum gebucht, die Zahlung ist ein späterer, eigener Vorgang. Istversteuerung
+                        und die Kleinunternehmerregelung nach § 19 UStG unterstützt Buchfink nicht.
+                      </Help>
+                    </p>
                     )}
                   </div>
                 )}
 
                 {step === stepCount && (
                   <div className="flex flex-col gap-4">
+                    <p className="text-body text-shell-text-muted">
+                      Buchungstexte, Kontakte und Rechnungspositionen werden verschlüsselt.
+                      Belegdateien bleiben unverschlüsselt. Der Schlüssel liegt im Schlüsselbund dieses Rechners.
+                    </p>
                     <p className="text-body text-shell-text-muted">
                       {setupReady ? 'Ihre Buchhaltung ist angelegt. Sichern Sie jetzt den Wiederherstellungsschlüssel.' : 'Nach dem Anlegen sichern Sie hier direkt Ihren Wiederherstellungsschlüssel.'}
                       {' '}Mit dieser Datei können Sie die verschlüsselten Daten auch auf einem neuen Rechner öffnen.
@@ -1031,10 +1005,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         {submitting ? 'Schlüssel wird gesichert …' : 'Wiederherstellungsschlüssel sichern'}
                       </button>
                       {recoveryPath ? <p className="text-body text-shell-text break-all">Schlüssel gesichert: {recoveryPath}</p> :
-                        <label className="flex items-start gap-3 text-body text-shell-text-muted">
-                          <input type="checkbox" checked={skipRecovery} onChange={(e) => setSkipRecovery(e.target.checked)} />
-                          Ich sichere den Schlüssel später. Mir ist bewusst, dass ich ohne ihn bei Verlust dieses Rechners auch meine verschlüsselten Daten verlieren kann.
-                        </label>}
+                        <Checkbox
+                          tone="shell"
+                          label="Ich sichere den Schlüssel später. Mir ist bewusst, dass ich ohne ihn bei Verlust dieses Rechners auch meine verschlüsselten Daten verlieren kann."
+                          checked={skipRecovery}
+                          onCheckedChange={setSkipRecovery}
+                        />}
                     </> : <p className="text-body text-shell-text-muted">Bankkonten richten Sie beim ersten Import eines Kontoauszugs ein.</p>}
                   </div>
                 )}
@@ -1044,15 +1020,11 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (isFoundingStep && isFoundingCase !== null) {
-                      setIsFoundingCase(null);
-                      return;
-                    }
                     if (step > 1) setStep(step - 1);
                     else setSetupChoice(null);
                   }}
                   className={SHELL_BUTTON.quiet}
-                  disabled={submitting || (tenantCreated && (setupReady || step <= 4))}
+                  disabled={submitting || tenantCreated}
                 >
                   <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
                   Zurück
@@ -1062,7 +1034,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   <button
                     type="button"
                     disabled={
-                      (step === 3 && !settings.companyName.trim()) ||
+                      (step === 1 && !directoryValid) ||
+                      (step === 2 && !settings.companyName.trim()) ||
                       (isFoundingStep && !foundingComplete)
                     }
                     onClick={() => setStep(step + 1)}
@@ -1163,6 +1136,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             </span>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

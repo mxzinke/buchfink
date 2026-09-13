@@ -42,6 +42,7 @@ export const bridge = {
   SetInvoiceBankAccount: (iban: string) => invoke<void>('SetInvoiceBankAccount', iban),
 
   // Einrichtung
+  ValidateTenantDirectory: (dataDir: string) => invoke<void>('ValidateTenantDirectory', dataDir),
   GetAppConfig: <T>() => invoke<T>('GetAppConfig'),
   SetupApplication: (dataDir: string, settings: unknown) =>
     invoke<void>('SetupApplication', dataDir, settings),
