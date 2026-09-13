@@ -2085,7 +2085,7 @@ export const Api = {
   getStatementPositions: (): Promise<StatementPositionOption[]> =>
     call(() => Bridge.GetStatementPositions() as Promise<StatementPositionOption[]>).then(list),
   /** Der Voranmeldungszeitraum, der sich aus der Steuer des Vorjahres ergibt. */
-  getVatPeriodProposal: (year: number): Promise<VatPeriodProposal> =>
+  getVatPeriodProposal: (year: number): Promise<VatPeriodProposal | null> =>
     call(() => Bridge.GetVatPeriodProposal(year) as Promise<VatPeriodProposal>),
   /** Die datierte Tabelle der Umsatzsteuersätze. */
   getVatRatePeriods: (): Promise<VatRatePeriod[]> =>

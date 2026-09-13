@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -296,7 +297,8 @@ func (s *MonthCloseService) requireActiveYear(ctx context.Context, month, label,
 	if s.years != nil {
 		fy, err := s.years.FindByYear(ctx, s.fiscalYear)
 		if err == nil && fy != nil && fy.StartDate != "" && fy.EndDate != "" {
-			if from >= fy.StartDate && from <= fy.EndDate {
+			period, periodErr := accounting.ParseVatPeriodKey(month)
+			if periodErr == nil && period.To >= fy.StartDate && from <= fy.EndDate {
 				return nil
 			}
 			return fmt.Errorf(

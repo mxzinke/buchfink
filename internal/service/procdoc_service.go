@@ -549,6 +549,10 @@ func taxationLabel(kind string) string {
 
 func vatPeriodLabel(period string) string {
 	switch period {
+	case "unknown":
+		return "Meldepflicht noch nicht geklärt"
+	case "none":
+		return "keine regelmäßigen Umsatzsteuererklärungen"
 	case "month":
 		return "monatlich"
 	case "year":

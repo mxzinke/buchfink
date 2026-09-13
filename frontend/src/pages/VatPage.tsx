@@ -76,6 +76,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
   // Entwurf, Bestätigung und Berichtigung schreiben; Rechnen und Ausgeben
   // bleiben im Prüfermodus möglich (§10.4).
   const writeLock = useWriteLock();
+  const [filingSchedule, setFilingSchedule] = useState('');
   const [periods, setPeriods] = useState<VatPeriodStatus[]>([]);
   const [periodKey, setPeriodKey] = useState<string>('');
   const [vatReturn, setVatReturn] = useState<VatReturn | null>(null);
@@ -119,13 +120,15 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
   async function loadYear() {
     setLoading(true);
     try {
-      const [vatPeriods, returns, zmList, zmReturns, journal] = await Promise.all([
+      const [vatPeriods, returns, zmList, zmReturns, journal, settings] = await Promise.all([
         Api.getVatPeriods(year),
         Api.getVatReturns(year),
         Api.getZMPeriods(year),
         Api.getZMReturns(year),
         Api.getAllJournalEntries(),
+        Api.getCompanySettings(),
       ]);
+      setFilingSchedule(settings.vatPeriod);
       setPeriods(vatPeriods);
       setSavedReturns(returns);
       setZmPeriods(zmList);
@@ -474,6 +477,16 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               Erneut rechnen
             </Button>
           }
+        />
+      )}
+
+      {(filingSchedule === 'unknown' || filingSchedule === 'none') && (
+        <Notice
+          className="mt-6"
+          text={filingSchedule === 'unknown'
+            ? 'Die Umsatzsteuer-Meldepflicht ist noch nicht geklärt. Ergänzen Sie die Auswahl in den Einstellungen, sobald sie feststeht.'
+            : 'Es sind keine regelmäßigen Umsatzsteuererklärungen eingeplant. Besondere Erklärungspflichten und die steuerliche Behandlung einzelner Buchungen bleiben gesondert zu prüfen.'}
+          action={onNavigate && <Button variant="secondary" size="sm" onClick={() => onNavigate('settings')}>Einstellungen öffnen</Button>}
         />
       )}
 

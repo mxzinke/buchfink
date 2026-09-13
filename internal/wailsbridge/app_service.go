@@ -643,6 +643,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.festschreibungRepo, b.vatReturnRepo, b.checkRunRepo,
 		b.auditRepo, fiscalYear,
 	)
+	b.checkSvc.SetFiscalYearSource(b.fiscalYearRepo)
 	b.checkSvc.SetAccountSource(b.accountingSvc)
 	b.checkSvc.SetOpenItemSource(b.paymentSvc)
 	b.checkSvc.SetDepreciationSource(b.assetSvc)
@@ -661,6 +662,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.vatReturnSvc, b.zmSvc, b.settingsRepo, b.festschreibungRepo,
 		b.deadlineRepo, b.auditRepo, fiscalYear,
 	)
+	b.deadlineSvc.SetFiscalYearSource(b.fiscalYearRepo)
 	b.deadlineSvc.SetStatementSource(b.statementSvc)
 	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
 	// Die Ablaufwarnung der Freistellungsbescheinigung gehört in dieselbe Liste

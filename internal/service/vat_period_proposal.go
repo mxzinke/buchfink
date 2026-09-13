@@ -66,6 +66,9 @@ func (s *VatReturnService) SuggestPeriodType(ctx context.Context, year int) (*Va
 		Reference: "§ 18 Abs. 2 UStG",
 	}
 
+	if !out.Current.Valid() {
+		return nil, nil
+	}
 	saved, err := s.returnRepo.FindByFiscalYear(ctx, prior)
 	if err != nil {
 		return nil, fmt.Errorf(

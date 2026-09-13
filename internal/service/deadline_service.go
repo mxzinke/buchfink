@@ -39,6 +39,7 @@ type DeadlineService struct {
 	exemptions ExemptionDeadlineSource
 
 	fiscalYear int
+	years      MonthFiscalYearSource
 }
 
 // StatementDeadlineSource liefert die Termine des Jahresabschlusses aus Welle 2.
@@ -88,6 +89,8 @@ func (s *DeadlineService) SetFoundationSource(src FoundationDeadlineSource) { s.
 func (s *DeadlineService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
 
 // SetFiscalYear updates the active fiscal year.
+func (s *DeadlineService) SetFiscalYearSource(src MonthFiscalYearSource) { s.years = src }
+
 func (s *DeadlineService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // Die Schlüssel der Termine. Sie landen in der Datenbank, sobald ein Termin von
@@ -117,7 +120,9 @@ func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Dea
 	out = append(out, s.zmDeadlines(ctx, year)...)
 	out = append(out, s.prepaymentDeadline(ctx, year, cfg)...)
 	out = append(out, s.commitDeadlines(ctx, year, cfg)...)
-	out = append(out, s.annualVatDeadline(year)...)
+	if s.periodType(ctx, cfg).Valid() {
+		out = append(out, s.annualVatDeadline(year)...)
+	}
 
 	if s.statements != nil {
 		if statementDeadlines, err := s.statements.Deadlines(ctx, year); err == nil {
@@ -374,7 +379,7 @@ func (s *DeadlineService) commitDeadlines(ctx context.Context, year int, cfg *do
 		return nil
 	}
 	out := make([]domain.Deadline, 0, 12)
-	for _, p := range accounting.VatPeriodsOfYear(year, domain.VatPeriodMonth) {
+	for _, p := range fiscalYearMonths(ctx, s.years, year) {
 		d := domain.Deadline{
 			Key:        fmt.Sprintf("%s.%s", DeadlineKeyCommit, p.Key),
 			Title:      fmt.Sprintf("%s festschreiben", p.Label),

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
 )
@@ -102,9 +101,11 @@ func (s *FoundationService) Fragebogen(ctx context.Context) (*FragebogenSheet, e
 	if strings.TrimSpace(cfg.VatID) != "" {
 		add(steuer, "USt-IdNr.", cfg.VatID)
 	}
-	year := domain.GetFiscalYearForDate(f.NotarizedOn, cfg.FiscalYearStartMonth)
-	add(steuer, "Voranmeldungszeitraum",
-		vatPeriodLabel(accounting.RecommendedVatPeriod(year)))
+	period := cfg.VatPeriod
+	if period == "" {
+		period = "unknown"
+	}
+	add(steuer, "Voranmeldungszeitraum", vatPeriodLabel(period))
 
 	const bank = "Bankverbindung"
 	add(bank, "Kontoinhaber", cfg.FirmName())

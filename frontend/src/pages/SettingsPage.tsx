@@ -123,6 +123,8 @@ const MONTHS = [
 ];
 
 const VAT_PERIODS = [
+  { value: 'unknown', label: 'Noch nicht geklärt' },
+  { value: 'none', label: 'Keine regelmäßigen Umsatzsteuererklärungen' },
   { value: 'quarter', label: 'Vierteljährlich' },
   { value: 'month', label: 'Monatlich' },
   { value: 'year', label: 'Jährlich, nur die Jahreserklärung' },
@@ -923,31 +925,22 @@ export const SettingsPage: React.FC<{
         }
       >
         <FormGrid>
-          <Field helpSummary="Wählen Sie, ob Sie Ihre Umsatzsteuer monatlich oder vierteljährlich melden."
-            label="Voranmeldezeitraum"
+          <Field helpSummary="Legen Sie fest, welche regelmäßigen Umsatzsteuererklärungen Buchfink planen soll. Ungeklärte Meldepflichten können Sie offenlassen."
+            label="Umsatzsteuererklärungen"
             hint={
-              vatProposal
+              settings.vatPeriod === 'unknown'
+                ? 'Bitte Meldepflicht klären. Bis dahin werden keine regelmäßigen Umsatzsteuertermine geplant.'
+                : settings.vatPeriod === 'none'
+                ? 'Keine regelmäßigen Umsatzsteuertermine. Steuerbehandlung und besondere Erklärungspflichten sind gesondert zu prüfen.'
+                : vatProposal
                 ? `Vorschlag aus ${vatProposal.basedOnYear}: ${
                     VAT_PERIODS.find((item) => item.value === vatProposal.proposed)?.label ??
                     vatProposal.proposed
                   }`
                 : undefined
             }
-            // Der allgemeine Satz und die Herleitung des Vorschlags stehen
-            // hinter demselben Fragezeichen: Zwei nebeneinander sahen aus wie
-            // ein Fehler, und wer die Frage stellt, will beides wissen.
             explain={
-              vatProposal
-                ? `Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall. ${
-                    vatProposal.reference
-                  } Die Steuer des Vorjahres betrug ${formatCents(
-                    vatProposal.priorYearTax,
-                  )} (Kennziffer 83).${
-                    vatProposal.complete
-                      ? ''
-                      : ` Für ${vatProposal.missingPeriods} Zeiträume des Vorjahres liegt keine übermittelte Anmeldung vor; der Vorschlag ist deshalb unvollständig.`
-                  }`
-                : 'Monatlich gilt bei Neugründung und hoher Zahllast, vierteljährlich ist der Regelfall.'
+              `„Noch nicht geklärt“ und „Keine regelmäßigen Umsatzsteuererklärungen“ erzeugen keine regelmäßigen Umsatzsteuertermine. Die Auswahl bestimmt weder Steuerbefreiungen noch den Vorsteuerabzug. Besondere Erklärungspflichten sind gesondert zu prüfen.${vatProposal?.note ? ` ${vatProposal.note}` : ''}`
             }
           >
             <Select

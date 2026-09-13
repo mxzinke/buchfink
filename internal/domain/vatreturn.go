@@ -14,6 +14,9 @@ const (
 	VatPeriodMonth   VatPeriodType = "month"
 	VatPeriodQuarter VatPeriodType = "quarter"
 	VatPeriodYear    VatPeriodType = "year"
+	// Meldeplan ohne festgelegten Zeitraum; keine gültigen Periodentypen für Anmeldungen.
+	VatPeriodUnknown VatPeriodType = "unknown"
+	VatPeriodNone    VatPeriodType = "none"
 )
 
 // Valid meldet, ob der Zeitraumtyp einer der drei bekannten ist.

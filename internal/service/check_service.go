@@ -55,6 +55,7 @@ type CheckService struct {
 	now func() time.Time
 
 	fiscalYear int
+	years      MonthFiscalYearSource
 }
 
 // AccountBalanceSource liefert den Kontenplan mit den Salden eines Jahres. Der
@@ -137,6 +138,8 @@ func (s *CheckService) SetClosingStepSource(src SkippedClosingStepSource) { s.cl
 func (s *CheckService) SetSizeClassSource(src SizeClassSource) { s.sizeClass = src }
 
 // SetFiscalYear updates the active fiscal year.
+func (s *CheckService) SetFiscalYearSource(src MonthFiscalYearSource) { s.years = src }
+
 func (s *CheckService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // CheckRequest ist der Auftrag an einen Prüflauf.
@@ -1000,7 +1003,7 @@ func (s *CheckService) checkCommitOverdue(ctx context.Context, cutoff string, cf
 	if err != nil {
 		return nil
 	}
-	for _, p := range accounting.VatPeriodsOfYear(s.fiscalYear, domain.VatPeriodMonth) {
+	for _, p := range fiscalYearMonths(ctx, s.years, s.fiscalYear) {
 		if committed >= p.To {
 			continue
 		}
@@ -1093,7 +1096,7 @@ func (s *CheckService) checkPeriodsNotCommitted(
 		return nil
 	}
 	out := make([]domain.CheckFinding, 0, 2)
-	for _, p := range accounting.VatPeriodsOfYear(s.fiscalYear, domain.VatPeriodMonth) {
+	for _, p := range fiscalYearMonths(ctx, s.years, s.fiscalYear) {
 		if committed >= p.To {
 			continue
 		}

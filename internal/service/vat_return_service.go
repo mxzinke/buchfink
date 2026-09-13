@@ -93,17 +93,16 @@ func (s *VatReturnService) PeriodType(ctx context.Context) domain.VatPeriodType 
 	return vatPeriodTypeOf(cfg)
 }
 
-// vatPeriodTypeOf liest den Voranmeldungszeitraum aus den Unternehmensdaten.
-//
-// Die Regel steht an einer Stelle, weil drei Dienste dieselbe Frage stellen —
-// Voranmeldung, Prüflauf und Fristenliste. Ein unbekannter oder leerer Wert gilt
-// als Quartal: das ist der Regelfall des § 18 Abs. 2 Satz 1 UStG, und er mahnt
-// niemanden zu einer monatlichen Abgabe, die er nicht schuldet.
+// vatPeriodTypeOf erhält ausdrücklich offene oder nicht vorgesehene Meldepläne.
+// Leere und sonstige ungültige Altwerte behalten den bisherigen Quartalsrhythmus.
 func vatPeriodTypeOf(cfg *domain.CompanySettings) domain.VatPeriodType {
 	if cfg == nil {
 		return domain.VatPeriodQuarter
 	}
 	t := domain.VatPeriodType(cfg.VatPeriod)
+	if t == domain.VatPeriodUnknown || t == domain.VatPeriodNone {
+		return t
+	}
 	if !t.Valid() {
 		return domain.VatPeriodQuarter
 	}

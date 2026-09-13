@@ -2741,7 +2741,7 @@ export interface MappingReport {
 // -------------------------------------------------------------------------
 
 /** Länge eines Voranmeldungszeitraums (§ 18 Abs. 2 UStG). */
-export type VatPeriodType = 'month' | 'quarter' | 'year';
+export type VatPeriodType = 'month' | 'quarter' | 'year' | 'unknown' | 'none';
 
 /**
  * Zwei Stände, mehr gibt es nicht: Buchfink übermittelt nicht selbst, und ein
