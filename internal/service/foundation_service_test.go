@@ -325,10 +325,10 @@ func TestRegisterEndsTheVorgesellschaft(t *testing.T) {
 		t.Errorf("Haftung %s €, erwartet 3.000,00 — die Miete vom März zählt nicht mehr mit", u.Amount)
 	}
 
-	// Die Anmeldung zum Handelsregister ist mit der Eintragung erledigt.
+	// Der Gründungshelfer beginnt nach der Anmeldung zum Handelsregister.
 	for _, d := range state.Duties {
-		if d.Key == "handelsregister" && !d.IsDone {
-			t.Error("die Anmeldung steht nach der Eintragung noch als offen")
+		if d.Key == "handelsregister" {
+			t.Error("die bereits vorausgesetzte Anmeldung erscheint in der Checkliste")
 		}
 	}
 

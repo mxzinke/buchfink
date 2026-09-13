@@ -2391,6 +2391,18 @@ func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error 
 	return b.foundationSvc.CompleteDuty(context.Background(), key, doneOn, note)
 }
 
+func (b *BuchfinkBridge) SetFoundationDutyStatus(key, status string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.ensureWritable(); err != nil {
+		return err
+	}
+	if b.foundationSvc == nil {
+		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+	}
+	return b.foundationSvc.SetDutyStatus(context.Background(), key, status)
+}
+
 // -------------------------------------------------------------
 // Gründungsweg: Eröffnungsbilanz, Datenblatt, Dokumentenablage
 // -------------------------------------------------------------
@@ -2510,7 +2522,22 @@ func (b *BuchfinkBridge) AttachDocument(req service.DocumentRequest) (*domain.Do
 	if b.documentSvc == nil {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
-	return b.documentSvc.Attach(context.Background(), req)
+	if strings.TrimSpace(req.DutyKey) == "" {
+		return b.documentSvc.Attach(context.Background(), req)
+	}
+	if b.foundationSvc == nil {
+		return nil, fmt.Errorf("die Gründungsbegleitung ist nicht verfügbar")
+	}
+	var doc *domain.Document
+	err := repository.NewTxRunner(b.db).RunInTx(context.Background(), func(ctx context.Context) error {
+		var err error
+		doc, err = b.foundationSvc.AttachDutyProof(ctx, req)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return doc, nil
 }
 
 // RemoveDocument entfernt eine Unterlage aus der Ablage.

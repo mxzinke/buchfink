@@ -227,14 +227,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   // damit beide dasselbe sagen.
   const monthLabel = months.find((option) => option.value === month)?.label ?? month;
 
-  // Der Zustand zwischen Beurkundung und Eintragung. Dieselbe Bedingung wie am
-  // Gründungsabschnitt der Fristenseite: er endet mit der Eintragung, und der
-  // Streifen endet mit ihm.
-  const inGruendung =
-    foundation?.applies === true &&
-    foundation.hasFoundation &&
-    foundation.stage === 'vorgesellschaft' &&
-    Boolean(foundation.foundation?.notarizedOn);
+  const hasOpenFoundation = foundation?.hasFoundation === true &&
+    foundation.guide.done < foundation.guide.total;
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
@@ -266,19 +260,15 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
         }
       />
 
-      {inGruendung && (
+      {hasOpenFoundation && (
         <div className="mt-8">
           <Notice
             text={
               <span className="flex items-center">
                 <span>
-                  {`Ihre Gesellschaft ist seit dem ${formatDate(
-                    foundation!.foundation!.notarizedOn,
-                  )} in Gründung${
-                    foundation!.guide?.nextTitle
-                      ? ` — als Nächstes steht an: ${foundation!.guide.nextTitle}`
-                      : ' — bis zur Eintragung haften die Handelnden persönlich'
-                  }.`}
+                  {foundation!.guide.nextTitle
+                    ? `Die Gründungsbegleitung ist noch offen. Als Nächstes: ${foundation!.guide.nextTitle}.`
+                    : 'In der Gründungsbegleitung stehen noch Schritte aus.'}
                 </span>
                 <GruendungHelpMark onMore={() => setGruendungHelp(true)} />
               </span>

@@ -422,12 +422,11 @@ func (s *DeadlineService) foundationDeadlines(ctx context.Context, year int) []d
 	}
 	out := make([]domain.Deadline, 0, len(state.Duties))
 	for _, duty := range state.Duties {
-		// Auch die Pflicht ohne Tagesfrist gehört in die Liste. Sie hier zu
-		// überspringen hat die Anmeldung zum Handelsregister und die Meldung an
-		// das Transparenzregister still verschwinden lassen: beide nennen kein
-		// Tagesmaß, und beide sind zu tun.
-		waiting := ""
-		if duty.IsPending {
+		if duty.IsNotApplicable {
+			continue
+		}
+		waiting := duty.WaitingFor
+		if duty.IsPending && waiting == "" {
 			waiting = duty.Anchor.Label()
 		}
 		out = append(out, domain.Deadline{

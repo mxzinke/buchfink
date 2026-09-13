@@ -235,6 +235,8 @@ function isWailsRuntime(): boolean {
   return typeof window !== 'undefined' && Boolean((window as any)._wails);
 }
 
+export const COMPANY_SETTINGS_CHANGED = 'buchfink:company-settings-changed';
+
 /**
  * call führt einen Bridge-Aufruf aus und übersetzt eine fehlende Laufzeit in
  * eine verständliche Meldung. Fachliche Fehler des Backends — „Konto 8400 ist
@@ -571,8 +573,10 @@ export const Api = {
     call(() => Bridge.GetAvailableFiscalYears() as Promise<number[]>),
   getCompanySettings: (): Promise<CompanySettings> =>
     call(() => Bridge.GetCompanySettings() as Promise<CompanySettings>),
-  updateCompanySettings: (settings: CompanySettings): Promise<void> =>
-    call(() => Bridge.UpdateCompanySettings(settings as any) as Promise<void>),
+  updateCompanySettings: async (settings: CompanySettings): Promise<void> => {
+    await call(() => Bridge.UpdateCompanySettings(settings as any) as Promise<void>);
+    window.dispatchEvent(new Event(COMPANY_SETTINGS_CHANGED));
+  },
 
   // --- Konten ------------------------------------------------------------
 
@@ -1503,6 +1507,8 @@ export const Api = {
   registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
     call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
   /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
+  setFoundationDutyStatus: (key: string, status: string): Promise<void> => call(() => Bridge.SetFoundationDutyStatus(key, status)),
+
   completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
     call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
 

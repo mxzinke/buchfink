@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -190,7 +191,7 @@ func TestFoundationDutiesDependOnTheStage(t *testing.T) {
 	}
 
 	// Was die Eintragung voraussetzt, wartet auf sie — mit Anker, ohne Datum.
-	for _, key := range []string{DutyTransparenzregister, DutyGewerbeanmeldung} {
+	for _, key := range []string{DutyTransparenzregister, "geschaeftsbriefe"} {
 		duty, ok := keys[key]
 		if !ok {
 			t.Errorf("%s fehlt in der Liste; wartende Pflichten gehören hinein", key)
@@ -221,8 +222,8 @@ func TestFoundationDutiesDependOnTheStage(t *testing.T) {
 		t.Errorf("das Transparenzregister hat das Datum %q; § 20 GwG nennt keine Tagesfrist", got)
 	}
 	gewerbe := seen[DutyGewerbeanmeldung]
-	if gewerbe.IsPending || gewerbe.DueDate != "2026-11-20" {
-		t.Errorf("Gewerbeanmeldung fällig am %q (wartend: %v), erwartet 2026-11-20 einen Monat nach der Eintragung",
+	if gewerbe.IsPending || gewerbe.DueDate != "" {
+		t.Errorf("Gewerbeanmeldung fällig am %q (wartend: %v), erwartet einen Hinweis auf den Betriebsbeginn ohne erfundenes Tagesdatum",
 			gewerbe.DueDate, gewerbe.IsPending)
 	}
 	if fb := seen[DutyFragebogen]; !fb.IsDone || fb.DoneOn != "2026-10-01" {
@@ -250,25 +251,27 @@ func TestFoundationDutiesDoneBeatsPending(t *testing.T) {
 	}
 }
 
-func TestFoundationDutiesRuecklageOnlyForUG(t *testing.T) {
+func TestFoundationChecklistStartsAfterRegisterApplication(t *testing.T) {
 	f := &domain.Foundation{NotarizedOn: "2026-09-15"}
-
-	gmbh, _ := FoundationRulesFor("GmbH")
-	for _, d := range FoundationDuties(f, gmbh, nil) {
-		if d.Key == DutyRuecklage {
-			t.Error("die GmbH bildet keine Rücklage nach § 5a Abs. 3 GmbHG")
+	for _, legalForm := range []string{"GmbH", "UG (haftungsbeschränkt)", "AG"} {
+		rules, _ := FoundationRulesFor(legalForm)
+		duties := FoundationDuties(f, rules, nil)
+		if len(duties) != 14 {
+			t.Fatalf("%s: %d Aufgaben", legalForm, len(duties))
 		}
-	}
-
-	ug, _ := FoundationRulesFor("UG (haftungsbeschränkt)")
-	found := false
-	for _, d := range FoundationDuties(f, ug, nil) {
-		if d.Key == DutyRuecklage {
-			found = true
+		if duties[0].Key != "stammdaten" {
+			t.Fatal("Stammdaten müssen der erste Checkpunkt sein")
 		}
-	}
-	if !found {
-		t.Error("der UG fehlt die gesetzliche Rücklage")
+		for _, d := range duties {
+			if d.Key == DutyHandelsregister || d.Key == DutyRuecklage || d.Key == DutyOffenlegung {
+				t.Errorf("%s gehört nicht in die Checkliste nach Registeranmeldung", d.Key)
+			}
+			if d.Key == DutyFragebogen || d.Key == DutyGewerbeanmeldung || d.Key == DutyTransparenzregister || d.Key == "unfallversicherung" || d.Condition != "" {
+				if !strings.HasPrefix(d.ActionURL, "https://") || d.ActionLabel == "" {
+					t.Errorf("Direktlink fehlt für %s", d.Key)
+				}
+			}
+		}
 	}
 }
 

@@ -217,189 +217,145 @@ const (
 	DutyOffenlegung         = "offenlegung"
 )
 
-// FoundationDuties returns the obligations arising from this founding, with
-// their due dates and whether they are done.
-//
-// Jede Pflicht hängt an dem Ereignis, das sie auslöst — der Beurkundung, der
-// Eintragung oder dem Abschlussstichtag. Ist das Ereignis noch nicht
-// eingetreten, steht die Pflicht als wartend in der Liste: sie bekommt kein
-// erfundenes Datum, verschwindet aber auch nicht. Wer gerade gegründet hat, soll
-// sehen, was nach der Eintragung auf ihn zukommt, ohne dafür überfällig zu sein.
+// FoundationDuties beginnt nach Beurkundung, Kapitaleinzahlung und Registeranmeldung.
+// Jahresabschlussaufgaben werden im Abschluss geführt.
 func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[string]string) []domain.FoundationDuty {
 	if f == nil || f.NotarizedOn == "" {
 		return nil
 	}
-
-	// Die beiden Ankerdaten. Das zweite ist leer, solange die Gesellschaft
-	// Vorgesellschaft ist.
-	beurkundung, eintragung := f.NotarizedOn, f.RegisteredOn
-
+	letterReference := "§ 35a GmbHG"
+	if rules.LegalForm == "AG" {
+		letterReference = "§ 80 AktG"
+	}
 	duties := []domain.FoundationDuty{
 		{
-			Key:       DutyHandelsregister,
-			Title:     "Anmeldung zum Handelsregister",
-			Anchor:    domain.AnchorBeurkundung,
-			Order:     1,
-			Where:     "Beim Notar, der auch beurkundet hat",
-			Deadline:  "sobald die Mindesteinlage geleistet ist",
-			Reference: "§§ 7, 8 GmbHG",
-			Description: "Die Anmeldung nimmt der Notar vor. Sie darf erst erfolgen, wenn die " +
-				"Mindesteinlage auf dem Geschäftskonto steht — " + rules.Reference + ".",
-			Todo: []string{
-				"Geschäftskonto auf den Namen der Gesellschaft eröffnen.",
-				"Die Einlagen der Gesellschafter darauf einzahlen.",
-				"Dem Notar den Kontoauszug über die Einzahlung vorlegen.",
-				"Der Notar meldet an; das Gericht trägt ein und schickt die Eintragungsnachricht.",
-			},
-			Provides: "Buchfink prüft, ob die Einlage für die Anmeldung reicht — je Geschäftsanteil " +
-				"und in der Summe.",
+			Key: "stammdaten", Title: "Stammdaten vervollständigen",
+			Anchor: domain.AnchorBeurkundung, Where: "Einstellungen in Buchfink",
+			Deadline:    "Vor dem Erstellen der ersten Unterlagen",
+			Description: "Für diesen Checkpunkt genügen Firma, vollständige Anschrift und Gesellschafter mit ihren Geschäftsanteilen. Buchfink übernimmt diese Angaben in Datenblätter und andere Unterlagen. Weitere Stammdaten können Sie später ergänzen.",
+			Todo:        []string{"Firma und Anschrift in den Einstellungen ergänzen.", "Gesellschafter und Geschäftsanteile prüfen oder eintragen.", "Änderungen speichern."},
 		},
 		{
-			Key:      DutyFragebogen,
-			Title:    "Fragebogen zur steuerlichen Erfassung",
-			Anchor:   domain.AnchorBeurkundung,
-			Order:    2,
-			Where:    "Mein ELSTER, elektronisch an das Finanzamt",
-			DueDate:  addMonths(beurkundung, 1),
-			Deadline: "innerhalb eines Monats nach der Beurkundung",
-			Todo: []string{
-				"Bei Mein ELSTER anmelden oder ein Benutzerkonto anlegen.",
-				"Formular „Fragebogen zur steuerlichen Erfassung“ für eine Kapitalgesellschaft wählen.",
-				"Die Angaben aus dem Datenblatt übertragen und die offenen Felder ergänzen.",
-				"Nach der Übermittlung das Protokoll hier ablegen; die Steuernummer kommt per Post.",
-			},
-			Provides: "Buchfink stellt ein Datenblatt mit allen Angaben zusammen, die es kennt, und " +
-				"nennt die, die nur Sie machen können.",
-			// Die Vorgesellschaft ist bereits Körperschaftsteuersubjekt; anzuzeigen
-			// ist die Aufnahme der Tätigkeit, nicht die Eintragung. Die Frist an
-			// die Eintragung zu hängen wäre auch praktisch verkehrt: ohne
-			// Steuernummer keine Rechnung mit Steuerausweis.
-			Reference: "§ 138 Abs. 1b und Abs. 4 AO",
-			Description: "Elektronisch über Mein ELSTER an das Finanzamt. Daraus folgt die " +
-				"Steuernummer, ohne die keine Rechnung mit Steuerausweis möglich ist. " +
-				"Anzuzeigen ist die Aufnahme der Tätigkeit — die beginnt mit der Beurkundung, " +
-				"nicht erst mit der Eintragung.",
+			AcceptsProof: true, Key: DutyFragebogen, Title: "Fragebogen zur steuerlichen Erfassung übermitteln",
+			Anchor: domain.AnchorBeurkundung, Where: "Mein ELSTER",
+			DueDate: addMonths(f.NotarizedOn, 1), Deadline: "Innerhalb eines Monats nach der Gründung",
+			Reference:   "§§ 137, 138 Abs. 1b und 4 AO",
+			Description: "Die Kapitalgesellschaft muss dem Finanzamt ihre Gründung und die steuerlich erheblichen Verhältnisse mitteilen. Der Fragebogen wird elektronisch übermittelt, auch wenn noch keine Steuernummer vorliegt.",
+			Todo:        []string{"Bei Mein ELSTER anmelden oder einen Zugang einrichten.", "Den Fragebogen für Kapitalgesellschaften ausfüllen und übermitteln.", "Das Übermittlungsprotokoll ablegen; die Steuernummer später in den Einstellungen ergänzen."},
+			Provides:    "Buchfink stellt ein Datenblatt mit den erfassten Angaben und noch offenen Feldern bereit.",
+			ActionURL:   "https://www.elster.de/eportal/formulare-leistungen/alleformulare/fsekapg", ActionLabel: "Zu ELSTER",
 		},
 		{
-			Key:       DutyEroeffnungsbilanz,
-			Title:     "Eröffnungsbilanz aufstellen",
-			Anchor:    domain.AnchorBeurkundung,
-			Order:     3,
-			Where:     "In Buchfink aufstellen; über geeignete E-Bilanz-Software übermitteln",
-			DueDate:   addMonths(beurkundung, 6),
-			Deadline:  "im ordnungsmäßigen Geschäftsgang",
-			Reference: "§ 242 Abs. 1 HGB",
-			Todo: []string{
-				"Die Gründungsbuchungen freigeben, falls noch nicht geschehen.",
-				"Die Eröffnungsbilanz aufstellen und prüfen, ob sie aufgeht.",
-				"Sie als PDF ablegen — sie gehört zehn Jahre aufbewahrt.",
-				"Die Zahlen in geeignete E-Bilanz-Software übernehmen, dort amtlich validieren und übermitteln (§ 5b Abs. 1 EStG). Buchfink bietet keine direkte Übermittlung.",
-			},
-			Provides: "Buchfink stellt sie aus den Buchungen auf, setzt sie als PDF und erzeugt die " +
-				"XBRL-Arbeitsdatei dazu. Diese ist noch nicht amtlich validiert.",
-			Description: "Aufzustellen zu Beginn des Handelsgewerbes, also auf den Tag der " +
-				"Beurkundung. Das Gesetz nennt keine Tagesfrist; der angezeigte Termin ist " +
-				"der Richtwert einer kleinen Kapitalgesellschaft nach § 264 Abs. 1 Satz 4 HGB.",
+			AcceptsProof: true, Key: "ust_id", Title: "Umsatzsteuer-ID beantragen",
+			Anchor: domain.AnchorBeurkundung, Where: "Bundeszentralamt für Steuern",
+			Condition: "Bei Bedarf, insbesondere für EU-Geschäfte",
+			Deadline:  "Vor Geschäften, für die eine USt-IdNr. benötigt wird", Reference: "§ 27a UStG",
+			Description: "Prüfen Sie, ob Sie für Ihre Geschäfte eine USt-IdNr. benötigen, insbesondere für Waren oder Dienstleistungen innerhalb der EU. Die USt-IdNr. ist eine eigene Nummer zusätzlich zur Steuernummer. Legen Sie den Vergabebescheid ab und tragen Sie die Nummer in den Einstellungen ein.",
+			Todo:        []string{"Prüfen, ob die USt-IdNr. bereits beantragt oder erteilt wurde.", "Falls nötig, den Antrag beim BZSt stellen.", "Vergabebescheid ablegen und USt-IdNr. in den Stammdaten ergänzen."},
+			ActionURL:   "https://online.portal.bzst.de/SharedDocs/Leistungsbeschreibung/DE/vergabe_der_umsatzsteuer-identifikationsnummer_nach_27_a_UStG.html", ActionLabel: "Zum BZSt",
 		},
 		{
-			Key:      DutyGewerbeanmeldung,
-			Title:    "Gewerbeanmeldung bei der Gemeinde",
-			Anchor:   domain.AnchorEintragung,
-			Order:    4,
-			Where:    "Gewerbeamt der Gemeinde, in der die Gesellschaft ihren Sitz hat",
-			DueDate:  addMonths(eintragung, 1),
-			Deadline: "innerhalb eines Monats nach der Eintragung",
-			Todo: []string{
-				"Handelsregisterauszug bereithalten — das Gewerbeamt führt die Gesellschaft unter der HRB-Nummer.",
-				"Formular GewA 1 ausfüllen, viele Gemeinden nehmen es online entgegen.",
-				"Ausweis des Geschäftsführers und, je nach Tätigkeit, die Erlaubnis beilegen.",
-				"Den Gewerbeschein hier ablegen.",
-			},
-			// Anders als beim Fragebogen: das Gewerbeamt führt die Gesellschaft
-			// unter ihrer Registernummer und verlangt den Registerauszug. Vor der
-			// Eintragung ist die Anmeldung praktisch nicht zu erledigen. Das ist
-			// eine Wertung und keine Ableitung aus § 14 GewO, der auf die Aufnahme
-			// des Betriebs abstellt.
-			Reference: "§ 14 GewO, § 138 Abs. 1 AO",
-			Description: "Die Gemeinde unterrichtet das Finanzamt von sich aus; die Anzeige " +
-				"ersetzt den Fragebogen aber nicht. Das Gewerbeamt führt die Gesellschaft unter " +
-				"ihrer Registernummer — vor der Eintragung liegt sie nicht vor.",
+			AcceptsProof: true, Key: DutyGewerbeanmeldung, Title: "Gewerbe anmelden",
+			Anchor: domain.AnchorBeurkundung, Where: "Gewerbeamt am Betriebssitz",
+			Deadline: "Bei Aufnahme des Gewerbebetriebs", Reference: "§ 14 GewO",
+			Description: "Die Gewerbeanzeige ist gleichzeitig mit dem Beginn des Gewerbebetriebs abzugeben. Die zuständige Gemeinde nennt die erforderlichen Unterlagen und das Verfahren für eine Gesellschaft in Gründung.",
+			Todo:        []string{"Zuständige Gemeinde im Verwaltungsportal auswählen.", "Tätigkeit und Betriebsbeginn angeben und die verlangten Unterlagen einreichen.", "Bestätigung der Gewerbeanmeldung ablegen."},
+			ActionURL:   "https://verwaltung.bund.de/leistungsverzeichnis/de/leistung/99050012104000", ActionLabel: "Zum Gewerbeamt",
 		},
 		{
-			Key:       DutyTransparenzregister,
-			Title:     "Wirtschaftlich Berechtigte melden",
-			Anchor:    domain.AnchorEintragung,
-			Order:     5,
-			Where:     "transparenzregister.de",
-			Deadline:  "unverzüglich nach der Eintragung",
-			Reference: "§ 20 Abs. 1 GwG",
-			Todo: []string{
-				"Wirtschaftlich Berechtigte bestimmen: wer mehr als 25 % der Anteile oder Stimmrechte hält.",
-				"Hält niemand mehr als 25 %, gelten die gesetzlichen Vertreter als fiktiv Berechtigte.",
-				"Auf transparenzregister.de ein Konto anlegen und die Meldung abgeben.",
-				"Die Bestätigung hier ablegen.",
-			},
-			Provides: "Buchfink kennt die Geschäftsanteile aus der Gründung — wer über 25 % liegt, " +
-				"steht in der Gesellschafterliste.",
-			Description: "Die Mitteilung an das Transparenzregister ist seit 2022 für jede " +
-				"Gesellschaft Pflicht; die frühere Mitteilungsfiktion gibt es nicht mehr.",
+			AcceptsProof: true, Key: "unfallversicherung", Title: "Anmeldung beim Unfallversicherungsträger prüfen",
+			Anchor: domain.AnchorBeurkundung, Where: "Zuständige Berufsgenossenschaft oder Unfallkasse",
+			Deadline: "Binnen einer Woche nach Unternehmenseröffnung", Reference: "§ 192 Abs. 1 SGB VII",
+			Description: "Die Mitteilungspflicht ist bereits erfüllt, wenn die Gewerbeanzeige binnen einer Woche nach Unternehmensbeginn erstattet wurde. Andernfalls das Unternehmen beim zuständigen Unfallversicherungsträger anmelden.",
+			Todo:        []string{"Prüfen, ob die rechtzeitige Gewerbeanmeldung die Mitteilung bereits abdeckt.", "Falls nötig, das Unternehmen über das Serviceportal der Unfallversicherung anmelden.", "Bescheid und Unternehmensnummer ablegen."},
+			ActionURL:   "https://serviceportal-uv.dguv.de/", ActionLabel: "Zur Unfallversicherung",
+		},
+		{
+			AcceptsProof: true, Key: "rundfunkbeitrag", Title: "Rundfunkbeitrag anmelden",
+			Anchor: domain.AnchorBeurkundung, Where: "ARD ZDF Deutschlandradio Beitragsservice",
+			Condition: "Für Betriebsstätten und betriebliche Fahrzeuge prüfen",
+			Deadline:  "Bei Beginn der Beitragspflicht", Reference: "§§ 5, 7, 8 RBStV",
+			Description: "Prüfen Sie Betriebsstätten und nicht ausschließlich privat genutzte Fahrzeuge beim Beitragsservice. Auch eine Betriebsstätte in einer bereits angemeldeten Privatwohnung kann anmeldepflichtig sein, obwohl kein zusätzlicher Beitrag anfällt. Klären Sie die Voraussetzungen und legen Sie Anmeldung oder Bestätigung der Beitragsfreiheit ab.",
+			Todo:        []string{"Betriebsstätten, Beschäftigtenzahl und betriebliche Fahrzeuge zusammenstellen.", "Anmeldung und mögliche Beitragsfreiheit beim Beitragsservice klären.", "Bestätigung und Beitragsnummer als Nachweis ablegen."},
+			ActionURL:   "https://www.rundfunkbeitrag.de/anmelden", ActionLabel: "Zum Beitragsservice",
+		},
+		{
+			AcceptsProof: true, Key: "ihk", Title: "IHK-Zugehörigkeit dokumentieren",
+			Anchor: domain.AnchorBeurkundung, Where: "Zuständige Industrie- und Handelskammer",
+			Condition: "Bei IHK-Zugehörigkeit",
+			Deadline:  "Nach Eingang des IHK-Schreibens; dessen Fristen beachten", Reference: "§ 2 IHKG",
+			Description: "Die IHK-Zugehörigkeit entsteht bei erfüllten Voraussetzungen automatisch. Gewerbeamt oder Registergericht informieren die IHK normalerweise. Prüfen Sie das Begrüßungsschreiben und den Beitragsbescheid und legen Sie beides ab. Bei Handwerksbetrieben kann stattdessen oder zusätzlich die Handwerkskammer zuständig sein.",
+			Todo:        []string{"Zuständige Kammer und erfasste Unternehmensdaten prüfen.", "IHK-Schreiben, Mitgliedsnummer und Beitragsbescheid dokumentieren.", "Angeforderte Angaben innerhalb der Frist des Schreibens nachreichen; bei Unklarheiten die Kammer kontaktieren."},
+			ActionURL:   "https://www.ihk.de/", ActionLabel: "IHK finden",
+		},
+		{
+			AcceptsProof: true, Key: DutyTransparenzregister, Title: "Wirtschaftlich Berechtigte melden",
+			Anchor: domain.AnchorEintragung, Where: "Transparenzregister",
+			Deadline: "Unverzüglich nach der Eintragung", Reference: "§§ 3, 20 GwG",
+			Description: "Die Gesellschaft muss ihre wirtschaftlich Berechtigten ermitteln und dem Transparenzregister mitteilen. Zu prüfen sind auch mittelbare Beteiligungen und Kontrolle auf andere Weise; die Gesellschafterliste allein genügt nicht immer.",
+			Todo:        []string{"Wirtschaftlich Berechtigte und deren erforderliche Angaben ermitteln.", "Auf transparenzregister.de registrieren und die Meldung abgeben.", "Eingangsbestätigung der Meldung ablegen und spätere Änderungen nachmelden."},
+			ActionURL:   "https://www.transparenzregister.de/", ActionLabel: "Zum Transparenzregister",
+		},
+		{
+			AcceptsProof: true, Key: DutyEroeffnungsbilanz, Title: "Eröffnungsbilanz aufstellen",
+			Anchor: domain.AnchorBeurkundung, Where: "In Buchfink und in geeigneter E-Bilanz-Software",
+			Deadline: "Zu Beginn des Handelsgewerbes", Reference: "§ 242 Abs. 1 HGB, § 5b Abs. 1 EStG",
+			Description: "Die Eröffnungsbilanz dokumentiert Vermögen und Schulden zu Beginn der Buchführung. Sie gehört zur Gründung. Für die steuerliche Übermittlung ist geeignete E-Bilanz-Software erforderlich; Buchfink übermittelt nicht direkt.",
+			Todo:        []string{"Die bereits erfolgte Kapitalzeichnung und Einzahlung buchen.", "Eröffnungsbilanz prüfen und ablegen.", "Steuerliche Übermittlung über geeignete E-Bilanz-Software erledigen."},
+			Provides:    "Buchfink erstellt eine Bilanzvorschau, ein PDF und eine noch nicht amtlich validierte XBRL-Arbeitsdatei.",
+		},
+		{
+			Key: "geschaeftsbriefe", Title: "Pflichtangaben auf Geschäftsbriefen ergänzen",
+			Anchor: domain.AnchorEintragung, Where: "Briefvorlagen, geschäftliche E-Mails und Unternehmensstammdaten",
+			Deadline: "Ab Eintragung im Geschäftsverkehr", Reference: letterReference,
+			Description: "Geschäftsbriefe müssen unter anderem Rechtsform, Sitz, Registergericht, Registernummer und die gesetzlich vorgeschriebenen Angaben zur Vertretung enthalten. Für eine AG gehören dazu auch Vorstand und Aufsichtsratsvorsitz. Vor der Eintragung muss der Gründungsstatus erkennbar bleiben.",
+			Todo:        []string{"Register- und Vertretungsangaben in den Unternehmensstammdaten ergänzen.", "Briefvorlagen und geschäftliche E-Mail-Signaturen aktualisieren."},
+		},
+		{
+			AcceptsProof: true, Key: "betriebsnummer", Title: "Betriebsnummer beantragen",
+			Anchor: domain.AnchorBeurkundung, Where: "Bundesagentur für Arbeit",
+			Condition: "Bei meldepflichtigen Beschäftigten, auch Minijobs",
+			Deadline:  "Für die erste Anmeldung zur Sozialversicherung", Reference: "§ 18i SGB IV",
+			Description: "Für die Meldung der ersten Beschäftigten benötigen Sie eine Betriebsnummer. Das gilt auch für Minijobs und Auszubildende. Für den Antrag wird die Unternehmensnummer der gesetzlichen Unfallversicherung benötigt.",
+			Todo:        []string{"Unternehmensnummer beim Unfallversicherungsträger bereithalten.", "Betriebsnummer online beantragen.", "Vergabeschreiben ablegen und die Nummer an die Lohnabrechnung weitergeben."},
+			ActionURL:   "https://www.arbeitsagentur.de/unternehmen/betriebsnummern-service/alles-wichtige/beantragung", ActionLabel: "Betriebsnummer beantragen",
+		},
+		{
+			AcceptsProof: true, Key: "sozialversicherung", Title: "Beschäftigte zur Sozialversicherung anmelden",
+			Anchor: domain.AnchorBeurkundung, Where: "Krankenkasse oder Minijob-Zentrale über die Lohnabrechnung bzw. das SV-Meldeportal",
+			Condition: "Bei meldepflichtigen Beschäftigten, auch Minijobs",
+			Deadline:  "Mit erster Abrechnung, spätestens nach 6 Wochen", Reference: "§ 6 DEÜV, § 28a Abs. 4 SGB IV",
+			Description: "Melden Sie Beschäftigte bei der zuständigen Einzugsstelle an, Minijobs bei der Minijob-Zentrale. In Branchen mit Sofortmeldepflicht ist zusätzlich spätestens bei Beschäftigungsaufnahme eine Sofortmeldung nötig. Die reguläre Anmeldung bleibt erforderlich.",
+			Todo:        []string{"Beschäftigungsart, Krankenkasse und Sozialversicherungsdaten klären.", "Sofortmeldepflicht prüfen und gegebenenfalls vor Arbeitsbeginn melden.", "Anmeldung über geeignete Lohnsoftware oder das SV-Meldeportal übermitteln und Protokoll ablegen."},
+			ActionURL:   "https://app.sv-meldeportal.de/", ActionLabel: "Zum SV-Meldeportal",
+		},
+		{
+			Key: "lohnabrechnung", Title: "Lohnabrechnung und Lohnsteuer einrichten",
+			Anchor: domain.AnchorBeurkundung, Where: "Lohnsoftware oder Lohnbüro und Mein ELSTER",
+			Condition: "Bei Beschäftigten mit Arbeitslohn",
+			Deadline:  "Vor der ersten Lohnabrechnung", Reference: "§§ 39e, 41a EStG",
+			Description: "Richten Sie die Lohnabrechnung ein und klären Sie das Lohnsteuerverfahren. Für den individuellen Lohnsteuerabzug werden die ELStAM abgerufen. Bei pauschal besteuerten Minijobs gelten andere Regeln. Lohnsteueranmeldungen und Zahlungen müssen anschließend fristgerecht erfolgen.",
+			Todo:        []string{"Lohnsoftware oder Lohnbüro einrichten und Personaldaten erfassen.", "ELStAM abrufen, soweit erforderlich, und den Lohnsteuer-Anmeldungszeitraum klären.", "Anmeldungen und Zahlungen bis zum 10. Tag nach dem jeweiligen Anmeldungszeitraum organisieren."},
+			ActionURL:   "https://www.elster.de/eportal/start?themaGlobal=help_arbeitgeber_eop", ActionLabel: "Zu ELSTER",
+		},
+		{
+			AcceptsProof: true, Key: "arbeitsschutz", Title: "Arbeitsschutz organisieren und dokumentieren",
+			Anchor: domain.AnchorBeurkundung, Where: "Im Betrieb mit Unterstützung des Unfallversicherungsträgers",
+			Condition: "Bei Beschäftigten",
+			Deadline:  "Vor Aufnahme der Tätigkeit", Reference: "§§ 5, 6, 12 ArbSchG",
+			Description: "Beurteilen Sie die Gefährdungen der Arbeitsplätze, legen Sie Schutzmaßnahmen fest und dokumentieren Sie die Ergebnisse. Beschäftigte müssen vor Aufnahme ihrer Tätigkeit unterwiesen werden. Klären Sie auch die erforderliche arbeitsmedizinische und sicherheitstechnische Betreuung.",
+			Todo:        []string{"Gefährdungsbeurteilung erstellen und Schutzmaßnahmen umsetzen.", "Erstunterweisung durchführen und dokumentieren.", "Betreuung und weitere Vorsorge mit dem Unfallversicherungsträger klären."},
+			ActionURL:   "https://www.dguv.de/de/praevention/themen-a-z/gefaehrdungsbeurteilung/index.jsp", ActionLabel: "Zur Arbeitsschutz-Hilfe",
 		},
 	}
-
-	if rules.LegalReserve {
-		duties = append(duties, domain.FoundationDuty{
-			Key:       DutyRuecklage,
-			Title:     "Gesetzliche Rücklage einstellen",
-			Anchor:    domain.AnchorAbschlussstichtag,
-			Order:     6,
-			Where:     "Im Jahresabschluss, in Buchfink",
-			DueDate:   fiscalYearEndAfter(beurkundung),
-			Deadline:  "mit dem Jahresabschluss",
-			Reference: "§ 5a Abs. 3 GmbHG",
-			Todo: []string{
-				"Den Jahresabschluss aufstellen.",
-				"Ein Viertel des um einen Verlustvortrag geminderten Jahresüberschusses auf Konto 2930 buchen.",
-				"Das gilt, bis das Stammkapital 25.000 € erreicht hat.",
-			},
-			Description: "Ein Viertel des um einen Verlustvortrag aus dem Vorjahr geminderten " +
-				"Jahresüberschusses gehört in die gesetzliche Rücklage (Konto 2930), bis das " +
-				"Stammkapital 25.000 € erreicht. Buchfink führt die Pflicht, bucht sie aber " +
-				"nicht: sie hängt am Jahresabschluss.",
-		})
-	}
-
-	duties = append(duties, domain.FoundationDuty{
-		Key:       DutyOffenlegung,
-		Title:     "Ersten Jahresabschluss offenlegen",
-		Anchor:    domain.AnchorAbschlussstichtag,
-		Order:     7,
-		Where:     "Unternehmensregister, publikations-plattform.de",
-		DueDate:   addMonths(fiscalYearEndAfter(beurkundung), 12),
-		Deadline:  "zwölf Monate nach dem Abschlussstichtag",
-		Reference: "§ 325 Abs. 1a HGB",
-		Todo: []string{
-			"Den Jahresabschluss feststellen lassen.",
-			"Beim Unternehmensregister anmelden und die Daten übermitteln.",
-			"Kleinstkapitalgesellschaften können die Bilanz stattdessen hinterlegen (§ 326 Abs. 2 HGB).",
-		},
-		Description: "Übermittlung an das Unternehmensregister. Kleinstkapital" +
-			"gesellschaften können stattdessen die Bilanz hinterlegen (§ 326 Abs. 2 HGB).",
-	})
-
 	for i := range duties {
-		// Eine Pflicht, deren auslösendes Ereignis noch aussteht, wartet. Sie
-		// behält kein Datum aus einem leeren Anker: `addMonths("")` liefert den
-		// leeren String, und ein leeres Datum wäre von „unverzüglich" nicht zu
-		// unterscheiden.
-		if duties[i].Anchor == domain.AnchorEintragung && eintragung == "" {
+		duties[i].Order = i + 1
+		if duties[i].Anchor == domain.AnchorEintragung && f.RegisteredOn == "" {
 			duties[i].IsPending = true
-			duties[i].DueDate = ""
 		}
-		if day, ok := done[duties[i].Key]; ok {
+		if day := done[duties[i].Key]; day != "" {
 			duties[i].DoneOn = day
 			duties[i].IsDone = true
-			// Erledigt ist erledigt: das nachgewiesene Datum schlägt jede
-			// Erwartung darüber, wann das Ereignis eintritt.
 			duties[i].IsPending = false
 		}
 	}

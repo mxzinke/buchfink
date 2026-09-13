@@ -2199,6 +2199,14 @@ export interface FoundationDuty {
   order: number;
   /** Wo die Pflicht erfüllt wird: beim Notar, über Mein ELSTER, bei der Gemeinde. */
   where: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  condition?: string;
+  isNotApplicable?: boolean;
+  waitingFor?: string;
+  excludedBy?: string;
+  dependsOn?: string[];
+  missingFields?: string[];
   /** Die Handgriffe, in der Reihenfolge, in der sie zu tun sind. */
   todo: string[];
   /** Was Buchfink dazu beisteuert. Leer, wo es nichts beisteuern kann. */
@@ -2209,6 +2217,7 @@ export interface FoundationDuty {
   isDone: boolean;
   /** Die abgelegten Nachweise zu dieser Pflicht. */
   proof?: CompanyDocument[];
+  acceptsProof: boolean;
 }
 
 /** Der Stand des Gründungswegs. Gerechnet im Backend, nicht in der Ansicht. */

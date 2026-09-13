@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Check, FileDown, FilePlus2, Paperclip } from 'lucide-react';
-import { Api } from '../services/api';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, FileDown, FilePlus2, Paperclip } from 'lucide-react';
+import { Api, COMPANY_SETTINGS_CHANGED } from '../services/api';
 import { formatCents, formatDate } from '../utils/formatters';
 import { downloadBlob } from '../utils/download';
 import type {
@@ -11,20 +11,21 @@ import type {
   OpeningBalanceSheet,
 } from '../types';
 import type { NavigateFn } from '../components/Sidebar';
-import { GruendungHelpDialog, GruendungHelpMark } from '../components/GruendungHelp';
+import { GruendungHelpDialog } from '../components/GruendungHelp';
 import { DocumentAttachDialog } from '../components/DocumentAttachDialog';
+import { SourceLink } from '../components/ui/LegalText';
 import { useWriteLock } from '../components/WriteLock';
 import {
   Button,
+  Checkbox,
+  Help,
   Dialog,
   Notice,
   PageHeader,
   Progress,
-  Section,
   SkeletonRows,
   Stat,
   StatRow,
-  StatusBadge,
   Table,
   Tbody,
   Td,
@@ -34,24 +35,6 @@ import {
   cn,
   toast,
 } from '../components/ui';
-
-/**
- * Der Gründungsweg.
- *
- * Er steht neben dem geführten Weg des Jahresabschlusses und folgt ihm: die
- * Schritte kommen aus dem Backend, der Fortschritt wird dort gerechnet, und
- * jeder Schritt öffnet seine Arbeit dort, wo sie wohnt.
- *
- * Was ihn vom Abschlussweg unterscheidet, ist der Anlass. Wer zum ersten Mal
- * gründet, weiß nicht, wohin er sich wenden soll — deshalb sagt jeder Schritt
- * nicht nur, was zu tun ist, sondern auch wo, mit welchen Handgriffen, und was
- * Buchfink dafür beisteuert.
- *
- * Die Seite hat keinen Eintrag in der Navigation. Sie ist eine Phase und kein
- * Ort: erreicht wird sie über den Hinweis auf der Startseite und über den
- * Gründungsabschnitt der Fristenseite, und mit der Eintragung führt dorthin
- * nichts mehr.
- */
 
 interface GruendungPageProps {
   onNavigate: NavigateFn;
@@ -76,36 +59,47 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
   const [opening, setOpening] = useState<OpeningBalanceSheet | null>(null);
   const [fragebogen, setFragebogen] = useState<FragebogenSheet | null>(null);
   const [attachFor, setAttachFor] = useState<FoundationDuty | null>(null);
+  const loadVersion = useRef(0);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const version = ++loadVersion.current;
     try {
-      setState(await Api.getFoundationState());
+      const next = await Api.getFoundationState();
+      if (version !== loadVersion.current) return;
+      setState(next);
+      setLoading(false);
+      if (next?.hasFoundation) {
+        const [balance, sheet] = await Promise.allSettled([Api.getOpeningBalance(), Api.getFragebogenSheet()]);
+        if (version !== loadVersion.current) return;
+        setOpening(balance.status === 'fulfilled' ? balance.value : null);
+        setFragebogen(sheet.status === 'fulfilled' ? sheet.value : null);
+      } else {
+        setOpening(null);
+        setFragebogen(null);
+      }
     } catch (e) {
+      if (version !== loadVersion.current) return;
       setState(null);
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    const refresh = () => { void load(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    refresh();
+    window.addEventListener(COMPANY_SETTINGS_CHANGED, refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      loadVersion.current++;
+      window.removeEventListener(COMPANY_SETTINGS_CHANGED, refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
-
-  /** Die beiden Vorschauen sind Nebenauskunft: fehlen sie, bleibt der Weg der Weg. */
-  const loadSheets = useCallback(async () => {
-    Api.getOpeningBalance()
-      .then(setOpening)
-      .catch(() => setOpening(null));
-    Api.getFragebogenSheet()
-      .then(setFragebogen)
-      .catch(() => setFragebogen(null));
-  }, []);
-
-  useEffect(() => {
-    if (state?.hasFoundation) void loadSheets();
-  }, [state?.hasFoundation, loadSheets]);
 
   async function run(key: string, action: () => Promise<void>) {
     setBusy(key);
@@ -118,10 +112,9 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
     }
   }
 
-  const markDone = (duty: FoundationDuty) =>
+  const setTaskStatus = (duty: FoundationDuty, status: string) =>
     run(duty.key, async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      await Api.completeFoundationDuty(duty.key, duty.isDone ? '' : today);
+      await Api.setFoundationDutyStatus(duty.key, status);
       await load();
     });
 
@@ -130,7 +123,6 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
       const doc = await Api.fileOpeningBalance();
       toast.success(`${doc.fileName} liegt in den Unterlagen.`);
       await load();
-      await loadSheets();
     });
 
   const exportOpeningXBRL = () =>
@@ -140,7 +132,7 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
         `eroeffnungsbilanz-${opening?.asOf ?? ''}.xml`,
         new Blob([xbrl], { type: 'application/xml' })
       );
-      toast.success('Die XBRL-Instanz ist gespeichert. Übermittelt wird über Mein ELSTER.');
+      toast.success('Die XBRL-Instanz ist gespeichert. Übermittelt wird über geeignete E-Bilanz-Software.');
     });
 
   const fileFragebogen = () =>
@@ -148,7 +140,6 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
       const doc = await Api.fileFragebogenSheet();
       toast.success(`${doc.fileName} liegt in den Unterlagen.`);
       await load();
-      await loadSheets();
     });
 
   const openDocument = async (doc: CompanyDocument) => {
@@ -186,24 +177,19 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
     );
   }
 
-  const { foundation, guide, duties } = state;
-  const registered = state.stage === 'eingetragen';
+  const { guide, duties } = state;
   const percent = guide.total > 0 ? Math.round((guide.done / guide.total) * 100) : 0;
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
       <PageHeader helpSummary="Halten Sie die Schritte Ihrer Unternehmensgründung und die zugehörigen Nachweise fest."
         title="Gründung"
-        context={
-          registered
-            ? `Eingetragen am ${formatDate(foundation.registeredOn)}`
-            : `In Gründung seit ${formatDate(foundation.notarizedOn)}`
-        }
+        context={`${guide.done} von ${guide.total} Aufgaben abgeschlossen`}
         explain={
           <>
-            Der Weg von der Beurkundung bis zur ersten Offenlegung. Jeder Schritt sagt, wo er zu
-            erledigen ist und was dazugehört; erledigt wird er mit seinem Datum, und der Nachweis
-            bleibt in den Unterlagen des Unternehmens.
+            Notartermin, Kapitaleinzahlung und Handelsregisteranmeldung sind bereits erledigt.
+            Die Checkliste führt durch die anschließenden Meldungen und Unterlagen.
+            Haken Sie erledigte Aufgaben ab und legen Sie die Nachweise dazu ab.
           </>
         }
         onMore={() => setHelp(true)}
@@ -213,86 +199,41 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
             icon={<ArrowLeft className="w-4 h-4" strokeWidth={1.5} />}
             onClick={() => onNavigate('tasks')}
           >
-            Zurück zu den Aufgaben
+            <span>Zurück<span className="hidden sm:inline"> zu den Aufgaben</span></span>
           </Button>
         }
       />
 
-      <Section
-        title="Ihr Stand"
-        context={`${guide.done} von ${guide.total} Schritten erledigt`}
-        className="mt-8"
-      >
-        <Progress
-          label="Weg durch die Gründung"
-          value={percent}
-          detail={`${guide.done} von ${guide.total} Schritten`}
-        />
-        <div className="mt-6">
-          <StatRow>
-            <Stat
-              label="Stammkapital"
-              value={formatCents(foundation.shareCapital)}
-              context="laut Gesellschaftsvertrag"
-            />
-            <Stat
-              label="Davon geleistet"
-              value={formatCents(
-                (foundation.shareholders ?? []).reduce((sum, s) => sum + s.paidIn, 0)
-              )}
-              context={
-                state.anmeldung?.isSatisfied
-                  ? 'Anmeldung möglich'
-                  : `${formatCents(state.anmeldung?.requiredPaidIn ?? 0)} nötig`
-              }
-              tone={state.anmeldung?.isSatisfied ? 'positive' : 'neutral'}
-            />
-            <Stat
-              label={
-                <span className="flex items-center">
-                  Unterbilanz
-                  <GruendungHelpMark onMore={() => setHelp(true)} />
-                </span>
-              }
-              value={formatCents(state.unterbilanz?.amount ?? 0)}
-              context={
-                state.unterbilanz?.isFinal ? 'zum Tag der Eintragung' : 'vorläufig, wächst weiter'
-              }
-              tone={(state.unterbilanz?.amount ?? 0) > 0 ? 'negative' : 'positive'}
-            />
-            <Stat
-              label="Noch offen"
-              value={String(guide.open)}
-              context={guide.waiting > 0 ? `${guide.waiting} warten auf die Eintragung` : 'nichts wartet'}
-            />
-          </StatRow>
-        </div>
-        {guide.nextTitle && (
-          <p className="mt-6 text-body text-ink-muted">
-            Als Nächstes: <span className="text-ink font-semibold">{guide.nextTitle}</span>
-          </p>
-        )}
-      </Section>
+      <div className="mt-8">
+        <Progress label="Gründungsaufgaben" value={percent} />
+      </div>
 
-      {duties.map((duty, index) => (
-        <StepSection
-          key={duty.key}
-          duty={duty}
-          index={index}
-          opening={duty.key === 'eroeffnungsbilanz' ? opening : null}
-          fragebogen={duty.key === 'fragebogen' ? fragebogen : null}
-          busy={busy === duty.key}
-          locked={writeLock.locked}
-          lockHint={writeLock.hint}
-          onMarkDone={() => void markDone(duty)}
-          onAttach={() => setAttachFor(duty)}
-          onOpenDocument={openDocument}
-          onFileOpening={() => void fileOpening()}
-          onExportXBRL={() => void exportOpeningXBRL()}
-          onFileFragebogen={() => void fileFragebogen()}
-          onNavigate={onNavigate}
-        />
-      ))}
+      <ul aria-label="Gründungsaufgaben" className="mt-6 divide-y divide-line border-y border-line">
+        {duties.map((duty) => (
+          <FoundationTask
+            key={duty.key}
+            duty={duty}
+            waitingReason={duty.isPending ? duty.waitingFor || 'Nach der Handelsregistereintragung' : undefined}
+            opening={duty.key === 'eroeffnungsbilanz' ? opening : null}
+            fragebogen={duty.key === 'fragebogen' ? fragebogen : null}
+            busy={busy !== ''}
+            locked={writeLock.locked}
+            lockHint={writeLock.hint}
+            onMarkDone={() => void setTaskStatus(duty, duty.isDone ? 'open' : 'done')}
+            onStatus={(status) => void setTaskStatus(duty, status)}
+            onAttach={() => setAttachFor(duty)}
+            onFileOpening={() => void fileOpening()}
+            onExportXBRL={() => void exportOpeningXBRL()}
+            onFileFragebogen={() => void fileFragebogen()}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </ul>
+      {!state.foundation.registeredOn && (
+        <Button variant="quiet" size="sm" className="mt-4" onClick={() => onNavigate('deadlines')}>
+          Handelsregistereintragung erfassen
+        </Button>
+      )}
 
       <GruendungHelpDialog open={help} onClose={() => setHelp(false)} />
 
@@ -300,6 +241,9 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
         open={attachFor !== null}
         dutyKey={attachFor?.key ?? ''}
         dutyTitle={attachFor?.title ?? ''}
+        documents={duties.find((duty) => duty.key === attachFor?.key)?.proof ?? []}
+        onOpenDocument={openDocument}
+        readOnly={writeLock.locked || !attachFor?.acceptsProof}
         onOpenChange={(next) => !next && setAttachFor(null)}
         onAttached={() => {
           setAttachFor(null);
@@ -310,168 +254,124 @@ export const GruendungPage: React.FC<GruendungPageProps> = ({ onNavigate }) => {
   );
 };
 
-interface StepSectionProps {
+interface FoundationTaskProps {
   duty: FoundationDuty;
-  index: number;
+  waitingReason?: string;
   opening: OpeningBalanceSheet | null;
   fragebogen: FragebogenSheet | null;
   busy: boolean;
   locked: boolean;
   lockHint?: string;
   onMarkDone: () => void;
+  onStatus: (status: string) => void;
   onAttach: () => void;
-  onOpenDocument: (doc: CompanyDocument) => void;
   onFileOpening: () => void;
   onExportXBRL: () => void;
   onFileFragebogen: () => void;
   onNavigate: NavigateFn;
 }
 
-/** Ein Schritt des Weges: was, wo, wie — und was Buchfink beisteuert. */
-const StepSection: React.FC<StepSectionProps> = ({
+const FoundationTask: React.FC<FoundationTaskProps> = ({
   duty,
-  index,
+  waitingReason,
   opening,
   fragebogen,
   busy,
   locked,
   lockHint,
   onMarkDone,
+  onStatus,
   onAttach,
-  onOpenDocument,
   onFileOpening,
   onExportXBRL,
   onFileFragebogen,
   onNavigate,
 }) => {
-  const state = stateOf(duty);
+  const done = stateOf(duty) === 'done';
+  const waiting = !done && Boolean(waitingReason);
+  const [workOpen, setWorkOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const proof = duty.proof ?? [];
+  const deadline = duty.excludedBy || (duty.isNotApplicable ? 'Nicht zutreffend' : done
+    ? duty.doneOn ? `Erledigt am ${formatDate(duty.doneOn)}` : 'Erledigt'
+    : waiting ? waitingReason
+    : duty.dueDate ? `Bis ${formatDate(duty.dueDate)}` : duty.deadline);
+
+  const controlsDisabled = waiting || locked || busy || Boolean(duty.excludedBy) || Boolean(duty.missingFields?.length);
+  const statusActions = duty.condition && (!done || duty.isNotApplicable) && !duty.excludedBy ? (
+    <button type="button" disabled={controlsDisabled} title={waitingReason || lockHint}
+      aria-label={`${duty.isNotApplicable ? 'Wieder öffnen' : 'Nicht zutreffend'}: ${duty.title}`}
+      onClick={() => onStatus(duty.isNotApplicable ? 'open' : 'skipped')}
+      className="text-caption text-ink-subtle hover:text-ink hover:underline disabled:text-ink-faint disabled:cursor-not-allowed disabled:no-underline">
+      {duty.isNotApplicable ? 'Wieder öffnen' : 'Nicht zutreffend'}
+    </button>
+  ) : undefined;
 
   return (
-    <Section helpSummary="Hier erfahren Sie, was für diesen Gründungsschritt zu erledigen ist."
-      title={`${duty.order}. ${duty.title}`}
-      context={duty.where}
-      divider={index > 0}
-      className={index === 0 ? 'mt-8' : undefined}
-      explain={
-        <>
-          {duty.description} Frist: {duty.deadline} ({duty.reference}).
-        </>
-      }
-      action={
-        <div className="flex items-center gap-2">
-          {state === 'done' ? (
-            <span className="flex items-center gap-2 text-caption text-ink-subtle">
-              <Check className="w-4 h-4 text-positive-text" strokeWidth={1.5} />
-              {duty.doneOn ? `Erledigt am ${formatDate(duty.doneOn)}` : 'Erledigt'}
-            </span>
-          ) : state === 'waiting' ? (
-            <span className="text-caption text-ink-subtle">Wartet auf die Eintragung</span>
-          ) : duty.dueDate ? (
-            <span className="text-caption text-ink-subtle num">
-              Fällig {formatDate(duty.dueDate)}
-            </span>
-          ) : (
-            <StatusBadge status="offen" />
+    <li className={cn('py-4', waiting && 'text-ink-subtle')}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1 basis-full sm:basis-0">
+          <div className="flex items-start gap-1">
+          <Checkbox
+            checked={done && !duty.isNotApplicable}
+            indeterminate={duty.isNotApplicable}
+            disabled={controlsDisabled}
+            onCheckedChange={onMarkDone}
+            label={duty.title}
+            hint={done ? undefined : duty.condition}
+            className={cn('min-w-0', done && 'text-ink-subtle line-through', waiting && 'text-ink-subtle')}
+          />
+          <Help label={`Erklärung: ${duty.title}`} summary={duty.description}>
+            <p>{duty.where}</p>
+            <p>Frist: {duty.deadline}. {duty.reference}</p>
+            {duty.condition && <p>{duty.condition}. Falls dies aktuell nicht zutrifft, wählen Sie „Nicht zutreffend“. Sie können sie später wieder öffnen.</p>}
+            {waitingReason && <p>{waitingReason}.</p>}
+            {duty.excludedBy && <p>{duty.excludedBy}. Diese Angabe können Sie in den Stammdaten ändern.</p>}
+            {duty.todo.length > 0 && <ol className="list-decimal pl-5 space-y-2">
+              {duty.todo.map((step) => <li key={step}>{step}</li>)}
+            </ol>}
+            {duty.provides && <p>{duty.provides}</p>}
+          </Help>
+          </div>
+          {!!duty.missingFields?.length && <p className="ml-[26px] mt-1 text-caption text-ink-muted">Noch offen: {duty.missingFields.join(', ')}</p>}
+          {statusActions && <div className="ml-[26px] mt-1 w-fit max-w-full">{statusActions}</div>}
+        </div>
+        <span className={cn('text-caption sm:text-right sm:max-w-52', done || waiting ? 'text-ink-subtle' : 'text-ink-muted')}>
+          {deadline}
+          {waiting && duty.dueDate && <span className="block">Frist: {formatDate(duty.dueDate)}</span>}
+        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-2 text-caption">
+          {duty.actionUrl && (waiting
+            ? <span className="text-ink-subtle">{duty.actionLabel}</span>
+            : <SourceLink href={duty.actionUrl}>{duty.actionLabel || 'Portal öffnen'}</SourceLink>)}
+          {(['stammdaten', 'geschaeftsbriefe'].includes(duty.key) || waitingReason === 'Beschäftigte in den Stammdaten angeben') && (
+            <Button variant="quiet" size="sm" onClick={() => onNavigate('settings')}>{duty.key === 'stammdaten' ? 'Zu den Einstellungen' : 'Stammdaten'}</Button>
           )}
+          {(opening || fragebogen) && (
+            <Button variant="quiet" size="sm" disabled={waiting || busy} onClick={() => setWorkOpen(true)}>
+              {opening ? 'Bilanz' : 'Datenblatt'}
+            </Button>
+          )}
+          {(duty.acceptsProof || proof.length > 0) && <Button variant="quiet" size="sm" iconOnly
+            aria-label={`Nachweise: ${duty.title}`} title={proof.length ? `${proof.length} ${proof.length === 1 ? 'Nachweis' : 'Nachweise'}` : 'Nachweis ablegen'}
+            aria-description={`${proof.length} ${proof.length === 1 ? 'Nachweis' : 'Nachweise'}`}
+            disabled={controlsDisabled}
+            onClick={onAttach}>
+            <Paperclip className="w-4 h-4" strokeWidth={1.5} />
+            {proof.length > 0 && <span aria-hidden="true" className={cn('absolute -right-1 -top-1 min-w-4 h-4 rounded-full px-1 text-[10px] leading-4 tabular-nums text-center', controlsDisabled ? 'bg-sunken text-ink-faint' : 'bg-accent-soft text-accent-text')}>{proof.length}</span>}
+          </Button>}
         </div>
-      }
-    >
-      {state !== 'done' && duty.todo.length > 0 && (
-        <ol className="space-y-2">
-          {duty.todo.map((step, i) => (
-            <li key={step} className="flex gap-3 text-body text-ink-muted">
-              <span className="shrink-0 num text-ink-subtle tabular-nums">{i + 1}.</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {duty.provides && state !== 'done' && (
-        <p className="mt-5 rounded-control border border-line bg-surface px-4 py-3 text-body text-ink-muted">
-          {duty.provides}
-        </p>
-      )}
-
-      {/* Die Eröffnungsbilanz: der eine Schritt, den Buchfink vollständig kann. */}
-      {duty.key === 'eroeffnungsbilanz' && opening && (
-        <OpeningBalancePanel
-          sheet={opening}
-          busy={busy}
-          locked={locked}
-          lockHint={lockHint}
-          onFile={onFileOpening}
-          onExportXBRL={onExportXBRL}
-          onShow={() => setSheetOpen(true)}
-          showing={sheetOpen}
-          onClose={() => setSheetOpen(false)}
-          onNavigate={onNavigate}
-        />
-      )}
-
-      {duty.key === 'fragebogen' && fragebogen && (
-        <FragebogenPanel
-          sheet={fragebogen}
-          busy={busy}
-          locked={locked}
-          lockHint={lockHint}
-          onFile={onFileFragebogen}
-          onShow={() => setSheetOpen(true)}
-          showing={sheetOpen}
-          onClose={() => setSheetOpen(false)}
-        />
-      )}
-
-      {(duty.proof ?? []).length > 0 && (
-        <div className="mt-6">
-          <p className="text-label text-ink-subtle mb-2">Nachweise</p>
-          <ul className="space-y-1.5">
-            {(duty.proof ?? []).map((doc) => (
-              <li key={doc.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenDocument(doc)}
-                  className="flex items-center gap-2 text-body text-accent-text hover:text-accent
-                             transition-colors duration-120 ease-quiet"
-                >
-                  <Paperclip className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                  <span className="truncate">{doc.title || doc.fileName}</span>
-                  {doc.documentDate && (
-                    <span className="text-caption text-ink-subtle num">
-                      {formatDate(doc.documentDate)}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={<Paperclip className="w-4 h-4" strokeWidth={1.5} />}
-          disabled={locked}
-          title={lockHint}
-          onClick={onAttach}
-        >
-          Nachweis ablegen
-        </Button>
-        <Button
-          variant="quiet"
-          size="sm"
-          loading={busy}
-          disabled={locked}
-          title={lockHint}
-          onClick={onMarkDone}
-        >
-          {state === 'done' ? 'Als offen führen' : 'Erledigt vermerken'}
-        </Button>
       </div>
-    </Section>
+
+      <Dialog open={workOpen} onOpenChange={setWorkOpen} title={duty.title}>
+        {opening && <OpeningBalancePanel sheet={opening} busy={busy} locked={locked} lockHint={lockHint}
+          onFile={onFileOpening} onExportXBRL={onExportXBRL} onShow={() => setSheetOpen(true)}
+          showing={sheetOpen} onClose={() => setSheetOpen(false)} onNavigate={onNavigate} />}
+        {fragebogen && <FragebogenPanel sheet={fragebogen} busy={busy} locked={locked} lockHint={lockHint}
+          onFile={onFileFragebogen} onShow={() => setSheetOpen(true)} showing={sheetOpen}
+          onClose={() => setSheetOpen(false)} onSettings={() => onNavigate('settings')} />}
+      </Dialog>
+    </li>
   );
 };
 
@@ -615,7 +515,8 @@ const FragebogenPanel: React.FC<{
   onFile: () => void;
   onShow: () => void;
   onClose: () => void;
-}> = ({ sheet, busy, locked, lockHint, showing, onFile, onShow, onClose }) => {
+  onSettings: () => void;
+}> = ({ sheet, busy, locked, lockHint, showing, onFile, onShow, onClose, onSettings }) => {
   const missing = sheet.rows.filter((row) => row.missing).length;
   return (
     <div className="mt-6">
@@ -624,7 +525,8 @@ const FragebogenPanel: React.FC<{
           className="mb-5"
           text={`${missing} Angabe${missing === 1 ? '' : 'n'} für den Fragebogen ${
             missing === 1 ? 'fehlt' : 'fehlen'
-          } in den Stammdaten. Das Datenblatt weist sie als Lücke aus.`}
+          } in den Stammdaten. Ergänzen Sie diese vor der Verwendung des Datenblatts.`}
+          action={<Button variant="secondary" size="sm" onClick={onSettings}>Stammdaten ergänzen</Button>}
         />
       )}
       <div className="flex flex-wrap gap-2">
@@ -648,6 +550,7 @@ const FragebogenPanel: React.FC<{
         open={showing}
         onOpenChange={(next) => !next && onClose()}
         title="Datenblatt zum Fragebogen"
+        width="max-w-4xl"
         footer={
           <Button variant="secondary" onClick={onClose}>
             Schließen
@@ -667,7 +570,7 @@ const FragebogenPanel: React.FC<{
               <Tr key={row.section + row.label}>
                 <Td className="text-ink-subtle">{row.section}</Td>
                 <Td>{row.label}</Td>
-                <Td className={cn(row.missing && 'text-attention-text')}>
+                <Td className={cn('whitespace-normal break-words', row.missing && 'text-attention-text')}>
                   {row.missing ? 'nicht erfasst' : row.value}
                 </Td>
               </Tr>

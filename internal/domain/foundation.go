@@ -185,6 +185,7 @@ type FoundationTask struct {
 	Key          string `gorm:"size:40;not null;index" json:"key"`
 	DoneOn       string `gorm:"size:10;not null" json:"doneOn"` // YYYY-MM-DD
 	Note         string `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Status       string `gorm:"size:20" json:"status,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -302,14 +303,21 @@ type FoundationDuty struct {
 	Deadline string `json:"deadline"`
 	// Anchor ist das Ereignis, aus dem die Frist läuft.
 	Anchor FoundationAnchor `json:"anchor"`
-	// Order ist der Platz im Gründungsweg. Er folgt der Reihenfolge, in der die
-	// Schritte zu tun sind, und nicht der Fälligkeit: die Anmeldung steht vor
-	// dem Fragebogen, obwohl der ein Datum hat und sie keins.
+	// Order legt die Reihenfolge in der Checkliste fest.
 	Order int `json:"order"`
 	// Where ist der Ort, an dem die Pflicht erfüllt wird — beim Notar, über Mein
 	// ELSTER, bei der Gemeinde. Wer zum ersten Mal gründet, weiß das nicht, und
 	// es steht in keinem Paragrafen.
-	Where string `json:"where"`
+	Where           string   `json:"where"`
+	ActionURL       string   `json:"actionUrl,omitempty"`
+	ActionLabel     string   `json:"actionLabel,omitempty"`
+	Condition       string   `json:"condition,omitempty"`
+	IsNotApplicable bool     `json:"isNotApplicable,omitempty"`
+	WaitingFor      string   `json:"waitingFor,omitempty"`
+	ExcludedBy      string   `json:"excludedBy,omitempty"`
+	DependsOn       []string `json:"dependsOn,omitempty"`
+	MissingFields   []string `json:"missingFields,omitempty"`
+
 	// Todo sind die Handgriffe, in der Reihenfolge, in der sie zu tun sind.
 	// Jeder ein Satz.
 	Todo []string `json:"todo"`
@@ -329,7 +337,8 @@ type FoundationDuty struct {
 	// Registerauszug, der Gewerbeschein, die Bestätigung des
 	// Transparenzregisters. Sie liegen in der Dokumentenablage des Unternehmens
 	// und sind hier nur verknüpft.
-	Proof []Document `json:"proof,omitempty"`
+	Proof        []Document `json:"proof,omitempty"`
+	AcceptsProof bool       `json:"acceptsProof"`
 }
 
 // FoundationRepository persists the Gründung of a tenant.

@@ -177,20 +177,21 @@ func TestFoundationGuideCountsProgressAndNamesTheNextStep(t *testing.T) {
 		t.Errorf("die Zählung geht nicht auf: %d erledigt, %d offen, %d wartend von %d",
 			guide.Done, guide.Open, guide.Waiting, guide.Total)
 	}
-	// Vor der Eintragung warten Gewerbeanmeldung und Transparenzregister.
+	// Registerabhängige Aufgaben warten auf die Eintragung.
 	if guide.Waiting < 2 {
 		t.Errorf("%d wartende Schritte, erwartet mindestens zwei vor der Eintragung", guide.Waiting)
 	}
-	// Der erste offene Schritt ist die Anmeldung zum Handelsregister.
-	if guide.NextKey != "handelsregister" {
-		t.Errorf("nächster Schritt %q, erwartet die Anmeldung zum Handelsregister", guide.NextKey)
+	// Die Checkliste beginnt mit der Ergänzung der Stammdaten.
+	if guide.NextKey != "stammdaten" {
+		t.Errorf("nächster Schritt %q, erwartet die Ergänzung der Stammdaten", guide.NextKey)
 	}
 	if guide.NextTitle == "" {
 		t.Error("der nächste Schritt hat keinen Titel")
 	}
 
 	// Erledigt verschiebt den nächsten Schritt.
-	if err := svc.CompleteDuty(ctx, "handelsregister", "2026-02-01", ""); err != nil {
+	env.completeFoundationMasterData(t)
+	if err := svc.CompleteDuty(ctx, "stammdaten", "2026-02-01", ""); err != nil {
 		t.Fatalf("Pflicht quittieren: %v", err)
 	}
 	state, err = svc.GetState(ctx)
@@ -200,7 +201,7 @@ func TestFoundationGuideCountsProgressAndNamesTheNextStep(t *testing.T) {
 	if state.Guide.Done != 1 {
 		t.Errorf("%d erledigt, erwartet 1", state.Guide.Done)
 	}
-	if state.Guide.NextKey == "handelsregister" {
+	if state.Guide.NextKey == "stammdaten" {
 		t.Error("der erledigte Schritt darf nicht mehr der nächste sein")
 	}
 }
@@ -245,9 +246,9 @@ func TestFoundationDutyCarriesItsProof(t *testing.T) {
 	env.saveFoundation(t, svc, gmbhFoundation())
 
 	if _, err := documents.Attach(ctx, DocumentRequest{
-		Kind:     domain.DocHandelsregister,
-		Title:    "Eintragungsnachricht",
-		DutyKey:  "handelsregister",
+		Kind:     domain.DocSonstiges,
+		Title:    "Übermittlungsprotokoll",
+		DutyKey:  "fragebogen",
 		FileName: "auszug.pdf",
 		Content:  []byte("%PDF-1.4 Auszug"),
 	}); err != nil {
@@ -258,16 +259,21 @@ func TestFoundationDutyCarriesItsProof(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetState: %v", err)
 	}
+	found := false
 	for _, duty := range state.Duties {
-		if duty.Key != "handelsregister" {
+		if duty.Key != "fragebogen" {
 			if len(duty.Proof) != 0 {
 				t.Errorf("%s trägt einen fremden Nachweis", duty.Key)
 			}
 			continue
 		}
-		if len(duty.Proof) != 1 || duty.Proof[0].Title != "Eintragungsnachricht" {
+		found = true
+		if len(duty.Proof) != 1 || duty.Proof[0].Title != "Übermittlungsprotokoll" {
 			t.Errorf("der Nachweis hängt nicht am Schritt: %+v", duty.Proof)
 		}
+	}
+	if !found {
+		t.Fatal("die Aufgabe zum Fragebogen fehlt")
 	}
 }
 

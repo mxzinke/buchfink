@@ -168,10 +168,22 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		return nil, err
 	}
 	done := make(map[string]string, len(tasks))
-	for _, t := range tasks {
-		done[t.Key] = t.DoneOn
+	for _, task := range tasks {
+		if task.Status != "deferred" {
+			done[task.Key] = task.DoneOn
+		}
 	}
 	state.Duties = accounting.FoundationDuties(f, rules, done)
+	for i := range state.Duties {
+		for _, task := range tasks {
+			if task.Key != state.Duties[i].Key {
+				continue
+			}
+			state.Duties[i].IsNotApplicable = task.Status == "skipped" || task.Note == foundationNotApplicable
+		}
+	}
+	applyFoundationMasterData(state.Duties, settings)
+	applyFoundationDependencies(state.Duties, settings.Employees)
 	if s.documents != nil {
 		attachDutyProof(ctx, s.documents, state.Duties)
 	}
@@ -709,8 +721,6 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	// wird nichts: was in den Einstellungen steht, hat jemand dort gewollt.
 	s.adoptRegisterSettings(ctx, f)
 
-	// Die Anmeldung ist mit der Eintragung erledigt; sie noch als offene Frist
-	// zu führen wäre eine Nachfrage nach etwas, das nachweislich geschehen ist.
 	_ = s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
 		FoundationID: f.ID,
 		Key:          accounting.DutyHandelsregister,
@@ -722,6 +732,8 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber))
 	return f, nil
 }
+
+const foundationNotApplicable = "Nicht zutreffend"
 
 // CompleteDuty records a fulfilled Gründungspflicht, or takes it back when the
 // date is empty.
@@ -735,6 +747,31 @@ func (s *FoundationService) CompleteDuty(ctx context.Context, key, doneOn, note 
 	}
 	if doneOn == "" {
 		return s.foundationRepo.ClearTask(ctx, f.ID, key)
+	}
+	if key == "stammdaten" {
+		settings, err := s.settingsRepo.GetCompanySettings(ctx)
+		if err != nil {
+			return err
+		}
+		if missing := foundationMasterDataMissing(settings); len(missing) > 0 {
+			return fmt.Errorf("bitte zuerst die Stammdaten ergänzen: %s", strings.Join(missing, ", "))
+		}
+	}
+	if note == foundationNotApplicable {
+		settings, err := s.settingsRepo.GetCompanySettings(ctx)
+		if err != nil {
+			return err
+		}
+		rules, _ := accounting.FoundationRulesFor(settings.LegalForm)
+		optional := false
+		for _, duty := range accounting.FoundationDuties(f, rules, nil) {
+			if duty.Key == key && duty.Condition != "" {
+				optional = true
+			}
+		}
+		if !optional {
+			return fmt.Errorf("diese Aufgabe kann nicht als nicht zutreffend markiert werden")
+		}
 	}
 	if len(doneOn) != 10 {
 		return fmt.Errorf("das Datum der Erledigung ist unvollständig (erwartet JJJJ-MM-TT)")

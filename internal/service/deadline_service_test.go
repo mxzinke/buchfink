@@ -380,13 +380,7 @@ func TestMarkDoneOnlyAcceptsManualDeadlines(t *testing.T) {
 	}
 }
 
-// Eine Gründungspflicht ohne Tagesfrist gehört trotzdem in die Liste.
-//
-// Bis hierher übersprang der Fristendienst jede Pflicht ohne `DueDate`. Genau
-// zwei haben keins — die Anmeldung zum Handelsregister („sobald die
-// Mindesteinlage geleistet ist") und die Meldung an das Transparenzregister
-// („unverzüglich", § 20 Abs. 1 GwG) —, und beide verschwanden dadurch still aus
-// der Oberfläche.
+// Auch Pflichten ohne genaues Fälligkeitsdatum erscheinen in der Fristenliste.
 func TestFoundationDeadlinesIncludeDutiesWithoutADayLimit(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.deadlines(t)
@@ -403,15 +397,16 @@ func TestFoundationDeadlinesIncludeDutiesWithoutADayLimit(t *testing.T) {
 		t.Fatalf("Fristen: %v", err)
 	}
 
-	anmeldung, ok := deadlineByKey(list, "gruendung.handelsregister")
-	if !ok {
-		t.Fatal("die Anmeldung zum Handelsregister fehlt in der Fristenliste")
+	for _, key := range []string{"gewerbeanmeldung", "unfallversicherung"} {
+		duty, ok := deadlineByKey(list, "gruendung."+key)
+		if !ok || duty.DueDate != "" || duty.WaitingFor != "" {
+			t.Errorf("%s ist ohne Eintragung und ohne berechnetes Datum verfügbar: %+v", key, duty)
+		}
 	}
-	if anmeldung.DueDate != "" {
-		t.Errorf("die Anmeldung hat das Datum %q; §§ 7, 8 GmbHG nennen keins", anmeldung.DueDate)
-	}
-	if anmeldung.WaitingFor != "" {
-		t.Errorf("die Anmeldung wartet auf %q, sie ist aber ab der Beurkundung zu tun", anmeldung.WaitingFor)
+	for _, key := range []string{"handelsregister", "offenlegung", "ruecklage"} {
+		if _, ok := deadlineByKey(list, "gruendung."+key); ok {
+			t.Errorf("%s gehört nicht in die Gründungscheckliste", key)
+		}
 	}
 
 	transparenz, ok := deadlineByKey(list, "gruendung.transparenzregister")
@@ -426,8 +421,8 @@ func TestFoundationDeadlinesIncludeDutiesWithoutADayLimit(t *testing.T) {
 	}
 }
 
-// Mit der Eintragung bekommen die wartenden Pflichten ihr Datum.
-func TestFoundationDeadlinesStartWithTheRegistration(t *testing.T) {
+// Die Eintragung gibt die davon abhängigen Aufgaben frei.
+func TestFoundationDeadlinesUnlockAfterRegistration(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.deadlines(t)
 	foundations := env.foundations(t)
@@ -438,13 +433,18 @@ func TestFoundationDeadlinesStartWithTheRegistration(t *testing.T) {
 	f.NotarizedOn = "2026-03-15"
 	env.saveFoundation(t, foundations, f)
 
+	env.completeFoundationMasterData(t)
+	if err := foundations.SetDutyStatus(ctx, "stammdaten", "done"); err != nil {
+		t.Fatal(err)
+	}
+
 	before, err := svc.Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Fristen: %v", err)
 	}
-	gewerbe, ok := deadlineByKey(before, "gruendung.gewerbeanmeldung")
-	if !ok || gewerbe.WaitingFor == "" || gewerbe.DueDate != "" {
-		t.Fatalf("vor der Eintragung wartet die Gewerbeanmeldung ohne Datum, erhalten %+v", gewerbe)
+	briefe, ok := deadlineByKey(before, "gruendung.geschaeftsbriefe")
+	if !ok || briefe.WaitingFor == "" || briefe.DueDate != "" {
+		t.Fatalf("vor der Eintragung wartet die Aufgabe zu Geschäftsbriefen ohne Datum, erhalten %+v", briefe)
 	}
 
 	if _, err := foundations.Register(ctx, "2026-05-04", "Amtsgericht München", "HRB 123456"); err != nil {
@@ -455,14 +455,14 @@ func TestFoundationDeadlinesStartWithTheRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Fristen nach der Eintragung: %v", err)
 	}
-	gewerbe, ok = deadlineByKey(after, "gruendung.gewerbeanmeldung")
+	briefe, ok = deadlineByKey(after, "gruendung.geschaeftsbriefe")
 	if !ok {
-		t.Fatal("die Gewerbeanmeldung fehlt nach der Eintragung")
+		t.Fatal("die Aufgabe zu Geschäftsbriefen fehlt nach der Eintragung")
 	}
-	if gewerbe.WaitingFor != "" {
-		t.Errorf("die Gewerbeanmeldung wartet noch auf %q", gewerbe.WaitingFor)
+	if briefe.WaitingFor != "" {
+		t.Errorf("die Aufgabe zu Geschäftsbriefen wartet noch auf %q", briefe.WaitingFor)
 	}
-	if gewerbe.DueDate != "2026-06-04" {
-		t.Errorf("Gewerbeanmeldung fällig am %q, erwartet einen Monat nach der Eintragung", gewerbe.DueDate)
+	if briefe.DueDate != "" {
+		t.Errorf("Geschäftsbriefe haben eine erfundene Tagesfrist: %q", briefe.DueDate)
 	}
 }

@@ -234,11 +234,16 @@ export function App() {
     await loadActiveFiscalYearData();
   };
 
-  /**
-   * Nach der Einrichtung. Wer eine Gründung erfasst hat, landet auf dem
-   * Gründungsweg und nicht in der leeren Aufgabenliste: dort steht, was als
-   * Nächstes zu tun ist, und die Liste ist am ersten Tag ohnehin leer.
-   */
+  const openWorkspace = async () => {
+    try {
+      const foundation = await Api.getFoundationState();
+      setCurrentTab(foundation?.hasFoundation && foundation.duties.some((duty) => !duty.isDone) ? 'gruendung' : 'tasks');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      setCurrentTab('tasks');
+    }
+  };
+
   const handleSetupCompleted = async (target: TabType = 'tasks') => {
     setIsAddingTenant(false);
     await bootstrapApp();
@@ -297,7 +302,7 @@ export function App() {
             onSwitchTenant={handleSwitchTenant}
             onRefreshTenants={refreshTenants}
             onAddTenant={() => setIsAddingTenant(true)}
-            onStartDashboard={() => setCurrentTab('tasks')}
+            onStartDashboard={() => void openWorkspace()}
           />
         );
       // Die Aufgabenliste ist die Startseite (Architektur 6.1); Kennzahlen und

@@ -329,6 +329,7 @@ export const bridge = {
   BookFoundationPostings: <T>() => invoke<T>('BookFoundationPostings'),
   RegisterCompany: <T>(date: string, court: string, number: string) =>
     invoke<T>('RegisterCompany', date, court, number),
+  SetFoundationDutyStatus: (key: string, status: string) => invoke<void>('SetFoundationDutyStatus', key, status),
   CompleteFoundationDuty: (key: string, doneOn: string, note: string) =>
     invoke<void>('CompleteFoundationDuty', key, doneOn, note),
   GetOpeningBalance: <T>() => invoke<T>('GetOpeningBalance'),
