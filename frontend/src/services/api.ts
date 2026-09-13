@@ -83,6 +83,7 @@ import type {
   FinancialStatement,
   FinancialSummary,
   FiscalYear,
+  FiscalYearCandidates,
   FiscalYearStatus,
   FixedAsset,
   ForeignCurrencyValuation,
@@ -1125,6 +1126,8 @@ export const Api = {
 
   /** Die Geschäftsjahre als Entitäten: Zeitraum, Rumpfjahr, Abschlussstand. */
   getFiscalYears: (): Promise<FiscalYear[]> => call(() => Bridge.GetFiscalYears() as Promise<FiscalYear[]>),
+  getFiscalYearCandidates: (): Promise<FiscalYearCandidates> =>
+    call(() => Bridge.GetFiscalYearCandidates() as Promise<FiscalYearCandidates>),
   /** Legt das Geschäftsjahr an und schaltet auf es um. */
   createFiscalYear: (year: number): Promise<void> => call(() => Bridge.CreateFiscalYear(year)),
   bookLegalReserve: (year: number): Promise<JournalEntry> => call(() => Bridge.BookLegalReserve(year) as Promise<JournalEntry>),

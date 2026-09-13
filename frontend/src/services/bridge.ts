@@ -218,6 +218,7 @@ export const bridge = {
 
   // Jahresabschluss
   GetFiscalYears: <T>() => invoke<T>('GetFiscalYears'),
+  GetFiscalYearCandidates: <T>() => invoke<T>('GetFiscalYearCandidates'),
   CreateFiscalYear: (year: number) => invoke<void>('CreateFiscalYear', year),
   BookLegalReserve: <T>(year: number) => invoke<T>('BookLegalReserve', year),
   GetClosingState: <T>(year: number) => invoke<T>('GetClosingState', year),

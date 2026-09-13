@@ -2320,6 +2320,19 @@ export interface FoundationState {
  */
 export type FiscalYearStatus = 'open' | 'prepared' | 'adopted' | 'disclosed';
 
+export interface FiscalYearCandidate {
+  year: number;
+  startDate: string;
+  endDate: string;
+  /** Grund, aus dem sich das Jahr nicht anlegen lässt; fehlt, wenn es anlegbar ist. */
+  blocked?: string;
+}
+
+export interface FiscalYearCandidates {
+  next: FiscalYearCandidate;
+  previous: FiscalYearCandidate;
+}
+
 /** Das Geschäftsjahr als Entität: Zeitraum, Rumpfjahr, Abschlussstand. */
 export interface FiscalYear {
   year: number;

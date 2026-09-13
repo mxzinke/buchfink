@@ -123,7 +123,6 @@ export const Header: React.FC<HeaderProps> = ({
         <FiscalYearDialog
           open={creating}
           onOpenChange={setCreating}
-          availableYears={availableYears}
           onCreate={onCreateFiscalYear}
         />
       )}

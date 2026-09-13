@@ -19,12 +19,18 @@ func (b *BuchfinkBridge) GetFiscalYears() ([]domain.FiscalYear, error) {
 	return emptyList(b.closingSvc.FiscalYears(context.Background()))
 }
 
+// GetFiscalYearCandidates liefert das kommende und das vergangene Geschäftsjahr
+// mit dem Grund, falls sich eines nicht anlegen lässt.
+func (b *BuchfinkBridge) GetFiscalYearCandidates() (*service.FiscalYearCandidates, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.closingSvc == nil {
+		return nil, fmt.Errorf("kein aktiver Mandant")
+	}
+	return b.closingSvc.FiscalYearCandidates(context.Background())
+}
+
 // CreateFiscalYear legt das Geschäftsjahr an und schaltet auf es um.
-//
-// Bis hierher legte diese Methode nichts an, sondern setzte nur den Filter: das
-// Geschäftsjahr war eine Zahl an der Buchung und sonst nichts. Angelegt wird es
-// jetzt als Entität mit Zeitraum — das Folgejahr beginnt am Tag nach dem Ende
-// des Vorjahres, auch nach einem Rumpfgeschäftsjahr.
 func (b *BuchfinkBridge) CreateFiscalYear(year int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

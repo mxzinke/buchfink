@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,12 +12,13 @@ import (
 
 // closing wires the Jahresabschluss on the shared test environment. Der
 // JournalService bekommt dabei die Geschäftsjahre und die Festschreibungen: erst
-// mit ihnen kann er eine Buchung in ein festgestelltes Jahr abweisen.
+// mit ihnen kann er eine Buchung in ein festgestelltes Jahr abweisen. Die Uhr
+// steht im letzten Quartal 2026, damit sich 2027 anlegen lässt.
 func (e *testEnv) closing(t *testing.T) *ClosingService {
 	t.Helper()
 	e.journal.SetFiscalYearRepo(repository.NewFiscalYearRepository(e.db))
 	e.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(e.db))
-	return NewClosingService(
+	closing := NewClosingService(
 		repository.NewFiscalYearRepository(e.db),
 		e.journalRepo,
 		repository.NewAccountRepository(e.db),
@@ -30,6 +30,8 @@ func (e *testEnv) closing(t *testing.T) *ClosingService {
 		e.journal,
 		e.fiscalYear,
 	)
+	closing.SetClock(func() time.Time { return time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC) })
+	return closing
 }
 
 // datedEntry ist eine ausgeglichene Buchung an einem bestimmten Tag.
@@ -1282,20 +1284,40 @@ func TestCreateFiscalYearFollowsThePreviousPeriod(t *testing.T) {
 	}
 }
 
-// Das vorangestellte Jahr endet am Tag vor dem Beginn des bisher ersten.
-//
-// Der Fall ist die Übernahme aus einem Altsystem: die Eröffnungswerte gehören
-// in das Jahr davor, und ohne dieses Jahr gäbe es für sie keinen Zeitraum.
-// Gerechnet wird vom Ende zurück und nicht aus dem Kalender: nach einem
-// Rumpfgeschäftsjahr entstünde sonst eine Überschneidung.
+// Das vorangestellte Jahr endet am Tag vor dem Beginn des bisher ersten und
+// wird von diesem Ende zurückgerechnet, nicht aus dem Kalender.
 func TestCreateFiscalYearPrependsThePriorPeriod(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	if err := repository.NewFiscalYearRepository(env.db).Save(ctx,
+		domain.NewFiscalYear(2026, "2026-03-15", "2026-12-31")); err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+
+	fy, err := closing.CreateFiscalYear(ctx, 2025)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2025 anlegen: %v", err)
+	}
+	if fy.StartDate != "2025-03-15" || fy.EndDate != "2026-03-14" {
+		t.Errorf("Geschäftsjahr 2025 = %s bis %s, erwartet 2025-03-15 bis 2026-03-14", fy.StartDate, fy.EndDate)
+	}
+
+	if _, err := closing.CreateFiscalYear(ctx, 2023); err == nil {
+		t.Error("ein Sprung auf 2023 lässt 2024 ohne Geschäftsjahr")
+	}
+}
+
+// Vor der Gründung gibt es kein Geschäftsjahr.
+func TestCreateFiscalYearRefusesAYearBeforeTheFounding(t *testing.T) {
 	env := newTestEnv(t)
 	closing := env.closing(t)
 	ctx := context.Background()
 
 	foundations := repository.NewFoundationRepository(env.db)
 	if err := foundations.Save(ctx, &domain.Foundation{
-		NotarizedOn: "2026-03-15", ShareCapital: 2500000,
+		NotarizedOn: "2026-03-01", ShareCapital: 2500000,
 	}); err != nil {
 		t.Fatalf("Gründung: %v", err)
 	}
@@ -1304,38 +1326,47 @@ func TestCreateFiscalYearPrependsThePriorPeriod(t *testing.T) {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 
-	fy, err := closing.CreateFiscalYear(ctx, 2025)
+	candidates, err := closing.FiscalYearCandidates(ctx)
 	if err != nil {
-		t.Fatalf("Geschäftsjahr 2025 anlegen: %v", err)
+		t.Fatalf("Kandidaten: %v", err)
 	}
-	if fy.EndDate != "2026-03-14" {
-		t.Errorf("das vorangestellte Jahr endet am %s, erwartet den Tag vor dem 15.03.2026", fy.EndDate)
+	if !strings.Contains(candidates.Previous.Blocked, "01.03.2026") {
+		t.Errorf("das Vorjahr muss mit dem Gründungsdatum gesperrt sein, Grund: %q", candidates.Previous.Blocked)
 	}
-	if fy.StartDate != "2025-03-15" {
-		t.Errorf("das vorangestellte Jahr beginnt am %s, erwartet zwölf Monate vor seinem Ende", fy.StartDate)
-	}
-
-	// Zwei Jahre zurück auf einmal ließe 2024 ohne Anschluss.
-	if _, err := closing.CreateFiscalYear(ctx, 2023); err == nil {
-		t.Error("ein Sprung auf 2023 lässt 2024 ohne Geschäftsjahr")
+	if _, err := closing.CreateFiscalYear(ctx, 2025); err == nil {
+		t.Error("das Geschäftsjahr 2025 endet vor der Gründung und wurde trotzdem angelegt")
 	}
 }
 
-// Weiter als ein Jahr im Voraus lässt sich kein Geschäftsjahr anlegen.
-//
-// Ein Jahr Vorlauf ist der Anwendungsfall des Jahreswechsels; alles darüber ist
-// ein Vertipper, der ein leeres Geschäftsjahr hinterlässt, das sich nicht mehr
-// entfernen lässt.
-func TestCreateFiscalYearRefusesTheDistantFuture(t *testing.T) {
+// Das kommende Geschäftsjahr lässt sich erst im letzten Quartal vor seinem
+// Beginn anlegen.
+func TestCreateFiscalYearOpensTheNextYearInTheLastQuarter(t *testing.T) {
 	env := newTestEnv(t)
 	closing := env.closing(t)
 	ctx := context.Background()
 
-	limit := time.Now().Year() + MaxFiscalYearsAhead
-	if _, err := closing.CreateFiscalYear(ctx, limit+1); err == nil {
-		t.Errorf("das Geschäftsjahr %d liegt zu weit voraus und wurde trotzdem angelegt", limit+1)
-	} else if !strings.Contains(err.Error(), strconv.Itoa(limit)) {
-		t.Errorf("die Meldung muss die Grenze %d nennen, lautet aber: %v", limit, err)
+	if _, err := closing.CreateFiscalYear(ctx, 2026); err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+
+	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 23, 0, 0, 0, time.UTC) })
+	candidates, err := closing.FiscalYearCandidates(ctx)
+	if err != nil {
+		t.Fatalf("Kandidaten: %v", err)
+	}
+	if candidates.Next.Year != 2027 || !strings.Contains(candidates.Next.Blocked, "01.10.2026") {
+		t.Errorf("2027 muss bis zum 01.10.2026 gesperrt sein: %+v", candidates.Next)
+	}
+	if _, err := closing.CreateFiscalYear(ctx, 2027); err == nil {
+		t.Error("das Geschäftsjahr 2027 wurde im dritten Quartal angelegt")
+	}
+
+	closing.SetClock(func() time.Time { return time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC) })
+	if _, err := closing.CreateFiscalYear(ctx, 2027); err != nil {
+		t.Errorf("im letzten Quartal muss sich 2027 anlegen lassen: %v", err)
+	}
+	if _, err := closing.CreateFiscalYear(ctx, 2028); err == nil {
+		t.Error("das Geschäftsjahr 2028 liegt zu weit voraus und wurde trotzdem angelegt")
 	}
 }
 

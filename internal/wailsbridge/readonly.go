@@ -113,6 +113,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetFinancialSummary":             true,
 	"GetFiscalYear":                   true,
 	"GetFiscalYears":                  true,
+	"GetFiscalYearCandidates":         true,
 	"GetFixedAsset":                   true,
 	"GetFixedAssets":                  true,
 	"GetFoundationRules":              true,

@@ -159,8 +159,8 @@ export function App() {
    * Ein Geschäftsjahr von Hand anlegen: das kommende beginnt am Tag nach dem
    * Ende des Vorjahres, auch nach einem Rumpfgeschäftsjahr, das vergangene
    * endet am Tag vor dem Beginn des bisher ersten. Die Ansicht schaltet danach
-   * auf das neue Jahr um. Richtung und Grenze wählt der Dialog in der
-   * Kopfzeile, geprüft wird beides noch einmal im Backend.
+   * auf das neue Jahr um. Welche Jahre sich anlegen lassen, entscheidet das
+   * Backend.
    */
   const handleCreateFiscalYear = async (year: number) => {
     try {

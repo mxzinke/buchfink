@@ -48,6 +48,7 @@ type ClosingService struct {
 	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
 	// nach dem sich die Übergangsfrist des § 27 Abs. 38 UStG richtet.
 	revenue    RevenueSource
+	now        func() time.Time
 	fiscalYear int
 }
 
@@ -74,9 +75,14 @@ func NewClosingService(
 		festschreibungRepo: festschreibungRepo,
 		auditRepo:          auditRepo,
 		journalSvc:         journalSvc,
+		now:                time.Now,
 		fiscalYear:         fiscalYear,
 	}
 }
+
+// SetClock ersetzt die Uhr. Nur für Tests — ab wann sich ein kommendes
+// Geschäftsjahr anlegen lässt, richtet sich nach ihr.
+func (s *ClosingService) SetClock(now func() time.Time) { s.now = now }
 
 // SetFoundationRepo koppelt die Gründung an. Sie entscheidet über das
 // Rumpfgeschäftsjahr: eine Gesellschaft, die im März beurkundet wurde, hat kein
@@ -199,22 +205,79 @@ func (s *ClosingService) EnsureFiscalYears(ctx context.Context) error {
 	return nil
 }
 
-// MaxFiscalYearsAhead ist der Vorlauf, den ein Geschäftsjahr haben darf.
+// FiscalYearCandidate ist ein Geschäftsjahr, das sich an die erfassten anlegen ließe.
+type FiscalYearCandidate struct {
+	Year      int    `json:"year"`
+	StartDate string `json:"startDate"`
+	EndDate   string `json:"endDate"`
+	// Blocked nennt den Grund, aus dem das Jahr nicht angelegt werden kann; leer heißt anlegbar.
+	Blocked string `json:"blocked,omitempty"`
+}
+
+// FiscalYearCandidates sind die beiden Jahre, die ohne Lücke (§ 239 Abs. 2 HGB)
+// an die erfassten anschließen.
+type FiscalYearCandidates struct {
+	Next     FiscalYearCandidate `json:"next"`
+	Previous FiscalYearCandidate `json:"previous"`
+}
+
+// FiscalYearCandidates liefert das kommende und das vergangene Geschäftsjahr.
+func (s *ClosingService) FiscalYearCandidates(ctx context.Context) (*FiscalYearCandidates, error) {
+	all, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
+	}
+	if len(all) == 0 {
+		all = []domain.FiscalYear{*s.derive(ctx, s.fiscalYear)}
+	}
+	first, last := &all[0], &all[0]
+	for i := range all {
+		if all[i].Year < first.Year {
+			first = &all[i]
+		}
+		if all[i].Year > last.Year {
+			last = &all[i]
+		}
+	}
+	nextStart := nextDay(last.EndDate)
+	previousEnd := previousDay(first.StartDate)
+	return &FiscalYearCandidates{
+		Next:     s.candidate(ctx, domain.NewFiscalYear(last.Year+1, nextStart, lastDayOfTwelveMonths(nextStart))),
+		Previous: s.candidate(ctx, domain.NewFiscalYear(first.Year-1, firstDayOfTwelveMonths(previousEnd), previousEnd)),
+	}, nil
+}
+
+// candidate prüft ein Geschäftsjahr gegen Uhr und Gründung.
 //
-// Ein Jahr im Voraus ist der Anwendungsfall: zum Jahreswechsel wird im neuen
-// Jahr gebucht, bevor das alte festgestellt ist. Alles darüber ist kein
-// Vorhaben, sondern ein Vertipper — und er hinterlässt ein leeres
-// Geschäftsjahr, das sich nicht mehr entfernen lässt, weil das Protokoll es
-// festhält und der Saldenvortrag daran anschließt.
-const MaxFiscalYearsAhead = 1
+// Ein kommendes Jahr lässt sich erst im letzten Quartal vor seinem Beginn
+// anlegen, ein vergangenes nur, wenn es das Unternehmen darin schon gab.
+func (s *ClosingService) candidate(ctx context.Context, fy *domain.FiscalYear) FiscalYearCandidate {
+	c := FiscalYearCandidate{Year: fy.Year, StartDate: fy.StartDate, EndDate: fy.EndDate}
+	if start, err := time.Parse("2006-01-02", fy.StartDate); err == nil {
+		opensOn := start.AddDate(0, -3, 0).Format("2006-01-02")
+		if s.now().Format("2006-01-02") < opensOn {
+			c.Blocked = fmt.Sprintf(
+				"Das Geschäftsjahr %d beginnt am %s und lässt sich erst im letzten Quartal davor anlegen, ab dem %s.",
+				fy.Year, germanDate(fy.StartDate), germanDate(opensOn))
+			return c
+		}
+	}
+	if s.foundationRepo != nil {
+		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 && fy.EndDate < f.NotarizedOn {
+			c.Blocked = fmt.Sprintf(
+				"Das Unternehmen wurde am %s gegründet. Ein Geschäftsjahr, das vorher endet, gibt es nicht.",
+				germanDate(f.NotarizedOn))
+		}
+	}
+	return c
+}
 
 // CreateFiscalYear legt ein Geschäftsjahr an, das an die vorhandenen anschließt.
 //
-// Nach vorn ist das das Folgejahr des zuletzt erfassten: es beginnt am Tag nach
-// dessen Ende und dauert zwölf Monate. Nach hinten ist es das Jahr vor dem
-// bisher ersten: es endet am Tag vor dessen Beginn. Der Weg nach hinten ist der
-// Fall der Übernahme aus einem Altsystem — die Eröffnungswerte gehören in das
-// Jahr davor, und ohne dieses Jahr gäbe es für sie keinen Zeitraum.
+// Nach vorn ist das das Folgejahr des zuletzt erfassten, nach hinten das Jahr
+// vor dem bisher ersten — der Fall der Übernahme aus einem Altsystem. Beide
+// Zeiträume schließen tagesgenau an, auch nach einem Rumpfgeschäftsjahr oder bei
+// abweichendem Wirtschaftsjahr. Das erste Jahr überhaupt ist frei wählbar.
 func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	if year <= 0 {
 		return nil, fmt.Errorf("das Geschäftsjahr braucht eine Jahreszahl")
@@ -226,35 +289,37 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	if existing != nil {
 		return existing, nil
 	}
-	if limit := time.Now().Year() + MaxFiscalYearsAhead; year > limit {
-		return nil, fmt.Errorf(
-			"das Geschäftsjahr %d liegt zu weit in der Zukunft; anlegen lässt sich höchstens %d",
-			year, limit)
-	}
-	// Nur unmittelbar vor oder nach den vorhandenen Jahren. Ein Sprung ließe
-	// eine Lücke, in der Buchungen zu keinem Geschäftsjahr gehören: die Bücher
-	// wären nicht mehr lückenlos (§ 239 Abs. 2 HGB), und der Saldenvortrag
-	// fände keinen Anschluss.
-	if err := s.assertConsecutive(ctx, year); err != nil {
-		return nil, err
+	all, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
 	}
 
-	fy := s.derive(ctx, year)
-	// Das Vorjahr entscheidet über den Beginn: nach einem Rumpfgeschäftsjahr
-	// oder einer Umstellung ist der abgeleitete Beginn nicht der richtige, wohl
-	// aber der Tag nach dem Ende des Vorjahres — sonst entstünde eine Lücke oder
-	// eine Überschneidung, in der Buchungen zu keinem Jahr gehören.
-	if prev, err := s.fiscalYearRepo.FindByYear(ctx, year-1); err == nil && prev != nil {
-		start := nextDay(prev.EndDate)
-		fy = domain.NewFiscalYear(year, start, lastDayOfTwelveMonths(start))
-	} else if next, err := s.fiscalYearRepo.FindByYear(ctx, year+1); err == nil && next != nil {
-		// Das vorangestellte Jahr endet am Tag vor dem Beginn des bisher
-		// ersten. Sein Beginn wird von diesem Ende zurückgerechnet und nicht
-		// aus dem Kalender abgeleitet: bei einem abweichenden Geschäftsjahr
-		// oder nach einem Rumpfjahr entstünde sonst eine Überschneidung.
-		end := previousDay(next.StartDate)
-		fy = domain.NewFiscalYear(year, firstDayOfTwelveMonths(end), end)
+	var c FiscalYearCandidate
+	if len(all) == 0 {
+		c = s.candidate(ctx, s.derive(ctx, year))
+	} else {
+		candidates, err := s.FiscalYearCandidates(ctx)
+		if err != nil {
+			return nil, err
+		}
+		switch year {
+		case candidates.Next.Year:
+			c = candidates.Next
+		case candidates.Previous.Year:
+			c = candidates.Previous
+		default:
+			return nil, fmt.Errorf(
+				"das Geschäftsjahr %d schließt nicht an die erfassten Jahre an; anlegen lassen "+
+					"sich nur %d und %d — sonst bliebe eine Lücke, in der Buchungen zu keinem "+
+					"Geschäftsjahr gehören",
+				year, candidates.Previous.Year, candidates.Next.Year)
+		}
 	}
+	if c.Blocked != "" {
+		return nil, fmt.Errorf("%s", c.Blocked)
+	}
+
+	fy := domain.NewFiscalYear(year, c.StartDate, c.EndDate)
 	if err := fy.Validate(); err != nil {
 		return nil, err
 	}
@@ -266,11 +331,8 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, nach der
 	// sich die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet.
 	s.prefillPriorYearRevenue(ctx, fy)
-	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Die
-	// Bilanzierungs- und Bewertungsmethoden ändern sich selten, und ein leerer
-	// Anhang führt in der Praxis dazu, dass die Angaben schlicht fehlen.
-	// Scheitert das, bleibt das Jahr trotzdem angelegt: eine fehlende Vorlage ist
-	// kein Grund, kein Geschäftsjahr zu haben.
+	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Scheitert das,
+	// bleibt das Jahr trotzdem angelegt.
 	if s.notes != nil {
 		if _, err := s.notes.CopyNotesInto(ctx, year); err != nil {
 			s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
@@ -278,39 +340,6 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 		}
 	}
 	return fy, nil
-}
-
-// assertConsecutive weist eine Jahreszahl ab, die eine Lücke ließe.
-//
-// Das erste Jahr ist frei wählbar — vorher gibt es nichts, woran es anschließen
-// müsste. Danach kommen zwei Jahre in Betracht: das Folgejahr des zuletzt
-// erfassten und das Jahr vor dem bisher ersten. Alles dazwischen ist schon
-// angelegt, alles darüber hinaus ließe eine Lücke.
-func (s *ClosingService) assertConsecutive(ctx context.Context, year int) error {
-	all, err := s.fiscalYearRepo.FindAll(ctx)
-	if err != nil {
-		return fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
-	}
-	if len(all) == 0 {
-		return nil
-	}
-	first, last := all[0].Year, all[0].Year
-	for _, fy := range all {
-		if fy.Year > last {
-			last = fy.Year
-		}
-		if fy.Year < first {
-			first = fy.Year
-		}
-	}
-	if year == last+1 || year == first-1 {
-		return nil
-	}
-	return fmt.Errorf(
-		"das Geschäftsjahr %d schließt nicht an die erfassten Jahre %d bis %d an; anlegen lassen "+
-			"sich nur %d und %d — sonst bliebe eine Lücke, in der Buchungen zu keinem "+
-			"Geschäftsjahr gehören",
-		year, first, last, first-1, last+1)
 }
 
 // YearOf liefert das Geschäftsjahr und legt es an, falls es noch fehlt.
