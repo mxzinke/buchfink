@@ -1,10 +1,12 @@
 # Buchfink – Rechnungsabgrenzung
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-08, GOB-06
+[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), BEW-08, GOB-06
 
 Status: Fachkonzept; Abgrenzung und Auflösung implementiert
 Letzte Aktualisierung: 2026-08-22
-Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Die gesetzlichen Anforderungen samt Fundstellen stehen im
@@ -13,7 +15,7 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
 > überholt. Maßgebliche Implementierung: `internal/service/accrual_service.go` und `internal/accounting/accrual.go`.
 > Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
-> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](../projekt/umsetzungsstand.md).
 
 ## 1. Worum es geht
 

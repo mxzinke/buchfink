@@ -1,5 +1,5 @@
 /**
- * Die Bausteine des Design-Konzepts. Spezifikation: docs/design-konzept.md.
+ * Die Bausteine des Design-Konzepts. Spezifikation: docs/gestaltung/komponenten.md.
  *
  * Verhalten kommt von Base UI (`@base-ui/react`): Fokusfang, Positionierung mit
  * Kollisionsprüfung, Tastaturführung, ARIA. Gestalt kommt von hier, in

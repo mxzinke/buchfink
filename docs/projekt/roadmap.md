@@ -1,7 +1,9 @@
 # Ziele und nächste Schritte
 
+[Dokumentation](../README.md) · [Erste Schritte](../nutzung/README.md)
+
 Stand: 13. September 2026. Diese Seite beschreibt geplante Arbeit.
-Was bereits implementiert ist, steht im [Umsetzungsstand](stand-der-umsetzung.md).
+Was bereits implementiert ist, steht im [Umsetzungsstand](umsetzungsstand.md).
 
 Buchfink soll kleinen Unternehmen, Gründern und Holdings ermöglichen, ihre
 Buchhaltung frei und selbstständig zu erledigen. Dazu entwickeln wir gemeinsam
@@ -44,7 +46,7 @@ Sicherungsarchiven ergänzt werden. Außerdem fehlt ein Verfahren zum Widerruf
 verlorener Wiederherstellungsschlüssel. Alte Sicherungen und
 Dateisystem-Snapshots werden durch eine Migration der aktuellen Datenbank nicht
 nachträglich geschützt. Den bestehenden Schutz beschreibt das
-[Sicherheitskonzept](security-concept.md).
+[Sicherheitskonzept](../nutzung/datensicherheit.md).
 
 ## Lokale Anbindung an Chatbots
 
@@ -61,5 +63,5 @@ Entwicklungswerkzeuge ermöglichen. Aktuell wird die Vorschau aus dem Quellcode
 gebaut. Es gibt noch keinen verbindlichen Termin für Version 1 oder MCP.
 
 Die fachlichen Einzelanforderungen stehen im
-[Anforderungskatalog](anforderungskatalog.md). Ein DATEV-Export bleibt ein
-[offener Entwurf](anforderung-datev-export.md), ohne Umsetzungszusage.
+[Anforderungskatalog](../anforderungen/README.md). Ein DATEV-Export bleibt ein
+[offener Entwurf](../fachkonzepte/datev-export.md), ohne Umsetzungszusage.

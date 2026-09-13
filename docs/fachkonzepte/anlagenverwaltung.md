@@ -1,11 +1,13 @@
 # Buchfink – Anlagenverwaltung
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), BEW-02,
+[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), BEW-02,
 BEW-03, BEW-04, BEW-05, BEW-06, BEW-10, JAB-05
 
 Status: umgesetzt
 Letzte Aktualisierung: 2026-08-28
-Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
 > **Umsetzung.** Das Anlagenverzeichnis liegt unter „Anlagevermögen" in der
 > Seitenspalte. Der Kern steht in `internal/domain/asset.go` (Anlagegut und

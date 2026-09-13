@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,17 +13,21 @@ import (
 // part of a Buchungssatz: bold ("**5906**") or as a mapping target ("→ 5906").
 var docAccountPattern = regexp.MustCompile(`\*\*(\d{4})\*\*|→\s+(\d{4})\b`)
 
-// TestConceptDocumentsUseRealSKR04Accounts checks every account number the
-// requirement documents name against the DATEV catalog.
-//
-// The main concept previously carried SKR03 numbers throughout, and nothing
-// caught it: the numbers look plausible, and several of them exist in SKR04 with
-// a completely different meaning. Prose is not compiled, so this test compiles
-// it — for every document under docs/, so a new one is covered from the start.
+// TestConceptDocumentsUseRealSKR04Accounts prüft die Kontonummern in allen
+// Markdown-Dateien unter docs/, einschließlich der Unterverzeichnisse.
 func TestConceptDocumentsUseRealSKR04Accounts(t *testing.T) {
-	paths, err := filepath.Glob("../../docs/*.md")
+	var paths []string
+	err := filepath.WalkDir("../../docs", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && filepath.Ext(path) == ".md" {
+			paths = append(paths, path)
+		}
+		return nil
+	})
 	if err != nil || len(paths) == 0 {
-		t.Skipf("keine Dokumente gefunden: %v", err)
+		t.Fatalf("Dokumentation nicht vollständig lesbar oder leer: %v", err)
 	}
 
 	chart := chartForTest(t)

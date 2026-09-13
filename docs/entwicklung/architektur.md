@@ -1,13 +1,15 @@
 # Buchfink – Architektur und Bedienkonzept
 
+[Dokumentation](../README.md) · [Entwicklung](README.md)
+
 Status: verbindlich für die Produktionsreife
 Letzte Aktualisierung: 2026-09-11
 
 Dieses Dokument beschreibt, wie Buchfink gebaut ist und wie es sich anfühlen
 soll, wenn jemand ohne Buchhaltungskenntnis damit die Bücher einer kleinen
 Kapitalgesellschaft führt. Es ergänzt zwei andere Dokumente: der
-[Anforderungskatalog](anforderungskatalog.md) sagt, was das Gesetz verlangt und
-wie weit Buchfink das erfüllt; das [Design-Konzept](design-konzept.md) sagt,
+[Anforderungskatalog](../anforderungen/README.md) sagt, was das Gesetz verlangt und
+wie weit Buchfink das erfüllt; das [Design-Konzept](../gestaltung/README.md) sagt,
 wie die Oberfläche aussieht. Hier steht, warum die Software so geschnitten ist
 und welche Entscheidungen dahinterstehen.
 
@@ -25,7 +27,7 @@ Ziel ist eine gesetzeskonforme, gemeinsam entwickelte Software, mit der auch
 einfache Jahresabschlüsse selbst erstellt werden können. Steuerberatung bleibt
 für die steuerliche Gestaltung und konkrete Fragen verfügbar. Dieser
 vollständige Abschlussweg ist noch nicht erreicht; siehe
-[Umsetzungsstand](stand-der-umsetzung.md) und [Roadmap](roadmap.md).
+[Umsetzungsstand](../projekt/umsetzungsstand.md) und [Roadmap](../projekt/roadmap.md).
 
 Jede Ansicht beantwortet: Was ist jetzt zu tun, welche Angaben brauche ich und
 woran erkenne ich, dass der Schritt erledigt ist?
@@ -327,7 +329,7 @@ Die Oberfläche spricht in Vorgängen, nicht in Konten. Ein Bankumsatz ist
 eine Abgrenzung ist „Kosten, die ins nächste Jahr gehören". Der Buchungssatz
 mit Soll und Haben steht in der Vorschau jedes Vorgangs und im Journal, damit
 der Steuerberater ihn sieht und die Anwenderin ihn lernen kann, wenn sie will.
-Das [Designkonzept](design-konzept.md) trennt kurze Tooltips am Fragezeichen
+Das [Designkonzept](../gestaltung/README.md) trennt kurze Tooltips am Fragezeichen
 von Detaildialogen hinter „Mehr erfahren“. Fachliche Details und verlinkte
 Rechtsgrundlagen stehen im Dialog. Handlungsrelevante Fehler und
 Einschränkungen bleiben in der Arbeitsansicht sichtbar, in einfacher Sprache.
@@ -373,10 +375,10 @@ Frage, was einen Jahreslauf blockiert.
 | 5b | Rechnungsnummer in einer Transaktion, Pflichtangaben, XRechnung, Storno- und Korrekturbelege, Kleinbetrag, Anzahlungen als Rechnungsverbund, Ausbuchung | RECH-02 bis RECH-09, BEL-09, UST-02 | Die Ausgangsrechnung ist der häufigste Beleg; ihre Fehler wandern in jede Meldung. |
 | 5c | Vorsteuerkopplung, Vorsteuerschlüssel, Verzeichnis nach § 15a UStG, USt-IdNr.-Bestätigung, Belegnachweis, Geschenke, Fremdwährung, Abschreibungsregeln als Ressource | UST-05 bis UST-07, RECH-07, BEW-03, BEW-10, BEW-12 | Nebenpflichten, die im laufenden Jahr anfallen und im Abschluss nicht mehr nachholbar sind. |
 | 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
-| 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/pruefszenario.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
+| 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/entwicklung/pruefszenarien.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
 
 Die Wellen sind eine historische Einteilung und keine aktuelle Roadmap. Was offen geblieben ist, hat im
-[Anforderungskatalog](anforderungskatalog.md) in der Spalte Welle den Vermerk
+[Anforderungskatalog](../anforderungen/README.md) in der Spalte Welle den Vermerk
 „Politur" und nennt in der Spalte Grund, wovon es abhängt: von einer
 Entscheidung, von einem Objekt, das Buchfink nicht führt, oder von einer
 Handlung außerhalb des Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
@@ -386,4 +388,4 @@ steht dort mit Fundstellen.
 
 Ein lokaler MCP-Server zur Anbindung des Chatbots der Wahl ist geplant.
 Es gibt dafür noch keine Implementierung oder festgelegte Berechtigungsarchitektur.
-Der Entwurf wird auf der [Roadmap](roadmap.md) geführt.
+Der Entwurf wird auf der [Roadmap](../projekt/roadmap.md) geführt.

@@ -1,11 +1,13 @@
 # Buchfink – Gründung einer Kapitalgesellschaft
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), GOB-01,
+[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), GOB-01,
 GOB-06, JAB-07, UST-03, QUE-02
 
 Status: umgesetzt
 Letzte Aktualisierung: 2026-09-08
-Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind am **01.09.2026** gegen den
@@ -129,7 +131,7 @@ Rechnung im Februar nur die Buchungen des neuen Jahres, und weil die Zeichnung
 des Stammkapitals im alten steht, wies sie näherungsweise das volle Stammkapital
 als Unterbilanz aus.
 
-Der fehlende Saldenvortrag (siehe [stand-der-umsetzung.md](stand-der-umsetzung.md),
+Der fehlende Saldenvortrag (siehe [stand-der-umsetzung.md](../projekt/umsetzungsstand.md),
 Abschnitt 3) stört dabei nicht: Bis zur Eintragung sind Bewegung und Bestand
 dasselbe, denn vor der Beurkundung gab es keine Buchung.
 
@@ -268,7 +270,7 @@ verschwindet mit der Eintragung von selbst.
 
 Die Erklärung dazu liegt in `frontend/src/components/GruendungHelp.tsx` und wird
 von beiden Stellen benutzt, dem Streifen und dem Gründungsabschnitt der
-Fristenseite. Die Hilfe folgt Abschnitt 15.2 des Designkonzepts: kurzer Kontext in der
+Fristenseite. Die Hilfe folgt [Abschnitt 15.2 des Designkonzepts](../gestaltung/hilfetexte.md#152-tooltip-und-detaildialog): kurzer Kontext in der
 Ansicht, ein einfacher Satz im Tooltip am Fragezeichen und die Berechnung mit
 Beispiel und Quellen im Dialog hinter „Mehr erfahren".
 
@@ -324,7 +326,7 @@ gerechnet wird nur die Vorschau, und dort ist der aktuelle Stand der richtige.
 
 Die Pflichten stehen nicht nur als Liste, sondern als Weg: nummeriert in der
 Reihenfolge des Tuns, mit Fortschritt und dem Satz, was als Nächstes ansteht.
-Er folgt dem geführten Weg des Jahresabschlusses (architektur.md, Abschnitt 6.3):
+Er folgt dem geführten Weg des Jahresabschlusses ([Architektur, Abschnitt 6.3](../entwicklung/architektur.md#63-jahresabschluss-als-geführter-weg)):
 die Schritte kommen aus dem Backend, gezählt wird dort, und jeder Schritt öffnet
 seine Arbeit da, wo sie wohnt.
 
@@ -474,7 +476,7 @@ Die Fundstellen im Code:
 **GmbH & Co. KG.** Zwei Gesellschaften, zwei Eintragungen, Kapitalkonten der
 Kommanditisten. Die Komplementär-GmbH durchläuft den hier beschriebenen Weg, die
 KG einen anderen. Solange die Kapitalkonten der Gesellschafter fehlen (siehe
-[stand-der-umsetzung.md](stand-der-umsetzung.md), Abschnitt 4), wäre der zweite
+[stand-der-umsetzung.md](../projekt/umsetzungsstand.md), Abschnitt 4), wäre der zweite
 Teil ohnehin nicht darstellbar.
 
 **Bewertung von Sacheinlagen.** Buchfink erfasst, dass eine vorliegt und mit

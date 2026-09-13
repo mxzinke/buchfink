@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Prüft, dass das Frontend nur die Tokens aus docs/design-konzept.md benutzt.
+"""Prüft, dass das Frontend nur die Tokens aus docs/gestaltung/grundlagen.md benutzt.
 
-Zwei Regeln, beide aus §17:
+Zwei Regeln aus der Prüfliste in docs/gestaltung/README.md:
 
 1. Keine Klasse aus einer Tailwind-Standardpalette. Die Farben der Anwendung
    stehen als Tokens in `frontend/src/index.css`; `stone-700` oder `amber-600`

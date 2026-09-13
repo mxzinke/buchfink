@@ -1,9 +1,18 @@
 # Mitwirken an Buchfink
 
-Danke für dein Interesse. Buchfink ist Buchhaltungssoftware — Fehler haben hier
-handfeste Folgen für Jahresabschluss und Betriebsprüfung. Entsprechend genau
-schauen wir auf Änderungen, die Buchungslogik, Hash-Chain, Steuerkennzeichen
-oder Exportformate berühren.
+[Projektübersicht](README.md) · [Dokumentation](docs/README.md)
+
+Du kannst mit Fehlerberichten, Rückmeldungen zur Bedienung, verständlicheren
+Texten, fachlichen Prüfungen oder Code beitragen.
+
+## Fehler melden und Rückmeldung geben
+
+Öffne ein [Issue](https://github.com/mxzinke/buchfink/issues) und beschreibe,
+was du erreichen wolltest, welche Schritte du ausgeführt hast und was
+stattdessen passiert ist. Nenne Programmversion und Betriebssystem. Bei
+fachlichen Fragen hilft ein konkreter Geschäftsvorfall mit erwartetem Ergebnis.
+Verwende erfundene Daten und entferne persönliche oder geschäftliche Angaben
+aus Screenshots und Protokollen.
 
 ## Bevor du loslegst
 
@@ -43,29 +52,20 @@ gehört es in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ## Entwicklungsumgebung
 
-Voraussetzungen und Setup stehen im [README](README.md#entwicklung--weiterentwicklung).
+Voraussetzungen, Start und Prüfungen stehen unter
+[Entwicklung](docs/entwicklung/README.md). Die [Orientierung im Code](docs/entwicklung/codebase.md)
+zeigt, wo du die betroffenen Module findest.
 
 ## Vor dem Pull Request
 
-Lass diese Prüfungen durchlaufen und behebe, was sie melden:
+Führe die [Prüfungen für deine Änderung](docs/entwicklung/README.md#änderungen-prüfen)
+aus und behebe die Befunde. Nenne im Pull Request, was du geprüft hast und
+welche Prüfungen du nicht ausführen konntest.
+
+Nach Änderungen an Abhängigkeiten erzeuge die Hinweise zu Drittkomponenten neu:
 
 ```bash
-go build ./...
-go vet ./...
-go test ./...
-
-cd frontend
-npx tsc --noEmit
-npm run build
-```
-
-Wenn du Abhängigkeiten hinzugefügt, entfernt oder aktualisiert hast, erzeuge
-die Hinweise zu Drittkomponenten neu:
-
-```bash
-go mod download
-cd frontend && npm install && cd ..
-python3 scripts/gen_third_party_notices.py
+task notices
 ```
 
 Neue Abhängigkeiten müssen mit der EUPL vereinbar sein. Permissive Lizenzen
@@ -81,9 +81,21 @@ Tests. Orientiere dich an den vorhandenen Tests unter `internal/service/` und
 `internal/accounting/`. Bei fachlichen Änderungen gehört in den Pull Request,
 worauf sie sich stützt — Paragraph, GoBD-Randziffer oder Taxonomie-Version.
 
+## Dokumentation und Texte
+
+Schreibe Dokumentation und Codekommentare auf Deutsch. Pflege Funktionen und
+Grenzen im [Umsetzungsstand](docs/projekt/umsetzungsstand.md), fachliche Details im
+[passenden Konzept](docs/fachkonzepte/README.md). Für Formulierungen gilt die
+[Schreibweise](docs/gestaltung/schreibweise.md), für Ablage und Verweise die
+[Dokumentationspflege](docs/entwicklung/dokumentation.md).
+
 ## Commits und Pull Requests
 
-- Eine Änderung pro Commit, Betreffzeile im Imperativ und auf Deutsch.
+- Commit-Betreff und PR-Titel folgen Conventional Commits, etwa
+  `docs(readme): Straffe den Projekteinstieg` oder
+  `fix(accounting): Korrigiere die Rundung`. Formuliere die Zusammenfassung
+  auf Deutsch und im Imperativ.
+- Halte jeden Commit auf eine zusammenhängende Änderung begrenzt.
 - Der Text erklärt das *Warum*; das *Was* steht im Diff.
 - Der Pull Request beschreibt Motivation, Lösungsweg und wie du geprüft hast,
   dass es funktioniert.
@@ -93,7 +105,8 @@ worauf sie sich stützt — Paragraph, GoBD-Randziffer oder Taxonomie-Version.
 
 - Umstellungen auf andere Frameworks oder Bibliotheken ohne vorherige
   Abstimmung.
-- Cloud-Abhängigkeiten. Buchfink ist local-first; Daten bleiben auf dem Rechner
-  des Anwenders.
+- Eine verpflichtende Cloud-Speicherung der Buchhaltung. Die Datenhaltung ist
+  lokal; bestehende externe Dienste sind im
+  [Sicherheitskonzept](docs/nutzung/datensicherheit.md) beschrieben.
 - Unterstützung für die Einnahmen-Überschuss-Rechnung (EÜR). Die ist bewusst
   außerhalb des Anwendungsbereichs.

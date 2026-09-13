@@ -1,10 +1,12 @@
 # Buchfink – DATEV-Export
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), PRF-02, PRF-06
+[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), PRF-02, PRF-06
 
 Status: offener Entwurf, nicht implementiert, keine Umsetzungszusage
 Letzte Aktualisierung: 2026-08-22
-Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
 Der DATEV-Export ist keine gesetzliche Pflicht: den Beschreibungsstandard für die
 Datenüberlassung an die Betriebsprüfung führt der Anforderungskatalog unter PRF-02,

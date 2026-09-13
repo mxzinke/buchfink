@@ -1,5 +1,7 @@
 # Schreibweise
 
+[Dokumentation](../README.md) · [Entwicklung](../entwicklung/README.md)
+
 Buchfink erklärt Buchhaltung Menschen, die sie nicht gelernt haben. Das gelingt
 nur mit Sätzen, die eine Sache benennen und dann aufhören. Diese Seite sammelt
 die Wendungen, die sich im Projekt eingeschlichen haben, und sagt, was
@@ -86,10 +88,9 @@ den Quelltext oder in `docs/`, nicht vor den Anwender. Wo der Anwender das
 Format wirklich braucht — weil er einen Ordner übergibt oder eine Datei sucht —,
 steht es im Dialog hinter „Mehr erfahren" und nicht im Tooltip.
 
-Die Stufen aus Abschnitt 15.2 des Designkonzepts: knapper Kontext in der
-Ansicht, ein kurzer Satz am Fragezeichen, Details im Dialog hinter
-„Mehr erfahren“. Der Tooltip erklärt den Begriff oder die Handlung in einfachen
-Worten. Gesetze werden im Dialog verständlich eingeordnet und direkt verlinkt.
+Die [Regeln für Hilfetexte](hilfetexte.md#152-tooltip-und-detaildialog)
+beschreiben, welche Erklärung in die Ansicht, an das Fragezeichen oder in den
+Detaildialog gehört.
 
 ## Wörter, die nichts sagen
 

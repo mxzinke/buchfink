@@ -1,11 +1,13 @@
 # Buchfink – E-Rechnung (Empfang und Ausstellung)
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), RECH-05,
+[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), RECH-05,
 RECH-06, RECH-07, RECH-10, UST-07, ARC-01, ARC-07
 
 Status: Fachkonzept; Empfang und Ausstellung implementiert, mit Validierungsgrenzen
 Letzte Aktualisierung: 2026-08-22
-Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
+Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
 > Dieses Dokument ist vollständig gegen Primärquellen geprüft (Stand 22.08.2026):
 > UStG über gesetze-im-internet.de, das BMF-Schreiben vom 15.10.2025 zur
@@ -16,7 +18,7 @@ Voraussetzung: [Beleg- & Buchungsflow](anforderung-beleg-buchungsflow.md)
 > Abgleich vom 11. September 2026: Die frühere Umsetzungseinschätzung ist
 > überholt. Maßgebliche Implementierung: `internal/einvoice/`, `internal/invoice/` und `internal/service/invoice_service.go`.
 > Dieses Dokument bewahrt die fachliche Entwurfsgrundlage. Den aktuellen Umfang
-> und verbleibende Grenzen beschreibt der [Umsetzungsstand](stand-der-umsetzung.md).
+> und verbleibende Grenzen beschreibt der [Umsetzungsstand](../projekt/umsetzungsstand.md).
 
 ## 1. Warum dieses Dokument anders ist als die anderen
 
@@ -165,7 +167,7 @@ Unveränderbarkeitsnachweis wie die Buchung – und zwar über seinen Hash, nich
 seinen Pfad, konsistent zu der Entscheidung, `DocumentPath` bewusst aus der
 Kanonisierung herauszulassen.
 
-Genau das leistet der **Beleg-Hash** aus Abschnitt 15 des Hauptkonzepts: er läuft
+Genau das leistet der **Beleg-Hash** aus [Belegmodell](belege.md): er läuft
 über die geordnete Liste aller Belegdateien, deckt damit Original *und*
 strukturierten Teil ab und wandert als ein Wert in die Buchung. Ein
 nachträglich ausgetauschtes XML fällt auf, ohne dass die Buchung n Hashes speichern
@@ -178,8 +180,7 @@ E-Rechnung ist der Grund, warum ein Beleg im Belegflow aus mehreren Dateien
 besteht, kein Anbau daneben: Rollen `original`, `structured`, `rendering`
 und `attachment`, Hash je Datei, Beleg-Hash über die geordnete Liste, mit der
 Buchung versiegelt. Siehe
-[anforderung-beleg-buchungsflow.md](anforderung-beleg-buchungsflow.md),
-Abschnitt 15.
+[Belegmodell](belege.md).
 
 Was dieses Dokument darüber hinaus verlangt, sind zwei Angaben am Beleg, die nur
 im E-Rechnungsfall entstehen:

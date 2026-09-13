@@ -1,6 +1,6 @@
 # Buchfink isoliert prüfen
 
-Diese Hilfen führen die [Prüfszenarien](../../docs/pruefszenario.md) mit isolierten Beispieldaten aus.
+Diese Hilfen führen die [Prüfszenarien](../../docs/entwicklung/pruefszenarien.md) mit isolierten Beispieldaten aus.
 Sie verwenden die echte Wails-Bridge, die echten Dienste, SQLite und den
 Betriebssystem-Schlüsselbund. Der Server lauscht ausschließlich auf 127.0.0.1:9250.
 

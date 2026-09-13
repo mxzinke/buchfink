@@ -1,8 +1,10 @@
 # Prüfszenarien
 
+[Dokumentation](../README.md) · [Entwicklung](README.md)
+
 Diese Seite bündelt wiederholbare Prüfabläufe und deren Aussagegrenzen.
 Anleitungen für die echte Anwendung mit isolierten Beispieldaten stehen unter
-[scripts/bug-hunt](../scripts/bug-hunt/README.md). Prüfergebnisse und Aufnahmen
+[scripts/bug-hunt](../../scripts/bug-hunt/README.md). Prüfergebnisse und Aufnahmen
 liegen lokal unter `.cache/`; sie werden nicht mit dem Quellcode veröffentlicht.
 
 ## Vom Abschluss zum Beleg
@@ -78,7 +80,7 @@ gekennzeichnet sein.
 | Bankimport | Zwei Euro-Konten und drei Umsätze in einer CAMT-Datei. Neue Konten werden beim Import eingerichtet. Die Originaldatei bleibt als Nachweis erhalten; ein identischer Wiederholungsimport erzeugt keine zusätzlichen Umsätze. | `internal/service/bank_accounts_test.go`, `internal/bank/bughunt_test.go`, `internal/repository/bughunt_bank_test.go` |
 | Teilzahlung und Skonto | Auf eine Rechnung über 1.190 € werden 500 € zugeordnet; 690 € bleiben offen. Im Skontoszenario gleichen weitere 666,20 € Zahlung und 23,80 € Skonto den Posten aus; die Umsatzsteuer beträgt danach 186,20 €. | `internal/service/payment_service_test.go`, `internal/accounting/ustva_test.go` |
 | Rechnungsdokumente | Vollständigen Firmenempfänger, Verkäuferdaten und Ansprechpartner in PDF/XML prüfen. Berichtigung und Storno erhalten ihre Bezüge. ZUGFeRD und XRechnung mit unabhängigen Werkzeugen validieren. | `internal/invoice/business_letters_test.go`, `internal/invoice/cii_content_test.go` |
-| Jahresabschluss | Nordlicht Nachprüfung UG: Rumpfjahr 2025, 5.000 € Kapital, 10.000 € Nettoumsatz, Schreibtisch und Hosting. Nach 46,16 € Abschreibung, 900 € Abgrenzung und Steuerrückstellungen ergeben sich 6.782,12 € Jahresüberschuss, 1.695,53 € UG-Rücklage, 5.086,59 € Bilanzgewinn und 16.097,84 € Bilanzsumme. Feststellung, Nachweisabfrage und Vortrag nach 2026 prüfen. | [Szenarioskript](../scripts/bug-hunt/followup-year-end.mjs), `internal/service/ug_reserve_test.go`, `statement_header_lists_test.go` |
+| Jahresabschluss | Nordlicht Nachprüfung UG: Rumpfjahr 2025, 5.000 € Kapital, 10.000 € Nettoumsatz, Schreibtisch und Hosting. Nach 46,16 € Abschreibung, 900 € Abgrenzung und Steuerrückstellungen ergeben sich 6.782,12 € Jahresüberschuss, 1.695,53 € UG-Rücklage, 5.086,59 € Bilanzgewinn und 16.097,84 € Bilanzsumme. Feststellung, Nachweisabfrage und Vortrag nach 2026 prüfen. | [Szenarioskript](../../scripts/bug-hunt/followup-year-end.mjs), `internal/service/ug_reserve_test.go`, `statement_header_lists_test.go` |
 | Export und Sicherung | Unternehmensdokumente im Prüferpaket nachweisen. CSV-Spalten, XML-Index, Größen und SHA-256 prüfen. Sicherung in einen neuen Ordner wiederherstellen; Buchungen, Dokumente, Abschlussstand und Hashketten vergleichen. Beschädigte Dateien müssen erkannt werden. | `internal/service/audit_followup_test.go`, `internal/wailsbridge/recovery_onboarding_test.go` |
 | Verschlüsselungsmigration | Alten Datenbestand auf Schema 10 migrieren. Namen, Positionstexte und Protokollbeschreibungen sind anschließend in den geprüften SQLite-, WAL- und SHM-Dateien nicht mehr im Klartext auffindbar; Buchungen und Hashketten bleiben gültig. | `internal/repository/encryption_migration_test.go` |
 | Nummernkreise | Unter Einstellungen → Rechnungsstellung aufklappen. Jahreswechsel lädt den passenden Bericht; ungespeicherte Formate bleiben erhalten. Lückenbegründung, Schreibsperre im abgeschlossenen Jahr und erneutes Laden nach einem Fehler prüfen. | Browserprüfung; Ladefehler und Lücken können durch kontrollierte Antworten simuliert werden. |
@@ -117,5 +119,5 @@ Ein Import in IDEA, eine ERiC-Abnahme, die Annahme beim Unternehmensregister
 und eine Wiederherstellung auf einem zweiten physischen Rechner sind nicht
 belegt. Auch vollständige Steuerfallabdeckung und Verständlichkeit für die
 Zielgruppe erfordern weitere Prüfung. Bekannte Produktgrenzen stehen im
-[Umsetzungsstand](stand-der-umsetzung.md), ausstehende Arbeiten in der
-[Roadmap](roadmap.md).
+[Umsetzungsstand](../projekt/umsetzungsstand.md), ausstehende Arbeiten in der
+[Roadmap](../projekt/roadmap.md).

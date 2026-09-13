@@ -54,7 +54,7 @@ tasks:
       - go test ./internal/wailsbridge/... {{.CLI_ARGS}}
 
   check:design:
-    summary: Checks the frontend against the token layer of docs/design-konzept.md
+    summary: Checks the frontend against the token layer of docs/gestaltung/grundlagen.md
     cmds:
       - python3 scripts/check_design_tokens.py
 

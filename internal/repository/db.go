@@ -25,7 +25,7 @@ import (
 // (settings_gorm.go): abends gesetzt, stand dort der Folgetag.
 //
 // Gespeichert wird deshalb überall UTC. Angezeigt wird weiterhin in Ortszeit;
-// das ist Sache der Oberfläche und nicht der Ablage (docs/architektur.md,
+// das ist Sache der Oberfläche und nicht der Ablage (docs/entwicklung/architektur.md,
 // Zeitpunkte).
 func nowUTC() time.Time {
 	return time.Now().UTC()

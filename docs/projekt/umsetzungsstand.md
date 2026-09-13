@@ -1,11 +1,13 @@
 # Stand der Umsetzung
 
+[Dokumentation](../README.md) · [Erste Schritte](../nutzung/README.md)
+
 Abgleich mit dem Repository: 13. September 2026, Vorabversion v0.2.
 
 Diese Seite beschreibt die implementierten Funktionen und bekannte Grenzen.
 Sie ist keine Freigabe für den produktiven Einsatz. Ziele stehen getrennt auf
 der [Roadmap](roadmap.md), einzelne fachliche Kriterien im
-[Anforderungskatalog](anforderungskatalog.md).
+[Anforderungskatalog](../anforderungen/README.md).
 
 ## Zielgruppe und Umfang
 
@@ -85,7 +87,6 @@ genannte Verzeichnis derselben Zelle.
   nicht, dass alle zugehörigen Geschäftsvorgänge erfasst werden können.
 - Unentgeltliche Wertabgaben, Einfuhrumsatzsteuer und die Option zur
   Umsatzsteuerpflicht sind im Katalog weiterhin nicht vollständig abgedeckt.
-  Die frühere Aussage, Skontokorrekturen fehlten ebenfalls, ist überholt.
 - Ein leeres Leistungsdatum wird beim Ausstellen einer Rechnung auf das
   Rechnungsdatum gesetzt, siehe `InvoiceService.Issue` in `invoice_service.go`.
 - XRechnungen werden im CII-Format ausgestellt. UBL wird beim Empfang gelesen,
@@ -100,7 +101,7 @@ genannte Verzeichnis derselben Zelle.
 - Ausgewählte Datenbankfelder sind verschlüsselt, einschließlich Kontakt- und
   Zahlungspartnernamen, Positionsbeschreibungen und Protokolltexten mit
   Bestandsmigration. Die Datenbank als Ganzes, Metadaten und Originaldateien sind
-  es nicht. Einzelheiten stehen im [Sicherheitskonzept](security-concept.md).
+  es nicht. Einzelheiten stehen im [Sicherheitskonzept](../nutzung/datensicherheit.md).
 - Sicherungen enthalten Datenbank, Belege, Dokumente und die Schlüsseldatei.
   Sie benötigen ein gewähltes Sicherungsziel. Automatische Sicherungen laufen
   beim Start nach 24 Stunden und beim Beenden zusätzlich bei Änderungen. Die Wiederherstellungsdatei ist
@@ -117,8 +118,8 @@ Code und automatisierte Tests belegen einzelne Abläufe. Sie belegen weder die
 vollständige Gesetzeskonformität noch, dass Menschen ohne Vorkenntnisse alle
 Arbeitsschritte verstehen. Dafür bleiben fachliche Prüfung und Erprobung mit
 der Zielgruppe nötig. Wiederholbare Abläufe und die Reichweite der bisherigen
-Prüfungen stehen in den [Prüfszenarien](pruefszenario.md). Die
-[Änderungshistorie](../internal/changelog/CHANGELOG.md) nennt behobene Fehler
+Prüfungen stehen in den [Prüfszenarien](../entwicklung/pruefszenarien.md). Die
+[Änderungshistorie](../../internal/changelog/CHANGELOG.md) nennt behobene Fehler
 je Version. Die Abnahmeproben sind reguläre Regressionstests.
 
 Die erzeugten Rechnungsbeispiele wurden zusätzlich mit CII-Schema,

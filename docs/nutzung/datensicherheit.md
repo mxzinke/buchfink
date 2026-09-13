@@ -1,5 +1,7 @@
 # Speicherung, Verschlüsselung und Integritätsprüfung
 
+[Dokumentation](../README.md) · [Erste Schritte](README.md)
+
 Abgleich: 12. September 2026. Dieses Dokument beschreibt die vorhandene
 Implementierung. Es ist keine Sicherheitszertifizierung.
 
@@ -115,4 +117,4 @@ Arbeitsabläufe, siehe [§ 146 AO](https://www.gesetze-im-internet.de/ao_1977/__
 [GoBD im amtlichen Handbuch](https://amtliche-handbuecher.bundesfinanzministerium.de/ao/2025/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/anhang-33.html).
 Die Implementierung dieser Mechanismen ist keine Zusicherung vollständiger
 GoBD-Konformität. Bekannte fachliche Grenzen stehen im
-[Umsetzungsstand](stand-der-umsetzung.md).
+[Umsetzungsstand](../projekt/umsetzungsstand.md).

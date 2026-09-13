@@ -1,6 +1,8 @@
 # Buchfink – Aufbau der E-Rechnungs-Module
 
-Gesetzliche Grundlage: [Anforderungskatalog](anforderungskatalog.md), RECH-06, RECH-07
+[Dokumentation](../README.md) · [Entwicklung](README.md)
+
+Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), RECH-06, RECH-07
 
 Stand: 22.08.2026
 
@@ -153,7 +155,7 @@ nicht gebucht. Das ist kein Versehen: jede von ihnen ist ein anderer
 Geschäftsvorfall. Eine Gutschrift mindert Aufwand und Vorsteuer und verrechnet
 sich gegen die ursprüngliche Rechnung; eine Anzahlungsrechnung wird erst mit
 der Zahlung steuerwirksam und in der Schlussrechnung wieder abgesetzt
-(§ 14 Abs. 5 UStG, siehe `anforderung-anzahlungen.md`). Sie brauchen einen
+(§ 14 Abs. 5 UStG, siehe [Anzahlungen](../fachkonzepte/anzahlungen.md)). Sie brauchen einen
 eigenen Buchungsweg, keinen Sonderfall im vorhandenen.
 
 ## 6. Herkunft und Lizenzen
