@@ -7,13 +7,13 @@ name: "buchfink"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.2.0"
-section: "default"
+section: "misc"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A buchfink application"
-vendor: "My Company"
-homepage: "https://wails.io"
-license: "MIT"
+description: "Open-Source-Buchhaltung für kleine Unternehmen (SKR04, GoBD, E-Bilanz)"
+vendor: "Buchfink Open Source"
+homepage: "https://mxzinke.github.io/buchfink/"
+license: "EUPL-1.2"
 release: "1"
 
 contents:

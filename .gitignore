@@ -58,3 +58,10 @@ assets/DATEV-SKR04-*.json
 
 # Screenshot-Werkzeug der Projektseite
 scripts/site-screenshots/node_modules
+
+# Vom Linux-Build erzeugt
+build/linux/buchfink.desktop
+build/linux/appimage/buchfink.png
+
+# Python
+__pycache__/
