@@ -232,7 +232,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 
 	embed := ""
 	if attach {
-		embed = `#pdf.embed(
+		embed = `#pdf.attach(
   "factur-x.xml",
   bytes(sys.inputs.zugferd_xml),
   relationship: "alternative",

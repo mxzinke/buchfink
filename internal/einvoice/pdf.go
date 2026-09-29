@@ -2,6 +2,7 @@ package einvoice
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -69,7 +70,7 @@ func extractAttachments(pdf []byte) ([]EmbeddedFile, error) {
 	// mandatory to receive.
 	conf.ValidationMode = model.ValidationRelaxed
 
-	attachments, err := api.ExtractAttachmentsRaw(bytes.NewReader(pdf), "", nil, conf)
+	attachments, err := api.ExtractAttachmentsRaw(context.Background(), bytes.NewReader(pdf), "", nil, conf)
 	if err != nil {
 		// "no attachments available" ist kein Lesefehler, sondern die Antwort:
 		// das PDF hat keine. Ein gewöhnliches Rechnungs-PDF ist der häufigste

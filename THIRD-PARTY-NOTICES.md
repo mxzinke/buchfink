@@ -33,10 +33,10 @@ nicht gelistet.
 | `github.com/adrg/xdg` | v0.5.3 | MIT | Copyright (c) 2014 Adrian-George Bostan <adrg@epistack.com> |
 | `github.com/clipperhouse/uax29/v2` | v2.7.0 | MIT | Copyright (c) 2020 Matt Sherman |
 | `github.com/danieljoos/wincred` | v1.2.3 | MIT | Copyright (c) 2014 Daniel Joos |
-| `github.com/digitorus/pkcs7` | v0.0.0-20230713084857-e76b763bdc49 | MIT | Copyright (c) 2015 Andrew Smith |
-| `github.com/digitorus/timestamp` | v0.0.0-20250524132541-c45532741eea | BSD-2-Clause | Copyright (c) 2017, Digitorus B.V. |
-| `github.com/dustin/go-humanize` | v1.0.1 | MIT | Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net> |
-| `github.com/glebarez/go-sqlite` | v1.21.2 | BSD-3-Clause | Copyright (c) 2017 The Sqlite Authors. All rights reserved. |
+| `github.com/digitorus/pkcs7` | v0.0.0-20260914070511-d678ea5ea03f | MIT | Copyright (c) 2015 Andrew Smith |
+| `github.com/digitorus/timestamp` | v0.0.0-20260914073129-b4b58b92aa51 | BSD-2-Clause | Copyright (c) 2017, Digitorus B.V. |
+| `github.com/dustin/go-humanize` | v1.1.0 | MIT | Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net> |
+| `github.com/glebarez/go-sqlite` | v1.23.0 | BSD-3-Clause | Copyright (c) 2017 The Sqlite Authors. All rights reserved. |
 | `github.com/glebarez/sqlite` | v1.11.0 | MIT | Copyright (c) 2013-NOW  Jinzhu <wosmvp@gmail.com> |
 | `github.com/go-ole/go-ole` | v1.3.0 | MIT | Copyright © 2013-2017 Yasuhiro Matsumoto, <mattn.jp@gmail.com> |
 | `github.com/godbus/dbus/v5` | v5.2.2 | BSD-2-Clause | Copyright (c) 2013, Georg Reinke (<guelfey at gmail dot com>), Google |
@@ -44,21 +44,21 @@ nicht gelistet.
 | `github.com/hhrutter/tiff` | v1.0.6 | BSD-3-Clause | Copyright (c) 2009 The Go Authors. All rights reserved. |
 | `github.com/jinzhu/inflection` | v1.0.0 | MIT | Copyright (c) 2015 - Jinzhu |
 | `github.com/jinzhu/now` | v1.1.5 | MIT | Copyright (c) 2013-NOW  Jinzhu <wosmvp@gmail.com> |
-| `github.com/mattn/go-colorable` | v0.1.14 | MIT | Copyright (c) 2016 Yasuhiro Matsumoto |
+| `github.com/mattn/go-colorable` | v0.1.15 | MIT | Copyright (c) 2016 Yasuhiro Matsumoto |
 | `github.com/mattn/go-isatty` | v0.0.24 | MIT | Copyright (c) Yasuhiro MATSUMOTO <mattn.jp@gmail.com> |
-| `github.com/mattn/go-runewidth` | v0.0.27 | MIT | Copyright (c) 2016 Yasuhiro Matsumoto |
-| `github.com/ncruces/go-strftime` | v1.0.0 | MIT | Copyright (c) 2022 Nuno Cruces |
-| `github.com/pdfcpu/pdfcpu` | v0.15.0 | Apache-2.0 | — |
+| `github.com/mattn/go-runewidth` | v0.0.30 | MIT | Copyright (c) 2016 Yasuhiro Matsumoto |
+| `github.com/ncruces/go-strftime` | v1.1.0 | MIT | Copyright (c) 2022 Nuno Cruces |
+| `github.com/pdfcpu/pdfcpu` | v0.16.0 | Apache-2.0 | — |
 | `github.com/remyoudompheng/bigfft` | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause | Copyright (c) 2012 The Go Authors. All rights reserved. |
-| `github.com/tetratelabs/wazero` | v1.11.0 | Apache-2.0 | Copyright 2020-2023 wazero authors |
-| `github.com/varunbpatil/typst-go-wasm` | v0.3.0 | MIT | Copyright (c) 2026 Varun Patil |
-| `github.com/wailsapp/wails/v3` | v3.0.0-beta.9 | MIT | Copyright (c) 2018-Present Lea Anthony |
+| `github.com/tetratelabs/wazero` | v1.12.0 | Apache-2.0 | Copyright 2020-2023 wazero authors |
+| `github.com/varunbpatil/typst-go-wasm` | v0.4.0 | MIT | Copyright (c) 2026 Varun Patil |
+| `github.com/wailsapp/wails/v3` | v3.0.0-beta.26 | MIT | Copyright (c) 2018-Present Lea Anthony |
 | `github.com/zalando/go-keyring` | v0.2.8 | MIT | Copyright (c) 2016 Zalando SE |
 | `go.yaml.in/yaml/v3` | v3.0.5 | Apache-2.0 | Copyright (c) 2006-2010 Kirill Simonov / Copyright (c) 2006-2011 Kirill Simonov |
-| `golang.org/x/crypto` | v0.55.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
-| `golang.org/x/image` | v0.44.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
-| `golang.org/x/sys` | v0.47.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
-| `golang.org/x/text` | v0.41.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
+| `golang.org/x/crypto` | v0.57.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
+| `golang.org/x/image` | v0.46.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
+| `golang.org/x/sys` | v0.48.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
+| `golang.org/x/text` | v0.42.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
 | `gorm.io/gorm` | v1.31.2 | MIT | Copyright (c) 2013-present  Jinzhu <wosmvp@gmail.com> |
 | `modernc.org/libc` | v1.74.4 | BSD-3-Clause | Copyright (c) 2017 The Libc Authors. All rights reserved. |
 | `modernc.org/mathutil` | v1.7.1 | BSD-3-Clause | Copyright (c) 2014 The mathutil Authors. All rights reserved. |
@@ -72,24 +72,22 @@ nicht gelistet.
 | Komponente | Version | Lizenz | Urheberrechtshinweis |
 |---|---|---|---|
 | `@babel/runtime` | 7.29.7 | MIT | Copyright (c) 2014-present Sebastian McKenzie and other contributors |
-| `@base-ui/react` | 1.7.0 | MIT | Copyright (c) 2019 Material-UI SAS |
-| `@base-ui/utils` | 0.3.2 | MIT | Copyright (c) 2019 Material-UI SAS |
+| `@base-ui/react` | 1.8.0 | MIT | Copyright (c) 2019 Material-UI SAS |
+| `@base-ui/utils` | 0.4.0 | MIT | Copyright (c) 2019 Material-UI SAS |
 | `@floating-ui/core` | 1.8.0 | MIT | Copyright (c) 2021-present Floating UI contributors |
 | `@floating-ui/dom` | 1.8.0 | MIT | Copyright (c) 2021-present Floating UI contributors |
 | `@floating-ui/react-dom` | 2.1.9 | MIT | Copyright (c) 2021-present Floating UI contributors |
 | `@floating-ui/utils` | 0.2.12 | MIT | Copyright (c) 2021-present Floating UI contributors |
-| `@wailsio/runtime` | 3.0.0-beta.9 | MIT | Copyright (c) 2018-Present Lea Anthony |
+| `@wailsio/runtime` | 3.0.0-beta.26 | MIT | Copyright (c) 2018-Present Lea Anthony |
 | `clsx` | 2.1.1 | MIT | Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com) |
-| `js-tokens` | 4.0.0 | MIT | Copyright (c) 2014, 2015, 2016, 2017, 2018 Simon Lydell |
-| `loose-envify` | 1.4.0 | MIT | Copyright (c) 2015 Andres Suarez <zertosh@gmail.com> |
-| `lucide-react` | 1.31.0 | ISC | Copyright (c) 2026 Lucide Icons and Contributors / Copyright (c) 2013-present Cole Bemis |
-| `react` | 18.3.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. |
-| `react-dom` | 18.3.1 | MIT | Copyright (c) Facebook, Inc. and its affiliates. |
+| `lucide-react` | 1.48.0 | ISC | Copyright (c) 2026 Lucide Icons and Contributors / Copyright (c) 2013-present Cole Bemis |
+| `react` | 19.3.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
+| `react-dom` | 19.3.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
 | `reselect` | 5.3.0 | MIT | Copyright (c) 2015-2018 Reselect Contributors |
-| `scheduler` | 0.23.2 | MIT | Copyright (c) Facebook, Inc. and its affiliates. |
+| `scheduler` | 0.28.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
 | `sonner` | 2.0.8 | MIT | Copyright (c) 2023 Emil Kowalski |
-| `tailwind-merge` | 3.6.0 | MIT | Copyright (c) 2021 Dany Castillo |
-| `use-sync-external-store` | 1.6.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
+| `tailwind-merge` | 3.7.0 | MIT | Copyright (c) 2021 Dany Castillo |
+| `use-sync-external-store` | 1.7.0 | MIT | Copyright (c) Meta Platforms, Inc. and affiliates. |
 
 ---
 
@@ -143,7 +141,7 @@ NOTICE-Datei weiterzureichen. Der Lizenztext allein genügt dafür nicht: er ist
 bei allen Apache-Komponenten derselbe, die Hinweisdatei ist es nicht. Hier steht
 sie im Wortlaut, für jede ausgelieferte Komponente, die eine mitbringt.
 
-### `github.com/tetratelabs/wazero v1.11.0`
+### `github.com/tetratelabs/wazero v1.12.0`
 
 ```text
 wazero
@@ -201,7 +199,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 2. `@base-ui/react 1.7.0`, `@base-ui/utils 0.3.2`
+### 2. `@base-ui/react 1.8.0`, `@base-ui/utils 0.4.0`
 
 ```text
 MIT License
@@ -641,7 +639,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 10. `github.com/digitorus/pkcs7 v0.0.0-20230713084857-e76b763bdc49`
+### 10. `github.com/digitorus/pkcs7 v0.0.0-20260914070511-d678ea5ea03f`
 
 ```text
 The MIT License (MIT)
@@ -667,7 +665,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 11. `github.com/digitorus/timestamp v0.0.0-20250524132541-c45532741eea`
+### 11. `github.com/digitorus/timestamp v0.0.0-20260914073129-b4b58b92aa51`
 
 ```text
 BSD 2-Clause License
@@ -697,7 +695,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 12. `github.com/dustin/go-humanize v1.0.1`
+### 12. `github.com/dustin/go-humanize v1.1.0`
 
 ```text
 Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net>
@@ -723,7 +721,7 @@ SOFTWARE.
 <http://www.opensource.org/licenses/mit-license.php>
 ```
 
-### 13. `github.com/glebarez/go-sqlite v1.21.2`, `modernc.org/sqlite v1.56.0`
+### 13. `github.com/glebarez/go-sqlite v1.23.0`, `modernc.org/sqlite v1.56.0`
 
 ```text
 Copyright (c) 2017 The Sqlite Authors. All rights reserved.
@@ -926,7 +924,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 20. `github.com/mattn/go-colorable v0.1.14`, `github.com/mattn/go-runewidth v0.0.27`
+### 20. `github.com/mattn/go-colorable v0.1.15`, `github.com/mattn/go-runewidth v0.0.30`
 
 ```text
 The MIT License (MIT)
@@ -966,7 +964,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 22. `github.com/ncruces/go-strftime v1.0.0`
+### 22. `github.com/ncruces/go-strftime v1.1.0`
 
 ```text
 MIT License
@@ -992,7 +990,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 23. `github.com/pdfcpu/pdfcpu v0.15.0`
+### 23. `github.com/pdfcpu/pdfcpu v0.16.0`
 
 ```text
 Apache License
@@ -1230,7 +1228,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 25. `Typst (WebAssembly-Kompilat) in github.com/varunbpatil/typst-go-wasm v0.3.0`, `github.com/tetratelabs/wazero v1.11.0`
+### 25. `Typst (WebAssembly-Kompilat) in github.com/varunbpatil/typst-go-wasm v0.3.0`, `github.com/tetratelabs/wazero v1.12.0`
 
 ```text
 Apache License
@@ -1436,7 +1434,7 @@ Apache License
    limitations under the License.
 ```
 
-### 26. `github.com/varunbpatil/typst-go-wasm v0.3.0`
+### 26. `github.com/varunbpatil/typst-go-wasm v0.4.0`
 
 ```text
 MIT License
@@ -1462,7 +1460,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 27. `@wailsio/runtime 3.0.0-beta.9`, `github.com/wailsapp/wails/v3 v3.0.0-beta.9`
+### 27. `@wailsio/runtime 3.0.0-beta.26`, `github.com/wailsapp/wails/v3 v3.0.0-beta.26`
 
 ```text
 MIT License
@@ -1568,7 +1566,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-### 30. `golang.org/x/crypto v0.55.0`, `golang.org/x/image v0.44.0`, `golang.org/x/sys v0.47.0`, `golang.org/x/text v0.41.0`
+### 30. `golang.org/x/crypto v0.57.0`, `golang.org/x/image v0.46.0`, `golang.org/x/sys v0.48.0`, `golang.org/x/text v0.42.0`
 
 ```text
 Copyright 2009 The Go Authors.
@@ -1626,59 +1624,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 32. `js-tokens 4.0.0`
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2014, 2015, 2016, 2017, 2018 Simon Lydell
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
-
-### 33. `loose-envify 1.4.0`
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
-
-### 34. `lucide-react 1.31.0`
+### 32. `lucide-react 1.48.0`
 
 ```text
 ISC License
@@ -1726,7 +1672,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 35. `modernc.org/libc v1.74.4`
+### 33. `modernc.org/libc v1.74.4`
 
 ```text
 Copyright (c) 2017 The Libc Authors. All rights reserved.
@@ -1758,7 +1704,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 36. `modernc.org/mathutil v1.7.1`
+### 34. `modernc.org/mathutil v1.7.1`
 
 ```text
 Copyright (c) 2014 The mathutil Authors. All rights reserved.
@@ -1790,7 +1736,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 37. `modernc.org/memory v1.11.0`
+### 35. `modernc.org/memory v1.11.0`
 
 ```text
 Copyright (c) 2017 The Memory Authors. All rights reserved.
@@ -1822,111 +1768,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 38. `react 18.3.1`, `react-dom 18.3.1`, `scheduler 0.23.2`
-
-```text
-MIT License
-
-Copyright (c) Facebook, Inc. and its affiliates.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 39. `reselect 5.3.0`
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2015-2018 Reselect Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 40. `sonner 2.0.8`
-
-```text
-MIT License
-
-Copyright (c) 2023 Emil Kowalski
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 41. `tailwind-merge 3.6.0`
-
-```text
-MIT License
-
-Copyright (c) 2021 Dany Castillo
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 42. `use-sync-external-store 1.6.0`
+### 36. `react 19.3.0`, `react-dom 19.3.0`, `scheduler 0.28.0`, `use-sync-external-store 1.7.0`
 
 ```text
 MIT License
@@ -1952,7 +1794,85 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 43. `validator-configuration-xrechnung (Pruefmaterial) internal/einvoice/xrechnung/testdata/kosit/`
+### 37. `reselect 5.3.0`
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2015-2018 Reselect Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 38. `sonner 2.0.8`
+
+```text
+MIT License
+
+Copyright (c) 2023 Emil Kowalski
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 39. `tailwind-merge 3.7.0`
+
+```text
+MIT License
+
+Copyright (c) 2021 Dany Castillo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 40. `validator-configuration-xrechnung (Pruefmaterial) internal/einvoice/xrechnung/testdata/kosit/`
 
 ```text
 Apache License

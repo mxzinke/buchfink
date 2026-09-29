@@ -5,7 +5,7 @@
 
 ## Voraussetzungen
 
-- Go ab 1.25, gemäß [go.mod](../../go.mod).
+- Go ab 1.27, gemäß [go.mod](../../go.mod).
 - Node.js `^20.19.0` oder `>=22.12.0` und npm für das Frontend.
 - Wails v3 CLI passend zur Version in `go.mod`.
 - Task v3 für die unten verwendeten Befehle.
@@ -15,7 +15,7 @@ Installiere die CLI-Werkzeuge und stelle sicher, dass das Go-Binärverzeichnis
 in deinem `PATH` liegt:
 
 ```bash
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.26
 go install github.com/go-task/task/v3/cmd/task@latest
 ```
 

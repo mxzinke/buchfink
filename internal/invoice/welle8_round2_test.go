@@ -2,6 +2,7 @@ package invoice
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ func attachXML(t *testing.T, xml string) []byte {
 	var base bytes.Buffer
 	page := `{"pages": {"1": {"content": {"box": [` +
 		`{"x": 50, "y": 50, "width": 200, "height": 100, "fillcol": "#eeeeee"}]}}}}`
-	if err := api.Create(nil, strings.NewReader(page), &base, conf); err != nil {
+	if err := api.Create(context.Background(), nil, strings.NewReader(page), &base, conf); err != nil {
 		t.Fatalf("PDF erzeugen: %v", err)
 	}
 	path := filepath.Join(t.TempDir(), "factur-x.xml")
@@ -37,7 +38,7 @@ func attachXML(t *testing.T, xml string) []byte {
 		t.Fatalf("Datensatz schreiben: %v", err)
 	}
 	var out bytes.Buffer
-	if err := api.AddAttachments(bytes.NewReader(base.Bytes()), &out, []string{path}, false, conf); err != nil {
+	if err := api.AddAttachments(context.Background(), bytes.NewReader(base.Bytes()), &out, []string{path}, false, conf); err != nil {
 		t.Fatalf("Datensatz einbetten: %v", err)
 	}
 	return out.Bytes()
@@ -69,7 +70,7 @@ func TestEmbeddedRecordIsReadBackFromThePDF(t *testing.T) {
 	var plain bytes.Buffer
 	page := `{"pages": {"1": {"content": {"box": [` +
 		`{"x": 50, "y": 50, "width": 200, "height": 100, "fillcol": "#eeeeee"}]}}}}`
-	if err := api.Create(nil, strings.NewReader(page), &plain, model.NewDefaultConfiguration()); err != nil {
+	if err := api.Create(context.Background(), nil, strings.NewReader(page), &plain, model.NewDefaultConfiguration()); err != nil {
 		t.Fatalf("PDF erzeugen: %v", err)
 	}
 	if err := VerifyEmbeddedRecord(plain.Bytes(), inv); err == nil {
