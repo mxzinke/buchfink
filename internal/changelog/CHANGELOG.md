@@ -10,6 +10,42 @@ Das Format ist Teil der Schnittstelle: `internal/changelog` liest die
 Zusammenfassung und jeden Strichpunkt als Änderung. Der Text einer Fassung ist
 zugleich der Text ihrer Veröffentlichung.
 
+## v0.3 — 2026-09-29
+
+Diese Vorabversion ordnet Einrichtung, Stammdaten und Gründungsbegleitung neu
+und aktualisiert die mitgelieferten Komponenten. Beim ersten Start wird die
+Datenbank auf Schema 11 migriert; vor dem Upgrade eine Sicherung und den
+Wiederherstellungsschlüssel getrennt aufbewahren.
+
+- Die Einrichtung richtet sich nach dem Handelsregisterstatus. Eintragung und
+  optionale Gründungserfassung stehen vor den Steuerangaben, das erste
+  Geschäftsjahr folgt aus dem erfassten Datum. Der Speicherordner wird nach der
+  Auswahl und erneut bei der Anlage geprüft.
+- Anschrift, Gründungsdaten und Gesellschafterliste werden zentral in den
+  Stammdaten gepflegt und aus bestehenden Daten übernommen. Rechnungen,
+  E-Rechnungen und Verfahrensdokumentation verwenden die gegliederte Anschrift.
+  Die Zahlungsverbindung folgt aus einem ausdrücklich gewählten Bankkonto.
+- Der Gründungshelfer führt die Aufgaben nach Notartermin, Kapitaleinzahlung
+  und Registeranmeldung als abhängige Checkliste mit Fristen, Voraussetzungen
+  und Erklärungen. Angaben zu Beschäftigten steuern die Arbeitgeberaufgaben.
+- Nachweise werden in einem Dialog abgelegt, auch per Drag-and-drop. Das
+  Änderungsdatum der Datei dient als bearbeitbarer Vorschlag.
+- Ein vergangenes Geschäftsjahr lässt sich nur anlegen, wenn es nach der
+  Gründung endet, das kommende erst in den drei Monaten vor seinem Beginn.
+- Festschreibungsfristen und Monatsprüfungen beginnen im tatsächlichen
+  Geschäftsjahr; Monate vor der Gründung erzeugen keine Aufgaben mehr. Eine
+  ungeklärte Umsatzsteuerpflicht erzeugt keine Meldefristen.
+- Das aktive Unternehmen lässt sich nach ausdrücklicher Bestätigung entfernen.
+- Aktualisierte Komponenten: Wails v3.0.0-beta.26, React 19, Typst 0.15,
+  pdfcpu 0.16 und eine gehärtete PKCS#7-Bibliothek für die Antworten des
+  Zeitstempeldienstes. Das Rechnungslayout bleibt unverändert.
+  Zum Bauen aus dem Quellcode ist Go 1.27 nötig. Die Linux-Pakete nennen die
+  EUPL-1.2 als Lizenz.
+- Die E-Bilanz-Zuordnung bleibt ungeprüft; eine amtliche Übermittlung und
+  vollständige Abschlussunterlagen sind weiterhin nicht abgedeckt.
+  Originaldateien und Sicherungsarchive sind nicht verschlüsselt.
+  Diese Vorabversion ist keine Freigabe für den produktiven Einsatz.
+
 ## v0.2 — 2026-09-13
 
 Diese Vorabversion verbessert Einrichtung, Bankimport und Jahresabschluss.
