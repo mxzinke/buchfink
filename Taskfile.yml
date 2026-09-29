@@ -156,6 +156,26 @@ tasks:
       - "{{.PACKAGE_MANAGER}} --prefix frontend install"
       - python3 scripts/gen_third_party_notices.py
 
+  release:prepare:
+    summary: "Setzt die Fassung, prüft, committet und taggt: task release:prepare -- 0.3.0"
+    cmds:
+      - python3 scripts/release.py prepare {{.CLI_ARGS}}
+
+  release:publish:
+    summary: "Pusht Branch und Tag und legt das GitHub-Release an: task release:publish -- --title \"…\""
+    cmds:
+      - python3 scripts/release.py publish {{.CLI_ARGS}}
+
+  release:package:
+    summary: Baut die Pakete dieses Betriebssystems für das getaggte HEAD nach dist/
+    cmds:
+      - python3 scripts/release.py package {{.CLI_ARGS}}
+
+  release:upload:
+    summary: Hängt die Pakete aus dist/ an das GitHub-Release
+    cmds:
+      - python3 scripts/release.py upload {{.CLI_ARGS}}
+
   pages:preview:
     summary: Serves website/ locally at http://127.0.0.1:8000
     cmds:

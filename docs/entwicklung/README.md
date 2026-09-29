@@ -93,6 +93,9 @@ Die Aufgaben bauen beziehungsweise paketieren für das aktuelle Betriebssystem.
 Die Ergebnisse liegen unter `bin/`. Konfiguration und Plattformaufgaben liegen
 unter [build/](../../build).
 
+Wie eine Fassung mit Tag, GitHub-Release und signierten Paketen entsteht, steht
+unter [Veröffentlichung](veroeffentlichung.md).
+
 ## Abhängigkeiten und Projektseite
 
 Nach Änderungen an Abhängigkeiten aktualisiert `task notices` die

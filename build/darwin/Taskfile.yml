@@ -139,6 +139,23 @@ tasks:
     cmds:
       - task: create:dmg
 
+  package:release:
+    summary: Universal-.app und signiertes .dmg für eine Veröffentlichung
+    desc: |
+      Baut arm64 und amd64, fügt beide zu einer Universal-App zusammen,
+      signiert App und Image und legt bin/buchfink.dmg ab.
+
+        task darwin:package:release SIGN_IDENTITY="Buchfink Self-Signed"
+
+      Ohne SIGN_IDENTITY wird ad hoc signiert.
+    platforms: [darwin]
+    deps:
+      - task: package:universal
+    cmds:
+      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
+      - task: create:dmg
+      - codesign --force --sign "{{.SIGN_IDENTITY | default "-"}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
+
   create:dmg:
     summary: Creates a configurable `.dmg` from the `.app` bundle
     platforms: [darwin]
@@ -169,15 +186,24 @@ tasks:
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - |
+        if [ -f build/darwin/Assets.car ]; then
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+        fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
-      - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
+      - task: '{{if eq OS "darwin"}}codesign{{else}}codesign:skip{{end}}'
 
-  codesign:adhoc:
-    summary: Ad-hoc signs the app bundle (macOS only)
+  codesign:
+    summary: Signs the app bundle ad hoc, or with SIGN_IDENTITY when set (macOS only)
     internal: true
+    # SIGN_IDENTITY ist der Name eines Zertifikats im Schlüsselbund, etwa ein
+    # selbst ausgestelltes (docs/entwicklung/veroeffentlichung.md). Ohne sie
+    # signiert codesign ad hoc: das genügt zum Starten auf Apple Silicon, gibt
+    # der App aber keine über Updates gleichbleibende Identität.
     cmds:
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - codesign --force --deep --sign "{{.SIGN_IDENTITY | default "-"}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - codesign --verify --strict --verbose=2 "{{.BIN_DIR}}/{{.APP_NAME}}.app"
 
   codesign:skip:
     summary: Skips codesigning when cross-compiling
@@ -191,6 +217,10 @@ tasks:
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - |
+        if [ -f build/darwin/Assets.car ]; then
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+        fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
