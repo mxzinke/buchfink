@@ -40,7 +40,7 @@ type BackupRun struct {
 	FinishedAt time.Time `json:"finishedAt"`
 
 	// Target ist der Pfad der erzeugten oder geprüften ZIP-Datei.
-	Target string `gorm:"size:500;serializer:encrypted" json:"target"`
+	Target string `gorm:"size:500" json:"target"`
 
 	FileCount int   `json:"fileCount"`
 	Bytes     int64 `json:"bytes"`

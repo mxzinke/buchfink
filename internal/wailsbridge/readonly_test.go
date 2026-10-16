@@ -393,7 +393,7 @@ func TestGetAppConfigReportsTheCurrentState(t *testing.T) {
 }
 
 // Im Prüfermodus darf der geprüfte Mandant nicht gelöscht werden: mit seinem
-// Schlüsselbund-Geheimnis wären die eingefrorenen Daten unzugänglich.
+// Eintrag ginge die Sperre des Prüfermodus.
 func TestDeleteTenantIsRefusedForTheAuditedTenant(t *testing.T) {
 	b := testBridge(t)
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")

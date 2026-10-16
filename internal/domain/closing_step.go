@@ -132,7 +132,7 @@ type ClosingStep struct {
 	Key   ClosingStepKey   `gorm:"primaryKey;size:30" json:"key"`
 	State ClosingStepState `gorm:"size:20;not null;default:'open'" json:"state"`
 	// Reason ist bei „übersprungen" Pflicht.
-	Reason    string    `gorm:"size:500;serializer:encrypted" json:"reason,omitempty"`
+	Reason    string    `gorm:"size:500" json:"reason,omitempty"`
 	ChangedOn string    `gorm:"size:10" json:"changedOn,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

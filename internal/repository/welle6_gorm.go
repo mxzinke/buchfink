@@ -58,8 +58,6 @@ func (r *retentionRepositoryGorm) ReleaseHold(ctx context.Context, id uint, rele
 	hold.ReleasedAt = &released
 	hold.ReleasedBy = releasedBy
 	hold.ReleaseReason = reason
-	// Über den Datensatz und eine Spaltenauswahl, damit der Serializer den
-	// verschlüsselten Aufhebungsgrund verschlüsselt.
 	return db.Model(&hold).Select("ReleasedAt", "ReleasedBy", "ReleaseReason").Updates(&hold).Error
 }
 
@@ -243,9 +241,6 @@ func (r *retentionRepositoryGorm) DeleteFiscalYear(ctx context.Context, fiscalYe
 	err = dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Die verwaisten Dateien werden vor dem Löschen bestimmt: danach ist
 		// nicht mehr festzustellen, welche Prüfsumme zu diesem Jahr gehörte.
-		//
-		// Gelesen wird über den Datensatz, weil der Ablagepfad verschlüsselt in
-		// der Spalte liegt und ein Rohwert der Geheimtext wäre.
 		var files []domain.ReceiptFile
 		yearReceipts := tx.Model(&domain.Receipt{}).Select("id").Where("fiscal_year = ?", fiscalYear)
 		if err := tx.Where("receipt_id IN (?)", yearReceipts).

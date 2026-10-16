@@ -146,12 +146,11 @@ const BackupHelpDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ op
   >
     <div className="text-body text-ink-muted space-y-4">
       <p>
-        Eine Sicherung ist eine einzelne Datei mit einer Kopie von allem: Buchungen, Belege,
-        Dokumente und der Schlüssel, mit dem sich die Daten öffnen lassen. Sie brauchen sie, wenn
-        die Festplatte ausfällt oder der Rechner verloren geht.
+        Eine Sicherung ist eine einzelne Datei mit einer Kopie von allem: Buchungen, Belege und
+        Dokumente. Sie brauchen sie, wenn die Festplatte ausfällt oder der Rechner verloren geht.
       </p>
       <p>
-        Weil der Schlüssel mit darin liegt, kann jeder die Buchführung öffnen, der die Datei hat.
+        Die Sicherung ist nicht verschlüsselt. Jeder, der die Datei hat, kann die Buchführung öffnen.
         Bewahren Sie sie so sorgfältig auf wie die Daten selbst: auf einem anderen Laufwerk, und
         verschlüsselt, wenn sie außer Haus geht.
       </p>
@@ -326,9 +325,10 @@ export const BackupPage: React.FC<BackupPageProps> = ({
             }
             explain={
               <>
-                Eine Sicherung ist eine Kopie von allem in einer Datei: Buchungen, Belege und der
-                Schlüssel dazu. Buchfink sichert beim Start, wenn die letzte Sicherung mindestens einen Tag zurückliegt. Beim Beenden sichert es außerdem Änderungen seit der letzten Sicherung. Weil der
-                Schlüssel mit darin liegt, gehört sie so gut verwahrt wie die Daten selbst.
+                Eine Sicherung ist eine Kopie von allem in einer Datei: Buchungen und Belege. Buchfink
+                sichert beim Start, wenn die letzte Sicherung mindestens einen Tag zurückliegt. Beim
+                Beenden sichert es außerdem Änderungen seit der letzten Sicherung. Die Sicherung ist
+                nicht verschlüsselt und gehört so gut verwahrt wie die Daten selbst.
               </>
             }
             onMore={() => setHelpOpen(true)}

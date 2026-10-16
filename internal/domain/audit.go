@@ -32,7 +32,7 @@ type AuditLogEntry struct {
 	Action     AuditAction `gorm:"size:30;not null;index" json:"action"`
 	EntityType string      `gorm:"size:50;not null;index" json:"entityType"` // "BOOKING", "ACCOUNT", "BANK_TX", "INVOICE", "SETTINGS"
 	EntityID   string      `gorm:"size:50;not null" json:"entityId"`
-	Details    string      `gorm:"type:text;not null;serializer:encrypted_v2" json:"details"`
+	Details    string      `gorm:"type:text;not null" json:"details"`
 
 	// Before und After sind die geänderten Felder als JSON-Objekt, und zwar nur
 	// die geänderten.
@@ -42,13 +42,8 @@ type AuditLogEntry struct {
 	// nicht: er sagt, dass etwas geschah, aber nicht was. Der vollständige
 	// Datensatz wäre die andere Übertreibung — er verbärge die eine geänderte
 	// Zeile zwischen dreißig unveränderten.
-	//
-	// Verschlüsselt, weil Stammdaten personenbezogene Daten enthalten: Name,
-	// Anschrift, Bankverbindung eines Geschäftspartners stünden sonst im
-	// Protokoll im Klartext, während sie in ihrer eigenen Tabelle verschlüsselt
-	// liegen.
-	Before string `gorm:"type:text;serializer:encrypted" json:"before,omitempty"`
-	After  string `gorm:"type:text;serializer:encrypted" json:"after,omitempty"`
+	Before string `gorm:"type:text" json:"before,omitempty"`
+	After  string `gorm:"type:text" json:"after,omitempty"`
 
 	// Actor ist die Bearbeiterkennung (internal/actor), AppVersion die Fassung
 	// des Programms, die gehandelt hat. Beide beantworten die Fragen „wer" und

@@ -30,7 +30,7 @@ type InputTaxCorrection struct {
 	ReceiptID *uint `gorm:"index" json:"receiptId,omitempty"`
 	EntryID   *uint `gorm:"index" json:"entryId,omitempty"`
 
-	Label string `gorm:"size:255;not null;serializer:encrypted" json:"label"`
+	Label string `gorm:"size:255;not null" json:"label"`
 	// Account ist das Konto, auf dem das Wirtschaftsgut steht. Es entscheidet
 	// über die Beweglichkeit und damit über den Zeitraum und die
 	// Berichtigungskonten.
@@ -78,10 +78,10 @@ type InputTaxCorrection struct {
 	// ClosedReason schließt einen Eintrag vorzeitig ab — Abgang, Entnahme oder
 	// die Feststellung, dass er nie hätte aufgenommen werden dürfen. Leer heißt:
 	// der Eintrag läuft.
-	ClosedReason string `gorm:"size:255;serializer:encrypted" json:"closedReason,omitempty"`
+	ClosedReason string `gorm:"size:255" json:"closedReason,omitempty"`
 	ClosedOn     string `gorm:"size:10" json:"closedOn,omitempty"`
 
-	Note      string    `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note      string    `gorm:"size:500" json:"note,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 
@@ -107,7 +107,7 @@ type InputTaxUsage struct {
 	Amount Cents `gorm:"not null;default:0" json:"amount"`
 	// Reason ist die Begründung aus der Bewertung — auch die, warum nicht
 	// berichtigt wird.
-	Reason string `gorm:"size:500;serializer:encrypted" json:"reason,omitempty"`
+	Reason string `gorm:"size:500" json:"reason,omitempty"`
 
 	// EntryID ist die Buchung der Berichtigung. Fehlt sie, ist noch nicht
 	// gebucht.

@@ -1,24 +1,11 @@
 package domain
 
-// TenantConfig represents a single company / client workspace. Field encryption
-// is provisioned transparently: the envelope keyfile lives in DataDir and the
-// wrapping secret in the OS keychain, so no key path needs to be stored here.
+// TenantConfig represents a single company / client workspace.
 type TenantConfig struct {
 	ID        string `json:"id"`        // Unique identifier
 	Name      string `json:"name"`      // Display name / Company Name
-	DataDir   string `json:"dataDir"`   // Directory where buchfink.sqlite, keyfile and /belege are stored
+	DataDir   string `json:"dataDir"`   // Directory where buchfink.sqlite and /belege are stored
 	CreatedAt string `json:"createdAt"` // Creation timestamp (RFC3339)
-
-	// KeyID ist die Kennung, unter der das Geheimnis dieses Mandanten im
-	// Schlüsselbund des Betriebssystems liegt. Leer heißt: dieselbe wie ID.
-	//
-	// Getrennt wird beides erst, wenn eine wiederhergestellte Sicherung neben
-	// dem Mandanten steht, aus dem sie stammt: zwei Einträge der Mandantenliste
-	// dürfen nicht dieselbe ID haben (die Liste würde mehrdeutig), teilen sich
-	// aber denselben Schlüssel — die Sicherung bringt die Schlüsseldatei des
-	// Ursprungsmandanten mit, und das Geheimnis dazu liegt im Schlüsselbund
-	// unter dessen Kennung.
-	KeyID string `json:"keyId,omitempty"`
 
 	// BackupDir ist der Zielordner der Sicherung. Leer heißt: keine Sicherung
 	// eingerichtet — die Aufgabenliste weist darauf hin, statt still nichts zu
@@ -29,8 +16,7 @@ type TenantConfig struct {
 	// Aufgabenliste sollen sagen können, wann zuletzt gesichert wurde, ohne
 	// dafür die Läufe aus der Mandantendatenbank zu lesen. Ob eine Sicherung
 	// fällig ist, entscheidet BackupService.IsDue aus den Läufen selbst.
-	LastBackupAt       string `json:"lastBackupAt,omitempty"`
-	RecoveryExportedAt string `json:"recoveryExportedAt,omitempty"`
+	LastBackupAt string `json:"lastBackupAt,omitempty"`
 
 	// ReadOnlyUntil ist der letzte Tag des Prüfermodus (YYYY-MM-DD). Solange er
 	// nicht vergangen ist, weist die Bridge jede schreibende Methode ab.
@@ -42,17 +28,6 @@ type TenantConfig struct {
 	// ReadOnlyReason ist der Grund, der beim Einschalten anzugeben ist. Er
 	// steht auch im Änderungsprotokoll.
 	ReadOnlyReason string `json:"readOnlyReason,omitempty"`
-}
-
-// VaultID liefert die Kennung, unter der der Schlüssel dieses Mandanten zu
-// suchen ist. Jeder Zugriff auf den Schlüsselbund geht über sie und nicht über
-// ID: sonst bliebe eine wiederhergestellte Sicherung gesperrt, obwohl ihr
-// Geheimnis auf diesem Rechner liegt.
-func (t *TenantConfig) VaultID() string {
-	if t.KeyID != "" {
-		return t.KeyID
-	}
-	return t.ID
 }
 
 // AppConfig represents global persistent application preferences across tenants and fiscal years.

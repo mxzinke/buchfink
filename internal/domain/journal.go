@@ -124,7 +124,7 @@ type JournalLine struct {
 	// jeder bestehenden Buchhaltung bleibt damit unverändert.
 	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
 
-	Text string `gorm:"size:255;serializer:encrypted" json:"text,omitempty"`
+	Text string `gorm:"size:255" json:"text,omitempty"`
 }
 
 // InputTaxExcluded ist der Wert von JournalLine.InputTaxShare, wo der
@@ -156,7 +156,7 @@ type JournalEntry struct {
 	ServiceDateTo   string `gorm:"size:10;not null" json:"serviceDateTo"`     // Leistungsende; gleich From bei Zeitpunktleistung
 	ValueDate       string `gorm:"size:10" json:"valueDate,omitempty"`        // Valuta, nur bei Zahlungsbuchungen
 
-	Description string      `gorm:"size:500;not null;serializer:encrypted" json:"description"`
+	Description string      `gorm:"size:500;not null" json:"description"`
 	Source      EntrySource `gorm:"size:20;not null;index" json:"source"`
 
 	// Belegverweis. DocumentNumber is the Belegfeld the auditor uses to find the
@@ -190,7 +190,7 @@ type JournalEntry struct {
 	// Correction handling.
 	Kind           EntryKind `gorm:"size:20;not null;default:'normal';index" json:"kind"`
 	ReversalOfID   *uint     `gorm:"index" json:"reversalOfId,omitempty"`
-	ReversalReason string    `gorm:"size:255;serializer:encrypted" json:"reversalReason,omitempty"`
+	ReversalReason string    `gorm:"size:255" json:"reversalReason,omitempty"`
 
 	// Foreign currency. The rate is stored as an integer in millionths so that
 	// re-computing a converted amount from the journal is deterministic.
@@ -407,10 +407,10 @@ type EntertainmentDetail struct {
 	ID      uint `gorm:"primaryKey" json:"id"`
 	EntryID uint `gorm:"uniqueIndex;not null" json:"entryId"`
 
-	Place        string `gorm:"size:255;not null;serializer:encrypted" json:"place"`
+	Place        string `gorm:"size:255;not null" json:"place"`
 	Day          string `gorm:"size:10;not null" json:"day"`
-	Participants string `gorm:"type:text;not null;serializer:encrypted" json:"participants"`
-	Occasion     string `gorm:"size:500;not null;serializer:encrypted" json:"occasion"`
+	Participants string `gorm:"type:text;not null" json:"participants"`
+	Occasion     string `gorm:"size:500;not null" json:"occasion"`
 }
 
 // Validate checks that the record is complete. An incomplete one is worse than

@@ -111,28 +111,19 @@ func (r *vatIDCheckRepositoryGorm) FindByContact(ctx context.Context, contactID 
 }
 
 // FindLatestValid sucht die jüngste gültige Bestätigung zu einer Nummer.
-//
-// Gefiltert wird in Go und nicht in SQL: die Nummer liegt verschlüsselt in der
-// Spalte, und ein Vergleich in der Abfrage träfe den Geheimtext. Die Zahl der
-// Abfragen je Kontakt ist zweistellig — das ist der Preis dafür, dass die
-// USt-IdNr. eines Geschäftspartners nicht im Klartext in der Datei steht.
 func (r *vatIDCheckRepositoryGorm) FindLatestValid(
 	ctx context.Context, contactID uint, vatID string,
 ) (*domain.VatIDCheck, error) {
 	var checks []domain.VatIDCheck
 	err := dbFrom(ctx, r.db).
-		Where("contact_id = ? AND status = ?", contactID, domain.VatIDValid).
+		Where("contact_id = ? AND status = ? AND vat_id = ?", contactID, domain.VatIDValid, vatID).
 		Order("checked_at desc, id desc").
+		Limit(1).
 		Find(&checks).Error
-	if err != nil {
+	if err != nil || len(checks) == 0 {
 		return nil, err
 	}
-	for i := range checks {
-		if checks[i].VatID == vatID {
-			return &checks[i], nil
-		}
-	}
-	return nil, nil
+	return &checks[0], nil
 }
 
 func (r *vatIDCheckRepositoryGorm) Save(ctx context.Context, check *domain.VatIDCheck) error {

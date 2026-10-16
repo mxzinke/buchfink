@@ -19,7 +19,7 @@ type ProcedureDocumentation struct {
 	CreatedAt time.Time `gorm:"not null;index" json:"createdAt"`
 	// FiscalYear ist das Geschäftsjahr, für das die Fassung erzeugt wurde.
 	FiscalYear  int    `gorm:"index" json:"fiscalYear"`
-	CompanyName string `gorm:"size:255;serializer:encrypted" json:"companyName"`
+	CompanyName string `gorm:"size:255" json:"companyName"`
 	AppVersion  string `gorm:"size:60" json:"appVersion"`
 	RuleVersion string `gorm:"size:20" json:"ruleVersion"`
 	Actor       string `gorm:"size:120" json:"actor"`
@@ -127,8 +127,8 @@ func DefaultOrganisationTexts() OrganisationTexts {
 			"Aufbewahrungsfrist aufbewahrt.",
 		Approval: "Buchung und Freigabe liegen in einer Hand. Die Kontrolle erfolgt über die Prüfläufe vor der " +
 			"Festschreibung und über den monatlichen Abgleich der Bankkonten mit den Kontoauszügen.",
-		Substitution: "Im Verhinderungsfall übernimmt der steuerliche Berater den Zugriff. Ihm liegen der " +
-			"Wiederherstellungsschlüssel und der Speicherort der Sicherungen vor.",
+		Substitution: "Im Verhinderungsfall übernimmt der steuerliche Berater den Zugriff. Ihm ist der " +
+			"Speicherort der Sicherungen bekannt.",
 		Backup: "Die Sicherung läuft nach dem in den Einstellungen hinterlegten Rhythmus auf ein Ziel außerhalb " +
 			"des Datenordners. Die Läufe werden protokolliert; einmal jährlich wird eine Sicherung " +
 			"probeweise wiederhergestellt und geprüft.",

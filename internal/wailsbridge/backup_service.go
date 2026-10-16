@@ -172,12 +172,8 @@ func (b *BuchfinkBridge) RestoreFromBackup(zipPath, targetDir string) (*domain.T
 		svc = b.restoreOnlyService()
 	}
 
-	// Kennung und Name des gesicherten Mandanten stehen in backup.json und
-	// werden gebraucht, bevor der Ordner angemeldet wird: die Sicherung bringt
-	// die Schlüsseldatei des Ursprungsmandanten mit, und das Geheimnis dazu
-	// liegt im Schlüsselbund unter dessen Kennung. Eine neu vergebene Kennung
-	// fände den Schlüssel nicht — der wiederhergestellte Mandant wäre auf
-	// demselben Rechner gesperrt, auf dem er eben noch offen war.
+	// Der Name des gesicherten Mandanten steht in backup.json; mit ihm wird
+	// der wiederhergestellte Ordner angemeldet.
 	meta, err := service.ReadBackupMeta(zipPath)
 	if err != nil {
 		return nil, err
@@ -193,29 +189,13 @@ func (b *BuchfinkBridge) RestoreFromBackup(zipPath, targetDir string) (*domain.T
 	// Die Wiederherstellung ist selbst der Weg, auf dem die Daten hereinkommen:
 	// registerTenantLocked schreibt den Protokolleintrag mit dieser Art, und
 	// ein zweiter Eintrag hier zählte denselben Vorgang ein zweites Mal.
-	tenant, err := b.registerTenantLocked(dbPath, domain.TenantConfig{
-		ID: meta.TenantID, Name: meta.TenantName,
-	}, domain.MigrationKindRestore)
-	locked := b.locked
+	tenant, err := b.registerTenantLocked(dbPath, meta.TenantName, domain.MigrationKindRestore)
 	openDir, activeID := b.dataDir, b.appConfig.ActiveTenantID
 	journal, receipts, audit := b.journalSvc, b.receiptSvc, b.auditRepo
 	restoredBackup := b.backupSvc
 	b.mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("die Daten wurden wiederhergestellt, konnten aber nicht als Mandant angemeldet werden: %w", err)
-	}
-
-	// Verschlüsselt und ohne Schlüssel auf diesem Rechner: dann ist keine
-	// Prüfung möglich, und es wäre die falsche Auskunft, eine zu melden. Der
-	// Mandant bleibt angemeldet, damit er nach dem Einlesen der
-	// Wiederherstellungsdatei weiterläuft.
-	if locked {
-		return tenant, fmt.Errorf(
-			"die Daten wurden wiederhergestellt und der Mandant %q ist angemeldet, aber verschlüsselt: "+
-				"der Schlüssel liegt auf diesem Rechner nicht im Schlüsselbund. "+
-				"Bitte die Wiederherstellungsdatei (buchfink-recovery-*.json) einlesen; "+
-				"danach werden Hash-Chain und Belegdateien geprüft",
-			tenant.Name)
 	}
 
 	// Der Lauf kommt zusätzlich in die Bücher des wiederhergestellten

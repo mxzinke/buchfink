@@ -1,8 +1,8 @@
 # Buchfink isoliert prüfen
 
 Diese Hilfen führen die [Prüfszenarien](../../docs/entwicklung/pruefszenarien.md) mit isolierten Beispieldaten aus.
-Sie verwenden die echte Wails-Bridge, die echten Dienste, SQLite und den
-Betriebssystem-Schlüsselbund. Der Server lauscht ausschließlich auf 127.0.0.1:9250.
+Sie verwenden die echte Wails-Bridge, die echten Dienste und SQLite. Der Server
+lauscht ausschließlich auf 127.0.0.1:9250.
 
 ## Anwendung starten
 
@@ -23,8 +23,7 @@ Server.
 BUCHFINK_BUGHUNT_DIR muss ein absoluter Pfad zur Testkonfiguration sein.
 Der Test ändert weder HOME noch die normale Konfiguration unter ~/.buchfink.
 Im Einrichtungsassistenten auch für die Unternehmensdaten einen neuen Testordner
-angeben. Schlüssel für diese Testunternehmen werden im echten Schlüsselbund
-angelegt. Der Server ist eine Entwicklungsumgebung und kein Netzwerkbetrieb
+angeben. Der Server ist eine Entwicklungsumgebung und kein Netzwerkbetrieb
 der Desktop-Anwendung.
 
 ## Hilfen
@@ -71,9 +70,8 @@ go test -tags bughunt ./internal/bank ./internal/repository ./internal/wailsbrid
 
 Die sechs ursprünglichen Abnahmeproben für Bankimport und Jahresauswahl
 bestehen nach den Korrekturen. Sie sind auch ohne das Build-Tag bughunt Teil
-der normalen Testsuite. Sie verwenden temporäre Datenbanken und beim Bridge-Test
-einen simulierten Schlüsselbund. Der Server-Test wird nur mit den beiden
-Build-Tags server und bughunt eingebunden.
+der normalen Testsuite. Sie verwenden temporäre Datenbanken. Der Server-Test
+wird nur mit den beiden Build-Tags server und bughunt eingebunden.
 
 ```sh
 go test ./internal/...

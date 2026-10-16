@@ -235,7 +235,7 @@ type InvoiceItem struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	InvoiceID   uint   `gorm:"index;not null" json:"invoiceId"`
 	Position    int    `gorm:"not null" json:"position"`
-	Description string `gorm:"type:text;not null;serializer:encrypted_v2" json:"description"`
+	Description string `gorm:"type:text;not null" json:"description"`
 	// QuantityMilli holds the quantity with three decimal places (1500 = 1,5).
 	// An integer keeps 0,1 h × 3 exact, which a float quantity would not.
 	QuantityMilli int64   `gorm:"not null" json:"quantityMilli"`
@@ -264,7 +264,7 @@ type Invoice struct {
 	DueDate         string `gorm:"size:10;not null" json:"dueDate"`
 
 	ContactID   uint   `gorm:"index;not null" json:"contactId"`
-	ContactName string `gorm:"size:255;not null;serializer:encrypted" json:"contactName"`
+	ContactName string `gorm:"size:255;not null" json:"contactName"`
 
 	Items []InvoiceItem `gorm:"foreignKey:InvoiceID;constraint:OnDelete:CASCADE" json:"items"`
 
@@ -280,7 +280,7 @@ type Invoice struct {
 	// Er steht an der Rechnung und nicht nur im Protokoll: die Frage, ob die
 	// Befreiung trägt, wird später an dieser Rechnung gestellt, und die Antwort
 	// muss dort stehen, wo sie gestellt wird.
-	VatIDOverrideReason string `gorm:"size:500;serializer:encrypted" json:"vatIdOverrideReason,omitempty"`
+	VatIDOverrideReason string `gorm:"size:500" json:"vatIdOverrideReason,omitempty"`
 
 	// TransportKind sagt, wer den Gegenstand befördert hat: „supplier" der
 	// Lieferer, „customer" der Abnehmer (Abholfall). Leer wird als Regelfall
@@ -304,7 +304,7 @@ type Invoice struct {
 	// JournalEntryID links the invoice to the booking it produced.
 	JournalEntryID *uint `gorm:"index" json:"journalEntryId,omitempty"`
 
-	ZUGFeRDXML string `gorm:"type:text;serializer:encrypted" json:"zugferdXml,omitempty"`
+	ZUGFeRDXML string `gorm:"type:text" json:"zugferdXml,omitempty"`
 
 	// ReceiptID points at the Beleg holding the issued document: the hybrid PDF
 	// as the received form and the XML as the structured part. It replaces the

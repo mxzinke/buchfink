@@ -8,12 +8,9 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
-	"github.com/zalando/go-keyring"
 )
 
 func TestFoundationProofCompletesTaskAtomicallyAndSurvivesRestart(t *testing.T) {
-	keyring.MockInit()
-	t.Cleanup(func() { repository.SetActiveVault(nil) })
 	base := t.TempDir()
 	config := repository.NewAppConfigRepository(filepath.Join(base, "config"))
 	b := &BuchfinkBridge{appCfgRepo: config, currentYear: 2026}

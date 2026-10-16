@@ -32,11 +32,11 @@ type GiftRecord struct {
 	// Geschäftspartner ist. RecipientName ist der Name — bei einem erfassten
 	// Kontakt seiner, sonst der freie Text.
 	RecipientContactID *uint  `gorm:"index" json:"recipientContactId,omitempty"`
-	RecipientName      string `gorm:"size:255;not null;serializer:encrypted" json:"recipientName"`
+	RecipientName      string `gorm:"size:255;not null" json:"recipientName"`
 
 	// Occasion ist der Anlass. Er gehört zur Aufzeichnung wie bei der Bewirtung:
 	// ein Geschenk ohne betrieblichen Anlass ist keine Betriebsausgabe.
-	Occasion string `gorm:"size:500;serializer:encrypted" json:"occasion,omitempty"`
+	Occasion string `gorm:"size:500" json:"occasion,omitempty"`
 
 	// NetAmount ist der Nettobetrag, an dem die Freigrenze gemessen wird.
 	//

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, Save, Shield } from 'lucide-react';
+import { ChevronDown, Save } from 'lucide-react';
 import { InvoiceNumberRange } from '../components/InvoiceNumberRange';
 import { CompanyCapitalSection } from '../components/CompanyCapitalSection';
 import {
@@ -162,27 +162,18 @@ const DEFAULT_CLOSING_SETTINGS: ClosingSettings = {
   accrualRelease: 'yearly',
 };
 
-/** Wo der Schlüssel im jeweiligen Betriebssystem zu finden ist. */
-function keychainHint(): string {
-  if (navigator.platform.startsWith('Mac')) return 'In der Schlüsselbundverwaltung unter diesem Eintrag.';
-  if (navigator.platform.startsWith('Win'))
-    return 'In der Anmeldeinformationsverwaltung unter Windows-Anmeldeinformationen.';
-  return 'Im Secret Service, etwa dem GNOME-Schlüsselbund, unter diesem Dienst und Konto.';
-}
-
 export const SettingsPage: React.FC<{
   year: number;
   onNavigate?: NavigateFn;
   onTenantDeleted: () => Promise<void>;
 }> = ({ year, onNavigate, onTenantDeleted }) => {
   // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
-  // im Prüfermodus gesperrt. Der Schlüsselexport bleibt möglich (§10.4).
+  // im Prüfermodus gesperrt (§10.4).
   const writeLock = useWriteLock();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [confirmDeleteTenant, setConfirmDeleteTenant] = useState(false);
   const [deletingTenant, setDeletingTenant] = useState(false);
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
@@ -353,7 +344,7 @@ export const SettingsPage: React.FC<{
   }
 
   async function deleteTenant() {
-    if (!appConfig?.activeTenantId || deletingTenant || saving || exporting || writeLock.locked) return;
+    if (!appConfig?.activeTenantId || deletingTenant || saving || writeLock.locked) return;
     setDeletingTenant(true);
     try {
       await Api.deleteTenant(appConfig.activeTenantId);
@@ -364,20 +355,6 @@ export const SettingsPage: React.FC<{
     }
     toast.success('Mandant aus der Liste entfernt. Die Dateien bleiben im Datenordner.');
     await onTenantDeleted();
-  }
-
-  async function exportRecovery() {
-    setExporting(true);
-    try {
-      const path = await Api.exportRecoveryKey();
-      if (path) { toast.success(`Wiederherstellungsschlüssel gespeichert: ${path}`); setAppConfig(await Api.getAppConfig()); }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      // Der abgebrochene Ordnerdialog ist kein Fehler, den jemand lesen muss.
-      if (!message.includes('kein Zielordner')) toast.error(message);
-    } finally {
-      setExporting(false);
-    }
   }
 
   /**
@@ -1513,7 +1490,7 @@ export const SettingsPage: React.FC<{
         )}
       </Section>
 
-      <Section title="Speicherort und Schlüssel" context="Gilt für diesen Mandanten">
+      <Section title="Speicherort" context="Gilt für diesen Mandanten">
         {/* Eine Spalte über die volle Breite: hier stehen Pfade, und ein Pfad
             in einem halben Feld ist ein abgeschnittener Pfad. */}
         <FormGrid cols={1}>
@@ -1547,40 +1524,6 @@ export const SettingsPage: React.FC<{
           <Field helpSummary="Die Programmversion hilft, Exporte und Sicherungen dem verwendeten Stand zuzuordnen." label="Programmversion" explain="Sie steht in jedem Export und in jeder Sicherung.">
             <Input className="code-num" value={appConfig?.programVersion || 'dev'} readOnly />
           </Field>
-
-          <Field helpSummary="Hier sehen Sie, ob der Schlüssel für Ihre Daten auf diesem Rechner verfügbar ist." label="Schlüssel im Schlüsselbund des Betriebssystems" explain={keychainHint()}>
-            <p className="flex items-center gap-2 text-body text-ink-muted">
-              <span className="mark-diamond bg-positive" aria-hidden="true" />
-              Dienst <span className="code-num text-ink">org.buchfink.app</span> · Konto{' '}
-              <span className="code-num text-ink">{appConfig?.activeTenantId || '—'}</span>
-            </p>
-          </Field>
-
-          {/* Hinweisfläche nach §6.2, Fall 4: Der Verlust ist endgültig, das
-              darf einmal laut werden. */}
-          <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
-            <h3 className="flex items-center text-label text-attention-text">
-              Recovery-Schlüssel getrennt sichern
-              <Help summary="Bewahren Sie die Wiederherstellungsdatei getrennt von Rechner und Datensicherung auf." label="Erklärung zum Recovery-Schlüssel">
-                Geht dieser Rechner verloren, ist der Schlüsselbund weg und die verschlüsselten
-                Daten sind ohne Recovery-Datei unwiederbringlich. Die Datei gehört an einen anderen
-                Ort als die Datensicherung, damit der Besitz der Sicherung allein keinen Zugriff auf die verschlüsselten Daten ermöglicht.
-              </Help>
-            </h3>
-            <p className="text-body text-ink-muted mt-1">
-              {appConfig?.tenants.find((t) => t.id === appConfig.activeTenantId)?.recoveryExportedAt ? 'Ein Wiederherstellungsschlüssel wurde bereits exportiert. Bewahren Sie die Datei getrennt und sicher auf.' : 'Noch keine Schlüsselsicherung vermerkt. Ohne diese Datei sind die verschlüsselten Daten bei Verlust des Rechners nicht wiederherstellbar.'}
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={exporting}
-              onClick={() => void exportRecovery()}
-              icon={<Shield className="w-3.5 h-3.5" strokeWidth={1.5} />}
-              className="mt-3"
-            >
-              Recovery-Schlüssel exportieren
-            </Button>
-          </div>
         </FormGrid>
       </Section>
       <Section title="Mandantenverwaltung">
@@ -1591,15 +1534,12 @@ export const SettingsPage: React.FC<{
           <div className="mt-4 space-y-3">
             <p className="text-body text-ink-muted">
               Der aktuelle Mandant wird aus der Liste entfernt. Seine Buchhaltungsdaten,
-              Belege und Sicherungen bleiben auf der Festplatte. Der Schlüssel im
-              Schlüsselbund wird gelöscht, sofern kein anderer Mandant ihn verwendet.
-              Für einen späteren Zugriff benötigen Sie dann den Wiederherstellungsschlüssel.
-              Exportieren Sie ihn vorher unter „Speicherort und Schlüssel“.
+              Belege und Sicherungen bleiben auf der Festplatte.
             </p>
             <Button
               variant="danger"
               loading={deletingTenant}
-              disabled={writeLock.locked || saving || exporting || !appConfig?.activeTenantId}
+              disabled={writeLock.locked || saving || !appConfig?.activeTenantId}
               title={writeLock.hint}
               onClick={() => setConfirmDeleteTenant(true)}
             >
@@ -1612,7 +1552,7 @@ export const SettingsPage: React.FC<{
         open={confirmDeleteTenant}
         onOpenChange={setConfirmDeleteTenant}
         title={`Mandant „${appConfig?.tenants.find((tenant) => tenant.id === appConfig.activeTenantId)?.name || settings.companyName}“ entfernen?`}
-        description="Der Mandant wird aus der Liste entfernt. Seine Dateien bleiben auf der Festplatte. Sein Schlüssel wird gelöscht, sofern kein anderer Mandant ihn verwendet. Ohne Wiederherstellungsschlüssel können Sie dann nicht mehr auf die verschlüsselten Daten zugreifen."
+        description="Der Mandant wird aus der Liste entfernt. Seine Dateien bleiben auf der Festplatte."
         confirmLabel="Mandant entfernen"
         destructive
         onConfirm={() => void deleteTenant()}

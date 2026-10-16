@@ -11,8 +11,8 @@ import (
 //
 // Geprüft wird an dem Text, den die Vorlage erzeugt: die Angaben, die Art. 30
 // Abs. 1 DSGVO verlangt — Zwecke, Kategorien, Empfänger, Löschfristen — und die
-// Maßnahmen nach Art. 32 DSGVO, allen voran die Verschlüsselung und die
-// Protokollierung der Lesezugriffe.
+// Maßnahmen nach Art. 32 DSGVO, allen voran der Schutz der Daten am Rechner
+// und die Protokollierung der Lesezugriffe.
 func TestProcDocCarriesTheArticle30Register(t *testing.T) {
 	markdown, err := Render(Input{
 		CompanyName: "Pfennig Ventures GmbH", LegalForm: "GmbH", FiscalYear: 2026,
@@ -39,7 +39,7 @@ func TestProcDocCarriesTheArticle30Register(t *testing.T) {
 		// Die Fristen kommen aus den Aufbewahrungsklassen.
 		"Abschnitt 3.8", "Art. 17 Abs. 3 Buchst. b",
 		// Art. 32: die Maßnahmen, und zwar die, die es tatsächlich gibt.
-		"Art. 32 DSGVO", "AES-256-GCM", "Schlüsselbund",
+		"Art. 32 DSGVO", "Festplattenverschlüsselung",
 		"Zugriff", "Hash-Kette",
 	} {
 		if !strings.Contains(markdown, want) {

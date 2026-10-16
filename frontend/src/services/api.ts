@@ -543,7 +543,6 @@ export const Api = {
   importTenant: (dbFilePath: string): Promise<TenantConfig> =>
     call(() => Bridge.ImportTenant(dbFilePath) as Promise<TenantConfig>),
   deleteTenant: (tenantId: string): Promise<void> => call(() => Bridge.DeleteTenant(tenantId) as Promise<void>),
-  isLocked: (): Promise<boolean> => call(() => Bridge.IsLocked() as Promise<boolean>),
 
   // --- Einrichtung -------------------------------------------------------
 
@@ -559,11 +558,6 @@ export const Api = {
     call(() => Bridge.SelectDirectoryDialog(title) as Promise<string>),
   selectDatabaseFileDialog: (title: string): Promise<string> =>
     call(() => Bridge.SelectDatabaseFileDialog(title) as Promise<string>),
-  selectRecoveryFile: (title: string): Promise<string> =>
-    call(() => Bridge.SelectRecoveryFileDialog(title) as Promise<string>),
-  exportRecoveryKey: (): Promise<string> => call(() => Bridge.ExportRecoveryKey() as Promise<string>),
-  recoverFromFile: (path: string): Promise<void> =>
-    call(() => Bridge.RecoverActiveTenantFromFile(path) as Promise<void>),
 
   // --- Geschäftsjahr & Stammdaten ---------------------------------------
 

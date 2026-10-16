@@ -89,7 +89,7 @@ type DunningNotice struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	FiscalYear  int    `gorm:"index;not null" json:"fiscalYear"`
 	ContactID   uint   `gorm:"index;not null" json:"contactId"`
-	ContactName string `gorm:"size:255;serializer:encrypted" json:"contactName"`
+	ContactName string `gorm:"size:255" json:"contactName"`
 	// IsConsumer hält fest, ob der Empfänger beim Erzeugen als Verbraucher
 	// geführt wurde. Er entscheidet über den Zinssatz (§ 288 Abs. 1 und 2 BGB)
 	// und über die Pauschale (§ 288 Abs. 5 BGB); ändern sich die Stammdaten

@@ -648,7 +648,7 @@ const ORG_GROUPS: { title: string; context: string; fields: OrgField[] }[] = [
         label: 'Vertretung',
         hint: 'Im Verhinderungsfall',
         explain:
-          'Wer übernimmt bei Krankheit oder Urlaub, und woher diese Person den Zugang zu den Daten und zum Wiederherstellungsschlüssel bekommt.',
+          'Wer übernimmt bei Krankheit oder Urlaub, und woher diese Person den Zugang zu den Daten und zu den Sicherungen bekommt.',
       },
     ],
   },
