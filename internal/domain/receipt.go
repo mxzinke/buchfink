@@ -452,8 +452,8 @@ func (r *Receipt) ValidateBookable() error {
 // einzelnen Betrag, sondern einen Zeitraum und viele; ein Eigenbeleg hat keinen
 // fremden Aussteller, weil ihn das eigene Unternehmen ausgestellt hat (er
 // braucht dafür einen Betreff, der den Anlass nennt); ein sonstiges Dokument —
-// die Schlussbilanz des Altsystems, die Inventurliste, der
-// Gesellschafterbeschluss — ist überhaupt keine Rechnung: es hat keinen
+// die Schlussbilanz des Altsystems, der Gesellschafterbeschluss — ist
+// überhaupt keine Rechnung: es hat keinen
 // leistenden Unternehmer und oft keinen einzelnen Betrag, und die Pflichtangabe
 // des § 14 Abs. 4 Nr. 1 UStG von ihm zu verlangen hieße, das Dokument nach einer
 // Vorschrift zu prüfen, die für es nicht gilt. Für alle gilt das Belegdatum:
@@ -474,7 +474,7 @@ func (r *Receipt) ValidateHeader() error {
 		// Betreff tritt an die Stelle von Aussteller und Betrag — er ist das
 		// Einzige, woran sich später sagen lässt, was dieses Dokument belegt.
 		// Aussteller und Betrag bleiben erlaubt, aber freiwillig: eine Bilanz
-		// hat keinen, eine Inventurliste viele.
+		// hat keinen Aussteller und viele Beträge.
 		if strings.TrimSpace(r.Subject) == "" {
 			return fmt.Errorf(
 				"Beleg %s braucht einen Betreff, der sagt, was das Dokument belegt — bei einem Dokument ohne Aussteller und Betrag ist er die einzige Bezeichnung",

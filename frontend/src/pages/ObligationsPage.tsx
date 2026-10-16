@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Archive, CheckCircle2, CircleAlert, Download, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Archive, CheckCircle2, CircleAlert, Download, Plus, RefreshCw } from 'lucide-react';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import type { NavigateFn } from '../components/Sidebar';
 import type {
   AfaRules,
   Contact,
-  EvidenceKind,
-  EvidenceKindInfo,
-  EvidenceStatus,
   ExchangeRate,
   ExemptionCertificateWarning,
   ForeignCurrencyValuation,
@@ -18,9 +15,6 @@ import type {
   NonDeductibleReport,
   PoolConsistencyReport,
   ServiceEndpoints,
-  SupplyEvidenceReport,
-  SupplyEvidenceView,
-  TransportKind,
   VatExchangeRate,
   VatIDCheck,
   VatIDCheckStatus,
@@ -72,19 +66,19 @@ import {
 /**
  * Die steuerlichen Nebenpflichten (Welle 5c).
  *
- * Sechs Pflichten, die neben der Buchung stehen und keine eigene Buchung sind:
- * das Verzeichnis nach § 15a UStG, die Bestätigung der USt-IdNr., der
- * Belegnachweis der innergemeinschaftlichen Lieferung, die Aufzeichnung der
- * beschränkt abziehbaren Betriebsausgaben, die Kurse der Fremdwährung und die
- * beiden Anlagenberichte zu Wertaufholung und Sammelposten.
+ * Fünf Pflichten, die neben der Buchung stehen und keine eigene Buchung sind:
+ * das Verzeichnis nach § 15a UStG, die Bestätigung der USt-IdNr., die
+ * Aufzeichnung der beschränkt abziehbaren Betriebsausgaben, die Kurse der
+ * Fremdwährung und die beiden Anlagenberichte zu Wertaufholung und
+ * Sammelposten.
  *
- * Sie stehen in einer Ansicht und nicht verteilt über sechs, weil sie eine
+ * Sie stehen in einer Ansicht und nicht verteilt über fünf, weil sie eine
  * gemeinsame Eigenschaft haben: Wer sie versäumt, merkt es nicht beim Buchen,
  * sondern in der Prüfung. Eine Liste, die man ansehen kann, ist die einzige
  * Stelle, an der sie überhaupt auffallen.
  */
 
-type TabKey = 'inputtax' | 'vatid' | 'evidence' | 'nondeductible' | 'currency' | 'assets';
+type TabKey = 'inputtax' | 'vatid' | 'nondeductible' | 'currency' | 'assets';
 
 export interface ObligationsPageProps {
   /** Das Geschäftsjahr aus der Kopfzeile. */
@@ -95,19 +89,12 @@ export interface ObligationsPageProps {
    * dem ersten Reiter, und die benannte Arbeit wäre wieder zu suchen.
    */
   initialTab?: string;
-  /**
-   * Rechnung, deren Nachweisbelege der Reiter „Belegnachweis" gleich aufschlägt.
-   * Der Weg von der Rechnung hierher meint eine bestimmte Lieferung; ohne sie
-   * müsste der Anwender sie in der Liste erneut suchen.
-   */
-  initialInvoiceId?: number;
   onNavigate?: NavigateFn;
 }
 
 const TAB_KEYS: TabKey[] = [
   'inputtax',
   'vatid',
-  'evidence',
   'nondeductible',
   'currency',
   'assets',
@@ -129,7 +116,6 @@ function today(): string {
 export const ObligationsPage: React.FC<ObligationsPageProps> = ({
   year,
   initialTab,
-  initialInvoiceId,
   onNavigate,
 }) => {
   const [tab, setTab] = useState<TabKey>(isTabKey(initialTab) ? initialTab : 'inputtax');
@@ -154,21 +140,18 @@ export const ObligationsPage: React.FC<ObligationsPageProps> = ({
         items={[
           { value: 'inputtax', label: 'Vorsteuerberichtigung' },
           { value: 'vatid', label: 'USt-IdNr.' },
-          { value: 'evidence', label: 'Belegnachweis' },
           { value: 'nondeductible', label: 'Nicht abziehbar' },
           { value: 'currency', label: 'Fremdwährung' },
           { value: 'assets', label: 'Anlagen' },
         ]}
       >
-        {/* Jede Sicht lädt für sich. Alle sechs auf einmal zu holen hieße, für
-            eine Frage sechs Auswertungen zu rechnen. */}
+        {/* Jede Sicht lädt für sich. Alle fünf auf einmal zu holen hieße, für
+            eine Frage fünf Auswertungen zu rechnen. */}
         <TabPanel value="inputtax">
           {tab === 'inputtax' && <InputTaxPanel year={year} />}
         </TabPanel>
         <TabPanel value="vatid">{tab === 'vatid' && <VatIDPanel onNavigate={onNavigate} />}</TabPanel>
-        <TabPanel value="evidence">
-          {tab === 'evidence' && <EvidencePanel year={year} initialInvoiceId={initialInvoiceId} />}
-        </TabPanel>
+
         <TabPanel value="nondeductible">
           {tab === 'nondeductible' && <NonDeductiblePanel year={year} />}
         </TabPanel>
@@ -668,7 +651,7 @@ function fieldLabel(result?: VatIDFieldResult): string {
  * Die qualifizierte Bestätigungsanfrage nach § 18e UStG samt ihrem Verlauf.
  *
  * Der Verlauf steht neben dem aktuellen Stand, weil die Bestätigung ein Beleg
- * ist und kein Zustand: Was zählt, ist die Abfrage zum Zeitpunkt der Lieferung,
+ * ist und kein Zustand: Was zählt, ist die Abfrage zum Zeitpunkt der Leistung,
  * nicht die von heute.
  */
 const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
@@ -759,7 +742,7 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
         explain={
           <>
             {status?.note ||
-            'Eine steuerfreie innergemeinschaftliche Lieferung setzt eine im Zeitpunkt der Lieferung gültige USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Buchfink hebt jede Antwort samt Abfrage-Identifikationsnummer auf; sie ist der Beleg gegenüber der Finanzverwaltung.'}
+            'Bei einer Leistung an ein Unternehmen im übrigen Gemeinschaftsgebiet weist die im Zeitpunkt der Leistung gültige USt-IdNr. den Empfänger als Unternehmer aus (§ 3a Abs. 2 UStG). Buchfink hebt jede Antwort samt Abfrage-Identifikationsnummer auf; sie ist der Beleg gegenüber der Finanzverwaltung.'}
           </>
         }
       >
@@ -929,410 +912,6 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
       </Section>
 
       <EndpointSection field="vatId" title="Adresse des Bundeszentralamts" />
-    </>
-  );
-};
-
-// -------------------------------------------------------------------------
-// Belegnachweis der innergemeinschaftlichen Lieferung
-// -------------------------------------------------------------------------
-
-const TRANSPORT_ITEMS: { value: TransportKind; label: string }[] = [
-  { value: 'supplier', label: 'Beförderung durch den Lieferer' },
-  { value: 'customer', label: 'Abholung durch den Abnehmer' },
-];
-
-/** Der Nachweisstand als Wort mit Zeichen — Farbe steht nie allein (§3.4). */
-const EvidenceMark: React.FC<{ status: EvidenceStatus }> = ({ status }) => (
-  <span
-    className={cn(
-      'inline-flex items-center gap-1.5',
-      status.fulfilled ? 'text-positive-text' : 'text-attention-text',
-    )}
-  >
-    {status.fulfilled ? (
-      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-    ) : (
-      <CircleAlert className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-    )}
-    {status.fulfilled ? 'Nachweis vollständig' : 'Nachweis unvollständig'}
-  </span>
-);
-
-const EvidencePanel: React.FC<{ year: number; initialInvoiceId?: number }> = ({
-  year,
-  initialInvoiceId,
-}) => {
-  const lock = useWriteLock();
-  const [report, setReport] = useState<SupplyEvidenceReport | null>(null);
-  const [kinds, setKinds] = useState<EvidenceKindInfo[]>([]);
-  const [selected, setSelected] = useState<number>(0);
-  const [view, setView] = useState<SupplyEvidenceView | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  // Die Felder des neuen Nachweisbelegs.
-  const [kind, setKind] = useState<EvidenceKind>('cmr_frachtbrief');
-  const [issuer, setIssuer] = useState('');
-  const [independent, setIndependent] = useState(true);
-  const [date, setDate] = useState(today());
-  const [filePath, setFilePath] = useState('');
-
-  const loadReport = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [rows, kindList] = await Promise.all([
-        Api.getSupplyEvidenceReport(year),
-        Api.getSupplyEvidenceKinds(),
-      ]);
-      setReport(rows);
-      setKinds(kindList);
-    } catch (e) {
-      setReport(null);
-      setError(message(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [year]);
-
-  useEffect(() => {
-    void loadReport();
-    setSelected(0);
-    setView(null);
-  }, [loadReport]);
-
-  const open = useCallback(async (invoiceId: number) => {
-    setSelected(invoiceId);
-    try {
-      setView(await Api.getSupplyEvidence(invoiceId));
-      setError('');
-    } catch (e) {
-      setView(null);
-      setError(message(e));
-    }
-  }, []);
-
-  // Kommt der Anwender von einer bestimmten Rechnung, liegen deren Belege sofort
-  // offen. Die Liste bleibt daneben stehen — der Weg zurück zu den anderen
-  // Lieferungen ist damit nicht verstellt.
-  useEffect(() => {
-    if (initialInvoiceId) void open(initialInvoiceId);
-  }, [initialInvoiceId, open]);
-
-  // Die Beförderungsart wird gespeichert und nicht nur angezeigt: nach ihr richtet
-  // sich die Bewertung des Nachweises, und beim Abholfall auch die Gelangensbestätigung.
-  // Eine Auswahl, die nach dem Neuladen wieder auf dem alten Wert stünde, sähe
-  // aus wie eine Einstellung und wäre keine.
-  async function setTransport(transport: TransportKind) {
-    if (!view) return;
-    setBusy(true);
-    try {
-      setView(await Api.setSupplyTransport(view.invoiceId, transport));
-      await loadReport();
-      setError('');
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function pickFile() {
-    try {
-      const paths = await Api.selectReceiptFiles('Nachweisbeleg auswählen');
-      if (paths.length > 0) setFilePath(paths[0]);
-    } catch (e) {
-      setError(message(e));
-    }
-  }
-
-  async function addEvidence() {
-    if (!view) return;
-    if (!issuer.trim()) {
-      setError('Ohne Aussteller lässt sich die Unabhängigkeit der Belege nicht beurteilen.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    try {
-      setView(
-        await Api.addSupplyEvidence({
-          invoiceId: view.invoiceId,
-          kind,
-          issuer: issuer.trim(),
-          independent,
-          date,
-          filePath: filePath || undefined,
-          transport: view.transport,
-        }),
-      );
-      setIssuer('');
-      setFilePath('');
-      await loadReport();
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function removeEvidence(evidenceId: number) {
-    if (!view) return;
-    setBusy(true);
-    try {
-      setView(await Api.removeSupplyEvidence(view.invoiceId, evidenceId, view.transport));
-      await loadReport();
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (loading) return <SkeletonRows rows={8} />;
-
-  const rows = report?.rows ?? [];
-  const kindLabel = (value: EvidenceKind) =>
-    kinds.find((info) => info.kind === value)?.label ?? value;
-
-  return (
-    <>
-      {error && <Notice tone="negative" text={error} className="mb-6" />}
-
-      {report && report.incomplete > 0 && (
-        <Notice
-          className="mb-6"
-          text={`${report.incomplete} steuerfreie Lieferungen haben noch keinen vollständigen Belegnachweis.`}
-        />
-      )}
-
-      <StatRow>
-        <Stat label="Steuerfreie Lieferungen" value={String(rows.length)} context={`${year}`} />
-        <Stat
-          label={
-            <>
-              Ohne vollständigen Nachweis
-              <Help summary="Halten Sie fest, mit welchen Unterlagen Sie die Lieferung ins EU-Ausland nachweisen." label="Erklärung zum Belegnachweis">
-                Die Steuerfreiheit der innergemeinschaftlichen Lieferung setzt den Beleg- und Buchnachweis voraus (§§ 17a ff. UStDV); ohne ihn ist der Umsatz steuerpflichtig.
-              </Help>
-            </>
-          }
-          value={String(report?.incomplete ?? 0)}
-          context="von diesen Lieferungen"
-          tone={(report?.incomplete ?? 0) > 0 ? 'negative' : 'positive'}
-        />
-        <Stat
-          label="Betroffenes Entgelt"
-          value={formatCents(
-            rows.filter((row) => !row.status.fulfilled).reduce((sum, row) => sum + row.netAmount, 0),
-          )}
-          context="ohne Nachweis"
-        />
-      </StatRow>
-
-      <Section helpSummary="Hier sammeln Sie Nachweise für steuerfreie Warenlieferungen an Unternehmen im EU-Ausland."
-        title="Innergemeinschaftliche Lieferungen"
-        context="Eine Zeile öffnet die Belege dieser Lieferung"
-        className="mt-8"
-        divider={false}
-        explain={
-          <>
-            {report?.note ||
-            'Die Steuerbefreiung setzt den Belegnachweis voraus. Die Vermutung des § 17a UStDV greift bei zwei einander nicht widersprechenden Belegen aus Gruppe a von zwei unabhängigen Parteien oder bei einem Beleg aus a und einem aus b; im Abholfall kommt die Gelangensbestätigung hinzu.'}
-          </>
-        }
-      >
-        {rows.length === 0 ? (
-          <EmptyState
-            title="Keine steuerfreie ig. Lieferung"
-            description="Aufgeführt wird, was mit Steuerfall ig. Lieferung ausgestellt wurde."
-          />
-        ) : (
-          <Table density="kompakt">
-            <Thead>
-              <Tr>
-                <Th className="w-40">Rechnung</Th>
-                <Th className="w-28">Datum</Th>
-                <Th>Empfänger</Th>
-                <Th numeric className="w-32">
-                  Netto
-                </Th>
-                <Th numeric className="w-20">
-                  Belege
-                </Th>
-                <Th className="w-32">Beförderung</Th>
-                <Th className="w-56">Nachweis</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {rows.map((row) => (
-                <Tr
-                  key={row.invoiceId}
-                  variant={row.invoiceId === selected ? 'selected' : 'default'}
-                  className="cursor-pointer"
-                  onClick={() => open(row.invoiceId)}
-                >
-                  <Td code>{row.invoiceNumber}</Td>
-                  <Td>{formatDate(row.date)}</Td>
-                  <Td>{row.contactName}</Td>
-                  <Td numeric>{formatCents(row.netAmount)}</Td>
-                  <Td numeric>{row.evidenceCount}</Td>
-                  <Td className="text-ink-muted">
-                    {row.transport === 'customer' ? 'Abholung' : 'Lieferer'}
-                  </Td>
-                  <Td>
-                    <div className="flex items-center gap-1">
-                      <EvidenceMark status={row.status} />
-                      <Help summary="Hier erfahren Sie, ob die hinterlegten Liefernachweise ausreichen." label={`Bewertung ${row.invoiceNumber}`}>
-                        {row.status.reason}
-                      </Help>
-                    </div>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        )}
-      </Section>
-
-      {view && (
-        <Section helpSummary="Hier sehen Sie die Nachweise und offenen Fragen zu dieser Lieferung."
-          title={`Belege zu ${view.invoiceNumber}`}
-          context={`${view.contactName} · ${formatDate(view.date)}`}
-          explain={
-            <>
-              {`${view.status.reason}${view.status.basis ? ` (${view.status.basis})` : ''}`}
-            </>
-          }
-        >
-          <FieldRow className="mb-5">
-            <Field helpSummary="Geben Sie an, wer die Ware zum Kunden transportiert hat."
-              label="Beförderung"
-              className="w-72"
-              hint="Der Abholfall braucht die Gelangensbestätigung"
-              explain="Die Auswahl wird an der Rechnung gespeichert; sie entscheidet über die Bewertung des Nachweises nach § 17a UStDV."
-            >
-              <Select<TransportKind>
-                value={view.transport || 'supplier'}
-                onValueChange={setTransport}
-                items={TRANSPORT_ITEMS}
-                disabled={lock.locked || busy}
-                aria-label="Wer den Gegenstand befördert hat"
-              />
-            </Field>
-            <Field label="Stand" className="w-64">
-              <FieldValue>
-                <EvidenceMark status={view.status} />
-              </FieldValue>
-            </Field>
-            <Field label="Unabhängige Belege" className="w-52">
-              <FieldValue>
-                <span className="num">
-                  {view.status.groupACount} aus a · {view.status.groupBCount} aus b
-                </span>
-              </FieldValue>
-            </Field>
-          </FieldRow>
-
-          {view.items.length > 0 && (
-            <Table density="kompakt">
-              <Thead>
-                <Tr>
-                  <Th>Belegart</Th>
-                  <Th className="w-16">Gruppe</Th>
-                  <Th>Aussteller</Th>
-                  <Th className="w-32">Unabhängig</Th>
-                  <Th className="w-28">Datum</Th>
-                  <Th className="w-24">Beleg</Th>
-                  <Th className="w-16" />
-                </Tr>
-              </Thead>
-              <Tbody>
-                {view.items.map((item) => (
-                  <Tr key={item.id}>
-                    <Td>{kindLabel(item.kind)}</Td>
-                    <Td className="text-ink-muted">
-                      {kinds.find((info) => info.kind === item.kind)?.group || '—'}
-                    </Td>
-                    <Td>{item.issuer}</Td>
-                    <Td className={item.independent ? undefined : 'text-attention-text'}>
-                      {item.independent ? 'ja' : 'nein'}
-                    </Td>
-                    <Td>{formatDate(item.date)}</Td>
-                    <Td code>{item.receiptId ? String(item.receiptId) : '—'}</Td>
-                    <Td>
-                      <Button
-                        variant="quiet"
-                        size="sm"
-                        iconOnly
-                        title="Nachweisbeleg entfernen"
-                        aria-label="Nachweisbeleg entfernen"
-                        onClick={() => removeEvidence(item.id)}
-                        disabled={lock.locked || busy}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
-                      </Button>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          )}
-
-          <FieldRow className="mt-5 items-end">
-            <Field label="Belegart" className="w-72">
-              <Select<EvidenceKind>
-                value={kind}
-                onValueChange={setKind}
-                aria-label="Art des Nachweisbelegs"
-                items={kinds.map((info) => ({
-                  value: info.kind,
-                  label: info.group ? `${info.label} (${info.group})` : info.label,
-                }))}
-              />
-            </Field>
-            <Field label="Aussteller" className="w-64">
-              <Input value={issuer} onChange={(e) => setIssuer(e.target.value)} />
-            </Field>
-            <Field label="Datum" className="w-40">
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
-            <Field label="Datei" optional className="w-72" hint="Sie geht in den Belegspeicher">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  placeholder="Pfad der Datei"
-                />
-                <Button variant="secondary" onClick={pickFile} disabled={lock.locked}>
-                  Wählen
-                </Button>
-              </div>
-            </Field>
-          </FieldRow>
-
-          <div className="mt-4 flex items-center gap-6">
-            <Checkbox
-              label="Aussteller ist unabhängig"
-              hint="Weder Lieferer noch Erwerber (Art. 45a MwStVO)"
-              checked={independent}
-              onCheckedChange={(checked) => setIndependent(Boolean(checked))}
-            />
-            <Button
-              variant="primary"
-              icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
-              onClick={addEvidence}
-              loading={busy}
-              disabled={lock.locked || busy}
-              title={lock.hint}
-            >
-              Nachweis ablegen
-            </Button>
-          </div>
-        </Section>
-      )}
     </>
   );
 };

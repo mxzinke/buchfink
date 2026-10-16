@@ -95,6 +95,26 @@ func TestFullPaymentClosesOpenItem(t *testing.T) {
 	}
 }
 
+// Bezahlt wird über ein Bankkonto. Eine Kasse führt Buchfink nicht, und ein
+// Sachkonto ist kein Zahlungsmittel.
+func TestPaymentNeedsALiquidAccount(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	for _, account := range []string{"1600", "6300"} {
+		if _, err := payments.Settle(ctx, PaymentRequest{
+			PaymentAccount: account,
+			PaymentDate:    "2026-03-20",
+			Allocations:    []AllocationRequest{{OpenItemEntryID: invoice.ID, SettledAmount: 119000}},
+		}); err == nil {
+			t.Errorf("eine Zahlung über Konto %s darf nicht gebucht werden", account)
+		}
+	}
+}
+
 // Teilzahlung: der Rest bleibt stehen, der Status wechselt auf teilbezahlt.
 func TestPartialPaymentLeavesRemainder(t *testing.T) {
 	env := newTestEnv(t)

@@ -201,21 +201,22 @@ func TestValidateParties(t *testing.T) {
 		t.Errorf("der fehlende Ort muss gemeldet werden, erhalten: %v", err)
 	}
 
-	// § 14a Abs. 1 UStG: bei der innergemeinschaftlichen Lieferung gehört die
-	// USt-IdNr. des Empfängers auf die Rechnung.
-	ig := &Invoice{TaxTreatment: TaxTreatmentIntraCommunitySupply}
-	if err := ig.ValidateParties("143/815/08151", "DE123456789", buyer); err == nil {
-		t.Error("ohne USt-IdNr. des Empfängers darf keine ig. Lieferung abgerechnet werden")
+	// § 14a Abs. 1 UStG: bei der Steuerschuldnerschaft des Leistungsempfängers
+	// gehört dessen USt-IdNr. auf die Rechnung.
+	rc := &Invoice{TaxTreatment: TaxTreatmentReverseChargeSupply}
+	if err := rc.ValidateParties("143/815/08151", "DE123456789", buyer); err == nil {
+		t.Error("ohne USt-IdNr. des Empfängers darf keine Leistung nach § 13b abgerechnet werden")
 	}
 	buyer.VatID = "ATU12345678"
-	if err := ig.ValidateParties("143/815/08151", "DE123456789", buyer); err != nil {
-		t.Errorf("mit USt-IdNr. muss die ig. Lieferung durchgehen: %v", err)
+	if err := rc.ValidateParties("143/815/08151", "DE123456789", buyer); err != nil {
+		t.Errorf("mit USt-IdNr. muss die Leistung nach § 13b durchgehen: %v", err)
 	}
 
-	// § 33 UStDV: die Kleinbetragsrechnung braucht den Empfänger nicht.
+	// § 33 UStDV: die Kleinbetragsrechnung braucht die Anschrift des
+	// Empfängers nicht.
 	small := &Invoice{TaxTreatment: TaxTreatmentDomestic, SmallAmount: true}
-	if err := small.ValidateParties("143/815/08151", "", nil); err != nil {
-		t.Errorf("die Kleinbetragsrechnung kommt ohne Empfänger aus: %v", err)
+	if err := small.ValidateParties("143/815/08151", "", noCity); err != nil {
+		t.Errorf("die Kleinbetragsrechnung kommt ohne Anschrift aus: %v", err)
 	}
 }
 

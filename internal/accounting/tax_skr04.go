@@ -161,9 +161,7 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 		// auf der Ausgangsseite zusätzlich am eigenen Erlöskonto 4290.
 		return nil, nil
 
-	case domain.TaxTreatmentIntraCommunitySupply,
-		domain.TaxTreatmentExport,
-		domain.TaxTreatmentReverseChargeSupply,
+	case domain.TaxTreatmentReverseChargeSupply,
 		domain.TaxTreatmentExempt,
 		domain.TaxTreatmentNotTaxable:
 		// Steuerfrei, nicht steuerbar oder Steuerschuld beim Empfänger: die

@@ -140,57 +140,6 @@ func (r *vatIDCheckRepositoryGorm) Save(ctx context.Context, check *domain.VatID
 }
 
 // -------------------------------------------------------------------------
-// Belegnachweis der innergemeinschaftlichen Lieferung
-// -------------------------------------------------------------------------
-
-type supplyEvidenceRepositoryGorm struct {
-	db *gorm.DB
-}
-
-// NewSupplyEvidenceRepository creates a GORM-backed SupplyEvidenceRepository.
-func NewSupplyEvidenceRepository(db *gorm.DB) domain.SupplyEvidenceRepository {
-	return &supplyEvidenceRepositoryGorm{db: db}
-}
-
-func (r *supplyEvidenceRepositoryGorm) FindByInvoice(ctx context.Context, invoiceID uint) ([]domain.SupplyEvidence, error) {
-	out := make([]domain.SupplyEvidence, 0)
-	err := dbFrom(ctx, r.db).
-		Where("invoice_id = ?", invoiceID).
-		Order("date asc, id asc").
-		Find(&out).Error
-	return out, err
-}
-
-func (r *supplyEvidenceRepositoryGorm) FindByInvoices(
-	ctx context.Context, invoiceIDs []uint,
-) (map[uint][]domain.SupplyEvidence, error) {
-	out := map[uint][]domain.SupplyEvidence{}
-	if len(invoiceIDs) == 0 {
-		return out, nil
-	}
-	var rows []domain.SupplyEvidence
-	err := dbFrom(ctx, r.db).
-		Where("invoice_id IN ?", invoiceIDs).
-		Order("date asc, id asc").
-		Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range rows {
-		out[row.InvoiceID] = append(out[row.InvoiceID], row)
-	}
-	return out, nil
-}
-
-func (r *supplyEvidenceRepositoryGorm) Save(ctx context.Context, evidence *domain.SupplyEvidence) error {
-	return dbFrom(ctx, r.db).Save(evidence).Error
-}
-
-func (r *supplyEvidenceRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return dbFrom(ctx, r.db).Delete(&domain.SupplyEvidence{}, id).Error
-}
-
-// -------------------------------------------------------------------------
 // Kurshistorie und Umsatzsteuer-Durchschnittskurse
 // -------------------------------------------------------------------------
 

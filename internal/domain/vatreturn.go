@@ -240,23 +240,15 @@ type VatReturnRepository interface {
 	Delete(ctx context.Context, id uint) error
 }
 
-// ZMLineKind ist die Art des gemeldeten Umsatzes in der Zusammenfassenden
-// Meldung (§ 18a UStG).
+// ZMLineKind ist die Meldeart in der Spalte „Art" des BZSt-Formats.
 type ZMLineKind string
 
-const (
-	// ZMKindSupply ist die innergemeinschaftliche Lieferung.
-	ZMKindSupply ZMLineKind = "L"
-	// ZMKindService ist die im übrigen Gemeinschaftsgebiet steuerpflichtige
-	// sonstige Leistung nach § 3a Abs. 2 UStG.
-	ZMKindService ZMLineKind = "S"
-	// ZMKindTriangular ist das innergemeinschaftliche Dreiecksgeschäft. Buchfink
-	// unterstützt es nicht; die Art steht hier, damit die Spalte des
-	// BZSt-Formats einen benannten Wert hat und nicht eine leere Stelle.
-	ZMKindTriangular ZMLineKind = "D"
-)
+// ZMKindService ist die im übrigen Gemeinschaftsgebiet steuerpflichtige
+// sonstige Leistung nach § 3a Abs. 2 UStG — die einzige Meldeart, die Buchfink
+// erzeugt.
+const ZMKindService ZMLineKind = "S"
 
-// ZMLine ist eine Meldezeile: je USt-IdNr. und Art ein Betrag.
+// ZMLine ist eine Meldezeile: je USt-IdNr. ein Betrag.
 type ZMLine struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	ZMReturnID  uint       `gorm:"index;not null" json:"zmReturnId"`
@@ -282,13 +274,12 @@ type ZMLine struct {
 // zwei richtigen Meldungen zwei falsche, und das Bundeszentralamt gleicht die
 // Beträge mit den Erwerbsmeldungen der anderen Mitgliedstaaten ab.
 type ZMLateEntry struct {
-	EntryID     uint       `json:"entryId"`
-	EntryNumber string     `json:"entryNumber"`
-	PeriodKey   string     `json:"periodKey"`
-	Date        string     `json:"date"`
-	VatID       string     `json:"vatId,omitempty"`
-	Kind        ZMLineKind `json:"kind"`
-	Amount      Cents      `json:"amount"`
+	EntryID     uint   `json:"entryId"`
+	EntryNumber string `json:"entryNumber"`
+	PeriodKey   string `json:"periodKey"`
+	Date        string `json:"date"`
+	VatID       string `json:"vatId,omitempty"`
+	Amount      Cents  `json:"amount"`
 }
 
 // ZMReturn ist die Zusammenfassende Meldung eines Meldezeitraums.
@@ -309,7 +300,6 @@ type ZMReturn struct {
 	SubmissionNote string          `gorm:"size:500" json:"submissionNote,omitempty"`
 	DueDate        string          `gorm:"size:10" json:"dueDate,omitempty"`
 
-	TotalSupplies Cents `gorm:"not null;default:0" json:"totalSupplies"`
 	TotalServices Cents `gorm:"not null;default:0" json:"totalServices"`
 
 	Lines []ZMLine `gorm:"foreignKey:ZMReturnID;constraint:OnDelete:CASCADE" json:"lines"`
@@ -346,30 +336,22 @@ func (r *ZMReturn) EnsureLists() {
 	}
 }
 
-// ZMReconciliation stellt die Summen der Meldung den Kennziffern 41 und 21 der
+// ZMReconciliation stellt die Summe der Meldung der Kennziffer 21 der
 // Voranmeldungen desselben Zeitraums gegenüber.
 //
 // Beide Meldungen beschreiben denselben Umsatz. Gehen sie auseinander, ist eine
 // von beiden falsch — und das Finanzamt gleicht sie ab (§ 18a Abs. 8 UStG).
 // ScopeKey und ScopeLabel benennen den Zeitraum, über den verglichen wurde.
-// Er ist nicht immer der Meldezeitraum: wer monatlich meldet und
-// vierteljährlich voranmeldet (§ 18a Abs. 1 Satz 2 UStG neben § 18 Abs. 2 Satz 2
-// UStG), hat für einen ZM-Monat gar keine Anmeldung. Verglichen wird dann das
-// umschließende Quartal gegen die Summe seiner drei ZM-Monate — sonst stünde in
-// genau der Lage, für die es die Monatsmeldung gibt, immer die volle Summe als
-// Abweichung.
+// Er ist nicht immer der Meldezeitraum: wer jährlich anmeldet, hat für ein
+// ZM-Quartal keine Anmeldung. Verglichen wird dann das Jahr gegen die Summe
+// seiner ZM-Quartale.
 type ZMReconciliation struct {
 	ScopeKey        string `json:"scopeKey,omitempty"`
 	ScopeLabel      string `json:"scopeLabel,omitempty"`
-	SuppliesZM      Cents  `json:"suppliesZm"`
-	SuppliesVat     Cents  `json:"suppliesVat"`
 	ServicesZM      Cents  `json:"servicesZm"`
 	ServicesVat     Cents  `json:"servicesVat"`
 	VatReturnsFound int    `json:"vatReturnsFound"`
 }
-
-// SuppliesDifference ist die Abweichung der ig. Lieferungen gegen Kz 41.
-func (r *ZMReconciliation) SuppliesDifference() Cents { return r.SuppliesZM - r.SuppliesVat }
 
 // ServicesDifference ist die Abweichung der sonstigen Leistungen gegen Kz 21.
 func (r *ZMReconciliation) ServicesDifference() Cents { return r.ServicesZM - r.ServicesVat }

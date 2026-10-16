@@ -203,7 +203,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.Provision{},
 		&domain.ProvisionMovement{},
 		&domain.DiscountRate{},
-		&domain.InventoryCount{},
 		&domain.NotesText{},
 		&domain.Appropriation{},
 		// Welle 5b: Rechnungswesen. Der Rechnungsverbund und seine Abschläge
@@ -214,13 +213,11 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.VendorAdvance{},
 		&domain.NumberGap{},
 		// Welle 5c: die steuerlichen Nebenpflichten. Das Verzeichnis nach § 15a
-		// UStG verweist auf Anlagegut, Beleg und Buchung, der Belegnachweis auf
-		// die Rechnung, die Bestätigungsabfrage auf den Kontakt — alle drei
-		// stehen deshalb hinter ihnen.
+		// UStG verweist auf Anlagegut, Beleg und Buchung, die Bestätigungsabfrage
+		// auf den Kontakt — beide stehen deshalb hinter ihnen.
 		&domain.InputTaxCorrection{},
 		&domain.InputTaxUsage{},
 		&domain.VatIDCheck{},
-		&domain.SupplyEvidence{},
 		&domain.VatExchangeRate{},
 		// Welle 6: die Nachweise. Die Aussetzung der Aufbewahrungsfrist und die
 		// beiden Protokolle stehen am Ende — sie verweisen auf nichts und

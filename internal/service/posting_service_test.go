@@ -166,15 +166,13 @@ func TestIncomingReceiptWithTwoTaxRates(t *testing.T) {
 	})
 }
 
-// „Sofort bezahlt" ist keine Aussage über das Zahlungsmittel. Bar heißt Kasse
-// (1600), nicht Bank — die Vermischung der beiden war ein Fehler im
-// Ursprungskonzept.
+// „Sofort bezahlt" bucht gegen das gewählte Bankkonto.
 func TestImmediatePaymentUsesTheChosenMeansOfPayment(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	vendor := env.vendor(t, "Schreibwaren Meier", "DE", "")
 
-	for _, account := range []string{domain.AccountKasse, domain.AccountBank} {
+	for _, account := range []string{domain.AccountBank, "1810"} {
 		req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 		req.Settlement = SettlementPaid
 		req.PaymentAccount = account
@@ -201,6 +199,14 @@ func TestImmediatePaymentUsesTheChosenMeansOfPayment(t *testing.T) {
 	req.PaymentAccount = "6815"
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
 		t.Error("ein Aufwandskonto darf nicht als Zahlungsmittel akzeptiert werden")
+	}
+
+	// Eine Kasse führt Buchfink nicht: jede Zahlung läuft über ein Bankkonto.
+	for _, cash := range []string{"1600", "1610", "1620"} {
+		req.PaymentAccount = cash
+		if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
+			t.Errorf("die Kasse %s darf nicht als Zahlungsmittel akzeptiert werden", cash)
+		}
 	}
 }
 
@@ -243,9 +249,9 @@ func TestOutgoingDomesticInvoice(t *testing.T) {
 	})
 }
 
-// Innergemeinschaftliche Lieferung: steuerfrei, eigenes Erlöskonto 4125, keine
-// Steuerzeile.
-func TestOutgoingIntraCommunitySupply(t *testing.T) {
+// Leistung an einen Unternehmer im übrigen Gemeinschaftsgebiet: die Steuer
+// schuldet der Empfänger, eigenes Erlöskonto 4337, keine Steuerzeile.
+func TestOutgoingEUService(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
@@ -255,12 +261,12 @@ func TestOutgoingIntraCommunitySupply(t *testing.T) {
 		Date:            "2026-03-15",
 		ServiceDateFrom: "2026-03-15",
 		ServiceDateTo:   "2026-03-15",
-		TaxTreatment:    domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment:    domain.TaxTreatmentReverseChargeSupply,
 		Items: []domain.InvoiceItem{
-			// Ohne Steuersatz: eine innergemeinschaftliche Lieferung weist keine
-			// Steuer aus, und ein Satz an der Position wäre ein Ausweis nach
-			// § 14c UStG (siehe TestIssueRefusesUnlawfulTax).
-			{Description: "Warenlieferung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateNone},
+			// Ohne Steuersatz: die Rechnung weist keine Steuer aus, und ein Satz
+			// an der Position wäre ein Ausweis nach § 14c UStG (siehe
+			// TestIssueRefusesUnlawfulTax).
+			{Description: "Beratung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateNone},
 		},
 	}
 
@@ -268,18 +274,19 @@ func TestOutgoingIntraCommunitySupply(t *testing.T) {
 		t.Fatalf("Rechnung ausstellen: %v", err)
 	}
 	if inv.TaxAmount != 0 {
-		t.Errorf("eine innergemeinschaftliche Lieferung ist steuerfrei, gebucht wurden aber %s € Steuer", inv.TaxAmount)
+		t.Errorf("die Steuer schuldet der Empfänger, ausgewiesen wurden aber %s €", inv.TaxAmount)
 	}
 
 	entry, _ := env.journalRepo.FindByID(ctx, *inv.JournalEntryID)
 	assertLines(t, entry, []bookedLine{
 		{domain.SideDebit, customer.LedgerAccount, 500000},
-		{domain.SideCredit, "4125", 500000},
+		{domain.SideCredit, "4337", 500000},
 	})
 }
 
-// Die Stammdaten müssen zum Steuerfall passen: ohne USt-IdNr. keine
-// innergemeinschaftliche Lieferung (§ 6a Abs. 1 Nr. 4 UStG).
+// Die Stammdaten müssen zum Steuerfall passen: ohne USt-IdNr. keine Rechnung
+// nach § 13b UStG (§ 14a Abs. 1 UStG). Warenlieferungen ins Ausland kennt
+// Buchfink nicht.
 func TestTaxTreatmentIsValidatedAgainstMasterData(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -288,27 +295,30 @@ func TestTaxTreatmentIsValidatedAgainstMasterData(t *testing.T) {
 	inv := &domain.Invoice{
 		ContactID: withoutVatID.ID, Date: "2026-03-15",
 		ServiceDateFrom: "2026-03-15", ServiceDateTo: "2026-03-15",
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
-		Items:        []domain.InvoiceItem{{Description: "Ware", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateNone}},
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
+		Items:        []domain.InvoiceItem{{Description: "Beratung", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateNone}},
 	}
 	err := env.invoices(t).Issue(ctx, inv)
 	if err == nil {
-		t.Fatal("ohne USt-IdNr. darf keine innergemeinschaftliche Lieferung ausgestellt werden")
+		t.Fatal("ohne USt-IdNr. darf keine Rechnung nach § 13b UStG ausgestellt werden")
 	}
 	if !strings.Contains(err.Error(), "USt-IdNr") {
 		t.Errorf("die Fehlermeldung sollte die fehlende USt-IdNr. benennen, lautet aber: %v", err)
 	}
 
-	// Ein deutscher Kunde kann keine innergemeinschaftliche Lieferung erhalten.
-	german := env.customer(t, "Kunde Inland", "DE", "DE123456789")
-	inv2 := &domain.Invoice{
-		ContactID: german.ID, Date: "2026-03-15",
-		ServiceDateFrom: "2026-03-15", ServiceDateTo: "2026-03-15",
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
-		Items:        []domain.InvoiceItem{{Description: "Ware", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateStandard}},
-	}
-	if err := env.invoices(t).Issue(ctx, inv2); err == nil {
-		t.Error("ein Empfänger im Inland kann keine innergemeinschaftliche Lieferung erhalten")
+	withVatID := env.customer(t, "Client Lyon SARL", "FR", "FR98765432109")
+	for _, treatment := range []domain.TaxTreatment{"intra_community_supply", "export"} {
+		goods := &domain.Invoice{
+			ContactID: withVatID.ID, Date: "2026-03-15",
+			ServiceDateFrom: "2026-03-15", ServiceDateTo: "2026-03-15",
+			TaxTreatment: treatment,
+			Items:        []domain.InvoiceItem{{Description: "Ware", QuantityMilli: 1000, UnitPrice: 10000, TaxRate: domain.TaxRateNone}},
+		}
+		if err := env.invoices(t).Issue(ctx, goods); err == nil {
+			t.Errorf("der Steuerfall %q darf nicht ausgestellt werden", treatment)
+		} else if !strings.Contains(err.Error(), "gibt es für Ausgangsrechnungen nicht") {
+			t.Errorf("die Meldung sollte den unbekannten Steuerfall benennen: %v", err)
+		}
 	}
 }
 

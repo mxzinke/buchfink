@@ -33,7 +33,7 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 	accrualRepo := repository.NewAccrualRepository(e.db)
 	provisionRepo := repository.NewProvisionRepository(e.db)
 	rateRepo := repository.NewDiscountRateRepository(e.db)
-	inventoryRepo := repository.NewInventoryRepository(e.db)
+
 	notesRepo := repository.NewNotesTextRepository(e.db)
 	appropriationRepo := repository.NewAppropriationRepository(e.db)
 	stepRepo := repository.NewClosingStepRepository(e.db)
@@ -53,7 +53,7 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 	e.posting.SetProvisionConsumer(m.provisions)
 
 	m.bookings = NewClosingBookingService(
-		inventoryRepo, provisionRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
+		provisionRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
 		closing, e.fiscalYear)
 	m.bookings.SetReceiptService(e.receipts)
 
@@ -68,7 +68,7 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 		closing, e.fiscalYear)
 
 	m.steps = NewClosingStepsService(
-		stepRepo, accrualRepo, provisionRepo, inventoryRepo, appropriationRepo,
+		stepRepo, accrualRepo, provisionRepo, appropriationRepo,
 		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing, e.fiscalYear)
 	return m
 }
@@ -457,74 +457,6 @@ func TestProvisionConsumptionThroughTheReceiptPathLeavesTheExcessAsExpense(t *te
 	}
 	if mirror.Total.Closing != 0 {
 		t.Errorf("Endbestand im Spiegel %s € — erwartet null", mirror.Total.Closing)
-	}
-}
-
-// -------------------------------------------------------------------------
-// Vorräte
-// -------------------------------------------------------------------------
-
-// Der Inventurwert liegt unter dem Buchwert: die Minderung ist Aufwand und
-// läuft auf das Bestandsveränderungskonto des Materialaufwands.
-func TestInventoryChangeCarriesTheRightSign(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	list := env.fileIncoming(t, "inventurliste.pdf")
-
-	preview, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau: %v", err)
-	}
-	if preview.Change != -100_000 || preview.ChangeAccount != domain.AccountBestandRHBWaren {
-		t.Errorf("Veränderung %s € auf %s — erwartet −1.000,00 € auf %s",
-			preview.Change, preview.ChangeAccount, domain.AccountBestandRHBWaren)
-	}
-
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}); err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	after := balances(t, env, 2026)
-	if after["1140"] != 400_000 {
-		t.Errorf("Bestand nach der Buchung %s € — erwartet den Inventurwert von 4.000,00 €", after["1140"])
-	}
-	if after[domain.AccountBestandRHBWaren] != 100_000 {
-		t.Errorf("Bestandsveränderung %s € — erwartet 1.000,00 € im Soll (Aufwand)",
-			after[domain.AccountBestandRHBWaren])
-	}
-}
-
-// Ohne Inventurliste gibt es keinen Inventurwert: die Aufnahme selbst ist der
-// Beleg (§ 240 Abs. 1 HGB), und ein Bestand ohne sie ist eine Behauptung.
-func TestInventoryNeedsItsCountSheet(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur",
-	}); err == nil {
-		t.Fatal("ohne Inventurliste darf kein Inventurwert entstehen")
 	}
 }
 
@@ -1083,12 +1015,6 @@ func TestClosingModulesMarshalEmptyListsNotNull(t *testing.T) {
 	// im Render den ganzen Baum mit.
 	assertNoNullLists(t, "Rückstellung der Vorschau", provisionPreview.Provision, "movements")
 
-	inventory, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorräte: %v", err)
-	}
-	assertNoNullLists(t, "Vorräte", inventory, "accounts")
-
 	settlement, err := m.bookings.PreviewVatSettlement(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Umsatzsteuer-Verrechnung: %v", err)
@@ -1509,77 +1435,6 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	}
 	if preview.RequiredLegalReserve != 0 || !containsSubstring(preview.Warnings, "Im Abschluss 2026 fehlt") {
 		t.Fatalf("Fehlende Rücklage muss im Abschluss nachgeholt werden: %+v", preview)
-	}
-}
-
-// Die Zunahme des Bestands ist ein Ertrag: SOLL Bestandskonto, HABEN
-// Bestandsveränderung fertige Erzeugnisse (§ 275 Abs. 2 Nr. 2 HGB).
-func TestInventoryIncreaseBooksAsIncome(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-	list := env.fileIncoming(t, "inventurliste-fertige.pdf")
-
-	preview, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1110", Amount: 250_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau: %v", err)
-	}
-	if preview.Change != 250_000 || preview.ChangeAccount != domain.AccountBestandFertige {
-		t.Fatalf("Veränderung %s € auf %s — erwartet 2.500,00 € auf %s",
-			preview.Change, preview.ChangeAccount, domain.AccountBestandFertige)
-	}
-	if len(preview.Lines) != 2 ||
-		preview.Lines[0].Side != domain.SideDebit || preview.Lines[0].Account != "1110" ||
-		preview.Lines[1].Side != domain.SideCredit ||
-		preview.Lines[1].Account != domain.AccountBestandFertige {
-		t.Fatalf("Buchungssatz %+v — erwartet SOLL 1110 an HABEN %s",
-			preview.Lines, domain.AccountBestandFertige)
-	}
-
-	req := InventoryRequest{
-		FiscalYear: 2026, Account: "1110", Amount: 250_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}
-	if _, err := m.bookings.BookInventory(ctx, req); err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	after := balances(t, env, 2026)
-	if after["1110"] != 250_000 {
-		t.Errorf("Bestand %s € — erwartet den Inventurwert von 2.500,00 €", after["1110"])
-	}
-	if after[domain.AccountBestandFertige] != -250_000 {
-		t.Errorf("Bestandsveränderung %s € — erwartet 2.500,00 € im Haben (Ertrag)",
-			after[domain.AccountBestandFertige])
-	}
-
-	// Ein zweiter Inventurwert zum selben Konto und Jahr wird abgewiesen; sonst
-	// stünden zwei Aufnahmen nebeneinander.
-	if _, err := m.bookings.BookInventory(ctx, req); err == nil {
-		t.Fatal("ein zweiter Inventurwert für dasselbe Konto und Jahr muss abgewiesen werden")
-	}
-	overview, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorräte: %v", err)
-	}
-	counted := 0
-	for _, account := range overview.Accounts {
-		if account.Account == "1110" && account.Counted > 0 {
-			counted++
-		}
-	}
-	if counted != 1 {
-		t.Errorf("das Konto 1110 erscheint %d-mal mit Inventurwert — erwartet einmal", counted)
-	}
-
-	// Und eine Inventurliste, die es nicht gibt, wird abgewiesen.
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 100_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: 987_654,
-	}); err == nil {
-		t.Fatal("ein Belegverweis ins Leere darf nicht als Inventurliste gelten")
 	}
 }
 
@@ -2077,58 +1932,6 @@ func TestReversedTaxProvisionCanBeBookedAgain(t *testing.T) {
 	}
 }
 
-// Dasselbe für den Inventurwert: nach dem Storno darf er neu erfasst werden.
-func TestReversedInventoryCountCanBeBookedAgain(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	list := env.fileIncoming(t, "inventurliste.pdf")
-	req := InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}
-	count, err := m.bookings.BookInventory(ctx, req)
-	if err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	if count.JournalEntryID == nil {
-		t.Fatal("die Bestandsveränderung wurde nicht gebucht")
-	}
-	if _, err := m.bookings.BookInventory(ctx, req); err == nil {
-		t.Fatal("ein zweiter Inventurwert muss abgewiesen werden, solange die Buchung steht")
-	}
-	if _, err := env.journal.Reverse(ctx, *count.JournalEntryID, "Zählfehler"); err != nil {
-		t.Fatalf("Bestandsveränderung stornieren: %v", err)
-	}
-
-	req.Amount = 450_000
-	corrected, err := m.bookings.BookInventory(ctx, req)
-	if err != nil {
-		t.Fatalf("nach dem Storno muss der Inventurwert neu entstehen dürfen: %v", err)
-	}
-	if corrected.ID != count.ID {
-		t.Errorf("der Karteisatz wurde neu angelegt (%d statt %d) statt fortgeschrieben",
-			corrected.ID, count.ID)
-	}
-	after := balances(t, env, 2026)
-	if after["1140"] != 450_000 {
-		t.Errorf("Bestand %s € — erwartet den berichtigten Inventurwert von 4.500,00 €", after["1140"])
-	}
-}
-
 // Und für die Ergebnisverwendung.
 func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	env := newTestEnv(t)
@@ -2178,48 +1981,15 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 // Belege der Abschlussbuchungen
 // -------------------------------------------------------------------------
 
-// Keine Buchung ohne Beleg (GoBD Rz. 61). Das gilt auch für die drei Buchungen,
-// die keine Rechnung von außen haben: die Bestandsveränderung, die Auflösung der
-// Abgrenzung und die Ergebnisverwendung.
+// Keine Buchung ohne Beleg (GoBD Rz. 61). Das gilt auch für die Buchungen, die
+// keine Rechnung von außen haben: die Auflösung der Abgrenzung und die
+// Ergebnisverwendung.
 func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 
-	// 1. Inventurwert: Eigenbeleg an der Buchung, Inventurliste versiegelt.
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	sheet := env.fileIncoming(t, "inventurliste.pdf")
-	count, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: sheet.ID,
-	})
-	if err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	inventoryEntry := entryByID(t, env, *count.JournalEntryID)
-	if inventoryEntry.ReceiptID == nil || inventoryEntry.ReceiptHash == "" {
-		t.Errorf("die Bestandsveränderung hat keinen Beleg: %+v", inventoryEntry)
-	}
-	sealed, err := env.receipts.Get(ctx, sheet.ID)
-	if err != nil {
-		t.Fatalf("Inventurliste lesen: %v", err)
-	}
-	if sealed.JournalEntryID == nil || *sealed.JournalEntryID != *count.JournalEntryID {
-		t.Errorf("die Inventurliste ist nicht mit der Buchung versiegelt: %+v", sealed)
-	}
-
-	// 2. Auflösung der Abgrenzung im Folgejahr.
+	// 1. Auflösung der Abgrenzung im Folgejahr.
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
@@ -2251,7 +2021,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 		t.Errorf("die Auflösung hat keinen Eigenbeleg: %+v", releases[0])
 	}
 
-	// 3. Ergebnisverwendung, hier mit Beschlussdokument.
+	// 2. Ergebnisverwendung, hier mit Beschlussdokument.
 	opening := &domain.JournalEntry{
 		BookingDate: "2027-01-02", DocumentDate: "2027-01-02",
 		ServiceDateFrom: "2027-01-02", ServiceDateTo: "2027-01-02",

@@ -163,13 +163,9 @@ func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) {
 	if s.auditRepo == nil {
 		return
 	}
-	recipient := inv.ContactName
-	if recipient == "" {
-		recipient = "Barverkauf"
-	}
 	_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
 		fmt.Sprintf("%s %s über %s %s an %s ausgestellt",
-			inv.ResolvedKind().Label(), inv.InvoiceNumber, inv.GrossAmount, inv.Currency, recipient))
+			inv.ResolvedKind().Label(), inv.InvoiceNumber, inv.GrossAmount, inv.Currency, inv.ContactName))
 }
 
 // prepareForIssue fills the defaults and runs every check that can be answered
@@ -206,47 +202,31 @@ func (s *InvoiceService) prepareForIssue(
 		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, s.fiscalYearStartMonth(ctx))
 	}
 
-	var contact *domain.Contact
-	if inv.ContactID != 0 {
-		var err error
-		contact, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil {
-			return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
-		}
-		if contact.Type != domain.ContactTypeCustomer {
-			return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
-		}
-		if err := ensureNotBlocked(contact); err != nil {
-			return nil, err
-		}
-		inv.ContactName = contact.LegalName()
-		if inv.EInvoiceProfile == "" {
-			inv.EInvoiceProfile = contact.ResolvedEInvoiceProfile()
-		}
-		// Der Verzugshinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB steht bei
-		// einem Verbraucher auf dem Dokument (invoice.ConsumerDefaultNotice).
-		// Festgehalten wird das an der Rechnung, weil das Mahnwesen es später
-		// braucht: ohne den Hinweis gibt es gegenüber einem Verbraucher keinen
-		// Verzug nach dreißig Tagen, und für die Rechnungen aus der Zeit davor
-		// darf keine spätere Einstellung ihn behaupten.
-		inv.ConsumerNoticePrinted = contact.IsConsumer()
-	} else if !inv.SmallAmount {
-		// Ohne Empfänger geht nur die Kleinbetragsrechnung (§ 33 UStDV); alles
-		// andere braucht ein Personenkonto, gegen das die Forderung läuft.
+	// Jede Rechnung braucht ein Personenkonto, gegen das die Forderung läuft.
+	if inv.ContactID == 0 {
 		return nil, fmt.Errorf("Rechnungsempfänger fehlt")
 	}
-	// Die Kleinbetragsrechnung ohne Empfänger geht als PDF hinaus und nicht als
-	// E-Rechnung.
-	//
-	// EN 16931 verlangt den Namen des Erwerbers (BR-07); § 33 UStDV erlässt ihn.
-	// Einen Namen zu erfinden, um die Norm zu bedienen, hieße eine Pflichtangabe
-	// zu behaupten, die es nicht gibt — der strukturierte Datensatz wäre falsch,
-	// und zwar maschinenlesbar falsch. Der Ausweg steht im Gesetz selbst:
-	// Kleinbetragsrechnungen sind von der Pflicht zur E-Rechnung ausgenommen
-	// (§ 33 UStDV, BMF vom 15.10.2024, Rz. 21).
-	if inv.ContactID == 0 && inv.SmallAmount {
-		inv.EInvoiceProfile = domain.EInvoiceProfilePDFOnly
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
 	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
+	}
+	if err := ensureNotBlocked(contact); err != nil {
+		return nil, err
+	}
+	inv.ContactName = contact.LegalName()
+	if inv.EInvoiceProfile == "" {
+		inv.EInvoiceProfile = contact.ResolvedEInvoiceProfile()
+	}
+	// Der Verzugshinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB steht bei
+	// einem Verbraucher auf dem Dokument (invoice.ConsumerDefaultNotice).
+	// Festgehalten wird das an der Rechnung, weil das Mahnwesen es später
+	// braucht: ohne den Hinweis gibt es gegenüber einem Verbraucher keinen
+	// Verzug nach dreißig Tagen, und für die Rechnungen aus der Zeit davor
+	// darf keine spätere Einstellung ihn behaupten.
+	inv.ConsumerNoticePrinted = contact.IsConsumer()
 	if inv.EInvoiceProfile == "" {
 		inv.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
 	}
@@ -262,7 +242,7 @@ func (s *InvoiceService) prepareForIssue(
 
 	if inv.DueDate == "" {
 		days := inv.Terms.DueDays
-		if days <= 0 && contact != nil {
+		if days <= 0 {
 			days = contact.PaymentTermsDays
 		}
 		if days <= 0 {
@@ -285,16 +265,14 @@ func (s *InvoiceService) prepareForIssue(
 	if err := inv.Validate(); err != nil {
 		return nil, err
 	}
-	if contact != nil {
-		if err := s.validateTaxTreatment(inv, contact); err != nil {
-			return nil, err
-		}
-		// Die Bestätigung der USt-IdNr. steht hinter der Stammdatenprüfung und
-		// vor der Nummernvergabe: sie ist die letzte Frage, die noch mit einem
-		// Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen.
-		if err := s.ensureVatIDConfirmed(ctx, inv, contact); err != nil {
-			return nil, err
-		}
+	if err := s.validateTaxTreatment(inv, contact); err != nil {
+		return nil, err
+	}
+	// Die Bestätigung der USt-IdNr. steht hinter der Stammdatenprüfung und
+	// vor der Nummernvergabe: sie ist die letzte Frage, die noch mit einem
+	// Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen.
+	if err := s.ensureVatIDConfirmed(ctx, inv, contact); err != nil {
+		return nil, err
 	}
 	// Erst die Stammdaten, dann der Steuerausweis: passt der Steuerfall gar
 	// nicht zum Empfänger, ist das die Auskunft, die weiterhilft — der Hinweis
@@ -430,11 +408,6 @@ func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contac
 	if profile == "" || profile == domain.EInvoiceProfilePDFOnly {
 		return nil
 	}
-	// Die Kleinbetragsrechnung ohne Empfänger geht als reines PDF hinaus; sie
-	// hat keinen strukturierten Datensatz, der zu prüfen wäre (§ 33 UStDV).
-	if inv.SmallAmount && contact == nil {
-		return nil
-	}
 	draft := *inv
 	draft.InvoiceNumber = placeholderInvoiceNumber
 	_, _, err := invoice.RenderInvoiceXML(&draft, seller, contact, profile)
@@ -446,14 +419,12 @@ func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contac
 //
 // Die Vorschrift zählt drei auf: den Fernverkauf (§ 3c UStG), die
 // innergemeinschaftliche Lieferung (§ 6a UStG) und die Steuerschuldnerschaft
-// des Leistungsempfängers (§ 13b UStG). Der Fernverkauf fehlt hier, weil er in
-// Buchfink kein eigener Steuerfall ist; die beiden anderen sind es. Der Grund
-// der Ausnahme ist derselbe: mit den verkürzten Angaben fehlten gerade die
-// Angaben, nach denen sich die Rechtsfolge richtet — die USt-IdNr. des Empfängers und
-// der Hinweis auf die Steuerschuldnerschaft.
+// des Leistungsempfängers (§ 13b UStG). Nur die letzte ist in Buchfink ein
+// Steuerfall. Mit den verkürzten Angaben fehlten gerade die Angaben, nach denen
+// sich die Rechtsfolge richtet — die USt-IdNr. des Empfängers und der Hinweis
+// auf die Steuerschuldnerschaft.
 var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
-	domain.TaxTreatmentIntraCommunitySupply: "die innergemeinschaftliche Lieferung (§ 6a UStG)",
-	domain.TaxTreatmentReverseChargeSupply:  "die Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)",
+	domain.TaxTreatmentReverseChargeSupply: "die Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)",
 }
 
 // validateSmallAmount enforces the two conditions of § 33 UStDV.
@@ -463,14 +434,13 @@ var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
 //
 // Beim Steuerfall trennt die Prüfung zwei Dinge, die vorher eine Meldung waren.
 // Zwei Fälle verbietet das Gesetz (§ 33 Satz 2 UStDV, siehe
-// smallAmountExcludedByLaw). Die übrigen — Ausfuhr, steuerfreier Umsatz,
-// nicht steuerbarer Umsatz, Nullsteuersatz — wären nach dem Wortlaut zulässig;
+// smallAmountExcludedByLaw). Die übrigen — steuerfreier Umsatz, nicht
+// steuerbarer Umsatz, Nullsteuersatz — wären nach dem Wortlaut zulässig;
 // Buchfink bietet sie trotzdem nicht an, und die Meldung sagt das als eigene
 // Entscheidung statt sich auf eine Norm zu berufen, die sie nicht deckt. Der
 // Grund ist der verkürzte Datensatz: er kennt Bruttobetrag und Steuersatz, aber
-// keinen Empfänger und keinen Platz für den Hinweis auf die Steuerbefreiung,
-// den § 33 Satz 1 Nr. 4 UStDV in diesen Fällen an die Stelle des Steuersatzes
-// setzt.
+// keinen Platz für den Hinweis auf die Steuerbefreiung, den § 33 Satz 1 Nr. 4
+// UStDV in diesen Fällen an die Stelle des Steuersatzes setzt.
 func (s *InvoiceService) validateSmallAmount(inv *domain.Invoice) error {
 	if !inv.SmallAmount {
 		return nil
@@ -523,11 +493,10 @@ func (s *InvoiceService) validateProfile(ctx context.Context, inv *domain.Invoic
 				"eine XRechnung braucht die Leitweg-ID des Empfängers (BT-10); bei %s ist keine hinterlegt", name)
 		}
 	case domain.EInvoiceProfilePDFOnly:
-		// Die Kleinbetragsrechnung ohne Empfänger bleibt zulässig, auch nach dem
-		// Ende der Übergangsfrist: § 33 UStDV nimmt sie von der Pflicht zur
-		// E-Rechnung aus, und ohne Erwerber ließe sich der strukturierte
-		// Datensatz gar nicht normgerecht erzeugen (BR-07).
-		if inv.SmallAmount && contact == nil {
+		// Die Kleinbetragsrechnung bleibt als sonstige Rechnung zulässig, auch
+		// nach dem Ende der Übergangsfrist: § 33 UStDV nimmt sie von der Pflicht
+		// zur E-Rechnung aus (BMF vom 15.10.2024, Rz. 21).
+		if inv.SmallAmount {
 			return nil
 		}
 		if accounting.EInvoiceIssueTransitionFor(inv.Date, s.priorYearRevenue(ctx, inv.FiscalYear)) ==
@@ -585,15 +554,7 @@ func (s *InvoiceService) numberAndBook(
 		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
 			return err
 		}
-		// Ohne Empfänger ist es der Barverkauf einer Kleinbetragsrechnung: er
-		// bucht gegen das Zahlungsmittel statt gegen ein Personenkonto, das es
-		// nicht gibt (§ 33 UStDV lässt den Empfänger weg).
-		var entry *domain.JournalEntry
-		if contact == nil {
-			entry, err = s.postingSvc.PostCashSale(ctx, inv, inv.PaymentAccount)
-		} else {
-			entry, err = s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
-		}
+		entry, err := s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
 		if err != nil {
 			return err
 		}
@@ -855,14 +816,8 @@ func documentValidation(
 
 // outputProfile ist das Format, in dem das Dokument tatsächlich entsteht.
 //
-// Zwei Regeln, und beide gehören an eine Stelle: ohne Angabe gilt ZUGFeRD, und
-// die Kleinbetragsrechnung ohne Empfänger geht als reines PDF hinaus, auch wenn
-// am Kontakt etwas anderes steht — ohne Erwerber gäbe es keinen normgerechten
-// Datensatz (BR-07), und § 33 UStDV nimmt sie von der E-Rechnungspflicht aus.
+// Ohne Angabe gilt ZUGFeRD.
 func outputProfile(inv *domain.Invoice, contact *domain.Contact) domain.EInvoiceProfile {
-	if inv.SmallAmount && contact == nil {
-		return domain.EInvoiceProfilePDFOnly
-	}
 	if inv.EInvoiceProfile == "" {
 		return domain.EInvoiceProfileZUGFeRD
 	}
@@ -932,7 +887,7 @@ func (s *InvoiceService) renderDocument(
 // Zurückgewiesen und nicht stillschweigend berichtigt: Buchfink nahm den Satz
 // bisher selbst aus der Position, und heraus kam eine Rechnung ohne Steuer,
 // obwohl der Anwender 19 % erfasst hatte. Wer den Steuerfall falsch gewählt hat
-// — eine steuerpflichtige Inlandsleistung als innergemeinschaftliche Lieferung
+// — eine steuerpflichtige Inlandsleistung als Leistung nach § 13b UStG
 // etwa —, bekäme so eine Rechnung ohne Steuerausweis und merkte es nicht. Die
 // Summenrechnung entscheidet die Frage nicht; sie ist eine Frage an den
 // Anwender, welche der beiden Angaben stimmt.
@@ -969,28 +924,19 @@ type vatIDConfirmer interface {
 // sie stellt Buchfink wie bisher aus — mit ihr erst nach einer Bestätigung.
 func (s *InvoiceService) SetVatIDConfirmer(c vatIDConfirmer) { s.vatIDs = c }
 
-// ensureVatIDConfirmed hält eine steuerfreie Lieferung an, solange die USt-IdNr.
-// des Empfängers nicht bestätigt ist.
+// ensureVatIDConfirmed hält eine Leistung an einen Unternehmer im übrigen
+// Gemeinschaftsgebiet an, solange seine USt-IdNr. nicht bestätigt ist.
 //
-// Nur für die beiden Steuerfälle, bei denen die Nummer des Empfängers
-// materielle Voraussetzung ist: die innergemeinschaftliche Lieferung
-// (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die Verlagerung der Steuerschuld auf einen
-// Empfänger im übrigen Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die
-// USt-IdNr. des Kunden keine Voraussetzung von irgendetwas, und eine Abfrage
-// dort wäre ein Netzaufruf ohne Zweck.
+// Nur für diesen Steuerfall ist die Nummer des Empfängers Voraussetzung: sie
+// weist ihn als Unternehmer aus, und daran hängt der Leistungsort im Ausland
+// (§ 3a Abs. 2 UStG). Bei einer Inlandsrechnung ist die USt-IdNr. des Kunden
+// keine Voraussetzung von irgendetwas, und eine Abfrage dort wäre ein
+// Netzaufruf ohne Zweck.
 func (s *InvoiceService) ensureVatIDConfirmed(
 	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
 ) error {
-	if s.vatIDs == nil {
-		return nil
-	}
-	switch inv.TaxTreatment {
-	case domain.TaxTreatmentIntraCommunitySupply:
-	case domain.TaxTreatmentReverseChargeSupply:
-		if !contact.IsEUCounterparty() {
-			return nil
-		}
-	default:
+	if s.vatIDs == nil || inv.TaxTreatment != domain.TaxTreatmentReverseChargeSupply ||
+		!contact.IsEUCounterparty() {
 		return nil
 	}
 	return s.vatIDs.EnsureConfirmed(ctx, contact, inv.VatIDOverrideReason)
@@ -999,22 +945,18 @@ func (s *InvoiceService) ensureVatIDConfirmed(
 // validateTaxTreatment blocks the combinations that would produce a formally
 // wrong invoice — the ones a supplier only finds out about during an audit.
 func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *domain.Contact) error {
-	switch inv.TaxTreatment {
-	case domain.TaxTreatmentIntraCommunitySupply:
-		if !contact.IsEUCounterparty() {
-			return fmt.Errorf("eine innergemeinschaftliche Lieferung setzt einen Empfänger in einem anderen EU-Land voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
+	known := false
+	for _, info := range domain.TaxTreatments(domain.DirectionOutgoing) {
+		if info.Treatment == inv.TaxTreatment {
+			known = true
+			break
 		}
-		if contact.VatID == "" {
-			return fmt.Errorf("für eine innergemeinschaftliche Lieferung braucht %s eine USt-IdNr. (§ 6a Abs. 1 Nr. 4 UStG)", contact.Name)
-		}
-	case domain.TaxTreatmentReverseChargeSupply:
-		if contact.VatID == "" {
-			return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
-		}
-	case domain.TaxTreatmentExport:
-		if contact.IsEUCounterparty() || contact.CountryCode == "DE" || contact.CountryCode == "" {
-			return fmt.Errorf("eine Ausfuhrlieferung setzt einen Empfänger außerhalb der EU voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
-		}
+	}
+	if !known {
+		return fmt.Errorf("den Steuerfall %q gibt es für Ausgangsrechnungen nicht", inv.TaxTreatment)
+	}
+	if inv.TaxTreatment == domain.TaxTreatmentReverseChargeSupply && contact.VatID == "" {
+		return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
 	}
 	return nil
 }
@@ -1026,21 +968,15 @@ func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *doma
 // gross itself, in a second implementation of the rounding rules — this replaces
 // it, because two implementations of a tax computation are one too many.
 func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*PostingPreview, error) {
-	// Ohne Empfänger gibt es eine Vorschau nur für die Kleinbetragsrechnung —
-	// und für sie muss es sie geben: sonst hätte der Barverkauf als einziger
-	// Rechnungsfall keine.
-	var contact *domain.Contact
-	if inv.ContactID != 0 {
-		var err error
-		contact, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil {
-			return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
-		}
-		if contact.Type != domain.ContactTypeCustomer {
-			return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
-		}
-	} else if !inv.SmallAmount {
+	if inv.ContactID == 0 {
 		return nil, fmt.Errorf("Rechnungsempfänger fehlt")
+	}
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
+	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
 	}
 
 	draft := *inv
@@ -1052,23 +988,15 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 			draft.Items[i].Position = i + 1
 		}
 	}
-	if contact != nil {
-		if err := s.validateTaxTreatment(&draft, contact); err != nil {
-			return nil, err
-		}
+	if err := s.validateTaxTreatment(&draft, contact); err != nil {
+		return nil, err
 	}
 	// Dieselbe Prüfung wie beim Ausstellen: der § 14c-Fehler soll in der Maske
 	// auffallen und nicht erst am Knopf „Ausstellen".
 	if err := ensureNoUnlawfulTax(&draft); err != nil {
 		return nil, err
 	}
-	var preview *PostingPreview
-	var err error
-	if contact == nil {
-		preview, err = s.postingSvc.PreviewCashSale(ctx, &draft, draft.PaymentAccount)
-	} else {
-		preview, err = s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
-	}
+	preview, err := s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,11 +1005,10 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 		return nil, settingsErr
 	}
 	profile := draft.EInvoiceProfile
-	if profile == "" && contact != nil {
+	if profile == "" {
 		profile = contact.ResolvedEInvoiceProfile()
 	}
-	structured := profile != domain.EInvoiceProfilePDFOnly && !(draft.SmallAmount && contact == nil)
-	preview.IssuingFindings = seller.InvoiceSellerFindings(structured)
+	preview.IssuingFindings = seller.InvoiceSellerFindings(profile != domain.EInvoiceProfilePDFOnly)
 	if err := draft.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
 		preview.IssuingFindings = append(preview.IssuingFindings, err.Error())
 	}
@@ -1140,15 +1067,11 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 		return "", "", fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 
-	// Die Kleinbetragsrechnung ohne erfassten Kunden hat keinen Empfänger, und
-	// das ist kein Fehler (§ 33 UStDV). Jede andere Rechnung hat einen; ist er
-	// nicht mehr auffindbar, bleibt der Name, unter dem sie ausgestellt wurde.
-	var buyer *domain.Contact
-	if inv.ContactID != 0 {
-		buyer, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil || buyer == nil {
-			buyer = &domain.Contact{Name: inv.ContactName, CountryCode: "DE"}
-		}
+	// Ist der Empfänger nicht mehr auffindbar, bleibt der Name, unter dem die
+	// Rechnung ausgestellt wurde.
+	buyer, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil || buyer == nil {
+		buyer = &domain.Contact{Name: inv.ContactName, CountryCode: "DE"}
 	}
 
 	profile := outputProfile(inv, buyer)

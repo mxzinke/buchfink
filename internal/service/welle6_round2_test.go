@@ -16,85 +16,11 @@ import (
 
 // --- Kopfdaten vor dem Schreiben, nicht erst beim Versiegeln ---------------
 
-// Die Inventurliste bekommt die Buchung erst hinter dem Journal-Commit
-// (Seal). Fehlen ihre Kopfdaten, muss der Vorgang vorher scheitern — sonst
-// stünde die Bestandsveränderung im Journal, während die Liste unverbunden im
-// Belegspeicher liegt und der Prüflauf sie dauerhaft als ungebucht meldet.
-func TestInventorySheetWithoutHeaderLeavesNoBooking(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	before, _ := env.journalRepo.FindAll(ctx, 2026)
-
-	// Eine Inventurliste ohne Betreff: Belegdatum ja, sonst nichts. Aussteller
-	// und Betrag hat sie nicht — sie ist keine Rechnung.
-	sheet := filePDFReceipt(t, env, FileReceiptRequest{
-		Kind: domain.ReceiptKindOther, DocumentDate: "2026-12-31",
-		Files: []NewFile{{
-			Role: domain.ReceiptRoleOriginal, FileName: "inventurliste.pdf",
-			Content: []byte("%PDF-1.4 Inventurliste\n"),
-		}},
-	})
-
-	_, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: sheet.ID,
-	})
-	if err == nil {
-		t.Fatal("eine Inventurliste ohne Kopfdaten darf die Buchung nicht stützen")
-	}
-	if !strings.Contains(err.Error(), "Inventurliste") {
-		t.Errorf("die Meldung muss sagen, welches Dokument fehlt: %v", err)
-	}
-
-	after, _ := env.journalRepo.FindAll(ctx, 2026)
-	if len(after) != len(before) {
-		t.Errorf("der abgewiesene Vorgang hat %d Buchung(en) hinterlassen",
-			len(after)-len(before))
-	}
-
-	// Mit Betreff geht derselbe Vorgang durch, und die Liste ist danach
-	// versiegelt.
-	sheet, err = env.receipts.SaveHeader(ctx, sheet.ID, domain.ReceiptHeader{
-		Kind: domain.ReceiptKindOther, DocumentDate: "2026-12-31",
-		Subject: "Inventurliste Warenbestand zum 31.12.2026",
-	})
-	if err != nil {
-		t.Fatalf("Kopfdaten nachtragen: %v", err)
-	}
-	count, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: sheet.ID,
-	})
-	if err != nil {
-		t.Fatalf("mit Belegdatum und Betreff muss die Inventur buchbar sein: %v", err)
-	}
-	if count.JournalEntryID == nil {
-		t.Fatal("die Bestandsveränderung wurde nicht gebucht")
-	}
-	sealed, err := env.receipts.Get(ctx, sheet.ID)
-	if err != nil {
-		t.Fatalf("Inventurliste lesen: %v", err)
-	}
-	if sealed.Status != domain.ReceiptStatusSealed {
-		t.Errorf("die Inventurliste steht nach der Buchung im Status %q", sealed.Status)
-	}
-}
-
-// Dasselbe für das Beschlussdokument der Ergebnisverwendung.
+// Das Beschlussdokument der Ergebnisverwendung bekommt die Buchung erst hinter
+// dem Journal-Commit (Seal). Fehlen seine Kopfdaten, muss der Vorgang vorher
+// scheitern — sonst stünde die Buchung im Journal, während das Dokument
+// unverbunden im Belegspeicher liegt und der Prüflauf es dauerhaft als
+// ungebucht meldet.
 func TestAppropriationDecisionWithoutHeaderLeavesNoBooking(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)

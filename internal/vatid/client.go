@@ -2,12 +2,12 @@
 // Bundeszentralamt für Steuern ab (§ 18e UStG).
 //
 // Buchfink ist local-first: die Buchführung läuft ohne Netz. Diese Abfrage ist
-// die eine Ausnahme, und sie ist es aus einem Grund — § 6a Abs. 1 Satz 1 Nr. 4
-// UStG macht die gültige USt-IdNr. des Abnehmers zur materiellen Voraussetzung
-// der Steuerbefreiung, und ohne Bestätigung trägt der Lieferer das Risiko. Der
-// Aufruf blockiert deshalb das Ausstellen einer steuerfreien ig. Lieferung, aber
-// nicht Buchfink: ist das Amt nicht erreichbar, sagt der Dienst genau das, und
-// der Anwender entscheidet mit einer dokumentierten Übersteuerung.
+// die eine Ausnahme, und sie ist es aus einem Grund — bei einer Leistung an
+// einen Unternehmer im übrigen Gemeinschaftsgebiet weist die gültige USt-IdNr.
+// den Empfänger als Unternehmer aus, und daran hängt der Leistungsort (§ 3a
+// Abs. 2 UStG). Der Aufruf blockiert deshalb das Ausstellen einer solchen
+// Rechnung, aber nicht Buchfink: ist das Amt nicht erreichbar, sagt der Dienst
+// genau das, und der Anwender entscheidet mit einer dokumentierten Übersteuerung.
 package vatid
 
 import (
@@ -29,8 +29,8 @@ import (
 // Der Pfad gehört dazu und ist keine Nachlässigkeit: die Voreinstellung stand
 // hier eine Zeit lang als Mischung aus dem Host der REST-Schnittstelle und dem
 // Pfad der alten XML-RPC-Fassung, und mit ihr scheiterte jede Abfrage — eine
-// steuerfreie ig. Lieferung wäre produktiv nur noch mit Übersteuerung
-// ausstellbar gewesen.
+// Leistung ins übrige Gemeinschaftsgebiet wäre produktiv nur noch mit
+// Übersteuerung ausstellbar gewesen.
 //
 // Stand: die XML-RPC-Schnittstelle unter https://evatr.bff-online.de/evatrRPC
 // ist seit dem 30.11.2025 abgeschaltet; an ihre Stelle ist die REST-Fassung

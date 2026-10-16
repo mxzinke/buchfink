@@ -43,8 +43,8 @@ type closingReceiptFiler interface {
 	File(ctx context.Context, req FileReceiptRequest) (*domain.Receipt, error)
 	Seal(ctx context.Context, receiptID, entryID uint) error
 	Discard(ctx context.Context, receiptID uint, reason string) error
-	// Get prüft einen mitgegebenen Belegverweis. Ein Baustein, der eine
-	// Inventurliste verlangt, muss auch nachsehen können, ob es sie gibt —
+	// Get prüft einen mitgegebenen Belegverweis. Ein Baustein, der ein
+	// Beschlussdokument verlangt, muss auch nachsehen können, ob es es gibt —
 	// sonst genügt jede Zahl ungleich null.
 	Get(ctx context.Context, id uint) (*domain.Receipt, error)
 }
@@ -146,10 +146,9 @@ func postWithVoucher(
 // gibt es keine Buchungsnummer. Prüfte erst das Versiegeln die Kopfdaten, bliebe
 // bei einem Beleg ohne sie ein halber Vorgang zurück: die Buchung geschrieben,
 // der Nachweis unverbunden daneben, und der Prüflauf meldete das Dokument
-// dauerhaft als ungebucht. Die Inventurliste (§ 240 HGB) und das
-// Beschlussdokument gehen diesen Weg — sie kommen erst nach dem Commit an die
-// Buchung, unabhängig von entry.ReceiptID, das JournalService.Post ohnehin
-// prüft.
+// dauerhaft als ungebucht. Das Beschlussdokument geht diesen Weg — es kommt
+// erst nach dem Commit an die Buchung, unabhängig von entry.ReceiptID, das
+// JournalService.Post ohnehin prüft.
 //
 // Der Name des Belegs steht in der Meldung, weil der Anwender sonst nicht wüsste,
 // welches der beiden Dokumente des Vorgangs gemeint ist.

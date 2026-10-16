@@ -355,8 +355,8 @@ export function App() {
         );
       case 'closingmodules':
         // Die Abschlussbausteine buchen ins Geschäftsjahr der Kopfzeile: die
-        // Abgrenzung, die Rückstellungen, den Inventurwert und die
-        // Verrechnungen. Ihr Stichtag ist der des Jahres, nicht der von heute.
+        // Abgrenzung, die Rückstellungen und die Verrechnungen. Ihr Stichtag ist
+        // der des Jahres, nicht der von heute.
         return (
           <ClosingModulesPage
             year={currentYear}
@@ -383,7 +383,6 @@ export function App() {
           <ObligationsPage
             year={currentYear}
             initialTab={navParams.obligationsTab}
-            initialInvoiceId={navParams.invoiceId}
             onNavigate={navigate}
           />
         );

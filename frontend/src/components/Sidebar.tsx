@@ -96,13 +96,7 @@ export interface NavigationParams {
    * Weg des Jahresabschlusses wäre der Reiter sonst zu erraten.
    */
   closingTab?: string;
-  /**
-   * Rechnung, deren Nachweisbelege die Seite „Nebenpflichten" gleich aufschlägt.
-   * Ohne sie bräche der Weg „je Lieferung" an der Seitengrenze ab: der Anwender
-   * käme auf einer Liste an und müsste die Rechnung, von der er kommt, dort
-   * erneut suchen.
-   */
-  invoiceId?: number;
+
   /**
    * Beleg, den die Belegseite gleich aufschlägt. Er schließt den Weg von der
    * Bilanzposition über Konto und Buchung bis zum Beleg (GOB-02): ohne ihn

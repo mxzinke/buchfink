@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -11,15 +10,13 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// ClosingBookingService führt die drei Abschlussbausteine, die keine eigene
-// Kartei haben: den Inventurwert der Vorräte, die Umsatzsteuer-Verrechnung und
-// die Steuerrückstellung.
+// ClosingBookingService führt die beiden Abschlussbausteine, die keine eigene
+// Kartei haben: die Umsatzsteuer-Verrechnung und die Steuerrückstellung.
 //
 // Sie stehen zusammen, weil sie dasselbe Muster teilen: sie lesen Kontensalden,
 // rechnen daraus einen Betrag, zeigen ihn als Vorschau und buchen ihn erst auf
 // Freigabe. Was sie unterscheidet, ist nur die Rechnung dazwischen.
 type ClosingBookingService struct {
-	inventoryRepo domain.InventoryRepository
 	provisionRepo domain.ProvisionRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
@@ -30,9 +27,8 @@ type ClosingBookingService struct {
 	fiscalYear    int
 }
 
-// NewClosingBookingService wires die drei Bausteine.
+// NewClosingBookingService wires die beiden Bausteine.
 func NewClosingBookingService(
-	inventoryRepo domain.InventoryRepository,
 	provisionRepo domain.ProvisionRepository,
 	journalRepo domain.JournalRepository,
 	journalSvc *JournalService,
@@ -42,7 +38,7 @@ func NewClosingBookingService(
 	fiscalYear int,
 ) *ClosingBookingService {
 	return &ClosingBookingService{
-		inventoryRepo: inventoryRepo, provisionRepo: provisionRepo, journalRepo: journalRepo,
+		provisionRepo: provisionRepo, journalRepo: journalRepo,
 		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
 		closingSvc: closingSvc, fiscalYear: fiscalYear,
 	}
@@ -53,363 +49,6 @@ func (s *ClosingBookingService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *ClosingBookingService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
-
-// -------------------------------------------------------------------------
-// Vorräte (§ 240 HGB)
-// -------------------------------------------------------------------------
-
-// InventoryAccount ist ein Vorratskonto mit Buchwert und erfasstem Inventurwert.
-type InventoryAccount struct {
-	Account     string `json:"account"`
-	AccountName string `json:"accountName"`
-	Group       string `json:"group"`
-	// ChangeAccount ist das Gegenkonto der Bestandsveränderung.
-	ChangeAccount     string       `json:"changeAccount"`
-	ChangeAccountName string       `json:"changeAccountName"`
-	BookValue         domain.Cents `json:"bookValue"`
-	// Counted ist der erfasste Inventurwert; CountedAt der Tag der Aufnahme.
-	Counted   domain.Cents `json:"counted"`
-	CountedAt string       `json:"countedAt,omitempty"`
-	Booked    bool         `json:"booked"`
-}
-
-// InventoryOverview ist der Baustein „Vorräte".
-type InventoryOverview struct {
-	FiscalYear int                `json:"fiscalYear"`
-	Cutoff     string             `json:"cutoff"`
-	Accounts   []InventoryAccount `json:"accounts"`
-	Note       string             `json:"note"`
-}
-
-// InventoryAccounts listet die Vorratskonten mit Buchwert und Erfassung.
-func (s *ClosingBookingService) InventoryAccounts(ctx context.Context, year int) (*InventoryOverview, error) {
-	if year == 0 {
-		year = s.fiscalYear
-	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	turnovers, err := s.journalRepo.AccountTurnoversUntil(ctx, year, fy.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	counts, err := s.inventoryRepo.FindByYear(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	byAccount := map[string]domain.InventoryCount{}
-	for _, c := range counts {
-		byAccount[c.Account] = c
-	}
-	chart, err := s.journalSvc.Chart(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	overview := &InventoryOverview{
-		FiscalYear: year, Cutoff: fy.EndDate, Accounts: make([]InventoryAccount, 0),
-		Note: "Buchfink bewertet die Vorräte nicht. Verbrauchsfolgeverfahren (§ 256 HGB) und das " +
-			"Niederstwertprinzip (§ 253 Abs. 4 HGB) entscheiden sich am einzelnen Gegenstand; der " +
-			"erfasste Inventurwert ist deshalb der bewertete Wert und muss eine Abwertung schon " +
-			"enthalten.",
-	}
-
-	// Konten mit Bestand und Konten mit Erfassung — die Vereinigung, weil ein
-	// erstmals aufgenommener Bestand noch keinen Buchwert hat.
-	accounts := map[string]bool{}
-	for account := range turnovers {
-		if accounting.IsInventoryAccount(account) {
-			accounts[account] = true
-		}
-	}
-	for account := range byAccount {
-		accounts[account] = true
-	}
-
-	for account := range accounts {
-		turnover := turnovers[account]
-		change, err := accounting.InventoryChangeAccount(account)
-		if err != nil {
-			continue
-		}
-		row := InventoryAccount{
-			Account: account, AccountName: chart.Name(account),
-			Group:         accounting.InventoryGroupLabel(account),
-			ChangeAccount: change, ChangeAccountName: chart.Name(change),
-			BookValue: turnover.Debit - turnover.Credit,
-		}
-		if count, ok := byAccount[account]; ok {
-			row.Counted = count.Amount
-			row.CountedAt = count.CountedOn
-			row.Booked = count.JournalEntryID != nil
-		}
-		overview.Accounts = append(overview.Accounts, row)
-	}
-	sort.Slice(overview.Accounts, func(i, j int) bool {
-		return overview.Accounts[i].Account < overview.Accounts[j].Account
-	})
-	return overview, nil
-}
-
-// InventoryRequest ist die Erfassung eines Inventurwertes.
-type InventoryRequest struct {
-	FiscalYear int          `json:"fiscalYear"`
-	Account    string       `json:"account"`
-	Amount     domain.Cents `json:"amount"`
-	CountedOn  string       `json:"countedOn"`
-	Method     string       `json:"method"`
-	// ReceiptID verweist auf die Inventurliste im Belegspeicher — Pflicht.
-	ReceiptID uint `json:"receiptId"`
-}
-
-// InventoryPreview ist die Bestandsveränderung, die aus dem Inventurwert folgt.
-type InventoryPreview struct {
-	Account       string               `json:"account"`
-	AccountName   string               `json:"accountName"`
-	ChangeAccount string               `json:"changeAccount"`
-	BookValue     domain.Cents         `json:"bookValue"`
-	Counted       domain.Cents         `json:"counted"`
-	Change        domain.Cents         `json:"change"`
-	Lines         []domain.JournalLine `json:"lines"`
-	BookingDate   string               `json:"bookingDate"`
-	Explanation   string               `json:"explanation"`
-}
-
-// PreviewInventory rechnet die Bestandsveränderung.
-func (s *ClosingBookingService) PreviewInventory(
-	ctx context.Context, req InventoryRequest,
-) (*InventoryPreview, error) {
-	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
-	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	change, err := accounting.InventoryChangeAccount(req.Account)
-	if err != nil {
-		return nil, err
-	}
-	turnovers, err := s.journalRepo.AccountTurnoversUntil(ctx, year, fy.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	turnover := turnovers[req.Account]
-	bookValue := turnover.Debit - turnover.Credit
-	delta := req.Amount - bookValue
-
-	chart, err := s.journalSvc.Chart(ctx)
-	if err != nil {
-		return nil, err
-	}
-	preview := &InventoryPreview{
-		Account: req.Account, AccountName: chart.Name(req.Account), ChangeAccount: change,
-		BookValue: bookValue, Counted: req.Amount, Change: delta, BookingDate: fy.EndDate,
-		Lines: make([]domain.JournalLine, 0, 2),
-	}
-	switch {
-	case delta > 0:
-		// Bestandserhöhung: der Bestand wächst, der Aufwand des Jahres sinkt
-		// bzw. der Ertrag steigt.
-		preview.Lines = append(preview.Lines,
-			domain.JournalLine{Side: domain.SideDebit, Account: req.Account, Amount: delta, Text: "Bestandserhöhung"},
-			domain.JournalLine{Side: domain.SideCredit, Account: change, Amount: delta, Text: "Bestandserhöhung"},
-		)
-		preview.Explanation = fmt.Sprintf(
-			"Der Inventurwert von %s € liegt um %s € über dem Buchwert von %s €. Die Erhöhung wird "+
-				"auf %s gebucht.", req.Amount, delta, bookValue, change)
-	case delta < 0:
-		preview.Lines = append(preview.Lines,
-			domain.JournalLine{Side: domain.SideDebit, Account: change, Amount: -delta, Text: "Bestandsminderung"},
-			domain.JournalLine{Side: domain.SideCredit, Account: req.Account, Amount: -delta, Text: "Bestandsminderung"},
-		)
-		preview.Explanation = fmt.Sprintf(
-			"Der Inventurwert von %s € liegt um %s € unter dem Buchwert von %s €. Die Minderung wird "+
-				"auf %s gebucht.", req.Amount, -delta, bookValue, change)
-	default:
-		preview.Explanation = fmt.Sprintf(
-			"Der Inventurwert stimmt mit dem Buchwert von %s € überein; es ist nichts zu buchen.", bookValue)
-	}
-	return preview, nil
-}
-
-// inventoryVoucher ist die Rechnung im Eigenbeleg der Bestandsveränderung: der
-// Buchwert, der aufgenommene Wert und die Differenz — die drei Zahlen, aus denen
-// die Buchung entstanden ist.
-type inventoryVoucher struct {
-	Account       string       `json:"konto"`
-	AccountName   string       `json:"kontobezeichnung"`
-	ChangeAccount string       `json:"gegenkonto"`
-	BookValue     domain.Cents `json:"buchwert"`
-	Counted       domain.Cents `json:"inventurwert"`
-	Change        domain.Cents `json:"differenz"`
-	CountedOn     string       `json:"aufgenommen_am"`
-	Method        string       `json:"verfahren"`
-	// CountSheet ist die Belegnummer der Inventurliste. Sie steht im Eigenbeleg,
-	// damit die Rechnung auch außerhalb von Buchfink auf ihren Nachweis zeigt.
-	CountSheet string `json:"inventurliste,omitempty"`
-}
-
-// receiptNumberOf ist die Belegnummer eines Belegs, oder leer.
-func receiptNumberOf(receipt *domain.Receipt) string {
-	if receipt == nil {
-		return ""
-	}
-	return receipt.ReceiptNumber
-}
-
-// BookInventory erfasst den Inventurwert und bucht die Bestandsveränderung.
-func (s *ClosingBookingService) BookInventory(
-	ctx context.Context, req InventoryRequest,
-) (*domain.InventoryCount, error) {
-	preview, err := s.PreviewInventory(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
-	}
-	count := &domain.InventoryCount{
-		FiscalYear: year, Account: req.Account, Amount: req.Amount,
-		BookValue: preview.BookValue, CountedOn: req.CountedOn, Method: req.Method,
-	}
-	if req.ReceiptID != 0 {
-		id := req.ReceiptID
-		count.ReceiptID = &id
-	}
-	if err := count.Validate(); err != nil {
-		return nil, err
-	}
-	// Die Inventurliste muss es geben. Ohne diese Abfrage genügte jede Zahl
-	// ungleich null, und die Pflicht des § 240 HGB wäre eine Eingabemaske.
-	var sheet *domain.Receipt
-	if s.receipts != nil && count.ReceiptID != nil {
-		sheet, err = s.receipts.Get(ctx, *count.ReceiptID)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"die Inventurliste zum Beleg %d wurde im Belegspeicher nicht gefunden: %w",
-				*count.ReceiptID, err)
-		}
-		// Eine Inventurliste gehört zu einer Aufnahme. Hängt sie schon an einer
-		// anderen, noch stehenden Buchung, ist es die Liste eines anderen
-		// Kontos oder Jahres — und die zweite Aufnahme braucht ihre eigene.
-		// Nach einem Storno bleibt sie dagegen an der zurückgenommenen Buchung
-		// hängen; das ist kein Hindernis, sondern die Spur dorthin.
-		if sheet != nil && sheet.JournalEntryID != nil {
-			voided, err := entryIsReversed(ctx, s.journalRepo, sheet.JournalEntryID)
-			if err != nil {
-				return nil, err
-			}
-			if !voided {
-				return nil, fmt.Errorf(
-					"die Inventurliste %s gehört bereits zur Buchung %d. Eine zweite Aufnahme "+
-						"braucht ihre eigene Liste", sheet.ReceiptNumber, *sheet.JournalEntryID)
-			}
-		}
-		// Vor dem Schreiben und nicht erst beim Versiegeln: die Liste bekommt
-		// die Buchung, und ein Beleg ohne Kopfdaten ließe eine geschriebene
-		// Buchung mit unverbundenem Nachweis zurück.
-		if sheet != nil && sheet.JournalEntryID == nil {
-			if err := ensureOuterVoucherHeader(sheet, "die Inventurliste"); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Ein zweiter Inventurwert für dasselbe Konto und Jahr: ist der erste
-	// gebucht, läuft die Korrektur über den Storno seiner Buchung — sonst
-	// stünden zwei Aufnahmen nebeneinander, und keine Auswertung könnte sagen,
-	// welche gilt. Ist er nicht gebucht (weil er dem Buchwert entsprach), wird
-	// er fortgeschrieben.
-	existing, err := s.inventoryRepo.FindByYear(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	for i := range existing {
-		if existing[i].Account != req.Account {
-			continue
-		}
-		// Ist die Buchung storniert, ist die Sperre aufgehoben: der Weg, den die
-		// Meldung nennt, muss auch ans Ziel führen. Der Karteisatz wird dann
-		// fortgeschrieben und bekommt die neue Buchung.
-		voided, err := entryIsReversed(ctx, s.journalRepo, existing[i].JournalEntryID)
-		if err != nil {
-			return nil, err
-		}
-		if existing[i].JournalEntryID != nil && !voided {
-			return nil, fmt.Errorf(
-				"für das Konto %s ist im Geschäftsjahr %d bereits ein Inventurwert von %s € erfasst "+
-					"und gebucht. Eine Korrektur geschieht über den Storno dieser Buchung",
-				req.Account, year, existing[i].Amount)
-		}
-		count.ID = existing[i].ID
-	}
-
-	if len(preview.Lines) > 0 {
-		entry := &domain.JournalEntry{
-			BookingDate: preview.BookingDate, DocumentDate: preview.BookingDate,
-			ServiceDateFrom: preview.BookingDate, ServiceDateTo: preview.BookingDate,
-			Description: fmt.Sprintf("Bestandsveränderung %s zum Inventurwert %s €",
-				req.Account, req.Amount),
-			Source:             domain.EntrySourceClosing,
-			DocumentNumber:     fmt.Sprintf("INV %d-%s", year, req.Account),
-			PostingRuleVersion: accounting.PostingRuleVersion,
-			Lines:              preview.Lines,
-		}
-		// Auch die Bestandsveränderung braucht ihren Beleg (GoBD Rz. 61). Der
-		// Eigenbeleg enthält die Rechnung — Buchwert, Inventurwert, Differenz —
-		// und nennt die Inventurliste, die daneben im Belegspeicher liegt.
-		receipt, err := selfIssuedVoucher(ctx, s.receipts, year, closingVoucher{
-			Kind: "inventurwert", FiscalYear: year, Date: preview.BookingDate,
-			Description: entry.Description, Explanation: preview.Explanation,
-			Calculation: inventoryVoucher{
-				Account: req.Account, AccountName: preview.AccountName,
-				ChangeAccount: preview.ChangeAccount, BookValue: preview.BookValue,
-				Counted: req.Amount, Change: preview.Change,
-				CountedOn: req.CountedOn, Method: req.Method,
-				CountSheet: receiptNumberOf(sheet),
-			},
-			Lines: preview.Lines,
-		})
-		if err != nil {
-			return nil, err
-		}
-		reference := entry.DocumentNumber
-		attachVoucher(entry, receipt)
-		entry.DocumentNumber = reference
-
-		created, err := postWithVoucher(ctx, s.journalSvc, s.receipts, entry, receipt)
-		if err != nil {
-			return nil, err
-		}
-		count.JournalEntryID = &created.ID
-		// Die Inventurliste ist der äußere Beleg der Aufnahme (§ 240 HGB). Ohne
-		// die Versiegelung bliebe sie als loser, offener Beleg im Belegspeicher
-		// liegen — die Buchung wäre da, der Nachweis unverbunden daneben.
-		//
-		// Ist sie schon mit der stornierten Vorgängerbuchung verbunden, bleibt sie
-		// dort: eine Versiegelung ist keine Zuordnung, die man verschiebt, und der
-		// Weg von der neuen Buchung zur Liste führt über den Eigenbeleg, der
-		// ihre Belegnummer hat.
-		if s.receipts != nil && count.ReceiptID != nil && (sheet == nil || sheet.JournalEntryID == nil) {
-			if err := s.receipts.Seal(ctx, *count.ReceiptID, created.ID); err != nil {
-				return nil, fmt.Errorf(
-					"die Buchung %s wurde geschrieben, die Inventurliste aber nicht mit ihr "+
-						"verbunden: %w", created.EntryNumber, err)
-			}
-		}
-	}
-	if err := s.inventoryRepo.Save(ctx, count); err != nil {
-		return nil, fmt.Errorf("der Inventurwert konnte nicht gespeichert werden: %w", err)
-	}
-	s.audit(ctx, "INVENTORY", year, fmt.Sprintf(
-		"Inventurwert %s zum %s: %s € (Buchwert %s €, Veränderung %s €, Verfahren %s)",
-		req.Account, req.CountedOn, req.Amount, preview.BookValue, preview.Change, req.Method))
-	return count, nil
-}
 
 // -------------------------------------------------------------------------
 // Umsatzsteuer-Verrechnung

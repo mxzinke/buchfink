@@ -12,10 +12,8 @@ import (
 
 // SettlementKind separates *when* something is paid from *how* it is paid.
 //
-// The concept originally called an immediately settled receipt "bar", which
-// silently implied the bank account. Cash is Kasse (1600) and has its own rules;
-// a card payment is a different account again. Payment timing and payment means
-// are therefore two independent inputs.
+// Payment timing and payment means are two independent inputs: a receipt paid
+// on the spot names the bank account it was paid from.
 type SettlementKind string
 
 const (
@@ -1030,76 +1028,6 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 	return s.journalSvc.Post(ctx, entry)
 }
 
-// PostCashSale bucht eine Rechnung ohne Empfänger gegen das Zahlungsmittel.
-//
-// Der Fall ist die Kleinbetragsrechnung des § 33 UStDV, die ohne
-// Leistungsempfänger auskommt. Ohne Empfänger gibt es kein Personenkonto — und
-// es gibt auch nichts, was darauf stehen könnte: der Barverkauf ist bezahlt,
-// wenn die Rechnung entsteht. Ein Sammel-Debitor wäre die Alternative gewesen;
-// er trüge einen offenen Posten, den niemand ausgleicht, und die OP-Liste
-// verlöre ihre Aussage.
-func (s *PostingService) PostCashSale(ctx context.Context, inv *domain.Invoice, account string) (*domain.JournalEntry, error) {
-	if account == "" {
-		account = domain.AccountKasse
-	}
-	lines, fx, err := s.outgoingContentLines(ctx, inv)
-	if err != nil {
-		return nil, err
-	}
-	settlement, err := settlementLineFor(lines, SettlementPaid, account, nil)
-	if err != nil {
-		return nil, err
-	}
-	if fx != nil {
-		settlement.ForeignAmount = fx.toForeign(settlement.Amount)
-	}
-	lines = append(lines, settlement)
-
-	entry := &domain.JournalEntry{
-		FiscalYear:         inv.FiscalYear,
-		BookingDate:        inv.Date,
-		DocumentDate:       inv.Date,
-		ServiceDateFrom:    inv.ServiceDateFrom,
-		ServiceDateTo:      inv.ServiceDateTo,
-		Description:        fmt.Sprintf("Kleinbetragsrechnung %s (Barverkauf)", inv.InvoiceNumber),
-		ReceiptID:          inv.ReceiptID,
-		Source:             domain.EntrySourceInvoice,
-		DocumentNumber:     inv.InvoiceNumber,
-		TaxTreatment:       inv.TaxTreatment,
-		Currency:           inv.Currency,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	if fx != nil {
-		fx.head(entry)
-	}
-	return s.journalSvc.Post(ctx, entry)
-}
-
-// PreviewCashSale computes the booking of a Kleinbetragsrechnung without a
-// recipient.
-func (s *PostingService) PreviewCashSale(ctx context.Context, inv *domain.Invoice, account string) (*PostingPreview, error) {
-	if account == "" {
-		account = domain.AccountKasse
-	}
-	lines, fx, err := s.outgoingContentLines(ctx, inv)
-	if err != nil {
-		return nil, err
-	}
-	settlement, err := settlementLineFor(lines, SettlementPaid, account, nil)
-	if err != nil {
-		return nil, err
-	}
-	if fx != nil {
-		settlement.ForeignAmount = fx.toForeign(settlement.Amount)
-	}
-	preview := s.preview(ctx, append(lines, settlement))
-	if fx != nil {
-		preview.Conversion = fx.conv
-	}
-	return preview, nil
-}
-
 // PreviewOutgoingInvoice computes the booking of an Ausgangsrechnung without
 // writing it. The invoice form shows this instead of doing the arithmetic again.
 func (s *PostingService) PreviewOutgoingInvoice(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) (*PostingPreview, error) {
@@ -1572,10 +1500,10 @@ func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymen
 		}, nil
 	case SettlementPaid:
 		if paymentAccount == "" {
-			return domain.JournalLine{}, fmt.Errorf("bei sofortiger Zahlung muss das Zahlungsmittel angegeben werden (Kasse, Bank, Kreditkarte)")
+			return domain.JournalLine{}, fmt.Errorf("bei sofortiger Zahlung muss das Bankkonto angegeben werden")
 		}
 		if !isLiquidAccount(paymentAccount) {
-			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto", paymentAccount)
+			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", paymentAccount)
 		}
 		return domain.JournalLine{Side: side, Account: paymentAccount, Amount: difference}, nil
 	default:

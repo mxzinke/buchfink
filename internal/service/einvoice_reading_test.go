@@ -199,21 +199,39 @@ func TestProposalFillsWhatTheDocumentKnows(t *testing.T) {
 
 // Der Vorschlag dreht den Kategoriecode: eine innergemeinschaftliche Lieferung des
 // Lieferanten ist bei uns ein Erwerb — mit Erwerbsteuer und Vorsteuer.
+//
+// Das Dokument des Lieferanten kommt über die Leseschnittstelle: Buchfink stellt
+// selbst keine innergemeinschaftliche Lieferung aus und kann sie deshalb nicht
+// als Beispiel erzeugen.
 func TestProposalInvertsTheCategoryCodeForTheRecipient(t *testing.T) {
-	if testing.Short() {
-		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
-	}
 	env := newTestEnv(t)
 	ctx := context.Background()
 
 	vendor := env.vendor(t, "Groothandel B.V.", "NL", "NL123456789B01")
-	receipt := env.hybridReceipt(t, supplierSettings("Groothandel B.V.", "NL123456789B01"),
-		domain.TaxTreatmentIntraCommunitySupply, domain.TaxRateNone, 200000)
-
-	svc := env.einvoices()
-	if _, err := svc.ExtractStructuredPart(ctx, receipt.ID); err != nil {
-		t.Fatalf("strukturierten Teil holen: %v", err)
+	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		DocumentDate: "2026-05-04", IssuerName: "Groothandel B.V.", GrossAmount: 200000,
+		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
+		ReceivedAt: "2026-05-05", ReceivedVia: domain.ReceivedViaEmail,
+		Files: []NewFile{
+			{Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf", Content: []byte(minimalPDF)},
+			{Role: domain.ReceiptRoleStructured, FileName: "rechnung.xml", Content: []byte("<Invoice/>")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Beleg ablegen: %v", err)
 	}
+
+	read := receivedInvoice()
+	read.Supplier = domain.InvoiceParty{
+		Name: "Groothandel B.V.", VatID: "NL123456789B01", CountryCode: "NL",
+	}
+	read.NetAmount, read.TaxAmount, read.GrossAmount = 200000, 0, 200000
+	read.TaxCategories = []string{"K"}
+	read.Positions = []domain.IncomingPosition{
+		{Text: "Serverschrank", Net: 200000, TaxRate: domain.TaxRateNone, TaxCategory: "K"},
+	}
+
+	svc := env.einvoicesWith(fakeReader{invoice: read})
 	proposal, err := svc.Propose(ctx, receipt.ID)
 	if err != nil {
 		t.Fatalf("Vorschlag: %v", err)

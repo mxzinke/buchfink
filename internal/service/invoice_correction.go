@@ -594,13 +594,8 @@ func (s *InvoiceService) RecordNumberGapReason(ctx context.Context, fiscalYear i
 	return nil
 }
 
-// contactForInvoice lädt den Empfänger einer Rechnung. Eine
-// Kleinbetragsrechnung ohne erfassten Kunden hat keinen, und das ist kein
-// Fehler (§ 33 UStDV).
+// contactForInvoice lädt den Empfänger einer Rechnung.
 func (s *InvoiceService) contactForInvoice(ctx context.Context, inv *domain.Invoice) (*domain.Contact, error) {
-	if inv.ContactID == 0 {
-		return nil, nil
-	}
 	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
 	if err != nil {
 		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)

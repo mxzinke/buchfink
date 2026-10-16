@@ -15,9 +15,6 @@ import type {
   ClosingStepView,
   ClosingSteps,
   DiscountRate,
-  InventoryAccount,
-  InventoryOverview,
-  InventoryPreview,
   JournalLine,
   LegacySpecialDepreciationNotice,
   NotesSectionText,
@@ -77,7 +74,7 @@ import {
 } from '../components/ui';
 
 /**
- * Die Abschlussbausteine: Rechnungsabgrenzung, Rückstellungen, Inventurwert,
+ * Die Abschlussbausteine: Rechnungsabgrenzung, Rückstellungen,
  * Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang und
  * das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG.
  *
@@ -95,7 +92,6 @@ type ModuleTab =
   | 'schritte'
   | 'abgrenzung'
   | 'rueckstellungen'
-  | 'vorraete'
   | 'umsatzsteuer'
   | 'steuern'
   | 'ergebnis'
@@ -316,7 +312,6 @@ export const SkippedMark: React.FC = () => (
 export const STEP_TABS: Partial<Record<ClosingStepKey, ModuleTab>> = {
   accruals: 'abgrenzung',
   provisions: 'rueckstellungen',
-  inventory: 'vorraete',
   vat_settlement: 'umsatzsteuer',
   tax_provision: 'steuern',
   appropriation: 'ergebnis',
@@ -2213,309 +2208,6 @@ const ProvisionsTab: React.FC<TabProps & AccountsProps> = ({ year, accounts }) =
 };
 
 // -------------------------------------------------------------------------
-// Vorräte
-// -------------------------------------------------------------------------
-
-/**
- * Der Inventurwert wird erfasst und nicht gerechnet: § 240 HGB verlangt die
- * körperliche Bestandsaufnahme, und was auf dem Konto steht, ist der Wert der
- * gebuchten Zu- und Abgänge. Die Differenz zwischen beiden ist die
- * Bestandsveränderung, die der Abschluss bucht.
- */
-const InventoryDialog: React.FC<{
-  account: InventoryAccount | null;
-  year: number;
-  onOpenChange: (open: boolean) => void;
-  onBooked: () => Promise<void>;
-}> = ({ account, year, onOpenChange, onBooked }) => {
-  const writeLock = useWriteLock();
-  const [amount, setAmount] = useState('');
-  const [countedOn, setCountedOn] = useState('');
-  const [method, setMethod] = useState('');
-  const [receiptId, setReceiptId] = useState('');
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [preview, setPreview] = useState<InventoryPreview | null>(null);
-  const [previewError, setPreviewError] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!account) return;
-    setAmount('');
-    setCountedOn('');
-    setMethod('');
-    setReceiptId('');
-    setPreview(null);
-    setPreviewError('');
-    setError('');
-    Api.getReceipts('')
-      .then((rows) => setReceipts(rows.filter((receipt) => receipt.status !== 'discarded')))
-      .catch((e) => setError(message(e)));
-  }, [account]);
-
-  const request = useMemo(() => {
-    if (!account) return null;
-    const value = parseCents(amount);
-    if (value === null || value < 0) return null;
-    return {
-      fiscalYear: year,
-      account: account.account,
-      amount: value,
-      countedOn,
-      method,
-      receiptId: Number.parseInt(receiptId, 10) || 0,
-    };
-  }, [account, amount, countedOn, method, receiptId, year]);
-
-  useEffect(() => {
-    if (!request) {
-      setPreview(null);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      Api.previewInventory(request)
-        .then((result) => {
-          if (cancelled) return;
-          setPreview(result);
-          setPreviewError('');
-        })
-        .catch((e) => {
-          if (cancelled) return;
-          setPreview(null);
-          setPreviewError(message(e));
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [request]);
-
-  async function submit() {
-    if (!request) return;
-    setBusy(true);
-    setError('');
-    try {
-      await Api.bookInventory(request);
-      onOpenChange(false);
-      await onBooked();
-      toast.success('Bestandsveränderung gebucht.');
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Dialog
-      open={account !== null}
-      onOpenChange={onOpenChange}
-      title={account ? `Inventurwert ${account.account} ${account.accountName}` : ''}
-      width="max-w-2xl"
-      footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Abbrechen
-          </Button>
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={writeLock.locked}
-            title={writeLock.hint}
-            onClick={() => void submit()}
-          >
-            Bestandsveränderung buchen
-          </Button>
-        </>
-      }
-    >
-      <div className="grid grid-cols-2 gap-4">
-        <Field helpSummary="Tragen Sie den bewerteten Bestand Ihrer Vorräte zum Abschlussdatum ein."
-          label="Inventurwert zum Stichtag"
-          explain="Der bewertete Wert: Verbrauchsfolge und Niederstwert berücksichtigt der Anwender."
-        >
-          <Input
-            align="right"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </Field>
-        <Field label="Tag der Aufnahme">
-          <Input type="date" value={countedOn} onChange={(e) => setCountedOn(e.target.value)} />
-        </Field>
-        <Field helpSummary="Wählen Sie, wie Sie Ihren Bestand ermittelt haben."
-          label="Aufnahmeverfahren"
-          explain="§ 241 HGB lässt mehrere zu: Stichtags-, permanente oder Stichprobeninventur."
-        >
-          <Input
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
-            placeholder="Stichtagsinventur"
-          />
-        </Field>
-        <Field helpSummary="Hinterlegen Sie die Liste, mit der Sie Ihren Bestand nachweisen." label="Inventurliste" explain="Die Aufnahme selbst ist der Beleg und deshalb Pflicht.">
-          {/* Der Belegspeicher wächst über die Jahre; eine Liste, die man
-              durchsuchen muss, ist eine Combobox und kein Auswahlfeld (§10.4).
-              Gesucht wird über Belegnummer und Datum — die Beschriftung ist der
-              Suchtext. */}
-          <Combobox
-            items={receipts.map((receipt) => ({
-              value: String(receipt.id),
-              label: `${receipt.receiptNumber} · ${formatDate(receipt.createdAt)}`,
-            }))}
-            value={receiptId || null}
-            onValueChange={(next) => setReceiptId(next ?? '')}
-            placeholder="Beleg suchen …"
-            emptyText="Kein Beleg gefunden."
-          />
-        </Field>
-      </div>
-
-      <div className="mt-6">
-        {previewError ? (
-          <BackendError message={previewError} />
-        ) : preview ? (
-          <>
-            <StatRow className="mb-5">
-              <Stat label="Buchwert" value={formatCents(preview.bookValue)} context="Vor der Abschlussbuchung" />
-              <Stat label="Inventurwert" value={formatCents(preview.counted)} context="Aus der Aufnahme" />
-              <Stat
-                label="Bestandsveränderung"
-                value={formatCents(preview.change)}
-                context={`Gegenkonto ${preview.changeAccount}`}
-                tone={preview.change === 0 ? 'neutral' : preview.change > 0 ? 'positive' : 'negative'}
-              />
-            </StatRow>
-            <PostingLines lines={preview.lines} />
-          </>
-        ) : (
-          <p className="text-body text-ink-muted">
-            Betrag, Tag der Aufnahme, Verfahren und Beleg ergeben die Bestandsveränderung.
-          </p>
-        )}
-      </div>
-
-      <div className="mt-5">
-        <BackendError message={error} />
-      </div>
-    </Dialog>
-  );
-};
-
-const InventoryTab: React.FC<TabProps> = ({ year }) => {
-  const writeLock = useWriteLock();
-  const [overview, setOverview] = useState<InventoryOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [target, setTarget] = useState<InventoryAccount | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      setOverview(await Api.getInventoryAccounts(year));
-    } catch (e) {
-      setOverview(null);
-      setError(message(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [year]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (loading) return <Loading />;
-
-  const accountRows = overview?.accounts ?? [];
-
-  return (
-    <>
-      <Section helpSummary="Übernehmen Sie den Wert Ihrer gezählten und bewerteten Vorräte in den Abschluss."
-        title="Vorräte"
-        context={overview ? `Stichtag ${formatDate(overview.cutoff)}` : `Geschäftsjahr ${year}`}
-        divider={false}
-        explain={
-          <>
-            {overview?.note ||
-            '§ 240 HGB verlangt zum Ende jedes Geschäftsjahres eine Bestandsaufnahme. Buchfink bewertet nicht; der erfasste Wert ist der bewertete Wert.'}
-          </>
-        }
-      >
-        <BackendError message={error} />
-
-        {accountRows.length === 0 ? (
-          <EmptyState
-            title="Keine Vorratskonten mit Bestand"
-            description="Erfasst wird der Inventurwert je Vorratskonto der Kontenklasse 1."
-          />
-        ) : (
-          <Table>
-            <Thead>
-              <Tr>
-                <Th className="w-24">Konto</Th>
-                <Th>Bezeichnung</Th>
-                <Th className="w-48">Gruppe</Th>
-                <Th className="w-24">Gegenkonto</Th>
-                <Th numeric className="w-36">
-                  Buchwert
-                </Th>
-                <Th numeric className="w-36">
-                  Inventurwert
-                </Th>
-                <Th className="w-44" aria-label="Aktionen" />
-              </Tr>
-            </Thead>
-            <Tbody>
-              {accountRows.map((row) => (
-                <Tr key={row.account}>
-                  <Td code>{row.account}</Td>
-                  <Td className="whitespace-normal">{row.accountName}</Td>
-                  <Td className="text-ink-muted whitespace-normal">{row.group}</Td>
-                  <Td code>{row.changeAccount}</Td>
-                  <Td numeric>{formatCents(row.bookValue)}</Td>
-                  <Td numeric>
-                    {row.booked ? formatCents(row.counted) : '—'}
-                    {row.countedAt && (
-                      <span className="text-ink-muted">{` · ${formatDate(row.countedAt)}`}</span>
-                    )}
-                  </Td>
-                  <Td className="pl-0">
-                    <div className="flex justify-end">
-                      <Button
-                        variant="quiet"
-                        size="sm"
-                        disabled={writeLock.locked}
-                        title={writeLock.hint}
-                        onClick={() => setTarget(row)}
-                      >
-                        {row.booked ? 'Erneut erfassen' : 'Inventurwert erfassen'}
-                      </Button>
-                    </div>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        )}
-      </Section>
-
-      <InventoryDialog
-        account={target}
-        year={year}
-        onOpenChange={(open) => !open && setTarget(null)}
-        onBooked={load}
-      />
-    </>
-  );
-};
-
-// -------------------------------------------------------------------------
 // Umsatzsteuer-Verrechnung
 // -------------------------------------------------------------------------
 
@@ -3495,7 +3187,6 @@ const TABS: { value: ModuleTab; label: string }[] = [
   { value: 'schritte', label: 'Schritte' },
   { value: 'abgrenzung', label: 'Abgrenzung' },
   { value: 'rueckstellungen', label: 'Rückstellungen' },
-  { value: 'vorraete', label: 'Vorräte' },
   { value: 'umsatzsteuer', label: 'Umsatzsteuer' },
   { value: 'steuern', label: 'Steuerrückstellung' },
   { value: 'ergebnis', label: 'Ergebnisverwendung' },
@@ -3580,7 +3271,6 @@ export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({
           <TabPanel value="rueckstellungen">
             {tab === 'rueckstellungen' && <ProvisionsTab year={year} accounts={accounts} />}
           </TabPanel>
-          <TabPanel value="vorraete">{tab === 'vorraete' && <InventoryTab year={year} />}</TabPanel>
           <TabPanel value="umsatzsteuer">
             {tab === 'umsatzsteuer' && <VatSettlementTab year={year} />}
           </TabPanel>

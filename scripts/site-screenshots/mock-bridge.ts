@@ -724,8 +724,6 @@ function vatSummary(from: string, to: string) {
     periodTo: to,
     taxableRevenue: net19 > 0 ? [{ rate: 1900, net: c(net19), tax: outputTax }] : [],
     exemptRevenue: 0,
-    intraCommunitySupply: 0,
-    export: 0,
     reverseChargeSupply: 0,
     outputTax,
     reverseChargeTax: 0,
@@ -2611,7 +2609,6 @@ function zmReturnFor(periodKey: string) {
     isCorrection: false,
     status: 'draft',
     dueDate: `${period.dueDate.slice(0, 8)}25`,
-    totalSupplies: 0,
     totalServices: 0,
     lines: [],
     findings: [],
@@ -2771,7 +2768,7 @@ function closingState(year: number) {
   };
 }
 
-/** Die vierzehn Abschlussbausteine, wie sie im geführten Weg stehen. */
+/** Die dreizehn Abschlussbausteine, wie sie im geführten Weg stehen. */
 const CLOSING_STEP_DEFS: [string, string, string, boolean][] = [
   ['depreciation', 'Abschreibungen',
     'Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.', true],
@@ -2783,8 +2780,7 @@ const CLOSING_STEP_DEFS: [string, string, string, boolean][] = [
     'Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).', false],
   ['provisions', 'Rückstellungen',
     'Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).', false],
-  ['inventory', 'Vorräte',
-    'Der Inventurwert zum Stichtag und die Bestandsveränderung, die daraus folgt.', false],
+
   ['vat_settlement', 'Umsatzsteuer-Verrechnung',
     'Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.', false],
   ['input_tax_correction', 'Vorsteuerberichtigung § 15a',
@@ -2813,7 +2809,7 @@ const CLOSING_STEP_STATE: Record<string, { state: string; detail?: string; reaso
   },
   accruals: { state: 'done', detail: '2 Abgrenzungsposten gebildet' },
   provisions: { state: 'done', detail: '1 Rückstellung gebildet, abgezinst' },
-  inventory: { state: 'open', detail: 'Kein Inventurwert erfasst' },
+
   vat_settlement: { state: 'open', detail: 'Zahllast der vier Zeiträume noch nicht verrechnet' },
   input_tax_correction: { state: 'open', detail: '1 Wirtschaftsgut im Berichtigungszeitraum' },
   tax_provision: { state: 'open' },
@@ -3215,7 +3211,6 @@ function retentionYear(fiscalYear: number) {
     assetMovements: fiscalYear === YEAR ? 4 : 9,
     accruals: 2,
     provisions: 1,
-    inventoryCounts: 0,
     zmReturns: 0,
     inputTaxUsages: 1,
     numberGaps: 0,
@@ -3351,7 +3346,7 @@ export const bridge = {
   GetAccountByNumber: (number: string) => later(ACCOUNTS.find((x) => x.number === number)),
   GetAccountLedger: (accountNumber: string) => later(ledgerFor(accountNumber)),
   GetSuSaOverview: () => later(susa()),
-  GetPaymentAccounts: () => later(ACCOUNTS.filter((x) => ['1600', '1800'].includes(x.number))),
+  GetPaymentAccounts: () => later(ACCOUNTS.filter((x) => x.number === '1800')),
 
   // Kontierung
   GetPostingGroups: () => later(POSTING_GROUPS),
@@ -3482,13 +3477,7 @@ export const bridge = {
   GetInvoiceSentViaOptions: () => later(SENT_VIA_OPTIONS),
   GetNumberGapReasons: () => later(NUMBER_GAP_REASONS),
   GetInvoiceNumberGaps: () => later({ fiscalYear: YEAR, issued: 19, used: 19, gaps: [] }),
-  GetSupplyEvidenceReport: () =>
-    later({
-      fiscalYear: YEAR,
-      rows: [],
-      incomplete: 0,
-      note: 'Im Geschäftsjahr sind keine innergemeinschaftlichen Lieferungen abgerechnet.',
-    }),
+
 
   // Umsatzsteuer: das Kennziffernblatt, das der Monatsabschluss zeigt.
   // Geschrieben wird hier nichts — Bestätigung und Berichtigung sind Vorgänge
@@ -3604,9 +3593,7 @@ export const bridge = {
   GetDiscountRateMonths: unsupported('GetDiscountRateMonths'),
   SaveDiscountRates: unsupported('SaveDiscountRates'),
   ImportDiscountRatesCSV: unsupported('ImportDiscountRatesCSV'),
-  GetInventoryAccounts: unsupported('GetInventoryAccounts'),
-  PreviewInventory: unsupported('PreviewInventory'),
-  BookInventory: unsupported('BookInventory'),
+
   PreviewVatSettlement: unsupported('PreviewVatSettlement'),
   BookVatSettlement: unsupported('BookVatSettlement'),
   PreviewTaxProvision: unsupported('PreviewTaxProvision'),
@@ -3661,11 +3648,7 @@ export const bridge = {
   GetVatIDChecks: unsupported('GetVatIDChecks'),
   GetVatIDStatus: unsupported('GetVatIDStatus'),
   CheckVatID: unsupported('CheckVatID'),
-  GetSupplyEvidenceKinds: unsupported('GetSupplyEvidenceKinds'),
-  GetSupplyEvidence: unsupported('GetSupplyEvidence'),
-  AddSupplyEvidence: unsupported('AddSupplyEvidence'),
-  SetSupplyTransport: unsupported('SetSupplyTransport'),
-  RemoveSupplyEvidence: unsupported('RemoveSupplyEvidence'),
+
   GetNonDeductibleCategories: unsupported('GetNonDeductibleCategories'),
   GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
   RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),

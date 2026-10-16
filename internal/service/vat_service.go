@@ -112,10 +112,6 @@ func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatS
 			// aus der Voranmeldung.
 			default:
 				switch revenueTreatments[line.Account] {
-				case domain.TaxTreatmentIntraCommunitySupply:
-					summary.IntraCommunitySupply += credit
-				case domain.TaxTreatmentExport:
-					summary.Export += credit
 				case domain.TaxTreatmentReverseChargeSupply:
 					summary.ReverseChargeSupply += credit
 				// Nullsteuersatz § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,

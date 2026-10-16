@@ -400,10 +400,10 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
 
       </Tabs>
 
-      {/* Zwei Auswertungen der Welle 5c stehen auf der Seite „Nebenpflichten",
-          weil sie zu Verzeichnissen gehören, die dort geführt werden. Der
-          Verweis steht hier, weil man einen Bericht unter „Auswertungen"
-          sucht. */}
+      {/* Die Auswertung der nicht abziehbaren Betriebsausgaben steht auf der
+          Seite „Nebenpflichten", weil sie zu dem Verzeichnis gehört, das dort
+          geführt wird. Der Verweis steht hier, weil man einen Bericht unter
+          „Auswertungen" sucht. */}
       {onNavigate && (
         <Section helpSummary="Weitere steuerliche Auswertungen finden Sie bei den zugehörigen Aufzeichnungen."
           title="Weitere Auswertungen"
@@ -411,10 +411,9 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
           className="mt-8"
           explain={
             <>
-              Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) und der
-              Belegnachweis der steuerfreien innergemeinschaftlichen Lieferungen (§§ 17a bis 17c
-              UStDV) stehen bei den Verzeichnissen, aus denen sie entstehen: dort wird der
-              Empfänger eines Geschenks erfasst und dort wird ein Nachweisbeleg abgelegt.
+              Die nicht abziehbaren Betriebsausgaben je Kategorie (§ 4 Abs. 5 EStG) stehen bei
+              dem Verzeichnis, aus dem sie entstehen: dort wird der Empfänger eines Geschenks
+              erfasst.
             </>
           }
         >
@@ -425,13 +424,6 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
               onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
             >
               Nicht abziehbare Betriebsausgaben
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onNavigate('obligations', { obligationsTab: 'evidence' })}
-            >
-              Belegnachweis ig. Lieferungen
             </Button>
           </div>
         </Section>

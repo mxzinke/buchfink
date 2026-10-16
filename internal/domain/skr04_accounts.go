@@ -5,12 +5,11 @@ package domain
 // Every number here was checked against the DATEV SKR04 2026 template
 // (Art.-Nr. 11175, assets/DATEV-SKR04-BilrUg-2026.pdf) and the extracted catalog
 // in internal/accounting/skr04_2026.json. SKR03 numbers differ throughout —
-// 1600 is Kasse here and Verbindlichkeiten aus LuL there — so these constants
+// Verbindlichkeiten aus LuL are 3300 here and 1600 there — so these constants
 // exist to keep the difference from leaking back into the code.
 const (
 	// Bestandskonten
 	AccountForderungenLuL       = "1200" // Forderungen aus Lieferungen und Leistungen
-	AccountKasse                = "1600" // Kasse
 	AccountBank                 = "1800" // Bank
 	AccountGeldtransit          = "1460" // Geldtransit
 	AccountVerbindlichkeitenLuL = "3300" // Verbindlichkeiten aus Lieferungen und Leistungen
@@ -118,12 +117,6 @@ const (
 	AccountUmsatzsteuerVorjahr         = "3841" // Umsatzsteuerverbindlichkeiten Vorjahr
 	AccountUmsatzsteuerforderung       = "1420" // Forderungen aus Umsatzsteuer-Vorauszahlungen
 
-	// Bestandsveränderungen der Vorräte (§ 275 Abs. 2 Nr. 2 und Nr. 5 HGB)
-	AccountBestandFertige        = "4800" // Bestandsveränderungen fertige Erzeugnisse
-	AccountBestandUnfertige      = "4810" // Bestandsveränderungen unfertige Erzeugnisse
-	AccountBestandUnfertigeLeist = "4815" // Bestandsveränderungen unfertige Leistungen
-	AccountBestandRHBWaren       = "5880" // Bestandsveränderungen Roh-, Hilfs- und Betriebsstoffe sowie bezogene Waren
-
 	// Ergebnisverwendung (§ 29 GmbHG, § 5a Abs. 3 GmbHG)
 	AccountGesetzlicheRuecklage   = "2930" // Gesetzliche Rücklage
 	AccountAndereGewinnruecklagen = "2960" // Andere Gewinnrücklagen
@@ -182,11 +175,11 @@ func IsCollectiveAccount(account string) bool {
 	return ok
 }
 
-// LiquidAccounts lists the accounts treated as liquid funds for the cashflow
-// view: Kasse, the bank accounts 1800-1850 provided by SKR04, and Geldtransit.
+// LiquidAccounts lists the accounts treated as liquid funds: the bank accounts
+// 1800-1850 provided by SKR04 and Geldtransit. Buchfink keeps no Kasse; every
+// payment runs through a bank account.
 func LiquidAccounts() []string {
 	return []string{
-		AccountKasse, "1610", "1620",
 		AccountBank, "1810", "1820", "1830", "1840", "1850",
 		AccountGeldtransit,
 	}

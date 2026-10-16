@@ -69,9 +69,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetNonDeductibleReport":          true,
 	"GetPoolConsistencyReport":        true,
 	"GetServiceEndpoints":             true,
-	"GetSupplyEvidence":               true,
-	"GetSupplyEvidenceKinds":          true,
-	"GetSupplyEvidenceReport":         true,
 	"GetVatExchangeRates":             true,
 	"GetVatIDChecks":                  true,
 	"GetVatIDStatus":                  true,
@@ -175,7 +172,7 @@ var readOnlyAllowed = map[string]bool{
 	"IsLocked":                       true,
 
 	// Die Abschlussbausteine: Schrittliste, Rückstellungen, Abgrenzung,
-	// Vorräte, Verzeichnis und Anhang. Lesen und rechnen sie nur, bleiben sie
+	// Verzeichnis und Anhang. Lesen und rechnen sie nur, bleiben sie
 	// im Prüfermodus offen — gerade das Verzeichnis nach § 5 Abs. 1 Satz 2
 	// EStG und die Überleitung sind das, wonach ein Prüfer als Erstes fragt.
 	"GetAccrualReport":              true,
@@ -184,7 +181,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetClosingSteps":               true,
 	"GetDiscountRateMonths":         true,
 	"GetDiscountRates":              true,
-	"GetInventoryAccounts":          true,
 	"GetLegacySpecialDepreciations": true,
 	"GetNotesTexts":                 true,
 	"GetProvisionMirror":            true,
@@ -201,7 +197,6 @@ var readOnlyAllowed = map[string]bool{
 	"PreviewDepreciationPlan":   true,
 	"PreviewFoundationPostings": true,
 	"PreviewIncomingReceipt":    true,
-	"PreviewInventory":          true,
 	"PreviewOutgoingInvoice":    true,
 	"PreviewProvision":          true,
 	"PreviewTaxProvision":       true,

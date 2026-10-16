@@ -210,69 +210,6 @@ func TestFindingsResolveTheIssuerFromTheContacts(t *testing.T) {
 	}
 }
 
-// Ein Nachtrag zur ZM zählt eine sonstige Leistung nicht doppelt (UST-04 K3).
-//
-// Die Januarmeldung ist übermittelt und enthält die sonstige Leistung nicht,
-// weil sie nach § 18a Abs. 1 Satz 3 UStG in die Märzmeldung gehört. Wer sie
-// deshalb als Nachtrag zum Januar führte, meldete sie zweimal.
-func TestZMLateEntriesFollowTheServicePeriod(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-
-	// Lieferungen über der Grenze des § 18a Abs. 1 Satz 2 UStG: das Jahr wird
-	// monatlich gemeldet.
-	env.euInvoice(t, customer.ID, "2026-01-15", 6_000_000, domain.TaxTreatmentIntraCommunitySupply)
-	// Die sonstige Leistung aus dem Januar. Sie gehört in die Märzmeldung.
-	env.euInvoice(t, customer.ID, "2026-01-20", 500_000, domain.TaxTreatmentReverseChargeSupply)
-
-	// Die Januarmeldung ist übermittelt. Sie wird unmittelbar abgelegt, weil
-	// der Weg über ConfirmSubmitted die Festschreibung des Zeitraums verlangt
-	// und hier nur der übermittelte Stand gebraucht wird.
-	zmRepo := repository.NewZMReturnRepository(env.db)
-	january := &domain.ZMReturn{
-		FiscalYear: 2026, PeriodType: domain.VatPeriodMonth, PeriodKey: "2026-01",
-		PeriodFrom: "2026-01-01", PeriodTo: "2026-01-31",
-		Status: domain.VatReturnSubmitted, SubmittedAt: "2026-02-20",
-		TransferTicket: "TT-2026-01",
-	}
-	if err := zmRepo.Create(ctx, january); err != nil {
-		t.Fatalf("Januarmeldung ablegen: %v", err)
-	}
-
-	march, err := env.zmReturns(t).Draft(ctx, "2026-03")
-	if err != nil {
-		t.Fatalf("Märzmeldung: %v", err)
-	}
-	services := domain.Cents(0)
-	for _, line := range march.Lines {
-		if line.Kind == domain.ZMKindService {
-			services += line.Amount
-		}
-	}
-	if services != 500_000 {
-		t.Fatalf("%s sonstige Leistungen — die Januarleistung gehört in die Märzmeldung", services)
-	}
-	for _, late := range march.LateEntries {
-		if late.Kind == domain.ZMKindService {
-			t.Errorf("die sonstige Leistung steht als Nachtrag zu %s und zugleich in den Zeilen — "+
-				"wer dem Nachtrag folgt, meldet sie zweimal", late.PeriodKey)
-		}
-	}
-	// Die Lieferung aus dem Januar ist in der übermittelten Meldung nicht
-	// enthalten: sie muss als Nachtrag erscheinen, sonst prüfte der Test eine
-	// Erkennung, die gar nicht läuft.
-	supplies := 0
-	for _, late := range march.LateEntries {
-		if late.Kind == domain.ZMKindSupply {
-			supplies++
-		}
-	}
-	if supplies == 0 {
-		t.Error("die nicht gemeldete Januarlieferung gehört als Nachtrag in die Liste")
-	}
-}
-
 // „Monat festschreiben" steht ab dem 10. des Folgemonats als offene Aufgabe und
 // ab dem Tag nach der Frist als überfällige (UNV-02 K2, Entscheidung 5).
 func TestCommitTaskIsOpenFromTheTenthOfTheNextMonth(t *testing.T) {
@@ -336,7 +273,7 @@ func TestFilteredJournalCSVIsLogged(t *testing.T) {
 	auditRepo := repository.NewAuditRepository(env.db)
 	env.accounting.SetAuditRepo(auditRepo)
 
-	entry := simpleEntry("6815", domain.AccountKasse, 10000)
+	entry := simpleEntry("6815", domain.AccountBank, 10000)
 	if _, err := env.journal.Post(ctx, entry); err != nil {
 		t.Fatalf("Buchung: %v", err)
 	}

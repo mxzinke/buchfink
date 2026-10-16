@@ -74,12 +74,6 @@ const (
 	// TaxTreatmentIntraCommunityAcquisition is an innergemeinschaftlicher Erwerb
 	// (§ 1a UStG): acquisition tax and matching input tax in the same booking.
 	TaxTreatmentIntraCommunityAcquisition TaxTreatment = "intra_community_acquisition"
-	// TaxTreatmentIntraCommunitySupply is a tax-exempt innergemeinschaftliche
-	// Lieferung (§ 4 Nr. 1 Buchst. b i. V. m. § 6a UStG).
-	TaxTreatmentIntraCommunitySupply TaxTreatment = "intra_community_supply"
-	// TaxTreatmentExport is a tax-exempt Ausfuhrlieferung into a third country
-	// (§ 4 Nr. 1 Buchst. a i. V. m. § 6 UStG).
-	TaxTreatmentExport TaxTreatment = "export"
 	// TaxTreatmentReverseChargeSupply is an outgoing service where the recipient
 	// owes the tax under § 13b UStG.
 	TaxTreatmentReverseChargeSupply TaxTreatment = "reverse_charge_supply"
@@ -138,9 +132,7 @@ func AllTaxTreatments() []TaxTreatment {
 		TaxTreatmentDomestic,
 		TaxTreatmentReverseCharge,
 		TaxTreatmentIntraCommunityAcquisition,
-		TaxTreatmentIntraCommunitySupply,
 		TaxTreatmentReverseChargeSupply,
-		TaxTreatmentExport,
 		TaxTreatmentZeroRated,
 		TaxTreatmentExempt,
 		TaxTreatmentNotTaxable,
@@ -196,9 +188,7 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 	case DirectionOutgoing:
 		return []TaxTreatmentInfo{
 			{TaxTreatmentDomestic, "Inland, steuerpflichtig", "Normalfall: Rechnung mit ausgewiesener Umsatzsteuer.", dir, true, false},
-			{TaxTreatmentIntraCommunitySupply, "Innergemeinschaftliche Lieferung", "Warenlieferung an ein EU-Unternehmen, steuerfrei nach § 4 Nr. 1b UStG.", dir, false, true},
 			{TaxTreatmentReverseChargeSupply, "§ 13b UStG (Steuerschuld beim Empfänger)", reverseChargeSupplyHint, dir, false, true},
-			{TaxTreatmentExport, "Ausfuhr in ein Drittland", "Lieferung außerhalb der EU, steuerfrei nach § 4 Nr. 1a UStG.", dir, false, false},
 			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei — der Vorsteuerabzug bleibt erhalten.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},
 			{TaxTreatmentNotTaxable, "Nicht steuerbar", "Kein Leistungsaustausch, z. B. echter Schadenersatz.", dir, false, false},

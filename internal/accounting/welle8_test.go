@@ -52,68 +52,11 @@ func TestTaxRateFollowsTheServiceDate(t *testing.T) {
 	}
 }
 
-// Die sonstigen Leistungen bleiben vierteljährlich, auch wenn die Lieferungen
-// monatlich gemeldet werden (§ 18a Abs. 1 Satz 3 UStG, UST-04 K3).
-func TestZMServicesStayQuarterlyWhileGoodsAreMonthly(t *testing.T) {
+// Die sonstige Leistung wird im Quartal ihres Leistungsdatums gemeldet
+// (§ 18a Abs. 1 Satz 1 UStG).
+func TestZMReportsServicesInTheirQuarter(t *testing.T) {
 	movements := []ZMMovement{
-		// Lieferungen über der Grenze: sie zwingen zur monatlichen Meldung.
-		{EntryID: 1, Date: "2026-01-15", Kind: domain.ZMKindSupply, ContactID: 1, Amount: 6_000_000},
-		// Sonstige Leistungen in jedem Monat des ersten Quartals.
-		{EntryID: 2, Date: "2026-01-20", Kind: domain.ZMKindService, ContactID: 1, Amount: 100_000},
-		{EntryID: 3, Date: "2026-02-20", Kind: domain.ZMKindService, ContactID: 1, Amount: 200_000},
-		{EntryID: 4, Date: "2026-03-20", Kind: domain.ZMKindService, ContactID: 1, Amount: 300_000},
-	}
-	periods := ZMPeriodsOfYear(2026, movements)
-	if len(periods) == 0 || periods[0].Type != domain.VatPeriodMonth {
-		t.Fatalf("über der Grenze wird monatlich gemeldet, erhalten %v", periods)
-	}
-
-	recipient := func(uint) ZMRecipient {
-		return ZMRecipient{Name: "Client SARL", CountryCode: "FR", VatID: "FR12345678901", IsEU: true}
-	}
-	byPeriod := map[string][]domain.ZMLine{}
-	for _, p := range periods[:3] {
-		lines, _ := ZMLines(p, movements, recipient)
-		byPeriod[p.Key] = lines
-	}
-
-	serviceAmount := func(lines []domain.ZMLine) domain.Cents {
-		var total domain.Cents
-		for _, l := range lines {
-			if l.Kind == domain.ZMKindService {
-				total += l.Amount
-			}
-		}
-		return total
-	}
-	if got := serviceAmount(byPeriod["2026-01"]); got != 0 {
-		t.Errorf("Januar meldet %s € sonstige Leistungen — sie gehören in den letzten "+
-			"Monat des Quartals (§ 18a Abs. 1 Satz 3 UStG)", got)
-	}
-	if got := serviceAmount(byPeriod["2026-02"]); got != 0 {
-		t.Errorf("Februar meldet %s € sonstige Leistungen — erwartet keine", got)
-	}
-	if got := serviceAmount(byPeriod["2026-03"]); got != 600_000 {
-		t.Errorf("März meldet %s € sonstige Leistungen — erwartet die 6.000,00 € des "+
-			"ganzen Quartals", got)
-	}
-	// Die Lieferung bleibt in ihrem Monat: nur die sonstigen Leistungen wandern.
-	var supply domain.Cents
-	for _, l := range byPeriod["2026-01"] {
-		if l.Kind == domain.ZMKindSupply {
-			supply += l.Amount
-		}
-	}
-	if supply != 6_000_000 {
-		t.Errorf("Januar meldet %s € Lieferungen — erwartet 60.000,00 €", supply)
-	}
-}
-
-// Bei vierteljährlicher Meldung ändert sich nichts: dort stehen ohnehin beide
-// Arten im selben Zeitraum.
-func TestZMServicesUnchangedOnQuarterlyPeriods(t *testing.T) {
-	movements := []ZMMovement{
-		{EntryID: 1, Date: "2026-01-20", Kind: domain.ZMKindService, ContactID: 1, Amount: 100_000},
+		{EntryID: 1, Date: "2026-01-20", ContactID: 1, Amount: 100_000},
 	}
 	recipient := func(uint) ZMRecipient {
 		return ZMRecipient{Name: "Client SARL", CountryCode: "FR", VatID: "FR12345678901", IsEU: true}
@@ -151,7 +94,7 @@ func TestJournalFilterNarrowsAndSums(t *testing.T) {
 			Description: "Büromaterial", Actor: "anna",
 			Lines: []domain.JournalLine{
 				{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 5_000},
-				{Position: 2, Side: domain.SideCredit, Account: domain.AccountKasse, Amount: 5_000},
+				{Position: 2, Side: domain.SideCredit, Account: domain.AccountGeldtransit, Amount: 5_000},
 			},
 		},
 	}
@@ -208,9 +151,9 @@ func TestJournalFilterNarrowsAndSums(t *testing.T) {
 	// Gegenkonto: die Buchung muss das Konto enthalten, die Zeile darauf steht
 	// nicht im Ergebnis.
 	counter := FilterJournal(entries,
-		JournalFilter{Account: "6815", CounterAccount: domain.AccountKasse}, nil)
+		JournalFilter{Account: "6815", CounterAccount: domain.AccountGeldtransit}, nil)
 	if counter.RowCount != 1 || counter.Rows[0].EntryNumber != "2026-000003" {
-		t.Errorf("Gegenkonto Kasse: %+v", counter.Rows)
+		t.Errorf("Gegenkonto Geldtransit: %+v", counter.Rows)
 	}
 
 	// Zeitraum und Textsuche.

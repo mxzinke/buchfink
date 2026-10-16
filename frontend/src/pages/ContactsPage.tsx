@@ -659,10 +659,10 @@ const ContactForm: React.FC<{
             Bestätigung beim Bundeszentralamt
             <Help summary="Prüfen Sie die Umsatzsteuer-ID Ihres Geschäftspartners beim Bundeszentralamt für Steuern." label="Erklärung zur Bestätigungsabfrage">
               § 18e UStG lässt die Bestätigung einer ausländischen USt-IdNr. beim Bundeszentralamt
-              für Steuern zu. Für eine steuerfreie innergemeinschaftliche Lieferung ist eine
-              gültige, vom Bestimmungsland erteilte Nummer des Abnehmers materielle Voraussetzung
-              (§ 6a Abs. 1 Satz 1 Nr. 4 UStG). Die Antwort wird dauerhaft festgehalten — sie ist
-              der Beleg gegenüber der Finanzverwaltung.
+              für Steuern zu. Bei einer Leistung an ein Unternehmen im übrigen Gemeinschaftsgebiet
+              weist die gültige Nummer den Empfänger als Unternehmer aus (§ 3a Abs. 2 UStG). Die
+              Antwort wird dauerhaft festgehalten — sie ist der Beleg gegenüber der
+              Finanzverwaltung.
             </Help>
           </h3>
           <p className="text-body text-ink-muted mt-1.5">

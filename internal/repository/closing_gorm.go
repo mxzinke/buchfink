@@ -248,30 +248,6 @@ func (r *discountRateRepositoryGorm) Save(ctx context.Context, rates []domain.Di
 }
 
 // -------------------------------------------------------------------------
-// Inventurwerte
-// -------------------------------------------------------------------------
-
-type inventoryRepositoryGorm struct {
-	db *gorm.DB
-}
-
-// NewInventoryRepository creates a GORM-backed InventoryRepository.
-func NewInventoryRepository(db *gorm.DB) domain.InventoryRepository {
-	return &inventoryRepositoryGorm{db: db}
-}
-
-func (r *inventoryRepositoryGorm) FindByYear(ctx context.Context, fiscalYear int) ([]domain.InventoryCount, error) {
-	counts := make([]domain.InventoryCount, 0)
-	err := dbFrom(ctx, r.db).Where("fiscal_year = ?", fiscalYear).
-		Order("account asc, id asc").Find(&counts).Error
-	return counts, err
-}
-
-func (r *inventoryRepositoryGorm) Save(ctx context.Context, count *domain.InventoryCount) error {
-	return dbFrom(ctx, r.db).Save(count).Error
-}
-
-// -------------------------------------------------------------------------
 // Anhangtexte
 // -------------------------------------------------------------------------
 

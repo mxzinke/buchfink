@@ -139,7 +139,7 @@ func TestFailedBookingLeavesTheReceiptOpen(t *testing.T) {
 	}
 
 	// Korrigiert lässt er sich buchen.
-	req.PaymentAccount = domain.AccountKasse
+	req.PaymentAccount = domain.AccountBank
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
 		t.Fatalf("der korrigierte Beleg muss buchbar sein: %v", err)
 	}

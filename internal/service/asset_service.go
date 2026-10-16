@@ -2752,7 +2752,7 @@ func (s *AssetService) disposalSettlementLine(
 	case SettlementPaid:
 		if req.PaymentAccount == "" {
 			return domain.JournalLine{}, fmt.Errorf(
-				"bei sofortiger Zahlung muss das Zahlungsmittel angegeben werden (Kasse, Bank)")
+				"bei sofortiger Zahlung muss das Bankkonto angegeben werden")
 		}
 		if !isLiquidAccount(req.PaymentAccount) {
 			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto", req.PaymentAccount)

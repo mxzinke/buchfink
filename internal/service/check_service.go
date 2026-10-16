@@ -43,11 +43,9 @@ type CheckService struct {
 	// sizeClass liefert die Ankündigung des Größenklassenwechsels. Ohne sie läuft
 	// der Prüflauf wie zuvor, nur ohne diese Regel.
 	sizeClass SizeClassSource
-	// supplyEvidence und vatIDs liefern die beiden Regeln zur steuerfreien
-	// innergemeinschaftlichen Lieferung: der Belegnachweis und die Bestätigung
-	// der USt-IdNr. Ohne sie läuft der Prüflauf wie zuvor, nur ohne diese Regeln.
-	supplyEvidence SupplyEvidenceSource
-	vatIDs         VatIDStatusSource
+	// vatIDs liefert die Bestätigung der USt-IdNr. Ohne sie läuft der Prüflauf
+	// wie zuvor, nur ohne diese Regel.
+	vatIDs VatIDStatusSource
 
 	// now ist der Ausführungszeitpunkt des Laufs. Er steht als Feld, weil zwei
 	// Regeln nicht nur den Stichtag, sondern auch den heutigen Tag brauchen —
@@ -250,8 +248,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkVatReturns(ctx, req.CutoffDate, reference, cfg)...)
 	findings = append(findings, s.checkCommitOverdue(ctx, req.CutoffDate, cfg)...)
 	findings = append(findings, s.checkPeriodsNotCommitted(ctx, req.CutoffDate, cfg)...)
-	findings = append(findings, s.checkSupplyEvidence(ctx)...)
-	findings = append(findings, s.checkUnconfirmedSupplies(ctx)...)
+	findings = append(findings, s.checkUnconfirmedVatIDs(ctx)...)
 	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
 
 	if req.PeriodType == "year" {
@@ -1348,14 +1345,8 @@ func endOfNextMonth(iso string) string {
 }
 
 // -------------------------------------------------------------------------
-// Die beiden Regeln zur steuerfreien innergemeinschaftlichen Lieferung
+// Bestätigung der USt-IdNr. bei Leistungen ins übrige Gemeinschaftsgebiet
 // -------------------------------------------------------------------------
-
-// SupplyEvidenceSource liefert den Nachweisstand der steuerfreien
-// innergemeinschaftlichen Lieferungen eines Jahres.
-type SupplyEvidenceSource interface {
-	Report(ctx context.Context, year int) (*SupplyEvidenceReport, error)
-}
 
 // VatIDStatusSource beantwortet ohne Netzaufruf, ob für einen Geschäftspartner
 // eine gültige Bestätigung der USt-IdNr. vorliegt.
@@ -1363,77 +1354,19 @@ type VatIDStatusSource interface {
 	StatusForContact(ctx context.Context, contactID uint) (*VatIDStatus, error)
 }
 
-// SetSupplyEvidenceSource wires den Belegnachweis (Regel
-// ic_supply_evidence_missing).
-func (s *CheckService) SetSupplyEvidenceSource(src SupplyEvidenceSource) { s.supplyEvidence = src }
-
 // SetVatIDStatusSource wires die Bestätigungsabfrage (Regel
-// ic_supply_unconfirmed).
+// vat_id_unconfirmed).
 func (s *CheckService) SetVatIDStatusSource(src VatIDStatusSource) { s.vatIDs = src }
 
-// checkSupplyEvidence meldet die steuerfreien ig. Lieferungen ohne
-// vollständigen Belegnachweis.
-//
-// Als Warnung und nicht blockierend: der Nachweis darf nachgereicht werden, und
-// er wird es in der Praxis auch — der Frachtbrief kommt nach der Rechnung. Was
-// nicht passieren darf, ist dass er in Vergessenheit gerät, bis der Prüfer
-// danach fragt und die Befreiung rückwirkend entfällt. Deshalb nennt die
-// Meldung die Frist.
-func (s *CheckService) checkSupplyEvidence(ctx context.Context) []domain.CheckFinding {
-	if s.supplyEvidence == nil {
-		return nil
-	}
-	report, err := s.supplyEvidence.Report(ctx, s.fiscalYear)
-	if err != nil {
-		// Ein Fehler ist kein „nichts gefunden": ein ungeprüfter Nachweisstand,
-		// der wie ein geprüfter aussieht, ist schlimmer als gar keine Regel.
-		return []domain.CheckFinding{{
-			Rule:       domain.CheckRuleICSupplyEvidenceMissing,
-			Severity:   domain.CheckWarning,
-			ObjectType: "INVOICE",
-			Message: fmt.Sprintf(
-				"Der Belegnachweis der innergemeinschaftlichen Lieferungen ließ sich nicht prüfen: %v",
-				err),
-			Reference: "§ 17a UStDV",
-		}}
-	}
-	out := make([]domain.CheckFinding, 0, report.Incomplete)
-	for _, row := range report.Rows {
-		if row.Status.Fulfilled {
-			continue
-		}
-		missing := "der Nachweis ist nicht vollständig"
-		if len(row.Status.Missing) > 0 {
-			missing = "es fehlt " + strings.Join(row.Status.Missing, "; ")
-		}
-		out = append(out, domain.CheckFinding{
-			Rule:       domain.CheckRuleICSupplyEvidenceMissing,
-			Severity:   domain.CheckWarning,
-			ObjectType: "INVOICE",
-			ObjectID:   fmt.Sprintf("%d", row.InvoiceID),
-			ObjectName: row.InvoiceNumber,
-			Message: fmt.Sprintf(
-				"Die steuerfreie innergemeinschaftliche Lieferung %s an %s vom %s hat keinen "+
-					"vollständigen Belegnachweis: %s. Er ist bis zur Abgabe der Voranmeldung des "+
-					"Zeitraums zu führen, in dem die Lieferung ausgeführt wurde — fehlt er, ist die "+
-					"Lieferung steuerpflichtig, und die Steuer schuldest du aus einer Rechnung, die "+
-					"keine ausweist.",
-				row.InvoiceNumber, row.ContactName, row.Date, missing),
-			Reference: "§ 17a Abs. 1 UStDV",
-		})
-	}
-	return out
-}
-
-// checkUnconfirmedSupplies meldet die steuerfreien ig. Lieferungen ohne
-// bestätigte USt-IdNr. des Abnehmers.
+// checkUnconfirmedVatIDs meldet die Leistungen an Unternehmer im übrigen
+// Gemeinschaftsgebiet, die ohne bestätigte USt-IdNr. ausgestellt wurden.
 //
 // Das ist der zugesagte Folgebefund zur Übersteuerung: wer eine Rechnung
 // ausstellt, während das Bundeszentralamt nicht antwortet, tut das mit einem
 // festgehaltenen Grund — und findet die Rechnung im nächsten Prüflauf wieder,
-// damit die Abfrage nachgeholt wird. § 6a Abs. 1 Satz 1 Nr. 4 UStG macht die
-// gültige Nummer zur materiellen Voraussetzung; ein Grund ersetzt sie nicht.
-func (s *CheckService) checkUnconfirmedSupplies(ctx context.Context) []domain.CheckFinding {
+// damit die Abfrage nachgeholt wird. Nur so ausgestellte Rechnungen tragen einen
+// Grund; jede andere ging mit einer Bestätigung hinaus.
+func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context) []domain.CheckFinding {
 	if s.vatIDs == nil || s.invoiceRepo == nil {
 		return nil
 	}
@@ -1444,7 +1377,8 @@ func (s *CheckService) checkUnconfirmedSupplies(ctx context.Context) []domain.Ch
 	out := make([]domain.CheckFinding, 0, 2)
 	for i := range invoices {
 		inv := &invoices[i]
-		if inv.TaxTreatment != domain.TaxTreatmentIntraCommunitySupply {
+		reason := strings.TrimSpace(inv.VatIDOverrideReason)
+		if inv.TaxTreatment != domain.TaxTreatmentReverseChargeSupply || reason == "" {
 			continue
 		}
 		if inv.Status == domain.InvoiceStatusCancelled || inv.Status == domain.InvoiceStatusDraft {
@@ -1455,32 +1389,22 @@ func (s *CheckService) checkUnconfirmedSupplies(ctx context.Context) []domain.Ch
 			continue
 		}
 		// Eine gültige Bestätigung beendet den Befund — auch die nachgeholte.
-		//
-		// Vorher blieb eine mit Grund ausgestellte Rechnung stehen, bis das Jahr
-		// vorbei war: der Lauf meldete „es liegt keine gültige Bestätigung vor"
-		// und hängte im selben Satz an, die Nummer sei am soundsovielten
-		// bestätigt worden. Der Befund ist die Aufforderung, die Abfrage
-		// nachzuholen; wer ihr gefolgt ist, hat ihn erledigt.
 		if status.Confirmed {
 			continue
 		}
-		detail := status.Note
-		if reason := strings.TrimSpace(inv.VatIDOverrideReason); reason != "" {
-			detail = fmt.Sprintf("Ausgestellt mit dem Grund: %s. %s", reason, status.Note)
-		}
 		out = append(out, domain.CheckFinding{
-			Rule:       domain.CheckRuleICSupplyUnconfirmed,
+			Rule:       domain.CheckRuleVatIDUnconfirmed,
 			Severity:   domain.CheckWarning,
 			ObjectType: "INVOICE",
 			ObjectID:   fmt.Sprintf("%d", inv.ID),
 			ObjectName: inv.InvoiceNumber,
 			Message: fmt.Sprintf(
-				"Zur steuerfreien innergemeinschaftlichen Lieferung %s an %s liegt keine gültige "+
-					"Bestätigung der USt-IdNr. vor. %s Hole die Bestätigungsanfrage nach: die gültige, "+
-					"vom Bestimmungsland erteilte USt-IdNr. des Abnehmers ist materielle Voraussetzung "+
-					"der Steuerbefreiung.",
-				inv.InvoiceNumber, inv.ContactName, detail),
-			Reference: "§ 6a Abs. 1 Satz 1 Nr. 4 UStG",
+				"Zur Rechnung %s an %s liegt keine gültige Bestätigung der USt-IdNr. vor. "+
+					"Ausgestellt mit dem Grund: %s. %s Hole die Bestätigungsanfrage nach: die gültige "+
+					"USt-IdNr. weist den Empfänger als Unternehmer aus, und daran hängt der Leistungsort "+
+					"im übrigen Gemeinschaftsgebiet.",
+				inv.InvoiceNumber, inv.ContactName, reason, status.Note),
+			Reference: "§ 3a Abs. 2 UStG, § 18e UStG",
 		})
 	}
 	return out

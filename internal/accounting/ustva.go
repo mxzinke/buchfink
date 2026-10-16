@@ -87,24 +87,22 @@ var vatCodes = []vatCodeSpec{
 
 // Kennziffern, auf die sich der Rest des Programms bezieht.
 const (
-	VatCodeIntraCommunitySupply = "41" // ig. Lieferungen
-	VatCodeExemptWithDeduction  = "43" // Ausfuhr und übrige steuerfreie Umsätze mit Vorsteuerabzug
-	VatCodeExemptNoDeduction    = "48"
-	VatCodeStandardRate         = "81"
-	VatCodeReducedRate          = "86"
-	VatCodeOtherRates           = "35"
-	VatCodeAcquisition19        = "89"
-	VatCodeAcquisition7         = "93"
-	VatCodeReverseCharge        = "46"
-	VatCodeEUServices           = "21" // nicht steuerbare sonstige Leistungen § 18b
-	VatCodeNotTaxable           = "45"
-	VatCodeInputTax             = "66"
-	VatCodeInputTaxAcquisition  = "61"
-	VatCodeInputTaxReverse      = "67"
-	VatCodeInputTaxCorrection   = "64" // Berichtigung § 15a UStG
-	VatCodeUnlawfulTax          = "69" // § 14c UStG
-	VatCodeSpecialPrepayment    = "39"
-	VatCodePayable              = "83"
+	VatCodeExemptNoDeduction   = "48"
+	VatCodeStandardRate        = "81"
+	VatCodeReducedRate         = "86"
+	VatCodeOtherRates          = "35"
+	VatCodeAcquisition19       = "89"
+	VatCodeAcquisition7        = "93"
+	VatCodeReverseCharge       = "46"
+	VatCodeEUServices          = "21" // nicht steuerbare sonstige Leistungen § 18b
+	VatCodeNotTaxable          = "45"
+	VatCodeInputTax            = "66"
+	VatCodeInputTaxAcquisition = "61"
+	VatCodeInputTaxReverse     = "67"
+	VatCodeInputTaxCorrection  = "64" // Berichtigung § 15a UStG
+	VatCodeUnlawfulTax         = "69" // § 14c UStG
+	VatCodeSpecialPrepayment   = "39"
+	VatCodePayable             = "83"
 )
 
 // owedTaxCodes sind die Kennziffern, deren Steuerbeträge in die Zahllast
@@ -363,10 +361,6 @@ func vatMovements(src VatReturnSource) []vatMovement {
 				}
 				m.base = credit
 				switch treatment {
-				case domain.TaxTreatmentIntraCommunitySupply:
-					m.code = VatCodeIntraCommunitySupply
-				case domain.TaxTreatmentExport:
-					m.code = VatCodeExemptWithDeduction
 				case domain.TaxTreatmentExempt:
 					m.code = VatCodeExemptNoDeduction
 				case domain.TaxTreatmentZeroRated:

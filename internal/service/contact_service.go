@@ -149,9 +149,9 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 
 // vatIDNotice ist der Hinweis zur Bestätigung einer EU-USt-IdNr.
 //
-// Er hält nichts an. Die Bestätigungsanfrage ist beim Ausstellen einer
-// steuerfreien innergemeinschaftlichen Lieferung zwingend (§ 6a Abs. 1 Satz 1
-// Nr. 4 UStG); beim Erfassen des Kontakts ist sie eine gute Gewohnheit, und ein
+// Er hält nichts an. Die Bestätigungsanfrage ist beim Ausstellen einer Leistung
+// an einen Unternehmer im übrigen Gemeinschaftsgebiet zwingend (§ 3a Abs. 2
+// UStG); beim Erfassen des Kontakts ist sie eine gute Gewohnheit, und ein
 // Netzaufruf, den niemand angefordert hat, gehört nicht in das Speichern von
 // Stammdaten. Der Hinweis sagt deshalb, was ist, und bietet die Abfrage an.
 func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) string {
@@ -164,14 +164,14 @@ func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) str
 				return status.Note
 			}
 			return status.Note + " Hole die qualifizierte Bestätigungsanfrage nach § 18e UStG nach: " +
-				"beim Ausstellen einer steuerfreien innergemeinschaftlichen Lieferung ist sie zwingend."
+				"beim Ausstellen einer Leistung an ein Unternehmen im übrigen Gemeinschaftsgebiet ist sie zwingend."
 		}
 	}
 	return fmt.Sprintf(
 		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
-			"bestätigen (§ 18e UStG) — beim Ausstellen einer steuerfreien innergemeinschaftlichen "+
-			"Lieferung ist die gültige Nummer materielle Voraussetzung der Befreiung "+
-			"(§ 6a Abs. 1 Satz 1 Nr. 4 UStG).", c.Name, c.VatID)
+			"bestätigen (§ 18e UStG) — bei einer Leistung an ein Unternehmen im übrigen "+
+			"Gemeinschaftsgebiet weist die gültige Nummer den Empfänger als Unternehmer aus "+
+			"(§ 3a Abs. 2 UStG).", c.Name, c.VatID)
 }
 
 // vatIDStatusSource ist der Ausschnitt der Bestätigungsabfrage, den die

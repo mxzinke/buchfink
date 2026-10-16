@@ -357,14 +357,10 @@ func checkRuleTask(rule string) (title, why, reference string) {
 			"Prüferbestellung, Gliederungstiefe und Aufstellungsfrist ändern sich, sobald der zweite " +
 				"Stichtag dieselbe Klasse ergibt — das lässt sich nicht in dem Monat vorbereiten, in dem es gilt.",
 			"§ 267 Abs. 4 Satz 1 HGB"
-	case domain.CheckRuleICSupplyEvidenceMissing:
-		return "Belegnachweis der Auslandslieferungen führen",
-			"Ohne den Nachweis der Warenbewegung ist die steuerfreie Lieferung ins EU-Ausland steuerpflichtig.",
-			"§§ 17a ff. UStDV"
-	case domain.CheckRuleICSupplyUnconfirmed:
+	case domain.CheckRuleVatIDUnconfirmed:
 		return "Bestätigung der USt-IdNr. nachholen",
-			"Die gültige Nummer des Abnehmers ist Voraussetzung der Steuerbefreiung, nicht eine Formalie.",
-			"§ 6a Abs. 1 Satz 1 Nr. 4 UStG, § 18e UStG"
+			"Die gültige Nummer weist den Empfänger als Unternehmer aus; daran hängt der Leistungsort im Ausland.",
+			"§ 3a Abs. 2 UStG, § 18e UStG"
 	default:
 		return "Prüfbefunde ansehen",
 			"Der Prüflauf hat etwas gefunden, das vor der Festschreibung geklärt sein sollte.",

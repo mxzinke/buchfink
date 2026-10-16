@@ -27,10 +27,8 @@ type VatSummary struct {
 	ZeroRatedRevenue Cents `json:"zeroRatedRevenue"`
 
 	// Steuerfreie und nicht im Inland steuerbare Umsätze.
-	ExemptRevenue        Cents `json:"exemptRevenue"`
-	IntraCommunitySupply Cents `json:"intraCommunitySupply"`
-	Export               Cents `json:"export"`
-	ReverseChargeSupply  Cents `json:"reverseChargeSupply"`
+	ExemptRevenue       Cents `json:"exemptRevenue"`
+	ReverseChargeSupply Cents `json:"reverseChargeSupply"`
 
 	// Geschuldete Steuer.
 	OutputTax                     Cents `json:"outputTax"`

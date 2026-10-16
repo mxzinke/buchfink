@@ -279,9 +279,9 @@ func TestVatIDConfirmationIsStoredAndCachedForNinetyDays(t *testing.T) {
 	}
 }
 
-// Ergebniscode 201: die Nummer ist ungültig. Eine steuerfreie Lieferung an
-// diesen Empfänger wird abgelehnt, und die Ablehnung nennt das Ergebnis.
-func TestVatIDRejectionBlocksTheExemptSupply(t *testing.T) {
+// Ergebniscode 201: die Nummer ist ungültig. Eine Leistung mit Steuerschuld
+// dieses Empfängers wird abgelehnt, und die Ablehnung nennt das Ergebnis.
+func TestVatIDRejectionBlocksTheEUService(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	server, _ := bzstServer(t, "201", nil)
@@ -290,9 +290,9 @@ func TestVatIDRejectionBlocksTheExemptSupply(t *testing.T) {
 
 	err := svc.EnsureConfirmed(ctx, customer, "")
 	if err == nil {
-		t.Fatal("eine nicht bestätigte USt-IdNr. ermöglicht keine steuerfreie Lieferung")
+		t.Fatal("eine nicht bestätigte USt-IdNr. ermöglicht keine Leistung mit Steuerschuld des Empfängers")
 	}
-	if !strings.Contains(err.Error(), "§ 6a Abs. 1") {
+	if !strings.Contains(err.Error(), "§ 3a Abs. 2") {
 		t.Errorf("die Meldung muss die Vorschrift nennen: %v", err)
 	}
 	if !strings.Contains(err.Error(), "201") {
@@ -334,93 +334,6 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 	if err := svc.EnsureConfirmed(ctx, customer,
 		"Bundeszentralamt nicht erreichbar, Nummer aus dem Vorjahr bestätigt"); err != nil {
 		t.Fatalf("mit Grund muss Buchfink die Rechnung ausstellen: %v", err)
-	}
-}
-
-// -------------------------------------------------------------------------
-// Belegnachweis der innergemeinschaftlichen Lieferung
-// -------------------------------------------------------------------------
-
-func (e *testEnv) supplyEvidence(t *testing.T) *SupplyEvidenceService {
-	t.Helper()
-	return NewSupplyEvidenceService(
-		repository.NewSupplyEvidenceRepository(e.db),
-		repository.NewInvoiceRepository(e.db),
-		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
-	)
-}
-
-// Der Bericht führt die steuerfreie Lieferung ohne vollständigen Nachweis auf —
-// und nimmt sie heraus, sobald er geführt ist.
-func TestSupplyEvidenceReportListsIncompleteSupplies(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.supplyEvidence(t)
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-
-	invoiceRepo := repository.NewInvoiceRepository(env.db)
-	invoice := &domain.Invoice{
-		FiscalYear: 2026, InvoiceNumber: "RE-2026-0001", Date: "2026-04-02",
-		ServiceDateFrom: "2026-04-01", ServiceDateTo: "2026-04-01",
-		ContactID: customer.ID, ContactName: customer.Name,
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
-		Status:       domain.InvoiceStatusIssued, Currency: "EUR",
-		NetAmount: 500_000, GrossAmount: 500_000,
-	}
-	if err := invoiceRepo.Save(ctx, invoice); err != nil {
-		t.Fatalf("Rechnung: %v", err)
-	}
-
-	report, err := svc.Report(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Bericht: %v", err)
-	}
-	if report.Incomplete != 1 || len(report.Rows) != 1 {
-		t.Fatalf("%d von %d unvollständig — erwartet eine Lieferung ohne Nachweis",
-			report.Incomplete, len(report.Rows))
-	}
-	if !strings.Contains(report.Note, "§ 17a") {
-		t.Errorf("der Bericht muss den Fristhinweis enthalten: %s", report.Note)
-	}
-
-	// Zwei Belege unabhängiger Aussteller: die Vermutung greift.
-	for _, item := range []SupplyEvidenceRequest{
-		{InvoiceID: invoice.ID, Kind: string(accounting.EvidenceCMR),
-			Issuer: "Spedition Nord", Independent: true, Date: "2026-04-03"},
-		{InvoiceID: invoice.ID, Kind: string(accounting.EvidenceInsurance),
-			Issuer: "Transportversicherung AG", Independent: true, Date: "2026-04-03"},
-	} {
-		if _, err := svc.Add(ctx, item); err != nil {
-			t.Fatalf("Nachweisbeleg: %v", err)
-		}
-	}
-
-	view, err := svc.View(ctx, invoice.ID, accounting.TransportBySupplier)
-	if err != nil {
-		t.Fatalf("Nachweisstand: %v", err)
-	}
-	if !view.Status.Fulfilled {
-		t.Errorf("mit zwei unabhängigen Belegen greift die Vermutung: %s", view.Status.Reason)
-	}
-	if len(view.Items) != 2 {
-		t.Errorf("%d Belege abgelegt — erwartet zwei", len(view.Items))
-	}
-
-	after, err := svc.Report(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Bericht: %v", err)
-	}
-	if after.Incomplete != 0 {
-		t.Errorf("%d unvollständig — nach dem Nachweis darf keine offen sein", after.Incomplete)
-	}
-
-	// Ein Beleg ohne Aussteller stützt die Vermutung nicht und wird deshalb gar
-	// nicht erst angenommen.
-	if _, err := svc.Add(ctx, SupplyEvidenceRequest{
-		InvoiceID: invoice.ID, Kind: string(accounting.EvidenceCMR), Date: "2026-04-04",
-	}); err == nil {
-		t.Error("ein Nachweisbeleg ohne Aussteller lässt sich nicht auf Unabhängigkeit prüfen")
 	}
 }
 

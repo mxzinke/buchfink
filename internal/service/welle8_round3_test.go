@@ -26,7 +26,7 @@ func TestCustomAccountIsPostableRightAfterItIsCreated(t *testing.T) {
 
 	// Eine erste Buchung füllt den Zwischenspeicher des Kontenplans. Ohne sie
 	// prüfte der Test einen Kontenplan, der ohnehin frisch gelesen wird.
-	if _, err := env.journal.Post(ctx, simpleEntry("6300", domain.AccountKasse, 1000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("6300", domain.AccountBank, 1000)); err != nil {
 		t.Fatalf("erste Buchung: %v", err)
 	}
 
@@ -41,14 +41,14 @@ func TestCustomAccountIsPostableRightAfterItIsCreated(t *testing.T) {
 		t.Fatalf("eigenes Konto: %v", err)
 	}
 
-	if _, err := env.journal.Post(ctx, simpleEntry("6011", domain.AccountKasse, 2500)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("6011", domain.AccountBank, 2500)); err != nil {
 		t.Fatalf("auf das eigene Konto muss sofort gebucht werden können: %v", err)
 	}
 
 	if _, err := accounts.SetBlocked(ctx, "6011", true, "Aufwandsart entfällt"); err != nil {
 		t.Fatalf("Konto sperren: %v", err)
 	}
-	blocked := simpleEntry("6011", domain.AccountKasse, 2500)
+	blocked := simpleEntry("6011", domain.AccountBank, 2500)
 	blocked.Description = "Buchung nach der Sperre"
 	if _, err := env.journal.Post(ctx, blocked); err == nil {
 		t.Error("ein gesperrtes Konto nimmt keine Buchung mehr auf")
@@ -59,57 +59,10 @@ func TestCustomAccountIsPostableRightAfterItIsCreated(t *testing.T) {
 	if _, err := accounts.SetBlocked(ctx, "6011", false, ""); err != nil {
 		t.Fatalf("Konto freigeben: %v", err)
 	}
-	again := simpleEntry("6011", domain.AccountKasse, 2500)
+	again := simpleEntry("6011", domain.AccountBank, 2500)
 	again.Description = "Buchung nach der Freigabe"
 	if _, err := env.journal.Post(ctx, again); err != nil {
 		t.Errorf("nach der Freigabe ist das Konto wieder bebuchbar: %v", err)
-	}
-}
-
-// Die Abstimmung der ZM stellt die sonstigen Leistungen bei monatlicher Meldung
-// dem ganzen Kalendervierteljahr gegenüber (UST-04 K3).
-//
-// Gemeldet werden sie im letzten Quartalsmonat, vorangemeldet im Monat der
-// Leistung. Verglichen man Monat gegen Monat, meldete die Abstimmung dieselbe
-// Januarleistung zweimal als Abweichung.
-func TestZMReconciliationFollowsTheServiceQuarter(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-
-	// Lieferungen über der Grenze des § 18a Abs. 1 Satz 2 UStG: gemeldet wird
-	// monatlich.
-	env.euInvoice(t, customer.ID, "2026-01-15", 6_000_000, domain.TaxTreatmentIntraCommunitySupply)
-	// Die sonstige Leistung aus dem Januar. Sie gehört in die Märzmeldung.
-	env.euInvoice(t, customer.ID, "2026-01-20", 500_000, domain.TaxTreatmentReverseChargeSupply)
-
-	// Die Voranmeldungen laufen monatlich; die Januarleistung steht in der
-	// Kennziffer 21 des Januars.
-	for _, key := range []string{"2026-01", "2026-02", "2026-03"} {
-		if _, err := env.vatReturns(t).Save(ctx, key); err != nil {
-			t.Fatalf("Voranmeldung %s: %v", key, err)
-		}
-	}
-
-	differenceOf := func(periodKey string) domain.Cents {
-		t.Helper()
-		zm, err := env.zmReturns(t).Draft(ctx, periodKey)
-		if err != nil {
-			t.Fatalf("ZM-Entwurf %s: %v", periodKey, err)
-		}
-		if zm.Reconciliation == nil {
-			t.Fatalf("der Meldung %s fehlt die Abstimmung", periodKey)
-		}
-		return zm.Reconciliation.ServicesDifference()
-	}
-
-	if diff := differenceOf("2026-01"); diff != 0 {
-		t.Errorf("Januar: Abweichung %s bei den sonstigen Leistungen — sie gehören erst in die "+
-			"Märzmeldung und dürfen im Januar keine Abweichung sein", diff)
-	}
-	if diff := differenceOf("2026-03"); diff != 0 {
-		t.Errorf("März: Abweichung %s bei den sonstigen Leistungen — die Meldung des "+
-			"Quartalsendmonats steht der Kennziffer 21 des ganzen Quartals gegenüber", diff)
 	}
 }
 

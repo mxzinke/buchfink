@@ -4384,8 +4384,6 @@ const DisposalForm: React.FC<{
             <Select
               items={[
                 { value: 'domestic', label: 'Inland, steuerpflichtig' },
-                { value: 'intra_community_supply', label: 'Innergemeinschaftliche Lieferung' },
-                { value: 'export', label: 'Ausfuhr in ein Drittland' },
                 { value: 'exempt', label: 'Steuerfrei' },
               ]}
               value={request.taxTreatment ?? 'domestic'}

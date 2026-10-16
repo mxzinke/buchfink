@@ -160,7 +160,7 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 	svc.SetCheckSource(stubCheckSource{run: &domain.CheckRun{Findings: []domain.CheckFinding{
 		{Rule: domain.CheckRuleEntryWithoutReceipt, Severity: domain.CheckBlocking, Message: "Buchung ohne Beleg"},
 		{Rule: domain.CheckRuleEntryWithoutReceipt, Severity: domain.CheckBlocking, Message: "noch eine"},
-		{Rule: domain.CheckRuleICSupplyUnconfirmed, Severity: domain.CheckWarning, Message: "Bestätigung fehlt"},
+		{Rule: domain.CheckRuleVatIDUnconfirmed, Severity: domain.CheckWarning, Message: "Bestätigung fehlt"},
 		// Die Bankumsätze haben ihre eigene, genauere Zeile aus der Quelle
 		// selbst; als Befund dürfen sie nicht ein zweites Mal erscheinen.
 		{Rule: domain.CheckRuleBankUnmatched, Severity: domain.CheckWarning, Message: "Umsatz offen"},
@@ -203,7 +203,7 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 
 	expect := map[string]domain.TaskGroup{
 		"check_findings." + domain.CheckRuleEntryWithoutReceipt: domain.TaskGroupOverdue,
-		"check_findings." + domain.CheckRuleICSupplyUnconfirmed: domain.TaskGroupOpen,
+		"check_findings." + domain.CheckRuleVatIDUnconfirmed:    domain.TaskGroupOpen,
 		domain.TaskKeyDeadline + ".ust.va.2026-02":              domain.TaskGroupUpcoming,
 		domain.TaskKeyDeadline + ".ust.va.2026-01":              domain.TaskGroupOverdue,
 		domain.TaskKeyBankUnmatched:                             domain.TaskGroupOpen,

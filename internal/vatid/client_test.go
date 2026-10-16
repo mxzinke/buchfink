@@ -217,7 +217,8 @@ func TestCheckRefusesAResponseWithoutACode(t *testing.T) {
 // Die Voreinstellung muss die vollständige Adresse der REST-Schnittstelle sein,
 // Pfad eingeschlossen. Sie stand eine Zeit lang als Host der REST-Fassung mit
 // dem Pfad der alten XML-RPC-Fassung; damit scheiterte jede Abfrage, und eine
-// steuerfreie ig. Lieferung ließ sich produktiv nur mit Übersteuerung ausstellen.
+// Leistung ins übrige Gemeinschaftsgebiet ließ sich produktiv nur mit
+// Übersteuerung ausstellen.
 func TestDefaultEndpoint(t *testing.T) {
 	if got := New("").Endpoint(); got != DefaultEndpoint {
 		t.Errorf("Endpunkt %q — erwartet die Voreinstellung %q", got, DefaultEndpoint)

@@ -42,9 +42,7 @@ func TestTenantWiringAnswersOnAnEmptyLedger(t *testing.T) {
 	if _, err := b.GetPoolConsistencyReport(2026); err != nil {
 		t.Errorf("Sammelposten-Einheitlichkeit: %v", err)
 	}
-	if _, err := b.GetSupplyEvidenceReport(2026); err != nil {
-		t.Errorf("Belegnachweis: %v", err)
-	}
+
 	if _, err := b.GetVatExchangeRates("2026-01", "2026-12"); err != nil {
 		t.Errorf("Umsatzsteuer-Umrechnungskurse: %v", err)
 	}
@@ -74,9 +72,7 @@ func TestTenantWiringAnswersOnAnEmptyLedger(t *testing.T) {
 	if len(b.GetAfaRules().DegressiveWindows) == 0 {
 		t.Error("die Abschreibungsregeln kommen leer aus der Ressource")
 	}
-	if len(b.GetSupplyEvidenceKinds()) == 0 {
-		t.Error("die Belegarten des Nachweises kommen leer")
-	}
+
 	if len(b.GetNonDeductibleCategories()) == 0 {
 		t.Error("die Kategorien des § 4 Abs. 5 EStG kommen leer")
 	}

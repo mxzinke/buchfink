@@ -166,7 +166,6 @@ func (r *retentionRepositoryGorm) CountObjects(ctx context.Context, fiscalYear i
 		{&domain.AssetMovement{}, "fiscal_year = ?", year, &counts.AssetMovements},
 		{&domain.Accrual{}, "fiscal_year = ?", year, &counts.Accruals},
 		{&domain.Provision{}, "fiscal_year = ?", year, &counts.Provisions},
-		{&domain.InventoryCount{}, "fiscal_year = ?", year, &counts.InventoryCounts},
 		{&domain.ZMReturn{}, "fiscal_year = ?", year, &counts.ZMReturns},
 		{&domain.InputTaxUsage{}, "fiscal_year = ?", year, &counts.InputTaxUsages},
 		{&domain.NumberGap{}, "fiscal_year = ?", year, &counts.NumberGaps},
@@ -203,7 +202,7 @@ func (r *retentionRepositoryGorm) FiscalYearsWithObjects(ctx context.Context) ([
 		&domain.JournalEntry{}, &domain.Receipt{}, &domain.Festschreibung{},
 		&domain.CheckRun{}, &domain.VatReturn{}, &domain.Invoice{},
 		&domain.BankTransaction{}, &domain.AssetMovement{}, &domain.Accrual{},
-		&domain.Provision{}, &domain.InventoryCount{}, &domain.ZMReturn{},
+		&domain.Provision{}, &domain.ZMReturn{},
 		&domain.InputTaxUsage{}, &domain.NumberGap{},
 	} {
 		var years []int
@@ -297,7 +296,6 @@ func (r *retentionRepositoryGorm) DeleteFiscalYear(ctx context.Context, fiscalYe
 			args  []any
 		}{
 			// Die Rechnungen des Jahres mit allem, was an ihnen hängt.
-			{&domain.SupplyEvidence{}, "invoice_id IN (?)", []any{invoiceIDs}},
 			{&domain.InvoiceItem{}, "invoice_id IN (?)", []any{invoiceIDs}},
 			{&domain.InvoiceReference{}, "invoice_id IN (?)", []any{invoiceIDs}},
 			{&domain.AdvanceItem{}, "invoice_id IN (?) OR group_id IN (?)", []any{invoiceIDs, groupIDs}},
@@ -318,7 +316,6 @@ func (r *retentionRepositoryGorm) DeleteFiscalYear(ctx context.Context, fiscalYe
 			{&domain.Accrual{}, "fiscal_year = ?", []any{fiscalYear}},
 			{&domain.ProvisionMovement{}, "provision_id IN (?) OR fiscal_year = ?", []any{provisionIDs, fiscalYear}},
 			{&domain.Provision{}, "fiscal_year = ?", []any{fiscalYear}},
-			{&domain.InventoryCount{}, "fiscal_year = ?", []any{fiscalYear}},
 			{&domain.Appropriation{}, "year = ?", []any{fiscalYear}},
 			{&domain.ZMLine{}, "zm_return_id IN (?)", []any{zmIDs}},
 			{&domain.ZMReturn{}, "fiscal_year = ?", []any{fiscalYear}},
@@ -405,8 +402,6 @@ func clearDanglingReferences(tx *gorm.DB, fiscalYear int) (int, error) {
 		{&domain.InputTaxUsage{}, "entry_id", entries},
 		{&domain.Appropriation{}, "journal_entry_id", entries},
 		{&domain.Appropriation{}, "receipt_id", receipts},
-		{&domain.InventoryCount{}, "journal_entry_id", entries},
-		{&domain.InventoryCount{}, "receipt_id", receipts},
 		{&domain.Accrual{}, "source_entry_id", entries},
 		{&domain.Accrual{}, "formation_entry_id", entries},
 		{&domain.AccrualRelease{}, "journal_entry_id", entries},
@@ -418,7 +413,6 @@ func clearDanglingReferences(tx *gorm.DB, fiscalYear int) (int, error) {
 		{&domain.Invoice{}, "corrects_invoice_id", invoices},
 		{&domain.Invoice{}, "cancelled_by_invoice_id", invoices},
 		{&domain.InvoiceGroup{}, "final_invoice_id", invoices},
-		{&domain.SupplyEvidence{}, "receipt_id", receipts},
 		{&domain.BankTransaction{}, "statement_receipt_id", receipts},
 		{&domain.Receipt{}, "journal_entry_id", entries},
 	}

@@ -287,7 +287,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
   const [priorRevenueError, setPriorRevenueError] = useState('');
   const [savingRevenue, setSavingRevenue] = useState(false);
 
-  // Die Bausteine des Abschlusses — Abgrenzung, Rückstellungen, Inventurwert,
+  // Die Bausteine des Abschlusses — Abgrenzung, Rückstellungen,
   // Verrechnungen. Gearbeitet wird an ihnen unter „Abschlussbausteine"; hier
   // stehen sie, weil der Weg zur Feststellung über sie führt und ein offener
   // Baustein sonst erst am Prüflauf auffiele. Sie bekommen einen eigenen
@@ -828,12 +828,12 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         explain={
           <>
             Bevor ein Abschluss aufgestellt wird, sind die Abschlussbuchungen zu machen:
-            Abschreibungen, Rechnungsabgrenzung, Rückstellungen, der Inventurwert der Vorräte, die
-            Umsatzsteuer-Verrechnung und die Steuerrückstellung. Der Stand folgt, wo möglich, aus
-            den Daten. Ein bewusst ausgelassener Baustein wird übersprungen — mit Grund, damit
-            später erkennbar bleibt, dass er nicht vergessen wurde.
-            Wenn Sie beispielsweise keine Vorräte und keine Fremdwährungsposten haben,
-            überspringen Sie diese Prüfungen mit genau dieser Begründung.
+            Abschreibungen, Rechnungsabgrenzung, Rückstellungen, die Umsatzsteuer-Verrechnung und
+            die Steuerrückstellung. Der Stand folgt, wo möglich, aus den Daten. Ein bewusst
+            ausgelassener Baustein wird übersprungen — mit Grund, damit später erkennbar bleibt,
+            dass er nicht vergessen wurde.
+            Wenn Sie beispielsweise keine Fremdwährungsposten haben, überspringen Sie diese
+            Prüfung mit genau dieser Begründung.
           </>
         }
         action={
