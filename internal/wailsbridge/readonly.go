@@ -215,6 +215,12 @@ var readOnlyAllowed = map[string]bool{
 	"ExportAuditTrail":     true,
 	"GetPaymentTermNotice": true,
 
+	// Die Übersicht: Pflichten des Kalenders und die Buchungen der
+	// verbundenen Apps seit der letzten Festschreibung.
+	"GetNextObligations": true,
+	"GetObligation":      true,
+	"GetAgentBookings":   true,
+
 	// Prüfen
 	"VerifyBackup":         true,
 	"VerifyFestschreibung": true,

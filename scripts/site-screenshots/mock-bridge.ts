@@ -1959,25 +1959,251 @@ const STATEMENT = {
 
 const TODAY = `${YEAR}-08-25`;
 
+/**
+ * Die Pflichten aus dem Pflichtenkalender, wie `GetNextObligations` sie
+ * liefert: was noch etwas verlangt, nach Fälligkeit. Die Beispielfirma meldet
+ * vierteljährlich ohne Dauerfristverlängerung, sitzt in Hamburg und hat
+ * Vorauszahlungsbescheide zur Körperschaft- und Gewerbesteuer.
+ */
+const OBLIGATIONS = [
+  obligation({
+    key: 'gewst-vorauszahlung.2026-Q3',
+    kind: 'gewst-vorauszahlung',
+    title: 'Gewerbesteuer-Vorauszahlung 15.08.2026',
+    description:
+      'Zahlung an die Gemeinde in der Höhe des Vorauszahlungsbescheids. Erledigt mit der Buchung auf 7610.',
+    basis: '§ 19 Abs. 1 und 2 GewStG',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'either',
+    periodKey: '2026-Q3',
+    periodLabel: '15.08.2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-08-15',
+    dueDate: '2026-08-17',
+    shiftReason: 'Samstag',
+    status: 'overdue',
+    hints: [
+      'Das gesetzliche Fristende am 15.08.2026 ist kein Werktag (Samstag); die Frist endet am 17.08.2026 (§ 108 Abs. 3 AO).',
+    ],
+  }),
+  obligation({
+    key: 'festschreibung.2026-07',
+    kind: 'festschreibung',
+    title: 'Monatsfestschreibung Juli 2026',
+    description:
+      'Bis zum Ende des Folgemonats, mit Dauerfristverlängerung einen Monat später, zuzüglich der Nachfrist aus den Einstellungen. Nach der Festschreibung nimmt der Monat keine Buchung mehr auf.',
+    basis: '§ 146 Abs. 4 AO, GoBD Rz. 107',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'data',
+    periodKey: '2026-07',
+    periodLabel: 'Juli 2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-07-31',
+    statutoryDate: '2026-08-31',
+    dueDate: '2026-08-31',
+    status: 'open',
+  }),
+  obligation({
+    key: 'kst-vorauszahlung.2026-Q3',
+    kind: 'kst-vorauszahlung',
+    title: 'Körperschaftsteuer-Vorauszahlung 10.09.2026',
+    description:
+      'Zahlung an das Finanzamt in der Höhe des Vorauszahlungsbescheids, mit Solidaritätszuschlag. Erledigt mit der Buchung auf 7600 oder 7608.',
+    basis: '§ 37 Abs. 1 EStG i. V. m. § 31 Abs. 1 und 2 KStG',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'either',
+    periodKey: '2026-Q3',
+    periodLabel: '10.09.2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-09-10',
+    dueDate: '2026-09-10',
+    status: 'open',
+  }),
+  obligation({
+    key: 'lohnsteuer-anmeldung.2026-08',
+    kind: 'lohnsteuer-anmeldung',
+    title: 'Lohnsteuer-Anmeldung August 2026',
+    description:
+      'Anmeldung und Abführung bis zum 10. Tag nach Ablauf des Anmeldungszeitraums, meist durch den Lohnanbieter. Das gebuchte Lohnjournal bereitet sie vor; erledigt mit dem Transferticket oder der Bestätigung des Lohnanbieters.',
+    basis: '§ 41a Abs. 1 und 2 EStG',
+    channel: 'lohnanbieter',
+    responsibility: 'human_confirms',
+    evidenceSource: 'human',
+    periodKey: '2026-08',
+    periodLabel: 'August 2026',
+    periodFrom: '2026-08-01',
+    periodTo: '2026-08-31',
+    statutoryDate: '2026-09-10',
+    dueDate: '2026-09-10',
+    status: 'prepared',
+    preparation: {
+      at: '2026-08-24T15:12:00Z',
+      note: 'Lohnjournal August gebucht (LJ-2026-08, Lohnsteuer 4.812,33 €). Die Anmeldung übermittelt der Lohnanbieter.',
+      channel: 'agent:claude-code',
+      actor: 'anna@nordlicht-mbp',
+    },
+    hints: ['Monatlich: die Lohnsteuer des Vorjahres lag über 5.000 €.'],
+  }),
+  obligation({
+    key: 'ustva.2026-Q3',
+    kind: 'ustva',
+    title: 'Umsatzsteuer-Voranmeldung 3. Quartal 2026',
+    description:
+      'Übermittlung und Zahlung bis zum 10. Tag nach Ablauf des Voranmeldungszeitraums, mit Dauerfristverlängerung einen Monat später. Erledigt mit dem Transferticket an der Voranmeldung.',
+    basis: '§ 18 Abs. 1 und 2 UStG, § 46 UStDV',
+    channel: 'elster',
+    responsibility: 'agent_prepares',
+    evidenceSource: 'data',
+    periodKey: '2026-Q3',
+    periodLabel: '3. Quartal 2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-10-10',
+    dueDate: '2026-10-12',
+    shiftReason: 'Samstag',
+    status: 'open',
+  }),
+  obligation({
+    key: 'zm.2026-Q3',
+    kind: 'zm',
+    title: 'Zusammenfassende Meldung 3. Quartal 2026',
+    description:
+      'Übermittlung an das Bundeszentralamt für Steuern bis zum 25. Tag nach Ablauf des Kalendervierteljahres. Die Dauerfristverlängerung gilt für sie nicht. Erledigt mit dem Transferticket.',
+    basis: '§ 18a Abs. 2 UStG',
+    channel: 'bzst',
+    responsibility: 'agent_prepares',
+    evidenceSource: 'data',
+    periodKey: '2026-Q3',
+    periodLabel: '3. Quartal 2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-10-25',
+    dueDate: '2026-10-26',
+    shiftReason: 'Sonntag',
+    status: 'open',
+  }),
+  obligation({
+    key: 'offenlegung.2025',
+    kind: 'offenlegung',
+    title: 'Offenlegung im Unternehmensregister 2025',
+    description:
+      'Übermittlung des festgestellten Abschlusses spätestens ein Jahr nach dem Abschlussstichtag. Kleine Gesellschaften legen Bilanz und Anhang offen, Kleinstgesellschaften nur die Bilanz und können sie hinterlegen. Erledigt mit dem Stand „offengelegt“.',
+    basis: '§ 325 Abs. 1 und 1a, § 326 HGB',
+    channel: 'unternehmensregister',
+    responsibility: 'human_confirms',
+    evidenceSource: 'data',
+    periodKey: '2025',
+    periodLabel: '2025',
+    periodFrom: '2025-01-01',
+    periodTo: '2025-12-31',
+    fiscalYear: 2025,
+    statutoryDate: '2026-12-31',
+    dueDate: '2026-12-31',
+    status: 'open',
+  }),
+];
+
+/** Ziele wie service.ObligationTarget: Monat, Jahr, Erklärungen oder Stammdaten. */
+function obligationTarget(kind: string, key: string) {
+  const declarations = [
+    'kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz',
+    'kst-vorauszahlung', 'gewst-vorauszahlung',
+  ];
+  const year = [
+    'abschlussbuchungen', 'aufstellung', 'feststellung', 'ergebnisverwendung',
+    'offenlegung', 'kapitalertragsteuer',
+  ];
+  const company = ['transparenzregister', 'gesellschafterliste', 'steuerliche-erfassung', 'gewerbeanmeldung'];
+  if (declarations.includes(kind)) return { area: 'closings', tab: 'declarations', id: key };
+  if (year.includes(kind)) return { area: 'closings', tab: 'year', id: key };
+  if (company.includes(kind)) return { area: 'company', tab: 'profile', id: key };
+  return { area: 'closings', tab: 'month', id: key };
+}
+
+function obligation(o: {
+  key: string;
+  kind: string;
+  title: string;
+  description: string;
+  basis: string;
+  channel: string;
+  responsibility: string;
+  evidenceSource: string;
+  periodKey: string;
+  periodLabel: string;
+  periodFrom: string;
+  periodTo: string;
+  fiscalYear?: number;
+  statutoryDate: string;
+  dueDate: string;
+  shiftReason?: string;
+  status: string;
+  preparation?: { at: string; note: string; channel: string; actor: string };
+  hints?: string[];
+}) {
+  return {
+    ...o,
+    fiscalYear: o.fiscalYear ?? YEAR,
+    skillRef: `buchfink-grundlagen/references/pflichten.md#${o.kind}`,
+    hints: o.hints ?? [],
+    target: obligationTarget(o.kind, o.key),
+  };
+}
+
+/** Eine Pflicht als Zeile der Aufgabenliste, unter `pflicht.<schlüssel>`. */
+function dutyTask(key: string, group: string) {
+  const o = OBLIGATIONS.find((item) => item.key === key)!;
+  return {
+    key: `pflicht.${o.key}`,
+    group,
+    title: o.title,
+    why: o.description,
+    reference: o.basis,
+    target: o.target,
+    count: 0,
+    amount: 0,
+    dueDate: o.dueDate,
+  };
+}
+
+/**
+ * Wer gebucht hat. Claude Code bucht Belege und Zahlungen über den
+ * MCP-Server; Rechnungen, Gehälter und die Miete stammen aus der App.
+ */
+const AGENT_BOOKED = new Set([42, 44, 46, 47, 48, 49, 50, 52, 53, 54, 55]);
+for (const entry of ENTRIES) {
+  Object.assign(entry, {
+    actor: 'anna@nordlicht-mbp',
+    channel: AGENT_BOOKED.has(entry.id) ? 'agent:claude-code' : 'ui',
+  });
+}
+
+/** Was Claude seit der letzten Festschreibung (Q2) gebucht hat, die jüngste zuerst. */
+function agentBookings(limit: number) {
+  const reversed = new Set(ENTRIES.map((e) => e.reversalOfId).filter(Boolean));
+  const all = ENTRIES.filter((e) => AGENT_BOOKED.has(e.id))
+    .map((e) => ({ ...e, reversed: reversed.has(e.id) }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+  return {
+    lastCommit: FESTSCHREIBUNGEN[0],
+    total: all.length,
+    entries: limit > 0 ? all.slice(0, limit) : all,
+  };
+}
+
 /** Die Aufgabenliste der Startseite in ihren drei Gruppen. */
 const TASKS = {
   today: TODAY,
-  overdue: [
-    {
-      key: 'deadline.ustva-2026-07',
-      group: 'overdue',
-      title: 'Voranmeldung Juli 2026 übermitteln',
-      why: 'Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln.',
-      reference: '§ 18 Abs. 1 UStG',
-      target: { area: 'closings', tab: 'month', id: 'ustva.2026-07' },
-      count: 0,
-      amount: c(4318.4),
-      dueDate: `${YEAR}-08-10`,
-    },
-  ],
+  overdue: [dutyTask('gewst-vorauszahlung.2026-Q3', 'overdue')],
   open: [
+    dutyTask('festschreibung.2026-07', 'open'),
     {
-      key: 'bank.unmatched',
+      key: 'bank_unmatched',
       group: 'open',
       title: 'Bankumsätze ohne Zuordnung klären',
       why: 'Ein Umsatz ohne Zuordnung steht in keiner Buchung und fehlt damit in jeder Auswertung.',
@@ -1987,7 +2213,7 @@ const TASKS = {
       amount: c(12480.6),
     },
     {
-      key: 'receipt.unbooked',
+      key: 'receipts_unbooked',
       group: 'open',
       title: 'Belege buchen',
       why: 'Abgelegte Belege sind erfasst, aber noch nicht gebucht.',
@@ -2007,17 +2233,8 @@ const TASKS = {
     },
   ],
   upcoming: [
-    {
-      key: 'deadline.ustva-2026-08',
-      group: 'upcoming',
-      title: 'Voranmeldung August 2026 vorbereiten',
-      why: 'Der Zeitraum endet am Monatsende; die Meldung ist zehn Tage später fällig.',
-      reference: '§ 18 Abs. 1 UStG',
-      target: { area: 'closings', tab: 'month', id: 'ustva.2026-08' },
-      count: 0,
-      amount: 0,
-      dueDate: `${YEAR}-09-10`,
-    },
+    dutyTask('kst-vorauszahlung.2026-Q3', 'upcoming'),
+    dutyTask('lohnsteuer-anmeldung.2026-08', 'upcoming'),
   ],
 };
 
@@ -3325,6 +3542,20 @@ export const bridge = {
   ExportAuditTrail: unsupported('ExportAuditTrail'),
   SaveServiceProof: unsupported('SaveServiceProof'),
   GetPaymentTermNotice: (dueDays: number) => later(paymentTermNotice(dueDays)),
+
+  // Übersicht
+  GetNextObligations: (limit: number) =>
+    later(limit > 0 ? OBLIGATIONS.slice(0, limit) : OBLIGATIONS, 40),
+  GetObligation: (key: string) => {
+    const found = OBLIGATIONS.find((o) => o.key === key);
+    return found
+      ? later(found, 40)
+      : Promise.reject(new Error(`die Pflicht „${key}“ gibt es für diesen Mandanten nicht`));
+  },
+  ConfirmObligation: unsupported('ConfirmObligation'),
+  WaiveObligation: unsupported('WaiveObligation'),
+  ReopenObligation: unsupported('ReopenObligation'),
+  GetAgentBookings: (limit: number) => later(agentBookings(limit), 40),
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => later(XBRL, 400),

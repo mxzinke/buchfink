@@ -31,7 +31,8 @@ export type TabOf<A extends Area> = (typeof AREA_TABS)[A][number];
  * `id` ist die Kennung des Objekts, das die Ansicht aufschlägt. Was sie
  * bedeutet, hängt am Reiter: Belegnummer im Journal, Kontonummer bei den
  * Konten, Beleg-ID bei den Belegen, Schlüssel einer Pflicht oder eines
- * Abschlussschritts bei den Abschlüssen, Block der Stammdaten beim Unternehmen.
+ * Abschlussschritts bei den Abschlüssen, Block der Stammdaten beim Unternehmen,
+ * Schlüssel einer Pflicht in der Übersicht.
  */
 export type Route = {
   [A in Area]: { area: A; tab?: TabOf<A>; id?: string; year?: number };
@@ -79,13 +80,18 @@ function isArea(value: string): value is Area {
  * Prüft ein Ziel, das von außen kommt, etwa aus der Aufgabenliste des
  * Backends. Ein unbekannter Bereich ergibt null; ein fehlender oder
  * unbekannter Reiter wird der erste des Bereichs. Eine Kennung ohne gültigen
- * Reiter fällt weg, weil erst der Reiter sagt, was sie bedeutet.
+ * Reiter fällt weg, weil erst der Reiter sagt, was sie bedeutet. Ein Bereich
+ * ohne Reiter nimmt sie direkt: in der Übersicht ist sie der Schlüssel einer
+ * Pflicht.
  */
 export function toRoute(area: string, tab?: string, id?: string): Route | null {
   if (!isArea(area)) return null;
   const tabs: readonly string[] = AREA_TABS[area];
   const route = { area } as { area: Area; tab?: string; id?: string };
-  if (tabs.length === 0) return route as Route;
+  if (tabs.length === 0) {
+    if (id) route.id = id;
+    return route as Route;
+  }
   const known = tab !== undefined && tabs.includes(tab);
   route.tab = known ? tab : tabs[0];
   if (id && known) route.id = id;
@@ -98,16 +104,18 @@ export function activeTab<A extends Exclude<Area, 'overview'>>(route: Route, are
   return AREA_TABS[area][0] as TabOf<A>;
 }
 
-/** `#/books/journal/B-2026-0055` */
+/** `#/books/journal/B-2026-0055`, ohne Reiter `#/overview/ustva.2026-Q3` */
 export function formatRoute(route: Route): string {
   const parts: string[] = [route.area];
   if (route.tab) parts.push(route.tab);
-  if (route.tab && route.id) parts.push(encodeURIComponent(route.id));
+  const tabless = AREA_TABS[route.area].length === 0;
+  if (route.id && (route.tab || tabless)) parts.push(encodeURIComponent(route.id));
   return `#/${parts.join('/')}`;
 }
 
 export function parseRoute(hash: string): Route {
-  const [area = '', tab, id] = hash.replace(/^#\/?/, '').split('/');
+  const [area = '', ...rest] = hash.replace(/^#\/?/, '').split('/');
+  const [tab, id] = isArea(area) && AREA_TABS[area].length === 0 ? [undefined, rest[0]] : rest;
   return toRoute(area, tab, id ? decodeURIComponent(id) : undefined) ?? START_ROUTE;
 }
 

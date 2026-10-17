@@ -414,6 +414,16 @@ export const bridge = {
     invoke<T>('SaveServiceProof', receiptId, text, date),
   GetPaymentTermNotice: (dueDays: number) => invoke<string>('GetPaymentTermNotice', dueDays),
 
+  // Übersicht (internal/wailsbridge/overview_service.go)
+  GetNextObligations: <T>(limit: number) => invoke<T>('GetNextObligations', limit),
+  GetObligation: <T>(key: string) => invoke<T>('GetObligation', key),
+  ConfirmObligation: <T>(key: string, evidence: unknown) =>
+    invoke<T>('ConfirmObligation', key, evidence),
+  WaiveObligation: <T>(key: string, reason: string) => invoke<T>('WaiveObligation', key, reason),
+  ReopenObligation: <T>(key: string, reason: string) =>
+    invoke<T>('ReopenObligation', key, reason),
+  GetAgentBookings: <T>(limit: number) => invoke<T>('GetAgentBookings', limit),
+
   // Die Bedienung der Welle 8: Handbuchung mit Beleg, Eigenbeleg,
   // Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter.
   // Jede Signatur ist gegen internal/wailsbridge/welle8_service.go geprüft —
