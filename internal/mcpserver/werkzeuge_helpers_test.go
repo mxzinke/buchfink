@@ -12,6 +12,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
+	"github.com/buchfink/buchfink/internal/service"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -177,6 +178,16 @@ func (h *harness) inboxFile(name string, data []byte) string {
 		h.t.Fatal(err)
 	}
 	return path
+}
+
+// warmRenderer übersetzt das Satzprogramm vorab in der App, damit die
+// Zeitgrenzen der Werkzeuge nicht die einmalige Übersetzung messen.
+func (h *harness) warmRenderer() {
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Receipts.CreateSelfIssued(ctx, service.SelfIssuedReceiptRequest{DocumentDate: "2026-01-02",
+			GrossAmount: 100, Reason: "Vorlauf des Satzprogramms"})
+		return err
+	})
 }
 
 func pdf(text string) []byte { return []byte("%PDF-1.4\n% " + text + "\n%%EOF\n") }
