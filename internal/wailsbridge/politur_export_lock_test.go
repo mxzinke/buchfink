@@ -40,7 +40,7 @@ func TestExportDoesNotBlockWriters(t *testing.T) {
 		defer wg.Done()
 		time.Sleep(headStart)
 		writeFrom := time.Now()
-		if _, err := b.PostManualEntry(request); err != nil {
+		if _, err := postManualEntry(b, request); err != nil {
 			t.Errorf("Buchung während des Exports: %v", err)
 		}
 		writerDuration = time.Since(writeFrom)

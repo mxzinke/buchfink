@@ -72,23 +72,3 @@ export const Help: React.FC<HelpProps> = ({ summary, children, label, onMore, cl
     </span>
   );
 };
-
-export interface InfoPopoverProps {
-  trigger: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}
-
-/** Popover an einem eigenen Auslöser, etwa einem Button in einer Tabellenzeile. */
-export const InfoPopover: React.FC<InfoPopoverProps> = ({ trigger, children, className }) => (
-  <Popover.Root>
-    <Popover.Trigger render={trigger as React.ReactElement} />
-    <Popover.Portal>
-      <Popover.Positioner sideOffset={6} className="z-50">
-        <Popover.Popup className={cn(POPUP, 'p-4 max-w-[340px]', className)}>
-          {children}
-        </Popover.Popup>
-      </Popover.Positioner>
-    </Popover.Portal>
-  </Popover.Root>
-);

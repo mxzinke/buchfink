@@ -16,7 +16,7 @@ import (
 // Was über die Bridge kommt, trägt den Erfassungsweg der App.
 func TestBridgeRecordsTheAppChannel(t *testing.T) {
 	b := testBridge(t)
-	entry, err := b.PostManualEntry(manualEntryRequest(t, b))
+	entry, err := postManualEntry(b, manualEntryRequest(t, b))
 	if err != nil {
 		t.Fatalf("Buchung: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestPrefetchedWriteStaysWithItsTenant(t *testing.T) {
 	if err != nil || first == nil {
 		t.Fatalf("erster Mandant: %+v, %v", first, err)
 	}
-	second, err := b.CreateTenant("Zweite GmbH", filepath.Join(t.TempDir(), "zweiter"),
+	second, err := b.createTenant("Zweite GmbH", filepath.Join(t.TempDir(), "zweiter"),
 		domain.CompanySettings{CompanyName: "Zweite GmbH", FiscalYear: 2026})
 	if err != nil {
 		t.Fatal(err)

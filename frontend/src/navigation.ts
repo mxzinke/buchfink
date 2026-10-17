@@ -119,10 +119,6 @@ export function parseRoute(hash: string): Route {
   return toRoute(area, tab, id ? decodeURIComponent(id) : undefined) ?? START_ROUTE;
 }
 
-export function sameRoute(a: Route, b: Route): boolean {
-  return a.area === b.area && a.tab === b.tab && (a.id ?? '') === (b.id ?? '');
-}
-
 /**
  * Das Ziel steht im Hash der Adresse. So führen Zurück und Vor der WebView
  * durch die besuchten Ansichten, und ein Screenshot-Lauf kann eine Ansicht

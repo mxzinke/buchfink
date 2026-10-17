@@ -18,7 +18,7 @@ import (
 func TestReadOnlyMethodsDoNotWrite(t *testing.T) {
 	b := testBridge(t)
 	request := manualEntryRequest(t, b)
-	entry, err := b.PostManualEntry(request)
+	entry, err := postManualEntry(b, request)
 	if err != nil {
 		t.Fatalf("Bestand anlegen: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestReadOnlyMethodsDoNotWrite(t *testing.T) {
 	// Mandantenverwaltung, Prüfermodus und Sicherung schreiben bewusst; sie
 	// stehen in der Leseliste, weil sie im Prüfermodus zulässig sind.
 	skip := map[string]bool{
-		"CreateTenant": true, "SetupApplication": true, "LoadExistingDatabase": true,
+		"SetupApplication": true, "LoadExistingDatabase": true,
 		"RestoreFromBackup": true, "SwitchTenant": true, "DeleteTenant": true,
 		"CreateBackup": true, "SetBackupDir": true, "EnableReadOnly": true,
 		"DisableReadOnly": true, "ServiceShutdown": true, "SetFiscalYear": true,
@@ -68,9 +68,7 @@ func TestReadOnlyMethodsDoNotWrite(t *testing.T) {
 	receiptID := request.ReceiptID
 	for name, call := range map[string]func() error{
 		"GetReceiptPreview":    func() error { _, err := b.GetReceiptPreview(receiptID); return err },
-		"GetReceiptFindings":   func() error { _, err := b.GetReceiptFindings(receiptID); return err },
 		"GetEntriesForReceipt": func() error { _, err := b.GetEntriesForReceipt(receiptID); return err },
-		"GetAuditTrail":        func() error { _, err := b.GetAuditTrail(receiptID); return err },
 		"ProposeFromEInvoice":  func() error { _, err := b.ProposeFromEInvoice(receiptID); return err },
 		"GetPaymentAllocations": func() error {
 			_, err := b.GetPaymentAllocations(entry.ID)

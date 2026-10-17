@@ -66,8 +66,4 @@ func TestWelle7BridgeRespectsTheReadOnlyMode(t *testing.T) {
 	if err := b.DeleteBankRule(1); err == nil || !strings.Contains(err.Error(), "Prüfermodus") {
 		t.Errorf("das Löschen einer Bankregel muss abgewiesen werden: %v", err)
 	}
-	if _, err := b.SaveServiceProof(1, "geprüft", "2026-03-20"); err == nil ||
-		!strings.Contains(err.Error(), "Prüfermodus") {
-		t.Errorf("der Leistungsnachweis muss abgewiesen werden: %v", err)
-	}
 }

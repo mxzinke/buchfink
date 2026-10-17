@@ -36,7 +36,7 @@ func newBridge(t *testing.T, opts ...func(*core.HostOptions)) *BuchfinkBridge {
 func testBridge(t *testing.T, opts ...func(*core.HostOptions)) *BuchfinkBridge {
 	t.Helper()
 	b := newBridge(t, opts...)
-	if _, err := b.CreateTenant("Pfennig Ventures GmbH", filepath.Join(t.TempDir(), "mandant"),
+	if _, err := b.createTenant("Pfennig Ventures GmbH", filepath.Join(t.TempDir(), "mandant"),
 		domain.CompanySettings{CompanyName: "Pfennig Ventures GmbH", FiscalYear: 2026}); err != nil {
 		t.Fatalf("Mandant anlegen: %v", err)
 	}
@@ -83,6 +83,14 @@ func fileTestReceipt(t *testing.T, b *BuchfinkBridge) *domain.Receipt {
 
 // manualEntryRequest legt einen Beleg an und liefert die Handbuchung darauf.
 // Es gibt keine Buchung ohne Beleg.
+// postManualEntry bucht einen Buchungssatz über denselben Schreibweg wie jede
+// Bridge-Methode. Die Oberfläche bucht nicht frei; die Tests brauchen Buchungen.
+func postManualEntry(b *BuchfinkBridge, req service.ManualEntryRequest) (*domain.JournalEntry, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Posting.PostManualEntry(ctx, req)
+	})
+}
+
 func manualEntryRequest(t *testing.T, b *BuchfinkBridge) service.ManualEntryRequest {
 	t.Helper()
 	return service.ManualEntryRequest{Entry: manualEntry(), ReceiptID: fileTestReceipt(t, b).ID}

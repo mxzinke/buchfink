@@ -24,12 +24,12 @@ func backupBridge(t *testing.T) (*BuchfinkBridge, *domain.TenantConfig, string) 
 	base := t.TempDir()
 	b := newBridge(t)
 
-	tenant, err := b.CreateTenant("Pfennig Ventures GmbH", filepath.Join(base, "mandant"),
+	tenant, err := b.createTenant("Pfennig Ventures GmbH", filepath.Join(base, "mandant"),
 		domain.CompanySettings{CompanyName: "Pfennig Ventures GmbH", FiscalYear: 2026})
 	if err != nil {
 		t.Fatalf("Mandant anlegen: %v", err)
 	}
-	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
+	if _, err := postManualEntry(b, manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("Buchung anlegen: %v", err)
 	}
 

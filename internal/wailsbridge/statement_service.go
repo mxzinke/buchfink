@@ -81,15 +81,6 @@ func (b *BuchfinkBridge) GetEBilanzMappingReport(year int) (*ebilanz.MappingRepo
 	})
 }
 
-// SetPriorYearRevenue hält den Gesamtumsatz des Vorjahres fest. An ihm hängt
-// die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG: bis 800.000 € darf 2027 noch
-// eine sonstige Rechnung ohne strukturierten Datensatz ausgestellt werden.
-func (b *BuchfinkBridge) SetPriorYearRevenue(year int, amount domain.Cents) (*domain.FiscalYear, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.FiscalYear, error) {
-		return s.Closing.SetPriorYearRevenue(ctx, year, amount)
-	})
-}
-
 // SetAverageEmployees hält die durchschnittliche Arbeitnehmerzahl eines
 // Geschäftsjahres fest. Sie ist das dritte Merkmal des § 267 Abs. 1 HGB und
 // lässt sich aus der Buchführung nicht ableiten.

@@ -14,11 +14,11 @@ func TestCreateTenantPreservesExistingCompany(t *testing.T) {
 	base := t.TempDir()
 	b := newBridge(t)
 	dir := filepath.Join(base, "company")
-	first, err := b.CreateTenant("Erste Firma", dir, domain.CompanySettings{CompanyName: "Erste Firma", FiscalYear: 2026})
+	first, err := b.createTenant("Erste Firma", dir, domain.CompanySettings{CompanyName: "Erste Firma", FiscalYear: 2026})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, createErr := b.CreateTenant("Zweite Firma", dir, domain.CompanySettings{CompanyName: "Zweite Firma", FiscalYear: 2026})
+	_, createErr := b.createTenant("Zweite Firma", dir, domain.CompanySettings{CompanyName: "Zweite Firma", FiscalYear: 2026})
 	if createErr == nil {
 		t.Error("an occupied company directory must be rejected")
 	}
@@ -43,7 +43,7 @@ func TestCreateTenantRejectsNonemptyDirectoryBeforeProvisioning(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := newBridge(t)
-	if _, err := b.CreateTenant("Neue Firma", dir, domain.CompanySettings{FiscalYear: 2026}); err == nil {
+	if _, err := b.createTenant("Neue Firma", dir, domain.CompanySettings{FiscalYear: 2026}); err == nil {
 		t.Fatal("nonempty directory accepted")
 	}
 	if entries, err := os.ReadDir(dir); err != nil || len(entries) != 1 {
@@ -117,7 +117,7 @@ func TestCreateTenantRollsBackWhenConfigurationCannotBeSaved(t *testing.T) {
 	base := t.TempDir()
 	b := newBridge(t, func(o *core.HostOptions) { o.Config = unsavableConfig{} })
 	dir := filepath.Join(base, "company")
-	if _, err := b.CreateTenant("Fehlerfall", dir, domain.CompanySettings{FiscalYear: 2025}); err == nil {
+	if _, err := b.createTenant("Fehlerfall", dir, domain.CompanySettings{FiscalYear: 2025}); err == nil {
 		t.Fatal("creation succeeded without saving configuration")
 	}
 	if cfg := b.GetAppConfig(); cfg.IsConfigured || len(cfg.Tenants) != 0 {

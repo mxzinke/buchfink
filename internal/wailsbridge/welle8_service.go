@@ -12,49 +12,11 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Die Bedienung der Welle 8: die laufende Buchhaltung ohne Lücken.
-//
-// Sie richtet sich nach einem Satz: keine Buchung ohne Beleg. Daraus folgt der
-// Eigenbeleg für die Fälle ohne Fremdbeleg, der Belegverweis in beide
-// Richtungen, die Klärungsliste der beanstandeten Rechnungen und der Filter,
-// mit dem sich eine Buchung im Journal überhaupt wiederfinden lässt.
-
-// --- Handbuchung mit Beleg ------------------------------------------------
-
-// PostManualEntry bucht einen von Hand erfassten Buchungssatz mit seinem Beleg.
-//
-// Entweder verweist die Buchung auf einen abgelegten Beleg (ReceiptID), oder
-// die Angaben eines Eigenbelegs kommen mit (SelfIssued) — dann entstehen Beleg
-// und Buchung in einer Transaktion.
-func (b *BuchfinkBridge) PostManualEntry(req service.ManualEntryRequest) (*domain.JournalEntry, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
-		return s.Posting.PostManualEntry(ctx, req)
-	})
-}
-
-// --- Eigenbeleg -----------------------------------------------------------
-
-// CreateSelfIssuedReceipt erzeugt einen Eigenbeleg mit PDF und Kopfdaten und
-// legt ihn im Belegspeicher ab.
-func (b *BuchfinkBridge) CreateSelfIssuedReceipt(
-	req service.SelfIssuedReceiptRequest,
-) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
-		return s.Receipts.CreateSelfIssued(ctx, req)
-	})
-}
+// Die laufende Buchhaltung in der Oberfläche: Belegverweis in beide Richtungen,
+// Aufbewahrung und der Filter, mit dem sich eine Buchung im Journal
+// wiederfinden lässt. Gebucht wird hier nicht; das tut der Agent über den Kern.
 
 // --- Aufbewahrung ---------------------------------------------------------
-
-// OverrideReceiptRetention verlängert die Aufbewahrungsfrist eines Belegs.
-func (b *BuchfinkBridge) OverrideReceiptRetention(
-	receiptID uint, class string, reason string,
-) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
-		return s.Receipts.OverrideRetention(
-			ctx, receiptID, domain.RetentionClass(class), reason)
-	})
-}
 
 // GetRetentionRules liefert die Fristentabelle mit ihrer Quelle und ihrem
 // Gültigkeitsstand — für die Anzeige in den Einstellungen.
@@ -106,55 +68,6 @@ func entriesForReceipt(
 		}
 	}
 	return out, nil
-}
-
-// GetReceiptFindings liefert die Klärungsliste eines Belegs: die Befunde nach
-// Formatfehler, Geschäftsregelfehler und Inhaltsfehler getrennt, je Befund mit
-// Regel, Norm und Folge für den Vorsteuerabzug.
-func (b *BuchfinkBridge) GetReceiptFindings(receiptID uint) (*domain.ReceiptFindings, error) {
-	return readOr(b, func() (*domain.ReceiptFindings, error) {
-		empty := &domain.ReceiptFindings{}
-		empty.EnsureLists()
-		return empty, nil
-	}, func(ctx context.Context, s *core.Services) (*domain.ReceiptFindings, error) {
-		return s.Receipts.Findings(ctx, receiptID)
-	})
-}
-
-// --- Eigene Konten --------------------------------------------------------
-
-// CreateCustomAccount legt ein eigenes Konto im freien Bereich des SKR04 an.
-func (b *BuchfinkBridge) CreateCustomAccount(
-	req service.CustomAccountRequest,
-) (*domain.Account, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Account, error) {
-		return s.Accounts.CreateCustom(ctx, req)
-	})
-}
-
-// SetAccountBlocked sperrt ein eigenes Konto für neue Buchungen oder gibt es
-// wieder frei.
-func (b *BuchfinkBridge) SetAccountBlocked(
-	number string, blocked bool, reason string,
-) (*domain.Account, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Account, error) {
-		return s.Accounts.SetBlocked(ctx, number, blocked, reason)
-	})
-}
-
-// GetCustomAccounts liefert die selbst angelegten Konten.
-func (b *BuchfinkBridge) GetCustomAccounts() ([]domain.Account, error) {
-	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Account, error) {
-		return s.Accounts.CustomAccounts(ctx)
-	})
-}
-
-// GetStatementPositions liefert die Gliederungspositionen, unter denen ein
-// eigenes Konto stehen darf.
-func (b *BuchfinkBridge) GetStatementPositions() ([]domain.StatementPositionOption, error) {
-	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.StatementPositionOption, error) {
-		return s.Accounts.AvailablePositions()
-	})
 }
 
 // --- Umsatzsteuer ---------------------------------------------------------

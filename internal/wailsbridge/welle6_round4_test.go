@@ -18,19 +18,6 @@ func TestNachweiseAnswersCarryEmptyListsNotNull(t *testing.T) {
 		t.Error("die Kettenprüfung liefert `null` statt einer leeren Bruchliste")
 	}
 
-	aging, err := b.GetOpenItemsAging("2026-06-30")
-	if err != nil {
-		t.Fatalf("Altersstruktur: %v", err)
-	}
-	if aging.Sides == nil {
-		t.Fatal("die Altersstruktur liefert `null` statt einer leeren Seitenliste")
-	}
-	for _, side := range aging.Sides {
-		if side.Buckets == nil || side.Maturities == nil {
-			t.Errorf("die Seite %q hat eine nicht belegte Liste", side.Side)
-		}
-	}
-
 	for label, load := range map[string]func() (int, error){
 		"Schemaänderungen": func() (int, error) {
 			rows, err := b.GetSchemaMigrations()

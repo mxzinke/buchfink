@@ -30,7 +30,6 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export {
   Notice,
   Progress,
-  Skeleton,
   SkeletonRows,
   toast,
   type NoticeProps,
@@ -45,26 +44,18 @@ export {
   type FieldProps,
   type FormGridProps,
 } from './Field';
+export { Help, type HelpProps } from './Help';
 export {
-  Help,
-  InfoPopover,
-  type HelpProps,
-  type InfoPopoverProps,
-} from './Help';
-export {
-  AmountInput,
   CONTROL,
   Input,
   SearchInput,
   Textarea,
-  type AmountInputProps,
   type InputProps,
   type SearchInputProps,
   type TextareaProps,
 } from './Input';
 export {
   Menu,
-  MenuCheckItem,
   MenuGroup,
   MenuItem,
   MenuSeparator,

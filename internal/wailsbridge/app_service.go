@@ -69,7 +69,9 @@ func (b *BuchfinkBridge) SwitchTenant(tenantID string) error {
 	return err
 }
 
-func (b *BuchfinkBridge) CreateTenant(
+// createTenant legt einen Mandanten an. Die Oberfläche tut das nur über die
+// Einrichtung (SetupApplication); gebunden ist die Methode deshalb nicht.
+func (b *BuchfinkBridge) createTenant(
 	name string,
 	dataDir string,
 	settings domain.CompanySettings,
@@ -106,7 +108,7 @@ func (b *BuchfinkBridge) SetupApplication(
 	if name == "" {
 		name = "Hauptmandant"
 	}
-	_, err := b.CreateTenant(name, dataDir, settings)
+	_, err := b.createTenant(name, dataDir, settings)
 	return err
 }
 
@@ -329,13 +331,6 @@ func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domai
 	})
 }
 
-// ReverseJournalEntry cancels a booking by Generalumkehr.
-func (b *BuchfinkBridge) ReverseJournalEntry(entryID uint, reason string) (*domain.JournalEntry, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
-		return s.Journal.Reverse(ctx, entryID, reason)
-	})
-}
-
 func (b *BuchfinkBridge) VerifyIntegrity() (domain.IntegrityCheckResult, error) {
 	return readOr(b, func() (domain.IntegrityCheckResult, error) {
 		// Auch der Leerlauf gibt belegte Listen zurück: die Ansicht liest
@@ -345,16 +340,6 @@ func (b *BuchfinkBridge) VerifyIntegrity() (domain.IntegrityCheckResult, error) 
 		return empty, nil
 	}, func(ctx context.Context, s *core.Services) (domain.IntegrityCheckResult, error) {
 		return s.Journal.VerifyIntegrity(ctx)
-	})
-}
-
-func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error) {
-	return readOr(b, func() (*domain.FinancialSummary, error) {
-		empty := &domain.FinancialSummary{}
-		empty.EnsureLists()
-		return empty, nil
-	}, func(ctx context.Context, s *core.Services) (*domain.FinancialSummary, error) {
-		return s.Accounting.GetFinancialSummary(ctx, b.viewYear())
 	})
 }
 
@@ -373,12 +358,6 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
 		return s.Bank.BookDirect(ctx, bankTxID, counterAccount, description)
-	})
-}
-
-func (b *BuchfinkBridge) IgnoreBankTransaction(bankTxID uint) error {
-	return b.change(func(ctx context.Context, s *core.Services) error {
-		return s.Bank.Ignore(ctx, bankTxID)
 	})
 }
 
@@ -419,18 +398,6 @@ func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, erro
 		return &inv, nil
 	})
 }
-
-func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string, error) {
-	pair, err := read(b, func(ctx context.Context, s *core.Services) ([2]string, error) {
-		xml, typst, err := s.Invoices.GenerateZUGFeRDAndTypst(ctx, invoiceID)
-		return [2]string{xml, typst}, err
-	})
-	return pair[0], pair[1], err
-}
-
-// -------------------------------------------------------------
-// E-BILANZ & AUDIT TRAIL
-// -------------------------------------------------------------
 
 // -------------------------------------------------------------
 // BELEGE
@@ -479,33 +446,11 @@ func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, fil
 	})
 }
 
-// AddReceiptFile appends a file to a Beleg that is not yet booked.
-func (b *BuchfinkBridge) AddReceiptFile(receiptID uint, file ReceiptFileInput) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
-		return s.Receipts.AddFile(ctx, receiptID, toNewFiles([]ReceiptFileInput{file})[0])
-	})
-}
-
-// RemoveReceiptFile drops a file from a Beleg that is not yet booked.
-func (b *BuchfinkBridge) RemoveReceiptFile(receiptID, fileID uint) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
-		return s.Receipts.RemoveFile(ctx, receiptID, fileID)
-	})
-}
-
 // GetReceipts lists the Belege of the active fiscal year. An empty status
 // returns all of them.
 func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Receipt, error) {
 		return s.Receipts.List(ctx, b.viewYear(), domain.ReceiptStatus(status))
-	})
-}
-
-// DiscardReceipt retires a filed Beleg. It keeps its number and stays findable —
-// a received document must not vanish without a trace.
-func (b *BuchfinkBridge) DiscardReceipt(id uint, reason string) error {
-	return b.change(func(ctx context.Context, s *core.Services) error {
-		return s.Receipts.Discard(ctx, id, reason)
 	})
 }
 
@@ -577,17 +522,6 @@ func (b *BuchfinkBridge) GetInvoiceDocument(invoiceID uint) (*ReceiptPreview, er
 	}, nil
 }
 
-// ExtractStructuredPart pulls the invoice data out of a filed Beleg and attaches
-// it under the role `structured`.
-//
-// It is a step of its own because filing must not depend on it: a Beleg is kept
-// in the form it arrived, and only then is it examined.
-func (b *BuchfinkBridge) ExtractStructuredPart(receiptID uint) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
-		return s.EInvoice.ExtractStructuredPart(ctx, receiptID)
-	})
-}
-
 // ProposeFromEInvoice turns the structured part of a Beleg into a prefilled
 // booking. The fachliche Gruppe stays open — no invoice knows which expense
 // account a supply belongs on.
@@ -645,33 +579,9 @@ func toNewFiles(files []ReceiptFileInput) []service.NewFile {
 	return out
 }
 
-// GetLegalForms hands the Rechtsform catalog to the UI, jede mit dem, was sie
-// steuerlich nach sich zieht.
-//
-// Die Rechtsform wird ohnehin eingetragen. Sie mitzuliefern statt die
-// Anlegerstellung für § 20 InvStG gesondert abzufragen ist der Unterschied
-// zwischen einer Einstellung und einer Prüfungsfrage.
-func (b *BuchfinkBridge) GetLegalForms() []domain.LegalFormInfo {
-	return domain.LegalFormCatalog()
-}
-
 // -------------------------------------------------------------
 // OFFENE POSTEN & ZAHLUNGSZUORDNUNG
 // -------------------------------------------------------------
-
-// GetOpenItems lists the unsettled receivables and payables. The amounts are
-// derived from the journal and the recorded allocations, never stored, so they
-// cannot drift apart from the bookings.
-func (b *BuchfinkBridge) GetOpenItems() ([]domain.OpenItem, error) {
-	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.OpenItem, error) {
-		return s.Payments.OpenItems(ctx)
-	})
-}
-
-// GetDifferenceKinds returns the payment difference kinds with their hints.
-func (b *BuchfinkBridge) GetDifferenceKinds() []domain.DifferenceKindInfo {
-	return domain.DifferenceKinds()
-}
 
 // SettlePayment books a payment against one or more open items, including
 // Skonto, bank fees and rounding differences.
@@ -716,79 +626,10 @@ func (b *BuchfinkBridge) GetCountries() []domain.Country {
 	return domain.Countries()
 }
 
-// GetRecommendedVatPeriod is the Voranmeldungszeitraum a company founded in this
-// year starts with, plus the reason. § 18 Abs. 2 UStG hat dafür ein Stichjahr,
-// deshalb kommt die Antwort aus dem Code und steht nicht als Satz in der Maske.
-func (b *BuchfinkBridge) GetRecommendedVatPeriod(foundingYear int) map[string]string {
-	return map[string]string{
-		"period": accounting.RecommendedVatPeriod(foundingYear),
-		"reason": accounting.VatPeriodReason(foundingYear),
-	}
-}
-
-// PreviewFoundationPostings shows the Gründungsbuchungen before they are written.
-func (b *BuchfinkBridge) PreviewFoundationPostings() (*service.FoundationPostingPreview, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (*service.FoundationPostingPreview, error) {
-		return s.Foundation.PreviewPostings(ctx)
-	})
-}
-
-// BookFoundationPostings writes the released Gründungsbuchungen.
-func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error) {
-	return emptyList(write(b, func(ctx context.Context, s *core.Services) ([]domain.JournalEntry, error) {
-		return s.Foundation.BookPostings(ctx)
-	}))
-}
-
 // RegisterCompany records the entry in the Handelsregister and ends the
 // Vorgesellschaft. Ab hier steht die Unterbilanz auf diesen Tag fest.
 func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Foundation, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Foundation, error) {
 		return s.Foundation.Register(ctx, date, court, number)
 	}, core.AppOnly())
-}
-
-// -------------------------------------------------------------
-// Eröffnungsbilanz der Gründung
-// -------------------------------------------------------------
-
-// GetOpeningBalance stellt die Eröffnungsbilanz auf den Beurkundungstag auf.
-func (b *BuchfinkBridge) GetOpeningBalance() (*service.OpeningBalanceSheet, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalanceSheet, error) {
-		return s.Foundation.OpeningBalance(ctx)
-	})
-}
-
-// SaveOpeningBalanceAs setzt die Eröffnungsbilanz als PDF und schreibt sie an
-// einen vom Anwender gewählten Ort. Der leere Rückgabewert heißt: der
-// Speichern-Dialog wurde abgebrochen.
-func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
-	// Gesetzt wird im Lesevorgang, der Dialog steht außerhalb offen.
-	file, err := read(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalanceFile, error) {
-		return s.Foundation.OpeningBalancePDF(ctx)
-	})
-	if err != nil {
-		return "", err
-	}
-
-	path, err := b.saveFileDialog("Eröffnungsbilanz speichern", file.FileName)
-	if err != nil || path == "" {
-		return "", err
-	}
-	if err := b.handOut(path, file.Data, "GRUENDUNG", "EROEFFNUNGSBILANZ",
-		fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path)); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
-// ExportOpeningBalanceXBRL erzeugt die E-Bilanz der Eröffnungsbilanz.
-func (b *BuchfinkBridge) ExportOpeningBalanceXBRL() (string, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		sheet, err := s.Foundation.OpeningBalance(ctx)
-		if err != nil {
-			return "", err
-		}
-		return s.EBilanz.ExportOpeningXBRL(ctx, sheet.AsOf)
-	})
 }

@@ -323,17 +323,6 @@ export interface TaxTreatmentInfo {
   requiresVatId: boolean;
 }
 
-export interface DifferenceKindInfo {
-  kind: DifferenceKind;
-  label: string;
-  hint: string;
-  /**
-   * Zu dieser Differenzart fließt kein Geld. Sie steht in derselben Auswahl,
-   * geht aber über „Forderung ausbuchen" und nicht über den Zahlungsausgleich.
-   */
-  withoutPayment?: boolean;
-}
-
 export interface ReceiptPosition {
   postingGroup: string;
   account?: string;
@@ -876,18 +865,6 @@ export type InvoiceKind = 'invoice' | 'advance' | 'final' | 'correction' | 'canc
 export type InvoiceSentVia = 'email' | 'portal' | 'post' | 'other';
 
 /**
- * Ein Versandweg mit seiner Beschriftung (domain.InvoiceSentViaOption).
- *
- * Die Wörter kommen aus dem Backend und nicht aus der Seite: Wertelisten mit
- * fester Bedeutung haben eine Quelle, sonst heißt derselbe Weg an zwei Stellen
- * verschieden.
- */
-export interface InvoiceSentViaOption {
-  via: InvoiceSentVia;
-  label: string;
-}
-
-/**
  * Die im Voraus vereinbarten Zahlungsbedingungen (§ 14 Abs. 4 Nr. 7 UStG,
  * BT-20). Der Skontosatz steht in Promille: 20 sind 2 %.
  */
@@ -1019,60 +996,6 @@ export interface AdvanceItem {
   settledInFinal: boolean;
 }
 
-/**
- * Ein Rechnungsverbund: ein Auftrag, abgerechnet in Abschlägen und einer
- * Schlussrechnung.
- */
-export interface InvoiceGroup {
-  id: number;
-  fiscalYear: number;
-  contactId: number;
-  title: string;
-  /** Der vereinbarte Gesamtbetrag netto — Obergrenze der Abschläge. */
-  totalNet: Cents;
-  taxRate: TaxRate;
-  closed: boolean;
-  finalInvoiceId?: number;
-  advances: AdvanceItem[];
-  /** Der Stand des Verbunds, im Backend gerechnet (domain.GroupProgress). */
-  progress: GroupProgress;
-  createdAt: string;
-}
-
-/**
- * Abgerechnet, vereinnahmt und offen zu einem Verbund.
- *
- * Die Summen kommen aus dem Backend und werden in der Oberfläche nicht
- * nachgerechnet: welche Abschläge mitzählen, ist eine fachliche Regel
- * (stornierte fallen heraus, vereinnahmt zählt erst mit dem Zahlungsdatum) und
- * gehört an eine einzige Stelle.
- */
-export interface GroupProgress {
-  agreedNet: Cents;
-  billedNet: Cents;
-  receivedNet: Cents;
-  receivedTax: Cents;
-  receivedGross: Cents;
-  openNet: Cents;
-  closed: boolean;
-}
-
-export interface AdvanceGroupRequest {
-  contactId: number;
-  title: string;
-  totalNet: Cents;
-  taxRate: TaxRate;
-}
-
-export interface AdvanceInvoiceRequest {
-  groupId: number;
-  date: string;
-  description: string;
-  net: Cents;
-  /** Der Vereinnahmungszeitpunkt, sofern er beim Ausstellen feststeht. */
-  paymentReceivedAt?: string;
-}
-
 export interface SettleAdvanceRequest {
   /** Die Abschlagsrechnung, auf die das Geld eingegangen ist. */
   advanceId: number;
@@ -1082,74 +1005,8 @@ export interface SettleAdvanceRequest {
   paymentAccount: string;
 }
 
-export interface RefundAdvanceRequest {
-  advanceId: number;
-  refundDate: string;
-  paymentAccount: string;
-  reason: string;
-}
-
-export interface FinalInvoiceRequest {
-  groupId: number;
-  date: string;
-  serviceDateFrom: string;
-  serviceDateTo: string;
-  items: InvoiceItem[];
-  terms: PaymentTerms;
-}
-
 /** Wofür angezahlt wurde — die Angabe entscheidet über den Bilanzposten. */
 export type AdvanceTarget = 'inventory' | 'tangible' | 'intangible';
-
-export interface AdvanceTargetOption {
-  key: AdvanceTarget;
-  label: string;
-  account: string;
-}
-
-/** Eine geleistete, noch nicht verrechnete Anzahlung an einen Lieferanten. */
-export interface VendorAdvance {
-  id: number;
-  contactId: number;
-  receiptId: number;
-  entryId: number;
-  documentNumber: string;
-  account: string;
-  target: AdvanceTarget;
-  netAmount: Cents;
-  taxAmount: Cents;
-  grossAmount: Cents;
-  taxRate: TaxRate;
-  paidAt: string;
-  settledByEntryId?: number;
-}
-
-/** Die Ausbuchung eines uneinbringlichen Postens; die Begründung ist Pflicht. */
-export interface WriteOffRequest {
-  openItemEntryId: number;
-  /** Bruttobetrag; null heißt der ganze offene Betrag. */
-  amount: Cents;
-  date: string;
-  reason: string;
-}
-
-export interface CashflowDataPoint {
-  month: string;
-  label: string;
-  inflow: Cents;
-  outflow: Cents;
-  net: Cents;
-}
-
-export interface FinancialSummary {
-  totalRevenue: Cents;
-  totalExpenses: Cents;
-  netIncome: Cents;
-  bankBalance: Cents;
-  openReceivables: Cents;
-  openPayables: Cents;
-  cashflowHistory: CashflowDataPoint[] | null;
-}
 
 /**
  * Woran die Kette zerbrochen ist: `linkage` heißt, eine Buchung wurde
@@ -1307,14 +1164,6 @@ export interface TaxAdvisor {
   declarations: string[];
 }
 
-/** Eine Rechtsform aus dem Katalog, mit dem, was sie steuerlich nach sich zieht. */
-export interface LegalFormInfo {
-  name: string;
-  /** Die abgeleitete Anlegerstellung. Leer heißt: aus der Rechtsform folgt sie nicht. */
-  investor: InvestorType;
-  note: string;
-}
-
 export interface AuditLogEntry {
   id: number;
   /** In UTC geschrieben; die Anzeige rechnet über `formatDateTime` um. */
@@ -1461,9 +1310,6 @@ export type AssetMovementKind =
  */
 export type Units = number;
 
-/** Ein Stück in der Skalierung von {@link Units}. */
-export const UNIT_SCALE = 10000;
-
 /** Devisenkurse werden als Fremdwährungseinheiten je Euro mal einer Million geführt. */
 export const RATE_SCALE = 1_000_000;
 
@@ -1609,204 +1455,6 @@ export interface AssetDetail {
   notes: string[];
 }
 
-export interface AssetAccountInfo {
-  number: string;
-  name: string;
-  class: AssetClass;
-  group: string;
-  hint?: string;
-  /** Anlagen im Bau und geleistete Anzahlungen: von hier wird umgebucht. */
-  inProgress?: boolean;
-  /** Grund und Boden und alles, was darauf steht — keine degressive AfA, keine Sonderabschreibung. */
-  immovable?: boolean;
-  /**
-   * Ein Gebäude, das Wohnzwecken dient. § 7 Abs. 4 EStG macht den Satz beim
-   * Wohngebäude an der Fertigstellung fest, beim Betriebsgebäude am Bauantrag.
-   */
-  residential?: boolean;
-  depreciationAccount?: string;
-  depreciable: boolean;
-  defaultUsefulLifeMonths?: number;
-  usefulLifeSource?: string;
-  /**
-   * Eine Abweichung vom Vorschlag dieses Kontos ist zu begründen. Gesetzt für
-   * die Konten mit dem Wahlrecht des BMF-Schreibens vom 22.02.2022; das
-   * Backend verlangt dort dasselbe.
-   */
-  usefulLifeReasonRequired?: boolean;
-}
-
-export type AcquisitionOption = 'immediate' | 'pool' | 'activate';
-
-export interface AcquisitionAdvice {
-  recommended: AcquisitionOption;
-  allowed: AcquisitionOption[];
-  reason: string;
-  poolNote?: string;
-  limits: {
-    immediate: Cents;
-    recordFrom: Cents;
-    poolLowerLimit: Cents;
-    poolUpperLimit: Cents;
-  };
-}
-
-/**
- * Ein Zeitfenster, in dem die degressive AfA zulässig ist. Die Schlüssel sind
- * kleingeschrieben, seit die Regeln aus der Ressource `afa_rules.json` kommen
- * und das Go-Struct dieselben JSON-Namen hat wie die Datei.
- */
-export interface DegressiveWindow {
-  from: string;
-  until: string;
-  /** Vielfaches des linearen Satzes in Tausendsteln: 3000 ist das Dreifache. */
-  factorPermille: number;
-  maxPermille: number;
-  source: string;
-}
-
-export interface AssetMethodInfo {
-  method: DepreciationMethod;
-  label: string;
-  classes: AssetClass[];
-  hint: string;
-}
-
-export interface AssetRules {
-  fiscalYear: number;
-  gwgImmediateLimit: Cents;
-  gwgRecordFrom: Cents;
-  poolLowerLimit: Cents;
-  poolUpperLimit: Cents;
-  poolYears: number;
-  degressiveWindows: DegressiveWindow[];
-  /** Das Zeitfenster der Staffel des § 7 Abs. 2a EStG für E-Fahrzeuge. */
-  electricVehicleWindows: ElectricVehicleWindow[];
-  /** Höchstsatz der Sonderabschreibung in Promille (§ 7g Abs. 5 EStG). */
-  specialMaxPermille: number;
-  /** Begünstigungszeitraum in Jahren: das Anschaffungsjahr und die vier folgenden. */
-  specialPeriodYears: number;
-  /**
-   * Warum der Investitionsabzugsbetrag des § 7g Abs. 1 EStG in Buchfink nicht
-   * vorkommt: er wird außerhalb der Bilanz vorgenommen.
-   */
-  investmentDeductionNote: string;
-  methods: AssetMethodInfo[];
-}
-
-export interface DepreciationDue {
-  assetId: number;
-  inventoryNumber: string;
-  name: string;
-  account: string;
-  expenseAccount: string;
-  method: string;
-  rateLabel: string;
-  months: number;
-  planned: Cents;
-  booked: Cents;
-  due: Cents;
-  specialAccount?: string;
-  specialPlanned: Cents;
-  specialBooked: Cents;
-  specialDue: Cents;
-  bookValueBefore: Cents;
-  bookValueAfter: Cents;
-  note?: string;
-}
-
-export interface DepreciationRun {
-  fiscalYear: number;
-  bookingDate: string;
-  due: DepreciationDue[];
-  total: Cents;
-  missingPriorYears?: number[];
-}
-
-export interface DepreciationResult {
-  entries: JournalEntry[];
-  /** Summe der gebuchten Abschreibung, ohne die Sonderabschreibung. */
-  total: Cents;
-  skipped?: string[];
-  /**
-   * Anlagegüter, bei denen der Lauf nur einen steuerlichen Wert festgehalten
-   * hat: die Sonderabschreibung des § 7g Abs. 5 EStG wird seit dem BilMoG
-   * nicht mehr in der Handelsbilanz gebucht.
-   */
-  taxOnly?: string[];
-  taxOnlyTotal?: Cents;
-}
-
-export interface DisposalAccounts {
-  revenue?: string;
-  bookValue: string;
-  explanation: string;
-}
-
-export interface DisposalRequest {
-  assetId: number;
-  date: string;
-  kind: DisposalKind;
-  proceeds: Cents;
-  /** Teil der Anschaffungskosten, der abgeht. Leer = alles. Nur bei Finanzanlagen. */
-  costShare?: Cents;
-  /** Derselbe Teilabgang in Stück. Hat Vorrang vor costShare. */
-  quantity?: Units;
-  taxTreatment?: TaxTreatment;
-  taxRate?: TaxRate;
-  settlement: Settlement;
-  paymentAccount?: string;
-  contactId?: number;
-  note?: string;
-}
-
-export interface DisposalPreview {
-  catchUpAmount: Cents;
-  /** Im Abgangsjahr noch offene Sonderabschreibung, mit demselben Beleg nachgeholt. */
-  specialCatchUp: Cents;
-  catchUpLines?: JournalLine[];
-  partial: boolean;
-  costShare: Cents;
-  /** Abgehende Stückzahl und der Bestand danach. */
-  quantityShare?: Units;
-  unitsRemaining?: Units;
-  depreciationShare: Cents;
-  bookValue: Cents;
-  /** Buchgewinn positiv, Buchverlust negativ. */
-  result: Cents;
-  isGain: boolean;
-  accounts: DisposalAccounts;
-  lines: JournalLine[];
-  gross: Cents;
-  tax: Cents;
-  /** Steuerliche Nebenrechnung eines Investmentanteils — sie ändert die Buchung nicht. */
-  investment?: InvestmentTaxNote;
-  warnings?: string[];
-}
-
-/** Die Teilfreistellung eines Fonds für einen Anleger (§ 20 InvStG). */
-export interface PartialExemption {
-  /** Steuerfreier Anteil in Promille: 800 sind 80 %. */
-  permille: number;
-  determined: boolean;
-  source: string;
-  explanation: string;
-}
-
-/** Was das InvStG neben der Buchung aus einem Betrag macht. */
-export interface InvestmentTaxNote {
-  fundClass: FundClass;
-  fundClassLabel: string;
-  exemption: PartialExemption;
-  /** Steht, wenn sich kein Satz bestimmen lässt — und sagt warum. */
-  exemptionError?: string;
-  grossAmount: Cents;
-  vorabpauschalen: Cents;
-  exemptAmount: Cents;
-  taxableAmount: Cents;
-  explanation: string;
-}
-
 /** Die Vorabpauschale eines Kalenderjahres (§ 18 InvStG), mit jedem Schritt. */
 export interface Vorabpauschale {
   year: number;
@@ -1817,50 +1465,6 @@ export interface Vorabpauschale {
   monthsCounted: number;
   amount: Cents;
   accruedOn: string;
-  explanation: string;
-}
-
-export interface InvestmentRules {
-  fundClasses: { class: FundClass; label: string }[];
-  investorTypes: { type: InvestorType; label: string }[];
-  investorType: InvestorType;
-  investorLabel: string;
-  /** Woher die Anlegerstellung kommt: aus der Rechtsform oder aus einer Festlegung. */
-  investorReason: string;
-  legalForm: string;
-  exemptions: {
-    class: FundClass;
-    label: string;
-    permille: number;
-    source?: string;
-    explanation?: string;
-    problem?: string;
-  }[];
-}
-
-export interface DisposalResult {
-  catchUpEntry?: JournalEntry;
-  disposalEntry?: JournalEntry;
-  asset: FixedAsset;
-  message: string;
-}
-
-/** Was der Devisenkassamittelkurs eines Stichtags für eine Finanzanlage bedeutet. */
-export interface CurrencyValuation {
-  currency: string;
-  foreignAmount: Cents;
-  /** Anschaffungskurs, abgeleitet aus Fremdbetrag und Euro-Anschaffungskosten. */
-  acquisitionRate: number;
-  ratePerEuro: number;
-  valueAtRate: Cents;
-  bookValue: Cents;
-  /** Greift § 256a Satz 2 HGB — Restlaufzeit höchstens ein Jahr, kein Deckel nach oben? */
-  shortTerm: boolean;
-  /** Unterschied zum Buchwert: negativ, wo der Kurs gefallen ist. */
-  difference: Cents;
-  /** Was daraus folgt — und mit welchem Betrag er tatsächlich gebucht werden dürfte. */
-  proposal: 'impairment' | 'write_up' | 'none';
-  proposedAmount: Cents;
   explanation: string;
 }
 
@@ -2475,18 +2079,6 @@ export interface VatPeriod {
   year: number;
 }
 
-/** Ein Zeitraum mit Fälligkeit, Festschreibungsstand und Stand der Anmeldung. */
-export interface VatPeriodStatus extends VatPeriod {
-  dueDate: string;
-  status: VatReturnStatus;
-  returnId?: number;
-  /** Ohne Festschreibung ist die Bestätigung der Übermittlung gesperrt. */
-  committed: boolean;
-  payable: Cents;
-  submittedAt?: string;
-  isOverdue: boolean;
-}
-
 /**
  * Eine Zeile des Vordrucks USt 1 A. `hasBase` und `hasTax` sagen, welche Felder
  * der Vordruck in dieser Zeile kennt; `taxCode` benennt die zweite Kennziffer,
@@ -2542,28 +2134,6 @@ export interface VatReturn {
   figures: VatReturnLine[];
   lateEntries: VatLateEntry[];
   createdAt: string;
-}
-
-/** Eine Anmeldung des Vorjahres im Vorschlag zur Sondervorauszahlung. */
-export interface SpecialPrepaymentPeriod {
-  periodKey: string;
-  periodLabel: string;
-  returnId: number;
-  submittedAt: string;
-  prepayment: Cents;
-}
-
-/** Ein Elftel der Vorauszahlungen des Vorjahres (§ 47 Abs. 1 UStDV). */
-export interface SpecialPrepaymentSuggestion {
-  year: number;
-  basedOnYear: number;
-  amount: Cents;
-  prepaymentSum: Cents;
-  periods: SpecialPrepaymentPeriod[];
-  /** Liegt für jeden Zeitraum des Vorjahres eine übermittelte Anmeldung vor? */
-  complete: boolean;
-  account: string;
-  note: string;
 }
 
 /** S: sonstige Leistung nach § 3a Abs. 2 UStG — die einzige Meldeart in Buchfink. */
@@ -2824,6 +2394,8 @@ export interface ClosingStepView {
   hint: string;
   /** Der Zustand folgt aus den Daten, statt vom Anwender gesetzt zu werden. */
   automatic: boolean;
+  /** Die Normen; nur im Detaildialog. */
+  reference?: string;
   state: ClosingStepState;
   reason?: string;
   changedOn?: string;
@@ -2890,17 +2462,6 @@ export interface AccrualRelease {
 }
 
 /**
- * Eine Auflösung aus der Vorschau. Sie hat keine Kennung, weil sie noch
- * nicht existiert — deshalb ein eigener Typ und nicht `AccrualRelease` mit
- * optionalen Feldern, die in der Vorschau nie gesetzt sind.
- */
-export interface AccrualReleasePlanItem {
-  fiscalYear: number;
-  date: string;
-  amount: Cents;
-}
-
-/**
  * Eine im Zieljahr fällige Auflösung, wie der Saldenvortrag sie mitbucht
  * (`service.AccrualReleaseDue`). Sie steht in der Vortragsvorschau, weil der
  * Vortrag sonst mehr täte, als er ankündigt.
@@ -2935,78 +2496,6 @@ export interface Accrual {
   formationEntryId?: number;
   releases: AccrualRelease[];
   createdAt: string;
-}
-
-/** Eine Buchung, deren Leistung über den Bilanzstichtag hinausreicht. */
-export interface AccrualProposalItem {
-  entryId: number;
-  entryNumber: string;
-  bookingDate: string;
-  description: string;
-  kind: AccrualKind;
-  account: string;
-  accountName: string;
-  serviceFrom: string;
-  serviceTo: string;
-  totalAmount: Cents;
-  deferredAmount: Cents;
-  /** Unter der Vorschlagsschwelle; angezeigt wird der Posten trotzdem. */
-  belowThreshold: boolean;
-  alreadyBooked: boolean;
-}
-
-export interface AccrualProposal {
-  fiscalYear: number;
-  cutoff: string;
-  method: AccrualMethod;
-  threshold: Cents;
-  items: AccrualProposalItem[];
-  /** Was die Schwelle bedeutet und was nicht. */
-  note: string;
-}
-
-export interface AccrualRequest {
-  fiscalYear: number;
-  kind: AccrualKind;
-  sourceEntryId?: number;
-  text: string;
-  totalAmount: Cents;
-  startDate: string;
-  endDate: string;
-  account: string;
-  /** Überschreibt den gerechneten Anteil. Null heißt: rechnen. */
-  deferredAmount?: Cents;
-}
-
-export interface AccrualPreview {
-  accrual: Accrual;
-  lines: JournalLine[];
-  releases: AccrualReleasePlanItem[];
-  bookingDate: string;
-  explanation: string;
-  warnings: string[];
-}
-
-export interface AccrualReportRow {
-  accrualId: number;
-  kind: AccrualKind;
-  kindLabel: string;
-  text: string;
-  account: string;
-  startDate: string;
-  endDate: string;
-  deferredAmount: Cents;
-  released: Cents;
-  remaining: Cents;
-  /** Restlaufzeit ab dem Stichtag in Kalendertagen. */
-  remainingDays: number;
-}
-
-export interface AccrualReport {
-  cutoff: string;
-  rows: AccrualReportRow[];
-  totalActive: Cents;
-  totalPassive: Cents;
 }
 
 /** Der Rückstellungsgrund nach § 249 HGB. */
@@ -3085,64 +2574,6 @@ export interface ProvisionMirror {
   total: ProvisionMirrorRow;
 }
 
-/** Ein Satz der Abzinsungszinssatzverordnung, wie ihn die Bundesbank meldet. */
-export interface DiscountRate {
-  /** Monat der Veröffentlichung als JJJJ-MM. */
-  month: string;
-  /** Restlaufzeit in Jahren (1 bis 50). */
-  years: number;
-  /** Zinssatz in Millionsteln: 1,50 % sind 15000. */
-  rateMicros: number;
-  /** Mittelungsdauer: sieben Jahre, für Altersversorgung zehn. */
-  average: number;
-  updatedAt?: string;
-}
-
-export interface ProvisionRequest {
-  /** Bei einer Zuführung gesetzt, bei der Bildung leer. */
-  provisionId?: number;
-  fiscalYear: number;
-  kind: ProvisionKind;
-  text: string;
-  amount: Cents;
-  expectedOn: string;
-  reason: string;
-  /** Überschreiben den Vorschlag aus der Art. */
-  balanceAccount?: string;
-  expenseAccount?: string;
-  /** Leer heißt Bilanzstichtag. */
-  date?: string;
-}
-
-export interface ProvisionPreview {
-  provision: Provision;
-  lines: JournalLine[];
-  settlementAmount: Cents;
-  /** Der gebuchte Betrag — bei Abzinsung der Barwert. */
-  amount: Cents;
-  discounted: boolean;
-  discountYears: number;
-  discountRate?: string;
-  /** Monat der Zinstabelle, mit der gerechnet wurde. */
-  discountMonth?: string;
-  /** Der steuerliche Wert (5,5 %, § 6 Abs. 1 Nr. 3a EStG); nicht gebucht. */
-  taxAmount: Cents;
-  bookingDate: string;
-  bookingYear: number;
-  explanation: string;
-  findings: string[];
-  isIncrease: boolean;
-}
-
-export interface ProvisionChangeRequest {
-  provisionId: number;
-  amount: Cents;
-  date: string;
-  reason: string;
-  /** Nimmt beim Verbrauch ohne Rechnung die Zahlung auf. */
-  paymentAccount?: string;
-}
-
 export interface VatSettlementRow {
   account: string;
   accountName: string;
@@ -3206,13 +2637,6 @@ export interface TaxProvisionPreview extends TaxProvisionResult {
   explanation: string;
   /** Sagt ausdrücklich, dass die Rechnung eine Schätzung ist. */
   warning: string;
-}
-
-export interface TaxProvisionRequest {
-  fiscalYear: number;
-  incomeProvision: Cents;
-  tradeProvision: Cents;
-  reason: string;
 }
 
 /** Der Beschluss über die Ergebnisverwendung (§ 29 GmbHG). */
@@ -3434,28 +2858,6 @@ export interface InputTaxCorrectionYear {
   note: string;
 }
 
-export interface RegisterInputTaxRequest {
-  assetId?: number;
-  receiptId?: number;
-  entryId?: number;
-  label: string;
-  account?: string;
-  acquisitionDate: string;
-  netAmount: Cents;
-  inputTaxAmount: Cents;
-  /** Null wird als volle Verwendung gelesen. */
-  originalPermille?: number;
-  immovable?: boolean;
-  note?: string;
-}
-
-export interface SaveInputTaxUsageRequest {
-  correctionId: number;
-  fiscalYear: number;
-  permille: number;
-  reason?: string;
-}
-
 /**
  * Das Ergebnis einer Bestätigungsanfrage. „unavailable" ist ein fehlender
  * Befund, kein negatives Ergebnis — die beiden dürfen nicht dasselbe
@@ -3575,23 +2977,6 @@ export interface NonDeductibleReport {
   note: string;
 }
 
-export interface RebookGiftsRequest {
-  fiscalYear: number;
-  recipientKey: string;
-  /** Leer heißt: der Tag der Korrektur. */
-  date?: string;
-  /** Pflicht: eine Umbuchung ohne Grund ist im Journal später nicht erklärbar. */
-  reason: string;
-}
-
-export interface GiftRebooking {
-  recipientName: string;
-  /** Die Buchungsnummern der Stornos und der Neubuchungen. */
-  reversals: string[];
-  rebookings: string[];
-  note: string;
-}
-
 /** Ein Devisenkurs eines Tages. */
 export interface ExchangeRate {
   id: number;
@@ -3614,12 +2999,6 @@ export interface VatExchangeRate {
   rateMicros: number;
   source: string;
   updatedAt: string;
-}
-
-export interface VatRateImport {
-  imported: number;
-  skipped: number;
-  problems: string[];
 }
 
 export interface ForeignCurrencyValuationItem {
@@ -3660,51 +3039,6 @@ export interface ForeignCurrencyValuation {
   reversalEntryNumber?: string;
 }
 
-/** Ein Satz Wertgrenzen aus der Ressource `afa_rules.json`. */
-export interface AfaParameterSet {
-  validFrom: string;
-  note?: string;
-  gwgImmediateLimit: Cents;
-  gwgRecordThreshold: Cents;
-  poolLowerLimit: Cents;
-  poolUpperLimit: Cents;
-  poolYears: number;
-}
-
-/** Das Zeitfenster der Staffel für E-Fahrzeuge (§ 7 Abs. 2a EStG). */
-export interface ElectricVehicleWindow {
-  from: string;
-  until: string;
-  /** Die Sätze in Promille der Anschaffungskosten, Jahr für Jahr. */
-  permillePerYear: number[];
-  source: string;
-  note: string;
-}
-
-/** Ein fester Gebäudesatz (§ 7 Abs. 4 EStG). */
-export interface BuildingRate {
-  key: string;
-  residential: boolean;
-  /** Leer heißt: kein unteres Ende — der Eintrag fängt die früheren Fälle auf. */
-  referenceFrom?: string;
-  permille: number;
-  source: string;
-  label: string;
-  note?: string;
-}
-
-/** Die Abschreibungsregeln aus der Ressource — dieselbe Datei, aus der gerechnet wird. */
-export interface AfaRules {
-  version: string;
-  source: string;
-  note: string;
-  investmentDeductionNote: string;
-  parameterSets: AfaParameterSet[];
-  degressiveWindows: DegressiveWindow[];
-  electricVehicleWindows: ElectricVehicleWindow[];
-  buildingRates: BuildingRate[];
-}
-
 export interface WriteUpImpairment {
   fiscalYear: number;
   date: string;
@@ -3734,37 +3068,6 @@ export interface WriteUpReport {
   candidates: WriteUpCandidate[];
   /** Anlagegüter, für die weder zugeschrieben noch bestätigt wurde. */
   open: number;
-  note: string;
-}
-
-export interface PoolConsistencyRow {
-  assetId: number;
-  inventoryNumber: string;
-  name: string;
-  acquisitionDate: string;
-  cost: Cents;
-  method: DepreciationMethod;
-}
-
-/** Die Einheitlichkeit des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG. */
-export interface PoolConsistencyReport {
-  fiscalYear: number;
-  lowerLimit: Cents;
-  upperLimit: Cents;
-  pooled: PoolConsistencyRow[];
-  immediate: PoolConsistencyRow[];
-  consistent: boolean;
-  note: string;
-}
-
-/** Eine Freistellungsbescheinigung § 48b EStG, die abläuft oder abgelaufen ist. */
-export interface ExemptionCertificateWarning {
-  contactId: number;
-  name: string;
-  number: string;
-  validUntil: string;
-  /** „expiring" oder „expired". */
-  state: string;
   note: string;
 }
 
@@ -3915,112 +3218,6 @@ export interface BlockContactResult {
   answer: string;
 }
 
-/** Die Kopfdaten in der Form, in der sie geschrieben werden. */
-export interface ReceiptHeader {
-  kind: ReceiptKind;
-  documentDate: string;
-  issuerName: string;
-  grossAmount: Cents;
-  taxAmount: Cents;
-  currency: string;
-  subject: string;
-  retentionClass: RetentionClass;
-  retentionUntil: string;
-  earliestDeletion?: string;
-}
-
-/** Das Ergebnis von „stornieren und neu buchen" (BEL-09, GoBD Rz. 58). */
-export interface CorrectionResult {
-  original: JournalEntry;
-  reversal: JournalEntry;
-  replacement: JournalEntry;
-  message: string;
-}
-
-/** Ein Sachkonto der Eröffnungsbilanz des Umsteigers mit seinem Wert. */
-export interface OpeningBalanceLine {
-  account: string;
-  side: Side;
-  amount: Cents;
-  /** Die Kennung, unter der der Posten im Altsystem geführt wurde. */
-  legacyRef?: string;
-}
-
-/** Ein offener Posten des Umsteigers, einzeln übernommen. */
-export interface OpenOpeningItem {
-  contactId: number;
-  amount: Cents;
-  documentNumber: string;
-  documentDate: string;
-  dueDate?: string;
-  legacyRef?: string;
-}
-
-/** Die Eröffnungsbilanz des Umsteigers (ARC-05). */
-export interface OpeningBalanceRequest {
-  fiscalYear: number;
-  /** Leer heißt: der erste Tag des Geschäftsjahres. */
-  date?: string;
-  /** Pflicht: die Schlussbilanz des Altsystems als Beleg. */
-  receiptId?: number;
-  legacySystem?: string;
-  accounts: OpeningBalanceLine[];
-  receivables: OpenOpeningItem[];
-  payables: OpenOpeningItem[];
-}
-
-/** Die Vorschau auf die Eröffnungsbuchungen; sie zeigt, was gebucht würde. */
-export interface OpeningBalancePreview {
-  fiscalYear: number;
-  date: string;
-  entries: JournalEntry[];
-  debitTotal: Cents;
-  creditTotal: Cents;
-  balanced: boolean;
-  messages: string[];
-}
-
-/** Ein Band der Altersstruktur. */
-export type AgingBucketKey = 'not_due' | '1_30' | '31_60' | '61_90' | 'over_90' | 'no_due_date';
-
-export interface AgingBucket {
-  key: AgingBucketKey;
-  label: string;
-  amount: Cents;
-  items: number;
-}
-
-/** Ein Band der Restlaufzeit (§ 268 Abs. 4 und 5 HGB). */
-export type MaturityBandKey = 'up_to_1y' | '1_to_5y' | 'over_5y' | 'undated';
-
-export interface MaturityBand {
-  key: MaturityBandKey;
-  label: string;
-  amount: Cents;
-  items: number;
-}
-
-/** Eine Seite der Auswertung: Forderungen oder Verbindlichkeiten. */
-export interface OpenItemsAgingSide {
-  /** „receivables" oder „payables". */
-  side: string;
-  label: string;
-  total: Cents;
-  items: number;
-  buckets: AgingBucket[];
-  maturities: MaturityBand[];
-}
-
-/**
- * Altersstruktur und Restlaufzeiten der offenen Posten zum Stichtag (BEL-07).
- * Beide aus derselben Grundlage, damit sie nicht auseinanderlaufen.
- */
-export interface OpenItemsAging {
-  cutoff: string;
-  sides: OpenItemsAgingSide[];
-  reference: string;
-}
-
 // ---------------------------------------------------------------------------
 // Die Bedienung (Welle 7): Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag
 // und Prüfpfad.
@@ -4153,158 +3350,10 @@ export interface BankRule {
   updatedAt: string;
 }
 
-/** Die Stufe der Belegkette (`service.AuditTrailStage`). */
-export type AuditTrailStage = 'receipt' | 'booking' | 'payment' | 'bank';
-
-/** Eine Stufe des Prüfpfads (`service.AuditTrailStep`). */
-export interface AuditTrailStep {
-  stage: AuditTrailStage;
-  title: string;
-  date: string;
-  reference: string;
-  amount: Cents;
-  detail: string;
-}
-
-/** Der Prüfpfad eines Belegs: Beleg → Buchung → Zahlung → Bankumsatz. */
-export interface AuditTrail {
-  receiptId: number;
-  receiptNumber: string;
-  direction: Direction;
-  documentDate: string;
-  issuerName: string;
-  grossAmount: Cents;
-  orderReference?: string;
-  serviceProof?: string;
-  serviceProofAt?: string;
-  steps: AuditTrailStep[];
-  /** Wo die Kette abbricht — etwa: gebucht, aber nicht bezahlt. */
-  note: string;
-}
-
 // -------------------------------------------------------------------------
 // Welle 8: laufende Buchhaltung — Handbuchung mit Beleg, Eigenbeleg,
 // Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter
 // -------------------------------------------------------------------------
-
-/**
- * Die Fehlerklasse eines Befunds an einer Eingangsrechnung
- * (`domain.ValidationFindingClass`).
- *
- * Die Klasse ist keine Sortierhilfe: sie sagt, wer den Fehler beheben kann und
- * was er kostet. Ein Formatfehler liegt am System des Lieferanten, ein
- * Geschäftsregelfehler an der Rechnung, ein Inhaltsfehler am Vorsteuerabzug.
- */
-export type ValidationFindingClass = 'format' | 'business_rule' | 'content';
-
-/**
- * Die Klassen in Klartext, in der Reihenfolge vom Formalen zum Teuren.
- *
- * Sie stehen hier und nicht in der Ansicht: das Backend liefert dieselbe
- * Beschriftung mit (`ValidationFindingGroup.label`), und zwei Fassungen
- * desselben Worts laufen auseinander. Diese Tabelle legt die Reihenfolge fest
- * und springt ein, wo eine Gruppe ohne Beschriftung ankommt.
- */
-export const VALIDATION_FINDING_CLASS_LABELS: Record<ValidationFindingClass, string> = {
-  format: 'Formatfehler',
-  business_rule: 'Geschäftsregelfehler',
-  content: 'Inhaltsfehler',
-};
-
-/**
- * Ein klassifizierter Befund an einer Eingangsrechnung
- * (`domain.ValidationFinding`).
- *
- * Er heißt nicht `ValidationFinding`: dieser Name gehört dem Befund der
- * EN-16931-Prüfung weiter oben, der nur die Regelverstöße des strukturierten
- * Teils kennt. Der Befund hier führt beide Töpfe zusammen — Regelverstöße und
- * Pflichtangaben — und hat deshalb Klasse, Norm und Folge für den
- * Vorsteuerabzug.
- */
-export interface ReceiptFinding {
-  class: ValidationFindingClass;
-  /** Kennung der Regel, etwa „BR-DE-15" oder „input_tax_issuer_address". */
-  rule: string;
-  /** „fatal", „warning" oder „information" — die Einstufung des Regelwerks. */
-  severity: string;
-  /** Die Stelle im Dokument, etwa „Position 3". Leer heißt: das ganze Dokument. */
-  where?: string;
-  message: string;
-  /** Die Vorschrift oder Norm, aus der die Regel stammt. */
-  norm?: string;
-  /** Was der Befund für den Vorsteuerabzug bedeutet, in einem Satz. */
-  inputTaxEffect: string;
-  /** Hält der Befund die Buchung mit Vorsteuer an? */
-  blocking: boolean;
-}
-
-/** Die Befunde einer Klasse (`domain.ValidationFindingGroup`). */
-export interface ReceiptFindingGroup {
-  class: ValidationFindingClass;
-  label: string;
-  findings: ReceiptFinding[];
-}
-
-/** Die Beanstandungsliste eines Belegs (`domain.ReceiptFindings`). */
-export interface ReceiptFindings {
-  receiptId: number;
-  receiptNumber: string;
-  /**
-   * Wurde der strukturierte Teil überhaupt geprüft? Ohne diese Unterscheidung
-   * sähe ein ungeprüfter Beleg aus wie ein fehlerfreier.
-   */
-  checked: boolean;
-  groups: ReceiptFindingGroup[];
-  total: number;
-  blocking: number;
-}
-
-/** Die Eingabe für einen Eigenbeleg (`service.SelfIssuedReceiptRequest`). */
-export interface SelfIssuedReceiptRequest {
-  /** Der Tag des Vorgangs, nicht der Tag der Erfassung. */
-  documentDate: string;
-  grossAmount: Cents;
-  taxAmount: Cents;
-  currency?: string;
-  /** Pflicht: der Grund ist der ganze Inhalt des Dokuments. */
-  reason: string;
-  direction?: Direction;
-  /** 0 oder weggelassen heißt: das aktive Geschäftsjahr. */
-  fiscalYear?: number;
-}
-
-/**
- * Die Eingabe des Handbuchungswegs (`service.ManualEntryRequest`).
- *
- * Entweder `receiptId` oder `selfIssued` — nie beides und nie keines von
- * beiden: zu einer Buchung gehört genau ein Beleg.
- */
-export interface ManualEntryRequest {
-  entry: Partial<JournalEntry>;
-  receiptId?: number;
-  selfIssued?: SelfIssuedReceiptRequest;
-}
-
-/** Die Eingabe für ein eigenes Konto (`service.CustomAccountRequest`). */
-export interface CustomAccountRequest {
-  number: string;
-  name: string;
-  /** Die Gliederungsposition (position_id) aus `getStatementPositions`. Pflicht. */
-  hgbPosition: string;
-  /** Vorschlag für die Steuerzeile; ohne Automatik. */
-  taxKeyDefault: string;
-  description: string;
-}
-
-/** Eine wählbare Gliederungsposition (`domain.StatementPositionOption`). */
-export interface StatementPositionOption {
-  id: string;
-  name: string;
-  statementType: string;
-  balanceSide: string;
-  hgbCode: string;
-  accountType: string;
-}
 
 /** Eine abgelöste Aufbewahrungsfrist (`accounting.RetentionPreviousTerm`). */
 export interface RetentionPreviousTerm {

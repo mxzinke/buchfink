@@ -52,20 +52,6 @@ func (b *BuchfinkBridge) ExportAuditPackage(year int, targetDir string) (*export
 	})
 }
 
-// ExportJournalCSV schreibt das Journal eines Zeitraums als CSV und liefert den
-// Pfad. Leere Grenzen bedeuten: keine Grenze. Der Speichern-Dialog steht vor
-// dem Lesevorgang offen.
-func (b *BuchfinkBridge) ExportJournalCSV(from, to string) (string, error) {
-	name := fmt.Sprintf("buchfink-journal-%s-bis-%s.csv", orDefault(from, "anfang"), orDefault(to, "heute"))
-	path, err := b.saveFileDialog("Journal als CSV speichern", name)
-	if err != nil || path == "" {
-		return "", err
-	}
-	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		return s.Export.ExportJournalCSV(ctx, from, to, path)
-	})
-}
-
 // SelectExportDirectoryDialog öffnet den Ordnerdialog für einen Export.
 func (b *BuchfinkBridge) SelectExportDirectoryDialog(title string) (string, error) {
 	if title == "" {
@@ -167,14 +153,6 @@ func (b *BuchfinkBridge) VerifyReceiptFiles() (*domain.FileCheckResult, error) {
 // -------------------------------------------------------------
 // STICHTAGSAUSWERTUNGEN
 // -------------------------------------------------------------
-
-// GetSuSaOverviewAt liefert die Summen- und Saldenliste zu einem Stichtag.
-// Leerer Stichtag heißt: das ganze Geschäftsjahr.
-func (b *BuchfinkBridge) GetSuSaOverviewAt(cutoff string) (*domain.SuSaOverview, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (*domain.SuSaOverview, error) {
-		return s.Accounting.GetSuSaOverviewAt(ctx, b.viewYear(), cutoff)
-	})
-}
 
 // GetOpenItemsAt liefert die offenen Posten zu einem Stichtag.
 func (b *BuchfinkBridge) GetOpenItemsAt(cutoff string) ([]domain.OpenItem, error) {

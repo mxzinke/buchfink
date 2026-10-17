@@ -59,7 +59,7 @@ export const Notice: React.FC<NoticeProps> = ({ tone = 'attention', text, action
  * Ladezustand nach §8.4: unter 200 ms nichts, darüber Skelettzeilen in der Form
  * des erwarteten Inhalts. Kein Spinner, der die Seite ersetzt.
  */
-export const Skeleton: React.FC<{ className?: string; style?: React.CSSProperties }> = ({
+const Skeleton: React.FC<{ className?: string; style?: React.CSSProperties }> = ({
   className,
   style,
 }) => (

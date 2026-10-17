@@ -15,15 +15,6 @@ import (
 // BZSt-Online-Portal ein und bestätigt die Übermittlung hier mit dem
 // Transferticket — das ist das Übermittlungsprotokoll.
 
-// GetVatPeriods liefert die Voranmeldungszeiträume eines Jahres mit Fälligkeit,
-// Festschreibungsstand und Stand der Anmeldung.
-func (b *BuchfinkBridge) GetVatPeriods(year int) ([]service.VatPeriodStatus, error) {
-	year = b.yearOr(year)
-	return readList(b, func(ctx context.Context, s *core.Services) ([]service.VatPeriodStatus, error) {
-		return s.VatReturns.Periods(ctx, year)
-	})
-}
-
 // GetVatReturn rechnet das Kennziffernblatt eines Zeitraums neu, ohne es zu
 // speichern. Der Entwurf ist immer der heutige Stand des Journals.
 func (b *BuchfinkBridge) GetVatReturn(periodKey string) (*domain.VatReturn, error) {
@@ -36,14 +27,6 @@ func (b *BuchfinkBridge) GetVatReturn(periodKey string) (*domain.VatReturn, erro
 func (b *BuchfinkBridge) SaveVatReturn(periodKey string) (*domain.VatReturn, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.VatReturn, error) {
 		return s.VatReturns.Save(ctx, periodKey)
-	})
-}
-
-// GetVatReturns liefert die gespeicherten Voranmeldungen eines Jahres.
-func (b *BuchfinkBridge) GetVatReturns(year int) ([]domain.VatReturn, error) {
-	year = b.yearOr(year)
-	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.VatReturn, error) {
-		return s.VatReturns.List(ctx, year)
 	})
 }
 
@@ -67,19 +50,6 @@ func (b *BuchfinkBridge) CreateVatCorrection(periodKey string) (*domain.VatRetur
 func (b *BuchfinkBridge) ExportVatReturnCSV(id uint) (string, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
 		return s.VatReturns.ExportCSV(ctx, id)
-	})
-}
-
-// GetSpecialPrepaymentSuggestion rechnet die Sondervorauszahlung aus den
-// übermittelten Voranmeldungen des Vorjahres (§ 47 Abs. 1 UStDV).
-//
-// Ein Vorschlag, kein Wert: angemeldet und gezahlt wird die Sondervorauszahlung
-// außerhalb von Buchfink, und in den Einstellungen steht, was der Anwender
-// angemeldet hat.
-func (b *BuchfinkBridge) GetSpecialPrepaymentSuggestion(year int) (*service.SpecialPrepaymentSuggestion, error) {
-	year = b.yearOr(year)
-	return read(b, func(ctx context.Context, s *core.Services) (*service.SpecialPrepaymentSuggestion, error) {
-		return s.VatReturns.SuggestedSpecialPrepayment(ctx, year)
 	})
 }
 
@@ -110,31 +80,9 @@ func (b *BuchfinkBridge) SaveZMReturn(periodKey string) (*domain.ZMReturn, error
 	})
 }
 
-// GetZMReturns liefert die gespeicherten Meldungen eines Jahres.
-func (b *BuchfinkBridge) GetZMReturns(year int) ([]domain.ZMReturn, error) {
-	year = b.yearOr(year)
-	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.ZMReturn, error) {
-		return s.ZM.List(ctx, year)
-	})
-}
-
 // ConfirmZMSubmitted bestätigt die Übermittlung an das Bundeszentralamt.
 func (b *BuchfinkBridge) ConfirmZMSubmitted(id uint, date, ticket, note string) (*domain.ZMReturn, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
 		return s.ZM.ConfirmSubmitted(ctx, id, date, ticket, note)
 	}, core.AppOnly())
-}
-
-// CreateZMCorrection legt eine berichtigte Zusammenfassende Meldung an.
-func (b *BuchfinkBridge) CreateZMCorrection(periodKey string) (*domain.ZMReturn, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
-		return s.ZM.CreateCorrection(ctx, periodKey)
-	})
-}
-
-// ExportZMCSV liefert die Meldung im Spaltenformat des BZSt-Online-Portals.
-func (b *BuchfinkBridge) ExportZMCSV(id uint) (string, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		return s.ZM.ExportCSV(ctx, id)
-	})
 }

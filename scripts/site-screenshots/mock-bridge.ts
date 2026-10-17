@@ -3590,24 +3590,18 @@ export const bridge = {
   // Kontierung
   GetPostingGroups: () => later(POSTING_GROUPS),
   GetTaxTreatments: () => later(TAX_TREATMENTS),
-  GetDifferenceKinds: () => later(DIFFERENCE_KINDS),
 
   // Journal
   GetJournalEntries: () => later(ENTRIES),
   GetAllJournalEntries: () => later(ENTRIES),
   PostIncomingReceipt: unsupported('PostIncomingReceipt'),
-  ReverseJournalEntry: unsupported('ReverseJournalEntry'),
   VerifyIntegrity: () => later(INTEGRITY, 400),
-  GetFinancialSummary: () => later(SUMMARY),
 
   // Belege
   SelectReceiptFilesDialog: () => later([]),
   FileIncomingReceipt: unsupported('FileIncomingReceipt'),
-  AddReceiptFile: unsupported('AddReceiptFile'),
-  RemoveReceiptFile: unsupported('RemoveReceiptFile'),
   GetReceipts: (status: string) =>
     later(status ? RECEIPTS.filter((r) => r.status === status) : RECEIPTS),
-  DiscardReceipt: unsupported('DiscardReceipt'),
   GetReceiptPreview: (receiptId: number) =>
     later({
       dataUrl: receiptPreview(),
@@ -3615,7 +3609,6 @@ export const bridge = {
       mimeType: 'image/png',
       intact: true,
     }),
-  ExtractStructuredPart: unsupported('ExtractStructuredPart'),
   ProposeFromEInvoice: (receiptId: number) => later(proposalFor(receiptId)),
   GetEInvoiceRules: () => later(['BR-1', 'BR-2', 'BR-CO-10', 'BR-DE-1', 'BR-DE-15']),
   PreviewIncomingReceipt: (request: any) => later(previewIncoming(request), 120),
@@ -3624,8 +3617,6 @@ export const bridge = {
   // Bank & Zahlungen
   GetBankTransactions: () => later(BANK_TX),
   BookBankTransactionDirect: unsupported('BookBankTransactionDirect'),
-  IgnoreBankTransaction: unsupported('IgnoreBankTransaction'),
-  GetOpenItems: () => later(OPEN_ITEMS),
   SettlePayment: unsupported('SettlePayment'),
 
   // Kontakte & Rechnungen
@@ -3633,7 +3624,6 @@ export const bridge = {
   SaveContact: unsupported('SaveContact'),
   GetInvoices: () => later(INVOICES),
   IssueInvoice: unsupported('IssueInvoice'),
-  GenerateInvoiceZUGFeRD: unsupported('GenerateInvoiceZUGFeRD'),
   GetInvoiceDocument: (invoiceId: number) =>
     later({
       dataUrl: receiptPreview(),
@@ -3646,45 +3636,16 @@ export const bridge = {
   GetFixedAssets: (assetClass: string) =>
     later(assetClass ? ASSETS.filter((a) => a.class === assetClass) : ASSETS),
   GetFixedAsset: (id: number) => later(assetDetail(id)),
-  SaveFixedAsset: unsupported('SaveFixedAsset'),
-  RecordAssetCostAdjustment: unsupported('RecordAssetCostAdjustment'),
-  GetAssetAccounts: (assetClass: string) =>
-    later(assetClass ? ASSET_ACCOUNTS.filter((a) => a.class === assetClass) : ASSET_ACCOUNTS),
-  GetAssetRules: () => later(ASSET_RULES),
-  ClassifyAcquisition: (netCost: number, _date: string, selfUsable: boolean) =>
-    later(classifyAcquisition(netCost, selfUsable)),
-  PreviewDepreciationPlan: (request: any) => later(previewPlan(request), 60),
-  GetDepreciationRun: () => later(DEPRECIATION_RUN),
-  BookDepreciationRun: unsupported('BookDepreciationRun'),
-  BookAssetImpairment: unsupported('BookAssetImpairment'),
-  BookAssetWriteUp: unsupported('BookAssetWriteUp'),
-  TransferFixedAsset: unsupported('TransferFixedAsset'),
-  PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
-  BookAssetIncome: unsupported('BookAssetIncome'),
-  ValuateAssetCurrency: (request: any) => later(currencyValuation(request), 60),
-  BookAssetCurrencyValuation: unsupported('BookAssetCurrencyValuation'),
-  GetLegalForms: () => later(LEGAL_FORMS),
-  GetInvestmentRules: () => later(INVESTMENT_RULES),
-  ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
-  DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
-  GetSammelposten: (fiscalYear: number) =>
-    later(ASSETS.find((a) => a.method === 'pool' && a.poolYear === (fiscalYear || YEAR)) ?? null),
 
   // Nachgereichte Auskünfte, die eine Ansicht auf dem Weg von der Bilanz zum
   // Beleg nebenbei holt. Ohne sie bräche die Belegliste ab: sie lädt Belege,
   // Kontakte und Kontierung in einem Zug.
   GetFiscalYears: () => later(FISCAL_YEARS),
   GetSelectableContacts: () => later(CONTACTS),
-  GetSuSaOverviewAt: () => later(susa()),
-  GetOpenItemsAging: unsupported('GetOpenItemsAging'),
   GetPaymentAllocations: () => later([]),
   GetProvisions: (year: number) => later(closings.provisions(year || YEAR)),
-  GetAdvanceTargets: () => later([]),
-  GetOpenAdvances: () => later([]),
-  GetOpenVendorAdvances: () => later([]),
-  ExportJournalCSV: unsupported('ExportJournalCSV'),
 
   // Jahresabschluss: Bilanz, GuV, Anhang, Größenklasse
   GetStatement: () => later(STATEMENT, 80),
@@ -3696,10 +3657,8 @@ export const bridge = {
   // Rechnungsseite in einem Zug, und die Maske bliebe ohne Kunden.
   GetUnitCodes: () => later(UNIT_CODES),
   GetEInvoiceProfiles: () => later(EINVOICE_PROFILES),
-  GetInvoiceSentViaOptions: () => later(SENT_VIA_OPTIONS),
   GetNumberGapReasons: () => later(NUMBER_GAP_REASONS),
   GetInvoiceNumberGaps: () => later({ fiscalYear: YEAR, issued: 19, used: 19, gaps: [] }),
-
 
   // Umsatzsteuer: das Kennziffernblatt, das der Monatsabschluss zeigt.
   // Geschrieben wird hier nichts — Bestätigung und Berichtigung sind Vorgänge
@@ -3715,10 +3674,6 @@ export const bridge = {
   SuggestBankMatches: (bankTxId: number) => later(bankSuggestions(bankTxId), 60),
   GetBankRules: () => later(BANK_RULES),
   DeleteBankRule: unsupported('DeleteBankRule'),
-  GetAuditTrail: (receiptId: number) => later(auditTrail(receiptId), 60),
-  ExportAuditTrail: unsupported('ExportAuditTrail'),
-  SaveServiceProof: unsupported('SaveServiceProof'),
-  GetPaymentTermNotice: (dueDays: number) => later(paymentTermNotice(dueDays)),
 
   // Übersicht
   GetNextObligations: (limit: number) =>
@@ -3750,18 +3705,14 @@ export const bridge = {
     }),
 
   // Welle 5b bis 7: Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten
-  GetVatPeriods: () => later(vatPeriods()),
-  GetVatReturns: () => later(savedVatReturns()),
   GetZMPeriods: () => later(zmPeriods()),
   GetZMReturn: (periodKey: string) => later(zmReturnFor(periodKey), 60),
-  GetZMReturns: () => later([]),
   GetCheckRuns: () => later(CHECK_RUNS),
   GetEBilanzMappingReport: (year: number) => later(mappingReport(year), 80),
   GetOpenItemsAt: () => later(OPEN_ITEMS),
   GetClosingState: (year: number) => later(closingState(year), 60),
   GetClosingSteps: (year: number) => later(closingSteps(year), 60),
   GetCarryForwardPreview: (toYear: number) => later(carryForwardPreview(toYear), 60),
-  GetInvoiceGroups: () => later(INVOICE_GROUPS),
   GetInputTaxCorrections: (year: number) => later(inputTaxCorrections(year), 60),
   GetDeadlines: () => later([...DEADLINES, ...COMPANY_DEADLINES], 60),
   GetObligations: (year: number) => later(obligationsOf(year || YEAR), 60),
@@ -3792,63 +3743,31 @@ export const bridge = {
   // Vorgänge mit Folgen — Schreiben, Dialoge, Übermittlungen. In der
   // Vorschau steht dafür eine Antwort und kein Loch (siehe README).
   RegenerateInvoiceDocument: unsupported('RegenerateInvoiceDocument'),
-  CancelInvoiceWithDocument: unsupported('CancelInvoiceWithDocument'),
-  CorrectInvoice: unsupported('CorrectInvoice'),
-  MarkInvoiceSent: unsupported('MarkInvoiceSent'),
   RecordInvoiceNumberGapReason: unsupported('RecordInvoiceNumberGapReason'),
-  CreateInvoiceGroup: unsupported('CreateInvoiceGroup'),
-  IssueAdvanceInvoice: unsupported('IssueAdvanceInvoice'),
   SettleAdvance: unsupported('SettleAdvance'),
-  RefundAdvance: unsupported('RefundAdvance'),
-  IssueFinalInvoice: unsupported('IssueFinalInvoice'),
-  WriteOffOpenItem: unsupported('WriteOffOpenItem'),
   SetAverageEmployees: unsupported('SetAverageEmployees'),
-  SetPriorYearRevenue: unsupported('SetPriorYearRevenue'),
   CreateFiscalYear: unsupported('CreateFiscalYear'),
   CarryForward: unsupported('CarryForward'),
   SetFiscalYearStatus: unsupported('SetFiscalYearStatus'),
   ReopenFiscalYear: unsupported('ReopenFiscalYear'),
   SkipClosingStep: unsupported('SkipClosingStep'),
   ReopenClosingStep: unsupported('ReopenClosingStep'),
-  MarkClosingStepDone: unsupported('MarkClosingStepDone'),
-  ProposeAccruals: unsupported('ProposeAccruals'),
-  PreviewAccrual: unsupported('PreviewAccrual'),
-  BookAccrual: unsupported('BookAccrual'),
   GetAccruals: (year: number) => later(closings.accruals(year || YEAR)),
-  GetAccrualReport: unsupported('GetAccrualReport'),
-  PreviewProvision: unsupported('PreviewProvision'),
-  BookProvisionFormation: unsupported('BookProvisionFormation'),
-  BookProvisionIncrease: unsupported('BookProvisionIncrease'),
-  BookProvisionRelease: unsupported('BookProvisionRelease'),
-  BookProvisionConsumption: unsupported('BookProvisionConsumption'),
-  BookProvisionUnwinding: unsupported('BookProvisionUnwinding'),
-  SettleProvision: unsupported('SettleProvision'),
   GetProvisionMirror: (year: number) => later(closings.provisionMirror(year || YEAR)),
-  GetDiscountRates: unsupported('GetDiscountRates'),
-  GetDiscountRateMonths: unsupported('GetDiscountRateMonths'),
-  SaveDiscountRates: unsupported('SaveDiscountRates'),
-  ImportDiscountRatesCSV: unsupported('ImportDiscountRatesCSV'),
 
   PreviewVatSettlement: (year: number) => later(closings.vatSettlement(year || YEAR)),
-  BookVatSettlement: unsupported('BookVatSettlement'),
   PreviewTaxProvision: (year: number) => later(closings.taxProvision(year || YEAR)),
-  BookTaxProvision: unsupported('BookTaxProvision'),
   PreviewAppropriation: unsupported('PreviewAppropriation'),
   BookAppropriation: unsupported('BookAppropriation'),
   GetAppropriation: (year: number) => later(closings.appropriation(year || YEAR - 1)),
   GetNotesTexts: () => later(closings.notesTexts()),
-  SaveNotesText: unsupported('SaveNotesText'),
   GetClosingSettings: () => later(CLOSING_SETTINGS),
   SaveClosingSettings: unsupported('SaveClosingSettings'),
   GetTaxElectionRegister: (year: number) => later(closings.taxElectionRegister(year || YEAR)),
-  ExportTaxElectionRegisterCSV: unsupported('ExportTaxElectionRegisterCSV'),
   GetReconciliation: (year: number) => later(closings.reconciliation(year || YEAR)),
   CreateVatCorrection: unsupported('CreateVatCorrection'),
-  GetSpecialPrepaymentSuggestion: unsupported('GetSpecialPrepaymentSuggestion'),
   SaveZMReturn: unsupported('SaveZMReturn'),
   ConfirmZMSubmitted: unsupported('ConfirmZMSubmitted'),
-  CreateZMCorrection: unsupported('CreateZMCorrection'),
-  ExportZMCSV: unsupported('ExportZMCSV'),
   RunChecks: (cutoff: string, periodType: string) => later(closings.checkRun(cutoff, periodType), 120),
   SetDeclarationInput: unsupported('SetDeclarationInput'),
   ConfirmDeclarationInput: unsupported('ConfirmDeclarationInput'),
@@ -3858,7 +3777,6 @@ export const bridge = {
   MarkDeadlineDone: unsupported('MarkDeadlineDone'),
   SaveFoundation: unsupported('SaveFoundation'),
   GetFoundationRules: () => later(FOUNDATION_RULES),
-  GetRecommendedVatPeriod: unsupported('GetRecommendedVatPeriod'),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),
   ExportAuditPackage: unsupported('ExportAuditPackage'),
@@ -3874,27 +3792,10 @@ export const bridge = {
   RestoreFromBackup: unsupported('RestoreFromBackup'),
   SelectBackupDirDialog: unsupported('SelectBackupDirDialog'),
   SelectBackupFileDialog: unsupported('SelectBackupFileDialog'),
-  RegisterInputTaxCorrection: unsupported('RegisterInputTaxCorrection'),
-  CloseInputTaxCorrection: unsupported('CloseInputTaxCorrection'),
-  SaveInputTaxUsage: unsupported('SaveInputTaxUsage'),
-  BookInputTaxCorrection: unsupported('BookInputTaxCorrection'),
-  GetVatIDChecks: unsupported('GetVatIDChecks'),
   GetVatIDStatus: (contactId: number) => later({ ...VAT_ID_STATUS, contactId }),
-  CheckVatID: unsupported('CheckVatID'),
   GetNonDeductibleReport: (year: number) => later(closings.nonDeductibleReport(year || YEAR)),
-  RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
-  GetExchangeRate: unsupported('GetExchangeRate'),
-  GetExchangeRates: unsupported('GetExchangeRates'),
-  SaveExchangeRate: unsupported('SaveExchangeRate'),
-  GetVatExchangeRates: unsupported('GetVatExchangeRates'),
-  ImportVatExchangeRatesCSV: unsupported('ImportVatExchangeRatesCSV'),
   PreviewCurrencyValuation: (year: number) => later(closings.currencyValuation(year || YEAR)),
-  BookCurrencyValuation: unsupported('BookCurrencyValuation'),
-  GetAfaRules: unsupported('GetAfaRules'),
   GetWriteUpReport: (year: number) => later(closings.writeUpReport(year || YEAR)),
-  ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
-  GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
-  GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
   GetSchemaMigrations: () => later(SCHEMA_MIGRATIONS),
   GetMigrationRecords: () => later([]),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
@@ -3903,10 +3804,6 @@ export const bridge = {
   SaveProcedureDocumentationAs: unsupported('SaveProcedureDocumentationAs'),
   OpenReleasesPage: unsupported('OpenReleasesPage'),
   BlockContact: unsupported('BlockContact'),
-  SaveReceiptHeader: unsupported('SaveReceiptHeader'),
-  CorrectEntry: unsupported('CorrectEntry'),
-  PreviewOpeningBalance: unsupported('PreviewOpeningBalance'),
-  BookOpeningBalance: unsupported('BookOpeningBalance'),
   EnableReadOnly: unsupported('EnableReadOnly'),
   DisableReadOnly: unsupported('DisableReadOnly'),
 
@@ -3916,18 +3813,10 @@ export const bridge = {
   // mit Folgen und stehen deshalb als „nicht verfügbar" da.
   GetRetentionRules: () => later(RETENTION_RULES),
   GetVatPeriodProposal: (year: number) => later(vatPeriodProposal(year)),
-  GetCustomAccounts: () => later(CUSTOM_ACCOUNTS),
-  GetStatementPositions: () => later(STATEMENT_POSITIONS),
   GetEntriesForReceipt: (receiptId: number) =>
     later(ENTRIES.filter((e: any) => e.receiptId === receiptId)),
-  GetReceiptFindings: (receiptId: number) => later(receiptFindings(receiptId)),
   GetFilteredJournal: (filter: any) => later(filteredJournal(filter)),
   SaveFilteredJournalCSV: unsupported('SaveFilteredJournalCSV'),
-  PostManualEntry: unsupported('PostManualEntry'),
-  CreateSelfIssuedReceipt: unsupported('CreateSelfIssuedReceipt'),
-  OverrideReceiptRetention: unsupported('OverrideReceiptRetention'),
-  CreateCustomAccount: unsupported('CreateCustomAccount'),
-  SetAccountBlocked: unsupported('SetAccountBlocked'),
 };
 
 // -------------------------------------------------------------------------

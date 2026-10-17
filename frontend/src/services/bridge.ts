@@ -62,28 +62,19 @@ export const bridge = {
   // Kontierung
   GetPostingGroups: <T>(direction: string) => invoke<T>('GetPostingGroups', direction),
   GetTaxTreatments: <T>(direction: string) => invoke<T>('GetTaxTreatments', direction),
-  GetDifferenceKinds: <T>() => invoke<T>('GetDifferenceKinds'),
 
   // Journal
   GetJournalEntries: <T>() => invoke<T>('GetJournalEntries'),
   GetAllJournalEntries: <T>() => invoke<T>('GetAllJournalEntries'),
   PostIncomingReceipt: <T>(request: unknown) => invoke<T>('PostIncomingReceipt', request),
-  ReverseJournalEntry: <T>(entryId: number, reason: string) =>
-    invoke<T>('ReverseJournalEntry', entryId, reason),
   VerifyIntegrity: <T>() => invoke<T>('VerifyIntegrity'),
-  GetFinancialSummary: <T>() => invoke<T>('GetFinancialSummary'),
 
   // Belege
   SelectReceiptFilesDialog: (title: string) => invoke<string[]>('SelectReceiptFilesDialog', title),
   FileIncomingReceipt: <T>(receivedAt: string, receivedVia: string, files: unknown[]) =>
     invoke<T>('FileIncomingReceipt', receivedAt, receivedVia, files),
-  AddReceiptFile: <T>(receiptId: number, file: unknown) => invoke<T>('AddReceiptFile', receiptId, file),
-  RemoveReceiptFile: <T>(receiptId: number, fileId: number) =>
-    invoke<T>('RemoveReceiptFile', receiptId, fileId),
   GetReceipts: <T>(status: string) => invoke<T>('GetReceipts', status),
-  DiscardReceipt: (id: number, reason: string) => invoke<void>('DiscardReceipt', id, reason),
   GetReceiptPreview: <T>(receiptId: number) => invoke<T>('GetReceiptPreview', receiptId),
-  ExtractStructuredPart: <T>(receiptId: number) => invoke<T>('ExtractStructuredPart', receiptId),
   ProposeFromEInvoice: <T>(receiptId: number) => invoke<T>('ProposeFromEInvoice', receiptId),
   GetEInvoiceRules: () => invoke<string[]>('GetEInvoiceRules'),
   PreviewIncomingReceipt: <T>(request: unknown) => invoke<T>('PreviewIncomingReceipt', request),
@@ -93,8 +84,6 @@ export const bridge = {
   GetBankTransactions: <T>() => invoke<T>('GetBankTransactions'),
   BookBankTransactionDirect: <T>(bankTxId: number, counterAccount: string, description: string) =>
     invoke<T>('BookBankTransactionDirect', bankTxId, counterAccount, description),
-  IgnoreBankTransaction: (bankTxId: number) => invoke<void>('IgnoreBankTransaction', bankTxId),
-  GetOpenItems: <T>() => invoke<T>('GetOpenItems'),
   SettlePayment: <T>(request: unknown) => invoke<T>('SettlePayment', request),
 
   // Kontakte & Rechnungen
@@ -102,18 +91,11 @@ export const bridge = {
   SaveContact: <T>(contact: unknown) => invoke<T>('SaveContact', contact),
   GetInvoices: <T>() => invoke<T>('GetInvoices'),
   IssueInvoice: <T>(invoice: unknown) => invoke<T>('IssueInvoice', invoice),
-  GenerateInvoiceZUGFeRD: <T>(invoiceId: number) => invoke<T>('GenerateInvoiceZUGFeRD', invoiceId),
   GetInvoiceDocument: <T>(invoiceId: number) => invoke<T>('GetInvoiceDocument', invoiceId),
 
   // Korrektur, Storno, Versand und Nummernkreis der Ausgangsrechnungen
   RegenerateInvoiceDocument: <T>(invoiceId: number) =>
     invoke<T>('RegenerateInvoiceDocument', invoiceId),
-  CancelInvoiceWithDocument: <T>(invoiceId: number, reason: string) =>
-    invoke<T>('CancelInvoiceWithDocument', invoiceId, reason),
-  CorrectInvoice: <T>(invoiceId: number, reason: string, replacement: unknown) =>
-    invoke<T>('CorrectInvoice', invoiceId, reason, replacement),
-  MarkInvoiceSent: <T>(invoiceId: number, date: string, via: string, note: string) =>
-    invoke<T>('MarkInvoiceSent', invoiceId, date, via, note),
   GetInvoiceNumberGaps: <T>(year: number) => invoke<T>('GetInvoiceNumberGaps', year),
   RecordInvoiceNumberGapReason: (
     year: number,
@@ -123,48 +105,16 @@ export const bridge = {
   ) => invoke<void>('RecordInvoiceNumberGapReason', year, sequence, reason, detail),
   GetUnitCodes: <T>() => invoke<T>('GetUnitCodes'),
   GetEInvoiceProfiles: <T>() => invoke<T>('GetEInvoiceProfiles'),
-  GetInvoiceSentViaOptions: <T>() => invoke<T>('GetInvoiceSentViaOptions'),
   GetNumberGapReasons: <T>() => invoke<T>('GetNumberGapReasons'),
 
-  // Anzahlungen: Rechnungsverbund, Abschlag, Schlussrechnung, Ausbuchung
-  GetInvoiceGroups: <T>() => invoke<T>('GetInvoiceGroups'),
-  CreateInvoiceGroup: <T>(request: unknown) => invoke<T>('CreateInvoiceGroup', request),
-  IssueAdvanceInvoice: <T>(request: unknown) => invoke<T>('IssueAdvanceInvoice', request),
+  // Anzahlungen
   SettleAdvance: <T>(request: unknown) => invoke<T>('SettleAdvance', request),
-  RefundAdvance: <T>(request: unknown) => invoke<T>('RefundAdvance', request),
-  IssueFinalInvoice: <T>(request: unknown) => invoke<T>('IssueFinalInvoice', request),
-  GetOpenAdvances: <T>() => invoke<T>('GetOpenAdvances'),
-  GetAdvanceTargets: <T>() => invoke<T>('GetAdvanceTargets'),
-  GetOpenVendorAdvances: <T>(contactId: number) => invoke<T>('GetOpenVendorAdvances', contactId),
-  WriteOffOpenItem: <T>(request: unknown) => invoke<T>('WriteOffOpenItem', request),
 
   // Anlagevermögen
   GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),
   GetFixedAsset: <T>(id: number) => invoke<T>('GetFixedAsset', id),
-  SaveFixedAsset: <T>(asset: unknown) => invoke<T>('SaveFixedAsset', asset),
-  RecordAssetCostAdjustment: <T>(request: unknown) => invoke<T>('RecordAssetCostAdjustment', request),
-  GetAssetAccounts: <T>(assetClass: string) => invoke<T>('GetAssetAccounts', assetClass),
-  GetAssetRules: <T>() => invoke<T>('GetAssetRules'),
-  ClassifyAcquisition: <T>(netCost: number, date: string, selfUsable: boolean) =>
-    invoke<T>('ClassifyAcquisition', netCost, date, selfUsable),
-  PreviewDepreciationPlan: <T>(request: unknown) => invoke<T>('PreviewDepreciationPlan', request),
-  GetDepreciationRun: <T>() => invoke<T>('GetDepreciationRun'),
-  BookDepreciationRun: <T>(request: unknown) => invoke<T>('BookDepreciationRun', request),
-  BookAssetImpairment: <T>(request: unknown) => invoke<T>('BookAssetImpairment', request),
-  BookAssetWriteUp: <T>(request: unknown) => invoke<T>('BookAssetWriteUp', request),
-  BookAssetIncome: <T>(request: unknown) => invoke<T>('BookAssetIncome', request),
-  ValuateAssetCurrency: <T>(request: unknown) => invoke<T>('ValuateAssetCurrency', request),
-  BookAssetCurrencyValuation: <T>(request: unknown) =>
-    invoke<T>('BookAssetCurrencyValuation', request),
-  GetLegalForms: <T>() => invoke<T>('GetLegalForms'),
-  GetInvestmentRules: <T>() => invoke<T>('GetInvestmentRules'),
-  ComputeVorabpauschale: <T>(request: unknown) => invoke<T>('ComputeVorabpauschale', request),
-  TransferFixedAsset: <T>(request: unknown) => invoke<T>('TransferFixedAsset', request),
-  PreviewAssetDisposal: <T>(request: unknown) => invoke<T>('PreviewAssetDisposal', request),
-  DisposeFixedAsset: <T>(request: unknown) => invoke<T>('DisposeFixedAsset', request),
   GetAnlagenspiegel: <T>() => invoke<T>('GetAnlagenspiegel'),
   GetAssetAcquisitionCandidates: <T>() => invoke<T>('GetAssetAcquisitionCandidates'),
-  GetSammelposten: <T>(fiscalYear: number) => invoke<T>('GetSammelposten', fiscalYear),
 
   // Bilanz und Gewinn- und Verlustrechnung
   GetStatement: <T>(year: number, depth: string) => invoke<T>('GetStatement', year, depth),
@@ -173,8 +123,6 @@ export const bridge = {
   ExportStatementCSV: (year: number) => invoke<string>('ExportStatementCSV', year),
   SetAverageEmployees: <T>(year: number, count: number) =>
     invoke<T>('SetAverageEmployees', year, count),
-  SetPriorYearRevenue: <T>(year: number, amount: number) =>
-    invoke<T>('SetPriorYearRevenue', year, amount),
 
   // E-Bilanz, Audit & Festschreibung
   SaveEBilanzXBRLAs: (year: number) => invoke<string>('SaveEBilanzXBRLAs', year),
@@ -200,42 +148,20 @@ export const bridge = {
     invoke<T>('SetFiscalYearStatus', year, status, date, note),
   ReopenFiscalYear: <T>(year: number, reason: string) => invoke<T>('ReopenFiscalYear', year, reason),
 
-  // Abschlussbausteine: Schritte, Abgrenzung, Rückstellungen, Vorräte,
-  // Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang
+  // Abschlussbausteine
   GetClosingSteps: <T>(year: number) => invoke<T>('GetClosingSteps', year),
   SkipClosingStep: <T>(year: number, key: string, reason: string) =>
     invoke<T>('SkipClosingStep', year, key, reason),
   ReopenClosingStep: <T>(year: number, key: string, reason: string) =>
     invoke<T>('ReopenClosingStep', year, key, reason),
-  MarkClosingStepDone: <T>(year: number, key: string) =>
-    invoke<T>('MarkClosingStepDone', year, key),
 
-  ProposeAccruals: <T>(year: number) => invoke<T>('ProposeAccruals', year),
-  PreviewAccrual: <T>(request: unknown) => invoke<T>('PreviewAccrual', request),
-  BookAccrual: <T>(request: unknown) => invoke<T>('BookAccrual', request),
   GetAccruals: <T>(year: number) => invoke<T>('GetAccruals', year),
-  GetAccrualReport: <T>(cutoff: string) => invoke<T>('GetAccrualReport', cutoff),
 
   GetProvisions: <T>(year: number) => invoke<T>('GetProvisions', year),
-  PreviewProvision: <T>(request: unknown) => invoke<T>('PreviewProvision', request),
-  BookProvisionFormation: <T>(request: unknown) => invoke<T>('BookProvisionFormation', request),
-  BookProvisionIncrease: <T>(request: unknown) => invoke<T>('BookProvisionIncrease', request),
-  BookProvisionRelease: <T>(request: unknown) => invoke<T>('BookProvisionRelease', request),
-  BookProvisionConsumption: <T>(request: unknown) => invoke<T>('BookProvisionConsumption', request),
-  BookProvisionUnwinding: <T>(request: unknown) => invoke<T>('BookProvisionUnwinding', request),
-  SettleProvision: <T>(provisionId: number, date: string, reason: string) =>
-    invoke<T>('SettleProvision', provisionId, date, reason),
   GetProvisionMirror: <T>(year: number) => invoke<T>('GetProvisionMirror', year),
-  GetDiscountRates: <T>(month: string) => invoke<T>('GetDiscountRates', month),
-  GetDiscountRateMonths: () => invoke<string[]>('GetDiscountRateMonths'),
-  SaveDiscountRates: (rows: unknown[]) => invoke<void>('SaveDiscountRates', rows),
-  ImportDiscountRatesCSV: (path: string, month: string, average: number) =>
-    invoke<number>('ImportDiscountRatesCSV', path, month, average),
 
   PreviewVatSettlement: <T>(year: number) => invoke<T>('PreviewVatSettlement', year),
-  BookVatSettlement: <T>(year: number) => invoke<T>('BookVatSettlement', year),
   PreviewTaxProvision: <T>(year: number) => invoke<T>('PreviewTaxProvision', year),
-  BookTaxProvision: <T>(request: unknown) => invoke<T>('BookTaxProvision', request),
 
   PreviewAppropriation: <T>(year: number, request: unknown) =>
     invoke<T>('PreviewAppropriation', year, request),
@@ -244,38 +170,27 @@ export const bridge = {
   GetAppropriation: <T>(year: number) => invoke<T>('GetAppropriation', year),
 
   GetNotesTexts: <T>(year: number) => invoke<T>('GetNotesTexts', year),
-  SaveNotesText: <T>(year: number, section: string, text: string) =>
-    invoke<T>('SaveNotesText', year, section, text),
 
   GetClosingSettings: <T>() => invoke<T>('GetClosingSettings'),
   SaveClosingSettings: <T>(settings: unknown) => invoke<T>('SaveClosingSettings', settings),
 
   GetTaxElectionRegister: <T>(year: number) => invoke<T>('GetTaxElectionRegister', year),
-  ExportTaxElectionRegisterCSV: (year: number) =>
-    invoke<string>('ExportTaxElectionRegisterCSV', year),
   GetReconciliation: <T>(year: number) => invoke<T>('GetReconciliation', year),
 
   // Umsatzsteuer-Voranmeldung
-  GetVatPeriods: <T>(year: number) => invoke<T>('GetVatPeriods', year),
   GetVatReturn: <T>(periodKey: string) => invoke<T>('GetVatReturn', periodKey),
   SaveVatReturn: <T>(periodKey: string) => invoke<T>('SaveVatReturn', periodKey),
-  GetVatReturns: <T>(year: number) => invoke<T>('GetVatReturns', year),
   ConfirmVatReturnSubmitted: <T>(id: number, date: string, ticket: string, note: string) =>
     invoke<T>('ConfirmVatReturnSubmitted', id, date, ticket, note),
   CreateVatCorrection: <T>(periodKey: string) => invoke<T>('CreateVatCorrection', periodKey),
   ExportVatReturnCSV: (id: number) => invoke<string>('ExportVatReturnCSV', id),
-  GetSpecialPrepaymentSuggestion: <T>(year: number) =>
-    invoke<T>('GetSpecialPrepaymentSuggestion', year),
 
   // Zusammenfassende Meldung
   GetZMPeriods: <T>(year: number) => invoke<T>('GetZMPeriods', year),
   GetZMReturn: <T>(periodKey: string) => invoke<T>('GetZMReturn', periodKey),
   SaveZMReturn: <T>(periodKey: string) => invoke<T>('SaveZMReturn', periodKey),
-  GetZMReturns: <T>(year: number) => invoke<T>('GetZMReturns', year),
   ConfirmZMSubmitted: <T>(id: number, date: string, ticket: string, note: string) =>
     invoke<T>('ConfirmZMSubmitted', id, date, ticket, note),
-  CreateZMCorrection: <T>(periodKey: string) => invoke<T>('CreateZMCorrection', periodKey),
-  ExportZMCSV: (id: number) => invoke<string>('ExportZMCSV', id),
 
   // Prüfläufe und Fristen
   RunChecks: <T>(cutoffDate: string, periodType: string) =>
@@ -302,15 +217,12 @@ export const bridge = {
   SaveFoundation: <T>(foundation: unknown) => invoke<T>('SaveFoundation', foundation),
   GetFoundationRules: <T>() => invoke<T>('GetFoundationRules'),
   GetCountries: <T>() => invoke<T>('GetCountries'),
-  GetRecommendedVatPeriod: <T>(foundingYear: number) =>
-    invoke<T>('GetRecommendedVatPeriod', foundingYear),
 
   // Datenüberlassung nach § 147 Abs. 6 AO
   ExportZ3: <T>(year: number, targetDir: string) => invoke<T>('ExportZ3', year, targetDir),
   ExportArchive: <T>(year: number, targetDir: string) => invoke<T>('ExportArchive', year, targetDir),
   ExportAuditPackage: <T>(year: number, targetDir: string) =>
     invoke<T>('ExportAuditPackage', year, targetDir),
-  ExportJournalCSV: (from: string, to: string) => invoke<string>('ExportJournalCSV', from, to),
   SelectExportDirectoryDialog: (title: string) =>
     invoke<string>('SelectExportDirectoryDialog', title),
   SelectSaveFileDialog: (title: string, suggestedName: string) =>
@@ -322,7 +234,6 @@ export const bridge = {
   VerifyReceiptFiles: <T>() => invoke<T>('VerifyReceiptFiles'),
 
   // Stichtagsauswertungen
-  GetSuSaOverviewAt: <T>(cutoff: string) => invoke<T>('GetSuSaOverviewAt', cutoff),
   GetOpenItemsAt: <T>(cutoff: string) => invoke<T>('GetOpenItemsAt', cutoff),
   GetPaymentAllocations: <T>(entryId: number) => invoke<T>('GetPaymentAllocations', entryId),
 
@@ -343,42 +254,18 @@ export const bridge = {
 
   // Steuerliche Nebenpflichten: Vorsteuerberichtigung § 15a UStG
   GetInputTaxCorrections: <T>(year: number) => invoke<T>('GetInputTaxCorrections', year),
-  RegisterInputTaxCorrection: <T>(request: unknown) =>
-    invoke<T>('RegisterInputTaxCorrection', request),
-  CloseInputTaxCorrection: <T>(id: number, reason: string, date: string) =>
-    invoke<T>('CloseInputTaxCorrection', id, reason, date),
-  SaveInputTaxUsage: <T>(request: unknown) => invoke<T>('SaveInputTaxUsage', request),
-  BookInputTaxCorrection: <T>(year: number) => invoke<T>('BookInputTaxCorrection', year),
 
   // Bestätigung der USt-IdNr. (§ 18e UStG)
-  GetVatIDChecks: <T>(contactId: number) => invoke<T>('GetVatIDChecks', contactId),
   GetVatIDStatus: <T>(contactId: number) => invoke<T>('GetVatIDStatus', contactId),
-  CheckVatID: <T>(contactId: number) => invoke<T>('CheckVatID', contactId),
 
   // Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG)
   GetNonDeductibleReport: <T>(year: number) => invoke<T>('GetNonDeductibleReport', year),
-  RebookGiftsForRecipient: <T>(request: unknown) => invoke<T>('RebookGiftsForRecipient', request),
 
-  // Fremdwährung: Tageskurse, Umsatzsteuerkurse, Stichtagsbewertung
-  GetExchangeRate: <T>(currency: string, date: string) =>
-    invoke<T>('GetExchangeRate', currency, date),
-  GetExchangeRates: <T>(currency: string, from: string, to: string) =>
-    invoke<T>('GetExchangeRates', currency, from, to),
-  SaveExchangeRate: <T>(rate: unknown) => invoke<T>('SaveExchangeRate', rate),
-  GetVatExchangeRates: <T>(from: string, to: string) =>
-    invoke<T>('GetVatExchangeRates', from, to),
-  ImportVatExchangeRatesCSV: <T>(path: string) => invoke<T>('ImportVatExchangeRatesCSV', path),
+  // Fremdwährung: Stichtagsbewertung
   PreviewCurrencyValuation: <T>(year: number) => invoke<T>('PreviewCurrencyValuation', year),
-  BookCurrencyValuation: <T>(year: number) => invoke<T>('BookCurrencyValuation', year),
 
-  // Anlagen: Regelsätze, Wertaufholung, Sammelposten
-  GetAfaRules: <T>() => invoke<T>('GetAfaRules'),
+  // Anlagen: Wertaufholung
   GetWriteUpReport: <T>(year: number) => invoke<T>('GetWriteUpReport', year),
-  ConfirmImpairmentPersists: <T>(assetId: number, year: number, note: string) =>
-    invoke<T>('ConfirmImpairmentPersists', assetId, year, note),
-  GetPoolConsistencyReport: <T>(year: number) => invoke<T>('GetPoolConsistencyReport', year),
-  GetExemptionCertificateWarnings: <T>(today: string) =>
-    invoke<T>('GetExemptionCertificateWarnings', today),
 
   // Nachweise: Änderungsprotokoll, Versionen, Migrationen
   VerifyAuditChain: <T>() => invoke<T>('VerifyAuditChain'),
@@ -400,16 +287,9 @@ export const bridge = {
   SaveOrganisationTexts: (texts: unknown) => invoke<void>('SaveOrganisationTexts', texts),
   GetComplianceHints: <T>() => invoke<T>('GetComplianceHints'),
 
-  // Kontakte, Belege, Journal und offene Posten der Welle 6
+  // Kontakte
   BlockContact: <T>(id: number, reason: string) => invoke<T>('BlockContact', id, reason),
   GetSelectableContacts: <T>() => invoke<T>('GetSelectableContacts'),
-  SaveReceiptHeader: <T>(receiptId: number, header: unknown) =>
-    invoke<T>('SaveReceiptHeader', receiptId, header),
-  CorrectEntry: <T>(entryId: number, reason: string, newEntry: unknown) =>
-    invoke<T>('CorrectEntry', entryId, reason, newEntry),
-  PreviewOpeningBalance: <T>(request: unknown) => invoke<T>('PreviewOpeningBalance', request),
-  BookOpeningBalance: <T>(request: unknown) => invoke<T>('BookOpeningBalance', request),
-  GetOpenItemsAging: <T>(cutoff: string) => invoke<T>('GetOpenItemsAging', cutoff),
 
   // Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss,
   // Zuordnungsvorschlag und Prüfpfad. Die Reihenfolge der Argumente ist gegen
@@ -420,12 +300,6 @@ export const bridge = {
   SuggestBankMatches: <T>(bankTxId: number) => invoke<T>('SuggestBankMatches', bankTxId),
   GetBankRules: <T>() => invoke<T>('GetBankRules'),
   DeleteBankRule: (id: number) => invoke<void>('DeleteBankRule', id),
-  GetAuditTrail: <T>(receiptId: number) => invoke<T>('GetAuditTrail', receiptId),
-  ExportAuditTrail: (receiptId: number, format: string) =>
-    invoke<string>('ExportAuditTrail', receiptId, format),
-  SaveServiceProof: <T>(receiptId: number, text: string, date: string) =>
-    invoke<T>('SaveServiceProof', receiptId, text, date),
-  GetPaymentTermNotice: (dueDays: number) => invoke<string>('GetPaymentTermNotice', dueDays),
 
   // Übersicht (internal/wailsbridge/overview_service.go)
   GetNextObligations: <T>(limit: number) => invoke<T>('GetNextObligations', limit),
@@ -437,24 +311,12 @@ export const bridge = {
     invoke<T>('ReopenObligation', key, reason),
   GetAgentBookings: <T>(limit: number) => invoke<T>('GetAgentBookings', limit),
 
-  // Die Bedienung der Welle 8: Handbuchung mit Beleg, Eigenbeleg,
-  // Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter.
-  // Jede Signatur ist gegen internal/wailsbridge/welle8_service.go geprüft —
-  // Anzahl und Reihenfolge der Argumente —, weil `invoke` untypisiert ist und
-  // eine vertauschte Reihenfolge erst zur Laufzeit auffiele.
-  PostManualEntry: <T>(request: unknown) => invoke<T>('PostManualEntry', request),
-  CreateSelfIssuedReceipt: <T>(request: unknown) =>
-    invoke<T>('CreateSelfIssuedReceipt', request),
-  OverrideReceiptRetention: <T>(receiptId: number, retentionClass: string, reason: string) =>
-    invoke<T>('OverrideReceiptRetention', receiptId, retentionClass, reason),
+  // Belegverweis, Fristen, Journalfilter. Jede Signatur ist gegen
+  // internal/wailsbridge/welle8_service.go geprüft — Anzahl und Reihenfolge der
+  // Argumente —, weil `invoke` untypisiert ist und eine vertauschte Reihenfolge
+  // erst zur Laufzeit auffiele.
   GetRetentionRules: <T>() => invoke<T>('GetRetentionRules'),
   GetEntriesForReceipt: <T>(receiptId: number) => invoke<T>('GetEntriesForReceipt', receiptId),
-  GetReceiptFindings: <T>(receiptId: number) => invoke<T>('GetReceiptFindings', receiptId),
-  CreateCustomAccount: <T>(request: unknown) => invoke<T>('CreateCustomAccount', request),
-  SetAccountBlocked: <T>(number: string, blocked: boolean, reason: string) =>
-    invoke<T>('SetAccountBlocked', number, blocked, reason),
-  GetCustomAccounts: <T>() => invoke<T>('GetCustomAccounts'),
-  GetStatementPositions: <T>() => invoke<T>('GetStatementPositions'),
   GetVatPeriodProposal: <T>(year: number) => invoke<T>('GetVatPeriodProposal', year),
   GetFilteredJournal: <T>(filter: unknown) => invoke<T>('GetFilteredJournal', filter),
   SaveFilteredJournalCSV: (filter: unknown, path: string) =>

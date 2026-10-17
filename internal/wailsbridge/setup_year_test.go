@@ -13,7 +13,7 @@ func TestCreateTenantRespectsSelectedYear(t *testing.T) {
 	base := t.TempDir()
 	selected := time.Now().Year() - 1
 	b := newBridge(t)
-	_, err := b.CreateTenant("Vorjahrestest", filepath.Join(base, "company"), domain.CompanySettings{
+	_, err := b.createTenant("Vorjahrestest", filepath.Join(base, "company"), domain.CompanySettings{
 		CompanyName: "Vorjahrestest", FiscalYear: selected,
 	})
 	if err != nil {

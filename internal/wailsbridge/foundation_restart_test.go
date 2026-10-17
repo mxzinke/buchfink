@@ -16,7 +16,7 @@ func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	config := repository.NewAppConfigRepository(filepath.Join(base, "config"))
 	withConfig := func(o *core.HostOptions) { o.Config, o.BaseDir = config, base }
 	b := newBridge(t, withConfig)
-	if _, err := b.CreateTenant("August GmbH", filepath.Join(base, "company"), domain.CompanySettings{
+	if _, err := b.createTenant("August GmbH", filepath.Join(base, "company"), domain.CompanySettings{
 		CompanyName: "August GmbH", LegalForm: "GmbH", FiscalYear: 2026, VatPeriod: "unknown",
 	}); err != nil {
 		t.Fatal(err)
