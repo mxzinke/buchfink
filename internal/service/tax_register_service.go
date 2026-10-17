@@ -9,6 +9,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ebilanz"
 )
 
 // TaxRegisterService führt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und die
@@ -346,6 +347,115 @@ func (s *TaxRegisterService) Reconcile(ctx context.Context, year int) (*Reconcil
 				"lässt Rückstellungen für drohende Verluste aus schwebenden Geschäften nicht zu.",
 		})
 		out.EquityEffect += pendingLoss
+	}
+	return out, nil
+}
+
+// Adjustments liefert die Abweichungen der Steuerbilanz je Konto für die
+// Überleitungsrechnung der E-Bilanz (§ 5b Abs. 1 Satz 2 EStG): dieselben drei
+// Fälle wie Reconcile, am Stichtag des Jahres und des Vorjahres.
+func (s *TaxRegisterService) Adjustments(ctx context.Context, year int) ([]ebilanz.Adjustment, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	current, err := s.adjustmentsAt(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	// Ein Vorjahr, das es nicht gibt, hat keine Abweichung.
+	prior, _ := s.adjustmentsAt(ctx, year-1)
+	keys := map[string]bool{}
+	for key := range current {
+		keys[key] = true
+	}
+	for key := range prior {
+		keys[key] = true
+	}
+	out := make([]ebilanz.Adjustment, 0, len(keys))
+	for key := range keys {
+		adj := current[key]
+		if adj.Account == "" {
+			adj = prior[key]
+			adj.Current = 0
+		}
+		adj.Prior = prior[key].Current
+		if adj.Current != 0 || adj.Prior != 0 {
+			out = append(out, adj)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Account != out[j].Account {
+			return out[i].Account < out[j].Account
+		}
+		return out[i].Reason < out[j].Reason
+	})
+	return out, nil
+}
+
+// adjustmentsAt sind die Abweichungen am Ende eines Jahres als Sollsaldo
+// (steuerlich minus handelsrechtlich), je Anlass und Konto zusammengefasst.
+func (s *TaxRegisterService) adjustmentsAt(ctx context.Context, year int) (map[string]ebilanz.Adjustment, error) {
+	if year < 1 {
+		return nil, nil
+	}
+	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]ebilanz.Adjustment{}
+	add := func(reason, account, income string, diff domain.Cents) {
+		if diff == 0 || account == "" {
+			return
+		}
+		key := reason + "|" + account + "|" + income
+		adj := out[key]
+		adj.Reason, adj.Account, adj.IncomeAccount = reason, account, income
+		adj.Current += diff
+		out[key] = adj
+	}
+
+	register, err := s.Register(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if len(register.Rows) > 0 {
+		assets, err := s.assetRepo.FindAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+		byID := map[uint]*domain.FixedAsset{}
+		for i := range assets {
+			byID[assets[i].ID] = &assets[i]
+		}
+		for _, row := range register.Rows {
+			if asset := byID[row.AssetID]; asset != nil {
+				add("Sonderabschreibung § 7g Abs. 5 EStG", asset.Account, asset.SpecialAccount, row.TaxBookValue-row.BookValue)
+			}
+		}
+	}
+
+	stored, err := s.provisionRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provisions, err := liveProvisions(ctx, s.journalRepo, stored)
+	if err != nil {
+		return nil, err
+	}
+	for i := range provisions {
+		p := &provisions[i]
+		balance := p.BalanceAt(year)
+		if balance <= 0 {
+			continue
+		}
+		// Als Sollsaldo: eine niedrigere Rückstellung ist ein höheres
+		// steuerliches Vermögen.
+		if p.Kind == domain.ProvisionPendingLoss {
+			add("Drohverlustrückstellung § 5 Abs. 4a EStG", p.BalanceAccount, p.ExpenseAccount, balance)
+			continue
+		}
+		add("Abzinsung § 6 Abs. 1 Nr. 3a Buchst. e EStG", p.BalanceAccount, p.ExpenseAccount,
+			balance-s.taxValueOf(p, fy.EndDate, balance))
 	}
 	return out, nil
 }

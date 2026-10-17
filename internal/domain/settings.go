@@ -27,10 +27,19 @@ type CompanySettings struct {
 	VatID                 string `json:"vatId"`                // USt-IdNr.
 	TaxOffice             string `json:"taxOffice"`            // Finanzamt
 
+	// FederalState ist das Bundesland am Sitz als Kürzel („BY"). Es bestimmt
+	// die Feiertage für das Fristende (§ 108 Abs. 3 AO) und die
+	// ELSTER-Steuernummer.
+	FederalState string `json:"federalState"`
+	// TaxNumberElster ist die Steuernummer im 13-stelligen Bundesschema,
+	// abgeleitet aus TaxNumber und FederalState und nicht gespeichert.
+	TaxNumberElster string `json:"taxNumberElster"`
+
 	// Die Geschäftsanschrift in ihren Bestandteilen, wie EN 16931 sie verlangt
-	// (BT-35 bis BT-40). Street trägt Straße und Hausnummer oder ein Postfach,
-	// AddressAddition einen Zusatz wie „c/o" oder „Gebäude B".
+	// (BT-35 bis BT-40). Street trägt die Straße oder ein Postfach,
+	// HouseNumber die Hausnummer, AddressAddition einen Zusatz wie „c/o".
 	Street          string `json:"street"`
+	HouseNumber     string `json:"houseNumber"`
 	AddressAddition string `json:"addressAddition"`
 	PostalCode      string `json:"postalCode"`
 	City            string `json:"city"`
