@@ -15,8 +15,9 @@ Buchfink nur von dieser Seite.
 
 ### macOS
 
-1. Die Datei für macOS herunterladen und `buchfink.app` in den Ordner
-   „Programme“ ziehen.
+1. [buchfink-darwin-universal.zip][mac] herunterladen, entpacken und
+   `buchfink.app` in den Ordner „Programme“ ziehen. Die App läuft auf Apple
+   Silicon und Intel.
 2. Buchfink starten. macOS meldet, dass es die App nicht prüfen kann.
 3. Systemeinstellungen → Datenschutz & Sicherheit öffnen und bei der Meldung zu
    Buchfink „Dennoch öffnen“ wählen.
@@ -30,23 +31,34 @@ xattr -dr com.apple.quarantine /Applications/buchfink.app
 
 ### Windows
 
-1. Das Installationsprogramm für Windows herunterladen und starten.
+1. [buchfink-windows-amd64.exe][win] herunterladen, in einen Ordner Ihrer Wahl
+   legen und starten. Ein Installationsprogramm gibt es nicht.
 2. Windows SmartScreen meldet „Der Computer wurde durch Windows geschützt“.
    „Weitere Informationen“ und dann „Trotzdem ausführen“ wählen.
 
-Buchfink braucht die WebView2-Laufzeit. Windows 10 und 11 bringen sie mit; das
-Installationsprogramm lädt sie sonst nach.
+Buchfink braucht die WebView2-Laufzeit von Microsoft. Windows 11 bringt sie
+mit, unter Windows 10 kommt sie meist über Windows Update. Fehlt sie,
+installieren Sie die Evergreen-Laufzeit von der
+[WebView2-Seite von Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 ### Linux
 
-Das Paket für Ihre Distribution installieren, etwa unter Debian und Ubuntu:
+[buchfink-linux-amd64.tar.gz][linux] herunterladen, entpacken und starten:
 
 ```sh
-sudo apt install ./buchfink_*.deb
+tar -xzf buchfink-linux-amd64.tar.gz
+./buchfink
 ```
 
-Die Pakete deb und rpm ziehen GTK 4 und WebKitGTK 6.0 als Abhängigkeit nach.
-Das gibt es ab Ubuntu 24.04, Debian 13 und in aktuellen Fedora-Versionen.
+Die Datei `buchfink` können Sie in einen Ordner im `PATH` legen, etwa
+`~/.local/bin`. Sie ist unter Ubuntu 24.04 für x86-64 gebaut und braucht
+GTK 3, WebKitGTK 4.1 und glibc ab Version 2.34. Unter Debian und Ubuntu
+installiert `sudo apt install libwebkit2gtk-4.1-0` WebKitGTK samt GTK 3, unter
+Fedora `sudo dnf install webkit2gtk4.1`.
+
+[mac]: https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-darwin-universal.zip
+[win]: https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-windows-amd64.exe
+[linux]: https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-linux-amd64.tar.gz
 
 ### Aus dem Quellcode
 
