@@ -608,6 +608,11 @@ func (s *PaymentService) skontoLines(
 	if err != nil {
 		return nil, nil, err
 	}
+	// Das Skonto auf eine Leistung mit Steuerschuld des Empfängers hat ein
+	// eigenes Konto: nur so mindert es Kz 21 und die Zusammenfassende Meldung.
+	if direction == domain.DirectionOutgoing && item.TaxTreatment == domain.TaxTreatmentReverseChargeSupply {
+		account = accounting.ReverseChargeSupplySkontoAccount
+	}
 	text := "Skonto"
 	var reduction *assetCostReduction
 	if asset := s.assetForItem(ctx, item, direction); asset != nil {

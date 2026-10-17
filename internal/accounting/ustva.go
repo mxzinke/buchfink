@@ -523,8 +523,17 @@ func RevenueTreatments() map[string]domain.TaxTreatment {
 	for _, account := range []string{"4110", "4160", "4165"} {
 		out[account] = domain.TaxTreatmentExempt
 	}
+	// Das gewährte Skonto auf eine Leistung mit Steuerschuld des Empfängers
+	// mindert deren Bemessungsgrundlage in Kz 21, 45 oder 60 und in der
+	// Zusammenfassenden Meldung (§ 17 Abs. 1 Satz 8, § 18a Abs. 7 Satz 2 UStG).
+	out[ReverseChargeSupplySkontoAccount] = domain.TaxTreatmentReverseChargeSupply
 	return out
 }
+
+// ReverseChargeSupplySkontoAccount ist das Skontokonto zum Erlöskonto 4337
+// (SKR04: Gewährte Skonti aus Leistungen, für die der Leistungsempfänger die
+// Umsatzsteuer nach § 13b UStG schuldet).
+const ReverseChargeSupplySkontoAccount = "4741"
 
 // TruncToEuro schneidet die Cent ab, wie es die amtlichen Vordrucke für die
 // Bemessungsgrundlagen und für die Zusammenfassende Meldung vorsehen. Gerundet

@@ -287,6 +287,53 @@ func TestDomesticReverseChargeSupplyIsCode60(t *testing.T) {
 	}
 }
 
+// Das Skonto auf eine EU-Dienstleistung mindert Kz 21 und die Zusammenfassende
+// Meldung im Zeitraum der Zahlung (§ 17 Abs. 1 Satz 8 UStG, § 18a Abs. 7
+// Satz 2 UStG); beide Meldungen bleiben abgestimmt.
+func TestSkontoOnEUServiceReducesCode21AndZM(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Client GmbH", "AT", "ATU12345678")
+	inv := env.euService(t, customer.ID, "2026-03-10", 100000)
+
+	payment, err := env.payments(t).Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank, PaymentDate: "2026-04-05",
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID: *inv.JournalEntryID, SettledAmount: 100000,
+			DifferenceKind: domain.DifferenceSkonto, DifferenceAmount: 2000,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlung mit Skonto: %v", err)
+	}
+	skonto := false
+	for _, l := range payment.Lines {
+		skonto = skonto || (l.Account == "4741" && l.Amount == 2000)
+	}
+	if !skonto {
+		t.Errorf("das Skonto gehört auf 4741, Zeilen %+v", payment.Lines)
+	}
+
+	q1 := env.vatDraft(t, "2026-Q1")
+	q2 := env.vatDraft(t, "2026-Q2")
+	if q1.Base("21") != 100000 || q2.Base("21") != -2000 {
+		t.Errorf("Kz 21: Q1 = %s, Q2 = %s, erwartet 1.000,00 und -20,00", q1.Base("21"), q2.Base("21"))
+	}
+	if _, err := env.vatReturns(t).Save(ctx, "2026-Q2"); err != nil {
+		t.Fatalf("Voranmeldung Q2 speichern: %v", err)
+	}
+	zm, err := env.zmReturns(t).Draft(ctx, "2026-Q2")
+	if err != nil {
+		t.Fatalf("ZM Q2: %v", err)
+	}
+	if zm.TotalServices != -2000 {
+		t.Errorf("ZM Q2 = %s, erwartet -20,00", zm.TotalServices)
+	}
+	if zm.Reconciliation == nil || zm.Reconciliation.ServicesDifference() != 0 {
+		t.Errorf("ZM und Kz 21 gehen auseinander: %+v", zm.Reconciliation)
+	}
+}
+
 func containsID(ids []uint, id uint) bool {
 	for _, v := range ids {
 		if v == id {
