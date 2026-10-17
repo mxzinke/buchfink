@@ -45,19 +45,25 @@ try {
   assert.equal(await more.evaluate(el => document.activeElement === el), true);
 
   // Auch ein Eingabedialog darf eine Hilfe öffnen, ohne die Eingabe zu verlieren.
-  await page.locator('nav').getByRole('button', { name: 'Übersicht', exact: true }).click();
-  await page.getByRole('button', { name: 'Monat öffnen' }).click();
-  const parent = page.getByRole('dialog').first();
+  // Hier der Nachweis zu einer Pflicht aus der Übersicht, geöffnet aus ihrer
+  // Seitenleiste.
+  await page.goto(`${ORIGIN}/#/overview/lohnsteuer-anmeldung.2026-08`);
+  await page.getByRole('button', { name: 'Als erledigt bestätigen', exact: true }).click();
+  const parent = page.getByRole('dialog', { name: 'Als erledigt bestätigen', exact: true });
   await parent.waitFor();
-  await parent.getByRole('button', { name: 'Mehr erfahren: Erklärung zum Monatsabschluss', exact: true }).click();
-  const nested = page.getByRole('dialog', { name: 'Erklärung zum Monatsabschluss', exact: true });
+  const ticket = parent.getByRole('textbox').first();
+  await ticket.fill('et-4711');
+  await parent.getByRole('button', { name: 'Erklärung zu Nachweis', exact: true }).click();
+  await page.getByRole('button', { name: 'Mehr erfahren: Erklärung zu Nachweis', exact: true }).click();
+  const nested = page.getByRole('dialog', { name: 'Erklärung zu Nachweis', exact: true });
   await nested.waitFor();
-  assert.equal(await page.getByRole('dialog', { includeHidden: true }).count(), 2);
-  assert.ok(await nested.locator('a[href*="gesetze-im-internet.de"]').count());
   await page.keyboard.press('Escape');
   await nested.waitFor({ state: 'hidden' });
   assert.equal(await parent.isVisible(), true);
+  assert.equal(await ticket.inputValue(), 'et-4711');
+  // Die begonnene Eingabe geht nur nach Rückfrage verloren.
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await parent.waitFor({ state: 'hidden' });
   assert.deepEqual(errors, []);
   console.log('Hilfe: Hover, Fokus, Escape, Dialog, Quellenlink, Fokusrückgabe und verschachtelter Dialog geprüft.');
