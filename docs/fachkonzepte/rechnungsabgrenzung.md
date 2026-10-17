@@ -25,11 +25,12 @@ Beispiel: Versicherung 1.200 € für zwölf Monate ab 1. Dezember.
 ## Was abzugrenzen ist
 
 Nur Aufwand oder Ertrag „für eine bestimmte Zeit“ nach dem Stichtag
-([§ 250 HGB][hgb250]): Miete, Versicherung, Wartung, Lizenz, Abonnement. Eine
-Anzahlung, ein Vorschuss oder eine Kaution ist kein Rechnungsabgrenzungsposten,
-sondern eine sonstige Forderung (**1300**) oder Verbindlichkeit (**3500**).
+([§ 250 HGB][hgb250]): Miete, Versicherung, Wartung, Lizenz, Abonnement.
+Anzahlungen führt Buchfink auf eigenen Konten, siehe
+[Anzahlungen](anzahlungen.md). Vorschuss und Kaution gehören zu den sonstigen
+Vermögensgegenständen (**1300**) oder sonstigen Verbindlichkeiten (**3500**).
 Eine Rechnung, deren Leistung vor dem Stichtag liegt und die erst danach bezahlt
-wird, ist eine Forderung oder Verbindlichkeit, keine Abgrenzung.
+wird, steht als Forderung oder Verbindlichkeit in der Bilanz.
 
 ## Wie Buchfink abgrenzt
 
