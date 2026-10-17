@@ -175,8 +175,8 @@ func TestValidateBookableHasOtherRulesForStatementsAndSelfIssued(t *testing.T) {
 }
 
 func TestOtherDocumentsNeedDateAndSubjectInsteadOfIssuerAndAmount(t *testing.T) {
-	// Die Schlussbilanz des Altsystems, die Inventurliste, der
-	// Gesellschafterbeschluss: Dokumente, die gebucht werden, aber keine
+	// Die Schlussbilanz des Altsystems, der Gesellschafterbeschluss:
+	// Dokumente, die gebucht werden, aber keine
 	// Rechnung sind. § 14 Abs. 4 Nr. 1 UStG gilt für sie nicht — sie haben
 	// keinen leistenden Unternehmer und oft keinen einzelnen Betrag.
 	for _, kind := range []ReceiptKind{ReceiptKindOther, ReceiptKindLetter} {

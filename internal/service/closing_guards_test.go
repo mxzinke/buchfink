@@ -302,12 +302,6 @@ func TestClosingModulesReturnEmptyListsNotNull(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Zinsmonate", months)
 
-	inventory, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorratskonten: %v", err)
-	}
-	assertNoNilSlices(t, "Vorratskonten", inventory)
-
 	settlement, err := m.bookings.PreviewVatSettlement(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Umsatzsteuer-Verrechnung: %v", err)
@@ -358,14 +352,6 @@ func TestClosingPreviewsReturnEmptyListsNotNull(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
-
-	inventory, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		Account: "1140", FiscalYear: 2026,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau Inventurwert: %v", err)
-	}
-	assertNoNilSlices(t, "Vorschau Inventurwert", inventory)
 
 	appropriation, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{})
 	if err != nil {

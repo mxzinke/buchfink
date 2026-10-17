@@ -321,8 +321,8 @@ ihm, jeder gegen seinen offenen Posten oder gegen ein Sachkonto.
 
 Zum Monatsende laufen Kontenabstimmung, Umsatzsteuer-Voranmeldung und die
 Festschreibung des Monats. Zum Jahresende kommen die Abschlussbuchungen hinzu:
-Abschreibungen, Abgrenzungen, Rückstellungen, Inventur und die
-Ergebnisverwendung; danach die Feststellung und die Festschreibung des Jahres.
+Abschreibungen, Abgrenzungen, Rückstellungen und die Ergebnisverwendung;
+danach die Feststellung und die Festschreibung des Jahres.
 
 ### 2.5 Eigenbelege
 

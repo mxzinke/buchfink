@@ -59,8 +59,6 @@ func TestVatCodeForEveryTaxKeyAndTreatment(t *testing.T) {
 		{"Vorsteuer aus ig. Erwerb", debitLine(domain.AccountVorsteuerIG19, 19000, "IG19_VST", 100000), nil, "61", 0, 19000},
 		{"Vorsteuer aus § 13b", debitLine(domain.AccountVorsteuer13b19, 19000, "RC19_VST", 100000), nil, "67", 0, 19000},
 
-		{"Innergemeinschaftliche Lieferung", creditLine("4125", 500000, "", 0), nil, "41", 500000, 0},
-		{"Ausfuhrlieferung", creditLine("4120", 300000, "", 0), nil, "43", 300000, 0},
 		{"Steuerfreier Umsatz ohne Vorsteuerabzug", creditLine("4150", 200000, "", 0), nil, "48", 200000, 0},
 		{"Nullsteuersatz § 12 Abs. 3 UStG", creditLine("4290", 1200000, "", 0), nil, "35", 1200000, 0},
 	}

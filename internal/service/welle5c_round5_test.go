@@ -265,19 +265,6 @@ func TestWelle5cOutputsHaveNoNilLists(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Bestätigungsstand", status)
 
-	evidence := env.supplyEvidence(t)
-	invoice := env.icSupply(t, customer, "RE-2026-0001")
-	view, err := evidence.View(ctx, invoice.ID, accounting.TransportBySupplier)
-	if err != nil {
-		t.Fatalf("Belegnachweis: %v", err)
-	}
-	assertNoNilSlices(t, "Belegnachweis", view)
-	report, err := evidence.Report(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Bericht Belegnachweis: %v", err)
-	}
-	assertNoNilSlices(t, "Bericht Belegnachweis", report)
-
 	gifts, err := env.gifts(t).NonDeductibleReport(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Bericht nicht abziehbare Betriebsausgaben: %v", err)

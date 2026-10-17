@@ -219,7 +219,6 @@ type RetentionCounts struct {
 	AssetMovements   int `json:"assetMovements"`
 	Accruals         int `json:"accruals"`
 	Provisions       int `json:"provisions"`
-	InventoryCounts  int `json:"inventoryCounts"`
 	ZMReturns        int `json:"zmReturns"`
 	InputTaxUsages   int `json:"inputTaxUsages"`
 	NumberGaps       int `json:"numberGaps"`
@@ -237,8 +236,7 @@ func (c RetentionCounts) IsEmpty() bool {
 	return c.JournalEntries == 0 && c.Receipts == 0 &&
 		c.Festschreibungen == 0 && c.CheckRuns == 0 && c.VatReturns == 0 &&
 		c.Invoices == 0 && c.BankTransactions == 0 && c.AssetMovements == 0 &&
-		c.Accruals == 0 && c.Provisions == 0 && c.InventoryCounts == 0 &&
-		c.ZMReturns == 0
+		c.Accruals == 0 && c.Provisions == 0 && c.ZMReturns == 0
 }
 
 // RetentionRepository persistiert die Aussetzungen und beantwortet, was ein

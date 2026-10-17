@@ -34,10 +34,9 @@ const TaskLookaheadDays = 30
 //
 // Die Befunde des Prüflaufs haben keinen eigenen Schlüssel je Regel: sie
 // stehen unter TaskKeyCheckFindings, um die Regel ergänzt
-// („check_findings.ic_supply_evidence_missing"). Damit bekommen die
-// ausstehende Bestätigung der USt-IdNr. und der fehlende Belegnachweis ihre
-// eigene Zeile, ohne dass die Aufgabenliste die Prüfregeln ein zweites Mal
-// aufzählt.
+// („check_findings.vat_id_unconfirmed"). Damit bekommt etwa die ausstehende
+// Bestätigung der USt-IdNr. ihre eigene Zeile, ohne dass die Aufgabenliste die
+// Prüfregeln ein zweites Mal aufzählt.
 const (
 	TaskKeyCheckFindings     = "check_findings"
 	TaskKeyBankUnmatched     = "bank_unmatched"

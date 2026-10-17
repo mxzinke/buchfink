@@ -403,16 +403,6 @@ func DisposalAccountsFor(class domain.AssetClass, treatment domain.TaxTreatment,
 // SKR04 — for the other two blocks the catalog knows one account per outcome.
 func tangibleRevenueAccount(treatment domain.TaxTreatment, gain bool) string {
 	switch treatment {
-	case domain.TaxTreatmentExport:
-		if gain {
-			return "4844"
-		}
-		return "6884"
-	case domain.TaxTreatmentIntraCommunitySupply:
-		if gain {
-			return "4848"
-		}
-		return "6888"
 	case domain.TaxTreatmentDomestic:
 		if gain {
 			return "4845"

@@ -12,14 +12,13 @@ import (
 
 // VatIDService holt und verwahrt die Bestätigungen ausländischer USt-IdNr.
 //
-// § 6a Abs. 1 Satz 1 Nr. 4 UStG macht die gültige, vom Bestimmungsland erteilte
-// USt-IdNr. des Abnehmers zur materiellen Voraussetzung der steuerfreien
-// innergemeinschaftlichen Lieferung. Wer sie nicht prüft, trägt das Risiko: die
-// Vertrauensschutzregel des § 6a Abs. 4 UStG greift nur für den, der die
-// Sorgfalt eines ordentlichen Kaufmanns angewandt hat — und die qualifizierte
-// Bestätigungsanfrage nach § 18e UStG ist genau das.
+// Bei einer sonstigen Leistung an einen Unternehmer im übrigen
+// Gemeinschaftsgebiet weist die gültige USt-IdNr. den Empfänger als Unternehmer
+// aus; daran hängt der Leistungsort im Ausland (§ 3a Abs. 2 UStG, Art. 18
+// MwStVO). Wer sie nicht prüft, trägt das Risiko, und die Bestätigungsanfrage
+// nach § 18e UStG ist die Sorgfalt, die das Gesetz erwartet.
 //
-// Der Dienst blockiert das Ausstellen einer steuerfreien Lieferung, wenn die
+// Der Dienst blockiert das Ausstellen einer solchen Rechnung, wenn die
 // Bestätigung negativ ausfällt. Er blockiert es nicht, wenn das Bundeszentralamt
 // nicht erreichbar ist — dann steht der Anwender vor einer Entscheidung, die er
 // mit einem dokumentierten Grund trifft. Ein local-first-Programm darf nicht
@@ -235,8 +234,8 @@ func (s *VatIDService) StatusForContact(ctx context.Context, contactID uint) (*V
 	return s.Status(ctx, contact)
 }
 
-// EnsureConfirmed ist die Prüfung vor dem Ausstellen einer steuerfreien
-// Lieferung.
+// EnsureConfirmed ist die Prüfung vor dem Ausstellen einer Leistung an einen
+// Unternehmer im übrigen Gemeinschaftsgebiet.
 //
 // Sie gibt einen Fehler zurück, wo die Ausstellung zu unterbleiben hat, und nil,
 // wo sie laufen darf. Die drei Fälle sind bewusst verschieden behandelt: eine
@@ -252,8 +251,8 @@ func (s *VatIDService) EnsureConfirmed(
 	}
 	if status.VatID == "" {
 		return fmt.Errorf(
-			"für eine steuerfreie Lieferung in einen anderen Mitgliedstaat braucht %s eine USt-IdNr. "+
-				"(§ 6a Abs. 1 Satz 1 Nr. 4 UStG)", contact.Name)
+			"für eine Leistung an ein Unternehmen in einem anderen Mitgliedstaat braucht %s eine USt-IdNr. "+
+				"(§ 3a Abs. 2 UStG)", contact.Name)
 	}
 	if status.Confirmed {
 		return nil
@@ -283,8 +282,8 @@ func (s *VatIDService) EnsureConfirmed(
 			return nil
 		}
 		return fmt.Errorf(
-			"die USt-IdNr. von %s ließ sich nicht bestätigen: %w. Ohne Bestätigung ist die "+
-				"Steuerbefreiung nicht belegt. Stelle die Rechnung mit einem festgehaltenen Grund aus "+
+			"die USt-IdNr. von %s ließ sich nicht bestätigen: %w. Ohne Bestätigung ist der "+
+				"Leistungsort im Ausland nicht belegt. Stelle die Rechnung mit einem festgehaltenen Grund aus "+
 				"oder wiederhole die Abfrage später — der nächste Prüflauf führt sie als offen",
 			contact.Name, err)
 	}
@@ -292,9 +291,9 @@ func (s *VatIDService) EnsureConfirmed(
 		return nil
 	}
 	return fmt.Errorf(
-		"das Bundeszentralamt für Steuern hat die USt-IdNr. %s von %s nicht bestätigt. %s. Eine "+
-			"steuerfreie innergemeinschaftliche Lieferung setzt eine gültige, vom Bestimmungsland "+
-			"erteilte USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4 UStG)",
+		"das Bundeszentralamt für Steuern hat die USt-IdNr. %s von %s nicht bestätigt. %s. Die "+
+			"Steuerschuld geht nur auf einen Empfänger über, der als Unternehmer ausgewiesen ist "+
+			"(§ 3a Abs. 2, § 13b Abs. 1 UStG)",
 		check.VatID, contact.Name, check.Summary())
 }
 

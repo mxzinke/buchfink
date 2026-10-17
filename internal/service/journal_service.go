@@ -604,10 +604,10 @@ func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
 //
 // Der Rechnungsdienst weist eine Rechnung zurück, die zu einem Steuerfall ohne
 // Steuerpflicht Umsatzsteuer ausweist. Ohne dieselbe Regel hier bliebe die
-// Handbuchung offen: eine innergemeinschaftliche Lieferung mit einer UST19-Zeile
-// stünde in Kennziffer 41 *und* in 81, und in der Zusammenfassenden Meldung
-// stünde ein steuerfreier Umsatz, den die Voranmeldung als steuerpflichtig
-// führt. Wer die Steuer tatsächlich schuldet, weil die Rechnung außerhalb von
+// Handbuchung offen: eine Leistung nach § 13b UStG mit einer UST19-Zeile
+// stünde in Kennziffer 21 *und* in 81, und in der Zusammenfassenden Meldung
+// stünde ein Umsatz, den die Voranmeldung als steuerpflichtig führt. Wer die
+// Steuer tatsächlich schuldet, weil die Rechnung außerhalb von
 // Buchfink entstanden ist, bucht sie mit dem Schlüssel UST14C in Kennziffer 69.
 //
 // Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf die
@@ -616,8 +616,8 @@ func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
 // Fehlt der Steuerfall an der Buchung, entscheiden die Erlöskonten. Eine
 // Handbuchung hat ihn nicht zwingend — sie kommt ohne Buchungsgruppe zustande
 // —, und ohne diese Ableitung stünde der Fall offen, den die Regel
-// verhindern soll: Konto 4125 und eine UST19-Zeile in einer Buchung, gemeldet in
-// Kennziffer 41 *und* in 81.
+// verhindern soll: Konto 4337 und eine UST19-Zeile in einer Buchung, gemeldet in
+// Kennziffer 21 *und* in 81.
 func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error {
 	if e.Kind == domain.EntryKindReversal {
 		return nil

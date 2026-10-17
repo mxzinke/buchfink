@@ -300,43 +300,6 @@ func (b *BuchfinkBridge) ImportDiscountRatesCSV(path, month string, average int)
 }
 
 // -------------------------------------------------------------------------
-// Vorräte
-// -------------------------------------------------------------------------
-
-// GetInventoryAccounts listet die Vorratskonten mit Buchwert und Erfassung.
-func (b *BuchfinkBridge) GetInventoryAccounts(year int) (*service.InventoryOverview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.closingBookingSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.closingBookingSvc.InventoryAccounts(context.Background(), year)
-}
-
-// PreviewInventory rechnet die Bestandsveränderung aus dem Inventurwert.
-func (b *BuchfinkBridge) PreviewInventory(req service.InventoryRequest) (*service.InventoryPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.closingBookingSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.closingBookingSvc.PreviewInventory(context.Background(), req)
-}
-
-// BookInventory erfasst den Inventurwert und bucht die Bestandsveränderung.
-func (b *BuchfinkBridge) BookInventory(req service.InventoryRequest) (*domain.InventoryCount, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.closingBookingSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.closingBookingSvc.BookInventory(context.Background(), req)
-}
-
-// -------------------------------------------------------------------------
 // Umsatzsteuer-Verrechnung und Steuerrückstellung
 // -------------------------------------------------------------------------
 

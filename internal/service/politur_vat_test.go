@@ -18,7 +18,7 @@ func TestZMConfirmationRejectsAnOutdatedDraft(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -27,7 +27,7 @@ func TestZMConfirmationRejectsAnOutdatedDraft(t *testing.T) {
 	}
 
 	// Eine Nachbuchung im selben Zeitraum, danach die Festschreibung.
-	env.euInvoice(t, customer.ID, "2026-03-05", 200000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-03-05", 200000)
 	env.commitUntil(t, "2026-03-31")
 
 	if _, err := svc.ConfirmSubmitted(ctx, saved.ID, "2026-04-24", "TT-ZM", ""); err == nil {
@@ -57,8 +57,8 @@ func TestZMPeriodTotalIgnoresTurnoverWithoutVatID(t *testing.T) {
 	withID := env.customer(t, "Client SARL", "FR", "FR12345678901")
 	withoutID := env.customer(t, "Cliente Srl", "IT", "IT12345678901")
 
-	env.euInvoice(t, withID.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
-	env.euInvoice(t, withoutID.ID, "2026-02-11", 300000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, withID.ID, "2026-02-10", 500000)
+	env.euService(t, withoutID.ID, "2026-02-11", 300000)
 
 	// Die USt-IdNr. des zweiten Kunden fällt nachträglich weg — der Fall, den
 	// die Meldung mit einem Befund quittiert und der in keine Meldezeile kommt.
@@ -87,7 +87,7 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	vat := env.vatReturns(t)
 	zm := env.zmReturns(t)
@@ -119,7 +119,7 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 
 	// Zwischendurch wird nachgebucht, danach wird die Berichtigung ein zweites
 	// Mal angestoßen.
-	env.euInvoice(t, customer.ID, "2026-03-20", 100000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-03-20", 100000)
 
 	secondVat, err := vat.CreateCorrection(ctx, "2026-Q1")
 	if err != nil {
@@ -135,8 +135,8 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 	if secondZM.ID != firstZM.ID {
 		t.Errorf("die zweite Berichtigung legt die Meldung %d neben %d an", secondZM.ID, firstZM.ID)
 	}
-	if secondZM.TotalSupplies != 600000 {
-		t.Errorf("die fortgeschriebene Meldung führt %s €, erwartet 6.000,00", secondZM.TotalSupplies)
+	if secondZM.TotalServices != 600000 {
+		t.Errorf("die fortgeschriebene Meldung führt %s €, erwartet 6.000,00", secondZM.TotalServices)
 	}
 
 	// Und je Zeitraum steht danach genau ein Entwurf.

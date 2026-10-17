@@ -2559,7 +2559,7 @@ const BookingForm: React.FC<{
             />
           </Field>
           {settlement === 'paid' && (
-            <Field label="Zahlungsmittel" hint="Bar heißt Kasse, nicht Bank">
+            <Field label="Bankkonto">
               <Select
                 items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
                 value={paymentAccount}

@@ -258,10 +258,6 @@ export const bridge = {
   ImportDiscountRatesCSV: (path: string, month: string, average: number) =>
     invoke<number>('ImportDiscountRatesCSV', path, month, average),
 
-  GetInventoryAccounts: <T>(year: number) => invoke<T>('GetInventoryAccounts', year),
-  PreviewInventory: <T>(request: unknown) => invoke<T>('PreviewInventory', request),
-  BookInventory: <T>(request: unknown) => invoke<T>('BookInventory', request),
-
   PreviewVatSettlement: <T>(year: number) => invoke<T>('PreviewVatSettlement', year),
   BookVatSettlement: <T>(year: number) => invoke<T>('BookVatSettlement', year),
   PreviewTaxProvision: <T>(year: number) => invoke<T>('PreviewTaxProvision', year),
@@ -397,17 +393,6 @@ export const bridge = {
   GetVatIDChecks: <T>(contactId: number) => invoke<T>('GetVatIDChecks', contactId),
   GetVatIDStatus: <T>(contactId: number) => invoke<T>('GetVatIDStatus', contactId),
   CheckVatID: <T>(contactId: number) => invoke<T>('CheckVatID', contactId),
-
-  // Belegnachweis der innergemeinschaftlichen Lieferung
-  GetSupplyEvidenceKinds: <T>() => invoke<T>('GetSupplyEvidenceKinds'),
-  GetSupplyEvidence: <T>(invoiceId: number, transport: string) =>
-    invoke<T>('GetSupplyEvidence', invoiceId, transport),
-  AddSupplyEvidence: <T>(request: unknown) => invoke<T>('AddSupplyEvidence', request),
-  SetSupplyTransport: <T>(invoiceId: number, transport: string) =>
-    invoke<T>('SetSupplyTransport', invoiceId, transport),
-  RemoveSupplyEvidence: <T>(invoiceId: number, evidenceId: number, transport: string) =>
-    invoke<T>('RemoveSupplyEvidence', invoiceId, evidenceId, transport),
-  GetSupplyEvidenceReport: <T>(year: number) => invoke<T>('GetSupplyEvidenceReport', year),
 
   // Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG)
   GetNonDeductibleCategories: <T>() => invoke<T>('GetNonDeductibleCategories'),

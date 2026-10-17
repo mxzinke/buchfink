@@ -96,7 +96,7 @@ func TestSkippedClosingStepCanBeReopened(t *testing.T) {
 	}
 
 	// Was nicht übersprungen ist, ist auch nicht zurückzunehmen.
-	if _, err := modules.steps.ReopenStep(ctx, env.fiscalYear, domain.ClosingStepInventory,
+	if _, err := modules.steps.ReopenStep(ctx, env.fiscalYear, domain.ClosingStepAccruals,
 		"aus Versehen"); err == nil {
 		t.Error("ein nicht übersprungener Baustein darf nicht zurückgenommen werden")
 	}

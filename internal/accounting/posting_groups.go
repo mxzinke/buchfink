@@ -125,9 +125,7 @@ var postingGroups = []PostingGroup{
 			domain.TaxRateReduced: "4300",
 		},
 		TreatmentAccounts: map[domain.TaxTreatment]string{
-			domain.TaxTreatmentIntraCommunitySupply: "4125", // § 4 Nr. 1b UStG
-			domain.TaxTreatmentExport:               "4120", // § 4 Nr. 1a UStG
-			domain.TaxTreatmentReverseChargeSupply:  "4337", // § 13b UStG
+			domain.TaxTreatmentReverseChargeSupply: "4337", // § 13b UStG
 			// Nullsteuersatz nach § 12 Abs. 3 UStG. Eigenes Konto, weil der
 			// Umsatz steuerpflichtig ist und nicht zu den steuerfreien zählt.
 			domain.TaxTreatmentZeroRated: "4290",

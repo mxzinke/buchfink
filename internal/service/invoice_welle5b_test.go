@@ -341,117 +341,63 @@ func TestSmallAmountInvoiceLimits(t *testing.T) {
 		t.Errorf("über der Grenze muss die Kleinbetragsrechnung abgewiesen werden, erhalten: %v", err)
 	}
 
-	// Bei einer innergemeinschaftlichen Lieferung ist sie nicht wählbar
-	// (§ 33 Satz 2 UStDV).
+	// Bei der Steuerschuldnerschaft des Leistungsempfängers ist sie nicht
+	// wählbar (§ 33 Satz 2 UStDV).
 	eu := env.customer(t, "Kunde AT", "AT", "ATU12345678")
-	ig := env.simpleInvoice(eu.ID, "2026-03-01", 10000)
-	ig.TaxTreatment = domain.TaxTreatmentIntraCommunitySupply
-	ig.Items[0].TaxRate = domain.TaxRateNone
-	ig.SmallAmount = true
-	err = svc.Issue(ctx, ig)
+	rc := env.simpleInvoice(eu.ID, "2026-03-01", 10000)
+	rc.TaxTreatment = domain.TaxTreatmentReverseChargeSupply
+	rc.Items[0].TaxRate = domain.TaxRateNone
+	rc.SmallAmount = true
+	err = svc.Issue(ctx, rc)
 	if err == nil || !strings.Contains(err.Error(), "§ 33 Satz 2 UStDV") {
-		t.Errorf("bei ig. Lieferung ist die Kleinbetragsrechnung nicht zulässig, erhalten: %v", err)
+		t.Errorf("bei § 13b ist die Kleinbetragsrechnung nicht zulässig, erhalten: %v", err)
 	}
 
-	// Die Ausfuhr nimmt § 33 Satz 2 UStDV nicht aus — die Vorschrift zählt nur
-	// Fernverkauf, ig. Lieferung und § 13b auf. Buchfink bietet die
+	// Den steuerfreien Umsatz nimmt § 33 Satz 2 UStDV nicht aus — die Vorschrift
+	// zählt nur Fernverkauf, ig. Lieferung und § 13b auf. Buchfink bietet die
 	// Kleinbetragsrechnung trotzdem nur für den steuerpflichtigen Inlandsumsatz
 	// an; die Meldung muss das als eigene Entscheidung sagen und sich nicht auf
 	// eine Norm berufen, die sie nicht deckt.
-	thirdCountry := env.customer(t, "Kunde CH", "CH", "")
-	export := env.simpleInvoice(thirdCountry.ID, "2026-03-01", 10000)
-	export.TaxTreatment = domain.TaxTreatmentExport
-	export.Items[0].TaxRate = domain.TaxRateNone
-	export.SmallAmount = true
-	err = svc.Issue(ctx, export)
+	exempt := env.simpleInvoice(customer.ID, "2026-03-01", 10000)
+	exempt.TaxTreatment = domain.TaxTreatmentExempt
+	exempt.Items[0].TaxRate = domain.TaxRateNone
+	exempt.SmallAmount = true
+	err = svc.Issue(ctx, exempt)
 	if err == nil {
 		t.Error("die Kleinbetragsrechnung ist nur für den Inlandsumsatz vorgesehen")
 	} else if strings.Contains(err.Error(), "§ 33 Satz 2 UStDV") {
-		t.Errorf("die Ausfuhr steht nicht in § 33 Satz 2 UStDV; die Meldung darf sie nicht darauf "+
-			"stützen: %v", err)
+		t.Errorf("der steuerfreie Umsatz steht nicht in § 33 Satz 2 UStDV; die Meldung darf sich nicht "+
+			"darauf stützen: %v", err)
 	} else if !strings.Contains(err.Error(), "Inlandsumsatz") {
 		t.Errorf("die Meldung muss den Grund nennen, erhalten: %v", err)
 	}
 
-	// Innerhalb der Grenze und im Inland geht sie durch — auch ohne Empfänger.
-	ok := smallAmountSale("2026-03-01", 10000)
+	// Ohne Empfänger geht auch sie nicht: jede Rechnung läuft gegen ein
+	// Personenkonto, einen Barverkauf führt Buchfink nicht.
+	anonymous := env.simpleInvoice(0, "2026-03-01", 10000)
+	anonymous.SmallAmount = true
+	if err := svc.Issue(ctx, anonymous); err == nil || !strings.Contains(err.Error(), "Rechnungsempfänger") {
+		t.Errorf("eine Kleinbetragsrechnung ohne Empfänger muss abgewiesen werden, erhalten: %v", err)
+	}
+	if _, err := svc.Preview(ctx, env.simpleInvoice(0, "2026-03-01", 10000)); err == nil {
+		t.Error("auch die Vorschau verlangt einen Empfänger")
+	}
+
+	// Innerhalb der Grenze und im Inland geht sie durch.
+	ok := env.simpleInvoice(customer.ID, "2026-03-01", 10000)
+	ok.SmallAmount = true
 	if err := svc.Issue(ctx, ok); err != nil {
-		t.Fatalf("die Kleinbetragsrechnung ohne Empfänger muss ausstellbar sein: %v", err)
+		t.Fatalf("die Kleinbetragsrechnung muss ausstellbar sein: %v", err)
 	}
 	if ok.JournalEntryID == nil {
-		t.Fatal("auch der Barverkauf wird gebucht")
+		t.Fatal("die Kleinbetragsrechnung wird gebucht")
 	}
-}
-
-// smallAmountSale ist die Kleinbetragsrechnung ohne Empfänger: der Barverkauf
-// des § 33 UStDV.
-func smallAmountSale(date string, net domain.Cents) *domain.Invoice {
-	return &domain.Invoice{
-		Date: date, ServiceDateFrom: date, ServiceDateTo: date,
-		TaxTreatment: domain.TaxTreatmentDomestic, SmallAmount: true,
-		Items: []domain.InvoiceItem{{
-			Description: "Verkauf über den Ladentisch", QuantityMilli: 1000, Unit: "C62",
-			UnitPrice: net, TaxRate: domain.TaxRateStandard,
-		}},
-	}
-}
-
-// Die Kleinbetragsrechnung ohne Empfänger wird gegen das Zahlungsmittel
-// gebucht.
-//
-// § 33 UStDV lässt den Leistungsempfänger weg. Ohne ihn gibt es kein
-// Personenkonto — und es gibt auch nichts, was darauf stünde: der Barverkauf
-// ist bezahlt, wenn die Rechnung entsteht.
-func TestSmallAmountInvoiceWithoutRecipientIsBookedAsCashSale(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.invoicesWired(t)
-
-	inv := smallAmountSale("2026-03-01", 10000)
-	if err := svc.Issue(ctx, inv); err != nil {
-		t.Fatalf("Kleinbetragsrechnung ausstellen: %v", err)
-	}
-	if inv.JournalEntryID == nil {
-		t.Fatal("die Kleinbetragsrechnung muss gebucht sein")
-	}
-
-	entry, err := env.journalRepo.FindByID(ctx, *inv.JournalEntryID)
+	entry, err := env.journalRepo.FindByID(ctx, *ok.JournalEntryID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := lineAmount(t, entry, domain.AccountKasse, domain.SideDebit); got != 11900 {
-		t.Errorf("Kasse im Soll = %s, erwartet 119,00", got)
-	}
-	if got := lineAmount(t, entry, domain.AccountUmsatzsteuer19, domain.SideCredit); got != 1900 {
-		t.Errorf("Umsatzsteuer im Haben = %s, erwartet 19,00", got)
-	}
-	if entry.ContactID != nil {
-		t.Error("ohne Empfänger darf die Buchung keinem Personenkonto zugeordnet sein")
-	}
-
-	// Das Zahlungsmittel ist wählbar: wer die Karte nimmt, bucht nicht in die
-	// Kasse.
-	onBank := smallAmountSale("2026-03-02", 10000)
-	onBank.PaymentAccount = domain.AccountBank
-	if err := svc.Issue(ctx, onBank); err != nil {
-		t.Fatalf("Kleinbetragsrechnung über die Bank: %v", err)
-	}
-	bankEntry, err := env.journalRepo.FindByID(ctx, *onBank.JournalEntryID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := lineAmount(t, bankEntry, domain.AccountBank, domain.SideDebit); got != 11900 {
-		t.Errorf("Bank im Soll = %s, erwartet 119,00", got)
-	}
-
-	// Und die Vorschau kennt denselben Fall: sonst hätte der Barverkauf als
-	// einziger Rechnungsfall keine.
-	preview, err := svc.Preview(ctx, smallAmountSale("2026-03-03", 10000))
-	if err != nil {
-		t.Fatalf("Vorschau ohne Empfänger: %v", err)
-	}
-	if !preview.Balanced || preview.Gross != 11900 {
-		t.Errorf("Vorschau = %+v, erwartet 119,00 ausgeglichen", preview)
+	if got := lineAmount(t, entry, customer.LedgerAccount, domain.SideDebit); got != 11900 {
+		t.Errorf("Forderung im Soll = %s, erwartet 119,00 auf dem Personenkonto", got)
 	}
 }
 

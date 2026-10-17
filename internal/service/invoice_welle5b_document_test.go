@@ -117,28 +117,29 @@ func TestXRechnungIsFiledWithRolesAndValidationReport(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleReceiptUnbooked, 0, domain.CheckBlocking)
 }
 
-// Die Kleinbetragsrechnung ohne Empfänger geht als PDF hinaus.
-//
-// EN 16931 verlangt den Namen des Erwerbers (BR-07); § 33 UStDV erlässt ihn und
-// nimmt die Kleinbetragsrechnung zugleich von der E-Rechnungspflicht aus. Einen
-// Namen zu erfinden, um die Norm zu bedienen, wäre eine maschinenlesbare
-// Falschangabe.
-func TestSmallAmountInvoiceWithoutRecipientIsPdfOnly(t *testing.T) {
+// Die Kleinbetragsrechnung darf als reines PDF hinausgehen: § 33 UStDV nimmt
+// sie von der E-Rechnungspflicht aus (BMF vom 15.10.2024, Rz. 21).
+func TestSmallAmountInvoiceMayStayPdfOnly(t *testing.T) {
 	if testing.Short() {
 		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
 	}
 	env := newTestEnv(t)
 	ctx := context.Background()
+	customer := env.customer(t, "Kunde GmbH", "DE", "")
 
-	inv := smallAmountSale("2026-03-01", 10000)
+	smallPdf := func(date string) *domain.Invoice {
+		inv := env.simpleInvoice(customer.ID, date, 10000)
+		inv.SmallAmount = true
+		inv.EInvoiceProfile = domain.EInvoiceProfilePDFOnly
+		return inv
+	}
+
+	inv := smallPdf("2026-03-01")
 	if err := env.invoicesWiredWithDocuments(t).Issue(ctx, inv); err != nil {
 		t.Fatalf("Kleinbetragsrechnung ausstellen: %v", err)
 	}
-	if inv.EInvoiceProfile != domain.EInvoiceProfilePDFOnly {
-		t.Errorf("Format = %q, erwartet die reine PDF-Rechnung", inv.EInvoiceProfile)
-	}
 	if inv.ZUGFeRDXML != "" {
-		t.Error("zur Kleinbetragsrechnung ohne Empfänger darf kein strukturierter Datensatz entstehen")
+		t.Error("zur reinen PDF-Rechnung darf kein strukturierter Datensatz entstehen")
 	}
 
 	receipt, err := env.receipts.Get(ctx, *inv.ReceiptID)
@@ -149,12 +150,12 @@ func TestSmallAmountInvoiceWithoutRecipientIsPdfOnly(t *testing.T) {
 		t.Fatalf("der Beleg trägt %d Dateien, erwartet allein das PDF: %+v", len(receipt.Files), receipt.Files)
 	}
 	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); ok {
-		t.Error("ohne Empfänger gibt es keinen strukturierten Teil")
+		t.Error("die reine PDF-Rechnung hat keinen strukturierten Teil")
 	}
 
 	// Auch nach dem Ende der Übergangsfrist bleibt sie zulässig: die Ausnahme
 	// des § 33 UStDV richtet sich nicht nach dem Datum.
-	late := smallAmountSale("2028-03-01", 10000)
+	late := smallPdf("2028-03-01")
 	if err := env.invoicesWiredWithDocuments(t).Issue(ctx, late); err != nil {
 		t.Errorf("die Kleinbetragsrechnung bleibt von der E-Rechnungspflicht ausgenommen: %v", err)
 	}

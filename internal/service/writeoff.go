@@ -80,7 +80,7 @@ func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffReque
 	}
 
 	// Nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer im offenen
-	// Betrag; bei einer steuerfreien Lieferung ist der ganze Betrag Entgelt.
+	// Betrag; bei einem steuerfreien Umsatz ist der ganze Betrag Entgelt.
 	rate := domain.TaxRateNone
 	if item.TaxTreatment == domain.TaxTreatmentDomestic {
 		rate = item.TaxRate

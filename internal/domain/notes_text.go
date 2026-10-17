@@ -43,7 +43,7 @@ func AllNotesSections() []NotesSectionDefinition {
 		{NotesSectionBoardLoans, "Vorschüsse und Kredite an Organmitglieder", "Beträge, Zinsen, Bedingungen, Rückzahlungen und Haftungsverhältnisse für Geschäftsführung und Aufsichtsrat. Falls keine bestehen, dies ausdrücklich angeben.", "§ 285 Nr. 9 Buchst. c HGB; bei Kleinstgesellschaften § 264 Abs. 1 Satz 5 HGB"},
 		{NotesSectionAdditional, "Weitere wesentliche Angaben", "Zusätzliche Angaben für ein zutreffendes Bild der Gesellschaft. Falls keine erforderlich sind, dies ausdrücklich festhalten. Bei einer AG außerdem die Angaben zu eigenen Aktien prüfen.", "§ 264 Abs. 2 HGB; bei einer AG § 160 Abs. 3 Satz 2 AktG"},
 		{NotesSectionMethods, "Bilanzierungs- und Bewertungsmethoden",
-			"Welche Methoden angewandt wurden — Abschreibungsverfahren, Bewertung der Vorräte, Abzinsung der Rückstellungen.",
+			"Welche Methoden angewandt wurden — Abschreibungsverfahren, Bewertung der Forderungen, Abzinsung der Rückstellungen.",
 			"§ 284 Abs. 2 Nr. 1 HGB"},
 		{NotesSectionBoard, "Organbezüge",
 			"Die Gesamtbezüge der Geschäftsführung. Kleine Gesellschaften sind davon befreit.",

@@ -409,14 +409,14 @@ func (s *RetentionService) ArchiveAndDelete(ctx context.Context, req DeleteReque
 		"Geschäftsjahr %d gelöscht: %d Buchungen mit %d Zeilen, %d Belege mit %d Dateien, "+
 			"%d Festschreibungen, %d Prüfläufe, %d Voranmeldungen, %d Zusammenfassende Meldungen, "+
 			"%d Rechnungen, %d Bankumsätze, %d Anlagenbewegungen, %d Abgrenzungen, %d Rückstellungen, "+
-			"%d Inventurwerte, %d Nummernlücken, %d Verwendungsanteile nach § 15a UStG. "+
+			"%d Nummernlücken, %d Verwendungsanteile nach § 15a UStG. "+
 			"%d Verweise überdauernder Objekte auf gelöschte Buchungen und Belege wurden aufgelöst. "+
 			"%d Dateien von der Platte entfernt, %d bleiben, weil andere Belege auf sie zeigen. Archiv: %s.",
 		req.FiscalYear, deleted.JournalEntries, deleted.JournalLines,
 		deleted.Receipts, deleted.ReceiptFiles, deleted.Festschreibungen,
 		deleted.CheckRuns, deleted.VatReturns, deleted.ZMReturns,
 		deleted.Invoices, deleted.BankTransactions, deleted.AssetMovements,
-		deleted.Accruals, deleted.Provisions, deleted.InventoryCounts,
+		deleted.Accruals, deleted.Provisions,
 		deleted.NumberGaps, deleted.InputTaxUsages,
 		deleted.ClearedReferences,
 		result.FilesRemoved, result.FilesKept, req.ArchivePath)

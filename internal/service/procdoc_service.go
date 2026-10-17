@@ -508,8 +508,7 @@ func checkRuleCatalog() []procdoc.CheckRule {
 		{Key: domain.CheckRuleProvisionDiscount, Severity: "Hinweis", Purpose: "Rückstellung ohne Abzinsungssatz des Stichtagsmonats (§ 253 Abs. 2 HGB)."},
 		{Key: domain.CheckRuleClosingStepSkipped, Severity: "Hinweis", Purpose: "Übersprungener Abschlussbaustein mit seinem Grund."},
 		{Key: domain.CheckRuleSizeClassChange, Severity: "Hinweis", Purpose: "Größenklassenwechsel, der sich abzeichnet (§ 267 Abs. 4 Satz 1 HGB)."},
-		{Key: domain.CheckRuleICSupplyEvidenceMissing, Severity: "Blockierend", Purpose: "Innergemeinschaftliche Lieferung ohne Belegnachweis (§§ 17a bis 17c UStDV)."},
-		{Key: domain.CheckRuleICSupplyUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
+		{Key: domain.CheckRuleVatIDUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
 		{Key: domain.CheckRuleServiceProofMissing, Severity: "Hinweis", Purpose: "Eingangsbeleg über der eingestellten Grenze ohne Leistungsnachweis (RECH-08); beim Buchen ist der Vermerk Pflicht, der Befund findet die Belege aus der Zeit davor. Der erste Abschluss nach dem Setzen der Grenze meldet deshalb auch gebuchte und festgeschriebene Altbelege — sie sind nachzuvermerken, der Vermerk steht außerhalb des Beleg-Hashes."},
 	}
 }
@@ -518,9 +517,9 @@ func checkRuleCatalog() []procdoc.CheckRule {
 func coveredTaxCases() []string {
 	return []string{
 		"Steuerpflichtige Umsätze zu 19 % und 7 % sowie steuerfreie Umsätze mit und ohne Vorsteuerabzug",
-		"Innergemeinschaftliche Lieferungen und Erwerbe, Zusammenfassende Meldung",
+		"Innergemeinschaftliche Erwerbe auf der Eingangsseite",
+		"Sonstige Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet, Zusammenfassende Meldung",
 		"Reverse-Charge nach § 13b UStG auf der Eingangs- und der Ausgangsseite",
-		"Ausfuhrlieferungen in das Drittland und Einfuhrumsatzsteuer",
 		"Anzahlungen mit Steuerentstehung nach § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG",
 		"Vorsteuerberichtigung nach § 15a UStG",
 		"Nicht abziehbare Betriebsausgaben nach § 4 Abs. 5 EStG (Geschenke, Bewirtung)",

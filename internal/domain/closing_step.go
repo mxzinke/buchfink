@@ -29,7 +29,6 @@ const (
 	ClosingStepCurrencyValuation ClosingStepKey = "currency_valuation"
 	ClosingStepAccruals          ClosingStepKey = "accruals"       // Rechnungsabgrenzung
 	ClosingStepProvisions        ClosingStepKey = "provisions"     // Rückstellungen
-	ClosingStepInventory         ClosingStepKey = "inventory"      // Inventurwert der Vorräte
 	ClosingStepVatSettlement     ClosingStepKey = "vat_settlement" // Umsatzsteuer-Verrechnung
 	// ClosingStepInputTaxCorrection ist die Vorsteuerberichtigung nach § 15a
 	// UStG. Sie steht hinter der Umsatzsteuer-Verrechnung, weil sie eine weitere
@@ -73,7 +72,7 @@ type ClosingStepDefinition struct {
 // AllClosingSteps liefert die Bausteine in der Reihenfolge, in der sie
 // abgearbeitet werden. Die Reihenfolge ist fachlich und nicht kosmetisch: die
 // Steuerrückstellung braucht das Ergebnis, und das Ergebnis steht erst, wenn
-// Abgrenzung, Rückstellungen und Vorräte gebucht sind.
+// Abgrenzung und Rückstellungen gebucht sind.
 func AllClosingSteps() []ClosingStepDefinition {
 	return []ClosingStepDefinition{
 		{ClosingStepDepreciation, 1, "Abschreibungen",
@@ -88,24 +87,22 @@ func AllClosingSteps() []ClosingStepDefinition {
 			"Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).", false},
 		{ClosingStepProvisions, 5, "Rückstellungen",
 			"Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).", false},
-		{ClosingStepInventory, 6, "Vorräte",
-			"Der Inventurwert zum Stichtag und die Bestandsveränderung, die daraus folgt.", false},
-		{ClosingStepVatSettlement, 7, "Umsatzsteuer-Verrechnung",
+		{ClosingStepVatSettlement, 6, "Umsatzsteuer-Verrechnung",
 			"Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.", false},
-		{ClosingStepInputTaxCorrection, 8, "Vorsteuerberichtigung § 15a",
+		{ClosingStepInputTaxCorrection, 7, "Vorsteuerberichtigung § 15a",
 			"Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der " +
 				"Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.", true},
-		{ClosingStepTaxProvision, 9, "Steuerrückstellung",
+		{ClosingStepTaxProvision, 8, "Steuerrückstellung",
 			"Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres.", false},
-		{ClosingStepCheckRun, 10, "Prüfbericht",
+		{ClosingStepCheckRun, 9, "Prüfbericht",
 			"Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.", true},
-		{ClosingStepStatement, 11, "Bilanz und GuV",
+		{ClosingStepStatement, 10, "Bilanz und GuV",
 			"Die Gliederung nach §§ 266 und 275 HGB samt Anhang.", true},
-		{ClosingStepAdoption, 12, "Aufstellen und Feststellen",
+		{ClosingStepAdoption, 11, "Aufstellen und Feststellen",
 			"Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.", true},
-		{ClosingStepDisclosure, 13, "E-Bilanz und Offenlegung",
+		{ClosingStepDisclosure, 12, "E-Bilanz und Offenlegung",
 			"Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.", true},
-		{ClosingStepAppropriation, 14, "Vortrag und Ergebnisverwendung",
+		{ClosingStepAppropriation, 13, "Vortrag und Ergebnisverwendung",
 			"Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.", false},
 	}
 }

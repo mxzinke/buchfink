@@ -38,9 +38,6 @@ func TestIntraCommunitySupplyBecomesAnAcquisition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got == TaxTreatmentIntraCommunitySupply {
-		t.Fatal("der Code wurde ungedreht übernommen — das bucht den halben Vorgang")
-	}
 	if got != TaxTreatmentIntraCommunityAcquisition {
 		t.Errorf("= %q", got)
 	}

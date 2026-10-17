@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, FileText, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import type {
-  Account,
   Contact,
   EInvoiceProfile,
   EInvoiceProfileInfo,
-  EvidenceStatus,
   Invoice,
   InvoiceSentVia,
   InvoiceSentViaOption,
@@ -15,7 +13,6 @@ import type {
   TaxRate,
   TaxTreatment,
   TaxTreatmentInfo,
-  TransportKind,
   UnitCode,
   VatIDStatus,
 } from '../types';
@@ -155,7 +152,7 @@ const cancellationReference = (invoice: Invoice): string | undefined =>
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
+export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = () => {
   // Ausstellen und Stornieren sind Buchungen; Ansehen und Ausgeben bleiben im
   // Prüfermodus möglich (§10.4).
   const writeLock = usePostingLock();
@@ -166,11 +163,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const [profiles, setProfiles] = useState<EInvoiceProfileInfo[]>([]);
   // Die Versandwege kommen wie Einheiten und Profile aus dem Backend.
   const [sentViaOptions, setSentViaOptions] = useState<InvoiceSentViaOption[]>([]);
-  const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
-  // Der Nachweisstand je ig. Lieferung, damit die Frage „fehlt hier noch etwas?"
-  // schon in der Rechnungsliste beantwortet ist und nicht erst auf der Seite
-  // der Nebenpflichten.
-  const [evidence, setEvidence] = useState<Map<number, EvidenceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [preview, setPreview] = useState<{ invoice: Invoice; xml: string } | null>(null);
@@ -188,7 +180,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   async function load() {
     setLoading(true);
     try {
-      const [list, contactList, treatmentList, unitList, profileList, accounts, vias] =
+      const [list, contactList, treatmentList, unitList, profileList, vias] =
         await Promise.all([
           Api.getInvoices(),
           // Die auswählbaren und nicht alle Kontakte: ein nach einem
@@ -198,7 +190,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           Api.getTaxTreatments('outgoing'),
           Api.getUnitCodes(),
           Api.getEInvoiceProfiles(),
-          Api.getPaymentAccounts(),
           Api.getInvoiceSentViaOptions(),
         ]);
       setInvoices(list);
@@ -206,7 +197,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
       setTreatments(treatmentList);
       setUnits(unitList);
       setProfiles(profileList);
-      setPaymentAccounts(accounts);
       setSentViaOptions(vias);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -215,39 +205,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
     }
   }
 
-  // Der Nachweisstand wird je Geschäftsjahr berichtet. Geholt werden nur die
-  // Jahre, in denen es überhaupt eine ig. Lieferung gibt — meist eines, oft
-  // keines. Scheitert diese Auskunft, bleibt die Rechnungsliste bedienbar.
-  useEffect(() => {
-    const years = Array.from(
-      new Set(
-        invoices
-          .filter((invoice) => invoice.taxTreatment === 'intra_community_supply')
-          .map((invoice) => Number.parseInt(invoice.date.slice(0, 4), 10))
-          .filter((year) => Number.isFinite(year) && year > 0),
-      ),
-    );
-    if (years.length === 0) {
-      setEvidence(new Map());
-      return;
-    }
-    let cancelled = false;
-    Promise.all(years.map((year) => Api.getSupplyEvidenceReport(year)))
-      .then((reports) => {
-        if (cancelled) return;
-        const next = new Map<number, EvidenceStatus>();
-        for (const report of reports) {
-          for (const row of report?.rows ?? []) next.set(row.invoiceId, row.status);
-        }
-        setEvidence(next);
-      })
-      .catch(() => {
-        if (!cancelled) setEvidence(new Map());
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [invoices]);
 
   /** Holt ein fehlendes Dokument nach; die Nummer bleibt dieselbe. */
   async function regenerate(invoice: Invoice) {
@@ -472,7 +429,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                   </Td>
                   <Td className="text-ink-subtle num">{formatDate(invoice.date)}</Td>
                   <Td className="text-ink-muted">{KIND_LABEL[invoice.kind] ?? 'Rechnung'}</Td>
-                  <Td className="max-w-[20rem] truncate">{invoice.contactName || 'Barverkauf'}</Td>
+                  <Td className="max-w-[20rem] truncate">{invoice.contactName}</Td>
                   <Td numeric className="text-ink-muted">
                     {formatCents(invoice.netAmount, invoice.currency)}
                   </Td>
@@ -485,25 +442,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                       status={statusOf(invoice)}
                       reference={cancellationReference(invoice)}
                     />
-                    {/* Der Nachweisstand steht unter dem Statuswort und nicht
-                        an seiner Stelle: die Rechnung ist offen oder bezahlt,
-                        der Nachweis ist eine zweite, eigene Frage (§ 17a
-                        UStDV). Farbe steht nie allein (§3.4). */}
-                    {evidence.has(invoice.id) && (
-                      <span
-                        className={cn(
-                          'block text-caption',
-                          evidence.get(invoice.id)?.fulfilled
-                            ? 'text-positive-text'
-                            : 'text-attention-text',
-                        )}
-                        title={evidence.get(invoice.id)?.reason}
-                      >
-                        {evidence.get(invoice.id)?.fulfilled
-                          ? 'Nachweis vollständig'
-                          : 'Nachweis unvollständig'}
-                      </span>
-                    )}
                   </Td>
                   <Td className="pl-0">
                     <span className="flex items-center justify-end">
@@ -528,24 +466,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                         <MenuItem onClick={() => showZugferd(invoice)}>
                           Strukturierten Datensatz ansehen
                         </MenuItem>
-                        {/* Der Belegnachweis liegt bei den Nebenpflichten, wo
-                            auch der Bericht über die unvollständigen steht.
-                            Von hier führt der Weg dorthin, weil die Frage an
-                            der Rechnung entsteht — mit der Rechnung im Gepäck,
-                            damit dort ihre Belege aufgeschlagen sind und nicht
-                            wieder eine Liste. */}
-                        {onNavigate && invoice.taxTreatment === 'intra_community_supply' && (
-                          <MenuItem
-                            onClick={() =>
-                              onNavigate('obligations', {
-                                obligationsTab: 'evidence',
-                                invoiceId: invoice.id,
-                              })
-                            }
-                          >
-                            Belegnachweis der ig. Lieferung
-                          </MenuItem>
-                        )}
+
                         {invoice.status === 'issued_pending_document' && (
                           <MenuItem
                             disabled={writeLock.locked}
@@ -616,7 +537,6 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
           treatments={treatments}
           units={units}
           profiles={profiles}
-          paymentAccounts={paymentAccounts}
           onClose={() => setShowForm(false)}
           onIssued={async (number) => {
             setShowForm(false);
@@ -745,10 +665,9 @@ const InvoiceForm: React.FC<{
   treatments: TaxTreatmentInfo[];
   units: UnitCode[];
   profiles: EInvoiceProfileInfo[];
-  paymentAccounts: Account[];
   onClose: () => void;
   onIssued: (invoiceNumber: string) => void;
-}> = ({ contacts, treatments, units, profiles, paymentAccounts, onClose, onIssued }) => {
+}> = ({ contacts, treatments, units, profiles, onClose, onIssued }) => {
   const writeLock = usePostingLock();
   const today = todayISO();
   const [contactId, setContactId] = useState(contacts[0]?.id ?? 0);
@@ -766,14 +685,9 @@ const InvoiceForm: React.FC<{
   const [discountPermille, setDiscountPermille] = useState('');
   const [discountDays, setDiscountDays] = useState('');
   const [smallAmount, setSmallAmount] = useState(false);
-  const [paymentAccount, setPaymentAccount] = useState('');
-  // Wer den Gegenstand befördert hat. Leer ist der Regelfall — der Lieferer;
-  // beim Abholfall verlangt § 17a Abs. 2 UStDV zusätzlich die
-  // Gelangensbestätigung, und das entscheidet später über den Belegnachweis.
-  const [transportKind, setTransportKind] = useState<TransportKind>('');
-  // Der Grund, mit dem eine steuerfreie Lieferung ohne Bestätigung der
-  // USt-IdNr. ausgestellt wird. Ohne ihn lehnt das Backend bei ausbleibender
-  // Auskunft ab — mit ihm steht die Übersteuerung an der Rechnung.
+  // Der Grund, mit dem eine Leistung ins übrige Gemeinschaftsgebiet ohne
+  // Bestätigung der USt-IdNr. ausgestellt wird. Ohne ihn lehnt das Backend bei
+  // ausbleibender Auskunft ab — mit ihm steht die Übersteuerung an der Rechnung.
   const [vatIdOverrideReason, setVatIdOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PostingPreview | null>(null);
@@ -805,24 +719,21 @@ const InvoiceForm: React.FC<{
   /**
    * Ob vor dem Ausstellen die USt-IdNr. des Empfängers bestätigt sein muss.
    *
-   * Die beiden Steuerfälle, bei denen sie materielle Voraussetzung ist: die
-   * innergemeinschaftliche Lieferung (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die
-   * Verlagerung der Steuerschuld auf einen Empfänger im übrigen
-   * Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die Nummer des Kunden
-   * Voraussetzung von nichts, und eine Abfrage dort wäre ein Netzaufruf ohne
-   * Zweck. Ob das Bestimmungsland wirklich ein Mitgliedstaat ist, entscheidet
-   * das Backend — hier steht nur, wann die Frage überhaupt gestellt wird.
+   * Nur bei der Verlagerung der Steuerschuld auf einen Empfänger im übrigen
+   * Gemeinschaftsgebiet: dort weist die Nummer ihn als Unternehmer aus. Bei
+   * einer Inlandsrechnung ist die Nummer des Kunden Voraussetzung von nichts,
+   * und eine Abfrage dort wäre ein Netzaufruf ohne Zweck. Ob das Land wirklich
+   * ein Mitgliedstaat ist, entscheidet das Backend — hier steht nur, wann die
+   * Frage überhaupt gestellt wird.
    */
   const needsVatIDConfirmation =
     contactId > 0 &&
-    (treatment === 'intra_community_supply' ||
-      (treatment === 'reverse_charge_supply' &&
-        (contact?.countryCode ?? '') !== '' &&
-        contact?.countryCode !== 'DE'));
-  // § 33 Satz 2 UStDV nimmt die innergemeinschaftliche Lieferung, den
-  // Fernverkauf und die Steuerschuldnerschaft des Leistungsempfängers von der
-  // Kleinbetragsrechnung aus. Angeboten wird sie deshalb nur beim
-  // steuerpflichtigen Inlandsumsatz.
+    treatment === 'reverse_charge_supply' &&
+    (contact?.countryCode ?? '') !== '' &&
+    contact?.countryCode !== 'DE';
+  // § 33 Satz 2 UStDV nimmt unter anderem die Steuerschuldnerschaft des
+  // Leistungsempfängers von der Kleinbetragsrechnung aus. Angeboten wird sie
+  // nur beim steuerpflichtigen Inlandsumsatz.
   //
   // Die Betragsgrenze kommt datiert aus dem Backend und reist mit der Vorschau
   // (PostingPreview.smallAmountLimit) — dort steht auch der Bruttobetrag, gegen
@@ -831,31 +742,13 @@ const InvoiceForm: React.FC<{
   const smallAmountLimit = preview?.smallAmountLimit ?? 0;
   const overSmallAmountLimit = smallAmountLimit > 0 && (preview?.gross ?? 0) > smallAmountLimit;
   const smallAmountPossible = taxable && !overSmallAmountLimit;
-  // Der Barverkauf (Kleinbetrag ohne erfassten Empfänger) geht als reines PDF
-  // hinaus: EN 16931 verlangt den Namen des Erwerbers (BR-07), § 33 UStDV
-  // erlässt ihn, und Kleinbetragsrechnungen sind von der E-Rechnungspflicht
-  // ausgenommen. Das Backend setzt in diesem Fall pdf_only (invoice_service.go);
-  // stünde hier weiter das Profil des Standardfalls, zeigte der Dialog ein
-  // Format an, das nicht erzeugt wird.
-  const cashSale = smallAmount && contactId === 0;
-  const effectiveProfile = cashSale
-    ? 'pdf_only'
-    : contact?.eInvoiceProfile || 'zugferd_en16931';
+  const effectiveProfile = contact?.eInvoiceProfile || 'zugferd_en16931';
   const profile = profiles.find((p) => p.profile === effectiveProfile);
-  const missingLeitwegID =
-    !cashSale && contact?.eInvoiceProfile === 'xrechnung_cii' && !contact.leitwegId;
+  const missingLeitwegID = contact?.eInvoiceProfile === 'xrechnung_cii' && !contact.leitwegId;
 
   useEffect(() => {
     if (!smallAmountPossible) setSmallAmount(false);
   }, [smallAmountPossible]);
-
-  // „Ohne Empfänger" gibt es nur bei der Kleinbetragsrechnung (§ 33 UStDV).
-  // Fällt die Option weg, zeigte die Auswahl auf einen Eintrag, den die Liste
-  // nicht mehr führt: das Feld stünde auf dem Platzhalter, die Vorschau bliebe
-  // leer, und die Rechnung liefe bis zur Fehlermeldung des Backends.
-  useEffect(() => {
-    if (!smallAmount && contactId === 0) setContactId(contacts[0]?.id ?? 0);
-  }, [smallAmount, contactId, contacts]);
 
   useEffect(() => {
     if (!needsVatIDConfirmation) {
@@ -905,19 +798,13 @@ const InvoiceForm: React.FC<{
   // Preise auf Cent.
   const draft = useMemo(
     () => ({
-      // Ohne Empfänger (0) ist die Rechnung ein Barverkauf; das geht nur als
-      // Kleinbetragsrechnung (§ 33 UStDV), und dann gibt es kein Personenkonto,
-      // gegen das eine Forderung liefe. Dass die 0 nur dort entstehen kann,
-      // hält der Effekt oben fest — hier wird sie nur weitergereicht.
       contactId,
       date,
       serviceDateFrom: serviceFrom,
       serviceDateTo: serviceTo,
       taxTreatment: treatment,
       currency: 'EUR',
-      transportKind: needsVatIDConfirmation ? transportKind || undefined : undefined,
       smallAmount,
-      paymentAccount: smallAmount && contactId === 0 ? paymentAccount : undefined,
       terms: {
         dueDays: Number.parseInt(dueDays, 10) || 0,
         discountPermille: Number.parseInt(discountPermille, 10) || 0,
@@ -940,9 +827,6 @@ const InvoiceForm: React.FC<{
       treatment,
       items,
       smallAmount,
-      paymentAccount,
-      needsVatIDConfirmation,
-      transportKind,
       dueDays,
       discountPermille,
       discountDays,
@@ -953,8 +837,7 @@ const InvoiceForm: React.FC<{
   // Steuerrechnung früher selbst nachgebaut, samt Rundung je Steuersatzgruppe —
   // eine zweite Wahrheit, die auseinanderläuft, sobald ein Steuerfall dazukommt.
   useEffect(() => {
-    const complete =
-      (contactId > 0 || smallAmount) && draft.items.every((i) => i.description && i.unitPrice > 0);
+    const complete = contactId > 0 && draft.items.every((i) => i.description && i.unitPrice > 0);
     if (!complete) {
       setPreview(null);
       setPreviewError(null);
@@ -978,7 +861,7 @@ const InvoiceForm: React.FC<{
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [draft, contactId, smallAmount]);
+  }, [draft, contactId]);
 
   // Das Zahlungsziel wird beim Tippen gefragt und nicht erst beim Ausstellen:
   // wer 90 Tage vereinbart, soll es lesen, solange er die Zahl noch ändern kann.
@@ -1088,13 +971,10 @@ const InvoiceForm: React.FC<{
           }
         >
           <Select
-            items={[
-              ...(smallAmount ? [{ value: 0, label: 'Ohne Empfänger (Barverkauf)' }] : []),
-              ...contacts.map((c) => ({
-                value: c.id,
-                label: `${c.name} · Debitor ${c.ledgerAccount}`,
-              })),
-            ]}
+            items={contacts.map((c) => ({
+              value: c.id,
+              label: `${c.name} · Debitor ${c.ledgerAccount}`,
+            }))}
             value={contactId}
             onValueChange={setContactId}
           />
@@ -1103,7 +983,7 @@ const InvoiceForm: React.FC<{
         <Field helpSummary="Die Art des Umsatzes bestimmt, wie Buchfink die Steuer berechnet."
           label="Steuerfall"
           hint={treatmentInfo?.hint}
-          explain="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für steuerfreie Lieferungen ins EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
+          explain="Der Steuerfall entscheidet über Erlöskonto und Steuerzeile. Für Leistungen an Unternehmen im EU-Ausland ist die USt-IdNr. des Empfängers Voraussetzung."
         >
           <Select
             items={treatments.map((t) => ({ value: t.treatment, label: t.label }))}
@@ -1132,8 +1012,6 @@ const InvoiceForm: React.FC<{
           explain={
             <>
               {profile?.hint}
-              {cashSale &&
-                ' Ohne erfassten Empfänger erzeugt Buchfink die Kleinbetragsrechnung als reines PDF; Kleinbetragsrechnungen sind von der E-Rechnungspflicht ausgenommen (§ 33 UStDV).'}
               {missingLeitwegID &&
                 ' Für die XRechnung fehlt die Leitweg-ID dieses Empfängers; ohne sie weist Buchfink die Ausstellung zurück (BR-DE-15).'}
             </>
@@ -1157,9 +1035,8 @@ const InvoiceForm: React.FC<{
           }
           explain={
             <>
-              § 33 UStDV lässt bei kleinen Beträgen die verkürzten Angaben zu: kein Empfänger,
-              Bruttobetrag mit Steuersatz. Bei innergemeinschaftlicher Lieferung und
-              Steuerschuldnerschaft des Leistungsempfängers ist sie ausgeschlossen.
+              § 33 UStDV lässt bei kleinen Beträgen die verkürzten Angaben zu: Bruttobetrag mit
+              Steuersatz. Bei Steuerschuldnerschaft des Leistungsempfängers ist sie ausgeschlossen.
               {smallAmountLimit > 0 &&
                 ` Die Grenze am Rechnungsdatum liegt bei ${formatCents(smallAmountLimit)} brutto.`}
               {overSmallAmountLimit &&
@@ -1192,10 +1069,10 @@ const InvoiceForm: React.FC<{
             )}
           >
             Bestätigung der USt-IdNr.
-            <Help summary="Prüfen Sie die Umsatzsteuer-ID, bevor Sie eine steuerfreie Lieferung ins EU-Ausland abrechnen." label="Erklärung zur Bestätigungsabfrage">
-              Die Steuerbefreiung der innergemeinschaftlichen Lieferung setzt eine gültige, vom
-              Bestimmungsland erteilte USt-IdNr. des Abnehmers voraus (§ 6a Abs. 1 Satz 1 Nr. 4
-              UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
+            <Help summary="Prüfen Sie die Umsatzsteuer-ID, bevor Sie eine Leistung ins EU-Ausland abrechnen." label="Erklärung zur Bestätigungsabfrage">
+              Die gültige USt-IdNr. weist den Empfänger als Unternehmer aus; daran hängt, dass
+              die Leistung im Ausland steuerbar ist und er die Steuer schuldet (§ 3a Abs. 2,
+              § 13b UStG). Buchfink fragt sie beim Bundeszentralamt für Steuern ab (§ 18e UStG) und hält
               das Ergebnis am Kontakt fest. Eine negative Antwort hält die Rechnung an. Bleibt die
               Antwort aus — kein Netz, Dienst gestört —, ist das kein negatives Ergebnis, aber auch
               kein Nachweis: Buchfink stellt die Rechnung dann nur mit einem festgehaltenen Grund aus.
@@ -1231,29 +1108,15 @@ const InvoiceForm: React.FC<{
           </div>
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field helpSummary="Geben Sie an, wer die Ware zum Kunden transportiert."
-              label="Beförderung"
-              hint="entscheidet über den Belegnachweis"
-              explain="Bei Beförderung durch den Lieferer oder seinen Beauftragten genügen für die Vermutung des § 17a UStDV schon zwei einander nicht widersprechende Belege. Holt der Erwerber den Gegenstand ab, kommt die Gelangensbestätigung hinzu. Die Angabe wird mit der Rechnung festgehalten und steuert die Bewertung des Nachweises."
-            >
-              <Select
-                items={[
-                  { value: '', label: 'Lieferer oder sein Beauftragter (Regelfall)' },
-                  { value: 'customer', label: 'Abholung durch den Erwerber' },
-                ]}
-                value={transportKind}
-                onValueChange={(next) => setTransportKind(next as TransportKind)}
-              />
-            </Field>
             {/* Auch ohne gelesenen Stand (Lesefehler, Feld noch leer) muss der Grund
                 erfassbar sein: sonst ist die Maske genau dann eine Sackgasse, wenn
                 das Backend die Übersteuerung verlangt. */}
             {!vatIdStatus?.confirmed && (
-              <Field helpSummary="Begründen Sie, warum Sie trotz fehlender Bestätigung eine steuerfreie Rechnung ausstellen."
+              <Field helpSummary="Begründen Sie, warum Sie trotz fehlender Bestätigung die Rechnung ausstellen."
                 label="Grund für die Ausstellung ohne Bestätigung"
                 optional
                 hint="ohne ihn wird abgelehnt"
-                explain="Bleibt die Auskunft des Bundeszentralamts aus, stellt Buchfink die steuerfreie Lieferung nur mit einem festgehaltenen Grund aus. Er steht an der Rechnung und im Protokoll, und der nächste Prüflauf führt die Lieferung als offen. Eine negative Auskunft lässt sich damit nicht übersteuern."
+                explain="Bleibt die Auskunft des Bundeszentralamts aus, stellt Buchfink die Rechnung nur mit einem festgehaltenen Grund aus. Er steht an der Rechnung und im Protokoll, und der nächste Prüflauf führt die Rechnung als offen. Eine negative Auskunft lässt sich damit nicht übersteuern."
               >
                 <Textarea
                   rows={2}
@@ -1267,24 +1130,6 @@ const InvoiceForm: React.FC<{
         </div>
       )}
 
-      {smallAmount && contactId === 0 && (
-        <Field helpSummary="Geben Sie an, wie die bereits bezahlte Rechnung beglichen wurde."
-          label="Zahlungsmittel"
-          hint="Leer heißt Kasse"
-          className="mt-4 max-w-sm"
-          explain="Ohne erfassten Kunden gibt es kein Personenkonto und keine Forderung: der Barverkauf ist im selben Augenblick bezahlt und wird gegen Kasse oder Bank gebucht."
-        >
-          <Select
-            items={paymentAccounts.map((a) => ({
-              value: a.number,
-              label: `${a.number} · ${a.name}`,
-            }))}
-            value={paymentAccount}
-            onValueChange={setPaymentAccount}
-            placeholder="Kasse"
-          />
-        </Field>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
         <Field helpSummary="Erfassen Sie die vereinbarte Zahlungsfrist und einen möglichen Skontoabzug."
@@ -1534,7 +1379,7 @@ const CancelDialog: React.FC<{
           <p className="text-body text-ink-muted">
             <span className="code-num text-ink">{invoice.invoiceNumber}</span> über{' '}
             <span className="num text-ink">{formatCents(invoice.grossAmount, invoice.currency)}</span>{' '}
-            an {invoice.contactName || 'Barverkauf'} bekommt ein Stornodokument mit eigener Nummer.
+            an {invoice.contactName} bekommt ein Stornodokument mit eigener Nummer.
             <Help summary="Eine Stornierung hebt die Rechnung auf. Das Original bleibt als Nachweis erhalten." label="Erklärung zur Stornierung">
               Forderung, Erlös und Umsatzsteuer gehen per Generalumkehr auf null zurück. Das
               Stornodokument hat die negierten Beträge und den Bezug auf die Ursprungsrechnung;
@@ -1621,9 +1466,6 @@ const CorrectDialog: React.FC<{
         taxTreatment: invoice!.taxTreatment,
         currency: invoice!.currency,
         smallAmount: invoice!.smallAmount,
-        // Der Barverkauf behält sein Zahlungskonto, sonst fiele die berichtigte
-        // Rechnung auf die Kasse zurück, auch wenn gegen Bank gebucht war.
-        paymentAccount: invoice!.paymentAccount,
         terms: invoice!.terms,
         items: items.map((item, index) => ({
           position: index + 1,

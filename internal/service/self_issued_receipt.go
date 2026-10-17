@@ -18,7 +18,7 @@ import (
 // „Keine Buchung ohne Beleg" ist keine Formel, sondern die Grundregel des
 // § 146 Abs. 1 AO und der GoBD Rz. 61. Sie ist im Alltag genau dort schwer
 // einzuhalten, wo es keinen Fremdbeleg gibt: das Trinkgeld, der verlorene
-// Parkschein, die Privateinlage, die Entnahme aus der Kasse. Ohne einen Weg,
+// Parkschein, die Gebühr ohne Quittung. Ohne einen Weg,
 // den Vorgang selbst zu belegen, entsteht die Buchung trotzdem — nur eben ohne
 // Beleg, und das ist der Mangel, den eine Betriebsprüfung zuerst findet.
 //

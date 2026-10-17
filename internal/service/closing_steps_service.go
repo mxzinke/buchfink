@@ -25,7 +25,6 @@ type ClosingStepsService struct {
 	stepRepo          domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
 	provisionRepo     domain.ProvisionRepository
-	inventoryRepo     domain.InventoryRepository
 	appropriationRepo domain.AppropriationRepository
 	checkRunRepo      domain.CheckRunRepository
 	journalRepo       domain.JournalRepository
@@ -44,7 +43,6 @@ func NewClosingStepsService(
 	stepRepo domain.ClosingStepRepository,
 	accrualRepo domain.AccrualRepository,
 	provisionRepo domain.ProvisionRepository,
-	inventoryRepo domain.InventoryRepository,
 	appropriationRepo domain.AppropriationRepository,
 	checkRunRepo domain.CheckRunRepository,
 	journalRepo domain.JournalRepository,
@@ -54,8 +52,8 @@ func NewClosingStepsService(
 ) *ClosingStepsService {
 	return &ClosingStepsService{
 		stepRepo: stepRepo, accrualRepo: accrualRepo, provisionRepo: provisionRepo,
-		inventoryRepo: inventoryRepo, appropriationRepo: appropriationRepo,
-		checkRunRepo: checkRunRepo, journalRepo: journalRepo, auditRepo: auditRepo,
+		appropriationRepo: appropriationRepo,
+		checkRunRepo:      checkRunRepo, journalRepo: journalRepo, auditRepo: auditRepo,
 		closingSvc: closingSvc, fiscalYear: fiscalYear,
 	}
 }
@@ -350,26 +348,6 @@ func (s *ClosingStepsService) derive(
 			return domain.ClosingStepOpen, ""
 		}
 		return domain.ClosingStepDone, fmt.Sprintf("%d Rückstellungen erfasst", count)
-
-	case domain.ClosingStepInventory:
-		counts, err := s.inventoryRepo.FindByYear(ctx, year)
-		if err != nil || len(counts) == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		open := 0
-		for i := range counts {
-			voided, err := entryIsReversed(ctx, s.journalRepo, counts[i].JournalEntryID)
-			if err != nil {
-				return domain.ClosingStepOpen, ""
-			}
-			if !voided {
-				open++
-			}
-		}
-		if open == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		return domain.ClosingStepDone, fmt.Sprintf("%d Vorratskonten aufgenommen", open)
 
 	case domain.ClosingStepVatSettlement:
 		standing, reversed := s.hasClosingReference(ctx, year, VatSettlementReference(year))

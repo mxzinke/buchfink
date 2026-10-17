@@ -29,8 +29,6 @@ export type TaxTreatment =
   | 'domestic'
   | 'reverse_charge'
   | 'intra_community_acquisition'
-  | 'intra_community_supply'
-  | 'export'
   | 'reverse_charge_supply'
   /** Nullsteuersatz § 12 Abs. 3 UStG — steuerpflichtig zum Satz null, nicht steuerfrei. */
   | 'zero_rated'
@@ -963,24 +961,16 @@ export interface Invoice {
   /** Leer heißt „Rechnung": Bestandsdaten aus der Zeit vor der Dokumentart. */
   kind: InvoiceKind;
   terms: PaymentTerms;
-  /** Kleinbetragsrechnung nach § 33 UStDV: verkürzte Angaben, kein Empfänger nötig. */
+  /** Kleinbetragsrechnung nach § 33 UStDV: verkürzte Angaben. */
   smallAmount: boolean;
-  /** Zahlungsmittelkonto einer Rechnung ohne Empfänger; leer heißt Kasse. */
-  paymentAccount?: string;
   /** Das Format, in dem dieses Dokument erzeugt wurde. */
   eInvoiceProfile?: EInvoiceProfile;
   /**
-   * Der Grund, mit dem eine steuerfreie ig. Lieferung ohne Bestätigung der
-   * USt-IdNr. ausgestellt wurde. Er steht an der Rechnung, weil die Frage nach
-   * der Befreiung später an ihr gestellt wird.
+   * Der Grund, mit dem eine Leistung ins übrige Gemeinschaftsgebiet ohne
+   * Bestätigung der USt-IdNr. ausgestellt wurde. Er steht an der Rechnung, weil
+   * die Frage nach dem Leistungsort später an ihr gestellt wird.
    */
   vatIdOverrideReason?: string;
-  /**
-   * Wer den Gegenstand befördert hat. Leer wird als Regelfall gelesen —
-   * Beförderung durch den Lieferer; „customer" ist der Abholfall und verlangt
-   * zusätzlich die Gelangensbestätigung.
-   */
-  transportKind?: TransportKind;
   /** Bezug auf die berichtigte oder stornierte Rechnung (BG-3). */
   correctsInvoiceId?: number;
   correctsInvoiceNumber?: string;
@@ -1184,8 +1174,6 @@ export interface VatSummary {
   periodTo: string;
   taxableRevenue: VatFigure[] | null;
   exemptRevenue: Cents;
-  intraCommunitySupply: Cents;
-  export: Cents;
   reverseChargeSupply: Cents;
   outputTax: Cents;
   reverseChargeTax: Cents;
@@ -2863,10 +2851,10 @@ export interface SpecialPrepaymentSuggestion {
   note: string;
 }
 
-/** L: ig. Lieferung, S: sonstige Leistung § 3a Abs. 2, D: Dreiecksgeschäft. */
-export type ZMLineKind = 'L' | 'S' | 'D';
+/** S: sonstige Leistung nach § 3a Abs. 2 UStG — die einzige Meldeart in Buchfink. */
+export type ZMLineKind = 'S';
 
-/** Eine Meldezeile: je USt-IdNr. und Art ein Betrag. */
+/** Eine Meldezeile: je USt-IdNr. ein Betrag. */
 export interface ZMLine {
   id: number;
   zmReturnId: number;
@@ -2886,19 +2874,16 @@ export interface ZMLateEntry {
   periodKey: string;
   date: string;
   vatId?: string;
-  kind: ZMLineKind;
   amount: Cents;
 }
 
 /**
- * Die Abstimmung gegen die Kennziffern 41 und 21 der Voranmeldungen. Sie wird
- * nicht gespeichert: sie beschreibt den heutigen Stand beider Meldungen.
+ * Die Abstimmung gegen die Kennziffer 21 der Voranmeldungen. Sie wird nicht
+ * gespeichert: sie beschreibt den heutigen Stand beider Meldungen.
  */
 export interface ZMReconciliation {
   scopeKey?: string;
   scopeLabel?: string;
-  suppliesZm: Cents;
-  suppliesVat: Cents;
   servicesZm: Cents;
   servicesVat: Cents;
   vatReturnsFound: number;
@@ -2919,7 +2904,6 @@ export interface ZMReturn {
   transferTicket?: string;
   submissionNote?: string;
   dueDate?: string;
-  totalSupplies: Cents;
   totalServices: Cents;
   lines: ZMLine[];
   reconciliation?: ZMReconciliation;
@@ -3098,7 +3082,7 @@ export interface BackupRun {
 }
 
 // -------------------------------------------------------------------------
-// Abschlussbausteine: Schritte, Rechnungsabgrenzung, Rückstellungen, Vorräte,
+// Abschlussbausteine: Schritte, Rechnungsabgrenzung, Rückstellungen,
 // Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung, Anhang
 // -------------------------------------------------------------------------
 
@@ -3111,7 +3095,6 @@ export type ClosingStepKey =
   | 'currency_valuation'
   | 'accruals'
   | 'provisions'
-  | 'inventory'
   | 'vat_settlement'
   /** Vorsteuerberichtigung nach § 15a UStG; der Betrag geht in Kennziffer 64. */
   | 'input_tax_correction'
@@ -3452,64 +3435,6 @@ export interface ProvisionChangeRequest {
   paymentAccount?: string;
 }
 
-/** Der Inventurwert eines Vorratskontos zum Bilanzstichtag (§ 240 HGB). */
-export interface InventoryCount {
-  id: number;
-  fiscalYear: number;
-  account: string;
-  amount: Cents;
-  /** Buchwert vor der Abschlussbuchung. */
-  bookValue: Cents;
-  countedOn: string;
-  method: string;
-  /** Die Inventurliste im Belegspeicher — Pflicht. */
-  receiptId?: number;
-  journalEntryId?: number;
-  createdAt: string;
-}
-
-export interface InventoryAccount {
-  account: string;
-  accountName: string;
-  group: string;
-  /** Gegenkonto der Bestandsveränderung. */
-  changeAccount: string;
-  changeAccountName: string;
-  bookValue: Cents;
-  counted: Cents;
-  countedAt?: string;
-  booked: boolean;
-}
-
-export interface InventoryOverview {
-  fiscalYear: number;
-  cutoff: string;
-  accounts: InventoryAccount[];
-  note: string;
-}
-
-export interface InventoryRequest {
-  fiscalYear: number;
-  account: string;
-  amount: Cents;
-  countedOn: string;
-  method: string;
-  /** Die Inventurliste im Belegspeicher — Pflicht. */
-  receiptId: number;
-}
-
-export interface InventoryPreview {
-  account: string;
-  accountName: string;
-  changeAccount: string;
-  bookValue: Cents;
-  counted: Cents;
-  change: Cents;
-  lines: JournalLine[];
-  bookingDate: string;
-  explanation: string;
-}
-
 export interface VatSettlementRow {
   account: string;
   accountName: string;
@@ -3737,8 +3662,8 @@ export interface LegacySpecialDepreciationNotice {
 
 // -------------------------------------------------------------------------
 // Steuerliche Nebenpflichten (Welle 5c): Vorsteuerberichtigung § 15a UStG,
-// Bestätigung der USt-IdNr., Belegnachweis der ig. Lieferung, nicht abziehbare
-// Betriebsausgaben, Fremdwährung, Anlagen
+// Bestätigung der USt-IdNr., nicht abziehbare Betriebsausgaben, Fremdwährung,
+// Anlagen
 // -------------------------------------------------------------------------
 
 /** Der bestätigte Verwendungsanteil eines Jahres samt seiner Berichtigung. */
@@ -3890,109 +3815,6 @@ export interface VatIDStatus {
   latest?: VatIDCheck;
   /** Die Frist in Tagen, mit der Buchfink rechnet. */
   validityDays: number;
-  note: string;
-}
-
-/** Die Belegarten des Nachweises einer ig. Lieferung. */
-export type EvidenceKind =
-  | 'cmr_frachtbrief'
-  | 'konnossement'
-  | 'luftfrachtrechnung'
-  | 'spediteurbescheinigung'
-  | 'versicherungspolice'
-  | 'bankbeleg'
-  | 'behoerdliche_bestaetigung'
-  | 'lagerbescheinigung'
-  | 'gelangensbestaetigung'
-  | 'rechnungsdoppel'
-  | 'tracking_protokoll'
-  | 'sonstiges';
-
-/**
- * Die Systematik des Art. 45a MwStVO: „a" sind Beförderungsbelege, „b" die
- * sonstigen Belege, für "" gilt die Vermutung nicht.
- */
-export type EvidenceGroup = 'a' | 'b' | '';
-
-/** Wer den Gegenstand befördert hat. Leer heißt Regelfall — der Lieferer. */
-export type TransportKind = 'supplier' | 'customer' | '';
-
-export interface EvidenceKindInfo {
-  kind: EvidenceKind;
-  label: string;
-  group: EvidenceGroup;
-  hint?: string;
-}
-
-/** Ob der Belegnachweis genügt, und woran es sonst liegt. */
-export interface EvidenceStatus {
-  fulfilled: boolean;
-  /** Die Vorschrift, auf die sich das Ergebnis stützt. */
-  basis?: string;
-  reason: string;
-  /** Was noch fehlt; leer, wenn nichts fehlt. */
-  missing: string[];
-  groupACount: number;
-  groupBCount: number;
-}
-
-/** Ein Nachweisbeleg an einer Rechnung. */
-export interface SupplyEvidence {
-  id: number;
-  invoiceId: number;
-  kind: EvidenceKind;
-  /** Zwei Belege desselben Ausstellers sind ein Beleg mit zwei Blättern. */
-  issuer: string;
-  /** Weder Lieferer noch Erwerber — die Bedingung des Art. 45a MwStVO. */
-  independent: boolean;
-  date: string;
-  /** Der Beleg, unter dem die Datei im Belegspeicher liegt. */
-  receiptId?: number;
-  note?: string;
-  createdAt: string;
-}
-
-export interface SupplyEvidenceView {
-  invoiceId: number;
-  invoiceNumber: string;
-  date: string;
-  contactName: string;
-  transport: TransportKind;
-  items: SupplyEvidence[];
-  status: EvidenceStatus;
-  kinds: EvidenceKindInfo[];
-}
-
-export interface SupplyEvidenceRequest {
-  invoiceId: number;
-  kind: EvidenceKind;
-  issuer: string;
-  independent: boolean;
-  date: string;
-  receiptId?: number;
-  note?: string;
-  /** Leer heißt: keine Änderung an dem, was an der Rechnung steht. */
-  transport?: TransportKind;
-  /** Die Datei auf der Platte; sie geht in den Belegspeicher wie jede andere. */
-  filePath?: string;
-}
-
-export interface SupplyEvidenceReportRow {
-  invoiceId: number;
-  invoiceNumber: string;
-  date: string;
-  contactName: string;
-  netAmount: Cents;
-  evidenceCount: number;
-  transport: TransportKind;
-  status: EvidenceStatus;
-}
-
-export interface SupplyEvidenceReport {
-  fiscalYear: number;
-  rows: SupplyEvidenceReportRow[];
-  /** Zahl der Lieferungen ohne vollständigen Nachweis. */
-  incomplete: number;
   note: string;
 }
 
@@ -4319,7 +4141,6 @@ export interface RetentionCounts {
   assetMovements: number;
   accruals: number;
   provisions: number;
-  inventoryCounts: number;
   zmReturns: number;
   inputTaxUsages: number;
   numberGaps: number;

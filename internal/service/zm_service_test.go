@@ -40,16 +40,24 @@ func (e *testEnv) euInvoice(t *testing.T, customerID uint, date string, net doma
 	return inv
 }
 
-// Die Meldung entsteht aus den Buchungen mit den beiden meldepflichtigen
-// Steuerfällen und stimmt sich gegen die Kennziffern 41 und 21 der
-// Voranmeldung ab — beide Meldungen beschreiben denselben Umsatz.
+// euService stellt eine sonstige Leistung an einen Unternehmer im übrigen
+// Gemeinschaftsgebiet aus — den Umsatz, den die Zusammenfassende Meldung
+// erfasst.
+func (e *testEnv) euService(t *testing.T, customerID uint, date string, net domain.Cents) *domain.Invoice {
+	t.Helper()
+	return e.euInvoice(t, customerID, date, net, domain.TaxTreatmentReverseChargeSupply)
+}
+
+// Die Meldung entsteht aus den Buchungen der sonstigen Leistungen ins übrige
+// Gemeinschaftsgebiet und stimmt sich gegen die Kennziffer 21 der Voranmeldung
+// ab — beide Meldungen beschreiben denselben Umsatz.
 func TestZMReconcilesAgainstTheVatReturn(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
 
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
-	env.euInvoice(t, customer.ID, "2026-03-05", 100000, domain.TaxTreatmentReverseChargeSupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
+	env.euService(t, customer.ID, "2026-03-05", 100000)
 
 	// Die Voranmeldung desselben Quartals wird gespeichert, damit sich die
 	// Meldung dagegen abstimmen kann.
@@ -61,30 +69,30 @@ func TestZMReconcilesAgainstTheVatReturn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ZM-Entwurf: %v", err)
 	}
-	if len(zm.Lines) != 2 {
-		t.Fatalf("erwartet zwei Meldezeilen, erhalten %d: %+v", len(zm.Lines), zm.Lines)
+	if len(zm.Lines) != 1 {
+		t.Fatalf("erwartet eine Meldezeile, erhalten %d: %+v", len(zm.Lines), zm.Lines)
 	}
-	if zm.TotalSupplies != 500000 || zm.TotalServices != 100000 {
-		t.Errorf("Summen = %s Lieferungen / %s Leistungen, erwartet 5.000,00 / 1.000,00",
-			zm.TotalSupplies, zm.TotalServices)
+	if zm.Lines[0].Kind != domain.ZMKindService {
+		t.Errorf("Meldeart %q, erwartet %q", zm.Lines[0].Kind, domain.ZMKindService)
+	}
+	if zm.TotalServices != 600000 {
+		t.Errorf("Summe = %s, erwartet 6.000,00", zm.TotalServices)
 	}
 
 	rec := zm.Reconciliation
 	if rec == nil {
 		t.Fatal("die Abstimmung fehlt")
 	}
-	if rec.SuppliesVat != 500000 || rec.ServicesVat != 100000 {
-		t.Errorf("Kennziffern der Voranmeldung: Kz 41 = %s, Kz 21 = %s, erwartet 5.000,00 / 1.000,00",
-			rec.SuppliesVat, rec.ServicesVat)
+	if rec.ServicesVat != 600000 {
+		t.Errorf("Kz 21 der Voranmeldung = %s, erwartet 6.000,00", rec.ServicesVat)
 	}
-	if rec.SuppliesDifference() != 0 || rec.ServicesDifference() != 0 {
-		t.Errorf("Abweichung = %s / %s, erwartet null in beiden Richtungen",
-			rec.SuppliesDifference(), rec.ServicesDifference())
+	if rec.ServicesDifference() != 0 {
+		t.Errorf("Abweichung = %s, erwartet null", rec.ServicesDifference())
 	}
 }
 
 // Der Meldezeitraum folgt der Leistung, das Geschäftsjahr dem Buchungsdatum:
-// die im Januar erfasste Dezemberlieferung gehört in die Meldung des vierten
+// die im Januar erfasste Dezemberleistung gehört in die Meldung des vierten
 // Quartals und nicht in die des ersten.
 func TestZMReadsAcrossFiscalYears(t *testing.T) {
 	env := newTestEnv(t)
@@ -94,13 +102,13 @@ func TestZMReadsAcrossFiscalYears(t *testing.T) {
 	late := &domain.JournalEntry{
 		BookingDate: "2027-01-08", DocumentDate: "2027-01-08",
 		ServiceDateFrom: "2026-12-18", ServiceDateTo: "2026-12-18",
-		Description:  "Dezemberlieferung, im Januar erfasst",
+		Description:  "Dezemberleistung, im Januar erfasst",
 		Source:       domain.EntrySourceManual,
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
 		ContactID:    &customer.ID,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 200000},
-			{Side: domain.SideCredit, Account: "4125", Amount: 200000},
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 200000},
+			{Side: domain.SideCredit, Account: "4337", Amount: 200000},
 		},
 	}
 	if _, err := env.journal.Post(ctx, late); err != nil {
@@ -111,8 +119,8 @@ func TestZMReadsAcrossFiscalYears(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ZM-Entwurf: %v", err)
 	}
-	if zm.TotalSupplies != 200000 {
-		t.Errorf("Summe der Lieferungen im vierten Quartal = %s, erwartet 2.000,00", zm.TotalSupplies)
+	if zm.TotalServices != 200000 {
+		t.Errorf("Summe im vierten Quartal = %s, erwartet 2.000,00", zm.TotalServices)
 	}
 }
 
@@ -123,32 +131,31 @@ func TestZMShowsDifferenceAgainstTheVatReturn(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	if _, err := env.vatReturns(t).Save(ctx, "2026-Q1"); err != nil {
 		t.Fatalf("Voranmeldung speichern: %v", err)
 	}
-	// Nach der Anmeldung kommt eine weitere Lieferung hinzu; die gespeicherte
+	// Nach der Anmeldung kommt eine weitere Leistung hinzu; die gespeicherte
 	// Anmeldung kennt sie nicht.
-	env.euInvoice(t, customer.ID, "2026-03-20", 200000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-03-20", 200000)
 
 	zm, err := env.zmReturns(t).Draft(ctx, "2026-Q1")
 	if err != nil {
 		t.Fatalf("ZM-Entwurf: %v", err)
 	}
-	if zm.Reconciliation.SuppliesDifference() != 200000 {
-		t.Errorf("Abweichung = %s, erwartet 2.000,00", zm.Reconciliation.SuppliesDifference())
+	if zm.Reconciliation.ServicesDifference() != 200000 {
+		t.Errorf("Abweichung = %s, erwartet 2.000,00", zm.Reconciliation.ServicesDifference())
 	}
 }
 
 // Fehlt die USt-IdNr., ist die Meldung nicht bestätigbar: ohne sie nimmt das
-// BZSt-Portal sie nicht an, und die Steuerbefreiung der Lieferung ist nicht
-// belegt.
+// BZSt-Portal sie nicht an.
 func TestZMWithMissingVatIDCannotBeConfirmed(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -183,9 +190,10 @@ func TestZMWithMissingVatIDCannotBeConfirmed(t *testing.T) {
 func TestZMCSVFormat(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500049, domain.TaxTreatmentIntraCommunitySupply)
-	env.euInvoice(t, customer.ID, "2026-03-05", 100000, domain.TaxTreatmentReverseChargeSupply)
+	french := env.customer(t, "Client SARL", "FR", "FR12345678901")
+	italian := env.customer(t, "Cliente SRL", "IT", "IT00743110157")
+	env.euService(t, french.ID, "2026-02-10", 500049)
+	env.euService(t, italian.ID, "2026-03-05", 100000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -204,11 +212,11 @@ func TestZMCSVFormat(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("erwartet Kopfzeile und zwei Meldezeilen, erhalten %d:\n%s", len(lines), csv)
 	}
-	if !strings.Contains(csv, "FR;12345678901;5000;L\n") {
-		t.Errorf("die Lieferzeile fehlt oder ist falsch gerundet (5.000,49 € → 5000):\n%s", csv)
+	if !strings.Contains(csv, "FR;12345678901;5000;S\n") {
+		t.Errorf("die französische Zeile fehlt oder ist falsch gerundet (5.000,49 € → 5000):\n%s", csv)
 	}
-	if !strings.Contains(csv, "FR;12345678901;1000;S\n") {
-		t.Errorf("die Leistungszeile fehlt:\n%s", csv)
+	if !strings.Contains(csv, "IT;00743110157;1000;S\n") {
+		t.Errorf("die italienische Zeile fehlt:\n%s", csv)
 	}
 }
 
@@ -220,7 +228,7 @@ func TestZMCSVUsesTheVatIDPrefixForGreece(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Hellenic AE", "GR", "EL123456789")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -231,8 +239,8 @@ func TestZMCSVUsesTheVatIDPrefixForGreece(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
-	if !strings.Contains(csv, "EL;123456789;5000;L\n") {
-		t.Errorf("erwartet die Zeile \"EL;123456789;5000;L\":\n%s", csv)
+	if !strings.Contains(csv, "EL;123456789;5000;S\n") {
+		t.Errorf("erwartet die Zeile \"EL;123456789;5000;S\":\n%s", csv)
 	}
 }
 
@@ -242,7 +250,7 @@ func TestZMSubmissionIsImmutableAndCorrectable(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -257,7 +265,7 @@ func TestZMSubmissionIsImmutableAndCorrectable(t *testing.T) {
 		t.Fatal("eine bestätigte Meldung darf nicht ein zweites Mal bestätigt werden")
 	}
 
-	env.euInvoice(t, customer.ID, "2026-03-20", 200000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-03-20", 200000)
 	correction, err := svc.CreateCorrection(ctx, "2026-Q1")
 	if err != nil {
 		t.Fatalf("Berichtigung: %v", err)
@@ -265,41 +273,31 @@ func TestZMSubmissionIsImmutableAndCorrectable(t *testing.T) {
 	if !correction.IsCorrection || correction.CorrectsID == nil || *correction.CorrectsID != saved.ID {
 		t.Errorf("die Berichtigung muss auf die ursprüngliche Meldung verweisen: %+v", correction)
 	}
-	if correction.TotalSupplies != 700000 {
-		t.Errorf("Summe der Berichtigung = %s, erwartet 7.000,00", correction.TotalSupplies)
+	if correction.TotalServices != 700000 {
+		t.Errorf("Summe der Berichtigung = %s, erwartet 7.000,00", correction.TotalServices)
 	}
 }
 
-// Die Länge des Meldezeitraums folgt aus den Umsätzen: über 50.000 Euro
-// Lieferungen im Quartal wird monatlich gemeldet (§ 18a Abs. 1 Satz 2 UStG).
-func TestZMPeriodsFollowTheThreshold(t *testing.T) {
+// Sonstige Leistungen werden vierteljährlich gemeldet, unabhängig von ihrer
+// Höhe (§ 18a Abs. 1 Satz 1 UStG).
+func TestZMPeriodsAreQuarters(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 4_000_000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 9_000_000)
 
-	svc := env.zmReturns(t)
-	periods, err := svc.Periods(ctx, 2026)
+	periods, err := env.zmReturns(t).Periods(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zeiträume: %v", err)
 	}
 	if len(periods) != 4 {
-		t.Fatalf("unter der Grenze erwartet vier Quartale, erhalten %d", len(periods))
+		t.Fatalf("erwartet vier Quartale, erhalten %d", len(periods))
 	}
-	if periods[0].Total != 4_000_000 {
-		t.Errorf("Summe Q1 = %s, erwartet 40.000,00", periods[0].Total)
+	if periods[0].Total != 9_000_000 {
+		t.Errorf("Summe Q1 = %s, erwartet 90.000,00", periods[0].Total)
 	}
 	if periods[0].DueDate != "2026-04-27" {
 		t.Errorf("Fälligkeit Q1 = %s, erwartet 2026-04-27 (der 25. April 2026 ist ein Samstag)", periods[0].DueDate)
-	}
-
-	env.euInvoice(t, customer.ID, "2026-02-20", 2_000_000, domain.TaxTreatmentIntraCommunitySupply)
-	periods, err = svc.Periods(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Zeiträume: %v", err)
-	}
-	if len(periods) != 12 {
-		t.Fatalf("über der Grenze erwartet zwölf Monate, erhalten %d", len(periods))
 	}
 }
 
@@ -310,7 +308,7 @@ func TestZMSaveReplacesTheOpenDraft(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	first, err := svc.Save(ctx, "2026-Q1")
@@ -318,7 +316,7 @@ func TestZMSaveReplacesTheOpenDraft(t *testing.T) {
 		t.Fatalf("erstes Speichern: %v", err)
 	}
 
-	env.euInvoice(t, customer.ID, "2026-03-20", 200000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-03-20", 200000)
 	second, err := svc.Save(ctx, "2026-Q1")
 	if err != nil {
 		t.Fatalf("zweites Speichern: %v", err)
@@ -350,7 +348,7 @@ func TestZMConfirmationRequiresCommittedPeriod(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -413,7 +411,7 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	svc := env.zmReturns(t)
 	saved, err := svc.Save(ctx, "2026-Q1")
@@ -426,7 +424,7 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 	}
 
 	// Ein Nachzügler, der in das übermittelte Quartal gehört.
-	late := env.euInvoice(t, customer.ID, "2026-03-25", 100000, domain.TaxTreatmentIntraCommunitySupply)
+	late := env.euService(t, customer.ID, "2026-03-25", 100000)
 
 	second, err := svc.Draft(ctx, "2026-Q2")
 	if err != nil {
@@ -439,8 +437,8 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 		t.Fatalf("erwartet einen Nachtrag, erhalten %+v", second.LateEntries)
 	}
 	nachtrag := second.LateEntries[0]
-	if nachtrag.PeriodKey != "2026-Q1" || nachtrag.Amount != 100000 || nachtrag.Kind != domain.ZMKindSupply {
-		t.Errorf("Nachtrag = %+v, erwartet 1.000,00 € Lieferung im Zeitraum 2026-Q1", nachtrag)
+	if nachtrag.PeriodKey != "2026-Q1" || nachtrag.Amount != 100000 {
+		t.Errorf("Nachtrag = %+v, erwartet 1.000,00 € im Zeitraum 2026-Q1", nachtrag)
 	}
 	if nachtrag.EntryID != *late.JournalEntryID {
 		t.Errorf("der Nachtrag verweist auf die Buchung %d, erwartet %d", nachtrag.EntryID, *late.JournalEntryID)
@@ -452,47 +450,71 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Berichtigung: %v", err)
 	}
-	if correction.TotalSupplies != 600000 {
-		t.Errorf("Summe der Berichtigung = %s, erwartet 6.000,00", correction.TotalSupplies)
+	if correction.TotalServices != 600000 {
+		t.Errorf("Summe der Berichtigung = %s, erwartet 6.000,00", correction.TotalServices)
 	}
 	if len(correction.LateEntries) != 0 {
 		t.Errorf("die Berichtigung meldet den Zeitraum vollständig neu und führt keine Nachträge: %+v", correction.LateEntries)
 	}
 }
 
-// Wer monatlich meldet und vierteljährlich voranmeldet, hat für einen ZM-Monat
-// keine Anmeldung. Abgestimmt wird dann auf der Ebene des Quartals — sonst
-// stünde in der Lage, für die es die Monatsmeldung gibt, immer die volle
-// Summe als Abweichung.
-func TestZMMonthlyReconcilesAgainstTheQuarterlyVatReturn(t *testing.T) {
+// Wer monatlich voranmeldet, hat im ZM-Quartal drei Anmeldungen; abgestimmt
+// wird gegen ihre Summe.
+func TestZMReconcilesAgainstMonthlyVatReturns(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
+	env.euService(t, customer.ID, "2026-01-15", 400000)
+	env.euService(t, customer.ID, "2026-03-20", 200000)
 
-	// Über der Grenze des § 18a Abs. 1 Satz 2 UStG: monatliche Meldung.
-	env.euInvoice(t, customer.ID, "2026-01-15", 4_000_000, domain.TaxTreatmentIntraCommunitySupply)
-	env.euInvoice(t, customer.ID, "2026-02-20", 2_000_000, domain.TaxTreatmentIntraCommunitySupply)
-
-	// Die Voranmeldung bleibt vierteljährlich.
-	if _, err := env.vatReturns(t).Save(ctx, "2026-Q1"); err != nil {
-		t.Fatalf("Voranmeldung speichern: %v", err)
+	for _, key := range []string{"2026-01", "2026-02", "2026-03"} {
+		if _, err := env.vatReturns(t).Save(ctx, key); err != nil {
+			t.Fatalf("Voranmeldung %s speichern: %v", key, err)
+		}
 	}
 
-	zm, err := env.zmReturns(t).Draft(ctx, "2026-01")
+	zm, err := env.zmReturns(t).Draft(ctx, "2026-Q1")
 	if err != nil {
-		t.Fatalf("ZM-Entwurf Januar: %v", err)
+		t.Fatalf("ZM-Entwurf: %v", err)
+	}
+	rec := zm.Reconciliation
+	if rec == nil || rec.VatReturnsFound != 3 {
+		t.Fatalf("die Abstimmung fand %+v, erwartet drei Monatsanmeldungen", rec)
+	}
+	if rec.ServicesZM != 600000 || rec.ServicesVat != 600000 {
+		t.Errorf("Summen = ZM %s / Kz 21 %s, erwartet je 6.000,00", rec.ServicesZM, rec.ServicesVat)
+	}
+}
+
+// Wer jährlich anmeldet, hat für ein ZM-Quartal keine Anmeldung. Abgestimmt
+// wird dann auf der Ebene des Jahres — sonst stünde jedes Quartal mit seiner
+// vollen Summe als Abweichung da.
+func TestZMReconcilesAgainstTheAnnualVatReturn(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
+	env.euService(t, customer.ID, "2026-02-10", 400000)
+	env.euService(t, customer.ID, "2026-08-20", 200000)
+
+	if _, err := env.vatReturns(t).Save(ctx, "2026"); err != nil {
+		t.Fatalf("Jahresanmeldung speichern: %v", err)
+	}
+
+	zm, err := env.zmReturns(t).Draft(ctx, "2026-Q1")
+	if err != nil {
+		t.Fatalf("ZM-Entwurf: %v", err)
 	}
 	rec := zm.Reconciliation
 	if rec == nil || rec.VatReturnsFound != 1 {
-		t.Fatalf("die Abstimmung fand %+v, erwartet die Quartalsanmeldung", rec)
+		t.Fatalf("die Abstimmung fand %+v, erwartet die Jahresanmeldung", rec)
 	}
-	if rec.ScopeKey != "2026-Q1" {
-		t.Errorf("abgestimmt wurde über %q, erwartet 2026-Q1", rec.ScopeKey)
+	if rec.ScopeKey != "2026" {
+		t.Errorf("abgestimmt wurde über %q, erwartet 2026", rec.ScopeKey)
 	}
-	if rec.SuppliesZM != 6_000_000 || rec.SuppliesVat != 6_000_000 {
-		t.Errorf("Summen = ZM %s / Kz 41 %s, erwartet je 60.000,00", rec.SuppliesZM, rec.SuppliesVat)
+	if rec.ServicesZM != 600000 || rec.ServicesVat != 600000 {
+		t.Errorf("Summen = ZM %s / Kz 21 %s, erwartet je 6.000,00", rec.ServicesZM, rec.ServicesVat)
 	}
-	if rec.SuppliesDifference() != 0 {
-		t.Errorf("Abweichung = %s, erwartet null", rec.SuppliesDifference())
+	if rec.ServicesDifference() != 0 {
+		t.Errorf("Abweichung = %s, erwartet null", rec.ServicesDifference())
 	}
 }

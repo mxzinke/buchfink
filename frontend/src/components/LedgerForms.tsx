@@ -136,7 +136,7 @@ export const SelfIssuedFields: React.FC<SelfIssuedFieldsProps> = ({ value, onCha
   <>
     {/* Die Richtung gehört zu den Angaben und nicht nur in den eigenen Dialog:
         sie entscheidet über die Steuerfälle, die zur Buchung wählbar sind
-        (eingehend Erwerb/Reverse Charge, ausgehend Lieferung/Ausfuhr). */}
+        (eingehend Erwerb/Reverse Charge, ausgehend § 13b und Nullsteuersatz). */}
     <FieldRow className="mb-4">
       <Field label="Richtung">
         <Select
@@ -187,7 +187,7 @@ export const SelfIssuedFields: React.FC<SelfIssuedFieldsProps> = ({ value, onCha
         <>
           Der Grund ist der ganze Inhalt des Dokuments: was aufgewendet oder vereinnahmt wurde und
           warum es dazu keinen fremden Beleg gibt — das Trinkgeld, der verlorene Parkschein, die
-          Entnahme aus der Kasse. Buchfink setzt daraus ein PDF und legt es als Original ab, mit
+          Gebühr ohne Quittung. Buchfink setzt daraus ein PDF und legt es als Original ab, mit
           dem Satz, dass kein Fremdbeleg vorliegt (§ 146 Abs. 1 AO).
         </>
       }
@@ -321,8 +321,8 @@ export const ManualEntryDialog: React.FC<ManualEntryDialogProps> = ({
   /**
    * Die Richtung des Vorgangs, aus dem Beleg abgeleitet.
    *
-   * Sie entscheidet über die wählbaren Steuerfälle: zum Ausgangsvorgang gehören
-   * innergemeinschaftliche Lieferung und Ausfuhr, zum Eingangsvorgang Erwerb
+   * Sie entscheidet über die wählbaren Steuerfälle: zum Ausgangsvorgang gehört
+   * die Leistung mit Steuerschuld des Empfängers, zum Eingangsvorgang Erwerb
    * und Reverse Charge. Ohne gewählten Beleg bleibt es beim Eingang, dem
    * häufigen Fall.
    */

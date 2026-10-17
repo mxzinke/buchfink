@@ -310,8 +310,9 @@ func TestManualDeadlineMarkIsStored(t *testing.T) {
 	}
 }
 
-// Die Zusammenfassende Meldung erscheint nur, wenn es innergemeinschaftliche
-// Umsätze gibt — ein Termin, der nichts verlangt, gehört nicht in die Liste.
+// Die Zusammenfassende Meldung erscheint nur, wenn es meldepflichtige Leistungen
+// ins übrige Gemeinschaftsgebiet gibt — ein Termin, der nichts verlangt, gehört
+// nicht in die Liste.
 func TestZMDeadlineOnlyWithIntraCommunityTurnover(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -325,7 +326,7 @@ func TestZMDeadlineOnlyWithIntraCommunityTurnover(t *testing.T) {
 	}
 
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	env.euInvoice(t, customer.ID, "2026-02-10", 500000, domain.TaxTreatmentIntraCommunitySupply)
+	env.euService(t, customer.ID, "2026-02-10", 500000)
 
 	list, err = env.deadlines(t).Deadlines(ctx, 2026)
 	if err != nil {
@@ -333,7 +334,7 @@ func TestZMDeadlineOnlyWithIntraCommunityTurnover(t *testing.T) {
 	}
 	zm, ok := deadlineByKey(list, "zm.2026-Q1")
 	if !ok {
-		t.Fatal("mit ig. Lieferung gehört die Meldung in die Liste")
+		t.Fatal("mit einer Leistung ins übrige Gemeinschaftsgebiet gehört die Meldung in die Liste")
 	}
 	if zm.DueDate != "2026-04-27" {
 		t.Errorf("ZM Q1 fällig am %s, erwartet 2026-04-27", zm.DueDate)

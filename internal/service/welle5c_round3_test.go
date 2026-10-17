@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -513,19 +512,14 @@ func TestConfirmedVatIDEndsTheFollowUpFinding(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	invoice := env.icSupply(t, customer, "RE-2026-0001")
-	invoice.VatIDOverrideReason = "Bundeszentralamt nicht erreichbar"
-	if err := repository.NewInvoiceRepository(env.db).Save(ctx, invoice); err != nil {
-		t.Fatalf("Rechnung: %v", err)
-	}
+	env.euServiceRecord(t, customer, "RE-2026-0001", "Bundeszentralamt nicht erreichbar")
 
 	checks := env.checks(t)
-	checks.SetSupplyEvidenceSource(env.supplyEvidence(t))
 	checks.SetVatIDStatusSource(env.vatIDs(t, "https://example.invalid/evatr"))
 
 	// Ohne Bestätigung steht der Folgebefund.
 	run := runChecks(t, checks, "2026-12-31")
-	if findingByRule(run, domain.CheckRuleICSupplyUnconfirmed) == nil {
+	if findingByRule(run, domain.CheckRuleVatIDUnconfirmed) == nil {
 		t.Fatalf("ohne Bestätigung muss der Folgebefund stehen: %+v", run.Findings)
 	}
 
@@ -539,7 +533,7 @@ func TestConfirmedVatIDEndsTheFollowUpFinding(t *testing.T) {
 	}
 
 	after := runChecks(t, checks, "2026-12-31")
-	if found := findingByRule(after, domain.CheckRuleICSupplyUnconfirmed); found != nil {
+	if found := findingByRule(after, domain.CheckRuleVatIDUnconfirmed); found != nil {
 		t.Errorf("nach der nachgeholten Bestätigung darf der Befund nicht mehr stehen: %s",
 			found.Message)
 	}
@@ -553,55 +547,6 @@ func findingByRule(run *domain.CheckRun, rule string) *domain.CheckFinding {
 		}
 	}
 	return nil
-}
-
-// -------------------------------------------------------------------------
-// Nachweisbelege werden nur an ihrer eigenen Rechnung gelöscht
-// -------------------------------------------------------------------------
-
-// Eine falsche Kombination aus Rechnung und Nachweis nimmt nicht den Nachweis
-// einer anderen Rechnung mit.
-func TestSupplyEvidenceIsOnlyRemovedFromItsOwnInvoice(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.supplyEvidence(t)
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	first := env.icSupply(t, customer, "RE-2026-0001")
-	second := env.icSupply(t, customer, "RE-2026-0002")
-
-	view, err := svc.Add(ctx, SupplyEvidenceRequest{
-		InvoiceID: first.ID, Kind: "cmr_frachtbrief", Issuer: "Spedition Nord",
-		Independent: true, Date: "2026-04-03",
-	})
-	if err != nil {
-		t.Fatalf("Nachweis anlegen: %v", err)
-	}
-	if len(view.Items) != 1 {
-		t.Fatalf("%d Nachweise — erwartet einen", len(view.Items))
-	}
-	evidenceID := view.Items[0].ID
-
-	if _, err := svc.Remove(ctx, second.ID, evidenceID, ""); err == nil {
-		t.Fatal("der Nachweis einer fremden Rechnung darf nicht gelöscht werden")
-	}
-	still, err := svc.View(ctx, first.ID, accounting.TransportBySupplier)
-	if err != nil {
-		t.Fatalf("Nachweisstand: %v", err)
-	}
-	if len(still.Items) != 1 {
-		t.Fatalf("der Nachweis der ersten Rechnung ist verschwunden: %+v", still.Items)
-	}
-
-	if _, err := svc.Remove(ctx, first.ID, evidenceID, ""); err != nil {
-		t.Fatalf("an der eigenen Rechnung muss das Löschen gehen: %v", err)
-	}
-	after, err := svc.View(ctx, first.ID, accounting.TransportBySupplier)
-	if err != nil {
-		t.Fatalf("Nachweisstand: %v", err)
-	}
-	if len(after.Items) != 0 {
-		t.Errorf("%d Nachweise — erwartet keinen mehr", len(after.Items))
-	}
 }
 
 // -------------------------------------------------------------------------

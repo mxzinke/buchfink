@@ -76,20 +76,20 @@ type BuchfinkBridge struct {
 	backupRunRepo      domain.BackupRunRepository
 	// Welle 5a: die Abschlussbausteine.
 	// Welle 5c: die steuerlichen Nebenpflichten.
-	inputTaxRepo       domain.InputTaxCorrectionRepository
-	vatIDCheckRepo     domain.VatIDCheckRepository
-	supplyEvidenceRepo domain.SupplyEvidenceRepository
-	exchangeRateRepo   domain.ExchangeRateRepository
+	inputTaxRepo   domain.InputTaxCorrectionRepository
+	vatIDCheckRepo domain.VatIDCheckRepository
+
+	exchangeRateRepo domain.ExchangeRateRepository
 
 	bankRuleRepo domain.BankRuleRepository
 	dunningRepo  domain.DunningRepository
 	baseRateRepo domain.BaseRateRepository
 
-	closingStepRepo   domain.ClosingStepRepository
-	accrualRepo       domain.AccrualRepository
-	provisionRepo     domain.ProvisionRepository
-	discountRateRepo  domain.DiscountRateRepository
-	inventoryRepo     domain.InventoryRepository
+	closingStepRepo  domain.ClosingStepRepository
+	accrualRepo      domain.AccrualRepository
+	provisionRepo    domain.ProvisionRepository
+	discountRateRepo domain.DiscountRateRepository
+
 	notesRepo         domain.NotesTextRepository
 	appropriationRepo domain.AppropriationRepository
 
@@ -134,12 +134,12 @@ type BuchfinkBridge struct {
 	closingBookingSvc *service.ClosingBookingService
 	appropriationSvc  *service.AppropriationService
 	taxRegisterSvc    *service.TaxRegisterService
-	// Welle 5c: Vorsteuerberichtigung, Bestätigungsabfrage, Belegnachweis,
-	// nicht abziehbare Betriebsausgaben.
-	inputTaxSvc       *service.InputTaxService
-	vatIDSvc          *service.VatIDService
-	supplyEvidenceSvc *service.SupplyEvidenceService
-	giftSvc           *service.GiftService
+	// Welle 5c: Vorsteuerberichtigung, Bestätigungsabfrage, nicht abziehbare
+	// Betriebsausgaben.
+	inputTaxSvc *service.InputTaxService
+	vatIDSvc    *service.VatIDService
+
+	giftSvc *service.GiftService
 	// Welle 7: die Bedienung — Aufgabenliste, Monatsabschluss, Mahnwesen und
 	// der Prüfpfad je Beleg.
 	taskSvc       *service.TaskService
@@ -254,7 +254,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.accrualRepo = repository.NewAccrualRepository(db)
 	b.provisionRepo = repository.NewProvisionRepository(db)
 	b.discountRateRepo = repository.NewDiscountRateRepository(db)
-	b.inventoryRepo = repository.NewInventoryRepository(db)
+
 	b.notesRepo = repository.NewNotesTextRepository(db)
 	b.appropriationRepo = repository.NewAppropriationRepository(db)
 	b.numberGapRepo = repository.NewNumberGapRepository(db)
@@ -262,7 +262,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.vendorAdvanceRepo = repository.NewVendorAdvanceRepository(db)
 	b.inputTaxRepo = repository.NewInputTaxCorrectionRepository(db)
 	b.vatIDCheckRepo = repository.NewVatIDCheckRepository(db)
-	b.supplyEvidenceRepo = repository.NewSupplyEvidenceRepository(db)
+
 	b.exchangeRateRepo = repository.NewExchangeRateRepository(db)
 	// Welle 6: die Nachweise.
 	b.retentionRepo = repository.NewRetentionRepository(db)
@@ -465,7 +465,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.postingSvc.SetProvisionConsumer(b.provisionSvc)
 
 	b.closingBookingSvc = service.NewClosingBookingService(
-		b.inventoryRepo, b.provisionRepo, b.journalRepo, b.journalSvc,
+		b.provisionRepo, b.journalRepo, b.journalSvc,
 		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
 	)
 	b.closingBookingSvc.SetReceiptService(b.receiptSvc)
@@ -483,8 +483,8 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	//
 	// Das Verzeichnis nach § 15a UStG hängt am Abschluss (es bucht zum
 	// Stichtag), die Bestätigungsabfrage am Rechnungsweg (sie hält eine
-	// steuerfreie Lieferung an), der Belegnachweis an den Rechnungen und die
-	// Geschenkkartei am Belegweg (sie kennt die Freigrenze).
+	// Leistung ins übrige Gemeinschaftsgebiet an) und die Geschenkkartei am
+	// Belegweg (sie kennt die Freigrenze).
 	b.inputTaxSvc = service.NewInputTaxService(
 		b.inputTaxRepo, b.journalSvc, b.journalRepo, b.settingsRepo,
 		b.closingSvc, b.auditRepo, fiscalYear)
@@ -498,8 +498,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Ein Kontakt mit einer USt-IdNr. aus einem anderen Mitgliedstaat bekommt
 	// beim Speichern den Hinweis auf die Bestätigungsanfrage — nicht blockierend.
 	b.contactSvc.SetVatIDStatusSource(b.vatIDSvc)
-	b.supplyEvidenceSvc = service.NewSupplyEvidenceService(
-		b.supplyEvidenceRepo, b.invoiceRepo, b.auditRepo, fiscalYear)
+
 	b.giftSvc = service.NewGiftService(
 		b.journalRepo, b.journalSvc, b.settingsRepo, b.auditRepo, fiscalYear)
 	// Storno und Neubuchung einer Umbuchung gehören in eine Transaktion: ein
@@ -518,9 +517,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Die Aktivierung eines Anlageguts legt den Eintrag im Verzeichnis nach
 	// § 15a UStG an.
 	b.assetSvc.SetInputTaxRegister(b.inputTaxSvc)
-	// Der Nachweisbeleg einer ig. Lieferung kann als Datei kommen; sie geht in
-	// denselben Belegspeicher wie jede andere.
-	b.supplyEvidenceSvc.SetReceiptService(b.receiptSvc)
+
 	// Die Stichtagsbewertung braucht die offenen Posten und die Stichtage.
 	b.currencySvc.SetOpenItemSource(b.paymentSvc)
 	b.currencySvc.SetClosingService(b.closingSvc)
@@ -532,7 +529,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.assetRepo, b.provisionRepo, b.journalRepo, b.settingsRepo, b.closingSvc, fiscalYear)
 
 	b.closingStepsSvc = service.NewClosingStepsService(
-		b.closingStepRepo, b.accrualRepo, b.provisionRepo, b.inventoryRepo,
+		b.closingStepRepo, b.accrualRepo, b.provisionRepo,
 		b.appropriationRepo, b.checkRunRepo, b.journalRepo, b.auditRepo, b.closingSvc, fiscalYear,
 	)
 	b.closingStepsSvc.SetDepreciationSource(b.assetSvc)
@@ -607,9 +604,8 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Die Ankündigung des Größenklassenwechsels (§ 267 Abs. 4 Satz 1 HGB): sie
 	// braucht dieselbe Beurteilung wie der Abschluss und nicht eine zweite.
 	b.checkSvc.SetSizeClassSource(b.statementSvc)
-	// Die beiden Regeln zur steuerfreien ig. Lieferung: der Belegnachweis nach
-	// §§ 17a ff. UStDV und die Bestätigung der USt-IdNr. nach § 18e UStG.
-	b.checkSvc.SetSupplyEvidenceSource(b.supplyEvidenceSvc)
+	// Die Bestätigung der USt-IdNr. nach § 18e UStG als Folgebefund einer
+	// Übersteuerung beim Ausstellen.
 	b.checkSvc.SetVatIDStatusSource(b.vatIDSvc)
 
 	// Die Fristen kommen aus den Daten und nicht mehr aus dem localStorage.

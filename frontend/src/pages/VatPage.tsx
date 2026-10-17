@@ -816,16 +816,6 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
               <div className="mb-6">
                 <StatRow>
                   <Stat
-                    label="Innergemeinschaftliche Lieferungen"
-                    value={formatCents(zmReturn.reconciliation.suppliesZm)}
-                    context={`Kennziffer 41: ${formatCents(zmReturn.reconciliation.suppliesVat)}`}
-                    tone={
-                      zmReturn.reconciliation.suppliesZm === zmReturn.reconciliation.suppliesVat
-                        ? 'neutral'
-                        : 'negative'
-                    }
-                  />
-                  <Stat
                     label="Sonstige Leistungen"
                     value={formatCents(zmReturn.reconciliation.servicesZm)}
                     context={`Kennziffer 21: ${formatCents(zmReturn.reconciliation.servicesVat)}`}
@@ -847,7 +837,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
             {!zmReturn || zmLines.length === 0 ? (
               <EmptyState
                 title="Keine meldepflichtigen Umsätze"
-                description="Gemeldet werden innergemeinschaftliche Lieferungen und sonstige Leistungen an Abnehmer mit USt-IdNr."
+                description="Gemeldet werden sonstige Leistungen an Unternehmer mit USt-IdNr. im übrigen Gemeinschaftsgebiet."
               />
             ) : (
               <Table>
@@ -855,8 +845,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                   <Tr>
                     <Th className="w-16">Land</Th>
                     <Th className="w-44">USt-IdNr.</Th>
-                    <Th>Abnehmer</Th>
-                    <Th className="w-40">Art</Th>
+                    <Th>Empfänger</Th>
                     <Th numeric className="w-40">
                       Betrag
                     </Th>
@@ -864,19 +853,16 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                 </Thead>
                 <Tbody>
                   {zmLines.map((line) => (
-                    <Tr key={`${line.vatId}-${line.kind}`}>
+                    <Tr key={line.vatId}>
                       <Td code>{line.countryCode}</Td>
                       <Td code>{line.vatId}</Td>
                       <Td>{line.contactName || '—'}</Td>
-                      <Td className="text-ink-muted">{ZM_KIND_LABELS[line.kind]}</Td>
                       <Td numeric>{formatCents(line.amount)}</Td>
                     </Tr>
                   ))}
                   <Tr variant="sum">
-                    <Td colSpan={4}>Summe</Td>
-                    <Td numeric>
-                      {formatCents(zmReturn.totalSupplies + zmReturn.totalServices)}
-                    </Td>
+                    <Td colSpan={3}>Summe</Td>
+                    <Td numeric>{formatCents(zmReturn.totalServices)}</Td>
                   </Tr>
                 </Tbody>
               </Table>
@@ -902,7 +888,6 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                     <Th className="w-32">Buchung</Th>
                     <Th className="w-28">Datum</Th>
                     <Th className="w-44">USt-IdNr.</Th>
-                    <Th>Art</Th>
                     <Th className="w-28">Zeitraum</Th>
                     <Th numeric className="w-32">
                       Betrag
@@ -912,15 +897,12 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                 </Thead>
                 <Tbody>
                   {zmLateEntries.map((late) => (
-                    <Tr key={`${late.entryId}-${late.kind}`}>
+                    <Tr key={late.entryId}>
                       <Td code>
                         <EntryLink entryNumber={late.entryNumber} onNavigate={onNavigate} />
                       </Td>
                       <Td className="num text-ink-subtle">{formatDate(late.date)}</Td>
                       <Td code>{late.vatId || '—'}</Td>
-                      <Td className="text-ink-muted whitespace-normal">
-                        {ZM_KIND_LABELS[late.kind]}
-                      </Td>
                       <Td className="code-num text-caption text-ink-muted">{late.periodKey}</Td>
                       <Td numeric>{formatCents(late.amount)}</Td>
                       <Td className="text-right">
@@ -979,7 +961,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
                           </span>
                         </Td>
                         <Td className="num text-ink-subtle">{formatDate(r.dueDate ?? '')}</Td>
-                        <Td numeric>{formatCents(r.totalSupplies + r.totalServices)}</Td>
+                        <Td numeric>{formatCents(r.totalServices)}</Td>
                         <Td className={r.status === 'submitted' ? 'text-ink' : 'text-ink-subtle'}>
                           {r.status === 'submitted' ? 'Übermittelt' : 'Entwurf'}
                         </Td>
@@ -1066,12 +1048,6 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
 };
 
 // -------------------------------------------------------------------------
-
-const ZM_KIND_LABELS: Record<string, string> = {
-  L: 'Innergemeinschaftliche Lieferung',
-  S: 'Sonstige Leistung',
-  D: 'Dreiecksgeschäft',
-};
 
 /**
  * Eine Kennziffernzeile mit ihrem Drill-down.

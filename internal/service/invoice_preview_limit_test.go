@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-
-	"github.com/buchfink/buchfink/internal/domain"
 )
 
 // Die Vorschau nennt die Grenze der Kleinbetragsrechnung, und zwar die des
@@ -41,31 +39,5 @@ func TestPreviewReportsDatedSmallAmountLimit(t *testing.T) {
 	}
 	if preview.SmallAmountLimit != 15000 {
 		t.Errorf("Grenze 2016 = %s, erwartet 150,00", preview.SmallAmountLimit)
-	}
-}
-
-// Auch der Barverkauf bekommt die Grenze: er ist der Fall, in dem die
-// Kleinbetragsrechnung überhaupt erst ohne Empfänger auskommt, und die Maske
-// muss dort dieselbe Sperre ziehen können.
-func TestCashSalePreviewReportsSmallAmountLimit(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.invoicesWired(t)
-
-	cash := &domain.Invoice{
-		Date: "2026-03-01", ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
-		TaxTreatment: domain.TaxTreatmentDomestic,
-		SmallAmount:  true,
-		Items: []domain.InvoiceItem{{
-			Description: "Ladenverkauf", QuantityMilli: 1000, Unit: "C62",
-			UnitPrice: 5000, TaxRate: domain.TaxRateStandard,
-		}},
-	}
-	preview, err := svc.Preview(ctx, cash)
-	if err != nil {
-		t.Fatalf("Vorschau des Barverkaufs: %v", err)
-	}
-	if preview.SmallAmountLimit != 25000 {
-		t.Errorf("Grenze = %s, erwartet 250,00", preview.SmallAmountLimit)
 	}
 }

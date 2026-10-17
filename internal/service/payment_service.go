@@ -331,7 +331,11 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 		req.ValueDate = tx.ValueDate
 	}
 	if req.PaymentAccount == "" {
-		return nil, fmt.Errorf("Zahlungsmittel fehlt (Kasse, Bank oder Kreditkarte)")
+		return nil, fmt.Errorf("das Bankkonto der Zahlung fehlt")
+	}
+	if !isLiquidAccount(req.PaymentAccount) {
+		return nil, fmt.Errorf(
+			"Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", req.PaymentAccount)
 	}
 
 	openItems, err := s.OpenItems(ctx)

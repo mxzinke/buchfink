@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +16,9 @@ import (
 )
 
 // Die Nachbesserungen der Welle 5c: die Fremdwährung am Belegweg, die Aufnahme
-// ins Verzeichnis nach § 15a UStG bei der Aktivierung, die beiden Prüflaufregeln
-// zur ig. Lieferung, die gespeicherte Beförderungsart, die Auflösung der
-// Stichtagsbewertung beim Saldenvortrag und der Gebäudestichtag.
+// ins Verzeichnis nach § 15a UStG bei der Aktivierung, der Folgebefund zur
+// unbestätigten USt-IdNr., die Auflösung der Stichtagsbewertung beim
+// Saldenvortrag und der Gebäudestichtag.
 
 // -------------------------------------------------------------------------
 // Fremdwährung am Belegweg (BEW-10)
@@ -416,18 +414,20 @@ func TestInputTaxCorrectionBooksOnTheLastDayOfTheFiscalYear(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// Prüflaufregeln zur steuerfreien innergemeinschaftlichen Lieferung
+// Folgebefund zur unbestätigten USt-IdNr.
 // -------------------------------------------------------------------------
 
-// icSupply legt eine ausgestellte steuerfreie ig. Lieferung an.
-func (e *testEnv) icSupply(t *testing.T, customer *domain.Contact, number string) *domain.Invoice {
+// euServiceRecord legt eine ausgestellte Leistung an einen Unternehmer im
+// übrigen Gemeinschaftsgebiet an.
+func (e *testEnv) euServiceRecord(t *testing.T, customer *domain.Contact, number, overrideReason string) *domain.Invoice {
 	t.Helper()
 	invoice := &domain.Invoice{
 		FiscalYear: 2026, InvoiceNumber: number, Date: "2026-04-02",
 		ServiceDateFrom: "2026-04-01", ServiceDateTo: "2026-04-01",
 		ContactID: customer.ID, ContactName: customer.Name,
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
-		Status:       domain.InvoiceStatusIssued, Currency: "EUR",
+		TaxTreatment:        domain.TaxTreatmentReverseChargeSupply,
+		VatIDOverrideReason: overrideReason,
+		Status:              domain.InvoiceStatusIssued, Currency: "EUR",
 		NetAmount: 500_000, GrossAmount: 500_000,
 	}
 	if err := repository.NewInvoiceRepository(e.db).Save(context.Background(), invoice); err != nil {
@@ -436,127 +436,36 @@ func (e *testEnv) icSupply(t *testing.T, customer *domain.Contact, number string
 	return invoice
 }
 
-// Der Prüflauf meldet beides: die Lieferung ohne vollständigen Belegnachweis
-// und die ohne bestätigte USt-IdNr. Die zweite Regel ist der zugesagte
-// Folgebefund zur Übersteuerung bei Offline-BZSt.
-func TestCheckRunReportsIntraCommunitySupplies(t *testing.T) {
+// Der Prüflauf meldet die Rechnung, die ohne bestätigte USt-IdNr. ausgestellt
+// wurde — der zugesagte Folgebefund zur Übersteuerung bei Offline-BZSt. Eine
+// Rechnung ohne Übersteuerung ging mit einer Bestätigung hinaus und bleibt
+// ohne Befund.
+func TestCheckRunReportsUnconfirmedVatIDs(t *testing.T) {
 	env := newTestEnv(t)
-	ctx := context.Background()
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	invoice := env.icSupply(t, customer, "RE-2026-0001")
-	invoice.VatIDOverrideReason = "Bundeszentralamt nicht erreichbar"
-	if err := repository.NewInvoiceRepository(env.db).Save(ctx, invoice); err != nil {
-		t.Fatalf("Rechnung: %v", err)
-	}
+	env.euServiceRecord(t, customer, "RE-2026-0001", "Bundeszentralamt nicht erreichbar")
+	env.euServiceRecord(t, customer, "RE-2026-0002", "")
 
 	checks := env.checks(t)
-	checks.SetSupplyEvidenceSource(env.supplyEvidence(t))
 	checks.SetVatIDStatusSource(env.vatIDs(t, "https://example.invalid/evatr"))
 
 	run := runChecks(t, checks, "2026-12-31")
-	byRule := map[string]*domain.CheckFinding{}
-	for i := range run.Findings {
-		byRule[run.Findings[i].Rule] = &run.Findings[i]
+	findings := findingsFor(run, domain.CheckRuleVatIDUnconfirmed)
+	if len(findings) != 1 {
+		t.Fatalf("erwartet einen Befund %q, erhalten %+v", domain.CheckRuleVatIDUnconfirmed, findings)
 	}
-
-	evidence := byRule[domain.CheckRuleICSupplyEvidenceMissing]
-	if evidence == nil {
-		t.Fatalf("kein Befund %q: %+v", domain.CheckRuleICSupplyEvidenceMissing, run.Findings)
+	unconfirmed := findings[0]
+	if unconfirmed.ObjectName != "RE-2026-0001" {
+		t.Errorf("Bezugsobjekt %q — der Befund muss die übersteuerte Rechnung benennen", unconfirmed.ObjectName)
 	}
-	if evidence.Severity != domain.CheckWarning {
-		t.Errorf("Schwere %q — der Nachweis darf nachgereicht werden", evidence.Severity)
-	}
-	if !strings.Contains(evidence.Message, "Voranmeldung") {
-		t.Errorf("der Befund muss die Frist nennen: %s", evidence.Message)
-	}
-	if evidence.ObjectName != "RE-2026-0001" {
-		t.Errorf("Bezugsobjekt %q — der Befund muss die Rechnung benennen", evidence.ObjectName)
-	}
-
-	unconfirmed := byRule[domain.CheckRuleICSupplyUnconfirmed]
-	if unconfirmed == nil {
-		t.Fatalf("kein Befund %q: %+v", domain.CheckRuleICSupplyUnconfirmed, run.Findings)
+	if unconfirmed.Severity != domain.CheckWarning {
+		t.Errorf("Schwere %q — die Abfrage darf nachgeholt werden", unconfirmed.Severity)
 	}
 	if !strings.Contains(unconfirmed.Message, "Bundeszentralamt nicht erreichbar") {
 		t.Errorf("der Folgebefund muss den festgehaltenen Grund nennen: %s", unconfirmed.Message)
 	}
-	if !strings.Contains(unconfirmed.Reference, "§ 6a") {
-		t.Errorf("Fundstelle %q — erwartet § 6a Abs. 1 Satz 1 Nr. 4 UStG", unconfirmed.Reference)
-	}
-}
-
-// -------------------------------------------------------------------------
-// Beförderungsart und Nachweisdatei
-// -------------------------------------------------------------------------
-
-// Ein Abholfall ohne Gelangensbestätigung ist nicht nachgewiesen — auch im
-// Jahresbericht. Vorher bewertete er jede Lieferung als Regelfall und meldete
-// den Abholfall als erfüllt.
-func TestSupplyEvidenceReportUsesTheStoredTransportKind(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.supplyEvidence(t)
-	svc.SetReceiptService(env.receipts)
-	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	invoice := env.icSupply(t, customer, "RE-2026-0002")
-
-	// Zwei unabhängige Belege: im Regelfall genügten sie.
-	path := filepath.Join(t.TempDir(), "cmr.pdf")
-	if err := os.WriteFile(path, []byte(minimalPDF), 0o600); err != nil {
-		t.Fatalf("Datei schreiben: %v", err)
-	}
-	view, err := svc.Add(ctx, SupplyEvidenceRequest{
-		InvoiceID: invoice.ID, Kind: string(accounting.EvidenceCMR),
-		Issuer: "Spedition Nord", Independent: true, Date: "2026-04-03",
-		Transport: string(accounting.TransportByCustomer),
-		FilePath:  path,
-	})
-	if err != nil {
-		t.Fatalf("Nachweisbeleg: %v", err)
-	}
-	// Die Datei ist im Belegspeicher gelandet und am Nachweis vermerkt.
-	if len(view.Items) != 1 || view.Items[0].ReceiptID == nil {
-		t.Fatalf("der Nachweis muss auf den abgelegten Beleg zeigen: %+v", view.Items)
-	}
-	if _, err := env.receipts.Get(ctx, *view.Items[0].ReceiptID); err != nil {
-		t.Errorf("der abgelegte Beleg ist nicht lesbar: %v", err)
-	}
-	if _, err := svc.Add(ctx, SupplyEvidenceRequest{
-		InvoiceID: invoice.ID, Kind: string(accounting.EvidenceInsurance),
-		Issuer: "Transportversicherung AG", Independent: true, Date: "2026-04-03",
-	}); err != nil {
-		t.Fatalf("zweiter Nachweisbeleg: %v", err)
-	}
-
-	report, err := svc.Report(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Bericht: %v", err)
-	}
-	if len(report.Rows) != 1 {
-		t.Fatalf("%d Zeilen — erwartet eine", len(report.Rows))
-	}
-	if report.Rows[0].Transport != accounting.TransportByCustomer {
-		t.Errorf("Beförderungsart %q — sie steht an der Rechnung und muss im Bericht ankommen",
-			report.Rows[0].Transport)
-	}
-	if report.Rows[0].Status.Fulfilled || report.Incomplete != 1 {
-		t.Errorf("im Abholfall fehlt die Gelangensbestätigung: %s", report.Rows[0].Status.Reason)
-	}
-
-	// Mit der Gelangensbestätigung ist der Nachweis geführt.
-	if _, err := svc.Add(ctx, SupplyEvidenceRequest{
-		InvoiceID: invoice.ID, Kind: string(accounting.EvidenceArrival),
-		Issuer: "Client SARL", Date: "2026-04-10",
-	}); err != nil {
-		t.Fatalf("Gelangensbestätigung: %v", err)
-	}
-	after, err := svc.Report(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Bericht: %v", err)
-	}
-	if after.Incomplete != 0 {
-		t.Errorf("%d unvollständig — mit der Gelangensbestätigung zeigt der Nachweis: %s",
-			after.Incomplete, after.Rows[0].Status.Reason)
+	if !strings.Contains(unconfirmed.Reference, "§ 3a Abs. 2") {
+		t.Errorf("Fundstelle %q — erwartet § 3a Abs. 2 UStG", unconfirmed.Reference)
 	}
 }
 
@@ -862,13 +771,13 @@ func TestUncheckedEInvoiceIsAFinding(t *testing.T) {
 // Der Rechnungsweg gegen das Bundeszentralamt
 // -------------------------------------------------------------------------
 
-// Das Ausstellen einer steuerfreien ig. Lieferung geht durch die
-// Bestätigungsabfrage: bestätigt sie, wird die Nummer vergeben; weist sie
-// zurück, nicht; antwortet niemand, nur mit festgehaltenem Grund. Geprüft wird
-// hier der Weg über Issue und nicht EnsureConfirmed allein — dazwischen liegen
-// prepareForIssue und die Frage, ob der Empfänger überhaupt im übrigen
-// Gemeinschaftsgebiet sitzt.
-func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
+// Das Ausstellen einer Leistung an einen Unternehmer im übrigen
+// Gemeinschaftsgebiet geht durch die Bestätigungsabfrage: bestätigt sie, wird
+// die Nummer vergeben; weist sie zurück, nicht; antwortet niemand, nur mit
+// festgehaltenem Grund. Geprüft wird hier der Weg über Issue und nicht
+// EnsureConfirmed allein — dazwischen liegen prepareForIssue und die Frage, ob
+// der Empfänger überhaupt im übrigen Gemeinschaftsgebiet sitzt.
+func TestIssuingAnEUServiceGoesThroughTheConfirmation(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
@@ -908,7 +817,7 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 
 	issue := func(customer *domain.Contact, date, reason string) (*domain.Invoice, error) {
 		inv := env.simpleInvoice(customer.ID, date, 500_000)
-		inv.TaxTreatment = domain.TaxTreatmentIntraCommunitySupply
+		inv.TaxTreatment = domain.TaxTreatmentReverseChargeSupply
 		inv.Items[0].TaxRate = domain.TaxRateNone
 		inv.VatIDOverrideReason = reason
 		return inv, invoices.Issue(ctx, inv)
@@ -919,14 +828,14 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 		t.Fatalf("mit bestätigter USt-IdNr. muss Buchfink die Rechnung ausstellen: %v", err)
 	}
 	if confirmed.InvoiceNumber == "" {
-		t.Error("die bestätigte Lieferung bekommt ihre Nummer")
+		t.Error("die bestätigte Leistung bekommt ihre Nummer")
 	}
 
 	// Das Amt weist die Nummer zurück: keine Nummer, keine Rechnung.
 	status, code = "evatr-2001", http.StatusNotFound
 	rejected, err := issue(env.customer(t, "Client Nord SARL", "FR", "FR99999999999"), "2026-03-02", "")
 	if err == nil {
-		t.Fatal("eine zurückgewiesene USt-IdNr. ermöglicht keine steuerfreie Lieferung")
+		t.Fatal("eine zurückgewiesene USt-IdNr. ermöglicht keine Leistung mit Steuerschuld des Empfängers")
 	}
 	if !strings.Contains(err.Error(), "evatr-2001") {
 		t.Errorf("die Meldung muss den Ergebniscode nennen: %v", err)
@@ -950,7 +859,15 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 		t.Fatalf("mit festgehaltenem Grund muss Buchfink die Rechnung ausstellen: %v", err)
 	}
 	if withReason.InvoiceNumber == "" {
-		t.Error("die übersteuerte Lieferung bekommt ihre Nummer")
+		t.Error("die übersteuerte Leistung bekommt ihre Nummer")
+	}
+
+	// Ein Empfänger im Drittland wird nicht abgefragt: die Bestätigung kennt
+	// nur Nummern des übrigen Gemeinschaftsgebiets.
+	hang = false
+	swiss := env.customer(t, "Kunde AG", "CH", "CHE123456789")
+	if _, err := issue(swiss, "2026-03-04", ""); err != nil {
+		t.Errorf("eine Leistung ins Drittland braucht keine Bestätigung: %v", err)
 	}
 }
 

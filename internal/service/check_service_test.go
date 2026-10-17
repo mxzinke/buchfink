@@ -124,7 +124,7 @@ func TestCheckEntryWithoutReceipt(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 0, domain.CheckBlocking)
 
 	// Positiv: eine Handbuchung ohne Beleg.
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("1810", domain.AccountBank, 10000)); err != nil {
 		t.Fatalf("Handbuchung: %v", err)
 	}
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 1, domain.CheckBlocking)
@@ -136,7 +136,7 @@ func TestCheckEntryWithoutReceiptSkipsDerivedBookings(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	entry := simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)
+	entry := simpleEntry("1810", domain.AccountBank, 10000)
 	entry.Source = domain.EntrySourcePayment
 	if _, err := env.journal.Post(ctx, entry); err != nil {
 		t.Fatalf("Zahlungsbuchung: %v", err)
@@ -235,7 +235,7 @@ func TestCheckInterimBalance(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleInterimBalance, 1, domain.CheckBlocking)
 
 	// Negativ: die Gegenbuchung gleicht den Transit aus.
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountGeldtransit, 50000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountBank, domain.AccountGeldtransit, 50000)); err != nil {
 		t.Fatalf("Gegenbuchung: %v", err)
 	}
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleInterimBalance, 0, domain.CheckBlocking)
@@ -467,7 +467,7 @@ func TestCommitIsBlockedUntilOverriddenWithAReason(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("1810", domain.AccountBank, 10000)); err != nil {
 		t.Fatalf("Handbuchung ohne Beleg: %v", err)
 	}
 

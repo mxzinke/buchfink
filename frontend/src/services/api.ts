@@ -71,8 +71,6 @@ import type {
   DisposalResult,
   EInvoiceProfileInfo,
   EInvoiceProposal,
-  EvidenceKindInfo,
-  EvidenceStatus,
   ExchangeRate,
   ExemptionCertificateWarning,
   ExpiringAssetDocument,
@@ -102,10 +100,6 @@ import type {
   InputTaxCorrection,
   InputTaxCorrectionYear,
   IntegrityCheckResult,
-  InventoryCount,
-  InventoryOverview,
-  InventoryPreview,
-  InventoryRequest,
   InvestmentRules,
   InvestmentTaxNote,
   Invoice,
@@ -176,9 +170,6 @@ import type {
   SpecialPrepaymentSuggestion,
   StatementDepth,
   StatementPositionOption,
-  SupplyEvidenceReport,
-  SupplyEvidenceRequest,
-  SupplyEvidenceView,
   SuSaOverview,
   TaxElectionRegister,
   TaxProvisionPreview,
@@ -189,7 +180,6 @@ import type {
   TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
-  TransportKind,
   UnitCode,
   Units,
   ValidationResult,
@@ -425,21 +415,6 @@ function normalizeInputTaxYear(year: InputTaxCorrectionYear): InputTaxCorrection
         : row.correction,
     })),
   };
-}
-
-/** `missing` ist leer, wo nichts fehlt — und das ist der gute Fall. */
-function normalizeEvidenceStatusHolder<T extends { status: EvidenceStatus }>(holder: T): T {
-  if (!holder || !holder.status) return holder;
-  return { ...holder, status: { ...holder.status, missing: list(holder.status.missing) } };
-}
-
-function normalizeSupplyEvidenceView(view: SupplyEvidenceView): SupplyEvidenceView {
-  if (!view) return view;
-  return normalizeEvidenceStatusHolder({
-    ...view,
-    items: list(view.items),
-    kinds: list(view.kinds),
-  });
 }
 
 function normalizeNonDeductibleReport(report: NonDeductibleReport): NonDeductibleReport {
@@ -1290,18 +1265,6 @@ export const Api = {
   importDiscountRatesCSV: (path: string, month: string, average = 7): Promise<number> =>
     call(() => Bridge.ImportDiscountRatesCSV(path, month, average)),
 
-  /** Die Vorratskonten mit Buchwert und bereits erfasstem Inventurwert. */
-  getInventoryAccounts: (year: number): Promise<InventoryOverview> =>
-    call(() => Bridge.GetInventoryAccounts(year) as Promise<InventoryOverview>).then((overview) =>
-      overview ? { ...overview, accounts: list(overview.accounts) } : overview,
-    ),
-  previewInventory: (request: InventoryRequest): Promise<InventoryPreview> =>
-    call(() => Bridge.PreviewInventory(request as any) as Promise<InventoryPreview>).then(
-      (preview) => (preview ? { ...preview, lines: list(preview.lines) } : preview),
-    ),
-  bookInventory: (request: InventoryRequest): Promise<InventoryCount> =>
-    call(() => Bridge.BookInventory(request as any) as Promise<InventoryCount>),
-
   /** Vorsteuer, Umsatzsteuer und Vorauszahlungen zu einem Saldo verrechnet. */
   previewVatSettlement: (year: number): Promise<VatSettlement> =>
     call(() => Bridge.PreviewVatSettlement(year) as Promise<VatSettlement>).then((settlement) =>
@@ -1635,51 +1598,6 @@ export const Api = {
   /** Die qualifizierte Bestätigungsanfrage. Ihr Ergebnis bleibt am Kontakt. */
   checkVatID: (contactId: number): Promise<VatIDCheck> =>
     call(() => Bridge.CheckVatID(contactId) as Promise<VatIDCheck>),
-
-  // --- Belegnachweis der innergemeinschaftlichen Lieferung ---------------
-
-  /** Die Belegarten mit ihrer Gruppe nach Art. 45a MwStVO. */
-  getSupplyEvidenceKinds: (): Promise<EvidenceKindInfo[]> =>
-    call(() => Bridge.GetSupplyEvidenceKinds() as Promise<EvidenceKindInfo[]>).then(list),
-  /** Der Nachweisstand einer Rechnung. Leerer Transport heißt Regelfall. */
-  getSupplyEvidence: (invoiceId: number, transport: TransportKind = ''): Promise<SupplyEvidenceView> =>
-    call(() => Bridge.GetSupplyEvidence(invoiceId, transport) as Promise<SupplyEvidenceView>).then(
-      normalizeSupplyEvidenceView,
-    ),
-  /** Legt einen Nachweisbeleg ab; die Datei geht in den Belegspeicher. */
-  addSupplyEvidence: (request: SupplyEvidenceRequest): Promise<SupplyEvidenceView> =>
-    call(() => Bridge.AddSupplyEvidence(request as any) as Promise<SupplyEvidenceView>).then(
-      normalizeSupplyEvidenceView,
-    ),
-  /**
-   * Hält an der Rechnung fest, wer den Gegenstand befördert hat.
-   *
-   * Eigener Aufruf und nicht nur ein Ansichtsparameter: der Abholfall verlangt
-   * zusätzlich die Gelangensbestätigung, und diese Angabe muss die Rechnung
-   * überleben.
-   */
-  setSupplyTransport: (invoiceId: number, transport: TransportKind): Promise<SupplyEvidenceView> =>
-    call(
-      () => Bridge.SetSupplyTransport(invoiceId, transport) as Promise<SupplyEvidenceView>,
-    ).then(normalizeSupplyEvidenceView),
-  /** Nimmt einen Nachweisbeleg zurück. */
-  removeSupplyEvidence: (
-    invoiceId: number,
-    evidenceId: number,
-    transport: TransportKind = '',
-  ): Promise<SupplyEvidenceView> =>
-    call(
-      () =>
-        Bridge.RemoveSupplyEvidence(invoiceId, evidenceId, transport) as Promise<SupplyEvidenceView>,
-    ).then(normalizeSupplyEvidenceView),
-  /** Die steuerfreien ig. Lieferungen eines Jahres mit ihrem Nachweisstand. */
-  getSupplyEvidenceReport: (year: number): Promise<SupplyEvidenceReport> =>
-    call(() => Bridge.GetSupplyEvidenceReport(year) as Promise<SupplyEvidenceReport>).then(
-      (report) =>
-        report
-          ? { ...report, rows: list(report.rows).map(normalizeEvidenceStatusHolder) }
-          : report,
-    ),
 
   // --- Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG) ---------------
 
