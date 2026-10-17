@@ -212,10 +212,6 @@ var postingGroups = []PostingGroup{
 		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 
 	// --- Personal und Vertrieb -------------------------------------------
-	{Key: "gehaelter", Label: "Gehälter", Category: "Personal",
-		Hint:      "Arbeitslohn ist kein Leistungsaustausch im Sinne des UStG.",
-		Direction: domain.DirectionIncoming, Account: "6020",
-		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "fortbildung", Label: "Fortbildung", Category: "Personal",
 		Direction: domain.DirectionIncoming, Account: "6821", DefaultRate: domain.TaxRateStandard},
 	{Key: "reisekosten", Label: "Reisekosten", Category: "Personal",
