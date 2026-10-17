@@ -56,6 +56,15 @@ func (r *festschreibungRepositoryGorm) LatestCutoff(ctx context.Context, fiscalY
 	return rec.CutoffDate, nil
 }
 
+func (r *festschreibungRepositoryGorm) FindCutoffOnOrAfter(ctx context.Context, date string) ([]domain.Festschreibung, error) {
+	var recs []domain.Festschreibung
+	err := dbFrom(ctx, r.db).
+		Where("cutoff_date >= ?", date).
+		Order("cutoff_date desc, id desc").
+		Find(&recs).Error
+	return recs, err
+}
+
 func (r *festschreibungRepositoryGorm) FindPendingTimestamp(ctx context.Context) ([]domain.Festschreibung, error) {
 	var recs []domain.Festschreibung
 	err := dbFrom(ctx, r.db).

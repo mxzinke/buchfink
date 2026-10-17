@@ -110,6 +110,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 	s.Assets.SetFiscalYearRepo(fiscalYearRepo)
 	s.Audit = service.NewAuditService(auditRepo)
 	s.Settings = service.NewSettingsService(settingsRepo, auditRepo)
+	s.Settings.SetBookkeeping(journalRepo, festschreibungRepo)
 	s.ProcDoc = service.NewProcDocService(
 		settingsRepo, numberRepo, procDocRepo, migrationRepo, auditRepo, store)
 	s.ProcDoc.SetRenderer(renderer)

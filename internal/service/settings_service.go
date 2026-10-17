@@ -2,16 +2,20 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"gorm.io/gorm"
 )
 
 // SettingsService manages company profile and fiscal year configurations.
 type SettingsService struct {
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	registrar    FoundationRegistrar
+	settingsRepo       domain.SettingsRepository
+	auditRepo          domain.AuditRepository
+	registrar          FoundationRegistrar
+	journalRepo        domain.JournalRepository
+	festschreibungRepo domain.FestschreibungRepository
 }
 
 // FoundationRegistrar trägt den Tag der Eintragung ins Handelsregister an der
@@ -23,6 +27,13 @@ type FoundationRegistrar interface {
 
 // SetFoundationRegistrar koppelt die Stammdaten an die Gründung.
 func (s *SettingsService) SetFoundationRegistrar(r FoundationRegistrar) { s.registrar = r }
+
+// SetBookkeeping gibt den Stammdaten den Stand der Bücher. Mit ihm hält
+// UpdateCompanySettings den Beginn des Geschäftsjahres fest, sobald gebucht
+// oder festgeschrieben ist.
+func (s *SettingsService) SetBookkeeping(journal domain.JournalRepository, commitments domain.FestschreibungRepository) {
+	s.journalRepo, s.festschreibungRepo = journal, commitments
+}
 
 func NewSettingsService(
 	settingsRepo domain.SettingsRepository,
@@ -44,11 +55,13 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 	}
 	// Der bisherige Stand wird vor dem Schreiben gelesen: danach gibt es ihn
 	// nicht mehr, und ohne ihn stünde im Protokoll „Stammdaten aktualisiert"
-	// ohne die Angabe, was sich geändert hat. Ein Fehler beim Lesen hält das
-	// Speichern nicht auf.
-	var before *domain.CompanySettings
-	if prev, err := s.settingsRepo.GetCompanySettings(ctx); err == nil {
-		before = prev
+	// ohne die Angabe, was sich geändert hat.
+	before, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return fmt.Errorf("die bisherigen Unternehmensdaten ließen sich nicht lesen: %w", err)
+	}
+	if err := s.ensureStartMonthKept(ctx, before, settings.FiscalYearStartMonth); err != nil {
+		return err
 	}
 
 	// Ein Formular ohne Rechtsform ändert sie nicht. Eine andere Rechtsform als
@@ -91,17 +104,56 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 	return nil
 }
 
+// ensureStartMonthKept weist einen neuen Beginn des Geschäftsjahres ab, sobald
+// die Bücher Buchungen oder Festschreibungen tragen: jede gehört zu dem Jahr,
+// in das sie nach dem bisherigen Beginn fällt, und an diesem Jahr hängen
+// Festschreibung, Feststellung und Hash-Kette.
+func (s *SettingsService) ensureStartMonthKept(ctx context.Context, before *domain.CompanySettings, next int) error {
+	if next < 1 || next > 12 {
+		next = 1
+	}
+	if before == nil || before.FiscalYearStartMonth == next || s.journalRepo == nil {
+		return nil
+	}
+	years, err := s.journalRepo.GetAvailableFiscalYears(ctx)
+	if err != nil {
+		return fmt.Errorf("der Stand der Bücher ließ sich nicht prüfen: %w", err)
+	}
+	started := len(years) > 0
+	if !started && s.festschreibungRepo != nil {
+		commitments, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, "")
+		if err != nil {
+			return fmt.Errorf("der Stand der Bücher ließ sich nicht prüfen: %w", err)
+		}
+		started = len(commitments) > 0
+	}
+	if !started {
+		return nil
+	}
+	return fmt.Errorf(
+		"der Beginn des Geschäftsjahres lässt sich nicht mehr ändern: die Bücher enthalten schon Buchungen " +
+			"oder Festschreibungen, und jede gehört zu dem Geschäftsjahr nach dem bisherigen Beginn. Eine " +
+			"Umstellung des Wirtschaftsjahres mit Rumpfgeschäftsjahr bildet Buchfink nicht ab")
+}
+
+// settableKeys sind die einzelnen Einstellungen, die SetValue schreibt. Die
+// Unternehmensdaten gehören nicht dazu: sie gehen über UpdateCompanySettings
+// mit ihren Prüfungen und bleiben dort der App vorbehalten.
+var settableKeys = map[string]bool{
+	domain.SettingSystemChangeDate: true,
+}
+
 // SetValue schreibt eine einzelne Einstellung und protokolliert ihren alten und
-// neuen Wert.
-//
-// Für die Einstellungen, die nicht Teil der Unternehmensstammdaten sind: der
-// Umstellungszeitpunkt der Datenübernahme, die Texte der
-// Organisationsanweisung, der Sicherungsordner. Sie sind einzelne Schlüssel und
-// sollen trotzdem im Änderungsprotokoll stehen — eine Einstellung, deren
-// Änderung niemand sieht, ist die bequemste Stelle, eine Auswertung zu
-// beeinflussen.
+// neuen Wert. Eine Einstellung, deren Änderung niemand sieht, ist die
+// bequemste Stelle, eine Auswertung zu beeinflussen.
 func (s *SettingsService) SetValue(ctx context.Context, key, value, description string) error {
-	before, _ := s.settingsRepo.Get(ctx, key)
+	if !settableKeys[key] {
+		return fmt.Errorf("die Einstellung %q lässt sich nicht einzeln setzen", key)
+	}
+	before, err := s.settingsRepo.Get(ctx, key)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("der bisherige Wert von %s ließ sich nicht lesen: %w", key, err)
+	}
 	if err := s.settingsRepo.Set(ctx, key, value); err != nil {
 		return err
 	}

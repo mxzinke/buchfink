@@ -931,56 +931,46 @@ func (s *JournalService) validateLedgerAccount(ctx context.Context, l domain.Jou
 	return nil
 }
 
-// ensurePeriodOpen blocks bookings backdated into a committed period. A
-// correction is dated at correction time and therefore never lands in one.
+// ensurePeriodOpen hält festgeschriebene Zeiträume geschlossen. Maßgeblich ist
+// der Buchungstag: jede Festschreibung, deren Geschäftsjahr ihn umfasst und
+// deren Stichtag ihn erreicht, sperrt ihn — auch eine aus einem anderen Jahr
+// als dem, das der Beginnmonat heute ergibt. Eine Korrektur trägt den Tag
+// ihrer Erstellung und landet deshalb nie in einem gesperrten Zeitraum.
 func (s *JournalService) ensurePeriodOpen(ctx context.Context, e *domain.JournalEntry) error {
 	if s.festschreibungRepo == nil {
 		return nil
 	}
-	cutoff, err := s.festschreibungRepo.LatestCutoff(ctx, e.FiscalYear)
+	records, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, e.BookingDate)
 	if err != nil {
 		return fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
 	}
-	if cutoff == "" || e.BookingDate > cutoff {
-		return nil
-	}
-	// Die Abschlussperiode bleibt nach der Festschreibung des letzten Monats
-	// offen, bis das ganze Jahr festgeschrieben ist: AfA, Abgrenzung,
-	// Rückstellungen und Steuern lassen sich erst rechnen, wenn das Jahr
-	// gebucht ist.
-	if e.ClosingPeriod {
-		closed, err := s.yearCommitted(ctx, e.FiscalYear)
-		if err != nil {
-			return err
-		}
-		if !closed {
-			return nil
-		}
-		return fmt.Errorf(
-			"Das Geschäftsjahr %d ist festgeschrieben, auch seine Abschlussperiode. Eine Buchung zum %s ist "+
-				"nicht mehr möglich – bitte über eine Stornierung korrigieren", e.FiscalYear, e.BookingDate)
-	}
-	message := fmt.Sprintf(
-		"Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren",
-		cutoff, e.BookingDate)
-	if e.BookingDate == s.fiscalYearEnd(ctx, e.FiscalYear) {
-		message += ". Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich"
-	}
-	return errors.New(message)
-}
-
-// yearCommitted meldet, ob das ganze Geschäftsjahr festgeschrieben ist.
-func (s *JournalService) yearCommitted(ctx context.Context, year int) (bool, error) {
-	records, err := s.festschreibungRepo.FindByFiscalYear(ctx, year)
-	if err != nil {
-		return false, fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
-	}
 	for _, rec := range records {
-		if rec.PeriodType == domain.PeriodTypeYear {
-			return true, nil
+		if rec.FiscalYear != e.FiscalYear {
+			if start := s.fiscalYearStart(ctx, rec.FiscalYear); e.BookingDate < start {
+				continue
+			}
 		}
+		// Die Abschlussperiode bleibt nach der Festschreibung des letzten
+		// Monats offen, bis das ganze Jahr festgeschrieben ist: AfA,
+		// Abgrenzung, Rückstellungen und Steuern lassen sich erst rechnen,
+		// wenn das Jahr gebucht ist.
+		if e.ClosingPeriod && rec.FiscalYear == e.FiscalYear {
+			if rec.PeriodType != domain.PeriodTypeYear {
+				continue
+			}
+			return fmt.Errorf(
+				"Das Geschäftsjahr %d ist festgeschrieben, auch seine Abschlussperiode. Eine Buchung zum %s ist "+
+					"nicht mehr möglich – bitte über eine Stornierung korrigieren", e.FiscalYear, e.BookingDate)
+		}
+		message := fmt.Sprintf(
+			"Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren",
+			rec.CutoffDate, e.BookingDate)
+		if rec.FiscalYear == e.FiscalYear && e.BookingDate == s.fiscalYearEnd(ctx, e.FiscalYear) {
+			message += ". Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich"
+		}
+		return errors.New(message)
 	}
-	return false, nil
+	return nil
 }
 
 // assignClosingPeriod ordnet eine Buchung der Abschlussperiode zu. Eine
@@ -1011,8 +1001,21 @@ func (s *JournalService) fiscalYearEnd(ctx context.Context, year int) string {
 	return fiscalYearEndDate(year, s.fiscalYearStartMonth(ctx))
 }
 
-// ensureYearNotAdopted blocks every booking into a fiscal year whose annual
-// accounts have been adopted.
+// fiscalYearStart ist der erste Tag eines Geschäftsjahres: der Beginn des
+// angelegten Jahres, sonst der nach dem Beginnmonat.
+func (s *JournalService) fiscalYearStart(ctx context.Context, year int) string {
+	if s.fiscalYearRepo != nil {
+		if fy, err := s.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.StartDate != "" {
+			return fy.StartDate
+		}
+	}
+	return fmt.Sprintf("%04d-%02d-01", year, s.fiscalYearStartMonth(ctx))
+}
+
+// ensureYearNotAdopted sperrt jede Buchung in ein Geschäftsjahr, dessen
+// Abschluss festgestellt ist — gesucht über die Jahresnummer der Buchung und
+// über den Zeitraum jedes angelegten Jahres, damit ein geänderter Beginnmonat
+// den Tag keinem anderen Jahr zuschlägt.
 //
 // Mit der Feststellung durch die Gesellschafter (§ 42a Abs. 2 GmbHG) ist der
 // Abschluss verbindlich: er ist die Grundlage des Ergebnisverwendungsbeschlusses
@@ -1029,18 +1032,22 @@ func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.Jou
 	if s.fiscalYearRepo == nil {
 		return nil
 	}
-	fy, err := s.fiscalYearRepo.FindByYear(ctx, e.FiscalYear)
+	years, err := s.fiscalYearRepo.FindAll(ctx)
 	if err != nil {
 		return fmt.Errorf("der Abschlussstand des Geschäftsjahres %d konnte nicht geprüft werden: %w", e.FiscalYear, err)
 	}
-	if fy == nil || !fy.IsAdopted() {
-		return nil
+	for _, fy := range years {
+		covers := fy.Year == e.FiscalYear || (fy.StartDate <= e.BookingDate && e.BookingDate <= fy.EndDate)
+		if !covers || !fy.IsAdopted() {
+			continue
+		}
+		return fmt.Errorf(
+			"Der Jahresabschluss %d ist am %s festgestellt (§ 42a Abs. 2 GmbHG). Eine Buchung zum %s ist "+
+				"deshalb nicht mehr möglich. Wenn der Abschluss geändert werden muss, setze das Geschäftsjahr "+
+				"zunächst unter „Jahresabschluss\" mit Angabe des Grundes zurück",
+			fy.Year, fy.AdoptedOn, e.BookingDate)
 	}
-	return fmt.Errorf(
-		"Der Jahresabschluss %d ist am %s festgestellt (§ 42a Abs. 2 GmbHG). Eine Buchung zum %s ist "+
-			"deshalb nicht mehr möglich. Wenn der Abschluss geändert werden muss, setze das Geschäftsjahr "+
-			"zunächst unter „Jahresabschluss\" mit Angabe des Grundes zurück",
-		fy.Year, fy.AdoptedOn, e.BookingDate)
+	return nil
 }
 
 func (s *JournalService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {

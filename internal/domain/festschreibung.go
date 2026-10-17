@@ -67,6 +67,10 @@ type FestschreibungRepository interface {
 	// LatestCutoff returns the newest committed cutoff date for a fiscal year, or
 	// "" if the year has no Festschreibung yet.
 	LatestCutoff(ctx context.Context, fiscalYear int) (string, error)
+	// FindCutoffOnOrAfter liefert die Festschreibungen, deren Stichtag am
+	// Tag oder danach liegt, der jüngste Stichtag zuerst; ein leerer Tag
+	// liefert alle.
+	FindCutoffOnOrAfter(ctx context.Context, date string) ([]Festschreibung, error)
 	// FindPendingTimestamp returns commitments whose timestamp is still missing.
 	FindPendingTimestamp(ctx context.Context) ([]Festschreibung, error)
 }
