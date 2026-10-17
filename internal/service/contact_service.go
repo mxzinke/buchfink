@@ -215,10 +215,9 @@ func (s *ContactService) allocateLedgerAccount(ctx context.Context, kind domain.
 //
 // BlockContact löscht nicht: die Buchungen, in denen er steht, sind
 // aufzubewahren (§ 257 HGB, § 147 AO), und Art. 17 Abs. 3 Buchst. b DSGVO
-// nimmt diese Verarbeitung vom Löschanspruch aus. Was bleibt, ist die
-// Einschränkung der Verarbeitung nach Art. 18 DSGVO — der Kontakt
-// verschwindet aus jeder Auswahl und bleibt in Buchungen und Exporten
-// sichtbar.
+// nimmt diese Verarbeitung vom Löschanspruch aus. Der Kontakt verschwindet aus
+// jeder Auswahl und bleibt in Buchungen und Exporten sichtbar. Nach Ablauf der
+// Frist löscht das Unternehmen als Verantwortlicher, nicht Buchfink.
 //
 // BlockContact gibt die Antwort an die betroffene Person zurück, mit den
 // Normen, auf die sie sich stützt.

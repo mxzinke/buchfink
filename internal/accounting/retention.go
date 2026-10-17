@@ -236,22 +236,27 @@ func SystemChangeNote(changeDate, today string) string {
 // BlockedContactAnswer ist die Antwort an eine betroffene Person, die die
 // Löschung ihrer Daten verlangt.
 //
-// Sie steht als fertiger Text und nicht als Stichwortliste, weil die Antwort
-// sonst jedes Mal neu formuliert würde — und weil eine falsch formulierte
-// Ablehnung eines Löschverlangens teurer ist als jede Buchung, um die es geht.
+// Sie steht als fertiger Text und nicht als Stichwortliste, weil eine falsch
+// formulierte Ablehnung eines Löschverlangens teurer ist als jede Buchung, um
+// die es geht. Wer ein Verlangen nicht erfüllt, nennt die Gründe und weist auf
+// Beschwerde und Rechtsbehelf hin (Art. 12 Abs. 4 DSGVO). Buchfink löscht
+// nicht; nach Ablauf der Frist löscht das Unternehmen als Verantwortlicher,
+// und so verspricht es die Antwort.
 func BlockedContactAnswer(name string) string {
 	if name == "" {
-		name = "Sie"
+		name = "Ihrer Person"
 	}
 	return fmt.Sprintf(
 		"Die zu %s gespeicherten Daten stammen aus Geschäftsvorfällen, die wir buchhalterisch "+
 			"erfasst haben. Sie unterliegen der handels- und steuerrechtlichen Aufbewahrungspflicht "+
 			"(§ 257 HGB, § 147 AO). Nach Art. 17 Abs. 3 Buchst. b DSGVO besteht ein Anspruch auf "+
 			"Löschung nicht, soweit die Verarbeitung zur Erfüllung einer rechtlichen Verpflichtung "+
-			"erforderlich ist. Wir haben die Daten deshalb für jede weitere Verwendung gesperrt: "+
-			"sie stehen in keiner Auswahl mehr zur Verfügung und werden nach Ablauf der "+
-			"Aufbewahrungsfrist gelöscht. Die Verarbeitung beschränkt sich bis dahin auf die "+
-			"Aufbewahrung (Art. 18 DSGVO).", name)
+			"erforderlich ist. Ihrem Löschverlangen können wir deshalb erst nach Ablauf der "+
+			"Aufbewahrungsfrist nachkommen. Bis dahin haben wir die Daten gesperrt: wir verwenden "+
+			"sie für keinen neuen Vorgang und bewahren sie nur noch auf, um diese Pflicht zu "+
+			"erfüllen. Sobald die Frist abgelaufen ist, löschen wir sie. Sie können sich bei einer "+
+			"Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO) und gerichtlichen Rechtsschutz "+
+			"in Anspruch nehmen (Art. 79 DSGVO).", name)
 }
 
 // RetentionForClass liefert die Frist einer ausdrücklich gewählten Klasse.
