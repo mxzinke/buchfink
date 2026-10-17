@@ -228,16 +228,25 @@ Ansicht zwischen den Jahren gleich aussieht.
 
 ### 11.6 Belege
 
-Zwei Spalten: links das Dokument, rechts die Erfassung. Die Belegvorschau ist der
-eine Ort, an dem eine Fläche richtig ist ([Abschnitt 6.2](grundlagen.md#62-wann-eine-fläche-erlaubt-ist), Fall 2): `rounded-card border
-border-line bg-surface`. Die Erfassung daneben bekommt keine.
+Die Seitenleiste eines Belegs zeigt oben das Dokument, darunter seine Angaben
+und seine Buchung. Die Notfallmaske zum Buchen hat zwei Spalten: links das
+Dokument, rechts die Erfassung. Die Belegvorschau ist der eine Ort, an dem eine
+Fläche richtig ist ([Abschnitt 6.2](grundlagen.md#62-wann-eine-fläche-erlaubt-ist), Fall 3): `rounded-card border
+border-line`. Die Erfassung daneben bekommt keine.
 
 Die Vorschau bleibt sichtbar, während gebucht wird. Der Abgleich zwischen Beleg
-und Feld ist die häufigste Tätigkeit und darf keinen Fensterwechsel kosten.
+und Feld darf keinen Fensterwechsel kosten.
 
-Werte aus der E-Rechnung erscheinen als Vorschlag im Feld, mit dem Hinweis "aus
-ZUGFeRD übernommen". Sie sind editierbar und werden nicht als gesichert
-dargestellt.
+Werte aus der E-Rechnung stehen vorbelegt im Feld. Sie sind editierbar; die
+Buchungsgruppe bleibt zu wählen, weil keine Rechnung sie nennt.
+
+### 11.7 Bearbeiter
+
+Jede Buchung speichert, wer sie erfasst hat: eine Person in der App, eine
+verbundene App wie Claude Code oder ein Programmlauf. In Listen steht das als
+Zeichen von 14 px in `ink-subtle` (`ActorMark`: Person, Funken, Zahnrad), ohne
+eigene Spaltenüberschrift und ohne Farbe. Der Tooltip nennt App und Bearbeiter,
+die Seitenleiste schreibt es aus.
 
 ---
 

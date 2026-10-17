@@ -9,13 +9,14 @@ Status: umgesetzt
 Letzte Aktualisierung: 2026-08-28
 Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
 
-> **Umsetzung.** Das Anlagenverzeichnis liegt unter „Anlagevermögen" in der
-> Seitenspalte. Der Kern steht in `internal/domain/asset.go` (Anlagegut und
+> **Umsetzung.** Das Anlagenverzeichnis steht unter Bücher → Anlagen. Der Kern steht in `internal/domain/asset.go` (Anlagegut und
 > Bewegung), `internal/accounting/afa.go` (Wertgrenzen, Zeitfenster der
 > degressiven AfA, Abschreibungsplan), `internal/accounting/asset_accounts.go`
 > (Kontenkatalog und die Ableitung der Abgangskonten) und
 > `internal/service/asset_service.go` (Kartei, Abschreibungslauf, Abgang,
-> Anlagenspiegel). Die Oberfläche ist `frontend/src/pages/AssetsPage.tsx`.
+> Anlagenspiegel). Die Oberfläche `frontend/src/pages/books/AssetsTab.tsx` zeigt
+> Verzeichnis, Abschreibungsplan und Anlagenspiegel nur an; erfasst, abgeschrieben
+> und abgegangen wird über einen verbundenen Agenten.
 
 > Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
 > Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
