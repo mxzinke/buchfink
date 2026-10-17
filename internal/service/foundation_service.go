@@ -31,6 +31,8 @@ type FoundationService struct {
 	// Eröffnungsbilanz eine Stufe und sie sagt, welche.
 	statements StatementAtSource
 	renderer   DocumentRenderer
+	// receipts bindet den Beschluss an die Einforderung.
+	receipts closingReceiptFiler
 }
 
 // NewFoundationService creates the service for the Gründung.
@@ -250,6 +252,9 @@ func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) 
 					"kann niemand einzahlen — ein Aufgeld gehört in die Kapitalrücklage (Konto 2920)",
 				sh.Name, sh.PaidIn, sh.ShareCapital)
 		}
+		if err := validateUncalled(sh, rules); err != nil {
+			return err
+		}
 	}
 
 	if sum := f.SubscribedCapital(); sum != f.ShareCapital {
@@ -257,6 +262,44 @@ func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) 
 			"die übernommenen Geschäftsanteile ergeben %s €, das Stammkapital beträgt %s €. "+
 				"Beides muss übereinstimmen (§ 5 Abs. 3 Satz 2 GmbHG)",
 			sum, f.ShareCapital)
+	}
+	if called, required := f.ShareCapital-f.UncalledCapital(), rules.RequiredPaidIn(f); called < required {
+		return fmt.Errorf(
+			"eingefordert sind %s €; vor der Anmeldung müssen %s € eingezahlt sein (%s). "+
+				"Der nicht eingeforderte Teil ist zu groß", called, required, rules.Reference)
+	}
+	return nil
+}
+
+// validateUncalled prüft den nicht eingeforderten Teil eines Geschäftsanteils.
+// Eingefordert sein muss mindestens, was vor der Anmeldung einzuzahlen ist;
+// eine Sacheinlage ist vollständig zu bewirken, bei der UG das ganze
+// Stammkapital einzuzahlen.
+func validateUncalled(sh *domain.Shareholder, rules accounting.FoundationRules) error {
+	if sh.Uncalled < 0 {
+		return fmt.Errorf("%s: der nicht eingeforderte Teil kann nicht negativ sein", sh.Name)
+	}
+	if sh.Uncalled > 0 {
+		switch {
+		case sh.Kind == domain.ContributionInKind:
+			return fmt.Errorf(
+				"%s: eine Sacheinlage ist vor der Anmeldung vollständig zu bewirken (§ 7 Abs. 3 GmbHG); "+
+					"ein nicht eingeforderter Teil ist bei ihr nicht möglich", sh.Name)
+		case rules.PaidInFloorIsFullCapital:
+			return fmt.Errorf(
+				"%s: bei der %s ist das Stammkapital vor der Anmeldung voll einzuzahlen (%s); "+
+					"nicht eingefordert kann nichts bleiben", sh.Name, rules.LegalForm, rules.Reference)
+		case sh.CalledIn() < rules.RequiredPerShare(*sh):
+			return fmt.Errorf(
+				"%s: eingefordert sind %s €, vor der Anmeldung einzuzahlen sind mindestens %s € (%s)",
+				sh.Name, sh.CalledIn(), rules.RequiredPerShare(*sh), rules.Reference)
+		}
+	}
+	if sh.PaidIn > sh.CalledIn() {
+		return fmt.Errorf(
+			"%s: geleistet sind %s €, eingefordert aber nur %s €. Wird mehr eingezahlt, haben die "+
+				"Gesellschafter den Rest eingefordert (§ 46 Nr. 2 GmbHG); der nicht eingeforderte Teil "+
+				"ist dann kleiner", sh.Name, sh.PaidIn, sh.CalledIn())
 	}
 	return nil
 }
@@ -410,7 +453,7 @@ func (s *FoundationService) netAssetsUntil(ctx context.Context, until string) (d
 				assets += signed
 			case l.Account == domain.AccountAusstehendeEinlagenOffen:
 				// Die nicht eingeforderte Einlage steht als offene Absetzung vom
-				// gezeichneten Kapital auf der Passivseite (§ 272 Abs. 1 Satz 3
+				// gezeichneten Kapital auf der Passivseite (§ 272 Abs. 1 Satz 2
 				// HGB), ist der Sache nach aber eine Forderung gegen den
 				// Gesellschafter. Sie gehört ins Reinvermögen, sonst zeigte die
 				// Rechnung eine Unterbilanz in Höhe der noch nicht eingeforderten
@@ -505,17 +548,18 @@ type FoundationPostingPreview struct {
 
 // PreviewPostings builds the founding bookings without writing them.
 //
-// Zwei Sätze, mehr ist es nicht:
+// Gebucht wird die Zeichnung am Tag der Beurkundung:
 //
-//	Zeichnung   SOLL 1298 Ausstehende Einlagen, eingefordert
-//	            HABEN 2900 Gezeichnetes Kapital
-//	Einzahlung  SOLL 1800 Bank
-//	            HABEN 1298 Ausstehende Einlagen, eingefordert
+//	SOLL 1298 Ausstehende Einlagen, eingefordert       (eingeforderter Teil)
+//	SOLL 2910 Ausstehende Einlagen, nicht eingefordert (Rest laut Vertrag)
+//	HABEN 2900 Gezeichnetes Kapital
 //
-// Gebucht wird das volle Stammkapital als eingefordert. Ein nicht eingeforderter
-// Teil (Konto 2910) ist eine Entscheidung der Gesellschafter und keine, die aus
-// den erfassten Daten folgt; wer ihn braucht, bucht ihn von Hand — die
-// Unterbilanzrechnung liest das Konto trotzdem.
+// Der eingeforderte, noch nicht eingezahlte Betrag ist eine Forderung, der
+// nicht eingeforderte wird vom gezeichneten Kapital offen abgesetzt (§ 272
+// Abs. 1 Satz 2 HGB). Die Einzahlung bucht der Bankumsatz: der Geldeingang auf
+// dem Geschäftskonto wird dem Konto 1298 zugeordnet. Eine Einzahlung am Tag der
+// Beurkundung ohne Kontoauszug stünde neben dem späteren Umsatz ein zweites
+// Mal im Journal.
 func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPostingPreview, error) {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
@@ -539,40 +583,46 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 		return preview, nil
 	}
 
+	uncalled := f.UncalledCapital()
+	called := f.ShareCapital - uncalled
+	lines := []domain.JournalLine{
+		{Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: called},
+	}
+	if uncalled > 0 {
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenOffen, Amount: uncalled,
+		})
+	}
+	lines = append(lines, domain.JournalLine{
+		Side: domain.SideCredit, Account: domain.AccountGezeichnetesKapital, Amount: f.ShareCapital,
+	})
 	preview.Postings = append(preview.Postings, FoundationPosting{
 		Title:       "Zeichnung des Stammkapitals",
 		Date:        f.NotarizedOn,
 		Description: "Übernahme der Geschäftsanteile laut Gesellschaftsvertrag",
 		Reference:   "§ 272 Abs. 1 HGB",
 		Amount:      f.ShareCapital,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: f.ShareCapital},
-			{Side: domain.SideCredit, Account: domain.AccountGezeichnetesKapital, Amount: f.ShareCapital},
-		},
+		Lines:       lines,
 	})
+	if uncalled > 0 {
+		preview.Skipped = append(preview.Skipped, fmt.Sprintf(
+			"Nicht eingefordert sind %s €. Fordern die Gesellschafter den Rest ein (§ 46 Nr. 2 GmbHG), "+
+				"bucht die Einforderung 1298 an 2910.", uncalled))
+	}
 
 	for _, sh := range f.Shareholders {
 		if sh.Kind == domain.ContributionInKind {
 			preview.Skipped = append(preview.Skipped, fmt.Sprintf(
 				"%s leistet eine Sacheinlage über %s €. Sie gehört auf das Konto des "+
-					"eingebrachten Gegenstands und ist deshalb von Hand zu buchen.",
+					"eingebrachten Gegenstands an 1298 und ist deshalb von Hand zu buchen.",
 				sh.Name, sh.ShareCapital))
 			continue
 		}
-		if sh.PaidIn <= 0 {
-			continue
+		if sh.PaidIn > 0 {
+			preview.Skipped = append(preview.Skipped, fmt.Sprintf(
+				"Die Einzahlung von %s (%s €) bucht der Bankumsatz: den Geldeingang auf dem "+
+					"Geschäftskonto dem Konto 1298 zuordnen.", sh.Name, sh.PaidIn))
 		}
-		preview.Postings = append(preview.Postings, FoundationPosting{
-			Title:       "Einzahlung " + sh.Name,
-			Date:        f.NotarizedOn,
-			Description: fmt.Sprintf("Bareinlage %s auf das Geschäftskonto", sh.Name),
-			Reference:   "§ 7 Abs. 2 GmbHG",
-			Amount:      sh.PaidIn,
-			Lines: []domain.JournalLine{
-				{Side: domain.SideDebit, Account: domain.AccountBank, Amount: sh.PaidIn},
-				{Side: domain.SideCredit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: sh.PaidIn},
-			},
-		})
 	}
 
 	for _, p := range preview.Postings {

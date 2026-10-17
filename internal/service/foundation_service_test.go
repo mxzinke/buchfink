@@ -459,13 +459,16 @@ func TestPostingsAreOfferedOnceAndUseTheOpeningSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreviewPostings: %v", err)
 	}
-	// Zeichnung plus zwei Einzahlungen.
-	if len(preview.Postings) != 3 {
-		t.Fatalf("%d Buchungsvorschläge, erwartet 3", len(preview.Postings))
+	// Nur die Zeichnung: die Einzahlungen bucht der Bankumsatz.
+	if len(preview.Postings) != 1 {
+		t.Fatalf("%d Buchungsvorschläge, erwartet 1", len(preview.Postings))
 	}
 	if preview.Postings[0].Lines[0].Account != domain.AccountAusstehendeEinlagenGeford ||
 		preview.Postings[0].Lines[1].Account != domain.AccountGezeichnetesKapital {
 		t.Error("die Zeichnung läuft über 1298 an 2900")
+	}
+	if len(preview.Skipped) != 2 || !strings.Contains(preview.Skipped[0], "Bankumsatz") {
+		t.Errorf("die Einzahlungen müssen auf den Bankumsatz verweisen: %v", preview.Skipped)
 	}
 
 	created, err := svc.BookPostings(context.Background())
@@ -502,12 +505,13 @@ func TestPostingsSkipSacheinlage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreviewPostings: %v", err)
 	}
-	if len(preview.Skipped) != 1 {
-		t.Fatalf("%d übergangene Einlagen, erwartet 1", len(preview.Skipped))
+	// Die Sacheinlage und die Einzahlung der Bareinlage werden nicht
+	// vorgeschlagen; gebucht wird nur die Zeichnung.
+	if len(preview.Skipped) != 2 || !strings.Contains(preview.Skipped[1], "Sacheinlage") {
+		t.Fatalf("übergangen: %v", preview.Skipped)
 	}
-	// Zeichnung plus die eine Bareinlage.
-	if len(preview.Postings) != 2 {
-		t.Errorf("%d Buchungsvorschläge, erwartet 2", len(preview.Postings))
+	if len(preview.Postings) != 1 {
+		t.Errorf("%d Buchungsvorschläge, erwartet 1", len(preview.Postings))
 	}
 }
 

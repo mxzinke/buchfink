@@ -8,20 +8,26 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-func TestOpeningBalanceRejectsMissingCapitalOrContribution(t *testing.T) {
+// Die Eröffnungsbilanz verlangt die vollständige Zeichnung samt nicht
+// eingefordertem Teil; die Einzahlung bucht der Bankumsatz nach der
+// Beurkundung und gehört nicht hinein.
+func TestOpeningBalanceRejectsMissingCapitalOrUncalledPart(t *testing.T) {
 	e := newTestEnv(t)
 	svc := openingEnv(t, e)
 	ctx := context.Background()
-	e.saveFoundation(t, svc, gmbhFoundation())
+	f := gmbhFoundation()
+	f.Shareholders[0].Uncalled = 750_000
+	f.Shareholders[1].Uncalled = 500_000
+	e.saveFoundation(t, svc, f)
 	if _, err := svc.OpeningBalancePDF(ctx); err == nil {
 		t.Fatal("empty opening balance accepted")
 	}
-	// A complete capital subscription is balanced, but the declared payment is missing.
-	e.post(t, "2026-01-15", "1298", "2900", 2500000)
+	// Gezeichnet ist erst der eingeforderte Teil.
+	e.post(t, "2026-01-15", "1298", "2900", 1250000)
 	if _, err := svc.OpeningBalancePDF(ctx); err == nil {
-		t.Fatal("declared but unbooked contribution accepted")
+		t.Fatal("incomplete subscription accepted")
 	}
-	e.post(t, "2026-01-15", "1800", "1298", 1250000)
+	e.post(t, "2026-01-15", "2910", "2900", 1250000)
 	if _, err := svc.OpeningBalancePDF(ctx); err != nil {
 		t.Fatal(err)
 	}

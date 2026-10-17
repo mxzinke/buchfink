@@ -152,6 +152,11 @@
       "verified": false
     },
     {
+      "key": "aktiva.B.II.einlagen",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.other.unpaidCapital",
+      "verified": true
+    },
+    {
       "key": "aktiva.B.II.1",
       "element": "de-gaap-ci:bs.ass.currAss.receiv.trade",
       "verified": false
