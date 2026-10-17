@@ -265,6 +265,7 @@ func TestOpeningBalanceBooksAccountsAndOpenItems(t *testing.T) {
 		Accounts: []OpeningBalanceLine{
 			{Account: "1800", Side: domain.SideDebit, Amount: 500000, LegacyRef: "ALT-1800"},
 			{Account: "1600", Side: domain.SideDebit, Amount: 20000, LegacyRef: "ALT-1600"},
+			{Account: "2900", Side: domain.SideCredit, Amount: 579500, LegacyRef: "ALT-2900"},
 		},
 		Receivables: []OpenOpeningItem{{
 			ContactID: customer.ID, Amount: 119000,

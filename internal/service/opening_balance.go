@@ -110,8 +110,9 @@ func (s *JournalService) BookOpeningBalance(
 	}
 	if !preview.Balanced {
 		return nil, fmt.Errorf(
-			"die Eröffnungsbilanz ist nicht ausgeglichen: Soll %s €, Haben %s €. Prüfe die Schlussbilanz des Altsystems",
-			preview.DebitTotal, preview.CreditTotal)
+			"die Eröffnungsbilanz geht nicht auf: Aktiva %s €, Passiva %s €, die Vortragskonten 9000, 9008 "+
+				"und 9009 stehen auf %s €. Prüfe die Schlussbilanz des Altsystems",
+			preview.DebitTotal, preview.CreditTotal, carryForwardBalance(entries))
 	}
 	if err := s.ensureFirstOpeningBalance(ctx, preview.FiscalYear); err != nil {
 		return nil, err
@@ -245,6 +246,11 @@ func (s *JournalService) buildOpeningBalance(
 		entry := s.newOpeningEntry(req, date, fmt.Sprintf("Eröffnungsbilanz %d aus %s", req.FiscalYear, source))
 		var debit, credit domain.Cents
 		for i, line := range req.Accounts {
+			if domain.IsCarryForwardAccount(line.Account) {
+				return nil, nil, fmt.Errorf(
+					"Zeile %d: %s ist ein Saldenvortragskonto. Die Gegenbuchung bildet Buchfink selbst; "+
+						"erfasse nur die Bestände der Schlussbilanz", i+1, line.Account)
+			}
 			if line.Amount <= 0 {
 				return nil, nil, fmt.Errorf("Zeile %d (%s): der Wert der Eröffnungsbilanz muss positiv sein", i+1, line.Account)
 			}
@@ -264,8 +270,9 @@ func (s *JournalService) buildOpeningBalance(
 				credit += line.Amount
 			}
 		}
-		// Die Gegenbuchung auf 9000 gleicht die Buchung aus. Sie ist die
-		// Differenz der beiden Seiten und steht auf der Seite, die fehlt.
+		// Die Gegenbuchung auf 9000 schließt die Buchung der Sachkonten. Ob die
+		// Eröffnungsbilanz aufgeht, entscheidet erst die Summe über alle drei
+		// Vortragskonten (siehe carryForwardBalance).
 		if diff := debit - credit; diff != 0 {
 			side := domain.SideCredit
 			amount := diff
@@ -324,19 +331,56 @@ func (s *JournalService) buildOpeningBalance(
 		}
 	}
 
-	for _, entry := range entries {
-		preview.DebitTotal += entry.DebitTotal()
-		preview.CreditTotal += entry.CreditTotal()
-	}
-	preview.Balanced = preview.DebitTotal == preview.CreditTotal
+	preview.DebitTotal, preview.CreditTotal = balanceSheetTotals(entries)
+	preview.Balanced = carryForwardBalance(entries) == 0
 	preview.Messages = append(preview.Messages, fmt.Sprintf(
 		"%d Buchungen: %d Sachkontenvortrag, %d Forderungen, %d Verbindlichkeiten.",
 		len(entries), boolToInt(len(req.Accounts) > 0), len(req.Receivables), len(req.Payables)))
 	if !preview.Balanced {
-		preview.Messages = append(preview.Messages,
-			"Soll und Haben stimmen nicht überein. Eine Eröffnungsbilanz, die nicht aufgeht, lässt sich nicht buchen.")
+		preview.Messages = append(preview.Messages, fmt.Sprintf(
+			"Aktiva und Passiva unterscheiden sich um %s €; die Vortragskonten 9000, 9008 und 9009 "+
+				"gleichen sich nicht aus. Eine Eröffnungsbilanz, die nicht aufgeht, lässt sich nicht buchen.",
+			(preview.DebitTotal-preview.CreditTotal).Abs()))
 	}
 	return entries, preview, nil
+}
+
+// balanceSheetTotals summiert die Bestände der Eröffnungsbuchungen je Seite,
+// ohne die Gegenbuchungen auf den Vortragskonten.
+func balanceSheetTotals(entries []*domain.JournalEntry) (debit, credit domain.Cents) {
+	for _, entry := range entries {
+		for _, l := range entry.Lines {
+			if domain.IsCarryForwardAccount(l.Account) {
+				continue
+			}
+			if l.Side == domain.SideDebit {
+				debit += l.Amount
+			} else {
+				credit += l.Amount
+			}
+		}
+	}
+	return debit, credit
+}
+
+// carryForwardBalance ist der Saldo (Soll minus Haben) über 9000, 9008 und
+// 9009. Jede einzelne Buchung ist für sich ausgeglichen; aufgehen muss die
+// Eröffnungsbilanz als Ganzes, und das heißt: die Vortragskonten heben sich auf.
+func carryForwardBalance(entries []*domain.JournalEntry) domain.Cents {
+	var sum domain.Cents
+	for _, entry := range entries {
+		for _, l := range entry.Lines {
+			if !domain.IsCarryForwardAccount(l.Account) {
+				continue
+			}
+			if l.Side == domain.SideDebit {
+				sum += l.Amount
+			} else {
+				sum -= l.Amount
+			}
+		}
+	}
+	return sum
 }
 
 // openingItemEntry baut die Vortragsbuchung eines offenen Postens.
