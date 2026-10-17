@@ -9,6 +9,12 @@ vars:
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
+  # Programmfassung für -ldflags (internal/buildinfo.Version, main.version der
+  # Brücke). Sie steht in jedem Export, jeder Sicherung und jeder Voranmeldung.
+  # Auf einem sauberen Stand mit Tag vX.Y.Z ist sie X.Y.Z, sonst „dev“. Der
+  # Release-Workflow setzt sie ausdrücklich: task linux:build VERSION=0.3.0.
+  VERSION:
+    sh: v=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' --dirty 2>/dev/null) || v=; case "$v" in v*-dirty|"") echo dev ;; *) echo "${v#v}" ;; esac
 
 includes:
   common: ./build/Taskfile.yml
@@ -120,6 +126,17 @@ tasks:
     summary: Builds the application
     cmds:
       - task: "{{.GOOS}}:build"
+
+  build:mcp:
+    summary: Builds the stdio bridge cmd/buchfink-mcp for Claude Desktop
+    # Ohne CGO und ohne Wails: GOOS und GOARCH aus der Umgebung wählen das Ziel,
+    # gebaut wird von jedem Rechner aus.
+    cmds:
+      - go build -trimpath -buildvcs=false -ldflags="-s -w -X main.version={{.VERSION}}" -o "{{.OUTPUT}}" ./cmd/buchfink-mcp
+    vars:
+      OUTPUT: '{{.OUTPUT | default "bin/buchfink-mcp"}}'
+    env:
+      CGO_ENABLED: 0
 
   package:
     summary: Packages a production build of the application
