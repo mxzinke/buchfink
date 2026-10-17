@@ -24,7 +24,7 @@ Zwei Stellen setzen es um:
 |---|---|
 | [Visuelle Grundlagen](grundlagen.md) | Leitidee, Farben, Typografie, Flächen, Bewegung und Dunkelmodus |
 | [Interaktion](interaktion.md) | Eingaben, Rückmeldungen, Icons, Zustände und Barrierefreiheit |
-| [Komponenten und Layout](komponenten.md) | UI-Bausteine, fachliche Muster und Seitenaufbau |
+| [Komponenten und Layout](komponenten.md) | UI-Bausteine, fachliche Muster, Navigation und Seitenaufbau |
 | [Hilfetexte](hilfetexte.md) | Textbudget, Fragezeichen und Detaildialog |
 | [Schreibweise](schreibweise.md) | Sprache für Oberfläche, Webseite und Dokumentation |
 
@@ -32,12 +32,14 @@ Die Abschnittsnummern bleiben als Verweise zwischen den Themenseiten erhalten.
 
 ## Prüfliste für jeden Pull Request
 
+- [ ] Die Ansicht beantwortet zuerst ihre Frage; Einzelheiten liegen eine Ebene tiefer, Freigaben nie ([Grundsatz 6](grundlagen.md#2-leitidee-stilles-kontor))
+- [ ] Kein sechster Eintrag in der Navigation ([Abschnitt 12](komponenten.md#12-layout))
 - [ ] Keine neue Fläche außerhalb der fünf Fälle aus [Abschnitt 6.2](grundlagen.md#62-wann-eine-fläche-erlaubt-ist), keine Fläche in einer Fläche
 - [ ] Abschnitte durch Überschrift, Abstand und Haarlinie getrennt, nicht durch Kästen
 - [ ] Tabellenüberschrift über der Fläche, Kopfzeile ohne Füllung
 - [ ] Kein Fließtext in der Ansicht, Erklärungen hinter dem Erklärzeichen ([Abschnitt 15](hilfetexte.md#15-text))
 - [ ] Textbudget je Ort eingehalten ([Abschnitt 15.1](hilfetexte.md#151-textbudget))
-- [ ] Keine Hex-Farben, keine Klassen aus den alten Paletten
+- [ ] Keine Hex-Farben, keine Klassen aus den Tailwind-Standardpaletten
 - [ ] `-text` für Text, Basis für Marker, `-soft` mit `-line` für Flächen
 - [ ] Schriftgrößen aus der Skala in [Abschnitt 4](grundlagen.md#4-typografie)
 - [ ] Radien nur `control`, `overlay`, `full`
