@@ -436,8 +436,8 @@ func (s *AssetService) checkUsefulLifeReason(
 	}
 	// Bei einem bestehenden Anlagegut greift die Pflicht nur, wo sich die
 	// Nutzungsdauer ändert. Sonst hielte jede Stammdatenänderung — ein
-	// berichtigter Name, ein neuer Standort — den vor dieser Welle mit 36 Monaten
-	// angelegten Server an, bis jemand eine Begründung nachträgt. Die Begründung
+	// berichtigter Name, ein neuer Standort — das Anlagegut an, bis jemand eine
+	// Begründung nachträgt. Die Begründung
 	// gehört zur Entscheidung über die Nutzungsdauer und nicht zum Speichern.
 	if asset.ID != 0 {
 		existing, err := s.assetRepo.FindByID(ctx, asset.ID)

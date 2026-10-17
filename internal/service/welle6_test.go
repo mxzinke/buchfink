@@ -123,7 +123,7 @@ func TestSaveHeaderRecomputesTheReceiptHash(t *testing.T) {
 	// Ein Papierscan kommt ohne Kopfdaten herein: die Ablage darf daran nicht
 	// scheitern (GoBD Rz. 131), das Buchen schon.
 	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
-	if receipt.HasHeader() {
+	if receipt.DocumentDate != "" {
 		t.Fatal("ein Beleg ohne Kopfdaten darf keine haben")
 	}
 	if err := receipt.ValidateBookable(); err == nil {

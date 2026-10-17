@@ -169,10 +169,10 @@ export const SettingsPage: React.FC<{
   const [legalForms, setLegalForms] = useState<LegalFormInfo[]>([]);
   const [showInvestorChoice, setShowInvestorChoice] = useState(false);
   const [showNumberRanges, setShowNumberRanges] = useState(false);
-  // Die Hinweise zu Rechtsform, Speicherort und Steuerfällen kommen aus dem
-  // Backend: welche Rechtsform Entnahmen kennt und welcher Pfad in einem
-  // Synchronisationsordner liegt, ist Recht bzw. Umgebung — beides gehört an
-  // eine Stelle und nicht in eine zweite Liste hier (BEW-13, UST-08, ARC-06).
+  // Die Hinweise zu Speicherort und Steuerfällen kommen aus dem Backend:
+  // welcher Pfad in einem Synchronisationsordner liegt und welche Steuerfälle
+  // Buchfink nicht abbildet, gehört an eine Stelle und nicht in eine zweite
+  // Liste hier (UST-08, ARC-06).
   const [hints, setHints] = useState<ComplianceHints | null>(null);
   // Der Umstellungszeitpunkt aus einem Altsystem. Er wird hier gepflegt und
   // nicht in einer Übersicht: er ist eine Angabe über dieses Unternehmen wie

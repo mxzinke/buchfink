@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -65,9 +64,7 @@ type InputTaxCorrection struct {
 	// Jahresbeginn; bei einem Zugang mitten im Jahr reicht er in das sechste
 	// (elfte) Kalenderjahr hinein. Er wird gespeichert und nicht bei jedem
 	// Zugriff gerechnet: eine spätere Änderung der Ableitung darf den Zeitraum
-	// eines laufenden Wirtschaftsguts nicht verschieben. Leer heißt: ein Eintrag
-	// aus der Zeit vor dem datumsgenauen Zeitraum — dann leitet
-	// PeriodEndDate() ihn aus dem Anschaffungsdatum ab.
+	// eines laufenden Wirtschaftsguts nicht verschieben.
 	PeriodEnd string `gorm:"size:10" json:"periodEnd,omitempty"`
 
 	// FirstFiscalYear ist das Geschäftsjahr des Zugangs, LastFiscalYear das
@@ -140,49 +137,7 @@ func (c *InputTaxCorrection) Open() bool { return c.ClosedReason == "" }
 // § 15a UStG (UStAE 15a.2 Abs. 2). Und das letzte Jahr gehört ebenfalls dazu:
 // der Zeitraum läuft ab der erstmaligen Verwendung, nicht ab dem Jahresbeginn.
 func (c *InputTaxCorrection) CoversYear(fiscalYear int) bool {
-	return fiscalYear >= c.FirstFiscalYear && fiscalYear <= c.lastYearOfPeriod()
-}
-
-// lastYearOfPeriod ist das letzte Jahr des Berichtigungszeitraums.
-//
-// Gespeichert steht es in LastFiscalYear. Für einen Altbestand ohne PeriodEnd
-// stammt dieser Wert aber aus der Zeit, in der Buchfink den Zeitraum in vollen
-// Wirtschaftsjahren führte — er endete dann bis zu ein Jahr zu früh, und das
-// letzte Jahr fiele lautlos aus der Berichtigung. Für diese Einträge entscheidet
-// deshalb das abgeleitete Ende (PeriodEndDate), und zwar nur nach oben: einen
-// gespeicherten Zeitraum zu verkürzen wäre eine Änderung an einem laufenden
-// Wirtschaftsgut.
-func (c *InputTaxCorrection) lastYearOfPeriod() int {
-	last := c.LastFiscalYear
-	if len(c.PeriodEnd) == 10 {
-		return last
-	}
-	end := c.PeriodEndDate()
-	if len(end) != 10 {
-		return last
-	}
-	year, err := strconv.Atoi(end[:4])
-	if err != nil || year <= last {
-		return last
-	}
-	return year
-}
-
-// PeriodEndDate liefert das gespeicherte Ende des Berichtigungszeitraums.
-//
-// Fehlt es — ein Eintrag aus der Zeit, in der Buchfink den Zeitraum in vollen
-// Wirtschaftsjahren führte —, wird es aus dem Anschaffungsdatum abgeleitet.
-// Sonst stünde für Altbestände weiterhin ein um bis zu ein Jahr zu kurzer
-// Zeitraum, ohne dass es jemandem auffiele.
-func (c *InputTaxCorrection) PeriodEndDate() string {
-	if len(c.PeriodEnd) == 10 {
-		return c.PeriodEnd
-	}
-	end, err := CorrectionPeriodEndDate(c.AcquisitionDate, c.CorrectionPeriodYears)
-	if err != nil {
-		return ""
-	}
-	return end
+	return fiscalYear >= c.FirstFiscalYear && fiscalYear <= c.LastFiscalYear
 }
 
 // CorrectionPeriodEndDate bestimmt den letzten Tag des Berichtigungszeitraums.
@@ -235,7 +190,7 @@ func CorrectionPeriodEndDate(acquisitionDate string, periodYears int) (string, e
 // unberücksichtigt, weil das Ende dann in den angefangenen Schlussmonat
 // hineinreicht.
 func (c *InputTaxCorrection) MonthsInWindow(from, to string) int {
-	periodTo, err := monthOrdinal(c.PeriodEndDate())
+	periodTo, err := monthOrdinal(c.PeriodEnd)
 	if err != nil {
 		return 0
 	}
@@ -296,6 +251,9 @@ func (c *InputTaxCorrection) Validate() error {
 	}
 	if c.CorrectionPeriodYears <= 0 {
 		return fmt.Errorf("der Berichtigungszeitraum fehlt")
+	}
+	if len(c.PeriodEnd) != 10 {
+		return fmt.Errorf("das Ende des Berichtigungszeitraums fehlt")
 	}
 	if c.LastFiscalYear < c.FirstFiscalYear {
 		return fmt.Errorf(

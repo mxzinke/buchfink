@@ -25,9 +25,10 @@ Kleinunternehmerbesteuerung, Lohnabrechnung, Kassenbuch und DATEV-Export fehlen.
 Der [Umsetzungsstand](docs/projekt/umsetzungsstand.md) beschreibt Funktionen und
 Grenzen, die [Roadmap](docs/projekt/roadmap.md) die geplanten Arbeiten.
 
-Daten liegen lokal je Unternehmen. Ausgewählte Datenbankfelder sind
-verschlüsselt, Belegdateien und Sicherungsarchive nicht. Einzelne Funktionen
-nutzen externe Dienste. Details stehen im
+Daten liegen lokal je Unternehmen. Buchfink verschlüsselt nichts; den Schutz am
+Rechner übernimmt die Festplattenverschlüsselung des Betriebssystems. Die
+Unveränderbarkeit sichern Hash-Ketten und Zeitstempel nach RFC 3161. Einzelne
+Funktionen nutzen externe Dienste. Details stehen im
 [Sicherheitskonzept](docs/nutzung/datensicherheit.md).
 
 ## Einsteigen

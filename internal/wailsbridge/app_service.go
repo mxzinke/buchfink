@@ -388,13 +388,15 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.exchangeRateRepo, currency.New(currency.DefaultEndpoint), b.auditRepo)
 	b.currencySvc.SetJournalRepo(b.journalRepo)
 	b.currencySvc.SetJournalService(b.journalSvc)
-	// Die Gründungsbegleitung liest das Journal und schreibt über den
+	// Die Gründung liest das Journal und schreibt über den
 	// JournalService wie jeder andere Weg auch — eine Gründungsbuchung ist
 	// keine Buchung zweiter Klasse.
 	b.foundationSvc = service.NewFoundationService(
 		b.foundationRepo, b.accountRepo, b.journalRepo, b.settingsRepo,
 		b.journalSvc, b.auditRepo,
 	)
+	// Der Tag der Eintragung in den Stammdaten beendet die Vorgesellschaft.
+	b.settingsSvc.SetFoundationRegistrar(b.foundationSvc)
 
 	b.closingSvc = service.NewClosingService(
 		b.fiscalYearRepo, b.journalRepo, b.accountRepo, b.contactRepo, b.allocationRepo,
@@ -1710,7 +1712,7 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 // can act on.
 //
 // The list covers EN 16931 completely and the German CIUS as far as its rules
-// can be decided on the semantic model. GetUncheckedEInvoiceRules names the
+// can be decided on the semantic model; xrechnung.UncheckedRules names the
 // rest, with the reason for each.
 func (b *BuchfinkBridge) GetEInvoiceRules() []string {
 	rules := einvoice.RulesChecked()

@@ -48,7 +48,7 @@ func TestAuditPackageCarriesAuditChainChangelogAndProcedureDoc(t *testing.T) {
 		t.Fatalf("integritaet.txt fehlt: %v", err)
 	}
 	// Die Protokollkette steht als eigener Abschnitt neben der Journalkette.
-	for _, want := range []string{"Änderungsprotokoll", "Davon verkettet:", "Letzter Kettenwert:"} {
+	for _, want := range []string{"Änderungsprotokoll", "Nachgerechnet:", "Letzter Kettenwert:"} {
 		if !strings.Contains(string(report), want) {
 			t.Errorf("der Nachweis nennt %q nicht:\n%s", want, report)
 		}
@@ -349,8 +349,8 @@ func TestOutgoingInvoiceReceiptCarriesHeaderData(t *testing.T) {
 	if !strings.Contains(receipt.Subject, inv.InvoiceNumber) {
 		t.Errorf("Betreff %q nennt die Rechnungsnummer nicht", receipt.Subject)
 	}
-	if !receipt.HasHeader() {
-		t.Error("der Beleg hat keine Kopfdaten und würde nach der Altform gehasht")
+	if receipt.DocumentDate == "" {
+		t.Error("der Beleg hat kein Belegdatum")
 	}
 	if err := receipt.ValidateHeader(); err != nil {
 		t.Errorf("der gebuchte Beleg muss die Kopfdatenprüfung bestehen: %v", err)
@@ -399,7 +399,7 @@ func TestPostRejectsAnEntryWhoseReceiptHasNoHeader(t *testing.T) {
 	// Ein Beleg ohne Kopfdaten — der Papierscan, den jemand abgelegt, aber noch
 	// nicht erfasst hat.
 	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
-	if receipt.HasHeader() {
+	if receipt.DocumentDate != "" {
 		t.Fatal("der Beleg des Falls darf keine Kopfdaten haben")
 	}
 

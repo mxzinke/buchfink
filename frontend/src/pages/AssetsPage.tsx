@@ -2020,11 +2020,10 @@ const AssetFormDialog: React.FC<{
                 label="Anteil an einer Kapitalgesellschaft"
                 hint="Gewinn und Verlust über eigene Konten"
               />
-              <Help summary="Gewinne aus dem Verkauf von Unternehmensanteilen werden je nach Eigentümer unterschiedlich besteuert." label="Erklärung zum Anteil an einer Kapitalgesellschaft">
+              <Help summary="Gewinne aus dem Verkauf von Unternehmensanteilen sind größtenteils steuerfrei." label="Erklärung zum Anteil an einer Kapitalgesellschaft">
                 Der Gewinn aus der Veräußerung ist bei einer Kapitalgesellschaft im Ergebnis zu 95 %
-                steuerfrei (§ 8b Abs. 2 KStG), bei einer natürlichen Person im Betriebsvermögen zu
-                40 % (§ 3 Nr. 40 EStG). Damit die Rechnung später stimmt, laufen Gewinn und Verlust
-                über eigene Konten.
+                steuerfrei (§ 8b Abs. 2 KStG). Damit die Rechnung später stimmt, laufen Gewinn und
+                Verlust über eigene Konten.
               </Help>
             </span>
           </div>

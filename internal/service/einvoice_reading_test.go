@@ -41,13 +41,13 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 		TaxTreatment: treatment, Currency: "EUR",
 		Items: []domain.InvoiceItem{{
 			Position: 1, Description: "Wartung Serverschrank", QuantityMilli: 1000,
-			Unit: "Stk", UnitPrice: net, TaxRate: rate,
+			Unit: "C62", UnitPrice: net, TaxRate: rate,
 		}},
 	}
 	inv.Recalculate()
 
 	buyer := &domain.Contact{
-		Name: "Buchfink-Mandant", Address: "Hauptstraße 1, 80331 München",
+		Name: "Buchfink-Mandant", Street: "Hauptstraße 1", PostalCode: "80331", City: "München",
 		CountryCode: "DE", VatID: "DE111111111",
 	}
 	xml, err := invoice.GenerateZUGFeRDXML(inv, supplier, buyer)

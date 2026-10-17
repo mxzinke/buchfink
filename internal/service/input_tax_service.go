@@ -383,7 +383,7 @@ func (s *InputTaxService) outOfPeriodReason(c *domain.InputTaxCorrection, year i
 	default:
 		return fmt.Sprintf(
 			"Der Berichtigungszeitraum lief vom %s bis zum %s und ist abgelaufen.",
-			germanDay(c.AcquisitionDate), germanDay(c.PeriodEndDate()))
+			germanDay(c.AcquisitionDate), germanDay(c.PeriodEnd))
 	}
 }
 
@@ -415,7 +415,7 @@ func (s *InputTaxService) SaveUsage(
 		return nil, fmt.Errorf(
 			"das Jahr %d liegt nicht im Berichtigungszeitraum von %s (%s bis %s)",
 			year, correction.Label, germanDay(correction.AcquisitionDate),
-			germanDay(correction.PeriodEndDate()))
+			germanDay(correction.PeriodEnd))
 	}
 	if req.Permille < 0 || req.Permille > 1000 {
 		return nil, fmt.Errorf("der Verwendungsanteil liegt zwischen 0 und 100 %%")

@@ -86,8 +86,7 @@ type Foundation struct {
 
 	// NotarizedOn ist der Tag der notariellen Beurkundung des
 	// Gesellschaftsvertrags (§ 2 Abs. 1 GmbHG). Mit ihm entsteht die
-	// Vorgesellschaft, beginnt die Buchführungspflicht und laufen alle Fristen
-	// der Gründung an.
+	// Vorgesellschaft und beginnt die Buchführungspflicht.
 	NotarizedOn string `gorm:"size:10;not null" json:"notarizedOn"` // YYYY-MM-DD
 
 	// RegisteredOn ist der Tag der Eintragung ins Handelsregister. Leer heißt:

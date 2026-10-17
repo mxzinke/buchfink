@@ -257,10 +257,8 @@ func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAl
 // -------------------------------------------------------------
 
 // ImportCAMT053File legt die Kontoauszugsdatei als Beleg ab und importiert die
-// Umsätze daraus.
-//
-// Sie tritt an die Stelle von ImportCAMT053XML: die alte Methode bekam den
-// Inhalt und konnte die Datei deshalb gar nicht archivieren.
+// Umsätze daraus. Sie bekommt den Pfad und nicht den Inhalt, damit die Datei
+// selbst archiviert wird.
 func (b *BuchfinkBridge) ImportCAMT053File(path, ledgerAccount string) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

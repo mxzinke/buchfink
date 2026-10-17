@@ -75,6 +75,25 @@ func BaseRateAt(rates []BaseRatePeriod, date string) (BaseRatePeriod, error) {
 	return found, nil
 }
 
+// BaseRatesCoveredUntil ist der letzte Tag, für den die Tabelle einen Satz
+// belegt. Die Bundesbank gibt den Satz zum 1. Januar und zum 1. Juli bekannt;
+// der letzte Eintrag gilt deshalb bis zum Ende seines Halbjahres. Danach kann
+// sich der Satz geändert haben, ohne dass die Tabelle es weiß. Leer heißt: die
+// Tabelle ist leer.
+func BaseRatesCoveredUntil(rates []BaseRatePeriod) string {
+	if len(rates) == 0 {
+		return ""
+	}
+	last, err := time.Parse("2006-01-02", rates[len(rates)-1].ValidFrom)
+	if err != nil {
+		return ""
+	}
+	if last.Month() <= time.June {
+		return fmt.Sprintf("%04d-06-30", last.Year())
+	}
+	return fmt.Sprintf("%04d-12-31", last.Year())
+}
+
 // DefaultInterestStart ist der erste Tag, für den Verzugszinsen laufen.
 //
 // § 286 Abs. 3 BGB lässt den Verzug mit Ablauf von dreißig Tagen nach
@@ -130,6 +149,10 @@ type InterestResult struct {
 	Days      int               `json:"days"`
 	Amount    domain.Cents      `json:"amount"`
 	Segments  []InterestSegment `json:"segments"`
+	// UncoveredFrom ist der erste Tag des Zeitraums, für den die Tabelle keinen
+	// Basiszinssatz belegt (BaseRatesCoveredUntil). Ab dort ist nicht gerechnet;
+	// leer heißt: der ganze Zeitraum ist gerechnet.
+	UncoveredFrom string `json:"uncoveredFrom,omitempty"`
 }
 
 // EnsureLists ersetzt eine nicht belegte Abschnittsliste durch eine leere.
@@ -165,6 +188,21 @@ func DefaultInterest(
 	}
 	if principal <= 0 || !end.After(start) {
 		return out, nil
+	}
+
+	// Über das Halbjahr des letzten Eintrags hinaus wird nicht fortgeschrieben:
+	// ein geschätzter Satz ergäbe eine Forderung, die niemand belegen kann.
+	if covered := BaseRatesCoveredUntil(rates); covered != "" {
+		limit, _ := time.Parse("2006-01-02", covered)
+		limit = limit.AddDate(0, 0, 1)
+		if !start.Before(limit) {
+			out.UncoveredFrom = from
+			return out, nil
+		}
+		if end.After(limit) {
+			out.UncoveredFrom = limit.Format("2006-01-02")
+			end = limit
+		}
 	}
 
 	surcharge := DefaultInterestPointsBusiness

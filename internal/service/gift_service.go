@@ -206,8 +206,7 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 
 	// 1. Die Kategorien: NonDeductibleReport zählt über die Konten, nicht über
 	// die Aufzeichnungen. Eine Bewirtung hat keine Geschenkaufzeichnung, und
-	// eine Buchung aus der Zeit vor dieser Welle hat gar keine — auf den
-	// Konten steht sie trotzdem.
+	// eine Buchung ohne Aufzeichnung steht trotzdem auf den Konten.
 	//
 	// Die Generalumkehr zählt mit und bleibt nicht außen vor: sie trägt
 	// negative Beträge auf derselben Seite und stellt die Verkehrszahlen des

@@ -8,10 +8,9 @@ import (
 // SchemaMigration ist ein Eintrag des Migrationsprotokolls über das
 // Datenbankschema.
 //
-// Bisher lief die Schemaanpassung bei jedem Start und hinterließ keine Spur.
-// Für die Verfahrensdokumentation ist genau das die Lücke (GoBD Rz. 34, 145):
-// wer wissen will, ob die Datei, die vor einem Jahr gesichert wurde, mit dem
-// heutigen Programm noch dasselbe bedeutet, findet ohne Protokoll nichts vor.
+// Wer wissen will, ob die Datei, die vor einem Jahr gesichert wurde, mit dem
+// heutigen Programm noch dasselbe bedeutet, findet die Antwort hier (GoBD
+// Rz. 34, 145).
 type SchemaMigration struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	// RunAt ist der Zeitpunkt des Laufs in UTC.
@@ -42,8 +41,6 @@ const (
 type MigrationKind string
 
 const (
-	// MigrationKindImport ist die Übernahme einer fremden Datenbankdatei.
-	MigrationKindImport MigrationKind = "import"
 	// MigrationKindRestore ist die Wiederherstellung aus einer Sicherung.
 	MigrationKindRestore MigrationKind = "restore"
 	// MigrationKindOpen ist das Öffnen einer vorhandenen Datei.

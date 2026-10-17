@@ -46,6 +46,7 @@ func TestExportedOpeningBalanceLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 		t.Fatal("journal.csv enthält keine Daten")
 	}
 	meals := readCSV(t, filepath.Join(dir, "bewirtungen.csv"))
+	gifts := readCSV(t, filepath.Join(dir, "geschenke.csv"))
 
 	entries := groupJournalRows(t, journal)
 	withDueDate := 0
@@ -58,7 +59,7 @@ func TestExportedOpeningBalanceLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 			t.Fatalf("Buchung %s: Vorgängerhash %q, erwartet %q",
 				entry.head["Buchungsnummer"], got, prev)
 		}
-		if computed := recomputeEntryHash(entry, meals); computed != entry.head["Eigenhash"] {
+		if computed := recomputeEntryHash(entry, meals, gifts); computed != entry.head["Eigenhash"] {
 			t.Fatalf("Buchung %s: nachgerechneter Hash %s, in der Datei steht %s",
 				entry.head["Buchungsnummer"], computed, entry.head["Eigenhash"])
 		}

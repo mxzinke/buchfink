@@ -180,11 +180,7 @@ export interface JournalEntry {
   exchangeRateSource?: string;
   exchangeRateDate?: string;
   postingRuleVersion?: string;
-  /**
-   * Programmfassung und Bearbeiterkennung der Buchung (UNV-04, UNV-06). Leer
-   * an jeder Buchung aus der Zeit davor; die Kette hasht sie dann nach der
-   * bisherigen Form.
-   */
+  /** Programmfassung und Bearbeiterkennung der Buchung (UNV-04, UNV-06). */
   appVersion?: string;
   actor?: string;
   /**
@@ -767,8 +763,6 @@ export interface Contact {
   name: string;
   company: string;
   email: string;
-  /** Die unstrukturierte Anschrift aus der Zeit vor der strukturierten. */
-  address: string;
   /**
    * Straße, Postleitzahl und Ort einzeln. § 14 Abs. 4 Nr. 1 UStG verlangt die
    * vollständige Anschrift des Empfängers, EN 16931 verlangt sie in Feldern
@@ -926,7 +920,7 @@ export interface Invoice {
   receiptId?: number;
   paidAmount: Cents;
   createdAt: string;
-  /** Leer heißt „Rechnung": Bestandsdaten aus der Zeit vor der Dokumentart. */
+  /** Leer heißt „Rechnung". */
   kind: InvoiceKind;
   terms: PaymentTerms;
   /** Kleinbetragsrechnung nach § 33 UStDV: verkürzte Angaben. */
@@ -1379,60 +1373,6 @@ export interface FestschreibungVerification {
   genTime?: string;
   tsaName: string;
   message: string;
-}
-
-// -------------------------------------------------------------------------
-// SKR04-Katalog (statisch, aus skr04_2026.json)
-
-export interface SKR04Position {
-  id: string;
-  name: string;
-  statement_type: string;
-  balance_side: string;
-  hgb_code: string;
-  group: string;
-  main_group: string;
-  account_type: string;
-  kontenklasse: { number: number; name: string };
-  account_numbers: string[];
-  accounts_count: number;
-}
-
-export interface SKR04Metadata {
-  title: string;
-  subtitle: string;
-  validity_from: string;
-  version: string;
-  article_number: string;
-  source_file: string;
-  description: string;
-  generated_at: string;
-}
-
-export interface SKR04Legend {
-  hauptfunktionen: Record<string, string>;
-  zusatzfunktionen: Record<string, string>;
-  abschlusszweck: Record<string, string>;
-  programmverbindung: Record<string, string>;
-  footnotes: Record<string, string>;
-}
-
-export interface SKR04Statistics {
-  total_accounts: number;
-  active_accounts: number;
-  reserved_accounts: number;
-  range_accounts: number;
-  total_positions: number;
-  accounts_by_type: Record<string, number>;
-  accounts_by_kontenklasse: Record<string, number>;
-  positions_by_side: Record<string, number>;
-}
-
-export interface SKR04Catalog {
-  metadata: SKR04Metadata;
-  legend: SKR04Legend;
-  statistics: SKR04Statistics;
-  positions: SKR04Position[];
 }
 
 // -------------------------------------------------------------------------
@@ -2037,40 +1977,8 @@ export interface AnmeldungCheck {
   shareholders: ShareholderCheck[];
 }
 
-/** Die Eröffnungsbilanz auf den Beurkundungstag (§ 242 Abs. 1 HGB). */
-export interface OpeningBalanceSheet {
-  asOf: string;
-  header: StatementHeader;
-  statement: Statement;
-  /** Gehen Aktiva und Passiva auseinander, fehlt eine Buchung. */
-  balances: boolean;
-  assets: Cents;
-  equity: Cents;
-  findings: string[];
-}
-
-/** Ein Buchungsvorschlag der Gründung, vor der Freigabe. */
-export interface FoundationPosting {
-  title: string;
-  date: string;
-  description: string;
-  reference: string;
-  lines: JournalLine[];
-  amount: Cents;
-}
-
-export interface FoundationPostingPreview {
-  postings: FoundationPosting[];
-  total: Cents;
-  alreadyBooked: boolean;
-  /** Was nicht gebucht wird, und warum. */
-  skipped: string[];
-}
-
 /** Alles, was die Gründungsansicht braucht — in einem Aufruf. */
 export interface FoundationState {
-  /** Falsch, wenn die Rechtsform keine Kapitalgesellschaft ist. */
-  applies: boolean;
   hasFoundation: boolean;
   legalForm: string;
   rules: FoundationRules;
@@ -3520,7 +3428,7 @@ export interface VatIDCheck {
   streetResult?: VatIDFieldResult;
   /** Die Antwort, wie sie kam (GoBD Rz. 130). */
   rawResponse?: string;
-  /** Wohin gefragt wurde — die Adresse ist eine Einstellung. */
+  /** Wohin gefragt wurde. */
   endpoint?: string;
   createdAt: string;
 }
@@ -3856,7 +3764,7 @@ export interface SchemaMigration {
 }
 
 /** Auf welchem Weg Daten in diese Installation gekommen sind. */
-export type MigrationKind = 'import' | 'restore' | 'open';
+export type MigrationKind = 'restore' | 'open';
 
 /** Das Protokoll einer Datenübernahme mit ihren Zählungen (ARC-05). */
 export interface MigrationRecord {

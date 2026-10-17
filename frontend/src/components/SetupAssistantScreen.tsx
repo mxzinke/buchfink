@@ -430,15 +430,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             <>
               <h2 className="text-heading text-white">Willkommen bei Buchfink</h2>
               <p className="flex items-center text-caption text-shell-text-muted mt-1">
-                Für Unternehmen mit doppelter Buchführung
-                <Help summary="Buchfink richtet sich vor allem an kleine GmbHs und UGs, die eine Bilanz erstellen."
+                Für GmbH und UG
+                <Help summary="Buchfink richtet sich an kleine GmbHs und UGs, die eine Bilanz erstellen."
                   label="Erklärung zum Anwendungsbereich"
                   className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
                 >
-                  Buchfink ist für Unternehmen gebaut, die zur doppelten Buchführung und
-                  Bilanzierung verpflichtet sind — UG, GmbH, AG, bilanzierende Kaufleute. Für die
-                  Einnahmen-Überschuss-Rechnung kleiner Selbstständiger und Freiberufler ist es
-                  nicht geeignet.
+                  Buchfink führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter
+                  Buchführung und Bilanz.
                 </Help>
               </p>
 

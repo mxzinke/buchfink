@@ -39,9 +39,6 @@ func (b *BuchfinkBridge) VerifyAuditChain() (domain.AuditChainResult, error) {
 
 // GetAuditLogsFiltered liefert das Änderungsprotokoll mit Vorher/Nachher,
 // eingeschränkt durch den Filter. Ein leerer Filter heißt: alles.
-//
-// Neben GetAuditLogs und nicht statt dessen: die bisherige Methode liefert die
-// jüngsten 200 Einträge ohne Frage und wird von der Übersicht so gebraucht.
 func (b *BuchfinkBridge) GetAuditLogsFiltered(limit int, filter domain.AuditFilter) ([]domain.AuditLogEntry, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

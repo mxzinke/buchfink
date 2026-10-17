@@ -84,15 +84,15 @@ func TestRetentionForClassifiesAndDates(t *testing.T) {
 	}
 }
 
-func TestRetentionExpiryDependsOnTheDay(t *testing.T) {
+func TestRetentionEndAndEarliestDeletionAreOneDayApart(t *testing.T) {
 	info := RetentionFor(domain.RetentionKindReceiptInvoice, 2025)
 
 	// Am letzten Tag der Frist ist noch aufzubewahren.
-	if info.IsExpired("2033-12-31") {
-		t.Error("am 31.12.2033 läuft die Frist noch — an diesem Tag ist der Beleg aufzubewahren")
+	if info.RetentionEnd != "2033-12-31" {
+		t.Errorf("letzter Aufbewahrungstag %s, erwartet 2033-12-31", info.RetentionEnd)
 	}
-	if !info.IsExpired("2034-01-01") {
-		t.Error("ab dem 1.1.2034 darf der Beleg gelöscht werden")
+	if info.EarliestDeletion != "2034-01-01" {
+		t.Errorf("frühestes Löschdatum %s, erwartet 2034-01-01", info.EarliestDeletion)
 	}
 }
 
@@ -305,19 +305,25 @@ func TestAuditChainDetectsRemovedEntry(t *testing.T) {
 	}
 }
 
-func TestAuditChainAcceptsUnchainedLegacyEntries(t *testing.T) {
-	// Einträge aus der Zeit vor der Kette haben keinen Hash. Sie als gebrochen
-	// zu melden wäre eine Behauptung über eine Manipulation, die es nicht gab.
-	legacy := auditEntry(1, domain.AuditActionCreate, "alter Eintrag ohne Kette")
-	chainedEntries := chained([]domain.AuditLogEntry{auditEntry(2, domain.AuditActionUpdate, "neu")})
+func TestAuditChainReportsEntryWithoutHash(t *testing.T) {
+	entries := chained([]domain.AuditLogEntry{
+		auditEntry(1, domain.AuditActionCreate, "angelegt"),
+		auditEntry(2, domain.AuditActionUpdate, "geändert"),
+		auditEntry(3, domain.AuditActionExport, "exportiert"),
+	})
 
-	result := NewAuditChain().Verify(append([]domain.AuditLogEntry{legacy}, chainedEntries...))
-	if !result.IsValid {
-		t.Fatalf("Altbestand ohne Hash darf die Prüfung nicht brechen: %s", result.Message)
+	// Wer den Eigenhash leert, nimmt den Eintrag nicht aus der Kette.
+	entries[1].EntryHash = ""
+
+	result := NewAuditChain().Verify(entries)
+	if result.IsValid {
+		t.Fatal("ein Eintrag ohne Eigenhash muss als Bruch auffallen")
 	}
-	if result.TotalEntries != 2 || result.CheckedEntries != 1 {
-		t.Errorf("erwartet 2 Einträge, davon 1 geprüft; bekommen %d/%d",
-			result.TotalEntries, result.CheckedEntries)
+	if result.FirstBrokenID == nil || *result.FirstBrokenID != 2 {
+		t.Errorf("der erste Bruch muss Eintrag 2 sein, bekommen %v", result.FirstBrokenID)
+	}
+	if result.CheckedEntries != 3 {
+		t.Errorf("%d geprüfte Einträge, erwartet 3", result.CheckedEntries)
 	}
 }
 
@@ -345,11 +351,9 @@ func TestAuditChainCoversActorAndVersion(t *testing.T) {
 	}
 }
 
-// --- Versionsweiche der Journalkanonisierung ------------------------------
+// --- Kanonische Form der Buchung ------------------------------------------
 
-// legacyEntry ist eine Buchung aus der Zeit vor Welle 6: ohne Programmfassung
-// und ohne Bearbeiterkennung.
-func legacyEntry() *domain.JournalEntry {
+func sampleEntry() *domain.JournalEntry {
 	return &domain.JournalEntry{
 		EntryNumber:     "2025-000001",
 		FiscalYear:      2025,
@@ -361,6 +365,8 @@ func legacyEntry() *domain.JournalEntry {
 		Source:          domain.EntrySourceManual,
 		Kind:            domain.EntryKindNormal,
 		Currency:        "EUR",
+		AppVersion:      "1.2.3",
+		Actor:           "buchhalterin@arbeitsplatz",
 		CreatedAt:       time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC),
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},
@@ -369,93 +375,56 @@ func legacyEntry() *domain.JournalEntry {
 	}
 }
 
-// legacyHash ist der Hash, den der Code vor Welle 6 für legacyEntry() berechnet
-// hat.
-//
-// Er steht als Konstante und wird nicht neu gerechnet: der Sinn der
-// Versionsweiche ist, dass die Ketten ausgelieferter Buchhaltungen gültig
-// bleiben. Ein Test, der den Erwartungswert aus demselben Code holt, den er
-// prüft, prüft nichts — er verschöbe sich mit jeder Änderung der
-// Kanonisierung stillschweigend mit.
-//
-// Ermittelt wurde er mit der Fassung von journalhash.go vor dieser Welle
-// (git show HEAD:internal/accounting/journalhash.go), auf genau der Buchung,
-// die legacyEntry() baut.
-const legacyHash = "63cff26a7eaa34eebc3f2bec64f5eddcae3b3c17f8b058f418af452b212fcadf"
+// Es gibt genau eine kanonische Form: jedes Feld steht in jeder Buchung, auch
+// leer oder null.
+func TestCanonicalizeWritesEveryFieldForEveryEntry(t *testing.T) {
+	entry := sampleEntry()
+	entry.AppVersion = ""
+	entry.Actor = ""
+	form := string(canonicalize(entry, domain.GenesisHash))
 
-func TestCanonicalizeKeepsLegacyEntriesValid(t *testing.T) {
-	chain := NewHashChain()
-	got := chain.CalculateHash(legacyEntry(), domain.GenesisHash)
-	if got != legacyHash {
-		t.Fatalf(
-			"der Hash einer Altbuchung hat sich geändert: %s statt %s.\n"+
-				"Damit ist die Hash-Kette jeder ausgelieferten Buchhaltung gebrochen. "+
-				"Neue Felder gehören hinter die Versionsweiche in canonicalize.", got, legacyHash)
+	for _, field := range []string{
+		"app_version:0:\n", "actor:0:\n", "legacy_ref:0:\n", "due_date:0:\n",
+		"line_input_tax_share:1:0\n", "line_foreign_amount:1:0\n",
+		"entertainment:1:0\n", "gifts:1:0\n",
+	} {
+		if !strings.Contains(form, "\n"+field) {
+			t.Errorf("die kanonische Form enthält %q nicht", strings.TrimSuffix(field, "\n"))
+		}
 	}
 }
 
-func TestCanonicalizeCoversVersionAndActorOnNewEntries(t *testing.T) {
+func TestCanonicalizeCoversEveryField(t *testing.T) {
 	chain := NewHashChain()
+	base := chain.CalculateHash(sampleEntry(), domain.GenesisHash)
 
-	entry := legacyEntry()
-	entry.AppVersion = "1.2.3"
-	entry.Actor = "buchhalterin@arbeitsplatz"
-	withVersion := chain.CalculateHash(entry, domain.GenesisHash)
-
-	if withVersion == legacyHash {
-		t.Fatal("eine Buchung mit Programmfassung muss anders hashen als eine ohne")
+	contact := uint(7)
+	changes := map[string]func(e *domain.JournalEntry){
+		"Programmfassung":    func(e *domain.JournalEntry) { e.AppVersion = "9.9.9" },
+		"Bearbeiter":         func(e *domain.JournalEntry) { e.Actor = "jemand.anderes@rechner" },
+		"Herkunftskennung":   func(e *domain.JournalEntry) { e.LegacyRef = "ALT-4711" },
+		"Fälligkeit":         func(e *domain.JournalEntry) { e.DueDate = "2025-04-01" },
+		"Vorsteuerschlüssel": func(e *domain.JournalEntry) { e.Lines[0].InputTaxShare = 500 },
+		"Fremdbetrag":        func(e *domain.JournalEntry) { e.Lines[0].ForeignAmount = 10870 },
+		"Geschenk": func(e *domain.JournalEntry) {
+			e.Gifts = []domain.GiftRecord{{
+				FiscalYear: 2025, Date: "2025-03-01", RecipientContactID: &contact,
+				RecipientName: "Kunde GmbH", NetAmount: 3000, Account: "6610",
+			}}
+		},
 	}
-
-	other := legacyEntry()
-	other.AppVersion = "1.2.3"
-	other.Actor = "jemand.anderes@rechner"
-	if chain.CalculateHash(other, domain.GenesisHash) == withVersion {
-		t.Error("die Bearbeiterkennung muss in der neuen Form gedeckt sein")
-	}
-
-	other = legacyEntry()
-	other.AppVersion = "9.9.9"
-	other.Actor = "buchhalterin@arbeitsplatz"
-	if chain.CalculateHash(other, domain.GenesisHash) == withVersion {
-		t.Error("die Programmfassung muss in der neuen Form gedeckt sein")
-	}
-
-	other = legacyEntry()
-	other.AppVersion = "1.2.3"
-	other.Actor = "buchhalterin@arbeitsplatz"
-	other.LegacyRef = "ALT-4711"
-	if chain.CalculateHash(other, domain.GenesisHash) == withVersion {
-		t.Error("die Herkunftskennung aus dem Altsystem muss in der neuen Form gedeckt sein")
+	for name, change := range changes {
+		entry := sampleEntry()
+		change(entry)
+		if chain.CalculateHash(entry, domain.GenesisHash) == base {
+			t.Errorf("%s muss in der kanonischen Form gedeckt sein", name)
+		}
 	}
 }
 
-func TestVerifyChainAcceptsMixedOldAndNewEntries(t *testing.T) {
-	chain := NewHashChain()
+// --- Beleg-Hash ------------------------------------------------------------
 
-	old := legacyEntry()
-	old.ID = 1
-	old.PreviousHash = domain.GenesisHash
-	old.EntryHash = chain.CalculateHash(old, old.PreviousHash)
-
-	fresh := legacyEntry()
-	fresh.ID = 2
-	fresh.EntryNumber = "2025-000002"
-	fresh.AppVersion = "1.2.3"
-	fresh.Actor = "buchhalterin@arbeitsplatz"
-	fresh.PreviousHash = old.EntryHash
-	fresh.EntryHash = chain.CalculateHash(fresh, fresh.PreviousHash)
-
-	result := chain.VerifyChain([]domain.JournalEntry{*old, *fresh})
-	if !result.IsValid {
-		t.Fatalf("Alt- und Neubestand müssen in einer Kette gültig sein: %s", result.Message)
-	}
-}
-
-// --- Versionsweiche des Beleg-Hashes --------------------------------------
-
-// legacyReceipt ist ein Beleg aus der Zeit vor den Kopfdaten: eine Datei, kein
-// Belegdatum, kein Aussteller, kein Betrag.
-func legacyReceipt() *domain.Receipt {
+func sampleReceipt() *domain.Receipt {
 	return &domain.Receipt{
 		ReceiptNumber: "ER-2025-0001",
 		FiscalYear:    2025,
@@ -464,6 +433,12 @@ func legacyReceipt() *domain.Receipt {
 		Status:        domain.ReceiptStatusFiled,
 		ReceivedAt:    "2025-03-01",
 		ReceivedVia:   domain.ReceivedViaEmail,
+		DocumentDate:  "2025-03-01",
+		IssuerName:    "Lieferant GmbH",
+		GrossAmount:   11900,
+		TaxAmount:     1900,
+		Currency:      "EUR",
+		Subject:       "Bürobedarf",
 		Files: []domain.ReceiptFile{{
 			Position:   1,
 			Role:       domain.ReceiptRoleOriginal,
@@ -476,61 +451,23 @@ func legacyReceipt() *domain.Receipt {
 	}
 }
 
-// legacyReceiptHash ist der Beleg-Hash, den der Code vor Welle 6 für
-// legacyReceipt() berechnet hat.
-//
-// Er steht als Konstante und wird nicht neu gerechnet, aus demselben Grund wie
-// legacyHash: der Beleg-Hash steht in jeder Buchung, die auf den Beleg zeigt,
-// und geht von dort in deren Eigenhash ein. Ändert sich die Weiche, bricht
-// nicht ein Beleg, sondern die Kette jeder ausgelieferten Buchhaltung. Ein
-// Test, der den Erwartungswert aus dem geprüften Code holt, verschöbe sich
-// stillschweigend mit.
-//
-// Ermittelt wurde er mit der Fassung von receipthash.go vor dieser Welle
-// (git archive HEAD in ein eigenes Verzeichnis, dort gerechnet), auf genau dem
-// Beleg, den legacyReceipt() baut.
-const legacyReceiptHash = "8de6aac7e63e8380b1917eecd9f72f954498a67477a0a2cf2b37656cc99f891b"
+func TestReceiptHashCoversHeader(t *testing.T) {
+	hashed := ReceiptHash(sampleReceipt())
 
-func TestReceiptHashKeepsLegacyReceiptsValid(t *testing.T) {
-	got := ReceiptHash(legacyReceipt())
-	if got != legacyReceiptHash {
-		t.Fatalf(
-			"der Hash eines Altbelegs hat sich geändert: %s statt %s.\n"+
-				"Damit bricht der Belegverweis jeder Buchung, die auf ihn zeigt. "+
-				"Neue Felder gehören hinter die Weiche HasHeader in ReceiptHash.",
-			got, legacyReceiptHash)
+	changes := map[string]func(r *domain.Receipt){
+		"Belegdatum": func(r *domain.Receipt) { r.DocumentDate = "" },
+		"Betrag":     func(r *domain.Receipt) { r.GrossAmount = 11901 },
+		"Steuer":     func(r *domain.Receipt) { r.TaxAmount = 1901 },
+		"Aussteller": func(r *domain.Receipt) { r.IssuerName = "Jemand anderes GmbH" },
+		"Betreff":    func(r *domain.Receipt) { r.Subject = "etwas ganz anderes" },
+		"Belegart":   func(r *domain.Receipt) { r.Kind = domain.ReceiptKindLetter },
+		"Datei":      func(r *domain.Receipt) { r.Files[0].SHA256 = strings.Repeat("bb", 32) },
 	}
-}
-
-func TestReceiptHashCoversHeaderOnNewReceipts(t *testing.T) {
-	withHeader := legacyReceipt()
-	withHeader.DocumentDate = "2025-03-01"
-	withHeader.IssuerName = "Lieferant GmbH"
-	withHeader.GrossAmount = 11900
-	withHeader.TaxAmount = 1900
-	withHeader.Currency = "EUR"
-	withHeader.Subject = "Bürobedarf"
-	hashed := ReceiptHash(withHeader)
-
-	if hashed == legacyReceiptHash {
-		t.Fatal("ein Beleg mit Kopfdaten muss anders hashen als einer ohne")
-	}
-
-	other := *withHeader
-	other.GrossAmount = 11901
-	if ReceiptHash(&other) == hashed {
-		t.Error("der Betrag muss in der neuen Form gedeckt sein")
-	}
-
-	other = *withHeader
-	other.IssuerName = "Jemand anderes GmbH"
-	if ReceiptHash(&other) == hashed {
-		t.Error("der Aussteller muss in der neuen Form gedeckt sein")
-	}
-
-	other = *withHeader
-	other.Subject = "etwas ganz anderes"
-	if ReceiptHash(&other) == hashed {
-		t.Error("der Betreff muss in der neuen Form gedeckt sein")
+	for name, change := range changes {
+		receipt := sampleReceipt()
+		change(receipt)
+		if ReceiptHash(receipt) == hashed {
+			t.Errorf("%s muss im Beleg-Hash gedeckt sein", name)
+		}
 	}
 }

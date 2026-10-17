@@ -11,7 +11,18 @@ import (
 type SettingsService struct {
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
+	registrar    FoundationRegistrar
 }
+
+// FoundationRegistrar trägt den Tag der Eintragung ins Handelsregister an der
+// Gründung nach. Erst damit endet die Vorgesellschaft und mit ihr der Zusatz
+// „i. G." am Firmennamen.
+type FoundationRegistrar interface {
+	RegisterFromSettings(ctx context.Context, date, court, number string) error
+}
+
+// SetFoundationRegistrar koppelt die Stammdaten an die Gründung.
+func (s *SettingsService) SetFoundationRegistrar(r FoundationRegistrar) { s.registrar = r }
 
 func NewSettingsService(
 	settingsRepo domain.SettingsRepository,
@@ -48,6 +59,17 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 	if !domain.IsSupportedLegalForm(settings.LegalForm) {
 		return fmt.Errorf("Buchfink führt die Bücher einer %s oder %s; die Rechtsform %q ist nicht vorgesehen",
 			domain.LegalFormGmbH, domain.LegalFormUG, settings.LegalForm)
+	}
+
+	// Die Eintragung wird in den Stammdaten erfasst; die Gründung muss sie
+	// kennen, sonst bleibt die Gesellschaft dort Vorgesellschaft.
+	registeredNow := settings.RegisteredOn != "" && (before == nil || before.RegisteredOn != settings.RegisteredOn)
+	if s.registrar != nil && registeredNow {
+		if err := s.registrar.RegisterFromSettings(
+			ctx, settings.RegisteredOn, settings.RegisterCourt, settings.RegisterNumber,
+		); err != nil {
+			return err
+		}
 	}
 
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {

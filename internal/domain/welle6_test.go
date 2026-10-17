@@ -206,17 +206,6 @@ func TestOtherDocumentsNeedDateAndSubjectInsteadOfIssuerAndAmount(t *testing.T) 
 	}
 }
 
-func TestHasHeaderIsTheCanonicalSwitch(t *testing.T) {
-	legacy := bookableReceipt()
-	legacy.DocumentDate = ""
-	if legacy.HasHeader() {
-		t.Error("ein Beleg ohne Belegdatum stammt aus der Zeit vor den Kopfdaten")
-	}
-	if !bookableReceipt().HasHeader() {
-		t.Error("ein Beleg mit Belegdatum hat Kopfdaten")
-	}
-}
-
 func TestLetterIsNotBooked(t *testing.T) {
 	// Ein Handelsbrief belegt eine Abrede, keinen Geschäftsvorfall. Meldete der
 	// Prüflauf ihn als „abgelegt, aber nicht gebucht", stünde er dort für immer.
@@ -270,7 +259,7 @@ func TestTaxCaseHintsNameTheGaps(t *testing.T) {
 	}
 }
 
-// --- Aussetzung der Aufbewahrungsfrist ------------------------------------
+// --- Migrationsprotokoll ---------------------------------------------------
 
 func TestMigrationCountsBalance(t *testing.T) {
 	// Eine Buchung ist immer ausgeglichen, also ist es auch die Summe aller.

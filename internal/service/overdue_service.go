@@ -189,6 +189,13 @@ func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueCla
 			} else {
 				row.Interest = interest.Amount
 				row.InterestDays = interest.Days
+				if interest.UncoveredFrom != "" {
+					row.Note = fmt.Sprintf(
+						"Zu %s sind Verzugszinsen nur bis zum %s gerechnet: für die Zeit danach ist in "+
+							"dieser Programmfassung kein Basiszinssatz hinterlegt. Eine neuere Fassung "+
+							"von Buchfink bringt ihn mit.",
+						documentOf(item), germanDay(accounting.BaseRatesCoveredUntil(rates)))
+				}
 			}
 			// Die Pauschale richtet sich nach dem Verzug und nicht nach der
 			// Zinsrechnung: ein fehlender Basiszinssatz lässt die Zinsen

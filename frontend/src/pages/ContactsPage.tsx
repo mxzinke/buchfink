@@ -369,13 +369,6 @@ const ContactForm: React.FC<{
   const profileInfo = profiles.find(
     (p) => p.profile === (draft.eInvoiceProfile ?? 'zugferd_en16931'),
   );
-  // Ein Bestandskontakt, dessen einzeilige Anschrift der Parser nicht trennen
-  // konnte: die Felder sind leer, der alte Text steht noch da. Geraten wird
-  // nichts — eine falsche Straße auf der Rechnung kostet den Empfänger den
-  // Vorsteuerabzug.
-  const addressIncomplete = Boolean(
-    draft.address && !(draft.street && draft.postalCode && draft.city),
-  );
 
   useEffect(() => {
     if (contact) {
@@ -562,26 +555,6 @@ const ContactForm: React.FC<{
           <Input value={draft.city ?? ''} onChange={(e) => set({ city: e.target.value })} />
         </Field>
       </div>
-
-      {addressIncomplete && (
-        <Notice
-          className="mt-4"
-          text="Die übernommene Anschrift ließ sich nicht in Straße, PLZ und Ort trennen; die Rechnung braucht alle drei."
-        />
-      )}
-
-      <Field helpSummary="Die ursprüngliche Anschrift bleibt als Nachweis erhalten."
-        label="Übernommene Anschrift"
-        className="mt-4"
-        optional
-        explain="Die alte einzeilige Fassung. Sie bleibt als Nachweis stehen."
-      >
-        <Textarea
-          rows={2}
-          value={draft.address ?? ''}
-          onChange={(e) => set({ address: e.target.value })}
-        />
-      </Field>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <Field helpSummary="Wählen Sie das Rechnungsformat, das Ihr Geschäftspartner erhalten soll."

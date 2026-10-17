@@ -97,7 +97,7 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
-		Address: "Lieferantenweg 3, 20095 Hamburg",
+		Street: "Lieferantenweg 3", PostalCode: "20095", City: "Hamburg",
 		// Die Steuernummer gehört zu den Stammdaten eines Lieferanten, weil sie
 		// zu den Pflichtangaben seiner Rechnung gehört (§ 14 Abs. 4 Nr. 2 UStG)
 		// und sich der Vorsteuerabzug danach richtet. Ohne sie weist der Belegweg die
@@ -115,7 +115,7 @@ func (e *testEnv) customer(t *testing.T, name, country, vatID string) *domain.Co
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID,
-		Address: "Kundenweg 2, 10115 Berlin",
+		Street: "Kundenweg 2", PostalCode: "10115", City: "Berlin",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Kunde %s konnte nicht angelegt werden: %v", name, err)

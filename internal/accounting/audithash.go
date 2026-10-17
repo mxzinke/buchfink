@@ -12,11 +12,10 @@ import (
 // AuditChain verkettet und prüft das Änderungsprotokoll.
 //
 // Das Protokoll ist der Nachweis, dass an den Aufzeichnungen nichts unbemerkt
-// geändert wurde (GoBD Rz. 34, § 146 Abs. 4 AO). Es selbst lag bisher
-// ungeschützt in einer Tabelle: wer eine Buchung ändert, entfernt danach die
-// Protokollzeile, und der Nachweis war der Nachweis von nichts. Die Kette
-// schließt diese Lücke mit demselben Mittel wie das Journal — jeder Eintrag
-// hat den Hash seines Vorgängers, und ein entfernter Eintrag bricht sie.
+// geändert wurde (GoBD Rz. 34, § 146 Abs. 4 AO). Damit niemand nach einer
+// Änderung die Protokollzeile entfernen kann, ist es verkettet wie das Journal:
+// jeder Eintrag hat den Hash seines Vorgängers, und ein entfernter Eintrag
+// bricht die Kette.
 type AuditChain struct{}
 
 // NewAuditChain liefert die Kettenimplementierung des Protokolls.
@@ -56,12 +55,8 @@ func (c *AuditChain) CalculateHash(e *domain.AuditLogEntry, prevHash string) str
 // Eigenhash rechnet.
 //
 // entries müssen aufsteigend nach ID sortiert sein — in der Reihenfolge, in der
-// sie geschrieben wurden.
-//
-// Einträge ohne Eigenhash sind Altbestand aus der Zeit vor der Kette. Sie
-// werden gezählt, aber nicht als Bruch gemeldet: sie wurden nie verkettet, und
-// eine Meldung „gebrochen" wäre eine Behauptung über eine Manipulation, die es
-// nicht gab. Die Kette beginnt beim ersten Eintrag, der einen Hash hat.
+// sie geschrieben wurden. Jeder Eintrag gehört zur Kette; ein fehlender
+// Eigenhash ist ein Bruch.
 func (c *AuditChain) Verify(entries []domain.AuditLogEntry) domain.AuditChainResult {
 	result := domain.AuditChainResult{
 		IsValid:          true,
@@ -73,9 +68,6 @@ func (c *AuditChain) Verify(entries []domain.AuditLogEntry) domain.AuditChainRes
 	expectedPrev := domain.GenesisHash
 	for i := range entries {
 		entry := &entries[i]
-		if entry.EntryHash == "" {
-			continue
-		}
 		result.CheckedEntries++
 
 		if entry.PreviousHash != expectedPrev {
@@ -127,11 +119,7 @@ func (c *AuditChain) Verify(entries []domain.AuditLogEntry) domain.AuditChainRes
 func auditChainMessage(r domain.AuditChainResult) string {
 	switch {
 	case r.CheckedEntries == 0:
-		return "Das Änderungsprotokoll enthält noch keine verketteten Einträge."
-	case r.IsValid && r.CheckedEntries < r.TotalEntries:
-		return fmt.Sprintf(
-			"Alle %d verketteten Protokolleinträge sind unverändert. %d ältere Einträge stammen aus der Zeit vor der Verkettung und haben keinen Hash.",
-			r.CheckedEntries, r.TotalEntries-r.CheckedEntries)
+		return "Das Änderungsprotokoll enthält noch keine Einträge."
 	case r.IsValid:
 		return fmt.Sprintf("Alle %d Protokolleinträge sind vollständig und unverändert.", r.CheckedEntries)
 	case len(r.Breaks) == 1:

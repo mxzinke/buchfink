@@ -115,9 +115,8 @@ func TestNumberGapReport(t *testing.T) {
 	}
 }
 
-// Die Mengeneinheit muss ein Schlüssel aus UN/ECE Rec. 20 sein (BT-130).
-// „Stunde" ist dort keiner — und eine Beratungsrechnung über 12 Stunden kam
-// beim Empfänger bisher als 12 Stück an.
+// Die Mengeneinheit muss ein Schlüssel aus UN/ECE Rec. 20 sein (BT-130);
+// „Stunde" ist dort keiner.
 func TestResolveUnitCode(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -128,7 +127,7 @@ func TestResolveUnitCode(t *testing.T) {
 		{"Stück", "C62", true},
 		{"Stunde", "HUR", true},
 		{"HUR", "HUR", true},
-		{"h", "HUR", true},
+		{"h", "", false},
 		{"Monat", "MON", true},
 		{"Furlong", "", false},
 	}
@@ -143,34 +142,6 @@ func TestResolveUnitCode(t *testing.T) {
 	}
 	if len(UnitCodes()) == 0 {
 		t.Error("die Einheitenliste darf nicht leer sein")
-	}
-}
-
-// Die einzeilige Anschrift der Bestandsdaten wird zerlegt — und was sich nicht
-// sicher zerlegen lässt, bleibt liegen. Eine geratene Straße auf einer Rechnung
-// wäre ein Formfehler, den der Empfänger mit seinem Vorsteuerabzug bezahlt.
-func TestParsePostalAddress(t *testing.T) {
-	street, code, city := ParsePostalAddress("Kundenweg 2, 10115 Berlin")
-	if street != "Kundenweg 2" || code != "10115" || city != "Berlin" {
-		t.Errorf("zerlegt zu %q / %q / %q", street, code, city)
-	}
-
-	street, code, city = ParsePostalAddress("Hauptstraße 1\nGebäude B\n80331 München")
-	if street != "Hauptstraße 1, Gebäude B" || code != "80331" || city != "München" {
-		t.Errorf("mehrzeilig zerlegt zu %q / %q / %q", street, code, city)
-	}
-
-	if street, _, _ := ParsePostalAddress("Irgendwo im Nirgendwo"); street != "" {
-		t.Error("eine Zeile ohne PLZ darf nicht als Anschrift durchgehen")
-	}
-
-	c := &Contact{Address: "Kundenweg 2, 10115 Berlin"}
-	if !c.MigrateAddress() || !c.HasCompleteAddress() {
-		t.Error("die Übernahme der Altanschrift ist fehlgeschlagen")
-	}
-	unparsable := &Contact{Address: "postlagernd"}
-	if unparsable.MigrateAddress() {
-		t.Error("eine unlesbare Anschrift darf nicht übernommen werden")
 	}
 }
 

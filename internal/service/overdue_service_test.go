@@ -5,7 +5,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -104,6 +106,40 @@ func TestOverdueClaimComputesInterestAndLumpSum(t *testing.T) {
 	}
 	if !strings.Contains(c.Note, "nicht gebucht") {
 		t.Errorf("der Hinweis muss sagen, dass Zinsen und Pauschale nicht gebucht werden: %q", c.Note)
+	}
+}
+
+// Reicht der Verzug über die hinterlegte Tabelle des Basiszinssatzes hinaus,
+// rechnet Buchfink nur bis zu ihrem Ende und sagt es.
+func TestOverdueInterestStopsWhereTheBaseRateTableEnds(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Langzahler GmbH", "DE", "")
+	env.openReceivable(t, customer, 1_000_000, "2026-01-17", "2026-01-31", "RE-2026-0009")
+
+	covered := accounting.BaseRatesCoveredUntil(accounting.DefaultBaseRates())
+	end, err := time.Parse("2006-01-02", covered)
+	if err != nil {
+		t.Fatalf("Ende der Tabelle %q: %v", covered, err)
+	}
+	cutoff := end.AddDate(0, 3, 0).Format("2006-01-02")
+
+	claims, err := env.overdue(t).Claims(ctx, cutoff)
+	if err != nil {
+		t.Fatalf("Forderungen: %v", err)
+	}
+	if len(claims) != 1 || len(claims[0].Items) != 1 {
+		t.Fatalf("erwartet eine Forderung mit einem Posten, erhalten %+v", claims)
+	}
+	item := claims[0].Items[0]
+	if item.Interest <= 0 {
+		t.Error("bis zum Ende der Tabelle sind Zinsen zu rechnen")
+	}
+	if !strings.Contains(item.Note, "kein Basiszinssatz hinterlegt") {
+		t.Errorf("der Hinweis muss sagen, dass ab dem Ende der Tabelle nicht gerechnet ist: %q", item.Note)
+	}
+	if item.LumpSum != 4000 {
+		t.Errorf("Pauschale = %s €, erwartet 40,00", item.LumpSum)
 	}
 }
 

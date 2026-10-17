@@ -295,8 +295,7 @@ type Invoice struct {
 	ZUGFeRDXML string `gorm:"type:text" json:"zugferdXml,omitempty"`
 
 	// ReceiptID points at the Beleg holding the issued document: the hybrid PDF
-	// as the received form and the XML as the structured part. It replaces the
-	// former PDFPath, which was never set — a path to a file nothing produced.
+	// as the received form and the XML as the structured part.
 	ReceiptID *uint     `gorm:"index" json:"receiptId,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -304,8 +303,7 @@ type Invoice struct {
 	// PaidAmount is the settled part, computed on read.
 	PaidAmount Cents `gorm:"-" json:"paidAmount"`
 
-	// Kind ist die Dokumentart und bestimmt BT-3. Leer heißt „Rechnung" —
-	// Bestandsdaten aus der Zeit vor dieser Welle enthalten nichts.
+	// Kind ist die Dokumentart und bestimmt BT-3. Leer heißt „Rechnung".
 	Kind InvoiceKind `gorm:"size:20;not null;default:'invoice';index" json:"kind"`
 
 	// Terms sind die im Voraus vereinbarten Zahlungsbedingungen
@@ -323,10 +321,9 @@ type Invoice struct {
 	// Gegenüber einem Verbraucher tritt der Verzug dreißig Tage nach
 	// Fälligkeit nur dann von selbst ein, wenn die Rechnung darauf besonders
 	// hingewiesen hat. Das Kennzeichen steht an der Rechnung und nicht an den
-	// Einstellungen: es ist eine Aussage über dieses Dokument, und für die
-	// Rechnungen aus der Zeit vor dem Hinweis wäre jede spätere Einstellung
-	// eine Behauptung über einen Text, der dort nie stand. Die Verzugsrechnung
-	// liest es, bevor sie Verzugszinsen ansetzt.
+	// Einstellungen: es ist eine Aussage über dieses Dokument, und eine später
+	// geänderte Einstellung wäre eine Behauptung über einen Text, der dort nie
+	// stand. Die Verzugsrechnung liest es, bevor sie Verzugszinsen ansetzt.
 	ConsumerNoticePrinted bool `gorm:"not null;default:false" json:"consumerNoticePrinted"`
 
 	// EInvoiceProfile ist das Format, in dem das Dokument erzeugt wurde. Es
@@ -396,8 +393,7 @@ func (inv *Invoice) EnsureLists() {
 	}
 }
 
-// ResolvedKind fills in the default for records written before the field
-// existed.
+// ResolvedKind is the document type, with an empty Kind read as an invoice.
 func (inv *Invoice) ResolvedKind() InvoiceKind {
 	if inv.Kind == "" {
 		return InvoiceKindInvoice

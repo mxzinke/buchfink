@@ -66,30 +66,15 @@ func (s *Store) Put(fiscalYear int, direction domain.Direction, originalName str
 	return s.putInto([]string{"belege", fmt.Sprintf("%d", fiscalYear), subDir}, originalName, src)
 }
 
-// PutDocument stores a file that is not a Beleg.
-//
-// Ein Vertrag, ein Gutachten, ein Zulassungspapier gehören zu einem Anlagegut,
-// aber nicht in den Belegkreis: sie haben keine Belegnummer, sie werden nicht
-// gebucht, und sie sind keinem Geschäftsjahr zugeordnet — ein Kaufvertrag erklärt die
-// Anschaffung noch, wenn das Wirtschaftsgut zehn Jahre im Bestand ist. Der
-// Ablageweg ist trotzdem derselbe: inhaltsadressiert, dedupliziert, mit
-// atomarem Umbenennen. Zwei Speicher für zwei Dateiarten wären zwei Stellen,
-// an denen dasselbe schiefgehen kann.
+// PutDocument stores a file that is not a Beleg — die Fassungen der
+// Verfahrensdokumentation. Sie haben keine Belegnummer und werden nicht
+// gebucht; abgelegt werden sie trotzdem auf demselben Weg: inhaltsadressiert,
+// dedupliziert, mit atomarem Umbenennen.
 func (s *Store) PutDocument(category, originalName string, src io.Reader) (*StoredFile, error) {
 	if err := checkSegment(category); err != nil {
 		return nil, err
 	}
 	return s.putInto([]string{"dokumente", category}, originalName, src)
-}
-
-// PutDocumentPath stores a document from the local file system.
-func (s *Store) PutDocumentPath(category, path string) (*StoredFile, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("Datei %s konnte nicht gelesen werden: %w", filepath.Base(path), err)
-	}
-	defer f.Close()
-	return s.PutDocument(category, filepath.Base(path), f)
 }
 
 // checkSegment refuses a path segment that could leave the data directory. Der

@@ -425,9 +425,8 @@ func expectsReceipt(source domain.EntrySource) bool {
 //
 // Der Nachweis zählt in beide Richtungen. Der Regelfall ist die Buchung mit
 // ReceiptID; der Ausgangsbeleg einer Rechnung wird aber erst nach der Buchung
-// versiegelt und hat seitdem deren Nummer. Für Bestände aus der Zeit vor
-// dieser Prüfung ist das die einzige Verbindung — und ein Beleg, der auf die
-// Buchung zeigt, ist ein Beleg zu ihr.
+// versiegelt und hat seitdem deren Nummer — und ein Beleg, der auf die Buchung
+// zeigt, ist ein Beleg zu ihr.
 func entriesWithReceipt(receipts []domain.Receipt) map[uint]bool {
 	out := map[uint]bool{}
 	for i := range receipts {

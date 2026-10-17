@@ -33,7 +33,7 @@ type FoundationService struct {
 	renderer   DocumentRenderer
 }
 
-// NewFoundationService creates the Gründungsbegleitung.
+// NewFoundationService creates the service for the Gründung.
 func NewFoundationService(
 	foundationRepo domain.FoundationRepository,
 	accountRepo domain.AccountRepository,
@@ -70,10 +70,6 @@ func (s *FoundationService) SetFoundingYearAligner(a FoundingYearAligner) { s.ye
 // folgen aus der Rechtsform, die Unterbilanz aus ihr, dem Beurkundungsdatum und
 // dem Journal. Mehrere Aufrufe könnten einen Stand zeigen, den es so nie gab.
 type FoundationState struct {
-	// Applies ist falsch, wenn die Rechtsform des Mandanten keine
-	// Kapitalgesellschaft ist. Dann gibt es keinen Gründungsweg, und die
-	// übrigen Felder sind leer.
-	Applies bool `json:"applies"`
 	// HasFoundation ist falsch, solange keine Gründung erfasst wurde.
 	HasFoundation bool `json:"hasFoundation"`
 
@@ -89,6 +85,15 @@ type FoundationState struct {
 	PostingsBooked bool `json:"postingsBooked"`
 }
 
+// foundationRulesOf liefert die Kapitalaufbringungsregeln der Rechtsform.
+func foundationRulesOf(legalForm string) (accounting.FoundationRules, error) {
+	rules, ok := accounting.FoundationRulesFor(legalForm)
+	if !ok {
+		return rules, fmt.Errorf("für die Rechtsform %q sind keine Gründungsregeln hinterlegt", legalForm)
+	}
+	return rules, nil
+}
+
 // GetState assembles the Gründungsansicht.
 func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
@@ -96,14 +101,13 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		return nil, err
 	}
 
-	rules, applies := accounting.FoundationRulesFor(settings.LegalForm)
+	rules, err := foundationRulesOf(settings.LegalForm)
+	if err != nil {
+		return nil, err
+	}
 	state := &FoundationState{
-		Applies:   applies,
 		LegalForm: settings.LegalForm,
 		Rules:     rules,
-	}
-	if !applies {
-		return state, nil
 	}
 
 	f, err := s.foundationRepo.Get(ctx)
@@ -142,12 +146,9 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	if err != nil {
 		return nil, err
 	}
-	rules, applies := accounting.FoundationRulesFor(settings.LegalForm)
-	if !applies {
-		return nil, fmt.Errorf(
-			"der Gründungsweg gilt für Kapitalgesellschaften. Die Rechtsform des Mandanten ist %q — "+
-				"eine Vorgesellschaft und damit eine Unterbilanzhaftung gibt es dort nicht",
-			settings.LegalForm)
+	rules, err := foundationRulesOf(settings.LegalForm)
+	if err != nil {
+		return nil, err
 	}
 	if err := validateFoundation(f, rules); err != nil {
 		return nil, err
@@ -662,6 +663,21 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber))
 	return f, nil
+}
+
+// RegisterFromSettings übernimmt die Eintragung aus den Stammdaten. Ohne
+// erfasste Gründung oder bei einer schon eingetragenen Gesellschaft ist nichts
+// zu tun.
+func (s *FoundationService) RegisterFromSettings(ctx context.Context, date, court, number string) error {
+	f, err := s.foundationRepo.Get(ctx)
+	if err != nil {
+		return err
+	}
+	if f == nil || f.IsRegistered() {
+		return nil
+	}
+	_, err = s.Register(ctx, date, court, number)
+	return err
 }
 
 func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {

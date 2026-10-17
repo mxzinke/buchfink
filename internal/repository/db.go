@@ -51,9 +51,7 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	}
 
 	// Die Schemaanpassung läuft nur, wenn der Code neuer ist als die Datei, und
-	// sie protokolliert sich (siehe ApplyMigrations). Vorher lief sie bei jedem
-	// Start und hinterließ keine Spur — für die Verfahrensdokumentation ist das
-	// die Lücke, die ARC-05 meint.
+	// sie protokolliert sich (siehe ApplyMigrations, ARC-05).
 	if _, err := ApplyMigrations(context.Background(), db); err != nil {
 		_ = CloseDB(db)
 		return nil, fmt.Errorf("failed to run database automigrations: %w", err)
@@ -216,23 +214,11 @@ func AutoMigrate(db *gorm.DB) error {
 
 // SeedDefaultsIfEmpty populates initial SKR04 chart of accounts and default company settings if database is newly created.
 func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
-	// Fehlende Konten werden ergänzt, vorhandene nie gelöscht.
-	//
-	// Vorher stand hier `DELETE FROM accounts`, sobald weniger als hundert
-	// Konten dastanden. Das ist die gefährlichste Zeile, die eine Buchhaltung
-	// haben kann: ein Kontenplan, den jemand bewusst gekürzt hat, wurde beim
-	// nächsten Start weggeworfen, und mit ihm jede Änderung an einem
-	// Kontonamen. Buchungen verweisen über die Kontonummer, also überlebte die
-	// Buchung ihr Konto — bis zur nächsten Auswertung, die das Konto nicht mehr
-	// fand.
-	//
-	// Ergänzt wird deshalb, was fehlt, und zwar an der Kontonummer erkannt —
-	// und ohne Schwellwert. Der frühere Schwellwert von hundert Konten stammte
-	// aus der Zeit, in der die Tabelle geleert und neu gefüllt wurde; für das
-	// Ergänzen ist er falsch: er ist genau die Bedingung, unter der ein neuer
-	// SKR04-Stand nicht in eine bestehende, vollständige Datei käme. Der Lauf
-	// ist ein Vergleich der Kontonummern und billig genug, um ihn bei jedem
-	// Öffnen zu machen.
+	// Fehlende Konten werden ergänzt, an der Kontonummer erkannt; vorhandene
+	// werden nie gelöscht oder geändert, denn Buchungen verweisen über die
+	// Kontonummer. So kommt ein neuer Stand des Kontenrahmens mit einer neuen
+	// Programmfassung in jede Datei. Der Vergleich ist billig genug für jedes
+	// Öffnen.
 	added, err := seedMissingAccounts(ctx, db)
 	if err != nil {
 		return err

@@ -339,9 +339,9 @@ func (s *DeadlineService) prepaymentDeadline(ctx context.Context, year int, cfg 
 
 // Nicht in dieser Liste stehen die Vorauszahlungen auf die Ertragsteuern
 // (10.03., 10.06., 10.09., 10.12. — § 37 Abs. 1 EStG, § 31 Abs. 1 KStG) und auf
-// die Gewerbesteuer (15.02., 15.05., 15.08., 15.11. — § 19 Abs. 1 GewStG). Die
-// Ansicht führte sie vor dieser Welle als feste Termine; das war eine Behauptung
-// über den Mandanten, die Buchfink nicht belegen kann. Vorauszahlungen entstehen
+// die Gewerbesteuer (15.02., 15.05., 15.08., 15.11. — § 19 Abs. 1 GewStG). Als
+// feste Termine wären sie eine Behauptung über den Mandanten, die Buchfink nicht
+// belegen kann. Vorauszahlungen entstehen
 // erst durch den Bescheid des Finanzamts bzw. der Gemeinde, ihre Höhe steht dort
 // und nirgends in diesen Daten — und ein Termin, den niemand schuldet, steht auf
 // der Fristenliste jedes Jahr viermal rot. Kommt der Bescheid als Stammdatum in

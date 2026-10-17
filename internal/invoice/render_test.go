@@ -25,7 +25,7 @@ func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact)
 		Currency:     "EUR",
 		Items: []domain.InvoiceItem{{
 			Position: 1, Description: "Beratungsleistung", QuantityMilli: 1000,
-			Unit: "Std", UnitPrice: 200000, TaxRate: domain.TaxRateStandard,
+			Unit: "HUR", UnitPrice: 200000, TaxRate: domain.TaxRateStandard,
 		}},
 	}
 	inv.Recalculate()
@@ -35,7 +35,7 @@ func sampleInvoice() (*domain.Invoice, *domain.CompanySettings, *domain.Contact)
 		TaxNumber: "143/815/08151", VatID: "DE123456789",
 		BankName: "Sparkasse", IBAN: "DE02120300000000202051", BIC: "BYLADEM1001",
 	}
-	buyer := &domain.Contact{Name: "Kunde GmbH", Address: "Kundenweg 2\n10115 Berlin", CountryCode: "DE"}
+	buyer := &domain.Contact{Name: "Kunde GmbH", Street: "Kundenweg 2", PostalCode: "10115", City: "Berlin", CountryCode: "DE"}
 	return inv, seller, buyer
 }
 
@@ -112,7 +112,8 @@ func TestRenderSurvivesMarkupInMasterData(t *testing.T) {
 	}
 	inv, seller, buyer := sampleInvoice()
 	buyer.Name = `Müller #[weird] *bold* $x$ \ GmbH`
-	buyer.Address = "Straße [1]\n#12345 Ort"
+	buyer.Street = "Straße [1]"
+	buyer.City = "#Ort *fett*"
 	seller.CompanyName = `Ventures "GmbH" \ & Co.`
 	inv.Items[0].Description = "Beratung #1 [Phase *A*]"
 

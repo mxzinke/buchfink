@@ -86,7 +86,7 @@ func TestExtractStructuredPartFillsTheReceiptHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Beleg ablegen: %v", err)
 	}
-	if receipt.HasHeader() {
+	if receipt.DocumentDate != "" {
 		t.Fatal("der Beleg soll ohne Kopfdaten hereinkommen — sonst prüft der Test nichts")
 	}
 
@@ -343,7 +343,7 @@ func TestBlockedContactIsRefusedOnTheWritePaths(t *testing.T) {
 		FiscalYear: 2026, ContactID: customer.ID, Date: "2026-03-01",
 		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
 		Items: []domain.InvoiceItem{{
-			Position: 1, Description: "Beratung", QuantityMilli: 1000, Unit: "Std",
+			Position: 1, Description: "Beratung", QuantityMilli: 1000, Unit: "HUR",
 			UnitPrice: 100000, TaxRate: domain.TaxRateStandard,
 		}},
 	}

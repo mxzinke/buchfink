@@ -32,17 +32,12 @@ type Contact struct {
 	Name    string `gorm:"type:text;not null" json:"name"`
 	Company string `gorm:"size:255" json:"company"`
 	Email   string `gorm:"size:255" json:"email"`
-	// Address is the unstructured address as it was captured before Welle 5b.
-	// It stays as the fallback for records the parser could not split, and is
-	// what MigrateAddress reads.
-	Address string `gorm:"type:text" json:"address"`
 	// Street, PostalCode und City sind die Anschrift in ihren Bestandteilen.
 	//
 	// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
 	// Leistungsempfängers, und EN 16931 verlangt sie in Feldern (BT-50, BT-52,
-	// BT-53): eine einzeilige Anschrift landete bisher komplett in BT-50, und
-	// beim Empfänger stand die Stadt in der Straße. Ein Freitextfeld lässt sich
-	// auch nicht prüfen — ob eine PLZ darin vorkommt, ist keine Prüfung.
+	// BT-53). Ein Freitextfeld ließe sich nicht prüfen — ob eine PLZ darin
+	// vorkommt, ist keine Prüfung.
 	Street           string `gorm:"size:255" json:"street"`
 	PostalCode       string `gorm:"size:20" json:"postalCode"`
 	City             string `gorm:"size:120" json:"city"`
@@ -246,80 +241,15 @@ func (c *Contact) ResolvedEInvoiceProfile() EInvoiceProfile {
 	return c.EInvoiceProfile
 }
 
-// PostalAddress liefert die Anschrift in ihren Bestandteilen, notfalls aus dem
-// alten Freitextfeld gelesen.
+// PostalAddress liefert die Anschrift in ihren Bestandteilen.
 func (c *Contact) PostalAddress() (street, postalCode, city string) {
-	if c.Street != "" || c.PostalCode != "" || c.City != "" {
-		return c.Street, c.PostalCode, c.City
-	}
-	return ParsePostalAddress(c.Address)
+	return c.Street, c.PostalCode, c.City
 }
 
 // HasCompleteAddress reports whether street, postal code and city are all
 // known — the three parts § 14 Abs. 4 Nr. 1 UStG asks for.
 func (c *Contact) HasCompleteAddress() bool {
-	street, postalCode, city := c.PostalAddress()
-	return street != "" && postalCode != "" && city != ""
-}
-
-// MigrateAddress fills the structured fields from the free-text address.
-//
-// It is best effort and says so: what it cannot split stays in Address, and the
-// contact page shows the record as incomplete. Guessing silently would be
-// worse — a wrong street on an invoice is a formal defect the recipient pays
-// for with their input tax deduction.
-func (c *Contact) MigrateAddress() bool {
-	if c.Street != "" || c.PostalCode != "" || c.City != "" {
-		return false
-	}
-	street, postalCode, city := ParsePostalAddress(c.Address)
-	if street == "" || postalCode == "" || city == "" {
-		return false
-	}
-	c.Street, c.PostalCode, c.City = street, postalCode, city
-	return true
-}
-
-// ParsePostalAddress splits a free-text address into street, postal code and
-// city.
-//
-// The expected shape is the German one: the last line is "PLZ Ort", everything
-// before it is the street. Both a line break and a comma count as a separator,
-// because both spellings sit in the existing data.
-func ParsePostalAddress(address string) (street, postalCode, city string) {
-	normalized := strings.ReplaceAll(address, "\n", ",")
-	parts := make([]string, 0, 4)
-	for _, p := range strings.Split(normalized, ",") {
-		if trimmed := strings.TrimSpace(p); trimmed != "" {
-			parts = append(parts, trimmed)
-		}
-	}
-	if len(parts) < 2 {
-		return "", "", ""
-	}
-	last := parts[len(parts)-1]
-	code, town, ok := splitPostalLine(last)
-	if !ok {
-		return "", "", ""
-	}
-	return strings.Join(parts[:len(parts)-1], ", "), code, town
-}
-
-// splitPostalLine reads "80331 München" into its two halves. The postal code is
-// the leading run of digits; a line that does not start with digits is not a
-// postal line, and pretending otherwise would put a street name into BT-53.
-func splitPostalLine(line string) (postalCode, city string, ok bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 {
-		return "", "", false
-	}
-	code := fields[0]
-	for _, r := range code {
-		if r < '0' || r > '9' {
-			return "", "", false
-		}
-	}
-	return code, strings.Join(fields[1:], " "), true
+	return c.Street != "" && c.PostalCode != "" && c.City != ""
 }
 
 // CollectiveAccount returns the SKR04 Sammelkonto a partner's open items roll up

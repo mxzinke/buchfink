@@ -66,35 +66,13 @@ Tabelle ` + "`journal`" + `, aus der der Wert stammt):
 21. ` + "`rate_source`" + ` (Kursquelle)
 22. ` + "`rate_date`" + ` (Kursdatum)
 23. ` + "`rule_version`" + ` (Regelversion)
-
-Ist die Spalte ` + "`Programmfassung`" + ` belegt, folgen an dieser Stelle drei
-weitere Felder; ist sie leer, folgen sie nicht:
-
 24. ` + "`app_version`" + ` (Programmfassung)
 25. ` + "`actor`" + ` (Bearbeiter)
 26. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
-
-Das ist die Versionsweiche der kanonischen Form. Buchungen aus der Zeit vor der
-Aufzeichnung von Programmfassung und Bearbeiterkennung haben die Spalte leer
-und werden nach der bisherigen Form gehasht; alle neueren haben sie und werden
-nach der erweiterten Form gehasht. Welche Form gilt, steht damit an der Buchung
-selbst. Ohne diese Weiche hätte die Erweiterung den Eigenhash jeder bereits
-gebuchten Buchung verändert und die Kette jeder bestehenden Buchhaltung
-gebrochen.
-
-Ist die Spalte ` + "`Faelligkeit`" + ` belegt, folgt an dieser Stelle ein
-weiteres Feld; ist sie leer, folgt es nicht:
-
 27. ` + "`due_date`" + ` (Faelligkeit)
-
-Auch das ist eine Weiche derselben Art: die vereinbarte Fälligkeit steht nur an
-den Buchungen, die einen offenen Posten begründen, und eine leere Spalte heißt
-„keine vereinbart". Sie wird deshalb nur geschrieben, wo sie belegt ist — jede
-Buchung ohne Fälligkeit hasht so wie vor der Einführung des Feldes.
-
-Danach in allen Fällen:
-
 28. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+
+Jedes Feld steht in jeder Buchung, auch wenn die Spalte leer ist.
 
 Nicht Bestandteil der kanonischen Form sind die Spalten
 ` + "`Festschreibungszeitpunkt_UTC`, `Festschreibung_ID`" + ` und
@@ -103,20 +81,36 @@ der Buchung gesetzt — die Festschreibung ändert die Buchung nicht, sie stellt
 sie fest —, die dritte ist eine Fundstelle und kein Inhalt.
 
 Danach folgt ` + "`lines`" + ` mit der Anzahl der Zeilen der Buchung und für jede
-Zeile — aufsteigend nach Zeilennummer sortiert — die acht Felder
+Zeile — aufsteigend nach Zeilennummer sortiert — die zehn Felder
 
     line_pos, line_side, line_account, line_amount,
-    line_contact, line_tax_key, line_tax_base, line_text
+    line_contact, line_tax_key, line_tax_base,
+    line_input_tax_share, line_foreign_amount, line_text
 
 aus den Spalten Zeilennummer, Seite, Konto, Betrag_Cent, Zeile_Kontakt_ID,
-Steuerschluessel, Bemessungsgrundlage_Cent und Zeilentext.
+Steuerschluessel, Bemessungsgrundlage_Cent, Vorsteueranteil_Promille,
+Fremdbetrag_Kleinste_Einheit und Zeilentext.
 
-Zuletzt die Bewirtungsaufzeichnung: ` + "`entertainment`" + ` mit dem Wert 1,
+Dann die Bewirtungsaufzeichnung: ` + "`entertainment`" + ` mit dem Wert 1,
 wenn die Tabelle ` + "`bewirtungen`" + ` eine Zeile zu dieser Buchung enthält,
 gefolgt von ` + "`entertainment_place`, `entertainment_day`," + `
 ` + "`entertainment_participants`" + ` und ` + "`entertainment_occasion`" + `.
 Gibt es keine Aufzeichnung, steht dort ` + "`entertainment`" + ` mit dem Wert 0
 und sonst nichts.
+
+Zuletzt die Geschenke: ` + "`gifts`" + ` mit der Anzahl der Zeilen der Tabelle
+` + "`geschenke`" + ` zu dieser Buchung (auch 0) und für jedes Geschenk die
+acht Felder
+
+    gift_recipient, gift_recipient_contact, gift_occasion, gift_date,
+    gift_net, gift_account, gift_fiscal_year, gift_deductible
+
+aus den Spalten Empfaenger, Empfaenger_Kontakt_ID, Anlass, Datum,
+Nettobetrag_Cent, Konto, Wirtschaftsjahr und Abziehbar. Die Geschenke sind
+nach dem Empfängerschlüssel sortiert: ` + "`contact:<Empfaenger_Kontakt_ID>`" + `,
+wo ein Kontakt erfasst ist, sonst ` + "`name:`" + ` gefolgt vom Namen in
+Kleinbuchstaben mit zu einem Leerzeichen zusammengefassten Leerräumen; bei
+gleichem Schlüssel in der Reihenfolge der Tabelle.
 
 Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
 Eigenhash.
@@ -132,9 +126,9 @@ Eigenhash.
 const receiptHashDoc = `## Den Beleg-Hash nachrechnen
 
 Die Spalte ` + "`Beleg_SHA256`" + ` deckt einen ganzen Beleg mit einem Wert: die
-geordnete Liste seiner Dateien und — bei Belegen mit Kopfdaten — die Kopfdaten
-selbst. Derselbe Wert steht an jeder Buchung, die auf den Beleg gebucht wurde,
-und geht dort in die kanonische Form ein.
+geordnete Liste seiner Dateien und seine Kopfdaten. Derselbe Wert steht an
+jeder Buchung, die auf den Beleg gebucht wurde, und geht dort in die kanonische
+Form ein.
 
 Die Schreibweise der Felder ist dieselbe wie bei der Buchung
 (` + "`<Name>:<Länge>:<Wert>\n`" + `). Zuerst
@@ -152,8 +146,7 @@ Nicht gedeckt sind die Spalten Abgeleitet und Pfad_im_Export: die erste hält di
 Herkunft fest und nicht den Inhalt, die zweite ist eine Fundstelle — dieselbe
 Überlegung, aus der die Buchung ihren Ablagepfad nicht deckt.
 
-Ist die Spalte ` + "`Belegdatum`" + ` belegt, folgen danach sieben weitere
-Felder; ist sie leer, folgen sie nicht:
+Danach folgen die Kopfdaten:
 
     document_date (Belegdatum)
     issuer        (Aussteller)
@@ -162,13 +155,6 @@ Felder; ist sie leer, folgen sie nicht:
     currency      (Waehrung)
     subject       (Betreff)
     kind          (Belegart)
-
-Das ist die Versionsweiche des Beleg-Hashes, dieselbe Bauart wie die der
-Buchung: Belege aus der Zeit vor den Kopfdaten haben kein Belegdatum und werden
-nach der bisherigen Form gehasht. Ohne die Weiche hätte die Aufnahme der
-Kopfdaten den Hash jedes bestehenden Belegs verändert — und mit ihm den Wert
-` + "`receipt_hash`" + ` in jeder Buchung, die auf ihn zeigt, und damit deren
-Eigenhash und die ganze Kette.
 
 Die Beträge stehen in dieser Form als ganzzahlige Cent, nicht als Eurobetrag mit
 zwei Nachkommastellen wie in den Spalten Bruttobetrag und Steuerbetrag: 1234,56
@@ -180,15 +166,14 @@ Beleg-Hash.
 
 // auditChainDoc beschreibt die Kanonisierung des Änderungsprotokolls.
 //
-// Das Protokoll ist selbst ein Nachweis und hat seit dieser Fassung eine
-// eigene Kette. Sie im Prüferpaket ungeklärt zu lassen hieße, die Spalten
-// Vorgaengerhash und Eigenhash mitzuliefern und den Prüfer auf ihr Wort
-// festzulegen.
+// Das Protokoll ist selbst ein Nachweis und hat eine eigene Kette. Sie im
+// Prüferpaket ungeklärt zu lassen hieße, die Spalten Vorgaengerhash und
+// Eigenhash mitzuliefern und den Prüfer auf ihr Wort festzulegen.
 const auditChainDoc = `## Die Kette des Änderungsprotokolls nachrechnen
 
 Die Einträge in ` + "`aenderungsprotokoll.csv`" + ` sind untereinander verkettet
 wie die Buchungen: jeder Eintrag hat den Eigenhash seines Vorgängers, der
-erste verkettete Eintrag hat 64 Nullen. Ein entfernter Eintrag bricht die
+erste Eintrag hat 64 Nullen. Ein entfernter Eintrag bricht die
 Kette.
 
 Die Schreibweise der Felder ist dieselbe wie bei der Buchung. Sie folgen in
@@ -213,10 +198,6 @@ Die Protokoll_ID ist nicht Bestandteil der kanonischen Form. Sie wird beim
 Schreiben vergeben, und eine Übernahme der Daten in eine neue Datei vergäbe
 andere; was den Eintrag ausmacht, ist sein Inhalt und seine Stellung in der
 Kette.
-
-Einträge aus der Zeit vor der Verkettung haben keinen Eigenhash. Sie stehen mit
-leeren Hash-Spalten in der Datei und gehören nicht zur Kette; die Kette beginnt
-beim ersten Eintrag, der einen Eigenhash hat.
 
 Der SHA-256 über diese Bytefolge, hexadezimal in Kleinbuchstaben, ist der
 Eigenhash des Eintrags.

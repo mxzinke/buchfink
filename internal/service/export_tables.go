@@ -21,6 +21,7 @@ import (
 const (
 	tableJournal        = "journal"
 	tableEntertainment  = "bewirtungen"
+	tableGifts          = "geschenke"
 	tableAllocations    = "zahlungszuordnungen"
 	tableAccounts       = "konten"
 	tableBalances       = "salden"
@@ -89,7 +90,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		dateField("Leistungsbeginn", "Beginn der Leistung (§ 14 Abs. 4 Nr. 6 UStG)."),
 		dateField("Leistungsende", "Ende der Leistung; gleich dem Beginn bei einer Zeitpunktleistung."),
 		dateField("Valuta", "Wertstellung; nur bei Zahlungsbuchungen belegt."),
-		dateField("Faelligkeit", "Vereinbarte Fälligkeit des offenen Postens, den die Buchung begründet; leer, wo keine vereinbart ist. Ist die Spalte belegt, geht sie in die kanonische Form ein (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
+		dateField("Faelligkeit", "Vereinbarte Fälligkeit des offenen Postens, den die Buchung begründet; leer, wo sie aus dem Zahlungsziel folgt."),
 		alphaField("Buchungstext", "Beschreibung des Geschäftsvorfalls."),
 		alphaField("Quelle", "Teil des Systems, der die Buchung erzeugt hat; siehe Schlüsselverzeichnis, Kategorie „Quelle“."),
 		alphaField("Buchungsart", "normal oder reversal (Generalumkehr); siehe Schlüsselverzeichnis."),
@@ -97,7 +98,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		intField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
 		alphaField("Storno_Grund", "Begründung der Generalumkehr."),
 		alphaField("Belegnummer", "Belegfeld: Nummer des Belegs, unter der er abgelegt ist."),
-		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste des Belegs und — bei Belegen mit Belegdatum — dessen Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
+		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und die Kopfdaten des Belegs; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		intField("Kontakt_ID", "Geschäftspartner der Buchung; verweist auf kontakte.Kontakt_ID."),
 		intField("Bankumsatz_ID", "Interne Kennung des zugeordneten Bankumsatzes."),
 		alphaField("Waehrung", "Währung des Belegs nach ISO 4217."),
@@ -105,7 +106,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Kursquelle", "Herkunft des Kurses."),
 		dateField("Kursdatum", "Tag, für den der Kurs gilt."),
 		alphaField("Regelversion", "Fassung der Kontierungsregeln, nach der gebucht wurde."),
-		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat. Leer bei Buchungen aus der Zeit vor dieser Angabe; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
+		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
 		alphaField("Herkunft_Altsystem", "Kennung, unter der der Vorgang im Altsystem geführt wurde; nur bei übernommenen Eröffnungswerten belegt."),
 		intField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
@@ -127,6 +128,8 @@ func journalTable(d *exportData) (export.Table, error) {
 		numField("Bemessungsgrundlage", "Entgelt, aus dem die Steuer dieser Zeile gerechnet wurde, in Euro."),
 		intField("Bemessungsgrundlage_Cent", "Dieselbe Bemessungsgrundlage in Cent; dieser Wert geht in die Hash-Chain ein."),
 		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten."),
+		intField("Vorsteueranteil_Promille", "Abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt nicht einschlägig, -1 ganz ausgeschlossen (§ 15 Abs. 1a UStG). Dieser Wert geht in die Hash-Chain ein."),
+		intField("Fremdbetrag_Kleinste_Einheit", "Betrag der Zeile in der Fremdwährung der Buchung, in der kleinsten Einheit dieser Währung; 0 bei Euro. Dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Zeilentext", "Text der einzelnen Zeile."),
 	)
 
@@ -182,6 +185,8 @@ func journalTable(d *exportData) (export.Table, error) {
 				export.Amount(l.TaxBase),
 				export.Int64(int64(l.TaxBase)),
 				export.OptUint(l.ContactID),
+				export.Int(l.InputTaxShare),
+				export.Int64(int64(l.ForeignAmount)),
 				l.Text,
 			)
 			if err != nil {
@@ -228,6 +233,45 @@ func entertainmentTable(d *exportData) (export.Table, error) {
 			e.Entertainment.Participants, e.Entertainment.Occasion,
 		); err != nil {
 			return t, err
+		}
+	}
+	return t, nil
+}
+
+// giftsTable enthält die Aufzeichnung des § 4 Abs. 7 EStG, eine Zeile je
+// Geschenk. Sie ist Teil der kanonischen Form der Buchung.
+func giftsTable(d *exportData) (export.Table, error) {
+	t := newTable(tableGifts, "geschenke.csv",
+		"Aufzeichnungen zu Geschenken an Geschäftsfreunde (§ 4 Abs. 7 EStG). Sie sind Bestandteil der kanonischen Form der Buchung.",
+		intField("Buchung_ID", "Buchung, zu der die Aufzeichnung gehört."),
+		alphaField("Buchungsnummer", "Nummer derselben Buchung."),
+		alphaField("Empfaenger", "Name des Empfängers."),
+		intField("Empfaenger_Kontakt_ID", "Empfänger als erfasster Geschäftspartner; leer bei freiem Namen."),
+		alphaField("Anlass", "Anlass des Geschenks."),
+		dateField("Datum", "Tag des Geschenks."),
+		numField("Nettobetrag", "Betrag, an dem die Freigrenze gemessen wird, in Euro."),
+		intField("Nettobetrag_Cent", "Derselbe Betrag in ganzzahligen Cent; dieser Wert geht in die Hash-Chain ein."),
+		alphaField("Konto", "Konto, auf das gebucht wurde."),
+		intField("Wirtschaftsjahr", "Wirtschaftsjahr, in dem die Freigrenze läuft."),
+		intField("Abziehbar", "1, wenn das Geschenk als abziehbar gebucht wurde, sonst 0."),
+	)
+	for i := range d.entries {
+		e := &d.entries[i]
+		for j := range e.Gifts {
+			g := &e.Gifts[j]
+			deductible := 0
+			if g.Deductible() {
+				deductible = 1
+			}
+			if err := t.AddRow(
+				export.Uint(e.ID), e.EntryNumber,
+				g.RecipientName, export.OptUint(g.RecipientContactID),
+				g.Occasion, g.Date,
+				export.Amount(g.NetAmount), export.Int64(int64(g.NetAmount)),
+				g.Account, export.Int(g.FiscalYear), export.Int(deductible),
+			); err != nil {
+				return t, err
+			}
 		}
 	}
 	return t, nil
@@ -385,7 +429,9 @@ func contactsTable(d *exportData) (export.Table, error) {
 		alphaField("Art", "customer für Debitoren, vendor für Kreditoren; siehe Schlüsselverzeichnis."),
 		alphaField("Name", "Name des Geschäftspartners."),
 		alphaField("Firma", "Firmenname, sofern abweichend."),
-		alphaField("Anschrift", "Anschrift des Geschäftspartners."),
+		alphaField("Strasse", "Straße und Hausnummer des Geschäftspartners."),
+		alphaField("Postleitzahl", "Postleitzahl des Geschäftspartners."),
+		alphaField("Ort", "Ort des Geschäftspartners."),
 		alphaField("Land", "Ländercode nach ISO 3166-1 alpha-2."),
 		alphaField("USt_IdNr", "Umsatzsteuer-Identifikationsnummer."),
 		alphaField("Steuernummer", "Steuernummer des Geschäftspartners."),
@@ -398,7 +444,7 @@ func contactsTable(d *exportData) (export.Table, error) {
 		c := &d.contacts[i]
 		if err := t.AddRow(
 			export.Uint(c.ID), c.LedgerAccount, string(c.Type),
-			c.Name, c.Company, c.Address, c.CountryCode,
+			c.Name, c.Company, c.Street, c.PostalCode, c.City, c.CountryCode,
 			c.VatID, c.TaxID, c.Email, c.IBAN,
 			export.Int(c.PaymentTermsDays), c.CollectiveAccount(),
 		); err != nil {
@@ -829,7 +875,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Status", "Stand des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegstatus“."),
 		dateField("Eingang", "Tag, an dem der Beleg eingegangen ist."),
 		alphaField("Eingangsweg", "Weg, auf dem der Beleg eingegangen ist."),
-		dateField("Belegdatum", "Datum, das der Beleg selbst hat (Rechnungsdatum). Leer bei Belegen aus der Zeit vor den Kopfdaten; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Den Beleg-Hash nachrechnen“)."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst hat (Rechnungsdatum); leer, solange der Beleg nicht erfasst ist."),
 		alphaField("Aussteller", "Name des Ausstellers, wie er auf dem Beleg steht."),
 		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
 		numField("Steuerbetrag", "Darin enthaltene Umsatzsteuer in Euro."),

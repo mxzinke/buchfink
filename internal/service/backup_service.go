@@ -27,8 +27,9 @@ import (
 // Die Namen im Datenordner. Sie stehen hier, weil die Sicherung sie als
 // Ganzes kennen muss: eine Sicherung, der eine dieser Dateien fehlt, ist keine.
 const (
-	dbFileName       = "buchfink.sqlite"
-	receiptsDirName  = "belege"
+	dbFileName      = "buchfink.sqlite"
+	receiptsDirName = "belege"
+	// documentsDirName hält die Fassungen der Verfahrensdokumentation.
 	documentsDirName = "dokumente"
 	// BackupMetaFileName ist die Metadatei in der Sicherung.
 	BackupMetaFileName = "backup.json"

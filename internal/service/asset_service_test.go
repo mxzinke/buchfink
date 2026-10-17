@@ -2109,9 +2109,9 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 	}
 }
 
-// Bei einer Personengesellschaft lässt die Rechtsform die Anlegerstellung
-// offen: § 20 Abs. 3a InvStG stellt auf den Gesellschafter ab. Dann rechnet
-// Buchfink keine Teilfreistellung, sondern sagt, was zu entscheiden ist.
+// Ohne Rechtsform und ohne ausdrückliche Festlegung folgt keine
+// Anlegerstellung. Dann rechnet Buchfink keine Teilfreistellung, sondern sagt,
+// was zu entscheiden ist.
 func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)
@@ -2122,7 +2122,7 @@ func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stammdaten: %v", err)
 	}
-	cfg.LegalForm = "GmbH & Co. KG"
+	cfg.LegalForm = ""
 	cfg.InvestorOverride = ""
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 		t.Fatalf("Stammdaten speichern: %v", err)

@@ -74,12 +74,8 @@ var foundationRules = []FoundationRules{
 	},
 }
 
-// FoundationRulesFor returns the rules of a Rechtsform.
-//
-// Der zweite Rückgabewert ist die Antwort auf die Frage, ob der Gründungsweg für
-// diese Rechtsform überhaupt gilt. Er ist die einzige Stelle, an der das
-// entschieden wird — die Oberfläche fragt hier, statt Rechtsformnamen zu
-// vergleichen.
+// FoundationRulesFor returns the rules of a Rechtsform. Der zweite
+// Rückgabewert meldet, ob für sie Regeln hinterlegt sind.
 func FoundationRulesFor(legalForm string) (FoundationRules, bool) {
 	for _, r := range foundationRules {
 		if r.LegalForm == legalForm {
@@ -89,7 +85,7 @@ func FoundationRulesFor(legalForm string) (FoundationRules, bool) {
 	return FoundationRules{}, false
 }
 
-// FoundationLegalForms returns the legal forms the Gründungsweg covers.
+// FoundationLegalForms returns the Kapitalaufbringungsregeln of GmbH and UG.
 func FoundationLegalForms() []FoundationRules {
 	out := make([]FoundationRules, len(foundationRules))
 	copy(out, foundationRules)

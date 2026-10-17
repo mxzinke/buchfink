@@ -30,8 +30,6 @@ export const bridge = {
   GetTenants: <T>() => invoke<T>('GetTenants'),
   GetActiveTenant: <T>() => invoke<T>('GetActiveTenant'),
   SwitchTenant: (tenantId: string) => invoke<void>('SwitchTenant', tenantId),
-  CreateTenant: <T>(name: string, dataDir: string, settings: unknown) =>
-    invoke<T>('CreateTenant', name, dataDir, settings),
   DeleteTenant: (tenantId: string) => invoke<void>('DeleteTenant', tenantId),
 
   GetBankAccounts: <T>() => invoke<T>('GetBankAccounts'),
@@ -293,12 +291,6 @@ export const bridge = {
   GetCountries: <T>() => invoke<T>('GetCountries'),
   GetRecommendedVatPeriod: <T>(foundingYear: number) =>
     invoke<T>('GetRecommendedVatPeriod', foundingYear),
-  PreviewFoundationPostings: <T>() => invoke<T>('PreviewFoundationPostings'),
-  BookFoundationPostings: <T>() => invoke<T>('BookFoundationPostings'),
-  RegisterCompany: <T>(date: string, court: string, number: string) =>
-    invoke<T>('RegisterCompany', date, court, number),
-  GetOpeningBalance: <T>() => invoke<T>('GetOpeningBalance'),
-  ExportOpeningBalanceXBRL: () => invoke<string>('ExportOpeningBalanceXBRL'),
 
   // Datenüberlassung nach § 147 Abs. 6 AO
   ExportZ3: <T>(year: number, targetDir: string) => invoke<T>('ExportZ3', year, targetDir),

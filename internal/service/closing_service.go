@@ -1892,13 +1892,6 @@ func (s *ClosingService) ensureStatementReady(ctx context.Context, year int) err
 	if s.statementSource == nil {
 		return nil
 	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil {
-		return err
-	}
-	if _, applies := accounting.FoundationRulesFor(settings.LegalForm); !applies {
-		return nil
-	}
 	fs, err := s.statementSource.Build(ctx, year, domain.DepthFull)
 	if err != nil {
 		return err

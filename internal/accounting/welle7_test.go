@@ -101,6 +101,39 @@ func TestDefaultInterestStartIsThirtyDaysAfterTheDueDate(t *testing.T) {
 	}
 }
 
+// Nach dem Halbjahr des letzten Eintrags kennt die Tabelle den Satz nicht.
+// Fortgeschrieben wird er nicht: gerechnet wird bis zum Ende des Halbjahres,
+// und das Ergebnis sagt, ab wann nicht.
+func TestDefaultInterestStopsWhereTheTableEnds(t *testing.T) {
+	rates := []BaseRatePeriod{
+		{ValidFrom: "2026-01-01", BasisPoints: 127},
+		{ValidFrom: "2026-07-01", BasisPoints: 152},
+	}
+	if got := BaseRatesCoveredUntil(rates); got != "2026-12-31" {
+		t.Fatalf("die Tabelle deckt bis %s, erwartet 2026-12-31", got)
+	}
+
+	result, err := DefaultInterest(1_000_000, "2026-12-01", "2027-02-01", false, rates)
+	if err != nil {
+		t.Fatalf("Verzugszinsen: %v", err)
+	}
+	if result.UncoveredFrom != "2027-01-01" {
+		t.Errorf("ungedeckt ab %q, erwartet 2027-01-01", result.UncoveredFrom)
+	}
+	if result.Days != 31 {
+		t.Errorf("verzinste Tage = %d, erwartet 31 (nur der Dezember)", result.Days)
+	}
+
+	later, err := DefaultInterest(1_000_000, "2027-03-01", "2027-04-01", false, rates)
+	if err != nil {
+		t.Fatalf("Verzugszinsen: %v", err)
+	}
+	if later.Amount != 0 || later.UncoveredFrom != "2027-03-01" {
+		t.Errorf("nach dem Ende der Tabelle: %s € ab %q — erwartet nichts gerechnet ab 2027-03-01",
+			later.Amount, later.UncoveredFrom)
+	}
+}
+
 // BaseRateAt setzt eine aufsteigend sortierte Tabelle ohne doppelte Stichtage
 // voraus.
 func TestBuiltInBaseRatesAreSorted(t *testing.T) {

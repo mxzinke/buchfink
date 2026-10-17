@@ -30,7 +30,6 @@ export {
   type ProgressProps,
   type SkeletonRowsProps,
 } from './Feedback';
-export { FileDrop, type FileDropProps } from './FileDrop';
 export {
   Field,
   FieldRow,

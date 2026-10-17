@@ -46,7 +46,7 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 
 // filledBooks legt einen kleinen, aber vollständigen Bestand an: zwei
 // Eingangsrechnungen mit Beleg und Personenkonto (eine offen, eine bezahlt),
-// eine Handbuchung, ein Anlagegut samt Zugang und Abschreibungslauf und eine
+// eine Handbuchung, ein Geschenk, ein Anlagegut samt Zugang und Abschreibungslauf und eine
 // gespeicherte Voranmeldung. Damit enthält jede Tabelle des Exports etwas —
 // eine Tabelle, die nur leer geprüft wird, ist nicht geprüft.
 func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
@@ -58,6 +58,25 @@ func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
 
 	if _, err := e.journal.Post(ctx, simpleEntry("6815", "1800", 4200)); err != nil {
 		t.Fatalf("Handbuchung: %v", err)
+	}
+
+	// Ein Geschenk mit Aufzeichnung (§ 4 Abs. 7 EStG): sie ist Teil der
+	// kanonischen Form und steht in einer eigenen Tabelle.
+	if _, err := e.journal.Post(ctx, &domain.JournalEntry{
+		BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
+		ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
+		Description: "Präsentkorb", Source: domain.EntrySourceManual,
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: "6610", Amount: 3_000},
+			{Side: domain.SideCredit, Account: "1800", Amount: 3_000},
+		},
+		Gifts: []domain.GiftRecord{{
+			FiscalYear: 2026, Date: "2026-03-10", RecipientName: "Dr.  Meyer",
+			Occasion: "Jubiläum", NetAmount: 3_000, Account: "6610",
+		}},
+	}); err != nil {
+		t.Fatalf("Geschenk: %v", err)
 	}
 
 	// Eine zweite Rechnung, die bezahlt wird: erst dadurch entsteht eine
@@ -134,7 +153,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	}
 
 	wanted := []string{
-		"journal", "bewirtungen", "zahlungszuordnungen", "konten", "salden",
+		"journal", "bewirtungen", "geschenke", "zahlungszuordnungen", "konten", "salden",
 		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen",
 		"belege", "voranmeldungen", "festschreibungen", "pruefläufe", "pruefpfad",
 		"aenderungsprotokoll", "steuerschluessel", "schluesselverzeichnis",
@@ -415,6 +434,7 @@ func TestExportedJournalLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 
 	journal := readCSV(t, filepath.Join(dir, "journal.csv"))
 	meals := readCSV(t, filepath.Join(dir, "bewirtungen.csv"))
+	gifts := readCSV(t, filepath.Join(dir, "geschenke.csv"))
 	if len(journal) < 2 {
 		t.Fatal("journal.csv enthält keine Daten")
 	}
@@ -430,7 +450,7 @@ func TestExportedJournalLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 			t.Fatalf("Buchung %s: Vorgängerhash %q, erwartet %q",
 				entry.head["Buchungsnummer"], got, prev)
 		}
-		computed := recomputeEntryHash(entry, meals)
+		computed := recomputeEntryHash(entry, meals, gifts)
 		if computed != entry.head["Eigenhash"] {
 			t.Fatalf("Buchung %s: nachgerechneter Hash %s, in der Datei steht %s",
 				entry.head["Buchungsnummer"], computed, entry.head["Eigenhash"])
@@ -828,7 +848,7 @@ func groupJournalRows(t *testing.T, rows [][]string) []exportedEntry {
 // recomputeEntryHash baut die kanonische Form allein aus den exportierten
 // Spalten nach — nach dem Verfahren, das feldbeschreibung.md beschreibt, und
 // ohne eine Zeile des Buchfink-Codes zu benutzen.
-func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
+func recomputeEntryHash(entry exportedEntry, meals, gifts [][]string) string {
 	var b strings.Builder
 	put := func(name, value string) {
 		b.WriteString(name)
@@ -863,19 +883,10 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 	put("rate_source", h["Kursquelle"])
 	put("rate_date", h["Kursdatum"])
 	put("rule_version", h["Regelversion"])
-	// Die Versionsweiche, wie die Feldbeschreibung sie beschreibt: eine
-	// Buchung mit belegter Programmfassung hat drei weitere Felder, eine ohne
-	// hat sie nicht.
-	if h["Programmfassung"] != "" {
-		put("app_version", h["Programmfassung"])
-		put("actor", h["Bearbeiter"])
-		put("legacy_ref", h["Herkunft_Altsystem"])
-	}
-	// Die zweite Weiche: die vereinbarte Fälligkeit wird nur geschrieben, wo die
-	// Spalte belegt ist.
-	if h["Faelligkeit"] != "" {
-		put("due_date", h["Faelligkeit"])
-	}
+	put("app_version", h["Programmfassung"])
+	put("actor", h["Bearbeiter"])
+	put("legacy_ref", h["Herkunft_Altsystem"])
+	put("due_date", h["Faelligkeit"])
 	put("created_at", h["Erfassungszeitpunkt_UTC"])
 
 	put("lines", strconv.Itoa(len(entry.lines)))
@@ -887,6 +898,8 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 		put("line_contact", line["Zeile_Kontakt_ID"])
 		put("line_tax_key", line["Steuerschluessel"])
 		put("line_tax_base", line["Bemessungsgrundlage_Cent"])
+		put("line_input_tax_share", line["Vorsteueranteil_Promille"])
+		put("line_foreign_amount", line["Fremdbetrag_Kleinste_Einheit"])
 		put("line_text", line["Zeilentext"])
 	}
 
@@ -898,6 +911,24 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 		put("entertainment_occasion", meal["Anlass"])
 	} else {
 		put("entertainment", "0")
+	}
+
+	// Die Geschenke in der Reihenfolge der Feldbeschreibung: nach dem
+	// Empfängerschlüssel, bei gleichem Schlüssel in der Reihenfolge der Tabelle.
+	presents := findGifts(gifts, h["Buchung_ID"])
+	sort.SliceStable(presents, func(i, j int) bool {
+		return giftRecipientKey(presents[i]) < giftRecipientKey(presents[j])
+	})
+	put("gifts", strconv.Itoa(len(presents)))
+	for _, g := range presents {
+		put("gift_recipient", g["Empfaenger"])
+		put("gift_recipient_contact", g["Empfaenger_Kontakt_ID"])
+		put("gift_occasion", g["Anlass"])
+		put("gift_date", g["Datum"])
+		put("gift_net", g["Nettobetrag_Cent"])
+		put("gift_account", g["Konto"])
+		put("gift_fiscal_year", g["Wirtschaftsjahr"])
+		put("gift_deductible", g["Abziehbar"])
 	}
 
 	sum := sha256.Sum256([]byte(b.String()))
@@ -923,6 +954,37 @@ func findMeal(rows [][]string, entryID string) map[string]string {
 		return values
 	}
 	return nil
+}
+
+// findGifts liefert die Zeilen der Geschenktabelle zu einer Buchung.
+func findGifts(rows [][]string, entryID string) []map[string]string {
+	out := make([]map[string]string, 0)
+	if len(rows) < 2 {
+		return out
+	}
+	index := map[string]int{}
+	for i, name := range rows[0] {
+		index[name] = i
+	}
+	for _, row := range rows[1:] {
+		if row[index["Buchung_ID"]] != entryID {
+			continue
+		}
+		values := map[string]string{}
+		for name, i := range index {
+			values[name] = row[i]
+		}
+		out = append(out, values)
+	}
+	return out
+}
+
+// giftRecipientKey baut den Empfängerschlüssel nach der Feldbeschreibung.
+func giftRecipientKey(g map[string]string) string {
+	if id := g["Empfaenger_Kontakt_ID"]; id != "" && id != "0" {
+		return "contact:" + id
+	}
+	return "name:" + strings.ToLower(strings.Join(strings.Fields(g["Empfaenger"]), " "))
 }
 
 // --- Jahresgrenzen ---------------------------------------------------------

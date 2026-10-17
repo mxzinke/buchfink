@@ -13,10 +13,9 @@ import (
 
 // HashChain computes and verifies the GoBD hash chain over journal entries.
 //
-// The chain only proves what it covers. The previous implementation hashed a
-// subset of fields, which left the Buchungstext and the tax amount silently
-// editable — the Unveränderbarkeit claim did not actually hold. This version
-// covers every field that carries accounting meaning, including all lines.
+// The chain only proves what it covers, so it covers every field that carries
+// accounting meaning, including all lines. Every field is written for every
+// entry; there is exactly one canonical form.
 type HashChain struct{}
 
 // NewHashChain returns the hash chain implementation.
@@ -39,11 +38,9 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("description", e.Description)
 	put("source", string(e.Source))
 	put("document_number", e.DocumentNumber)
-	// The Beleg is covered by one value, as the single file hash used to be —
-	// only now that value stands for the whole ordered file list. ReceiptID is
-	// deliberately excluded for the same reason the old DocumentPath was: moving
-	// or re-importing data must not break the chain, and an id is a location
-	// rather than content.
+	// The Beleg is covered by one value, the Beleg-Hash (see ReceiptHash).
+	// ReceiptID is deliberately excluded: moving or re-importing data must not
+	// break the chain, and an id is a location rather than content.
 	put("receipt_hash", e.ReceiptHash)
 	// The Steuerfall is part of the record, not just of the input. On the
 	// incoming side it is the only thing separating an exempt purchase from one
@@ -60,44 +57,15 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("rate_date", e.ExchangeRateDate)
 	put("rule_version", e.PostingRuleVersion)
 
-	// Die Versionsweiche der kanonischen Form.
-	//
-	// Programmfassung und Bearbeiterkennung gehören zu der Buchung: UNV-06
-	// verlangt, dass sich zu jeder Aufzeichnung feststellen lässt, welche
-	// Fassung des Programms sie erzeugt hat, und UNV-04 verlangt die
-	// Bearbeiterkennung. Beides ungedeckt zu lassen hieße, ausgerechnet die
-	// Nachweisfelder nachträglich änderbar zu halten.
-	//
-	// Zusätzliche Felder in der Kanonisierung ändern aber den Hash *jeder*
-	// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung wäre
-	// mit dem nächsten Update gebrochen. Die Weiche löst das ohne
-	// Datenänderung: eine Buchung ohne AppVersion stammt aus der Zeit vor
-	// dieser Welle und wird nach der bisherigen Form gehasht; eine mit
-	// AppVersion nach der neuen. Welche Form gilt, steht an der Buchung selbst
-	// — es braucht keine gespeicherte Formatnummer, die selbst wieder
-	// änderbar wäre.
-	//
-	// JournalService.Post setzt AppVersion an jeder neuen Buchung, es gibt
-	// also keinen dritten Fall.
-	if e.AppVersion != "" {
-		put("app_version", e.AppVersion)
-		put("actor", e.Actor)
-		// Die Herkunftskennung aus einem Altsystem ist Inhalt und keine
-		// Fundstelle: sie sagt, welcher Posten der Schlussbilanz des
-		// Altsystems hier fortgeführt wird, und ist damit so zu decken wie der
-		// Buchungstext.
-		put("legacy_ref", e.LegacyRef)
-	}
-
-	// Die vereinbarte Fälligkeit, nur wo sie belegt ist. Sie ist Inhalt — die
-	// Altersstruktur und die Restlaufzeitangabe unter der Bilanz hängen an ihr
-	// (§ 268 Abs. 4 und 5 HGB) —, und sie steht wie der Vorsteueranteil und der
-	// Fremdbetrag hinter einer Belegtprüfung: ein leeres Feld heißt „folgt aus
-	// dem Zahlungsziel" und ist gleichbedeutend mit „nicht vorhanden", also
-	// hasht jede bestehende Buchung weiter wie zuvor.
-	if e.DueDate != "" {
-		put("due_date", e.DueDate)
-	}
+	// Programmfassung und Bearbeiterkennung (UNV-04, UNV-06) sowie die
+	// Herkunftskennung aus einem Altsystem sind Inhalt der Buchung und so zu
+	// decken wie der Buchungstext.
+	put("app_version", e.AppVersion)
+	put("actor", e.Actor)
+	put("legacy_ref", e.LegacyRef)
+	// Die vereinbarte Fälligkeit trägt Altersstruktur und Restlaufzeitangabe
+	// (§ 268 Abs. 4 und 5 HGB); leer heißt „folgt aus dem Zahlungsziel".
+	put("due_date", e.DueDate)
 
 	put("created_at", e.CreatedAt.UTC().Format(time.RFC3339))
 
@@ -116,34 +84,16 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		put("line_contact", optUint(l.ContactID))
 		put("line_tax_key", l.TaxKey)
 		putInt("line_tax_base", int64(l.TaxBase))
-		// Der Vorsteuerschlüssel der gemischten Nutzung wird nur geschrieben, wo
-		// er belegt ist.
-		//
-		// Das ist keine Sparsamkeit, sondern Rückwärtskompatibilität: ein
-		// zusätzliches Feld in der Kanonisierung ändert den Hash *jeder*
-		// bestehenden Buchung, und die Kette jeder ausgelieferten Buchhaltung
-		// wäre mit dem nächsten Update gebrochen. Ein Anteil von null heißt
-		// „nicht einschlägig" und ist damit gleichbedeutend mit „nicht
-		// vorhanden"; jeder tatsächliche Anteil ist ungleich null und wird
-		// gedeckt.
-		if l.InputTaxShare != 0 {
-			putInt("line_input_tax_share", int64(l.InputTaxShare))
-		}
-		// Der Fremdbetrag ebenso: er steht nur an Zeilen einer
-		// Fremdwährungsbuchung, und eine Eurobuchung hasht weiter genau wie zuvor.
-		// Gedeckt sein muss er trotzdem — er ist der Betrag, auf den die Rechnung
-		// lautete, und aus dem Eurobetrag nicht wiederzugewinnen.
-		if l.ForeignAmount != 0 {
-			putInt("line_foreign_amount", int64(l.ForeignAmount))
-		}
+		// Vorsteuerschlüssel der gemischten Nutzung und Betrag in der
+		// Fremdwährung; null heißt „nicht einschlägig" bzw. „Euro".
+		putInt("line_input_tax_share", int64(l.InputTaxShare))
+		putInt("line_foreign_amount", int64(l.ForeignAmount))
 		put("line_text", l.Text)
 	}
 
-	// The Aufzeichnung for entertainment expenses is what the deduction hangs on
-	// (§ 4 Abs. 5 Satz 1 Nr. 2 EStG), so it is covered like every other field
-	// that carries accounting meaning. Absent, it contributes a single empty
-	// marker rather than nothing, so "no record" and "an empty record" cannot
-	// hash alike.
+	// Die Aufzeichnungen zu Bewirtung (§ 4 Abs. 5 Satz 1 Nr. 2 EStG) und
+	// Geschenken (§ 4 Abs. 7 EStG) tragen den Abzug. Ein Zähler vorweg hält
+	// „keine Aufzeichnung" und „leere Aufzeichnung" auseinander.
 	if d := e.Entertainment; d != nil {
 		putInt("entertainment", 1)
 		put("entertainment_place", d.Place)
@@ -154,33 +104,25 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		putInt("entertainment", 0)
 	}
 
-	// Die Aufzeichnung zum Geschenk wird nur geschrieben, wo es eine gibt.
-	//
-	// Anders als bei der Bewirtung fehlt hier der Nullmarker, und das ist kein
-	// Versehen: das Feld ist neu, und ein Marker an jeder Buchung änderte den
-	// Hash jeder bestehenden. Eine Buchung ohne Geschenk hasht deshalb weiter
-	// genau wie zuvor, und eine mit ist vollständig gedeckt.
-	if len(e.Gifts) > 0 {
-		gifts := make([]domain.GiftRecord, len(e.Gifts))
-		copy(gifts, e.Gifts)
-		sort.SliceStable(gifts, func(i, j int) bool {
-			return gifts[i].RecipientKey() < gifts[j].RecipientKey()
-		})
-		putInt("gifts", int64(len(gifts)))
-		for i := range gifts {
-			g := &gifts[i]
-			put("gift_recipient", g.RecipientName)
-			put("gift_recipient_contact", optUint(g.RecipientContactID))
-			put("gift_occasion", g.Occasion)
-			put("gift_date", g.Date)
-			putInt("gift_net", int64(g.NetAmount))
-			put("gift_account", g.Account)
-			putInt("gift_fiscal_year", int64(g.FiscalYear))
-			if g.Deductible() {
-				putInt("gift_deductible", 1)
-			} else {
-				putInt("gift_deductible", 0)
-			}
+	gifts := make([]domain.GiftRecord, len(e.Gifts))
+	copy(gifts, e.Gifts)
+	sort.SliceStable(gifts, func(i, j int) bool {
+		return gifts[i].RecipientKey() < gifts[j].RecipientKey()
+	})
+	putInt("gifts", int64(len(gifts)))
+	for i := range gifts {
+		g := &gifts[i]
+		put("gift_recipient", g.RecipientName)
+		put("gift_recipient_contact", optUint(g.RecipientContactID))
+		put("gift_occasion", g.Occasion)
+		put("gift_date", g.Date)
+		putInt("gift_net", int64(g.NetAmount))
+		put("gift_account", g.Account)
+		putInt("gift_fiscal_year", int64(g.FiscalYear))
+		if g.Deductible() {
+			putInt("gift_deductible", 1)
+		} else {
+			putInt("gift_deductible", 0)
 		}
 	}
 

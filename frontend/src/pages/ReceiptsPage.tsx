@@ -140,11 +140,10 @@ const KIND_ITEMS = (Object.keys(KIND_LABELS) as ReceiptKind[]).map((value) => ({
 /**
  * Ob der Beleg seine Kopfdaten hat (BEL-02).
  *
- * Das Belegdatum ist die Weiche: das Backend hasht einen Beleg ohne es nach der
- * alten Form, und ohne es lässt sich die zeitgerechte Erfassung nicht
- * beurteilen (§ 146 Abs. 1 AO). Welche Felder darüber hinaus zum Buchen nötig
- * sind, entscheidet das Backend je Belegart — nachgebaut wird die Regel hier
- * nicht.
+ * Maßgeblich ist das Belegdatum: ohne es lässt sich die zeitgerechte Erfassung
+ * nicht beurteilen (§ 146 Abs. 1 AO). Welche Felder darüber hinaus zum Buchen
+ * nötig sind, entscheidet das Backend je Belegart — nachgebaut wird die Regel
+ * hier nicht.
  */
 function hasHeader(receipt: Receipt): boolean {
   return Boolean(receipt.documentDate);
@@ -155,9 +154,7 @@ function hasHeader(receipt: Receipt): boolean {
  *
  * Das Backend rechnet die Frist und speichert ihren letzten Tag am Beleg; hier
  * wird nur der Folgetag gebildet, damit die Ansicht „aufzubewahren bis" und
- * „löschbar ab" nicht verwechselt. Ein aktiver Hold auf dem Geschäftsjahr hebt
- * das Datum auf — er steht auf der Seite „Nachweise", weil er das ganze Jahr
- * betrifft und nicht diesen einen Beleg.
+ * „löschbar ab" nicht verwechselt.
  */
 function earliestDeletion(retentionUntil: string | undefined): string {
   if (!retentionUntil) return '';
@@ -1289,7 +1286,7 @@ const RetentionSection: React.FC<{
           label="Klasse"
           value={RETENTION_CLASS_LABELS[receipt.retentionClass ?? '']}
           /* Der Termin kommt aus dem Backend, sobald er dort steht: es kennt
-             Hold und verlängerte Frist, die lokale Hilfe rechnet nur nach. */
+             die verlängerte Frist, die lokale Hilfe rechnet nur nach. */
           context={`Löschung frühestens ${formatDate(
             receipt.earliestDeletion ?? earliestDeletion(receipt.retentionUntil),
           )}`}

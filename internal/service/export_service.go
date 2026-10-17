@@ -630,7 +630,7 @@ func (s *ExportService) fiscalYearBounds(ctx context.Context, year int) (string,
 // buildDataset baut alle Tabellen.
 func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 	builders := []func(*exportData) (export.Table, error){
-		journalTable, entertainmentTable, allocationsTable,
+		journalTable, entertainmentTable, giftsTable, allocationsTable,
 		accountsTable, balancesTable, contactsTable, openItemsTable,
 		assetsTable, assetMovementsTable,
 		receiptsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
@@ -788,7 +788,7 @@ func (s *ExportService) auditChainSection(ctx context.Context, b *export.Builder
 Änderungsprotokoll
 ------------------
 Einträge insgesamt:  %d
-Davon verkettet:     %d
+Nachgerechnet:       %d
 Ergebnis:            %s
 Letzter Kettenwert:  %s
 `, result.TotalEntries, result.CheckedEntries, result.Message, result.LastVerifiedHash)

@@ -116,9 +116,9 @@ type VatIDCheck struct {
 	// aufbereitete Zusammenfassung ist kein Nachweis.
 	RawResponse string `gorm:"type:text" json:"rawResponse,omitempty"`
 
-	// Endpoint hält fest, wohin gefragt wurde. Die Adresse ist eine Einstellung;
-	// ohne diesen Vermerk wäre später nicht mehr erkennbar, welche Stelle
-	// geantwortet hat.
+	// Endpoint hält fest, wohin gefragt wurde. Die Adresse kann sich mit einer
+	// Programmfassung ändern; ohne diesen Vermerk wäre später nicht mehr
+	// erkennbar, welche Stelle geantwortet hat.
 	Endpoint string `gorm:"size:255" json:"endpoint,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`

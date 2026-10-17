@@ -58,7 +58,6 @@ const (
 	RetentionKindFestschreibung   RetentionKind = "festschreibung"
 	RetentionKindClosing          RetentionKind = "closing"
 	RetentionKindVatReturn        RetentionKind = "vat_return"
-	RetentionKindInventory        RetentionKind = "inventory"
 	RetentionKindReceiptInvoice   RetentionKind = "receipt_invoice"
 	RetentionKindReceiptStatement RetentionKind = "receipt_statement"
 	RetentionKindReceiptSelfIssue RetentionKind = "receipt_self_issued"
@@ -102,18 +101,6 @@ type RetentionInfo struct {
 	RetentionEnd string `json:"retentionEnd"`
 	LegalBasis   string `json:"legalBasis"`
 	Note         string `json:"note"`
-}
-
-// IsExpired meldet, ob die Frist am Stichtag abgelaufen ist. Leerer Stichtag
-// heißt: heute.
-func (r RetentionInfo) IsExpired(today string) bool {
-	if r.EarliestDeletion == "" {
-		return false
-	}
-	if today == "" {
-		today = time.Now().UTC().Format("2006-01-02")
-	}
-	return today >= r.EarliestDeletion
 }
 
 // EarliestDeletionAfter liefert den ersten Tag, an dem gelöscht werden darf,

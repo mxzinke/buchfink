@@ -8,18 +8,16 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// --- Kopfdatenpflicht und Altbestand ---------------------------------------
+// --- Kopfdatenpflicht, Storno und Korrektur -------------------------------
 
-// legacyEntryOnHeaderlessReceipt stellt den Altbestand her: eine Buchung aus
-// der Zeit vor Welle 6 auf einen Beleg ohne Kopfdaten, der mit ihr versiegelt
-// wurde.
+// entryOnSealedReceiptWithoutHeader stellt eine Buchung auf einen versiegelten
+// Beleg her, dessen Kopfdaten die heutige Prüfung nicht bestehen.
 //
-// Der Weg dorthin geht bewusst an der Kopfdatenprüfung vorbei — genau so sind
-// diese Buchungen entstanden, nämlich mit einem Programmstand, der die Regel
-// noch nicht kannte. Nachstellen lässt sich das nur, indem die Belegablage für
-// die eine Buchung abgehängt und der Beleg über das Repository versiegelt wird
-// (ReceiptService.Seal prüft die Kopfdaten und hätte damals nichts geprüft).
-func legacyEntryOnHeaderlessReceipt(
+// So sieht ein Beleg aus, der unter einer Regel gebucht wurde, die eine spätere
+// Programmfassung verschärft hat. Nachstellen lässt sich das nur, indem die
+// Belegablage für die eine Buchung abgehängt und der Beleg über das Repository
+// versiegelt wird.
+func entryOnSealedReceiptWithoutHeader(
 	t *testing.T, env *testEnv, fileName, description string,
 ) (*domain.JournalEntry, *domain.Receipt) {
 	t.Helper()
@@ -31,8 +29,8 @@ func legacyEntryOnHeaderlessReceipt(
 			Content: []byte("%PDF-1.4 " + fileName + "\n"),
 		}},
 	})
-	if receipt.HasHeader() {
-		t.Fatal("der Altbeleg des Falls darf keine Kopfdaten haben")
+	if receipt.DocumentDate != "" {
+		t.Fatal("der Beleg des Falls darf keine Kopfdaten haben")
 	}
 
 	env.journal.SetReceiptRepo(nil)
@@ -48,31 +46,31 @@ func legacyEntryOnHeaderlessReceipt(
 	})
 	env.journal.SetReceiptRepo(env.receiptRepo)
 	if err != nil {
-		t.Fatalf("die Altbuchung ließ sich nicht anlegen: %v", err)
+		t.Fatalf("die Buchung ließ sich nicht anlegen: %v", err)
 	}
 	if err := env.receiptRepo.Seal(ctx, receipt.ID, entry.ID); err != nil {
-		t.Fatalf("den Altbeleg versiegeln: %v", err)
+		t.Fatalf("den Beleg versiegeln: %v", err)
 	}
 	return entry, receipt
 }
 
-// Eine Altbuchung auf einen versiegelten Beleg ohne Kopfdaten muss sich
-// stornieren und korrigieren lassen.
+// Eine Buchung auf einen versiegelten Beleg muss sich stornieren und
+// korrigieren lassen, auch wenn seine Kopfdaten die heutige Prüfung nicht
+// bestehen.
 //
 // Die Kopfdatenpflicht gilt dem Buchen eines offenen Belegs. Träfe sie auch die
-// Generalumkehr — sie kopiert den Beleg der Ursprungsbuchung —, wäre der
-// gesamte Altbestand eingesperrt: stornieren ginge nicht, und die Kopfdaten
-// ließen sich am versiegelten Beleg auch nicht nachtragen, weil SaveHeader den
-// offenen Beleg verlangt. Genau den Weg sieht GoBD Rz. 58 für jede Korrektur
-// vor.
-func TestReversalAndCorrectionSurviveALegacyReceiptWithoutHeader(t *testing.T) {
+// Generalumkehr — sie kopiert den Beleg der Ursprungsbuchung —, ließe sich die
+// Buchung nicht zurücknehmen, und am versiegelten Beleg lassen sich die
+// Kopfdaten nicht nachtragen. Genau den Weg sieht GoBD Rz. 58 für jede
+// Korrektur vor.
+func TestReversalAndCorrectionSurviveASealedReceiptWithoutHeader(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	toReverse, receipt := legacyEntryOnHeaderlessReceipt(t, env, "alt-storno.pdf", "Altbuchung Storno")
+	toReverse, receipt := entryOnSealedReceiptWithoutHeader(t, env, "storno.pdf", "Buchung Storno")
 	reversal, err := env.journal.Reverse(ctx, toReverse.ID, "falsches Konto")
 	if err != nil {
-		t.Fatalf("die Altbuchung muss sich stornieren lassen: %v", err)
+		t.Fatalf("die Buchung muss sich stornieren lassen: %v", err)
 	}
 	if reversal.ReceiptID == nil || *reversal.ReceiptID != receipt.ID {
 		t.Error("die Generalumkehr übernimmt den Beleg der Ursprungsbuchung")
@@ -80,20 +78,20 @@ func TestReversalAndCorrectionSurviveALegacyReceiptWithoutHeader(t *testing.T) {
 
 	// Und derselbe Beleg gilt auch für die Neubuchung des Korrekturvorgangs: sie
 	// belegt denselben Geschäftsvorfall.
-	toCorrect, legacyReceipt := legacyEntryOnHeaderlessReceipt(t, env, "alt-korrektur.pdf", "Altbuchung Korrektur")
+	toCorrect, sealed := entryOnSealedReceiptWithoutHeader(t, env, "korrektur.pdf", "Buchung Korrektur")
 	result, err := env.journal.CorrectEntry(ctx, toCorrect.ID, "falscher Betrag", &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-04-01", DocumentDate: "2026-02-01",
-		Description: "Altbuchung richtig", Source: domain.EntrySourceManual,
+		Description: "Buchung richtig", Source: domain.EntrySourceManual,
 		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Currency:     "EUR", ExchangeRateMicros: 1_000_000,
-		ReceiptID: &legacyReceipt.ID, ReceiptHash: legacyReceipt.ReceiptHash,
+		ReceiptID: &sealed.ID, ReceiptHash: sealed.ReceiptHash,
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 12000},
 			{Position: 2, Side: domain.SideCredit, Account: "1800", Amount: 12000},
 		},
 	})
 	if err != nil {
-		t.Fatalf("die Korrektur einer Altbuchung muss durchlaufen: %v", err)
+		t.Fatalf("die Korrektur muss durchlaufen: %v", err)
 	}
 	if result.Replacement.CorrectsEntryID == nil || *result.Replacement.CorrectsEntryID != toCorrect.ID {
 		t.Error("die Neubuchung muss auf die ersetzte Buchung verweisen")

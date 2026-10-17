@@ -1155,7 +1155,6 @@ const ProtocolFilter: React.FC<{
 // -------------------------------------------------------------------------
 
 const MIGRATION_KIND_LABELS: Record<string, string> = {
-  import: 'Mandant übernommen',
   restore: 'Aus Sicherung wiederhergestellt',
   open: 'Vorhandene Datei geöffnet',
 };

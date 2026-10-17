@@ -191,11 +191,9 @@ func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.
 	}
 	// Die Generalumkehr läuft durch — dieselbe Erwägung wie bei der
 	// Istversteuerung weiter oben in Post. Der Storno kopiert den Beleg der
-	// Ursprungsbuchung; hinge er an den Kopfdaten, ließe sich eine Altbuchung
-	// auf einen Beleg ohne Kopfdaten nicht mehr zurücknehmen, obwohl gerade der
-	// Storno der Weg ist, den GoBD Rz. 58 für die Korrektur vorsieht. Eine
-	// Regel über künftige Aufzeichnungen darf die Korrektur vorhandener nicht
-	// verhindern.
+	// Ursprungsbuchung, und er ist der Weg, den GoBD Rz. 58 für die Korrektur
+	// vorsieht. Eine Regel über künftige Aufzeichnungen darf die Korrektur
+	// vorhandener nicht verhindern.
 	if entry.Kind == domain.EntryKindReversal {
 		return nil
 	}
@@ -204,11 +202,10 @@ func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.
 		return nil
 	}
 	// Ein Beleg, der nicht mehr offen ist, ist bereits gebucht (versiegelt) oder
-	// verworfen. Beim Versiegeln sind die Kopfdaten geprüft worden
-	// (ReceiptService.Seal); lagen damals keine vor — Altbestand aus der Zeit
-	// vor BEL-02 —, lassen sie sich auch nicht mehr nachtragen, weil SaveHeader
-	// den offenen Beleg verlangt. Jede weitere Buchung auf denselben Beleg hier
-	// abzuweisen, sperrte den Altbestand ein, ohne einen Weg heraus zu lassen.
+	// verworfen. Seine Kopfdaten sind beim Versiegeln geprüft worden
+	// (ReceiptService.Seal) und lassen sich nicht mehr nachtragen, weil
+	// SaveHeader den offenen Beleg verlangt; eine verschärfte Prüfung darf ihn
+	// nicht nachträglich sperren.
 	if receipt.Status != domain.ReceiptStatusFiled {
 		return nil
 	}

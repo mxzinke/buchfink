@@ -515,7 +515,7 @@ func checkRuleCatalog() []procdoc.CheckRule {
 // coveredTaxCases sind die Steuerfälle im Funktionsumfang.
 func coveredTaxCases() []string {
 	return []string{
-		"Steuerpflichtige Umsätze zu 19 % und 7 % sowie steuerfreie Umsätze mit und ohne Vorsteuerabzug",
+		"Steuerpflichtige Umsätze zu 19 % und 7 % sowie steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 UStG)",
 		"Innergemeinschaftliche Erwerbe auf der Eingangsseite",
 		"Sonstige Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet, Zusammenfassende Meldung",
 		"Reverse-Charge nach § 13b UStG auf der Eingangs- und der Ausgangsseite",

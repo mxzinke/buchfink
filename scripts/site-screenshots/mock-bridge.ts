@@ -396,6 +396,13 @@ const CONTACTS = [
   contact(16, 'vendor', '70016', 'Fachportal Media GmbH', 'Kaiser-Wilhelm-Straße 4, 20355 Hamburg', 'DE298001554', 2201.5, 21),
 ];
 
+/** Zerlegt „Straße 1, 12345 Ort" in die Felder des Kontakts. */
+function postalParts(address: string) {
+  const [street, postalLine] = address.split(', ');
+  const [postalCode, ...city] = postalLine.split(' ');
+  return { street, postalCode, city: city.join(' ') };
+}
+
 function contact(
   id: number,
   type: string,
@@ -413,7 +420,7 @@ function contact(
     name,
     company: name,
     email: `buchhaltung@${name.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '')}.example`,
-    address,
+    ...postalParts(address),
     taxId: '',
     vatId,
     countryCode: 'DE',
@@ -3015,17 +3022,12 @@ function deadline(
   };
 }
 
-/**
- * Der Gründungsstand. Die Beispielfirma ist seit 2024 eingetragen; der
- * Gründungsweg ist damit abgeschlossen und die Ansicht zeigt ihn nicht mehr.
- */
+/** Der Gründungsstand. Die Beispielfirma ist seit 2024 eingetragen. */
 const FOUNDATION_STATE = {
-  applies: true,
   hasFoundation: false,
   legalForm: 'GmbH',
   rules: {},
   stage: 'eingetragen',
-  duties: [],
   postingsBooked: true,
 };
 
@@ -3037,7 +3039,6 @@ export const bridge = {
   GetTenants: () => later(TENANTS),
   GetActiveTenant: () => later(TENANTS[0]),
   SwitchTenant: () => later(undefined),
-  CreateTenant: unsupported('CreateTenant'),
   DeleteTenant: unsupported('DeleteTenant'),
 
   // Einrichtung
@@ -3307,9 +3308,6 @@ export const bridge = {
   SaveFoundation: unsupported('SaveFoundation'),
   GetFoundationRules: unsupported('GetFoundationRules'),
   GetRecommendedVatPeriod: unsupported('GetRecommendedVatPeriod'),
-  PreviewFoundationPostings: unsupported('PreviewFoundationPostings'),
-  BookFoundationPostings: unsupported('BookFoundationPostings'),
-  RegisterCompany: unsupported('RegisterCompany'),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),
   ExportAuditPackage: unsupported('ExportAuditPackage'),

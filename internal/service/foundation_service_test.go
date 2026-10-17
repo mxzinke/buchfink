@@ -115,25 +115,49 @@ func TestSaveFoundationRejectsSacheinlageAtUG(t *testing.T) {
 	}
 }
 
-func TestFoundationDoesNotApplyToPersonengesellschaft(t *testing.T) {
+// Der Tag der Eintragung wird in den Stammdaten erfasst. Erst wenn die Gründung
+// ihn kennt, endet die Vorgesellschaft und mit ihr der Zusatz „i. G.".
+func TestRegisteredOnInSettingsEndsTheVorgesellschaft(t *testing.T) {
 	env := newTestEnv(t)
-	settings := repository.NewSettingsRepository(env.db)
-	cfg, _ := settings.GetCompanySettings(context.Background())
-	cfg.LegalForm = "GmbH & Co. KG"
-	if err := settings.UpdateCompanySettings(context.Background(), cfg); err != nil {
-		t.Fatalf("Rechtsform konnte nicht gesetzt werden: %v", err)
-	}
-	svc := env.foundations(t)
+	ctx := context.Background()
+	foundations := env.foundations(t)
+	env.saveFoundation(t, foundations, gmbhFoundation())
 
-	state, err := svc.GetState(context.Background())
+	settings := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
+	settings.SetFoundationRegistrar(foundations)
+
+	cfg, err := settings.GetCompanySettings(ctx)
 	if err != nil {
-		t.Fatalf("GetState: %v", err)
+		t.Fatalf("Stammdaten: %v", err)
 	}
-	if state.Applies {
-		t.Error("bei einer Personengesellschaft gibt es keinen Gründungsweg")
+	cfg.CompanyName = "Pfennig Ventures GmbH"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Stammdaten speichern: %v", err)
 	}
-	if _, err := svc.Save(context.Background(), gmbhFoundation()); err == nil {
-		t.Error("eine Gründung darf dort nicht erfasst werden können")
+	if cfg, _ = settings.GetCompanySettings(ctx); cfg.FirmName() != "Pfennig Ventures GmbH i. G." {
+		t.Fatalf("vor der Eintragung heißt die Firma %q, erwartet den Zusatz „i. G.\"", cfg.FirmName())
+	}
+
+	cfg.RegisteredOn = "2026-02-20"
+	cfg.RegisterCourt = "Amtsgericht München"
+	cfg.RegisterNumber = "HRB 123456"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Eintragung speichern: %v", err)
+	}
+
+	cfg, err = settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Stammdaten: %v", err)
+	}
+	if cfg.InGruendung || cfg.FirmName() != "Pfennig Ventures GmbH" {
+		t.Errorf("nach der Eintragung heißt die Firma %q", cfg.FirmName())
+	}
+	state, err := foundations.GetState(ctx)
+	if err != nil {
+		t.Fatalf("Gründungsstand: %v", err)
+	}
+	if state.Foundation == nil || state.Foundation.RegisteredOn != "2026-02-20" {
+		t.Error("die Gründung muss den Tag der Eintragung kennen")
 	}
 }
 

@@ -99,14 +99,10 @@ type JournalLine struct {
 	// nicht voll ist — der Vorsteuerschlüssel der gemischten Nutzung.
 	//
 	// Null heißt „nicht einschlägig": entweder hat die Zeile keine Vorsteuer,
-	// oder sie ist voll abziehbar. Das ist der Grund, warum hier nicht 1000
-	// steht, wo alles abziehbar ist: die Kanonisierung schreibt das Feld nur,
-	// wenn es belegt ist, und damit hasht jede Buchung ohne Vorsteuerschlüssel
-	// weiter genau so wie vor dieser Welle. Eine Zahl, die überall steht, hätte
-	// die Kette jeder bestehenden Buchhaltung gebrochen.
-	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — bekommt
-	// deshalb den eigenen Wert InputTaxExcluded und nicht die Zahl null: „gar
-	// nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst dasselbe.
+	// oder sie ist voll abziehbar. Der Ausschluss nach § 15 Abs. 1a UStG — null
+	// Promille abziehbar — bekommt deshalb den eigenen Wert InputTaxExcluded:
+	// „gar nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst
+	// dasselbe.
 	InputTaxShare int `gorm:"default:0" json:"inputTaxShare,omitempty"`
 
 	// ForeignAmount ist der Betrag dieser Zeile in der Fremdwährung des
@@ -119,9 +115,7 @@ type JournalLine struct {
 	// bekommt hier die Zahl, die auf ihr stand — nicht eine, die Buchfink aus dem
 	// Eurobetrag zurückgerechnet hat.
 	//
-	// Null heißt „keine Fremdwährung": eine Buchung in Euro hat das Feld nicht,
-	// und die Kanonisierung schreibt es nur, wo es belegt ist — die Hash-Kette
-	// jeder bestehenden Buchhaltung bleibt damit unverändert.
+	// Null heißt „keine Fremdwährung".
 	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
 
 	Text string `gorm:"size:255" json:"text,omitempty"`
@@ -132,8 +126,7 @@ type JournalLine struct {
 //
 // Er ist negativ, weil das Feld null als „nicht einschlägig" liest und ein
 // Anteil von null Promille genau das nicht ist: die Vorsteuer ist da, sie ist
-// nur nicht abziehbar. Ein eigener Wert dafür hält die beiden auseinander, ohne
-// die Hash-Kette bestehender Buchungen anzurühren.
+// nur nicht abziehbar.
 const InputTaxExcluded = -1
 
 // JournalEntry is one complete Geschäftsvorfall (Buchungssatz) with n lines.
@@ -205,13 +198,8 @@ type JournalEntry struct {
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
 	// AppVersion ist die Fassung des Programms, die gebucht hat, Actor die
-	// Bearbeiterkennung (internal/actor).
-	//
-	// Beide sind Teil der kanonischen Form und damit der Hash-Kette — mit einer
-	// Weiche für den Altbestand: eine Buchung ohne AppVersion stammt aus der
-	// Zeit davor und wird nach der bisherigen Form gehasht (siehe
-	// accounting.canonicalize). Die Form ist an der Buchung selbst erkennbar,
-	// und die Kette jeder ausgelieferten Buchhaltung bleibt gültig.
+	// Bearbeiterkennung (internal/actor). Beide sind Teil der kanonischen Form
+	// und damit der Hash-Kette.
 	AppVersion string `gorm:"size:60;index" json:"appVersion,omitempty"`
 	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
 
@@ -263,9 +251,7 @@ type JournalEntry struct {
 	// des Kontakts in der Altersstruktur, also mit einer Fälligkeit, die nie
 	// vereinbart war.
 	//
-	// Sie ist Inhalt und wird gedeckt — aber nur, wo sie belegt ist: ein
-	// zusätzliches Feld in der kanonischen Form änderte sonst den Hash jeder
-	// bestehenden Buchung (siehe canonicalize).
+	// Sie ist Inhalt und wird von der Hash-Kette gedeckt.
 	DueDate string `gorm:"size:10;index" json:"dueDate,omitempty"`
 
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`

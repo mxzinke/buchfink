@@ -118,9 +118,9 @@ func (r *auditRepositoryGorm) append(
 		err := tx.Order("id desc").Limit(1).Take(&last).Error
 		switch {
 		case err == nil:
-			if last.EntryHash != "" {
-				prev = last.EntryHash
-			}
+			// Auch ein leerer Eigenhash wird übernommen: die Prüfung meldet den
+			// Bruch am betroffenen Eintrag, statt dass die Kette hier neu beginnt.
+			prev = last.EntryHash
 		case err == gorm.ErrRecordNotFound:
 			// Erster Eintrag: die Kette beginnt beim Genesis-Hash.
 		default:

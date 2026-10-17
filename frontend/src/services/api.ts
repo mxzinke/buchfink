@@ -1,5 +1,4 @@
 import { bridge as Bridge } from './bridge';
-import skr04CatalogData from '../assets/skr04_2026.json';
 import type {
   Account,
   AccountLedger,
@@ -77,10 +76,8 @@ import type {
   FixedAsset,
   ForeignCurrencyValuation,
   Foundation,
-  FoundationPostingPreview,
   FoundationRules,
   FoundationState,
-  OpeningBalanceSheet,
   GiftRebooking,
   InputTaxCorrection,
   InputTaxCorrectionYear,
@@ -140,7 +137,6 @@ import type {
   SettleAdvanceRequest,
   Settlement,
   SizeClass,
-  SKR04Catalog,
   SpecialPrepaymentSuggestion,
   StatementDepth,
   StatementPositionOption,
@@ -454,19 +450,13 @@ function normalizeOpeningBalance(preview: OpeningBalancePreview): OpeningBalance
   return { ...preview, entries: list(preview.entries), messages: list(preview.messages) };
 }
 
-const catalog = skr04CatalogData as unknown as SKR04Catalog;
-
 export const Api = {
-  isBackendAvailable: isWailsRuntime,
-
   // --- Mandanten ---------------------------------------------------------
 
   getTenants: (): Promise<TenantConfig[]> => call(() => Bridge.GetTenants() as Promise<TenantConfig[]>),
   getActiveTenant: (): Promise<TenantConfig | null> =>
     call(() => Bridge.GetActiveTenant() as Promise<TenantConfig | null>),
   switchTenant: (tenantId: string): Promise<void> => call(() => Bridge.SwitchTenant(tenantId) as Promise<void>),
-  createTenant: (name: string, dataDir: string, settings: CompanySettings): Promise<TenantConfig> =>
-    call(() => Bridge.CreateTenant(name, dataDir, settings as any) as Promise<TenantConfig>),
   deleteTenant: (tenantId: string): Promise<void> => call(() => Bridge.DeleteTenant(tenantId) as Promise<void>),
 
   // --- Einrichtung -------------------------------------------------------
@@ -507,9 +497,6 @@ export const Api = {
   getSuSaOverviewAt: (cutoff = ''): Promise<SuSaOverview> =>
     call(() => Bridge.GetSuSaOverviewAt(cutoff) as Promise<SuSaOverview>),
   getPaymentAccounts: (): Promise<Account[]> => call(() => Bridge.GetPaymentAccounts() as Promise<Account[]>),
-
-  /** Der SKR04-Katalog ist statisch und liegt dem Frontend als Datei bei. */
-  getSKR04Catalog: (): SKR04Catalog => catalog,
 
   // --- Kontierung --------------------------------------------------------
 
@@ -1299,10 +1286,7 @@ export const Api = {
 
   // --- Gründung ---------------------------------------------------------
 
-  /**
-   * Regeln, Gründung, Anmeldungsbefund, Unterbilanz und Fristen in einem Aufruf.
-   * `applies` ist falsch, wenn die Rechtsform keine Kapitalgesellschaft ist.
-   */
+  /** Regeln, Gründung, Anmeldungsbefund und Unterbilanz in einem Aufruf. */
   getFoundationState: (): Promise<FoundationState> =>
     call(() => Bridge.GetFoundationState() as Promise<FoundationState>),
   saveFoundation: (foundation: Partial<Foundation>): Promise<Foundation> =>
@@ -1321,19 +1305,6 @@ export const Api = {
       () =>
         Bridge.GetRecommendedVatPeriod(foundingYear) as Promise<{ period: string; reason: string }>
     ),
-  previewFoundationPostings: (): Promise<FoundationPostingPreview> =>
-    call(() => Bridge.PreviewFoundationPostings() as Promise<FoundationPostingPreview>),
-  bookFoundationPostings: (): Promise<JournalEntry[]> =>
-    call(() => Bridge.BookFoundationPostings() as Promise<JournalEntry[]>),
-  /** Die Eintragung ins Handelsregister — sie beendet die Vorgesellschaft. */
-  registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
-    call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
-  /** Die Eröffnungsbilanz auf den Beurkundungstag. */
-  getOpeningBalance: (): Promise<OpeningBalanceSheet> =>
-    call(() => Bridge.GetOpeningBalance() as Promise<OpeningBalanceSheet>),
-  /** Die E-Bilanz der Eröffnungsbilanz als XBRL-Instanz (§ 5b Abs. 1 EStG). */
-  exportOpeningBalanceXBRL: (): Promise<string> =>
-    call(() => Bridge.ExportOpeningBalanceXBRL()),
   // --- Datenüberlassung nach § 147 Abs. 6 AO -----------------------------
 
   /** Zielordner für einen Export. Leerer Pfad heißt: abgebrochen. */

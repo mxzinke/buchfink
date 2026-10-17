@@ -202,9 +202,7 @@ type Receipt struct {
 	// aus dem strukturierten Teil vorbelegt und sonst beim Ablegen erfragt —
 	// dort freiwillig, beim Buchen Pflicht (siehe ValidateBookable).
 	//
-	// Sie gehen in den Beleg-Hash, mit einer Weiche für den Altbestand: ein
-	// Beleg ohne Belegdatum wird nach der bisherigen Form gehasht (siehe
-	// accounting.ReceiptHash).
+	// Sie gehen in den Beleg-Hash (siehe accounting.ReceiptHash).
 	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
 	IssuerName   string `gorm:"size:255" json:"issuerName,omitempty"`
 	GrossAmount  Cents  `gorm:"default:0" json:"grossAmount,omitempty"`
@@ -521,11 +519,6 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 		EarliestDeletion string `json:"earliestDeletion,omitempty"`
 	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
 }
-
-// HasHeader meldet, ob der Beleg Kopfdaten hat. Das ist zugleich die Weiche
-// der Kanonisierung: ein Beleg ohne Belegdatum stammt aus der Zeit vor den
-// Kopfdaten und wird wie zuvor gehasht.
-func (r *Receipt) HasHeader() bool { return r.DocumentDate != "" }
 
 func isSHA256(s string) bool {
 	if len(s) != 64 {
