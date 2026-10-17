@@ -24,7 +24,7 @@ type SupplyEvidence struct {
 	Kind string `gorm:"size:40;not null;index" json:"kind"`
 	// Issuer ist der Aussteller. Er entscheidet über die Unabhängigkeit: zwei
 	// Belege desselben Spediteurs sind ein Beleg mit zwei Blättern.
-	Issuer string `gorm:"size:255;not null;serializer:encrypted" json:"issuer"`
+	Issuer string `gorm:"size:255;not null" json:"issuer"`
 	// Independent sagt, dass der Aussteller weder der Lieferer noch der Erwerber
 	// ist — die Bedingung, die Art. 45a MwStVO an die beiden Belege knüpft.
 	//
@@ -45,7 +45,7 @@ type SupplyEvidence struct {
 	// wäre.
 	ReceiptID *uint `gorm:"index" json:"receiptId,omitempty"`
 
-	Note      string    `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note      string    `gorm:"size:500" json:"note,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

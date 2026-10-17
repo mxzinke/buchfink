@@ -34,7 +34,6 @@ export const bridge = {
     invoke<T>('CreateTenant', name, dataDir, settings),
   ImportTenant: <T>(dbFilePath: string) => invoke<T>('ImportTenant', dbFilePath),
   DeleteTenant: (tenantId: string) => invoke<void>('DeleteTenant', tenantId),
-  IsLocked: () => invoke<boolean>('IsLocked'),
 
   GetBankAccounts: <T>() => invoke<T>('GetBankAccounts'),
   PreviewBankStatement: <T>(path: string) => invoke<T>('PreviewBankStatement', path),
@@ -49,9 +48,6 @@ export const bridge = {
   LoadExistingDatabase: (dbFilePath: string) => invoke<void>('LoadExistingDatabase', dbFilePath),
   SelectDirectoryDialog: (title: string) => invoke<string>('SelectDirectoryDialog', title),
   SelectDatabaseFileDialog: (title: string) => invoke<string>('SelectDatabaseFileDialog', title),
-  SelectRecoveryFileDialog: (title: string) => invoke<string>('SelectRecoveryFileDialog', title),
-  ExportRecoveryKey: () => invoke<string>('ExportRecoveryKey'),
-  RecoverActiveTenantFromFile: (path: string) => invoke<void>('RecoverActiveTenantFromFile', path),
 
   // Geschäftsjahr & Stammdaten
   GetFiscalYear: () => invoke<number>('GetFiscalYear'),

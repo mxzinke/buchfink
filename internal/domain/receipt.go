@@ -151,7 +151,7 @@ type ReceiptFile struct {
 
 	// FileName is the name the file was received under. It is part of the
 	// Beleg-Hash: a renamed attachment is a different Beleg.
-	FileName string `gorm:"size:255;not null;serializer:encrypted" json:"fileName"`
+	FileName string `gorm:"size:255;not null" json:"fileName"`
 	MimeType string `gorm:"size:127;not null" json:"mimeType"`
 	Size     int64  `gorm:"not null" json:"size"`
 
@@ -166,7 +166,7 @@ type ReceiptFile struct {
 	Derived bool `gorm:"not null;default:false" json:"derived"`
 
 	// StoredPath is relative to the data directory.
-	StoredPath string    `gorm:"size:255;not null;serializer:encrypted" json:"storedPath"`
+	StoredPath string    `gorm:"size:255;not null" json:"storedPath"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
@@ -204,14 +204,13 @@ type Receipt struct {
 	//
 	// Sie gehen in den Beleg-Hash, mit einer Weiche für den Altbestand: ein
 	// Beleg ohne Belegdatum wird nach der bisherigen Form gehasht (siehe
-	// accounting.ReceiptHash). Verschlüsselt, wo personenbezogen: der Name des
-	// Ausstellers und der Betreff sind es.
+	// accounting.ReceiptHash).
 	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
-	IssuerName   string `gorm:"size:255;serializer:encrypted" json:"issuerName,omitempty"`
+	IssuerName   string `gorm:"size:255" json:"issuerName,omitempty"`
 	GrossAmount  Cents  `gorm:"default:0" json:"grossAmount,omitempty"`
 	TaxAmount    Cents  `gorm:"default:0" json:"taxAmount,omitempty"`
 	Currency     string `gorm:"size:3" json:"currency,omitempty"`
-	Subject      string `gorm:"size:500;serializer:encrypted" json:"subject,omitempty"`
+	Subject      string `gorm:"size:500" json:"subject,omitempty"`
 
 	// RetentionClass und RetentionUntil halten die Aufbewahrungsfrist fest, die
 	// beim Ablegen für diesen Beleg galt.
@@ -237,7 +236,7 @@ type Receipt struct {
 	// Die überschriebene Klasse steht in RetentionClass, das überschriebene Ende
 	// in RetentionUntil: die Auswertungen sollen die geltende Frist lesen und
 	// nicht jede Stelle zwei Felder zusammenrechnen müssen.
-	RetentionOverrideReason string `gorm:"size:500;serializer:encrypted" json:"retentionOverrideReason,omitempty"`
+	RetentionOverrideReason string `gorm:"size:500" json:"retentionOverrideReason,omitempty"`
 	RetentionOverrideAt     string `gorm:"size:25" json:"retentionOverrideAt,omitempty"`
 
 	// ReceivedAt and ReceivedVia record how an incoming document entered the
@@ -264,7 +263,7 @@ type Receipt struct {
 	ValidationErrors   int    `gorm:"default:0" json:"validationErrors"`
 	// ValidationFindings holds the findings as JSON. They are display material,
 	// not booking data, which is why they are not part of the Beleg-Hash.
-	ValidationFindings string `gorm:"type:text;serializer:encrypted" json:"validationFindings,omitempty"`
+	ValidationFindings string `gorm:"type:text" json:"validationFindings,omitempty"`
 
 	// InputTaxOverride ist der Grund, mit dem der Anwender einen blockierenden
 	// Befund der Rechnungsprüfung übersteuert hat.
@@ -276,7 +275,7 @@ type Receipt struct {
 	// hindert, seine eigene Einschätzung durchzusetzen, wird umgangen statt
 	// befolgt. Er ist aber nur mit Grund offen, und der Grund steht am Beleg und
 	// im Protokoll.
-	InputTaxOverride   string `gorm:"size:500;serializer:encrypted" json:"inputTaxOverride,omitempty"`
+	InputTaxOverride   string `gorm:"size:500" json:"inputTaxOverride,omitempty"`
 	InputTaxOverrideAt string `gorm:"size:25" json:"inputTaxOverrideAt,omitempty"`
 
 	// Der Prüfpfad des Eingangsbelegs (RECH-08).
@@ -295,12 +294,12 @@ type Receipt struct {
 	// ein Vorgang der Prüfung und keine Angabe des empfangenen Dokuments — die
 	// Unveränderbarkeit sichert das Änderungsprotokoll.
 	OrderReference string `gorm:"size:120" json:"orderReference,omitempty"`
-	ServiceProof   string `gorm:"size:1000;serializer:encrypted" json:"serviceProof,omitempty"`
+	ServiceProof   string `gorm:"size:1000" json:"serviceProof,omitempty"`
 	ServiceProofAt string `gorm:"size:10" json:"serviceProofAt,omitempty"`
 
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
-	DiscardReason  string `gorm:"size:255;serializer:encrypted" json:"discardReason,omitempty"`
+	DiscardReason  string `gorm:"size:255" json:"discardReason,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

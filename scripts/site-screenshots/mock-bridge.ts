@@ -3045,7 +3045,7 @@ function backupRun(
     fileCount,
     bytes,
     success: true,
-    message: 'Datenbank, Belege, Dokumente und Schlüsseldatei gesichert.',
+    message: 'Datenbank, Belege und Dokumente gesichert.',
     programVersion: '0.9.4',
     createdAt: startedAt,
   };
@@ -3316,7 +3316,6 @@ export const bridge = {
   CreateTenant: unsupported('CreateTenant'),
   ImportTenant: unsupported('ImportTenant'),
   DeleteTenant: unsupported('DeleteTenant'),
-  IsLocked: () => later(false),
 
   // Einrichtung
   GetAppConfig: () =>
@@ -3335,9 +3334,6 @@ export const bridge = {
   LoadExistingDatabase: unsupported('LoadExistingDatabase'),
   SelectDirectoryDialog: unsupported('SelectDirectoryDialog'),
   SelectDatabaseFileDialog: unsupported('SelectDatabaseFileDialog'),
-  SelectRecoveryFileDialog: unsupported('SelectRecoveryFileDialog'),
-  ExportRecoveryKey: unsupported('ExportRecoveryKey'),
-  RecoverActiveTenantFromFile: unsupported('RecoverActiveTenantFromFile'),
 
   // Geschäftsjahr & Stammdaten
   GetFiscalYear: () => later(YEAR),

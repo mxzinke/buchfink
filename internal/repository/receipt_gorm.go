@@ -121,12 +121,6 @@ func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Rece
 }
 
 // SaveHeader schreibt die Kopfdaten und rechnet den Beleg-Hash neu.
-//
-// Geschrieben wird über den Datensatz und eine Spaltenauswahl, nicht über eine
-// Map: GORM wendet den Feld-Serializer nur auf dem Struct-Weg an, und ein
-// Map-Update legte Aussteller und Betreff im Klartext in Spalten, die als
-// `serializer:encrypted` deklariert sind — beim nächsten Lesen scheiterte die
-// Entschlüsselung, und der Beleg wäre aus der Liste verschwunden.
 func (r *receiptRepositoryGorm) SaveHeader(
 	ctx context.Context, receiptID uint, header domain.ReceiptHeader, hash domain.ReceiptHashFunc,
 ) (*domain.Receipt, error) {
@@ -254,11 +248,6 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 }
 
 // SaveInputTaxOverride schreibt den Grund der Übersteuerung an den Beleg.
-//
-// Über den Datensatz und nicht über eine Map: der Grund liegt verschlüsselt in
-// der Spalte, und GORM wendet den Feld-Serializer nur auf dem Struct-Weg an. Ein
-// Map-Update legte den Klartext dorthin, wo Geheimtext erwartet wird, und beim
-// nächsten Lesen scheiterte die Entschlüsselung des ganzen Belegs.
 func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 	ctx context.Context, receiptID uint, reason, at string,
 ) error {
@@ -269,11 +258,9 @@ func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 
 // SaveRetention schreibt die überschriebene Aufbewahrungsfrist an den Beleg.
 //
-// Auch sie geht über den Datensatz und eine Spaltenauswahl: der Grund liegt
-// verschlüsselt in seiner Spalte, und GORM wendet den Feld-Serializer nur auf
-// dem Struct-Weg an. Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen —
-// die Frist steht außerhalb des Beleg-Hashes, und gerade der gebuchte Beleg ist
-// der, dessen Aufbewahrung ein Rechtsstreit verlängert.
+// Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen — die Frist steht
+// außerhalb des Beleg-Hashes, und gerade der gebuchte Beleg ist der, dessen
+// Aufbewahrung ein Rechtsstreit verlängert.
 func (r *receiptRepositoryGorm) SaveRetention(
 	ctx context.Context, receiptID uint, class domain.RetentionClass, until, reason, at string,
 ) error {
@@ -287,10 +274,6 @@ func (r *receiptRepositoryGorm) SaveRetention(
 }
 
 // SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis an den Beleg.
-//
-// Über den Datensatz und eine Spaltenauswahl wie die Übersteuerung: der
-// Leistungsnachweis liegt verschlüsselt in seiner Spalte, und GORM wendet den
-// Feld-Serializer nur auf dem Struct-Weg an.
 func (r *receiptRepositoryGorm) SaveAuditTrail(
 	ctx context.Context, receiptID uint, orderReference, proof, proofAt string,
 ) error {

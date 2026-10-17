@@ -404,11 +404,14 @@ jeder Datei — und über die Kopfdaten wird ein Beleg-Hash gebildet. Er reist i
 die Buchung und wird damit von der Journalkette mitgedeckt. Eine ausgetauschte
 oder entfernte Datei ändert ihn.
 
-### 3.4 Verschlüsselung
+### 3.4 Schutz der Daten am Rechner
 
-Personenbezogene und geschäftsgeheime Felder liegen feldweise verschlüsselt in
-der Datenbank (AES-256-GCM). Der Schlüssel liegt im Schlüsselbund des
-Betriebssystems; für den Verlustfall gibt es einen Wiederherstellungsschlüssel.
+Buchfink verschlüsselt weder die Datenbank noch die Belegdateien noch die
+Sicherungen. Der Schutz der Daten am Rechner liegt beim Unternehmen, etwa durch
+Benutzerkonto, Gerätesperre und die Festplattenverschlüsselung des
+Betriebssystems. Die Integrität der Aufzeichnungen sichern die Hash-Ketten über
+Journal und Änderungsprotokoll (Abschnitt 3.2), der Beleg-Hash (Abschnitt 3.3)
+und der Zeitstempel der Festschreibung (Abschnitt 3.5).
 
 ### 3.5 Zeitstempel
 
@@ -555,14 +558,13 @@ nach Fristablauf mit dem Geschäftsjahr gelöscht.
 
 ### 6.3 Technische und organisatorische Maßnahmen (Art. 32 DSGVO)
 
-- **Verschlüsselung:** personenbezogene und geschäftsgeheime Felder liegen
-  feldweise verschlüsselt in der Datenbank (AES-256-GCM, ein Schlüssel je
-  Mandant). Der Schlüssel liegt im Schlüsselbund des Betriebssystems und
-  verlässt den Rechner nicht; für den Verlustfall gibt es einen
-  Wiederherstellungsschlüssel, der ausgedruckt und getrennt verwahrt wird.
+- **Verschlüsselung:** Buchfink verschlüsselt die Daten nicht. Die
+  Vertraulichkeit am Rechner liegt beim Unternehmen, etwa durch die
+  Festplattenverschlüsselung des Betriebssystems und einen geschützten
+  Ablageort für die Sicherungen.
 - **Zugriffsschutz:** die Daten liegen im Datenordner des angemeldeten
   Benutzers; der Schutz vor fremdem Zugriff ist der des Betriebssystems
-  (Benutzerkonto, Gerätesperre, Festplattenverschlüsselung).
+  (Benutzerkonto, Gerätesperre).
 - **Protokollierung:** jede Änderung an Buchungen, Belegen und Stammdaten steht
   mit Vorher/Nachher im Änderungsprotokoll, das seinerseits durch eine
   Hash-Kette gesichert ist. Lesezugriffe auf personenbezogene Daten —

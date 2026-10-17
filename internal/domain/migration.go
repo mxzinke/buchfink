@@ -79,7 +79,7 @@ type MigrationRecord struct {
 	Kind MigrationKind `gorm:"size:20;not null;index" json:"kind"`
 	// Source ist die Herkunft (Dateiname der übernommenen Datei), Target das
 	// Ziel (Mandantenkennung).
-	Source     string    `gorm:"size:500;serializer:encrypted" json:"source"`
+	Source     string    `gorm:"size:500" json:"source"`
 	Target     string    `gorm:"size:120" json:"target"`
 	RunAt      time.Time `gorm:"not null;index" json:"runAt"`
 	AppVersion string    `gorm:"size:60" json:"appVersion"`

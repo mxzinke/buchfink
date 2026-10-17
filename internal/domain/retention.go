@@ -160,7 +160,7 @@ type RetentionHold struct {
 	FiscalYear int                 `gorm:"index;not null" json:"fiscalYear"`
 	Reason     RetentionHoldReason `gorm:"size:20;not null" json:"reason"`
 	// Description ist die Erläuterung, bei „sonstiger Grund" Pflicht.
-	Description string `gorm:"size:500;serializer:encrypted" json:"description"`
+	Description string `gorm:"size:500" json:"description"`
 
 	SetAt time.Time `gorm:"not null" json:"setAt"`
 	SetBy string    `gorm:"size:120;not null" json:"setBy"`
@@ -170,7 +170,7 @@ type RetentionHold struct {
 	// Geschichte der Daten.
 	ReleasedAt    *time.Time `json:"releasedAt,omitempty"`
 	ReleasedBy    string     `gorm:"size:120" json:"releasedBy,omitempty"`
-	ReleaseReason string     `gorm:"size:500;serializer:encrypted" json:"releaseReason,omitempty"`
+	ReleaseReason string     `gorm:"size:500" json:"releaseReason,omitempty"`
 	AppVersion    string     `gorm:"size:60" json:"appVersion,omitempty"`
 	// AffectedNote hält in einem Satz fest, worauf der Hold beim Setzen wirkte:
 	// wie viele Buchungen, Belege und Dateien des Jahres seine Frist aussetzt.

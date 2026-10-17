@@ -64,12 +64,9 @@ export interface TenantConfig {
   name: string;
   dataDir: string;
   createdAt: string;
-  /** Kennung im Schlüsselbund. Leer heißt: dieselbe wie `id`. */
-  keyId?: string;
   /** Zielordner der Sicherung. Leer heißt: keine Sicherung eingerichtet. */
   backupDir?: string;
   lastBackupAt?: string;
-  recoveryExportedAt?: string;
   /** Letzter Tag des Prüfermodus (JJJJ-MM-TT). Leer heißt: aus. */
   readOnlyUntil?: string;
   readOnlyReason?: string;

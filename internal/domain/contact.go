@@ -29,13 +29,13 @@ type Contact struct {
 	// LedgerAccount is the Personenkonto, e.g. "10001" or "70023".
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 
-	Name    string `gorm:"type:text;not null;serializer:encrypted_v2" json:"name"`
-	Company string `gorm:"size:255;serializer:encrypted" json:"company"`
-	Email   string `gorm:"size:255;serializer:encrypted" json:"email"`
+	Name    string `gorm:"type:text;not null" json:"name"`
+	Company string `gorm:"size:255" json:"company"`
+	Email   string `gorm:"size:255" json:"email"`
 	// Address is the unstructured address as it was captured before Welle 5b.
 	// It stays as the fallback for records the parser could not split, and is
 	// what MigrateAddress reads.
-	Address string `gorm:"type:text;serializer:encrypted" json:"address"`
+	Address string `gorm:"type:text" json:"address"`
 	// Street, PostalCode und City sind die Anschrift in ihren Bestandteilen.
 	//
 	// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
@@ -43,14 +43,14 @@ type Contact struct {
 	// BT-53): eine einzeilige Anschrift landete bisher komplett in BT-50, und
 	// beim Empfänger stand die Stadt in der Straße. Ein Freitextfeld lässt sich
 	// auch nicht prüfen — ob eine PLZ darin vorkommt, ist keine Prüfung.
-	Street           string `gorm:"size:255;serializer:encrypted" json:"street"`
-	PostalCode       string `gorm:"size:20;serializer:encrypted" json:"postalCode"`
-	City             string `gorm:"size:120;serializer:encrypted" json:"city"`
-	TaxID            string `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
-	VatID            string `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
+	Street           string `gorm:"size:255" json:"street"`
+	PostalCode       string `gorm:"size:20" json:"postalCode"`
+	City             string `gorm:"size:120" json:"city"`
+	TaxID            string `gorm:"size:50" json:"taxId"` // Steuernummer
+	VatID            string `gorm:"size:50" json:"vatId"` // USt-IdNr.
 	CountryCode      string `gorm:"size:2;default:'DE'" json:"countryCode"`
-	IBAN             string `gorm:"size:34;serializer:encrypted" json:"iban"`
-	BIC              string `gorm:"size:11;serializer:encrypted" json:"bic"`
+	IBAN             string `gorm:"size:34" json:"iban"`
+	BIC              string `gorm:"size:11" json:"bic"`
 	PaymentTermsDays int    `gorm:"default:14" json:"paymentTermsDays"`
 
 	// EInvoiceProfile ist das Zielformat, in dem dieser Empfänger seine
@@ -61,7 +61,7 @@ type Contact struct {
 	// LeitwegID ist die Route-ID des öffentlichen Auftraggebers (BT-10). Bei
 	// XRechnung ist sie Pflicht (BR-DE-15); ohne sie findet die Rechnung ihren
 	// Empfänger in der Verwaltung nicht.
-	LeitwegID string `gorm:"size:60;serializer:encrypted" json:"leitwegId"`
+	LeitwegID string `gorm:"size:60" json:"leitwegId"`
 
 	// IsPrivate marks a partner who is not an Unternehmer. It decides whether the
 	// e-invoice obligation of § 14 Abs. 2 Satz 2 Nr. 1 UStG can apply to a
@@ -91,7 +91,7 @@ type Contact struct {
 	// geführt und mit ihrer Frist überwacht, weil sie am Kontakt hängt und weil
 	// eine abgelaufene Bescheinigung sonst erst auffällt, wenn die Haftung schon
 	// entstanden ist.
-	ExemptionCertificateNumber string `gorm:"size:60;serializer:encrypted" json:"exemptionCertificateNumber,omitempty"`
+	ExemptionCertificateNumber string `gorm:"size:60" json:"exemptionCertificateNumber,omitempty"`
 	// ExemptionCertificateValidUntil ist der letzte Tag der Gültigkeit.
 	ExemptionCertificateValidUntil string `gorm:"size:10;index" json:"exemptionCertificateValidUntil,omitempty"`
 
@@ -107,7 +107,7 @@ type Contact struct {
 	// Buchführung unvollständig zu machen.
 	Blocked       bool   `gorm:"not null;default:false;index" json:"blocked"`
 	BlockedAt     string `gorm:"size:10" json:"blockedAt,omitempty"`
-	BlockedReason string `gorm:"size:500;serializer:encrypted" json:"blockedReason,omitempty"`
+	BlockedReason string `gorm:"size:500" json:"blockedReason,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

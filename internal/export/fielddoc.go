@@ -207,9 +207,7 @@ genau dieser Reihenfolge (in Klammern die Spalte):
 10. ` + "`app_version`" + ` (Programmfassung)
 
 Vorher und Nachher gehen als Klartext ein, genau so, wie sie in der Spalte
-stehen: als JSON-Objekt der geänderten Felder. In der Datenbank liegen sie
-verschlüsselt, weil sie personenbezogene Angaben enthalten können; gehasht wird der
-entschlüsselte Text, sonst hinge der Nachweis am Schlüssel und nicht am Inhalt.
+stehen: als JSON-Objekt der geänderten Felder.
 
 Die Protokoll_ID ist nicht Bestandteil der kanonischen Form. Sie wird beim
 Schreiben vergeben, und eine Übernahme der Daten in eine neue Datei vergäbe

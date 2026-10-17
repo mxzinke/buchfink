@@ -33,7 +33,7 @@ type InventoryCount struct {
 	// Method ist das Aufnahmeverfahren im Klartext — Stichtagsinventur,
 	// permanente Inventur, Stichprobe. § 241 HGB lässt mehrere zu, und welches
 	// verwendet wurde, ist eine Angabe des Anwenders.
-	Method string `gorm:"size:255;not null;serializer:encrypted" json:"method"`
+	Method string `gorm:"size:255;not null" json:"method"`
 	// ReceiptID verweist auf die Inventurliste im Belegspeicher. Sie ist
 	// Pflicht: die Aufnahme selbst ist der Beleg, und ein Bestandswert ohne
 	// Liste ist eine Behauptung.

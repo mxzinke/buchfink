@@ -727,9 +727,9 @@ const ACCESS_FILTER = 'access';
 /**
  * Die geänderten Felder aus dem Protokoll.
  *
- * Der Eintrag enthält sie als JSON-Text, weil er verschlüsselt gespeichert wird
- * und die Struktur je Objektart eine andere ist. Ein defekter Text darf die
- * Zeile nicht mitreißen — dann bleibt die Aufklappung eben leer.
+ * Der Eintrag enthält sie als JSON-Text, weil die Struktur je Objektart eine
+ * andere ist. Ein defekter Text darf die Zeile nicht mitreißen — dann bleibt die
+ * Aufklappung eben leer.
  */
 function parseChange(json: string | undefined): Record<string, unknown> {
   if (!json) return {};

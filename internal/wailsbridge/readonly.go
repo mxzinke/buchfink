@@ -32,7 +32,7 @@ import (
 //
 // Zulässig bleibt, was die Buchführungsdaten des aktiven Mandanten nicht
 // verändert: Lesen, Auswerten, Ausgeben, Dateidialoge — und die Verwaltung der
-// Mandanten und Schlüssel, die keine Buchung berührt. Der Export gehört
+// Mandanten, die keine Buchung berührt. Der Export gehört
 // ausdrücklich dazu: er ist der Zweck des Modus.
 var readOnlyAllowed = map[string]bool{
 	// Lesen und Auswerten
@@ -172,7 +172,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetZMPeriods":                   true,
 	"GetZMReturn":                    true,
 	"GetZMReturns":                   true,
-	"IsLocked":                       true,
 
 	// Die Abschlussbausteine: Schrittliste, Rückstellungen, Abgrenzung,
 	// Vorräte, Verzeichnis und Anhang. Lesen und rechnen sie nur, bleiben sie
@@ -284,25 +283,20 @@ var readOnlyAllowed = map[string]bool{
 	"SelectDirectoryDialog":       true,
 	"SelectExportDirectoryDialog": true,
 	"SelectReceiptFilesDialog":    true,
-	"SelectRecoveryFileDialog":    true,
 	"SelectSaveFileDialog":        true,
 	"SelectStatementFileDialog":   true,
 
-	// Mandanten und Schlüssel. Sie berühren keine Buchung des gesperrten
-	// Mandanten: ein zweiter Mandant darf angelegt, eine Sicherung darf
-	// wiederhergestellt und der Schlüssel darf gesichert werden, während hier
-	// eine Prüfung läuft.
-	"CreateTenant":                 true,
-	"GetBankAccounts":              true,
-	"PreviewBankStatement":         true,
-	"ExportRecoveryKeyToDirectory": true,
-	"ExportRecoveryKey":            true,
-	"ImportTenant":                 true,
-	"LoadExistingDatabase":         true,
-	"RecoverActiveTenantFromFile":  true,
-	"RestoreFromBackup":            true,
-	"SetupApplication":             true,
-	"SwitchTenant":                 true,
+	// Mandanten. Sie berühren keine Buchung des gesperrten Mandanten: ein
+	// zweiter Mandant darf angelegt und eine Sicherung darf wiederhergestellt
+	// werden, während hier eine Prüfung läuft.
+	"CreateTenant":         true,
+	"GetBankAccounts":      true,
+	"PreviewBankStatement": true,
+	"ImportTenant":         true,
+	"LoadExistingDatabase": true,
+	"RestoreFromBackup":    true,
+	"SetupApplication":     true,
+	"SwitchTenant":         true,
 
 	// Ansichtseinstellungen. Das gewählte Geschäftsjahr ist ein Filter der
 	// Oberfläche und keine Buchführungsangabe.

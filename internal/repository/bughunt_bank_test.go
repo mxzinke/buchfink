@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/security"
 )
 
 // Regression coverage for the bank import findings.
@@ -27,13 +26,7 @@ func TestBugHuntBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
 	}
 }
 
-func TestBugHuntBankDeduplicatesEncryptedCounterparty(t *testing.T) {
-	_, vault, err := security.NewKeyfile("bug-hunt-example-passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
-	SetActiveVault(vault)
-	t.Cleanup(func() { SetActiveVault(nil) })
+func TestBugHuntBankDeduplicatesReimport(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +41,7 @@ func TestBugHuntBankDeduplicatesEncryptedCounterparty(t *testing.T) {
 		t.Fatal(err)
 	}
 	if count != 0 {
-		t.Errorf("reimport of an encrypted bank transaction created %d duplicate(s)", count)
+		t.Errorf("reimport of a bank transaction created %d duplicate(s)", count)
 	}
 }
 

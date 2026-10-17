@@ -93,24 +93,23 @@ func AllAssetDocumentKinds() []AssetDocumentKind {
 // Belegnummer zu geben, die nie in einer Buchung auftaucht.
 //
 // Der Ablageweg ist trotzdem derselbe wie beim Beleg: die Datei liegt unter
-// ihrem eigenen SHA256, unverschlüsselt, und nur Pfad und Dateiname sind in der
-// Datenbank verschlüsselt.
+// ihrem eigenen SHA256.
 type AssetDocument struct {
 	ID      uint              `gorm:"primaryKey" json:"id"`
 	AssetID uint              `gorm:"index;not null" json:"assetId"`
 	Kind    AssetDocumentKind `gorm:"size:20;not null;index" json:"kind"`
 
 	// Title is what the user reads in the list. Leer heißt: der Dateiname.
-	Title string `gorm:"size:200;serializer:encrypted" json:"title,omitempty"`
+	Title string `gorm:"size:200" json:"title,omitempty"`
 
-	FileName string `gorm:"size:255;not null;serializer:encrypted" json:"fileName"`
+	FileName string `gorm:"size:255;not null" json:"fileName"`
 	MimeType string `gorm:"size:127;not null" json:"mimeType"`
 	Size     int64  `gorm:"not null" json:"size"`
 	// SHA256 is the digest of the content, lowercase hex, and doubles as the file
 	// name on disk.
 	SHA256 string `gorm:"size:64;not null;index" json:"sha256"`
 	// StoredPath is relative to the data directory.
-	StoredPath string `gorm:"size:255;not null;serializer:encrypted" json:"storedPath"`
+	StoredPath string `gorm:"size:255;not null" json:"storedPath"`
 
 	// DocumentDate is the day the document bears, ValidUntil the day it runs out.
 	//
@@ -136,7 +135,7 @@ type AssetDocument struct {
 	RetentionClass RetentionClass `gorm:"size:20;index" json:"retentionClass,omitempty"`
 	RetentionUntil string         `gorm:"size:10;index" json:"retentionUntil,omitempty"`
 
-	Note      string    `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note      string    `gorm:"size:500" json:"note,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

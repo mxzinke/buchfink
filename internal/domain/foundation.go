@@ -156,9 +156,7 @@ type Shareholder struct {
 	ID           uint `gorm:"primaryKey" json:"id"`
 	FoundationID uint `gorm:"index;not null" json:"foundationId"`
 
-	// Name ist personenbezogen und liegt deshalb verschlüsselt, wie jedes andere
-	// Namensfeld der Anwendung.
-	Name string `gorm:"size:255;not null;serializer:encrypted" json:"name"`
+	Name string `gorm:"size:255;not null" json:"name"`
 
 	// ShareCapital ist der Nennbetrag des übernommenen Geschäftsanteils,
 	// PaidIn das darauf tatsächlich Geleistete.
@@ -184,7 +182,7 @@ type FoundationTask struct {
 	FoundationID uint   `gorm:"index;not null" json:"foundationId"`
 	Key          string `gorm:"size:40;not null;index" json:"key"`
 	DoneOn       string `gorm:"size:10;not null" json:"doneOn"` // YYYY-MM-DD
-	Note         string `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note         string `gorm:"size:500" json:"note,omitempty"`
 	Status       string `gorm:"size:20" json:"status,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`

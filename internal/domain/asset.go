@@ -453,7 +453,7 @@ type AssetMovement struct {
 	// Note carries the reason. On an außerplanmäßige Abschreibung it is not
 	// optional: ein Ermessensvorgang, dessen Begründung fehlt, ist später von
 	// niemandem mehr nachvollziehbar.
-	Note string `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note string `gorm:"size:500" json:"note,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -477,8 +477,8 @@ type FixedAsset struct {
 	// warehouse and the booking in the journal.
 	InventoryNumber string `gorm:"size:30;uniqueIndex;not null" json:"inventoryNumber"`
 
-	Name        string     `gorm:"size:255;not null;serializer:encrypted" json:"name"`
-	Description string     `gorm:"size:500;serializer:encrypted" json:"description,omitempty"`
+	Name        string     `gorm:"size:255;not null" json:"name"`
+	Description string     `gorm:"size:500" json:"description,omitempty"`
 	Class       AssetClass `gorm:"size:20;not null;index" json:"class"`
 
 	// Account is the Anlagekonto (Bestandskonto der Klasse 0),
@@ -518,7 +518,7 @@ type FixedAsset struct {
 	// Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig.
 	// „Begründet" heißt: die Begründung existiert. Ohne sie gilt die Abweichung
 	// im Zweifel als Tippfehler, nicht als Ausübung eines Wahlrechts.
-	UsefulLifeReason string `gorm:"size:500;serializer:encrypted" json:"usefulLifeReason,omitempty"`
+	UsefulLifeReason string `gorm:"size:500" json:"usefulLifeReason,omitempty"`
 
 	// InputTaxAmount ist die beim Zugang angefallene Vorsteuer in voller Höhe,
 	// InputTaxPermille der Anteil, mit dem sie gezogen wurde (Null = voll).
@@ -548,7 +548,7 @@ type FixedAsset struct {
 	// beantwortet hat, soll sie im selben Jahr nicht noch einmal vorgelegt
 	// bekommen — im nächsten schon.
 	ImpairmentPersistsYear int    `gorm:"default:0" json:"impairmentPersistsYear,omitempty"`
-	ImpairmentPersistsNote string `gorm:"size:500;serializer:encrypted" json:"impairmentPersistsNote,omitempty"`
+	ImpairmentPersistsNote string `gorm:"size:500" json:"impairmentPersistsNote,omitempty"`
 	// PoolYear is the fiscal year of a Sammelposten. § 6 Abs. 2a EStG forms one
 	// pool per Wirtschaftsjahr; two years never share one.
 	PoolYear int `gorm:"index;default:0" json:"poolYear,omitempty"`
@@ -575,13 +575,13 @@ type FixedAsset struct {
 	// ausschließlich betrieblich genutzt werden (Nr. 2). Beides wird deshalb
 	// abgefragt und festgehalten, nicht geraten — wie bei der außerplanmäßigen
 	// Abschreibung ist die Begründung Pflicht.
-	SpecialReason string `gorm:"size:500;serializer:encrypted" json:"specialReason,omitempty"`
+	SpecialReason string `gorm:"size:500" json:"specialReason,omitempty"`
 
 	// --- Finanzanlagen -----------------------------------------------------
 
 	// Identifier is the ISIN, WKN or Handelsregisternummer — what identifies a
 	// Finanzanlage the way an Inventarnummer identifies a machine.
-	Identifier string `gorm:"size:60;serializer:encrypted" json:"identifier,omitempty"`
+	Identifier string `gorm:"size:60" json:"identifier,omitempty"`
 	// HoldingPermille is the Beteiligungsquote in Promille. § 271 Abs. 1 Satz 3
 	// HGB vermutet eine Beteiligung ab einem Anteil von einem Fünftel — die Quote
 	// entscheidet also mit darüber, ob der Anteil unter "Beteiligungen" oder
@@ -645,7 +645,7 @@ type FixedAsset struct {
 	DisposalProceeds Cents        `gorm:"default:0" json:"disposalProceeds,omitempty"`
 	DisposalEntryID  *uint        `gorm:"index" json:"disposalEntryId,omitempty"`
 
-	Notes     string    `gorm:"type:text;serializer:encrypted" json:"notes,omitempty"`
+	Notes     string    `gorm:"type:text" json:"notes,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 

@@ -79,20 +79,9 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 		Actor:       actor.Actor(),
 	}
 
-	// Enable before table rebuilds and backfills, which can otherwise leave
-	// plaintext in freed SQLite pages.
-	migrateErr := db.Exec("PRAGMA secure_delete = ON").Error
-	if migrateErr == nil {
-		migrateErr = AutoMigrate(db)
-	}
-	if migrateErr == nil {
-		migrateErr = BackfillAddedEncryption(db)
-	}
+	migrateErr := AutoMigrate(db)
 	if migrateErr == nil {
 		migrateErr = runBackfills(db)
-	}
-	if migrateErr == nil && vaultFor(db.Statement.Context) != nil {
-		migrateErr = compactEncryptedMigration(db)
 	}
 	if migrateErr != nil {
 		record.Result = domain.SchemaMigrationResultFailed

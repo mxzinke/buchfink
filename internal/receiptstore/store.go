@@ -7,9 +7,8 @@
 // range. Content addressing decouples the two, and identical files happen to end
 // up stored once.
 //
-// Second, Belegdateien are not encrypted in this store. It preserves and checks
-// the original bytes. Database encryption covers the path and file name; it
-// does not cover the file content. Preserving originals does not prohibit encryption.
+// Second, the store keeps the original bytes unchanged and checks them against
+// their digest.
 package receiptstore
 
 import (

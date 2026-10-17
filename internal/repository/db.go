@@ -309,9 +309,6 @@ func migrateExchangeRateTable(db *gorm.DB) error {
 // jemand sieht ihn an. Eine geratene Straße auf einer Rechnung wäre ein
 // Formfehler, den der Empfänger mit seinem Vorsteuerabzug bezahlt.
 func BackfillContactAddresses(db *gorm.DB) error {
-	// Gelesen wird ohne Filter auf die Anschrift: sie liegt verschlüsselt in der
-	// Spalte, und ein SQL-Vergleich auf den leeren String träfe den Geheimtext
-	// und nicht den Inhalt.
 	var contacts []domain.Contact
 	if err := db.Find(&contacts).Error; err != nil {
 		return err
@@ -321,14 +318,6 @@ func BackfillContactAddresses(db *gorm.DB) error {
 		if !c.MigrateAddress() {
 			continue
 		}
-		// Geschrieben wird über den Datensatz und nicht über eine Map.
-		//
-		// GORM wendet den Feld-Serializer nur auf dem Struct-Weg an
-		// (schema.Field.ValueOf); ein Map-Update ginge an ihm vorbei und legte
-		// den Klartext in die Spalten, die als `serializer:encrypted`
-		// deklariert sind. Beim nächsten Lesen scheiterte die Entschlüsselung,
-		// und der migrierte Kontakt wäre verschwunden — aus der Kontaktliste
-		// und aus dem Rechnungsdialog.
 		if err := db.Model(c).Select("Street", "PostalCode", "City").Updates(c).Error; err != nil {
 			return err
 		}
@@ -358,11 +347,6 @@ func BackfillReceiptKinds(db *gorm.DB) error {
 // Objekte, der über die Löschung entscheidet, sähe die alten Belege überhaupt
 // nicht. Ein leeres Feld hieße dort „keine Frist", und das ist die falsche
 // Auskunft.
-//
-// Gelesen wird über eine schmale Auswahl und nicht über den Datensatz: die
-// Belegtabelle hat verschlüsselte Spalten (Aussteller, Betreff, Dateipfade),
-// und die Frist richtet sich nach keiner von ihnen. So braucht der Lauf den
-// Schlüssel nicht.
 func BackfillRetention(db *gorm.DB) error {
 	type receiptRow struct {
 		ID           uint

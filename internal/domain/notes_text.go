@@ -80,7 +80,7 @@ func NotesSectionDefinitionFor(section NotesSection) (NotesSectionDefinition, bo
 type NotesText struct {
 	Year    int          `gorm:"primaryKey;autoIncrement:false" json:"year"`
 	Section NotesSection `gorm:"primaryKey;size:30" json:"section"`
-	Text    string       `gorm:"type:text;serializer:encrypted" json:"text"`
+	Text    string       `gorm:"type:text" json:"text"`
 
 	UpdatedAt time.Time `json:"updatedAt"`
 }

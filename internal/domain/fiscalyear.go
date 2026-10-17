@@ -95,7 +95,7 @@ type FiscalYear struct {
 	DisclosedOn string           `gorm:"size:10" json:"disclosedOn,omitempty"`
 	// AdoptionNote hält den Beschlussbezug fest: welcher
 	// Gesellschafterbeschluss den Abschluss festgestellt hat.
-	DisclosureNote string `gorm:"type:text;serializer:encrypted" json:"disclosureNote,omitempty"`
+	DisclosureNote string `gorm:"type:text" json:"disclosureNote,omitempty"`
 	AdoptionNote   string `gorm:"size:500" json:"adoptionNote,omitempty"`
 
 	// AverageEmployees ist die durchschnittliche Zahl der Arbeitnehmer des

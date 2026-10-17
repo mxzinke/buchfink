@@ -9,10 +9,9 @@ import (
 // CompanyShareholder ist ein Gesellschafter mit dem Nennbetrag seiner
 // Geschäftsanteile, wie er in der aktuellen Gesellschafterliste steht.
 type CompanyShareholder struct {
-	ID       uint `gorm:"primaryKey" json:"id"`
-	Position int  `gorm:"not null" json:"-"`
-	// Name ist personenbezogen und liegt deshalb verschlüsselt.
-	Name         string `gorm:"type:text;not null;serializer:encrypted" json:"name"`
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	Position     int    `gorm:"not null" json:"-"`
+	Name         string `gorm:"type:text;not null" json:"name"`
 	ShareCapital Cents  `gorm:"not null" json:"shareCapital"`
 }
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +21,6 @@ import (
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/security"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gorm.io/gorm"
@@ -48,8 +46,6 @@ type BuchfinkBridge struct {
 	dataDir     string
 	currentYear int
 	db          *gorm.DB
-	vault       *security.Vault // active tenant's field-encryption vault (nil = clear text)
-	locked      bool            // true when the active tenant's keychain secret is missing (needs recovery)
 
 	// Repositories
 	accountRepo        domain.AccountRepository
@@ -223,47 +219,6 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	if t == nil {
 		return fmt.Errorf("no tenant specified")
-	}
-
-	// Unlock field-level encryption for this tenant (transparent via OS keychain).
-	// Existing databases without a keyfile fall back to clear text so legacy data
-	// keeps working.
-	if security.KeyfileExists(t.DataDir) {
-		// Der Schlüssel wird unter VaultID gesucht und nicht unter der ID des
-		// Eintrags: eine wiederhergestellte Sicherung hat die Schlüsseldatei
-		// des Mandanten, aus dem sie stammt, und ihr Geheimnis liegt im
-		// Schlüsselbund unter dessen Kennung.
-		vault, err := security.OpenTenantVault(t.DataDir, t.VaultID())
-		if err != nil {
-			if errors.Is(err, security.ErrNoKeyringSecret) {
-				// New machine or lost keychain: enter locked state instead of
-				// crashing. The frontend shows a recovery screen and calls
-				// RecoverActiveTenantFromFile with the external recovery file.
-				b.locked = true
-				b.vault = nil
-				repository.SetActiveVault(nil)
-				b.appConfig.ActiveTenantID = t.ID
-				b.appConfig.DataDir = t.DataDir
-				b.dataDir = t.DataDir
-				// Auch der gesperrte Mandant wird festgehalten: eine gerade
-				// wiederhergestellte Sicherung, die beim nächsten Start wieder
-				// aus der Mandantenliste verschwunden wäre, müsste ein zweites
-				// Mal wiederhergestellt werden — mit der Wiederherstellungsdatei
-				// wäre sie hier sonst gar nicht mehr zu finden.
-				if b.appCfgRepo != nil {
-					_ = b.appCfgRepo.Save(&b.appConfig)
-				}
-				return nil
-			}
-			return fmt.Errorf("failed to unlock tenant encryption at %s: %w", t.DataDir, err)
-		}
-		b.vault = vault
-		repository.SetActiveVault(vault)
-		b.locked = false
-	} else {
-		b.vault = nil
-		repository.SetActiveVault(nil)
-		b.locked = false
 	}
 
 	db, err := repository.InitTenantDB(t.DataDir)
@@ -689,16 +644,8 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// über ihren Datensatz gefunden.
 	b.exportSvc.SetProcDocRepo(b.procDocRepo)
 
-	// Die Sicherung hat die Schlüsselkennung und nicht die Kennung aus der
-	// Mandantenliste: backup.json nennt den Mandanten, unter dem der Prüflauf
-	// und die Wiederherstellung später das Geheimnis im Schlüsselbund suchen.
-	// Für einen Mandanten, der neben seinem Ursprung wiederhergestellt wurde,
-	// sind beide verschieden — er führt eine neue Listenkennung und behält den
-	// Schlüssel des Ursprungs. Stünde die Listenkennung in der Sicherung, fände
-	// weder „Sicherung prüfen" noch eine erneute Wiederherstellung den
-	// Schlüssel, und eine heile Sicherung käme als unlesbar zurück.
 	b.backupSvc = service.NewBackupService(
-		b.backupRunRepo, b.auditRepo, db, t.DataDir, t.VaultID(), t.Name)
+		b.backupRunRepo, b.auditRepo, db, t.DataDir, t.ID, t.Name)
 
 	// Welle 7: die Bedienung legt sich über die fertigen Funktionen.
 	//
@@ -796,15 +743,6 @@ func (b *BuchfinkBridge) SwitchTenant(tenantID string) error {
 	return fmt.Errorf("tenant ID %s not found", tenantID)
 }
 
-// IsLocked reports whether the active tenant is encrypted but cannot be unlocked
-// on this machine (keychain secret missing). The frontend uses this to show a
-// recovery screen instead of the normal app.
-func (b *BuchfinkBridge) IsLocked() bool {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	return b.locked
-}
-
 // activeTenantLocked returns a pointer to the active tenant config in the slice
 // (so edits persist). Caller must hold the lock.
 func (b *BuchfinkBridge) activeTenantLocked() *domain.TenantConfig {
@@ -817,142 +755,6 @@ func (b *BuchfinkBridge) activeTenantLocked() *domain.TenantConfig {
 		return &b.appConfig.Tenants[0]
 	}
 	return nil
-}
-
-// ExportRecoveryKey writes an external recovery file for the active tenant into a
-// user-chosen folder (e.g. a USB stick) and returns the full path. Keep this file
-// safe and SEPARATE from your data backup: together they can decrypt the
-// accounting data, neither half alone can.
-func (b *BuchfinkBridge) ExportRecoveryKey() (string, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.vault == nil {
-		return "", fmt.Errorf("kein entsperrter Mandant aktiv – Recovery-Export nicht möglich")
-	}
-	active := b.activeTenantLocked()
-	if active == nil {
-		return "", fmt.Errorf("kein aktiver Mandant gefunden")
-	}
-
-	targetDir := ""
-	if app := application.Get(); app != nil && app.Dialog != nil {
-		dir, err := app.Dialog.OpenFile().
-			CanChooseDirectories(true).
-			CanChooseFiles(false).
-			CanCreateDirectories(true).
-			SetTitle("Speicherort für den Recovery-Schlüssel wählen (z. B. USB-Stick)").
-			PromptForSingleSelection()
-		if err != nil {
-			return "", err
-		}
-		targetDir = dir
-	}
-	if targetDir == "" {
-		return "", nil
-	}
-	return b.exportRecoveryKeyLocked(targetDir)
-}
-
-// ExportRecoveryKeyToDirectory uses the same export as the native picker.
-func (b *BuchfinkBridge) ExportRecoveryKeyToDirectory(targetDir string) (string, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.exportRecoveryKeyLocked(targetDir)
-}
-
-func (b *BuchfinkBridge) exportRecoveryKeyLocked(targetDir string) (string, error) {
-	active := b.activeTenantLocked()
-	if active == nil || b.vault == nil {
-		return "", fmt.Errorf("kein entsperrter Mandant aktiv")
-	}
-	if targetDir == "" {
-		return "", fmt.Errorf("bitte einen Ordner für den Wiederherstellungsschlüssel wählen")
-	}
-	dir, err := filepath.EvalSymlinks(targetDir)
-	if err != nil {
-		return "", err
-	}
-	dir, err = filepath.Abs(dir)
-	if err != nil {
-		return "", err
-	}
-	dataDir, err := filepath.EvalSymlinks(active.DataDir)
-	if err != nil {
-		return "", err
-	}
-	if rel, err := filepath.Rel(dataDir, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("bitte den Wiederherstellungsschlüssel außerhalb des Buchhaltungsordners sichern")
-	}
-	data, err := security.ExportTenantRecoveryFile(active.DataDir, active.VaultID(), active.Name, b.vault)
-	if err != nil {
-		return "", err
-	}
-	file, err := os.CreateTemp(dir, ".buchfink-recovery-*")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(file.Name())
-	if _, err = file.Write(data); err == nil {
-		err = file.Sync()
-	}
-	closeErr := file.Close()
-	if err != nil {
-		return "", err
-	}
-	if closeErr != nil {
-		return "", closeErr
-	}
-	fullPath := filepath.Join(dir, fmt.Sprintf("buchfink-recovery-%s.json", active.ID))
-	if err := os.Rename(file.Name(), fullPath); err != nil {
-		return "", fmt.Errorf("Wiederherstellungsschlüssel speichern: %w", err)
-	}
-	before := active.RecoveryExportedAt
-	active.RecoveryExportedAt = time.Now().UTC().Format(time.RFC3339)
-	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
-		active.RecoveryExportedAt = before
-		return "", fmt.Errorf("Schlüssel unter %s gesichert, aber der Sicherungsvermerk konnte nicht gespeichert werden: %w", fullPath, err)
-	}
-	return fullPath, nil
-}
-
-// SelectRecoveryFileDialog opens a native picker for a .json recovery file.
-func (b *BuchfinkBridge) SelectRecoveryFileDialog(title string) (string, error) {
-	if title == "" {
-		title = "Recovery-Schlüsseldatei auswählen"
-	}
-	app := application.Get()
-	if app == nil || app.Dialog == nil {
-		return "", nil
-	}
-	return app.Dialog.OpenFile().
-		CanChooseFiles(true).
-		CanChooseDirectories(false).
-		SetTitle(title).
-		PromptForSingleSelection()
-}
-
-// RecoverActiveTenantFromFile unlocks the active tenant from an external recovery
-// file when its keychain secret is missing (new machine / lost keychain). On
-// success it re-provisions the local keychain and fully initializes the tenant.
-func (b *BuchfinkBridge) RecoverActiveTenantFromFile(recoveryFilePath string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	active := b.activeTenantLocked()
-	if active == nil {
-		return fmt.Errorf("kein aktiver Mandant gefunden")
-	}
-	data, err := os.ReadFile(recoveryFilePath)
-	if err != nil {
-		return fmt.Errorf("Recovery-Datei lesen: %w", err)
-	}
-	if _, err := security.RecoverTenantFromFile(active.DataDir, active.VaultID(), data); err != nil {
-		return err
-	}
-	// Keychain is re-provisioned; a full init now unlocks transparently.
-	b.locked = false
-	return b.initTenant(active)
 }
 
 func (b *BuchfinkBridge) CreateTenant(
@@ -978,7 +780,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		dataDir = filepath.Join(homeDir, ".buchfink", "tenants", tenantID, "data")
 	}
 
-	// Vor der Schlüsselanlage erneut prüfen: Seit der Ordnerauswahl können Dateien hinzugekommen sein.
+	// Vor dem Anlegen erneut prüfen: Seit der Ordnerauswahl können Dateien hinzugekommen sein.
 	var err error
 	dataDir, err = checkedTenantDirectory(dataDir)
 	if err != nil {
@@ -998,32 +800,24 @@ func (b *BuchfinkBridge) CreateTenant(
 	settings.FiscalYear = fiscalYear
 	previous := b.appConfig
 	previous.Tenants = append([]domain.TenantConfig(nil), b.appConfig.Tenants...)
-	previousYear, previousVault := b.currentYear, b.vault
+	previousYear := b.currentYear
 	complete := false
 	defer func() {
 		if complete {
 			return
 		}
 		_ = repository.CloseDB(b.db)
-		b.appConfig, b.currentYear, b.vault = previous, previousYear, previousVault
-		repository.SetActiveVault(previousVault)
+		b.appConfig, b.currentYear = previous, previousYear
 		if active := previous.ActiveTenant(); active != nil {
 			_ = b.initTenant(active)
 		} else {
 			b.db = nil
 			b.dataDir = previous.DataDir
-			b.locked = false
 		}
 		// This method exclusively provisioned this formerly empty directory.
 		_ = os.RemoveAll(dataDir)
-		_ = security.DeleteTenantSecret(tenantID)
 		_ = b.appCfgRepo.Save(&b.appConfig)
 	}()
-	vault, err := security.CreateTenantVault(dataDir, tenantID)
-	if err != nil {
-		return nil, fmt.Errorf("Verschlüsselung einrichten: %w", err)
-	}
-	repository.SetActiveVault(vault)
 	// Seed the requested profile before any service or fiscal-year entity is
 	// created. Opening a database seeds the current calendar year by default.
 	db, err := repository.InitTenantDB(dataDir)
@@ -1031,7 +825,7 @@ func (b *BuchfinkBridge) CreateTenant(
 		return nil, err
 	}
 	initialSettings := service.NewSettingsService(repository.NewSettingsRepository(db), repository.NewAuditRepository(db))
-	err = initialSettings.UpdateCompanySettings(repository.WithVault(context.Background(), vault), &settings)
+	err = initialSettings.UpdateCompanySettings(context.Background(), &settings)
 	closeErr := repository.CloseDB(db)
 	if err != nil {
 		return nil, fmt.Errorf("Unternehmensdaten speichern: %w", err)
@@ -1060,7 +854,7 @@ func (b *BuchfinkBridge) CreateTenant(
 func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindImport)
+	return b.registerTenantLocked(dbFilePath, "", domain.MigrationKindImport)
 }
 
 // newTenantID vergibt eine Kennung für einen neuen Eintrag der Mandantenliste.
@@ -1078,18 +872,16 @@ func (b *BuchfinkBridge) tenantByIDLocked(id string) *domain.TenantConfig {
 	return nil
 }
 
-// registerTenantLocked meldet einen vorhandenen Datenordner als Mandanten an
-// und öffnet ihn.
+// registerTenantLocked meldet einen vorhandenen Datenordner unter einer neuen
+// Kennung als Mandanten an und öffnet ihn.
 //
-// identity gibt vor, was der Aufrufer über den Ordner schon weiß: die
-// Wiederherstellung liest Kennung und Namen aus backup.json, weil der
-// Schlüsselbund das Geheimnis unter der Kennung führt, unter der die Sicherung
-// entstanden ist. Ein leeres Feld wird aus dem Ordner und den Stammdaten
-// gefüllt — das ist der Fall „vorhandene Datenbank öffnen".
+// name ist der Anzeigename, den der Aufrufer schon kennt (die Wiederherstellung
+// liest ihn aus backup.json). Leer wird er aus dem Ordner und den Stammdaten
+// gefüllt.
 //
 // Der Aufrufer hält b.mu.
 func (b *BuchfinkBridge) registerTenantLocked(
-	dbFilePath string, identity domain.TenantConfig, kind domain.MigrationKind,
+	dbFilePath, name string, kind domain.MigrationKind,
 ) (*domain.TenantConfig, error) {
 	if _, err := os.Stat(dbFilePath); err != nil {
 		return nil, fmt.Errorf("database file not found: %s", dbFilePath)
@@ -1102,21 +894,7 @@ func (b *BuchfinkBridge) registerTenantLocked(
 		dataDir = abs
 	}
 
-	tenantID, keyID := identity.ID, identity.KeyID
-	if tenantID == "" {
-		tenantID = newTenantID()
-	} else if b.tenantByIDLocked(tenantID) != nil {
-		// Die Kennung ist schon vergeben — die Sicherung wird neben dem
-		// Mandanten wiederhergestellt, aus dem sie stammt. Zwei Einträge mit
-		// derselben Kennung machten die Mandantenliste mehrdeutig; der neue
-		// bekommt deshalb eine eigene und behält den Schlüssel des alten.
-		if keyID == "" {
-			keyID = tenantID
-		}
-		tenantID = newTenantID()
-	}
-
-	name := identity.Name
+	tenantID := newTenantID()
 	if name == "" {
 		name = filepath.Base(dataDir)
 		if name == "data" || name == "." || name == "" {
@@ -1124,13 +902,9 @@ func (b *BuchfinkBridge) registerTenantLocked(
 		}
 	}
 
-	// An imported database keeps whatever encryption state it shipped with: if a
-	// keyfile sits next to it (and the keychain secret is present) initTenant
-	// unlocks it, otherwise it is treated as clear text.
 	t := domain.TenantConfig{
 		ID:        tenantID,
 		Name:      name,
-		KeyID:     keyID,
 		DataDir:   dataDir,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -1144,13 +918,7 @@ func (b *BuchfinkBridge) registerTenantLocked(
 	}
 
 	// Try reading company name from settings.
-	//
-	// Nur am offenen Mandanten: bleibt er gesperrt (Schlüssel fehlt), kehrt
-	// initTenant zurück, bevor es die Dienste verdrahtet — b.settingsSvc zeigt
-	// dann auf den vorher offenen Mandanten oder ist gar nicht belegt. Der
-	// Aufruf holte sich sonst den Firmennamen des falschen Mandanten oder
-	// stürzte auf dem Startbildschirm ab, wo noch keiner offen ist.
-	if !b.locked && b.settingsSvc != nil {
+	if b.settingsSvc != nil {
 		if s, err := b.settingsSvc.GetCompanySettings(context.Background()); err == nil && s != nil && s.CompanyName != "" {
 			t.Name = s.CompanyName
 			if entry := b.tenantByIDLocked(tenantID); entry != nil {
@@ -1179,7 +947,7 @@ func (b *BuchfinkBridge) registerTenantLocked(
 // und ein fehlgeschlagenes Protokoll wäre kein Grund, sie wieder wegzunehmen.
 // Was schiefgeht, steht im Änderungsprotokoll.
 func (b *BuchfinkBridge) recordMigration(kind domain.MigrationKind, source, target string) {
-	if b.locked || b.db == nil || b.migrationRepo == nil {
+	if b.db == nil || b.migrationRepo == nil {
 		return
 	}
 	ctx := context.Background()
@@ -1228,14 +996,13 @@ func (b *BuchfinkBridge) recordMigration(kind domain.MigrationKind, source, targ
 	}
 }
 
-// DeleteTenant entfernt einen Mandanten aus der Konfiguration und löscht sein
-// Schlüsselbund-Geheimnis. Die Daten auf der Platte bleiben liegen.
+// DeleteTenant entfernt einen Mandanten aus der Konfiguration. Die Daten auf
+// der Platte bleiben liegen.
 //
-// Den gerade geprüften Mandanten nimmt sie im Prüfermodus nicht: ohne das
-// Geheimnis wären die eingefrorenen Daten bis zur Wiederherstellung aus der
-// Wiederherstellungsdatei unzugänglich — das ist während einer Außenprüfung
-// genau der Eingriff, den der Modus verhindern soll. Ein anderer Mandant darf
-// weiterhin gehen.
+// Den gerade geprüften Mandanten nimmt sie im Prüfermodus nicht: der Modus
+// steht an seinem Eintrag, und mit dem Eintrag ginge die Sperre — die Daten
+// ließen sich danach als vorhandene Datenbank ohne Prüfermodus wieder öffnen.
+// Ein anderer Mandant darf weiterhin gehen.
 func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -1246,37 +1013,15 @@ func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 		}
 	}
 
-	vaultID := tenantID
 	// Belegt statt nil: die Konfiguration geht als JSON an die Oberfläche, und
 	// der letzte entfernte Mandant hinterließe sonst `null`.
 	newTenants := make([]domain.TenantConfig, 0, len(b.appConfig.Tenants))
 	for _, t := range b.appConfig.Tenants {
 		if t.ID != tenantID {
 			newTenants = append(newTenants, t)
-			continue
 		}
-		vaultID = t.VaultID()
 	}
 	b.appConfig.Tenants = newTenants
-
-	// Remove the tenant's wrapping secret from the OS keychain. The keyfile and
-	// data on disk are left untouched (deletion of user data stays explicit).
-	//
-	// Nicht jedoch, solange ein anderer Eintrag denselben Schlüssel benutzt:
-	// eine wiederhergestellte Sicherung und der Mandant, aus dem sie stammt,
-	// teilen sich das Geheimnis. Es beim Entfernen der einen zu löschen,
-	// sperrte die andere aus — der Datenverlust, den die Sicherung gerade
-	// abwenden sollte.
-	shared := false
-	for _, t := range newTenants {
-		if t.VaultID() == vaultID {
-			shared = true
-			break
-		}
-	}
-	if !shared {
-		_ = security.DeleteTenantSecret(vaultID)
-	}
 
 	if b.appConfig.ActiveTenantID == tenantID {
 		if len(newTenants) > 0 {
@@ -1293,7 +1038,7 @@ func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 }
 
 // -------------------------------------------------------------
-// SETUP & ONBOARDING ASSISTANT (FIRST LAUNCH & VAULT)
+// SETUP & ONBOARDING ASSISTANT (FIRST LAUNCH)
 // -------------------------------------------------------------
 
 // GetAppConfig liefert den Zustand, aus dem die Oberfläche liest.
@@ -1317,8 +1062,8 @@ func (b *BuchfinkBridge) GetAppConfig() domain.AppConfig {
 	return cfg
 }
 
-// SetupApplication handles initial setup: establishes the data directory,
-// provisions transparent field encryption, and configures the company.
+// SetupApplication handles initial setup: establishes the data directory and
+// configures the company.
 func (b *BuchfinkBridge) SetupApplication(
 	dataDir string,
 	settings domain.CompanySettings,
@@ -1340,7 +1085,7 @@ func (b *BuchfinkBridge) SetupApplication(
 func (b *BuchfinkBridge) LoadExistingDatabase(dbFilePath string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	_, err := b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindOpen)
+	_, err := b.registerTenantLocked(dbFilePath, "", domain.MigrationKindOpen)
 	return err
 }
 

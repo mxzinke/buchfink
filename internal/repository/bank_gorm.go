@@ -41,9 +41,9 @@ func (r *bankRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Ban
 func (r *bankRepositoryGorm) CreateBatch(ctx context.Context, transactions []domain.BankTransaction) (int, error) {
 	inserted := 0
 	err := dbFrom(ctx, r.db).Transaction(func(db *gorm.DB) error {
-		// Compare decrypted values. SQL equality against random ciphertext cannot
-		// identify a reimport. Count occurrences to retain identical payments in
-		// one statement when the bank supplies no unique booking reference.
+		// Candidates share account, date and amount; the full identity is
+		// compared in Go. Count occurrences to retain identical payments in one
+		// statement when the bank supplies no unique booking reference.
 		existing := make(map[string]int)
 		queried := make(map[string]bool)
 		seen := make(map[string]int)

@@ -7,13 +7,10 @@ import (
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/zalando/go-keyring"
 )
 
 // Regression coverage for the year selected during setup.
 func TestBugHuntCreateTenantRespectsSelectedYear(t *testing.T) {
-	keyring.MockInit()
-	t.Cleanup(func() { repository.SetActiveVault(nil) })
 	base := t.TempDir()
 	current := time.Now().Year()
 	selected := current - 1

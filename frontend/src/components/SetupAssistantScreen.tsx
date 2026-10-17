@@ -258,9 +258,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
   const [submitting, setSubmitting] = useState(false);
   const [tenantCreated, setTenantCreated] = useState(false);
-  const [setupReady, setSetupReady] = useState(false);
-  const [recoveryPath, setRecoveryPath] = useState('');
-  const [skipRecovery, setSkipRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
@@ -269,7 +266,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     'Speicherort',
     isCapitalCompany ? 'Unternehmen und Gründung' : 'Unternehmen',
     'Steuern',
-    'Schlüssel sichern',
   ];
   const stepCount = stepTitles.length;
   const currentTitle = stepTitles[step - 1] ?? '';
@@ -410,7 +406,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       }
       // Wer gerade gegründet hat, landet auf dem Gründungsweg: dort steht, was
       // als Nächstes zu tun ist. Die Aufgabenliste ist am ersten Tag leer.
-      setSetupReady(true);
+      onSetupCompleted(isCapitalCompany && isFoundingCase ? 'gruendung' : 'tasks');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -979,39 +975,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       </Help>
                     </p>
                     )}
-                  </div>
-                )}
 
-                {step === stepCount && (
-                  <div className="flex flex-col gap-4">
-                    <p className="text-body text-shell-text-muted">
-                      Buchungstexte, Kontakte und Rechnungspositionen werden verschlüsselt.
-                      Belegdateien bleiben unverschlüsselt. Der Schlüssel liegt im Schlüsselbund dieses Rechners.
-                    </p>
-                    <p className="text-body text-shell-text-muted">
-                      {setupReady ? 'Ihre Buchhaltung ist angelegt. Sichern Sie jetzt den Wiederherstellungsschlüssel.' : 'Nach dem Anlegen sichern Sie hier direkt Ihren Wiederherstellungsschlüssel.'}
-                      {' '}Mit dieser Datei können Sie die verschlüsselten Daten auch auf einem neuen Rechner öffnen.
-                      Bewahren Sie sie getrennt von Rechner und Datensicherung auf.
-                    </p>
-                    {setupReady ? <>
-                      <button type="button" className={SHELL_BUTTON.primary} disabled={submitting}
-                        onClick={() => { void (async () => {
-                          setSubmitting(true); setError(null);
-                          try { const path = await Api.exportRecoveryKey(); if (path) setRecoveryPath(path); }
-                          catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-                          finally { setSubmitting(false); }
-                        })(); }}>
-                        <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
-                        {submitting ? 'Schlüssel wird gesichert …' : 'Wiederherstellungsschlüssel sichern'}
-                      </button>
-                      {recoveryPath ? <p className="text-body text-shell-text break-all">Schlüssel gesichert: {recoveryPath}</p> :
-                        <Checkbox
-                          tone="shell"
-                          label="Ich sichere den Schlüssel später. Mir ist bewusst, dass ich ohne ihn bei Verlust dieses Rechners auch meine verschlüsselten Daten verlieren kann."
-                          checked={skipRecovery}
-                          onCheckedChange={setSkipRecovery}
-                        />}
-                    </> : <p className="text-body text-shell-text-muted">Bankkonten richten Sie beim ersten Import eines Kontoauszugs ein.</p>}
+                    <p className="text-body text-shell-text-muted">Bankkonten richten Sie beim ersten Import eines Kontoauszugs ein.</p>
                   </div>
                 )}
               </div>
@@ -1047,12 +1012,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 ) : (
                   <button
                     type="button"
-                    disabled={submitting || (setupReady && !recoveryPath && !skipRecovery)}
-                    onClick={() => setupReady ? onSetupCompleted(isCapitalCompany && isFoundingCase ? 'gruendung' : 'tasks') : void finish()}
+                    disabled={submitting}
+                    onClick={() => void finish()}
                     className={SHELL_BUTTON.primary}
                   >
                     <Check className="w-4 h-4" strokeWidth={1.5} />
-                    {submitting ? 'Wird eingerichtet …' : setupReady ? 'Buchhaltung öffnen' : tenantCreated ? 'Einrichtung abschließen' : 'Buchhaltung anlegen'}
+                    {submitting ? 'Wird eingerichtet …' : tenantCreated ? 'Einrichtung abschließen' : 'Buchhaltung anlegen'}
                   </button>
                 )}
               </div>
@@ -1122,7 +1087,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
             <span>
               <span className="block text-label text-white">Lokal</span>
               <span className="block text-caption text-shell-text-muted mt-0.5">
-                Daten und Schlüssel bleiben auf diesem Rechner. Kein Cloud-Zwang.
+                Daten bleiben auf diesem Rechner. Kein Cloud-Zwang.
               </span>
             </span>
           </p>
