@@ -152,7 +152,8 @@ func (t *Tenant) DisableExaminer(ctx context.Context, reason string) (ExaminerSt
 }
 
 // changeExaminer schreibt einen neuen Stand samt Vorher/Nachher ins Protokoll
-// und lädt ihn nach dem Schreiben in den Speicher.
+// und legt ihn noch unter der Schreibsperre in den Speicher: zwei Wechsel dicht
+// hintereinander hinterlassen so den Stand des letzten.
 func (t *Tenant) changeExaminer(
 	ctx context.Context,
 	change func(ctx context.Context, s *Services, previous *domain.ExaminerPeriod) (*domain.ExaminerPeriod, string, error),
@@ -167,13 +168,22 @@ func (t *Tenant) changeExaminer(
 		if err != nil {
 			return err
 		}
-		return t.repos.audit.LogChange(ctx, domain.AuditActionUpdate, domain.AuditEntityReadOnly, t.ID(),
-			details, before, examinerFields(next, today()))
+		if err := t.repos.audit.LogChange(ctx, domain.AuditActionUpdate, domain.AuditEntityReadOnly, t.ID(),
+			details, before, examinerFields(next, today())); err != nil {
+			return err
+		}
+		latest, err := t.repos.examiner.Latest(ctx)
+		if err != nil {
+			return err
+		}
+		t.examiner.period.Store(latest)
+		return nil
 	}, ExaminerExempt(), AppOnly())
 	if err != nil {
-		return t.Examiner(), err
-	}
-	if err := t.loadExaminer(ctx); err != nil {
+		// Der Speicher kann einen Stand halten, dessen Commit scheiterte.
+		if loadErr := t.loadExaminer(ctx); loadErr != nil {
+			return t.Examiner(), errors.Join(err, loadErr)
+		}
 		return t.Examiner(), err
 	}
 	return t.Examiner(), nil
