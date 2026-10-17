@@ -372,7 +372,8 @@ export const IntegrityPanel: React.FC<IntegrityPanelProps> = ({
                     </Td>
                     <Td className="text-ink-subtle num">{formatDate(run.cutoffDate)}</Td>
                     <Td className={cn('text-caption', blocking.length > 0 ? 'text-negative-text' : 'text-ink-muted')}>
-                      {blocking.length} blockierend · {findings.length - blocking.length} Hinweise
+                      {blocking.length} blockierend · {findings.length - blocking.length}{' '}
+                      {findings.length - blocking.length === 1 ? 'Hinweis' : 'Hinweise'}
                     </Td>
                     <Td className="whitespace-normal text-ink-muted">{run.overrideReason || '—'}</Td>
                   </Tr>

@@ -133,7 +133,7 @@ const CommandLine: React.FC<{ value: string; tone: keyof typeof TONES }> = ({ va
   }
 
   return (
-    <div className={cn('flex items-start gap-2 rounded-control border pl-3 pr-1 py-1 min-h-9 min-w-0', style.code)}>
+    <div className={cn('flex items-center gap-2 rounded-control border pl-3 pr-1 py-1 min-h-9 min-w-0', style.code)}>
       <code className="flex-1 min-w-0 py-1 [overflow-wrap:anywhere] font-mono text-caption select-all">
         {value}
       </code>
