@@ -203,3 +203,75 @@ func TestPostRefusesPartnershipAccountsForCorporations(t *testing.T) {
 		t.Errorf("die Forderung gegen den Gesellschafter ist der richtige Weg: %v", err)
 	}
 }
+
+func TestPostTakesTheReceiptHashFromTheFiledReceipt(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	filed := env.fileIncoming(t, "rechnung.pdf")
+
+	entry := simpleEntry("6815", "1800", 10000)
+	entry.ReceiptID = &filed.ID
+	entry.ReceiptHash = strings.Repeat("f", 64)
+	created, err := env.journal.Post(ctx, entry)
+	if err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+	if created.ReceiptHash != filed.ReceiptHash {
+		t.Errorf("Beleg-Hash %q, erwartet den des abgelegten Belegs %q", created.ReceiptHash, filed.ReceiptHash)
+	}
+
+	orphan := simpleEntry("6815", "1800", 10000)
+	orphan.ReceiptHash = strings.Repeat("f", 64)
+	created, err = env.journal.Post(ctx, orphan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ReceiptHash != "" {
+		t.Errorf("ohne Belegverweis darf die Buchung keinen Beleg-Hash tragen: %q", created.ReceiptHash)
+	}
+
+	missing := uint(9999)
+	ghost := simpleEntry("6815", "1800", 10000)
+	ghost.ReceiptID = &missing
+	if _, err := env.journal.Post(ctx, ghost); err == nil || !strings.Contains(err.Error(), "existiert nicht") {
+		t.Errorf("ein Verweis auf einen fehlenden Beleg muss abgewiesen werden, Fehler: %v", err)
+	}
+}
+
+func TestIntegrityCheckComparesTheReceiptHash(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	filed := env.fileIncoming(t, "rechnung.pdf")
+	entry := simpleEntry("6815", "1800", 10000)
+	entry.ReceiptID = &filed.ID
+	booked, err := env.journal.Post(ctx, entry)
+	if err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+
+	result, err := env.journal.VerifyIntegrity(ctx)
+	if err != nil || !result.IsValid {
+		t.Fatalf("vor der Änderung muss die Prüfung bestehen: %v / %s", err, result.Message)
+	}
+
+	// Der Betrag des Belegs wird an der Anwendung vorbei geändert.
+	if err := env.db.Exec("UPDATE receipts SET gross_amount = gross_amount + 100 WHERE id = ?", filed.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err = env.journal.VerifyIntegrity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsValid {
+		t.Fatal("ein veränderter Beleg muss die Prüfung scheitern lassen")
+	}
+	found := false
+	for _, b := range result.Breaks {
+		if b.Reason == domain.IntegrityBreakReceipt && b.EntryID == booked.ID && b.ExpectedHash == booked.ReceiptHash {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("kein Belegbruch zur Buchung %s gemeldet: %+v", booked.EntryNumber, result.Breaks)
+	}
+}

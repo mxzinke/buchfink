@@ -14,9 +14,9 @@ import (
 // Beleg her, dessen Kopfdaten die heutige Prüfung nicht bestehen.
 //
 // So sieht ein Beleg aus, der unter einer Regel gebucht wurde, die eine spätere
-// Programmfassung verschärft hat. Nachstellen lässt sich das nur, indem die
-// Belegablage für die eine Buchung abgehängt und der Beleg über das Repository
-// versiegelt wird.
+// Programmfassung verschärft hat. Nachstellen lässt sich das, indem der Beleg
+// über das Repository auf eine Vorbuchung versiegelt wird: die Kopfdatenpflicht
+// gilt nur dem offenen Beleg.
 func entryOnSealedReceiptWithoutHeader(
 	t *testing.T, env *testEnv, fileName, description string,
 ) (*domain.JournalEntry, *domain.Receipt) {
@@ -33,7 +33,13 @@ func entryOnSealedReceiptWithoutHeader(
 		t.Fatal("der Beleg des Falls darf keine Kopfdaten haben")
 	}
 
-	env.journal.SetReceiptRepo(nil)
+	before, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 100))
+	if err != nil {
+		t.Fatalf("Vorbuchung: %v", err)
+	}
+	if err := env.receiptRepo.Seal(ctx, receipt.ID, before.ID); err != nil {
+		t.Fatalf("den Beleg versiegeln: %v", err)
+	}
 	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
 		FiscalYear: 2026, BookingDate: "2026-02-01", DocumentDate: "2026-02-01",
 		Description: description, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
@@ -44,12 +50,8 @@ func entryOnSealedReceiptWithoutHeader(
 			{Position: 2, Side: domain.SideCredit, Account: "1800", Amount: 10000},
 		},
 	})
-	env.journal.SetReceiptRepo(env.receiptRepo)
 	if err != nil {
 		t.Fatalf("die Buchung ließ sich nicht anlegen: %v", err)
-	}
-	if err := env.receiptRepo.Seal(ctx, receipt.ID, entry.ID); err != nil {
-		t.Fatalf("den Beleg versiegeln: %v", err)
 	}
 	return entry, receipt
 }

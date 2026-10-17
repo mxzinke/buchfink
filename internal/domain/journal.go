@@ -602,6 +602,9 @@ const (
 	// IntegrityBreakContent: die Buchung hasht nicht mehr auf ihren
 	// gespeicherten Eigenhash — ihre Daten wurden nachträglich verändert.
 	IntegrityBreakContent IntegrityBreakReason = "content"
+	// IntegrityBreakReceipt: der Beleg, auf den die Buchung verweist, hasht
+	// nicht mehr auf den Beleg-Hash der Buchung oder fehlt.
+	IntegrityBreakReceipt IntegrityBreakReason = "receipt"
 )
 
 // IntegrityBreak ist ein einzelner Bruch der Kette.

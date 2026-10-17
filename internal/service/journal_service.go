@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
+	"gorm.io/gorm"
 )
 
 // JournalService is the single write path into the journal.
@@ -221,10 +223,6 @@ func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) 
 // Geprüft wird ValidateHeader und nicht ValidateBookable: die dort zusätzlich
 // verlangte Ansehbarkeit gilt dem Beleg, den ein Mensch vor sich hat, und
 // nicht dem maschinell erzeugten Eigenbeleg einer Abschlussbuchung.
-//
-// Ein Verweis auf einen Beleg, den es nicht gibt, hält die Buchung nicht auf:
-// er ist ein anderer Fehler als ein fehlendes Belegdatum, und ihn hier zu
-// melden, verdeckte ihn.
 //
 // Zwei Fälle sind ausgenommen, und beide aus demselben Grund: die Kopfdatenpflicht
 // gilt dem Buchen eines noch offenen Belegs und darf keine Buchung sperren, die
@@ -467,6 +465,9 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 	}
 
 	result := s.hashChain.VerifyYears(byYear)
+	if err := s.verifyReceiptHashes(ctx, years, byYear, &result); err != nil {
+		return domain.IntegrityCheckResult{}, err
+	}
 
 	// Die Protokollkette gehört in dieselbe Antwort wie die Journalkette.
 	//
@@ -514,6 +515,60 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 }
 
 // prepare füllt die Vorgaben und setzt, was nur der Dienst bestimmt.
+// verifyReceiptHashes hält den Beleg-Hash jeder Buchung gegen den abgelegten
+// Beleg. Die Journalkette deckt den Hash, den die Buchung trägt; erst dieser
+// Vergleich zeigt, ob der Beleg selbst — Dateiliste und Kopfdaten — noch der
+// ist, auf den gebucht wurde.
+func (s *JournalService) verifyReceiptHashes(
+	ctx context.Context, years []int, byYear map[int][]domain.JournalEntry, result *domain.IntegrityCheckResult,
+) error {
+	if s.receiptRepo == nil {
+		return nil
+	}
+	actual := map[uint]string{}
+	numbers := map[uint]string{}
+	broken := 0
+	for _, year := range years {
+		for _, e := range byYear[year] {
+			if e.ReceiptID == nil {
+				continue
+			}
+			id := *e.ReceiptID
+			if _, ok := actual[id]; !ok {
+				receipt, err := s.receiptRepo.FindByID(ctx, id)
+				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+					return fmt.Errorf("der Beleg %d ließ sich nicht lesen: %w", id, err)
+				}
+				if receipt != nil {
+					actual[id] = accounting.ReceiptHash(receipt)
+					numbers[id] = receipt.ReceiptNumber
+				} else {
+					actual[id] = ""
+				}
+			}
+			if actual[id] == e.ReceiptHash {
+				continue
+			}
+			message := fmt.Sprintf("Der Beleg %s stimmt nicht mehr mit dem Beleg-Hash der Buchung %s überein.",
+				numbers[id], e.EntryNumber)
+			if actual[id] == "" {
+				message = fmt.Sprintf("Der Beleg %d der Buchung %s fehlt.", id, e.EntryNumber)
+			}
+			result.Breaks = append(result.Breaks, domain.IntegrityBreak{
+				FiscalYear: e.FiscalYear, EntryID: e.ID, EntryNumber: e.EntryNumber,
+				Reason: domain.IntegrityBreakReceipt, ExpectedHash: e.ReceiptHash, ActualHash: actual[id],
+				Message: message,
+			})
+			broken++
+		}
+	}
+	if broken > 0 {
+		result.IsValid = false
+		result.Message += fmt.Sprintf(" %d Buchung(en) verweisen auf einen veränderten oder fehlenden Beleg.", broken)
+	}
+	return nil
+}
+
 func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mode postMode) error {
 	if mode.reversal {
 		if e.Kind != domain.EntryKindReversal || e.ReversalOfID == nil {
@@ -566,6 +621,9 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 	e.AppVersion = buildinfo.Version
 	e.Actor = actor.Actor()
 
+	if err := s.stampReceiptHash(ctx, e, mode); err != nil {
+		return err
+	}
 	if e.Source == "" {
 		e.Source = domain.EntrySourceManual
 	}
@@ -588,6 +646,33 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 		e.Gifts[i].ID = 0
 		e.Gifts[i].EntryID = 0
 	}
+	return nil
+}
+
+// stampReceiptHash setzt den Beleg-Hash aus dem abgelegten Beleg. Eine Buchung
+// mit Belegverweis trägt ihn immer, eine ohne nie; was der Aufrufer mitgibt,
+// zählt nicht. Die Generalumkehr übernimmt den Hash der stornierten Buchung.
+func (s *JournalService) stampReceiptHash(ctx context.Context, e *domain.JournalEntry, mode postMode) error {
+	if mode.reversal {
+		return nil
+	}
+	e.ReceiptHash = ""
+	if e.ReceiptID == nil {
+		return nil
+	}
+	if s.receiptRepo == nil {
+		return fmt.Errorf("ohne Belegablage lässt sich der Beleg %d der Buchung nicht prüfen", *e.ReceiptID)
+	}
+	receipt, err := s.receiptRepo.FindByID(ctx, *e.ReceiptID)
+	if err != nil || receipt == nil {
+		return fmt.Errorf("der Beleg %d, auf den die Buchung verweist, existiert nicht", *e.ReceiptID)
+	}
+	if actual := accounting.ReceiptHash(receipt); actual != receipt.ReceiptHash {
+		return fmt.Errorf(
+			"der Beleg %s stimmt nicht mehr mit seinem Hash überein (gespeichert %s, berechnet %s) "+
+				"und kann keine Buchung belegen", receipt.ReceiptNumber, receipt.ReceiptHash, actual)
+	}
+	e.ReceiptHash = receipt.ReceiptHash
 	return nil
 }
 

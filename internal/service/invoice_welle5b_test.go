@@ -183,6 +183,9 @@ func TestFailedDocumentLeavesNoInvoiceAndFreesTheNumber(t *testing.T) {
 	if entry.ReceiptID == nil || *entry.ReceiptID != *inv.ReceiptID {
 		t.Errorf("die Buchung muss auf den Beleg der Rechnung verweisen: %v", entry.ReceiptID)
 	}
+	if entry.ReceiptHash == "" || entry.ReceiptHash != receipt.ReceiptHash {
+		t.Errorf("die Buchung muss den Beleg-Hash tragen: %q, Beleg %q", entry.ReceiptHash, receipt.ReceiptHash)
+	}
 	if _, err := svc.RegenerateDocument(ctx, inv.ID); err == nil {
 		t.Error("ein zweites Dokument zur selben Rechnung darf nicht entstehen")
 	}

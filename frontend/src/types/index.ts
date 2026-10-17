@@ -1144,9 +1144,10 @@ export interface FinancialSummary {
 
 /**
  * Woran die Kette zerbrochen ist: `linkage` heißt, eine Buchung wurde
- * eingefügt oder entfernt; `content` heißt, eine Buchung wurde verändert.
+ * eingefügt oder entfernt; `content` heißt, eine Buchung wurde verändert;
+ * `receipt` heißt, ihr Beleg passt nicht mehr zum Beleg-Hash der Buchung.
  */
-export type IntegrityBreakReason = 'linkage' | 'content';
+export type IntegrityBreakReason = 'linkage' | 'content' | 'receipt';
 
 export interface IntegrityBreak {
   fiscalYear: number;

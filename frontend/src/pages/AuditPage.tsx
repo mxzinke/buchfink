@@ -451,7 +451,11 @@ const ChecksPanel: React.FC<{
                   <Td className="num text-ink-subtle">{issue.fiscalYear}</Td>
                   <Td code>{issue.entryNumber || issue.entryId}</Td>
                   <Td className="text-negative-text" title={issue.message}>
-                    {issue.reason === 'linkage' ? 'Kette unterbrochen' : 'Buchung verändert'}
+                    {issue.reason === 'linkage'
+                      ? 'Kette unterbrochen'
+                      : issue.reason === 'receipt'
+                        ? 'Beleg verändert'
+                        : 'Buchung verändert'}
                   </Td>
                   {/* Der volle Hash, nicht die Kurzform: nachrechnen lässt
                       sich die Kette nur mit allen 64 Zeichen, und zwar
