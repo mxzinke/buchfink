@@ -1278,19 +1278,6 @@ ASSET_MOVEMENTS[11] = [
   { id: 31, assetId: 11, kind: 'income', date: `${YEAR}-06-30`, fiscalYear: YEAR, costAmount: 0, depreciationAmount: 0, entryNumber: `${YEAR}-000318`, note: '250,00 € auf 7010. Halbjahreszins', createdAt: `${YEAR}-06-30T09:00:00Z` },
 ];
 
-// Verträge und Papiere zum Anlagegut — abgelegt, nicht gebucht.
-const ASSET_DOCUMENTS: Record<number, unknown[]> = {
-  3: [
-    { id: 1, assetId: 3, kind: 'contract', title: 'Kaufvertrag Haas Automation', fileName: 'kaufvertrag-vf2.pdf', mimeType: 'application/pdf', size: 184320, sha256: 'a'.repeat(64), storedPath: 'dokumente/contract/a.pdf', documentDate: '2026-01-28', createdAt: '2026-02-01T09:00:00Z' },
-    { id: 2, assetId: 3, kind: 'maintenance', title: 'Abnahmeprotokoll und Einweisung', fileName: 'abnahme.pdf', mimeType: 'application/pdf', size: 92160, sha256: 'b'.repeat(64), storedPath: 'dokumente/maintenance/b.pdf', documentDate: '2026-02-03', createdAt: '2026-02-04T09:00:00Z' },
-    { id: 3, assetId: 3, kind: 'insurance', title: 'Maschinenbruchversicherung', fileName: 'police.pdf', mimeType: 'application/pdf', size: 61440, sha256: 'c'.repeat(64), storedPath: 'dokumente/insurance/c.pdf', documentDate: '2026-02-10', validUntil: `${YEAR}-12-31`, createdAt: '2026-02-10T09:00:00Z' },
-  ],
-  13: [
-    { id: 4, assetId: 13, kind: 'contract', title: 'Darlehensvertrag vom 01.03.2024', fileName: 'darlehensvertrag.pdf', mimeType: 'application/pdf', size: 133120, sha256: 'd'.repeat(64), storedPath: 'dokumente/contract/d.pdf', documentDate: '2024-03-01', validUntil: '2027-03-01', createdAt: '2024-03-01T09:00:00Z' },
-    { id: 5, assetId: 13, kind: 'statement', title: 'Tilgungsplan', fileName: 'tilgungsplan.csv', mimeType: 'text/csv', size: 2048, sha256: 'e'.repeat(64), storedPath: 'dokumente/statement/e.csv', createdAt: '2024-03-01T09:00:00Z' },
-  ],
-};
-
 const ASSET_NOTES: Record<string, string[]> = {
   tangible: [
     'Lineare Abschreibung über die betriebsgewöhnliche Nutzungsdauer (§ 7 Abs. 1 EStG), zeitanteilig ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG).',
@@ -1308,9 +1295,7 @@ const ASSET_NOTES: Record<string, string[]> = {
 function assetDetail(id: number) {
   const found = ASSETS.find((a) => a.id === id)!;
   return {
-    // Die Dokumente hängen am Anlagegut, nicht an der Detailansicht — im
-    // Backend lädt das Repository sie mit.
-    asset: { ...found, documents: ASSET_DOCUMENTS[id] ?? [] },
+    asset: found,
     // Ohne planmäßige AfA ist die kumulierte Abschreibung eine außerplanmäßige —
     // und damit genau der Betrag, der zugeschrieben werden dürfte.
     writeUpCeiling: found.method === 'none' ? found.accumulated : 0,
@@ -1354,18 +1339,6 @@ const INVESTMENT_RULES = {
 const LEGAL_FORMS = [
   { name: 'GmbH', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
   { name: 'UG (haftungsbeschränkt)', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-];
-
-const ASSET_DOCUMENT_KINDS = [
-  { kind: 'contract', label: 'Vertrag' },
-  { kind: 'invoice', label: 'Rechnung (Kopie)' },
-  { kind: 'statement', label: 'Abrechnung' },
-  { kind: 'valuation', label: 'Gutachten' },
-  { kind: 'registration', label: 'Register- oder Zulassungspapier' },
-  { kind: 'insurance', label: 'Versicherung' },
-  { kind: 'maintenance', label: 'Wartung und Prüfung' },
-  { kind: 'photo', label: 'Bild' },
-  { kind: 'other', label: 'Sonstiges' },
 ];
 
 /** Die Einordnung nach § 6 Abs. 2 und 2a EStG, wie sie das Backend rechnet. */
@@ -3000,83 +2973,6 @@ const COMPLIANCE_HINTS = {
   ],
 };
 
-/** Die Fristen je Geschäftsjahr. Gelöscht werden darf noch keines. */
-function retentionOverview() {
-  return {
-    today: TODAY,
-    years: [2024, 2025, YEAR].map((y) => retentionYear(y)),
-    concept: [
-      {
-        category: 'Bücher, Abschlüsse, Verfahrensdokumentation',
-        class: 'books',
-        years: 10,
-        legalBasis: '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB',
-        note: 'Die Frist beginnt am 31.12. des Jahres der letzten Eintragung.',
-      },
-      {
-        category: 'Buchungsbelege und Rechnungen',
-        class: 'vouchers',
-        years: 8,
-        legalBasis: '§ 147 Abs. 3 Satz 1 AO',
-        note: 'Seit 2025 acht statt zehn Jahre.',
-      },
-      {
-        category: 'Handels- und Geschäftsbriefe',
-        class: 'letters',
-        years: 6,
-        legalBasis: '§ 147 Abs. 3 AO',
-        note: 'Empfangene und abgesandte Schreiben.',
-      },
-    ],
-  };
-}
-
-function retentionYear(fiscalYear: number) {
-  const counts = {
-    journalEntries: fiscalYear === YEAR ? 55 : 148,
-    journalLines: fiscalYear === YEAR ? 171 : 452,
-    receipts: fiscalYear === YEAR ? 6 : 84,
-    receiptFiles: fiscalYear === YEAR ? 7 : 91,
-    festschreibungen: fiscalYear === YEAR ? 2 : 5,
-    checkRuns: fiscalYear === YEAR ? 2 : 5,
-    vatReturns: fiscalYear === YEAR ? 2 : 4,
-    invoices: fiscalYear === YEAR ? 19 : 46,
-    bankTransactions: fiscalYear === YEAR ? 144 : 388,
-    assetMovements: fiscalYear === YEAR ? 4 : 9,
-    accruals: 2,
-    provisions: 1,
-    zmReturns: 0,
-    inputTaxUsages: 1,
-    numberGaps: 0,
-    clearedReferences: 0,
-  };
-  const classes = [
-    row('books', 'Bücher und Abschlüsse', 10),
-    row('vouchers', 'Buchungsbelege und Rechnungen', 8),
-    row('letters', 'Handels- und Geschäftsbriefe', 6),
-  ];
-  function row(cls: string, label: string, years: number) {
-    const end = `${fiscalYear + years}-12-31`;
-    return {
-      class: cls,
-      label,
-      years,
-      retentionEnd: end,
-      earliestDeletion: `${fiscalYear + years + 1}-01-01`,
-      legalBasis: cls === 'books' ? '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB' : '§ 147 Abs. 3 AO',
-    };
-  }
-  return {
-    fiscalYear,
-    counts,
-    classes,
-    earliestDeletion: `${fiscalYear + 11}-01-01`,
-    expired: false,
-    deletable: false,
-    note: `Die längste Frist läuft bis zum 31.12.${fiscalYear + 10}.`,
-  };
-}
-
 /**
  * Die Steuertermine des Jahres. Erledigt ist, was aus den Daten folgt — die
  * übermittelte Voranmeldung, die Festschreibung —, und kein gesetzter Haken.
@@ -3242,16 +3138,9 @@ export const bridge = {
   BookAssetWriteUp: unsupported('BookAssetWriteUp'),
   TransferFixedAsset: unsupported('TransferFixedAsset'),
   PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
-  BookAssetMaintenance: unsupported('BookAssetMaintenance'),
   BookAssetIncome: unsupported('BookAssetIncome'),
   ValuateAssetCurrency: (request: any) => later(currencyValuation(request), 60),
   BookAssetCurrencyValuation: unsupported('BookAssetCurrencyValuation'),
-  SelectAssetDocumentsDialog: unsupported('SelectAssetDocumentsDialog'),
-  AttachAssetDocument: unsupported('AttachAssetDocument'),
-  RemoveAssetDocument: unsupported('RemoveAssetDocument'),
-  GetAssetDocumentContent: unsupported('GetAssetDocumentContent'),
-  GetAssetDocumentKinds: () => later(ASSET_DOCUMENT_KINDS),
-  GetExpiringAssetDocuments: () => later([]),
   GetLegalForms: () => later(LEGAL_FORMS),
   GetInvestmentRules: () => later(INVESTMENT_RULES),
   ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
@@ -3344,9 +3233,6 @@ export const bridge = {
   // Nachweise, Sicherung und Datenüberlassung
   GetAuditLogsFiltered: () => later(AUDIT_LOGS, 60),
   VerifyAuditChain: () => later(AUDIT_CHAIN, 200),
-  GetRetentionOverview: () => later(retentionOverview(), 80),
-  GetRetentionHolds: () => later([]),
-  GetExpiredObjects: () => later([]),
   GetBackupRuns: () => later(BACKUP_RUNS),
   // Die Seite „Betriebsprüfung" liest die Verfahrensdokumentation beim Öffnen:
   // ohne Antwort stünde auf dem Bild für die Webseite eine Fehlermeldung.
@@ -3424,7 +3310,6 @@ export const bridge = {
   PreviewFoundationPostings: unsupported('PreviewFoundationPostings'),
   BookFoundationPostings: unsupported('BookFoundationPostings'),
   RegisterCompany: unsupported('RegisterCompany'),
-  CompleteFoundationDuty: unsupported('CompleteFoundationDuty'),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),
   ExportAuditPackage: unsupported('ExportAuditPackage'),
@@ -3460,15 +3345,10 @@ export const bridge = {
   GetWriteUpReport: unsupported('GetWriteUpReport'),
   ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
   GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
-  CheckNearAcquisitionCost: unsupported('CheckNearAcquisitionCost'),
-  CapitalizeNearAcquisitionCost: unsupported('CapitalizeNearAcquisitionCost'),
   GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
   GetSchemaMigrations: unsupported('GetSchemaMigrations'),
   GetMigrationRecords: unsupported('GetMigrationRecords'),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
-  SetRetentionHold: unsupported('SetRetentionHold'),
-  ReleaseRetentionHold: unsupported('ReleaseRetentionHold'),
-  ArchiveAndDeleteFiscalYear: unsupported('ArchiveAndDeleteFiscalYear'),
   GenerateProcedureDocumentation: unsupported('GenerateProcedureDocumentation'),
   SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
   SaveProcedureDocumentationAs: unsupported('SaveProcedureDocumentationAs'),
