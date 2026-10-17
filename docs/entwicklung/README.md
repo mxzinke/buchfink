@@ -1,104 +1,99 @@
 # Entwicklung
 
-[Dokumentation](../README.md) · [Orientierung im Code](codebase.md) ·
+[Dokumentation](../README.md) · [Architektur](architektur.md) ·
+[Orientierung im Code](codebase.md) · [MCP-Server](mcp.md) ·
 [Mitwirken](../../CONTRIBUTING.md)
 
 ## Voraussetzungen
 
-- Go ab 1.25, gemäß [go.mod](../../go.mod).
-- Node.js `^20.19.0` oder `>=22.12.0` und npm für das Frontend.
-- Wails v3 CLI passend zur Version in `go.mod`.
-- Task v3 für die unten verwendeten Befehle.
-- Python 3 für die Prüfskripte.
+- Go in der Fassung aus [go.mod](../../go.mod)
+- Node.js `^20.19.0` oder `>=22.12.0` mit npm
+- [Task](https://taskfile.dev) v3
+- Wails-v3-CLI in der Fassung aus `go.mod`, für `task dev` und `task build`
+- Python 3 für die Prüfskripte
 
-Installiere die CLI-Werkzeuge und stelle sicher, dass das Go-Binärverzeichnis
-in deinem `PATH` liegt:
-
-```bash
+```sh
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
 go install github.com/go-task/task/v3/cmd/task@latest
 ```
 
-Für die Desktop-Anwendung müssen auch die nativen Build-Werkzeuge und
-WebView-Abhängigkeiten des Betriebssystems vorhanden sein. Prüfe die Umgebung
-mit `wails3 doctor`. Unter Linux benötigt der Desktop-Build CGO sowie die
-GTK-/WebKit-Entwicklungsbibliotheken. Die plattformspezifischen Build-Schritte
-stehen unter [build/](../../build).
+Das Go-Binärverzeichnis (`$HOME/go/bin`) muss im `PATH` liegen. `wails3 doctor`
+prüft die Umgebung für den Desktop-Build.
 
-Typst wird über die eingebundene WebAssembly-Bibliothek ausgeführt; eine
-separate Typst-Installation ist für die Anwendung nicht nötig.
+### Linux: GTK 4 oder GTK 3
+
+Wails baut unter Linux mit CGO gegen GTK 4 und WebKitGTK 6.0. Mit dem Build-Tag
+`gtk3` nimmt es GTK 3 und WebKitGTK 4.1, das auf älteren Distributionen und in
+vielen CI-Umgebungen vorhanden ist.
+
+| Stapel | Pakete (Debian, Ubuntu) | Tag |
+|---|---|---|
+| GTK 4 | `libgtk-4-dev libwebkitgtk-6.0-dev` | keiner |
+| GTK 3 | `libgtk-3-dev libwebkit2gtk-4.1-dev` | `gtk3` |
+
+Mit GTK 3 bekommt jeder Befehl, der `internal/wailsbridge` oder `main.go`
+übersetzt, das Tag:
+
+```sh
+GOFLAGS=-tags=gtk3 task test:bridge
+task build EXTRA_TAGS=gtk3
+EXTRA_TAGS=gtk3 task dev
+```
+
+`task test` und `task vet` übersetzen die Bridge nicht und brauchen weder GTK
+noch das Tag.
 
 ## Lokal starten
 
-```bash
+```sh
 git clone https://github.com/mxzinke/buchfink.git
 cd buchfink
 npm --prefix frontend ci
 task dev
 ```
 
-`task dev` startet Wails mit [build/config.yml](../../build/config.yml) und
-aktualisiert Frontend und Backend bei Änderungen. Ohne separate Task-Installation
-kannst du `wails3 task dev` verwenden.
+`task dev` startet Wails mit [build/config.yml](../../build/config.yml) und baut
+bei Änderungen neu. `npm --prefix frontend run dev` startet nur den Vite-Server;
+für Aufrufe des Go-Backends braucht es die laufende Wails-Anwendung.
 
-Nur den Vite-Server startest du mit:
+Der MCP-Server lauscht im Entwicklungsbetrieb auf demselben Port wie die
+installierte App. `BUCHFINK_MCP_PORT=7466 task dev` weicht aus, ohne die
+Einstellung zu ändern.
 
-```bash
-npm --prefix frontend run dev
-```
-
-Das stellt das Frontend bereit. Für Aufrufe des Go-Backends brauchst du die
-laufende Wails-Anwendung. Eine Browseransicht mit Beispieldaten nutzt die
-[Konfiguration des Screenshot-Werkzeugs](../../scripts/site-screenshots/README.md).
+Ein frisches `go build ./...` scheitert, solange `frontend/dist` fehlt, weil
+`main.go` das Frontend einbettet. `npm --prefix frontend run build` legt es an.
 
 ## Änderungen prüfen
 
-Führe die Befehle im Repository-Stamm aus:
-
-```bash
+```sh
 task check
 npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-`task check` zeigt unformatierte Go-Dateien an und führt Vet, Backend-Tests
-sowie Prüfungen für Design, Bridge, Hilfetexte und Abschlussnavigation aus.
-Gemeldete Formatierungsabweichungen musst du selbst beheben. Der Frontend-Build
-prüft auch TypeScript.
+`task check` meldet unformatierte Go-Dateien und führt `go vet`, die Go-Tests
+und die Prüfskripte für Gestaltung, Bridge, Hilfetexte und Abschlussbausteine
+aus. Formatieren müssen Sie selbst (`gofmt -w`). Der Frontend-Build prüft auch
+TypeScript.
 
-Auf einem Rechner mit Desktop-Build-Umgebung prüfe zusätzlich die Wails-Bridge
-und den vollständigen Build:
+| Aufgabe | Wann |
+|---|---|
+| `task test` | Go-Tests aller Pakete unter `internal/` und `cmd/` außer der Bridge |
+| `task test:bridge` | Bridge-Tests; brauchen GTK, siehe oben |
+| `task test:ebilanz-xsd` | E-Bilanz-Instanzen gegen die amtlichen Schemata; die Schemata liegen nicht im Repository, siehe `internal/ebilanz/xsd_test.go` |
+| `task check:clicks` | Klickweg von der Bilanz zum Beleg, braucht Chromium für Playwright ([Prüfszenarien](pruefszenarien.md)) |
+| `task build` | Desktop-Build für das eigene Betriebssystem nach `bin/` |
+| `task package` | Installationspaket für das eigene Betriebssystem |
 
-```bash
-task test:bridge
-task build
-```
+Die Programmfassung setzt der Build aus `git describe --tags`. Ohne Tag steht
+dort der Commit, im Test `dev`.
 
-`task test` und `task vet` lassen sich auch ohne native Desktop-Abhängigkeiten
-ausführen. Ein direktes `go build ./...` im frischen Checkout benötigt dagegen
-zuerst die Frontend-Dateien unter `frontend/dist`, die Go einbettet.
+Die Brücke für Claude Desktop baut man ohne Wails und ohne CGO; die Schritte
+stehen unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md).
 
-Bedienabläufe und die Vorbereitung von `task check:clicks` stehen in den
-[Prüfszenarien](pruefszenarien.md). Alle einzelnen Prüfaufgaben findest du im
-[Taskfile](../../Taskfile.yml).
+## Abhängigkeiten und Webseite
 
-## Anwendung bauen
-
-```bash
-task build
-task package
-```
-
-Die Aufgaben bauen beziehungsweise paketieren für das aktuelle Betriebssystem.
-Die Ergebnisse liegen unter `bin/`. Konfiguration und Plattformaufgaben liegen
-unter [build/](../../build).
-
-## Abhängigkeiten und Projektseite
-
-Nach Änderungen an Abhängigkeiten aktualisiert `task notices` die
-[Drittkomponentenhinweise](../../THIRD-PARTY-NOTICES.md). Die Regeln zu Lizenzen und
-Beiträgen stehen in [CONTRIBUTING.md](../../CONTRIBUTING.md).
-
-Vorschau und Veröffentlichung der Webseite sind in
-[website/README.md](../../website/README.md) beschrieben, die Erzeugung ihrer Bilder
-beim [Screenshot-Werkzeug](../../scripts/site-screenshots/README.md).
+Nach Änderungen an Abhängigkeiten erzeugt `task notices` die
+[Drittkomponentenhinweise](../../THIRD-PARTY-NOTICES.md) neu. Vorschau und
+Veröffentlichung der Projektseite stehen in
+[website/README.md](../../website/README.md).

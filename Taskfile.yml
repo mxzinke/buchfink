@@ -95,9 +95,9 @@ tasks:
 
   check:clicks:
     summary: Walks the Prüfszenario from the Bilanz to the Beleg and counts the clicks
-    # GOB-02, Entscheidung 8 der Welle 7: „Keine Buchung ohne Beleg" ist erst
-    # dann eine Aussage über die Bedienung, wenn der Weg vom Abschluss zurück
-    # zum Papier begehbar ist. Der Lauf braucht einen Chromium für Playwright
+    # GOB-02: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
+    # Bedienung, wenn der Weg vom Abschluss zurück zum Papier begehbar ist
+    # (docs/entwicklung/pruefszenarien.md). Der Lauf braucht einen Chromium für Playwright
     # und steht deshalb neben `check` und nicht darin.
     cmds:
       - node scripts/site-screenshots/four-clicks.mjs
