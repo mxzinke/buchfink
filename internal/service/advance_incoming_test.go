@@ -24,9 +24,6 @@ import (
 func (e *testEnv) postingWithAdvances(t *testing.T) *PostingService {
 	t.Helper()
 	e.posting.SetVendorAdvances(repository.NewVendorAdvanceRepository(e.db))
-	// Mit der Transaktionsklammer, wie im Betrieb: Buchung und Vermerk der
-	// Anzahlung gehören zusammen.
-	e.posting.SetTxRunner(repository.NewTxRunner(e.db))
 	return e.posting
 }
 

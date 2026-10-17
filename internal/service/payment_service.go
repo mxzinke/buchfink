@@ -306,7 +306,16 @@ func (s *PaymentService) openItemsFrom(
 }
 
 // Settle books a payment against one or more open items.
+//
+// Buchung, Zuordnungen, Vermerk am Bankumsatz und Minderung der
+// Anschaffungskosten stehen in einer Transaktion.
 func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.settle(ctx, req)
+	})
+}
+
+func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domain.JournalEntry, error) {
 	if len(req.Allocations) == 0 {
 		return nil, fmt.Errorf("es wurde kein offener Posten ausgewählt")
 	}
@@ -490,9 +499,9 @@ func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domai
 			Note:           reduction.note,
 			JournalEntryID: &entryID,
 		}); err != nil {
-			return created, fmt.Errorf(
-				"die Zahlung %s wurde gebucht, die Minderung der Anschaffungskosten aber nicht in das "+
-					"Anlagenverzeichnis übernommen: %w", created.EntryNumber, err)
+			return nil, fmt.Errorf(
+				"die Minderung der Anschaffungskosten ließ sich nicht in das Anlagenverzeichnis "+
+					"übernehmen, deshalb wurde die Zahlung nicht gebucht: %w", err)
 		}
 	}
 

@@ -316,7 +316,6 @@ func TestGiftRebookingStaysOutOfACommittedPeriod(t *testing.T) {
 	ctx := context.Background()
 	env.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(env.db))
 	svc := env.gifts(t)
-	svc.SetTxRunner(repository.NewTxRunner(env.db))
 	vendor := env.vendor(t, "Präsente GmbH", "DE", "")
 
 	if _, err := env.posting.PostIncomingReceipt(ctx,

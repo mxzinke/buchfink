@@ -36,6 +36,12 @@ type WriteOffRequest struct {
 
 // WriteOffOpenItem bucht eine uneinbringliche Forderung aus.
 func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.writeOffOpenItem(ctx, req)
+	})
+}
+
+func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
 	if req.Reason == "" {
 		return nil, fmt.Errorf(
 			"zu jeder Ausbuchung gehört eine Begründung: woran die Forderung gescheitert ist, entscheidet, " +
@@ -166,13 +172,13 @@ func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffReque
 		DifferenceKind:   domain.DifferenceWriteoff,
 		DifferenceAmount: amount,
 	}}); err != nil {
-		return nil, fmt.Errorf("die Ausbuchung wurde gebucht, ließ sich aber dem Posten nicht zuordnen: %w", err)
+		return nil, fmt.Errorf("die Ausbuchung ließ sich dem Posten nicht zuordnen: %w", err)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "OPEN_ITEM",
-			fmt.Sprintf("%d", item.EntryID), fmt.Sprintf(
-				"Offener Posten %s (%s) über %s € als uneinbringlich ausgebucht (%s): %s",
-				item.DocumentNumber, item.ContactName, amount, entry.EntryNumber, req.Reason))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "OPEN_ITEM",
+		fmt.Sprintf("%d", item.EntryID), fmt.Sprintf(
+			"Offener Posten %s (%s) über %s € als uneinbringlich ausgebucht (%s): %s",
+			item.DocumentNumber, item.ContactName, amount, entry.EntryNumber, req.Reason)); err != nil {
+		return nil, err
 	}
 	return entry, nil
 }

@@ -141,8 +141,6 @@ func TestFailedJournalWriteRollsBackTheSelfIssuedReceipt(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	env.withSelfIssued(t)
-	// Wie in der Anwendung: Beleg und Buchung entstehen in einer Transaktion.
-	env.posting.SetTxRunner(repository.NewTxRunner(env.db))
 
 	// Der Journalspeicher weist das Schreiben ab. Alles davor — Vorprüfung,
 	// Anlage des Eigenbelegs — läuft durch.
@@ -152,12 +150,12 @@ func TestFailedJournalWriteRollsBackTheSelfIssuedReceipt(t *testing.T) {
 		env.contactRepo,
 		repository.NewAuditRepository(env.db),
 		repository.NewSettingsRepository(env.db),
+		repository.NewTxRunner(env.db),
 		env.fiscalYear,
 	)
 	failing.SetReceiptRepo(env.receiptRepo)
 	posting := NewPostingService(failing, env.contactRepo)
 	posting.SetReceiptService(env.receipts)
-	posting.SetTxRunner(repository.NewTxRunner(env.db))
 
 	if _, err := posting.PostManualEntry(ctx, ManualEntryRequest{
 		Entry:      *manualEntry(),

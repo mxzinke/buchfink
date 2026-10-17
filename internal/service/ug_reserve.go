@@ -20,8 +20,8 @@ type LegalReserveState struct {
 	Difference       domain.Cents `json:"difference"`
 }
 
-func (s *ClosingService) SetReservePosting(receipts closingReceiptFiler, tx domain.TxRunner) {
-	s.reserveReceipts, s.reserveTx = receipts, tx
+func (s *ClosingService) SetReservePosting(receipts closingReceiptFiler) {
+	s.reserveReceipts = receipts
 }
 
 // LegalReserve belongs to the balance sheet of the profit year (§ 5a GmbHG).
@@ -81,11 +81,11 @@ func (s *ClosingService) EnsureLegalReserve(ctx context.Context, year int) error
 	return nil
 }
 func (s *ClosingService) BookLegalReserve(ctx context.Context, year int) (*domain.JournalEntry, error) {
-	if s.reserveTx == nil {
+	if s.reserveReceipts == nil {
 		return nil, fmt.Errorf("Rücklagenbuchung ist nicht eingerichtet")
 	}
 	var created *domain.JournalEntry
-	err := s.reserveTx.RunInTx(ctx, func(ctx context.Context) error {
+	err := s.journalSvc.InTx(ctx, func(ctx context.Context) error {
 		state, err := s.LegalReserve(ctx, year)
 		if err != nil {
 			return err

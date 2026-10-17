@@ -61,7 +61,9 @@ func (s *BankService) GetTransactions(ctx context.Context, fiscalYear int) ([]do
 // ImportCAMT053 parses an ISO 20022 CAMT.053 statement and stores its lines.
 func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAccount string) (int, error) {
 	if s.receipts == nil {
-		return s.importCAMT053(ctx, r, ledgerAccount, nil)
+		return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
+			return s.importCAMT053(ctx, r, ledgerAccount, nil)
+		})
 	}
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -90,6 +92,12 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 }
 
 func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
+		return s.importStatement(ctx, data, filename, ledgerAccount)
+	})
+}
+
+func (s *BankService) importStatement(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
 	var statementID *uint
 	if s.receipts != nil {
 		// Derselbe Auszug ein zweites Mal: der Belegspeicher würde die Datei
@@ -156,14 +164,14 @@ func (s *BankService) importCAMT053(
 		return 0, err
 	}
 
-	if s.auditRepo != nil {
-		archived := "ohne Ablage der Auszugsdatei"
-		if statementID != nil {
-			archived = fmt.Sprintf("Auszug als Beleg %d abgelegt", *statementID)
-		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionImport, "BANK_TX", fmt.Sprintf("%d", inserted),
-			fmt.Sprintf("%d Umsätze aus CAMT.053 für Konto %s importiert (%s)",
-				inserted, ledgerAccount, archived))
+	archived := "ohne Ablage der Auszugsdatei"
+	if statementID != nil {
+		archived = fmt.Sprintf("Auszug als Beleg %d abgelegt", *statementID)
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionImport, "BANK_TX", fmt.Sprintf("%d", inserted),
+		fmt.Sprintf("%d Umsätze aus CAMT.053 für Konto %s importiert (%s)",
+			inserted, ledgerAccount, archived)); err != nil {
+		return 0, err
 	}
 	return inserted, nil
 }
@@ -173,7 +181,17 @@ func (s *BankService) importCAMT053(
 //
 // The bank side is taken from the statement, so the direction cannot be entered
 // wrongly: money in is a debit on the liquid account, money out a credit.
+//
+// Buchung, Vermerk am Umsatz, gelernte Regel und Protokoll stehen in einer
+// Transaktion: ein gebuchter Umsatz, der weiter als offen gilt, würde beim
+// nächsten Versuch ein zweites Mal gebucht.
 func (s *BankService) BookDirect(ctx context.Context, bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookDirect(ctx, bankTxID, counterAccount, description)
+	})
+}
+
+func (s *BankService) bookDirect(ctx context.Context, bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
 	tx, err := s.bankRepo.FindByID(ctx, bankTxID)
 	if err != nil {
 		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
@@ -224,16 +242,31 @@ func (s *BankService) BookDirect(ctx context.Context, bankTxID uint, counterAcco
 		return nil, fmt.Errorf("Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
 	}
 
-	// Erst jetzt lernen: gelernt wird die bestätigte Zuordnung, und bestätigt
-	// ist sie, wenn die Buchung steht.
-	s.learnRule(ctx, tx, counterAccount)
-
+	// Gelernt wird die bestätigte Zuordnung, und bestätigt ist sie mit der
+	// Buchung.
+	if err := s.learnRule(ctx, tx, counterAccount); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
 // Ignore marks a bank transaction as deliberately not booked.
 func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
-	return s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusIgnored)
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		tx, err := s.bankRepo.FindByID(ctx, bankTxID)
+		if err != nil {
+			return fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
+		}
+		if tx.MatchStatus == domain.MatchStatusMatched {
+			return fmt.Errorf("Bankumsatz %d ist bereits gebucht und lässt sich nicht mehr ignorieren", bankTxID)
+		}
+		if err := s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusIgnored); err != nil {
+			return err
+		}
+		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID),
+			fmt.Sprintf("Bankumsatz vom %s über %s € (%s) als nicht zu buchen markiert",
+				tx.BookingDate, tx.Amount, tx.CounterpartyName))
+	})
 }
 
 // fileSHA256 liest eine Datei und liefert ihre Prüfsumme als Hex.

@@ -740,7 +740,6 @@ func TestAbortedBookingLeavesNoServiceProof(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	env.posting.SetSettingsSource(repository.NewSettingsRepository(env.db))
-	env.posting.SetTxRunner(repository.NewTxRunner(env.db))
 	env.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(env.db))
 
 	if err := repository.NewFestschreibungRepository(env.db).Create(ctx, &domain.Festschreibung{

@@ -19,7 +19,6 @@ func (e *testEnv) invoicesWired(t *testing.T) *InvoiceService {
 	t.Helper()
 	svc := e.invoices(t)
 	svc.SetRegistry(InvoiceRegistry{
-		Tx:          repository.NewTxRunner(e.db),
 		Gaps:        repository.NewNumberGapRepository(e.db),
 		Groups:      repository.NewInvoiceGroupRepository(e.db),
 		FiscalYears: repository.NewFiscalYearRepository(e.db),

@@ -25,7 +25,6 @@ import (
 type ClosingService struct {
 	statementSource    *StatementService
 	reserveReceipts    closingReceiptFiler
-	reserveTx          domain.TxRunner
 	fiscalYearRepo     domain.FiscalYearRepository
 	journalRepo        domain.JournalRepository
 	accountRepo        domain.AccountRepository

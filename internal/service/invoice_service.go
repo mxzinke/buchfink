@@ -24,11 +24,8 @@ type InvoiceService struct {
 	renderer     *invoice.Renderer
 
 	// Die Verdrahtung aus Welle 5b. Sie ist optional: ohne sie stellt der
-	// Dienst weiter Rechnungen aus, nur ohne Transaktionsklammer,
-	// Lückenbericht und Rechnungsverbund. Ein Pflichtparameter im
-	// Konstruktor hätte jeden Aufrufer erfasst, auch die, die nichts davon
-	// brauchen.
-	txRunner       domain.TxRunner
+	// Dienst weiter Rechnungen aus, nur ohne Lückenbericht und
+	// Rechnungsverbund.
 	gapRepo        domain.NumberGapRepository
 	groupRepo      domain.InvoiceGroupRepository
 	fiscalYearRepo domain.FiscalYearRepository
@@ -42,8 +39,6 @@ type InvoiceService struct {
 // InvoiceRegistry bündelt, was das Rechnungswesen der Welle 5b zusätzlich
 // braucht.
 type InvoiceRegistry struct {
-	// Tx klammert Nummernvergabe, Rechnung und Buchung zu einer Transaktion.
-	Tx domain.TxRunner
 	// Gaps hält die Gründe verbrauchter, aber nicht belegter Nummern fest.
 	Gaps domain.NumberGapRepository
 	// Groups ist der Rechnungsverbund aus Abschlägen und Schlussrechnung.
@@ -58,7 +53,6 @@ type InvoiceRegistry struct {
 
 // SetRegistry wires the Welle-5b collaborators.
 func (s *InvoiceService) SetRegistry(r InvoiceRegistry) {
-	s.txRunner = r.Tx
 	s.gapRepo = r.Gaps
 	s.groupRepo = r.Groups
 	s.fiscalYearRepo = r.FiscalYears
@@ -629,17 +623,8 @@ func (s *InvoiceService) recordNumberGap(ctx context.Context, inv *domain.Invoic
 	})
 }
 
-// runInTx runs fn inside a transaction where one is wired, and plainly where it
-// is not.
-//
-// Ohne Transaktionsläufer läuft alles wie vorher — die Rechnungen entstehen,
-// nur ohne die Klammer. Das ist der Preis dafür, dass der Dienst auch dort
-// benutzbar bleibt, wo er ohne vollständige Verdrahtung aufgebaut wird.
 func (s *InvoiceService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.postingSvc.journalSvc.InTx(ctx, fn)
 }
 
 // numberFormat liest die Systematik des Nummernkreises aus den Einstellungen.

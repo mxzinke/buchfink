@@ -28,7 +28,7 @@ type closingModules struct {
 func (e *testEnv) closingModules(t *testing.T) *closingModules {
 	t.Helper()
 	closing := e.closing(t)
-	closing.SetReservePosting(e.receipts, repository.NewTxRunner(e.db))
+	closing.SetReservePosting(e.receipts)
 
 	accrualRepo := repository.NewAccrualRepository(e.db)
 	provisionRepo := repository.NewProvisionRepository(e.db)

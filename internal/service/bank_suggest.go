@@ -363,28 +363,25 @@ func (s *BankService) DeleteRule(ctx context.Context, id uint) error {
 	if s.ruleRepo == nil {
 		return fmt.Errorf("die gelernten Bankregeln sind nicht eingerichtet")
 	}
-	if err := s.ruleRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("die Regel konnte nicht entfernt werden: %w", err)
-	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", id),
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		if err := s.ruleRepo.Delete(ctx, id); err != nil {
+			return fmt.Errorf("die Regel konnte nicht entfernt werden: %w", err)
+		}
+		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", id),
 			"Gelernte Zuordnung eines wiederkehrenden Bankumsatzes gelöscht")
-	}
-	return nil
+	})
 }
 
-// learnRule merkt sich eine bestätigte Zuordnung.
-//
-// Sie läuft nach dem Buchen und darf deshalb nicht scheitern lassen, was schon
-// gebucht ist: eine Gewohnheit, die nicht angelegt werden konnte, ist ein
-// verlorener Vorschlag und kein verlorener Geschäftsvorfall.
-func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction, counterAccount string) {
+// learnRule merkt sich eine bestätigte Zuordnung. Auch das Lernen kommt ins
+// Protokoll: die Regel ist in den Einstellungen sichtbar, und ihre Entstehung
+// muss sich im Prüfermodus erklären lassen.
+func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction, counterAccount string) error {
 	if s.ruleRepo == nil || counterAccount == "" {
-		return
+		return nil
 	}
 	pattern := accounting.BankRulePattern(tx.CounterpartyName, tx.RemittanceInfo, tx.Amount > 0)
 	if pattern == "" {
-		return
+		return nil
 	}
 	label := tx.CounterpartyName
 	if label == "" {
@@ -399,22 +396,13 @@ func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction,
 		LastUsedAt:     tx.BookingDate,
 	}
 	if err := s.ruleRepo.Save(ctx, rule); err != nil {
-		return
+		return fmt.Errorf("die Zuordnung ließ sich nicht als Regel merken: %w", err)
 	}
-	// Auch das Lernen kommt ins Protokoll — wie das Löschen.
-	//
-	// Die Regel bucht nichts; sie ist eine Gewohnheit des Programms. Aber sie
-	// ist in den Einstellungen sichtbar, und eine sichtbare Gewohnheit, deren
-	// Entstehung nirgends steht, lässt sich im Prüfermodus nicht erklären.
-	// Fehler bleiben unbeachtet: ein Protokolleintrag darf eine Buchung, die
-	// schon geschrieben ist, nicht nachträglich zu Fall bringen.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", rule.ID),
-			fmt.Sprintf(
-				"Gelernte Zuordnung aus Bankumsatz %d: Muster %q → Gegenkonto %s (%s), %s, %d Treffer",
-				tx.ID, rule.Pattern, rule.CounterAccount, rule.PostingGroup,
-				moneyDirectionLabel(rule.MoneyIn), rule.Hits))
-	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", rule.ID),
+		fmt.Sprintf(
+			"Gelernte Zuordnung aus Bankumsatz %d: Muster %q → Gegenkonto %s (%s), %s, %d Treffer",
+			tx.ID, rule.Pattern, rule.CounterAccount, rule.PostingGroup,
+			moneyDirectionLabel(rule.MoneyIn), rule.Hits))
 }
 
 // moneyDirectionLabel benennt die Geldrichtung einer Regel.

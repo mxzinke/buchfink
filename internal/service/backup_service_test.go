@@ -48,7 +48,7 @@ func newBackupEnv(t *testing.T) *backupEnv {
 	journalRepo := repository.NewJournalRepository(db)
 	journal := NewJournalService(
 		journalRepo, repository.NewAccountRepository(db), repository.NewContactRepository(db),
-		repository.NewAuditRepository(db), settingsRepo, 2026,
+		repository.NewAuditRepository(db), settingsRepo, repository.NewTxRunner(db), 2026,
 	)
 
 	backups := NewBackupService(

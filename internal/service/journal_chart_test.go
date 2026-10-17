@@ -20,7 +20,7 @@ func TestChartCacheIsSafeForConcurrentUse(t *testing.T) {
 	accounts := repository.NewAccountRepository(db)
 	journal := NewJournalService(repository.NewJournalRepository(db), accounts,
 		repository.NewContactRepository(db), repository.NewAuditRepository(db),
-		repository.NewSettingsRepository(db), 2026)
+		repository.NewSettingsRepository(db), repository.NewTxRunner(db), 2026)
 	ctx := context.Background()
 
 	var wg sync.WaitGroup

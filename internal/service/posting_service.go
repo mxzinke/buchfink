@@ -223,9 +223,6 @@ type PostingService struct {
 	// vendorAdvances ist ebenso optional: ohne sie kennt der Belegweg keine
 	// geleisteten Anzahlungen.
 	vendorAdvances domain.VendorAdvanceRepository
-	// txRunner klammert die Buchung mit dem Vermerk der Anzahlungen. Fehlt er,
-	// läuft alles wie zuvor, nur ohne die Klammer.
-	txRunner domain.TxRunner
 	// gifts ist die Geschenkkartei. Ohne sie kennt der Belegweg die Freigrenze
 	// des § 4 Abs. 5 Satz 1 Nr. 1 EStG nicht.
 	gifts giftRegister
@@ -254,16 +251,8 @@ func (s *PostingService) SetSettingsSource(repo domain.SettingsRepository) {
 	s.settingsRepo = repo
 }
 
-// SetTxRunner koppelt die Transaktionsklammer an den Belegweg.
-func (s *PostingService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx runs fn inside a transaction where one is wired, and plainly where it
-// is not.
 func (s *PostingService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // SetReceiptService wires in the Beleg service. Without it a booking cannot
@@ -307,12 +296,17 @@ func NewPostingService(journalSvc *JournalService, contactRepo domain.ContactRep
 
 // PostIncomingReceipt books an Eingangsbeleg and seals its Beleg.
 //
-// The order is deliberate: the Beleg is checked for bookability first, then the
-// journal writes, then the Beleg is sealed. Sealing belongs *behind* the journal
-// write — if the booking fails the Beleg has to stay open so it can be corrected
-// and booked again, whereas the other order would leave an unchangeable Beleg
-// with no booking.
+// Leistungsnachweis, Buchung, Vermerk der Anzahlungen, Verbrauch der
+// Rückstellung, Grund der Übersteuerung und Siegel stehen in einer
+// Transaktion. Scheitert ein Schritt, bleibt der Beleg offen und lässt sich
+// berichtigen und erneut buchen.
 func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.postIncomingReceipt(ctx, req)
+	})
+}
+
+func (s *PostingService) postIncomingReceipt(ctx context.Context, req ReceiptRequest) (*domain.JournalEntry, error) {
 	built, err := s.buildIncomingLines(ctx, req)
 	if err != nil {
 		return nil, err
@@ -371,52 +365,31 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 		built.fx.head(entry)
 	}
 
-	// Buchung und der Vermerk der Anzahlungen gehören in eine Transaktion.
-	//
-	// Der Vermerk ist es, der eine geleistete Anzahlung als verrechnet ausweist
-	// und sie aus der Liste der offenen nimmt. Bliebe er hinter der Buchung
-	// aus, stünde die Schlussrechnung des Lieferanten im Journal, während die
-	// Anzahlung weiter als offen gälte — und der zweite Versuch setzte sie ein
-	// zweites Mal ab.
-	var created *domain.JournalEntry
-	if err := s.runInTx(ctx, func(ctx context.Context) error {
-		// Der mitgeschickte Leistungsnachweis steht in derselben Klammer wie
-		// die Buchung: scheitert sie — festgeschriebener Zeitraum, ein Fehler
-		// im Journal, der Anzahlungsvermerk —, dann darf am Beleg kein Vermerk
-		// zurückbleiben. Er behauptete sonst samt Protokolleintrag eine
-		// Prüfung, zu der es keine Buchung gibt, und niemand käme darauf, ihn
-		// vor dem zweiten Versuch noch einmal anzusehen.
-		if err := s.saveServiceProof(ctx, built, req); err != nil {
-			return err
-		}
-		posted, err := s.journalSvc.Post(ctx, entry)
-		if err != nil {
-			return err
-		}
-		created = posted
-
-		// Die geleistete Anzahlung wird vermerkt, sobald die Zahlung gebucht
-		// ist: die Schlussrechnung des Lieferanten muss sie absetzen können,
-		// und ohne diesen Vermerk stünde sie nur als Saldo auf 1180 — ohne die
-		// Angabe, aus welchem Vorgang er stammt.
-		if req.AdvanceTarget != "" {
-			if err := s.recordVendorAdvance(ctx, req, receipt, posted); err != nil {
-				return fmt.Errorf("die Anzahlung ließ sich nicht vermerken: %w", err)
-			}
-		}
-		for _, id := range req.SettledAdvanceIDs {
-			advance, err := s.vendorAdvances.FindByID(ctx, id)
-			if err != nil {
-				return err
-			}
-			advance.SettledByEntryID = &posted.ID
-			if err := s.vendorAdvances.Save(ctx, advance); err != nil {
-				return fmt.Errorf("die Anzahlung %s bleibt als offen vermerkt: %w", advance.DocumentNumber, err)
-			}
-		}
-		return nil
-	}); err != nil {
+	if err := s.saveServiceProof(ctx, built, req); err != nil {
 		return nil, err
+	}
+	created, err := s.journalSvc.Post(ctx, entry)
+	if err != nil {
+		return nil, err
+	}
+
+	// Die geleistete Anzahlung wird vermerkt: die Schlussrechnung des
+	// Lieferanten muss sie absetzen können, und ohne diesen Vermerk stünde sie
+	// nur als Saldo auf 1180.
+	if req.AdvanceTarget != "" {
+		if err := s.recordVendorAdvance(ctx, req, receipt, created); err != nil {
+			return nil, fmt.Errorf("die Anzahlung ließ sich nicht vermerken: %w", err)
+		}
+	}
+	for _, id := range req.SettledAdvanceIDs {
+		advance, err := s.vendorAdvances.FindByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		advance.SettledByEntryID = &created.ID
+		if err := s.vendorAdvances.Save(ctx, advance); err != nil {
+			return nil, fmt.Errorf("die Anzahlung %s ließ sich nicht als verrechnet vermerken: %w", advance.DocumentNumber, err)
+		}
 	}
 
 	// Der Verbrauch wird in der Rückstellungskartei vermerkt, sobald die
@@ -434,9 +407,7 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 				ctx, req.ProvisionID, consumed, req.BookingDate, created.ID,
 				fmt.Sprintf("Rechnung %s", receipt.ReceiptNumber),
 			); err != nil {
-				return created, fmt.Errorf(
-					"die Buchung %s wurde geschrieben, der Verbrauch der Rückstellung aber nicht "+
-						"vermerkt: %w", created.EntryNumber, err)
+				return nil, fmt.Errorf("der Verbrauch der Rückstellung ließ sich nicht vermerken: %w", err)
 			}
 		}
 	}
@@ -445,19 +416,12 @@ func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptReq
 	// der Versiegelung, weil ein versiegelter Beleg nichts mehr aufnimmt.
 	if strings.TrimSpace(req.OverrideReason) != "" && len(built.findings) > 0 {
 		if err := s.receiptSvc.SaveInputTaxOverride(ctx, receipt.ID, req.OverrideReason); err != nil {
-			return created, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, der Grund der Übersteuerung aber nicht am Beleg "+
-					"vermerkt: %w", created.EntryNumber, err)
+			return nil, fmt.Errorf("der Grund der Übersteuerung ließ sich nicht am Beleg vermerken: %w", err)
 		}
 	}
 
 	if err := s.receiptSvc.Seal(ctx, receipt.ID, created.ID); err != nil {
-		// The booking stands; only the seal is missing. Saying so beats
-		// pretending the booking failed, and ReceiptService repairs the state
-		// when the Beleg is read again.
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, der Beleg %s konnte aber nicht versiegelt werden: %w",
-			created.EntryNumber, receipt.ReceiptNumber, err)
+		return nil, fmt.Errorf("der Beleg %s ließ sich nicht versiegeln: %w", receipt.ReceiptNumber, err)
 	}
 	return created, nil
 }

@@ -217,7 +217,7 @@ func TestIntegrityCheckLogsNamedObjectWithoutFiscalYears(t *testing.T) {
 	empty := NewJournalService(
 		repository.NewJournalRepository(env.db), repository.NewAccountRepository(env.db),
 		repository.NewContactRepository(env.db), repository.NewAuditRepository(env.db),
-		repository.NewSettingsRepository(env.db), 0)
+		repository.NewSettingsRepository(env.db), repository.NewTxRunner(env.db), 0)
 
 	result, err := empty.VerifyIntegrity(ctx)
 	if err != nil {

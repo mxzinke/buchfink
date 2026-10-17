@@ -33,6 +33,10 @@ type JournalService struct {
 	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
 	receiptRepo domain.ReceiptRepository
 
+	// tx ist die Transaktionsklammer aller Vorgänge, die über das Journal
+	// schreiben (siehe InTx).
+	tx domain.TxRunner
+
 	hashChain   *accounting.HashChain
 	taxResolver domain.TaxResolver
 
@@ -52,6 +56,7 @@ func NewJournalService(
 	contactRepo domain.ContactRepository,
 	auditRepo domain.AuditRepository,
 	settingsRepo domain.SettingsRepository,
+	tx domain.TxRunner,
 	fiscalYear int,
 ) *JournalService {
 	return &JournalService{
@@ -60,6 +65,7 @@ func NewJournalService(
 		contactRepo:  contactRepo,
 		auditRepo:    auditRepo,
 		settingsRepo: settingsRepo,
+		tx:           tx,
 		hashChain:    accounting.NewHashChain(),
 		taxResolver:  accounting.NewSKR04TaxResolver(),
 		fiscalYear:   fiscalYear,
@@ -133,25 +139,28 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 }
 
 func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, mode postMode) (*domain.JournalEntry, error) {
-	if err := s.prepare(ctx, entry, mode); err != nil {
-		return nil, err
-	}
-	if err := s.check(ctx, entry); err != nil {
-		return nil, err
-	}
+	return atomically(ctx, s, func(ctx context.Context) (*domain.JournalEntry, error) {
+		if err := s.prepare(ctx, entry, mode); err != nil {
+			return nil, err
+		}
+		if err := s.check(ctx, entry); err != nil {
+			return nil, err
+		}
 
-	entry.CreatedAt = time.Now().UTC()
+		entry.CreatedAt = time.Now().UTC()
 
-	if err := s.journalRepo.Append(ctx, entry, s.hashChain.CalculateHash); err != nil {
-		return nil, fmt.Errorf("Buchung konnte nicht gespeichert werden: %w", err)
-	}
+		if err := s.journalRepo.Append(ctx, entry, s.hashChain.CalculateHash); err != nil {
+			return nil, fmt.Errorf("Buchung konnte nicht gespeichert werden: %w", err)
+		}
 
-	s.audit(ctx, domain.AuditActionCreate, entry.ID, fmt.Sprintf(
-		"Buchung %s: %s, %s € (GJ %d, %d Zeilen)",
-		entry.EntryNumber, entry.Description, entry.GrossAmount(), entry.FiscalYear, len(entry.Lines),
-	))
-
-	return entry, nil
+		if err := s.audit(ctx, domain.AuditActionCreate, entry.ID, fmt.Sprintf(
+			"Buchung %s: %s, %s € (GJ %d, %d Zeilen)",
+			entry.EntryNumber, entry.Description, entry.GrossAmount(), entry.FiscalYear, len(entry.Lines),
+		)); err != nil {
+			return nil, err
+		}
+		return entry, nil
+	})
 }
 
 // check hält jede Regel, die eine Buchung vor dem Schreiben erfüllen muss. Post
@@ -300,6 +309,12 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 // nicht festgeschriebenen Zeitraum zurückzudatieren — das, was der Storno
 // auf „heute" verhindert.
 func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, date string) (*domain.JournalEntry, error) {
+	return atomically(ctx, s, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.reverseOn(ctx, entryID, reason, date)
+	})
+}
+
+func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, date string) (*domain.JournalEntry, error) {
 	original, err := s.journalRepo.FindByID(ctx, entryID)
 	if err != nil {
 		return nil, fmt.Errorf("Buchung %d wurde nicht gefunden: %w", entryID, err)
@@ -417,11 +432,12 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 		return nil, err
 	}
 
-	s.audit(ctx, domain.AuditActionStorno, created.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionStorno, created.ID, fmt.Sprintf(
 		"Generalumkehr %s storniert Buchung %s (Grund: %s)",
 		created.EntryNumber, original.EntryNumber, reason,
-	))
-
+	)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -489,8 +505,10 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 		if len(years) > 0 {
 			entity = "GJ_" + strings.Join(years, ",")
 		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "HASH_CHAIN",
-			entity, result.Message)
+		if err := s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "HASH_CHAIN",
+			entity, result.Message); err != nil {
+			return domain.IntegrityCheckResult{}, fmt.Errorf("die Prüfung ließ sich nicht protokollieren: %w", err)
+		}
 	}
 	return result, nil
 }
@@ -888,9 +906,6 @@ func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.Jou
 		fy.Year, fy.AdoptedOn, e.BookingDate)
 }
 
-func (s *JournalService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "JOURNAL", fmt.Sprintf("%d", id), details)
+func (s *JournalService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "JOURNAL", fmt.Sprintf("%d", id), details)
 }

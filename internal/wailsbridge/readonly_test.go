@@ -56,7 +56,7 @@ func testBridge(t *testing.T) *BuchfinkBridge {
 	b.auditRepo = repository.NewAuditRepository(db)
 	b.settingsRepo = repository.NewSettingsRepository(db)
 	b.journalSvc = service.NewJournalService(
-		b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, 2026)
+		b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, repository.NewTxRunner(db), 2026)
 	// Die Handbuchung verlangt seit Welle 8 einen Beleg (BEL-01 K2). Die
 	// Prüfermodus-Prüfung geht über sie, also gehören Belegablage und Belegweg
 	// in diese Testbridge — ohne sie prüfte der Test die Sperre an einer

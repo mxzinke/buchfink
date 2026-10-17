@@ -275,7 +275,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 
 	// Wire Services. JournalService is the single write path; everything that
 	// produces a booking goes through it.
-	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, fiscalYear)
+	b.journalSvc = service.NewJournalService(b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, b.txRunner, fiscalYear)
 	b.journalSvc.SetFestschreibungRepo(b.festschreibungRepo)
 	// Ein festgestellter Jahresabschluss nimmt keine Buchung mehr auf. Der
 	// Journaldienst muss das wissen, bevor er schreibt.
@@ -322,7 +322,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Buchung und Vermerk der Anzahlungen entstehen in einer Transaktion: ohne
 	// sie stünde die Schlussrechnung des Lieferanten im Journal, während die
 	// Anzahlung weiter als offen gälte.
-	b.postingSvc.SetTxRunner(b.txRunner)
 	// Der Leistungsnachweis am größeren Eingangsbeleg ist Pflicht (RECH-08). Die
 	// Grenze steht in den Einstellungen, deshalb liest der Belegweg sie dort.
 	b.postingSvc.SetSettingsSource(b.settingsRepo)
@@ -345,7 +344,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// der Umsatz nach der Vereinnahmung als offen stehen und würde ein zweites
 	// Mal zugeordnet.
 	b.invoiceSvc.SetRegistry(service.InvoiceRegistry{
-		Tx:          b.txRunner,
 		Gaps:        b.numberGapRepo,
 		Groups:      b.invoiceGroupRepo,
 		FiscalYears: b.fiscalYearRepo,
@@ -443,7 +441,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.settingsRepo, b.auditRepo, b.closingSvc, fiscalYear,
 	)
 	b.appropriationSvc.SetReceiptService(b.receiptSvc)
-	b.closingSvc.SetReservePosting(b.receiptSvc, b.txRunner)
+	b.closingSvc.SetReservePosting(b.receiptSvc)
 	// Die Anhangtexte des Vorjahres sind die Vorlage des neuen Jahres.
 	b.closingSvc.SetNotesCopier(b.appropriationSvc)
 
@@ -459,7 +457,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Die Buchung der Berichtigung und der Vermerk am Verzeichnis gehören in eine
 	// Transaktion: eine Buchung ohne Vermerk stünde beim nächsten Lauf wieder als
 	// offen da und käme ein zweites Mal in Kennziffer 64.
-	b.inputTaxSvc.SetTxRunner(b.txRunner)
 	b.vatIDSvc = service.NewVatIDService(
 		b.vatIDCheckRepo, b.contactRepo, b.settingsRepo, b.auditRepo)
 	b.invoiceSvc.SetVatIDConfirmer(b.vatIDSvc)
@@ -472,7 +469,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Storno und Neubuchung einer Umbuchung gehören in eine Transaktion: ein
 	// zurückgenommenes Geschenk ohne seine Neubuchung wäre ein Aufwand, der aus
 	// den Büchern verschwunden ist.
-	b.giftSvc.SetTxRunner(b.txRunner)
 	b.postingSvc.SetGiftRegister(b.giftSvc)
 	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen und nicht einmal
 	// beim Einrichten: ändert der Anwender ihn, rechnete die Freigrenze für

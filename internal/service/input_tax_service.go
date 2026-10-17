@@ -31,22 +31,10 @@ type InputTaxService struct {
 	closingSvc   *ClosingService
 	auditRepo    domain.AuditRepository
 	fiscalYear   int
-	// txRunner klammert die Buchung der Berichtigung und den Vermerk am
-	// Verzeichnis. Fehlt er, laufen beide nacheinander — die Suche nach einer
-	// stehenden Buchung darunter fängt den halben Zustand auch dann ab, sie kann
-	// ihn nur nicht mehr zurückrollen.
-	txRunner domain.TxRunner
 }
 
-// SetTxRunner koppelt die Transaktionsklammer an die Jahresbuchung.
-func (s *InputTaxService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx führt fn in einer Transaktion aus, wo eine eingerichtet ist.
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // NewInputTaxService wires das Verzeichnis.

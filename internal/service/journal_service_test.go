@@ -67,7 +67,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	dataDir := t.TempDir()
 	store := receiptstore.New(dataDir)
 
-	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
+	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db), 2026)
 	// Wie in der Anwendung (wailsbridge.initTenant): der Journaldienst kennt die
 	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
 	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es

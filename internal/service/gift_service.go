@@ -23,10 +23,6 @@ type GiftService struct {
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
 	fiscalYear   int
-	// txRunner klammert Storno und Neubuchung einer Umbuchung. Fehlt er, laufen
-	// beide nacheinander — die Vorprüfung darunter hält den halben Zustand auch
-	// dann fern, sie kann ihn nur nicht mehr zurückrollen.
-	txRunner domain.TxRunner
 }
 
 // NewGiftService wires die Auswertung der nicht abziehbaren Betriebsausgaben.
@@ -46,15 +42,8 @@ func NewGiftService(
 // SetFiscalYear schaltet das aktive Geschäftsjahr um.
 func (s *GiftService) SetFiscalYear(year int) { s.fiscalYear = year }
 
-// SetTxRunner koppelt die Transaktionsklammer an die Umbuchung.
-func (s *GiftService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx führt fn in einer Transaktion aus, wo eine eingerichtet ist.
 func (s *GiftService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // giftEntry ist eine Aufzeichnung samt ihrer Buchung und der Frage, ob die

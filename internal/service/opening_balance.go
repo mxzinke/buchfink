@@ -98,9 +98,9 @@ func (s *JournalService) PreviewOpeningBalance(
 // sie schließt nur die Buchung. Jede Buchung hat EntrySourceOpening und die
 // Herkunftskennung aus dem Altsystem.
 //
-// Alles oder nichts: geprüft wird jede Buchung, bevor die erste geschrieben
-// wird. Eine halb erfasste Eröffnungsbilanz wäre eine Bilanz, die nicht aufgeht
-// und sich nur durch Stornos wieder auflösen ließe.
+// Alles oder nichts: Buchungen und Siegel der Schlussbilanz stehen in einer
+// Transaktion. Eine halb erfasste Eröffnungsbilanz ginge nicht auf und ließe
+// sich nur durch Stornos wieder auflösen.
 func (s *JournalService) BookOpeningBalance(
 	ctx context.Context, req OpeningBalanceRequest,
 ) (*OpeningBalancePreview, error) {
@@ -114,59 +114,29 @@ func (s *JournalService) BookOpeningBalance(
 				"und 9009 stehen auf %s €. Prüfe die Schlussbilanz des Altsystems",
 			preview.DebitTotal, preview.CreditTotal, carryForwardBalance(entries))
 	}
-	if err := s.ensureFirstOpeningBalance(ctx, preview.FiscalYear); err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		if err := s.ValidatePostable(ctx, entry); err != nil {
-			return nil, fmt.Errorf("die Eröffnungsbilanz wurde nicht gebucht: %w", err)
+	return atomically(ctx, s, func(ctx context.Context) (*OpeningBalancePreview, error) {
+		if err := s.ensureFirstOpeningBalance(ctx, preview.FiscalYear); err != nil {
+			return nil, err
 		}
-	}
-
-	booked := make([]*domain.JournalEntry, 0, len(entries))
-	for _, entry := range entries {
-		created, err := s.Post(ctx, entry)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"die Eröffnungsbilanz ist nach %d von %d Buchungen gescheitert: %w. Storniere die bereits erfassten Buchungen, bevor du es erneut versuchst",
-				len(booked), len(entries), err)
+		booked := make([]*domain.JournalEntry, 0, len(entries))
+		for _, entry := range entries {
+			created, err := s.Post(ctx, entry)
+			if err != nil {
+				return nil, fmt.Errorf("die Eröffnungsbilanz wurde nicht gebucht: %w", err)
+			}
+			booked = append(booked, created)
 		}
-		booked = append(booked, created)
-	}
-
-	if note := s.sealOpeningReceipt(ctx, *req.ReceiptID, booked); note != "" {
-		preview.Messages = append(preview.Messages, note)
-	}
-
-	preview.Entries = booked
-	preview.EnsureLists()
-	return preview, nil
-}
-
-// sealOpeningReceipt versiegelt die Schlussbilanz des Altsystems, nachdem die
-// Eröffnungsbuchungen stehen.
-//
-// Ohne die Versiegelung bliebe der Beleg im Status „abgelegt": der Prüflauf
-// meldete ihn dauerhaft als abgelegt, aber nicht gebucht — blockierend, sobald
-// sein Eingang vor dem Stichtag liegt, also bei jeder Festschreibung des ersten
-// Jahres —, und seine Kopfdaten ließen sich über SaveHeader weiter ändern,
-// obwohl Buchungen auf ihn verweisen und seinen Hash haben. Versiegelt ist er
-// das, was er ist: ein gebuchter Beleg.
-//
-// Das Versiegeln ist ein zweiter Schreibvorgang nach den Buchungen und darf sie
-// nicht zurücknehmen — sie stehen bereits im Journal. Scheitert es, wird das
-// gemeldet und nicht als Fehler behandelt; ReceiptService.Get holt das Siegel
-// beim nächsten Lesen des Belegs nach.
-func (s *JournalService) sealOpeningReceipt(ctx context.Context, receiptID uint, booked []*domain.JournalEntry) string {
-	if s.receiptRepo == nil || len(booked) == 0 {
-		return ""
-	}
-	if err := s.receiptRepo.Seal(ctx, receiptID, booked[0].ID); err != nil {
-		return fmt.Sprintf(
-			"Die Eröffnungsbuchungen stehen, der Beleg der Schlussbilanz ließ sich aber nicht versiegeln: %v. "+
-				"Öffne den Beleg in der Belegliste — das Siegel wird dann nachgeholt.", err)
-	}
-	return ""
+		// Versiegelt ist die Schlussbilanz des Altsystems das, was sie ist: ein
+		// gebuchter Beleg. Offen bliebe sie im Prüflauf als ungebucht stehen.
+		if s.receiptRepo != nil && len(booked) > 0 {
+			if err := s.receiptRepo.Seal(ctx, *req.ReceiptID, booked[0].ID); err != nil {
+				return nil, fmt.Errorf("der Beleg der Schlussbilanz ließ sich nicht versiegeln: %w", err)
+			}
+		}
+		preview.Entries = booked
+		preview.EnsureLists()
+		return preview, nil
+	})
 }
 
 // ensureFirstOpeningBalance lässt die Eröffnungsbilanz nur einmal und nur im
