@@ -217,6 +217,12 @@ func (s *CurrencyService) BookCurrencyValuation(ctx context.Context, year int) (
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*ForeignCurrencyValuation, error) {
+		return s.bookCurrencyValuation(ctx, year)
+	})
+}
+
+func (s *CurrencyService) bookCurrencyValuation(ctx context.Context, year int) (*ForeignCurrencyValuation, error) {
 	valuation, lines, err := s.buildValuation(ctx, year)
 	if err != nil {
 		return nil, err
@@ -260,10 +266,12 @@ func (s *CurrencyService) BookCurrencyValuation(ctx context.Context, year int) (
 			"Auflösung der Rechnungsabgrenzung. ", germanDay(valuation.ReversalDate), year+1) +
 		valuation.Note
 
-	s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
 		"Fremdwährungsbewertung %d gebucht: %s € Ertrag, %s € Aufwand (%s); Auflösung zum %s folgt "+
 			"mit dem Saldenvortrag",
-		year, valuation.TotalGain, valuation.TotalLoss, posted.EntryNumber, valuation.ReversalDate))
+		year, valuation.TotalGain, valuation.TotalLoss, posted.EntryNumber, valuation.ReversalDate)); err != nil {
+		return nil, err
+	}
 	return valuation, nil
 }
 
@@ -275,10 +283,16 @@ func (s *CurrencyService) BookCurrencyValuation(ctx context.Context, year int) (
 // jeder erneute Vortrag zugleich der Nachholweg — ein Zustand „bewertet, aber
 // nicht aufgelöst", aus dem es keinen Ausweg gäbe, kann nicht entstehen.
 func (s *CurrencyService) ReverseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
-	created := make([]domain.JournalEntry, 0, 1)
 	if s.journalSvc == nil || s.journal == nil || toYear <= 1 {
-		return created, nil
+		return make([]domain.JournalEntry, 0), nil
 	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.reverseInto(ctx, toYear)
+	})
+}
+
+func (s *CurrencyService) reverseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
+	created := make([]domain.JournalEntry, 0, 1)
 	fromYear := toYear - 1
 	document := foreignCurrencyDocument(fromYear)
 
@@ -336,9 +350,11 @@ func (s *CurrencyService) ReverseInto(ctx context.Context, toYear int) ([]domain
 		created = append(created, *posted)
 	}
 	if len(created) > 0 {
-		s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+		if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
 			"Fremdwährungsbewertung %d zum %s aufgelöst: %d Buchung(en)",
-			fromYear, reversalDate, len(created)))
+			fromYear, reversalDate, len(created))); err != nil {
+			return nil, err
+		}
 	}
 	return created, nil
 }
@@ -437,11 +453,8 @@ func contactRef(id uint) *uint {
 }
 
 // audit schreibt einen Eintrag ins Protokoll.
-func (s *CurrencyService) audit(ctx context.Context, action domain.AuditAction, details string) {
-	if s.auditLog == nil {
-		return
-	}
-	_ = s.auditLog.Log(ctx, action, "CURRENCY", "", details)
+func (s *CurrencyService) audit(ctx context.Context, action domain.AuditAction, details string) error {
+	return logAudit(ctx, s.auditLog, action, "CURRENCY", "", details)
 }
 
 // -------------------------------------------------------------------------

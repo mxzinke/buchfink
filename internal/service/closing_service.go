@@ -163,6 +163,12 @@ func (s *ClosingService) FiscalYears(ctx context.Context) ([]domain.FiscalYear, 
 // Vorhandene Einträge bleiben unberührt: ein von Hand berichtigter Zeitraum darf
 // beim nächsten Start nicht wieder überschrieben werden.
 func (s *ClosingService) EnsureFiscalYears(ctx context.Context) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.ensureFiscalYears(ctx)
+	})
+}
+
+func (s *ClosingService) ensureFiscalYears(ctx context.Context) error {
 	years := map[int]bool{}
 	if s.fiscalYear > 0 {
 		years[s.fiscalYear] = true
@@ -198,8 +204,10 @@ func (s *ClosingService) EnsureFiscalYears(ctx context.Context) error {
 		if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 			return fmt.Errorf("das Geschäftsjahr %d konnte nicht angelegt werden: %w", y, err)
 		}
-		s.audit(ctx, domain.AuditActionCreate, y, fmt.Sprintf(
-			"Geschäftsjahr %d angelegt (%s bis %s%s)", y, fy.StartDate, fy.EndDate, shortSuffix(fy)))
+		if err := s.audit(ctx, domain.AuditActionCreate, y, fmt.Sprintf(
+			"Geschäftsjahr %d angelegt (%s bis %s%s)", y, fy.StartDate, fy.EndDate, shortSuffix(fy))); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -278,6 +286,12 @@ func (s *ClosingService) candidate(ctx context.Context, fy *domain.FiscalYear) F
 // Zeiträume schließen tagesgenau an, auch nach einem Rumpfgeschäftsjahr oder bei
 // abweichendem Wirtschaftsjahr. Das erste Jahr überhaupt ist frei wählbar.
 func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.createFiscalYear(ctx, year)
+	})
+}
+
+func (s *ClosingService) createFiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	if year <= 0 {
 		return nil, fmt.Errorf("das Geschäftsjahr braucht eine Jahreszahl")
 	}
@@ -325,17 +339,20 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 		return nil, fmt.Errorf("das Geschäftsjahr %d konnte nicht angelegt werden: %w", year, err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
-		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, fy.StartDate, fy.EndDate, shortSuffix(fy)))
+	if err := s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
+		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, fy.StartDate, fy.EndDate, shortSuffix(fy))); err != nil {
+		return nil, err
+	}
 	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, nach der
 	// sich die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet.
-	s.prefillPriorYearRevenue(ctx, fy)
+	if err := s.prefillPriorYearRevenue(ctx, fy); err != nil {
+		return nil, err
+	}
 	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Scheitert das,
 	// bleibt das Jahr trotzdem angelegt.
 	if s.notes != nil {
 		if _, err := s.notes.CopyNotesInto(ctx, year); err != nil {
-			s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
-				"Die Anhangtexte des Vorjahres konnten nicht übernommen werden: %v", err))
+			return nil, fmt.Errorf("die Anhangtexte des Vorjahres ließen sich nicht übernehmen: %w", err)
 		}
 	}
 	return fy, nil
@@ -343,6 +360,12 @@ func (s *ClosingService) CreateFiscalYear(ctx context.Context, year int) (*domai
 
 // YearOf liefert das Geschäftsjahr und legt es an, falls es noch fehlt.
 func (s *ClosingService) YearOf(ctx context.Context, year int) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.yearOf(ctx, year)
+	})
+}
+
+func (s *ClosingService) yearOf(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	fy, err := s.fiscalYearRepo.FindByYear(ctx, year)
 	if err != nil {
 		return nil, err
@@ -360,9 +383,13 @@ func (s *ClosingService) YearOf(ctx context.Context, year int) (*domain.FiscalYe
 	// Auch das nebenbei angelegte Geschäftsjahr steht im Protokoll: wer später
 	// wissen will, woher ein Zeitraum stammt, findet ihn sonst nur dann, wenn er
 	// über die Jahresanlage entstanden ist (Entscheidung 8).
-	s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
-		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, derived.StartDate, derived.EndDate, shortSuffix(derived)))
-	s.prefillPriorYearRevenue(ctx, derived)
+	if err := s.audit(ctx, domain.AuditActionCreate, year, fmt.Sprintf(
+		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, derived.StartDate, derived.EndDate, shortSuffix(derived))); err != nil {
+		return nil, err
+	}
+	if err := s.prefillPriorYearRevenue(ctx, derived); err != nil {
+		return nil, err
+	}
 	return derived, nil
 }
 
@@ -554,6 +581,14 @@ func (s *ClosingService) yearCommitment(ctx context.Context, year int) (bool, st
 func (s *ClosingService) SetFiscalYearStatus(
 	ctx context.Context, year int, status domain.FiscalYearStatus, date, note string,
 ) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.setFiscalYearStatus(ctx, year, status, date, note)
+	})
+}
+
+func (s *ClosingService) setFiscalYearStatus(
+	ctx context.Context, year int, status domain.FiscalYearStatus, date, note string,
+) (*domain.FiscalYear, error) {
 	fy, err := s.YearOf(ctx, year)
 	if err != nil {
 		return nil, err
@@ -635,7 +670,9 @@ func (s *ClosingService) SetFiscalYearStatus(
 	if n := strings.TrimSpace(note); n != "" {
 		details += " (" + n + ")"
 	}
-	s.auditChange(ctx, domain.AuditActionUpdate, year, details, &before, fy)
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, year, details, &before, fy); err != nil {
+		return nil, err
+	}
 	return fy, nil
 }
 
@@ -647,6 +684,12 @@ func (s *ClosingService) SetFiscalYearStatus(
 // die Buchungen bis dahin unverändert vorlagen, und dieser Nachweis wird durch
 // eine spätere Entscheidung nicht falsch.
 func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason string) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.reopenFiscalYear(ctx, year, reason)
+	})
+}
+
+func (s *ClosingService) reopenFiscalYear(ctx context.Context, year int, reason string) (*domain.FiscalYear, error) {
 	fy, err := s.YearOf(ctx, year)
 	if err != nil {
 		return nil, err
@@ -675,9 +718,11 @@ func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason 
 		return nil, fmt.Errorf("die Rücksetzung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Geschäftsjahr %d von %q auf %q zurückgesetzt (Grund: %s)",
-		year, previous.Label(), domain.FiscalYearPrepared.Label(), strings.TrimSpace(reason)), &before, fy)
+		year, previous.Label(), domain.FiscalYearPrepared.Label(), strings.TrimSpace(reason)), &before, fy); err != nil {
+		return nil, err
+	}
 	return fy, nil
 }
 
@@ -1221,6 +1266,12 @@ func (s *ClosingService) carriedSoFar(ctx context.Context, toYear int) (map[stri
 // Ausnahmeweg — im Vorjahr wird nach dem ersten Vortrag noch gebucht, bis der
 // Abschluss steht, und jede dieser Buchungen verschiebt einen Schlusssaldo.
 func (s *ClosingService) CarryForward(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.carryForward(ctx, toYear)
+	})
+}
+
+func (s *ClosingService) carryForward(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
 	plan, err := s.plan(ctx, toYear)
 	if err != nil {
 		return nil, err
@@ -1293,64 +1344,51 @@ func (s *ClosingService) CarryForward(ctx context.Context, toYear int) ([]domain
 	for _, entry := range prepared {
 		out, err := s.journalSvc.Post(ctx, entry)
 		if err != nil {
-			// Der Lauf ist hier zur Hälfte geschehen: das Protokoll muss sagen,
-			// in welchem Zustand das Jahr zurückbleibt, damit die Wiederholung
-			// keine Überraschung ist.
-			s.audit(ctx, domain.AuditActionUpdate, toYear, fmt.Sprintf(
-				"Saldenvortrag %d → %d abgebrochen: %d von %d Buchungen geschrieben, der bestehende "+
-					"Vortrag ist bereits zurückgenommen. Das Geschäftsjahr %d hat bis zur Wiederholung "+
-					"des Vortrags keine vollständige Eröffnungsbilanz (%v)",
-				preview.FromYear, toYear, len(created), len(prepared), toYear, err))
-			return created, fmt.Errorf("der Saldenvortrag konnte nicht gebucht werden: %w", err)
+			return nil, fmt.Errorf("der Saldenvortrag konnte nicht gebucht werden: %w", err)
 		}
 		created = append(created, *out)
 	}
 
 	fyTo, err := s.YearOf(ctx, toYear)
 	if err != nil {
-		return created, err
+		return nil, err
 	}
 	now := time.Now().UTC()
 	fyTo.CarriedForwardAt = &now
 	if err := s.fiscalYearRepo.Save(ctx, fyTo); err != nil {
-		return created, fmt.Errorf("der Vortragsstand konnte nicht gespeichert werden: %w", err)
+		return nil, fmt.Errorf("der Vortragsstand konnte nicht gespeichert werden: %w", err)
 	}
 
 	label := "Saldenvortrag"
 	if correction {
 		label = "Korrekturvortrag"
 	}
-	s.audit(ctx, domain.AuditActionCreate, toYear, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, toYear, fmt.Sprintf(
 		"%s %d → %d zum %s: %d Buchungen, Jahresergebnis %s € auf Konto %s",
 		label, preview.FromYear, toYear, preview.BookingDate, len(created),
-		preview.NetIncome, preview.ResultAccount))
-
-	// Die Auflösung der Rechnungsabgrenzung folgt unmittelbar: der Posten des
-	// Vorjahres wird am ersten Tag des neuen Jahres wieder Aufwand bzw. Ertrag.
-	// Sie scheitert, ohne den Vortrag mitzureißen — der steht und ist richtig;
-	// was fehlt, ist die Folgebuchung, und die Meldung sagt es.
-	if s.accruals != nil {
-		releases, err := s.accruals.ReleaseInto(ctx, toYear)
-		created = append(created, releases...)
-		if err != nil {
-			return created, fmt.Errorf(
-				"der Saldenvortrag ins Geschäftsjahr %d steht; die Auflösung der Rechnungsabgrenzung "+
-					"ist aber unvollständig: %w", toYear, err)
-		}
+		preview.NetIncome, preview.ResultAccount)); err != nil {
+		return nil, err
 	}
 
-	// Und ebenso die Auflösung der Fremdwährungsbewertung. Sie ist ein
-	// Nachholweg und nicht nur ein Anstoß: bleibt sie beim ersten Vortrag aus —
-	// weil die Bewertung noch nicht gebucht war —, holt der nächste Vortrag sie
-	// nach, denn sie fragt das Journal und nicht ein Merkzeichen.
+	// Die Auflösung der Rechnungsabgrenzung und der Fremdwährungsbewertung
+	// gehört zum Vortrag: der Posten des Vorjahres wird am ersten Tag des neuen
+	// Jahres wieder Aufwand bzw. Ertrag. Beide fragen das Journal und nicht ein
+	// Merkzeichen, ein späterer Vortrag holt also nach, was fehlt.
+	if s.accruals != nil {
+		releases, err := s.accruals.ReleaseInto(ctx, toYear)
+		if err != nil {
+			return nil, fmt.Errorf("die Auflösung der Rechnungsabgrenzung ist gescheitert, deshalb wurde "+
+				"auch nicht vorgetragen: %w", err)
+		}
+		created = append(created, releases...)
+	}
 	if s.currency != nil {
 		reversals, err := s.currency.ReverseInto(ctx, toYear)
-		created = append(created, reversals...)
 		if err != nil {
-			return created, fmt.Errorf(
-				"der Saldenvortrag ins Geschäftsjahr %d steht; die Auflösung der "+
-					"Fremdwährungsbewertung ist aber unvollständig: %w", toYear, err)
+			return nil, fmt.Errorf("die Auflösung der Fremdwährungsbewertung ist gescheitert, deshalb "+
+				"wurde auch nicht vorgetragen: %w", err)
 		}
+		created = append(created, reversals...)
 	}
 
 	return created, nil
@@ -1537,11 +1575,8 @@ func (s *ClosingService) ledgerAccountNames(ctx context.Context) (map[string]str
 	return names, nil
 }
 
-func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, year int, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details)
+func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, year int, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details)
 }
 
 // auditChange protokolliert eine Änderung am Geschäftsjahr mit dem Stand davor
@@ -1554,15 +1589,12 @@ func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, y
 // ins Protokoll (GoBD Rz. 34).
 func (s *ClosingService) auditChange(
 	ctx context.Context, action domain.AuditAction, year int, details string, before, after *domain.FiscalYear,
-) {
-	if s.auditRepo == nil {
-		return
-	}
+) error {
 	var beforeAny any
 	if before != nil {
 		beforeAny = before
 	}
-	_ = s.auditRepo.LogChange(ctx, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details, beforeAny, after)
+	return logAuditChange(ctx, s.auditRepo, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details, beforeAny, after)
 }
 
 // documentReference benennt einen offenen Posten so, wie er im Kontoblatt des
@@ -1651,6 +1683,12 @@ func germanDate(date string) string {
 // Jahr zu Jahr ändert — und weil die Größenklasse eines abgeschlossenen Jahres
 // sonst mit dem heutigen Personalstand berechnet würde.
 func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count int) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.setAverageEmployees(ctx, year, count)
+	})
+}
+
+func (s *ClosingService) setAverageEmployees(ctx context.Context, year, count int) (*domain.FiscalYear, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("die durchschnittliche Arbeitnehmerzahl kann nicht negativ sein")
 	}
@@ -1677,9 +1715,11 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 		return nil, err
 	}
-	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Durchschnittliche Arbeitnehmerzahl des Geschäftsjahres %d von %d auf %d gesetzt (§ 267 Abs. 5 HGB)",
-		year, previous, count), &before, fy)
+		year, previous, count), &before, fy); err != nil {
+		return nil, err
+	}
 	return fy, nil
 }
 
@@ -1702,6 +1742,12 @@ func (s *ClosingService) SetAverageEmployees(ctx context.Context, year, count in
 // Ein bereits richtiges Jahr ist ein Nichtstun — ohne Protokolleintrag, sonst
 // stünde bei jedem Speichern der Gründung dieselbe Zeile ein weiteres Mal darin.
 func (s *ClosingService) AlignFoundingYear(ctx context.Context) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.alignFoundingYear(ctx)
+	})
+}
+
+func (s *ClosingService) alignFoundingYear(ctx context.Context) error {
 	if s.foundationRepo == nil {
 		return nil
 	}
@@ -1777,9 +1823,11 @@ func (s *ClosingService) AlignFoundingYear(ctx context.Context) error {
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 		return err
 	}
-	s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Beginn des Geschäftsjahres %d von %s auf den Beurkundungstag %s gesetzt%s",
-		year, germanDate(previous), germanDate(f.NotarizedOn), shortSuffix(fy)), &snapshot, fy)
+		year, germanDate(previous), germanDate(f.NotarizedOn), shortSuffix(fy)), &snapshot, fy); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1793,6 +1841,12 @@ func (s *ClosingService) AlignFoundingYear(ctx context.Context) error {
 // Geschäftsveräußerungen und die unentgeltlichen Wertabgaben gehen
 // auseinander, und die Differenz kennt nur der Steuerpflichtige.
 func (s *ClosingService) SetPriorYearRevenue(ctx context.Context, year int, amount domain.Cents) (*domain.FiscalYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
+		return s.setPriorYearRevenue(ctx, year, amount)
+	})
+}
+
+func (s *ClosingService) setPriorYearRevenue(ctx context.Context, year int, amount domain.Cents) (*domain.FiscalYear, error) {
 	if amount < 0 {
 		return nil, fmt.Errorf("der Vorjahresumsatz kann nicht negativ sein")
 	}
@@ -1808,9 +1862,11 @@ func (s *ClosingService) SetPriorYearRevenue(ctx context.Context, year int, amou
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Vorjahresumsatz des Geschäftsjahres %d von %s € auf %s € gesetzt (§ 27 Abs. 38 Nr. 2 UStG)",
-		year, previous, amount))
+		year, previous, amount)); err != nil {
+		return nil, err
+	}
 	return fy, nil
 }
 
@@ -1823,19 +1879,19 @@ func (s *ClosingService) SetPriorYearRevenue(ctx context.Context, year int, amou
 // ein Vorschlag — ohne sie bliebe der Wert null, und null heißt „nicht
 // erfasst": die Übergangsregel des § 27 Abs. 38 Nr. 2 UStG käme dann nie zum
 // Zug.
-func (s *ClosingService) prefillPriorYearRevenue(ctx context.Context, fy *domain.FiscalYear) {
+func (s *ClosingService) prefillPriorYearRevenue(ctx context.Context, fy *domain.FiscalYear) error {
 	if s.revenue == nil || fy == nil || fy.PriorYearRevenue != 0 {
-		return
+		return nil
 	}
 	revenue, err := s.revenue.RevenueOf(ctx, fy.Year-1)
 	if err != nil || revenue <= 0 {
-		return
+		return nil
 	}
 	fy.PriorYearRevenue = revenue
 	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
-		return
+		return fmt.Errorf("der Vorjahresumsatz ließ sich nicht vorbelegen: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, fy.Year, fmt.Sprintf(
+	return s.audit(ctx, domain.AuditActionUpdate, fy.Year, fmt.Sprintf(
 		"Vorjahresumsatz des Geschäftsjahres %d mit %s € aus der Gewinn- und Verlustrechnung des Jahres %d "+
 			"vorbelegt (§ 27 Abs. 38 Nr. 2 UStG)", fy.Year, revenue, fy.Year-1))
 }

@@ -96,6 +96,14 @@ type RegisterInputTaxRequest struct {
 func (s *InputTaxService) Register(
 	ctx context.Context, req RegisterInputTaxRequest,
 ) (*domain.InputTaxCorrection, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.InputTaxCorrection, error) {
+		return s.register(ctx, req)
+	})
+}
+
+func (s *InputTaxService) register(
+	ctx context.Context, req RegisterInputTaxRequest,
+) (*domain.InputTaxCorrection, error) {
 	if s.repo == nil {
 		return nil, fmt.Errorf("das Verzeichnis nach § 15a UStG ist nicht eingerichtet")
 	}
@@ -159,12 +167,14 @@ func (s *InputTaxService) Register(
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, fmt.Errorf("der Eintrag ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, correction.ID, fmt.Sprintf(
 		"Ins Verzeichnis nach § 15a UStG aufgenommen: %s, Vorsteuer %s €, Anteil %s, Zeitraum "+
 			"%d Jahre bis zum %s",
 		correction.Label, correction.InputTaxAmount,
 		accounting.PermilleLabel(int64(correction.OriginalPermille)), period,
-		germanDay(correction.PeriodEnd)))
+		germanDay(correction.PeriodEnd))); err != nil {
+		return nil, err
+	}
 	correction.EnsureLists()
 	return correction, nil
 }
@@ -172,6 +182,12 @@ func (s *InputTaxService) Register(
 // Close schließt einen Eintrag vorzeitig ab — Abgang, Entnahme oder eine
 // Aufnahme, die nicht hätte sein sollen.
 func (s *InputTaxService) Close(ctx context.Context, id uint, reason, date string) (*domain.InputTaxCorrection, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.InputTaxCorrection, error) {
+		return s.close(ctx, id, reason, date)
+	})
+}
+
+func (s *InputTaxService) close(ctx context.Context, id uint, reason, date string) (*domain.InputTaxCorrection, error) {
 	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf("zum vorzeitigen Abschluss eines Eintrags gehört sein Grund")
 	}
@@ -184,7 +200,9 @@ func (s *InputTaxService) Close(ctx context.Context, id uint, reason, date strin
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, id, "Eintrag abgeschlossen: "+reason)
+	if err := s.audit(ctx, id, "Eintrag abgeschlossen: "+reason); err != nil {
+		return nil, err
+	}
 	correction.EnsureLists()
 	return correction, nil
 }
@@ -388,6 +406,14 @@ type SaveInputTaxUsageRequest struct {
 func (s *InputTaxService) SaveUsage(
 	ctx context.Context, req SaveInputTaxUsageRequest,
 ) (*InputTaxCorrectionYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*InputTaxCorrectionYear, error) {
+		return s.saveUsage(ctx, req)
+	})
+}
+
+func (s *InputTaxService) saveUsage(
+	ctx context.Context, req SaveInputTaxUsageRequest,
+) (*InputTaxCorrectionYear, error) {
 	if s.repo == nil {
 		return nil, fmt.Errorf("das Verzeichnis nach § 15a UStG ist nicht eingerichtet")
 	}
@@ -455,9 +481,11 @@ func (s *InputTaxService) SaveUsage(
 	}); err != nil {
 		return nil, fmt.Errorf("der Verwendungsanteil ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, correction.ID, fmt.Sprintf(
 		"Verwendungsanteil %d für %s bestätigt: %s (%s)",
-		year, correction.Label, accounting.PermilleLabel(int64(req.Permille)), assessment.Reason))
+		year, correction.Label, accounting.PermilleLabel(int64(req.Permille)), assessment.Reason)); err != nil {
+		return nil, err
+	}
 	return s.Year(ctx, year)
 }
 
@@ -469,6 +497,12 @@ func (s *InputTaxService) SaveUsage(
 // klarer. Welches Wirtschaftsgut welchen Anteil beisteuert, steht im
 // Verzeichnis — dafür gibt es das Verzeichnis.
 func (s *InputTaxService) BookYear(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*InputTaxCorrectionYear, error) {
+		return s.bookYear(ctx, year)
+	})
+}
+
+func (s *InputTaxService) bookYear(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
@@ -578,9 +612,11 @@ func (s *InputTaxService) BookYear(ctx context.Context, year int) (*InputTaxCorr
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, 0, fmt.Sprintf(
+	if err := s.audit(ctx, 0, fmt.Sprintf(
 		"Vorsteuerberichtigung %d gebucht: %s € über %d Wirtschaftsgüter (%s)",
-		year, total, len(todo), entry.EntryNumber))
+		year, total, len(todo), entry.EntryNumber)); err != nil {
+		return nil, err
+	}
 	return s.Year(ctx, year)
 }
 
@@ -662,11 +698,8 @@ func (s *InputTaxService) fiscalYearStartMonth(ctx context.Context) int {
 	return settings.FiscalYearStartMonth
 }
 
-func (s *InputTaxService) audit(ctx context.Context, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "INPUT_TAX_CORRECTION",
+func (s *InputTaxService) audit(ctx context.Context, id uint, details string) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "INPUT_TAX_CORRECTION",
 		fmt.Sprintf("%d", id), details)
 }
 

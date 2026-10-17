@@ -142,6 +142,12 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 
 // Save writes the Gründung after checking what only this service can check.
 func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
+		return s.save(ctx, f)
+	})
+}
+
+func (s *FoundationService) save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return nil, err
@@ -161,10 +167,14 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	if err := s.foundationRepo.Save(ctx, f); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Gründung erfasst: Beurkundung %s, Stammkapital %s €, %d Gesellschafter",
-		f.NotarizedOn, f.ShareCapital, len(f.Shareholders)))
-	s.adoptFoundingSettings(ctx, existing, f)
+		f.NotarizedOn, f.ShareCapital, len(f.Shareholders))); err != nil {
+		return nil, err
+	}
+	if err := s.adoptFoundingSettings(ctx, existing, f); err != nil {
+		return nil, err
+	}
 
 	// Aus der Beurkundung folgt der Beginn des ersten Geschäftsjahres: eine
 	// Gesellschaft, die im März entstanden ist, hat kein Geschäftsjahr, das im
@@ -173,8 +183,10 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	// gespeichert: sie ist die Tatsache, das Geschäftsjahr die Folge daraus.
 	if s.yearAligner != nil {
 		if err := s.yearAligner.AlignFoundingYear(ctx); err != nil {
-			s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
-				"Der Beginn des Gründungsjahres konnte nicht auf die Beurkundung gesetzt werden: %v", err))
+			if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+				"Der Beginn des Gründungsjahres konnte nicht auf die Beurkundung gesetzt werden: %v", err)); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return f, nil
@@ -568,6 +580,12 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 
 // BookPostings writes the founding bookings after the user released them.
 func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.bookPostings(ctx)
+	})
+}
+
+func (s *FoundationService) bookPostings(ctx context.Context) ([]domain.JournalEntry, error) {
 	preview, err := s.PreviewPostings(ctx)
 	if err != nil {
 		return nil, err
@@ -594,7 +612,7 @@ func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalE
 		}
 		out, err := s.journalSvc.Post(ctx, entry)
 		if err != nil {
-			return created, fmt.Errorf("%s konnte nicht gebucht werden: %w", p.Title, err)
+			return nil, fmt.Errorf("%s konnte nicht gebucht werden: %w", p.Title, err)
 		}
 		created = append(created, *out)
 	}
@@ -626,6 +644,12 @@ func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
 // die Handelndenhaftung des § 11 Abs. 2 GmbHG endet, und die Unterbilanz steht
 // auf diesen Tag fest.
 func (s *FoundationService) Register(ctx context.Context, date, court, number string) (*domain.Foundation, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
+		return s.register(ctx, date, court, number)
+	})
+}
+
+func (s *FoundationService) register(ctx context.Context, date, court, number string) (*domain.Foundation, error) {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
 		return nil, err
@@ -658,10 +682,14 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	// jedes Jahresabschlusses (§ 264 Abs. 1a HGB). Sie hier zu übernehmen
 	// erspart, dieselbe Tatsache ein zweites Mal einzutragen — überschrieben
 	// wird nichts: was in den Einstellungen steht, hat jemand dort gewollt.
-	s.adoptRegisterSettings(ctx, f)
+	if err := s.adoptRegisterSettings(ctx, f); err != nil {
+		return nil, err
+	}
 
-	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
-		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber))
+	if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber)); err != nil {
+		return nil, err
+	}
 	return f, nil
 }
 
@@ -669,6 +697,12 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 // erfasste Gründung oder bei einer schon eingetragenen Gesellschaft ist nichts
 // zu tun.
 func (s *FoundationService) RegisterFromSettings(ctx context.Context, date, court, number string) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.registerFromSettings(ctx, date, court, number)
+	})
+}
+
+func (s *FoundationService) registerFromSettings(ctx context.Context, date, court, number string) error {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
 		return err
@@ -680,23 +714,20 @@ func (s *FoundationService) RegisterFromSettings(ctx context.Context, date, cour
 	return err
 }
 
-func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
+func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
 }
 
 // adoptFoundingSettings trägt Gründungsdatum, Stammkapital und Gesellschafter in
 // die Stammdaten ein, solange dort nichts steht oder noch der vorige Stand der
 // Gründung. Was jemand in den Stammdaten davon abweichend gepflegt hat, bleibt.
-func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous, f *domain.Foundation) {
+func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous, f *domain.Foundation) error {
 	if s.settingsRepo == nil {
-		return
+		return nil
 	}
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil || settings == nil {
-		return
+		return err
 	}
 	var before domain.Foundation
 	if previous != nil {
@@ -718,16 +749,14 @@ func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous,
 		changed = true
 	}
 	if !changed {
-		return
+		return nil
 	}
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
-		return
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht aus der Gründung übernehmen: %w", err)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
-			"Aus der Gründung übernommen: Gründungsdatum %s, Stammkapital %s €, %d Gesellschafter",
-			settings.FoundedOn, settings.ShareCapital, len(settings.Shareholders)))
-	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+		"Aus der Gründung übernommen: Gründungsdatum %s, Stammkapital %s €, %d Gesellschafter",
+		settings.FoundedOn, settings.ShareCapital, len(settings.Shareholders)))
 }
 
 func companyShareholders(shareholders []domain.Shareholder) []domain.CompanyShareholder {
@@ -752,16 +781,13 @@ func sameShareholders(a, b []domain.CompanyShareholder) bool {
 
 // adoptRegisterSettings trägt Registergericht und Registernummer in die
 // Unternehmensdaten nach. Die ausdrücklich erfasste Eintragung ist maßgeblich.
-//
-// Scheitert das Schreiben, bleibt die Eintragung gültig: die Gründung ist die
-// Tatsache, die Einstellung nur ihre Wiederholung.
-func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain.Foundation) {
+func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain.Foundation) error {
 	if s.settingsRepo == nil {
-		return
+		return nil
 	}
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil || settings == nil {
-		return
+		return err
 	}
 	changed := false
 	if settings.RegisteredOn != f.RegisteredOn {
@@ -784,18 +810,14 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		changed = true
 	}
 	if !changed {
-		return
+		return nil
 	}
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
-		return
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht aus der Eintragung übernehmen: %w", err)
 	}
-	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll.
-	// Jeder andere Weg in die Einstellungen geschieht über den SettingsService und
-	// hinterlässt dort einen Eintrag; bliebe dieser eine Weg stumm, stünden im
-	// Kopf des Jahresabschlusses eines Tages Angaben, die niemand gemacht hat.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
-			"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
-			settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
-	}
+	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll;
+	// sonst stünden im Kopf des Jahresabschlusses Angaben, die niemand gemacht hat.
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+		"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
+		settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
 }

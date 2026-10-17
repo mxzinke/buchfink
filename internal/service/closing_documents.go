@@ -111,29 +111,22 @@ func voucherAmount(voucher closingVoucher) domain.Cents {
 	return sum
 }
 
-// postWithVoucher schreibt die Buchung und räumt den Eigenbeleg auf, wenn sie
-// scheitert.
-//
-// Der Beleg muss vor der Buchung entstehen: sein Hash geht in den Hash der
-// Buchung ein, nachträglich gesetzt wäre er nicht mehr gedeckt. Scheitert die
-// Buchung dann — an der Periodensperre, an einem festgestellten Jahr, an einem
-// unbekannten Konto —, bliebe ohne diesen Weg ein unversiegelter Eigenbeleg im
-// Belegspeicher zurück, der auf nichts verweist. Gelöscht wird er nicht: die
-// GoBD kennen kein Löschen, sondern das Verwerfen mit Grund.
+// postWithVoucher schreibt die Buchung und versiegelt ihren Eigenbeleg. Der
+// Beleg entsteht vor der Buchung, weil sein Hash in ihren eingeht; der
+// Aufrufer klammert beides in eine Transaktion, damit ein gescheiterter
+// Vorgang keinen Eigenbeleg ohne Buchung hinterlässt.
 func postWithVoucher(
 	ctx context.Context, journalSvc *JournalService, filer closingReceiptFiler,
 	entry *domain.JournalEntry, receipt *domain.Receipt,
 ) (*domain.JournalEntry, error) {
 	created, err := journalSvc.Post(ctx, entry)
 	if err != nil {
-		if receipt != nil && filer != nil {
-			_ = filer.Discard(ctx, receipt.ID, fmt.Sprintf(
-				"Die Abschlussbuchung %q ist nicht zustande gekommen: %v", entry.Description, err))
-		}
 		return nil, err
 	}
 	if receipt != nil && filer != nil {
-		_ = filer.Seal(ctx, receipt.ID, created.ID)
+		if err := filer.Seal(ctx, receipt.ID, created.ID); err != nil {
+			return nil, fmt.Errorf("der Eigenbeleg %s ließ sich nicht versiegeln: %w", receipt.ReceiptNumber, err)
+		}
 	}
 	return created, nil
 }

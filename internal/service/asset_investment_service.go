@@ -42,6 +42,12 @@ type VorabpauschaleRequest struct {
 // Vorabpauschale computes the Vorabpauschale of one Kalenderjahr — und hält sie
 // fest, wenn darum gebeten wird.
 func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleRequest) (*accounting.Vorabpauschale, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*accounting.Vorabpauschale, error) {
+		return s.vorabpauschale(ctx, req)
+	})
+}
+
+func (s *AssetService) vorabpauschale(ctx context.Context, req VorabpauschaleRequest) (*accounting.Vorabpauschale, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -103,9 +109,11 @@ func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleReq
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
 		return nil, fmt.Errorf("die Vorabpauschale konnte nicht festgehalten werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Vorabpauschale %d zu %s: %s € (außerbilanziell, keine Buchung)",
-		req.Year, asset.InventoryNumber, result.Amount))
+		req.Year, asset.InventoryNumber, result.Amount)); err != nil {
+		return nil, err
+	}
 	return &result, nil
 }
 

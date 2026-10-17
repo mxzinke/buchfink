@@ -236,21 +236,15 @@ func TestServiceProofFindingStartsAtTheDayTheThresholdWasSet(t *testing.T) {
 	}
 }
 
-// Scheitert die Abschlussbuchung, bleibt kein unversiegelter Eigenbeleg zurück.
-//
-// Der Eigenbeleg entsteht vor der Buchung — sein Hash geht in den Hash der
-// Buchung ein, nachträglich gesetzt wäre er nicht mehr gedeckt. Scheitert die
-// Buchung danach, läge im Belegspeicher ein Beleg, der auf nichts verweist: der
-// Prüflauf meldete ihn dauerhaft als ungebucht, und niemand wüsste, wozu er
-// gehört. Buchfink löscht ihn nicht — die GoBD kennen kein Löschen, sondern das
-// Verwerfen mit Grund.
+// Scheitert die Abschlussbuchung, bleibt kein Eigenbeleg zurück: Beleg und
+// Buchung entstehen in einer Transaktion und fallen zusammen.
 func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 	m.rate(t, "2026-12", 3, 15_000)
 
-	before, err := env.receipts.List(ctx, domain.ReceiptStatusFiled)
+	before, err := env.receipts.List(ctx, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
@@ -267,31 +261,12 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 		t.Fatal("in einen festgeschriebenen Zeitraum darf nicht gebucht werden")
 	}
 
-	after, err := env.receipts.List(ctx, domain.ReceiptStatusFiled)
+	after, err := env.receipts.List(ctx, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 	if len(after) != len(before) {
-		t.Errorf("nach der gescheiterten Buchung liegen %d offene Belege statt %d: %+v",
+		t.Errorf("nach der gescheiterten Buchung liegen %d Belege statt %d: %+v",
 			len(after), len(before), after)
-	}
-
-	// Der Beleg bleibt erhalten; sein Status wechselt auf verworfen — mit Grund.
-	all, err := env.receipts.List(ctx, "")
-	if err != nil {
-		t.Fatalf("Belege lesen: %v", err)
-	}
-	discarded := 0
-	for _, r := range all {
-		if r.Status != domain.ReceiptStatusDiscarded {
-			continue
-		}
-		discarded++
-		if r.DiscardReason == "" {
-			t.Errorf("der Beleg %s wurde ohne Begründung verworfen", r.ReceiptNumber)
-		}
-	}
-	if discarded != 1 {
-		t.Errorf("erwartet einen verworfenen Eigenbeleg, gefunden %d", discarded)
 	}
 }

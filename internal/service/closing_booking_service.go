@@ -194,6 +194,14 @@ func (s *ClosingBookingService) PreviewVatSettlement(ctx context.Context, year i
 func (s *ClosingBookingService) BookVatSettlement(
 	ctx context.Context, year int,
 ) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookVatSettlement(ctx, year)
+	})
+}
+
+func (s *ClosingBookingService) bookVatSettlement(
+	ctx context.Context, year int,
+) (*domain.JournalEntry, error) {
 	settlement, err := s.PreviewVatSettlement(ctx, year)
 	if err != nil {
 		return nil, err
@@ -230,9 +238,11 @@ func (s *ClosingBookingService) BookVatSettlement(
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, "VAT_SETTLEMENT", settlement.FiscalYear, fmt.Sprintf(
+	if err := s.audit(ctx, "VAT_SETTLEMENT", settlement.FiscalYear, fmt.Sprintf(
 		"Umsatzsteuer-Jahresverrechnung %d: Zahllast %s €, Erstattung %s €",
-		settlement.FiscalYear, settlement.Payable, settlement.Refund))
+		settlement.FiscalYear, settlement.Payable, settlement.Refund)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -449,6 +459,14 @@ type TaxProvisionRequest struct {
 func (s *ClosingBookingService) BookTaxProvision(
 	ctx context.Context, req TaxProvisionRequest,
 ) ([]domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.Provision, error) {
+		return s.bookTaxProvision(ctx, req)
+	})
+}
+
+func (s *ClosingBookingService) bookTaxProvision(
+	ctx context.Context, req TaxProvisionRequest,
+) ([]domain.Provision, error) {
 	preview, err := s.PreviewTaxProvision(ctx, req.FiscalYear)
 	if err != nil {
 		return nil, err
@@ -549,9 +567,7 @@ func (s *ClosingBookingService) BookTaxProvision(
 			BalanceAccount: balance, ExpenseAccount: expense, Reason: reason,
 		}
 		if err := s.provisionRepo.Save(ctx, provision); err != nil {
-			return provisions, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, die Rückstellung aber nicht gespeichert: %w",
-				created.EntryNumber, err)
+			return nil, fmt.Errorf("die Rückstellung ließ sich nicht speichern: %w", err)
 		}
 		movement := &domain.ProvisionMovement{
 			ProvisionID: provision.ID, Kind: domain.ProvisionFormation, Date: preview.Cutoff,
@@ -559,14 +575,16 @@ func (s *ClosingBookingService) BookTaxProvision(
 			JournalEntryID: &created.ID,
 		}
 		if err := s.provisionRepo.AddMovement(ctx, movement); err != nil {
-			return provisions, err
+			return nil, err
 		}
 		provision.Movements = append(provision.Movements, *movement)
 		provisions = append(provisions, *provision)
 	}
-	s.audit(ctx, "TAX_PROVISION", preview.FiscalYear, fmt.Sprintf(
+	if err := s.audit(ctx, "TAX_PROVISION", preview.FiscalYear, fmt.Sprintf(
 		"Steuerrückstellung %d: Körperschaftsteuer und Soli %s €, Gewerbesteuer %s €",
-		preview.FiscalYear, result.IncomeProvision, result.TradeProvision))
+		preview.FiscalYear, result.IncomeProvision, result.TradeProvision)); err != nil {
+		return nil, err
+	}
 	return provisions, nil
 }
 
@@ -597,9 +615,6 @@ func (s *ClosingBookingService) tradeTaxRate(ctx context.Context) int64 {
 	return rate
 }
 
-func (s *ClosingBookingService) audit(ctx context.Context, entity string, year int, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, entity, fmt.Sprintf("%d", year), details)
+func (s *ClosingBookingService) audit(ctx context.Context, entity string, year int, details string) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionCreate, entity, fmt.Sprintf("%d", year), details)
 }

@@ -638,6 +638,12 @@ func (s *AssetService) PreviewPlan(ctx context.Context, req PlanRequest) ([]acco
 // Anschaffungskosten und Minderungen sind Vorgänge mit Datum und Beleg, keine
 // Korrektur eines Feldes.
 func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*domain.FixedAsset, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FixedAsset, error) {
+		return s.save(ctx, asset)
+	})
+}
+
+func (s *AssetService) save(ctx context.Context, asset *domain.FixedAsset) (*domain.FixedAsset, error) {
 	if asset == nil {
 		return nil, fmt.Errorf("kein Anlagegut übergeben")
 	}
@@ -715,8 +721,10 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		if err := s.syncImmediateWriteOff(ctx, asset, existing.Movements); err != nil {
 			return nil, err
 		}
-		s.auditChange(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
-			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name), existing, asset)
+		if err := s.auditChange(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name), existing, asset); err != nil {
+			return nil, err
+		}
 		return s.reload(ctx, asset.ID)
 	}
 
@@ -774,10 +782,12 @@ func (s *AssetService) Save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		return nil, err
 	}
 
-	s.auditChange(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Anlagegut %s angelegt: %s, Konto %s, Anschaffungskosten %s € am %s",
 		asset.InventoryNumber, asset.Name, asset.Account, asset.AcquisitionCost, asset.AcquisitionDate),
-		nil, asset)
+		nil, asset); err != nil {
+		return nil, err
+	}
 
 	return s.reload(ctx, asset.ID)
 }
@@ -816,6 +826,12 @@ type CostAdjustmentRequest struct {
 // entsteht, ist die Fortschreibung der Kartei — und damit eine neue
 // AfA-Bemessungsgrundlage für die Folgejahre.
 func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustmentRequest) (*domain.FixedAsset, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FixedAsset, error) {
+		return s.recordCostAdjustment(ctx, req)
+	})
+}
+
+func (s *AssetService) recordCostAdjustment(ctx context.Context, req CostAdjustmentRequest) (*domain.FixedAsset, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -900,8 +916,10 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
 		return nil, fmt.Errorf("die Bewegung konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
-		"%s zu %s: %s € am %s", movement.Kind.Label(), asset.InventoryNumber, req.Amount, date))
+	if err := s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+		"%s zu %s: %s € am %s", movement.Kind.Label(), asset.InventoryNumber, req.Amount, date)); err != nil {
+		return nil, err
+	}
 
 	return s.reload(ctx, asset.ID)
 }
@@ -910,6 +928,12 @@ func (s *AssetService) RecordCostAdjustment(ctx context.Context, req CostAdjustm
 // points at a journal entry the register has to keep the item: the booking
 // stands, and a Kartei that loses its explanation is worse than none.
 func (s *AssetService) Delete(ctx context.Context, id uint) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.delete(ctx, id)
+	})
+}
+
+func (s *AssetService) delete(ctx context.Context, id uint) error {
 	asset, err := s.assetRepo.FindByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", id, err)
@@ -925,8 +949,10 @@ func (s *AssetService) Delete(ctx context.Context, id uint) error {
 	if err := s.assetRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("Anlagegut konnte nicht gelöscht werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, id, fmt.Sprintf(
-		"Anlagegut %s gelöscht (ohne Buchungen)", asset.InventoryNumber))
+	if err := s.audit(ctx, domain.AuditActionUpdate, id, fmt.Sprintf(
+		"Anlagegut %s gelöscht (ohne Buchungen)", asset.InventoryNumber)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1040,6 +1066,12 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 // Anlagegut und Buchung muss in beide Richtungen tragen, und eine Sammelbuchung
 // über zwanzig Anlagen trägt in keine.
 func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciationRequest) (*DepreciationResult, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*DepreciationResult, error) {
+		return s.bookDepreciation(ctx, req)
+	})
+}
+
+func (s *AssetService) bookDepreciation(ctx context.Context, req BookDepreciationRequest) (*DepreciationResult, error) {
 	year := req.FiscalYear
 	if year == 0 {
 		year = s.fiscalYear
@@ -1107,8 +1139,10 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 	if len(result.Entries) == 0 && len(result.Skipped) == 0 && len(result.TaxOnly) == 0 {
 		return nil, fmt.Errorf("für das Geschäftsjahr %d ist keine Abschreibung offen", year)
 	}
-	s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
-		"Abschreibungslauf %d: %d Buchungen über %s €", year, len(result.Entries), result.Total))
+	if err := s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
+		"Abschreibungslauf %d: %d Buchungen über %s €", year, len(result.Entries), result.Total)); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -1188,15 +1222,7 @@ func (s *AssetService) postDepreciation(
 	}
 	for _, m := range movements {
 		if err := s.assetRepo.AddMovement(ctx, m); err != nil {
-			// Die Buchung steht; nur die Kartei hat sie nicht mitbekommen. Das ehrlich
-			// zu melden ist besser, als die Buchung als gescheitert auszugeben.
-			number := "(ohne Buchung)"
-			if created != nil {
-				number = created.EntryNumber
-			}
-			return created, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-				number, err)
+			return nil, fmt.Errorf("die Bewegung im Anlagenverzeichnis ließ sich nicht speichern: %w", err)
 		}
 	}
 	return created, nil
@@ -1229,6 +1255,12 @@ func (s *AssetService) PendingDepreciation(ctx context.Context, fiscalYear int) 
 
 // BookImpairment writes an außerplanmäßige Abschreibung.
 func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookImpairment(ctx, req)
+	})
+}
+
+func (s *AssetService) bookImpairment(ctx context.Context, req ImpairmentRequest) (*domain.JournalEntry, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1291,12 +1323,12 @@ func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest
 		Note:               req.Reason,
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung im Anlagenverzeichnis ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
-		"Außerplanmäßige Abschreibung auf %s: %s € (%s)", asset.InventoryNumber, req.Amount, req.Reason))
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Außerplanmäßige Abschreibung auf %s: %s € (%s)", asset.InventoryNumber, req.Amount, req.Reason)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -1307,6 +1339,12 @@ func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest
 // Buchwert, den das Anlagegut ohne die außerplanmäßige Abschreibung heute hätte
 // (§ 253 Abs. 5 Satz 1 HGB).
 func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookWriteUp(ctx, req)
+	})
+}
+
+func (s *AssetService) bookWriteUp(ctx context.Context, req WriteUpRequest) (*domain.JournalEntry, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1383,12 +1421,12 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 		Note:               req.Reason,
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung im Anlagenverzeichnis ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
-		"Zuschreibung auf %s: %s €", asset.InventoryNumber, req.Amount))
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Zuschreibung auf %s: %s €", asset.InventoryNumber, req.Amount)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -1448,6 +1486,12 @@ type AssetIncomeRequest struct {
 // bei ihr auftauchen, und die Frage „was hat dieser Anteil eingebracht" bleibt
 // unbeantwortbar.
 func (s *AssetService) BookAssetIncome(ctx context.Context, req AssetIncomeRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookAssetIncome(ctx, req)
+	})
+}
+
+func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeRequest) (*domain.JournalEntry, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1542,12 +1586,12 @@ func (s *AssetService) BookAssetIncome(ctx context.Context, req AssetIncomeReque
 		Note:           strings.TrimSpace(fmt.Sprintf("%s € auf %s. %s", req.Amount, revenue, req.Note)),
 	}
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung im Anlagenverzeichnis ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
-		"Laufender Ertrag aus %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Laufender Ertrag aus %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -1622,6 +1666,12 @@ type TransferRequest struct {
 // dahin wurde nichts abgeschrieben, und das war richtig: was nicht fertig ist,
 // nutzt sich nicht ab.
 func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*domain.FixedAsset, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FixedAsset, error) {
+		return s.transfer(ctx, req)
+	})
+}
+
+func (s *AssetService) transfer(ctx context.Context, req TransferRequest) (*domain.FixedAsset, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1716,18 +1766,18 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 	}
 	for _, m := range []*domain.AssetMovement{out, in} {
 		if err := s.assetRepo.AddMovement(ctx, m); err != nil {
-			return nil, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, die Umbuchung im Verzeichnis aber nicht: %w",
-				created.EntryNumber, err)
+			return nil, fmt.Errorf("die Umbuchung im Verzeichnis ließ sich nicht speichern: %w", err)
 		}
 	}
 
 	if err := s.assetRepo.Save(ctx, &target); err != nil {
 		return nil, fmt.Errorf("die Fertigstellung konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
 		"Fertigstellung %s am %s: %s € von %s auf %s umgebucht, AfA beginnt",
-		asset.InventoryNumber, req.Date, asset.BookValue, asset.Account, req.Account))
+		asset.InventoryNumber, req.Date, asset.BookValue, asset.Account, req.Account)); err != nil {
+		return nil, err
+	}
 
 	return s.reload(ctx, asset.ID)
 }
@@ -1745,6 +1795,12 @@ func (s *AssetService) Transfer(ctx context.Context, req TransferRequest) (*doma
 // Kursverlust aus wie eine Wertminderung des Papiers selbst — und die Frage,
 // wie viel von einem Ergebnis am Kurs lag, wäre nicht mehr zu beantworten.
 func (s *AssetService) BookCurrencyValuation(ctx context.Context, req CurrencyValuationRequest) (*domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.bookCurrencyValuation(ctx, req)
+	})
+}
+
+func (s *AssetService) bookCurrencyValuation(ctx context.Context, req CurrencyValuationRequest) (*domain.JournalEntry, error) {
 	valuation, err := s.ValuateCurrency(ctx, req)
 	if err != nil {
 		return nil, err
@@ -1806,12 +1862,12 @@ func (s *AssetService) BookCurrencyValuation(ctx context.Context, req CurrencyVa
 	}
 	movement.JournalEntryID = &created.ID
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung im Anlagenverzeichnis ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
-		"Währungsumrechnung %s: %s €", asset.InventoryNumber, valuation.ProposedAmount))
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+		"Währungsumrechnung %s: %s €", asset.InventoryNumber, valuation.ProposedAmount)); err != nil {
+		return nil, err
+	}
 	return created, nil
 }
 
@@ -2013,6 +2069,12 @@ func (s *AssetService) PreviewDisposal(ctx context.Context, req DisposalRequest)
 // Buchgewinn oder -verlust. Der SKR04 wählt das Erlöskonto nach diesem Ergebnis,
 // weshalb es feststehen muss, bevor kontiert wird.
 func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*DisposalResult, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*DisposalResult, error) {
+		return s.dispose(ctx, req)
+	})
+}
+
+func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*DisposalResult, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -2170,9 +2232,11 @@ func (s *AssetService) Dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		result.Message = fmt.Sprintf("%s gebucht. Weder Buchgewinn noch Buchverlust.", label)
 	}
 
-	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 		"Abgang %s am %s: Erlös %s €, Restbuchwert %s €, Ergebnis %s €",
-		fresh.InventoryNumber, req.Date, req.Proceeds, preview.BookValue, preview.Result))
+		fresh.InventoryNumber, req.Date, req.Proceeds, preview.BookValue, preview.Result)); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -3107,11 +3171,8 @@ func (s *AssetService) fiscalYearStartMonth(ctx context.Context) int {
 	return cfg.FiscalYearStartMonth
 }
 
-func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details)
+func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "ANLAGE", fmt.Sprintf("%d", id), details)
 }
 
 // auditChange protokolliert eine Änderung der Anlagenstammdaten mit dem Stand
@@ -3125,17 +3186,14 @@ func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id 
 func (s *AssetService) auditChange(
 	ctx context.Context, action domain.AuditAction, id uint, details string,
 	before, after *domain.FixedAsset,
-) {
-	if s.auditRepo == nil {
-		return
-	}
+) error {
 	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil; das Vorher
 	// eines Zugangs muss deshalb ausdrücklich nil sein.
 	var beforeAny any
 	if before != nil {
 		beforeAny = before
 	}
-	_ = s.auditRepo.LogChange(ctx, action, "ANLAGE", fmt.Sprintf("%d", id), details, beforeAny, after)
+	return logAuditChange(ctx, s.auditRepo, action, "ANLAGE", fmt.Sprintf("%d", id), details, beforeAny, after)
 }
 
 // bookedByYear sums the planmäßige AfA already booked per fiscal year. Only the

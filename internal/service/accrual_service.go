@@ -378,6 +378,12 @@ func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*Accr
 
 // Book legt den Posten an und bucht seine Bildung.
 func (s *AccrualService) Book(ctx context.Context, req AccrualRequest) (*domain.Accrual, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Accrual, error) {
+		return s.book(ctx, req)
+	})
+}
+
+func (s *AccrualService) book(ctx context.Context, req AccrualRequest) (*domain.Accrual, error) {
 	preview, err := s.Preview(ctx, req)
 	if err != nil {
 		return nil, err
@@ -435,13 +441,13 @@ func (s *AccrualService) Book(ctx context.Context, req AccrualRequest) (*domain.
 	}
 	accrual.FormationEntryID = &created.ID
 	if err := s.accrualRepo.Save(ctx, &accrual); err != nil {
-		return nil, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, der Abgrenzungsposten aber nicht gespeichert: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("der Abgrenzungsposten ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, accrual.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, accrual.ID, fmt.Sprintf(
 		"Rechnungsabgrenzung %s über %s € (%s bis %s, %s)",
-		accrual.Text, accrual.DeferredAmount, accrual.StartDate, accrual.EndDate, accrual.Method.Label()))
+		accrual.Text, accrual.DeferredAmount, accrual.StartDate, accrual.EndDate, accrual.Method.Label())); err != nil {
+		return nil, err
+	}
 	return &accrual, nil
 }
 
@@ -565,6 +571,12 @@ func (s *AccrualService) PendingReleases(ctx context.Context, toYear int) ([]Acc
 // und würde ohne diesen Anstoß bis zum nächsten Jahresabschluss liegenbleiben —
 // also bis zu dem Zeitpunkt, an dem sie längst hätte gebucht sein müssen.
 func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.releaseInto(ctx, toYear)
+	})
+}
+
+func (s *AccrualService) releaseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
 	due, err := s.PendingReleases(ctx, toYear)
 	if err != nil {
 		return nil, err
@@ -573,7 +585,7 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 	for _, item := range due {
 		accrual, err := s.accrualRepo.FindByID(ctx, item.AccrualID)
 		if err != nil || accrual == nil {
-			return created, fmt.Errorf("der Abgrenzungsposten %d wurde nicht gefunden", item.AccrualID)
+			return nil, fmt.Errorf("der Abgrenzungsposten %d wurde nicht gefunden", item.AccrualID)
 		}
 		// Für die Zeilen zählt der Betrag dieser Auflösung, nicht der ganze
 		// Posten: ein Posten über drei Jahre löst sich in drei Schritten auf.
@@ -601,13 +613,13 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 			Calculation: item, Lines: lines,
 		})
 		if err != nil {
-			return created, err
+			return nil, err
 		}
 		attachVoucher(entry, receipt)
 
 		out, err := postWithVoucher(ctx, s.journalSvc, s.receipts, entry, receipt)
 		if err != nil {
-			return created, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"die Auflösung der Abgrenzung %q konnte nicht gebucht werden: %w", accrual.Text, err)
 		}
 		release := domain.AccrualRelease{
@@ -615,15 +627,15 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 			Date: item.Date, Amount: item.Amount, JournalEntryID: &out.ID,
 		}
 		if err := s.accrualRepo.SaveRelease(ctx, &release); err != nil {
-			return created, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, die Auflösung aber nicht vermerkt: %w",
-				out.EntryNumber, err)
+			return nil, fmt.Errorf("die Auflösung ließ sich nicht vermerken: %w", err)
 		}
 		created = append(created, *out)
 	}
 	if len(created) > 0 {
-		s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
-			"Auflösung der Rechnungsabgrenzung im Geschäftsjahr %d: %d Buchungen", toYear, len(created)))
+		if err := s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
+			"Auflösung der Rechnungsabgrenzung im Geschäftsjahr %d: %d Buchungen", toYear, len(created))); err != nil {
+			return nil, err
+		}
 	}
 	return created, nil
 }
@@ -754,11 +766,8 @@ func (s *AccrualService) fiscalYearStartMonth(ctx context.Context) int {
 	return settings.FiscalYearStartMonth
 }
 
-func (s *AccrualService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "ACCRUAL", fmt.Sprintf("%d", id), details)
+func (s *AccrualService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "ACCRUAL", fmt.Sprintf("%d", id), details)
 }
 
 // calendarDaysBetween ist die Zahl der Kalendertage zwischen zwei Tagen; nie

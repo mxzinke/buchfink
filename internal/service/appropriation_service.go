@@ -253,6 +253,14 @@ func appropriationExplanation(a *domain.Appropriation) string {
 func (s *AppropriationService) BookAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*domain.Appropriation, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Appropriation, error) {
+		return s.bookAppropriation(ctx, year, req)
+	})
+}
+
+func (s *AppropriationService) bookAppropriation(
+	ctx context.Context, year int, req AppropriationRequest,
+) (*domain.Appropriation, error) {
 	preview, err := s.PreviewAppropriation(ctx, year, req)
 	if err != nil {
 		return nil, err
@@ -339,17 +347,17 @@ func (s *AppropriationService) BookAppropriation(
 		// sonst bliebe er als offener Beleg im Belegspeicher liegen.
 		if appropriation.ReceiptID != nil && s.receipts != nil {
 			if err := s.receipts.Seal(ctx, *appropriation.ReceiptID, created.ID); err != nil {
-				return nil, fmt.Errorf(
-					"die Buchung %s wurde geschrieben, das Beschlussdokument aber nicht mit ihr "+
-						"verbunden: %w", created.EntryNumber, err)
+				return nil, fmt.Errorf("das Beschlussdokument ließ sich nicht mit der Buchung verbinden: %w", err)
 			}
 		}
 	}
 	if err := s.appropriationRepo.Save(ctx, &appropriation); err != nil {
 		return nil, fmt.Errorf("der Beschluss konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, "APPROPRIATION", preview.Year, fmt.Sprintf(
-		"Ergebnisverwendung %d: %s", preview.Year, preview.Explanation))
+	if err := s.audit(ctx, "APPROPRIATION", preview.Year, fmt.Sprintf(
+		"Ergebnisverwendung %d: %s", preview.Year, preview.Explanation)); err != nil {
+		return nil, err
+	}
 	return &appropriation, nil
 }
 
@@ -395,6 +403,14 @@ func (s *AppropriationService) NotesTexts(ctx context.Context, year int) ([]Note
 func (s *AppropriationService) SaveNotesText(
 	ctx context.Context, year int, section domain.NotesSection, text string,
 ) ([]NotesTextView, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]NotesTextView, error) {
+		return s.saveNotesText(ctx, year, section, text)
+	})
+}
+
+func (s *AppropriationService) saveNotesText(
+	ctx context.Context, year int, section domain.NotesSection, text string,
+) ([]NotesTextView, error) {
 	if year == 0 {
 		year = s.fiscalYear
 	}
@@ -413,7 +429,9 @@ func (s *AppropriationService) SaveNotesText(
 		return nil, err
 	}
 	def, _ := domain.NotesSectionDefinitionFor(section)
-	s.audit(ctx, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year))
+	if err := s.audit(ctx, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year)); err != nil {
+		return nil, err
+	}
 	return s.NotesTexts(ctx, year)
 }
 
@@ -424,6 +442,12 @@ func (s *AppropriationService) SaveNotesText(
 // wird nur, was noch nicht dasteht: eine bereits geschriebene Fassung darf eine
 // Vorlage nicht überschreiben.
 func (s *AppropriationService) CopyNotesInto(ctx context.Context, toYear int) (int, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
+		return s.copyNotesInto(ctx, toYear)
+	})
+}
+
+func (s *AppropriationService) copyNotesInto(ctx context.Context, toYear int) (int, error) {
 	if toYear <= 1 {
 		return 0, nil
 	}
@@ -453,15 +477,14 @@ func (s *AppropriationService) CopyNotesInto(ctx context.Context, toYear int) (i
 		copied++
 	}
 	if copied > 0 {
-		s.audit(ctx, "NOTES", toYear, fmt.Sprintf(
-			"%d Anhangtexte aus dem Geschäftsjahr %d als Vorlage übernommen", copied, toYear-1))
+		if err := s.audit(ctx, "NOTES", toYear, fmt.Sprintf(
+			"%d Anhangtexte aus dem Geschäftsjahr %d als Vorlage übernommen", copied, toYear-1)); err != nil {
+			return 0, err
+		}
 	}
 	return copied, nil
 }
 
-func (s *AppropriationService) audit(ctx context.Context, entity string, year int, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, entity, fmt.Sprintf("%d", year), details)
+func (s *AppropriationService) audit(ctx context.Context, entity string, year int, details string) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, entity, fmt.Sprintf("%d", year), details)
 }

@@ -150,3 +150,113 @@ type failingAllocations struct {
 func (failingAllocations) Create(context.Context, []domain.PaymentAllocation) error {
 	return errors.New("Zuordnung nicht speicherbar")
 }
+
+func (e *testEnv) assetsWithAudit(t *testing.T, trigger string) *AssetService {
+	t.Helper()
+	return NewAssetService(repository.NewAssetRepository(e.db), e.journalRepo, e.journal, e.numberRepo,
+		e.contactRepo, repository.NewSettingsRepository(e.db),
+		failingAudit{AuditRepository: repository.NewAuditRepository(e.db), trigger: trigger}, e.fiscalYear)
+}
+
+func TestDisposalAndDepreciationAreAtomic(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	asset := env.machine(t, env.assets(t))
+	before := env.entryCount(t)
+
+	// Der Abgang bucht die nachgeholte AfA und den Abgang; erst sein
+	// Protokolleintrag scheitert.
+	_, err := env.assetsWithAudit(t, "Abgang").Dispose(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalSale,
+		Proceeds: 1_100_000, TaxTreatment: domain.TaxTreatmentDomestic,
+		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err == nil {
+		t.Fatal("der Abgang muss am Protokoll scheitern")
+	}
+	if n := env.entryCount(t); n != before {
+		t.Errorf("%d Buchungen nach dem gescheiterten Abgang, erwartet %d", n, before)
+	}
+	fresh, err := repository.NewAssetRepository(env.db).FindByID(ctx, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.Status == domain.AssetStatusDisposed || len(fresh.Movements) != len(asset.Movements) {
+		t.Errorf("das Anlagegut wurde verändert: Status %q, %d Bewegungen", fresh.Status, len(fresh.Movements))
+	}
+
+	if _, err := env.assetsWithAudit(t, "Abschreibungslauf").BookDepreciation(ctx,
+		BookDepreciationRequest{FiscalYear: 2026}); err == nil {
+		t.Fatal("der AfA-Lauf muss am Protokoll scheitern")
+	}
+	if n := env.entryCount(t); n != before {
+		t.Errorf("%d Buchungen nach dem gescheiterten AfA-Lauf, erwartet %d", n, before)
+	}
+	run, err := env.assets(t).Run(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Due) != 1 || run.Due[0].Booked != 0 {
+		t.Errorf("nach dem gescheiterten Lauf darf keine AfA als gebucht gelten: %+v", run.Due)
+	}
+}
+
+func TestProvisionConsumptionFromAReceiptIsAtomic(t *testing.T) {
+	env := newTestEnv(t)
+	m := env.closingModules(t)
+	ctx := context.Background()
+	m.rate(t, "2026-12", 3, 15_000)
+
+	provision, err := m.provisions.BookFormation(ctx, ProvisionRequest{
+		FiscalYear: 2026, Kind: domain.ProvisionUncertainLiability,
+		Text: "Abschlussprüfung", Amount: 300_000, ExpectedOn: "2027-06-30",
+		Reason: "Prüfungsauftrag vom 1.10.2026",
+	})
+	if err != nil {
+		t.Fatalf("Rückstellung bilden: %v", err)
+	}
+
+	failing := NewProvisionService(m.provisionRepo, repository.NewDiscountRateRepository(env.db),
+		env.journalRepo, env.journal, repository.NewSettingsRepository(env.db),
+		failingAudit{AuditRepository: repository.NewAuditRepository(env.db), trigger: "Verbrauch"},
+		m.closing, env.fiscalYear)
+	env.posting.SetProvisionConsumer(failing)
+
+	vendor := env.vendor(t, "Prüfer GmbH", "DE", "")
+	filed := env.fileIncoming(t, "pruefung.pdf")
+	before := env.entryCount(t)
+	req := ReceiptRequest{
+		ContactID: vendor.ID, ReceiptID: filed.ID,
+		BookingDate: "2027-03-01", DocumentDate: "2027-03-01",
+		ServiceDateFrom: "2027-03-01", ServiceDateTo: "2027-03-01",
+		Description: "Abschlussprüfung 2026", TaxTreatment: domain.TaxTreatmentDomestic,
+		Positions:  []ReceiptPosition{{PostingGroup: "fremdleistungen", Net: 250_000, TaxRate: domain.TaxRateStandard}},
+		Settlement: SettlementOpen, ProvisionID: provision.ID,
+	}
+	_, err = env.posting.PostIncomingReceipt(ctx, req)
+	if err == nil {
+		t.Fatal("die Buchung muss am Protokoll des Verbrauchs scheitern")
+	}
+	if n := env.entryCount(t); n != before {
+		t.Errorf("%d Buchungen nach dem gescheiterten Verbrauch, erwartet %d", n, before)
+	}
+	stored, err := m.provisionRepo.FindByID(ctx, provision.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Balance() != 300_000 {
+		t.Errorf("die Rückstellung steht auf %s €, erwartet unverändert 3.000,00 €", stored.Balance())
+	}
+	receipt, err := env.receiptRepo.FindByID(ctx, filed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != domain.ReceiptStatusFiled {
+		t.Errorf("der Beleg steht auf %q, erwartet offen", receipt.Status)
+	}
+
+	env.posting.SetProvisionConsumer(m.provisions)
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("mit funktionierendem Protokoll muss derselbe Beleg buchbar sein: %v", err)
+	}
+}

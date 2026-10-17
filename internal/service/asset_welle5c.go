@@ -366,6 +366,14 @@ func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpRep
 func (s *AssetService) ConfirmImpairmentPersists(
 	ctx context.Context, assetID uint, year int, note string,
 ) (*WriteUpReport, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*WriteUpReport, error) {
+		return s.confirmImpairmentPersists(ctx, assetID, year, note)
+	})
+}
+
+func (s *AssetService) confirmImpairmentPersists(
+	ctx context.Context, assetID uint, year int, note string,
+) (*WriteUpReport, error) {
 	if strings.TrimSpace(note) == "" {
 		return nil, fmt.Errorf(
 			"halte fest, warum der Grund der außerplanmäßigen Abschreibung fortbesteht. Die " +
@@ -384,9 +392,11 @@ func (s *AssetService) ConfirmImpairmentPersists(
 	if err := s.assetRepo.Save(ctx, asset); err != nil {
 		return nil, fmt.Errorf("die Bestätigung ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
 		"Wertaufholung %d geprüft: der Grund der außerplanmäßigen Abschreibung auf %s besteht fort — %s",
-		year, asset.InventoryNumber, note))
+		year, asset.InventoryNumber, note)); err != nil {
+		return nil, err
+	}
 	return s.WriteUpReport(ctx, year)
 }
 

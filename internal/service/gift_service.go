@@ -367,6 +367,14 @@ type GiftRebooking struct {
 func (s *GiftService) RebookGiftsForRecipient(
 	ctx context.Context, req RebookGiftsRequest,
 ) (*GiftRebooking, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*GiftRebooking, error) {
+		return s.rebookGiftsForRecipient(ctx, req)
+	})
+}
+
+func (s *GiftService) rebookGiftsForRecipient(
+	ctx context.Context, req RebookGiftsRequest,
+) (*GiftRebooking, error) {
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
@@ -511,7 +519,9 @@ func (s *GiftService) RebookGiftsForRecipient(
 			"%s €. %d Buchung(en) wurden zurückgenommen und ohne Vorsteuerabzug neu gebucht "+
 			"(§ 4 Abs. 5 Satz 1 Nr. 1 EStG, § 15 Abs. 1a UStG).",
 		name, year, total, limit, len(pending))
-	s.audit(ctx, fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note))
+	if err := s.audit(ctx, fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note)); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -714,9 +724,6 @@ func reverseChargeInputTaxKey(key string) bool {
 	return false
 }
 
-func (s *GiftService) audit(ctx context.Context, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "GIFT", "", details)
+func (s *GiftService) audit(ctx context.Context, details string) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "GIFT", "", details)
 }
