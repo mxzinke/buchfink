@@ -1,70 +1,78 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AREA_TABS, TAB_LABELS, activeTab, useNavigation, type TabOf } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { Api } from '../../services/api';
 import { ClosedYearNotice } from '../../components/WriteLock';
-import { Disclosure, PageFrame, type FrameTab } from '../../components/ui';
-import { AccountsPage } from '../AccountsPage';
-import { AdvancesPage } from '../AdvancesPage';
-import { AssetsPage } from '../AssetsPage';
-import { BankImportPage } from '../BankImportPage';
-import { InvoicesPage } from '../InvoicesPage';
-import { JournalPage } from '../JournalPage';
-import { ReceiptsPage } from '../ReceiptsPage';
-import { ReportsPage } from '../ReportsPage';
+import { PageFrame, type FrameTab } from '../../components/ui';
+import { AccountsTab } from './AccountsTab';
+import { AssetsTab } from './AssetsTab';
+import { BankTab } from './BankTab';
+import { InvoicesTab } from './InvoicesTab';
+import { JournalTab } from './JournalTab';
+import { ReceiptsTab, needsBooking } from './ReceiptsTab';
+import { StatementsTab } from './StatementsTab';
 
 type BooksTab = TabOf<'books'>;
 
-const TABS: FrameTab<BooksTab>[] = AREA_TABS.books.map((value) => ({
-  value,
-  label: TAB_LABELS.books[value],
-}));
+/** Reiter, in denen eine Notfallmaske bucht; nur sie zeigen die Sperre des Geschäftsjahres. */
+const POSTING_TABS: BooksTab[] = ['receipts', 'bank', 'invoices'];
 
-/** Reiter, in denen gebucht wird; nur sie zeigen die Sperre des Geschäftsjahres. */
-const POSTING_TABS: BooksTab[] = ['receipts', 'bank', 'invoices', 'journal', 'assets'];
+/** Was an den Reitern als Zahl steht: die Belege und Umsätze, die noch zu buchen sind. */
+interface Counts {
+  receipts?: number;
+  bank?: number;
+}
 
 /**
  * Die Bücher: Belege, Bank, Rechnungen, Journal, Konten, Anlagen, Bilanz und
- * GuV. Die Kennung im Ziel schlägt das Objekt im Reiter auf: Beleg-ID,
- * Buchungsnummer oder Kontonummer.
+ * GuV. Jeder Reiter zeigt eine Liste mit Zustand; ein Eintrag öffnet seine
+ * Einzelheiten in der Seitenleiste. Die Kennung im Ziel schlägt ihn auf.
  */
 export const BooksArea: React.FC = () => {
   const { route, navigate } = useNavigation();
   const { year, closedYears } = useWorkspace();
   const tab = activeTab(route, 'books');
-  const id = route.area === 'books' ? route.id : undefined;
-  const receiptId = Number(id);
+  const [counts, setCounts] = useState<Counts>({});
+
+  // Neu gezählt wird beim Wechsel des Reiters: dort wurde gerade gebucht.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([Api.getReceipts(''), Api.getBankTransactions()])
+      .then(([receipts, transactions]) => {
+        if (cancelled) return;
+        setCounts({
+          receipts: receipts.filter(needsBooking).length,
+          bank: transactions.filter((t) => t.matchStatus === 'unmatched').length,
+        });
+      })
+      .catch(() => !cancelled && setCounts({}));
+    return () => {
+      cancelled = true;
+    };
+  }, [year, tab]);
+
+  const tabs: FrameTab<BooksTab>[] = AREA_TABS.books.map((value) => ({
+    value,
+    label: TAB_LABELS.books[value],
+    count: value === 'receipts' || value === 'bank' ? counts[value] || undefined : undefined,
+  }));
 
   return (
     <PageFrame
       title="Bücher"
       context={`Geschäftsjahr ${year}`}
-      tabs={TABS}
+      tabs={tabs}
       tab={tab}
       onTabChange={(next) => navigate({ area: 'books', tab: next })}
-      notice={
-        POSTING_TABS.includes(tab) && closedYears.includes(year) ? <ClosedYearNotice /> : undefined
-      }
+      notice={POSTING_TABS.includes(tab) && closedYears.includes(year) ? <ClosedYearNotice /> : undefined}
     >
-      {tab === 'receipts' && (
-        <ReceiptsPage
-          initialReceiptId={Number.isInteger(receiptId) && receiptId > 0 ? receiptId : undefined}
-          onNavigate={navigate}
-        />
-      )}
-      {tab === 'bank' && <BankImportPage />}
-      {tab === 'invoices' && (
-        <>
-          <InvoicesPage onNavigate={navigate} />
-          {/* Abschlagsrechnungen und Schlussrechnung, bis der Reiter sie selbst zeigt. */}
-          <Disclosure title="Anzahlungen" context="Abschlagsrechnungen und Schlussrechnungen">
-            <AdvancesPage />
-          </Disclosure>
-        </>
-      )}
-      {tab === 'journal' && <JournalPage initialSearch={id} onNavigate={navigate} />}
-      {tab === 'accounts' && <AccountsPage initialAccount={id} onNavigate={navigate} />}
-      {tab === 'assets' && <AssetsPage />}
-      {tab === 'statements' && <ReportsPage year={year} onNavigate={navigate} />}
+      {tab === 'receipts' && <ReceiptsTab />}
+      {tab === 'bank' && <BankTab />}
+      {tab === 'invoices' && <InvoicesTab />}
+      {tab === 'journal' && <JournalTab />}
+      {tab === 'accounts' && <AccountsTab />}
+      {tab === 'assets' && <AssetsTab />}
+      {tab === 'statements' && <StatementsTab />}
     </PageFrame>
   );
 };

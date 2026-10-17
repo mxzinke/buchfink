@@ -7,6 +7,10 @@
  * Belegfunktion: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
  * Bedienung, wenn der Weg vom Abschluss zurück zum Papier auch begehbar ist.
  *
+ * Der Weg läuft durch die Reiter der Bücher: Die Bilanzzeile klappt ihre
+ * Konten auf, das Konto öffnet sein Kontoblatt in der Seitenleiste, die Zeile
+ * des Kontoblatts die Buchung im Journal und deren Seitenleiste den Beleg.
+ *
  * Gefahren wird die echte Oberfläche aus `frontend/`; nur die Wails-Bridge ist
  * durch `mock-bridge.ts` mit den Beispieldaten ersetzt. Gezählt werden die
  * Klicks ab der Bilanz — der Weg dorthin ist die Navigation und nicht der
@@ -71,14 +75,14 @@ async function main() {
     );
     await page.getByRole('button', { name: ACCOUNT, exact: true }).first().waitFor();
 
-    // 2. Vom Konto ins Kontoblatt.
+    // 2. Vom Konto ins Kontoblatt (Seitenleiste im Reiter Konten).
     await click(
       page.getByRole('button', { name: ACCOUNT, exact: true }).first(),
       `Konto ${ACCOUNT} öffnen`,
     );
     await page.getByText('Kontoblatt', { exact: true }).waitFor({ timeout: 20_000 });
 
-    // 3. Von der Zeile des Kontoblatts auf die Buchung im Journal.
+    // 3. Von der Zeile des Kontoblatts auf die Buchung (Seitenleiste im Journal).
     await click(
       page.getByRole('button', { name: ENTRY, exact: true }).first(),
       `Buchung ${ENTRY} öffnen`,
@@ -87,7 +91,7 @@ async function main() {
       .getByRole('button', { name: `Beleg zur Buchung ${ENTRY} anzeigen` })
       .waitFor({ timeout: 20_000 });
 
-    // 4. Von der Buchung auf ihren Beleg.
+    // 4. Von der Buchung auf ihren Beleg (Seitenleiste im Reiter Belege).
     await click(
       page.getByRole('button', { name: `Beleg zur Buchung ${ENTRY} anzeigen` }),
       `Beleg zur Buchung ${ENTRY} öffnen`,

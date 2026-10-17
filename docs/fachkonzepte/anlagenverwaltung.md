@@ -4,7 +4,10 @@
 
 Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.go`,
 `internal/accounting/afa.go`, `internal/accounting/asset_accounts.go`,
-`service.AssetService`.
+`service.AssetService`. Die Oberfläche (Bücher → Anlagen,
+`frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
+Abschreibungsplan und Anlagenspiegel nur an; erfasst, abgeschrieben und
+abgegangen wird über einen verbundenen Agenten.
 
 ## Sofortabzug, Sammelposten oder Aktivierung
 
