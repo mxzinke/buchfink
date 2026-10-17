@@ -522,7 +522,8 @@ const AssignDialog: React.FC<{
    */
   const applySuggestion = useCallback((suggestion: BankSuggestion) => {
     setAppliedLabel(suggestion.label);
-    if (suggestion.kind === 'rule') {
+    // Die Kartenabrechnung ist eine Direktbuchung gegen 3610.
+    if (suggestion.kind === 'rule' || suggestion.kind === 'credit_card') {
       setMode('direct');
       setAdvance(null);
       setSelected({});
