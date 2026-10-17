@@ -52,6 +52,7 @@ Diese Termine stehen von außen fest und sind zu ihrem Zeitpunkt nachzuziehen.
 | jährlich | Jahresstand des SKR04 | `internal/accounting/skr04_2026.json` |
 | 1. Januar und 1. Juli | Basiszinssatz nach § 247 BGB | `accounting/tax_params.go` |
 | 1. Januar 2027 und 2028 | Sendepflicht für E-Rechnungen ([§ 27 Abs. 38 UStG][ustg27]) | Rechnungsausgabe |
+| Wirtschaftsjahre ab 2028 | Anlagenspiegel und Anlagenverzeichnis in der E-Bilanz (§ 5b Abs. 1 EStG) | `internal/ebilanz` |
 | offen | Buchführungsdatenschnittstelle nach [§ 147b AO][ao147b], Verordnung noch nicht erlassen | `internal/export` |
 
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
