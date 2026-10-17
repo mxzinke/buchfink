@@ -151,6 +151,10 @@ type VatReturn struct {
 
 	Figures     []VatReturnLine `gorm:"-" json:"figures"`
 	LateEntries []VatLateEntry  `gorm:"-" json:"lateEntries"`
+	// Findings sind die Paarprüfungen des Blatts (Grundlage ohne Steuer,
+	// Steuer neben dem Satz, Vorsteuer über der geschuldeten Steuer). Sie
+	// werden bei jedem Rechnen neu gebildet und nicht gespeichert.
+	Findings []string `gorm:"-" json:"findings"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -168,6 +172,9 @@ func (r *VatReturn) EnsureLists() {
 	}
 	if r.LateEntries == nil {
 		r.LateEntries = make([]VatLateEntry, 0)
+	}
+	if r.Findings == nil {
+		r.Findings = make([]string, 0)
 	}
 }
 

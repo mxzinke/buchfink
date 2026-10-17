@@ -713,7 +713,7 @@ func deductibleInputTaxKey(key string) bool {
 // aus derselben Bemessungsgrundlage steht.
 func reverseChargeInputTaxKey(key string) bool {
 	switch key {
-	case "IG19_VST", "IG7_VST", "RC19_VST", "RC7_VST":
+	case "IG19_VST", "IG7_VST", "RC19_VST", "RC7_VST", "RCEU19_VST", "RCEU7_VST":
 		return true
 	}
 	return false

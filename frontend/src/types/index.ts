@@ -27,6 +27,9 @@ export type Direction = 'incoming' | 'outgoing';
 
 export type TaxTreatment =
   | 'domestic'
+  /** § 13b Abs. 1 UStG: sonstige Leistung eines EU-Unternehmers (Kz 46/47). */
+  | 'reverse_charge_eu'
+  /** § 13b Abs. 2 UStG: übrige Leistungen aus dem Ausland (Kz 84/85). */
   | 'reverse_charge'
   | 'intra_community_acquisition'
   | 'reverse_charge_supply'

@@ -18,6 +18,7 @@ func (e *testEnv) vatReturns(t *testing.T) *VatReturnService {
 		e.journalRepo,
 		e.receiptRepo,
 		e.contactRepo,
+		repository.NewPaymentAllocationRepository(e.db),
 		repository.NewSettingsRepository(e.db),
 		repository.NewFestschreibungRepository(e.db),
 		repository.NewVatReturnRepository(e.db),
@@ -566,14 +567,17 @@ func TestVatReturnReadsAcrossFiscalYears(t *testing.T) {
 		t.Fatalf("Buchung im Folgejahr: %v", err)
 	}
 
-	// Im Dezember 2025 erfasst (Geschäftsjahr 2025), Leistung im Januar 2026.
+	// Im Dezember 2025 erfasst (Geschäftsjahr 2025), Leistung im Januar 2026,
+	// auf Ziel: ohne Zahlung vor der Leistung entscheidet die Leistung.
+	customer := env.customer(t, "Kunde", "DE", "")
 	early := &domain.JournalEntry{
 		BookingDate: "2025-12-28", DocumentDate: "2025-12-28",
 		ServiceDateFrom: "2026-01-15", ServiceDateTo: "2026-01-15",
 		Description: "Januarleistung, im Dezember erfasst",
 		Source:      domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
+		ContactID: &customer.ID,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 59500},
+			{Side: domain.SideDebit, Account: customer.LedgerAccount, ContactID: &customer.ID, Amount: 59500},
 			{Side: domain.SideCredit, Account: "4400", Amount: 50000},
 			{Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 9500, TaxKey: "UST19", TaxBase: 50000},
 		},

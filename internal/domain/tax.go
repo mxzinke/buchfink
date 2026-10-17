@@ -67,10 +67,17 @@ type TaxTreatment string
 const (
 	// TaxTreatmentDomestic is a normal domestic taxable transaction.
 	TaxTreatmentDomestic TaxTreatment = "domestic"
-	// TaxTreatmentReverseCharge shifts the tax liability to the recipient
-	// (§ 13b UStG). The recipient books output tax and, where deductible, input
-	// tax of the same amount at once.
+	// TaxTreatmentReverseCharge ist die Steuerschuld des Leistungsempfängers
+	// nach § 13b Abs. 2 UStG, vor allem Werklieferungen und sonstige
+	// Leistungen eines im Ausland ansässigen Unternehmers, die nicht unter
+	// Abs. 1 fallen (Nr. 1). Die Steuer entsteht mit der Rechnung, spätestens
+	// mit Ablauf des Folgemonats der Leistung; Kz 84/85.
 	TaxTreatmentReverseCharge TaxTreatment = "reverse_charge"
+	// TaxTreatmentReverseChargeEU ist die sonstige Leistung nach § 3a Abs. 2
+	// UStG eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers
+	// (§ 13b Abs. 1 UStG). Die Steuer entsteht mit Ablauf des
+	// Voranmeldungszeitraums der Leistung; Kz 46/47.
+	TaxTreatmentReverseChargeEU TaxTreatment = "reverse_charge_eu"
 	// TaxTreatmentIntraCommunityAcquisition is an innergemeinschaftlicher Erwerb
 	// (§ 1a UStG): acquisition tax and matching input tax in the same booking.
 	TaxTreatmentIntraCommunityAcquisition TaxTreatment = "intra_community_acquisition"
@@ -130,6 +137,7 @@ type TaxTreatmentInfo struct {
 func AllTaxTreatments() []TaxTreatment {
 	return []TaxTreatment{
 		TaxTreatmentDomestic,
+		TaxTreatmentReverseChargeEU,
 		TaxTreatmentReverseCharge,
 		TaxTreatmentIntraCommunityAcquisition,
 		TaxTreatmentReverseChargeSupply,
@@ -139,38 +147,34 @@ func AllTaxTreatments() []TaxTreatment {
 	}
 }
 
-// Der Erklärtext zum Steuerfall § 13b UStG — und die Grenzen dessen, was
-// Buchfink davon abbildet.
+// Die Erklärtexte zu § 13b UStG und die Grenzen dessen, was Buchfink davon
+// abbildet.
 //
-// § 13b UStG ist kein Fall, sondern ein Katalog. Buchfink rechnet den Fall des
-// Absatzes 2 Nr. 1: die Leistung eines im Ausland ansässigen Unternehmers, für
-// die es keine Betragsgrenze gibt. Die anderen Nummern des Katalogs stehen im
-// Text, weil der Anwender sie sonst für abgedeckt hielte:
-//
-//   - Nr. 10 und 11 (Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte
-//     Schaltkreise, Edel- und unedle Metalle) greifen erst ab 5.000 € je
-//     wirtschaftlichem Vorgang. Diese Grenze prüft Buchfink nicht — wer den
-//     Steuerfall hier wählt, hat sie selbst zu beurteilen.
-//   - Nr. 4 (Bauleistungen) samt der Bauabzugsteuer des § 48 EStG bildet
-//     Buchfink nicht ab. Die Freistellungsbescheinigung nach § 48b EStG wird am
-//     Geschäftspartner geführt und mit ihrer Frist angezeigt, den Steuerabzug
-//     von 15 % rechnet und meldet Buchfink nicht.
-//
-// Der Text steht an beiden Richtungen, weil die Frage in beiden dieselbe ist.
+// Auf der Eingangsseite unterscheidet Buchfink die beiden Absätze, weil
+// Kennzahl und Entstehung verschieden sind: Abs. 1 für die sonstige Leistung
+// eines EU-Unternehmers (Kz 46/47, Ablauf des Zeitraums der Leistung), Abs. 2
+// für alles Übrige (Kz 84/85, Rechnung, spätestens Ablauf des Folgemonats).
+// Nicht geprüft werden die 5.000-Euro-Grenze der Nr. 10 und 11; nicht
+// abgebildet sind Bauleistungen (Nr. 4) und der Steuerabzug nach § 48 EStG.
 const (
-	reverseChargeHint = "Leistung eines im Ausland ansässigen Unternehmers (§ 13b Abs. 2 Nr. 1 UStG, " +
-		"ohne Betragsgrenze): Der Leistungsempfänger schuldet die Steuer und zieht sie zugleich als Vorsteuer ab. " +
-		"Buchfink bildet nur diesen Fall ab. Für Mobilfunkgeräte, Tablets, Spielekonsolen, " +
-		"integrierte Schaltkreise und Metalle (§ 13b Abs. 2 Nr. 10 und 11 UStG) gilt eine Grenze " +
-		"von 5.000 € je wirtschaftlichem Vorgang, die Buchfink nicht prüft; Bauleistungen " +
-		"(§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug nach § 48 EStG sind nicht abgebildet — die " +
-		"Freistellungsbescheinigung nach § 48b EStG wird am Geschäftspartner nur geführt."
-	reverseChargeSupplyHint = "Leistung an ein Unternehmen, das die Steuer schuldet. Buchfink " +
-		"bildet den Fall des § 13b Abs. 2 Nr. 1 UStG ab (Leistung eines im Ausland ansässigen " +
-		"Unternehmers, ohne Betragsgrenze). Die 5.000-Euro-Grenze je wirtschaftlichem Vorgang für " +
-		"Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte Schaltkreise und Metalle " +
-		"(§ 13b Abs. 2 Nr. 10 und 11 UStG) prüft Buchfink nicht; Bauleistungen " +
-		"(§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug nach § 48 EStG sind nicht abgebildet."
+	reverseChargeEUHint = "Sonstige Leistung nach § 3a Abs. 2 UStG eines Unternehmers mit Sitz in einem " +
+		"anderen EU-Staat, etwa Software-Abo, Werbung oder Beratung (§ 13b Abs. 1 UStG, Kennzahl 46/47). " +
+		"Die Steuer entsteht mit Ablauf des Voranmeldungszeitraums, in dem die Leistung ausgeführt ist; " +
+		"der Leistungsempfänger schuldet sie und zieht sie zugleich als Vorsteuer ab."
+	reverseChargeHint = "Werklieferung oder sonstige Leistung eines im Ausland ansässigen Unternehmers, die " +
+		"nicht unter § 13b Abs. 1 fällt, etwa ein Software-Abo aus dem Drittland (§ 13b Abs. 2 Nr. 1 UStG, " +
+		"Kennzahl 84/85). Die Steuer entsteht mit Ausstellung der Rechnung, spätestens mit Ablauf des " +
+		"Folgemonats der Leistung. Für Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte Schaltkreise " +
+		"und Metalle (§ 13b Abs. 2 Nr. 10 und 11 UStG) gilt eine Grenze von 5.000 € je wirtschaftlichem " +
+		"Vorgang, die Buchfink nicht prüft; Bauleistungen (§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug " +
+		"nach § 48 EStG sind nicht abgebildet."
+	reverseChargeSupplyHint = "Leistung an ein Unternehmen, das die Steuer schuldet: an einen Unternehmer " +
+		"in einem anderen EU-Staat (sonstige Leistung nach § 3a Abs. 2 UStG, Kennzahl 21 und " +
+		"Zusammenfassende Meldung), im Drittland (Kennzahl 45) oder im Inland nach § 13b Abs. 5 UStG " +
+		"(Kennzahl 60). Für Mobilfunkgeräte, Tablets, Spielekonsolen, integrierte Schaltkreise und " +
+		"Metalle gilt § 13b Abs. 2 Nr. 10 und 11 UStG erst ab 5.000 € je wirtschaftlichem Vorgang; " +
+		"Buchfink prüft die Grenze nicht. Bauleistungen (§ 13b Abs. 2 Nr. 4 UStG) und der Steuerabzug " +
+		"nach § 48 EStG sind nicht abgebildet."
 )
 
 // TaxTreatments returns the Steuerfälle valid for a direction.
@@ -179,7 +183,8 @@ func TaxTreatments(dir Direction) []TaxTreatmentInfo {
 	case DirectionIncoming:
 		return []TaxTreatmentInfo{
 			{TaxTreatmentDomestic, "Inland, steuerpflichtig", "Normalfall: deutscher Lieferant weist Umsatzsteuer aus.", dir, true, false},
-			{TaxTreatmentReverseCharge, "§ 13b UStG (Reverse Charge)", reverseChargeHint, dir, true, true},
+			{TaxTreatmentReverseChargeEU, "§ 13b Abs. 1 UStG (sonstige Leistung aus der EU)", reverseChargeEUHint, dir, true, true},
+			{TaxTreatmentReverseCharge, "§ 13b Abs. 2 UStG (übrige Leistungen aus dem Ausland)", reverseChargeHint, dir, true, false},
 			{TaxTreatmentIntraCommunityAcquisition, "Innergemeinschaftlicher Erwerb", "Warenkauf aus einem anderen EU-Land ohne ausgewiesene Steuer.", dir, true, true},
 			{TaxTreatmentZeroRated, "Nullsteuersatz (§ 12 Abs. 3 UStG)", "Photovoltaikanlage und Zubehör: steuerpflichtig zum Satz null, nicht steuerfrei.", dir, false, false},
 			{TaxTreatmentExempt, "Steuerfrei", "Umsatz ist nach § 4 UStG von der Steuer befreit.", dir, false, false},

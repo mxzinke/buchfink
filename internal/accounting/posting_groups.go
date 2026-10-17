@@ -162,10 +162,10 @@ var postingGroups = []PostingGroup{
 			domain.TaxRateNone:    "5900",
 		},
 		TreatmentAccounts: map[domain.TaxTreatment]string{
-			// § 13b: Leistung ohne ausgewiesene Vorsteuer, Steuerschuld beim
-			// Empfänger. Das eigene Konto ist Voraussetzung dafür, dass die
-			// UStVA die Kennzahlen 84/85 richtig füllt.
-			domain.TaxTreatmentReverseCharge: "5909",
+			// § 13b: Leistung ohne ausgewiesene Steuer, Steuerschuld beim
+			// Empfänger. Die Kennzahl folgt dem Steuerschlüssel, nicht dem Konto.
+			domain.TaxTreatmentReverseCharge:   "5909",
+			domain.TaxTreatmentReverseChargeEU: "5909",
 		},
 	},
 

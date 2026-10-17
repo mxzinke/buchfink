@@ -523,6 +523,9 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 		gifts:    make([]domain.GiftRecord, 0, 1),
 		warnings: make([]PostingWarning, 0, 2),
 	}
+	if w := reverseChargeParagraphWarning(req.TaxTreatment, contact); w != nil {
+		out.warnings = append(out.warnings, *w)
+	}
 	var lines []domain.JournalLine
 
 	// 1. Aufwands- bzw. Anschaffungszeilen aus den fachlichen Gruppen.
@@ -1490,15 +1493,25 @@ func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Co
 		if contact.VatID == "" {
 			return fmt.Errorf("für einen innergemeinschaftlichen Erwerb braucht %s eine USt-IdNr.", contact.Name)
 		}
+	case domain.TaxTreatmentReverseChargeEU:
+		// § 13b Abs. 1 UStG setzt einen im übrigen Gemeinschaftsgebiet
+		// ansässigen Unternehmer voraus; die USt-IdNr. belegt die
+		// Unternehmereigenschaft dort.
+		if !contact.IsEUCounterparty() {
+			return fmt.Errorf(
+				"§ 13b Abs. 1 UStG gilt nur für die sonstige Leistung eines Unternehmers aus einem anderen EU-Staat, "+
+					"%s ist in %q erfasst. Für einen Lieferanten aus dem Drittland gilt § 13b Abs. 2 UStG",
+				contact.Name, contact.CountryCode)
+		}
+		if contact.VatID == "" {
+			return fmt.Errorf(
+				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
+				contact.Name)
+		}
 	case domain.TaxTreatmentReverseCharge:
-		// § 13b UStG hat zwei getrennte Fälle. Bei einer sonstigen Leistung eines
-		// im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (Abs. 1) belegt
-		// die USt-IdNr. die Unternehmereigenschaft im Ausland. Bei einer
-		// inländischen Bauleistung (Abs. 2 Nr. 4) hängt die Steuerschuld dagegen
-		// am *Leistungsempfänger* – er muss selbst nachhaltig Bauleistungen
-		// erbringen (Abs. 5). Das steht nicht in den Lieferantenstammdaten, also
-		// darf eine fehlende USt-IdNr. des inländischen Lieferanten den Fall auch
-		// nicht blockieren.
+		// Bei einer inländischen Bauleistung (Abs. 2 Nr. 4) hängt die
+		// Steuerschuld am Leistungsempfänger (Abs. 5); eine fehlende USt-IdNr.
+		// des inländischen Lieferanten blockiert den Fall deshalb nicht.
 		if contact.IsEUCounterparty() && contact.VatID == "" {
 			return fmt.Errorf(
 				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
@@ -1506,6 +1519,30 @@ func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Co
 		}
 	}
 	return nil
+}
+
+// warningReverseChargeEU ist der Hinweis auf § 13b Abs. 1 bei einem
+// EU-Lieferanten, für den Abs. 2 gewählt wurde.
+const warningReverseChargeEU = "reverse_charge_eu_supplier"
+
+// reverseChargeParagraphWarning weist darauf hin, dass für die sonstige
+// Leistung eines EU-Unternehmers § 13b Abs. 1 gilt. Abs. 2 bleibt für dessen
+// Werklieferung richtig, deshalb sperrt der Hinweis nicht.
+func reverseChargeParagraphWarning(treatment domain.TaxTreatment, contact *domain.Contact) *PostingWarning {
+	if treatment != domain.TaxTreatmentReverseCharge || contact == nil || !contact.IsEUCounterparty() {
+		return nil
+	}
+	return &PostingWarning{
+		Code:     warningReverseChargeEU,
+		Severity: "warning",
+		Title:    "Lieferant aus einem anderen EU-Staat",
+		Detail: fmt.Sprintf(
+			"%s sitzt in %s. Ist die Leistung eine sonstige Leistung nach § 3a Abs. 2 UStG (etwa Software, "+
+				"Werbung, Beratung), gilt § 13b Abs. 1 UStG: Kennzahl 46/47, Steuer im Zeitraum der Leistung. "+
+				"§ 13b Abs. 2 (Kennzahl 84/85) passt nur für eine Werklieferung oder eine Leistung, deren Ort "+
+				"sich nicht nach § 3a Abs. 2 UStG richtet.",
+			contact.Name, contact.CountryCode),
+	}
 }
 
 // PostAdvanceSettlement bucht die Vereinnahmung einer Anzahlung.
