@@ -971,11 +971,8 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 		ServiceDateFrom: inv.ServiceDateFrom,
 		ServiceDateTo:   inv.ServiceDateTo,
 		Description:     fmt.Sprintf("Rechnung %s an %s", inv.InvoiceNumber, contact.Name),
-		// Der Ausgangsbeleg entsteht vor der Buchung (siehe InvoiceService.Issue)
-		// und wird hier an ihr vermerkt. Die Gegenrichtung — der Beleg zeigt nach
-		// dem Versiegeln auf die Buchung — genügt nicht: der Prüflauf fragt die
-		// Buchung, ob sie einen Beleg hat, und ohne diese Zeile hätte jede
-		// Ausgangsrechnung keinen.
+		// Der Ausgangsbeleg entsteht vor der Buchung (siehe
+		// InvoiceService.issueDocument); die Buchung verweist auf ihn.
 		ReceiptID:          inv.ReceiptID,
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,
@@ -1536,6 +1533,7 @@ func (s *PostingService) PostAdvanceSettlement(
 	paymentDate string,
 	paymentAccount string,
 	bankTxID *uint,
+	receiptID *uint,
 ) (*domain.JournalEntry, error) {
 	account, err := accounting.AdvanceAccountFor(advance.TaxRate)
 	if err != nil {
@@ -1571,6 +1569,7 @@ func (s *PostingService) PostAdvanceSettlement(
 			advance.InvoiceNumber, contact.Name),
 		Source:             domain.EntrySourceAdvance,
 		DocumentNumber:     advance.InvoiceNumber,
+		ReceiptID:          receiptID,
 		TaxTreatment:       domain.TaxTreatmentDomestic,
 		ContactID:          &contact.ID,
 		BankTxID:           bankTxID,
@@ -1728,6 +1727,7 @@ func (s *PostingService) PostFinalInvoice(
 		Description:        fmt.Sprintf("Schlussrechnung %s an %s", inv.InvoiceNumber, contact.Name),
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,
+		ReceiptID:          inv.ReceiptID,
 		TaxTreatment:       inv.TaxTreatment,
 		ContactID:          &contact.ID,
 		Currency:           inv.Currency,

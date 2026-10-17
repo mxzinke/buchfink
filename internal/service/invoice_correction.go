@@ -25,11 +25,17 @@ import (
 
 // RegenerateDocument holt ein fehlendes Rechnungsdokument nach.
 //
-// Der Fall, für den es da ist: Nummer und Buchung stehen, das Erzeugen des PDF
-// ist gescheitert. Die Rechnung steht dann auf „Dokument fehlt", und ohne diesen
-// Weg wäre die Nummer verloren — der Anwender müsste stornieren und neu
-// ausstellen, für einen Fehler, der mit der Rechnung nichts zu tun hatte.
+// Seit Nummer, Dokument und Buchung in einer Transaktion entstehen, gibt es
+// den Zustand „Dokument fehlt" nur noch für Rechnungen ohne Beleg-Pipeline. Der
+// Weg bleibt, damit eine solche Rechnung ihr Dokument bekommt, ohne storniert
+// zu werden.
 func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint) (*domain.Invoice, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.Invoice, error) {
+		return s.regenerateDocument(ctx, invoiceID)
+	})
+}
+
+func (s *InvoiceService) regenerateDocument(ctx context.Context, invoiceID uint) (*domain.Invoice, error) {
 	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return nil, err
@@ -37,82 +43,27 @@ func (s *InvoiceService) RegenerateDocument(ctx context.Context, invoiceID uint)
 	if !inv.Status.IsIssued() {
 		return nil, fmt.Errorf("Rechnung %s ist nicht ausgestellt", inv.InvoiceNumber)
 	}
+	if inv.ReceiptID != nil {
+		return nil, fmt.Errorf(
+			"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites hätte dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
+			inv.InvoiceNumber)
+	}
 	contact, err := s.contactForInvoice(ctx, inv)
 	if err != nil {
 		return nil, err
 	}
-
-	// Liegt der Beleg bereits, wird kein zweiter erzeugt: er hätte dieselbe
-	// Rechnungsnummer und wäre ein zweiter Beleg zu einem Vorgang. Fehlt dann
-	// noch der letzte Schritt — Validierungsbericht, Zustand, Siegel —, wird
-	// er nachgeholt; das ist der Zustand, den ein Fehler hinter dem
-	// Ablegen hinterlässt.
-	if inv.ReceiptID != nil {
-		if inv.Status != domain.InvoiceStatusPendingDocument {
-			return nil, fmt.Errorf(
-				"zu Rechnung %s liegt bereits ein Dokument vor. Ein zweites hätte dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang",
-				inv.InvoiceNumber)
-		}
-		if err := s.finishPendingDocument(ctx, inv, contact); err != nil {
-			return nil, err
-		}
-		s.log(ctx, domain.AuditActionUpdate, inv,
-			fmt.Sprintf("Der Beleg zu Rechnung %s wurde nachträglich abgeschlossen", inv.InvoiceNumber))
-		return inv, nil
-	}
-
-	// Der Beleg kann liegen, ohne dass die Rechnung ihn kennt: das Ablegen ist
-	// gelungen, das Speichern des Verweises danach nicht. Ein zweiter Lauf über
-	// attachDocument legte dann einen zweiten Ausgangsbeleg mit derselben
-	// Rechnungsnummer an — zwei Belege zu einem Vorgang. Gesucht wird deshalb
-	// zuerst der vorhandene, und wenn es ihn gibt, wird nur der Rest nachgeholt.
-	if s.receiptSvc != nil {
-		existing, err := s.receiptSvc.FindOutgoingByNumber(ctx, inv.FiscalYear, inv.InvoiceNumber)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			id := existing.ID
-			inv.ReceiptID = &id
-			if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-				return nil, err
-			}
-			if err := s.finishPendingDocument(ctx, inv, contact); err != nil {
-				return nil, err
-			}
-			s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
-				"Der bereits abgelegte Beleg %s wurde Rechnung %s zugeordnet und abgeschlossen",
-				existing.ReceiptNumber, inv.InvoiceNumber))
-			return inv, nil
-		}
-	}
-
-	if err := s.attachDocument(ctx, inv, contact); err != nil {
+	validation, err := s.fileDocument(ctx, inv, contact)
+	if err != nil {
 		return nil, err
 	}
-	s.log(ctx, domain.AuditActionUpdate, inv,
-		fmt.Sprintf("Das Dokument zu Rechnung %s wurde nachträglich erzeugt", inv.InvoiceNumber))
+	if err := s.completeDocument(ctx, inv, validation); err != nil {
+		return nil, err
+	}
+	if err := s.log(ctx, domain.AuditActionUpdate, inv,
+		fmt.Sprintf("Das Dokument zu Rechnung %s wurde nachträglich erzeugt", inv.InvoiceNumber)); err != nil {
+		return nil, err
+	}
 	return inv, nil
-}
-
-// finishPendingDocument holt die Schritte nach, die hinter dem Ablegen des
-// Belegs noch offen sind.
-func (s *InvoiceService) finishPendingDocument(
-	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
-) error {
-	if s.receiptSvc == nil || inv.ReceiptID == nil {
-		inv.Status = domain.InvoiceStatusIssued
-		return s.invoiceRepo.Save(ctx, inv)
-	}
-	seller, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil {
-		return fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
-	}
-	validation, err := documentValidation(inv, seller, contact)
-	if err != nil {
-		return fmt.Errorf("der Rechnungsdatensatz zu %s konnte nicht geprüft werden: %w", inv.InvoiceNumber, err)
-	}
-	return s.completeDocument(ctx, inv, *inv.ReceiptID, validation)
 }
 
 // CancelWithDocument storniert eine Rechnung und stellt die Stornorechnung aus.
@@ -141,6 +92,12 @@ func (s *InvoiceService) finishPendingDocument(
 // unberührt, und das Storno erscheint in der laufenden Anmeldung statt eine
 // Berichtigung nach § 153 AO zu erzwingen.
 func (s *InvoiceService) CancelWithDocument(ctx context.Context, invoiceID uint, reason string) (*domain.Invoice, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.Invoice, error) {
+		return s.cancelWithDocument(ctx, invoiceID, reason)
+	})
+}
+
+func (s *InvoiceService) cancelWithDocument(ctx context.Context, invoiceID uint, reason string) (*domain.Invoice, error) {
 	original, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return nil, err
@@ -171,28 +128,20 @@ func (s *InvoiceService) CancelWithDocument(ctx context.Context, invoiceID uint,
 
 	storno := buildStorno(original)
 	// Nummer, Stornodokument, Generalumkehr und der Status der
-	// Ursprungsrechnung entstehen in einer Transaktion.
-	//
-	// Vorher lag die Generalumkehr dahinter: scheiterte sie — eine
-	// festgeschriebene Periode, ein festgestelltes Jahr —, blieb ein
-	// nummeriertes Stornodokument ohne Buchung zurück, die Ursprungsrechnung
-	// stand weiter auf „ausgestellt", und der nächste Versuch verbrauchte eine
-	// zweite Nummer. Dieselbe Klammer wie beim Ausstellen (siehe
-	// InvoiceService.Issue): entweder alle drei oder keines.
-	err = s.issueCorrection(ctx, storno, contact, func(ctx context.Context) error {
-		if original.JournalEntryID != nil {
-			entry, err := s.postingSvc.journalSvc.Reverse(ctx, *original.JournalEntryID,
-				fmt.Sprintf("Storno %s zu Rechnung %s: %s", storno.InvoiceNumber, original.InvoiceNumber, reason))
-			if err != nil {
-				return fmt.Errorf("die Buchung der Rechnung %s ließ sich nicht zurücknehmen: %w",
-					original.InvoiceNumber, err)
-			}
-			storno.JournalEntryID = &entry.ID
-			if err := s.invoiceRepo.Save(ctx, storno); err != nil {
-				return err
-			}
+	// Ursprungsrechnung entstehen in einer Transaktion: entweder alle oder
+	// keines.
+	err = s.issueCorrection(ctx, storno, contact, func(ctx context.Context) (*domain.JournalEntry, error) {
+		if original.JournalEntryID == nil {
+			return nil, nil
 		}
-
+		entry, err := s.postingSvc.journalSvc.Reverse(ctx, *original.JournalEntryID,
+			fmt.Sprintf("Storno %s zu Rechnung %s: %s", storno.InvoiceNumber, original.InvoiceNumber, reason))
+		if err != nil {
+			return nil, fmt.Errorf("die Buchung der Rechnung %s ließ sich nicht zurücknehmen: %w",
+				original.InvoiceNumber, err)
+		}
+		return entry, nil
+	}, func(ctx context.Context) error {
 		original.Status = domain.InvoiceStatusCancelled
 		original.CancelledByInvoiceID = &storno.ID
 		if err := s.invoiceRepo.Save(ctx, original); err != nil {
@@ -208,16 +157,17 @@ func (s *InvoiceService) CancelWithDocument(ctx context.Context, invoiceID uint,
 		// der Anzahlungen zurück: 3272 und 3806 stehen danach wieder im Haben.
 		// Der Verbund muss das mitmachen, sonst gälten die Anzahlungen weiter
 		// als verrechnet und wären nie wieder absetzbar.
-		return s.reopenFinalGroup(ctx, original)
+		if err := s.reopenFinalGroup(ctx, original); err != nil {
+			return err
+		}
+		return s.log(ctx, domain.AuditActionUpdate, original, fmt.Sprintf(
+			"Rechnung %s storniert mit %s: %s", original.InvoiceNumber, storno.InvoiceNumber, reason))
 	})
 	if err != nil {
 		original.Status = domain.InvoiceStatusIssued
 		original.CancelledByInvoiceID = nil
 		return nil, fmt.Errorf("die Rechnung %s konnte nicht storniert werden: %w", original.InvoiceNumber, err)
 	}
-
-	s.log(ctx, domain.AuditActionUpdate, original, fmt.Sprintf(
-		"Rechnung %s storniert mit %s: %s", original.InvoiceNumber, storno.InvoiceNumber, reason))
 	return storno, nil
 }
 
@@ -289,7 +239,16 @@ func (s *InvoiceService) ensureAdvanceCancellable(ctx context.Context, inv *doma
 // berichtigte. Eine „Korrekturrechnung über die Differenz" wäre die andere
 // Möglichkeit — sie ist zulässig, aber sie lässt den Empfänger zwei Dokumente
 // zusammenrechnen, und in der Praxis rechnet er falsch.
+//
+// Storno und berichtigte Rechnung sind eine Transaktion: lässt sich die
+// berichtigte nicht ausstellen, bleibt auch die Ursprungsrechnung unstorniert.
 func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, reason string, replacement *domain.Invoice) (*domain.Invoice, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.Invoice, error) {
+		return s.correctInvoice(ctx, invoiceID, reason, replacement)
+	})
+}
+
+func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, reason string, replacement *domain.Invoice) (*domain.Invoice, error) {
 	original, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return nil, err
@@ -354,7 +313,7 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 	if original.ResolvedKind() == domain.InvoiceKindAdvance {
 		if err := s.issueAdvanceReplacement(ctx, replacement, original); err != nil {
 			return nil, fmt.Errorf(
-				"die Abschlagsrechnung %s ist storniert, die berichtigte ließ sich aber nicht ausstellen: %w",
+				"die berichtigte Abschlagsrechnung zu %s ließ sich nicht ausstellen, deshalb wurde auch nicht storniert: %w",
 				original.InvoiceNumber, err)
 		}
 		return replacement, nil
@@ -371,7 +330,7 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 	if original.ResolvedKind() == domain.InvoiceKindFinal {
 		if err := s.issueFinalReplacement(ctx, replacement, original); err != nil {
 			return nil, fmt.Errorf(
-				"die Schlussrechnung %s ist storniert, die berichtigte ließ sich aber nicht ausstellen: %w",
+				"die berichtigte Schlussrechnung zu %s ließ sich nicht ausstellen, deshalb wurde auch nicht storniert: %w",
 				original.InvoiceNumber, err)
 		}
 		return replacement, nil
@@ -379,7 +338,7 @@ func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, rea
 
 	if err := s.issueAs(ctx, replacement, domain.InvoiceKindCorrection, nil); err != nil {
 		return nil, fmt.Errorf(
-			"die Ursprungsrechnung %s ist storniert, die berichtigte Rechnung ließ sich aber nicht ausstellen: %w",
+			"die berichtigte Rechnung zu %s ließ sich nicht ausstellen, deshalb wurde auch nicht storniert: %w",
 			original.InvoiceNumber, err)
 	}
 	return replacement, nil
@@ -433,16 +392,12 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 	return &storno
 }
 
-// issueCorrection stellt ein Korrekturdokument aus: Nummer, Datensatz und —
-// über book — die Buchung, die dazugehört.
-//
-// Bei einem Storno ist das die Generalumkehr der Ursprungsbuchung und keine
-// neue Forderung; sie läuft deshalb als Rückruf innerhalb derselben
-// Transaktion, in der die Nummer vergeben wird. Das Dokument entsteht danach:
-// es liegt als Datei auf der Platte, und eine Datei kann keine
-// Datenbanktransaktion zurücknehmen.
+// issueCorrection stellt ein Korrekturdokument aus: Nummer, Datensatz,
+// Dokument und — über book — die Buchung, die dazugehört. Bei einem Storno ist
+// das die Generalumkehr der Ursprungsbuchung und keine neue Forderung.
 func (s *InvoiceService) issueCorrection(
-	ctx context.Context, doc *domain.Invoice, contact *domain.Contact, book func(context.Context) error,
+	ctx context.Context, doc *domain.Invoice, contact *domain.Contact,
+	book func(context.Context) (*domain.JournalEntry, error), within func(context.Context) error,
 ) error {
 	doc.EnsureLists()
 	doc.FiscalYear = domain.GetFiscalYearForDate(doc.Date, s.fiscalYearStartMonth(ctx))
@@ -450,35 +405,7 @@ func (s *InvoiceService) issueCorrection(
 		doc.Items[i].Position = i + 1
 	}
 	doc.Recalculate()
-
-	format := s.numberFormat(ctx)
-	var allocated int64
-	err := s.runInTx(ctx, func(ctx context.Context) error {
-		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, doc.FiscalYear)
-		if err != nil {
-			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
-		}
-		allocated = seq
-		doc.InvoiceNumber = domain.FormatInvoiceNumberWith(format, doc.FiscalYear, seq)
-		doc.Status = domain.InvoiceStatusPendingDocument
-		if err := s.invoiceRepo.Save(ctx, doc); err != nil {
-			return err
-		}
-		if book == nil {
-			return nil
-		}
-		return book(ctx)
-	})
-	if err != nil {
-		s.recordNumberGap(ctx, doc, allocated, err)
-		resetAfterRollback(doc, allocated)
-		return err
-	}
-	if err := s.attachDocument(ctx, doc, contact); err != nil {
-		return err
-	}
-	s.logIssued(ctx, doc)
-	return nil
+	return s.issueDocument(ctx, doc, contact, book, within)
 }
 
 // MarkSent vermerkt, dass die Rechnung den Empfänger erreicht hat.
@@ -488,6 +415,12 @@ func (s *InvoiceService) issueCorrection(
 // Leistung gegenüber dem Empfänger, und wer im Streitfall den Zugang belegen
 // muss, braucht festgehalten, wann und wie sie hinausgegangen ist.
 func (s *InvoiceService) MarkSent(ctx context.Context, invoiceID uint, date string, via domain.InvoiceSentVia, note string) (*domain.Invoice, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.Invoice, error) {
+		return s.markSent(ctx, invoiceID, date, via, note)
+	})
+}
+
+func (s *InvoiceService) markSent(ctx context.Context, invoiceID uint, date string, via domain.InvoiceSentVia, note string) (*domain.Invoice, error) {
 	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return nil, err
@@ -514,8 +447,10 @@ func (s *InvoiceService) MarkSent(ctx context.Context, invoiceID uint, date stri
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
 		return nil, err
 	}
-	s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
-		"Rechnung %s am %s per %s versendet%s", inv.InvoiceNumber, domain.GermanDate(date), via, noteSuffix(note)))
+	if err := s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
+		"Rechnung %s am %s per %s versendet%s", inv.InvoiceNumber, domain.GermanDate(date), via, noteSuffix(note))); err != nil {
+		return nil, err
+	}
 	return inv, nil
 }
 
@@ -569,6 +504,14 @@ func (s *InvoiceService) RecordNumberGapReason(ctx context.Context, fiscalYear i
 		return fmt.Errorf("unbekannter Lückengrund %q", reason)
 	}
 	number := domain.FormatInvoiceNumberWith(s.numberFormat(ctx), fiscalYear, sequence)
+	return s.runInTx(ctx, func(ctx context.Context) error {
+		return s.recordNumberGapReason(ctx, fiscalYear, sequence, number, reason, detail)
+	})
+}
+
+func (s *InvoiceService) recordNumberGapReason(
+	ctx context.Context, fiscalYear int, sequence int64, number string, reason domain.NumberGapReason, detail string,
+) error {
 	if err := s.gapRepo.Record(ctx, &domain.NumberGap{
 		Key:        domain.NumberRangeInvoice,
 		FiscalYear: fiscalYear,
@@ -587,11 +530,8 @@ func (s *InvoiceService) RecordNumberGapReason(ctx context.Context, fiscalYear i
 	// dann selbst eine Angabe (GoBD Rz. 58). Jede andere fachliche Entscheidung
 	// dieser Welle steht im Protokoll; diese stünde als einzige nur in einer
 	// Zeile, die sich später anders lesen ließe.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "NUMBER_GAP", number, fmt.Sprintf(
-			"Lücke %s begründet: %s%s", number, reason.Label(), noteSuffix(detail)))
-	}
-	return nil
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "NUMBER_GAP", number, fmt.Sprintf(
+		"Lücke %s begründet: %s%s", number, reason.Label(), noteSuffix(detail)))
 }
 
 // contactForInvoice lädt den Empfänger einer Rechnung.
@@ -603,9 +543,6 @@ func (s *InvoiceService) contactForInvoice(ctx context.Context, inv *domain.Invo
 	return contact, nil
 }
 
-func (s *InvoiceService) log(ctx context.Context, action domain.AuditAction, inv *domain.Invoice, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "INVOICE", fmt.Sprintf("%d", inv.ID), details)
+func (s *InvoiceService) log(ctx context.Context, action domain.AuditAction, inv *domain.Invoice, details string) error {
+	return logAudit(ctx, s.auditRepo, action, "INVOICE", fmt.Sprintf("%d", inv.ID), details)
 }

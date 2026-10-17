@@ -71,13 +71,9 @@ func TestIssueRejectsUnknownEInvoiceProfile(t *testing.T) {
 	}
 }
 
-// Liegt der Beleg schon, entsteht kein zweiter.
-//
-// Buchfink speichert den Verweis auf den Beleg, sobald er abgelegt ist — vor
-// allem, was danach noch scheitern kann. Bleibt die Rechnung trotzdem auf
-// „Dokument fehlt" stehen, holt „Dokument erneut erzeugen" den letzten Schritt
-// nach, statt einen zweiten Beleg unter derselben Rechnungsnummer anzulegen.
-func TestRegenerateDocumentFinishesAnAlreadyFiledReceipt(t *testing.T) {
+// Zu einer ausgestellten Rechnung entsteht kein zweites Dokument: es hätte
+// dieselbe Nummer und wäre ein zweiter Beleg zu einem Vorgang.
+func TestRegenerateDocumentRefusesASecondDocument(t *testing.T) {
 	if testing.Short() {
 		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
 	}
@@ -90,100 +86,18 @@ func TestRegenerateDocumentFinishesAnAlreadyFiledReceipt(t *testing.T) {
 	if err := svc.Issue(ctx, inv); err != nil {
 		t.Fatalf("Rechnung ausstellen: %v", err)
 	}
-	if inv.ReceiptID == nil {
-		t.Fatal("die ausgestellte Rechnung muss auf ihren Beleg zeigen")
-	}
 	before, err := env.receipts.List(ctx, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
-
-	// Der Zustand nach einem Fehler hinter dem Ablegen: Beleg da, Rechnung
-	// weiter auf „Dokument fehlt".
-	inv.Status = domain.InvoiceStatusPendingDocument
-	if err := env.invoiceRepoOf(t).Save(ctx, inv); err != nil {
-		t.Fatalf("Zustand setzen: %v", err)
-	}
-
-	finished, err := svc.RegenerateDocument(ctx, inv.ID)
-	if err != nil {
-		t.Fatalf("Dokument nachholen: %v", err)
-	}
-	if finished.Status != domain.InvoiceStatusIssued {
-		t.Errorf("die Rechnung steht auf %q, erwartet %q", finished.Status, domain.InvoiceStatusIssued)
-	}
-	if finished.ReceiptID == nil || *finished.ReceiptID != *inv.ReceiptID {
-		t.Error("die Rechnung muss auf denselben Beleg zeigen wie vorher")
-	}
-	after, err := env.receipts.List(ctx, "")
-	if err != nil {
-		t.Fatalf("Belege lesen: %v", err)
-	}
-	if len(after) != len(before) {
-		t.Errorf("es liegen jetzt %d Belege statt %d — ein zweiter trüge dieselbe Rechnungsnummer",
-			len(after), len(before))
-	}
-
-	// Eine fertige Rechnung bekommt weiterhin kein zweites Dokument.
 	if _, err := svc.RegenerateDocument(ctx, inv.ID); err == nil {
 		t.Error("zu einer vollständigen Rechnung darf kein zweites Dokument entstehen")
 	}
-}
-
-// Und derselbe Reparaturweg, wenn auch der Belegverweis verloren ging.
-//
-// Zwischen dem Ablegen des Belegs und dem Speichern der Rechnung liegt ein
-// Schreibvorgang, der scheitern kann. Danach steht der Beleg im Speicher, ohne
-// dass die Rechnung ihn kennt. „Dokument erneut erzeugen" muss ihn dann finden
-// und zuordnen — ein zweiter Ausgangsbeleg unter derselben Rechnungsnummer
-// wären zwei Belege zu einem Vorgang.
-func TestRegenerateDocumentReusesTheReceiptWithTheInvoiceNumber(t *testing.T) {
-	if testing.Short() {
-		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
-	}
-	env := newTestEnv(t)
-	ctx := context.Background()
-	customer := env.customer(t, "Kunde GmbH", "DE", "")
-	svc := env.invoicesWiredWithDocuments(t)
-
-	inv := env.simpleInvoice(customer.ID, "2026-03-01", 100000)
-	if err := svc.Issue(ctx, inv); err != nil {
-		t.Fatalf("Rechnung ausstellen: %v", err)
-	}
-	if inv.ReceiptID == nil {
-		t.Fatal("die ausgestellte Rechnung muss auf ihren Beleg zeigen")
-	}
-	receiptID := *inv.ReceiptID
-	before, err := env.receipts.List(ctx, "")
-	if err != nil {
-		t.Fatalf("Belege lesen: %v", err)
-	}
-
-	// Der Zustand nach einem Fehler zwischen Ablegen und Speichern: Beleg da,
-	// Rechnung ohne Verweis und weiter auf „Dokument fehlt".
-	inv.ReceiptID = nil
-	inv.Status = domain.InvoiceStatusPendingDocument
-	if err := env.invoiceRepoOf(t).Save(ctx, inv); err != nil {
-		t.Fatalf("Zustand setzen: %v", err)
-	}
-
-	finished, err := svc.RegenerateDocument(ctx, inv.ID)
-	if err != nil {
-		t.Fatalf("Dokument nachholen: %v", err)
-	}
-	if finished.ReceiptID == nil || *finished.ReceiptID != receiptID {
-		t.Errorf("die Rechnung zeigt auf %v, erwartet den vorhandenen Beleg %d",
-			finished.ReceiptID, receiptID)
-	}
-	if finished.Status != domain.InvoiceStatusIssued {
-		t.Errorf("die Rechnung steht auf %q, erwartet %q", finished.Status, domain.InvoiceStatusIssued)
-	}
 	after, err := env.receipts.List(ctx, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 	if len(after) != len(before) {
-		t.Errorf("es liegen jetzt %d Belege statt %d — ein zweiter trüge dieselbe Rechnungsnummer",
-			len(after), len(before))
+		t.Errorf("es liegen jetzt %d Belege statt %d", len(after), len(before))
 	}
 }

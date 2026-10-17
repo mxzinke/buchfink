@@ -124,38 +124,26 @@ func (e *testEnv) invoiceGroupRepoOf(t *testing.T) domain.InvoiceGroupRepository
 	return repository.NewInvoiceGroupRepository(e.db)
 }
 
-// Scheitert das Dokument, bleiben Nummer und Buchung stehen — sichtbar als
-// „Dokument fehlt". Die Nummer ist nicht verloren, das Dokument lässt sich
-// nachholen.
-func TestFailedDocumentLeavesInvoicePendingAndRecoverable(t *testing.T) {
+// Scheitert das Dokument, gibt es weder Rechnung noch Buchung, und die Nummer
+// ist wieder frei: Nummer, Dokument und Buchung sind eine Transaktion.
+func TestFailedDocumentLeavesNoInvoiceAndFreesTheNumber(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Kunde GmbH", "DE", "")
 
 	inv := env.simpleInvoice(customer.ID, "2026-03-01", 100000)
-	err := env.invoicesWithBrokenRenderer(t).Issue(ctx, inv)
-	if err == nil {
+	if err := env.invoicesWithBrokenRenderer(t).Issue(ctx, inv); err == nil {
 		t.Fatal("das Scheitern der Dokumenterzeugung muss gemeldet werden")
 	}
-	if !strings.Contains(err.Error(), "nachholen") {
-		t.Errorf("die Meldung sagt nicht, dass sich das Dokument nachholen lässt: %v", err)
+	if inv.InvoiceNumber != "" || inv.ID != 0 || inv.JournalEntryID != nil || inv.ReceiptID != nil {
+		t.Errorf("die Rechnung trägt nach dem Rollback noch Schlüssel: %+v", inv)
 	}
-
-	stored, err := env.invoiceRepoOf(t).FindByNumber(ctx, "RE-2026-0001")
-	if err != nil {
-		t.Fatalf("die Rechnung muss mit ihrer Nummer gespeichert sein: %v", err)
+	if _, err := env.invoiceRepoOf(t).FindByNumber(ctx, "RE-2026-0001"); err == nil {
+		t.Error("ohne Dokument darf die Rechnung nicht stehen bleiben")
 	}
-	if stored.Status != domain.InvoiceStatusPendingDocument {
-		t.Errorf("Status = %q, erwartet %q", stored.Status, domain.InvoiceStatusPendingDocument)
+	if entries, err := env.journalRepo.FindAll(ctx, 2026); err != nil || len(entries) != 0 {
+		t.Errorf("%d Buchungen nach dem Fehlschlag (%v), erwartet keine", len(entries), err)
 	}
-	if stored.JournalEntryID == nil {
-		t.Error("die Rechnung muss gebucht sein — die Buchung war nicht das Problem")
-	}
-	if stored.ReceiptID != nil {
-		t.Error("ohne erzeugtes Dokument darf kein Beleg entstanden sein")
-	}
-
-	// Die verbrauchte Nummer gehört zu einer Rechnung: keine Lücke.
 	report, err := env.invoicesWired(t).NumberGaps(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Lückenbericht: %v", err)
@@ -165,34 +153,37 @@ func TestFailedDocumentLeavesInvoicePendingAndRecoverable(t *testing.T) {
 	}
 
 	if testing.Short() {
-		t.Skip("das Nachholen braucht den PDF-Renderer; die WASM-Kompilierung ist zu langsam für -short")
+		t.Skip("der zweite Versuch braucht den PDF-Renderer; die WASM-Kompilierung ist zu langsam für -short")
 	}
-	svc := env.invoicesWired(t)
-	svc.SetDocumentPipeline(env.receipts, sharedRenderer())
-	repaired, err := svc.RegenerateDocument(ctx, stored.ID)
-	if err != nil {
-		t.Fatalf("Dokument nachholen: %v", err)
+	svc := env.invoicesWiredWithDocuments(t)
+	if err := svc.Issue(ctx, inv); err != nil {
+		t.Fatalf("zweiter Versuch: %v", err)
 	}
-	if repaired.Status != domain.InvoiceStatusIssued || repaired.ReceiptID == nil {
-		t.Fatalf("nach dem Nachholen: Status %q, Beleg %v", repaired.Status, repaired.ReceiptID)
+	if inv.InvoiceNumber != "RE-2026-0001" || inv.Status != domain.InvoiceStatusIssued {
+		t.Errorf("Nummer %s, Status %q — erwartet RE-2026-0001, ausgestellt", inv.InvoiceNumber, inv.Status)
 	}
-	receipt, err := env.receipts.Get(ctx, *repaired.ReceiptID)
+	if inv.ReceiptID == nil || inv.JournalEntryID == nil {
+		t.Fatalf("die Rechnung muss Beleg und Buchung haben: %+v", inv)
+	}
+	receipt, err := env.receipts.Get(ctx, *inv.ReceiptID)
 	if err != nil {
 		t.Fatalf("Beleg laden: %v", err)
 	}
-	if receipt.ReceiptNumber != repaired.InvoiceNumber {
-		t.Errorf("der Beleg trägt %q, die Rechnung %q", receipt.ReceiptNumber, repaired.InvoiceNumber)
+	if receipt.Status != domain.ReceiptStatusSealed || receipt.JournalEntryID == nil || *receipt.JournalEntryID != *inv.JournalEntryID {
+		t.Errorf("der Beleg muss auf die Buchung versiegelt sein: %+v", receipt)
 	}
-	// Der Validierungsbericht der eigenen Rechnung gehört an den Beleg: sonst
-	// lässt sich Jahre später nicht mehr belegen, gegen welches Regelwerk
-	// geprüft wurde.
+	// Der Validierungsbericht der eigenen Rechnung gehört an den Beleg.
 	if receipt.ValidatedAt == "" || receipt.ValidationRuleset == "" {
 		t.Errorf("am Beleg fehlt der Validierungsbericht: %+v", receipt)
 	}
-
-	// Ein zweites Dokument zur selben Nummer wäre ein zweiter Beleg zu einem
-	// Vorgang.
-	if _, err := svc.RegenerateDocument(ctx, stored.ID); err == nil {
+	entry, err := env.journalRepo.FindByID(ctx, *inv.JournalEntryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.ReceiptID == nil || *entry.ReceiptID != *inv.ReceiptID {
+		t.Errorf("die Buchung muss auf den Beleg der Rechnung verweisen: %v", entry.ReceiptID)
+	}
+	if _, err := svc.RegenerateDocument(ctx, inv.ID); err == nil {
 		t.Error("ein zweites Dokument zur selben Rechnung darf nicht entstehen")
 	}
 }

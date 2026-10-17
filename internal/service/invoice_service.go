@@ -91,20 +91,13 @@ func (s *InvoiceService) GetInvoices(ctx context.Context, fiscalYear int) ([]dom
 	return s.invoiceRepo.FindAll(ctx, fiscalYear)
 }
 
-// Issue finalises an invoice: it assigns the consecutive invoice number, books
-// the receivable and stores the document.
+// Issue finalises an invoice: it assigns the consecutive invoice number, files
+// the document as Beleg and books the receivable.
 //
-// Issuing and booking are one step, and seit dieser Welle auch eine
+// Nummer, Rechnung, Dokument, Buchung, Siegel und Protokoll sind eine
 // Transaktion. § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende
-// Nummer, und GoBD Rz. 42 verlangt sie lückenlos — vorher vergab Buchfink die
-// Nummer in einer eigenen Transaktion und buchte danach, und eine
-// fehlgeschlagene Buchung ließ eine verbrauchte Nummer ohne Rechnung zurück.
-//
-// Das Dokument entsteht danach und außerhalb der Transaktion: es liegt als
-// Datei auf der Platte, und eine Datei kann keine Datenbanktransaktion
-// zurücknehmen. Scheitert es, bleibt die Rechnung mit Nummer und Buchung im
-// Zustand „Dokument fehlt" stehen und lässt sich nachholen — die Nummer ist
-// dann nicht verloren.
+// Nummer, GoBD Rz. 42 verlangt sie lückenlos: scheitert ein Schritt, ist die
+// Nummer wieder frei und es gibt weder Rechnung noch Buchung.
 func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 	// Über diesen Weg kommt eine ganze `domain.Invoice` aus der Oberfläche,
 	// samt der Felder, die zu anderen Rechnungsarten gehören. Sie werden hier
@@ -114,17 +107,13 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 }
 
 // issueAs ist Issue für eine bestimmte Rechnungsart, mit einem Nebenschritt
-// innerhalb der Nummernklammer.
+// innerhalb derselben Transaktion.
 //
 // Die Art ist ein Parameter des Weges und keine Angabe des Aufrufers: jede Art
 // außer der gewöhnlichen Rechnung hat eigene Invarianten, und die erzwingt
-// jeweils nur ihr eigener Weg (siehe ensureKind).
-//
-// Der Nebenschritt ist alles, was zur Rechnung gehört, ohne eine Buchung zu
-// sein — bei der Abschlagsrechnung der offene Posten des Verbunds. Er läuft
-// innerhalb der Transaktion, weil er sonst hinter der Dokumenterzeugung stünde:
-// scheitert das Dokument, gäbe es die Rechnung mit Nummer, aber ohne ihren
-// offenen Posten, und keine Wiederholung holte ihn nach.
+// jeweils nur ihr eigener Weg (siehe ensureKind). Der Nebenschritt ist alles,
+// was zur Rechnung gehört, ohne eine Buchung zu sein — bei der
+// Abschlagsrechnung der offene Posten des Verbunds.
 func (s *InvoiceService) issueAs(
 	ctx context.Context, inv *domain.Invoice, kind domain.InvoiceKind, within func(context.Context) error,
 ) error {
@@ -136,14 +125,74 @@ func (s *InvoiceService) issueAs(
 	if err != nil {
 		return err
 	}
-	if err := s.numberAndBook(ctx, inv, contact, within); err != nil {
-		return err
+	var book func(context.Context) (*domain.JournalEntry, error)
+	// Die Abschlagsrechnung wird beim Ausstellen nicht gebucht: die Steuer
+	// entsteht erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4
+	// UStG).
+	if inv.ResolvedKind().BooksOnIssue() {
+		book = func(ctx context.Context) (*domain.JournalEntry, error) {
+			return s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
+		}
 	}
-	if err := s.attachDocument(ctx, inv, contact); err != nil {
-		return err
-	}
+	return s.issueDocument(ctx, inv, contact, book, within)
+}
 
-	s.logIssued(ctx, inv)
+// issueDocument vergibt die Nummer, legt das Dokument als Ausgangsbeleg ab,
+// bucht über book (nil: keine Buchung beim Ausstellen), führt den Nebenschritt
+// aus, versiegelt den Beleg und protokolliert — in einer Transaktion.
+//
+// Das Dokument entsteht vor der Buchung, damit die Buchung auf ihren Beleg
+// verweist und dessen Hash trägt. Eine beim Rollback geschriebene Datei bleibt
+// inhaltsadressiert im Belegspeicher liegen und gehört zu keinem Beleg.
+func (s *InvoiceService) issueDocument(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+	book func(context.Context) (*domain.JournalEntry, error), within func(context.Context) error,
+) error {
+	format := s.numberFormat(ctx)
+	var allocated int64
+	err := s.runInTx(ctx, func(ctx context.Context) error {
+		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
+		if err != nil {
+			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
+		}
+		allocated = seq
+		inv.InvoiceNumber = domain.FormatInvoiceNumberWith(format, inv.FiscalYear, seq)
+		inv.Status = domain.InvoiceStatusPendingDocument
+		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+			return err
+		}
+		validation, err := s.fileDocument(ctx, inv, contact)
+		if err != nil {
+			return err
+		}
+		if book != nil {
+			entry, err := book(ctx)
+			if err != nil {
+				return err
+			}
+			if entry != nil {
+				inv.JournalEntryID = &entry.ID
+				if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+					return err
+				}
+			}
+		}
+		if err := runWithin(ctx, within); err != nil {
+			return err
+		}
+		if err := s.completeDocument(ctx, inv, validation); err != nil {
+			return err
+		}
+		return s.logIssued(ctx, inv)
+	})
+	if err != nil {
+		// Die Transaktion ist zurückgerollt: die Rechnung gibt es nicht, und die
+		// Nummer ist wieder frei. Die im Speicher gesetzten Schlüssel müssen
+		// mit — sonst schriebe ein zweiter Versuch mit GORMs Save ein UPDATE auf
+		// eine Zeile, die es nicht gibt, und meldete Erfolg.
+		resetAfterRollback(inv, allocated)
+		return err
+	}
 	return nil
 }
 
@@ -153,11 +202,8 @@ func (s *InvoiceService) issueAs(
 // gewöhnliche Rechnung, Schlussrechnung, Korrekturdokument. Jeder von ihnen
 // braucht denselben Eintrag; drei Fassungen davon wären zwei zu viel, und eine
 // davon fehlte.
-func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
+func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
 		fmt.Sprintf("%s %s über %s %s an %s ausgestellt",
 			inv.ResolvedKind().Label(), inv.InvoiceNumber, inv.GrossAmount, inv.Currency, inv.ContactName))
 }
@@ -225,9 +271,7 @@ func (s *InvoiceService) prepareForIssue(
 		inv.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
 	}
 	// Eine mitgelieferte Rechnungsnummer wird nicht übernommen: sie kommt aus
-	// dem Nummernkreis und aus nichts sonst (§ 14 Abs. 4 Nr. 4 UStG). Vorher
-	// ließ numberAndBook eine vorbelegte Nummer stehen und übersprang die
-	// Vergabe — der Nummernkreis wäre über die Oberfläche umgehbar gewesen.
+	// dem Nummernkreis und aus nichts sonst (§ 14 Abs. 4 Nr. 4 UStG).
 	if inv.InvoiceNumber != "" {
 		return nil, fmt.Errorf(
 			"die Rechnungsnummer wird beim Ausstellen aus dem Nummernkreis vergeben; %q ist vorbelegt",
@@ -518,58 +562,6 @@ func (s *InvoiceService) priorYearRevenue(ctx context.Context, fiscalYear int) d
 	return fy.PriorYearRevenue
 }
 
-// numberAndBook spends the number, writes the invoice and appends the booking —
-// all three in one transaction.
-func (s *InvoiceService) numberAndBook(
-	ctx context.Context, inv *domain.Invoice, contact *domain.Contact, within func(context.Context) error,
-) error {
-	format := s.numberFormat(ctx)
-	var allocated int64
-
-	err := s.runInTx(ctx, func(ctx context.Context) error {
-		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
-		if err != nil {
-			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
-		}
-		allocated = seq
-		inv.InvoiceNumber = domain.FormatInvoiceNumberWith(format, inv.FiscalYear, seq)
-		inv.Status = domain.InvoiceStatusPendingDocument
-
-		// Die Abschlagsrechnung wird beim Ausstellen nicht gebucht: die Steuer
-		// entsteht erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a
-		// Satz 4 UStG). Sie bekommt trotzdem Nummer und Datensatz — sie ist
-		// eine vollwertige Rechnung nach § 14 Abs. 5 Satz 1 UStG.
-		if !inv.ResolvedKind().BooksOnIssue() {
-			if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-				return err
-			}
-			return runWithin(ctx, within)
-		}
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		entry, err := s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
-		if err != nil {
-			return err
-		}
-		inv.JournalEntryID = &entry.ID
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		return runWithin(ctx, within)
-	})
-	if err != nil {
-		s.recordNumberGap(ctx, inv, allocated, err)
-		// Die Transaktion ist zurückgerollt: die Rechnung gibt es nicht, und die
-		// Nummer ist wieder frei. Die im Speicher gesetzten Schlüssel müssen
-		// mit — sonst schriebe ein zweiter Versuch mit GORMs Save ein UPDATE auf
-		// eine Zeile, die es nicht gibt, und meldete Erfolg.
-		resetAfterRollback(inv, allocated)
-		return err
-	}
-	return nil
-}
-
 // runWithin ruft den Nebenschritt der Nummernklammer auf, sofern es einen gibt.
 func runWithin(ctx context.Context, within func(context.Context) error) error {
 	if within == nil {
@@ -594,35 +586,6 @@ func resetAfterRollback(inv *domain.Invoice, allocated int64) {
 	inv.Status = domain.InvoiceStatusDraft
 }
 
-// recordNumberGap vermerkt eine Nummer, die verbraucht wurde, ohne dass eine
-// Rechnung sie hat.
-//
-// Geprüft wird, ob sie das wirklich ist: hat der Rollback den Zähler
-// zurückgesetzt, gibt es keine Lücke und nichts zu vermerken. Der Vermerk
-// entsteht also nur dort, wo er stimmt — ein Lückenbericht, der Lücken
-// behauptet, die keine sind, wird nicht gelesen.
-func (s *InvoiceService) recordNumberGap(ctx context.Context, inv *domain.Invoice, allocated int64, cause error) {
-	if allocated == 0 || s.gapRepo == nil {
-		return
-	}
-	next, err := s.numberRepo.Peek(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
-	if err != nil || next <= allocated {
-		return // der Rollback hat die Nummer zurückgegeben
-	}
-	if existing, err := s.invoiceRepo.FindByNumber(ctx, inv.InvoiceNumber); err == nil && existing != nil {
-		return
-	}
-	_ = s.gapRepo.Record(ctx, &domain.NumberGap{
-		Key:        domain.NumberRangeInvoice,
-		FiscalYear: inv.FiscalYear,
-		Sequence:   allocated,
-		Number:     inv.InvoiceNumber,
-		Reason:     domain.NumberGapAborted,
-		Detail:     cause.Error(),
-		RecordedAt: time.Now().UTC().Format(time.RFC3339),
-	})
-}
-
 func (s *InvoiceService) runInTx(ctx context.Context, fn func(context.Context) error) error {
 	return s.postingSvc.journalSvc.InTx(ctx, fn)
 }
@@ -642,44 +605,35 @@ func (s *InvoiceService) numberFormat(ctx context.Context) string {
 	return cfg.InvoiceNumberFormat
 }
 
-// attachDocument erzeugt das Rechnungsdokument und legt es als Ausgangsbeleg ab.
+// fileDocument erzeugt das Rechnungsdokument und legt es als Ausgangsbeleg ab.
 //
 // The Beleg carries the PDF as the received form and the XML as the structured
 // part on a hybrid document; bei einer XRechnung ist das XML das Original und
 // das PDF die erzeugte Darstellung. Beide Rollen zählen: das PDF ist, was der
 // Empfänger liest, das XML ist, wonach sich sein Vorsteuerabzug richtet.
 //
-// GoBD Rz. 76 Abs. 2 would allow skipping the archived PDF entirely, since
-// Buchfink can reproduce an identical Mehrstück from the data at any time. It is
-// archived anyway: a stored document is more tangible to the user than a promise
-// to re-render one.
-func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) error {
+// Ohne Beleg-Pipeline entsteht kein Dokument; der Kern ist die Buchung.
+func (s *InvoiceService) fileDocument(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+) (domain.ReceiptValidation, error) {
 	if s.receiptSvc == nil || s.renderer == nil {
-		// Ohne Beleg-Pipeline ist die Rechnung mit der Buchung fertig. Der Kern
-		// ist die Buchung; das Dokument kommt aus einer Schicht darüber.
-		inv.Status = domain.InvoiceStatusIssued
-		return s.invoiceRepo.Save(ctx, inv)
+		return domain.ReceiptValidation{}, nil
 	}
 
 	seller, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
-		return fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
+		return domain.ReceiptValidation{}, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 
 	files, xml, validation, err := s.renderDocument(ctx, inv, seller, contact)
 	if err != nil {
-		return fmt.Errorf(
-			"die Rechnung %s ist ausgestellt und gebucht, das Dokument konnte aber nicht erzeugt werden: %w. "+
-				"Die Nummer bleibt vergeben; das Dokument lässt sich nachholen", inv.InvoiceNumber, err)
+		return validation, fmt.Errorf("das Dokument der Rechnung %s konnte nicht erzeugt werden: %w",
+			inv.InvoiceNumber, err)
 	}
 	inv.ZUGFeRDXML = xml
 
-	// Die Kopfdaten stehen an der Rechnung und werden mitgegeben: Belegdatum,
-	// Aussteller, Betrag und Steuer sind hier bekannt, und ein Ausgangsbeleg,
-	// der sie nicht trüge, wäre in der Belegliste eine Zeile ohne Datum und
-	// ohne Betrag — und beim Versiegeln nicht buchbar (BEL-02, siehe
-	// Receipt.ValidateHeader). Aussteller ist das eigene Unternehmen: die
-	// Ausgangsrechnung hat es ausgestellt.
+	// Aussteller ist das eigene Unternehmen: die Ausgangsrechnung hat es
+	// ausgestellt. Ohne Kopfdaten wäre der Beleg nicht buchbar (BEL-02).
 	receipt, err := s.receiptSvc.File(ctx, FileReceiptRequest{
 		Direction:     domain.DirectionOutgoing,
 		FiscalYear:    inv.FiscalYear,
@@ -695,24 +649,14 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 		Files:         files,
 	})
 	if err != nil {
-		return fmt.Errorf(
-			"die Rechnung %s ist ausgestellt und gebucht, ihr Beleg konnte aber nicht abgelegt werden: %w",
+		return validation, fmt.Errorf("der Beleg der Rechnung %s konnte nicht abgelegt werden: %w",
 			inv.InvoiceNumber, err)
 	}
-
-	// Der Verweis auf den Beleg wird sofort festgehalten, vor allem, was danach
-	// noch scheitern kann.
-	//
-	// Vorher stand er hinter Validierungsbericht und Speichern: scheiterte einer
-	// von beiden, gab es den Beleg mit der Rechnungsnummer bereits, während die
-	// Rechnung ihn nicht kannte — und „Dokument erneut erzeugen" legte einen
-	// zweiten Beleg unter derselben Nummer an. Ein zweiter Beleg zu einem
-	// Vorgang ist das, was die Belegablage nicht haben darf.
 	inv.ReceiptID = &receipt.ID
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-		return err
+		return validation, err
 	}
-	return s.completeDocument(ctx, inv, receipt.ID, validation)
+	return validation, nil
 }
 
 // invoiceSubject ist der Betreff, unter dem die Ausgangsrechnung in der
@@ -736,22 +680,14 @@ func invoiceSubject(inv *domain.Invoice) string {
 	return fmt.Sprintf("%s %s", label, inv.InvoiceNumber)
 }
 
-// completeDocument bringt eine Rechnung mit abgelegtem Beleg zu Ende:
-// Validierungsbericht, Zustand „ausgestellt" und das Siegel auf die Buchung.
-//
-// Es ist ein eigener Schritt, weil er wiederholbar sein muss. Scheitert hier
-// etwas, steht die Rechnung weiter auf „Dokument fehlt" — mit ihrem Beleg —,
-// und „Dokument erneut erzeugen" setzt genau hier wieder auf, statt ein zweites
-// Dokument zu erzeugen.
+// completeDocument bringt eine Rechnung zu Ende: Validierungsbericht am Beleg,
+// Zustand „ausgestellt" und das Siegel des Belegs auf die Buchung. Eine
+// Abschlagsrechnung ohne Buchung wird erst mit der Vereinnahmung versiegelt.
 func (s *InvoiceService) completeDocument(
-	ctx context.Context, inv *domain.Invoice, receiptID uint, validation domain.ReceiptValidation,
+	ctx context.Context, inv *domain.Invoice, validation domain.ReceiptValidation,
 ) error {
-	// Der Validierungsbericht gehört an den Beleg, und zwar auch bei der eigenen
-	// Rechnung. Bisher entstand er nur beim Eingang — und damit ließ sich Jahre
-	// später nicht mehr belegen, gegen welches Regelwerk die eigene Rechnung
-	// geprüft worden war.
-	if validation.At != "" {
-		if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
+	if inv.ReceiptID != nil && validation.At != "" {
+		if err := s.receiptSvc.SaveValidation(ctx, *inv.ReceiptID, validation); err != nil {
 			return fmt.Errorf("der Validierungsbericht zu %s konnte nicht gespeichert werden: %w",
 				inv.InvoiceNumber, err)
 		}
@@ -762,41 +698,12 @@ func (s *InvoiceService) completeDocument(
 		return err
 	}
 
-	// Die Verbindung zwischen Buchung und Beleg läuft jetzt vom Beleg zur
-	// Buchung und nicht mehr umgekehrt.
-	//
-	// Die Reihenfolge erzwingt das: der Beleg-Hash
-	// steht im Buchungshash und damit in der Kette (accounting.EntryHash), und
-	// ein nachträglicher Eintrag an der Buchung bräche sie. Da das Dokument
-	// hinter der Transaktion entsteht, kann die Buchung ihn nicht mehr aufnehmen.
-	// Der Nachweis bleibt vollständig: der Beleg wird auf die Buchung
-	// versiegelt, und der Prüflauf zählt beide Richtungen (siehe
-	// entriesWithReceipt).
-	if inv.JournalEntryID != nil {
-		if err := s.receiptSvc.Seal(ctx, receiptID, *inv.JournalEntryID); err != nil {
-			return fmt.Errorf(
-				"die Rechnung %s wurde gebucht, der Beleg konnte aber nicht versiegelt werden: %w",
-				inv.InvoiceNumber, err)
+	if inv.ReceiptID != nil && inv.JournalEntryID != nil {
+		if err := s.receiptSvc.Seal(ctx, *inv.ReceiptID, *inv.JournalEntryID); err != nil {
+			return fmt.Errorf("der Beleg der Rechnung %s ließ sich nicht versiegeln: %w", inv.InvoiceNumber, err)
 		}
 	}
 	return nil
-}
-
-// documentValidation liefert den Validierungsbericht einer Rechnung, ohne das
-// Dokument noch einmal zu erzeugen.
-//
-// Gebraucht wird er, wenn der Beleg schon liegt und nur der Bericht daran fehlt.
-// Das PDF dafür ein zweites Mal zu setzen, kostete Sekunden und ergäbe dieselbe
-// Auskunft: geprüft wird der strukturierte Datensatz.
-func documentValidation(
-	inv *domain.Invoice, seller *domain.CompanySettings, contact *domain.Contact,
-) (domain.ReceiptValidation, error) {
-	profile := outputProfile(inv, contact)
-	if profile == domain.EInvoiceProfilePDFOnly {
-		return domain.ReceiptValidation{}, nil
-	}
-	_, validation, err := invoice.RenderInvoiceXML(inv, seller, contact, profile)
-	return validation, err
 }
 
 // outputProfile ist das Format, in dem das Dokument tatsächlich entsteht.
@@ -1016,6 +923,12 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 // Fassung bleibt der schmale Weg für Prüfungen, die allein die Buchung
 // betreffen; sie ist keine Alternative zum Storno mit Dokument.
 func (s *InvoiceService) Cancel(ctx context.Context, invoiceID uint, reason string) error {
+	return s.runInTx(ctx, func(ctx context.Context) error {
+		return s.cancel(ctx, invoiceID, reason)
+	})
+}
+
+func (s *InvoiceService) cancel(ctx context.Context, invoiceID uint, reason string) error {
 	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return err
