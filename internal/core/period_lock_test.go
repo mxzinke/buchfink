@@ -2,8 +2,11 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -118,5 +121,84 @@ func TestStartMonthChangesBeforeTheFirstBooking(t *testing.T) {
 		return s.Settings.UpdateCompanySettings(ctx, settings)
 	}, AppOnly()); err != nil {
 		t.Fatalf("Beginnmonat vor der ersten Buchung: %v", err)
+	}
+}
+
+// Der Prüfermodus gilt ab seinem Eintrag in der Datenbank, nicht ab dem
+// Neuladen des Speichers: ein Zeitraum, den ein anderer Weg eingetragen hat,
+// sperrt sofort.
+func TestExaminerModeIsReadInTheWrite(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	if err := tenant.repos.examiner.Create(context.Background(), &domain.ExaminerPeriod{
+		From: today(), Until: today(), Reason: "aus einem anderen Prozess",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bookOn(uiCtx, tenant, "2026-03-01"); err == nil || !strings.Contains(err.Error(), "anderen Prozess") {
+		t.Errorf("Buchung trotz eingetragenem Prüfermodus: %v", err)
+	}
+}
+
+// Ein Schreiber, der beim Einschalten des Prüfermodus auf die Schreibsperre
+// wartet, schreibt danach nicht mehr: im Protokoll steht nach dem Einschalten
+// keine Buchung.
+func TestQueuedWriterRespectsTheExaminerMode(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	until := time.Now().AddDate(0, 0, 3).Format("2006-01-02")
+
+	for round := 0; round < 5; round++ {
+		holding, release := make(chan struct{}), make(chan struct{})
+		go func() {
+			_ = tenant.Write(uiCtx, func(context.Context, *Services) error {
+				close(holding)
+				<-release
+				return nil
+			})
+		}()
+		<-holding
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if _, err := tenant.EnableExaminer(uiCtx, until, fmt.Sprintf("Prüfung %d", round)); err != nil {
+				t.Errorf("Prüfermodus einschalten: %v", err)
+			}
+		}()
+		// Der Kanal der Schreibsperre reiht Wartende der Reihe nach ein:
+		// erst das Einschalten, dann die Buchung.
+		time.Sleep(20 * time.Millisecond)
+		go func() {
+			defer wg.Done()
+			_, _ = bookOn(agentCtx(t), tenant, "2026-03-01")
+		}()
+		time.Sleep(20 * time.Millisecond)
+		close(release)
+		wg.Wait()
+
+		var entries []domain.AuditLogEntry
+		if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) (err error) {
+			entries, err = s.Repos.Audit.FindFiltered(ctx, 0, domain.AuditFilter{})
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		var enabled uint
+		for _, e := range entries {
+			if e.EntityType == domain.AuditEntityReadOnly && strings.Contains(e.Details, "eingeschaltet") && e.ID > enabled {
+				enabled = e.ID
+			}
+		}
+		for _, e := range entries {
+			if e.EntityType == "JOURNAL" && e.ID > enabled {
+				t.Fatalf("Runde %d: Buchung %s nach dem Einschalten des Prüfermodus", round, e.EntityID)
+			}
+		}
+		if _, err := tenant.DisableExaminer(uiCtx, "Runde vorbei"); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

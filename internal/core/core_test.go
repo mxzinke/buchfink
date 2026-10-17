@@ -292,9 +292,9 @@ func TestAppOnlyWritesRefuseEveryOtherChannel(t *testing.T) {
 	}
 }
 
-// Der Prüfermodus sperrt jeden Schreibvorgang der Oberfläche und der Agenten
-// außer den ausgenommenen. Programmläufe ändern die Bücher nicht und laufen
-// weiter.
+// Der Prüfermodus sperrt jeden Schreibvorgang außer den ausgenommenen, auch
+// einen Programmlauf: ein buchender Hintergrundlauf darf die Bücher während
+// der Prüfung so wenig ändern wie die Oberfläche.
 func TestExaminerModeBlocksWrites(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
@@ -305,14 +305,17 @@ func TestExaminerModeBlocksWrites(t *testing.T) {
 	if _, err := h.EnableExaminer(uiCtx, until, "Betriebsprüfung 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
-	for name, ctx := range map[string]context.Context{"App": uiCtx, "Agent": agentCtx(t)} {
+	for name, ctx := range map[string]context.Context{"App": uiCtx, "Agent": agentCtx(t), "Programmlauf": systemCtx} {
 		err := tenant.Write(ctx, noop)
 		if err == nil || !strings.Contains(err.Error(), "Betriebsprüfung 2024") {
 			t.Errorf("%s schreibt im Prüfermodus: %v", name, err)
 		}
 	}
-	if err := tenant.Write(systemCtx, noop); err != nil {
-		t.Errorf("ein Programmlauf wurde abgewiesen: %v", err)
+	if _, err := bookOn(systemCtx, tenant, "2026-03-01"); err == nil {
+		t.Error("ein Programmlauf bucht im Prüfermodus")
+	}
+	if err := tenant.Write(systemCtx, noop, ExaminerExempt()); err != nil {
+		t.Errorf("ausgenommener Programmlauf abgewiesen: %v", err)
 	}
 	if err := tenant.Write(uiCtx, noop, ExaminerExempt()); err != nil {
 		t.Errorf("ausgenommener Vorgang abgewiesen: %v", err)

@@ -230,13 +230,15 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	}
 	defer t.write.unlock()
 
-	if !o.examinerExempt {
-		if err := t.ensureWritable(channel); err != nil {
-			return err
-		}
-	}
 	ctx = markInWrite(ctx, t)
-	if err := t.tx.RunInTx(ctx, func(ctx context.Context) error { return fn(ctx, t.svc) }); err != nil {
+	if err := t.tx.RunInTx(ctx, func(ctx context.Context) error {
+		if !o.examinerExempt {
+			if err := t.ensureWritable(ctx); err != nil {
+				return err
+			}
+		}
+		return fn(ctx, t.svc)
+	}); err != nil {
 		// Der Kontenplan im Speicher kann ein Konto aus der zurückgerollten
 		// Transaktion enthalten.
 		t.svc.Journal.InvalidateChart()

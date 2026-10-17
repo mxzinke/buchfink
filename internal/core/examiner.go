@@ -15,11 +15,12 @@ import (
 // Der Prüfermodus friert den Bestand eines Mandanten während einer
 // Außenprüfung ein (§ 147 Abs. 6 AO). Sein Zeitraum steht in der
 // Mandantendatenbank (domain.ExaminerPeriod) und reist mit Sicherung und
-// Datenordner. Tenant.Write weist in ihm jeden Schreibvorgang der Oberfläche
-// und jedes Agenten ab; Lesen, Ausgeben und Protokollieren bleiben möglich,
-// ebenso Programmläufe (Erfassungsweg system) wie Zeitstempel und Sicherung,
-// die die Bücher nicht ändern. Ein- und ausschalten lässt er sich nur in der
-// App.
+// Datenordner. Tenant.Write weist in ihm jeden Schreibvorgang ab, gleich über
+// welchen Erfassungsweg; Lesen, Ausgeben und Protokollieren bleiben möglich.
+// Läufe, die die Bücher nicht ändern und weiterlaufen müssen (Zeitstempel,
+// Sicherungsvermerk, Aufräumen der Idempotenzschlüssel, der Modus selbst),
+// sind ausdrücklich ExaminerExempt. Ein- und ausschalten lässt er sich nur in
+// der App.
 
 // ExaminerState ist der Stand des Prüfermodus eines Mandanten.
 type ExaminerState struct {
@@ -59,13 +60,17 @@ func (t *Tenant) loadExaminer(ctx context.Context) error {
 // Examiner liefert den Stand des Prüfermodus am heutigen Tag.
 func (t *Tenant) Examiner() ExaminerState { return t.examiner.state(today()) }
 
-// ensureWritable weist im Prüfermodus Schreibvorgänge der Oberfläche und der
-// Agenten ab. Programmläufe (system) ändern die Bücher nicht und laufen weiter.
-func (t *Tenant) ensureWritable(channel actor.Channel) error {
-	if channel == actor.ChannelSystem {
-		return nil
+// ensureWritable weist im Prüfermodus einen Schreibvorgang ab. Der Zeitraum
+// wird in dessen Transaktion gelesen, nicht aus dem Speicher: ein Schreiber,
+// der beim Einschalten auf die Sperre wartete, sieht so schon den neuen
+// Stand, ebenso ein Zeitraum aus einem anderen Prozess.
+func (t *Tenant) ensureWritable(ctx context.Context) error {
+	latest, err := t.repos.examiner.Latest(ctx)
+	if err != nil {
+		return fmt.Errorf("der Prüfermodus ließ sich nicht prüfen: %w", err)
 	}
-	return examinerError(t.Examiner())
+	t.examiner.period.Store(latest)
+	return examinerError(t.examiner.state(today()))
 }
 
 func examinerError(state ExaminerState) error {

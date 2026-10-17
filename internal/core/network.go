@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
@@ -122,9 +121,7 @@ func (t *Tenant) PrefetchValuationRates(ctx context.Context, year int) error {
 // Protokoll.
 func (t *Tenant) CheckVatID(ctx context.Context, contactID uint) (*domain.VatIDCheck, error) {
 	if err := examinerError(t.Examiner()); err != nil {
-		if channel, _ := actor.ChannelOf(ctx); channel != actor.ChannelSystem {
-			return nil, err
-		}
+		return nil, err
 	}
 	var query *service.VatIDQuery
 	if err := t.Read(ctx, func(ctx context.Context, s *Services) error {

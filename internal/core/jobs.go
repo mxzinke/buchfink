@@ -107,7 +107,7 @@ func (h *Host) startJobs(t *Tenant) {
 			return t.Write(ctx, func(ctx context.Context, s *Services) error {
 				_, err := s.Idempotency.Prune(ctx)
 				return err
-			})
+			}, ExaminerExempt())
 		}},
 	} {
 		t.jobs.done.Add(1)
