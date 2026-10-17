@@ -288,7 +288,7 @@ export const ObligationDecisionDialog: React.FC<{
     <Dialog
       open={obligation !== null}
       onOpenChange={(open) => !open && onClose()}
-      title={obligation ? `${obligation.title} ${obligation.periodLabel}` : ''}
+      title={obligation?.title ?? ''}
       width="max-w-lg"
       footer={
         <>

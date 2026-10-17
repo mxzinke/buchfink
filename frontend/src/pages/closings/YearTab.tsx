@@ -487,7 +487,7 @@ export const YearTab: React.FC<YearTabProps> = ({
           <ul className="flex flex-col">
             {sideObligations.map((o) => (
               <li key={o.key} className="flex items-center gap-4 py-2 border-t border-line first:border-t-0">
-                <span className="flex-1 text-body text-ink">{`${o.title} ${o.periodLabel}`}</span>
+                <span className="flex-1 text-body text-ink">{o.title}</span>
                 <ObligationState obligation={o} />
                 {isManual(o) && (
                   <Button

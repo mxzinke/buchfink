@@ -79,6 +79,14 @@ const ENTRIES: Entry[] = [
   { value: 'e-bilanz', title: 'E-Bilanz', obligationKind: 'e-bilanz', channel: 'Dienst mit ERiC' },
 ];
 
+/** Stand der Vorauszahlungen, eine überfällige auch im eingeklappten Zustand. */
+function prepaymentContext(prepayments: Obligation[]): string {
+  const paid = prepayments.filter((o) => o.status === 'done').length;
+  const overdue = prepayments.filter((o) => o.status === 'overdue').length;
+  const text = `${paid} von ${prepayments.length} bezahlt`;
+  return overdue > 0 ? `${text} · ${overdue} überfällig` : text;
+}
+
 /** Welche Erklärung ein Ziel meint: die Art selbst oder eine Pflicht. */
 function selectionOf(id: string | undefined): Selection | null {
   if (!id) return null;
@@ -209,12 +217,12 @@ export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
       {prepayments.length > 0 && (
         <Disclosure
           title="Vorauszahlungen"
-          context={`${prepayments.filter((o) => o.status === 'done').length} von ${prepayments.length} bezahlt`}
+          context={prepaymentContext(prepayments)}
         >
           <ul className="flex flex-col">
             {prepayments.map((o) => (
               <li key={o.key} className="flex items-center gap-4 py-2 border-t border-line first:border-t-0">
-                <span className="flex-1 text-body text-ink">{`${o.title} ${o.periodLabel}`}</span>
+                <span className="flex-1 text-body text-ink">{o.title}</span>
                 <ObligationState obligation={o} />
                 {isManual(o) ? (
                   <Button

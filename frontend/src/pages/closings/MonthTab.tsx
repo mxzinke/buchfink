@@ -489,7 +489,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
                 className="flex items-center gap-4 py-2 border-t border-line first:border-t-0"
               >
                 <span className="flex-1 min-w-0 flex items-center gap-1.5 text-body text-ink">
-                  <span className="truncate">{`${o.title} ${o.periodLabel}`}</span>
+                  <span className="truncate">{o.title}</span>
                   <Help summary="Was diese Pflicht verlangt und woran Buchfink erkennt, dass sie erledigt ist." label={`Erklärung zu ${o.title}`}>
                     {`${o.description} ${o.basis}`}
                   </Help>

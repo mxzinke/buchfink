@@ -152,6 +152,11 @@ const MONTH_NAMES = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
 ];
 
+/** „2026-08-15“ als „15.08.2026“, wie das Backend Vorauszahlungen benennt. */
+function germanDate(iso: string): string {
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+}
+
 function lastDay(year: number, month: number): string {
   return `${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
 }
@@ -173,7 +178,7 @@ function obligation(year: number, spec: ObligationSpec, o: Options) {
   return {
     key: `${spec.kind}.${o.periodKey}`,
     kind: spec.kind,
-    title: spec.title,
+    title: `${spec.title} ${o.periodLabel}`,
     description: spec.description,
     basis: spec.basis,
     channel: spec.channel,
@@ -250,7 +255,7 @@ export function obligations(year: number) {
       out.push(
         obligation(y, KINDS['kst-vorauszahlung'], {
           periodKey: `${y}-Q${q}`,
-          periodLabel: `${q}. Quartal ${y}`,
+          periodLabel: germanDate(kstDue[q - 1]),
           due: kstDue[q - 1],
           done: q <= 2 ? { date: kstDue[q - 1], kind: 'booking', reference: `B-2026-0${q === 1 ? '041' : '118'}` } : undefined,
         }),
@@ -258,7 +263,7 @@ export function obligations(year: number) {
       out.push(
         obligation(y, KINDS['gewst-vorauszahlung'], {
           periodKey: `${y}-Q${q}`,
-          periodLabel: `${q}. Quartal ${y}`,
+          periodLabel: germanDate(gewstDue[q - 1]),
           due: gewstDue[q - 1],
           done: q <= 3 ? { date: gewstDue[q - 1], kind: 'booking', reference: `B-2026-0${q === 1 ? '022' : q === 2 ? '097' : '171'}` } : undefined,
         }),
@@ -266,7 +271,7 @@ export function obligations(year: number) {
     }
   }
   const annual = (kind: string, due: string, done?: Options['done']) =>
-    obligation(y, KINDS[kind], { periodKey: String(y), periodLabel: `Geschäftsjahr ${y}`, due, done });
+    obligation(y, KINDS[kind], { periodKey: String(y), periodLabel: String(y), due, done });
   if (y === YEAR) {
     out.push(
       annual('abschlussbuchungen', '2027-03-31'),
