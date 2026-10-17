@@ -77,7 +77,4 @@ func TestTenantWiringAnswersOnAnEmptyLedger(t *testing.T) {
 	if len(b.GetSupplyEvidenceKinds()) == 0 {
 		t.Error("die Belegarten des Nachweises kommen leer")
 	}
-	if len(b.GetNonDeductibleCategories()) == 0 {
-		t.Error("die Kategorien des § 4 Abs. 5 EStG kommen leer")
-	}
 }

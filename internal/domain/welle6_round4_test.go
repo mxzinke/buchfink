@@ -6,29 +6,6 @@ import (
 	"testing"
 )
 
-// Der Hinweis nennt die Norm, die einschlägig ist. Die Zinsschranke steht in
-// § 4h EStG und betrifft den Zinsüberhang eines Betriebs; § 4 Abs. 4a EStG
-// regelt den beschränkten Schuldzinsenabzug bei Überentnahmen. Beides
-// zusammenzuziehen wäre eine falsche Rechtsauskunft in der Oberfläche.
-func TestLegalFormNoteNamesTheRightNormAndUsesTheFormalAddress(t *testing.T) {
-	note := LegalFormLimitationNote("GbR")
-	if note == "" {
-		t.Fatal("die GbR kennt Entnahmen — der Hinweis fehlt")
-	}
-	if strings.Contains(note, "Zinsschranke") {
-		t.Errorf("der Hinweis nennt die Zinsschranke (§ 4h EStG), gemeint ist § 4 Abs. 4a EStG: %q", note)
-	}
-	if !strings.Contains(note, "Schuldzinsenabzug bei Überentnahmen") {
-		t.Errorf("der Hinweis sagt nicht, was § 4 Abs. 4a EStG regelt: %q", note)
-	}
-	// Die Anrede ist im ganzen Programm die Sie-Form.
-	for _, du := range []string{"Sprich ", "deinem", "deiner", "deinen"} {
-		if strings.Contains(note, du) {
-			t.Errorf("der Hinweis duzt (%q): %q", du, note)
-		}
-	}
-}
-
 // „Der besondere Besteuerungsverfahren … sind" war ein Kongruenzfehler in einem
 // Text, der im Hilfefenster der Umsatzsteuer-Einstellungen und in der Tabelle
 // „Grenzen des Funktionsumfangs" steht.

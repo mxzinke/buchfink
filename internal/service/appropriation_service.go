@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -225,27 +224,8 @@ func (s *AppropriationService) PreviewAppropriation(
 
 // isEntrepreneurialCompany meldet, ob die Rechtsform eine Unternehmergesellschaft
 // ist.
-//
-// Zuerst über den Katalog, denn dort steht die Schreibweise, die die
-// Einstellungen anbieten. Für die freie Eingabe kommt der ausgeschriebene Name
-// dazu und das Kürzel als eigenes Wort — „UG" als Teilzeichenkette zu suchen
-// träfe irgendwann eine Rechtsform, die nichts damit zu tun hat.
 func isEntrepreneurialCompany(legalForm string) bool {
-	if form, ok := domain.LookupLegalForm(legalForm); ok {
-		return form.Name == domain.LegalFormUG
-	}
-	lower := strings.ToLower(legalForm)
-	if strings.Contains(lower, "unternehmergesellschaft") {
-		return true
-	}
-	for _, word := range strings.FieldsFunc(lower, func(r rune) bool {
-		return !unicode.IsLetter(r)
-	}) {
-		if word == "ug" {
-			return true
-		}
-	}
-	return false
+	return legalForm == domain.LegalFormUG
 }
 
 func appropriationExplanation(a *domain.Appropriation) string {

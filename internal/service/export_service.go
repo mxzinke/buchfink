@@ -263,32 +263,6 @@ func (s *ExportService) ExportJournalCSV(ctx context.Context, from, to, targetPa
 	return targetPath, nil
 }
 
-// ExportKeyDirectory schreibt das Schlüsselverzeichnis als einzelne Datei.
-//
-// Es ist dieselbe Tabelle wie im Z3-Export — eine Quelle, zwei Wege hinaus.
-func (s *ExportService) ExportKeyDirectory(ctx context.Context, targetPath string) (string, error) {
-	if targetPath == "" {
-		return "", fmt.Errorf("kein Ziel für das Schlüsselverzeichnis angegeben")
-	}
-	table, err := keyDirectoryTable()
-	if err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(targetPath, export.RenderCSV(table), 0o600); err != nil {
-		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(targetPath), err)
-	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "KEY_DIRECTORY", "",
-			fmt.Sprintf("Schlüsselverzeichnis exportiert: %d Einträge (Buchfink %s)",
-				len(table.Rows), buildinfo.Version))
-	}
-	return targetPath, nil
-}
-
-// KeyDirectory liefert das Schlüsselverzeichnis als Tabelle, ohne es zu
-// schreiben. Die Oberfläche zeigt es damit an.
-func (s *ExportService) KeyDirectory() (export.Table, error) { return keyDirectoryTable() }
-
 // --- Datenbeschaffung ------------------------------------------------------
 
 // balanceRow sind die Verkehrszahlen eines Kontos, getrennt nach Vortrag und

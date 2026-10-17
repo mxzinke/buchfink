@@ -1207,81 +1207,6 @@ func (s *AssetService) postDepreciation(
 	return created, nil
 }
 
-// LegacySpecialDepreciation ist eine Sonderabschreibung, die noch als Buchung
-// im Journal steht.
-type LegacySpecialDepreciation struct {
-	AssetID         uint         `json:"assetId"`
-	InventoryNumber string       `json:"inventoryNumber"`
-	Name            string       `json:"name"`
-	FiscalYear      int          `json:"fiscalYear"`
-	Date            string       `json:"date"`
-	Amount          domain.Cents `json:"amount"`
-	ExpenseAccount  string       `json:"expenseAccount"`
-	EntryNumber     string       `json:"entryNumber,omitempty"`
-}
-
-// LegacySpecialDepreciationNotice ist der Migrationshinweis der Anlagenseite.
-type LegacySpecialDepreciationNotice struct {
-	Rows  []LegacySpecialDepreciation `json:"rows"`
-	Total domain.Cents                `json:"total"`
-	Note  string                      `json:"note"`
-}
-
-// LegacySpecialDepreciations sammelt die Sonderabschreibungen, die vor dieser
-// Welle in der Handelsbilanz gebucht wurden.
-//
-// Sie bleiben stehen. Das Storno-Prinzip lässt keine stille Korrektur
-// gebuchter Vorgänge zu (§ 239 Abs. 3 HGB, GoBD Rz. 58), und eine Buchung
-// nachträglich verschwinden zu lassen wäre eine stille Korrektur. Aber sie sind seit dem
-// BilMoG handelsrechtlich unzulässig (§ 254 HGB a. F. entfallen), und wer den
-// Buchwert oder das Eigenkapital erklären muss, braucht die Liste. Deshalb
-// nennt die Anlagenseite sie, statt zu schweigen.
-func (s *AssetService) LegacySpecialDepreciations(ctx context.Context) (*LegacySpecialDepreciationNotice, error) {
-	assets, err := s.assetRepo.FindAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
-	}
-	notice := &LegacySpecialDepreciationNotice{Rows: make([]LegacySpecialDepreciation, 0)}
-	for i := range assets {
-		asset := &assets[i]
-		for _, m := range asset.Movements {
-			if m.Kind != domain.AssetMovementSpecialDepreciation || m.DepreciationAmount <= 0 {
-				continue
-			}
-			row := LegacySpecialDepreciation{
-				AssetID: asset.ID, InventoryNumber: asset.InventoryNumber, Name: asset.Name,
-				FiscalYear: m.FiscalYear, Date: m.Date, Amount: m.DepreciationAmount,
-				ExpenseAccount: asset.SpecialAccount,
-			}
-			if m.JournalEntryID != nil {
-				if entry, err := s.journalRepo.FindByID(ctx, *m.JournalEntryID); err == nil && entry != nil {
-					row.EntryNumber = entry.EntryNumber
-				}
-			}
-			notice.Rows = append(notice.Rows, row)
-			notice.Total += m.DepreciationAmount
-		}
-	}
-	sort.Slice(notice.Rows, func(i, j int) bool {
-		if notice.Rows[i].InventoryNumber != notice.Rows[j].InventoryNumber {
-			return notice.Rows[i].InventoryNumber < notice.Rows[j].InventoryNumber
-		}
-		return notice.Rows[i].Date < notice.Rows[j].Date
-	})
-	if len(notice.Rows) > 0 {
-		notice.Note = fmt.Sprintf(
-			"%d Sonderabschreibungen nach § 7g Abs. 5 EStG über zusammen %s € stehen noch als Buchung "+
-				"im Journal. Buchfink bucht sie seit dieser Fassung nicht mehr: handelsrechtlich sind "+
-				"sie seit dem BilMoG unzulässig (§ 254 HGB a. F. entfallen), steuerlich stehen sie im "+
-				"Verzeichnis nach § 5 Abs. 1 Satz 2 EStG. Die alten Buchungen bleiben stehen — "+
-				"korrigiert wird, wenn überhaupt, mit einem Storno und nicht durch Löschen.",
-			len(notice.Rows), notice.Total)
-	} else {
-		notice.Note = "Es steht keine gebuchte Sonderabschreibung mehr im Journal."
-	}
-	return notice, nil
-}
-
 // PendingDepreciation reports the assets whose AfA for a fiscal year is still
 // missing. The Festschreibung of a year asks this before it locks the period:
 // AfA ist eine Abschlussbuchung, und ein festgeschriebenes Jahr nimmt sie nicht
@@ -3413,17 +3338,14 @@ func bookedByYear(movements []domain.AssetMovement) map[int]domain.Cents {
 // specialBookedByYear sums die bereits erfasste Sonderabschreibung je
 // Geschäftsjahr.
 //
-// Gelesen wird TaxAmount und nicht DepreciationAmount: die Sonderabschreibung
-// des § 7g Abs. 5 EStG ist seit dem BilMoG kein handelsrechtlicher Aufwand
-// mehr, sie steht nur noch als steuerlicher Wert an der Bewegung. Bewegungen
-// aus der Zeit davor tragen ihren Betrag noch in DepreciationAmount — sie
-// werden mitgezählt, weil ihr Jahr sonst als offen erschiene und die
-// Sonderabschreibung ein zweites Mal entstünde.
+// Gelesen wird TaxAmount: die Sonderabschreibung des § 7g Abs. 5 EStG ist kein
+// handelsrechtlicher Aufwand, sie steht nur als steuerlicher Wert an der
+// Bewegung.
 func specialBookedByYear(movements []domain.AssetMovement) map[int]domain.Cents {
 	booked := map[int]domain.Cents{}
 	for _, m := range movements {
 		if m.Kind == domain.AssetMovementSpecialDepreciation {
-			booked[m.FiscalYear] += m.TaxAmount + m.DepreciationAmount
+			booked[m.FiscalYear] += m.TaxAmount
 		}
 	}
 	return booked

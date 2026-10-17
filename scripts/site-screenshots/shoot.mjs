@@ -139,16 +139,6 @@ async function main() {
         },
       },
       {
-        // Das Mahnwesen wohnt als Reiter auf derselben Seite wie der Abgleich:
-        // beides handelt von Zahlungen.
-        file: 'mahnwesen.png',
-        go: async () => {
-          await page.getByRole('tab', { name: 'Mahnwesen' }).click();
-          await page.getByText('Mahnvorschläge').waitFor();
-          await page.waitForTimeout(400);
-        },
-      },
-      {
         file: 'rechnungen.png',
         go: async () => {
           await nav('Rechnungen').click();

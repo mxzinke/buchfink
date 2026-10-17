@@ -257,23 +257,17 @@ func EInvoiceIssueTransitionFor(documentDate string, priorYearRevenue domain.Cen
 	}
 }
 
-// BaseRatePeriod ist ein Basiszinssatz ab einem Stichtag.
+// BaseRatePeriod ist ein Basiszinssatz ab einem Stichtag. BasisPoints ist der
+// Satz in Hundertsteln eines Prozentpunktes: 127 sind 1,27 %.
 type BaseRatePeriod struct {
 	ValidFrom   string
 	BasisPoints int
 	Source      string
-	// Provisional markiert einen Wert, der fortgeschrieben und nicht aus der
-	// Bekanntgabe übernommen wurde.
-	Provisional bool
 }
 
 // defaultBaseRates ist die Tabelle des Basiszinssatzes nach § 247 BGB, wie die
-// Deutsche Bundesbank sie zum 1. Januar und zum 1. Juli bekannt gibt.
-//
-// Sie ist die Startbelegung der pflegbaren Tabelle und nicht die Wahrheit für
-// alle Zeit: der nächste Termin liegt immer in der Zukunft. Was hier steht, ist
-// bekanntgegeben; fortgeschriebene Werte setzen Provisional und erscheinen in
-// den Einstellungen als „zu prüfen".
+// Deutsche Bundesbank sie zum 1. Januar und zum 1. Juli bekannt gibt. Sie wird
+// mit jeder Bekanntgabe fortgeschrieben, aufsteigend nach Stichtag.
 //
 // Quelle: Deutsche Bundesbank, Basiszinssatz nach § 247 BGB
 // (bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820),
@@ -290,11 +284,8 @@ var defaultBaseRates = []BaseRatePeriod{
 	{ValidFrom: "2026-07-01", BasisPoints: 152, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2026"},
 }
 
-// DefaultBaseRates liefert die hinterlegte Tabelle als Kopie.
-//
-// Eine Kopie, weil der Dienst sie mit den gepflegten Sätzen des Mandanten
-// mischt: gäbe es die Scheibe unmittelbar heraus, änderte ein Aufrufer die
-// Vorgabe des Programms für alle anderen mit.
+// DefaultBaseRates liefert die hinterlegte Tabelle als Kopie, damit kein
+// Aufrufer die Vorgabe des Programms für alle anderen ändert.
 func DefaultBaseRates() []BaseRatePeriod {
 	out := make([]BaseRatePeriod, len(defaultBaseRates))
 	copy(out, defaultBaseRates)

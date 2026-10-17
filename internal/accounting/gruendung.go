@@ -15,10 +15,6 @@ import (
 // domain/legalform.go: eine Regel, die an drei Stellen ausformuliert ist, ist
 // drei Regeln, sobald sich eine ändert.
 //
-// Nur Kapitalgesellschaften. Bei einer Personengesellschaft gibt es weder eine
-// Vorgesellschaft noch eine Unterbilanzhaftung — der Gründungsweg gilt dort
-// nicht, und eine Rechtsform, die hier fehlt, bekommt ihn deshalb gar nicht erst
-// angeboten.
 
 // FoundationRules is what one legal form demands before the Anmeldung.
 type FoundationRules struct {
@@ -27,8 +23,7 @@ type FoundationRules struct {
 	// MinShareCapital ist das gesetzliche Mindestkapital.
 	MinShareCapital domain.Cents `json:"minShareCapital"`
 	// PaidInPerShareQuota ist der Anteil jeder einzelnen Geldeinlage, der vor der
-	// Anmeldung eingezahlt sein muss: ein Viertel bei GmbH und AG, alles bei der
-	// UG.
+	// Anmeldung eingezahlt sein muss: ein Viertel bei der GmbH, alles bei der UG.
 	PaidInPerShareQuota float64 `json:"paidInPerShareQuota"`
 	// PaidInFloor ist die Untergrenze für die Summe aller Einlagen, unabhängig
 	// von der Aufteilung in Geschäftsanteile.
@@ -77,16 +72,6 @@ var foundationRules = []FoundationRules{
 			"In den Jahresabschluss ist ein Viertel des um einen Verlustvortrag " +
 			"geminderten Jahresüberschusses in die gesetzliche Rücklage einzustellen " +
 			"(§ 5a Abs. 3 GmbHG).",
-	},
-	{
-		LegalForm:           "AG",
-		MinShareCapital:     5_000_000,
-		PaidInPerShareQuota: 0.25,
-		Reference:           "§ 36a Abs. 1 AktG",
-		Note: "Der eingeforderte Betrag muss bei Bareinlagen mindestens ein Viertel des " +
-			"geringsten Ausgabebetrags umfassen (§ 36a Abs. 1 AktG); das Grundkapital " +
-			"beträgt mindestens 50.000 € (§ 7 AktG). Sacheinlagen sind vollständig zu " +
-			"leisten (§ 36a Abs. 2 AktG).",
 	},
 }
 
@@ -138,7 +123,7 @@ func (r FoundationRules) RequiredPaidIn(f *domain.Foundation) domain.Cents {
 // RequiredPerShare is the minimum contribution on a single Geschäftsanteil.
 func (r FoundationRules) RequiredPerShare(s domain.Shareholder) domain.Cents {
 	if s.Kind == domain.ContributionInKind {
-		// Vollständig zu bewirken, § 7 Abs. 3 GmbHG bzw. § 36a Abs. 2 AktG.
+		// Vollständig zu bewirken, § 7 Abs. 3 GmbHG.
 		return s.ShareCapital
 	}
 	return quotaOf(s.ShareCapital, r.PaidInPerShareQuota)
@@ -224,9 +209,6 @@ func FoundationDuties(f *domain.Foundation, rules FoundationRules, done map[stri
 		return nil
 	}
 	letterReference := "§ 35a GmbHG"
-	if rules.LegalForm == "AG" {
-		letterReference = "§ 80 AktG"
-	}
 	duties := []domain.FoundationDuty{
 		{
 			Key: "stammdaten", Title: "Stammdaten vervollständigen",

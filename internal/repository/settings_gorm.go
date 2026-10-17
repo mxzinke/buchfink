@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -65,14 +64,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		// internen Kontrollsystems und keine Rechtspflicht — deshalb
 		// einstellbar.
 		InvoiceCheckThreshold: 100_000,
-		// Die Mahnstufen der Voreinstellung. Sie stehen im Fachbereich und
-		// nicht hier: die Reihenfolge und ihre Begründung gehören zusammen.
-		DunningLevels: domain.DefaultDunningLevels(),
 	}
-
-	// Der Tag, ab dem der fehlende Leistungsnachweis beanstandet wird. Er kann
-	// aus zwei Quellen kommen; der ausdrückliche Eintrag geht vor.
-	checkSince, thresholdSavedOn := "", ""
 
 	for _, it := range items {
 		switch it.Key {
@@ -162,31 +154,13 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			if v, err := strconv.ParseInt(it.Value, 10, 64); err == nil && v >= 0 {
 				settings.InvoiceCheckThreshold = domain.Cents(v)
 			}
-			// Der Rückfall für Bestände aus der Zeit vor dem eigenen Schlüssel:
-			// der Tag, an dem die Grenze zuletzt gespeichert wurde. Er ist nicht
-			// so genau wie der eigene Eintrag, aber besser als kein Datum —
-			// ohne eines beanstandete der Prüflauf jeden Altbeleg rückwirkend.
-			// Ein vorhandener invoice_check_since sticht ihn (siehe unten).
-			thresholdSavedOn = it.UpdatedAt.Format("2006-01-02")
 		case "invoice_check_since":
-			checkSince = it.Value
-		case "dunning_levels":
-			// Ein unlesbarer Eintrag bleibt ohne Wirkung: dann gilt die
-			// Voreinstellung weiter. Die Mahnstufen ganz fallen zu lassen,
-			// hieße den Mahnlauf abzuschalten, weil ein Zeichen fehlt.
-			var levels []domain.DunningLevel
-			if err := json.Unmarshal([]byte(it.Value), &levels); err == nil && len(levels) > 0 {
-				settings.DunningLevels = domain.NormalizeDunningLevels(levels)
-			}
+			settings.InvoiceCheckSince = it.Value
 		}
 	}
 
 	if settings.FiscalYearStartMonth <= 0 || settings.FiscalYearStartMonth > 12 {
 		settings.FiscalYearStartMonth = 1
-	}
-	settings.InvoiceCheckSince = checkSince
-	if settings.InvoiceCheckSince == "" {
-		settings.InvoiceCheckSince = thresholdSavedOn
 	}
 	settings.InGruendung = r.inGruendung(ctx)
 	shareholders := []domain.CompanyShareholder{}
@@ -201,7 +175,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 // applyInvoiceAccount setzt die Zahlungsverbindung aus dem Bankkonto, das als
 // Konto für Rechnungen markiert ist. Wie InGruendung beim Lesen gesetzt, weil
-// Rechnung, E-Rechnung, Mahnschreiben und Fragebogen sie hier lesen. Ein
+// Rechnung, E-Rechnung und Fragebogen sie hier lesen. Ein
 // Lesefehler lässt die Verbindung leer: eine Rechnung ohne Zahlungsanweisung
 // ist gültig, eine mit falscher nicht.
 func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settings *domain.CompanySettings) {
@@ -221,8 +195,8 @@ func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settin
 // Tatsache ist und keine Einstellung — er folgt aus dem Eintragungsdatum. Und er
 // wird beim Lesen der Unternehmensdaten gesetzt und nicht von jedem
 // Ausgabeweg einzeln erfragt: den Firmennamen brauchen Rechnung, E-Rechnung,
-// E-Bilanz, Abschlusskopf, Mahnschreiben und Eigenbeleg, und jedem von ihnen die
-// Gründung durchzureichen hieße, sieben Dienste um eine Abhängigkeit zu
+// E-Bilanz, Abschlusskopf und Eigenbeleg, und jedem von ihnen die
+// Gründung durchzureichen hieße, jeden dieser Dienste um eine Abhängigkeit zu
 // erweitern, die sie nur weitergeben.
 //
 // Ein Lesefehler heißt „nicht in Gründung": ohne Zusatz auszugeben ist der
@@ -322,13 +296,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	// Und deshalb wird die Grenze dann gar nicht geschrieben: ein gepflegter
 	// Wert fiele sonst auf die Voreinstellung zurück — ein Formular, das ein
 	// Feld nicht kennt, darf es nicht ändern.
-	// Dasselbe gilt für die Mahnstufen.
 	writeCheckThreshold := s.InvoiceCheckThreshold > 0
-	writeLevels := len(s.DunningLevels) > 0
-	levels, err := json.Marshal(domain.NormalizeDunningLevels(s.DunningLevels))
-	if err != nil {
-		return fmt.Errorf("die Mahnstufen ließen sich nicht speichern: %w", err)
-	}
 
 	kv := map[string]string{
 		"employees":               employees,
@@ -374,9 +342,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"receipt_capture_days": strconv.Itoa(captureDays),
 		"commit_grace_days":    strconv.Itoa(graceDays),
 	}
-	// Der Prüfvermerk am Eingangsbeleg und die Mahnstufen: beides sind
-	// Festlegungen des internen Kontrollsystems, die der Anwender trifft — und
-	// die nur ändert, wer sie mitschickt.
+	// Der Prüfvermerk am Eingangsbeleg ist eine Festlegung des internen
+	// Kontrollsystems, die der Anwender trifft — und die nur ändert, wer sie
+	// mitschickt.
 	if writeCheckThreshold {
 		kv["invoice_check_threshold"] = strconv.FormatInt(int64(s.InvoiceCheckThreshold), 10)
 		// Der Tag, ab dem der Prüflauf den fehlenden Leistungsnachweis
@@ -402,9 +370,6 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 			since = time.Now().Format("2006-01-02")
 		}
 		kv["invoice_check_since"] = since
-	}
-	if writeLevels {
-		kv["dunning_levels"] = string(levels)
 	}
 
 	for k, v := range kv {

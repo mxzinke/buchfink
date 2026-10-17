@@ -56,10 +56,9 @@ const DefaultInterestDaysPerYear = 365
 
 // BaseRateAt liefert den Satz, der an einem Tag galt.
 //
-// Die Tabelle wird als aufsteigend sortiert vorausgesetzt; MergeBaseRates
-// stellt das her. Vor dem ersten Eintrag gibt es keinen Satz — dann sagt die
-// Funktion das, statt null zu liefern: ein Zins von null Prozent wäre eine
-// Aussage, und sie wäre falsch.
+// Die Tabelle wird als aufsteigend sortiert vorausgesetzt. Vor dem ersten
+// Eintrag gibt es keinen Satz — dann sagt die Funktion das, statt null zu
+// liefern: ein Zins von null Prozent wäre eine Aussage, und sie wäre falsch.
 func BaseRateAt(rates []BaseRatePeriod, date string) (BaseRatePeriod, error) {
 	var found BaseRatePeriod
 	ok := false
@@ -71,41 +70,9 @@ func BaseRateAt(rates []BaseRatePeriod, date string) (BaseRatePeriod, error) {
 		break
 	}
 	if !ok {
-		return BaseRatePeriod{}, fmt.Errorf(
-			"für den %s ist kein Basiszinssatz hinterlegt; er ist in den Einstellungen nachzutragen", date)
+		return BaseRatePeriod{}, fmt.Errorf("für den %s ist kein Basiszinssatz hinterlegt", date)
 	}
 	return found, nil
-}
-
-// MergeBaseRates legt die gepflegten Sätze über die hinterlegten und sortiert.
-//
-// Der gepflegte Satz gewinnt: er ist die Bekanntgabe, die jemand nachgetragen
-// hat, und sie ist jünger als jede Auslieferung des Programms.
-func MergeBaseRates(stored []BaseRatePeriod) []BaseRatePeriod {
-	byDate := map[string]BaseRatePeriod{}
-	for _, r := range DefaultBaseRates() {
-		byDate[r.ValidFrom] = r
-	}
-	for _, r := range stored {
-		if r.ValidFrom == "" {
-			continue
-		}
-		byDate[r.ValidFrom] = r
-	}
-	out := make([]BaseRatePeriod, 0, len(byDate))
-	for _, r := range byDate {
-		out = append(out, r)
-	}
-	sortBaseRates(out)
-	return out
-}
-
-func sortBaseRates(rates []BaseRatePeriod) {
-	for i := 1; i < len(rates); i++ {
-		for j := i; j > 0 && rates[j].ValidFrom < rates[j-1].ValidFrom; j-- {
-			rates[j], rates[j-1] = rates[j-1], rates[j]
-		}
-	}
 }
 
 // DefaultInterestStart ist der erste Tag, für den Verzugszinsen laufen.
@@ -174,15 +141,14 @@ func (r *InterestResult) EnsureLists() {
 
 // DefaultInterest rechnet die Verzugszinsen einer Forderung taggenau.
 //
-// from ist der erste Tag des Verzugs, to der Stichtag (das Datum des
-// Mahnschreibens). Gezählt werden die Tage dazwischen, den Stichtag nicht
-// mitgerechnet: am Tag der Zahlung ist der Schuldner nicht mehr in Verzug.
+// from ist der erste Tag des Verzugs, to der Stichtag. Gezählt werden die
+// Tage dazwischen, den Stichtag nicht mitgerechnet: am Tag der Zahlung ist
+// der Schuldner nicht mehr in Verzug.
 //
 // Gerechnet wird abschnittsweise, weil der Basiszinssatz halbjährlich wechselt.
 // Jeder Abschnitt wird für sich auf Cent gerundet, und die Summe der Abschnitte
-// ist der Betrag — das Mahnschreiben führt die Abschnitte auf, und eine Summe,
-// die nicht der Summe der ausgewiesenen Zeilen entspricht, ist ein Fehler in den
-// Augen dessen, der sie nachrechnet.
+// ist der Betrag — eine Summe, die nicht der Summe der ausgewiesenen Zeilen
+// entspricht, ist ein Fehler in den Augen dessen, der sie nachrechnet.
 func DefaultInterest(
 	principal domain.Cents, from, to string, isConsumer bool, rates []BaseRatePeriod,
 ) (InterestResult, error) {

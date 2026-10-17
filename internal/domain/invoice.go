@@ -337,8 +337,8 @@ type Invoice struct {
 	// hingewiesen hat. Das Kennzeichen steht an der Rechnung und nicht an den
 	// Einstellungen: es ist eine Aussage über dieses Dokument, und für die
 	// Rechnungen aus der Zeit vor dem Hinweis wäre jede spätere Einstellung
-	// eine Behauptung über einen Text, der dort nie stand. Das Mahnwesen liest
-	// es, bevor es Verzugszinsen ansetzt.
+	// eine Behauptung über einen Text, der dort nie stand. Die Verzugsrechnung
+	// liest es, bevor sie Verzugszinsen ansetzt.
 	ConsumerNoticePrinted bool `gorm:"not null;default:false" json:"consumerNoticePrinted"`
 
 	// PaymentAccount ist das Zahlungsmittelkonto einer Rechnung ohne

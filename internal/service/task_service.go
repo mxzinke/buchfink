@@ -26,8 +26,8 @@ import (
 // LiveOpenItemSource liefert die heute offenen Posten.
 //
 // Neben OpenItemSource (Stichtagssicht) und nicht statt dessen: die
-// Aufgabenliste und der Mahnlauf fragen, was jetzt offen ist, der Abschluss
-// fragt, was am Stichtag offen war.
+// Aufgabenliste und die Verzugsrechnung fragen, was jetzt offen ist, der
+// Abschluss fragt, was am Stichtag offen war.
 type LiveOpenItemSource interface {
 	OpenItems(ctx context.Context) ([]domain.OpenItem, error)
 }
@@ -649,11 +649,11 @@ func (s *TaskService) addOverdueReceivables(ctx context.Context, list *domain.Ta
 	}
 	list.Add(domain.Task{
 		Key: domain.TaskKeyOverdueItems, Group: domain.TaskGroupOverdue,
-		Title:     "Überfällige Kundenrechnungen mahnen",
+		Title:     "Überfällige Kundenrechnungen",
 		Why:       "Nach Ablauf von dreißig Tagen ab Fälligkeit kommt der Kunde auch ohne Mahnung in Verzug; ab dann laufen Verzugszinsen.",
 		Reference: "§§ 286, 288 BGB",
 		Count:     count, Amount: amount, DueDate: oldest,
-		Target: domain.TaskTarget{Page: "bank", Params: map[string]string{"view": "dunning"}},
+		Target: domain.TaskTarget{Page: "accounts"},
 	})
 }
 

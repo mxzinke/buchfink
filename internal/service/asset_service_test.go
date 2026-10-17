@@ -1405,76 +1405,6 @@ func TestDisposalKeepsTheSpecialDepreciationAsTaxValue(t *testing.T) {
 	}
 }
 
-// Der Migrationshinweis: Sonderabschreibungen, die vor dieser Fassung gebucht
-// wurden, bleiben stehen — die Anlagenseite nennt sie.
-func TestLegacySpecialDepreciationsAreListed(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-
-	asset, err := svc.Save(ctx, &domain.FixedAsset{
-		Name:                "Fertigungsroboter",
-		Class:               domain.AssetClassTangible,
-		Account:             "0440",
-		DepreciationAccount: "6220",
-		AcquisitionDate:     "2026-01-05",
-		AcquisitionCost:     10_000_000,
-		UsefulLifeMonths:    120,
-		Method:              domain.DepreciationLinear,
-		SpecialPermille:     400,
-		SpecialYears:        5,
-		SpecialReason:       "Gewinn 2025: 140.000 €",
-	})
-	if err != nil {
-		t.Fatalf("Anlagegut: %v", err)
-	}
-
-	notice, err := svc.LegacySpecialDepreciations(ctx)
-	if err != nil {
-		t.Fatalf("Migrationshinweis: %v", err)
-	}
-	if len(notice.Rows) != 0 {
-		t.Errorf("ohne alte Buchung darf der Hinweis leer sein, hat aber %d Zeilen", len(notice.Rows))
-	}
-
-	// Eine Bewegung aus der Zeit, in der die Sonderabschreibung noch gebucht
-	// wurde: Betrag als Abschreibung, mit Buchungsverweis.
-	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
-		BookingDate: "2025-12-31", DocumentDate: "2025-12-31",
-		ServiceDateFrom: "2025-12-31", ServiceDateTo: "2025-12-31",
-		Description: "Sonderabschreibung 2025", Source: domain.EntrySourceDepreciation,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "6241", Amount: 800_000},
-			{Side: domain.SideCredit, Account: "0440", Amount: 800_000},
-		},
-	})
-	if err != nil {
-		t.Fatalf("alte Buchung: %v", err)
-	}
-	if err := repository.NewAssetRepository(env.db).AddMovement(ctx, &domain.AssetMovement{
-		AssetID: asset.ID, Kind: domain.AssetMovementSpecialDepreciation, Account: asset.Account,
-		Date: "2025-12-31", FiscalYear: 2025, DepreciationAmount: 800_000,
-		JournalEntryID: &entry.ID,
-	}); err != nil {
-		t.Fatalf("Bewegung: %v", err)
-	}
-
-	notice, err = svc.LegacySpecialDepreciations(ctx)
-	if err != nil {
-		t.Fatalf("Migrationshinweis: %v", err)
-	}
-	if len(notice.Rows) != 1 || notice.Total != 800_000 {
-		t.Fatalf("Hinweis %+v — erwartet eine Zeile über 8.000,00 €", notice)
-	}
-	if notice.Rows[0].EntryNumber != entry.EntryNumber {
-		t.Errorf("die Zeile nennt die Buchung %q — erwartet %q",
-			notice.Rows[0].EntryNumber, entry.EntryNumber)
-	}
-	if !strings.Contains(notice.Note, "BilMoG") {
-		t.Errorf("der Hinweis erklärt nicht, warum die Buchung nicht mehr entsteht: %q", notice.Note)
-	}
-}
-
 // § 7g Abs. 6 EStG richtet sich nach Sachverhalten, die keine Software kennt. Ohne
 // festgehaltene Begründung entsteht die Sonderabschreibung nicht — wie bei der
 // außerplanmäßigen Abschreibung ist der Grund Pflicht.
@@ -2450,7 +2380,7 @@ func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stammdaten: %v", err)
 	}
-	cfg.LegalForm = "Einzelunternehmen"
+	cfg.LegalForm = domain.LegalFormUG
 	cfg.InvestorOverride = ""
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 		t.Fatalf("Stammdaten speichern: %v", err)
@@ -2472,10 +2402,10 @@ func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
 		t.Fatalf("Vorschau: %v", err)
 	}
 	if preview.Investment == nil || preview.Investment.ExemptionError != "" {
-		t.Fatalf("aus der Rechtsform Einzelunternehmen folgt die Anlegerstellung: %+v", preview.Investment)
+		t.Fatalf("aus der Rechtsform UG folgt die Anlegerstellung: %+v", preview.Investment)
 	}
-	if preview.Investment.Exemption.Permille != 600 {
-		t.Errorf("Teilfreistellung %d Promille — eine natürliche Person im Betriebsvermögen trägt 60 %%",
+	if preview.Investment.Exemption.Permille != 800 {
+		t.Errorf("Teilfreistellung %d Promille — eine Körperschaft trägt 80 %%",
 			preview.Investment.Exemption.Permille)
 	}
 }

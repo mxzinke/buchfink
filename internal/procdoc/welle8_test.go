@@ -32,7 +32,7 @@ func TestProcDocCarriesTheArticle30Register(t *testing.T) {
 		// Art. 30 Abs. 1: Verantwortlicher, Zwecke, Kategorien, Empfänger,
 		// Fristen.
 		"Verantwortlicher", "Art. 4 Nr. 7 DSGVO",
-		"Finanzbuchhaltung", "Rechnungsstellung", "Mahnwesen",
+		"Finanzbuchhaltung", "Rechnungsstellung", "Forderungsverfolgung",
 		"Kategorien betroffener Personen", "Empfänger", "Löschfrist",
 		"Finanzverwaltung", "Steuerberater", "Bundeszentralamt für Steuern",
 		"Bundesdruckerei D-TRUST",

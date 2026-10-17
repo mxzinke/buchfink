@@ -30,20 +30,6 @@ func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, erro
 	return emptyList(b.assetSvc.List(context.Background(), domain.AssetClass(class)))
 }
 
-// GetAssetSummary aggregates the register of one class for the head of the view.
-func (b *BuchfinkBridge) GetAssetSummary(class string) (*service.AssetSummary, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return &service.AssetSummary{}, nil
-	}
-	sum, err := b.assetSvc.Summary(context.Background(), domain.AssetClass(class))
-	if err != nil {
-		return nil, err
-	}
-	return &sum, nil
-}
-
 // GetFixedAsset returns one Anlagegut with its AfA-Plan, seinen Bewegungen und
 // den Erklärungen, die zu diesem Gut gehören.
 func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
@@ -66,19 +52,6 @@ func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedA
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
 	return b.assetSvc.Save(context.Background(), &asset)
-}
-
-// DeleteFixedAsset removes an Anlagegut that never carried a booking.
-func (b *BuchfinkBridge) DeleteFixedAsset(id uint) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.assetSvc == nil {
-		return fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.Delete(context.Background(), id)
 }
 
 // RecordAssetCostAdjustment records nachträgliche Anschaffungskosten oder eine
@@ -358,19 +331,6 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 	return b.assetSvc.Anlagenspiegel(context.Background())
 }
 
-// GetLegacySpecialDepreciations nennt die Sonderabschreibungen, die noch als
-// Buchung im Journal stehen — der Migrationshinweis der Anlagenseite.
-func (b *BuchfinkBridge) GetLegacySpecialDepreciations() (*service.LegacySpecialDepreciationNotice, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return &service.LegacySpecialDepreciationNotice{
-			Rows: []service.LegacySpecialDepreciation{},
-		}, nil
-	}
-	return b.assetSvc.LegacySpecialDepreciations(context.Background())
-}
-
 // GetAssetAcquisitionCandidates lists bookings on Anlagekonten that no Anlagegut
 // points at yet.
 func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionCandidate, error) {
@@ -638,8 +598,8 @@ type exemptionInfo struct {
 	Permille    int                  `json:"permille"`
 	Source      string               `json:"source,omitempty"`
 	Explanation string               `json:"explanation,omitempty"`
-	// Problem sagt, warum es keinen Satz gibt — bei fehlender Anlegerstellung
-	// und bei der Personengesellschaft mit gemischt besteuerten Gesellschaftern.
+	// Problem sagt, warum es keinen Satz gibt — etwa bei fehlender
+	// Anlegerstellung.
 	Problem string `json:"problem,omitempty"`
 }
 
@@ -653,17 +613,6 @@ func (b *BuchfinkBridge) ComputeVorabpauschale(req service.VorabpauschaleRequest
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
 	return b.assetSvc.Vorabpauschale(context.Background(), req)
-}
-
-// GetInvestmentNoteForIncome rechnet die Teilfreistellung einer Ausschüttung
-// vor, bevor sie gebucht wird.
-func (b *BuchfinkBridge) GetInvestmentNoteForIncome(assetID uint, amount int64) (*service.InvestmentTaxNote, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.InvestmentNoteForIncome(context.Background(), assetID, domain.Cents(amount))
 }
 
 // BookAssetCurrencyValuation bucht die Umrechnungsdifferenz eines Stichtags auf

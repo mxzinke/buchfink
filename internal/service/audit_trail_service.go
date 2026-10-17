@@ -290,3 +290,10 @@ func (s *AuditTrailService) log(ctx context.Context, trail *AuditTrail, path str
 		fmt.Sprintf("Prüfpfad zu Beleg %s ausgegeben (%d Stufen) nach %s",
 			trail.ReceiptNumber, len(trail.Steps), path))
 }
+
+func orDash(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "—"
+	}
+	return s
+}

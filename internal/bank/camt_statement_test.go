@@ -15,7 +15,7 @@ func bankStatement(iban, entry string) string {
 	return `<Stmt><Acct><Id><IBAN>` + iban + `</IBAN></Id></Acct>` + entry + `</Stmt>`
 }
 
-func TestBugHuntCAMTKeepsAccountOfEachStatement(t *testing.T) {
+func TestCAMTKeepsAccountOfEachStatement(t *testing.T) {
 	xml := `<Document><BkToCstmrStmt>` + bankStatement("DE89370400440532013000", bankEntry("2026-09-01", "100.00", "CRDT")) + bankStatement("DE02120300000000202051", bankEntry("2026-09-02", "200.00", "CRDT")) + `</BkToCstmrStmt></Document>`
 	txs, err := bank.ParseCAMT053(strings.NewReader(xml))
 	if err != nil {
@@ -29,7 +29,7 @@ func TestBugHuntCAMTKeepsAccountOfEachStatement(t *testing.T) {
 	}
 }
 
-func TestBugHuntCAMTRejectsInvalidDateAndDirection(t *testing.T) {
+func TestCAMTRejectsInvalidDateAndDirection(t *testing.T) {
 	for _, entry := range []string{bankEntry("2026-02-31", "100.00", "CRDT"), bankEntry("2026-09-01", "100.00", "SIDEWAYS"), bankEntry("2026-09-01", "-100.00", "DBIT")} {
 		xml := `<Document><BkToCstmrStmt>` + bankStatement("DE89370400440532013000", entry) + `</BkToCstmrStmt></Document>`
 		if txs, err := bank.ParseCAMT053(strings.NewReader(xml)); err == nil {

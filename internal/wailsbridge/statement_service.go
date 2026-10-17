@@ -50,16 +50,6 @@ func (b *BuchfinkBridge) GetSizeClass(year int) (*accounting.SizeClass, error) {
 	return b.statementSvc.SizeClassFor(context.Background(), year)
 }
 
-// GetStatementDeadlines liefert die Termine für Aufstellung und Offenlegung.
-func (b *BuchfinkBridge) GetStatementDeadlines(year int) ([]domain.Deadline, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.statementSvc == nil {
-		return []domain.Deadline{}, nil
-	}
-	return emptyList(b.statementSvc.Deadlines(context.Background(), year))
-}
-
 // ExportStatementPDF liefert das Dokument als Base64 — wie der Rechnungs- und
 // der E-Bilanz-Export auch, damit das Frontend es unverändert speichern kann.
 //

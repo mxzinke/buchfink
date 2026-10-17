@@ -17,16 +17,13 @@ interface CompanyCapitalSectionProps {
 }
 
 /**
- * Urkunde, Stamm- oder Grundkapital und Gesellschafterliste einer
- * Kapitalgesellschaft, jeweils im aktuellen Stand.
+ * Urkunde, Stammkapital und Gesellschafterliste, jeweils im aktuellen Stand.
  */
 export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
   settings,
   rules,
   patch,
 }) => {
-  const isAG = rules.legalForm === 'AG';
-  const capitalLabel = isAG ? 'Grundkapital' : 'Stammkapital';
   const [capitalText, setCapitalText] = useState(
     settings.shareCapital ? formatCentsPlain(settings.shareCapital) : '',
   );
@@ -56,7 +53,7 @@ export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
   return (
     <Section
       helpSummary="Halten Sie Urkunde, Kapital und Gesellschafter Ihrer Gesellschaft fest."
-      title={isAG ? 'Satzung und Grundkapital' : 'Gesellschaftsvertrag und Gesellschafter'}
+      title="Gesellschaftsvertrag und Gesellschafter"
       explain={
         <>
           Maßgeblich ist der aktuelle Stand laut Handelsregister und Gesellschafterliste (§ 40
@@ -79,7 +76,7 @@ export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
           />
         </Field>
         <Field
-          label={capitalLabel}
+          label="Stammkapital"
           hint={`mindestens ${formatCents(rules.minShareCapital)}`}
           error={belowMinimum ? `Für ${rules.legalForm} sind mindestens ${formatCents(rules.minShareCapital)} vorgeschrieben.` : undefined}
         >
@@ -98,7 +95,7 @@ export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
       </FormGrid>
 
       <div className="mt-6">
-        <p className="text-label text-ink-muted mb-2">{isAG ? 'Aktionäre' : 'Gesellschafter'}</p>
+        <p className="text-label text-ink-muted mb-2">Gesellschafter</p>
         {rows.length > 0 && (
           <ul className="flex flex-col gap-2">
             {rows.map((row, index) => (
@@ -111,7 +108,7 @@ export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
                     }
                   />
                 </Field>
-                <Field label={isAG ? 'Anteil am Grundkapital' : 'Nennbetrag der Anteile'} className="w-48">
+                <Field label="Nennbetrag der Anteile" className="w-48">
                   <Input
                     align="right"
                     value={row.amountText}
@@ -152,7 +149,7 @@ export const CompanyCapitalSection: React.FC<CompanyCapitalSectionProps> = ({
               setNextKey(nextKey + 1);
             }}
           >
-            {isAG ? 'Aktionär hinzufügen' : 'Gesellschafter hinzufügen'}
+            Gesellschafter hinzufügen
           </Button>
           {rows.length > 0 && (
             <span className={cn('text-body num', capitalMismatch ? 'text-negative-text' : 'text-ink-subtle')}>

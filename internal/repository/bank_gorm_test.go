@@ -9,7 +9,7 @@ import (
 )
 
 // Regression coverage for the bank import findings.
-func TestBugHuntBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
+func TestBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -27,8 +27,8 @@ func TestBugHuntBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
 	}
 }
 
-func TestBugHuntBankDeduplicatesEncryptedCounterparty(t *testing.T) {
-	_, vault, err := security.NewKeyfile("bug-hunt-example-passphrase")
+func TestBankDeduplicatesEncryptedCounterparty(t *testing.T) {
+	_, vault, err := security.NewKeyfile("example-passphrase")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestBugHuntBankDeduplicatesEncryptedCounterparty(t *testing.T) {
 	}
 }
 
-func TestBugHuntBankReportsPersistenceFailure(t *testing.T) {
+func TestBankReportsPersistenceFailure(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

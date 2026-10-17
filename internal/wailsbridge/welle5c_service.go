@@ -38,12 +38,6 @@ func (b *BuchfinkBridge) GetInputTaxCorrections(year int) (*service.InputTaxCorr
 	return b.inputTaxSvc.Year(context.Background(), year)
 }
 
-// PreviewInputTaxCorrection ist dieselbe Sicht unter dem Namen, unter dem der
-// Abschlussbaustein sie aufruft: was würde gebucht.
-func (b *BuchfinkBridge) PreviewInputTaxCorrection(year int) (*service.InputTaxCorrectionYear, error) {
-	return b.GetInputTaxCorrections(year)
-}
-
 // RegisterInputTaxCorrection nimmt ein Wirtschaftsgut ins Verzeichnis auf.
 func (b *BuchfinkBridge) RegisterInputTaxCorrection(
 	req service.RegisterInputTaxRequest,
@@ -224,12 +218,6 @@ func (b *BuchfinkBridge) GetSupplyEvidenceReport(year int) (*service.SupplyEvide
 // Nicht abziehbare Betriebsausgaben
 // -------------------------------------------------------------------------
 
-// GetNonDeductibleCategories liefert die Kategorien des § 4 Abs. 5 EStG mit
-// ihren Konten.
-func (b *BuchfinkBridge) GetNonDeductibleCategories() []accounting.NonDeductibleCategory {
-	return accounting.NonDeductibleCategories()
-}
-
 // GetNonDeductibleReport ist der Bericht eines Geschäftsjahres.
 func (b *BuchfinkBridge) GetNonDeductibleReport(year int) (*service.NonDeductibleReport, error) {
 	b.mu.RLock()
@@ -313,19 +301,6 @@ func (b *BuchfinkBridge) GetVatExchangeRates(from, to string) ([]domain.VatExcha
 		return []domain.VatExchangeRate{}, nil
 	}
 	return emptyList(b.currencySvc.VatRates(context.Background(), from, to))
-}
-
-// SaveVatExchangeRate nimmt einen Durchschnittskurs auf.
-func (b *BuchfinkBridge) SaveVatExchangeRate(rate domain.VatExchangeRate) (*domain.VatExchangeRate, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.currencySvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.currencySvc.SaveVatRate(context.Background(), rate)
 }
 
 // ImportVatExchangeRatesCSV liest die Durchschnittskurse aus einer CSV-Datei.

@@ -252,7 +252,7 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 // openingBalanceMarkdown ist der Text der Eröffnungsbilanz.
 //
 // Als Markdown und nicht unmittelbar als Typst — derselbe Weg wie beim
-// Eigenbeleg, beim Mahnschreiben und bei der Verfahrensdokumentation.
+// Eigenbeleg und bei der Verfahrensdokumentation.
 func openingBalanceMarkdown(sheet *OpeningBalanceSheet) string {
 	var b strings.Builder
 	b.WriteString("# Eröffnungsbilanz\n\n")

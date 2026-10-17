@@ -35,8 +35,6 @@ const (
 	KindAuditPackage Kind = "audit_package"
 	// KindJournal ist der Journalexport eines Zeitraums als einzelne Datei.
 	KindJournal Kind = "journal"
-	// KindKeyDirectory ist das Schlüsselverzeichnis als einzelne Datei.
-	KindKeyDirectory Kind = "key_directory"
 )
 
 // TableInfo ist eine Tabelle im Ergebnis.

@@ -6,13 +6,11 @@ import {
   AccrualMethod,
   AccrualReleaseCycle,
   BankRule,
-  BaseRate,
   ClosingSettings,
   CompanySettings,
   ComplianceHints,
   AppConfig,
   Country,
-  DunningLevel,
   FoundationRules,
   InvestorType,
   LegalFormInfo,
@@ -71,17 +69,11 @@ const DELETE_RULE_HINT =
   'Die Regel lässt sich nicht zurückholen. Sie entsteht neu, sobald ein solcher Umsatz das ' +
   'nächste Mal bestätigt zugeordnet wird.';
 
-/**
- * Die Anlegerstellung nach § 20 InvStG. „Nicht festgelegt" ist die
- * Voreinstellung und bleibt eine gültige Antwort: geraten wird hier nichts.
- */
 /** Was eine abgeleitete Anlegerstellung in einem Halbsatz bedeutet. */
 function investorHint(investor: InvestorType): string {
   switch (investor) {
     case 'corporate':
       return 'Investmentanteile: 80 % Teilfreistellung';
-    case 'individual_business':
-      return 'Investmentanteile: 60 % Teilfreistellung';
     case 'basic':
       return 'Investmentanteile: 30 % Teilfreistellung';
     default:
@@ -102,9 +94,7 @@ const DERIVE = 'derive';
 
 const INVESTOR_TYPES = [
   { value: 'corporate', label: 'Körperschaft — 80 %' },
-  { value: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen — 60 %' },
-  { value: 'basic', label: 'Grundsatz — 30 % (auch für Versicherer, Handelsbestand, Pensionsfonds)' },
-  { value: 'mixed', label: 'Gesellschafter unterschiedlich besteuert — kein einheitlicher Satz' },
+  { value: 'basic', label: 'Grundsatz — 30 % (Versicherer, Handelsbestand, Pensionsfonds)' },
 ];
 
 const MONTHS = [
@@ -203,10 +193,6 @@ export const SettingsPage: React.FC<{
   // aufnimmt; hier steht, ob und wie viel davon hinterlegt ist — ein Feld, das
   // nur wiederholt, was sein Label sagt, ist keine Auskunft (§15.3).
   const [orgTexts, setOrgTexts] = useState<OrganisationTexts | null>(null);
-  // Die gespeicherte Rechtsform, gegen die der Hinweis gilt. Ein Hinweis zur
-  // eben erst ausgewählten, noch nicht gespeicherten Rechtsform stammte aus
-  // dem Backend und beschriebe den falschen Stand.
-  const [savedLegalForm, setSavedLegalForm] = useState('');
   // Die Sondervorauszahlung wird als Text erfasst und erst beim Verlassen des
   // Feldes in Cent umgerechnet (§8.3).
   const [prepaymentText, setPrepaymentText] = useState('');
@@ -240,17 +226,12 @@ export const SettingsPage: React.FC<{
   // Ziffer ist keine 0 — und eine 0 bedeutet hier die Voreinstellung, nicht
   // „kein Nachweis" (§8.3).
   const [checkThresholdText, setCheckThresholdText] = useState('');
-  // Die Basiszinssätze und die gelernten Bankregeln stehen in eigenen Diensten
-  // und nicht in den Stammdaten: sie werden sofort gespeichert bzw. gelöscht
-  // und nicht über den Knopf im Seitenkopf.
-  const [baseRates, setBaseRates] = useState<BaseRate[]>([]);
+  // Die gelernten Bankregeln stehen in einem eigenen Dienst und nicht in den
+  // Stammdaten: sie werden sofort gelöscht und nicht über den Knopf im
+  // Seitenkopf.
   const [bankRules, setBankRules] = useState<BankRule[]>([]);
-  const [rateFrom, setRateFrom] = useState('');
-  const [rateText, setRateText] = useState('');
-  const [rateError, setRateError] = useState('');
-  const [savingRate, setSavingRate] = useState(false);
 
-  // Die Rechtsformen mit Stamm- oder Grundkapital und die Länder der Anschrift
+  // Die Kapitalregeln der Rechtsformen und die Länder der Anschrift
   // kommen aus dem Backend, das beides auch prüft.
   const [capitalRules, setCapitalRules] = useState<FoundationRules[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -274,7 +255,6 @@ export const SettingsPage: React.FC<{
       setSettings(s);
       setAppConfig(cfg);
       setLegalForms(forms ?? []);
-      setSavedLegalForm(s.legalForm || '');
       try {
         // Nebenauskunft: fehlen die Hinweise, bleiben die Einstellungen
         // bedienbar — sie ändern nichts an dem, was hier gespeichert wird.
@@ -317,13 +297,10 @@ export const SettingsPage: React.FC<{
         setRetentionRules(null);
       }
       try {
-        // Basiszins und gelernte Regeln ebenso: sie werden in eigenen
-        // Diensten gespeichert, und ohne sie bleiben die Stammdaten bedienbar.
-        const [rates, rules] = await Promise.all([Api.getBaseRates(), Api.getBankRules()]);
-        setBaseRates(rates);
-        setBankRules(rules);
+        // Die gelernten Regeln ebenso: sie werden in einem eigenen Dienst
+        // gespeichert, und ohne sie bleiben die Stammdaten bedienbar.
+        setBankRules(await Api.getBankRules());
       } catch {
-        setBaseRates([]);
         setBankRules([]);
       }
       try {
@@ -380,37 +357,6 @@ export const SettingsPage: React.FC<{
     }
   }
 
-  /**
-   * Trägt einen bekanntgegebenen Basiszinssatz nach.
-   *
-   * Sofort und nicht über den Knopf im Seitenkopf: der Satz wird über einen
-   * eigenen Dienst gespeichert, und ein Wert, der bis zum nächsten
-   * „Speichern" nur in der Maske stünde, wäre für die Zinsrechnung nicht da.
-   */
-  async function saveRate() {
-    const percent = parsePercent(rateText);
-    if (!rateFrom) {
-      setRateError('Ohne Stichtag gilt der Satz für keinen Zeitraum.');
-      return;
-    }
-    if (percent === null) {
-      setRateError('Der Satz wird als Prozentzahl erfasst, etwa 1,27.');
-      return;
-    }
-    setSavingRate(true);
-    try {
-      setBaseRates(await Api.saveBaseRate(rateFrom, percent));
-      setRateFrom('');
-      setRateText('');
-      setRateError('');
-      toast.success('Basiszinssatz nachgetragen.');
-    } catch (e) {
-      setRateError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSavingRate(false);
-    }
-  }
-
   /** Löscht eine gelernte Zuordnung; der nächste Umsatz wird wieder gefragt. */
   async function deleteRule(id: number) {
     try {
@@ -450,9 +396,8 @@ export const SettingsPage: React.FC<{
       if (systemChangeDate !== (hints?.systemChangeDate ?? '')) {
         await Api.setSystemChangeDate(systemChangeDate);
       }
-      // Der Hinweis zur Rechtsform richtet sich nach der gespeicherten
-      // Rechtsform; nach dem Speichern gilt eine neue, also wird er neu geholt.
-      setSavedLegalForm(settings.legalForm || '');
+      // Die Hinweise richten sich nach dem gespeicherten Stand und werden
+      // deshalb neu geholt.
       try {
         const loaded = await Api.getComplianceHints();
         setHints(loaded);
@@ -476,13 +421,7 @@ export const SettingsPage: React.FC<{
     );
   }
 
-  // Eine gespeicherte Rechtsform, die nicht im Katalog steht, bleibt wählbar:
-  // sonst überschriebe das Öffnen der Einstellungen still, was dort stand.
-  const known = legalForms.some((form) => form.name === settings.legalForm);
-  const legalFormItems = [
-    ...(settings.legalForm && !known ? [{ value: settings.legalForm, label: settings.legalForm }] : []),
-    ...legalForms.map((form) => ({ value: form.name, label: form.name })),
-  ];
+  const legalFormItems = legalForms.map((form) => ({ value: form.name, label: form.name }));
   const selectedForm = legalForms.find((form) => form.name === settings.legalForm);
   // Was die Rechtsform für Investmentanteile bedeutet — als Hinweis am Feld,
   // nicht als zweite Frage.
@@ -494,8 +433,6 @@ export const SettingsPage: React.FC<{
     : selectedForm
       ? { label: investorHint(selectedForm.investor), note: selectedForm.note }
       : undefined;
-  // Gefragt wird nur, wo die Rechtsform die Anlegerstellung offen lässt.
-  const needsInvestorChoice = Boolean(selectedForm) && !selectedForm?.investor;
 
   const patch = (next: Partial<CompanySettings>) =>
     setSettings((prev) => (prev ? { ...prev, ...next } : prev));
@@ -553,7 +490,7 @@ export const SettingsPage: React.FC<{
           <Field
             label="Gründungsdatum"
             optional
-            hint={capitalRule ? 'Tag der notariellen Beurkundung' : 'Beginn der Tätigkeit'}
+            hint="Tag der notariellen Beurkundung"
           >
             <Input
               type="date"
@@ -588,28 +525,19 @@ export const SettingsPage: React.FC<{
 
           {/*
             Die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
-            Sichtbar wird sie nur, wo diese sie nicht hergibt — bei einer
-            Personengesellschaft — oder wo jemand sie ausdrücklich anders
-            festlegen will. Als eigenes Pflichtfeld stünde hier sonst eine
-            Rechtsfrage, die die meisten nie beantworten müssten. Sie steht im
-            Raster der übrigen Felder und nicht darunter: ein Feld, das seine
-            eigene Breite mitbringt, sieht aus wie ein Nachtrag.
+            Sichtbar wird sie nur, wo jemand sie ausdrücklich anders festlegen
+            will. Sie steht im Raster der übrigen Felder und nicht darunter: ein
+            Feld, das seine eigene Breite mitbringt, sieht aus wie ein Nachtrag.
           */}
-          {(needsInvestorChoice || showInvestorChoice) && (
+          {showInvestorChoice && (
             <Field helpSummary="Die Art des Anlegers bestimmt den steuerfreien Anteil von Fondserträgen."
               label="Anlegerstellung für Investmentanteile"
-              optional={!needsInvestorChoice}
+              optional
               hint="nur für die Teilfreistellung"
-              explain="Der Satz richtet sich nach dem Anleger. Bei einer Personengesellschaft bestimmt ihn der einzelne Gesellschafter (§ 20 Abs. 3a InvStG). Und auch eine Körperschaft hat nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die Erhöhung zurück."
+              explain="Eine Körperschaft hat nicht immer 80 %: für Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 InvStG die Erhöhung zurück."
             >
               <Select
-                items={[
-                  {
-                    value: DERIVE,
-                    label: needsInvestorChoice ? 'Noch nicht festgelegt' : 'Aus der Rechtsform',
-                  },
-                  ...INVESTOR_TYPES,
-                ]}
+                items={[{ value: DERIVE, label: 'Aus der Rechtsform' }, ...INVESTOR_TYPES]}
                 value={settings.investorOverride || DERIVE}
                 onValueChange={(next) =>
                   patch({
@@ -623,7 +551,7 @@ export const SettingsPage: React.FC<{
           )}
         </FormGrid>
 
-        {!needsInvestorChoice && !showInvestorChoice && (
+        {!showInvestorChoice && (
           <Button
             variant="quiet"
             size="sm"
@@ -632,15 +560,6 @@ export const SettingsPage: React.FC<{
           >
             Anlegerstellung für Investmentanteile abweichend festlegen
           </Button>
-        )}
-
-        {/* Die Grenze des Funktionsumfangs bei Rechtsformen mit Entnahmen
-            (BEW-13). Sie steht als Hinweisfläche und nicht hinter dem
-            Erklärzeichen: sie erklärt, was Buchfink für diesen Mandanten
-            nicht rechnet, und nicht das Feld daneben — das soll niemand
-            erst beim Jahresabschluss erfahren. */}
-        {hints?.legalFormNote && settings.legalForm === savedLegalForm && (
-          <Notice className="mt-5" text={hints.legalFormNote} />
         )}
       </Section>
 
@@ -1247,20 +1166,18 @@ export const SettingsPage: React.FC<{
         </FormGrid>
       </Section>
 
-      {/* Die Adressen der Netzdienste und die Umsatzsteuer-Umrechnungskurse
-          stehen auf der Seite „Nebenpflichten": dort, wo die Kurshistorie und
-          der Verlauf der Bestätigungsabfragen liegen, zu denen sie gehören.
-          Der Verweis steht hier, weil sie Einstellungen sind und niemand sie
+      {/* Die Umsatzsteuer-Umrechnungskurse stehen auf der Seite
+          „Nebenpflichten": dort, wo die Kurshistorie und der Verlauf der
+          Bestätigungsabfragen liegen. Der Verweis steht hier, weil niemand sie
           zuerst unter „Nebenpflichten" sucht. */}
-      <Section helpSummary="Hier finden Sie externe Abfragedienste und die gespeicherten Umrechnungskurse."
-        title="Netzdienste und Umrechnungskurse"
-        context="Auf der Seite „Nebenpflichten“: BZSt, Kursdienst, USt-Durchschnittskurse"
+      <Section helpSummary="Hier finden Sie die gespeicherten Umrechnungskurse und die Bestätigungsabfragen."
+        title="Umrechnungskurse und Bestätigungsabfragen"
+        context="Auf der Seite „Nebenpflichten“: Kurshistorie, USt-Durchschnittskurse, USt-IdNr."
         explain={
           <>
-            Die Adressen der beiden Netzdienste und die monatlichen
-            Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG stehen bei der Kurshistorie und
-            beim Verlauf der Bestätigungsabfragen: eine geänderte Adresse und ein nachgetragener
-            Kurs sind dort sofort an den Daten zu sehen, die sie betreffen.
+            Die monatlichen Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG stehen bei der
+            Kurshistorie: ein nachgetragener Kurs ist dort sofort an den Daten zu sehen, die er
+            betrifft.
           </>
         }
       >
@@ -1273,7 +1190,7 @@ export const SettingsPage: React.FC<{
               variant="secondary"
               onClick={() => onNavigate('obligations', { obligationsTab: 'currency' })}
             >
-              Kurse und Endpunkte
+              Kurse
             </Button>
             <Button
               variant="secondary"
@@ -1330,21 +1247,17 @@ export const SettingsPage: React.FC<{
       </Section>
 
       {/*
-        Rechnungsprüfung und Mahnwesen (RECH-08, QUE-05). Beide Einstellungen
-        steuern Vorgänge und keine Buchung: die eine sagt, ab welchem Betrag ein
-        Eingangsbeleg einen Prüfvermerk braucht, die andere, wann welche
-        Mahnung vorgeschlagen wird.
+        Rechnungsprüfung (RECH-08): ab welchem Betrag ein Eingangsbeleg einen
+        Prüfvermerk braucht. Die Einstellung steuert einen Vorgang und keine
+        Buchung.
       */}
-      <Section helpSummary="Legen Sie fest, wann eine Leistungsprüfung nötig ist und wie Sie offene Rechnungen anmahnen."
-        title="Rechnungsprüfung und Mahnwesen"
-        context="Leistungsnachweis und Mahnstufen"
+      <Section helpSummary="Legen Sie fest, ab welchem Betrag eine Leistungsprüfung nötig ist."
+        title="Rechnungsprüfung"
+        context="Leistungsnachweis"
         explain={
           <>
             Der Vorsteuerabzug setzt eine tatsächlich bezogene Leistung voraus (§ 15 UStG); der
-            Leistungsnachweis am Beleg hält fest, wer das bestätigt hat. Die Mahnstufen sind eine
-            Vereinbarung des Unternehmens mit sich selbst — das Gesetz kennt keine „erste Mahnung".
-            Die Gebühr ist ein Vorschlag und nur ersatzfähig, soweit sie tatsächlich entstandener
-            Verzugsschaden ist.
+            Leistungsnachweis am Beleg hält fest, wer das bestätigt hat.
           </>
         }
       >
@@ -1374,79 +1287,6 @@ export const SettingsPage: React.FC<{
           </Field>
         </FormGrid>
 
-        <div className="mt-8">
-          <DunningLevelsTable
-            levels={settings.dunningLevels ?? []}
-            onChange={(levels) => patch({ dunningLevels: levels })}
-          />
-        </div>
-      </Section>
-
-      <Section helpSummary="Der veröffentlichte Basiszinssatz ist die Grundlage für die Berechnung von Verzugszinsen."
-        title="Basiszinssatz"
-        context="Grundlage der Verzugszinsen"
-        explain={
-          <>
-            Die Deutsche Bundesbank setzt den Basiszinssatz zum 1. Januar und zum 1. Juli neu fest
-            und gibt ihn im Bundesanzeiger bekannt (§ 247 BGB). Die Verzugszinsen liegen neun
-            Prozentpunkte darüber, gegenüber einem Verbraucher fünf (§ 288 BGB). Ein Wert, der als
-            „zu prüfen" steht, ist fortgeschrieben und nicht bekanntgegeben — er ist gegen die
-            Bekanntgabe abzugleichen.
-          </>
-        }
-      >
-        {baseRates.length === 0 ? (
-          <p className="text-body text-ink-muted">Es ist kein Basiszinssatz hinterlegt.</p>
-        ) : (
-          <Table density="kompakt">
-            <Thead>
-              <Tr>
-                <Th className="w-32">Gültig ab</Th>
-                <Th numeric className="w-28">
-                  Satz
-                </Th>
-                <Th>Quelle</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {baseRates.map((rate) => (
-                <Tr key={rate.validFrom}>
-                  <Td className="num">{formatDate(rate.validFrom)}</Td>
-                  <Td numeric>{formatBasisPoints(rate.basisPoints)}</Td>
-                  <Td className="text-ink-muted">
-                    {rate.provisional ? 'fortgeschrieben · zu prüfen' : rate.source || '—'}
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        )}
-
-        <div className="flex flex-wrap items-end gap-4 mt-5">
-          <Field label="Gültig ab" className="w-44">
-            <Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />
-          </Field>
-          <Field label="Satz in Prozent" error={rateError || undefined} className="w-44">
-            <Input
-              align="right"
-              placeholder="1,27"
-              value={rateText}
-              onChange={(e) => {
-                setRateText(e.target.value);
-                if (rateError) setRateError('');
-              }}
-            />
-          </Field>
-          <Button
-            variant="secondary"
-            loading={savingRate}
-            disabled={writeLock.locked}
-            title={writeLock.hint}
-            onClick={() => void saveRate()}
-          >
-            Satz nachtragen
-          </Button>
-        </div>
       </Section>
 
       <Section helpSummary="Buchfink merkt sich bestätigte Zuordnungen für wiederkehrende Bankumsätze."
@@ -1618,212 +1458,5 @@ export const SettingsPage: React.FC<{
         onConfirm={() => void deleteTenant()}
       />
     </form>
-  );
-};
-
-
-/**
- * Der Basiszinssatz in Hundertsteln eines Prozentpunktes: „1,27" wird zu 127.
- *
- * Ganzzahlig über die Brücke, weil die Bekanntgabe zwei Nachkommastellen hat
- * und eine Gleitkommazahl die Zinsrechnung um Cents verschöbe. Negative Sätze
- * sind zulässig: zwischen 2016 und 2022 lag der Basiszinssatz unter null.
- */
-function parsePercent(input: string): number | null {
-  const raw = input.trim().replace(/\s|%/g, '').replace(',', '.');
-  if (!raw) return null;
-  if (!/^[+-]?\d+(\.\d{1,2})?$/.test(raw)) return null;
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return null;
-  return Math.round(value * 100);
-}
-
-/** Und zurück: 127 wird „1,27 %". */
-function formatBasisPoints(points: number): string {
-  if (!Number.isFinite(points)) return '—';
-  return `${(points / 100).toLocaleString('de-DE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} %`;
-}
-
-/**
- * Die Voreinstellung der Mahnstufen — dieselben drei Stufen wie in
- * domain.DefaultDunningLevels().
- *
- * Sie stehen hier nur, damit der Knopf „Voreinstellung eintragen" sie in die
- * Tabelle schreiben kann. Gerechnet wird mit ihnen nicht: der Mahnlauf nimmt
- * die Stufen aus den Einstellungen, und was dort fehlt, ersetzt das Backend.
- */
-const DEFAULT_DUNNING_LEVELS: DunningLevel[] = [
-  { level: 1, label: 'Zahlungserinnerung', daysAfterDue: 7, fee: 0 },
-  { level: 2, label: '1. Mahnung', daysAfterDue: 21, fee: 500 },
-  { level: 3, label: '2. Mahnung', daysAfterDue: 35, fee: 1000 },
-];
-
-/**
- * Die Stufenfolge des Mahnwesens.
- *
- * Die Stufe folgt aus der Reihenfolge und wird nicht eingegeben: das Backend
- * sortiert nach dem Abstand zur Fälligkeit und nummeriert neu. Eine Nummer im
- * Formular ließe zwei Stufen mit derselben Zahl zu, und der Mahnlauf wüsste
- * nicht, welche als Nächste kommt.
- */
-const DunningLevelsTable: React.FC<{
-  levels: DunningLevel[];
-  onChange: (levels: DunningLevel[]) => void;
-}> = ({ levels, onChange }) => {
-  // Tage und Gebühr werden als Text geführt und erst beim Verlassen des Feldes
-  // umgerechnet (§8.3): eine gelöschte Ziffer ist keine 0.
-  const [drafts, setDrafts] = useState<Record<number, { days: string; fee: string }>>({});
-
-  const draftOf = (index: number, level: DunningLevel) =>
-    drafts[index] ?? { days: String(level.daysAfterDue), fee: formatCentsPlain(level.fee) };
-
-  const update = (index: number, next: Partial<DunningLevel>) => {
-    onChange(levels.map((level, i) => (i === index ? { ...level, ...next } : level)));
-  };
-
-  /**
-   * Eine weitere Stufe. Die Nummer vergibt das Backend beim Speichern neu; hier
-   * steht sie nur, damit die Zeile eine Anzeige hat.
-   */
-  const add = () => {
-    const last = levels[levels.length - 1];
-    onChange([
-      ...levels,
-      {
-        level: levels.length + 1,
-        label: `${levels.length + 1}. Mahnung`,
-        daysAfterDue: (last?.daysAfterDue ?? 0) + 14,
-        fee: last?.fee ?? 0,
-      },
-    ]);
-  };
-
-  /** Entfernt eine Stufe. Die Entwürfe werden geleert: Ihr Schlüssel ist der Index, und der verschiebt sich nach dem Entfernen. */
-  const remove = (index: number) => {
-    setDrafts({});
-    onChange(levels.filter((_, i) => i !== index));
-  };
-
-  const addButton = (
-    <Button variant="secondary" size="sm" onClick={add}>
-      Stufe hinzufügen
-    </Button>
-  );
-
-  if (levels.length === 0) {
-    return (
-      <div className="flex flex-col items-start gap-3">
-        {/* Eine leere Tabelle heißt nicht, dass nichts gespeichert ist: das
-            Speichern lässt eine leere Liste bewusst aus, damit ein Formular,
-            das die Stufen nicht kennt, sie nicht stumm löscht
-            (repository/settings_gorm.go). Der Text darf deshalb nicht die
-            Voreinstellung behaupten — die stellt der Knopf daneben her, indem
-            er die drei Stufen einträgt, die dann auch gespeichert werden. */}
-        <p className="text-body text-ink-muted">
-          Es ist keine Stufe eingetragen. Bis Stufen gespeichert sind, gelten die zuletzt
-          gespeicherten weiter; ist noch nie eine gespeichert worden, mahnt Buchfink nach
-          7, 21 und 35 Tagen.
-        </p>
-        <div className="flex items-center gap-2">
-          {addButton}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onChange(DEFAULT_DUNNING_LEVELS.map((level) => ({ ...level })))}
-          >
-            Voreinstellung eintragen
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <Table density="kompakt">
-        <Thead>
-          <Tr>
-            <Th className="w-12" numeric>
-              Nr.
-            </Th>
-            <Th>Bezeichnung</Th>
-            <Th className="w-40">Tage nach Fälligkeit</Th>
-            <Th className="w-40">Gebühr</Th>
-            <Th className="w-28" aria-label="Aktion" />
-          </Tr>
-        </Thead>
-        <Tbody>
-          {levels.map((level, index) => {
-            const draft = draftOf(index, level);
-            return (
-              <Tr key={`${level.level}-${index}`}>
-                <Td numeric className="text-ink-subtle">
-                  {level.level}
-                </Td>
-                <Td>
-                  <Input
-                    value={level.label}
-                    onChange={(e) => update(index, { label: e.target.value })}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    type="number"
-                    min={0}
-                    align="right"
-                    value={draft.days}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [index]: { ...draftOf(index, level), days: e.target.value },
-                      }))
-                    }
-                    onBlur={() => {
-                      const days = Number(draft.days);
-                      const value = Number.isFinite(days) && days >= 0 ? Math.trunc(days) : level.daysAfterDue;
-                      update(index, { daysAfterDue: value });
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [index]: { ...draftOf(index, level), days: String(value) },
-                      }));
-                    }}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    align="right"
-                    value={draft.fee}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [index]: { ...draftOf(index, level), fee: e.target.value },
-                      }))
-                    }
-                    onBlur={() => {
-                      const fee = parseCents(draft.fee);
-                      const value = fee !== null && fee >= 0 ? fee : level.fee;
-                      update(index, { fee: value });
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [index]: { ...draftOf(index, level), fee: formatCentsPlain(value) },
-                      }));
-                    }}
-                  />
-                </Td>
-                <Td className="text-right">
-                  <Button variant="quiet" size="sm" onClick={() => remove(index)}>
-                    Entfernen
-                  </Button>
-                </Td>
-              </Tr>
-            );
-          })}
-        </Tbody>
-      </Table>
-      <div className="mt-3">{addButton}</div>
-    </>
   );
 };

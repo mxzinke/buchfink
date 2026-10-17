@@ -845,7 +845,7 @@ const OpenItemsView: React.FC<{
  *
  * Beide Gliederungen nebeneinander, weil sie verschiedene Fragen beantworten:
  * die Altersstruktur sagt, wie lange ein Posten schon überfällig ist — das ist
- * die Frage des Mahnwesens und der Wertberichtigung —, die Restlaufzeit sagt,
+ * die Frage des Verzugs und der Wertberichtigung —, die Restlaufzeit sagt,
  * wann er fällig wird, und ist die Angabe unter der Bilanz (§ 268 Abs. 4 und 5
  * HGB). Die Zahlen kommen aus einer Auswertung, damit sie zueinander passen.
  */

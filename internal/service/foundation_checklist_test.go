@@ -67,13 +67,13 @@ func TestFoundationFragebogenUsesCurrentSettingsAndDetectsMissingAddress(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ street, city, period, label string }{
-		{"", "", "unknown", "Meldepflicht noch nicht geklärt"},
-		{"Teststraße 1", "", "none", "keine regelmäßigen Umsatzsteuererklärungen"},
-		{"Teststraße 1", "12345 Teststadt", "month", "monatlich"},
+	for _, tc := range []struct{ street, postalCode, city, period, label string }{
+		{"", "", "", "unknown", "Meldepflicht noch nicht geklärt"},
+		{"Teststraße 1", "", "", "none", "keine regelmäßigen Umsatzsteuererklärungen"},
+		{"Teststraße 1", "12345", "Teststadt", "month", "monatlich"},
 	} {
 		cfg.Street, cfg.VatPeriod = tc.street, tc.period
-		cfg.PostalCode, cfg.City = domain.SplitLegacyPostalLine(tc.city)
+		cfg.PostalCode, cfg.City = tc.postalCode, tc.city
 		if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +85,7 @@ func TestFoundationFragebogenUsesCurrentSettingsAndDetectsMissingAddress(t *test
 		for _, row := range sheet.Rows {
 			rows[row.Label] = row
 		}
-		for label, expected := range map[string]string{"Straße und Hausnummer": tc.street, "Postleitzahl und Ort": tc.city, "Voranmeldungszeitraum": tc.label} {
+		for label, expected := range map[string]string{"Straße und Hausnummer": tc.street, "Postleitzahl und Ort": strings.TrimSpace(tc.postalCode + " " + tc.city), "Voranmeldungszeitraum": tc.label} {
 			row, ok := rows[label]
 			if !ok || row.Value != expected || row.Missing != (expected == "") {
 				t.Errorf("%s: %+v, erwartet %q", label, row, expected)

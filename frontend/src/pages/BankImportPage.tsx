@@ -9,8 +9,6 @@ import type {
   BankTransaction,
   DifferenceKind,
   DifferenceKindInfo,
-  DunningNotice,
-  DunningProposal,
   OpenItem,
 } from '../types';
 import { Api } from '../services/api';
@@ -33,8 +31,6 @@ import {
   Section,
   Select,
   SkeletonRows,
-  Stat,
-  StatRow,
   TabPanel,
   Table,
   Tabs,
@@ -77,33 +73,21 @@ function writeOffBlockedReason(item: OpenItem, lockHint?: string): string | unde
   return undefined;
 }
 
-/**
- * Die beiden Ansichten der Seite: der Abgleich des Kontoauszugs und das
- * Mahnwesen. Beide handeln von Zahlungen, die eine von den eingegangenen, die
- * andere von den ausgebliebenen.
- */
-type BankView = 'abgleich' | 'mahnwesen' | 'konten';
+/** Die Ansichten der Seite: der Abgleich des Kontoauszugs und die Bankkonten. */
+type BankView = 'abgleich' | 'konten';
 
 const BANK_VIEWS: { value: BankView; label: string }[] = [
   { value: 'abgleich', label: 'Abgleich' },
-  { value: 'mahnwesen', label: 'Mahnwesen' },
   { value: 'konten', label: 'Bankkonten' },
 ];
 
 function viewFor(initialView?: string): BankView {
-  if (initialView === 'dunning') return 'mahnwesen';
   if (initialView === 'accounts') return 'konten';
   return 'abgleich';
 }
 
 export interface BankImportPageProps {
-  /**
-   * Die Ansicht, mit der die Seite öffnet: „dunning" schlägt das Mahnwesen auf,
-   * „accounts" die Bankkonten.
-   * Abgleich und Mahnwesen wohnen auf derselben Seite — beides ist Zahlung —,
-   * und eine Aufgabe, die das Mahnwesen meint, landete sonst auf dem
-   * Kontoauszug.
-   */
+  /** Die Ansicht, mit der die Seite öffnet: „accounts" schlägt die Bankkonten auf. */
   initialView?: string;
 }
 
@@ -204,12 +188,8 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
         context="Kontoauszüge einlesen, Zahlungen offenen Posten zuordnen"
         action={
           <div className="flex items-center gap-2">
-            {/* Genau eine Primäraktion je Ansicht (§10.4): im Abgleich ist das
-                Einlesen der Hauptweg, im Mahnwesen das Erzeugen der Schreiben.
-                Der Kopf tritt dort deshalb zurück — sonst stünden zwei
-                hervorgehobene Knöpfe gleichzeitig auf dem Schirm. */}
             <Button
-              variant={view === 'mahnwesen' ? 'secondary' : 'primary'}
+              variant="primary"
               icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
               loading={importing}
               disabled={writeLock.locked}
@@ -414,10 +394,6 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
               )}
             </Section>
 
-          </TabPanel>
-
-          <TabPanel value="mahnwesen">
-            {view === 'mahnwesen' && <DunningPanel onChanged={load} />}
           </TabPanel>
 
           <TabPanel value="konten">
@@ -1071,326 +1047,5 @@ const WriteOffDialog: React.FC<{
         </>
       )}
     </Dialog>
-  );
-};
-
-// -------------------------------------------------------------------------
-
-/**
- * Das Mahnwesen (QUE-05).
- *
- * Eine überfällige Forderung ist kein Buchungsfall, sondern ein Vorgang. Der
- * Vorschlag steht je Kunde mit seinen Posten, der Stufe, den Zinsen und der
- * Gebühr; erzeugt wird nur, was ausgewählt ist. Gebucht wird nichts: Zinsen und
- * Gebühren sind erst mit der Zahlung Ertrag.
- */
-const DunningPanel: React.FC<{ onChanged: () => void | Promise<void> }> = ({ onChanged }) => {
-  // Ein Mahnschreiben entsteht als Dokument im Belegspeicher und steht im
-  // Protokoll: im Prüfermodus gesperrt, die Vorschläge bleiben lesbar (§10.4).
-  const writeLock = usePostingLock();
-  const [proposals, setProposals] = useState<DunningProposal[]>([]);
-  // Zwei Listen mit einem Zweck: `notices` ist der ganze Verlauf und speist die
-  // Kundenauswahl, `history` ist das, was die Tabelle zeigt. Ohne die erste
-  // schrumpfte die Auswahl mit ihrem eigenen Filter, und man käme aus einem
-  // gewählten Kunden nicht mehr heraus.
-  const [notices, setNotices] = useState<DunningNotice[]>([]);
-  const [history, setHistory] = useState<DunningNotice[]>([]);
-  const [historyContact, setHistoryContact] = useState(0);
-  const [selected, setSelected] = useState<Record<number, boolean>>({});
-  const [noticeDate, setNoticeDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [deadline, setDeadline] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [list, history] = await Promise.all([
-        Api.getDunningProposals(),
-        Api.getDunningNotices(),
-      ]);
-      setProposals(list);
-      setNotices(history);
-      setFailure(null);
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // Der Verlauf je Kunde: gefragt wird das Backend und nicht die schon geladene
-  // Liste — es kennt auch die Schreiben, die hier nie geladen wurden.
-  useEffect(() => {
-    if (historyContact === 0) {
-      setHistory(notices);
-      return;
-    }
-    let cancelled = false;
-    Api.getDunningNotices(historyContact)
-      .then((rows) => {
-        if (!cancelled) setHistory(rows);
-      })
-      .catch((e) => {
-        if (!cancelled) setFailure(e instanceof Error ? e.message : String(e));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [historyContact, notices]);
-
-  /**
-   * Die Kunden, für die es einen Verlauf zu zeigen gibt: die mit Schreiben und
-   * die mit einem Vorschlag. Ein Kunde ohne beides stünde in der Auswahl und
-   * führte auf eine leere Tabelle.
-   */
-  const historyContacts = useMemo(() => {
-    const names = new Map<number, string>();
-    for (const notice of notices) names.set(notice.contactId, notice.contactName);
-    for (const proposal of proposals) names.set(proposal.contactId, proposal.contactName);
-    return [...names.entries()]
-      .map(([id, name]) => ({ value: id, label: name }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-  }, [notices, proposals]);
-
-  const chosen = proposals.filter((proposal) => selected[proposal.contactId]);
-
-  async function createNotices() {
-    if (chosen.length === 0) return;
-    setBusy(true);
-    setFailure(null);
-    try {
-      const created = await Api.createDunningNotices({
-        contactIds: chosen.map((proposal) => proposal.contactId),
-        noticeDate,
-        paymentDeadline: deadline,
-      });
-      toast.success(
-        created.length === 1
-          ? 'Ein Mahnschreiben erzeugt und abgelegt.'
-          : `${created.length} Mahnschreiben erzeugt und abgelegt.`,
-      );
-      setSelected({});
-      await load();
-      await onChanged();
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const totalOpen = proposals.reduce((sum, proposal) => sum + proposal.principal, 0);
-  const totalInterest = proposals.reduce((sum, proposal) => sum + proposal.interest, 0);
-
-  return (
-    <>
-      <Section helpSummary="Hier sehen Sie überfällige Rechnungen, für die eine Mahnung infrage kommt."
-        title="Mahnvorschläge"
-        context={
-          loading ? undefined : `${proposals.length} Kunden mit überfälligen Forderungen`
-        }
-        divider={false}
-        className="mt-8"
-        explain={
-          <>
-            Verzug tritt spätestens dreißig Tage nach Fälligkeit und Zugang der Rechnung ein
-            (§ 286 Abs. 3 BGB); von da an laufen Verzugszinsen von neun Prozentpunkten über dem
-            Basiszinssatz, gegenüber einem Verbraucher von fünf (§ 288 BGB). Gegenüber einem
-            Unternehmer kommt die Pauschale von 40 Euro dazu (§ 288 Abs. 5 BGB), einmal je
-            Forderung. Zinsen und Gebühren werden nicht gebucht: Ertrag sind sie erst mit der
-            Zahlung.
-          </>
-        }
-      >
-        {failure && <Notice tone="negative" text={failure} className="mb-5" />}
-
-        {loading ? (
-          <SkeletonRows rows={4} />
-        ) : proposals.length === 0 ? (
-          <EmptyState
-            title="Nichts zu mahnen"
-            description="Keine Forderung ist so lange überfällig, dass eine Mahnstufe erreicht wäre."
-          />
-        ) : (
-          <>
-            <StatRow className="mb-6">
-              <Stat
-                label="Offene Forderungen"
-                value={formatCents(totalOpen)}
-                context={`${proposals.length} Kunden`}
-              />
-              <Stat
-                label="Verzugszinsen"
-                value={formatCents(totalInterest)}
-                context="taggenau bis zum Datum des Schreibens"
-              />
-              <Stat
-                label="Ausgewählt"
-                value={String(chosen.length)}
-                context="Kunden für den Mahnlauf"
-              />
-            </StatRow>
-
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th className="w-8" aria-label="Auswahl" />
-                  <Th>Kunde</Th>
-                  <Th className="w-40">Stufe</Th>
-                  <Th className="w-20" numeric>
-                    Posten
-                  </Th>
-                  <Th numeric className="w-32">
-                    Forderung
-                  </Th>
-                  <Th numeric className="w-28">
-                    Zinsen
-                  </Th>
-                  <Th numeric className="w-28">
-                    Gebühr
-                  </Th>
-                  <Th numeric className="w-32">
-                    Summe
-                  </Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {proposals.map((proposal) => (
-                  <Tr key={proposal.contactId}>
-                    <Td className="pr-0">
-                      <Checkbox
-                        checked={Boolean(selected[proposal.contactId])}
-                        onCheckedChange={(next) =>
-                          setSelected((prev) => ({ ...prev, [proposal.contactId]: Boolean(next) }))
-                        }
-                        label=""
-                        aria-label={`${proposal.contactName} mahnen`}
-                      />
-                    </Td>
-                    <Td className="max-w-[20rem]">
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate">{proposal.contactName}</span>
-                        {/* Was der Vorschlag nicht rechnen konnte oder wovon er
-                            ausgeht, steht hinter dem Erklärzeichen und nicht in
-                            der Zelle (§15.1). */}
-                        {/* Ohne Bemerkung kein Erklärzeichen: ein Zeichen, das
-                            eine leere Fläche öffnet, ist ein Versprechen ohne
-                            Inhalt. */}
-                        {proposal.note ? (
-                          <Help summary="Hier erfahren Sie, warum diese Mahnung vorgeschlagen wird." label={`Erklärung zu ${proposal.contactName}`}>
-                            {proposal.note}
-                          </Help>
-                        ) : null}
-                      </span>
-                    </Td>
-                    <Td className="text-ink-muted">{proposal.levelLabel}</Td>
-                    <Td numeric className="text-ink-subtle">
-                      {proposal.items.length}
-                    </Td>
-                    <Td numeric>{formatCents(proposal.principal)}</Td>
-                    <Td numeric>{formatCents(proposal.interest)}</Td>
-                    <Td numeric>{formatCents(proposal.fee + proposal.lumpSum)}</Td>
-                    <Td numeric>{formatCents(proposal.total)}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-
-            <div className="flex flex-wrap items-end gap-4 mt-6">
-              <Field label="Datum des Schreibens" className="w-48">
-                <Input
-                  type="date"
-                  value={noticeDate}
-                  onChange={(e) => setNoticeDate(e.target.value)}
-                />
-              </Field>
-              <Field
-                label="Zahlungsfrist"
-                optional
-                hint="leer: vierzehn Tage"
-                className="w-48"
-              >
-                <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-              </Field>
-              <Button
-                variant="primary"
-                loading={busy}
-                disabled={chosen.length === 0 || writeLock.locked}
-                title={
-                  writeLock.hint ??
-                  (chosen.length === 0 ? 'Kein Kunde ausgewählt.' : undefined)
-                }
-                onClick={() => void createNotices()}
-              >
-                Mahnschreiben erzeugen
-              </Button>
-            </div>
-          </>
-        )}
-      </Section>
-
-      <Section
-        title="Verlauf"
-        context="Die erzeugten Schreiben, das jüngste zuerst"
-        action={
-          historyContacts.length > 0 ? (
-            <Select
-              className="w-64"
-              items={[{ value: 0, label: 'Alle Kunden' }, ...historyContacts]}
-              value={historyContact}
-              onValueChange={setHistoryContact}
-              aria-label="Verlauf eines Kunden"
-            />
-          ) : undefined
-        }
-      >
-        {loading ? (
-          <SkeletonRows rows={3} />
-        ) : history.length === 0 ? (
-          <EmptyState
-            title={
-              historyContact === 0
-                ? 'Noch kein Mahnschreiben erzeugt'
-                : 'Für diesen Kunden ist noch kein Schreiben erzeugt'
-            }
-          />
-        ) : (
-          <Table density="kompakt">
-            <Thead>
-              <Tr>
-                <Th className="w-28">Datum</Th>
-                <Th>Kunde</Th>
-                <Th className="w-40">Stufe</Th>
-                <Th className="w-28">Frist</Th>
-                <Th numeric className="w-32">
-                  Summe
-                </Th>
-                <Th>Ablage</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {history.map((notice) => (
-                <Tr key={notice.id}>
-                  <Td className="text-ink-subtle num">{formatDate(notice.noticeDate)}</Td>
-                  <Td className="max-w-[20rem] truncate">{notice.contactName}</Td>
-                  <Td className="text-ink-muted">{notice.levelLabel}</Td>
-                  <Td className="text-ink-subtle num">{formatDate(notice.dueDate)}</Td>
-                  <Td numeric>{formatCents(notice.totalAmount)}</Td>
-                  <Td className="text-ink-muted max-w-[20rem] truncate">
-                    {notice.documentName || notice.documentNote || '—'}
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        )}
-      </Section>
-    </>
   );
 };

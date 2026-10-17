@@ -101,10 +101,9 @@ type PartialExemption struct {
 // Zwei Dinge entscheiden, und beide müssen stimmen. Der Fonds bestimmt, *welche*
 // Teilfreistellung greift — die Aktien- oder die Immobilienteilfreistellung, und
 // die eine schließt die andere aus (§ 20 Abs. 3 Satz 3 InvStG). Der Anleger
-// bestimmt bei der Aktienteilfreistellung ihre *Höhe*: 30 % nach Satz 1, 60 %
-// für die natürliche Person im Betriebsvermögen nach Satz 2, 80 % für den
-// Anleger, der dem KStG unterliegt, nach Satz 3 — und wieder 30 %, wo die Sätze
-// 4 und 5 die Erhöhung zurücknehmen.
+// bestimmt bei der Aktienteilfreistellung ihre *Höhe*: 80 % für den Anleger,
+// der dem KStG unterliegt, nach Satz 3 — und 30 % nach Satz 1, wo die Sätze 4
+// und 5 die Erhöhung zurücknehmen.
 //
 // Die Immobilienteilfreistellung kennt diese Staffelung nicht: 60 % bzw. 80 %
 // gelten für jeden Anleger.
@@ -164,29 +163,15 @@ func equityExemption(investor domain.InvestorType) (int, string, string, error) 
 		return 800, "§ 20 Abs. 1 Satz 3 InvStG",
 			"Der Anleger unterliegt dem Körperschaftsteuergesetz: die Aktienteilfreistellung " +
 				"beträgt 80 %.", nil
-	case domain.InvestorIndividualBusiness:
-		return 600, "§ 20 Abs. 1 Satz 2 InvStG",
-			"Eine natürliche Person hält die Anteile im Betriebsvermögen: die " +
-				"Aktienteilfreistellung beträgt 60 %.", nil
 	case domain.InvestorBasic:
 		return 300, "§ 20 Abs. 1 Satz 1 InvStG",
-			"Es bleibt beim Grundsatz von 30 %. Das ist der Satz für Anteile im " +
-				"Privatvermögen — und der Satz, auf den § 20 Abs. 1 Sätze 4 und 5 InvStG " +
-				"zurückfallen lassen, etwa bei Lebens- und Krankenversicherungsunternehmen, bei " +
+			"Es bleibt beim Grundsatz von 30 %: § 20 Abs. 1 Sätze 4 und 5 InvStG nehmen die " +
+				"Erhöhung zurück, etwa bei Lebens- und Krankenversicherungsunternehmen, bei " +
 				"Kreditinstituten mit Handelsbestand und bei Pensionsfonds.", nil
-	case domain.InvestorMixed:
-		return 0, "§ 20 Abs. 3a InvStG", "", errors.New(
-			"bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen " +
-				"Gesellschafter (§ 20 Abs. 3a InvStG). Ein Satz für die Gesellschaft als Ganzes " +
-				"gibt es nicht; Buchfink weist den Ertrag deshalb ungekürzt aus und überlässt die " +
-				"Aufteilung der Feststellungserklärung")
 	default:
 		return 0, "", "", errors.New(
-			"für die Teilfreistellung fehlt die Anlegerstellung. § 20 Abs. 1 InvStG staffelt sie: " +
-				"30 % im Grundsatz, 60 % für eine natürliche Person mit Anteilen im " +
-				"Betriebsvermögen, 80 % für einen Anleger, der dem Körperschaftsteuergesetz " +
-				"unterliegt. Aus der Rechtsform allein folgt das nicht — trage sie in den " +
-				"Stammdaten ein")
+			"für die Teilfreistellung fehlt die Anlegerstellung. Sie folgt aus der Rechtsform — " +
+				"trage sie in den Stammdaten ein")
 	}
 }
 

@@ -17,7 +17,6 @@ import type {
   InputTaxCorrectionYear,
   NonDeductibleReport,
   PoolConsistencyReport,
-  ServiceEndpoints,
   SupplyEvidenceReport,
   SupplyEvidenceView,
   TransportKind,
@@ -927,8 +926,6 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
           </Table>
         )}
       </Section>
-
-      <EndpointSection field="vatId" title="Adresse des Bundeszentralamts" />
     </>
   );
 };
@@ -2035,8 +2032,6 @@ const CurrencyPanel: React.FC<{ year: number }> = ({ year }) => {
           </Table>
         )}
       </Section>
-
-      <EndpointSection field="exchangeRate" title="Adresse des Kursdienstes" />
     </>
   );
 };
@@ -2334,95 +2329,6 @@ const AssetObligationsPanel: React.FC<{ year: number }> = ({ year }) => {
         </Field>
       </Dialog>
     </>
-  );
-};
-
-// -------------------------------------------------------------------------
-// Adressen der Netzdienste
-// -------------------------------------------------------------------------
-
-/**
- * Die Adresse eines der beiden Netzdienste, dort wo er gebraucht wird.
- *
- * Beide zusammen in den Einstellungen zu führen wäre die zweite Stelle, an der
- * man nach ihnen sucht: Die Adresse des Bundeszentralamts gehört neben die
- * Bestätigungsanfrage, die des Kursdienstes neben die Kurse.
- */
-const EndpointSection: React.FC<{ field: 'vatId' | 'exchangeRate'; title: string }> = ({
-  field,
-  title,
-}) => {
-  const lock = useWriteLock();
-  const [endpoints, setEndpoints] = useState<ServiceEndpoints | null>(null);
-  const [value, setValue] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const current = await Api.getServiceEndpoints();
-        setEndpoints(current);
-        setValue(field === 'vatId' ? current.vatIdEndpoint : current.exchangeRateEndpoint);
-      } catch (e) {
-        setError(message(e));
-      }
-    })();
-  }, [field]);
-
-  async function save() {
-    if (!endpoints) return;
-    setBusy(true);
-    setError('');
-    try {
-      const next: ServiceEndpoints =
-        field === 'vatId'
-          ? { ...endpoints, vatIdEndpoint: value.trim() }
-          : { ...endpoints, exchangeRateEndpoint: value.trim() };
-      const saved = await Api.saveServiceEndpoints(next);
-      setEndpoints(saved);
-      setValue(field === 'vatId' ? saved.vatIdEndpoint : saved.exchangeRateEndpoint);
-      toast.success('Adresse gespeichert.');
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const fallback =
-    field === 'vatId' ? endpoints?.vatIdDefault ?? '' : endpoints?.exchangeRateDefault ?? '';
-
-  return (
-    <Section helpSummary="Hier stellen Sie die Adresse des Dienstes für die externe Abfrage ein."
-      title={title}
-      context="Leer heißt: die Voreinstellung gilt"
-      explain={
-        <>
-          Wechselt die Stelle ihre Schnittstelle, soll das keine neue Programmfassung nötig
-          machen. Die Abfrage enthält die USt-IdNr. und den Namen des Geschäftspartners; sie geht
-          über https oder gar nicht.
-        </>
-      }
-    >
-      {error && <Notice tone="negative" text={error} className="mb-4" />}
-      <FieldRow className="items-end">
-        <Field label="Adresse" className="w-[36rem]" hint={fallback ? `Voreinstellung: ${fallback}` : undefined}>
-          <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder={fallback} />
-        </Field>
-        <Field label="Übernahme" className="w-40">
-          <Button
-            variant="secondary"
-            onClick={save}
-            loading={busy}
-            disabled={lock.locked || busy || !endpoints}
-            title={lock.hint}
-          >
-            Speichern
-          </Button>
-        </Field>
-      </FieldRow>
-    </Section>
   );
 };
 

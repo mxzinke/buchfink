@@ -19,7 +19,6 @@ import type {
   InventoryOverview,
   InventoryPreview,
   JournalLine,
-  LegacySpecialDepreciationNotice,
   NotesSectionText,
   Provision,
   ProvisionKind,
@@ -3251,7 +3250,6 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
   const [texts, setTexts] = useState<NotesSectionText[]>([]);
   const [register, setRegister] = useState<TaxElectionRegister | null>(null);
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
-  const [legacy, setLegacy] = useState<LegacySpecialDepreciationNotice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -3260,16 +3258,14 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
     setLoading(true);
     setError('');
     try {
-      const [nextTexts, nextRegister, nextReconciliation, nextLegacy] = await Promise.all([
+      const [nextTexts, nextRegister, nextReconciliation] = await Promise.all([
         Api.getNotesTexts(year),
         Api.getTaxElectionRegister(year),
         Api.getReconciliation(year),
-        Api.getLegacySpecialDepreciations(),
       ]);
       setTexts(nextTexts);
       setRegister(nextRegister);
       setReconciliation(nextReconciliation);
-      setLegacy(nextLegacy);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -3357,13 +3353,6 @@ const NotesTab: React.FC<TabProps> = ({ year }) => {
           </Button>
         }
       >
-        {legacy && legacy.rows.length > 0 && (
-          <Notice
-            className="mb-6"
-            text={`${legacy.rows.length} Sonderabschreibungen über ${formatCents(legacy.total)} stehen noch als Buchung im Journal; sie bleiben stehen und werden nicht doppelt im Verzeichnis geführt.`}
-          />
-        )}
-
         {!register || register.rows.length === 0 ? (
           <EmptyState
             title="Kein steuerliches Wahlrecht ausgeübt"

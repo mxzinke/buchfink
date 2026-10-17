@@ -1,7 +1,6 @@
 package wailsbridge
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -86,8 +85,6 @@ type BuchfinkBridge struct {
 	exchangeRateRepo   domain.ExchangeRateRepository
 
 	bankRuleRepo domain.BankRuleRepository
-	dunningRepo  domain.DunningRepository
-	baseRateRepo domain.BaseRateRepository
 
 	closingStepRepo   domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
@@ -144,11 +141,10 @@ type BuchfinkBridge struct {
 	vatIDSvc          *service.VatIDService
 	supplyEvidenceSvc *service.SupplyEvidenceService
 	giftSvc           *service.GiftService
-	// Welle 7: die Bedienung — Aufgabenliste, Monatsabschluss, Mahnwesen und
-	// der Prüfpfad je Beleg.
+	// Welle 7: die Bedienung — Aufgabenliste, Monatsabschluss und der Prüfpfad
+	// je Beleg.
 	taskSvc       *service.TaskService
 	monthCloseSvc *service.MonthCloseService
-	dunningSvc    *service.DunningService
 	auditTrailSvc *service.AuditTrailService
 }
 
@@ -313,11 +309,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.retentionRepo = repository.NewRetentionRepository(db)
 	b.migrationRepo = repository.NewMigrationRepository(db)
 	b.procDocRepo = repository.NewProcedureDocumentationRepository(db)
-	// Welle 7: die gelernten Bankregeln, die Mahnschreiben und die
-	// Basiszinstabelle.
 	b.bankRuleRepo = repository.NewBankRuleRepository(db)
-	b.dunningRepo = repository.NewDunningRepository(db)
-	b.baseRateRepo = repository.NewBaseRateRepository(db)
 	b.txRunner = repository.NewTxRunner(db)
 
 	// Determine active fiscal year from settings or fallback
@@ -455,7 +447,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// rät keinen Kurs: ohne Netz und ohne gespeicherten Kurs trägt der Anwender
 	// ihn mit seiner Quelle ein.
 	b.currencySvc = service.NewCurrencyService(
-		b.exchangeRateRepo, &settingsCurrencyFetcher{bridge: b}, b.auditRepo)
+		b.exchangeRateRepo, currency.New(currency.DefaultEndpoint), b.auditRepo)
 	b.currencySvc.SetJournalRepo(b.journalRepo)
 	b.currencySvc.SetJournalService(b.journalSvc)
 	// Die Dokumentenablage des Unternehmens: Gesellschaftsvertrag,
@@ -706,15 +698,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Regeln; gelernt wird beim Buchen eines Umsatzes ohne Beleg.
 	b.bankSvc.SetOpenItemSource(b.paymentSvc)
 	b.bankSvc.SetRuleRepo(b.bankRuleRepo)
-
-	b.dunningSvc = service.NewDunningService(
-		b.paymentSvc, b.contactRepo, b.dunningRepo, b.baseRateRepo,
-		b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir), fiscalYear,
-	)
-	b.dunningSvc.SetRenderer(b.renderer)
-	// Die Rechnungen haben das Kennzeichen, ob der Verzugshinweis an einen
-	// Verbraucher gedruckt wurde (§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB).
-	b.dunningSvc.SetInvoiceSource(b.invoiceRepo)
 
 	b.auditTrailSvc = service.NewAuditTrailService(
 		b.receiptRepo, b.journalRepo, b.allocationRepo, b.bankRepo, b.auditRepo)
@@ -1055,12 +1038,6 @@ func (b *BuchfinkBridge) CreateTenant(
 	}
 	complete = true
 	return &t, nil
-}
-
-func (b *BuchfinkBridge) ImportTenant(dbFilePath string) (*domain.TenantConfig, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.registerTenantLocked(dbFilePath, domain.TenantConfig{}, domain.MigrationKindImport)
 }
 
 // newTenantID vergibt eine Kennung für einen neuen Eintrag der Mandantenliste.
@@ -1495,15 +1472,12 @@ func (b *BuchfinkBridge) setFiscalYearLocked(year int) {
 	}
 	// Und die Bedienung der Welle 7: die Aufgabenliste zählt die Bankumsätze
 	// und Fristen eines Jahres, der Monatsabschluss liest die Festschreibung
-	// eines Jahres, das Mahnschreiben wird in einem Jahr abgelegt.
+	// eines Jahres.
 	if b.taskSvc != nil {
 		b.taskSvc.SetFiscalYear(year)
 	}
 	if b.monthCloseSvc != nil {
 		b.monthCloseSvc.SetFiscalYear(year)
-	}
-	if b.dunningSvc != nil {
-		b.dunningSvc.SetFiscalYear(year)
 	}
 	b.appConfig.LastFiscalYear = year
 	_ = b.appCfgRepo.Save(&b.appConfig)
@@ -1531,13 +1505,10 @@ func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if b.settingsSvc == nil {
-		// Mit den Mahnstufen der Voreinstellung: die Einstellungsseite läuft
-		// über die Liste, und `null.map` nähme im Render den Baum mit.
 		return &domain.CompanySettings{
 			FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR",
 			SKR: "SKR04", TaxationType: "SOLL", CountryCode: domain.DefaultCountryCode,
-			DunningLevels: domain.DefaultDunningLevels(),
-			Shareholders:  []domain.CompanyShareholder{},
+			Shareholders: []domain.CompanyShareholder{},
 		}, nil
 	}
 	return b.settingsSvc.GetCompanySettings(context.Background())
@@ -1578,15 +1549,6 @@ func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	return emptyList(b.accountingSvc.GetAccounts(context.Background()))
 }
 
-func (b *BuchfinkBridge) GetAccountByNumber(number string) (*domain.Account, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("accounting service not initialized")
-	}
-	return b.accountingSvc.GetAccountByNumber(context.Background(), number)
-}
-
 func (b *BuchfinkBridge) GetAccountLedger(accountNumber string) (*domain.AccountLedger, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -1603,10 +1565,6 @@ func (b *BuchfinkBridge) GetSuSaOverview() (*domain.SuSaOverview, error) {
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.accountingSvc.GetSuSaOverview(context.Background())
-}
-
-func (b *BuchfinkBridge) GetSKR04Catalog() (*accounting.SKR04Catalog, error) {
-	return accounting.GetSKR04Catalog()
 }
 
 // GetPostingGroups returns the fachliche Gruppen the user picks from instead of
@@ -1663,33 +1621,6 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 		return []domain.JournalEntry{}, nil
 	}
 	return emptyList(b.accountingSvc.GetAllEntries(context.Background()))
-}
-
-// PostJournalEntry books a manually composed Buchungssatz. The journal enforces
-// the rules; the frontend only collects the input.
-//
-// Die Quelle wird dabei auf manual normiert: sie ist die Herkunft der
-// Buchung, kein Eingabefeld, und die Auswertungen richten sich nach ihr. Ein
-// Vortrag entsteht im Saldenvortrag, eine Abschlussbuchung in den
-// Abschlussbausteinen — wer hier „opening" oder „closing" mitschickte,
-// umginge sonst den Schutz der Steuerkonten und fiele zugleich aus der
-// Umsatzsteuer-Auswertung heraus.
-//
-// Seit Welle 8 läuft der Weg über PostManualEntry: die Handbuchung verlangt
-// einen Beleg (BEL-01 K2). Die Methode bleibt für den Fall, dass der Beleg
-// schon an der Buchung steht — sie reicht ihn weiter, statt eine zweite Fassung
-// derselben Regeln zu führen.
-func (b *BuchfinkBridge) PostJournalEntry(entry domain.JournalEntry) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.postingSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.postingSvc.PostManualEntry(
-		context.Background(), service.ManualEntryRequest{Entry: entry})
 }
 
 // PostIncomingReceipt books an Eingangsbeleg from the fachliche Gruppe, the
@@ -1756,20 +1687,6 @@ func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error)
 	return emptyList(b.bankSvc.GetTransactions(context.Background(), b.currentYear))
 }
 
-// ImportCAMT053XML imports a statement for one liquid account. The account is an
-// explicit parameter: a company usually has more than one.
-func (b *BuchfinkBridge) ImportCAMT053XML(xmlContent string, ledgerAccount string) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return 0, err
-	}
-	if b.bankSvc == nil {
-		return 0, fmt.Errorf("Bankimport ist noch nicht initialisiert")
-	}
-	return b.bankSvc.ImportCAMT053(context.Background(), bytes.NewBufferString(xmlContent), ledgerAccount)
-}
-
 // BookBankTransactionDirect books a statement line that has no document behind
 // it (fees, interest, transfers between own accounts).
 func (b *BuchfinkBridge) BookBankTransactionDirect(bankTxID uint, counterAccount, description string) (*domain.JournalEntry, error) {
@@ -1824,18 +1741,6 @@ func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) 
 	return &c, nil
 }
 
-func (b *BuchfinkBridge) DeleteContact(id uint) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.contactSvc == nil {
-		return fmt.Errorf("Stammdaten sind noch nicht initialisiert")
-	}
-	return b.contactSvc.DeleteContact(context.Background(), id)
-}
-
 func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -1860,24 +1765,6 @@ func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, erro
 		return nil, err
 	}
 	return &inv, nil
-}
-
-func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.invoiceSvc == nil {
-		return fmt.Errorf("Rechnungswesen ist noch nicht initialisiert")
-	}
-	// Der Weg ohne Stornodokument gibt es nicht mehr: eine stornierte Rechnung
-	// ist beim Empfänger in der Welt, und die Rücknahme muss bei ihm ankommen
-	// (§ 14 Abs. 4 Nr. 4 UStG, § 17 Abs. 1 UStG). Diese Methode bleibt nur
-	// erhalten, weil die Oberfläche sie ruft; sie führt auf denselben Weg wie
-	// CancelInvoiceWithDocument.
-	_, err := b.invoiceSvc.CancelWithDocument(context.Background(), invoiceID, reason)
-	return err
 }
 
 func (b *BuchfinkBridge) GenerateInvoiceZUGFeRD(invoiceID uint) (string, string, error) {
@@ -1981,18 +1868,6 @@ func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 		return []domain.Receipt{}, nil
 	}
 	return emptyList(b.receiptSvc.List(context.Background(), domain.ReceiptStatus(status)))
-}
-
-// GetReceipt returns one Beleg with its files.
-// ReceiptService.Get repariert dabei ein fehlendes Siegel und schreibt deshalb —
-// darum die Schreibsperre.
-func (b *BuchfinkBridge) GetReceipt(id uint) (*domain.Receipt, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.receiptSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.receiptSvc.Get(context.Background(), id)
 }
 
 // DiscardReceipt retires a filed Beleg. It keeps its number and stays findable —
@@ -2118,24 +1993,6 @@ func (b *BuchfinkBridge) ProposeFromEInvoice(receiptID uint) (*service.EInvoiceP
 	return b.eInvoiceSvc.Propose(context.Background(), receiptID)
 }
 
-// ValidateEInvoice re-runs the EN-16931 rule check against the structured part of
-// a Beleg and records the result.
-//
-// The rule set is versioned, so a document checked under an older version can be
-// checked again without being re-filed. The check touches no file, which is why
-// it is allowed on a booked Beleg too.
-func (b *BuchfinkBridge) ValidateEInvoice(receiptID uint) (*domain.ReceiptValidation, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.eInvoiceSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.eInvoiceSvc.Validate(context.Background(), receiptID)
-}
-
 // GetEInvoiceRules lists the rules Buchfink checks. It is deliberately exposed:
 // "validated" without the list of what was checked tells a user nothing they
 // can act on.
@@ -2149,22 +2006,6 @@ func (b *BuchfinkBridge) GetEInvoiceRules() []string {
 	rules = append(rules, zugferd.CheckedRules()...)
 	sort.Strings(rules)
 	return rules
-}
-
-// GetUncheckedEInvoiceRules names the rules of the specifications Buchfink does
-// not check, each with the reason.
-//
-// Silence about a gap is worse than the gap: a user told "geprüft" deserves to
-// know what was not looked at.
-func (b *BuchfinkBridge) GetUncheckedEInvoiceRules() map[string]string {
-	out := map[string]string{}
-	for _, rule := range einvoice.RulesUnchecked() {
-		out[rule] = "keine Regel der Norm bleibt ungeprüft"
-	}
-	for rule, reason := range xrechnung.UncheckedRules() {
-		out[rule] = reason
-	}
-	return out
 }
 
 // PreviewIncomingReceipt computes the booking without writing it, so the form can
@@ -2227,15 +2068,6 @@ func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	return b.ebilanzSvc.ExportXBRL(context.Background(), b.currentYear)
 }
 
-func (b *BuchfinkBridge) GetAuditLogs() ([]domain.AuditLogEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.auditSvc == nil {
-		return []domain.AuditLogEntry{}, nil
-	}
-	return emptyList(b.auditSvc.GetLogs(context.Background(), 200))
-}
-
 // -------------------------------------------------------------
 // OFFENE POSTEN & ZAHLUNGSZUORDNUNG
 // -------------------------------------------------------------
@@ -2269,21 +2101,6 @@ func (b *BuchfinkBridge) SettlePayment(req service.PaymentRequest) (*domain.Jour
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.paymentSvc.Settle(context.Background(), req)
-}
-
-// GetVatSummary aggregates the VAT figures of a period from the journal's tax
-// lines. Empty bounds mean the whole fiscal year.
-//
-// This is an orientation figure, not an Umsatzsteuer-Voranmeldung — but it is
-// derived from the actual Steuerschlüssel and Bemessungsgrundlagen rather than
-// reconstructed from account numbers.
-func (b *BuchfinkBridge) GetVatSummary(from, to string) (*domain.VatSummary, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.vatSvc.Summary(context.Background(), from, to)
 }
 
 // -------------------------------------------------------------
@@ -2570,36 +2387,6 @@ func (b *BuchfinkBridge) GetDocumentContent(id uint) (*ReceiptPreview, error) {
 		MimeType: doc.MimeType,
 		DataURL:  "data:" + doc.MimeType + ";base64," + base64.StdEncoding.EncodeToString(data),
 	}, nil
-}
-
-// settingValue liest eine Einstellung, ohne bei einem Fehler zu stören. Die
-// Adressen der beiden Netzdienste — Bundeszentralamt und Kursdienst — sind
-// Einstellungen, damit ein Wechsel keine Programmversion verlangt; fehlt der
-// Wert, greift die Voreinstellung des jeweiligen Pakets.
-func (b *BuchfinkBridge) settingValue(key string) string {
-	if b.settingsRepo == nil {
-		return ""
-	}
-	value, err := b.settingsRepo.Get(context.Background(), key)
-	if err != nil {
-		return ""
-	}
-	return value
-}
-
-// settingsCurrencyFetcher holt den Kurs über die jeweils eingestellte Adresse.
-//
-// Er steht zwischen Kursdienst und Paket, weil die Adresse eine Einstellung ist
-// und sich ändern kann: ein einmal beim Einrichten des Mandanten gebauter
-// Client fragte bis zum Neustart die alte Stelle. Die Bestätigungsabfrage der
-// USt-IdNr. macht es seit jeher so; hier war es die Ausnahme.
-type settingsCurrencyFetcher struct{ bridge *BuchfinkBridge }
-
-func (f *settingsCurrencyFetcher) RateAt(
-	ctx context.Context, code, date string,
-) (int64, string, string, error) {
-	return currency.New(f.bridge.settingValue(service.SettingExchangeRateEndpoint)).
-		RateAt(ctx, code, date)
 }
 
 // startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.

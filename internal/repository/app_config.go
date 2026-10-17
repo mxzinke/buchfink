@@ -52,21 +52,6 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		return nil, fmt.Errorf("could not unmarshal config file: %w", err)
 	}
 
-	// Auto-migrate legacy single-tenant configuration to Tenants list
-	if cfg.IsConfigured && len(cfg.Tenants) == 0 {
-		tenantID := "default"
-		cfg.Tenants = []domain.TenantConfig{
-			{
-				ID:        tenantID,
-				Name:      "Hauptmandant",
-				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			},
-		}
-		cfg.ActiveTenantID = tenantID
-		_ = r.Save(&cfg)
-	}
-
 	// Eine gespeicherte Datei ohne Mandantenschlüssel ergäbe einen nicht
 	// belegten Slice — und in der Oberfläche `null` statt einer leeren Liste.
 	cfg.EnsureLists()

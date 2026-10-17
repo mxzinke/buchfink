@@ -898,8 +898,8 @@ func TestIssuingAnICSupplyGoesThroughTheConfirmation(t *testing.T) {
 	// Der Ausfall wird über einen Server geprüft, der nicht antwortet. Mit der
 	// Voreinstellung von zehn Sekunden wartete der Test genau so lange real;
 	// geprüft wird aber die Behandlung der Frist und nicht ihre Länge.
-	vatIDs.SetClientFactory(func(endpoint string) *vatid.Client {
-		client := vatid.New(endpoint)
+	vatIDs.SetClientFactory(func() *vatid.Client {
+		client := vatid.New(server.URL)
 		client.SetTimeout(200 * time.Millisecond)
 		return client
 	})

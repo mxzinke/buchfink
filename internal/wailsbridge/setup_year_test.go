@@ -11,7 +11,7 @@ import (
 )
 
 // Regression coverage for the year selected during setup.
-func TestBugHuntCreateTenantRespectsSelectedYear(t *testing.T) {
+func TestCreateTenantRespectsSelectedYear(t *testing.T) {
 	keyring.MockInit()
 	t.Cleanup(func() { repository.SetActiveVault(nil) })
 	base := t.TempDir()

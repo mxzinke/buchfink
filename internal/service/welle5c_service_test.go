@@ -11,6 +11,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
+	"github.com/buchfink/buchfink/internal/vatid"
 )
 
 // -------------------------------------------------------------------------
@@ -217,20 +218,16 @@ func bzstServer(t *testing.T, code string, fields map[string]string) (*httptest.
 	return server, &calls
 }
 
-// vatIDs baut den Dienst mit der Adresse aus den Einstellungen. Der Weg über
-// die Einstellung und nicht über einen ausgetauschten Client ist Absicht: die
-// Adresse des Bundeszentralamts ist einstellbar, damit ein Wechsel keine
-// Programmversion verlangt — und dieser Weg wird hier mitgeprüft.
+// vatIDs baut den Dienst gegen eine Testadresse statt gegen das
+// Bundeszentralamt.
 func (e *testEnv) vatIDs(t *testing.T, endpoint string) *VatIDService {
 	t.Helper()
-	settings := repository.NewSettingsRepository(e.db)
-	if err := settings.Set(context.Background(), SettingVatIDEndpoint, endpoint); err != nil {
-		t.Fatalf("Endpunkt setzen: %v", err)
-	}
-	return NewVatIDService(
+	svc := NewVatIDService(
 		repository.NewVatIDCheckRepository(e.db), e.contactRepo,
-		settings, repository.NewAuditRepository(e.db),
+		repository.NewSettingsRepository(e.db), repository.NewAuditRepository(e.db),
 	)
+	svc.SetClientFactory(func() *vatid.Client { return vatid.New(endpoint) })
+	return svc
 }
 
 // Ergebniscode 200: die Nummer ist bestätigt, das Ergebnis wird aufgehoben, und

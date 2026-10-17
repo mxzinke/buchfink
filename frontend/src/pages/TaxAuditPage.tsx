@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Archive,
-  BookMarked,
   FileDown,
   FileText,
   FolderOpen,
@@ -14,7 +13,6 @@ import {
   ComplianceHints,
   ExportKind,
   ExportResult,
-  KeyDirectoryEntry,
   OrganisationTexts,
   ProcDocResult,
   ProcedureDocumentation,
@@ -89,7 +87,6 @@ const EXPORT_LABELS: Record<string, string> = {
   archive: 'Archiv mit Belegdateien',
   audit_package: 'Prüferpaket',
   journal: 'Journal eines Zeitraums',
-  key_directory: 'Schlüsselverzeichnis',
 };
 
 /**
@@ -173,71 +170,6 @@ const ExportHelpDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ op
   </Dialog>
 );
 
-/**
- * Das Schlüsselverzeichnis, aufgeschlagen statt ausgebreitet.
- *
- * Es ist eine Tabelle, die kein Anwender je liest: Sie erklärt dem Prüfer die
- * Kürzel in den überlassenen Tabellen und liegt jedem Export ohnehin bei.
- * Gebraucht wird sie einzeln nur, wenn ein Prüfer sie nachfordert.
- */
-const KeyDirectoryDialog: React.FC<{
-  open: boolean;
-  onClose: () => void;
-  entries: KeyDirectoryEntry[];
-  onSave: () => void;
-}> = ({ open, onClose, entries, onSave }) => (
-  <Dialog
-    open={open}
-    onOpenChange={(next) => !next && onClose()}
-    title="Schlüsselverzeichnis"
-    width="max-w-4xl"
-    footer={
-      <>
-        <Button variant="secondary" onClick={onClose}>
-          Schließen
-        </Button>
-        <Button
-          variant="primary"
-          onClick={onSave}
-          icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
-        >
-          Als CSV speichern
-        </Button>
-      </>
-    }
-  >
-    <p className="text-body text-ink-muted mb-5">
-      In den überlassenen Tabellen stehen Kürzel wie „13b_2_1“. Diese Liste sagt dem Prüfer, was
-      jedes davon bedeutet. Sie liegt jedem Export bei; einzeln brauchen Sie sie nur, wenn der
-      Prüfer sie nachfordert.
-    </p>
-    {entries.length === 0 ? (
-      <SkeletonRows rows={6} />
-    ) : (
-      <Table density="kompakt">
-        <Thead sticky>
-          <Tr>
-            <Th className="w-48">Gruppe</Th>
-            <Th className="w-40">Schlüssel</Th>
-            <Th className="w-56">Klartext</Th>
-            <Th>Bedeutung</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {entries.map((entry) => (
-            <Tr key={`${entry.category}-${entry.key}`}>
-              <Td className="text-ink-subtle">{entry.category}</Td>
-              <Td code>{entry.key}</Td>
-              <Td>{entry.label}</Td>
-              <Td className="whitespace-normal text-ink-muted">{entry.description}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
-    )}
-  </Dialog>
-);
-
 export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
   year,
   availableYears,
@@ -248,7 +180,6 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
   const [exportDir, setExportDir] = useState('');
   const [runningExport, setRunningExport] = useState<ExportKind | ''>('');
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
-  const [keyDirectory, setKeyDirectory] = useState<KeyDirectoryEntry[]>([]);
 
   // Ein Fehler aus dem Backend gehört als Hinweisfläche über die Aktionen des
   // Abschnitts und nicht in einen Toast (§10.4): der Export läuft lange, und
@@ -264,21 +195,10 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
   const [switchingMode, setSwitchingMode] = useState(false);
 
   const [helpOpen, setHelpOpen] = useState(false);
-  const [keyDirOpen, setKeyDirOpen] = useState(false);
 
   // Der Reiter ist Zustand dieser Seite und kein Navigationsziel: jeder Weg
   // hierher meint die Herausgabe.
   const [tab, setTab] = useState<TaxAuditTab>('ueberlassung');
-
-  // Das Schlüsselverzeichnis wird erst geladen, wenn jemand es aufschlägt. Es
-  // wird nur bei einer Datenüberlassung gebraucht, und jedem Export liegt es
-  // ohnehin bei.
-  useEffect(() => {
-    if (!keyDirOpen || keyDirectory.length > 0) return;
-    void Api.getKeyDirectory()
-      .then(setKeyDirectory)
-      .catch((e: unknown) => setExportError(message(e)));
-  }, [keyDirOpen]);
 
   // Das Jahr der Kopfzeile ist der Vorschlag; eine eigene Wahl bleibt stehen,
   // solange die Seite offen ist.
@@ -314,16 +234,6 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
       setExportError(message(e));
     } finally {
       setRunningExport('');
-    }
-  }
-
-  async function saveKeyDirectory() {
-    setExportError('');
-    try {
-      const path = await Api.exportKeyDirectory();
-      if (path) toast.success(`Schlüsselverzeichnis gespeichert: ${path}`);
-    } catch (e) {
-      setExportError(message(e));
     }
   }
 
@@ -523,16 +433,6 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
               >
                 Mit Belegdateien
               </Button>
-              {/* Das Schlüsselverzeichnis liegt jedem Export bei. Einzeln steht es
-                  deshalb hier und nicht als eigener Abschnitt: gebraucht wird es
-                  nur, wenn ein Prüfer es nachfordert. */}
-              <Button
-                variant="quiet"
-                onClick={() => setKeyDirOpen(true)}
-                icon={<BookMarked className="w-4 h-4" strokeWidth={1.5} />}
-              >
-                Schlüsselverzeichnis
-              </Button>
             </div>
 
             {exportResult && (
@@ -590,12 +490,6 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
       </Tabs>
 
       <ExportHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
-      <KeyDirectoryDialog
-        open={keyDirOpen}
-        onClose={() => setKeyDirOpen(false)}
-        entries={keyDirectory}
-        onSave={() => void saveKeyDirectory()}
-      />
     </div>
   );
 };
@@ -835,7 +729,6 @@ const ProcDocPanel: React.FC = () => {
     <>
       {error && <Notice tone="negative" text={error} className="mb-6" />}
       {hints?.cloudWarning && <Notice text={hints.cloudWarning} className="mb-6" />}
-      {hints?.legalFormNote && <Notice text={hints.legalFormNote} className="mb-6" />}
 
       <StatRow>
         <Stat

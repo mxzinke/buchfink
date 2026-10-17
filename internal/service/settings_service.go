@@ -37,6 +37,19 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 		before = prev
 	}
 
+	// Ein Formular ohne Rechtsform ändert sie nicht. Eine andere Rechtsform als
+	// GmbH oder UG führt Buchfink nicht.
+	if settings.LegalForm == "" {
+		settings.LegalForm = domain.LegalFormGmbH
+		if before != nil && before.LegalForm != "" {
+			settings.LegalForm = before.LegalForm
+		}
+	}
+	if !domain.IsSupportedLegalForm(settings.LegalForm) {
+		return fmt.Errorf("Buchfink führt die Bücher einer %s oder %s; die Rechtsform %q ist nicht vorgesehen",
+			domain.LegalFormGmbH, domain.LegalFormUG, settings.LegalForm)
+	}
+
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
 		return err
 	}

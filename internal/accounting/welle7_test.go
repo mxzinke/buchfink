@@ -7,7 +7,7 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Rechnung, an der sich das Mahnwesen messen lässt: 10.000 € über 45 Tage
+// Die Rechnung, an der sich die Verzugsrechnung messen lässt: 10.000 € über 45 Tage
 // bei einem Basiszinssatz von 1,27 % und neun Prozentpunkten Zuschlag sind
 // 10,27 % im Jahr — 10.000 × 10,27 % × 45/365 = 126,6164… €, kaufmännisch
 // 126,62 €.
@@ -101,27 +101,21 @@ func TestDefaultInterestStartIsThirtyDaysAfterTheDueDate(t *testing.T) {
 	}
 }
 
-// Ein nachgetragener Satz gewinnt gegen den hinterlegten: er ist die
-// Bekanntgabe, die jemand eingetragen hat.
-func TestStoredBaseRateOverridesTheBuiltInOne(t *testing.T) {
-	merged := MergeBaseRates([]BaseRatePeriod{
-		{ValidFrom: "2026-07-01", BasisPoints: 200, Source: "nachgetragen"},
-		{ValidFrom: "2027-01-01", BasisPoints: 250, Source: "nachgetragen"},
-	})
-	rate, err := BaseRateAt(merged, "2026-08-15")
+// BaseRateAt setzt eine aufsteigend sortierte Tabelle ohne doppelte Stichtage
+// voraus.
+func TestBuiltInBaseRatesAreSorted(t *testing.T) {
+	rates := DefaultBaseRates()
+	for i := 1; i < len(rates); i++ {
+		if rates[i].ValidFrom <= rates[i-1].ValidFrom {
+			t.Errorf("Stichtag %s folgt auf %s", rates[i].ValidFrom, rates[i-1].ValidFrom)
+		}
+	}
+	rate, err := BaseRateAt(rates, "2026-08-15")
 	if err != nil {
 		t.Fatalf("Basiszinssatz: %v", err)
 	}
-	if rate.BasisPoints != 200 {
-		t.Errorf("Basiszinssatz = %d, erwartet den nachgetragenen 200", rate.BasisPoints)
-	}
-	// Der neue Stichtag kommt dazu und verdrängt den hinterlegten nicht.
-	rate, err = BaseRateAt(merged, "2027-03-01")
-	if err != nil {
-		t.Fatalf("Basiszinssatz: %v", err)
-	}
-	if rate.BasisPoints != 250 {
-		t.Errorf("Basiszinssatz = %d, erwartet 250", rate.BasisPoints)
+	if rate.BasisPoints != 152 {
+		t.Errorf("Basiszinssatz = %d, erwartet 152 ab dem 1. Juli 2026", rate.BasisPoints)
 	}
 }
 

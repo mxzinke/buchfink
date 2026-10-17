@@ -21,7 +21,7 @@ type CompanySettings struct {
 	SupervisoryBoardChair string `json:"supervisoryBoardChair"`
 	SellerIdentifier      string `json:"sellerIdentifier"`
 	CompanyName           string `json:"companyName"`
-	LegalForm             string `json:"legalForm"`            // e.g. "GmbH", "UG (haftungsbeschränkt)", "Einzelunternehmen"
+	LegalForm             string `json:"legalForm"`            // LegalFormGmbH oder LegalFormUG
 	FiscalYear            int    `json:"fiscalYear"`           // Active fiscal year (e.g. 2026)
 	FiscalYearStartMonth  int    `json:"fiscalYearStartMonth"` // 1 = Jan (Kalenderjahr), 7 = Jul (abweichendes Geschäftsjahr), etc.
 	TaxNumber             string `json:"taxNumber"`            // Steuernummer
@@ -37,23 +37,22 @@ type CompanySettings struct {
 	City            string `json:"city"`
 	CountryCode     string `json:"countryCode"` // ISO 3166-1 Alpha-2
 
-	// FoundedOn ist der Tag der Gründung (JJJJ-MM-TT): bei einer
-	// Kapitalgesellschaft die notarielle Beurkundung des Gesellschaftsvertrags,
-	// sonst der Beginn der Tätigkeit.
+	// FoundedOn ist der Tag der Gründung (JJJJ-MM-TT): die notarielle
+	// Beurkundung des Gesellschaftsvertrags.
 	FoundedOn string `json:"foundedOn"`
 	// Notary und DeedNumber bezeichnen die Urkunde des Gesellschaftsvertrags.
 	Notary     string `json:"notary"`
 	DeedNumber string `json:"deedNumber"` // Urkundenrollennummer
-	// ShareCapital und Shareholders sind der aktuelle Stand von Stamm- oder
-	// Grundkapital und Gesellschafterliste. Den Stand bei Beurkundung, mit den
+	// ShareCapital und Shareholders sind der aktuelle Stand von Stammkapital
+	// und Gesellschafterliste. Den Stand bei Beurkundung, mit den
 	// geleisteten Einlagen, hält die Gründung (Foundation).
 	ShareCapital Cents                `json:"shareCapital"`
 	Shareholders []CompanyShareholder `json:"shareholders"`
 
-	// IBAN, BIC und BankName sind die Zahlungsverbindung auf Rechnungen und
-	// Mahnschreiben. Sie werden beim Lesen aus dem Bankkonto gesetzt, das als
-	// Konto für Rechnungen festgelegt ist (BankAccount.IsInvoiceAccount), und
-	// nicht mit den Unternehmensdaten gespeichert.
+	// IBAN, BIC und BankName sind die Zahlungsverbindung auf Rechnungen. Sie
+	// werden beim Lesen aus dem Bankkonto gesetzt, das als Konto für Rechnungen
+	// festgelegt ist (BankAccount.IsInvoiceAccount), und nicht mit den
+	// Unternehmensdaten gespeichert.
 	IBAN     string `json:"iban"`
 	BIC      string `json:"bic"`
 	BankName string `json:"bankName"`
@@ -140,22 +139,14 @@ type CompanySettings struct {
 	// wird; überschreiben lässt er sich, wer die Regel rückwirkend anwenden
 	// will, trägt ein früheres Datum ein. Leer heißt: keine Grenze nach hinten.
 	InvoiceCheckSince string `json:"invoiceCheckSince,omitempty"`
-	// DunningLevels ist die eingestellte Stufenfolge des Mahnwesens. Leer
-	// heißt: die Voreinstellung (DefaultDunningLevels).
-	DunningLevels []DunningLevel `json:"dunningLevels"`
 	// InvestorOverride legt die Anlegerstellung für § 20 InvStG ausdrücklich
 	// fest — und ist normalerweise leer.
 	//
-	// Der Regelfall folgt aus der Rechtsform: eine GmbH unterliegt dem KStG,
-	// ein Einzelunternehmen wird von einer natürlichen Person geführt. Zwei
-	// Fälle entscheidet sie aber nicht, und für sie gibt es dieses Feld.
-	//
-	// Erstens die Personengesellschaft: sie ist keine Körperschaft, ihre
-	// Gesellschafter können welche sein, und § 20 Abs. 3a InvStG bestimmt den
-	// Satz nach dem Gesellschafter. Zweitens die Ausnahmen des § 20 Abs. 1
-	// Sätze 4 und 5 — für Lebens- und Krankenversicherer, für Kreditinstitute
-	// mit Handelsbestand und für Pensionsfonds gelten die erhöhten Sätze nicht,
-	// obwohl es Körperschaften sind.
+	// Der Regelfall folgt aus der Rechtsform: eine GmbH unterliegt dem KStG.
+	// Die Ausnahmen des § 20 Abs. 1 Sätze 4 und 5 entscheidet sie nicht — für
+	// Lebens- und Krankenversicherer, für Kreditinstitute mit Handelsbestand
+	// und für Pensionsfonds gelten die erhöhten Sätze nicht, obwohl es
+	// Körperschaften sind.
 	//
 	// Gelesen wird es über InvestorTypeOrDerived, nie direkt: sonst stünde an
 	// jeder Aufrufstelle noch einmal, was die Ableitung ist.
@@ -183,7 +174,7 @@ type CompanySettings struct {
 // er nirgends gespeichert ist.
 //
 // Jede Ausgabe nach außen liest den Namen hierüber: Rechnung, E-Rechnung,
-// E-Bilanz, Abschlusskopf, Mahnschreiben, Eigenbeleg. Roh bleibt CompanyName
+// E-Bilanz, Abschlusskopf, Eigenbeleg. Roh bleibt CompanyName
 // dort, wo er Eingabe oder Schlüssel ist — im Einstellungsfeld, im
 // Mandantennamen und im Änderungsprotokoll.
 func (s *CompanySettings) FirmName() string {
@@ -205,34 +196,21 @@ const (
 	// Teilfreistellung, sondern sagt, was zu entscheiden ist.
 	InvestorUnknown InvestorType = ""
 	// InvestorBasic sind die Grundsätze des § 20 Abs. 1 Satz 1 und Abs. 2
-	// InvStG: 30 % bei Aktienfonds, die Hälfte bei Mischfonds. Das trifft
-	// Anteile im Privatvermögen und die Fälle, in denen § 20 Abs. 1 Sätze 4
-	// und 5 die erhöhten Sätze zurücknehmen.
+	// InvStG: 30 % bei Aktienfonds, die Hälfte bei Mischfonds — die Fälle, in
+	// denen § 20 Abs. 1 Sätze 4 und 5 die erhöhten Sätze zurücknehmen.
 	InvestorBasic InvestorType = "basic"
-	// InvestorIndividualBusiness ist die natürliche Person, die ihre Anteile im
-	// Betriebsvermögen hält (§ 20 Abs. 1 Satz 2): 60 % bzw. 30 %.
-	InvestorIndividualBusiness InvestorType = "individual_business"
 	// InvestorCorporate ist der Anleger, der dem Körperschaftsteuergesetz
 	// unterliegt (§ 20 Abs. 1 Satz 3): 80 % bzw. 40 %.
 	InvestorCorporate InvestorType = "corporate"
-	// InvestorMixed ist die Personengesellschaft mit Gesellschaftern
-	// unterschiedlicher Besteuerung. § 20 Abs. 3a InvStG bestimmt den Satz nach
-	// dem Gesellschafter; ein einziger Prozentsatz kann das nicht ausdrücken,
-	// und Buchfink weist die Erträge dann ungekürzt aus.
-	InvestorMixed InvestorType = "mixed"
 )
 
 // Label renders the investor type for the UI.
 func (t InvestorType) Label() string {
 	switch t {
 	case InvestorBasic:
-		return "Grundsatz (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)"
-	case InvestorIndividualBusiness:
-		return "Natürliche Person, Anteile im Betriebsvermögen"
+		return "Grundsatz (Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)"
 	case InvestorCorporate:
 		return "Anleger unterliegt dem Körperschaftsteuergesetz"
-	case InvestorMixed:
-		return "Personengesellschaft mit gemischt besteuerten Gesellschaftern"
 	default:
 		return "Nicht festgelegt"
 	}
@@ -241,7 +219,7 @@ func (t InvestorType) Label() string {
 // Valid reports whether the investor type is one of the known ones.
 func (t InvestorType) Valid() bool {
 	switch t {
-	case InvestorBasic, InvestorIndividualBusiness, InvestorCorporate, InvestorMixed:
+	case InvestorBasic, InvestorCorporate:
 		return true
 	default:
 		return false
@@ -250,9 +228,7 @@ func (t InvestorType) Valid() bool {
 
 // AllInvestorTypes returns the choices in the order the mask offers them.
 func AllInvestorTypes() []InvestorType {
-	return []InvestorType{
-		InvestorCorporate, InvestorIndividualBusiness, InvestorBasic, InvestorMixed,
-	}
+	return []InvestorType{InvestorCorporate, InvestorBasic}
 }
 
 // GetFiscalYearForDate computes the fiscal year for a given date (YYYY-MM-DD)
@@ -316,7 +292,7 @@ func (s *CompanySettings) InvoiceSellerFindings(structured bool) []string {
 	if !s.HasCompleteAddress() {
 		missing = append(missing, "vollständige Geschäftsanschrift")
 	}
-	if s.LegalForm == "GmbH" || s.LegalForm == LegalFormUG || strings.EqualFold(s.LegalForm, "Unternehmergesellschaft (haftungsbeschränkt)") {
+	if IsSupportedLegalForm(s.LegalForm) {
 		if strings.TrimSpace(s.ManagingDirectors) == "" {
 			missing = append(missing, "alle Geschäftsführer mit ausgeschriebenem Vor- und Nachnamen")
 		}
