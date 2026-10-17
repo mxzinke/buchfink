@@ -62,6 +62,7 @@ type Services struct {
 	Idempotency     *service.IdempotencyService
 	Shareholders    *service.ShareholderService
 	Payroll         *service.PayrollService
+	Declarations    *service.DeclarationService
 }
 
 // Repos sind lesende Zugänge für Aufrufer, die ohne Dienst lesen. Geschrieben

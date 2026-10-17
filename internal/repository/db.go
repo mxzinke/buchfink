@@ -228,6 +228,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.ShareholderLoan{},
 		&domain.ShareholderLoanInterest{},
 		&domain.PayrollRun{},
+		&domain.DeclarationInput{},
+		&domain.DeclarationRecord{},
 	)
 }
 

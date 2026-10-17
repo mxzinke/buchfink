@@ -1,0 +1,186 @@
+{
+  "art": "kst",
+  "vordruckjahr": 2025,
+  "version": "kst-2025-1",
+  "titel": "Körperschaftsteuererklärung 2025",
+  "quellen": [
+    {"id": "elster-kst-2025", "titel": "ELSTER, Anleitung zur Körperschaftsteuererklärung und zu den Erklärungen zu den Feststellungen nach §§ 27, 28 und 38 KStG 2025", "url": "https://www.elster.de/eportal/helpGlobal?themaGlobal=help_kst_2025", "stand": "2026-10-17"},
+    {"id": "haufe-kst-2025", "titel": "Haufe, Körperschaftsteuererklärung 2025: Grundvordrucke und Anlage GK (Sekundärquelle)", "url": "https://www.haufe.de/id/beitrag/koerperschaftsteuererklaerung-2025-44-anlagegk-ermittlung-der-einkuenfte-aus-gewerbebetrieb-HI17066550.html", "stand": "2026-10-17"},
+    {"id": "gesetz", "titel": "Gesetzeswortlaut auf gesetze-im-internet.de", "url": "https://www.gesetze-im-internet.de", "stand": "2026-10-17"},
+    {"id": "buchfink", "titel": "Kontrollrechnung von Buchfink, keine Zeile eines Vordrucks", "stand": "2026-10-17"}
+  ],
+  "formulare": [
+    {
+      "id": "KSt1",
+      "titel": "Körperschaftsteuererklärung (KSt 1)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "allgemein", "titel": "Allgemeine Angaben", "zeilen": [
+          {"schluessel": "kst.kst1.name", "bezeichnung": "Bezeichnung der Körperschaft", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.rechtsform", "bezeichnung": "Rechtsform", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.steuernummer", "bezeichnung": "Steuernummer", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.wid", "bezeichnung": "Wirtschafts-Identifikationsnummer", "einheit": "text", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 139c AO"], "hinweis": "Nur eintragen, wenn das Bundeszentralamt sie bereits mitgeteilt hat (ELSTER-Anleitung).", "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.anschrift", "bezeichnung": "Sitz, Ort der Geschäftsleitung und Anschrift", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.wj_von", "bezeichnung": "Wirtschaftsjahr vom", "einheit": "datum", "zustaendig": "buecher", "pflicht": true, "recht": ["§ 7 Abs. 4 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.wj_bis", "bezeichnung": "Wirtschaftsjahr bis", "einheit": "datum", "zustaendig": "buecher", "pflicht": true, "recht": ["§ 7 Abs. 4 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.z10", "zeile": "10", "bezeichnung": "Steuerbefreiung", "einheit": "ja_nein", "zustaendig": "buecher", "recht": ["§ 5 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, KSt 1 Zeile 10"}},
+          {"schluessel": "kst.kst1.anlagen", "bezeichnung": "Beigefügte Anlagen", "einheit": "text", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.kst1.berater", "bezeichnung": "Mitwirkung einer zur Hilfeleistung in Steuersachen befugten Person", "einheit": "ja_nein", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}}
+        ]}
+      ]
+    },
+    {
+      "id": "GK",
+      "titel": "Anlage GK (Gewinn aus Gewerbebetrieb)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "ergebnis", "titel": "Bilanzielles Ergebnis", "zeilen": [
+          {"schluessel": "kst.gk.z11", "zeile": "11", "bezeichnung": "Jahresüberschuss / Jahresfehlbetrag laut Handels- oder Steuerbilanz (ohne Zuführungen zu oder Auflösungen von Rücklagen und ohne Verrechnung mit Gewinn- oder Verlustvorträgen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "pflicht": true, "recht": ["§ 275 Abs. 4 HGB", "§ 5b Abs. 1 EStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 11"}},
+          {"schluessel": "kst.gk.stb", "bezeichnung": "Abweichungen der Steuerbilanz von der Handelsbilanz (Überleitung)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 5b Abs. 1 Satz 2 EStG", "§ 60 Abs. 2 EStDV"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 11; Zeile der Überleitung nicht belegt"}}
+        ]},
+        {"id": "korrekturen", "titel": "Außerbilanzielle Korrekturen", "zeilen": [
+          {"schluessel": "kst.gk.kst", "bezeichnung": "Körperschaftsteuer einschließlich Kapitalertragsteuer (hinzurechnen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 10 Nr. 2 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.z82", "zeile": "82", "bezeichnung": "Solidaritätszuschlag einschließlich des anzurechnenden Solidaritätszuschlags zur Kapitalertragsteuer", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 10 Nr. 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 82"}},
+          {"schluessel": "kst.gk.gewst", "bezeichnung": "Gewerbesteuer (hinzurechnen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5b EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.z88", "zeile": "88", "bezeichnung": "Nicht abziehbare Nebenleistungen zu Steuern nach Verrechnung mit Erstattungen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 10 Nr. 2 KStG", "§ 4 Abs. 5b EStG", "R 10.1 Abs. 2 KStR 2022"], "hinweis": "Erstattungszinsen nach § 233a AO nicht verrechnen (ELSTER-Anleitung zu Zeile 88).", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 88"}},
+          {"schluessel": "kst.gk.geschenke", "bezeichnung": "Nicht abziehbare Aufwendungen für Geschenke", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 1 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.bewirtung", "bezeichnung": "Nicht abziehbare Bewirtungsaufwendungen (30 %)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 2 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.repraesentation", "bezeichnung": "Aufwendungen für Gästehäuser, Jagd, Fischerei, Segel- und Motorjachten", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.nab", "bezeichnung": "Sonstige eingeschränkt abziehbare Betriebsausgaben (nicht abziehbarer Anteil)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.nab_weitere", "bezeichnung": "Weitere nicht abziehbare Aufwendungen (Geldbußen, Geldstrafen, nicht abziehbare Vorsteuer auf Aufwendungen nach § 4 Abs. 5 Satz 1 Nr. 1 bis 4, 7 EStG)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 4 Abs. 5 Satz 1 Nr. 8 EStG", "§ 10 Nr. 2 und 3 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.aufsichtsrat", "bezeichnung": "Hälfte der Vergütungen an Aufsichtsratsmitglieder", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 10 Nr. 4 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.spenden", "bezeichnung": "Gebuchte Zuwendungen (Spenden und Mitgliedsbeiträge) hinzurechnen; der Abzug folgt in der Anlage ZVE", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 KStG", "§ 4 Abs. 6 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.vga", "bezeichnung": "Verdeckte Gewinnausschüttungen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 8 Abs. 3 Satz 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Abschnitt „Verdeckte Gewinnausschüttung“; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.einlage", "bezeichnung": "Verdeckte Einlagen, soweit sie als Ertrag gebucht sind (abziehen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 8 Abs. 3 Satz 3 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.z81", "zeile": "81", "bezeichnung": "Im Wirtschaftsjahr als Ertrag erfasste Forschungszulage (mit negativem Vorzeichen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 81"}},
+          {"schluessel": "kst.gk.z93", "zeile": "93", "bezeichnung": "Wiederaufleben einer Gesellschafterforderung nach Forderungsverzicht gegen Besserungsschein, erfolgswirksam erfasst: werthaltiger Teil (Negativbetrag)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "mensch", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 93"}}
+        ]},
+        {"id": "8b", "titel": "Anwendung des § 8b KStG und vergleichbarer Vorschriften (Zeilen 150 bis 195)", "zeilen": [
+          {"schluessel": "kst.gk.8b_bezuege", "bezeichnung": "Gebuchte Bezüge aus Anteilen an Kapitalgesellschaften (§ 8b Abs. 1 KStG)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_streubesitz", "bezeichnung": "Davon steuerpflichtige Bezüge aus Beteiligungen unter 10 % zu Beginn des Kalenderjahres", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "pflicht": true, "recht": ["§ 8b Abs. 4 KStG"], "hinweis": "Ein Erwerb von mindestens 10 % gilt als zu Beginn des Kalenderjahres erfolgt (§ 8b Abs. 4 Satz 6 KStG).", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Zeile 156; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_frei", "bezeichnung": "Außer Ansatz bleibende Bezüge (abziehen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_5_bezuege", "bezeichnung": "5 % der außer Ansatz bleibenden Bezüge als nicht abziehbare Betriebsausgaben", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 5 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_gewinne", "bezeichnung": "Gewinne aus der Veräußerung und Wertaufholung von Anteilen nach Veräußerungskosten (abziehen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_5_gewinne", "bezeichnung": "5 % der Veräußerungsgewinne als nicht abziehbare Betriebsausgaben", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 3 Satz 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_minderungen", "bezeichnung": "Veräußerungsverluste und Teilwertabschreibungen auf Anteile (hinzurechnen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8b Abs. 3 Satz 3 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_darlehen", "bezeichnung": "Gewinnminderungen aus Darlehen an Gesellschaften, an denen die GmbH zu mehr als einem Viertel beteiligt ist (hinzurechnen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8b Abs. 3 Satz 4 bis 8 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.8b_zuschreibung_darlehen", "bezeichnung": "Wertaufholungen auf Darlehensforderungen, deren Abschreibung unberücksichtigt blieb (abziehen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8b Abs. 3 Satz 9 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Abschnitt Zeilen 150 bis 195; Zeile nicht belegt"}}
+        ]},
+        {"id": "invest", "titel": "Investmenterträge (InvStG)", "zeilen": [
+          {"schluessel": "kst.gk.inv_vorabpauschale", "bezeichnung": "Vorabpauschalen, die im Wirtschaftsjahr als zugeflossen gelten (außerbilanziell hinzurechnen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 16 Abs. 1 Nr. 2 InvStG", "§ 18 Abs. 3 InvStG"], "pruefvermerk": {"quelle": "haufe-kst-2025, Anlage GK Zeilen 219 bis 237; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.inv_teilfreistellung", "bezeichnung": "Teilfreistellung der Investmenterträge (abziehen)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 20 InvStG", "§ 21 InvStG"], "pruefvermerk": {"quelle": "haufe-kst-2025, Anlage GK Zeilen 219 bis 237; Zeile nicht belegt"}}
+        ]},
+        {"id": "summe", "titel": "Ergebnis der Anlage GK", "zeilen": [
+          {"schluessel": "kst.gk.summe", "bezeichnung": "Einkünfte aus Gewerbebetrieb (Summe der Einkünfte)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8 Abs. 1 und 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}}
+        ]}
+      ]
+    },
+    {
+      "id": "ZVE",
+      "titel": "Anlage ZVE (Ermittlung des zu versteuernden Einkommens)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "einkommen", "titel": "Ermittlung des zu versteuernden Einkommens", "zeilen": [
+          {"schluessel": "kst.zve.einkuenfte", "bezeichnung": "Einkünfte aus Gewerbebetrieb laut Anlage GK", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.zve.z32", "zeile": "32", "bezeichnung": "Einkommen im Sinne des § 9 Abs. 2 Satz 1 KStG (vor Abzug der Zuwendungen und vor Verlustabzug)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 9 Abs. 2 Satz 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Hinweise zur Anlage Z Zeile 7 (verweist auf Anlage ZVE Zeile 32)"}},
+          {"schluessel": "kst.zve.zuwendungen", "bezeichnung": "Abziehbare Zuwendungen (Spenden und Mitgliedsbeiträge) laut Anlage Z", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.zve.gesamtbetrag", "bezeichnung": "Gesamtbetrag der Einkünfte vor Verlustabzug", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.zve.verlustabzug", "bezeichnung": "Verlustabzug nach § 10d EStG (Verlustvortrag)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 10d Abs. 2 EStG", "§ 8 Abs. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}},
+          {"schluessel": "kst.zve.z69", "zeile": "69", "bezeichnung": "Freibetrag nach § 24 KStG", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 24 Satz 2 Nr. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage ZVE Zeile 69"}},
+          {"schluessel": "kst.zve.zve", "bezeichnung": "Zu versteuerndes Einkommen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 7 Abs. 1 und 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025; Zeile nicht belegt"}}
+        ]}
+      ]
+    },
+    {
+      "id": "WA",
+      "titel": "Anlage WA (Weitere Angaben, Anträge und Anrechnungen)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "anrechnung", "titel": "Anrechnung von Abzugsteuern nach § 36 Absatz 2 Nummer 2 in Verbindung mit § 36a EStG", "zeilen": [
+          {"schluessel": "kst.wa.kapest", "bezeichnung": "Anrechenbare Kapitalertragsteuer laut Steuerbescheinigungen", "einheit": "euro_cent", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 36 Abs. 2 Nr. 2 EStG", "§ 31 Abs. 1 KStG"], "hinweis": "Ohne Steuerbescheinigung wird nicht angerechnet (ELSTER-Anleitung zur Anlage WA).", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 2 ff.; Zeile nicht genau belegt"}},
+          {"schluessel": "kst.wa.solz", "bezeichnung": "Anrechenbarer Solidaritätszuschlag zur Kapitalertragsteuer laut Steuerbescheinigungen", "einheit": "euro_cent", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 36 Abs. 2 Nr. 2 EStG", "§ 31 Abs. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 2 ff.; Zeile nicht genau belegt"}}
+        ]},
+        {"id": "angaben", "titel": "Weitere Angaben", "zeilen": [
+          {"schluessel": "kst.wa.z11e", "zeile": "11e", "bezeichnung": "Schädlicher Beteiligungserwerb nach § 8c KStG (mehr als 50 % der Anteile innerhalb von fünf Jahren an einen Erwerber)", "einheit": "ja_nein", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 8c Abs. 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 11e"}},
+          {"schluessel": "kst.wa.z12", "zeile": "12", "bezeichnung": "Antrag auf fortführungsgebundenen Verlustvortrag nach § 8d KStG", "einheit": "ja_nein", "zustaendig": "buecher", "recht": ["§ 8d KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 12"}},
+          {"schluessel": "kst.wa.z29", "zeile": "29", "bezeichnung": "Länderbezogener Bericht multinationaler Unternehmensgruppen nach § 138a AO", "einheit": "ja_nein", "zustaendig": "buecher", "recht": ["§ 138a AO"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 29"}},
+          {"schluessel": "kst.wa.z40", "zeile": "40", "bezeichnung": "Corona-Soforthilfen, Überbrückungshilfen und vergleichbare Zuschüsse", "einheit": "euro_cent", "zustaendig": "agent_rueckfrage", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage WA Zeile 40"}}
+        ]}
+      ]
+    },
+    {
+      "id": "KSt1F",
+      "titel": "Anlage KSt 1 F (Feststellung des steuerlichen Einlagekontos)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "leistungen", "titel": "Im Wirtschaftsjahr erfolgte Gewinnausschüttungen/Leistungen", "zeilen": [
+          {"schluessel": "kst.f.leistungen", "bezeichnung": "Summe der im Wirtschaftsjahr erbrachten Leistungen (offene Gewinnausschüttungen)", "einheit": "euro_cent", "zustaendig": "buecher", "eingabe": true, "recht": ["§ 27 Abs. 1 Satz 3 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Abschnitt Zeilen 9 bis 13; Zeile nicht genau belegt"}},
+          {"schluessel": "kst.f.z13", "zeile": "13", "bezeichnung": "Wurden mehrere Leistungen erbracht?", "einheit": "ja_nein", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Zeile 13"}}
+        ]},
+        {"id": "ausschuettbar", "titel": "Ermittlung des ausschüttbaren Gewinns", "zeilen": [
+          {"schluessel": "kst.f.ek_vorjahr", "bezeichnung": "Eigenkapital laut Steuerbilanz zum Schluss des vorangegangenen Wirtschaftsjahrs", "einheit": "euro_cent", "zustaendig": "buecher", "eingabe": true, "recht": ["§ 27 Abs. 1 Satz 5 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.f.z18", "zeile": "18", "bezeichnung": "Nennkapital zum Schluss des vorangegangenen Wirtschaftsjahrs", "einheit": "euro_cent", "zustaendig": "buecher", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Zeile 18"}},
+          {"schluessel": "kst.f.ausschuettbar", "bezeichnung": "Ausschüttbarer Gewinn (Eigenkapital abzüglich Nennkapital und Bestand des steuerlichen Einlagekontos)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 27 Abs. 1 Satz 5 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}}
+        ]},
+        {"id": "bestand", "titel": "Anfangsbestand des steuerlichen Einlagekontos", "zeilen": [
+          {"schluessel": "kst.f.z40", "zeile": "40", "bezeichnung": "Anfangsbestand bei Eintritt in die Steuerpflicht", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "recht": ["§ 27 Abs. 2 Satz 3 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Zeile 40"}},
+          {"schluessel": "kst.f.bestand_vorjahr", "bezeichnung": "Bestand des steuerlichen Einlagekontos zum Schluss des vorangegangenen Wirtschaftsjahrs laut Feststellungsbescheid", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 27 Abs. 2 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}}
+        ]},
+        {"id": "zugaenge", "titel": "Im Wirtschaftsjahr geleistete Einlagen", "zeilen": [
+          {"schluessel": "kst.f.einlagen", "bezeichnung": "Einlagen in die Kapitalrücklage (Zugänge auf den Konten der Kapitalrücklage)", "einheit": "euro_cent", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 27 Abs. 1 Satz 1 und 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Abschnitt „Im Wirtschaftsjahr geleistete Einlagen“; Zeile nicht belegt"}},
+          {"schluessel": "kst.f.z91", "zeile": "91", "bezeichnung": "Wiederaufleben einer Gesellschafterforderung nach Verzicht gegen Besserungsschein, erfolgswirksam erfasst: werthaltiger Teil (Negativbetrag)", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Zeile 91"}},
+          {"schluessel": "kst.f.z95", "zeile": "95", "bezeichnung": "Wiederaufleben einer Gesellschafterforderung nach Verzicht gegen Besserungsschein, erfolgsneutral erfasst: werthaltiger Teil (Negativbetrag)", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Zeile 95"}}
+        ]},
+        {"id": "verwendung", "titel": "Verrechnung von Leistungen mit dem steuerlichen Einlagekonto", "zeilen": [
+          {"schluessel": "kst.f.verwendung", "bezeichnung": "Leistungen, die den ausschüttbaren Gewinn übersteigen (Einlagenrückgewähr)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 27 Abs. 1 Satz 3 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage KSt 1 F Abschnitt „Verrechnung von Leistungen“; Zeile nicht belegt"}},
+          {"schluessel": "kst.f.bestand_ende", "bezeichnung": "Bestand des steuerlichen Einlagekontos zum Schluss des Wirtschaftsjahrs", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 27 Abs. 2 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}}
+        ]}
+      ]
+    },
+    {
+      "id": "Verluste",
+      "titel": "Anlage Verluste",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "verluste", "titel": "Verlustabzug nach § 10d EStG", "zeilen": [
+          {"schluessel": "kst.v.z14", "zeile": "14", "bezeichnung": "Anfangsbestand: verbleibender Verlustvortrag zum Schluss des vorangegangenen Veranlagungszeitraums laut Feststellungsbescheid", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 10d Abs. 4 EStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Verluste Zeile 14"}},
+          {"schluessel": "kst.v.z20", "zeile": "20", "bezeichnung": "Verlustrücktrag in den vorangegangenen Veranlagungszeitraum („0“ = kein Rücktrag)", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "recht": ["§ 10d Abs. 1 EStG"], "hinweis": "Ohne Eintrag nimmt das Finanzamt den Rücktrag in größtmöglicher Höhe vor (ELSTER-Anleitung zu Zeile 20).", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Verluste Zeile 20"}},
+          {"schluessel": "kst.v.ende", "bezeichnung": "Verbleibender Verlustvortrag zum Schluss des Veranlagungszeitraums (Kontrollrechnung)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 10d Abs. 4 Satz 2 EStG"], "pruefvermerk": {"quelle": "buchfink"}}
+        ]}
+      ]
+    },
+    {
+      "id": "Z",
+      "titel": "Anlage Z (Zuwendungen)",
+      "quelle": "elster-kst-2025",
+      "abschnitte": [
+        {"id": "zuwendungen", "titel": "Zuwendungen nach § 9 Absatz 1 Nummer 2 KStG", "zeilen": [
+          {"schluessel": "kst.z.z5", "zeile": "5", "bezeichnung": "Spenden und Mitgliedsbeiträge zur Förderung steuerbegünstigter Zwecke", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 KStG", "§ 50 Abs. 1 EStDV"], "hinweis": "Auf Anforderung durch Zuwendungsbestätigung nachzuweisen.", "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Z Zeile 5"}},
+          {"schluessel": "kst.z.vortrag", "bezeichnung": "Zuwendungsvortrag zum Schluss des vorangegangenen Veranlagungszeitraums laut Feststellungsbescheid", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "recht": ["§ 9 Abs. 1 Nr. 2 Satz 9 und 10 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Z Abschnitt „Verbleibender Zuwendungsvortrag“; Zeile nicht belegt"}},
+          {"schluessel": "kst.z.z10", "zeile": "10", "bezeichnung": "Summe der gesamten Umsätze", "einheit": "euro_cent", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 9 Abs. 1 Nr. 2 Satz 1 Buchst. b KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Z Zeile 7 (verweist auf Zeile 10)"}},
+          {"schluessel": "kst.z.z11", "zeile": "11", "bezeichnung": "Im Kalenderjahr aufgewendete Löhne und Gehälter", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 Satz 1 Buchst. b KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Z Zeile 7 (verweist auf Zeile 11)"}},
+          {"schluessel": "kst.z.z7", "zeile": "7", "bezeichnung": "Höchstbetrag der abziehbaren Zuwendungen (höherer Betrag aus 20 % des Einkommens und 4 Promille der Umsätze, Löhne und Gehälter)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 Satz 1 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage Z Zeile 7"}},
+          {"schluessel": "kst.z.vortrag_ende", "bezeichnung": "Verbleibender Zuwendungsvortrag zum Schluss des Veranlagungszeitraums (Kontrollrechnung)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 Satz 9 KStG"], "pruefvermerk": {"quelle": "buchfink"}}
+        ]}
+      ]
+    },
+    {
+      "id": "Kontrolle",
+      "titel": "Kontrollrechnung (Buchfink, nicht zu übertragen)",
+      "quelle": "buchfink",
+      "abschnitte": [
+        {"id": "steuer", "titel": "Körperschaftsteuer und Solidaritätszuschlag", "zeilen": [
+          {"schluessel": "kst.k.satz", "bezeichnung": "Steuersatz", "einheit": "prozent", "zustaendig": "buecher", "recht": ["§ 23 Abs. 1 KStG"], "pruefvermerk": {"quelle": "gesetz, § 23 KStG"}},
+          {"schluessel": "kst.k.kst", "bezeichnung": "Körperschaftsteuer (zugunsten auf volle Euro gerundet)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 23 Abs. 1 KStG", "§ 31 Abs. 1 Satz 2 KStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.solz", "bezeichnung": "Solidaritätszuschlag 5,5 %", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 3 Abs. 1 Nr. 1 SolZG", "§ 4 SolZG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.vz_kst", "bezeichnung": "Geleistete Vorauszahlungen Körperschaftsteuer", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 37 EStG", "§ 31 KStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.vz_solz", "bezeichnung": "Geleistete Vorauszahlungen Solidaritätszuschlag", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.kapest", "bezeichnung": "Anzurechnende Kapitalertragsteuer (auf volle Euro aufgerundet)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 36 Abs. 2 Nr. 2, Abs. 3 EStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.solz_kapest", "bezeichnung": "Anzurechnender Solidaritätszuschlag zur Kapitalertragsteuer", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.ergebnis", "bezeichnung": "Voraussichtliche Abschlusszahlung (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "kst.k.rueckstellung", "bezeichnung": "Gebuchte Körperschaftsteuerrückstellung", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
+        ]}
+      ]
+    }
+  ]
+}

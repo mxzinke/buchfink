@@ -1,0 +1,76 @@
+{
+  "art": "gewst",
+  "vordruckjahr": 2025,
+  "version": "gewst-2025-1",
+  "titel": "Gewerbesteuererklärung 2025",
+  "quellen": [
+    {"id": "elster-gewst-2025", "titel": "ELSTER, Anleitung zur Gewerbesteuererklärung 2025", "url": "https://www.elster.de/eportal/helpGlobal?themaGlobal=help_gewst_ufa_20_2025", "stand": "2026-10-17"},
+    {"id": "gesetz", "titel": "Gesetzeswortlaut auf gesetze-im-internet.de", "url": "https://www.gesetze-im-internet.de", "stand": "2026-10-17"},
+    {"id": "buchfink", "titel": "Kontrollrechnung von Buchfink, keine Zeile eines Vordrucks", "stand": "2026-10-17"}
+  ],
+  "formulare": [
+    {
+      "id": "GewSt1A",
+      "titel": "Gewerbesteuererklärung (GewSt 1 A)",
+      "quelle": "elster-gewst-2025",
+      "abschnitte": [
+        {"id": "allgemein", "titel": "Allgemeine Angaben", "zeilen": [
+          {"schluessel": "gewst.name", "bezeichnung": "Bezeichnung des Unternehmens", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-gewst-2025; Zeile nicht belegt"}},
+          {"schluessel": "gewst.steuernummer", "bezeichnung": "Steuernummer", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-gewst-2025; Zeile nicht belegt"}},
+          {"schluessel": "gewst.rechtsform", "bezeichnung": "Rechtsform", "einheit": "text", "zustaendig": "buecher", "pflicht": true, "pruefvermerk": {"quelle": "elster-gewst-2025; Zeile nicht belegt"}},
+          {"schluessel": "gewst.betriebsstaetten", "bezeichnung": "Betriebsstätten in mehreren Gemeinden im Erhebungszeitraum", "einheit": "ja_nein", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 28 GewStG", "§ 14a Satz 1 GewStG"], "hinweis": "Bei Ja ist zusätzlich die Zerlegungserklärung GewSt 1 D abzugeben; Buchfink rechnet die Zerlegung nicht.", "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.z21", "zeile": "21", "bezeichnung": "Über die Angaben in der Steuererklärung hinaus sind weitere oder abweichende Angaben oder Sachverhalte zu berücksichtigen", "einheit": "ja_nein", "zustaendig": "mensch", "eingabe": true, "pruefvermerk": {"quelle": "elster-gewst-2025, Zeile 21"}}
+        ]},
+        {"id": "gewinn", "titel": "Ermittlung des Gewerbeertrags (§§ 7 bis 9 GewStG)", "zeilen": [
+          {"schluessel": "gewst.z39", "zeile": "39", "bezeichnung": "Korrigierte Summe der Einkünfte laut Anlage ZVE der Körperschaftsteuererklärung", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 7 GewStG"], "hinweis": "Die Anleitung verlangt die Eintragung, wenn die Summe der Einkünfte zu korrigieren war; ob Zeile 39 auch ohne Korrektur auszufüllen ist, sagt sie nicht ausdrücklich.", "pruefvermerk": {"quelle": "elster-gewst-2025, Zeile 39"}},
+          {"schluessel": "gewst.z40", "zeile": "40", "bezeichnung": "Abzugsbetrag, auf den Zeile 39 Bezug nimmt (Inhalt nicht belegt)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "mensch", "eingabe": true, "hinweis": "Den Inhalt dieser Zeile nennt die Anleitung 2025 nicht. Im Formular in Mein ELSTER prüfen.", "pruefvermerk": {"quelle": "elster-gewst-2025, Zeile 40; Inhalt nicht belegt"}},
+          {"schluessel": "gewst.gewinn", "bezeichnung": "Gewinn aus Gewerbebetrieb nach den Vorschriften des Körperschaftsteuergesetzes (Einkommen vor Verlustabzug)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 7 Satz 1 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.z48", "zeile": "48", "bezeichnung": "Gesamte Teilfreistellungen nach den §§ 20 und 21 InvStG aus unmittelbaren Beteiligungen, wie sie den Gewinn gemindert haben", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 20 Abs. 5 InvStG"], "hinweis": "Den Korrekturbetrag nach § 20 Abs. 5 InvStG (die Hälfte) rechnet das Finanzamt.", "pruefvermerk": {"quelle": "elster-gewst-2025, Zeile 48"}}
+        ]},
+        {"id": "hinzurechnungen", "titel": "Hinzurechnungen (§ 8 GewStG)", "zeilen": [
+          {"schluessel": "gewst.8_1a", "bezeichnung": "Entgelte für Schulden (voll)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. a GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1b", "bezeichnung": "Renten und dauernde Lasten (voll)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. b GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1c", "bezeichnung": "Gewinnanteile des stillen Gesellschafters (voll)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. c GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1d", "bezeichnung": "Miet- und Pachtzinsen einschließlich Leasingraten für bewegliche Wirtschaftsgüter des Anlagevermögens (gebuchter Aufwand; ein Fünftel, Elektrofahrzeuge und Fahrräder davon die Hälfte)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. d GewStG", "§ 36 Abs. 4 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1e", "bezeichnung": "Miet- und Pachtzinsen einschließlich Leasingraten für unbewegliche Wirtschaftsgüter des Anlagevermögens (gebuchter Aufwand; die Hälfte)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. e GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1f", "bezeichnung": "Aufwendungen für die zeitlich befristete Überlassung von Rechten (gebuchter Aufwand; ein Viertel)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8 Nr. 1 Buchst. f GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1_summe", "bezeichnung": "Summe der Finanzierungsanteile nach § 8 Nr. 1 Buchst. a bis f", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8 Nr. 1 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_1", "bezeichnung": "Hinzurechnung nach § 8 Nr. 1: ein Viertel der Summe, soweit sie 200.000 € übersteigt", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8 Nr. 1 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_5", "bezeichnung": "Nach § 8b Abs. 1 KStG außer Ansatz bleibende Gewinnanteile aus Beteiligungen unter 15 % zu Beginn des Erhebungszeitraums, nach Abzug der nach § 8b Abs. 5 KStG nicht abziehbaren Betriebsausgaben", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "pflicht": true, "recht": ["§ 8 Nr. 5 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_9", "bezeichnung": "Bei der Körperschaftsteuer abgezogene Zuwendungen nach § 9 Abs. 1 Nr. 2 KStG", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 8 Nr. 9 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.8_10", "bezeichnung": "Ausschüttungsbedingte Gewinnminderungen aus Anteilen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 8 Nr. 10 GewStG"], "hinweis": "Bei einer GmbH hat § 8b Abs. 3 Satz 3 KStG solche Minderungen schon aus dem Gewinn genommen; nicht ein zweites Mal ansetzen.", "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}}
+        ]},
+        {"id": "kuerzungen", "titel": "Kürzungen (§ 9 GewStG)", "zeilen": [
+          {"schluessel": "gewst.9_1", "bezeichnung": "Im Erhebungszeitraum als Betriebsausgabe erfasste Grundsteuer für Grundbesitz im Betriebsvermögen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 9 Nr. 1 Satz 1 GewStG", "§ 36 Abs. 4b GewStG"], "hinweis": "Die Anleitung 2025 erklärt in den Zeilen 83, 85 und 86 noch die Kürzung nach dem Einheitswert; das Gesetz kürzt ab dem Erhebungszeitraum 2025 die erfasste Grundsteuer. Eintragung im Formular prüfen.", "pruefvermerk": {"quelle": "gesetz; elster-gewst-2025, Zeilen 83, 85, 86 widersprechen"}},
+          {"schluessel": "gewst.9_2a", "bezeichnung": "Gewinne aus Anteilen an inländischen Kapitalgesellschaften ab 15 % zu Beginn des Erhebungszeitraums, soweit im Gewinn enthalten", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 9 Nr. 2a GewStG", "§ 9 Nr. 7 GewStG"], "hinweis": "Bei der GmbH meist null: die nach § 8b KStG freien Bezüge stehen nicht im Gewinn, und die 5 % nach § 8b Abs. 5 KStG sind keine Gewinne aus Anteilen (§ 9 Nr. 2a Satz 4 GewStG).", "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.9_5", "bezeichnung": "Zuwendungen zur Förderung steuerbegünstigter Zwecke bis 20 % des um § 8 Nr. 9 erhöhten Gewinns oder 4 Promille der Umsätze, Löhne und Gehälter", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 9 Nr. 5 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}}
+        ]},
+        {"id": "verlust", "titel": "Gewerbeverlust (§ 10a GewStG)", "zeilen": [
+          {"schluessel": "gewst.verlust_vorjahr", "bezeichnung": "Vortragsfähiger Gewerbeverlust zum Schluss des vorangegangenen Erhebungszeitraums laut Feststellungsbescheid", "einheit": "euro_cent", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 10a Satz 6 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.verlust_abzug", "bezeichnung": "Abzug des Gewerbeverlusts (bis 1 Mio. € voll, darüber 60 %)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 10a Satz 1 und 2 GewStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "gewst.verlust_ende", "bezeichnung": "Vortragsfähiger Gewerbeverlust zum Schluss des Erhebungszeitraums (Kontrollrechnung)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 10a Satz 6 GewStG"], "pruefvermerk": {"quelle": "buchfink"}}
+        ]},
+        {"id": "tonnage", "titel": "Gewinn aus Handelsschiffen (§ 5a EStG)", "zeilen": [
+          {"schluessel": "gewst.z100", "zeile": "100 bis 102", "bezeichnung": "Tonnagegewinn nach § 5a EStG", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "elster-gewst-2025, Zeilen 100 bis 102"}}
+        ]}
+      ]
+    },
+    {
+      "id": "Kontrolle",
+      "titel": "Kontrollrechnung (Buchfink, nicht zu übertragen)",
+      "quelle": "buchfink",
+      "abschnitte": [
+        {"id": "messbetrag", "titel": "Gewerbeertrag, Messbetrag und Steuer", "zeilen": [
+          {"schluessel": "gewst.k.ertrag", "bezeichnung": "Gewerbeertrag vor Abrundung", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 7 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.ertrag_gerundet", "bezeichnung": "Gewerbeertrag, auf volle 100 € abgerundet", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 11 Abs. 1 Satz 3 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.messbetrag", "bezeichnung": "Steuermessbetrag (Messzahl 3,5 %; kein Freibetrag für Kapitalgesellschaften)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 11 Abs. 1 und 2 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.hebesatz", "bezeichnung": "Hebesatz der Gemeinde laut Einstellungen", "einheit": "prozent", "zustaendig": "buecher", "recht": ["§ 16 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.steuer", "bezeichnung": "Gewerbesteuer", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 16 Abs. 1 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.vorauszahlungen", "bezeichnung": "Geleistete Vorauszahlungen", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 19 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.ergebnis", "bezeichnung": "Voraussichtliche Abschlusszahlung (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 20 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
+          {"schluessel": "gewst.k.rueckstellung", "bezeichnung": "Gebuchte Gewerbesteuerrückstellung", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
+        ]}
+      ]
+    }
+  ]
+}
