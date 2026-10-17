@@ -578,3 +578,52 @@ func TestDueBackupRunsAsSystem(t *testing.T) {
 		t.Error("der Zeitpunkt der Sicherung fehlt in der Konfiguration")
 	}
 }
+
+// Ein Lesevorgang, der einen Zugriff protokolliert, wartet auf einen
+// laufenden Schreibvorgang, statt mit „database is locked" zu scheitern.
+func TestAccessLogDuringAWriteWaits(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+
+	inside, release := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
+			if _, err := post(ctx, s); err != nil {
+				return err
+			}
+			close(inside)
+			<-release
+			return nil
+		})
+	}()
+	<-inside
+
+	logged := make(chan error, 1)
+	go func() {
+		logged <- tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
+			return s.Repos.Audit.Log(ctx, domain.AuditActionExport, "JOURNAL", "2026", "Journal herausgegeben")
+		})
+	}()
+	time.Sleep(200 * time.Millisecond)
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("Schreibvorgang: %v", err)
+	}
+	if err := <-logged; err != nil {
+		t.Fatalf("der Protokolleintrag scheiterte am Schreibvorgang: %v", err)
+	}
+
+	var chain domain.AuditChainResult
+	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
+		var err error
+		chain, err = s.Audit.VerifyChain(ctx)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !chain.IsValid {
+		t.Errorf("Protokollkette nach parallelem Anhängen gebrochen: %s", chain.Message)
+	}
+}
