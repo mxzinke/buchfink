@@ -25,6 +25,8 @@ export interface DialogProps {
    * meldet ihn hier, und die Rückfrage steht dafür nur an einer Stelle.
    */
   dirty?: boolean;
+  /** Erhält den Fokus nach dem Schließen, wenn der Auslöser nicht mehr steht. */
+  returnFocus?: React.RefObject<HTMLElement | null>;
   children: React.ReactNode;
 }
 
@@ -43,6 +45,7 @@ export const Dialog: React.FC<DialogProps> = ({
   footer,
   width = 'max-w-2xl',
   dirty = false,
+  returnFocus,
   children,
 }) => {
   const [askDiscard, setAskDiscard] = useState(false);
@@ -61,7 +64,7 @@ export const Dialog: React.FC<DialogProps> = ({
     <Base.Root open={open} onOpenChange={handleOpenChange}>
       <Base.Portal>
         <Base.Backdrop className={BACKDROP} />
-        <Base.Popup className={cn(POPUP, PANEL, width)}>
+        <Base.Popup className={cn(POPUP, PANEL, width)} finalFocus={returnFocus}>
           <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-line">
             <Base.Title className="text-heading text-ink">{title}</Base.Title>
             <Base.Close

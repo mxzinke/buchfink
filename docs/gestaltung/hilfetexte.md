@@ -36,12 +36,18 @@ sichtbar und erklärt, wie er behoben werden kann.
 | Ort | Inhalt | Auslöser |
 |---|---|---|
 | Fragezeichen | Ein kurzer Satz in einfachen Worten, ohne Normen oder Links | Hover, Tastaturfokus oder Klick |
-| Detaildialog | Verständliche Hintergründe, Beispiele und verlinkte Rechtsgrundlagen | Dezenter Button „Mehr erfahren“ neben dem Fragezeichen |
+| Detaildialog | Verständliche Hintergründe, Beispiele und verlinkte Rechtsgrundlagen | Dezenter Button „Mehr erfahren“ unter dem Kurztext |
 
-Jedes Fragezeichen verwendet `Help`. Der Tooltip enthält keine interaktiven
-Elemente. Der getrennte Button öffnet einen Dialog; Escape schließt ihn und
-gibt den Fokus zurück. Das funktioniert auch innerhalb eines Eingabedialogs.
-Eine begonnene Eingabe bleibt dabei erhalten.
+Jedes Fragezeichen verwendet `Help`. Es öffnet ein kleines Popover mit dem
+Kurztext. Gibt es Details, steht darunter der Button „Mehr erfahren“, sonst
+enthält das Popover kein Bedienelement. Ein eigener Button neben jedem
+Fragezeichen stünde in jeder Überschrift und jedem Feld und wäre genau der
+Text, den die Arbeitsansicht vermeiden soll.
+
+Über den Tastaturfokus geöffnet, bleibt der Fokus am Fragezeichen; Enter führt
+zu „Mehr erfahren“, Escape schließt. Der Detaildialog gibt den Fokus beim
+Schließen an das Fragezeichen zurück. Das funktioniert auch innerhalb eines
+Eingabedialogs. Eine begonnene Eingabe bleibt dabei erhalten.
 
 `summary` ist der Kurztext. `children` enthält die Details; `onMore` öffnet bei
 Bedarf einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
