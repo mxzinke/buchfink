@@ -77,11 +77,8 @@ type TaskAppropriationSource interface {
 	Appropriation(ctx context.Context, year int) (*domain.Appropriation, error)
 }
 
-// TaskOptions sind die Angaben, die nicht aus einem Dienst kommen.
-//
-// Der Prüfermodus steht an der Bridge und nicht in einem Dienst — er ist eine
-// Eigenschaft der Bedienung, nicht der Buchführung. Er wird deshalb übergeben,
-// statt dass der Dienst die Mandantenkonfiguration kennt.
+// TaskOptions sind die Angaben, die nicht aus einem Dienst kommen. Den
+// Prüfermodus führt der Kern; er wird übergeben.
 type TaskOptions struct {
 	// Today ist der Tag, gegen den gerechnet wird. Leer heißt: heute. Er ist
 	// ein Parameter, weil eine Frist, die sich beim Testen nicht setzen lässt,

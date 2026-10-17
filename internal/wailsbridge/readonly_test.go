@@ -331,36 +331,30 @@ func TestGetAppConfigReportsTheCurrentState(t *testing.T) {
 	}
 }
 
-// Im Prüfermodus darf der geprüfte Mandant nicht gelöscht werden: mit seinem
-// Eintrag ginge die Sperre des Prüfermodus.
-func TestDeleteTenantIsRefusedForTheAuditedTenant(t *testing.T) {
+// Der geprüfte Mandant darf aus der Liste: der Prüfermodus steht in seiner
+// Datenbank und gilt wieder, sobald der Ordner wieder geöffnet wird.
+func TestDeleteTenantKeepsTheExaminerModeInTheData(t *testing.T) {
 	b := testBridge(t)
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
-
-	audited := b.GetAppConfig().ActiveTenantID
-	err := b.DeleteTenant(audited)
-	if err == nil {
-		t.Fatal("der geprüfte Mandant wurde im Prüfermodus gelöscht")
+	cfg := b.GetAppConfig()
+	audited := cfg.ActiveTenant()
+	if err := b.DeleteTenant(audited.ID); err != nil {
+		t.Fatalf("Mandant aus der Liste nehmen: %v", err)
 	}
-	if !strings.Contains(err.Error(), "Prüfermodus") {
-		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
+	if b.GetAppConfig().ReadOnly {
+		t.Error("ohne offenen Mandanten meldet die Konfiguration einen Prüfermodus")
 	}
-	if n := len(b.GetTenants()); n != 1 {
-		t.Errorf("der Mandant steht nicht mehr in der Konfiguration: %d Einträge", n)
+	if err := b.LoadExistingDatabase(filepath.Join(audited.DataDir, "buchfink.sqlite")); err != nil {
+		t.Fatalf("wieder öffnen: %v", err)
 	}
-
-	// Ein anderer Mandant darf gehen — der Modus friert einen Bestand ein und
-	// nicht die Mandantenverwaltung.
-	second, err := b.CreateTenant("Zweiter Mandant", filepath.Join(t.TempDir(), "zweiter"),
-		domain.CompanySettings{FiscalYear: 2026})
-	if err != nil {
-		t.Fatal(err)
+	if got := b.GetAppConfig(); !got.ReadOnly || got.ReadOnlyUntil != until {
+		t.Errorf("nach dem Wiederöffnen fehlt der Prüfermodus: %+v", got)
 	}
-	if err := b.DeleteTenant(second.ID); err != nil {
-		t.Errorf("ein anderer Mandant ließ sich im Prüfermodus nicht entfernen: %v", err)
+	if err := b.UpdateCompanySettings(domain.CompanySettings{CompanyName: "Andere GmbH"}); err == nil {
+		t.Error("der wieder geöffnete Mandant nimmt im Prüfermodus Änderungen an")
 	}
 }
 

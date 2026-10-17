@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,8 +33,6 @@ type Options struct {
 	// Renderer setzt Rechnungen und Abschlüsse. Ohne Angabe bekommt der
 	// Mandant einen eigenen, der mit ihm geschlossen wird.
 	Renderer *invoice.Renderer
-	// Examiner liefert den Stand des Prüfermodus. Ohne Angabe gilt er nie.
-	Examiner func() ExaminerState
 	// BackupDir liefert den eingerichteten Sicherungsordner.
 	BackupDir func() string
 	// Rates holt Referenzkurse. Ohne Angabe die EZB.
@@ -50,13 +47,6 @@ func (o Options) backupDir() string {
 	return o.BackupDir()
 }
 
-// ExaminerState ist der Stand des Prüfermodus eines Mandanten.
-type ExaminerState struct {
-	Active bool
-	Until  string
-	Reason string
-}
-
 // Tenant ist ein offener Mandant.
 type Tenant struct {
 	info        TenantInfo
@@ -67,7 +57,7 @@ type Tenant struct {
 	svc         *Services
 	renderer    *invoice.Renderer
 	ownRenderer bool
-	examiner    func() ExaminerState
+	examiner    examinerCache
 	backupDir   func() string
 	logger      *slog.Logger
 
@@ -111,12 +101,16 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
 		svc:      wire(db, info, renderer, o),
 		renderer: renderer, ownRenderer: own,
-		examiner: o.Examiner, backupDir: o.BackupDir, logger: logger,
+		backupDir: o.BackupDir, logger: logger,
 		write: newWriteLock(),
 	}
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)
 	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), time.Now())
+	if err := t.loadExaminer(ctx); err != nil {
+		_ = t.Close(ctx)
+		return nil, err
+	}
 
 	// Das Geschäftsjahr der Unternehmensdaten besteht auch ohne Buchung.
 	// Scheitert das Anlegen, bleibt der Mandant benutzbar; die Ansicht
@@ -232,7 +226,7 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	defer t.write.unlock()
 
 	if !o.examinerExempt {
-		if err := t.ensureWritable(); err != nil {
+		if err := t.ensureWritable(channel); err != nil {
 			return err
 		}
 	}
@@ -244,29 +238,6 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 		return err
 	}
 	return nil
-}
-
-// Examiner liefert den Stand des Prüfermodus.
-func (t *Tenant) Examiner() ExaminerState {
-	if t.examiner == nil {
-		return ExaminerState{}
-	}
-	return t.examiner()
-}
-
-// ensureWritable weist Schreibvorgänge ab, solange der Prüfermodus gilt.
-func (t *Tenant) ensureWritable() error { return examinerError(t.Examiner()) }
-
-func examinerError(state ExaminerState) error {
-	if !state.Active {
-		return nil
-	}
-	message := fmt.Sprintf("Der Prüfermodus ist bis zum %s aktiv. Bis dahin nimmt die Buchführung keine Änderung auf",
-		germanDate(state.Until))
-	if strings.TrimSpace(state.Reason) != "" {
-		message += fmt.Sprintf(" (Grund: %s)", state.Reason)
-	}
-	return errors.New(message + ".")
 }
 
 // germanDate macht aus 2026-06-30 den 30.06.2026.

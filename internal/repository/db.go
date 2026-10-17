@@ -223,6 +223,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.ProcedureDocumentation{},
 		&domain.BankRule{},
 		&domain.IdempotencyRecord{},
+		&domain.ExaminerPeriod{},
 	)
 }
 

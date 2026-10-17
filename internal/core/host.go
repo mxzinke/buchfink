@@ -181,7 +181,13 @@ func (h *Host) Config() domain.AppConfig {
 func (h *Host) configLocked() domain.AppConfig {
 	cfg := h.cfg
 	cfg.Tenants = append(make([]domain.TenantConfig, 0, len(h.cfg.Tenants)), h.cfg.Tenants...)
-	cfg.SyncActiveTenant(today())
+	cfg.SyncActiveTenant()
+	cfg.ReadOnly, cfg.ReadOnlyUntil, cfg.ReadOnlyReason = false, "", ""
+	if h.current != nil && h.current.ID() == cfg.ActiveTenantID {
+		if state := h.current.Examiner(); state.Active {
+			cfg.ReadOnly, cfg.ReadOnlyUntil, cfg.ReadOnlyReason = true, state.Until, state.Reason
+		}
+	}
 	cfg.ProgramVersion = buildinfo.Version
 	return cfg
 }
@@ -272,15 +278,6 @@ func (h *Host) tenantConfig(id string) (domain.TenantConfig, bool) {
 	return domain.TenantConfig{}, false
 }
 
-// examinerOf liest den Prüfermodus eines Mandanten aus der Konfiguration.
-func (h *Host) examinerOf(id string) ExaminerState {
-	tc, ok := h.tenantConfig(id)
-	if !ok {
-		return ExaminerState{}
-	}
-	return ExaminerState{Active: tc.ReadOnlyActiveOn(today()), Until: tc.ReadOnlyUntil, Reason: tc.ReadOnlyReason}
-}
-
 func (h *Host) backupDirOf(id string) string {
 	tc, _ := h.tenantConfig(id)
 	return tc.BackupDir
@@ -296,7 +293,6 @@ func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error
 	return Open(ctx, tc.DataDir, Options{
 		TenantID: id, TenantName: tc.Name, Generation: gen,
 		Renderer:  h.renderer,
-		Examiner:  func() ExaminerState { return h.examinerOf(id) },
 		BackupDir: func() string { return h.backupDirOf(id) },
 		Rates:     h.opts.Rates,
 		Logger:    h.logger,
@@ -571,9 +567,8 @@ func (h *Host) recordMigration(ctx context.Context, t *Tenant, kind domain.Migra
 	}
 }
 
-// RemoveTenant nimmt einen Mandanten aus der Liste; die Daten bleiben liegen.
-// Ein Mandant im Prüfermodus bleibt: mit dem Eintrag ginge die Sperre, und
-// der Ordner ließe sich ohne sie wieder öffnen.
+// RemoveTenant nimmt einen Mandanten aus der Liste; die Daten bleiben liegen,
+// samt einem laufenden Prüfermodus in ihrer Datenbank.
 func (h *Host) RemoveTenant(ctx context.Context, tenantID string) error {
 	if err := requireApp(ctx); err != nil {
 		return err
@@ -581,9 +576,6 @@ func (h *Host) RemoveTenant(ctx context.Context, tenantID string) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
 
-	if err := examinerError(h.examinerOf(tenantID)); err != nil {
-		return err
-	}
 	h.mu.RLock()
 	wasOpen := h.current != nil && h.current.ID() == tenantID
 	h.mu.RUnlock()

@@ -62,6 +62,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 			Settings: settingsRepo, Festschreibung: festschreibungRepo,
 			FiscalYears: fiscalYearRepo, Migrations: migrationRepo,
 			BackupRuns: backupRunRepo, ExchangeRates: exchangeRateRepo,
+			Examiner: repository.NewExaminerRepository(db),
 		},
 	}
 

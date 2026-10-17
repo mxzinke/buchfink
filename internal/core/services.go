@@ -74,4 +74,5 @@ type Repos struct {
 	Migrations     domain.MigrationRepository
 	BackupRuns     domain.BackupRunRepository
 	ExchangeRates  domain.ExchangeRateRepository
+	Examiner       domain.ExaminerRepository
 }

@@ -253,7 +253,9 @@ func TestAppOnlyWritesRefuseEveryOtherChannel(t *testing.T) {
 	}
 }
 
-// Der Prüfermodus sperrt jeden Schreibvorgang außer den ausgenommenen.
+// Der Prüfermodus sperrt jeden Schreibvorgang der Oberfläche und der Agenten
+// außer den ausgenommenen. Programmläufe ändern die Bücher nicht und laufen
+// weiter.
 func TestExaminerModeBlocksWrites(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
@@ -264,18 +266,23 @@ func TestExaminerModeBlocksWrites(t *testing.T) {
 	if _, err := h.EnableExaminer(uiCtx, until, "Betriebsprüfung 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
-	err := tenant.Write(uiCtx, noop)
-	if err == nil || !strings.Contains(err.Error(), "Betriebsprüfung 2024") {
-		t.Errorf("Schreiben im Prüfermodus: %v", err)
+	for name, ctx := range map[string]context.Context{"App": uiCtx, "Agent": agentCtx(t)} {
+		err := tenant.Write(ctx, noop)
+		if err == nil || !strings.Contains(err.Error(), "Betriebsprüfung 2024") {
+			t.Errorf("%s schreibt im Prüfermodus: %v", name, err)
+		}
+	}
+	if err := tenant.Write(systemCtx, noop); err != nil {
+		t.Errorf("ein Programmlauf wurde abgewiesen: %v", err)
 	}
 	if err := tenant.Write(uiCtx, noop, ExaminerExempt()); err != nil {
 		t.Errorf("ausgenommener Vorgang abgewiesen: %v", err)
 	}
-	if err := tenant.Read(uiCtx, noop); err != nil {
+	if err := tenant.Read(agentCtx(t), noop); err != nil {
 		t.Errorf("Lesen im Prüfermodus: %v", err)
 	}
-	if err := h.RemoveTenant(uiCtx, tenant.ID()); err == nil {
-		t.Error("der geprüfte Mandant ließ sich entfernen")
+	if _, err := tenant.DisableExaminer(agentCtx(t), "Agent will buchen"); !errors.Is(err, ErrAppOnly) {
+		t.Errorf("ein Agent beendet den Prüfermodus: %v", err)
 	}
 	if _, err := h.DisableExaminer(uiCtx, "Prüfung beendet"); err != nil {
 		t.Fatalf("Prüfermodus beenden: %v", err)
@@ -540,10 +547,19 @@ func TestExaminerModeExpires(t *testing.T) {
 	h := newHost(t)
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	if _, err := h.updateTenantConfig(tc.ID, func(t *domain.TenantConfig) error {
-		t.ReadOnlyUntil, t.ReadOnlyReason = yesterday, "abgelaufene Prüfung"
-		return nil
-	}); err != nil {
+	tenant := openTenant(t, h)
+	if tenant.ID() != tc.ID {
+		t.Fatalf("offen ist %s", tenant.ID())
+	}
+	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
+		return s.Repos.Examiner.Create(ctx, &domain.ExaminerPeriod{
+			From: time.Now().AddDate(0, 0, -10).Format("2006-01-02"), Until: yesterday,
+			Reason: "abgelaufene Prüfung",
+		})
+	}, ExaminerExempt()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tenant.loadExaminer(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if cfg := h.Config(); cfg.ReadOnly {
@@ -633,5 +649,80 @@ func TestAccessLogDuringAWriteWaits(t *testing.T) {
 	}
 	if !chain.IsValid {
 		t.Errorf("Protokollkette nach parallelem Anhängen gebrochen: %s", chain.Message)
+	}
+}
+
+// Der Prüfermodus steht in der Mandantendatenbank: er gilt nach dem
+// Neuöffnen, nach dem Entfernen aus der Liste und in einer wiederhergestellten
+// Sicherung weiter. In der App-Konfiguration stünde er nur auf diesem Rechner.
+func TestExaminerModeTravelsWithTheDatabase(t *testing.T) {
+	h := newHost(t)
+	tc := newTenant(t, h, "Pfennig Ventures GmbH")
+	backupDir := t.TempDir()
+	if _, err := h.SetBackupDir(uiCtx, backupDir); err != nil {
+		t.Fatal(err)
+	}
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := h.EnableExaminer(uiCtx, until, "Betriebsprüfung 2023 bis 2025"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+	run, err := h.RunBackup(uiCtx, domain.BackupKindManual)
+	if err != nil {
+		t.Fatalf("Sicherung im Prüfermodus: %v", err)
+	}
+
+	// Aus der Liste genommen und wieder angemeldet: die Sperre ist noch da.
+	if err := h.RemoveTenant(uiCtx, tc.ID); err != nil {
+		t.Fatalf("Mandant entfernen: %v", err)
+	}
+	if _, err := h.RegisterTenant(uiCtx, filepath.Join(tc.DataDir, "buchfink.sqlite"), "", domain.MigrationKindOpen); err != nil {
+		t.Fatalf("wieder anmelden: %v", err)
+	}
+	if cfg := h.Config(); !cfg.ReadOnly || cfg.ReadOnlyUntil != until {
+		t.Errorf("nach dem Wiederanmelden fehlt der Prüfermodus: %+v", cfg)
+	}
+
+	// Und in der wiederhergestellten Sicherung.
+	if _, err := h.RestoreBackup(uiCtx, run.Target, filepath.Join(t.TempDir(), "zurueck")); err != nil {
+		t.Fatalf("Wiederherstellen: %v", err)
+	}
+	restored := openTenant(t, h)
+	if state := restored.Examiner(); !state.Active || state.Reason != "Betriebsprüfung 2023 bis 2025" {
+		t.Errorf("die wiederhergestellte Sicherung kennt den Prüfermodus nicht: %+v", state)
+	}
+	if err := restored.Write(uiCtx, func(context.Context, *Services) error { return nil }); err == nil {
+		t.Error("die wiederhergestellte Sicherung nimmt im Prüfermodus Änderungen an")
+	}
+}
+
+// Ein- und Ausschalten stehen als Zeiträume in der Datenbank; ein neuer
+// Zeitraum löst den laufenden ab, statt ihn zu überschreiben.
+func TestExaminerPeriodsKeepTheirHistory(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	first := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
+	second := time.Now().AddDate(0, 0, 20).Format("2006-01-02")
+	if _, err := tenant.EnableExaminer(uiCtx, first, "Prüfung"); err != nil {
+		t.Fatal(err)
+	}
+	if state, err := tenant.EnableExaminer(uiCtx, second, "Prüfung verlängert"); err != nil || state.Until != second {
+		t.Fatalf("Verlängern: %+v, %v", state, err)
+	}
+	if state, err := tenant.DisableExaminer(uiCtx, "Prüfung beendet"); err != nil || state.Active {
+		t.Fatalf("Beenden: %+v, %v", state, err)
+	}
+	if _, err := tenant.DisableExaminer(uiCtx, "noch einmal"); err == nil {
+		t.Error("ein nicht laufender Prüfermodus ließ sich beenden")
+	}
+	var periods []domain.ExaminerPeriod
+	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
+		return tenant.reader.WithContext(ctx).Order("id").Find(&periods).Error
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(periods) != 2 || periods[0].EndedOn == nil || periods[1].EndedOn == nil ||
+		periods[1].EndReason != "Prüfung beendet" || periods[0].Channel != "ui" {
+		t.Errorf("Verlauf der Zeiträume: %+v", periods)
 	}
 }

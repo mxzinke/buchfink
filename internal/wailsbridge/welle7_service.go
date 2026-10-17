@@ -19,11 +19,8 @@ import (
 
 // --- Aufgabenliste --------------------------------------------------------
 
-// GetTasks liefert die Aufgabenliste in ihren drei Gruppen.
-//
-// Der Prüfermodus wird mitgegeben und nicht im Dienst nachgeschlagen: er ist
-// eine Eigenschaft der Bedienung und steht in der Mandantenkonfiguration, die
-// die Bridge führt.
+// GetTasks liefert die Aufgabenliste in ihren drei Gruppen. Der Prüfermodus
+// kommt aus dem Kern und wird mitgegeben.
 func (b *BuchfinkBridge) GetTasks() (*domain.TaskList, error) {
 	cfg := b.host.Config()
 	opts := service.TaskOptions{FiscalYear: b.viewYear()}

@@ -65,7 +65,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 	}
 
 	// Sync active tenant fields with top-level fields for convenience
-	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
+	cfg.SyncActiveTenant()
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

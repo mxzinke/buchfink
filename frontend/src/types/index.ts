@@ -65,9 +65,6 @@ export interface TenantConfig {
   /** Zielordner der Sicherung. Leer heißt: keine Sicherung eingerichtet. */
   backupDir?: string;
   lastBackupAt?: string;
-  /** Letzter Tag des Prüfermodus (JJJJ-MM-TT). Leer heißt: aus. */
-  readOnlyUntil?: string;
-  readOnlyReason?: string;
 }
 
 export interface AppConfig {
