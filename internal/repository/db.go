@@ -222,6 +222,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.MigrationRecord{},
 		&domain.ProcedureDocumentation{},
 		&domain.BankRule{},
+		&domain.IdempotencyRecord{},
 	)
 }
 
