@@ -32,8 +32,15 @@ type Network struct {
 	VatID     func() service.VatIDClient
 }
 
-// guarded ergänzt die fehlenden Wege und legt den Wächter davor.
-func (n Network) guarded() Network {
+// ErrRatesInExaminerMode: im Prüfermodus holt der Kern keinen Kurs. Ein
+// geholter Kurs würde abgelegt und änderte so den Datenbestand.
+var ErrRatesInExaminerMode = errors.New(
+	"solange der Prüfermodus läuft, holt Buchfink keinen Kurs nach — ein geholter Kurs wäre eine Änderung am Datenbestand")
+
+// guarded ergänzt die fehlenden Wege und legt den Wächter davor. Kurse holt
+// er nicht, solange examinerActive den Prüfermodus meldet; das gilt auch für
+// Lesevorgänge, die einen geholten Kurs sonst ablegen.
+func (n Network) guarded(examinerActive func() bool) Network {
 	if n.Timestamp == nil {
 		n.Timestamp = timestamp.RequestToken
 	}
@@ -51,16 +58,22 @@ func (n Network) guarded() Network {
 			}
 			return stamp(ctx, tsaURL, hash)
 		},
-		Rates: guardedRates{rates},
+		Rates: guardedRates{inner: rates, examinerActive: examinerActive},
 		VatID: func() service.VatIDClient { return guardedVatID{vatIDs()} },
 	}
 }
 
-type guardedRates struct{ inner domain.CurrencyFetcher }
+type guardedRates struct {
+	inner          domain.CurrencyFetcher
+	examinerActive func() bool
+}
 
 func (g guardedRates) RateAt(ctx context.Context, currency, date string) (int64, string, string, error) {
 	if InWrite(ctx) {
 		return 0, "", "", ErrNetworkInWrite
+	}
+	if g.examinerActive != nil && g.examinerActive() {
+		return 0, "", "", ErrRatesInExaminerMode
 	}
 	return g.inner.RateAt(ctx, currency, date)
 }

@@ -97,16 +97,15 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		renderer, own = invoice.NewRenderer(), true
 	}
 	info := TenantInfo{ID: o.TenantID, Name: o.TenantName, DataDir: dataDir}
-	o.Network = o.Network.guarded()
-
 	t := &Tenant{
 		info: info, gen: o.Generation,
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
 		renderer: renderer, ownRenderer: own,
 		backupDir: o.BackupDir, logger: logger,
-		network: o.Network,
-		write:   newWriteLock(),
+		write: newWriteLock(),
 	}
+	o.Network = o.Network.guarded(func() bool { return t.Examiner().Active })
+	t.network = o.Network
 	t.svc, t.repos = wire(db, info, renderer, o)
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)

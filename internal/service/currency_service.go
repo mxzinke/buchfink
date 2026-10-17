@@ -107,9 +107,15 @@ func (s *CurrencyService) RateAt(ctx context.Context, currency, date string) (*d
 				return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
 			}
 			if actual != "" && actual != date {
-				_ = s.rates.SaveRate(ctx, &domain.ExchangeRate{
+				if err := s.rates.SaveRate(ctx, &domain.ExchangeRate{
 					Currency: currency, Date: actual, RateMicros: micros, Source: source,
-				})
+				}); err != nil {
+					return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
+				}
+			}
+			// Kam ein von Hand erfasster Kurs desselben Tages zuvor, gilt er.
+			if stored, err := s.rates.FindRate(ctx, currency, date); err == nil && stored != nil {
+				return stored, nil
 			}
 			return rate, nil
 		}
@@ -156,9 +162,11 @@ func (s *CurrencyService) SaveRate(ctx context.Context, rate domain.ExchangeRate
 	if err := s.rates.SaveRate(ctx, &rate); err != nil {
 		return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
 		"Kurs %s zum %s von Hand erfasst: %.6f (%s)",
-		rate.Currency, rate.Date, rate.Rate(), rate.Source))
+		rate.Currency, rate.Date, rate.Rate(), rate.Source)); err != nil {
+		return nil, err
+	}
 	return &rate, nil
 }
 
@@ -212,6 +220,11 @@ func (s *CurrencyService) SaveVatRate(ctx context.Context, rate domain.VatExchan
 	}
 	if err := s.rates.SaveVatRate(ctx, &rate); err != nil {
 		return nil, fmt.Errorf("der Durchschnittskurs ließ sich nicht speichern: %w", err)
+	}
+	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+		"Umsatzsteuer-Umrechnungskurs %s für %s erfasst: %.6f (%s)",
+		rate.Currency, rate.Month, rate.Rate(), rate.Source)); err != nil {
+		return nil, err
 	}
 	return &rate, nil
 }
@@ -296,9 +309,11 @@ func (s *CurrencyService) ImportVatRatesCSV(ctx context.Context, path string) (*
 		}
 		out.Imported++
 	}
-	s.audit(ctx, domain.AuditActionImport, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionImport, fmt.Sprintf(
 		"Umsatzsteuer-Umrechnungskurse importiert: %d übernommen, %d übergangen (%s)",
-		out.Imported, out.Skipped, path))
+		out.Imported, out.Skipped, path)); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
