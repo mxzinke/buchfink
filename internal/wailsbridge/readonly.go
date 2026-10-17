@@ -259,9 +259,21 @@ var readOnlyAllowed = map[string]bool{
 	"CreateBackup": true,
 	"SetBackupDir": true,
 
-	// Der Haken der Wails-Laufzeit beim Beenden. Er sichert, was da ist, und
-	// ändert nichts an den Büchern.
+	// Die Haken der Wails-Laufzeit. Der Start öffnet den MCP-Server, das Ende
+	// sichert, was da ist; keiner ändert etwas an den Büchern.
+	"ServiceStartup":  true,
 	"ServiceShutdown": true,
+
+	// Verbundene Apps. Zulassungen und Tokens liegen in einer eigenen Datei
+	// neben der App-Konfiguration, nicht in den Büchern; was eine App
+	// schreibt, prüft der Kern bei jedem Vorgang selbst. Gerade im
+	// Prüfermodus muss sich ein Zugriff entziehen lassen.
+	"GetMCPServerStatus":    true,
+	"SetMCPPort":            true,
+	"GetConnectedApps":      true,
+	"RevokeConnectedApp":    true,
+	"GetPendingAppRequests": true,
+	"ResolveAppRequest":     true,
 }
 
 // EnableReadOnly schaltet den Prüfermodus bis zu einem Tag ein. Datum und

@@ -2,6 +2,7 @@ package wailsbridge
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 
 	"github.com/buchfink/buchfink/internal/actor"
@@ -80,10 +81,11 @@ func (b *BuchfinkBridge) SelectBackupFileDialog(title string) (string, error) {
 }
 
 // ServiceShutdown ist der Haken, den die Wails-Laufzeit beim Beenden ruft. Der
-// Kern sichert dabei, wenn seit der letzten Sicherung gearbeitet wurde
-// (Host.Close); Wails wartet auf diesen Aufruf.
+// MCP-Server hört zuerst auf, dann sichert der Kern, wenn seit der letzten
+// Sicherung gearbeitet wurde (Host.Close); Wails wartet auf diesen Aufruf.
 func (b *BuchfinkBridge) ServiceShutdown() error {
-	return b.host.Close(actor.WithChannel(context.Background(), actor.ChannelSystem))
+	ctx := actor.WithChannel(context.Background(), actor.ChannelSystem)
+	return errors.Join(b.stopMCP(ctx), b.host.Close(ctx))
 }
 
 // sameDir meldet, ob zwei Pfade denselben Ordner bezeichnen.

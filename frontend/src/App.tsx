@@ -26,6 +26,7 @@ import { BackupPage } from './pages/BackupPage';
 import { TaxAuditPage } from './pages/TaxAuditPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PostingLockProvider, WriteLockProvider } from './components/WriteLock';
+import { AppConsentDialog } from './components/AppConsentDialog';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
 import { formatDate } from './utils/formatters';
@@ -429,6 +430,7 @@ export function App() {
               className: 'font-sans text-body',
             }}
           />
+          <AppConsentDialog />
           {/* Die Navigation gehört zum Arbeitsbereich und nicht vor ihn: die
               Startansicht beantwortet nur, mit welchem Mandanten gearbeitet
               wird, und eine Navigation daneben führte in Bücher, die noch gar

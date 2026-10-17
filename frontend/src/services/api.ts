@@ -16,6 +16,7 @@ import type {
   AfaRules,
   Anlagenspiegel,
   AppConfig,
+  AppConsentRequest,
   Appropriation,
   AppropriationPreview,
   AppropriationRequest,
@@ -45,6 +46,7 @@ import type {
   ClosingSteps,
   CompanySettings,
   ComplianceHints,
+  ConnectedApp,
   Contact,
   CorrectionResult,
   CustomAccountRequest,
@@ -93,6 +95,7 @@ import type {
   LegalFormInfo,
   ManualEntryRequest,
   MappingReport,
+  MCPServerStatus,
   MigrationRecord,
   MonthCloseState,
   NonDeductibleReport,
@@ -1577,6 +1580,34 @@ export const Api = {
   /** Beendet ihn. Der Grund steht danach im Änderungsprotokoll. */
   disableReadOnly: (reason: string): Promise<AppConfig> =>
     call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
+
+  // --- Verbundene Apps ---------------------------------------------------
+
+  /** Läuft der MCP-Server, auf welchem Port, und wenn nicht: warum. */
+  getMCPServerStatus: (): Promise<MCPServerStatus> =>
+    call(() => Bridge.GetMCPServerStatus() as Promise<MCPServerStatus>),
+  /** Neuer Port; 0 heißt Vorgabe. Ein belegter Port wird gemeldet, nicht umgangen. */
+  setMCPPort: (port: number): Promise<MCPServerStatus> =>
+    call(() => Bridge.SetMCPPort(port) as Promise<MCPServerStatus>),
+  /** Die Apps, denen je zugestimmt wurde, mit Mandanten und letztem Zugriff. */
+  getConnectedApps: (): Promise<ConnectedApp[]> =>
+    call(() => Bridge.GetConnectedApps() as Promise<ConnectedApp[]>).then((apps) =>
+      list(apps).map((app) => ({
+        ...app,
+        tenants: list(app.tenants).map((t) => ({ ...t, scopes: list(t.scopes) })),
+      })),
+    ),
+  /** Entzieht einer App jeden Zugriff; ihr nächster Aufruf scheitert. */
+  revokeConnectedApp: (clientId: string): Promise<void> =>
+    call(() => Bridge.RevokeConnectedApp(clientId)),
+  /** Offene Zustimmungsanfragen, falls ein Ereignis verpasst wurde. */
+  getPendingAppRequests: (): Promise<AppConsentRequest[]> =>
+    call(() => Bridge.GetPendingAppRequests() as Promise<AppConsentRequest[]>).then((requests) =>
+      list(requests).map((r) => ({ ...r, scopes: list(r.scopes) })),
+    ),
+  /** Entscheidet eine Anfrage; die Nonce stammt aus der Anfrage und gilt einmal. */
+  resolveAppRequest: (id: string, nonce: string, approve: boolean): Promise<void> =>
+    call(() => Bridge.ResolveAppRequest(id, nonce, approve)),
 
   // --- Die Bedienung: Aufgaben, Monatsabschluss, Prüfpfad ----------------
 

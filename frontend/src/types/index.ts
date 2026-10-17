@@ -83,6 +83,8 @@ export interface AppConfig {
   readOnlyUntil: string;
   readOnlyReason: string;
   programVersion: string;
+  /** Port des MCP-Servers für verbundene Apps; fehlt er, gilt 7465. */
+  mcpPort?: number;
 }
 
 export interface Account {
@@ -4373,4 +4375,57 @@ export interface CompanyShareholder {
 export interface BankImportPreview {
   accounts: BankAccount[];
   transactions: number;
+}
+
+/** Zustand des MCP-Servers für verbundene Apps. */
+export interface MCPServerStatus {
+  running: boolean;
+  port: number;
+  /** Adresse, die Apps eintragen, z. B. http://127.0.0.1:7465/mcp. */
+  url: string;
+  /** Warum der Server nicht läuft, etwa ein belegter Port; sonst leer. */
+  error: string;
+}
+
+/** Ein Mandant, für den eine App zugelassen ist. */
+export interface ConnectedAppTenant {
+  id: string;
+  name: string;
+  scopes: string[];
+  grantedAt: string;
+}
+
+/** Eine App, der in Buchfink zugestimmt wurde. */
+export interface ConnectedApp {
+  clientId: string;
+  /** Name, den die App bei der Anmeldung angab. */
+  name: string;
+  /** Erfassungsweg an jeder Buchung dieser App, z. B. agent:claude-code. */
+  channel: string;
+  approvedAt: string;
+  /** Leer: nie benutzt. */
+  lastUsedAt: string;
+  tenants: ConnectedAppTenant[];
+  /** Keine gültige Zulassung mehr. */
+  revoked: boolean;
+}
+
+/**
+ * Eine App bittet um Zugriff. Der Browser zeigt denselben Abgleichcode; die
+ * Entscheidung geht mit der Nonce an ResolveAppRequest.
+ */
+export interface AppConsentRequest {
+  id: string;
+  nonce: string;
+  clientName: string;
+  clientId: string;
+  clientRegisteredAt: string;
+  knownSince: string | null;
+  redirectUri: string;
+  redirectTo: string;
+  scopes: string[];
+  tenantId: string;
+  tenantName: string;
+  userCode: string;
+  expiresAt: string;
 }

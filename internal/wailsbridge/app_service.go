@@ -15,6 +15,7 @@ import (
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/xrechnung"
 	"github.com/buchfink/buchfink/internal/einvoice/zugferd"
+	"github.com/buchfink/buchfink/internal/mcpserver"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -25,6 +26,10 @@ import (
 // durch und setzt den Erfassungsweg `ui` (session.go).
 type BuchfinkBridge struct {
 	host *core.Host
+	// mcp ist der Server für verbundene Apps (mcp_service.go); nil, wenn er
+	// sich nicht einrichten ließ, dann steht der Grund in mcpErr.
+	mcp    *mcpserver.Server
+	mcpErr string
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -42,7 +47,9 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &BuchfinkBridge{host: host}, nil
+	b := &BuchfinkBridge{host: host}
+	newMCPServer(b, baseDir)
+	return b, nil
 }
 
 // -------------------------------------------------------------

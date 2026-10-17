@@ -440,4 +440,13 @@ export const bridge = {
   // Prüfermodus
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
   DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),
+
+  // Verbundene Apps (internal/wailsbridge/mcp_service.go)
+  GetMCPServerStatus: <T>() => invoke<T>('GetMCPServerStatus'),
+  SetMCPPort: <T>(port: number) => invoke<T>('SetMCPPort', port),
+  GetConnectedApps: <T>() => invoke<T>('GetConnectedApps'),
+  RevokeConnectedApp: (clientId: string) => invoke<void>('RevokeConnectedApp', clientId),
+  GetPendingAppRequests: <T>() => invoke<T>('GetPendingAppRequests'),
+  ResolveAppRequest: (id: string, nonce: string, approve: boolean) =>
+    invoke<void>('ResolveAppRequest', id, nonce, approve),
 };
