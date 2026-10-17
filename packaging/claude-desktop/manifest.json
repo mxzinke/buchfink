@@ -41,7 +41,7 @@
     "url": {
       "type": "string",
       "title": "Adresse der Buchfink-App",
-      "description": "Nur ändern, wenn in Buchfink unter Verbundene Apps ein anderer Port eingestellt ist.",
+      "description": "Nur ändern, wenn in Buchfink unter Einstellungen → Apps verbinden ein anderer Port eingestellt ist.",
       "default": "http://127.0.0.1:7465/mcp",
       "required": false
     }

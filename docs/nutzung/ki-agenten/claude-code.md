@@ -76,7 +76,7 @@ Anmeldung gerade selbst gestartet haben. Sonst klicken Sie auf **Ablehnen**. Die
 Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den geöffneten
 Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink und melden
 sich erneut an. Entziehen können Sie den Zugriff jederzeit in Buchfink unter
-Einstellungen → Verbundene Apps.
+Einstellungen → Apps verbinden.
 
 ## Prüfen, ob es geht
 
@@ -117,7 +117,7 @@ als Werkzeug. Das erledigen Sie in Buchfink.
 | Bild | Ursache | Abhilfe |
 |---|---|---|
 | `claude mcp list` zeigt „Failed to connect“ mit `ECONNREFUSED` | Buchfink ist nicht geöffnet, oder der Zugang läuft auf einem anderen Port. | Buchfink starten. In `/mcp` den Server neu verbinden. |
-| Buchfink meldet unter Einstellungen → Verbundene Apps, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen. Plugin-Server in `/mcp` abschalten und den Server ohne Plugin mit der neuen Adresse eintragen, dann neu anmelden. |
+| Buchfink meldet unter Einstellungen → Apps verbinden, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen. Plugin-Server in `/mcp` abschalten und den Server ohne Plugin mit der neuen Adresse eintragen, dann neu anmelden. |
 | „Needs authentication“ | Anmeldung abgelaufen oder in Buchfink entzogen. | Erneut anmelden (Schritt 3). |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |

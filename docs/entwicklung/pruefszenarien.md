@@ -35,7 +35,7 @@ sind als Go-Tests geschrieben und laufen mit `task test`.
    des Testmandanten.
 6. Einen Vorgang anstoßen, der der App vorbehalten ist, etwa die
    Festschreibung. Erwartet: kein Werkzeug dafür, oder der Fehler `nur_in_app`.
-7. In den Einstellungen unter „Verbundene Apps“ den Zugriff entziehen.
+7. In den Einstellungen unter „Apps verbinden“ den Zugriff entziehen.
    Erwartet: der nächste Aufruf scheitert.
 
 ## Fachliche Abläufe

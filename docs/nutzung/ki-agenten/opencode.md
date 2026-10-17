@@ -61,7 +61,7 @@ Anmeldung gerade selbst gestartet haben. Sonst klicken Sie auf **Ablehnen**. Die
 Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den geöffneten
 Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink und melden
 sich erneut an. Entziehen können Sie den Zugriff jederzeit in Buchfink unter
-Einstellungen → Verbundene Apps.
+Einstellungen → Apps verbinden.
 
 ## Prüfen, ob es geht
 
@@ -97,7 +97,7 @@ Das erledigen Sie in Buchfink.
 | Bild | Ursache | Abhilfe |
 |---|---|---|
 | `opencode mcp list` zeigt `buchfink` als nicht verbunden | Buchfink ist nicht geöffnet, oder der Zugang läuft auf einem anderen Port. | Buchfink starten. `opencode mcp debug buchfink` prüft Verbindung und Anmeldung. |
-| Buchfink meldet unter Einstellungen → Verbundene Apps, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, `url` in `opencode.json` anpassen, `opencode mcp logout buchfink` und neu anmelden. |
+| Buchfink meldet unter Einstellungen → Apps verbinden, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, `url` in `opencode.json` anpassen, `opencode mcp logout buchfink` und neu anmelden. |
 | Anmeldung abgelaufen oder in Buchfink entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | `opencode mcp auth buchfink` wiederholen. |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |

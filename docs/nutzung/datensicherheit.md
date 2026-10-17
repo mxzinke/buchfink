@@ -98,7 +98,7 @@ Buchfink ist dafür selbst Autorisierungsserver nach OAuth 2.1 mit PKCE.
 - Ein Zugriffstoken gilt zehn Minuten, ein Erneuerungstoken 30 Tage; nach 180
   Tagen ist eine neue Anmeldung nötig. Buchfink speichert Codes und Tokens nur
   als SHA-256-Hash.
-- In den Einstellungen unter „Verbundene Apps“ sehen Sie jede zugelassene App
+- In den Einstellungen unter „Apps verbinden“ sehen Sie jede zugelassene App
   und entziehen ihr den Zugriff. Ihr nächster Aufruf scheitert.
 - Zulassung und Entzug protokolliert Buchfink im Änderungsprotokoll des
   geöffneten Mandanten. Einzelne Lesezugriffe einer App protokolliert es nicht.

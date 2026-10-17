@@ -64,7 +64,7 @@ selbst ein Buchfink-Werkzeug aufgerufen haben. Sonst klicken Sie auf
 **Ablehnen**. Die Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den
 geöffneten Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink;
 der nächste Werkzeugaufruf fragt dann erneut an. Entziehen können Sie den
-Zugriff jederzeit in Buchfink unter Einstellungen → Verbundene Apps.
+Zugriff jederzeit in Buchfink unter Einstellungen → Apps verbinden.
 
 ## Prüfen, ob es geht
 
@@ -86,7 +86,7 @@ Sie in Buchfink.
 |---|---|---|
 | Werkzeuge antworten mit `app_nicht_geoeffnet` | Buchfink ist nicht geöffnet. | Buchfink starten, Aufruf wiederholen. |
 | Unter macOS startet die Erweiterung nicht, oder macOS meldet, `buchfink-mcp` sei blockiert | Die Brücke in der Erweiterung ist nicht signiert und nicht notarisiert. | Systemeinstellungen → Datenschutz & Sicherheit öffnen und bei der Meldung zu `buchfink-mcp` die Ausführung erlauben. Ohne Meldung dort im Terminal die Quarantäne-Markierung entfernen: `xattr -dr com.apple.quarantine "$HOME/Library/Application Support/Claude"`. Danach Claude Desktop neu starten. |
-| Buchfink meldet unter Einstellungen → Verbundene Apps, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen. In Claude Desktop unter Settings → Extensions → Buchfink die „Adresse der Buchfink-App“ auf `http://127.0.0.1:<Port>/mcp` setzen. |
+| Buchfink meldet unter Einstellungen → Apps verbinden, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen. In Claude Desktop unter Settings → Extensions → Buchfink die „Adresse der Buchfink-App“ auf `http://127.0.0.1:<Port>/mcp` setzen. |
 | Werkzeuge antworten mit `anmeldung_erforderlich` | Die Erweiterung wartet auf Ihre Zustimmung in Buchfink. | Im Fenster von Buchfink zulassen, dann den Aufruf wiederholen. |
 | Werkzeuge antworten mit `anmeldung_abgelehnt` | In Buchfink wurde auf Ablehnen geklickt. | Aufruf wiederholen und diesmal zulassen. |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |

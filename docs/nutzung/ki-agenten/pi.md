@@ -54,7 +54,7 @@ Anmeldung gerade selbst gestartet haben. Sonst klicken Sie auf **Ablehnen**. Die
 Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den geöffneten
 Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink und melden
 sich erneut an. Entziehen können Sie den Zugriff jederzeit in Buchfink unter
-Einstellungen → Verbundene Apps.
+Einstellungen → Apps verbinden.
 
 ## Prüfen, ob es geht
 
@@ -99,7 +99,7 @@ als Werkzeug. Das erledigen Sie in Buchfink.
 | Bild | Ursache | Abhilfe |
 |---|---|---|
 | `pi mcp list` meldet `buchfink` als nicht verbunden | Buchfink ist nicht geöffnet, oder der Zugang läuft auf einem anderen Port. | Buchfink starten. In der Sitzung über `/mcp` neu verbinden. |
-| Buchfink meldet unter Einstellungen → Verbundene Apps, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, `pi mcp remove buchfink`, Schritt 2 mit der neuen Adresse wiederholen, neu anmelden. |
+| Buchfink meldet unter Einstellungen → Apps verbinden, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, `pi mcp remove buchfink`, Schritt 2 mit der neuen Adresse wiederholen, neu anmelden. |
 | `/mcp` zeigt, dass eine Anmeldung nötig ist | Anmeldung abgelaufen oder in Buchfink entzogen. | `pi mcp login buchfink` wiederholen. |
 | Das Modell findet die Buchfink-Werkzeuge nicht | Der Server steht auf `codemode`. | In `/mcp` die Freigabe auf `direct` stellen. |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
