@@ -1,19 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Database,
-  FolderOpen,
-  Plus,
-  PlusCircle,
-  Scale,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react';
-import { CompanySettings, ContributionKind, FoundationRules } from '../types';
+import { ArrowLeft, ArrowRight, Check, Database, FolderOpen, HardDrive } from 'lucide-react';
+import type { CompanySettings, ConnectedApp, MCPServerStatus } from '../types';
 import { Api } from '../services/api';
-import { formatCents, parseCents } from '../utils/formatters';
+import { FEDERAL_STATES, LEGAL_FORMS } from '../utils/companyLabels';
+import { AgentClientCommands } from './AgentClients';
 import { GermanFlag } from './GermanFlag';
 import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
@@ -23,26 +13,12 @@ interface SetupAssistantScreenProps {
   isAdditionalTenant?: boolean;
 }
 
-/**
- * Die Rechtsformen der Ersteinrichtung.
- *
- * Sie stehen hier als Liste und nicht als Abfrage aus der Bridge: die
- * Einrichtung läuft, bevor ein Mandant existiert. Die Schreibweisen müssen zu
- * `domain.LegalFormCatalog` passen, sonst weist das Backend den Mandanten ab.
- */
-const LEGAL_FORMS = ['GmbH', 'UG (haftungsbeschränkt)'];
+type Start = 'founding' | 'switch';
 
 /**
- * Die Pfadbestandteile bekannter Synchronisationsordner (Entscheidung 15,
- * ARC-06).
- *
- * Sie stehen hier, weil der Assistent noch keinen Mandanten hat: der Hinweis
- * aus dem Backend (`GetComplianceHints` → `domain.CloudFolderWarning`) prüft
- * den gespeicherten Datenordner, und gespeichert ist an dieser Stelle noch
- * nichts. Gerade hier zählt er aber am meisten — der Ordner wird in diesem
- * Schritt gewählt, und einen Umzug des Datenordners gibt es in dieser Fassung
- * nicht; der Hinweis in den Einstellungen käme also zu spät. Die Liste
- * spiegelt `cloudFolderMarkers` in internal/domain/datadir.go.
+ * Die Pfadbestandteile bekannter Synchronisationsordner. Sie stehen hier, weil
+ * es vor der Einrichtung keinen Mandanten gibt, den das Backend prüfen könnte;
+ * die Liste spiegelt `cloudFolderMarkers` in internal/domain/datadir.go.
  */
 const CLOUD_FOLDER_MARKERS: Array<{ needle: string; name: string }> = [
   { needle: 'onedrive', name: 'OneDrive' },
@@ -56,330 +32,312 @@ const CLOUD_FOLDER_MARKERS: Array<{ needle: string; name: string }> = [
   { needle: 'magentacloud', name: 'MagentaCLOUD' },
 ];
 
-/**
- * Der Name des Synchronisationsdienstes im Pfad; leer heißt unauffällig.
- *
- * Erkannt wird am Namen und nicht am Dateisystem — die Anbieter legen ihre
- * Ordner unter diesen Namen an, und der Assistent kann den Dienst nicht fragen.
- */
 function cloudFolderName(path: string): string {
   const lowered = path.replace(/\\/g, '/').toLowerCase();
-  for (const marker of CLOUD_FOLDER_MARKERS) {
-    if (lowered.includes(marker.needle)) return marker.name;
-  }
-  return '';
+  return CLOUD_FOLDER_MARKERS.find((m) => lowered.includes(m.needle))?.name ?? '';
 }
 
-/** Eine Zeile der Gesellschafterliste, solange sie in der Maske steht. */
-interface ShareholderDraft {
-  name: string;
-  shareCapital: string;
-  paidIn: string;
-  kind: ContributionKind;
+/** Ein Ordnername aus der Firma: „Nordlicht Systeme GmbH" → „nordlicht-systeme-gmbh". */
+function folderOf(company: string): string {
+  const slug = company
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `~/Buchfink/${slug || 'mandant'}`;
 }
 
-const emptyShareholder = (): ShareholderDraft => ({
-  name: '',
-  shareCapital: '',
-  paidIn: '',
-  kind: 'cash',
-});
+const MONTHS = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
 
-/**
- * Feld auf der Schale. Gleiche Anordnung wie `Field`, dunkle Rollen (§16).
- *
- * `labelHidden` blendet die Beschriftung aus, ohne sie wegzulassen: In einer
- * Liste gleichartiger Zeilen steht sie nur über der ersten, jede weitere braucht
- * sie trotzdem — für die Vorlesesoftware und damit die Zeilen gleich hoch
- * bleiben.
- */
+/** Das Geschäftsjahr, in das ein Tag fällt, wie `domain.GetFiscalYearForDate`. */
+function fiscalYearOf(date: string, startMonth: number): number {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  return startMonth > 1 && month < startMonth ? year - 1 : year;
+}
+
+/** Die Angaben, die die Einrichtung nicht fragt, mit den Voreinstellungen des Backends. */
+const DEFAULTS: CompanySettings = {
+  companyName: '',
+  legalForm: 'GmbH',
+  fiscalYear: new Date().getFullYear(),
+  fiscalYearStartMonth: 1,
+  taxNumber: '',
+  vatId: '',
+  taxOffice: '',
+  iban: '',
+  bic: '',
+  bankName: '',
+  street: '',
+  addressAddition: '',
+  postalCode: '',
+  city: '',
+  countryCode: 'DE',
+  foundedOn: '',
+  notary: '',
+  deedNumber: '',
+  shareCapital: 0,
+  shareholders: [],
+  contactName: '',
+  contactPhone: '',
+  contactEmail: '',
+  invoiceNumberFormat: '',
+  receiptNumberFormat: '',
+  seat: '',
+  registerCourt: '',
+  registerNumber: '',
+  currency: 'EUR',
+  skr: 'SKR04',
+  vatPeriod: 'unknown',
+  taxationType: 'SOLL',
+  permanentExtension: false,
+  specialPrepayment: 0,
+  receiptCaptureDays: 10,
+  commitGraceDays: 0,
+  invoiceCheckThreshold: 0,
+  investorOverride: '',
+};
+
 const ShellField: React.FC<{
   label: string;
   hint?: string;
-  labelHidden?: boolean;
+  error?: string;
   className?: string;
   children: React.ReactNode;
-}> = ({ label, hint, labelHidden = false, className, children }) => (
-  <label className={cn('flex flex-col gap-1 min-w-0', className)}>
-    <span className={cn('text-label text-shell-text-muted', labelHidden && 'sr-only')}>{label}</span>
-    {children}
-    {hint && <span className="text-caption text-shell-text-muted">{hint}</span>}
-  </label>
+}> = ({ label, hint, error, className, children }) => (
+  <div className={cn('flex flex-col gap-1 min-w-0', className)}>
+    <label className="flex flex-col gap-1 min-w-0">
+      <span className="text-label text-shell-text-muted">{label}</span>
+      {children}
+    </label>
+    {error ? (
+      <span role="alert" className="text-caption text-shell-negative">
+        {error}
+      </span>
+    ) : (
+      hint && <span className="text-caption text-shell-text-muted">{hint}</span>
+    )}
+  </div>
 );
 
+/** Zwei bis drei Wahlmöglichkeiten nebeneinander, auf der Schale. */
+function ShellChoice<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string; hint?: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-label text-shell-text-muted">{label}</span>
+      <div role="radiogroup" aria-label={label} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                'rounded-control border px-3 py-2 text-left transition-colors duration-120 ease-quiet',
+                active
+                  ? 'border-accent-light bg-shell-raised text-white'
+                  : 'border-shell-line text-shell-text hover:bg-shell-raised',
+              )}
+            >
+              <span className="block text-body">{option.label}</span>
+              {option.hint && <span className="block text-caption text-shell-text-muted mt-0.5">{option.hint}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
- * Der Einrichtungsassistent. Je Schritt eine Entscheidung, und auf jedem Schirm
- * genau eine Primäraktion (§8.2). Er gehört zur Schale (§16) und steht deshalb
- * auf dunklem Grund.
- *
+ * Die Einrichtung in zwei Schritten: das Unternehmen mit dem, was die Bücher
+ * von Anfang an brauchen, und die Verbindung zu einer KI-App. Alles Weitere
+ * erledigt der Agent im Gespräch oder der Mensch später in den Stammdaten.
  */
 export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   onSetupCompleted,
   onCancel,
   isAdditionalTenant = false,
 }) => {
-  const currentYear = new Date().getFullYear();
-  const [setupChoice, setSetupChoice] = useState<'new' | 'existing' | null>(null);
-  const [step, setStep] = useState(1);
+  const [mode, setMode] = useState<'new' | 'existing'>('new');
+  const [step, setStep] = useState<1 | 2>(1);
 
-  const [dataDir, setDataDir] = useState('~/.buchfink/data');
-  const [existingDbPath, setExistingDbPath] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [legalForm, setLegalForm] = useState(LEGAL_FORMS[0].value);
+  const [start, setStart] = useState<Start>('founding');
+  const [startDate, setStartDate] = useState('');
+  const [startMonth, setStartMonth] = useState(1);
+  const [federalState, setFederalState] = useState('');
+  const [nonProfit, setNonProfit] = useState(false);
+  const [inLiquidation, setInLiquidation] = useState(false);
+  const [fiscalUnity, setFiscalUnity] = useState(false);
 
-  const [settings, setSettings] = useState<CompanySettings>({
-    companyName: '',
-    legalForm: 'GmbH',
-    fiscalYear: currentYear,
-    fiscalYearStartMonth: 1,
-    taxNumber: '',
-    vatId: '',
-    taxOffice: '',
-    iban: '',
-    bic: '',
-    bankName: '',
-    street: '',
-    addressAddition: '',
-    postalCode: '',
-    city: '',
-    countryCode: 'DE',
-    foundedOn: '',
-    notary: '',
-    deedNumber: '',
-    shareCapital: 0,
-    shareholders: [],
-    // Ansprechpartner und Nummernformat werden in den Einstellungen gepflegt.
-    // Sie hier abzufragen verlängerte die Einrichtung um Angaben, die erst die
-    // erste Rechnung braucht — und das Nummernformat hat eine Voreinstellung.
-    contactName: '',
-    contactPhone: '',
-    contactEmail: '',
-    invoiceNumberFormat: '',
-    // Leer heißt: die Voreinstellung des Belegnummernkreises (BEL-02).
-    receiptNumberFormat: '',
-    // Die Pflichtangaben des § 264 Abs. 1a HGB stehen erst nach der Eintragung
-    // fest; die Eintragung der Gründung trägt sie später nach.
-    seat: '',
-    registerCourt: '',
-    registerNumber: '',
-    currency: 'EUR',
-    skr: 'SKR04',
-    vatPeriod: 'unknown',
-    taxationType: 'SOLL',
-    // Die Dauerfristverlängerung wird beantragt, nicht vorausgesetzt; die
-    // Schwellenwerte der Prüfläufe stehen auf ihren Voreinstellungen
-    // (GoBD Rz. 47: zehn Tage, Festschreibung bis Ende des Folgemonats).
-    permanentExtension: false,
-    specialPrepayment: 0,
-    receiptCaptureDays: 10,
-    commitGraceDays: 0,
-    // Null heißt hier: die Voreinstellung des Backends gilt — tausend Euro für
-    // den Leistungsnachweis. Sie hier zu wiederholen wäre eine zweite Wahrheit,
-    // und die Einrichtung fragt zu Recht nicht danach.
-    invoiceCheckThreshold: 0,
-    // Leer heißt: die Anlegerstellung für § 20 InvStG folgt aus der
-    // Rechtsform.
-    investorOverride: '',
-  });
+  const [dataDir, setDataDir] = useState(folderOf(''));
+  const [dirTouched, setDirTouched] = useState(false);
+  const [dirOpen, setDirOpen] = useState(false);
+  const [dirCheck, setDirCheck] = useState<{ path: string; error: string | null } | null>(null);
 
-  /**
-   * Die Kapitalaufbringungsregeln kommen aus dem Backend, nicht aus einer
-   * zweiten Liste hier: Mindestkapital und Einzahlungsquote sind Recht, und
-   * Recht gehört an eine Stelle. Der Aufruf braucht keinen Mandanten — er liest
-   * einen Katalog, keine Datenbank. Bleibt er ohne Antwort, läuft die
-   * Einrichtung ohne Gründungsschritt weiter; ohne Backend ließe sie sich
-   * ohnehin nicht abschließen.
-   */
-  const [foundationRules, setFoundationRules] = useState<FoundationRules[]>([]);
-  useEffect(() => {
-    Api.getFoundationRules()
-      .then(setFoundationRules)
-      .catch(() => setFoundationRules([]));
-  }, []);
-
-  const rules = foundationRules.find((r) => r.legalForm === settings.legalForm) ?? null;
-  const isCapitalCompany = rules !== null;
-
-  const [notRegistered, setNotRegistered] = useState(false);
-  const [captureFoundation, setCaptureFoundation] = useState(false);
-  const isFoundingCase = notRegistered || captureFoundation;
-  const [notarizedOn, setNotarizedOn] = useState('');
-  const [registeredOn, setRegisteredOn] = useState('');
-  const [registerCourt, setRegisterCourt] = useState('');
-  const [registerNumber, setRegisterNumber] = useState('');
-  const [shareCapital, setShareCapital] = useState('');
-  const [foundationCostCap, setFoundationCostCap] = useState('');
-  const [shareholders, setShareholders] = useState<ShareholderDraft[]>([emptyShareholder()]);
-  const [vatReason, setVatReason] = useState('');
-
+  const [existingPath, setExistingPath] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [tenantCreated, setTenantCreated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const patch = (next: Partial<CompanySettings>) => setSettings({ ...settings, ...next });
+  const [status, setStatus] = useState<MCPServerStatus | null>(null);
+  const [connected, setConnected] = useState<ConnectedApp[]>([]);
+  const [tenantId, setTenantId] = useState('');
 
-  const stepTitles = [
-    'Speicherort',
-    isCapitalCompany ? 'Unternehmen und Gründung' : 'Unternehmen',
-    'Steuern',
-  ];
-  const stepCount = stepTitles.length;
-  const currentTitle = stepTitles[step - 1] ?? '';
-  const isFoundingStep = isCapitalCompany && step === 2;
-  const isNewCompany = isCapitalCompany && isFoundingCase === true;
-  const firstYearDate = isCapitalCompany ? (isNewCompany ? notarizedOn : registeredOn) : '';
-  const fiscalYear = firstYearDate.length === 10 ? Number(firstYearDate.slice(0, 4)) : settings.fiscalYear;
-
-  const cloudFolder = cloudFolderName(dataDir);
-  const [directorySelection, setDirectorySelection] = useState(0);
-  const [directoryCheck, setDirectoryCheck] = useState<{ path: string; error: string | null } | null>(null);
-  const directoryChecked = directoryCheck?.path === dataDir;
-  const directoryError = directoryChecked ? directoryCheck.error : null;
-  const directoryValid = directoryChecked && !directoryError;
+  // Der Ordner folgt der Firma, bis jemand ihn selbst wählt.
+  useEffect(() => {
+    if (!dirTouched) setDataDir(folderOf(companyName));
+  }, [companyName, dirTouched]);
 
   useEffect(() => {
-    if (setupChoice !== 'new' || step !== 1 || tenantCreated) return;
+    if (mode !== 'new' || step !== 1) return;
     let active = true;
-    setDirectoryCheck(null);
-    Api.validateTenantDirectory(dataDir).then(
-      () => { if (active) setDirectoryCheck({ path: dataDir, error: null }); },
-      (e) => { if (active) setDirectoryCheck({ path: dataDir, error: e instanceof Error ? e.message : String(e) }); },
-    );
-    return () => { active = false; };
-  }, [dataDir, directorySelection, setupChoice, step, tenantCreated]);
+    const timer = window.setTimeout(() => {
+      Api.validateTenantDirectory(dataDir).then(
+        () => active && setDirCheck({ path: dataDir, error: null }),
+        (e) => active && setDirCheck({ path: dataDir, error: e instanceof Error ? e.message : String(e) }),
+      );
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [dataDir, mode, step]);
 
-  async function pickDataDirectory() {
+  // Im zweiten Schritt: der Stand des Servers und die Apps, die sich schon
+  // angemeldet haben. Die Zustimmung selbst steht als Dialog über dem Schirm.
+  useEffect(() => {
+    if (step !== 2) return;
+    let active = true;
+    const poll = () => {
+      Api.getMCPServerStatus()
+        .then((s) => active && setStatus(s))
+        .catch(() => undefined);
+      Api.getConnectedApps()
+        .then((apps) => active && setConnected(apps.filter((app) => !app.revoked)))
+        .catch(() => undefined);
+    };
+    poll();
+    const timer = window.setInterval(poll, 3000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [step]);
+
+  const dirError = dirCheck?.path === dataDir ? dirCheck.error : null;
+  const dirValid = dirCheck?.path === dataDir && !dirCheck.error;
+  const cloudFolder = cloudFolderName(dataDir);
+  const exclusions = [nonProfit, inLiquidation, fiscalUnity].some(Boolean);
+
+  const dateComplete = /^\d{4}-\d{2}-\d{2}$/.test(startDate);
+  const startError =
+    dateComplete && start === 'switch' && !startDate.endsWith('-01')
+      ? 'Ein Umstieg beginnt am ersten Tag eines Geschäftsjahres.'
+      : dateComplete && Number(startDate.slice(0, 4)) > new Date().getFullYear() + 1
+        ? 'So weit im Voraus lassen sich keine Bücher anlegen.'
+        : '';
+  const ready = companyName.trim() !== '' && dateComplete && !startError && federalState !== '' && dirValid;
+
+  async function createTenant() {
+    if (!ready) return;
+    setSubmitting(true);
+    setError(null);
+    const month = start === 'switch' ? Number(startDate.slice(5, 7)) : startMonth;
     try {
-      const selected = await Api.selectDirectoryDialog('Buchfink Datenordner auswählen');
+      await Api.setupApplication(dataDir, {
+        ...DEFAULTS,
+        companyName: companyName.trim(),
+        legalForm,
+        federalState,
+        fiscalYearStartMonth: month,
+        fiscalYear: fiscalYearOf(startDate, month),
+        // Bei einer Gründung beginnen die Bücher mit der Beurkundung; das
+        // erste Geschäftsjahr richtet sich danach.
+        foundedOn: start === 'founding' ? startDate : '',
+        nonProfit,
+        inLiquidation,
+        fiscalUnity,
+      });
+      const tenant = await Api.getActiveTenant().catch(() => null);
+      setTenantId(tenant?.id ?? '');
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function pickDirectory() {
+    try {
+      const selected = await Api.selectDirectoryDialog('Ordner für Buchungsdaten und Belege wählen');
       if (selected) {
+        setDirTouched(true);
         setDataDir(selected);
-        setDirectoryCheck(null);
-        setDirectorySelection((value) => value + 1);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
 
-  async function pickDatabaseFile() {
+  async function pickDatabase() {
     try {
-      const selected = await Api.selectDatabaseFileDialog('Buchfink Buchhaltungsdatei auswählen');
-      if (selected) setExistingDbPath(selected);
+      const selected = await Api.selectDatabaseFileDialog('Buchfink-Datei auswählen');
+      if (selected) setExistingPath(selected);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
 
-  // Der Hinweis zum Meldezeitraum kommt aus dem Backend; die Auswahl bleibt beim Anwender.
-  async function applyFoundingDate(date: string) {
-    setNotarizedOn(date);
-    if (date.length !== 10) return;
-    const year = Number(date.slice(0, 4));
-    if (!Number.isFinite(year) || year < 1900) return;
-
-    try {
-      const recommendation = await Api.getRecommendedVatPeriod(year);
-      setVatReason(recommendation.reason);
-    } catch {
-      // Die Auswahl bleibt ohne Empfehlung offen.
-    }
-  }
-
-  const subscribedCapital = shareholders.reduce(
-    (sum, s) => sum + (parseCents(s.shareCapital) ?? 0),
-    0
-  );
-  const capitalTarget = parseCents(shareCapital) ?? 0;
-  const paidInTotal = shareholders.reduce((sum, s) => sum + (parseCents(s.paidIn) ?? 0), 0);
-
-  /**
-   * Was die Anmeldung verlangt, gerechnet wie im Backend: ein Anteil je
-   * Geschäftsanteil, eine Untergrenze für die Summe. Hier steht es nur, um es
-   * schon während der Eingabe zu zeigen — verbindlich prüft der Dienst.
-   */
-  const requiredPaidIn = (() => {
-    if (!rules) return 0;
-    const perShare = shareholders.reduce((sum, s) => {
-      const share = parseCents(s.shareCapital) ?? 0;
-      if (s.kind === 'kind') return sum + share;
-      return sum + Math.ceil(share * rules.paidInPerShareQuota);
-    }, 0);
-    const floor = rules.paidInFloorIsFullCapital ? capitalTarget : rules.paidInFloor;
-    return Math.max(perShare, floor);
-  })();
-
-  const capitalMatches = capitalTarget > 0 && subscribedCapital === capitalTarget;
-  const today = new Date().toLocaleDateString('en-CA');
-  const registrationComplete = notRegistered || (
-    /^\d{4}-\d{2}-\d{2}$/.test(registeredOn) && registeredOn <= today
-  );
-  const foundingComplete = registrationComplete && (
-    !isFoundingCase ||
-    (isFoundingCase &&
-      notarizedOn.length === 10 &&
-      (notRegistered || notarizedOn <= registeredOn) &&
-      capitalMatches &&
-      shareholders.every((s) => s.name.trim() !== '' && (parseCents(s.shareCapital) ?? 0) > 0)));
-
-  function patchShareholder(index: number, next: Partial<ShareholderDraft>) {
-    setShareholders((prev) => prev.map((s, i) => (i === index ? { ...s, ...next } : s)));
-  }
-
-  async function finish() {
-    setSubmitting(true);
-    setError(null);
-    try {
-      if (!tenantCreated) {
-        await Api.setupApplication(dataDir, {
-          ...settings,
-          fiscalYear,
-          registeredOn: isCapitalCompany && !notRegistered ? registeredOn : '',
-          registerCourt: isCapitalCompany && !notRegistered ? registerCourt.trim() : '',
-          registerNumber: isCapitalCompany && !notRegistered ? registerNumber.trim() : '',
-        });
-        setTenantCreated(true);
-      }
-
-      // Die Gründung erst danach: sie gehört in die Datenbank des Mandanten,
-      // den der Aufruf oben gerade angelegt hat.
-      if (isCapitalCompany && isFoundingCase && notarizedOn.length === 10) {
-        await Api.saveFoundation({
-          notarizedOn,
-          registeredOn: notRegistered ? '' : registeredOn,
-          registerCourt: notRegistered ? '' : registerCourt.trim(),
-          registerNumber: notRegistered ? '' : registerNumber.trim(),
-          shareCapital: capitalTarget,
-          foundationCostCap: parseCents(foundationCostCap) ?? 0,
-          shareholders: shareholders.map((s) => ({
-            id: 0,
-            foundationId: 0,
-            name: s.name.trim(),
-            shareCapital: parseCents(s.shareCapital) ?? 0,
-            paidIn: parseCents(s.paidIn) ?? 0,
-            kind: s.kind,
-          })),
-        });
-      }
-      onSetupCompleted();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function loadExisting(e: React.FormEvent) {
+  async function openExisting(e: React.FormEvent) {
     e.preventDefault();
-    if (!existingDbPath.trim()) return;
+    if (!existingPath.trim()) return;
     setSubmitting(true);
     setError(null);
     try {
-      await Api.loadExistingDatabase(existingDbPath.trim());
+      await Api.loadExistingDatabase(existingPath.trim());
       onSetupCompleted();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
   }
+
+  const helpTone = 'text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text';
+  const tenantName = companyName.trim();
+  const connectedHere = connected.filter((app) => app.tenants.some((t) => t.id === tenantId));
 
   return (
     <div className="relative h-dvh overflow-hidden bg-shell-deep text-shell-text">
@@ -391,655 +349,336 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
       <div className="absolute inset-0 bg-gradient-to-t from-shell-deep to-transparent pointer-events-none" />
 
       <div className="relative z-10 h-full overflow-y-auto">
-      <div className="w-full min-h-full max-w-2xl mx-auto px-6 py-12 flex flex-col justify-center gap-6">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="relative shrink-0">
-              <img
-                src="/buchfink-logo.svg"
-                alt=""
-                className="w-11 h-11 rounded-control border border-shell-line bg-shell-raised p-1.5"
-              />
-              <span className="absolute -bottom-1 -right-1">
-                <GermanFlag className="w-4 h-3 rounded-[2px] border border-shell-deep" />
+        <div className="w-full min-h-full max-w-2xl mx-auto px-6 py-12 flex flex-col justify-center gap-6">
+          <header className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="relative shrink-0">
+                <img
+                  src="/buchfink-logo.svg"
+                  alt=""
+                  className="w-11 h-11 rounded-control border border-shell-line bg-shell-raised p-1.5"
+                />
+                <span className="absolute -bottom-1 -right-1">
+                  <GermanFlag className="w-4 h-3 rounded-[2px] border border-shell-deep" />
+                </span>
               </span>
-            </span>
-            <span>
-              <h1 className="text-heading text-white">Buchfink</h1>
-              <p className="text-caption text-shell-text-muted">
-                {isAdditionalTenant ? 'Weiteren Mandanten hinzufügen' : 'Einrichtung'}
+              <span>
+                <h1 className="text-heading text-white">Buchfink</h1>
+                <p className="text-caption text-shell-text-muted">
+                  {isAdditionalTenant ? 'Weiteres Unternehmen einrichten' : 'Buchhaltung für GmbH und UG'}
+                </p>
+              </span>
+            </div>
+            {isAdditionalTenant && onCancel && step === 1 && (
+              <button type="button" onClick={onCancel} className={SHELL_BUTTON.quiet}>
+                Abbrechen
+              </button>
+            )}
+          </header>
+
+          <div className={cn(SHELL_PANEL, 'p-7')}>
+            {error && (
+              <p
+                role="alert"
+                className="mb-5 rounded-control border border-negative/50 bg-negative/15 px-4 py-3 text-body text-shell-negative"
+              >
+                {error}
               </p>
-            </span>
-          </div>
+            )}
 
-          {isAdditionalTenant && onCancel && !tenantCreated && (
-            <button type="button" onClick={onCancel} className={SHELL_BUTTON.quiet}>
-              Abbrechen
-            </button>
-          )}
-        </header>
-
-        <div className={cn(SHELL_PANEL, 'p-7')}>
-          {error && (
-            <p className="mb-5 rounded-control border border-negative/50 bg-negative/15 px-4 py-3 text-body text-shell-negative">
-              {error}
-            </p>
-          )}
-
-          {setupChoice === null ? (
-            <>
-              <h2 className="text-heading text-white">Willkommen bei Buchfink</h2>
-              <p className="flex items-center text-caption text-shell-text-muted mt-1">
-                Für GmbH und UG
-                <Help summary="Buchfink richtet sich an kleine GmbHs und UGs, die eine Bilanz erstellen."
-                  label="Erklärung zum Anwendungsbereich"
-                  className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                >
-                  Buchfink führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter
-                  Buchführung und Bilanz.
-                </Help>
-              </p>
-
-              <div className="mt-5 divide-y divide-shell-line border-t border-shell-line">
-                <button
-                  type="button"
-                  onClick={() => setSetupChoice('new')}
-                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
-                >
-                  <PlusCircle className="w-5 h-5 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-body text-white">Neue Buchhaltung anlegen</span>
-                    <span className="block text-caption text-shell-text-muted mt-0.5">
-                      Kontenrahmen SKR04, Geschäftsjahr {currentYear}, lokaler Speicherort.
-                    </span>
-                  </span>
-                  <ArrowRight
-                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
-                               duration-120 ease-quiet group-hover:translate-x-0.5"
-                    strokeWidth={1.5}
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSetupChoice('existing')}
-                  className="group w-full flex items-start gap-3 py-4 text-left transition-colors duration-120 ease-quiet cursor-pointer"
-                >
-                  <Database className="w-5 h-5 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-body text-white">Bestehende Buchhaltung öffnen</span>
-                    <span className="block text-caption text-shell-text-muted mt-0.5">
-                      Eine vorhandene Buchfink-Datei von der Festplatte oder aus einem Backup.
-                    </span>
-                  </span>
-                  <ArrowRight
-                    className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted group-hover:text-accent-soft transition-all
-                               duration-120 ease-quiet group-hover:translate-x-0.5"
-                    strokeWidth={1.5}
-                  />
-                </button>
-              </div>
-            </>
-          ) : setupChoice === 'new' ? (
-            <>
-              <div className="flex items-end justify-between gap-4 pb-4 border-b border-shell-line">
-                <div>
-                  <span className="text-overline uppercase text-accent-light">
-                    Schritt {step} von {stepCount}
-                  </span>
-                  <h2 className="text-heading text-white mt-1">{currentTitle}</h2>
-                </div>
-                <div className="flex items-center gap-1.5 pb-1" aria-hidden="true">
-                  {stepTitles.map((title, index) => (
-                    <span
-                      key={title}
-                      className={cn(
-                        'h-0.5 rounded-full transition-all duration-180 ease-quiet',
-                        step === index + 1
-                          ? 'w-6 bg-accent-light'
-                          : index + 1 < step
-                            ? 'w-2 bg-accent'
-                            : 'w-2 bg-shell-line'
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="py-6">
-                {step === 1 && (
-                  <div className="flex flex-col gap-4">
-                    <p className="text-body text-shell-text-muted">
-                      Buchungsdaten und Belege liegen auf dieser Festplatte, nicht in einer Cloud.
-                    </p>
-                    <ShellField label="Ordner für Buchungsdaten und Belege">
-                      <span className="flex gap-2">
-                        <input
-                          type="text"
-                          value={dataDir}
-                          aria-invalid={Boolean(directoryError)}
-                          aria-describedby="setup-directory-status"
-                          onChange={(e) => setDataDir(e.target.value)}
-                          className={cn(SHELL_CONTROL, 'code-num')}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void pickDataDirectory()}
-                          className={cn(SHELL_BUTTON.secondary, 'shrink-0')}
-                        >
-                          <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
-                          Wählen
-                        </button>
-                      </span>
-                    </ShellField>
-                    <p id="setup-directory-status" role={directoryError ? 'alert' : 'status'}
-                      className={cn('text-caption', directoryError ? 'text-shell-negative' : 'text-shell-text-muted')}>
-                      {directoryError || (!directoryChecked ? 'Ordner wird geprüft …' : '')}
-                    </p>
-                    {/* Ein Satz auf der Fläche, der Rest hinter dem Erklärzeichen
-                        (§15.1): der Hinweis steht dauerhaft, solange der Pfad in
-                        den Ordner zeigt, und ein Absatz Fließtext an dieser
-                        Stelle wird nicht gelesen. */}
-                    {cloudFolder && (
-                      <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3">
-                        <span className="flex items-center text-label text-shell-text">
-                          Der Datenordner liegt in einem {cloudFolder}-Ordner
-                          <Help summary="Ein Synchronisationsdienst kann Ihre Buchhaltungsdaten auch im Ausland speichern."
-                            label="Erklärung zum Synchronisationsordner"
-                            className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                          >
-                            Für elektronische Bücher im Ausland gelten besondere Voraussetzungen.
-                            § 146 Abs. 2a AO regelt die Speicherung in einem EU-Mitgliedstaat;
-                            Abs. 2b betrifft Drittstaaten. Prüfen Sie den Speicherort und die
-                            Bedingungen Ihres Dienstes. Ein Synchronisationsordner ist
-                            außerdem kein Sicherungsziel — er spiegelt auch das Löschen. Ein Umzug
-                            des Datenordners ist in dieser Fassung nicht vorgesehen.
-                          </Help>
-                        </span>
-                        <span className="block text-body text-shell-text-muted mt-1">
-                          Besser einen gewöhnlichen Ordner wählen und getrennt sichern.
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {step === 2 && (
-                  <div className="flex flex-col gap-4">
-                    <ShellField label="Firmen- oder Inhabername">
+            {mode === 'existing' ? (
+              <form onSubmit={openExisting}>
+                <h2 className="text-heading text-white pb-4 border-b border-shell-line">
+                  Vorhandene Buchhaltung öffnen
+                </h2>
+                <div className="py-6">
+                  <ShellField label="Buchfink-Datei" hint="Etwa aus einer früheren Installation">
+                    <span className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Musterfirma GmbH"
-                        value={settings.companyName}
-                        onChange={(e) => patch({ companyName: e.target.value })}
-                        className={SHELL_CONTROL}
+                        value={existingPath}
+                        placeholder="/Pfad/zur/buchfink.db"
+                        onChange={(e) => setExistingPath(e.target.value)}
+                        className={cn(SHELL_CONTROL, 'code-num')}
                       />
-                    </ShellField>
+                      <button
+                        type="button"
+                        onClick={() => void pickDatabase()}
+                        className={cn(SHELL_BUTTON.secondary, 'shrink-0')}
+                      >
+                        <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+                        Wählen
+                      </button>
+                    </span>
+                  </ShellField>
+                </div>
+                <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
+                  <button type="button" onClick={() => setMode('new')} className={SHELL_BUTTON.quiet}>
+                    <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
+                    Zurück
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || !existingPath.trim()}
+                    className={SHELL_BUTTON.primary}
+                  >
+                    Buchhaltung öffnen
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="flex items-end justify-between gap-4 pb-4 border-b border-shell-line">
+                  <div>
+                    <span className="text-overline uppercase text-accent-light">Schritt {step} von 2</span>
+                    <h2 className="text-heading text-white mt-1">
+                      {step === 1 ? 'Ihr Unternehmen' : 'Claude verbinden'}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-1.5 pb-1" aria-hidden="true">
+                    <span className={cn('h-0.5 rounded-full', step === 1 ? 'w-6 bg-accent-light' : 'w-2 bg-accent')} />
+                    <span className={cn('h-0.5 rounded-full', step === 2 ? 'w-6 bg-accent-light' : 'w-2 bg-shell-line')} />
+                  </div>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <ShellField label="Rechtsform">
-                        <select
-                          value={settings.legalForm}
-                          onChange={(e) => {
-                            patch({ legalForm: e.target.value });
-                            setNotRegistered(false);
-                            setCaptureFoundation(false);
-                            setRegisteredOn('');
-                            setRegisterCourt('');
-                            setRegisterNumber('');
-                          }}
+                {step === 1 ? (
+                  <div className="py-6 flex flex-col gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_14rem] gap-4">
+                      <ShellField label="Firma" hint="Wie im Handelsregister">
+                        <input
+                          type="text"
+                          value={companyName}
+                          placeholder="Nordlicht Systeme GmbH"
+                          onChange={(e) => setCompanyName(e.target.value)}
                           className={SHELL_CONTROL}
-                        >
+                        />
+                      </ShellField>
+                      <ShellField label="Rechtsform">
+                        <select value={legalForm} onChange={(e) => setLegalForm(e.target.value)} className={SHELL_CONTROL}>
                           {LEGAL_FORMS.map((form) => (
-                            <option key={form} value={form}>
-                              {form}
+                            <option key={form.value} value={form.value}>
+                              {form.label}
                             </option>
                           ))}
                         </select>
                       </ShellField>
                     </div>
 
-                  </div>
-                )}
-
-                {isFoundingStep && (
-                  <div className="mt-4 flex flex-col gap-4">
-                    <ShellField label="Datum der Handelsregistereintragung">
-                      <input
-                        type="date"
-                        value={notRegistered ? '' : registeredOn}
-                        max={today}
-                        disabled={notRegistered}
-                        onChange={(e) => setRegisteredOn(e.target.value)}
-                        className={cn(SHELL_CONTROL, 'num')}
-                      />
-                    </ShellField>
-                    {(notRegistered || !registeredOn) && (
-                    <Checkbox
-                      tone="shell"
-                      label="Noch nicht im Handelsregister eingetragen"
-                      checked={notRegistered}
-                      onCheckedChange={(checked) => {
-                        setNotRegistered(checked);
-                        setCaptureFoundation(false);
+                    <ShellChoice<Start>
+                      label="Wie beginnen die Bücher?"
+                      value={start}
+                      onChange={(next) => {
+                        setStart(next);
+                        setStartDate('');
                       }}
+                      options={[
+                        { value: 'founding', label: 'Neu gegründet', hint: 'Die Bücher beginnen mit der Beurkundung' },
+                        { value: 'switch', label: 'Umstieg', hint: 'Die Gesellschaft besteht schon' },
+                      ]}
                     />
-                    )}
-                    {!notRegistered && registrationComplete && (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <ShellField label="Registergericht · optional">
-                            <input type="text" placeholder="Amtsgericht ..." value={registerCourt}
-                              onChange={(e) => setRegisterCourt(e.target.value)} className={SHELL_CONTROL} />
-                          </ShellField>
-                          <ShellField label="Registernummer · optional">
-                            <input type="text" placeholder="HRB 12345" value={registerNumber}
-                              onChange={(e) => setRegisterNumber(e.target.value)} className={SHELL_CONTROL} />
-                          </ShellField>
-                        </div>
-                        <Checkbox
-                          tone="shell"
-                          label="Gründung mit Buchfink erfassen"
-                          checked={captureFoundation}
-                          onCheckedChange={setCaptureFoundation}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <ShellField
+                        label={start === 'founding' ? 'Tag der Beurkundung' : 'Erster Tag in Buchfink'}
+                        hint={
+                          start === 'founding'
+                            ? 'Starttag der Bücher'
+                            : 'Beginn eines Geschäftsjahres, etwa der 1. Januar'
+                        }
+                        error={startError || undefined}
+                      >
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className={cn(SHELL_CONTROL, 'num')}
                         />
-                      </>
-                    )}
-                    {isFoundingCase && (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <ShellField
-                            label="Beurkundung des Gesellschaftsvertrags"
-                            hint="Setzt Geschäftsjahr und Fristen"
+                      </ShellField>
+                      {start === 'founding' ? (
+                        <ShellField label="Geschäftsjahr" hint="Laut Gesellschaftsvertrag">
+                          <select
+                            value={startMonth}
+                            onChange={(e) => setStartMonth(Number(e.target.value))}
+                            className={SHELL_CONTROL}
                           >
-                            <input
-                              type="date"
-                              value={notarizedOn}
-                              max={notRegistered ? today : registeredOn || today}
-                              onChange={(e) => void applyFoundingDate(e.target.value)}
-                              className={cn(SHELL_CONTROL, 'num')}
-                            />
-                          </ShellField>
-                          <ShellField
-                            label="Stammkapital laut Satzung"
-                            hint={`Mindestens ${formatCents(rules?.minShareCapital ?? 0)}`}
-                          >
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder={formatCents(rules?.minShareCapital ?? 0)}
-                              value={shareCapital}
-                              onChange={(e) => setShareCapital(e.target.value)}
-                              className={cn(SHELL_CONTROL, 'num')}
-                            />
-                          </ShellField>
-                        </div>
+                            {MONTHS.map((name, index) => (
+                              <option key={name} value={index + 1}>
+                                {index === 0 ? 'Kalenderjahr' : `Ab 1. ${name}`}
+                              </option>
+                            ))}
+                          </select>
+                        </ShellField>
+                      ) : null}
+                      <ShellField label="Bundesland" hint="Sitz der Gesellschaft, für Fristen und Steuernummer">
+                        <select
+                          value={federalState}
+                          onChange={(e) => setFederalState(e.target.value)}
+                          className={SHELL_CONTROL}
+                        >
+                          <option value="" disabled>
+                            Bitte wählen
+                          </option>
+                          {FEDERAL_STATES.map((state) => (
+                            <option key={state.value} value={state.value}>
+                              {state.label}
+                            </option>
+                          ))}
+                        </select>
+                      </ShellField>
+                    </div>
 
+                    <div className="flex flex-col gap-2">
+                      <span className="flex items-center text-label text-shell-text-muted">
+                        Trifft eines davon zu?
+                        <Help
+                          summary="Für diese Gesellschaften rechnet Buchfink weder Jahresabschluss noch Steuerrückstellung."
+                          label="Erklärung zu den Ausschlüssen"
+                          className={helpTone}
+                        >
+                          Gemeinnützigkeit verlangt Sphärentrennung und Mittelverwendung, eine Liquidation
+                          eigene Abwicklungsabschlüsse, eine Organschaft die Zurechnung des Einkommens zum
+                          Organträger. Buchfink bildet das nicht ab. Buchen und auswerten können Sie
+                          trotzdem; Abschluss und Erklärungen gehören dann zu einer Steuerberatung.
+                        </Help>
+                      </span>
+                      <Checkbox tone="shell" checked={nonProfit} onCheckedChange={(v) => setNonProfit(Boolean(v))} label="Die Gesellschaft ist gemeinnützig" />
+                      <Checkbox tone="shell" checked={inLiquidation} onCheckedChange={(v) => setInLiquidation(Boolean(v))} label="Die Gesellschaft ist in Liquidation" />
+                      <Checkbox tone="shell" checked={fiscalUnity} onCheckedChange={(v) => setFiscalUnity(Boolean(v))} label="Die Gesellschaft ist Organgesellschaft einer Organschaft" />
+                      {exclusions && (
+                        <p className="mt-1 rounded-control border border-negative/50 bg-negative/15 px-4 py-3 text-body text-shell-negative">
+                          Das deckt Buchfink nicht ab. Jahresabschluss und Steuererklärungen gehören zu einer
+                          Steuerberatung; buchen können Sie trotzdem.
+                        </p>
+                      )}
+                    </div>
 
-                        <div>
-                          <div className="flex items-center justify-between gap-4 pb-2 border-b border-shell-line">
-                            <span className="flex items-center text-label text-shell-text-muted">
-                              Gesellschafter
-                              <Help summary="Alle Geschäftsanteile zusammen müssen das vereinbarte Stammkapital ergeben."
-                                label="Erklärung zu den Geschäftsanteilen"
-                                className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                              >
-                                Die Summe der übernommenen Geschäftsanteile muss dem Stammkapital
-                                entsprechen (§ 5 Abs. 3 Satz 2 GmbHG). Nach ihr richtet sich später
-                                auch, wer welchen Teil einer Unterbilanz trägt.
-                              </Help>
-                            </span>
+                    <div className="flex flex-col gap-3 pt-4 border-t border-shell-line">
+                      <p className="flex items-start gap-2.5">
+                        <HardDrive className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
+                        <span className="min-w-0">
+                          <span className="block text-body text-shell-text">
+                            Buchfink speichert lokal und unverschlüsselt. Schalten Sie die
+                            Festplattenverschlüsselung des Rechners ein: FileVault, BitLocker oder LUKS.
+                          </span>
+                          <span className="block mt-1 text-caption text-shell-text-muted">
+                            Daten in <span className="code-num text-shell-text">{dataDir}</span>
+                            {' · '}
                             <button
                               type="button"
-                              onClick={() => setShareholders((prev) => [...prev, emptyShareholder()])}
-                              className={cn(SHELL_BUTTON.quiet, 'h-8 px-2')}
+                              onClick={() => setDirOpen((open) => !open)}
+                              aria-expanded={dirOpen}
+                              className="text-accent-light hover:underline"
                             >
-                              <Plus className="w-4 h-4" strokeWidth={1.5} />
-                              Gesellschafter hinzufügen
+                              Ordner ändern
                             </button>
-                          </div>
-
-                          <ul className="divide-y divide-shell-line">
-                            {shareholders.map((holder, index) => (
-                              <li key={index} className="flex items-end gap-2 py-3">
-                                <ShellField label="Name" labelHidden={index > 0} className="flex-1">
-                                  <input
-                                    type="text"
-                                    placeholder="Anna Bauer"
-                                    value={holder.name}
-                                    onChange={(e) => patchShareholder(index, { name: e.target.value })}
-                                    className={SHELL_CONTROL}
-                                  />
-                                </ShellField>
-                                <ShellField label="Übernommener Anteil" labelHidden={index > 0} className="w-32">
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder="15.000,00"
-                                    value={holder.shareCapital}
-                                    onChange={(e) =>
-                                      patchShareholder(index, { shareCapital: e.target.value })
-                                    }
-                                    className={cn(SHELL_CONTROL, 'num')}
-                                  />
-                                </ShellField>
-                                <ShellField label="Geleistet" labelHidden={index > 0} className="w-32">
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder="7.500,00"
-                                    value={holder.paidIn}
-                                    onChange={(e) => patchShareholder(index, { paidIn: e.target.value })}
-                                    className={cn(SHELL_CONTROL, 'num')}
-                                  />
-                                </ShellField>
-                                {!rules?.cashOnly && (
-                                  <ShellField label="Art der Einlage" labelHidden={index > 0} className="w-32">
-                                    <select
-                                      value={holder.kind}
-                                      onChange={(e) =>
-                                        patchShareholder(index, {
-                                          kind: e.target.value as ContributionKind,
-                                        })
-                                      }
-                                      className={SHELL_CONTROL}
-                                    >
-                                      <option value="cash">Bar</option>
-                                      <option value="kind">Sache</option>
-                                    </select>
-                                  </ShellField>
-                                )}
-                                <button
-                                  type="button"
-                                  disabled={shareholders.length === 1}
-                                  onClick={() =>
-                                    setShareholders((prev) => prev.filter((_, i) => i !== index))
-                                  }
-                                  title="Gesellschafter entfernen"
-                                  aria-label={`${holder.name || `Gesellschafter ${index + 1}`} entfernen`}
-                                  className={cn(SHELL_BUTTON.quiet, 'h-9 w-9 px-0 shrink-0')}
-                                >
-                                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-
-                          <dl className="flex flex-wrap gap-x-6 gap-y-1 pt-3 border-t border-shell-line">
-                            <span className="flex items-baseline gap-2">
-                              <dt className="text-caption text-shell-text-muted">Übernommen</dt>
-                              <dd
-                                className={cn(
-                                  'text-body num',
-                                  capitalTarget > 0 && !capitalMatches
-                                    ? 'text-shell-negative'
-                                    : 'text-shell-text'
-                                )}
-                              >
-                                {formatCents(subscribedCapital)}
-                              </dd>
-                            </span>
-                            <span className="flex items-baseline gap-2">
-                              <dt className="text-caption text-shell-text-muted">Geleistet</dt>
-                              <dd className="text-body num text-shell-text">
-                                {formatCents(paidInTotal)}
-                              </dd>
-                            </span>
-                            <span className="flex items-baseline gap-2">
-                              <dt className="text-caption text-shell-text-muted">
-                                Vor der Anmeldung nötig
-                              </dt>
-                              <dd
-                                className={cn(
-                                  'text-body num',
-                                  paidInTotal >= requiredPaidIn && requiredPaidIn > 0
-                                    ? 'text-shell-positive'
-                                    : 'text-shell-text'
-                                )}
-                              >
-                                {formatCents(requiredPaidIn)}
-                              </dd>
-                            </span>
-                          </dl>
-                          {capitalTarget > 0 && !capitalMatches && (
-                            <p className="mt-2 text-caption text-shell-negative">
-                              Die Anteile ergeben {formatCents(subscribedCapital)}, das Kapital
-                              beträgt {formatCents(capitalTarget)}.
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <ShellField
-                            label="Gründungsaufwand laut Satzung · optional"
-                            hint="Begrenzt die Unterbilanzhaftung"
-                          >
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="2.500,00"
-                              value={foundationCostCap}
-                              onChange={(e) => setFoundationCostCap(e.target.value)}
-                              className={cn(SHELL_CONTROL, 'num')}
-                            />
-                          </ShellField>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="flex flex-col gap-4">
-                    {isNewCompany ? (
-                      <p className="text-body text-shell-text-muted">
-                        Steuernummer und USt-IdNr. können Sie später unter Unternehmen ergänzen.
+                          </span>
+                          {dirError && <span className="block mt-1 text-caption text-shell-negative">{dirError}</span>}
+                        </span>
                       </p>
-                    ) : (
-                      <>
-                        {!isCapitalCompany && (
-                        <ShellField label="Erstes Geschäftsjahr">
+                      {dirOpen && (
+                        <span className="flex gap-2">
                           <input
-                            type="number"
-                            value={settings.fiscalYear}
-                            onChange={(e) => patch({ fiscalYear: Number(e.target.value) })}
-                            className={cn(SHELL_CONTROL, 'num')}
+                            type="text"
+                            aria-label="Ordner für Buchungsdaten und Belege"
+                            value={dataDir}
+                            onChange={(e) => {
+                              setDirTouched(true);
+                              setDataDir(e.target.value);
+                            }}
+                            className={cn(SHELL_CONTROL, 'code-num')}
                           />
-                        </ShellField>
-                        )}
-                        <div className="grid grid-cols-2 gap-4">
-                          <ShellField label="Steuernummer · optional">
-                            <input
-                              type="text"
-                              placeholder="12/345/67890"
-                              value={settings.taxNumber}
-                              onChange={(e) => patch({ taxNumber: e.target.value })}
-                              className={cn(SHELL_CONTROL, 'code-num')}
-                            />
-                          </ShellField>
-                          <ShellField label="USt-IdNr. · optional">
-                            <input
-                              type="text"
-                              placeholder="DE123456789"
-                              value={settings.vatId}
-                              onChange={(e) => patch({ vatId: e.target.value })}
-                              className={cn(SHELL_CONTROL, 'code-num')}
-                            />
-                          </ShellField>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="flex items-center gap-1 text-label text-shell-text-muted">
-                      <label htmlFor="setup-vat-period">Umsatzsteuererklärungen</label>
-                      <Help
-                        label="Erklärung zu Umsatzsteuererklärungen"
-                        summary="Wenn Ihre Meldepflicht noch nicht geklärt ist, können Sie die Auswahl später unter Unternehmen ergänzen."
-                      >
-                        <p>Eine reine Finanzholding, die nur Beteiligungen hält und keine entgeltlichen Leistungen erbringt, kann umsatzsteuerlich außerhalb des Unternehmensbereichs liegen. Eine Holding mit entgeltlichen Leistungen ist anders zu beurteilen.</p>
-                        <p>„Keine regelmäßigen Umsatzsteuererklärungen“ steuert die Terminplanung. Die Auswahl legt weder Steuerbefreiungen noch den Vorsteuerabzug fest. Besondere Erklärungspflichten, etwa bei Reverse Charge, müssen gesondert geprüft werden.</p>
-                        {isNewCompany && vatReason && <p>{vatReason}</p>}
-                      </Help>
+                          <button type="button" onClick={() => void pickDirectory()} className={cn(SHELL_BUTTON.secondary, 'shrink-0')}>
+                            <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+                            Wählen
+                          </button>
+                        </span>
+                      )}
+                      {cloudFolder && (
+                        <p className="text-caption text-shell-negative">
+                          Der Ordner liegt in {cloudFolder}. Ein Synchronisationsdienst kann die Daten im Ausland
+                          speichern und ist keine Sicherung; besser ein gewöhnlicher Ordner.
+                        </p>
+                      )}
                     </div>
-                    <select
-                      id="setup-vat-period"
-                      value={settings.vatPeriod}
-                      onChange={(e) => patch({ vatPeriod: e.target.value })}
-                      className={SHELL_CONTROL}
-                    >
-                      <option value="unknown">Noch nicht geklärt</option>
-                      <option value="month">Monatliche Voranmeldungen</option>
-                      <option value="quarter">Vierteljährliche Voranmeldungen</option>
-                      <option value="year">Nur die Jahreserklärung</option>
-                      <option value="none">Keine regelmäßigen Umsatzsteuererklärungen</option>
-                    </select>
-                    {settings.vatPeriod === 'unknown' && (
-                      <p className="text-caption text-shell-text-muted">
-                        Klären Sie die Meldepflicht mit dem Finanzamt oder Ihrer Steuerberatung.
-                        Bis dahin plant Buchfink keine regelmäßigen Umsatzsteuertermine.
+                  </div>
+                ) : (
+                  <div className="py-6 flex flex-col gap-5">
+                    <p className="text-body text-shell-text">
+                      {tenantName} ist eingerichtet. Verbinden Sie jetzt Claude oder eine andere KI-App; sie
+                      erledigt die Buchhaltung, Sie geben frei.
+                    </p>
+                    <AgentClientCommands url={status?.url} tone="shell" />
+                    <div className="flex items-start gap-2.5 text-caption text-shell-text-muted">
+                      {connectedHere.length > 0 ? (
+                        <>
+                          <Check className="w-4 h-4 mt-px shrink-0 text-shell-positive" strokeWidth={1.5} />
+                          <span className="text-shell-positive">
+                            Verbunden: {connectedHere.map((app) => app.name).join(', ')}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="flex items-center">
+                          Meldet sich die App an, fragt Buchfink in diesem Fenster nach Ihrer Zustimmung.
+                          <Help
+                            summary="Was ein Werkzeug zurückgibt, schickt die App an den Anbieter ihres Sprachmodells."
+                            label="Erklärung zum Datenschutz"
+                            className={helpTone}
+                          >
+                            Buchfink läuft auf Ihrem Rechner. Was ein Werkzeug zurückgibt, schickt die KI-App an
+                            den Anbieter ihres Sprachmodells: Buchungen, Beträge, Namen von Kunden und
+                            Lieferanten, Texte aus Belegen. Klären Sie vorher, ob Ihr Vertrag mit dem Anbieter das
+                            abdeckt (Art. 28 DSGVO).
+                          </Help>
+                        </span>
+                      )}
+                    </div>
+                    {status && !status.running && (
+                      <p className="text-caption text-shell-negative">
+                        {status.error || 'Der Zugang für KI-Apps läuft nicht.'} Unter Einstellungen lässt sich
+                        ein anderer Port wählen.
                       </p>
                     )}
-
-                    {!['unknown', 'none'].includes(settings.vatPeriod) && (
-                    <p className="flex items-center text-caption text-shell-text-muted">
-                      Gebucht wird nach vereinbarten Entgelten
-                      <Help summary="Buchfink unterstützt die Besteuerung nach erbrachter Leistung, auch vor der Zahlung."
-                        label="Erklärung zur Besteuerungsart"
-                        className="text-shell-text-muted hover:text-shell-text data-[popup-open]:text-shell-text"
-                      >
-                        Sollversteuerung nach § 16 Abs. 1 Satz 1 UStG: Eine Rechnung wird mit ihrem
-                        Datum gebucht, die Zahlung ist ein späterer, eigener Vorgang. Istversteuerung
-                        und die Kleinunternehmerregelung nach § 19 UStG unterstützt Buchfink nicht.
-                      </Help>
-                    </p>
-                    )}
-
-                    <p className="text-body text-shell-text-muted">Bankkonten richten Sie beim ersten Import eines Kontoauszugs ein.</p>
                   </div>
                 )}
-              </div>
 
-              <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (step > 1) setStep(step - 1);
-                    else setSetupChoice(null);
-                  }}
-                  className={SHELL_BUTTON.quiet}
-                  disabled={submitting || tenantCreated}
-                >
-                  <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
-                  Zurück
-                </button>
-
-                {step < stepCount ? (
-                  <button
-                    type="button"
-                    disabled={
-                      (step === 1 && !directoryValid) ||
-                      (step === 2 && !settings.companyName.trim()) ||
-                      (isFoundingStep && !foundingComplete)
-                    }
-                    onClick={() => setStep(step + 1)}
-                    className={SHELL_BUTTON.primary}
-                  >
-                    Weiter
-                    <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => void finish()}
-                    className={SHELL_BUTTON.primary}
-                  >
-                    <Check className="w-4 h-4" strokeWidth={1.5} />
-                    {submitting ? 'Wird eingerichtet …' : tenantCreated ? 'Einrichtung abschließen' : 'Buchhaltung anlegen'}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <form onSubmit={loadExisting}>
-              <h2 className="text-heading text-white pb-4 border-b border-shell-line">
-                Bestehende Buchhaltung öffnen
-              </h2>
-
-              <div className="py-6">
-                <ShellField label="Pfad zur Buchhaltungsdatei">
-                  <span className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="/Pfad/zur/buchfink-datei"
-                      value={existingDbPath}
-                      onChange={(e) => setExistingDbPath(e.target.value)}
-                      className={cn(SHELL_CONTROL, 'code-num')}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void pickDatabaseFile()}
-                      className={cn(SHELL_BUTTON.secondary, 'shrink-0')}
-                    >
-                      <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
-                      Wählen
-                    </button>
-                  </span>
-                </ShellField>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
-                <button
-                  type="button"
-                  onClick={() => setSetupChoice(null)}
-                  className={SHELL_BUTTON.quiet}
-                >
-                  <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
-                  Zurück
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !existingDbPath.trim()}
-                  className={SHELL_BUTTON.primary}
-                >
-                  {submitting ? 'Wird geladen …' : 'Buchhaltung öffnen'}
-                </button>
-              </div>
-            </form>
-          )}
+                <div className="flex items-center justify-between gap-4 pt-4 border-t border-shell-line">
+                  {step === 1 ? (
+                    <>
+                      <button type="button" onClick={() => setMode('existing')} className={SHELL_BUTTON.quiet}>
+                        <Database className="w-4 h-4" strokeWidth={1.5} />
+                        Vorhandene Buchhaltung öffnen
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!ready || submitting}
+                        title={ready ? undefined : 'Firma, Starttag und Bundesland fehlen noch.'}
+                        onClick={() => void createTenant()}
+                        className={SHELL_BUTTON.primary}
+                      >
+                        Weiter
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {connectedHere.length === 0 ? (
+                        <button type="button" onClick={onSetupCompleted} className={SHELL_BUTTON.quiet}>
+                          Später verbinden
+                        </button>
+                      ) : (
+                        <span />
+                      )}
+                      <button type="button" onClick={onSetupCompleted} className={SHELL_BUTTON.primary}>
+                        Zur Übersicht
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-shell-line">
-          <p className="flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-shell-positive" strokeWidth={1.5} />
-            <span>
-              <span className="block text-label text-white">Änderungsprüfung</span>
-              <span className="block text-caption text-shell-text-muted mt-0.5">
-                Buchfink prüft, ob gespeicherte Buchungen nachträglich verändert wurden.
-              </span>
-            </span>
-          </p>
-          <p className="flex items-start gap-2.5">
-            <FolderOpen className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
-            <span>
-              <span className="block text-label text-white">Lokal</span>
-              <span className="block text-caption text-shell-text-muted mt-0.5">
-                Daten bleiben auf diesem Rechner. Kein Cloud-Zwang.
-              </span>
-            </span>
-          </p>
-          <p className="flex items-start gap-2.5">
-            <Scale className="w-4 h-4 mt-0.5 shrink-0 text-accent-light" strokeWidth={1.5} />
-            <span>
-              <span className="block text-label text-white">Auswertungen</span>
-              <span className="block text-caption text-shell-text-muted mt-0.5">
-                GuV und Bilanz. Die E-Bilanz ist vorläufig und noch ungeprüft.
-              </span>
-            </span>
-          </p>
-        </div>
-      </div>
       </div>
     </div>
   );

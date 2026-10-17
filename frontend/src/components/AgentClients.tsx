@@ -133,8 +133,8 @@ const CommandLine: React.FC<{ value: string; tone: keyof typeof TONES }> = ({ va
   }
 
   return (
-    <div className={cn('flex items-center gap-2 rounded-control border pl-3 pr-1 h-9 min-w-0', style.code)}>
-      <code className="flex-1 min-w-0 truncate font-mono text-caption select-all" title={value}>
+    <div className={cn('flex items-start gap-2 rounded-control border pl-3 pr-1 py-1 min-h-9 min-w-0', style.code)}>
+      <code className="flex-1 min-w-0 py-1 [overflow-wrap:anywhere] font-mono text-caption select-all">
         {value}
       </code>
       <button
@@ -219,12 +219,12 @@ export const AgentClientCommands: React.FC<AgentClientCommandsProps> = ({
 
       <ol className="mt-4 flex flex-col gap-3">
         {client.steps.map((step) => (
-          <li key={step.label} className="grid grid-cols-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center gap-1 sm:gap-4">
-            <span className={cn('text-label', style.label)}>{step.label}</span>
+          <li key={step.label} className="grid grid-cols-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-start gap-1 sm:gap-4">
+            <span className={cn('text-label sm:pt-2.5', style.label)}>{step.label}</span>
             {step.command ? (
               <CommandLine value={step.command(address)} tone={tone} />
             ) : (
-              <span className={cn('text-body', style.text)}>{step.text}</span>
+              <span className={cn('text-body sm:pt-2', style.text)}>{step.text}</span>
             )}
           </li>
         ))}
