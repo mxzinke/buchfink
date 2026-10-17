@@ -29,17 +29,23 @@ type statusOut struct {
 }
 
 type statusRules struct {
-	GrenzeBrutto     Betrag `json:"grenze_brutto"`
+	GrenzeBrutto     Betrag `json:"grenze_brutto" jsonschema:"direkt nur, was darunter liegt"`
 	Mindestbuchungen int    `json:"mindestbuchungen" jsonschema:"frühere Buchungen des Lieferanten mit seiner bestätigten Standardgruppe"`
 }
 
 type statusTenant struct {
-	ID            string `json:"id" jsonschema:"mandant_id für schreibende Werkzeuge"`
-	Name          string `json:"name"`
-	Rechtsform    string `json:"rechtsform,omitempty"`
-	GJBeginnMonat int    `json:"gj_beginn_monat,omitempty" jsonschema:"Monat, in dem das Geschäftsjahr beginnt (1 = Januar)"`
-	Besteuerung   string `json:"besteuerung,omitempty" jsonschema:"SOLL oder IST"`
+	ID                 string `json:"id" jsonschema:"mandant_id für schreibende Werkzeuge"`
+	Name               string `json:"name"`
+	Rechtsform         string `json:"rechtsform,omitempty"`
+	GJBeginnMonat      int    `json:"gj_beginn_monat,omitempty" jsonschema:"Monat, in dem das Geschäftsjahr beginnt (1 = Januar)"`
+	Besteuerung        string `json:"besteuerung,omitempty" jsonschema:"SOLL oder IST"`
+	UStZeitraum        string `json:"ust_zeitraum,omitempty" jsonschema:"monat, quartal, jahr oder keiner: wie oft die UStVA fällig ist"`
+	Dauerfrist         bool   `json:"dauerfrist" jsonschema:"Dauerfristverlängerung: die UStVA ist einen Monat später fällig"`
+	FestgeschriebenBis string `json:"festgeschrieben_bis,omitempty" jsonschema:"bis zu diesem Tag sind die Buchungen festgeschrieben; Korrekturen nur als Storno im offenen Zeitraum"`
+	LetzteSicherung    string `json:"letzte_sicherung,omitempty"`
 }
+
+var vatPeriodLabel = map[string]string{"month": "monat", "quarter": "quartal", "year": "jahr", "none": "keiner"}
 
 type statusYear struct {
 	Jahr  int    `json:"jahr"`
@@ -110,6 +116,13 @@ func registerStatus(tb *Toolbox) {
 				out.Mandant.Rechtsform = settings.LegalForm
 				out.Mandant.GJBeginnMonat = settings.FiscalYearStartMonth
 				out.Mandant.Besteuerung = settings.TaxationType
+				out.Mandant.UStZeitraum = vatPeriodLabel[settings.VatPeriod]
+				out.Mandant.Dauerfrist = settings.PermanentExtension
+			}
+			for _, tc := range c.Host.Config().Tenants {
+				if tc.ID == t.ID() {
+					out.Mandant.LetzteSicherung = tc.LastBackupAt
+				}
 			}
 			years, err := s.Closing.FiscalYears(ctx)
 			if err != nil {
@@ -119,6 +132,9 @@ func registerStatus(tb *Toolbox) {
 				out.Geschaeftsjahre = append(out.Geschaeftsjahre, statusYear{
 					Jahr: fy.Year, Von: fy.StartDate, Bis: fy.EndDate, Stand: yearStand[fy.Status],
 				})
+			}
+			if out.Mandant.FestgeschriebenBis, err = s.Journal.CommittedThrough(ctx); err != nil {
+				return err
 			}
 			year, err := t.CurrentFiscalYear(ctx)
 			if err == nil {

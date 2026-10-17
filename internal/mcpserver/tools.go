@@ -76,11 +76,23 @@ type Spec struct {
 	// ExaminerExempt: das Werkzeug ändert die Bücher nicht (Export) und läuft
 	// deshalb auch im Prüfermodus.
 	ExaminerExempt bool
+
+	output *jsonschema.Schema
+}
+
+// OutputSchema ist das Schema der Ausgabe eines Werkzeugs.
+func (tb *Toolbox) OutputSchema(name string) *jsonschema.Schema {
+	for _, s := range tb.specs {
+		if s.Name == name {
+			return s.output
+		}
+	}
+	return nil
 }
 
 // TenantArgs gehören in die Eingabe jedes schreibenden Werkzeugs.
 type TenantArgs struct {
-	MandantID string `json:"mandant_id" jsonschema:"Kennung des Mandanten aus status. Ist inzwischen ein anderer geöffnet, wird nichts geschrieben."`
+	MandantID string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
 }
 
 func (a TenantArgs) tenantID() string { return a.MandantID }
@@ -90,8 +102,8 @@ type tenantInput interface{ tenantID() string }
 // WriteArgs gehören in die Eingabe jedes schreibenden Werkzeugs, das in einem
 // Vorgang schreibt.
 type WriteArgs struct {
-	MandantID            string `json:"mandant_id" jsonschema:"Kennung des Mandanten aus status. Ist inzwischen ein anderer geöffnet, wird nichts geschrieben."`
-	Idempotenzschluessel string `json:"idempotenz_schluessel,omitempty" jsonschema:"Frei gewählter Schlüssel (8 bis 100 Zeichen aus A-Z a-z 0-9 - _ . :). Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis, statt ein zweites Mal zu schreiben."`
+	MandantID            string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
+	Idempotenzschluessel string `json:"idempotenz_schluessel,omitempty" jsonschema:"8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis"`
 }
 
 func (a WriteArgs) writeArgs() WriteArgs { return a }
@@ -102,8 +114,8 @@ func (a WriteArgs) keyRequired() bool    { return false }
 // Eingabe eines Werkzeugs, dessen Vorgang keinen natürlichen Schlüssel hat:
 // ohne ihn buchte ein nach einem Abbruch wiederholter Aufruf ein zweites Mal.
 type KeyedWriteArgs struct {
-	MandantID            string `json:"mandant_id" jsonschema:"Kennung des Mandanten aus status. Ist inzwischen ein anderer geöffnet, wird nichts geschrieben."`
-	Idempotenzschluessel string `json:"idempotenz_schluessel" jsonschema:"Pflicht: frei gewählter Schlüssel je Vorgang (8 bis 100 Zeichen aus A-Z a-z 0-9 - _ . :). Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis, statt ein zweites Mal zu buchen. Eine Vorschau verbraucht ihn nicht."`
+	MandantID            string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
+	Idempotenzschluessel string `json:"idempotenz_schluessel" jsonschema:"Pflicht, einer je Vorgang: 8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis; eine Vorschau verbraucht ihn nicht"`
 }
 
 func (a KeyedWriteArgs) writeArgs() WriteArgs {
@@ -342,7 +354,7 @@ func add[In, Out any](tb *Toolbox, spec Spec, run func(ctx context.Context, c *C
 	if err != nil {
 		panic(fmt.Sprintf("Werkzeug %s: Eingabeschema: %v", spec.Name, err))
 	}
-	outSchema, err := jsonschema.For[Out](schemaOptions())
+	outSchema, err := jsonschema.For[Out](outputSchemaOptions())
 	if err != nil {
 		panic(fmt.Sprintf("Werkzeug %s: Ausgabeschema: %v", spec.Name, err))
 	}
@@ -355,10 +367,15 @@ func add[In, Out any](tb *Toolbox, spec Spec, run func(ctx context.Context, c *C
 		annotations.DestructiveHint = &destructive
 		annotations.IdempotentHint = spec.Idempotent
 	}
+	// Das Ausgabeschema wird nicht veröffentlicht: der Werkzeugkatalog liegt
+	// in jedem Gespräch im Kontext des Agenten, und die Ausgaben machten gut
+	// die Hälfte davon aus. Die Tests prüfen jede Antwort gegen das Schema
+	// (OutputSchema).
 	tool := &mcp.Tool{
 		Name: spec.Name, Title: spec.Title, Description: spec.Description,
-		Annotations: annotations, InputSchema: inSchema, OutputSchema: outSchema,
+		Annotations: annotations, InputSchema: inSchema,
 	}
+	spec.output = outSchema
 	mcp.AddTool(tb.srv, tool, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, any, error) {
 		c, release, err := tb.newCall(ctx, req, spec.Name)
 		if err != nil {
@@ -367,7 +384,11 @@ func add[In, Out any](tb *Toolbox, spec Spec, run func(ctx context.Context, c *C
 		defer release()
 		out, err := run(actor.WithChannel(ctx, c.Channel), c, in)
 		if err != nil {
-			return errorResult(toolError(err)), nil, nil
+			te := toolError(err)
+			if _, keyed := any(in).(writeInput); te.Code == CodeBusy && !keyed {
+				te.NaechsterSchritt = "In einigen Sekunden erneut aufrufen; das Werkzeug schreibt nichts doppelt."
+			}
+			return errorResult(te), nil, nil
 		}
 		body, err := json.Marshal(out)
 		if err != nil {
@@ -423,8 +444,8 @@ func (tb *Toolbox) newCall(ctx context.Context, req *mcp.CallToolRequest, tool s
 
 // Seite ist die Eingabe eines seitenweise antwortenden Werkzeugs.
 type Seite struct {
-	Limit  int    `json:"limit,omitempty" jsonschema:"Einträge je Seite, 1 bis 100; Vorgabe 25"`
-	Cursor string `json:"cursor,omitempty" jsonschema:"naechste_seite aus der vorigen Antwort; leer für die erste Seite"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"1 bis 100, Vorgabe 25"`
+	Cursor string `json:"cursor,omitempty" jsonschema:"naechste_seite der vorigen Antwort"`
 }
 
 // Seitenende gehört in die Ausgabe eines seitenweise antwortenden Werkzeugs.

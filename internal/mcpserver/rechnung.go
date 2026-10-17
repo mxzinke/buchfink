@@ -134,17 +134,18 @@ type rechnungAusstellenIn struct {
 
 type rechnungOut struct {
 	Wiederholung
-	RechnungID uint   `json:"rechnung_id"`
-	Nummer     string `json:"nummer"`
-	Datum      string `json:"datum"`
-	Faellig    string `json:"faellig,omitempty"`
-	Netto      Betrag `json:"netto"`
-	Steuer     Betrag `json:"steuer"`
-	Brutto     Betrag `json:"brutto"`
-	BuchungID  *uint  `json:"buchung_id,omitempty"`
-	BelegID    *uint  `json:"beleg_id,omitempty" jsonschema:"das archivierte Rechnungsdokument"`
-	VerbundID  *uint  `json:"verbund_id,omitempty"`
-	Hinweis    string `json:"hinweis"`
+	RechnungID uint          `json:"rechnung_id"`
+	Nummer     string        `json:"nummer"`
+	Datum      string        `json:"datum"`
+	Faellig    string        `json:"faellig,omitempty"`
+	Netto      Betrag        `json:"netto"`
+	Steuer     Betrag        `json:"steuer"`
+	Brutto     Betrag        `json:"brutto"`
+	BuchungID  *uint         `json:"buchung_id,omitempty"`
+	BelegID    *uint         `json:"beleg_id,omitempty" jsonschema:"das archivierte Rechnungsdokument"`
+	VerbundID  *uint         `json:"verbund_id,omitempty"`
+	Dateien    []exportDatei `json:"dateien" jsonschema:"Kopien von PDF und E-Rechnung im Exportordner, zum Versand"`
+	Hinweis    string        `json:"hinweis"`
 }
 
 func (o rechnungOut) Ref() string { return fmt.Sprintf("rechnung:%d", o.RechnungID) }
@@ -152,8 +153,38 @@ func (o rechnungOut) Ref() string { return fmt.Sprintf("rechnung:%d", o.Rechnung
 func rechnungOutOf(inv *domain.Invoice) rechnungOut {
 	return rechnungOut{RechnungID: inv.ID, Nummer: inv.InvoiceNumber, Datum: inv.Date, Faellig: inv.DueDate,
 		Netto: betrag(inv.NetAmount), Steuer: betrag(inv.TaxAmount), Brutto: betrag(inv.GrossAmount),
-		BuchungID: inv.JournalEntryID, BelegID: inv.ReceiptID, VerbundID: inv.GroupID,
-		Hinweis: "Den Versand übernimmt der Agent oder der Mensch außerhalb von Buchfink."}
+		BuchungID: inv.JournalEntryID, BelegID: inv.ReceiptID, VerbundID: inv.GroupID, Dateien: []exportDatei{},
+		Hinweis: "Den Versand übernimmt der Agent oder der Mensch außerhalb von Buchfink; die Dateien liegen im Exportordner."}
+}
+
+// withFiles legt PDF und E-Rechnung einer ausgestellten Rechnung in den
+// Exportordner.
+func withFiles(ctx context.Context, c *Call, s *core.Services, out rechnungOut) (rechnungOut, error) {
+	if out.BelegID == nil {
+		return out, nil
+	}
+	r, err := s.Receipts.Get(ctx, *out.BelegID)
+	if err != nil {
+		return out, err
+	}
+	dirs, err := folders(ctx, c, s)
+	if err != nil {
+		return out, err
+	}
+	seen := map[string]bool{}
+	for i := range r.Files {
+		f := &r.Files[i]
+		if f.Role == domain.ReceiptRoleAttachment || seen[f.SHA256] {
+			continue
+		}
+		seen[f.SHA256] = true
+		file, err := exportReceiptFile(ctx, s, dirs, r, f)
+		if err != nil {
+			return out, err
+		}
+		out.Dateien = append(out.Dateien, file)
+	}
+	return out, nil
 }
 
 func registerRechnung(tb *Toolbox) {
@@ -185,8 +216,8 @@ func registerRechnung(tb *Toolbox) {
 		Description: "Stellt eine Ausgangsrechnung mit fortlaufender Nummer aus, bucht die Forderung und archiviert " +
 			"das Dokument (E-Rechnung nach dem Format des Kunden). art=abschlag stellt eine Anzahlungsrechnung " +
 			"in einem Rechnungsverbund aus (neu mit verbund und kontakt_id, sonst verbund_id); art=schlussrechnung " +
-			"rechnet den Verbund ab. Vorher rechnung_vorschau dem Menschen vorlegen und sein Ja einholen. Den Versand " +
-			"übernimmt der Agent oder der Mensch.",
+			"rechnet den Verbund ab. Vorher rechnung_vorschau dem Menschen vorlegen und sein Ja einholen. PDF und " +
+			"E-Rechnung liegen danach im Exportordner (dateien); den Versand übernimmt der Agent oder der Mensch.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in rechnungAusstellenIn) error {
 		if (in.Art == "" || in.Art == "rechnung") && in.Rechnung != nil {
 			inv, err := in.Rechnung.invoice()
@@ -209,7 +240,7 @@ func registerRechnung(tb *Toolbox) {
 			if err := s.Invoices.Issue(ctx, inv); err != nil {
 				return rechnungOut{}, err
 			}
-			return rechnungOutOf(inv), nil
+			return withFiles(ctx, c, s, rechnungOutOf(inv))
 		case "abschlag":
 			if in.Abschlag == nil {
 				return rechnungOut{}, inputError("abschlag", "die Angaben der Abschlagsrechnung fehlen")
@@ -250,7 +281,7 @@ func registerRechnung(tb *Toolbox) {
 			out := rechnungOutOf(inv)
 			out.VerbundID = &groupID
 			out.Hinweis = "Eine Anzahlungsrechnung bucht Buchfink erst mit der Zahlung. " + out.Hinweis
-			return out, nil
+			return withFiles(ctx, c, s, out)
 		case "schlussrechnung":
 			if in.Rechnung == nil || in.VerbundID == 0 {
 				return rechnungOut{}, inputError("verbund_id", "für die Schlussrechnung verbund_id und rechnung angeben")
@@ -264,7 +295,7 @@ func registerRechnung(tb *Toolbox) {
 			if err != nil {
 				return rechnungOut{}, err
 			}
-			return rechnungOutOf(inv), nil
+			return withFiles(ctx, c, s, rechnungOutOf(inv))
 		}
 		return rechnungOut{}, inputError("art", "rechnung, abschlag oder schlussrechnung, nicht %q", in.Art)
 	})

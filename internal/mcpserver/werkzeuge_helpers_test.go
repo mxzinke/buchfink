@@ -37,12 +37,14 @@ func (h *harness) agent(scope string) *agent {
 	}
 	a := &agent{t: h.t, h: h, cs: cs, schemas: map[string]*jsonschema.Resolved{}}
 	for _, tool := range listed.Tools {
-		raw, _ := json.Marshal(tool.OutputSchema)
-		var s jsonschema.Schema
-		if err := json.Unmarshal(raw, &s); err != nil {
-			h.t.Fatalf("%s: %v", tool.Name, err)
+		if tool.OutputSchema != nil {
+			h.t.Fatalf("%s veröffentlicht ein Ausgabeschema", tool.Name)
 		}
-		resolved, err := s.Resolve(nil)
+		schema := h.srv.Toolbox().OutputSchema(tool.Name)
+		if schema == nil {
+			continue
+		}
+		resolved, err := schema.Resolve(nil)
 		if err != nil {
 			h.t.Fatalf("%s: %v", tool.Name, err)
 		}

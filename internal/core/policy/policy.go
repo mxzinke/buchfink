@@ -56,7 +56,8 @@ func verdict(reasons []Reason) Verdict {
 
 // Limits sind die Schwellen der direkten Stufe.
 type Limits struct {
-	// MaxGross ist die Direktgrenze brutto je Beleg.
+	// MaxGross ist die Direktgrenze brutto je Beleg; direkt geht nur, was
+	// darunter liegt.
 	MaxGross domain.Cents `json:"grenze_brutto"`
 	// MinBookings ist die Zahl früherer Buchungen eines Lieferanten mit seiner
 	// Standard-Buchungsgruppe.
@@ -131,7 +132,7 @@ type ReceiptFacts struct {
 // werden darf. Direkt nur, wenn alles zutrifft: vom Menschen bestätigte
 // Standard-Buchungsgruppe des Lieferanten mit genug früheren Buchungen,
 // E-Rechnung ohne Befund, Beträge centgenau aus der E-Rechnung, Inland in
-// Euro, Brutto bis zur Direktgrenze, keine Sonderangaben, kein
+// Euro, Brutto unter der Direktgrenze, keine Sonderangaben, kein
 // Dublettenverdacht.
 func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 	var r []Reason
@@ -202,8 +203,8 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 		add("betraege_weichen_ab", "Netto je Steuersatz oder Brutto weichen von der E-Rechnung ab (Brutto %s € statt %s €).",
 			f.Gross, f.ProposalGross)
 	}
-	if f.Gross > l.MaxGross {
-		add("ueber_direktgrenze", "Brutto %s € liegt über der Direktgrenze von %s €.", f.Gross, l.MaxGross)
+	if f.Gross >= l.MaxGross {
+		add("ueber_direktgrenze", "Brutto %s € liegt nicht unter der Direktgrenze von %s €.", f.Gross, l.MaxGross)
 	}
 	if len(f.Special) > 0 {
 		add("sonderangaben", "Die Buchung trägt Sonderangaben: %v.", f.Special)

@@ -181,8 +181,11 @@ func TestManualEntryReversalAndReminder(t *testing.T) {
 		Storno     struct{ ID uint }  `json:"storno"`
 		Neubuchung *struct{ ID uint } `json:"neubuchung"`
 	}
+	a.fail("buchung_stornieren", a.args(map[string]any{"buchung_id": booked.Buchung.ID, "grund": "Betrag falsch erfasst",
+		"datum": "2026-03-31", "neubuchung": map[string]any{"buchungsdatum": "2026-03-31", "beschreibung": "x",
+			"steuerfall": "domestic", "zeilen": revenue("200.00", "38.00", "238.00")}}), CodeInvalidInput)
 	a.ok("buchung_stornieren", a.args(map[string]any{"buchung_id": booked.Buchung.ID, "grund": "Betrag falsch erfasst",
-		"datum": "2026-03-31", "neubuchung": map[string]any{"buchungsdatum": "2026-03-31", "belegdatum": "2026-03-10",
+		"neubuchung": map[string]any{"buchungsdatum": "2026-03-31", "belegdatum": "2026-03-10",
 			"beschreibung": "Beratung März, Rechnung 17 (berichtigt)", "steuerfall": "domestic",
 			"zeilen": revenue("200.00", "38.00", "238.00")}}), &reversed)
 	if reversed.Storno.ID == 0 || reversed.Neubuchung == nil {
@@ -614,11 +617,27 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 		Brutto     string `json:"brutto"`
 		BuchungID  *uint  `json:"buchung_id"`
 		Wiederholt bool   `json:"wiederholt"`
+		Dateien    []struct {
+			Pfad string `json:"pfad"`
+			Mime string `json:"mime"`
+		} `json:"dateien"`
 	}
 	in := a.args(map[string]any{"rechnung": invoice, "idempotenz_schluessel": "rechnung-april"})
 	a.ok("rechnung_ausstellen", in, &issued)
 	if issued.RechnungID == 0 || issued.Nummer == "" || issued.Brutto != "1428.00" || issued.BuchungID == nil {
 		t.Fatalf("ausgestellt: %+v", issued)
+	}
+	pdfs := 0
+	for _, f := range issued.Dateien {
+		if _, err := os.Stat(f.Pfad); err != nil {
+			t.Errorf("Datei zum Versand: %v", err)
+		}
+		if f.Mime == "application/pdf" {
+			pdfs++
+		}
+	}
+	if pdfs != 1 {
+		t.Errorf("Dateien zum Versand: %+v", issued.Dateien)
 	}
 	var replay struct {
 		RechnungID uint `json:"rechnung_id"`

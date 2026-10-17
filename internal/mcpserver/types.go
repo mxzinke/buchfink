@@ -48,12 +48,20 @@ func schemaOptions() *jsonschema.ForOptions {
 	return &jsonschema.ForOptions{TypeSchemas: typeSchemas}
 }
 
+// outputSchemaOptions: Ausgaben sind Zeichenketten, wo Eingaben ein Muster
+// oder eine Werteliste haben.
+func outputSchemaOptions() *jsonschema.ForOptions {
+	plain := map[reflect.Type]*jsonschema.Schema{}
+	for t := range typeSchemas {
+		plain[t] = &jsonschema.Schema{Type: "string"}
+	}
+	return &jsonschema.ForOptions{TypeSchemas: plain}
+}
+
 var typeSchemas = map[reflect.Type]*jsonschema.Schema{
-	reflect.TypeFor[Betrag](): {Type: "string", Pattern: betragPattern.String(),
-		Description: `Betrag in Euro mit Punkt, höchstens zwei Nachkommastellen, z. B. "119.00"`},
-	reflect.TypeFor[Datum](): {Type: "string", Pattern: datumPattern.String(), Description: "Datum JJJJ-MM-TT"},
-	reflect.TypeFor[Konto](): {Type: "string", Pattern: `^[0-9]{4,5}$`,
-		Description: "Kontonummer SKR04 (vierstellig) oder Personenkonto (fünfstellig)"},
+	reflect.TypeFor[Betrag](): {Type: "string", Pattern: betragPattern.String(), Description: `Euro, z. B. "119.00"`},
+	reflect.TypeFor[Datum]():  {Type: "string", Pattern: datumPattern.String()},
+	reflect.TypeFor[Konto]():  {Type: "string", Pattern: `^[0-9]{4,5}$`, Description: "SKR04-Konto oder Personenkonto"},
 	reflect.TypeFor[Buchungsgruppe](): {Type: "string", Enum: groupKeys(domain.DirectionIncoming),
 		Description: "Buchungsgruppe für Eingangsbelege; Bedeutung über konten mit art=buchungsgruppen"},
 	reflect.TypeFor[Erloesgruppe](): {Type: "string", Enum: groupKeys(domain.DirectionOutgoing),

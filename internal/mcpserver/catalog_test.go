@@ -25,6 +25,7 @@ var catalog = map[string]Tier{
 	"beleg_ablegen": TierDirect, "kontakt_anlegen": TierDirect, "kontoauszug_importieren": TierDirect,
 	"beleg_buchen": TierDirect, "bankumsatz_zuordnen": TierDirect, "erklaerung_exportieren": TierDirect,
 	"ebilanz_exportieren": TierDirect, "pflicht_vorbereitet": TierDirect, "standardgruppe_vorschlagen": TierDirect,
+	"beleg_datei_exportieren": TierDirect,
 
 	"beleg_buchen_mit_rueckfrage": TierConfirm, "bankumsatz_buchen": TierConfirm, "buchung_erfassen": TierConfirm,
 	"buchung_stornieren": TierConfirm, "lohnjournal_buchen": TierConfirm, "rechnung_ausstellen": TierConfirm,
@@ -43,6 +44,7 @@ var writeFixtures = map[string]map[string]any{
 	"bankumsatz_zuordnen":         {"bankumsatz_id": 1, "buchung_id": 1},
 	"erklaerung_exportieren":      {"art": "kst", "jahr": 2026},
 	"ebilanz_exportieren":         {"jahr": 2026},
+	"beleg_datei_exportieren":     {"beleg_id": 1},
 	"pflicht_vorbereitet":         {"schluessel": "ustva.2026-Q1", "notiz": "Kennzahlen geprüft"},
 	"standardgruppe_vorschlagen":  {"kontakt_id": 1, "buchungsgruppe": "software", "begruendung": "drei Rechnungen"},
 	"beleg_buchen_mit_rueckfrage": bookArgs(1, 1, "2026-05-04", "100.00"),
@@ -319,5 +321,24 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 		if required := slices.Contains(requiredOf(tools[name]), "idempotenz_schluessel"); required != keyed[name] {
 			t.Errorf("%s: Schlüssel Pflicht %v, erwartet %v", name, required, keyed[name])
 		}
+	}
+}
+
+// Der Werkzeugkatalog liegt in jedem Gespräch im Kontext des Agenten. Er
+// bleibt deshalb knapp: keine veröffentlichten Ausgabeschemas, kurze
+// Beschreibungen der wiederkehrenden Felder.
+func TestCatalogStaysSmall(t *testing.T) {
+	h := newHarness(t)
+	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
+	total := 0
+	for name, tool := range tools {
+		raw, _ := json.Marshal(tool)
+		total += len(raw)
+		if tool.OutputSchema != nil {
+			t.Errorf("%s veröffentlicht ein Ausgabeschema", name)
+		}
+	}
+	if total > 80_000 {
+		t.Errorf("der Katalog hat %d Bytes", total)
 	}
 }

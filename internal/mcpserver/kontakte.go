@@ -235,7 +235,7 @@ func registerKontakte(tb *Toolbox) {
 			out.Hinweise = append(out.Hinweise, contact.VatIDNotice)
 		}
 		if contact.ProposedPostingGroup != "" {
-			out.Hinweise = append(out.Hinweise, "Die Standardgruppe ist vorgeschlagen; direkt bucht Buchfink erst, wenn der Mensch sie in der App bestätigt.")
+			out.Hinweise = append(out.Hinweise, confirmHint)
 		}
 		return out, nil
 	})
@@ -252,9 +252,14 @@ func registerKontakte(tb *Toolbox) {
 		if err != nil {
 			return standardgruppeOut{}, err
 		}
-		return standardgruppeOut{Kontakt: kontaktOf(*contact, false),
-			Hinweis: "Vorgeschlagen. Der Mensch bestätigt die Standardgruppe in der App beim Kontakt."}, nil
+		return standardgruppeOut{Kontakt: kontaktOf(*contact, false), Hinweis: confirmHint}, nil
 	})
 }
+
+// confirmHint sagt, was nach einem Vorschlag der Standardgruppe geschieht.
+// Die Bestätigung gehört dem Menschen; bietet seine Fassung der App sie noch
+// nicht an, bleibt jede Belegbuchung des Lieferanten eine Rückfrage.
+const confirmHint = "Vorgeschlagen, nicht bestätigt. Bestätigen kann nur der Mensch in der App; bis dahin bucht " +
+	"beleg_buchen diesen Lieferanten nicht direkt, beleg_buchen_mit_rueckfrage geht immer."
 
 func compactID(s string) string { return strings.ToUpper(strings.Join(strings.Fields(s), "")) }

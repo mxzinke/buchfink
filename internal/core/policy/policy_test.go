@@ -58,8 +58,8 @@ func TestReceiptRules(t *testing.T) {
 		{"anderer Satz", func(f *ReceiptFacts) {
 			f.Net = map[domain.TaxRate]domain.Cents{domain.TaxRateReduced: 10000}
 		}, "betraege_weichen_ab"},
-		{"über der Grenze", func(f *ReceiptFacts) {
-			f.Gross, f.ProposalGross = 100001, 100001
+		{"an der Grenze", func(f *ReceiptFacts) {
+			f.Gross, f.ProposalGross = 100000, 100000
 		}, "ueber_direktgrenze"},
 		{"Bewirtung", func(f *ReceiptFacts) { f.Special = []string{"bewirtung"} }, "sonderangaben"},
 		{"Auslage", func(f *ReceiptFacts) { f.Settlement = "shareholder_expense" }, "bezahlart"},
@@ -74,11 +74,11 @@ func TestReceiptRules(t *testing.T) {
 			t.Errorf("%s: %v %v, erwartet %s", tc.name, v.Level, v.Keys(), tc.reason)
 		}
 	}
-	// Die Grenze selbst ist noch direkt.
+	// Direkt geht nur, was unter der Grenze liegt.
 	f := routine()
-	f.Gross, f.ProposalGross = 100000, 100000
+	f.Gross, f.ProposalGross = 99999, 99999
 	if v := ClassifyReceipt(f, limits); !v.Direct() {
-		t.Errorf("genau an der Grenze: %v", v.Keys())
+		t.Errorf("ein Cent unter der Grenze: %v", v.Keys())
 	}
 	// Eingestellte Schwellen gelten.
 	strict := LimitsFrom(&domain.AgentSettings{DirectMaxGross: 5000, DirectMinBookings: 5})

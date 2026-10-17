@@ -209,9 +209,16 @@ func receiptHead(receiptID, contactID uint, docDate, bookDate, from, to Datum, t
 	return req, nil
 }
 
-// receiptReady prüft, ob ein Beleg gebucht werden kann, und nennt sonst den
-// Ausweg.
-func receiptReady(ctx context.Context, s *core.Services, id uint) (*domain.Receipt, error) {
+// receiptReady prüft, ob Beleg und Kontakt einer Belegbuchung da sind und
+// der Beleg gebucht werden kann, und nennt sonst den Ausweg.
+func receiptReady(ctx context.Context, s *core.Services, req service.ReceiptRequest) (*domain.Receipt, error) {
+	if _, err := s.Contacts.Contact(ctx, req.ContactID); err != nil {
+		return nil, notFound("kontakt_id", req.ContactID, err)
+	}
+	return receiptBookable(ctx, s, req.ReceiptID)
+}
+
+func receiptBookable(ctx context.Context, s *core.Services, id uint) (*domain.Receipt, error) {
 	r, err := s.Receipts.Get(ctx, id)
 	if err != nil {
 		return nil, notFound("beleg_id", id, err)
@@ -408,7 +415,7 @@ type stornierenIn struct {
 	WriteArgs
 	BuchungID  uint          `json:"buchung_id"`
 	Grund      string        `json:"grund" jsonschema:"warum storniert wird (GoBD Rz. 58)"`
-	Datum      Datum         `json:"datum,omitempty" jsonschema:"Tag des Stornos; Vorgabe heute, muss im offenen Zeitraum liegen"`
+	Datum      Datum         `json:"datum,omitempty" jsonschema:"nur beim Saldenvortrag: Tag der Generalumkehr; jede andere Buchung storniert Buchfink selbst datiert"`
 	Neubuchung *neubuchungIn `json:"neubuchung,omitempty" jsonschema:"die richtige Buchung, die an die Stelle tritt"`
 }
 
@@ -492,8 +499,9 @@ func registerBuchen(tb *Toolbox) {
 		Title: "Beleg buchen (Routine)",
 		Tier:  TierDirect, Idempotent: true,
 		Description: "Bucht eine Eingangsrechnung ohne Rückfrage, wenn Buchfink sie als Routine einstuft: " +
-			"E-Rechnung ohne Befund, Beträge centgenau wie in der E-Rechnung, Inland in Euro, Brutto bis zur " +
-			"Direktgrenze, Lieferant mit vom Menschen bestätigter Standardgruppe und genug früheren Buchungen, " +
+			"E-Rechnung ohne Befund, Aussteller über USt-IdNr. oder Steuernummer erkannt, Beträge centgenau wie in " +
+			"der E-Rechnung, Inland in Euro, Brutto unter der Direktgrenze, Lieferant mit vom Menschen bestätigter " +
+			"Standardgruppe und genug früheren Buchungen, " +
 			"bezahlung offen oder kreditkarte, kein Dublettenverdacht. Sonst kommt freigabe_noetig mit Gründen und " +
 			"es ist nichts gebucht; dann dem Menschen vorlegen und beleg_buchen_mit_rueckfrage nutzen. Mit " +
 			"nur_vorschau wird gerechnet und eingestuft, nicht gebucht.",
@@ -502,7 +510,7 @@ func registerBuchen(tb *Toolbox) {
 		if err != nil {
 			return buchungOut{}, err
 		}
-		if _, err := receiptReady(ctx, s, req.ReceiptID); err != nil {
+		if _, err := receiptReady(ctx, s, req); err != nil {
 			return buchungOut{}, err
 		}
 		verdict, err := policy.ClassifyReceiptRequest(ctx, s, req, today())
@@ -546,7 +554,7 @@ func registerBuchen(tb *Toolbox) {
 		if err != nil {
 			return buchungOut{}, err
 		}
-		receipt, err := receiptReady(ctx, s, req.ReceiptID)
+		receipt, err := receiptReady(ctx, s, req)
 		if err != nil {
 			return buchungOut{}, err
 		}
@@ -612,6 +620,9 @@ func registerBuchen(tb *Toolbox) {
 		date, err := in.Datum.check("datum")
 		if err != nil {
 			return stornierenOut{}, err
+		}
+		if date != "" && in.Neubuchung != nil {
+			return stornierenOut{}, inputError("datum", "mit neubuchung entfällt datum; Storno und Neubuchung datiert Buchfink selbst")
 		}
 		if in.Neubuchung == nil {
 			reversal, err := s.Journal.ReverseOn(ctx, in.BuchungID, in.Grund, date)

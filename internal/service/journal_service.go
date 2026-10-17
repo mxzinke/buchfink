@@ -85,6 +85,19 @@ func (s *JournalService) SetFestschreibungRepo(r domain.FestschreibungRepository
 // SetFiscalYearRepo wires the Abschlussstand of the fiscal years. Optional.
 func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fiscalYearRepo = r }
 
+// CommittedThrough ist der jüngste Stichtag einer Festschreibung, leer ohne
+// Festschreibung.
+func (s *JournalService) CommittedThrough(ctx context.Context) (string, error) {
+	if s.festschreibungRepo == nil {
+		return "", nil
+	}
+	all, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, "")
+	if err != nil || len(all) == 0 {
+		return "", err
+	}
+	return all[0].CutoffDate, nil
+}
+
 // SetReceiptRepo hängt die Belegablage an. Mit ihr prüft Post die Kopfdaten des
 // Belegs, auf den eine Buchung verweist. Optional.
 func (s *JournalService) SetReceiptRepo(r domain.ReceiptRepository) { s.receiptRepo = r }

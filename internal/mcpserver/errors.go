@@ -9,6 +9,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
@@ -75,11 +76,20 @@ func toolError(err error) *ToolError {
 		return &ToolError{Code: CodeFileInvalid, Nachricht: err.Error(),
 			NaechsterSchritt: "Die Originaldatei (PDF, Bild oder XML bis 50 MB) anfordern."}
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		return &ToolError{Code: CodeNotFound, Nachricht: err.Error(),
-			NaechsterSchritt: "Die Kennung mit dem passenden Such-Werkzeug neu ermitteln."}
+		return &ToolError{Code: CodeNotFound, Nachricht: "Eine der angegebenen Kennungen gibt es nicht: " + err.Error(),
+			NaechsterSchritt: "Die Kennungen mit dem passenden Such-Werkzeug neu ermitteln."}
 	case errors.Is(err, context.DeadlineExceeded):
 		return &ToolError{Code: CodeBusy, Nachricht: "Buchfink ist gerade mit einem anderen Vorgang beschäftigt.",
 			NaechsterSchritt: "In einigen Sekunden mit demselben Idempotenzschlüssel erneut senden.", Wiederholbar: true}
+	case errors.Is(err, core.ErrOffline), errors.Is(err, core.ErrNetworkInWrite):
+		return &ToolError{Code: CodeRule, Nachricht: "Für den Vorgang braucht Buchfink das Netz (etwa einen Wechselkurs); es ist nicht erreichbar: " + err.Error(),
+			NaechsterSchritt: "Später erneut senden.", Wiederholbar: true}
+	case errors.Is(err, core.ErrRatesInExaminerMode):
+		return &ToolError{Code: CodeExaminer, Nachricht: err.Error(),
+			NaechsterSchritt: "Bis zum Ende des Prüfermodus nur lesen.", Werkzeug: "nur_app"}
+	case errors.Is(err, domain.ErrInvalidAmount), errors.Is(err, domain.ErrFiscalYearRequired),
+		errors.Is(err, service.ErrDeclarationKind):
+		return &ToolError{Code: CodeInvalidInput, Nachricht: err.Error()}
 	case errors.Is(err, domain.ErrIdempotencyKeyReused):
 		return &ToolError{Code: CodeKeyReused, Nachricht: err.Error(),
 			NaechsterSchritt: "Für einen neuen Vorgang einen neuen Idempotenzschlüssel wählen."}

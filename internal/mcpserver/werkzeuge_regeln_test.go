@@ -2,9 +2,13 @@ package mcpserver
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -29,6 +33,19 @@ func TestPreviewKeepsTheKey(t *testing.T) {
 	if preview.Vorschau == nil || preview.Buchung != nil || booked.Buchung == nil || booked.Wiederholt {
 		t.Fatalf("Vorschau und Buchung: %+v / %+v", preview, booked)
 	}
+
+	// Die Datei des Belegs liest der Agent aus einer Kopie im Exportordner.
+	var copied struct {
+		Pfad   string `json:"pfad"`
+		Rolle  string `json:"rolle"`
+		SHA256 string `json:"sha256"`
+	}
+	a.ok("beleg_datei_exportieren", a.args(map[string]any{"beleg_id": photo.Beleg.ID}), &copied)
+	if data, err := os.ReadFile(copied.Pfad); err != nil || string(data) != string(pdf("Quittung")) || copied.Rolle != "original" {
+		t.Errorf("Kopie: %+v %v", copied, err)
+	}
+	a.fail("beleg_datei_exportieren", a.args(map[string]any{"beleg_id": photo.Beleg.ID, "datei_id": 999}), CodeNotFound)
+	a.fail("beleg_datei_exportieren", a.args(map[string]any{"beleg_id": 999}), CodeNotFound)
 }
 
 // Eine Handbuchung eines Agenten belegt keine Vorauszahlung; erledigt ist die
@@ -81,4 +98,81 @@ func TestPrepaymentNeedsARealPayment(t *testing.T) {
 	if st := status(); st != "erledigt" {
 		t.Errorf("nach der Zahlung des Menschen: %s", st)
 	}
+}
+
+// Eine unbekannte Kennung nennt das Feld und das Werkzeug, mit dem sie sich
+// finden lässt.
+func TestUnknownIDsNameTheirField(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	a := h.agent("")
+	var photo ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-07", "dateien": []any{map[string]any{"pfad": h.inboxFile("q.pdf", pdf("Q"))}},
+		"belegdatum": "2026-05-07", "aussteller": "Laden", "brutto": "11.90"}), &photo)
+	e := a.fail("beleg_buchen_mit_rueckfrage", a.args(bookArgs(photo.Beleg.ID, 999, "2026-05-07", "10.00")), CodeNotFound)
+	if e.Werkzeug != "kontakte_suchen" || !strings.Contains(e.Nachricht, "kontakt_id") {
+		t.Errorf("unbekannter Kontakt: %+v", e)
+	}
+	e = a.fail("beleg_buchen", a.args(bookArgs(999, 999, "2026-05-07", "10.00")), CodeNotFound)
+	if e.Werkzeug == "" {
+		t.Errorf("unbekannter Beleg: %+v", e)
+	}
+}
+
+// Die Pflichtart heißt mancherorts anders als ihr Abschnitt in pflichten.md;
+// fristen nimmt beide an und nennt den Anker.
+func TestObligationAnchorsAreAccepted(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	a := h.agent("")
+	var due struct {
+		Pflichten []struct {
+			Schluessel string `json:"schluessel"`
+			Art        string `json:"art"`
+			Anker      string `json:"anker"`
+			Verweis    string `json:"verweis"`
+		} `json:"pflichten"`
+	}
+	a.ok("fristen", map[string]any{"art": []any{"monatsfestschreibung"}, "geschaeftsjahr": 2026}, &due)
+	if len(due.Pflichten) == 0 {
+		t.Fatalf("Festschreibung über den Anker: %+v", due)
+	}
+	p := due.Pflichten[0]
+	if p.Art != "festschreibung" || p.Anker != "monatsfestschreibung" || !strings.HasSuffix(p.Verweis, "#monatsfestschreibung") {
+		t.Errorf("Anker: %+v", p)
+	}
+	alias := strings.Replace(p.Schluessel, "festschreibung.", "monatsfestschreibung.", 1)
+	a.ok("fristen", map[string]any{"schluessel": alias}, &due)
+	if len(due.Pflichten) != 1 || due.Pflichten[0].Schluessel != p.Schluessel {
+		t.Errorf("Schlüssel über den Anker: %+v", due)
+	}
+}
+
+// Ein Belegordner, der die Datenordner mehrerer Mandanten umschließt, macht
+// die Belege der anderen nicht lesbar.
+func TestReceiptFolderSkipsOtherTenants(t *testing.T) {
+	h := newHarness(t)
+	parent := t.TempDir()
+	other, err := h.host.CreateTenant(uiCtx, "Fremd GmbH", filepath.Join(parent, "Fremd GmbH"),
+		domain.CompanySettings{CompanyName: "Fremd GmbH", FiscalYear: 2026, LegalForm: domain.LegalFormGmbH})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(other.DataDir, policy.InboxDir, "geheim.xml")
+	if err := os.MkdirAll(filepath.Dir(secret), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(secret, []byte(h.eInvoiceXML(supplier, "GEHEIM-1", "2026-05-04", 1234500)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.host.Switch(uiCtx, h.tenant.ID); err != nil {
+		t.Fatal(err)
+	}
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{ReceiptFolders: []string{parent}})
+		return err
+	})
+	a := h.agent("")
+	a.fail("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-04", "dateien": []any{map[string]any{"pfad": secret}}}),
+		CodePathNotAllowed)
 }
