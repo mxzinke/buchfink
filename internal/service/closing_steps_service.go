@@ -355,6 +355,11 @@ func (s *ClosingStepsService) derive(
 		return domain.ClosingStepOpen, ""
 
 	case domain.ClosingStepTaxProvision:
+		// Ein Jahr mit Überzahlung bucht nur Erstattungsansprüche und keine
+		// Rückstellung; erledigt ist der Schritt mit der Buchung.
+		if standing, _ := s.hasClosingReference(ctx, year, TaxProvisionReference(year)); standing {
+			return domain.ClosingStepDone, "Steuerrückstellung und Erstattungsansprüche gebucht"
+		}
 		provisions, err := s.liveProvisions(ctx, year)
 		if err != nil {
 			return domain.ClosingStepOpen, ""

@@ -36,6 +36,50 @@ func TestTaxParametersAreDated(t *testing.T) {
 	}
 }
 
+// § 23 Abs. 1 KStG senkt den Satz ab dem Veranlagungszeitraum 2028 jährlich um
+// einen Prozentpunkt; § 52 Abs. 18b EStG lässt den Verlustvortrag über eine
+// Million Euro für 2024 bis 2027 zu 70 % zu, davor und danach zu 60 %;
+// § 16 Abs. 4 Satz 2 GewStG hebt den Mindesthebesatz ab 2027 auf 280 %.
+func TestCorporateTaxRateAndLossRulesFollowTheAssessmentYear(t *testing.T) {
+	cases := []struct {
+		date                  string
+		corporate, loss, rate int64
+	}{
+		{"2023-12-31", 150, 600, 200},
+		{"2024-12-31", 150, 700, 200},
+		{"2026-12-31", 150, 700, 200},
+		{"2027-12-31", 150, 700, 280},
+		{"2028-06-30", 140, 600, 280},
+		{"2029-12-31", 130, 600, 280},
+		{"2030-12-31", 120, 600, 280},
+		{"2031-12-31", 110, 600, 280},
+		{"2032-12-31", 100, 600, 280},
+		{"2040-12-31", 100, 600, 280},
+	}
+	for _, tc := range cases {
+		params, err := TaxParametersFor(tc.date)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.date, err)
+		}
+		if params.CorporateTaxPermille != tc.corporate || params.LossDeductionExcessPermille != tc.loss ||
+			params.TradeTaxMinRatePercent != tc.rate {
+			t.Errorf("%s: KSt %d ‰, Verlustabzug %d ‰, Mindesthebesatz %d %% — erwartet %d, %d, %d",
+				tc.date, params.CorporateTaxPermille, params.LossDeductionExcessPermille,
+				params.TradeTaxMinRatePercent, tc.corporate, tc.loss, tc.rate)
+		}
+		if params.LossDeductionBase != 100_000_000 || params.TradeLossExcessPermille != 600 ||
+			params.ExemptIncomeNonDeductiblePermille != 50 {
+			t.Errorf("%s: unveränderliche Werte fehlen: %+v", tc.date, params)
+		}
+	}
+	for i := 1; i < len(taxParameterSets); i++ {
+		if taxParameterSets[i-1].ValidFrom >= taxParameterSets[i].ValidFrom {
+			t.Errorf("die Sätze sind nicht aufsteigend geordnet: %s vor %s",
+				taxParameterSets[i-1].ValidFrom, taxParameterSets[i].ValidFrom)
+		}
+	}
+}
+
 // § 27 Abs. 38 UStG kennt drei Fälle, und der mittlere richtet sich nach dem
 // Vorjahresumsatz des Ausstellers — den Buchfink nicht kennt. Deshalb ein
 // Status, kein Ja/Nein.

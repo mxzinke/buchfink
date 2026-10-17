@@ -17,7 +17,8 @@ import (
 // Hebesatz gehört zur Gemeinde, die Abgrenzungsmethode zur Buchführung.
 type ClosingSettings struct {
 	// TradeTaxRatePercent ist der Gewerbesteuer-Hebesatz der Gemeinde in
-	// Prozent (400 = 400 %).
+	// Prozent (400 = 400 %); null heißt: nicht hinterlegt. Eine Voreinstellung
+	// gibt es nicht, denn der Hebesatz ist eine Angabe der Gemeinde.
 	TradeTaxRatePercent int64 `json:"tradeTaxRatePercent"`
 	// AccrualMethod ist "monthly" (Zwölftel) oder "daily" (taggenau).
 	AccrualMethod string `json:"accrualMethod"`
@@ -42,10 +43,9 @@ func NewClosingSettingsService(settingsRepo domain.SettingsRepository, auditRepo
 // Abschlussbausteine verwenden, wenn nichts gespeichert ist.
 func (s *ClosingSettingsService) Get(ctx context.Context) (*ClosingSettings, error) {
 	out := &ClosingSettings{
-		TradeTaxRatePercent: 400,
-		AccrualMethod:       "monthly",
-		AccrualThreshold:    domain.DefaultAccrualThreshold,
-		AccrualRelease:      "yearly",
+		AccrualMethod:    "monthly",
+		AccrualThreshold: domain.DefaultAccrualThreshold,
+		AccrualRelease:   "yearly",
 	}
 	values := map[string]string{}
 	for _, key := range []string{domain.SettingTradeTaxRate, domain.SettingAccrualMethod,
@@ -81,8 +81,8 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 	if err := requireHuman(ctx, "Die Änderung der Abschluss-Einstellungen"); err != nil {
 		return nil, err
 	}
-	if in.TradeTaxRatePercent < 200 || in.TradeTaxRatePercent > 1000 {
-		return nil, fmt.Errorf("der Gewerbesteuer-Hebesatz liegt zwischen 200 %% und 1000 %% (§ 16 Abs. 4 Satz 2 GewStG: mindestens 200 %%), angegeben sind %d %%", in.TradeTaxRatePercent)
+	if in.TradeTaxRatePercent != 0 && (in.TradeTaxRatePercent < 200 || in.TradeTaxRatePercent > 1000) {
+		return nil, fmt.Errorf("der Gewerbesteuer-Hebesatz liegt zwischen 200 %% und 1000 %% (§ 16 Abs. 4 Satz 2 GewStG: mindestens 200 %%, ab 2027 280 %%), angegeben sind %d %%", in.TradeTaxRatePercent)
 	}
 	if in.AccrualMethod != "monthly" && in.AccrualMethod != "daily" {
 		return nil, fmt.Errorf("die Abgrenzungsmethode ist monatsgenau (monthly) oder taggenau (daily), nicht %q", in.AccrualMethod)
@@ -98,7 +98,7 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 		return nil, err
 	}
 	writes := map[string]string{
-		domain.SettingTradeTaxRate:     strconv.FormatInt(in.TradeTaxRatePercent, 10),
+		domain.SettingTradeTaxRate:     tradeTaxRateSetting(in.TradeTaxRatePercent),
 		domain.SettingAccrualMethod:    in.AccrualMethod,
 		domain.SettingAccrualThreshold: strconv.FormatInt(int64(in.AccrualThreshold), 10),
 		domain.SettingAccrualRelease:   in.AccrualRelease,
@@ -129,4 +129,13 @@ func (s *ClosingSettingsService) read(ctx context.Context, key string) (string, 
 		return "", nil
 	}
 	return strings.TrimSpace(v), err
+}
+
+// tradeTaxRateSetting schreibt einen nicht hinterlegten Hebesatz als leeren
+// Wert statt als null Prozent.
+func tradeTaxRateSetting(rate int64) string {
+	if rate == 0 {
+		return ""
+	}
+	return strconv.FormatInt(rate, 10)
 }

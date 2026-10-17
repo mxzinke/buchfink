@@ -609,7 +609,7 @@ func TestTaxProvisionIsComputedAndBooked(t *testing.T) {
 		t.Fatalf("Ergebnis buchen: %v", err)
 	}
 
-	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau: %v", err)
 	}
@@ -1021,7 +1021,7 @@ func TestClosingModulesMarshalEmptyListsNotNull(t *testing.T) {
 	}
 	assertNoNullLists(t, "Umsatzsteuer-Verrechnung", settlement, "rows", "lines")
 
-	taxPreview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	taxPreview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Steuerrückstellung: %v", err)
 	}
@@ -1254,7 +1254,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 		t.Fatalf("Vorauszahlung buchen: %v", err)
 	}
 
-	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau: %v", err)
 	}
@@ -1267,7 +1267,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 	}
 	// Nach der Buchung steht der Steueraufwand auf denselben Konten. Er darf
 	// die Vorauszahlung nicht aufblähen.
-	after, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	after, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau nach der Buchung: %v", err)
 	}

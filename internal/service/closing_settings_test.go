@@ -19,8 +19,12 @@ func TestClosingSettingsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.TradeTaxRatePercent != 400 || got.AccrualMethod != "monthly" || got.AccrualThreshold != domain.DefaultAccrualThreshold {
+	// Der Hebesatz hat keine Voreinstellung: er ist eine Angabe der Gemeinde.
+	if got.TradeTaxRatePercent != 0 || got.AccrualMethod != "monthly" || got.AccrualThreshold != domain.DefaultAccrualThreshold {
 		t.Fatalf("unerwartete Voreinstellungen: %+v", got)
+	}
+	if _, err := svc.Save(ctx, ClosingSettings{AccrualMethod: "daily", AccrualRelease: "yearly"}); err != nil {
+		t.Errorf("ohne Hebesatz lassen sich die übrigen Einstellungen nicht speichern: %v", err)
 	}
 
 	saved, err := svc.Save(ctx, ClosingSettings{TradeTaxRatePercent: 470, AccrualMethod: "daily", AccrualThreshold: 50_000, AccrualRelease: "monthly"})

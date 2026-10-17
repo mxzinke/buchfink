@@ -24,12 +24,12 @@ func TestUnsupportedCompanyRefusesClosingAndTaxProvision(t *testing.T) {
 		if err := modules.closing.EnsureFiscalYears(ctx, 2026); err != nil {
 			t.Fatalf("Geschäftsjahre: %v", err)
 		}
-		if _, err := modules.bookings.PreviewTaxProvision(ctx, 2026); err != nil {
+		if _, err := modules.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{TradeTaxRatePercent: 400}); err != nil {
 			t.Fatalf("%s: ohne Merkmal rechnet die Steuerrückstellung: %v", word, err)
 		}
 		env.setSettings(t, mark)
 
-		_, err := modules.bookings.PreviewTaxProvision(ctx, 2026)
+		_, err := modules.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{TradeTaxRatePercent: 400})
 		if err == nil || !strings.Contains(err.Error(), word) || !strings.Contains(err.Error(), "Steuerberater") {
 			t.Errorf("%s: Steuerrückstellung: %v", word, err)
 		}
