@@ -69,6 +69,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Journal.SetFestschreibungRepo(festschreibungRepo)
 	s.Journal.SetFiscalYearRepo(fiscalYearRepo)
 	s.Journal.SetReceiptRepo(receiptRepo)
+	s.Journal.SetBankRepo(bankRepo)
 	s.Idempotency = service.NewIdempotencyService(idempotencyRepo, txRunner)
 
 	s.Posting = service.NewPostingService(s.Journal, contactRepo)
@@ -247,10 +248,20 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Backup = service.NewBackupService(backupRunRepo, auditRepo, db, info.DataDir, info.ID, info.Name)
 
 	s.Bank.SetOpenItemSource(s.Payments)
+	s.Bank.SetCreditCardSource(s.Payments)
 	s.Bank.SetRuleRepo(bankRuleRepo)
 
 	s.AuditTrail = service.NewAuditTrailService(receiptRepo, journalRepo, allocationRepo, bankRepo, auditRepo)
 	s.AuditTrail.SetRenderer(renderer)
+
+	s.Shareholders = service.NewShareholderService(
+		repository.NewShareholderLoanRepository(db), journalRepo, contactRepo, settingsRepo, auditRepo,
+		s.Journal, s.Posting, s.Receipts)
+	s.Payments.SetLoanSource(s.Shareholders)
+	s.Payroll = service.NewPayrollService(
+		repository.NewPayrollRepository(db), journalRepo, s.Journal, s.Posting, auditRepo)
+	s.Checks.AddFindingSource(s.Shareholders)
+	s.Checks.AddFindingSource(s.Payroll)
 
 	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo)
 	s.MonthClose.SetFiscalYearSource(fiscalYearRepo)

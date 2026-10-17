@@ -22,7 +22,21 @@ const (
 	SettlementOpen SettlementKind = "open"
 	// SettlementPaid books directly against a liquid account.
 	SettlementPaid SettlementKind = "paid"
+	// SettlementCreditCard ist die Zahlung mit der Firmenkreditkarte: der
+	// Betrag steht auf 3610, bis die Monatsabrechnung vom Bankkonto abgebucht
+	// wird.
+	SettlementCreditCard SettlementKind = "credit_card"
+	// SettlementShareholderExpense ist die Auslage: ein Gesellschafter oder
+	// Geschäftsführer hat privat bezahlt und bekommt den Betrag erstattet.
+	// Aussteller bleibt der Lieferant, Gläubiger der Erstattung ist er.
+	SettlementShareholderExpense SettlementKind = "shareholder_expense"
 )
+
+// paidAtReceipt meldet die Zahlungswege, bei denen das Entgelt mit dem Beleg
+// entrichtet ist.
+func (k SettlementKind) paidAtReceipt() bool {
+	return k == SettlementPaid || k == SettlementCreditCard || k == SettlementShareholderExpense
+}
 
 // ReceiptPosition is one net amount of an incoming document, classified by a
 // fachliche Gruppe (or a directly chosen account) and a VAT rate.
@@ -82,6 +96,9 @@ type ReceiptRequest struct {
 	Positions      []ReceiptPosition   `json:"positions"`
 	Settlement     SettlementKind      `json:"settlement"`
 	PaymentAccount string              `json:"paymentAccount,omitempty"`
+	// CreditorContactID ist bei einer Auslage der Gesellschafter oder
+	// Geschäftsführer, dem der Betrag zu erstatten ist.
+	CreditorContactID uint `json:"creditorContactId,omitempty"`
 
 	// Currency ist die Währung des Belegs. Leer oder „EUR" heißt: es wird in der
 	// Buchwährung abgerechnet und nichts umgerechnet.
@@ -671,6 +688,11 @@ func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequ
 	if err != nil {
 		return nil, err
 	}
+	if req.Settlement == SettlementShareholderExpense {
+		if err := s.expenseCreditor(ctx, req, contact, &settlementLine); err != nil {
+			return nil, err
+		}
+	}
 	if fx != nil {
 		settlementLine.ForeignAmount = fx.toForeign(settlementLine.Amount)
 	}
@@ -715,7 +737,7 @@ func (s *PostingService) validateAdvanceRequest(req ReceiptRequest) error {
 	if _, err := accounting.VendorAdvanceAccountFor(req.AdvanceTarget); err != nil {
 		return err
 	}
-	if req.Settlement != SettlementPaid {
+	if !req.Settlement.paidAtReceipt() {
 		return fmt.Errorf(
 			"eine Anzahlungsrechnung wird mit der Zahlung gebucht, nicht mit ihrem Eingang: " +
 				"der Vorsteuerabzug setzt nach § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG die Entrichtung des " +
@@ -1464,9 +1486,63 @@ func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymen
 			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", paymentAccount)
 		}
 		return domain.JournalLine{Side: side, Account: paymentAccount, Amount: difference}, nil
+	case SettlementCreditCard:
+		return domain.JournalLine{
+			Side: side, Account: domain.AccountKreditkartenabrechnung, Amount: difference, Text: "Firmenkreditkarte",
+		}, nil
+	case SettlementShareholderExpense:
+		// Konto und Gläubiger setzt expenseCreditor.
+		return domain.JournalLine{Side: side, Amount: difference}, nil
 	default:
 		return domain.JournalLine{}, fmt.Errorf("unbekannte Zahlungsart %q", kind)
 	}
+}
+
+// expenseCreditor setzt die Gegenzeile einer Auslage: die Erstattungsschuld
+// gegenüber dem Gesellschafter (3640) oder dem Geschäftsführer, der kein
+// Gesellschafter ist (3500), mit ihm als Kontakt. Der Lieferant bleibt
+// Aussteller des Belegs und Kontakt der Buchung.
+func (s *PostingService) expenseCreditor(
+	ctx context.Context, req ReceiptRequest, supplier *domain.Contact, line *domain.JournalLine,
+) error {
+	if req.CreditorContactID == 0 {
+		return fmt.Errorf("bei einer Auslage fehlt der Gesellschafter oder Geschäftsführer, der bezahlt hat")
+	}
+	if req.CreditorContactID == supplier.ID {
+		return fmt.Errorf(
+			"%s ist Aussteller des Belegs und kann nicht zugleich die Auslage erstattet bekommen; "+
+				"eine Rechnung des Gesellschafters wird offen gebucht", supplier.Name)
+	}
+	creditor, err := s.contactRepo.FindByID(ctx, req.CreditorContactID)
+	if err != nil {
+		return fmt.Errorf("der Gläubiger der Auslage wurde nicht gefunden: %w", err)
+	}
+	if err := ensureNotBlocked(creditor); err != nil {
+		return err
+	}
+	if s.settingsRepo == nil {
+		return fmt.Errorf("ohne Unternehmensdaten lässt sich der Gläubiger einer Auslage nicht zuordnen")
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht lesen: %w", err)
+	}
+	role := companyRoleOf(cfg, creditor)
+	switch {
+	case role.shareholder:
+		line.Account = domain.AccountVerbindlichkeitenGesellschafter
+	case role.director:
+		line.Account = domain.AccountSonstigeVerbindlichkeiten
+	default:
+		return fmt.Errorf(
+			"%s steht weder in der Gesellschafterliste noch in der Geschäftsführung der Unternehmensdaten. "+
+				"Eine Auslage erstattet Buchfink Gesellschaftern und Geschäftsführern; die Auslage eines "+
+				"Arbeitnehmers läuft über die Lohnabrechnung", creditor.Name)
+	}
+	cid := creditor.ID
+	line.ContactID = &cid
+	line.Text = "Auslage von " + creditor.LegalName()
+	return nil
 }
 
 func isLiquidAccount(account string) bool {

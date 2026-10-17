@@ -67,6 +67,9 @@ type PaymentService struct {
 	// Journals. Ein Pflichtparameter im Konstruktor hätte jeden Aufrufer
 	// erfasst.
 	auditRepo domain.AuditRepository
+	// loans liefert Konto und Gesellschafter eines Darlehens für die
+	// Aufteilung eines Bankumsatzes (bank_split.go).
+	loans LoanLineSource
 }
 
 // SetAuditRepo koppelt das Protokoll an. Die Ausbuchung einer Forderung ist
@@ -320,12 +323,9 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 	// can be mistyped.
 	var bankTx *domain.BankTransaction
 	if req.BankTxID != nil {
-		tx, err := s.bankRepo.FindByID(ctx, *req.BankTxID)
+		tx, err := s.openBankTx(ctx, *req.BankTxID)
 		if err != nil {
-			return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", *req.BankTxID, err)
-		}
-		if tx.MatchStatus == domain.MatchStatusMatched {
-			return nil, fmt.Errorf("Bankumsatz %d ist bereits zugeordnet", tx.ID)
+			return nil, err
 		}
 		bankTx = tx
 		req.PaymentAccount = tx.LedgerAccount
@@ -340,23 +340,89 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 			"Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", req.PaymentAccount)
 	}
 
+	parts, err := s.allocate(ctx, req.Allocations, req.BankTxID)
+	if err != nil {
+		return nil, err
+	}
+
+	// The cash side is what the statement says. Checking it here is what turns a
+	// mis-entered Skonto into an error message instead of a silent wrong booking.
+	if bankTx != nil && parts.cash != bankTx.Amount.Abs() {
+		return nil, fmt.Errorf(
+			"die Zuordnung ergibt %s €, der Bankumsatz lautet aber über %s €",
+			parts.cash, bankTx.Amount.Abs())
+	}
+	if parts.cash == 0 {
+		return nil, fmt.Errorf("die Zahlung hat einen Betrag von null")
+	}
+
+	// Money leaving is a credit on the liquid account, money arriving a debit.
+	lines := append(parts.lines, domain.JournalLine{
+		Side: parts.lines[0].Side.Opposite(), Account: req.PaymentAccount, Amount: parts.cash,
+	})
+
+	description := req.Description
+	if description == "" {
+		description = paymentDescription(req, parts.items)
+	}
+
+	entry := &domain.JournalEntry{
+		BookingDate:        req.PaymentDate,
+		DocumentDate:       req.PaymentDate,
+		ServiceDateFrom:    req.PaymentDate,
+		ServiceDateTo:      req.PaymentDate,
+		ValueDate:          req.ValueDate,
+		Description:        description,
+		Source:             domain.EntrySourcePayment,
+		ContactID:          parts.contactID,
+		BankTxID:           req.BankTxID,
+		PostingRuleVersion: accounting.PostingRuleVersion,
+		Lines:              lines,
+	}
+	return s.postSettlement(ctx, entry, parts, bankTx)
+}
+
+// allocationParts sind die Zeilen und Vermerke, die eine Zahlung auf offene
+// Posten verteilt: Ausgleich je Posten, Differenzzeilen, Zuordnungen und die
+// Minderung von Anschaffungskosten.
+type allocationParts struct {
+	lines       []domain.JournalLine
+	allocations []domain.PaymentAllocation
+	reductions  []assetCostReduction
+	items       map[uint]domain.OpenItem
+	contactID   *uint
+	// cash ist, was auf dem Zahlungsmittelkonto fließt.
+	cash domain.Cents
+}
+
+// openBankTx liest einen Bankumsatz, der noch zu buchen ist.
+func (s *PaymentService) openBankTx(ctx context.Context, id uint) (*domain.BankTransaction, error) {
+	tx, err := s.bankRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", id, err)
+	}
+	if tx.MatchStatus == domain.MatchStatusMatched {
+		return nil, fmt.Errorf("Bankumsatz %d ist bereits zugeordnet", tx.ID)
+	}
+	return tx, nil
+}
+
+// allocate verteilt eine Zahlung auf offene Posten.
+func (s *PaymentService) allocate(
+	ctx context.Context, requests []AllocationRequest, bankTxID *uint,
+) (*allocationParts, error) {
 	openItems, err := s.OpenItems(ctx)
 	if err != nil {
 		return nil, err
 	}
-	byEntry := make(map[uint]domain.OpenItem, len(openItems))
+	parts := &allocationParts{items: make(map[uint]domain.OpenItem, len(openItems))}
 	for _, o := range openItems {
-		byEntry[o.EntryID] = o
+		parts.items[o.EntryID] = o
 	}
+	parts.allocations = make([]domain.PaymentAllocation, 0, len(requests))
 
-	var lines []domain.JournalLine
-	var totalCash domain.Cents
-	var contactID *uint
-	var reductions []assetCostReduction
-	allocations := make([]domain.PaymentAllocation, 0, len(req.Allocations))
-
-	for i, alloc := range req.Allocations {
-		item, ok := byEntry[alloc.OpenItemEntryID]
+	for i, alloc := range requests {
+		item, ok := parts.items[alloc.OpenItemEntryID]
 		if !ok {
 			return nil, fmt.Errorf("Zuordnung %d: die Buchung %d hat keinen offenen Posten", i+1, alloc.OpenItemEntryID)
 		}
@@ -374,10 +440,7 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 		// Die Ausbuchung steht in derselben Auswahl, gehört aber nicht hierher:
 		// zu ihr fließt kein Geld, und sie bucht keinen Zahlungsausgleich,
 		// sondern den Forderungsverlust samt Steuerkorrektur (§ 17 Abs. 2 Nr. 1
-		// UStG). Ohne diesen Zweig fiele sie in die Sammelmeldung „unbekannte
-		// Differenzart" — eine Auskunft, die den Anwender im Kreis schickt,
-		// weil die Art sehr wohl bekannt ist, nur an dieser Stelle nicht
-		// buchbar.
+		// UStG).
 		if alloc.DifferenceKind == domain.DifferenceWriteoff {
 			return nil, fmt.Errorf(
 				"Zuordnung %d: die Ausbuchung ist keine Zahlung. Eine uneinbringliche Forderung wird "+
@@ -390,35 +453,35 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 		cid := item.ContactID
 		// Settling a payable is a debit on the Kreditorenkonto, settling a
 		// receivable a credit on the Debitorenkonto — the item knows which.
-		lines = append(lines, domain.JournalLine{
+		parts.lines = append(parts.lines, domain.JournalLine{
 			Side:      item.SettleSide(),
 			Account:   item.LedgerAccount,
 			ContactID: &cid,
 			Amount:    alloc.SettledAmount,
 			Text:      item.DocumentNumber,
 		})
-		if contactID == nil {
-			contactID = &cid
+		if parts.contactID == nil {
+			parts.contactID = &cid
 		}
 
 		diffLines, reduction, err := s.differenceLines(ctx, alloc, item)
 		if err != nil {
 			return nil, fmt.Errorf("Zuordnung %d: %w", i+1, err)
 		}
-		lines = append(lines, diffLines...)
+		parts.lines = append(parts.lines, diffLines...)
 		if reduction != nil {
-			reductions = append(reductions, *reduction)
+			parts.reductions = append(parts.reductions, *reduction)
 		}
 
 		cash := alloc.cashAmount()
 		if cash < 0 {
 			return nil, fmt.Errorf("Zuordnung %d: die Differenz ist größer als der Ausgleichsbetrag", i+1)
 		}
-		totalCash += cash
+		parts.cash += cash
 
-		allocations = append(allocations, domain.PaymentAllocation{
+		parts.allocations = append(parts.allocations, domain.PaymentAllocation{
 			OpenItemEntryID:  item.EntryID,
-			BankTxID:         req.BankTxID,
+			BankTxID:         bankTxID,
 			ContactID:        item.ContactID,
 			SettledAmount:    alloc.SettledAmount,
 			CashAmount:       cash,
@@ -426,52 +489,26 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 			DifferenceAmount: alloc.DifferenceAmount,
 		})
 	}
+	return parts, nil
+}
 
-	// The cash side is what the statement says. Checking it here is what turns a
-	// mis-entered Skonto into an error message instead of a silent wrong booking.
-	if bankTx != nil && totalCash != bankTx.Amount.Abs() {
-		return nil, fmt.Errorf(
-			"die Zuordnung ergibt %s €, der Bankumsatz lautet aber über %s €",
-			totalCash, bankTx.Amount.Abs())
-	}
-	if totalCash == 0 {
-		return nil, fmt.Errorf("die Zahlung hat einen Betrag von null")
-	}
-
-	// Money leaving is a credit on the liquid account, money arriving a debit.
-	lines = append(lines, domain.JournalLine{
-		Side: lines[0].Side.Opposite(), Account: req.PaymentAccount, Amount: totalCash,
-	})
-
-	description := req.Description
-	if description == "" {
-		description = paymentDescription(req, byEntry)
-	}
-
-	entry := &domain.JournalEntry{
-		BookingDate:        req.PaymentDate,
-		DocumentDate:       req.PaymentDate,
-		ServiceDateFrom:    req.PaymentDate,
-		ServiceDateTo:      req.PaymentDate,
-		ValueDate:          req.ValueDate,
-		Description:        description,
-		Source:             domain.EntrySourcePayment,
-		ContactID:          contactID,
-		BankTxID:           req.BankTxID,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-
+// postSettlement bucht die Zahlung und schreibt, was an ihr hängt:
+// Zuordnungen, Vermerk am Bankumsatz und Minderung der Anschaffungskosten.
+func (s *PaymentService) postSettlement(
+	ctx context.Context, entry *domain.JournalEntry, parts *allocationParts, bankTx *domain.BankTransaction,
+) (*domain.JournalEntry, error) {
 	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range allocations {
-		allocations[i].PaymentEntryID = created.ID
-	}
-	if err := s.allocationRepo.Create(ctx, allocations); err != nil {
-		return nil, fmt.Errorf("die Zahlungszuordnung konnte nicht gespeichert werden: %w", err)
+	if len(parts.allocations) > 0 {
+		for i := range parts.allocations {
+			parts.allocations[i].PaymentEntryID = created.ID
+		}
+		if err := s.allocationRepo.Create(ctx, parts.allocations); err != nil {
+			return nil, fmt.Errorf("die Zahlungszuordnung konnte nicht gespeichert werden: %w", err)
+		}
 	}
 
 	if bankTx != nil {
@@ -482,11 +519,11 @@ func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domai
 
 	// Die Kartei erst jetzt fortschreiben: vorher gibt es die Buchung nicht, an
 	// die sich die Minderung hängen soll.
-	for _, reduction := range reductions {
+	for _, reduction := range parts.reductions {
 		entryID := created.ID
 		if _, err := s.assets.RecordCostAdjustment(ctx, CostAdjustmentRequest{
 			AssetID:        reduction.assetID,
-			Date:           req.PaymentDate,
+			Date:           entry.BookingDate,
 			Amount:         reduction.amount,
 			Reduction:      true,
 			Note:           reduction.note,

@@ -33,6 +33,8 @@ type BankService struct {
 	// Dienst wie zuvor, nur ohne Vorschlag.
 	openItems LiveOpenItemSource
 	ruleRepo  domain.BankRuleRepository
+	// creditCards findet die Kartenabrechnung zu einer Abbuchung.
+	creditCards CreditCardSource
 }
 
 // NewBankService creates the bank import service.

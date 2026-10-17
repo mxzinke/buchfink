@@ -60,6 +60,8 @@ type Services struct {
 	MonthClose      *service.MonthCloseService
 	AuditTrail      *service.AuditTrailService
 	Idempotency     *service.IdempotencyService
+	Shareholders    *service.ShareholderService
+	Payroll         *service.PayrollService
 }
 
 // Repos sind lesende Zugänge für Aufrufer, die ohne Dienst lesen. Geschrieben

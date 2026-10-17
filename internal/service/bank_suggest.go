@@ -28,7 +28,41 @@ const (
 	// SuggestionRule ist die gelernte Buchungsgruppe eines wiederkehrenden
 	// Umsatzes ohne offenen Posten.
 	SuggestionRule SuggestionKind = "rule"
+	// SuggestionCreditCard ist die Abbuchung der Kreditkartenabrechnung: der
+	// Betrag trifft den offenen Saldo von 3610 zu einem Abrechnungsstichtag.
+	SuggestionCreditCard SuggestionKind = "credit_card"
 )
+
+// CreditCardSource findet den Abrechnungsstichtag zu einer Abbuchung.
+type CreditCardSource interface {
+	CreditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error)
+}
+
+// SetCreditCardSource hängt die Kreditkartenabrechnung an. Ohne sie schlägt der
+// Dienst keine Kartenabrechnung vor.
+func (s *BankService) SetCreditCardSource(src CreditCardSource) { s.creditCards = src }
+
+// creditCardSuggestion schlägt die Kartenabrechnung vor, wenn eine Abbuchung
+// den offenen Saldo von 3610 zu einem Tag vor ihr trifft.
+func (s *BankService) creditCardSuggestion(ctx context.Context, tx *domain.BankTransaction) (*BankSuggestion, error) {
+	if s.creditCards == nil || tx.Amount >= 0 {
+		return nil, nil
+	}
+	date, err := s.creditCards.CreditCardStatementDate(ctx, tx.Amount.Abs(), tx.BookingDate)
+	if err != nil || date == "" {
+		return nil, err
+	}
+	return &BankSuggestion{
+		Kind:  SuggestionCreditCard,
+		Score: accounting.MatchScoreExactAmount + accounting.MatchScoreDocumentNumber,
+		Reasons: []string{fmt.Sprintf("Betrag gleich dem offenen Saldo der Kreditkartenabrechnung (%s) zum %s",
+			domain.AccountKreditkartenabrechnung, domain.GermanDate(date))},
+		Label:          fmt.Sprintf("Kreditkartenabrechnung zum %s über %s €", domain.GermanDate(date), tx.Amount.Abs()),
+		Amount:         tx.Amount.Abs(),
+		CounterAccount: domain.AccountKreditkartenabrechnung,
+		StatementDate:  date,
+	}, nil
+}
 
 // BankSuggestion ist ein Vorschlag zu einem Bankumsatz.
 type BankSuggestion struct {
@@ -50,6 +84,8 @@ type BankSuggestion struct {
 	CounterAccount string `json:"counterAccount,omitempty"`
 	PostingGroup   string `json:"postingGroup,omitempty"`
 	RuleID         uint   `json:"ruleId,omitempty"`
+	// StatementDate ist der Abrechnungsstichtag einer Kreditkartenabrechnung.
+	StatementDate string `json:"statementDate,omitempty"`
 }
 
 // EnsureLists ersetzt nicht belegte Listen durch leere.
@@ -141,6 +177,13 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 
 	if rule := s.ruleSuggestion(ctx, tx); rule != nil {
 		out.Suggestions = append(out.Suggestions, *rule)
+	}
+	card, err := s.creditCardSuggestion(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if card != nil {
+		out.Suggestions = append(out.Suggestions, *card)
 	}
 
 	// Der beste zuerst; bei gleicher Punktzahl der ältere Posten, damit die

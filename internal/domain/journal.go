@@ -531,6 +531,9 @@ type JournalRepository interface {
 	FindByAccountRange(ctx context.Context, account, from, to string) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
+	// FindActiveByBankTx liefert die nicht stornierten Buchungen, die einen
+	// Bankumsatz buchen. Ein Umsatz steht in höchstens einer.
+	FindActiveByBankTx(ctx context.Context, bankTxID uint) ([]JournalEntry, error)
 	// FindCorrectionOf liefert die Neubuchung, die eine stornierte Buchung
 	// ersetzt, oder nil. Die Gegenrichtung zu CorrectsEntryID.
 	FindCorrectionOf(ctx context.Context, entryID uint) (*JournalEntry, error)

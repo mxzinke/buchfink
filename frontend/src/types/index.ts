@@ -52,7 +52,8 @@ export type DifferenceKind =
   | 'writeoff';
 
 export type ContactType = 'customer' | 'vendor';
-export type Settlement = 'open' | 'paid';
+/** Zahlungsweg eines Belegs; `credit_card` bucht gegen 3610, `shareholder_expense` ist die Auslage. */
+export type Settlement = 'open' | 'paid' | 'credit_card' | 'shareholder_expense';
 export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'statistical';
 
 // -------------------------------------------------------------------------
@@ -370,6 +371,8 @@ export interface ReceiptRequest {
   positions: ReceiptPosition[];
   settlement: Settlement;
   paymentAccount?: string;
+  /** Bei einer Auslage der Gesellschafter oder Geschäftsführer, der bezahlt hat. */
+  creditorContactId?: number;
   currency?: string;
   /** Pflicht, sobald auf ein Bewirtungskonto gebucht wird. */
   entertainment?: EntertainmentDetail;
@@ -2202,6 +2205,17 @@ export interface StatementLine {
   amount: Cents;
   priorAmount: Cents;
   accounts?: StatementAccount[];
+  /** Davon-Vermerke für Posten, die die Gliederungstiefe hier zusammenfasst (§ 42 Abs. 3 GmbHG). */
+  remarks?: StatementRemark[];
+}
+
+/** Ein Davon-Vermerk unter einer Gliederungsposition. */
+export interface StatementRemark {
+  key: string;
+  label: string;
+  amount: Cents;
+  priorAmount: Cents;
+  reference?: string;
 }
 
 /** Was in einer Auffangposition gelandet ist. */
@@ -4078,7 +4092,7 @@ export interface MonthCloseState {
 }
 
 /** Die Art eines Zuordnungsvorschlags (`service.SuggestionKind`). */
-export type SuggestionKind = 'open_item' | 'collective' | 'rule';
+export type SuggestionKind = 'open_item' | 'collective' | 'rule' | 'credit_card';
 
 /** Ein Vorschlag zu einem Bankumsatz (`service.BankSuggestion`). */
 export interface BankSuggestion {
@@ -4094,6 +4108,8 @@ export interface BankSuggestion {
   counterAccount?: string;
   postingGroup?: string;
   ruleId?: number;
+  /** Abrechnungsstichtag einer Kreditkartenabrechnung. */
+  statementDate?: string;
 }
 
 /** Die Vorschlagsliste zu einem Bankumsatz, die beste zuerst. */

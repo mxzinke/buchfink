@@ -45,6 +45,10 @@ type lineDef struct {
 	Note          string
 	Fallback      bool
 	Subtotal      bool
+	// Remark ist der Davon-Vermerk, mit dem die Position an ihrer
+	// übergeordneten Zeile erscheint, wenn die Gliederungstiefe sie nicht zeigt.
+	Remark          string
+	RemarkReference string
 }
 
 // IsExpensePosition sagt, ob eine Position der Staffel ein Aufwandsposten ist
@@ -60,6 +64,9 @@ func IsExpensePosition(key string) bool {
 	}
 	return false
 }
+
+// shareholderNote erklärt die Posten gegenüber Gesellschaftern.
+const shareholderNote = "Gesondert auszuweisen nach § 42 Abs. 3 GmbHG; § 265 Abs. 5 Satz 2 HGB lässt den zusätzlichen Posten zu."
 
 // balanceLines ist die Bilanz in Kontoform nach § 266 Abs. 2 und 3 HGB.
 // Die Bezeichnungen folgen dem Gesetzeswortlaut.
@@ -86,6 +93,8 @@ var balanceLines = []lineDef{
 	{Key: "aktiva.A.III.4", Ordinal: "4.", Label: "Ausleihungen an Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets},
 	{Key: "aktiva.A.III.5", Ordinal: "5.", Label: "Wertpapiere des Anlagevermögens", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets},
 	{Key: "aktiva.A.III.6", Ordinal: "6.", Label: "sonstige Ausleihungen", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets, Fallback: true},
+	{Key: "aktiva.A.III.gesellschafter", Ordinal: "7.", Label: "Ausleihungen an Gesellschafter", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets,
+		Note: shareholderNote, Remark: "davon Ausleihungen an Gesellschafter", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 
 	{Key: "aktiva.B", Ordinal: "B.", Label: "Umlaufvermögen", Level: 1, Section: domain.SectionAssets},
 	{Key: "aktiva.B.I", Ordinal: "I.", Label: "Vorräte", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
@@ -98,6 +107,8 @@ var balanceLines = []lineDef{
 	{Key: "aktiva.B.II.2", Ordinal: "2.", Label: "Forderungen gegen verbundene Unternehmen", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.3", Ordinal: "3.", Label: "Forderungen gegen Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.4", Ordinal: "4.", Label: "sonstige Vermögensgegenstände", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets, Fallback: true},
+	{Key: "aktiva.B.II.gesellschafter", Ordinal: "5.", Label: "Forderungen gegen Gesellschafter", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets,
+		Note: shareholderNote, Remark: "davon gegen Gesellschafter", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 	{Key: "aktiva.B.III", Ordinal: "III.", Label: "Wertpapiere", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
 	{Key: "aktiva.B.III.1", Ordinal: "1.", Label: "Anteile an verbundenen Unternehmen", Level: 3, Parent: "aktiva.B.III", Section: domain.SectionAssets},
 	{Key: "aktiva.B.III.2", Ordinal: "2.", Label: "sonstige Wertpapiere", Level: 3, Parent: "aktiva.B.III", Section: domain.SectionAssets, Fallback: true},
@@ -140,6 +151,8 @@ var balanceLines = []lineDef{
 	{Key: "passiva.C.6", Ordinal: "6.", Label: "Verbindlichkeiten gegenüber verbundenen Unternehmen", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.C.7", Ordinal: "7.", Label: "Verbindlichkeiten gegenüber Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.C.8", Ordinal: "8.", Label: "sonstige Verbindlichkeiten", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true, Fallback: true},
+	{Key: "passiva.C.gesellschafter", Ordinal: "9.", Label: "Verbindlichkeiten gegenüber Gesellschaftern", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true,
+		Note: shareholderNote, Remark: "davon gegenüber Gesellschaftern", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 
 	{Key: "passiva.D", Ordinal: "D.", Label: "Rechnungsabgrenzungsposten", Level: 1, Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.E", Ordinal: "E.", Label: "Passive latente Steuern", Level: 1, Section: domain.SectionLiabilities, Credit: true},
@@ -598,7 +611,36 @@ func (b *builder) lines(defs []lineDef, maxLevel int) []domain.StatementLine {
 		line.Omitted = !line.IsSubtotal && !b.hasValue(def.Key)
 		out = append(out, line)
 	}
+	b.attachRemarks(defs, out, maxLevel)
 	return out
+}
+
+// attachRemarks hängt die Davon-Vermerke der Posten, die diese Tiefe nicht
+// zeigt, an die nächste gezeigte übergeordnete Zeile. § 42 Abs. 3 GmbHG
+// verlangt den Vermerk, wenn die Beträge gegenüber Gesellschaftern unter
+// anderen Posten stehen.
+func (b *builder) attachRemarks(defs []lineDef, out []domain.StatementLine, maxLevel int) {
+	index := make(map[string]int, len(out))
+	for i := range out {
+		index[out[i].Key] = i
+	}
+	for _, def := range defs {
+		if def.Remark == "" || def.Level <= maxLevel || !b.hasValue(def.Key) {
+			continue
+		}
+		parent := def.Parent
+		for parent != "" && lineIndex[parent].Level > maxLevel {
+			parent = lineIndex[parent].Parent
+		}
+		i, ok := index[parent]
+		if !ok {
+			continue
+		}
+		out[i].Remarks = append(out[i].Remarks, domain.StatementRemark{
+			Key: def.Key, Label: def.Remark, Reference: def.RemarkReference,
+			Amount: b.total(def.Key, b.own), PriorAmount: b.total(def.Key, b.ownPrior),
+		})
+	}
 }
 
 // hasValue meldet, ob auf der Position selbst oder auf einer ihrer

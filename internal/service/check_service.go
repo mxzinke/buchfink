@@ -53,7 +53,19 @@ type CheckService struct {
 	now func() time.Time
 
 	years MonthFiscalYearSource
+
+	// domains sind die Fachbereiche, die eigene Hinweise beitragen
+	// (Gesellschafter, Lohn).
+	domains []FindingSource
 }
+
+// FindingSource liefert die Befunde eines Fachbereichs zum Stichtag.
+type FindingSource interface {
+	Findings(ctx context.Context, cutoff string) ([]domain.CheckFinding, error)
+}
+
+// AddFindingSource hängt einen Fachbereich an den Prüflauf.
+func (s *CheckService) AddFindingSource(src FindingSource) { s.domains = append(s.domains, src) }
 
 // AccountBalanceSource liefert den Kontenplan mit den Salden eines Jahres. Der
 // Prüflauf braucht ihn für die Frage, ob jedes bebuchte Konto in der Bilanz
@@ -254,6 +266,13 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkPeriodsNotCommitted(ctx, year, req.CutoffDate, cfg)...)
 	findings = append(findings, s.checkUnconfirmedVatIDs(ctx, year)...)
 	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
+	for _, src := range s.domains {
+		extra, err := src.Findings(ctx, req.CutoffDate)
+		if err != nil {
+			return nil, err
+		}
+		findings = append(findings, extra...)
+	}
 
 	if req.PeriodType == "year" {
 		findings = append(findings, s.checkAccountMapping(ctx, year)...)

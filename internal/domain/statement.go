@@ -146,6 +146,19 @@ type StatementLine struct {
 	Amount      Cents              `json:"amount"`
 	PriorAmount Cents              `json:"priorAmount"`
 	Accounts    []StatementAccount `json:"accounts,omitempty"`
+	// Remarks sind die Davon-Vermerke für Posten, die die Gliederungstiefe
+	// in diese Zeile zusammenfasst, etwa die Beträge gegenüber Gesellschaftern
+	// (§ 42 Abs. 3 GmbHG).
+	Remarks []StatementRemark `json:"remarks,omitempty"`
+}
+
+// StatementRemark ist ein Davon-Vermerk unter einer Gliederungsposition.
+type StatementRemark struct {
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Amount      Cents  `json:"amount"`
+	PriorAmount Cents  `json:"priorAmount"`
+	Reference   string `json:"reference,omitempty"`
 }
 
 // FallbackCount zählt, was in einer Auffangposition gelandet ist.
