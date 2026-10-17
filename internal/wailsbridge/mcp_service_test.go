@@ -25,7 +25,7 @@ func freePort(t *testing.T) int {
 func mcpBridge(t *testing.T) *BuchfinkBridge {
 	t.Helper()
 	b := testBridge(t)
-	newMCPServer(b, t.TempDir())
+	newMCPServer(b)
 	if b.mcp == nil {
 		t.Fatalf("MCP-Server nicht eingerichtet: %s", b.mcpErr)
 	}

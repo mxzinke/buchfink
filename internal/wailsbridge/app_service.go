@@ -48,7 +48,7 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		return nil, err
 	}
 	b := &BuchfinkBridge{host: host}
-	newMCPServer(b, baseDir)
+	newMCPServer(b)
 	return b, nil
 }
 

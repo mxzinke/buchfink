@@ -24,12 +24,13 @@ const (
 	EventAppRequestDone = "buchfink:app-anfrage-erledigt"
 )
 
-// newMCPServer richtet den MCP-Server ein. Scheitert das, läuft die App ohne
-// ihn weiter; der Status nennt den Grund.
-func newMCPServer(b *BuchfinkBridge, baseDir string) {
+// newMCPServer richtet den MCP-Server ein; die verbundenen Apps liegen neben
+// der App-Konfiguration. Scheitert das, läuft die App ohne ihn weiter; der
+// Status nennt den Grund.
+func newMCPServer(b *BuchfinkBridge) {
 	srv, err := mcpserver.New(mcpserver.Options{
 		Host:      b.host,
-		StorePath: filepath.Join(baseDir, mcpserver.StoreFile),
+		StorePath: filepath.Join(b.host.BaseDir(), mcpserver.StoreFile),
 		Broker:    windowConsent{},
 	})
 	if err != nil {
