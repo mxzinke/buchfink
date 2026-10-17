@@ -169,6 +169,7 @@ func TestAppOnlyOperationsAreMarked(t *testing.T) {
 		"ConfirmVatReturnSubmitted", "ConfirmZMSubmitted",
 		"SetFiscalYearStatus", "ReopenFiscalYear", "UpdateCompanySettings",
 		"ConfigureBankAccounts", "SetInvoiceBankAccount", "BookAppropriation",
+		"SaveAgentRules", "ConfirmDefaultPostingGroup",
 	} {
 		m, ok := methods[name]
 		if !ok {

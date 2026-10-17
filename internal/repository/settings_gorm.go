@@ -21,13 +21,18 @@ func NewSettingsRepository(db *gorm.DB) domain.SettingsRepository {
 	return &settingsRepositoryGorm{db: db}
 }
 
+// Get liefert gorm.ErrRecordNotFound für einen fehlenden Schlüssel. Find statt
+// First, weil First jeden fehlenden Schlüssel ins Log schreibt, und fehlende
+// Schlüssel sind hier der Regelfall: sie stehen für die Voreinstellung.
 func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, error) {
-	var item domain.SettingItem
-	err := dbFrom(ctx, r.db).Where("key = ?", key).First(&item).Error
-	if err != nil {
+	var items []domain.SettingItem
+	if err := dbFrom(ctx, r.db).Where("key = ?", key).Limit(1).Find(&items).Error; err != nil {
 		return "", err
 	}
-	return item.Value, nil
+	if len(items) == 0 {
+		return "", gorm.ErrRecordNotFound
+	}
+	return items[0].Value, nil
 }
 
 func (r *settingsRepositoryGorm) Set(ctx context.Context, key string, value string) error {

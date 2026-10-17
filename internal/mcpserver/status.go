@@ -5,6 +5,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
 )
@@ -22,6 +23,14 @@ type statusOut struct {
 	Pruefermodus     *statusExaminer  `json:"pruefermodus,omitempty"`
 	Verbindung       statusConnection `json:"verbindung"`
 	VerbundeneApps   int              `json:"verbundene_apps" jsonschema:"Zahl der Apps mit gültiger Zulassung"`
+	Belegordner      []string         `json:"belegordner,omitempty" jsonschema:"Ordner, aus denen beleg_ablegen und kontoauszug_importieren lesen"`
+	Exportordner     string           `json:"exportordner,omitempty" jsonschema:"Ordner, in den die Exporte schreiben"`
+	Direktregeln     *statusRules     `json:"direktregeln,omitempty" jsonschema:"Schwellen, bis zu denen beleg_buchen ohne Rückfrage bucht"`
+}
+
+type statusRules struct {
+	GrenzeBrutto     Betrag `json:"grenze_brutto"`
+	Mindestbuchungen int    `json:"mindestbuchungen" jsonschema:"frühere Buchungen des Lieferanten mit seiner bestätigten Standardgruppe"`
 }
 
 type statusTenant struct {
@@ -115,6 +124,17 @@ func registerStatus(tb *Toolbox) {
 			if err == nil {
 				out.GJAktuell = year
 			}
+			dirs, err := folders(ctx, c, s)
+			if err != nil {
+				return err
+			}
+			dirs.EnsureInbox()
+			out.Belegordner, out.Exportordner = orEmpty(dirs.Receipt), dirs.Export
+			limits, err := policy.LimitsFor(ctx, s)
+			if err != nil {
+				return err
+			}
+			out.Direktregeln = &statusRules{GrenzeBrutto: betrag(limits.MaxGross), Mindestbuchungen: limits.MinBookings}
 			return nil
 		})
 		if err != nil {

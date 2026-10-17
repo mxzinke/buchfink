@@ -7,6 +7,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -34,6 +35,22 @@ func ClassifyReceiptRequest(ctx context.Context, s *core.Services, req service.R
 	return ClassifyReceipt(f, limits), nil
 }
 
+// ClassifyProposal stuft die Buchung ein, die ein Vorschlag aus der
+// E-Rechnung mit der bestätigten Standardgruppe des Lieferanten ergäbe.
+func ClassifyProposal(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) Verdict {
+	req.Positions = append([]service.ReceiptPosition(nil), req.Positions...)
+	if contact, err := s.Repos.Contacts.FindByID(ctx, req.ContactID); err == nil && contact.DefaultPostingGroupConfirmedAt != "" {
+		for i := range req.Positions {
+			req.Positions[i].PostingGroup = contact.DefaultPostingGroup
+		}
+	}
+	v, err := ClassifyReceiptRequest(ctx, s, req, today)
+	if err != nil {
+		return Verdict{Level: Confirm, Reasons: []Reason{{Key: "vorschau", Text: err.Error()}}}
+	}
+	return v
+}
+
 // ReceiptFactsFor sammelt die Fakten einer Belegbuchung.
 func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) (ReceiptFacts, error) {
 	f := ReceiptFacts{
@@ -51,7 +68,16 @@ func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptR
 	_, f.Structured = receipt.FileByRole(domain.ReceiptRoleStructured)
 
 	if findings, err := s.Receipts.Findings(ctx, receipt.ID); err == nil && findings != nil {
-		f.Checked, f.Findings = findings.Checked, findings.Total
+		f.Checked = findings.Checked
+		// Ein Hinweis (etwa: Kleinbetragsrechnung, darum weniger
+		// Pflichtangaben) ist kein Befund; jede Warnung und jeder Fehler ist einer.
+		for _, g := range findings.Groups {
+			for _, x := range g.Findings {
+				if x.Severity != string(einvoice.SeverityInfo) {
+					f.Findings++
+				}
+			}
+		}
 	}
 	if f.Structured {
 		proposal, err := s.EInvoice.Propose(ctx, receipt.ID)

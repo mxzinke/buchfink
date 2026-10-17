@@ -421,6 +421,19 @@ func (s *AccountingService) GetEntries(ctx context.Context, year int) ([]domain.
 	return s.decorate(ctx, entries)
 }
 
+// Entry liefert eine Buchung mit Kontonamen.
+func (s *AccountingService) Entry(ctx context.Context, id uint) (*domain.JournalEntry, error) {
+	entry, err := s.journalRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("Buchung %d wurde nicht gefunden: %w", id, err)
+	}
+	decorated, err := s.decorate(ctx, []domain.JournalEntry{*entry})
+	if err != nil || len(decorated) != 1 {
+		return entry, err
+	}
+	return &decorated[0], nil
+}
+
 // GetAllEntries returns the journal across all fiscal years.
 func (s *AccountingService) GetAllEntries(ctx context.Context) ([]domain.JournalEntry, error) {
 	entries, err := s.journalRepo.FindAll(ctx, 0)
