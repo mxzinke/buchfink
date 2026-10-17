@@ -99,32 +99,6 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 	return receipt
 }
 
-// assetDocument legt ein Anlagegut mit einem Dokument an.
-func (e *backupEnv) assetDocument(t *testing.T, name, content string) {
-	t.Helper()
-	svc := NewAssetService(
-		repository.NewAssetRepository(e.db), repository.NewJournalRepository(e.db),
-		e.journal, repository.NewNumberRangeRepository(e.db),
-		repository.NewContactRepository(e.db), repository.NewSettingsRepository(e.db),
-		repository.NewAuditRepository(e.db), 2026,
-	)
-	svc.SetDocumentStore(receiptstore.New(e.dataDir))
-	asset, err := svc.Save(context.Background(), &domain.FixedAsset{
-		Name: "Fräsmaschine", Class: domain.AssetClassTangible,
-		Account: "0440", DepreciationAccount: "6220",
-		AcquisitionDate: "2026-01-10", AcquisitionCost: 1_200_000,
-		UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
-	})
-	if err != nil {
-		t.Fatalf("Anlagegut anlegen: %v", err)
-	}
-	if _, err := svc.AttachDocument(context.Background(), AttachDocumentRequest{
-		AssetID: asset.ID, Content: []byte(content), FileName: name,
-	}); err != nil {
-		t.Fatalf("Anlagendokument ablegen: %v", err)
-	}
-}
-
 // --- Sichern ---------------------------------------------------------------
 
 // Die Sicherung muss alles enthalten, was einen Mandanten ausmacht: die
@@ -392,33 +366,6 @@ func TestVerifyBackupRejectsAForeignArchive(t *testing.T) {
 	}
 	if run.Success {
 		t.Error("der Lauf ist als gelungen vermerkt")
-	}
-}
-
-// Der Wiederherstellungstest prüft auch die Anlagendokumente. Sie liegen in
-// derselben Sicherung und sind genauso aufbewahrungspflichtig.
-func TestVerifyBackupChecksAssetDocumentsToo(t *testing.T) {
-	env := newBackupEnv(t)
-	env.book(t, 11900)
-	env.receiptFile(t, "beleg.pdf", "%PDF-1.4 Beleg")
-	env.assetDocument(t, "kaufvertrag.pdf", "%PDF-1.4 Kaufvertrag")
-
-	run, err := env.backups.CreateBackup(context.Background(), t.TempDir(), domain.BackupKindManual)
-	if err != nil {
-		t.Fatalf("Sicherung: %v", err)
-	}
-
-	verify, err := env.backups.VerifyBackup(context.Background(), run.Target)
-	if err != nil {
-		t.Fatalf("Sicherung prüfen: %v", err)
-	}
-	if !verify.Success {
-		t.Fatalf("die Sicherung wurde beanstandet: %s", verify.Message)
-	}
-	// Zwei Dateien: die Belegdatei und das Anlagendokument. Ohne das Dokument
-	// stünde hier eine 1 — und der Vertrag wäre ungeprüft.
-	if !strings.Contains(verify.Message, "2 Beleg- und Dokumentdateien") {
-		t.Errorf("das Anlagendokument wurde nicht mitgeprüft: %s", verify.Message)
 	}
 }
 

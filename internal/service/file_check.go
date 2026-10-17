@@ -27,22 +27,7 @@ func (s *ReceiptService) VerifyReceiptFiles(ctx context.Context) (*domain.FileCh
 		return nil, fmt.Errorf("die Belege konnten nicht gelesen werden: %w", err)
 	}
 
-	var documents []domain.AssetDocument
-	if s.documents != nil {
-		documents, err = s.documents.AllDocuments(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("die Anlagendokumente konnten nicht gelesen werden: %w", err)
-		}
-	}
-
-	var companyDocuments []domain.Document
-	if s.companyDocuments != nil {
-		companyDocuments, err = s.companyDocuments.FindAll(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("Unternehmensdokumente lesen: %w", err)
-		}
-	}
-	result := checkReceiptFiles(receipts, documents, s.store, companyDocuments)
+	result := checkReceiptFiles(receipts, s.store)
 	if s.auditRepo != nil {
 		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "RECEIPT_FILES", "",
 			result.Message)
@@ -50,26 +35,10 @@ func (s *ReceiptService) VerifyReceiptFiles(ctx context.Context) (*domain.FileCh
 	return result, nil
 }
 
-// DocumentSource ist der Ausschnitt der Anlagenkartei, den der Belegprüflauf
-// braucht: alle Dokumente, ohne Rücksicht auf das Anlagegut, an dem sie hängen.
-type DocumentSource interface {
-	AllDocuments(ctx context.Context) ([]domain.AssetDocument, error)
-}
-
-// SetDocumentSource hängt die Anlagendokumente an den Prüflauf. Ohne sie prüft
-// er nur die Belege — ein Vertrag zum Anlagegut ist aber genauso
-// aufbewahrungspflichtig.
-func (s *ReceiptService) SetDocumentSource(src DocumentSource) { s.documents = src }
-func (s *ReceiptService) SetCompanyDocuments(repo domain.DocumentRepository) {
-	s.companyDocuments = repo
-}
-
 // checkReceiptFiles ist der eigentliche Lauf. Er steht getrennt vom Dienst,
 // weil ihn der Wiederherstellungstest auf einem entpackten Datenordner braucht,
 // zu dem es keine Dienste gibt.
-func checkReceiptFiles(
-	receipts []domain.Receipt, documents []domain.AssetDocument, store *receiptstore.Store, companyDocuments ...[]domain.Document,
-) *domain.FileCheckResult {
+func checkReceiptFiles(receipts []domain.Receipt, store *receiptstore.Store) *domain.FileCheckResult {
 	result := &domain.FileCheckResult{
 		Issues:    make([]domain.FileCheckIssue, 0),
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
@@ -84,12 +53,12 @@ func checkReceiptFiles(
 		return result
 	}
 
-	check := func(kind, receiptNumber, fileName, path, sha string) {
+	check := func(receiptNumber, fileName, path, sha string) {
 		result.Checked++
 		if !store.Exists(path) {
 			result.Missing++
 			result.Issues = append(result.Issues, domain.FileCheckIssue{
-				Kind: kind, ReceiptNumber: receiptNumber, FileName: fileName, Path: path,
+				ReceiptNumber: receiptNumber, FileName: fileName, Path: path,
 				Reason:  "missing",
 				Message: fmt.Sprintf("Die Datei %s liegt nicht mehr im Datenordner.", fileName),
 			})
@@ -98,7 +67,7 @@ func checkReceiptFiles(
 		if err := store.Verify(path, sha); err != nil {
 			result.Damaged++
 			result.Issues = append(result.Issues, domain.FileCheckIssue{
-				Kind: kind, ReceiptNumber: receiptNumber, FileName: fileName, Path: path,
+				ReceiptNumber: receiptNumber, FileName: fileName, Path: path,
 				Reason:  "damaged",
 				Message: fmt.Sprintf("Die Datei %s stimmt nicht mehr mit ihrer Prüfsumme überein.", fileName),
 			})
@@ -111,17 +80,7 @@ func checkReceiptFiles(
 		r := &receipts[i]
 		for j := range r.Files {
 			f := &r.Files[j]
-			check("receipt", r.ReceiptNumber, f.FileName, f.StoredPath, f.SHA256)
-		}
-	}
-	for i := range documents {
-		d := &documents[i]
-		check("document", "", d.FileName, d.StoredPath, d.SHA256)
-	}
-
-	for _, group := range companyDocuments {
-		for _, doc := range group {
-			check("company_document", "", doc.FileName, doc.StoredPath, doc.SHA256)
+			check(r.ReceiptNumber, f.FileName, f.StoredPath, f.SHA256)
 		}
 	}
 	result.IsValid = result.Damaged == 0 && result.Missing == 0

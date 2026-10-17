@@ -174,11 +174,6 @@ function days(count: number): string {
   return count === 1 ? '1 Tag' : `${count} Tage`;
 }
 
-/** Belegdatei oder Anlagendokument — beide haben dieselbe Prüfsumme. */
-function issueKindLabel(kind: string): string {
-  return kind === 'document' ? 'Anlagendokument' : 'Belegdatei';
-}
-
 function issueReasonLabel(reason: string): string {
   return reason === 'missing' ? 'Fehlt' : 'Beschädigt';
 }
@@ -398,7 +393,6 @@ const ChecksPanel: React.FC<{
                 <Table density="kompakt">
                   <Thead>
                     <Tr>
-                      <Th className="w-36">Art</Th>
                       <Th className="w-32">Beleg</Th>
                       <Th>Datei</Th>
                       <Th className="w-32">Befund</Th>
@@ -407,7 +401,6 @@ const ChecksPanel: React.FC<{
                   <Tbody>
                     {fileCheck.issues.map((issue) => (
                       <Tr key={`${issue.path}-${issue.fileName}`}>
-                        <Td className="text-ink-muted">{issueKindLabel(issue.kind)}</Td>
                         <Td code>{issue.receiptNumber || '—'}</Td>
                         <Td className="text-ink-muted">{issue.fileName}</Td>
                         <Td className="text-negative-text">

@@ -2,13 +2,11 @@ package wailsbridge
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Die Anlagenbuchhaltung an der Oberfläche.
@@ -393,25 +391,6 @@ func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, er
 	return b.assetSvc.Pool(context.Background(), fiscalYear)
 }
 
-// BookAssetMaintenance bucht Erhaltungsaufwand und verknüpft ihn mit dem
-// Anlagegut, ohne dessen Buchwert anzurühren.
-//
-// Zurück kommt die Buchung samt der Prüfung des 15-%-Rahmens des
-// § 6 Abs. 1 Nr. 1a EStG: bei einem Gebäude in den ersten drei Jahren
-// entscheidet sie darüber, ob der Aufwand überhaupt sofort abziehbar ist, und
-// die Maske muss sie zeigen können.
-func (b *BuchfinkBridge) BookAssetMaintenance(req service.MaintenanceRequest) (*service.MaintenanceResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookMaintenance(context.Background(), req)
-}
-
 // BookAssetIncome bucht einen laufenden Ertrag aus einer Finanzanlage —
 // Dividende, Ausschüttung, Zins — und hängt ihn an den Anteil, aus dem er stammt.
 func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domain.JournalEntry, error) {
@@ -437,116 +416,6 @@ func (b *BuchfinkBridge) ValuateAssetCurrency(req service.CurrencyValuationReque
 		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
 	}
 	return b.assetSvc.ValuateCurrency(context.Background(), req)
-}
-
-// -------------------------------------------------------------------------
-// Dokumente am Anlagegut
-// -------------------------------------------------------------------------
-
-// SelectAssetDocumentsDialog opens the native picker for Dokumente am
-// Anlagegut. Der Filter ist weiter als beim Beleg: hier landen auch Verträge
-// als Word-Datei und Tabellen mit einem Tilgungsplan.
-func (b *BuchfinkBridge) SelectAssetDocumentsDialog(title string) ([]string, error) {
-	if title == "" {
-		title = "Dokumente zum Anlagegut auswählen"
-	}
-	app := application.Get()
-	if app == nil || app.Dialog == nil {
-		return []string{}, nil
-	}
-	// Der Abbruch des Dialogs liefert nil; als `null` in der Oberfläche wäre
-	// daraus ein TypeError beim Lesen der Länge geworden.
-	return emptyList(app.Dialog.OpenFile().
-		CanChooseFiles(true).
-		CanChooseDirectories(false).
-		AddFilter("Dokumente", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml;*.csv;*.txt").
-		SetTitle(title).
-		PromptForMultipleSelection())
-}
-
-// AttachAssetDocument legt eine Datei zum Anlagegut ab — einen Vertrag, ein
-// Gutachten, ein Zulassungspapier. Sie wird nicht gebucht und hat keine
-// Belegnummer; sie gehört zum Wirtschaftsgut und nicht zum Geschäftsjahr.
-func (b *BuchfinkBridge) AttachAssetDocument(req service.AttachDocumentRequest) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.AttachDocument(context.Background(), req)
-}
-
-// RemoveAssetDocument entfernt ein Dokument vom Anlagegut.
-func (b *BuchfinkBridge) RemoveAssetDocument(assetID, documentID uint) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.RemoveDocument(context.Background(), assetID, documentID)
-}
-
-// GetAssetDocumentContent liefert das Dokument als Data-URL für die Anzeige,
-// zusammen mit der Antwort auf die einzige Frage, die zu einer abgelegten Datei
-// zählt: liegt dort noch, was abgelegt wurde?
-func (b *BuchfinkBridge) GetAssetDocumentContent(documentID uint) (*ReceiptPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	content, err := b.assetSvc.DocumentContent(context.Background(), documentID)
-	if err != nil {
-		return nil, err
-	}
-	if len(content.Data) > maxPreviewBytes {
-		return nil, fmt.Errorf("die Datei %s ist zu groß für die Vorschau (%d MB)",
-			content.FileName, len(content.Data)>>20)
-	}
-	return &ReceiptPreview{
-		FileName: content.FileName,
-		MimeType: content.MimeType,
-		Intact:   content.Intact,
-		DataURL:  "data:" + content.MimeType + ";base64," + base64.StdEncoding.EncodeToString(content.Data),
-	}, nil
-}
-
-// GetAssetDocumentKinds hands the catalog of Dokumentarten to the UI, so the
-// mask offers dieselben Bezeichnungen, unter denen später gesucht wird.
-func (b *BuchfinkBridge) GetAssetDocumentKinds() []assetDocumentKindInfo {
-	kinds := domain.AllAssetDocumentKinds()
-	out := make([]assetDocumentKindInfo, 0, len(kinds))
-	for _, kind := range kinds {
-		out = append(out, assetDocumentKindInfo{Kind: kind, Label: kind.Label()})
-	}
-	return out
-}
-
-type assetDocumentKindInfo struct {
-	Kind  domain.AssetDocumentKind `json:"kind"`
-	Label string                   `json:"label"`
-}
-
-// GetExpiringAssetDocuments lists documents whose Frist runs out on or before a
-// day. Leer heißt: das Ende des laufenden Geschäftsjahres.
-func (b *BuchfinkBridge) GetExpiringAssetDocuments(until string) ([]service.ExpiringDocument, error) {
-	b.mu.RLock()
-	year := b.currentYear
-	svc := b.assetSvc
-	b.mu.RUnlock()
-	if svc == nil {
-		return []service.ExpiringDocument{}, nil
-	}
-	if until == "" {
-		until = fmt.Sprintf("%d-12-31", year)
-	}
-	return emptyList(svc.ExpiringDocuments(context.Background(), until))
 }
 
 // -------------------------------------------------------------------------

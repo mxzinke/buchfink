@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
@@ -36,9 +35,6 @@ type OpeningBalanceSheet struct {
 	Equity   domain.Cents `json:"equity"`
 	// Findings nennen, was der Aufstellung entgegensteht — je Befund ein Satz.
 	Findings []string `json:"findings"`
-	// DocumentID ist die abgelegte Fassung, falls es schon eine gibt.
-	DocumentID uint   `json:"documentId,omitempty"`
-	FiledOn    string `json:"filedOn,omitempty"`
 }
 
 // StatementAtSource ist der Ausschnitt des Abschlusses, den die Eröffnungsbilanz
@@ -50,10 +46,6 @@ type StatementAtSource interface {
 
 // SetStatementSource koppelt die Gliederung an die Gründung.
 func (s *FoundationService) SetStatementSource(src StatementAtSource) { s.statements = src }
-
-// SetDocumentStore koppelt die Dokumentenablage an die Gründung. Ohne sie
-// entsteht die Eröffnungsbilanz als Vorschau und wird nicht abgelegt.
-func (s *FoundationService) SetDocumentStore(svc *DocumentService) { s.documents = svc }
 
 // SetRenderer koppelt den Satz an die Gründung. Ohne ihn gibt es die
 // Eröffnungsbilanz als Zahlenwerk, aber nicht als Dokument.
@@ -115,7 +107,7 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 	if out.Assets == 0 {
 		out.Findings = append(out.Findings, fmt.Sprintf(
 			"Zum %s steht keine Buchung in den Büchern. Die Zeichnung des Stammkapitals gehört auf "+
-				"den Tag der Beurkundung — buchen Sie sie über „Gründung buchen“.",
+				"den Tag der Beurkundung — sie entsteht mit den Gründungsbuchungen.",
 			germanDate(f.NotarizedOn)))
 	}
 
@@ -165,16 +157,6 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 	if contributed < f.PaidInCapital() {
 		out.Findings = append(out.Findings, fmt.Sprintf("Laut Gründung wurden %s € eingezahlt; davon sind zum Stichtag nur %s € als Einlage gebucht. Bitte die Einzahlung vervollständigen.", f.PaidInCapital(), contributed))
 	}
-
-	if s.documents != nil {
-		if filed, err := s.documents.ForDuty(ctx, DutyKeyEroeffnungsbilanz); err == nil && len(filed) > 0 {
-			// Die zuletzt abgelegte Fassung. Eine neue ersetzt die alte nicht:
-			// beide bleiben in der Ablage, und welche gilt, sagt ihr Datum.
-			latest := filed[len(filed)-1]
-			out.DocumentID = latest.ID
-			out.FiledOn = latest.CreatedAt.In(time.Local).Format("2006-01-02")
-		}
-	}
 	return out, nil
 }
 
@@ -192,13 +174,17 @@ func sumStatement(lines []domain.StatementLine) domain.Cents {
 	return sum
 }
 
-// FileOpeningBalance stellt die Eröffnungsbilanz auf, setzt sie und legt sie in
-// der Dokumentenablage ab.
+// OpeningBalanceFile ist die gesetzte Eröffnungsbilanz.
+type OpeningBalanceFile struct {
+	FileName string
+	Data     []byte
+}
+
+// OpeningBalancePDF stellt die Eröffnungsbilanz auf und setzt sie als PDF.
 //
-// Abgelegt und nicht nur heruntergeladen: die Eröffnungsbilanz ist eine
-// Unterlage des Unternehmens nach § 147 Abs. 1 Nr. 1 AO, und sie wird zehn Jahre
-// gebraucht. Wer sie nur speichert, hat sie in drei Jahren nicht mehr.
-func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Document, error) {
+// Sie wird nicht abgelegt: die Zahlen stehen in der Hash-Kette des Journals,
+// und aus ihnen entsteht dasselbe Dokument jederzeit neu.
+func (s *FoundationService) OpeningBalancePDF(ctx context.Context) (*OpeningBalanceFile, error) {
 	sheet, err := s.OpeningBalance(ctx)
 	if err != nil {
 		return nil, err
@@ -211,9 +197,6 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 	if len(sheet.Findings) > 0 {
 		return nil, fmt.Errorf("die Eröffnungsbilanz ist noch unvollständig: %s", strings.Join(sheet.Findings, " "))
 	}
-	if s.documents == nil {
-		return nil, fmt.Errorf("die Dokumentenablage ist nicht verfügbar")
-	}
 	if s.renderer == nil {
 		return nil, fmt.Errorf("der Satz ist nicht verfügbar: die Eröffnungsbilanz kann nicht gesetzt werden")
 	}
@@ -225,28 +208,7 @@ func (s *FoundationService) FileOpeningBalance(ctx context.Context) (*domain.Doc
 	if err != nil {
 		return nil, fmt.Errorf("die Eröffnungsbilanz konnte nicht gesetzt werden: %w", err)
 	}
-
-	doc, err := s.documents.Attach(ctx, DocumentRequest{
-		Kind:         domain.DocEroeffnungsbilanz,
-		Title:        title,
-		DocumentDate: sheet.AsOf,
-		DutyKey:      DutyKeyEroeffnungsbilanz,
-		GeneratedBy:  "eroeffnungsbilanz",
-		FileName:     "Eroeffnungsbilanz_" + sheet.AsOf + ".pdf",
-		Content:      pdf,
-	})
-	if err != nil {
-		return nil, err
-	}
-	// Die Pflicht ist mit der Aufstellung erledigt. Sie danach noch als offen zu
-	// führen wäre eine Nachfrage nach etwas, das in der Ablage liegt.
-	if err := s.CompleteDuty(ctx, DutyKeyEroeffnungsbilanz, todayLocal(),
-		"Aufgestellt und abgelegt: "+doc.FileName); err != nil {
-		return doc, fmt.Errorf("Dokument abgelegt, aber Erledigungsvermerk nicht gespeichert: %w", err)
-	}
-	s.audit(ctx, domain.AuditActionCreate, doc.ID, fmt.Sprintf(
-		"Eröffnungsbilanz auf den %s aufgestellt und abgelegt (§ 242 Abs. 1 HGB)", sheet.AsOf))
-	return doc, nil
+	return &OpeningBalanceFile{FileName: "Eroeffnungsbilanz_" + sheet.AsOf + ".pdf", Data: pdf}, nil
 }
 
 // openingBalanceMarkdown ist der Text der Eröffnungsbilanz.

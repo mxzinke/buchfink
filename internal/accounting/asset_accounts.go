@@ -451,35 +451,6 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 	return "6241", nil
 }
 
-// MaintenanceAccount picks the Aufwandskonto des Erhaltungsaufwands.
-//
-// Erhaltungsaufwand ist der Gegenbegriff zu den nachträglichen
-// Herstellungskosten: was ein Wirtschaftsgut nur in seinem Zustand hält oder in
-// zeitgemäßer Weise wiederherstellt, ist sofort abziehbarer Aufwand; was es
-// erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich
-// verbessert, ist zu aktivieren (§ 255 Abs. 2 Satz 1 HGB). Die Abgrenzung ist
-// eine Einschätzung und keine Rechnung — Buchfink fragt sie und bucht danach.
-func MaintenanceAccount(class domain.AssetClass, account string) (string, error) {
-	if class == domain.AssetClassFinancial {
-		return "", fmt.Errorf(
-			"eine Finanzanlage nutzt sich nicht ab und wird nicht instand gehalten; " +
-				"Erhaltungsaufwand gibt es für sie nicht")
-	}
-	entry, known := LookupAssetAccount(account)
-	switch {
-	case known && entry.Immovable:
-		return "6450", nil // Reparaturen und Instandhaltung von Bauten
-	case known && entry.Group == "Fahrzeuge":
-		return "6540", nil // Fahrzeug-Reparaturen
-	case known && entry.Group == "Technische Anlagen und Maschinen":
-		return "6460", nil // Reparaturen und Instandhaltung von technischen Anlagen und Maschinen
-	case known:
-		return "6470", nil // andere Anlagen und Betriebs- und Geschäftsausstattung
-	default:
-		return "6490", nil // Sonstige Reparaturen und Instandhaltung
-	}
-}
-
 // AssetIncomeAccount is the Ertragskonto of a laufender Ertrag aus einer
 // Finanzanlage.
 //

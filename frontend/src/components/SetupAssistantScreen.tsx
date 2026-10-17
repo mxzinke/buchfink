@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import type { TabType } from './Sidebar';
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,11 +18,7 @@ import { GermanFlag } from './GermanFlag';
 import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
 
 interface SetupAssistantScreenProps {
-  /**
-   * Ruft die Einrichtung ab. Das Ziel sagt, wohin es danach geht — nach einer
-   * erfassten Gründung auf den Gründungsweg.
-   */
-  onSetupCompleted: (target?: TabType) => void;
+  onSetupCompleted: () => void;
   onCancel?: () => void;
   isAdditionalTenant?: boolean;
 }
@@ -200,7 +195,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     // Leer heißt: die Voreinstellung des Belegnummernkreises (BEL-02).
     receiptNumberFormat: '',
     // Die Pflichtangaben des § 264 Abs. 1a HGB stehen erst nach der Eintragung
-    // fest; der Gründungsweg trägt sie später nach.
+    // fest; die Eintragung der Gründung trägt sie später nach.
     seat: '',
     registerCourt: '',
     registerNumber: '',
@@ -404,9 +399,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
           })),
         });
       }
-      // Wer gerade gegründet hat, landet auf dem Gründungsweg: dort steht, was
-      // als Nächstes zu tun ist. Die Aufgabenliste ist am ersten Tag leer.
-      onSetupCompleted(isCapitalCompany && isFoundingCase ? 'gruendung' : 'tasks');
+      onSetupCompleted();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

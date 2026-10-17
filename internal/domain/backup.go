@@ -82,9 +82,6 @@ type BackupRunRepository interface {
 
 // FileCheckIssue ist ein Befund des Belegprüflaufs.
 type FileCheckIssue struct {
-	// Kind ist "receipt" für eine Belegdatei und "document" für ein
-	// Anlagendokument.
-	Kind          string `json:"kind"`
 	ReceiptNumber string `json:"receiptNumber,omitempty"`
 	FileName      string `json:"fileName"`
 	Path          string `json:"path"`

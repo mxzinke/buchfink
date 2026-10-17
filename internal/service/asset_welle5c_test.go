@@ -9,8 +9,8 @@ import (
 )
 
 // Die Anlagenthemen der Welle 5c: die Sperren am Anlagekonto, die Zuschreibung
-// mit Grund, der Wertaufholungsbericht, die Einheitlichkeit des
-// Sammelposten-Wahlrechts und die anschaffungsnahen Herstellungskosten.
+// mit Grund, der Wertaufholungsbericht und die Einheitlichkeit des
+// Sammelposten-Wahlrechts.
 
 // Ein Gebäude wird nicht degressiv abgeschrieben: § 7 Abs. 2 EStG gibt es nur
 // für bewegliche Wirtschaftsgüter. Bis hierher ließ sich der Plan rechnen, und
@@ -253,73 +253,6 @@ func TestPoolAndImmediateCannotShareAFiscalYear(t *testing.T) {
 		AcquisitionCost: 2_000, Method: domain.DepreciationImmediate,
 	}); err != nil {
 		t.Fatalf("unter 250 € gibt es nur den Sofortabzug: %v", err)
-	}
-}
-
-// § 6 Abs. 1 Nr. 1a EStG: Instandsetzungs- und Modernisierungsaufwand der ersten
-// drei Jahre wird zu Herstellungskosten, sobald er 15 % der
-// Gebäude-Anschaffungskosten übersteigt.
-func TestNearAcquisitionCostWarnsAtFifteenPercent(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.assets(t)
-	vendor := env.vendor(t, "Bauunternehmen GmbH", "DE", "")
-
-	building, err := svc.Save(ctx, &domain.FixedAsset{
-		Name: "Lagerhalle", Class: domain.AssetClassTangible, Account: "0250",
-		DepreciationAccount: "6221", AcquisitionDate: "2026-01-15",
-		BuildingReferenceDate: "2005-01-01",
-		AcquisitionCost:       20_000_000, // 200.000 €
-		Method:                domain.DepreciationBuildingLinear,
-	})
-	if err != nil {
-		t.Fatalf("Gebäude: %v", err)
-	}
-
-	// Der Rahmen liegt bei 15 % von 200.000 €, also 30.000 €.
-	check, err := svc.CheckNearAcquisitionCost(ctx, building.ID, "2026-06-01", 2_000_000)
-	if err != nil {
-		t.Fatalf("Prüfung: %v", err)
-	}
-	if !check.Applicable || check.Limit != 3_000_000 {
-		t.Fatalf("Rahmen %s € — erwartet 30.000,00 €", check.Limit)
-	}
-	if check.Exceeded {
-		t.Errorf("20.000 € bleiben unter dem Rahmen: %s", check.Note)
-	}
-
-	if _, err := svc.BookMaintenance(ctx, MaintenanceRequest{
-		AssetID: building.ID, Date: "2026-06-01", Amount: 2_000_000,
-		TaxTreatment: domain.TaxTreatmentDomestic, TaxRate: domain.TaxRateStandard,
-		Settlement: SettlementOpen, ContactID: vendor.ID,
-		Note: "Dachsanierung, Wiederherstellung des ursprünglichen Zustands",
-	}); err != nil {
-		t.Fatalf("Erhaltungsaufwand: %v", err)
-	}
-
-	// Mit weiteren 12.000 € sind es 32.000 € und damit mehr als 30.000 €.
-	second, err := svc.CheckNearAcquisitionCost(ctx, building.ID, "2027-04-01", 1_200_000)
-	if err != nil {
-		t.Fatalf("Prüfung: %v", err)
-	}
-	if second.Spent != 2_000_000 {
-		t.Errorf("bisher %s € — erwartet die 20.000,00 € des ersten Vorgangs", second.Spent)
-	}
-	if !second.Exceeded {
-		t.Fatalf("32.000 € übersteigen den Rahmen von 30.000 €: %s", second.Note)
-	}
-	if !strings.Contains(second.Note, "Herstellungskosten") {
-		t.Errorf("die Meldung muss die Folge nennen: %s", second.Note)
-	}
-
-	// Nach Ablauf der drei Jahre stellt sich die Frage nicht mehr.
-	late, err := svc.CheckNearAcquisitionCost(ctx, building.ID, "2029-06-01", 5_000_000)
-	if err != nil {
-		t.Fatalf("Prüfung: %v", err)
-	}
-	if late.Applicable {
-		t.Errorf("nach dem Dreijahreszeitraum ist Instandsetzungsaufwand sofort abziehbar: %s",
-			late.Note)
 	}
 }
 

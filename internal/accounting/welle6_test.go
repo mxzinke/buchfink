@@ -60,12 +60,6 @@ func TestRetentionForClassifiesAndDates(t *testing.T) {
 			wantClass: domain.RetentionClassVouchers, wantYears: 8,
 			wantEnd: "2033-12-31", wantDeletion: "2034-01-01",
 		},
-		{
-			// Anlagendokumente sind Organisationsunterlagen.
-			name: "Anlagendokument 2025", kind: domain.RetentionKindAssetDocument, year: 2025,
-			wantClass: domain.RetentionClassBooks, wantYears: 10,
-			wantEnd: "2035-12-31", wantDeletion: "2036-01-01",
-		},
 	}
 
 	for _, tc := range cases {

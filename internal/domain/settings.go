@@ -15,8 +15,6 @@ type SettingItem struct {
 
 // CompanySettings holds metadata for the business and fiscal year.
 type CompanySettings struct {
-	Employees string `json:"employees"` // "unknown", "none", "yes"
-
 	ManagingDirectors     string `json:"managingDirectors"`
 	SupervisoryBoardChair string `json:"supervisoryBoardChair"`
 	SellerIdentifier      string `json:"sellerIdentifier"`

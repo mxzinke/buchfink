@@ -2,13 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FileText, Landmark } from 'lucide-react';
 import { Api } from '../services/api';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
-import { GruendungHelpDialog, GruendungHelpMark } from '../components/GruendungHelp';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
 import { targetLabel } from '../utils/findings';
 import type {
   FinancialSummary,
-  FoundationState,
   JournalEntry,
   MonthCloseState,
   Task,
@@ -19,7 +17,6 @@ import {
   Button,
   EmptyState,
   Help,
-  Notice,
   PageHeader,
   Section,
   SkeletonRows,
@@ -163,8 +160,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   const [monthError, setMonthError] = useState('');
   const [monthOpen, setMonthOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [foundation, setFoundation] = useState<FoundationState | null>(null);
-  const [gruendungHelp, setGruendungHelp] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -193,11 +188,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
     Api.getJournalEntries()
       .then((entries) => setRecentEntries((entries ?? []).slice(-8).reverse()))
       .catch(() => setRecentEntries([]));
-    // Der Gründungsstand ebenso. Er entscheidet über den Hinweisstreifen, und
-    // ohne ihn steht die Seite da wie zuvor.
-    Api.getFoundationState()
-      .then(setFoundation)
-      .catch(() => setFoundation(null));
   }, []);
 
   const loadMonth = useCallback(async () => {
@@ -226,9 +216,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   // Zeitraums und keine Bezeichnung. Genommen wird der Name aus der Auswahl,
   // damit beide dasselbe sagen.
   const monthLabel = months.find((option) => option.value === month)?.label ?? month;
-
-  const hasOpenFoundation = foundation?.hasFoundation === true &&
-    foundation.guide.done < foundation.guide.total;
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-8">
@@ -259,28 +246,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           </div>
         }
       />
-
-      {hasOpenFoundation && (
-        <div className="mt-8">
-          <Notice
-            text={
-              <span className="flex items-center">
-                <span>
-                  {foundation!.guide.nextTitle
-                    ? `Die Gründungsbegleitung ist noch offen. Als Nächstes: ${foundation!.guide.nextTitle}.`
-                    : 'In der Gründungsbegleitung stehen noch Schritte aus.'}
-                </span>
-                <GruendungHelpMark onMore={() => setGruendungHelp(true)} />
-              </span>
-            }
-            action={
-              <Button variant="secondary" size="sm" onClick={() => onNavigate('gruendung')}>
-                Zum Gründungsweg
-              </Button>
-            }
-          />
-        </div>
-      )}
 
       {loading ? (
         <div className="mt-8">
@@ -498,8 +463,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           </Table>
         </Section>
       )}
-
-      <GruendungHelpDialog open={gruendungHelp} onClose={() => setGruendungHelp(false)} />
 
       <MonthCloseDialog
         open={monthOpen}

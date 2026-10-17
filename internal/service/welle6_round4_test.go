@@ -246,107 +246,14 @@ func TestExportedAuditLogLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 	}
 }
 
-// --- Der Bericht über abgelaufene Objekte ----------------------------------
-
-// Ein Jahr unter Aussetzung ist nicht abgelaufen (§ 147 Abs. 3 Satz 5 AO). Es im
-// Bericht „abgelaufene Objekte“ zu führen lüde dazu ein, die Unterlagen zu
-// löschen, die für ein laufendes Verfahren gebraucht werden.
-func TestExpiredObjectsLeaveOutTheYearsUnderHold(t *testing.T) {
-	env, svc := newRetentionEnv(t)
-	ctx := context.Background()
-	postInYear(t, env, 2010)
-
-	expired, err := svc.ExpiredYears(ctx, "2026-06-30")
-	if err != nil {
-		t.Fatalf("der Bericht ist fehlgeschlagen: %v", err)
-	}
-	if len(expired) != 1 || expired[0].FiscalYear != 2010 {
-		t.Fatalf("erwartet 2010 als abgelaufen, gemeldet: %+v", expired)
-	}
-
-	if _, err := svc.SetHold(ctx, 2010, domain.RetentionHoldAudit, "Außenprüfung 2008-2010"); err != nil {
-		t.Fatalf("die Aussetzung konnte nicht eingetragen werden: %v", err)
-	}
-	expired, err = svc.ExpiredYears(ctx, "2026-06-30")
-	if err != nil {
-		t.Fatalf("der Bericht ist fehlgeschlagen: %v", err)
-	}
-	if len(expired) != 0 {
-		t.Errorf("das ausgesetzte Jahr steht weiter im Bericht: %+v", expired)
-	}
-}
-
-// Ein Jahr mit nur Belegen hat dieselbe Aufbewahrungsfrist wie eines mit
-// Buchungen. Fehlte es in der Übersicht, liefe seine Frist unbemerkt — und die
-// Belege blieben nach ihrem Ablauf ungefragt liegen.
-func TestRetentionOverviewSeesYearsWithReceiptsButNoBookings(t *testing.T) {
-	env, svc := newRetentionEnv(t)
-	ctx := context.Background()
-
-	// Kein einziger Journaleintrag, aber ein abgelegter Beleg.
-	filePDFReceipt(t, env, FileReceiptRequest{
-		Kind: domain.ReceiptKindLetter, DocumentDate: "2026-02-01",
-		IssuerName: "Lieferant GmbH", Subject: "Schriftwechsel zur Lieferung",
-		Files: []NewFile{{
-			Role: domain.ReceiptRoleOriginal, FileName: "brief.pdf",
-			Content: []byte("%PDF-1.4 Brief\n"),
-		}},
-	})
-
-	overview, err := svc.Overview(ctx, "2026-06-30")
-	if err != nil {
-		t.Fatalf("die Fristenübersicht ist fehlgeschlagen: %v", err)
-	}
-	found := false
-	for _, year := range overview.Years {
-		if year.FiscalYear == env.fiscalYear {
-			found = true
-			if year.Counts.Receipts == 0 {
-				t.Errorf("das Jahr %d steht ohne Beleg in der Übersicht: %+v",
-					year.FiscalYear, year.Counts)
-			}
-		}
-	}
-	if !found {
-		t.Errorf("das Jahr %d fehlt in der Fristenübersicht, obwohl es Belege hat: %+v",
-			env.fiscalYear, overview.Years)
-	}
-}
-
-// Die Bestätigung wird vor dem Archiv geprüft. Sonst hinterließe ein Vertipper
-// einen vollständigen Archivexport eines Jahres, das niemand löschen wollte.
-func TestDeleteIsRefusedBeforeAnythingIsWrittenWhenTheConfirmationIsWrong(t *testing.T) {
-	env, svc := newRetentionEnv(t)
-	ctx := context.Background()
-	postInYear(t, env, 2010)
-
-	if err := svc.EnsureDeleteAllowed(ctx, 2010, "ja", "2026-06-30"); err == nil {
-		t.Error("eine falsche Bestätigung muss vor dem Archiv auffallen")
-	}
-	if err := svc.EnsureDeleteAllowed(ctx, 2010, "2010", "2026-06-30"); err != nil {
-		t.Errorf("die richtige Bestätigung nach Fristablauf muss durchgehen: %v", err)
-	}
-	// Und die Fristlage wird weiterhin geprüft, auch mit richtiger Bestätigung.
-	if err := svc.EnsureDeleteAllowed(ctx, 2010, "2010", "2015-06-30"); err == nil {
-		t.Error("vor Fristablauf darf auch die richtige Bestätigung nichts freigeben")
-	}
-}
-
 // --- Keine `null`-Listen in den Antworten der Welle 6 ----------------------
 
 // Die Nachweisseite liest die Listen ohne Umweg. Ein nicht belegter Slice wird
 // zu `null`, und `null.map` nimmt im Render den ganzen Baum mit — und zwar im
-// Regelfall: die frische Buchhaltung ohne Aussetzung, ohne Bruch, ohne offenen
-// Posten.
+// Regelfall: die frische Buchhaltung ohne Bruch und ohne offenen Posten.
 func TestWelle6AnswersMarshalEmptyListsNotNull(t *testing.T) {
-	env, svc := newRetentionEnv(t)
+	env := newTestEnv(t)
 	ctx := context.Background()
-
-	overview, err := svc.Overview(ctx, "2026-06-30")
-	if err != nil {
-		t.Fatalf("die Fristenübersicht ist fehlgeschlagen: %v", err)
-	}
-	assertNoNullLists(t, "Fristenübersicht (leer)", overview, "years", "concept")
 
 	chain, err := NewAuditService(repository.NewAuditRepository(env.db)).VerifyChain(ctx)
 	if err != nil {

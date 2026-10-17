@@ -40,7 +40,6 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 		e.fiscalYear,
 	)
 	svc.SetTenantName("Pfennig Ventures GmbH")
-	svc.SetCompanyDocuments(repository.NewDocumentRepository(e.db))
 	svc.SetOpenItemSource(e.payments(t))
 	return svc
 }
@@ -79,18 +78,11 @@ func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
 	// Ein Anlagegut mit Zugang und einem gebuchten AfA-Lauf: Stammdaten,
 	// Zugangs- und Abschreibungsbewegung.
 	assetSvc := e.assets(t)
-	assetSvc.SetDocumentStore(e.store)
 	asset := e.machine(t, assetSvc)
 	if _, err := assetSvc.BookDepreciation(ctx, BookDepreciationRequest{
 		FiscalYear: e.fiscalYear, BookingDate: "2026-12-31",
 	}); err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
-	}
-	if _, err := assetSvc.AttachDocument(ctx, AttachDocumentRequest{
-		AssetID: asset.ID, Content: []byte("%PDF-1.4 Kaufvertrag Fräsmaschine"),
-		FileName: "kaufvertrag.pdf", Title: "Kaufvertrag",
-	}); err != nil {
-		t.Fatalf("Anlagendokument ablegen: %v", err)
 	}
 
 	// Der Belegeingang entscheidet über den Zeitraum des Vorsteuerabzugs
@@ -143,7 +135,7 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 
 	wanted := []string{
 		"journal", "bewirtungen", "zahlungszuordnungen", "konten", "salden",
-		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen", "dokumente",
+		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen",
 		"belege", "voranmeldungen", "festschreibungen", "pruefläufe", "pruefpfad",
 		"aenderungsprotokoll", "steuerschluessel", "schluesselverzeichnis",
 	}
@@ -187,10 +179,6 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	if byName["zahlungszuordnungen"].Rows != 1 {
 		t.Errorf("zahlungszuordnungen.csv hat %d Zeilen, erwartet 1 (die bezahlte Rechnung %s)",
 			byName["zahlungszuordnungen"].Rows, fixture.paidInvoice.EntryNumber)
-	}
-	if byName["dokumente"].Rows != 1 {
-		t.Errorf("dokumente.csv hat %d Zeilen, erwartet 1 (der Kaufvertrag zum Anlagegut)",
-			byName["dokumente"].Rows)
 	}
 	if byName["anlagen"].Rows != 1 {
 		t.Errorf("anlagen.csv hat %d Zeilen, erwartet 1 (%s)", byName["anlagen"].Rows, fixture.asset.InventoryNumber)
@@ -559,49 +547,6 @@ func TestArchivePathsStayUniqueWithinAReceipt(t *testing.T) {
 			t.Errorf("die Datei %d überschreibt eine andere unter %q", id, path)
 		}
 		seen[path] = true
-	}
-}
-
-// Die Anlagendokumente liegen im Archiv unter der Inventarnummer, und die
-// Tabelle dokumente nennt Pfad und Prüfsumme. Ohne sie stünden die Verträge
-// allein in export.json — einer Metadatei über den Datenträger, nicht in der
-// Überlassung.
-func TestExportArchiveCarriesTheAssetDocuments(t *testing.T) {
-	env := newTestEnv(t)
-	fixture := env.filledBooks(t)
-
-	dir := filepath.Join(t.TempDir(), "archiv")
-	result, err := env.exports(t).ExportArchive(context.Background(), env.fiscalYear, dir)
-	if err != nil {
-		t.Fatalf("Archivexport: %v", err)
-	}
-	if result.DocumentFiles != 1 {
-		t.Fatalf("erwartet 1 mitgegebenes Anlagendokument, gezählt %d", result.DocumentFiles)
-	}
-
-	rows := readCSV(t, filepath.Join(dir, "dokumente.csv"))
-	if len(rows) != 2 {
-		t.Fatalf("dokumente.csv hat %d Zeilen (mit Kopf), erwartet 2", len(rows))
-	}
-	inventory := columnIndex(t, rows[0], "Inventarnummer")
-	name := columnIndex(t, rows[0], "Dateiname")
-	sum := columnIndex(t, rows[0], "SHA256")
-	path := columnIndex(t, rows[0], "Pfad_im_Export")
-
-	if rows[1][inventory] != fixture.asset.InventoryNumber {
-		t.Errorf("dokumente.csv nennt die Inventarnummer %q, erwartet %q",
-			rows[1][inventory], fixture.asset.InventoryNumber)
-	}
-	if rows[1][name] != "kaufvertrag.pdf" {
-		t.Errorf("dokumente.csv nennt die Datei %q, erwartet kaufvertrag.pdf", rows[1][name])
-	}
-	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rows[1][path])))
-	if err != nil {
-		t.Fatalf("das Anlagendokument liegt nicht unter %s: %v", rows[1][path], err)
-	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != rows[1][sum] {
-		t.Error("die Prüfsumme in dokumente.csv passt nicht zur mitgegebenen Datei")
 	}
 }
 

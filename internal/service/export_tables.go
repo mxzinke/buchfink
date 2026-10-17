@@ -32,7 +32,6 @@ const (
 	tableKeyDirectory   = export.KeyDirectoryTable
 	tableAuditLog       = "aenderungsprotokoll"
 	tableReceipts       = "belege"
-	tableDocuments      = "dokumente"
 	tableVatReturns     = "voranmeldungen"
 	tableCommits        = "festschreibungen"
 	tableCheckRuns      = "pruefläufe"
@@ -674,11 +673,6 @@ func keyDirectoryTable() (export.Table, error) {
 			return t, err
 		}
 	}
-	for _, k := range domain.AllAssetDocumentKinds() {
-		if err := add("Anlagendokument", string(k), k.Label(), ""); err != nil {
-			return t, err
-		}
-	}
 	for _, c := range domain.AllAssetClasses() {
 		if err := add("Anlagenklasse", string(c), c.Label(), ""); err != nil {
 			return t, err
@@ -885,42 +879,6 @@ func receiptsTable(d *exportData) (export.Table, error) {
 	return t, nil
 }
 
-// documentsTable führt die Anlagendokumente mit ihren Prüfsummen auf.
-//
-// Sie stehen sonst nur in export.json, und die ist eine Metadatei über den
-// Datenträger, keine Tabelle der Überlassung: ein Prüfer, der die Verträge zu
-// den Wirtschaftsgütern sucht, findet sie dort nicht mit der Inventarnummer
-// verbunden.
-func documentsTable(d *exportData) (export.Table, error) {
-	t := newTable(tableDocuments, "dokumente.csv",
-		"Verträge, Gutachten und Zulassungen zu den Wirtschaftsgütern des Anlagevermögens. Die Spalte Pfad_im_Export ist nur im Archivexport belegt.",
-		intField("Dokument_ID", "Interne Kennung des Dokuments."),
-		intField("Anlage_ID", "Wirtschaftsgut, zu dem das Dokument gehört."),
-		alphaField("Inventarnummer", "Nummer desselben Wirtschaftsguts."),
-		alphaField("Art", "Art des Dokuments; siehe Schlüsselverzeichnis, Kategorie „Anlagendokument“."),
-		alphaField("Dateiname", "Name, unter dem die Datei abgelegt wurde."),
-		alphaField("Dateityp", "MIME-Typ der Datei."),
-		intField("Groesse_Bytes", "Größe der Datei in Bytes."),
-		alphaField("SHA256", "Prüfsumme des Dateiinhalts."),
-		dateField("Gueltig_bis", "Tag, bis zu dem das Dokument gilt; leer, wo keine Frist besteht."),
-		alphaField("Notiz", "Freitext zum Dokument."),
-		alphaField("Pfad_im_Export", "Pfad der Datei innerhalb dieses Exports; leer, wenn keine Dateien beiliegen."),
-	)
-	for i := range d.documents {
-		doc := &d.documents[i]
-		if err := t.AddRow(
-			export.Uint(doc.ID), export.Uint(doc.AssetID), d.inventoryNumber(doc.AssetID),
-			string(doc.Kind), doc.FileName, doc.MimeType,
-			export.Int64(doc.Size), doc.SHA256,
-			doc.ValidUntil, doc.Note,
-			d.documentFilePaths[doc.ID],
-		); err != nil {
-			return t, err
-		}
-	}
-	return t, nil
-}
-
 func vatReturnsTable(d *exportData) (export.Table, error) {
 	t := newTable(tableVatReturns, "voranmeldungen.csv",
 		"Die Umsatzsteuer-Voranmeldungen des Geschäftsjahres, eine Zeile je Kennziffer mit einem Wert.",
@@ -1108,26 +1066,6 @@ func auditTrailTable(d *exportData) (export.Table, error) {
 			); err != nil {
 				return t, err
 			}
-		}
-	}
-	return t, nil
-}
-
-func companyDocumentsTable(d *exportData) (export.Table, error) {
-	t := newTable("unternehmensdokumente", "unternehmensdokumente.csv",
-		"Unterlagen des Unternehmens aus allen Jahren, einschließlich Gründung, Eröffnungsbilanz und Pflichtnachweisen.",
-		intField("Dokument_ID", "Kennung in der Unternehmensablage."),
-		alphaField("Art", "Art der Unternehmensunterlage."), alphaField("Titel", "Dokumenttitel."),
-		dateField("Dokumentdatum", "Datum oder Stichtag des Dokuments."), dateField("Gueltig_bis", "Gültigkeit, falls befristet."),
-		alphaField("Pflichtbezug", "Schlüssel der zugehörigen Pflicht."), alphaField("Erzeugt_durch", "Erzeugende Buchfink-Funktion oder leer bei Fremddokumenten."),
-		alphaField("Dateiname", "Originaler Dateiname."), alphaField("Dateityp", "MIME-Typ."), intField("Groesse_Bytes", "Dateigröße."),
-		alphaField("SHA256", "Archivierte Prüfsumme."), alphaField("Pfad_im_Export", "Dateipfad im Paket."),
-		alphaField("Aufbewahrungsklasse", "Bei Ablage ermittelte Aufbewahrungsklasse."), dateField("Aufbewahren_bis", "Ende der Aufbewahrungsfrist."),
-		alphaField("Abgelegt_am", "Tatsächlicher Ablagezeitpunkt in UTC."), alphaField("Notiz", "Ergänzende Angaben."),
-	)
-	for _, doc := range d.companyDocuments {
-		if err := t.AddRow(export.Uint(doc.ID), string(doc.Kind), doc.Title, doc.DocumentDate, doc.ValidUntil, doc.DutyKey, doc.GeneratedBy, doc.FileName, doc.MimeType, export.Int64(doc.Size), doc.SHA256, d.companyDocumentPaths[doc.ID], string(doc.RetentionClass), doc.RetentionUntil, doc.CreatedAt.UTC().Format(time.RFC3339), doc.Note); err != nil {
-			return t, err
 		}
 	}
 	return t, nil

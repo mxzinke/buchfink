@@ -410,7 +410,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 
 	run.Success = true
 	run.Message = fmt.Sprintf(
-		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Beleg- und Dokumentdateien unversehrt.",
+		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Belegdateien unversehrt.",
 		count, chain.TotalEntries, files.Checked)
 	s.record(ctx, run)
 	return run, nil
@@ -658,12 +658,8 @@ func verifyChainAt(ctx context.Context, dbPath string) (domain.IntegrityCheckRes
 	return accounting.NewHashChain().VerifyYears(byYear), nil
 }
 
-// verifyReceiptFilesAt prüft die Belegdateien und Anlagendokumente eines
-// entpackten Datenordners.
-//
-// Beides und nicht nur die Belege: ein Vertrag zum Anlagegut liegt in derselben
-// Sicherung und ist genauso aufbewahrungspflichtig. Der Prüflauf im laufenden
-// Betrieb sieht beide — der Wiederherstellungstest muss dieselbe Auskunft geben.
+// verifyReceiptFilesAt prüft die Belegdateien eines entpackten Datenordners —
+// dieselbe Auskunft wie der Prüflauf im laufenden Betrieb.
 func verifyReceiptFilesAt(ctx context.Context, dataDir string) (*domain.FileCheckResult, error) {
 	db, err := repository.OpenReadOnlyDB(filepath.Join(dataDir, dbFileName))
 	if err != nil {
@@ -675,15 +671,7 @@ func verifyReceiptFilesAt(ctx context.Context, dataDir string) (*domain.FileChec
 	if err != nil {
 		return nil, err
 	}
-	documents, err := repository.NewAssetRepository(db).FindAllDocuments(ctx)
-	if err != nil {
-		return nil, err
-	}
-	companyDocuments, err := repository.NewDocumentRepository(db).FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return checkReceiptFiles(receipts, documents, receiptstore.New(dataDir), companyDocuments), nil
+	return checkReceiptFiles(receipts, receiptstore.New(dataDir)), nil
 }
 
 func closeDB(db *gorm.DB) {

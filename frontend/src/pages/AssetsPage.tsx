@@ -20,16 +20,12 @@ import {
   DisposalPreview,
   DisposalRequest,
   FixedAsset,
-  AssetDocument,
-  AssetDocumentKind,
-  AssetDocumentKindInfo,
   CurrencyValuation,
   FundClass,
   InvestmentRules,
   InvestmentTaxNote,
   JournalLine,
   LegacySpecialDepreciationNotice,
-  NearAcquisitionCheck,
   PoolConsistencyReport,
   TaxElectionRegister,
   Vorabpauschale,
@@ -67,7 +63,6 @@ import {
   Th,
   Thead,
   Tr,
-  cn,
   toast,
 } from '../components/ui';
 
@@ -399,7 +394,6 @@ export const AssetsPage: React.FC = () => {
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [rules, setRules] = useState<AssetRules | null>(null);
   const [investment, setInvestment] = useState<InvestmentRules | null>(null);
-  const [documentKinds, setDocumentKinds] = useState<AssetDocumentKindInfo[]>([]);
   const [run, setRun] = useState<DepreciationRun | null>(null);
   const [spiegel, setSpiegel] = useState<Anlagenspiegel | null>(null);
   const [candidates, setCandidates] = useState<AcquisitionCandidate[]>([]);
@@ -428,7 +422,6 @@ export const AssetsPage: React.FC = () => {
         contactList,
         payment,
         investmentRules,
-        kinds,
       ] = await Promise.all([
         Api.getFixedAssets(''),
         Api.getAssetRules(),
@@ -442,7 +435,6 @@ export const AssetsPage: React.FC = () => {
         Api.getSelectableContacts(),
         Api.getPaymentAccounts(),
         Api.getInvestmentRules(),
-        Api.getAssetDocumentKinds(),
       ]);
       setAssets(list ?? []);
       setRules(ruleSet);
@@ -453,7 +445,6 @@ export const AssetsPage: React.FC = () => {
       setContacts(contactList ?? []);
       setPaymentAccounts(payment ?? []);
       setInvestment(investmentRules);
-      setDocumentKinds(kinds ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -599,7 +590,6 @@ export const AssetsPage: React.FC = () => {
         contacts={contacts}
         paymentAccounts={paymentAccounts}
         accounts={accounts}
-        documentKinds={documentKinds}
         onClose={() => setDetailId(null)}
         onEdit={(asset) => {
           setDetailId(null);
@@ -2258,10 +2248,8 @@ type DetailAction =
   | 'cost'
   | 'disposal'
   | 'transfer'
-  | 'maintenance'
   | 'income'
   | 'currency'
-  | 'document'
   | 'vorabpauschale'
   | null;
 
@@ -2270,7 +2258,6 @@ const AssetDetailDialog: React.FC<{
   contacts: Contact[];
   paymentAccounts: Account[];
   accounts: AssetAccountInfo[];
-  documentKinds: AssetDocumentKindInfo[];
   onClose: () => void;
   onEdit: (asset: FixedAsset) => void;
   onChanged: () => Promise<void>;
@@ -2279,7 +2266,6 @@ const AssetDetailDialog: React.FC<{
   contacts,
   paymentAccounts,
   accounts,
-  documentKinds,
   onClose,
   onEdit,
   onChanged,
@@ -2349,16 +2335,6 @@ const AssetDetailDialog: React.FC<{
                 Fertigstellung buchen
               </Button>
             )}
-            {!asset.disposalDate && asset.class !== 'financial' && (
-              <Button
-                variant="quiet"
-                disabled={writeLock.locked}
-                title={writeLock.hint}
-                onClick={() => setAction('maintenance')}
-              >
-                Erhaltungsaufwand
-              </Button>
-            )}
             {!asset.disposalDate && asset.class === 'financial' && (
               <Button
                 variant="quiet"
@@ -2389,14 +2365,6 @@ const AssetDetailDialog: React.FC<{
                 Vorabpauschale
               </Button>
             )}
-            <Button
-              variant="quiet"
-              disabled={writeLock.locked}
-              title={writeLock.hint}
-              onClick={() => setAction('document')}
-            >
-              Dokument ablegen
-            </Button>
             {!asset.disposalDate && (
               <>
                 <Button
@@ -2455,13 +2423,6 @@ const AssetDetailDialog: React.FC<{
         <CostAdjustmentForm asset={asset} onDone={afterBooking} />
       ) : action === 'transfer' ? (
         <TransferForm asset={asset} accounts={accounts} onDone={afterBooking} />
-      ) : action === 'maintenance' ? (
-        <MaintenanceForm
-          asset={asset}
-          contacts={contacts}
-          paymentAccounts={paymentAccounts}
-          onDone={afterBooking}
-        />
       ) : action === 'income' ? (
         <AssetIncomeForm
           asset={asset}
@@ -2471,8 +2432,6 @@ const AssetDetailDialog: React.FC<{
         />
       ) : action === 'currency' ? (
         <CurrencyForm asset={asset} onDone={afterBooking} />
-      ) : action === 'document' ? (
-        <DocumentForm asset={asset} kinds={documentKinds} onDone={afterBooking} />
       ) : action === 'vorabpauschale' ? (
         <VorabpauschaleForm asset={asset} onDone={afterBooking} />
       ) : action === 'disposal' ? (
@@ -2483,13 +2442,7 @@ const AssetDetailDialog: React.FC<{
           onDone={afterBooking}
         />
       ) : (
-        <AssetOverview
-          detail={detail}
-          onDocumentsChanged={async () => {
-            if (assetId !== null) await load(assetId);
-            await onChanged();
-          }}
-        />
+        <AssetOverview detail={detail} />
       )}
     </Dialog>
   );
@@ -2497,8 +2450,7 @@ const AssetDetailDialog: React.FC<{
 
 const AssetOverview: React.FC<{
   detail: AssetDetail;
-  onDocumentsChanged: () => Promise<void>;
-}> = ({ detail, onDocumentsChanged }) => {
+}> = ({ detail }) => {
   const { asset, schedule, movements, notes } = detail;
   // Die Spalte erscheint nur, wo es eine Sonderabschreibung gibt. Eine leere
   // Spalte in jedem Plan wäre eine Frage, die sich niemand gestellt hat.
@@ -2589,13 +2541,6 @@ const AssetOverview: React.FC<{
         </Section>
       )}
 
-      <DocumentSection
-        asset={asset}
-        onChanged={async () => {
-          await onDocumentsChanged();
-        }}
-      />
-
       <Section title="Bewegungen" context="Jede Wertänderung mit ihrer Buchung">
         <Table density="kompakt">
           <Thead>
@@ -2636,261 +2581,10 @@ const AssetOverview: React.FC<{
 };
 
 /**
- * Die Papiere zum Anlagegut.
- *
- * Sie sind kein zweiter Belegkreis: kein Nummernkreis, kein Geschäftsjahr,
- * keine Versiegelung. Ein Kaufvertrag wird nicht gebucht — er erklärt die
- * Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
- */
-const DocumentSection: React.FC<{
-  asset: FixedAsset;
-  onChanged: () => Promise<void>;
-}> = ({ asset, onChanged }) => {
-  const writeLock = usePostingLock();
-  const documents = asset.documents ?? [];
-  const [busy, setBusy] = useState<number | null>(null);
-  const today = new Date().toISOString().slice(0, 10);
-
-  async function open(document: AssetDocument) {
-    try {
-      const preview = await Api.getAssetDocumentContent(document.id);
-      if (!preview.intact) {
-        toast.error(
-          `${document.fileName} stimmt nicht mehr mit der Prüfsumme überein, unter der es abgelegt wurde.`,
-        );
-      }
-      window.open(preview.dataUrl, '_blank');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function remove(document: AssetDocument) {
-    setBusy(document.id);
-    try {
-      await Api.removeAssetDocument(asset.id, document.id);
-      toast.success(`${document.title || document.fileName} entfernt.`);
-      await onChanged();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  if (documents.length === 0) return null;
-
-  return (
-    <Section
-      title="Dokumente"
-      context="Verträge, Gutachten und Papiere — abgelegt, nicht gebucht"
-    >
-      <Table density="kompakt">
-        <Thead>
-          <Tr>
-            <Th className="w-44">Art</Th>
-            <Th>Bezeichnung</Th>
-            <Th className="w-28">Datum</Th>
-            <Th className="w-28">Läuft ab</Th>
-            <Th className="w-32" />
-          </Tr>
-        </Thead>
-        <Tbody>
-          {documents.map((document) => (
-            <Tr key={document.id}>
-              <Td className="text-ink-muted">{DOCUMENT_KIND_LABEL[document.kind] ?? document.kind}</Td>
-              <Td className="max-w-[20rem] truncate" title={document.note || document.fileName}>
-                <button
-                  type="button"
-                  className="text-left hover:underline"
-                  onClick={() => void open(document)}
-                >
-                  {document.title || document.fileName}
-                </button>
-              </Td>
-              <Td className="text-ink-muted">
-                {document.documentDate ? formatDate(document.documentDate) : '—'}
-              </Td>
-              <Td
-                className={
-                  document.validUntil && document.validUntil <= today
-                    ? 'text-negative-text'
-                    : 'text-ink-muted'
-                }
-              >
-                {document.validUntil ? formatDate(document.validUntil) : '—'}
-              </Td>
-              <Td>
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  loading={busy === document.id}
-                  disabled={writeLock.locked}
-                  title={writeLock.hint}
-                  onClick={() => void remove(document)}
-                >
-                  Entfernen
-                </Button>
-              </Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
-    </Section>
-  );
-};
-
-/**
  * Die Ausleihungen aus dem Kontenkatalog. Nur sie werden getilgt — eine
  * Beteiligung und ein Wertpapier werden verkauft.
  */
 const LOAN_ACCOUNTS = ['0810', '0880', '0930', '0940', '0990'];
-
-const DOCUMENT_KIND_LABEL: Record<string, string> = {
-  contract: 'Vertrag',
-  invoice: 'Rechnung (Kopie)',
-  valuation: 'Gutachten',
-  registration: 'Register- oder Zulassungspapier',
-  insurance: 'Versicherung',
-  maintenance: 'Wartung und Prüfung',
-  statement: 'Abrechnung',
-  photo: 'Bild',
-  other: 'Sonstiges',
-};
-
-const DocumentForm: React.FC<{
-  asset: FixedAsset;
-  kinds: AssetDocumentKindInfo[];
-  onDone: (message: string) => Promise<void>;
-}> = ({ asset, kinds, onDone }) => {
-  const writeLock = usePostingLock();
-  const [kind, setKind] = useState<AssetDocumentKind>('contract');
-  const [paths, setPaths] = useState<string[]>([]);
-  const [title, setTitle] = useState('');
-  const [documentDate, setDocumentDate] = useState('');
-  const [validUntil, setValidUntil] = useState('');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function pick() {
-    try {
-      const chosen = await Api.selectAssetDocumentsDialog('Dokumente zum Anlagegut auswählen');
-      if (chosen?.length) setPaths(chosen);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function submit() {
-    if (paths.length === 0) {
-      setError('Es wurde keine Datei ausgewählt.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      for (const path of paths) {
-        await Api.attachAssetDocument({
-          assetId: asset.id,
-          kind,
-          path,
-          // Ein Titel für mehrere Dateien wäre für alle bis auf eine falsch.
-          title: paths.length === 1 ? title : '',
-          documentDate,
-          validUntil,
-          note,
-        });
-      }
-      await onDone(paths.length === 1 ? 'Dokument abgelegt.' : `${paths.length} Dokumente abgelegt.`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <FormExplanation
-        label="Erklärung zu den Dokumenten"
-        line="Was hier liegt, wird nicht gebucht — es gehört zum Wirtschaftsgut, nicht zum Geschäftsjahr."
-      >
-        Der Beleg zur Anschaffung steht im Belegkreis, mit Belegnummer und in der Journalkette. Ein
-        Kaufvertrag, ein Gutachten, ein Fahrzeugbrief sind nichts davon: sie erklären das
-        Wirtschaftsgut noch, wenn es zehn Jahre im Bestand ist. Abgelegt werden sie auf demselben
-        Weg wie ein Beleg — unter ihrer eigenen Prüfsumme, sodass später feststeht, ob noch dort
-        liegt, was abgelegt wurde. Die Aufbewahrungspflicht des § 147 AO ersetzt das nicht; sie
-        trifft weiterhin das Original.
-      </FormExplanation>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Art des Dokuments">
-          <Select
-            items={kinds.map((k) => ({ value: k.kind, label: k.label }))}
-            value={kind}
-            onValueChange={(next) => setKind(next as AssetDocumentKind)}
-          />
-        </Field>
-        <Field
-          label="Datei"
-          hint={
-            paths.length === 0
-              ? 'noch keine ausgewählt'
-              : paths.length === 1
-                ? paths[0].split(/[\\/]/).pop()
-                : `${paths.length} Dateien`
-          }
-        >
-          <Button variant="secondary" onClick={pick}>
-            Datei auswählen
-          </Button>
-        </Field>
-      </div>
-
-      {paths.length === 1 && (
-        <Field label="Bezeichnung" optional hint="was in der Liste steht; leer heißt der Dateiname">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-      )}
-
-      <div className="grid grid-cols-3 gap-4">
-        <Field label="Datum des Dokuments" optional>
-          <Input
-            type="date"
-            value={documentDate}
-            onChange={(e) => setDocumentDate(e.target.value)}
-          />
-        </Field>
-        <Field helpSummary="Mit diesem Datum kann Buchfink Sie auf auslaufende Unterlagen hinweisen."
-          label="Läuft ab am"
-          optional
-          hint="Police, Frist, Fälligkeit"
-          explain="Ein Ablaufdatum, das niemand wieder liest, wäre keine Angabe. Buchfink beantwortet damit, was bis zu einem Stichtag ausläuft."
-        >
-          <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
-        </Field>
-        <Field label="Notiz" optional>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-      </div>
-
-      <FormError message={error} />
-
-      <div className="flex justify-end">
-        <Button
-          variant="primary"
-          loading={busy}
-          disabled={paths.length === 0 || writeLock.locked}
-          title={writeLock.hint}
-          onClick={submit}
-        >
-          Ablegen
-        </Button>
-      </div>
-    </div>
-  );
-};
 
 /**
  * Die Vorabpauschale nach § 18 InvStG.
@@ -3104,7 +2798,6 @@ const MOVEMENT_LABEL: Record<string, string> = {
   special_depreciation: 'Sonderabschreibung',
   impairment: 'Außerplanmäßige Abschreibung',
   write_up: 'Zuschreibung',
-  maintenance: 'Erhaltungsaufwand',
   income: 'Laufender Ertrag',
   disposal: 'Abgang',
   transfer: 'Umbuchung',
@@ -3375,8 +3068,7 @@ const CostAdjustmentForm: React.FC<{
         Aktiviert wird, was das Anlagegut erweitert oder wesentlich verbessert (§ 255 Abs. 2 HGB)
         — ein Anbau, ein zusätzliches Modul. Eine Reparatur,
         die es nur im Zustand hält, ist Erhaltungsaufwand und gehört sofort in die Gewinn- und
-        Verlustrechnung: dafür gibt es am Anlagegut die eigene Aktion „Erhaltungsaufwand". Fracht und
-        Montage zählen zu den Anschaffungskosten, Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
+        Verlustrechnung. Fracht und Montage zählen zu den Anschaffungskosten, Finanzierungskosten nicht (§ 255 Abs. 1 HGB).
       </FormExplanation>
 
       <div className="grid grid-cols-3 gap-4">
@@ -3443,296 +3135,6 @@ const CostAdjustmentForm: React.FC<{
           Erfassen
         </Button>
       </div>
-    </div>
-  );
-};
-
-const MaintenanceForm: React.FC<{
-  asset: FixedAsset;
-  contacts: Contact[];
-  paymentAccounts: Account[];
-  onDone: (message: string) => Promise<void>;
-}> = ({ asset, contacts, paymentAccounts, onDone }) => {
-  const writeLock = usePostingLock();
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState('');
-  const [settlement, setSettlement] = useState<Settlement>('paid');
-  const [paymentAccount, setPaymentAccount] = useState(paymentAccounts[0]?.number ?? '');
-  const [contactId, setContactId] = useState(0);
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /**
-   * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus.
-   *
-   * Negativ formuliert und nicht angehakt, weil der Regelfall der Vorgabewert
-   * sein muss: Instandsetzung und Modernisierung zählen in den Rahmen,
-   * jährlich üblicherweise anfallende Erhaltungsarbeiten sind ausdrücklich
-   * ausgenommen (Satz 2 Nr. 1).
-   */
-  const [notModernisation, setNotModernisation] = useState(false);
-  // Die 15-%-Prüfung vor und nach der Buchung. Vorher als Vorschau, nachher
-  // als Befund samt dem Weg, der aus ihm herausführt.
-  const [check, setCheck] = useState<NearAcquisitionCheck | null>(null);
-  const [booked, setBooked] = useState<NearAcquisitionCheck | null>(null);
-  const [capitalizeReason, setCapitalizeReason] = useState('');
-
-  const vendors = contacts.filter((c) => c.type === 'vendor');
-  const planned = parseCents(amount);
-
-  // Der Rahmen wird vor der Buchung gefragt, sobald Betrag und Datum stehen:
-  // wer erst nach dem Buchen erfährt, dass die 15 % gerissen sind, hat den
-  // Aufwand schon in der GuV — und die Rücknahme ist eine zweite Buchung.
-  useEffect(() => {
-    if (notModernisation || planned === null || planned <= 0 || !date) {
-      setCheck(null);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      Api.checkNearAcquisitionCost(asset.id, date, planned)
-        .then((result) => {
-          if (!cancelled) setCheck(result);
-        })
-        .catch(() => {
-          if (!cancelled) setCheck(null);
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [asset.id, date, planned, notModernisation]);
-
-  async function submit() {
-    setBusy(true);
-    setError(null);
-    try {
-      const value = parseCents(amount);
-      if (value === null || value <= 0) {
-        setError('Der Betrag fehlt oder ist nicht lesbar.');
-        return;
-      }
-      const result = await Api.bookAssetMaintenance({
-        assetId: asset.id,
-        date,
-        amount: value,
-        settlement,
-        paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
-        contactId: settlement === 'open' ? contactId : undefined,
-        note,
-        notModernisation,
-      });
-      // Der Rahmen ist gerissen: die Buchung steht, und die Entscheidung über
-      // die Aktivierung ist die nächste. Der Dialog bleibt deshalb offen statt
-      // zu schließen und den Befund mitzunehmen.
-      if (result?.nearAcquisition?.exceeded) {
-        setBooked(result.nearAcquisition);
-        setAmount('');
-        setCheck(null);
-        return;
-      }
-      await onDone('Erhaltungsaufwand gebucht.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Die Umbuchung des Aufwands in nachträgliche Herstellungskosten. */
-  async function capitalize() {
-    if (capitalizeReason.trim() === '') {
-      setError('Die Umbuchung verteilt einen sofort abgezogenen Aufwand — ohne Grund nicht.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await Api.capitalizeNearAcquisitionCost({
-        assetId: asset.id,
-        date,
-        reason: capitalizeReason.trim(),
-      });
-      await onDone('Als nachträgliche Herstellungskosten aktiviert.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <FormExplanation
-        label="Erklärung zum Erhaltungsaufwand"
-        line="Was den Zustand nur erhält, ist sofort abziehbar — es erhöht die Anschaffungskosten nicht."
-      >
-        Aktiviert wird nur, was das Wirtschaftsgut wesentlich verbessert (§ 255 Abs. 2 Satz 1 HGB)
-        — über seinen ursprünglichen Zustand hinaus. Eine Reparatur, die es im Zustand
-        hält, gehört sofort in die Gewinn- und Verlustrechnung. Die Buchung wird hier trotzdem mit
-        dem Anlagegut verknüpft: wer später fragt, was die Maschine gekostet hat, sieht beides und
-        kann es auseinanderhalten. Das Aufwandskonto folgt aus dem Anlagekonto.
-      </FormExplanation>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Field label="Datum">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="Betrag" hint="netto, ohne Vorsteuer">
-          <Input
-            align="right"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </Field>
-        <Field label="Zahlung">
-          <RadioGroup
-            options={[
-              { value: 'paid', label: 'Sofort bezahlt' },
-              { value: 'open', label: 'Offener Posten' },
-            ]}
-            value={settlement}
-            onValueChange={(next) => setSettlement(next as Settlement)}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        {settlement === 'paid' ? (
-          <Field label="Zahlungsmittel">
-            <Select
-              items={paymentAccounts.map((a) => ({ value: a.number, label: `${a.number} ${a.name}` }))}
-              value={paymentAccount}
-              onValueChange={(next) => setPaymentAccount(String(next))}
-            />
-          </Field>
-        ) : (
-          <Field label="Lieferant" hint="die Verbindlichkeit steht auf seinem Personenkonto">
-            <Select
-              items={vendors.map((c) => ({ value: c.id, label: c.name }))}
-              value={contactId}
-              onValueChange={(next) => setContactId(Number(next))}
-            />
-          </Field>
-        )}
-        <Field helpSummary="Begründen Sie, ob die Arbeiten den bisherigen Zustand erhalten oder das Gebäude erweitern."
-          label="Abgrenzung zur Erweiterung"
-          hint="wird mit der Buchung festgehalten"
-          explain="Die Unterscheidung ist eine Einschätzung, keine Rechnung. Ohne festgehaltene Begründung ist sie später nicht mehr nachvollziehbar."
-        >
-          <Input value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-      </div>
-
-      <span className="flex items-start gap-1">
-        <Checkbox
-          checked={notModernisation}
-          onCheckedChange={(checked) => setNotModernisation(Boolean(checked))}
-          label="Jährlich üblicherweise anfallende Erhaltungsarbeit"
-          hint="bleibt außerhalb des 15-%-Rahmens"
-        />
-        <Help summary="Regelmäßig anfallende Erhaltungsarbeiten werden hier gesondert behandelt." label="Erklärung zur üblichen Erhaltungsarbeit">
-          Jährlich üblicherweise anfallende Erhaltungsarbeiten bleiben aus dem 15-%-Rahmen der
-          ersten drei Jahre heraus (§ 6 Abs. 1 Nr. 1a Satz 2 EStG). Instandsetzung und
-          Modernisierung sind der Regelfall — dieses Kästchen bleibt leer, wo es um mehr geht als
-          um den laufenden Unterhalt.
-        </Help>
-      </span>
-
-      {/* Der Rahmen des § 6 Abs. 1 Nr. 1a EStG: vor der Buchung als Vorschau,
-          nach ihr als Befund mit dem Weg heraus. */}
-      {check?.applicable && !booked && (
-        <div
-          className={cn(
-            'rounded-control border px-4 py-3',
-            check.exceeded
-              ? 'border-attention-line bg-attention-soft'
-              : 'border-line-strong bg-sunken',
-          )}
-        >
-          <h4 className={cn('text-label', check.exceeded ? 'text-attention-text' : 'text-ink')}>
-            Anschaffungsnahe Herstellungskosten
-            <Help summary="Größere Renovierungen kurz nach dem Kauf können zu den Gebäudekosten gehören." label="Erklärung zum 15-%-Rahmen">
-              Übersteigen die Aufwendungen für Instandsetzung und Modernisierung innerhalb von drei
-              Jahren nach der Anschaffung eines Gebäudes 15 % der Anschaffungskosten ohne
-              Umsatzsteuer, gehören sie zu den Herstellungskosten (§ 6 Abs. 1 Nr. 1a EStG). Sie
-              sind dann über die Gebäude-AfA zu verteilen, nicht sofort abziehbar — und zwar
-              sämtliche, auch die bereits als Aufwand gebuchten.
-            </Help>
-          </h4>
-          <p className="text-body text-ink-muted mt-1.5">{check.note}</p>
-          <p className="text-caption text-ink-subtle mt-1">
-            <span className="num">{formatCents(check.spent)}</span> gebucht
-            {check.planned > 0 && (
-              <>
-                {' · '}
-                <span className="num">{formatCents(check.planned)}</span> geplant
-              </>
-            )}
-            {' · Rahmen '}
-            <span className="num">{formatCents(check.limit)}</span>
-            {check.periodEnd ? ` · Zeitraum bis ${formatDate(check.periodEnd)}` : ''}
-          </p>
-        </div>
-      )}
-
-      {booked && (
-        <div className="rounded-control border border-attention-line bg-attention-soft px-4 py-3">
-          <h4 className="text-label text-attention-text">
-            Der 15-%-Rahmen ist überschritten
-          </h4>
-          <p className="text-body text-ink-muted mt-1.5">{booked.note}</p>
-          <p className="text-caption text-ink-subtle mt-1">
-            <span className="num">{formatCents(booked.spent)}</span> gegenüber{' '}
-            <span className="num">{formatCents(booked.limit)}</span>
-          </p>
-          <Field helpSummary="Begründen Sie, warum die Ausgabe zum Wert des Anlageguts hinzugerechnet wird."
-            label="Grund der Aktivierung"
-            className="mt-3"
-            explain="Die Umbuchung nimmt gebuchten Aufwand zurück und aktiviert ihn. Wer sie später liest, muss wissen, worauf sie beruht."
-          >
-            <Textarea
-              rows={2}
-              value={capitalizeReason}
-              onChange={(e) => setCapitalizeReason(e.target.value)}
-              placeholder="etwa: 15-%-Grenze mit der Sanierung 2027 überschritten"
-            />
-          </Field>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => void onDone('Erhaltungsaufwand gebucht.')}>
-              Später entscheiden
-            </Button>
-            <Button
-              variant="primary"
-              loading={busy}
-              disabled={writeLock.locked || capitalizeReason.trim() === ''}
-              title={writeLock.hint}
-              onClick={capitalize}
-            >
-              Als nachträgliche Herstellungskosten aktivieren
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <FormError message={error} />
-
-      {!booked && (
-        <div className="flex justify-end">
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={writeLock.locked}
-            title={writeLock.hint}
-            onClick={submit}
-          >
-            Aufwand buchen
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

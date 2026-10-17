@@ -75,15 +75,6 @@ type TaxParameters struct {
 	// (§ 44 Abs. 3 UStDV: 6.000 €). Sie entfällt dadurch nicht — sie wandert nur
 	// aus dem Voranmeldungszeitraum ans Jahresende.
 	InputTaxCorrectionAnnualAmount domain.Cents
-
-	// NearAcquisitionPermille ist der Anteil der Gebäude-Anschaffungskosten, ab
-	// dem Instandsetzungs- und Modernisierungsaufwendungen der ersten drei Jahre
-	// zu anschaffungsnahen Herstellungskosten werden (§ 6 Abs. 1 Nr. 1a EStG:
-	// 15 %, netto gerechnet).
-	NearAcquisitionPermille int64
-	// NearAcquisitionYears ist der Zeitraum, über den dieser Aufwand summiert
-	// wird: drei Jahre nach der Anschaffung.
-	NearAcquisitionYears int
 }
 
 // taxParameterSets are ordered by ValidFrom, oldest first.
@@ -166,10 +157,6 @@ func withStableParameters(sets []TaxParameters) []TaxParameters {
 		sets[i].InputTaxCorrectionMinorPoints = 10
 		sets[i].InputTaxCorrectionMinorAmount = 100_000
 		sets[i].InputTaxCorrectionAnnualAmount = 600_000
-		// § 6 Abs. 1 Nr. 1a EStG, eingefügt durch das StÄndG 2003 und seither
-		// unverändert.
-		sets[i].NearAcquisitionPermille = 150
-		sets[i].NearAcquisitionYears = 3
 	}
 	return sets
 }

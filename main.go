@@ -7,7 +7,6 @@ import (
 
 	"github.com/buchfink/buchfink/internal/wailsbridge"
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // Wails uses Go's embed package to embed the frontend files into the binary.
@@ -35,11 +34,10 @@ func main() {
 		},
 	})
 
-	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		EnableFileDrop: true,
-		Title:          "Buchfink — Buchhaltung",
-		Width:          1280,
-		Height:         820,
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:  "Buchfink — Buchhaltung",
+		Width:  1280,
+		Height: 820,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 48,
 			Backdrop:                application.MacBackdropTranslucent,
@@ -47,17 +45,6 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(250, 249, 246),
 		URL:              "/",
-	})
-
-	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
-		target := event.Context().DropTargetDetails()
-		if target == nil || target.ElementID == "" {
-			return
-		}
-		window.DispatchWailsEvent(&application.CustomEvent{
-			Name: "buchfink:files-dropped",
-			Data: map[string]any{"targetId": target.ElementID, "paths": event.Context().DroppedFiles()},
-		})
 	})
 
 	go func() {

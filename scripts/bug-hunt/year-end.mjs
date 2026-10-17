@@ -43,7 +43,7 @@ await run('SaveFoundation', {
 });
 await run('BookFoundationPostings');
 await run('RegisterCompany', '2025-01-20', 'Amtsgericht Berlin-Charlottenburg', 'HRB 234567 B');
-await run('FileOpeningBalance');
+await run('GetOpeningBalance');
 const customer = await run('SaveContact', {
   type: 'customer', name: 'Beispielprojekt GmbH', street: 'Beispielweg 4',
   postalCode: '10405', city: 'Berlin', countryCode: 'DE',

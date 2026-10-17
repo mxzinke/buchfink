@@ -290,27 +290,6 @@ func TestTaxCaseHintsNameTheGaps(t *testing.T) {
 
 // --- Aussetzung der Aufbewahrungsfrist ------------------------------------
 
-func TestRetentionHoldNeedsADescribedReason(t *testing.T) {
-	hold := &RetentionHold{FiscalYear: 2025, Reason: RetentionHoldAudit}
-	if err := hold.Validate(); err != nil {
-		t.Errorf("die Außenprüfung ist ein benannter Grund: %v", err)
-	}
-
-	other := &RetentionHold{FiscalYear: 2025, Reason: RetentionHoldOther}
-	if err := other.Validate(); err == nil {
-		t.Error("ein sonstiger Grund ist zu beschreiben — sonst lässt sich später nicht beurteilen, ob er noch gilt")
-	}
-	other.Description = "Betriebsprüfung des Zolls angekündigt"
-	if err := other.Validate(); err != nil {
-		t.Errorf("ein beschriebener sonstiger Grund ist zulässig: %v", err)
-	}
-
-	unknown := &RetentionHold{FiscalYear: 2025, Reason: "irgendwas"}
-	if err := unknown.Validate(); err == nil {
-		t.Error("ein unbekannter Grund darf keine Frist aussetzen")
-	}
-}
-
 func TestMigrationCountsBalance(t *testing.T) {
 	// Eine Buchung ist immer ausgeglichen, also ist es auch die Summe aller.
 	// Stimmen Soll und Haben nach einer Übernahme nicht überein, fehlt etwas.

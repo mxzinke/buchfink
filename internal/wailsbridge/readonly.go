@@ -74,7 +74,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetVatIDStatus":                  true,
 	"GetWriteUpReport":                true,
 	"PreviewInputTaxCorrection":       true,
-	"CheckNearAcquisitionCost":        true,
 	"GetExemptionCertificateWarnings": true,
 	"GetClosingSettings":              true,
 	"GetAccountLedger":                true,
@@ -86,8 +85,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetAppConfig":                    true,
 	"GetAssetAccounts":                true,
 	"GetAssetAcquisitionCandidates":   true,
-	"GetAssetDocumentContent":         true,
-	"GetAssetDocumentKinds":           true,
 	"GetAssetRules":                   true,
 	"GetAssetSummary":                 true,
 	"GetAuditLogs":                    true,
@@ -105,7 +102,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetEBilanzMappingReport":         true,
 	"GetEInvoiceProfiles":             true,
 	"GetEInvoiceRules":                true,
-	"GetExpiringAssetDocuments":       true,
 	"GetFestschreibungen":             true,
 	"GetFinancialSummary":             true,
 	"GetFiscalYear":                   true,
@@ -116,15 +112,8 @@ var readOnlyAllowed = map[string]bool{
 	"GetFoundationRules":              true,
 	"GetCountries":                    true,
 	"GetFoundationState":              true,
-	"GetFragebogenSheet":              true,
 	"GetOpeningBalance":               true,
-	// Die Dokumentenablage des Unternehmens. Lesen und Herausgeben: der
-	// Gesellschaftsvertrag und der Registerauszug sind das, wonach ein Prüfer
-	// als Erstes fragt.
-	"GetDocuments":                   true,
-	"GetDocumentKinds":               true,
-	"GetDocumentContent":             true,
-	"GetDocumentFileInfo":            true,
+	// Mandantenverzeichnis, Rechnungswesen und Nachschlagewerte
 	"ValidateTenantDirectory":        true,
 	"GetInvestmentNoteForIncome":     true,
 	"GetAdvanceTargets":              true,
@@ -221,27 +210,25 @@ var readOnlyAllowed = map[string]bool{
 	"ExportZMCSV":                  true,
 	"GenerateInvoiceZUGFeRD":       true,
 	"SaveProcedureDocumentationAs": true,
+	"SaveOpeningBalanceAs":         true,
 	// Der Verweis nach draußen. Er öffnet den Browser und rührt keine Daten an;
 	// gerade während einer Prüfung darf nachgesehen werden, was eine Fassung
 	// geändert hat.
 	"OpenReleasesPage":  true,
 	"SaveReceiptFileAs": true,
 
-	// Die Nachweise der Welle 6. Sie lesen: Protokoll, Fristen, Historie,
-	// Migrationen und die Altersstruktur. Gerade im Prüfermodus sind sie das,
+	// Die Nachweise der Welle 6. Sie lesen: Protokoll, Historie, Migrationen
+	// und die Altersstruktur. Gerade im Prüfermodus sind sie das,
 	// wonach gefragt wird.
 	"GetAuditLogsFiltered":        true,
 	"GetChangeLog":                true,
 	"GetComplianceHints":          true,
 	"GetCorrectionOf":             true,
-	"GetExpiredObjects":           true,
 	"GetMigrationRecords":         true,
 	"GetOpenItemsAging":           true,
 	"GetOrganisationTextDefaults": true,
 	"GetOrganisationTexts":        true,
 	"GetProcedureDocumentations":  true,
-	"GetRetentionHolds":           true,
-	"GetRetentionOverview":        true,
 	"GetSchemaMigrations":         true,
 	"GetSelectableContacts":       true,
 	"PreviewOpeningBalance":       true,
@@ -270,8 +257,6 @@ var readOnlyAllowed = map[string]bool{
 	"VerifyReceiptFiles":   true,
 
 	// Dateidialoge. Sie wählen einen Pfad und schreiben nichts.
-	"SelectAssetDocumentsDialog":  true,
-	"SelectDocumentsDialog":       true,
 	"SelectBackupDirDialog":       true,
 	"SelectBackupFileDialog":      true,
 	"SelectDatabaseFileDialog":    true,

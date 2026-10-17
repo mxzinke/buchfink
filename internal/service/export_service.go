@@ -54,19 +54,18 @@ type ExportTaxRegisterSource interface {
 // einer Überlassung gehört festgehalten, weil später niemand mehr sagen kann,
 // was der Prüfer bekommen hat.
 type ExportService struct {
-	companyDocuments domain.DocumentRepository
-	journalRepo      domain.JournalRepository
-	accountRepo      domain.AccountRepository
-	contactRepo      domain.ContactRepository
-	receiptRepo      domain.ReceiptRepository
-	assetRepo        domain.AssetRepository
-	allocationRepo   domain.PaymentAllocationRepository
-	auditRepo        domain.AuditRepository
-	settingsRepo     domain.SettingsRepository
-	commitRepo       domain.FestschreibungRepository
-	vatReturnRepo    domain.VatReturnRepository
-	checkRunRepo     domain.CheckRunRepository
-	fiscalYearRepo   domain.FiscalYearRepository
+	journalRepo    domain.JournalRepository
+	accountRepo    domain.AccountRepository
+	contactRepo    domain.ContactRepository
+	receiptRepo    domain.ReceiptRepository
+	assetRepo      domain.AssetRepository
+	allocationRepo domain.PaymentAllocationRepository
+	auditRepo      domain.AuditRepository
+	settingsRepo   domain.SettingsRepository
+	commitRepo     domain.FestschreibungRepository
+	vatReturnRepo  domain.VatReturnRepository
+	checkRunRepo   domain.CheckRunRepository
+	fiscalYearRepo domain.FiscalYearRepository
 
 	// procDocRepo liefert die erzeugten Fassungen der Verfahrensdokumentation.
 	// Optional: ein Export ohne sie vermerkt ihr Fehlen, statt zu scheitern.
@@ -113,10 +112,6 @@ func NewExportService(
 func (s *ExportService) SetOpenItemSource(src ExportOpenItemSource) { s.openItem = src }
 
 // SetIntegritySource hängt die beiden Prüfläufe an.
-func (s *ExportService) SetCompanyDocuments(repo domain.DocumentRepository) {
-	s.companyDocuments = repo
-}
-
 func (s *ExportService) SetIntegritySource(src ExportIntegritySource) { s.checks = src }
 
 // SetTaxRegisterSource hängt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG an.
@@ -175,7 +170,6 @@ func (s *ExportService) exportPackage(
 	withFiles := kind == export.KindArchive || kind == export.KindAuditPackage
 	if withFiles {
 		data.planReceiptFilePaths()
-		data.planDocumentFilePaths()
 	}
 
 	dataset, err := s.buildDataset(data)
@@ -193,9 +187,6 @@ func (s *ExportService) exportPackage(
 
 	if withFiles {
 		if err := s.copyReceiptFiles(builder, data); err != nil {
-			return nil, err
-		}
-		if err := s.copyAssetDocuments(builder, data); err != nil {
 			return nil, err
 		}
 	}
@@ -306,10 +297,8 @@ type balanceRow struct {
 // Auswertungen aus verschiedenen Lesezeitpunkten könnten einen Stand zeigen,
 // den es so nie gab.
 type exportData struct {
-	companyDocuments     []domain.Document
-	companyDocumentPaths map[uint]string
-	year                 int
-	from, to             string
+	year     int
+	from, to string
 
 	entries     []domain.JournalEntry
 	entryNames  map[uint]string
@@ -319,7 +308,6 @@ type exportData struct {
 	contacts    []domain.Contact
 	receipts    []domain.Receipt
 	assets      []domain.FixedAsset
-	documents   []domain.AssetDocument
 	auditLog    []domain.AuditLogEntry
 	vatReturns  []domain.VatReturn
 	commits     []domain.Festschreibung
@@ -328,11 +316,9 @@ type exportData struct {
 	allocations []domain.PaymentAllocation
 	balances    map[string]balanceRow
 
-	// receiptFilePaths ist der Pfad je Belegdatei innerhalb des Exports,
-	// documentFilePaths derselbe je Anlagendokument. Beide leer, solange keine
-	// Dateien beiliegen.
-	receiptFilePaths  map[uint]string
-	documentFilePaths map[uint]string
+	// receiptFilePaths ist der Pfad je Belegdatei innerhalb des Exports; leer,
+	// solange keine Dateien beiliegen.
+	receiptFilePaths map[uint]string
 
 	tenantName string
 	// supplierLocation ist der Sitz des Betriebs. Der Beschreibungsstandard
@@ -358,16 +344,6 @@ func (d *exportData) accountName(number string) string {
 }
 
 func (d *exportData) entryNumber(id uint) string { return d.entryNames[id] }
-
-// inventoryNumber liefert die Inventarnummer eines Wirtschaftsguts.
-func (d *exportData) inventoryNumber(assetID uint) string {
-	for i := range d.assets {
-		if d.assets[i].ID == assetID {
-			return d.assets[i].InventoryNumber
-		}
-	}
-	return ""
-}
 
 // committedOn liefert den Tag, an dem der Zeitraum der Buchung festgeschrieben
 // wurde — die früheste Festschreibung desselben Geschäftsjahres, deren Stichtag
@@ -430,27 +406,6 @@ func (d *exportData) planReceiptFilePaths() {
 	}
 }
 
-// planDocumentFilePaths legt fest, wohin jedes Anlagendokument kommt:
-// dokumente/<Inventarnummer>/<Dateiname>.
-func (d *exportData) planDocumentFilePaths() {
-	d.companyDocumentPaths = make(map[uint]string)
-	for _, doc := range d.companyDocuments {
-		d.companyDocumentPaths[doc.ID] = fmt.Sprintf("dokumente/unternehmen/%d-%s", doc.ID, export.SafeName(doc.FileName))
-	}
-	d.documentFilePaths = make(map[uint]string)
-	taken := map[string]bool{}
-	for i := range d.documents {
-		doc := &d.documents[i]
-		dir := "dokumente/" + export.SafeName(d.inventoryNumber(doc.AssetID))
-		name := export.SafeName(doc.FileName)
-		if taken[dir+"/"+name] {
-			name = fmt.Sprintf("%d-%s", doc.ID, name)
-		}
-		taken[dir+"/"+name] = true
-		d.documentFilePaths[doc.ID] = dir + "/" + name
-	}
-}
-
 // baseData liest, was jeder Export braucht, unabhängig vom Geschäftsjahr.
 func (s *ExportService) baseData(ctx context.Context) (*exportData, error) {
 	accounts, err := s.accountRepo.FindAll(ctx)
@@ -479,17 +434,16 @@ func (s *ExportService) baseData(ctx context.Context) (*exportData, error) {
 	}
 
 	return &exportData{
-		accounts:          accounts,
-		chart:             accounting.NewChart(accounts),
-		ledgerNames:       ledgerNames,
-		contacts:          contacts,
-		entryNames:        map[uint]string{},
-		receiptFilePaths:  map[uint]string{},
-		documentFilePaths: map[uint]string{},
-		balances:          map[string]balanceRow{},
-		tenantName:        name,
-		supplierLocation:  location,
-		programVersion:    buildinfo.Version,
+		accounts:         accounts,
+		chart:            accounting.NewChart(accounts),
+		ledgerNames:      ledgerNames,
+		contacts:         contacts,
+		entryNames:       map[uint]string{},
+		receiptFilePaths: map[uint]string{},
+		balances:         map[string]balanceRow{},
+		tenantName:       name,
+		supplierLocation: location,
+		programVersion:   buildinfo.Version,
 		// UTC: der Zeitpunkt steht in der Beschreibungsdatei und im Manifest
 		// und wird dort gegen andere Zeitpunkte gehalten.
 		createdAt: time.Now().UTC().Format(time.RFC3339),
@@ -516,11 +470,6 @@ func (s *ExportService) collect(ctx context.Context, year int) (*exportData, err
 	if d.receipts, err = s.receiptRepo.FindAll(ctx, year); err != nil {
 		return nil, fmt.Errorf("die Belege konnten nicht gelesen werden: %w", err)
 	}
-	if s.companyDocuments != nil {
-		if d.companyDocuments, err = s.companyDocuments.FindAll(ctx); err != nil {
-			return nil, fmt.Errorf("Unternehmensdokumente lesen: %w", err)
-		}
-	}
 	if s.assetRepo != nil {
 		if d.assets, err = s.assetRepo.FindAll(ctx); err != nil {
 			return nil, fmt.Errorf("die Anlagenkartei konnte nicht gelesen werden: %w", err)
@@ -531,11 +480,6 @@ func (s *ExportService) collect(ctx context.Context, year int) (*exportData, err
 				return nil, fmt.Errorf("die Anlagenbewegungen konnten nicht gelesen werden: %w", err)
 			}
 			d.assets[i].Movements = movements
-		}
-		// Am Stück und nicht je Anlagegut: die Kartei sonst n-mal zu lesen
-		// wäre nicht nur langsam, sondern gäbe auch n Lesezeitpunkte.
-		if d.documents, err = s.assetRepo.FindAllDocuments(ctx); err != nil {
-			return nil, fmt.Errorf("die Anlagendokumente konnten nicht gelesen werden: %w", err)
 		}
 	}
 	if s.allocationRepo != nil {
@@ -715,7 +659,7 @@ func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 		journalTable, entertainmentTable, allocationsTable,
 		accountsTable, balancesTable, contactsTable, openItemsTable,
 		assetsTable, assetMovementsTable,
-		receiptsTable, documentsTable, companyDocumentsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
+		receiptsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
 		auditTrailTable,
 	}
 
@@ -787,46 +731,6 @@ func (s *ExportService) copyReceiptFiles(b *export.Builder, d *exportData) error
 	return nil
 }
 
-// copyAssetDocuments legt Verträge, Gutachten und Zulassungen unter
-// dokumente/<Inventarnummer>/ ab.
-func (s *ExportService) copyAssetDocuments(b *export.Builder, d *exportData) error {
-	if s.store == nil {
-		return nil
-	}
-	for _, doc := range d.companyDocuments {
-		rel := d.companyDocumentPaths[doc.ID]
-		source := filepath.Join(s.dataDir, filepath.FromSlash(doc.StoredPath))
-		sum, err := b.CopyFile(rel, source)
-		if err != nil {
-			return fmt.Errorf("Unternehmensdokument %s konnte nicht exportiert werden: %w", doc.FileName, err)
-		}
-		if sum != doc.SHA256 {
-			return fmt.Errorf("Unternehmensdokument %s stimmt nicht mit seiner archivierten Prüfsumme überein", doc.FileName)
-		}
-		b.CountDocumentFile()
-	}
-	for i := range d.documents {
-		doc := &d.documents[i]
-		rel, ok := d.documentFilePaths[doc.ID]
-		if !ok {
-			continue
-		}
-		inventory := d.inventoryNumber(doc.AssetID)
-		source := filepath.Join(s.dataDir, filepath.FromSlash(doc.StoredPath))
-		sum, err := b.CopyFile(rel, source)
-		if err != nil {
-			b.Note("Anlagegut %s, Dokument %s: %v", inventory, doc.FileName, err)
-			continue
-		}
-		if sum != doc.SHA256 {
-			b.Note("Anlagegut %s, Dokument %s: die Prüfsumme weicht von der abgelegten ab (erwartet %s, gefunden %s).",
-				inventory, doc.FileName, doc.SHA256, sum)
-		}
-		b.CountDocumentFile()
-	}
-	return nil
-}
-
 // writeIntegrityReport legt den Nachweis der Unversehrtheit bei.
 //
 // Er gehört ins Prüferpaket und nicht nur auf den Bildschirm: die Aussage
@@ -862,8 +766,8 @@ Geprüfte Geschäftsjahre: %v
 Geprüfte Buchungen:      %d
 Ergebnis:                %s
 %s
-Belegdateien, Anlagen- und Unternehmensdokumente
-----------------------------------------------
+Belegdateien
+------------
 Geprüfte Dateien: %d
 Unversehrt:       %d
 Beschädigt:       %d
@@ -1110,8 +1014,8 @@ func (s *ExportService) logExport(ctx context.Context, r *export.Result) {
 		rows += t.Rows
 	}
 	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "DATA_EXPORT", fmt.Sprintf("GJ_%d", r.FiscalYear),
-		fmt.Sprintf("%s nach %s: %d Tabellen mit %d Datensätzen, %d Belegdateien, %d Anlagendokumente (Buchfink %s)",
-			exportKindLabel(r.Kind), r.Dir, len(r.Tables), rows, r.ReceiptFiles, r.DocumentFiles, r.ProgramVersion))
+		fmt.Sprintf("%s nach %s: %d Tabellen mit %d Datensätzen, %d Belegdateien (Buchfink %s)",
+			exportKindLabel(r.Kind), r.Dir, len(r.Tables), rows, r.ReceiptFiles, r.ProgramVersion))
 }
 
 func exportKindLabel(kind export.Kind) string {

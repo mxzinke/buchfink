@@ -155,29 +155,6 @@ export interface JournalLine {
   text?: string;
 }
 
-/**
- * Die Prüfung des 15-%-Rahmens des § 6 Abs. 1 Nr. 1a EStG zu einer
- * Instandsetzung an einem Gebäude.
- */
-export interface NearAcquisitionCheck {
-  applicable: boolean;
-  periodEnd?: string;
-  limit: Cents;
-  spent: Cents;
-  planned: Cents;
-  exceeded: boolean;
-  note: string;
-}
-
-/**
- * Das Ergebnis einer Erhaltungsaufwandsbuchung: die Buchung und, bei einem
- * Gebäude in den ersten drei Jahren, die Prüfung des 15-%-Rahmens.
- */
-export interface MaintenanceResult {
-  entry: JournalEntry;
-  nearAcquisition?: NearAcquisitionCheck;
-}
-
 export interface JournalEntry {
   id: number;
   fiscalYear: number;
@@ -1240,7 +1217,6 @@ export interface IntegrityCheckResult {
 }
 
 export interface CompanySettings {
-  employees?: string;
   managingDirectors?: string;
   supervisoryBoardChair?: string;
   sellerIdentifier?: string;
@@ -1300,8 +1276,7 @@ export interface CompanySettings {
   receiptNumberFormat: string;
   /**
    * Sitz, Registergericht und Registernummer sind die Pflichtangaben des
-   * § 264 Abs. 1a HGB auf jedem Jahresabschluss. Sie standen bisher nur an der
-   * Gründung und fehlten damit jedem Mandanten ohne Gründungsweg.
+   * § 264 Abs. 1a HGB auf jedem Jahresabschluss.
    */
   seat: string;
   registerCourt: string;
@@ -1529,51 +1504,6 @@ export type FundClass = '' | 'equity' | 'mixed' | 'real_estate' | 'foreign_real_
 /** Die Anlegerstellung, an der § 20 Abs. 1 InvStG die Höhe des Satzes festmacht. */
 export type InvestorType = '' | 'basic' | 'individual_business' | 'corporate' | 'mixed';
 
-/** Was zu einem Anlagegut abgelegt wird, ohne gebucht zu werden. */
-export type AssetDocumentKind =
-  | 'contract'
-  | 'invoice'
-  | 'valuation'
-  | 'registration'
-  | 'insurance'
-  | 'maintenance'
-  | 'statement'
-  | 'photo'
-  | 'other';
-
-export interface AssetDocument {
-  id: number;
-  assetId: number;
-  kind: AssetDocumentKind;
-  title?: string;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  sha256: string;
-  storedPath: string;
-  documentDate?: string;
-  /** Tag, an dem das Dokument abläuft — eine Police, eine Frist. */
-  validUntil?: string;
-  note?: string;
-  createdAt: string;
-}
-
-export interface AssetDocumentKindInfo {
-  kind: AssetDocumentKind;
-  label: string;
-}
-
-export interface ExpiringAssetDocument {
-  assetId: number;
-  inventoryNumber: string;
-  assetName: string;
-  documentId: number;
-  kind: AssetDocumentKind;
-  kindLabel: string;
-  title: string;
-  validUntil: string;
-}
-
 export type AssetMovementKind =
   | 'transfer'
   | 'acquisition'
@@ -1583,7 +1513,6 @@ export type AssetMovementKind =
   | 'special_depreciation'
   | 'impairment'
   | 'write_up'
-  | 'maintenance'
   | 'income'
   | 'vorabpauschale'
   | 'disposal';
@@ -1620,15 +1549,6 @@ export interface AssetMovement {
   quantity?: Units;
   /** Betrag, der nur steuerlich zählt — die Vorabpauschale wird nicht gebucht. */
   taxAmount?: Cents;
-  /** Betrag einer Bewegung ohne Buchwertänderung (Erhaltungsaufwand). */
-  expenseAmount?: Cents;
-  /** Aufwandskonto einer Bewegung ohne Buchwertänderung (Erhaltungsaufwand). */
-  expenseAccount?: string;
-  /**
-   * Instandsetzung oder Modernisierung im Sinne des § 6 Abs. 1 Nr. 1a EStG.
-   * Nur solcher Aufwand zählt in den 15-%-Rahmen der ersten drei Jahre.
-   */
-  isModernisation?: boolean;
   /** Monate, um die diese Bewegung die Restnutzungsdauer verlängert. */
   lifeExtensionMonths?: number;
   note?: string;
@@ -1707,7 +1627,6 @@ export interface FixedAsset {
   createdAt: string;
   updatedAt: string;
   movements?: AssetMovement[];
-  documents?: AssetDocument[];
 
   // Abgeleitet vom Backend, nicht gespeichert.
   accountName?: string;
@@ -2167,102 +2086,6 @@ export interface AnmeldungCheck {
   shareholders: ShareholderCheck[];
 }
 
-/** Eine Pflicht aus der Gründung, mit Frist und Erledigung. */
-/** Das Ereignis, aus dem die Frist einer Gründungspflicht läuft. */
-export type FoundationAnchor = 'beurkundung' | 'eintragung' | 'abschlussstichtag';
-
-export interface FoundationDuty {
-  key: string;
-  title: string;
-  /** Leer, wo das Gesetz „unverzüglich" sagt statt einer Tagesfrist. */
-  dueDate: string;
-  deadline: string;
-  anchor: FoundationAnchor;
-  /** Das auslösende Ereignis steht noch aus: kein Datum, nicht überfällig. */
-  isPending: boolean;
-  /** Der Platz im Gründungsweg — die Reihenfolge des Tuns, nicht der Fälligkeit. */
-  order: number;
-  /** Wo die Pflicht erfüllt wird: beim Notar, über Mein ELSTER, bei der Gemeinde. */
-  where: string;
-  actionUrl?: string;
-  actionLabel?: string;
-  condition?: string;
-  isNotApplicable?: boolean;
-  waitingFor?: string;
-  excludedBy?: string;
-  dependsOn?: string[];
-  missingFields?: string[];
-  /** Die Handgriffe, in der Reihenfolge, in der sie zu tun sind. */
-  todo: string[];
-  /** Was Buchfink dazu beisteuert. Leer, wo es nichts beisteuern kann. */
-  provides?: string;
-  reference: string;
-  description: string;
-  doneOn: string;
-  isDone: boolean;
-  /** Die abgelegten Nachweise zu dieser Pflicht. */
-  proof?: CompanyDocument[];
-  acceptsProof: boolean;
-}
-
-/** Der Stand des Gründungswegs. Gerechnet im Backend, nicht in der Ansicht. */
-export interface FoundationGuide {
-  total: number;
-  done: number;
-  /** Schritte, deren auslösendes Ereignis noch aussteht. Nicht offen. */
-  waiting: number;
-  open: number;
-  nextKey?: string;
-  nextTitle?: string;
-}
-
-/** Eine Unterlage des Unternehmens: Urkunde, Auszug, Vertrag, Bescheid. */
-export interface CompanyDocument {
-  id: number;
-  kind: string;
-  title?: string;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  sha256: string;
-  storedPath: string;
-  documentDate?: string;
-  validUntil?: string;
-  /** Verknüpfung mit einer Gründungspflicht, wenn die Unterlage ihr Nachweis ist. */
-  dutyKey?: string;
-  /** Gesetzt, wenn Buchfink das Dokument selbst erzeugt hat. */
-  generatedBy?: string;
-  retentionClass?: string;
-  retentionUntil?: string;
-  earliestDeletion?: string;
-  note?: string;
-  createdAt: string;
-}
-
-export interface DocumentKindOption {
-  value: string;
-  label: string;
-}
-
-/** Eine abzulegende Unterlage. */
-export interface DocumentFileInfo {
-  name: string;
-  size: number;
-  lastModified: number;
-}
-
-export interface DocumentRequest {
-  contentBase64?: string;
-  kind: string;
-  title?: string;
-  documentDate?: string;
-  validUntil?: string;
-  note?: string;
-  dutyKey?: string;
-  path?: string;
-  fileName?: string;
-}
-
 /** Die Eröffnungsbilanz auf den Beurkundungstag (§ 242 Abs. 1 HGB). */
 export interface OpeningBalanceSheet {
   asOf: string;
@@ -2273,24 +2096,6 @@ export interface OpeningBalanceSheet {
   assets: Cents;
   equity: Cents;
   findings: string[];
-  documentId?: number;
-  filedOn?: string;
-}
-
-/** Das Datenblatt zum Fragebogen zur steuerlichen Erfassung. */
-export interface FragebogenSheet {
-  rows: FragebogenRow[];
-  /** Was der Fragebogen verlangt und in keinem Konto steht. */
-  open: string[];
-  documentId?: number;
-  filedOn?: string;
-}
-
-export interface FragebogenRow {
-  section: string;
-  label: string;
-  value: string;
-  missing: boolean;
 }
 
 /** Ein Buchungsvorschlag der Gründung, vor der Freigabe. */
@@ -2322,9 +2127,7 @@ export interface FoundationState {
   stage: FoundationStage;
   anmeldung?: AnmeldungCheck;
   unterbilanz?: Unterbilanz;
-  duties: FoundationDuty[];
   postingsBooked: boolean;
-  guide: FoundationGuide;
 }
 
 // -------------------------------------------------------------
@@ -2603,12 +2406,6 @@ export interface Deadline {
   fiscalYear: number;
   isDone: boolean;
   doneOn?: string;
-  /**
-   * Das Ereignis, aus dem die Frist erst noch läuft — etwa „die Eintragung ins
-   * Handelsregister". Leer heißt: die Frist läuft, und ein fehlendes `dueDate`
-   * bedeutet dann, dass das Gesetz keine Tagesfrist nennt.
-   */
-  waitingFor?: string;
 }
 
 /** Die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des Abschlusses. */
@@ -3021,9 +2818,8 @@ export interface ExportResult {
   standardVersion: string;
   tables: ExportTableInfo[];
   files: ExportFileInfo[];
-  /** Mitgegebene Originaldateien. */
+  /** Mitgegebene Belegdateien. */
   receiptFiles: number;
-  documentFiles: number;
   /** Hinweise, die der Export nicht selbst beheben kann. */
   notes: string[];
 }
@@ -3037,8 +2833,6 @@ export interface KeyDirectoryEntry {
 }
 
 export interface FileCheckIssue {
-  /** `receipt` für eine Belegdatei, `document` für ein Anlagendokument. */
-  kind: string;
   receiptNumber?: string;
   fileName: string;
   path: string;
@@ -4067,14 +3861,6 @@ export interface PoolConsistencyReport {
   note: string;
 }
 
-export interface CapitalizeNearAcquisitionCostRequest {
-  assetId: number;
-  /** Leer heißt: das Ende des Dreijahreszeitraums. */
-  date?: string;
-  /** Pflicht: die Umbuchung verteilt einen sofort abgezogenen Aufwand. */
-  reason: string;
-}
-
 /** Eine Freistellungsbescheinigung § 48b EStG, die abläuft oder abgelaufen ist. */
 export interface ExemptionCertificateWarning {
   contactId: number;
@@ -4123,105 +3909,6 @@ export const RETENTION_CLASS_LABELS: Record<RetentionClass, string> = {
   letters: 'Handelsbriefe und sonstige Unterlagen',
   '': 'Ohne Aufbewahrungsklasse',
 };
-
-/** Der Grund, aus dem eine Frist ausgesetzt ist (§ 147 Abs. 3 Satz 5 AO). */
-export type RetentionHoldReason = 'audit' | 'appeal' | 'other';
-
-/** Die Objekte eines Geschäftsjahres, auf die sich Frist und Löschung beziehen. */
-export interface RetentionCounts {
-  journalEntries: number;
-  journalLines: number;
-  receipts: number;
-  receiptFiles: number;
-  festschreibungen: number;
-  checkRuns: number;
-  vatReturns: number;
-  invoices: number;
-  bankTransactions: number;
-  assetMovements: number;
-  accruals: number;
-  provisions: number;
-  zmReturns: number;
-  inputTaxUsages: number;
-  numberGaps: number;
-  /** Verweise überdauernder Objekte, die beim Löschen genullt wurden. */
-  clearedReferences: number;
-}
-
-/** Die Frist einer Aufbewahrungsklasse innerhalb eines Geschäftsjahres. */
-export interface RetentionClassRow {
-  class: RetentionClass;
-  label: string;
-  years: number;
-  /** Letzter Tag der Aufbewahrung; gelöscht werden darf ab dem Tag danach. */
-  retentionEnd: string;
-  earliestDeletion: string;
-  legalBasis: string;
-}
-
-/**
- * Eine Aussetzung der Aufbewahrungsfrist. Sie wird nie gelöscht: dass eine
- * Frist einmal ausgesetzt war, gehört zur Geschichte der Daten.
- */
-export interface RetentionHold {
-  id: number;
-  fiscalYear: number;
-  reason: RetentionHoldReason;
-  description: string;
-  setAt: string;
-  setBy: string;
-  /** Leer, solange der Hold gilt. */
-  releasedAt?: string;
-  releasedBy?: string;
-  releaseReason?: string;
-  appVersion?: string;
-  /** Worauf der Hold beim Setzen wirkte, in einem Satz. */
-  affectedNote?: string;
-}
-
-/** Die Fristenlage eines Geschäftsjahres. */
-export interface RetentionYear {
-  fiscalYear: number;
-  counts: RetentionCounts;
-  /** Ein Jahr hat mehrere Fristen — eine Zeile je Klasse. */
-  classes: RetentionClassRow[];
-  /** Das Maximum über alle Klassen: das Löschen trifft das ganze Jahr. */
-  earliestDeletion: string;
-  expired: boolean;
-  hold?: RetentionHold;
-  deletable: boolean;
-  note: string;
-}
-
-/** Eine Zeile des Löschkonzepts: Datenkategorie, Frist, Rechtsgrundlage. */
-export interface DeletionConceptRow {
-  category: string;
-  class: RetentionClass;
-  years: number;
-  legalBasis: string;
-  note: string;
-}
-
-/** Die Fristenübersicht über alle Geschäftsjahre. */
-export interface RetentionOverview {
-  today: string;
-  years: RetentionYear[];
-  concept: DeletionConceptRow[];
-  /** Umstellungszeitpunkt und die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO. */
-  systemChangeDate?: string;
-  systemChangeNote?: string;
-}
-
-/** Das Ergebnis der Löschung eines Geschäftsjahres. */
-export interface DeleteResult {
-  fiscalYear: number;
-  deleted: RetentionCounts;
-  filesRemoved: number;
-  /** Dateien, die bleiben, weil andere Belege auf sie zeigen. */
-  filesKept: number;
-  archivePath: string;
-  message: string;
-}
 
 /**
  * Eine Zeile der Versionshistorie (UNV-06).

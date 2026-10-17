@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { CheckRun, CompanySettings, Deadline, Festschreibung, FoundationState } from '../types';
+import { CheckRun, CompanySettings, Deadline, Festschreibung } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 // Wohin ein Befund führt, steht an einer Stelle: Fristenliste, Monatsabschluss
@@ -10,7 +10,6 @@ import { monthOptions, previousMonth } from '../utils/months';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatDate } from '../utils/formatters';
 import type { NavigateFn } from '../components/Sidebar';
-import { FoundationDutyResetDialog, FoundationSection } from '../components/FoundationSection';
 import {
   Button,
   Dialog,
@@ -40,11 +39,11 @@ import {
  *
  * Die Termine kommen aus `GetDeadlines` und werden hier nicht mehr gerechnet:
  * Voranmeldung, Zusammenfassende Meldung, Sondervorauszahlung, Festschreibung,
- * Aufstellung, Offenlegung und die Gründungspflichten stehen im Backend an
- * einer Stelle, mitsamt ihrer Norm. „Erledigt" ergibt sich dort aus den Daten —
- * eine übermittelte Voranmeldung ist abgegeben, ein festgeschriebener Monat ist
- * festgeschrieben. Der Haken im `localStorage` ist damit weg; er war eine
- * Aussage über den Browser und nicht über den Mandanten.
+ * Aufstellung und Offenlegung stehen im Backend an einer Stelle, mitsamt ihrer
+ * Norm. „Erledigt" ergibt sich dort aus den Daten — eine übermittelte
+ * Voranmeldung ist abgegeben, ein festgeschriebener Monat ist festgeschrieben.
+ * Der Haken im `localStorage` ist damit weg; er war eine Aussage über den
+ * Browser und nicht über den Mandanten.
  *
  * Vor der Festschreibung läuft der Prüfbericht. Was er als blockierend meldet,
  * lässt sich nur mit einer Begründung übergehen, und die steht danach am
@@ -58,7 +57,6 @@ const CATEGORY_BY_PREFIX: [string, string][] = [
   ['sondervorauszahlung.', 'Sondervorauszahlung'],
   ['festschreibung.', 'Festschreibung'],
   ['ust.jahreserklaerung', 'Jahreserklärung'],
-  ['gruendung.', 'Gründung'],
   ['abschluss.', 'Jahresabschluss'],
 ];
 
@@ -76,11 +74,6 @@ function categoryOf(key: string): string {
  */
 function isManual(key: string): boolean {
   return key.startsWith('ust.jahreserklaerung');
-}
-
-/** Das Erledigungsdatum einer Gründungspflicht steht am Vorgang selbst. */
-function dutyKeyOf(key: string): string | null {
-  return key.startsWith('gruendung.') ? key.slice('gruendung.'.length) : null;
 }
 
 type Filter = 'all' | 'open' | 'overdue' | 'done';
@@ -147,8 +140,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [activeFilter, setActiveFilter] = useState<Filter>('all');
   const [festschreibungen, setFestschreibungen] = useState<Festschreibung[]>([]);
-  const [foundation, setFoundation] = useState<FoundationState | null>(null);
-  const [resettingDuty, setResettingDuty] = useState<Deadline | null>(null);
   const [commitDialog, setCommitDialog] = useState<CommitDialogState | null>(null);
   // Der Monatsabschluss steht als eigener Weg neben der Fristenliste: er führt
   // die drei Schritte zusammen, deren Fristen hier einzeln stehen.
@@ -174,41 +165,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
       const year = cfg.fiscalYear || new Date().getFullYear();
       setDeadlines(await Api.getDeadlines(year));
       setFestschreibungen(await Api.getFestschreibungen());
-      setFoundation(await Api.getFoundationState());
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  /**
-   * Eine Gründungspflicht wird mit ihrem Datum quittiert, nicht mit einem Haken.
-   * Zurückgenommen wird sie über die Rückfrage — ein Klick, der ein Datum
-   * löscht, gehört nicht in eine Tabellenzeile.
-   */
-  const toggleDuty = async (item: Deadline) => {
-    const dutyKey = dutyKeyOf(item.key);
-    if (!dutyKey) return;
-    if (item.isDone) {
-      setResettingDuty(item);
-      return;
-    }
-    setMarkingKey(item.key);
-    try {
-      await Api.completeFoundationDuty(dutyKey, new Date().toISOString().slice(0, 10));
-      await loadAll();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setMarkingKey(null);
-    }
-  };
-
-  const resetDuty = async (item: Deadline) => {
-    const dutyKey = dutyKeyOf(item.key);
-    if (!dutyKey) return;
-    try {
-      await Api.completeFoundationDuty(dutyKey, '');
-      await loadAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -400,14 +356,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
         </StatRow>
       </div>
 
-      {foundation?.applies && foundation.hasFoundation && foundation.stage === 'vorgesellschaft' && (
-        <FoundationSection
-          state={foundation}
-          onChanged={loadAll}
-          onOpenGuide={() => onNavigate?.('gruendung')}
-        />
-      )}
-
       <Section helpSummary="Prüfen und schließen Sie vergangene Zeiträume ab."
         title="Zeiträume festschreiben"
         context="Abschluss passend zum Rhythmus der Voranmeldung"
@@ -508,7 +456,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
             <Tbody>
               {filtered.map((item) => {
                 const diff = item.dueDate ? daysUntil(item.dueDate) : null;
-                const dutyKey = dutyKeyOf(item.key);
                 // Die aus der Aufgabenliste gemeinte Frist ist der Grund der
                 // Hinweisfläche: sie ist gefunden, nicht ausgewählt — deshalb
                 // keine Markierung, die nach Bedienung aussieht.
@@ -533,19 +480,12 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                     </Td>
                     <Td className="text-ink-muted">{categoryOf(item.key)}</Td>
                     <Td className={cn(item.dueDate ? 'num text-ink-subtle' : 'text-ink-subtle')}>
-                      {item.dueDate ? formatDate(item.dueDate) : item.waitingFor ? 'noch offen' : item.period || '—'}
+                      {item.dueDate ? formatDate(item.dueDate) : item.period || '—'}
                     </Td>
                     <Td>
                       {item.isDone ? (
                         <span className="text-caption text-ink-subtle">
                           {item.doneOn ? `Erledigt am ${formatDate(item.doneOn)}` : 'Erledigt'}
-                        </span>
-                      ) : item.waitingFor ? (
-                        /* Die Frist läuft noch gar nicht: das auslösende
-                           Ereignis steht aus. Ohne diesen Zustand sähe die
-                           Pflicht aus wie eine, die zu tun ist. */
-                        <span className="text-caption text-ink-subtle">
-                          Wartet auf {item.waitingFor}
                         </span>
                       ) : diff === null ? (
                         <span className="text-caption text-ink-subtle">Offen</span>
@@ -565,18 +505,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                       )}
                     </Td>
                     <Td className="text-right">
-                      {dutyKey ? (
-                        <Button
-                          variant="quiet"
-                          size="sm"
-                          loading={markingKey === item.key}
-                          disabled={writeLock.locked}
-                          title={writeLock.hint}
-                          onClick={() => void toggleDuty(item)}
-                        >
-                          {item.isDone ? 'Als offen führen' : 'Erledigt vermerken'}
-                        </Button>
-                      ) : isManual(item.key) && !item.isDone ? (
+                      {isManual(item.key) && !item.isDone ? (
                         <Button
                           variant="quiet"
                           size="sm"
@@ -596,16 +525,6 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
           </Table>
         )}
       </Section>
-
-      <FoundationDutyResetDialog
-        title={resettingDuty?.title ?? null}
-        onOpenChange={(next) => !next && setResettingDuty(null)}
-        onConfirm={() => {
-          const item = resettingDuty;
-          setResettingDuty(null);
-          if (item) void resetDuty(item);
-        }}
-      />
 
       <Dialog
         open={commitDialog !== null}

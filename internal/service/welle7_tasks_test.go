@@ -70,12 +70,6 @@ func (s stubBackupSource) GetRuns(_ context.Context, limit int) ([]domain.Backup
 	return s.runs, nil
 }
 
-type stubAssetDocumentSource struct{ documents []ExpiringDocument }
-
-func (s stubAssetDocumentSource) ExpiringDocuments(context.Context, string) ([]ExpiringDocument, error) {
-	return s.documents, nil
-}
-
 type stubExemptionSource struct{ warnings []ExemptionCertificateWarning }
 
 func (s stubExemptionSource) ExemptionCertificateWarnings(
@@ -486,44 +480,6 @@ func TestMonthCloseRefusesAnUnreadableMonth(t *testing.T) {
 // Für jede Quelle beide Seiten: die Zeile entsteht, wenn ihr Zustand es
 // verlangt, und sie entsteht nicht, wenn er es nicht verlangt. Eine Prüfung nur
 // der Positivseite ließe offen, ob die Quelle überhaupt einen Zustand ansieht.
-
-// Ablaufende Unterlagen am Anlagegut: abgelaufene sind überfällig, auslaufende
-// stehen unter „demnächst".
-func TestAssetDocumentSourceProducesItsTask(t *testing.T) {
-	env := newTestEnv(t)
-	today := "2026-03-10"
-
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
-	svc.SetAssetDocumentSource(stubAssetDocumentSource{documents: []ExpiringDocument{
-		{AssetID: 1, AssetName: "Firmenwagen", Title: "Kfz-Versicherung", ValidUntil: "2026-02-28"},
-		{AssetID: 2, AssetName: "Halle", Title: "Gebäudeversicherung", ValidUntil: "2026-03-25"},
-	}})
-
-	tasks := tasksFor(t, svc, TaskOptions{Today: today})
-	expired, ok := tasks[domain.TaskKeyAssetDocument+".expired"]
-	if !ok {
-		t.Fatal("die abgelaufene Unterlage erzeugt keine Aufgabe")
-	}
-	if expired.Group != domain.TaskGroupOverdue || expired.Count != 1 || expired.Target.Page != "assets" {
-		t.Errorf("abgelaufene Unterlage: %+v", expired)
-	}
-	upcoming, ok := tasks[domain.TaskKeyAssetDocument]
-	if !ok {
-		t.Fatal("die auslaufende Unterlage erzeugt keine Aufgabe")
-	}
-	if upcoming.Group != domain.TaskGroupUpcoming || upcoming.Count != 1 {
-		t.Errorf("auslaufende Unterlage: %+v", upcoming)
-	}
-
-	// Ohne ablaufende Unterlage keine Zeile.
-	quiet := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
-	quiet.SetAssetDocumentSource(stubAssetDocumentSource{})
-	for _, key := range []string{domain.TaskKeyAssetDocument, domain.TaskKeyAssetDocument + ".expired"} {
-		if _, ok := tasksFor(t, quiet, TaskOptions{Today: today})[key]; ok {
-			t.Errorf("%q darf ohne ablaufende Unterlage nicht entstehen", key)
-		}
-	}
-}
 
 // Freistellungsbescheinigungen: abgelaufen ist überfällig, ablaufend steht unter
 // „demnächst".

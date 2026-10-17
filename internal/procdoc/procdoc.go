@@ -443,11 +443,10 @@ Festschreibungszeitpunkt und den Verweis auf die Festschreibung.
 
 Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die letzte
 Eintragung gemacht oder der Beleg entstanden ist (§ 257 Abs. 5 HGB, § 147 Abs. 4
-AO). Gelöscht wird nicht selbsttätig: die Löschung eines Geschäftsjahres ist ein
-ausdrücklicher Vorgang mit Bestätigung, vorherigem Archivexport und Protokoll.
-Solange eine Aussetzung der Frist eingetragen ist — Außenprüfung,
-Rechtsbehelfsverfahren oder ein sonstiger Grund (§ 147 Abs. 3 Satz 5 AO) —, ist
-sie gesperrt.
+AO). Sie läuft nicht ab, solange die Unterlagen für eine Außenprüfung, ein
+Rechtsbehelfsverfahren oder einen anderen Grund des § 147 Abs. 3 Satz 5 AO von
+Bedeutung sind. Buchfink löscht keine Buchführungsdaten, auch nach Fristablauf
+nicht; eine Buchung wird nur über die Generalumkehr korrigiert.
 
 ` + HeadingOperations + `
 
@@ -553,8 +552,7 @@ den Hersteller.
 Die Fristen folgen den Aufbewahrungsklassen aus Abschnitt 3.8. Ein
 Löschverlangen nach Art. 17 DSGVO greift währenddessen nicht, soweit die
 Aufbewahrung einer rechtlichen Verpflichtung dient (Art. 17 Abs. 3 Buchst. b
-DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt und
-nach Fristablauf mit dem Geschäftsjahr gelöscht.
+DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt.
 
 ### 6.3 Technische und organisatorische Maßnahmen (Art. 32 DSGVO)
 
