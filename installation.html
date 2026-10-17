@@ -165,9 +165,10 @@
                 <div class="step">
                   <h3 class="step__title">Herunterladen</h3>
                   <p class="step__body">
-                    Laden Sie die Datei für macOS von der
-                    <a href="https://github.com/mxzinke/buchfink/releases">Releases-Seite</a> und
-                    ziehen Sie <code>buchfink.app</code> in den Ordner „Programme“.
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-darwin-universal.zip">buchfink-darwin-universal.zip</a>,
+                    entpacken Sie die Datei und ziehen Sie <code>buchfink.app</code> in den Ordner
+                    „Programme“. Die App läuft auf Apple Silicon und Intel.
                   </p>
                 </div>
                 <div class="step">
@@ -189,9 +190,10 @@
                 <div class="step">
                   <h3 class="step__title">Herunterladen und starten</h3>
                   <p class="step__body">
-                    Laden Sie das Installationsprogramm für Windows von der
-                    <a href="https://github.com/mxzinke/buchfink/releases">Releases-Seite</a> und
-                    starten Sie es.
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-windows-amd64.exe">buchfink-windows-amd64.exe</a>,
+                    legen Sie die Datei in einen Ordner Ihrer Wahl und starten Sie sie. Ein
+                    Installationsprogramm gibt es nicht.
                   </p>
                 </div>
                 <div class="step">
@@ -199,8 +201,14 @@
                   <p class="step__body">
                     Windows meldet „Der Computer wurde durch Windows geschützt“. Wählen Sie
                     <strong>Weitere Informationen</strong> und dann <strong>Trotzdem
-                    ausführen</strong>. Die WebView2-Laufzeit bringen Windows 10 und 11 mit; sonst
-                    lädt das Installationsprogramm sie nach.
+                    ausführen</strong>.
+                  </p>
+                  <p class="step__body">
+                    Buchfink braucht die WebView2-Laufzeit von Microsoft. Windows 11 bringt sie mit,
+                    unter Windows 10 kommt sie meist über Windows Update. Fehlt sie, installieren Sie
+                    die Evergreen-Laufzeit von der
+                    <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2-Seite
+                    von Microsoft</a>.
                   </p>
                 </div>
               </div>
@@ -210,16 +218,25 @@
             <div class="ostabs__panel" id="panel-linux">
               <div class="steps">
                 <div class="step">
-                  <h3 class="step__title">Paket installieren</h3>
+                  <h3 class="step__title">Herunterladen und starten</h3>
                   <p class="step__body">
-                    Laden Sie das Paket für Ihre Distribution von der
-                    <a href="https://github.com/mxzinke/buchfink/releases">Releases-Seite</a>, unter
-                    Debian und Ubuntu etwa:
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-linux-amd64.tar.gz">buchfink-linux-amd64.tar.gz</a>,
+                    entpacken Sie die Datei und starten Sie Buchfink:
                   </p>
-                  <div class="cmd">sudo apt install ./buchfink_*.deb</div>
+                  <div class="cmd">tar -xzf buchfink-linux-amd64.tar.gz &amp;&amp; ./buchfink</div>
                   <p class="step__body">
-                    Die Pakete deb und rpm ziehen GTK 4 und WebKitGTK 6.0 nach. Das gibt es ab
-                    Ubuntu 24.04, Debian 13 und in aktuellen Fedora-Versionen.
+                    Die Datei <code>buchfink</code> können Sie in einen Ordner im <code>PATH</code>
+                    legen, etwa <code>~/.local/bin</code>.
+                  </p>
+                </div>
+                <div class="step">
+                  <h3 class="step__title">Bibliotheken prüfen</h3>
+                  <p class="step__body">
+                    Buchfink ist unter Ubuntu 24.04 für x86-64 gebaut und braucht GTK 3,
+                    WebKitGTK 4.1 und glibc ab Version 2.34. Unter Debian und Ubuntu installiert
+                    <code>sudo apt install libwebkit2gtk-4.1-0</code> WebKitGTK samt GTK 3, unter
+                    Fedora <code>sudo dnf install webkit2gtk4.1</code>.
                   </p>
                 </div>
               </div>
