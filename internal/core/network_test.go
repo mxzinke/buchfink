@@ -315,3 +315,63 @@ func TestClosingPeriodBetweenDecemberAndYearCommitment(t *testing.T) {
 		t.Error("das Jahr ließ sich zweimal festschreiben")
 	}
 }
+
+// Ein Hintergrundlauf, der seinen Stempel holt, während die Festschreibung
+// ihren schon einträgt, ersetzt weder Token noch Abweichungsvermerk.
+func TestLateTimestampJobKeepsTheFirstStamp(t *testing.T) {
+	jobAsked, jobGate := make(chan struct{}), make(chan struct{})
+	var online atomic.Bool
+	h := newHostWith(t, Network{Timestamp: func(ctx context.Context, _, _ string) (*timestamp.Result, error) {
+		if !online.Load() {
+			return nil, ErrOffline
+		}
+		close(jobAsked)
+		<-jobGate
+		return &timestamp.Result{Token: []byte("job"), GenTime: time.Now().UTC(), TSAName: "Test-TSA"}, nil
+	}})
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	rec, err := tenant.CommitPeriod(uiCtx, CommitRequest{PeriodType: "month", PeriodLabel: "Januar 2026",
+		CutoffDate: "2026-01-31", OverrideReason: "Testlauf ohne Belegprüfung"})
+	if err != nil || rec.TimestampStatus != "pending" {
+		t.Fatalf("Festschreibung ohne Netz: %+v, %v", rec, err)
+	}
+
+	online.Store(true)
+	done := make(chan int, 1)
+	go func() {
+		n, err := tenant.RetryTimestamps(context.Background())
+		if err != nil {
+			t.Error(err)
+		}
+		done <- n
+	}()
+	<-jobAsked
+	// Die Festschreibung trägt ihren Stempel ein, während der Lauf noch
+	// auf die Zeitstempelstelle wartet; die Uhr ging eine Stunde vor.
+	first := &timestamp.Result{Token: []byte("festschreibung"), GenTime: rec.CreatedAt.Add(time.Hour), TSAName: "Test-TSA"}
+	if err := tenant.Write(uiCtx, func(ctx context.Context, _ *Services) error {
+		stamped, err := stampCommitment(ctx, tenant.repos, rec, first, true)
+		if err == nil && !stamped {
+			err = errors.New("der erste Stempel wurde nicht eingetragen")
+		}
+		return err
+	}, ExaminerExempt()); err != nil {
+		t.Fatal(err)
+	}
+	close(jobGate)
+	if n := <-done; n != 0 {
+		t.Errorf("der Lauf meldet %d nachgeholte Stempel, erwartet keinen", n)
+	}
+
+	var stored *domain.Festschreibung
+	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) (err error) {
+		stored, err = s.Repos.Festschreibung.FindByID(ctx, rec.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if string(stored.TimestampToken) != "festschreibung" || stored.TimeDriftNote == "" {
+		t.Errorf("Stempel überschrieben: Token %q, Vermerk %q", stored.TimestampToken, stored.TimeDriftNote)
+	}
+}

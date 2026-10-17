@@ -58,12 +58,21 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 		t.logger.Info("Zeitstempel ausstehend, wird nachgeholt", "festschreibung", rec.ID, "fehler", err)
 		return rec, nil
 	}
-	if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
-		return stampCommitment(ctx, t.repos, rec, res, true)
+	stamped := false
+	if err := t.Write(ctx, func(ctx context.Context, _ *Services) (err error) {
+		stamped, err = stampCommitment(ctx, t.repos, rec, res, true)
+		return err
 	}, ExaminerExempt()); err != nil {
 		return nil, fmt.Errorf("die Festschreibung steht, der Zeitstempel ließ sich aber nicht speichern: %w", err)
 	}
-	return rec, nil
+	if !stamped {
+		// Der Hintergrundlauf hat schneller gestempelt; sein Stand gilt.
+		err = t.Read(ctx, func(ctx context.Context, s *Services) (err error) {
+			rec, err = s.Repos.Festschreibung.FindByID(ctx, rec.ID)
+			return err
+		})
+	}
+	return rec, err
 }
 
 // commit ist der erste Schritt der Festschreibung.
@@ -174,7 +183,10 @@ func preCommitChecks(ctx context.Context, s *Services, year int, r CommitRequest
 	return err
 }
 
-// stampCommitment trägt den Zeitstempel an einer Festschreibung ein.
+// stampCommitment trägt den Zeitstempel an einer Festschreibung ein, nur wenn
+// er noch aussteht: Festschreibung und Hintergrundlauf können beide stempeln,
+// und der zweite darf Token und Abweichungsvermerk des ersten nicht ersetzen.
+// Es meldet, ob eingetragen wurde.
 //
 // Gleich nach der Festschreibung geholt, vergleicht er die beglaubigte Zeit
 // mit der Systemzeit (QUE-04): eine Abweichung über der Toleranz bekommt einen
@@ -182,22 +194,25 @@ func preCommitChecks(ctx context.Context, s *Services, year int, r CommitRequest
 // über die Uhr nichts, er ist um die Zeit ohne Netz später.
 func stampCommitment(
 	ctx context.Context, st stores, rec *domain.Festschreibung, res *timestamp.Result, checkDrift bool,
-) error {
+) (bool, error) {
 	gt := res.GenTime
-	rec.TimestampToken = res.Token
-	rec.TSAName = res.TSAName
-	rec.TSAGenTime = &gt
-	rec.TimestampStatus = "confirmed"
+	next := *rec
+	next.TimestampToken = res.Token
+	next.TSAName = res.TSAName
+	next.TSAGenTime = &gt
+	next.TimestampStatus = "confirmed"
 	if checkDrift {
-		rec.TimeDriftNote = service.TimeDriftNote(rec.CreatedAt, gt, res.TSAName)
+		next.TimeDriftNote = service.TimeDriftNote(rec.CreatedAt, gt, res.TSAName)
 	}
-	if err := st.festschreibung.Update(ctx, rec); err != nil {
-		return err
+	stamped, err := st.festschreibung.ConfirmTimestamp(ctx, &next)
+	if err != nil || !stamped {
+		return false, err
 	}
+	*rec = next
 	if rec.TimeDriftNote == "" {
-		return nil
+		return true, nil
 	}
-	return st.audit.Log(ctx, domain.AuditActionIntegrityCheck, "TIME_DRIFT",
+	return true, st.audit.Log(ctx, domain.AuditActionIntegrityCheck, "TIME_DRIFT",
 		fmt.Sprintf("%d", rec.ID),
 		fmt.Sprintf("%s Systemzeit %s, beglaubigte Zeit %s.",
 			rec.TimeDriftNote,
@@ -226,12 +241,16 @@ func (t *Tenant) RetryTimestamps(ctx context.Context) (int, error) {
 			// Weiter ohne Netz; beim nächsten Lauf.
 			continue
 		}
-		if err := t.Write(ctx, func(ctx context.Context, _ *Services) error {
-			return stampCommitment(ctx, t.repos, &rec, res, false)
+		applied := false
+		if err := t.Write(ctx, func(ctx context.Context, _ *Services) (err error) {
+			applied, err = stampCommitment(ctx, t.repos, &rec, res, false)
+			return err
 		}, ExaminerExempt()); err != nil {
 			return stamped, err
 		}
-		stamped++
+		if applied {
+			stamped++
+		}
 	}
 	return stamped, nil
 }

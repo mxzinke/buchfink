@@ -71,6 +71,10 @@ type FestschreibungRepository interface {
 	// Tag oder danach liegt, der jüngste Stichtag zuerst; ein leerer Tag
 	// liefert alle.
 	FindCutoffOnOrAfter(ctx context.Context, date string) ([]Festschreibung, error)
+	// ConfirmTimestamp trägt Token, Zeitstempelstelle, beglaubigte Zeit und
+	// Abweichungsvermerk ein, nur solange der Stempel noch aussteht, und
+	// meldet, ob er eingetragen wurde.
+	ConfirmTimestamp(ctx context.Context, rec *Festschreibung) (bool, error)
 	// FindPendingTimestamp returns commitments whose timestamp is still missing.
 	FindPendingTimestamp(ctx context.Context) ([]Festschreibung, error)
 }
