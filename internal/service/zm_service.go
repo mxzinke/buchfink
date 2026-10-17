@@ -582,9 +582,15 @@ func (s *ZMService) reconcile(
 		}
 		out.ServicesVat = r.Base(accounting.VatCodeEUServices)
 
+		// Gezählt wird wie in den Meldezeilen: ohne USt-IdNr. des Empfängers
+		// gibt es weder eine Meldezeile noch einen Umsatz in Kz 21.
+		recipients, err := s.recipients(ctx)
+		if err != nil {
+			return out
+		}
 		var services domain.Cents
 		for _, m := range movements {
-			if m.Date >= r.PeriodFrom && m.Date <= r.PeriodTo {
+			if m.Date >= r.PeriodFrom && m.Date <= r.PeriodTo && strings.TrimSpace(recipients[m.ContactID].VatID) != "" {
 				services += m.Amount
 			}
 		}

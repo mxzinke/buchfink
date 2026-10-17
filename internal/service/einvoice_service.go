@@ -337,6 +337,15 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 
 	contact, matched := s.matchSupplier(ctx, read.Supplier)
 	proposal.MatchedContact = matched
+	// Der Kategoriecode AE sagt nur „Steuerschuld beim Empfänger". Bei einem
+	// Lieferanten aus einem anderen EU-Staat ist das in aller Regel die
+	// sonstige Leistung nach § 13b Abs. 1 UStG.
+	if treatment == domain.TaxTreatmentReverseCharge && contact != nil && contact.IsEUCounterparty() {
+		treatment = domain.TaxTreatmentReverseChargeEU
+		proposal.Notes = append(proposal.Notes, fmt.Sprintf(
+			"%s sitzt in %s: vorgeschlagen ist § 13b Abs. 1 UStG (sonstige Leistung, Kennzahl 46/47). "+
+				"Für eine Werklieferung gilt § 13b Abs. 2 UStG.", contact.Name, contact.CountryCode))
+	}
 	if !matched {
 		proposal.Notes = append(proposal.Notes, fmt.Sprintf(
 			"Der Lieferant %q ist noch nicht als Kontakt angelegt. Ohne Personenkonto lässt sich der Beleg nicht buchen.",

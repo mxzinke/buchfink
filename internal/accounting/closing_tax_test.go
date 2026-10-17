@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -126,5 +127,26 @@ func TestTradeTaxIsRoundedNotTruncated(t *testing.T) {
 	}
 	if result.TradeTax != 1_453_953 {
 		t.Errorf("Gewerbesteuer %s € — erwartet 14.539,53 €", result.TradeTax)
+	}
+}
+
+// Dasselbe Rechenbeispiel zum Bilanzstichtag 31.12.2028: 14 % Körperschaftsteuer
+// (§ 23 Abs. 1 Nr. 2 KStG), also 14.140,00 € und 777,70 € Solidaritätszuschlag.
+func TestTaxProvisionUsesTheLowerRateFrom2028(t *testing.T) {
+	result, err := CalculateTaxProvision(TaxProvisionInput{
+		ProfitBeforeTax: 10_000_000, NonDeductible: 100_000,
+		TradeTaxRatePercent: 400, Date: "2028-12-31",
+	})
+	if err != nil {
+		t.Fatalf("Steuerrückstellung rechnen: %v", err)
+	}
+	if result.CorporateTax != 1_414_000 {
+		t.Errorf("Körperschaftsteuer %s € — erwartet 14.140,00 €", result.CorporateTax)
+	}
+	if result.Solidarity != 77_770 {
+		t.Errorf("Solidaritätszuschlag %s € — erwartet 777,70 €", result.Solidarity)
+	}
+	if !strings.Contains(result.RatesUsed, "KSt 14 %") {
+		t.Errorf("Sätze %q — erwartet KSt 14 %%", result.RatesUsed)
 	}
 }

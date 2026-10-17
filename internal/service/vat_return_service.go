@@ -33,6 +33,7 @@ type VatReturnService struct {
 	journalRepo        domain.JournalRepository
 	receiptRepo        domain.ReceiptRepository
 	contactRepo        domain.ContactRepository
+	allocationRepo     domain.PaymentAllocationRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	returnRepo         domain.VatReturnRepository
@@ -44,6 +45,7 @@ func NewVatReturnService(
 	journalRepo domain.JournalRepository,
 	receiptRepo domain.ReceiptRepository,
 	contactRepo domain.ContactRepository,
+	allocationRepo domain.PaymentAllocationRepository,
 	settingsRepo domain.SettingsRepository,
 	festschreibungRepo domain.FestschreibungRepository,
 	returnRepo domain.VatReturnRepository,
@@ -53,6 +55,7 @@ func NewVatReturnService(
 		journalRepo:        journalRepo,
 		receiptRepo:        receiptRepo,
 		contactRepo:        contactRepo,
+		allocationRepo:     allocationRepo,
 		settingsRepo:       settingsRepo,
 		festschreibungRepo: festschreibungRepo,
 		returnRepo:         returnRepo,
@@ -589,17 +592,23 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	if err != nil {
 		return nil, err
 	}
-	euRecipients, err := s.euRecipients(ctx)
+	euRecipients, domestic, err := s.recipientSeats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allocations, err := s.allocations(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	source := accounting.VatReturnSource{
-		Entries:    entries,
-		ReceivedAt: func(receiptID uint) string { return receivedAt[receiptID] },
+		Entries:     entries,
+		Allocations: allocations,
+		ReceivedAt:  func(receiptID uint) string { return receivedAt[receiptID] },
 		EURecipient: func(contactID uint) bool {
 			return euRecipients[contactID]
 		},
+		DomesticRecipient: func(contactID uint) bool { return domestic[contactID] },
 		SubmittedPeriod: func(date string) bool {
 			p, err := accounting.VatPeriodOf(date, period.Type)
 			if err != nil {
@@ -734,21 +743,37 @@ func (s *VatReturnService) receiptDates(ctx context.Context, year int) (map[uint
 	return out, nil
 }
 
-// euRecipients sammelt die Geschäftspartner im übrigen Gemeinschaftsgebiet mit
-// USt-IdNr. Ohne beides ist eine Leistung mit Steuerschuld des Empfängers kein
-// Fall des § 18b Satz 1 Nr. 2 UStG.
-func (s *VatReturnService) euRecipients(ctx context.Context) (map[uint]bool, error) {
-	out := map[uint]bool{}
+// recipientSeats sammelt, wo die Geschäftspartner sitzen: im übrigen
+// Gemeinschaftsgebiet mit USt-IdNr. (nur dann ist eine Leistung mit
+// Steuerschuld des Empfängers ein Fall des § 18b Satz 1 Nr. 2 UStG) oder im
+// Inland (dann ist sie ein Umsatz nach § 13b Abs. 5 UStG).
+func (s *VatReturnService) recipientSeats(ctx context.Context) (eu, domestic map[uint]bool, err error) {
+	eu, domestic = map[uint]bool{}, map[uint]bool{}
 	if s.contactRepo == nil {
-		return out, nil
+		return eu, domestic, nil
 	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
-		return out, nil
+		return nil, nil, fmt.Errorf("die Geschäftspartner konnten nicht gelesen werden: %w", err)
 	}
 	for i := range contacts {
 		c := &contacts[i]
-		out[c.ID] = c.IsEUCounterparty() && strings.TrimSpace(c.VatID) != ""
+		eu[c.ID] = c.IsEUCounterparty() && strings.TrimSpace(c.VatID) != ""
+		country := strings.ToUpper(strings.TrimSpace(c.CountryCode))
+		domestic[c.ID] = country == "" || country == "DE"
+	}
+	return eu, domestic, nil
+}
+
+// allocations liest die Zahlungszuordnungen; aus ihnen folgen die Zahlungen
+// vor der Leistung und die Ausbuchungen uneinbringlicher Forderungen.
+func (s *VatReturnService) allocations(ctx context.Context) ([]domain.PaymentAllocation, error) {
+	if s.allocationRepo == nil {
+		return nil, nil
+	}
+	out, err := s.allocationRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
 	}
 	return out, nil
 }

@@ -27,6 +27,9 @@ export type Direction = 'incoming' | 'outgoing';
 
 export type TaxTreatment =
   | 'domestic'
+  /** § 13b Abs. 1 UStG: sonstige Leistung eines EU-Unternehmers (Kz 46/47). */
+  | 'reverse_charge_eu'
+  /** § 13b Abs. 2 UStG: übrige Leistungen aus dem Ausland (Kz 84/85). */
   | 'reverse_charge'
   | 'intra_community_acquisition'
   | 'reverse_charge_supply'
@@ -490,7 +493,7 @@ export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
  * Die Belegart. `letter` ist der Handelsbrief: er hat keine Buchung und eine
  * kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
  */
-export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'letter' | 'other';
+export type ReceiptKind = 'invoice' | 'ticket' | 'statement' | 'self_issued' | 'letter' | 'other';
 
 export interface ReceiptFile {
   id: number;

@@ -74,6 +74,10 @@ const (
 	// ReceiptKindInvoice ist eine Rechnung oder Quittung: der Regelfall, der
 	// gebucht werden muss.
 	ReceiptKindInvoice ReceiptKind = "invoice"
+	// ReceiptKindTicket ist ein Fahrausweis für die Beförderung von Personen.
+	// Er gilt mit den Angaben des § 34 UStDV als Rechnung, ohne Steuernummer,
+	// Leistungsempfänger und gesonderten Steuerausweis.
+	ReceiptKindTicket ReceiptKind = "ticket"
 	// ReceiptKindStatement ist ein Kontoauszug. Er belegt die Umsätze, die aus
 	// ihm gebucht werden, und wird selbst nicht gebucht.
 	ReceiptKindStatement ReceiptKind = "statement"
@@ -106,6 +110,8 @@ func (k ReceiptKind) RequiresBooking() bool {
 // Label ist der Klartext für die Oberfläche und das Schlüsselverzeichnis.
 func (k ReceiptKind) Label() string {
 	switch k {
+	case ReceiptKindTicket:
+		return "Fahrausweis"
 	case ReceiptKindStatement:
 		return "Kontoauszug"
 	case ReceiptKindSelfIssued:
@@ -122,7 +128,7 @@ func (k ReceiptKind) Label() string {
 // AllReceiptKinds listet die Belegarten in fester Reihenfolge.
 func AllReceiptKinds() []ReceiptKind {
 	return []ReceiptKind{
-		ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+		ReceiptKindInvoice, ReceiptKindTicket, ReceiptKindStatement, ReceiptKindSelfIssued,
 		ReceiptKindLetter, ReceiptKindOther,
 	}
 }
@@ -341,6 +347,13 @@ func (r *Receipt) IsDisplayable() bool {
 	return ok
 }
 
+// IsInvoice meldet, ob der Beleg eine Rechnung im Sinne des § 14 UStG ist,
+// an der die Pflichtangaben zu prüfen sind: die Rechnung oder Quittung und der
+// Fahrausweis.
+func (k ReceiptKind) IsInvoice() bool {
+	return k == ReceiptKindInvoice || k == ReceiptKindTicket
+}
+
 // IsOpen reports whether files may still be added or removed.
 func (r *Receipt) IsOpen() bool { return r.Status == ReceiptStatusFiled }
 
@@ -353,7 +366,7 @@ func (r *Receipt) ValidateStructure() error {
 		return fmt.Errorf("unbekannte Belegrichtung %q", r.Direction)
 	}
 	switch r.Kind {
-	case ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+	case ReceiptKindInvoice, ReceiptKindTicket, ReceiptKindStatement, ReceiptKindSelfIssued,
 		ReceiptKindLetter, ReceiptKindOther:
 	default:
 		return fmt.Errorf("unbekannte Belegart %q", r.Kind)
