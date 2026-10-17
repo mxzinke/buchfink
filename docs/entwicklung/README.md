@@ -80,16 +80,41 @@ TypeScript.
 |---|---|
 | `task test` | Go-Tests aller Pakete unter `internal/` und `cmd/` außer der Bridge |
 | `task test:bridge` | Bridge-Tests; brauchen GTK, siehe oben |
-| `task test:ebilanz-xsd` | E-Bilanz-Instanzen gegen die amtlichen Schemata; die Schemata liegen nicht im Repository, siehe `internal/ebilanz/xsd_test.go` |
+| `task test:ebilanz-xsd` | E-Bilanz-Instanzen gegen die amtlichen Schemata 6.9 und 6.10; lädt die Pakete mit Prüfsumme nach `.cache/ebilanz-xsd/`, braucht bash, curl, unzip und Java ab 11 |
 | `task check:clicks` | Klickweg von der Bilanz zum Beleg, braucht Chromium für Playwright ([Prüfszenarien](pruefszenarien.md)) |
 | `task build` | Desktop-Build für das eigene Betriebssystem nach `bin/` |
 | `task package` | Installationspaket für das eigene Betriebssystem |
 
-Die Programmfassung setzt der Build aus `git describe --tags`. Ohne Tag steht
-dort der Commit, im Test `dev`.
+Die Programmfassung setzt der Build: auf einem sauberen Stand mit Tag
+`vX.Y.Z` ist sie `X.Y.Z`, sonst `dev+<Commit>`, bei ungesicherten Änderungen
+mit `-dirty`. In Tests steht `dev`.
 
-Die Brücke für Claude Desktop baut man ohne Wails und ohne CGO; die Schritte
-stehen unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md).
+Die Brücke für Claude Desktop baut `task build:mcp` ohne Wails und ohne CGO,
+für `GOOS` und `GOARCH` aus der Umgebung. Wie daraus die Erweiterung entsteht,
+steht unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md).
+
+## CI und Release
+
+`.github/workflows/ci.yml` prüft jeden Pull Request und jeden Push auf
+`master`: Go mit Tests, Frontend und alle `scripts/check_*.py`.
+`ebilanz-xsd.yml` läuft bei Änderungen an der E-Bilanz und ihren Paketen,
+wöchentlich und vor jedem Release.
+
+Ein Release entsteht aus einem Tag:
+
+1. `python3 scripts/version.py set X.Y.Z` schreibt die Fassung in alle
+   Paketdateien.
+2. In [internal/changelog/CHANGELOG.md](../../internal/changelog/CHANGELOG.md)
+   einen Eintrag `## vX.Y.Z — JJJJ-MM-TT` anlegen. Er ist der Text des Release.
+3. Committen, `vX.Y.Z` taggen und den Tag pushen. Ein Tag wie `vX.Y.Z-rc.1`
+   wird Vorabversion.
+
+`release.yml` prüft Tag, Paketdateien und Eintrag, führt die Prüfungen aus,
+baut und veröffentlicht `buchfink-darwin-universal.zip`,
+`buchfink-windows-amd64.exe`, `buchfink-linux-amd64.tar.gz`, die Brücke
+`buchfink-mcp-*`, `buchfink.mcpb`, die Skill-Pakete und `SHA256SUMS`. Es
+bricht ab, wenn eine Datei fehlt, auf die Dokumentation oder Webseite unter
+`releases/latest/download/` verweisen. Signiert wird nichts.
 
 ## Abhängigkeiten und Webseite
 
