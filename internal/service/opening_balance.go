@@ -220,7 +220,7 @@ func (s *JournalService) buildOpeningBalance(
 	}
 	date := req.Date
 	if date == "" {
-		date = fmt.Sprintf("%d-01-01", req.FiscalYear)
+		date = domain.FiscalYearFirstDay(req.FiscalYear, s.fiscalYearStartMonth(ctx))
 	}
 	if req.ReceiptID == nil {
 		return nil, nil, fmt.Errorf(

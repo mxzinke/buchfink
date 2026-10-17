@@ -570,8 +570,9 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 	// er in einem späteren Kalenderjahr ausgelöst, steht er in einem anderen
 	// Geschäftsjahr als die Vortragsbuchung. Mit vorgegebenem Datum lässt sich
 	// dieser Stand nicht mehr herstellen (ReverseOn hält die Umkehr im Jahr der
-	// Ursprungsbuchung), deshalb wird er hier von Hand gebucht — die Frage ist,
-	// wie der Saldenvortrag mit einem solchen Altbestand umgeht.
+	// Ursprungsbuchung), deshalb wird er hier über den internen Stornoweg mit
+	// eigenem Datum gebucht — die Frage ist, wie der Saldenvortrag mit einem
+	// solchen Bestand umgeht.
 	sv := openingEntry(t, env, 2027)
 	reversal := &domain.JournalEntry{
 		FiscalYear: 2028, BookingDate: "2028-03-01", DocumentDate: sv.DocumentDate,
@@ -589,7 +590,7 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 			TaxBase: -l.TaxBase, Text: l.Text,
 		})
 	}
-	if _, err := env.journal.Post(ctx, reversal); err != nil {
+	if _, err := env.journal.post(ctx, reversal, postMode{reversal: true}); err != nil {
 		t.Fatalf("Storno im Folgejahr: %v", err)
 	}
 

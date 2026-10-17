@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -253,6 +254,15 @@ func GetFiscalYearForDate(dateStr string, startMonth int) int {
 		return year - 1
 	}
 	return year
+}
+
+// FiscalYearFirstDay ist der erste Tag des Geschäftsjahres year. Ein
+// abweichendes Geschäftsjahr beginnt im Kalenderjahr mit derselben Jahreszahl.
+func FiscalYearFirstDay(year, startMonth int) string {
+	if startMonth <= 0 || startMonth > 12 {
+		startMonth = 1
+	}
+	return fmt.Sprintf("%04d-%02d-01", year, startMonth)
 }
 
 // SettingsRepository defines database operations for application configuration.

@@ -115,52 +115,28 @@ func (s *JournalService) InvalidateChart() {
 // TaxResolver exposes the SKR04 tax resolution used by the posting rules.
 func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver }
 
-// Post validates and appends a journal entry.
-func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (*domain.JournalEntry, error) {
-	s.applyDefaults(ctx, entry)
+// postMode sagt, auf welchem Weg eine Buchung entsteht. Generalumkehr und
+// Verweis auf eine ersetzte Buchung setzt nur der Dienst selbst.
+type postMode struct {
+	reversal   bool
+	correctsID *uint
+}
 
-	// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf
-	// nicht die Korrektur vorhandener verhindern. Wer einen Mandanten auf
-	// Istversteuerung stehen hat, muss seine falschen Buchungen stornieren
-	// können — sonst schließt die Prüfung ihn in dem Zustand ein, den sie
-	// beanstandet.
-	if entry.Kind != domain.EntryKindReversal {
-		if err := s.ensureAccrualTaxation(ctx); err != nil {
-			return nil, err
-		}
-	}
-	if err := entry.Validate(); err != nil {
+// Post validates and appends a journal entry.
+//
+// Kennung, Nummer, Hashes, Bearbeiter, Programmfassung, Regelstand und
+// Festschreibungsstempel setzt der Dienst; was der Aufrufer dort mitgibt, wird
+// verworfen. Das Geschäftsjahr folgt aus dem Buchungsdatum, eine abweichende
+// Angabe wird abgewiesen. Eine Generalumkehr entsteht nur über Reverse.
+func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (*domain.JournalEntry, error) {
+	return s.post(ctx, entry, postMode{})
+}
+
+func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, mode postMode) (*domain.JournalEntry, error) {
+	if err := s.prepare(ctx, entry, mode); err != nil {
 		return nil, err
 	}
-	if d := entry.Entertainment; d != nil {
-		if err := d.Validate(); err != nil {
-			return nil, err
-		}
-	}
-	if err := s.validateAccounts(ctx, entry); err != nil {
-		return nil, err
-	}
-	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
-		return nil, err
-	}
-	// Dieselbe Pflichtprüfung wie in ValidatePostable: Post ist der einzige
-	// Schreibweg, und eine Invariante, die nur die Vorprüfung kennt, ist keine.
-	if entry.Source == domain.EntrySourceManual {
-		if err := ValidateManualTaxLines(entry); err != nil {
-			return nil, err
-		}
-	}
-	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
-	// ist immer auch festgeschrieben, und von den beiden Meldungen ist die über
-	// die Feststellung die weiterführende — sie nennt die Rücksetzung, während
-	// die Festschreibung nur auf den Storno verweist, der hier nicht hilft.
-	if err := s.ensureYearNotAdopted(ctx, entry); err != nil {
-		return nil, err
-	}
-	if err := s.ensurePeriodOpen(ctx, entry); err != nil {
-		return nil, err
-	}
-	if err := s.ensureReceiptHeader(ctx, entry); err != nil {
+	if err := s.check(ctx, entry); err != nil {
 		return nil, err
 	}
 
@@ -176,6 +152,50 @@ func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (
 	))
 
 	return entry, nil
+}
+
+// check hält jede Regel, die eine Buchung vor dem Schreiben erfüllen muss. Post
+// und ValidatePostable rufen dieselbe Prüfung, damit die Vorprüfung nichts
+// anderes prüft als das, was danach geschieht.
+func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) error {
+	// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf
+	// nicht die Korrektur vorhandener verhindern.
+	if entry.Kind != domain.EntryKindReversal {
+		if err := s.ensureAccrualTaxation(ctx); err != nil {
+			return err
+		}
+	}
+	if err := entry.Validate(); err != nil {
+		return err
+	}
+	if d := entry.Entertainment; d != nil {
+		if err := d.Validate(); err != nil {
+			return err
+		}
+	}
+	if err := s.validateAccounts(ctx, entry); err != nil {
+		return err
+	}
+	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
+		return err
+	}
+	// Steuerfall, Steuerschlüssel und Bemessungsgrundlage sind an einer
+	// Handbuchung Pflicht, gleich über welchen Weg sie hereinkommt.
+	if entry.Source == domain.EntrySourceManual {
+		if err := ValidateManualTaxLines(entry); err != nil {
+			return err
+		}
+	}
+	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
+	// ist immer auch festgeschrieben, und die Meldung über die Feststellung nennt
+	// den Weg zurück.
+	if err := s.ensureYearNotAdopted(ctx, entry); err != nil {
+		return err
+	}
+	if err := s.ensurePeriodOpen(ctx, entry); err != nil {
+		return err
+	}
+	return s.ensureReceiptHeader(ctx, entry)
 }
 
 // ensureReceiptHeader verlangt die Kopfdaten des Belegs, auf den die Buchung
@@ -226,66 +246,24 @@ func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.
 
 // ValidatePostable prüft eine Buchung, ohne sie zu schreiben.
 //
-// Gedacht für Vorgänge, die aus mehreren Buchungen bestehen und nicht zur Hälfte
-// geschehen dürfen — allen voran der Korrekturvortrag, der erst den alten
-// Saldenvortrag zurücknimmt und dann den neuen bucht. Scheiterte dort die zweite
-// Buchung, stünde das Zieljahr mit zurückgenommenem Altvortrag und halbem
-// Neuvortrag da, also mit einer Eröffnungsbilanz, die es so nie gab. Geprüft
-// wird deshalb vorher, was sich vorher prüfen lässt: Konten, Abschlussstand,
-// Periodensperre und die Kopfdaten des Belegs. Die Buchung selbst bleibt
-// unverändert; gearbeitet wird auf einer Kopie.
-//
-// Die Kopfdatenprüfung gehört ausdrücklich dazu: ohne sie bestünde eine
-// Neubuchung auf einen Beleg ohne Kopfdaten die Vorprüfung, der Storno würde
-// geschrieben, und erst Post scheiterte — also der halb ausgeführte
-// Vorgang, den diese Methode verhindern soll. Was Post abweist, muss sie
-// abweisen, sonst prüft sie etwas anderes als das, was danach geschieht.
+// Gedacht für Vorgänge aus mehreren Buchungen, die nicht zur Hälfte geschehen
+// dürfen. Geprüft wird eine Kopie mit denselben Regeln wie in Post.
 func (s *JournalService) ValidatePostable(ctx context.Context, entry *domain.JournalEntry) error {
+	return s.validatePostable(ctx, entry, postMode{})
+}
+
+func (s *JournalService) validatePostable(ctx context.Context, entry *domain.JournalEntry, mode postMode) error {
 	probe := *entry
 	probe.Lines = append([]domain.JournalLine(nil), entry.Lines...)
-	s.applyDefaults(ctx, &probe)
-
-	if probe.Kind != domain.EntryKindReversal {
-		if err := s.ensureAccrualTaxation(ctx); err != nil {
-			return err
-		}
+	probe.Gifts = append([]domain.GiftRecord(nil), entry.Gifts...)
+	if entry.Entertainment != nil {
+		d := *entry.Entertainment
+		probe.Entertainment = &d
 	}
-	if err := probe.Validate(); err != nil {
+	if err := s.prepare(ctx, &probe, mode); err != nil {
 		return err
 	}
-	if d := probe.Entertainment; d != nil {
-		if err := d.Validate(); err != nil {
-			return err
-		}
-	}
-	if err := s.validateAccounts(ctx, &probe); err != nil {
-		return err
-	}
-	if err := s.ensureLawfulTaxDisclosure(&probe); err != nil {
-		return err
-	}
-	// Steuerfall, Steuerschlüssel und Bemessungsgrundlage sind an einer
-	// Handbuchung Pflicht (Welle 8, Entscheidung 1).
-	//
-	// Hier und nicht nur im Vorbau PostManualEntry: die Regel gilt für die
-	// Aufzeichnung und nicht für eine Maske. Eine Buchung, die über einen
-	// anderen Weg mit Source „manual" hereinkäme, liefe sonst an der
-	// Umsatzsteuer-Auswertung vorbei — ohne Schlüssel keine Kennziffer, ohne
-	// Bemessungsgrundlage keine Zeile 81. Die programmseitigen Buchungen
-	// haben eine andere Quelle oder den Steuerfall; die Generalumkehr nimmt
-	// ValidateManualTaxLines selbst aus.
-	if probe.Source == domain.EntrySourceManual {
-		if err := ValidateManualTaxLines(&probe); err != nil {
-			return err
-		}
-	}
-	if err := s.ensureYearNotAdopted(ctx, &probe); err != nil {
-		return err
-	}
-	if err := s.ensurePeriodOpen(ctx, &probe); err != nil {
-		return err
-	}
-	return s.ensureReceiptHeader(ctx, &probe)
+	return s.check(ctx, &probe)
 }
 
 // Reverse cancels a booking by Generalumkehr: the same accounts on the same
@@ -379,7 +357,6 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 	}
 
 	reversal := &domain.JournalEntry{
-		FiscalYear:         domain.GetFiscalYearForDate(today, s.fiscalYearStartMonth(ctx)),
 		BookingDate:        today,
 		DocumentDate:       original.DocumentDate,
 		ServiceDateFrom:    original.ServiceDateFrom,
@@ -400,7 +377,6 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 		ExchangeRateMicros: original.ExchangeRateMicros,
 		ExchangeRateSource: original.ExchangeRateSource,
 		ExchangeRateDate:   original.ExchangeRateDate,
-		PostingRuleVersion: original.PostingRuleVersion,
 		Lines:              lines,
 	}
 	// The Generalumkehr points at the same Beleg and carries the same
@@ -433,7 +409,7 @@ func (s *JournalService) ReverseOn(ctx context.Context, entryID uint, reason, da
 		})
 	}
 
-	created, err := s.Post(ctx, reversal)
+	created, err := s.post(ctx, reversal, postMode{reversal: true})
 	if err != nil {
 		return nil, err
 	}
@@ -516,9 +492,29 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 	return result, nil
 }
 
-func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEntry) {
+// prepare füllt die Vorgaben und setzt, was nur der Dienst bestimmt.
+func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mode postMode) error {
+	if mode.reversal {
+		if e.Kind != domain.EntryKindReversal || e.ReversalOfID == nil {
+			return fmt.Errorf("die Generalumkehr verweist nicht auf die stornierte Buchung")
+		}
+	} else {
+		if e.Kind == domain.EntryKindReversal || e.ReversalOfID != nil {
+			return fmt.Errorf(
+				"eine Generalumkehr entsteht nur über den Storno einer vorhandenen Buchung, " +
+					"nicht als eigene Buchung")
+		}
+		if e.Kind == "" {
+			e.Kind = domain.EntryKindNormal
+		}
+		e.ReversalReason = ""
+	}
+
 	if e.BookingDate == "" {
 		e.BookingDate = todayLocal()
+	}
+	if err := domain.CheckDate("Buchungsdatum", e.BookingDate); err != nil {
+		return err
 	}
 	if e.DocumentDate == "" {
 		e.DocumentDate = e.BookingDate
@@ -529,25 +525,26 @@ func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEnt
 	if e.ServiceDateTo == "" {
 		e.ServiceDateTo = e.ServiceDateFrom
 	}
-	if e.Kind == "" {
-		e.Kind = domain.EntryKindNormal
+	year := s.FiscalYearOf(ctx, e.BookingDate)
+	if e.FiscalYear != 0 && e.FiscalYear != year {
+		return fmt.Errorf(
+			"das Buchungsdatum %s gehört zum Geschäftsjahr %d, angegeben ist %d. "+
+				"Das Geschäftsjahr folgt aus dem Buchungsdatum", e.BookingDate, year, e.FiscalYear)
 	}
-	// Programmfassung, Bearbeiterkennung und Regelstand stehen an jeder
-	// Buchung, ohne dass ein Aufrufer daran denken muss.
-	//
-	// Vorher setzten nur die automatischen Wege den Regelstand; eine von Hand
-	// erfasste Buchung trug ihn nicht, und ausgerechnet die, über die am
-	// meisten gestritten wird, ließ sich nicht mehr erklären (UNV-06). Die drei
-	// Felder gehören zu jeder Aufzeichnung und nicht zu einem Erfassungsweg.
-	if e.PostingRuleVersion == "" {
-		e.PostingRuleVersion = accounting.PostingRuleVersion
-	}
-	if e.AppVersion == "" {
-		e.AppVersion = buildinfo.Version
-	}
-	if e.Actor == "" {
-		e.Actor = actor.Actor()
-	}
+	e.FiscalYear = year
+
+	e.ID = 0
+	e.EntryNumber = ""
+	e.PreviousHash = ""
+	e.EntryHash = ""
+	e.CreatedAt = time.Time{}
+	e.CommittedAt = nil
+	e.FestschreibungID = nil
+	e.CorrectsEntryID = mode.correctsID
+	e.PostingRuleVersion = accounting.PostingRuleVersion
+	e.AppVersion = buildinfo.Version
+	e.Actor = actor.Actor()
+
 	if e.Source == "" {
 		e.Source = domain.EntrySourceManual
 	}
@@ -557,14 +554,25 @@ func (s *JournalService) applyDefaults(ctx context.Context, e *domain.JournalEnt
 	if e.ExchangeRateMicros == 0 {
 		e.ExchangeRateMicros = 1_000_000
 	}
-	if e.FiscalYear == 0 {
-		e.FiscalYear = domain.GetFiscalYearForDate(e.BookingDate, s.fiscalYearStartMonth(ctx))
-	}
 	for i := range e.Lines {
-		if e.Lines[i].Position == 0 {
-			e.Lines[i].Position = i + 1
-		}
+		e.Lines[i].ID = 0
+		e.Lines[i].EntryID = 0
+		e.Lines[i].Position = i + 1
 	}
+	if e.Entertainment != nil {
+		e.Entertainment.ID = 0
+		e.Entertainment.EntryID = 0
+	}
+	for i := range e.Gifts {
+		e.Gifts[i].ID = 0
+		e.Gifts[i].EntryID = 0
+	}
+	return nil
+}
+
+// FiscalYearOf ist das Geschäftsjahr, in das ein Datum fällt.
+func (s *JournalService) FiscalYearOf(ctx context.Context, date string) int {
+	return domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
 }
 
 // ensureAccrualTaxation refuses to book while the company is set to

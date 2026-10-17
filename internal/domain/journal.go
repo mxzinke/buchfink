@@ -278,6 +278,46 @@ type JournalEntry struct {
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
+// DateLayout ist das Format jedes Datumsfeldes (JJJJ-MM-TT).
+const DateLayout = "2006-01-02"
+
+// CheckDate prüft streng auf ein Kalenderdatum: 2026-13-45, 2026-02-30 und
+// 2026-2-3 sind keines.
+func CheckDate(field, value string) error {
+	if _, err := time.Parse(DateLayout, value); err != nil {
+		return fmt.Errorf("%s %q ist kein gültiges Datum (erwartet JJJJ-MM-TT)", field, value)
+	}
+	return nil
+}
+
+// checkDates prüft jedes belegte Datumsfeld der Buchung.
+func (e *JournalEntry) checkDates() error {
+	dates := []struct{ field, value string }{
+		{"Buchungsdatum", e.BookingDate},
+		{"Belegdatum", e.DocumentDate},
+		{"Leistungsbeginn", e.ServiceDateFrom},
+		{"Leistungsende", e.ServiceDateTo},
+		{"Valuta", e.ValueDate},
+		{"Fälligkeit", e.DueDate},
+		{"Kurstag", e.ExchangeRateDate},
+	}
+	if e.Entertainment != nil {
+		dates = append(dates, struct{ field, value string }{"Tag der Bewirtung", e.Entertainment.Day})
+	}
+	for _, g := range e.Gifts {
+		dates = append(dates, struct{ field, value string }{"Tag des Geschenks", g.Date})
+	}
+	for _, d := range dates {
+		if d.value == "" {
+			continue
+		}
+		if err := CheckDate(d.field, d.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DebitTotal sums the Soll side.
 func (e *JournalEntry) DebitTotal() Cents {
 	var total Cents
@@ -328,6 +368,9 @@ func (e *JournalEntry) Validate() error {
 	if e.ServiceDateFrom == "" || e.ServiceDateTo == "" {
 		return fmt.Errorf("Leistungsdatum fehlt (der Leistungszeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
 	}
+	if err := e.checkDates(); err != nil {
+		return err
+	}
 	if e.ServiceDateTo < e.ServiceDateFrom {
 		return fmt.Errorf("Leistungsende %s liegt vor dem Leistungsbeginn %s", e.ServiceDateTo, e.ServiceDateFrom)
 	}
@@ -347,7 +390,7 @@ func (e *JournalEntry) Validate() error {
 			return fmt.Errorf("Zeile %d: Betrag darf nicht null sein", i+1)
 		}
 		switch e.Kind {
-		case EntryKindNormal:
+		case EntryKindNormal, "":
 			if l.Amount < 0 {
 				return fmt.Errorf("Zeile %d: negative Beträge sind nur bei Generalumkehr zulässig", i+1)
 			}
@@ -371,6 +414,9 @@ func (e *JournalEntry) Validate() error {
 			"Buchung ist nicht ausgeglichen: Soll %s €, Haben %s € (Differenz %s €)",
 			e.DebitTotal(), e.CreditTotal(), (e.DebitTotal() - e.CreditTotal()),
 		)
+	}
+	if e.Kind != "" && e.Kind != EntryKindNormal && e.Kind != EntryKindReversal {
+		return fmt.Errorf("unbekannte Buchungsart %q", e.Kind)
 	}
 	if e.Kind == EntryKindReversal && e.ReversalOfID == nil {
 		return fmt.Errorf("eine Generalumkehr muss auf die ursprüngliche Buchung verweisen")

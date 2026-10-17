@@ -61,11 +61,16 @@ func (s *JournalService) CorrectEntry(
 			original.EntryNumber)
 	}
 
-	// Der Verweis steht vor der Prüfung, damit die Prüfung die Buchung sieht,
-	// die tatsächlich geschrieben wird.
+	// Die Neubuchung ist eine gewöhnliche Buchung. Die Quelle „opening" gibt
+	// den Steuerkonten frei und gehört allein der Eröffnungsbilanz.
+	if replacement.Source == domain.EntrySourceOpening {
+		return nil, fmt.Errorf(
+			"eine Eröffnungsbuchung lässt sich nicht über „stornieren und neu buchen\" ersetzen. " +
+				"Storniere sie und erfasse die Eröffnungswerte über die Eröffnungsbilanz neu")
+	}
 	id := original.ID
-	replacement.CorrectsEntryID = &id
-	if err := s.ValidatePostable(ctx, replacement); err != nil {
+	mode := postMode{correctsID: &id}
+	if err := s.validatePostable(ctx, replacement, mode); err != nil {
 		return nil, fmt.Errorf("die richtige Buchung ist nicht buchbar, deshalb wurde nicht storniert: %w", err)
 	}
 
@@ -74,7 +79,7 @@ func (s *JournalService) CorrectEntry(
 		return nil, err
 	}
 
-	created, err := s.Post(ctx, replacement)
+	created, err := s.post(ctx, replacement, mode)
 	if err != nil {
 		// Der Storno steht bereits und bleibt stehen: eine zurückgenommene
 		// Buchung wieder aufleben zu lassen ginge nur durch eine weitere
