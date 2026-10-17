@@ -90,6 +90,19 @@ ASSETS = [
                 "und deckt das Foto separat vom uebrigen Werk ab.",
         "license_file": None,
     },
+    {
+        "name": "xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug)",
+        "version": "internal/ebilanz/taxonomy/",
+        "license": "XBRL-Deutschland-Disclaimer",
+        "copyright": "(c) XBRL Deutschland e.V. - see http://www.xbrl.de",
+        "note": "Abgeleiteter Auszug, bearbeitet: maschinell gekuerzt auf die "
+                "Positionen der E-Bilanz einer GmbH oder UG und in die "
+                "Anwendung eingebettet. Erzeugt mit "
+                "`scripts/gen_ebilanz_taxonomy.py`; Hinweis und Lizenztext: "
+                "`internal/ebilanz/taxonomy/NOTICE` und "
+                "`internal/ebilanz/taxonomy/LICENSE-XBRL-Deutschland.txt`.",
+        "license_file": "internal/ebilanz/taxonomy/LICENSE-XBRL-Deutschland.txt",
+    },
 ]
 
 LICENSE_PATTERNS = ("LICENSE*", "LICENCE*", "License*", "Licence*",

@@ -1,0 +1,54 @@
+XBRL Deutschland e.V.
+
+Disclaimer
+
+Inhaber aller Rechte an dieser Taxonomie und der Begleitdokumentation ist der Verein
+XBRL Deutschland e.V., Düsseldorf. Weitere Rechte, insbesondere an der Marke „XBRL“
+und an der technischen Spezifikation von XBRL, liegen bei XBRL International, Inc., New
+York, USA – zu Einzelheiten siehe http://www.xbrl.org/legal.
+
+XBRL Deutschland e.V. gestattet die freie Verwendung der Taxonomie und der
+Begleitdokumentation zu gewerblichen und nicht-gewerblichen Zwecken.
+
+Die Taxonomie und die Begleitdokumente dürfen kopiert und an Dritte weitergeben
+werden. Jede Kopie muss jedoch den Copyright-Vermerk aus dem Original enthalten.
+
+Die Taxonomie darf von Nutzern ergänzt, verkürzt oder in sonstiger Weise geändert
+werden, um deren speziellen Anforderungen zu dienen. Bearbeitete Versionen müssen,
+wenn sie an Dritte weitergegeben oder in irgendeiner Weise in Verkehr gebracht werden,
+als solche bezeichnet sein. Auch in bearbeiteten Versionen darf der Original-Copyright-
+Vermerk nicht entfernt werden.
+
+Als authentisch gilt im Zweifelsfall nur die Fassung der Taxonomie, die auf den Websites
+http://www.xbrl.de und http://www.xbrl.org hinterlegt ist.
+
+Die Bereitstellung der Taxonomie und der Begleitdokumentation sowie deren
+Herunterladen und Verwendung führt nicht zu einem Vertrag zwischen XBRL Deutschland
+e.V. und dem Nutzer. Insbesondere stellt die Bereitstellung der Taxonomie und der
+Begleitdokumentation kein Vertragsangebot von XBRL Deutschland e.V. dar. XBRL
+Deutschland e.V. weist darauf hin, dass die Taxonomie zur Verfügung gestellt wird, „wie
+sie ist“. Die Informationen wurden mit großer Sorgfalt durch fachkundige Personen
+erarbeitet. Dennoch können Fehler nicht ausgeschlossen werden. Bei der Fülle des
+Materials musste außerdem eine Auswahl der gängigsten und wichtigsten
+Informationselemente getroffen werden, was in Einzelfällen den Eindruck der
+Unvollständigkeit erwecken könnte. Generell ist zu berücksichtigen, dass die Taxonomie
+stets nur die fachliche und technische Situation zum Zeitpunkt ihrer Erstellung abbilden
+kann. Die Verwendung der Taxonomie erfolgt in eigener Verantwortung des jeweiligen
+Nutzers. Weder XBRL Deutschland e.V. noch die an der Entwicklung beteiligten
+Unternehmen, Institutionen und Personen übernehmen eine Verantwortung für
+Vollständigkeit, Richtigkeit und Gebrauchsfähigkeit der Taxonomie und der
+Begleitdokumentation.
+
+Demzufolge ist die Haftung von XBRL Deutschland e.V. und der an der Entwicklung
+beteiligten Unternehmen, Institutionen und Personen für Schäden, die sich aus dem
+Herunterladen und der Nutzung der Taxonomie und der Begleitdokumentation ergeben
+soweit rechtlich zulässig ausgeschlossen. Insbesondere ist die Haftung für etwaige direkte
+oder indirekte Schäden jeder Art, die aus dem Gebrauch der Taxonomie und der
+Begleitdokumentation erwachsen können, ausgeschlossen.
+
+
+
+
+ XBRL Deutschland e.V.                                                Mail: info@xbrl.de
+ Erna-Scheffler-Straße 2                                              Web: www.xbrl.de
+ 40476 Düsseldorf
