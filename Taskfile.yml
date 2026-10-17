@@ -60,15 +60,21 @@ tasks:
 
   test:ebilanz-xsd:
     summary: Validates the E-Bilanz instances against the official XBRL schemas
-    # The taxonomy schemas are not in the repository (only the extract the
-    # instances are built from), and validating against the full de-gaap-ci
-    # schema takes long. This task fails instead of skipping when the schemas
-    # are missing. Set EBILANZ_XSD_6_9 and EBILANZ_XSD_6_10 to wrapper schemas
-    # over a local copy of the taxonomy packages (www.esteuer.de, Taxonomien;
-    # see internal/ebilanz/xsd_test.go), optionally EBILANZ_XSD_VALIDATOR.
+    # Die Schemata der Taxonomie liegen nicht im Repository, nur der Auszug,
+    # aus dem die Instanzen entstehen. scripts/ebilanz_schemas.sh lädt die
+    # amtlichen Pakete 6.9 und 6.10 mit Prüfsumme nach .cache/ebilanz-xsd und
+    # legt Wrapper-Schemata und einen XML-Katalog an. Geprüft wird mit Java
+    # (scripts/XsdValidate.java, ab Java 11); xmllint braucht für das Schema von
+    # de-gaap-ci zu lange. Fehlt ein Schema, scheitert die Aufgabe, statt den
+    # Test zu überspringen. Braucht bash, curl, unzip und java.
     env:
       EBILANZ_XSD_REQUIRED: "1"
+      EBILANZ_XSD_6_9: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.9.xsd'
+      EBILANZ_XSD_6_10: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.10.xsd'
+      XML_CATALOG_FILES: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/catalog.xml'
+      EBILANZ_XSD_VALIDATOR: 'java {{.ROOT_DIR}}/scripts/XsdValidate.java'
     cmds:
+      - bash scripts/ebilanz_schemas.sh .cache/ebilanz-xsd
       - go test -count=1 -run TestInstancesAreSchemaValid ./internal/ebilanz/ {{.CLI_ARGS}}
 
   check:design:
