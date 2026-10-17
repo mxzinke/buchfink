@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -550,13 +549,13 @@ func findingByRule(run *domain.CheckRun, rule string) *domain.CheckFinding {
 }
 
 // -------------------------------------------------------------------------
-// Die Freistellungsbescheinigung steht in der Fristenliste
+// Die Freistellungsbescheinigung steht in der Aufgabenliste
 // -------------------------------------------------------------------------
 
-// Die Warnung 30 Tage vor Ablauf erreicht die Terminliste. Vorher gab es sie
-// nur über eine eigene Abfrage — und eine Frist, die keine Liste zeigt, sieht
-// niemand.
-func TestExpiringExemptionCertificateShowsUpAmongTheDeadlines(t *testing.T) {
+// Die Warnung 30 Tage vor Ablauf erreicht die Aufgabenliste. Eine Frist, die
+// keine Liste zeigt, sieht niemand. Sie ist keine Pflicht der Gesellschaft
+// gegenüber einer Behörde und steht deshalb nicht im Pflichtenkalender.
+func TestExpiringExemptionCertificateShowsUpAmongTheTasks(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
@@ -567,25 +566,24 @@ func TestExpiringExemptionCertificateShowsUpAmongTheDeadlines(t *testing.T) {
 		t.Fatalf("Lieferant: %v", err)
 	}
 
-	svc := env.deadlines(t)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetExemptionSource(env.contacts)
-	deadlines, err := svc.Deadlines(ctx, env.fiscalYear)
+	list, err := svc.Tasks(ctx, TaskOptions{})
 	if err != nil {
-		t.Fatalf("Fristenliste: %v", err)
+		t.Fatalf("Aufgabenliste: %v", err)
 	}
-	key := fmt.Sprintf("%s.%d", DeadlineKeyExemption, soon.ID)
-	for _, d := range deadlines {
-		if d.Key != key {
+	for _, task := range list.Upcoming {
+		if task.Key != domain.TaskKeyExemption {
 			continue
 		}
-		if d.DueDate != soon.ExemptionCertificateValidUntil {
-			t.Errorf("Termin am %s — erwartet den Ablauftag %s",
-				d.DueDate, soon.ExemptionCertificateValidUntil)
+		if task.DueDate != soon.ExemptionCertificateValidUntil {
+			t.Errorf("Aufgabe zum %s — erwartet den Ablauftag %s",
+				task.DueDate, soon.ExemptionCertificateValidUntil)
 		}
-		if !strings.Contains(d.Reference, "§ 48b") {
-			t.Errorf("Fundstelle %q — erwartet § 48b EStG", d.Reference)
+		if !strings.Contains(task.Reference, "§ 48b") {
+			t.Errorf("Fundstelle %q — erwartet § 48b EStG", task.Reference)
 		}
 		return
 	}
-	t.Fatalf("die ablaufende Freistellungsbescheinigung fehlt in der Fristenliste: %+v", deadlines)
+	t.Fatalf("die ablaufende Freistellungsbescheinigung fehlt in der Aufgabenliste: %+v", list)
 }

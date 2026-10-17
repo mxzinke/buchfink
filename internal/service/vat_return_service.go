@@ -138,7 +138,7 @@ func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodSt
 	for _, p := range periods {
 		st := VatPeriodStatus{
 			VatPeriod: p,
-			DueDate:   accounting.VatDueDate(p, cfg.PermanentExtension),
+			DueDate:   accounting.VatDueDateIn(p, cfg.PermanentExtension, cfg.FederalState),
 			Status:    domain.VatReturnDraft,
 			Committed: cutoff != "" && cutoff >= p.To,
 		}
@@ -618,7 +618,7 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	}
 
 	ret := accounting.BuildVatReturn(period, source)
-	ret.DueDate = accounting.VatDueDate(period, cfg.PermanentExtension)
+	ret.DueDate = accounting.VatDueDateIn(period, cfg.PermanentExtension, cfg.FederalState)
 	ret.ProgramVersion = ProgramVersion()
 	ret.Actor = actor.Actor()
 	return ret, nil

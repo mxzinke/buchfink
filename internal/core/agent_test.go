@@ -80,11 +80,21 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		"Organisationsanweisung ändern": inService(func(ctx context.Context, s *Services) error {
 			return s.ProcDoc.SaveOrganisationTexts(ctx, domain.OrganisationTexts{Responsibilities: "Agent"})
 		}),
-		"USt-Jahreserklärung als erledigt vermerken": inService(func(ctx context.Context, s *Services) error {
-			return s.Deadlines.MarkDone(ctx, "ust.jahreserklaerung.2025", "")
+		"USt-Jahreserklärung als erledigt bestätigen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Obligations.Confirm(ctx, "ust-erklaerung.2025", service.ConfirmInput{Date: "2026-03-01"})
+			return err
 		}),
-		"Sondervorauszahlung als erledigt vermerken": inService(func(ctx context.Context, s *Services) error {
-			return s.Deadlines.MarkDone(ctx, "sondervorauszahlung.2026", "")
+		"Sondervorauszahlung als erledigt bestätigen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Obligations.Confirm(ctx, "sondervorauszahlung.2026", service.ConfirmInput{Date: "2026-02-10"})
+			return err
+		}),
+		"Pflicht als entfallen kennzeichnen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Obligations.Waive(ctx, "gewerbeanmeldung.gruendung", "freiberuflich")
+			return err
+		}),
+		"Bestätigung einer Pflicht zurücknehmen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Obligations.Reopen(ctx, "kst-erklaerung.2025", "Irrtum")
+			return err
 		}),
 		"Sicherungsordner setzen": func() error { _, err := h.SetBackupDir(agent, t.TempDir()); return err },
 		"Mandant wechseln":        func() error { _, err := h.Switch(agent, tc.ID); return err },

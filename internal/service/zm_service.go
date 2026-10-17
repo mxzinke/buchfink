@@ -30,6 +30,18 @@ type ZMService struct {
 	auditRepo          domain.AuditRepository
 }
 
+// federalState ist das Land am Sitz für das Fristende; ohne Unternehmensdaten
+// gelten die bundesweiten Feiertage.
+func (s *ZMService) federalState(ctx context.Context) string {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil {
+		return cfg.FederalState
+	}
+	return ""
+}
+
 // NewZMService wires the Zusammenfassende Meldung.
 func NewZMService(
 	journalRepo domain.JournalRepository,
@@ -101,11 +113,12 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 	lookup := func(id uint) accounting.ZMRecipient { return recipients[id] }
 
 	today := todayLocal()
+	state := s.federalState(ctx)
 	out := make([]ZMPeriodStatus, 0, len(periods))
 	for _, p := range periods {
 		st := ZMPeriodStatus{
 			VatPeriod: p,
-			DueDate:   accounting.ZMDueDate(p),
+			DueDate:   accounting.ZMDueDateIn(p, state),
 			Status:    domain.VatReturnDraft,
 			Committed: cutoff != "" && cutoff >= p.To,
 		}
@@ -405,7 +418,7 @@ func (s *ZMService) build(ctx context.Context, period accounting.VatPeriod) (*do
 		PeriodFrom: period.From,
 		PeriodTo:   period.To,
 		Status:     domain.VatReturnDraft,
-		DueDate:    accounting.ZMDueDate(period),
+		DueDate:    accounting.ZMDueDateIn(period, s.federalState(ctx)),
 		Lines:      lines,
 		Findings:   findings,
 	}

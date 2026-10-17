@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -272,45 +273,61 @@ func VatPeriodOf(date string, periodType domain.VatPeriodType) (VatPeriod, error
 	return VatPeriod{}, fmt.Errorf("unbekannter Voranmeldungszeitraum %q", periodType)
 }
 
-// VatDueDate ist die Fälligkeit einer Voranmeldung: der 10. Tag nach Ablauf des
-// Zeitraums (§ 18 Abs. 1 Satz 1 UStG), mit Dauerfristverlängerung einen Monat
-// später (§ 46 UStDV).
-//
-// Fällt der Tag auf einen Samstag oder Sonntag, verschiebt sich die Frist auf
-// den nächsten Werktag (§ 108 Abs. 3 AO i. V. m. § 193 BGB). Feiertage bleiben
-// bewusst außen vor: sie sind Landesrecht, und ein falsch geratener Feiertag
-// wäre schlechter als eine Frist, die einen Tag zu früh mahnt.
-func VatDueDate(p VatPeriod, permanentExtension bool) string {
+// VatStatutoryDate ist das gesetzliche Ende der Voranmeldungsfrist: der 10. Tag
+// nach Ablauf des Zeitraums (§ 18 Abs. 1 Satz 1 UStG), mit
+// Dauerfristverlängerung einen Monat später (§ 46 UStDV).
+func VatStatutoryDate(p VatPeriod, permanentExtension bool) (time.Time, bool) {
 	end, err := time.Parse("2006-01-02", p.To)
 	if err != nil {
-		return ""
+		return time.Time{}, false
 	}
 	due := time.Date(end.Year(), end.Month(), 10, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0)
 	if permanentExtension {
 		due = due.AddDate(0, 1, 0)
 	}
-	return NextWorkday(due).Format("2006-01-02")
+	return due, true
 }
 
-// ZMDueDate ist die Fälligkeit der Zusammenfassenden Meldung: der 25. Tag nach
-// Ablauf des Meldezeitraums (§ 18a Abs. 1 Satz 1 UStG). Die
-// Dauerfristverlängerung gilt für sie nicht (§ 18a Abs. 1 Satz 5 UStG).
-func ZMDueDate(p VatPeriod) string {
-	end, err := time.Parse("2006-01-02", p.To)
-	if err != nil {
+// VatDueDate ist die Fälligkeit einer Voranmeldung mit den bundesweiten
+// Feiertagen; VatDueDateIn kennt auch die des Landes.
+func VatDueDate(p VatPeriod, permanentExtension bool) string {
+	return VatDueDateIn(p, permanentExtension, "")
+}
+
+// VatDueDateIn ist die Fälligkeit einer Voranmeldung im Land state: das
+// gesetzliche Ende, verschoben nach § 108 Abs. 3 AO.
+func VatDueDateIn(p VatPeriod, permanentExtension bool, state string) string {
+	due, ok := VatStatutoryDate(p, permanentExtension)
+	if !ok {
 		return ""
 	}
-	due := time.Date(end.Year(), end.Month(), 25, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0)
-	return NextWorkday(due).Format("2006-01-02")
+	return calendar.Format(calendar.NextWorkday(due, state))
 }
 
-// NextWorkday schiebt einen Samstag oder Sonntag auf den folgenden Montag.
-func NextWorkday(t time.Time) time.Time {
-	switch t.Weekday() {
-	case time.Saturday:
-		return t.AddDate(0, 0, 2)
-	case time.Sunday:
-		return t.AddDate(0, 0, 1)
+// ZMStatutoryDate ist das gesetzliche Ende der Meldefrist der Zusammenfassenden
+// Meldung: der 25. Tag nach Ablauf des Meldezeitraums (§ 18a Abs. 2 Satz 1
+// UStG). Die Dauerfristverlängerung gilt für sie nicht (§ 46 UStDV).
+func ZMStatutoryDate(p VatPeriod) (time.Time, bool) {
+	end, err := time.Parse("2006-01-02", p.To)
+	if err != nil {
+		return time.Time{}, false
 	}
-	return t
+	return time.Date(end.Year(), end.Month(), 25, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0), true
 }
+
+// ZMDueDate ist die Fälligkeit der Zusammenfassenden Meldung mit den
+// bundesweiten Feiertagen.
+func ZMDueDate(p VatPeriod) string { return ZMDueDateIn(p, "") }
+
+// ZMDueDateIn ist die Fälligkeit der Zusammenfassenden Meldung im Land state.
+func ZMDueDateIn(p VatPeriod, state string) string {
+	due, ok := ZMStatutoryDate(p)
+	if !ok {
+		return ""
+	}
+	return calendar.Format(calendar.NextWorkday(due, state))
+}
+
+// NextWorkday schiebt einen Tag nach § 108 Abs. 3 AO auf den nächsten Werktag;
+// Feiertage sind die bundesweiten.
+func NextWorkday(t time.Time) time.Time { return calendar.NextWorkday(t, "") }

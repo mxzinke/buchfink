@@ -534,7 +534,7 @@ func TestCommitDeadlineFollowsThePermanentExtension(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	before, err := env.deadlines(t).Deadlines(ctx, 2026)
+	before, err := env.obligations(t).Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Termine: %v", err)
 	}
@@ -547,7 +547,7 @@ func TestCommitDeadlineFollowsThePermanentExtension(t *testing.T) {
 	}
 
 	env.setSettings(t, func(c *domain.CompanySettings) { c.PermanentExtension = true })
-	after, err := env.deadlines(t).Deadlines(ctx, 2026)
+	after, err := env.obligations(t).Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Termine: %v", err)
 	}

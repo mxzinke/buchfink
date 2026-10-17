@@ -971,8 +971,8 @@ func (s *CheckService) checkVatReturns(
 	// Wer vom Voranmeldungsverfahren befreit ist (§ 18 Abs. 2 Satz 3 UStG), gibt
 	// keine Voranmeldung ab, sondern nur die Jahreserklärung. Ein Befund
 	// „Voranmeldung fehlt" mahnte hier eine Pflicht an, die es nicht gibt — und
-	// die Fristenliste (DeadlineService.vatDeadlines) schließt denselben Fall
-	// bewusst aus. Prüflauf und Fristenliste dürfen sich nicht widersprechen.
+	// der Pflichtenkalender schließt denselben Fall aus. Prüflauf und Kalender
+	// dürfen sich nicht widersprechen.
 	periodType := vatPeriodTypeOf(cfg)
 	if periodType == domain.VatPeriodYear {
 		return nil
@@ -990,7 +990,7 @@ func (s *CheckService) checkVatReturns(
 
 	var out []domain.CheckFinding
 	for _, p := range accounting.VatPeriodsOfYear(year, periodType) {
-		due := accounting.VatDueDate(p, cfg.PermanentExtension)
+		due := accounting.VatDueDateIn(p, cfg.PermanentExtension, cfg.FederalState)
 		if p.To > cutoff || submitted[p.Key] || due == "" || due >= reference {
 			continue
 		}
@@ -1057,7 +1057,7 @@ func (s *CheckService) checkCommitOverdue(ctx context.Context, year int, cutoff 
 // übernächsten Monats anmelden darf (§§ 46 ff. UStDV), schreibt den Monat
 // sinnvollerweise erst dann fest, weil er bis dahin noch buchen können muss.
 //
-// Prüflauf und Fristenliste rechnen mit dieser einen Funktion. Stünde die
+// Prüflauf und Pflichtenkalender rechnen mit dieser einen Funktion. Stünde die
 // Rechnung an beiden Stellen, meldete die eine irgendwann einen Rückstand, den
 // die andere nicht kennt.
 func CommitDueDate(p accounting.VatPeriod, cfg *domain.CompanySettings) string {
@@ -1078,10 +1078,10 @@ func secondMonthEnd(iso string) string { return endOfNextMonth(endOfNextMonth(is
 // commitReportDate ist der Tag, ab dem ein nicht festgeschriebener Monat als
 // Rückstand gemeldet wird.
 //
-// Das Ende des übernächsten Monats, frühestens aber der Tag, an dem die
-// Fristenliste ihn führt (CommitDueDate). Mit Dauerfristverlängerung und
+// Das Ende des übernächsten Monats, frühestens aber der Tag, an dem der
+// Pflichtenkalender ihn führt (CommitDueDate). Mit Dauerfristverlängerung und
 // Nachfrist liegt die Frist hinter dem übernächsten Monatsende — meldete der
-// Prüflauf den Monat schon davor, widerspräche er der eigenen Fristenliste,
+// Prüflauf den Monat schon davor, widerspräche er dem eigenen Kalender,
 // und der schärfere Befund verdrängte den milderen, noch bevor überhaupt
 // etwas fällig war.
 func commitReportDate(p accounting.VatPeriod, cfg *domain.CompanySettings) string {

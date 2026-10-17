@@ -30,10 +30,10 @@ func (s stubCheckSource) Preview(context.Context, CheckRequest) (*domain.CheckRu
 	return s.run, s.err
 }
 
-type stubDeadlineSource struct{ deadlines []domain.Deadline }
+type stubObligationSource struct{ obligations []domain.Obligation }
 
-func (s stubDeadlineSource) Deadlines(context.Context, int) ([]domain.Deadline, error) {
-	return s.deadlines, nil
+func (s stubObligationSource) List(context.Context, ObligationQuery) ([]domain.Obligation, error) {
+	return s.obligations, nil
 }
 
 type stubBankSource struct{ transactions []domain.BankTransaction }
@@ -80,21 +80,10 @@ func (s stubExemptionSource) ExemptionCertificateWarnings(
 
 type stubCarryForwardSource struct {
 	preview *CarryForwardPreview
-	years   []domain.FiscalYear
 }
 
 func (s stubCarryForwardSource) CarryForwardState(context.Context, int) (*CarryForwardPreview, error) {
 	return s.preview, nil
-}
-
-func (s stubCarryForwardSource) FiscalYears(context.Context) ([]domain.FiscalYear, error) {
-	return s.years, nil
-}
-
-type stubStatementSource struct{ deadlines []domain.Deadline }
-
-func (s stubStatementSource) Deadlines(context.Context, int) ([]domain.Deadline, error) {
-	return s.deadlines, nil
 }
 
 type stubAppropriationSource struct{ decision *domain.Appropriation }
@@ -128,7 +117,7 @@ func TestTasksAreEmptyWhenNothingIsDue(t *testing.T) {
 	svc.SetBankSource(stubBankSource{})
 	svc.SetReceiptSource(stubReceiptSource{})
 	svc.SetOpenItemSource(stubOpenItemSource{})
-	svc.SetDeadlineSource(stubDeadlineSource{})
+	svc.SetObligationSource(stubObligationSource{})
 
 	list, err := svc.Tasks(context.Background(), TaskOptions{Today: "2026-03-10"})
 	if err != nil {
@@ -159,13 +148,13 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 		// selbst; als Befund dürfen sie nicht ein zweites Mal erscheinen.
 		{Rule: domain.CheckRuleBankUnmatched, Severity: domain.CheckWarning, Message: "Umsatz offen"},
 	}}})
-	svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{
-		{Key: "ust.va.2026-02", Title: "Umsatzsteuer-Voranmeldung Februar 2026",
-			DueDate: "2026-03-10", Description: "Die Voranmeldung ist abzugeben."},
-		{Key: "ust.va.2026-01", Title: "Umsatzsteuer-Voranmeldung Januar 2026",
-			DueDate: "2026-02-10", Description: "Die Voranmeldung ist abzugeben."},
-		{Key: "abschluss.offenlegung", Title: "Offenlegung", DueDate: "2026-12-31"},
-		{Key: "erledigt", Title: "Schon erledigt", DueDate: "2026-01-05", IsDone: true},
+	svc.SetObligationSource(stubObligationSource{obligations: []domain.Obligation{
+		{Key: "ustva.2026-02", Kind: domain.ObligationVatReturn, Title: "Umsatzsteuer-Voranmeldung Februar 2026",
+			DueDate: "2026-03-10", Description: "Die Voranmeldung ist abzugeben.", Status: domain.ObligationOpen},
+		{Key: "ustva.2026-01", Kind: domain.ObligationVatReturn, Title: "Umsatzsteuer-Voranmeldung Januar 2026",
+			DueDate: "2026-02-10", Description: "Die Voranmeldung ist abzugeben.", Status: domain.ObligationOverdue},
+		{Key: "offenlegung.2025", Kind: domain.ObligationDisclosure, Title: "Offenlegung", DueDate: "2026-12-31"},
+		{Key: "erledigt", Title: "Schon erledigt", DueDate: "2026-01-05", Status: domain.ObligationDone},
 	}})
 	svc.SetBankSource(stubBankSource{transactions: []domain.BankTransaction{
 		{ID: 1, Amount: -5000, MatchStatus: domain.MatchStatusUnmatched},
@@ -198,8 +187,8 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 	expect := map[string]domain.TaskGroup{
 		"check_findings." + domain.CheckRuleEntryWithoutReceipt: domain.TaskGroupOverdue,
 		"check_findings." + domain.CheckRuleVatIDUnconfirmed:    domain.TaskGroupOpen,
-		domain.TaskKeyDeadline + ".ust.va.2026-02":              domain.TaskGroupUpcoming,
-		domain.TaskKeyDeadline + ".ust.va.2026-01":              domain.TaskGroupOverdue,
+		domain.TaskKeyObligation + ".ustva.2026-02":             domain.TaskGroupUpcoming,
+		domain.TaskKeyObligation + ".ustva.2026-01":             domain.TaskGroupOverdue,
 		domain.TaskKeyBankUnmatched:                             domain.TaskGroupOpen,
 		domain.TaskKeyReceiptsUnbooked:                          domain.TaskGroupOpen,
 		domain.TaskKeyReceiptsOverdue:                           domain.TaskGroupOverdue,
@@ -231,8 +220,8 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 
 	// Was nicht dran ist, steht nicht in der Liste.
 	for _, key := range []string{
-		domain.TaskKeyDeadline + ".erledigt",
-		domain.TaskKeyDeadline + ".abschluss.offenlegung",
+		domain.TaskKeyObligation + ".erledigt",
+		domain.TaskKeyObligation + ".offenlegung.2025",
 		"check_findings." + domain.CheckRuleBankUnmatched,
 	} {
 		if _, ok := tasks[key]; ok {
@@ -272,9 +261,9 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 func TestTasksAreSortedByDueDate(t *testing.T) {
 	env := newTestEnv(t)
 	svc := NewTaskService(repository.NewSettingsRepository(env.db))
-	svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{
-		{Key: "spaet", Title: "Später", DueDate: "2026-02-20"},
-		{Key: "frueh", Title: "Früher", DueDate: "2026-01-20"},
+	svc.SetObligationSource(stubObligationSource{obligations: []domain.Obligation{
+		{Key: "spaet", Title: "Später", DueDate: "2026-02-20", Status: domain.ObligationOverdue},
+		{Key: "frueh", Title: "Früher", DueDate: "2026-01-20", Status: domain.ObligationOverdue},
 	}})
 	svc.SetOpenItemSource(stubOpenItemSource{items: []domain.OpenItem{
 		{EntryID: 1, ContactType: domain.ContactTypeCustomer, DueDate: "2026-01-10", OpenAmount: 100},
@@ -574,72 +563,6 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 	}
 }
 
-// Der nicht festgestellte Vorjahresabschluss nach Ablauf der Aufstellungsfrist —
-// und die offene Ergebnisverwendung danach.
-func TestPriorYearAndAppropriationProduceTheirTasks(t *testing.T) {
-	env := newTestEnv(t)
-	settings := repository.NewSettingsRepository(env.db)
-	// Die Aufstellungsfrist des Jahres 2025 lief am 31.03.2026 ab.
-	statements := stubStatementSource{deadlines: []domain.Deadline{
-		{Key: "abschluss.aufstellung", Title: "Jahresabschluss aufstellen", DueDate: "2026-03-31"},
-		{Key: "abschluss.offenlegung", Title: "Offenlegung", DueDate: "2026-12-31"},
-	}}
-	openYear := []domain.FiscalYear{{Year: 2025, Status: domain.FiscalYearOpen}}
-	adoptedYear := []domain.FiscalYear{{Year: 2025, Status: domain.FiscalYearAdopted}}
-
-	// Vor Fristablauf: keine Aufgabe, auch wenn nicht festgestellt ist.
-	early := NewTaskService(settings)
-	early.SetStatementSource(statements)
-	early.SetCarryForwardSource(stubCarryForwardSource{years: openYear})
-	if _, ok := tasksFor(t, early, TaskOptions{Today: "2026-03-10"})[domain.TaskKeyPriorYearOpen]; ok {
-		t.Error("vor Ablauf der Aufstellungsfrist darf keine Aufgabe entstehen")
-	}
-
-	// Nach Fristablauf: überfällig, mit der Frist als Datum.
-	late := NewTaskService(settings)
-	late.SetStatementSource(statements)
-	late.SetCarryForwardSource(stubCarryForwardSource{years: openYear})
-	task, ok := tasksFor(t, late, TaskOptions{Today: "2026-04-15"})[domain.TaskKeyPriorYearOpen]
-	if !ok {
-		t.Fatal("nach Ablauf der Aufstellungsfrist muss der offene Abschluss auffallen")
-	}
-	if task.Group != domain.TaskGroupOverdue || task.DueDate != "2026-03-31" {
-		t.Errorf("offener Vorjahresabschluss: %+v", task)
-	}
-	if task.Target.Page != "closing" || task.Target.Params["year"] != "2025" {
-		t.Errorf("das Ziel zeigt nicht auf den Abschluss 2025: %+v", task.Target)
-	}
-
-	// Festgestellt, aber ohne Beschluss: die Ergebnisverwendung steht an — und
-	// der Abschluss selbst nicht mehr.
-	adopted := NewTaskService(settings)
-	adopted.SetStatementSource(statements)
-	adopted.SetCarryForwardSource(stubCarryForwardSource{years: adoptedYear})
-	adopted.SetAppropriationSource(stubAppropriationSource{})
-	tasks := tasksFor(t, adopted, TaskOptions{Today: "2026-04-15"})
-	if _, ok := tasks[domain.TaskKeyPriorYearOpen]; ok {
-		t.Error("der festgestellte Abschluss darf nicht mehr als offen gelten")
-	}
-	decision, ok := tasks[domain.TaskKeyAppropriationOpen]
-	if !ok {
-		t.Fatal("die offene Ergebnisverwendung erzeugt keine Aufgabe")
-	}
-	if decision.Group != domain.TaskGroupOpen || decision.Target.Params["year"] != "2025" {
-		t.Errorf("offene Ergebnisverwendung: %+v", decision)
-	}
-
-	// Beschlossen: nichts mehr zu tun.
-	decided := NewTaskService(settings)
-	decided.SetStatementSource(statements)
-	decided.SetCarryForwardSource(stubCarryForwardSource{years: adoptedYear})
-	decided.SetAppropriationSource(stubAppropriationSource{
-		decision: &domain.Appropriation{Year: 2025, DecisionDate: "2026-05-02"},
-	})
-	if _, ok := tasksFor(t, decided, TaskOptions{Today: "2026-06-01"})[domain.TaskKeyAppropriationOpen]; ok {
-		t.Error("nach dem Beschluss darf die Ergebnisverwendung nicht mehr offen sein")
-	}
-}
-
 // Ein fehlgeschlagener jüngster Lauf fällt sofort auf — auch wenn die letzte
 // erfolgreiche Sicherung noch innerhalb der Frist liegt.
 func TestFailedBackupRunIsATaskOfItsOwn(t *testing.T) {
@@ -794,42 +717,28 @@ func TestMonthCloseFollowsAShiftedFiscalYear(t *testing.T) {
 	}
 }
 
-// stubYearDeadlineSource antwortet je Geschäftsjahr verschieden.
-type stubYearDeadlineSource struct{ byYear map[int][]domain.Deadline }
-
-func (s stubYearDeadlineSource) Deadlines(_ context.Context, year int) ([]domain.Deadline, error) {
-	return s.byYear[year], nil
-}
-
-// Im Januar stehen die Fristen des Vorjahres auf der Liste.
-//
-// Die Fristen eines Jahres entstehen aus seinen Zeiträumen, fällig sind einige
-// erst im Folgejahr: die Voranmeldung für Dezember am 10. Januar. Wer im Januar
-// nur das neue Geschäftsjahr abfragte, sähe im Monat der meisten Fristen die
-// wenigsten — und die eine, die zuerst abläuft, gar nicht.
+// Im Januar stehen die Pflichten des Vorjahres auf der Liste, soweit sie in den
+// letzten dreißig Tagen fällig wurden oder noch fällig werden: die
+// Voranmeldung für Dezember am 10. Januar, nicht der ganze Rückstand.
 func TestTasksIncludeLastYearsDeadlinesUntilTheyExpire(t *testing.T) {
 	env := newTestEnv(t)
 	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetBankSource(stubBankSource{})
 	svc.SetReceiptSource(stubReceiptSource{})
 	svc.SetOpenItemSource(stubOpenItemSource{})
-	svc.SetDeadlineSource(stubYearDeadlineSource{byYear: map[int][]domain.Deadline{
-		2025: {
-			{Key: "ust.va.2025-12", Title: "Umsatzsteuer-Voranmeldung Dezember 2025",
-				DueDate: "2026-01-10", Description: "Die Voranmeldung ist abzugeben."},
-			// Weit verstrichen: das gehört auf die Fristenseite und nicht auf
-			// den ersten Bildschirm.
-			{Key: "ust.va.2025-03", Title: "Umsatzsteuer-Voranmeldung März 2025",
-				DueDate: "2025-04-10"},
-		},
-		2026: {
-			{Key: "zm.2026-01", Title: "Zusammenfassende Meldung Januar 2026",
-				DueDate: "2026-01-25"},
-		},
+	svc.SetObligationSource(stubObligationSource{obligations: []domain.Obligation{
+		{Key: "ustva.2025-12", Kind: domain.ObligationVatReturn, Title: "Umsatzsteuer-Voranmeldung Dezember 2025",
+			DueDate: "2026-01-10", Description: "Die Voranmeldung ist abzugeben.", Status: domain.ObligationOpen},
+		// Weit verstrichen: das gehört in den Kalender und nicht auf den ersten
+		// Bildschirm.
+		{Key: "ustva.2025-03", Kind: domain.ObligationVatReturn, Title: "Umsatzsteuer-Voranmeldung März 2025",
+			DueDate: "2025-04-10", Status: domain.ObligationOverdue},
+		{Key: "zm.2026-Q1", Kind: domain.ObligationECSalesList, Title: "Zusammenfassende Meldung 1. Quartal 2026",
+			DueDate: "2026-01-25", Status: domain.ObligationOpen},
 	}})
 
 	tasks := tasksFor(t, svc, TaskOptions{Today: "2026-01-05"})
-	december, ok := tasks[domain.TaskKeyDeadline+".ust.va.2025-12"]
+	december, ok := tasks[domain.TaskKeyObligation+".ustva.2025-12"]
 	if !ok {
 		t.Fatalf("die Voranmeldung Dezember 2025 fehlt am 05.01.2026: %v", keysOf(tasks))
 	}
@@ -837,10 +746,10 @@ func TestTasksIncludeLastYearsDeadlinesUntilTheyExpire(t *testing.T) {
 		t.Errorf("Dezember-Voranmeldung: Gruppe %q, fällig %s — erwartet demnächst zum 10.01.2026",
 			december.Group, december.DueDate)
 	}
-	if _, ok := tasks[domain.TaskKeyDeadline+".ust.va.2025-03"]; ok {
+	if _, ok := tasks[domain.TaskKeyObligation+".ustva.2025-03"]; ok {
 		t.Error("eine seit Monaten verstrichene Frist des Vorjahres gehört nicht auf die Aufgabenliste")
 	}
-	if _, ok := tasks[domain.TaskKeyDeadline+".zm.2026-01"]; !ok {
+	if _, ok := tasks[domain.TaskKeyObligation+".zm.2026-Q1"]; !ok {
 		t.Errorf("die Frist des laufenden Jahres fehlt: %v", keysOf(tasks))
 	}
 }

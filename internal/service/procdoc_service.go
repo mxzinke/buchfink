@@ -331,7 +331,7 @@ func (s *ProcDocService) buildInput(
 	input := procdoc.Input{
 		CompanyName:      settings.FirmName(),
 		LegalForm:        settings.LegalForm,
-		Street:           settings.Street,
+		Street:           settings.StreetLine(),
 		PostalLine:       settings.PostalLine(),
 		Country:          domain.CountryName(settings.ResolvedCountryCode()),
 		TaxNumber:        settings.TaxNumber,

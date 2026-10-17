@@ -942,16 +942,16 @@ func TestYearlyVatPeriodHasNoAdvanceReturnDeadlines(t *testing.T) {
 	ctx := context.Background()
 	env.setSettings(t, func(c *domain.CompanySettings) { c.VatPeriod = "year" })
 
-	deadlines, err := env.deadlines(t).Deadlines(ctx, 2026)
+	deadlines, err := env.obligations(t).Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Termine: %v", err)
 	}
 	annual := 0
 	for _, d := range deadlines {
-		if strings.HasPrefix(d.Key, DeadlineKeyVatReturn+".") {
+		if strings.HasPrefix(d.Key, string(domain.ObligationVatReturn)+".") {
 			t.Errorf("Termin %q (%s) verlangt eine Voranmeldung, die es beim Jahreszeitraum nicht gibt", d.Title, d.DueDate)
 		}
-		if strings.HasPrefix(d.Key, DeadlineKeyAnnualVat+".") {
+		if strings.HasPrefix(d.Key, string(domain.ObligationAnnualVatReturn)+".") {
 			annual++
 		}
 	}

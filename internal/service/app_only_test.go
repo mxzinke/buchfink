@@ -77,11 +77,21 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 		"Organisationsanweisung": func() error {
 			return (&ProcDocService{}).SaveOrganisationTexts(ctx, domain.OrganisationTexts{})
 		},
-		"USt-Jahreserklärung abhaken": func() error {
-			return (&DeadlineService{}).MarkDone(ctx, DeadlineKeyAnnualVat+".2025", "")
+		"USt-Jahreserklärung bestätigen": func() error {
+			_, err := (&ObligationService{}).Confirm(ctx, "ust-erklaerung.2025", ConfirmInput{Date: "2026-03-01"})
+			return err
 		},
-		"Sondervorauszahlung abhaken": func() error {
-			return (&DeadlineService{}).MarkDone(ctx, DeadlineKeyPrepayment+".2026", "")
+		"Sondervorauszahlung bestätigen": func() error {
+			_, err := (&ObligationService{}).Confirm(ctx, "sondervorauszahlung.2026", ConfirmInput{Date: "2026-02-10"})
+			return err
+		},
+		"Pflicht als entfallen kennzeichnen": func() error {
+			_, err := (&ObligationService{}).Waive(ctx, "gewerbeanmeldung.gruendung", "freiberuflich")
+			return err
+		},
+		"Bestätigung zurücknehmen": func() error {
+			_, err := (&ObligationService{}).Reopen(ctx, "kst-erklaerung.2025", "Irrtum")
+			return err
 		},
 	} {
 		err := call()

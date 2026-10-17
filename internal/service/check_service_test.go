@@ -407,7 +407,7 @@ func TestCheckVatReturnMissing(t *testing.T) {
 // Wer vom Voranmeldungsverfahren befreit ist (§ 18 Abs. 2 Satz 3 UStG), gibt
 // keine Voranmeldung ab — der Prüflauf darf ihm keine fehlende anmahnen.
 //
-// Die Fristenliste schließt denselben Fall aus (DeadlineService.vatDeadlines).
+// Der Pflichtenkalender schließt denselben Fall aus (obligationRun.vatReturns).
 // Widersprächen sich beide, stünde im Prüfbericht eine Pflicht, die kein Termin
 // kennt — und niemand wüsste, welche der beiden Stellen recht hat.
 func TestCheckVatReturnMissingSkipsAnnualFilers(t *testing.T) {

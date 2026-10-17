@@ -365,23 +365,3 @@ type ZMReturnRepository interface {
 	FindByPeriod(ctx context.Context, periodKey string) ([]ZMReturn, error)
 	Delete(ctx context.Context, id uint) error
 }
-
-// DeadlineDone hält den Haken an einem Termin fest, der sich nicht aus den
-// Daten ergibt.
-//
-// Alles, was ableitbar ist — die übermittelte Voranmeldung, die Festschreibung,
-// die Aufstellung —, wird abgeleitet und nicht abgehakt. Übrig bleiben Termine
-// wie die Umsatzsteuer-Jahreserklärung, von der Buchfink nichts sieht. Der
-// Haken steht in der Datenbank und nicht im localStorage: er ist eine Aussage
-// über den Mandanten und nicht über den Browser.
-type DeadlineDone struct {
-	Key       string    `gorm:"primaryKey;size:100" json:"key"`
-	DoneOn    string    `gorm:"size:10;not null" json:"doneOn"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// DeadlineRepository persistiert die manuellen Haken.
-type DeadlineRepository interface {
-	FindAll(ctx context.Context) ([]DeadlineDone, error)
-	Mark(ctx context.Context, key, doneOn string) error
-}

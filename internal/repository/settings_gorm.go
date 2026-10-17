@@ -93,6 +93,22 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.TaxOffice = it.Value
 		case "street":
 			settings.Street = it.Value
+		case "house_number":
+			settings.HouseNumber = it.Value
+		case "federal_state":
+			settings.FederalState = it.Value
+		case "tax_advisor_engaged":
+			settings.TaxAdvisor.Engaged = it.Value == "true"
+		case "tax_advisor_since_year":
+			settings.TaxAdvisor.SinceYear, _ = strconv.Atoi(it.Value)
+		case "tax_advisor_declarations":
+			settings.TaxAdvisor.Declarations = splitList(it.Value)
+		case "non_profit":
+			settings.NonProfit = it.Value == "true"
+		case "in_liquidation":
+			settings.InLiquidation = it.Value == "true"
+		case "fiscal_unity":
+			settings.FiscalUnity = it.Value == "true"
 		case "address_addition":
 			settings.AddressAddition = it.Value
 		case "postal_code":
@@ -159,6 +175,8 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	if settings.FiscalYearStartMonth <= 0 || settings.FiscalYearStartMonth > 12 {
 		settings.FiscalYearStartMonth = 1
 	}
+	settings.NormalizeAddress()
+	settings.ResolveTaxNumberElster()
 	settings.InGruendung = r.inGruendung(ctx)
 	shareholders := []domain.CompanyShareholder{}
 	if err := dbFrom(ctx, r.db).Order("position").Find(&shareholders).Error; err != nil {
@@ -239,9 +257,12 @@ func receiptFormatOrDefault(format string) (string, error) {
 }
 
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
+	s.FederalState = strings.ToUpper(strings.TrimSpace(s.FederalState))
+	s.NormalizeAddress()
 	if err := s.ValidateProfile(); err != nil {
 		return err
 	}
+	s.ResolveTaxNumberElster()
 	countryCode := strings.ToUpper(strings.TrimSpace(s.CountryCode))
 	if countryCode == "" {
 		countryCode = domain.DefaultCountryCode
@@ -330,6 +351,15 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"receipt_capture_days": strconv.Itoa(captureDays),
 		"commit_grace_days":    strconv.Itoa(graceDays),
 	}
+	// Hausnummer, Land, Steuerberater und Ausschlussmerkmale.
+	kv["house_number"] = s.HouseNumber
+	kv["federal_state"] = s.FederalState
+	kv["tax_advisor_engaged"] = strconv.FormatBool(s.TaxAdvisor.Engaged)
+	kv["tax_advisor_since_year"] = strconv.Itoa(s.TaxAdvisor.SinceYear)
+	kv["tax_advisor_declarations"] = strings.Join(s.TaxAdvisor.Declarations, ",")
+	kv["non_profit"] = strconv.FormatBool(s.NonProfit)
+	kv["in_liquidation"] = strconv.FormatBool(s.InLiquidation)
+	kv["fiscal_unity"] = strconv.FormatBool(s.FiscalUnity)
 	// Der Prüfvermerk am Eingangsbeleg ist eine Festlegung des internen
 	// Kontrollsystems, die der Anwender trifft — und die nur ändert, wer sie
 	// mitschickt.
@@ -376,6 +406,17 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		return r.replaceShareholders(ctx, s.Shareholders)
 	}
 	return nil
+}
+
+// splitList liest eine kommagetrennte Liste; leere Einträge fallen weg.
+func splitList(value string) []string {
+	out := []string{}
+	for _, part := range strings.Split(value, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func (r *settingsRepositoryGorm) replaceShareholders(ctx context.Context, shareholders []domain.CompanyShareholder) error {
