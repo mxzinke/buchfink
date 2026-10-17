@@ -3,8 +3,10 @@ name: Release
 # Ein Tag vX.Y.Z baut die App für Linux, Windows und macOS, die Brücke
 # buchfink-mcp, die Erweiterung für Claude Desktop und die Skill-Pakete und
 # veröffentlicht sie als GitHub-Release; ein Tag mit Zusatz wie -rc.1 als
-# Vorabversion. Signiert wird nichts, die macOS-App bekommt nur die
-# Ad-hoc-Signatur aus build/darwin/Taskfile.yml.
+# Vorabversion. Veröffentlicht wird nur, wenn die Prüfungen aus ci.yml und
+# ebilanz-xsd.yml grün sind und jede Datei vorliegt, auf die Anleitungen und
+# Webseite unter releases/latest/download/ verweisen. Signiert wird nichts,
+# die macOS-App bekommt nur die Ad-hoc-Signatur aus build/darwin/Taskfile.yml.
 #
 # Vor dem Tag: python3 scripts/version.py set X.Y.Z, Eintrag
 # „## vX.Y.Z — JJJJ-MM-TT“ in internal/changelog/CHANGELOG.md. Der Job
@@ -29,6 +31,14 @@ env:
   MCPB_VERSION: 2.1.2
 
 jobs:
+  ci:
+    name: Prüfungen
+    uses: ./.github/workflows/ci.yml
+
+  ebilanz-xsd:
+    name: E-Bilanz-Schemata
+    uses: ./.github/workflows/ebilanz-xsd.yml
+
   version:
     name: Fassung prüfen
     runs-on: ubuntu-24.04
@@ -200,14 +210,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # skills/ und scripts/package_skills.py kommen mit dem Claude-Plugin.
-      # Fehlen sie, entsteht kein Paket und der Release läuft ohne.
+      # Die Anleitungen unter docs/nutzung/ki-agenten verlinken die Pakete.
       - name: Packen
         run: |
           mkdir -p dist
           if [ ! -d skills ] || [ ! -f scripts/package_skills.py ]; then
-            echo "skills/ oder scripts/package_skills.py fehlt, keine Skill-Pakete."
-            exit 0
+            echo "::error::skills/ oder scripts/package_skills.py fehlt."
+            exit 1
           fi
           SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
             python3 scripts/package_skills.py --out "$RUNNER_TEMP/skills"
@@ -217,17 +226,19 @@ jobs:
         with:
           name: asset-skills
           path: dist/
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   release:
     name: GitHub-Release
-    needs: [version, app, mcp, skills]
+    needs: [ci, ebilanz-xsd, version, app, mcp, skills]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           pattern: asset-*
@@ -243,6 +254,17 @@ jobs:
         run: |
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
+
+      - name: Verlinkte Dateien vorhanden
+        run: |
+          status=0
+          for file in $(git grep -hoE 'releases/latest/download/[A-Za-z0-9._-]+' -- '*.md' '*.html' | sed -e 's|.*/||' -e 's/\.*$//' | sort -u); do
+            if [ ! -f "dist/$file" ]; then
+              echo "::error::Verlinkt, aber nicht im Release: $file"
+              status=1
+            fi
+          done
+          exit $status
 
       - name: Veröffentlichen
         env:

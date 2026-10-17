@@ -1,10 +1,12 @@
 name: CI
 
+# Der Release-Workflow ruft diese Prüfungen vor dem Veröffentlichen auf.
 on:
   push:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -116,33 +118,3 @@ jobs:
           node scripts/check_help.mjs || status=1
           python3 scripts/version.py check || status=1
           exit $status
-
-  ebilanz-xsd:
-    name: E-Bilanz gegen die amtlichen Schemata
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Task installieren
-        run: go install "github.com/go-task/task/v3/cmd/task@$TASK_VERSION"
-
-      # Die Prüfsummen stehen im Skript; ändert es sich, lädt der Job neu.
-      - name: Taxonomiepakete aus dem Cache
-        uses: actions/cache@v6
-        with:
-          path: .cache/ebilanz-xsd/download
-          key: ebilanz-xsd-${{ hashFiles('scripts/ebilanz_schemas.sh') }}
-
-      - name: Schemaprüfung 6.9 und 6.10
-        run: task test:ebilanz-xsd
