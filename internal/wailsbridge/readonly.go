@@ -35,8 +35,6 @@ import (
 // Mandanten, die keine Buchung berührt. Der Export gehört
 // ausdrücklich dazu: er ist der Zweck des Modus.
 var readOnlyAllowed = map[string]bool{
-	// Lesen und Auswerten
-	"GetAccountByNumber": true,
 	// Welle 5c: die Auswertungen der steuerlichen Nebenpflichten. Sie lesen und
 	// rechnen. GetExchangeRate und PreviewCurrencyValuation holen im laufenden
 	// Betrieb einen fehlenden Kurs und legen ihn ab; im Prüfermodus schalten
@@ -48,36 +46,30 @@ var readOnlyAllowed = map[string]bool{
 	// und rechnen; GetReceiptFindings liest den Beleg über ReceiptService.Get,
 	// der ein fehlendes Siegel repariert — eine Reparatur an den eigenen Daten
 	// und keine Änderung der Buchführung, die der Prüfer sieht; sie steht im
-	// Änderungsprotokoll wie jede andere. GetFilteredJournalCSV und
-	// SaveFilteredJournalCSV geben Journalzeilen heraus und protokollieren das
-	// als Zugriff (QUE-02 K2); auch sie nehmen deshalb die Schreibsperre.
+	// Änderungsprotokoll wie jede andere. SaveFilteredJournalCSV gibt
+	// Journalzeilen heraus und protokolliert das als Zugriff (QUE-02 K2); auch
+	// es nimmt deshalb die Schreibsperre.
 	"GetEntriesForReceipt":            true,
 	"GetReceiptFindings":              true,
 	"GetRetentionRules":               true,
-	"GetVatRatePeriods":               true,
 	"GetVatPeriodProposal":            true,
 	"GetCustomAccounts":               true,
 	"GetStatementPositions":           true,
 	"GetFilteredJournal":              true,
-	"GetFilteredJournalCSV":           true,
 	"SaveFilteredJournalCSV":          true,
 	"GetExchangeRate":                 true,
 	"GetExchangeRates":                true,
 	"PreviewCurrencyValuation":        true,
 	"GetInputTaxCorrections":          true,
-	"GetNonDeductibleCategories":      true,
 	"GetNonDeductibleReport":          true,
 	"GetPoolConsistencyReport":        true,
-	"GetServiceEndpoints":             true,
 	"GetVatExchangeRates":             true,
 	"GetVatIDChecks":                  true,
 	"GetVatIDStatus":                  true,
 	"GetWriteUpReport":                true,
-	"PreviewInputTaxCorrection":       true,
 	"GetExemptionCertificateWarnings": true,
 	"GetClosingSettings":              true,
 	"GetAccountLedger":                true,
-	"GetAccountLedgerRange":           true,
 	"GetAccounts":                     true,
 	"GetActiveTenant":                 true,
 	"GetAllJournalEntries":            true,
@@ -86,8 +78,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetAssetAccounts":                true,
 	"GetAssetAcquisitionCandidates":   true,
 	"GetAssetRules":                   true,
-	"GetAssetSummary":                 true,
-	"GetAuditLogs":                    true,
 	"GetAvailableFiscalYears":         true,
 	"GetBackupRuns":                   true,
 	"GetBankTransactions":             true,
@@ -115,7 +105,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetOpeningBalance":               true,
 	// Mandantenverzeichnis, Rechnungswesen und Nachschlagewerte
 	"ValidateTenantDirectory":        true,
-	"GetInvestmentNoteForIncome":     true,
 	"GetAdvanceTargets":              true,
 	"GetInvoiceGroups":               true,
 	"GetOpenVendorAdvances":          true,
@@ -128,33 +117,26 @@ var readOnlyAllowed = map[string]bool{
 	"GetInvoiceDocument":             true,
 	"GetInvoices":                    true,
 	"GetJournalEntries":              true,
-	"GetKeyDirectory":                true,
 	"GetLegalForms":                  true,
 	"GetOpenItems":                   true,
 	"GetOpenItemsAt":                 true,
 	"GetPaymentAccounts":             true,
 	"GetPaymentAllocations":          true,
 	"GetPostingGroups":               true,
-	"GetProgramVersion":              true,
-	"GetReceipt":                     true,
 	"GetReceiptPreview":              true,
 	"GetReceipts":                    true,
 	"GetRecommendedVatPeriod":        true,
-	"GetSKR04Catalog":                true,
 	"GetSammelposten":                true,
 	"GetSizeClass":                   true,
 	"GetSpecialPrepaymentSuggestion": true,
 	"GetStatement":                   true,
-	"GetStatementDeadlines":          true,
 	"GetSuSaOverview":                true,
 	"GetSuSaOverviewAt":              true,
 	"GetTaxTreatments":               true,
 	"GetTenants":                     true,
-	"GetUncheckedEInvoiceRules":      true,
 	"GetVatPeriods":                  true,
 	"GetVatReturn":                   true,
 	"GetVatReturns":                  true,
-	"GetVatSummary":                  true,
 	"GetZMPeriods":                   true,
 	"GetZMReturn":                    true,
 	"GetZMReturns":                   true,
@@ -163,18 +145,17 @@ var readOnlyAllowed = map[string]bool{
 	// Verzeichnis und Anhang. Lesen und rechnen sie nur, bleiben sie
 	// im Prüfermodus offen — gerade das Verzeichnis nach § 5 Abs. 1 Satz 2
 	// EStG und die Überleitung sind das, wonach ein Prüfer als Erstes fragt.
-	"GetAccrualReport":              true,
-	"GetAccruals":                   true,
-	"GetAppropriation":              true,
-	"GetClosingSteps":               true,
-	"GetDiscountRateMonths":         true,
-	"GetDiscountRates":              true,
-	"GetLegacySpecialDepreciations": true,
-	"GetNotesTexts":                 true,
-	"GetProvisionMirror":            true,
-	"GetProvisions":                 true,
-	"GetReconciliation":             true,
-	"GetTaxElectionRegister":        true,
+	"GetAccrualReport":       true,
+	"GetAccruals":            true,
+	"GetAppropriation":       true,
+	"GetClosingSteps":        true,
+	"GetDiscountRateMonths":  true,
+	"GetDiscountRates":       true,
+	"GetNotesTexts":          true,
+	"GetProvisionMirror":     true,
+	"GetProvisions":          true,
+	"GetReconciliation":      true,
+	"GetTaxElectionRegister": true,
 
 	// Rechnen, ohne zu buchen
 	"ClassifyAcquisition":       true,
@@ -202,7 +183,6 @@ var readOnlyAllowed = map[string]bool{
 	"ExportEBilanzXBRL":            true,
 	"ExportOpeningBalanceXBRL":     true,
 	"ExportJournalCSV":             true,
-	"ExportKeyDirectory":           true,
 	"ExportStatementCSV":           true,
 	"ExportStatementPDF":           true,
 	"ExportVatReturnCSV":           true,
@@ -223,7 +203,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetAuditLogsFiltered":        true,
 	"GetChangeLog":                true,
 	"GetComplianceHints":          true,
-	"GetCorrectionOf":             true,
 	"GetMigrationRecords":         true,
 	"GetOpenItemsAging":           true,
 	"GetOrganisationTextDefaults": true,
@@ -235,7 +214,7 @@ var readOnlyAllowed = map[string]bool{
 	"VerifyAuditChain":            true,
 
 	// Die Bedienung der Welle 7. Aufgabenliste, Monatsabschluss,
-	// Zuordnungsvorschlag, Mahnvorschlag, Basiszinssatz und Prüfpfad lesen und
+	// Zuordnungsvorschlag und Prüfpfad lesen und
 	// rechnen — gebucht und geschrieben wird an keiner dieser Stellen. Gerade
 	// der Prüfpfad gehört in den Prüfermodus: er ist die Antwort auf die Frage,
 	// die eine Prüfung stellt.
@@ -243,9 +222,6 @@ var readOnlyAllowed = map[string]bool{
 	"GetMonthCloseState":   true,
 	"SuggestBankMatches":   true,
 	"GetBankRules":         true,
-	"GetDunningProposals":  true,
-	"GetDunningNotices":    true,
-	"GetBaseRates":         true,
 	"GetAuditTrail":        true,
 	"ExportAuditTrail":     true,
 	"GetPaymentTermNotice": true,
@@ -272,7 +248,6 @@ var readOnlyAllowed = map[string]bool{
 	"CreateTenant":         true,
 	"GetBankAccounts":      true,
 	"PreviewBankStatement": true,
-	"ImportTenant":         true,
 	"LoadExistingDatabase": true,
 	"RestoreFromBackup":    true,
 	"SetupApplication":     true,
@@ -409,9 +384,6 @@ func (b *BuchfinkBridge) DisableReadOnly(reason string) (domain.AppConfig, error
 	}
 	return b.appConfig, nil
 }
-
-// GetProgramVersion liefert die Fassung des laufenden Programms.
-func (b *BuchfinkBridge) GetProgramVersion() string { return programVersion() }
 
 // formatGermanDate macht aus 2026-06-30 den 30.06.2026.
 func formatGermanDate(iso string) string {

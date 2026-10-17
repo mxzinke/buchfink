@@ -1385,7 +1385,7 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
-	env.setSetting(t, "legal_form", "Unternehmergesellschaft (haftungsbeschränkt)")
+	env.setSetting(t, "legal_form", domain.LegalFormUG)
 
 	profit := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",

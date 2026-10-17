@@ -555,9 +555,8 @@ func taxKeysTable() (export.Table, error) {
 
 // keyDirectoryTable ist das Schlüsselverzeichnis nach GoBD Rz. 95.
 //
-// Es ist die eine Quelle: dieselbe Tabelle geht in die Überlassung, in die
-// Feldbeschreibung und in den Einzelexport „Schlüsselverzeichnis“. Drei Listen
-// desselben Inhalts wären drei Gelegenheiten, einen Code zu vergessen.
+// Es ist die eine Quelle: dieselbe Tabelle geht in die Überlassung und in die
+// Feldbeschreibung.
 func keyDirectoryTable() (export.Table, error) {
 	t := newTable(tableKeyDirectory, "schluesselverzeichnis.csv",
 		"Alle in den Tabellen verwendeten Codes mit ihrer Bedeutung im Klartext (GoBD Rz. 95).",

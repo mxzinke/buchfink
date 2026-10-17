@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"log"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/wailsbridge"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -22,7 +21,7 @@ func main() {
 
 	app := application.New(application.Options{
 		Name:        "Buchfink",
-		Description: "Open-Source-Buchhaltung für kleine Unternehmen (SKR04, GoBD-konform, E-Bilanz)",
+		Description: "Open-Source-Buchhaltung für GmbH und UG (SKR04, GoBD-konform, E-Bilanz)",
 		Services: []application.Service{
 			application.NewService(bridge),
 		},
@@ -46,14 +45,6 @@ func main() {
 		BackgroundColour: application.NewRGB(250, 249, 246),
 		URL:              "/",
 	})
-
-	go func() {
-		for {
-			now := time.Now().Format("15:04:05")
-			app.Event.Emit("tick", now)
-			time.Sleep(10 * time.Second)
-		}
-	}()
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

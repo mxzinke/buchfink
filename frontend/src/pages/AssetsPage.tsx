@@ -25,7 +25,6 @@ import {
   InvestmentRules,
   InvestmentTaxNote,
   JournalLine,
-  LegacySpecialDepreciationNotice,
   PoolConsistencyReport,
   TaxElectionRegister,
   Vorabpauschale,
@@ -1063,7 +1062,6 @@ const SpiegelTab: React.FC<{
  */
 const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
   const [register, setRegister] = useState<TaxElectionRegister | null>(null);
-  const [legacy, setLegacy] = useState<LegacySpecialDepreciationNotice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -1075,11 +1073,10 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
     let cancelled = false;
     setLoading(true);
     setError('');
-    Promise.all([Api.getTaxElectionRegister(year), Api.getLegacySpecialDepreciations()])
-      .then(([nextRegister, nextLegacy]) => {
+    Api.getTaxElectionRegister(year)
+      .then((nextRegister) => {
         if (cancelled) return;
         setRegister(nextRegister);
-        setLegacy(nextLegacy);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -1109,7 +1106,6 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
   if (loading) return <SkeletonRows rows={6} />;
 
   const rows = register?.rows ?? [];
-  const legacyRows = legacy?.rows ?? [];
 
   return (
     <div className="space-y-6">
@@ -1240,57 +1236,6 @@ const TaxRegisterTab: React.FC<{ year: number }> = ({ year }) => {
           </Table>
         )}
       </Section>
-
-      {legacyRows.length > 0 && (
-        <Section helpSummary="Hier sehen Sie Sonderabschreibungen, die mit einer früheren Programmversion gebucht wurden."
-          title="Sonderabschreibungen aus früheren Jahren"
-          context="Früher gebuchte Sonderabschreibungen"
-          explain={
-            <>
-              Bis zu dieser Fassung hat Buchfink die Sonderabschreibung nach § 7g Abs. 5 EStG im
-              Journal gebucht. Gebuchtes wird nicht gelöscht (§ 239 Abs. 3 HGB), diese Buchungen
-              bleiben also stehen. Im Verzeichnis erscheinen sie nicht ein zweites Mal: dort steht
-              nur, was allein steuerlich festgehalten wurde.
-            </>
-          }
-        >
-          <Table density="kompakt">
-            <Thead>
-              <Tr>
-                <Th className="w-24">Inventar-Nr.</Th>
-                <Th>Wirtschaftsgut</Th>
-                <Th className="w-20">Jahr</Th>
-                <Th className="w-28">Datum</Th>
-                <Th className="w-24">Konto</Th>
-                <Th className="w-28">Buchung</Th>
-                <Th numeric className="w-32">Betrag</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {legacyRows.map((row, index) => (
-                <Tr key={`${row.assetId}-${row.date}-${index}`}>
-                  <Td code>{row.inventoryNumber}</Td>
-                  <Td className="whitespace-normal">{row.name}</Td>
-                  <Td className="num">{row.fiscalYear}</Td>
-                  <Td className="num text-ink-subtle">{formatDate(row.date)}</Td>
-                  <Td code>{row.expenseAccount}</Td>
-                  <Td code>{row.entryNumber || '—'}</Td>
-                  <Td numeric>{formatCents(row.amount)}</Td>
-                </Tr>
-              ))}
-              <Tr variant="sum">
-                <Td>Summe</Td>
-                <Td />
-                <Td />
-                <Td />
-                <Td />
-                <Td />
-                <Td numeric>{formatCents(legacy?.total ?? 0)}</Td>
-              </Tr>
-            </Tbody>
-          </Table>
-        </Section>
-      )}
     </div>
   );
 };

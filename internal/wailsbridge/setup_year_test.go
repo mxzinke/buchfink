@@ -10,7 +10,7 @@ import (
 )
 
 // Regression coverage for the year selected during setup.
-func TestBugHuntCreateTenantRespectsSelectedYear(t *testing.T) {
+func TestCreateTenantRespectsSelectedYear(t *testing.T) {
 	base := t.TempDir()
 	current := time.Now().Year()
 	selected := current - 1

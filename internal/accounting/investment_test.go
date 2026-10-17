@@ -16,15 +16,13 @@ func TestPartialExemptionFollowsFundAndInvestor(t *testing.T) {
 		want     int
 	}{
 		{FundEquity, domain.InvestorCorporate, 800},
-		{FundEquity, domain.InvestorIndividualBusiness, 600},
 		{FundEquity, domain.InvestorBasic, 300},
 		{FundMixed, domain.InvestorCorporate, 400},
-		{FundMixed, domain.InvestorIndividualBusiness, 300},
 		{FundMixed, domain.InvestorBasic, 150},
 		// Die Immobilienteilfreistellung hängt nicht vom Anleger ab.
 		{FundRealEstate, domain.InvestorCorporate, 600},
 		{FundRealEstate, domain.InvestorBasic, 600},
-		{FundForeignRealEstate, domain.InvestorIndividualBusiness, 800},
+		{FundForeignRealEstate, domain.InvestorCorporate, 800},
 		{FundOther, domain.InvestorCorporate, 0},
 	}
 	for _, c := range cases {
@@ -42,8 +40,8 @@ func TestPartialExemptionFollowsFundAndInvestor(t *testing.T) {
 	}
 }
 
-// Aus der Rechtsform folgt der Satz nicht. Ist die Anlegerstellung nicht
-// festgelegt, rechnet Buchfink nicht — es sagt, was zu entscheiden ist.
+// Ist die Anlegerstellung nicht bekannt, rechnet Buchfink nicht — es sagt, was
+// fehlt.
 func TestPartialExemptionRefusesToGuessTheInvestor(t *testing.T) {
 	_, err := PartialExemptionFor(FundEquity, domain.InvestorUnknown)
 	if err == nil {
@@ -51,16 +49,6 @@ func TestPartialExemptionRefusesToGuessTheInvestor(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Rechtsform") {
 		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
-	}
-
-	// Bei einer Personengesellschaft mit gemischt besteuerten Gesellschaftern
-	// gibt es keinen einzigen Satz (§ 20 Abs. 3a InvStG).
-	_, err = PartialExemptionFor(FundEquity, domain.InvestorMixed)
-	if err == nil {
-		t.Fatal("für eine gemischt besteuerte Personengesellschaft gibt es keinen einheitlichen Satz")
-	}
-	if !strings.Contains(err.Error(), "3a") {
-		t.Errorf("die Meldung nennt die Fundstelle nicht: %v", err)
 	}
 
 	// Für einen Einzeltitel gibt es sie überhaupt nicht.

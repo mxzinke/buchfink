@@ -222,7 +222,7 @@ func (s *InvoiceService) prepareForIssue(
 	}
 	// Der Verzugshinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB steht bei
 	// einem Verbraucher auf dem Dokument (invoice.ConsumerDefaultNotice).
-	// Festgehalten wird das an der Rechnung, weil das Mahnwesen es später
+	// Festgehalten wird das an der Rechnung, weil die Verzugsrechnung es später
 	// braucht: ohne den Hinweis gibt es gegenüber einem Verbraucher keinen
 	// Verzug nach dreißig Tagen, und für die Rechnungen aus der Zeit davor
 	// darf keine spätere Einstellung ihn behaupten.

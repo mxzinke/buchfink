@@ -9,7 +9,7 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss, Mahnwesen,
+// Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss,
 // Zuordnungsvorschlag und Prüfpfad.
 //
 // Sie stehen in einer eigenen Datei, weil sie eine Sache sind: die Antwort auf
@@ -105,75 +105,6 @@ func (b *BuchfinkBridge) DeleteBankRule(id uint) error {
 		return fmt.Errorf("der Bankimport ist noch nicht eingerichtet")
 	}
 	return b.bankSvc.DeleteRule(context.Background(), id)
-}
-
-// --- Mahnwesen ------------------------------------------------------------
-
-// GetDunningProposals liefert die Mahnvorschläge je Kunde.
-func (b *BuchfinkBridge) GetDunningProposals() ([]service.DunningProposal, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.dunningSvc == nil {
-		return []service.DunningProposal{}, nil
-	}
-	return emptyList(b.dunningSvc.Proposals(context.Background(), ""))
-}
-
-// CreateDunningNotices erzeugt die Mahnschreiben der ausgewählten Kunden.
-func (b *BuchfinkBridge) CreateDunningNotices(req service.DunningRunRequest) ([]domain.DunningNotice, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return []domain.DunningNotice{}, err
-	}
-	if b.dunningSvc == nil {
-		return []domain.DunningNotice{}, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
-	}
-	notices, err := b.dunningSvc.CreateMany(context.Background(), req)
-	if notices == nil {
-		notices = make([]domain.DunningNotice, 0)
-	}
-	for i := range notices {
-		notices[i].EnsureLists()
-	}
-	return notices, err
-}
-
-// GetDunningNotices liefert die Mahnschreiben eines Kunden; 0 heißt: alle.
-func (b *BuchfinkBridge) GetDunningNotices(contactID uint) ([]domain.DunningNotice, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.dunningSvc == nil {
-		return []domain.DunningNotice{}, nil
-	}
-	return emptyList(b.dunningSvc.Notices(context.Background(), contactID))
-}
-
-// GetBaseRates liefert die Basiszinssätze nach § 247 BGB.
-func (b *BuchfinkBridge) GetBaseRates() ([]domain.BaseRate, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.dunningSvc == nil {
-		return []domain.BaseRate{}, nil
-	}
-	return emptyList(b.dunningSvc.BaseRates(context.Background()))
-}
-
-// SaveBaseRate trägt einen bekanntgegebenen Basiszinssatz nach.
-//
-// basisPoints ist der Satz in Hundertsteln eines Prozentpunktes: 152 sind
-// 1,52 %. Ganzzahlig, weil eine Gleitkommazahl über die Brücke die Zinsrechnung
-// um Cents verschöbe.
-func (b *BuchfinkBridge) SaveBaseRate(validFrom string, basisPoints int) ([]domain.BaseRate, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return []domain.BaseRate{}, err
-	}
-	if b.dunningSvc == nil {
-		return []domain.BaseRate{}, fmt.Errorf("das Mahnwesen ist noch nicht eingerichtet")
-	}
-	return emptyList(b.dunningSvc.SaveBaseRate(context.Background(), validFrom, basisPoints))
 }
 
 // --- Prüfpfad und Leistungsnachweis ---------------------------------------

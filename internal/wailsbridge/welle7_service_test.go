@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/buchfink/buchfink/internal/service"
 )
 
 // Die Bedienung der Welle 7 antwortet auch dann, wenn ihre Dienste fehlen.
@@ -35,18 +33,6 @@ func TestWelle7BridgeAnswersWithEmptyListsWithoutServices(t *testing.T) {
 	rules, err := b.GetBankRules()
 	if err != nil || rules == nil {
 		t.Errorf("Bankregeln: %v (%v)", rules, err)
-	}
-	proposals, err := b.GetDunningProposals()
-	if err != nil || proposals == nil {
-		t.Errorf("Mahnvorschläge: %v (%v)", proposals, err)
-	}
-	notices, err := b.GetDunningNotices(0)
-	if err != nil || notices == nil {
-		t.Errorf("Mahnverlauf: %v (%v)", notices, err)
-	}
-	rates, err := b.GetBaseRates()
-	if err != nil || rates == nil {
-		t.Errorf("Basiszinssätze: %v (%v)", rates, err)
 	}
 
 	suggestions, err := b.SuggestBankMatches(1)
@@ -80,16 +66,8 @@ func TestWelle7BridgeRespectsTheReadOnlyMode(t *testing.T) {
 	if err := b.DeleteBankRule(1); err == nil || !strings.Contains(err.Error(), "Prüfermodus") {
 		t.Errorf("das Löschen einer Bankregel muss abgewiesen werden: %v", err)
 	}
-	if _, err := b.SaveBaseRate("2026-07-01", 152); err == nil ||
-		!strings.Contains(err.Error(), "Prüfermodus") {
-		t.Errorf("das Nachtragen eines Basiszinssatzes muss abgewiesen werden: %v", err)
-	}
 	if _, err := b.SaveServiceProof(1, "geprüft", "2026-03-20"); err == nil ||
 		!strings.Contains(err.Error(), "Prüfermodus") {
 		t.Errorf("der Leistungsnachweis muss abgewiesen werden: %v", err)
-	}
-	if _, err := b.CreateDunningNotices(service.DunningRunRequest{ContactIDs: []uint{1}}); err == nil ||
-		!strings.Contains(err.Error(), "Prüfermodus") {
-		t.Errorf("das Erzeugen eines Mahnschreibens muss abgewiesen werden: %v", err)
 	}
 }

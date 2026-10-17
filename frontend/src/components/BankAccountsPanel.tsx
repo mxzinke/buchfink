@@ -115,7 +115,7 @@ export const BankAccountsPanel: React.FC<BankAccountsPanelProps> = ({
         <>
           Buchfink legt ein Bankkonto an, sobald Sie einen Kontoauszug einlesen, und erkennt es
           später an der IBAN wieder. Das Konto für Rechnungen liefert IBAN, BIC und Kreditinstitut
-          für Rechnungen, E-Rechnungen und Mahnschreiben. Ohne ein solches Konto enthalten Ihre
+          für Rechnungen und E-Rechnungen. Ohne ein solches Konto enthalten Ihre
           Rechnungen keine Zahlungsverbindung.
         </>
       }

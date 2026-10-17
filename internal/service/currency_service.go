@@ -36,15 +36,6 @@ type CurrencyService struct {
 	storedOnly bool
 }
 
-// SettingExchangeRateEndpoint ist der Schlüssel der einstellbaren Adresse des
-// Kursdienstes — das Gegenstück zu SettingVatIDEndpoint.
-//
-// Als Konstante und nicht als Zeichenkette an der einen Stelle, an der sie
-// gelesen wird: die Oberfläche stellt beide Adressen ein, und ein Schlüssel, den
-// sie raten muss, geht irgendwann an der Einstellung vorbei — ohne dass es
-// jemandem auffiele, weil ein fehlender Wert die Voreinstellung bedeutet.
-const SettingExchangeRateEndpoint = "exchange_rate_endpoint"
-
 // ReadOnly liefert denselben Dienst, der keinen Kurs mehr holt und keinen mehr
 // speichert.
 //

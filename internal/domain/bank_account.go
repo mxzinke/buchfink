@@ -14,8 +14,8 @@ type BankAccount struct {
 	Currency      string `gorm:"size:3" json:"currency"`
 	BIC           string `gorm:"size:11" json:"bic"`
 	BankName      string `gorm:"size:120" json:"bankName"`
-	// IsInvoiceAccount markiert das Konto, dessen Verbindung auf Rechnungen und
-	// Mahnschreiben steht. Höchstens ein Konto trägt die Markierung.
+	// IsInvoiceAccount markiert das Konto, dessen Verbindung auf Rechnungen
+	// steht. Höchstens ein Konto trägt die Markierung.
 	IsInvoiceAccount bool `gorm:"not null;default:false" json:"isInvoiceAccount"`
 }
 

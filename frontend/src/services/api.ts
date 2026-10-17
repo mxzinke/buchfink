@@ -25,7 +25,6 @@ import type {
   AssetDetail,
   AssetRules,
   AssetScheduleYear,
-  AssetSummary,
   AuditChainResult,
   AuditTrail,
   AuditFilter,
@@ -34,7 +33,6 @@ import type {
   BankAccount,
   Country,
   BankImportPreview,
-  BaseRate,
   BankRule,
   BankSuggestions,
   BankTransaction,
@@ -53,9 +51,6 @@ import type {
   CustomAccountRequest,
   CurrencyValuation,
   Deadline,
-  DunningNotice,
-  DunningProposal,
-  DunningRunRequest,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -91,7 +86,6 @@ import type {
   InputTaxCorrectionYear,
   IntegrityCheckResult,
   InvestmentRules,
-  InvestmentTaxNote,
   Invoice,
   InvoiceGroup,
   InvoiceSentVia,
@@ -99,14 +93,11 @@ import type {
   JournalEntry,
   JournalFilter,
   JournalFilterResult,
-  KeyDirectoryEntry,
-  LegacySpecialDepreciationNotice,
   LegalFormInfo,
   ManualEntryRequest,
   MappingReport,
   MigrationRecord,
   MonthCloseState,
-  NonDeductibleCategory,
   NonDeductibleReport,
   NotesSection,
   NotesSectionText,
@@ -146,7 +137,6 @@ import type {
   SaveInputTaxUsageRequest,
   SchemaMigration,
   SelfIssuedReceiptRequest,
-  ServiceEndpoints,
   SettleAdvanceRequest,
   Settlement,
   SizeClass,
@@ -165,17 +155,14 @@ import type {
   TenantConfig,
   UnitCode,
   Units,
-  ValidationResult,
   VatExchangeRate,
   VatIDCheck,
   VatIDStatus,
   VatPeriodStatus,
   VatPeriodProposal,
   VatRateImport,
-  VatRatePeriod,
   VatReturn,
   VatSettlement,
-  VatSummary,
   VendorAdvance,
   Vorabpauschale,
   WriteOffRequest,
@@ -480,8 +467,6 @@ export const Api = {
   switchTenant: (tenantId: string): Promise<void> => call(() => Bridge.SwitchTenant(tenantId) as Promise<void>),
   createTenant: (name: string, dataDir: string, settings: CompanySettings): Promise<TenantConfig> =>
     call(() => Bridge.CreateTenant(name, dataDir, settings as any) as Promise<TenantConfig>),
-  importTenant: (dbFilePath: string): Promise<TenantConfig> =>
-    call(() => Bridge.ImportTenant(dbFilePath) as Promise<TenantConfig>),
   deleteTenant: (tenantId: string): Promise<void> => call(() => Bridge.DeleteTenant(tenantId) as Promise<void>),
 
   // --- Einrichtung -------------------------------------------------------
@@ -515,17 +500,12 @@ export const Api = {
   // --- Konten ------------------------------------------------------------
 
   getAccounts: (): Promise<Account[]> => call(() => Bridge.GetAccounts() as Promise<Account[]>),
-  getAccountByNumber: (number: string): Promise<Account> =>
-    call(() => Bridge.GetAccountByNumber(number) as Promise<Account>),
   getAccountLedger: (accountNumber: string): Promise<AccountLedger> =>
     call(() => Bridge.GetAccountLedger(accountNumber) as Promise<AccountLedger>),
   getSuSaOverview: (): Promise<SuSaOverview> => call(() => Bridge.GetSuSaOverview() as Promise<SuSaOverview>),
   /** Summen- und Salden zu einem Stichtag. Leerer Stichtag heißt: ganzes Jahr. */
   getSuSaOverviewAt: (cutoff = ''): Promise<SuSaOverview> =>
     call(() => Bridge.GetSuSaOverviewAt(cutoff) as Promise<SuSaOverview>),
-  /** Kontoblatt eines Zeitraums über die Geschäftsjahre hinweg. */
-  getAccountLedgerRange: (accountNumber: string, from = '', to = ''): Promise<AccountLedger> =>
-    call(() => Bridge.GetAccountLedgerRange(accountNumber, from, to) as Promise<AccountLedger>),
   getPaymentAccounts: (): Promise<Account[]> => call(() => Bridge.GetPaymentAccounts() as Promise<Account[]>),
 
   /** Der SKR04-Katalog ist statisch und liegt dem Frontend als Datei bei. */
@@ -546,8 +526,6 @@ export const Api = {
     call(() => Bridge.GetJournalEntries() as Promise<JournalEntry[]>).then(list),
   getAllJournalEntries: (): Promise<JournalEntry[]> =>
     call(() => Bridge.GetAllJournalEntries() as Promise<JournalEntry[]>).then(list),
-  postJournalEntry: (entry: Partial<JournalEntry>): Promise<JournalEntry> =>
-    call(() => Bridge.PostJournalEntry(entry as any) as Promise<JournalEntry>),
   postIncomingReceipt: (request: ReceiptRequest): Promise<JournalEntry> =>
     call(() => Bridge.PostIncomingReceipt(request as any) as Promise<JournalEntry>),
   /** Der Buchungssatz, wie er gebucht würde. Das Frontend rechnet ihn nicht nach. */
@@ -578,7 +556,6 @@ export const Api = {
     call(() => Bridge.RemoveReceiptFile(receiptId, fileId) as Promise<Receipt>),
   getReceipts: (status: ReceiptStatus | '' = ''): Promise<Receipt[]> =>
     call(() => Bridge.GetReceipts(status) as Promise<Receipt[]>).then(list),
-  getReceipt: (id: number): Promise<Receipt> => call(() => Bridge.GetReceipt(id) as Promise<Receipt>),
   discardReceipt: (id: number, reason: string): Promise<void> =>
     call(() => Bridge.DiscardReceipt(id, reason)),
   getReceiptPreview: (receiptId: number): Promise<ReceiptPreview> =>
@@ -589,14 +566,8 @@ export const Api = {
   /** Buchungsvorschlag aus dem strukturierten Teil. Das Konto bleibt offen. */
   proposeFromEInvoice: (receiptId: number): Promise<EInvoiceProposal> =>
     call(() => Bridge.ProposeFromEInvoice(receiptId) as Promise<EInvoiceProposal>),
-  /** Prüft den strukturierten Teil erneut. Das Regelwerk ist versioniert. */
-  validateEInvoice: (receiptId: number): Promise<ValidationResult> =>
-    call(() => Bridge.ValidateEInvoice(receiptId) as Promise<ValidationResult>),
   /** Die Regeln, die Buchfink prüft — der Prüfumfang ist Teil des Ergebnisses. */
   getEInvoiceRules: (): Promise<string[]> => call(() => Bridge.GetEInvoiceRules()),
-  /** Die Regeln, die Buchfink nicht prüft, je mit Begründung. */
-  getUncheckedEInvoiceRules: (): Promise<Record<string, string>> =>
-    call(() => Bridge.GetUncheckedEInvoiceRules()),
   /**
    * Schreibt eine Belegdatei unter ihrem Originalnamen an einen gewählten Ort.
    * Leerer Pfad heißt: der Dialog wurde abgebrochen.
@@ -612,8 +583,6 @@ export const Api = {
     call(() => Bridge.VerifyIntegrity() as Promise<IntegrityCheckResult>).then(normalizeIntegrity),
   getFinancialSummary: (): Promise<FinancialSummary> =>
     call(() => Bridge.GetFinancialSummary() as Promise<FinancialSummary>),
-  getVatSummary: (from = '', to = ''): Promise<VatSummary> =>
-    call(() => Bridge.GetVatSummary(from, to) as Promise<VatSummary>),
 
   // --- Bank & Zahlungen --------------------------------------------------
 
@@ -661,7 +630,6 @@ export const Api = {
     call(() => Bridge.GetContacts() as Promise<Contact[]>).then(list),
   saveContact: (contact: Partial<Contact>): Promise<Contact> =>
     call(() => Bridge.SaveContact(contact as any) as Promise<Contact>),
-  deleteContact: (id: number): Promise<void> => call(() => Bridge.DeleteContact(id) as Promise<void>),
   getInvoices: (): Promise<Invoice[]> =>
     call(() => Bridge.GetInvoices() as Promise<Invoice[]>)
       .then(list)
@@ -775,13 +743,10 @@ export const Api = {
 
   getFixedAssets: (assetClass: AssetClass | '' = ''): Promise<FixedAsset[]> =>
     call(() => Bridge.GetFixedAssets(assetClass) as Promise<FixedAsset[]>),
-  getAssetSummary: (assetClass: AssetClass | '' = ''): Promise<AssetSummary> =>
-    call(() => Bridge.GetAssetSummary(assetClass) as Promise<AssetSummary>),
   getFixedAsset: (id: number): Promise<AssetDetail> =>
     call(() => Bridge.GetFixedAsset(id) as Promise<AssetDetail>),
   saveFixedAsset: (asset: Partial<FixedAsset>): Promise<FixedAsset> =>
     call(() => Bridge.SaveFixedAsset(asset as any) as Promise<FixedAsset>),
-  deleteFixedAsset: (id: number): Promise<void> => call(() => Bridge.DeleteFixedAsset(id)),
   /** Nachträgliche Anschaffungskosten oder eine Minderung — ohne eigene Buchung. */
   recordAssetCostAdjustment: (request: {
     assetId: number;
@@ -910,9 +875,6 @@ export const Api = {
     note?: string;
   }): Promise<Vorabpauschale> =>
     call(() => Bridge.ComputeVorabpauschale(request as any) as Promise<Vorabpauschale>),
-  /** Die Teilfreistellung einer Ausschüttung, bevor sie gebucht wird. */
-  getInvestmentNoteForIncome: (assetId: number, amount: Cents): Promise<InvestmentTaxNote> =>
-    call(() => Bridge.GetInvestmentNoteForIncome(assetId, amount) as Promise<InvestmentTaxNote>),
 
   /** Fertigstellung: Umbuchung von der Anlage im Bau auf ihr endgültiges Konto. */
   transferFixedAsset: (request: {
@@ -931,15 +893,6 @@ export const Api = {
     call(() => Bridge.DisposeFixedAsset(request as any) as Promise<DisposalResult>),
   getAnlagenspiegel: (): Promise<Anlagenspiegel> =>
     call(() => Bridge.GetAnlagenspiegel() as Promise<Anlagenspiegel>),
-  /**
-   * Sonderabschreibungen, die noch als Buchung im Journal stehen. Seit Welle 5a
-   * entsteht die Sonderabschreibung nur noch als steuerlicher Wert; die alten
-   * Buchungen bleiben stehen und werden hier benannt.
-   */
-  getLegacySpecialDepreciations: (): Promise<LegacySpecialDepreciationNotice> =>
-    call(
-      () => Bridge.GetLegacySpecialDepreciations() as Promise<LegacySpecialDepreciationNotice>,
-    ).then((notice) => (notice ? { ...notice, rows: list(notice.rows) } : notice)),
   /** Buchungen auf Anlagekonten, zu denen noch kein Anlagegut erfasst ist. */
   getAssetAcquisitionCandidates: (): Promise<AcquisitionCandidate[]> =>
     call(() => Bridge.GetAssetAcquisitionCandidates() as Promise<AcquisitionCandidate[]>),
@@ -962,9 +915,6 @@ export const Api = {
     ),
   getSizeClass: (year: number): Promise<SizeClass> =>
     call(() => Bridge.GetSizeClass(year) as Promise<SizeClass>),
-  /** Aufstellung und Offenlegung mit Datum und Norm (§ 264 Abs. 1, § 325 HGB). */
-  getStatementDeadlines: (year: number): Promise<Deadline[]> =>
-    call(() => Bridge.GetStatementDeadlines(year) as Promise<Deadline[]>).then(list),
   /** Bilanz und GuV als PDF, Base64 wie der Rechnungsexport. */
   exportStatementPDF: (year: number): Promise<string> =>
     call(() => Bridge.ExportStatementPDF(year) as Promise<string>),
@@ -991,7 +941,6 @@ export const Api = {
    */
   getEBilanzMappingReport: (year: number): Promise<MappingReport> =>
     call(() => Bridge.GetEBilanzMappingReport(year) as Promise<MappingReport>),
-  getAuditLogs: (): Promise<AuditLogEntry[]> => call(() => Bridge.GetAuditLogs() as Promise<AuditLogEntry[]>),
   getFestschreibungen: (): Promise<Festschreibung[]> =>
     call(() => Bridge.GetFestschreibungen() as Promise<Festschreibung[]>).then(list),
   /**
@@ -1404,11 +1353,6 @@ export const Api = {
   /** Das Journal eines Zeitraums als CSV. Leerer Pfad heißt: abgebrochen. */
   exportJournalCSV: (from = '', to = ''): Promise<string> =>
     call(() => Bridge.ExportJournalCSV(from, to)),
-  /** Das Schlüsselverzeichnis als CSV — dieselbe Tabelle wie im Z3-Export. */
-  exportKeyDirectory: (): Promise<string> => call(() => Bridge.ExportKeyDirectory()),
-  /** Dasselbe Verzeichnis zur Anzeige (GoBD Rz. 95). */
-  getKeyDirectory: (): Promise<KeyDirectoryEntry[]> =>
-    call(() => Bridge.GetKeyDirectory() as Promise<KeyDirectoryEntry[]>).then(list),
 
   // --- Prüfläufe über Kette und Dateien ---------------------------------
 
@@ -1442,11 +1386,6 @@ export const Api = {
     call(() => Bridge.GetInputTaxCorrections(year) as Promise<InputTaxCorrectionYear>).then(
       normalizeInputTaxYear,
     ),
-  /** Dieselbe Sicht unter dem Namen, unter dem der Abschlussbaustein sie aufruft. */
-  previewInputTaxCorrection: (year: number): Promise<InputTaxCorrectionYear> =>
-    call(() => Bridge.PreviewInputTaxCorrection(year) as Promise<InputTaxCorrectionYear>).then(
-      normalizeInputTaxYear,
-    ),
   /** Nimmt ein Wirtschaftsgut ins Verzeichnis auf. */
   registerInputTaxCorrection: (request: RegisterInputTaxRequest): Promise<InputTaxCorrection> =>
     call(() => Bridge.RegisterInputTaxCorrection(request as any) as Promise<InputTaxCorrection>),
@@ -1478,9 +1417,6 @@ export const Api = {
 
   // --- Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG) ---------------
 
-  /** Die Kategorien mit ihren Konten. */
-  getNonDeductibleCategories: (): Promise<NonDeductibleCategory[]> =>
-    call(() => Bridge.GetNonDeductibleCategories() as Promise<NonDeductibleCategory[]>).then(list),
   /** Der Bericht eines Geschäftsjahres: je Kategorie und je Empfänger. */
   getNonDeductibleReport: (year: number): Promise<NonDeductibleReport> =>
     call(() => Bridge.GetNonDeductibleReport(year) as Promise<NonDeductibleReport>).then(
@@ -1509,8 +1445,6 @@ export const Api = {
   /** Die Umsatzsteuer-Durchschnittskurse eines Zeitraums (§ 16 Abs. 6 UStG). */
   getVatExchangeRates: (from = '', to = ''): Promise<VatExchangeRate[]> =>
     call(() => Bridge.GetVatExchangeRates(from, to) as Promise<VatExchangeRate[]>).then(list),
-  saveVatExchangeRate: (rate: Partial<VatExchangeRate>): Promise<VatExchangeRate> =>
-    call(() => Bridge.SaveVatExchangeRate(rate as any) as Promise<VatExchangeRate>),
   /** Liest die Durchschnittskurse aus einer CSV-Datei. */
   importVatExchangeRatesCSV: (path: string): Promise<VatRateImport> =>
     call(() => Bridge.ImportVatExchangeRatesCSV(path) as Promise<VatRateImport>).then((result) =>
@@ -1563,15 +1497,6 @@ export const Api = {
     call(
       () => Bridge.GetExemptionCertificateWarnings(today) as Promise<ExemptionCertificateWarning[]>,
     ).then(list),
-
-  // --- Adressen der Netzdienste ------------------------------------------
-
-  /** Die eingestellten Adressen samt ihren Voreinstellungen. */
-  getServiceEndpoints: (): Promise<ServiceEndpoints> =>
-    call(() => Bridge.GetServiceEndpoints() as Promise<ServiceEndpoints>),
-  /** Schreibt sie fort. Ein leerer Wert setzt die Voreinstellung wieder in Kraft. */
-  saveServiceEndpoints: (endpoints: ServiceEndpoints): Promise<ServiceEndpoints> =>
-    call(() => Bridge.SaveServiceEndpoints(endpoints as any) as Promise<ServiceEndpoints>),
 
   // --- Änderungsprotokoll, Versionen und Datenübernahme ------------------
 
@@ -1681,9 +1606,8 @@ export const Api = {
   /** Beendet ihn. Der Grund steht danach im Änderungsprotokoll. */
   disableReadOnly: (reason: string): Promise<AppConfig> =>
     call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
-  getProgramVersion: (): Promise<string> => call(() => Bridge.GetProgramVersion()),
 
-  // --- Die Bedienung: Aufgaben, Monatsabschluss, Mahnwesen, Prüfpfad ------
+  // --- Die Bedienung: Aufgaben, Monatsabschluss, Prüfpfad ----------------
 
   /**
    * Die Aufgabenliste in ihren drei Gruppen (Architektur 6.1).
@@ -1729,30 +1653,6 @@ export const Api = {
     call(() => Bridge.GetBankRules() as Promise<BankRule[]>).then(list),
   /** Entfernt eine gelernte Zuordnung; der nächste Umsatz wird wieder gefragt. */
   deleteBankRule: (id: number): Promise<void> => call(() => Bridge.DeleteBankRule(id)),
-  /** Die Mahnvorschläge je Kunde, mit Posten, Stufe, Zinsen und Gebühr. */
-  getDunningProposals: (): Promise<DunningProposal[]> =>
-    call(() => Bridge.GetDunningProposals() as Promise<DunningProposal[]>).then((proposals) =>
-      list(proposals).map((proposal) => ({ ...proposal, items: list(proposal.items) })),
-    ),
-  /** Erzeugt die Mahnschreiben der ausgewählten Kunden und legt sie ab. */
-  createDunningNotices: (request: DunningRunRequest): Promise<DunningNotice[]> =>
-    call(() => Bridge.CreateDunningNotices(request) as Promise<DunningNotice[]>).then(
-      (notices) => list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
-    ),
-  /** Die Schreiben eines Kunden, das jüngste zuerst; 0 heißt: alle. */
-  getDunningNotices: (contactId = 0): Promise<DunningNotice[]> =>
-    call(() => Bridge.GetDunningNotices(contactId) as Promise<DunningNotice[]>).then((notices) =>
-      list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
-    ),
-  /** Die Basiszinssätze, der älteste zuerst. */
-  getBaseRates: (): Promise<BaseRate[]> =>
-    call(() => Bridge.GetBaseRates() as Promise<BaseRate[]>).then(list),
-  /**
-   * Trägt einen bekanntgegebenen Satz nach. `basisPoints` sind Hundertstel
-   * eines Prozentpunktes: 127 sind 1,27 %.
-   */
-  saveBaseRate: (validFrom: string, basisPoints: number): Promise<BaseRate[]> =>
-    call(() => Bridge.SaveBaseRate(validFrom, basisPoints) as Promise<BaseRate[]>).then(list),
   /** Der Prüfpfad eines Belegs zur Anzeige: Beleg, Buchung, Zahlung, Bankumsatz. */
   getAuditTrail: (receiptId: number): Promise<AuditTrail> =>
     call(() => Bridge.GetAuditTrail(receiptId) as Promise<AuditTrail>).then((trail) =>
@@ -1843,17 +1743,11 @@ export const Api = {
   /** Der Voranmeldungszeitraum, der sich aus der Steuer des Vorjahres ergibt. */
   getVatPeriodProposal: (year: number): Promise<VatPeriodProposal | null> =>
     call(() => Bridge.GetVatPeriodProposal(year) as Promise<VatPeriodProposal>),
-  /** Die datierte Tabelle der Umsatzsteuersätze. */
-  getVatRatePeriods: (): Promise<VatRatePeriod[]> =>
-    call(() => Bridge.GetVatRatePeriods() as Promise<VatRatePeriod[]>).then(list),
   /** Die gefilterte Menge der Journalzeilen mit ihrer Summenzeile (PRF-01). */
   getFilteredJournal: (filter: JournalFilter): Promise<JournalFilterResult> =>
     call(() => Bridge.GetFilteredJournal(filter as any) as Promise<JournalFilterResult>).then(
       (result) => (result ? { ...result, rows: list(result.rows) } : result),
     ),
-  /** Dieselbe Menge als CSV-Text; die Herausgabe steht im Protokoll. */
-  getFilteredJournalCSV: (filter: JournalFilter): Promise<string> =>
-    call(() => Bridge.GetFilteredJournalCSV(filter as any)),
   /** Schreibt dieselbe Menge in eine gewählte Datei; leerer Pfad heißt: abgebrochen. */
   saveFilteredJournalCSV: (filter: JournalFilter, path: string): Promise<string> =>
     call(() => Bridge.SaveFilteredJournalCSV(filter as any, path)),

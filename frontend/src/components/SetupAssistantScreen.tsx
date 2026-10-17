@@ -28,54 +28,15 @@ interface SetupAssistantScreenProps {
  *
  * Sie stehen hier als Liste und nicht als Abfrage aus der Bridge: die
  * Einrichtung läuft, bevor ein Mandant existiert. Die Schreibweisen müssen zu
- * `domain.LegalFormCatalog` passen — aus ihnen leitet Buchfink später die
- * Anlegerstellung für § 20 InvStG ab, und eine abweichende Schreibweise fiele
- * dort aus dem Katalog.
+ * `domain.LegalFormCatalog` passen, sonst weist das Backend den Mandanten ab.
  */
-const LEGAL_FORMS = [
-  'Einzelunternehmen',
-  'Eingetragener Kaufmann (e. K.)',
-  'Freiberufliche Praxis',
-  'GbR',
-  'OHG',
-  'KG',
-  'GmbH & Co. KG',
-  'Partnerschaftsgesellschaft',
-  'UG (haftungsbeschränkt)',
-  'GmbH',
-  'AG',
-  'SE',
-  'eG',
-  'e. V.',
-  'Stiftung',
-  'Sonstige',
-];
-
-/**
- * Die Rechtsformen, die Entnahmen und Einlagen kennen (BEW-13).
- *
- * Die Liste steht hier neben LEGAL_FORMS, weil der Assistent noch keinen
- * Mandanten hat: `GetComplianceHints` liest die gespeicherte Rechtsform, und
- * gespeichert ist an dieser Stelle noch nichts. Sie spiegelt
- * `withdrawalLegalForms` in internal/domain/legalform.go; der ausführliche
- * Hinweis kommt danach in den Einstellungen aus dem Backend.
- */
-const WITHDRAWAL_LEGAL_FORMS = new Set([
-  'Einzelunternehmen',
-  'Eingetragener Kaufmann (e. K.)',
-  'Freiberufliche Praxis',
-  'GbR',
-  'OHG',
-  'KG',
-  'GmbH & Co. KG',
-  'Partnerschaftsgesellschaft',
-]);
+const LEGAL_FORMS = ['GmbH', 'UG (haftungsbeschränkt)'];
 
 /**
  * Die Pfadbestandteile bekannter Synchronisationsordner (Entscheidung 15,
  * ARC-06).
  *
- * Sie stehen hier aus demselben Grund wie WITHDRAWAL_LEGAL_FORMS: der Hinweis
+ * Sie stehen hier, weil der Assistent noch keinen Mandanten hat: der Hinweis
  * aus dem Backend (`GetComplianceHints` → `domain.CloudFolderWarning`) prüft
  * den gespeicherten Datenordner, und gespeichert ist an dieser Stelle noch
  * nichts. Gerade hier zählt er aber am meisten — der Ordner wird in diesem
@@ -210,14 +171,12 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     specialPrepayment: 0,
     receiptCaptureDays: 10,
     commitGraceDays: 0,
-    // Null und leer heißen hier: die Voreinstellungen des Backends gelten —
-    // tausend Euro für den Leistungsnachweis und die dortige Stufenfolge des
-    // Mahnwesens. Sie hier zu wiederholen wäre eine zweite Wahrheit, und die
-    // Einrichtung fragt nach beidem zu Recht nicht.
+    // Null heißt hier: die Voreinstellung des Backends gilt — tausend Euro für
+    // den Leistungsnachweis. Sie hier zu wiederholen wäre eine zweite Wahrheit,
+    // und die Einrichtung fragt zu Recht nicht danach.
     invoiceCheckThreshold: 0,
-    dunningLevels: [],
     // Leer heißt: die Anlegerstellung für § 20 InvStG folgt aus der
-    // Rechtsform. Gefragt wird sie nur, wo diese sie offen lässt.
+    // Rechtsform.
     investorOverride: '',
   });
 
@@ -642,18 +601,6 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       </ShellField>
                     </div>
 
-                    {/* Die Grenze des Funktionsumfangs, bevor die Rechtsform
-                        feststeht: Buchfink führt die Buchhaltung dieser
-                        Rechtsformen, rechnet aber die Kapitalkonten nicht fort.
-                        Wer das erst beim Jahresabschluss erfährt, kann nichts
-                        mehr daran ändern. */}
-                    {WITHDRAWAL_LEGAL_FORMS.has(settings.legalForm) && (
-                      <p className="rounded-control border border-shell-line bg-shell-deep px-4 py-3 text-body text-shell-text-muted">
-                        Die Buchhaltung dieser Rechtsform ist nur eingeschränkt unterstützt.
-                        Insbesondere fehlen vollständige Kapitalkonten, Entnahmen und Einlagen.
-                      </p>
-                    )}
-
                   </div>
                 )}
 
@@ -716,7 +663,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                             />
                           </ShellField>
                           <ShellField
-                            label={`${rules?.legalForm === 'AG' ? 'Grundkapital' : 'Stammkapital'} laut Satzung`}
+                            label="Stammkapital laut Satzung"
                             hint={`Mindestens ${formatCents(rules?.minShareCapital ?? 0)}`}
                           >
                             <input

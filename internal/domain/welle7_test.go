@@ -55,42 +55,6 @@ func TestTaskListSortsDueDatesFirst(t *testing.T) {
 	}
 }
 
-// Die Mahnstufen werden nach ihrem Abstand geordnet und neu durchnummeriert: die
-// Stufe folgt aus der Reihenfolge und nicht aus einer eingetragenen Zahl.
-func TestDunningLevelsAreNormalized(t *testing.T) {
-	levels := NormalizeDunningLevels([]DunningLevel{
-		{Level: 9, Label: "Zweite", DaysAfterDue: 30, Fee: 1000},
-		{Level: 9, Label: "Erste", DaysAfterDue: 10, Fee: -5},
-		{Label: "", DaysAfterDue: 5},
-	})
-	if len(levels) != 2 {
-		t.Fatalf("erwartet zwei Stufen, erhalten %d", len(levels))
-	}
-	if levels[0].Label != "Erste" || levels[0].Level != 1 {
-		t.Errorf("erste Stufe = %+v", levels[0])
-	}
-	if levels[1].Level != 2 {
-		t.Errorf("zweite Stufe = %+v", levels[1])
-	}
-	if levels[0].Fee != 0 {
-		t.Errorf("eine negative Gebühr ist keine Gebühr: %s €", levels[0].Fee)
-	}
-	if len(NormalizeDunningLevels(nil)) != len(DefaultDunningLevels()) {
-		t.Error("ohne Einstellung gilt die Voreinstellung")
-	}
-}
-
-// Der Basiszinssatz wird als Prozentwert mit zwei Nachkommastellen gezeigt —
-// auch der negative.
-func TestBaseRatePercent(t *testing.T) {
-	cases := map[int]string{127: "1,27 %", 152: "1,52 %", -88: "-0,88 %", 0: "0,00 %"}
-	for points, want := range cases {
-		if got := (BaseRate{BasisPoints: points}).Percent(); got != want {
-			t.Errorf("%d Hundertstel = %q, erwartet %q", points, got, want)
-		}
-	}
-}
-
 // Ein Zahlungsziel über sechzig Tagen löst den Hinweis auf § 271a BGB aus —
 // und darunter keinen.
 func TestPaymentTermNoticeOnlyAboveSixtyDays(t *testing.T) {

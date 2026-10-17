@@ -206,7 +206,7 @@ func (s *ReceiptService) SetNumberRepo(repo domain.NumberRangeRepository) { s.nu
 // selfIssuedMarkdown ist der Text des Eigenbelegs.
 //
 // Als Markdown und nicht unmittelbar als Typst: derselbe Weg, den die
-// Verfahrensdokumentation und das Mahnschreiben gehen. Der Satz ist dann eine
+// Verfahrensdokumentation geht. Der Satz ist dann eine
 // Übersetzung dieses Textes und keine zweite Quelle, die auseinanderlaufen kann.
 func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number, reason string) string {
 	var b strings.Builder

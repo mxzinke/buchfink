@@ -54,29 +54,6 @@ func CountryName(code string) string {
 	return code
 }
 
-// CountryCodeFromName liest eine frei eingetragene Landesangabe als Code. Leer
-// heißt Deutschland, Unbekanntes ergibt "".
-func CountryCodeFromName(name string) string {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return DefaultCountryCode
-	}
-	for _, c := range countries {
-		if strings.EqualFold(c.Code, trimmed) || strings.EqualFold(c.Name, trimmed) {
-			return c.Code
-		}
-	}
-	switch strings.ToLower(trimmed) {
-	case "germany", "bundesrepublik deutschland", "brd", "d":
-		return "DE"
-	case "austria", "a":
-		return "AT"
-	case "switzerland", "ch-schweiz":
-		return "CH"
-	}
-	return ""
-}
-
 // ResolvedCountryCode is the country code with Germany as the default.
 func (s *CompanySettings) ResolvedCountryCode() string {
 	if code := strings.ToUpper(strings.TrimSpace(s.CountryCode)); code != "" {
@@ -111,31 +88,6 @@ func (s *CompanySettings) HasCompleteAddress() bool {
 	return strings.TrimSpace(s.Street) != "" &&
 		strings.TrimSpace(s.PostalCode) != "" &&
 		strings.TrimSpace(s.City) != ""
-}
-
-// SplitLegacyPostalLine zerlegt die frühere Zeile „PLZ und Ort".
-//
-// Erkannt werden eine führende Postleitzahl aus Ziffern, auch mit
-// Länderkennung („D-80331 München"), und die niederländische Form
-// („1012 AB Amsterdam"). Was sich nicht sicher trennen lässt, steht danach
-// vollständig im Ort und bleibt zur Prüfung sichtbar.
-func SplitLegacyPostalLine(line string) (postalCode, city string) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 {
-		return "", strings.TrimSpace(line)
-	}
-	code := fields[0]
-	if i := strings.IndexByte(code, '-'); i > 0 && i <= 2 && isLetters(code[:i]) {
-		code = code[i+1:]
-	}
-	if !isDigitString(code) {
-		return "", strings.Join(fields, " ")
-	}
-	rest := fields[1:]
-	if len(code) == 4 && len(rest) > 1 && len(rest[0]) == 2 && isLetters(rest[0]) && strings.ToUpper(rest[0]) == rest[0] {
-		return code + " " + rest[0], strings.Join(rest[1:], " ")
-	}
-	return code, strings.Join(rest, " ")
 }
 
 // ValidateProfile prüft Anschrift, Gründungsdaten und Gesellschafterliste.

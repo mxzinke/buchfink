@@ -689,9 +689,9 @@ func TestExportJournalCSVCoversADateWindow(t *testing.T) {
 	}
 }
 
-// Das Schlüsselverzeichnis kommt aus derselben Tabelle wie der Z3-Export. Zwei
-// Quellen wären zwei Gelegenheiten, einen Code zu vergessen.
-func TestExportKeyDirectoryMatchesTheZ3Table(t *testing.T) {
+// Jeder Code, den das System kennt, steht im Schlüsselverzeichnis der
+// Datenüberlassung.
+func TestZ3KeyDirectoryListsEveryCode(t *testing.T) {
 	env := newTestEnv(t)
 	env.filledBooks(t)
 	svc := env.exports(t)
@@ -700,25 +700,12 @@ func TestExportKeyDirectoryMatchesTheZ3Table(t *testing.T) {
 	if _, err := svc.ExportZ3(context.Background(), env.fiscalYear, dir); err != nil {
 		t.Fatalf("Z3-Export: %v", err)
 	}
-	single := filepath.Join(t.TempDir(), "schluessel.csv")
-	if _, err := svc.ExportKeyDirectory(context.Background(), single); err != nil {
-		t.Fatalf("Schlüsselverzeichnis: %v", err)
-	}
-
-	fromPackage, err := os.ReadFile(filepath.Join(dir, "schluesselverzeichnis.csv"))
+	raw, err := os.ReadFile(filepath.Join(dir, "schluesselverzeichnis.csv"))
 	if err != nil {
 		t.Fatalf("Verzeichnis aus dem Paket lesen: %v", err)
 	}
-	standalone, err := os.ReadFile(single)
-	if err != nil {
-		t.Fatalf("einzelnes Verzeichnis lesen: %v", err)
-	}
-	if string(fromPackage) != string(standalone) {
-		t.Error("das einzeln exportierte Schlüsselverzeichnis weicht von dem im Z3-Export ab")
-	}
 
-	// Und jeder Steuerfall, den das System kennt, muss darin stehen.
-	content := string(standalone)
+	content := string(raw)
 	for _, treatment := range domain.AllTaxTreatments() {
 		if !strings.Contains(content, string(treatment)) {
 			t.Errorf("der Steuerfall %s fehlt im Schlüsselverzeichnis", treatment)

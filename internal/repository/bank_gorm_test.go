@@ -8,7 +8,7 @@ import (
 )
 
 // Regression coverage for the bank import findings.
-func TestBugHuntBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
+func TestBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +26,7 @@ func TestBugHuntBankKeepsDifferentNOTPROVIDEDPayments(t *testing.T) {
 	}
 }
 
-func TestBugHuntBankDeduplicatesReimport(t *testing.T) {
+func TestBankDeduplicatesReimport(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestBugHuntBankDeduplicatesReimport(t *testing.T) {
 	}
 }
 
-func TestBugHuntBankReportsPersistenceFailure(t *testing.T) {
+func TestBankReportsPersistenceFailure(t *testing.T) {
 	db, err := InitTenantDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

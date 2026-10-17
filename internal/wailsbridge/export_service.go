@@ -90,55 +90,6 @@ func (b *BuchfinkBridge) ExportJournalCSV(from, to string) (string, error) {
 	return b.exportSvc.ExportJournalCSV(context.Background(), from, to, path)
 }
 
-// ExportKeyDirectory schreibt das Schlüsselverzeichnis als CSV.
-func (b *BuchfinkBridge) ExportKeyDirectory() (string, error) {
-	path, err := b.saveFileDialog("Schlüsselverzeichnis speichern", "buchfink-schluesselverzeichnis.csv")
-	if err != nil || path == "" {
-		return "", err
-	}
-
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
-		return "", fmt.Errorf("der Export ist noch nicht initialisiert")
-	}
-	return b.exportSvc.ExportKeyDirectory(context.Background(), path)
-}
-
-// KeyDirectoryEntry ist eine Zeile des Schlüsselverzeichnisses für die Anzeige.
-type KeyDirectoryEntry struct {
-	Category    string `json:"category"`
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
-}
-
-// GetKeyDirectory liefert das Schlüsselverzeichnis zur Anzeige.
-//
-// Dieselbe Tabelle, die auch exportiert wird: der Anwender sieht auf dem Schirm,
-// was der Prüfer auf dem Datenträger bekommt.
-func (b *BuchfinkBridge) GetKeyDirectory() ([]KeyDirectoryEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	entries := make([]KeyDirectoryEntry, 0)
-	if b.exportSvc == nil {
-		return emptyList(entries, nil)
-	}
-	table, err := b.exportSvc.KeyDirectory()
-	if err != nil {
-		return emptyList(entries, err)
-	}
-	for _, row := range table.Rows {
-		if len(row) < 4 {
-			continue
-		}
-		entries = append(entries, KeyDirectoryEntry{
-			Category: row[0], Key: row[1], Label: row[2], Description: row[3],
-		})
-	}
-	return emptyList(entries, nil)
-}
-
 // SelectExportDirectoryDialog öffnet den Ordnerdialog für einen Export.
 func (b *BuchfinkBridge) SelectExportDirectoryDialog(title string) (string, error) {
 	if title == "" {
@@ -272,17 +223,6 @@ func (b *BuchfinkBridge) GetSuSaOverviewAt(cutoff string) (*domain.SuSaOverview,
 		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
 	}
 	return b.accountingSvc.GetSuSaOverviewAt(context.Background(), cutoff)
-}
-
-// GetAccountLedgerRange liefert das Kontoblatt eines Zeitraums über alle
-// Geschäftsjahre hinweg.
-func (b *BuchfinkBridge) GetAccountLedgerRange(accountNumber, from, to string) (*domain.AccountLedger, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountingSvc.GetAccountLedgerRange(context.Background(), accountNumber, from, to)
 }
 
 // GetOpenItemsAt liefert die offenen Posten zu einem Stichtag.

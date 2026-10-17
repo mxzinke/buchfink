@@ -257,24 +257,6 @@ func TestCloudFolderWarningRecognisesSyncFolders(t *testing.T) {
 	}
 }
 
-func TestLegalFormLimitationNoteOnlyWhereWithdrawalsExist(t *testing.T) {
-	for _, form := range []string{"GbR", "OHG", "KG", "Eingetragener Kaufmann (e. K.)", "Einzelunternehmen"} {
-		note := LegalFormLimitationNote(form)
-		if note == "" {
-			t.Errorf("%s kennt Entnahmen — der Hinweis fehlt", form)
-			continue
-		}
-		if !strings.Contains(note, "§ 4 Abs. 4a EStG") {
-			t.Errorf("%s: der Hinweis muss § 4 Abs. 4a EStG nennen: %q", form, note)
-		}
-	}
-	for _, form := range []string{"GmbH", "AG", "UG (haftungsbeschränkt)", "eG"} {
-		if LegalFormLimitationNote(form) != "" {
-			t.Errorf("%s kennt keine Entnahmen — der Hinweis gehört dort nicht hin", form)
-		}
-	}
-}
-
 func TestTaxCaseHintsNameTheGaps(t *testing.T) {
 	hints := TaxCaseHints()
 	if len(hints) == 0 {

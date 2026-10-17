@@ -79,11 +79,7 @@ export interface NavigationParams {
   obligationsTab?: string;
   /** Belegfilter, mit dem die Belegseite öffnet, etwa „filed" für abgelegte. */
   receiptStatus?: string;
-  /**
-   * Ansicht, mit der „Bank & Zahlungen" öffnet: der Abgleich oder das
-   * Mahnwesen. Beide wohnen auf derselben Seite, und eine Aufgabe, die das
-   * Mahnwesen meint, landete sonst auf dem Kontoauszug.
-   */
+  /** Ansicht, mit der „Bank & Zahlungen" öffnet, etwa die Bankkonten. */
   bankView?: string;
   /**
    * Baustein, den die Abschlussbausteine gleich aufschlagen. Aus dem geführten

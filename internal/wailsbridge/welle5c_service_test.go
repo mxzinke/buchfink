@@ -72,8 +72,4 @@ func TestTenantWiringAnswersOnAnEmptyLedger(t *testing.T) {
 	if len(b.GetAfaRules().DegressiveWindows) == 0 {
 		t.Error("die Abschreibungsregeln kommen leer aus der Ressource")
 	}
-
-	if len(b.GetNonDeductibleCategories()) == 0 {
-		t.Error("die Kategorien des § 4 Abs. 5 EStG kommen leer")
-	}
 }

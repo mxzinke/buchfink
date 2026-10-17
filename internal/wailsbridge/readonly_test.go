@@ -119,13 +119,14 @@ func TestReadOnlyModeRefusesWritingMethods(t *testing.T) {
 	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("ohne Prüfermodus muss die Buchung durchgehen: %v", err)
 	}
+	refused := manualEntryRequest(t, b)
 
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
 
-	_, err := b.PostJournalEntry(manualEntry())
+	_, err := b.PostManualEntry(refused)
 	if err == nil {
 		t.Fatal("im Prüfermodus darf keine Buchung entstehen")
 	}

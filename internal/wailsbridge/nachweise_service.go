@@ -256,9 +256,6 @@ func (b *BuchfinkBridge) SetSystemChangeDate(date string) error {
 // ComplianceHints sind die Hinweise, die zur Einrichtung und zu den
 // Einstellungen gehören.
 type ComplianceHints struct {
-	// LegalFormNote ist der Hinweis auf Kapitalkonten und Entnahmen, leer bei
-	// Kapitalgesellschaften.
-	LegalFormNote string `json:"legalFormNote"`
 	// CloudWarning ist belegt, wenn der Datenordner in einem
 	// Synchronisationsordner liegt.
 	CloudWarning string `json:"cloudWarning"`
@@ -272,8 +269,7 @@ type ComplianceHints struct {
 	SystemChangeNote string `json:"systemChangeNote"`
 }
 
-// GetComplianceHints liefert die Hinweise zu Rechtsform, Speicherort und
-// Steuerfällen.
+// GetComplianceHints liefert die Hinweise zu Speicherort und Steuerfällen.
 func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -285,9 +281,6 @@ func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
 	}
 	if b.settingsRepo != nil {
 		ctx := context.Background()
-		if settings, err := b.settingsRepo.GetCompanySettings(ctx); err == nil && settings != nil {
-			hints.LegalFormNote = domain.LegalFormLimitationNote(settings.LegalForm)
-		}
 		if date, err := b.settingsRepo.Get(ctx, domain.SettingSystemChangeDate); err == nil {
 			hints.SystemChangeDate = date
 		}
@@ -364,19 +357,6 @@ func (b *BuchfinkBridge) CorrectEntry(entryID uint, reason string, newEntry *dom
 		return nil, fmt.Errorf("kein aktiver Mandant")
 	}
 	return b.journalSvc.CorrectEntry(context.Background(), entryID, reason, newEntry)
-}
-
-// GetCorrectionOf liefert die Neubuchung, die eine stornierte Buchung ersetzt,
-// oder nil.
-func (b *BuchfinkBridge) GetCorrectionOf(entryID uint) (*domain.JournalEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.journalSvc == nil {
-		return nil, nil
-	}
-	entry, err := b.journalSvc.CorrectionOf(context.Background(), entryID)
-	entry.EnsureLists()
-	return entry, err
 }
 
 // PreviewOpeningBalance zeigt die Eröffnungsbuchungen des Umsteigers, ohne sie

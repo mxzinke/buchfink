@@ -17,7 +17,7 @@ import (
 // Pauschale — er entsteht erst mit einer Mahnung (§ 286 Abs. 1 BGB). Für die
 // Rechnungen aus der Zeit vor dem Hinweis steht das Kennzeichen deshalb an der
 // Rechnung und nicht in einer Einstellung.
-func TestDunningNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
+func TestDefaultNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	invoiceRepo := repository.NewInvoiceRepository(env.db)
@@ -40,15 +40,15 @@ func TestDunningNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
 		t.Fatalf("Bestandsrechnung: %v", err)
 	}
 
-	svc := env.dunning(t, nil)
-	proposals, err := svc.Proposals(ctx, "2026-04-17")
+	svc := env.overdue(t)
+	claims, err := svc.Claims(ctx, "2026-04-17")
 	if err != nil {
-		t.Fatalf("Mahnvorschläge: %v", err)
+		t.Fatalf("Forderungen: %v", err)
 	}
-	if len(proposals) != 1 || len(proposals[0].Items) != 1 {
-		t.Fatalf("erwartet einen Vorschlag mit einem Posten: %+v", proposals)
+	if len(claims) != 1 || len(claims[0].Items) != 1 {
+		t.Fatalf("erwartet eine Forderung mit einem Posten: %+v", claims)
 	}
-	item := proposals[0].Items[0]
+	item := claims[0].Items[0]
 	if item.Interest != 0 || item.DefaultFrom != "" {
 		t.Errorf("ohne den Hinweis läuft kein Verzug: Zinsen %s €, Verzugsbeginn %q",
 			item.Interest, item.DefaultFrom)
@@ -67,11 +67,11 @@ func TestDunningNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
 		t.Fatalf("Kennzeichen setzen: %v", err)
 	}
 
-	proposals, err = svc.Proposals(ctx, "2026-04-17")
+	claims, err = svc.Claims(ctx, "2026-04-17")
 	if err != nil {
-		t.Fatalf("Mahnvorschläge: %v", err)
+		t.Fatalf("Forderungen: %v", err)
 	}
-	item = proposals[0].Items[0]
+	item = claims[0].Items[0]
 	if item.DefaultFrom != "2026-03-03" {
 		t.Errorf("Verzugsbeginn = %q, erwartet 2026-03-03", item.DefaultFrom)
 	}
@@ -84,8 +84,8 @@ func TestDunningNeedsTheConsumerNoticeOnTheInvoice(t *testing.T) {
 // danach an ihr gesetzt.
 //
 // Beides gehört zusammen: der Satz auf dem Dokument ist die Voraussetzung des
-// Verzugseintritts, und das Kennzeichen ist das, woran das Mahnwesen ihn später
-// erkennt. Stünde nur eines von beidem, forderte Buchfink entweder Zinsen ohne
+// Verzugseintritts, und das Kennzeichen ist das, woran die Verzugsrechnung ihn
+// später erkennt. Stünde nur eines von beidem, forderte Buchfink entweder Zinsen ohne
 // Hinweis oder ließe sie trotz Hinweis aus.
 func TestConsumerInvoiceCarriesTheDefaultNotice(t *testing.T) {
 	if testing.Short() {

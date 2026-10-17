@@ -24,8 +24,7 @@ import (
 // DefaultEndpoint ist die Adresse des Kursdienstes.
 //
 // frankfurter.app gibt die Referenzkurse der EZB unverändert weiter und braucht
-// keinen Schlüssel. Die Adresse ist eine Einstellung, damit ein Wechsel des
-// Anbieters keine Programmänderung ist.
+// keinen Schlüssel.
 const DefaultEndpoint = "https://api.frankfurter.app"
 
 // Timeout ist die Frist einer Kursabfrage.
@@ -102,8 +101,7 @@ func (s *Service) RateAt(ctx context.Context, currency, date string) (int64, str
 	var fx fxResponse
 	if err := json.Unmarshal(body, &fx); err != nil {
 		return 0, "", "", fmt.Errorf(
-			"die Antwort des Kursdienstes ist nicht lesbar. Stimmt die eingestellte Adresse (%s)? %w",
-			s.endpoint, err)
+			"die Antwort des Kursdienstes (%s) ist nicht lesbar: %w", s.endpoint, err)
 	}
 	rate, ok := fx.Rates[currency]
 	if !ok || rate <= 0 {

@@ -51,12 +51,11 @@ type Input struct {
 	ExcludedCases []string
 
 	// Teil 2: die Anwenderdokumentation.
-	NumberRanges  []NumberRange
-	CaptureDays   int
-	TaxationType  string
-	VatPeriod     string
-	Organisation  Organisation
-	LegalFormNote string
+	NumberRanges []NumberRange
+	CaptureDays  int
+	TaxationType string
+	VatPeriod    string
+	Organisation Organisation
 
 	// Teil 3: die technische Systemdokumentation.
 	AppVersion    string
@@ -243,9 +242,7 @@ Geschäftsjahr die Dokumentation vorliegt, die damals gegolten hat
 | Kontenrahmen | {{orNone .SKR}} |
 | Besteuerungsart | {{orNone .TaxationType}} |
 | Voranmeldungszeitraum | {{orNone .VatPeriod}} |
-{{if .LegalFormNote}}
-{{.LegalFormNote}}
-{{end}}
+
 ### 1.2 Sachlicher und zeitlicher Geltungsbereich
 
 Die Dokumentation beschreibt die Buchführung des genannten Unternehmens mit
@@ -542,7 +539,7 @@ den Hersteller.
 | Rechnungsstellung | Erfüllung des Vertrags und der Rechnungspflichten | Art. 6 Abs. 1 Buchst. b und c DSGVO i. V. m. §§ 14, 14a UStG | Kunden | Name, Anschrift, USt-IdNr., Leistungs- und Zahlungsdaten | Kunden, Finanzverwaltung | 8 Jahre |
 | Umsatzsteuer-Voranmeldung und Zusammenfassende Meldung | Erfüllung steuerlicher Erklärungspflichten | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18 UStG, § 18a UStG | Kunden im übrigen Gemeinschaftsgebiet | USt-IdNr., Umsatzsummen | Finanzverwaltung, Bundeszentralamt für Steuern | 10 Jahre |
 | Bestätigungsabfrage der USt-IdNr. | Nachweis der Voraussetzungen der Steuerbefreiung | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18e UStG, § 6a UStG | Kunden im übrigen Gemeinschaftsgebiet | Name, Anschrift, USt-IdNr. | Bundeszentralamt für Steuern | 10 Jahre |
-| Mahnwesen | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
+| Forderungsverfolgung | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
 | Beglaubigung der Festschreibung | Nachweis der Unveränderbarkeit | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 Abs. 4 AO | keine unmittelbar | ausschließlich Hashwerte, keine personenbezogenen Inhalte | Zeitstempeldienst ({{orNone .TSAName}}) | 10 Jahre |
 | Datenüberlassung an die Betriebsprüfung | Erfüllung der Mitwirkungspflicht | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 147 Abs. 6 AO | Kunden, Lieferanten | Buchungs-, Beleg- und Stammdaten des Prüfungszeitraums | Finanzverwaltung | mit der Aufbewahrungsfrist der überlassenen Daten |
 | Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Zeitpunkt, Vorgang | keine | 10 Jahre |

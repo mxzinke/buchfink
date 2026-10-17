@@ -28,14 +28,9 @@ type VatIDService struct {
 	contactRepo  domain.ContactRepository
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
-	// client wird je Aufruf aus der eingestellten Adresse gebaut. Ein
-	// festgehaltener Client hielte die Adresse von damals fest.
-	newClient func(endpoint string) *vatid.Client
-	now       func() time.Time
+	newClient    func() *vatid.Client
+	now          func() time.Time
 }
-
-// SettingVatIDEndpoint ist der Schlüssel der einstellbaren Adresse.
-const SettingVatIDEndpoint = "vatid_endpoint"
 
 // NewVatIDService wires die Bestätigungsanfrage.
 func NewVatIDService(
@@ -46,29 +41,17 @@ func NewVatIDService(
 ) *VatIDService {
 	return &VatIDService{
 		repo: repo, contactRepo: contactRepo, settingsRepo: settingsRepo, auditRepo: auditRepo,
-		newClient: vatid.New,
+		newClient: func() *vatid.Client { return vatid.New(vatid.DefaultEndpoint) },
 		now:       time.Now,
 	}
 }
 
 // SetClientFactory ersetzt den Erzeuger des Clients. Nur für Tests: sie legen
 // einen httptest-Server vor die Schnittstelle.
-func (s *VatIDService) SetClientFactory(f func(endpoint string) *vatid.Client) { s.newClient = f }
+func (s *VatIDService) SetClientFactory(f func() *vatid.Client) { s.newClient = f }
 
 // SetClock ersetzt die Uhr. Nur für Tests — die Frist von 90 Tagen richtet sich nach ihr.
 func (s *VatIDService) SetClock(now func() time.Time) { s.now = now }
-
-// Endpoint liefert die eingestellte Adresse des Bundeszentralamts.
-func (s *VatIDService) Endpoint(ctx context.Context) string {
-	if s.settingsRepo == nil {
-		return vatid.DefaultEndpoint
-	}
-	value, err := s.settingsRepo.Get(ctx, SettingVatIDEndpoint)
-	if err != nil || strings.TrimSpace(value) == "" {
-		return vatid.DefaultEndpoint
-	}
-	return strings.TrimSpace(value)
-}
 
 // Checks liefert den Verlauf der Abfragen zu einem Kontakt.
 func (s *VatIDService) Checks(ctx context.Context, contactID uint) ([]domain.VatIDCheck, error) {
@@ -98,8 +81,9 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 	own := s.ownVatID(ctx)
 
 	street, postalCode, city := contact.PostalAddress()
-	endpoint := s.Endpoint(ctx)
-	result, err := s.newClient(endpoint).Check(ctx, vatid.Request{
+	client := s.newClient()
+	endpoint := client.Endpoint()
+	result, err := client.Check(ctx, vatid.Request{
 		OwnVatID:    strings.TrimSpace(own),
 		VatID:       strings.TrimSpace(contact.VatID),
 		CompanyName: contactCompanyName(contact),

@@ -97,9 +97,8 @@ type Foundation struct {
 	RegisterCourt  string `gorm:"size:120" json:"registerCourt"` // Amtsgericht
 	RegisterNumber string `gorm:"size:40" json:"registerNumber"` // z. B. "HRB 123456"
 
-	// ShareCapital ist das Stammkapital laut Gesellschaftsvertrag (bei der AG das
-	// Grundkapital). Die Summe der übernommenen Einlagen muss ihm entsprechen
-	// (§ 5 Abs. 3 Satz 2 GmbHG).
+	// ShareCapital ist das Stammkapital laut Gesellschaftsvertrag. Die Summe der
+	// übernommenen Einlagen muss ihm entsprechen (§ 5 Abs. 3 Satz 2 GmbHG).
 	ShareCapital Cents `gorm:"not null" json:"shareCapital"`
 
 	// FoundationCostCap ist der Gründungsaufwand, den der Gesellschaftsvertrag

@@ -960,7 +960,6 @@ function invoice(
 // -------------------------------------------------------------------------
 // Die Bridge
 
-
 // -------------------------------------------------------------------------
 // Anlagevermögen
 
@@ -1335,9 +1334,7 @@ const INVESTMENT_RULES = {
   ],
   investorTypes: [
     { type: 'corporate', label: 'Anleger unterliegt dem Körperschaftsteuergesetz' },
-    { type: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen' },
-    { type: 'basic', label: 'Grundsatz (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)' },
-    { type: 'mixed', label: 'Personengesellschaft mit gemischt besteuerten Gesellschaftern' },
+    { type: 'basic', label: 'Grundsatz (Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)' },
   ],
   investorType: 'corporate',
   investorLabel: 'Anleger unterliegt dem Körperschaftsteuergesetz',
@@ -1355,22 +1352,8 @@ const INVESTMENT_RULES = {
 
 /** Der Rechtsformkatalog, je mit der Anlegerstellung, die aus ihr folgt. */
 const LEGAL_FORMS = [
-  { name: 'Einzelunternehmen', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'Eingetragener Kaufmann (e. K.)', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'Freiberufliche Praxis', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'GbR', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'OHG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'GmbH & Co. KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG). Sind alle Gesellschafter natürliche Personen, sind es 60 %; ist eine Körperschaft beteiligt, gilt für deren Anteil 80 %.' },
-  { name: 'Partnerschaftsgesellschaft', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'UG (haftungsbeschränkt)', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
   { name: 'GmbH', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'AG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'SE', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'eG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'e. V.', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'Stiftung', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'Sonstige', investor: '', note: 'Aus dieser Rechtsform folgt die Anlegerstellung nicht. Wenn du Investmentanteile hältst, lege sie fest.' },
+  { name: 'UG (haftungsbeschränkt)', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
 ];
 
 const ASSET_DOCUMENT_KINDS = [
@@ -1384,22 +1367,6 @@ const ASSET_DOCUMENT_KINDS = [
   { kind: 'photo', label: 'Bild' },
   { kind: 'other', label: 'Sonstiges' },
 ];
-
-function assetSummary(assetClass: string) {
-  const list = ASSETS.filter((a) => !assetClass || a.class === assetClass);
-  return {
-    fiscalYear: YEAR,
-    count: list.length,
-    cost: list.reduce((sum, a) => sum + a.cost, 0),
-    accumulated: list.reduce((sum, a) => sum + a.accumulated, 0),
-    bookValue: list.reduce((sum, a) => sum + a.bookValue, 0),
-    yearAmount: list.reduce((sum, a) => sum + a.yearAmount, 0),
-    dueAmount: list.reduce((sum, a) => sum + a.dueAmount, 0),
-    specialDue: list.reduce((sum, a: any) => sum + (a.specialDue ?? 0), 0),
-    dueCount: list.filter((a) => a.dueAmount > 0).length,
-  };
-}
-
 
 /** Die Einordnung nach § 6 Abs. 2 und 2a EStG, wie sie das Backend rechnet. */
 function classifyAcquisition(netCost: number, selfUsable: boolean) {
@@ -1542,7 +1509,6 @@ function disposalPreview(request: any) {
     investment: investmentNote(found.id, result, true),
   };
 }
-
 
 /**
  * Die Umrechnung zum Devisenkassamittelkurs des Stichtags (§ 256a HGB), nach
@@ -2009,7 +1975,7 @@ const STATEMENT = {
 };
 
 // -------------------------------------------------------------------------
-// Welle 7: Aufgabenliste, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+// Welle 7: Aufgabenliste, Monatsabschluss, Bankvorschlag, Prüfpfad
 
 const TODAY = `${YEAR}-08-25`;
 
@@ -2050,12 +2016,12 @@ const TASKS = {
       amount: c(3630.94),
     },
     {
-      key: 'dunning.overdue',
+      key: 'overdue_receivables',
       group: 'open',
-      title: 'Überfällige Forderungen mahnen',
+      title: 'Überfällige Kundenrechnungen',
       why: 'Zwei Kunden sind seit mehr als dreißig Tagen im Verzug.',
       reference: '§ 286 Abs. 3 BGB',
-      target: { page: 'bank', params: { view: 'dunning' } },
+      target: { page: 'accounts', params: {} },
       count: 2,
       amount: c(28311),
     },
@@ -2248,103 +2214,6 @@ const BANK_RULES = [
     lastUsedAt: `${YEAR}-08-24T05:40:00Z`,
     createdAt: '2025-01-24T05:40:00Z',
     updatedAt: `${YEAR}-08-24T05:40:00Z`,
-  },
-];
-
-/** Der Basiszinssatz als datierte Tabelle; der letzte Wert ist fortgeschrieben. */
-const BASE_RATES = [
-  { validFrom: '2024-01-01', basisPoints: 362, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-01-02T08:00:00Z' },
-  { validFrom: '2024-07-01', basisPoints: 337, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-07-01T08:00:00Z' },
-  { validFrom: '2025-01-01', basisPoints: 227, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-01-02T08:00:00Z' },
-  { validFrom: '2025-07-01', basisPoints: 127, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-07-01T08:00:00Z' },
-  { validFrom: '2026-01-01', basisPoints: 127, source: '', provisional: true, updatedAt: '2026-01-02T08:00:00Z' },
-];
-
-/** Die Mahnvorschläge: je Kunde die Posten, die Stufe, Zinsen und Gebühr. */
-const DUNNING_PROPOSALS = [
-  {
-    contactId: 2,
-    contactName: 'Elbe Werkzeug GmbH',
-    isConsumer: false,
-    level: 2,
-    levelLabel: '1. Mahnung',
-    noticeDate: TODAY,
-    items: [
-      {
-        entryId: 44,
-        documentNumber: 'RE-2026-0112',
-        documentDate: `${YEAR}-06-18`,
-        dueDate: `${YEAR}-07-02`,
-        openAmount: c(18921),
-        daysOverdue: 54,
-        defaultFrom: `${YEAR}-07-19`,
-        interestDays: 37,
-        interest: c(197.02),
-        level: 2,
-        previousLevel: 1,
-        lumpSum: c(40),
-      },
-    ],
-    principal: c(18921),
-    interest: c(197.02),
-    fee: c(5),
-    lumpSum: c(40),
-    total: c(19163.02),
-    note: '',
-  },
-  {
-    contactId: 3,
-    contactName: 'Anna Wieland',
-    isConsumer: true,
-    level: 1,
-    levelLabel: 'Zahlungserinnerung',
-    noticeDate: TODAY,
-    items: [
-      {
-        entryId: 51,
-        documentNumber: 'RE-2026-0119',
-        documentDate: `${YEAR}-07-30`,
-        dueDate: `${YEAR}-08-13`,
-        openAmount: c(8211),
-        daysOverdue: 12,
-        defaultFrom: `${YEAR}-08-14`,
-        interestDays: 11,
-        interest: c(15.44),
-        level: 1,
-        previousLevel: 0,
-        lumpSum: 0,
-      },
-    ],
-    principal: c(8211),
-    interest: c(15.44),
-    fee: 0,
-    lumpSum: 0,
-    total: c(8226.44),
-    note: 'Verbraucher: fünf Prozentpunkte über dem Basiszinssatz, keine Pauschale.',
-  },
-];
-
-/** Die schon erzeugten Mahnschreiben, das jüngste zuerst. */
-const DUNNING_NOTICES = [
-  {
-    id: 1,
-    fiscalYear: YEAR,
-    contactId: 2,
-    contactName: 'Elbe Werkzeug GmbH',
-    isConsumer: false,
-    level: 1,
-    levelLabel: 'Zahlungserinnerung',
-    noticeDate: `${YEAR}-07-24`,
-    dueDate: `${YEAR}-08-07`,
-    principalAmount: c(18921),
-    interestAmount: c(30.11),
-    feeAmount: 0,
-    lumpSumAmount: c(40),
-    totalAmount: c(18991.11),
-    documentName: 'Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
-    documentPath: 'dokumente/mahnungen/2026/Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
-    documentSha256: fakeHash('dunning-1'),
-    items: [],
   },
 ];
 
@@ -3047,40 +2916,6 @@ function backupRun(
   };
 }
 
-/** Das Schlüsselverzeichnis, das mit der Datenüberlassung hinausgeht. */
-const KEY_DIRECTORY = [
-  {
-    category: 'Buchung',
-    key: 'kind',
-    label: 'Buchungsart',
-    description: 'standard, storno, afa, closing, opening, payment',
-  },
-  {
-    category: 'Buchung',
-    key: 'source',
-    label: 'Herkunft',
-    description: 'receipt, invoice, bank, manual, closing, opening',
-  },
-  {
-    category: 'Steuer',
-    key: 'taxKey',
-    label: 'Steuerschlüssel',
-    description: '9 = Vorsteuer 19 %, 3 = Umsatzsteuer 19 %, 0 = ohne Steuer',
-  },
-  {
-    category: 'Beleg',
-    key: 'kind',
-    label: 'Belegart',
-    description: 'invoice, receipt, statement, letter, self_issued, other',
-  },
-  {
-    category: 'Beleg',
-    key: 'retentionClass',
-    label: 'Aufbewahrungsklasse',
-    description: 'books = 10 Jahre, vouchers = 8 Jahre, letters = 6 Jahre',
-  },
-];
-
 /**
  * Die Verfahrensdokumentation, wie sie auf der Seite „Betriebsprüfung" steht:
  * eine erzeugte Fassung mit PDF daneben.
@@ -3153,9 +2988,8 @@ const ORGANISATION_TEXTS = {
   notes: '',
 };
 
-/** Hinweise zu Rechtsform, Speicherort und Steuerfällen. */
+/** Hinweise zu Speicherort und Steuerfällen. */
 const COMPLIANCE_HINTS = {
-  legalFormNote: '',
   cloudWarning: '',
   dataDir: '/Users/anwender/Buchfink/Pfennig Ventures GmbH',
   systemChangeDate: '',
@@ -3243,7 +3077,6 @@ function retentionYear(fiscalYear: number) {
   };
 }
 
-
 /**
  * Die Steuertermine des Jahres. Erledigt ist, was aus den Daten folgt — die
  * übermittelte Voranmeldung, die Festschreibung —, und kein gesetzter Haken.
@@ -3309,7 +3142,6 @@ export const bridge = {
   GetActiveTenant: () => later(TENANTS[0]),
   SwitchTenant: () => later(undefined),
   CreateTenant: unsupported('CreateTenant'),
-  ImportTenant: unsupported('ImportTenant'),
   DeleteTenant: unsupported('DeleteTenant'),
 
   // Einrichtung
@@ -3339,7 +3171,6 @@ export const bridge = {
 
   // Konten
   GetAccounts: () => later(ACCOUNTS),
-  GetAccountByNumber: (number: string) => later(ACCOUNTS.find((x) => x.number === number)),
   GetAccountLedger: (accountNumber: string) => later(ledgerFor(accountNumber)),
   GetSuSaOverview: () => later(susa()),
   GetPaymentAccounts: () => later(ACCOUNTS.filter((x) => x.number === '1800')),
@@ -3352,12 +3183,10 @@ export const bridge = {
   // Journal
   GetJournalEntries: () => later(ENTRIES),
   GetAllJournalEntries: () => later(ENTRIES),
-  PostJournalEntry: unsupported('PostJournalEntry'),
   PostIncomingReceipt: unsupported('PostIncomingReceipt'),
   ReverseJournalEntry: unsupported('ReverseJournalEntry'),
   VerifyIntegrity: () => later(INTEGRITY, 400),
   GetFinancialSummary: () => later(SUMMARY),
-  GetVatSummary: (from: string, to: string) => later(vatSummary(from, to)),
 
   // Belege
   SelectReceiptFilesDialog: () => later([]),
@@ -3366,7 +3195,6 @@ export const bridge = {
   RemoveReceiptFile: unsupported('RemoveReceiptFile'),
   GetReceipts: (status: string) =>
     later(status ? RECEIPTS.filter((r) => r.status === status) : RECEIPTS),
-  GetReceipt: (id: number) => later(RECEIPTS.find((r) => r.id === id)),
   DiscardReceipt: unsupported('DiscardReceipt'),
   GetReceiptPreview: (receiptId: number) =>
     later({
@@ -3377,18 +3205,12 @@ export const bridge = {
     }),
   ExtractStructuredPart: unsupported('ExtractStructuredPart'),
   ProposeFromEInvoice: (receiptId: number) => later(proposalFor(receiptId)),
-  ValidateEInvoice: unsupported('ValidateEInvoice'),
   GetEInvoiceRules: () => later(['BR-1', 'BR-2', 'BR-CO-10', 'BR-DE-1', 'BR-DE-15']),
-  GetUncheckedEInvoiceRules: () =>
-    later({
-      'BR-CL-*': 'Codelisten-Regeln laufen gegen die mitgelieferten Listen, nicht gegen Schematron.',
-    }),
   PreviewIncomingReceipt: (request: any) => later(previewIncoming(request), 120),
   PreviewOutgoingInvoice: unsupported('PreviewOutgoingInvoice'),
 
   // Bank & Zahlungen
   GetBankTransactions: () => later(BANK_TX),
-  ImportCAMT053XML: unsupported('ImportCAMT053XML'),
   BookBankTransactionDirect: unsupported('BookBankTransactionDirect'),
   IgnoreBankTransaction: unsupported('IgnoreBankTransaction'),
   GetOpenItems: () => later(OPEN_ITEMS),
@@ -3397,20 +3219,16 @@ export const bridge = {
   // Kontakte & Rechnungen
   GetContacts: () => later(CONTACTS),
   SaveContact: unsupported('SaveContact'),
-  DeleteContact: unsupported('DeleteContact'),
   GetInvoices: () => later(INVOICES),
   IssueInvoice: unsupported('IssueInvoice'),
-  CancelInvoice: unsupported('CancelInvoice'),
   GenerateInvoiceZUGFeRD: unsupported('GenerateInvoiceZUGFeRD'),
   GetInvoiceDocument: unsupported('GetInvoiceDocument'),
 
   // Anlagevermögen
   GetFixedAssets: (assetClass: string) =>
     later(assetClass ? ASSETS.filter((a) => a.class === assetClass) : ASSETS),
-  GetAssetSummary: (assetClass: string) => later(assetSummary(assetClass)),
   GetFixedAsset: (id: number) => later(assetDetail(id)),
   SaveFixedAsset: unsupported('SaveFixedAsset'),
-  DeleteFixedAsset: unsupported('DeleteFixedAsset'),
   RecordAssetCostAdjustment: unsupported('RecordAssetCostAdjustment'),
   GetAssetAccounts: (assetClass: string) =>
     later(assetClass ? ASSET_ACCOUNTS.filter((a) => a.class === assetClass) : ASSET_ACCOUNTS),
@@ -3437,8 +3255,6 @@ export const bridge = {
   GetLegalForms: () => later(LEGAL_FORMS),
   GetInvestmentRules: () => later(INVESTMENT_RULES),
   ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
-  GetInvestmentNoteForIncome: (assetId: number, amount: number) =>
-    later(investmentNote(assetId, amount, false), 60),
   DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
   GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
@@ -3462,7 +3278,6 @@ export const bridge = {
   // Jahresabschluss: Bilanz, GuV, Anhang, Größenklasse
   GetStatement: () => later(STATEMENT, 80),
   GetSizeClass: () => later(SIZE_CLASS),
-  GetStatementDeadlines: () => later([]),
   ExportStatementPDF: unsupported('ExportStatementPDF'),
   ExportStatementCSV: unsupported('ExportStatementCSV'),
 
@@ -3483,18 +3298,12 @@ export const bridge = {
   ExportVatReturnCSV: () => later('Kennziffer;Bemessungsgrundlage;Steuer\n81;315200;59888\n'),
   ConfirmVatReturnSubmitted: unsupported('ConfirmVatReturnSubmitted'),
 
-  // Welle 7: Aufgaben, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+  // Welle 7: Aufgaben, Monatsabschluss, Bankvorschlag, Prüfpfad
   GetTasks: () => later(TASKS, 60),
   GetMonthCloseState: (month: string) => later(monthCloseState(month), 60),
   SuggestBankMatches: (bankTxId: number) => later(bankSuggestions(bankTxId), 60),
   GetBankRules: () => later(BANK_RULES),
   DeleteBankRule: unsupported('DeleteBankRule'),
-  GetDunningProposals: () => later(DUNNING_PROPOSALS, 60),
-  CreateDunningNotices: unsupported('CreateDunningNotices'),
-  GetDunningNotices: (contactId: number) =>
-    later(contactId ? DUNNING_NOTICES.filter((n) => n.contactId === contactId) : DUNNING_NOTICES),
-  GetBaseRates: () => later(BASE_RATES),
-  SaveBaseRate: unsupported('SaveBaseRate'),
   GetAuditTrail: (receiptId: number) => later(auditTrail(receiptId), 60),
   ExportAuditTrail: unsupported('ExportAuditTrail'),
   SaveServiceProof: unsupported('SaveServiceProof'),
@@ -3502,7 +3311,6 @@ export const bridge = {
 
   // E-Bilanz, Audit & Festschreibung
   ExportEBilanzXBRL: () => later(XBRL, 400),
-  GetAuditLogs: () => later(AUDIT_LOGS),
   GetFestschreibungen: () => later(FESTSCHREIBUNGEN),
   CommitPeriod: unsupported('CommitPeriod'),
   VerifyFestschreibung: (id: number) =>
@@ -3540,7 +3348,6 @@ export const bridge = {
   GetRetentionHolds: () => later([]),
   GetExpiredObjects: () => later([]),
   GetBackupRuns: () => later(BACKUP_RUNS),
-  GetKeyDirectory: () => later(KEY_DIRECTORY),
   // Die Seite „Betriebsprüfung" liest die Verfahrensdokumentation beim Öffnen:
   // ohne Antwort stünde auf dem Bild für die Webseite eine Fehlermeldung.
   GetProcedureDocumentations: () => later(PROCEDURE_DOCS, 60),
@@ -3562,7 +3369,6 @@ export const bridge = {
   RefundAdvance: unsupported('RefundAdvance'),
   IssueFinalInvoice: unsupported('IssueFinalInvoice'),
   WriteOffOpenItem: unsupported('WriteOffOpenItem'),
-  GetLegacySpecialDepreciations: unsupported('GetLegacySpecialDepreciations'),
   SetAverageEmployees: unsupported('SetAverageEmployees'),
   SetPriorYearRevenue: unsupported('SetPriorYearRevenue'),
   CreateFiscalYear: unsupported('CreateFiscalYear'),
@@ -3622,12 +3428,10 @@ export const bridge = {
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),
   ExportAuditPackage: unsupported('ExportAuditPackage'),
-  ExportKeyDirectory: unsupported('ExportKeyDirectory'),
   SelectExportDirectoryDialog: unsupported('SelectExportDirectoryDialog'),
   SelectSaveFileDialog: unsupported('SelectSaveFileDialog'),
   SaveReceiptFileAs: unsupported('SaveReceiptFileAs'),
   VerifyReceiptFiles: unsupported('VerifyReceiptFiles'),
-  GetAccountLedgerRange: unsupported('GetAccountLedgerRange'),
   ImportCAMT053File: unsupported('ImportCAMT053File'),
   SelectStatementFileDialog: unsupported('SelectStatementFileDialog'),
   SetBackupDir: unsupported('SetBackupDir'),
@@ -3636,7 +3440,6 @@ export const bridge = {
   RestoreFromBackup: unsupported('RestoreFromBackup'),
   SelectBackupDirDialog: unsupported('SelectBackupDirDialog'),
   SelectBackupFileDialog: unsupported('SelectBackupFileDialog'),
-  PreviewInputTaxCorrection: unsupported('PreviewInputTaxCorrection'),
   RegisterInputTaxCorrection: unsupported('RegisterInputTaxCorrection'),
   CloseInputTaxCorrection: unsupported('CloseInputTaxCorrection'),
   SaveInputTaxUsage: unsupported('SaveInputTaxUsage'),
@@ -3644,15 +3447,12 @@ export const bridge = {
   GetVatIDChecks: unsupported('GetVatIDChecks'),
   GetVatIDStatus: unsupported('GetVatIDStatus'),
   CheckVatID: unsupported('CheckVatID'),
-
-  GetNonDeductibleCategories: unsupported('GetNonDeductibleCategories'),
   GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
   RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
   GetExchangeRate: unsupported('GetExchangeRate'),
   GetExchangeRates: unsupported('GetExchangeRates'),
   SaveExchangeRate: unsupported('SaveExchangeRate'),
   GetVatExchangeRates: unsupported('GetVatExchangeRates'),
-  SaveVatExchangeRate: unsupported('SaveVatExchangeRate'),
   ImportVatExchangeRatesCSV: unsupported('ImportVatExchangeRatesCSV'),
   PreviewCurrencyValuation: unsupported('PreviewCurrencyValuation'),
   BookCurrencyValuation: unsupported('BookCurrencyValuation'),
@@ -3663,8 +3463,6 @@ export const bridge = {
   CheckNearAcquisitionCost: unsupported('CheckNearAcquisitionCost'),
   CapitalizeNearAcquisitionCost: unsupported('CapitalizeNearAcquisitionCost'),
   GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
-  GetServiceEndpoints: unsupported('GetServiceEndpoints'),
-  SaveServiceEndpoints: unsupported('SaveServiceEndpoints'),
   GetSchemaMigrations: unsupported('GetSchemaMigrations'),
   GetMigrationRecords: unsupported('GetMigrationRecords'),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
@@ -3682,14 +3480,12 @@ export const bridge = {
   BookOpeningBalance: unsupported('BookOpeningBalance'),
   EnableReadOnly: unsupported('EnableReadOnly'),
   DisableReadOnly: unsupported('DisableReadOnly'),
-  GetProgramVersion: unsupported('GetProgramVersion'),
 
   // Welle 8: die laufende Buchhaltung. Gelesen wird aus denselben
   // Beispieldaten wie das Journal — geschrieben wird nichts: die Handbuchung,
   // der Eigenbeleg, das eigene Konto und die Fristverlängerung sind Vorgänge
   // mit Folgen und stehen deshalb als „nicht verfügbar" da.
   GetRetentionRules: () => later(RETENTION_RULES),
-  GetVatRatePeriods: () => later(VAT_RATE_PERIODS),
   GetVatPeriodProposal: (year: number) => later(vatPeriodProposal(year)),
   GetCustomAccounts: () => later(CUSTOM_ACCOUNTS),
   GetStatementPositions: () => later(STATEMENT_POSITIONS),
@@ -3697,7 +3493,6 @@ export const bridge = {
     later(ENTRIES.filter((e: any) => e.receiptId === receiptId)),
   GetReceiptFindings: (receiptId: number) => later(receiptFindings(receiptId)),
   GetFilteredJournal: (filter: any) => later(filteredJournal(filter)),
-  GetFilteredJournalCSV: () => later(filteredJournalCSV()),
   SaveFilteredJournalCSV: unsupported('SaveFilteredJournalCSV'),
   PostManualEntry: unsupported('PostManualEntry'),
   CreateSelfIssuedReceipt: unsupported('CreateSelfIssuedReceipt'),
@@ -3885,7 +3680,6 @@ function previewIncoming(request: any) {
   return { lines, net, tax, gross, balanced: true, warnings };
 }
 
-
 // -------------------------------------------------------------------------
 // Welle 8: Fristen, Steuersätze, eigene Konten, Beanstandungen, Journalfilter
 
@@ -3922,13 +3716,6 @@ const RETENTION_RULES = {
     },
   ],
 };
-
-/** Die datierte Tabelle der Steuersätze (UNV-03 K2). */
-const VAT_RATE_PERIODS = [
-  { validFrom: '2007-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
-  { validFrom: '2020-07-01', standard: 1600, reduced: 500, source: 'Zweites Corona-Steuerhilfegesetz' },
-  { validFrom: '2021-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
-];
 
 /** Der Vorschlag zum Voranmeldungszeitraum aus der Steuer des Vorjahres. */
 function vatPeriodProposal(year: number) {
@@ -4130,22 +3917,4 @@ function filteredJournal(filter: any) {
     totalCredit,
     balance: totalDebit - totalCredit,
   };
-}
-
-/** Dieselbe Menge als CSV — dieselben Spalten wie im Z3-Export. */
-function filteredJournalCSV() {
-  const head = 'Buchung;Datum;Buchungstext;Konto;Steuerschlüssel;Bearbeiter;Soll;Haben';
-  const body = journalRows().map((row) =>
-    [
-      row.entryNumber,
-      row.bookingDate,
-      row.description,
-      row.account,
-      row.taxKey ?? '',
-      row.actor ?? '',
-      row.side === 'S' ? euro(row.amount) : '',
-      row.side === 'H' ? euro(row.amount) : '',
-    ].join(';'),
-  );
-  return [head, ...body].join('\n');
 }

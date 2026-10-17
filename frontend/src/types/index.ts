@@ -631,15 +631,6 @@ export interface ValidationFinding {
   message: string;
 }
 
-export interface ValidationResult {
-  ruleset: string;
-  version: string;
-  format: string;
-  profile: string;
-  coverage: 'partial';
-  findings?: ValidationFinding[];
-}
-
 export interface ReceiptPreview {
   dataUrl: string;
   fileName: string;
@@ -1139,29 +1130,6 @@ export interface WriteOffRequest {
   reason: string;
 }
 
-export interface VatFigure {
-  rate: TaxRate;
-  net: Cents;
-  tax: Cents;
-}
-
-export interface VatSummary {
-  fiscalYear: number;
-  periodFrom: string;
-  periodTo: string;
-  taxableRevenue: VatFigure[] | null;
-  exemptRevenue: Cents;
-  reverseChargeSupply: Cents;
-  outputTax: Cents;
-  reverseChargeTax: Cents;
-  reverseChargeBase: Cents;
-  intraCommunityAcquisitionTax: Cents;
-  intraCommunityAcquisitionBase: Cents;
-  totalOwedTax: Cents;
-  inputTax: Cents;
-  payable: Cents;
-}
-
 export interface CashflowDataPoint {
   month: string;
   label: string;
@@ -1253,7 +1221,7 @@ export interface CompanySettings {
   notary: string;
   /** Urkundenrollennummer des Gesellschaftsvertrags. */
   deedNumber: string;
-  /** Aktuelles Stamm- oder Grundkapital. */
+  /** Aktuelles Stammkapital. */
   shareCapital: Cents;
   shareholders: CompanyShareholder[];
   /**
@@ -1303,17 +1271,12 @@ export interface CompanySettings {
    * Null heißt die Voreinstellung von 1.000 Euro, nicht „kein Nachweis".
    */
   invoiceCheckThreshold: Cents;
-  /** Die eingestellte Stufenfolge des Mahnwesens; leer heißt: Voreinstellung. */
-  dunningLevels: DunningLevel[];
   /** Nachfrist für die Festschreibung des Vormonats; 0 heißt Monatsende. */
   commitGraceDays: number;
   /**
    * Legt die Anlegerstellung für § 20 InvStG ausdrücklich fest — normalerweise
-   * leer, weil sie aus der Rechtsform folgt.
-   *
-   * Gebraucht wird sie in zwei Fällen: bei einer Personengesellschaft, wo
-   * § 20 Abs. 3a InvStG auf den Gesellschafter abstellt, und bei den Ausnahmen
-   * des § 20 Abs. 1 Sätze 4 und 5 — Lebens- und Krankenversicherer,
+   * leer, weil sie aus der Rechtsform folgt. Gebraucht wird sie bei den
+   * Ausnahmen des § 20 Abs. 1 Sätze 4 und 5 — Lebens- und Krankenversicherer,
    * Kreditinstitute mit Handelsbestand, Pensionsfonds.
    */
   investorOverride: InvestorType;
@@ -1502,7 +1465,7 @@ export type DisposalKind = 'sale' | 'scrapped' | 'repayment';
 export type FundClass = '' | 'equity' | 'mixed' | 'real_estate' | 'foreign_real_estate' | 'other';
 
 /** Die Anlegerstellung, an der § 20 Abs. 1 InvStG die Höhe des Satzes festmacht. */
-export type InvestorType = '' | 'basic' | 'individual_business' | 'corporate' | 'mixed';
+export type InvestorType = '' | 'basic' | 'corporate';
 
 export type AssetMovementKind =
   | 'transfer'
@@ -1643,18 +1606,6 @@ export interface FixedAsset {
   vorabpauschalen?: Cents;
   status: AssetStatus;
   statusNote?: string;
-}
-
-export interface AssetSummary {
-  fiscalYear: number;
-  count: number;
-  cost: Cents;
-  accumulated: Cents;
-  bookValue: Cents;
-  yearAmount: Cents;
-  dueAmount: Cents;
-  specialDue: Cents;
-  dueCount: number;
 }
 
 export interface AssetScheduleYear {
@@ -2824,14 +2775,6 @@ export interface ExportResult {
   notes: string[];
 }
 
-/** Eine Zeile des Schlüsselverzeichnisses (GoBD Rz. 95). */
-export interface KeyDirectoryEntry {
-  category: string;
-  key: string;
-  label: string;
-  description: string;
-}
-
 export interface FileCheckIssue {
   receiptNumber?: string;
   fileName: string;
@@ -3436,24 +3379,6 @@ export interface TaxElectionRegister {
   note: string;
 }
 
-/** Eine Sonderabschreibung, die noch als Buchung im Journal steht. */
-export interface LegacySpecialDepreciation {
-  assetId: number;
-  inventoryNumber: string;
-  name: string;
-  fiscalYear: number;
-  date: string;
-  amount: Cents;
-  expenseAccount: string;
-  entryNumber?: string;
-}
-
-export interface LegacySpecialDepreciationNotice {
-  rows: LegacySpecialDepreciation[];
-  total: Cents;
-  note: string;
-}
-
 // -------------------------------------------------------------------------
 // Steuerliche Nebenpflichten (Welle 5c): Vorsteuerberichtigung § 15a UStG,
 // Bestätigung der USt-IdNr., nicht abziehbare Betriebsausgaben, Fremdwährung,
@@ -3872,17 +3797,6 @@ export interface ExemptionCertificateWarning {
   note: string;
 }
 
-/**
- * Die Adressen der beiden Netzdienste: Bundeszentralamt für Steuern und
- * Kursdienst. Ein leerer Wert bedeutet die jeweilige Voreinstellung.
- */
-export interface ServiceEndpoints {
-  vatIdEndpoint: string;
-  vatIdDefault: string;
-  exchangeRateEndpoint: string;
-  exchangeRateDefault: string;
-}
-
 // -------------------------------------------------------------------------
 // Nachweise (Welle 6): Änderungsprotokoll, Versionen, Aufbewahrung,
 // Verfahrensdokumentation, Datenübernahme, Altersstruktur
@@ -4013,10 +3927,8 @@ export interface OrganisationTexts {
   notes: string;
 }
 
-/** Die Hinweise zu Rechtsform, Speicherort und Steuerfällen. */
+/** Die Hinweise zu Speicherort und Steuerfällen. */
 export interface ComplianceHints {
-  /** Kapitalkonten und Entnahmen; leer bei Kapitalgesellschaften. */
-  legalFormNote: string;
   /** Belegt, wenn der Datenordner in einem Synchronisationsordner liegt. */
   cloudWarning: string;
   dataDir: string;
@@ -4139,8 +4051,8 @@ export interface OpenItemsAging {
 }
 
 // ---------------------------------------------------------------------------
-// Die Bedienung (Welle 7): Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag,
-// Mahnwesen und Prüfpfad.
+// Die Bedienung (Welle 7): Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag
+// und Prüfpfad.
 // ---------------------------------------------------------------------------
 
 /**
@@ -4266,115 +4178,6 @@ export interface BankRule {
   hits: number;
   lastUsedAt?: string;
   createdAt: string;
-  updatedAt: string;
-}
-
-/** Eine Mahnstufe (`domain.DunningLevel`). */
-export interface DunningLevel {
-  level: number;
-  label: string;
-  daysAfterDue: number;
-  fee: Cents;
-}
-
-/** Ein gemahnter Posten im Vorschlag (`service.DunningProposalItem`). */
-export interface DunningProposalItem {
-  entryId: number;
-  documentNumber: string;
-  documentDate: string;
-  dueDate: string;
-  openAmount: Cents;
-  daysOverdue: number;
-  /** Der erste Tag des Verzugs; ab ihm laufen die Zinsen. */
-  defaultFrom: string;
-  interestDays: number;
-  interest: Cents;
-  level: number;
-  previousLevel: number;
-  lumpSum: Cents;
-  /** Was an diesem Posten nicht gerechnet werden konnte — etwa ein fehlender Basiszinssatz. */
-  note?: string;
-}
-
-/** Der Mahnvorschlag eines Kunden (`service.DunningProposal`). */
-export interface DunningProposal {
-  contactId: number;
-  contactName: string;
-  /** Entscheidet über Zinssatz und Pauschale; folgt den Stammdaten. */
-  isConsumer: boolean;
-  level: number;
-  levelLabel: string;
-  noticeDate: string;
-  items: DunningProposalItem[];
-  principal: Cents;
-  interest: Cents;
-  fee: Cents;
-  lumpSum: Cents;
-  total: Cents;
-  note: string;
-}
-
-/** Der Auftrag eines Mahnlaufs (`service.DunningRunRequest`). */
-export interface DunningRunRequest {
-  /** Die ausgewählten Kunden. Leer heißt: nichts tun — ausdrücklich nicht „alle". */
-  contactIds: number[];
-  noticeDate: string;
-  paymentDeadline: string;
-}
-
-/** Ein gemahnter Posten im erzeugten Schreiben (`domain.DunningNoticeItem`). */
-export interface DunningNoticeItem {
-  id: number;
-  dunningNoticeId: number;
-  openItemEntryId: number;
-  documentNumber: string;
-  documentDate: string;
-  dueDate: string;
-  openAmount: Cents;
-  defaultFrom: string;
-  interestDays: number;
-  interestAmount: Cents;
-  lumpSumAmount: Cents;
-  level: number;
-}
-
-/** Ein erzeugtes Mahnschreiben (`domain.DunningNotice`). */
-export interface DunningNotice {
-  id: number;
-  fiscalYear: number;
-  contactId: number;
-  contactName: string;
-  isConsumer: boolean;
-  level: number;
-  levelLabel: string;
-  noticeDate: string;
-  dueDate: string;
-  principalAmount: Cents;
-  interestAmount: Cents;
-  feeAmount: Cents;
-  lumpSumAmount: Cents;
-  totalAmount: Cents;
-  documentName?: string;
-  documentPath?: string;
-  documentSha256?: string;
-  /** Der Grund, aus dem kein Schreiben entstanden ist; die Forderung gilt trotzdem als gemahnt. */
-  documentNote?: string;
-  items: DunningNoticeItem[];
-  createdAt: string;
-}
-
-/**
- * Der Basiszinssatz ab einem Stichtag (`domain.BaseRate`).
- *
- * `basisPoints` sind Hundertstel eines Prozentpunktes: 127 sind 1,27 %.
- * Ganzzahlig, weil eine Gleitkommazahl die Zinsrechnung um Cents verschöbe.
- */
-export interface BaseRate {
-  validFrom: string;
-  basisPoints: number;
-  source?: string;
-  /** Fortgeschrieben und nicht bekanntgegeben: die Einstellungen zeigen ihn als „zu prüfen". */
-  provisional: boolean;
   updatedAt: string;
 }
 
@@ -4561,14 +4364,6 @@ export interface RetentionRules {
   classes: RetentionClassRules[];
 }
 
-/** Ein datiertes Paar aus Regel- und ermäßigtem Steuersatz (`accounting.VatRatePeriod`). */
-export interface VatRatePeriod {
-  validFrom: string;
-  standard: TaxRate;
-  reduced: TaxRate;
-  source: string;
-}
-
 /** Der Vorschlag für den Voranmeldungszeitraum (`service.VatPeriodProposal`). */
 export interface VatPeriodProposal {
   year: number;
@@ -4645,7 +4440,7 @@ export interface BankAccount {
   currency: string;
   bic?: string;
   bankName?: string;
-  /** Das Konto, dessen Verbindung auf Rechnungen und Mahnschreiben steht. */
+  /** Das Konto, dessen Verbindung auf Rechnungen steht. */
   isInvoiceAccount?: boolean;
 }
 

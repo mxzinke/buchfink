@@ -6,26 +6,16 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-func TestFoundationRulesForOnlyCoversKapitalgesellschaften(t *testing.T) {
-	for _, name := range []string{"GmbH", "UG (haftungsbeschränkt)", "AG"} {
-		if _, ok := FoundationRulesFor(name); !ok {
-			t.Errorf("%s sollte im Gründungskatalog stehen", name)
-		}
-	}
-	// Bei einer Personengesellschaft gibt es keine Vorgesellschaft — der
-	// Gründungsweg darf dort gar nicht erst erscheinen.
-	for _, name := range []string{"GbR", "OHG", "KG", "GmbH & Co. KG", "Einzelunternehmen", "Sonstige"} {
-		if _, ok := FoundationRulesFor(name); ok {
-			t.Errorf("%s darf nicht im Gründungskatalog stehen", name)
-		}
-	}
-}
-
+// Jede Rechtsform des Katalogs hat ihren Gründungsweg, und jeder Gründungsweg
+// gehört zu einer Rechtsform des Katalogs.
 func TestFoundationCatalogMatchesLegalFormCatalog(t *testing.T) {
-	// Die Schreibweise muss zum Rechtsformkatalog passen, sonst findet
-	// FoundationRulesFor die Rechtsform des Mandanten nie.
+	for _, form := range domain.LegalFormCatalog() {
+		if _, ok := FoundationRulesFor(form.Name); !ok {
+			t.Errorf("%s sollte im Gründungskatalog stehen", form.Name)
+		}
+	}
 	for _, r := range FoundationLegalForms() {
-		if _, ok := domain.LookupLegalForm(r.LegalForm); !ok {
+		if !domain.IsSupportedLegalForm(r.LegalForm) {
 			t.Errorf("Rechtsform %q steht nicht in domain.LegalFormCatalog", r.LegalForm)
 		}
 	}

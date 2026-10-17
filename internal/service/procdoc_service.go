@@ -351,7 +351,6 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 		CaptureDays:      settings.ReceiptCaptureDays,
 		TaxationType:     taxationLabel(settings.TaxationType),
 		VatPeriod:        vatPeriodLabel(settings.VatPeriod),
-		LegalFormNote:    domain.LegalFormLimitationNote(settings.LegalForm),
 		AppVersion:       buildinfo.Version,
 		RuleVersion:      accounting.PostingRuleVersion,
 		TSAName:          timestamp.DefaultTSA,

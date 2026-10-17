@@ -19,10 +19,10 @@ type SchemaMigration struct {
 	// AppVersion ist die Programmfassung, die migriert hat.
 	AppVersion string `gorm:"size:60;not null" json:"appVersion"`
 	// FromVersion und ToVersion sind die Schemaversionen vor und nach dem Lauf.
-	// FromVersion 0 heißt: eine neue oder eine noch nicht protokollierte Datei.
+	// FromVersion 0 heißt: eine neue Datei.
 	FromVersion int `gorm:"not null" json:"fromVersion"`
 	ToVersion   int `gorm:"not null" json:"toVersion"`
-	// Tables sind die betroffenen Tabellen, durch Komma getrennt.
+	// Tables sind die Tabellen nach dem Lauf, durch Komma getrennt.
 	Tables string `gorm:"type:text" json:"tables"`
 	// Result ist "ok" oder "fehlgeschlagen", Message die Erläuterung.
 	Result  string `gorm:"size:20;not null" json:"result"`

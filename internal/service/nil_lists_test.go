@@ -8,7 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-func TestProbeNilLists(t *testing.T) {
+func TestServiceResultsHaveNoNilLists(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
@@ -108,11 +108,11 @@ func TestProbeNilLists(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Fristen", deadlines)
 
-	proposals, err := env.dunning(t, nil).Proposals(ctx, "2026-04-17")
+	claims, err := env.overdue(t).Claims(ctx, "2026-04-17")
 	if err != nil {
-		t.Fatalf("Mahnvorschläge: %v", err)
+		t.Fatalf("Überfällige Forderungen: %v", err)
 	}
-	assertNoNilSlices(t, "Mahnvorschläge", proposals)
+	assertNoNilSlices(t, "Überfällige Forderungen", claims)
 
 	size, err := env.statements(t).SizeClassFor(ctx, 2026)
 	if err != nil {

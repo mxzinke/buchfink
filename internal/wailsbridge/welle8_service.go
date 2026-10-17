@@ -209,11 +209,6 @@ func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodPropo
 	return b.vatReturnSvc.SuggestPeriodType(context.Background(), year)
 }
 
-// GetVatRatePeriods liefert die datierte Tabelle der Umsatzsteuersätze.
-func (b *BuchfinkBridge) GetVatRatePeriods() []accounting.VatRatePeriod {
-	return accounting.VatRatePeriods()
-}
-
 // --- Journalfilter --------------------------------------------------------
 
 // GetFilteredJournal liefert die gefilterte Menge der Journalzeilen mit ihrer
@@ -228,21 +223,6 @@ func (b *BuchfinkBridge) GetFilteredJournal(
 		return empty, nil
 	}
 	return b.accountingSvc.FilterEntries(context.Background(), filter)
-}
-
-// GetFilteredJournalCSV liefert dieselbe Menge als CSV.
-//
-// Als Zeichenkette und nicht als Datei: wohin sie geschrieben wird, entscheidet
-// der Dateidialog, und ein Dienst, der selbst schreibt, schriebe irgendwohin.
-func (b *BuchfinkBridge) GetFilteredJournalCSV(filter accounting.JournalFilter) (string, error) {
-	// Schreibsperre trotz Lesevorgangs: die Herausgabe schreibt einen
-	// Protokolleintrag (QUE-02 K2).
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.accountingSvc == nil {
-		return "", fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountingSvc.FilterEntriesCSV(context.Background(), filter)
 }
 
 // SaveFilteredJournalCSV schreibt die gefilterte Menge in eine gewählte Datei.
