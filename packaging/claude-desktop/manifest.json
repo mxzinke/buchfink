@@ -1,0 +1,54 @@
+{
+  "manifest_version": "0.3",
+  "name": "buchfink",
+  "display_name": "Buchfink",
+  "version": "0.3.0",
+  "description": "Verbindet Claude mit der laufenden Buchfink-App auf diesem Rechner.",
+  "long_description": "Buchfink führt die Bücher kleiner GmbHs und UGs (SKR04, GoBD). Über diese Erweiterung arbeitet Claude mit dem in Buchfink geöffneten Mandanten. Die App muss geöffnet sein. Beim ersten Aufruf öffnet sich der Browser mit einem Abgleichcode; zugelassen wird im Fenster von Buchfink. Festschreibung, Übermittlung, Stammdaten und Prüfermodus bleiben der App vorbehalten.",
+  "author": {
+    "name": "Buchfink",
+    "url": "https://github.com/mxzinke/buchfink"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mxzinke/buchfink"
+  },
+  "homepage": "https://github.com/mxzinke/buchfink",
+  "license": "EUPL-1.2",
+  "icon": "icon.png",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/buchfink-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/buchfink-mcp",
+      "args": ["--url", "${user_config.url}"],
+      "env": {},
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/buchfink-mcp.exe"
+        }
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "status",
+      "description": "Überblick über Buchfink: geöffneter Mandant, Geschäftsjahre, Prüfermodus, Bereitschaft"
+    }
+  ],
+  "tools_generated": true,
+  "user_config": {
+    "url": {
+      "type": "string",
+      "title": "Adresse der Buchfink-App",
+      "description": "Nur ändern, wenn in Buchfink unter Verbundene Apps ein anderer Port eingestellt ist.",
+      "default": "http://127.0.0.1:7465/mcp",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.12.0",
+    "platforms": ["darwin", "win32"]
+  },
+  "keywords": ["buchhaltung", "gobd", "skr04", "ustva", "e-rechnung"]
+}

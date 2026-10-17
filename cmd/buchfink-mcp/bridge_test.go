@@ -1,0 +1,338 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"go/parser"
+	"go/token"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/mcpserver"
+	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
+	"github.com/buchfink/buchfink/internal/repository"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+// Die Brücke wird gegen den echten MCP-Server der App getestet, nur ohne
+// Fenster: ein Broker entscheidet, ein simulierter Browser folgt den Seiten.
+
+type autoBroker struct {
+	srv     atomic.Pointer[mcpserver.Server]
+	approve atomic.Bool
+}
+
+func (b *autoBroker) Present(r oauth.ConsentRequest) {
+	go func() { _ = b.srv.Load().Resolve(context.Background(), r.ID, r.Nonce, b.approve.Load()) }()
+}
+func (b *autoBroker) Withdraw(string) {}
+
+type testApp struct {
+	endpoint string
+	srv      *mcpserver.Server
+	broker   *autoBroker
+}
+
+func startApp(t *testing.T) *testApp {
+	t.Helper()
+	base := t.TempDir()
+	host, err := core.NewHost(context.Background(), core.HostOptions{
+		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
+		BaseDir: base, Network: core.OfflineNetwork(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = host.Close(context.Background()) })
+	ui := actor.WithChannel(context.Background(), actor.ChannelUI)
+	if _, err := host.CreateTenant(ui, "Pfennig Ventures GmbH", filepath.Join(base, "daten"),
+		domain.CompanySettings{CompanyName: "Pfennig Ventures GmbH", FiscalYear: 2026}); err != nil {
+		t.Fatal(err)
+	}
+	broker := &autoBroker{}
+	broker.approve.Store(true)
+	srv, err := mcpserver.New(mcpserver.Options{Host: host, StorePath: filepath.Join(base, mcpserver.StoreFile), Broker: broker,
+		Auth: func(c *oauth.Config) { c.LongPoll = time.Second }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	broker.srv.Store(srv)
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	ts := httptest.NewUnstartedServer(srv.Handler(port))
+	_ = ts.Listener.Close()
+	ts.Listener = l
+	ts.Start()
+	t.Cleanup(func() {
+		ts.Close()
+		_ = srv.Close(context.Background())
+	})
+	return &testApp{endpoint: fmt.Sprintf("http://127.0.0.1:%d/mcp", port), srv: srv, broker: broker}
+}
+
+var refreshLink = regexp.MustCompile(`url=(/authorize/warten\?anfrage=[^"]+)"`)
+
+// browser folgt der Anmeldeseite bis zum Rücksprung in die Brücke.
+func browser(t *testing.T, opened *atomic.Int32) func(string) error {
+	return func(authURL string) error {
+		opened.Add(1)
+		go func() {
+			client := &http.Client{Timeout: 30 * time.Second}
+			req, _ := http.NewRequest(http.MethodGet, authURL, nil)
+			req.Header.Set("Sec-Fetch-Site", "none")
+			resp, err := client.Do(req)
+			for range 20 {
+				if err != nil {
+					t.Errorf("Browser: %v", err)
+					return
+				}
+				body, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				m := refreshLink.FindStringSubmatch(string(body))
+				if m == nil {
+					return // Rücksprung erreicht oder Fehlerseite
+				}
+				u, _ := resp.Request.URL.Parse(strings.ReplaceAll(m[1], "&amp;", "&"))
+				resp, err = client.Get(u.String())
+			}
+		}()
+		return nil
+	}
+}
+
+func quietLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
+
+// connect startet eine Brücke und verbindet einen stdio-Client mit ihr.
+func connect(t *testing.T, cfg config) (*mcp.ClientSession, *bridge) {
+	t.Helper()
+	if cfg.Logger == nil {
+		cfg.Logger = quietLogger()
+	}
+	b, err := newBridge(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientT, serverT := mcp.NewInMemoryTransports()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		_ = b.run(ctx, serverT)
+		close(done)
+	}()
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "claude-desktop-test"}, nil).Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = cs.Close()
+		cancel()
+		<-done
+	})
+	return cs, b
+}
+
+func call(t *testing.T, cs *mcp.ClientSession, name string) *mcp.CallToolResult {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: map[string]any{}})
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	return res
+}
+
+func text(res *mcp.CallToolResult) string {
+	var b strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			b.WriteString(tc.Text)
+		}
+	}
+	return b.String()
+}
+
+func errorCode(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if !res.IsError {
+		t.Fatalf("erwartet einen Fehler, bekam %s", text(res))
+	}
+	var body struct {
+		Fehler struct {
+			Code string `json:"code"`
+		} `json:"fehler"`
+	}
+	if err := json.Unmarshal([]byte(text(res)), &body); err != nil {
+		t.Fatalf("Fehler im falschen Format: %s", text(res))
+	}
+	return body.Fehler.Code
+}
+
+// Erster Start: der erste Aufruf meldet die Brücke an (Browser, Zustimmung
+// in der App), danach reicht sie durch. Ein zweiter Prozess nutzt dieselbe
+// Anmeldung ohne Browser.
+func TestBridgeLogsInOnceAndForwards(t *testing.T) {
+	app := startApp(t)
+	dir := t.TempDir()
+	var opened atomic.Int32
+	cs, _ := connect(t, config{Endpoint: app.endpoint, StateDir: dir, ClientName: "Claude Desktop (Test)",
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+
+	res := call(t, cs, "status")
+	if res.IsError {
+		t.Fatalf("status über die Brücke: %s", text(res))
+	}
+	var out struct {
+		Bereit     bool `json:"bereit"`
+		Verbindung struct {
+			Erfassungsweg string `json:"erfassungsweg"`
+		} `json:"verbindung"`
+	}
+	if err := json.Unmarshal([]byte(text(res)), &out); err != nil || !out.Bereit ||
+		out.Verbindung.Erfassungsweg != "agent:claude-desktop-test" {
+		t.Fatalf("status: %s", text(res))
+	}
+	if opened.Load() != 1 {
+		t.Errorf("Browser %d-mal geöffnet, erwartet einmal", opened.Load())
+	}
+
+	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	if len(files) != 2 {
+		t.Fatalf("Anmeldung und Werkzeugliste fehlen: %v", files)
+	}
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil || info.Mode().Perm() != 0o600 {
+			t.Errorf("%s: Rechte %v", filepath.Base(f), info.Mode().Perm())
+		}
+	}
+
+	tools, err := cs.ListTools(context.Background(), nil)
+	if err != nil || len(tools.Tools) == 0 || tools.Tools[0].Annotations == nil || !tools.Tools[0].Annotations.ReadOnlyHint ||
+		tools.Tools[0].OutputSchema == nil {
+		t.Errorf("Werkzeuge kommen nicht unverändert durch: %+v %v", tools, err)
+	}
+
+	second, _ := connect(t, config{Endpoint: app.endpoint, StateDir: dir, Logger: quietLogger(),
+		OpenBrowser: func(string) error { t.Error("zweiter Prozess öffnet den Browser"); return nil }})
+	if res := call(t, second, "status"); res.IsError {
+		t.Errorf("zweiter Prozess: %s", text(res))
+	}
+}
+
+// Ist Buchfink zu, antwortet die Brücke sofort und verständlich, und die
+// Werkzeugliste vom letzten Kontakt bleibt stehen.
+func TestBridgeAnswersWhenBuchfinkIsClosed(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
+	cs, _ := connect(t, config{Endpoint: "http://127.0.0.1:" + strconv.Itoa(port) + "/mcp", StateDir: t.TempDir(),
+		OpenBrowser: func(string) error { t.Error("ohne App darf kein Browser aufgehen"); return nil }})
+
+	tools, err := cs.ListTools(context.Background(), nil)
+	if err != nil || len(tools.Tools) != 1 || tools.Tools[0].Name != "status" {
+		t.Fatalf("Werkzeuge ohne App: %+v %v", tools, err)
+	}
+	start := time.Now()
+	if code := errorCode(t, call(t, cs, "status")); code != "app_nicht_geoeffnet" {
+		t.Errorf("Code %s", code)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("die Antwort ohne App dauerte %v", d)
+	}
+}
+
+func TestBridgeReportsDeniedLogin(t *testing.T) {
+	app := startApp(t)
+	app.broker.approve.Store(false)
+	var opened atomic.Int32
+	cs, _ := connect(t, config{Endpoint: app.endpoint, StateDir: t.TempDir(),
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+	if code := errorCode(t, call(t, cs, "status")); code != "anmeldung_abgelehnt" {
+		t.Errorf("Code %s", code)
+	}
+}
+
+// Entzieht der Mensch den Zugriff, fragt die Brücke beim nächsten Aufruf
+// neu an, statt mit einem toten Token weiterzumachen.
+func TestBridgeLogsInAgainAfterRevocation(t *testing.T) {
+	app := startApp(t)
+	var opened atomic.Int32
+	cs, _ := connect(t, config{Endpoint: app.endpoint, StateDir: t.TempDir(),
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("erste Anmeldung: %s", text(res))
+	}
+	apps, err := app.srv.ConnectedApps(context.Background())
+	if err != nil || len(apps) != 1 {
+		t.Fatalf("verbundene Apps: %v %v", apps, err)
+	}
+	if err := app.srv.RevokeApp(context.Background(), apps[0].ClientID); err != nil {
+		t.Fatal(err)
+	}
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("nach dem Entzug: %s", text(res))
+	}
+	if opened.Load() != 2 {
+		t.Errorf("Browser %d-mal geöffnet, erwartet zweimal", opened.Load())
+	}
+}
+
+func TestEndpointMustBeThisComputer(t *testing.T) {
+	for raw, ok := range map[string]bool{
+		"http://127.0.0.1:7465/mcp":   true,
+		"http://localhost:7465/mcp":   true,
+		"http://[::1]:7465/mcp":       true,
+		"https://example.com/mcp":     false,
+		"http://192.168.1.5:7465/mcp": false,
+		"http://127.0.0.1/mcp":        false,
+	} {
+		if err := checkEndpoint(raw); (err == nil) != ok {
+			t.Errorf("%s: %v", raw, err)
+		}
+	}
+}
+
+// Die Brücke ist ein eigenes kleines Programm: kein Wails, kein Kern, keine
+// Datenbank.
+func TestBridgeImportsNeitherWailsNorTheCore(t *testing.T) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool {
+		return !strings.HasSuffix(info.Name(), "_test.go")
+	}, parser.ImportsOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pkg := range pkgs {
+		for name, file := range pkg.Files {
+			for _, imp := range file.Imports {
+				path := strings.Trim(imp.Path.Value, `"`)
+				if strings.Contains(path, "wailsapp") || strings.Contains(path, "buchfink/internal") ||
+					strings.Contains(path, "gorm") || strings.Contains(path, "sqlite") {
+					t.Errorf("%s importiert %s", name, path)
+				}
+			}
+		}
+	}
+}
