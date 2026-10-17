@@ -154,6 +154,63 @@ func TestImmediatelyPaidReceiptDeductsInputTaxWithPayment(t *testing.T) {
 	}
 }
 
+// Mit der Firmenkreditkarte oder als Auslage ist ein Beleg ebenso am
+// Buchungstag bezahlt wie über die Bank: die Vorsteuer aus dem Jahresabo und
+// beim EU-Anbieter die Steuer nach § 13b Abs. 4 Satz 2 UStG gehören in den
+// Zeitraum der Zahlung, nicht an das Leistungsende im Dezember.
+func TestReceiptPaidByCardOrAsExpenseCountsAsPaid(t *testing.T) {
+	ways := []struct {
+		name   string
+		settle func(env *testEnv, req *ReceiptRequest)
+	}{
+		{"Kreditkarte", func(_ *testEnv, req *ReceiptRequest) { req.Settlement = SettlementCreditCard }},
+		{"Auslage", func(env *testEnv, req *ReceiptRequest) {
+			env.withShareholders(t)
+			req.Settlement = SettlementShareholderExpense
+			req.CreditorContactID = env.person(t, "Mara Beispiel").ID
+		}},
+	}
+	for _, way := range ways {
+		t.Run(way.name+"/Inland", func(t *testing.T) {
+			env := newTestEnv(t)
+			vendor := env.vendor(t, "Software GmbH", "DE", "")
+			req := env.receipt(t, vendor.ID, "software", 120000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+			req.DocumentDate, req.BookingDate = "2026-01-08", "2026-01-08"
+			req.ServiceDateFrom, req.ServiceDateTo = "2026-01-01", "2026-12-31"
+			way.settle(env, &req)
+			env.setReceivedAt(t, req.ReceiptID, "2026-01-08")
+			if _, err := env.posting.PostIncomingReceipt(context.Background(), req); err != nil {
+				t.Fatalf("Beleg buchen: %v", err)
+			}
+			if q1 := env.vatDraft(t, "2026-Q1"); q1.Tax("66") != 22800 {
+				t.Errorf("Kz 66 in Q1 = %s, erwartet 228,00", q1.Tax("66"))
+			}
+			if q4 := env.vatDraft(t, "2026-Q4"); q4.Tax("66") != 0 {
+				t.Errorf("Kz 66 in Q4 = %s, erwartet 0", q4.Tax("66"))
+			}
+		})
+		t.Run(way.name+"/EU", func(t *testing.T) {
+			env := newTestEnv(t)
+			vendor := env.vendor(t, "Cloud Ireland Ltd.", "IE", "IE6388047V")
+			req := env.receipt(t, vendor.ID, "software", 120000, domain.TaxRateStandard, domain.TaxTreatmentReverseChargeEU)
+			req.DocumentDate, req.BookingDate = "2026-01-08", "2026-01-08"
+			req.ServiceDateFrom, req.ServiceDateTo = "2026-01-01", "2026-12-31"
+			way.settle(env, &req)
+			if _, err := env.posting.PostIncomingReceipt(context.Background(), req); err != nil {
+				t.Fatalf("Beleg buchen: %v", err)
+			}
+			q1 := env.vatDraft(t, "2026-Q1")
+			if q1.Base("46") != 120000 || q1.Tax("46") != 22800 || q1.Tax("67") != 22800 {
+				t.Errorf("Q1: Kz 46 = %s / %s, Kz 67 = %s, erwartet 1.200,00 / 228,00 / 228,00",
+					q1.Base("46"), q1.Tax("46"), q1.Tax("67"))
+			}
+			if q4 := env.vatDraft(t, "2026-Q4"); q4.Tax("46") != 0 || q4.Tax("67") != 0 {
+				t.Errorf("Q4: Kz 46 = %s, Kz 67 = %s, erwartet nichts mehr", q4.Tax("46"), q4.Tax("67"))
+			}
+		})
+	}
+}
+
 // § 13b Abs. 1 UStG: die Steuer auf die sonstige Leistung eines EU-Unternehmers
 // entsteht im Zeitraum der Leistung — die im April datierte Rechnung über eine
 // Märzleistung gehört ins erste Quartal, in Kz 46/47.
@@ -179,6 +236,86 @@ func TestReverseChargeEUServiceFollowsTheService(t *testing.T) {
 	}
 	if q2 := env.vatDraft(t, "2026-Q2"); q2.Tax("46") != 0 {
 		t.Errorf("Q2: Kz 46 = %s, das Rechnungsdatum entscheidet bei Abs. 1 nicht", q2.Tax("46"))
+	}
+}
+
+// § 13b Abs. 3 UStG: die sonstige Leistung eines EU-Unternehmers vom
+// 01.07.2025 bis 30.06.2027 (730 Tage, 24.000 € netto) läuft über mehr als ein
+// Jahr. Die Steuer entsteht spätestens mit Ablauf jedes Kalenderjahres für den
+// darin erbrachten Teil: 184 Tage in 2025 (6.049,32 €, Steuer 1.149,37 €),
+// 365 Tage in 2026 (12.000,00 €, 2.280,00 €), der Rest mit dem Leistungsende
+// (5.950,68 €, 1.130,63 €). Die Bemessungsgrundlage steht in vollen Euro im
+// Vordruck. Gebucht ist der Vertrag 2025; die Anmeldung 2027 sieht ihn
+// trotzdem.
+func TestLongTermReverseChargeArisesAtEachYearEnd(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Cloud Ireland Ltd.", "IE", "IE6388047V")
+	req := env.receipt(t, vendor.ID, "software", 2_400_000, domain.TaxRateStandard, domain.TaxTreatmentReverseChargeEU)
+	req.DocumentDate, req.BookingDate = "2025-07-01", "2025-07-01"
+	req.ServiceDateFrom, req.ServiceDateTo = "2025-07-01", "2027-06-30"
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("Beleg buchen: %v", err)
+	}
+
+	for _, c := range []struct {
+		period    string
+		base, tax domain.Cents
+	}{
+		{"2025-Q3", 0, 0},
+		{"2025-Q4", 604_900, 114_937},
+		{"2026-Q1", 0, 0},
+		{"2026-Q4", 1_200_000, 228_000},
+		{"2027-Q2", 595_000, 113_063},
+	} {
+		ret := env.vatDraft(t, c.period)
+		if ret.Base("46") != c.base || ret.Tax("46") != c.tax || ret.Tax("67") != c.tax {
+			t.Errorf("%s: Kz 46 = %s / %s, Kz 67 = %s, erwartet %s / %s / %s", c.period,
+				ret.Base("46"), ret.Tax("46"), ret.Tax("67"), c.base, c.tax, c.tax)
+		}
+	}
+}
+
+// Bezahlt die GmbH den Zweijahresvertrag im August 2025 vorab, entsteht die
+// ganze Steuer im dritten Quartal 2025 (§ 13b Abs. 4 Satz 2 UStG). Spätere
+// Jahre sehen die Zahlung aus 2025 und rechnen nichts ein zweites Mal.
+func TestPrepaidLongTermReverseChargeArisesWithThePayment(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	vendor := env.vendor(t, "Cloud Ireland Ltd.", "IE", "IE6388047V")
+	req := env.receipt(t, vendor.ID, "software", 2_400_000, domain.TaxRateStandard, domain.TaxTreatmentReverseChargeEU)
+	req.DocumentDate, req.BookingDate = "2025-07-01", "2025-07-01"
+	req.ServiceDateFrom, req.ServiceDateTo = "2025-07-01", "2027-06-30"
+	entry, err := env.posting.PostIncomingReceipt(ctx, req)
+	if err != nil {
+		t.Fatalf("Beleg buchen: %v", err)
+	}
+	env.settle(t, entry.ID, "2025-08-01", 2_400_000)
+
+	for period, tax := range map[string]domain.Cents{"2025-Q3": 456_000, "2025-Q4": 0, "2026-Q4": 0, "2027-Q2": 0} {
+		if ret := env.vatDraft(t, period); ret.Tax("46") != tax {
+			t.Errorf("%s: Kz 46 Steuer = %s, erwartet %s", period, ret.Tax("46"), tax)
+		}
+	}
+}
+
+// Eine Leistung über genau ein Jahr fällt nicht unter § 13b Abs. 3 UStG: das
+// Jahresabo vom 01.07.2026 bis 30.06.2027 gehört mit seiner ganzen Steuer ans
+// Leistungsende.
+func TestOneYearReverseChargeStaysWithTheServiceEnd(t *testing.T) {
+	env := newTestEnv(t)
+	vendor := env.vendor(t, "Cloud Ireland Ltd.", "IE", "IE6388047V")
+	req := env.receipt(t, vendor.ID, "software", 120_000, domain.TaxRateStandard, domain.TaxTreatmentReverseChargeEU)
+	req.DocumentDate, req.BookingDate = "2026-07-01", "2026-07-01"
+	req.ServiceDateFrom, req.ServiceDateTo = "2026-07-01", "2027-06-30"
+	if _, err := env.posting.PostIncomingReceipt(context.Background(), req); err != nil {
+		t.Fatalf("Beleg buchen: %v", err)
+	}
+	if q4 := env.vatDraft(t, "2026-Q4"); q4.Tax("46") != 0 {
+		t.Errorf("2026-Q4: Kz 46 = %s, erwartet nichts", q4.Tax("46"))
+	}
+	if q2 := env.vatDraft(t, "2027-Q2"); q2.Base("46") != 120_000 || q2.Tax("46") != 22_800 {
+		t.Errorf("2027-Q2: Kz 46 = %s / %s, erwartet 1.200,00 / 228,00", q2.Base("46"), q2.Tax("46"))
 	}
 }
 

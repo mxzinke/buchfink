@@ -30,6 +30,8 @@ const (
 	tableOpenItems      = "offene_posten"
 	tableAssets         = "anlagen"
 	tableAssetMovements = "anlagen_bewegungen"
+	tableLoans          = "darlehen"
+	tableLoanInterest   = "darlehen_zinsen"
 	tableTaxKeys        = "steuerschluessel"
 	tableKeyDirectory   = export.KeyDirectoryTable
 	tableAuditLog       = "aenderungsprotokoll"
@@ -130,7 +132,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Steuerschluessel", "Schlüssel der Steuerzeile; siehe Tabelle steuerschluessel."),
 		numField("Bemessungsgrundlage", "Entgelt, aus dem die Steuer dieser Zeile gerechnet wurde, in Euro."),
 		intField("Bemessungsgrundlage_Cent", "Dieselbe Bemessungsgrundlage in Cent; dieser Wert geht in die Hash-Chain ein."),
-		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten."),
+		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten und auf Konten gegenüber Gesellschaftern und Geschäftsführern (Verrechnung, Darlehen, Auslagen)."),
 		intField("Vorsteueranteil_Promille", "Abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt nicht einschlägig, -1 ganz ausgeschlossen (§ 15 Abs. 1a UStG). Dieser Wert geht in die Hash-Chain ein."),
 		intField("Fremdbetrag_Kleinste_Einheit", "Betrag der Zeile in der Fremdwährung der Buchung, in der kleinsten Einheit dieser Währung; 0 bei Euro. Dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Zeilentext", "Text der einzelnen Zeile."),
@@ -558,6 +560,72 @@ func assetMovementsTable(d *exportData) (export.Table, error) {
 			); err != nil {
 				return t, err
 			}
+		}
+	}
+	return t, nil
+}
+
+// --- Gesellschafterdarlehen -------------------------------------------------
+
+func loansTable(d *exportData) (export.Table, error) {
+	t := newTable(tableLoans, "darlehen.csv",
+		"Darlehensverträge zwischen der Gesellschaft und ihren Gesellschaftern, die im Zeitraum bestanden. "+
+			"Zins und Vergleichszins sind der Nachweis des Fremdvergleichs.",
+		intField("Darlehen_ID", "Interne Kennung."),
+		intField("Kontakt_ID", "Gesellschafter."),
+		alphaField("Richtung", "to_company: der Gesellschafter leiht der Gesellschaft; to_shareholder: die Gesellschaft leiht dem Gesellschafter."),
+		numField("Darlehensbetrag", "Vereinbarter Betrag in Euro."),
+		numField("Zinssatz", "Vereinbarter Zinssatz in Prozent."),
+		alphaField("Zinsmethode", "act/365, act/360 oder 30/360."),
+		dateField("Vertragsdatum", "Tag des Vertragsschlusses."),
+		dateField("Beginn", "Beginn der Verzinsung."),
+		dateField("Faelligkeit", "Vereinbarte Fälligkeit; leer bei unbestimmter Laufzeit."),
+		alphaField("Darlehenskonto", "Konto, auf dem der Bestand steht."),
+		alphaField("Zinskonto", "Konto der Zinsen."),
+		intField("Vertrag_Beleg_ID", "Abgelegter Darlehensvertrag."),
+		alphaField("Sicherheiten", "Vereinbarte Sicherheiten."),
+		numField("Vergleichszins", "Belegter Zins eines fremden Dritten in Prozent; leer, wenn keiner belegt ist."),
+		alphaField("Vergleichszins_Nachweis", "Nachweis des Vergleichszinses."),
+		intField("Rangruecktritt", "1, wenn ein Rangrücktritt vereinbart ist (§ 19 Abs. 2 Satz 2 InsO), sonst 0."),
+		alphaField("Notiz", "Freitext zum Vertrag."),
+	)
+	for i := range d.loans {
+		l := &d.loans[i]
+		comparison := ""
+		if l.ComparisonRateBP != nil {
+			comparison = export.Rate(domain.TaxRate(*l.ComparisonRateBP))
+		}
+		if err := t.AddRow(
+			export.Uint(l.ID), export.Uint(l.ContactID), string(l.Direction),
+			export.Amount(l.Principal), export.Rate(domain.TaxRate(l.InterestRateBP)), string(l.DayCount),
+			l.ContractDate, l.StartDate, l.MaturityDate, l.Account, l.InterestAccount,
+			export.OptUint(l.ContractReceiptID), l.Collateral, comparison, l.ComparisonSource,
+			export.Bool(l.Subordinated), l.Note,
+		); err != nil {
+			return t, err
+		}
+	}
+	return t, nil
+}
+
+func loanInterestTable(d *exportData) (export.Table, error) {
+	t := newTable(tableLoanInterest, "darlehen_zinsen.csv",
+		"Gebuchte Zinsperioden der Gesellschafterdarlehen, die den Zeitraum berühren. Eine stornierte Zinsbuchung "+
+			"steht mit ihrer Generalumkehr im Journal.",
+		intField("Zinsperiode_ID", "Interne Kennung."),
+		intField("Darlehen_ID", "Darlehen, zu dem die Zinsen gehören."),
+		dateField("Von", "Beginn der Zinsperiode."),
+		dateField("Bis", "Ende der Zinsperiode."),
+		numField("Zinsbetrag", "Gebuchte Zinsen in Euro."),
+		intField("Buchung_ID", "Buchung der Zinsen."),
+	)
+	for i := range d.loanInterest {
+		p := &d.loanInterest[i]
+		if err := t.AddRow(
+			export.Uint(p.ID), export.Uint(p.LoanID), p.PeriodFrom, p.PeriodTo,
+			export.Amount(p.Amount), export.Uint(p.EntryID),
+		); err != nil {
+			return t, err
 		}
 	}
 	return t, nil

@@ -1,7 +1,7 @@
 {
   "art": "gewst",
   "vordruckjahr": 2025,
-  "version": "gewst-2025-1",
+  "version": "gewst-2025-2",
   "titel": "Gewerbesteuererklärung 2025",
   "quellen": [
     {"id": "elster-gewst-2025", "titel": "ELSTER, Anleitung zur Gewerbesteuererklärung 2025", "url": "https://www.elster.de/eportal/helpGlobal?themaGlobal=help_gewst_ufa_20_2025", "stand": "2026-10-17"},
@@ -68,7 +68,7 @@
           {"schluessel": "gewst.k.steuer", "bezeichnung": "Gewerbesteuer", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 16 Abs. 1 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
           {"schluessel": "gewst.k.vorauszahlungen", "bezeichnung": "Geleistete Vorauszahlungen", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 19 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
           {"schluessel": "gewst.k.ergebnis", "bezeichnung": "Voraussichtliche Abschlusszahlung (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 20 GewStG"], "pruefvermerk": {"quelle": "buchfink"}},
-          {"schluessel": "gewst.k.rueckstellung", "bezeichnung": "Gebuchte Gewerbesteuerrückstellung", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
+          {"schluessel": "gewst.k.rueckstellung", "bezeichnung": "Gebuchte Gewerbesteuerrückstellung abzüglich Erstattungsanspruch (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
         ]}
       ]
     }

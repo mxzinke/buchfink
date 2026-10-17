@@ -258,7 +258,7 @@ den Datenzugriff verfügbar zu halten.
 Die Daten liegen ausschließlich auf dem Rechner der Anwenderin bzw. des
 Anwenders im Inland, im Ordner ` + "`{{orNone .DataDir}}`" + `. Es findet keine
 Verlagerung der elektronischen Buchführung ins Ausland statt (§ 146 Abs. 2, 2a
-AO). Es gibt keine Serverkomponente und keine Mandantenfähigkeit im Netz.
+AO). Eine Mandantenfähigkeit im Netz gibt es nicht.
 {{if .CloudWarning}}
 **Hinweis:** {{.CloudWarning}}
 {{end}}
@@ -267,6 +267,26 @@ es nicht; an ihre Stelle tritt die Bearbeiterkennung aus Benutzerkonto und
 Rechnername, die an jeder Buchung, jeder Festschreibung und jedem
 Protokolleintrag festgehalten wird. Der Zugang zum Rechner ist die
 Zugangskontrolle.
+
+Für verbundene Apps (KI-Agenten) betreibt die laufende App einen lokalen
+Server, der nur auf 127.0.0.1 lauscht (Standardport 7465, in den Einstellungen
+änderbar); von anderen Rechnern ist er nicht erreichbar. Eine App erhält Zugang
+erst, wenn der Mensch ihr in Buchfink für den geöffneten Mandanten zustimmt
+(OAuth mit Zustimmung je App und Mandant). Die Zustimmung lässt sich in den
+Einstellungen widerrufen. Jede Buchung, jede Angabe zu einer Steuererklärung und
+jeder Protokolleintrag hält neben der Bearbeiterkennung den Erfassungsweg fest:
+` + "`ui`" + ` für die Bedienung in der App, ` + "`system`" + ` für Läufe des
+Programms ohne Bedienung (Sicherung, nachgeholter Zeitstempel) und
+` + "`agent:<kurzname>`" + ` für eine verbundene App. Der Kurzname entsteht bei
+der ersten Zustimmung und ändert sich danach nicht.
+
+Der Bedienung in der App vorbehalten sind Festschreibung, die Bestätigung einer
+Übermittlung, Aufstellen, Feststellen und Offenlegen des Jahresabschlusses, der
+Beschluss über die Ergebnisverwendung, die Stammdaten des Unternehmens,
+Bankkonten, Gesellschafterdarlehen, der Prüfermodus, die Bestätigung einer
+Pflicht und die Zulassung von Apps. Ein Agent kann diese Vorgänge vorbereiten,
+aber nicht auslösen; Angaben zu Zeilen, die dem Menschen vorbehalten sind,
+bleiben Vorschläge, bis der Mensch sie bestätigt.
 
 ### 1.4 Abgedeckte und nicht abgedeckte Steuerfälle
 
@@ -541,7 +561,9 @@ Begründung übergehen; die Begründung steht am Prüflauf und im
 Verantwortlicher im Sinne des Art. 4 Nr. 7 DSGVO ist {{orNone .CompanyName}},
 {{orNone .Street}}, {{orNone .PostalLine}}. Die Verarbeitung findet auf den
 Rechnern des Unternehmens statt; Buchfink überträgt keine Buchführungsdaten an
-den Hersteller.
+den Hersteller. Eine verbundene App liest, was ihre Werkzeuge liefern, und kann
+es an ihren Anbieter weitergeben; ob das eine Auftragsverarbeitung ist, regelt
+das Unternehmen mit diesem Anbieter.
 
 ### 6.1 Verarbeitungstätigkeiten
 
@@ -554,7 +576,8 @@ den Hersteller.
 | Forderungsverfolgung | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
 | Beglaubigung der Festschreibung | Nachweis der Unveränderbarkeit | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 Abs. 4 AO | keine unmittelbar | ausschließlich Hashwerte, keine personenbezogenen Inhalte | Zeitstempeldienst ({{orNone .TSAName}}) | 10 Jahre |
 | Datenüberlassung an die Betriebsprüfung | Erfüllung der Mitwirkungspflicht | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 147 Abs. 6 AO | Kunden, Lieferanten | Buchungs-, Beleg- und Stammdaten des Prüfungszeitraums | Finanzverwaltung | mit der Aufbewahrungsfrist der überlassenen Daten |
-| Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Zeitpunkt, Vorgang | keine | 10 Jahre |
+| Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Erfassungsweg, Zeitpunkt, Vorgang | keine | 10 Jahre |
+| Verbundene Apps (KI-Agenten) | Unterstützung der Buchführung durch eine vom Unternehmen zugelassene App | Art. 6 Abs. 1 Buchst. c und f DSGVO | Kunden, Lieferanten, Gesellschafter, Bearbeiter | was die App über ihre Werkzeuge liest; in der Datei ` + "`verbindungen.sqlite`" + ` im Konfigurationsordner der App: Name und Kurzname der App, Zustimmung je Mandant mit Zeitpunkt und Bearbeiter, Codes und Tokens nur als SHA-256 | Anbieter der verbundenen App, soweit sie Daten an ihn überträgt | Zulassungen bis zum Widerruf; der Erfassungsweg an Buchung und Protokoll mit deren Aufbewahrungsfrist |
 
 ### 6.2 Löschfristen
 
@@ -582,7 +605,11 @@ DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt.
   die Festschreibung wird mit einem qualifizierten Zeitstempel beglaubigt.
 - **Verfügbarkeit:** die Sicherung schreibt eine in sich stimmige Kopie der
   Datenbank und der Belegdateien; die Wiederherstellung wird geprüft.
+- **Verbundene Apps:** der lokale Server nimmt nur Anfragen von 127.0.0.1 an,
+  prüft die Herkunft der Anfrage und verlangt ein Token, das erst nach der
+  Zustimmung des Menschen in der App entsteht. Ein Widerruf in den
+  Einstellungen macht die Tokens der App sofort ungültig.
 - **Auftragsverarbeitung:** Buchfink verarbeitet keine Daten im Auftrag. Wird
-  der Steuerberater oder ein Zeitstempeldienst eingebunden, ist die Beziehung
-  gesondert zu regeln.
+  der Steuerberater, ein Zeitstempeldienst oder eine verbundene App eines
+  Anbieters eingebunden, ist die Beziehung gesondert zu regeln.
 `

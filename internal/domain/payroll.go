@@ -36,6 +36,11 @@ type PayrollRun struct {
 	// WageTaxes ist, was an das Finanzamt geht: Lohn- und Kirchensteuer,
 	// Solidaritätszuschlag und pauschale Lohnsteuer außer der der Minijobs.
 	WageTaxes Cents `gorm:"not null" json:"wageTaxes"`
+	// WageTax ist die anzumeldende Lohnsteuer ohne Kirchensteuer und
+	// Solidaritätszuschlag: einbehalten und pauschal übernommen, ohne die
+	// Pauschsteuer der Minijobs. Nach ihr richtet sich der
+	// Anmeldungszeitraum (§ 41a Abs. 2 EStG).
+	WageTax Cents `gorm:"not null;default:0" json:"wageTax"`
 	// SocialSecurity ist, was an die Einzugsstellen geht, samt Umlagen und
 	// den Abgaben an die Minijob-Zentrale.
 	SocialSecurity Cents     `gorm:"not null" json:"socialSecurity"`

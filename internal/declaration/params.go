@@ -20,37 +20,6 @@ func taxParams(year int) (accounting.TaxParameters, error) {
 // GewStG.
 const financingAllowance domain.Cents = 200_000_00
 
-// lossDeduction ist der abziehbare Verlustvortrag bei einem positiven
-// Gesamtbetrag: bis zum Sockel voll, darüber mit dem Anteil (§ 10d Abs. 2
-// Satz 1 EStG, § 10a GewStG).
-func lossDeduction(carryForward, income, base domain.Cents, permille int64) domain.Cents {
-	if carryForward <= 0 || income <= 0 {
-		return 0
-	}
-	limit := income
-	if income > base {
-		limit = base + domain.MulRound(income-base, permille, 1000)
-	}
-	if carryForward < limit {
-		return carryForward
-	}
-	return limit
-}
-
-// truncEuro schneidet die Cent ab (zugunsten bei einer Steuerschuld).
-func truncEuro(c domain.Cents) domain.Cents { return c - c%100 }
-
-// ceilEuro rundet auf volle Euro auf (§ 36 Abs. 3 EStG).
-func ceilEuro(c domain.Cents) domain.Cents {
-	if c <= 0 {
-		return c - c%100
-	}
-	if c%100 == 0 {
-		return c
-	}
-	return c - c%100 + 100
-}
-
 // percentText schreibt Promille als Prozentangabe: 150 → „15 %“, 55 → „5,5 %“.
 func percentText(permille int64) string {
 	if permille%10 == 0 {

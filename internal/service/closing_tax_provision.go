@@ -229,7 +229,7 @@ func (s *ClosingBookingService) PreviewTaxProvision(
 		result.LossDeducted, result.TaxableIncome, result.RatesUsed,
 		result.CorporateTax, result.Solidarity, result.TradeTax, result.TradeIncome, result.TradeBase,
 		input.PrepaidCorporate, input.PrepaidSolidarity, input.PrepaidTrade,
-		input.CreditableWithholding, input.CreditableSolidarity,
+		accounting.CreditableWithholding(input.CreditableWithholding), input.CreditableSolidarity,
 		result.IncomeProvision, result.TradeProvision, result.IncomeRefund, result.TradeRefund)
 	return preview, nil
 }
@@ -253,9 +253,9 @@ func taxProvisionNotes(preview *TaxProvisionPreview, paid taxPayments, opts TaxP
 	}
 	if !opts.SkipWithholdingCredit && (paid.withholding != 0 || paid.withholdingSolidarity != 0) {
 		notes = append(notes, fmt.Sprintf(
-			"Angerechnet sind Kapitalertragsteuer %s € und Solidaritätszuschlag %s €. Das setzt die "+
-				"Steuerbescheinigung voraus (§ 36 Abs. 2 Nr. 2 Satz 2 EStG).",
-			paid.withholding, paid.withholdingSolidarity))
+			"Angerechnet sind Kapitalertragsteuer %s € (auf volle Euro aufgerundet, § 36 Abs. 3 EStG) und "+
+				"Solidaritätszuschlag %s €. Das setzt die Steuerbescheinigung voraus (§ 36 Abs. 2 Nr. 2 Satz 2 EStG).",
+			accounting.CreditableWithholding(paid.withholding), paid.withholdingSolidarity))
 	}
 	if preview.DonationsCarried > 0 {
 		notes = append(notes, fmt.Sprintf(

@@ -684,6 +684,42 @@ func TestAnnualStatementObligations(t *testing.T) {
 	}
 }
 
+// Aufstellung und Offenlegung laufen ab dem Abschlussstichtag. Die
+// Aufstellungsfrist umfasst „die ersten drei" bzw. „sechs Monate des
+// Geschäftsjahrs" (§ 264 Abs. 1 Satz 3 und 4 HGB): für den Stichtag 30.06.2026
+// enden die ersten sechs Monate des folgenden Geschäftsjahres am 31.12.2026,
+// nicht am 30.12. Die Offenlegung zählt ein Jahr ab dem Stichtag (§ 325 Abs. 1a
+// Satz 1 HGB).
+func TestStatementDeadlinesRunFromTheClosingDate(t *testing.T) {
+	cases := []struct {
+		name               string
+		class              domain.SizeClassKind
+		start, end         string
+		prepared, disclose string
+	}{
+		{"klein, Stichtag 30.06.", domain.SizeSmall, "2025-07-01", "2026-06-30", "2026-12-31", "2027-06-30"},
+		{"groß, Stichtag 31.12.", domain.SizeLarge, "2026-01-01", "2026-12-31", "2027-03-31", "2027-12-31"},
+		{"mittelgroß, Rumpfgeschäftsjahr zum 28.02.", domain.SizeMedium, "2026-01-01", "2026-02-28", "2026-05-31", "2027-02-28"},
+	}
+	for _, c := range cases {
+		svc := NewObligationService(nil, nil, nil)
+		svc.SetFiscalYearSource(stubYearList{{Year: 2026, StartDate: c.start, EndDate: c.end, Status: domain.FiscalYearOpen}})
+		svc.SetSizeSource(stubSizes{class: c.class})
+		svc.SetClock(func() time.Time { return obligationClock })
+		deadlines, err := svc.DeadlinesOf(context.Background(), 2026, domain.ObligationStatementPrep, domain.ObligationDisclosure)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got := map[string]string{}
+		for _, d := range deadlines {
+			got[d.Key] = d.DueDate
+		}
+		if len(got) != 2 || got["aufstellung.2026"] != c.prepared || got["offenlegung.2026"] != c.disclose {
+			t.Errorf("%s: %v, erwartet Aufstellung %s und Offenlegung %s", c.name, got, c.prepared, c.disclose)
+		}
+	}
+}
+
 // Eine Ausschüttung löst die Kapitalertragsteuer aus: anzumelden und
 // abzuführen im Zeitpunkt des Zuflusses, ohne Auszahlungstag am Tag nach dem
 // Beschluss.
@@ -711,8 +747,9 @@ func TestWithholdingTaxOnDistribution(t *testing.T) {
 }
 
 // Vorauszahlungen stehen im Kalender, sobald gezahlt oder ein Bescheid
-// erfasst ist; erledigt sind sie mit der gebuchten Zahlung. Zahltermine
-// verschieben sich nicht.
+// erfasst ist; erledigt sind sie mit der gebuchten Zahlung. Ein Zahltermin am
+// Wochenende oder Feiertag verschiebt sich auf den nächsten Werktag (§ 108
+// Abs. 3 AO).
 func TestPrepaymentsFollowBookingsAndNotices(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -752,17 +789,35 @@ func TestPrepaymentsFollowBookingsAndNotices(t *testing.T) {
 	if _, ok := obligationByKey(trade, "gewst-vorauszahlung.2026-Q1"); ok {
 		t.Error("der Termin vor dem Bescheid gehört nicht in den Kalender")
 	}
-	// Der 15.08.2026 ist ein Sonnabend; der Zahltermin bleibt.
-	if q3, ok := obligationByKey(trade, "gewst-vorauszahlung.2026-Q3"); !ok || q3.DueDate != "2026-08-15" {
-		t.Errorf("GewSt Q3: %+v", q3)
+	// Der 15.08.2026 ist ein Sonnabend, der 15.11.2026 ein Sonntag.
+	for key, due := range map[string]string{
+		"gewst-vorauszahlung.2026-Q3": "2026-08-17",
+		"gewst-vorauszahlung.2026-Q4": "2026-11-16",
+	} {
+		o, ok := obligationByKey(trade, key)
+		if !ok || o.DueDate != due || o.StatutoryDate == due {
+			t.Errorf("%s: gesetzlich %s, fällig %s, erwartet %s", key, o.StatutoryDate, o.DueDate, due)
+		}
 	}
 	if len(trade) != 3 {
 		t.Errorf("drei Termine nach dem Bescheid erwartet: %d", len(trade))
 	}
+
+	// Der 15.05.2027 ist ein Sonnabend und der 17.05.2027 Pfingstmontag: der
+	// Termin rückt auf Dienstag, den 18.05.2027.
+	next := listObligations(t, svc, ObligationQuery{FiscalYear: 2027,
+		Kinds: []domain.ObligationKind{domain.ObligationTradePrepay}})
+	if q2, ok := obligationByKey(next, "gewst-vorauszahlung.2027-Q2"); !ok || q2.StatutoryDate != "2027-05-15" ||
+		q2.DueDate != "2027-05-18" {
+		t.Errorf("GewSt Q2 2027: gesetzlich %s, fällig %s, erwartet 2027-05-18", q2.StatutoryDate, q2.DueDate)
+	}
 }
 
 // Die Lohnsteuer-Anmeldung steht im Kalender, sobald ein Lohnjournal gebucht
-// ist, und ist mit dem gebuchten Lohnjournal des Zeitraums erledigt.
+// ist. Das Lohnjournal bereitet den Zeitraum vor; erledigt ist er erst mit
+// der Bestätigung des Menschen, weil das Journal weder Anmeldung noch
+// Abführung belegt. 600 € Lohnsteuer im ersten vollen Monat sind 7.200 € im
+// Jahr: Anmeldungszeitraum ist der Kalendermonat.
 func TestPayrollTaxFollowsThePayrollJournal(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.obligations(t)
@@ -774,43 +829,66 @@ func TestPayrollTaxFollowsThePayrollJournal(t *testing.T) {
 		t.Fatalf("ohne Lohn keine Anmeldung: %+v", got)
 	}
 
-	env.post(t, "2026-01-31", "6020", "3730", 40_000)
-	env.post(t, "2026-02-28", "6020", "3730", 40_000)
+	env.post(t, "2026-01-31", "6020", "3730", 60_000)
+	env.post(t, "2026-02-28", "6020", "3730", 60_000)
 	early := payroll()
 	if len(early) != 2 {
 		t.Fatalf("zwei Anmeldungen erwartet (Januar, Februar): %+v", early)
 	}
 	january, _ := obligationByKey(early, "lohnsteuer-anmeldung.2026-01")
-	if january.Status != domain.ObligationDone || january.DueDate != "2026-02-10" ||
-		january.Channel != domain.ChannelPayrollProvider {
-		t.Errorf("Januar: %s fällig %s über %s", january.Status, january.DueDate, january.Channel)
+	if january.Status != domain.ObligationOverdue || january.Preparation == nil ||
+		january.DueDate != "2026-02-10" || january.Channel != domain.ChannelPayrollProvider {
+		t.Errorf("Januar: %s (vorbereitet %+v) fällig %s über %s", january.Status, january.Preparation,
+			january.DueDate, january.Channel)
 	}
-	if !containsHint(january.Hints, "Kalendermonat") {
+	if !containsHint(january.Hints, "Kalendermonat") || !containsHint(january.Hints, "Satz 4") {
 		t.Errorf("Anmeldungszeitraum fehlt in den Hinweisen: %v", january.Hints)
 	}
 
 	// Lohn im September: die Monate dazwischen fehlen, der Oktober läuft.
-	env.post(t, "2026-09-30", "6020", "3730", 40_000)
+	env.post(t, "2026-09-30", "6020", "3730", 60_000)
 	later := payroll()
 	for key, status := range map[string]domain.ObligationStatus{
 		"lohnsteuer-anmeldung.2026-03": domain.ObligationOverdue,
 		"lohnsteuer-anmeldung.2026-08": domain.ObligationOverdue,
-		"lohnsteuer-anmeldung.2026-09": domain.ObligationDone,
 		"lohnsteuer-anmeldung.2026-10": domain.ObligationOpen,
 	} {
 		if o, _ := obligationByKey(later, key); o.Status != status {
 			t.Errorf("%s: %s, erwartet %s", key, o.Status, status)
 		}
 	}
+	if o, _ := obligationByKey(later, "lohnsteuer-anmeldung.2026-03"); o.Preparation != nil {
+		t.Errorf("März ohne Lohnjournal gilt als vorbereitet: %+v", o.Preparation)
+	}
 	if _, ok := obligationByKey(later, "lohnsteuer-anmeldung.2026-11"); ok {
 		t.Error("der November hat noch nicht begonnen")
 	}
+
+	// Ein Agent meldet höchstens vorbereitet; erledigt ist der September mit
+	// der Bestätigung in der App.
+	if _, err := svc.Confirm(agentCtx, "lohnsteuer-anmeldung.2026-09", ConfirmInput{Date: "2026-10-09"}); err == nil {
+		t.Error("ein Agent bestätigt die Lohnsteuer-Anmeldung")
+	}
+	done, err := svc.Confirm(appCtx, "lohnsteuer-anmeldung.2026-09", ConfirmInput{
+		Date: "2026-10-09", Kind: domain.EvidenceTransferTicket, Reference: "et-lst-09"})
+	if err != nil {
+		t.Fatalf("Bestätigung in der App: %v", err)
+	}
+	if done.Status != domain.ObligationDone || done.Proof == nil || done.Proof.Reference != "et-lst-09" {
+		t.Errorf("September nach der Bestätigung: %s %+v", done.Status, done.Proof)
+	}
 }
 
-// § 41a Abs. 2 EStG: Kalenderjahr bis 1.080 €, Vierteljahr bis 5.000 €.
+// § 41a Abs. 2 EStG: Kalenderjahr bis 1.080 €, Vierteljahr bis 5.000 €
+// Lohnsteuer im Vorjahr; bestand die Betriebsstätte nicht das ganze Vorjahr,
+// wird umgerechnet (Satz 3), bestand sie noch nicht, zählt der erste volle
+// Kalendermonat (Satz 4).
 func TestPayrollPeriodTypeFromThePriorYear(t *testing.T) {
+	months := func(amounts map[string]domain.Cents) payrollTaxes {
+		return payrollTaxes{byMonth: amounts, fromLedger: map[string]bool{}}
+	}
 	run := &obligationRun{start: "2020-01-01"}
-	cases := []struct {
+	for _, c := range []struct {
 		sum  domain.Cents
 		want domain.VatPeriodType
 	}{
@@ -818,18 +896,63 @@ func TestPayrollPeriodTypeFromThePriorYear(t *testing.T) {
 		{108_001, domain.VatPeriodQuarter},
 		{500_000, domain.VatPeriodQuarter},
 		{500_001, domain.VatPeriodMonth},
-	}
-	for _, c := range cases {
-		got, _ := run.payrollPeriodType(2026, []ledgerPosting{{date: "2025-06-30", amount: c.sum}})
+	} {
+		got, _ := run.payrollPeriodType(2026, months(map[string]domain.Cents{"2024-12": 1, "2025-06": c.sum}))
 		if got != c.want {
 			t.Errorf("%s € im Vorjahr: %s, erwartet %s", c.sum, got, c.want)
 		}
 	}
-	// Bestand die Gesellschaft im Vorjahr nur vier Monate, wird umgerechnet:
-	// 400 € in vier Monaten sind 1.200 € im Jahr.
-	partial := &obligationRun{start: "2025-09-01"}
-	if got, _ := partial.payrollPeriodType(2026, []ledgerPosting{{date: "2025-12-31", amount: 40_000}}); got != domain.VatPeriodQuarter {
+
+	// Lohn erst ab September des Vorjahres: 400 € in vier Monaten sind
+	// 1.200 € im Jahr.
+	if got, _ := run.payrollPeriodType(2026, months(map[string]domain.Cents{"2025-09": 10_000, "2025-12": 30_000})); got != domain.VatPeriodQuarter {
 		t.Errorf("umgerechnet: %s, erwartet Vierteljahr", got)
+	}
+
+	// Das Geschäftsführergehalt beginnt im Juli 2026 mit 300 € Lohnsteuer im
+	// Monat: auf ein Jahr umgerechnet 3.600 €, also das Vierteljahr, obwohl
+	// im Vorjahr keine Lohnsteuer angefallen ist.
+	got, basis := run.payrollPeriodType(2026, months(map[string]domain.Cents{"2026-07": 30_000, "2026-08": 30_000}))
+	if got != domain.VatPeriodQuarter || !strings.Contains(basis, "Satz 4") {
+		t.Errorf("erster voller Monat: %s (%s), erwartet Vierteljahr", got, basis)
+	}
+
+	// Gegründet am 15.07.2026: der erste volle Kalendermonat ist der August.
+	founded := &obligationRun{start: "2026-07-15"}
+	if got, basis := founded.payrollPeriodType(2026, months(map[string]domain.Cents{"2026-07": 200_000, "2026-08": 8_000})); got != domain.VatPeriodYear ||
+		!strings.Contains(basis, "08/2026") {
+		t.Errorf("Gründung im Juli: %s (%s), erwartet Kalenderjahr nach dem August", got, basis)
+	}
+	if got, basis := founded.payrollPeriodType(2026, months(map[string]domain.Cents{"2026-07": 200_000})); got != domain.VatPeriodMonth ||
+		!strings.Contains(basis, "vorläufig") {
+		t.Errorf("erster voller Monat noch nicht gebucht: %s (%s)", got, basis)
+	}
+}
+
+// Der Anmeldungszeitraum richtet sich nach der Lohnsteuer des Lohnjournals,
+// ohne Kirchensteuer und Solidaritätszuschlag: 1.000 € Lohnsteuer und 90 €
+// Kirchensteuer im Jahr 2025 sind nicht mehr als 1.080 € Lohnsteuer.
+func TestPayrollPeriodTypeIgnoresChurchTax(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	svc := env.obligations(t)
+	svc.SetPayrollSource(repository.NewPayrollRepository(env.db))
+	journal := env.fileIncoming(t, "lohnjournal-2025-01.pdf")
+	if _, err := env.payroll(t).BookPayroll(ctx, PayrollRequest{
+		Month: "2025-01", ReceiptID: journal.ID, ShareholderDirectorSalaries: 1_000_000,
+		WageTax: 100_000, ChurchTax: 9_000, NetPay: 891_000,
+	}); err != nil {
+		t.Fatalf("Lohnjournal: %v", err)
+	}
+	env.post(t, "2026-01-31", "6024", "3730", 10_000)
+	list := listObligations(t, svc, ObligationQuery{FiscalYear: 2026,
+		Kinds: []domain.ObligationKind{domain.ObligationPayrollTax}})
+	o, ok := obligationByKey(list, "lohnsteuer-anmeldung.2026")
+	if !ok {
+		t.Fatalf("Jahresanmeldung 2026 erwartet: %+v", list)
+	}
+	if !containsHint(o.Hints, "1.000,00 € laut Lohnjournal") {
+		t.Errorf("Hinweise nennen nicht die Lohnsteuer ohne Kirchensteuer: %v", o.Hints)
 	}
 }
 

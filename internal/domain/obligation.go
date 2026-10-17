@@ -284,7 +284,6 @@ type ObligationRepository interface {
 	// FindRecord liefert nil ohne Fehler, wenn es keinen Eintrag gibt.
 	FindRecord(ctx context.Context, key string) (*ObligationRecord, error)
 	SaveRecord(ctx context.Context, rec *ObligationRecord) error
-	DeleteRecord(ctx context.Context, key string) error
 	FindEvents(ctx context.Context) ([]ObligationEvent, error)
 	CreateEvent(ctx context.Context, ev *ObligationEvent) error
 }

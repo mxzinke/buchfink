@@ -16,19 +16,31 @@ import (
 // XML-Schema der amtlichen Taxonomie.
 //
 // Die Schemata liegen nicht im Repository; eingebettet ist nur der Auszug.
-// Die Prüfung läuft, wenn EBILANZ_XSD_6_9 bzw. EBILANZ_XSD_6_10 auf ein Schema
-// zeigen, das xbrl-instance-2003-12-31.xsd sowie die Schemata de-gaap-ci und
-// de-gcd der Fassung importiert (lokale Kopien des Taxonomiepakets).
-// Geprüft wird mit dem Kommando aus EBILANZ_XSD_VALIDATOR (Aufruf mit Schema
-// und Instanz, Erfolg bei Rückgabewert 0), sonst mit xmllint. xmllint braucht
-// für das vollständige Schema von de-gaap-ci sehr lange; EBILANZ_XSD_TIMEOUT
-// (Go-Dauer, Vorgabe 30m) begrenzt jeden Aufruf.
+// Bezug: das XBRL-Paket der Taxonomie von www.esteuer.de (Rubrik Taxonomien,
+// german-gaap-taxonomy-v6.9-2025-04-01-xbrl.zip und
+// germany-gaap-taxonomy-v6.10-2026-04-01-xbrl.zip) oder von de.xbrl.org, dazu
+// die Basisschemata von www.xbrl.org (2003, 2005, 2006) als lokale Kopie.
+// EBILANZ_XSD_6_9 bzw. EBILANZ_XSD_6_10 zeigen auf ein Schema, das
+// xbrl-instance-2003-12-31.xsd sowie die Schemata de-gaap-ci und de-gcd (ab
+// 6.10 auch de-bra und xbrldi) der Fassung importiert. Geprüft wird mit dem
+// Kommando aus EBILANZ_XSD_VALIDATOR (Aufruf mit Schema und Instanz, Erfolg
+// bei Rückgabewert 0), sonst mit xmllint. xmllint braucht für das vollständige
+// Schema von de-gaap-ci sehr lange; EBILANZ_XSD_TIMEOUT (Go-Dauer, Vorgabe 30m)
+// begrenzt jeden Aufruf.
+//
+// Ohne Schemata überspringt sich der Test. Mit EBILANZ_XSD_REQUIRED=1 (Task
+// test:ebilanz-xsd) scheitert er dann, statt grün zu bleiben, ohne etwas
+// geprüft zu haben.
 func TestInstancesAreSchemaValid(t *testing.T) {
+	skip := t.Skip
+	if os.Getenv("EBILANZ_XSD_REQUIRED") == "1" {
+		skip = t.Fatal
+	}
 	validator := strings.Fields(os.Getenv("EBILANZ_XSD_VALIDATOR"))
 	if len(validator) == 0 {
 		path, err := exec.LookPath("xmllint")
 		if err != nil {
-			t.Skip("weder EBILANZ_XSD_VALIDATOR noch xmllint vorhanden")
+			skip("weder EBILANZ_XSD_VALIDATOR noch xmllint vorhanden")
 		}
 		validator = []string{path, "--noout", "--nonet", "--schema"}
 	}
@@ -75,6 +87,9 @@ func TestInstancesAreSchemaValid(t *testing.T) {
 			res := generateOK(t, scenario(t))
 			schema := os.Getenv("EBILANZ_XSD_" + strings.ReplaceAll(res.Version.Version, ".", "_"))
 			if schema == "" {
+				if os.Getenv("EBILANZ_XSD_REQUIRED") == "1" {
+					t.Fatalf("EBILANZ_XSD_%s nicht gesetzt", strings.ReplaceAll(res.Version.Version, ".", "_"))
+				}
 				t.Skipf("EBILANZ_XSD_%s nicht gesetzt", strings.ReplaceAll(res.Version.Version, ".", "_"))
 			}
 			ran++
@@ -92,6 +107,6 @@ func TestInstancesAreSchemaValid(t *testing.T) {
 		})
 	}
 	if ran == 0 {
-		t.Skip("keine Schemata angegeben (EBILANZ_XSD_6_9, EBILANZ_XSD_6_10)")
+		skip("keine Schemata angegeben (EBILANZ_XSD_6_9, EBILANZ_XSD_6_10)")
 	}
 }

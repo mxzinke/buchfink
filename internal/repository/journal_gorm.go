@@ -108,6 +108,10 @@ func (r *journalRepositoryGorm) FindByBookingDateRange(ctx context.Context, fisc
 	return findBatched(q)
 }
 
+func (r *journalRepositoryGorm) FindServiceEndingFrom(ctx context.Context, beforeYear int, from string) ([]domain.JournalEntry, error) {
+	return findBatched(r.preloaded(ctx).Where("fiscal_year < ? AND service_date_to >= ?", beforeYear, from))
+}
+
 func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
 	q := notReversed(r.preloaded(ctx), "journal_entries").
 		// Zahlungen begründen selbst keinen offenen Posten.

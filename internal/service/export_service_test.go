@@ -1170,3 +1170,52 @@ func TestExportTablesDeclareIntegerColumnsWithoutDecimals(t *testing.T) {
 		}
 	}
 }
+
+// Die Gesellschafterdarlehen stehen mit Vertrag und gebuchten Zinsperioden in
+// der Überlassung: Zins und Vergleichszins sind der Nachweis gegen eine
+// verdeckte Gewinnausschüttung und gehören nicht nur ins Änderungsprotokoll.
+func TestExportZ3CarriesShareholderLoans(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.withShareholders(t)
+	mara := env.person(t, "Mara Beispiel")
+	loans := env.shareholders(t)
+	view, err := loans.RegisterLoan(ctx, LoanRequest{ContactID: mara.ID, Direction: domain.LoanToCompany,
+		Principal: 2_000_000, InterestRateBP: 350, StartDate: "2026-01-02", MaturityDate: "2028-12-31",
+		ComparisonRateBP: intPtr(500), ComparisonSource: "Angebot der Hausbank"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payments := env.paymentsWithBank(t)
+	payments.SetLoanSource(loans)
+	tx := env.bankLine(t, "2026-01-02", 2_000_000, "Mara Beispiel", "Darlehen")
+	if _, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: tx,
+		Lines: []BankSplitLine{{LoanID: view.Loan.ID, Amount: 2_000_000}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loans.BookInterest(ctx, InterestRequest{LoanID: view.Loan.ID, To: "2026-06-30"}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := env.exports(t)
+	svc.SetLoanSource(repository.NewShareholderLoanRepository(env.db))
+	dir := filepath.Join(t.TempDir(), "z3")
+	if _, err := svc.ExportZ3(ctx, 2026, dir); err != nil {
+		t.Fatalf("Z3-Export: %v", err)
+	}
+	contract, err := os.ReadFile(filepath.Join(dir, "darlehen.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contract), "3.50") || !strings.Contains(string(contract), "5.00") ||
+		!strings.Contains(string(contract), "Angebot der Hausbank") {
+		t.Errorf("darlehen.csv trägt Zins und Vergleichszins nicht:\n%s", contract)
+	}
+	interest, err := os.ReadFile(filepath.Join(dir, "darlehen_zinsen.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(interest), "2026-01-02") || !strings.Contains(string(interest), "2026-06-30") {
+		t.Errorf("darlehen_zinsen.csv trägt die Zinsperiode nicht:\n%s", interest)
+	}
+}

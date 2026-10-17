@@ -20,30 +20,26 @@ tasks:
   test:
     summary: Runs the Go test suite
     # Not `go test ./...`: main.go embeds frontend/dist, which only exists after a
-    # frontend build. Listing the packages that have tests keeps the suite
-    # runnable from a plain checkout.
+    # frontend build. Every package under internal/ and cmd/ runs, so a new
+    # package cannot drop out of the suite.
     #
-    # internal/wailsbridge is not in this list: it pulls in Wails v3 with its
-    # GTK and WebKit headers, and `task test` must stay runnable on a machine
-    # that has none. Those tests live in `test:bridge` and run wherever the app
-    # itself can be built.
+    # internal/wailsbridge is left out: it pulls in Wails v3 with its GTK and
+    # WebKit headers, and `task test` must stay runnable on a machine that has
+    # none. Those tests live in `test:bridge` and run wherever the app itself
+    # can be built.
+    vars:
+      PACKAGES:
+        sh: go list ./internal/... ./cmd/...
     cmds:
-      - go test ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
-        ./internal/receiptstore/... ./internal/repository/...
-        ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/... ./internal/core/...
-        ./internal/mcpserver/... ./cmd/... {{.CLI_ARGS}}
+      - go test {{without (splitLines .PACKAGES) "github.com/buchfink/buchfink/internal/wailsbridge" | join " "}} {{.CLI_ARGS}}
 
   vet:
     summary: Runs go vet over the same packages as the test suite
+    vars:
+      PACKAGES:
+        sh: go list ./internal/... ./cmd/...
     cmds:
-      - go vet ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
-        ./internal/receiptstore/... ./internal/repository/...
-        ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/... ./internal/core/...
-        ./internal/mcpserver/... ./cmd/...
+      - go vet {{without (splitLines .PACKAGES) "github.com/buchfink/buchfink/internal/wailsbridge" | join " "}}
 
   test:bridge:
     summary: Runs vet and the tests of the Wails bridge (needs the GTK/WebKit headers)
@@ -55,6 +51,19 @@ tasks:
     cmds:
       - go vet ./internal/wailsbridge/...
       - go test ./internal/wailsbridge/... {{.CLI_ARGS}}
+
+  test:ebilanz-xsd:
+    summary: Validates the E-Bilanz instances against the official XBRL schemas
+    # The taxonomy schemas are not in the repository (only the extract the
+    # instances are built from), and validating against the full de-gaap-ci
+    # schema takes long. This task fails instead of skipping when the schemas
+    # are missing. Set EBILANZ_XSD_6_9 and EBILANZ_XSD_6_10 to wrapper schemas
+    # over a local copy of the taxonomy packages (www.esteuer.de, Taxonomien;
+    # see internal/ebilanz/xsd_test.go), optionally EBILANZ_XSD_VALIDATOR.
+    env:
+      EBILANZ_XSD_REQUIRED: "1"
+    cmds:
+      - go test -count=1 -run TestInstancesAreSchemaValid ./internal/ebilanz/ {{.CLI_ARGS}}
 
   check:design:
     summary: Checks the frontend against the token layer of docs/gestaltung/grundlagen.md

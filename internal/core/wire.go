@@ -237,6 +237,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Obligations.SetAppropriationSource(s.Appropriation)
 	s.Obligations.SetJournalSource(journalRepo)
 	s.Obligations.SetDeclarationSource(declarationRepo)
+	s.Statement.SetDeadlineSource(s.Obligations)
 	s.Settings.SetEventRecorder(s.Obligations)
 
 	s.Export = service.NewExportService(
@@ -260,12 +261,15 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.AuditTrail = service.NewAuditTrailService(receiptRepo, journalRepo, allocationRepo, bankRepo, auditRepo)
 	s.AuditTrail.SetRenderer(renderer)
 
+	loanRepo := repository.NewShareholderLoanRepository(db)
 	s.Shareholders = service.NewShareholderService(
-		repository.NewShareholderLoanRepository(db), journalRepo, contactRepo, settingsRepo, auditRepo,
+		loanRepo, journalRepo, contactRepo, settingsRepo, auditRepo,
 		s.Journal, s.Posting, s.Receipts)
 	s.Payments.SetLoanSource(s.Shareholders)
-	s.Payroll = service.NewPayrollService(
-		repository.NewPayrollRepository(db), journalRepo, s.Journal, s.Posting, auditRepo)
+	s.Export.SetLoanSource(loanRepo)
+	payrollRepo := repository.NewPayrollRepository(db)
+	s.Payroll = service.NewPayrollService(payrollRepo, journalRepo, s.Journal, s.Posting, auditRepo)
+	s.Obligations.SetPayrollSource(payrollRepo)
 	s.Checks.AddFindingSource(s.Shareholders)
 	s.Checks.AddFindingSource(s.Payroll)
 

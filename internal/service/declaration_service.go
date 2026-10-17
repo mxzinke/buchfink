@@ -103,7 +103,7 @@ type InputRequest struct {
 // der App gesetzt gilt sie sofort. Ein Agent setzt mit Rückfrage beim
 // Menschen: bei Zeilen, die ihm zustehen, gilt sie; bei Zeilen, die dem
 // Menschen vorbehalten sind, bleibt sie ein Vorschlag, bis der Mensch sie in
-// der App bestätigt.
+// der App bestätigt. Eine bestätigte Angabe des Menschen ändert nur er.
 func (s *DeclarationService) SetInput(ctx context.Context, req InputRequest) (*declaration.Input, error) {
 	line, err := inputLine(req.Kind, req.Year, req.Key)
 	if err != nil {
@@ -131,6 +131,11 @@ func (s *DeclarationService) SetInput(ctx context.Context, req InputRequest) (*d
 	existing, err := s.repo.FindInput(ctx, string(req.Kind), req.Year, req.Key)
 	if err != nil {
 		return nil, err
+	}
+	if existing != nil && existing.Confirmed && line.Owner == declaration.OwnerHuman {
+		if err := requireHuman(ctx, "Das Ändern einer bestätigten Angabe des Menschen"); err != nil {
+			return nil, err
+		}
 	}
 	var before *domain.DeclarationInput
 	rec := &domain.DeclarationInput{Kind: string(req.Kind), Year: req.Year, Key: req.Key}

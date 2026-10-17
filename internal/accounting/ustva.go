@@ -389,7 +389,10 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			m := vatMovement{entryIndex: i, date: date}
 			// earlier sagt, ab wann eine Zahlung vor der Leistung die Steuer
 			// entstehen lässt oder den Abzug erlaubt; nil, wo sie es nicht tut.
+			// longTerm: für die Steuer nach § 13b gilt Abs. 3 bei einer Leistung
+			// über mehr als ein Jahr.
 			var earlier func(string) string
+			longTerm := false
 
 			// Die Skonto-Steuerkorrektur läuft in dieselbe Kennziffer wie der
 			// Umsatz, den sie mindert: § 17 Abs. 1 UStG berichtigt Steuer und
@@ -435,9 +438,9 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			case key == "IG7_UST":
 				m.code, m.base, m.tax = VatCodeAcquisition7, base, credit
 			case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_UST"):
-				m.code, m.base, m.tax, earlier = VatCodeReverseChargeEU, base, credit, paymentDate
+				m.code, m.base, m.tax, earlier, longTerm = VatCodeReverseChargeEU, base, credit, paymentDate, true
 			case isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_UST"):
-				m.code, m.base, m.tax, earlier = VatCodeReverseChargeOther, base, credit, paymentDate
+				m.code, m.base, m.tax, earlier, longTerm = VatCodeReverseChargeOther, base, credit, paymentDate, true
 			case key == "VST19", key == "VST7":
 				m.code, m.tax = VatCodeInputTax, debit
 				docDate := entry.DocumentDate
@@ -446,7 +449,7 @@ func vatMovements(src VatReturnSource) []vatMovement {
 				m.code, m.tax = VatCodeInputTaxAcquisition, debit
 			case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_VST"),
 				isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_VST"):
-				m.code, m.tax, earlier = VatCodeInputTaxReverse, debit, paymentDate
+				m.code, m.tax, earlier, longTerm = VatCodeInputTaxReverse, debit, paymentDate, true
 			case key == TaxKeyInputTaxCorrection:
 				// Die Berichtigung hat keine Bemessungsgrundlage im Vordruck: sie
 				// ist ein Steuerbetrag, der eine frühere Grundlage nachträglich
@@ -457,7 +460,13 @@ func vatMovements(src VatReturnSource) []vatMovement {
 				continue
 			}
 
-			parts := splitByPayments(m, gross, payments, earlier)
+			total, events := gross, paymentArisings(gross, payments, earlier)
+			if longTerm {
+				var yearEnds []arising
+				total, yearEnds = longTermYearEnds(entry, gross)
+				events = append(events, yearEnds...)
+			}
+			parts := splitByArising(m, total, events)
 			out = append(out, parts...)
 
 			// Die Ausbuchung einer uneinbringlichen Forderung mindert die

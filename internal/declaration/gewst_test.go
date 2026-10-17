@@ -2,6 +2,8 @@ package declaration
 
 import (
 	"testing"
+
+	"github.com/buchfink/buchfink/internal/accounting"
 )
 
 func tradeCommon(year int, kstInputs []Input, inputs ...Input) TradeCommon {
@@ -194,5 +196,31 @@ func TestTradeTaxChecks(t *testing.T) {
 	}
 	if !hasFinding(d, "hebesatz_unter_minimum") {
 		t.Errorf("Hebesatz 250 %% ab 2027 ohne Befund")
+	}
+}
+
+// Übersteigen die Vorauszahlungen die Gewerbesteuer, steht ein
+// Erstattungsanspruch auf 1435 statt einer Rückstellung; die Kontrollrechnung
+// gleicht beides ab. Gewinn 120.000 €, Steuer 16.800 €, Vorauszahlungen
+// 20.000 €: Erstattung 3.200 €.
+func TestTradeTaxProvisionCheckCountsTheRefund(t *testing.T) {
+	l := Ledger{}
+	book(l, "7610", eur(16800))
+	book(l, accounting.AccountGewerbesteuerForderung, eur(3200))
+	data := CorporateData{Ledger: l, NetIncome: eur(103200), BalanceResult: eur(103200), PriorKnown: true, TradeTaxRate: 400}
+	// Die Vorauszahlungen sind laufende Buchungen, die Erstattung die
+	// Abschlussbuchung, die 7610 um 3.200 € mindert.
+	prepaid := l["7610"]
+	prepaid.Debit, prepaid.Credit, prepaid.ClosingCredit = eur(20000), eur(3200), eur(3200)
+	l["7610"] = prepaid
+	d, err := BuildTradeTax(tradeCommon(2025, settled()), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantAmount(t, d, "gewst.k.steuer", eur(16800))
+	wantAmount(t, d, "gewst.k.ergebnis", -eur(3200))
+	wantAmount(t, d, "gewst.k.rueckstellung", -eur(3200))
+	if hasFinding(d, "rueckstellung_abweichung") {
+		t.Errorf("Abweichung gemeldet, obwohl der Erstattungsanspruch gebucht ist: %+v", d.Findings)
 	}
 }

@@ -184,3 +184,24 @@ func LiquidAccounts() []string {
 		AccountGeldtransit,
 	}
 }
+
+// SettlesAtBooking meldet, ob die Gegenzeile eines Belegs das Entgelt mit der
+// Buchung entrichtet: ein Zahlungsmittelkonto, die Firmenkreditkarte (3610)
+// oder die Erstattungsschuld einer Auslage gegenüber dem Gesellschafter (3640)
+// oder Geschäftsführer (3500), der bezahlt hat und als Kontakt der Zeile steht.
+// Für die Umsatzsteuer ist der Beleg dann am Buchungstag bezahlt (§ 13b
+// Abs. 4 Satz 2, § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG).
+func SettlesAtBooking(l JournalLine) bool {
+	switch l.Account {
+	case AccountKreditkartenabrechnung:
+		return true
+	case AccountVerbindlichkeitenGesellschafter, AccountSonstigeVerbindlichkeiten:
+		return l.ContactID != nil
+	}
+	for _, a := range LiquidAccounts() {
+		if a == l.Account {
+			return true
+		}
+	}
+	return false
+}

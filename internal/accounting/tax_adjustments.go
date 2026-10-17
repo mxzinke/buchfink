@@ -4,8 +4,9 @@ import "github.com/buchfink/buchfink/internal/domain"
 
 // Die Konten, auf denen das handelsrechtliche Ergebnis und die steuerliche
 // Bemessungsgrundlage auseinandergehen, soweit der SKR04 sie eigens führt.
-// Sie tragen die Schätzung der Steuerrückstellung (CalculateTaxProvision);
-// was auf anderen Konten steht, kommt als Eingabe hinzu.
+// Sie tragen die Steuerrückstellung (CalculateTaxProvision) und die Anlage GK
+// der Körperschaftsteuererklärung; was auf anderen Konten steht, kommt als
+// Eingabe hinzu.
 
 // TaxAdjustmentKind ist die Art der steuerlichen Korrektur eines Kontos.
 type TaxAdjustmentKind string
@@ -31,11 +32,51 @@ const (
 	TaxAdjustmentDonation TaxAdjustmentKind = "zuwendungen"
 )
 
+// TaxAdjustmentGroup ordnet ein nicht abziehbares Konto der Art seiner
+// Hinzurechnung zu. Die Steuerrückstellung rechnet alle Arten gleich; die
+// Körperschaftsteuererklärung führt jede Art in ihrer Zeile.
+type TaxAdjustmentGroup string
+
+const (
+	// GroupGifts: Geschenke über der Freigrenze (§ 4 Abs. 5 Satz 1 Nr. 1 EStG).
+	GroupGifts TaxAdjustmentGroup = "geschenke"
+	// GroupEntertainment: der nicht abziehbare Teil der Bewirtung (Nr. 2).
+	GroupEntertainment TaxAdjustmentGroup = "bewirtung"
+	// GroupHospitality: Gästehäuser, Jagd, Jachten (Nr. 3 und 4).
+	GroupHospitality TaxAdjustmentGroup = "repraesentation"
+	// GroupRestricted: die übrigen eingeschränkt abziehbaren Betriebsausgaben
+	// des § 4 Abs. 5 EStG.
+	GroupRestricted TaxAdjustmentGroup = "eingeschraenkt"
+	// GroupFinesAndOther: Geldbußen und Geldstrafen (§ 4 Abs. 5 Satz 1 Nr. 8
+	// EStG, § 10 Nr. 3 KStG) und weitere nicht abziehbare Aufwendungen
+	// außerhalb des § 4 Abs. 5 EStG.
+	GroupFinesAndOther TaxAdjustmentGroup = "weitere"
+	// GroupTaxSidelines: Nebenleistungen zu den Steuern vom Einkommen und zur
+	// Gewerbesteuer (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG).
+	GroupTaxSidelines TaxAdjustmentGroup = "nebenleistungen"
+	// GroupSupervisoryBoard: die Hälfte der Aufsichtsratsvergütungen (§ 10
+	// Nr. 4 KStG).
+	GroupSupervisoryBoard TaxAdjustmentGroup = "aufsichtsrat"
+	// GroupDonations: Zuwendungen; die abziehbaren gehen in den Höchstbetrag.
+	GroupDonations TaxAdjustmentGroup = "zuwendungen"
+	// GroupShareLosses: Gewinnminderungen aus Anteilen (§ 8b Abs. 3 Satz 3
+	// KStG).
+	GroupShareLosses TaxAdjustmentGroup = "anteile"
+	// GroupShareLoans: Gewinnminderungen aus Darlehen an eine Gesellschaft mit
+	// Beteiligung von mehr als einem Viertel (§ 8b Abs. 3 Satz 4 KStG).
+	GroupShareLoans TaxAdjustmentGroup = "darlehen"
+	// GroupDividends: Bezüge nach § 8b Abs. 1 KStG.
+	GroupDividends TaxAdjustmentGroup = "bezuege"
+	// GroupShareGains: Gewinne nach § 8b Abs. 2 KStG.
+	GroupShareGains TaxAdjustmentGroup = "gewinne"
+)
+
 // TaxAdjustmentAccount ist ein Konto mit seiner steuerlichen Wirkung.
 type TaxAdjustmentAccount struct {
-	Account   string            `json:"account"`
-	Kind      TaxAdjustmentKind `json:"kind"`
-	Reference string            `json:"reference"`
+	Account   string             `json:"account"`
+	Kind      TaxAdjustmentKind  `json:"kind"`
+	Group     TaxAdjustmentGroup `json:"group"`
+	Reference string             `json:"reference"`
 }
 
 const (
@@ -48,63 +89,85 @@ const (
 // taxAdjustmentAccounts ist der Katalog. Die Nummern stehen im
 // SKR04-Katalog; TestTaxAdjustmentAccountsExist hält das fest.
 var taxAdjustmentAccounts = []TaxAdjustmentAccount{
-	{"6620", TaxAdjustmentNonDeductible, refGifts},
-	{"6621", TaxAdjustmentNonDeductible, refGifts},
+	{"6620", TaxAdjustmentNonDeductible, GroupGifts, refGifts},
+	{"6621", TaxAdjustmentNonDeductible, GroupGifts, refGifts},
 	// Die Pauschsteuer nach § 37b EStG teilt das Schicksal des Geschenks.
-	{"6622", TaxAdjustmentNonDeductible, refGifts},
-	{"6644", TaxAdjustmentNonDeductible, refEntertainment},
-	{"6645", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG"},
-	{"6642", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 EStG"},
-	{"6349", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 Nr. 6b EStG"},
-	{"6672", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 Nr. 5 EStG"},
-	{"6689", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 Nr. 6 EStG"},
+	{"6622", TaxAdjustmentNonDeductible, GroupGifts, refGifts},
+	{"6644", TaxAdjustmentNonDeductible, GroupEntertainment, refEntertainment},
+	{"6645", TaxAdjustmentNonDeductible, GroupHospitality, "§ 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG"},
+	{"6642", TaxAdjustmentNonDeductible, GroupRestricted, "§ 4 Abs. 5 Satz 1 EStG"},
+	{"6349", TaxAdjustmentNonDeductible, GroupRestricted, "§ 4 Abs. 5 Satz 1 Nr. 6b EStG"},
+	{"6672", TaxAdjustmentNonDeductible, GroupRestricted, "§ 4 Abs. 5 Satz 1 Nr. 5 EStG"},
+	{"6689", TaxAdjustmentNonDeductible, GroupRestricted, "§ 4 Abs. 5 Satz 1 Nr. 6 EStG"},
 	// Geldbußen, Ordnungs- und Verwarnungsgelder, Geldstrafen.
-	{"6968", TaxAdjustmentNonDeductible, "§ 4 Abs. 5 Satz 1 Nr. 8 EStG, § 10 Nr. 3 KStG"},
-	{"6875", TaxAdjustmentNonDeductible, "§ 10 Nr. 4 KStG"},
-	{"6390", TaxAdjustmentNonDeductible, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6394", TaxAdjustmentNonDeductible, "§ 4 Abs. 6 EStG"},
+	{"6968", TaxAdjustmentNonDeductible, GroupFinesAndOther, "§ 4 Abs. 5 Satz 1 Nr. 8 EStG, § 10 Nr. 3 KStG"},
+	{"6875", TaxAdjustmentNonDeductible, GroupSupervisoryBoard, "§ 10 Nr. 4 KStG"},
+	{"6390", TaxAdjustmentNonDeductible, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6394", TaxAdjustmentNonDeductible, GroupDonations, "§ 4 Abs. 6 EStG"},
 	// Nebenleistungen zu den Steuern vom Einkommen und zur Gewerbesteuer.
-	{"6437", TaxAdjustmentNonDeductible, refSidelines},
-	{"7302", TaxAdjustmentNonDeductible, "§ 4 Abs. 5b EStG"},
-	{"7304", TaxAdjustmentNonDeductible, refSidelines},
-	{"7306", TaxAdjustmentNonDeductible, refSidelines},
-	{"7308", TaxAdjustmentNonDeductible, refSidelines},
-	{"7313", TaxAdjustmentNonDeductible, "§ 4 Abs. 4a EStG"},
-	{"7366", TaxAdjustmentNonDeductible, "§ 6 Abs. 1 Nr. 3a Buchst. e EStG"},
+	{"6437", TaxAdjustmentNonDeductible, GroupTaxSidelines, refSidelines},
+	{"7302", TaxAdjustmentNonDeductible, GroupTaxSidelines, "§ 4 Abs. 5b EStG"},
+	{"7304", TaxAdjustmentNonDeductible, GroupTaxSidelines, refSidelines},
+	{"7306", TaxAdjustmentNonDeductible, GroupTaxSidelines, refSidelines},
+	{"7308", TaxAdjustmentNonDeductible, GroupTaxSidelines, refSidelines},
+	{"7313", TaxAdjustmentNonDeductible, GroupFinesAndOther, "§ 4 Abs. 4a EStG"},
+	{"7366", TaxAdjustmentNonDeductible, GroupFinesAndOther, "§ 6 Abs. 1 Nr. 3a Buchst. e EStG"},
 	// Gewinnminderungen aus Anteilen an Kapitalgesellschaften: Verluste aus
 	// der Veräußerung, Teilwertabschreibungen, Abschreibungen auf Darlehen
 	// eines wesentlich beteiligten Gesellschafters (§ 8b Abs. 3 Satz 4 KStG).
-	{"6290", TaxAdjustmentNonDeductible, "§ 8b Abs. 3 Satz 4 KStG"},
-	{"6858", TaxAdjustmentNonDeductible, refShareLosses},
-	{"6892", TaxAdjustmentNonDeductible, refShareLosses},
-	{"6898", TaxAdjustmentNonDeductible, refShareLosses},
-	{"6904", TaxAdjustmentNonDeductible, refShareLosses},
-	{"6906", TaxAdjustmentNonDeductible, refShareLosses},
-	{"6908", TaxAdjustmentNonDeductible, refShareLosses},
-	{"7204", TaxAdjustmentNonDeductible, refShareLosses},
-	{"7214", TaxAdjustmentNonDeductible, refShareLosses},
-	{"7255", TaxAdjustmentNonDeductible, refShareLosses},
+	{"6290", TaxAdjustmentNonDeductible, GroupShareLoans, "§ 8b Abs. 3 Satz 4 KStG"},
+	{"6858", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"6892", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"6898", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"6904", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"6906", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"6908", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"7204", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"7214", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
+	{"7255", TaxAdjustmentNonDeductible, GroupShareLosses, refShareLosses},
 
-	{"7005", TaxAdjustmentExemptDividend, "§ 8b Abs. 1 KStG"},
-	{"7006", TaxAdjustmentExemptDividend, "§ 8b Abs. 1 KStG"},
-	{"7015", TaxAdjustmentExemptDividend, "§ 8b Abs. 1 KStG"},
-	{"7104", TaxAdjustmentExemptDividend, "§ 8b Abs. 1 KStG"},
-	{"7014", TaxAdjustmentPortfolioDividend, "§ 8b Abs. 1 und 4 KStG"},
-	{"7103", TaxAdjustmentPortfolioDividend, "§ 8b Abs. 1 und 4 KStG"},
+	{"7005", TaxAdjustmentExemptDividend, GroupDividends, "§ 8b Abs. 1 KStG"},
+	{"7006", TaxAdjustmentExemptDividend, GroupDividends, "§ 8b Abs. 1 KStG"},
+	{"7015", TaxAdjustmentExemptDividend, GroupDividends, "§ 8b Abs. 1 KStG"},
+	{"7104", TaxAdjustmentExemptDividend, GroupDividends, "§ 8b Abs. 1 KStG"},
+	{"7014", TaxAdjustmentPortfolioDividend, GroupDividends, "§ 8b Abs. 1 und 4 KStG"},
+	{"7103", TaxAdjustmentPortfolioDividend, GroupDividends, "§ 8b Abs. 1 und 4 KStG"},
 
-	{"4852", TaxAdjustmentExemptGain, "§ 8b Abs. 2 KStG"},
-	{"4858", TaxAdjustmentExemptGain, "§ 8b Abs. 2 KStG"},
-	{"4904", TaxAdjustmentExemptGain, "§ 8b Abs. 2 KStG"},
-	{"4906", TaxAdjustmentExemptGain, "§ 8b Abs. 2 KStG"},
-	{"4914", TaxAdjustmentExemptGain, "§ 8b Abs. 2 KStG"},
-	{"6857", TaxAdjustmentExemptGain, "§ 8b Abs. 2 Satz 2 KStG"},
+	{"4852", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 KStG"},
+	{"4858", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 KStG"},
+	{"4904", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 KStG"},
+	{"4906", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 KStG"},
+	{"4914", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 KStG"},
+	{"6857", TaxAdjustmentExemptGain, GroupShareGains, "§ 8b Abs. 2 Satz 2 KStG"},
 
-	{"6391", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6392", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6393", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6395", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6397", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
-	{"6398", TaxAdjustmentDonation, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6391", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6392", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6393", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6395", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6397", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+	{"6398", TaxAdjustmentDonation, GroupDonations, "§ 9 Abs. 1 Satz 1 Nr. 2 KStG"},
+}
+
+// TaxAdjustmentAccountsOf liefert die Konten einer Art und, wenn angegeben,
+// einer Gruppe.
+func TaxAdjustmentAccountsOf(kind TaxAdjustmentKind, groups ...TaxAdjustmentGroup) []string {
+	out := []string{}
+	for _, a := range taxAdjustmentAccounts {
+		if a.Kind != kind {
+			continue
+		}
+		if len(groups) == 0 {
+			out = append(out, a.Account)
+			continue
+		}
+		for _, g := range groups {
+			if a.Group == g {
+				out = append(out, a.Account)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // TaxAdjustmentFor nennt die steuerliche Wirkung eines Kontos.

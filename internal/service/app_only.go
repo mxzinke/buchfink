@@ -9,7 +9,8 @@ import (
 
 // requireHuman behält einen Vorgang dem Menschen in der App vor:
 // Festschreibung, Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen,
-// Stammdaten des Unternehmens samt Gründung, Bankkonten und Organisation.
+// Beschluss über die Ergebnisverwendung, Stammdaten des Unternehmens samt
+// Gründung, Gesellschafterdarlehen, Bankkonten und Organisation.
 //
 // Zugelassen ist nur der Erfassungsweg ui. Ohne Erfassungsweg läuft der Dienst
 // unterhalb des Kerns (Einrichtung eines Mandanten, Tests); der Kern lässt

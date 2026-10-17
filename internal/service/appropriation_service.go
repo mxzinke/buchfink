@@ -244,10 +244,15 @@ func appropriationExplanation(a *domain.Appropriation) string {
 	return strings.TrimSpace(b.String())
 }
 
-// BookAppropriation hält den Beschluss fest und bucht ihn.
+// BookAppropriation hält den Beschluss fest und bucht ihn. Die
+// Ergebnisverwendung beschließen die Gesellschafter (§ 46 Nr. 1 GmbHG); den
+// Beschluss erfasst der Mensch in der App, ein Agent rechnet ihn nur vor.
 func (s *AppropriationService) BookAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*domain.Appropriation, error) {
+	if err := requireHuman(ctx, "Der Beschluss über die Ergebnisverwendung"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Appropriation, error) {
 		return s.bookAppropriation(ctx, year, req)
 	})

@@ -39,7 +39,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 37 Abs. 1 EStG i. V. m. § 31 Abs. 1 und 2 KStG",
 		Rhythm:  "10. März, 10. Juni, 10. September, 10. Dezember",
 		Channel: domain.ChannelInternal, Responsibility: domain.ResponsibilityHumanConfirms,
-		Evidence: domain.EvidenceFromEither,
+		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
 		Description: "Zahlung an das Finanzamt in der Höhe des Vorauszahlungsbescheids, mit Solidaritätszuschlag. " +
 			"Erledigt mit der Buchung auf 7600 oder 7608.",
 	},
@@ -48,7 +48,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 19 Abs. 1 und 2 GewStG",
 		Rhythm:  "15. Februar, 15. Mai, 15. August, 15. November",
 		Channel: domain.ChannelInternal, Responsibility: domain.ResponsibilityHumanConfirms,
-		Evidence:    domain.EvidenceFromEither,
+		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
 		Description: "Zahlung an die Gemeinde in der Höhe des Vorauszahlungsbescheids. Erledigt mit der Buchung auf 7610.",
 	},
 	{
@@ -56,9 +56,10 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 41a Abs. 1 und 2 EStG",
 		Rhythm:  "monatlich; vierteljährlich oder jährlich bei geringer Lohnsteuer des Vorjahres",
 		Channel: domain.ChannelPayrollProvider, Responsibility: domain.ResponsibilityHumanConfirms,
-		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
+		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
 		Description: "Anmeldung und Abführung bis zum 10. Tag nach Ablauf des Anmeldungszeitraums, meist durch den " +
-			"Lohnanbieter. Erledigt, sobald das Lohnjournal des Zeitraums gebucht ist.",
+			"Lohnanbieter. Das gebuchte Lohnjournal bereitet sie vor; erledigt mit dem Transferticket oder der " +
+			"Bestätigung des Lohnanbieters.",
 	},
 	{
 		Kind: domain.ObligationMonthCommit, Title: "Monatsfestschreibung",
@@ -190,7 +191,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 43 Abs. 1 Satz 1 Nr. 1, § 44 Abs. 1 Satz 5, Abs. 2, § 45a Abs. 1 EStG",
 		Rhythm:  "bei jeder Ausschüttung",
 		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
-		Evidence:    domain.EvidenceFromHuman,
+		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
 		Description: "Einbehalt, Anmeldung und Abführung im Zeitpunkt des Zuflusses an die Gesellschafter.",
 	},
 }

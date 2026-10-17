@@ -100,6 +100,18 @@ func TestDeclarationInputsByChannel(t *testing.T) {
 	if err := tenant.DeleteDeclarationInput(agent, declaration.KindCorporateTax, 2026, "kst.v.z14"); err == nil {
 		t.Errorf("Agent nimmt eine bestätigte Angabe des Menschen zurück")
 	}
+	if _, err := tenant.SetDeclarationInput(agent, service.InputRequest{
+		Kind: declaration.KindCorporateTax, Year: 2026, Key: "kst.v.z14", Value: declaration.Cents(1)}); !errors.Is(err, ErrAppOnly) {
+		t.Errorf("Agent überschreibt eine bestätigte Angabe des Menschen: %v", err)
+	}
+	d, _ = tenant.Declaration(agent, declaration.KindCorporateTax, 2026)
+	if l, _ := d.Line("kst.v.z14"); l.Status != declaration.StatusInput || l.Value.Amount() != 500000 {
+		t.Errorf("bestätigte Angabe nach dem Versuch des Agenten: %s %s", l.Status, l.Value.Amount())
+	}
+	if _, err := tenant.SetDeclarationInput(uiCtx, service.InputRequest{
+		Kind: declaration.KindCorporateTax, Year: 2026, Key: "kst.v.z14", Value: declaration.Cents(600000)}); err != nil {
+		t.Errorf("der Mensch ändert seine Angabe: %v", err)
+	}
 
 	for name, req := range map[string]service.InputRequest{
 		"Zeile aus den Büchern": {Kind: declaration.KindVatYear, Year: 2026, Key: "ust.z22.kz177", Value: declaration.Cents(100)},
@@ -193,6 +205,54 @@ func TestDeclarationExportAndSubmission(t *testing.T) {
 	if o.Status != domain.ObligationDone || o.Proof == nil || !o.Proof.Automatic ||
 		o.Proof.Kind != domain.EvidenceTransferTicket || o.Proof.Reference != "et9K2LX4QZ" || o.Proof.Date != today {
 		t.Errorf("Pflicht nach der Übermittlung: %s %+v", o.Status, o.Proof)
+	}
+}
+
+// Kommt der Vermerk nicht zustande, bleibt keine Exportdatei liegen, die wie
+// ein gültiger Export aussieht. Hier wartet der Vermerk auf einen anderen
+// Schreibvorgang, bis der Kontext abläuft.
+func TestDeclarationExportWithoutRecordLeavesNoFile(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	dir := t.TempDir()
+
+	holding, release := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- tenant.Write(uiCtx, func(context.Context, *Services) error {
+			close(holding)
+			<-release
+			return nil
+		})
+	}()
+	<-holding
+	ctx, cancel := context.WithTimeout(agentCtx(t), 2*time.Second)
+	defer cancel()
+	_, err := tenant.ExportDeclaration(ctx, declaration.KindVatYear, 2026, dir)
+	close(release)
+	if werr := <-done; werr != nil {
+		t.Fatal(werr)
+	}
+	if err == nil {
+		t.Fatal("Export ohne Vermerk gemeldet")
+	}
+	files, rerr := os.ReadDir(dir)
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	for _, f := range files {
+		t.Errorf("nach dem gescheiterten Export liegt %s im Ordner", f.Name())
+	}
+	var records []domain.DeclarationRecord
+	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) (err error) {
+		records, err = s.Declarations.Records(ctx, declaration.KindVatYear, 2026)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 0 {
+		t.Errorf("Vermerke nach dem gescheiterten Export: %d", len(records))
 	}
 }
 

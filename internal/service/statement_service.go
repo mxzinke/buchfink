@@ -25,6 +25,13 @@ type StatementService struct {
 	openItems     OpenItemSource
 	notes         NotesSources
 	renderer      DocumentRenderer
+	deadlines     StatementDeadlineSource
+}
+
+// StatementDeadlineSource liefert Aufstellungs- und Offenlegungsfrist aus dem
+// Pflichtenkalender; der Abschluss rechnet sie nicht selbst.
+type StatementDeadlineSource interface {
+	DeadlinesOf(ctx context.Context, year int, kinds ...domain.ObligationKind) ([]domain.Deadline, error)
 }
 
 // Die drei Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
@@ -95,6 +102,10 @@ func (s *StatementService) SetNotesSources(src NotesSources) { s.notes = src }
 // SetRenderer koppelt den PDF-Renderer an.
 func (s *StatementService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
+// SetDeadlineSource koppelt den Pflichtenkalender an. Ohne ihn nennt der
+// Abschluss keine Fristen.
+func (s *StatementService) SetDeadlineSource(src StatementDeadlineSource) { s.deadlines = src }
+
 // Build stellt den Jahresabschluss eines Geschäftsjahres auf.
 //
 // depth darf leer sein; dann entscheidet die Größenklasse über die
@@ -147,7 +158,7 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		SizeClass:  sizeClass,
 		Maturities: maturities,
 		Notes:      s.notesFor(ctx, year),
-		Deadlines:  s.deadlinesFor(ctx, year, header.ClosingDate, sizeClass),
+		Deadlines:  s.deadlinesFor(ctx, year),
 	}
 	out.Notes.Missing = []string{}
 	required := map[domain.NotesSection]bool{domain.NotesSectionContingent: true, domain.NotesSectionBoardLoans: true, domain.NotesSectionAdditional: true}
@@ -230,19 +241,6 @@ func (s *StatementService) SizeClassFor(ctx context.Context, year int) (*domain.
 		return nil, err
 	}
 	return &sizeClass, nil
-}
-
-// Deadlines liefert die Termine des Jahresabschlusses: Aufstellung und
-// Offenlegung.
-func (s *StatementService) Deadlines(ctx context.Context, year int) ([]domain.Deadline, error) {
-	if err := requireYear(year); err != nil {
-		return nil, err
-	}
-	sizeClass, err := s.SizeClassFor(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	return s.deadlinesFor(ctx, year, sizeClass.ClosingDate, *sizeClass), nil
 }
 
 // Statement liefert allein die Gliederung — die E-Bilanz braucht sie ohne Kopf,
@@ -535,32 +533,18 @@ func (s *StatementService) header(ctx context.Context, year int, stmt *domain.St
 	return header, nil
 }
 
-// deadlinesFor setzt die Termine und trägt ein, was das Geschäftsjahr bereits
-// als erledigt vermerkt.
-//
-// Der Abschlussstand aus Welle 1 sagt das: aufgestellt ist aufgestellt, und
-// eine Frist, die erledigt ist, gehört nicht mehr als Mahnung in eine Liste.
-func (s *StatementService) deadlinesFor(
-	ctx context.Context, year int, closingDate string, sizeClass domain.SizeClass,
-) []domain.Deadline {
-	deadlines := accounting.StatementDeadlines(year, closingDate, sizeClass.Obligations)
-	fy, err := s.period(ctx, year)
-	if err != nil {
-		return deadlines
+// deadlinesFor sind Aufstellung und Offenlegung aus dem Pflichtenkalender,
+// mit dem Stand, den das Geschäftsjahr vermerkt. Fällt der Kalender aus,
+// bleibt die Liste leer statt den Abschluss scheitern zu lassen.
+func (s *StatementService) deadlinesFor(ctx context.Context, year int) []domain.Deadline {
+	if s.deadlines == nil {
+		return []domain.Deadline{}
 	}
-	for i := range deadlines {
-		switch deadlines[i].Key {
-		case "abschluss.aufstellung":
-			if fy.PreparedOn != "" {
-				deadlines[i].IsDone, deadlines[i].DoneOn = true, fy.PreparedOn
-			}
-		case "abschluss.offenlegung":
-			if fy.DisclosedOn != "" {
-				deadlines[i].IsDone, deadlines[i].DoneOn = true, fy.DisclosedOn
-			}
-		}
+	out, err := s.deadlines.DeadlinesOf(ctx, year, domain.ObligationStatementPrep, domain.ObligationDisclosure)
+	if err != nil || out == nil {
+		return []domain.Deadline{}
 	}
-	return deadlines
+	return out
 }
 
 // maturities ist die Restlaufzeitengliederung nach § 268 Abs. 4 und 5 HGB.

@@ -492,25 +492,26 @@ func TestDepthDefaultsToTheSizeClass(t *testing.T) {
 	}
 }
 
-// Die Fristen kommen aus dem Backend, mit Datum und Norm.
-func TestDeadlinesComeFromTheClosingDateAndTheSizeClass(t *testing.T) {
+// Die Fristen im Abschluss kommen aus dem Pflichtenkalender, mit Datum und
+// Norm; eine zweite Fristenrechnung gibt es nicht.
+func TestStatementDeadlinesComeFromTheCalendar(t *testing.T) {
 	env := newTestEnv(t)
 	env.post(t, "2026-06-01", "1800", "4400", 1_000_000)
+	statements := env.statements(t)
+	statements.SetDeadlineSource(env.obligations(t))
 
-	deadlines, err := env.statements(t).Deadlines(context.Background(), 2026)
+	fs, err := statements.Build(context.Background(), 2026, "")
 	if err != nil {
-		t.Fatalf("Fristen: %v", err)
+		t.Fatalf("Abschluss: %v", err)
 	}
-	if len(deadlines) != 2 {
-		t.Fatalf("es entstehen %d Termine, erwartet Aufstellung und Offenlegung", len(deadlines))
+	want := map[string]string{"aufstellung.2026": "2027-06-30", "offenlegung.2026": "2027-12-31"}
+	if len(fs.Deadlines) != len(want) {
+		t.Fatalf("es entstehen %d Termine, erwartet Aufstellung und Offenlegung: %+v", len(fs.Deadlines), fs.Deadlines)
 	}
-	if deadlines[0].DueDate != "2027-06-30" {
-		t.Errorf("die Aufstellungsfrist endet am %s, erwartet den 30.06.2027", deadlines[0].DueDate)
-	}
-	if deadlines[1].DueDate != "2027-12-31" {
-		t.Errorf("die Offenlegungsfrist endet am %s, erwartet den 31.12.2027", deadlines[1].DueDate)
-	}
-	for _, d := range deadlines {
+	for _, d := range fs.Deadlines {
+		if due, ok := want[d.Key]; !ok || d.DueDate != due {
+			t.Errorf("Termin %s fällig am %s, erwartet %v", d.Key, d.DueDate, want)
+		}
 		if d.Reference == "" {
 			t.Errorf("der Termin %q nennt keine Norm", d.Title)
 		}

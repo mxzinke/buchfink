@@ -33,6 +33,7 @@ type ObligationService struct {
 	sizes      ObligationSizeSource
 	decisions  ObligationAppropriationSource
 	journal    ObligationJournalSource
+	payroll    ObligationPayrollSource
 	returns    ObligationDeclarationSource
 
 	now func() time.Time
@@ -79,6 +80,12 @@ type ObligationJournalSource interface {
 	FindByAccountRange(ctx context.Context, account, from, to string) ([]domain.JournalEntry, error)
 }
 
+// ObligationPayrollSource liefert die gebuchten Lohnjournale mit ihrer
+// Lohnsteuer; nach ihr richtet sich der Anmeldungszeitraum.
+type ObligationPayrollSource interface {
+	FindAll(ctx context.Context) ([]domain.PayrollRun, error)
+}
+
 // ObligationDeclarationSource liefert die festgehaltenen Stände einer
 // Jahressteuererklärung, älteste zuerst.
 type ObligationDeclarationSource interface {
@@ -120,6 +127,10 @@ func (s *ObligationService) SetAppropriationSource(src ObligationAppropriationSo
 
 // SetJournalSource hängt das Journal an: Vorauszahlungen und Lohnjournal.
 func (s *ObligationService) SetJournalSource(src ObligationJournalSource) { s.journal = src }
+
+// SetPayrollSource hängt die gebuchten Lohnjournale an. Ohne sie schätzt der
+// Kalender den Anmeldungszeitraum aus dem Konto 3730.
+func (s *ObligationService) SetPayrollSource(src ObligationPayrollSource) { s.payroll = src }
 
 // SetDeclarationSource hängt die Stände der Jahressteuererklärungen an.
 func (s *ObligationService) SetDeclarationSource(src ObligationDeclarationSource) { s.returns = src }
@@ -432,10 +443,16 @@ func (s *ObligationService) RecordEvent(
 // Deadlines liefert die Pflichten eines Geschäftsjahres in der Form der
 // Fristenseite.
 func (s *ObligationService) Deadlines(ctx context.Context, year int) ([]domain.Deadline, error) {
+	return s.DeadlinesOf(ctx, year)
+}
+
+// DeadlinesOf liefert die Pflichten der genannten Arten eines
+// Geschäftsjahres in der Form der Fristenseite; ohne Arten alle.
+func (s *ObligationService) DeadlinesOf(ctx context.Context, year int, kinds ...domain.ObligationKind) ([]domain.Deadline, error) {
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	list, err := s.List(ctx, ObligationQuery{FiscalYear: year})
+	list, err := s.List(ctx, ObligationQuery{FiscalYear: year, Kinds: kinds})
 	if err != nil {
 		return nil, err
 	}

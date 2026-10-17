@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -124,6 +126,82 @@ func TestShareholderLoanToCompanyWithInterest(t *testing.T) {
 		t.Errorf("Salden je Gesellschafter: %+v", balances)
 	}
 }
+
+// Den Darlehensvertrag erfasst und berichtigt der Mensch in der App; die
+// Berichtigung steht mit Grund, vorher und nachher im Protokoll. Sind Zinsen
+// gebucht, bleibt der Zinssatz bis zu deren Storno.
+func TestLoanContractIsCorrectedByTheHuman(t *testing.T) {
+	env := newTestEnv(t)
+	env.withShareholders(t)
+	mara := env.person(t, "Mara Beispiel")
+	svc := env.shareholders(t)
+	req := LoanRequest{ContactID: mara.ID, Direction: domain.LoanToCompany, Principal: 2_000_000,
+		InterestRateBP: 400, StartDate: "2026-01-01", MaturityDate: "2027-12-31"}
+
+	if _, err := svc.RegisterLoan(agentCtx, req); !errors.Is(err, actor.ErrAppOnly) {
+		t.Fatalf("ein Agent erfasst ein Gesellschafterdarlehen: %v", err)
+	}
+	view, err := svc.RegisterLoan(appCtx, req)
+	if err != nil {
+		t.Fatalf("Darlehen erfassen: %v", err)
+	}
+	id := view.Loan.ID
+
+	fix := req
+	fix.Account = view.Loan.Account
+	fix.ComparisonRateBP, fix.ComparisonSource = intPtr(450), "Angebot der Hausbank vom 10.12.2025"
+	if _, err := svc.CorrectLoan(agentCtx, id, fix, "Vergleichszins nachgetragen"); !errors.Is(err, actor.ErrAppOnly) {
+		t.Errorf("ein Agent berichtigt den Vertrag: %v", err)
+	}
+	if _, err := svc.CorrectLoan(appCtx, id, fix, " "); err == nil {
+		t.Error("eine Berichtigung ohne Grund wurde angenommen")
+	}
+	corrected, err := svc.CorrectLoan(appCtx, id, fix, "Vergleichszins nachgetragen")
+	if err != nil {
+		t.Fatalf("Berichtigung: %v", err)
+	}
+	if corrected.Loan.ID != id || corrected.Loan.ComparisonRateBP == nil || *corrected.Loan.ComparisonRateBP != 450 {
+		t.Errorf("berichtigter Vertrag: %+v", corrected.Loan)
+	}
+
+	payments := env.paymentsWithBank(t)
+	payments.SetLoanSource(svc)
+	tx := env.bankLine(t, "2026-01-02", 2_000_000, "Mara Beispiel", "Darlehen")
+	if _, err := payments.BookBankSplit(context.Background(), BankSplitRequest{BankTxID: tx,
+		Lines: []BankSplitLine{{LoanID: id, Amount: 2_000_000}}}); err != nil {
+		t.Fatalf("Auszahlung: %v", err)
+	}
+	interest, err := svc.BookInterest(context.Background(), InterestRequest{LoanID: id, To: "2026-06-30"})
+	if err != nil {
+		t.Fatalf("Zinsen buchen: %v", err)
+	}
+	fix.InterestRateBP = 300
+	if _, err := svc.CorrectLoan(appCtx, id, fix, "Zinssatz falsch erfasst"); err == nil ||
+		!strings.Contains(err.Error(), "der Zinssatz") {
+		t.Errorf("Zinssatz trotz gebuchter Zinsen geändert: %v", err)
+	}
+	if _, err := env.journal.Reverse(context.Background(), interest.ID, "Zinssatz falsch erfasst"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CorrectLoan(appCtx, id, fix, "Zinssatz falsch erfasst"); err != nil {
+		t.Errorf("nach dem Storno der Zinsen bleibt der Zinssatz gesperrt: %v", err)
+	}
+
+	log, err := repository.NewAuditRepository(env.db).FindFiltered(context.Background(), 20,
+		domain.AuditFilter{EntityType: "SHAREHOLDER_LOAN"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, entry := range log {
+		found = found || strings.Contains(entry.Details, "berichtigt: Zinssatz falsch erfasst")
+	}
+	if !found {
+		t.Errorf("die Berichtigung fehlt im Protokoll: %+v", log)
+	}
+}
+
+func intPtr(v int) *int { return &v }
 
 // Ein zinsloses Darlehen der GmbH an ihre geschäftsführende Gesellschafterin
 // ohne Vertrag und Sicherheit: vier Hinweise, keine Sperre.

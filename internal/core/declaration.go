@@ -65,8 +65,10 @@ type DeclarationExport struct {
 
 // ExportDeclaration schreibt die Erklärung als JSON (Schema
 // buchfink.erklaerung/1) in den Ordner und hält den Export fest: gerechnet
-// im Lesen, die Datei ohne Sperre, der Vermerk in einem kurzen Schreibvorgang.
-// Der Export ändert die Bücher nicht und läuft deshalb auch im Prüfermodus.
+// im Lesen, die Datei ohne Sperre in eine Zwischendatei, Vermerk und
+// Umbenennung in einem kurzen Schreibvorgang. Scheitert der Vermerk, bleibt
+// keine Exportdatei liegen. Der Export ändert die Bücher nicht und läuft
+// deshalb auch im Prüfermodus.
 func (t *Tenant) ExportDeclaration(ctx context.Context, kind declaration.Kind, year int, dir string) (*DeclarationExport, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, fmt.Errorf("der Exportordner %q ist kein absoluter Pfad", dir)
@@ -88,14 +90,27 @@ func (t *Tenant) ExportDeclaration(ctx context.Context, kind declaration.Kind, y
 	sum := sha256.Sum256(data)
 	sha := hex.EncodeToString(sum[:])
 	path := filepath.Join(dir, fmt.Sprintf("erklaerung-%s-%d-%s.json", kind, year, d.FiguresHash[:12]))
-	if err := writeFileAtomic(path, data); err != nil {
+	tmp, err := writeTempFile(dir, data)
+	if err != nil {
 		return nil, fmt.Errorf("die Exportdatei ließ sich nicht schreiben: %w", err)
 	}
+	placed := false
 	var rec *domain.DeclarationRecord
 	if err := t.Write(ctx, func(ctx context.Context, s *Services) (err error) {
 		rec, err = s.Declarations.RecordExport(ctx, d, path, sha)
-		return err
+		if err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return fmt.Errorf("die Exportdatei ließ sich nicht ablegen: %w", err)
+		}
+		placed = true
+		return nil
 	}, ExaminerExempt()); err != nil {
+		_ = os.Remove(tmp)
+		if placed {
+			_ = os.Remove(path)
+		}
 		return nil, err
 	}
 	return &DeclarationExport{Path: path, SHA256: sha, FiguresHash: d.FiguresHash,
@@ -113,26 +128,22 @@ func (t *Tenant) SubmitDeclaration(ctx context.Context, req service.SubmissionRe
 	return rec, err
 }
 
-// writeFileAtomic schreibt über eine Zwischendatei, damit kein halber Export
-// liegen bleibt.
-func writeFileAtomic(path string, data []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".erklaerung-*.json")
+// writeTempFile schreibt eine Zwischendatei im Exportordner, damit kein
+// halber Export unter dem endgültigen Namen liegt.
+func writeTempFile(dir string, data []byte) (string, error) {
+	tmp, err := os.CreateTemp(dir, ".erklaerung-*.json")
 	if err != nil {
-		return err
+		return "", err
 	}
 	name := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(name)
-		return err
+		return "", err
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(name)
-		return err
+		return "", err
 	}
-	if err := os.Rename(name, path); err != nil {
-		_ = os.Remove(name)
-		return err
-	}
-	return nil
+	return name, nil
 }

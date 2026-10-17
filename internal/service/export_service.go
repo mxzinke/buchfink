@@ -47,6 +47,14 @@ type ExportTaxRegisterSource interface {
 	RegisterCSV(ctx context.Context, year int) (string, error)
 }
 
+// ExportLoanSource liefert die Gesellschafterdarlehen mit ihren gebuchten
+// Zinsperioden. Zins und Vergleichszins sind der Nachweis des Fremdvergleichs
+// (R 8.5 KStR 2022) und gehören deshalb in die Überlassung.
+type ExportLoanSource interface {
+	FindAll(ctx context.Context) ([]domain.ShareholderLoan, error)
+	FindInterest(ctx context.Context, loanID uint) ([]domain.ShareholderLoanInterest, error)
+}
+
 // ExportService stellt die Datenüberlassung nach § 147 Abs. 6 AO zusammen.
 //
 // Er liest und schreibt keine Buchführungsdaten. Was er schreibt, sind Dateien
@@ -77,6 +85,7 @@ type ExportService struct {
 	openItem ExportOpenItemSource
 	checks   ExportIntegritySource
 	register ExportTaxRegisterSource
+	loans    ExportLoanSource
 }
 
 // NewExportService verdrahtet den Export.
@@ -113,6 +122,9 @@ func (s *ExportService) SetIntegritySource(src ExportIntegritySource) { s.checks
 
 // SetTaxRegisterSource hängt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG an.
 func (s *ExportService) SetTaxRegisterSource(src ExportTaxRegisterSource) { s.register = src }
+
+// SetLoanSource hängt die Gesellschafterdarlehen an.
+func (s *ExportService) SetLoanSource(src ExportLoanSource) { s.loans = src }
 
 // SetProcDocRepo hängt die Fassungen der Verfahrensdokumentation an. Aus ihnen
 // legt das Prüferpaket die Dokumentation bei (GoBD Rz. 151 ff.).
@@ -283,8 +295,11 @@ type exportData struct {
 	commits     []domain.Festschreibung
 	checkRuns   []domain.CheckRun
 	openItems   []domain.OpenItem
-	allocations []domain.PaymentAllocation
-	balances    map[string]balanceRow
+	loans       []domain.ShareholderLoan
+	// loanInterest sind die Zinsperioden, die das Exportjahr berühren.
+	loanInterest []domain.ShareholderLoanInterest
+	allocations  []domain.PaymentAllocation
+	balances     map[string]balanceRow
 
 	// receiptFilePaths ist der Pfad je Belegdatei innerhalb des Exports; leer,
 	// solange keine Dateien beiliegen.
@@ -489,7 +504,39 @@ func (s *ExportService) collect(ctx context.Context, year int) (*exportData, err
 			return nil, fmt.Errorf("die offenen Posten konnten nicht ermittelt werden: %w", err)
 		}
 	}
+	if err := s.collectLoans(ctx, d); err != nil {
+		return nil, err
+	}
 	return d, nil
+}
+
+// collectLoans liest die Darlehensverträge, die im Exportjahr bestanden, und
+// ihre Zinsperioden, die das Jahr berühren.
+func (s *ExportService) collectLoans(ctx context.Context, d *exportData) error {
+	if s.loans == nil {
+		return nil
+	}
+	all, err := s.loans.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("die Gesellschafterdarlehen konnten nicht gelesen werden: %w", err)
+	}
+	for _, loan := range all {
+		periods, err := s.loans.FindInterest(ctx, loan.ID)
+		if err != nil {
+			return fmt.Errorf("die Zinsen des Darlehens %d konnten nicht gelesen werden: %w", loan.ID, err)
+		}
+		inYear := loan.StartDate <= d.to && (loan.MaturityDate == "" || loan.MaturityDate >= d.from)
+		for _, p := range periods {
+			if p.PeriodFrom <= d.to && p.PeriodTo >= d.from {
+				d.loanInterest = append(d.loanInterest, p)
+				inYear = true
+			}
+		}
+		if inYear {
+			d.loans = append(d.loans, loan)
+		}
+	}
+	return nil
 }
 
 // selectAllocations nimmt die Zuordnungen auf, die das Exportjahr berühren, und
@@ -628,7 +675,7 @@ func (s *ExportService) buildDataset(d *exportData) (*export.Dataset, error) {
 	builders := []func(*exportData) (export.Table, error){
 		journalTable, entertainmentTable, giftsTable, allocationsTable,
 		accountsTable, balancesTable, contactsTable, openItemsTable,
-		assetsTable, assetMovementsTable,
+		assetsTable, assetMovementsTable, loansTable, loanInterestTable,
 		receiptsTable, vatReturnsTable, commitsTable, checkRunsTable, auditLogTable,
 		auditTrailTable,
 	}

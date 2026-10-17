@@ -96,6 +96,20 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			_, err := s.Obligations.Reopen(ctx, "kst-erklaerung.2025", "Irrtum")
 			return err
 		}),
+		"Ergebnisverwendung beschließen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Appropriation.BookAppropriation(ctx, 2025, service.AppropriationRequest{DecisionDate: "2026-06-01"})
+			return err
+		}),
+		"Gesellschafterdarlehen erfassen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Shareholders.RegisterLoan(ctx, service.LoanRequest{ContactID: 1, Direction: domain.LoanToCompany,
+				Principal: 1_000_000, InterestRateBP: 300, StartDate: "2026-01-01"})
+			return err
+		}),
+		"Gesellschafterdarlehen berichtigen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Shareholders.CorrectLoan(ctx, 1, service.LoanRequest{ContactID: 1, Direction: domain.LoanToCompany,
+				Principal: 1_000_000, InterestRateBP: 300, StartDate: "2026-01-01"}, "Zinssatz")
+			return err
+		}),
 		"Sicherungsordner setzen": func() error { _, err := h.SetBackupDir(agent, t.TempDir()); return err },
 		"Mandant wechseln":        func() error { _, err := h.Switch(agent, tc.ID); return err },
 		"Mandant anlegen": func() error {

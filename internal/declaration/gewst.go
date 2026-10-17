@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -101,16 +102,8 @@ func BuildTradeTax(common TradeCommon, data CorporateData) (*Declaration, error)
 
 	// § 9 Nr. 5 GewStG: Höchstbetrag aus dem um § 8 Nr. 9 erhöhten Gewinn
 	// oder 4 Promille der Umsätze, Löhne und Gehälter.
-	base := corp.income + c.amount("gewst.8_9")
-	capIncome := domain.Cents(0)
-	if base > 0 {
-		capIncome = domain.MulRound(base, c.params.DonationIncomePermille, 1000)
-	}
-	capTurnover := domain.MulRound(kc.amount("kst.z.z10")+kc.amount("kst.z.z11"), c.params.DonationTurnoverPermille, 1000)
-	limit := capIncome
-	if capTurnover > limit {
-		limit = capTurnover
-	}
+	limit, capIncome, capTurnover := accounting.DonationCap(corp.income+c.amount("gewst.8_9"),
+		kc.amount("kst.z.z10")+kc.amount("kst.z.z11"), c.params)
 	given := kc.amount("kst.z.z5")
 	cut := given
 	if cut > limit {
@@ -132,7 +125,7 @@ func BuildTradeTax(common TradeCommon, data CorporateData) (*Declaration, error)
 			notes: []string{"Vortragsfähigen Gewerbeverlust aus dem Feststellungsbescheid des Vorjahres übernehmen; ohne Verlust null."}})
 	}
 	carried := c.amount("gewst.verlust_vorjahr")
-	deduction := lossDeduction(carried, before, c.params.LossDeductionBase, c.params.TradeLossExcessPermille)
+	deduction := accounting.LossDeduction(before, carried, c.params.LossDeductionBase, c.params.TradeLossExcessPermille)
 	beforeKeys := []string{"gewst.gewinn", "gewst.8_1", "gewst.8_5", "gewst.8_9", "gewst.8_10", "gewst.9_1", "gewst.9_2a", "gewst.9_5", "gewst.z48"}
 	c.books("gewst.verlust_abzug", Cents(deduction), fromLines(
 		fmt.Sprintf("Gewerbeverlust bis 1 Mio. € voll, darüber %s des übersteigenden Gewerbeertrags", percentText(c.params.TradeLossExcessPermille)),
@@ -251,13 +244,9 @@ func (c *calc) tradeControl(common Common, data CorporateData, before, deduction
 	c.books("gewst.k.ertrag", Cents(ertrag), fromLines("Gewinn + Hinzurechnungen − Kürzungen + halbe Teilfreistellung − Gewerbeverlust",
 		append(keys, "gewst.verlust_abzug")...),
 		"Die Hälfte der Teilfreistellung ist bei der Gewerbesteuer wieder hinzuzurechnen (§ 20 Abs. 5 InvStG).")
-	rounded := domain.Cents(0)
-	if ertrag > 0 {
-		rounded = ertrag - ertrag%10000
-	}
-	c.books("gewst.k.ertrag_gerundet", Cents(rounded), fromLines("auf volle 100 € abgerundet", "gewst.k.ertrag"))
-	base := domain.MulRound(rounded, c.params.TradeTaxBasePermille, 1000)
-	c.books("gewst.k.messbetrag", Cents(base), fromLines("3,5 % des abgerundeten Gewerbeertrags", "gewst.k.ertrag_gerundet"))
+	trade := accounting.TradeTaxOn(ertrag, data.TradeTaxRate, c.params)
+	c.books("gewst.k.ertrag_gerundet", Cents(trade.Rounded), fromLines("auf volle 100 € abgerundet", "gewst.k.ertrag"))
+	c.books("gewst.k.messbetrag", Cents(trade.Base), fromLines("3,5 % des abgerundeten Gewerbeertrags", "gewst.k.ertrag_gerundet"))
 	if data.TradeTaxRate <= 0 {
 		c.open("gewst.k.hebesatz", "Der Hebesatz der Gemeinde fehlt in den Einstellungen.")
 		c.finding(SeverityWarning, "hebesatz_fehlt", "gewst.k.hebesatz",
@@ -270,23 +259,18 @@ func (c *calc) tradeControl(common Common, data CorporateData, before, deduction
 				"§ 16 Abs. 4 Satz 2 GewStG")
 		}
 	}
-	tax := domain.MulRound(base, data.TradeTaxRate, 100)
+	tax := trade.Tax
 	c.books("gewst.k.steuer", Cents(tax), fromLines("Messbetrag × Hebesatz", "gewst.k.messbetrag", "gewst.k.hebesatz"))
 	prepaid, o := data.Ledger.sum(full("7610"), true, AccountTotals.NetBeforeClosing)
 	c.books("gewst.k.vorauszahlungen", Cents(prepaid), o)
 	c.books("gewst.k.ergebnis", Cents(tax-prepaid), fromLines("Steuer − Vorauszahlungen", "gewst.k.steuer", "gewst.k.vorauszahlungen"))
-	provision := -data.Ledger["3035"].EndBalance()
-	c.books("gewst.k.rueckstellung", Cents(provision), Origin{Kind: OriginAccounts, Accounts: []AccountPart{{
-		Account: "3035", Name: data.Ledger["3035"].Name, Balance: provision, Num: 1, Den: 1, Amount: provision}}})
-	expected := tax - prepaid
-	if expected < 0 {
-		expected = 0
-	}
+	booked, bo := bookedProvision(data.Ledger, "3035", accounting.AccountGewerbesteuerForderung)
+	c.books("gewst.k.rueckstellung", Cents(booked), bo)
 	if data.TradeTaxRate > 0 {
-		if diff := provision - expected; diff.Abs() > 100 {
+		if diff := booked - (tax - prepaid); diff.Abs() > 100 {
 			c.finding(SeverityWarning, "rueckstellung_abweichung", "gewst.k.rueckstellung",
-				fmt.Sprintf("Die gebuchte Gewerbesteuerrückstellung (%s €) weicht von der Kontrollrechnung (%s € nach Vorauszahlungen) um %s € ab.",
-					provision, expected, diff), "§ 249 Abs. 1 HGB")
+				fmt.Sprintf("Die gebuchte Gewerbesteuerrückstellung abzüglich des Erstattungsanspruchs (%s €) weicht von der Kontrollrechnung (%s € nach Vorauszahlungen) um %s € ab.",
+					booked, tax-prepaid, diff), "§ 249 Abs. 1 HGB")
 		}
 	}
 }

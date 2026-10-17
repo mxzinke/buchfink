@@ -168,7 +168,7 @@ func TestAppOnlyOperationsAreMarked(t *testing.T) {
 	for _, name := range []string{
 		"ConfirmVatReturnSubmitted", "ConfirmZMSubmitted",
 		"SetFiscalYearStatus", "ReopenFiscalYear", "UpdateCompanySettings",
-		"ConfigureBankAccounts", "SetInvoiceBankAccount",
+		"ConfigureBankAccounts", "SetInvoiceBankAccount", "BookAppropriation",
 	} {
 		m, ok := methods[name]
 		if !ok {

@@ -88,6 +88,13 @@ func (r PayrollRequest) wageTaxes() domain.Cents {
 	return r.WageTax + r.ChurchTax + r.SolidaritySurcharge + r.FlatRateWageTax + r.ShareholderDirectorFlatRateTax
 }
 
+// registeredWageTax ist die Lohnsteuer, die der Arbeitgeber anmeldet:
+// einbehalten und pauschal übernommen, ohne Kirchensteuer und
+// Solidaritätszuschlag (§ 41a Abs. 1 Satz 1 Nr. 1, Abs. 2 EStG).
+func (r PayrollRequest) registeredWageTax() domain.Cents {
+	return r.WageTax + r.FlatRateWageTax + r.ShareholderDirectorFlatRateTax
+}
+
 // socialSecurity ist, was an die Einzugsstellen und die Minijob-Zentrale geht.
 func (r PayrollRequest) socialSecurity() domain.Cents {
 	return r.EmployeeSocialSecurity + r.EmployerSocialSecurity + r.Levies + r.MinijobContributions + r.MinijobFlatTax
@@ -226,7 +233,8 @@ func (s *PayrollService) BookPayroll(ctx context.Context, req PayrollRequest) (*
 		}
 		if err := s.runs.Save(ctx, &domain.PayrollRun{
 			Month: req.Month, EntryID: entry.ID, ReceiptID: req.ReceiptID,
-			Gross: req.Gross(), Net: req.NetPay, WageTaxes: req.wageTaxes(), SocialSecurity: req.socialSecurity(),
+			Gross: req.Gross(), Net: req.NetPay, WageTaxes: req.wageTaxes(), WageTax: req.registeredWageTax(),
+			SocialSecurity: req.socialSecurity(),
 		}); err != nil {
 			return nil, fmt.Errorf("das Lohnjournal ließ sich nicht vermerken: %w", err)
 		}

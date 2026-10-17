@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"sort"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -80,7 +81,7 @@ func indexPrepayments(entries []domain.JournalEntry, allocations []domain.Paymen
 		if !prepaymentCandidate(e) {
 			continue
 		}
-		var ledger, liquid domain.Cents
+		var ledger, settled domain.Cents
 		hasLedger := false
 		for _, l := range e.Lines {
 			switch {
@@ -88,18 +89,18 @@ func indexPrepayments(entries []domain.JournalEntry, allocations []domain.Paymen
 				if !hasLedger {
 					ledger, hasLedger = l.Amount.Abs(), true
 				}
-			case isLiquidAccount(l.Account):
-				liquid += l.Amount.Abs()
+			case domain.SettlesAtBooking(l):
+				settled += l.Amount.Abs()
 			}
 		}
 		switch {
 		case hasLedger:
 			out.gross[e.ID] = ledger
-		case liquid != 0:
-			// Ohne Personenkonto ist der Beleg mit der Buchung bezahlt: das
-			// Zahlungsmittelkonto zeigt das Geld am Buchungstag.
-			out.gross[e.ID] = liquid
-			out.payments[e.ID] = append(out.payments[e.ID], vatPayment{date: e.BookingDate, amount: liquid})
+		case settled != 0:
+			// Ohne Personenkonto ist der Beleg mit der Buchung bezahlt: über die
+			// Bank, die Firmenkreditkarte oder als Auslage.
+			out.gross[e.ID] = settled
+			out.payments[e.ID] = append(out.payments[e.ID], vatPayment{date: e.BookingDate, amount: settled})
 		}
 	}
 	for id := range out.payments {
@@ -161,38 +162,63 @@ func (p prepayments) isWriteOff(e *domain.JournalEntry) bool {
 	return false
 }
 
-// splitByPayments verteilt eine Bewegung auf die Zeiträume der Zahlungen, die
-// vor ihrem Entstehungsdatum liegen. earlier liefert zu einem Zahlungstag das
-// Datum, an dem die Steuer insoweit entsteht oder abziehbar wird; was keine
-// Zahlung vorzieht, bleibt am regulären Datum.
-//
-// Gerechnet wird über die aufgelaufenen Anteile, damit sich die Teile ohne
-// Rundungsrest zur ursprünglichen Bewegung ergänzen.
-func splitByPayments(m vatMovement, gross domain.Cents, payments []vatPayment, earlier func(string) string) []vatMovement {
-	if gross <= 0 || len(payments) == 0 || earlier == nil {
-		return []vatMovement{m}
+// arising ist ein Tag, bis zu dem die Steuer für einen Teil der Bewegung
+// entstanden ist: covered ist der kumulierte Anteil in Einheiten der Summe,
+// über die verteilt wird. trigger ist die Buchung, die den Teil vorzieht, 0
+// beim Jahresende des § 13b Abs. 3 UStG.
+type arising struct {
+	date    string
+	covered domain.Cents
+	trigger uint
+}
+
+// paymentArisings sind die Zahlungen vor der Leistung als Tage, an denen die
+// Steuer insoweit entsteht oder abziehbar wird. earlier liefert zu einem
+// Zahlungstag dieses Datum; nil heißt, eine Zahlung zieht nichts vor.
+func paymentArisings(gross domain.Cents, payments []vatPayment, earlier func(string) string) []arising {
+	if gross <= 0 || earlier == nil {
+		return nil
 	}
-	out := make([]vatMovement, 0, len(payments)+1)
-	var covered, baseDone, taxDone domain.Cents
+	out := make([]arising, 0, len(payments))
+	var covered domain.Cents
 	for _, pay := range payments {
 		if covered >= gross {
 			break
 		}
-		share := pay.amount
-		if covered+share > gross {
-			share = gross - covered
+		covered += min(pay.amount, gross-covered)
+		if date := earlier(pay.date); date != "" {
+			out = append(out, arising{date: date, covered: covered, trigger: pay.entryID})
 		}
-		covered += share
-		// Die Zahlungen sind nach Datum geordnet: zieht eine nichts vor, tut es
-		// auch keine spätere.
-		date := earlier(pay.date)
-		if date == "" || date >= m.date {
+	}
+	return out
+}
+
+// splitByArising verteilt eine Bewegung auf die Tage, an denen die Steuer für
+// einen Teil früher entsteht als am regulären Datum; was kein Tag vorzieht,
+// bleibt dort. Aus mehreren Quellen (Zahlungen, Jahresenden) gilt je Tag der
+// größte bis dahin erreichte Anteil.
+//
+// Gerechnet wird über die aufgelaufenen Anteile, damit sich die Teile ohne
+// Rundungsrest zur ursprünglichen Bewegung ergänzen.
+func splitByArising(m vatMovement, total domain.Cents, events []arising) []vatMovement {
+	if total <= 0 || len(events) == 0 {
+		return []vatMovement{m}
+	}
+	sort.SliceStable(events, func(i, j int) bool { return events[i].date < events[j].date })
+	out := make([]vatMovement, 0, len(events)+1)
+	var covered, baseDone, taxDone domain.Cents
+	for _, ev := range events {
+		if ev.date >= m.date {
 			break
 		}
-		base := domain.MulRound(m.base, int64(covered), int64(gross))
-		tax := domain.MulRound(m.tax, int64(covered), int64(gross))
+		if ev.covered <= covered {
+			continue
+		}
+		covered = min(ev.covered, total)
+		base := domain.MulRound(m.base, int64(covered), int64(total))
+		tax := domain.MulRound(m.tax, int64(covered), int64(total))
 		part := m
-		part.date, part.trigger = date, pay.entryID
+		part.date, part.trigger = ev.date, ev.trigger
 		part.base, part.tax = base-baseDone, tax-taxDone
 		baseDone, taxDone = base, tax
 		out = append(out, part)
@@ -205,11 +231,28 @@ func splitByPayments(m vatMovement, gross domain.Cents, payments []vatPayment, e
 	return out
 }
 
-func isLiquidAccount(account string) bool {
-	for _, a := range domain.LiquidAccounts() {
-		if a == account {
-			return true
-		}
+// longTermYearEnds wendet § 13b Abs. 3 UStG an: für eine sonstige Leistung,
+// die dauerhaft über mehr als ein Jahr erbracht wird, entsteht die Steuer nach
+// § 13b Abs. 1 und Abs. 2 Nr. 1 UStG spätestens mit Ablauf jedes
+// Kalenderjahres, in dem sie erbracht wird. Der bis zum Jahresende erbrachte
+// Teil ist zeitanteilig nach Tagen bemessen. Die Summe ist total; ist sie
+// nicht bekannt, sind es die Tage der Leistung.
+func longTermYearEnds(entry *domain.JournalEntry, total domain.Cents) (domain.Cents, []arising) {
+	from, errFrom := time.Parse("2006-01-02", entry.ServiceDateFrom)
+	to, errTo := time.Parse("2006-01-02", entry.ServiceDateTo)
+	if errFrom != nil || errTo != nil || to.Before(from.AddDate(1, 0, 0)) {
+		return total, nil
 	}
-	return false
+	days := int64(to.Sub(from).Hours()/24) + 1
+	if total <= 0 {
+		total = domain.Cents(days)
+	}
+	var out []arising
+	for year := from.Year(); year < to.Year(); year++ {
+		end := time.Date(year, time.December, 31, 0, 0, 0, 0, time.UTC)
+		rendered := int64(end.Sub(from).Hours()/24) + 1
+		out = append(out, arising{date: end.Format("2006-01-02"),
+			covered: domain.MulRound(total, rendered, days)})
+	}
+	return total, out
 }

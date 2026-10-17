@@ -1,8 +1,10 @@
 package declaration
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -375,4 +377,87 @@ func findForm(d *Declaration, id string) *Form {
 		}
 	}
 	return nil
+}
+
+// Jedes nicht abziehbare Konto des Katalogs, den auch die Steuerrückstellung
+// nutzt, wird in der Anlage GK voll hinzugerechnet, und zwar in der Zeile
+// seiner Gruppe. 1.000 € Aufwand auf dem Konto lassen die Summe der Einkünfte
+// bei null.
+func TestEveryNonDeductibleCatalogAccountIsAddedBack(t *testing.T) {
+	for _, a := range accounting.TaxAdjustmentAccounts() {
+		if a.Kind != accounting.TaxAdjustmentNonDeductible {
+			continue
+		}
+		key, ok := gkAdditionLines[a.Group]
+		if !ok {
+			t.Errorf("Konto %s: die Gruppe %q hat keine Zeile der Anlage GK", a.Account, a.Group)
+			continue
+		}
+		l := Ledger{}
+		book(l, a.Account, eur(1000))
+		data := CorporateData{Ledger: l, NetIncome: -eur(1000), BalanceResult: -eur(1000), PriorKnown: true}
+		d, err := BuildCorporateTax(common(2025, settled()...), data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := amount(t, d, key); got != eur(1000) {
+			t.Errorf("Konto %s (%s): %s = %s €, erwartet 1.000,00 €", a.Account, a.Reference, key, got)
+		}
+		if got := amount(t, d, "kst.gk.summe"); got != 0 {
+			t.Errorf("Konto %s (%s): Summe der Einkünfte %s €, erwartet 0", a.Account, a.Reference, got)
+		}
+	}
+}
+
+// Geldbußen auf 6968 und Verluste aus Anteilen des Umlaufvermögens (6904) sind
+// nicht abziehbar, auch wenn der Mensch für andere Konten „nichts weiter"
+// bestätigt hat: Jahresüberschuss 98.000 €, davon 2.000 € auf 6968, 6904,
+// 6349 und 7313 gebucht, ergibt 100.000 €.
+func TestFinesAndShareLossesAreAddedBack(t *testing.T) {
+	l := Ledger{}
+	book(l, "6968", eur(500))
+	book(l, "6904", eur(500))
+	book(l, "6349", eur(500))
+	book(l, "7313", eur(500))
+	data := CorporateData{Ledger: l, NetIncome: eur(98000), BalanceResult: eur(98000), PriorKnown: true}
+	d, err := BuildCorporateTax(common(2025, settled()...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantAmount(t, d, "kst.gk.nab_konten", eur(1000))
+	wantAmount(t, d, "kst.gk.8b_minderungen", eur(500))
+	wantAmount(t, d, "kst.gk.nab", eur(500))
+	wantAmount(t, d, "kst.gk.summe", eur(100000))
+	for _, n := range line(t, d, "kst.gk.nab_weitere").Notes {
+		if strings.Contains(n, "kein eigenes Konto") {
+			t.Errorf("der Hinweis verneint das Konto der Geldbußen: %s", n)
+		}
+	}
+}
+
+// Die Rückstellung zählt mit Anrechnung: bei der Holding mit Dividende der
+// Tochter übersteigt die Kapitalertragsteuer die Steuer, und die
+// Steuerrückstellung bucht einen Erstattungsanspruch auf 1450 statt einer
+// Rückstellung. Die Kontrollrechnung meldet dann keine Abweichung.
+func TestProvisionCheckCountsTheWithholdingCredit(t *testing.T) {
+	data := subsidiaryDividend()
+	book(data.Ledger, accounting.AccountKoerperschaftsteuerForderung, eur(25583, 75))
+	inputs := append(settled(confirmed("kst.gk.8b_streubesitz", Cents(0))), confirmedWithholding(eur(25000), eur(1375))...)
+	d, err := BuildCorporateTax(common(2025, inputs...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantAmount(t, d, "kst.k.rueckstellung", -eur(25583, 75))
+	if hasFinding(d, "rueckstellung_abweichung") {
+		t.Errorf("Abweichung gemeldet, obwohl die Rückstellung der Kontrollrechnung entspricht: %+v", d.Findings)
+	}
+
+	book(data.Ledger, accounting.AccountKoerperschaftsteuerForderung, -eur(1000))
+	d, err = BuildCorporateTax(common(2025, inputs...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasFinding(d, "rueckstellung_abweichung") {
+		t.Error("eine Abweichung von 1.000 € wird nicht gemeldet")
+	}
 }

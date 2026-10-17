@@ -122,56 +122,16 @@ type LoanView struct {
 // RegisterLoan legt einen Darlehensvertrag an. Konto und Zinskonto folgen aus
 // Richtung, Laufzeit und Beteiligung, wenn sie nicht angegeben sind.
 // Unübliche Konditionen sperren nichts; sie stehen als Befund am Ergebnis.
+// Den Vertrag erfasst der Mensch in der App: er steuert Zinsbuchungen und den
+// Fremdvergleich.
 func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) (*LoanView, error) {
+	if err := requireHuman(ctx, "Das Erfassen eines Gesellschafterdarlehens"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*LoanView, error) {
-		contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
-		if err != nil {
-			return nil, fmt.Errorf("der Gesellschafter %d wurde nicht gefunden: %w", req.ContactID, err)
-		}
-		if err := ensureNotBlocked(contact); err != nil {
-			return nil, err
-		}
-		cfg, err := s.companySettings(ctx)
+		loan, contact, cfg, err := s.loanFrom(ctx, req)
 		if err != nil {
 			return nil, err
-		}
-		role := companyRoleOf(cfg, contact)
-		if !role.shareholder {
-			return nil, fmt.Errorf(
-				"%s steht nicht in der Gesellschafterliste der Unternehmensdaten. Ein Gesellschafterdarlehen "+
-					"setzt einen Gesellschafter voraus; ein Darlehen eines Dritten ist ein gewöhnliches Darlehen",
-				contact.LegalName())
-		}
-		loan := &domain.ShareholderLoan{
-			ContactID: contact.ID, Direction: req.Direction, Principal: req.Principal,
-			InterestRateBP: req.InterestRateBP, DayCount: req.DayCount,
-			ContractDate: req.ContractDate, StartDate: req.StartDate, MaturityDate: req.MaturityDate,
-			Collateral: strings.TrimSpace(req.Collateral), ComparisonRateBP: req.ComparisonRateBP,
-			ComparisonSource: strings.TrimSpace(req.ComparisonSource), Subordinated: req.Subordinated,
-			Note: strings.TrimSpace(req.Note),
-		}
-		if loan.DayCount == "" {
-			loan.DayCount = domain.DayCountAct365
-		}
-		if err := loan.Validate(); err != nil {
-			return nil, err
-		}
-		if loan.Account, err = loanAccount(loan, req.Account); err != nil {
-			return nil, err
-		}
-		if loan.InterestAccount, err = interestAccount(loan, req.InterestAccount, role); err != nil {
-			return nil, err
-		}
-		if req.ContractReceiptID != 0 {
-			receipt, err := s.receipts.Get(ctx, req.ContractReceiptID)
-			if err != nil {
-				return nil, err
-			}
-			if receipt.Status == domain.ReceiptStatusDiscarded {
-				return nil, fmt.Errorf("Beleg %s wurde verworfen und kann den Vertrag nicht belegen", receipt.ReceiptNumber)
-			}
-			id := receipt.ID
-			loan.ContractReceiptID = &id
 		}
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
@@ -184,6 +144,140 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 		}
 		return s.view(ctx, loan, contact, cfg, loan.StartDate)
 	})
+}
+
+// CorrectLoan berichtigt einen erfassten Darlehensvertrag oder hält eine
+// Änderung fest, etwa eine Kündigung über die Fälligkeit. Vorher und nachher
+// stehen mit dem Grund im Änderungsprotokoll. Sind Zinsen gebucht, bleiben die
+// Angaben, aus denen sie gerechnet sind; sie ändern sich erst nach dem Storno
+// der Zinsbuchungen.
+func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanRequest, reason string) (*LoanView, error) {
+	if err := requireHuman(ctx, "Das Berichtigen eines Gesellschafterdarlehens"); err != nil {
+		return nil, err
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil, fmt.Errorf("eine Berichtigung des Darlehensvertrags braucht einen Grund")
+	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*LoanView, error) {
+		before, err := s.loans.FindByID(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("Darlehen %d wurde nicht gefunden: %w", id, err)
+		}
+		loan, contact, cfg, err := s.loanFrom(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		loan.ID, loan.CreatedAt = before.ID, before.CreatedAt
+		booked, err := s.bookedInterest(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if len(booked) > 0 {
+			through := ""
+			for _, p := range booked {
+				if p.PeriodTo > through {
+					through = p.PeriodTo
+				}
+			}
+			if changed := interestTermsChanged(before, loan); changed != "" {
+				return nil, fmt.Errorf("für das Darlehen sind Zinsen bis %s gebucht; %s ändert sich erst, wenn "+
+					"die Zinsbuchungen storniert sind", domain.GermanDate(through), changed)
+			}
+			if loan.MaturityDate != "" && loan.MaturityDate < through {
+				return nil, fmt.Errorf("die Fälligkeit %s liegt vor dem Ende der gebuchten Zinsen am %s",
+					domain.GermanDate(loan.MaturityDate), domain.GermanDate(through))
+			}
+		}
+		if err := s.loans.Save(ctx, loan); err != nil {
+			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
+		}
+		if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SHAREHOLDER_LOAN", fmt.Sprintf("%d", loan.ID),
+			fmt.Sprintf("Gesellschafterdarlehen %s %s berichtigt: %s", directionLabel(loan.Direction),
+				contact.LegalName(), reason), before, loan); err != nil {
+			return nil, err
+		}
+		return s.view(ctx, loan, contact, cfg, loan.StartDate)
+	})
+}
+
+// interestTermsChanged nennt die Angaben, aus denen gebuchte Zinsen gerechnet
+// sind und die sich geändert haben; leer, wenn keine.
+func interestTermsChanged(before, after *domain.ShareholderLoan) string {
+	var changed []string
+	for _, c := range []struct {
+		label string
+		diff  bool
+	}{
+		{"der Gesellschafter", before.ContactID != after.ContactID},
+		{"die Richtung", before.Direction != after.Direction},
+		{"der Zinssatz", before.InterestRateBP != after.InterestRateBP},
+		{"die Zinsmethode", before.DayCount != after.DayCount},
+		{"der Beginn", before.StartDate != after.StartDate},
+		{"das Darlehenskonto", before.Account != after.Account},
+		{"das Zinskonto", before.InterestAccount != after.InterestAccount},
+	} {
+		if c.diff {
+			changed = append(changed, c.label)
+		}
+	}
+	return strings.Join(changed, ", ")
+}
+
+// loanFrom baut einen geprüften Vertrag aus der Anfrage.
+func (s *ShareholderService) loanFrom(
+	ctx context.Context, req LoanRequest,
+) (*domain.ShareholderLoan, *domain.Contact, *domain.CompanySettings, error) {
+	contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("der Gesellschafter %d wurde nicht gefunden: %w", req.ContactID, err)
+	}
+	if err := ensureNotBlocked(contact); err != nil {
+		return nil, nil, nil, err
+	}
+	cfg, err := s.companySettings(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	role := companyRoleOf(cfg, contact)
+	if !role.shareholder {
+		return nil, nil, nil, fmt.Errorf(
+			"%s steht nicht in der Gesellschafterliste der Unternehmensdaten. Ein Gesellschafterdarlehen "+
+				"setzt einen Gesellschafter voraus; ein Darlehen eines Dritten ist ein gewöhnliches Darlehen",
+			contact.LegalName())
+	}
+	loan := &domain.ShareholderLoan{
+		ContactID: contact.ID, Direction: req.Direction, Principal: req.Principal,
+		InterestRateBP: req.InterestRateBP, DayCount: req.DayCount,
+		ContractDate: req.ContractDate, StartDate: req.StartDate, MaturityDate: req.MaturityDate,
+		Collateral: strings.TrimSpace(req.Collateral), ComparisonRateBP: req.ComparisonRateBP,
+		ComparisonSource: strings.TrimSpace(req.ComparisonSource), Subordinated: req.Subordinated,
+		Note: strings.TrimSpace(req.Note),
+	}
+	if loan.DayCount == "" {
+		loan.DayCount = domain.DayCountAct365
+	}
+	if err := loan.Validate(); err != nil {
+		return nil, nil, nil, err
+	}
+	if loan.Account, err = loanAccount(loan, req.Account); err != nil {
+		return nil, nil, nil, err
+	}
+	if loan.InterestAccount, err = interestAccount(loan, req.InterestAccount, role); err != nil {
+		return nil, nil, nil, err
+	}
+	if req.ContractReceiptID != 0 {
+		receipt, err := s.receipts.Get(ctx, req.ContractReceiptID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if receipt.Status == domain.ReceiptStatusDiscarded {
+			return nil, nil, nil, fmt.Errorf("Beleg %s wurde verworfen und kann den Vertrag nicht belegen", receipt.ReceiptNumber)
+		}
+		id := receipt.ID
+		loan.ContractReceiptID = &id
+	}
+	return loan, contact, cfg, nil
 }
 
 func directionLabel(d domain.LoanDirection) string {

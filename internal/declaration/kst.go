@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -85,25 +86,57 @@ type Fund struct {
 	EntryIDs       []uint
 }
 
-// Konten des SKR04 für die außerbilanziellen Korrekturen.
+// Konten des SKR04 für die außerbilanziellen Korrekturen, die nicht im
+// Katalog der steuerlichen Korrekturen stehen.
 var (
 	accountsCorporateTax = []string{"7600", "7603", "7604", "7630"}
 	accountsSolidarity   = []string{"7608", "7609", "7607", "7633"}
 	accountsTradeTax     = []string{"7610", "7641", "7643"}
-	accountsAncillary    = []string{"6437", "7302", "7304", "7306", "7308"}
-	accountsGifts        = []string{"6620", "6621", "6622"}
-	accountsDonations    = []string{"6390", "6391", "6392", "6393", "6394", "6395", "6397", "6398"}
-	accountsDeductible   = []string{"6391", "6392", "6393", "6395", "6397", "6398"}
 	accountsVGA          = []string{"6067", "6073", "6313", "6833", "7316", "7317"}
-	accountsDividends    = []string{"7005", "7006", "7014", "7015", "7103", "7104"}
-	accountsSaleGain     = []string{"4852", "4858", "4906", "4904"}
-	accountsWriteUpShare = []string{"4914"}
 	accountsWriteUpLoan  = []string{"4913", "4916"}
-	accountsShareLoss    = []string{"6892", "6898", "6858", "7204", "7214"}
 	accountsLoanWriteOff = []string{"7200", "7201"}
 	accountsCapitalRes   = []string{"2920", "2925", "2927", "2928"}
 	accountsNonDedVAT    = []string{"6860", "6865", "6871"}
 )
+
+// Die Konten mit eigener steuerlicher Wirkung kommen aus dem Katalog, den
+// auch die Steuerrückstellung nutzt (accounting.TaxAdjustmentAccounts); jede
+// Gruppe der nicht abziehbaren Aufwendungen hat ihre Zeile der Anlage GK.
+var (
+	accountsAncillary     = nonDeductible(accounting.GroupTaxSidelines)
+	accountsGifts         = nonDeductible(accounting.GroupGifts)
+	accountsEntertainment = nonDeductible(accounting.GroupEntertainment)
+	accountsHospitality   = nonDeductible(accounting.GroupHospitality)
+	accountsRestricted    = nonDeductible(accounting.GroupRestricted)
+	accountsFinesAndOther = nonDeductible(accounting.GroupFinesAndOther)
+	accountsSupervisory   = nonDeductible(accounting.GroupSupervisoryBoard)
+	accountsShareLoss     = nonDeductible(accounting.GroupShareLosses)
+	accountsShareLoans    = nonDeductible(accounting.GroupShareLoans)
+	accountsDeductible    = accounting.TaxAdjustmentAccountsOf(accounting.TaxAdjustmentDonation)
+	accountsDonations     = append(nonDeductible(accounting.GroupDonations), accountsDeductible...)
+	accountsDividends     = append(accounting.TaxAdjustmentAccountsOf(accounting.TaxAdjustmentExemptDividend),
+		accounting.TaxAdjustmentAccountsOf(accounting.TaxAdjustmentPortfolioDividend)...)
+	accountsShareGains = accounting.TaxAdjustmentAccountsOf(accounting.TaxAdjustmentExemptGain)
+)
+
+func nonDeductible(group accounting.TaxAdjustmentGroup) []string {
+	return accounting.TaxAdjustmentAccountsOf(accounting.TaxAdjustmentNonDeductible, group)
+}
+
+// gkAdditionLines ordnet die Gruppen nicht abziehbarer Aufwendungen ihren
+// Zeilen der Anlage GK zu.
+var gkAdditionLines = map[accounting.TaxAdjustmentGroup]string{
+	accounting.GroupGifts:            "kst.gk.geschenke",
+	accounting.GroupEntertainment:    "kst.gk.bewirtung",
+	accounting.GroupHospitality:      "kst.gk.repraesentation",
+	accounting.GroupRestricted:       "kst.gk.nab",
+	accounting.GroupFinesAndOther:    "kst.gk.nab_konten",
+	accounting.GroupTaxSidelines:     "kst.gk.z88",
+	accounting.GroupSupervisoryBoard: "kst.gk.aufsichtsrat",
+	accounting.GroupDonations:        "kst.gk.spenden",
+	accounting.GroupShareLosses:      "kst.gk.8b_minderungen",
+	accounting.GroupShareLoans:       "kst.gk.8b_darlehen",
+}
 
 // corporate ist das Ergebnis der Einkommensermittlung, das die
 // Gewerbesteuererklärung übernimmt.
@@ -234,15 +267,16 @@ func (c *calc) corporateIncome(common Common, data CorporateData) *corporate {
 		c.books("kst.gk.z88", Cents(0), o)
 	}
 	accountLine("kst.gk.geschenke", accountsGifts)
-	accountLine("kst.gk.bewirtung", []string{"6644"})
-	accountLine("kst.gk.repraesentation", []string{"6645"})
-	accountLine("kst.gk.nab", []string{"6642"})
-	nabNotes := []string{"Geldbußen, Ordnungs- und Verwarnungsgelder und Geldstrafen haben kein eigenes Konto; sind welche gebucht, hier eintragen."}
+	accountLine("kst.gk.bewirtung", accountsEntertainment)
+	accountLine("kst.gk.repraesentation", accountsHospitality)
+	accountLine("kst.gk.nab", accountsRestricted)
+	accountLine("kst.gk.nab_konten", accountsFinesAndOther)
+	nabNotes := []string{"Geldbußen, Ordnungs- und Verwarnungsgelder und Geldstrafen auf 6968 stehen bereits in der Zeile darüber; hier nur, was auf anderen Konten gebucht ist."}
 	if l.hasBalance(accountsNonDedVAT...) {
 		nabNotes = append(nabNotes, "Auf den Konten der nicht abziehbaren Vorsteuer (6860 ff.) sind Beträge gebucht. Soweit sie auf Aufwendungen nach § 4 Abs. 5 Satz 1 Nr. 1 bis 4 oder 7 EStG entfallen, sind sie hier hinzuzurechnen (§ 10 Nr. 2 KStG).")
 	}
 	c.propose("kst.gk.nab_weitere", Cents(0), Origin{Kind: OriginNone}, nabNotes...)
-	accountLine("kst.gk.aufsichtsrat", []string{"6875"})
+	accountLine("kst.gk.aufsichtsrat", accountsSupervisory)
 	accountLine("kst.gk.spenden", accountsDonations)
 
 	vgaNotes := []string{}
@@ -274,7 +308,7 @@ func (c *calc) corporateIncome(common Common, data CorporateData) *corporate {
 
 	// Summe der Einkünfte.
 	add := []string{"kst.gk.z11", "kst.gk.stb", "kst.gk.kst", "kst.gk.z82", "kst.gk.gewst", "kst.gk.z88",
-		"kst.gk.geschenke", "kst.gk.bewirtung", "kst.gk.repraesentation", "kst.gk.nab", "kst.gk.nab_weitere",
+		"kst.gk.geschenke", "kst.gk.bewirtung", "kst.gk.repraesentation", "kst.gk.nab", "kst.gk.nab_konten", "kst.gk.nab_weitere",
 		"kst.gk.aufsichtsrat", "kst.gk.spenden", "kst.gk.vga", "kst.gk.z81", "kst.gk.z93",
 		"kst.gk.8b_5_bezuege", "kst.gk.8b_5_gewinne", "kst.gk.8b_minderungen", "kst.gk.8b_darlehen",
 		"kst.gk.inv_vorabpauschale"}
@@ -347,8 +381,8 @@ func (c *calc) participations(common Common, data CorporateData, out *corporate)
 		divOrigin.Text = fmt.Sprintf("Davon %s € aus Anteilen der Anlagenkartei auf anderen Ertragskonten (%s).",
 			other, strings.Join(names, ", "))
 		c.finding(SeverityHint, "bezuege_ohne_8b_konto", "kst.gk.8b_bezuege",
-			fmt.Sprintf("Bezüge aus %s sind nicht auf einem Konto nach § 8b KStG (7005, 7006, 7014, 7015, 7103, 7104) gebucht; sie sind trotzdem berücksichtigt.",
-				strings.Join(names, ", ")), "§ 8b Abs. 1 KStG")
+			fmt.Sprintf("Bezüge aus %s sind nicht auf einem Konto nach § 8b KStG (%s) gebucht; sie sind trotzdem berücksichtigt.",
+				strings.Join(names, ", "), strings.Join(accountsDividends, ", ")), "§ 8b Abs. 1 KStG")
 	}
 	c.books("kst.gk.8b_bezuege", Cents(dividends), divOrigin)
 
@@ -370,17 +404,15 @@ func (c *calc) participations(common Common, data CorporateData, out *corporate)
 	}
 	c.books("kst.gk.8b_frei", Cents(free), fromLines("Bezüge − steuerpflichtige Bezüge aus Streubesitz",
 		"kst.gk.8b_bezuege", "kst.gk.8b_streubesitz"))
-	five := domain.MulRound(free, 5, 100)
+	five := accounting.ExemptAddBack(free, c.params)
 	c.books("kst.gk.8b_5_bezuege", Cents(five), fromLines("5 % der außer Ansatz bleibenden Bezüge", "kst.gk.8b_frei"))
 	out.dividendsFree = free
 	out.fivePercent = five
 	out.tradeStreubesitz, out.tradeStreubesitzKnown, out.tradeStreubesitzNote = trade, tradeKnown, tradeNote
 
-	gain, gainOrigin := l.income(full(append(append([]string{}, accountsSaleGain...), accountsWriteUpShare...)...)...)
-	costs, costOrigin := l.expense(full("6857")...)
-	gainOrigin.Accounts = append(gainOrigin.Accounts, negateParts(costOrigin.Accounts)...)
-	gainOrigin.EntryIDs = append(gainOrigin.EntryIDs, costOrigin.EntryIDs...)
-	gain -= costs
+	// Erlös, Buchwert und Veräußerungskosten stehen auf den Konten des § 8b
+	// Abs. 2 KStG; der Habensaldo über alle ist der Gewinn.
+	gain, gainOrigin := l.income(full(accountsShareGains...)...)
 	loss, lossOrigin := l.expense(full(accountsShareLoss...)...)
 	if gain < 0 {
 		// Übersteigen die Veräußerungskosten den Erlös, ist es eine
@@ -391,7 +423,7 @@ func (c *calc) participations(common Common, data CorporateData, out *corporate)
 		gainOrigin = Origin{Kind: OriginNone}
 	}
 	c.books("kst.gk.8b_gewinne", Cents(gain), gainOrigin)
-	c.books("kst.gk.8b_5_gewinne", Cents(domain.MulRound(gain, 5, 100)),
+	c.books("kst.gk.8b_5_gewinne", Cents(accounting.ExemptAddBack(gain, c.params)),
 		fromLines("5 % der Gewinne nach § 8b Abs. 2 KStG", "kst.gk.8b_gewinne"))
 	c.books("kst.gk.8b_minderungen", Cents(loss), lossOrigin)
 	if gain != 0 {
@@ -400,10 +432,14 @@ func (c *calc) participations(common Common, data CorporateData, out *corporate)
 			"§ 8b Abs. 2 Satz 4 KStG")
 	}
 
-	if writeOff, o := l.expense(full(accountsLoanWriteOff...)...); writeOff != 0 {
-		c.propose("kst.gk.8b_darlehen", Cents(0), o, fmt.Sprintf(
-			"Auf Finanzanlagen sind %s € abgeschrieben. Betrifft das ein Darlehen an eine Gesellschaft, an der die GmbH zu mehr als einem Viertel beteiligt ist oder war, ist die Minderung hinzuzurechnen, es sei denn, ein fremder Dritter hätte das Darlehen ebenso gewährt.", writeOff))
-	} else {
+	loans, loansOrigin := l.expense(full(accountsShareLoans...)...)
+	switch writeOff, _ := l.expense(full(accountsLoanWriteOff...)...); {
+	case writeOff != 0:
+		c.propose("kst.gk.8b_darlehen", Cents(loans), loansOrigin, fmt.Sprintf(
+			"Auf Finanzanlagen sind %s € abgeschrieben (7200, 7201). Betrifft das ein Darlehen an eine Gesellschaft, an der die GmbH zu mehr als einem Viertel beteiligt ist oder war, ist die Minderung hinzuzurechnen, es sei denn, ein fremder Dritter hätte das Darlehen ebenso gewährt.", writeOff))
+	case loans != 0:
+		c.books("kst.gk.8b_darlehen", Cents(loans), loansOrigin)
+	default:
 		c.resolve("kst.gk.8b_darlehen", noneFigure())
 	}
 	if writeUp, o := l.income(full(accountsWriteUpLoan...)...); writeUp != 0 {
@@ -412,15 +448,6 @@ func (c *calc) participations(common Common, data CorporateData, out *corporate)
 	} else {
 		c.resolve("kst.gk.8b_zuschreibung_darlehen", noneFigure())
 	}
-}
-
-func negateParts(parts []AccountPart) []AccountPart {
-	out := make([]AccountPart, 0, len(parts))
-	for _, p := range parts {
-		p.Amount = -p.Amount
-		out = append(out, p)
-	}
-	return out
 }
 
 // classifyHoldings teilt die Bezüge nach den Stichtagen von § 8b Abs. 4 KStG
@@ -546,15 +573,7 @@ func (c *calc) donations(common Common, data CorporateData, income domain.Cents)
 			origin: Origin{Kind: OriginStatement, Formula: "Umsatzerlöse (§ 275 Abs. 2 Nr. 1 HGB)"}})
 	}
 	c.books("kst.z.z11", Cents(data.Wages), Origin{Kind: OriginStatement, Formula: "Löhne und Gehälter (§ 275 Abs. 2 Nr. 6 Buchst. a HGB)"})
-	capIncome := domain.Cents(0)
-	if income > 0 {
-		capIncome = domain.MulRound(income, c.params.DonationIncomePermille, 1000)
-	}
-	capTurnover := domain.MulRound(c.amount("kst.z.z10")+c.amount("kst.z.z11"), c.params.DonationTurnoverPermille, 1000)
-	limit := capIncome
-	if capTurnover > limit {
-		limit = capTurnover
-	}
+	limit, capIncome, capTurnover := accounting.DonationCap(income, c.amount("kst.z.z10")+c.amount("kst.z.z11"), c.params)
 	c.books("kst.z.z7", Cents(limit), fromLines(
 		fmt.Sprintf("höherer Betrag aus 20 %% von Zeile 32 (%s €) und 4 Promille der Zeilen 10 und 11 (%s €)", capIncome, capTurnover),
 		"kst.zve.z32", "kst.z.z10", "kst.z.z11"))
@@ -594,7 +613,7 @@ func (c *calc) losses(common Common, data CorporateData, income domain.Cents) {
 	}
 	carried := c.amount("kst.v.z14")
 	permille := c.params.LossDeductionExcessPermille
-	deduction := lossDeduction(carried, income, c.params.LossDeductionBase, permille)
+	deduction := accounting.LossDeduction(income, carried, c.params.LossDeductionBase, permille)
 	c.books("kst.zve.verlustabzug", Cents(deduction), fromLines(
 		fmt.Sprintf("Verlustvortrag bis 1 Mio. € voll, darüber %s des übersteigenden Gesamtbetrags", percentText(permille)),
 		"kst.v.z14", "kst.zve.gesamtbetrag"))
@@ -727,40 +746,43 @@ func (c *calc) contributionAccount(common Common, data CorporateData) {
 }
 
 // corporateControl rechnet die Steuer zur Kontrolle des Bescheids und der
-// Rückstellung.
+// Rückstellung, mit denselben Rechenschritten wie die Steuerrückstellung.
 func (c *calc) corporateControl(common Common, data CorporateData) {
 	rate := c.params.CorporateTaxPermille
 	c.books("kst.k.satz", Text(percentText(rate)), Origin{Kind: OriginComputation, Text: "§ 23 Abs. 1 KStG"})
-	zve := c.amount("kst.zve.zve")
-	tax := domain.Cents(0)
-	if zve > 0 {
-		tax = truncEuro(domain.Cents(int64(zve) * rate / 1000))
-	}
+	tax := accounting.CorporateTaxOn(c.amount("kst.zve.zve"), c.params)
 	c.books("kst.k.kst", Cents(tax), fromLines(fmt.Sprintf("%s des zu versteuernden Einkommens, Cent abgeschnitten", percentText(rate)), "kst.zve.zve"))
-	solz := domain.Cents(int64(tax) * c.params.SolidarityPermille / 1000)
+	solz := accounting.SolidarityOn(tax, c.params)
 	c.books("kst.k.solz", Cents(solz), fromLines("5,5 % der Körperschaftsteuer, Bruchteile eines Cents abgeschnitten", "kst.k.kst"))
 	prepaid, o := data.Ledger.sum(full("7600"), true, AccountTotals.NetBeforeClosing)
 	c.books("kst.k.vz_kst", Cents(prepaid), o)
 	prepaidSolz, so := data.Ledger.sum(full("7608"), true, AccountTotals.NetBeforeClosing)
 	c.books("kst.k.vz_solz", Cents(prepaidSolz), so)
-	kapest := ceilEuro(c.amount("kst.wa.kapest"))
+	kapest := accounting.CreditableWithholding(c.amount("kst.wa.kapest"))
 	c.books("kst.k.kapest", Cents(kapest), fromLines("auf volle Euro aufgerundet", "kst.wa.kapest"))
 	c.books("kst.k.solz_kapest", Cents(c.amount("kst.wa.solz")), fromLines("Übertrag", "kst.wa.solz"))
 	result := tax + solz - prepaid - prepaidSolz - kapest - c.amount("kst.wa.solz")
 	c.books("kst.k.ergebnis", Cents(result), fromLines("Steuer − Vorauszahlungen − Anrechnung",
 		"kst.k.kst", "kst.k.solz", "kst.k.vz_kst", "kst.k.vz_solz", "kst.k.kapest", "kst.k.solz_kapest"))
-	provision := -data.Ledger["3040"].EndBalance()
-	c.books("kst.k.rueckstellung", Cents(provision), Origin{Kind: OriginAccounts, Accounts: []AccountPart{{
-		Account: "3040", Name: data.Ledger["3040"].Name, Balance: provision, Num: 1, Den: 1, Amount: provision}}})
-	expected := tax + solz - prepaid - prepaidSolz
-	if expected < 0 {
-		expected = 0
-	}
-	if diff := provision - expected; diff.Abs() > 100 {
+	booked, bo := bookedProvision(data.Ledger, "3040", accounting.AccountKoerperschaftsteuerForderung)
+	c.books("kst.k.rueckstellung", Cents(booked), bo)
+	if diff := booked - result; diff.Abs() > 100 {
 		c.finding(SeverityWarning, "rueckstellung_abweichung", "kst.k.rueckstellung",
-			fmt.Sprintf("Die gebuchte Körperschaftsteuerrückstellung (%s €) weicht von der Kontrollrechnung (%s € Steuer und Solidaritätszuschlag nach Vorauszahlungen) um %s € ab.",
-				provision, expected, diff), "§ 249 Abs. 1 HGB")
+			fmt.Sprintf("Die gebuchte Körperschaftsteuerrückstellung abzüglich des Erstattungsanspruchs (%s €) weicht von der Kontrollrechnung (%s € Steuer und Solidaritätszuschlag nach Vorauszahlungen und Anrechnung) um %s € ab.",
+				booked, result, diff), "§ 249 Abs. 1 HGB")
 	}
+}
+
+// bookedProvision ist die gebuchte Rückstellung abzüglich des
+// Erstattungsanspruchs zum Schluss des Jahres: positiv eine Nachzahlung,
+// negativ eine Erstattung.
+func bookedProvision(l Ledger, provision, refund string) (domain.Cents, Origin) {
+	p, r := -l[provision].EndBalance(), l[refund].EndBalance()
+	o := Origin{Kind: OriginAccounts, Formula: "Rückstellung − Erstattungsanspruch", Accounts: []AccountPart{
+		{Account: provision, Name: l[provision].Name, Balance: p, Num: 1, Den: 1, Amount: p},
+		{Account: refund, Name: l[refund].Name, Balance: r, Num: 1, Den: 1, Amount: -r},
+	}}
+	return p - r, o
 }
 
 // corporateChecks sind die Plausibilitätsprüfungen und Grenzen.

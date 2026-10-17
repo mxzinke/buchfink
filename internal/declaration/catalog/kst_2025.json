@@ -1,7 +1,7 @@
 {
   "art": "kst",
   "vordruckjahr": 2025,
-  "version": "kst-2025-1",
+  "version": "kst-2025-2",
   "titel": "Körperschaftsteuererklärung 2025",
   "quellen": [
     {"id": "elster-kst-2025", "titel": "ELSTER, Anleitung zur Körperschaftsteuererklärung und zu den Erklärungen zu den Feststellungen nach §§ 27, 28 und 38 KStG 2025", "url": "https://www.elster.de/eportal/helpGlobal?themaGlobal=help_kst_2025", "stand": "2026-10-17"},
@@ -47,7 +47,8 @@
           {"schluessel": "kst.gk.bewirtung", "bezeichnung": "Nicht abziehbare Bewirtungsaufwendungen (30 %)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 2 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
           {"schluessel": "kst.gk.repraesentation", "bezeichnung": "Aufwendungen für Gästehäuser, Jagd, Fischerei, Segel- und Motorjachten", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
           {"schluessel": "kst.gk.nab", "bezeichnung": "Sonstige eingeschränkt abziehbare Betriebsausgaben (nicht abziehbarer Anteil)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
-          {"schluessel": "kst.gk.nab_weitere", "bezeichnung": "Weitere nicht abziehbare Aufwendungen (Geldbußen, Geldstrafen, nicht abziehbare Vorsteuer auf Aufwendungen nach § 4 Abs. 5 Satz 1 Nr. 1 bis 4, 7 EStG)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 4 Abs. 5 Satz 1 Nr. 8 EStG", "§ 10 Nr. 2 und 3 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.nab_konten", "bezeichnung": "Geldbußen und Geldstrafen (6968) und weitere nicht abziehbare Aufwendungen laut Buchführung (Schuldzinsen nach § 4 Abs. 4a EStG, Abzinsung nach § 6 Abs. 1 Nr. 3a Buchst. e EStG)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 4 Abs. 5 Satz 1 Nr. 8 EStG", "§ 10 Nr. 3 KStG", "§ 4 Abs. 4a EStG", "§ 6 Abs. 1 Nr. 3a Buchst. e EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
+          {"schluessel": "kst.gk.nab_weitere", "bezeichnung": "Weitere nicht abziehbare Aufwendungen auf anderen Konten (Geldbußen, Geldstrafen, nicht abziehbare Vorsteuer auf Aufwendungen nach § 4 Abs. 5 Satz 1 Nr. 1 bis 4, 7 EStG)", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "agent_rueckfrage", "eingabe": true, "recht": ["§ 4 Abs. 5 Satz 1 Nr. 8 EStG", "§ 10 Nr. 2 und 3 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
           {"schluessel": "kst.gk.aufsichtsrat", "bezeichnung": "Hälfte der Vergütungen an Aufsichtsratsmitglieder", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 10 Nr. 4 KStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
           {"schluessel": "kst.gk.spenden", "bezeichnung": "Gebuchte Zuwendungen (Spenden und Mitgliedsbeiträge) hinzurechnen; der Abzug folgt in der Anlage ZVE", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "buecher", "recht": ["§ 9 Abs. 1 Nr. 2 KStG", "§ 4 Abs. 6 EStG"], "pruefvermerk": {"quelle": "gesetz; Zeile nicht belegt"}},
           {"schluessel": "kst.gk.vga", "bezeichnung": "Verdeckte Gewinnausschüttungen", "einheit": "euro_cent", "rundung": "zugunsten", "zustaendig": "mensch", "eingabe": true, "pflicht": true, "recht": ["§ 8 Abs. 3 Satz 2 KStG"], "pruefvermerk": {"quelle": "elster-kst-2025, Anlage GK Abschnitt „Verdeckte Gewinnausschüttung“; Zeile nicht belegt"}},
@@ -178,7 +179,7 @@
           {"schluessel": "kst.k.kapest", "bezeichnung": "Anzurechnende Kapitalertragsteuer (auf volle Euro aufgerundet)", "einheit": "euro_cent", "zustaendig": "buecher", "recht": ["§ 36 Abs. 2 Nr. 2, Abs. 3 EStG"], "pruefvermerk": {"quelle": "buchfink"}},
           {"schluessel": "kst.k.solz_kapest", "bezeichnung": "Anzurechnender Solidaritätszuschlag zur Kapitalertragsteuer", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}},
           {"schluessel": "kst.k.ergebnis", "bezeichnung": "Voraussichtliche Abschlusszahlung (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}},
-          {"schluessel": "kst.k.rueckstellung", "bezeichnung": "Gebuchte Körperschaftsteuerrückstellung", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
+          {"schluessel": "kst.k.rueckstellung", "bezeichnung": "Gebuchte Körperschaftsteuerrückstellung abzüglich Erstattungsanspruch (Erstattung mit Minuszeichen)", "einheit": "euro_cent", "zustaendig": "buecher", "pruefvermerk": {"quelle": "buchfink"}}
         ]}
       ]
     }

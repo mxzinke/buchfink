@@ -35,12 +35,6 @@ func TestObligationRepository(t *testing.T) {
 	if err != nil || len(all) != 1 || all[0].EvidenceReference != "et-2" {
 		t.Fatalf("Einträge: %+v, %v", all, err)
 	}
-	if err := repo.DeleteRecord(ctx, rec.Key); err != nil {
-		t.Fatal(err)
-	}
-	if all, _ := repo.FindRecords(ctx); len(all) != 0 {
-		t.Errorf("nach dem Löschen: %+v", all)
-	}
 
 	for _, date := range []string{"2026-05-04", "2026-03-01"} {
 		if err := repo.CreateEvent(ctx, &domain.ObligationEvent{Kind: domain.EventShareholderChange, Date: date}); err != nil {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -328,61 +327,4 @@ func ObligationsFor(class domain.SizeClassKind) domain.SizeObligations {
 		o.DisclosureScopeReference = "§ 325 Abs. 1 HGB"
 	}
 	return o
-}
-
-// StatementDeadlines sind die beiden Termine, die aus Stichtag und Größenklasse
-// folgen: die Aufstellung nach § 264 Abs. 1 HGB und die Offenlegung nach
-// § 325 Abs. 1a HGB.
-func StatementDeadlines(year int, closingDate string, obligations domain.SizeObligations) []domain.Deadline {
-	if closingDate == "" {
-		return nil
-	}
-	return []domain.Deadline{
-		{
-			Key:   "abschluss.aufstellung",
-			Title: fmt.Sprintf("Jahresabschluss %d aufstellen", year),
-			// § 264 Abs. 1 Sätze 3 und 4 HGB stellt auf „die ersten drei" (bzw.
-			// sechs) „Monate des Geschäftsjahrs" ab, nicht auf den Stichtag plus
-			// N Monate. Das ist der Unterschied zwischen dem 31.12. und dem
-			// 30.12.: für einen Stichtag am 30.06. beginnt das folgende
-			// Geschäftsjahr am 01.07., und dessen erste sechs Monate enden am
-			// 31.12. Nur bei Stichtagen am Ende eines 31-tägigen Monats fällt
-			// beides zufällig zusammen.
-			DueDate:    endOfMonthsAfter(closingDate, obligations.PreparationMonths),
-			Period:     fmt.Sprintf("erste %d Monate des folgenden Geschäftsjahres", obligations.PreparationMonths),
-			Reference:  obligations.PreparationReference,
-			FiscalYear: year,
-			Description: "Die gesetzlichen Vertreter haben den Jahresabschluss und, wo er zu erstellen ist, " +
-				"den Lagebericht in dieser Frist aufzustellen.",
-		},
-		{
-			Key:   "abschluss.offenlegung",
-			Title: fmt.Sprintf("Jahresabschluss %d offenlegen", year),
-			// Hier zählt der Stichtag selbst: § 325 Abs. 1a Satz 1 HGB gibt
-			// „spätestens ein Jahr nach dem Abschlussstichtag" und nicht die
-			// ersten Monate eines Geschäftsjahres.
-			DueDate:    addMonths(closingDate, obligations.DisclosureMonths),
-			Period:     fmt.Sprintf("%d Monate nach dem Abschlussstichtag", obligations.DisclosureMonths),
-			Reference:  obligations.DisclosureReference,
-			FiscalYear: year,
-			Description: "Übermittlung an das Unternehmensregister. Umfang: " +
-				obligations.DisclosureScope + " (" + obligations.DisclosureScopeReference + ").",
-		},
-	}
-}
-
-// endOfMonthsAfter ist das Ende der ersten N Monate des Zeitraums, der auf den
-// Stichtag folgt.
-//
-// Gerechnet wird vom Tag nach dem Stichtag, weil die Frist des § 264 Abs. 1
-// HGB an den Monaten des folgenden Geschäftsjahres hängt und nicht am Stichtag:
-// 30.06. + sechs Monate ergäbe den 30.12., die ersten sechs Monate eines am
-// 01.07. beginnenden Geschäftsjahres enden dagegen am 31.12.
-func endOfMonthsAfter(iso string, months int) string {
-	t, err := time.Parse("2006-01-02", iso)
-	if err != nil {
-		return iso
-	}
-	start := t.AddDate(0, 0, 1)
-	return start.AddDate(0, months, 0).AddDate(0, 0, -1).Format("2006-01-02")
 }

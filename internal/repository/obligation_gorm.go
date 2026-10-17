@@ -44,10 +44,6 @@ func (r *obligationRepositoryGorm) SaveRecord(ctx context.Context, rec *domain.O
 	return dbFrom(ctx, r.db).Save(rec).Error
 }
 
-func (r *obligationRepositoryGorm) DeleteRecord(ctx context.Context, key string) error {
-	return dbFrom(ctx, r.db).Where("key = ?", key).Delete(&domain.ObligationRecord{}).Error
-}
-
 func (r *obligationRepositoryGorm) FindEvents(ctx context.Context) ([]domain.ObligationEvent, error) {
 	var events []domain.ObligationEvent
 	if err := dbFrom(ctx, r.db).Order("date, id").Find(&events).Error; err != nil {

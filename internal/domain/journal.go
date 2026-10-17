@@ -500,6 +500,10 @@ type JournalRepository interface {
 	// monthly or quarterly, and filtering a whole year in Go to report one month
 	// of it reads twelve times what it needs.
 	FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]JournalEntry, error)
+	// FindServiceEndingFrom liefert die Buchungen der Geschäftsjahre vor
+	// beforeYear, deren Leistung frühestens am Tag from endet: eine Leistung
+	// über mehrere Jahre wirkt über das Folgejahr hinaus in die Umsatzsteuer.
+	FindServiceEndingFrom(ctx context.Context, beforeYear int, from string) ([]JournalEntry, error)
 	// FindOpenItemCandidates returns the entries a Forderung or Verbindlichkeit
 	// could still sit in: the given year and every earlier one, minus everything
 	// a Generalumkehr has cancelled.

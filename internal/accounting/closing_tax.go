@@ -16,7 +16,8 @@ import (
 // Mindestbesteuerung, darauf Körperschaftsteuer, Solidaritätszuschlag und
 // Gewerbesteuer. Hinzurechnungen und Kürzungen der Gewerbesteuer (§§ 8, 9
 // GewStG), verdeckte Gewinnausschüttungen und Verlustvorträge sind Angaben, die
-// nicht in den Büchern stehen; sie kommen als Eingabe.
+// nicht in den Büchern stehen; sie kommen als Eingabe. Rundung, Höchstbeträge
+// und Anrechnung teilt die Schätzung mit den Steuererklärungen (income_tax.go).
 
 // TaxProvisionInput sind die Größen, aus denen der Vorschlag entsteht.
 type TaxProvisionInput struct {
@@ -165,24 +166,20 @@ func CalculateTaxProvision(in TaxProvisionInput) (*TaxProvisionResult, error) {
 	// Einkommen vor Spenden und Verlustabzug.
 	exempt := in.ExemptDividends + in.ExemptGains
 	result.ExemptIncome = exempt
-	result.ExemptAddBack = domain.MulRound(exempt, params.ExemptIncomeNonDeductiblePermille, 1000)
+	result.ExemptAddBack = ExemptAddBack(in.ExemptDividends, params) + ExemptAddBack(in.ExemptGains, params)
 	result.IncomeBeforeDonations = in.ProfitBeforeTax + in.NonDeductible + in.Donations -
 		exempt + result.ExemptAddBack
 
 	// § 9 Abs. 1 Satz 1 Nr. 2 KStG: abziehbar bis zum höheren der beiden
-	// Höchstbeträge, der Rest wird vorgetragen. Die Schätzung lässt aus
-	// Zuwendungen keinen Verlust entstehen.
+	// Höchstbeträge, der Rest wird vorgetragen (Satz 9).
 	if in.Donations > 0 {
-		limit := maxCents(
-			truncPermille(maxCents(result.IncomeBeforeDonations, 0), params.DonationIncomePermille),
-			truncPermille(maxCents(in.TurnoverAndWages, 0), params.DonationTurnoverPermille))
-		limit = minCents(limit, maxCents(result.IncomeBeforeDonations, 0))
+		limit, _, _ := DonationCap(result.IncomeBeforeDonations, in.TurnoverAndWages, params)
 		result.DonationsDeducted = minCents(in.Donations, limit)
 		result.DonationsCarried = in.Donations - result.DonationsDeducted
 	}
 	result.IncomeBeforeLoss = result.IncomeBeforeDonations - result.DonationsDeducted
 
-	result.LossDeducted = lossOffset(result.IncomeBeforeLoss, in.LossCarryforwardCorporate,
+	result.LossDeducted = LossDeduction(result.IncomeBeforeLoss, in.LossCarryforwardCorporate,
 		params.LossDeductionBase, params.LossDeductionExcessPermille)
 	result.TaxableIncome = result.IncomeBeforeLoss - result.LossDeducted
 	result.LossRemaining = in.LossCarryforwardCorporate - result.LossDeducted
@@ -190,33 +187,23 @@ func CalculateTaxProvision(in TaxProvisionInput) (*TaxProvisionResult, error) {
 		result.LossRemaining += -result.IncomeBeforeLoss
 	}
 
-	if result.TaxableIncome > 0 {
-		result.CorporateTax = domain.MulRound(result.TaxableIncome, params.CorporateTaxPermille, 1000)
-		// § 4 Satz 3 SolZG: Bruchteile eines Cents bleiben außer Ansatz.
-		result.Solidarity = truncPermille(result.CorporateTax, params.SolidarityPermille)
-	}
+	result.CorporateTax = CorporateTaxOn(result.TaxableIncome, params)
+	result.Solidarity = SolidarityOn(result.CorporateTax, params)
 
 	// Gewerbeertrag: der Gewinn nach den Vorschriften des KStG (§ 7 Satz 1
 	// GewStG), vermehrt und vermindert um §§ 8, 9 GewStG, gekürzt um die
 	// Fehlbeträge (§ 10a GewStG).
 	result.TradeIncomeBeforeLoss = result.IncomeBeforeLoss + in.TradeAdditions - in.TradeDeductions
-	result.TradeLossDeducted = lossOffset(result.TradeIncomeBeforeLoss, in.LossCarryforwardTrade,
+	result.TradeLossDeducted = LossDeduction(result.TradeIncomeBeforeLoss, in.LossCarryforwardTrade,
 		params.LossDeductionBase, params.TradeLossExcessPermille)
 	result.TradeLossRemaining = in.LossCarryforwardTrade - result.TradeLossDeducted
 	if result.TradeIncomeBeforeLoss < 0 {
 		result.TradeLossRemaining += -result.TradeIncomeBeforeLoss
 	}
-	if trade := result.TradeIncomeBeforeLoss - result.TradeLossDeducted; trade > 0 {
-		// § 11 Abs. 1 Satz 3 GewStG: auf volle 100 Euro nach unten abrunden.
-		result.TradeIncome = trade - trade%10000
-		result.TradeBase = domain.MulRound(result.TradeIncome, params.TradeTaxBasePermille, 1000)
-		// Kaufmännisch gerundet: bei einem Hebesatz, der kein Vielfaches von
-		// 100 ist, und einem Messbetrag mit ungeraden Cents schnitte die
-		// Ganzzahldivision einen Cent ab.
-		result.TradeTax = domain.MulRound(result.TradeBase, in.TradeTaxRatePercent, 100)
-	}
+	trade := TradeTaxOn(result.TradeIncomeBeforeLoss-result.TradeLossDeducted, in.TradeTaxRatePercent, params)
+	result.TradeIncome, result.TradeBase, result.TradeTax = trade.Rounded, trade.Base, trade.Tax
 
-	result.CorporateDue = result.CorporateTax - in.PrepaidCorporate - in.CreditableWithholding
+	result.CorporateDue = result.CorporateTax - in.PrepaidCorporate - CreditableWithholding(in.CreditableWithholding)
 	result.SolidarityDue = result.Solidarity - in.PrepaidSolidarity - in.CreditableSolidarity
 	if income := result.CorporateDue + result.SolidarityDue; income >= 0 {
 		result.IncomeProvision = income
@@ -229,20 +216,6 @@ func CalculateTaxProvision(in TaxProvisionInput) (*TaxProvisionResult, error) {
 		result.TradeRefund = -trade
 	}
 	return result, nil
-}
-
-// lossOffset ist der Verlustabzug mit Mindestbesteuerung: bis zum Sockel voll,
-// darüber bis zum Anteil des übersteigenden Betrags (§ 10d Abs. 2 Satz 1 EStG,
-// § 10a Satz 1 und 2 GewStG).
-func lossOffset(income, carryforward, base domain.Cents, excessPermille int64) domain.Cents {
-	if income <= 0 || carryforward <= 0 {
-		return 0
-	}
-	limit := minCents(income, base)
-	if income > base {
-		limit += truncPermille(income-base, excessPermille)
-	}
-	return minCents(limit, carryforward)
 }
 
 // SplitIncomeTax verteilt einen Betrag für Körperschaftsteuer und

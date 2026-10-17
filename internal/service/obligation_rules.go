@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -454,7 +455,9 @@ func (r *obligationRun) tradePrepayments(year int, add func(domain.Obligation, *
 // prepayments bildet die vier Vorauszahlungstermine eines Jahres. Sie stehen
 // im Kalender, wenn ein Vorauszahlungsbescheid erfasst ist oder im Vorjahr
 // oder im Jahr schon Vorauszahlungen gebucht sind: ihre Höhe steht nur im
-// Bescheid. Zahltermine verschieben sich nicht.
+// Bescheid. Ein Zahltermin ist ein Fristende und verschiebt sich nach § 108
+// Abs. 3 AO (AEAO zu § 108 Nr. 1); bei der Gewerbesteuer über § 1 Abs. 2 Nr. 3
+// AO.
 func (r *obligationRun) prepayments(
 	year int, kind domain.ObligationKind, notice domain.ObligationEventKind, accounts []string,
 	day int, firstMonth time.Month, add func(domain.Obligation, *domain.ObligationEvidence),
@@ -498,9 +501,12 @@ func (r *obligationRun) noticeBefore(kind domain.ObligationEventKind, date strin
 }
 
 // payrollTax bildet die Lohnsteuer-Anmeldungen, sobald ein Lohnjournal gebucht
-// ist. Ein Zeitraum mit gebuchtem Lohnjournal ist erledigt; ohne Lohnjournal
-// steht er im Kalender, solange er zwischen erstem und letztem gebuchtem
-// Lohnjournal liegt oder das letzte keine drei Monate zurückliegt.
+// ist. Das gebuchte Lohnjournal bereitet einen Zeitraum vor; erledigt ist er
+// erst mit der Bestätigung der Übermittlung durch den Menschen, weil das
+// Journal weder die Anmeldung noch die Abführung belegt (§ 41a Abs. 1 EStG).
+// Ohne Lohnjournal steht ein Zeitraum im Kalender, solange er zwischen erstem
+// und letztem gebuchtem Lohnjournal liegt oder das letzte keine drei Monate
+// zurückliegt.
 func (r *obligationRun) payrollTax(year int, add func(domain.Obligation, *domain.ObligationEvidence)) error {
 	payroll, err := r.postings(accountPayrollTax, domain.SideCredit)
 	if err != nil || len(payroll) == 0 {
@@ -508,11 +514,15 @@ func (r *obligationRun) payrollTax(year int, add func(domain.Obligation, *domain
 	}
 	first, last := payroll[0].date, payroll[len(payroll)-1].date
 	active := last >= addDays(r.today, -92)
-	pt, basis := r.payrollPeriodType(year, payroll)
+	tax, err := r.wageTaxByMonth(payroll)
+	if err != nil {
+		return err
+	}
+	pt, basis := r.payrollPeriodType(year, tax)
 	for _, p := range accounting.VatPeriodsOfYear(year, pt) {
-		proof := bookingProof(payroll, p.From, p.To)
+		journal := bookingProof(payroll, p.From, p.To)
 		expected := p.To >= first && (p.From <= last || (active && p.From <= r.today))
-		if proof == nil && !expected {
+		if journal == nil && !expected {
 			continue
 		}
 		o := r.base(domain.ObligationPayrollTax, p.Key, p.Label, p.From, p.To, year)
@@ -522,42 +532,136 @@ func (r *obligationRun) payrollTax(year int, add func(domain.Obligation, *domain
 		}
 		r.setDue(&o, statutory)
 		o.Hints = append(o.Hints, basis)
-		if proof != nil {
-			proof.Note = "Lohnjournal gebucht; die Anmeldung übermittelt der Lohnanbieter."
+		if journal != nil {
+			o.Preparation = &domain.ObligationPreparation{At: journal.Date,
+				Note: journal.Reference + ": Lohnjournal gebucht. Anmeldung und Abführung übernimmt meist der " +
+					"Lohnanbieter; erledigt mit dem Transferticket oder seiner Bestätigung.",
+				Channel: string(actor.ChannelSystem)}
 		}
-		add(o, proof)
+		add(o, nil)
 	}
 	return nil
 }
 
-// payrollPeriodType schätzt den Anmeldungszeitraum aus den Buchungen auf 3730
-// im Vorjahr (§ 41a Abs. 2 EStG). 3730 enthält auch Kirchensteuer und
-// Solidaritätszuschlag; die Schätzung ergibt deshalb eher den kürzeren
-// Zeitraum. Hat die Gesellschaft im Vorjahr nicht das ganze Jahr bestanden,
-// wird auf ein Jahr umgerechnet (Satz 3).
-func (r *obligationRun) payrollPeriodType(year int, payroll []ledgerPosting) (domain.VatPeriodType, string) {
-	prevFrom, prevTo := fmt.Sprintf("%d-01-01", year-1), fmt.Sprintf("%d-12-31", year-1)
-	var sum domain.Cents
-	for _, p := range payroll {
-		if p.date >= prevFrom && p.date <= prevTo {
-			sum += p.amount
+// payrollTaxes ist die Lohnsteuer je Abrechnungsmonat (JJJJ-MM). fromLedger
+// nennt die Monate, deren Betrag aus dem Konto 3730 stammt, das auch
+// Kirchensteuer und Solidaritätszuschlag trägt.
+type payrollTaxes struct {
+	byMonth    map[string]domain.Cents
+	fromLedger map[string]bool
+}
+
+// source nennt die Herkunft der Beträge der Monate von from bis to.
+func (t payrollTaxes) source(from, to string) string {
+	for m := range t.fromLedger {
+		if m >= from && m <= to {
+			return "laut Konto 3730 (mit Kirchensteuer und Solidaritätszuschlag)"
 		}
 	}
-	if sum == 0 {
-		return domain.VatPeriodMonth, "Anmeldungszeitraum Kalendermonat: im Vorjahr ist keine Lohnsteuer gebucht (§ 41a Abs. 2 Satz 1 EStG)."
+	return "laut Lohnjournal"
+}
+
+// wageTaxByMonth liest die anzumeldende Lohnsteuer aus den gebuchten
+// Lohnjournalen. Für Monate ohne Lohnjournal, etwa bei Lohnbuchung von Hand,
+// nimmt sie die Haben-Buchungen auf 3730.
+func (r *obligationRun) wageTaxByMonth(payroll []ledgerPosting) (payrollTaxes, error) {
+	out := payrollTaxes{byMonth: map[string]domain.Cents{}, fromLedger: map[string]bool{}}
+	runEntries := map[uint]bool{}
+	if r.s.payroll != nil {
+		runs, err := r.s.payroll.FindAll(r.ctx)
+		if err != nil {
+			return out, fmt.Errorf("die Lohnjournale konnten nicht gelesen werden: %w", err)
+		}
+		reversed := map[uint]bool{}
+		for _, e := range r.ledgers[accountPayrollTax] {
+			if e.Kind == domain.EntryKindReversal && e.ReversalOfID != nil {
+				reversed[*e.ReversalOfID] = true
+			}
+		}
+		for _, run := range runs {
+			runEntries[run.EntryID] = true
+			if !reversed[run.EntryID] {
+				out.byMonth[run.Month] += run.WageTax
+			}
+		}
 	}
-	months := 12
-	if r.start > prevFrom && r.start <= prevTo {
-		months = 13 - int(monthOf(r.start))
-		sum = sum * 12 / domain.Cents(months)
+	for _, p := range payroll {
+		if runEntries[p.entryID] {
+			continue
+		}
+		month := p.date[:7]
+		out.byMonth[month] += p.amount
+		out.fromLedger[month] = true
+	}
+	return out, nil
+}
+
+// payrollPeriodType bestimmt den Anmeldungszeitraum nach § 41a Abs. 2 EStG
+// aus der Lohnsteuer des Vorjahres: bis 1.080 € das Kalenderjahr, bis 5.000 €
+// das Vierteljahr, sonst der Monat. Die lohnsteuerliche Betriebsstätte
+// (§ 41 Abs. 2 EStG) besteht ab dem ersten Monat mit Lohn. Bestand sie nicht
+// das ganze Vorjahr, wird dessen Lohnsteuer auf ein Jahr umgerechnet (Satz 3);
+// bestand sie im Vorjahr noch nicht, zählt die auf ein Jahr umgerechnete
+// Lohnsteuer des ersten vollen Kalendermonats (Satz 4).
+func (r *obligationRun) payrollPeriodType(year int, tax payrollTaxes) (domain.VatPeriodType, string) {
+	prevFrom, prevTo := fmt.Sprintf("%d-01-01", year-1), fmt.Sprintf("%d-12-31", year-1)
+	months := make([]string, 0, len(tax.byMonth))
+	for m := range tax.byMonth {
+		months = append(months, m)
+	}
+	sort.Strings(months)
+	if len(months) == 0 {
+		return domain.VatPeriodMonth, "Anmeldungszeitraum Kalendermonat: es ist keine Lohnsteuer gebucht (§ 41a Abs. 2 Satz 1 EStG)."
+	}
+	opening := months[0] + "-01"
+	if r.start > opening && r.start[:7] == months[0] {
+		opening = r.start
+	}
+
+	var sum domain.Cents
+	var how string
+	switch {
+	case opening <= prevFrom:
+		for m, amount := range tax.byMonth {
+			if m >= prevFrom[:7] && m <= prevTo[:7] {
+				sum += amount
+			}
+		}
+		how = fmt.Sprintf("Lohnsteuer im Vorjahr %s € %s (§ 41a Abs. 2 Satz 2 EStG)",
+			sum, tax.source(prevFrom[:7], prevTo[:7]))
+	case opening <= prevTo:
+		var booked domain.Cents
+		for m, amount := range tax.byMonth {
+			if m <= prevTo[:7] {
+				booked += amount
+			}
+		}
+		existed := 13 - int(monthOf(opening))
+		sum = booked * 12 / domain.Cents(existed)
+		how = fmt.Sprintf("Lohnsteuer im Vorjahr %s € in %d Monaten %s, auf ein Jahr umgerechnet %s € (§ 41a Abs. 2 Satz 3 EStG)",
+			booked, existed, tax.source(prevFrom[:7], prevTo[:7]), sum)
+	default:
+		full := opening[:7]
+		if opening[8:] != "01" {
+			full = addMonthsISO(opening, 1)[:7]
+		}
+		amount, ok := tax.byMonth[full]
+		if !ok {
+			return domain.VatPeriodMonth, fmt.Sprintf("Anmeldungszeitraum vorläufig Kalendermonat: maßgebend ist die Lohnsteuer "+
+				"des ersten vollen Kalendermonats %s/%s, für den noch kein Lohnjournal gebucht ist (§ 41a Abs. 2 Satz 4 EStG).",
+				full[5:7], full[:4])
+		}
+		sum = amount * 12
+		how = fmt.Sprintf("Lohnsteuer im ersten vollen Kalendermonat %s/%s %s € %s, auf ein Jahr umgerechnet %s € (§ 41a Abs. 2 Satz 4 EStG)",
+			full[5:7], full[:4], amount, tax.source(full, full), sum)
 	}
 	switch {
 	case sum <= payrollYearlyLimit:
-		return domain.VatPeriodYear, fmt.Sprintf("Anmeldungszeitraum Kalenderjahr: auf 3730 sind im Vorjahr %s € gebucht, nicht mehr als 1.080 € (§ 41a Abs. 2 Satz 2 EStG).", sum)
+		return domain.VatPeriodYear, "Anmeldungszeitraum Kalenderjahr: " + how + ", nicht mehr als 1.080 €."
 	case sum <= payrollQuarterlyLimit:
-		return domain.VatPeriodQuarter, fmt.Sprintf("Anmeldungszeitraum Kalendervierteljahr: auf 3730 sind im Vorjahr %s € gebucht, nicht mehr als 5.000 € (§ 41a Abs. 2 Satz 2 EStG).", sum)
+		return domain.VatPeriodQuarter, "Anmeldungszeitraum Kalendervierteljahr: " + how + ", nicht mehr als 5.000 €."
 	}
-	return domain.VatPeriodMonth, fmt.Sprintf("Anmeldungszeitraum Kalendermonat: auf 3730 sind im Vorjahr %s € gebucht (§ 41a Abs. 2 Satz 1 EStG).", sum)
+	return domain.VatPeriodMonth, "Anmeldungszeitraum Kalendermonat: " + how + "."
 }
 
 func monthOf(iso string) time.Month {
@@ -1027,9 +1131,10 @@ func (r *obligationRun) foundingObligations(
 
 // ledgerPosting ist eine Zeile auf einem Konto, aufsteigend nach Datum.
 type ledgerPosting struct {
-	date   string
-	number string
-	amount domain.Cents
+	date    string
+	number  string
+	amount  domain.Cents
+	entryID uint
 }
 
 // postings liest die Buchungen einer Seite eines Kontos ab ledgerFrom.
@@ -1062,7 +1167,7 @@ func (r *obligationRun) postings(account string, side domain.Side) ([]ledgerPost
 		}
 		for _, line := range e.Lines {
 			if line.Account == account && line.Side == side && line.Amount > 0 {
-				out = append(out, ledgerPosting{date: e.BookingDate, number: e.EntryNumber, amount: line.Amount})
+				out = append(out, ledgerPosting{date: e.BookingDate, number: e.EntryNumber, amount: line.Amount, entryID: e.ID})
 			}
 		}
 	}

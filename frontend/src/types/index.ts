@@ -2153,7 +2153,7 @@ export interface CarryForwardPreview {
 // -------------------------------------------------------------
 // Jahresabschluss: Bilanz und Gewinn- und Verlustrechnung
 // (internal/domain/statement.go, internal/domain/sizeclass.go,
-//  internal/ebilanz/mapping.go)
+//  internal/accounting/statement_mapping.go, internal/ebilanz/assign.go)
 //
 // Die Gliederung nach den §§ 266 und 275 HGB entsteht vollständig im Backend.
 // Hier stehen nur die Formen, in denen sie ankommt: die Ansicht zeigt Zeilen

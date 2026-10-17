@@ -580,7 +580,11 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	if err != nil {
 		return nil, err
 	}
-	entries, err := s.entriesFor(ctx, period)
+	allocations, err := s.allocations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := s.entriesFor(ctx, period, allocations)
 	if err != nil {
 		return nil, err
 	}
@@ -593,10 +597,6 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 		return nil, err
 	}
 	euRecipients, domestic, err := s.recipientSeats(ctx)
-	if err != nil {
-		return nil, err
-	}
-	allocations, err := s.allocations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +664,16 @@ func (s *VatReturnService) specialPrepaymentFor(period accounting.VatPeriod, cfg
 // Generalumkehr aus dem Folgejahr, und bei abweichendem Wirtschaftsjahr
 // (FiscalYearStartMonth ≠ 1) jeder Kalendermonat, der im anderen Geschäftsjahr
 // liegt. Wer zu welchem Zeitraum gehört, entscheidet allein VatPeriodFor.
-func (s *VatReturnService) entriesFor(ctx context.Context, period accounting.VatPeriod) ([]domain.JournalEntry, error) {
+//
+// Eine Leistung über mehrere Jahre reicht weiter zurück: ihre Steuer entsteht
+// mit dem Leistungsende, bei § 13b UStG anteilig zu jedem Jahresende (§ 13b
+// Abs. 3 UStG). Aus früheren Jahren kommen deshalb die Buchungen hinzu, deren
+// Leistung bis in den Monat vor dem Zeitraum oder später reicht, samt den
+// Zahlungen darauf, damit eine schon vorgezogene Steuer nicht ein zweites Mal
+// entsteht.
+func (s *VatReturnService) entriesFor(
+	ctx context.Context, period accounting.VatPeriod, allocations []domain.PaymentAllocation,
+) ([]domain.JournalEntry, error) {
 	entries, err := s.journalRepo.FindAll(ctx, period.Year)
 	if err != nil {
 		return nil, fmt.Errorf("die Buchungen des Jahres %d konnten nicht gelesen werden: %w", period.Year, err)
@@ -673,6 +682,32 @@ func (s *VatReturnService) entriesFor(ctx context.Context, period accounting.Vat
 		if more, err := s.journalRepo.FindAll(ctx, year); err == nil {
 			entries = append(entries, more...)
 		}
+	}
+	reaching, err := s.journalRepo.FindServiceEndingFrom(ctx, period.Year-1, addMonthsISO(period.From, -1))
+	if err != nil {
+		return nil, fmt.Errorf("die Buchungen mehrjähriger Leistungen konnten nicht gelesen werden: %w", err)
+	}
+	if len(reaching) == 0 {
+		return entries, nil
+	}
+	loaded := make(map[uint]bool, len(entries)+len(reaching))
+	for i := range entries {
+		loaded[entries[i].ID] = true
+	}
+	for i := range reaching {
+		loaded[reaching[i].ID] = true
+	}
+	entries = append(entries, reaching...)
+	for _, a := range allocations {
+		if !loaded[a.OpenItemEntryID] || loaded[a.PaymentEntryID] {
+			continue
+		}
+		payment, err := s.journalRepo.FindByID(ctx, a.PaymentEntryID)
+		if err != nil {
+			return nil, fmt.Errorf("die Zahlung %d konnte nicht gelesen werden: %w", a.PaymentEntryID, err)
+		}
+		loaded[payment.ID] = true
+		entries = append(entries, *payment)
 	}
 	return entries, nil
 }
