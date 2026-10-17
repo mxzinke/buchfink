@@ -181,9 +181,11 @@ func (b *BuchfinkBridge) SaveProcedureDocumentationAs(id uint, wantPDF bool) (st
 	auditRepo := b.auditRepo
 	b.mu.RUnlock()
 	if auditRepo != nil {
-		_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "PROCEDURE_DOC",
+		if err := auditRepo.Log(context.Background(), domain.AuditActionExport, "PROCEDURE_DOC",
 			strconv.FormatUint(uint64(id), 10),
-			fmt.Sprintf("Verfahrensdokumentation %s nach %s herausgegeben", file.FileName, path))
+			fmt.Sprintf("Verfahrensdokumentation %s nach %s herausgegeben", file.FileName, path)); err != nil {
+			return "", fmt.Errorf("die Herausgabe ließ sich nicht protokollieren: %w", err)
+		}
 	}
 	return path, nil
 }

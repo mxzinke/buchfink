@@ -131,9 +131,11 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 		return nil, fmt.Errorf("das Konto konnte nicht angelegt werden: %w", err)
 	}
 	s.invalidateChart()
-	s.log(ctx, domain.AuditActionCreate, account, fmt.Sprintf(
+	if err := s.log(ctx, domain.AuditActionCreate, account, fmt.Sprintf(
 		"Eigenes Konto %s „%s\" angelegt, Gliederungsposition %s (%s)",
-		account.Number, account.Name, position.ID, position.Name))
+		account.Number, account.Name, position.ID, position.Name)); err != nil {
+		return nil, err
+	}
 	return account, nil
 }
 
@@ -173,9 +175,9 @@ func (s *AccountService) SetBlocked(ctx context.Context, number string, blocked 
 	if blocked {
 		action = "gesperrt: " + strings.TrimSpace(reason)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "ACCOUNT", account.Number,
-			fmt.Sprintf("Konto %s „%s\" %s", account.Number, account.Name, action), before, account)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "ACCOUNT", account.Number,
+		fmt.Sprintf("Konto %s „%s\" %s", account.Number, account.Name, action), before, account); err != nil {
+		return nil, err
 	}
 	return account, nil
 }
@@ -302,9 +304,9 @@ func ensureKnownTaxKey(key string) error {
 	return fmt.Errorf("den Steuerschlüssel %q gibt es nicht", key)
 }
 
-func (s *AccountService) log(ctx context.Context, action domain.AuditAction, account *domain.Account, details string) {
+func (s *AccountService) log(ctx context.Context, action domain.AuditAction, account *domain.Account, details string) error {
 	if s.auditRepo == nil || account == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "ACCOUNT", account.Number, details)
+	return logAudit(ctx, s.auditRepo, action, "ACCOUNT", account.Number, details)
 }

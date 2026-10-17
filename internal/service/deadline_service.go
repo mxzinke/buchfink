@@ -194,9 +194,9 @@ func (s *DeadlineService) MarkDone(ctx context.Context, key, date string) error 
 	if err := s.deadlineRepo.Mark(ctx, key, date); err != nil {
 		return fmt.Errorf("der Termin konnte nicht abgehakt werden: %w", err)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "DEADLINE", key,
-			fmt.Sprintf("Termin %s am %s als erledigt vermerkt", key, date))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "DEADLINE", key,
+		fmt.Sprintf("Termin %s am %s als erledigt vermerkt", key, date)); err != nil {
+		return err
 	}
 	return nil
 }

@@ -128,9 +128,9 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 			return fmt.Errorf("die Organisationsanweisung konnte nicht gespeichert werden: %w", err)
 		}
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "SETTINGS", "ORGANISATION",
-			"Organisationsanweisung der Verfahrensdokumentation geändert", before, texts)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "ORGANISATION",
+		"Organisationsanweisung der Verfahrensdokumentation geändert", before, texts); err != nil {
+		return err
 	}
 	return nil
 }
@@ -205,7 +205,9 @@ func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocR
 		} else if pdfNote != "" {
 			note += "; " + pdfNote
 		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "PROCEDURE_DOC", doc.Version, note)
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "PROCEDURE_DOC", doc.Version, note); err != nil {
+			return nil, err
+		}
 	}
 
 	form := "als Markdown und PDF"

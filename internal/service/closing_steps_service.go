@@ -512,8 +512,10 @@ func (s *ClosingStepsService) SetStep(
 		return nil, err
 	}
 	def, _ := domain.ClosingStepDefinitionFor(key)
-	s.audit(ctx, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
-		def.Label, year, state, reason))
+	if err := s.audit(ctx, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
+		def.Label, year, state, reason)); err != nil {
+		return nil, err
+	}
 	return s.Steps(ctx, year)
 }
 
@@ -636,15 +638,17 @@ func (s *ClosingStepsService) ReopenStep(
 	if err := s.stepRepo.Save(ctx, step); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, year, fmt.Sprintf(
+	if err := s.audit(ctx, year, fmt.Sprintf(
 		"Abschlussschritt %q im Geschäftsjahr %d wieder aufgenommen: %s (übersprungen war er mit: %s)",
-		def.Label, year, strings.TrimSpace(reason), previous))
+		def.Label, year, strings.TrimSpace(reason), previous)); err != nil {
+		return nil, err
+	}
 	return s.Steps(ctx, year)
 }
 
-func (s *ClosingStepsService) audit(ctx context.Context, year int, details string) {
+func (s *ClosingStepsService) audit(ctx context.Context, year int, details string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "CLOSING_STEP", fmt.Sprintf("%d", year), details)
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "CLOSING_STEP", fmt.Sprintf("%d", year), details)
 }

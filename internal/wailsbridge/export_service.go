@@ -184,10 +184,12 @@ func (b *BuchfinkBridge) writeReceiptFileTo(
 	if auditRepo == nil {
 		return nil
 	}
-	_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "RECEIPT",
+	if err := auditRepo.Log(context.Background(), domain.AuditActionExport, "RECEIPT",
 		strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
 			"Belegdatei %s aus Beleg %d nach %s herausgegeben",
-			content.FileName, receiptID, path))
+			content.FileName, receiptID, path)); err != nil {
+		return fmt.Errorf("die Herausgabe ließ sich nicht protokollieren: %w", err)
+	}
 	return nil
 }
 

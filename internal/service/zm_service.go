@@ -195,9 +195,11 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 		return nil, fmt.Errorf("die Zusammenfassende Meldung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
 		"Zusammenfassende Meldung %s als Entwurf gespeichert (%d Zeilen, %s €)",
-		fresh.PeriodKey, len(fresh.Lines), fresh.TotalServices))
+		fresh.PeriodKey, len(fresh.Lines), fresh.TotalServices)); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -264,8 +266,10 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 	}
 
 	// Statuswechsel, nicht Ausgabe — siehe VatReturnService.ConfirmSubmitted.
-	s.audit(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
-		"Zusammenfassende Meldung %s am %s übermittelt (Transferticket %s)", rec.PeriodKey, date, rec.TransferTicket))
+	if err := s.audit(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
+		"Zusammenfassende Meldung %s am %s übermittelt (Transferticket %s)", rec.PeriodKey, date, rec.TransferTicket)); err != nil {
+		return nil, err
+	}
 	return rec, nil
 }
 
@@ -307,18 +311,22 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 		if err := s.zmRepo.Update(ctx, fresh); err != nil {
 			return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 		}
-		s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 			"Berichtigte Zusammenfassende Meldung %s fortgeschrieben (berichtigt Meldung %d, "+
 				"bisher %s €, jetzt %s €)",
-			fresh.PeriodKey, submitted.ID, before.TotalServices, fresh.TotalServices))
+			fresh.PeriodKey, submitted.ID, before.TotalServices, fresh.TotalServices)); err != nil {
+			return nil, err
+		}
 		return fresh, nil
 	}
 
 	if err := s.zmRepo.Create(ctx, fresh); err != nil {
 		return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
-		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID))
+	if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID)); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -370,8 +378,10 @@ func (s *ZMService) ExportCSV(ctx context.Context, id uint) (string, error) {
 			line.CountryCode, strings.TrimPrefix(line.VatID, line.CountryCode),
 			int64(accounting.TruncToEuro(line.Amount))/100, line.Kind)
 	}
-	s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
-		"Zusammenfassende Meldung %s als Datei ausgegeben", rec.PeriodKey))
+	if err := s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
+		"Zusammenfassende Meldung %s als Datei ausgegeben", rec.PeriodKey)); err != nil {
+		return "", err
+	}
 	return b.String(), nil
 }
 
@@ -689,9 +699,9 @@ func (s *ZMService) latestSubmitted(ctx context.Context, periodKey string) (*dom
 	return nil, nil
 }
 
-func (s *ZMService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
+func (s *ZMService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "ZM_RETURN", fmt.Sprintf("%d", id), details)
+	return logAudit(ctx, s.auditRepo, action, "ZM_RETURN", fmt.Sprintf("%d", id), details)
 }

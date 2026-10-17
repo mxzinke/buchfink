@@ -239,9 +239,11 @@ func (s *VatReturnService) Save(ctx context.Context, periodKey string) (*domain.
 		return nil, fmt.Errorf("die Voranmeldung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.auditChange(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
 		"Umsatzsteuer-Voranmeldung %s als Entwurf gespeichert (Zahllast %s €)", fresh.PeriodKey, fresh.Payable),
-		existing, fresh)
+		existing, fresh); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -453,9 +455,11 @@ func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, 
 	// daneben gibt nur aus. Stünden beide unter EXPORT, wären sie im Protokoll
 	// nur am Text zu unterscheiden — und wer nach dem Weg einer Anmeldung sucht,
 	// filtert nach der Aktion.
-	s.auditChange(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
 		"Umsatzsteuer-Voranmeldung %s am %s übermittelt (Transferticket %s, Zahllast %s €)",
-		rec.PeriodKey, date, rec.TransferTicket, rec.Payable), &before, rec)
+		rec.PeriodKey, date, rec.TransferTicket, rec.Payable), &before, rec); err != nil {
+		return nil, err
+	}
 	return rec, nil
 }
 
@@ -506,9 +510,11 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 		if err := s.returnRepo.Update(ctx, fresh); err != nil {
 			return nil, fmt.Errorf("die Berichtigung konnte nicht gespeichert werden: %w", err)
 		}
-		s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		if err := s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 			"Berichtigte Voranmeldung %s fortgeschrieben (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
-			fresh.PeriodKey, submitted.ID, fresh.Payable, before.Payable), &before, fresh)
+			fresh.PeriodKey, submitted.ID, fresh.Payable, before.Payable), &before, fresh); err != nil {
+			return nil, err
+		}
 		return fresh, nil
 	}
 
@@ -519,9 +525,11 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 	// Vorher ist die berichtigte Anmeldung: die Berichtigung ersetzt sie
 	// vollständig, und was sich zwischen beiden unterscheidet, ist der Inhalt
 	// der Berichtigung.
-	s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 		"Berichtigte Voranmeldung %s angelegt (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
-		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable), submitted, fresh)
+		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable), submitted, fresh); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -555,8 +563,10 @@ func (s *VatReturnService) ExportCSV(ctx context.Context, id uint) (string, erro
 		}
 	}
 
-	s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
-		"Umsatzsteuer-Voranmeldung %s als Datei ausgegeben", rec.PeriodKey))
+	if err := s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
+		"Umsatzsteuer-Voranmeldung %s als Datei ausgegeben", rec.PeriodKey)); err != nil {
+		return "", err
+	}
 	return b.String(), nil
 }
 
@@ -867,11 +877,11 @@ func (s *VatReturnService) companySettings(ctx context.Context) (*domain.Company
 	return cfg, nil
 }
 
-func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
+func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details)
+	return logAudit(ctx, s.auditRepo, action, "VAT_RETURN", fmt.Sprintf("%d", id), details)
 }
 
 // auditChange protokolliert eine Voranmeldung mit ihrem Stand davor und danach.
@@ -884,9 +894,9 @@ func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction,
 // Anmeldung neu.
 func (s *VatReturnService) auditChange(
 	ctx context.Context, action domain.AuditAction, id uint, details string, before, after *domain.VatReturn,
-) {
+) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
 	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil — das Vorher
 	// eines neuen Datensatzes muss deshalb ausdrücklich als nil übergeben
@@ -895,5 +905,5 @@ func (s *VatReturnService) auditChange(
 	if before != nil {
 		beforeAny = before
 	}
-	_ = s.auditRepo.LogChange(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details, beforeAny, after)
+	return logAuditChange(ctx, s.auditRepo, action, "VAT_RETURN", fmt.Sprintf("%d", id), details, beforeAny, after)
 }

@@ -189,7 +189,9 @@ func (s *CheckService) Run(ctx context.Context, req CheckRequest) (*domain.Check
 		if run.OverrideReason != "" {
 			details += fmt.Sprintf(". Blockierende Befunde übergangen mit der Begründung: %s", run.OverrideReason)
 		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "CHECK_RUN", fmt.Sprintf("%d", run.ID), details)
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionIntegrityCheck, "CHECK_RUN", fmt.Sprintf("%d", run.ID), details); err != nil {
+			return nil, err
+		}
 	}
 	return run, nil
 }

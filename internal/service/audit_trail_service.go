@@ -227,7 +227,9 @@ func (s *AuditTrailService) ExportCSV(ctx context.Context, receiptID uint, path 
 	if err := writer.Error(); err != nil {
 		return "", err
 	}
-	s.log(ctx, trail, path)
+	if err := s.log(ctx, trail, path); err != nil {
+		return "", err
+	}
 	return path, nil
 }
 
@@ -249,7 +251,9 @@ func (s *AuditTrailService) ExportPDF(ctx context.Context, receiptID uint, path 
 	if err := os.WriteFile(path, pdf, 0o644); err != nil {
 		return "", fmt.Errorf("die Datei %s konnte nicht geschrieben werden: %w", path, err)
 	}
-	s.log(ctx, trail, path)
+	if err := s.log(ctx, trail, path); err != nil {
+		return "", err
+	}
 	return path, nil
 }
 
@@ -281,11 +285,11 @@ func auditTrailMarkdown(trail *AuditTrail) string {
 	return b.String()
 }
 
-func (s *AuditTrailService) log(ctx context.Context, trail *AuditTrail, path string) {
+func (s *AuditTrailService) log(ctx context.Context, trail *AuditTrail, path string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "RECEIPT",
+	return logAudit(ctx, s.auditRepo, domain.AuditActionExport, "RECEIPT",
 		fmt.Sprintf("%d", trail.ReceiptID),
 		fmt.Sprintf("Prüfpfad zu Beleg %s ausgegeben (%d Stufen) nach %s",
 			trail.ReceiptNumber, len(trail.Steps), path))

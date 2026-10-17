@@ -28,9 +28,9 @@ func (s *ReceiptService) VerifyReceiptFiles(ctx context.Context) (*domain.FileCh
 	}
 
 	result := checkReceiptFiles(receipts, s.store)
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionIntegrityCheck, "RECEIPT_FILES", "",
-			result.Message)
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionIntegrityCheck, "RECEIPT_FILES", "",
+		result.Message); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

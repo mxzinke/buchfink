@@ -92,8 +92,10 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 		Street:      street,
 	})
 	if err != nil {
-		s.audit(ctx, contactID, fmt.Sprintf(
-			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, err))
+		if err := s.audit(ctx, contactID, fmt.Sprintf(
+			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, err)); err != nil {
+			return nil, err
+		}
 		return nil, err
 	}
 
@@ -119,8 +121,10 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 	if err := s.repo.Save(ctx, check); err != nil {
 		return nil, fmt.Errorf("das Ergebnis der Bestätigungsanfrage ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, contactID, fmt.Sprintf(
-		"Bestätigungsanfrage für %s (%s): %s", contact.Name, check.VatID, check.Summary()))
+	if err := s.audit(ctx, contactID, fmt.Sprintf(
+		"Bestätigungsanfrage für %s (%s): %s", contact.Name, check.VatID, check.Summary())); err != nil {
+		return nil, err
+	}
 	return check, nil
 }
 
@@ -260,9 +264,11 @@ func (s *VatIDService) EnsureConfirmed(
 		// Keine Auskunft. Das ist kein negatives Ergebnis, und es darf nicht wie
 		// eines wirken — aber es ist auch kein Nachweis.
 		if strings.TrimSpace(overrideReason) != "" {
-			s.audit(ctx, contact.ID, fmt.Sprintf(
+			if err := s.audit(ctx, contact.ID, fmt.Sprintf(
 				"Rechnung an %s ohne Bestätigung der USt-IdNr. ausgestellt: %s (Fehler: %v)",
-				contact.Name, strings.TrimSpace(overrideReason), err))
+				contact.Name, strings.TrimSpace(overrideReason), err)); err != nil {
+				return err
+			}
 			return nil
 		}
 		return fmt.Errorf(
@@ -290,10 +296,10 @@ func germanTimestamp(value string) string {
 	return t.Local().Format("02.01.2006 15:04")
 }
 
-func (s *VatIDService) audit(ctx context.Context, contactID uint, details string) {
+func (s *VatIDService) audit(ctx context.Context, contactID uint, details string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "VAT_ID_CHECK",
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "VAT_ID_CHECK",
 		fmt.Sprintf("%d", contactID), details)
 }

@@ -133,9 +133,11 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 		// LogChange und nicht Log: „Kontakt 12 geändert" sagt nicht, was sich
 		// geändert hat — GoBD Rz. 34 verlangt diese Angabe. Vorher und
 		// Nachher enthalten nur die Felder, die sich unterscheiden.
-		_ = s.auditRepo.LogChange(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
+		if err := logAuditChange(ctx, s.auditRepo, action, "CONTACT", fmt.Sprintf("%d", c.ID),
 			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type),
-			before, c)
+			before, c); err != nil {
+			return err
+		}
 	}
 	c.VatIDNotice = s.vatIDNotice(ctx, c)
 	return nil
@@ -242,11 +244,11 @@ func (s *ContactService) BlockContact(ctx context.Context, id uint, reason strin
 	if err := s.contactRepo.Save(ctx, contact); err != nil {
 		return nil, "", err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
-			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gesperrt: %s",
-				contact.Name, contact.LedgerAccount, contact.BlockedReason),
-			&before, contact)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
+		fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gesperrt: %s",
+			contact.Name, contact.LedgerAccount, contact.BlockedReason),
+		&before, contact); err != nil {
+		return nil, "", err
 	}
 	return contact, accounting.BlockedContactAnswer(contact.Name), nil
 }
@@ -320,9 +322,9 @@ func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
 	if err := s.contactRepo.Delete(ctx, id); err != nil {
 		return err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
-			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gelöscht", contact.Name, contact.LedgerAccount))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
+		fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gelöscht", contact.Name, contact.LedgerAccount)); err != nil {
+		return err
 	}
 	return nil
 }

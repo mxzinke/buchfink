@@ -204,7 +204,9 @@ func (b *BuchfinkBridge) RestoreFromBackup(zipPath, targetDir string) (*domain.T
 	// erschiene er dann beim falschen Mandanten, und der wiederhergestellte
 	// stünde ohne einen einzigen Lauf da.
 	if restoredBackup != nil && sameDir(openDir, targetDir) && activeID == tenant.ID {
-		restoredBackup.RecordRun(context.Background(), run)
+		if err := restoredBackup.RecordRun(context.Background(), run); err != nil {
+			return tenant, fmt.Errorf("die Daten wurden wiederhergestellt, der Lauf ließ sich aber nicht vermerken: %w", err)
+		}
 	}
 
 	// Geprüft wird der wiederhergestellte Mandant und niemand sonst. Zeigen die

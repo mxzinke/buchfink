@@ -86,10 +86,12 @@ func (s *AccountingService) FilterEntriesCSV(
 		if result != nil {
 			rows = len(result.Rows)
 		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "JOURNAL_FILTER",
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "JOURNAL_FILTER",
 			JournalFilterLabel(filter),
 			fmt.Sprintf("Gefiltertes Journal als CSV herausgegeben: %d Zeilen, Filter %s",
-				rows, JournalFilterLabel(filter)))
+				rows, JournalFilterLabel(filter))); err != nil {
+			return "", err
+		}
 	}
 	return JournalFilterCSV(result), nil
 }

@@ -76,14 +76,14 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 		return err
 	}
 
-	_ = s.auditRepo.LogChange(
-		ctx,
-		domain.AuditActionUpdate,
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate,
 		"SETTINGS",
 		"COMPANY",
 		fmt.Sprintf("Unternehmensstammdaten für %s aktualisiert", settings.CompanyName),
 		before, settings,
-	)
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -108,8 +108,10 @@ func (s *SettingsService) SetValue(ctx context.Context, key, value, description 
 	if description == "" {
 		description = fmt.Sprintf("Einstellung %s geändert", key)
 	}
-	_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "SETTINGS", key, description,
-		map[string]string{key: before}, map[string]string{key: value})
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", key, description,
+		map[string]string{key: before}, map[string]string{key: value}); err != nil {
+		return err
+	}
 	return nil
 }
 

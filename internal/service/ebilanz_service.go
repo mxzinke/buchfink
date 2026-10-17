@@ -91,13 +91,13 @@ func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, erro
 		return "", err
 	}
 
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionExport,
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport,
 		"EBILANZ",
 		fmt.Sprintf("%d", in.FiscalYear),
 		fmt.Sprintf("E-Bilanz %d als XBRL-Instanz erzeugt", in.FiscalYear),
-	)
+	); err != nil {
+		return "", err
+	}
 	return xbrl, nil
 }
 
@@ -145,13 +145,13 @@ func (s *EBilanzService) ExportOpeningXBRL(ctx context.Context, cutoff string) (
 		return "", err
 	}
 
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionExport,
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport,
 		"EBILANZ",
 		cutoff,
 		fmt.Sprintf("Eröffnungsbilanz auf den %s als XBRL-Instanz erzeugt (§ 5b Abs. 1 EStG)", cutoff),
-	)
+	); err != nil {
+		return "", err
+	}
 	return xbrl, nil
 }
 

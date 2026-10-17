@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -186,7 +187,9 @@ func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind
 	if err != nil {
 		run.Success = false
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
@@ -194,7 +197,9 @@ func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind
 	run.FileCount = meta.FileCount
 	run.Bytes = meta.Bytes
 	run.Message = fmt.Sprintf("%d Dateien, %s gesichert", meta.FileCount, formatBytes(meta.Bytes))
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
 }
 
@@ -364,7 +369,9 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	if err != nil {
 		run.FinishedAt = time.Now().UTC()
 		run.Message = fmt.Sprintf("es konnte kein Arbeitsordner angelegt werden: %v", err)
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 	// Der Temporärordner geht in jedem Fall wieder weg — auch wenn die Prüfung
@@ -375,7 +382,9 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	run.FinishedAt = time.Now().UTC()
 	if err != nil {
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 	run.FileCount = count
@@ -405,7 +414,9 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	if len(problems) > 0 {
 		run.Success = false
 		run.Message = strings.Join(problems, " ")
-		s.record(ctx, run)
+		if err := s.record(ctx, run); err != nil {
+			return nil, err
+		}
 		return run, nil
 	}
 
@@ -413,7 +424,9 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	run.Message = fmt.Sprintf(
 		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Belegdateien unversehrt.",
 		count, chain.TotalEntries, files.Checked)
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
 }
 
@@ -434,7 +447,9 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 	if err := ensureEmptyDir(targetDir); err != nil {
 		run.FinishedAt = time.Now().UTC()
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
@@ -458,13 +473,17 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 		}
 		run.FileCount = 0
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
 	run.Success = true
 	run.Message = fmt.Sprintf("%d Dateien nach %s wiederhergestellt", count, targetDir)
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
 }
 
@@ -693,28 +712,30 @@ func closeDB(db *gorm.DB) {
 //
 // Eine Kopie und kein Verschieben: der ausführende Mandant hat den Lauf
 // tatsächlich ausgeführt und protokolliert das zu Recht.
-func (s *BackupService) RecordRun(ctx context.Context, run *domain.BackupRun) {
+func (s *BackupService) RecordRun(ctx context.Context, run *domain.BackupRun) error {
 	if run == nil {
-		return
+		return nil
 	}
 	copied := *run
 	copied.ID = 0
-	s.record(ctx, &copied)
+	return s.record(ctx, &copied)
 }
 
 // record hält den Lauf in der Datenbank und im Änderungsprotokoll fest.
-func (s *BackupService) record(ctx context.Context, run *domain.BackupRun) {
+func (s *BackupService) record(ctx context.Context, run *domain.BackupRun) error {
 	if s.runRepo != nil {
-		_ = s.runRepo.Create(ctx, run)
+		if err := s.runRepo.Create(ctx, run); err != nil {
+			return fmt.Errorf("der Sicherungslauf ließ sich nicht vermerken: %w", err)
+		}
 	}
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
 	outcome := "gelungen"
 	if !run.Success {
 		outcome = "fehlgeschlagen"
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "BACKUP", string(run.Kind),
+	return logAudit(ctx, s.auditRepo, domain.AuditActionExport, "BACKUP", string(run.Kind),
 		fmt.Sprintf("Sicherungslauf %s %s: %s", run.Kind, outcome, run.Message))
 }
 

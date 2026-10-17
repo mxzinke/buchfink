@@ -237,8 +237,10 @@ func SeedDefaultsIfEmpty(ctx context.Context, db *gorm.DB, year int) error {
 		return err
 	}
 	if added > 0 {
-		_ = NewAuditRepository(db).Log(ctx, domain.AuditActionImport, "ACCOUNT", "SKR04",
-			fmt.Sprintf("%d fehlende Konten aus dem Kontenrahmen SKR04 ergänzt; vorhandene Konten wurden nicht verändert.", added))
+		if err := NewAuditRepository(db).Log(ctx, domain.AuditActionImport, "ACCOUNT", "SKR04",
+			fmt.Sprintf("%d fehlende Konten aus dem Kontenrahmen SKR04 ergänzt; vorhandene Konten wurden nicht verändert.", added)); err != nil {
+			return fmt.Errorf("die Ergänzung des Kontenrahmens ließ sich nicht protokollieren: %w", err)
+		}
 	}
 
 	// 2. Seed Default Company Settings

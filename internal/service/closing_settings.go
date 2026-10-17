@@ -92,10 +92,12 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 		}
 	}
 	if s.auditRepo != nil && before != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "closing",
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "closing",
 			fmt.Sprintf("Abschluss-Einstellungen geändert: Hebesatz %d %% → %d %%, Abgrenzung %s → %s, Schwelle %s → %s, Auflösung %s → %s",
 				before.TradeTaxRatePercent, in.TradeTaxRatePercent, before.AccrualMethod, in.AccrualMethod,
-				before.AccrualThreshold, in.AccrualThreshold, before.AccrualRelease, in.AccrualRelease))
+				before.AccrualThreshold, in.AccrualThreshold, before.AccrualRelease, in.AccrualRelease)); err != nil {
+			return nil, err
+		}
 	}
 	return s.Get(ctx)
 }

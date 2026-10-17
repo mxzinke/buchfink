@@ -25,6 +25,15 @@ func (f failingAudit) Log(ctx context.Context, action domain.AuditAction, entity
 	return f.AuditRepository.Log(ctx, action, entityType, entityID, details)
 }
 
+func (f failingAudit) LogChange(
+	ctx context.Context, action domain.AuditAction, entityType, entityID, details string, before, after any,
+) error {
+	if strings.Contains(entityType+" "+details, f.trigger) {
+		return errors.New("Protokoll nicht beschreibbar")
+	}
+	return f.AuditRepository.LogChange(ctx, action, entityType, entityID, details, before, after)
+}
+
 // journalWithAudit baut einen Journaldienst auf derselben Datenbank, dessen
 // Protokoll beim Auslöser scheitert.
 func (e *testEnv) journalWithAudit(t *testing.T, trigger string) *JournalService {
@@ -258,5 +267,21 @@ func TestProvisionConsumptionFromAReceiptIsAtomic(t *testing.T) {
 	env.posting.SetProvisionConsumer(m.provisions)
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
 		t.Fatalf("mit funktionierendem Protokoll muss derselbe Beleg buchbar sein: %v", err)
+	}
+}
+
+// Auch außerhalb des Journals wird ein gescheiterter Protokolleintrag nicht mehr
+// verschluckt.
+func TestServicesReportAFailedAuditEntry(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	audit := failingAudit{AuditRepository: repository.NewAuditRepository(env.db), trigger: "CONTACT"}
+	contacts := NewContactService(env.contactRepo, env.journalRepo, env.numberRepo, audit, env.fiscalYear)
+	err := contacts.SaveContact(ctx, &domain.Contact{
+		Type: domain.ContactTypeCustomer, Name: "Kunde GmbH", CountryCode: "DE",
+		Street: "Kundenweg 2", PostalCode: "10115", City: "Berlin",
+	})
+	if err == nil || !strings.Contains(err.Error(), "Protokolleintrag") {
+		t.Errorf("der gescheiterte Protokolleintrag muss gemeldet werden, Fehler: %v", err)
 	}
 }

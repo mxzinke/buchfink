@@ -188,8 +188,10 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 		return nil, fmt.Errorf("Beleg konnte nicht abgelegt werden: %w", err)
 	}
 
-	s.log(ctx, domain.AuditActionCreate, receipt,
-		fmt.Sprintf("Beleg %s mit %d Datei(en) abgelegt", receipt.ReceiptNumber, len(receipt.Files)))
+	if err := s.log(ctx, domain.AuditActionCreate, receipt,
+		fmt.Sprintf("Beleg %s mit %d Datei(en) abgelegt", receipt.ReceiptNumber, len(receipt.Files))); err != nil {
+		return nil, err
+	}
 	return receipt, nil
 }
 
@@ -259,9 +261,11 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 	// Name und Prüfsumme der entfernten Datei stehen im Protokoll. Ohne sie
 	// bliebe von einer entfernten Datei nichts als die Zahl der verbliebenen,
 	// und die Frage, was da war, ließe sich nicht mehr beantworten.
-	s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
+	if err := s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
 		"Aus Beleg %s wurde die Datei %s (Rolle %s, SHA256 %s) entfernt",
-		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256))
+		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256)); err != nil {
+		return nil, err
+	}
 	return updated, nil
 }
 
@@ -321,12 +325,12 @@ func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header 
 	// ändert, verschiebt seine Aufbewahrungsfrist und die Beurteilung seiner
 	// zeitgerechten Erfassung — beides gehört mit beiden Ständen ins Protokoll
 	// (GoBD Rz. 34).
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
-				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
-				updated.RetentionUntil, updated.RetentionClass.Label()),
-			receipt, updated)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
+			updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
+			updated.RetentionUntil, updated.RetentionClass.Label()),
+		receipt, updated); err != nil {
+		return nil, err
 	}
 	return s.Get(ctx, receiptID)
 }
@@ -345,8 +349,10 @@ func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Recei
 	if err != nil {
 		return nil, err
 	}
-	s.log(ctx, domain.AuditActionUpdate, updated,
-		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
+	if err := s.log(ctx, domain.AuditActionUpdate, updated,
+		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files))); err != nil {
+		return nil, err
+	}
 	return s.Get(ctx, receipt.ID)
 }
 
@@ -367,8 +373,10 @@ func (s *ReceiptService) Get(ctx context.Context, id uint) (*domain.Receipt, err
 		entry, lookupErr := s.journalRepo.FindByReceipt(ctx, receipt.ID)
 		if lookupErr == nil && entry != nil {
 			if sealErr := s.receiptRepo.Seal(ctx, receipt.ID, entry.ID); sealErr == nil {
-				s.log(ctx, domain.AuditActionUpdate, receipt, fmt.Sprintf(
-					"Beleg %s nachträglich mit Buchung %s versiegelt", receipt.ReceiptNumber, entry.EntryNumber))
+				if err := s.log(ctx, domain.AuditActionUpdate, receipt, fmt.Sprintf(
+					"Beleg %s nachträglich mit Buchung %s versiegelt", receipt.ReceiptNumber, entry.EntryNumber)); err != nil {
+					return nil, err
+				}
 				return s.receiptRepo.FindByID(ctx, id)
 			}
 		}
@@ -475,10 +483,10 @@ func (s *ReceiptService) SaveInputTaxOverride(ctx context.Context, receiptID uin
 	// Ins Protokoll: die Übersteuerung ist eine Entscheidung des Anwenders gegen
 	// eine Prüfung, und solche Entscheidungen gehören nachvollziehbar
 	// festgehalten (GoBD Rz. 36).
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
-				strings.TrimSpace(reason))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
+			strings.TrimSpace(reason)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -495,8 +503,10 @@ func (s *ReceiptService) Discard(ctx context.Context, receiptID uint, reason str
 	if err := s.receiptRepo.Discard(ctx, receiptID, reason); err != nil {
 		return err
 	}
-	s.log(ctx, domain.AuditActionUpdate, receipt,
-		fmt.Sprintf("Beleg %s verworfen: %s", receipt.ReceiptNumber, reason))
+	if err := s.log(ctx, domain.AuditActionUpdate, receipt,
+		fmt.Sprintf("Beleg %s verworfen: %s", receipt.ReceiptNumber, reason)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -539,11 +549,11 @@ func (s *ReceiptService) storeAll(fiscalYear int, direction domain.Direction, fi
 	return stored, nil
 }
 
-func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, receipt *domain.Receipt, details string) {
+func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, receipt *domain.Receipt, details string) error {
 	if s.auditRepo == nil || receipt == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
+	return logAudit(ctx, s.auditRepo, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
 }
 
 // FindByOriginalHash liefert den Beleg zu einer bereits abgelegten

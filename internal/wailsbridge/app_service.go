@@ -1947,8 +1947,10 @@ func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
 	auditRepo := b.auditRepo
 	b.mu.RUnlock()
 	if auditRepo != nil {
-		_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "GRUENDUNG", "EROEFFNUNGSBILANZ",
-			fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path))
+		if err := auditRepo.Log(context.Background(), domain.AuditActionExport, "GRUENDUNG", "EROEFFNUNGSBILANZ",
+			fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path)); err != nil {
+			return "", fmt.Errorf("die Herausgabe ließ sich nicht protokollieren: %w", err)
+		}
 	}
 	return path, nil
 }

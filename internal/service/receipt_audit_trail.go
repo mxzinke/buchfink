@@ -55,11 +55,11 @@ func (s *ReceiptService) SaveServiceProof(
 	if err != nil {
 		return nil, err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf("Leistungsnachweis zu Beleg %s erfasst", updated.ReceiptNumber),
-			map[string]string{"serviceProof": receipt.ServiceProof, "serviceProofAt": receipt.ServiceProofAt},
-			map[string]string{"serviceProof": proof, "serviceProofAt": date})
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Leistungsnachweis zu Beleg %s erfasst", updated.ReceiptNumber),
+		map[string]string{"serviceProof": receipt.ServiceProof, "serviceProofAt": receipt.ServiceProofAt},
+		map[string]string{"serviceProof": proof, "serviceProofAt": date}); err != nil {
+		return nil, err
 	}
 	return updated, nil
 }
@@ -92,11 +92,11 @@ func (s *ReceiptService) SaveOrderReference(
 	// außerhalb des Beleg-Hashes, und was sie unveränderbar macht, ist allein
 	// das Protokoll. Ein Bestellbezug, der sich still ändern ließe, entwertete
 	// den Prüfpfad, den er stützen soll.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf("Bestellbezug zu Beleg %s geändert", updated.ReceiptNumber),
-			map[string]string{"orderReference": receipt.OrderReference},
-			map[string]string{"orderReference": reference})
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Bestellbezug zu Beleg %s geändert", updated.ReceiptNumber),
+		map[string]string{"orderReference": receipt.OrderReference},
+		map[string]string{"orderReference": reference}); err != nil {
+		return nil, err
 	}
 	return updated, nil
 }

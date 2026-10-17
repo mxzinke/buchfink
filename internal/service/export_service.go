@@ -209,7 +209,9 @@ func (s *ExportService) exportPackage(
 		return nil, err
 	}
 
-	s.logExport(ctx, result)
+	if err := s.logExport(ctx, result); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -246,10 +248,10 @@ func (s *ExportService) ExportJournalCSV(ctx context.Context, from, to, targetPa
 		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(targetPath), err)
 	}
 
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "JOURNAL", fmt.Sprintf("%s..%s", from, to),
-			fmt.Sprintf("Journalexport %s bis %s: %d Buchungen, %d Zeilen (Buchfink %s)",
-				from, to, len(entries), len(table.Rows), buildinfo.Version))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "JOURNAL", fmt.Sprintf("%s..%s", from, to),
+		fmt.Sprintf("Journalexport %s bis %s: %d Buchungen, %d Zeilen (Buchfink %s)",
+			from, to, len(entries), len(table.Rows), buildinfo.Version)); err != nil {
+		return "", err
 	}
 	return targetPath, nil
 }
@@ -979,15 +981,15 @@ func companyLocation(cfg *domain.CompanySettings) string {
 }
 
 // logExport hält den Umfang der Überlassung im Änderungsprotokoll fest.
-func (s *ExportService) logExport(ctx context.Context, r *export.Result) {
+func (s *ExportService) logExport(ctx context.Context, r *export.Result) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
 	rows := 0
 	for _, t := range r.Tables {
 		rows += t.Rows
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "DATA_EXPORT", fmt.Sprintf("GJ_%d", r.FiscalYear),
+	return logAudit(ctx, s.auditRepo, domain.AuditActionExport, "DATA_EXPORT", fmt.Sprintf("GJ_%d", r.FiscalYear),
 		fmt.Sprintf("%s nach %s: %d Tabellen mit %d Datensätzen, %d Belegdateien (Buchfink %s)",
 			exportKindLabel(r.Kind), r.Dir, len(r.Tables), rows, r.ReceiptFiles, r.ProgramVersion))
 }

@@ -304,14 +304,14 @@ func (s *ReceiptService) OverrideRetention(
 	if err != nil {
 		return nil, err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT",
-			fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf(
-				"Aufbewahrungsfrist von Beleg %s von %s (%s) auf %s (%s) verlängert: %s",
-				receipt.ReceiptNumber, effective, receipt.RetentionClass.Label(),
-				target.RetentionEnd, class.Label(), reason),
-			receipt, updated)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT",
+		fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf(
+			"Aufbewahrungsfrist von Beleg %s von %s (%s) auf %s (%s) verlängert: %s",
+			receipt.ReceiptNumber, effective, receipt.RetentionClass.Label(),
+			target.RetentionEnd, class.Label(), reason),
+		receipt, updated); err != nil {
+		return nil, err
 	}
 	return updated, nil
 }
