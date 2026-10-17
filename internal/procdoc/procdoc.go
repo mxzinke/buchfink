@@ -308,11 +308,23 @@ XRechnung) ausgegeben und im selben Zug gebucht und abgelegt. Die
 Rechnungsnummer stammt aus dem Nummernkreis und ist fortlaufend und einmalig
 (§ 14 Abs. 4 Nr. 4 UStG).
 
-### 2.3 Bankimport
+### 2.3 Bankimport und Zahlungswege
 
-Kontoumsätze werden als CAMT.053 oder MT940 eingelesen. Der eingelesene
-Kontoauszug wird als Beleg abgelegt; gebucht werden die einzelnen Umsätze aus
-ihm, jeder gegen seinen offenen Posten oder gegen ein Sachkonto.
+Kontoumsätze werden als CAMT.053 eingelesen. Der eingelesene Kontoauszug wird
+als Beleg abgelegt; gebucht werden die einzelnen Umsätze aus ihm, gegen offene
+Posten, gegen ein Sachkonto oder aufgeteilt auf mehrere Gegenkonten. Jeder
+Umsatz steht in genau einer gültigen Buchung; wird sie storniert, ist er
+wieder zu buchen.
+
+Zahlungen mit der Firmenkreditkarte stehen bis zur Monatsabrechnung auf dem
+Konto Kreditkartenabrechnung; die Abbuchung gleicht es aus. Bezahlt ein
+Gesellschafter oder Geschäftsführer eine Ausgabe privat, bleibt der Lieferant
+Aussteller des Belegs, und die Erstattung steht bis zur Zahlung als
+Verbindlichkeit bei ihm.
+
+Löhne rechnet ein externes Lohnbüro ab. Gebucht werden die Monatssummen aus
+dessen Lohnjournal, das als Beleg abgelegt wird; die Lohnkonten nach § 41 EStG
+führt und verwahrt das Lohnbüro.
 
 ### 2.4 Monats- und Jahresabschluss
 

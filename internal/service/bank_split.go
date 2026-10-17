@@ -203,6 +203,10 @@ func (s *PaymentService) splitAccountLine(
 	if err := s.checkSplitAccount(ctx, tx, account); err != nil {
 		return domain.JournalLine{}, err
 	}
+	if contactID == 0 && isShareholderAccount(account) {
+		return domain.JournalLine{}, fmt.Errorf(
+			"Konto %s führt Beträge gegenüber Gesellschaftern; die Zeile braucht den Gesellschafter als Kontakt", account)
+	}
 	side, amount := counterSide, line.Amount
 	if amount < 0 {
 		side, amount = counterSide.Opposite(), -amount

@@ -169,9 +169,10 @@ func TestSplitRefusesAccountsOfOtherPaths(t *testing.T) {
 	payable := env.openPayable(t, vendor.ID, 10000, domain.TaxRateStandard)
 	id := env.bankLine(t, "2026-04-01", 11900, "Kunde", "Zahlung")
 	for name, line := range map[string]BankSplitLine{
-		"Erlöskonto mit Umsatzsteuer": {Account: "4400", Amount: 11900},
-		"Personenkonto":               {Account: vendor.LedgerAccount, Amount: 11900},
-		"Verbindlichkeit im Eingang":  {OpenItemEntryID: payable.ID, SettledAmount: 11900},
+		"Erlöskonto mit Umsatzsteuer":      {Account: "4400", Amount: 11900},
+		"Personenkonto":                    {Account: vendor.LedgerAccount, Amount: 11900},
+		"Verbindlichkeit im Eingang":       {OpenItemEntryID: payable.ID, SettledAmount: 11900},
+		"Gesellschafterkonto ohne Kontakt": {Account: domain.AccountVerbindlichkeitenGesellschafter, Amount: 11900},
 	} {
 		if _, err := payments.BookBankSplit(context.Background(), BankSplitRequest{
 			BankTxID: id, Lines: []BankSplitLine{line},

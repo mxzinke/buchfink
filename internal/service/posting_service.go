@@ -1517,9 +1517,15 @@ func (s *PostingService) expenseCreditor(
 	if err != nil {
 		return fmt.Errorf("der Gläubiger der Auslage wurde nicht gefunden: %w", err)
 	}
-	var cfg *domain.CompanySettings
-	if s.settingsRepo != nil {
-		cfg, _ = s.settingsRepo.GetCompanySettings(ctx)
+	if err := ensureNotBlocked(creditor); err != nil {
+		return err
+	}
+	if s.settingsRepo == nil {
+		return fmt.Errorf("ohne Unternehmensdaten lässt sich der Gläubiger einer Auslage nicht zuordnen")
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht lesen: %w", err)
 	}
 	role := companyRoleOf(cfg, creditor)
 	switch {

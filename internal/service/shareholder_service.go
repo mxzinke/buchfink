@@ -47,7 +47,8 @@ func NewShareholderService(
 }
 
 // shareholderAccounts sind die Konten, deren Salden je Gesellschafter geführt
-// werden (§ 42 Abs. 3 GmbHG).
+// werden (§ 42 Abs. 3 GmbHG). Die offene Ausschüttung (3519) fehlt: der
+// Beschluss bucht sie in einer Summe.
 var shareholderAccounts = []string{
 	domain.AccountAusleihungenGesellschafter, "0961",
 	"1250", "1251", "1255",
@@ -55,9 +56,18 @@ var shareholderAccounts = []string{
 	domain.AccountForderungenGesellschafterUeber1,
 	"1330", "1331", "1335",
 	"3340", "3341", "3345", "3348",
-	"3510", "3511", "3514", "3517", domain.AccountAusschuettung,
+	"3510", "3511", "3514", "3517",
 	domain.AccountVerbindlichkeitenGesellschafter, domain.AccountVerbGesellschafterBis1,
 	domain.AccountVerbGesellschafter1Bis5, domain.AccountVerbGesellschafterUeber5,
+}
+
+func isShareholderAccount(account string) bool {
+	for _, a := range shareholderAccounts {
+		if a == account {
+			return true
+		}
+	}
+	return false
 }
 
 // loanAccounts sind die zulässigen Darlehenskonten je Richtung.
@@ -117,6 +127,9 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 		contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
 		if err != nil {
 			return nil, fmt.Errorf("der Gesellschafter %d wurde nicht gefunden: %w", req.ContactID, err)
+		}
+		if err := ensureNotBlocked(contact); err != nil {
+			return nil, err
 		}
 		cfg, err := s.companySettings(ctx)
 		if err != nil {
