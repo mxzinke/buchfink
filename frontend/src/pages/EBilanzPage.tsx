@@ -129,7 +129,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
           {report && report.blocking.length > 0 && (
             <Notice
               className="mt-6"
-              text={`${report.blocking.length} Konten mit Saldo haben keine Zuordnung; die Datei wird erst nach ihrer Klärung erzeugt.`}
+              text={`${report.blocking.length} Befunde verhindern die Datei; sie wird erst nach ihrer Klärung erzeugt.`}
             />
           )}
 
@@ -142,7 +142,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
                   context={`Geschäftsjahr ${report.fiscalYear}`}
                 />
                 <Stat
-                  label="Ohne Zuordnung"
+                  label="Befunde"
                   value={String(report.blocking.length)}
                   context="verhindern die Erzeugung"
                   tone={report.blocking.length > 0 ? 'negative' : 'positive'}
@@ -153,8 +153,8 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
                   context={'Sammelposten „sonstige …" der Gliederung'}
                 />
                 <Stat
-                  label="Elemente ungeprüft"
-                  value={String(report.unverified)}
+                  label="Bilanzierungsstandard"
+                  value={report.accountingStandard === 'HGBM' ? 'Handelsbilanz' : 'Einheitsbilanz'}
                   context={`Taxonomie ${report.taxonomyVersion}`}
                 />
               </StatRow>
@@ -163,7 +163,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
 
           {report && report.blocking.length > 0 && (
             <Section
-              title="Konten ohne Zuordnung"
+              title="Befunde"
               context="Jede Zeile nennt, was fehlt"
               className="mt-8"
               divider={false}
@@ -177,8 +177,8 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {report.blocking.map((row) => (
-                    <Tr key={row.account}>
+                  {report.blocking.map((row, i) => (
+                    <Tr key={`${row.account}-${i}`}>
                       <Td code>{row.account}</Td>
                       <Td>{row.name}</Td>
                       <Td className="text-ink-muted whitespace-normal">{row.finding}</Td>
@@ -197,7 +197,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
             explain={
               <>
                 {report?.taxonomyNote ??
-                'Die Datei enthält Bilanz, Gewinn- und Verlustrechnung, Kontennachweis und Anlagenspiegel. Die Zuordnung ist ungeprüft. Buchfink übermittelt sie nicht an das Finanzamt.'}
+                'Die Datei enthält Stammdaten, Bilanz, Gewinn- und Verlustrechnung, Betriebsvermögensvergleich und Kontennachweis. Buchfink übermittelt sie nicht an das Finanzamt.'}
               </>
             }
           >
@@ -211,7 +211,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
                   </Th>
                   <Th>Gliederungsposition</Th>
                   <Th className="w-56">Taxonomie-Element</Th>
-                  <Th className="w-24">Geprüft</Th>
+                  <Th className="w-24">Auffang</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -222,8 +222,8 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
                     <Td numeric>{formatCents(row.balance)}</Td>
                     <Td className="text-ink-muted whitespace-normal">{row.positionLabel || '—'}</Td>
                     <Td code>{row.element || '—'}</Td>
-                    <Td className={row.verified ? undefined : 'text-attention-text'}>
-                      {row.element ? (row.verified ? 'Ja' : 'Nein') : '—'}
+                    <Td className={row.fallback ? 'text-attention-text' : undefined}>
+                      {row.fallback ? 'Ja' : '—'}
                     </Td>
                   </Tr>
                 ))}
