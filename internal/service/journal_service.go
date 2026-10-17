@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -34,7 +36,12 @@ type JournalService struct {
 	hashChain   *accounting.HashChain
 	taxResolver domain.TaxResolver
 
-	chart      *accounting.Chart
+	// chart ist der zwischengespeicherte Kontenplan. chartMu ordnet Aufbau und
+	// Verwerfen, damit ein Aufbau, der vor dem Verwerfen begann, den Cache
+	// nicht danach mit dem alten Stand füllt.
+	chart   atomic.Pointer[accounting.Chart]
+	chartMu sync.Mutex
+
 	fiscalYear int
 }
 
@@ -79,26 +86,31 @@ func (s *JournalService) FiscalYear() int { return s.fiscalYear }
 
 // Chart returns the cached chart of accounts resolver.
 func (s *JournalService) Chart(ctx context.Context) (*accounting.Chart, error) {
-	if s.chart != nil {
-		return s.chart, nil
+	if c := s.chart.Load(); c != nil {
+		return c, nil
+	}
+	s.chartMu.Lock()
+	defer s.chartMu.Unlock()
+	if c := s.chart.Load(); c != nil {
+		return c, nil
 	}
 	accounts, err := s.accountRepo.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Kontenplan konnte nicht geladen werden: %w", err)
 	}
-	s.chart = accounting.NewChart(accounts)
-	return s.chart, nil
+	c := accounting.NewChart(accounts)
+	s.chart.Store(c)
+	return c, nil
 }
 
-// InvalidateChart verwirft den zwischengespeicherten Kontenplan.
-//
-// Der Cache hält den Kontenplan für die Laufzeit des Programms fest, weil jede
-// Buchung ihn braucht. Er ist damit aber auch der Grund, warum ein neu
-// angelegtes oder gesperrtes eigenes Konto (BEL-06 K2) im laufenden Betrieb
-// nicht ankäme: die Buchung auf das neue Konto scheiterte als „im SKR04 nicht
-// vorhanden", die Sperre eines Kontos griffe erst nach dem Neustart. Wer den
-// Kontenplan ändert, sagt es deshalb hier.
-func (s *JournalService) InvalidateChart() { s.chart = nil }
+// InvalidateChart verwirft den zwischengespeicherten Kontenplan. Wer Konten
+// anlegt oder sperrt, ruft es auf, sonst greift die Änderung erst nach dem
+// Neustart.
+func (s *JournalService) InvalidateChart() {
+	s.chartMu.Lock()
+	defer s.chartMu.Unlock()
+	s.chart.Store(nil)
+}
 
 // TaxResolver exposes the SKR04 tax resolution used by the posting rules.
 func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver }
