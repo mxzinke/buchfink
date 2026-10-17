@@ -3819,7 +3819,8 @@ export interface DeclarationOverview {
   status: DeclarationStatus;
   zahlen_hash: string;
   abgabereif: boolean;
-  ergebnis: { schluessel: string; bezeichnung: string; wert: DeclarationValue }[];
+  /** Die Hauptzahlen; `kurz` steht über der Kennzahl, `bezeichnung` ist der amtliche Wortlaut. */
+  ergebnis: { schluessel: string; bezeichnung: string; kurz?: string; wert: DeclarationValue }[];
   formulare: {
     id: string;
     titel: string;

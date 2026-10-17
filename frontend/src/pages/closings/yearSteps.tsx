@@ -18,6 +18,7 @@ import type {
   WriteUpReport,
 } from '../../types';
 import {
+  Help,
   Button,
   DetailList,
   Disclosure,
@@ -120,7 +121,14 @@ export const StepDetails: React.FC<{
           ...(step.changedOn ? [{ label: 'Geändert', value: formatDate(step.changedOn) }] : []),
         ]}
       />
-      <p className="text-body text-ink-muted">{step.hint}</p>
+      <p className="text-body text-ink-muted">
+        {step.hint}
+        {step.reference && (
+          <Help summary="Auf diesen Vorschriften beruht der Baustein." label={`Grundlage zu ${step.label}`}>
+            {step.reference}
+          </Help>
+        )}
+      </p>
       {view?.kind === 'kartei' && <KarteiView kartei={view.kartei} year={year} />}
     </div>
   );

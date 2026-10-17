@@ -70,11 +70,13 @@ type ClosingStepDefinition struct {
 	Order int            `json:"order"`
 	Label string         `json:"label"`
 	// Hint ist der Erklärtext der Oberfläche: was der Schritt tut und warum er
-	// an dieser Stelle steht.
+	// an dieser Stelle steht. Ohne Norm; die steht in Reference.
 	Hint string `json:"hint"`
 	// Automatic sagt, ob der Zustand aus den Daten folgt (AfA-Lauf, Bilanz,
 	// Feststellung) oder ob ihn der Baustein selbst setzt.
 	Automatic bool `json:"automatic"`
+	// Reference nennt die Normen; die Oberfläche zeigt sie nur im Detaildialog.
+	Reference string `json:"reference,omitempty"`
 }
 
 // AllClosingSteps liefert die Bausteine in der Reihenfolge, in der sie
@@ -84,44 +86,47 @@ type ClosingStepDefinition struct {
 func AllClosingSteps() []ClosingStepDefinition {
 	return []ClosingStepDefinition{
 		{ClosingStepDepreciation, 1, "Abschreibungen",
-			"Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.", true},
+			"Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.",
+			true, "§ 253 Abs. 3 HGB, § 7 EStG"},
 		{ClosingStepWriteUp, 2, "Wertaufholung prüfen",
 			"Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist " +
-				"zuzuschreiben — § 253 Abs. 5 Satz 1 HGB macht daraus ein Gebot und kein Wahlrecht.", true},
+				"zuzuschreiben. Das ist ein Gebot und kein Wahlrecht.", true, "§ 253 Abs. 5 Satz 1 HGB"},
 		{ClosingStepCurrencyValuation, 3, "Fremdwährungsbewertung",
-			"Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet (§ 256a HGB). Bei einer " +
-				"Restlaufzeit über einem Jahr wird nur der Verlust erfasst.", true},
+			"Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet. Bei einer Restlaufzeit über " +
+				"einem Jahr wird nur der Verlust erfasst.", true, "§ 256a HGB"},
 		{ClosingStepReceivableAllowance, 4, "Wertberichtigung auf Forderungen",
 			"Forderungen mit Ausfallrisiko werden einzeln, die übrigen pauschal auf den niedrigeren Wert " +
-				"berichtigt (§ 253 Abs. 4 Satz 2 HGB), netto: die Umsatzsteuer folgt erst der " +
-				"Uneinbringlichkeit (§ 17 Abs. 2 Nr. 1 UStG).", false},
+				"berichtigt, netto: die Umsatzsteuer folgt erst der Uneinbringlichkeit.", false,
+			"§ 253 Abs. 4 Satz 2 HGB, § 17 Abs. 2 Nr. 1 UStG"},
 		{ClosingStepWorkInProgress, 5, "Unfertige Leistungen",
-			"Begonnene, am Stichtag nicht abgerechnete Projekte werden zu Herstellungskosten aktiviert " +
-				"(§ 255 Abs. 2 HGB) und im Folgejahr aufgelöst; erhaltene Anzahlungen bleiben unter den " +
-				"Verbindlichkeiten oder werden offen abgesetzt (§ 268 Abs. 5 Satz 2 HGB).", false},
+			"Begonnene, am Stichtag nicht abgerechnete Projekte werden zu Herstellungskosten aktiviert und " +
+				"im Folgejahr aufgelöst; erhaltene Anzahlungen bleiben unter den Verbindlichkeiten oder werden " +
+				"offen abgesetzt.", false, "§ 255 Abs. 2 HGB, § 268 Abs. 5 Satz 2 HGB"},
 		{ClosingStepAccruals, 6, "Rechnungsabgrenzung",
-			"Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).", false},
+			"Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören.", false, "§ 250 HGB"},
 		{ClosingStepProvisions, 7, "Rückstellungen",
-			"Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).", false},
+			"Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist.", false, "§ 249 HGB"},
 		{ClosingStepVatSettlement, 8, "Umsatzsteuer-Verrechnung",
-			"Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.", false},
-		{ClosingStepInputTaxCorrection, 9, "Vorsteuerberichtigung § 15a",
+			"Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.", false, ""},
+		{ClosingStepInputTaxCorrection, 9, "Vorsteuerberichtigung",
 			"Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der " +
-				"Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.", true},
+				"Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.", true, "§ 15a UStG"},
 		{ClosingStepTaxProvision, 10, "Steuerrückstellung",
 			"Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres, " +
 				"abzüglich Vorauszahlungen und anrechenbarer Kapitalertragsteuer; eine Überzahlung ist ein " +
-				"Erstattungsanspruch.", false},
+				"Erstattungsanspruch.", false, "§ 249 Abs. 1 HGB"},
 		{ClosingStepCheckRun, 11, "Prüfbericht",
-			"Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.", true},
+			"Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.", true, "GoBD Rz. 100 ff."},
 		{ClosingStepStatement, 12, "Bilanz und GuV",
-			"Die Gliederung nach §§ 266 und 275 HGB samt Anhang.", true},
+			"Die Gliederung von Bilanz und Gewinn- und Verlustrechnung samt Anhang.", true, "§§ 266, 275 HGB"},
 		{ClosingStepAdoption, 13, "Aufstellen und Feststellen",
-			"Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.", true},
+			"Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.", true,
+			"§ 264 Abs. 1 HGB, § 46 Nr. 1 GmbHG"},
 		{ClosingStepDisclosure, 14, "E-Bilanz und Offenlegung",
-			"Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.", true},
+			"Die Übermittlung der E-Bilanz an das Finanzamt und die Offenlegung im Unternehmensregister.", true,
+			"§ 5b EStG, § 325 HGB"},
 		{ClosingStepAppropriation, 15, "Vortrag und Ergebnisverwendung",
-			"Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.", false},
+			"Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.", false, "§ 29 GmbHG"},
 	}
 }
 

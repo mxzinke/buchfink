@@ -23,10 +23,12 @@ type Overview struct {
 	Submission  *Submission    `json:"uebermittlung,omitempty"`
 }
 
-// KeyFigure ist eine Hauptzahl der Erklärung.
+// KeyFigure ist eine Hauptzahl der Erklärung. Label ist der amtliche Wortlaut
+// der Zeile, Short der kurze Name über der Kennzahl.
 type KeyFigure struct {
 	Key   string `json:"schluessel"`
 	Label string `json:"bezeichnung"`
+	Short string `json:"kurz"`
 	Value Value  `json:"wert"`
 }
 
@@ -50,10 +52,30 @@ type PendingLine struct {
 	Notes  []string       `json:"hinweise,omitempty"`
 }
 
-var resultKeys = map[Kind][]string{
-	KindVatYear:      {"ust.z118.kz816", "ust.z119", "ust.z120.kz820"},
-	KindCorporateTax: {"kst.gk.summe", "kst.zve.zve", "kst.k.kst", "kst.k.solz", "kst.k.ergebnis"},
-	KindTradeTax:     {"gewst.k.ertrag_gerundet", "gewst.k.messbetrag", "gewst.k.steuer", "gewst.k.ergebnis"},
+// resultKey ist eine Hauptzahl der Übersicht. Der amtliche Wortlaut trägt
+// Ausfüllhinweise wie „mit Minuszeichen; bitte in jedem Fall ausfüllen“ und
+// passt nicht über eine Kennzahl.
+type resultKey struct{ key, short string }
+
+var resultKeys = map[Kind][]resultKey{
+	KindVatYear: {
+		{"ust.z118.kz816", "Verbleibende USt"},
+		{"ust.z119", "Vorauszahlungssoll"},
+		{"ust.z120.kz820", "Abschlusszahlung"},
+	},
+	KindCorporateTax: {
+		{"kst.gk.summe", "Einkünfte"},
+		{"kst.zve.zve", "Zu versteuerndes Einkommen"},
+		{"kst.k.kst", "Körperschaftsteuer"},
+		{"kst.k.solz", "Solidaritätszuschlag"},
+		{"kst.k.ergebnis", "Abschlusszahlung"},
+	},
+	KindTradeTax: {
+		{"gewst.k.ertrag_gerundet", "Gewerbeertrag"},
+		{"gewst.k.messbetrag", "Messbetrag"},
+		{"gewst.k.steuer", "Gewerbesteuer"},
+		{"gewst.k.ergebnis", "Abschlusszahlung"},
+	},
 }
 
 // Overview fasst die Erklärung zusammen.
@@ -63,9 +85,9 @@ func (d *Declaration) Overview() Overview {
 		FiguresHash: d.FiguresHash, Submission: d.Submission,
 		Result: []KeyFigure{}, Forms: []FormOverview{}, Pending: []PendingLine{},
 	}
-	for _, key := range resultKeys[d.Kind] {
-		if l, ok := d.Line(key); ok {
-			o.Result = append(o.Result, KeyFigure{Key: key, Label: l.Label, Value: l.Value})
+	for _, r := range resultKeys[d.Kind] {
+		if l, ok := d.Line(r.key); ok {
+			o.Result = append(o.Result, KeyFigure{Key: r.key, Label: l.Label, Short: r.short, Value: l.Value})
 		}
 	}
 	for _, f := range d.Forms {
